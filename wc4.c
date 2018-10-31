@@ -5,7 +5,12 @@
 
 char input[10240];
 int input_size;
-int ip; // input position
+int ip;      // input position
+void *token; // current token
+int instructions[10240];
+int *iptr = instructions;
+
+int DEBUG = 1;
 
 int TOKEN_SIZE               = 8;
 int TOKEN_POS_IDENTIFIER     = 8;
@@ -30,16 +35,28 @@ int TOK_LCURLY         = 14;
 int TOK_PLUS           = 15;
 int TOK_MINUS          = 16;
 int TOK_ASTERISK       = 17;
-int TOK_COMMA          = 18;
-int TOK_SEMI           = 19;
-int TOK_EQ             = 20;
-int TOK_LT             = 21;
-int TOK_GT             = 22;
-int TOK_NOT            = 23;
-int TOK_AND            = 24;
-int TOK_OR             = 25;
-int TOK_DBL_EQ         = 26;
-int TOK_NOT_EQ         = 27;
+int TOK_SLASH          = 18;
+int TOK_COMMA          = 19;
+int TOK_SEMI           = 20;
+int TOK_EQ             = 21;
+int TOK_LT             = 22;
+int TOK_GT             = 23;
+int TOK_NOT            = 24;
+int TOK_AND            = 25;
+int TOK_OR             = 26;
+int TOK_DBL_EQ         = 27;
+int TOK_NOT_EQ         = 28;
+
+int TYPE_INT  = 0;
+int TYPE_CHAR = 1;
+
+int INSTR_IMM = 1;
+int INSTR_ADJ = 2;
+int INSTR_ADD = 3;
+int INSTR_SUB = 4;
+int INSTR_MUL = 5;
+int INSTR_DIV = 6;
+int INSTR_PSH = 7;
 
 void * get_next_token() {
     while (ip < input_size) {
@@ -57,15 +74,16 @@ void * get_next_token() {
         else if (input_size - ip >= 2 && i[ip] == '|' && i[ip+1] == '|') { ip += 2; *((int *) v) = TOK_OR;       }
         else if (input_size - ip >= 2 && i[ip] == '=' && i[ip+1] == '=') { ip += 2; *((int *) v) = TOK_DBL_EQ;   }
         else if (input_size - ip >= 2 && i[ip] == '!' && i[ip+1] == '=') { ip += 2; *((int *) v) = TOK_NOT_EQ;   }
-        else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; *((int *) v) = TOK_RPAREN;   }
-        else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; *((int *) v) = TOK_LPAREN;   }
-        else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; *((int *) v) = TOK_RBRACKET; }
-        else if (input_size - ip >= 1 && i[ip] == ']'                  ) { ip += 1; *((int *) v) = TOK_LBRACKET; }
-        else if (input_size - ip >= 1 && i[ip] == '{'                  ) { ip += 1; *((int *) v) = TOK_RCURLY;   }
-        else if (input_size - ip >= 1 && i[ip] == '}'                  ) { ip += 1; *((int *) v) = TOK_LCURLY;   }
+        else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; *((int *) v) = TOK_LPAREN;   }
+        else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; *((int *) v) = TOK_RPAREN;   }
+        else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; *((int *) v) = TOK_LBRACKET; }
+        else if (input_size - ip >= 1 && i[ip] == ']'                  ) { ip += 1; *((int *) v) = TOK_RBRACKET; }
+        else if (input_size - ip >= 1 && i[ip] == '{'                  ) { ip += 1; *((int *) v) = TOK_LCURLY;   }
+        else if (input_size - ip >= 1 && i[ip] == '}'                  ) { ip += 1; *((int *) v) = TOK_RCURLY;   }
         else if (input_size - ip >= 1 && i[ip] == '+'                  ) { ip += 1; *((int *) v) = TOK_PLUS;     }
         else if (input_size - ip >= 1 && i[ip] == '-'                  ) { ip += 1; *((int *) v) = TOK_MINUS;    }
         else if (input_size - ip >= 1 && i[ip] == '*'                  ) { ip += 1; *((int *) v) = TOK_ASTERISK; }
+        else if (input_size - ip >= 1 && i[ip] == '/'                  ) { ip += 1; *((int *) v) = TOK_SLASH;    }
         else if (input_size - ip >= 1 && i[ip] == ','                  ) { ip += 1; *((int *) v) = TOK_COMMA;    }
         else if (input_size - ip >= 1 && i[ip] == ';'                  ) { ip += 1; *((int *) v) = TOK_SEMI;     }
         else if (input_size - ip >= 1 && i[ip] == '='                  ) { ip += 1; *((int *) v) = TOK_EQ;       }
@@ -148,6 +166,79 @@ void * get_next_token() {
     return token;
 }
 
+void expect(int type) {
+    if ((*((int *) token) != type))  {
+        printf("Expected token %d got %d\n", type, *((int *) token));
+        exit(1);
+    }
+}
+
+void visit_expr();
+
+void visit_factor() {
+    if (*((int *) token) == TOK_LPAREN) {
+        token = get_next_token();
+        visit_expr();
+        expect(TOK_RPAREN);
+        token = get_next_token();
+        return;
+    }
+    else {
+        expect(TOK_INTEGER);
+        *iptr++ = INSTR_IMM;
+        *iptr++ = *((int *) (token + TOKEN_POS_INTEGER));
+        token = get_next_token();
+    }
+}
+
+void visit_term_tail() {
+    if (*((int *) token) == TOK_ASTERISK) {
+        token = get_next_token();
+        *iptr++ = INSTR_PSH;
+        visit_factor();
+        *iptr++ = INSTR_MUL;
+        visit_term_tail();
+    }
+    else if (*((int *) token) == TOK_SLASH) {
+        token = get_next_token();
+        *iptr++ = INSTR_PSH;
+        visit_factor();
+        *iptr++ = INSTR_DIV;
+        visit_term_tail();
+    }
+    else
+        return;
+}
+
+void visit_term() {
+    visit_factor();
+    visit_term_tail();
+}
+
+void visit_expr_tail() {
+    if (*((int *) token) == TOK_PLUS) {
+        token = get_next_token();
+        *iptr++ = INSTR_PSH;
+        visit_term();
+        *iptr++ = INSTR_ADD;
+        visit_expr_tail();
+    }
+    else if (*((int *) token) == TOK_MINUS) {
+        token = get_next_token();
+        *iptr++ = INSTR_PSH;
+        visit_term();
+        *iptr++ = INSTR_SUB;
+        visit_expr_tail();
+    }
+    else
+        return;
+}
+
+void visit_expr() {
+    visit_term();
+    visit_expr_tail();
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         printf("Usage: wc4 INPUT-FILE\n");
@@ -162,10 +253,36 @@ int main(int argc, char **argv) {
     if (input_size < 0) { printf("Unable to read input file\n"); exit(1); }
     close(f);
 
-    ip = 0;
+    token = get_next_token();
+    visit_expr();
 
-    void *token = 0;
-    while (!token || (token && *((int *) token) != TOK_EOF)) token = get_next_token();
+    int a;
+    iptr = instructions;
+    int *stack = malloc(10240);
+    int *stack_ptr = stack + 10240 - 1;
 
+    while (*iptr) {
+        int instr = *iptr++;
+
+        if (DEBUG) {
+            printf("a = %-10d ", a);
+            printf("%.4s", &"IMM ADJ ADD SUB MUL DIV PSH"[instr * 4 - 4]);
+            if (instr <= INSTR_ADJ) printf(" %d", *iptr);
+            printf("\n");
+        }
+
+             if (instr == INSTR_IMM) a = *iptr++;
+        else if (instr == INSTR_PSH) *--stack_ptr = a;
+        else if (instr == INSTR_ADD) a = *stack_ptr++ + a;
+        else if (instr == INSTR_SUB) a = *stack_ptr++ - a;
+        else if (instr == INSTR_MUL) a = *stack_ptr++ * a;
+        else if (instr == INSTR_DIV) a = *stack_ptr++ / a;
+        else {
+            printf("WTF instruction %d\n", instr);
+            exit(1);
+        }
+    }
+
+    printf("Result: %d\n", a);
     exit(0);
 }
