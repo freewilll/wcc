@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 
 char input[10240];
 int input_size;
@@ -64,16 +65,14 @@ void * get_next_token() {
         void *v = token;
 
         char *i = input;
-             if (input_size - ip >= 2 && i[ip] == 'i' && i[ip+1] == 'f'                                                      ) { ip += 2; *((int *) v) = TOK_IF;       }
-        else if (input_size - ip >= 3 && i[ip] == 'i' && i[ip+1] == 'n' && i[ip+2] == 't'                                    ) { ip += 3; *((int *) v) = TOK_INT;      }
-        else if (input_size - ip >= 4 && i[ip] == 'c' && i[ip+1] == 'h' && i[ip+2] == 'a' && i[ip+3] == 'r'                  ) { ip += 4; *((int *) v) = TOK_CHAR;     }
-        else if (input_size - ip >= 4 && i[ip] == 'v' && i[ip+1] == 'o' && i[ip+2] == 'i' && i[ip+3] == 'd'                  ) { ip += 4; *((int *) v) = TOK_VOID;     }
-        else if (input_size - ip >= 5 && i[ip] == 'w' && i[ip+1] == 'h' && i[ip+2] == 'i' && i[ip+3] == 'l' && i[ip+3] == 'e') { ip += 5; *((int *) v) = TOK_WHILE;    }
-
-        else if (input_size - ip >= 2 && i[ip] == '&' && i[ip+1] == '&') { ip += 2; *((int *) v) = TOK_AND;      }
-        else if (input_size - ip >= 2 && i[ip] == '|' && i[ip+1] == '|') { ip += 2; *((int *) v) = TOK_OR;       }
-        else if (input_size - ip >= 2 && i[ip] == '=' && i[ip+1] == '=') { ip += 2; *((int *) v) = TOK_DBL_EQ;   }
-        else if (input_size - ip >= 2 && i[ip] == '!' && i[ip+1] == '=') { ip += 2; *((int *) v) = TOK_NOT_EQ;   }
+             if (input_size - ip >= 2 && !memcmp(i+ip, "if",    2)     ) { ip += 2; *((int *) v) = TOK_IF;       }
+        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",   3)     ) { ip += 2; *((int *) v) = TOK_INT;      }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "int",   4)     ) { ip += 2; *((int *) v) = TOK_CHAR;     }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "while", 5)     ) { ip += 2; *((int *) v) = TOK_WHILE;    }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",    2)     ) { ip += 2; *((int *) v) = TOK_AND;      }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "||",    2)     ) { ip += 2; *((int *) v) = TOK_OR;       }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "==",    2)     ) { ip += 2; *((int *) v) = TOK_DBL_EQ;   }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "!=",    2)     ) { ip += 2; *((int *) v) = TOK_NOT_EQ;   }
         else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; *((int *) v) = TOK_LPAREN;   }
         else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; *((int *) v) = TOK_RPAREN;   }
         else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; *((int *) v) = TOK_LBRACKET; }
@@ -90,12 +89,12 @@ void * get_next_token() {
         else if (input_size - ip >= 1 && i[ip] == '<'                  ) { ip += 1; *((int *) v) = TOK_LT;       }
         else if (input_size - ip >= 1 && i[ip] == '>'                  ) { ip += 1; *((int *) v) = TOK_GT;       }
         else if (input_size - ip >= 1 && i[ip] == '!'                  ) { ip += 1; *((int *) v) = TOK_NOT;      }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'", 4)     ) { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\t'; }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'", 4)     ) { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\n'; }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''", 4)     ) { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\''; }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4)    ) { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\"'; }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4)    ) { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\\'; }
 
-        else if (input_size - ip >= 4 && i[ip] == '\'' && i[ip+1] == '\\' && i[ip+2] == 't'  && i[ip+3] == '\'') { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\t'; }
-        else if (input_size - ip >= 4 && i[ip] == '\'' && i[ip+1] == '\\' && i[ip+2] == 'n'  && i[ip+3] == '\'') { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\n'; }
-        else if (input_size - ip >= 4 && i[ip] == '\'' && i[ip+1] == '\\' && i[ip+2] == '\'' && i[ip+3] == '\'') { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\''; }
-        else if (input_size - ip >= 4 && i[ip] == '\'' && i[ip+1] == '\\' && i[ip+2] == '\"' && i[ip+3] == '\'') { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\"'; }
-        else if (input_size - ip >= 4 && i[ip] == '\'' && i[ip+1] == '\\' && i[ip+2] == '\\' && i[ip+3] == '\'') { ip += 4; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = '\\'; }
         else if (input_size - ip >= 3 && i[ip] == '\'' && i[ip+2] == '\'') { ip += 3; *((int *) v) = TOK_INTEGER; *((int *) (token + TOKEN_POS_INTEGER)) = i[ip+1]; }
 
         else if (i[ip] == ' ' || i[ip] == '\t' || i[ip] == '\n') { ip++; continue; }
