@@ -16,12 +16,14 @@ int cur_integer;
 char *cur_string_literal;
 
 long int *symbols;
+long int *cur_symbol;
 
 int SYMBOL_TYPE;
 int SYMBOL_IDENTIFIER;
 int SYMBOL_SCOPE;
 int SYMBOL_VALUE;
 int SYMBOL_SIZE;
+int SYMBOL_STACK_INDEX;
 
 // In order of precedence
 enum {
@@ -60,7 +62,7 @@ enum {
     TOK_LOGICAL_NOT,
 };
 
-enum { TYPE_INT=1, TYPE_CHAR, TYPE_PTR_TO_INT, TYPE_PTR_TO_CHAR };
+enum { TYPE_INT=1, TYPE_CHAR, TYPE_PTR_TO_INT, TYPE_PTR_TO_CHAR, TYPE_FUNCTION, TYPE_ENUM };
 
 enum {
     INSTR_IMM=1,
@@ -324,34 +326,58 @@ void expression(int level) {
 
 void globals() {
     long int *globals = symbols;
+    int current_scope = 0;
+
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)  {
             next();
             continue;
         }
 
-
         if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-            int type;
-            type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
+            int type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
             next();
-            if (cur_token == TOK_MULTIPLY) {
-                type += 2;
-                next();
-            }
+            if (cur_token == TOK_MULTIPLY) { type += 2; next(); }
 
             expect(TOK_IDENTIFIER);
+            cur_symbol = globals;
             globals[SYMBOL_TYPE] = type;
             globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
             globals[SYMBOL_SCOPE] = 0;
             globals += SYMBOL_SIZE;
             next();
+
+            if (cur_token == TOK_LPAREN) {
+                current_scope++;
+                next();
+                // Function definition
+                cur_symbol[SYMBOL_TYPE] = TYPE_FUNCTION;
+                int param_count = 0;
+                while (cur_token != TOK_RPAREN) {
+                    int type;
+                    if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+                        type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
+                        next();
+                        if (cur_token == TOK_MULTIPLY) { type += 2; next(); }
+                    }
+                    else { printf("Unknown type in function def %d\n", cur_token); exit(1); }
+
+                    consume(TOK_IDENTIFIER);
+                    globals[SYMBOL_TYPE] = type;
+                    globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+                    globals[SYMBOL_SCOPE] = current_scope;
+                    globals[SYMBOL_STACK_INDEX] = param_count++;
+                    globals += SYMBOL_SIZE;
+                    if (cur_token == TOK_COMMA) next();
+                }
+                consume(TOK_RPAREN);
+            }
         }
 
         else if (cur_token == TOK_ENUM) {
             consume(TOK_ENUM);
             consume(TOK_LCURLY);
-            int number = 0;
+            long int number = 0;
             while (cur_token != TOK_RCURLY) {
                 expect(TOK_IDENTIFIER);
                 next();
@@ -362,11 +388,10 @@ void globals() {
                     next();
                 }
 
-                globals[SYMBOL_TYPE] = TYPE_INT;
+                globals[SYMBOL_TYPE] = TYPE_ENUM;
                 globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
                 globals[SYMBOL_SCOPE] = 0;
                 globals[SYMBOL_VALUE] = number++;
-
                 globals += SYMBOL_SIZE;
 
                 if (cur_token == TOK_COMMA) next();
@@ -378,18 +403,20 @@ void globals() {
             printf("Expected int or char\n");
             exit(1);
         }
+        consume(TOK_SEMI);
     }
 
     printf("Globals:\n");
     long int *s = symbols;
     while (s[0]) {
-        int type = s[SYMBOL_TYPE];
+        long int type = s[SYMBOL_TYPE];
         char *identifier = (char *) s[SYMBOL_IDENTIFIER];
-        int scope = s[SYMBOL_SCOPE];
-        printf("%d %s\n", type, identifier);
+        long int scope = s[SYMBOL_SCOPE];
+        long int stack_index = s[SYMBOL_STACK_INDEX];
+        long int value = s[SYMBOL_VALUE];
+        printf("%ld %ld %ld %ld %s\n", type, scope, stack_index, value, identifier);
         s += SYMBOL_SIZE;
     }
-
 }
 
 void run() {
@@ -462,10 +489,11 @@ int main(int argc, char **argv) {
     memset(symbols, 0, 10240);
 
     SYMBOL_TYPE = 0;
-    SYMBOL_IDENTIFIER = 8;
-    SYMBOL_SCOPE = 16;
-    SYMBOL_VALUE = 24;
-    SYMBOL_SIZE = 32;
+    SYMBOL_IDENTIFIER = 1;
+    SYMBOL_SCOPE = 2;
+    SYMBOL_VALUE = 3;
+    SYMBOL_STACK_INDEX = 4;
+    SYMBOL_SIZE = 5; // Number of long ints
 
     iptr = instructions;
     int f;
