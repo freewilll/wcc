@@ -20,11 +20,12 @@ long int *symbols;
 int SYMBOL_TYPE;
 int SYMBOL_IDENTIFIER;
 int SYMBOL_SCOPE;
+int SYMBOL_VALUE;
 int SYMBOL_SIZE;
 
 // In order of precedence
 enum {
-    TOK_EOF,
+    TOK_EOF=1,
     TOK_IDENTIFIER,
     TOK_NUMBER,
     TOK_STRING_LITERAL,
@@ -33,6 +34,7 @@ enum {
     TOK_CHAR,
     TOK_VOID,
     TOK_WHILE,
+    TOK_ENUM,
     TOK_RPAREN,
     TOK_LPAREN,
     TOK_RBRACKET,
@@ -83,10 +85,19 @@ void next() {
     while (ip < input_size) {
         char *i;
         i = input;
-             if (input_size - ip >= 2 && !memcmp(i+ip, "if",    2)     ) { ip += 2; cur_token = TOK_IF;                         }
+
+        if (input_size - ip >= 2 && (i[ip] == '/' && i[ip + 1] == '/')) {
+            ip += 2;
+            while (i[ip++] != '\n');
+            continue;
+        }
+
+
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "if",    2)     ) { ip += 2; cur_token = TOK_IF;                         }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "int",   3)     ) { ip += 3; cur_token = TOK_INT;                        }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "char",  4)     ) { ip += 4; cur_token = TOK_CHAR;                       }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "while", 5)     ) { ip += 5; cur_token = TOK_WHILE;                      }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "enum", 4)      ) { ip += 4; cur_token = TOK_ENUM;                       }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",    2)     ) { ip += 2; cur_token = TOK_AND;                        }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "||",    2)     ) { ip += 2; cur_token = TOK_OR;                         }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "==",    2)     ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
@@ -136,12 +147,6 @@ void next() {
             cur_integer = value;
         }
 
-        else if (input_size - ip >= 2 && (i[ip] == '/' && i[ip + 1] <= '/')) {
-            ip += 2;
-            while (i[ip++] != '\n');
-            continue;
-        }
-
         else if (input_size - ip >= 1 && i[ip] == '#') {
             // Ignore CPP directives
             while (i[ip++] != '\n');
@@ -182,6 +187,18 @@ void next() {
     }
 
     cur_token = TOK_EOF;
+}
+
+void expect(int token) {
+    if (cur_token != token) {
+        printf("Expected token %d, got %d\n", token, cur_token);
+        exit(1);
+    }
+}
+
+void consume(int token) {
+    expect(token);
+    next();
 }
 
 void expression(int level) {
@@ -304,6 +321,7 @@ void expression(int level) {
     }
 }
 
+
 void globals() {
     long int *globals = symbols;
     while (cur_token != TOK_EOF) {
@@ -312,28 +330,66 @@ void globals() {
             continue;
         }
 
-        int type;
 
         if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+            int type;
             type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
             next();
             if (cur_token == TOK_MULTIPLY) {
                 type += 2;
                 next();
             }
+
+            expect(TOK_IDENTIFIER);
+            globals[SYMBOL_TYPE] = type;
+            globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+            globals[SYMBOL_SCOPE] = 0;
+            globals += SYMBOL_SIZE;
+            next();
         }
+
+        else if (cur_token == TOK_ENUM) {
+            consume(TOK_ENUM);
+            consume(TOK_LCURLY);
+            int number = 0;
+            while (cur_token != TOK_RCURLY) {
+                expect(TOK_IDENTIFIER);
+                next();
+                if (cur_token == TOK_EQ) {
+                    next();
+                    expect(TOK_NUMBER);
+                    number = cur_integer;
+                    next();
+                }
+
+                globals[SYMBOL_TYPE] = TYPE_INT;
+                globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+                globals[SYMBOL_SCOPE] = 0;
+                globals[SYMBOL_VALUE] = number++;
+
+                globals += SYMBOL_SIZE;
+
+                if (cur_token == TOK_COMMA) next();
+            }
+            consume(TOK_RCURLY);
+        }
+
         else {
             printf("Expected int or char\n");
             exit(1);
         }
-
-        if (cur_token != TOK_IDENTIFIER) { printf("Expected identifier, got %d\n", cur_token); exit(1); }
-        next();
-        globals[SYMBOL_TYPE] = type;
-        globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
-        globals[SYMBOL_SCOPE] = 0;
-        globals += SYMBOL_SIZE;
     }
+
+    printf("Globals:\n");
+    long int *s = symbols;
+    while (s[0]) {
+        int type = s[SYMBOL_TYPE];
+        char *identifier = (char *) s[SYMBOL_IDENTIFIER];
+        int scope = s[SYMBOL_SCOPE];
+        printf("%d %s\n", type, identifier);
+        s += SYMBOL_SIZE;
+    }
+
 }
 
 void run() {
@@ -408,7 +464,8 @@ int main(int argc, char **argv) {
     SYMBOL_TYPE = 0;
     SYMBOL_IDENTIFIER = 8;
     SYMBOL_SCOPE = 16;
-    SYMBOL_SIZE = 24;
+    SYMBOL_VALUE = 24;
+    SYMBOL_SIZE = 32;
 
     iptr = instructions;
     int f;
