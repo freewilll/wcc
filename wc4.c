@@ -41,12 +41,14 @@ int TOK_DBL_EQ         = 20;
 int TOK_NOT_EQ         = 21;
 int TOK_LT             = 22;
 int TOK_GT             = 23;
-int TOK_PLUS           = 24;
-int TOK_MINUS          = 25;
-int TOK_MULTIPLY       = 26;
-int TOK_DIVIDE         = 27;
-int TOK_MOD            = 28;
-int TOK_LOGICAL_NOT    = 29;
+int TOK_LE             = 24;
+int TOK_GE             = 25;
+int TOK_PLUS           = 26;
+int TOK_MINUS          = 27;
+int TOK_MULTIPLY       = 28;
+int TOK_DIVIDE         = 29;
+int TOK_MOD            = 30;
+int TOK_LOGICAL_NOT    = 31;
 
 int TYPE_INT  = 0;
 int TYPE_CHAR = 1;
@@ -55,12 +57,16 @@ int INSTR_IMM = 1;
 int INSTR_ADJ = 2;
 int INSTR_EQ  = 3;
 int INSTR_NE  = 4;
-int INSTR_ADD = 5;
-int INSTR_SUB = 6;
-int INSTR_MUL = 7;
-int INSTR_DIV = 8;
-int INSTR_MOD = 9;
-int INSTR_PSH = 10;
+int INSTR_LT  = 5;
+int INSTR_GT  = 6;
+int INSTR_LE  = 7;
+int INSTR_GE  = 8;
+int INSTR_ADD = 9;
+int INSTR_SUB = 10;
+int INSTR_MUL = 11;
+int INSTR_DIV = 12;
+int INSTR_MOD = 13;
+int INSTR_PSH = 14;
 
 void next() {
     while (ip < input_size) {
@@ -73,6 +79,8 @@ void next() {
         else if (input_size - ip >= 2 && !memcmp(i+ip, "||",    2)     ) { ip += 2; cur_token = TOK_OR;                         }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "==",    2)     ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "!=",    2)     ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "<=",    2)     ) { ip += 2; cur_token = TOK_LE;                         }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, ">=",    2)     ) { ip += 2; cur_token = TOK_GE;                         }
         else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; cur_token = TOK_LPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; cur_token = TOK_RPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; cur_token = TOK_LBRACKET;                   }
@@ -233,6 +241,31 @@ void expression(int level) {
             expression(TOK_MULTIPLY);
             *iptr++ = INSTR_SUB;
         }
+
+        else if (cur_token == TOK_LT) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_MULTIPLY);
+            *iptr++ = INSTR_LT;
+        }
+        else if (cur_token == TOK_GT) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_MULTIPLY);
+            *iptr++ = INSTR_GT;
+        }
+        else if (cur_token == TOK_LE) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_MULTIPLY);
+            *iptr++ = INSTR_LE;
+        }
+        else if (cur_token == TOK_GE) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_MULTIPLY);
+            *iptr++ = INSTR_GE;
+        }
         else if (cur_token == TOK_DBL_EQ) {
             next();
             *iptr++ = INSTR_PSH;
@@ -284,6 +317,10 @@ int main(int argc, char **argv) {
         else if (instr == INSTR_PSH) *--stack_ptr = a;
         else if (instr == INSTR_EQ ) a = *stack_ptr++ == a;
         else if (instr == INSTR_NE ) a = *stack_ptr++ != a;
+        else if (instr == INSTR_LT ) a = *stack_ptr++ < a;
+        else if (instr == INSTR_GT ) a = *stack_ptr++ > a;
+        else if (instr == INSTR_LE ) a = *stack_ptr++ <= a;
+        else if (instr == INSTR_GE ) a = *stack_ptr++ >= a;
         else if (instr == INSTR_ADD) a = *stack_ptr++ + a;
         else if (instr == INSTR_SUB) a = *stack_ptr++ - a;
         else if (instr == INSTR_MUL) a = *stack_ptr++ * a;

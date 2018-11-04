@@ -43,6 +43,14 @@ import re
     ("!0",              1),
     ("!1",              0),
     ("!2",              0),
+    ("0<1",             1),
+    ("0<=1",            1),
+    ("0>1",             0),
+    ("0>=1",            0),
+    ("1<1",             0),
+    ("1<=1",            1),
+    ("1>1",             0),
+    ("1>=1",            1),
 ])
 def test_expr(expr, expected_result):
     with tempfile.NamedTemporaryFile() as temp:
