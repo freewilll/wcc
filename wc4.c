@@ -53,12 +53,14 @@ int TYPE_CHAR = 1;
 
 int INSTR_IMM = 1;
 int INSTR_ADJ = 2;
-int INSTR_ADD = 3;
-int INSTR_SUB = 4;
-int INSTR_MUL = 5;
-int INSTR_DIV = 6;
-int INSTR_MOD = 7;
-int INSTR_PSH = 8;
+int INSTR_EQ  = 3;
+int INSTR_NE  = 4;
+int INSTR_ADD = 5;
+int INSTR_SUB = 6;
+int INSTR_MUL = 7;
+int INSTR_DIV = 8;
+int INSTR_MOD = 9;
+int INSTR_PSH = 10;
 
 void next() {
     while (ip < input_size) {
@@ -163,7 +165,16 @@ void next() {
 }
 
 void expression(int level) {
-    if (cur_token == TOK_MINUS) {
+    if (cur_token == TOK_LOGICAL_NOT) {
+        next();
+
+        *iptr++ = INSTR_IMM;
+        *iptr++ = 0;
+        *iptr++ = INSTR_PSH;
+        expression(1024); // Fake highest precedence, bind nothing
+        *iptr++ = INSTR_EQ;
+    }
+    else if (cur_token == TOK_MINUS) {
         next();
 
         if (cur_token == TOK_NUMBER) {
@@ -181,7 +192,7 @@ void expression(int level) {
     }
     else if (cur_token == TOK_LPAREN) {
         next();
-        expression(TOK_PLUS);
+        expression(TOK_COMMA);
         next();
     }
     else {
@@ -191,19 +202,8 @@ void expression(int level) {
     }
 
     while (cur_token >= level) {
-        if (cur_token == TOK_PLUS) {
-            next();
-            *iptr++ = INSTR_PSH;
-            expression(TOK_MULTIPLY);
-            *iptr++ = INSTR_ADD;
-        }
-        else if (cur_token == TOK_MINUS) {
-            next();
-            *iptr++ = INSTR_PSH;
-            expression(TOK_MULTIPLY);
-            *iptr++ = INSTR_SUB;
-        }
-        else if (cur_token == TOK_MULTIPLY) {
+        // In order or precedence
+        if (cur_token == TOK_MULTIPLY) {
             next();
             *iptr++ = INSTR_PSH;
             expression(TOK_LOGICAL_NOT);
@@ -220,6 +220,30 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_LOGICAL_NOT);
             *iptr++ = INSTR_MOD;
+        }
+        else if (cur_token == TOK_PLUS) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_MULTIPLY);
+            *iptr++ = INSTR_ADD;
+        }
+        else if (cur_token == TOK_MINUS) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_MULTIPLY);
+            *iptr++ = INSTR_SUB;
+        }
+        else if (cur_token == TOK_DBL_EQ) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_LT);
+            *iptr++ = INSTR_EQ;
+        }
+        else if (cur_token == TOK_NOT_EQ) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_LT);
+            *iptr++ = INSTR_NE;
         }
     }
 }
@@ -239,7 +263,7 @@ int main(int argc, char **argv) {
     close(f);
 
     next();
-    expression(TOK_PLUS);
+    expression(TOK_COMMA);
 
     int a;
     iptr = instructions;
@@ -258,6 +282,8 @@ int main(int argc, char **argv) {
 
              if (instr == INSTR_IMM) a = *iptr++;
         else if (instr == INSTR_PSH) *--stack_ptr = a;
+        else if (instr == INSTR_EQ ) a = *stack_ptr++ == a;
+        else if (instr == INSTR_NE ) a = *stack_ptr++ != a;
         else if (instr == INSTR_ADD) a = *stack_ptr++ + a;
         else if (instr == INSTR_SUB) a = *stack_ptr++ - a;
         else if (instr == INSTR_MUL) a = *stack_ptr++ * a;
