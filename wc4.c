@@ -10,8 +10,6 @@ int ip;      // input position
 int instructions[10240];
 int *iptr = instructions;
 
-int DEBUG = 1;
-
 int cur_token;
 char *cur_identifier;
 int cur_integer;
@@ -311,37 +309,40 @@ int main(int argc, char **argv) {
     next();
     expression(TOK_COMMA);
 
-    int a;
-    iptr = instructions;
     int *stack = malloc(10240);
-    int *stack_ptr = stack + 10240 - 1;
 
-    while (*iptr) {
-        int instr = *iptr++;
+    int a;
+    int *pc = instructions;         // program counter
+    int *sp = stack + 10240 - 1;    // stack pointer
+
+    int DEBUG = 1;
+
+    while (*pc) {
+        int instr = *pc++;
 
         if (DEBUG) {
             printf("a = %-10d ", a);
             printf("%.4s", &"IMM ADJ ADD SUB MUL DIV PSH"[instr * 4 - 4]);
-            if (instr <= INSTR_ADJ) printf(" %d", *iptr);
+            if (instr <= INSTR_ADJ) printf(" %d", *pc);
             printf("\n");
         }
 
-             if (instr == INSTR_IMM) a = *iptr++;
-        else if (instr == INSTR_PSH) *--stack_ptr = a;
+             if (instr == INSTR_IMM) a = *pc++;
+        else if (instr == INSTR_PSH) *--sp = a;
 
-        else if (instr == INSTR_OR ) a = *stack_ptr++ || a;
-        else if (instr == INSTR_AND) a = *stack_ptr++ && a;
-        else if (instr == INSTR_EQ ) a = *stack_ptr++ == a;
-        else if (instr == INSTR_NE ) a = *stack_ptr++ != a;
-        else if (instr == INSTR_LT ) a = *stack_ptr++ < a;
-        else if (instr == INSTR_GT ) a = *stack_ptr++ > a;
-        else if (instr == INSTR_LE ) a = *stack_ptr++ <= a;
-        else if (instr == INSTR_GE ) a = *stack_ptr++ >= a;
-        else if (instr == INSTR_ADD) a = *stack_ptr++ + a;
-        else if (instr == INSTR_SUB) a = *stack_ptr++ - a;
-        else if (instr == INSTR_MUL) a = *stack_ptr++ * a;
-        else if (instr == INSTR_DIV) a = *stack_ptr++ / a;
-        else if (instr == INSTR_MOD) a = *stack_ptr++ % a;
+        else if (instr == INSTR_OR ) a = *sp++ || a;
+        else if (instr == INSTR_AND) a = *sp++ && a;
+        else if (instr == INSTR_EQ ) a = *sp++ == a;
+        else if (instr == INSTR_NE ) a = *sp++ != a;
+        else if (instr == INSTR_LT ) a = *sp++ < a;
+        else if (instr == INSTR_GT ) a = *sp++ > a;
+        else if (instr == INSTR_LE ) a = *sp++ <= a;
+        else if (instr == INSTR_GE ) a = *sp++ >= a;
+        else if (instr == INSTR_ADD) a = *sp++ + a;
+        else if (instr == INSTR_SUB) a = *sp++ - a;
+        else if (instr == INSTR_MUL) a = *sp++ * a;
+        else if (instr == INSTR_DIV) a = *sp++ / a;
+        else if (instr == INSTR_MOD) a = *sp++ % a;
         else {
             printf("WTF instruction %d\n", instr);
             exit(1);
