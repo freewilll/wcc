@@ -15,6 +15,13 @@ char *cur_identifier;
 int cur_integer;
 char *cur_string_literal;
 
+long int *symbols;
+
+int SYMBOL_TYPE;
+int SYMBOL_IDENTIFIER;
+int SYMBOL_SCOPE;
+int SYMBOL_SIZE;
+
 // In order of precedence
 enum {
     TOK_EOF,
@@ -51,7 +58,7 @@ enum {
     TOK_LOGICAL_NOT,
 };
 
-enum { TYPE_INT, TYPE_CHAR };
+enum { TYPE_INT=1, TYPE_CHAR, TYPE_PTR_TO_INT, TYPE_PTR_TO_CHAR };
 
 enum {
     INSTR_IMM=1,
@@ -77,9 +84,9 @@ void next() {
         char *i;
         i = input;
              if (input_size - ip >= 2 && !memcmp(i+ip, "if",    2)     ) { ip += 2; cur_token = TOK_IF;                         }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",   3)     ) { ip += 2; cur_token = TOK_INT;                        }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "int",   4)     ) { ip += 2; cur_token = TOK_CHAR;                       }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "while", 5)     ) { ip += 2; cur_token = TOK_WHILE;                      }
+        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",   3)     ) { ip += 3; cur_token = TOK_INT;                        }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "char",  4)     ) { ip += 4; cur_token = TOK_CHAR;                       }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "while", 5)     ) { ip += 5; cur_token = TOK_WHILE;                      }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",    2)     ) { ip += 2; cur_token = TOK_AND;                        }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "||",    2)     ) { ip += 2; cur_token = TOK_OR;                         }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "==",    2)     ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
@@ -297,28 +304,39 @@ void expression(int level) {
     }
 }
 
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        printf("Usage: wc4 INPUT-FILE\n");
-        exit(1);
+void globals() {
+    long int *globals = symbols;
+    while (cur_token != TOK_EOF) {
+        if (cur_token == TOK_SEMI)  {
+            next();
+            continue;
+        }
+
+        int type;
+
+        if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+            type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
+            next();
+            if (cur_token == TOK_MULTIPLY) {
+                type += 2;
+                next();
+            }
+        }
+        else {
+            printf("Expected int or char\n");
+            exit(1);
+        }
+
+        if (cur_token != TOK_IDENTIFIER) { printf("Expected identifier, got %d\n", cur_token); exit(1); }
+        next();
+        globals[SYMBOL_TYPE] = type;
+        globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+        globals[SYMBOL_SCOPE] = 0;
+        globals += SYMBOL_SIZE;
     }
+}
 
-    input = malloc(10240);
-    instructions = malloc(10240);
-    iptr = instructions;
-    char *filename ;
-    filename = argv[1];
-    int f;
-    f  = open(filename, 0); // O_RDONLY = 0
-    if (f < 0) { printf("Unable to open input file\n"); exit(1); }
-    input_size = read(f, input, 10240);
-    input[input_size] = 0;
-    if (input_size < 0) { printf("Unable to read input file\n"); exit(1); }
-    close(f);
-
-    next();
-    expression(TOK_COMMA);
-
+void run() {
     int *stack = malloc(10240);
 
     int a;
@@ -363,5 +381,52 @@ int main(int argc, char **argv) {
     }
 
     printf("Result: %d\n", a);
+}
+
+int main(int argc, char **argv) {
+    char *filename;
+
+    int i;
+    int eval_expression;
+    i = 1;
+    while (i < argc) {
+        if (!memcmp(argv[i], "-e", 2)) eval_expression = 1;
+        else filename = argv[i];
+        i++;
+    }
+
+    if (!filename) {
+        printf("Usage: wc4 INPUT-FILE\n");
+        exit(1);
+    }
+
+    input = malloc(10240);
+    instructions = malloc(10240);
+    symbols = malloc(1024);
+    memset(symbols, 0, 10240);
+
+    SYMBOL_TYPE = 0;
+    SYMBOL_IDENTIFIER = 8;
+    SYMBOL_SCOPE = 16;
+    SYMBOL_SIZE = 24;
+
+    iptr = instructions;
+    int f;
+    f  = open(filename, 0); // O_RDONLY = 0
+    if (f < 0) { printf("Unable to open input file\n"); exit(1); }
+    input_size = read(f, input, 10240);
+    input[input_size] = 0;
+    if (input_size < 0) { printf("Unable to read input file\n"); exit(1); }
+    close(f);
+
+    next();
+    if (eval_expression) {
+        expression(TOK_COMMA);
+        run();
+    }
+
+    else
+        globals();
+
     exit(0);
 }
