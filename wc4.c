@@ -55,18 +55,20 @@ int TYPE_CHAR = 1;
 
 int INSTR_IMM = 1;
 int INSTR_ADJ = 2;
-int INSTR_EQ  = 3;
-int INSTR_NE  = 4;
-int INSTR_LT  = 5;
-int INSTR_GT  = 6;
-int INSTR_LE  = 7;
-int INSTR_GE  = 8;
-int INSTR_ADD = 9;
-int INSTR_SUB = 10;
-int INSTR_MUL = 11;
-int INSTR_DIV = 12;
-int INSTR_MOD = 13;
-int INSTR_PSH = 14;
+int INSTR_OR  = 3;
+int INSTR_AND = 4;
+int INSTR_EQ  = 5;
+int INSTR_NE  = 6;
+int INSTR_LT  = 7;
+int INSTR_GT  = 8;
+int INSTR_LE  = 9;
+int INSTR_GE  = 10;
+int INSTR_ADD = 11;
+int INSTR_SUB = 12;
+int INSTR_MUL = 13;
+int INSTR_DIV = 14;
+int INSTR_MOD = 15;
+int INSTR_PSH = 16;
 
 void next() {
     while (ip < input_size) {
@@ -278,6 +280,18 @@ void expression(int level) {
             expression(TOK_LT);
             *iptr++ = INSTR_NE;
         }
+        else if (cur_token == TOK_AND) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_DBL_EQ);
+            *iptr++ = INSTR_AND;
+        }
+        else if (cur_token == TOK_OR) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_AND);
+            *iptr++ = INSTR_OR;
+        }
     }
 }
 
@@ -315,6 +329,9 @@ int main(int argc, char **argv) {
 
              if (instr == INSTR_IMM) a = *iptr++;
         else if (instr == INSTR_PSH) *--stack_ptr = a;
+
+        else if (instr == INSTR_OR ) a = *stack_ptr++ || a;
+        else if (instr == INSTR_AND) a = *stack_ptr++ && a;
         else if (instr == INSTR_EQ ) a = *stack_ptr++ == a;
         else if (instr == INSTR_NE ) a = *stack_ptr++ != a;
         else if (instr == INSTR_LT ) a = *stack_ptr++ < a;
