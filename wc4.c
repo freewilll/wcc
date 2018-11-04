@@ -4,73 +4,78 @@
 #include <fcntl.h>
 #include <string.h>
 
-char input[10240];
+char *input;
 int input_size;
-int ip;      // input position
-int instructions[10240];
-int *iptr = instructions;
+int ip;
+int *instructions;
+int *iptr;
 
 int cur_token;
 char *cur_identifier;
 int cur_integer;
 char *cur_string_literal;
 
-int TOK_EOF            = 0;
-int TOK_IDENTIFIER     = 1;
-int TOK_NUMBER         = 2;
-int TOK_STRING_LITERAL = 3;
-int TOK_INT            = 4;
-int TOK_IF             = 5;
-int TOK_CHAR           = 6;
-int TOK_VOID           = 7;
-int TOK_WHILE          = 8;
-int TOK_RPAREN         = 9;
-int TOK_LPAREN         = 10;
-int TOK_RBRACKET       = 11;
-int TOK_LBRACKET       = 12;
-int TOK_RCURLY         = 13;
-int TOK_LCURLY         = 14;
-int TOK_SEMI           = 15;
-int TOK_COMMA          = 16; // In order of precedence
-int TOK_EQ             = 17;
-int TOK_OR             = 18;
-int TOK_AND            = 19;
-int TOK_DBL_EQ         = 20;
-int TOK_NOT_EQ         = 21;
-int TOK_LT             = 22;
-int TOK_GT             = 23;
-int TOK_LE             = 24;
-int TOK_GE             = 25;
-int TOK_PLUS           = 26;
-int TOK_MINUS          = 27;
-int TOK_MULTIPLY       = 28;
-int TOK_DIVIDE         = 29;
-int TOK_MOD            = 30;
-int TOK_LOGICAL_NOT    = 31;
+// In order of precedence
+enum {
+    TOK_EOF,
+    TOK_IDENTIFIER,
+    TOK_NUMBER,
+    TOK_STRING_LITERAL,
+    TOK_INT,
+    TOK_IF,
+    TOK_CHAR,
+    TOK_VOID,
+    TOK_WHILE,
+    TOK_RPAREN,
+    TOK_LPAREN,
+    TOK_RBRACKET,
+    TOK_LBRACKET,
+    TOK_RCURLY,
+    TOK_LCURLY,
+    TOK_SEMI,
+    TOK_COMMA,
+    TOK_EQ,
+    TOK_OR,
+    TOK_AND,
+    TOK_DBL_EQ,
+    TOK_NOT_EQ,
+    TOK_LT,
+    TOK_GT,
+    TOK_LE,
+    TOK_GE,
+    TOK_PLUS,
+    TOK_MINUS,
+    TOK_MULTIPLY,
+    TOK_DIVIDE,
+    TOK_MOD,
+    TOK_LOGICAL_NOT,
+};
 
-int TYPE_INT  = 0;
-int TYPE_CHAR = 1;
+enum { TYPE_INT, TYPE_CHAR };
 
-int INSTR_IMM = 1;
-int INSTR_ADJ = 2;
-int INSTR_OR  = 3;
-int INSTR_AND = 4;
-int INSTR_EQ  = 5;
-int INSTR_NE  = 6;
-int INSTR_LT  = 7;
-int INSTR_GT  = 8;
-int INSTR_LE  = 9;
-int INSTR_GE  = 10;
-int INSTR_ADD = 11;
-int INSTR_SUB = 12;
-int INSTR_MUL = 13;
-int INSTR_DIV = 14;
-int INSTR_MOD = 15;
-int INSTR_PSH = 16;
+enum {
+    INSTR_IMM=1,
+    INSTR_ADJ,
+    INSTR_OR,
+    INSTR_AND,
+    INSTR_EQ,
+    INSTR_NE,
+    INSTR_LT,
+    INSTR_GT,
+    INSTR_LE,
+    INSTR_GE,
+    INSTR_ADD,
+    INSTR_SUB,
+    INSTR_MUL,
+    INSTR_DIV,
+    INSTR_MOD,
+    INSTR_PSH,
+};
 
 void next() {
     while (ip < input_size) {
-        char *i = input;
+        char *i;
+        i = input;
              if (input_size - ip >= 2 && !memcmp(i+ip, "if",    2)     ) { ip += 2; cur_token = TOK_IF;                         }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "int",   3)     ) { ip += 2; cur_token = TOK_INT;                        }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "int",   4)     ) { ip += 2; cur_token = TOK_CHAR;                       }
@@ -298,8 +303,13 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    char *filename = argv[1];
-    int f = open(filename, 0); // O_RDONLY = 0
+    input = malloc(10240);
+    instructions = malloc(10240);
+    iptr = instructions;
+    char *filename ;
+    filename = argv[1];
+    int f;
+    f  = open(filename, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
     input_size = read(f, input, 10240);
     input[input_size] = 0;
@@ -312,10 +322,13 @@ int main(int argc, char **argv) {
     int *stack = malloc(10240);
 
     int a;
-    int *pc = instructions;         // program counter
-    int *sp = stack + 10240 - 1;    // stack pointer
+    int *pc;
+    pc = instructions;         // program counter
+    int *sp;
+    sp = stack + 10240 - 1;    // stack pointer
 
-    int DEBUG = 1;
+    int DEBUG;
+    DEBUG = 1;
 
     while (*pc) {
         int instr = *pc++;
