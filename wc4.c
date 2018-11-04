@@ -243,29 +243,28 @@ void expression(int level) {
             expression(TOK_MULTIPLY);
             *iptr++ = INSTR_SUB;
         }
-
         else if (cur_token == TOK_LT) {
             next();
             *iptr++ = INSTR_PSH;
-            expression(TOK_MULTIPLY);
+            expression(TOK_PLUS);
             *iptr++ = INSTR_LT;
         }
         else if (cur_token == TOK_GT) {
             next();
             *iptr++ = INSTR_PSH;
-            expression(TOK_MULTIPLY);
+            expression(TOK_PLUS);
             *iptr++ = INSTR_GT;
         }
         else if (cur_token == TOK_LE) {
             next();
             *iptr++ = INSTR_PSH;
-            expression(TOK_MULTIPLY);
+            expression(TOK_PLUS);
             *iptr++ = INSTR_LE;
         }
         else if (cur_token == TOK_GE) {
             next();
             *iptr++ = INSTR_PSH;
-            expression(TOK_MULTIPLY);
+            expression(TOK_PLUS);
             *iptr++ = INSTR_GE;
         }
         else if (cur_token == TOK_DBL_EQ) {
