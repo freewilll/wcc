@@ -456,7 +456,6 @@ void parse(int show_symbols) {
                 cur_scope++;
                 next();
                 // Function definition
-                cur_symbol[SYMBOL_TYPE] = TYPE_FUNCTION;
                 cur_symbol[SYMBOL_VALUE] = (long int) iptr;
                 int param_count = 0;
                 while (cur_token != TOK_RPAREN) {
