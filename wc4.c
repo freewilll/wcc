@@ -7,8 +7,8 @@
 char *input;
 int input_size;
 int ip;
-int *instructions;
-int *iptr;
+long int *instructions;
+long int *iptr;
 
 int cur_token;
 char *cur_identifier;
@@ -36,6 +36,7 @@ enum {
     TOK_CHAR,
     TOK_VOID,
     TOK_WHILE,
+    TOK_RETURN,
     TOK_ENUM,
     TOK_RPAREN,
     TOK_LPAREN,
@@ -66,7 +67,9 @@ enum { TYPE_INT=1, TYPE_CHAR, TYPE_PTR_TO_INT, TYPE_PTR_TO_CHAR, TYPE_FUNCTION, 
 
 enum {
     INSTR_IMM=1,
+    INSTR_ENT,
     INSTR_ADJ,
+    INSTR_LEV,
     INSTR_OR,
     INSTR_AND,
     INSTR_EQ,
@@ -81,6 +84,7 @@ enum {
     INSTR_DIV,
     INSTR_MOD,
     INSTR_PSH,
+    INSTR_EXIT,
 };
 
 void next() {
@@ -95,17 +99,18 @@ void next() {
         }
 
 
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "if",    2)     ) { ip += 2; cur_token = TOK_IF;                         }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",   3)     ) { ip += 3; cur_token = TOK_INT;                        }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "char",  4)     ) { ip += 4; cur_token = TOK_CHAR;                       }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "while", 5)     ) { ip += 5; cur_token = TOK_WHILE;                      }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "enum", 4)      ) { ip += 4; cur_token = TOK_ENUM;                       }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",    2)     ) { ip += 2; cur_token = TOK_AND;                        }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "||",    2)     ) { ip += 2; cur_token = TOK_OR;                         }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "==",    2)     ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "!=",    2)     ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "<=",    2)     ) { ip += 2; cur_token = TOK_LE;                         }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, ">=",    2)     ) { ip += 2; cur_token = TOK_GE;                         }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "if",     2)    ) { ip += 2; cur_token = TOK_IF;                         }
+        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",    3)    ) { ip += 3; cur_token = TOK_INT;                        }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "char",   4)    ) { ip += 4; cur_token = TOK_CHAR;                       }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "while",  5)    ) { ip += 5; cur_token = TOK_WHILE;                      }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "return", 6)    ) { ip += 6; cur_token = TOK_RETURN;                     }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "enum",   4)    ) { ip += 4; cur_token = TOK_ENUM;                       }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",     2)    ) { ip += 2; cur_token = TOK_AND;                        }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "||",     2)    ) { ip += 2; cur_token = TOK_OR;                         }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "==",     2)    ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "!=",     2)    ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "<=",     2)    ) { ip += 2; cur_token = TOK_LE;                         }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, ">=",     2)    ) { ip += 2; cur_token = TOK_GE;                         }
         else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; cur_token = TOK_LPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; cur_token = TOK_RPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; cur_token = TOK_LBRACKET;                   }
@@ -323,8 +328,45 @@ void expression(int level) {
     }
 }
 
+void function_body(char *func_name) {
+    int is_main, seen_return;
+    is_main = !memcmp(func_name, "main", 4);
+    seen_return = 0;
 
-void globals() {
+    consume(TOK_LCURLY);
+
+    *iptr++ = INSTR_ENT;
+    *iptr++ = 0; // stack size
+    while (cur_token != TOK_RCURLY) {
+        if (cur_token == TOK_SEMI)  {
+            next();
+            continue;
+        }
+
+        if (cur_token == TOK_RETURN) {
+            next();
+            if (cur_token != TOK_SEMI) expression(TOK_COMMA);
+            *iptr++ = INSTR_LEV;
+            consume(TOK_SEMI);
+            seen_return = 1;
+        }
+        else {
+            printf("Unknown token in function body %d\n", cur_token);
+            exit(1);
+        }
+    }
+
+    if (is_main && !seen_return) {
+        printf("not seen return\n");
+        *iptr++ = INSTR_IMM;
+        *iptr++ = 0;
+    }
+
+    *iptr++ = INSTR_LEV;
+    consume(TOK_RCURLY);
+}
+
+void parse(int show_symbols) {
     long int *globals = symbols;
     int current_scope = 0;
 
@@ -344,6 +386,7 @@ void globals() {
             globals[SYMBOL_TYPE] = type;
             globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
             globals[SYMBOL_SCOPE] = 0;
+            globals[SYMBOL_VALUE] = (long int) iptr;
             globals += SYMBOL_SIZE;
             next();
 
@@ -371,6 +414,7 @@ void globals() {
                     if (cur_token == TOK_COMMA) next();
                 }
                 consume(TOK_RPAREN);
+                function_body(cur_identifier);
             }
         }
 
@@ -397,53 +441,83 @@ void globals() {
                 if (cur_token == TOK_COMMA) next();
             }
             consume(TOK_RCURLY);
+            consume(TOK_SEMI);
         }
 
         else {
-            printf("Expected int or char\n");
+            printf("Expected global declaration or function\n");
             exit(1);
         }
-        consume(TOK_SEMI);
     }
 
-    printf("Globals:\n");
-    long int *s = symbols;
-    while (s[0]) {
-        long int type = s[SYMBOL_TYPE];
-        char *identifier = (char *) s[SYMBOL_IDENTIFIER];
-        long int scope = s[SYMBOL_SCOPE];
-        long int stack_index = s[SYMBOL_STACK_INDEX];
-        long int value = s[SYMBOL_VALUE];
-        printf("%ld %ld %ld %ld %s\n", type, scope, stack_index, value, identifier);
-        s += SYMBOL_SIZE;
+    if (show_symbols) {
+        printf("Globals:\n");
+        long int *s = symbols;
+        while (s[0]) {
+            long int type = s[SYMBOL_TYPE];
+            char *identifier = (char *) s[SYMBOL_IDENTIFIER];
+            long int scope = s[SYMBOL_SCOPE];
+            long int value = s[SYMBOL_VALUE];
+            long int stack_index = s[SYMBOL_STACK_INDEX];
+            printf("%ld %ld %ld %ld %s\n", type, scope, stack_index, value, identifier);
+            s += SYMBOL_SIZE;
+        }
     }
 }
 
-void run() {
-    int *stack = malloc(10240);
+long int lookup_function(char *name) {
+    long int *s = symbols;
 
-    int a;
-    int *pc;
-    pc = instructions;         // program counter
-    int *sp;
+    int len = 0;
+    char *n = name;
+    while (*n++) len++;
+
+    while (s[0]) {
+        if (s[SYMBOL_SCOPE] == 0 && !memcmp((char *) s[SYMBOL_IDENTIFIER], name, len)) return s[SYMBOL_VALUE];
+        s += SYMBOL_SIZE;
+    }
+
+    printf("Unknown function: %s\n", name);
+    exit(1);
+}
+
+long int run(long int argc, char **argv, int print_instructions) {
+    long int *stack = malloc(10240);
+
+    long int a;
+    long int *pc;
+    long int *sp, *bp;
+    long int *t;
     sp = stack + 10240 - 1;    // stack pointer
+    bp = sp;
 
-    int DEBUG;
-    DEBUG = 1;
+    *--sp = INSTR_EXIT; // call exit if main returns
+    *--sp = INSTR_PSH;
+    t = sp;
+    *--sp = argc;
+    *--sp = (int)argv;
+    *--sp = (long int)t;
+
+    a = 0;
+
+    pc = (long int *) lookup_function("main");
 
     while (*pc) {
         int instr = *pc++;
 
-        if (DEBUG) {
-            printf("a = %-10d ", a);
-            printf("%.4s", &"IMM ADJ ADD SUB MUL DIV PSH"[instr * 4 - 4]);
-            if (instr <= INSTR_ADJ) printf(" %d", *pc);
+        if (print_instructions) {
+            printf("a = %-10ld ", a);
+            printf("%.5s", &"IMM  ENT  ADJ  LEV  OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
+            if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
 
              if (instr == INSTR_IMM) a = *pc++;
-        else if (instr == INSTR_PSH) *--sp = a;
 
+        else if (instr == INSTR_ENT) { *--sp = (long int) bp; bp = sp; sp = sp - *pc++; }           // enter subroutine
+        else if (instr == INSTR_ADJ) sp = sp + *pc++;                                               // stack adjust
+        else if (instr == INSTR_LEV) { sp = bp; bp = (long int *) *sp++; pc = (long int *) *sp++; } // leave subroutine
+        else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
         else if (instr == INSTR_AND) a = *sp++ && a;
         else if (instr == INSTR_EQ ) a = *sp++ == a;
@@ -457,23 +531,29 @@ void run() {
         else if (instr == INSTR_MUL) a = *sp++ * a;
         else if (instr == INSTR_DIV) a = *sp++ / a;
         else if (instr == INSTR_MOD) a = *sp++ % a;
+
+        else if (instr == INSTR_EXIT) { printf("exit %ld\n", *sp); return *sp; }
+
         else {
             printf("WTF instruction %d\n", instr);
             exit(1);
         }
     }
 
-    printf("Result: %d\n", a);
+    // Should never get here
+    return 0;
 }
 
 int main(int argc, char **argv) {
     char *filename;
 
     int i;
-    int eval_expression;
+    int debug, print_instructions, show_symbols;
     i = 1;
     while (i < argc) {
-        if (!memcmp(argv[i], "-e", 2)) eval_expression = 1;
+        if (!memcmp(argv[i], "-d", 2)) debug = 1;
+        else if (!memcmp(argv[i], "-i", 2)) print_instructions = 1;
+        else if (!memcmp(argv[i], "-s", 2)) show_symbols = 1;
         else filename = argv[i];
         i++;
     }
@@ -505,13 +585,8 @@ int main(int argc, char **argv) {
     close(f);
 
     next();
-    if (eval_expression) {
-        expression(TOK_COMMA);
-        run();
-    }
-
-    else
-        globals();
+    parse(show_symbols);
+    run(argc, argv, print_instructions);
 
     exit(0);
 }

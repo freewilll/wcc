@@ -89,7 +89,7 @@ import re
 def test_expr(expr, expected_result):
     with tempfile.NamedTemporaryFile() as temp:
         with open(temp.name, 'w') as f:
-            f.write(expr)
-        output = subprocess.check_output(["./wc4", "-e", f.name]).decode('utf-8')
-        result = re.sub("Result: ", "", str(output).split("\n")[-2])
+            f.write("int main() {return %s;}" % expr)
+        output = subprocess.check_output(["./wc4", f.name]).decode('utf-8')
+        result = re.sub("exit ", "", str(output).split("\n")[-2])
         assert int(result) == expected_result
