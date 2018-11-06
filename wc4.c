@@ -16,6 +16,7 @@ int cur_scope;
 char *cur_identifier;
 int cur_integer;
 char *cur_string_literal;
+long int *cur_function_symbol;
 
 long int *symbols;
 long int *cur_symbol;
@@ -26,6 +27,7 @@ int SYMBOL_SCOPE;
 int SYMBOL_VALUE;
 int SYMBOL_SIZE;
 int SYMBOL_STACK_INDEX;
+int SYMBOL_FUNCTION_PARAM_COUNT;
 
 // In order of precedence
 enum {
@@ -68,7 +70,8 @@ enum {
 enum { TYPE_INT=1, TYPE_CHAR, TYPE_PTR_TO_INT, TYPE_PTR_TO_CHAR, TYPE_FUNCTION, TYPE_ENUM };
 
 enum {
-    INSTR_IMM=1,
+    INSTR_LEA=1,
+    INSTR_IMM,
     INSTR_ENT,
     INSTR_ADJ,
     INSTR_LEV,
@@ -292,7 +295,11 @@ void expression(int level) {
             *iptr++ = symbol[SYMBOL_TYPE] == TYPE_INT ? INSTR_LI : INSTR_LC;
         }
         else {
-            printf("TODO local\n");
+            long int param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
+            long int stack_index = param_count - symbol[SYMBOL_STACK_INDEX] - 1;
+            *iptr++ = INSTR_LEA;
+            *iptr++ = stack_index + 2; // Step over pushed PC and BP
+            *iptr++ = symbol[SYMBOL_TYPE] == TYPE_INT ? INSTR_LI : INSTR_LC;
         }
     }
     else {
@@ -468,7 +475,9 @@ void parse(int show_symbols) {
                     globals += SYMBOL_SIZE;
                     if (cur_token == TOK_COMMA) next();
                 }
+                cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
                 consume(TOK_RPAREN);
+                cur_function_symbol = cur_symbol;
                 function_body(cur_identifier);
             }
             else {
@@ -538,8 +547,8 @@ long int run(long int argc, char **argv, int print_instructions) {
     *--sp = INSTR_PSH;
     t = sp;
     *--sp = argc;
-    *--sp = (int)argv;
-    *--sp = (long int)t;
+    *--sp = (long int) argv;
+    *--sp = (long int) t;
 
     a = 0;
 
@@ -550,12 +559,13 @@ long int run(long int argc, char **argv, int print_instructions) {
 
         if (print_instructions) {
             printf("a = %-20ld ", a);
-            printf("%.5s", &"IMM  ENT  ADJ  LEV  LI   LC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  ENT  ADJ  LEV  LI   LC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
 
-             if (instr == INSTR_IMM) a = *pc++;                                                     // load global address or immediate
+             if (instr == INSTR_LEA) a = (long int) (bp + *pc++);                                   // load local address
+        else if (instr == INSTR_IMM) a = *pc++;                                                     // load global address or immediate
         else if (instr == INSTR_ENT) { *--sp = (long int) bp; bp = sp; sp = sp - *pc++; }           // enter subroutine
         else if (instr == INSTR_ADJ) sp = sp + *pc++;                                               // stack adjust
         else if (instr == INSTR_LEV) { sp = bp; bp = (long int *) *sp++; pc = (long int *) *sp++; } // leave subroutine
@@ -613,12 +623,13 @@ int main(int argc, char **argv) {
     data = malloc(10240);
     memset(symbols, 0, 10240);
 
-    SYMBOL_TYPE = 0;
-    SYMBOL_IDENTIFIER = 1;
-    SYMBOL_SCOPE = 2;
-    SYMBOL_VALUE = 3;
-    SYMBOL_STACK_INDEX = 4;
-    SYMBOL_SIZE = 5; // Number of long ints
+    SYMBOL_TYPE                 = 0;
+    SYMBOL_IDENTIFIER           = 1;
+    SYMBOL_SCOPE                = 2;
+    SYMBOL_VALUE                = 3;
+    SYMBOL_STACK_INDEX          = 4;
+    SYMBOL_FUNCTION_PARAM_COUNT = 5;
+    SYMBOL_SIZE                 = 6; // Number of long ints
 
     iptr = instructions;
     int f;

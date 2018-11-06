@@ -4,6 +4,15 @@ import tempfile
 import re
 
 
+def check_exit_code(code, expected_result):
+    with tempfile.NamedTemporaryFile() as temp:
+        with open(temp.name, 'w') as f:
+            f.write(code)
+        output = subprocess.check_output(["./wc4", f.name]).decode('utf-8')
+        result = re.sub("exit ", "", str(output).split("\n")[-2])
+        assert int(result) == expected_result
+
+
 @pytest.mark.parametrize("expr,expected_result", [
     ("1",               1),
     ("1+2",             3),
@@ -87,9 +96,7 @@ import re
     ("1 + 1 && 1",      1),
 ])
 def test_expr(expr, expected_result):
-    with tempfile.NamedTemporaryFile() as temp:
-        with open(temp.name, 'w') as f:
-            f.write("int main() {return %s;}" % expr)
-        output = subprocess.check_output(["./wc4", f.name]).decode('utf-8')
-        result = re.sub("exit ", "", str(output).split("\n")[-2])
-        assert int(result) == expected_result
+    check_exit_code("int main() {return %s;}" % expr, expected_result)
+
+def test_argc_count():
+    check_exit_code("int main(int argc, int argv) {return argc;}", 2)
