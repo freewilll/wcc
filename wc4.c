@@ -67,7 +67,8 @@ enum {
     TOK_LOGICAL_NOT,
 };
 
-enum { TYPE_INT=1, TYPE_CHAR, TYPE_PTR_TO_INT, TYPE_PTR_TO_CHAR, TYPE_FUNCTION, TYPE_ENUM };
+enum { TYPE_FUNCTION=1, TYPE_ENUM, TYPE_INT, TYPE_CHAR };
+enum { TYPE_PTR=2 };
 
 enum {
     INSTR_LEA=1,
@@ -441,7 +442,7 @@ void parse(int show_symbols) {
         if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
             int type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
             next();
-            if (cur_token == TOK_MULTIPLY) { type += 2; next(); }
+            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
             expect(TOK_IDENTIFIER);
             cur_symbol = globals;
@@ -463,7 +464,7 @@ void parse(int show_symbols) {
                     if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
                         type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
                         next();
-                        if (cur_token == TOK_MULTIPLY) { type += 2; next(); }
+                        while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
                     }
                     else { printf("Unknown type in function def %d\n", cur_token); exit(1); }
 
