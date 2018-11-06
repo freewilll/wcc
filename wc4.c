@@ -8,9 +8,11 @@ char *input;
 int input_size;
 int ip;
 long int *instructions;
+long int *data;
 long int *iptr;
 
 int cur_token;
+int cur_scope;
 char *cur_identifier;
 int cur_integer;
 char *cur_string_literal;
@@ -70,6 +72,8 @@ enum {
     INSTR_ENT,
     INSTR_ADJ,
     INSTR_LEV,
+    INSTR_LI,
+    INSTR_LC,
     INSTR_OR,
     INSTR_AND,
     INSTR_EQ,
@@ -208,6 +212,29 @@ void consume(int token) {
     next();
 }
 
+long int *lookup_symbol(char *name, int scope) {
+    long int *s = symbols;
+
+    int len = 0;
+    char *n = name;
+    while (*n++) len++;
+
+    while (s[0]) {
+        if (s[SYMBOL_SCOPE] == scope && !memcmp((char *) s[SYMBOL_IDENTIFIER], name, len)) return s;
+        s += SYMBOL_SIZE;
+    }
+
+    if (scope != 0) return lookup_symbol(name, 0);
+
+    printf("Unknown symbol: %s\n", name);
+    exit(1);
+}
+
+long int lookup_function(char *name) {
+    long int *symbol = lookup_symbol(name, 0);
+    return symbol[SYMBOL_VALUE];
+}
+
 void expression(int level) {
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -239,10 +266,38 @@ void expression(int level) {
         expression(TOK_COMMA);
         next();
     }
-    else {
+    else if (cur_token == TOK_NUMBER) {
         *iptr++ = INSTR_IMM;
         *iptr++ = cur_integer;
         next();
+    }
+    else if (cur_token == TOK_IDENTIFIER) {
+        long int *symbol = lookup_symbol(cur_identifier, cur_scope);
+        printf("id %s %ld\n", cur_identifier, (long int) symbol);
+        next();
+        int type = symbol[SYMBOL_TYPE];
+        int scope = symbol[SYMBOL_SCOPE];
+        if (type == TYPE_ENUM) {
+            printf("enum\n");
+            *iptr++ = INSTR_IMM;
+            *iptr++ = symbol[SYMBOL_VALUE];
+        }
+        else if (cur_token == TOK_LPAREN) {
+            printf("TODO function call\n");
+        }
+        else if (scope == 0) {
+            long int *address = (long int *) symbol[SYMBOL_VALUE];
+            *iptr++ = INSTR_IMM;
+            *iptr++ = (long int) address;
+            *iptr++ = symbol[SYMBOL_TYPE] == TYPE_INT ? INSTR_LI : INSTR_LC;
+        }
+        else {
+            printf("TODO local\n");
+        }
+    }
+    else {
+        printf("Unknown token in expression: %d\n", cur_token);
+        exit(1);
     }
 
     while (cur_token >= level) {
@@ -368,7 +423,7 @@ void function_body(char *func_name) {
 
 void parse(int show_symbols) {
     long int *globals = symbols;
-    int current_scope = 0;
+    cur_scope = 0;
 
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)  {
@@ -386,15 +441,15 @@ void parse(int show_symbols) {
             globals[SYMBOL_TYPE] = type;
             globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
             globals[SYMBOL_SCOPE] = 0;
-            globals[SYMBOL_VALUE] = (long int) iptr;
             globals += SYMBOL_SIZE;
             next();
 
             if (cur_token == TOK_LPAREN) {
-                current_scope++;
+                cur_scope++;
                 next();
                 // Function definition
                 cur_symbol[SYMBOL_TYPE] = TYPE_FUNCTION;
+                cur_symbol[SYMBOL_VALUE] = (long int) iptr;
                 int param_count = 0;
                 while (cur_token != TOK_RPAREN) {
                     int type;
@@ -408,13 +463,17 @@ void parse(int show_symbols) {
                     consume(TOK_IDENTIFIER);
                     globals[SYMBOL_TYPE] = type;
                     globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
-                    globals[SYMBOL_SCOPE] = current_scope;
+                    globals[SYMBOL_SCOPE] = cur_scope;
                     globals[SYMBOL_STACK_INDEX] = param_count++;
                     globals += SYMBOL_SIZE;
                     if (cur_token == TOK_COMMA) next();
                 }
                 consume(TOK_RPAREN);
                 function_body(cur_identifier);
+            }
+            else {
+                // Global symbol
+                cur_symbol[SYMBOL_VALUE] = (long int) data++;
             }
         }
 
@@ -465,22 +524,6 @@ void parse(int show_symbols) {
     }
 }
 
-long int lookup_function(char *name) {
-    long int *s = symbols;
-
-    int len = 0;
-    char *n = name;
-    while (*n++) len++;
-
-    while (s[0]) {
-        if (s[SYMBOL_SCOPE] == 0 && !memcmp((char *) s[SYMBOL_IDENTIFIER], name, len)) return s[SYMBOL_VALUE];
-        s += SYMBOL_SIZE;
-    }
-
-    printf("Unknown function: %s\n", name);
-    exit(1);
-}
-
 long int run(long int argc, char **argv, int print_instructions) {
     long int *stack = malloc(10240);
 
@@ -506,17 +549,18 @@ long int run(long int argc, char **argv, int print_instructions) {
         int instr = *pc++;
 
         if (print_instructions) {
-            printf("a = %-10ld ", a);
-            printf("%.5s", &"IMM  ENT  ADJ  LEV  OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
+            printf("a = %-20ld ", a);
+            printf("%.5s", &"IMM  ENT  ADJ  LEV  LI   LC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
 
-             if (instr == INSTR_IMM) a = *pc++;
-
+             if (instr == INSTR_IMM) a = *pc++;                                                     // load global address or immediate
         else if (instr == INSTR_ENT) { *--sp = (long int) bp; bp = sp; sp = sp - *pc++; }           // enter subroutine
         else if (instr == INSTR_ADJ) sp = sp + *pc++;                                               // stack adjust
         else if (instr == INSTR_LEV) { sp = bp; bp = (long int *) *sp++; pc = (long int *) *sp++; } // leave subroutine
+        else if (instr == INSTR_LI)  a = *(long int *)a;                                            // load int
+        else if (instr == INSTR_LC)  a = *(char *)a;                                                // load char
         else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
         else if (instr == INSTR_AND) a = *sp++ && a;
@@ -565,7 +609,8 @@ int main(int argc, char **argv) {
 
     input = malloc(10240);
     instructions = malloc(10240);
-    symbols = malloc(1024);
+    symbols = malloc(10240);
+    data = malloc(10240);
     memset(symbols, 0, 10240);
 
     SYMBOL_TYPE = 0;
