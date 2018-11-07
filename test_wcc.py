@@ -113,3 +113,22 @@ def test_assignment():
             return a+b+argc+g;
         }
     """, 8);
+
+def test_function_calls():
+    check_exit_code("""
+        int g;
+
+        int get_g() {
+            return g;
+        }
+
+        int foo(int a) {
+            return get_g() + a;
+        }
+
+        int main(int argc, char **argv) {
+            g = 2;
+            return foo(1);
+        }
+
+    """, 3);

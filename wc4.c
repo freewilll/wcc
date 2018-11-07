@@ -76,6 +76,7 @@ enum { TYPE_PTR=2 };
 enum {
     INSTR_LEA=1,
     INSTR_IMM,
+    INSTR_JSR,
     INSTR_ENT,
     INSTR_ADJ,
     INSTR_LEV,
@@ -248,6 +249,8 @@ void want_rvalue() {
 }
 
 void expression(int level) {
+    int param_count;
+
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
 
@@ -299,9 +302,25 @@ void expression(int level) {
             is_lvalue = 0;
         }
         else if (cur_token == TOK_LPAREN) {
-            printf("TODO function call\n");
+            // Function call
+            next();
+            param_count = 0;
+            while (cur_token != TOK_RPAREN) {
+                expression(TOK_COMMA);
+                want_rvalue();
+                *iptr++ = INSTR_PSH;
+                if (cur_token == TOK_COMMA) next();
+                param_count++;
+            }
+            consume(TOK_RPAREN);
+            *iptr++ = INSTR_JSR;
+            *iptr++ = symbol[SYMBOL_VALUE];
+            *iptr++ = INSTR_ADJ;
+            *iptr++ = param_count;
+            cur_type = symbol[SYMBOL_TYPE];
         }
         else if (scope == 0) {
+            // Global symbol
             long int *address = (long int *) symbol[SYMBOL_VALUE];
             *iptr++ = INSTR_IMM;
             *iptr++ = (long int) address;
@@ -309,6 +328,7 @@ void expression(int level) {
             is_lvalue = 1;
         }
         else {
+            // Local symbol
             long int param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
             *iptr++ = INSTR_LEA;
             if (symbol[SYMBOL_STACK_INDEX] >= 0) {
@@ -623,13 +643,14 @@ long int run(long int argc, char **argv, int print_instructions) {
         if (print_instructions) {
             printf("a = %-20ld ", a);
             printf("sp = %-20ld ", (long int) sp);
-            printf("%.5s", &"LEA  IMM  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  JSR  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
 
              if (instr == INSTR_LEA) a = (long int) (bp + *pc++);                                   // load local address
         else if (instr == INSTR_IMM) a = *pc++;                                                     // load global address or immediate
+        else if (instr == INSTR_JSR) { *--sp = (long int) (pc + 1); pc = (long int *)*pc; }         // jump to subroutine
         else if (instr == INSTR_ENT) { *--sp = (long int) bp; bp = sp; sp = sp - *pc++; }           // enter subroutine
         else if (instr == INSTR_ADJ) sp = sp + *pc++;                                               // stack adjust
         else if (instr == INSTR_LEV) { sp = bp; bp = (long int *) *sp++; pc = (long int *) *sp++; } // leave subroutine
