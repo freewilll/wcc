@@ -18,7 +18,8 @@ int cur_integer;
 char *cur_string_literal;
 long int *cur_function_symbol;
 
-long int *symbols;
+long int *symbol_table;
+long int *next_symbol;
 long int *cur_symbol;
 
 int SYMBOL_TYPE;
@@ -217,14 +218,10 @@ void consume(int token) {
 }
 
 long int *lookup_symbol(char *name, int scope) {
-    long int *s = symbols;
-
-    int len = 0;
-    char *n = name;
-    while (*n++) len++;
+    long int *s = symbol_table;
 
     while (s[0]) {
-        if (s[SYMBOL_SCOPE] == scope && !memcmp((char *) s[SYMBOL_IDENTIFIER], name, len)) return s;
+        if (s[SYMBOL_SCOPE] == scope && !strcmp((char *) s[SYMBOL_IDENTIFIER], name)) return s;
         s += SYMBOL_SIZE;
     }
 
@@ -277,7 +274,6 @@ void expression(int level) {
     }
     else if (cur_token == TOK_IDENTIFIER) {
         long int *symbol = lookup_symbol(cur_identifier, cur_scope);
-        printf("id %s %ld\n", cur_identifier, (long int) symbol);
         next();
         int type = symbol[SYMBOL_TYPE];
         int scope = symbol[SYMBOL_SCOPE];
@@ -297,9 +293,14 @@ void expression(int level) {
         }
         else {
             long int param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
-            long int stack_index = param_count - symbol[SYMBOL_STACK_INDEX] - 1;
             *iptr++ = INSTR_LEA;
-            *iptr++ = stack_index + 2; // Step over pushed PC and BP
+            if (symbol[SYMBOL_STACK_INDEX] >= 0) {
+                long int stack_index = param_count - symbol[SYMBOL_STACK_INDEX] - 1;
+                *iptr++ = stack_index + 2; // Step over pushed PC and BP
+            }
+            else {
+                *iptr++ = symbol[SYMBOL_STACK_INDEX];
+            }
             *iptr++ = symbol[SYMBOL_TYPE] == TYPE_INT ? INSTR_LI : INSTR_LC;
         }
     }
@@ -391,15 +392,34 @@ void expression(int level) {
     }
 }
 
-void function_body(char *func_name) {
+void parse_function_body(char *func_name) {
     int is_main, seen_return;
-    is_main = !memcmp(func_name, "main", 4);
+    is_main = !strcmp(func_name, "main");
     seen_return = 0;
+    int local_symbol_count = 0;
 
     consume(TOK_LCURLY);
 
+    // Parse symbols first
+    while (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+        int type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
+        next();
+        while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+
+        expect(TOK_IDENTIFIER);
+        cur_symbol = next_symbol;
+        next_symbol[SYMBOL_TYPE] = type;
+        next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+        next_symbol[SYMBOL_SCOPE] = cur_scope;
+        next_symbol[SYMBOL_STACK_INDEX] = -1 - local_symbol_count++;
+        next_symbol += SYMBOL_SIZE;
+        next();
+        expect(TOK_SEMI);
+        while (cur_token == TOK_SEMI) next();
+    }
+
     *iptr++ = INSTR_ENT;
-    *iptr++ = 0; // stack size
+    *iptr++ = local_symbol_count * 8; // allocate stack space for locals
     while (cur_token != TOK_RCURLY) {
         if (cur_token == TOK_SEMI)  {
             next();
@@ -413,6 +433,22 @@ void function_body(char *func_name) {
             consume(TOK_SEMI);
             seen_return = 1;
         }
+
+        else if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+            int type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
+            next();
+            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+
+            expect(TOK_IDENTIFIER);
+            cur_symbol = next_symbol;
+            next_symbol[SYMBOL_TYPE] = type;
+            next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+            next_symbol[SYMBOL_SCOPE] = 0;
+            next_symbol += SYMBOL_SIZE;
+            local_symbol_count++;
+            next();
+        }
+
         else {
             printf("Unknown token in function body %d\n", cur_token);
             exit(1);
@@ -429,8 +465,7 @@ void function_body(char *func_name) {
     consume(TOK_RCURLY);
 }
 
-void parse(int show_symbols) {
-    long int *globals = symbols;
+void parse() {
     cur_scope = 0;
 
     while (cur_token != TOK_EOF) {
@@ -445,11 +480,11 @@ void parse(int show_symbols) {
             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
             expect(TOK_IDENTIFIER);
-            cur_symbol = globals;
-            globals[SYMBOL_TYPE] = type;
-            globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
-            globals[SYMBOL_SCOPE] = 0;
-            globals += SYMBOL_SIZE;
+            cur_symbol = next_symbol;
+            next_symbol[SYMBOL_TYPE] = type;
+            next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+            next_symbol[SYMBOL_SCOPE] = 0;
+            next_symbol += SYMBOL_SIZE;
             next();
 
             if (cur_token == TOK_LPAREN) {
@@ -468,17 +503,17 @@ void parse(int show_symbols) {
                     else { printf("Unknown type in function def %d\n", cur_token); exit(1); }
 
                     consume(TOK_IDENTIFIER);
-                    globals[SYMBOL_TYPE] = type;
-                    globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
-                    globals[SYMBOL_SCOPE] = cur_scope;
-                    globals[SYMBOL_STACK_INDEX] = param_count++;
-                    globals += SYMBOL_SIZE;
+                    next_symbol[SYMBOL_TYPE] = type;
+                    next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+                    next_symbol[SYMBOL_SCOPE] = cur_scope;
+                    next_symbol[SYMBOL_STACK_INDEX] = param_count++;
+                    next_symbol += SYMBOL_SIZE;
                     if (cur_token == TOK_COMMA) next();
                 }
                 cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
                 consume(TOK_RPAREN);
                 cur_function_symbol = cur_symbol;
-                function_body(cur_identifier);
+                parse_function_body(cur_identifier);
             }
             else {
                 // Global symbol
@@ -500,11 +535,11 @@ void parse(int show_symbols) {
                     next();
                 }
 
-                globals[SYMBOL_TYPE] = TYPE_ENUM;
-                globals[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
-                globals[SYMBOL_SCOPE] = 0;
-                globals[SYMBOL_VALUE] = number++;
-                globals += SYMBOL_SIZE;
+                next_symbol[SYMBOL_TYPE] = TYPE_ENUM;
+                next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+                next_symbol[SYMBOL_SCOPE] = 0;
+                next_symbol[SYMBOL_VALUE] = number++;
+                next_symbol += SYMBOL_SIZE;
 
                 if (cur_token == TOK_COMMA) next();
             }
@@ -515,20 +550,6 @@ void parse(int show_symbols) {
         else {
             printf("Expected global declaration or function\n");
             exit(1);
-        }
-    }
-
-    if (show_symbols) {
-        printf("Globals:\n");
-        long int *s = symbols;
-        while (s[0]) {
-            long int type = s[SYMBOL_TYPE];
-            char *identifier = (char *) s[SYMBOL_IDENTIFIER];
-            long int scope = s[SYMBOL_SCOPE];
-            long int value = s[SYMBOL_VALUE];
-            long int stack_index = s[SYMBOL_STACK_INDEX];
-            printf("%ld %ld %ld %ld %s\n", type, scope, stack_index, value, identifier);
-            s += SYMBOL_SIZE;
         }
     }
 }
@@ -559,6 +580,7 @@ long int run(long int argc, char **argv, int print_instructions) {
 
         if (print_instructions) {
             printf("a = %-20ld ", a);
+            printf("sp = %-20ld ", (long int) sp);
             printf("%.5s", &"LEA  IMM  ENT  ADJ  LEV  LI   LC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
@@ -603,6 +625,8 @@ int main(int argc, char **argv) {
 
     int i;
     int debug, print_instructions, show_symbols;
+    print_instructions = 0;
+    show_symbols = 0;
     i = 1;
     while (i < argc) {
         if (!memcmp(argv[i], "-d", 2)) debug = 1;
@@ -619,9 +643,10 @@ int main(int argc, char **argv) {
 
     input = malloc(10240);
     instructions = malloc(10240);
-    symbols = malloc(10240);
+    symbol_table = malloc(10240);
+    memset(symbol_table, 0, 10240);
+    next_symbol = symbol_table;
     data = malloc(10240);
-    memset(symbols, 0, 10240);
 
     SYMBOL_TYPE                 = 0;
     SYMBOL_IDENTIFIER           = 1;
@@ -641,7 +666,23 @@ int main(int argc, char **argv) {
     close(f);
 
     next();
-    parse(show_symbols);
+    parse();
+
+    if (show_symbols) {
+        printf("Symbols:\n");
+        long int *s = symbol_table;
+        while (s[0]) {
+            long int type = s[SYMBOL_TYPE];
+            char *identifier = (char *) s[SYMBOL_IDENTIFIER];
+            long int scope = s[SYMBOL_SCOPE];
+            long int value = s[SYMBOL_VALUE];
+            long int stack_index = s[SYMBOL_STACK_INDEX];
+            printf("%-20ld %ld %ld %-2ld %-20ld %s\n", (long int) s, type, scope, stack_index, value, identifier);
+            s += SYMBOL_SIZE;
+        }
+        printf("\n");
+    }
+
     run(argc, argv, print_instructions);
 
     exit(0);
