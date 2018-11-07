@@ -17,10 +17,12 @@ char *cur_identifier;
 int cur_integer;
 char *cur_string_literal;
 long int *cur_function_symbol;
+int is_lvalue;
 
 long int *symbol_table;
 long int *next_symbol;
 long int *cur_symbol;
+long int cur_type;
 
 int SYMBOL_TYPE;
 int SYMBOL_IDENTIFIER;
@@ -79,6 +81,8 @@ enum {
     INSTR_LEV,
     INSTR_LI,
     INSTR_LC,
+    INSTR_SI,
+    INSTR_SC,
     INSTR_OR,
     INSTR_AND,
     INSTR_EQ,
@@ -236,6 +240,13 @@ long int lookup_function(char *name) {
     return symbol[SYMBOL_VALUE];
 }
 
+void want_rvalue() {
+    if (is_lvalue) {
+        *iptr++ = cur_type == TYPE_INT ? INSTR_LI : INSTR_LC;
+        is_lvalue = 0;
+    }
+}
+
 void expression(int level) {
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -244,7 +255,9 @@ void expression(int level) {
         *iptr++ = 0;
         *iptr++ = INSTR_PSH;
         expression(1024); // Fake highest precedence, bind nothing
+        want_rvalue();
         *iptr++ = INSTR_EQ;
+        is_lvalue = 0;
     }
     else if (cur_token == TOK_MINUS) {
         next();
@@ -259,7 +272,9 @@ void expression(int level) {
             *iptr++ = -1;
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
+            want_rvalue();
             *iptr++ = INSTR_MUL;
+            is_lvalue = 0;
         }
     }
     else if (cur_token == TOK_LPAREN) {
@@ -271,6 +286,7 @@ void expression(int level) {
         *iptr++ = INSTR_IMM;
         *iptr++ = cur_integer;
         next();
+        is_lvalue = 0;
     }
     else if (cur_token == TOK_IDENTIFIER) {
         long int *symbol = lookup_symbol(cur_identifier, cur_scope);
@@ -278,9 +294,9 @@ void expression(int level) {
         int type = symbol[SYMBOL_TYPE];
         int scope = symbol[SYMBOL_SCOPE];
         if (type == TYPE_ENUM) {
-            printf("enum\n");
             *iptr++ = INSTR_IMM;
             *iptr++ = symbol[SYMBOL_VALUE];
+            is_lvalue = 0;
         }
         else if (cur_token == TOK_LPAREN) {
             printf("TODO function call\n");
@@ -289,7 +305,8 @@ void expression(int level) {
             long int *address = (long int *) symbol[SYMBOL_VALUE];
             *iptr++ = INSTR_IMM;
             *iptr++ = (long int) address;
-            *iptr++ = symbol[SYMBOL_TYPE] == TYPE_INT ? INSTR_LI : INSTR_LC;
+            cur_type = symbol[SYMBOL_TYPE];
+            is_lvalue = 1;
         }
         else {
             long int param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
@@ -301,7 +318,8 @@ void expression(int level) {
             else {
                 *iptr++ = symbol[SYMBOL_STACK_INDEX];
             }
-            *iptr++ = symbol[SYMBOL_TYPE] == TYPE_INT ? INSTR_LI : INSTR_LC;
+            cur_type = symbol[SYMBOL_TYPE];
+            is_lvalue = 1;
         }
     }
     else {
@@ -313,82 +331,121 @@ void expression(int level) {
         // In order or precedence
         if (cur_token == TOK_MULTIPLY) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_LOGICAL_NOT);
+            want_rvalue();
             *iptr++ = INSTR_MUL;
         }
         else if (cur_token == TOK_DIVIDE) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_LOGICAL_NOT);
+            want_rvalue();
             *iptr++ = INSTR_DIV;
         }
         else if (cur_token == TOK_MOD) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_LOGICAL_NOT);
+            want_rvalue();
             *iptr++ = INSTR_MOD;
         }
         else if (cur_token == TOK_PLUS) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
+            want_rvalue();
             *iptr++ = INSTR_ADD;
         }
         else if (cur_token == TOK_MINUS) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
+            want_rvalue();
             *iptr++ = INSTR_SUB;
         }
         else if (cur_token == TOK_LT) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
+            want_rvalue();
             *iptr++ = INSTR_LT;
         }
         else if (cur_token == TOK_GT) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
+            want_rvalue();
             *iptr++ = INSTR_GT;
         }
         else if (cur_token == TOK_LE) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
+            want_rvalue();
             *iptr++ = INSTR_LE;
         }
         else if (cur_token == TOK_GE) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
+            want_rvalue();
             *iptr++ = INSTR_GE;
         }
         else if (cur_token == TOK_DBL_EQ) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_LT);
+            want_rvalue();
             *iptr++ = INSTR_EQ;
         }
         else if (cur_token == TOK_NOT_EQ) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_LT);
+            want_rvalue();
             *iptr++ = INSTR_NE;
         }
         else if (cur_token == TOK_AND) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_DBL_EQ);
+            want_rvalue();
             *iptr++ = INSTR_AND;
         }
         else if (cur_token == TOK_OR) {
             next();
+            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_AND);
+            want_rvalue();
             *iptr++ = INSTR_OR;
         }
+        else if (cur_token == TOK_EQ) {
+            next();
+            if (!is_lvalue) {
+                printf("Cannot assign to an rvalue\n");
+                exit(1);
+            }
+            *iptr++ = INSTR_PSH;
+            expression(TOK_OR);
+            want_rvalue();
+            *iptr++ = cur_type == TYPE_INT ? INSTR_SI : INSTR_SC;
+        }
+
+        is_lvalue = 0;
     }
 }
 
@@ -429,29 +486,14 @@ void parse_function_body(char *func_name) {
         if (cur_token == TOK_RETURN) {
             next();
             if (cur_token != TOK_SEMI) expression(TOK_COMMA);
+            want_rvalue();
             *iptr++ = INSTR_LEV;
             consume(TOK_SEMI);
             seen_return = 1;
         }
 
-        else if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-            int type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
-            next();
-            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
-
-            expect(TOK_IDENTIFIER);
-            cur_symbol = next_symbol;
-            next_symbol[SYMBOL_TYPE] = type;
-            next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
-            next_symbol[SYMBOL_SCOPE] = 0;
-            next_symbol += SYMBOL_SIZE;
-            local_symbol_count++;
-            next();
-        }
-
         else {
-            printf("Unknown token in function body %d\n", cur_token);
-            exit(1);
+            expression(TOK_COMMA);
         }
     }
 
@@ -581,7 +623,7 @@ long int run(long int argc, char **argv, int print_instructions) {
         if (print_instructions) {
             printf("a = %-20ld ", a);
             printf("sp = %-20ld ", (long int) sp);
-            printf("%.5s", &"LEA  IMM  ENT  ADJ  LEV  LI   LC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
@@ -593,6 +635,8 @@ long int run(long int argc, char **argv, int print_instructions) {
         else if (instr == INSTR_LEV) { sp = bp; bp = (long int *) *sp++; pc = (long int *) *sp++; } // leave subroutine
         else if (instr == INSTR_LI)  a = *(long int *)a;                                            // load int
         else if (instr == INSTR_LC)  a = *(char *)a;                                                // load char
+        else if (instr == INSTR_SI) *(int *) *sp++ = a;                                             // store int
+        else if (instr == INSTR_SC) a = *(char *) *sp++ = a;                                        // store char
         else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
         else if (instr == INSTR_AND) a = *sp++ && a;
