@@ -157,6 +157,5 @@ def test_hello_world():
             int a;
             a = 1;
             printf("1 + 1 = %d\n", a + 1);
-            return 0;
         }
     """, "1 + 1 = 2\nexit 0\n")

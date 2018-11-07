@@ -504,7 +504,6 @@ void expression(int level) {
 void parse_function_body(char *func_name) {
     int is_main, seen_return;
     is_main = !strcmp(func_name, "main");
-    printf("is_main %d\n", is_main);
     seen_return = 0;
     int local_symbol_count = 0;
 
@@ -551,7 +550,6 @@ void parse_function_body(char *func_name) {
     }
 
     if (is_main && !seen_return) {
-        printf("not seen return\n");
         *iptr++ = INSTR_IMM;
         *iptr++ = 0;
     }
@@ -608,7 +606,7 @@ void parse() {
                 cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
                 consume(TOK_RPAREN);
                 cur_function_symbol = cur_symbol;
-                parse_function_body(cur_identifier);
+                parse_function_body(cur_symbol[SYMBOL_IDENTIFIER]);
             }
             else {
                 // Global symbol
