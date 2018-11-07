@@ -1,7 +1,7 @@
 all: wc4
 
 wc4: wc4.c
-	gcc wc4.c -o wc4 -Wno-incompatible-library-redeclaration
+	gcc wc4.c -o wc4 -Wno-incompatible-library-redeclaration -Wno-parentheses
 
 .PHONY: test
 test: wc4

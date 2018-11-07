@@ -13,6 +13,14 @@ def check_exit_code(code, expected_result):
         assert int(result) == expected_result
 
 
+def check_output(code, expected_output):
+    with tempfile.NamedTemporaryFile() as temp:
+        with open(temp.name, 'w') as f:
+            f.write(code)
+        output = subprocess.check_output(["./wc4", f.name]).decode('utf-8')
+        assert output == expected_output
+
+
 @pytest.mark.parametrize("expr,expected_result", [
     ("1",               1),
     ("1+2",             3),
@@ -98,8 +106,10 @@ def check_exit_code(code, expected_result):
 def test_expr(expr, expected_result):
     check_exit_code("int main() {return %s;}" % expr, expected_result)
 
+
 def test_argc_count():
     check_exit_code("int main(int argc, int argv) {return argc;}", 2)
+
 
 def test_assignment():
     check_exit_code("""
@@ -113,6 +123,7 @@ def test_assignment():
             return a+b+argc+g;
         }
     """, 8);
+
 
 def test_function_calls():
     check_exit_code("""
@@ -132,3 +143,20 @@ def test_function_calls():
         }
 
     """, 3);
+
+
+def test_hello_world():
+    check_output("""
+        int main(int argc, char **argv) {
+            return printf("Hello world!\n");
+        }
+    """, "Hello world!\nexit 13\n")
+
+    check_output("""
+        int main(int argc, char **argv) {
+            int a;
+            a = 1;
+            printf("1 + 1 = %d\n", a + 1);
+            return 0;
+        }
+    """, "1 + 1 = 2\nexit 0\n")

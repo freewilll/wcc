@@ -8,7 +8,7 @@ char *input;
 int input_size;
 int ip;
 long int *instructions;
-long int *data;
+char *data;
 long int *iptr;
 
 int cur_token;
@@ -31,6 +31,7 @@ int SYMBOL_VALUE;
 int SYMBOL_SIZE;
 int SYMBOL_STACK_INDEX;
 int SYMBOL_FUNCTION_PARAM_COUNT;
+int SYMBOL_BUILTIN;
 
 // In order of precedence
 enum {
@@ -70,7 +71,7 @@ enum {
     TOK_LOGICAL_NOT,
 };
 
-enum { TYPE_FUNCTION=1, TYPE_ENUM, TYPE_INT, TYPE_CHAR };
+enum { TYPE_VOID=1, TYPE_ENUM=2, TYPE_INT, TYPE_CHAR };
 enum { TYPE_PTR=2 };
 
 enum {
@@ -98,6 +99,7 @@ enum {
     INSTR_DIV,
     INSTR_MOD,
     INSTR_PSH,
+    INSTR_PRTF,
     INSTR_EXIT,
 };
 
@@ -269,6 +271,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = -cur_integer;
             next();
+            cur_type = TYPE_INT;
         }
         else {
             *iptr++ = INSTR_IMM;
@@ -288,8 +291,17 @@ void expression(int level) {
     else if (cur_token == TOK_NUMBER) {
         *iptr++ = INSTR_IMM;
         *iptr++ = cur_integer;
+        cur_type = TYPE_INT;
         next();
         is_lvalue = 0;
+    }
+    else if (cur_token == TOK_STRING_LITERAL) {
+        *iptr++ = INSTR_IMM;
+        *iptr++ = (long int) data;
+        while (*data++ = *cur_string_literal++);
+        cur_type = TYPE_CHAR + TYPE_PTR;
+        is_lvalue = 0;
+        next();
     }
     else if (cur_token == TOK_IDENTIFIER) {
         long int *symbol = lookup_symbol(cur_identifier, cur_scope);
@@ -306,17 +318,24 @@ void expression(int level) {
             next();
             param_count = 0;
             while (cur_token != TOK_RPAREN) {
-                expression(TOK_COMMA);
+                expression(TOK_PLUS);
                 want_rvalue();
                 *iptr++ = INSTR_PSH;
                 if (cur_token == TOK_COMMA) next();
                 param_count++;
             }
             consume(TOK_RPAREN);
-            *iptr++ = INSTR_JSR;
-            *iptr++ = symbol[SYMBOL_VALUE];
-            *iptr++ = INSTR_ADJ;
-            *iptr++ = param_count;
+            int builtin = symbol[SYMBOL_BUILTIN];
+            if (builtin) {
+                *iptr++ = builtin;
+                *iptr++ = param_count;
+            }
+            else {
+                *iptr++ = INSTR_JSR;
+                *iptr++ = symbol[SYMBOL_VALUE];
+                *iptr++ = INSTR_ADJ;
+                *iptr++ = param_count;
+            }
             cur_type = symbol[SYMBOL_TYPE];
         }
         else if (scope == 0) {
@@ -356,6 +375,7 @@ void expression(int level) {
             expression(TOK_LOGICAL_NOT);
             want_rvalue();
             *iptr++ = INSTR_MUL;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_DIVIDE) {
             next();
@@ -364,6 +384,7 @@ void expression(int level) {
             expression(TOK_LOGICAL_NOT);
             want_rvalue();
             *iptr++ = INSTR_DIV;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_MOD) {
             next();
@@ -372,6 +393,7 @@ void expression(int level) {
             expression(TOK_LOGICAL_NOT);
             want_rvalue();
             *iptr++ = INSTR_MOD;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_PLUS) {
             next();
@@ -380,6 +402,7 @@ void expression(int level) {
             expression(TOK_MULTIPLY);
             want_rvalue();
             *iptr++ = INSTR_ADD;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_MINUS) {
             next();
@@ -388,6 +411,7 @@ void expression(int level) {
             expression(TOK_MULTIPLY);
             want_rvalue();
             *iptr++ = INSTR_SUB;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_LT) {
             next();
@@ -396,6 +420,7 @@ void expression(int level) {
             expression(TOK_PLUS);
             want_rvalue();
             *iptr++ = INSTR_LT;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_GT) {
             next();
@@ -404,6 +429,7 @@ void expression(int level) {
             expression(TOK_PLUS);
             want_rvalue();
             *iptr++ = INSTR_GT;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_LE) {
             next();
@@ -412,6 +438,7 @@ void expression(int level) {
             expression(TOK_PLUS);
             want_rvalue();
             *iptr++ = INSTR_LE;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_GE) {
             next();
@@ -420,6 +447,7 @@ void expression(int level) {
             expression(TOK_PLUS);
             want_rvalue();
             *iptr++ = INSTR_GE;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_DBL_EQ) {
             next();
@@ -428,6 +456,7 @@ void expression(int level) {
             expression(TOK_LT);
             want_rvalue();
             *iptr++ = INSTR_EQ;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_NOT_EQ) {
             next();
@@ -436,6 +465,7 @@ void expression(int level) {
             expression(TOK_LT);
             want_rvalue();
             *iptr++ = INSTR_NE;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_AND) {
             next();
@@ -444,6 +474,7 @@ void expression(int level) {
             expression(TOK_DBL_EQ);
             want_rvalue();
             *iptr++ = INSTR_AND;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_OR) {
             next();
@@ -452,6 +483,7 @@ void expression(int level) {
             expression(TOK_AND);
             want_rvalue();
             *iptr++ = INSTR_OR;
+            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_EQ) {
             next();
@@ -472,6 +504,7 @@ void expression(int level) {
 void parse_function_body(char *func_name) {
     int is_main, seen_return;
     is_main = !strcmp(func_name, "main");
+    printf("is_main %d\n", is_main);
     seen_return = 0;
     int local_symbol_count = 0;
 
@@ -579,7 +612,8 @@ void parse() {
             }
             else {
                 // Global symbol
-                cur_symbol[SYMBOL_VALUE] = (long int) data++;
+                cur_symbol[SYMBOL_VALUE] = (long int) data;
+                data += sizeof(long int);
             }
         }
 
@@ -643,7 +677,7 @@ long int run(long int argc, char **argv, int print_instructions) {
         if (print_instructions) {
             printf("a = %-20ld ", a);
             printf("sp = %-20ld ", (long int) sp);
-            printf("%.5s", &"LEA  IMM  JSR  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  JSR  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
@@ -673,6 +707,7 @@ long int run(long int argc, char **argv, int print_instructions) {
         else if (instr == INSTR_DIV) a = *sp++ / a;
         else if (instr == INSTR_MOD) a = *sp++ % a;
 
+        else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6]); }
         else if (instr == INSTR_EXIT) { printf("exit %ld\n", *sp); return *sp; }
 
         else {
@@ -683,6 +718,14 @@ long int run(long int argc, char **argv, int print_instructions) {
 
     // Should never get here
     return 0;
+}
+
+void add_builtin(char *identifier, int instruction) {
+    long int *symbol = next_symbol;
+    symbol[SYMBOL_TYPE] = TYPE_VOID;
+    symbol[SYMBOL_IDENTIFIER] = (long int) identifier;
+    symbol[SYMBOL_BUILTIN] = instruction;
+    next_symbol += SYMBOL_SIZE;
 }
 
 int main(int argc, char **argv) {
@@ -719,7 +762,10 @@ int main(int argc, char **argv) {
     SYMBOL_VALUE                = 3;
     SYMBOL_STACK_INDEX          = 4;
     SYMBOL_FUNCTION_PARAM_COUNT = 5;
-    SYMBOL_SIZE                 = 6; // Number of long ints
+    SYMBOL_BUILTIN              = 6;
+    SYMBOL_SIZE                 = 7; // Number of long ints
+
+    add_builtin("printf", INSTR_PRTF);
 
     iptr = instructions;
     int f;
