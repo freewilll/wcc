@@ -495,3 +495,20 @@ def test_mem_functions():
         "0 5 -1",
         "exit 0",
     ]) + "\n");
+
+
+def test_open_read_close():
+    with tempfile.NamedTemporaryFile() as temp:
+        with open(temp.name, 'w') as f:
+            f.write("foo\n");
+
+        check_output("""
+            int main(int argc, char **argv) {
+                int f;
+                char *data;
+                data = malloc(16);
+                f = open("%s", 0);
+                printf("%%zd\n", read(f, data, 16));
+                close(f);
+            }
+        """ % temp.name, "4\nexit 0\n")

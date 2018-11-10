@@ -112,6 +112,9 @@ enum {
     INSTR_DIV,
     INSTR_MOD,
     INSTR_PSH,
+    INSTR_OPEN,
+    INSTR_READ,
+    INSTR_CLOS,
     INSTR_PRTF,
     INSTR_MALC,
     INSTR_FREE,
@@ -924,7 +927,7 @@ long run(long argc, char **argv, int print_instructions) {
         if (print_instructions) {
             printf("a = %-20ld ", a);
             printf("sp = %-20ld ", (long) sp);
-            printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC FREE MSET MCMP SCMP EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
@@ -956,7 +959,9 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_MUL) a = *sp++ * a;
         else if (instr == INSTR_DIV) a = *sp++ / a;
         else if (instr == INSTR_MOD) a = *sp++ % a;
-
+        else if (instr == INSTR_OPEN) { a = open((char *) sp[1], *sp); sp += 2; }
+        else if (instr == INSTR_READ) { a = read(sp[2], (char *) sp[1], *sp); sp += 3; }
+        else if (instr == INSTR_CLOS) a = close(*sp++);
         else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6]); }
         else if (instr == INSTR_MALC) a = (long) malloc(*sp++);
         else if (instr == INSTR_FREE) free((void *) *sp++);
@@ -1020,6 +1025,9 @@ int main(int argc, char **argv) {
     SYMBOL_BUILTIN              = 6;
     SYMBOL_SIZE                 = 7; // Number of longs
 
+    add_builtin("open",   INSTR_OPEN);
+    add_builtin("read",   INSTR_READ);
+    add_builtin("close",  INSTR_CLOS);
     add_builtin("printf", INSTR_PRTF);
     add_builtin("malloc", INSTR_MALC);
     add_builtin("free",   INSTR_FREE);
