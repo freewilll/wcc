@@ -115,6 +115,9 @@ enum {
     INSTR_PRTF,
     INSTR_MALC,
     INSTR_FREE,
+    INSTR_MSET,
+    INSTR_MCMP,
+    INSTR_SCMP,
     INSTR_EXIT,
 };
 
@@ -921,7 +924,7 @@ long run(long argc, char **argv, int print_instructions) {
         if (print_instructions) {
             printf("a = %-20ld ", a);
             printf("sp = %-20ld ", (long) sp);
-            printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC FREE EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC FREE MSET MCMP SCMP EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
@@ -956,7 +959,10 @@ long run(long argc, char **argv, int print_instructions) {
 
         else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6]); }
         else if (instr == INSTR_MALC) a = (long) malloc(*sp++);
-        else if (instr == INSTR_FREE) free((void *) *sp);
+        else if (instr == INSTR_FREE) free((void *) *sp++);
+        else if (instr == INSTR_MSET) { a = (long) memset((char *) sp[2], sp[1], *sp); sp += 3; }
+        else if (instr == INSTR_MCMP) { a = (long) memcmp((char *) sp[2], (char *) sp[1], *sp); sp += 3; }
+        else if (instr == INSTR_SCMP) { a = (long) strcmp((char *) sp[1], (char *) *sp); sp += 2; }
         else if (instr == INSTR_EXIT) { printf("exit %ld\n", *sp); return *sp; }
 
         else {
@@ -1017,6 +1023,9 @@ int main(int argc, char **argv) {
     add_builtin("printf", INSTR_PRTF);
     add_builtin("malloc", INSTR_MALC);
     add_builtin("free",   INSTR_FREE);
+    add_builtin("memset", INSTR_MSET);
+    add_builtin("memcmp", INSTR_MCMP);
+    add_builtin("strcmp", INSTR_SCMP);
 
     iptr = instructions;
     int f;

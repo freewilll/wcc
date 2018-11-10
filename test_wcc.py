@@ -470,3 +470,28 @@ def test_free():
             free(pi);
         }
     """, "exit 0\n")
+
+
+def test_mem_functions():
+    check_output("""
+        int main(int argc, char **argv) {
+            long *pi1, *pi2;
+
+            pi1 = malloc(32);
+            pi2 = malloc(32);
+            memset(pi1, 0, 32);
+            printf("%ld %ld ", pi1[0], pi1[3]);
+            memset(pi1, -1, 32);
+            printf("%ld %ld\n", pi1[0], pi1[3]);
+            printf("%ld\n", memcmp(pi1, pi2, 32));
+
+            printf("%d ",  strcmp("foo", "foo"));
+            printf("%d ",  strcmp("foo", "aaa"));
+            printf("%d\n", strcmp("foo", "ggg"));
+        }
+    """, "\n".join([
+        "0 0 -1 -1",
+        "255",
+        "0 5 -1",
+        "exit 0",
+    ]) + "\n");
