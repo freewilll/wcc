@@ -595,6 +595,10 @@ void parse_function_body(char *func_name) {
     *iptr++ = INSTR_ENT;
     *iptr++ = local_symbol_count * 8; // allocate stack space for locals
     while (cur_token != TOK_RCURLY) {
+        while (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+            printf("Declarations must be at the top of a function\n");
+            exit(1);
+        }
         if (cur_token == TOK_SEMI)  {
             next();
             continue;
