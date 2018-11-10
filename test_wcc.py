@@ -433,3 +433,17 @@ def test_bracket_lookup():
             printf("%ld %ld %ld\n", *opi, *(opi + 1), *(opi + 2));
         }
     """, "1 2 3\nexit 0\n")
+
+
+def test_casting():
+    check_output("""
+        int main(int argc, char **argv) {
+            int *pi;
+            int *pj;
+            pi = 0;
+            pj = pi + 1;
+            printf("%ld\n", (long) pj - (long) pi);
+            pj = (int *) (((char *) pi) + 1);
+            printf("%ld\n", (long) pj - (long) pi);
+        }
+    """, "8\n1\nexit 0\n")

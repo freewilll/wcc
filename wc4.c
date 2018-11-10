@@ -371,8 +371,16 @@ void expression(int level) {
     }
     else if (cur_token == TOK_LPAREN) {
         next();
-        expression(TOK_COMMA);
-        next();
+        if (cur_token == TOK_VOID || cur_token == TOK_INT || cur_token == TOK_CHAR) {
+            org_type = parse_type();
+            consume(TOK_RPAREN);
+            expression(TOK_COMMA);
+            cur_type = org_type;
+        }
+        else {
+            expression(TOK_COMMA);
+            consume(TOK_RPAREN);
+        }
     }
     else if (cur_token == TOK_NUMBER) {
         *iptr++ = INSTR_IMM;
