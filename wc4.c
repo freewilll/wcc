@@ -18,6 +18,7 @@ int cur_integer;
 char *cur_string_literal;
 long int *cur_function_symbol;
 int is_lvalue;
+int seen_return;
 
 long int *symbol_table;
 long int *next_symbol;
@@ -80,7 +81,10 @@ enum { TYPE_PTR=2 };
 enum {
     INSTR_LEA=1,
     INSTR_IMM,
+    INSTR_JMP,
     INSTR_JSR,
+    INSTR_BZ,
+    INSTR_BNZ,
     INSTR_ENT,
     INSTR_ADJ,
     INSTR_LEV,
@@ -573,8 +577,54 @@ void expression(int level) {
     }
 }
 
-void parse_function_body(char *func_name) {
-    int is_main, seen_return;
+void statement() {
+    long int *cond_start;
+    long int *body_start;
+
+    if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+        printf("Declarations must be at the top of a function\n");
+        exit(1);
+    }
+
+    if (cur_token == TOK_SEMI)
+        return; // Empty statement
+    else if (cur_token == TOK_LCURLY) {
+        next();
+        while (cur_token != TOK_RCURLY) statement();
+        consume(TOK_RCURLY);
+        return;
+    }
+    else if (cur_token == TOK_WHILE) {
+        next();
+        consume(TOK_LPAREN);
+        cond_start = iptr;
+        expression(TOK_COMMA);
+        consume(TOK_RPAREN);
+        *iptr++ = INSTR_BZ;
+        *iptr++ = 0;
+        body_start = iptr;
+        statement();
+        *iptr++ = INSTR_JMP;
+        *iptr++ = (long int) cond_start;
+        *(body_start - 1) = (long int) iptr;
+    }
+    else if (cur_token == TOK_RETURN) {
+        next();
+        if (cur_token != TOK_SEMI) expression(TOK_COMMA);
+        want_rvalue();
+        *iptr++ = INSTR_LEV;
+        consume(TOK_SEMI);
+        seen_return = 1;
+    }
+    else {
+        expression(TOK_COMMA);
+        consume(TOK_SEMI);
+    }
+}
+
+void function_body(char *func_name) {
+    int is_main;
+    seen_return = 0;
     is_main = !strcmp(func_name, "main");
     seen_return = 0;
     int local_symbol_count = 0;
@@ -601,29 +651,8 @@ void parse_function_body(char *func_name) {
 
     *iptr++ = INSTR_ENT;
     *iptr++ = local_symbol_count * 8; // allocate stack space for locals
-    while (cur_token != TOK_RCURLY) {
-        while (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-            printf("Declarations must be at the top of a function\n");
-            exit(1);
-        }
-        if (cur_token == TOK_SEMI)  {
-            next();
-            continue;
-        }
 
-        if (cur_token == TOK_RETURN) {
-            next();
-            if (cur_token != TOK_SEMI) expression(TOK_COMMA);
-            want_rvalue();
-            *iptr++ = INSTR_LEV;
-            consume(TOK_SEMI);
-            seen_return = 1;
-        }
-
-        else {
-            expression(TOK_COMMA);
-        }
-    }
+    while (cur_token != TOK_RCURLY) statement();
 
     if (is_main && !seen_return) {
         *iptr++ = INSTR_IMM;
@@ -684,7 +713,7 @@ void parse() {
                 cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
                 consume(TOK_RPAREN);
                 cur_function_symbol = cur_symbol;
-                parse_function_body((char *) cur_symbol[SYMBOL_IDENTIFIER]);
+                function_body((char *) cur_symbol[SYMBOL_IDENTIFIER]);
             }
             else {
                 // Global symbol
@@ -753,14 +782,17 @@ long int run(long int argc, char **argv, int print_instructions) {
         if (print_instructions) {
             printf("a = %-20ld ", a);
             printf("sp = %-20ld ", (long int) sp);
-            printf("%.5s", &"LEA  IMM  JSR  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
 
              if (instr == INSTR_LEA) a = (long int) (bp + *pc++);                                   // load local address
         else if (instr == INSTR_IMM) a = *pc++;                                                     // load global address or immediate
+        else if (instr == INSTR_JMP) pc = (long int *) *pc;                                         // jump
         else if (instr == INSTR_JSR) { *--sp = (long int) (pc + 1); pc = (long int *)*pc; }         // jump to subroutine
+        else if (instr == INSTR_BZ)  pc = a ? pc + 1 : (long int *) *pc;                            // branch if zero
+        else if (instr == INSTR_BNZ) pc = a ? (long int *) *pc : pc + 1;                            // branch if not zero
         else if (instr == INSTR_ENT) { *--sp = (long int) bp; bp = sp; sp = sp - *pc++; }           // enter subroutine
         else if (instr == INSTR_ADJ) sp = sp + *pc++;                                               // stack adjust
         else if (instr == INSTR_LEV) { sp = bp; bp = (long int *) *sp++; pc = (long int *) *sp++; } // leave subroutine

@@ -296,3 +296,13 @@ def test_char_pointer_arithmetic():
             printf("%s\n", start);
         }
     """, "foo\nexit 0\n")
+
+def test_while():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            i = 0; while (i < 3) { printf("%d ", i); i++; }
+            i = 0; while (i++ < 3) printf("%d ", i);
+            printf("\n");
+        }
+    """, "0 1 2 1 2 3 \nexit 0\n")
