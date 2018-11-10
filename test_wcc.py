@@ -417,3 +417,19 @@ def test_ternary():
             );
         }
     """, "2 1 foo\nexit 0\n")
+
+
+def test_bracket_lookup():
+    check_output("""
+        int main(int argc, char **argv) {
+            long *pi;
+            long *opi;
+            pi = malloc(3 * sizeof(long));
+            opi  =pi;
+            pi[0] = 1;
+            pi[1] = 2;
+            pi = pi + 3;
+            pi[-1] = 3;
+            printf("%ld %ld %ld\n", *opi, *(opi + 1), *(opi + 2));
+        }
+    """, "1 2 3\nexit 0\n")

@@ -447,6 +447,29 @@ void expression(int level) {
             cur_type = symbol[SYMBOL_TYPE];
             is_lvalue = 1;
         }
+
+        if (cur_token == TOK_LBRACKET) {
+            next();
+            want_rvalue();
+
+            if (cur_type <= TYPE_CHAR) {
+                printf("Cannot do [] on a non-pointer %ld\n", cur_type);
+                exit(1);
+            }
+
+            org_type = cur_type;
+            *iptr++ = INSTR_PSH;
+            expression(TOK_COMMA);
+            want_rvalue();
+            *iptr++ = INSTR_PSH;
+            *iptr++ = INSTR_IMM;
+            *iptr++ = get_sizeof(org_type);
+            *iptr++ = INSTR_MUL;
+            *iptr++ = INSTR_ADD;
+            consume(TOK_RBRACKET);
+            is_lvalue = 1;
+            cur_type = org_type - TYPE_PTR;
+        }
     }
     else if (cur_token == TOK_SIZEOF) {
         next();
