@@ -103,6 +103,7 @@ enum {
     INSTR_MOD,
     INSTR_PSH,
     INSTR_PRTF,
+    INSTR_MALC,
     INSTR_EXIT,
 };
 
@@ -282,9 +283,11 @@ void expression(int level) {
         is_lvalue = 0;
     }
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
+        // Prefix increment & decrement
         org_token = cur_token;
         next();
         expression(1024); // Fake highest precedence, bind nothing
+        org_type = cur_type;
         if (!is_lvalue) {
             printf("Cannot pre increment an rvalue\n");
             exit(1);
@@ -297,11 +300,11 @@ void expression(int level) {
         *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
         *iptr++ = INSTR_SI;
         is_lvalue = 0;
-        cur_type = TYPE_INT;
+        cur_type = org_type;
     }
     else if (cur_token == TOK_MULTIPLY) {
         next();
-        expression(1024); // Fake highest precedence, bind nothing
+        expression(TOK_INC);
         if (cur_type <= TYPE_CHAR) {
             printf("Cannot derefence a non-pointer %ld\n", cur_type);
             exit(1);
@@ -376,7 +379,7 @@ void expression(int level) {
             int builtin = symbol[SYMBOL_BUILTIN];
             if (builtin) {
                 *iptr++ = builtin;
-                *iptr++ = param_count;
+                if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]))  *iptr++ = param_count;
             }
             else {
                 *iptr++ = INSTR_JSR;
@@ -418,6 +421,7 @@ void expression(int level) {
         // In order or precedence
 
         if (cur_token == TOK_INC || cur_token == TOK_DEC) {
+            // Postfix increment and decrement
             *iptr++ = INSTR_PSH;
             want_rvalue();
             *iptr++ = INSTR_PSH;
@@ -433,7 +437,6 @@ void expression(int level) {
             *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
             is_lvalue = 0;
-            cur_type = TYPE_INT;
             next();
         }
         else if (cur_token == TOK_MULTIPLY) {
@@ -750,7 +753,7 @@ long int run(long int argc, char **argv, int print_instructions) {
         if (print_instructions) {
             printf("a = %-20ld ", a);
             printf("sp = %-20ld ", (long int) sp);
-            printf("%.5s", &"LEA  IMM  JSR  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  JSR  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
@@ -781,6 +784,7 @@ long int run(long int argc, char **argv, int print_instructions) {
         else if (instr == INSTR_MOD) a = *sp++ % a;
 
         else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6]); }
+        else if (instr == INSTR_MALC) a = (long int) malloc(*sp++);
         else if (instr == INSTR_EXIT) { printf("exit %ld\n", *sp); return *sp; }
 
         else {
@@ -839,6 +843,7 @@ int main(int argc, char **argv) {
     SYMBOL_SIZE                 = 7; // Number of long ints
 
     add_builtin("printf", INSTR_PRTF);
+    add_builtin("malloc", INSTR_MALC);
 
     iptr = instructions;
     int f;

@@ -267,3 +267,17 @@ def test_pointer_arithmetic():
         "08 24 00",
         "exit 0"
     ]) + "\n");
+
+def test_malloc():
+    check_output("""
+        int main(int argc, char **argv) {
+            int *pi;
+            pi = malloc(32);
+            *pi = 1;
+            *++pi = 2;
+            *++pi = -1; // Gets overwritten
+            *pi++ = 3;
+            *pi = 4;
+            printf("%d %d %d %d\n", *(pi - 3), *(pi - 2), *(pi - 1), *pi);
+        }
+    """, "1 2 3 4\nexit 0\n")
