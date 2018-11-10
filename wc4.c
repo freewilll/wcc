@@ -125,6 +125,7 @@ void next() {
 
         else if (input_size - ip >= 2 && !memcmp(i+ip, "if",     2)    ) { ip += 2; cur_token = TOK_IF;                         }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "int",    3)    ) { ip += 3; cur_token = TOK_INT;                        }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "void",   4)    ) { ip += 4; cur_token = TOK_VOID;                       }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "char",   4)    ) { ip += 4; cur_token = TOK_CHAR;                       }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "while",  5)    ) { ip += 5; cur_token = TOK_WHILE;                      }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "return", 6)    ) { ip += 6; cur_token = TOK_RETURN;                     }
@@ -671,6 +672,7 @@ void function_body(char *func_name) {
 
 void parse() {
     cur_scope = 0;
+    int type;
 
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)  {
@@ -678,8 +680,11 @@ void parse() {
             continue;
         }
 
-        if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-            int type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
+        if (cur_token == TOK_VOID || cur_token == TOK_INT || cur_token == TOK_CHAR) {
+            if (cur_token == TOK_VOID) type = TYPE_VOID;
+            else if (cur_token == TOK_INT) type = TYPE_INT;
+            else if (cur_token == TOK_CHAR) type = TYPE_CHAR;
+
             next();
             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
