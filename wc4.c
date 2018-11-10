@@ -19,6 +19,7 @@ char *cur_string_literal;
 long int *cur_function_symbol;
 int is_lvalue;
 int seen_return;
+long int *cur_while_start;
 
 long int *symbol_table;
 long int *next_symbol;
@@ -45,6 +46,7 @@ enum {
     TOK_CHAR,
     TOK_VOID,
     TOK_WHILE,
+    TOK_CONTINUE,
     TOK_RETURN,
     TOK_ENUM,
     TOK_RPAREN,
@@ -123,21 +125,22 @@ void next() {
         }
 
 
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "if",     2)    ) { ip += 2; cur_token = TOK_IF;                         }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",    3)    ) { ip += 3; cur_token = TOK_INT;                        }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "void",   4)    ) { ip += 4; cur_token = TOK_VOID;                       }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "char",   4)    ) { ip += 4; cur_token = TOK_CHAR;                       }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "while",  5)    ) { ip += 5; cur_token = TOK_WHILE;                      }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "return", 6)    ) { ip += 6; cur_token = TOK_RETURN;                     }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "enum",   4)    ) { ip += 4; cur_token = TOK_ENUM;                       }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",     2)    ) { ip += 2; cur_token = TOK_AND;                        }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "||",     2)    ) { ip += 2; cur_token = TOK_OR;                         }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "==",     2)    ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "!=",     2)    ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "<=",     2)    ) { ip += 2; cur_token = TOK_LE;                         }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, ">=",     2)    ) { ip += 2; cur_token = TOK_GE;                         }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "++",     2)    ) { ip += 2; cur_token = TOK_INC;                        }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "--",     2)    ) { ip += 2; cur_token = TOK_DEC;                        }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "if",       2)  ) { ip += 2; cur_token = TOK_IF;                         }
+        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",      3)  ) { ip += 3; cur_token = TOK_INT;                        }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "void",     4)  ) { ip += 4; cur_token = TOK_VOID;                       }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "char",     4)  ) { ip += 4; cur_token = TOK_CHAR;                       }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "while",    5)  ) { ip += 5; cur_token = TOK_WHILE;                      }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "continue", 8)  ) { ip += 8; cur_token = TOK_CONTINUE;                   }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "return",   6)  ) { ip += 6; cur_token = TOK_RETURN;                     }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "enum",     4)  ) { ip += 4; cur_token = TOK_ENUM;                       }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",       2)  ) { ip += 2; cur_token = TOK_AND;                        }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "||",       2)  ) { ip += 2; cur_token = TOK_OR;                         }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "==",       2)  ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "!=",       2)  ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "<=",       2)  ) { ip += 2; cur_token = TOK_LE;                         }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, ">=",       2)  ) { ip += 2; cur_token = TOK_GE;                         }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "++",       2)  ) { ip += 2; cur_token = TOK_INC;                        }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "--",       2)  ) { ip += 2; cur_token = TOK_DEC;                        }
         else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; cur_token = TOK_LPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; cur_token = TOK_RPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; cur_token = TOK_LBRACKET;                   }
@@ -579,7 +582,6 @@ void expression(int level) {
 }
 
 void statement() {
-    long int *cond_start;
     long int *body_start;
 
     if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
@@ -601,7 +603,7 @@ void statement() {
     else if (cur_token == TOK_WHILE) {
         next();
         consume(TOK_LPAREN);
-        cond_start = iptr;
+        cur_while_start = iptr;
         expression(TOK_COMMA);
         want_rvalue();
         consume(TOK_RPAREN);
@@ -610,8 +612,14 @@ void statement() {
         body_start = iptr;
         statement();
         *iptr++ = INSTR_JMP;
-        *iptr++ = (long int) cond_start;
+        *iptr++ = (long int) cur_while_start;
         *(body_start - 1) = (long int) iptr;
+    }
+    else if (cur_token == TOK_CONTINUE) {
+        next();
+        *iptr++ = INSTR_JMP;
+        *iptr++ = (long int) cur_while_start;
+        consume(TOK_SEMI);
     }
     else if (cur_token == TOK_RETURN) {
         next();

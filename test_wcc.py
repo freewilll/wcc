@@ -307,7 +307,7 @@ def test_while():
         }
     """, "0 1 2 1 2 3 \nexit 0\n")
 
-def check_string_copy():
+def test_string_copy():
     check_output("""
         int main(int argc, char **argv) {
             char *src;
@@ -322,4 +322,18 @@ def check_string_copy():
             while (*dst++ = *src++); // The coolest c code
             printf("%s=%s\n", osrc, odst);
         }
-    """, "foo=foo\nexit 0")
+    """, "foo=foo\nexit 0\n")
+
+def test_while_continue():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            i = 0;
+            while (i++ < 5) {
+                printf("%d", i);
+                continue;
+                printf("X", i);
+            }
+            printf("\n");
+        }
+    """, "12345\nexit 0\n")
