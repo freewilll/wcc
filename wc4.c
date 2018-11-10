@@ -69,6 +69,9 @@ enum {
     TOK_DIVIDE,
     TOK_MOD,
     TOK_LOGICAL_NOT,
+    TOK_ADDRESS_OF,
+    TOK_INC,
+    TOK_DEC,
 };
 
 enum { TYPE_VOID=1, TYPE_ENUM=2, TYPE_INT, TYPE_CHAR };
@@ -127,6 +130,8 @@ void next() {
         else if (input_size - ip >= 2 && !memcmp(i+ip, "!=",     2)    ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "<=",     2)    ) { ip += 2; cur_token = TOK_LE;                         }
         else if (input_size - ip >= 2 && !memcmp(i+ip, ">=",     2)    ) { ip += 2; cur_token = TOK_GE;                         }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "++",     2)    ) { ip += 2; cur_token = TOK_INC;                        }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "--",     2)    ) { ip += 2; cur_token = TOK_DEC;                        }
         else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; cur_token = TOK_LPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; cur_token = TOK_RPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; cur_token = TOK_LBRACKET;                   }
@@ -144,6 +149,7 @@ void next() {
         else if (input_size - ip >= 1 && i[ip] == '<'                  ) { ip += 1; cur_token = TOK_LT;                         }
         else if (input_size - ip >= 1 && i[ip] == '>'                  ) { ip += 1; cur_token = TOK_GT;                         }
         else if (input_size - ip >= 1 && i[ip] == '!'                  ) { ip += 1; cur_token = TOK_LOGICAL_NOT;                }
+        else if (input_size - ip >= 1 && i[ip] == '&'                  ) { ip += 1; cur_token = TOK_ADDRESS_OF;                 }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\t'; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\n'; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\''; }
@@ -245,7 +251,7 @@ long int lookup_function(char *name) {
 
 void want_rvalue() {
     if (is_lvalue) {
-        *iptr++ = cur_type == TYPE_INT ? INSTR_LI : INSTR_LC;
+        *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
         is_lvalue = 0;
     }
 }
@@ -263,6 +269,58 @@ void expression(int level) {
         want_rvalue();
         *iptr++ = INSTR_EQ;
         is_lvalue = 0;
+        cur_type = TYPE_INT;
+    }
+    else if (cur_token == TOK_ADDRESS_OF) {
+        next();
+        expression(1024); // Fake highest precedence, bind nothing
+        cur_type = cur_type + TYPE_PTR;
+        is_lvalue = 0;
+    }
+    else if (cur_token == TOK_INC) {
+        next();
+        expression(1024); // Fake highest precedence, bind nothing
+        if (!is_lvalue) {
+            printf("Cannot pre increment an rvalue\n");
+            exit(1);
+        }
+        *iptr++ = INSTR_PSH; // Push address
+        want_rvalue();
+        *iptr++ = INSTR_PSH;
+        *iptr++ = INSTR_IMM;
+        *iptr++ = 1;
+        *iptr++ = INSTR_ADD;
+        *iptr++ = INSTR_SI;
+        is_lvalue = 0;
+        cur_type = TYPE_INT;
+    }
+    else if (cur_token == TOK_DEC) {
+        next();
+        expression(1024); // Fake highest precedence, bind nothing
+        if (!is_lvalue) {
+            printf("Cannot pre increment an rvalue\n");
+            exit(1);
+        }
+        *iptr++ = INSTR_PSH; // Push address
+        want_rvalue();
+        *iptr++ = INSTR_PSH;
+        *iptr++ = INSTR_IMM;
+        *iptr++ = 1;
+        *iptr++ = INSTR_SUB;
+        *iptr++ = INSTR_SI;
+        is_lvalue = 0;
+        cur_type = TYPE_INT;
+    }
+    else if (cur_token == TOK_MULTIPLY) {
+        next();
+        expression(1024); // Fake highest precedence, bind nothing
+        if (cur_type <= TYPE_CHAR) {
+            printf("Cannot derefence a non-pointer %ld\n", cur_type);
+            exit(1);
+        }
+        want_rvalue(); // This does the dereferencing
+        is_lvalue = 1;
+        cur_type = cur_type - TYPE_PTR;
     }
     else if (cur_token == TOK_MINUS) {
         next();
@@ -271,6 +329,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = -cur_integer;
             next();
+            is_lvalue = 0;
             cur_type = TYPE_INT;
         }
         else {
@@ -312,6 +371,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = symbol[SYMBOL_VALUE];
             is_lvalue = 0;
+            cur_type = symbol[SYMBOL_TYPE];
         }
         else if (cur_token == TOK_LPAREN) {
             // Function call
@@ -494,7 +554,7 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_OR);
             want_rvalue();
-            *iptr++ = cur_type == TYPE_INT ? INSTR_SI : INSTR_SC;
+            *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
         }
 
         is_lvalue = 0;
@@ -552,6 +612,8 @@ void parse_function_body(char *func_name) {
     if (is_main && !seen_return) {
         *iptr++ = INSTR_IMM;
         *iptr++ = 0;
+        cur_type = TYPE_INT;
+        is_lvalue = 0;
     }
 
     *iptr++ = INSTR_LEV;
@@ -606,7 +668,7 @@ void parse() {
                 cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
                 consume(TOK_RPAREN);
                 cur_function_symbol = cur_symbol;
-                parse_function_body(cur_symbol[SYMBOL_IDENTIFIER]);
+                parse_function_body((char *) cur_symbol[SYMBOL_IDENTIFIER]);
             }
             else {
                 // Global symbol
@@ -688,7 +750,7 @@ long int run(long int argc, char **argv, int print_instructions) {
         else if (instr == INSTR_LEV) { sp = bp; bp = (long int *) *sp++; pc = (long int *) *sp++; } // leave subroutine
         else if (instr == INSTR_LI)  a = *(long int *)a;                                            // load int
         else if (instr == INSTR_LC)  a = *(char *)a;                                                // load char
-        else if (instr == INSTR_SI) *(int *) *sp++ = a;                                             // store int
+        else if (instr == INSTR_SI) *(long int *) *sp++ = a;                                        // store int
         else if (instr == INSTR_SC) a = *(char *) *sp++ = a;                                        // store char
         else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
