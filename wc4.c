@@ -460,22 +460,14 @@ void expression(int level) {
             *iptr++ = INSTR_MOD;
             cur_type = TYPE_INT;
         }
-        else if (cur_token == TOK_PLUS) {
+        else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
+            org_token = cur_token;
             next();
             want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
             want_rvalue();
-            *iptr++ = INSTR_ADD;
-            cur_type = TYPE_INT;
-        }
-        else if (cur_token == TOK_MINUS) {
-            next();
-            want_rvalue();
-            *iptr++ = INSTR_PSH;
-            expression(TOK_MULTIPLY);
-            want_rvalue();
-            *iptr++ = INSTR_SUB;
+            *iptr++ = org_token == TOK_PLUS ? INSTR_ADD : INSTR_SUB;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_LT) {
