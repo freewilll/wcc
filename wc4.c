@@ -307,7 +307,7 @@ void expression(int level) {
         want_rvalue();
         *iptr++ = INSTR_PSH;
         *iptr++ = INSTR_IMM;
-        *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : 8;
+        *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long int);
         *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
         *iptr++ = INSTR_SI;
         is_lvalue = 0;
@@ -437,14 +437,14 @@ void expression(int level) {
             want_rvalue();
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : 8;
+            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long int);
             *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
             *iptr++ = INSTR_SI;
 
             // Dirty!
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : 8;
+            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long int);
             *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
             is_lvalue = 0;
@@ -482,7 +482,7 @@ void expression(int level) {
             org_type = cur_type;
             first_arg_is_pointer = cur_type > TYPE_CHAR;
             factor = first_arg_is_pointer
-                ? cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : 8
+                ? cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long int)
                 : 1;
             next();
             want_rvalue();
@@ -701,7 +701,7 @@ void function_body(char *func_name) {
     }
 
     *iptr++ = INSTR_ENT;
-    *iptr++ = local_symbol_count * 8; // allocate stack space for locals
+    *iptr++ = local_symbol_count * sizeof(long int); // allocate stack space for locals
 
     while (cur_token != TOK_RCURLY) statement();
 
