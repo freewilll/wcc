@@ -176,7 +176,7 @@ def test_pointer_to_int():
         }
         """, "1\n2\nexit 0\n");
 
-def test_inc_dec():
+def test_prefix_inc_dec():
     check_output("""
         int main(int argc, char **argv) {
             int i;
@@ -187,3 +187,15 @@ def test_inc_dec():
             printf("%d\n", --i);
         }
     """, "1\n2\n1\n0\nexit 0\n");
+
+def test_postfix_inc_dec():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            i = 0;
+            printf("%d\n", i++);
+            printf("%d\n", i++);
+            printf("%d\n", i--);
+            printf("%d\n", i--);
+        }
+    """, "0\n1\n2\n1\nexit 0\n");

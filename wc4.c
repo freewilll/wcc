@@ -428,11 +428,31 @@ void expression(int level) {
 
     while (cur_token >= level) {
         // In order or precedence
-        if (cur_token == TOK_MULTIPLY) {
+
+        if (cur_token == TOK_INC || cur_token == TOK_DEC) {
+            *iptr++ = INSTR_PSH;
+            want_rvalue();
+            *iptr++ = INSTR_PSH;
+            *iptr++ = INSTR_IMM;
+            *iptr++ = 1;
+            *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
+            *iptr++ = INSTR_SI;
+
+            // Dirty!
+            *iptr++ = INSTR_PSH;
+            *iptr++ = INSTR_IMM;
+            *iptr++ = 1;
+            *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
+
+            is_lvalue = 0;
+            cur_type = TYPE_INT;
+            next();
+        }
+        else if (cur_token == TOK_MULTIPLY) {
             next();
             want_rvalue();
             *iptr++ = INSTR_PSH;
-            expression(TOK_LOGICAL_NOT);
+            expression(TOK_INC);
             want_rvalue();
             *iptr++ = INSTR_MUL;
             cur_type = TYPE_INT;
@@ -441,7 +461,7 @@ void expression(int level) {
             next();
             want_rvalue();
             *iptr++ = INSTR_PSH;
-            expression(TOK_LOGICAL_NOT);
+            expression(TOK_INC);
             want_rvalue();
             *iptr++ = INSTR_DIV;
             cur_type = TYPE_INT;
@@ -450,7 +470,7 @@ void expression(int level) {
             next();
             want_rvalue();
             *iptr++ = INSTR_PSH;
-            expression(TOK_LOGICAL_NOT);
+            expression(TOK_INC);
             want_rvalue();
             *iptr++ = INSTR_MOD;
             cur_type = TYPE_INT;
