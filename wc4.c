@@ -7,24 +7,24 @@
 char *input;
 int input_size;
 int ip;
-long int *instructions;
+long *instructions;
 char *data;
-long int *iptr;
+long *iptr;
 
 int cur_token;
 int cur_scope;
 char *cur_identifier;
 int cur_integer;
 char *cur_string_literal;
-long int *cur_function_symbol;
+long *cur_function_symbol;
 int is_lvalue;
 int seen_return;
-long int *cur_while_start;
+long *cur_while_start;
 
-long int *symbol_table;
-long int *next_symbol;
-long int *cur_symbol;
-long int cur_type;
+long *symbol_table;
+long *next_symbol;
+long *cur_symbol;
+long cur_type;
 
 int SYMBOL_TYPE;
 int SYMBOL_IDENTIFIER;
@@ -129,6 +129,7 @@ void next() {
         else if (input_size - ip >= 2 && !memcmp(i+ip, "if",       2)  ) { ip += 2; cur_token = TOK_IF;                         }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "else",     4)  ) { ip += 4; cur_token = TOK_ELSE;                       }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "int",      3)  ) { ip += 3; cur_token = TOK_INT;                        }
+        else if (input_size - ip >= 3 && !memcmp(i+ip, "long",     4)  ) { ip += 4; cur_token = TOK_INT;                        }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "void",     4)  ) { ip += 4; cur_token = TOK_VOID;                       }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "char",     4)  ) { ip += 4; cur_token = TOK_CHAR;                       }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "while",    5)  ) { ip += 5; cur_token = TOK_WHILE;                      }
@@ -241,8 +242,8 @@ void consume(int token) {
     next();
 }
 
-long int *lookup_symbol(char *name, int scope) {
-    long int *s = symbol_table;
+long *lookup_symbol(char *name, int scope) {
+    long *s = symbol_table;
 
     while (s[0]) {
         if (s[SYMBOL_SCOPE] == scope && !strcmp((char *) s[SYMBOL_IDENTIFIER], name)) return s;
@@ -255,8 +256,8 @@ long int *lookup_symbol(char *name, int scope) {
     exit(1);
 }
 
-long int lookup_function(char *name) {
-    long int *symbol = lookup_symbol(name, 0);
+long lookup_function(char *name) {
+    long *symbol = lookup_symbol(name, 0);
     return symbol[SYMBOL_VALUE];
 }
 
@@ -273,7 +274,7 @@ void expression(int level) {
     int org_type;
     int first_arg_is_pointer;
     int factor;
-    long int *temp_iptr;
+    long *temp_iptr;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -307,7 +308,7 @@ void expression(int level) {
         want_rvalue();
         *iptr++ = INSTR_PSH;
         *iptr++ = INSTR_IMM;
-        *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long int);
+        *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
         *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
         *iptr++ = INSTR_SI;
         is_lvalue = 0;
@@ -358,14 +359,14 @@ void expression(int level) {
     }
     else if (cur_token == TOK_STRING_LITERAL) {
         *iptr++ = INSTR_IMM;
-        *iptr++ = (long int) data;
+        *iptr++ = (long) data;
         while (*data++ = *cur_string_literal++);
         cur_type = TYPE_CHAR + TYPE_PTR;
         is_lvalue = 0;
         next();
     }
     else if (cur_token == TOK_IDENTIFIER) {
-        long int *symbol = lookup_symbol(cur_identifier, cur_scope);
+        long *symbol = lookup_symbol(cur_identifier, cur_scope);
         next();
         int type = symbol[SYMBOL_TYPE];
         int scope = symbol[SYMBOL_SCOPE];
@@ -402,18 +403,18 @@ void expression(int level) {
         }
         else if (scope == 0) {
             // Global symbol
-            long int *address = (long int *) symbol[SYMBOL_VALUE];
+            long *address = (long *) symbol[SYMBOL_VALUE];
             *iptr++ = INSTR_IMM;
-            *iptr++ = (long int) address;
+            *iptr++ = (long) address;
             cur_type = symbol[SYMBOL_TYPE];
             is_lvalue = 1;
         }
         else {
             // Local symbol
-            long int param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
+            long param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
             *iptr++ = INSTR_LEA;
             if (symbol[SYMBOL_STACK_INDEX] >= 0) {
-                long int stack_index = param_count - symbol[SYMBOL_STACK_INDEX] - 1;
+                long stack_index = param_count - symbol[SYMBOL_STACK_INDEX] - 1;
                 *iptr++ = stack_index + 2; // Step over pushed PC and BP
             }
             else {
@@ -437,14 +438,14 @@ void expression(int level) {
             want_rvalue();
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long int);
+            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
             *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
             *iptr++ = INSTR_SI;
 
             // Dirty!
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long int);
+            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
             *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
             is_lvalue = 0;
@@ -482,7 +483,7 @@ void expression(int level) {
             org_type = cur_type;
             first_arg_is_pointer = cur_type > TYPE_CHAR;
             factor = first_arg_is_pointer
-                ? cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long int)
+                ? cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long)
                 : 1;
             next();
             want_rvalue();
@@ -559,7 +560,7 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_DBL_EQ);
             want_rvalue();
-            *(temp_iptr + 1) = (long int) iptr;
+            *(temp_iptr + 1) = (long) iptr;
             *iptr++ = INSTR_AND;
             cur_type = TYPE_INT;
         }
@@ -572,7 +573,7 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_AND);
             want_rvalue();
-            *(temp_iptr + 1) = (long int) iptr;
+            *(temp_iptr + 1) = (long) iptr;
             *iptr++ = INSTR_OR;
             cur_type = TYPE_INT;
         }
@@ -593,10 +594,10 @@ void expression(int level) {
 }
 
 void statement() {
-    long int *while_body_start;
-    long int *if_true_jmp;
-    long int *if_false_jmp;
-    long int *if_true_done_jmp;
+    long *while_body_start;
+    long *if_true_jmp;
+    long *if_false_jmp;
+    long *if_true_done_jmp;
 
     if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
         printf("Declarations must be at the top of a function\n");
@@ -626,13 +627,13 @@ void statement() {
         while_body_start = iptr;
         statement();
         *iptr++ = INSTR_JMP;
-        *iptr++ = (long int) cur_while_start;
-        *(while_body_start - 1) = (long int) iptr;
+        *iptr++ = (long) cur_while_start;
+        *(while_body_start - 1) = (long) iptr;
     }
     else if (cur_token == TOK_CONTINUE) {
         next();
         *iptr++ = INSTR_JMP;
-        *iptr++ = (long int) cur_while_start;
+        *iptr++ = (long) cur_while_start;
         consume(TOK_SEMI);
     }
     else if (cur_token == TOK_IF) {
@@ -646,18 +647,18 @@ void statement() {
         *iptr++ = INSTR_BZ;
         *iptr++ = 0;
         statement();
-        *(if_false_jmp + 1) = (long int) iptr;
+        *(if_false_jmp + 1) = (long) iptr;
         if (cur_token == TOK_ELSE) {
             next();
             if_true_done_jmp = iptr;
             *iptr++ = INSTR_JMP;
             *iptr++ = 0;
-            *(if_false_jmp + 1) = (long int) iptr;
+            *(if_false_jmp + 1) = (long) iptr;
             statement();
-            *(if_true_done_jmp + 1) = (long int) iptr;
+            *(if_true_done_jmp + 1) = (long) iptr;
         }
         else
-            *(if_false_jmp + 1) = (long int) iptr;
+            *(if_false_jmp + 1) = (long) iptr;
     }
     else if (cur_token == TOK_RETURN) {
         next();
@@ -691,7 +692,7 @@ void function_body(char *func_name) {
         expect(TOK_IDENTIFIER);
         cur_symbol = next_symbol;
         next_symbol[SYMBOL_TYPE] = type;
-        next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+        next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
         next_symbol[SYMBOL_SCOPE] = cur_scope;
         next_symbol[SYMBOL_STACK_INDEX] = -1 - local_symbol_count++;
         next_symbol += SYMBOL_SIZE;
@@ -701,7 +702,7 @@ void function_body(char *func_name) {
     }
 
     *iptr++ = INSTR_ENT;
-    *iptr++ = local_symbol_count * sizeof(long int); // allocate stack space for locals
+    *iptr++ = local_symbol_count * sizeof(long); // allocate stack space for locals
 
     while (cur_token != TOK_RCURLY) statement();
 
@@ -737,7 +738,7 @@ void parse() {
             expect(TOK_IDENTIFIER);
             cur_symbol = next_symbol;
             next_symbol[SYMBOL_TYPE] = type;
-            next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+            next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
             next_symbol[SYMBOL_SCOPE] = 0;
             next_symbol += SYMBOL_SIZE;
             next();
@@ -746,7 +747,7 @@ void parse() {
                 cur_scope++;
                 next();
                 // Function definition
-                cur_symbol[SYMBOL_VALUE] = (long int) iptr;
+                cur_symbol[SYMBOL_VALUE] = (long) iptr;
                 int param_count = 0;
                 while (cur_token != TOK_RPAREN) {
                     int type;
@@ -759,7 +760,7 @@ void parse() {
 
                     consume(TOK_IDENTIFIER);
                     next_symbol[SYMBOL_TYPE] = type;
-                    next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+                    next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
                     next_symbol[SYMBOL_SCOPE] = cur_scope;
                     next_symbol[SYMBOL_STACK_INDEX] = param_count++;
                     next_symbol += SYMBOL_SIZE;
@@ -772,15 +773,15 @@ void parse() {
             }
             else {
                 // Global symbol
-                cur_symbol[SYMBOL_VALUE] = (long int) data;
-                data += sizeof(long int);
+                cur_symbol[SYMBOL_VALUE] = (long) data;
+                data += sizeof(long);
             }
         }
 
         else if (cur_token == TOK_ENUM) {
             consume(TOK_ENUM);
             consume(TOK_LCURLY);
-            long int number = 0;
+            long number = 0;
             while (cur_token != TOK_RCURLY) {
                 expect(TOK_IDENTIFIER);
                 next();
@@ -792,7 +793,7 @@ void parse() {
                 }
 
                 next_symbol[SYMBOL_TYPE] = TYPE_ENUM;
-                next_symbol[SYMBOL_IDENTIFIER] = (long int) cur_identifier;
+                next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
                 next_symbol[SYMBOL_SCOPE] = 0;
                 next_symbol[SYMBOL_VALUE] = number++;
                 next_symbol += SYMBOL_SIZE;
@@ -810,13 +811,13 @@ void parse() {
     }
 }
 
-long int run(long int argc, char **argv, int print_instructions) {
-    long int *stack = malloc(10240);
+long run(long argc, char **argv, int print_instructions) {
+    long *stack = malloc(10240);
 
-    long int a;
-    long int *pc;
-    long int *sp, *bp;
-    long int *t;
+    long a;
+    long *pc;
+    long *sp, *bp;
+    long *t;
     sp = stack + 10240 - 1;    // stack pointer
     bp = sp;
 
@@ -824,36 +825,36 @@ long int run(long int argc, char **argv, int print_instructions) {
     *--sp = INSTR_PSH;
     t = sp;
     *--sp = argc;
-    *--sp = (long int) argv;
-    *--sp = (long int) t;
+    *--sp = (long) argv;
+    *--sp = (long) t;
 
     a = 0;
 
-    pc = (long int *) lookup_function("main");
+    pc = (long *) lookup_function("main");
 
     while (*pc) {
         int instr = *pc++;
 
         if (print_instructions) {
             printf("a = %-20ld ", a);
-            printf("sp = %-20ld ", (long int) sp);
+            printf("sp = %-20ld ", (long) sp);
             printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
 
-             if (instr == INSTR_LEA) a = (long int) (bp + *pc++);                                   // load local address
+             if (instr == INSTR_LEA) a = (long) (bp + *pc++);                                   // load local address
         else if (instr == INSTR_IMM) a = *pc++;                                                     // load global address or immediate
-        else if (instr == INSTR_JMP) pc = (long int *) *pc;                                         // jump
-        else if (instr == INSTR_JSR) { *--sp = (long int) (pc + 1); pc = (long int *)*pc; }         // jump to subroutine
-        else if (instr == INSTR_BZ)  pc = a ? pc + 1 : (long int *) *pc;                            // branch if zero
-        else if (instr == INSTR_BNZ) pc = a ? (long int *) *pc : pc + 1;                            // branch if not zero
-        else if (instr == INSTR_ENT) { *--sp = (long int) bp; bp = sp; sp = sp - *pc++; }           // enter subroutine
+        else if (instr == INSTR_JMP) pc = (long *) *pc;                                         // jump
+        else if (instr == INSTR_JSR) { *--sp = (long) (pc + 1); pc = (long *)*pc; }         // jump to subroutine
+        else if (instr == INSTR_BZ)  pc = a ? pc + 1 : (long *) *pc;                            // branch if zero
+        else if (instr == INSTR_BNZ) pc = a ? (long *) *pc : pc + 1;                            // branch if not zero
+        else if (instr == INSTR_ENT) { *--sp = (long) bp; bp = sp; sp = sp - *pc++; }           // enter subroutine
         else if (instr == INSTR_ADJ) sp = sp + *pc++;                                               // stack adjust
-        else if (instr == INSTR_LEV) { sp = bp; bp = (long int *) *sp++; pc = (long int *) *sp++; } // leave subroutine
-        else if (instr == INSTR_LI)  a = *(long int *)a;                                            // load int
+        else if (instr == INSTR_LEV) { sp = bp; bp = (long *) *sp++; pc = (long *) *sp++; } // leave subroutine
+        else if (instr == INSTR_LI)  a = *(long *)a;                                            // load int
         else if (instr == INSTR_LC)  a = *(char *)a;                                                // load char
-        else if (instr == INSTR_SI) *(long int *) *sp++ = a;                                        // store int
+        else if (instr == INSTR_SI) *(long *) *sp++ = a;                                        // store int
         else if (instr == INSTR_SC) a = *(char *) *sp++ = a;                                        // store char
         else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
@@ -871,7 +872,7 @@ long int run(long int argc, char **argv, int print_instructions) {
         else if (instr == INSTR_MOD) a = *sp++ % a;
 
         else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6]); }
-        else if (instr == INSTR_MALC) a = (long int) malloc(*sp++);
+        else if (instr == INSTR_MALC) a = (long) malloc(*sp++);
         else if (instr == INSTR_EXIT) { printf("exit %ld\n", *sp); return *sp; }
 
         else {
@@ -885,9 +886,9 @@ long int run(long int argc, char **argv, int print_instructions) {
 }
 
 void add_builtin(char *identifier, int instruction) {
-    long int *symbol = next_symbol;
+    long *symbol = next_symbol;
     symbol[SYMBOL_TYPE] = TYPE_VOID;
-    symbol[SYMBOL_IDENTIFIER] = (long int) identifier;
+    symbol[SYMBOL_IDENTIFIER] = (long) identifier;
     symbol[SYMBOL_BUILTIN] = instruction;
     next_symbol += SYMBOL_SIZE;
 }
@@ -927,7 +928,7 @@ int main(int argc, char **argv) {
     SYMBOL_STACK_INDEX          = 4;
     SYMBOL_FUNCTION_PARAM_COUNT = 5;
     SYMBOL_BUILTIN              = 6;
-    SYMBOL_SIZE                 = 7; // Number of long ints
+    SYMBOL_SIZE                 = 7; // Number of longs
 
     add_builtin("printf", INSTR_PRTF);
     add_builtin("malloc", INSTR_MALC);
@@ -946,14 +947,14 @@ int main(int argc, char **argv) {
 
     if (show_symbols) {
         printf("Symbols:\n");
-        long int *s = symbol_table;
+        long *s = symbol_table;
         while (s[0]) {
-            long int type = s[SYMBOL_TYPE];
+            long type = s[SYMBOL_TYPE];
             char *identifier = (char *) s[SYMBOL_IDENTIFIER];
-            long int scope = s[SYMBOL_SCOPE];
-            long int value = s[SYMBOL_VALUE];
-            long int stack_index = s[SYMBOL_STACK_INDEX];
-            printf("%-20ld %ld %ld %-2ld %-20ld %s\n", (long int) s, type, scope, stack_index, value, identifier);
+            long scope = s[SYMBOL_SCOPE];
+            long value = s[SYMBOL_VALUE];
+            long stack_index = s[SYMBOL_STACK_INDEX];
+            printf("%-20ld %ld %ld %-2ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
             s += SYMBOL_SIZE;
         }
         printf("\n");
