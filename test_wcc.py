@@ -306,3 +306,20 @@ def test_while():
             printf("\n");
         }
     """, "0 1 2 1 2 3 \nexit 0\n")
+
+def check_string_copy():
+    check_output("""
+        int main(int argc, char **argv) {
+            char *src;
+            char *dst;
+            char *osrc;
+            char *odst;
+            int i;
+            src = "foo";
+            osrc = src;
+            dst = malloc(4);
+            odst = dst;
+            while (*dst++ = *src++); // The coolest c code
+            printf("%s=%s\n", osrc, odst);
+        }
+    """, "foo=foo\nexit 0")

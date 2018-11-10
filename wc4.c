@@ -586,8 +586,11 @@ void statement() {
         exit(1);
     }
 
-    if (cur_token == TOK_SEMI)
-        return; // Empty statement
+    if (cur_token == TOK_SEMI) {
+        // Empty statement
+        next();
+        return;
+    }
     else if (cur_token == TOK_LCURLY) {
         next();
         while (cur_token != TOK_RCURLY) statement();
@@ -599,6 +602,7 @@ void statement() {
         consume(TOK_LPAREN);
         cond_start = iptr;
         expression(TOK_COMMA);
+        want_rvalue();
         consume(TOK_RPAREN);
         *iptr++ = INSTR_BZ;
         *iptr++ = 0;
