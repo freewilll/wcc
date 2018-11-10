@@ -337,3 +337,25 @@ def test_while_continue():
             printf("\n");
         }
     """, "12345\nexit 0\n")
+
+def test_if_else():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            i = 0;
+            if (i == 0) printf("1 zero\n");
+            if (i != 0) printf("1 one\n");
+            i = 1;
+            if (i == 0) printf("2 zero\n");
+            if (i != 0) printf("2 one\n");
+
+            if (0) printf("4 if\n"); else printf("4 else\n");
+            if (1) printf("5 if\n"); else printf("5 else\n");
+        }
+    """, "\n".join([
+        "1 zero",
+        "2 one",
+        "4 else",
+        "5 if",
+        "exit 0"
+    ]) + "\n");
