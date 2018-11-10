@@ -114,6 +114,7 @@ enum {
     INSTR_PSH,
     INSTR_PRTF,
     INSTR_MALC,
+    INSTR_FREE,
     INSTR_EXIT,
 };
 
@@ -920,24 +921,24 @@ long run(long argc, char **argv, int print_instructions) {
         if (print_instructions) {
             printf("a = %-20ld ", a);
             printf("sp = %-20ld ", (long) sp);
-            printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  PRTF MALC FREE EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
 
-             if (instr == INSTR_LEA) a = (long) (bp + *pc++);                                   // load local address
-        else if (instr == INSTR_IMM) a = *pc++;                                                     // load global address or immediate
-        else if (instr == INSTR_JMP) pc = (long *) *pc;                                         // jump
+             if (instr == INSTR_LEA) a = (long) (bp + *pc++);                               // load local address
+        else if (instr == INSTR_IMM) a = *pc++;                                             // load global address or immediate
+        else if (instr == INSTR_JMP) pc = (long *) *pc;                                     // jump
         else if (instr == INSTR_JSR) { *--sp = (long) (pc + 1); pc = (long *)*pc; }         // jump to subroutine
-        else if (instr == INSTR_BZ)  pc = a ? pc + 1 : (long *) *pc;                            // branch if zero
-        else if (instr == INSTR_BNZ) pc = a ? (long *) *pc : pc + 1;                            // branch if not zero
-        else if (instr == INSTR_ENT) { *--sp = (long) bp; bp = sp; sp = sp - *pc++; }           // enter subroutine
-        else if (instr == INSTR_ADJ) sp = sp + *pc++;                                               // stack adjust
+        else if (instr == INSTR_BZ)  pc = a ? pc + 1 : (long *) *pc;                        // branch if zero
+        else if (instr == INSTR_BNZ) pc = a ? (long *) *pc : pc + 1;                        // branch if not zero
+        else if (instr == INSTR_ENT) { *--sp = (long) bp; bp = sp; sp = sp - *pc++; }       // enter subroutine
+        else if (instr == INSTR_ADJ) sp = sp + *pc++;                                       // stack adjust
         else if (instr == INSTR_LEV) { sp = bp; bp = (long *) *sp++; pc = (long *) *sp++; } // leave subroutine
-        else if (instr == INSTR_LI)  a = *(long *)a;                                            // load int
-        else if (instr == INSTR_LC)  a = *(char *)a;                                                // load char
-        else if (instr == INSTR_SI) *(long *) *sp++ = a;                                        // store int
-        else if (instr == INSTR_SC) a = *(char *) *sp++ = a;                                        // store char
+        else if (instr == INSTR_LI)  a = *(long *)a;                                        // load int
+        else if (instr == INSTR_LC)  a = *(char *)a;                                        // load char
+        else if (instr == INSTR_SI) *(long *) *sp++ = a;                                    // store int
+        else if (instr == INSTR_SC) a = *(char *) *sp++ = a;                                // store char
         else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
         else if (instr == INSTR_AND) a = *sp++ && a;
@@ -955,6 +956,7 @@ long run(long argc, char **argv, int print_instructions) {
 
         else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6]); }
         else if (instr == INSTR_MALC) a = (long) malloc(*sp++);
+        else if (instr == INSTR_FREE) free((void *) *sp);
         else if (instr == INSTR_EXIT) { printf("exit %ld\n", *sp); return *sp; }
 
         else {
@@ -1014,6 +1016,7 @@ int main(int argc, char **argv) {
 
     add_builtin("printf", INSTR_PRTF);
     add_builtin("malloc", INSTR_MALC);
+    add_builtin("free",   INSTR_FREE);
 
     iptr = instructions;
     int f;

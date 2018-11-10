@@ -460,3 +460,13 @@ def test_comma_var_declarations():
             printf("%d\n", *pi);
         }
     """, "1 2\nexit 0\n")
+
+
+def test_free():
+    check_output("""
+        int main(int argc, char **argv) {
+            int *pi;
+            pi = malloc(17);
+            free(pi);
+        }
+    """, "exit 0\n")
