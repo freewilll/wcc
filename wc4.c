@@ -157,7 +157,7 @@ void next() {
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4)    ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\"'; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4)    ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\\'; }
 
-        else if (input_size - ip >= 3 && i[ip] == '\'' && i[ip+2] == '\'') { ip += 3; cur_token = TOK_NUMBER; cur_integer = i[ip+1]; }
+        else if (input_size - ip >= 3 && i[ip] == '\'' && i[ip+2] == '\'') { cur_integer = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
 
         else if (i[ip] == ' ' || i[ip] == '\t' || i[ip] == '\n') { ip++; continue; }
 

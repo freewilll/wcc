@@ -281,3 +281,18 @@ def test_malloc():
             printf("%d %d %d %d\n", *(pi - 3), *(pi - 2), *(pi - 1), *pi);
         }
     """, "1 2 3 4\nexit 0\n")
+
+def test_char_pointer_arithmetic():
+    check_output("""
+        int main(int argc, char **argv) {
+            char *pc;
+            int *start;
+            pc = malloc(4);
+            start = pc;
+            *pc++ = 'f';
+            *pc++ = 'o';
+            *pc++ = 'o';
+            *pc++ = 0;
+            printf("%s\n", start);
+        }
+    """, "foo\nexit 0\n")
