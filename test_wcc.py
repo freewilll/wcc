@@ -447,3 +447,16 @@ def test_casting():
             printf("%ld\n", (long) pj - (long) pi);
         }
     """, "8\n1\nexit 0\n")
+
+
+def test_comma_var_declarations():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i, *pi;
+            i = 1;
+            pi = &i;
+            printf("%d ", *pi);
+            *pi = 2;
+            printf("%d\n", *pi);
+        }
+    """, "1 2\nexit 0\n")

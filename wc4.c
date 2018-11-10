@@ -762,23 +762,29 @@ void function_body(char *func_name) {
     is_main = !strcmp(func_name, "main");
     seen_return = 0;
     int local_symbol_count = 0;
+    int base_type, type;
 
     consume(TOK_LCURLY);
 
     // Parse symbols first
     while (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-        int type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
+        base_type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
         next();
-        while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
-        expect(TOK_IDENTIFIER);
-        cur_symbol = next_symbol;
-        next_symbol[SYMBOL_TYPE] = type;
-        next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
-        next_symbol[SYMBOL_SCOPE] = cur_scope;
-        next_symbol[SYMBOL_STACK_INDEX] = -1 - local_symbol_count++;
-        next_symbol += SYMBOL_SIZE;
-        next();
+        while (cur_token != TOK_SEMI) {
+            type = base_type;
+            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+
+            expect(TOK_IDENTIFIER);
+            cur_symbol = next_symbol;
+            next_symbol[SYMBOL_TYPE] = type;
+            next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
+            next_symbol[SYMBOL_SCOPE] = cur_scope;
+            next_symbol[SYMBOL_STACK_INDEX] = -1 - local_symbol_count++;
+            next_symbol += SYMBOL_SIZE;
+            next();
+            if (cur_token == TOK_COMMA) next();
+        }
         expect(TOK_SEMI);
         while (cur_token == TOK_SEMI) next();
     }
