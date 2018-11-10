@@ -60,6 +60,8 @@ enum {
     TOK_SEMI,
     TOK_COMMA,
     TOK_EQ,
+    TOK_TERNARY,
+    TOK_COLON,
     TOK_OR,
     TOK_AND,
     TOK_DBL_EQ,
@@ -164,6 +166,8 @@ void next() {
         else if (input_size - ip >= 1 && i[ip] == '>'                  ) { ip += 1; cur_token = TOK_GT;                         }
         else if (input_size - ip >= 1 && i[ip] == '!'                  ) { ip += 1; cur_token = TOK_LOGICAL_NOT;                }
         else if (input_size - ip >= 1 && i[ip] == '&'                  ) { ip += 1; cur_token = TOK_ADDRESS_OF;                 }
+        else if (input_size - ip >= 1 && i[ip] == '?'                  ) { ip += 1; cur_token = TOK_TERNARY;                    }
+        else if (input_size - ip >= 1 && i[ip] == ':'                  ) { ip += 1; cur_token = TOK_COLON;                      }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\t'; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\n'; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\''; }
@@ -293,6 +297,8 @@ void expression(int level) {
     int first_arg_is_pointer;
     int factor;
     long *temp_iptr;
+    long *if_false_jmp;
+    long *if_true_done_jmp;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -602,6 +608,23 @@ void expression(int level) {
             *iptr++ = INSTR_OR;
             cur_type = TYPE_INT;
         }
+        else if (cur_token == TOK_TERNARY) {
+            next();
+            want_rvalue();
+            if_false_jmp = iptr;
+            *iptr++ = INSTR_BZ;
+            *iptr++ = 0;
+            expression(TOK_OR);
+            want_rvalue();
+            if_true_done_jmp = iptr;
+            *iptr++ = INSTR_JMP;
+            *iptr++ = 0;
+            consume(TOK_COLON);
+            *(if_false_jmp + 1) = (long) iptr;
+            expression(TOK_OR);
+            want_rvalue();
+            *(if_true_done_jmp + 1) = (long) iptr;
+        }
         else if (cur_token == TOK_EQ) {
             next();
             if (!is_lvalue) {
@@ -609,9 +632,13 @@ void expression(int level) {
                 exit(1);
             }
             *iptr++ = INSTR_PSH;
-            expression(TOK_OR);
+            expression(TOK_TERNARY);
             want_rvalue();
             *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
+        }
+        else {
+            printf("Unable to parse expression: %d\n", cur_token);
+            exit(1);
         }
 
         is_lvalue = 0;
@@ -620,7 +647,6 @@ void expression(int level) {
 
 void statement() {
     long *while_body_start;
-    long *if_true_jmp;
     long *if_false_jmp;
     long *if_true_done_jmp;
 

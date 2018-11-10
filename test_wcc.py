@@ -405,3 +405,15 @@ def test_sizeof():
             printf("\n");
         }
     """, "8 8 1 8 8 8 8 8 8 8 \nexit 0\n")
+
+
+def test_ternary():
+    check_output("""
+        int main(int argc, char **argv) {
+            printf("%d %d %s\n",
+                (0 ? 1 : 2),
+                (1 ? 1 : 2),
+                (1 ? "foo" : "bar")
+            );
+        }
+    """, "2 1 foo\nexit 0\n")
