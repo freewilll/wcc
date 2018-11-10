@@ -259,6 +259,9 @@ void want_rvalue() {
 void expression(int level) {
     int param_count;
     int org_token;
+    int org_type;
+    int first_arg_is_pointer;
+    int factor;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -462,13 +465,22 @@ void expression(int level) {
         }
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
             org_token = cur_token;
+            org_type = cur_type;
+            first_arg_is_pointer = cur_type > TYPE_CHAR;
+            factor = first_arg_is_pointer
+                ? cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : 8
+                : 1;
             next();
             want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
             want_rvalue();
+            *iptr++ = INSTR_PSH;
+            *iptr++ = INSTR_IMM;
+            *iptr++ = factor;
+            *iptr++ = INSTR_MUL;
             *iptr++ = org_token == TOK_PLUS ? INSTR_ADD : INSTR_SUB;
-            cur_type = TYPE_INT;
+            cur_type = org_type;
         }
         else if (cur_token == TOK_LT) {
             next();

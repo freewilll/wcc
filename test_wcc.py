@@ -233,3 +233,37 @@ def test_inc_dec_sizes():
         "8 0 8 0",
         "exit 0"
     ]) + "\n");
+
+def test_pointer_arithmetic():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            int *pi;
+            int **ppi;
+            char c;
+            char *pc;
+            char **ppc;
+
+            i = 0;
+            pi = 0;
+            ppi = 0;
+            c = 0;
+            pc = 0;
+            ppc = 0;
+
+            i   = i   + 1; printf("%02d ", i);    i   = i   + 2; printf("%02d ", i);   i   = i   - 3; printf("%02d\n", i);    i   = i   - 1;
+            pi  = pi  + 1; printf("%02d ", pi);   pi  = pi  + 2; printf("%02d ", pi);  pi  = pi  - 3; printf("%02d\n", pi);   pi  = pi  - 1;
+            ppi = ppi + 1; printf("%02d ", ppi);  ppi = ppi + 2; printf("%02d ", ppi); ppi = ppi - 3; printf("%02d\n", ppi);  ppi = ppi - 1;
+            c   = c   + 1; printf("%02d ", c);    c   = c   + 2; printf("%02d ", c);   c   = c   - 3; printf("%02d\n", c);    c   = c   - 1;
+            pc  = pc  + 1; printf("%02d ", pc);   pc  = pc  + 2; printf("%02d ", pc);  pc  = pc  - 3; printf("%02d\n", pc);   pc  = pc  - 1;
+            ppc = ppc + 1; printf("%02d ", ppc);  ppc = ppc + 2; printf("%02d ", ppc); ppc = ppc - 3; printf("%02d\n", ppc);  ppc = ppc - 1;
+        }
+    """, "\n".join([
+        "01 03 00",
+        "08 24 00",
+        "08 24 00",
+        "01 03 00",
+        "01 03 00",
+        "08 24 00",
+        "exit 0"
+    ]) + "\n");
