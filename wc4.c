@@ -50,6 +50,7 @@ enum {
     TOK_CONTINUE,
     TOK_RETURN,
     TOK_ENUM,
+    TOK_SIZEOF,
     TOK_RPAREN,
     TOK_LPAREN,
     TOK_RBRACKET,
@@ -136,6 +137,7 @@ void next() {
         else if (input_size - ip >= 5 && !memcmp(i+ip, "continue", 8)  ) { ip += 8; cur_token = TOK_CONTINUE;                   }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "return",   6)  ) { ip += 6; cur_token = TOK_RETURN;                     }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "enum",     4)  ) { ip += 4; cur_token = TOK_ENUM;                       }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "sizeof",   6)  ) { ip += 6; cur_token = TOK_SIZEOF;                     }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",       2)  ) { ip += 2; cur_token = TOK_AND;                        }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "||",       2)  ) { ip += 2; cur_token = TOK_OR;                         }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "==",       2)  ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
@@ -268,6 +270,22 @@ void want_rvalue() {
     }
 }
 
+int parse_type() {
+    int type;
+
+    if (cur_token == TOK_VOID) type = TYPE_VOID;
+    else if (cur_token == TOK_INT) type = TYPE_INT;
+    else if (cur_token == TOK_CHAR) type = TYPE_CHAR;
+
+    next();
+    while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+    return type;
+}
+
+int get_sizeof(int type) {
+    return type <= TYPE_CHAR || type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
+}
+
 void expression(int level) {
     int param_count;
     int org_token;
@@ -308,7 +326,7 @@ void expression(int level) {
         want_rvalue();
         *iptr++ = INSTR_PSH;
         *iptr++ = INSTR_IMM;
-        *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
+        *iptr++ = get_sizeof(cur_type);
         *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
         *iptr++ = INSTR_SI;
         is_lvalue = 0;
@@ -424,6 +442,13 @@ void expression(int level) {
             is_lvalue = 1;
         }
     }
+    else if (cur_token == TOK_SIZEOF) {
+        next();
+        consume(TOK_LPAREN);
+        *iptr++ = INSTR_IMM;
+        *iptr++ = parse_type() == TYPE_CHAR ? 1 : sizeof(long);
+        consume(TOK_RPAREN);
+    }
     else {
         printf("Unknown token in expression: %d\n", cur_token);
         exit(1);
@@ -438,14 +463,14 @@ void expression(int level) {
             want_rvalue();
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
+            *iptr++ = get_sizeof(cur_type);
             *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
             *iptr++ = INSTR_SI;
 
             // Dirty!
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
+            *iptr++ = get_sizeof(cur_type);
             *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
             is_lvalue = 0;
@@ -483,7 +508,7 @@ void expression(int level) {
             org_type = cur_type;
             first_arg_is_pointer = cur_type > TYPE_CHAR;
             factor = first_arg_is_pointer
-                ? cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long)
+                ? get_sizeof(cur_type)
                 : 1;
             next();
             want_rvalue();
@@ -728,13 +753,7 @@ void parse() {
         }
 
         if (cur_token == TOK_VOID || cur_token == TOK_INT || cur_token == TOK_CHAR) {
-            if (cur_token == TOK_VOID) type = TYPE_VOID;
-            else if (cur_token == TOK_INT) type = TYPE_INT;
-            else if (cur_token == TOK_CHAR) type = TYPE_CHAR;
-
-            next();
-            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
-
+            type = parse_type();
             expect(TOK_IDENTIFIER);
             cur_symbol = next_symbol;
             next_symbol[SYMBOL_TYPE] = type;

@@ -387,3 +387,21 @@ def test_and_or_shortcutting():
         "&& with 0",
         "exit 0"
     ]) + "\n");
+
+
+def test_sizeof():
+    check_output("""
+        int main(int argc, char **argv) {
+            printf("%lu ", sizeof(int));
+            printf("%lu ", sizeof(long));
+            printf("%lu ", sizeof(char));
+            printf("%lu ", sizeof(void *));
+            printf("%lu ", sizeof(int *));
+            printf("%lu ", sizeof(long *));
+            printf("%lu ", sizeof(char *));
+            printf("%lu ", sizeof(int **));
+            printf("%lu ", sizeof(long **));
+            printf("%lu ", sizeof(char **));
+            printf("\n");
+        }
+    """, "8 8 1 8 8 8 8 8 8 8 \nexit 0\n")
