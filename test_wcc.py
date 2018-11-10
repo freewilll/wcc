@@ -160,6 +160,7 @@ def test_hello_world():
         }
     """, "1 + 1 = 2\nexit 0\n")
 
+
 def test_pointer_to_int():
     check_output("""
         int g;
@@ -176,6 +177,7 @@ def test_pointer_to_int():
         }
         """, "1\n2\nexit 0\n");
 
+
 def test_prefix_inc_dec():
     check_output("""
         int main(int argc, char **argv) {
@@ -188,6 +190,7 @@ def test_prefix_inc_dec():
         }
     """, "1\n2\n1\n0\nexit 0\n");
 
+
 def test_postfix_inc_dec():
     check_output("""
         int main(int argc, char **argv) {
@@ -199,6 +202,7 @@ def test_postfix_inc_dec():
             printf("%d\n", i--);
         }
     """, "0\n1\n2\n1\nexit 0\n");
+
 
 def test_inc_dec_sizes():
     check_output("""
@@ -234,6 +238,7 @@ def test_inc_dec_sizes():
         "exit 0"
     ]) + "\n");
 
+
 def test_pointer_arithmetic():
     check_output("""
         int main(int argc, char **argv) {
@@ -268,6 +273,7 @@ def test_pointer_arithmetic():
         "exit 0"
     ]) + "\n");
 
+
 def test_malloc():
     check_output("""
         int main(int argc, char **argv) {
@@ -281,6 +287,7 @@ def test_malloc():
             printf("%d %d %d %d\n", *(pi - 3), *(pi - 2), *(pi - 1), *pi);
         }
     """, "1 2 3 4\nexit 0\n")
+
 
 def test_char_pointer_arithmetic():
     check_output("""
@@ -297,6 +304,7 @@ def test_char_pointer_arithmetic():
         }
     """, "foo\nexit 0\n")
 
+
 def test_while():
     check_output("""
         int main(int argc, char **argv) {
@@ -306,6 +314,7 @@ def test_while():
             printf("\n");
         }
     """, "0 1 2 1 2 3 \nexit 0\n")
+
 
 def test_string_copy():
     check_output("""
@@ -324,6 +333,7 @@ def test_string_copy():
         }
     """, "foo=foo\nexit 0\n")
 
+
 def test_while_continue():
     check_output("""
         int main(int argc, char **argv) {
@@ -337,6 +347,7 @@ def test_while_continue():
             printf("\n");
         }
     """, "12345\nexit 0\n")
+
 
 def test_if_else():
     check_output("""
@@ -357,5 +368,22 @@ def test_if_else():
         "2 one",
         "4 else",
         "5 if",
+        "exit 0"
+    ]) + "\n");
+
+
+def test_and_or_shortcutting():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            i = 0;
+            i == 0 || printf("|| with 0\n");
+            i == 1 || printf("|| with 0\n");
+            i == 0 && printf("&& with 0\n");
+            i == 1 && printf("&& with 0\n");
+        }
+    """, "\n".join([
+        "|| with 0",
+        "&& with 0",
         "exit 0"
     ]) + "\n");

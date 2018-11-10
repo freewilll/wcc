@@ -273,6 +273,7 @@ void expression(int level) {
     int org_type;
     int first_arg_is_pointer;
     int factor;
+    long int *temp_iptr;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -550,20 +551,28 @@ void expression(int level) {
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_AND) {
+            temp_iptr = iptr;
+            *iptr++ = INSTR_BZ;
+            *iptr++ = 0;
             next();
             want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_DBL_EQ);
             want_rvalue();
+            *(temp_iptr + 1) = (long int) iptr;
             *iptr++ = INSTR_AND;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_OR) {
+            temp_iptr = iptr;
+            *iptr++ = INSTR_BNZ;
+            *iptr++ = 0;
             next();
             want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_AND);
             want_rvalue();
+            *(temp_iptr + 1) = (long int) iptr;
             *iptr++ = INSTR_OR;
             cur_type = TYPE_INT;
         }
