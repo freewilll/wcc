@@ -258,6 +258,7 @@ void want_rvalue() {
 
 void expression(int level) {
     int param_count;
+    int org_token;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -277,7 +278,8 @@ void expression(int level) {
         cur_type = cur_type + TYPE_PTR;
         is_lvalue = 0;
     }
-    else if (cur_token == TOK_INC) {
+    else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
+        org_token = cur_token;
         next();
         expression(1024); // Fake highest precedence, bind nothing
         if (!is_lvalue) {
@@ -288,25 +290,8 @@ void expression(int level) {
         want_rvalue();
         *iptr++ = INSTR_PSH;
         *iptr++ = INSTR_IMM;
-        *iptr++ = 1;
-        *iptr++ = INSTR_ADD;
-        *iptr++ = INSTR_SI;
-        is_lvalue = 0;
-        cur_type = TYPE_INT;
-    }
-    else if (cur_token == TOK_DEC) {
-        next();
-        expression(1024); // Fake highest precedence, bind nothing
-        if (!is_lvalue) {
-            printf("Cannot pre increment an rvalue\n");
-            exit(1);
-        }
-        *iptr++ = INSTR_PSH; // Push address
-        want_rvalue();
-        *iptr++ = INSTR_PSH;
-        *iptr++ = INSTR_IMM;
-        *iptr++ = 1;
-        *iptr++ = INSTR_SUB;
+        *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : 8;
+        *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
         *iptr++ = INSTR_SI;
         is_lvalue = 0;
         cur_type = TYPE_INT;
@@ -434,14 +419,14 @@ void expression(int level) {
             want_rvalue();
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = 1;
+            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : 8;
             *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
             *iptr++ = INSTR_SI;
 
             // Dirty!
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = 1;
+            *iptr++ = cur_type <= TYPE_CHAR || cur_type == TYPE_CHAR + TYPE_PTR ? 1 : 8;
             *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
             is_lvalue = 0;

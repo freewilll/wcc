@@ -199,3 +199,37 @@ def test_postfix_inc_dec():
             printf("%d\n", i--);
         }
     """, "0\n1\n2\n1\nexit 0\n");
+
+def test_inc_dec_sizes():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            int *pi;
+            int **ppi;
+            char c;
+            char *pc;
+            char **ppc;
+
+            i = 0;
+            pi = 0;
+            ppi = 0;
+            c = 0;
+            pc = 0;
+            ppc = 0;
+
+            i++;   printf("%d ", i);    i--;   printf("%d ", i);   ++i;   printf("%d ", i);    i--;   printf("%d\n", i);
+            pi++;  printf("%d ", pi);   pi--;  printf("%d ", pi);  ++pi;  printf("%d ", pi);   pi--;  printf("%d\n", pi);
+            ppi++; printf("%d ", ppi);  ppi--; printf("%d ", ppi); ++ppi; printf("%d ", ppi);  ppi--; printf("%d\n", ppi);
+            c++;   printf("%d ", c);    c--;   printf("%d ", c);   ++c;   printf("%d ", c);    c--;   printf("%d\n", c);
+            pc++;  printf("%d ", pc);   pc--;  printf("%d ", pc);  ++pc;  printf("%d ", pc);   pc--;  printf("%d\n", pc);
+            ppc++; printf("%d ", ppc);  ppc--; printf("%d ", ppc); ++ppc; printf("%d ", ppc);  ppc--; printf("%d\n", ppc);
+        }
+    """, "\n".join([
+        "1 0 1 0",
+        "8 0 8 0",
+        "8 0 8 0",
+        "1 0 1 0",
+        "1 0 1 0",
+        "8 0 8 0",
+        "exit 0"
+    ]) + "\n");
