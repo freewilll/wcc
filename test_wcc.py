@@ -512,3 +512,17 @@ def test_open_read_close():
                 close(f);
             }
         """ % temp.name, "4\nexit 0\n")
+
+def test_plus_equals():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i, *pi;
+            i = 0;
+            pi = 0;
+            i += 2;
+            pi += 2;
+            printf("%d %ld ", i, (long) pi);
+            pi -= 3;
+            printf("%d %ld\n", i, (long) pi);
+        }
+    """, "2 16 2 -8\nexit 0\n")

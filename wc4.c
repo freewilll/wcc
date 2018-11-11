@@ -60,6 +60,8 @@ enum {
     TOK_SEMI,
     TOK_COMMA,
     TOK_EQ,
+    TOK_PLUS_EQ,
+    TOK_MINUS_EQ,
     TOK_TERNARY,
     TOK_COLON,
     TOK_OR,
@@ -155,6 +157,8 @@ void next() {
         else if (input_size - ip >= 2 && !memcmp(i+ip, ">=",       2)  ) { ip += 2; cur_token = TOK_GE;                         }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "++",       2)  ) { ip += 2; cur_token = TOK_INC;                        }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "--",       2)  ) { ip += 2; cur_token = TOK_DEC;                        }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "+=",       2)  ) { ip += 2; cur_token = TOK_PLUS_EQ;                    }
+        else if (input_size - ip >= 2 && !memcmp(i+ip, "-=",       2)  ) { ip += 2; cur_token = TOK_MINUS_EQ;                   }
         else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; cur_token = TOK_LPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; cur_token = TOK_RPAREN;                     }
         else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; cur_token = TOK_LBRACKET;                   }
@@ -293,7 +297,8 @@ int parse_type() {
     return type;
 }
 
-int get_sizeof(int type) {
+int get_type_inc_dec_size(int type) {
+    // How much will the ++ operator increment a type?
     return type <= TYPE_CHAR || type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
 }
 
@@ -309,7 +314,6 @@ void expression(int level) {
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
-
         *iptr++ = INSTR_IMM;
         *iptr++ = 0;
         *iptr++ = INSTR_PSH;
@@ -339,7 +343,7 @@ void expression(int level) {
         want_rvalue();
         *iptr++ = INSTR_PSH;
         *iptr++ = INSTR_IMM;
-        *iptr++ = get_sizeof(cur_type);
+        *iptr++ = get_type_inc_dec_size(cur_type);
         *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
         *iptr++ = INSTR_SI;
         is_lvalue = 0;
@@ -478,7 +482,7 @@ void expression(int level) {
             want_rvalue();
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = get_sizeof(org_type);
+            *iptr++ = get_type_inc_dec_size(org_type);
             *iptr++ = INSTR_MUL;
             *iptr++ = INSTR_ADD;
             consume(TOK_RBRACKET);
@@ -507,14 +511,14 @@ void expression(int level) {
             want_rvalue();
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = get_sizeof(cur_type);
+            *iptr++ = get_type_inc_dec_size(cur_type);
             *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
             *iptr++ = INSTR_SI;
 
             // Dirty!
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
-            *iptr++ = get_sizeof(cur_type);
+            *iptr++ = get_type_inc_dec_size(cur_type);
             *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
             is_lvalue = 0;
@@ -552,7 +556,7 @@ void expression(int level) {
             org_type = cur_type;
             first_arg_is_pointer = cur_type > TYPE_CHAR;
             factor = first_arg_is_pointer
-                ? get_sizeof(cur_type)
+                ? get_type_inc_dec_size(cur_type)
                 : 1;
             next();
             want_rvalue();
@@ -673,6 +677,28 @@ void expression(int level) {
             expression(TOK_TERNARY);
             want_rvalue();
             *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
+        }
+        else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
+            org_token = cur_token;
+            next();
+            if (!is_lvalue) {
+                printf("Cannot assign to an rvalue\n");
+                exit(1);
+            }
+            org_type = cur_type;
+            *iptr++ = INSTR_PSH;
+            want_rvalue();
+            *iptr++ = INSTR_PSH;
+            *iptr++ = INSTR_IMM;
+            *iptr++ = get_type_inc_dec_size(org_type);
+            *iptr++ = INSTR_PSH;
+            expression(TOK_TERNARY);
+            want_rvalue();
+            *iptr++ = INSTR_MUL;
+            *iptr++ = org_token == TOK_PLUS_EQ ? INSTR_ADD : INSTR_SUB;
+            cur_type = org_type;
+            *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
+            is_lvalue = 0;
         }
         else {
             printf("Unable to parse expression: %d\n", cur_token);
