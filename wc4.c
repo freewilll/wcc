@@ -328,6 +328,7 @@ void expression(int level) {
     long *address;
     long param_count;
     long stack_index;
+    int builtin;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -448,7 +449,7 @@ void expression(int level) {
                 param_count++;
             }
             consume(TOK_RPAREN);
-            int builtin = symbol[SYMBOL_BUILTIN];
+            builtin = symbol[SYMBOL_BUILTIN];
             if (builtin) {
                 *iptr++ = builtin;
                 if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]))  *iptr++ = param_count;
@@ -725,7 +726,7 @@ void expression(int level) {
 }
 
 void statement() {
-    long *while_body_start;
+    long *body_start;
     long *false_jmp;
     long *true_done_jmp;
 
@@ -754,11 +755,11 @@ void statement() {
         consume(TOK_RPAREN);
         *iptr++ = INSTR_BZ;
         *iptr++ = 0;
-        while_body_start = iptr;
+        body_start = iptr;
         statement();
         *iptr++ = INSTR_JMP;
         *iptr++ = (long) cur_while_start;
-        *(while_body_start - 1) = (long) iptr;
+        *(body_start - 1) = (long) iptr;
     }
     else if (cur_token == TOK_CONTINUE) {
         next();
@@ -806,11 +807,13 @@ void statement() {
 
 void function_body(char *func_name) {
     int is_main;
+    int local_symbol_count;
+    int base_type, type;
+
     seen_return = 0;
     is_main = !strcmp(func_name, "main");
     seen_return = 0;
-    int local_symbol_count = 0;
-    int base_type, type;
+    local_symbol_count = 0;
 
     consume(TOK_LCURLY);
 
@@ -854,9 +857,11 @@ void function_body(char *func_name) {
 }
 
 void parse() {
-    cur_scope = 0;
     int type;
     long number;
+    int param_count;
+
+    cur_scope = 0;
 
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)  {
@@ -879,9 +884,8 @@ void parse() {
                 next();
                 // Function definition
                 cur_symbol[SYMBOL_VALUE] = (long) iptr;
-                int param_count = 0;
+                param_count = 0;
                 while (cur_token != TOK_RPAREN) {
-                    int type;
                     if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
                         type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
                         next();
@@ -946,11 +950,14 @@ void parse() {
 }
 
 long run(long argc, char **argv, int print_instructions) {
-    long *stack = malloc(sizeof(long) * 1024 * 1024);
+    long *stack;
     long a;
     long *pc;
     long *sp, *bp;
     long *t;
+    int instr;
+
+    stack = malloc(sizeof(long) * 1024 * 1024);
 
     sp = stack + 1024 * 1024;
     bp = sp;
@@ -967,7 +974,7 @@ long run(long argc, char **argv, int print_instructions) {
     pc = (long *) lookup_function("main");
 
     while (*pc) {
-        int instr = *pc++;
+        instr = *pc++;
 
         if (print_instructions) {
             printf("a = %-20ld ", a);
