@@ -962,6 +962,7 @@ long run(long argc, char **argv, int print_instructions) {
     long *sp, *bp;
     long *t;
     int instr;
+    int cycle;
 
     stack = malloc(sizeof(long) * 1024 * 1024);
 
@@ -975,16 +976,20 @@ long run(long argc, char **argv, int print_instructions) {
     *--sp = (long) argv;
     *--sp = (long) t;
 
+    cycle = 0;
     a = 0;
 
     pc = (long *) lookup_function("main");
 
     while (*pc) {
+        cycle++;
         instr = *pc++;
 
         if (print_instructions) {
-            printf("a = %-20ld ", a);
-            printf("sp = %-20ld ", (long) sp);
+            printf("%-5ld> ", cycle);
+            printf("pc = %-15ld ", (long) pc - 8);
+            printf("a = %-15ld ", a);
+            printf("sp = %-15ld ", (long) sp);
             printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT"[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
