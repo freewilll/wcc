@@ -1072,6 +1072,7 @@ int main(int argc, char **argv) {
     SYMBOL_BUILTIN              = 6;
     SYMBOL_SIZE                 = 7; // Number of longs
 
+    add_builtin("exit",   INSTR_EXIT);
     add_builtin("open",   INSTR_OPEN);
     add_builtin("read",   INSTR_READ);
     add_builtin("close",  INSTR_CLOS);

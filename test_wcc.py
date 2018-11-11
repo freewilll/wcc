@@ -526,3 +526,7 @@ def test_plus_equals():
             printf("%d %ld\n", i, (long) pi);
         }
     """, "2 16 2 -8\nexit 0\n")
+
+
+def test_exit():
+    check_output("""int main(int argc, char **argv) { exit(3); }""", "exit 3\n")
