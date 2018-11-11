@@ -985,7 +985,7 @@ long run(long argc, char **argv, int print_instructions) {
         instr = *pc++;
 
         if (print_instructions) {
-            printf("%-5ld> ", cycle);
+            printf("%-5d> ", cycle);
             printf("pc = %-15ld ", (long) pc - 8);
             printf("a = %-15ld ", a);
             printf("sp = %-15ld ", (long) sp);
