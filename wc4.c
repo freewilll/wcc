@@ -1059,7 +1059,7 @@ void print_symbols() {
         scope = s[SYMBOL_SCOPE];
         value = s[SYMBOL_VALUE];
         stack_index = s[SYMBOL_STACK_INDEX];
-        printf("%-20ld %ld %ld %-2ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
+        printf("%-20ld %-3ld %-3ld %-3ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
         s += SYMBOL_SIZE;
     }
     printf("\n");
