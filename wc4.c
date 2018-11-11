@@ -11,6 +11,7 @@ long *instructions;
 char *data;
 long *iptr;
 
+int cur_line;
 int cur_token;
 int cur_scope;
 char *cur_identifier;
@@ -134,6 +135,7 @@ void next() {
         if (input_size - ip >= 2 && (i[ip] == '/' && i[ip + 1] == '/')) {
             ip += 2;
             while (i[ip++] != '\n');
+            cur_line++;
             continue;
         }
 
@@ -187,7 +189,8 @@ void next() {
 
         else if (input_size - ip >= 3 && i[ip] == '\'' && i[ip+2] == '\'') { cur_integer = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
 
-        else if (i[ip] == ' ' || i[ip] == '\t' || i[ip] == '\n') { ip++; continue; }
+        else if (i[ip] == ' ' || i[ip] == '\t') { ip++; continue; }
+        else if (i[ip] == '\n') { ip++; cur_line++; continue; }
 
         else if ((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z')) {
             cur_token = TOK_IDENTIFIER;
@@ -208,6 +211,7 @@ void next() {
         else if (input_size - ip >= 1 && i[ip] == '#') {
             // Ignore CPP directives
             while (i[ip++] != '\n');
+            cur_line++;
             continue;
         }
 
@@ -225,7 +229,7 @@ void next() {
                     else if (i[ip+1] == '\'') sl[slp++] = '\'';
                     else if (i[ip+1] == '\"') sl[slp++] = '\"';
                     else {
-                        printf("Unknown \\ escape in string literal: %s\n", input + ip);
+                        printf("%d: Unknown \\ escape in string literal\n", cur_line);
                         exit(1);
                     }
                     ip += 2;
@@ -237,7 +241,7 @@ void next() {
         }
 
         else {
-            printf("Unknown token: %s", input + ip);
+            printf("%d: Unknown token on line\n", cur_line);
             exit(1);
         }
 
@@ -249,7 +253,7 @@ void next() {
 
 void expect(int token) {
     if (cur_token != token) {
-        printf("Expected token %d, got %d\n", token, cur_token);
+        printf("%d: Expected token %d, got %d\n", cur_line, token, cur_token);
         exit(1);
     }
 }
@@ -269,7 +273,7 @@ long *lookup_symbol(char *name, int scope) {
 
     if (scope != 0) return lookup_symbol(name, 0);
 
-    printf("Unknown symbol: %s\n", name);
+    printf("%d: Unknown symbol \"%s\"\n", cur_line, name);
     exit(1);
 }
 
@@ -336,7 +340,7 @@ void expression(int level) {
         expression(1024); // Fake highest precedence, bind nothing
         org_type = cur_type;
         if (!is_lvalue) {
-            printf("Cannot pre increment an rvalue\n");
+            printf("%d: Cannot prefix increment/decrement an rvalue on line\n", cur_line);
             exit(1);
         }
         *iptr++ = INSTR_PSH; // Push address
@@ -353,7 +357,7 @@ void expression(int level) {
         next();
         expression(TOK_INC);
         if (cur_type <= TYPE_CHAR) {
-            printf("Cannot derefence a non-pointer %ld\n", cur_type);
+            printf("%d: Cannot derefence a non-pointer\n", cur_line);
             exit(1);
         }
         want_rvalue(); // This does the dereferencing
@@ -472,7 +476,7 @@ void expression(int level) {
             want_rvalue();
 
             if (cur_type <= TYPE_CHAR) {
-                printf("Cannot do [] on a non-pointer %ld\n", cur_type);
+                printf("%d: Cannot do [] on a non-pointer for type %ld\n", cur_line, cur_type);
                 exit(1);
             }
 
@@ -498,7 +502,7 @@ void expression(int level) {
         consume(TOK_RPAREN);
     }
     else {
-        printf("Unknown token in expression: %d\n", cur_token);
+        printf("%d: Unexpected token %d in expression\n", cur_line, cur_token);
         exit(1);
     }
 
@@ -670,7 +674,7 @@ void expression(int level) {
         else if (cur_token == TOK_EQ) {
             next();
             if (!is_lvalue) {
-                printf("Cannot assign to an rvalue\n");
+                printf("%d: Cannot assign to an rvalue\n", cur_line);
                 exit(1);
             }
             *iptr++ = INSTR_PSH;
@@ -682,7 +686,7 @@ void expression(int level) {
             org_token = cur_token;
             next();
             if (!is_lvalue) {
-                printf("Cannot assign to an rvalue\n");
+                printf("%d: Cannot assign to an rvalue\n", cur_line);
                 exit(1);
             }
             org_type = cur_type;
@@ -701,7 +705,7 @@ void expression(int level) {
             is_lvalue = 0;
         }
         else {
-            printf("Unable to parse expression: %d\n", cur_token);
+            printf("%d: Unexpected token in expression %d\n", cur_line, cur_token);
             exit(1);
         }
 
@@ -715,7 +719,7 @@ void statement() {
     long *if_true_done_jmp;
 
     if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-        printf("Declarations must be at the top of a function\n");
+        printf("%d: Declarations must be at the top of a function\n", cur_line);
         exit(1);
     }
 
@@ -871,7 +875,10 @@ void parse() {
                         next();
                         while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
                     }
-                    else { printf("Unknown type in function def %d\n", cur_token); exit(1); }
+                    else {
+                        printf("%d: Unknown type token in function def %d\n", cur_line, cur_token);
+                        exit(1);
+                    }
 
                     consume(TOK_IDENTIFIER);
                     next_symbol[SYMBOL_TYPE] = type;
@@ -920,7 +927,7 @@ void parse() {
         }
 
         else {
-            printf("Expected global declaration or function\n");
+            printf("%d: Expected global declaration or function\n", cur_line);
             exit(1);
         }
     }
@@ -997,7 +1004,7 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_EXIT) { printf("exit %ld\n", *sp); return *sp; }
 
         else {
-            printf("WTF instruction %d\n", instr);
+            printf("Internal error: unknown instruction %d\n", instr);
             exit(1);
         }
     }
@@ -1070,6 +1077,7 @@ int main(int argc, char **argv) {
     if (input_size < 0) { printf("Unable to read input file\n"); exit(1); }
     close(f);
 
+    cur_line = 1;
     next();
     parse();
 
