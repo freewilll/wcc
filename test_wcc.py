@@ -542,3 +542,12 @@ def test_cast_in_function_call():
             return strcmp((char *) pi, "foo");
         }
     """, "exit 0\n")
+
+
+def test_array_lookup_of_string_literal():
+    check_output("""
+        int main() {
+            printf("%.3s ", &"foobar"[0]);
+            printf("%.3s\n", &"foobar"[3]);
+        }
+    """, "foo bar\nexit 0\n")
