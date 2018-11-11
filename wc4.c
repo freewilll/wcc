@@ -1150,7 +1150,7 @@ int main(int argc, char **argv) {
 
     if (show_symbols) print_symbols();
 
-    run(argc, argv, print_instructions);
+    run(argc - 1, argv + 1, print_instructions);
 
     exit(0);
 }
