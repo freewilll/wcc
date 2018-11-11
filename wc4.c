@@ -128,8 +128,8 @@ enum {
 };
 
 void next() {
+    char *i;
     while (ip < input_size) {
-        char *i;
         i = input;
 
         if (input_size - ip >= 2 && (i[ip] == '/' && i[ip + 1] == '/')) {
@@ -264,7 +264,8 @@ void consume(int token) {
 }
 
 long *lookup_symbol(char *name, int scope) {
-    long *s = symbol_table;
+    long *s;
+    s = symbol_table;
 
     while (s[0]) {
         if (s[SYMBOL_SCOPE] == scope && !strcmp((char *) s[SYMBOL_IDENTIFIER], name)) return s;
@@ -278,7 +279,8 @@ long *lookup_symbol(char *name, int scope) {
 }
 
 long lookup_function(char *name) {
-    long *symbol = lookup_symbol(name, 0);
+    long *symbol;
+    symbol = lookup_symbol(name, 0);
     return symbol[SYMBOL_VALUE];
 }
 
@@ -307,7 +309,6 @@ int get_type_inc_dec_size(int type) {
 }
 
 void expression(int level) {
-    int param_count;
     int org_token;
     int org_type;
     int first_arg_is_pointer;
@@ -315,6 +316,12 @@ void expression(int level) {
     long *temp_iptr;
     long *if_false_jmp;
     long *if_true_done_jmp;
+    long *symbol;
+    int type;
+    int scope;
+    long *address;
+    long param_count;
+    long stack_index;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -413,10 +420,10 @@ void expression(int level) {
         next();
     }
     else if (cur_token == TOK_IDENTIFIER) {
-        long *symbol = lookup_symbol(cur_identifier, cur_scope);
+        symbol = lookup_symbol(cur_identifier, cur_scope);
         next();
-        int type = symbol[SYMBOL_TYPE];
-        int scope = symbol[SYMBOL_SCOPE];
+        type = symbol[SYMBOL_TYPE];
+        scope = symbol[SYMBOL_SCOPE];
         if (type == TYPE_ENUM) {
             *iptr++ = INSTR_IMM;
             *iptr++ = symbol[SYMBOL_VALUE];
@@ -450,7 +457,7 @@ void expression(int level) {
         }
         else if (scope == 0) {
             // Global symbol
-            long *address = (long *) symbol[SYMBOL_VALUE];
+            address = (long *) symbol[SYMBOL_VALUE];
             *iptr++ = INSTR_IMM;
             *iptr++ = (long) address;
             cur_type = symbol[SYMBOL_TYPE];
@@ -458,10 +465,10 @@ void expression(int level) {
         }
         else {
             // Local symbol
-            long param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
+            param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
             *iptr++ = INSTR_LEA;
             if (symbol[SYMBOL_STACK_INDEX] >= 0) {
-                long stack_index = param_count - symbol[SYMBOL_STACK_INDEX] - 1;
+                stack_index = param_count - symbol[SYMBOL_STACK_INDEX] - 1;
                 *iptr++ = stack_index + 2; // Step over pushed PC and BP
             }
             else {
@@ -845,6 +852,7 @@ void function_body(char *func_name) {
 void parse() {
     cur_scope = 0;
     int type;
+    long number;
 
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)  {
@@ -903,7 +911,7 @@ void parse() {
         else if (cur_token == TOK_ENUM) {
             consume(TOK_ENUM);
             consume(TOK_LCURLY);
-            long number = 0;
+            number = 0;
             while (cur_token != TOK_RCURLY) {
                 expect(TOK_IDENTIFIER);
                 next();
@@ -935,7 +943,6 @@ void parse() {
 
 long run(long argc, char **argv, int print_instructions) {
     long *stack = malloc(10240);
-
     long a;
     long *pc;
     long *sp, *bp;
