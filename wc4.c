@@ -770,7 +770,6 @@ void statement() {
     else if (cur_token == TOK_IF) {
         next();
         consume(TOK_LPAREN);
-        cur_while_start = iptr;
         expression(TOK_COMMA);
         want_rvalue();
         consume(TOK_RPAREN);
