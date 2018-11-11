@@ -1039,18 +1039,38 @@ long run(long argc, char **argv, int print_instructions) {
 }
 
 void add_builtin(char *identifier, int instruction) {
-    long *symbol = next_symbol;
+    long *symbol;
+    symbol = next_symbol;
     symbol[SYMBOL_TYPE] = TYPE_VOID;
     symbol[SYMBOL_IDENTIFIER] = (long) identifier;
     symbol[SYMBOL_BUILTIN] = instruction;
     next_symbol += SYMBOL_SIZE;
 }
 
+void print_symbols() {
+    long *s, type, scope, value, stack_index;
+    char *identifier;
+
+    printf("Symbols:\n");
+    s = symbol_table;
+    while (s[0]) {
+        type = s[SYMBOL_TYPE];
+        identifier = (char *) s[SYMBOL_IDENTIFIER];
+        scope = s[SYMBOL_SCOPE];
+        value = s[SYMBOL_VALUE];
+        stack_index = s[SYMBOL_STACK_INDEX];
+        printf("%-20ld %ld %ld %-2ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
+        s += SYMBOL_SIZE;
+    }
+    printf("\n");
+}
+
 int main(int argc, char **argv) {
     char *filename;
-
     int i;
+    int f;
     int debug, print_instructions, show_symbols;
+
     print_instructions = 0;
     show_symbols = 0;
     i = 1;
@@ -1095,7 +1115,6 @@ int main(int argc, char **argv) {
     add_builtin("strcmp", INSTR_SCMP);
 
     iptr = instructions;
-    int f;
     f  = open(filename, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
     input_size = read(f, input, 10 * 1024 * 1024);
@@ -1107,20 +1126,7 @@ int main(int argc, char **argv) {
     next();
     parse();
 
-    if (show_symbols) {
-        printf("Symbols:\n");
-        long *s = symbol_table;
-        while (s[0]) {
-            long type = s[SYMBOL_TYPE];
-            char *identifier = (char *) s[SYMBOL_IDENTIFIER];
-            long scope = s[SYMBOL_SCOPE];
-            long value = s[SYMBOL_VALUE];
-            long stack_index = s[SYMBOL_STACK_INDEX];
-            printf("%-20ld %ld %ld %-2ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
-            s += SYMBOL_SIZE;
-        }
-        printf("\n");
-    }
+    if (show_symbols) print_symbols();
 
     run(argc, argv, print_instructions);
 
