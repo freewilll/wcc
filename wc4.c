@@ -320,8 +320,8 @@ void expression(int level) {
     int first_arg_is_pointer;
     int factor;
     long *temp_iptr;
-    long *if_false_jmp;
-    long *if_true_done_jmp;
+    long *false_jmp;
+    long *true_done_jmp;
     long *symbol;
     int type;
     int scope;
@@ -670,19 +670,19 @@ void expression(int level) {
         else if (cur_token == TOK_TERNARY) {
             next();
             want_rvalue();
-            if_false_jmp = iptr;
+            false_jmp = iptr;
             *iptr++ = INSTR_BZ;
             *iptr++ = 0;
             expression(TOK_OR);
             want_rvalue();
-            if_true_done_jmp = iptr;
+            true_done_jmp = iptr;
             *iptr++ = INSTR_JMP;
             *iptr++ = 0;
             consume(TOK_COLON);
-            *(if_false_jmp + 1) = (long) iptr;
+            *(false_jmp + 1) = (long) iptr;
             expression(TOK_OR);
             want_rvalue();
-            *(if_true_done_jmp + 1) = (long) iptr;
+            *(true_done_jmp + 1) = (long) iptr;
         }
         else if (cur_token == TOK_EQ) {
             next();
@@ -726,8 +726,8 @@ void expression(int level) {
 
 void statement() {
     long *while_body_start;
-    long *if_false_jmp;
-    long *if_true_done_jmp;
+    long *false_jmp;
+    long *true_done_jmp;
 
     if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
         printf("%d: Declarations must be at the top of a function\n", cur_line);
@@ -773,22 +773,22 @@ void statement() {
         expression(TOK_COMMA);
         want_rvalue();
         consume(TOK_RPAREN);
-        if_false_jmp = iptr;
+        false_jmp = iptr;
         *iptr++ = INSTR_BZ;
         *iptr++ = 0;
         statement();
-        *(if_false_jmp + 1) = (long) iptr;
+        *(false_jmp + 1) = (long) iptr;
         if (cur_token == TOK_ELSE) {
             next();
-            if_true_done_jmp = iptr;
+            true_done_jmp = iptr;
             *iptr++ = INSTR_JMP;
             *iptr++ = 0;
-            *(if_false_jmp + 1) = (long) iptr;
+            *(false_jmp + 1) = (long) iptr;
             statement();
-            *(if_true_done_jmp + 1) = (long) iptr;
+            *(true_done_jmp + 1) = (long) iptr;
         }
         else
-            *(if_false_jmp + 1) = (long) iptr;
+            *(false_jmp + 1) = (long) iptr;
     }
     else if (cur_token == TOK_RETURN) {
         next();
