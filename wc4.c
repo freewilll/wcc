@@ -993,6 +993,11 @@ long run(long argc, char **argv, int print_instructions) {
     pc = (long *) lookup_function("main");
 
     while (*pc) {
+        if (sp < stack) {
+            printf("Stack overflow\n");
+            exit(1);
+        }
+
         cycle++;
         instr = *pc++;
 
