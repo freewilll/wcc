@@ -194,7 +194,7 @@ void next() {
 
         else if ((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z')) {
             cur_token = TOK_IDENTIFIER;
-            char *id = malloc(128);
+            char *id = malloc(1024);
             int idp = 0;
             while (((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z') || (i[ip] >= '0' && i[ip] <= '9') || (i[ip] == '_')) && ip < input_size) { id[idp] = i[ip]; idp++; ip++; }
             id[idp] = 0;
@@ -217,7 +217,7 @@ void next() {
 
         else if (i[ip] == '"') {
             cur_token = TOK_STRING_LITERAL;
-            char *sl = malloc(128);
+            char *sl = malloc(1024);
             int slp = 0;
             ip += 1;
             while (input_size - ip >= 1 && i[ip] != '"') {
@@ -942,12 +942,13 @@ void parse() {
 }
 
 long run(long argc, char **argv, int print_instructions) {
-    long *stack = malloc(10240);
+    long *stack = malloc(sizeof(long) * 1024 * 1024);
     long a;
     long *pc;
     long *sp, *bp;
     long *t;
-    sp = stack + 10240 - 1;    // stack pointer
+
+    sp = stack + 1024 * 1024;
     bp = sp;
 
     *--sp = INSTR_EXIT; // call exit if main returns
@@ -1049,12 +1050,12 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    input = malloc(10240);
-    instructions = malloc(10240);
-    symbol_table = malloc(10240);
-    memset(symbol_table, 0, 10240);
+    input = malloc(10 * 1024 * 1024);
+    instructions = malloc(10 * 1024 * 1024);
+    symbol_table = malloc(10 * 1024 * 1024);
+    memset(symbol_table, 0, 10 * 1024 * 1024);
     next_symbol = symbol_table;
-    data = malloc(10240);
+    data = malloc(10 * 1024 * 1024);
 
     SYMBOL_TYPE                 = 0;
     SYMBOL_IDENTIFIER           = 1;
@@ -1079,7 +1080,7 @@ int main(int argc, char **argv) {
     int f;
     f  = open(filename, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
-    input_size = read(f, input, 10240);
+    input_size = read(f, input, 10 * 1024 * 1024);
     input[input_size] = 0;
     if (input_size < 0) { printf("Unable to read input file\n"); exit(1); }
     close(f);
