@@ -551,3 +551,21 @@ def test_array_lookup_of_string_literal():
             printf("%.3s\n", &"foobar"[3]);
         }
     """, "foo bar\nexit 0\n")
+
+
+def test_nested_while_continue():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            char *s;
+            i = 0;
+            s = "foo";
+
+            while (s[i++] != 0) {
+                printf("%d ", i);
+                while (0);
+                continue;
+            }
+            printf("\n");
+        }
+    """, "1 2 3 \nexit 0\n")

@@ -731,6 +731,7 @@ void statement() {
     long *body_start;
     long *false_jmp;
     long *true_done_jmp;
+    long *old_cur_while_start;
 
     if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
         printf("%d: Declarations must be at the top of a function\n", cur_line);
@@ -756,6 +757,8 @@ void statement() {
     else if (cur_token == TOK_WHILE) {
         next();
         consume(TOK_LPAREN);
+        // Preserve so that we can have nested whiles
+        old_cur_while_start = cur_while_start;
         cur_while_start = iptr;
         expression(TOK_COMMA);
         want_rvalue();
@@ -767,6 +770,7 @@ void statement() {
         *iptr++ = INSTR_JMP;
         *iptr++ = (long) cur_while_start;
         *(body_start - 1) = (long) iptr;
+        cur_while_start = old_cur_while_start;
     }
     else if (cur_token == TOK_CONTINUE) {
         next();
