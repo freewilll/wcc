@@ -826,6 +826,12 @@ void function_body(char *func_name) {
             type = base_type;
             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
+            if (cur_token == TOK_EQ) {
+                printf("%d: Declarations with assignments aren't implemented\n", cur_line);
+                exit(1);
+            }
+
+
             expect(TOK_IDENTIFIER);
             cur_symbol = next_symbol;
             next_symbol[SYMBOL_TYPE] = type;
