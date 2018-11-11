@@ -530,3 +530,15 @@ def test_plus_equals():
 
 def test_exit():
     check_output("""int main(int argc, char **argv) { exit(3); }""", "exit 3\n")
+
+
+def test_cast_in_function_call():
+    # Test precedence error combined with expression parser not stopping at unknown tokens
+
+    check_output("""
+        int main(int argc, char **argv) {
+            char *pi;
+            pi = "foo";
+            return strcmp((char *) pi, "foo");
+        }
+    """, "exit 0\n")

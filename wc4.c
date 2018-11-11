@@ -47,7 +47,7 @@ enum {
     TOK_ELSE,
     TOK_CHAR,
     TOK_VOID,
-    TOK_WHILE,
+    TOK_WHILE,          // 10
     TOK_CONTINUE,
     TOK_RETURN,
     TOK_ENUM,
@@ -57,7 +57,7 @@ enum {
     TOK_RBRACKET,
     TOK_LBRACKET,
     TOK_RCURLY,
-    TOK_LCURLY,
+    TOK_LCURLY,         // 20
     TOK_SEMI,
     TOK_COMMA,
     TOK_EQ,
@@ -67,7 +67,7 @@ enum {
     TOK_COLON,
     TOK_OR,
     TOK_AND,
-    TOK_DBL_EQ,
+    TOK_DBL_EQ,         // 30
     TOK_NOT_EQ,
     TOK_LT,
     TOK_GT,
@@ -77,7 +77,7 @@ enum {
     TOK_MINUS,
     TOK_MULTIPLY,
     TOK_DIVIDE,
-    TOK_MOD,
+    TOK_MOD,            // 40
     TOK_LOGICAL_NOT,
     TOK_ADDRESS_OF,
     TOK_INC,
@@ -717,10 +717,8 @@ void expression(int level) {
             *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
             is_lvalue = 0;
         }
-        else {
-            printf("%d: Unexpected token in expression %d\n", cur_line, cur_token);
-            exit(1);
-        }
+        else
+            return; // Bail once we hit something unknown
 
         is_lvalue = 0;
     }
