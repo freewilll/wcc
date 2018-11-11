@@ -569,3 +569,19 @@ def test_nested_while_continue():
             printf("\n");
         }
     """, "1 2 3 \nexit 0\n")
+
+
+def test_func_returns_are_lvalues():
+    check_exit_code("""
+        int foo() {
+            int t;
+            t = 1;
+            return t;
+        }
+
+        int main(int argc, char **argv) {
+            int i;
+            i = foo();
+            return i;
+        }
+    """, 1)

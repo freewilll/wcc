@@ -461,6 +461,7 @@ void expression(int level) {
                 *iptr++ = symbol[SYMBOL_VALUE];
                 *iptr++ = INSTR_ADJ;
                 *iptr++ = param_count;
+                is_lvalue = 0;
             }
             cur_type = symbol[SYMBOL_TYPE];
         }
