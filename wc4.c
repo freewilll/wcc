@@ -11,6 +11,7 @@ long *instructions;
 char *data;
 long *iptr;
 
+int print_instructions;
 int cur_line;
 int cur_token;
 int cur_scope;
@@ -88,7 +89,8 @@ enum { TYPE_VOID=1, TYPE_ENUM=2, TYPE_INT, TYPE_CHAR };
 enum { TYPE_PTR=2 };
 
 enum {
-    INSTR_LEA=1,
+    INSTR_LINE=1,
+    INSTR_LEA,
     INSTR_IMM,
     INSTR_JMP,
     INSTR_JSR,
@@ -735,6 +737,11 @@ void statement() {
         exit(1);
     }
 
+    if (print_instructions) {
+        *iptr++ = INSTR_LINE;
+        *iptr++ = cur_line;
+    }
+
     if (cur_token == TOK_SEMI) {
         // Empty statement
         next();
@@ -989,12 +996,13 @@ long run(long argc, char **argv, int print_instructions) {
             printf("pc = %-15ld ", (long) pc - 8);
             printf("a = %-15ld ", a);
             printf("sp = %-15ld ", (long) sp);
-            printf("%.5s", &"LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT"[instr * 5 - 5]);
+            printf("%.5s", &"LINE LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
             if (instr <= INSTR_ADJ) printf(" %ld", *pc);
             printf("\n");
         }
 
-             if (instr == INSTR_LEA) a = (long) (bp + *pc++);                               // load local address
+             if (instr == INSTR_LINE) pc++;                                                 // No-op, print line number
+        else if (instr == INSTR_LEA) a = (long) (bp + *pc++);                               // load local address
         else if (instr == INSTR_IMM) a = *pc++;                                             // load global address or immediate
         else if (instr == INSTR_JMP) pc = (long *) *pc;                                     // jump
         else if (instr == INSTR_JSR) { *--sp = (long) (pc + 1); pc = (long *)*pc; }         // jump to subroutine
@@ -1073,7 +1081,7 @@ int main(int argc, char **argv) {
     char *filename;
     int i;
     int f;
-    int debug, print_instructions, show_symbols;
+    int debug, show_symbols;
 
     print_instructions = 0;
     show_symbols = 0;
