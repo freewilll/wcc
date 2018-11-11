@@ -585,3 +585,15 @@ def test_func_returns_are_lvalues():
             return i;
         }
     """, 1)
+
+
+def test_bad_or_and_stack_consumption():
+    check_exit_code("""
+        int main(int argc, char **argv) {
+            long ip;
+            ip = 0;
+            while ((1 || 1 || 1 || 1 || 1 || 1 || 1 || 1 || 1 || 1 || 1 || 1 || 1 || 1 || 1 || 1) && ip < 2) {
+                ip += 1;
+            }
+        }
+    """, 0)

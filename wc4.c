@@ -654,8 +654,8 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_DBL_EQ);
             want_rvalue();
-            *(temp_iptr + 1) = (long) iptr;
             *iptr++ = INSTR_AND;
+            *(temp_iptr + 1) = (long) iptr;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_OR) {
@@ -667,8 +667,8 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_AND);
             want_rvalue();
-            *(temp_iptr + 1) = (long) iptr;
             *iptr++ = INSTR_OR;
+            *(temp_iptr + 1) = (long) iptr;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_TERNARY) {
