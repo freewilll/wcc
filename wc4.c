@@ -129,6 +129,12 @@ enum {
 
 void next() {
     char *i;
+    char *id;
+    int idp;
+    int value;
+    char *sl;
+    int slp;
+
     while (ip < input_size) {
         i = input;
 
@@ -194,8 +200,8 @@ void next() {
 
         else if ((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z')) {
             cur_token = TOK_IDENTIFIER;
-            char *id = malloc(1024);
-            int idp = 0;
+            id = malloc(1024);
+            idp = 0;
             while (((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z') || (i[ip] >= '0' && i[ip] <= '9') || (i[ip] == '_')) && ip < input_size) { id[idp] = i[ip]; idp++; ip++; }
             id[idp] = 0;
             cur_identifier = id;
@@ -203,7 +209,7 @@ void next() {
 
         else if ((i[ip] >= '0' && i[ip] <= '9')) {
             cur_token = TOK_NUMBER;
-            int value = 0;
+            value = 0;
             while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { value = value * 10 + (i[ip] - '0'); ip++; }
             cur_integer = value;
         }
@@ -217,8 +223,8 @@ void next() {
 
         else if (i[ip] == '"') {
             cur_token = TOK_STRING_LITERAL;
-            char *sl = malloc(1024);
-            int slp = 0;
+            sl = malloc(1024);
+            slp = 0;
             ip += 1;
             while (input_size - ip >= 1 && i[ip] != '"') {
                      if (i[ip] != '\\') { sl[slp] = i[ip]; slp++; ip++; }
