@@ -1089,25 +1089,26 @@ void print_symbols() {
 
 int main(int argc, char **argv) {
     char *filename;
-    int i;
     int f;
     int debug, show_symbols;
 
     print_instructions = 0;
     show_symbols = 0;
-    i = 1;
-    while (i < argc) {
-        if (!memcmp(argv[i], "-d", 2)) debug = 1;
-        else if (!memcmp(argv[i], "-i", 2)) print_instructions = 1;
-        else if (!memcmp(argv[i], "-s", 2)) show_symbols = 1;
-        else filename = argv[i];
-        i++;
+    argc--;
+    argv++;
+    while (argc > 0 && *argv[0] == '-') {
+             if (argc > 0 && !memcmp(argv[0], "-d", 2)) { debug = 1;              argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-i", 2)) { print_instructions = 1; argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-s", 2)) { show_symbols = 1;       argc--; argv++; }
+        else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
     }
 
-    if (!filename) {
+    if (argc < 1) {
         printf("Usage: wc4 INPUT-FILE\n");
         exit(1);
     }
+
+    filename = argv[0];
 
     input = malloc(10 * 1024 * 1024);
     instructions = malloc(10 * 1024 * 1024);
@@ -1150,7 +1151,7 @@ int main(int argc, char **argv) {
 
     if (show_symbols) print_symbols();
 
-    run(argc - 1, argv + 1, print_instructions);
+    run(argc, argv, print_instructions);
 
     exit(0);
 }
