@@ -494,6 +494,8 @@ void expression(int level) {
         *iptr++ = INSTR_IMM;
         *iptr++ = parse_type() == TYPE_CHAR ? 1 : sizeof(long);
         consume(TOK_RPAREN);
+        is_lvalue = 0;
+        cur_type = TYPE_INT;
     }
     else {
         printf("%d: Unexpected token %d in expression\n", cur_line, cur_token);
