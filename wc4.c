@@ -455,6 +455,7 @@ void expression(int level) {
             if (builtin) {
                 *iptr++ = builtin;
                 if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]))  *iptr++ = param_count;
+                is_lvalue = 0;
             }
             else {
                 *iptr++ = INSTR_JSR;
