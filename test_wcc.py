@@ -108,7 +108,7 @@ def test_expr(expr, expected_result):
 
 
 def test_argc_count():
-    check_exit_code("int main(int argc, int argv) {return argc;}", 2)
+    check_exit_code("int main(int argc, int argv) {return argc;}", 1)
 
 
 def test_assignment():
@@ -122,7 +122,7 @@ def test_assignment():
             g = 3;
             return a+b+argc+g;
         }
-    """, 8);
+    """, 7);
 
 
 def test_function_calls():
