@@ -698,10 +698,13 @@ void expression(int level) {
                 printf("%d: Cannot assign to an rvalue\n", cur_line);
                 exit(1);
             }
+            org_type = type;
             *iptr++ = INSTR_PSH;
-            expression(TOK_TERNARY);
+            expression(TOK_EQ);
             want_rvalue();
             *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
+            type = org_type;
+            is_lvalue = 1;
         }
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
             org_token = cur_token;
@@ -717,7 +720,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = get_type_inc_dec_size(org_type);
             *iptr++ = INSTR_PSH;
-            expression(TOK_TERNARY);
+            expression(TOK_EQ);
             want_rvalue();
             *iptr++ = INSTR_MUL;
             *iptr++ = org_token == TOK_PLUS_EQ ? INSTR_ADD : INSTR_SUB;

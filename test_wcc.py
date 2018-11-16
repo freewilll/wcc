@@ -598,6 +598,7 @@ def test_bad_or_and_stack_consumption():
         }
     """, 0)
 
+
 def test_double_deref_assign_with_cast():
     check_output("""
         int main(int argc, char **argv) {
@@ -612,3 +613,13 @@ def test_double_deref_assign_with_cast():
 
         }
     """, "20\nexit 0\n")
+
+
+def test_double_assign():
+    check_output("""
+        int main(int argc, char **argv) {
+            long a, b;
+            a = b = 1;
+            printf("%ld %ld\n", a, b);
+        }
+    """, "1 1\nexit 0\n")
