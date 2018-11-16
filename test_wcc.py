@@ -597,3 +597,18 @@ def test_bad_or_and_stack_consumption():
             }
         }
     """, 0)
+
+def test_double_deref_assign_with_cast():
+    check_output("""
+        int main(int argc, char **argv) {
+            long i, a, *sp, *stack;
+            stack = malloc(32);
+            sp = stack;
+            i = 10;
+            a = 20;
+            *sp = (long) &i;
+            *(long *) *sp++ = a;
+                printf("%ld\n", i);
+
+        }
+    """, "20\nexit 0\n")

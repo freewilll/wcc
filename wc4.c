@@ -403,9 +403,10 @@ void expression(int level) {
     else if (cur_token == TOK_LPAREN) {
         next();
         if (cur_token == TOK_VOID || cur_token == TOK_INT || cur_token == TOK_CHAR) {
+            // cast
             org_type = parse_type();
             consume(TOK_RPAREN);
-            expression(TOK_COMMA);
+            expression(TOK_INC);
             cur_type = org_type;
         }
         else {
