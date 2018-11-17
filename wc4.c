@@ -1171,7 +1171,5 @@ int main(int argc, char **argv) {
 
     if (show_symbols) print_symbols();
 
-    run(argc, argv, print_instructions);
-
-    exit(0);
+    exit(run(argc, argv, print_instructions));
 }
