@@ -623,3 +623,15 @@ def test_double_assign():
             printf("%ld %ld\n", a, b);
         }
     """, "1 1\nexit 0\n")
+
+
+def test_print_assignment_with_one_arg():
+    check_output("""
+        int main() {
+            long a, b;
+            a = printf("%d ", 1);
+            printf("%ld\n", a);
+            a = b = printf("%d x ", 2);
+            printf("%ld %ld\n", a, b);
+        }
+    """, "1 2\n2 x 4 4\nexit 0\n")
