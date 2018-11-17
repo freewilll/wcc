@@ -1085,7 +1085,7 @@ void add_builtin(char *identifier, int instruction) {
     next_symbol += SYMBOL_SIZE;
 }
 
-void print_symbols() {
+void do_print_symbols() {
     long *s, type, scope, value, stack_index;
     char *identifier;
 
@@ -1106,18 +1106,18 @@ void print_symbols() {
 int main(int argc, char **argv) {
     char *filename;
     int f;
-    int debug, show_symbols;
+    int debug, print_symbols;
 
     print_instructions = 0;
     print_exit_code = 1;
     print_cycles = 1;
-    show_symbols = 0;
+    print_symbols = 0;
     argc--;
     argv++;
     while (argc > 0 && *argv[0] == '-') {
              if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-i",  2)) { print_instructions = 1; argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { show_symbols = 1;       argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { print_symbols = 1;      argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-ne", 3)) { print_exit_code = 0;    argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-nc", 3)) { print_cycles = 0;       argc--; argv++; }
         else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
@@ -1169,7 +1169,7 @@ int main(int argc, char **argv) {
     next();
     parse();
 
-    if (show_symbols) print_symbols();
+    if (print_symbols) do_print_symbols();
 
     exit(run(argc, argv, print_instructions));
 }
