@@ -12,6 +12,8 @@ char *data;
 long *iptr;
 
 int print_instructions;
+int print_exit_code;
+int print_cycles;
 int cur_line;
 int cur_token;
 int cur_scope;
@@ -979,8 +981,8 @@ long run(long argc, char **argv, int print_instructions) {
     long *pc;
     long *sp, *bp;
     long *t;
-    int instr;
-    int cycle;
+    long instr;
+    long cycle;
 
     stack = malloc(sizeof(long) * 1024 * 1024);
 
@@ -1009,7 +1011,7 @@ long run(long argc, char **argv, int print_instructions) {
         instr = *pc++;
 
         if (print_instructions) {
-            printf("%-5d> ", cycle);
+            printf("%-5ld> ", cycle);
             printf("pc = %-15ld ", (long) pc - 8);
             printf("a = %-15ld ", a);
             printf("sp = %-15ld ", (long) sp);
@@ -1055,10 +1057,17 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_MSET) { a = (long) memset((char *) sp[2], sp[1], *sp); sp += 3; }
         else if (instr == INSTR_MCMP) { a = (long) memcmp((char *) sp[2], (char *) sp[1], *sp); sp += 3; }
         else if (instr == INSTR_SCMP) { a = (long) strcmp((char *) sp[1], (char *) *sp); sp += 2; }
-        else if (instr == INSTR_EXIT) { printf("exit %ld\n", *sp); return *sp; }
+        else if (instr == INSTR_EXIT) {
+            if (print_cycles && print_exit_code) printf("exit %ld in %ld cycles,\n", *sp, cycle);
+            else {
+                if (print_cycles) printf("%ld cycles\n", cycle);
+                if (print_exit_code) printf("exit %ld\n", *sp);
+            }
+            return *sp;
+        }
 
         else {
-            printf("Internal error: unknown instruction %d\n", instr);
+            printf("Internal error: unknown instruction %ld\n", instr);
             exit(1);
         }
     }
@@ -1100,13 +1109,17 @@ int main(int argc, char **argv) {
     int debug, show_symbols;
 
     print_instructions = 0;
+    print_exit_code = 1;
+    print_cycles = 1;
     show_symbols = 0;
     argc--;
     argv++;
     while (argc > 0 && *argv[0] == '-') {
-             if (argc > 0 && !memcmp(argv[0], "-d", 2)) { debug = 1;              argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-i", 2)) { print_instructions = 1; argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-s", 2)) { show_symbols = 1;       argc--; argv++; }
+             if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-i",  2)) { print_instructions = 1; argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { show_symbols = 1;       argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-ne", 3)) { print_exit_code = 0;    argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-nc", 3)) { print_cycles = 0;       argc--; argv++; }
         else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
     }
 

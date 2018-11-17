@@ -8,16 +8,17 @@ def check_exit_code(code, expected_result):
     with tempfile.NamedTemporaryFile() as temp:
         with open(temp.name, 'w') as f:
             f.write(code)
-        output = subprocess.check_output(["./wc4", f.name]).decode('utf-8')
+        output = subprocess.check_output(["./wc4", "-nc", f.name]).decode('utf-8')
         result = re.sub("exit ", "", str(output).split("\n")[-2])
         assert int(result) == expected_result
 
 
-def check_output(code, expected_output):
+def check_output(code, expected_output, with_exit_code=False):
     with tempfile.NamedTemporaryFile() as temp:
         with open(temp.name, 'w') as f:
             f.write(code)
-        output = subprocess.check_output(["./wc4", f.name]).decode('utf-8')
+        args = ["./wc4", "-nc", f.name] if with_exit_code else ["./wc4", "-nc", "-ne", f.name]
+        output = subprocess.check_output(args).decode('utf-8')
         assert output == expected_output
 
 
@@ -150,7 +151,7 @@ def test_hello_world():
         int main(int argc, char **argv) {
             return printf("Hello world!\n");
         }
-    """, "Hello world!\nexit 13\n")
+    """, "Hello world!\nexit 13\n", with_exit_code=True)
 
     check_output("""
         int main(int argc, char **argv) {
@@ -158,7 +159,7 @@ def test_hello_world():
             a = 1;
             printf("1 + 1 = %d\n", a + 1);
         }
-    """, "1 + 1 = 2\nexit 0\n")
+    """, "1 + 1 = 2\n")
 
 
 def test_pointer_to_int():
@@ -175,7 +176,7 @@ def test_pointer_to_int():
             **ppi = 2;
             printf("%d\n", g);
         }
-        """, "1\n2\nexit 0\n");
+        """, "1\n2\n");
 
 
 def test_prefix_inc_dec():
@@ -188,7 +189,7 @@ def test_prefix_inc_dec():
             printf("%d\n", --i);
             printf("%d\n", --i);
         }
-    """, "1\n2\n1\n0\nexit 0\n");
+    """, "1\n2\n1\n0\n");
 
 
 def test_postfix_inc_dec():
@@ -201,7 +202,7 @@ def test_postfix_inc_dec():
             printf("%d\n", i--);
             printf("%d\n", i--);
         }
-    """, "0\n1\n2\n1\nexit 0\n");
+    """, "0\n1\n2\n1\n");
 
 
 def test_inc_dec_sizes():
@@ -234,8 +235,7 @@ def test_inc_dec_sizes():
         "8 0 8 0",
         "1 0 1 0",
         "1 0 1 0",
-        "8 0 8 0",
-        "exit 0"
+        "8 0 8 0"
     ]) + "\n");
 
 
@@ -269,8 +269,7 @@ def test_pointer_arithmetic():
         "08 24 00",
         "01 03 00",
         "01 03 00",
-        "08 24 00",
-        "exit 0"
+        "08 24 00"
     ]) + "\n");
 
 
@@ -286,7 +285,7 @@ def test_malloc():
             *pi = 4;
             printf("%d %d %d %d\n", *(pi - 3), *(pi - 2), *(pi - 1), *pi);
         }
-    """, "1 2 3 4\nexit 0\n")
+    """, "1 2 3 4\n")
 
 
 def test_char_pointer_arithmetic():
@@ -302,7 +301,7 @@ def test_char_pointer_arithmetic():
             *pc++ = 0;
             printf("%s\n", start);
         }
-    """, "foo\nexit 0\n")
+    """, "foo\n")
 
 
 def test_while():
@@ -313,7 +312,7 @@ def test_while():
             i = 0; while (i++ < 3) printf("%d ", i);
             printf("\n");
         }
-    """, "0 1 2 1 2 3 \nexit 0\n")
+    """, "0 1 2 1 2 3 \n")
 
 
 def test_string_copy():
@@ -331,7 +330,7 @@ def test_string_copy():
             while (*dst++ = *src++); // The coolest c code
             printf("%s=%s\n", osrc, odst);
         }
-    """, "foo=foo\nexit 0\n")
+    """, "foo=foo\n")
 
 
 def test_while_continue():
@@ -346,7 +345,7 @@ def test_while_continue():
             }
             printf("\n");
         }
-    """, "12345\nexit 0\n")
+    """, "12345\n")
 
 
 def test_if_else():
@@ -367,8 +366,7 @@ def test_if_else():
         "1 zero",
         "2 one",
         "4 else",
-        "5 if",
-        "exit 0"
+        "5 if"
     ]) + "\n");
 
 
@@ -384,8 +382,7 @@ def test_and_or_shortcutting():
         }
     """, "\n".join([
         "|| with 0",
-        "&& with 0",
-        "exit 0"
+        "&& with 0"
     ]) + "\n");
 
 
@@ -404,7 +401,7 @@ def test_sizeof():
             printf("%lu ", sizeof(char **));
             printf("\n");
         }
-    """, "8 8 1 8 8 8 8 8 8 8 \nexit 0\n")
+    """, "8 8 1 8 8 8 8 8 8 8 \n")
 
 
 def test_ternary():
@@ -416,7 +413,7 @@ def test_ternary():
                 (1 ? "foo" : "bar")
             );
         }
-    """, "2 1 foo\nexit 0\n")
+    """, "2 1 foo\n")
 
 
 def test_bracket_lookup():
@@ -432,7 +429,7 @@ def test_bracket_lookup():
             pi[-1] = 3;
             printf("%ld %ld %ld\n", *opi, *(opi + 1), *(opi + 2));
         }
-    """, "1 2 3\nexit 0\n")
+    """, "1 2 3\n")
 
 
 def test_casting():
@@ -446,7 +443,7 @@ def test_casting():
             pj = (int *) (((char *) pi) + 1);
             printf("%ld\n", (long) pj - (long) pi);
         }
-    """, "8\n1\nexit 0\n")
+    """, "8\n1\n")
 
 
 def test_comma_var_declarations():
@@ -459,7 +456,7 @@ def test_comma_var_declarations():
             *pi = 2;
             printf("%d\n", *pi);
         }
-    """, "1 2\nexit 0\n")
+    """, "1 2\n")
 
 
 def test_free():
@@ -469,7 +466,7 @@ def test_free():
             pi = malloc(17);
             free(pi);
         }
-    """, "exit 0\n")
+    """, "")
 
 
 def test_mem_functions():
@@ -492,8 +489,7 @@ def test_mem_functions():
     """, "\n".join([
         "0 0 -1 -1",
         "255",
-        "0 5 -1",
-        "exit 0",
+        "0 5 -1"
     ]) + "\n");
 
 
@@ -511,7 +507,7 @@ def test_open_read_close():
                 printf("%%zd\n", read(f, data, 16));
                 close(f);
             }
-        """ % temp.name, "4\nexit 0\n")
+        """ % temp.name, "4\n")
 
 def test_plus_equals():
     check_output("""
@@ -525,11 +521,11 @@ def test_plus_equals():
             pi -= 3;
             printf("%d %ld\n", i, (long) pi);
         }
-    """, "2 16 2 -8\nexit 0\n")
+    """, "2 16 2 -8\n")
 
 
 def test_exit():
-    check_output("""int main(int argc, char **argv) { exit(3); }""", "exit 3\n")
+    check_output("""int main(int argc, char **argv) { exit(3); }""", "exit 3\n", with_exit_code=True)
 
 
 def test_cast_in_function_call():
@@ -541,7 +537,7 @@ def test_cast_in_function_call():
             pi = "foo";
             return strcmp((char *) pi, "foo");
         }
-    """, "exit 0\n")
+    """, "")
 
 
 def test_array_lookup_of_string_literal():
@@ -550,7 +546,7 @@ def test_array_lookup_of_string_literal():
             printf("%.3s ", &"foobar"[0]);
             printf("%.3s\n", &"foobar"[3]);
         }
-    """, "foo bar\nexit 0\n")
+    """, "foo bar\n")
 
 
 def test_nested_while_continue():
@@ -568,7 +564,7 @@ def test_nested_while_continue():
             }
             printf("\n");
         }
-    """, "1 2 3 \nexit 0\n")
+    """, "1 2 3 \n")
 
 
 def test_func_returns_are_lvalues():
@@ -612,7 +608,7 @@ def test_double_deref_assign_with_cast():
                 printf("%ld\n", i);
 
         }
-    """, "20\nexit 0\n")
+    """, "20\n")
 
 
 def test_double_assign():
@@ -622,7 +618,7 @@ def test_double_assign():
             a = b = 1;
             printf("%ld %ld\n", a, b);
         }
-    """, "1 1\nexit 0\n")
+    """, "1 1\n")
 
 
 def test_print_assignment_with_one_arg():
@@ -634,4 +630,4 @@ def test_print_assignment_with_one_arg():
             a = b = printf("%d x ", 2);
             printf("%ld %ld\n", a, b);
         }
-    """, "1 2\n2 x 4 4\nexit 0\n")
+    """, "1 2\n2 x 4 4\n")
