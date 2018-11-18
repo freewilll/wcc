@@ -655,6 +655,7 @@ void expression(int level) {
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_AND) {
+            want_rvalue();
             temp_iptr = iptr;
             *iptr++ = INSTR_BZ;
             *iptr++ = 0;
@@ -668,6 +669,7 @@ void expression(int level) {
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_OR) {
+            want_rvalue();
             temp_iptr = iptr;
             *iptr++ = INSTR_BNZ;
             *iptr++ = 0;

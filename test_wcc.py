@@ -646,3 +646,17 @@ def test_int_char_interbreeding():
             printf("%d\n", i);
         }
     """, "4 67174916 67174917\n")
+
+
+def test_first_arg_to_or_and_and_must_be_rvalue():
+    check_output("""
+        int main(int argc, char **argv) {
+            long *sp;
+            long a;
+            sp = malloc(32);
+            *sp = 0;
+            a = 1;
+            a = *(sp++) || a;
+            printf("%ld\n", a);
+        }
+    """, "1\n")
