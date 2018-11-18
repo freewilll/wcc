@@ -1222,5 +1222,6 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    exit(run(argc, argv, print_instructions));
+    run(argc, argv, print_instructions);
+    exit(0);
 }
