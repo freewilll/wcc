@@ -1100,7 +1100,7 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_MCMP) { a = (long) memcmp((char *) sp[2], (char *) sp[1], *sp); sp += 3; }
         else if (instr == INSTR_SCMP) { a = (long) strcmp((char *) sp[1], (char *) *sp); sp += 2; }
         else if (instr == INSTR_EXIT) {
-            if (print_cycles && print_exit_code) printf("exit %ld in %ld cycles,\n", *sp, cycle);
+            if (print_cycles && print_exit_code) printf("exit %ld in %ld cycles\n", *sp, cycle);
             else {
                 if (print_cycles) printf("%ld cycles\n", cycle);
                 if (print_exit_code) printf("exit %ld\n", *sp);
