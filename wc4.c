@@ -39,6 +39,10 @@ int SYMBOL_STACK_INDEX;
 int SYMBOL_FUNCTION_PARAM_COUNT;
 int SYMBOL_BUILTIN;
 
+long DATA_SIZE;
+long INSTRUCTIONS_SIZE;
+long SYMBOL_TABLE_SIZE;
+
 // In order of precedence
 enum {
     TOK_EOF=1,
@@ -148,7 +152,6 @@ void next() {
             cur_line++;
             continue;
         }
-
 
         else if (input_size - ip >= 2 && !memcmp(i+ip, "if",       2)  ) { ip += 2; cur_token = TOK_IF;                         }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "else",     4)  ) { ip += 4; cur_token = TOK_ELSE;                       }
@@ -975,6 +978,42 @@ void parse() {
     }
 }
 
+void print_instruction(long *pc, int relative, int print_pc) {
+    int instr;
+    long operand;
+    instr = *pc;
+
+    if (print_pc) printf("%-15ld ", (long) pc - (long) instructions);
+    printf("%.5s", &"LINE LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
+    if (instr <= INSTR_ADJ) {
+        operand = *(pc + 1);
+        if (relative) {
+            if ((instr == INSTR_IMM) && (operand < 0 || operand > 1024 * 1024))
+                printf(" string literal or symbol");
+            else if ((instr == INSTR_JSR) || (instr == INSTR_JMP) || (instr == INSTR_BZ) || (instr == INSTR_BNZ))
+                printf(" %ld", operand - (long) instructions);
+            else
+                printf(" %ld", operand);
+        }
+    }
+
+    printf("\n");
+}
+
+void do_print_code() {
+    long *pc;
+    int instr;
+
+    pc = instructions;
+    while (*pc) {
+        instr = *pc;
+        print_instruction(pc, 1, 1);
+        if (instr <= INSTR_ADJ) pc += 2;
+        else if (instr == INSTR_PRTF) pc += 2;
+        else pc++;
+    }
+}
+
 long run(long argc, char **argv, int print_instructions) {
     long *stack;
     long a;
@@ -1008,17 +1047,16 @@ long run(long argc, char **argv, int print_instructions) {
         }
 
         cycle++;
-        instr = *pc++;
 
         if (print_instructions) {
             printf("%-5ld> ", cycle);
             printf("pc = %-15ld ", (long) pc - 8);
             printf("a = %-15ld ", a);
             printf("sp = %-15ld ", (long) sp);
-            printf("%.5s", &"LINE LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
-            if (instr <= INSTR_ADJ) printf(" %ld", *pc);
-            printf("\n");
+            print_instruction(pc, 0, 0);
         }
+
+        instr = *pc++;
 
              if (instr == INSTR_LINE) pc++;                                                 // No-op, print line number
         else if (instr == INSTR_LEA) a = (long) (bp + *pc++);                               // load local address
@@ -1106,18 +1144,25 @@ void do_print_symbols() {
 int main(int argc, char **argv) {
     char *filename;
     int f;
-    int debug, print_symbols;
+    int debug, print_symbols, print_code;
+
+    DATA_SIZE = 10 * 1024 * 1024;
+    INSTRUCTIONS_SIZE = 10 * 1024 * 1024;
+    SYMBOL_TABLE_SIZE = 10 * 1024 * 1024;
 
     print_instructions = 0;
+    print_code = 0;
     print_exit_code = 1;
     print_cycles = 1;
     print_symbols = 0;
+
     argc--;
     argv++;
     while (argc > 0 && *argv[0] == '-') {
              if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-i",  2)) { print_instructions = 1; argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { print_symbols = 1;      argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-c",  2)) { print_code = 1;         argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-ne", 3)) { print_exit_code = 0;    argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-nc", 3)) { print_cycles = 0;       argc--; argv++; }
         else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
@@ -1131,11 +1176,12 @@ int main(int argc, char **argv) {
     filename = argv[0];
 
     input = malloc(10 * 1024 * 1024);
-    instructions = malloc(10 * 1024 * 1024);
-    symbol_table = malloc(10 * 1024 * 1024);
-    memset(symbol_table, 0, 10 * 1024 * 1024);
+    instructions = malloc(INSTRUCTIONS_SIZE);
+    memset(instructions, 0, INSTRUCTIONS_SIZE);
+    symbol_table = malloc(SYMBOL_TABLE_SIZE);
+    memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
     next_symbol = symbol_table;
-    data = malloc(10 * 1024 * 1024);
+    data = malloc(DATA_SIZE);
 
     SYMBOL_TYPE                 = 0;
     SYMBOL_IDENTIFIER           = 1;
@@ -1170,6 +1216,11 @@ int main(int argc, char **argv) {
     parse();
 
     if (print_symbols) do_print_symbols();
+
+    if (print_code) {
+        do_print_code();
+        exit(0);
+    }
 
     exit(run(argc, argv, print_instructions));
 }
