@@ -995,6 +995,8 @@ void print_instruction(long *pc, int relative, int print_pc) {
             else
                 printf(" %ld", operand);
         }
+        else
+            printf(" %ld", operand);
     }
 
     printf("\n");
