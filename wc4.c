@@ -703,11 +703,11 @@ void expression(int level) {
                 printf("%d: Cannot assign to an rvalue\n", cur_line);
                 exit(1);
             }
-            org_type = type;
+            org_type = cur_type;
             *iptr++ = INSTR_PSH;
             expression(TOK_EQ);
             want_rvalue();
-            *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
+            *iptr++ = org_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
             type = org_type;
             is_lvalue = 1;
         }
@@ -1072,8 +1072,8 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_LEV) { sp = bp; bp = (long *) *sp++; pc = (long *) *sp++; } // leave subroutine
         else if (instr == INSTR_LI)  a = *(long *)a;                                        // load int
         else if (instr == INSTR_LC)  a = *(char *)a;                                        // load char
-        else if (instr == INSTR_SI) *(long *) *sp++ = a;                                    // store int
-        else if (instr == INSTR_SC) a = *(char *) *sp++ = a;                                // store char
+        else if (instr == INSTR_SI)  *(long *) *sp++ = a;                                   // store int
+        else if (instr == INSTR_SC)  a = *(char *)*sp++ = a;                                // store char
         else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
         else if (instr == INSTR_AND) a = *sp++ && a;

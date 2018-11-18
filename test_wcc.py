@@ -631,3 +631,18 @@ def test_print_assignment_with_one_arg():
             printf("%ld %ld\n", a, b);
         }
     """, "1 2\n2 x 4 4\n")
+
+
+def test_int_char_interbreeding():
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            char *c;
+            c = (char *) &i;
+            i = 1 + 256 * 2 + 256 * 256 + 3 + 256 * 256 * 256 * 4;;
+            printf("%d ", *c);
+            printf("%d ", i);
+            *c = 5;
+            printf("%d\n", i);
+        }
+    """, "4 67174916 67174917\n")
