@@ -142,17 +142,54 @@ void next() {
     int value;
     char *sl;
     int slp;
+    char c1, c2;
+
+    i = input;
 
     while (ip < input_size) {
-        i = input;
+        c1 = i[ip];
+        c2 = i[ip + 1];
 
-        if (input_size - ip >= 2 && (i[ip] == '/' && i[ip + 1] == '/')) {
+        if (c1 == ' ' || c1 == '\t') { ip++; continue; }
+        else if (c1 == '\n') { ip++; cur_line++; continue; }
+
+        else if (c1 == '/' && input_size - ip >= 2 && c2 == '/') {
             ip += 2;
             while (i[ip++] != '\n');
             cur_line++;
             continue;
         }
 
+        else if (                        c1 == '('                     ) { ip += 1; cur_token = TOK_LPAREN;                     }
+        else if (                        c1 == ')'                     ) { ip += 1; cur_token = TOK_RPAREN;                     }
+        else if (                        c1 == '['                     ) { ip += 1; cur_token = TOK_LBRACKET;                   }
+        else if (                        c1 == ']'                     ) { ip += 1; cur_token = TOK_RBRACKET;                   }
+        else if (                        c1 == '{'                     ) { ip += 1; cur_token = TOK_LCURLY;                     }
+        else if (                        c1 == '}'                     ) { ip += 1; cur_token = TOK_RCURLY;                     }
+        else if (                        c1 == '*'                     ) { ip += 1; cur_token = TOK_MULTIPLY;                   }
+        else if (                        c1 == '/'                     ) { ip += 1; cur_token = TOK_DIVIDE;                     }
+        else if (                        c1 == '%'                     ) { ip += 1; cur_token = TOK_MOD;                        }
+        else if (                        c1 == ','                     ) { ip += 1; cur_token = TOK_COMMA;                      }
+        else if (                        c1 == ';'                     ) { ip += 1; cur_token = TOK_SEMI;                       }
+        else if (                        c1 == '?'                     ) { ip += 1; cur_token = TOK_TERNARY;                    }
+        else if (                        c1 == ':'                     ) { ip += 1; cur_token = TOK_COLON;                      }
+        else if (input_size - ip >= 2 && c1 == '&' && c2 == '&'        ) { ip += 2; cur_token = TOK_AND;                        }
+        else if (input_size - ip >= 2 && c1 == '|' && c2 == '|'        ) { ip += 2; cur_token = TOK_OR;                         }
+        else if (input_size - ip >= 2 && c1 == '=' && c2 == '='        ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
+        else if (input_size - ip >= 2 && c1 == '!' && c2 == '='        ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
+        else if (input_size - ip >= 2 && c1 == '<' && c2 == '='        ) { ip += 2; cur_token = TOK_LE;                         }
+        else if (input_size - ip >= 2 && c1 == '>' && c2 == '='        ) { ip += 2; cur_token = TOK_GE;                         }
+        else if (input_size - ip >= 2 && c1 == '+' && c2 == '+'        ) { ip += 2; cur_token = TOK_INC;                        }
+        else if (input_size - ip >= 2 && c1 == '-' && c2 == '-'        ) { ip += 2; cur_token = TOK_DEC;                        }
+        else if (input_size - ip >= 2 && c1 == '+' && c2 == '='        ) { ip += 2; cur_token = TOK_PLUS_EQ;                    }
+        else if (input_size - ip >= 2 && c1 == '-' && c2 == '='        ) { ip += 2; cur_token = TOK_MINUS_EQ;                   }
+        else if (                        c1 == '+'                     ) { ip += 1; cur_token = TOK_PLUS;                       }
+        else if (                        c1 == '-'                     ) { ip += 1; cur_token = TOK_MINUS;                      }
+        else if (                        c1 == '='                     ) { ip += 1; cur_token = TOK_EQ;                         }
+        else if (                        c1 == '<'                     ) { ip += 1; cur_token = TOK_LT;                         }
+        else if (                        c1 == '>'                     ) { ip += 1; cur_token = TOK_GT;                         }
+        else if (                        c1 == '!'                     ) { ip += 1; cur_token = TOK_LOGICAL_NOT;                }
+        else if (                        c1 == '&'                     ) { ip += 1; cur_token = TOK_ADDRESS_OF;                 }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "if",       2)  ) { ip += 2; cur_token = TOK_IF;                         }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "else",     4)  ) { ip += 4; cur_token = TOK_ELSE;                       }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "int",      3)  ) { ip += 3; cur_token = TOK_INT;                        }
@@ -164,48 +201,15 @@ void next() {
         else if (input_size - ip >= 5 && !memcmp(i+ip, "return",   6)  ) { ip += 6; cur_token = TOK_RETURN;                     }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "enum",     4)  ) { ip += 4; cur_token = TOK_ENUM;                       }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "sizeof",   6)  ) { ip += 6; cur_token = TOK_SIZEOF;                     }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "&&",       2)  ) { ip += 2; cur_token = TOK_AND;                        }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "||",       2)  ) { ip += 2; cur_token = TOK_OR;                         }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "==",       2)  ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "!=",       2)  ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "<=",       2)  ) { ip += 2; cur_token = TOK_LE;                         }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, ">=",       2)  ) { ip += 2; cur_token = TOK_GE;                         }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "++",       2)  ) { ip += 2; cur_token = TOK_INC;                        }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "--",       2)  ) { ip += 2; cur_token = TOK_DEC;                        }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "+=",       2)  ) { ip += 2; cur_token = TOK_PLUS_EQ;                    }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "-=",       2)  ) { ip += 2; cur_token = TOK_MINUS_EQ;                   }
-        else if (input_size - ip >= 1 && i[ip] == '('                  ) { ip += 1; cur_token = TOK_LPAREN;                     }
-        else if (input_size - ip >= 1 && i[ip] == ')'                  ) { ip += 1; cur_token = TOK_RPAREN;                     }
-        else if (input_size - ip >= 1 && i[ip] == '['                  ) { ip += 1; cur_token = TOK_LBRACKET;                   }
-        else if (input_size - ip >= 1 && i[ip] == ']'                  ) { ip += 1; cur_token = TOK_RBRACKET;                   }
-        else if (input_size - ip >= 1 && i[ip] == '{'                  ) { ip += 1; cur_token = TOK_LCURLY;                     }
-        else if (input_size - ip >= 1 && i[ip] == '}'                  ) { ip += 1; cur_token = TOK_RCURLY;                     }
-        else if (input_size - ip >= 1 && i[ip] == '+'                  ) { ip += 1; cur_token = TOK_PLUS;                       }
-        else if (input_size - ip >= 1 && i[ip] == '-'                  ) { ip += 1; cur_token = TOK_MINUS;                      }
-        else if (input_size - ip >= 1 && i[ip] == '*'                  ) { ip += 1; cur_token = TOK_MULTIPLY;                   }
-        else if (input_size - ip >= 1 && i[ip] == '/'                  ) { ip += 1; cur_token = TOK_DIVIDE;                     }
-        else if (input_size - ip >= 1 && i[ip] == '%'                  ) { ip += 1; cur_token = TOK_MOD;                        }
-        else if (input_size - ip >= 1 && i[ip] == ','                  ) { ip += 1; cur_token = TOK_COMMA;                      }
-        else if (input_size - ip >= 1 && i[ip] == ';'                  ) { ip += 1; cur_token = TOK_SEMI;                       }
-        else if (input_size - ip >= 1 && i[ip] == '='                  ) { ip += 1; cur_token = TOK_EQ;                         }
-        else if (input_size - ip >= 1 && i[ip] == '<'                  ) { ip += 1; cur_token = TOK_LT;                         }
-        else if (input_size - ip >= 1 && i[ip] == '>'                  ) { ip += 1; cur_token = TOK_GT;                         }
-        else if (input_size - ip >= 1 && i[ip] == '!'                  ) { ip += 1; cur_token = TOK_LOGICAL_NOT;                }
-        else if (input_size - ip >= 1 && i[ip] == '&'                  ) { ip += 1; cur_token = TOK_ADDRESS_OF;                 }
-        else if (input_size - ip >= 1 && i[ip] == '?'                  ) { ip += 1; cur_token = TOK_TERNARY;                    }
-        else if (input_size - ip >= 1 && i[ip] == ':'                  ) { ip += 1; cur_token = TOK_COLON;                      }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\t'; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\n'; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''", 4)     ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\''; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4)    ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\"'; }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4)    ) { ip += 4; cur_token = TOK_NUMBER; cur_integer = '\\'; }
 
-        else if (input_size - ip >= 3 && i[ip] == '\'' && i[ip+2] == '\'') { cur_integer = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
+        else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_integer = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
 
-        else if (i[ip] == ' ' || i[ip] == '\t') { ip++; continue; }
-        else if (i[ip] == '\n') { ip++; cur_line++; continue; }
-
-        else if ((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z')) {
+        else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z')) {
             cur_token = TOK_IDENTIFIER;
             id = malloc(1024);
             idp = 0;
@@ -214,14 +218,14 @@ void next() {
             cur_identifier = id;
         }
 
-        else if ((i[ip] >= '0' && i[ip] <= '9')) {
+        else if ((c1 >= '0' && c1 <= '9')) {
             cur_token = TOK_NUMBER;
             value = 0;
             while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { value = value * 10 + (i[ip] - '0'); ip++; }
             cur_integer = value;
         }
 
-        else if (input_size - ip >= 1 && i[ip] == '#') {
+        else if (c1 == '#') {
             // Ignore CPP directives
             while (i[ip++] != '\n');
             cur_line++;
