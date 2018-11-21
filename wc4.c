@@ -526,10 +526,15 @@ void expression(int level) {
         *iptr++ = INSTR_PSH;
         expression(TOK_COMMA);
         want_rvalue();
-        *iptr++ = INSTR_PSH;
-        *iptr++ = INSTR_IMM;
-        *iptr++ = get_type_inc_dec_size(org_type);
-        *iptr++ = INSTR_MUL;
+
+        factor = get_type_inc_dec_size(org_type);
+        if (factor > 1) {
+            *iptr++ = INSTR_PSH;
+            *iptr++ = INSTR_IMM;
+            *iptr++ = factor;
+            *iptr++ = INSTR_MUL;
+        }
+
         *iptr++ = INSTR_ADD;
         consume(TOK_RBRACKET);
         is_lvalue = 1;
@@ -597,10 +602,14 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
             want_rvalue();
-            *iptr++ = INSTR_PSH;
-            *iptr++ = INSTR_IMM;
-            *iptr++ = factor;
-            *iptr++ = INSTR_MUL;
+
+            if (factor > 1) {
+                *iptr++ = INSTR_PSH;
+                *iptr++ = INSTR_IMM;
+                *iptr++ = factor;
+                *iptr++ = INSTR_MUL;
+            }
+
             *iptr++ = org_token == TOK_PLUS ? INSTR_ADD : INSTR_SUB;
             cur_type = org_type;
         }
@@ -728,12 +737,17 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             want_rvalue();
             *iptr++ = INSTR_PSH;
-            *iptr++ = INSTR_IMM;
-            *iptr++ = get_type_inc_dec_size(org_type);
-            *iptr++ = INSTR_PSH;
+
+            factor = get_type_inc_dec_size(org_type);
+            if (factor > 1) {
+                *iptr++ = INSTR_IMM;
+                *iptr++ = factor;
+                *iptr++ = INSTR_PSH;
+            }
+
             expression(TOK_EQ);
             want_rvalue();
-            *iptr++ = INSTR_MUL;
+            if (factor > 1) *iptr++ = INSTR_MUL;
             *iptr++ = org_token == TOK_PLUS_EQ ? INSTR_ADD : INSTR_SUB;
             cur_type = org_type;
             *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
