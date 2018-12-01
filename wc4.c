@@ -1115,12 +1115,13 @@ void do_print_symbols() {
 int main(int argc, char **argv) {
     char *filename;
     int f;
-    int debug, print_symbols, print_code;
+    int help, debug, print_symbols, print_code;
 
     DATA_SIZE = 10 * 1024 * 1024;
     INSTRUCTIONS_SIZE = 10 * 1024 * 1024;
     SYMBOL_TABLE_SIZE = 10 * 1024 * 1024;
 
+    help = 0;
     print_instructions = 0;
     print_code = 0;
     print_exit_code = 1;
@@ -1130,7 +1131,8 @@ int main(int argc, char **argv) {
     argc--;
     argv++;
     while (argc > 0 && *argv[0] == '-') {
-             if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
+             if (argc > 0 && !memcmp(argv[0], "-h", 3))  { help = 0;               argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-i",  2)) { print_instructions = 1; argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { print_symbols = 1;      argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-c",  2)) { print_code = 1;         argc--; argv++; }
@@ -1139,8 +1141,16 @@ int main(int argc, char **argv) {
         else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
     }
 
-    if (argc < 1) {
-        printf("Usage: wc4 INPUT-FILE\n");
+    if (help || argc < 1) {
+        printf("Usage: wc4 [-d -i -s -c -ne -nc] INPUT-FILE\n\n");
+        printf("Flags\n");
+        printf("-d      Debug output\n");
+        printf("-i      Output instructions during execution\n");
+        printf("-s      Output symbol table\n");
+        printf("-c      Output code without executing it\n");
+        printf("-ne     Don't print exeit code\n");
+        printf("-nc     Don't print cycles\n");
+        printf("-h      Help\n");
         exit(1);
     }
 
