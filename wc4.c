@@ -21,7 +21,6 @@ char *cur_identifier;
 int cur_integer;
 char *cur_string_literal;
 long *cur_function_symbol;
-int is_lvalue;
 int seen_return;
 long *cur_while_start;
 
@@ -301,13 +300,6 @@ long lookup_function(char *name) {
     return symbol[SYMBOL_VALUE];
 }
 
-void want_rvalue() {
-    if (is_lvalue) {
-        *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
-        is_lvalue = 0;
-    }
-}
-
 int parse_type() {
     int type;
 
@@ -323,6 +315,10 @@ int parse_type() {
 int get_type_inc_dec_size(int type) {
     // How much will the ++ operator increment a type?
     return type <= TYPE_CHAR || type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
+}
+
+int is_lvalue() {
+    return *(iptr -1) == INSTR_LC || *(iptr -1) == INSTR_LI;
 }
 
 void expression(int level) {
@@ -347,16 +343,18 @@ void expression(int level) {
         *iptr++ = 0;
         *iptr++ = INSTR_PSH;
         expression(1024); // Fake highest precedence, bind nothing
-        want_rvalue();
         *iptr++ = INSTR_EQ;
-        is_lvalue = 0;
         cur_type = TYPE_INT;
     }
     else if (cur_token == TOK_ADDRESS_OF) {
         next();
         expression(1024); // Fake highest precedence, bind nothing
+        if (!is_lvalue()) {
+            printf("%d: Cannot take an address of an rvalue on line\n", cur_line);
+            exit(1);
+        }
+        iptr--;                                                // Roll back load
         cur_type = cur_type + TYPE_PTR;
-        is_lvalue = 0;
     }
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
         // Prefix increment & decrement
@@ -364,18 +362,18 @@ void expression(int level) {
         next();
         expression(1024); // Fake highest precedence, bind nothing
         org_type = cur_type;
-        if (!is_lvalue) {
+        if (!is_lvalue()) {
             printf("%d: Cannot prefix increment/decrement an rvalue on line\n", cur_line);
             exit(1);
         }
-        *iptr++ = INSTR_PSH; // Push address
-        want_rvalue();
+        iptr--;                                                // Roll back load
+        *iptr++ = INSTR_PSH;                                   // Push address
+        *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI; // Push value
         *iptr++ = INSTR_PSH;
         *iptr++ = INSTR_IMM;
         *iptr++ = get_type_inc_dec_size(cur_type);
         *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
         *iptr++ = INSTR_SI;
-        is_lvalue = 0;
         cur_type = org_type;
     }
     else if (cur_token == TOK_MULTIPLY) {
@@ -385,9 +383,8 @@ void expression(int level) {
             printf("%d: Cannot derefence a non-pointer\n", cur_line);
             exit(1);
         }
-        want_rvalue(); // This does the dereferencing
-        is_lvalue = 1;
         cur_type = cur_type - TYPE_PTR;
+        *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
     }
     else if (cur_token == TOK_MINUS) {
         next();
@@ -396,7 +393,6 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = -cur_integer;
             next();
-            is_lvalue = 0;
             cur_type = TYPE_INT;
         }
         else {
@@ -404,9 +400,7 @@ void expression(int level) {
             *iptr++ = -1;
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
-            want_rvalue();
             *iptr++ = INSTR_MUL;
-            is_lvalue = 0;
         }
     }
     else if (cur_token == TOK_LPAREN) {
@@ -428,14 +422,12 @@ void expression(int level) {
         *iptr++ = cur_integer;
         cur_type = TYPE_INT;
         next();
-        is_lvalue = 0;
     }
     else if (cur_token == TOK_STRING_LITERAL) {
         *iptr++ = INSTR_IMM;
         *iptr++ = (long) data;
         while (*data++ = *cur_string_literal++);
         cur_type = TYPE_CHAR + TYPE_PTR;
-        is_lvalue = 0;
         next();
     }
     else if (cur_token == TOK_IDENTIFIER) {
@@ -446,7 +438,6 @@ void expression(int level) {
         if (type == TYPE_ENUM) {
             *iptr++ = INSTR_IMM;
             *iptr++ = symbol[SYMBOL_VALUE];
-            is_lvalue = 0;
             cur_type = symbol[SYMBOL_TYPE];
         }
         else if (cur_token == TOK_LPAREN) {
@@ -455,7 +446,6 @@ void expression(int level) {
             param_count = 0;
             while (cur_token != TOK_RPAREN) {
                 expression(TOK_PLUS);
-                want_rvalue();
                 *iptr++ = INSTR_PSH;
                 if (cur_token == TOK_COMMA) next();
                 param_count++;
@@ -465,14 +455,12 @@ void expression(int level) {
             if (builtin) {
                 *iptr++ = builtin;
                 if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]))  *iptr++ = param_count;
-                is_lvalue = 0;
             }
             else {
                 *iptr++ = INSTR_JSR;
                 *iptr++ = symbol[SYMBOL_VALUE];
                 *iptr++ = INSTR_ADJ;
                 *iptr++ = param_count;
-                is_lvalue = 0;
             }
             cur_type = symbol[SYMBOL_TYPE];
         }
@@ -482,7 +470,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = (long) address;
             cur_type = symbol[SYMBOL_TYPE];
-            is_lvalue = 1;
+            *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
         }
         else {
             // Local symbol
@@ -496,7 +484,7 @@ void expression(int level) {
                 *iptr++ = symbol[SYMBOL_STACK_INDEX];
             }
             cur_type = symbol[SYMBOL_TYPE];
-            is_lvalue = 1;
+            *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
         }
     }
     else if (cur_token == TOK_SIZEOF) {
@@ -505,7 +493,6 @@ void expression(int level) {
         *iptr++ = INSTR_IMM;
         *iptr++ = parse_type() == TYPE_CHAR ? 1 : sizeof(long);
         consume(TOK_RPAREN);
-        is_lvalue = 0;
         cur_type = TYPE_INT;
     }
     else {
@@ -515,7 +502,6 @@ void expression(int level) {
 
     if (cur_token == TOK_LBRACKET) {
         next();
-        want_rvalue();
 
         if (cur_type <= TYPE_CHAR) {
             printf("%d: Cannot do [] on a non-pointer for type %ld\n", cur_line, cur_type);
@@ -525,7 +511,6 @@ void expression(int level) {
         org_type = cur_type;
         *iptr++ = INSTR_PSH;
         expression(TOK_COMMA);
-        want_rvalue();
 
         factor = get_type_inc_dec_size(org_type);
         if (factor > 1) {
@@ -537,8 +522,8 @@ void expression(int level) {
 
         *iptr++ = INSTR_ADD;
         consume(TOK_RBRACKET);
-        is_lvalue = 1;
         cur_type = org_type - TYPE_PTR;
+        *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
     }
 
     while (cur_token >= level) {
@@ -546,8 +531,9 @@ void expression(int level) {
 
         if (cur_token == TOK_INC || cur_token == TOK_DEC) {
             // Postfix increment and decrement
-            *iptr++ = INSTR_PSH;
-            want_rvalue();
+            iptr--;                                                // Roll back load
+            *iptr++ = INSTR_PSH;                                   // Push address
+            *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI; // Push value
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
             *iptr++ = get_type_inc_dec_size(cur_type);
@@ -560,33 +546,26 @@ void expression(int level) {
             *iptr++ = get_type_inc_dec_size(cur_type);
             *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
-            is_lvalue = 0;
             next();
         }
         else if (cur_token == TOK_MULTIPLY) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_INC);
-            want_rvalue();
             *iptr++ = INSTR_MUL;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_DIVIDE) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_INC);
-            want_rvalue();
             *iptr++ = INSTR_DIV;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_MOD) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_INC);
-            want_rvalue();
             *iptr++ = INSTR_MOD;
             cur_type = TYPE_INT;
         }
@@ -598,10 +577,8 @@ void expression(int level) {
                 ? get_type_inc_dec_size(cur_type)
                 : 1;
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
-            want_rvalue();
 
             if (factor > 1) {
                 *iptr++ = INSTR_PSH;
@@ -615,127 +592,106 @@ void expression(int level) {
         }
         else if (cur_token == TOK_LT) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            want_rvalue();
             *iptr++ = INSTR_LT;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_GT) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            want_rvalue();
             *iptr++ = INSTR_GT;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_LE) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            want_rvalue();
             *iptr++ = INSTR_LE;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_GE) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            want_rvalue();
             *iptr++ = INSTR_GE;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_DBL_EQ) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_LT);
-            want_rvalue();
             *iptr++ = INSTR_EQ;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_NOT_EQ) {
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_LT);
-            want_rvalue();
             *iptr++ = INSTR_NE;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_AND) {
-            want_rvalue();
             temp_iptr = iptr;
             *iptr++ = INSTR_BZ;
             *iptr++ = 0;
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_DBL_EQ);
-            want_rvalue();
             *iptr++ = INSTR_AND;
             *(temp_iptr + 1) = (long) iptr;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_OR) {
-            want_rvalue();
             temp_iptr = iptr;
             *iptr++ = INSTR_BNZ;
             *iptr++ = 0;
             next();
-            want_rvalue();
             *iptr++ = INSTR_PSH;
             expression(TOK_AND);
-            want_rvalue();
             *iptr++ = INSTR_OR;
             *(temp_iptr + 1) = (long) iptr;
             cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_TERNARY) {
             next();
-            want_rvalue();
             false_jmp = iptr;
             *iptr++ = INSTR_BZ;
             *iptr++ = 0;
             expression(TOK_OR);
-            want_rvalue();
             true_done_jmp = iptr;
             *iptr++ = INSTR_JMP;
             *iptr++ = 0;
             consume(TOK_COLON);
             *(false_jmp + 1) = (long) iptr;
             expression(TOK_OR);
-            want_rvalue();
             *(true_done_jmp + 1) = (long) iptr;
         }
         else if (cur_token == TOK_EQ) {
             next();
-            if (!is_lvalue) {
+            if (!is_lvalue()) {
                 printf("%d: Cannot assign to an rvalue\n", cur_line);
                 exit(1);
             }
+            iptr--;
             org_type = cur_type;
             *iptr++ = INSTR_PSH;
             expression(TOK_EQ);
-            want_rvalue();
             *iptr++ = org_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
             type = org_type;
-            is_lvalue = 1;
         }
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
             org_token = cur_token;
             next();
-            if (!is_lvalue) {
+            if (!is_lvalue()) {
                 printf("%d: Cannot assign to an rvalue\n", cur_line);
                 exit(1);
             }
             org_type = cur_type;
-            *iptr++ = INSTR_PSH;
-            want_rvalue();
+            iptr--;                                                 // Roll back load
+            *iptr++ = INSTR_PSH;                                    // Push address
+            *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;  // Push value
             *iptr++ = INSTR_PSH;
 
             factor = get_type_inc_dec_size(org_type);
@@ -746,17 +702,14 @@ void expression(int level) {
             }
 
             expression(TOK_EQ);
-            want_rvalue();
             if (factor > 1) *iptr++ = INSTR_MUL;
             *iptr++ = org_token == TOK_PLUS_EQ ? INSTR_ADD : INSTR_SUB;
             cur_type = org_type;
             *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
-            is_lvalue = 0;
         }
         else
             return; // Bail once we hit something unknown
 
-        is_lvalue = 0;
     }
 }
 
@@ -794,7 +747,6 @@ void statement() {
         old_cur_while_start = cur_while_start;
         cur_while_start = iptr;
         expression(TOK_COMMA);
-        want_rvalue();
         consume(TOK_RPAREN);
         *iptr++ = INSTR_BZ;
         *iptr++ = 0;
@@ -815,7 +767,6 @@ void statement() {
         next();
         consume(TOK_LPAREN);
         expression(TOK_COMMA);
-        want_rvalue();
         consume(TOK_RPAREN);
         false_jmp = iptr;
         *iptr++ = INSTR_BZ;
@@ -837,7 +788,6 @@ void statement() {
     else if (cur_token == TOK_RETURN) {
         next();
         if (cur_token != TOK_SEMI) expression(TOK_COMMA);
-        want_rvalue();
         *iptr++ = INSTR_LEV;
         consume(TOK_SEMI);
         seen_return = 1;
@@ -898,7 +848,6 @@ void function_body(char *func_name) {
         *iptr++ = INSTR_IMM;
         *iptr++ = 0;
         cur_type = TYPE_INT;
-        is_lvalue = 0;
     }
 
     *iptr++ = INSTR_LEV;

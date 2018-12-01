@@ -660,3 +660,14 @@ def test_first_arg_to_or_and_and_must_be_rvalue():
             printf("%ld\n", a);
         }
     """, "1\n")
+
+
+def test_enum():
+    check_output("""
+        enum {A, B};
+        enum {C=2, D};
+
+        int main(int argc, char **argv) {
+            printf("%d %d %d %d\n", A, B, C, D);
+        }
+    """, "0 1 2 3\n")
