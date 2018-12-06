@@ -8,14 +8,15 @@ test-unit: wc4
 	venv/bin/py.test -vs
 
 test-inception-codegen: wc4
-	./wc4 -ne -nc -c wc4.c                                   > wc4-level1.code
-	./wc4 -ne -nc    wc4.c -ne -nc -c wc4.c                  > wc4-level2.code
-	@#./wc4 -ne -nc    wc4.c -ne -nc    wc4.c -ne -nc -c wc4.c > wc4-level3.code
-	diff wc4-level1.code wc4-level2.code
-	@#diff wc4-level1.code wc4-level3.code
+	./wc4 -ne -nc -c wc4.c                                   > wc4-level1.ws
+	./wc4 -ne -nc    wc4.c -ne -nc -c wc4.c                  > wc4-level2.ws
+	@#./wc4 -ne -nc    wc4.c -ne -nc    wc4.c -ne -nc -c wc4.c > wc4-level3.ws
+	diff wc4-level1.ws wc4-level2.ws
+	@#diff wc4-level1.ws wc4-level3.ws
 	@echo Two-level deep generated code is identical
 
 test: test-unit test-inception-codegen
 
 clean:
 	rm -f wc4
+	rm -f *.ws

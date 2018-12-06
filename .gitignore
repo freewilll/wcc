@@ -2,6 +2,6 @@ wc4
 venv
 __pycache__
 *.pyc
-wc4-level1.code
-wc4-level2.code
-wc4-level3.code
+wc4-level1.ws
+wc4-level2.ws
+wc4-level3.ws
