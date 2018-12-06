@@ -1,7 +1,11 @@
 wc4
+as4
 venv
 __pycache__
 *.pyc
 wc4-level1.ws
 wc4-level2.ws
 wc4-level3.ws
+as4-test
+as4-test.o
+as4-test-bak.o
