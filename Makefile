@@ -7,7 +7,7 @@ as4: as4.c
 	gcc as4.c -o as4 -Wno-parentheses
 
 as4-test.o: as4
-	./as4
+	./as4 --hw
 
 as4-test: as4-test.o
 	ld as4-test.o -o as4-test -lc --dynamic-linker /lib64/ld-linux-x86-64.so.2

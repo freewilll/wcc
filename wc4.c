@@ -24,6 +24,7 @@ char *cur_string_literal;
 long *cur_function_symbol;
 int seen_return;
 long *cur_while_start;
+int global_variable_count;
 
 long *symbol_table;
 long *next_symbol;
@@ -93,7 +94,7 @@ enum {
 
 enum { TYPE_VOID=1, TYPE_ENUM=2, TYPE_INT, TYPE_CHAR };
 enum { TYPE_PTR=2 };
-enum { GLB_TYPE_FUNCTION, GLB_TYPE_VARIABLE };
+enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
 enum {
     INSTR_LINE=1,
     INSTR_GLB,
@@ -346,6 +347,7 @@ void expression(int level) {
         *iptr++ = INSTR_IMM;
         *iptr++ = 0;
         *iptr++ = IMM_NUMBER;
+        *iptr++ = 0;
         *iptr++ = INSTR_PSH;
         expression(1024); // Fake highest precedence, bind nothing
         *iptr++ = INSTR_EQ;
@@ -378,6 +380,7 @@ void expression(int level) {
         *iptr++ = INSTR_IMM;
         *iptr++ = get_type_inc_dec_size(cur_type);
         *iptr++ = IMM_NUMBER;
+        *iptr++ = 0;
         *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
         *iptr++ = INSTR_SI;
         cur_type = org_type;
@@ -399,6 +402,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = -cur_integer;
             *iptr++ = IMM_NUMBER;
+            *iptr++ = 0;
             next();
             cur_type = TYPE_INT;
         }
@@ -406,6 +410,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = -1;
             *iptr++ = IMM_NUMBER;
+            *iptr++ = 0;
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
             *iptr++ = INSTR_MUL;
@@ -429,6 +434,7 @@ void expression(int level) {
         *iptr++ = INSTR_IMM;
         *iptr++ = cur_integer;
         *iptr++ = IMM_NUMBER;
+        *iptr++ = 0;
         cur_type = TYPE_INT;
         next();
     }
@@ -436,6 +442,7 @@ void expression(int level) {
         *iptr++ = INSTR_IMM;
         *iptr++ = (long) data;
         *iptr++ = IMM_STRING_LITERAL;
+        *iptr++ = 0;
         while (*data++ = *cur_string_literal++);
         cur_type = TYPE_CHAR + TYPE_PTR;
         next();
@@ -449,6 +456,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = symbol[SYMBOL_VALUE];
             *iptr++ = IMM_NUMBER;
+            *iptr++ = 0;
             cur_type = symbol[SYMBOL_TYPE];
         }
         else if (cur_token == TOK_LPAREN) {
@@ -465,7 +473,7 @@ void expression(int level) {
             builtin = symbol[SYMBOL_BUILTIN];
             if (builtin) {
                 *iptr++ = builtin;
-                if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]))  *iptr++ = param_count;
+                if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER])) *iptr++ = param_count;
             }
             else {
                 *iptr++ = INSTR_JSR;
@@ -482,6 +490,7 @@ void expression(int level) {
             *iptr++ = (long) address;
             cur_type = symbol[SYMBOL_TYPE];
             *iptr++ = cur_type == TYPE_CHAR ? IMM_GLOBAL_CHAR : IMM_GLOBAL_INT;
+            *iptr++ = (long) symbol;
             *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
         }
         else {
@@ -505,6 +514,7 @@ void expression(int level) {
         *iptr++ = INSTR_IMM;
         *iptr++ = parse_type() == TYPE_CHAR ? 1 : sizeof(long);
         *iptr++ = IMM_NUMBER;
+        *iptr++ = 0;
         consume(TOK_RPAREN);
         cur_type = TYPE_INT;
     }
@@ -531,6 +541,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = factor;
             *iptr++ = IMM_NUMBER;
+            *iptr++ = 0;
             *iptr++ = INSTR_MUL;
         }
 
@@ -552,6 +563,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = get_type_inc_dec_size(cur_type);
             *iptr++ = IMM_NUMBER;
+            *iptr++ = 0;
             *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
             *iptr++ = INSTR_SI;
 
@@ -560,6 +572,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = get_type_inc_dec_size(cur_type);
             *iptr++ = IMM_NUMBER;
+            *iptr++ = 0;
             *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
             next();
@@ -601,6 +614,7 @@ void expression(int level) {
                 *iptr++ = INSTR_IMM;
                 *iptr++ = factor;
                 *iptr++ = IMM_NUMBER;
+                *iptr++ = 0;
                 *iptr++ = INSTR_MUL;
             }
 
@@ -716,6 +730,7 @@ void expression(int level) {
                 *iptr++ = INSTR_IMM;
                 *iptr++ = factor;
                 *iptr++ = IMM_NUMBER;
+                *iptr++ = 0;
                 *iptr++ = INSTR_PSH;
             }
 
@@ -866,6 +881,7 @@ void function_body(char *func_name) {
         *iptr++ = INSTR_IMM;
         *iptr++ = 0;
         *iptr++ = IMM_NUMBER;
+        *iptr++ = 0;
         cur_type = TYPE_INT;
     }
 
@@ -894,6 +910,7 @@ void parse() {
             cur_symbol = next_symbol;
             next_symbol[SYMBOL_TYPE] = type;
             next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
+            next_symbol[SYMBOL_STACK_INDEX] = global_variable_count++;
             next_symbol[SYMBOL_SCOPE] = 0;
             next_symbol += SYMBOL_SIZE;
             next();
@@ -984,12 +1001,14 @@ void print_instruction(long *pc, int relative, int print_pc) {
     int instr;
     long operand, imm_type;
     char *s;
+    long *symbol;
     instr = *pc;
 
     if (print_pc) printf("%-15ld ", (long) pc - (long) instructions);
     printf("%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
     if (instr <= INSTR_ADJ) {
         operand = *(pc + 1);
+        symbol = (long *) *(pc + 3);
         if (relative) {
             if ((instr == INSTR_IMM)) {
                 imm_type = *(pc + 2);
@@ -1004,13 +1023,15 @@ void print_instruction(long *pc, int relative, int print_pc) {
                     }
                     printf("\"");
                 }
-                else if (imm_type == IMM_GLOBAL_INT)
-                    printf(" global_int_%ld", (char *) operand - data_start);
-                else if (imm_type == IMM_GLOBAL_CHAR)
-                    printf(" global_char_%ld", (char *) operand - data_start);
+                else if (imm_type == IMM_GLOBAL_INT || imm_type == IMM_GLOBAL_CHAR)
+                    printf(" global %ld %s", symbol[SYMBOL_STACK_INDEX], (char *) symbol[SYMBOL_IDENTIFIER]);
+                else {
+                    printf("unknown imm %ld\n", imm_type);
+                    exit(1);
+                }
             }
             else if (instr == INSTR_GLB) {
-                printf(" type=%02ld size=%ld \"%s\"", *(pc + 3), *(pc + 2), (char *) operand);
+                printf(" type=%ld size=%ld \"%s\"", *(pc + 3), *(pc + 2), (char *) operand);
                 pc += 2;
             }
             else if ((instr == INSTR_JSR) || (instr == INSTR_JMP) || (instr == INSTR_BZ) || (instr == INSTR_BNZ))
@@ -1033,8 +1054,8 @@ void do_print_code() {
     while (*pc) {
         instr = *pc;
         print_instruction(pc, 1, 1);
-        if (instr == INSTR_IMM) pc += 3;
-        else if (instr <= INSTR_GLB) pc += 4;
+        if (instr == INSTR_IMM) pc += 4;
+        else if (instr == INSTR_GLB) pc += 4;
         else if (instr <= INSTR_ADJ) pc += 2;
         else if (instr == INSTR_PRTF) pc += 2;
         else pc++;
@@ -1088,7 +1109,7 @@ long run(long argc, char **argv, int print_instructions) {
              if (instr == INSTR_LINE) pc++;                                                 // No-op, print line number
         else if (instr == INSTR_GLB) pc += 3;                                               // Global
         else if (instr == INSTR_LEA) a = (long) (bp + *pc++);                               // load local address
-        else if (instr == INSTR_IMM) {a = *pc++; pc++; }                                    // load global address or immediate
+        else if (instr == INSTR_IMM) {a = *pc++; pc += 2; }                                 // load global address or immediate
         else if (instr == INSTR_JMP) pc = (long *) *pc;                                     // jump
         else if (instr == INSTR_JSR) { *--sp = (long) (pc + 1); pc = (long *)*pc; }         // jump to subroutine
         else if (instr == INSTR_BZ)  pc = a ? pc + 1 : (long *) *pc;                        // branch if zero
@@ -1221,6 +1242,7 @@ int main(int argc, char **argv) {
     next_symbol = symbol_table;
     data = malloc(DATA_SIZE);
     data_start = data;
+    global_variable_count = 0;
 
     SYMBOL_TYPE                 = 0;
     SYMBOL_IDENTIFIER           = 1;

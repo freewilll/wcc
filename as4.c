@@ -9,8 +9,11 @@
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h
 
 enum {
-    MAX_SYMTAB_LEN = 1024,
-    MAX_TEXT_SIZE  = 1024 * 1024,
+    MAX_SYMTAB_LEN  = 1024 * 10,
+    MAX_STRTAB_LEN = 1024,
+    MAX_INPUT_SIZE  = 1024 * 1024 * 10,
+    MAX_TEXT_SIZE   = 1024 * 1024 * 10,
+    MAX_DATA_SIZE   = 1024 * 1024 * 10,
 
     // ELF header
     EI_MAGIC        = 0x00,     // 0x7F followed by ELF(45 4c 46) in ASCII; these four bytes constitute the magic number.
@@ -117,6 +120,53 @@ enum {
     ET_REL = 1,                         // relocatable
 };
 
+void wstrcpy(char *dst, char *src) {
+    while (*dst++ = *src++);
+}
+
+int wstrlen(char *str) {
+    char *s;
+    int len;
+    len = 0;
+    s = str;
+    while (*str++) len++;
+    return len;
+}
+
+char *wstrdup(char *src) {
+    char *s, *dst;
+    int len;
+    s = src;
+    len = 0;
+    while (*s++) len++;
+    dst = malloc(len + 1);
+    wstrcpy(dst, src);
+    while (*dst++ = *src++);
+    return dst;
+}
+
+// Since we don't do negatives, this returns either zero or one.
+// zero if the strings are equal, one otherwise.
+int wmemcmp(char *str1, char *str2, int size) {
+    int i;
+    i = 0;
+    while (i < size) {
+        if (*str1++ != *str2++) return 1;
+        i++;
+    }
+    return 0;
+}
+
+void witoa(char *dst, int number) {
+    int i;
+    i  = 0;
+    while (i < 4) {
+        dst[3 - i] = number % 10 + '0';
+        number = number / 10;
+        i++;
+    }
+}
+
 int align(long address, int alignment) {
     return (address + alignment - 1) & (~(alignment-1));
 }
@@ -164,14 +214,13 @@ void add_section_header(char *headers, int *shstrtab_indexes, int index, int typ
     *((long *) &headers[SHDR_SIZE * index + SH_SIZE])   = size;
 }
 
-void write_elf(int data_size, int text_size, int strtab_size, int rela_text_size,
+void write_elf(char *filename, int data_size, int text_size, int strtab_size, int rela_text_size,
         char *data_data, char *text_data, char *shstrtab_data, char *symtab_data, char *strtab_data, char *rela_text_data,
         int last_local_symbol, int num_syms) {
 
     int shstrtab_len;
     char *s, *d, *p;
     int f, written;
-    char *filename;
     char **shstrtab;
     int *shstrtab_indexes, *strtab_indexes, *si;
     char *program, *h;
@@ -252,7 +301,6 @@ void write_elf(int data_size, int text_size, int strtab_size, int rela_text_size
     s = rela_text_data; d = &program[rela_text_start];  while (s - rela_text_data < rela_text_size) *d++ = *s++;
 
     // Write file
-    filename = "as4-test.o";
     f = open(filename, 65, 420); // O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
     if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
     written = write(f, program, total_size);
@@ -265,6 +313,10 @@ void add_symbol(char *symtab_data, int *num_syms, char **strtab, int *strtab_len
 
     char *s;
     strtab[(*strtab_len)++] = name;
+    if (*strtab_len == MAX_STRTAB_LEN) {
+        printf("Exceeded max strtab length %d\n", MAX_STRTAB_LEN);
+        exit(1);
+    }
 
     s = (symtab_data + STE_SIZE * *num_syms);
     s[ST_VALUE] = value;
@@ -276,7 +328,23 @@ void add_symbol(char *symtab_data, int *num_syms, char **strtab, int *strtab_len
     if (*num_syms > MAX_SYMTAB_LEN) { printf("Exceeded max symbol table size %d\n", MAX_SYMTAB_LEN); exit(1); }
 }
 
-int main(int argc, char **argv) {
+void link_symtab_strings(char *symtab_data, char *strtab_data, int num_syms) {
+    int i;
+    char *s;
+
+    i = 0;
+    s = strtab_data;
+    while (i < num_syms) {
+        if (*s)
+            symtab_data[i * STE_SIZE + ST_NAME] = s - strtab_data;
+        else
+            symtab_data[i * STE_SIZE + ST_NAME] = 0;
+        while (*s++);
+        i++;
+    }
+}
+
+int make_hello_world() {
     int text_size, data_size, strtab_size, rela_text_size, last_local_symbol, i, num_rela_text,
         *shstrtab_indexes, *strtab_indexes, num_syms;
     char *s, *d, *data_data, *text_data, *shstrtab_data, *strtab_data, *rela_text_data, *symtab_data, *org_symtab_data;
@@ -330,7 +398,7 @@ int main(int argc, char **argv) {
 
     // Symbol table
     strtab_len = 0;
-    strtab = malloc(sizeof(char *) * 1024);
+    strtab = malloc(sizeof(char *) * MAX_STRTAB_LEN);
     num_syms = 0;
     symtab_data = malloc(MAX_SYMTAB_LEN * STE_SIZE);
     memset(symtab_data, MAX_SYMTAB_LEN * STE_SIZE, 0);
@@ -345,22 +413,13 @@ int main(int argc, char **argv) {
     add_symbol(s, pi1, strtab, pi2, "fmt",              0,                  STB_LOCAL,  STT_NOTYPE,  SEC_DATA);  // 4 fmt               .data
     add_symbol(s, pi1, strtab, pi2, "msg",              4,                  STB_LOCAL,  STT_NOTYPE,  SEC_DATA);  // 5 msg               .data + 4
     add_symbol(s, pi1, strtab, pi2, "printf",           (long) main_addr,   STB_GLOBAL, STT_NOTYPE,  SHN_UNDEF); // 6 printf
-    add_symbol(s, pi1, strtab, pi2, "_start",           (long) _start_addr, STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 7 _start            .text + 4
+    add_symbol(s, pi1, strtab, pi2, "_start",           (long) _start_addr, STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 7 _start            .text + ...
     add_symbol(s, pi1, strtab, pi2, "main",             0,                  STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 8 main              .text
 
     strtab_indexes = malloc(sizeof(int) * strtab_len);
     make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
-
-    i = 0;
-    s = strtab_data;
-    while (i < num_syms) {
-        if (*s) symtab_data[i * STE_SIZE + ST_NAME] = s - strtab_data;
-        while (*s++);
-        i++;
-    }
-
+    link_symtab_strings(symtab_data, strtab_data, num_syms);
     last_local_symbol = 5;
-
 
     // Relocation segment
     num_rela_text = 3;
@@ -374,8 +433,204 @@ int main(int argc, char **argv) {
 
     // That's it, let's write it
     write_elf(
+        "as4-test.o",
         data_size, text_size, strtab_size, rela_text_size,
         data_data, text_data, shstrtab_data, symtab_data, strtab_data, rela_text_data,
         last_local_symbol, num_syms
     );
+}
+
+int add_global(char *symtab_data, int *num_syms, char **strtab, int *strtab_len, int *data_size, char *input) {
+    int is_function, size, value, type, binding, section_index;
+    char *name, *s;
+    if (input[0] != 't' || input[1] != 'y' || input[2] != 'p' || input[3] != 'e' || input[4] != '=') {
+        printf("Missing type= in global\n");
+        exit(1);
+    }
+
+    is_function = input[5] == '1';
+    input += 7;
+
+    if (input[0] != 's' || input[1] != 'i' || input[2] != 'z' || input[3] != 'e' || input[4] != '=') {
+        printf("Missing size= in global\n");
+        exit(1);
+    }
+    size = input[5] - '0';
+    input += 7;
+    if (input[0] != '"') { printf("Missing \" in global\n"); exit(1); }
+    input++;
+    s = input;
+    while (*input != '"') input++;
+    *input = 0;
+    name = strdup(s);
+    *input = '"';
+
+    // Only data is done here
+    if (!is_function) {
+        value = align(*data_size, size);
+        if (*data_size + size > MAX_DATA_SIZE) {
+            printf("Exceeded max data size %d\n", MAX_DATA_SIZE);
+            exit(1);
+        }
+        *data_size += size;
+        binding = STB_LOCAL;
+        type = STT_NOTYPE;
+        section_index = SEC_DATA;
+        add_symbol(symtab_data, num_syms, strtab, strtab_len, name, value, binding, type, section_index);
+    }
+}
+
+void add_string_literal(char *symtab_data, int *num_syms, char **strtab, int *strtab_len, char *data_data, int *data_size, char *input, int *string_literal_len) {
+    char *name;
+
+    name = malloc(8);
+    name[0] = '_'; name[1] = 'S'; name[2] = 'L'; name[6] = 0;
+    witoa(name + 3, (*string_literal_len)++);
+    printf("IMM %s\n", name);
+
+    add_symbol(symtab_data, num_syms, strtab, strtab_len, name, *data_size, STB_LOCAL, STT_NOTYPE, SEC_DATA);
+
+    // TODO string escapes
+    input += 2;
+    while (*input != '"') {
+        printf("%c", *input);
+        if (*data_size == MAX_DATA_SIZE) {
+            printf("Exceeded max data size %d\n", MAX_DATA_SIZE);
+        }
+
+        if (*input == '\\' && input[1] == 'n') {
+            data_data[(*data_size)++] = '\n';
+            input += 1;
+        }
+        else
+            data_data[(*data_size)++] = *input;
+
+        input++;
+    }
+
+    if (*data_size == MAX_DATA_SIZE) {
+        printf("Exceeded max data size %d\n", MAX_DATA_SIZE);
+    }
+    data_data[(*data_size)++] = 0;
+}
+
+int assemble_file(char *filename) {
+    int f, input_size, filename_len;
+    char *input, i, *pi, *instr, *output_filename;
+    int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_syms;
+    char *s, *data_data, *text_data, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab;
+    int strtab_len;
+    char *_start_addr, main_addr, *name;
+    int *pi1, *pi2, string_literal_len;
+
+    input = malloc(MAX_INPUT_SIZE);
+    f  = open(filename, 0); // O_RDONLY = 0
+    if (f < 0) { printf("Unable to open input file\n"); exit(1); }
+    input_size = read(f, input, MAX_INPUT_SIZE);
+    if (input_size == MAX_INPUT_SIZE) {
+        printf("Exceed max input file size %d\n", MAX_INPUT_SIZE);
+        exit(1);
+    }
+    input[input_size] = 0;
+    if (input_size < 0) { printf("Unable to read input file\n"); exit(1); }
+    close(f);
+
+    data_size = 0;
+    data_data = malloc(MAX_DATA_SIZE);
+    memset(data_data, 0, MAX_DATA_SIZE);
+
+    // Symbol table
+    strtab_len = 0;
+    strtab = malloc(sizeof(char *) * MAX_STRTAB_LEN);
+    num_syms = 0;
+    symtab_data = malloc(MAX_SYMTAB_LEN * STE_SIZE);
+    memset(symtab_data, MAX_SYMTAB_LEN * STE_SIZE, 0);
+
+    s = symtab_data;
+    pi1 = &num_syms;
+    pi2 = &strtab_len;
+    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
+    add_symbol(s, pi1, strtab, pi2, filename,           0,                  STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 filename
+    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2                   .data
+    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3                   .text
+
+    string_literal_len = 0;
+
+    pi = input;
+    while (*pi) {
+        while (*pi >= '0' && *pi <= '9') pi++;
+        while (*pi == ' ') pi++;
+
+        instr = pi;
+        while (*pi != ' ') pi++;
+        while (*pi == ' ') pi++;
+        if (!wmemcmp(instr, "GLB", 3)) {
+            add_global(symtab_data, &num_syms, strtab, &strtab_len, &data_size, pi);
+        }
+        else if (!wmemcmp(instr, "IMM", 3) && !wmemcmp(pi, "&\"", 2)) {
+            add_string_literal(symtab_data, &num_syms, strtab, &strtab_len, data_data, &data_size, pi, &string_literal_len);
+        }
+
+        while (*pi != '\n') pi++;
+        pi++;
+    }
+
+    strtab_indexes = malloc(sizeof(int) * strtab_len);
+    make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
+
+    link_symtab_strings(symtab_data, strtab_data, num_syms);
+    last_local_symbol = num_syms + 1; // TODO function symbols
+
+    text_size = 0;
+    rela_text_size = 0;
+
+    // Write output file with .o extension from an expected source extension of .ws
+    filename_len = wstrlen(filename);
+    if (filename_len > 3 && filename[filename_len - 3] == '.' && filename[filename_len - 2] == 'w' && filename[filename_len - 1] == 's') {
+        output_filename = malloc(filename_len + 2);
+        wstrcpy(output_filename, filename);
+        output_filename[filename_len - 2] = 'o';
+        output_filename[filename_len - 1] = 0;
+    }
+    else {
+        printf("Unable to determine output filename\n");
+        exit(1);
+    }
+
+    write_elf(
+        output_filename,
+        data_size, text_size, strtab_size, rela_text_size,
+        data_data, text_data, shstrtab_data, symtab_data, strtab_data, rela_text_data,
+        last_local_symbol, num_syms
+    );
+}
+
+int main(int argc, char **argv) {
+    int help, hello;
+    char *filename;
+
+    help = 0;
+    hello = 0;
+
+    argc--;
+    argv++;
+    while (argc > 0 && *argv[0] == '-') {
+             if (argc > 0 && !memcmp(argv[0], "-h",  3)) { help = 0;  argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "--hw",4)) { hello = 1; argc--; argv++; }
+        else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
+    }
+
+    if (help) {
+        printf("Usage: as4 [--hw] FILENAME\n\n");
+        printf("Flags\n");
+        printf("--hw    Make hello world\n");
+        printf("-h      Help\n");
+        exit(1);
+    }
+    else if (hello) {
+        make_hello_world();
+        exit(0);
+    }
+
+    assemble_file(argv[0]);
 }
