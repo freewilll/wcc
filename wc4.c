@@ -93,9 +93,10 @@ enum {
 
 enum { TYPE_VOID=1, TYPE_ENUM=2, TYPE_INT, TYPE_CHAR };
 enum { TYPE_PTR=2 };
-
+enum { GLB_TYPE_FUNCTION, GLB_TYPE_VARIABLE };
 enum {
     INSTR_LINE=1,
+    INSTR_GLB,
     INSTR_LEA,
     INSTR_IMM,
     INSTR_JMP,
@@ -876,8 +877,10 @@ void parse() {
     int type;
     long number;
     int param_count;
+    int seen_function;
 
     cur_scope = 0;
+    seen_function = 0;
 
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)  {
@@ -895,9 +898,16 @@ void parse() {
             next_symbol += SYMBOL_SIZE;
             next();
 
+            *iptr++ = INSTR_GLB;
+            *iptr++ = (long) cur_identifier;
+            *iptr++ = type == TYPE_CHAR ? 1 : sizeof(long);
+
             if (cur_token == TOK_LPAREN) {
+                *iptr++ = GLB_TYPE_FUNCTION;
+                seen_function = 1;
                 cur_scope++;
                 next();
+
                 // Function definition
                 cur_symbol[SYMBOL_VALUE] = (long) iptr;
                 param_count = 0;
@@ -927,6 +937,11 @@ void parse() {
             }
             else {
                 // Global symbol
+                if (seen_function) {
+                    printf("Global variables must precede all functions\n");
+                    exit(1);
+                }
+                *iptr++ = GLB_TYPE_VARIABLE;
                 cur_symbol[SYMBOL_VALUE] = (long) data;
                 data += sizeof(long);
             }
@@ -968,10 +983,11 @@ void parse() {
 void print_instruction(long *pc, int relative, int print_pc) {
     int instr;
     long operand, imm_type;
+    char *s;
     instr = *pc;
 
     if (print_pc) printf("%-15ld ", (long) pc - (long) instructions);
-    printf("%.5s", &"LINE LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
+    printf("%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
     if (instr <= INSTR_ADJ) {
         operand = *(pc + 1);
         if (relative) {
@@ -979,12 +995,23 @@ void print_instruction(long *pc, int relative, int print_pc) {
                 imm_type = *(pc + 2);
                 if (imm_type == IMM_NUMBER)
                     printf(" %ld", operand);
-                else if (imm_type == IMM_STRING_LITERAL)
-                    printf(" &\"%s\"", (char *) operand);
+                else if (imm_type == IMM_STRING_LITERAL) {
+                    printf(" &\"");
+                    s = (char *) operand;
+                    while (*s) {
+                        if (*s == '\n') printf("\\n"); else printf("%c", *s);
+                        s++;
+                    }
+                    printf("\"");
+                }
                 else if (imm_type == IMM_GLOBAL_INT)
                     printf(" global_int_%ld", (char *) operand - data_start);
                 else if (imm_type == IMM_GLOBAL_CHAR)
                     printf(" global_char_%ld", (char *) operand - data_start);
+            }
+            else if (instr == INSTR_GLB) {
+                printf(" type=%02ld size=%ld \"%s\"", *(pc + 3), *(pc + 2), (char *) operand);
+                pc += 2;
             }
             else if ((instr == INSTR_JSR) || (instr == INSTR_JMP) || (instr == INSTR_BZ) || (instr == INSTR_BNZ))
                 printf(" %ld", operand - (long) instructions);
@@ -1007,6 +1034,7 @@ void do_print_code() {
         instr = *pc;
         print_instruction(pc, 1, 1);
         if (instr == INSTR_IMM) pc += 3;
+        else if (instr <= INSTR_GLB) pc += 4;
         else if (instr <= INSTR_ADJ) pc += 2;
         else if (instr == INSTR_PRTF) pc += 2;
         else pc++;
@@ -1058,6 +1086,7 @@ long run(long argc, char **argv, int print_instructions) {
         instr = *pc++;
 
              if (instr == INSTR_LINE) pc++;                                                 // No-op, print line number
+        else if (instr == INSTR_GLB) pc += 3;                                               // Global
         else if (instr == INSTR_LEA) a = (long) (bp + *pc++);                               // load local address
         else if (instr == INSTR_IMM) {a = *pc++; pc++; }                                    // load global address or immediate
         else if (instr == INSTR_JMP) pc = (long *) *pc;                                     // jump
