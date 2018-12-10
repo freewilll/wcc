@@ -486,14 +486,12 @@ void add_string_literal(char *symtab_data, int *num_syms, char **strtab, int *st
     name = malloc(8);
     name[0] = '_'; name[1] = 'S'; name[2] = 'L'; name[6] = 0;
     witoa(name + 3, (*string_literal_len)++);
-    printf("IMM %s\n", name);
 
     add_symbol(symtab_data, num_syms, strtab, strtab_len, name, *data_size, STB_LOCAL, STT_NOTYPE, SEC_DATA);
 
     // TODO string escapes
     input += 2;
     while (*input != '"') {
-        printf("%c", *input);
         if (*data_size == MAX_DATA_SIZE) {
             printf("Exceeded max data size %d\n", MAX_DATA_SIZE);
         }
@@ -605,7 +603,6 @@ int assemble_file(char *filename) {
             v = 0;
             s = instr + 6;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
-            printf("%d\n", v);
             // movabs $0x...,%rax
             *t++ = 0x48; *t++ = 0xb8;
             *(long *) t = v;
