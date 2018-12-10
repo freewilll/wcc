@@ -1043,6 +1043,11 @@ void print_instruction(long *pc, int relative, int print_pc) {
             printf(" %ld", operand);
     }
 
+    else if (instr == INSTR_PRTF) {
+        operand = *(pc + 1);
+        printf(" %ld", operand);
+    }
+
     printf("\n");
 }
 

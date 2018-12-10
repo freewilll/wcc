@@ -9,11 +9,13 @@
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h
 
 enum {
-    MAX_SYMTAB_LEN  = 1024 * 10,
-    MAX_STRTAB_LEN = 1024,
-    MAX_INPUT_SIZE  = 1024 * 1024 * 10,
-    MAX_TEXT_SIZE   = 1024 * 1024 * 10,
-    MAX_DATA_SIZE   = 1024 * 1024 * 10,
+    MAX_SYMTAB_LEN     = 1024 * 10,
+    MAX_STRTAB_LEN     = 1024,
+    MAX_INPUT_SIZE     = 1024 * 1024 * 10,
+    MAX_TEXT_SIZE      = 1024 * 1024 * 10,
+    MAX_DATA_SIZE      = 1024 * 1024 * 10,
+    MAX_LINES          = 1024 * 1024,
+    MAX_RELA_TEXT_SIZE = 1024 * 1024 *10,
 
     // ELF header
     EI_MAGIC        = 0x00,     // 0x7F followed by ELF(45 4c 46) in ASCII; these four bytes constitute the magic number.
@@ -513,13 +515,14 @@ void add_string_literal(char *symtab_data, int *num_syms, char **strtab, int *st
 }
 
 int assemble_file(char *filename) {
-    int f, input_size, filename_len, v;
+    int f, input_size, filename_len, v, line, num_rela_text;
     char *input, i, *pi, *instr, *output_filename;
     int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_syms;
     char *s, *data_data, *text_data, *t, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab, *main_location;
-    int strtab_len;
+    int strtab_len, printf_symbol;
     char *_start_addr, main_addr, *name;
     int *pi1, *pi2, string_literal_len;
+    char **line_symbols;
 
     input = malloc(MAX_INPUT_SIZE);
     f  = open(filename, 0); // O_RDONLY = 0
@@ -547,13 +550,15 @@ int assemble_file(char *filename) {
     s = symtab_data;
     pi1 = &num_syms;
     pi2 = &strtab_len;
-    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
-    add_symbol(s, pi1, strtab, pi2, filename,           0,                  STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 filename
-    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2                   .data
-    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3                   .text
+    add_symbol(s, pi1, strtab, pi2, "",       0, STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
+    add_symbol(s, pi1, strtab, pi2, filename, 0, STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 filename
+    add_symbol(s, pi1, strtab, pi2, "",       0, STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2 .data
+    add_symbol(s, pi1, strtab, pi2, "",       0, STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3 .text
 
     // First pass, the .data section
     string_literal_len = 0;
+    line_symbols = malloc(sizeof(char **) * MAX_LINES);
+    line = 0;
 
     pi = input;
     while (*pi) {
@@ -568,20 +573,31 @@ int assemble_file(char *filename) {
         }
         else if (!wmemcmp(instr, "IMM", 3) && !wmemcmp(pi, "&\"", 2)) {
             add_string_literal(symtab_data, &num_syms, strtab, &strtab_len, data_data, &data_size, pi, &string_literal_len);
+            line_symbols[line] = symtab_data + STE_SIZE * (strtab_len - 1);
         }
 
         while (*pi != '\n') pi++;
         pi++;
+        line++;
     }
 
     last_local_symbol = num_syms - 1;
     text_size = 0;
     rela_text_size = 0;
 
+    printf_symbol = strtab_len;
+    add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "printf", 0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+
     // First pass, the .text section
     text_data = malloc(MAX_TEXT_SIZE);
+    memset(text_data, 0, MAX_TEXT_SIZE);
+
     t = text_data;
     pi = input;
+    line = 0;
+    num_rela_text = 0;
+    rela_text_data = malloc(MAX_RELA_TEXT_SIZE);
+
     while (*pi) {
         while (*pi >= '0' && *pi <= '9') pi++;
         while (*pi == ' ') pi++;
@@ -597,20 +613,66 @@ int assemble_file(char *filename) {
             add_symbol(symtab_data, &num_syms, strtab, &strtab_len, name, t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
             if (!wmemcmp(name, "main", 4)) main_location = text_data;
         }
-        else if (!wmemcmp(instr, "ENT", 3)) {} // TODO stack adjusting
+        else if (!wmemcmp(instr, "ENT", 3)) {}
         else if (!wmemcmp(instr, "LINE", 4)) {}
         else if (!wmemcmp(instr, "IMM   ", 6)) {
-            v = 0;
             s = instr + 6;
-            while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
-            // movabs $0x...,%rax
-            *t++ = 0x48; *t++ = 0xb8;
-            *(long *) t = v;
-            t += 8;
+            if (*s >= '0' && *s <= '9') {
+                v = 0;
+                while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
+                // movabs $0x...,%rax
+                *t++ = 0x48; *t++ = 0xb8;
+                *(long *) t = v;
+                t += 8;
+            }
+            else {
+                // s is the entry in the relocation table
+                s = rela_text_data + num_rela_text * RELA_SIZE;
+                num_rela_text += 1;
+                s[R_OFFSET] = t - text_data + 2;
+                *t++ = 0x48; *t++ = 0xb8;
+                t += 8;
+                *((long *) &s[R_INFO]) = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
+                *((long *) &s[R_ADDEND]) = line_symbols[line][ST_VALUE]; // Address in .data
+            }
         }
         else if (!wmemcmp(instr, "LEV", 3)) {
-            // retq
-            *t++ = 0xc3;
+            *t++ = 0xc3; // retq
+        }
+        else if (!wmemcmp(instr, "PSH", 3)) {
+            *t++ = 0x50; // push %rax
+        }
+        else if (!wmemcmp(instr, "PRTF", 4)) {
+            s = instr + 6;
+            v = 0;
+            while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
+            if (v > 6) {
+                printf("printf with more than 6 arguments isn't implemented\n");
+                exit(1);
+            }
+
+            if (v == 6) { *t++ = 0x41; *t++ = 0x59; } // pop %r9
+            if (v >= 5) { *t++ = 0x41; *t++ = 0x58; } // pop %r8
+            if (v >= 4) { *t++ = 0x59;              } // pop %rcx
+            if (v >= 3) { *t++ = 0x5a;              } // pop %rdx
+            if (v >= 2) { *t++ = 0x5e;              } // pop %rsi
+                        { *t++ = 0x5f;              } // pop %rdi
+
+            // The number of floating point arguments is zero
+            // mov $0x0,%eax
+            *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;
+
+            // s is the entry in the relocation table
+            s = rela_text_data + num_rela_text * RELA_SIZE;
+            num_rela_text += 1;
+            s[R_OFFSET] = t - text_data + 1;
+
+            // callq ...
+            *t++ = 0xe8; t += 4;
+
+            // R_X86_64_PC32 + a link to the .data section
+            *((long *) &s[R_INFO]) = (long) R_X86_64_PC32 + ((long) (printf_symbol) << 32);
+            *((long *) &s[R_ADDEND]) = -4; // TODO what is this?
         }
 
         else {
@@ -621,19 +683,19 @@ int assemble_file(char *filename) {
 
         while (*pi != '\n') pi++;
         pi++;
+        line++;
     }
 
     // Add _start
     add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "_start", t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
-    *t++ = 0x31; *t++ = 0xed;                                           // xor    %ebp,%ebp
-    *t++ = 0x5f;                                                        // pop    %rdi
-    *t++ = 0x48; *t++ = 0x89; *t++ =0xf4;                               // mov    %rsi,%rsp
     *t++ = 0xe8; *(int *) t = main_location - t - 4; t += 4;            // callq main
     *t++ = 0x48; *t++ = 0x89; *t++ = 0xc7;                              // mov    %rax,%rdi
     *t++ = 0xb8; *t++ = 0x3c; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov    $0x3c,%eax
     *t++ = 0x0f; *t++ = 0x05;                                           // syscall
 
     text_size = t - text_data;
+
+    rela_text_size = num_rela_text * RELA_SIZE;
 
     strtab_indexes = malloc(sizeof(int) * strtab_len);
     make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
