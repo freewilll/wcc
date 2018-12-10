@@ -323,7 +323,7 @@ int get_type_inc_dec_size(int type) {
 }
 
 int is_lvalue() {
-    return *(iptr -1) == INSTR_LC || *(iptr -1) == INSTR_LI;
+    return *(iptr - 1) == INSTR_LC || *(iptr -1) == INSTR_LI;
 }
 
 void expression(int level) {
@@ -838,7 +838,6 @@ void function_body(char *func_name) {
 
     seen_return = 0;
     is_main = !strcmp(func_name, "main");
-    seen_return = 0;
     local_symbol_count = 0;
 
     consume(TOK_LCURLY);
@@ -885,7 +884,8 @@ void function_body(char *func_name) {
         cur_type = TYPE_INT;
     }
 
-    *iptr++ = INSTR_LEV;
+    if (*(iptr - 1) != INSTR_LEV) *iptr++ = INSTR_LEV;
+
     consume(TOK_RCURLY);
 }
 
