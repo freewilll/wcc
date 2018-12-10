@@ -515,10 +515,10 @@ void add_string_literal(char *symtab_data, int *num_syms, char **strtab, int *st
 }
 
 int assemble_file(char *filename) {
-    int f, input_size, filename_len;
+    int f, input_size, filename_len, v;
     char *input, i, *pi, *instr, *output_filename;
     int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_syms;
-    char *s, *data_data, *text_data, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab;
+    char *s, *data_data, *text_data, *t, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab, *main_location;
     int strtab_len;
     char *_start_addr, main_addr, *name;
     int *pi1, *pi2, string_literal_len;
@@ -554,16 +554,17 @@ int assemble_file(char *filename) {
     add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2                   .data
     add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3                   .text
 
+    // First pass, the .data section
     string_literal_len = 0;
 
     pi = input;
     while (*pi) {
         while (*pi >= '0' && *pi <= '9') pi++;
         while (*pi == ' ') pi++;
-
         instr = pi;
         while (*pi != ' ') pi++;
         while (*pi == ' ') pi++;
+
         if (!wmemcmp(instr, "GLB", 3)) {
             add_global(symtab_data, &num_syms, strtab, &strtab_len, &data_size, pi);
         }
@@ -575,14 +576,71 @@ int assemble_file(char *filename) {
         pi++;
     }
 
-    strtab_indexes = malloc(sizeof(int) * strtab_len);
-    make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
-
-    link_symtab_strings(symtab_data, strtab_data, num_syms);
-    last_local_symbol = num_syms + 1; // TODO function symbols
-
+    last_local_symbol = num_syms - 1;
     text_size = 0;
     rela_text_size = 0;
+
+    // First pass, the .text section
+    text_data = malloc(MAX_TEXT_SIZE);
+    t = text_data;
+    pi = input;
+    while (*pi) {
+        while (*pi >= '0' && *pi <= '9') pi++;
+        while (*pi == ' ') pi++;
+        instr = pi;
+        while (*pi != ' ') pi++;
+        while (*pi == ' ') pi++;
+
+        if (!wmemcmp(instr, "GLB   type=1 size=8 \"", 21)) {
+            s = instr + 21;
+            name = instr + 21;
+            while (*s != '\"') s++;
+            *s = 0;
+            add_symbol(symtab_data, &num_syms, strtab, &strtab_len, name, t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
+            if (!wmemcmp(name, "main", 4)) main_location = text_data;
+        }
+        else if (!wmemcmp(instr, "ENT", 3)) {} // TODO stack adjusting
+        else if (!wmemcmp(instr, "LINE", 4)) {}
+        else if (!wmemcmp(instr, "IMM   ", 6)) {
+            v = 0;
+            s = instr + 6;
+            while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
+            printf("%d\n", v);
+            // movabs $0x...,%rax
+            *t++ = 0x48; *t++ = 0xb8;
+            *(long *) t = v;
+            t += 8;
+        }
+        else if (!wmemcmp(instr, "LEV", 3)) {
+            // retq
+            *t++ = 0xc3;
+        }
+
+        else {
+            printf("TODO: %.5s ", instr);
+            while (*pi != '\n') { printf("%c", *pi); pi++; }
+            printf("\n");
+        }
+
+        while (*pi != '\n') pi++;
+        pi++;
+    }
+
+    // Add _start
+    add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "_start", t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
+    *t++ = 0x31; *t++ = 0xed;                                           // xor    %ebp,%ebp
+    *t++ = 0x5f;                                                        // pop    %rdi
+    *t++ = 0x48; *t++ = 0x89; *t++ =0xf4;                               // mov    %rsi,%rsp
+    *t++ = 0xe8; *(int *) t = main_location - t - 4; t += 4;            // callq main
+    *t++ = 0x48; *t++ = 0x89; *t++ = 0xc7;                              // mov    %rax,%rdi
+    *t++ = 0xb8; *t++ = 0x3c; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov    $0x3c,%eax
+    *t++ = 0x0f; *t++ = 0x05;                                           // syscall
+
+    text_size = t - text_data;
+
+    strtab_indexes = malloc(sizeof(int) * strtab_len);
+    make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
+    link_symtab_strings(symtab_data, strtab_data, num_syms);
 
     // Write output file with .o extension from an expected source extension of .ws
     filename_len = wstrlen(filename);
