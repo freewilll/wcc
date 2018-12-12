@@ -6,12 +6,6 @@ wc4: wc4.c
 was4: was4.c
 	gcc was4.c -o was4 -Wno-parentheses
 
-was4-test.o: was4
-	./was4 --hw
-
-was4-test: was4-test.o
-	ld was4-test.o -o was4-test -lc --dynamic-linker /lib64/ld-linux-x86-64.so.2
-
 .PHONY: test
 test-unit: wc4 was4
 	venv/bin/py.test -vs
@@ -29,5 +23,3 @@ test: test-unit test-inception-codegen
 clean:
 	rm -f wc4
 	rm -f *.ws
-	rm -f was-test.o
-	rm -f was-test

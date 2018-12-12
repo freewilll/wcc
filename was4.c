@@ -346,103 +346,6 @@ void link_symtab_strings(char *symtab_data, char *strtab_data, int num_syms) {
     }
 }
 
-int make_hello_world() {
-    int text_size, data_size, strtab_size, rela_text_size, last_local_symbol, i, num_rela_text,
-        *shstrtab_indexes, *strtab_indexes, num_syms;
-    char *s, *d, *data_data, *text_data, *shstrtab_data, *strtab_data, *rela_text_data, *symtab_data, *org_symtab_data;
-    char **strtab;
-    int strtab_len;
-    char *_start_addr, main_addr;
-    int *pi1, *pi2;
-
-    // Data segment
-    data_data = "%s\n\0Hello World!\0"; // Both strings are aligned to 4 bytes
-    data_size = 17;
-
-    // Text segment
-    text_data = malloc(MAX_TEXT_SIZE);
-    d = text_data;
-    main_addr = 0;
-
-    // mov    %rdi,%rax
-    *d++ = 0x48; *d++ = 0x89; *d++ = 0xf8;
-
-    // retq
-    *d++ = 0xc3;
-
-    // _start:
-    _start_addr = (char *) (d - text_data);
-
-    // movabs $0x0,%rsi, relocation is at offset 0x06 "fmt"
-    *d++ = 0x48; *d++ = 0xbe; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00;
-    *d++ = 0x00; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00;
-
-    // movabs $0x0,%rdi, relocation is at offset 0x10 "msg"
-    *d++ = 0x48; *d++ = 0xbf; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00;
-    *d++ = 0x00; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00;
-
-    // mov    $0x0,%eax
-    *d++ = 0xb8; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00;
-
-    // callq  ... <...>, relocation is at offset 0x1e "printf"
-    *d++ = 0xe8; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00;
-
-    // mov    $0x3c,%eax  0x3c = exit syscall
-    *d++ = 0xb8; *d++ = 0x3c; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00;
-
-    // mov    $0x0,%edi
-    *d++ = 0xbf; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00; *d++ = 0x00;
-
-    // syscall
-    *d++ = 0x0f; *d++ = 0x05;
-
-    text_size = d - text_data;
-
-    // Symbol table
-    strtab_len = 0;
-    strtab = malloc(sizeof(char *) * MAX_STRTAB_LEN);
-    num_syms = 0;
-    symtab_data = malloc(MAX_SYMTAB_LEN * STE_SIZE);
-    memset(symtab_data, MAX_SYMTAB_LEN * STE_SIZE, 0);
-
-    s = symtab_data;
-    pi1 = &num_syms;
-    pi2 = &strtab_len;
-    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
-    add_symbol(s, pi1, strtab, pi2, "hello-printf.asm", 0,                  STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 hello-printf.asm
-    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2                   .data
-    add_symbol(s, pi1, strtab, pi2, "",                 0,                  STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3                   .text
-    add_symbol(s, pi1, strtab, pi2, "fmt",              0,                  STB_LOCAL,  STT_NOTYPE,  SEC_DATA);  // 4 fmt               .data
-    add_symbol(s, pi1, strtab, pi2, "msg",              4,                  STB_LOCAL,  STT_NOTYPE,  SEC_DATA);  // 5 msg               .data + 4
-    add_symbol(s, pi1, strtab, pi2, "printf",           (long) main_addr,   STB_GLOBAL, STT_NOTYPE,  SHN_UNDEF); // 6 printf
-    add_symbol(s, pi1, strtab, pi2, "fflush",           (long) main_addr,   STB_GLOBAL, STT_NOTYPE,  SHN_UNDEF); // 7 fflush
-    add_symbol(s, pi1, strtab, pi2, "_start",           (long) _start_addr, STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 8 _start            .text + ...
-    add_symbol(s, pi1, strtab, pi2, "main",             0,                  STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 9 main              .text
-
-    strtab_indexes = malloc(sizeof(int) * strtab_len);
-    make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
-    link_symtab_strings(symtab_data, strtab_data, num_syms);
-    last_local_symbol = 5;
-
-    // Relocation segment
-    num_rela_text = 3;
-    rela_text_size = num_rela_text * RELA_SIZE;
-    rela_text_data = malloc(rela_text_size);
-    d = rela_text_data;
-    //            Offset in .text                                 type                    symbol                            addend
-    d[R_OFFSET] = 0x000000000006; *((long *) &d[R_INFO]) = (long) R_X86_64_64   + ((long) 2 << 32); *((long *) &d[R_ADDEND]) =  4; d += STE_SIZE; // .data + 4
-    d[R_OFFSET] = 0x000000000010; *((long *) &d[R_INFO]) = (long) R_X86_64_64   + ((long) 2 << 32); *((long *) &d[R_ADDEND]) =  0; d += STE_SIZE; // .data + 0
-    d[R_OFFSET] = 0x00000000001e; *((long *) &d[R_INFO]) = (long) R_X86_64_PC32 + ((long) 6 << 32); *((long *) &d[R_ADDEND]) = -4; d += STE_SIZE; // .printf - 4
-
-    // That's it, let's write it
-    write_elf(
-        "was4-test.o",
-        data_size, text_size, strtab_size, rela_text_size,
-        data_data, text_data, shstrtab_data, symtab_data, strtab_data, rela_text_data,
-        last_local_symbol, num_syms
-    );
-}
-
 int add_global(char *symtab_data, int *num_syms, char **strtab, int *strtab_len, int *data_size, char *input) {
     int is_function, size, value, type, binding, section_index;
     char *name, *s;
@@ -741,13 +644,11 @@ int main(int argc, char **argv) {
     char *filename;
 
     help = 0;
-    hello = 0;
 
     argc--;
     argv++;
     while (argc > 0 && *argv[0] == '-') {
              if (argc > 0 && !memcmp(argv[0], "-h",  3)) { help = 0;  argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "--hw",4)) { hello = 1; argc--; argv++; }
         else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
     }
 
@@ -757,10 +658,6 @@ int main(int argc, char **argv) {
         printf("--hw    Make hello world\n");
         printf("-h      Help\n");
         exit(1);
-    }
-    else if (hello) {
-        make_hello_world();
-        exit(0);
     }
 
     assemble_file(argv[0]);
