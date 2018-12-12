@@ -6,18 +6,15 @@ import tempfile
 
 def check(code, expected_output, expected_exit_code):
     try:
-        with tempfile.NamedTemporaryFile() as temp:
-            with open(temp.name, 'w') as f:
-                f.write(code)
-            assembly = subprocess.check_output(["./wc4", "-c", "-i", f.name]).decode('utf-8')
-
-            with tempfile.NamedTemporaryFile(suffix=".ws") as temp:
+        with tempfile.NamedTemporaryFile(suffix=".c") as temp:
+            with tempfile.NamedTemporaryFile(suffix=".ws") as temp_output:
                 with open(temp.name, 'w') as f:
-                    f.write(assembly)
-                output = subprocess.check_output(["./was4", temp.name]).decode('utf-8')
+                    f.write(code)
+                output = subprocess.check_output(["./wc4", "-o", temp_output.name, temp.name]).decode('utf-8')
+                output = subprocess.check_output(["./was4", temp_output.name]).decode('utf-8')
 
-                object_filename = re.sub(".ws", ".o", temp.name)
-                executable_filename = re.sub(".ws", "", temp.name)
+                object_filename = re.sub(".ws", ".o", temp_output.name)
+                executable_filename = re.sub(".ws", "", temp_output.name)
 
                 output = subprocess.check_output([
                     "ld", object_filename,

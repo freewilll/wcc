@@ -303,7 +303,7 @@ void write_elf(char *filename, int data_size, int text_size, int strtab_size, in
     s = rela_text_data; d = &program[rela_text_start];  while (s - rela_text_data < rela_text_size) *d++ = *s++;
 
     // Write file
-    f = open(filename, 65, 420); // O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
+    f = open(filename, 577, 420); // O_TRUNC=512, O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
     if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
     written = write(f, program, total_size);
     if (written < 0) { printf("Unable to write to output file %d\n", errno); exit(1); }
@@ -441,7 +441,7 @@ int assemble_file(char *filename) {
     char **line_symbols;
 
     input = malloc(MAX_INPUT_SIZE);
-    f  = open(filename, 0); // O_RDONLY = 0
+    f  = open(filename, 0, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
     input_size = read(f, input, MAX_INPUT_SIZE);
     if (input_size == MAX_INPUT_SIZE) {

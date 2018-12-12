@@ -503,7 +503,7 @@ def test_open_read_close():
                 int f;
                 char *data;
                 data = malloc(16);
-                f = open("%s", 0);
+                f = open("%s", 0, 0);
                 printf("%%zd\n", read(f, data, 16));
                 close(f);
             }

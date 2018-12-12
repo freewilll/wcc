@@ -129,6 +129,7 @@ enum {
     INSTR_READ,
     INSTR_CLOS,
     INSTR_PRTF,
+    INSTR_DPRT,
     INSTR_MALC,
     INSTR_FREE,
     INSTR_MSET,
@@ -473,7 +474,7 @@ void expression(int level) {
             builtin = symbol[SYMBOL_BUILTIN];
             if (builtin) {
                 *iptr++ = builtin;
-                if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER])) *iptr++ = param_count;
+                if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]) || !strcmp("dprintf", (char *) symbol[SYMBOL_IDENTIFIER])) *iptr++ = param_count;
             }
             else {
                 *iptr++ = INSTR_JSR;
@@ -997,15 +998,15 @@ void parse() {
     }
 }
 
-void print_instruction(long *pc, int relative, int print_pc) {
+void print_instruction(int f, long *pc, int relative, int print_pc) {
     int instr;
     long operand, imm_type;
     char *s;
     long *symbol;
     instr = *pc;
 
-    if (print_pc) printf("%-15ld ", (long) pc - (long) instructions);
-    printf("%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
+    if (print_pc) dprintf(f, "%-15ld ", (long) pc - (long) instructions);
+    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
     if (instr <= INSTR_ADJ) {
         operand = *(pc + 1);
         symbol = (long *) *(pc + 3);
@@ -1013,58 +1014,68 @@ void print_instruction(long *pc, int relative, int print_pc) {
             if ((instr == INSTR_IMM)) {
                 imm_type = *(pc + 2);
                 if (imm_type == IMM_NUMBER)
-                    printf(" %ld", operand);
+                    dprintf(f, " %ld", operand);
                 else if (imm_type == IMM_STRING_LITERAL) {
-                    printf(" &\"");
+                    dprintf(f, " &\"");
                     s = (char *) operand;
                     while (*s) {
-                        if (*s == '\n') printf("\\n"); else printf("%c", *s);
+                        if (*s == '\n') dprintf(f, "\\n"); else dprintf(f, "%c", *s);
                         s++;
                     }
-                    printf("\"");
+                    dprintf(f, "\"");
                 }
                 else if (imm_type == IMM_GLOBAL_INT || imm_type == IMM_GLOBAL_CHAR)
-                    printf(" global %ld %s", symbol[SYMBOL_STACK_INDEX], (char *) symbol[SYMBOL_IDENTIFIER]);
+                    dprintf(f, " global %ld %s", symbol[SYMBOL_STACK_INDEX], (char *) symbol[SYMBOL_IDENTIFIER]);
                 else {
-                    printf("unknown imm %ld\n", imm_type);
+                    dprintf(f, "unknown imm %ld\n", imm_type);
                     exit(1);
                 }
             }
             else if (instr == INSTR_GLB) {
-                printf(" type=%ld size=%ld \"%s\"", *(pc + 3), *(pc + 2), (char *) operand);
+                dprintf(f, " type=%ld size=%ld \"%s\"", *(pc + 3), *(pc + 2), (char *) operand);
                 pc += 2;
             }
             else if ((instr == INSTR_JSR) || (instr == INSTR_JMP) || (instr == INSTR_BZ) || (instr == INSTR_BNZ))
-                printf(" %ld", operand - (long) instructions);
+                dprintf(f, " %ld", operand - (long) instructions);
             else
-                printf(" %ld", operand);
+                dprintf(f, " %ld", operand);
         }
         else
-            printf(" %ld", operand);
+            dprintf(f, " %ld", operand);
     }
 
-    else if (instr == INSTR_PRTF) {
+    else if (instr == INSTR_PRTF || instr == INSTR_DPRT) {
         operand = *(pc + 1);
-        printf(" %ld", operand);
+        dprintf(f, " %ld", operand);
     }
 
-    printf("\n");
+    dprintf(f, "\n");
 }
 
-void do_print_code() {
+void output_code(char *filename) {
     long *pc;
-    int instr;
+    int f, instr;
+
+    if (filename[0] == '-' && filename[1] == 0)
+        f = 1;
+    else {
+        f = open(filename, 577, 420); // O_TRUNC=512, O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
+        if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
+    }
 
     pc = instructions;
     while (*pc) {
         instr = *pc;
-        print_instruction(pc, 1, 1);
+        print_instruction(f, pc, 1, 1);
         if (instr == INSTR_IMM) pc += 4;
         else if (instr == INSTR_GLB) pc += 4;
         else if (instr <= INSTR_ADJ) pc += 2;
         else if (instr == INSTR_PRTF) pc += 2;
+        else if (instr == INSTR_DPRT) pc += 2;
         else pc++;
     }
+
+    close(f);
 }
 
 long run(long argc, char **argv, int print_instructions) {
@@ -1106,7 +1117,7 @@ long run(long argc, char **argv, int print_instructions) {
             printf("pc = %-15ld ", (long) pc - 8);
             printf("a = %-15ld ", a);
             printf("sp = %-15ld ", (long) sp);
-            print_instruction(pc, 0, 0);
+            print_instruction(1, pc, 0, 0);
         }
 
         instr = *pc++;
@@ -1140,10 +1151,11 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_MUL) a = *sp++ * a;
         else if (instr == INSTR_DIV) a = *sp++ / a;
         else if (instr == INSTR_MOD) a = *sp++ % a;
-        else if (instr == INSTR_OPEN) { a = open((char *) sp[1], *sp); sp += 2; }
+        else if (instr == INSTR_OPEN) { a = open((char *) sp[2], sp[1], *sp); sp += 3; }
         else if (instr == INSTR_READ) { a = read(sp[2], (char *) sp[1], *sp); sp += 3; }
         else if (instr == INSTR_CLOS) a = close(*sp++);
         else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8], t[-9], t[-10]); sp += *(pc - 1); }
+        else if (instr == INSTR_DPRT) { t = sp + *pc++; a = dprintf(t[-1], (char *)t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8], t[-9], t[-10]); sp += *(pc - 1); }
         else if (instr == INSTR_MALC) a = (long) malloc(*sp++);
         else if (instr == INSTR_FREE) free((void *) *sp++);
         else if (instr == INSTR_MSET) { a = (long) memset((char *) sp[2], sp[1], *sp); sp += 3; }
@@ -1196,7 +1208,7 @@ void do_print_symbols() {
 }
 
 int main(int argc, char **argv) {
-    char *filename;
+    char *input_filename, *output_filename;
     int f;
     int help, debug, print_symbols, print_code;
 
@@ -1206,10 +1218,10 @@ int main(int argc, char **argv) {
 
     help = 0;
     print_instructions = 0;
-    print_code = 0;
     print_exit_code = 1;
     print_cycles = 1;
     print_symbols = 0;
+    output_filename = 0;
 
     argc--;
     argv++;
@@ -1218,9 +1230,13 @@ int main(int argc, char **argv) {
         else if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-i",  2)) { print_instructions = 1; argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { print_symbols = 1;      argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-c",  2)) { print_code = 1;         argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-ne", 3)) { print_exit_code = 0;    argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-nc", 3)) { print_cycles = 0;       argc--; argv++; }
+        else if (argc > 1 && !memcmp(argv[0], "-o",  2)) {
+            output_filename = argv[1];
+            argc -= 2;
+            argv += 2;
+        }
         else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
     }
 
@@ -1230,14 +1246,14 @@ int main(int argc, char **argv) {
         printf("-d      Debug output\n");
         printf("-i      Output instructions during execution\n");
         printf("-s      Output symbol table\n");
-        printf("-c      Output code without executing it\n");
+        printf("-o      Output code without executing it\n");
         printf("-ne     Don't print exit code\n");
         printf("-nc     Don't print cycles\n");
         printf("-h      Help\n");
         exit(1);
     }
 
-    filename = argv[0];
+    input_filename = argv[0];
 
     input = malloc(10 * 1024 * 1024);
     instructions = malloc(INSTRUCTIONS_SIZE);
@@ -1258,19 +1274,20 @@ int main(int argc, char **argv) {
     SYMBOL_BUILTIN              = 6;
     SYMBOL_SIZE                 = 7; // Number of longs
 
-    add_builtin("exit",   INSTR_EXIT);
-    add_builtin("open",   INSTR_OPEN);
-    add_builtin("read",   INSTR_READ);
-    add_builtin("close",  INSTR_CLOS);
-    add_builtin("printf", INSTR_PRTF);
-    add_builtin("malloc", INSTR_MALC);
-    add_builtin("free",   INSTR_FREE);
-    add_builtin("memset", INSTR_MSET);
-    add_builtin("memcmp", INSTR_MCMP);
-    add_builtin("strcmp", INSTR_SCMP);
+    add_builtin("exit",    INSTR_EXIT);
+    add_builtin("open",    INSTR_OPEN);
+    add_builtin("read",    INSTR_READ);
+    add_builtin("close",   INSTR_CLOS);
+    add_builtin("printf",  INSTR_PRTF);
+    add_builtin("dprintf", INSTR_DPRT);
+    add_builtin("malloc",  INSTR_MALC);
+    add_builtin("free",    INSTR_FREE);
+    add_builtin("memset",  INSTR_MSET);
+    add_builtin("memcmp",  INSTR_MCMP);
+    add_builtin("strcmp",  INSTR_SCMP);
 
     iptr = instructions;
-    f  = open(filename, 0); // O_RDONLY = 0
+    f  = open(input_filename, 0, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
     input_size = read(f, input, 10 * 1024 * 1024);
     input[input_size] = 0;
@@ -1283,8 +1300,8 @@ int main(int argc, char **argv) {
 
     if (print_symbols) do_print_symbols();
 
-    if (print_code) {
-        do_print_code();
+    if (output_filename) {
+        output_code(output_filename);
         exit(0);
     }
 
