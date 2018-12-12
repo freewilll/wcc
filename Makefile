@@ -13,7 +13,7 @@ was4-test: was4-test.o
 	ld was4-test.o -o was4-test -lc --dynamic-linker /lib64/ld-linux-x86-64.so.2
 
 .PHONY: test
-test-unit: wc4
+test-unit: wc4 was4
 	venv/bin/py.test -vs
 
 test-inception-codegen: wc4

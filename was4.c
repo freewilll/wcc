@@ -415,8 +415,9 @@ int make_hello_world() {
     add_symbol(s, pi1, strtab, pi2, "fmt",              0,                  STB_LOCAL,  STT_NOTYPE,  SEC_DATA);  // 4 fmt               .data
     add_symbol(s, pi1, strtab, pi2, "msg",              4,                  STB_LOCAL,  STT_NOTYPE,  SEC_DATA);  // 5 msg               .data + 4
     add_symbol(s, pi1, strtab, pi2, "printf",           (long) main_addr,   STB_GLOBAL, STT_NOTYPE,  SHN_UNDEF); // 6 printf
-    add_symbol(s, pi1, strtab, pi2, "_start",           (long) _start_addr, STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 7 _start            .text + ...
-    add_symbol(s, pi1, strtab, pi2, "main",             0,                  STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 8 main              .text
+    add_symbol(s, pi1, strtab, pi2, "fflush",           (long) main_addr,   STB_GLOBAL, STT_NOTYPE,  SHN_UNDEF); // 7 fflush
+    add_symbol(s, pi1, strtab, pi2, "_start",           (long) _start_addr, STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 8 _start            .text + ...
+    add_symbol(s, pi1, strtab, pi2, "main",             0,                  STB_GLOBAL, STT_NOTYPE,  SEC_TEXT);  // 9 main              .text
 
     strtab_indexes = malloc(sizeof(int) * strtab_len);
     make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
@@ -514,12 +515,24 @@ void add_string_literal(char *symtab_data, int *num_syms, char **strtab, int *st
     data_data[(*data_size)++] = 0;
 }
 
+void add_function_call_relocation(int symbol_index, long offset, char *rela_text_data, int *num_rela_text) {
+    char *s;
+    // s is the entry in the relocation table
+    s = rela_text_data + *num_rela_text * RELA_SIZE;
+    *num_rela_text += 1;
+    s[R_OFFSET] = offset;
+
+    // R_X86_64_PC32 + a link to the .data section
+    *((long *) &s[R_INFO]) = (long) R_X86_64_PC32 + ((long) symbol_index << 32);
+    *((long *) &s[R_ADDEND]) = -4;
+}
+
 int assemble_file(char *filename) {
     int f, input_size, filename_len, v, line, num_rela_text;
     char *input, i, *pi, *instr, *output_filename;
     int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_syms;
     char *s, *data_data, *text_data, *t, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab, *main_location;
-    int strtab_len, printf_symbol;
+    int strtab_len, printf_symbol, fflush_symbol;
     char *_start_addr, main_addr, *name;
     int *pi1, *pi2, string_literal_len;
     char **line_symbols;
@@ -587,6 +600,9 @@ int assemble_file(char *filename) {
 
     printf_symbol = strtab_len;
     add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "printf", 0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+
+    fflush_symbol = strtab_len;
+    add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "fflush", 0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
 
     // First pass, the .text section
     text_data = malloc(MAX_TEXT_SIZE);
@@ -659,20 +675,9 @@ int assemble_file(char *filename) {
                         { *t++ = 0x5f;              } // pop %rdi
 
             // The number of floating point arguments is zero
-            // mov $0x0,%eax
-            *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;
-
-            // s is the entry in the relocation table
-            s = rela_text_data + num_rela_text * RELA_SIZE;
-            num_rela_text += 1;
-            s[R_OFFSET] = t - text_data + 1;
-
-            // callq ...
-            *t++ = 0xe8; t += 4;
-
-            // R_X86_64_PC32 + a link to the .data section
-            *((long *) &s[R_INFO]) = (long) R_X86_64_PC32 + ((long) (printf_symbol) << 32);
-            *((long *) &s[R_ADDEND]) = -4; // TODO what is this?
+            *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov $0x0,%eax
+            *t++ = 0xe8; t += 4;                                                // callq printf
+            add_function_call_relocation(printf_symbol, t - text_data - 4, rela_text_data, &num_rela_text);
         }
 
         else {
@@ -686,9 +691,18 @@ int assemble_file(char *filename) {
         line++;
     }
 
-    // Add _start
+    // _start function
     add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "_start", t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
     *t++ = 0xe8; *(int *) t = main_location - t - 4; t += 4;            // callq main
+
+    // Flush all open output streams with fflush(0)
+    *t++ = 0x50;                                                        // push %rax
+    *t++ = 0xbf; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov $0, %edi
+    *t++ = 0xe8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // callq fflush
+    add_function_call_relocation(fflush_symbol, t - text_data - 4, rela_text_data, &num_rela_text);
+    *t++ = 0x58;                                                        // pop %rax
+
+    // exit(%rax)
     *t++ = 0x48; *t++ = 0x89; *t++ = 0xc7;                              // mov    %rax,%rdi
     *t++ = 0xb8; *t++ = 0x3c; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov    $0x3c,%eax
     *t++ = 0x0f; *t++ = 0x05;                                           // syscall
