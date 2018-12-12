@@ -435,7 +435,7 @@ int make_hello_world() {
 
     // That's it, let's write it
     write_elf(
-        "as4-test.o",
+        "was4-test.o",
         data_size, text_size, strtab_size, rela_text_size,
         data_data, text_data, shstrtab_data, symtab_data, strtab_data, rela_text_data,
         last_local_symbol, num_syms
@@ -738,7 +738,7 @@ int main(int argc, char **argv) {
     }
 
     if (help) {
-        printf("Usage: as4 [--hw] FILENAME\n\n");
+        printf("Usage: was4 [--hw] FILENAME\n\n");
         printf("Flags\n");
         printf("--hw    Make hello world\n");
         printf("-h      Help\n");
