@@ -565,22 +565,42 @@ int assemble_file(char *filename) {
             s = instr + 6;
             v = 0;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
-            if (v > 6) {
-                printf("printf with more than 6 arguments isn't implemented\n");
+            if (v > 8) {
+                printf("printf with more than 8 arguments isn't implemented\n");
                 exit(1);
             }
 
-            if (v == 6) { *t++ = 0x41; *t++ = 0x59; } // pop %r9
+            // wc4 pushes args leftmost first, so they are backwards from the
+            // AMD64 ABI point of view. According to the ABI, first 6 args are
+            // in the registers rdi, rsi, ..., r9. The rest is on the stack.
+            // r10 and r11 are considered volatie (i.e. caller saved), so we
+            // can use those without having to preserve their value. wc4 only
+            // allows up to 8 args in printf, that way we have enough volatile
+            // registers to play with. Everything is popped from the stack, and
+            // the 7th & 8th arg is pushed back if needed.
+
+            // Pop everything
+            if (v == 8) { *t++ = 0x41; *t++ = 0x5b; } // pop %r11
+            if (v >= 7) { *t++ = 0x41; *t++ = 0x5a; } // pop %r10
+            if (v >= 6) { *t++ = 0x41; *t++ = 0x59; } // pop %r9
             if (v >= 5) { *t++ = 0x41; *t++ = 0x58; } // pop %r8
             if (v >= 4) { *t++ = 0x59;              } // pop %rcx
             if (v >= 3) { *t++ = 0x5a;              } // pop %rdx
             if (v >= 2) { *t++ = 0x5e;              } // pop %rsi
                         { *t++ = 0x5f;              } // pop %rdi
 
+            // Push 7th and 8th arg back if needed
+            if (v == 8) { *t++ = 0x41; *t++ = 0x53; } // push %r11
+            if (v >= 7) { *t++ = 0x41; *t++ = 0x52; } // push %r10
+
             // The number of floating point arguments is zero
             *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov $0x0,%eax
             *t++ = 0xe8; t += 4;                                                // callq printf
             add_function_call_relocation(printf_symbol, t - text_data - 4, rela_text_data, &num_rela_text);
+
+            // Stack cleanup by caller if needed
+            if (v == 7) { *t++ = 0x48; *t++ = 0x83; *t++ = 0xc4; *t++ = 0x08; } // add $0x08,%rsp
+            if (v == 8) { *t++ = 0x48; *t++ = 0x83; *t++ = 0xc4; *t++ = 0x10; } // add $0x10,%rsp
         }
 
         else {

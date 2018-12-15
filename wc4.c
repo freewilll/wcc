@@ -474,7 +474,13 @@ void expression(int level) {
             builtin = symbol[SYMBOL_BUILTIN];
             if (builtin) {
                 *iptr++ = builtin;
-                if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]) || !strcmp("dprintf", (char *) symbol[SYMBOL_IDENTIFIER])) *iptr++ = param_count;
+                if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]) || !strcmp("dprintf", (char *) symbol[SYMBOL_IDENTIFIER])) {
+                    if (param_count >  8) {
+                        printf("printf can't handle more than 8 args\n");
+                        exit(1);
+                    }
+                    *iptr++ = param_count;
+                }
             }
             else {
                 *iptr++ = INSTR_JSR;
@@ -1154,8 +1160,8 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_OPEN) { a = open((char *) sp[2], sp[1], *sp); sp += 3; }
         else if (instr == INSTR_READ) { a = read(sp[2], (char *) sp[1], *sp); sp += 3; }
         else if (instr == INSTR_CLOS) a = close(*sp++);
-        else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8], t[-9], t[-10]); sp += *(pc - 1); }
-        else if (instr == INSTR_DPRT) { t = sp + *pc++; a = dprintf(t[-1], (char *)t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8], t[-9], t[-10]); sp += *(pc - 1); }
+        else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8]); sp += *(pc - 1); }
+        else if (instr == INSTR_DPRT) { t = sp + *pc++; a = dprintf(t[-1], (char *)t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8]); sp += *(pc - 1); }
         else if (instr == INSTR_MALC) a = (long) malloc(*sp++);
         else if (instr == INSTR_FREE) free((void *) *sp++);
         else if (instr == INSTR_MSET) { a = (long) memset((char *) sp[2], sp[1], *sp); sp += 3; }

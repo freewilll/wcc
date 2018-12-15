@@ -41,6 +41,16 @@ def test_hello_world():
         }
     """, "Hello world!\n", 0)
 
+@pytest.mark.parametrize("count", [1, 2, 3, 4, 5, 6, 7])
+def test_hello_world_args(count):
+    s = ','.join([str(c + 1) for c in range(count)])
+    f = ','.join(["%d" for c in range(count)])
+    check("""
+        int main() {
+            printf("%s\n", %s);
+        }
+    """ % (f, s), "%s\n" % s, 0)
+
 @pytest.mark.parametrize("code", [0, 1, 2, 255])
 def test_exit_codes(code):
     check("int main() {return %s;}" % code, "", code)
