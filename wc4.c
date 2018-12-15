@@ -1025,7 +1025,11 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
                     dprintf(f, " &\"");
                     s = (char *) operand;
                     while (*s) {
-                        if (*s == '\n') dprintf(f, "\\n"); else dprintf(f, "%c", *s);
+                        if (*s == '\n') dprintf(f, "\\n");
+                        else if (*s == '\t') dprintf(f, "\\t");
+                        else if (*s == '\\') dprintf(f, "\\\\");
+                        else if (*s == '"') dprintf(f, "\\\"");
+                        else dprintf(f, "%c", *s);
                         s++;
                     }
                     dprintf(f, "\"");

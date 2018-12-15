@@ -5,6 +5,8 @@ import tempfile
 
 
 def check(code, expected_output, expected_exit_code):
+    output = None
+
     try:
         with tempfile.NamedTemporaryFile(suffix=".c") as temp:
             with tempfile.NamedTemporaryFile(suffix=".ws") as temp_output:
@@ -41,6 +43,7 @@ def test_hello_world():
         }
     """, "Hello world!\n", 0)
 
+
 @pytest.mark.parametrize("count", [1, 2, 3, 4, 5, 6, 7])
 def test_hello_world_args(count):
     s = ','.join([str(c + 1) for c in range(count)])
@@ -51,6 +54,19 @@ def test_hello_world_args(count):
         }
     """ % (f, s), "%s\n" % s, 0)
 
+
 @pytest.mark.parametrize("code", [0, 1, 2, 255])
 def test_exit_codes(code):
     check("int main() {return %s;}" % code, "", code)
+
+
+def test_string_literal_escapes():
+    check("""
+        int main() {
+            printf("\\\\-");
+            printf("\\t-");
+            printf("\\'-");
+            printf("\\"-");
+            printf("\\n");
+        }
+    """, "\\-\t-'-\"-\n", 0)

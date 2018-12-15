@@ -402,10 +402,10 @@ void add_string_literal(char *symtab_data, int *num_syms, char **strtab, int *st
             printf("Exceeded max data size %d\n", MAX_DATA_SIZE);
         }
 
-        if (*input == '\\' && input[1] == 'n') {
-            data_data[(*data_size)++] = '\n';
-            input += 1;
-        }
+             if (*input == '\\' && input[1] == 'n') { data_data[(*data_size)++] = '\n'; input += 1; }
+        else if (*input == '\\' && input[1] == 't') { data_data[(*data_size)++] = '\t'; input += 1; }
+        else if (*input == '\\' && input[1] == '\\') { data_data[(*data_size)++] = '\\'; input += 1; }
+        else if (*input == '\\' && input[1] == '"') { data_data[(*data_size)++] = '"'; input += 1; }
         else
             data_data[(*data_size)++] = *input;
 
