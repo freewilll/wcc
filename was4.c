@@ -431,14 +431,14 @@ void add_function_call_relocation(int symbol_index, long offset, char *rela_text
 }
 
 int assemble_file(char *filename) {
-    int f, input_size, filename_len, v, line, num_rela_text;
-    char *input, i, *pi, *instr, *output_filename;
-    int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_syms;
-    char *s, *data_data, *text_data, *t, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab, *main_location;
-    int strtab_len, printf_symbol, fflush_symbol;
-    char *_start_addr, main_addr, *name;
-    int *pi1, *pi2, string_literal_len;
-    char **line_symbols;
+    int f, input_size, filename_len, v, line;
+    char *input, *pi, *instr, *output_filename;
+    int printf_symbol, fflush_symbol;
+    int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_rela_text, num_syms;
+    char *s, *t, *name, *data_data, *text_data, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab;
+    int string_literal_len, strtab_len;
+    char *main_address, **line_symbols;
+    int *pi1, *pi2;
 
     input = malloc(MAX_INPUT_SIZE);
     f  = open(filename, 0, 0); // O_RDONLY = 0
@@ -530,7 +530,7 @@ int assemble_file(char *filename) {
             while (*s != '\"') s++;
             *s = 0;
             add_symbol(symtab_data, &num_syms, strtab, &strtab_len, name, t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
-            if (!wmemcmp(name, "main", 4)) main_location = text_data;
+            if (!wmemcmp(name, "main", 4)) main_address = text_data;
         }
         else if (!wmemcmp(instr, "ENT", 3)) {}
         else if (!wmemcmp(instr, "LINE", 4)) {}
@@ -616,7 +616,7 @@ int assemble_file(char *filename) {
 
     // _start function
     add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "_start", t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
-    *t++ = 0xe8; *(int *) t = main_location - t - 4; t += 4;            // callq main
+    *t++ = 0xe8; *(int *) t = main_address - t - 4; t += 4;            // callq main
 
     // Flush all open output streams with fflush(0)
     *t++ = 0x50;                                                        // push %rax
