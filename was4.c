@@ -532,7 +532,10 @@ int assemble_file(char *filename) {
             add_symbol(symtab_data, &num_syms, strtab, &strtab_len, name, t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
             if (!wmemcmp(name, "main", 4)) main_address = text_data;
         }
-        else if (!wmemcmp(instr, "ENT", 3)) {}
+        else if (!wmemcmp(instr, "ENT", 3)) {
+            *t++ = 0x55;                            // push   %rbp
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0xe5;  // mov    %rsp, %rbp
+        }
         else if (!wmemcmp(instr, "LINE", 4)) {}
         else if (!wmemcmp(instr, "IMM   ", 6)) {
             s = instr + 6;
@@ -556,6 +559,7 @@ int assemble_file(char *filename) {
             }
         }
         else if (!wmemcmp(instr, "LEV", 3)) {
+            *t++ = 0xc9; // leaveq
             *t++ = 0xc3; // retq
         }
         else if (!wmemcmp(instr, "PSH", 3)) {
