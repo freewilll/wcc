@@ -485,6 +485,8 @@ void expression(int level) {
             else {
                 *iptr++ = INSTR_JSR;
                 *iptr++ = symbol[SYMBOL_VALUE];
+                *iptr++ = symbol[SYMBOL_IDENTIFIER];
+                *iptr++ = param_count;
                 *iptr++ = INSTR_ADJ;
                 *iptr++ = param_count;
             }
@@ -838,7 +840,7 @@ void statement() {
     }
 }
 
-void function_body(char *func_name) {
+void function_body(char *func_name, int param_count) {
     int is_main;
     int local_symbol_count;
     int base_type, type;
@@ -880,6 +882,7 @@ void function_body(char *func_name) {
 
     *iptr++ = INSTR_ENT;
     *iptr++ = local_symbol_count * sizeof(long); // allocate stack space for locals
+    *iptr++ = param_count;
 
     while (cur_token != TOK_RCURLY) statement();
 
@@ -957,7 +960,7 @@ void parse() {
                 cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
                 consume(TOK_RPAREN);
                 cur_function_symbol = cur_symbol;
-                function_body((char *) cur_symbol[SYMBOL_IDENTIFIER]);
+                function_body((char *) cur_symbol[SYMBOL_IDENTIFIER], param_count);
             }
             else {
                 // Global symbol
@@ -1041,12 +1044,19 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
                     exit(1);
                 }
             }
+            else if (instr == INSTR_ENT) {
+                dprintf(f, " %ld %ld", *(pc + 2), operand); // # of params, local stack size
+                pc += 2;
+            }
             else if (instr == INSTR_GLB) {
                 dprintf(f, " type=%ld size=%ld \"%s\"", *(pc + 3), *(pc + 2), (char *) operand);
                 pc += 2;
             }
-            else if ((instr == INSTR_JSR) || (instr == INSTR_JMP) || (instr == INSTR_BZ) || (instr == INSTR_BNZ))
+            else if (instr == INSTR_JSR)
+                dprintf(f, " %ld %ld \"%s\"", operand - (long) instructions, *(pc + 3), (char *) *(pc + 2));
+            else if ((instr == INSTR_JMP) || (instr == INSTR_BZ) || (instr == INSTR_BNZ)) {
                 dprintf(f, " %ld", operand - (long) instructions);
+            }
             else
                 dprintf(f, " %ld", operand);
         }
@@ -1079,6 +1089,8 @@ void output_code(char *filename) {
         print_instruction(f, pc, 1, 1);
         if (instr == INSTR_IMM) pc += 4;
         else if (instr == INSTR_GLB) pc += 4;
+        else if (instr == INSTR_ENT) pc += 3;
+        else if (instr == INSTR_JSR) pc += 4;
         else if (instr <= INSTR_ADJ) pc += 2;
         else if (instr == INSTR_PRTF) pc += 2;
         else if (instr == INSTR_DPRT) pc += 2;
@@ -1137,10 +1149,10 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_LEA) a = (long) (bp + *pc++);                               // load local address
         else if (instr == INSTR_IMM) {a = *pc++; pc += 2; }                                 // load global address or immediate
         else if (instr == INSTR_JMP) pc = (long *) *pc;                                     // jump
-        else if (instr == INSTR_JSR) { *--sp = (long) (pc + 1); pc = (long *)*pc; }         // jump to subroutine
+        else if (instr == INSTR_JSR) { *--sp = (long) (pc + 3); pc = (long *)*pc; }         // jump to subroutine
         else if (instr == INSTR_BZ)  pc = a ? pc + 1 : (long *) *pc;                        // branch if zero
         else if (instr == INSTR_BNZ) pc = a ? (long *) *pc : pc + 1;                        // branch if not zero
-        else if (instr == INSTR_ENT) { *--sp = (long) bp; bp = sp; sp = sp - *pc++; }       // enter subroutine
+        else if (instr == INSTR_ENT) { *--sp = (long) bp; bp = sp; sp = sp - *pc++; pc++; } // enter subroutine
         else if (instr == INSTR_ADJ) sp = sp + *pc++;                                       // stack adjust
         else if (instr == INSTR_LEV) { sp = bp; bp = (long *) *sp++; pc = (long *) *sp++; } // leave subroutine
         else if (instr == INSTR_LI)  a = *(long *)a;                                        // load int

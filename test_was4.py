@@ -70,3 +70,51 @@ def test_string_literal_escapes():
             printf("\\n");
         }
     """, "\\-\t-'-\"-\n", 0)
+
+def test_function_calls():
+    check("""
+        int foo0() {
+            printf("0\n");
+        }
+
+        int foo1(long p1) {
+            printf("%d\n", p1);
+        }
+
+        int foo2(long p1, long p2) {
+            printf("%d %d\n", p1, p2);
+        }
+
+        int foo3(long p1, long p2, long p3) {
+            printf("%d %d %d\n", p1, p2, p3);
+        }
+
+        int foo6(long p1, long p2, long p3, long p4, long p5, long p6) {
+            printf("%d %d %d %d %d %d %d\n", p1, p2, p3, p4, p5, p6);
+        }
+
+        int main(int argc, char **argv) {
+            foo0();
+            foo1(1);
+            foo1(2);
+            foo2(1, 2);
+            foo2(3, 4);
+            foo2(5, 6);
+
+            foo3(1, 2, 3);
+            foo3(4, 5, 6);
+
+            foo6(10, 20, 30, 40, 50, 60);
+            return 0;
+        }
+    """, "\n".join([
+        "0",
+        "1",
+        "2",
+        "1 2",
+        "3 4",
+        "5 6",
+        "1 2 3",
+        "4 5 6",
+        "10 20 30 40 50 60 10",
+    ]) + "\n", 0)
