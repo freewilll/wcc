@@ -454,8 +454,51 @@ int symbol_index(char **strtab, int strtab_len, char *name) {
     exit(1);
 }
 
+void prepare_function_call(char **code, int function_call_arg_count) {
+    int i, v;
+    char *t;
+    v = function_call_arg_count;
+    t = *code;
+
+    // Read the first 6 args from the stack in right to left order
+    if (v >= 6) { *t++ = 0x4c; *t++ = 0x8b; *t++ = 0x8c; *t++ = 0x24; *((int *) t) = (char) (v - 6) * 8; t += 4; } // mov x(%rsp),%r9
+    if (v >= 5) { *t++ = 0x4c; *t++ = 0x8b; *t++ = 0x84; *t++ = 0x24; *((int *) t) = (char) (v - 5) * 8; t += 4; } // mov x(%rsp),%r8
+    if (v >= 4) { *t++ = 0x48; *t++ = 0x8b; *t++ = 0x8c; *t++ = 0x24; *((int *) t) = (char) (v - 4) * 8; t += 4; } // mov x(%rsp),%rcx
+    if (v >= 3) { *t++ = 0x48; *t++ = 0x8b; *t++ = 0x94; *t++ = 0x24; *((int *) t) = (char) (v - 3) * 8; t += 4; } // mov x(%rsp),%rdx
+    if (v >= 2) { *t++ = 0x48; *t++ = 0x8b; *t++ = 0xb4; *t++ = 0x24; *((int *) t) = (char) (v - 2) * 8; t += 4; } // mov x(%rsp),%rsi
+    if (v >= 1) { *t++ = 0x48; *t++ = 0x8b; *t++ = 0xbc; *t++ = 0x24; *((int *) t) = (char) (v - 1) * 8; t += 4; } // mov x(%rsp),%rdi
+
+    // For the remaining args after the first 6, swap the opposite ends of the stack
+    i = 0;
+    while (i < v - 6) {
+        *t++ = 0x48; *t++ = 0x8b; *t++ = 0x84; *t++ = 0x24; *((int *) t) = (char) i * 8; t += 4;           // mov x(%rsp),%rax
+        *t++ = 0x48; *t++ = 0x89; *t++ = 0x84; *t++ = 0x24; *((int *) t) = (char) (v - i - 1) * 8; t += 4; // mov %rax, x(%rsp)
+        i++;
+    }
+
+    // Adjust the stack for the removed args that are in registers
+    *t++= 0x48; *t++= 0x81; *t++= 0xc4; // add x,%rsp
+    *((int *) t) = (char) (v <= 6 ? v : 6) * 8;
+    t += 4;
+    *code = t;
+}
+
+void cleanup_function_call(char **code, int function_call_arg_count) {
+    int i, v;
+    char *t;
+    v = function_call_arg_count;
+    t = *code;
+    // Remove the remainder of the args from the stack
+    if (v > 6) {
+        *t++= 0x48; *t++= 0x81; *t++= 0xc4; // add x,%rsp
+        *((int *) t) = (char) (v - 6) * 8;
+        t += 4;
+    }
+    *code = t;
+}
+
 int assemble_file(char *filename) {
-    int i, f, input_size, filename_len, v, line, function_param_count, neg;
+    int i, f, input_size, filename_len, v, line, function_arg_count, neg, function_call_arg_count;
     char *input, *pi, *instr, *output_filename;
     int printf_symbol, fflush_symbol;
     int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_rela_text, num_syms;
@@ -558,25 +601,26 @@ int assemble_file(char *filename) {
         }
         else if (!wmemcmp(instr, "ENT", 3)) {
             // Start a new stack frame
-            *t++ = 0x55;                            // push   %rbp
-            *t++ = 0x48; *t++ = 0x89; *t++ = 0xe5;  // mov    %rsp, %rbp
+            *t++ = 0x55;                            // push %rbp
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0xe5;  // mov  %rsp, %rbp
 
-            // Push args onto the stack, so all args are on the stack with leftmost arg first
-            function_param_count = instr[6] - '0';
+            // Push up to the first 6 args onto the stack, so all args are on the stack with leftmost arg first.
+            // Arg 7 and onwards are already pushed.
 
-            if (function_param_count > 6) {
-                printf("More than 6 params not supported in function definitions\n");
-                exit(1);
-            }
+            s = instr + 6;
+            function_arg_count = 0;
+            while (*s >= '0' && *s <= '9') function_arg_count = 10 * function_arg_count + (*s++ - '0');
 
-            if (function_param_count == 6) { *t++ = 0x41; *t++ = 0x51; } // push %r9
-            if (function_param_count >= 5) { *t++ = 0x41; *t++ = 0x50; } // push %r8
-            if (function_param_count >= 4) { *t++ = 0x51;              } // push %rcx
-            if (function_param_count >= 3) { *t++ = 0x52;              } // push %rdx
-            if (function_param_count >= 2) { *t++ = 0x56;              } // push %rsi
-            if (function_param_count >= 1) { *t++ = 0x57;              } // push %rdi
+            // Push the args in the registers on the stack. The order for all args is right to left.
+            if (function_arg_count >= 6) { *t++ = 0x41; *t++ = 0x51; } // push %r9
+            if (function_arg_count >= 5) { *t++ = 0x41; *t++ = 0x50; } // push %r8
+            if (function_arg_count >= 4) { *t++ = 0x51;              } // push %rcx
+            if (function_arg_count >= 3) { *t++ = 0x52;              } // push %rdx
+            if (function_arg_count >= 2) { *t++ = 0x56;              } // push %rsi
+            if (function_arg_count >= 1) { *t++ = 0x57;              } // push %rdi
         }
         else if (!wmemcmp(instr, "LINE", 4)) {}
+        else if (!wmemcmp(instr, "ADJ", 3)) {}
         else if (!wmemcmp(instr, "IMM   ", 6)) {
             s = instr + 6;
             if (*s >= '0' && *s <= '9') {
@@ -595,7 +639,7 @@ int assemble_file(char *filename) {
                 *t++ = 0x48; *t++ = 0xb8;
                 t += 8;
                 *((long *) &s[R_INFO]) = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
-                *((long *) &s[R_ADDEND]) = line_symbols[line][ST_VALUE]; // Address in .data
+                *((long *) &s[R_ADDEND]) = *((long *) &line_symbols[line][ST_VALUE]);        // Address in .data
             }
         }
         else if (!wmemcmp(instr, "LEV", 3)) {
@@ -611,8 +655,8 @@ int assemble_file(char *filename) {
             s += 1;
 
             // Number of args
-            v = 0;
-            while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
+            function_call_arg_count = 0;
+            while (*s >= '0' && *s <= '9') function_call_arg_count = 10 * function_call_arg_count + (*s++ - '0');
             s += 2;
 
             // Function name
@@ -620,65 +664,24 @@ int assemble_file(char *filename) {
             while (*s != '"') s++;
             *s = 0;
 
-            if (v > 6) {
-                printf("More than 6 params not supported in function calls\n");
-                exit(1);
-            }
-
-            if (v >= 6) { *t++ = 0x41; *t++ = 0x59; } // pop %r9
-            if (v >= 5) { *t++ = 0x41; *t++ = 0x58; } // pop %r8
-            if (v >= 4) { *t++ = 0x59;              } // pop %rcx
-            if (v >= 3) { *t++ = 0x5a;              } // pop %rdx
-            if (v >= 2) { *t++ = 0x5e;              } // pop %rsi
-            if (v >= 1) { *t++ = 0x5f;              } // pop %rdi
-
-            // callq
-            *t++ = 0xe8; t += 4;
+            prepare_function_call(&t, function_call_arg_count);
+            *t++ = 0xe8; t += 4; // callq
             add_function_call_relocation(symbol_index(strtab, strtab_len, name), t - text_data - 4, rela_text_data, &num_rela_text);
+            cleanup_function_call(&t, function_call_arg_count);
         }
         else if (!wmemcmp(instr, "PSH", 3)) {
             *t++ = 0x50; // push %rax
         }
         else if (!wmemcmp(instr, "PRTF", 4)) {
             s = instr + 6;
-            v = 0;
-            while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
-            if (v > 8) {
-                printf("printf with more than 8 arguments isn't implemented\n");
-                exit(1);
-            }
-
-            // wc4 pushes args leftmost first, so they are backwards from the
-            // AMD64 ABI point of view. According to the ABI, first 6 args are
-            // in the registers rdi, rsi, ..., r9. The rest is on the stack.
-            // r10 and r11 are considered volatie (i.e. caller saved), so we
-            // can use those without having to preserve their value. wc4 only
-            // allows up to 8 args in printf, that way we have enough volatile
-            // registers to play with. Everything is popped from the stack, and
-            // the 7th & 8th arg is pushed back if needed.
-
-            // Pop everything
-            if (v == 8) { *t++ = 0x41; *t++ = 0x5b; } // pop %r11
-            if (v >= 7) { *t++ = 0x41; *t++ = 0x5a; } // pop %r10
-            if (v >= 6) { *t++ = 0x41; *t++ = 0x59; } // pop %r9
-            if (v >= 5) { *t++ = 0x41; *t++ = 0x58; } // pop %r8
-            if (v >= 4) { *t++ = 0x59;              } // pop %rcx
-            if (v >= 3) { *t++ = 0x5a;              } // pop %rdx
-            if (v >= 2) { *t++ = 0x5e;              } // pop %rsi
-            if (v >= 1) { *t++ = 0x5f;              } // pop %rdi
-
-            // Push 7th and 8th arg back if needed
-            if (v == 8) { *t++ = 0x41; *t++ = 0x53; } // push %r11
-            if (v >= 7) { *t++ = 0x41; *t++ = 0x52; } // push %r10
-
-            // The number of floating point arguments is zero
-            *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov $0x0,%eax
-            *t++ = 0xe8; t += 4;                                                // callq printf
+            function_call_arg_count = 0;
+            while (*s >= '0' && *s <= '9') function_call_arg_count = 10 * function_call_arg_count + (*s++ - '0');
+            prepare_function_call(&t, function_call_arg_count);
+            // // The number of floating point arguments is zero
+            *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; // mov $0x0,%eax
+            *t++ = 0xe8; t += 4; // callq
             add_function_call_relocation(printf_symbol, t - text_data - 4, rela_text_data, &num_rela_text);
-
-            // Stack cleanup by caller if needed
-            if (v == 7) { *t++ = 0x48; *t++ = 0x83; *t++ = 0xc4; *t++ = 0x08; } // add $0x08,%rsp
-            if (v == 8) { *t++ = 0x48; *t++ = 0x83; *t++ = 0xc4; *t++ = 0x10; } // add $0x10,%rsp
+            cleanup_function_call(&t, function_call_arg_count);
         }
 
         else if (!wmemcmp(instr, "LEA", 3)) {
@@ -689,15 +692,34 @@ int assemble_file(char *filename) {
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
             if (neg) v = -v;
             if (v >= 2) {
-                // The first param is at v=2, second at v=3
-                // If there are 2 args
-                // arg 1 is at mov    -0x10(%rbp),%rax
-                // arg 2 is at mov    -0x08(%rbp),%rax
+                v -= 2; // 0=1st arg, 1=2nd arg, etc
+
                 *t++ = 0x48; *t++ = 0x8d; *t++ = 0x45; // mov -0x...(%rbp),%rax
-                *t++ = (char) 8 * (1 - v);
+
+                if (function_arg_count > 6) {
+                    v = function_arg_count - 7 - v;
+                    // Correct for split stack when there are more than 6 args
+                    if (v < 0) {
+                        // Read pushed arg by the callee. arg 0 is at rsp-0x30, arg 2 at rsp-0x28 etc, ... arg 5 at rsp-0x08
+                        *t++ = (char) 8 * v;
+                    }
+                    else {
+                        // Read pushed arg by the caller, arg 6 is at rsp+0x10, arg 7 at rsp+0x18, etc
+                        // The +2 is to bypass the pushed rbp and return address
+                        *t++ = (char) 8 * (v + 2);
+                    }
+                }
+                else {
+                    // The first arg is at v=0, second at v=1
+                    // If there aree.g. 2 args:
+                    // arg 0 is at mov -0x10(%rbp),%rax
+                    // arg 1 is at mov -0x08(%rbp),%rax
+                    *t++ = (char) -8 * (v + 1);
+                }
             }
             else {
-                printf("TODO locals\n");
+                printf("Locals not yet implemented\n");
+                exit(1);
             }
         }
 
@@ -706,9 +728,10 @@ int assemble_file(char *filename) {
         }
 
         else {
-            printf("TODO: %.5s ", instr);
+            printf("Unimplemented instruction: %.5s ", instr);
             while (*pi != '\n') { printf("%c", *pi); pi++; }
             printf("\n");
+            exit(1);
         }
 
         while (*pi != '\n') pi++;
@@ -779,7 +802,7 @@ int main(int argc, char **argv) {
     argv++;
     while (argc > 0 && *argv[0] == '-') {
              if (argc > 0 && !memcmp(argv[0], "-h",  3)) { help = 0;  argc--; argv++; }
-        else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
+        else { printf("Unknown argeter %s\n", argv[0]); exit(1); }
     }
 
     if (help) {

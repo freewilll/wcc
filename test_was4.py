@@ -74,47 +74,61 @@ def test_string_literal_escapes():
 def test_function_calls():
     check("""
         int foo0() {
-            printf("0\n");
+            printf("0 ");
         }
 
         int foo1(long p1) {
-            printf("%d\n", p1);
+            printf("%d ", p1);
         }
 
         int foo2(long p1, long p2) {
-            printf("%d %d\n", p1, p2);
+            printf("%d %d ", p1, p2);
         }
 
         int foo3(long p1, long p2, long p3) {
-            printf("%d %d %d\n", p1, p2, p3);
+            printf("%d %d %d ", p1, p2, p3);
+        }
+
+        int foo4(long p1, long p2, long p3, long p4) {
+            printf("%d %d %d %d ", p1, p2, p3, p4);
+        }
+
+        int foo5(long p1, long p2, long p3, long p4, long p5) {
+            printf("%d %d %d %d %d ", p1, p2, p3, p4, p5);
         }
 
         int foo6(long p1, long p2, long p3, long p4, long p5, long p6) {
-            printf("%d %d %d %d %d %d %d\n", p1, p2, p3, p4, p5, p6);
+            printf("%d %d %d %d %d %d ", p1, p2, p3, p4, p5, p6);
+        }
+
+        int foo7(long p1, long p2, long p3, long p4, long p5, long p6, long p7) {
+            printf("%d %d %d %d %d %d %d ", p1, p2, p3, p4, p5, p6, p7);
+        }
+
+        int foo8(long p1, long p2, long p3, long p4, long p5, long p6, long p7, long p8) {
+            printf("%d %d %d %d %d %d ", p1, p2, p3, p4, p5, p6);
+            printf("%d %d ", p7, p8);
         }
 
         int main(int argc, char **argv) {
             foo0();
             foo1(1);
             foo1(2);
-            foo2(1, 2);
             foo2(3, 4);
             foo2(5, 6);
+            foo2(7, 8);
 
-            foo3(1, 2, 3);
-            foo3(4, 5, 6);
+            foo3(9, 10, 11);
+            foo3(12, 13, 14);
+            foo4(15, 16, 17, 18);
+            foo5(19, 20, 21, 22, 23);
 
-            foo6(10, 20, 30, 40, 50, 60);
+            foo6(24, 25, 26, 27, 28, 29);
+            foo7(30, 31, 32, 33, 34, 35, 36);
+            foo8(37, 38, 39, 40, 41, 42, 43, 44);
+
+            printf("\n");
+
             return 0;
         }
-    """, "\n".join([
-        "0",
-        "1",
-        "2",
-        "1 2",
-        "3 4",
-        "5 6",
-        "1 2 3",
-        "4 5 6",
-        "10 20 30 40 50 60 10",
-    ]) + "\n", 0)
+    """, " ".join([str(s) for s in range(45)]) + " \n", 0)

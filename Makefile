@@ -23,4 +23,4 @@ test: test-unit test-inception-codegen
 clean:
 	rm -f wc4
 	rm -f *.ws
-	fm -f wc4-level1.ws wc4-level2.ws
+	rm -f wc4-level1.ws wc4-level2.ws
