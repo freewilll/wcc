@@ -742,9 +742,9 @@ int assemble_file(char *filename) {
     // _start function
     add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "_start", t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
 
-    *t++ = 0x31; *t++ = 0xed;                // xor    %ebp,%ebp
-    *t++ = 0x5f;                             // pop    %rdi        argc
-    // *t++ = 0x48; *t++ = 0x89; *t++ = 0xf4;   // mov    %rsi, %rsp  argv
+    *t++ = 0x31; *t++ = 0xed;              // xor %ebp,%ebp
+    *t++ = 0x5f;                           // pop %rdi        argc
+    *t++ = 0x48; *t++ = 0x89; *t++ = 0xe6; // mov %rsp,%rsi   argv
 
     // callq main
     *t++ = 0xe8; t += 4;
