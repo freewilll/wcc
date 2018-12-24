@@ -498,7 +498,7 @@ void cleanup_function_call(char **code, int function_call_arg_count) {
 }
 
 int assemble_file(char *filename) {
-    int i, f, input_size, filename_len, v, line, function_arg_count, neg, function_call_arg_count;
+    int i, f, input_size, filename_len, v, line, function_arg_count, neg, function_call_arg_count, local_stack_size, local_vars_stack_start;
     char *input, *pi, *instr, *output_filename;
     int printf_symbol, fflush_symbol;
     int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_rela_text, num_syms;
@@ -610,6 +610,10 @@ int assemble_file(char *filename) {
             s = instr + 6;
             function_arg_count = 0;
             while (*s >= '0' && *s <= '9') function_arg_count = 10 * function_arg_count + (*s++ - '0');
+            s++;
+
+            local_stack_size = 0;
+            while (*s >= '0' && *s <= '9') local_stack_size = 10 * local_stack_size + (*s++ - '0');
 
             // Push the args in the registers on the stack. The order for all args is right to left.
             if (function_arg_count >= 6) { *t++ = 0x41; *t++ = 0x51; } // push %r9
@@ -618,6 +622,16 @@ int assemble_file(char *filename) {
             if (function_arg_count >= 3) { *t++ = 0x52;              } // push %rdx
             if (function_arg_count >= 2) { *t++ = 0x56;              } // push %rsi
             if (function_arg_count >= 1) { *t++ = 0x57;              } // push %rdi
+
+            // Calculate stack start for locals. reduce by pushed bsp, function return, + above pushed args.
+            local_vars_stack_start = -24 - 8 * (function_arg_count <= 6 ? function_arg_count : 6);
+
+            // Allocate stack space for local variables
+            if (local_stack_size > 0) {
+                *t++= 0x48; *t++= 0x81; *t++= 0xec; // sub x,%rsp
+                *((int *) t) = local_stack_size;
+                t += 4;
+            }
         }
         else if (!wmemcmp(instr, "LINE", 4)) {}
         else if (!wmemcmp(instr, "ADJ", 3)) {}
@@ -692,9 +706,10 @@ int assemble_file(char *filename) {
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
             if (neg) v = -v;
             if (v >= 2) {
+                // Function argument
                 v -= 2; // 0=1st arg, 1=2nd arg, etc
 
-                *t++ = 0x48; *t++ = 0x8d; *t++ = 0x45; // mov -0x...(%rbp),%rax
+                *t++ = 0x48; *t++ = 0x8d; *t++ = 0x45; // lea -0x...(%rbp),%rax
 
                 if (function_arg_count > 6) {
                     v = function_arg_count - 7 - v;
@@ -712,19 +727,25 @@ int assemble_file(char *filename) {
                 else {
                     // The first arg is at v=0, second at v=1
                     // If there aree.g. 2 args:
-                    // arg 0 is at mov -0x10(%rbp),%rax
-                    // arg 1 is at mov -0x08(%rbp),%rax
+                    // arg 0 is at mov -0x10(%rbp), %rax
+                    // arg 1 is at mov -0x08(%rbp), %rax
                     *t++ = (char) -8 * (v + 1);
                 }
             }
             else {
-                printf("Locals not yet implemented\n");
-                exit(1);
+                // Local variable
+                *t++ = 0x48; *t++ = 0x8d; *t++ = 0x45; // lea -0x...(%rbp), %rax
+                *t++ = local_vars_stack_start - 8 * v;
             }
         }
 
         else if (!wmemcmp(instr, "LI", 2)) {
-            *t++ = 0x48; *t++ = 0x8b; *t++ = 0x00; // mov (%rax),%rax
+            *t++ = 0x48; *t++ = 0x8b; *t++ = 0x00; // mov (%rax), %rax
+        }
+
+        else if (!wmemcmp(instr, "SI", 2)) {
+            *t++ = 0x5f;                           // pop %rdi
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0x07; // mov %rax, (%rdi)
         }
 
         else {
@@ -742,9 +763,9 @@ int assemble_file(char *filename) {
     // _start function
     add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "_start", t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
 
-    *t++ = 0x31; *t++ = 0xed;              // xor %ebp,%ebp
+    *t++ = 0x31; *t++ = 0xed;              // xor %ebp, %ebp
     *t++ = 0x5f;                           // pop %rdi        argc
-    *t++ = 0x48; *t++ = 0x89; *t++ = 0xe6; // mov %rsp,%rsi   argv
+    *t++ = 0x48; *t++ = 0x89; *t++ = 0xe6; // mov %rsp, %rsi  argv
 
     // callq main
     *t++ = 0xe8; t += 4;
@@ -759,8 +780,8 @@ int assemble_file(char *filename) {
     *t++ = 0x58;                                                        // pop %rax
 
     // exit(%rax)
-    *t++ = 0x48; *t++ = 0x89; *t++ = 0xc7;                              // mov    %rax,%rdi
-    *t++ = 0xb8; *t++ = 0x3c; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov    $0x3c,%eax
+    *t++ = 0x48; *t++ = 0x89; *t++ = 0xc7;                              // mov    %rax, %rdi
+    *t++ = 0xb8; *t++ = 0x3c; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov    $0x3c, %eax
     *t++ = 0x0f; *t++ = 0x05;                                           // syscall
 
     text_size = t - text_data;

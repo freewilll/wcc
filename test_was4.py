@@ -132,3 +132,22 @@ def test_function_calls():
             return 0;
         }
     """, " ".join([str(s) for s in range(45)]) + " \n", 0)
+
+
+def test_local_vars():
+    check("""
+        void foo(int i, int j) {
+            int k;
+            int l;
+            k = 3;
+            l = 4;
+            printf("%d %d %d %d\n", i, j, k, l);
+
+        }
+
+        int main(int argc, char **argv) {
+            foo(1, 2);
+            return 0;
+        }
+
+    """, "1 2 3 4\n", 0)
