@@ -138,7 +138,7 @@ enum {
     INSTR_EXIT,
 };
 
-enum {IMM_NUMBER, IMM_STRING_LITERAL, IMM_GLOBAL_INT, IMM_GLOBAL_CHAR};
+enum {IMM_NUMBER, IMM_STRING_LITERAL, IMM_GLOBAL};
 
 void next() {
     char *i;
@@ -498,7 +498,7 @@ void expression(int level) {
             *iptr++ = INSTR_IMM;
             *iptr++ = (long) address;
             cur_type = symbol[SYMBOL_TYPE];
-            *iptr++ = cur_type == TYPE_CHAR ? IMM_GLOBAL_CHAR : IMM_GLOBAL_INT;
+            *iptr++ = IMM_GLOBAL;
             *iptr++ = (long) symbol;
             *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
         }
@@ -1037,7 +1037,7 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
                     }
                     dprintf(f, "\"");
                 }
-                else if (imm_type == IMM_GLOBAL_INT || imm_type == IMM_GLOBAL_CHAR)
+                else if (imm_type == IMM_GLOBAL)
                     dprintf(f, " global %ld %s", symbol[SYMBOL_STACK_INDEX], (char *) symbol[SYMBOL_IDENTIFIER]);
                 else {
                     dprintf(f, "unknown imm %ld\n", imm_type);
