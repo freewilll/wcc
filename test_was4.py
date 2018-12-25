@@ -172,3 +172,52 @@ def test_global_ints():
             return 0;
         }
     """, "1 2 3 4 5 6\n", 0)
+
+def test_chars():
+    check("""
+        int i1;
+        char c1;
+        int i2;
+        char c2;
+        char c3;
+        char c4;
+
+        void foo() {
+            printf("%d %d %d %d %d %d\n", i1, c1, i2, c2, c3, c4);
+        }
+
+        void bar(char c1, char c2, int i) {
+            printf("%d %d %d\n", c1, c2, i);
+        }
+
+        void baz() {
+            int i1;
+            char c1;
+            int i2;
+            char c2;
+            char c3;
+            char c4;
+
+            i1 = 10;
+            c1 = 20;
+            i2 = 30;
+            c2 = 40;
+            c3 = 50;
+            c4 = 60;
+            printf("%d %d %d %d %d %d\n", i1, c1, i2, c2, c3, c4);
+        }
+
+        int main() {
+            i1 = 1;
+            c1 = 2;
+            i2 = 3;
+            c2 = 4;
+            c3 = 5;
+            c4 = 6;
+
+            foo();
+            bar(1, 2, 3);
+            baz();
+            foo();
+        }
+    """, "1 2 3 4 5 6\n1 2 3\n10 20 30 40 50 60\n1 2 3 4 5 6\n", 0)

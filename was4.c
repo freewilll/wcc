@@ -388,7 +388,7 @@ int add_global(char *symtab_data, int *num_syms, char **strtab, int *strtab_len,
             printf("Exceeded max data size %d\n", MAX_DATA_SIZE);
             exit(1);
         }
-        *data_size += size;
+        *data_size = value + size;
         binding = STB_LOCAL;
         type = STT_NOTYPE;
         section_index = SEC_DATA;
@@ -623,8 +623,8 @@ int assemble_file(char *filename) {
             if (function_arg_count >= 2) { *t++ = 0x56;              } // push %rsi
             if (function_arg_count >= 1) { *t++ = 0x57;              } // push %rdi
 
-            // Calculate stack start for locals. reduce by pushed bsp, function return, + above pushed args.
-            local_vars_stack_start = -24 - 8 * (function_arg_count <= 6 ? function_arg_count : 6);
+            // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
+            local_vars_stack_start = -8 - 8 * (function_arg_count <= 6 ? function_arg_count : 6);
 
             // Allocate stack space for local variables
             if (local_stack_size > 0) {
@@ -755,9 +755,9 @@ int assemble_file(char *filename) {
                 }
             }
             else {
-                // Local variable
+                // Local variable. v=-1 is the first, v=-2 the second, etc
                 *t++ = 0x48; *t++ = 0x8d; *t++ = 0x45; // lea -0x...(%rbp), %rax
-                *t++ = local_vars_stack_start - 8 * v;
+                *t++ = local_vars_stack_start + 8 * (v + 1);
             }
         }
 
@@ -765,9 +765,19 @@ int assemble_file(char *filename) {
             *t++ = 0x48; *t++ = 0x8b; *t++ = 0x00; // mov (%rax), %rax
         }
 
+        else if (!wmemcmp(instr, "LC", 2)) {
+            // move byte to long with sign extension
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xbe; *t++ = 0x00; // movsbq (%rax), %rax
+        }
+
         else if (!wmemcmp(instr, "SI", 2)) {
             *t++ = 0x5f;                           // pop %rdi
-            *t++ = 0x48; *t++ = 0x89; *t++ = 0x07; // mov %rax, (%rdi)
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0x07; // mov %rax,(%rdi)
+        }
+
+        else if (!wmemcmp(instr, "SC", 2)) {
+            *t++ = 0x5f;              // pop %rdi
+            *t++ = 0x88; *t++ = 0x07; // mov %al, (%rdi)
         }
 
         else {
