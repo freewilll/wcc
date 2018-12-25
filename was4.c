@@ -502,7 +502,7 @@ int assemble_file(char *filename) {
     char *input, *pi, *instr, *output_filename;
     int printf_symbol, fflush_symbol;
     int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_rela_text, num_syms;
-    char *s, *t, *name, *data_data, *text_data, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab, **ps;
+    char *s, *t, *name, *data_data, *text_data, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab, **ps, *symbol;
     int string_literal_len, strtab_len;
     char *main_address, **line_symbols;
     int *pi1, *pi2;
@@ -633,24 +633,46 @@ int assemble_file(char *filename) {
                 t += 4;
             }
         }
+
         else if (!wmemcmp(instr, "LINE", 4)) {}
         else if (!wmemcmp(instr, "ADJ", 3)) {}
+        else if (!wmemcmp(instr, "GLB", 3)) {}
+
+        else if (!wmemcmp(instr, "IMM   global", 12)) {
+            s = instr + 13;
+            while (*s != ' ') s++;
+            s += 2;
+            name = s;
+            while (*s != '"') s++;
+            *s = 0;
+
+            // s is the entry in the relocation table
+            s = rela_text_data + num_rela_text * RELA_SIZE;
+            num_rela_text += 1;
+            *((long *) &s[R_OFFSET]) = t - text_data + 2;
+            *t++ = 0x48; *t++ = 0xb8; // movabs $0x...,%rax
+            t += 8;
+            *((long *) &s[R_INFO]) = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
+            symbol = symtab_data + STE_SIZE *  symbol_index(strtab, strtab_len, name);
+            *((long *) &s[R_ADDEND]) = *((long *) &symbol[ST_VALUE]); // Address in .data
+        }
+
         else if (!wmemcmp(instr, "IMM   ", 6)) {
             s = instr + 6;
             if (*s >= '0' && *s <= '9') {
+                // A number
                 v = 0;
                 while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
-                // movabs $0x...,%rax
-                *t++ = 0x48; *t++ = 0xb8;
+                *t++ = 0x48; *t++ = 0xb8; // movabs $0x...,%rax
                 *(long *) t = v;
                 t += 8;
             }
             else {
-                // s is the entry in the relocation table
+                // A string literal. s is the entry in the relocation table
                 s = rela_text_data + num_rela_text * RELA_SIZE;
                 num_rela_text += 1;
                 *((long *) &s[R_OFFSET]) = t - text_data + 2;
-                *t++ = 0x48; *t++ = 0xb8;
+                *t++ = 0x48; *t++ = 0xb8; // movabs $0x...,%rax
                 t += 8;
                 *((long *) &s[R_INFO]) = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
                 *((long *) &s[R_ADDEND]) = *((long *) &line_symbols[line][ST_VALUE]);        // Address in .data

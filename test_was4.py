@@ -151,3 +151,24 @@ def test_local_vars():
         }
 
     """, "1 2 3 4\n", 0)
+
+def test_global_ints():
+    check("""
+        int m;
+        int n;
+
+        void foo(int i, int j) {
+            int k;
+            int l;
+            k = 3;
+            l = 4;
+            printf("%d %d %d %d %d %d\n", i, j, k, l, m, n);
+        }
+
+        int main(int argc, char **argv) {
+            m = 5;
+            n = 6;
+            foo(1, 2);
+            return 0;
+        }
+    """, "1 2 3 4 5 6\n", 0)

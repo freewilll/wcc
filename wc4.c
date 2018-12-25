@@ -1038,7 +1038,7 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
                     dprintf(f, "\"");
                 }
                 else if (imm_type == IMM_GLOBAL)
-                    dprintf(f, " global %ld %s", symbol[SYMBOL_STACK_INDEX], (char *) symbol[SYMBOL_IDENTIFIER]);
+                    dprintf(f, " global %ld \"%s\"", symbol[SYMBOL_STACK_INDEX], (char *) symbol[SYMBOL_IDENTIFIER]);
                 else {
                     dprintf(f, "unknown imm %ld\n", imm_type);
                     exit(1);
