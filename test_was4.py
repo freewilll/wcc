@@ -279,3 +279,34 @@ def test_jumps():
             printf("\n");
         }
     """, "1\n2\nfalse\ntrue\n1 2 3 4 5 6 7 8 9 10 \n", 0)
+
+
+def test_logical_or_and():
+    check("""
+        int main() {
+            long i;
+            long j;
+            i = 1;
+            j = 0;
+
+            i = 0; printf("%d %d ", (i && j++), j);
+            i = 1; printf("%d %d ", (i && j++), j);
+            printf("\n");
+
+            i = 0; printf("%d %d ", (i || j++), j);
+            i = 1; printf("%d %d ", (i || j++), j);
+            printf("\n");
+
+            printf("%d ", 0 || 0);
+            printf("%d ", 0 || 1);
+            printf("%d ", 1 || 0);
+            printf("%d ", 1 || 1);
+            printf("\n");
+
+            printf("%d ", 0 && 0);
+            printf("%d ", 0 && 1);
+            printf("%d ", 1 && 0);
+            printf("%d ", 1 && 1);
+            printf("\n");
+        }
+    """, "0 0 0 1 \n1 2 1 2 \n0 1 1 1 \n0 0 0 1 \n", 0)

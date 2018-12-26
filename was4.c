@@ -822,8 +822,21 @@ int assemble_file(char *filename) {
             *t++ = 0x88; *t++ = 0x07; // mov %al, (%rdi)
         }
 
-        else if (!memcmp(instr, "OR",  2)) {printf("TODO INSTR_OR\n");exit(1);}
-        else if (!memcmp(instr, "AND", 3)) {printf("TODO INSTR_AND\n");exit(1);}
+        else if (!memcmp(instr, "OR",  2)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x83; *t++ = 0xfa; *t++ = 0x00; // cmp $0x0, %rdx
+            *t++ = 0x0f; *t++ = 0x84;                           // jne end
+            *t++ = 0x03; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;
+            *t++ = 0x48;  *t++ = 0x89;  *t++ = 0xd0;            // mov %rdx, %rax
+        }
+
+        else if (!memcmp(instr, "AND", 3)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x83; *t++ = 0xfa; *t++ = 0x00; // cmp $0x0, %rdx
+            *t++ = 0x0f; *t++ = 0x85;                           // je end
+            *t++ = 0x03; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;
+            *t++ = 0x48;  *t++ = 0x89;  *t++ = 0xd0;            // mov %rdx, %rax
+        }
 
         else if (!memcmp(instr, "EQ",  2)) {
             *t++ = 0x5a;                                        // pop %rdx
