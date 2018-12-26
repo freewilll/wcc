@@ -688,10 +688,14 @@ int assemble_file(char *filename) {
 
         else if (!wmemcmp(instr, "IMM   ", 6)) {
             s = instr + 6;
-            if (*s >= '0' && *s <= '9') {
+            if ((*s >= '0' && *s <= '9') || *s == '-') {
                 // A number
+                neg = 0;
+                s = instr + 6;
+                if (*s == '-') { neg = 1; s++; }
                 v = 0;
                 while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
+                if (neg) v = -v;
                 *t++ = 0x48; *t++ = 0xb8; // movabs $0x...,%rax
                 *(long *) t = v;
                 t += 8;

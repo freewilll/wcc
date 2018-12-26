@@ -356,3 +356,13 @@ def test_builtins():
 
                 with open(output_file.name) as f:
                     assert f.read() == "foo\n"
+
+
+def check_negative_imm():
+    check("""
+        int main(int argc, char **argv) {
+            int i;
+            i = -1;
+            printf("%d\n", i);
+        }
+    """, "-1\n", 0)
