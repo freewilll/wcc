@@ -221,3 +221,36 @@ def test_chars():
             foo();
         }
     """, "1 2 3 4 5 6\n1 2 3\n10 20 30 40 50 60\n1 2 3 4 5 6\n", 0)
+
+def test_arithmetic():
+    check("""
+        int test_cmp(long i, long j) {
+            printf("%d ", (i == j));
+            printf("%d ", (i != j));
+            printf("%d ", (i < j));
+            printf("%d ", (i > j));
+            printf("%d ", (i <= j));
+            printf("%d ", (i >= j));
+            printf("- ");
+        }
+
+        int main() {
+            long i;
+            long j;
+
+            i = 5;
+            j = 2;
+            printf("%d ", (i + j));
+            printf("%d ", (i - j));
+            printf("%d ", (i * j));
+            printf("%d ", (i / j));
+            printf("%d ", (i % j));
+            printf("- ");
+
+            test_cmp(2, 2);
+            test_cmp(2, 3);
+            test_cmp(3, 2);
+
+            printf("\n");
+        }
+    """, "7 3 10 2 1 - 1 0 0 0 1 1 - 0 1 1 0 1 0 - 0 1 0 1 0 1 - \n", 0)

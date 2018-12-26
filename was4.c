@@ -591,7 +591,10 @@ int assemble_file(char *filename) {
         while (*pi != ' ') pi++;
         while (*pi == ' ') pi++;
 
-        if (!wmemcmp(instr, "GLB   type=1 size=8 \"", 21)) {
+        if (!wmemcmp(instr, "ADJ", 3)) {}
+        else if (!wmemcmp(instr, "LINE", 4)) {}
+
+        else if (!wmemcmp(instr, "GLB   type=1 size=8 \"", 21)) {
             s = instr + 21;
             name = instr + 21;
             while (*s != '"') s++;
@@ -599,6 +602,9 @@ int assemble_file(char *filename) {
             add_symbol(symtab_data, &num_syms, strtab, &strtab_len, name, t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
             if (!wmemcmp(name, "main", 4)) main_address = text_data;
         }
+
+        else if (!wmemcmp(instr, "GLB", 3)) {}
+
         else if (!wmemcmp(instr, "ENT", 3)) {
             // Start a new stack frame
             *t++ = 0x55;                            // push %rbp
@@ -633,10 +639,6 @@ int assemble_file(char *filename) {
                 t += 4;
             }
         }
-
-        else if (!wmemcmp(instr, "LINE", 4)) {}
-        else if (!wmemcmp(instr, "ADJ", 3)) {}
-        else if (!wmemcmp(instr, "GLB", 3)) {}
 
         else if (!wmemcmp(instr, "IMM   global", 12)) {
             s = instr + 13;
@@ -678,10 +680,12 @@ int assemble_file(char *filename) {
                 *((long *) &s[R_ADDEND]) = *((long *) &line_symbols[line][ST_VALUE]);        // Address in .data
             }
         }
+
         else if (!wmemcmp(instr, "LEV", 3)) {
             *t++ = 0xc9; // leaveq
             *t++ = 0xc3; // retq
         }
+
         else if (!wmemcmp(instr, "JSR", 3)) {
             s = instr + 6;
 
@@ -705,9 +709,11 @@ int assemble_file(char *filename) {
             add_function_call_relocation(symbol_index(strtab, strtab_len, name), t - text_data - 4, rela_text_data, &num_rela_text);
             cleanup_function_call(&t, function_call_arg_count);
         }
+
         else if (!wmemcmp(instr, "PSH", 3)) {
             *t++ = 0x50; // push %rax
         }
+
         else if (!wmemcmp(instr, "PRTF", 4)) {
             s = instr + 6;
             function_call_arg_count = 0;
@@ -778,6 +784,84 @@ int assemble_file(char *filename) {
         else if (!wmemcmp(instr, "SC", 2)) {
             *t++ = 0x5f;              // pop %rdi
             *t++ = 0x88; *t++ = 0x07; // mov %al, (%rdi)
+        }
+
+        else if (!memcmp(instr, "OR",  2)) {printf("TODO INSTR_OR\n");exit(1);}
+        else if (!memcmp(instr, "AND", 3)) {printf("TODO INSTR_AND\n");exit(1);}
+
+        else if (!memcmp(instr, "EQ",  2)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x39; *t++ = 0xc2;              // cmp %rdx, %rax
+            *t++ = 0x0f; *t++ = 0x94; *t++ = 0xc0;              // sete %al
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xb6; *t++ = 0xc0; // movzbl %al, %rax
+        }
+
+        else if (!memcmp(instr, "NE",  2)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x39; *t++ = 0xc2;              // cmp %rdx, %rax
+            *t++ = 0x0f; *t++ = 0x95; *t++ = 0xc0;              // setne %al
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xb6; *t++ = 0xc0; // movzbl %al, %rax
+        }
+
+        else if (!memcmp(instr, "LT",  2)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x39; *t++ = 0xc2;              // cmp %rdx, %rax
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xb6; *t++ = 0xc0; // movzbl %al, %rax
+            *t++ = 0x0f; *t++ = 0x9c; *t++ = 0xc0;              // setl %al
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xb6; *t++ = 0xc0; // movzbl %al, %rax
+        }
+
+        else if (!memcmp(instr, "GT",  2)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x39; *t++ = 0xc2;              // cmp %rdx, %rax
+            *t++ = 0x0f; *t++ = 0x9f; *t++ = 0xc0;              // setg %al
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xb6; *t++ = 0xc0; // movzbl %al, %rax
+        }
+
+        else if (!memcmp(instr, "LE",  2)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x39; *t++ = 0xc2;              // cmp %rdx, %rax
+            *t++ = 0x0f; *t++ = 0x9e; *t++ = 0xc0;              // setle %al
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xb6; *t++ = 0xc0; // movzbl %al, %rax
+        }
+
+        else if (!memcmp(instr, "GE",  2)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x39; *t++ = 0xc2;              // cmp %rdx, %rax
+            *t++ = 0x0f; *t++ = 0x9d; *t++ = 0xc0;              // setge %al
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xb6; *t++ = 0xc0; // movzbl %al, %rax
+        }
+
+        else if (!memcmp(instr, "ADD", 3)) {
+            *t++ = 0x5a;                            // pop %rdx
+            *t++ = 0x48; *t++ = 0x01; *t++ = 0xd0;  // add %rdx, %rax
+        }
+
+        else if (!memcmp(instr, "SUB", 3)) {
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0xc3; // mov %rax, %rbx
+            *t++ = 0x58;                           // pop %rax
+            *t++ = 0x48; *t++ = 0x29; *t++ = 0xd8; // sub %rbx, %rax
+        }
+
+        else if (!memcmp(instr, "MUL", 3)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xaf; *t++ = 0xc2; // imul %rdx, %rax
+        }
+
+        else if (!memcmp(instr, "DIV", 3)) {
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0xc3; // mov %rax, %rbx
+            *t++ = 0x58;                           // pop %rax
+            *t++ = 0x48; *t++ = 0x99;              // sign extend rax to rdx:rax
+            *t++ = 0x48; *t++ = 0xf7; *t++ = 0xfb; // idiv %rbx
+        }
+
+        else if (!memcmp(instr, "MOD", 3)) {
+            // Same as DIV, but with rdx (the remainder) shifted to rax
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0xc3; // mov %rax, %rbx
+            *t++ = 0x58;                           // pop %rax
+            *t++ = 0x48; *t++ = 0x99;              // sign extend rax to rdx:rax
+            *t++ = 0x48; *t++ = 0xf7; *t++ = 0xfb; // idiv %rbx
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0xd0; // mov %rdx, %rax
         }
 
         else {
