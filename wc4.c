@@ -465,7 +465,7 @@ void expression(int level) {
             next();
             param_count = 0;
             while (cur_token != TOK_RPAREN) {
-                expression(TOK_PLUS);
+                expression(TOK_COMMA);
                 *iptr++ = INSTR_PSH;
                 if (cur_token == TOK_COMMA) next();
                 param_count++;

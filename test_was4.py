@@ -229,12 +229,12 @@ def test_chars():
 def test_arithmetic():
     check("""
         int test_cmp(long i, long j) {
-            printf("%d ", (i == j));
-            printf("%d ", (i != j));
-            printf("%d ", (i < j));
-            printf("%d ", (i > j));
-            printf("%d ", (i <= j));
-            printf("%d ", (i >= j));
+            printf("%d ", i == j);
+            printf("%d ", i != j);
+            printf("%d ", i < j);
+            printf("%d ", i > j);
+            printf("%d ", i <= j);
+            printf("%d ", i >= j);
             printf("- ");
         }
 
@@ -244,11 +244,11 @@ def test_arithmetic():
 
             i = 5;
             j = 2;
-            printf("%d ", (i + j));
-            printf("%d ", (i - j));
-            printf("%d ", (i * j));
-            printf("%d ", (i / j));
-            printf("%d ", (i % j));
+            printf("%d ", i + j);
+            printf("%d ", i - j);
+            printf("%d ", i * j);
+            printf("%d ", i / j);
+            printf("%d ", i % j);
             printf("- ");
 
             test_cmp(2, 2);
