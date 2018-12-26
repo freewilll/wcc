@@ -71,6 +71,7 @@ def test_string_literal_escapes():
         }
     """, "\\-\t-'-\"-\n", 0)
 
+
 def test_function_calls():
     check("""
         int foo0() {
@@ -152,6 +153,7 @@ def test_local_vars():
 
     """, "1 2 3 4\n", 0)
 
+
 def test_global_ints():
     check("""
         int m;
@@ -172,6 +174,7 @@ def test_global_ints():
             return 0;
         }
     """, "1 2 3 4 5 6\n", 0)
+
 
 def test_chars():
     check("""
@@ -222,6 +225,7 @@ def test_chars():
         }
     """, "1 2 3 4 5 6\n1 2 3\n10 20 30 40 50 60\n1 2 3 4 5 6\n", 0)
 
+
 def test_arithmetic():
     check("""
         int test_cmp(long i, long j) {
@@ -254,3 +258,24 @@ def test_arithmetic():
             printf("\n");
         }
     """, "7 3 10 2 1 - 1 0 0 0 1 1 - 0 1 1 0 1 0 - 0 1 0 1 0 1 - \n", 0)
+
+
+def test_jumps():
+    check("""
+        int main() {
+            long i;
+            long j;
+            i = 1;
+            j = 0;
+
+            printf("%d\n", (i == 0 ? 2 : 1));
+            printf("%d\n", (i == 1 ? 2 : 1));
+
+            i = 0; if (i) printf("true\n"); else printf("false\n");
+            i = 1; if (i) printf("true\n"); else printf("false\n");
+
+            i = 0;
+            while (i++ < 10) printf("%d ", i);
+            printf("\n");
+        }
+    """, "1\n2\nfalse\ntrue\n1 2 3 4 5 6 7 8 9 10 \n", 0)

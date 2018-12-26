@@ -15,6 +15,7 @@ enum {
     MAX_TEXT_SIZE      = 1024 * 1024 * 10,
     MAX_DATA_SIZE      = 1024 * 1024 * 10,
     MAX_LINES          = 1024 * 1024,
+    MAX_VM_ADDRESS     = 1024 * 1024,
     MAX_RELA_TEXT_SIZE = 1024 * 1024 *10,
 
     // ELF header
@@ -500,11 +501,13 @@ void cleanup_function_call(char **code, int function_call_arg_count) {
 int assemble_file(char *filename) {
     int i, f, input_size, filename_len, v, line, function_arg_count, neg, function_call_arg_count, local_stack_size, local_vars_stack_start;
     char *input, *pi, *instr, *output_filename;
-    int printf_symbol, fflush_symbol;
+    int printf_symbol, fflush_symbol, vm_address;
     int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_rela_text, num_syms;
     char *s, *t, *name, *data_data, *text_data, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab, **ps, *symbol;
     int string_literal_len, strtab_len;
     char *main_address, **line_symbols;
+    char **vm_address_map; // map VM address as indicated by the first number in the compiler output to its address in .text
+    char **jmps;           // map JMP target VM address to address in .text
     int *pi1, *pi2;
 
     input = malloc(MAX_INPUT_SIZE);
@@ -541,6 +544,8 @@ int assemble_file(char *filename) {
     // First pass, the .data section
     string_literal_len = 0;
     line_symbols = malloc(sizeof(char **) * MAX_LINES);
+    vm_address_map = malloc(sizeof(char **) * MAX_VM_ADDRESS);
+    jmps = malloc(sizeof(char **) * MAX_VM_ADDRESS);
     line = 0;
 
     pi = input;
@@ -585,7 +590,10 @@ int assemble_file(char *filename) {
     rela_text_data = malloc(MAX_RELA_TEXT_SIZE);
 
     while (*pi) {
-        while (*pi >= '0' && *pi <= '9') pi++;
+        vm_address = 0;
+        while (*pi >= '0' && *pi <= '9') vm_address = 10 * vm_address + (*pi++ - '0');
+        vm_address_map[vm_address] = t;
+
         while (*pi == ' ') pi++;
         instr = pi;
         while (*pi != ' ') pi++;
@@ -710,6 +718,34 @@ int assemble_file(char *filename) {
             cleanup_function_call(&t, function_call_arg_count);
         }
 
+        else if (!wmemcmp(instr, "BZ", 2)) {
+            s = instr + 6;
+            v = 0;
+            while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
+            *t++ = 0x48; *t++ = 0x83; *t++ = 0xf8; *t++ = 0x00; //cmp $0x0,% rax
+            jmps[v] = t + 2;
+            *t++ = 0x0f; *t++ = 0x84; // je ...
+            t += 4;
+        }
+
+        else if (!wmemcmp(instr, "BNZ", 3)) {
+            s = instr + 6;
+            v = 0;
+            while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
+            *t++ = 0x48; *t++ = 0x83; *t++ = 0xf8; *t++ = 0x00; //cmp $0x0,% rax
+            jmps[v] = t + 2;
+            *t++ = 0x0f; *t++ = 0x85; // jne ...
+            t += 4;
+        }
+        else if (!wmemcmp(instr, "JMP", 3)) {
+            s = instr + 6;
+            v = 0;
+            while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
+            jmps[v] = t + 1;
+            *t++ = 0xe9; // jmpq ...
+            t += 4;
+        }
+
         else if (!wmemcmp(instr, "PSH", 3)) {
             *t++ = 0x50; // push %rax
         }
@@ -719,7 +755,7 @@ int assemble_file(char *filename) {
             function_call_arg_count = 0;
             while (*s >= '0' && *s <= '9') function_call_arg_count = 10 * function_call_arg_count + (*s++ - '0');
             prepare_function_call(&t, function_call_arg_count);
-            // // The number of floating point arguments is zero
+            // The number of floating point arguments is zero
             *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; // mov $0x0,%eax
             *t++ = 0xe8; t += 4; // callq
             add_function_call_relocation(printf_symbol, t - text_data - 4, rela_text_data, &num_rela_text);
@@ -873,7 +909,19 @@ int assemble_file(char *filename) {
 
         while (*pi != '\n') pi++;
         pi++;
+
         line++;
+        if (line > MAX_LINES) {
+            printf("Exceeded max lines %d\n", MAX_LINES);
+            exit(1);
+        }
+    }
+
+    // Fixup jmps
+    i = 0;
+    while (i < vm_address) {
+        if (jmps[i]) *(int *) jmps[i] = vm_address_map[i] - jmps[i] - 4;
+        i++;
     }
 
     // _start function
