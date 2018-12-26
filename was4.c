@@ -1034,7 +1034,7 @@ int main(int argc, char **argv) {
     argv++;
     while (argc > 0 && *argv[0] == '-') {
              if (argc > 0 && !memcmp(argv[0], "-h",  3)) { help = 0;  argc--; argv++; }
-        else { printf("Unknown argeter %s\n", argv[0]); exit(1); }
+        else { printf("Unknown argument %s\n", argv[0]); exit(1); }
     }
 
     if (help) {
