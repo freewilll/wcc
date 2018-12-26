@@ -148,6 +148,15 @@ char *wstrdup(char *src) {
     return dst;
 }
 
+char *rela_text_data;
+int num_rela_text;
+char **strtab;
+int strtab_len;
+char *symtab_data;
+int num_syms;
+int data_size, text_size, strtab_size, rela_text_size;
+char *data_data, *text_data, *strtab_data, *shstrtab_data;
+
 // Since we don't do negatives, this returns either zero or one.
 // zero if the strings are equal, one otherwise.
 int wmemcmp(char *str1, char *str2, int size) {
@@ -321,24 +330,22 @@ void write_elf(char *filename, int data_size, int text_size, int strtab_size, in
     close(f);
 }
 
-void add_symbol(char *symtab_data, int *num_syms, char **strtab, int *strtab_len,
-        char *name, long value, int type, int binding, int section_index) {
-
+void add_symbol(char *name, long value, int type, int binding, int section_index) {
     char *s;
-    strtab[(*strtab_len)++] = name;
-    if (*strtab_len == MAX_STRTAB_LEN) {
+    strtab[(strtab_len)++] = name;
+    if (strtab_len == MAX_STRTAB_LEN) {
         printf("Exceeded max strtab length %d\n", MAX_STRTAB_LEN);
         exit(1);
     }
 
-    s = (symtab_data + STE_SIZE * *num_syms);
+    s = (symtab_data + STE_SIZE * num_syms);
     *((long *) &s[ST_VALUE]) = value;
     s[ST_INFO] = (type  << 4) + binding;
     *((short *) &s[ST_SHNDX]) = section_index;
     (*symtab_data) += STE_SIZE;
 
-    (*num_syms)++;
-    if (*num_syms > MAX_SYMTAB_LEN) { printf("Exceeded max symbol table size %d\n", MAX_SYMTAB_LEN); exit(1); }
+    num_syms++;
+    if (num_syms > MAX_SYMTAB_LEN) { printf("Exceeded max symbol table size %d\n", MAX_SYMTAB_LEN); exit(1); }
 }
 
 void link_symtab_strings(char *symtab_data, char *strtab_data, int num_syms) {
@@ -357,7 +364,7 @@ void link_symtab_strings(char *symtab_data, char *strtab_data, int num_syms) {
     }
 }
 
-int add_global(char *symtab_data, int *num_syms, char **strtab, int *strtab_len, int *data_size, char *input) {
+int add_global(int *data_size, char *input) {
     int is_function, size, value, type, binding, section_index;
     char *name, *s;
     if (input[0] != 't' || input[1] != 'y' || input[2] != 'p' || input[3] != 'e' || input[4] != '=') {
@@ -393,46 +400,46 @@ int add_global(char *symtab_data, int *num_syms, char **strtab, int *strtab_len,
         binding = STB_LOCAL;
         type = STT_NOTYPE;
         section_index = SEC_DATA;
-        add_symbol(symtab_data, num_syms, strtab, strtab_len, name, value, binding, type, section_index);
+        add_symbol(name, value, binding, type, section_index);
     }
 }
 
-void add_string_literal(char *symtab_data, int *num_syms, char **strtab, int *strtab_len, char *data_data, int *data_size, char *input, int *string_literal_len) {
+void add_string_literal(char *input, int *string_literal_len) {
     char *name;
 
     name = malloc(8);
     name[0] = '_'; name[1] = 'S'; name[2] = 'L'; name[6] = 0;
     witoa(name + 3, (*string_literal_len)++);
 
-    add_symbol(symtab_data, num_syms, strtab, strtab_len, name, *data_size, STB_LOCAL, STT_NOTYPE, SEC_DATA);
+    add_symbol(name, data_size, STB_LOCAL, STT_NOTYPE, SEC_DATA);
 
     input += 2;
     while (*input != '"') {
-        if (*data_size == MAX_DATA_SIZE) {
+        if (data_size == MAX_DATA_SIZE) {
             printf("Exceeded max data size %d\n", MAX_DATA_SIZE);
         }
 
-             if (*input == '\\' && input[1] == 'n') { data_data[(*data_size)++] = '\n'; input += 1; }
-        else if (*input == '\\' && input[1] == 't') { data_data[(*data_size)++] = '\t'; input += 1; }
-        else if (*input == '\\' && input[1] == '\\') { data_data[(*data_size)++] = '\\'; input += 1; }
-        else if (*input == '\\' && input[1] == '"') { data_data[(*data_size)++] = '"'; input += 1; }
+             if (*input == '\\' && input[1] == 'n') { data_data[(data_size)++] = '\n'; input += 1; }
+        else if (*input == '\\' && input[1] == 't') { data_data[(data_size)++] = '\t'; input += 1; }
+        else if (*input == '\\' && input[1] == '\\') { data_data[(data_size)++] = '\\'; input += 1; }
+        else if (*input == '\\' && input[1] == '"') { data_data[(data_size)++] = '"'; input += 1; }
         else
-            data_data[(*data_size)++] = *input;
+            data_data[data_size++] = *input;
 
         input++;
     }
 
-    if (*data_size == MAX_DATA_SIZE) {
+    if (data_size == MAX_DATA_SIZE) {
         printf("Exceeded max data size %d\n", MAX_DATA_SIZE);
     }
-    data_data[(*data_size)++] = 0;
+    data_data[data_size++] = 0;
 }
 
-void add_function_call_relocation(int symbol_index, long offset, char *rela_text_data, int *num_rela_text) {
+void add_function_call_relocation(int symbol_index, long offset) {
     char *s;
     // s is the entry in the relocation table
-    s = rela_text_data + *num_rela_text * RELA_SIZE;
-    *num_rela_text += 1;
+    s = rela_text_data + num_rela_text * RELA_SIZE;
+    num_rela_text += 1;
     *((long *) &s[R_OFFSET]) = offset;
 
     // R_X86_64_PC32 + a link to the .data section
@@ -440,7 +447,7 @@ void add_function_call_relocation(int symbol_index, long offset, char *rela_text
     *((long *) &s[R_ADDEND]) = -4;
 }
 
-int symbol_index(char **strtab, int strtab_len, char *name) {
+int symbol_index(char *name) {
     int i;
     char **ps;
     i = 0;
@@ -498,13 +505,21 @@ void cleanup_function_call(char **code, int function_call_arg_count) {
     *code = t;
 }
 
+void builtin_function_call(char **t, char *name, int num_args) {
+    prepare_function_call(t, num_args);
+    *(*t)++ = 0xe8; *t += 4; // callq
+    add_function_call_relocation(symbol_index(name), *t - text_data - 4);
+    cleanup_function_call(t, num_args);
+    *(*t)++ = 0x48; *(*t)++ = 0x98; // cltq
+}
+
 int assemble_file(char *filename) {
     int i, f, input_size, filename_len, v, line, function_arg_count, neg, function_call_arg_count, local_stack_size, local_vars_stack_start;
     char *input, *pi, *instr, *output_filename;
-    int printf_symbol, fflush_symbol, vm_address;
-    int data_size, text_size, strtab_size, rela_text_size, last_local_symbol, *shstrtab_indexes, *strtab_indexes, num_rela_text, num_syms;
-    char *s, *t, *name, *data_data, *text_data, *strtab_data, *symtab_data, *shstrtab_data, *rela_text_data, **strtab, **ps, *symbol;
-    int string_literal_len, strtab_len;
+    int vm_address;
+    int last_local_symbol, *shstrtab_indexes, *strtab_indexes;
+    char *s, *t, *name, **ps, *symbol;
+    int string_literal_len;
     char *main_address, **line_symbols;
     char **vm_address_map; // map VM address as indicated by the first number in the compiler output to its address in .text
     char **jmps;           // map JMP target VM address to address in .text
@@ -533,13 +548,10 @@ int assemble_file(char *filename) {
     symtab_data = malloc(MAX_SYMTAB_LEN * STE_SIZE);
     memset(symtab_data, MAX_SYMTAB_LEN * STE_SIZE, 0);
 
-    s = symtab_data;
-    pi1 = &num_syms;
-    pi2 = &strtab_len;
-    add_symbol(s, pi1, strtab, pi2, "",       0, STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
-    add_symbol(s, pi1, strtab, pi2, filename, 0, STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 filename
-    add_symbol(s, pi1, strtab, pi2, "",       0, STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2 .data
-    add_symbol(s, pi1, strtab, pi2, "",       0, STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3 .text
+    add_symbol("",       0, STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
+    add_symbol(filename, 0, STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 filename
+    add_symbol("",       0, STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2 .data
+    add_symbol("",       0, STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3 .text
 
     // First pass, the .data section
     string_literal_len = 0;
@@ -557,10 +569,10 @@ int assemble_file(char *filename) {
         while (*pi == ' ') pi++;
 
         if (!wmemcmp(instr, "GLB", 3)) {
-            add_global(symtab_data, &num_syms, strtab, &strtab_len, &data_size, pi);
+            add_global(&data_size, pi);
         }
         else if (!wmemcmp(instr, "IMM", 3) && !wmemcmp(pi, "&\"", 2)) {
-            add_string_literal(symtab_data, &num_syms, strtab, &strtab_len, data_data, &data_size, pi, &string_literal_len);
+            add_string_literal(pi, &string_literal_len);
             line_symbols[line] = symtab_data + STE_SIZE * (strtab_len - 1);
         }
 
@@ -573,11 +585,18 @@ int assemble_file(char *filename) {
     text_size = 0;
     rela_text_size = 0;
 
-    printf_symbol = strtab_len;
-    add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "printf", 0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
-
-    fflush_symbol = strtab_len;
-    add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "fflush", 0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("printf",  0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("dprintf", 0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("fflush",  0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("malloc",  0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("free",    0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("memset",  0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("memcmp",  0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("strcmp",  0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("open",    0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("read",    0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("close",   0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("exit",    0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
 
     // First pass, the .text section
     text_data = malloc(MAX_TEXT_SIZE);
@@ -607,7 +626,7 @@ int assemble_file(char *filename) {
             name = instr + 21;
             while (*s != '"') s++;
             *s = 0;
-            add_symbol(symtab_data, &num_syms, strtab, &strtab_len, name, t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
+            add_symbol(name, t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
             if (!wmemcmp(name, "main", 4)) main_address = text_data;
         }
 
@@ -663,7 +682,7 @@ int assemble_file(char *filename) {
             *t++ = 0x48; *t++ = 0xb8; // movabs $0x...,%rax
             t += 8;
             *((long *) &s[R_INFO]) = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
-            symbol = symtab_data + STE_SIZE *  symbol_index(strtab, strtab_len, name);
+            symbol = symtab_data + STE_SIZE *  symbol_index(name);
             *((long *) &s[R_ADDEND]) = *((long *) &symbol[ST_VALUE]); // Address in .data
         }
 
@@ -714,7 +733,7 @@ int assemble_file(char *filename) {
 
             prepare_function_call(&t, function_call_arg_count);
             *t++ = 0xe8; t += 4; // callq
-            add_function_call_relocation(symbol_index(strtab, strtab_len, name), t - text_data - 4, rela_text_data, &num_rela_text);
+            add_function_call_relocation(symbol_index(name), t - text_data - 4);
             cleanup_function_call(&t, function_call_arg_count);
         }
 
@@ -748,18 +767,6 @@ int assemble_file(char *filename) {
 
         else if (!wmemcmp(instr, "PSH", 3)) {
             *t++ = 0x50; // push %rax
-        }
-
-        else if (!wmemcmp(instr, "PRTF", 4)) {
-            s = instr + 6;
-            function_call_arg_count = 0;
-            while (*s >= '0' && *s <= '9') function_call_arg_count = 10 * function_call_arg_count + (*s++ - '0');
-            prepare_function_call(&t, function_call_arg_count);
-            // The number of floating point arguments is zero
-            *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; // mov $0x0,%eax
-            *t++ = 0xe8; t += 4; // callq
-            add_function_call_relocation(printf_symbol, t - text_data - 4, rela_text_data, &num_rela_text);
-            cleanup_function_call(&t, function_call_arg_count);
         }
 
         else if (!wmemcmp(instr, "LEA", 3)) {
@@ -817,7 +824,7 @@ int assemble_file(char *filename) {
             *t++ = 0x48; *t++ = 0x89; *t++ = 0x07; // mov %rax,(%rdi)
         }
 
-        else if (!wmemcmp(instr, "SC", 2)) {
+        else if (!wmemcmp(instr, "SC ", 3)) {
             *t++ = 0x5f;              // pop %rdi
             *t++ = 0x88; *t++ = 0x07; // mov %al, (%rdi)
         }
@@ -913,6 +920,29 @@ int assemble_file(char *filename) {
             *t++ = 0x48; *t++ = 0x89; *t++ = 0xd0; // mov %rdx, %rax
         }
 
+        else if (!wmemcmp(instr, "PRTF", 4) || !wmemcmp(instr, "DPRT", 4)) {
+            s = instr + 6;
+            function_call_arg_count = 0;
+            while (*s >= '0' && *s <= '9') function_call_arg_count = 10 * function_call_arg_count + (*s++ - '0');
+            prepare_function_call(&t, function_call_arg_count);
+            // The number of floating point arguments is zero
+            *t++ = 0xb8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; // mov $0x0,%eax
+            *t++ = 0xe8; t += 4;                                             // callq
+            name = wmemcmp(instr, "PRTF", 4) ? "dprintf" : "printf";
+            add_function_call_relocation(symbol_index(name), t - text_data - 4);
+            cleanup_function_call(&t, function_call_arg_count);
+        }
+
+        else if (!memcmp(instr, "OPEN", 4)) { builtin_function_call(&t, "open",    3); }
+        else if (!memcmp(instr, "READ", 4)) { builtin_function_call(&t, "read",    3); }
+        else if (!memcmp(instr, "CLOS", 4)) { builtin_function_call(&t, "close",   1); }
+        else if (!memcmp(instr, "MALC", 4)) { builtin_function_call(&t, "malloc",  1); }
+        else if (!memcmp(instr, "FREE", 4)) { builtin_function_call(&t, "free",    1); }
+        else if (!memcmp(instr, "MSET", 4)) { builtin_function_call(&t, "memset",  3); }
+        else if (!memcmp(instr, "MCMP", 4)) { builtin_function_call(&t, "memcmp",  3); }
+        else if (!memcmp(instr, "SCMP", 4)) { builtin_function_call(&t, "strcmp",  2); }
+        else if (!memcmp(instr, "EXIT", 4)) { builtin_function_call(&t, "exit",    1); }
+
         else {
             printf("Unimplemented instruction: %.5s ", instr);
             while (*pi != '\n') { printf("%c", *pi); pi++; }
@@ -938,7 +968,7 @@ int assemble_file(char *filename) {
     }
 
     // _start function
-    add_symbol(symtab_data, &num_syms, strtab, &strtab_len, "_start", t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
+    add_symbol("_start", t - text_data, STB_GLOBAL, STT_NOTYPE, SEC_TEXT);
 
     *t++ = 0x31; *t++ = 0xed;              // xor %ebp, %ebp
     *t++ = 0x5f;                           // pop %rdi        argc
@@ -946,14 +976,14 @@ int assemble_file(char *filename) {
 
     // callq main
     *t++ = 0xe8; t += 4;
-    add_function_call_relocation(symbol_index(strtab, strtab_len, "main"), t - text_data - 4, rela_text_data, &num_rela_text);
+    add_function_call_relocation(symbol_index("main"), t - text_data - 4);
 
     // Flush all open output streams with fflush(0)
     *t++ = 0x50;                                                        // push %rax
     *t++ = 0xbf; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // mov $0, %edi
     *t++ = 0xe8; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;    // callq fflush
 
-    add_function_call_relocation(fflush_symbol, t - text_data - 4, rela_text_data, &num_rela_text);
+    add_function_call_relocation(symbol_index("fflush"), t - text_data - 4);
     *t++ = 0x58;                                                        // pop %rax
 
     // exit(%rax)

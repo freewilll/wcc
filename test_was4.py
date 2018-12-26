@@ -310,3 +310,49 @@ def test_logical_or_and():
             printf("\n");
         }
     """, "0 0 0 1 \n1 2 1 2 \n0 1 1 1 \n0 0 0 1 \n", 0)
+
+
+def test_builtins():
+    with tempfile.NamedTemporaryFile() as input_file:
+        with open(input_file.name, 'w') as f:
+            f.write("foo\n");
+            f.flush()
+
+            with tempfile.NamedTemporaryFile(delete=False) as output_file:
+                check("""
+                    int main(int argc, char **argv) {
+                        int f;
+                        char *data;
+
+                        data = malloc(16);
+                        f = open("%s", 0, 0);
+                        if (f < 0) { printf("bad FH\\n"); exit(1); }
+                        printf("%%ld\\n", read(f, data, 16));
+                        printf("%%s", data);
+                        close(f);
+
+                        memset(data, 0, 16);
+                        data[0] = 'b';
+                        data[1] = 'a';
+                        data[2] = 'r';
+                        printf("%%s\\n", data);
+
+                        printf("%%d\\n", memcmp(data, "foo", 3) == 0);
+                        printf("%%d\\n", memcmp(data, "bar", 3) == 0);
+
+                        printf("%%d\\n", strcmp(data, "foo") == 0);
+                        printf("%%d\\n", strcmp(data, "bar") == 0);
+
+                        free(data);
+
+                        f = open("%s", 577, 420);
+                        if (f < 0) { printf("bad FH\\n"); exit(1); }
+                        dprintf(f, "foo\\n");
+                        close(f);
+
+                        exit(4);
+                    }
+                """ % (input_file.name, output_file.name), "4\nfoo\nbar\n0\n1\n0\n1\n", 4);
+
+                with open(output_file.name) as f:
+                    assert f.read() == "foo\n"
