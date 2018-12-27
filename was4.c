@@ -155,7 +155,16 @@ int strtab_len;
 char *symtab_data;
 int num_syms;
 int data_size, text_size, strtab_size, rela_text_size;
-char *data_data, *text_data, *strtab_data, *shstrtab_data;
+char *data_data, *text_data, *strtab_data, *shstrtab_data, *symtab_data, *strtab_data, *rela_text_data;
+int data_size, text_size, strtab_size, rela_text_size;
+int last_local_symbol, num_syms;
+int shstrtab_len;
+char **shstrtab;
+int *shstrtab_indexes, *strtab_indexes;
+int symtab_size;
+int shstrtab_size;
+long text_start, shdr_start, shstrtab_start, data_start, strtab_start, symtab_start, rela_text_start;
+long total_size;
 
 // Since we don't do negatives, this returns either zero or one.
 // zero if the strings are equal, one otherwise.
@@ -236,23 +245,8 @@ void add_section_header(char *headers, int *shstrtab_indexes, int index, int typ
     *((long *) &headers[SHDR_SIZE * index + SH_SIZE])   = size;
 }
 
-void write_elf(char *filename, int data_size, int text_size, int strtab_size, int rela_text_size,
-        char *data_data, char *text_data, char *shstrtab_data, char *symtab_data, char *strtab_data, char *rela_text_data,
-        int last_local_symbol, int num_syms) {
-
-    int shstrtab_len;
-    char *s, *d, *p;
-    int f, written;
-    char **shstrtab;
-    int *shstrtab_indexes, *strtab_indexes, *si;
-    char *program, *h;
-    long text_start, shdr_start, shstrtab_start, data_start, strtab_start, symtab_start, rela_text_start;
-    long total_size;
-    int symtab_size;
-    int shstrtab_size;
-    int data_flags, text_flags;
-
-    // Section header strings
+void plan_elf_sections() {
+    // Add section header strings
     shstrtab_len = 7;
     shstrtab = malloc(sizeof(char *) * shstrtab_len);
     shstrtab_indexes = malloc(sizeof(int) * shstrtab_len);
@@ -267,6 +261,7 @@ void write_elf(char *filename, int data_size, int text_size, int strtab_size, in
 
     symtab_size = num_syms * STE_SIZE;
 
+    // Determine section offsets
     shdr_start      = EHDR_SIZE;
     data_start      = align(shdr_start      + SHDR_SIZE * shstrtab_len, 16);
     text_start      = align(data_start      + data_size,                16);
@@ -275,6 +270,14 @@ void write_elf(char *filename, int data_size, int text_size, int strtab_size, in
     symtab_start    = align(strtab_start    + strtab_size,              16);
     rela_text_start = align(symtab_start    + symtab_size,              16);
     total_size      = align(rela_text_start + rela_text_size,           16);
+}
+
+void write_elf(char *filename) {
+    char *s, *d, *p;
+    int f, written;
+    int *si;
+    char *program, *h;
+    int data_flags, text_flags;
 
     program = malloc(total_size);
     memset(program, 0, total_size);
@@ -521,7 +524,7 @@ int assemble_file(char *input_filename, char *output_filename) {
     int i, f, input_size, filename_len, v, line, function_arg_count, neg, function_call_arg_count, local_stack_size, local_vars_stack_start;
     char *input, *pi, *instr;
     int vm_address;
-    int last_local_symbol, *shstrtab_indexes, *strtab_indexes;
+    int *shstrtab_indexes, *strtab_indexes;
     char *s, *t, *name, **ps, *symbol;
     int string_literal_len;
     char *main_address, **line_symbols;
@@ -1007,12 +1010,8 @@ int assemble_file(char *input_filename, char *output_filename) {
     make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
     link_symtab_strings(symtab_data, strtab_data, num_syms);
 
-    write_elf(
-        output_filename,
-        data_size, text_size, strtab_size, rela_text_size,
-        data_data, text_data, shstrtab_data, symtab_data, strtab_data, rela_text_data,
-        last_local_symbol, num_syms
-    );
+    plan_elf_sections();
+    write_elf(output_filename);
 }
 
 int main(int argc, char **argv) {
