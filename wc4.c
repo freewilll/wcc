@@ -1248,7 +1248,7 @@ int main(int argc, char **argv) {
     argc--;
     argv++;
     while (argc > 0 && *argv[0] == '-') {
-             if (argc > 0 && !memcmp(argv[0], "-h", 3))  { help = 0;               argc--; argv++; }
+             if (argc > 0 && !memcmp(argv[0], "-h",  3)) { help = 0;               argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-i",  2)) { print_instructions = 1; argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { print_symbols = 1;      argc--; argv++; }
