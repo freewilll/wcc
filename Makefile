@@ -41,6 +41,9 @@ test: test-unit test-inception-codegen test-assembled-codegen
 
 clean:
 	rm -f wc4
+	rm -f wc42
 	rm -f was4
-	rm -f wc4.ws
+	rm -f *.ws
+	rm -f *.o
 	rm -f wc4-level1.ws wc4-level2.ws
+	rm -f test.c test.s test.o test.ws test

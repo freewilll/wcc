@@ -3,3 +3,9 @@ was4
 venv
 __pycache__
 *.pyc
+test.c
+test.s
+test.asm
+test.o
+test.ws
+test
