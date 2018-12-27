@@ -499,12 +499,12 @@ void cleanup_function_call(char **code, int function_call_arg_count) {
     *code = t;
 }
 
-void builtin_function_call(char **t, char *name, int num_args) {
+void builtin_function_call(char **t, char *name, int num_args, int extend_to_long) {
     prepare_function_call(t, num_args);
     *(*t)++ = 0xe8; *t += 4; // callq
     add_function_call_relocation(symbol_index(name), *t - text_data - 4);
     cleanup_function_call(t, num_args);
-    *(*t)++ = 0x48; *(*t)++ = 0x98; // cltq
+    if (extend_to_long) { *(*t)++ = 0x48; *(*t)++ = 0x98; } // cltq
 }
 
 int assemble_file(char *input_filename, char *output_filename) {
@@ -940,15 +940,15 @@ int assemble_file(char *input_filename, char *output_filename) {
             cleanup_function_call(&t, function_call_arg_count);
         }
 
-        else if (!memcmp(instr, "OPEN", 4)) { builtin_function_call(&t, "open",    3); }
-        else if (!memcmp(instr, "READ", 4)) { builtin_function_call(&t, "read",    3); }
-        else if (!memcmp(instr, "CLOS", 4)) { builtin_function_call(&t, "close",   1); }
-        else if (!memcmp(instr, "MALC", 4)) { builtin_function_call(&t, "malloc",  1); }
-        else if (!memcmp(instr, "FREE", 4)) { builtin_function_call(&t, "free",    1); }
-        else if (!memcmp(instr, "MSET", 4)) { builtin_function_call(&t, "memset",  3); }
-        else if (!memcmp(instr, "MCMP", 4)) { builtin_function_call(&t, "memcmp",  3); }
-        else if (!memcmp(instr, "SCMP", 4)) { builtin_function_call(&t, "strcmp",  2); }
-        else if (!memcmp(instr, "EXIT", 4)) { builtin_function_call(&t, "exit",    1); }
+        else if (!memcmp(instr, "OPEN", 4)) { builtin_function_call(&t, "open",    3, 1); }
+        else if (!memcmp(instr, "READ", 4)) { builtin_function_call(&t, "read",    3, 1); }
+        else if (!memcmp(instr, "CLOS", 4)) { builtin_function_call(&t, "close",   1, 1); }
+        else if (!memcmp(instr, "MALC", 4)) { builtin_function_call(&t, "malloc",  1, 0); }
+        else if (!memcmp(instr, "FREE", 4)) { builtin_function_call(&t, "free",    1, 1); }
+        else if (!memcmp(instr, "MSET", 4)) { builtin_function_call(&t, "memset",  3, 1); }
+        else if (!memcmp(instr, "MCMP", 4)) { builtin_function_call(&t, "memcmp",  3, 1); }
+        else if (!memcmp(instr, "SCMP", 4)) { builtin_function_call(&t, "strcmp",  2, 1); }
+        else if (!memcmp(instr, "EXIT", 4)) { builtin_function_call(&t, "exit",    1, 1); }
 
         else {
             printf("Unimplemented instruction: %.5s ", instr);
