@@ -29,7 +29,15 @@ test-inception-codegen: wc4
 	diff $$LEVEL1 $$LEVEL2
 	@echo Two-level deep generated code is identical
 
-test: test-unit test-inception-codegen
+test-assembled-codegen: wc42
+	LEVEL1=$(shell mktemp) ;\
+	LEVEL2=$(shell mktemp) ;\
+	./wc4  -ne -nc -o $$LEVEL1 wc4.c ;\
+	./wc42 -ne -nc -o $$LEVEL2 wc4.c ;\
+	diff $$LEVEL1 $$LEVEL2
+	@echo Generated code by assembled code is identical
+
+test: test-unit test-inception-codegen test-assembled-codegen
 
 clean:
 	rm -f wc4
