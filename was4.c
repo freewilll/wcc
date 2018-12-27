@@ -323,8 +323,12 @@ void write_elf(char *filename, int data_size, int text_size, int strtab_size, in
     s = rela_text_data; d = &program[rela_text_start];  while (s - rela_text_data < rela_text_size) *d++ = *s++;
 
     // Write file
-    f = open(filename, 577, 420); // O_TRUNC=512, O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
-    if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
+    if (!strcmp(filename, "-"))
+        f = 1;
+    else {
+        f = open(filename, 577, 420); // O_TRUNC=512, O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
+        if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
+    }
     written = write(f, program, total_size);
     if (written < 0) { printf("Unable to write to output file %d\n", errno); exit(1); }
     close(f);
@@ -513,9 +517,9 @@ void builtin_function_call(char **t, char *name, int num_args) {
     *(*t)++ = 0x48; *(*t)++ = 0x98; // cltq
 }
 
-int assemble_file(char *filename) {
+int assemble_file(char *input_filename, char *output_filename) {
     int i, f, input_size, filename_len, v, line, function_arg_count, neg, function_call_arg_count, local_stack_size, local_vars_stack_start;
-    char *input, *pi, *instr, *output_filename;
+    char *input, *pi, *instr;
     int vm_address;
     int last_local_symbol, *shstrtab_indexes, *strtab_indexes;
     char *s, *t, *name, **ps, *symbol;
@@ -526,7 +530,7 @@ int assemble_file(char *filename) {
     int *pi1, *pi2;
 
     input = malloc(MAX_INPUT_SIZE);
-    f  = open(filename, 0, 0); // O_RDONLY = 0
+    f  = open(input_filename, 0, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
     input_size = read(f, input, MAX_INPUT_SIZE);
     if (input_size == MAX_INPUT_SIZE) {
@@ -548,10 +552,10 @@ int assemble_file(char *filename) {
     symtab_data = malloc(MAX_SYMTAB_LEN * STE_SIZE);
     memset(symtab_data, MAX_SYMTAB_LEN * STE_SIZE, 0);
 
-    add_symbol("",       0, STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
-    add_symbol(filename, 0, STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 filename
-    add_symbol("",       0, STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2 .data
-    add_symbol("",       0, STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3 .text
+    add_symbol("",             0, STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
+    add_symbol(input_filename, 0, STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 filename
+    add_symbol("",             0, STB_LOCAL,  STT_SECTION, SEC_DATA);  // 2 .data
+    add_symbol("",             0, STB_LOCAL,  STT_SECTION, SEC_TEXT);  // 3 .text
 
     // First pass, the .data section
     string_literal_len = 0;
@@ -1003,19 +1007,6 @@ int assemble_file(char *filename) {
     make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
     link_symtab_strings(symtab_data, strtab_data, num_syms);
 
-    // Write output file with .o extension from an expected source extension of .ws
-    filename_len = wstrlen(filename);
-    if (filename_len > 3 && filename[filename_len - 3] == '.' && filename[filename_len - 2] == 'w' && filename[filename_len - 1] == 's') {
-        output_filename = malloc(filename_len + 2);
-        wstrcpy(output_filename, filename);
-        output_filename[filename_len - 2] = 'o';
-        output_filename[filename_len - 1] = 0;
-    }
-    else {
-        printf("Unable to determine output filename\n");
-        exit(1);
-    }
-
     write_elf(
         output_filename,
         data_size, text_size, strtab_size, rela_text_size,
@@ -1025,25 +1016,48 @@ int assemble_file(char *filename) {
 }
 
 int main(int argc, char **argv) {
-    int help, hello;
-    char *filename;
+    int help, filename_len;
+    char *input_filename, *output_filename;
 
     help = 0;
+    output_filename = 0;
 
     argc--;
     argv++;
     while (argc > 0 && *argv[0] == '-') {
              if (argc > 0 && !memcmp(argv[0], "-h",  3)) { help = 0;  argc--; argv++; }
+        else if (argc > 1 && !memcmp(argv[0], "-o",  2)) {
+            output_filename = argv[1];
+            argc -= 2;
+            argv += 2;
+        }
         else { printf("Unknown argument %s\n", argv[0]); exit(1); }
     }
 
-    if (help) {
+    if (help || argc < 1) {
         printf("Usage: was4 [--hw] FILENAME\n\n");
         printf("Flags\n");
-        printf("--hw    Make hello world\n");
-        printf("-h      Help\n");
+        printf("-o Output filename. Use - for stdout.\n");
+        printf("-h Help\n");
         exit(1);
     }
 
-    assemble_file(argv[0]);
+    input_filename = argv[0];
+
+    if (!output_filename) {
+        // Write output file with .o extension from an expected source extension of .ws
+        filename_len = wstrlen(input_filename);
+        if (filename_len > 3 && input_filename[filename_len - 3] == '.' && input_filename[filename_len - 2] == 'w' && input_filename[filename_len - 1] == 's') {
+            output_filename = malloc(filename_len + 2);
+            wstrcpy(output_filename, input_filename);
+            output_filename[filename_len - 2] = 'o';
+            output_filename[filename_len - 1] = 0;
+        }
+        else {
+            printf("Unable to determine output filename\n");
+            exit(1);
+        }
+    }
+
+    assemble_file(input_filename, output_filename);
 }

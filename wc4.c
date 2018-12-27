@@ -1268,7 +1268,7 @@ int main(int argc, char **argv) {
         printf("-d      Debug output\n");
         printf("-i      Output instructions during execution\n");
         printf("-s      Output symbol table\n");
-        printf("-o      Output code without executing it\n");
+        printf("-o      Output code without executing it. Use - for stdout.\n");
         printf("-ne     Don't print exit code\n");
         printf("-nc     Don't print cycles\n");
         printf("-h      Help\n");

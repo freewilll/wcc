@@ -12,7 +12,10 @@ wc4.ws: wc4 wc4.c
 
 wc42.o: was4 wc4.ws
 	@# tmp is used as a workaround for vagrant nfs being terribly slow when using dprintf in was4
-	./was4 wc4.ws
+	./was4 -o wc42.o wc4.ws
+
+wc42: wc42.o
+	ld wc42.o -o wc42 -lc --dynamic-linker /lib64/ld-linux-x86-64.so.2
 
 .PHONY: test
 test-unit: wc4 was4
