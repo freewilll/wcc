@@ -188,16 +188,6 @@ int wstrcmp(char *str1, char *str2) {
     return 0;
 }
 
-void witoa(char *dst, int number) {
-    int i;
-    i  = 0;
-    while (i < 4) {
-        dst[3 - i] = number % 10 + '0';
-        number = number / 10;
-        i++;
-    }
-}
-
 int align(long address, int alignment) {
     return (address + alignment - 1) & (~(alignment-1));
 }
@@ -411,15 +401,7 @@ int add_global(int *data_size, char *input) {
     }
 }
 
-void add_string_literal(char *input, int *string_literal_len) {
-    char *name;
-
-    name = malloc(8);
-    name[0] = '_'; name[1] = 'S'; name[2] = 'L'; name[6] = 0;
-    witoa(name + 3, (*string_literal_len)++);
-
-    add_symbol(name, data_size, STB_LOCAL, STT_NOTYPE, SEC_DATA);
-
+void add_string_literal(char *input) {
     input += 2;
     while (*input != '"') {
         if (data_size == MAX_DATA_SIZE) {
@@ -526,11 +508,12 @@ int assemble_file(char *input_filename, char *output_filename) {
     int vm_address;
     int *shstrtab_indexes, *strtab_indexes;
     char *s, *t, *name, **ps, *symbol;
-    int string_literal_len;
-    char *main_address, **line_symbols;
+    char *main_address;
+    long *line_string_literals;
     char **vm_address_map; // map VM address as indicated by the first number in the compiler output to its address in .text
     char **jmps;           // map JMP target VM address to address in .text
     int *pi1, *pi2;
+    int string_literal_len;
 
     input = malloc(MAX_INPUT_SIZE);
     f  = open(input_filename, 0, 0); // O_RDONLY = 0
@@ -562,8 +545,8 @@ int assemble_file(char *input_filename, char *output_filename) {
 
     // First pass, the .data section
     string_literal_len = 0;
-    line_symbols = malloc(sizeof(char **) * MAX_LINES);
-    vm_address_map = malloc(sizeof(char **) * MAX_VM_ADDRESS);
+    line_string_literals = malloc(sizeof(long) * MAX_LINES);
+    vm_address_map = malloc(sizeof(long) * MAX_VM_ADDRESS);
     jmps = malloc(sizeof(char **) * MAX_VM_ADDRESS);
     line = 0;
 
@@ -579,8 +562,8 @@ int assemble_file(char *input_filename, char *output_filename) {
             add_global(&data_size, pi);
         }
         else if (!wmemcmp(instr, "IMM", 3) && !wmemcmp(pi, "&\"", 2)) {
-            add_string_literal(pi, &string_literal_len);
-            line_symbols[line] = symtab_data + STE_SIZE * (strtab_len - 1);
+            line_string_literals[line] = data_size;
+            add_string_literal(pi);
         }
 
         while (*pi != '\n') pi++;
@@ -711,11 +694,11 @@ int assemble_file(char *input_filename, char *output_filename) {
                 // A string literal. s is the entry in the relocation table
                 s = rela_text_data + num_rela_text * RELA_SIZE;
                 num_rela_text += 1;
-                *((long *) &s[R_OFFSET]) = t - text_data + 2;
-                *t++ = 0x48; *t++ = 0xb8; // movabs $0x...,%rax
-                t += 8;
-                *((long *) &s[R_INFO]) = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
-                *((long *) &s[R_ADDEND]) = *((long *) &line_symbols[line][ST_VALUE]);        // Address in .data
+                *((long *) &s[R_OFFSET]) = t - text_data + 3;
+                *t++ = 0x48; *t++ = 0x8d; *t++ = 0x05; // lea 0x...(%rip), %rax
+                t += 4;
+                *((long *) &s[R_INFO]) = (long) R_X86_64_PC32 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_PC32 + a link to the .data section
+                *((long *) &s[R_ADDEND]) = *((long *) &line_string_literals[line]) - 4;        // Address in .data - 4
             }
         }
 
