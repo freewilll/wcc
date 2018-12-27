@@ -16,7 +16,8 @@ enum {
     MAX_DATA_SIZE      = 1024 * 1024 * 10,
     MAX_LINES          = 1024 * 1024,
     MAX_VM_ADDRESS     = 1024 * 1024,
-    MAX_RELA_TEXT_SIZE = 1024 * 1024 *10,
+    MAX_RELA_TEXT_SIZE = 1024 * 1024 * 10,
+    MAX_JMPS           = 1024 * 10,
 
     // ELF header
     EI_MAGIC        = 0x00,     // 0x7F followed by ELF(45 4c 46) in ASCII; these four bytes constitute the magic number.
@@ -98,12 +99,16 @@ enum {
     R_X86_64_64     = 1,        // Direct 64 bit relocation
     R_X86_64_PC32   = 2,        // truncate value to 32 bits
 
+    JMP_ADDRESS     = 0,        // The address in .txt for the jump
+    JMP_LINE        = 1,        // The line number of the target
+
     // Sizes of the headers
     EHDR_SIZE       = 0x40,     // Elf header size
     PHDR_SIZE       = 0x38,     // Program header size
     SHDR_SIZE       = 0x40,     // Section header size
     STE_SIZE        = 0x18,     // Symbol table entry size
     RELA_SIZE       = 0x18,     // Relocation section entry size
+    JMP_SIZE        = 0x02,     // Jump table entry size (in longs)
 
     SEC_NULL      = 0,
     SEC_DATA      = 1,
@@ -510,8 +515,8 @@ int assemble_file(char *input_filename, char *output_filename) {
     char *s, *t, *name, **ps, *symbol;
     char *main_address;
     long *line_string_literals;
-    char **vm_address_map; // map VM address as indicated by the first number in the compiler output to its address in .text
-    char **jmps;           // map JMP target VM address to address in .text
+    char **vm_address_map;         // map VM address as indicated by the first number in the compiler output to its address in .text
+    long *jmp, *jmps_start, *jmps; // list of longs, the first long is the address, the second is the target line
     int *pi1, *pi2;
     int string_literal_len;
 
@@ -547,7 +552,9 @@ int assemble_file(char *input_filename, char *output_filename) {
     string_literal_len = 0;
     line_string_literals = malloc(sizeof(long) * MAX_LINES);
     vm_address_map = malloc(sizeof(long) * MAX_VM_ADDRESS);
-    jmps = malloc(sizeof(char **) * MAX_VM_ADDRESS);
+    jmps = malloc(JMP_SIZE * MAX_JMPS);
+    memset(jmps, 0, JMP_SIZE * MAX_JMPS);
+    jmps_start = jmps;
     line = 0;
 
     pi = input;
@@ -736,7 +743,9 @@ int assemble_file(char *input_filename, char *output_filename) {
             v = 0;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
             *t++ = 0x48; *t++ = 0x83; *t++ = 0xf8; *t++ = 0x00; //cmp $0x0,% rax
-            jmps[v] = t + 2;
+            jmps[JMP_ADDRESS] = (long) t + 2;
+            jmps[JMP_LINE] = v;
+            jmps += JMP_SIZE;
             *t++ = 0x0f; *t++ = 0x84; // je ...
             t += 4;
         }
@@ -746,7 +755,9 @@ int assemble_file(char *input_filename, char *output_filename) {
             v = 0;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
             *t++ = 0x48; *t++ = 0x83; *t++ = 0xf8; *t++ = 0x00; //cmp $0x0,% rax
-            jmps[v] = t + 2;
+            jmps[JMP_ADDRESS] = (long) t + 2;
+            jmps[JMP_LINE] = v;
+            jmps += JMP_SIZE;
             *t++ = 0x0f; *t++ = 0x85; // jne ...
             t += 4;
         }
@@ -754,7 +765,9 @@ int assemble_file(char *input_filename, char *output_filename) {
             s = instr + 6;
             v = 0;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
-            jmps[v] = t + 1;
+            jmps[JMP_ADDRESS] = (long) t + 1;
+            jmps[JMP_LINE] = v;
+            jmps += JMP_SIZE;
             *t++ = 0xe9; // jmpq ...
             t += 4;
         }
@@ -955,10 +968,10 @@ int assemble_file(char *input_filename, char *output_filename) {
     }
 
     // Fixup jmps
-    i = 0;
-    while (i < vm_address) {
-        if (jmps[i]) *(int *) jmps[i] = vm_address_map[i] - jmps[i] - 4;
-        i++;
+    jmp = jmps_start;
+    while (*jmp) {
+        *(int *) jmp[JMP_ADDRESS] = (int) ((long) vm_address_map[jmp[JMP_LINE]] - jmp[JMP_ADDRESS] - 4);
+        jmp += JMP_SIZE;
     }
 
     // _start function

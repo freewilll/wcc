@@ -277,8 +277,13 @@ def test_jumps():
             i = 0;
             while (i++ < 10) printf("%d ", i);
             printf("\n");
+
+            if (0) printf("1"); else if (0) printf("2"); else printf("3"); printf("\n");
+            if (0) printf("1"); else if (1) printf("2"); else printf("3"); printf("\n");
+            if (1) printf("1"); else if (0) printf("2"); else printf("3"); printf("\n");
+            if (1) printf("1"); else if (1) printf("2"); else printf("3"); printf("\n");
         }
-    """, "1\n2\nfalse\ntrue\n1 2 3 4 5 6 7 8 9 10 \n", 0)
+    """, "1\n2\nfalse\ntrue\n1 2 3 4 5 6 7 8 9 10 \n3\n2\n1\n1\n", 0)
 
 
 def test_logical_or_and():
