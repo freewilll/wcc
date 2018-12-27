@@ -332,11 +332,11 @@ void write_elf(char *filename, int data_size, int text_size, int strtab_size, in
 
 void add_symbol(char *name, long value, int type, int binding, int section_index) {
     char *s;
-    strtab[(strtab_len)++] = name;
     if (strtab_len == MAX_STRTAB_LEN) {
         printf("Exceeded max strtab length %d\n", MAX_STRTAB_LEN);
         exit(1);
     }
+    strtab[strtab_len++] = name;
 
     s = (symtab_data + STE_SIZE * num_syms);
     *((long *) &s[ST_VALUE]) = value;
@@ -356,7 +356,7 @@ void link_symtab_strings(char *symtab_data, char *strtab_data, int num_syms) {
     s = strtab_data;
     while (i < num_syms) {
         if (*s)
-            symtab_data[i * STE_SIZE + ST_NAME] = s - strtab_data;
+            *((int *) &symtab_data[i * STE_SIZE + ST_NAME]) = s - strtab_data;
         else
             symtab_data[i * STE_SIZE + ST_NAME] = 0;
         while (*s++);
