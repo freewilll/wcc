@@ -837,6 +837,10 @@ int assemble_file(char *input_filename, char *output_filename) {
             *t++ = 0x88; *t++ = 0x07; // mov %al, (%rdi)
         }
 
+        else if (!memcmp(instr, "BNOT", 4)) {
+            *t++ = 0x48; *t++ = 0xf7; *t++ = 0xd0; //not    %rax
+        }
+
         else if (!memcmp(instr, "OR",  2)) {
             *t++ = 0x5a;                                        // pop %rdx
             *t++ = 0x48; *t++ = 0x83; *t++ = 0xfa; *t++ = 0x00; // cmp $0x0, %rdx

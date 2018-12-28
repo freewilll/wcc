@@ -317,6 +317,17 @@ def test_logical_or_and():
     """, "0 0 0 1 \n1 2 1 2 \n0 1 1 1 \n0 0 0 1 \n", 0)
 
 
+def test_bitwise_not():
+    check("""
+        int main() {
+            printf("%d\n", ~0);
+            printf("%d\n", ~1);
+            printf("%d\n", ~2);
+            printf("%d\n", ~3);
+        }
+    """, "-1\n-2\n-3\n-4\n", 0)
+
+
 def test_builtins():
     with tempfile.NamedTemporaryFile() as input_file:
         with open(input_file.name, 'w') as f:
