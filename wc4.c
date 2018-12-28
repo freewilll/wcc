@@ -966,7 +966,7 @@ void parse() {
             else {
                 // Global symbol
                 if (seen_function) {
-                    printf("Global variables must precede all functions\n");
+                    printf("%d: Global variables must precede all functions\n", cur_line);
                     exit(1);
                 }
                 *iptr++ = GLB_TYPE_VARIABLE;
