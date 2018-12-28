@@ -328,7 +328,7 @@ void write_elf(char *filename) {
         if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
     }
     written = write(f, program, total_size);
-    if (written < 0) { printf("Unable to write to output file %d\n", errno); exit(1); }
+    if (written < 0) { printf("Unable to write to output file\n"); exit(1); }
     close(f);
 }
 
