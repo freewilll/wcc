@@ -75,20 +75,22 @@ enum {
     TOK_COLON,
     TOK_OR,
     TOK_AND,
-    TOK_DBL_EQ,         // 30
+    TOK_BITWISE_OR,
+    TOK_XOR,
+    TOK_ADDRESS_OF,     // 30
+    TOK_DBL_EQ,
     TOK_NOT_EQ,
     TOK_LT,
     TOK_GT,
     TOK_LE,
     TOK_GE,
     TOK_PLUS,
-    TOK_MINUS,
+    TOK_MINUS,          // 40
     TOK_MULTIPLY,
     TOK_DIVIDE,
-    TOK_MOD,            // 40
+    TOK_MOD,
     TOK_LOGICAL_NOT,
     TOK_BITWISE_NOT,
-    TOK_ADDRESS_OF,
     TOK_INC,
     TOK_DEC,
 };
@@ -115,6 +117,9 @@ enum {
     INSTR_SC,
     INSTR_OR,
     INSTR_AND,
+    INSTR_BITWISE_OR,
+    INSTR_BITWISE_AND,
+    INSTR_XOR,
     INSTR_EQ,
     INSTR_NE,
     INSTR_LT,
@@ -199,6 +204,8 @@ void next() {
         else if (                        c1 == '!'                     ) { ip += 1; cur_token = TOK_LOGICAL_NOT;                }
         else if (                        c1 == '~'                     ) { ip += 1; cur_token = TOK_BITWISE_NOT;                }
         else if (                        c1 == '&'                     ) { ip += 1; cur_token = TOK_ADDRESS_OF;                 }
+        else if (                        c1 == '|'                     ) { ip += 1; cur_token = TOK_BITWISE_OR;                 }
+        else if (                        c1 == '^'                     ) { ip += 1; cur_token = TOK_XOR;                        }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "if",       2)  ) { ip += 2; cur_token = TOK_IF;                         }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "else",     4)  ) { ip += 4; cur_token = TOK_ELSE;                       }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "int",      3)  ) { ip += 3; cur_token = TOK_INT;                        }
@@ -689,13 +696,34 @@ void expression(int level) {
             *iptr++ = INSTR_NE;
             cur_type = TYPE_INT;
         }
+        else if (cur_token == TOK_ADDRESS_OF) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_DBL_EQ);
+            *iptr++ = INSTR_BITWISE_AND;
+            cur_type = TYPE_INT;
+        }
+        else if (cur_token == TOK_XOR) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_ADDRESS_OF);
+            *iptr++ = INSTR_XOR;
+            cur_type = TYPE_INT;
+        }
+        else if (cur_token == TOK_BITWISE_OR) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_XOR);
+            *iptr++ = INSTR_BITWISE_OR;
+            cur_type = TYPE_INT;
+        }
         else if (cur_token == TOK_AND) {
             temp_iptr = iptr;
             *iptr++ = INSTR_BZ;
             *iptr++ = 0;
             next();
             *iptr++ = INSTR_PSH;
-            expression(TOK_DBL_EQ);
+            expression(TOK_BITWISE_OR);
             *iptr++ = INSTR_AND;
             *(temp_iptr + 1) = (long) iptr;
             cur_type = TYPE_INT;
@@ -1044,7 +1072,7 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
     instr = *pc;
 
     if (print_pc) dprintf(f, "%-15ld ", (long) pc - (long) instructions);
-    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  BNOT LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
+    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  BNOT LEV  LI   LC   SI   SC   OR   AND  BOR  BAND XOR  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
     if (instr <= INSTR_ADJ) {
         operand = *(pc + 1);
         symbol = (long *) *(pc + 3);
@@ -1191,6 +1219,9 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
         else if (instr == INSTR_AND) a = *sp++ && a;
+        else if (instr == INSTR_BITWISE_OR) a = *sp++ | a;
+        else if (instr == INSTR_BITWISE_AND) a = *sp++ & a;
+        else if (instr == INSTR_XOR) a = *sp++ ^ a;
         else if (instr == INSTR_BNOT) a = ~ a;
         else if (instr == INSTR_EQ ) a = *sp++ == a;
         else if (instr == INSTR_NE ) a = *sp++ != a;

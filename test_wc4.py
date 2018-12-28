@@ -86,6 +86,10 @@ def check_output(code, expected_output, with_exit_code=False):
     ("1 && 0",          0),
     ("1 && 1",          1),
 
+    ("3 & 5",           1),
+    ("3 | 5",           7),
+    ("3 ^ 5",           6),
+
     # Operator precedence tests
     ("1+2==3",          1),
     ("1+2>=3==1",       1),
@@ -107,7 +111,12 @@ def check_output(code, expected_output, with_exit_code=False):
     ("1 + 0 && 1",      1),
     ("1 + 1 && 0",      0),
     ("1 + 1 && 1",      1),
+
+    ("0 ==  1  & 0",    0),
+    ("1 &   1  ^ 3",    2),
+    ("1 ^   1  | 1",    1),
 ])
+
 def test_expr(expr, expected_result):
     check_exit_code("int main() {return %s;}" % expr, expected_result)
 

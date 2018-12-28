@@ -841,12 +841,27 @@ int assemble_file(char *input_filename, char *output_filename) {
             *t++ = 0x48; *t++ = 0xf7; *t++ = 0xd0; //not    %rax
         }
 
+        else if (!memcmp(instr, "BOR", 3)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x09; *t++ = 0xd0;              // or %rax, %rdx
+        }
+
+        else if (!memcmp(instr, "BAND", 4)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x21; *t++ = 0xd0;              // and %rax, %rdx
+        }
+
+        else if (!memcmp(instr, "XOR", 3)) {
+            *t++ = 0x5a;                                        // pop %rdx
+            *t++ = 0x48; *t++ = 0x31; *t++ = 0xd0;              // xor %rax, %rdx
+        }
+
         else if (!memcmp(instr, "OR",  2)) {
             *t++ = 0x5a;                                        // pop %rdx
             *t++ = 0x48; *t++ = 0x83; *t++ = 0xfa; *t++ = 0x00; // cmp $0x0, %rdx
             *t++ = 0x0f; *t++ = 0x84;                           // jne end
             *t++ = 0x03; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;
-            *t++ = 0x48;  *t++ = 0x89;  *t++ = 0xd0;            // mov %rdx, %rax
+            *t++ = 0x48; *t++ = 0x89;  *t++ = 0xd0;             // mov %rdx, %rax
         }
 
         else if (!memcmp(instr, "AND", 3)) {
@@ -854,7 +869,7 @@ int assemble_file(char *input_filename, char *output_filename) {
             *t++ = 0x48; *t++ = 0x83; *t++ = 0xfa; *t++ = 0x00; // cmp $0x0, %rdx
             *t++ = 0x0f; *t++ = 0x85;                           // je end
             *t++ = 0x03; *t++ = 0x00; *t++ = 0x00; *t++ = 0x00;
-            *t++ = 0x48;  *t++ = 0x89;  *t++ = 0xd0;            // mov %rdx, %rax
+            *t++ = 0x48; *t++ = 0x89;  *t++ = 0xd0;             // mov %rdx, %rax
         }
 
         else if (!memcmp(instr, "EQ",  2)) {
