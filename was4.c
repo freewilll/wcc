@@ -9,15 +9,15 @@
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h
 
 enum {
-    MAX_SYMTAB_LEN     = 1024 * 10,
+    MAX_SYMTAB_LEN     = 102410,
     MAX_STRTAB_LEN     = 1024,
-    MAX_INPUT_SIZE     = 1024 * 1024 * 10,
-    MAX_TEXT_SIZE      = 1024 * 1024 * 10,
-    MAX_DATA_SIZE      = 1024 * 1024 * 10,
-    MAX_LINES          = 1024 * 1024,
-    MAX_VM_ADDRESS     = 1024 * 1024,
-    MAX_RELA_TEXT_SIZE = 1024 * 1024 * 10,
-    MAX_JMPS           = 1024 * 10,
+    MAX_INPUT_SIZE     = 10485760,
+    MAX_TEXT_SIZE      = 10485760,
+    MAX_DATA_SIZE      = 10485760,
+    MAX_LINES          = 1048576,
+    MAX_VM_ADDRESS     = 1048576,
+    MAX_RELA_TEXT_SIZE = 10485760,
+    MAX_JMPS           = 102410,
 
     // ELF header
     EI_MAGIC        = 0x00,     // 0x7F followed by ELF(45 4c 46) in ASCII; these four bytes constitute the magic number.
@@ -128,6 +128,24 @@ enum {
     ET_REL = 1,                         // relocatable
 };
 
+char *rela_text_data;
+int num_rela_text;
+char **strtab;
+int strtab_len;
+char *symtab_data;
+int num_syms;
+int data_size, text_size, strtab_size, rela_text_size;
+char *data_data, *text_data, *strtab_data, *shstrtab_data, *symtab_data, *strtab_data, *rela_text_data;
+int data_size, text_size, strtab_size, rela_text_size;
+int last_local_symbol, num_syms;
+int shstrtab_len;
+char **shstrtab;
+int *shstrtab_indexes, *strtab_indexes;
+int symtab_size;
+int shstrtab_size;
+long text_start, shdr_start, shstrtab_start, data_start, strtab_start, symtab_start, rela_text_start;
+long total_size;
+
 void wstrcpy(char *dst, char *src) {
     while (*dst++ = *src++);
 }
@@ -152,24 +170,6 @@ char *wstrdup(char *src) {
     while (*dst++ = *src++);
     return dst;
 }
-
-char *rela_text_data;
-int num_rela_text;
-char **strtab;
-int strtab_len;
-char *symtab_data;
-int num_syms;
-int data_size, text_size, strtab_size, rela_text_size;
-char *data_data, *text_data, *strtab_data, *shstrtab_data, *symtab_data, *strtab_data, *rela_text_data;
-int data_size, text_size, strtab_size, rela_text_size;
-int last_local_symbol, num_syms;
-int shstrtab_len;
-char **shstrtab;
-int *shstrtab_indexes, *strtab_indexes;
-int symtab_size;
-int shstrtab_size;
-long text_start, shdr_start, shstrtab_start, data_start, strtab_start, symtab_start, rela_text_start;
-long total_size;
 
 // Since we don't do negatives, this returns either zero or one.
 // zero if the strings are equal, one otherwise.
