@@ -115,6 +115,17 @@ def check_output(code, expected_output, with_exit_code=False):
     ("0 ==  1  & 0",    0),
     ("1 &   1  ^ 3",    2),
     ("1 ^   1  | 1",    1),
+
+    # Hex
+    ("0x0",             0),
+    ("0x1",             1),
+    ("0x9",             9),
+    ("0xa",            10),
+    ("0xf",            15),
+    ("0x10",           16),
+    ("0x40",           64),
+    ("0xff",          255),
+    ("0x100",         256),
 ])
 
 def test_expr(expr, expected_result):

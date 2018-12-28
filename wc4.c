@@ -234,6 +234,17 @@ void next() {
             cur_identifier = id;
         }
 
+        else if (c1 == '0' && input_size - ip >= 2 && i[ip+1] == 'x') {
+            ip += 2;
+            cur_token = TOK_NUMBER;
+            value = 0;
+            while (((i[ip] >= '0' && i[ip] <= '9')  || (i[ip] >= 'a' && i[ip] <= 'f')) && ip < input_size) {
+                value = value * 16 + (i[ip] >= 'a' ? i[ip] - 'a' + 10 : i[ip] - '0');
+                ip++;
+            }
+            cur_integer = value;
+        }
+
         else if ((c1 >= '0' && c1 <= '9')) {
             cur_token = TOK_NUMBER;
             value = 0;
