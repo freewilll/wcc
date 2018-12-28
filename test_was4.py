@@ -323,44 +323,52 @@ def test_builtins():
             f.write("foo\n");
             f.flush()
 
-            with tempfile.NamedTemporaryFile(delete=False) as output_file:
-                check("""
-                    int main(int argc, char **argv) {
-                        int f;
-                        char *data;
+            with tempfile.NamedTemporaryFile(delete=False) as output_file1:
+                with tempfile.NamedTemporaryFile(delete=False) as output_file2:
+                    check("""
+                        int main(int argc, char **argv) {
+                            int f;
+                            char *data;
 
-                        data = malloc(16);
-                        f = open("%s", 0, 0);
-                        if (f < 0) { printf("bad FH\\n"); exit(1); }
-                        printf("%%ld\\n", read(f, data, 16));
-                        printf("%%s", data);
-                        close(f);
+                            data = malloc(16);
+                            f = open("%s", 0, 0);
+                            if (f < 0) { printf("bad FH\\n"); exit(1); }
+                            printf("%%ld\\n", read(f, data, 16));
+                            printf("%%s", data);
+                            close(f);
 
-                        memset(data, 0, 16);
-                        data[0] = 'b';
-                        data[1] = 'a';
-                        data[2] = 'r';
-                        printf("%%s\\n", data);
+                            memset(data, 0, 16);
+                            data[0] = 'b';
+                            data[1] = 'a';
+                            data[2] = 'r';
+                            printf("%%s\\n", data);
 
-                        printf("%%d\\n", memcmp(data, "foo", 3) == 0);
-                        printf("%%d\\n", memcmp(data, "bar", 3) == 0);
+                            printf("%%d\\n", memcmp(data, "foo", 3) == 0);
+                            printf("%%d\\n", memcmp(data, "bar", 3) == 0);
 
-                        printf("%%d\\n", strcmp(data, "foo") == 0);
-                        printf("%%d\\n", strcmp(data, "bar") == 0);
+                            printf("%%d\\n", strcmp(data, "foo") == 0);
+                            printf("%%d\\n", strcmp(data, "bar") == 0);
 
-                        free(data);
+                            free(data);
 
-                        f = open("%s", 577, 420);
-                        if (f < 0) { printf("bad FH\\n"); exit(1); }
-                        dprintf(f, "foo\\n");
-                        close(f);
+                            f = open("%s", 577, 420);
+                            if (f < 0) { printf("bad FH\\n"); exit(1); }
+                            dprintf(f, "foo\\n");
+                            close(f);
 
-                        exit(4);
-                    }
-                """ % (input_file.name, output_file.name), "4\nfoo\nbar\n0\n1\n0\n1\n", 4);
+                            f = open("%s", 577, 420);
+                            if (f < 0) { printf("bad FH\\n"); exit(1); }
+                            write(f, "bar\\n", 4);
+                            close(f);
 
-                with open(output_file.name) as f:
-                    assert f.read() == "foo\n"
+                            exit(4);
+                        }
+                    """ % (input_file.name, output_file1.name, output_file2.name), "4\nfoo\nbar\n0\n1\n0\n1\n", 4);
+
+                    with open(output_file1.name) as f:
+                        assert f.read() == "foo\n"
+                    with open(output_file2.name) as f:
+                        assert f.read() == "bar\n"
 
 
 def check_negative_imm():

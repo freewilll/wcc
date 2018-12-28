@@ -592,6 +592,7 @@ int assemble_file(char *input_filename, char *output_filename) {
     add_symbol("strcmp",  0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
     add_symbol("open",    0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
     add_symbol("read",    0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
+    add_symbol("write",   0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
     add_symbol("close",   0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
     add_symbol("exit",    0, STB_GLOBAL, STT_NOTYPE, SHN_UNDEF);
 
@@ -942,6 +943,7 @@ int assemble_file(char *input_filename, char *output_filename) {
 
         else if (!memcmp(instr, "OPEN", 4)) { builtin_function_call(&t, "open",    3, 1); }
         else if (!memcmp(instr, "READ", 4)) { builtin_function_call(&t, "read",    3, 1); }
+        else if (!memcmp(instr, "WRIT", 4)) { builtin_function_call(&t, "write",   3, 1); }
         else if (!memcmp(instr, "CLOS", 4)) { builtin_function_call(&t, "close",   1, 1); }
         else if (!memcmp(instr, "MALC", 4)) { builtin_function_call(&t, "malloc",  1, 0); }
         else if (!memcmp(instr, "FREE", 4)) { builtin_function_call(&t, "free",    1, 1); }
