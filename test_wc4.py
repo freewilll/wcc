@@ -90,6 +90,14 @@ def check_output(code, expected_output, with_exit_code=False):
     ("3 | 5",           7),
     ("3 ^ 5",           6),
 
+    ("1 << 2",                         4),
+    ("1 << 3",                         8),
+    ("1 << 31",               2147483648),
+    ("1 << 63",     -9223372036854775808),
+    ("256 >> 2",                      64),
+    ("256 >> 3",                      32),
+    ("8192 >> 8",                     32),
+
     # Operator precedence tests
     ("1+2==3",          1),
     ("1+2>=3==1",       1),
@@ -116,6 +124,9 @@ def check_output(code, expected_output, with_exit_code=False):
     ("1 &   1  ^ 3",    2),
     ("1 ^   1  | 1",    1),
 
+    ("1 + 1 << 4",     32), # + binds more strongly than <<
+    ("1 + 16 >> 3",     2), # + binds more strongly than >>
+
     # Hex
     ("0x0",             0),
     ("0x1",             1),
@@ -127,7 +138,6 @@ def check_output(code, expected_output, with_exit_code=False):
     ("0xff",          255),
     ("0x100",         256),
 ])
-
 def test_expr(expr, expected_result):
     check_exit_code("int main() {return %s;}" % expr, expected_result)
 

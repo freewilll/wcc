@@ -851,6 +851,20 @@ int assemble_file(char *input_filename, char *output_filename) {
             *t++ = 0x48; *t++ = 0x21; *t++ = 0xd0;              // and %rax, %rdx
         }
 
+        else if (!memcmp(instr, "BWL", 3)) {
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0xc1; // mov    %rax,%rcx
+            *t++ = 0x58;                           // pop    %rax
+            // *t++ = 0X59;                                        // pop %rcx
+            *t++ = 0x48; *t++ = 0xd3; *t++ = 0xe0;              // shl %cl, %rax
+        }
+
+        else if (!memcmp(instr, "BWR", 3)) {
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0xc1; // mov    %rax,%rcx
+            *t++ = 0x58;                           // pop    %rax
+            // *t++ = 0X59;                                        // pop %rcx
+            *t++ = 0x48; *t++ = 0xd3; *t++ = 0xf8;              // sar %cl, %rax
+        }
+
         else if (!memcmp(instr, "XOR", 3)) {
             *t++ = 0x5a;                                        // pop %rdx
             *t++ = 0x48; *t++ = 0x31; *t++ = 0xd0;              // xor %rax, %rdx

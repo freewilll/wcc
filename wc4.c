@@ -84,6 +84,8 @@ enum {
     TOK_GT,
     TOK_LE,
     TOK_GE,
+    TOK_BITWISE_LEFT,
+    TOK_BITWISE_RIGHT,
     TOK_PLUS,
     TOK_MINUS,          // 40
     TOK_MULTIPLY,
@@ -126,6 +128,8 @@ enum {
     INSTR_GT,
     INSTR_LE,
     INSTR_GE,
+    INSTR_BWL,
+    INSTR_BWR,
     INSTR_ADD,
     INSTR_SUB,
     INSTR_MUL,
@@ -192,6 +196,8 @@ void next() {
         else if (input_size - ip >= 2 && c1 == '!' && c2 == '='        ) { ip += 2; cur_token = TOK_NOT_EQ;                     }
         else if (input_size - ip >= 2 && c1 == '<' && c2 == '='        ) { ip += 2; cur_token = TOK_LE;                         }
         else if (input_size - ip >= 2 && c1 == '>' && c2 == '='        ) { ip += 2; cur_token = TOK_GE;                         }
+        else if (input_size - ip >= 2 && c1 == '>' && c2 == '>'        ) { ip += 2; cur_token = TOK_BITWISE_RIGHT;              }
+        else if (input_size - ip >= 2 && c1 == '<' && c2 == '<'        ) { ip += 2; cur_token = TOK_BITWISE_LEFT;               }
         else if (input_size - ip >= 2 && c1 == '+' && c2 == '+'        ) { ip += 2; cur_token = TOK_INC;                        }
         else if (input_size - ip >= 2 && c1 == '-' && c2 == '-'        ) { ip += 2; cur_token = TOK_DEC;                        }
         else if (input_size - ip >= 2 && c1 == '+' && c2 == '='        ) { ip += 2; cur_token = TOK_PLUS_EQ;                    }
@@ -665,10 +671,24 @@ void expression(int level) {
             *iptr++ = org_token == TOK_PLUS ? INSTR_ADD : INSTR_SUB;
             cur_type = org_type;
         }
-        else if (cur_token == TOK_LT) {
+        else if (cur_token == TOK_BITWISE_LEFT) {
             next();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
+            *iptr++ = INSTR_BWL;
+            cur_type = TYPE_INT;
+        }
+        else if (cur_token == TOK_BITWISE_RIGHT) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_PLUS);
+            *iptr++ = INSTR_BWR;
+            cur_type = TYPE_INT;
+        }
+        else if (cur_token == TOK_LT) {
+            next();
+            *iptr++ = INSTR_PSH;
+            expression(TOK_BITWISE_LEFT);
             *iptr++ = INSTR_LT;
             cur_type = TYPE_INT;
         }
@@ -1083,7 +1103,7 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
     instr = *pc;
 
     if (print_pc) dprintf(f, "%-15ld ", (long) pc - (long) instructions);
-    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  BNOT LEV  LI   LC   SI   SC   OR   AND  BOR  BAND XOR  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
+    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  BNOT LEV  LI   LC   SI   SC   OR   AND  BOR  BAND XOR  EQ   NE   LT   GT   LE   GE   BWL  BWR  ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
     if (instr <= INSTR_ADJ) {
         operand = *(pc + 1);
         symbol = (long *) *(pc + 3);
@@ -1240,6 +1260,8 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_GT ) a = *sp++ > a;
         else if (instr == INSTR_LE ) a = *sp++ <= a;
         else if (instr == INSTR_GE ) a = *sp++ >= a;
+        else if (instr == INSTR_BWL ) a = *sp++ << a;
+        else if (instr == INSTR_BWR ) a = *sp++ >> a;
         else if (instr == INSTR_ADD) a = *sp++ + a;
         else if (instr == INSTR_SUB) a = *sp++ - a;
         else if (instr == INSTR_MUL) a = *sp++ * a;
