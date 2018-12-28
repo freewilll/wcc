@@ -493,21 +493,31 @@ def test_mem_functions():
     ]) + "\n");
 
 
-def test_open_read_close():
-    with tempfile.NamedTemporaryFile() as temp:
-        with open(temp.name, 'w') as f:
-            f.write("foo\n");
+def test_open_read_write_close():
+    with tempfile.NamedTemporaryFile() as input_file:
+        with open(input_file.name, 'w') as f:
+            f.write("foo\n")
+            f.flush()
 
-        check_output("""
-            int main(int argc, char **argv) {
-                int f;
-                char *data;
-                data = malloc(16);
-                f = open("%s", 0, 0);
-                printf("%%zd\n", read(f, data, 16));
-                close(f);
-            }
-        """ % temp.name, "4\n")
+            with tempfile.NamedTemporaryFile(delete=False) as output_file:
+                check_output("""
+                    int main(int argc, char **argv) {
+                        int f;
+                        char *data;
+                        data = malloc(16);
+                        f = open("%s", 0, 0);
+                        printf("%%zd\n", read(f, data, 16));
+                        close(f);
+
+                        f = open("%s", 577, 420);
+                        if (f < 0) { printf("bad FH\\n"); exit(1); }
+                        write(f, "foo\n", 4);
+                        close(f);
+                    }
+                """ % (input_file.name, output_file.name), "4\n")
+
+                with open(output_file.name) as f:
+                    assert f.read() == "foo\n"
 
 def test_plus_equals():
     check_output("""

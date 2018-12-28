@@ -127,6 +127,7 @@ enum {
     INSTR_PSH,
     INSTR_OPEN,
     INSTR_READ,
+    INSTR_WRIT,
     INSTR_CLOS,
     INSTR_PRTF,
     INSTR_DPRT,
@@ -1015,7 +1016,7 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
     instr = *pc;
 
     if (print_pc) dprintf(f, "%-15ld ", (long) pc - (long) instructions);
-    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
+    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  LEV  LI   LC   SI   SC   OR   AND  EQ   NE   LT   GT   LE   GE   ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
     if (instr <= INSTR_ADJ) {
         operand = *(pc + 1);
         symbol = (long *) *(pc + 3);
@@ -1175,6 +1176,7 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_MOD) a = *sp++ % a;
         else if (instr == INSTR_OPEN) { a = open((char *) sp[2], sp[1], *sp); sp += 3; }
         else if (instr == INSTR_READ) { a = read(sp[2], (char *) sp[1], *sp); sp += 3; }
+        else if (instr == INSTR_WRIT) { a = write(sp[2], (char *) sp[1], *sp); sp += 3; }
         else if (instr == INSTR_CLOS) a = close(*sp++);
         else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8]); sp += *(pc - 1); }
         else if (instr == INSTR_DPRT) { t = sp + *pc++; a = dprintf(t[-1], (char *)t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8]); sp += *(pc - 1); }
@@ -1299,6 +1301,7 @@ int main(int argc, char **argv) {
     add_builtin("exit",    INSTR_EXIT);
     add_builtin("open",    INSTR_OPEN);
     add_builtin("read",    INSTR_READ);
+    add_builtin("write",   INSTR_WRIT);
     add_builtin("close",   INSTR_CLOS);
     add_builtin("printf",  INSTR_PRTF);
     add_builtin("dprintf", INSTR_DPRT);
