@@ -342,7 +342,7 @@ void add_symbol(char *name, long value, int type, int binding, int section_index
 
     s = (symtab_data + STE_SIZE * num_syms);
     *((long *) &s[ST_VALUE]) = value;
-    s[ST_INFO] = (type  << 4) + binding;
+    s[ST_INFO] = (type << 4) + binding;
     *((short *) &s[ST_SHNDX]) = section_index;
     (*symtab_data) += STE_SIZE;
 
