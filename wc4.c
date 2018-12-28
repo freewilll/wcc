@@ -307,14 +307,21 @@ long lookup_function(char *name) {
     return symbol[SYMBOL_VALUE];
 }
 
-int parse_type() {
+int parse_base_type() {
     int type;
 
     if (cur_token == TOK_VOID) type = TYPE_VOID;
     else if (cur_token == TOK_INT) type = TYPE_INT;
     else if (cur_token == TOK_CHAR) type = TYPE_CHAR;
-
     next();
+
+    return type;
+}
+
+int parse_type() {
+    int type;
+
+    type = parse_base_type();
     while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
     return type;
 }
@@ -866,7 +873,6 @@ void function_body(char *func_name, int param_count) {
                 exit(1);
             }
 
-
             expect(TOK_IDENTIFIER);
             cur_symbol = next_symbol;
             next_symbol[SYMBOL_TYPE] = type;
@@ -901,10 +907,11 @@ void function_body(char *func_name, int param_count) {
 }
 
 void parse() {
-    int type;
+    int base_type, type;
     long number;
     int param_count;
     int seen_function;
+    int doing_var_declaration;
 
     cur_scope = 0;
     seen_function = 0;
@@ -916,63 +923,75 @@ void parse() {
         }
 
         if (cur_token == TOK_VOID || cur_token == TOK_INT || cur_token == TOK_CHAR) {
-            type = parse_type();
-            expect(TOK_IDENTIFIER);
-            cur_symbol = next_symbol;
-            next_symbol[SYMBOL_TYPE] = type;
-            next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
-            next_symbol[SYMBOL_STACK_INDEX] = global_variable_count++;
-            next_symbol[SYMBOL_SCOPE] = 0;
-            next_symbol += SYMBOL_SIZE;
-            next();
+            doing_var_declaration = 1;
+            base_type = parse_base_type();
 
-            *iptr++ = INSTR_GLB;
-            *iptr++ = (long) cur_identifier;
-            *iptr++ = type == TYPE_CHAR ? 1 : sizeof(long);
+            while (doing_var_declaration && cur_token != TOK_SEMI && cur_token != TOK_EOF) {
+                type = base_type;
+                while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
-            if (cur_token == TOK_LPAREN) {
-                *iptr++ = GLB_TYPE_FUNCTION;
-                seen_function = 1;
-                cur_scope++;
+                expect(TOK_IDENTIFIER);
+                cur_symbol = next_symbol;
+                next_symbol[SYMBOL_TYPE] = type;
+                next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
+                next_symbol[SYMBOL_STACK_INDEX] = global_variable_count++;
+                next_symbol[SYMBOL_SCOPE] = 0;
+                next_symbol += SYMBOL_SIZE;
                 next();
 
-                // Function definition
-                cur_symbol[SYMBOL_VALUE] = (long) iptr;
-                param_count = 0;
-                while (cur_token != TOK_RPAREN) {
-                    if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-                        type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
-                        next();
-                        while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+                *iptr++ = INSTR_GLB;
+                *iptr++ = (long) cur_identifier;
+                *iptr++ = type == TYPE_CHAR ? 1 : sizeof(long);
+
+                if (cur_token == TOK_LPAREN) {
+                    *iptr++ = GLB_TYPE_FUNCTION;
+                    seen_function = 1;
+                    cur_scope++;
+                    next();
+
+                    // Function definition
+                    cur_symbol[SYMBOL_VALUE] = (long) iptr;
+                    param_count = 0;
+                    while (cur_token != TOK_RPAREN) {
+                        if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+                            type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
+                            next();
+                            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+                        }
+                        else {
+                            printf("%d: Unknown type token in function def %d\n", cur_line, cur_token);
+                            exit(1);
+                        }
+
+                        consume(TOK_IDENTIFIER);
+                        next_symbol[SYMBOL_TYPE] = type;
+                        next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
+                        next_symbol[SYMBOL_SCOPE] = cur_scope;
+                        next_symbol[SYMBOL_STACK_INDEX] = param_count++;
+                        next_symbol += SYMBOL_SIZE;
+                        if (cur_token == TOK_COMMA) next();
                     }
-                    else {
-                        printf("%d: Unknown type token in function def %d\n", cur_line, cur_token);
+                    cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
+                    consume(TOK_RPAREN);
+                    cur_function_symbol = cur_symbol;
+                    function_body((char *) cur_symbol[SYMBOL_IDENTIFIER], param_count);
+                    doing_var_declaration = 0;
+                }
+                else {
+                    // Global symbol
+                    if (seen_function) {
+                        printf("%d: Global variables must precede all functions\n", cur_line);
                         exit(1);
                     }
+                    *iptr++ = GLB_TYPE_VARIABLE;
+                    cur_symbol[SYMBOL_VALUE] = (long) data;
+                    data += sizeof(long);
+                }
 
-                    consume(TOK_IDENTIFIER);
-                    next_symbol[SYMBOL_TYPE] = type;
-                    next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
-                    next_symbol[SYMBOL_SCOPE] = cur_scope;
-                    next_symbol[SYMBOL_STACK_INDEX] = param_count++;
-                    next_symbol += SYMBOL_SIZE;
-                    if (cur_token == TOK_COMMA) next();
-                }
-                cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
-                consume(TOK_RPAREN);
-                cur_function_symbol = cur_symbol;
-                function_body((char *) cur_symbol[SYMBOL_IDENTIFIER], param_count);
+                if (cur_token == TOK_COMMA) next();
             }
-            else {
-                // Global symbol
-                if (seen_function) {
-                    printf("%d: Global variables must precede all functions\n", cur_line);
-                    exit(1);
-                }
-                *iptr++ = GLB_TYPE_VARIABLE;
-                cur_symbol[SYMBOL_VALUE] = (long) data;
-                data += sizeof(long);
-            }
+
+            if (cur_token == TOK_SEMI) next();
         }
 
         else if (cur_token == TOK_ENUM) {

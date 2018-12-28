@@ -446,7 +446,7 @@ def test_casting():
     """, "8\n1\n")
 
 
-def test_comma_var_declarations():
+def test_local_comma_var_declarations():
     check_output("""
         int main(int argc, char **argv) {
             int i, *pi;
@@ -455,6 +455,18 @@ def test_comma_var_declarations():
             printf("%d ", *pi);
             *pi = 2;
             printf("%d\n", *pi);
+        }
+    """, "1 2\n")
+
+
+def test_global_comma_var_declarations():
+    check_output("""
+        int i, j;
+
+        int main() {
+            i = 1;
+            j = 2;
+            printf("%d %d\n", i, j);
         }
     """, "1 2\n")
 
