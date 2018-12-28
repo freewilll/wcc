@@ -242,69 +242,172 @@ def test_postfix_inc_dec():
 def test_inc_dec_sizes():
     check_output("""
         int main(int argc, char **argv) {
-            int i;
-            int *pi;
-            int **ppi;
             char c;
             char *pc;
             char **ppc;
+            short s;
+            short *ps;
+            short **pps;
+            int i;
+            int *pi;
+            int **ppi;
+            long l;
+            long *pl;
+            long **ppl;
 
-            i = 0;
-            pi = 0;
-            ppi = 0;
             c = 0;
             pc = 0;
             ppc = 0;
+            s = 0;
+            ps = 0;
+            pps = 0;
+            i = 0;
+            pi = 0;
+            ppi = 0;
+            l = 0;
+            pl = 0;
+            ppl = 0;
+
+            c++;   printf("%d ", c);    c--;   printf("%d ", c);   ++c;   printf("%d ", c);    c--;   printf("%d\n", c);
+            pc++;  printf("%d ", pc);   pc--;  printf("%d ", pc);  ++pc;  printf("%d ", pc);   pc--;  printf("%d\n", pc);
+            ppc++; printf("%d ", ppc);  ppc--; printf("%d ", ppc); ++ppc; printf("%d ", ppc);  ppc--; printf("%d\n", ppc);
+
+            s++;   printf("%d ", s);    s--;   printf("%d ", s);   ++s;   printf("%d ", s);    s--;   printf("%d\n", s);
+            ps++;  printf("%d ", ps);   ps--;  printf("%d ", ps);  ++ps;  printf("%d ", ps);   ps--;  printf("%d\n", ps);
+            pps++; printf("%d ", pps);  pps--; printf("%d ", pps); ++pps; printf("%d ", pps);  pps--; printf("%d\n", pps);
 
             i++;   printf("%d ", i);    i--;   printf("%d ", i);   ++i;   printf("%d ", i);    i--;   printf("%d\n", i);
             pi++;  printf("%d ", pi);   pi--;  printf("%d ", pi);  ++pi;  printf("%d ", pi);   pi--;  printf("%d\n", pi);
             ppi++; printf("%d ", ppi);  ppi--; printf("%d ", ppi); ++ppi; printf("%d ", ppi);  ppi--; printf("%d\n", ppi);
-            c++;   printf("%d ", c);    c--;   printf("%d ", c);   ++c;   printf("%d ", c);    c--;   printf("%d\n", c);
-            pc++;  printf("%d ", pc);   pc--;  printf("%d ", pc);  ++pc;  printf("%d ", pc);   pc--;  printf("%d\n", pc);
-            ppc++; printf("%d ", ppc);  ppc--; printf("%d ", ppc); ++ppc; printf("%d ", ppc);  ppc--; printf("%d\n", ppc);
+
+            l++;   printf("%d ", l);    l--;   printf("%d ", l);   ++l;   printf("%d ", l);    l--;   printf("%d\n", l);
+            pl++;  printf("%d ", pl);   pl--;  printf("%d ", pl);  ++pl;  printf("%d ", pl);   pl--;  printf("%d\n", pl);
+            ppl++; printf("%d ", ppl);  ppl--; printf("%d ", ppl); ++ppl; printf("%d ", ppl);  ppl--; printf("%d\n", ppl);
         }
     """, "\n".join([
         "1 0 1 0",
-        "8 0 8 0",
+        "1 0 1 0",
         "8 0 8 0",
         "1 0 1 0",
+        "2 0 2 0",
+        "8 0 8 0",
         "1 0 1 0",
-        "8 0 8 0"
+        "4 0 4 0",
+        "8 0 8 0",
+        "1 0 1 0",
+        "8 0 8 0",
+        "8 0 8 0",
     ]) + "\n");
 
 
 def test_pointer_arithmetic():
     check_output("""
         int main(int argc, char **argv) {
-            int i;
-            int *pi;
-            int **ppi;
             char c;
             char *pc;
             char **ppc;
+            int s;
+            int *ps;
+            int **pps;
+            int i;
+            int *pi;
+            int **ppi;
+            int l;
+            int *pl;
+            int **ppl;
 
-            i = 0;
-            pi = 0;
-            ppi = 0;
             c = 0;
             pc = 0;
             ppc = 0;
+            s = 0;
+            ps = 0;
+            pps = 0;
+            i = 0;
+            pi = 0;
+            ppi = 0;
+            l = 0;
+            pl = 0;
+            ppl = 0;
 
-            i   = i   + 1; printf("%02d ", i);    i   = i   + 2; printf("%02d ", i);   i   = i   - 3; printf("%02d\n", i);    i   = i   - 1;
-            pi  = pi  + 1; printf("%02d ", pi);   pi  = pi  + 2; printf("%02d ", pi);  pi  = pi  - 3; printf("%02d\n", pi);   pi  = pi  - 1;
-            ppi = ppi + 1; printf("%02d ", ppi);  ppi = ppi + 2; printf("%02d ", ppi); ppi = ppi - 3; printf("%02d\n", ppi);  ppi = ppi - 1;
             c   = c   + 1; printf("%02d ", c);    c   = c   + 2; printf("%02d ", c);   c   = c   - 3; printf("%02d\n", c);    c   = c   - 1;
             pc  = pc  + 1; printf("%02d ", pc);   pc  = pc  + 2; printf("%02d ", pc);  pc  = pc  - 3; printf("%02d\n", pc);   pc  = pc  - 1;
             ppc = ppc + 1; printf("%02d ", ppc);  ppc = ppc + 2; printf("%02d ", ppc); ppc = ppc - 3; printf("%02d\n", ppc);  ppc = ppc - 1;
+            s   = s   + 1; printf("%02d ", s);    s   = s   + 2; printf("%02d ", s);   s   = s   - 3; printf("%02d\n", s);    s   = s   - 1;
+            ps  = ps  + 1; printf("%02d ", ps);   ps  = ps  + 2; printf("%02d ", ps);  ps  = ps  - 3; printf("%02d\n", ps);   ps  = ps  - 1;
+            pps = pps + 1; printf("%02d ", pps);  pps = pps + 2; printf("%02d ", pps); pps = pps - 3; printf("%02d\n", pps);  pps = pps - 1;
+            i   = i   + 1; printf("%02d ", i);    i   = i   + 2; printf("%02d ", i);   i   = i   - 3; printf("%02d\n", i);    i   = i   - 1;
+            pi  = pi  + 1; printf("%02d ", pi);   pi  = pi  + 2; printf("%02d ", pi);  pi  = pi  - 3; printf("%02d\n", pi);   pi  = pi  - 1;
+            ppi = ppi + 1; printf("%02d ", ppi);  ppi = ppi + 2; printf("%02d ", ppi); ppi = ppi - 3; printf("%02d\n", ppi);  ppi = ppi - 1;
+            l   = l   + 1; printf("%02d ", l);    l   = l   + 2; printf("%02d ", l);   l   = l   - 3; printf("%02d\n", l);    l   = l   - 1;
+            pl  = pl  + 1; printf("%02d ", pl);   pl  = pl  + 2; printf("%02d ", pl);  pl  = pl  - 3; printf("%02d\n", pl);   pl  = pl  - 1;
+            ppl = ppl + 1; printf("%02d ", ppl);  ppl = ppl + 2; printf("%02d ", ppl); ppl = ppl - 3; printf("%02d\n", ppl);  ppl = ppl - 1;
         }
     """, "\n".join([
         "01 03 00",
-        "08 24 00",
+        "01 03 00",
         "08 24 00",
         "01 03 00",
+        "04 12 00",
+        "08 24 00",
         "01 03 00",
-        "08 24 00"
+        "04 12 00",
+        "08 24 00",
+        "01 03 00",
+        "04 12 00",
+        "08 24 00",
     ]) + "\n");
+
+
+def test_integer_sizes():
+    check_output("""
+        int main() {
+            int i;
+            char *data;
+
+            data = malloc(8);
+
+            printf("%ld ", sizeof(void));
+            printf("%ld ", sizeof(char));
+            printf("%ld ", sizeof(short));
+            printf("%ld ", sizeof(int));
+            printf("%ld ", sizeof(long));
+            printf("%ld ", sizeof(void *));
+            printf("%ld ", sizeof(char *));
+            printf("%ld ", sizeof(short *));
+            printf("%ld ", sizeof(int *));
+            printf("%ld ", sizeof(long *));
+            printf("%ld ", sizeof(int **));
+            printf("%ld ", sizeof(char **));
+            printf("%ld ", sizeof(short **));
+            printf("%ld ", sizeof(int **));
+            printf("%ld ", sizeof(long **));
+            printf("\n\n");
+
+            memset(data, -1, 8); *((char  *) data) = 1; printf("%016lx\n", *((long *) data));
+            memset(data, -1, 8); *((short *) data) = 1; printf("%016lx\n", *((long *) data));
+            memset(data, -1, 8); *((int   *) data) = 1; printf("%016lx\n", *((long *) data));
+            memset(data, -1, 8); *((long  *) data) = 1; printf("%016lx\n", *((long *) data));
+            printf("\n");
+
+            memset(data, 1, 8);
+            printf("%016lx\n", *((char  *) data));
+            printf("%016lx\n", *((short *) data));
+            printf("%016lx\n", *((int   *) data));
+            printf("%016lx\n", *((long  *) data));
+        }
+    """, "\n".join([
+        "1 1 2 4 8 8 8 8 8 8 8 8 8 8 8 ",
+        "",
+        "ffffffffffffff01",
+        "ffffffffffff0001",
+        "ffffffff00000001",
+        "0000000000000001",
+        "",
+        "0000000000000001",
+        "0000000000000101",
+        "0000000001010101",
+        "0101010101010101",
+    ]) + "\n", 0)
 
 
 def test_malloc():
@@ -420,24 +523,6 @@ def test_and_or_shortcutting():
     ]) + "\n");
 
 
-def test_sizeof():
-    check_output("""
-        int main(int argc, char **argv) {
-            printf("%lu ", sizeof(int));
-            printf("%lu ", sizeof(long));
-            printf("%lu ", sizeof(char));
-            printf("%lu ", sizeof(void *));
-            printf("%lu ", sizeof(int *));
-            printf("%lu ", sizeof(long *));
-            printf("%lu ", sizeof(char *));
-            printf("%lu ", sizeof(int **));
-            printf("%lu ", sizeof(long **));
-            printf("%lu ", sizeof(char **));
-            printf("\n");
-        }
-    """, "8 8 1 8 8 8 8 8 8 8 \n")
-
-
 def test_ternary():
     check_output("""
         int main(int argc, char **argv) {
@@ -477,7 +562,7 @@ def test_casting():
             pj = (int *) (((char *) pi) + 1);
             printf("%ld\n", (long) pj - (long) pi);
         }
-    """, "8\n1\n")
+    """, "4\n1\n")
 
 
 def test_local_comma_var_declarations():
@@ -568,16 +653,20 @@ def test_open_read_write_close():
 def test_plus_equals():
     check_output("""
         int main(int argc, char **argv) {
+            char c, *pc;
+            short s, *ps;
             int i, *pi;
-            i = 0;
-            pi = 0;
-            i += 2;
-            pi += 2;
-            printf("%d %ld ", i, (long) pi);
-            pi -= 3;
-            printf("%d %ld\n", i, (long) pi);
+            long l, *pl;
+            c = 0; pc = 0; s = 0; ps = 0; i = 0; pi = 0; l = 0; pl = 0;
+            c += 2; pc += 2;
+            s += 2; ps += 2;
+            i += 2; pi += 2;
+            l += 2; pl += 2;
+            printf("%d %ld %d %ld %d %ld %ld %ld\n", c, (long) pc, s, (long) ps, i, (long) pi, l, (long) pl);
+            pc -= 3; ps -= 3; pi -= 3; pl -= 3;
+            printf("%d %ld %d %ld %d %ld %ld %ld\n", c, (long) pc, s, (long) ps, i, (long) pi, l, (long) pl);
         }
-    """, "2 16 2 -8\n")
+    """, "2 2 2 4 2 8 2 16\n2 -1 2 -2 2 -4 2 -8\n")
 
 
 def test_exit():

@@ -50,12 +50,14 @@ enum {
     TOK_IDENTIFIER,
     TOK_NUMBER,
     TOK_STRING_LITERAL,
-    TOK_INT,
     TOK_IF,
     TOK_ELSE,
-    TOK_CHAR,
     TOK_VOID,
-    TOK_WHILE,          // 10
+    TOK_CHAR,
+    TOK_INT,
+    TOK_SHORT,          // 10
+    TOK_LONG,
+    TOK_WHILE,
     TOK_CONTINUE,
     TOK_RETURN,
     TOK_ENUM,
@@ -63,9 +65,9 @@ enum {
     TOK_RPAREN,
     TOK_LPAREN,
     TOK_RBRACKET,
-    TOK_LBRACKET,
+    TOK_LBRACKET,       // 20
     TOK_RCURLY,
-    TOK_LCURLY,         // 20
+    TOK_LCURLY,
     TOK_SEMI,
     TOK_COMMA,
     TOK_EQ,
@@ -75,9 +77,9 @@ enum {
     TOK_COLON,
     TOK_OR,
     TOK_AND,
-    TOK_BITWISE_OR,
+    TOK_BITWISE_OR,     // 30
     TOK_XOR,
-    TOK_ADDRESS_OF,     // 30
+    TOK_ADDRESS_OF,
     TOK_DBL_EQ,
     TOK_NOT_EQ,
     TOK_LT,
@@ -85,9 +87,9 @@ enum {
     TOK_LE,
     TOK_GE,
     TOK_BITWISE_LEFT,
-    TOK_BITWISE_RIGHT,
+    TOK_BITWISE_RIGHT,  // 40
     TOK_PLUS,
-    TOK_MINUS,          // 40
+    TOK_MINUS,
     TOK_MULTIPLY,
     TOK_DIVIDE,
     TOK_MOD,
@@ -97,8 +99,8 @@ enum {
     TOK_DEC,
 };
 
-enum { TYPE_VOID=1, TYPE_ENUM=2, TYPE_INT, TYPE_CHAR };
-enum { TYPE_PTR=2 };
+enum { TYPE_ENUM=1, TYPE_VOID, TYPE_CHAR, TYPE_INT, TYPE_SHORT, TYPE_LONG };
+enum { TYPE_PTR=4 };
 enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
 enum {
     INSTR_LINE=1,
@@ -113,10 +115,14 @@ enum {
     INSTR_ADJ,
     INSTR_BNOT,
     INSTR_LEV,
-    INSTR_LI,
     INSTR_LC,
-    INSTR_SI,
+    INSTR_LS,
+    INSTR_LI,
+    INSTR_LL,
     INSTR_SC,
+    INSTR_SS,
+    INSTR_SI,
+    INSTR_SL,
     INSTR_OR,
     INSTR_AND,
     INSTR_BITWISE_OR,
@@ -214,10 +220,11 @@ void next() {
         else if (                        c1 == '^'                     ) { ip += 1; cur_token = TOK_XOR;                        }
         else if (input_size - ip >= 2 && !memcmp(i+ip, "if",       2)  ) { ip += 2; cur_token = TOK_IF;                         }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "else",     4)  ) { ip += 4; cur_token = TOK_ELSE;                       }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",      3)  ) { ip += 3; cur_token = TOK_INT;                        }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "long",     4)  ) { ip += 4; cur_token = TOK_INT;                        }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "void",     4)  ) { ip += 4; cur_token = TOK_VOID;                       }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "char",     4)  ) { ip += 4; cur_token = TOK_CHAR;                       }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "short",    5)  ) { ip += 5; cur_token = TOK_SHORT;                      }
+        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",      3)  ) { ip += 3; cur_token = TOK_INT;                        }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "long",     4)  ) { ip += 4; cur_token = TOK_LONG;                       }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "void",     4)  ) { ip += 4; cur_token = TOK_VOID;                       }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "while",    5)  ) { ip += 5; cur_token = TOK_WHILE;                      }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "continue", 8)  ) { ip += 8; cur_token = TOK_CONTINUE;                   }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "return",   6)  ) { ip += 6; cur_token = TOK_RETURN;                     }
@@ -334,12 +341,18 @@ long lookup_function(char *name) {
     return symbol[SYMBOL_VALUE];
 }
 
+int cur_token_is_integer_type() {
+    return (cur_token == TOK_CHAR || cur_token == TOK_SHORT || cur_token == TOK_INT || cur_token == TOK_LONG);
+}
+
 int parse_base_type() {
     int type;
 
-    if (cur_token == TOK_VOID) type = TYPE_VOID;
-    else if (cur_token == TOK_INT) type = TYPE_INT;
-    else if (cur_token == TOK_CHAR) type = TYPE_CHAR;
+         if (cur_token == TOK_VOID)  type = TYPE_VOID;
+    else if (cur_token == TOK_CHAR)  type = TYPE_CHAR;
+    else if (cur_token == TOK_SHORT) type = TYPE_SHORT;
+    else if (cur_token == TOK_INT)   type = TYPE_INT;
+    else if (cur_token == TOK_LONG)  type = TYPE_LONG;
     next();
 
     return type;
@@ -353,19 +366,56 @@ int parse_type() {
     return type;
 }
 
+int get_type_sizeof(int type) {
+         if (type == TYPE_VOID)  return sizeof(void);
+    else if (type == TYPE_CHAR)  return sizeof(char);
+    else if (type == TYPE_SHORT) return sizeof(short);
+    else if (type == TYPE_INT)   return sizeof(int);
+    else if (type == TYPE_LONG)  return sizeof(long);
+    else if (type >  TYPE_LONG)  return sizeof(void *);
+    else {
+        printf("%d: sizeof unknown type %d\n", cur_line, type);
+        exit(1);
+        return 0;
+    }
+}
+
 int get_type_inc_dec_size(int type) {
     // How much will the ++ operator increment a type?
-    return type <= TYPE_CHAR || type == TYPE_CHAR + TYPE_PTR ? 1 : sizeof(long);
+    return type <= TYPE_LONG ? 1 : get_type_sizeof(type - TYPE_PTR);
 }
 
 int is_lvalue() {
-    return *(iptr - 1) == INSTR_LC || *(iptr -1) == INSTR_LI;
+    return *(iptr - 1) == INSTR_LC || *(iptr -1) == INSTR_LS || *(iptr -1) == INSTR_LI || *(iptr -1) == INSTR_LL;
+}
+
+int load_type() {
+         if (cur_type == TYPE_CHAR)  *iptr++ = INSTR_LC;
+    else if (cur_type == TYPE_SHORT) *iptr++ = INSTR_LS;
+    else if (cur_type == TYPE_INT)   *iptr++ = INSTR_LI;
+    else if (cur_type == TYPE_LONG)  *iptr++ = INSTR_LL;
+    else if (cur_type >  TYPE_LONG)  *iptr++ = INSTR_LL;
+    else {
+        printf("%d: load for unknown type %ld\n", cur_line, cur_type);
+        exit(1);
+    }
+}
+
+int store_type(int type) {
+         if (type == TYPE_CHAR)  *iptr++ = INSTR_SC;
+    else if (type == TYPE_SHORT) *iptr++ = INSTR_SS;
+    else if (type == TYPE_INT)   *iptr++ = INSTR_SI;
+    else if (type == TYPE_LONG)  *iptr++ = INSTR_SL;
+    else if (type >  TYPE_LONG)  *iptr++ = INSTR_SL;
+    else {
+        printf("%d: load for unknown type %d\n", cur_line, type);
+        exit(1);
+    }
 }
 
 void expression(int level) {
     int org_token;
     int org_type;
-    int first_arg_is_pointer;
     int factor;
     long *temp_iptr;
     long *false_jmp;
@@ -415,27 +465,27 @@ void expression(int level) {
             printf("%d: Cannot prefix increment/decrement an rvalue on line\n", cur_line);
             exit(1);
         }
-        iptr--;                                                // Roll back load
-        *iptr++ = INSTR_PSH;                                   // Push address
-        *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI; // Push value
+        iptr--;              // Roll back load
+        *iptr++ = INSTR_PSH; // Push address
+        load_type();         // Push value
         *iptr++ = INSTR_PSH;
         *iptr++ = INSTR_IMM;
-        *iptr++ = get_type_inc_dec_size(cur_type);
+        *iptr++ = get_type_inc_dec_size(org_type);
         *iptr++ = IMM_NUMBER;
         *iptr++ = 0;
         *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
-        *iptr++ = INSTR_SI;
         cur_type = org_type;
+        store_type(cur_type);
     }
     else if (cur_token == TOK_MULTIPLY) {
         next();
         expression(TOK_INC);
-        if (cur_type <= TYPE_CHAR) {
-            printf("%d: Cannot derefence a non-pointer\n", cur_line);
+        if (cur_type <= TYPE_LONG) {
+            printf("%d: Cannot derefence a non-pointer %ld\n", cur_line, cur_type);
             exit(1);
         }
         cur_type = cur_type - TYPE_PTR;
-        *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
+        load_type();
     }
     else if (cur_token == TOK_MINUS) {
         next();
@@ -460,7 +510,7 @@ void expression(int level) {
     }
     else if (cur_token == TOK_LPAREN) {
         next();
-        if (cur_token == TOK_VOID || cur_token == TOK_INT || cur_token == TOK_CHAR) {
+        if (cur_token == TOK_VOID || cur_token_is_integer_type()) {
             // cast
             org_type = parse_type();
             consume(TOK_RPAREN);
@@ -516,8 +566,8 @@ void expression(int level) {
             if (builtin) {
                 *iptr++ = builtin;
                 if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]) || !strcmp("dprintf", (char *) symbol[SYMBOL_IDENTIFIER])) {
-                    if (param_count >  8) {
-                        printf("printf can't handle more than 8 args\n");
+                    if (param_count >  10) {
+                        printf("printf can't handle more than 10 args\n");
                         exit(1);
                     }
                     *iptr++ = param_count;
@@ -541,7 +591,7 @@ void expression(int level) {
             cur_type = symbol[SYMBOL_TYPE];
             *iptr++ = IMM_GLOBAL;
             *iptr++ = (long) symbol;
-            *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
+            load_type();
         }
         else {
             // Local symbol
@@ -555,14 +605,15 @@ void expression(int level) {
                 *iptr++ = symbol[SYMBOL_STACK_INDEX];
             }
             cur_type = symbol[SYMBOL_TYPE];
-            *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
+            load_type();
         }
     }
     else if (cur_token == TOK_SIZEOF) {
         next();
         consume(TOK_LPAREN);
+        cur_type = parse_type();
         *iptr++ = INSTR_IMM;
-        *iptr++ = parse_type() == TYPE_CHAR ? 1 : sizeof(long);
+        *iptr++ = get_type_sizeof(cur_type);
         *iptr++ = IMM_NUMBER;
         *iptr++ = 0;
         consume(TOK_RPAREN);
@@ -576,7 +627,7 @@ void expression(int level) {
     if (cur_token == TOK_LBRACKET) {
         next();
 
-        if (cur_type <= TYPE_CHAR) {
+        if (cur_type <= TYPE_LONG) {
             printf("%d: Cannot do [] on a non-pointer for type %ld\n", cur_line, cur_type);
             exit(1);
         }
@@ -598,7 +649,7 @@ void expression(int level) {
         *iptr++ = INSTR_ADD;
         consume(TOK_RBRACKET);
         cur_type = org_type - TYPE_PTR;
-        *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;
+        load_type();
     }
 
     while (cur_token >= level) {
@@ -606,16 +657,16 @@ void expression(int level) {
 
         if (cur_token == TOK_INC || cur_token == TOK_DEC) {
             // Postfix increment and decrement
-            iptr--;                                                // Roll back load
-            *iptr++ = INSTR_PSH;                                   // Push address
-            *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI; // Push value
+            iptr--;              // Roll back load
+            *iptr++ = INSTR_PSH; // Push address
+            load_type();         // Push value
             *iptr++ = INSTR_PSH;
             *iptr++ = INSTR_IMM;
             *iptr++ = get_type_inc_dec_size(cur_type);
             *iptr++ = IMM_NUMBER;
             *iptr++ = 0;
             *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
-            *iptr++ = INSTR_SI;
+            store_type(cur_type);
 
             // Dirty!
             *iptr++ = INSTR_PSH;
@@ -632,29 +683,23 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_INC);
             *iptr++ = INSTR_MUL;
-            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_DIVIDE) {
             next();
             *iptr++ = INSTR_PSH;
             expression(TOK_INC);
             *iptr++ = INSTR_DIV;
-            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_MOD) {
             next();
             *iptr++ = INSTR_PSH;
             expression(TOK_INC);
             *iptr++ = INSTR_MOD;
-            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
             org_token = cur_token;
             org_type = cur_type;
-            first_arg_is_pointer = cur_type > TYPE_CHAR;
-            factor = first_arg_is_pointer
-                ? get_type_inc_dec_size(cur_type)
-                : 1;
+            factor = get_type_inc_dec_size(cur_type);
             next();
             *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
@@ -676,14 +721,12 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
             *iptr++ = INSTR_BWL;
-            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_BITWISE_RIGHT) {
             next();
             *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
             *iptr++ = INSTR_BWR;
-            cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_LT) {
             next();
@@ -732,7 +775,7 @@ void expression(int level) {
             *iptr++ = INSTR_PSH;
             expression(TOK_DBL_EQ);
             *iptr++ = INSTR_BITWISE_AND;
-            cur_type = TYPE_INT;
+            cur_type += TYPE_PTR;
         }
         else if (cur_token == TOK_XOR) {
             next();
@@ -794,7 +837,7 @@ void expression(int level) {
             org_type = cur_type;
             *iptr++ = INSTR_PSH;
             expression(TOK_EQ);
-            *iptr++ = org_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
+            store_type(org_type);
             type = org_type;
         }
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
@@ -805,9 +848,9 @@ void expression(int level) {
                 exit(1);
             }
             org_type = cur_type;
-            iptr--;                                                 // Roll back load
-            *iptr++ = INSTR_PSH;                                    // Push address
-            *iptr++ = cur_type == TYPE_CHAR ? INSTR_LC : INSTR_LI;  // Push value
+            iptr--;               // Roll back load
+            *iptr++ = INSTR_PSH;  // Push address
+            load_type();          // Push value
             *iptr++ = INSTR_PSH;
 
             factor = get_type_inc_dec_size(org_type);
@@ -823,7 +866,7 @@ void expression(int level) {
             if (factor > 1) *iptr++ = INSTR_MUL;
             *iptr++ = org_token == TOK_PLUS_EQ ? INSTR_ADD : INSTR_SUB;
             cur_type = org_type;
-            *iptr++ = cur_type == TYPE_CHAR ? INSTR_SC : INSTR_SI;
+            store_type(cur_type);
         }
         else
             return; // Bail once we hit something unknown
@@ -837,7 +880,7 @@ void statement() {
     long *true_done_jmp;
     long *old_cur_while_start;
 
-    if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
+    if (cur_token_is_integer_type()) {
         printf("%d: Declarations must be at the top of a function\n", cur_line);
         exit(1);
     }
@@ -928,9 +971,8 @@ void function_body(char *func_name, int param_count) {
     consume(TOK_LCURLY);
 
     // Parse symbols first
-    while (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-        base_type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
-        next();
+    while (cur_token_is_integer_type()) {
+        base_type = parse_base_type();
 
         while (cur_token != TOK_SEMI) {
             type = base_type;
@@ -990,7 +1032,7 @@ void parse() {
             continue;
         }
 
-        if (cur_token == TOK_VOID || cur_token == TOK_INT || cur_token == TOK_CHAR) {
+        if (cur_token == TOK_VOID || cur_token_is_integer_type()) {
             doing_var_declaration = 1;
             base_type = parse_base_type();
 
@@ -1009,7 +1051,7 @@ void parse() {
 
                 *iptr++ = INSTR_GLB;
                 *iptr++ = (long) cur_identifier;
-                *iptr++ = type == TYPE_CHAR ? 1 : sizeof(long);
+                *iptr++ = get_type_sizeof(type);
 
                 if (cur_token == TOK_LPAREN) {
                     *iptr++ = GLB_TYPE_FUNCTION;
@@ -1021,9 +1063,8 @@ void parse() {
                     cur_symbol[SYMBOL_VALUE] = (long) iptr;
                     param_count = 0;
                     while (cur_token != TOK_RPAREN) {
-                        if (cur_token == TOK_INT || cur_token == TOK_CHAR) {
-                            type = cur_token == TOK_INT ? TYPE_INT : TYPE_CHAR;
-                            next();
+                        if (cur_token_is_integer_type()) {
+                            type = parse_base_type();
                             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
                         }
                         else {
@@ -1103,7 +1144,7 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
     instr = *pc;
 
     if (print_pc) dprintf(f, "%-15ld ", (long) pc - (long) instructions);
-    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  BNOT LEV  LI   LC   SI   SC   OR   AND  BOR  BAND XOR  EQ   NE   LT   GT   LE   GE   BWL  BWR  ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
+    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  BNOT LEV  LC   LS   LI   LL   SC   SS   SI   SL   OR   AND  BOR  BAND XOR  EQ   NE   LT   GT   LE   GE   BWL  BWR  ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
     if (instr <= INSTR_ADJ) {
         operand = *(pc + 1);
         symbol = (long *) *(pc + 3);
@@ -1243,10 +1284,14 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_ENT) { *--sp = (long) bp; bp = sp; sp = sp - *pc++; pc++; } // enter subroutine
         else if (instr == INSTR_ADJ) sp = sp + *pc++;                                       // stack adjust
         else if (instr == INSTR_LEV) { sp = bp; bp = (long *) *sp++; pc = (long *) *sp++; } // leave subroutine
-        else if (instr == INSTR_LI)  a = *(long *)a;                                        // load int
-        else if (instr == INSTR_LC)  a = *(char *)a;                                        // load char
-        else if (instr == INSTR_SI)  *(long *) *sp++ = a;                                   // store int
-        else if (instr == INSTR_SC)  a = *(char *)*sp++ = a;                                // store char
+        else if (instr == INSTR_LC) a = *(char *)a;                                         // load char
+        else if (instr == INSTR_LS) a = *(short *)a;                                        // load short
+        else if (instr == INSTR_LI) a = *(int *)a;                                          // load int
+        else if (instr == INSTR_LL) a = *(long *)a;                                         // load long
+        else if (instr == INSTR_SC) a = *(char *)*sp++ = a;                                 // store char
+        else if (instr == INSTR_SS) a = *(short  *) *sp++ = a;                              // store short
+        else if (instr == INSTR_SI) a = *(int *)*sp++ = a;                                  // store int
+        else if (instr == INSTR_SL) *(long *)*sp++ = a;                                     // store long
         else if (instr == INSTR_PSH) *--sp = a;
         else if (instr == INSTR_OR ) a = *sp++ || a;
         else if (instr == INSTR_AND) a = *sp++ && a;
@@ -1271,8 +1316,8 @@ long run(long argc, char **argv, int print_instructions) {
         else if (instr == INSTR_READ) { a = read(sp[2], (char *) sp[1], *sp); sp += 3; }
         else if (instr == INSTR_WRIT) { a = write(sp[2], (char *) sp[1], *sp); sp += 3; }
         else if (instr == INSTR_CLOS) a = close(*sp++);
-        else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8]); sp += *(pc - 1); }
-        else if (instr == INSTR_DPRT) { t = sp + *pc++; a = dprintf(t[-1], (char *)t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8]); sp += *(pc - 1); }
+        else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8], t[-9], t[-10]); sp += *(pc - 1); }
+        else if (instr == INSTR_DPRT) { t = sp + *pc++; a = dprintf(t[-1], (char *)t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8], t[-9], t[-10]); sp += *(pc - 1); }
         else if (instr == INSTR_MALC) a = (long) malloc(*sp++);
         else if (instr == INSTR_FREE) free((void *) *sp++);
         else if (instr == INSTR_MSET) { a = (long) memset((char *) sp[2], sp[1], *sp); sp += 3; }

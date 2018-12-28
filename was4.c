@@ -619,7 +619,7 @@ int assemble_file(char *input_filename, char *output_filename) {
         if (!wmemcmp(instr, "ADJ", 3)) {}
         else if (!wmemcmp(instr, "LINE", 4)) {}
 
-        else if (!wmemcmp(instr, "GLB   type=1 size=8 \"", 21)) {
+        else if (!wmemcmp(instr, "GLB   type=1", 12)) {
             s = instr + 21;
             name = instr + 21;
             while (*s != '"') s++;
@@ -818,27 +818,33 @@ int assemble_file(char *input_filename, char *output_filename) {
             }
         }
 
-        else if (!wmemcmp(instr, "LI", 2)) {
-            *t++ = 0x48; *t++ = 0x8b; *t++ = 0x00; // mov (%rax), %rax
-        }
-
-        else if (!wmemcmp(instr, "LC", 2)) {
-            // move byte to long with sign extension
-            *t++ = 0x48; *t++ = 0x0f; *t++ = 0xbe; *t++ = 0x00; // movsbq (%rax), %rax
-        }
-
-        else if (!wmemcmp(instr, "SI", 2)) {
-            *t++ = 0x5f;                           // pop %rdi
-            *t++ = 0x48; *t++ = 0x89; *t++ = 0x07; // mov %rax,(%rdi)
-        }
+        else if (!wmemcmp(instr, "LC", 2)) { *t++ = 0x48; *t++ = 0x0f; *t++ = 0xbe; *t++ = 0x00; } // movsbq (%rax), %rax ; move byte to quad with sign extension
+        else if (!wmemcmp(instr, "LS", 2)) { *t++ = 0x48; *t++ = 0x0f; *t++ = 0xbf; *t++ = 0x00; } // movswq (%rax), %rax ; move word to quad with sign extension
+        else if (!wmemcmp(instr, "LI", 2)) { *t++ = 0x48; *t++ = 0x63; *t++ = 0x00;              } // movslq (%rax), %rax ; move long to quad with sign extension
+        else if (!wmemcmp(instr, "LL", 2)) { *t++ = 0x48; *t++ = 0x8b; *t++ = 0x00;              } // mov (%rax), %rax
 
         else if (!wmemcmp(instr, "SC ", 3)) {
-            *t++ = 0x5f;              // pop %rdi
-            *t++ = 0x88; *t++ = 0x07; // mov %al, (%rdi)
+            *t++ = 0x5f;                                            // pop %rdi
+            *t++ = 0x88; *t++ = 0x07;                               // mov %al, (%rdi)
+        }
+
+        else if (!wmemcmp(instr, "SS ", 3)) {
+            *t++ = 0x5f;                                            // pop %rdi
+            *t++ = 0x66; *t++ = 0x89; *t++ = 0x07;                  // mov %ax, (%rdi)
+        }
+
+        else if (!wmemcmp(instr, "SI ", 3)) {
+            *t++ = 0x5f;                                            // pop %rdi
+            *t++ = 0x89; *t++ = 0x07;                               // mov %eax, (%rdi)
+        }
+
+        else if (!wmemcmp(instr, "SL ", 3)) {
+            *t++ = 0x5f;                                            // pop %rdi
+            *t++ = 0x48; *t++ = 0x89; *t++ = 0x07;                  // mov %rax, (%rdi)
         }
 
         else if (!memcmp(instr, "BNOT", 4)) {
-            *t++ = 0x48; *t++ = 0xf7; *t++ = 0xd0; //not    %rax
+            *t++ = 0x48; *t++ = 0xf7; *t++ = 0xd0;              // not %rax
         }
 
         else if (!memcmp(instr, "BOR", 3)) {

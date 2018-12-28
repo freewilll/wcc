@@ -395,3 +395,55 @@ def check_negative_imm():
             printf("%d\n", i);
         }
     """, "-1\n", 0)
+
+
+def test_integer_sizes():
+    check("""
+        int main() {
+            int i;
+            char *data;
+
+            data = malloc(8);
+
+            printf("%ld ", sizeof(void));
+            printf("%ld ", sizeof(char));
+            printf("%ld ", sizeof(short));
+            printf("%ld ", sizeof(int));
+            printf("%ld ", sizeof(long));
+            printf("%ld ", sizeof(void *));
+            printf("%ld ", sizeof(char *));
+            printf("%ld ", sizeof(short *));
+            printf("%ld ", sizeof(int *));
+            printf("%ld ", sizeof(long *));
+            printf("%ld ", sizeof(int **));
+            printf("%ld ", sizeof(char **));
+            printf("%ld ", sizeof(short **));
+            printf("%ld ", sizeof(int **));
+            printf("%ld ", sizeof(long **));
+            printf("\n\n");
+
+            memset(data, -1, 8); *((char  *) data) = 1; printf("%016lx\n", *((long *) data));
+            memset(data, -1, 8); *((short *) data) = 1; printf("%016lx\n", *((long *) data));
+            memset(data, -1, 8); *((int   *) data) = 1; printf("%016lx\n", *((long *) data));
+            memset(data, -1, 8); *((long  *) data) = 1; printf("%016lx\n", *((long *) data));
+            printf("\n");
+
+            memset(data, 1, 8);
+            printf("%016lx\n", *((char  *) data));
+            printf("%016lx\n", *((short *) data));
+            printf("%016lx\n", *((int   *) data));
+            printf("%016lx\n", *((long  *) data));
+        }
+    """, "\n".join([
+        "1 1 2 4 8 8 8 8 8 8 8 8 8 8 8 ",
+        "",
+        "ffffffffffffff01",
+        "ffffffffffff0001",
+        "ffffffff00000001",
+        "0000000000000001",
+        "",
+        "0000000000000001",
+        "0000000000000101",
+        "0000000001010101",
+        "0101010101010101",
+    ]) + "\n", 0)
