@@ -167,7 +167,6 @@ char *wstrdup(char *src) {
     while (*s++) len++;
     dst = malloc(len + 1);
     wstrcpy(dst, src);
-    while (*dst++ = *src++);
     return dst;
 }
 
@@ -388,7 +387,7 @@ int add_global(int *data_size, char *input) {
     s = input;
     while (*input != '"') input++;
     *input = 0;
-    name = strdup(s);
+    name = wstrdup(s);
     *input = '"';
 
     // Only data is done here
