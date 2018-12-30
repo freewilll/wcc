@@ -48,15 +48,23 @@ test-assembled-codegen: wc42
 	diff $$LEVEL1 $$LEVEL2
 	@echo Generated code by assembled code is identical
 
-test-compiled-assembler: was4 was42 wc4.ws
+test-compiled-assembler-with-wc4: was4 was42 wc4.ws
 	LEVEL1=$(shell mktemp) ;\
 	LEVEL2=$(shell mktemp) ;\
 	./was4  -o $$LEVEL1 wc4.ws ;\
 	./was42 -o $$LEVEL2 wc4.ws ;\
 	diff $$LEVEL1 $$LEVEL2
-	@echo Assembled object by wc4-compiled was4 is identical to gcc-compiled was4
+	@echo Assembled wc4.o by wc4-compiled was4 is identical to gcc-compiled was4
 
-test: test-unit test-inception-codegen test-assembled-codegen test-compiled-assembler
+test-compiled-assembler-with-was4: was4 was42 was4.ws
+	LEVEL1=$(shell mktemp) ;\
+	LEVEL2=$(shell mktemp) ;\
+	./was4  -o $$LEVEL1 was4.ws ;\
+	./was42 -o $$LEVEL2 was4.ws ;\
+	diff $$LEVEL1 $$LEVEL2
+	@echo Assembled was4.o by wc4-compiled was4 is identical to gcc-compiled was4
+
+test: test-unit test-inception-codegen test-assembled-codegen test-compiled-assembler-with-wc4 test-compiled-assembler-with-was4
 
 clean:
 	rm -f wc4
