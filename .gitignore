@@ -1,8 +1,12 @@
 wc4
 wc4.ws
-wc42
+wc4.o
 wc42.o
+wc42
+was4.ws
 was4
+was42.o
+was42
 venv
 __pycache__
 *.pyc
@@ -12,3 +16,4 @@ test.asm
 test.o
 test.ws
 test
+core

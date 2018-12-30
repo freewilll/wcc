@@ -783,23 +783,24 @@ int assemble_file(char *input_filename, char *output_filename) {
             v = 0;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
             if (neg) v = -v;
+
+            *t++ = 0x48; *t++ = 0x8d; *t++ = 0x85; // lea 0x...(%rbp), %rax
+
             if (v >= 2) {
                 // Function argument
                 v -= 2; // 0=1st arg, 1=2nd arg, etc
-
-                *t++ = 0x48; *t++ = 0x8d; *t++ = 0x45; // lea -0x...(%rbp),%rax
 
                 if (function_arg_count > 6) {
                     v = function_arg_count - 7 - v;
                     // Correct for split stack when there are more than 6 args
                     if (v < 0) {
                         // Read pushed arg by the callee. arg 0 is at rsp-0x30, arg 2 at rsp-0x28 etc, ... arg 5 at rsp-0x08
-                        *t++ = (char) 8 * v;
+                        *((int *) t) =  (char) 8 * v;
                     }
                     else {
                         // Read pushed arg by the caller, arg 6 is at rsp+0x10, arg 7 at rsp+0x18, etc
                         // The +2 is to bypass the pushed rbp and return address
-                        *t++ = (char) 8 * (v + 2);
+                        *((int *) t) =  (char) 8 * (v + 2);
                     }
                 }
                 else {
@@ -807,14 +808,15 @@ int assemble_file(char *input_filename, char *output_filename) {
                     // If there aree.g. 2 args:
                     // arg 0 is at mov -0x10(%rbp), %rax
                     // arg 1 is at mov -0x08(%rbp), %rax
-                    *t++ = (char) -8 * (v + 1);
+                    *((int *) t) =  (char) -8 * (v + 1);
                 }
             }
             else {
                 // Local variable. v=-1 is the first, v=-2 the second, etc
-                *t++ = 0x48; *t++ = 0x8d; *t++ = 0x45; // lea -0x...(%rbp), %rax
-                *t++ = local_vars_stack_start + 8 * (v + 1);
+                *((int *) t) =  local_vars_stack_start + 8 * (v + 1);
             }
+
+            t+= 4;
         }
 
         else if (!wmemcmp(instr, "LC", 2)) { *t++ = 0x48; *t++ = 0x0f; *t++ = 0xbe; *t++ = 0x00; } // movsbq (%rax), %rax ; move byte to quad with sign extension
