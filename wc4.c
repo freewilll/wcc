@@ -441,11 +441,11 @@ int parse_struct_base_type() {
     struct str_member *member;
     int member_count;
     int i, base_type, type, offset, size, result;
-    char *struct_identifier;
+    char *strct_identifier;
     int alignment, biggest_alignment;
 
     consume(TOK_STRUCT);
-    struct_identifier = cur_identifier;
+    strct_identifier = cur_identifier;
     consume(TOK_IDENTIFIER);
     if (cur_token == TOK_LCURLY) {
         consume(TOK_LCURLY);
@@ -456,7 +456,7 @@ int parse_struct_base_type() {
         members = malloc(sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
         memset(members, 0, sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
         member_count = 0;
-        s->name = struct_identifier;
+        s->name = strct_identifier;
         s->members = members;
         offset = 0;
         size = 0;
@@ -494,12 +494,12 @@ int parse_struct_base_type() {
     else {
         i = 0;
         while (i < all_structs_count) {
-            if (!strcmp(all_structs[i]->name, struct_identifier)) {
+            if (!strcmp(all_structs[i]->name, strct_identifier)) {
                 return TYPE_STRUCT + i;
             }
             i++;
         }
-        printf("%d: Unknown struct %s\n", cur_line, struct_identifier);
+        printf("%d: Unknown struct %s\n", cur_line, strct_identifier);
         exit(1);
     }
 }
