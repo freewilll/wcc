@@ -816,3 +816,183 @@ def test_enum():
             printf("%d %d %d %d\n", A, B, C, D);
         }
     """, "0 1 2 3\n")
+
+
+@pytest.mark.parametrize("type, size", [
+    ("char",  3 * 1),
+    ("short", 3 * 2),
+    ("int",   3 * 4),
+    ("long",  3 * 8),
+])
+def test_simple_struct(type, size):
+    check_output("""
+        struct s {
+            %s i, j;
+            %s k;
+        };
+
+        struct s* gs;
+
+        int main(int argc, char **argv) {
+            struct s *s1, *s2;
+            s1 = malloc(sizeof(struct s));
+            s2 = malloc(sizeof(struct s));
+            gs = malloc(sizeof(struct s));
+
+            (*s1).i = 1;
+            (*s1).j = 2;
+            (*s2).i = 3;
+            (*s2).j = 4;
+            printf("%%d %%d %%d %%d\n", (*s1).i, (*s1).j, (*s2).i, (*s2).j);
+
+            s1->i = -1;
+            s1->j= -2;
+            printf("%%d %%d\n", s1->i, s1->j);
+
+            gs->i = 10;
+            gs->j = 20;
+            printf("%%d %%d\n", gs->i, gs->j);
+
+            printf("%%ld\n", sizeof(struct s));
+        }
+    """ % (type, type), "1 2 3 4\n-1 -2\n10 20\n%d\n" % size, 0)
+
+
+def test_struct_member_alignment():
+    check_output("""
+        struct sc1 { char  c1;           };
+        struct sc2 { char  c1; char c2;  };
+        struct ss1 { short c1;           };
+        struct ss2 { short c1; short s1; };
+        struct si1 { int   c1;           };
+        struct si2 { int   c1; int i1;   };
+        struct sl1 { long  c1;           };
+        struct sl2 { long  c1; long l1;  };
+
+        struct cc { char c1; char  c2; };
+        struct cs { char c1; short s1; };
+        struct ci { char c1; int   i1; };
+        struct cl { char c1; long  l1; };
+
+        struct ccc { char c1; char  c2; char c3; };
+        struct csc { char c1; short c2; char c3; };
+        struct cic { char c1; int   c2; char c3; };
+        struct clc { char c1; long  c2; char c3; };
+
+        int main(int argc, char **argv) {
+            struct cc *vc;
+            struct cs *vs;
+            struct ci *vi;
+            struct cl *vl;
+
+            printf("%ld %ld ",  sizeof(struct sc1), sizeof(struct sc2));
+            printf("%ld %ld ",  sizeof(struct ss1), sizeof(struct ss2));
+            printf("%ld %ld ",  sizeof(struct si1), sizeof(struct si2));
+            printf("%ld %ld\n", sizeof(struct sl1), sizeof(struct sl2));
+
+            printf("%ld %ld %ld %ld\n", sizeof(struct cc),  sizeof(struct cs),  sizeof(struct ci),  sizeof(struct cl));
+            printf("%ld %ld %ld %ld\n", sizeof(struct ccc), sizeof(struct csc), sizeof(struct cic), sizeof(struct clc));
+
+            vc = 0;
+            vs = 0;
+            vi = 0;
+            vl = 0;
+            printf("%ld %ld %ld %ld\n",
+                (long) &(vc->c2) - (long) &(vc->c1),
+                (long) &(vs->s1) - (long) &(vs->c1),
+                (long) &(vi->i1) - (long) &(vi->c1),
+                (long) &(vl->l1) - (long) &(vl->c1)
+            );
+        }
+    """, "1 2 2 4 4 8 8 16\n2 4 8 16\n3 6 12 24\n1 2 4 8\n", 0)
+
+
+def test_nested_struct():
+    check_output("""
+        struct s1 {
+            int i, j;
+        };
+
+        struct s2 {
+            int i, j;
+            struct s1 *s;
+        };
+
+        int main(int argc, char **argv) {
+            struct s1 *s1;
+            struct s2 *s2;
+
+            s1 = malloc(sizeof(struct s1));
+            s2 = malloc(sizeof(struct s2));
+            s2->s = s1;
+            s1->i = 1;
+            s1->j = 2;
+            printf("%d %d\n", s2->s->i, s2->s->j);
+            printf("%ld %ld\n", sizeof(struct s1), sizeof(struct s2));
+        }
+    """, "1 2\n8 16\n", 0)
+
+
+def test_function_returning_a_pointer_to_a_struct():
+    check_output("""
+        struct s {
+            int i, j;
+        };
+
+        struct s *foo() {
+            struct s *s;
+
+            s = malloc(sizeof(struct s));
+            s->i = 1;
+            s->j = 2;
+            return s;
+        }
+
+        int main(int argc, char **argv) {
+            struct s *s;
+            s = foo();
+            printf("%d %d\n", s->i, s->j);
+        }
+    """, "1 2\n", 0)
+
+
+def test_function_with_a_pointer_to_a_struct_argument():
+    check_output("""
+        struct s {
+            int i, j;
+        };
+
+        int foo(struct s *s) {
+            return s->i + s->j;
+        }
+
+        int main(int argc, char **argv) {
+            struct s *s;
+
+            s = malloc(sizeof(struct s));
+            s->i = 1;
+            s->j = 2;
+
+            printf("%d\n", foo(s));
+        }
+    """, "3\n", 0)
+
+
+def test_struct_additions():
+    check_output("""
+        struct s {
+            long i, j;
+        };
+
+        int main(int argc, char **argv) {
+            struct s *s;
+
+            s = 0;
+            s++;
+
+            printf("%ld ", s);
+            printf("%ld ", s + 1);
+            printf("%ld ", s++);
+            printf("%ld\n", ++s);
+        }
+    """, "16 32 16 48\n", 0)

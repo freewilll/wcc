@@ -4,6 +4,18 @@
 #include <fcntl.h>
 #include <string.h>
 
+struct str_member {
+    char *name;
+    int type;
+    int offset;
+};
+
+struct str_desc {
+    char *name;
+    struct str_member **members;
+    int size;
+};
+
 char *input;
 int input_size;
 int ip;
@@ -31,6 +43,9 @@ long *next_symbol;
 long *cur_symbol;
 long cur_type;
 
+struct str_desc **all_structs;
+int all_structs_count;
+
 int SYMBOL_TYPE;
 int SYMBOL_IDENTIFIER;
 int SYMBOL_SCOPE;
@@ -43,6 +58,11 @@ int SYMBOL_BUILTIN;
 long DATA_SIZE;
 long INSTRUCTIONS_SIZE;
 long SYMBOL_TABLE_SIZE;
+
+enum {
+    MAX_STRUCTS=1024,
+    MAX_STRUCT_MEMBERS=1024,
+};
 
 // In order of precedence
 enum {
@@ -57,6 +77,7 @@ enum {
     TOK_INT,
     TOK_SHORT,          // 10
     TOK_LONG,
+    TOK_STRUCT,
     TOK_WHILE,
     TOK_CONTINUE,
     TOK_RETURN,
@@ -64,8 +85,8 @@ enum {
     TOK_SIZEOF,
     TOK_RPAREN,
     TOK_LPAREN,
-    TOK_RBRACKET,
-    TOK_LBRACKET,       // 20
+    TOK_RBRACKET,       // 20
+    TOK_LBRACKET,
     TOK_RCURLY,
     TOK_LCURLY,
     TOK_SEMI,
@@ -74,33 +95,36 @@ enum {
     TOK_PLUS_EQ,
     TOK_MINUS_EQ,
     TOK_TERNARY,
-    TOK_COLON,
+    TOK_COLON,          // 30
     TOK_OR,
     TOK_AND,
-    TOK_BITWISE_OR,     // 30
+    TOK_BITWISE_OR,
     TOK_XOR,
     TOK_ADDRESS_OF,
     TOK_DBL_EQ,
     TOK_NOT_EQ,
     TOK_LT,
     TOK_GT,
-    TOK_LE,
+    TOK_LE,             // 40
     TOK_GE,
     TOK_BITWISE_LEFT,
-    TOK_BITWISE_RIGHT,  // 40
+    TOK_BITWISE_RIGHT,
     TOK_PLUS,
     TOK_MINUS,
     TOK_MULTIPLY,
     TOK_DIVIDE,
     TOK_MOD,
-    TOK_LOGICAL_NOT,
+    TOK_LOGICAL_NOT,    // 50
     TOK_BITWISE_NOT,
     TOK_INC,
     TOK_DEC,
+    TOK_DOT,
+    TOK_ARROW,
 };
 
-enum { TYPE_ENUM=1, TYPE_VOID, TYPE_CHAR, TYPE_INT, TYPE_SHORT, TYPE_LONG };
-enum { TYPE_PTR=4 };
+// All structs start at TYPE_STRUCT up to TYPE_PTR. Pointers are represented by adding TYPE_PTR to a type.
+enum { TYPE_ENUM=1, TYPE_VOID, TYPE_CHAR, TYPE_SHORT, TYPE_INT, TYPE_LONG, TYPE_STRUCT=16, TYPE_PTR=1024 };
+
 enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
 enum {
     INSTR_LINE=1,
@@ -158,6 +182,8 @@ enum {
 
 enum {IMM_NUMBER, IMM_STRING_LITERAL, IMM_GLOBAL};
 
+int parse_struct_base_type();
+
 void next() {
     char *i;
     char *id;
@@ -196,6 +222,7 @@ void next() {
         else if (                        c1 == ';'                     ) { ip += 1; cur_token = TOK_SEMI;                       }
         else if (                        c1 == '?'                     ) { ip += 1; cur_token = TOK_TERNARY;                    }
         else if (                        c1 == ':'                     ) { ip += 1; cur_token = TOK_COLON;                      }
+        else if (                        c1 == '.'                     ) { ip += 1; cur_token = TOK_DOT;                        }
         else if (input_size - ip >= 2 && c1 == '&' && c2 == '&'        ) { ip += 2; cur_token = TOK_AND;                        }
         else if (input_size - ip >= 2 && c1 == '|' && c2 == '|'        ) { ip += 2; cur_token = TOK_OR;                         }
         else if (input_size - ip >= 2 && c1 == '=' && c2 == '='        ) { ip += 2; cur_token = TOK_DBL_EQ;                     }
@@ -208,6 +235,7 @@ void next() {
         else if (input_size - ip >= 2 && c1 == '-' && c2 == '-'        ) { ip += 2; cur_token = TOK_DEC;                        }
         else if (input_size - ip >= 2 && c1 == '+' && c2 == '='        ) { ip += 2; cur_token = TOK_PLUS_EQ;                    }
         else if (input_size - ip >= 2 && c1 == '-' && c2 == '='        ) { ip += 2; cur_token = TOK_MINUS_EQ;                   }
+        else if (input_size - ip >= 2 && c1 == '-' && c2 == '>'        ) { ip += 2; cur_token = TOK_ARROW;                      }
         else if (                        c1 == '+'                     ) { ip += 1; cur_token = TOK_PLUS;                       }
         else if (                        c1 == '-'                     ) { ip += 1; cur_token = TOK_MINUS;                      }
         else if (                        c1 == '='                     ) { ip += 1; cur_token = TOK_EQ;                         }
@@ -225,6 +253,7 @@ void next() {
         else if (input_size - ip >= 3 && !memcmp(i+ip, "int",      3)  ) { ip += 3; cur_token = TOK_INT;                        }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "long",     4)  ) { ip += 4; cur_token = TOK_LONG;                       }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "void",     4)  ) { ip += 4; cur_token = TOK_VOID;                       }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "struct",   6)  ) { ip += 6; cur_token = TOK_STRUCT;                     }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "while",    5)  ) { ip += 5; cur_token = TOK_WHILE;                      }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "continue", 8)  ) { ip += 8; cur_token = TOK_CONTINUE;                   }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "return",   6)  ) { ip += 6; cur_token = TOK_RETURN;                     }
@@ -298,7 +327,7 @@ void next() {
         }
 
         else {
-            printf("%d: Unknown token on line\n", cur_line);
+            printf("%d: Unknown token %d\n", cur_line, cur_token);
             exit(1);
         }
 
@@ -345,14 +374,49 @@ int cur_token_is_integer_type() {
     return (cur_token == TOK_CHAR || cur_token == TOK_SHORT || cur_token == TOK_INT || cur_token == TOK_LONG);
 }
 
+int get_type_alignment(int type) {
+         if (type  > TYPE_PTR)   return 8;
+    else if (type == TYPE_CHAR)  return 1;
+    else if (type == TYPE_SHORT) return 2;
+    else if (type == TYPE_INT)   return 4;
+    else if (type == TYPE_LONG)  return 8;
+    else if (type >= TYPE_STRUCT) {
+        printf("%d: Usage of structs as struct members not implemented\n", cur_line);
+        exit(1);
+    }
+    else {
+        printf("%d: align of unknown type %d\n", cur_line, type);
+        exit(1);
+    }
+}
+
+int get_type_sizeof(int type) {
+         if (type == TYPE_VOID)   return sizeof(void);
+    else if (type == TYPE_CHAR)   return sizeof(char);
+    else if (type == TYPE_SHORT)  return sizeof(short);
+    else if (type == TYPE_INT)    return sizeof(int);
+    else if (type == TYPE_LONG)   return sizeof(long);
+    else if (type >  TYPE_PTR)    return sizeof(void *);
+    else if (type >= TYPE_STRUCT) return all_structs[type - TYPE_STRUCT]->size;
+    else {
+        printf("%d: sizeof unknown type %d\n", cur_line, type);
+        exit(1);
+    }
+}
+
 int parse_base_type() {
     int type;
 
-         if (cur_token == TOK_VOID)  type = TYPE_VOID;
-    else if (cur_token == TOK_CHAR)  type = TYPE_CHAR;
-    else if (cur_token == TOK_SHORT) type = TYPE_SHORT;
-    else if (cur_token == TOK_INT)   type = TYPE_INT;
-    else if (cur_token == TOK_LONG)  type = TYPE_LONG;
+         if (cur_token == TOK_VOID)   type = TYPE_VOID;
+    else if (cur_token == TOK_CHAR)   type = TYPE_CHAR;
+    else if (cur_token == TOK_SHORT)  type = TYPE_SHORT;
+    else if (cur_token == TOK_INT)    type = TYPE_INT;
+    else if (cur_token == TOK_LONG)   type = TYPE_LONG;
+    else if (cur_token == TOK_STRUCT) return parse_struct_base_type();
+    else {
+        printf("Unable to determine type from token %d\n", cur_token);
+        exit(1);
+    }
     next();
 
     return type;
@@ -366,23 +430,78 @@ int parse_type() {
     return type;
 }
 
-int get_type_sizeof(int type) {
-         if (type == TYPE_VOID)  return sizeof(void);
-    else if (type == TYPE_CHAR)  return sizeof(char);
-    else if (type == TYPE_SHORT) return sizeof(short);
-    else if (type == TYPE_INT)   return sizeof(int);
-    else if (type == TYPE_LONG)  return sizeof(long);
-    else if (type >  TYPE_LONG)  return sizeof(void *);
+int parse_struct_base_type() {
+    struct str_desc *s;
+    struct str_member **members;
+    struct str_member *member;
+    int member_count;
+    int i, base_type, type, offset, size, result;
+    char *struct_identifier;
+    int alignment, biggest_alignment;
+
+    consume(TOK_STRUCT);
+    struct_identifier = cur_identifier;
+    consume(TOK_IDENTIFIER);
+    if (cur_token == TOK_LCURLY) {
+        consume(TOK_LCURLY);
+
+        s = malloc(sizeof(struct str_desc));
+        all_structs[all_structs_count] = s;
+        result = TYPE_STRUCT + all_structs_count++;
+        members = malloc(sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
+        memset(members, 0, sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
+        member_count = 0;
+        s->name = struct_identifier;
+        s->members = members;
+        offset = 0;
+        size = 0;
+        biggest_alignment = 0;
+        while (cur_token != TOK_RCURLY) {
+            base_type = parse_base_type();
+            while (cur_token != TOK_SEMI) {
+                type = base_type;
+
+                while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+
+                alignment = get_type_alignment(type);
+                if (alignment > biggest_alignment) biggest_alignment = alignment;
+                offset = ((offset + alignment  - 1) & (~(alignment - 1)));
+
+                member = malloc(sizeof(struct str_member));
+                memset(member, 0, sizeof(struct str_member));
+                member->name = cur_identifier;
+                member->type = type;
+                member->offset = offset;
+                members[member_count++] = member;
+
+                offset += get_type_sizeof(type);
+
+                consume(TOK_IDENTIFIER);
+                if (cur_token == TOK_COMMA) next();
+            }
+            offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
+            s->size = offset;
+            while (cur_token == TOK_SEMI) consume(TOK_SEMI);
+        }
+        consume(TOK_RCURLY);
+        return result;
+    }
     else {
-        printf("%d: sizeof unknown type %d\n", cur_line, type);
+        i = 0;
+        while (i < all_structs_count) {
+            if (!strcmp(all_structs[i]->name, struct_identifier)) {
+                return TYPE_STRUCT + i;
+            }
+            i++;
+        }
+        printf("%d: Unknown struct %s\n", cur_line, struct_identifier);
         exit(1);
-        return 0;
     }
 }
 
 int get_type_inc_dec_size(int type) {
     // How much will the ++ operator increment a type?
-    return type <= TYPE_LONG ? 1 : get_type_sizeof(type - TYPE_PTR);
+    return type <= TYPE_PTR ? 1 : get_type_sizeof(type - TYPE_PTR);
 }
 
 int is_lvalue() {
@@ -406,11 +525,24 @@ int store_type(int type) {
     else if (type == TYPE_SHORT) *iptr++ = INSTR_SS;
     else if (type == TYPE_INT)   *iptr++ = INSTR_SI;
     else if (type == TYPE_LONG)  *iptr++ = INSTR_SL;
-    else if (type >  TYPE_LONG)  *iptr++ = INSTR_SL;
+    else if (type >  TYPE_PTR)   *iptr++ = INSTR_SL;
     else {
         printf("%d: load for unknown type %d\n", cur_line, type);
         exit(1);
     }
+}
+
+struct str_member *lookup_struct_member(struct str_desc *str, char *identifier) {
+    struct str_member **pmember;
+    pmember = str->members;
+
+    while (*pmember) {
+        if (!strcmp((*pmember)->name, identifier)) return *pmember;
+        pmember++;
+    }
+
+    printf("%d: Unknown member %s in struct %s\n", cur_line, identifier, str->name);
+    exit(1);
 }
 
 void expression(int level) {
@@ -427,6 +559,8 @@ void expression(int level) {
     long param_count;
     long stack_index;
     int builtin;
+    struct str_desc *str;
+    struct str_member *member;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -480,7 +614,7 @@ void expression(int level) {
     else if (cur_token == TOK_MULTIPLY) {
         next();
         expression(TOK_INC);
-        if (cur_type <= TYPE_LONG) {
+        if (cur_type <= TYPE_PTR) {
             printf("%d: Cannot derefence a non-pointer %ld\n", cur_line, cur_type);
             exit(1);
         }
@@ -627,7 +761,7 @@ void expression(int level) {
     if (cur_token == TOK_LBRACKET) {
         next();
 
-        if (cur_type <= TYPE_LONG) {
+        if (cur_type <= TYPE_PTR) {
             printf("%d: Cannot do [] on a non-pointer for type %ld\n", cur_line, cur_type);
             exit(1);
         }
@@ -678,10 +812,64 @@ void expression(int level) {
 
             next();
         }
+        else if (cur_token == TOK_DOT || cur_token == TOK_ARROW) {
+
+            if (cur_token == TOK_DOT) {
+                // Struct member lookup. A load has already been pushed for it
+
+                if (cur_type < TYPE_STRUCT || cur_type >= TYPE_PTR) {
+                    printf("%d: Cannot use . on a non-struct\n", cur_line);
+                    exit(1);
+                }
+
+                if (!is_lvalue()) {
+                    printf("%d: Expected lvalue for struct . operation.\n", cur_line);
+                    exit(1);
+                }
+                iptr--; // Roll back load instruction
+            }
+            else {
+                // Pointer to struct member lookup.
+
+                if (cur_type < TYPE_PTR) {
+                    printf("%d: Cannot use -> on a non-pointer\n", cur_line);
+                    exit(1);
+                }
+
+                cur_type -= TYPE_PTR;
+
+                if (cur_type < TYPE_STRUCT) {
+                    printf("%d: Cannot use -> on a pointer to a non-struct\n", cur_line);
+                    exit(1);
+                }
+            }
+
+            next();
+            if (cur_token != TOK_IDENTIFIER) {
+                printf("%d: Expected identifier\n", cur_line);
+                exit(1);
+            }
+
+            str = all_structs[cur_type - TYPE_STRUCT];
+            member = lookup_struct_member(str, cur_identifier);
+
+            if (member->offset > 0) {
+                *iptr++ = INSTR_PSH;
+                *iptr++ = INSTR_IMM;
+                *iptr++ = member->offset;
+                *iptr++ = IMM_NUMBER;
+                *iptr++ = 0;
+                *iptr++ = INSTR_ADD;
+            }
+
+            cur_type = member->type;
+            load_type();
+            consume(TOK_IDENTIFIER);
+        }
         else if (cur_token == TOK_MULTIPLY) {
             next();
             *iptr++ = INSTR_PSH;
-            expression(TOK_INC);
+            expression(TOK_DOT);
             *iptr++ = INSTR_MUL;
         }
         else if (cur_token == TOK_DIVIDE) {
@@ -971,12 +1159,17 @@ void function_body(char *func_name, int param_count) {
     consume(TOK_LCURLY);
 
     // Parse symbols first
-    while (cur_token_is_integer_type()) {
+    while (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
         base_type = parse_base_type();
 
         while (cur_token != TOK_SEMI) {
             type = base_type;
             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+
+            if (type >= TYPE_STRUCT && type < TYPE_PTR) {
+                printf("%d: Direct usage of struct variables not implemented\n", cur_line);
+                exit(1);
+            }
 
             if (cur_token == TOK_EQ) {
                 printf("%d: Declarations with assignments aren't implemented\n", cur_line);
@@ -1032,13 +1225,18 @@ void parse() {
             continue;
         }
 
-        if (cur_token == TOK_VOID || cur_token_is_integer_type()) {
+        if (cur_token == TOK_VOID || cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
             doing_var_declaration = 1;
             base_type = parse_base_type();
 
             while (doing_var_declaration && cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 type = base_type;
                 while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+
+                if (type >= TYPE_STRUCT && type < TYPE_PTR) {
+                    printf("%d: Direct usage of struct variables not implemented\n", cur_line);
+                    exit(1);
+                }
 
                 expect(TOK_IDENTIFIER);
                 cur_symbol = next_symbol;
@@ -1063,9 +1261,14 @@ void parse() {
                     cur_symbol[SYMBOL_VALUE] = (long) iptr;
                     param_count = 0;
                     while (cur_token != TOK_RPAREN) {
-                        if (cur_token_is_integer_type()) {
+                        if (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
                             type = parse_base_type();
                             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+
+                            if (type >= TYPE_STRUCT && type < TYPE_PTR) {
+                                printf("%d: Direct usage of struct variables not implemented\n", cur_line);
+                                exit(1);
+                            }
                         }
                         else {
                             printf("%d: Unknown type token in function def %d\n", cur_line, cur_token);
@@ -1126,6 +1329,11 @@ void parse() {
                 if (cur_token == TOK_COMMA) next();
             }
             consume(TOK_RCURLY);
+            consume(TOK_SEMI);
+        }
+
+        else if (cur_token == TOK_STRUCT) {
+            parse_base_type(); // It's a struct declaration
             consume(TOK_SEMI);
         }
 
@@ -1426,6 +1634,9 @@ int main(int argc, char **argv) {
     data = malloc(DATA_SIZE);
     data_start = data;
     global_variable_count = 0;
+
+    all_structs = malloc(sizeof(struct str_desc *) * MAX_STRUCTS);
+    all_structs_count = 0;
 
     SYMBOL_TYPE                 = 0;
     SYMBOL_IDENTIFIER           = 1;
