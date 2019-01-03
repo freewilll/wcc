@@ -360,13 +360,18 @@ long *lookup_symbol(char *name, int scope) {
 
     if (scope != 0) return lookup_symbol(name, 0);
 
-    printf("%d: Unknown symbol \"%s\"\n", cur_line, name);
-    exit(1);
+    return 0;
 }
 
 long lookup_function(char *name) {
     long *symbol;
     symbol = lookup_symbol(name, 0);
+
+    if (!symbol) {
+        printf("%d: Unknown function \"%s\"\n", cur_line, name);
+        exit(1);
+    }
+
     return symbol[SYMBOL_VALUE];
 }
 
@@ -675,6 +680,12 @@ void expression(int level) {
     }
     else if (cur_token == TOK_IDENTIFIER) {
         symbol = lookup_symbol(cur_identifier, cur_scope);
+
+        if (!symbol) {
+            printf("%d: Unknown symbol \"%s\"\n", cur_line, cur_identifier);
+            exit(1);
+        }
+
         next();
         type = symbol[SYMBOL_TYPE];
         scope = symbol[SYMBOL_SCOPE];
@@ -1215,6 +1226,8 @@ void parse() {
     int param_count;
     int seen_function;
     int doing_var_declaration;
+    char *cur_function_name;
+    long *existing_symbol;
 
     cur_scope = 0;
     seen_function = 0;
@@ -1239,12 +1252,20 @@ void parse() {
                 }
 
                 expect(TOK_IDENTIFIER);
-                cur_symbol = next_symbol;
-                next_symbol[SYMBOL_TYPE] = type;
-                next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
-                next_symbol[SYMBOL_STACK_INDEX] = global_variable_count++;
-                next_symbol[SYMBOL_SCOPE] = 0;
-                next_symbol += SYMBOL_SIZE;
+                cur_function_name = cur_identifier;
+
+                existing_symbol = lookup_symbol(cur_function_name, 0);
+                if (!existing_symbol) {
+                    // Create a new symbol if it wasn't already declared. The
+                    // previous declaration is left unchanged.
+
+                    cur_symbol = next_symbol;
+                    next_symbol[SYMBOL_TYPE] = type;
+                    next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
+                    next_symbol[SYMBOL_STACK_INDEX] = global_variable_count++;
+                    next_symbol[SYMBOL_SCOPE] = 0;
+                    next_symbol += SYMBOL_SIZE;
+                }
                 next();
 
                 *iptr++ = INSTR_GLB;
@@ -1257,7 +1278,7 @@ void parse() {
                     cur_scope++;
                     next();
 
-                    // Function definition
+                    // Function declaration or definition
                     cur_symbol[SYMBOL_VALUE] = (long) iptr;
                     param_count = 0;
                     while (cur_token != TOK_RPAREN) {
@@ -1286,7 +1307,15 @@ void parse() {
                     cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
                     consume(TOK_RPAREN);
                     cur_function_symbol = cur_symbol;
-                    function_body((char *) cur_symbol[SYMBOL_IDENTIFIER], param_count);
+
+                    if (cur_token == TOK_LCURLY) {
+                        function_body((char *) cur_symbol[SYMBOL_IDENTIFIER], param_count);
+                    }
+                    else {
+                        if (!lookup_symbol(cur_function_name, 0)) next_symbol -= SYMBOL_SIZE;
+                        consume(TOK_SEMI);
+                    }
+
                     doing_var_declaration = 0;
                 }
                 else {

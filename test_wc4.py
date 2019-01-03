@@ -180,6 +180,25 @@ def test_function_calls():
     """, 3);
 
 
+def test_split_function_declaration_and_definition():
+    check_output("""
+        int foo();
+        int bar(int i);
+
+        int foo() {
+            return 1;
+        }
+
+        int bar(int i) {
+            return i;
+        }
+
+        int main(int argc, char **argv) {
+            printf("%d %d %d\n", foo(), bar(1), bar(2));
+        }
+    """, "1 1 2\n", 0)
+
+
 def test_hello_world():
     check_output("""
         int main(int argc, char **argv) {
