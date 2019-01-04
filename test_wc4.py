@@ -198,6 +198,22 @@ def test_split_function_declaration_and_definition():
         }
     """, "1 1 2\n", 0)
 
+def test_split_function_declaration_and_definition_backpatching():
+    check_output("""
+        void foo();
+        void bar();
+
+        int main(int argc, char **argv) {
+            foo();
+            bar();
+            foo();
+            bar();
+        }
+
+        void foo() { printf("foo\n"); }
+        void bar() { printf("bar\n"); }
+    """, "foo\nbar\nfoo\nbar\n", 0)
+
 
 def test_hello_world():
     check_output("""

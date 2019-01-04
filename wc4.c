@@ -16,6 +16,11 @@ struct str_desc {
     int size;
 };
 
+struct fwd_function_backpatch {
+    long *iptr;
+    long *symbol;
+};
+
 char *input;
 int input_size;
 int ip;
@@ -59,9 +64,12 @@ long DATA_SIZE;
 long INSTRUCTIONS_SIZE;
 long SYMBOL_TABLE_SIZE;
 
+struct fwd_function_backpatch *fwd_function_backpatches;
+
 enum {
     MAX_STRUCTS=1024,
     MAX_STRUCT_MEMBERS=1024,
+    MAX_FWD_FUNCTION_BACKPATCHES=1024,
 };
 
 // In order of precedence
@@ -566,6 +574,7 @@ void expression(int level) {
     int builtin;
     struct str_desc *str;
     struct str_member *member;
+    int i;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -720,6 +729,19 @@ void expression(int level) {
             }
             else {
                 *iptr++ = INSTR_JSR;
+                if (!symbol[SYMBOL_VALUE]) {
+                    // The function hasn't been defined yet, add a backpatch to it.
+                    i = 0;
+                    while (i < MAX_FWD_FUNCTION_BACKPATCHES) {
+                        if (!fwd_function_backpatches[i].iptr) {
+                            fwd_function_backpatches[i].iptr = iptr;
+                            fwd_function_backpatches[i].symbol = symbol;
+                            i = MAX_FWD_FUNCTION_BACKPATCHES; // break
+                        }
+                        i++;
+                    }
+                }
+
                 *iptr++ = symbol[SYMBOL_VALUE];
                 *iptr++ = symbol[SYMBOL_IDENTIFIER];
                 *iptr++ = param_count;
@@ -1228,6 +1250,7 @@ void parse() {
     int doing_var_declaration;
     char *cur_function_name;
     long *existing_symbol;
+    int i;
 
     cur_scope = 0;
     seen_function = 0;
@@ -1266,14 +1289,19 @@ void parse() {
                     next_symbol[SYMBOL_SCOPE] = 0;
                     next_symbol += SYMBOL_SIZE;
                 }
+                else
+                    cur_symbol = existing_symbol;
+
                 next();
 
-                *iptr++ = INSTR_GLB;
-                *iptr++ = (long) cur_identifier;
-                *iptr++ = get_type_sizeof(type);
+                if (!existing_symbol) {
+                    *iptr++ = INSTR_GLB;
+                    *iptr++ = (long) cur_identifier;
+                    *iptr++ = get_type_sizeof(type);
+                }
 
                 if (cur_token == TOK_LPAREN) {
-                    *iptr++ = GLB_TYPE_FUNCTION;
+                    if (!existing_symbol) *iptr++ = GLB_TYPE_FUNCTION;
                     seen_function = 1;
                     cur_scope++;
                     next();
@@ -1310,11 +1338,22 @@ void parse() {
 
                     if (cur_token == TOK_LCURLY) {
                         function_body((char *) cur_symbol[SYMBOL_IDENTIFIER], param_count);
+
+                        // Now that this function is defined, handle any backpatches to it
+                        i = 0;
+                        while (i < MAX_FWD_FUNCTION_BACKPATCHES) {
+                            if (fwd_function_backpatches[i].symbol == cur_symbol) {
+                                *fwd_function_backpatches[i].iptr = cur_symbol[SYMBOL_VALUE];
+                                fwd_function_backpatches[i].iptr = 0;
+                                fwd_function_backpatches[i].symbol = 0;
+                            }
+                            i++;
+                        }
                     }
-                    else {
-                        if (!lookup_symbol(cur_function_name, 0)) next_symbol -= SYMBOL_SIZE;
-                        consume(TOK_SEMI);
-                    }
+                    else
+                        // Make it clear that this symbol will need to be backpatched if used
+                        // before the definition has been processed.
+                        cur_symbol[SYMBOL_VALUE] = 0;
 
                     doing_var_declaration = 0;
                 }
@@ -1324,7 +1363,7 @@ void parse() {
                         printf("%d: Global variables must precede all functions\n", cur_line);
                         exit(1);
                     }
-                    *iptr++ = GLB_TYPE_VARIABLE;
+                    if (!existing_symbol) *iptr++ = GLB_TYPE_VARIABLE;
                     cur_symbol[SYMBOL_VALUE] = (long) data;
                     data += sizeof(long);
                 }
@@ -1660,6 +1699,10 @@ int main(int argc, char **argv) {
     symbol_table = malloc(SYMBOL_TABLE_SIZE);
     memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
     next_symbol = symbol_table;
+
+    fwd_function_backpatches = malloc(sizeof(struct fwd_function_backpatch) * MAX_FWD_FUNCTION_BACKPATCHES);
+    memset(fwd_function_backpatches, 0, sizeof(struct fwd_function_backpatch) * MAX_FWD_FUNCTION_BACKPATCHES);
+
     data = malloc(DATA_SIZE);
     data_start = data;
     global_variable_count = 0;
