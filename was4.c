@@ -8,6 +8,11 @@
 // https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h
 
+struct jmp {
+    long address;
+    int line;
+};
+
 struct jsr_backpatch {
     char *function_name;
     long offset;
@@ -105,16 +110,12 @@ enum {
     R_X86_64_64     = 1,        // Direct 64 bit relocation
     R_X86_64_PC32   = 2,        // truncate value to 32 bits
 
-    JMP_ADDRESS     = 0,        // The address in .txt for the jump
-    JMP_LINE        = 1,        // The line number of the target
-
     // Sizes of the headers
     EHDR_SIZE       = 0x40,     // Elf header size
     PHDR_SIZE       = 0x38,     // Program header size
     SHDR_SIZE       = 0x40,     // Section header size
     STE_SIZE        = 0x18,     // Symbol table entry size
     RELA_SIZE       = 0x18,     // Relocation section entry size
-    JMP_SIZE        = 0x02,     // Jump table entry size (in longs)
 
     SEC_NULL      = 0,
     SEC_DATA      = 1,
@@ -532,8 +533,8 @@ int assemble_file(char *input_filename, char *output_filename) {
     char *s, *t, *name, **ps, *symbol;
     char *main_address;
     long *line_string_literals;
-    char **vm_address_map;         // map VM address as indicated by the first number in the compiler output to its address in .text
-    long *jmp, *jmps_start, *jmps; // list of longs, the first long is the address, the second is the target line
+    char **vm_address_map; // map VM address as indicated by the first number in the compiler output to its address in .text
+    struct jmp *jmp, *jmps_start, *jmps;
     int *pi1, *pi2;
     int string_literal_len;
 
@@ -569,8 +570,8 @@ int assemble_file(char *input_filename, char *output_filename) {
     string_literal_len = 0;
     line_string_literals = malloc(sizeof(long) * MAX_LINES);
     vm_address_map = malloc(sizeof(long) * MAX_VM_ADDRESS);
-    jmps = malloc(JMP_SIZE * MAX_JMPS);
-    memset(jmps, 0, JMP_SIZE * MAX_JMPS);
+    jmps = malloc(sizeof(struct jmp) * MAX_JMPS);
+    memset(jmps, 0, sizeof(struct jmp) * MAX_JMPS);
     jmps_start = jmps;
 
     jsr_backpatches = malloc(sizeof(struct jsr_backpatch) * MAX_JSRS);
@@ -774,9 +775,9 @@ int assemble_file(char *input_filename, char *output_filename) {
             v = 0;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
             *t++ = 0x48; *t++ = 0x83; *t++ = 0xf8; *t++ = 0x00; //cmp $0x0,% rax
-            jmps[JMP_ADDRESS] = (long) t + 2;
-            jmps[JMP_LINE] = v;
-            jmps += JMP_SIZE;
+            jmps->address = (long) t + 2;
+            jmps->line = v;
+            jmps++;
             *t++ = 0x0f; *t++ = 0x84; // je ...
             t += 4;
         }
@@ -786,9 +787,9 @@ int assemble_file(char *input_filename, char *output_filename) {
             v = 0;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
             *t++ = 0x48; *t++ = 0x83; *t++ = 0xf8; *t++ = 0x00; //cmp $0x0,% rax
-            jmps[JMP_ADDRESS] = (long) t + 2;
-            jmps[JMP_LINE] = v;
-            jmps += JMP_SIZE;
+            jmps->address = (long) t + 2;
+            jmps->line = v;
+            jmps++;
             *t++ = 0x0f; *t++ = 0x85; // jne ...
             t += 4;
         }
@@ -796,9 +797,9 @@ int assemble_file(char *input_filename, char *output_filename) {
             s = instr + 6;
             v = 0;
             while (*s >= '0' && *s <= '9') v = 10 * v + (*s++ - '0');
-            jmps[JMP_ADDRESS] = (long) t + 1;
-            jmps[JMP_LINE] = v;
-            jmps += JMP_SIZE;
+            jmps->address = (long) t + 1;
+            jmps->line = v;
+            jmps++;
             *t++ = 0xe9; // jmpq ...
             t += 4;
         }
@@ -1042,9 +1043,9 @@ int assemble_file(char *input_filename, char *output_filename) {
 
     // Fixup jmps
     jmp = jmps_start;
-    while (*jmp) {
-        *(int *) jmp[JMP_ADDRESS] = (int) ((long) vm_address_map[jmp[JMP_LINE]] - jmp[JMP_ADDRESS] - 4);
-        jmp += JMP_SIZE;
+    while (jmp->line) {
+        *(int *) jmp->address = ((long) vm_address_map[jmp->line] - (long) jmp->address - 4);
+        jmp++;
     }
 
     // _start function
