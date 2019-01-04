@@ -1501,10 +1501,10 @@ long run(long argc, char **argv, int print_instructions) {
         cycle++;
 
         if (print_instructions) {
-            printf("%-5ld> ", cycle);
-            printf("pc = %-15ld ", (long) pc - 8);
-            printf("a = %-15ld ", a);
-            printf("sp = %-15ld ", (long) sp);
+            dprintf(1, "%-5ld> ", cycle);
+            dprintf(1, "pc = %-15ld ", (long) pc - 8);
+            dprintf(1, "a = %-15ld ", a);
+            dprintf(1, "sp = %-15ld ", (long) sp);
             print_instruction(1, pc, 0, 0);
         }
 
