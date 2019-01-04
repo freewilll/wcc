@@ -583,19 +583,19 @@ void expression(int level) {
         *iptr++ = IMM_NUMBER;
         *iptr++ = 0;
         *iptr++ = INSTR_PSH;
-        expression(1024); // Fake highest precedence, bind nothing
+        expression(TOK_INC);
         *iptr++ = INSTR_EQ;
         cur_type = TYPE_INT;
     }
     else if (cur_token == TOK_BITWISE_NOT) {
         next();
-        expression(1024); // Fake highest precedence, bind nothing
+        expression(TOK_INC);
         *iptr++ = INSTR_BNOT;
         cur_type = TYPE_INT;
     }
     else if (cur_token == TOK_ADDRESS_OF) {
         next();
-        expression(1024); // Fake highest precedence, bind nothing
+        expression(TOK_INC);
         if (!is_lvalue()) {
             printf("%d: Cannot take an address of an rvalue on line\n", cur_line);
             exit(1);
@@ -652,7 +652,7 @@ void expression(int level) {
             *iptr++ = IMM_NUMBER;
             *iptr++ = 0;
             *iptr++ = INSTR_PSH;
-            expression(TOK_MULTIPLY);
+            expression(TOK_INC);
             *iptr++ = INSTR_MUL;
         }
     }

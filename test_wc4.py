@@ -1031,3 +1031,28 @@ def test_struct_additions():
             printf("%ld\n", ++s);
         }
     """, "16 32 16 48\n", 0)
+
+
+def test_unary_precedence():
+    check_output("""
+        struct s {
+            int i, j;
+        };
+
+        struct fwd_function_backpatch {
+            long *iptr;
+            long *symbol;
+        };
+
+        struct fwd_function_backpatch *fwd_function_backpatches;
+
+        int main(int argc, char **argv) {
+            struct s *s;
+            s = malloc(sizeof(struct s));
+            s->i = 0;
+            printf("%d\n", !s[0].i);
+            printf("%d\n", ~s[0].i);
+            printf("%d\n", -s[0].i);
+            printf("%ld\n", (long) &s[0].j - (long) &s[0]);
+        }
+    """, "1\n-1\n0\n4\n", 0)
