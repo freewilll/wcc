@@ -1646,7 +1646,7 @@ void do_print_symbols() {
         scope = s->scope;
         value = s->value;
         stack_index = s->stack_index;
-        printf("%-20ld %-3ld %-3ld %-3ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
+        printf("%-20ld %-5ld %-3ld %-3ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
         s++;
     }
     printf("\n");
