@@ -658,7 +658,7 @@ void expression(int level) {
     }
     else if (cur_token == TOK_LPAREN) {
         next();
-        if (cur_token == TOK_VOID || cur_token_is_integer_type()) {
+        if (cur_token == TOK_VOID || cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
             // cast
             org_type = parse_type();
             consume(TOK_RPAREN);
@@ -1101,7 +1101,7 @@ void statement() {
     long *true_done_jmp;
     long *old_cur_while_start;
 
-    if (cur_token_is_integer_type()) {
+    if (cur_token_is_integer_type() || cur_token == TOK_STRUCT)  {
         printf("%d: Declarations must be at the top of a function\n", cur_line);
         exit(1);
     }

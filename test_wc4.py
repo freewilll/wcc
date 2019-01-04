@@ -198,6 +198,7 @@ def test_split_function_declaration_and_definition():
         }
     """, "1 1 2\n", 0)
 
+
 def test_split_function_declaration_and_definition_backpatching():
     check_output("""
         void foo();
@@ -1031,6 +1032,21 @@ def test_struct_additions():
             printf("%ld\n", ++s);
         }
     """, "16 32 16 48\n", 0)
+
+
+def test_struct_casting():
+    check_output("""
+        struct s {int i;};
+
+        int main() {
+            int i;
+            struct s *s;
+
+            i = 1;
+            s = (struct s*) &i;
+            printf("%d\n", s->i);
+        }
+    """, "1\n", 0)
 
 
 def test_unary_precedence():
