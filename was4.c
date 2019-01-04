@@ -8,8 +8,13 @@
 // https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h
 
+struct jsr_backpatch {
+    char *function_name;
+    long offset;
+};
+
 enum {
-    MAX_SYMTAB_LEN     = 102410,
+    MAX_SYMTAB_LEN     = 10240,
     MAX_STRTAB_LEN     = 1024,
     MAX_INPUT_SIZE     = 10485760,
     MAX_TEXT_SIZE      = 10485760,
@@ -17,7 +22,8 @@ enum {
     MAX_LINES          = 1048576,
     MAX_VM_ADDRESS     = 1048576,
     MAX_RELA_TEXT_SIZE = 10485760,
-    MAX_JMPS           = 102410,
+    MAX_JMPS           = 10240,
+    MAX_JSRS           = 10240,
 
     // ELF header
     EI_MAGIC        = 0x00,     // 0x7F followed by ELF(45 4c 46) in ASCII; these four bytes constitute the magic number.
@@ -145,6 +151,8 @@ int symtab_size;
 int shstrtab_size;
 long text_start, shdr_start, shstrtab_start, data_start, strtab_start, symtab_start, rela_text_start;
 long total_size;
+struct jsr_backpatch* jsr_backpatches;
+int jsr_backpatch_count;
 
 void wstrcpy(char *dst, char *src) {
     while (*dst++ = *src++);
@@ -506,6 +514,16 @@ void builtin_function_call(char **t, char *name, int num_args, int extend_to_lon
     if (extend_to_long) { *(*t)++ = 0x48; *(*t)++ = 0x98; } // cltq
 }
 
+void backpatch_jsrs() {
+    int i;
+
+    i = 0;
+    while (i < jsr_backpatch_count) {
+        add_function_call_relocation(symbol_index(jsr_backpatches[i].function_name), jsr_backpatches[i].offset);
+        i++;
+    }
+}
+
 int assemble_file(char *input_filename, char *output_filename) {
     int i, f, input_size, filename_len, v, line, function_arg_count, neg, function_call_arg_count, local_stack_size, local_vars_stack_start;
     char *input, *pi, *instr;
@@ -554,6 +572,11 @@ int assemble_file(char *input_filename, char *output_filename) {
     jmps = malloc(JMP_SIZE * MAX_JMPS);
     memset(jmps, 0, JMP_SIZE * MAX_JMPS);
     jmps_start = jmps;
+
+    jsr_backpatches = malloc(sizeof(struct jsr_backpatch) * MAX_JSRS);
+    memset(jsr_backpatches, 0,sizeof(struct jsr_backpatch) * MAX_JSRS);
+    jsr_backpatch_count = 0;
+
     line = 0;
 
     pi = input;
@@ -734,7 +757,15 @@ int assemble_file(char *input_filename, char *output_filename) {
 
             prepare_function_call(&t, function_call_arg_count);
             *t++ = 0xe8; t += 4; // callq
-            add_function_call_relocation(symbol_index(name), t - text_data - 4);
+
+            jsr_backpatches[jsr_backpatch_count].function_name = name;
+            jsr_backpatches[jsr_backpatch_count].offset = t - text_data - 4;
+            jsr_backpatch_count++;
+
+            if (jsr_backpatch_count == MAX_JSRS) {
+                printf("Exceeded max JSRs %d\n", MAX_JSRS);
+                exit(1);
+            }
             cleanup_function_call(&t, function_call_arg_count);
         }
 
@@ -1041,6 +1072,8 @@ int assemble_file(char *input_filename, char *output_filename) {
     *t++ = 0x0f; *t++ = 0x05;                                           // syscall
 
     text_size = t - text_data;
+
+    backpatch_jsrs();
 
     rela_text_size = num_rela_text * RELA_SIZE;
 

@@ -135,6 +135,24 @@ def test_function_calls():
     """, " ".join([str(s) for s in range(45)]) + " \n", 0)
 
 
+
+def test_split_function_declaration_and_definition_backpatching():
+    check("""
+        void foo();
+        void bar();
+
+        int main(int argc, char **argv) {
+            foo();
+            bar();
+            foo();
+            bar();
+        }
+
+        void foo() { printf("foo\n"); }
+        void bar() { printf("bar\n"); }
+    """, "foo\nbar\nfoo\nbar\n", 0)
+
+
 def test_local_vars():
     check("""
         void foo(int i, int j) {

@@ -1294,14 +1294,7 @@ void parse() {
 
                 next();
 
-                if (!existing_symbol) {
-                    *iptr++ = INSTR_GLB;
-                    *iptr++ = (long) cur_identifier;
-                    *iptr++ = get_type_sizeof(type);
-                }
-
                 if (cur_token == TOK_LPAREN) {
-                    if (!existing_symbol) *iptr++ = GLB_TYPE_FUNCTION;
                     seen_function = 1;
                     cur_scope++;
                     next();
@@ -1337,6 +1330,12 @@ void parse() {
                     cur_function_symbol = cur_symbol;
 
                     if (cur_token == TOK_LCURLY) {
+                        // Add global definition for use by the assembler
+                        *iptr++ = INSTR_GLB;
+                        *iptr++ = (long) cur_function_name;
+                        *iptr++ = get_type_sizeof(type);
+                        *iptr++ = GLB_TYPE_FUNCTION;
+
                         function_body((char *) cur_symbol[SYMBOL_IDENTIFIER], param_count);
 
                         // Now that this function is defined, handle any backpatches to it
@@ -1359,11 +1358,16 @@ void parse() {
                 }
                 else {
                     // Global symbol
+                    *iptr++ = INSTR_GLB;
+                    *iptr++ = (long) cur_identifier;
+                    *iptr++ = get_type_sizeof(type);
+                    *iptr++ = GLB_TYPE_VARIABLE;
+
                     if (seen_function) {
                         printf("%d: Global variables must precede all functions\n", cur_line);
                         exit(1);
                     }
-                    if (!existing_symbol) *iptr++ = GLB_TYPE_VARIABLE;
+
                     cur_symbol[SYMBOL_VALUE] = (long) data;
                     data += sizeof(long);
                 }
