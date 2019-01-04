@@ -1049,6 +1049,25 @@ def test_struct_casting():
     """, "1\n", 0)
 
 
+
+def test_packed_struct():
+    check_output("""
+        struct                              s1 {int i; char c; int j;};
+        struct __attribute__ ((__packed__)) s2 {int i; char c; int j;};
+        struct __attribute__ ((packed))     s3 {int i; char c; int j;};
+
+        int main() {
+            struct s1 *s1;
+            struct s2 *s2;
+            struct s3 *s3;
+
+            printf("%ld %ld %ld\n", sizeof(struct s1), (long) &(s1->c) - (long) s1, (long) &(s1->j) - (long) s1);
+            printf("%ld %ld %ld\n", sizeof(struct s2), (long) &(s2->c) - (long) s2, (long) &(s2->j) - (long) s2);
+            printf("%ld %ld %ld\n", sizeof(struct s3), (long) &(s3->c) - (long) s3, (long) &(s3->j) - (long) s3);
+        }
+    """, "12 4 8\n9 4 5\n9 4 5\n", 0)
+
+
 def test_unary_precedence():
     check_output("""
         struct s {
