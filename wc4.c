@@ -1342,8 +1342,8 @@ void parse() {
                         // Now that this function is defined, handle any backpatches to it
                         i = 0;
                         while (i < MAX_FWD_FUNCTION_BACKPATCHES) {
-                            if (fwd_function_backpatches[i].symbol == cur_symbol) {
-                                *fwd_function_backpatches[i].iptr = cur_symbol[SYMBOL_VALUE];
+                            if (fwd_function_backpatches[i].symbol == cur_function_symbol) {
+                                *fwd_function_backpatches[i].iptr = cur_function_symbol[SYMBOL_VALUE];
                                 fwd_function_backpatches[i].iptr = 0;
                                 fwd_function_backpatches[i].symbol = 0;
                             }
@@ -1353,7 +1353,7 @@ void parse() {
                     else
                         // Make it clear that this symbol will need to be backpatched if used
                         // before the definition has been processed.
-                        cur_symbol[SYMBOL_VALUE] = 0;
+                        cur_function_symbol[SYMBOL_VALUE] = 0;
 
                     doing_var_declaration = 0;
                 }
