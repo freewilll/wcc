@@ -13,7 +13,7 @@ struct jmp {
     int line;
 };
 
-struct jsr_backpatch {
+struct jsr {
     char *function_name;
     long offset;
 };
@@ -152,8 +152,8 @@ int symtab_size;
 int shstrtab_size;
 long text_start, shdr_start, shstrtab_start, data_start, strtab_start, symtab_start, rela_text_start;
 long total_size;
-struct jsr_backpatch* jsr_backpatches;
-int jsr_backpatch_count;
+struct jsr* jsrs;
+int jsr_count;
 
 void wstrcpy(char *dst, char *src) {
     while (*dst++ = *src++);
@@ -519,8 +519,8 @@ void backpatch_jsrs() {
     int i;
 
     i = 0;
-    while (i < jsr_backpatch_count) {
-        add_function_call_relocation(symbol_index(jsr_backpatches[i].function_name), jsr_backpatches[i].offset);
+    while (i < jsr_count) {
+        add_function_call_relocation(symbol_index(jsrs[i].function_name), jsrs[i].offset);
         i++;
     }
 }
@@ -574,9 +574,9 @@ int assemble_file(char *input_filename, char *output_filename) {
     memset(jmps, 0, sizeof(struct jmp) * MAX_JMPS);
     jmps_start = jmps;
 
-    jsr_backpatches = malloc(sizeof(struct jsr_backpatch) * MAX_JSRS);
-    memset(jsr_backpatches, 0,sizeof(struct jsr_backpatch) * MAX_JSRS);
-    jsr_backpatch_count = 0;
+    jsrs = malloc(sizeof(struct jsr) * MAX_JSRS);
+    memset(jsrs, 0,sizeof(struct jsr) * MAX_JSRS);
+    jsr_count = 0;
 
     line = 0;
 
@@ -759,11 +759,11 @@ int assemble_file(char *input_filename, char *output_filename) {
             prepare_function_call(&t, function_call_arg_count);
             *t++ = 0xe8; t += 4; // callq
 
-            jsr_backpatches[jsr_backpatch_count].function_name = name;
-            jsr_backpatches[jsr_backpatch_count].offset = t - text_data - 4;
-            jsr_backpatch_count++;
+            jsrs[jsr_count].function_name = name;
+            jsrs[jsr_count].offset = t - text_data - 4;
+            jsr_count++;
 
-            if (jsr_backpatch_count == MAX_JSRS) {
+            if (jsr_count == MAX_JSRS) {
                 printf("Exceeded max JSRs %d\n", MAX_JSRS);
                 exit(1);
             }
