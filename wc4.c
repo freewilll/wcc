@@ -4,6 +4,17 @@
 #include <fcntl.h>
 #include <string.h>
 
+struct symbol {
+    int type;
+    char *identifier;
+    int scope;
+    long value;
+    int stack_index;
+    int function_param_count;
+    int builtin;
+    int size;
+};
+
 struct str_member {
     char *name;
     int type;
@@ -18,7 +29,7 @@ struct str_desc {
 
 struct fwd_function_backpatch {
     long *iptr;
-    long *symbol;
+    struct symbol *symbol;
 };
 
 char *input;
@@ -38,27 +49,18 @@ int cur_scope;
 char *cur_identifier;
 int cur_integer;
 char *cur_string_literal;
-long *cur_function_symbol;
+struct symbol *cur_function_symbol;
 int seen_return;
 long *cur_while_start;
 int global_variable_count;
 
-long *symbol_table;
-long *next_symbol;
-long *cur_symbol;
+struct symbol *symbol_table;
+struct symbol *next_symbol;
+struct symbol *cur_symbol;
 long cur_type;
 
 struct str_desc **all_structs;
 int all_structs_count;
-
-int SYMBOL_TYPE;
-int SYMBOL_IDENTIFIER;
-int SYMBOL_SCOPE;
-int SYMBOL_VALUE;
-int SYMBOL_SIZE;
-int SYMBOL_STACK_INDEX;
-int SYMBOL_FUNCTION_PARAM_COUNT;
-int SYMBOL_BUILTIN;
 
 long DATA_SIZE;
 long INSTRUCTIONS_SIZE;
@@ -357,13 +359,13 @@ void consume(int token) {
     next();
 }
 
-long *lookup_symbol(char *name, int scope) {
-    long *s;
+struct symbol *lookup_symbol(char *name, int scope) {
+    struct symbol *s;
     s = symbol_table;
 
-    while (s[0]) {
-        if (s[SYMBOL_SCOPE] == scope && !strcmp((char *) s[SYMBOL_IDENTIFIER], name)) return s;
-        s += SYMBOL_SIZE;
+    while (s->identifier) {
+        if (s->scope == scope && !strcmp((char *) s->identifier, name)) return s;
+        s++;
     }
 
     if (scope != 0) return lookup_symbol(name, 0);
@@ -372,7 +374,7 @@ long *lookup_symbol(char *name, int scope) {
 }
 
 long lookup_function(char *name) {
-    long *symbol;
+    struct symbol *symbol;
     symbol = lookup_symbol(name, 0);
 
     if (!symbol) {
@@ -380,7 +382,7 @@ long lookup_function(char *name) {
         exit(1);
     }
 
-    return symbol[SYMBOL_VALUE];
+    return symbol->value;
 }
 
 int cur_token_is_integer_type() {
@@ -565,7 +567,7 @@ void expression(int level) {
     long *temp_iptr;
     long *false_jmp;
     long *true_done_jmp;
-    long *symbol;
+    struct symbol *symbol;
     int type;
     int scope;
     long *address;
@@ -696,14 +698,14 @@ void expression(int level) {
         }
 
         next();
-        type = symbol[SYMBOL_TYPE];
-        scope = symbol[SYMBOL_SCOPE];
+        type = symbol->type;
+        scope = symbol->scope;
         if (type == TYPE_ENUM) {
             *iptr++ = INSTR_IMM;
-            *iptr++ = symbol[SYMBOL_VALUE];
+            *iptr++ = symbol->value;
             *iptr++ = IMM_NUMBER;
             *iptr++ = 0;
-            cur_type = symbol[SYMBOL_TYPE];
+            cur_type = symbol->type;
         }
         else if (cur_token == TOK_LPAREN) {
             // Function call
@@ -716,10 +718,10 @@ void expression(int level) {
                 param_count++;
             }
             consume(TOK_RPAREN);
-            builtin = symbol[SYMBOL_BUILTIN];
+            builtin = symbol->builtin;
             if (builtin) {
                 *iptr++ = builtin;
-                if (!strcmp("printf", (char *) symbol[SYMBOL_IDENTIFIER]) || !strcmp("dprintf", (char *) symbol[SYMBOL_IDENTIFIER])) {
+                if (!strcmp("printf", (char *) symbol->identifier) || !strcmp("dprintf", (char *) symbol->identifier)) {
                     if (param_count >  10) {
                         printf("printf can't handle more than 10 args\n");
                         exit(1);
@@ -729,7 +731,7 @@ void expression(int level) {
             }
             else {
                 *iptr++ = INSTR_JSR;
-                if (!symbol[SYMBOL_VALUE]) {
+                if (!symbol->value) {
                     // The function hasn't been defined yet, add a backpatch to it.
                     i = 0;
                     while (i < MAX_FWD_FUNCTION_BACKPATCHES) {
@@ -742,36 +744,36 @@ void expression(int level) {
                     }
                 }
 
-                *iptr++ = symbol[SYMBOL_VALUE];
-                *iptr++ = symbol[SYMBOL_IDENTIFIER];
+                *iptr++ = symbol->value;
+                *iptr++ = (long) symbol->identifier;
                 *iptr++ = param_count;
                 *iptr++ = INSTR_ADJ;
                 *iptr++ = param_count;
             }
-            cur_type = symbol[SYMBOL_TYPE];
+            cur_type = symbol->type;
         }
         else if (scope == 0) {
             // Global symbol
-            address = (long *) symbol[SYMBOL_VALUE];
+            address = (long *) symbol->value;
             *iptr++ = INSTR_IMM;
             *iptr++ = (long) address;
-            cur_type = symbol[SYMBOL_TYPE];
+            cur_type = symbol->type;
             *iptr++ = IMM_GLOBAL;
             *iptr++ = (long) symbol;
             load_type();
         }
         else {
             // Local symbol
-            param_count = cur_function_symbol[SYMBOL_FUNCTION_PARAM_COUNT];
+            param_count = cur_function_symbol->function_param_count;
             *iptr++ = INSTR_LEA;
-            if (symbol[SYMBOL_STACK_INDEX] >= 0) {
-                stack_index = param_count - symbol[SYMBOL_STACK_INDEX] - 1;
+            if (symbol->stack_index >= 0) {
+                stack_index = param_count - symbol->stack_index - 1;
                 *iptr++ = stack_index + 2; // Step over pushed PC and BP
             }
             else {
-                *iptr++ = symbol[SYMBOL_STACK_INDEX];
+                *iptr++ = symbol->stack_index;
             }
-            cur_type = symbol[SYMBOL_TYPE];
+            cur_type = symbol->type;
             load_type();
         }
     }
@@ -1211,11 +1213,11 @@ void function_body(char *func_name, int param_count) {
 
             expect(TOK_IDENTIFIER);
             cur_symbol = next_symbol;
-            next_symbol[SYMBOL_TYPE] = type;
-            next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
-            next_symbol[SYMBOL_SCOPE] = cur_scope;
-            next_symbol[SYMBOL_STACK_INDEX] = -1 - local_symbol_count++;
-            next_symbol += SYMBOL_SIZE;
+            next_symbol->type = type;
+            next_symbol->identifier = cur_identifier;
+            next_symbol->scope = cur_scope;
+            next_symbol->stack_index = -1 - local_symbol_count++;
+            next_symbol++;
             next();
             if (cur_token == TOK_COMMA) next();
         }
@@ -1249,7 +1251,7 @@ void parse() {
     int seen_function;
     int doing_var_declaration;
     char *cur_function_name;
-    long *existing_symbol;
+    struct symbol *existing_symbol;
     int i;
 
     cur_scope = 0;
@@ -1283,11 +1285,11 @@ void parse() {
                     // previous declaration is left unchanged.
 
                     cur_symbol = next_symbol;
-                    next_symbol[SYMBOL_TYPE] = type;
-                    next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
-                    next_symbol[SYMBOL_STACK_INDEX] = global_variable_count++;
-                    next_symbol[SYMBOL_SCOPE] = 0;
-                    next_symbol += SYMBOL_SIZE;
+                    next_symbol->type = type;
+                    next_symbol->identifier = cur_identifier;
+                    next_symbol->stack_index = global_variable_count++;
+                    next_symbol->scope = 0;
+                    next_symbol++;
                 }
                 else
                     cur_symbol = existing_symbol;
@@ -1300,7 +1302,7 @@ void parse() {
                     next();
 
                     // Function declaration or definition
-                    cur_symbol[SYMBOL_VALUE] = (long) iptr;
+                    cur_symbol->value = (long) iptr;
                     param_count = 0;
                     while (cur_token != TOK_RPAREN) {
                         if (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
@@ -1318,14 +1320,14 @@ void parse() {
                         }
 
                         consume(TOK_IDENTIFIER);
-                        next_symbol[SYMBOL_TYPE] = type;
-                        next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
-                        next_symbol[SYMBOL_SCOPE] = cur_scope;
-                        next_symbol[SYMBOL_STACK_INDEX] = param_count++;
-                        next_symbol += SYMBOL_SIZE;
+                        next_symbol->type = type;
+                        next_symbol->identifier = cur_identifier;
+                        next_symbol->scope = cur_scope;
+                        next_symbol->stack_index = param_count++;
+                        next_symbol++;
                         if (cur_token == TOK_COMMA) next();
                     }
-                    cur_symbol[SYMBOL_FUNCTION_PARAM_COUNT] = param_count;
+                    cur_symbol->function_param_count = param_count;
                     consume(TOK_RPAREN);
                     cur_function_symbol = cur_symbol;
 
@@ -1336,13 +1338,13 @@ void parse() {
                         *iptr++ = get_type_sizeof(type);
                         *iptr++ = GLB_TYPE_FUNCTION;
 
-                        function_body((char *) cur_symbol[SYMBOL_IDENTIFIER], param_count);
+                        function_body((char *) cur_symbol->identifier, param_count);
 
                         // Now that this function is defined, handle any backpatches to it
                         i = 0;
                         while (i < MAX_FWD_FUNCTION_BACKPATCHES) {
                             if (fwd_function_backpatches[i].symbol == cur_function_symbol) {
-                                *fwd_function_backpatches[i].iptr = cur_function_symbol[SYMBOL_VALUE];
+                                *fwd_function_backpatches[i].iptr = cur_function_symbol->value;
                                 fwd_function_backpatches[i].iptr = 0;
                                 fwd_function_backpatches[i].symbol = 0;
                             }
@@ -1352,7 +1354,7 @@ void parse() {
                     else
                         // Make it clear that this symbol will need to be backpatched if used
                         // before the definition has been processed.
-                        cur_function_symbol[SYMBOL_VALUE] = 0;
+                        cur_function_symbol->value = 0;
 
                     doing_var_declaration = 0;
                 }
@@ -1368,7 +1370,7 @@ void parse() {
                         exit(1);
                     }
 
-                    cur_symbol[SYMBOL_VALUE] = (long) data;
+                    cur_symbol->value = (long) data;
                     data += sizeof(long);
                 }
 
@@ -1392,11 +1394,11 @@ void parse() {
                     next();
                 }
 
-                next_symbol[SYMBOL_TYPE] = TYPE_ENUM;
-                next_symbol[SYMBOL_IDENTIFIER] = (long) cur_identifier;
-                next_symbol[SYMBOL_SCOPE] = 0;
-                next_symbol[SYMBOL_VALUE] = number++;
-                next_symbol += SYMBOL_SIZE;
+                next_symbol->type = TYPE_ENUM;
+                next_symbol->identifier = cur_identifier;
+                next_symbol->scope = 0;
+                next_symbol->value = number++;
+                next_symbol++;
 
                 if (cur_token == TOK_COMMA) next();
             }
@@ -1420,14 +1422,14 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
     int instr;
     long operand, imm_type;
     char *s;
-    long *symbol;
+    struct symbol *symbol;
     instr = *pc;
 
     if (print_pc) dprintf(f, "%-15ld ", (long) pc - (long) instructions);
     dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  BNOT LEV  LC   LS   LI   LL   SC   SS   SI   SL   OR   AND  BOR  BAND XOR  EQ   NE   LT   GT   LE   GE   BWL  BWR  ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
     if (instr <= INSTR_ADJ) {
         operand = *(pc + 1);
-        symbol = (long *) *(pc + 3);
+        symbol = (struct symbol *) *(pc + 3);
         if (relative) {
             if ((instr == INSTR_IMM)) {
                 imm_type = *(pc + 2);
@@ -1447,7 +1449,7 @@ void print_instruction(int f, long *pc, int relative, int print_pc) {
                     dprintf(f, "\"");
                 }
                 else if (imm_type == IMM_GLOBAL)
-                    dprintf(f, " global %ld \"%s\"", symbol[SYMBOL_STACK_INDEX], (char *) symbol[SYMBOL_IDENTIFIER]);
+                    dprintf(f, " global %d \"%s\"", symbol->stack_index, (char *) symbol->identifier);
                 else {
                     dprintf(f, "unknown imm %ld\n", imm_type);
                     exit(1);
@@ -1623,28 +1625,29 @@ long run(long argc, char **argv, int print_instructions) {
 }
 
 void add_builtin(char *identifier, int instruction) {
-    long *symbol;
+    struct symbol *symbol;
     symbol = next_symbol;
-    symbol[SYMBOL_TYPE] = TYPE_VOID;
-    symbol[SYMBOL_IDENTIFIER] = (long) identifier;
-    symbol[SYMBOL_BUILTIN] = instruction;
-    next_symbol += SYMBOL_SIZE;
+    symbol->type = TYPE_VOID;
+    symbol->identifier = identifier;
+    symbol->builtin = instruction;
+    next_symbol++;
 }
 
 void do_print_symbols() {
-    long *s, type, scope, value, stack_index;
+    long type, scope, value, stack_index;
+    struct symbol *s;
     char *identifier;
 
     printf("Symbols:\n");
     s = symbol_table;
-    while (s[0]) {
-        type = s[SYMBOL_TYPE];
-        identifier = (char *) s[SYMBOL_IDENTIFIER];
-        scope = s[SYMBOL_SCOPE];
-        value = s[SYMBOL_VALUE];
-        stack_index = s[SYMBOL_STACK_INDEX];
+    while (s->identifier) {
+        type = s->type;
+        identifier = (char *) s->identifier;
+        scope = s->scope;
+        value = s->value;
+        stack_index = s->stack_index;
         printf("%-20ld %-3ld %-3ld %-3ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
-        s += SYMBOL_SIZE;
+        s++;
     }
     printf("\n");
 }
@@ -1713,15 +1716,6 @@ int main(int argc, char **argv) {
 
     all_structs = malloc(sizeof(struct str_desc *) * MAX_STRUCTS);
     all_structs_count = 0;
-
-    SYMBOL_TYPE                 = 0;
-    SYMBOL_IDENTIFIER           = 1;
-    SYMBOL_SCOPE                = 2;
-    SYMBOL_VALUE                = 3;
-    SYMBOL_STACK_INDEX          = 4;
-    SYMBOL_FUNCTION_PARAM_COUNT = 5;
-    SYMBOL_BUILTIN              = 6;
-    SYMBOL_SIZE                 = 7; // Number of longs
 
     add_builtin("exit",    INSTR_EXIT);
     add_builtin("open",    INSTR_OPEN);
