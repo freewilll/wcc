@@ -8,6 +8,38 @@
 // https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/elf.h
 
+struct elf_header {
+    char   ei_magic0;       // 0x7F followed by ELF(45 4c 46) in ASCII; these four bytes constitute the magic number.
+    char   ei_magic1;
+    char   ei_magic2;
+    char   ei_magic3;
+    char   ei_class;        // This byte is set to either 1 or 2 to signify 32- or 64-bit format, respectively.
+    char   ei_data;         // This byte is set to either 1 or 2 to signify little or big endianness, respectively.
+    char   ei_version;      // Set to 1 for the original version of ELF.
+    char   ei_osabi;        // Identifies the target operating system ABI.
+    char   ei_osabiversion; // Further specifies the ABI version.
+    char   pad0;            // Unused
+    char   pad1;            // Unused
+    char   pad2;            // Unused
+    char   pad3;            // Unused
+    char   pad4;            // Unused
+    char   pad5;            // Unused
+    char   pad6;            // Unused
+    short  e_type;          // File type.
+    short  e_machine;       // Machine architecture.
+    int    e_version;       // ELF format version.
+    long   e_entry;         // Entry point.
+    long   e_phoff;         // Program header file offset.
+    long   e_shoff;         // Section header file offset.
+    int    e_flags;         // Architecture-specific flags.
+    short  e_ehsize;        // Size of ELF header in bytes.
+    short  e_phentsize;     // Size of program header entry.
+    short  e_phnum;         // Number of program header entries.
+    short  e_shentsize;     // Size of section header entry.
+    short  e_shnum;         // Number of section header entries.
+    short  e_shstrndx;      // Section name strings section.
+};
+
 struct jmp {
     long address;
     int line;
@@ -29,27 +61,6 @@ enum {
     MAX_RELA_TEXT_SIZE = 10485760,
     MAX_JMPS           = 10240,
     MAX_JSRS           = 10240,
-
-    // ELF header
-    EI_MAGIC        = 0x00,     // 0x7F followed by ELF(45 4c 46) in ASCII; these four bytes constitute the magic number.
-    EI_CLASS        = 0x04,     // This byte is set to either 1 or 2 to signify 32- or 64-bit format, respectively.
-    EI_DATA         = 0x05,     // This byte is set to either 1 or 2 to signify little or big endianness, respectively.
-    EI_VERSION      = 0x06,     // Set to 1 for the original version of ELF.
-    EI_OSABI        = 0x07,     // Identifies the target operating system ABI.
-
-    E_TYPE          = 0x10,     // Identifies object file type. ET_EXEC=2 is executable.
-    E_MACHINE       = 0x12,     // Specifies target instruction set architecture. Some examples are, e.g. 0x3e is x86-64.
-    E_VERSION       = 0x14,     // Set to 1 for the original version of ELF.
-    E_ENTRY         = 0x18,     // This is the memory address of the entry point from where the process starts executing.
-    E_PHOFF         = 0x20,     // Points to the start of the program header table.
-    E_SHOFF         = 0x28,     // Points to the start of the section header table.
-    E_FLAGS         = 0x30,     // Interpretation of this field depends on the target architecture.
-    E_EHSIZE        = 0x34,     // Contains the size of the ELF header.
-    E_PHENTSIZE     = 0x36,     // Contains the size of a program header table entry.
-    E_PHNUM         = 0x38,     // Contains the number of entries in the program header table.
-    E_SHENTSIZE     = 0x3a,     // Contains the size of a section header table entry.
-    E_SHNUM         = 0x3c,     // Contains the number of entries in the section header table.
-    E_SHSTRNDX      = 0x3e,     // Contains index of the section header table entry that contains the section names.
 
     // Program header
     P_TYPE          = 0x00,     // Identifies the type of the segment. PT_LOAD=1, PT_PHDR=6
@@ -111,7 +122,6 @@ enum {
     R_X86_64_PC32   = 2,        // truncate value to 32 bits
 
     // Sizes of the headers
-    EHDR_SIZE       = 0x40,     // Elf header size
     PHDR_SIZE       = 0x38,     // Program header size
     SHDR_SIZE       = 0x40,     // Section header size
     STE_SIZE        = 0x18,     // Symbol table entry size
@@ -265,7 +275,7 @@ void plan_elf_sections() {
     symtab_size = num_syms * STE_SIZE;
 
     // Determine section offsets
-    shdr_start      = EHDR_SIZE;
+    shdr_start      = sizeof(struct elf_header);
     data_start      = align(shdr_start      + SHDR_SIZE * shstrtab_len, 16);
     text_start      = align(data_start      + data_size,                16);
     shstrtab_start  = align(text_start      + text_size,                16);
@@ -281,30 +291,33 @@ void write_elf(char *filename) {
     int *si;
     char *program, *h;
     int data_flags, text_flags;
+    struct elf_header *elf_header;
 
     program = malloc(total_size);
     memset(program, 0, total_size);
 
+    elf_header = (struct elf_header *) program;
+
     // ELF header
-    program[EI_MAGIC+ 0] = 0x7f;                  // Magic
-    program[EI_MAGIC+ 1] = 'E';
-    program[EI_MAGIC+ 2] = 'L';
-    program[EI_MAGIC+ 3] = 'F';
-    program[EI_CLASS]    = 2;                     // 64-bit
-    program[EI_DATA]     = 1;                     // LSB
-    program[EI_VERSION]  = 1;                     // Original ELF version
-    program[EI_OSABI]    = 0;                     // Unix System V
-    program[E_TYPE]      = ET_REL;                // ET_REL Relocatable
-    program[E_MACHINE]   = E_MACHINE_TYPE_X86_64; // x86-64
-    program[E_VERSION]   = 1;                     // EV_CURRENT Current version of ELF
-    program[E_PHOFF]     = 0;                     // Offset to program header table
-    program[E_SHOFF]     = shdr_start;            // Offset to section header table
-    program[E_EHSIZE]    = EHDR_SIZE;             // The size of this header, 0x40 for 64-bit
-    program[E_PHENTSIZE] = 0;                     // The size of the program header
-    program[E_PHNUM]     = 0;                     // Number of program header entries
-    program[E_SHENTSIZE] = SHDR_SIZE;             // The size of the section header
-    program[E_SHNUM]     = shstrtab_len;          // Number of section header entries
-    program[E_SHSTRNDX]  = SEC_SHSTRTAB;          // The string table index is the fourth section
+    elf_header->ei_magic0 = 0x7f;                           // Magic
+    elf_header->ei_magic1 = 'E';
+    elf_header->ei_magic2 = 'L';
+    elf_header->ei_magic3 = 'F';
+    elf_header->ei_class    = 2;                            // 64-bit
+    elf_header->ei_data     = 1;                            // LSB
+    elf_header->ei_version  = 1;                            // Original ELF version
+    elf_header->ei_osabi    = 0;                            // Unix System V
+    elf_header->e_type      = ET_REL;                       // ET_REL Relocatable
+    elf_header->e_machine   = E_MACHINE_TYPE_X86_64;        // x86-64
+    elf_header->e_version   = 1;                            // EV_CURRENT Current version of ELF
+    elf_header->e_phoff     = 0;                            // Offset to program header table
+    elf_header->e_shoff     = shdr_start;                   // Offset to section header table
+    elf_header->e_ehsize    = sizeof(struct elf_header);    // The size of this header, 0x40 for 64-bit
+    elf_header->e_phentsize = 0;                            // The size of the program header
+    elf_header->e_phnum     = 0;                            // Number of program header entries
+    elf_header->e_shentsize = SHDR_SIZE;                    // The size of the section header
+    elf_header->e_shnum     = shstrtab_len;                 // Number of section header entries
+    elf_header->e_shstrndx  = SEC_SHSTRTAB;                 // The string table index is the fourth section
 
     // Section headers
     h = program + shdr_start;

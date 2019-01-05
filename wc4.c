@@ -512,10 +512,10 @@ int parse_struct_base_type() {
                 consume(TOK_IDENTIFIER);
                 if (cur_token == TOK_COMMA) next();
             }
-            offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
-            s->size = offset;
             while (cur_token == TOK_SEMI) consume(TOK_SEMI);
         }
+        offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
+        s->size = offset;
         consume(TOK_RCURLY);
         return result;
     }

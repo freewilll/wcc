@@ -943,6 +943,26 @@ def test_struct_member_alignment():
     """, "1 2 2 4 4 8 8 16\n2 4 8 16\n3 6 12 24\n1 2 4 8\n", 0)
 
 
+def test_struct_alignment_bug():
+    check_output("""
+        struct s {
+            int    i1;
+            long   l1;
+            int    i2;
+            short  s1;
+        };
+
+        int main() {
+            struct s *eh;
+
+            printf("%ld ", (long) &(eh->l1) - (long) eh);
+            printf("%ld ", (long) &(eh->i2) - (long) eh);
+            printf("%ld ", (long) &(eh->s1) - (long) eh);
+            printf("%ld\n", sizeof(struct s));
+        }
+    """, "8 16 20 24\n", 0)
+
+
 def test_nested_struct():
     check_output("""
         struct s1 {
