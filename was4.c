@@ -62,6 +62,12 @@ struct symbol {
     long  st_size;          // Many symbols have associated sizes. For example, a data object's size is the number of bytes contained in the object. This member holds 0 if the symbol has no size or an unknown size.
 };
 
+struct relocation {
+    long r_offset;          // Location to be relocated
+    long r_info;            // Relocation type (low 32 bits) and symbol index (high 32 bits).
+    long r_addend;          // Addend
+};
+
 struct jmp {
     long address;
     int line;
@@ -107,17 +113,10 @@ enum {
     SHF_ALLOC       = 2,
     SHF_EXECINSTR   = 4,
 
-    R_OFFSET        = 0x00,     // Location to be relocated
-    R_INFO          = 0x08,     // Relocation type (low 32 bits) and symbol index (high 32 bits).
-    R_ADDEND        = 0x10,     // Addend
-
     // See http://refspecs.linuxbase.org/elf/x86_64-abi-0.98.pdf page 69
     R_X86_64_NONE   = 0,        // No calculation
     R_X86_64_64     = 1,        // Direct 64 bit relocation
     R_X86_64_PC32   = 2,        // truncate value to 32 bits
-
-    // Sizes of the headers
-    RELA_SIZE       = 0x18,     // Relocation section entry size
 
     SEC_NULL      = 0,
     SEC_DATA      = 1,
@@ -137,14 +136,14 @@ enum {
     ET_REL = 1,                         // relocatable
 };
 
-char *rela_text_data;
+struct relocation *rela_text_data;
 int num_rela_text;
 char **strtab;
 int strtab_len;
 struct symbol *symtab_data;
 int num_syms;
 int data_size, text_size, strtab_size, rela_text_size;
-char *data_data, *text_data, *strtab_data, *shstrtab_data, *strtab_data, *rela_text_data;
+char *data_data, *text_data, *strtab_data, *shstrtab_data, *strtab_data;
 int data_size, text_size, strtab_size, rela_text_size;
 int last_local_symbol, num_syms;
 int shstrtab_len;
@@ -328,7 +327,7 @@ void write_elf(char *filename) {
     add_section_header(h, si, SEC_SHSTRTAB,  SHT_STRTAB,   0,          shstrtab_start,  shstrtab_size,  0,          0,                     0x1,  0);
     add_section_header(h, si, SEC_SYMTAB,    SHT_SYMTAB,   0,          symtab_start,    symtab_size,    SEC_STRTAB, last_local_symbol + 1, 0x8,  sizeof(struct symbol));
     add_section_header(h, si, SEC_STRTAB,    SHT_STRTAB,   0,          strtab_start,    strtab_size,    0,          0,                     0x1,  0);
-    add_section_header(h, si, SEC_RELA_TEXT, SHT_RELA,     0,          rela_text_start, rela_text_size, SEC_SYMTAB, SEC_TEXT,              0x8,  RELA_SIZE);
+    add_section_header(h, si, SEC_RELA_TEXT, SHT_RELA,     0,          rela_text_start, rela_text_size, SEC_SYMTAB, SEC_TEXT,              0x8,  sizeof(struct relocation));
 
     // Data
     s =          data_data;      d = &program[data_start];       while (s -          data_data < data_size)           *d++ = *s++;
@@ -336,7 +335,7 @@ void write_elf(char *filename) {
     s =          shstrtab_data;  d = &program[shstrtab_start];   while (s -          shstrtab_data < shstrtab_size)   *d++ = *s++;
     s = (char *) symtab_data;    d = &program[symtab_start];     while (s - (char *) symtab_data < symtab_size)       *d++ = *s++;
     s =          strtab_data;    d = &program[strtab_start];     while (s -          strtab_data < strtab_size)       *d++ = *s++;
-    s =          rela_text_data; d = &program[rela_text_start];  while (s -          rela_text_data < rela_text_size) *d++ = *s++;
+    s = (char *) rela_text_data; d = &program[rela_text_start];  while (s - (char *) rela_text_data < rela_text_size) *d++ = *s++;
 
     // Write file
     if (!strcmp(filename, "-"))
@@ -447,15 +446,15 @@ void add_string_literal(char *input) {
 }
 
 void add_function_call_relocation(int symbol_index, long offset) {
-    char *s;
+    struct relocation *r;
     // s is the entry in the relocation table
-    s = rela_text_data + num_rela_text * RELA_SIZE;
+    r = &rela_text_data[num_rela_text];
     num_rela_text += 1;
-    *((long *) &s[R_OFFSET]) = offset;
+    r->r_offset = offset;
 
     // R_X86_64_PC32 + a link to the .data section
-    *((long *) &s[R_INFO]) = (long) R_X86_64_PC32 + ((long) symbol_index << 32);
-    *((long *) &s[R_ADDEND]) = -4;
+    r->r_info = R_X86_64_PC32 + ((long) symbol_index << 32);
+    r->r_addend = -4;
 }
 
 int symbol_index(char *name) {
@@ -541,6 +540,7 @@ int assemble_file(char *input_filename, char *output_filename) {
     int *shstrtab_indexes, *strtab_indexes;
     char *s, *t, *name, **ps;
     struct symbol *symbol;
+    struct relocation *r;
     char *main_address;
     long *line_string_literals;
     char **vm_address_map; // map VM address as indicated by the first number in the compiler output to its address in .text
@@ -707,13 +707,13 @@ int assemble_file(char *input_filename, char *output_filename) {
             *s = 0;
 
             // s is the entry in the relocation table
-            s = rela_text_data + num_rela_text * RELA_SIZE;
+            r = &rela_text_data[num_rela_text];
             num_rela_text += 1;
-            *((long *) &s[R_OFFSET]) = t - text_data + 2;
+            r->r_offset = t - text_data + 2;
             *t++ = 0x48; *t++ = 0xb8; // movabs $0x...,%rax
             t += 8;
-            *((long *) &s[R_INFO]) = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
-            *((long *) &s[R_ADDEND]) = symtab_data[symbol_index(name)].st_value; // Address in .data
+            r->r_info = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
+            r->r_addend = symtab_data[symbol_index(name)].st_value; // Address in .data
         }
 
         else if (!wmemcmp(instr, "IMM   ", 6)) {
@@ -732,13 +732,13 @@ int assemble_file(char *input_filename, char *output_filename) {
             }
             else {
                 // A string literal. s is the entry in the relocation table
-                s = rela_text_data + num_rela_text * RELA_SIZE;
+                r = &rela_text_data[num_rela_text];
                 num_rela_text += 1;
-                *((long *) &s[R_OFFSET]) = t - text_data + 3;
+                r->r_offset = t - text_data + 3;
                 *t++ = 0x48; *t++ = 0x8d; *t++ = 0x05; // lea 0x...(%rip), %rax
                 t += 4;
-                *((long *) &s[R_INFO]) = (long) R_X86_64_PC32 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_PC32 + a link to the .data section
-                *((long *) &s[R_ADDEND]) = *((long *) &line_string_literals[line]) - 4;        // Address in .data - 4
+                r->r_info = R_X86_64_PC32 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_PC32 + a link to the .data section
+                r->r_addend = line_string_literals[line] - 4;              // Address in .data - 4
             }
         }
 
@@ -1085,7 +1085,7 @@ int assemble_file(char *input_filename, char *output_filename) {
 
     backpatch_jsrs();
 
-    rela_text_size = num_rela_text * RELA_SIZE;
+    rela_text_size = num_rela_text * sizeof(struct relocation);
 
     strtab_indexes = malloc(sizeof(int) * strtab_len);
     make_string_list(strtab, strtab_len, &strtab_data, strtab_indexes, &strtab_size);
