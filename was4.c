@@ -40,6 +40,19 @@ struct elf_header {
     short  e_shstrndx;      // Section name strings section.
 };
 
+struct section_header {
+    int  sh_name;           // An offset to a string in the .shstrtab section that represents the name of this section
+    int  sh_type;           // Identifies the type of this header.
+    long sh_flags;          // Identifies the attributes of the section.
+    long sh_addr;           // Virtual address of the section in memory, for sections that are loaded.
+    long sh_offset;         // Offset of the section in the file image.
+    long sh_size;           // Size in bytes of the section in the file image. May be 0.
+    int  sh_link;           // Contains the section index of an associated section.
+    int  sh_info;           // Contains extra information about the section.
+    long sh_addralign;      // Contains the required alignment of the section. This field must be a power of two.
+    long sh_entsize;        // Contains the size, in bytes, of each entry, for sections that contain fixed-size entries. Otherwise, this field contains zero.
+};
+
 struct jmp {
     long address;
     int line;
@@ -61,17 +74,6 @@ enum {
     MAX_RELA_TEXT_SIZE = 10485760,
     MAX_JMPS           = 10240,
     MAX_JSRS           = 10240,
-
-    SH_NAME         = 0x00,     // An offset to a string in the .shstrtab section that represents the name of this section
-    SH_TYPE         = 0x04,     // Identifies the type of this header.
-    SH_FLAGS        = 0x08,     // Identifies the attributes of the section.
-    SH_ADDR         = 0x10,     // Virtual address of the section in memory, for sections that are loaded.
-    SH_OFFSET       = 0x18,     // Offset of the section in the file image.
-    SH_SIZE         = 0x20,     // Size in bytes of the section in the file image. May be 0.
-    SH_LINK         = 0x28,     // Contains the section index of an associated section.
-    SH_INFO         = 0x2c,     // Contains extra information about the section.
-    SH_ADDRALIGN    = 0x30,     // Contains the required alignment of the section. This field must be a power of two.
-    SH_ENTSIZE      = 0x38,     // Contains the size, in bytes, of each entry, for sections that contain fixed-size entries. Otherwise, this field contains zero.
 
     ST_NAME         = 0x00,     // This member holds an index into the object file's symbol string table
     ST_INFO         = 0x04,     // This member specifies the symbol's type (low 4 bits) and binding (high 4 bits) attributes
@@ -113,8 +115,6 @@ enum {
     R_X86_64_PC32   = 2,        // truncate value to 32 bits
 
     // Sizes of the headers
-    PHDR_SIZE       = 0x38,     // Program header size
-    SHDR_SIZE       = 0x40,     // Section header size
     STE_SIZE        = 0x18,     // Symbol table entry size
     RELA_SIZE       = 0x18,     // Relocation section entry size
 
@@ -237,19 +237,24 @@ void make_string_list(char** strings, int len, char **string_list, int *indexes,
 void add_section_header(char *headers, int *shstrtab_indexes, int index, int type, long flags,
         long offset, long size, int link, int info, long align, long ent_size) {
 
-    headers[SHDR_SIZE * index + SH_NAME]      = shstrtab_indexes[index];
-    headers[SHDR_SIZE * index + SH_TYPE]      = type;
-    headers[SHDR_SIZE * index + SH_FLAGS]     = flags;
-    headers[SHDR_SIZE * index + SH_LINK]      = link;
-    headers[SHDR_SIZE * index + SH_INFO]      = info;
-    headers[SHDR_SIZE * index + SH_ADDRALIGN] = align;
-    headers[SHDR_SIZE * index + SH_ENTSIZE]   = ent_size;
+    struct section_header *sh;
+    sh = (struct section_header *) (headers + sizeof(struct section_header) * index);
 
-    *((long *) &headers[SHDR_SIZE * index + SH_OFFSET]) = offset;
-    *((long *) &headers[SHDR_SIZE * index + SH_SIZE])   = size;
+    sh->sh_name      = shstrtab_indexes[index];
+    sh->sh_type      = type;
+    sh->sh_flags     = flags;
+    sh->sh_offset    = offset;
+    sh->sh_size      = size;
+    sh->sh_link      = link;
+    sh->sh_info      = info;
+    sh->sh_addralign = align;
+    sh->sh_entsize   = ent_size;
 }
 
 void plan_elf_sections() {
+    int shdr_size;
+    shdr_size = sizeof(struct section_header);
+
     // Add section header strings
     shstrtab_len = 7;
     shstrtab = malloc(sizeof(char *) * shstrtab_len);
@@ -267,7 +272,7 @@ void plan_elf_sections() {
 
     // Determine section offsets
     shdr_start      = sizeof(struct elf_header);
-    data_start      = align(shdr_start      + SHDR_SIZE * shstrtab_len, 16);
+    data_start      = align(shdr_start      + shdr_size * shstrtab_len, 16);
     text_start      = align(data_start      + data_size,                16);
     shstrtab_start  = align(text_start      + text_size,                16);
     strtab_start    = align(shstrtab_start  + shstrtab_size,            16);
@@ -306,7 +311,7 @@ void write_elf(char *filename) {
     elf_header->e_ehsize    = sizeof(struct elf_header);    // The size of this header, 0x40 for 64-bit
     elf_header->e_phentsize = 0;                            // The size of the program header
     elf_header->e_phnum     = 0;                            // Number of program header entries
-    elf_header->e_shentsize = SHDR_SIZE;                    // The size of the section header
+    elf_header->e_shentsize = sizeof(struct section_header);// The size of the section header
     elf_header->e_shnum     = shstrtab_len;                 // Number of section header entries
     elf_header->e_shstrndx  = SEC_SHSTRTAB;                 // The string table index is the fourth section
 
