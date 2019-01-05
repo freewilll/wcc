@@ -53,6 +53,15 @@ struct section_header {
     long sh_entsize;        // Contains the size, in bytes, of each entry, for sections that contain fixed-size entries. Otherwise, this field contains zero.
 };
 
+struct symbol {
+    int   st_name;          // This member holds an index into the object file's symbol string table
+    char  st_info;          // This member specifies the symbol's type (low 4 bits) and binding (high 4 bits) attributes
+    char  st_other;         // This member currently specifies a symbol's visibility.
+    short st_shndx;         // Every symbol table entry is defined in relation to some section. This member holds the relevant section header table index.
+    long  st_value;         // This member gives the value of the associated symbol. Depending on the context, this may be an absolute value, an address, and so on; details appear
+    long  st_size;          // Many symbols have associated sizes. For example, a data object's size is the number of bytes contained in the object. This member holds 0 if the symbol has no size or an unknown size.
+};
+
 struct jmp {
     long address;
     int line;
@@ -74,13 +83,6 @@ enum {
     MAX_RELA_TEXT_SIZE = 10485760,
     MAX_JMPS           = 10240,
     MAX_JSRS           = 10240,
-
-    ST_NAME         = 0x00,     // This member holds an index into the object file's symbol string table
-    ST_INFO         = 0x04,     // This member specifies the symbol's type (low 4 bits) and binding (high 4 bits) attributes
-    ST_OTHER        = 0x05,     // This member currently specifies a symbol's visibility.
-    ST_SHNDX        = 0x06,     // Every symbol table entry is defined in relation to some section. This member holds the relevant section header table index.
-    ST_VALUE        = 0x08,     // This member gives the value of the associated symbol. Depending on the context, this may be an absolute value, an address, and so on; details appear
-    ST_SIZE         = 0x10,     // Many symbols have associated sizes. For example, a data object's size is the number of bytes contained in the object. This member holds 0 if the symbol has no size or an unknown size.
 
     STB_LOCAL       = 0,
     STB_GLOBAL      = 1,
@@ -115,7 +117,6 @@ enum {
     R_X86_64_PC32   = 2,        // truncate value to 32 bits
 
     // Sizes of the headers
-    STE_SIZE        = 0x18,     // Symbol table entry size
     RELA_SIZE       = 0x18,     // Relocation section entry size
 
     SEC_NULL      = 0,
@@ -140,10 +141,10 @@ char *rela_text_data;
 int num_rela_text;
 char **strtab;
 int strtab_len;
-char *symtab_data;
+struct symbol *symtab_data;
 int num_syms;
 int data_size, text_size, strtab_size, rela_text_size;
-char *data_data, *text_data, *strtab_data, *shstrtab_data, *symtab_data, *strtab_data, *rela_text_data;
+char *data_data, *text_data, *strtab_data, *shstrtab_data, *strtab_data, *rela_text_data;
 int data_size, text_size, strtab_size, rela_text_size;
 int last_local_symbol, num_syms;
 int shstrtab_len;
@@ -268,7 +269,7 @@ void plan_elf_sections() {
     shstrtab[6] = ".rela.text"; // SEC_RELA_TEXT
     make_string_list(shstrtab, shstrtab_len, &shstrtab_data, shstrtab_indexes, &shstrtab_size);
 
-    symtab_size = num_syms * STE_SIZE;
+    symtab_size = num_syms * sizeof(struct symbol);
 
     // Determine section offsets
     shdr_start      = sizeof(struct elf_header);
@@ -325,17 +326,17 @@ void write_elf(char *filename) {
     add_section_header(h, si, SEC_DATA,      SHT_PROGBITS, data_flags, data_start,      data_size,      0,          0,                     0x04, 0);
     add_section_header(h, si, SEC_TEXT,      SHT_PROGBITS, text_flags, text_start,      text_size,      0,          0,                     0x10, 0);
     add_section_header(h, si, SEC_SHSTRTAB,  SHT_STRTAB,   0,          shstrtab_start,  shstrtab_size,  0,          0,                     0x1,  0);
-    add_section_header(h, si, SEC_SYMTAB,    SHT_SYMTAB,   0,          symtab_start,    symtab_size,    SEC_STRTAB, last_local_symbol + 1, 0x8,  STE_SIZE);
+    add_section_header(h, si, SEC_SYMTAB,    SHT_SYMTAB,   0,          symtab_start,    symtab_size,    SEC_STRTAB, last_local_symbol + 1, 0x8,  sizeof(struct symbol));
     add_section_header(h, si, SEC_STRTAB,    SHT_STRTAB,   0,          strtab_start,    strtab_size,    0,          0,                     0x1,  0);
     add_section_header(h, si, SEC_RELA_TEXT, SHT_RELA,     0,          rela_text_start, rela_text_size, SEC_SYMTAB, SEC_TEXT,              0x8,  RELA_SIZE);
 
     // Data
-    s = data_data;      d = &program[data_start];       while (s - data_data < data_size)           *d++ = *s++;
-    s = text_data;      d = &program[text_start];       while (s - text_data < text_size)           *d++ = *s++;
-    s = shstrtab_data;  d = &program[shstrtab_start];   while (s - shstrtab_data < shstrtab_size)   *d++ = *s++;
-    s = symtab_data;    d = &program[symtab_start];     while (s - symtab_data < symtab_size)       *d++ = *s++;
-    s = strtab_data;    d = &program[strtab_start];     while (s - strtab_data < strtab_size)       *d++ = *s++;
-    s = rela_text_data; d = &program[rela_text_start];  while (s - rela_text_data < rela_text_size) *d++ = *s++;
+    s =          data_data;      d = &program[data_start];       while (s -          data_data < data_size)           *d++ = *s++;
+    s =          text_data;      d = &program[text_start];       while (s -          text_data < text_size)           *d++ = *s++;
+    s =          shstrtab_data;  d = &program[shstrtab_start];   while (s -          shstrtab_data < shstrtab_size)   *d++ = *s++;
+    s = (char *) symtab_data;    d = &program[symtab_start];     while (s - (char *) symtab_data < symtab_size)       *d++ = *s++;
+    s =          strtab_data;    d = &program[strtab_start];     while (s -          strtab_data < strtab_size)       *d++ = *s++;
+    s =          rela_text_data; d = &program[rela_text_start];  while (s -          rela_text_data < rela_text_size) *d++ = *s++;
 
     // Write file
     if (!strcmp(filename, "-"))
@@ -350,24 +351,23 @@ void write_elf(char *filename) {
 }
 
 void add_symbol(char *name, long value, int type, int binding, int section_index) {
-    char *s;
+    struct symbol *s;
+
     if (strtab_len == MAX_STRTAB_LEN) {
         printf("Exceeded max strtab length %d\n", MAX_STRTAB_LEN);
         exit(1);
     }
     strtab[strtab_len++] = name;
 
-    s = (symtab_data + STE_SIZE * num_syms);
-    *((long *) &s[ST_VALUE]) = value;
-    s[ST_INFO] = (type << 4) + binding;
-    *((short *) &s[ST_SHNDX]) = section_index;
-    (*symtab_data) += STE_SIZE;
-
+    s = &symtab_data[num_syms];
+    s->st_value = value;
+    s->st_info = (type << 4) + binding;
+    s->st_shndx = section_index;
     num_syms++;
     if (num_syms > MAX_SYMTAB_LEN) { printf("Exceeded max symbol table size %d\n", MAX_SYMTAB_LEN); exit(1); }
 }
 
-void link_symtab_strings(char *symtab_data, char *strtab_data, int num_syms) {
+void link_symtab_strings(struct symbol *symtab_data, char *strtab_data, int num_syms) {
     int i;
     char *s;
 
@@ -375,9 +375,9 @@ void link_symtab_strings(char *symtab_data, char *strtab_data, int num_syms) {
     s = strtab_data;
     while (i < num_syms) {
         if (*s)
-            *((int *) &symtab_data[i * STE_SIZE + ST_NAME]) = s - strtab_data;
+            symtab_data[i].st_name = s - strtab_data;
         else
-            symtab_data[i * STE_SIZE + ST_NAME] = 0;
+            symtab_data[i].st_name = 0;
         while (*s++);
         i++;
     }
@@ -539,7 +539,8 @@ int assemble_file(char *input_filename, char *output_filename) {
     char *input, *pi, *instr;
     int vm_address;
     int *shstrtab_indexes, *strtab_indexes;
-    char *s, *t, *name, **ps, *symbol;
+    char *s, *t, *name, **ps;
+    struct symbol *symbol;
     char *main_address;
     long *line_string_literals;
     char **vm_address_map; // map VM address as indicated by the first number in the compiler output to its address in .text
@@ -567,8 +568,8 @@ int assemble_file(char *input_filename, char *output_filename) {
     strtab_len = 0;
     strtab = malloc(sizeof(char *) * MAX_STRTAB_LEN);
     num_syms = 0;
-    symtab_data = malloc(MAX_SYMTAB_LEN * STE_SIZE);
-    memset(symtab_data, MAX_SYMTAB_LEN * STE_SIZE, 0);
+    symtab_data = malloc(MAX_SYMTAB_LEN * sizeof(struct symbol));
+    memset(symtab_data, MAX_SYMTAB_LEN * sizeof(struct symbol), 0);
 
     add_symbol("",             0, STB_LOCAL,  STT_NOTYPE,  SHN_UNDEF); // 0 null
     add_symbol(input_filename, 0, STB_LOCAL,  STT_FILE,    SHN_ABS);   // 1 filename
@@ -712,8 +713,7 @@ int assemble_file(char *input_filename, char *output_filename) {
             *t++ = 0x48; *t++ = 0xb8; // movabs $0x...,%rax
             t += 8;
             *((long *) &s[R_INFO]) = (long) R_X86_64_64 + ((long) (SEC_DATA + 1) << 32); // R_X86_64_64 + a link to the .data section
-            symbol = symtab_data + STE_SIZE *  symbol_index(name);
-            *((long *) &s[R_ADDEND]) = *((long *) &symbol[ST_VALUE]); // Address in .data
+            *((long *) &s[R_ADDEND]) = symtab_data[symbol_index(name)].st_value; // Address in .data
         }
 
         else if (!wmemcmp(instr, "IMM   ", 6)) {
