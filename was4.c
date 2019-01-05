@@ -62,15 +62,6 @@ enum {
     MAX_JMPS           = 10240,
     MAX_JSRS           = 10240,
 
-    // Program header
-    P_TYPE          = 0x00,     // Identifies the type of the segment. PT_LOAD=1, PT_PHDR=6
-    P_FLAGS         = 0x04,     // Segment-dependent flags. Here: read, write execute.
-    P_OFFSET        = 0x08,     // Offset of the segment in the file image.
-    P_VADDR         = 0x10,     // Virtual address of the segment in memory.
-    P_FILESZ        = 0x20,     // Size in bytes of the segment in the file image. May be 0.
-    P_MEMSZ         = 0x28,     // Size in bytes of the segment in memory. May be 0.
-    P_ALIGN         = 0x30,     // 0 and 1 specify no alignment. Otherwise should be a positive, integral power of 2, with p_vaddr equating p_offset modulus p_align.
-
     SH_NAME         = 0x00,     // An offset to a string in the .shstrtab section that represents the name of this section
     SH_TYPE         = 0x04,     // Identifies the type of this header.
     SH_FLAGS        = 0x08,     // Identifies the attributes of the section.
