@@ -524,12 +524,9 @@ int parse_struct_base_type() {
         return result;
     }
     else {
-        i = 0;
-        while (i < all_structs_count) {
+        for (i = 0; i < all_structs_count; i++)
             if (!strcmp(all_structs[i]->name, strct_identifier)) {
                 return TYPE_STRUCT + i;
-            }
-            i++;
         }
         printf("%d: Unknown struct %s\n", cur_line, strct_identifier);
         exit(1);
@@ -755,14 +752,11 @@ void expression(int level) {
                 *iptr++ = INSTR_JSR;
                 if (!symbol->value) {
                     // The function hasn't been defined yet, add a backpatch to it.
-                    i = 0;
-                    while (i < MAX_FWD_FUNCTION_BACKPATCHES) {
+                    for (i = 0; i < MAX_FWD_FUNCTION_BACKPATCHES; i++)
                         if (!fwd_function_backpatches[i].iptr) {
                             fwd_function_backpatches[i].iptr = iptr;
                             fwd_function_backpatches[i].symbol = symbol;
-                            i = MAX_FWD_FUNCTION_BACKPATCHES; // break
-                        }
-                        i++;
+                            i = MAX_FWD_FUNCTION_BACKPATCHES; // break isn't implemented in wc4
                     }
                 }
 
@@ -1410,15 +1404,12 @@ void parse() {
                         function_body((char *) cur_symbol->identifier, param_count);
 
                         // Now that this function is defined, handle any backpatches to it
-                        i = 0;
-                        while (i < MAX_FWD_FUNCTION_BACKPATCHES) {
+                        for (i = 0; i < MAX_FWD_FUNCTION_BACKPATCHES; i++)
                             if (fwd_function_backpatches[i].symbol == cur_function_symbol) {
                                 *fwd_function_backpatches[i].iptr = cur_function_symbol->value;
                                 fwd_function_backpatches[i].iptr = 0;
                                 fwd_function_backpatches[i].symbol = 0;
                             }
-                            i++;
-                        }
                     }
                     else
                         // Make it clear that this symbol will need to be backpatched if used

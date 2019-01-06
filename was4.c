@@ -184,11 +184,8 @@ char *wstrdup(char *src) {
 // zero if the strings are equal, one otherwise.
 int wmemcmp(char *str1, char *str2, int size) {
     int i;
-    i = 0;
-    while (i < size) {
+    for (i = 0; i < size; i++)
         if (*str1++ != *str2++) return 1;
-        i++;
-    }
     return 0;
 }
 
@@ -212,23 +209,19 @@ void make_string_list(char** strings, int len, char **string_list, int *indexes,
     char *src, *dst, start;
 
     *size = 0;
-    i = 0;
-    while (i < len) {
+    for (i = 0; i < len; i++) {
         src = strings[i];
         while (*src++);
         *size += (src - strings[i]);
-        i++;
     }
 
     result = malloc(*size);
 
     dst = result;
-    i = 0;
-    while (i < len) {
+    for (i = 0; i < len; i++) {
         src = strings[i];
         indexes[i] = dst - result;
         while (*dst++ = *src++);
-        i++;
     }
 
     *string_list = result;
@@ -370,15 +363,13 @@ void link_symtab_strings(struct symbol *symtab_data, char *strtab_data, int num_
     int i;
     char *s;
 
-    i = 0;
     s = strtab_data;
-    while (i < num_syms) {
+    for (i = 0; i < num_syms; i++) {
         if (*s)
             symtab_data[i].st_name = s - strtab_data;
         else
             symtab_data[i].st_name = 0;
         while (*s++);
-        i++;
     }
 }
 
@@ -460,11 +451,10 @@ void add_function_call_relocation(int symbol_index, long offset) {
 int symbol_index(char *name) {
     int i;
     char **ps;
-    i = 0;
+
     ps = strtab;
-    while (i < strtab_len) {
+    for (i = 0; i < strtab_len; i++) {
         if (!wstrcmp(*ps, name)) return i;
-        i++;
         *ps++;
     }
 
@@ -487,11 +477,9 @@ void prepare_function_call(char **code, int function_call_arg_count) {
     if (v >= 1) { *t++ = 0x48; *t++ = 0x8b; *t++ = 0xbc; *t++ = 0x24; *((int *) t) = (char) (v - 1) * 8; t += 4; } // mov x(%rsp),%rdi
 
     // For the remaining args after the first 6, swap the opposite ends of the stack
-    i = 0;
-    while (i < v - 6) {
+    for (i = 0; i < v - 6; i++) {
         *t++ = 0x48; *t++ = 0x8b; *t++ = 0x84; *t++ = 0x24; *((int *) t) = (char) i * 8; t += 4;           // mov x(%rsp),%rax
         *t++ = 0x48; *t++ = 0x89; *t++ = 0x84; *t++ = 0x24; *((int *) t) = (char) (v - i - 1) * 8; t += 4; // mov %rax, x(%rsp)
-        i++;
     }
 
     // Adjust the stack for the removed args that are in registers
@@ -526,11 +514,8 @@ void builtin_function_call(char **t, char *name, int num_args, int extend_to_lon
 void backpatch_jsrs() {
     int i;
 
-    i = 0;
-    while (i < jsr_count) {
+    for (i = 0; i < jsr_count; i++)
         add_function_call_relocation(symbol_index(jsrs[i].function_name), jsrs[i].offset);
-        i++;
-    }
 }
 
 int assemble_file(char *input_filename, char *output_filename) {
