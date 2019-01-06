@@ -51,7 +51,9 @@ int cur_integer;
 char *cur_string_literal;
 struct symbol *cur_function_symbol;
 int seen_return;
-long *cur_while_start;
+long *cur_loop_continue_address;
+long *cur_loop_body_start;
+long *cur_loop_increment_start;
 int global_variable_count;
 
 struct symbol *symbol_table;
@@ -89,13 +91,14 @@ enum {
     TOK_LONG,
     TOK_STRUCT,
     TOK_WHILE,
+    TOK_FOR,
     TOK_CONTINUE,
     TOK_RETURN,
     TOK_ENUM,
     TOK_SIZEOF,
     TOK_RPAREN,
-    TOK_LPAREN,
-    TOK_RBRACKET,       // 20
+    TOK_LPAREN,         // 20
+    TOK_RBRACKET,
     TOK_LBRACKET,
     TOK_RCURLY,
     TOK_LCURLY,
@@ -104,8 +107,8 @@ enum {
     TOK_EQ,
     TOK_PLUS_EQ,
     TOK_MINUS_EQ,
-    TOK_TERNARY,
-    TOK_COLON,          // 30
+    TOK_TERNARY,        // 30
+    TOK_COLON,
     TOK_OR,
     TOK_AND,
     TOK_BITWISE_OR,
@@ -114,8 +117,8 @@ enum {
     TOK_DBL_EQ,
     TOK_NOT_EQ,
     TOK_LT,
-    TOK_GT,
-    TOK_LE,             // 40
+    TOK_GT,             // 40
+    TOK_LE,
     TOK_GE,
     TOK_BITWISE_LEFT,
     TOK_BITWISE_RIGHT,
@@ -124,8 +127,8 @@ enum {
     TOK_MULTIPLY,
     TOK_DIVIDE,
     TOK_MOD,
-    TOK_LOGICAL_NOT,
-    TOK_BITWISE_NOT,    // 50
+    TOK_LOGICAL_NOT,    // 50
+    TOK_BITWISE_NOT,
     TOK_INC,
     TOK_DEC,
     TOK_DOT,
@@ -267,6 +270,7 @@ void next() {
         else if (input_size - ip >= 4 && !memcmp(i+ip, "void",          4 )) { ip += 4;  cur_token = TOK_VOID;                       }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "struct",        6 )) { ip += 6;  cur_token = TOK_STRUCT;                     }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "while",         5 )) { ip += 5;  cur_token = TOK_WHILE;                      }
+        else if (input_size - ip >= 3 && !memcmp(i+ip, "for",           3 )) { ip += 3;  cur_token = TOK_FOR;                        }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "continue",      8 )) { ip += 8;  cur_token = TOK_CONTINUE;                   }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "return",        6 )) { ip += 6;  cur_token = TOK_RETURN;                     }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "enum",          4 )) { ip += 4;  cur_token = TOK_ENUM;                       }
@@ -1119,7 +1123,10 @@ void statement() {
     long *body_start;
     long *false_jmp;
     long *true_done_jmp;
-    long *old_cur_while_start;
+    long *cur_loop_test_start;
+    long *old_cur_loop_continue_address;
+    long *old_cur_loop_body_start;
+    long *old_cur_loop_increment_start;
 
     if (cur_token_is_integer_type() || cur_token == TOK_STRUCT)  {
         printf("%d: Declarations must be at the top of a function\n", cur_line);
@@ -1143,26 +1150,70 @@ void statement() {
         return;
     }
     else if (cur_token == TOK_WHILE) {
+        // Preserve previous loop addresses so that we can have nested whiles/fors
+        old_cur_loop_continue_address = cur_loop_continue_address;
+        old_cur_loop_body_start = cur_loop_body_start;
+
         next();
         consume(TOK_LPAREN);
-        // Preserve so that we can have nested whiles
-        old_cur_while_start = cur_while_start;
-        cur_while_start = iptr;
+
+        cur_loop_continue_address = iptr;
         expression(TOK_COMMA);
         consume(TOK_RPAREN);
         *iptr++ = INSTR_BZ;
         *iptr++ = 0;
-        body_start = iptr;
+
+        cur_loop_body_start = iptr;
+        statement();
+
+        *iptr++ = INSTR_JMP;
+        *iptr++ = (long) cur_loop_continue_address;
+        *(cur_loop_body_start - 1) = (long) iptr;
+
+        // Restore previous loop addresses
+        cur_loop_continue_address = old_cur_loop_continue_address;
+        cur_loop_body_start = old_cur_loop_body_start;
+    }
+    else if (cur_token == TOK_FOR) {
+        old_cur_loop_continue_address = cur_loop_continue_address;
+        old_cur_loop_body_start = cur_loop_body_start;
+
+        next();
+        consume(TOK_LPAREN);
+
+        expression(TOK_COMMA); // setup expression
+        consume(TOK_SEMI);
+
+        cur_loop_test_start = iptr;
+        expression(TOK_COMMA); // test expression
+        consume(TOK_SEMI);
+        *iptr++ = INSTR_BZ;
+        *iptr++ = 0;
+
+        *iptr++ = INSTR_JMP; // Jump to body start
+        *iptr++;
+
+        cur_loop_continue_address = iptr;
+        expression(TOK_COMMA); // increment expression
+        consume(TOK_RPAREN);
+        *iptr++ = INSTR_JMP;
+        *iptr++ = (long) cur_loop_test_start;
+
+        cur_loop_body_start = iptr;
+        *(cur_loop_continue_address - 1) = (long) iptr;
         statement();
         *iptr++ = INSTR_JMP;
-        *iptr++ = (long) cur_while_start;
-        *(body_start - 1) = (long) iptr;
-        cur_while_start = old_cur_while_start;
+        *iptr++ = (long) cur_loop_continue_address;
+        *(cur_loop_continue_address - 3) = (long) iptr;
+
+        // Restore previous loop addresses
+        cur_loop_continue_address = old_cur_loop_continue_address;
+        cur_loop_body_start = old_cur_loop_body_start;
     }
     else if (cur_token == TOK_CONTINUE) {
         next();
         *iptr++ = INSTR_JMP;
-        *iptr++ = (long) cur_while_start;
+        *iptr++ = (long) cur_loop_continue_address;
         consume(TOK_SEMI);
     }
     else if (cur_token == TOK_IF) {

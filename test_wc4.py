@@ -488,6 +488,24 @@ def test_while():
     """, "0 1 2 1 2 3 \n")
 
 
+
+def test_for():
+    check_output("""
+        int main() {
+            int i;
+
+            for (i = 0; i < 10; i++) printf("%d ", i);
+            printf("\n");
+
+            for (i = 0; i < 10; i++) {
+                if (i == 5) continue;
+                printf("%d ", i);
+            }
+            printf("\n");
+        }
+    """, "0 1 2 3 4 5 6 7 8 9 \n0 1 2 3 4 6 7 8 9 \n", 0)
+
+
 def test_string_copy():
     check_output("""
         int main(int argc, char **argv) {
