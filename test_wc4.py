@@ -5,21 +5,27 @@ import re
 
 
 def check_exit_code(code, expected_result):
-    with tempfile.NamedTemporaryFile() as temp:
-        with open(temp.name, 'w') as f:
+    with tempfile.NamedTemporaryFile(suffix=".c") as temp_c_file:
+        with open(temp_c_file.name, 'w') as f:
             f.write(code)
-        output = subprocess.check_output(["./wc4", "-nc", f.name]).decode('utf-8')
-        result = re.sub("exit ", "", str(output).split("\n")[-2])
-        assert int(result) == expected_result
+        subprocess.check_output(["./wc4", f.name]).decode('utf-8')
+        temp_s_filename = re.sub(r"\.c", ".s", temp_c_file.name)
+        temp_executable_filename = re.sub(r"\.s", "", temp_s_filename)
+        output = subprocess.check_output(["gcc", temp_s_filename, "-o", temp_executable_filename])
+        if expected_result < 0:
+            expected_result = 256 + expected_result;
+        expected_result = expected_result & 0xff
+        assert subprocess.run(temp_executable_filename, check=False).returncode == expected_result
 
 
 def check_output(code, expected_output, with_exit_code=False):
-    with tempfile.NamedTemporaryFile() as temp:
-        with open(temp.name, 'w') as f:
-            f.write(code)
-        args = ["./wc4", "-nc", f.name] if with_exit_code else ["./wc4", "-nc", "-ne", f.name]
-        output = subprocess.check_output(args).decode('utf-8')
-        assert output == expected_output
+    raise Exception("TODO: printf based tests")
+    # with tempfile.NamedTemporaryFile() as temp:
+    #     with open(temp.name, 'w') as f:
+    #         f.write(code)
+    #     args = ["./wc4", "-nc", f.name] if with_exit_code else ["./wc4", "-nc", "-ne", f.name]
+    #     output = subprocess.check_output(args).decode('utf-8')
+    #     assert output == expected_output
 
 
 @pytest.mark.parametrize("expr,expected_result", [
@@ -46,7 +52,7 @@ def check_output(code, expected_output, with_exit_code=False):
     ("-1",              -1),
     ("-1+2",            1),
     ("-1-1",            -2),
-    # ("2--1",            3),  # FIXME Minus minus number is treated as pre decrement
+    ("2- -1",            3),
     ("-(2*3)",          -6),
     ("-(2*3)+1",        -5),
     ("-(2*3)*2+1",      -11),
@@ -77,14 +83,15 @@ def check_output(code, expected_output, with_exit_code=False):
     ("1 >  1",          0),
     ("1 >= 1",          1),
 
-    ("0 || 0",          0),
-    ("0 || 1",          1),
-    ("1 || 0",          1),
-    ("1 || 1",          1),
-    ("0 && 0",          0),
-    ("0 && 1",          0),
-    ("1 && 0",          0),
-    ("1 && 1",          1),
+    # TODO
+    # ("0 || 0",          0),
+    # ("0 || 1",          1),
+    # ("1 || 0",          1),
+    # ("1 || 1",          1),
+    # ("0 && 0",          0),
+    # ("0 && 1",          0),
+    # ("1 && 0",          0),
+    # ("1 && 1",          1),
 
     ("3 & 5",           1),
     ("3 | 5",           7),
@@ -98,34 +105,35 @@ def check_output(code, expected_output, with_exit_code=False):
     ("256 >> 3",                      32),
     ("8192 >> 8",                     32),
 
-    # Operator precedence tests
-    ("1+2==3",          1),
-    ("1+2>=3==1",       1),
+    # TODO
+    # # Operator precedence tests
+    # ("1+2==3",          1),
+    # ("1+2>=3==1",       1),
 
-    ("0 && 0 || 0",     0), # && binds more strongly than ||
-    ("0 && 0 || 1",     1),
-    ("0 && 1 || 0",     0),
-    ("0 && 1 || 1",     1),
-    ("1 && 0 || 0",     0),
-    ("1 && 0 || 1",     1),
-    ("1 && 1 || 0",     1),
-    ("1 && 1 || 1",     1),
+    # ("0 && 0 || 0",     0), # && binds more strongly than ||
+    # ("0 && 0 || 1",     1),
+    # ("0 && 1 || 0",     0),
+    # ("0 && 1 || 1",     1),
+    # ("1 && 0 || 0",     0),
+    # ("1 && 0 || 1",     1),
+    # ("1 && 1 || 0",     1),
+    # ("1 && 1 || 1",     1),
 
-    ("0 + 0 && 0",      0), # + binds more strongly than &&
-    ("0 + 0 && 1",      0),
-    ("0 + 1 && 0",      0),
-    ("0 + 1 && 1",      1),
-    ("1 + 0 && 0",      0),
-    ("1 + 0 && 1",      1),
-    ("1 + 1 && 0",      0),
-    ("1 + 1 && 1",      1),
+    # ("0 + 0 && 0",      0), # + binds more strongly than &&
+    # ("0 + 0 && 1",      0),
+    # ("0 + 1 && 0",      0),
+    # ("0 + 1 && 1",      1),
+    # ("1 + 0 && 0",      0),
+    # ("1 + 0 && 1",      1),
+    # ("1 + 1 && 0",      0),
+    # ("1 + 1 && 1",      1),
 
-    ("0 ==  1  & 0",    0),
-    ("1 &   1  ^ 3",    2),
-    ("1 ^   1  | 1",    1),
+    # ("0 ==  1  & 0",    0),
+    # ("1 &   1  ^ 3",    2),
+    # ("1 ^   1  | 1",    1),
 
-    ("1 + 1 << 4",     32), # + binds more strongly than <<
-    ("1 + 16 >> 3",     2), # + binds more strongly than >>
+    # ("1 + 1 << 4",     32), # + binds more strongly than <<
+    # ("1 + 16 >> 3",     2), # + binds more strongly than >>
 
     # Hex
     ("0x0",             0),
@@ -142,10 +150,11 @@ def test_expr(expr, expected_result):
     check_exit_code("int main() {return %s;}" % expr, expected_result)
 
 
+@pytest.mark.xfail() # TODO
 def test_argc_count():
     check_exit_code("int main(int argc, int argv) {return argc;}", 1)
 
-
+@pytest.mark.xfail() # TODO
 def test_assignment():
     check_exit_code("""
         int g;
@@ -159,7 +168,7 @@ def test_assignment():
         }
     """, 7);
 
-
+@pytest.mark.xfail() # TODO
 def test_function_calls():
     check_exit_code("""
         int g;
@@ -179,7 +188,7 @@ def test_function_calls():
 
     """, 3);
 
-
+@pytest.mark.xfail() # TODO
 def test_split_function_declaration_and_definition():
     check_output("""
         int foo();
@@ -198,7 +207,7 @@ def test_split_function_declaration_and_definition():
         }
     """, "1 1 2\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_split_function_declaration_and_definition_backpatching():
     check_output("""
         void foo();
@@ -215,7 +224,7 @@ def test_split_function_declaration_and_definition_backpatching():
         void bar() { printf("bar\n"); }
     """, "foo\nbar\nfoo\nbar\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_hello_world():
     check_output("""
         int main(int argc, char **argv) {
@@ -231,7 +240,7 @@ def test_hello_world():
         }
     """, "1 + 1 = 2\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_pointer_to_int():
     check_output("""
         int g;
@@ -248,7 +257,7 @@ def test_pointer_to_int():
         }
         """, "1\n2\n");
 
-
+@pytest.mark.xfail() # TODO
 def test_prefix_inc_dec():
     check_output("""
         int main(int argc, char **argv) {
@@ -261,7 +270,7 @@ def test_prefix_inc_dec():
         }
     """, "1\n2\n1\n0\n");
 
-
+@pytest.mark.xfail() # TODO
 def test_postfix_inc_dec():
     check_output("""
         int main(int argc, char **argv) {
@@ -274,7 +283,7 @@ def test_postfix_inc_dec():
         }
     """, "0\n1\n2\n1\n");
 
-
+@pytest.mark.xfail() # TODO
 def test_inc_dec_sizes():
     check_output("""
         int main(int argc, char **argv) {
@@ -335,7 +344,7 @@ def test_inc_dec_sizes():
         "8 0 8 0",
     ]) + "\n");
 
-
+@pytest.mark.xfail() # TODO
 def test_pointer_arithmetic():
     check_output("""
         int main(int argc, char **argv) {
@@ -393,7 +402,7 @@ def test_pointer_arithmetic():
         "08 24 00",
     ]) + "\n");
 
-
+@pytest.mark.xfail() # TODO
 def test_integer_sizes():
     check_output("""
         int main() {
@@ -445,7 +454,7 @@ def test_integer_sizes():
         "0101010101010101",
     ]) + "\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_malloc():
     check_output("""
         int main(int argc, char **argv) {
@@ -460,7 +469,7 @@ def test_malloc():
         }
     """, "1 2 3 4\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_char_pointer_arithmetic():
     check_output("""
         int main(int argc, char **argv) {
@@ -476,7 +485,7 @@ def test_char_pointer_arithmetic():
         }
     """, "foo\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_while():
     check_output("""
         int main(int argc, char **argv) {
@@ -488,7 +497,7 @@ def test_while():
     """, "0 1 2 1 2 3 \n")
 
 
-
+@pytest.mark.xfail() # TODO
 def test_for():
     check_output("""
         int main() {
@@ -505,7 +514,7 @@ def test_for():
         }
     """, "0 1 2 3 4 5 6 7 8 9 \n0 1 2 3 4 6 7 8 9 \n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_string_copy():
     check_output("""
         int main(int argc, char **argv) {
@@ -523,7 +532,7 @@ def test_string_copy():
         }
     """, "foo=foo\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_while_continue():
     check_output("""
         int main(int argc, char **argv) {
@@ -538,7 +547,7 @@ def test_while_continue():
         }
     """, "12345\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_if_else():
     check_output("""
         int main(int argc, char **argv) {
@@ -560,7 +569,7 @@ def test_if_else():
         "5 if"
     ]) + "\n");
 
-
+@pytest.mark.xfail() # TODO
 def test_and_or_shortcutting():
     check_output("""
         int main(int argc, char **argv) {
@@ -576,7 +585,7 @@ def test_and_or_shortcutting():
         "&& with 0"
     ]) + "\n");
 
-
+@pytest.mark.xfail() # TODO
 def test_ternary():
     check_output("""
         int main(int argc, char **argv) {
@@ -588,7 +597,7 @@ def test_ternary():
         }
     """, "2 1 foo\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_bracket_lookup():
     check_output("""
         int main(int argc, char **argv) {
@@ -604,7 +613,7 @@ def test_bracket_lookup():
         }
     """, "1 2 3\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_casting():
     check_output("""
         int main(int argc, char **argv) {
@@ -618,7 +627,7 @@ def test_casting():
         }
     """, "4\n1\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_local_comma_var_declarations():
     check_output("""
         int main(int argc, char **argv) {
@@ -631,7 +640,7 @@ def test_local_comma_var_declarations():
         }
     """, "1 2\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_global_comma_var_declarations():
     check_output("""
         int i, j;
@@ -643,7 +652,7 @@ def test_global_comma_var_declarations():
         }
     """, "1 2\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_free():
     check_output("""
         int main(int argc, char **argv) {
@@ -653,7 +662,7 @@ def test_free():
         }
     """, "")
 
-
+@pytest.mark.xfail() # TODO
 def test_mem_functions():
     check_output("""
         int main(int argc, char **argv) {
@@ -677,7 +686,7 @@ def test_mem_functions():
         "0 5 -1"
     ]) + "\n");
 
-
+@pytest.mark.xfail() # TODO
 def test_open_read_write_close():
     with tempfile.NamedTemporaryFile() as input_file:
         with open(input_file.name, 'w') as f:
@@ -703,7 +712,7 @@ def test_open_read_write_close():
 
                 with open(output_file.name) as f:
                     assert f.read() == "foo\n"
-
+@pytest.mark.xfail() # TODO
 def test_plus_equals():
     check_output("""
         int main(int argc, char **argv) {
@@ -722,11 +731,11 @@ def test_plus_equals():
         }
     """, "2 2 2 4 2 8 2 16\n2 -1 2 -2 2 -4 2 -8\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_exit():
     check_output("""int main(int argc, char **argv) { exit(3); }""", "exit 3\n", with_exit_code=True)
 
-
+@pytest.mark.xfail() # TODO
 def test_cast_in_function_call():
     # Test precedence error combined with expression parser not stopping at unknown tokens
 
@@ -738,7 +747,7 @@ def test_cast_in_function_call():
         }
     """, "")
 
-
+@pytest.mark.xfail() # TODO
 def test_array_lookup_of_string_literal():
     check_output("""
         int main() {
@@ -747,7 +756,7 @@ def test_array_lookup_of_string_literal():
         }
     """, "foo bar\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_nested_while_continue():
     check_output("""
         int main(int argc, char **argv) {
@@ -765,7 +774,7 @@ def test_nested_while_continue():
         }
     """, "1 2 3 \n")
 
-
+@pytest.mark.xfail() # TODO
 def test_func_returns_are_lvalues():
     check_exit_code("""
         int foo() {
@@ -781,7 +790,7 @@ def test_func_returns_are_lvalues():
         }
     """, 1)
 
-
+@pytest.mark.xfail() # TODO
 def test_bad_or_and_stack_consumption():
     check_exit_code("""
         int main(int argc, char **argv) {
@@ -793,7 +802,7 @@ def test_bad_or_and_stack_consumption():
         }
     """, 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_double_deref_assign_with_cast():
     check_output("""
         int main(int argc, char **argv) {
@@ -809,7 +818,7 @@ def test_double_deref_assign_with_cast():
         }
     """, "20\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_double_assign():
     check_output("""
         int main(int argc, char **argv) {
@@ -819,7 +828,7 @@ def test_double_assign():
         }
     """, "1 1\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_print_assignment_with_one_arg():
     check_output("""
         int main() {
@@ -831,7 +840,7 @@ def test_print_assignment_with_one_arg():
         }
     """, "1 2\n2 x 4 4\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_int_char_interbreeding():
     check_output("""
         int main(int argc, char **argv) {
@@ -846,7 +855,7 @@ def test_int_char_interbreeding():
         }
     """, "4 67174916 67174917\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_first_arg_to_or_and_and_must_be_rvalue():
     check_output("""
         int main(int argc, char **argv) {
@@ -860,7 +869,7 @@ def test_first_arg_to_or_and_and_must_be_rvalue():
         }
     """, "1\n")
 
-
+@pytest.mark.xfail() # TODO
 def test_enum():
     check_output("""
         enum {A, B};
@@ -878,6 +887,7 @@ def test_enum():
     ("int",   3 * 4),
     ("long",  3 * 8),
 ])
+@pytest.mark.xfail() # TODO
 def test_simple_struct(type, size):
     check_output("""
         struct s {
@@ -911,7 +921,7 @@ def test_simple_struct(type, size):
         }
     """ % (type, type), "1 2 3 4\n-1 -2\n10 20\n%d\n" % size, 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_struct_member_alignment():
     check_output("""
         struct sc1 { char  c1;           };
@@ -960,7 +970,7 @@ def test_struct_member_alignment():
         }
     """, "1 2 2 4 4 8 8 16\n2 4 8 16\n3 6 12 24\n1 2 4 8\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_struct_alignment_bug():
     check_output("""
         struct s {
@@ -980,7 +990,7 @@ def test_struct_alignment_bug():
         }
     """, "8 16 20 24\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_nested_struct():
     check_output("""
         struct s1 {
@@ -1006,7 +1016,7 @@ def test_nested_struct():
         }
     """, "1 2\n8 16\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_function_returning_a_pointer_to_a_struct():
     check_output("""
         struct s {
@@ -1029,7 +1039,7 @@ def test_function_returning_a_pointer_to_a_struct():
         }
     """, "1 2\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_function_with_a_pointer_to_a_struct_argument():
     check_output("""
         struct s {
@@ -1051,7 +1061,7 @@ def test_function_with_a_pointer_to_a_struct_argument():
         }
     """, "3\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_struct_additions():
     check_output("""
         struct s {
@@ -1071,7 +1081,7 @@ def test_struct_additions():
         }
     """, "16 32 16 48\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_struct_casting():
     check_output("""
         struct s {int i;};
@@ -1087,7 +1097,7 @@ def test_struct_casting():
     """, "1\n", 0)
 
 
-
+@pytest.mark.xfail() # TODO
 def test_packed_struct():
     check_output("""
         struct                              s1 {int i; char c; int j;};
@@ -1105,7 +1115,7 @@ def test_packed_struct():
         }
     """, "12 4 8\n9 4 5\n9 4 5\n", 0)
 
-
+@pytest.mark.xfail() # TODO
 def test_unary_precedence():
     check_output("""
         struct s {

@@ -13,6 +13,30 @@ struct symbol {
     int function_param_count;
     int builtin;
     int size;
+    int is_function;
+    struct three_address_code *ir;
+    int vreg_count;
+};
+
+struct value {
+    int type;
+    int vreg;
+    int preg;
+    int value;
+};
+
+struct three_address_code {
+    int operation;
+    struct value *dst;
+    struct value *src1;
+    struct value *src2;
+};
+
+struct value **value_stack;
+
+struct liveness_interval {
+    int start;
+    int end;
 };
 
 struct str_member {
@@ -27,20 +51,14 @@ struct str_desc {
     int size;
 };
 
-struct fwd_function_backpatch {
-    long *iptr;
-    struct symbol *symbol;
-};
+int print_ir_before, print_ir_after;
 
 char *input;
 int input_size;
 int ip;
-long *instructions;
 char *data;
 char *data_start;
-long *iptr;
 
-int print_instructions;
 int print_exit_code;
 int print_cycles;
 int cur_line;
@@ -59,21 +77,29 @@ int global_variable_count;
 struct symbol *symbol_table;
 struct symbol *next_symbol;
 struct symbol *cur_symbol;
-long cur_type;
 
 struct str_desc **all_structs;
 int all_structs_count;
 
-long DATA_SIZE;
+struct three_address_code *ir; // intermediate representation
+int vreg_count;
+
+struct liveness_interval *liveness;
+int liveness_size;
+
+long DATA_SIZE; // TODO these should be enums
 long INSTRUCTIONS_SIZE;
 long SYMBOL_TABLE_SIZE;
-
-struct fwd_function_backpatch *fwd_function_backpatches;
+int *physical_registers;
 
 enum {
-    MAX_STRUCTS=1024,
-    MAX_STRUCT_MEMBERS=1024,
-    MAX_FWD_FUNCTION_BACKPATCHES=1024,
+    MAX_STRUCTS             = 1024,
+    MAX_STRUCT_MEMBERS      = 1024,
+    MAX_INPUT_SIZE          = 10 * 1024 * 1024,
+    VALUE_STACK_SIZE        = 128,
+    MAX_THREE_ADDRESS_CODES = 1024,
+    MAX_LIVENESS_SIZE       = 1024,
+    PHYSICAL_REGISTER_COUNT = 15,
 };
 
 // In order of precedence
@@ -141,63 +167,56 @@ enum {
 enum { TYPE_ENUM=1, TYPE_VOID, TYPE_CHAR, TYPE_SHORT, TYPE_INT, TYPE_LONG, TYPE_STRUCT=16, TYPE_PTR=1024 };
 
 enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
+
 enum {
-    INSTR_LINE=1,
-    INSTR_GLB,
-    INSTR_LEA,
-    INSTR_IMM,
-    INSTR_JMP,
-    INSTR_JSR,
-    INSTR_BZ,
-    INSTR_BNZ,
-    INSTR_ENT,
-    INSTR_ADJ,
-    INSTR_BNOT,
-    INSTR_LEV,
-    INSTR_LC,
-    INSTR_LS,
-    INSTR_LI,
-    INSTR_LL,
-    INSTR_SC,
-    INSTR_SS,
-    INSTR_SI,
-    INSTR_SL,
-    INSTR_OR,
-    INSTR_AND,
-    INSTR_BITWISE_OR,
-    INSTR_BITWISE_AND,
-    INSTR_XOR,
-    INSTR_EQ,
-    INSTR_NE,
-    INSTR_LT,
-    INSTR_GT,
-    INSTR_LE,
-    INSTR_GE,
-    INSTR_BWL,
-    INSTR_BWR,
-    INSTR_ADD,
-    INSTR_SUB,
-    INSTR_MUL,
-    INSTR_DIV,
-    INSTR_MOD,
-    INSTR_PSH,
-    INSTR_OPEN,
-    INSTR_READ,
-    INSTR_WRIT,
-    INSTR_CLOS,
-    INSTR_PRTF,
-    INSTR_DPRT,
-    INSTR_MALC,
-    INSTR_FREE,
-    INSTR_MSET,
-    INSTR_MCMP,
-    INSTR_SCMP,
-    INSTR_EXIT,
+    IR_LOAD_CONSTANT=1,
+    IR_RETURN,
+    IR_ADD,
+    IR_SUB,
+    IR_MUL,
+    IR_DIV,
+    IR_MOD,
+    IR_EQ,
+    IR_NE,
+    IR_BNOT,
+    IR_BOR,
+    IR_BAND,
+    IR_XOR,
+    IR_BSHL,
+    IR_BSHR,
+    IR_LT,
+    IR_GT,
+    IR_LE,
+    IR_GE,
 };
 
 enum {IMM_NUMBER, IMM_STRING_LITERAL, IMM_GLOBAL};
 
+enum {
+    REG_RAX,
+    REG_RBX,
+    REG_RCX,
+    REG_RDX,
+    REG_RSI,
+    REG_RDI,
+    REG_RBP,
+    REG_RSP,
+    REG_R8,
+    REG_R9,
+    REG_R10,
+    REG_R11,
+    REG_R12,
+    REG_R13,
+    REG_R14,
+    REG_R15,
+};
+
 int parse_struct_base_type();
+
+void todo(char *what) {
+    printf("TODO: %s\n", what);
+    exit(1);
+}
 
 void next() {
     char *i;
@@ -368,10 +387,82 @@ void consume(int token) {
     next();
 }
 
+struct value *new_value() {
+    struct value *v;
+
+    v = malloc(sizeof(struct value));
+    v->type = 0;
+    v->vreg = 0;
+    v->preg = -1;
+    v->value = 0;
+
+    return v;
+}
+
+void push(struct value *v) {
+    *value_stack++ = v;
+}
+
+struct value *push_constant(int type, int vreg, int value) {
+    struct value *v;
+
+    v = malloc(sizeof(struct value));
+    v->preg = -1;
+    v->vreg = vreg;
+    v->value = value;
+    *value_stack++ = v;
+
+    return v;
+}
+
+struct value *pop() {
+    struct value *result;
+
+    result = *(value_stack - 1);
+    value_stack--;
+
+    return result;
+}
+
+struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
+    ir->operation = operation;
+    ir->dst = dst;
+    ir->src1 = src1;
+    ir->src2 = src2;
+    ir++;
+    return ir - 1;
+}
+
+void add_ir_constant_value(long value) {
+    struct value *v, *cv;
+
+    cv = new_value();
+    cv->value = value;
+    cv->type = TYPE_LONG;
+    v = new_value();
+    v->vreg = ++vreg_count;
+    v->type = TYPE_LONG;
+    push(v);
+    add_instruction(IR_LOAD_CONSTANT, v, cv, 0);
+}
+
+struct three_address_code *add_ir_op(int operation, int type, int vreg, struct value *src1, struct value *src2) {
+    struct value *v;
+    struct three_address_code *result;
+
+    v = new_value();
+    v->vreg = vreg;
+    v->type = type;
+    result = add_instruction(operation, v, src1, src2);
+    push(v);
+
+    return result;
+}
+
 struct symbol *lookup_symbol(char *name, int scope) {
     struct symbol *s;
-    s = symbol_table;
 
+    s = symbol_table;
     while (s->identifier) {
         if (s->scope == scope && !strcmp((char *) s->identifier, name)) return s;
         s++;
@@ -384,14 +475,19 @@ struct symbol *lookup_symbol(char *name, int scope) {
 
 long lookup_function(char *name) {
     struct symbol *symbol;
-    symbol = lookup_symbol(name, 0);
 
+    symbol = lookup_symbol(name, 0);
     if (!symbol) {
         printf("%d: Unknown function \"%s\"\n", cur_line, name);
         exit(1);
     }
 
     return symbol->value;
+}
+
+int operation_type(struct value *src1, struct value *src2) {
+    if (src1->type == TYPE_LONG || src2->type == TYPE_LONG) return TYPE_LONG;
+    else return TYPE_INT;
 }
 
 int cur_token_is_integer_type() {
@@ -451,6 +547,7 @@ int parse_type() {
 
     type = parse_base_type();
     while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+
     return type;
 }
 
@@ -538,36 +635,9 @@ int get_type_inc_dec_size(int type) {
     return type <= TYPE_PTR ? 1 : get_type_sizeof(type - TYPE_PTR);
 }
 
-int is_lvalue() {
-    return *(iptr - 1) == INSTR_LC || *(iptr -1) == INSTR_LS || *(iptr -1) == INSTR_LI || *(iptr -1) == INSTR_LL;
-}
-
-int load_type() {
-         if (cur_type == TYPE_CHAR)  *iptr++ = INSTR_LC;
-    else if (cur_type == TYPE_SHORT) *iptr++ = INSTR_LS;
-    else if (cur_type == TYPE_INT)   *iptr++ = INSTR_LI;
-    else if (cur_type == TYPE_LONG)  *iptr++ = INSTR_LL;
-    else if (cur_type >  TYPE_LONG)  *iptr++ = INSTR_LL;
-    else {
-        printf("%d: load for unknown type %ld\n", cur_line, cur_type);
-        exit(1);
-    }
-}
-
-int store_type(int type) {
-         if (type == TYPE_CHAR)  *iptr++ = INSTR_SC;
-    else if (type == TYPE_SHORT) *iptr++ = INSTR_SS;
-    else if (type == TYPE_INT)   *iptr++ = INSTR_SI;
-    else if (type == TYPE_LONG)  *iptr++ = INSTR_SL;
-    else if (type >  TYPE_PTR)   *iptr++ = INSTR_SL;
-    else {
-        printf("%d: load for unknown type %d\n", cur_line, type);
-        exit(1);
-    }
-}
-
 struct str_member *lookup_struct_member(struct str_desc *str, char *identifier) {
     struct str_member **pmember;
+
     pmember = str->members;
 
     while (*pmember) {
@@ -583,7 +653,6 @@ void expression(int level) {
     int org_token;
     int org_type;
     int factor;
-    long *temp_iptr;
     long *false_jmp;
     long *true_done_jmp;
     struct symbol *symbol;
@@ -596,95 +665,90 @@ void expression(int level) {
     struct str_desc *str;
     struct str_member *member;
     int i;
+    struct value *v, *cv;
+    struct three_address_code *tac;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
-        *iptr++ = INSTR_IMM;
-        *iptr++ = 0;
-        *iptr++ = IMM_NUMBER;
-        *iptr++ = 0;
-        *iptr++ = INSTR_PSH;
+        add_ir_constant_value(0);
         expression(TOK_INC);
-        *iptr++ = INSTR_EQ;
-        cur_type = TYPE_INT;
+        add_ir_op(IR_EQ, TYPE_INT, ++vreg_count, pop(), pop());
     }
     else if (cur_token == TOK_BITWISE_NOT) {
         next();
         expression(TOK_INC);
-        *iptr++ = INSTR_BNOT;
-        cur_type = TYPE_INT;
+        type = value_stack[-1]->type;
+        tac = add_ir_op(IR_BNOT, type, 0, pop(), 0);
+        tac->dst->vreg = tac->src1->vreg;
     }
     else if (cur_token == TOK_ADDRESS_OF) {
-        next();
-        expression(TOK_INC);
-        if (!is_lvalue()) {
-            printf("%d: Cannot take an address of an rvalue on line\n", cur_line);
-            exit(1);
-        }
-        iptr--;                                                // Roll back load
-        cur_type = cur_type + TYPE_PTR;
+        todo("&");
+        // next();
+        // expression(TOK_INC);
+        // if (!is_lvalue()) {
+        //     printf("%d: Cannot take an address of an rvalue on line\n", cur_line);
+        //     exit(1);
+        // }
+        // iptr--;                                                // Roll back load
+        // cur_type = cur_type + TYPE_PTR;
     }
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
         // Prefix increment & decrement
-        org_token = cur_token;
-        next();
-        expression(1024); // Fake highest precedence, bind nothing
-        org_type = cur_type;
-        if (!is_lvalue()) {
-            printf("%d: Cannot prefix increment/decrement an rvalue on line\n", cur_line);
-            exit(1);
-        }
-        iptr--;              // Roll back load
-        *iptr++ = INSTR_PSH; // Push address
-        load_type();         // Push value
-        *iptr++ = INSTR_PSH;
-        *iptr++ = INSTR_IMM;
-        *iptr++ = get_type_inc_dec_size(org_type);
-        *iptr++ = IMM_NUMBER;
-        *iptr++ = 0;
-        *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
-        cur_type = org_type;
-        store_type(cur_type);
+        todo("pre ++, --");
+        // org_token = cur_token;
+        // next();
+        // expression(1024); // Fake highest precedence, bind nothing
+        // org_type = cur_type;
+        // if (!is_lvalue()) {
+        //     printf("%d: Cannot prefix increment/decrement an rvalue on line\n", cur_line);
+        //     exit(1);
+        // }
+        // iptr--;              // Roll back load
+        // *iptr++ = INSTR_PSH; // Push address
+        // load_type();         // Push value
+        // *iptr++ = INSTR_PSH;
+        // *iptr++ = INSTR_IMM;
+        // *iptr++ = get_type_inc_dec_size(org_type);
+        // *iptr++ = IMM_NUMBER;
+        // *iptr++ = 0;
+        // *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
+        // cur_type = org_type;
+        // store_type(cur_type);
     }
     else if (cur_token == TOK_MULTIPLY) {
-        next();
-        expression(TOK_INC);
-        if (cur_type <= TYPE_PTR) {
-            printf("%d: Cannot derefence a non-pointer %ld\n", cur_line, cur_type);
-            exit(1);
-        }
-        cur_type = cur_type - TYPE_PTR;
-        load_type();
+        todo("indirect");
+        // next();
+        // expression(TOK_INC);
+        // if (cur_type <= TYPE_PTR) {
+        //     printf("%d: Cannot derefence a non-pointer %ld\n", cur_line, cur_type);
+        //     exit(1);
+        // }
+        // cur_type = cur_type - TYPE_PTR;
+        // load_type();
     }
     else if (cur_token == TOK_MINUS) {
         next();
 
         if (cur_token == TOK_NUMBER) {
-            *iptr++ = INSTR_IMM;
-            *iptr++ = -cur_integer;
-            *iptr++ = IMM_NUMBER;
-            *iptr++ = 0;
+            add_ir_constant_value(-cur_integer);
             next();
-            cur_type = TYPE_INT;
         }
         else {
-            *iptr++ = INSTR_IMM;
-            *iptr++ = -1;
-            *iptr++ = IMM_NUMBER;
-            *iptr++ = 0;
-            *iptr++ = INSTR_PSH;
+            add_ir_constant_value(-1);
             expression(TOK_INC);
-            *iptr++ = INSTR_MUL;
+            tac = add_ir_op(IR_MUL, TYPE_LONG, 0, pop(), pop());
+            tac->dst->vreg = tac->src2->vreg;
         }
     }
     else if (cur_token == TOK_LPAREN) {
         next();
         if (cur_token == TOK_VOID || cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
-            // cast
-            org_type = parse_type();
-            consume(TOK_RPAREN);
-            expression(TOK_INC);
-            cur_type = org_type;
+            todo("cast");
+        //     // cast
+        //     org_type = parse_type();
+        //     consume(TOK_RPAREN);
+        //     expression(TOK_INC);
+        //     cur_type = org_type;
         }
         else {
             expression(TOK_COMMA);
@@ -692,117 +756,116 @@ void expression(int level) {
         }
     }
     else if (cur_token == TOK_NUMBER) {
-        *iptr++ = INSTR_IMM;
-        *iptr++ = cur_integer;
-        *iptr++ = IMM_NUMBER;
-        *iptr++ = 0;
-        cur_type = TYPE_INT;
+        add_ir_constant_value(cur_integer);
         next();
     }
     else if (cur_token == TOK_STRING_LITERAL) {
-        *iptr++ = INSTR_IMM;
-        *iptr++ = (long) data;
-        *iptr++ = IMM_STRING_LITERAL;
-        *iptr++ = 0;
-        while (*data++ = *cur_string_literal++);
-        cur_type = TYPE_CHAR + TYPE_PTR;
-        next();
+        todo("string literal");
+        // *iptr++ = INSTR_IMM;
+        // *iptr++ = (long) data;
+        // *iptr++ = IMM_STRING_LITERAL;
+        // *iptr++ = 0;
+        // while (*data++ = *cur_string_literal++);
+        // cur_type = TYPE_CHAR + TYPE_PTR;
+        // next();
     }
     else if (cur_token == TOK_IDENTIFIER) {
-        symbol = lookup_symbol(cur_identifier, cur_scope);
+        todo("identifiers");
+        // symbol = lookup_symbol(cur_identifier, cur_scope);
 
-        if (!symbol) {
-            printf("%d: Unknown symbol \"%s\"\n", cur_line, cur_identifier);
-            exit(1);
-        }
+        // if (!symbol) {
+        //     printf("%d: Unknown symbol \"%s\"\n", cur_line, cur_identifier);
+        //     exit(1);
+        // }
 
-        next();
-        type = symbol->type;
-        scope = symbol->scope;
-        if (type == TYPE_ENUM) {
-            *iptr++ = INSTR_IMM;
-            *iptr++ = symbol->value;
-            *iptr++ = IMM_NUMBER;
-            *iptr++ = 0;
-            cur_type = symbol->type;
-        }
-        else if (cur_token == TOK_LPAREN) {
-            // Function call
-            next();
-            param_count = 0;
-            while (cur_token != TOK_RPAREN) {
-                expression(TOK_COMMA);
-                *iptr++ = INSTR_PSH;
-                if (cur_token == TOK_COMMA) next();
-                param_count++;
-            }
-            consume(TOK_RPAREN);
-            builtin = symbol->builtin;
-            if (builtin) {
-                *iptr++ = builtin;
-                if (!strcmp("printf", (char *) symbol->identifier) || !strcmp("dprintf", (char *) symbol->identifier)) {
-                    if (param_count >  10) {
-                        printf("printf can't handle more than 10 args\n");
-                        exit(1);
-                    }
-                    *iptr++ = param_count;
-                }
-            }
-            else {
-                *iptr++ = INSTR_JSR;
-                if (!symbol->value) {
-                    // The function hasn't been defined yet, add a backpatch to it.
-                    for (i = 0; i < MAX_FWD_FUNCTION_BACKPATCHES; i++)
-                        if (!fwd_function_backpatches[i].iptr) {
-                            fwd_function_backpatches[i].iptr = iptr;
-                            fwd_function_backpatches[i].symbol = symbol;
-                            i = MAX_FWD_FUNCTION_BACKPATCHES; // break isn't implemented in wc4
-                    }
-                }
+        // next();
+        // type = symbol->type;
+        // scope = symbol->scope;
+        // if (type == TYPE_ENUM) {
+        //     *iptr++ = INSTR_IMM;
+        //     *iptr++ = symbol->value;
+        //     *iptr++ = IMM_NUMBER;
+        //     *iptr++ = 0;
+        //     cur_type = symbol->type;
+        // }
+        // else if (cur_token == TOK_LPAREN) {
+        //     // Function call
+        //     next();
+        //     param_count = 0;
+        //     while (cur_token != TOK_RPAREN) {
+        //         expression(TOK_COMMA);
+        //         *iptr++ = INSTR_PSH;
+        //         if (cur_token == TOK_COMMA) next();
+        //         param_count++;
+        //     }
+        //     consume(TOK_RPAREN);
+        //     builtin = symbol->builtin;
+        //     if (builtin) {
+        //         *iptr++ = builtin;
+        //         if (!strcmp("printf", (char *) symbol->identifier) || !strcmp("dprintf", (char *) symbol->identifier)) {
+        //             if (param_count >  10) {
+        //                 printf("printf can't handle more than 10 args\n");
+        //                 exit(1);
+        //             }
+        //             *iptr++ = param_count;
+        //         }
+        //     }
+        //     else {
+        //         *iptr++ = INSTR_JSR;
+        //         if (!symbol->value) {
+        //             // The function hasn't been defined yet, add a backpatch to it.
+        //             for (i = 0; i < MAX_FWD_FUNCTION_BACKPATCHES; i++)
+        //                 if (!fwd_function_backpatches[i].iptr) {
+        //                     fwd_function_backpatches[i].iptr = iptr;
+        //                     fwd_function_backpatches[i].symbol = symbol;
+        //                     i = MAX_FWD_FUNCTION_BACKPATCHES; // break isn't implemented in wc4
+        //             }
+        //         }
 
-                *iptr++ = symbol->value;
-                *iptr++ = (long) symbol->identifier;
-                *iptr++ = param_count;
-                *iptr++ = INSTR_ADJ;
-                *iptr++ = param_count;
-            }
-            cur_type = symbol->type;
-        }
-        else if (scope == 0) {
-            // Global symbol
-            address = (long *) symbol->value;
-            *iptr++ = INSTR_IMM;
-            *iptr++ = (long) address;
-            cur_type = symbol->type;
-            *iptr++ = IMM_GLOBAL;
-            *iptr++ = (long) symbol;
-            load_type();
-        }
-        else {
-            // Local symbol
-            param_count = cur_function_symbol->function_param_count;
-            *iptr++ = INSTR_LEA;
-            if (symbol->stack_index >= 0) {
-                stack_index = param_count - symbol->stack_index - 1;
-                *iptr++ = stack_index + 2; // Step over pushed PC and BP
-            }
-            else {
-                *iptr++ = symbol->stack_index;
-            }
-            cur_type = symbol->type;
-            load_type();
-        }
+        //         *iptr++ = symbol->value;
+        //         *iptr++ = (long) symbol->identifier;
+        //         *iptr++ = param_count;
+        //         *iptr++ = INSTR_ADJ;
+        //         *iptr++ = param_count;
+        //     }
+        //     cur_type = symbol->type;
+        // }
+        // else if (scope == 0) {
+        //     // Global symbol
+        //     address = (long *) symbol->value;
+        //     *iptr++ = INSTR_IMM;
+        //     *iptr++ = (long) address;
+        //     cur_type = symbol->type;
+        //     *iptr++ = IMM_GLOBAL;
+        //     *iptr++ = (long) symbol;
+        //     load_type();
+        // }
+        // else {
+        //     // Local symbol
+        //     param_count = cur_function_symbol->function_param_count;
+        //     *iptr++ = INSTR_LEA;
+        //     if (symbol->stack_index >= 0) {
+        //         stack_index = param_count - symbol->stack_index - 1;
+        //         *iptr++ = stack_index + 2; // Step over pushed PC and BP
+        //     }
+        //     else {
+        //         *iptr++ = symbol->stack_index;
+        //     }
+        //     cur_type = symbol->type;
+        //     load_type();
+        // }
     }
     else if (cur_token == TOK_SIZEOF) {
-        next();
-        consume(TOK_LPAREN);
-        cur_type = parse_type();
-        *iptr++ = INSTR_IMM;
-        *iptr++ = get_type_sizeof(cur_type);
-        *iptr++ = IMM_NUMBER;
-        *iptr++ = 0;
-        consume(TOK_RPAREN);
-        cur_type = TYPE_INT;
+        todo("sizeof");
+        // next();
+        // consume(TOK_LPAREN);
+        // cur_type = parse_type();
+        // *iptr++ = INSTR_IMM;
+        // *iptr++ = get_type_sizeof(cur_type);
+        // *iptr++ = IMM_NUMBER;
+        // *iptr++ = 0;
+        // consume(TOK_RPAREN);
+        // cur_type = TYPE_INT;
     }
     else {
         printf("%d: Unexpected token %d in expression\n", cur_line, cur_token);
@@ -810,302 +873,319 @@ void expression(int level) {
     }
 
     if (cur_token == TOK_LBRACKET) {
-        next();
+        todo("[");
+        // next();
+        // TODO is this a mistake? Should this function be part of the above if/else?
 
-        if (cur_type <= TYPE_PTR) {
-            printf("%d: Cannot do [] on a non-pointer for type %ld\n", cur_line, cur_type);
-            exit(1);
-        }
+        // if (cur_type <= TYPE_PTR) {
+        //     printf("%d: Cannot do [] on a non-pointer for type %ld\n", cur_line, cur_type);
+        //     exit(1);
+        // }
 
-        org_type = cur_type;
-        *iptr++ = INSTR_PSH;
-        expression(TOK_COMMA);
+        // org_type = cur_type;
+        // *iptr++ = INSTR_PSH;
+        // expression(TOK_COMMA);
 
-        factor = get_type_inc_dec_size(org_type);
-        if (factor > 1) {
-            *iptr++ = INSTR_PSH;
-            *iptr++ = INSTR_IMM;
-            *iptr++ = factor;
-            *iptr++ = IMM_NUMBER;
-            *iptr++ = 0;
-            *iptr++ = INSTR_MUL;
-        }
+        // factor = get_type_inc_dec_size(org_type);
+        // if (factor > 1) {
+        //     *iptr++ = INSTR_PSH;
+        //     *iptr++ = INSTR_IMM;
+        //     *iptr++ = factor;
+        //     *iptr++ = IMM_NUMBER;
+        //     *iptr++ = 0;
+        //     *iptr++ = INSTR_MUL;
+        // }
 
-        *iptr++ = INSTR_ADD;
-        consume(TOK_RBRACKET);
-        cur_type = org_type - TYPE_PTR;
-        load_type();
+        // *iptr++ = INSTR_ADD;
+        // consume(TOK_RBRACKET);
+        // cur_type = org_type - TYPE_PTR;
+        // load_type();
     }
 
     while (cur_token >= level) {
         // In order or precedence
 
         if (cur_token == TOK_INC || cur_token == TOK_DEC) {
-            // Postfix increment and decrement
-            iptr--;              // Roll back load
-            *iptr++ = INSTR_PSH; // Push address
-            load_type();         // Push value
-            *iptr++ = INSTR_PSH;
-            *iptr++ = INSTR_IMM;
-            *iptr++ = get_type_inc_dec_size(cur_type);
-            *iptr++ = IMM_NUMBER;
-            *iptr++ = 0;
-            *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
-            store_type(cur_type);
+            todo("postfix ++, --");
+            // // Postfix increment and decrement
+            // iptr--;              // Roll back load
+            // *iptr++ = INSTR_PSH; // Push address
+            // load_type();         // Push value
+            // *iptr++ = INSTR_PSH;
+            // *iptr++ = INSTR_IMM;
+            // *iptr++ = get_type_inc_dec_size(cur_type);
+            // *iptr++ = IMM_NUMBER;
+            // *iptr++ = 0;
+            // *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
+            // store_type(cur_type);
 
-            // Dirty!
-            *iptr++ = INSTR_PSH;
-            *iptr++ = INSTR_IMM;
-            *iptr++ = get_type_inc_dec_size(cur_type);
-            *iptr++ = IMM_NUMBER;
-            *iptr++ = 0;
-            *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
+            // // Dirty!
+            // *iptr++ = INSTR_PSH;
+            // *iptr++ = INSTR_IMM;
+            // *iptr++ = get_type_inc_dec_size(cur_type);
+            // *iptr++ = IMM_NUMBER;
+            // *iptr++ = 0;
+            // *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
 
-            next();
+            // next();
         }
         else if (cur_token == TOK_DOT || cur_token == TOK_ARROW) {
+            todo("., ->");
+            // if (cur_token == TOK_DOT) {
+            //     // Struct member lookup. A load has already been pushed for it
 
-            if (cur_token == TOK_DOT) {
-                // Struct member lookup. A load has already been pushed for it
+            //     if (cur_type < TYPE_STRUCT || cur_type >= TYPE_PTR) {
+            //         printf("%d: Cannot use . on a non-struct\n", cur_line);
+            //         exit(1);
+            //     }
 
-                if (cur_type < TYPE_STRUCT || cur_type >= TYPE_PTR) {
-                    printf("%d: Cannot use . on a non-struct\n", cur_line);
-                    exit(1);
-                }
+            //     if (!is_lvalue()) {
+            //         printf("%d: Expected lvalue for struct . operation.\n", cur_line);
+            //         exit(1);
+            //     }
+            //     iptr--; // Roll back load instruction
+            // }
+            // else {
+            //     // Pointer to struct member lookup.
 
-                if (!is_lvalue()) {
-                    printf("%d: Expected lvalue for struct . operation.\n", cur_line);
-                    exit(1);
-                }
-                iptr--; // Roll back load instruction
-            }
-            else {
-                // Pointer to struct member lookup.
+            //     if (cur_type < TYPE_PTR) {
+            //         printf("%d: Cannot use -> on a non-pointer\n", cur_line);
+            //         exit(1);
+            //     }
 
-                if (cur_type < TYPE_PTR) {
-                    printf("%d: Cannot use -> on a non-pointer\n", cur_line);
-                    exit(1);
-                }
+            //     cur_type -= TYPE_PTR;
 
-                cur_type -= TYPE_PTR;
+            //     if (cur_type < TYPE_STRUCT) {
+            //         printf("%d: Cannot use -> on a pointer to a non-struct\n", cur_line);
+            //         exit(1);
+            //     }
+            // }
 
-                if (cur_type < TYPE_STRUCT) {
-                    printf("%d: Cannot use -> on a pointer to a non-struct\n", cur_line);
-                    exit(1);
-                }
-            }
+            // next();
+            // if (cur_token != TOK_IDENTIFIER) {
+            //     printf("%d: Expected identifier\n", cur_line);
+            //     exit(1);
+            // }
 
-            next();
-            if (cur_token != TOK_IDENTIFIER) {
-                printf("%d: Expected identifier\n", cur_line);
-                exit(1);
-            }
+            // str = all_structs[cur_type - TYPE_STRUCT];
+            // member = lookup_struct_member(str, cur_identifier);
 
-            str = all_structs[cur_type - TYPE_STRUCT];
-            member = lookup_struct_member(str, cur_identifier);
+            // if (member->offset > 0) {
+            //     *iptr++ = INSTR_PSH;
+            //     *iptr++ = INSTR_IMM;
+            //     *iptr++ = member->offset;
+            //     *iptr++ = IMM_NUMBER;
+            //     *iptr++ = 0;
+            //     *iptr++ = INSTR_ADD;
+            // }
 
-            if (member->offset > 0) {
-                *iptr++ = INSTR_PSH;
-                *iptr++ = INSTR_IMM;
-                *iptr++ = member->offset;
-                *iptr++ = IMM_NUMBER;
-                *iptr++ = 0;
-                *iptr++ = INSTR_ADD;
-            }
-
-            cur_type = member->type;
-            load_type();
-            consume(TOK_IDENTIFIER);
+            // cur_type = member->type;
+            // load_type();
+            // consume(TOK_IDENTIFIER);
         }
         else if (cur_token == TOK_MULTIPLY) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_DOT);
-            *iptr++ = INSTR_MUL;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+            tac = add_ir_op(IR_MUL, type, 0, pop(), pop());
+            tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_DIVIDE) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_INC);
-            *iptr++ = INSTR_DIV;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+            add_ir_op(IR_DIV, type, ++vreg_count, pop(), pop());
         }
         else if (cur_token == TOK_MOD) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_INC);
-            *iptr++ = INSTR_MOD;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+            add_ir_op(IR_MOD, type, ++vreg_count, pop(), pop());
         }
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
             org_token = cur_token;
-            org_type = cur_type;
-            factor = get_type_inc_dec_size(cur_type);
+            factor = get_type_inc_dec_size(value_stack[-1]->type);
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_MULTIPLY);
 
             if (factor > 1) {
-                *iptr++ = INSTR_PSH;
-                *iptr++ = INSTR_IMM;
-                *iptr++ = factor;
-                *iptr++ = IMM_NUMBER;
-                *iptr++ = 0;
-                *iptr++ = INSTR_MUL;
+                todo("arith +, - for pointers");
+                // *iptr++ = INSTR_PSH;
+                // *iptr++ = INSTR_IMM;
+                // *iptr++ = factor;
+                // *iptr++ = IMM_NUMBER;
+                // *iptr++ = 0;
+                // *iptr++ = INSTR_MUL;
             }
 
-            *iptr++ = org_token == TOK_PLUS ? INSTR_ADD : INSTR_SUB;
-            cur_type = org_type;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+
+            if (org_token == TOK_PLUS) {
+                tac = add_ir_op(IR_ADD, type, 0, pop(), pop());
+                tac->dst->vreg = tac->src2->vreg;
+            }
+            else {
+                tac = add_ir_op(IR_SUB, type, 0, pop(), pop());
+                tac->dst->vreg = tac->src1->vreg;
+            }
         }
         else if (cur_token == TOK_BITWISE_LEFT) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            *iptr++ = INSTR_BWL;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+            tac = add_ir_op(IR_BSHL, type, 0, pop(), pop());
+            tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_BITWISE_RIGHT) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            *iptr++ = INSTR_BWR;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+            tac = add_ir_op(IR_BSHR, type, 0, pop(), pop());
+            tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_LT) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_BITWISE_LEFT);
-            *iptr++ = INSTR_LT;
-            cur_type = TYPE_INT;
+            tac = add_ir_op(IR_LT, TYPE_INT, ++vreg_count, pop(), pop());
+            tac->dst->vreg = tac->src1->vreg;
+
         }
         else if (cur_token == TOK_GT) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            *iptr++ = INSTR_GT;
-            cur_type = TYPE_INT;
+            tac = add_ir_op(IR_GT, TYPE_INT, ++vreg_count, pop(), pop());
+            tac->dst->vreg = tac->src1->vreg;
+
         }
         else if (cur_token == TOK_LE) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            *iptr++ = INSTR_LE;
-            cur_type = TYPE_INT;
+            // *iptr++ = INSTR_LE;
+            tac = add_ir_op(IR_LE, TYPE_INT, ++vreg_count, pop(), pop());
+            tac->dst->vreg = tac->src1->vreg;
+
         }
         else if (cur_token == TOK_GE) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_PLUS);
-            *iptr++ = INSTR_GE;
-            cur_type = TYPE_INT;
+            tac = add_ir_op(IR_GE, TYPE_INT, ++vreg_count, pop(), pop());
+            tac->dst->vreg = tac->src1->vreg;
+
         }
         else if (cur_token == TOK_DBL_EQ) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_LT);
-            *iptr++ = INSTR_EQ;
-            cur_type = TYPE_INT;
+            tac = add_ir_op(IR_EQ, TYPE_INT, ++vreg_count, pop(), pop());
+            tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_NOT_EQ) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_LT);
-            *iptr++ = INSTR_NE;
-            cur_type = TYPE_INT;
+            tac = add_ir_op(IR_NE, TYPE_INT, ++vreg_count, pop(), pop());
+            tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_ADDRESS_OF) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_DBL_EQ);
-            *iptr++ = INSTR_BITWISE_AND;
-            cur_type += TYPE_PTR;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+            tac = add_ir_op(IR_BAND, type, 0, pop(), pop());
+            tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_XOR) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_ADDRESS_OF);
-            *iptr++ = INSTR_XOR;
-            cur_type = TYPE_INT;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+            tac = add_ir_op(IR_XOR, type, 0, pop(), pop());
+            tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_BITWISE_OR) {
             next();
-            *iptr++ = INSTR_PSH;
             expression(TOK_XOR);
-            *iptr++ = INSTR_BITWISE_OR;
-            cur_type = TYPE_INT;
+            type = operation_type(value_stack[-1], value_stack[-2]);
+            tac = add_ir_op(IR_BOR, type, 0, pop(), pop());
+            tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_AND) {
-            temp_iptr = iptr;
-            *iptr++ = INSTR_BZ;
-            *iptr++ = 0;
-            next();
-            *iptr++ = INSTR_PSH;
-            expression(TOK_BITWISE_OR);
-            *iptr++ = INSTR_AND;
-            *(temp_iptr + 1) = (long) iptr;
-            cur_type = TYPE_INT;
+            todo("&&");
+            // temp_iptr = iptr;
+            // *iptr++ = INSTR_BZ;
+            // *iptr++ = 0;
+            // next();
+            // *iptr++ = INSTR_PSH;
+            // expression(TOK_BITWISE_OR);
+            // *iptr++ = INSTR_AND;
+            // *(temp_iptr + 1) = (long) iptr;
+            // cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_OR) {
-            temp_iptr = iptr;
-            *iptr++ = INSTR_BNZ;
-            *iptr++ = 0;
-            next();
-            *iptr++ = INSTR_PSH;
-            expression(TOK_AND);
-            *iptr++ = INSTR_OR;
-            *(temp_iptr + 1) = (long) iptr;
-            cur_type = TYPE_INT;
+            todo("||");
+            // temp_iptr = iptr;
+            // *iptr++ = INSTR_BNZ;
+            // *iptr++ = 0;
+            // next();
+            // *iptr++ = INSTR_PSH;
+            // expression(TOK_AND);
+            // *iptr++ = INSTR_OR;
+            // *(temp_iptr + 1) = (long) iptr;
+            // cur_type = TYPE_INT;
         }
         else if (cur_token == TOK_TERNARY) {
-            next();
-            false_jmp = iptr;
-            *iptr++ = INSTR_BZ;
-            *iptr++ = 0;
-            expression(TOK_OR);
-            true_done_jmp = iptr;
-            *iptr++ = INSTR_JMP;
-            *iptr++ = 0;
-            consume(TOK_COLON);
-            *(false_jmp + 1) = (long) iptr;
-            expression(TOK_OR);
-            *(true_done_jmp + 1) = (long) iptr;
+            todo("?,:");
+            // next();
+            // false_jmp = iptr;
+            // *iptr++ = INSTR_BZ;
+            // *iptr++ = 0;
+            // expression(TOK_OR);
+            // true_done_jmp = iptr;
+            // *iptr++ = INSTR_JMP;
+            // *iptr++ = 0;
+            // consume(TOK_COLON);
+            // *(false_jmp + 1) = (long) iptr;
+            // expression(TOK_OR);
+            // *(true_done_jmp + 1) = (long) iptr;
         }
         else if (cur_token == TOK_EQ) {
-            next();
-            if (!is_lvalue()) {
-                printf("%d: Cannot assign to an rvalue\n", cur_line);
-                exit(1);
-            }
-            iptr--;
-            org_type = cur_type;
-            *iptr++ = INSTR_PSH;
-            expression(TOK_EQ);
-            store_type(org_type);
-            type = org_type;
+            todo("=");
+            // next();
+            // if (!is_lvalue()) {
+            //     printf("%d: Cannot assign to an rvalue\n", cur_line);
+            //     exit(1);
+            // }
+            // iptr--;
+            // org_type = cur_type;
+            // *iptr++ = INSTR_PSH;
+            // expression(TOK_EQ);
+            // store_type(org_type);
+            // type = org_type;
         }
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
-            org_token = cur_token;
-            next();
-            if (!is_lvalue()) {
-                printf("%d: Cannot assign to an rvalue\n", cur_line);
-                exit(1);
-            }
-            org_type = cur_type;
-            iptr--;               // Roll back load
-            *iptr++ = INSTR_PSH;  // Push address
-            load_type();          // Push value
-            *iptr++ = INSTR_PSH;
+            todo("+=, -=");
+            // org_token = cur_token;
+            // next();
+            // if (!is_lvalue()) {
+            //     printf("%d: Cannot assign to an rvalue\n", cur_line);
+            //     exit(1);
+            // }
+            // org_type = cur_type;
+            // iptr--;               // Roll back load
+            // *iptr++ = INSTR_PSH;  // Push address
+            // load_type();          // Push value
+            // *iptr++ = INSTR_PSH;
 
-            factor = get_type_inc_dec_size(org_type);
-            if (factor > 1) {
-                *iptr++ = INSTR_IMM;
-                *iptr++ = factor;
-                *iptr++ = IMM_NUMBER;
-                *iptr++ = 0;
-                *iptr++ = INSTR_PSH;
-            }
+            // factor = get_type_inc_dec_size(org_type);
+            // if (factor > 1) {
+            //     *iptr++ = INSTR_IMM;
+            //     *iptr++ = factor;
+            //     *iptr++ = IMM_NUMBER;
+            //     *iptr++ = 0;
+            //     *iptr++ = INSTR_PSH;
+            // }
 
-            expression(TOK_EQ);
-            if (factor > 1) *iptr++ = INSTR_MUL;
-            *iptr++ = org_token == TOK_PLUS_EQ ? INSTR_ADD : INSTR_SUB;
-            cur_type = org_type;
-            store_type(cur_type);
+            // expression(TOK_EQ);
+            // if (factor > 1) *iptr++ = INSTR_MUL;
+            // *iptr++ = org_token == TOK_PLUS_EQ ? INSTR_ADD : INSTR_SUB;
+            // cur_type = org_type;
+            // store_type(cur_type);
         }
         else
             return; // Bail once we hit something unknown
@@ -1114,6 +1194,7 @@ void expression(int level) {
 }
 
 void statement() {
+    struct value *v;
     long *body_start;
     long *false_jmp;
     long *true_done_jmp;
@@ -1125,11 +1206,6 @@ void statement() {
     if (cur_token_is_integer_type() || cur_token == TOK_STRUCT)  {
         printf("%d: Declarations must be at the top of a function\n", cur_line);
         exit(1);
-    }
-
-    if (print_instructions) {
-        *iptr++ = INSTR_LINE;
-        *iptr++ = cur_line;
     }
 
     if (cur_token == TOK_SEMI) {
@@ -1144,98 +1220,103 @@ void statement() {
         return;
     }
     else if (cur_token == TOK_WHILE) {
-        // Preserve previous loop addresses so that we can have nested whiles/fors
-        old_cur_loop_continue_address = cur_loop_continue_address;
-        old_cur_loop_body_start = cur_loop_body_start;
+        todo("while");
+        // // Preserve previous loop addresses so that we can have nested whiles/fors
+        // old_cur_loop_continue_address = cur_loop_continue_address;
+        // old_cur_loop_body_start = cur_loop_body_start;
 
-        next();
-        consume(TOK_LPAREN);
+        // next();
+        // consume(TOK_LPAREN);
 
-        cur_loop_continue_address = iptr;
-        expression(TOK_COMMA);
-        consume(TOK_RPAREN);
-        *iptr++ = INSTR_BZ;
-        *iptr++ = 0;
+        // cur_loop_continue_address = iptr;
+        // expression(TOK_COMMA);
+        // consume(TOK_RPAREN);
+        // *iptr++ = INSTR_BZ;
+        // *iptr++ = 0;
 
-        cur_loop_body_start = iptr;
-        statement();
+        // cur_loop_body_start = iptr;
+        // statement();
 
-        *iptr++ = INSTR_JMP;
-        *iptr++ = (long) cur_loop_continue_address;
-        *(cur_loop_body_start - 1) = (long) iptr;
+        // *iptr++ = INSTR_JMP;
+        // *iptr++ = (long) cur_loop_continue_address;
+        // *(cur_loop_body_start - 1) = (long) iptr;
 
-        // Restore previous loop addresses
-        cur_loop_continue_address = old_cur_loop_continue_address;
-        cur_loop_body_start = old_cur_loop_body_start;
+        // // Restore previous loop addresses
+        // cur_loop_continue_address = old_cur_loop_continue_address;
+        // cur_loop_body_start = old_cur_loop_body_start;
     }
     else if (cur_token == TOK_FOR) {
-        old_cur_loop_continue_address = cur_loop_continue_address;
-        old_cur_loop_body_start = cur_loop_body_start;
+        todo("for");
+        // old_cur_loop_continue_address = cur_loop_continue_address;
+        // old_cur_loop_body_start = cur_loop_body_start;
 
-        next();
-        consume(TOK_LPAREN);
+        // next();
+        // consume(TOK_LPAREN);
 
-        expression(TOK_COMMA); // setup expression
-        consume(TOK_SEMI);
+        // expression(TOK_COMMA); // setup expression
+        // consume(TOK_SEMI);
 
-        cur_loop_test_start = iptr;
-        expression(TOK_COMMA); // test expression
-        consume(TOK_SEMI);
-        *iptr++ = INSTR_BZ;
-        *iptr++ = 0;
+        // cur_loop_test_start = iptr;
+        // expression(TOK_COMMA); // test expression
+        // consume(TOK_SEMI);
+        // *iptr++ = INSTR_BZ;
+        // *iptr++ = 0;
 
-        *iptr++ = INSTR_JMP; // Jump to body start
-        *iptr++;
+        // *iptr++ = INSTR_JMP; // Jump to body start
+        // *iptr++;
 
-        cur_loop_continue_address = iptr;
-        expression(TOK_COMMA); // increment expression
-        consume(TOK_RPAREN);
-        *iptr++ = INSTR_JMP;
-        *iptr++ = (long) cur_loop_test_start;
+        // cur_loop_continue_address = iptr;
+        // expression(TOK_COMMA); // increment expression
+        // consume(TOK_RPAREN);
+        // *iptr++ = INSTR_JMP;
+        // *iptr++ = (long) cur_loop_test_start;
 
-        cur_loop_body_start = iptr;
-        *(cur_loop_continue_address - 1) = (long) iptr;
-        statement();
-        *iptr++ = INSTR_JMP;
-        *iptr++ = (long) cur_loop_continue_address;
-        *(cur_loop_continue_address - 3) = (long) iptr;
+        // cur_loop_body_start = iptr;
+        // *(cur_loop_continue_address - 1) = (long) iptr;
+        // statement();
+        // *iptr++ = INSTR_JMP;
+        // *iptr++ = (long) cur_loop_continue_address;
+        // *(cur_loop_continue_address - 3) = (long) iptr;
 
-        // Restore previous loop addresses
-        cur_loop_continue_address = old_cur_loop_continue_address;
-        cur_loop_body_start = old_cur_loop_body_start;
+        // // Restore previous loop addresses
+        // cur_loop_continue_address = old_cur_loop_continue_address;
+        // cur_loop_body_start = old_cur_loop_body_start;
     }
     else if (cur_token == TOK_CONTINUE) {
-        next();
-        *iptr++ = INSTR_JMP;
-        *iptr++ = (long) cur_loop_continue_address;
-        consume(TOK_SEMI);
+        todo("continue");
+        // next();
+        // *iptr++ = INSTR_JMP;
+        // *iptr++ = (long) cur_loop_continue_address;
+        // consume(TOK_SEMI);
     }
     else if (cur_token == TOK_IF) {
-        next();
-        consume(TOK_LPAREN);
-        expression(TOK_COMMA);
-        consume(TOK_RPAREN);
-        false_jmp = iptr;
-        *iptr++ = INSTR_BZ;
-        *iptr++ = 0;
-        statement();
-        *(false_jmp + 1) = (long) iptr;
-        if (cur_token == TOK_ELSE) {
-            next();
-            true_done_jmp = iptr;
-            *iptr++ = INSTR_JMP;
-            *iptr++ = 0;
-            *(false_jmp + 1) = (long) iptr;
-            statement();
-            *(true_done_jmp + 1) = (long) iptr;
-        }
-        else
-            *(false_jmp + 1) = (long) iptr;
+        todo("if");
+        // next();
+        // consume(TOK_LPAREN);
+        // expression(TOK_COMMA);
+        // consume(TOK_RPAREN);
+        // false_jmp = iptr;
+        // *iptr++ = INSTR_BZ;
+        // *iptr++ = 0;
+        // statement();
+        // *(false_jmp + 1) = (long) iptr;
+        // if (cur_token == TOK_ELSE) {
+        //     next();
+        //     true_done_jmp = iptr;
+        //     *iptr++ = INSTR_JMP;
+        //     *iptr++ = 0;
+        //     *(false_jmp + 1) = (long) iptr;
+        //     statement();
+        //     *(true_done_jmp + 1) = (long) iptr;
+        // }
+        // else
+        //     *(false_jmp + 1) = (long) iptr;
     }
     else if (cur_token == TOK_RETURN) {
         next();
-        if (cur_token != TOK_SEMI) expression(TOK_COMMA);
-        *iptr++ = INSTR_LEV;
+        if (cur_token == TOK_SEMI) todo("return void");
+        expression(TOK_COMMA);
+        add_instruction(IR_RETURN, 0, pop(), 0);
         consume(TOK_SEMI);
         seen_return = 1;
     }
@@ -1250,59 +1331,51 @@ void function_body(char *func_name, int param_count) {
     int local_symbol_count;
     int base_type, type;
 
+    vreg_count = 0;
+
     seen_return = 0;
     is_main = !strcmp(func_name, "main");
-    local_symbol_count = 0;
+    // local_symbol_count = 0;
 
     consume(TOK_LCURLY);
 
-    // Parse symbols first
-    while (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
-        base_type = parse_base_type();
+    // // Parse symbols first
+    // while (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
+    //     base_type = parse_base_type();
 
-        while (cur_token != TOK_SEMI) {
-            type = base_type;
-            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+    //     while (cur_token != TOK_SEMI) {
+    //         type = base_type;
+    //         while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
-            if (type >= TYPE_STRUCT && type < TYPE_PTR) {
-                printf("%d: Direct usage of struct variables not implemented\n", cur_line);
-                exit(1);
-            }
+    //         if (type >= TYPE_STRUCT && type < TYPE_PTR) {
+    //             printf("%d: Direct usage of struct variables not implemented\n", cur_line);
+    //             exit(1);
+    //         }
 
-            if (cur_token == TOK_EQ) {
-                printf("%d: Declarations with assignments aren't implemented\n", cur_line);
-                exit(1);
-            }
+    //         if (cur_token == TOK_EQ) {
+    //             printf("%d: Declarations with assignments aren't implemented\n", cur_line);
+    //             exit(1);
+    //         }
 
-            expect(TOK_IDENTIFIER);
-            cur_symbol = next_symbol;
-            next_symbol->type = type;
-            next_symbol->identifier = cur_identifier;
-            next_symbol->scope = cur_scope;
-            next_symbol->stack_index = -1 - local_symbol_count++;
-            next_symbol++;
-            next();
-            if (cur_token == TOK_COMMA) next();
-        }
-        expect(TOK_SEMI);
-        while (cur_token == TOK_SEMI) next();
-    }
+    //         expect(TOK_IDENTIFIER);
+    //         cur_symbol = next_symbol;
+    //         next_symbol->type = type;
+    //         next_symbol->identifier = cur_identifier;
+    //         next_symbol->scope = cur_scope;
+    //         next_symbol->stack_index = -1 - local_symbol_count++;
+    //         next_symbol++;
+    //         next();
+    //         if (cur_token == TOK_COMMA) next();
+    //     }
+    //     expect(TOK_SEMI);
+    //     while (cur_token == TOK_SEMI) next();
+    // }
 
-    *iptr++ = INSTR_ENT;
-    *iptr++ = local_symbol_count * sizeof(long); // allocate stack space for locals
-    *iptr++ = param_count;
+    // *iptr++ = INSTR_ENT;
+    // *iptr++ = local_symbol_count * sizeof(long); // allocate stack space for locals
+    // *iptr++ = param_count;
 
     while (cur_token != TOK_RCURLY) statement();
-
-    if (is_main && !seen_return) {
-        *iptr++ = INSTR_IMM;
-        *iptr++ = 0;
-        *iptr++ = IMM_NUMBER;
-        *iptr++ = 0;
-        cur_type = TYPE_INT;
-    }
-
-    if (*(iptr - 1) != INSTR_LEV) *iptr++ = INSTR_LEV;
 
     consume(TOK_RCURLY);
 }
@@ -1360,12 +1433,18 @@ void parse() {
                 next();
 
                 if (cur_token == TOK_LPAREN) {
+                    cur_function_symbol = cur_symbol;
+                    // Function declaration or definition
+
                     seen_function = 1;
                     cur_scope++;
                     next();
 
-                    // Function declaration or definition
-                    cur_symbol->value = (long) iptr;
+                    ir = malloc(sizeof(struct three_address_code) * MAX_THREE_ADDRESS_CODES);
+                    memset(ir, 0, sizeof(struct three_address_code) * MAX_THREE_ADDRESS_CODES);
+                    cur_symbol->ir = ir;
+                    cur_symbol->is_function = 1;
+
                     param_count = 0;
                     while (cur_token != TOK_RPAREN) {
                         if (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
@@ -1395,21 +1474,17 @@ void parse() {
                     cur_function_symbol = cur_symbol;
 
                     if (cur_token == TOK_LCURLY) {
-                        // Add global definition for use by the assembler
-                        *iptr++ = INSTR_GLB;
-                        *iptr++ = (long) cur_function_name;
-                        *iptr++ = get_type_sizeof(type);
-                        *iptr++ = GLB_TYPE_FUNCTION;
-
                         function_body((char *) cur_symbol->identifier, param_count);
+                        cur_function_symbol->vreg_count = vreg_count;
 
+                        // TODO backpatches
                         // Now that this function is defined, handle any backpatches to it
-                        for (i = 0; i < MAX_FWD_FUNCTION_BACKPATCHES; i++)
-                            if (fwd_function_backpatches[i].symbol == cur_function_symbol) {
-                                *fwd_function_backpatches[i].iptr = cur_function_symbol->value;
-                                fwd_function_backpatches[i].iptr = 0;
-                                fwd_function_backpatches[i].symbol = 0;
-                            }
+                        // for (i = 0; i < MAX_FWD_FUNCTION_BACKPATCHES; i++)
+                        //     if (fwd_function_backpatches[i].symbol == cur_function_symbol) {
+                        //         *fwd_function_backpatches[i].iptr = cur_function_symbol->value;
+                        //         fwd_function_backpatches[i].iptr = 0;
+                        //         fwd_function_backpatches[i].symbol = 0;
+                        //     }
                     }
                     else
                         // Make it clear that this symbol will need to be backpatched if used
@@ -1419,19 +1494,20 @@ void parse() {
                     doing_var_declaration = 0;
                 }
                 else {
-                    // Global symbol
-                    *iptr++ = INSTR_GLB;
-                    *iptr++ = (long) cur_identifier;
-                    *iptr++ = get_type_sizeof(type);
-                    *iptr++ = GLB_TYPE_VARIABLE;
+                    todo("global var");
+                    // // Global symbol
+                    // *iptr++ = INSTR_GLB;
+                    // *iptr++ = (long) cur_identifier;
+                    // *iptr++ = get_type_sizeof(type);
+                    // *iptr++ = GLB_TYPE_VARIABLE;
 
-                    if (seen_function) {
-                        printf("%d: Global variables must precede all functions\n", cur_line);
-                        exit(1);
-                    }
+                    // if (seen_function) {
+                    //     printf("%d: Global variables must precede all functions\n", cur_line);
+                    //     exit(1);
+                    // }
 
-                    cur_symbol->value = (long) data;
-                    data += sizeof(long);
+                    // cur_symbol->value = (long) data;
+                    // data += sizeof(long);
                 }
 
                 if (cur_token == TOK_COMMA) next();
@@ -1478,210 +1554,346 @@ void parse() {
     }
 }
 
-void print_instruction(int f, long *pc, int relative, int print_pc) {
-    int instr;
-    long operand, imm_type;
-    char *s;
-    struct symbol *symbol;
-    instr = *pc;
+void print_value(struct value *v) {
+    if (v->preg != -1)
+        printf("p%d", v->preg);
+    else if (v->vreg)
+        printf("r%d", v->vreg);
+    else
+        printf("%d", v->value);
+}
 
-    if (print_pc) dprintf(f, "%-15ld ", (long) pc - (long) instructions);
-    dprintf(f, "%.5s", &"LINE GLB  LEA  IMM  JMP  JSR  BZ   BNZ  ENT  ADJ  BNOT LEV  LC   LS   LI   LL   SC   SS   SI   SL   OR   AND  BOR  BAND XOR  EQ   NE   LT   GT   LE   GE   BWL  BWR  ADD  SUB  MUL  DIV  MOD  PSH  OPEN READ WRIT CLOS PRTF DPRT MALC FREE MSET MCMP SCMP EXIT "[instr * 5 - 5]);
-    if (instr <= INSTR_ADJ) {
-        operand = *(pc + 1);
-        symbol = (struct symbol *) *(pc + 3);
-        if (relative) {
-            if ((instr == INSTR_IMM)) {
-                imm_type = *(pc + 2);
-                if (imm_type == IMM_NUMBER)
-                    dprintf(f, " %ld", operand);
-                else if (imm_type == IMM_STRING_LITERAL) {
-                    dprintf(f, " &\"");
-                    s = (char *) operand;
-                    while (*s) {
-                        if (*s == '\n') dprintf(f, "\\n");
-                        else if (*s == '\t') dprintf(f, "\\t");
-                        else if (*s == '\\') dprintf(f, "\\\\");
-                        else if (*s == '"') dprintf(f, "\\\"");
-                        else dprintf(f, "%c", *s);
-                        s++;
-                    }
-                    dprintf(f, "\"");
-                }
-                else if (imm_type == IMM_GLOBAL)
-                    dprintf(f, " global %d \"%s\"", symbol->stack_index, (char *) symbol->identifier);
-                else {
-                    dprintf(f, "unknown imm %ld\n", imm_type);
-                    exit(1);
-                }
-            }
-            else if (instr == INSTR_ENT) {
-                dprintf(f, " %ld %ld", *(pc + 2), operand); // # of params, local stack size
-                pc += 2;
-            }
-            else if (instr == INSTR_GLB) {
-                dprintf(f, " type=%ld size=%ld \"%s\"", *(pc + 3), *(pc + 2), (char *) operand);
-                pc += 2;
-            }
-            else if (instr == INSTR_JSR)
-                dprintf(f, " %ld %ld \"%s\"", operand - (long) instructions, *(pc + 3), (char *) *(pc + 2));
-            else if ((instr == INSTR_JMP) || (instr == INSTR_BZ) || (instr == INSTR_BNZ)) {
-                dprintf(f, " %ld", operand - (long) instructions);
-            }
-            else
-                dprintf(f, " %ld", operand);
+void print_instruction(struct three_address_code *tac) {
+    if (tac->operation != IR_RETURN) {
+        print_value(tac->dst);
+        printf(" = ");
+    }
+
+         if (tac->operation == IR_LOAD_CONSTANT) { print_value(tac->src1); }
+    else if (tac->operation == IR_RETURN)        { printf("return "); print_value(tac->src1); }
+    else if (tac->operation == IR_ADD)           { print_value(tac->src1); printf(" + ");  print_value(tac->src2); }
+    else if (tac->operation == IR_SUB)           { print_value(tac->src1); printf(" - ");  print_value(tac->src2); }
+    else if (tac->operation == IR_MUL)           { print_value(tac->src1); printf(" * ");  print_value(tac->src2); }
+    else if (tac->operation == IR_DIV)           { print_value(tac->src1); printf(" / ");  print_value(tac->src2); }
+    else if (tac->operation == IR_MOD)           { print_value(tac->src1); printf(" %% "); print_value(tac->src2); }
+    else if (tac->operation == IR_BNOT)          {                         printf("!");    print_value(tac->src1); }
+    else if (tac->operation == IR_EQ)            { print_value(tac->src1); printf(" == "); print_value(tac->src2); }
+    else if (tac->operation == IR_NE)            { print_value(tac->src1); printf(" != "); print_value(tac->src2); }
+    else if (tac->operation == IR_GT)            { print_value(tac->src1); printf(" > ");  print_value(tac->src2); }
+    else if (tac->operation == IR_LT)            { print_value(tac->src1); printf(" < ");  print_value(tac->src2); }
+    else if (tac->operation == IR_GE)            { print_value(tac->src1); printf(" >= "); print_value(tac->src2); }
+    else if (tac->operation == IR_LE)            { print_value(tac->src1); printf(" <= "); print_value(tac->src2); }
+    else if (tac->operation == IR_BAND)          { print_value(tac->src1); printf(" & ");  print_value(tac->src2); }
+    else if (tac->operation == IR_BOR)           { print_value(tac->src1); printf(" | ");  print_value(tac->src2); }
+    else if (tac->operation == IR_XOR)           { print_value(tac->src1); printf(" ^ ");  print_value(tac->src2); }
+    else if (tac->operation == IR_BSHL)          { print_value(tac->src1); printf(" << "); print_value(tac->src2); }
+    else if (tac->operation == IR_BSHR)          { print_value(tac->src1); printf(" >> "); print_value(tac->src2); }
+    else {
+        printf("Unknown operation: %d\n", tac->operation);
+        exit(1);
+    }
+
+    printf("\n");
+}
+
+void print_intermediate_representation(struct three_address_code *ir) {
+    struct three_address_code *tac;
+    struct symbol *s;
+    int i;
+
+    while (ir->operation) {
+        printf("%d > ", i++);
+        print_instruction(ir);
+        ir++;
+    }
+    printf("\n");
+}
+
+void update_register_liveness(int reg, int instruction_position) {
+    if (liveness[reg].start == -1 || instruction_position < liveness[reg].start) liveness[reg].start = instruction_position;
+    if (liveness[reg].end == -1 || instruction_position > liveness[reg].end) liveness[reg].end = instruction_position;
+}
+
+void analyze_liveness(struct three_address_code *ir, int vreg_count) {
+    int i;
+
+    for (i = 1; i <= vreg_count; i++) {
+        liveness[i].start = -1;
+        liveness[i].end = -1;
+    }
+
+    i = 0;
+    while (ir->operation) {
+        if (ir->dst  && ir->dst->vreg)  update_register_liveness(ir->dst->vreg,  i);
+        if (ir->src1 && ir->src1->vreg) update_register_liveness(ir->src1->vreg, i);
+        if (ir->src2 && ir->src2->vreg) update_register_liveness(ir->src2->vreg, i);
+        ir++;
+        i++;
+    }
+}
+
+void print_liveness(int vreg_count) {
+    int i;
+
+    for (i = 1; i <= vreg_count; i++)
+        printf("r%d %d %d\n", i, liveness[i].start, liveness[i].end);
+}
+
+void allocate_register(struct value *v) {
+    int i;
+
+    // Check for already allocated registers
+    for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
+        if (physical_registers[i] == v->vreg) {
+            v->preg = i;
+            return;
         }
-        else
-            dprintf(f, " %ld", operand);
     }
 
-    else if (instr == INSTR_PRTF || instr == INSTR_DPRT) {
-        operand = *(pc + 1);
-        dprintf(f, " %ld", operand);
+    // Find a free register
+    for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
+        if (!physical_registers[i]) {
+            physical_registers[i] = v->vreg;
+            v->preg = i;
+            return;
+        }
     }
 
+    printf("Ran out of registers\n");
+    exit(1);
+}
+
+void allocate_registers(struct three_address_code *ir) {
+    int line, i, j;
+
+    physical_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+
+    // Don't allocate these registers. The approach is quite crude and it
+    // doesn't leave a lot of registers to play with. But it'll do for a first
+    // approach.
+    physical_registers[REG_RAX] = -1; // RAX and RDX are used for division & modulo. RAX is also a function return value
+    physical_registers[REG_RDX] = -1;
+    physical_registers[REG_RCX] = -1; // RCX is used for shifts
+    physical_registers[REG_RSP] = -1;
+    physical_registers[REG_RBP] = -1;
+    physical_registers[REG_RSI] = -1; // Used in function calls
+    physical_registers[REG_RDI] = -1; // Used in function calls
+    physical_registers[REG_R8]  = -1; // Used in function calls
+    physical_registers[REG_R9]  = -1; // Used in function calls
+    physical_registers[REG_R10] = -1; // Not preserved in function calls
+    physical_registers[REG_R11] = -1; // Not preserved in function calls
+
+    line = 0;
+    while (ir->operation) {
+        if (ir->dst  && ir->dst->vreg)  allocate_register(ir->dst);
+        if (ir->src1 && ir->src1->vreg) allocate_register(ir->src1);
+        if (ir->src2 && ir->src2->vreg) allocate_register(ir->src2);
+
+        // Free registers
+        for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
+            if (physical_registers[i] > 0 && liveness[physical_registers[i]].end == line) {
+                physical_registers[i] = 0;
+            }
+        }
+        ir++;
+        line++;
+    }
+
+    free(physical_registers);
+}
+
+void output_register_name(int f, int preg) {
+    char *names;
+
+    names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
+    if (preg == 8 || preg == 9) dprintf(f, "%%%.2s", &names[preg * 4]);
+    else dprintf(f, "%%%.3s", &names[preg * 4]);
+}
+
+void output_8bit_register_name(int f, int preg) {
+    char *names;
+
+    names = "al   bl   cl   dl   sil  dil  bpl  spl  r8b  r9b  r10b r11b r12b r13b r14b r15b";
+    if (preg < 4)
+        dprintf(f, "%%%.2s", &names[preg * 5]);
+    else if (preg < 10)
+        dprintf(f, "%%%.3s", &names[preg * 5]);
+    else
+        dprintf(f, "%%%.4s", &names[preg * 5]);
+}
+
+void output_op(int f, char *instruction, int reg1, int reg2) {
+    dprintf(f, "\t%s\t", instruction); // TODO choose right opcode for type
+    output_register_name(f, reg1);
+    dprintf(f, ", ");
+    output_register_name(f, reg2);
+    dprintf(f, "\n");
+
+}
+
+void output_cmp(int f, struct three_address_code *ir) {
+    dprintf(f, "\tcmpq\t");
+    output_register_name(f, ir->src2->preg);
+    dprintf(f, ", ");
+    output_register_name(f, ir->src1->preg);
     dprintf(f, "\n");
 }
 
-void output_code(char *filename) {
-    long *pc;
-    int f, instr;
-
-    if (filename[0] == '-' && filename[1] == 0)
-        f = 1;
-    else {
-        f = open(filename, 577, 420); // O_TRUNC=512, O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
-        if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
-    }
-
-    pc = instructions;
-    while (*pc) {
-        instr = *pc;
-        print_instruction(f, pc, 1, 1);
-        if (instr == INSTR_IMM) pc += 4;
-        else if (instr == INSTR_GLB) pc += 4;
-        else if (instr == INSTR_ENT) pc += 3;
-        else if (instr == INSTR_JSR) pc += 4;
-        else if (instr <= INSTR_ADJ) pc += 2;
-        else if (instr == INSTR_PRTF) pc += 2;
-        else if (instr == INSTR_DPRT) pc += 2;
-        else pc++;
-    }
-
-    close(f);
+void output_cmp_result_instruction(int f, struct three_address_code *ir, char *instruction) {
+    dprintf(f, "\t%s\t", instruction);
+    output_8bit_register_name(f, ir->src2->preg);
+    dprintf(f, "\n");
 }
 
-long run(long argc, char **argv, int print_instructions) {
-    long *stack;
-    long a;
-    long *pc;
-    long *sp, *bp;
-    long *t;
-    long instr;
-    long cycle;
+void output_movzbl(int f, struct three_address_code *ir) {
+    dprintf(f, "\tmovzbl\t");
+    output_8bit_register_name(f, ir->src2->preg);
+    dprintf(f, ", ");
+    output_register_name(f, ir->dst->preg);
+    dprintf(f, "\n");
+}
 
-    stack = malloc(sizeof(long) * 1024 * 1024);
+void output_cmp_operation(int f, struct three_address_code *ir, char *instruction) {
+    output_cmp(f, ir);
+    output_cmp_result_instruction(f, ir, instruction);
+    output_movzbl(f, ir);
+}
 
-    sp = stack + 1024 * 1024;
-    bp = sp;
+void output_function_body_code(int f, struct symbol *symbol) {
+    struct three_address_code *ir;
 
-    *--sp = INSTR_EXIT; // call exit if main returns
-    *--sp = INSTR_PSH;
-    t = sp;
-    *--sp = argc;
-    *--sp = (long) argv;
-    *--sp = (long) t;
+    ir = symbol->ir;
 
-    cycle = 0;
-    a = 0;
+    dprintf(f, "\tpush\t%%rbp\n");
+    dprintf(f, "\tmovq\t%%rsp, %%rbp\n");
 
-    pc = (long *) lookup_function("main");
+    while (ir->operation) {
+        if (ir->operation == IR_LOAD_CONSTANT) {
+            dprintf(f, "\tmovq\t$%d, ", ir->src1->value); // TODO choose right opcode for type
+            output_register_name(f, ir->dst->preg);
+            dprintf(f, "\n");
 
-    while (*pc) {
-        if (sp < stack) {
-            printf("Stack overflow\n");
-            exit(1);
         }
-
-        cycle++;
-
-        if (print_instructions) {
-            dprintf(1, "%-5ld> ", cycle);
-            dprintf(1, "pc = %-15ld ", (long) pc - 8);
-            dprintf(1, "a = %-15ld ", a);
-            dprintf(1, "sp = %-15ld ", (long) sp);
-            print_instruction(1, pc, 0, 0);
-        }
-
-        instr = *pc++;
-
-             if (instr == INSTR_LINE) pc++;                                                 // No-op, print line number
-        else if (instr == INSTR_GLB) pc += 3;                                               // Global
-        else if (instr == INSTR_LEA) a = (long) (bp + *pc++);                               // load local address
-        else if (instr == INSTR_IMM) {a = *pc++; pc += 2; }                                 // load global address or immediate
-        else if (instr == INSTR_JMP) pc = (long *) *pc;                                     // jump
-        else if (instr == INSTR_JSR) { *--sp = (long) (pc + 3); pc = (long *)*pc; }         // jump to subroutine
-        else if (instr == INSTR_BZ)  pc = a ? pc + 1 : (long *) *pc;                        // branch if zero
-        else if (instr == INSTR_BNZ) pc = a ? (long *) *pc : pc + 1;                        // branch if not zero
-        else if (instr == INSTR_ENT) { *--sp = (long) bp; bp = sp; sp = sp - *pc++; pc++; } // enter subroutine
-        else if (instr == INSTR_ADJ) sp = sp + *pc++;                                       // stack adjust
-        else if (instr == INSTR_LEV) { sp = bp; bp = (long *) *sp++; pc = (long *) *sp++; } // leave subroutine
-        else if (instr == INSTR_LC) a = *(char *)a;                                         // load char
-        else if (instr == INSTR_LS) a = *(short *)a;                                        // load short
-        else if (instr == INSTR_LI) a = *(int *)a;                                          // load int
-        else if (instr == INSTR_LL) a = *(long *)a;                                         // load long
-        else if (instr == INSTR_SC) a = *(char *)*sp++ = a;                                 // store char
-        else if (instr == INSTR_SS) a = *(short  *) *sp++ = a;                              // store short
-        else if (instr == INSTR_SI) a = *(int *)*sp++ = a;                                  // store int
-        else if (instr == INSTR_SL) *(long *)*sp++ = a;                                     // store long
-        else if (instr == INSTR_PSH) *--sp = a;
-        else if (instr == INSTR_OR ) a = *sp++ || a;
-        else if (instr == INSTR_AND) a = *sp++ && a;
-        else if (instr == INSTR_BITWISE_OR) a = *sp++ | a;
-        else if (instr == INSTR_BITWISE_AND) a = *sp++ & a;
-        else if (instr == INSTR_XOR) a = *sp++ ^ a;
-        else if (instr == INSTR_BNOT) a = ~ a;
-        else if (instr == INSTR_EQ ) a = *sp++ == a;
-        else if (instr == INSTR_NE ) a = *sp++ != a;
-        else if (instr == INSTR_LT ) a = *sp++ < a;
-        else if (instr == INSTR_GT ) a = *sp++ > a;
-        else if (instr == INSTR_LE ) a = *sp++ <= a;
-        else if (instr == INSTR_GE ) a = *sp++ >= a;
-        else if (instr == INSTR_BWL ) a = *sp++ << a;
-        else if (instr == INSTR_BWR ) a = *sp++ >> a;
-        else if (instr == INSTR_ADD) a = *sp++ + a;
-        else if (instr == INSTR_SUB) a = *sp++ - a;
-        else if (instr == INSTR_MUL) a = *sp++ * a;
-        else if (instr == INSTR_DIV) a = *sp++ / a;
-        else if (instr == INSTR_MOD) a = *sp++ % a;
-        else if (instr == INSTR_OPEN) { a = open((char *) sp[2], sp[1], *sp); sp += 3; }
-        else if (instr == INSTR_READ) { a = read(sp[2], (char *) sp[1], *sp); sp += 3; }
-        else if (instr == INSTR_WRIT) { a = write(sp[2], (char *) sp[1], *sp); sp += 3; }
-        else if (instr == INSTR_CLOS) a = close(*sp++);
-        else if (instr == INSTR_PRTF) { t = sp + *pc++; a = printf((char *)t[-1], t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8], t[-9], t[-10]); sp += *(pc - 1); }
-        else if (instr == INSTR_DPRT) { t = sp + *pc++; a = dprintf(t[-1], (char *)t[-2], t[-3], t[-4], t[-5], t[-6], t[-7], t[-8], t[-9], t[-10]); sp += *(pc - 1); }
-        else if (instr == INSTR_MALC) a = (long) malloc(*sp++);
-        else if (instr == INSTR_FREE) free((void *) *sp++);
-        else if (instr == INSTR_MSET) { a = (long) memset((char *) sp[2], sp[1], *sp); sp += 3; }
-        else if (instr == INSTR_MCMP) { a = (long) memcmp((char *) sp[2], (char *) sp[1], *sp); sp += 3; }
-        else if (instr == INSTR_SCMP) { a = (long) strcmp((char *) sp[1], (char *) *sp); sp += 2; }
-        else if (instr == INSTR_EXIT) {
-            if (print_cycles && print_exit_code) printf("exit %ld in %ld cycles\n", *sp, cycle);
-            else {
-                if (print_cycles) printf("%ld cycles\n", cycle);
-                if (print_exit_code) printf("exit %ld\n", *sp);
+        else if (ir->operation == IR_RETURN) {
+            if (ir->src1->preg != REG_RAX) {
+                dprintf(f, "\tmovq\t"); // TODO choose right opcode for type
+                output_register_name(f, ir->src1->preg);
+                dprintf(f, ", ");
+                output_register_name(f, REG_RAX);
+                dprintf(f, "\n");
             }
-            return *sp;
+            dprintf(f, "\tleaveq\n");
+            dprintf(f, "\tretq\n");
+        }
+        else if (ir->operation == IR_ADD) output_op(f, "addq",  ir->src1->preg, ir->src2->preg);
+        else if (ir->operation == IR_SUB) output_op(f, "subq",  ir->src2->preg, ir->src1->preg);
+        else if (ir->operation == IR_MUL) output_op(f, "imulq", ir->src1->preg, ir->src2->preg);
+        else if (ir->operation == IR_DIV || ir->operation == IR_MOD) {
+            // This is slightly ugly. src1 is the dividend and needs doubling in size and placing in the RDX register.
+            // It could have been put in the RDX register in the first place.
+            // The quotient is stored in RAX and remainder in RDX, but is then copied
+            // to whatever register is allocated for the dst, which might as well have been RAX or RDX for the respective quotient and remainders.
+
+            dprintf(f, "\tmovq\t");
+            output_register_name(f, ir->src1->preg);
+            dprintf(f, ", %%rax\n");
+            dprintf(f, "\tcqto\n");
+            dprintf(f, "\tidivq\t");
+            output_register_name(f, ir->src2->preg);
+            dprintf(f, "\n");
+            if (ir->operation == IR_DIV)
+                dprintf(f, "\tmovq\t%%rax, "); // TODO choose right opcode for type
+            else
+                dprintf(f, "\tmovq\t%%rdx, "); // TODO choose right opcode for type
+            output_register_name(f, ir->dst->preg);
+            dprintf(f, "\n");
+        }
+
+        else if (ir->operation == IR_BNOT)  {
+            dprintf(f, "\tnot\t");
+            output_register_name(f, ir->src1->preg);
+            dprintf(f, "\n");
+        }
+
+        else if (ir->operation == IR_EQ)   output_cmp_operation(f, ir, "sete");
+        else if (ir->operation == IR_NE)   output_cmp_operation(f, ir, "setne");
+        else if (ir->operation == IR_LT)   output_cmp_operation(f, ir, "setl");
+        else if (ir->operation == IR_GT)   output_cmp_operation(f, ir, "setg");
+        else if (ir->operation == IR_LE)   output_cmp_operation(f, ir, "setle");
+        else if (ir->operation == IR_GE)   output_cmp_operation(f, ir, "setge");
+        else if (ir->operation == IR_BOR)  output_op(f, "orq",  ir->src1->preg, ir->src2->preg);
+        else if (ir->operation == IR_BAND) output_op(f, "andq", ir->src1->preg, ir->src2->preg);
+        else if (ir->operation == IR_XOR)  output_op(f, "xorq", ir->src1->preg, ir->src2->preg);
+
+        else if (ir->operation == IR_BSHL || ir->operation == IR_BSHR) {
+            // Ugly, this means rcx is permamently allocated
+
+            dprintf(f, "\tmovq\t");
+            output_register_name(f, ir->src2->preg);
+            dprintf(f, ", %%rcx\n");
+            dprintf(f, "\t%s\t%%cl, ", ir->operation == IR_BSHL ? "shl" : "sar");
+            output_register_name(f, ir->src1->preg);
+            dprintf(f, "\n");
         }
 
         else {
-            printf("Internal error: unknown instruction %ld\n", instr);
+            printf("Unknown operation: %d\n", ir->operation);
             exit(1);
         }
+        ir++;
     }
 
-    // Should never get here
-    return 0;
+    if (!strcmp(symbol->identifier, "main")) dprintf(f, "\tmovq\t$0, %%rax\n");
+
+    dprintf(f, "\tleaveq\n");
+    dprintf(f, "\tretq\n");
+}
+
+void output_code(char *input_filename, char *output_filename) {
+    int f;
+    struct three_address_code *tac;
+    struct symbol *s;
+
+    // Write file
+    if (!strcmp(output_filename, "-"))
+        f = 1;
+    else {
+        f = open(output_filename, 577, 420); // O_TRUNC=512, O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
+        if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
+    }
+
+    dprintf(f, "\t.file\t\"%s\"\n", input_filename);
+    dprintf(f, "\t.text\n");
+
+    s = symbol_table;
+    while (s->identifier) {
+        if (s->is_function) dprintf(f, "\t.globl\t%s\n", s->identifier);
+        s++;
+    }
+
+    dprintf(f, "\n");
+
+    s = symbol_table;
+    while (s->identifier) {
+        if (!s->is_function) { s++; continue; }
+
+        dprintf(f, "%s:\n", s->identifier);
+
+        // registers start at 1
+        liveness_size = 0;
+        liveness = malloc(sizeof(struct liveness_interval) * (MAX_LIVENESS_SIZE + 1));
+
+        analyze_liveness(s->ir, s->vreg_count);
+        if (print_ir_before) print_intermediate_representation(s->ir);
+        allocate_registers(s->ir);
+        if (print_ir_after) print_intermediate_representation(s->ir);
+        output_function_body_code(f, s);
+        dprintf(f, "\n");
+        s++;
+    }
+
+    close(f);
 }
 
 void add_builtin(char *identifier, int instruction) {
@@ -1716,13 +1928,15 @@ int main(int argc, char **argv) {
     char *input_filename, *output_filename;
     int f;
     int help, debug, print_symbols, print_code;
+    int filename_len;
 
     DATA_SIZE = 10 * 1024 * 1024;
     INSTRUCTIONS_SIZE = 10 * 1024 * 1024;
     SYMBOL_TABLE_SIZE = 10 * 1024 * 1024;
 
     help = 0;
-    print_instructions = 0;
+    print_ir_before = 0;
+    print_ir_after = 0;
     print_exit_code = 1;
     print_cycles = 1;
     print_symbols = 0;
@@ -1733,7 +1947,8 @@ int main(int argc, char **argv) {
     while (argc > 0 && *argv[0] == '-') {
              if (argc > 0 && !memcmp(argv[0], "-h",  3)) { help = 0;               argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-i",  2)) { print_instructions = 1; argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-rb", 3)) { print_ir_before = 1;    argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-ra", 3)) { print_ir_after = 1;     argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { print_symbols = 1;      argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-ne", 3)) { print_exit_code = 0;    argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-nc", 3)) { print_cycles = 0;       argc--; argv++; }
@@ -1746,10 +1961,9 @@ int main(int argc, char **argv) {
     }
 
     if (help || argc < 1) {
-        printf("Usage: wc4 [-d -i -s -c -ne -nc] INPUT-FILE\n\n");
+        printf("Usage: wc4 [-d -rb -ra -s -c-ne -nc] INPUT-FILE\n\n");
         printf("Flags\n");
         printf("-d      Debug output\n");
-        printf("-i      Output instructions during execution\n");
         printf("-s      Output symbol table\n");
         printf("-o      Output code without executing it. Use - for stdout.\n");
         printf("-ne     Don't print exit code\n");
@@ -1761,14 +1975,9 @@ int main(int argc, char **argv) {
     input_filename = argv[0];
 
     input = malloc(10 * 1024 * 1024);
-    instructions = malloc(INSTRUCTIONS_SIZE);
-    memset(instructions, 0, INSTRUCTIONS_SIZE);
     symbol_table = malloc(SYMBOL_TABLE_SIZE);
     memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
     next_symbol = symbol_table;
-
-    fwd_function_backpatches = malloc(sizeof(struct fwd_function_backpatch) * MAX_FWD_FUNCTION_BACKPATCHES);
-    memset(fwd_function_backpatches, 0, sizeof(struct fwd_function_backpatch) * MAX_FWD_FUNCTION_BACKPATCHES);
 
     data = malloc(DATA_SIZE);
     data_start = data;
@@ -1777,20 +1986,20 @@ int main(int argc, char **argv) {
     all_structs = malloc(sizeof(struct str_desc *) * MAX_STRUCTS);
     all_structs_count = 0;
 
-    add_builtin("exit",    INSTR_EXIT);
-    add_builtin("open",    INSTR_OPEN);
-    add_builtin("read",    INSTR_READ);
-    add_builtin("write",   INSTR_WRIT);
-    add_builtin("close",   INSTR_CLOS);
-    add_builtin("printf",  INSTR_PRTF);
-    add_builtin("dprintf", INSTR_DPRT);
-    add_builtin("malloc",  INSTR_MALC);
-    add_builtin("free",    INSTR_FREE);
-    add_builtin("memset",  INSTR_MSET);
-    add_builtin("memcmp",  INSTR_MCMP);
-    add_builtin("strcmp",  INSTR_SCMP);
+    // TODO builtins
+    // add_builtin("exit",    INSTR_EXIT);
+    // add_builtin("open",    INSTR_OPEN);
+    // add_builtin("read",    INSTR_READ);
+    // add_builtin("write",   INSTR_WRIT);
+    // add_builtin("close",   INSTR_CLOS);
+    // add_builtin("printf",  INSTR_PRTF);
+    // add_builtin("dprintf", INSTR_DPRT);
+    // add_builtin("malloc",  INSTR_MALC);
+    // add_builtin("free",    INSTR_FREE);
+    // add_builtin("memset",  INSTR_MSET);
+    // add_builtin("memcmp",  INSTR_MCMP);
+    // add_builtin("strcmp",  INSTR_SCMP);
 
-    iptr = instructions;
     f  = open(input_filename, 0, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
     input_size = read(f, input, 10 * 1024 * 1024);
@@ -1800,15 +2009,27 @@ int main(int argc, char **argv) {
 
     cur_line = 1;
     next();
+
+    value_stack = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
     parse();
 
     if (print_symbols) do_print_symbols();
 
-    if (output_filename) {
-        output_code(output_filename);
-        exit(0);
+    if (!output_filename) {
+        // Write output file with .s extension from an expected source extension of .c
+        filename_len = strlen(input_filename);
+        if (filename_len > 2 && input_filename[filename_len - 2] == '.' && input_filename[filename_len - 1] == 'c') {
+            output_filename = malloc(filename_len + 1);
+            strcpy(output_filename, input_filename);
+            output_filename[filename_len - 1] = 's';
+        }
+        else {
+            printf("Unable to determine output filename\n");
+            exit(1);
+        }
     }
 
-    run(argc, argv, print_instructions);
+    output_code(input_filename, output_filename);
+
     exit(0);
 }
