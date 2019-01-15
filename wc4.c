@@ -22,7 +22,10 @@ struct value {
     int type;
     int vreg;
     int preg;
+    int stack_index;
+    int is_local;
     int value;
+    struct symbol *function_symbol;
 };
 
 struct three_address_code {
@@ -170,6 +173,9 @@ enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
 
 enum {
     IR_LOAD_CONSTANT=1,
+    IR_LOAD_FROM_STACK,
+    IR_PARAM,
+    IR_CALL,
     IR_RETURN,
     IR_ADD,
     IR_SUB,
@@ -665,7 +671,7 @@ void expression(int level) {
     struct str_desc *str;
     struct str_member *member;
     int i;
-    struct value *v, *cv;
+    struct value *v, *cv, *dst, *src1, *function_value, *return_value;
     struct three_address_code *tac;
 
     if (cur_token == TOK_LOGICAL_NOT) {
@@ -770,90 +776,93 @@ void expression(int level) {
         // next();
     }
     else if (cur_token == TOK_IDENTIFIER) {
-        todo("identifiers");
-        // symbol = lookup_symbol(cur_identifier, cur_scope);
+        symbol = lookup_symbol(cur_identifier, cur_scope);
 
-        // if (!symbol) {
-        //     printf("%d: Unknown symbol \"%s\"\n", cur_line, cur_identifier);
-        //     exit(1);
-        // }
+        if (!symbol) {
+            printf("%d: Unknown symbol \"%s\"\n", cur_line, cur_identifier);
+            exit(1);
+        }
 
-        // next();
-        // type = symbol->type;
-        // scope = symbol->scope;
-        // if (type == TYPE_ENUM) {
-        //     *iptr++ = INSTR_IMM;
-        //     *iptr++ = symbol->value;
-        //     *iptr++ = IMM_NUMBER;
-        //     *iptr++ = 0;
-        //     cur_type = symbol->type;
-        // }
-        // else if (cur_token == TOK_LPAREN) {
-        //     // Function call
-        //     next();
-        //     param_count = 0;
-        //     while (cur_token != TOK_RPAREN) {
-        //         expression(TOK_COMMA);
-        //         *iptr++ = INSTR_PSH;
-        //         if (cur_token == TOK_COMMA) next();
-        //         param_count++;
-        //     }
-        //     consume(TOK_RPAREN);
-        //     builtin = symbol->builtin;
-        //     if (builtin) {
-        //         *iptr++ = builtin;
-        //         if (!strcmp("printf", (char *) symbol->identifier) || !strcmp("dprintf", (char *) symbol->identifier)) {
-        //             if (param_count >  10) {
-        //                 printf("printf can't handle more than 10 args\n");
-        //                 exit(1);
-        //             }
-        //             *iptr++ = param_count;
-        //         }
-        //     }
-        //     else {
-        //         *iptr++ = INSTR_JSR;
-        //         if (!symbol->value) {
-        //             // The function hasn't been defined yet, add a backpatch to it.
-        //             for (i = 0; i < MAX_FWD_FUNCTION_BACKPATCHES; i++)
-        //                 if (!fwd_function_backpatches[i].iptr) {
-        //                     fwd_function_backpatches[i].iptr = iptr;
-        //                     fwd_function_backpatches[i].symbol = symbol;
-        //                     i = MAX_FWD_FUNCTION_BACKPATCHES; // break isn't implemented in wc4
-        //             }
-        //         }
+        next();
+        type = symbol->type;
+        scope = symbol->scope;
+        if (type == TYPE_ENUM) {
+            todo("enums");
+            // *iptr++ = INSTR_IMM;
+            // *iptr++ = symbol->value;
+            // *iptr++ = IMM_NUMBER;
+            // *iptr++ = 0;
+            // cur_type = symbol->type;
+        }
+        else if (cur_token == TOK_LPAREN) {
+            // Function call
+            next();
+            param_count = 0;
+            while (cur_token != TOK_RPAREN) {
+                expression(TOK_COMMA);
+                add_instruction(IR_PARAM, 0, pop(), 0);
+                if (cur_token == TOK_COMMA) next();
+                param_count++;
+            }
+            consume(TOK_RPAREN);
+            builtin = symbol->builtin;
+            if (builtin) {
+                todo("builtins");
+                // *iptr++ = builtin;
+                // if (!strcmp("printf", (char *) symbol->identifier) || !strcmp("dprintf", (char *) symbol->identifier)) {
+                //     if (param_count >  10) {
+                //         printf("printf can't handle more than 10 args\n");
+                //         exit(1);
+                //     }
+                //     *iptr++ = param_count;
+                // }
+            }
+            else {
+                function_value = new_value();
+                function_value->function_symbol = symbol;
+                return_value = 0;
+                if (type != TYPE_VOID) {
+                    return_value = new_value();
+                    return_value->vreg = ++vreg_count;
+                    return_value->type = type;
+                }
+                add_instruction(IR_CALL, return_value, function_value, 0);
+                push(return_value);
+            }
+        }
+        else if (scope == 0) {
+            // Global symbol
+            todo("globals");
+            // address = (long *) symbol->value;
+            // *iptr++ = INSTR_IMM;
+            // *iptr++ = (long) address;
+            // cur_type = symbol->type;
+            // *iptr++ = IMM_GLOBAL;
+            // *iptr++ = (long) symbol;
+            // load_type();
+        }
+        else {
+            // Local symbol
+            param_count = cur_function_symbol->function_param_count;
 
-        //         *iptr++ = symbol->value;
-        //         *iptr++ = (long) symbol->identifier;
-        //         *iptr++ = param_count;
-        //         *iptr++ = INSTR_ADJ;
-        //         *iptr++ = param_count;
-        //     }
-        //     cur_type = symbol->type;
-        // }
-        // else if (scope == 0) {
-        //     // Global symbol
-        //     address = (long *) symbol->value;
-        //     *iptr++ = INSTR_IMM;
-        //     *iptr++ = (long) address;
-        //     cur_type = symbol->type;
-        //     *iptr++ = IMM_GLOBAL;
-        //     *iptr++ = (long) symbol;
-        //     load_type();
-        // }
-        // else {
-        //     // Local symbol
-        //     param_count = cur_function_symbol->function_param_count;
-        //     *iptr++ = INSTR_LEA;
-        //     if (symbol->stack_index >= 0) {
-        //         stack_index = param_count - symbol->stack_index - 1;
-        //         *iptr++ = stack_index + 2; // Step over pushed PC and BP
-        //     }
-        //     else {
-        //         *iptr++ = symbol->stack_index;
-        //     }
-        //     cur_type = symbol->type;
-        //     load_type();
-        // }
+            src1 = new_value();
+            src1->is_local = 1;
+
+            if (symbol->stack_index >= 0) {
+                // Step over pushed PC and BP
+                src1->stack_index = param_count - symbol->stack_index + 1;
+            }
+            else {
+                src1->stack_index = symbol->stack_index;
+            }
+
+            dst = new_value();
+            dst->vreg = ++vreg_count;
+            dst->type = symbol->type;
+
+            add_instruction(IR_LOAD_FROM_STACK, dst, src1, 0);
+            push(dst);
+        }
     }
     else if (cur_token == TOK_SIZEOF) {
         todo("sizeof");
@@ -1559,18 +1568,33 @@ void print_value(struct value *v) {
         printf("p%d", v->preg);
     else if (v->vreg)
         printf("r%d", v->vreg);
+    else if (v->is_local)
+        printf("s[%d]", v->stack_index);
     else
         printf("%d", v->value);
 }
 
 void print_instruction(struct three_address_code *tac) {
-    if (tac->operation != IR_RETURN) {
+    if (tac->dst) {
         print_value(tac->dst);
         printf(" = ");
     }
 
-         if (tac->operation == IR_LOAD_CONSTANT) { print_value(tac->src1); }
-    else if (tac->operation == IR_RETURN)        { printf("return "); print_value(tac->src1); }
+    if (tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_FROM_STACK) {
+        print_value(tac->src1);
+    }
+    else if (tac->operation == IR_PARAM) {
+        printf("param ");
+        print_value(tac->src1);
+    }
+    else if (tac->operation == IR_CALL) {
+        printf("call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_symbol->function_param_count);
+    }
+    else if (tac->operation == IR_RETURN) {
+        printf("return ");
+        print_value(tac->src1);
+    }
+
     else if (tac->operation == IR_ADD)           { print_value(tac->src1); printf(" + ");  print_value(tac->src2); }
     else if (tac->operation == IR_SUB)           { print_value(tac->src1); printf(" - ");  print_value(tac->src2); }
     else if (tac->operation == IR_MUL)           { print_value(tac->src1); printf(" * ");  print_value(tac->src2); }
@@ -1588,19 +1612,22 @@ void print_instruction(struct three_address_code *tac) {
     else if (tac->operation == IR_XOR)           { print_value(tac->src1); printf(" ^ ");  print_value(tac->src2); }
     else if (tac->operation == IR_BSHL)          { print_value(tac->src1); printf(" << "); print_value(tac->src2); }
     else if (tac->operation == IR_BSHR)          { print_value(tac->src1); printf(" >> "); print_value(tac->src2); }
+
     else {
-        printf("Unknown operation: %d\n", tac->operation);
+        printf("print_instruction(): Unknown operation: %d\n", tac->operation);
         exit(1);
     }
 
     printf("\n");
 }
 
-void print_intermediate_representation(struct three_address_code *ir) {
+void print_intermediate_representation(char *function_name, struct three_address_code *ir) {
     struct three_address_code *tac;
     struct symbol *s;
     int i;
 
+    printf("%s:\n", function_name);
+    i = 0;
     while (ir->operation) {
         printf("%d > ", i++);
         print_instruction(ir);
@@ -1703,6 +1730,10 @@ void allocate_registers(struct three_address_code *ir) {
     free(physical_registers);
 }
 
+void output_load_param(int f, int position, char *register_name) {
+    dprintf(f, "\tmovq\t%d(%%rsp), %%%s\n", position * 8, register_name);
+}
+
 void output_register_name(int f, int preg) {
     char *names;
 
@@ -1729,7 +1760,6 @@ void output_op(int f, char *instruction, int reg1, int reg2) {
     dprintf(f, ", ");
     output_register_name(f, reg2);
     dprintf(f, "\n");
-
 }
 
 void output_cmp(int f, struct three_address_code *ir) {
@@ -1762,22 +1792,122 @@ void output_cmp_operation(int f, struct three_address_code *ir, char *instructio
 
 void output_function_body_code(int f, struct symbol *symbol) {
     struct three_address_code *ir;
+    int i;
+    int function_pc, pc; // Function param count
+    int stack_index;
+    int stack_offset;
 
     ir = symbol->ir;
 
     dprintf(f, "\tpush\t%%rbp\n");
     dprintf(f, "\tmovq\t%%rsp, %%rbp\n");
 
+    // Push up to the first 6 args onto the stack, so all args are on the stack with leftmost arg first.
+    // Arg 7 and onwards are already pushed.
+
+    function_pc = symbol->function_param_count;
+    // local_stack_size = 0;
+    // while (*s >= '0' && *s <= '9') local_stack_size = 10 * local_stack_size + (*s++ - '0');
+
+    // Push the args in the registers on the stack. The order for all args is right to left.
+    if (function_pc >= 6) dprintf(f, "\tpush\t%%r9\n");
+    if (function_pc >= 5) dprintf(f, "\tpush\t%%r8\n");
+    if (function_pc >= 4) dprintf(f, "\tpush\t%%rcx\n");
+    if (function_pc >= 3) dprintf(f, "\tpush\t%%rdx\n");
+    if (function_pc >= 2) dprintf(f, "\tpush\t%%rsi\n");
+    if (function_pc >= 1) dprintf(f, "\tpush\t%%rdi\n");
+
+    // TODO locals
+    // // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
+    // local_vars_stack_start = -8 - 8 * (pc <= 6 ? pc : 6);
+
+    // // Allocate stack space for local variables
+    // if (local_stack_size > 0) {
+    //     *t++= 0x48; *t++= 0x81; *t++= 0xec; // sub x,%rsp
+    //     *((int *) t) = local_stack_size;
+    //     t += 4;
+    // }
+
     while (ir->operation) {
         if (ir->operation == IR_LOAD_CONSTANT) {
-            dprintf(f, "\tmovq\t$%d, ", ir->src1->value); // TODO choose right opcode for type
+            dprintf(f, "\tmovq\t$%d, ", ir->src1->value);
             output_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
 
         }
+
+        else if (ir->operation == IR_LOAD_FROM_STACK) {
+            stack_index = ir->src1->stack_index;
+            if (stack_index >= 2) {
+                // Function argument
+                stack_index -= 2; // 0=1st arg, 1=2nd arg, etc
+
+                if (function_pc > 6) {
+                    stack_index = function_pc - 7 - stack_index;
+                    // Correct for split stack when there are more than 6 args
+                    if (stack_index < 0) {
+                        // Read pushed arg by the callee. arg 0 is at rsp-0x30, arg 2 at rsp-0x28 etc, ... arg 5 at rsp-0x08
+                        stack_offset = 8 * stack_index;
+                    }
+                    else {
+                        // Read pushed arg by the caller, arg 6 is at rsp+0x10, arg 7 at rsp+0x18, etc
+                        // The +2 is to bypass the pushed rbp and return address
+                        stack_offset = 8 * (stack_index + 2);
+                    }
+                }
+                else {
+                    // The first arg is at stack_index=0, second at stack_index=1
+                    // If there aree.g. 2 args:
+                    // arg 0 is at mov -0x10(%rbp), %rax
+                    // arg 1 is at mov -0x08(%rbp), %rax
+                    stack_offset = -8 * (stack_index + 1);
+                }
+            }
+            else {
+                todo("locals in code generation");
+                // Local variable. v=-1 is the first, v=-2 the second, etc
+                // stack_offset = local_vars_stack_start + 8 * (stack_index + 1);
+            }
+
+            dprintf(f, "\tmovq\t%d(%%rbp), ", stack_offset);
+            output_register_name(f, ir->dst->preg);
+            dprintf(f, "\n");
+        }
+
+        else if (ir->operation == IR_PARAM) {
+            dprintf(f, "\tpushq\t");
+            output_register_name(f, ir->src1->preg);
+            dprintf(f, "\n");
+        }
+
+        else if (ir->operation == IR_CALL) {
+            // Read the first 6 args from the stack in right to left order
+            pc = ir->src1->function_symbol->function_param_count;
+            if (pc >= 6) output_load_param(f, pc - 6, "r9");
+            if (pc >= 5) output_load_param(f, pc - 5, "r8");
+            if (pc >= 4) output_load_param(f, pc - 4, "rcx");
+            if (pc >= 3) output_load_param(f, pc - 3, "rdx");
+            if (pc >= 2) output_load_param(f, pc - 2, "rsi");
+            if (pc >= 1) output_load_param(f, pc - 1, "rdi");
+
+            // For the remaining args after the first 6, swap the opposite ends of the stack
+            for (i = 0; i < pc - 6; i++) {
+                dprintf(f, "\tmovq\t%d(%%rsp), %%rax\n", i * 8);
+                dprintf(f, "\tmovq\t%%rax, %d(%%rsp)\n", (pc - i - 1) * 8); // TODO can these 2 be one instruction?
+            }
+
+            // Adjust the stack for the removed args that are in registers
+            if (pc > 0) dprintf(f, "\taddq\t$%d, %%rsp\n", (pc <= 6 ? pc : 6) * 8);
+
+            dprintf(f, "\tcallq\t%s\n", ir->src1->function_symbol->identifier);
+            dprintf(f, "\tmovq\t%%rax, ");
+            output_register_name(f, ir->dst->preg);
+            dprintf(f, "\n");
+        }
+
         else if (ir->operation == IR_RETURN) {
             if (ir->src1->preg != REG_RAX) {
-                dprintf(f, "\tmovq\t"); // TODO choose right opcode for type
+                dprintf(f, "\tmovq\t");
                 output_register_name(f, ir->src1->preg);
                 dprintf(f, ", ");
                 output_register_name(f, REG_RAX);
@@ -1786,6 +1916,7 @@ void output_function_body_code(int f, struct symbol *symbol) {
             dprintf(f, "\tleaveq\n");
             dprintf(f, "\tretq\n");
         }
+
         else if (ir->operation == IR_ADD) output_op(f, "addq",  ir->src1->preg, ir->src2->preg);
         else if (ir->operation == IR_SUB) output_op(f, "subq",  ir->src2->preg, ir->src1->preg);
         else if (ir->operation == IR_MUL) output_op(f, "imulq", ir->src1->preg, ir->src2->preg);
@@ -1838,7 +1969,7 @@ void output_function_body_code(int f, struct symbol *symbol) {
         }
 
         else {
-            printf("Unknown operation: %d\n", ir->operation);
+            printf("output_function_body_code(): Unknown operation: %d\n", ir->operation);
             exit(1);
         }
         ir++;
@@ -1885,9 +2016,9 @@ void output_code(char *input_filename, char *output_filename) {
         liveness = malloc(sizeof(struct liveness_interval) * (MAX_LIVENESS_SIZE + 1));
 
         analyze_liveness(s->ir, s->vreg_count);
-        if (print_ir_before) print_intermediate_representation(s->ir);
+        if (print_ir_before) print_intermediate_representation(s->identifier, s->ir);
         allocate_registers(s->ir);
-        if (print_ir_after) print_intermediate_representation(s->ir);
+        if (print_ir_after) print_intermediate_representation(s->identifier, s->ir);
         output_function_body_code(f, s);
         dprintf(f, "\n");
         s++;
