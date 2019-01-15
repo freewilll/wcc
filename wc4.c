@@ -1485,15 +1485,6 @@ void parse() {
                     if (cur_token == TOK_LCURLY) {
                         function_body((char *) cur_symbol->identifier, param_count);
                         cur_function_symbol->vreg_count = vreg_count;
-
-                        // TODO backpatches
-                        // Now that this function is defined, handle any backpatches to it
-                        // for (i = 0; i < MAX_FWD_FUNCTION_BACKPATCHES; i++)
-                        //     if (fwd_function_backpatches[i].symbol == cur_function_symbol) {
-                        //         *fwd_function_backpatches[i].iptr = cur_function_symbol->value;
-                        //         fwd_function_backpatches[i].iptr = 0;
-                        //         fwd_function_backpatches[i].symbol = 0;
-                        //     }
                     }
                     else
                         // Make it clear that this symbol will need to be backpatched if used
@@ -1755,7 +1746,7 @@ void output_8bit_register_name(int f, int preg) {
 }
 
 void output_op(int f, char *instruction, int reg1, int reg2) {
-    dprintf(f, "\t%s\t", instruction); // TODO choose right opcode for type
+    dprintf(f, "\t%s\t", instruction);
     output_register_name(f, reg1);
     dprintf(f, ", ");
     output_register_name(f, reg2);
@@ -1893,7 +1884,7 @@ void output_function_body_code(int f, struct symbol *symbol) {
             // For the remaining args after the first 6, swap the opposite ends of the stack
             for (i = 0; i < pc - 6; i++) {
                 dprintf(f, "\tmovq\t%d(%%rsp), %%rax\n", i * 8);
-                dprintf(f, "\tmovq\t%%rax, %d(%%rsp)\n", (pc - i - 1) * 8); // TODO can these 2 be one instruction?
+                dprintf(f, "\tmovq\t%%rax, %d(%%rsp)\n", (pc - i - 1) * 8);
             }
 
             // Adjust the stack for the removed args that are in registers
@@ -1934,9 +1925,9 @@ void output_function_body_code(int f, struct symbol *symbol) {
             output_register_name(f, ir->src2->preg);
             dprintf(f, "\n");
             if (ir->operation == IR_DIV)
-                dprintf(f, "\tmovq\t%%rax, "); // TODO choose right opcode for type
+                dprintf(f, "\tmovq\t%%rax, ");
             else
-                dprintf(f, "\tmovq\t%%rdx, "); // TODO choose right opcode for type
+                dprintf(f, "\tmovq\t%%rdx, ");
             output_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
         }
