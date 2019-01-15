@@ -18,14 +18,18 @@ def check_exit_code(code, expected_result):
         assert subprocess.run(temp_executable_filename, check=False).returncode == expected_result
 
 
-def check_output(code, expected_output, with_exit_code=False):
-    raise Exception("TODO: printf based tests")
-    # with tempfile.NamedTemporaryFile() as temp:
-    #     with open(temp.name, 'w') as f:
-    #         f.write(code)
-    #     args = ["./wc4", "-nc", f.name] if with_exit_code else ["./wc4", "-nc", "-ne", f.name]
-    #     output = subprocess.check_output(args).decode('utf-8')
-    #     assert output == expected_output
+def check_output(code, expected_output, exit_code=None):
+    with tempfile.NamedTemporaryFile(suffix=".c", delete=False) as temp_c_file:
+        with open(temp_c_file.name, 'w') as f:
+            f.write(code)
+        subprocess.check_output(["./wc4", f.name]).decode('utf-8')
+        temp_s_filename = re.sub(r"\.c", ".s", temp_c_file.name)
+        temp_executable_filename = re.sub(r"\.s", "", temp_s_filename)
+        output = subprocess.check_output(["gcc", temp_s_filename, "-o", temp_executable_filename])
+        result = subprocess.run([temp_executable_filename], check=False, stdout=subprocess.PIPE)
+        if exit_code:
+            assert result.returncode == exit_code
+        assert result.stdout.decode('utf-8') == expected_output
 
 
 @pytest.mark.parametrize("expr,expected_result", [
@@ -224,21 +228,21 @@ def test_split_function_declaration_and_definition_backpatching():
         void bar() { printf("bar\n"); }
     """, "foo\nbar\nfoo\nbar\n", 0)
 
-@pytest.mark.xfail() # TODO
 def test_hello_world():
     check_output("""
         int main(int argc, char **argv) {
-            return printf("Hello world!\n");
+            return printf("Hello world!\\n");
         }
-    """, "Hello world!\nexit 13\n", with_exit_code=True)
+    """, "Hello world!\n", exit_code=13)
 
-    check_output("""
-        int main(int argc, char **argv) {
-            int a;
-            a = 1;
-            printf("1 + 1 = %d\n", a + 1);
-        }
-    """, "1 + 1 = 2\n")
+    # # TODO
+    # check_output("""
+    #     int main(int argc, char **argv) {
+    #         int a;
+    #         a = 1;
+    #         printf("1 + 1 = %d\n", a + 1);
+    #     }
+    # """, "1 + 1 = 2\n")
 
 @pytest.mark.xfail() # TODO
 def test_pointer_to_int():

@@ -24,8 +24,11 @@ struct value {
     int preg;
     int stack_index;
     int is_local;
+    int is_string_literal;
     int value;
+    int string_literal_index;
     struct symbol *function_symbol;
+    int function_call_param_count;
 };
 
 struct three_address_code {
@@ -59,8 +62,8 @@ int print_ir_before, print_ir_after;
 char *input;
 int input_size;
 int ip;
-char *data;
-char *data_start;
+char **string_literals;
+int string_literal_count;
 
 int print_exit_code;
 int print_cycles;
@@ -99,6 +102,7 @@ enum {
     MAX_STRUCTS             = 1024,
     MAX_STRUCT_MEMBERS      = 1024,
     MAX_INPUT_SIZE          = 10 * 1024 * 1024,
+    MAX_STRING_LITERALS     = 10 * 1024,
     VALUE_STACK_SIZE        = 128,
     MAX_THREE_ADDRESS_CODES = 1024,
     MAX_LIVENESS_SIZE       = 1024,
@@ -173,6 +177,7 @@ enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
 
 enum {
     IR_LOAD_CONSTANT=1,
+    IR_LOAD_STRING_LITERAL,
     IR_LOAD_FROM_STACK,
     IR_PARAM,
     IR_CALL,
@@ -194,6 +199,18 @@ enum {
     IR_GT,
     IR_LE,
     IR_GE,
+    IR_EXIT,
+    IR_OPEN,
+    IR_READ,
+    IR_WRIT,
+    IR_CLOS,
+    IR_PRTF,
+    IR_DPRT,
+    IR_MALC,
+    IR_FREE,
+    IR_MSET,
+    IR_MCMP,
+    IR_SCMP,
 };
 
 enum {IMM_NUMBER, IMM_STRING_LITERAL, IMM_GLOBAL};
@@ -673,6 +690,7 @@ void expression(int level) {
     int i;
     struct value *v, *cv, *dst, *src1, *function_value, *return_value;
     struct three_address_code *tac;
+    char *s;
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -766,14 +784,20 @@ void expression(int level) {
         next();
     }
     else if (cur_token == TOK_STRING_LITERAL) {
-        todo("string literal");
-        // *iptr++ = INSTR_IMM;
-        // *iptr++ = (long) data;
-        // *iptr++ = IMM_STRING_LITERAL;
-        // *iptr++ = 0;
-        // while (*data++ = *cur_string_literal++);
-        // cur_type = TYPE_CHAR + TYPE_PTR;
-        // next();
+        dst = new_value();
+        dst->vreg = ++vreg_count;
+        dst->type = TYPE_CHAR + TYPE_PTR;
+
+        src1 = new_value();
+        src1->type = TYPE_CHAR + TYPE_PTR;
+        src1->string_literal_index = string_literal_count;
+        src1->is_string_literal = 1;
+        string_literals[string_literal_count++] = cur_string_literal;
+        push(dst);
+
+        add_instruction(IR_LOAD_STRING_LITERAL, dst, src1, 0);
+
+        next();
     }
     else if (cur_token == TOK_IDENTIFIER) {
         symbol = lookup_symbol(cur_identifier, cur_scope);
@@ -805,30 +829,20 @@ void expression(int level) {
                 param_count++;
             }
             consume(TOK_RPAREN);
-            builtin = symbol->builtin;
-            if (builtin) {
-                todo("builtins");
-                // *iptr++ = builtin;
-                // if (!strcmp("printf", (char *) symbol->identifier) || !strcmp("dprintf", (char *) symbol->identifier)) {
-                //     if (param_count >  10) {
-                //         printf("printf can't handle more than 10 args\n");
-                //         exit(1);
-                //     }
-                //     *iptr++ = param_count;
-                // }
+
+            function_value = new_value();
+            function_value->function_symbol = symbol;
+            function_value->function_call_param_count = param_count;
+
+            return_value = 0;
+            printf("type %d\n", type);
+            if (type != TYPE_VOID) {
+                return_value = new_value();
+                return_value->vreg = ++vreg_count;
+                return_value->type = type;
             }
-            else {
-                function_value = new_value();
-                function_value->function_symbol = symbol;
-                return_value = 0;
-                if (type != TYPE_VOID) {
-                    return_value = new_value();
-                    return_value->vreg = ++vreg_count;
-                    return_value->type = type;
-                }
-                add_instruction(IR_CALL, return_value, function_value, 0);
-                push(return_value);
-            }
+            add_instruction(IR_CALL, return_value, function_value, 0);
+            if (return_value) push(return_value);
         }
         else if (scope == 0) {
             // Global symbol
@@ -1561,6 +1575,8 @@ void print_value(struct value *v) {
         printf("r%d", v->vreg);
     else if (v->is_local)
         printf("s[%d]", v->stack_index);
+    else if (v->is_string_literal)
+        printf("\"%s\"", string_literals[v->string_literal_index]);
     else
         printf("%d", v->value);
 }
@@ -1571,7 +1587,7 @@ void print_instruction(struct three_address_code *tac) {
         printf(" = ");
     }
 
-    if (tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_FROM_STACK) {
+    if (tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_FROM_STACK || tac->operation == IR_LOAD_STRING_LITERAL) {
         print_value(tac->src1);
     }
     else if (tac->operation == IR_PARAM) {
@@ -1579,7 +1595,7 @@ void print_instruction(struct three_address_code *tac) {
         print_value(tac->src1);
     }
     else if (tac->operation == IR_CALL) {
-        printf("call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_symbol->function_param_count);
+        printf("call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_call_param_count);
     }
     else if (tac->operation == IR_RETURN) {
         printf("return ");
@@ -1827,6 +1843,12 @@ void output_function_body_code(int f, struct symbol *symbol) {
 
         }
 
+        else if (ir->operation == IR_LOAD_STRING_LITERAL) {
+            dprintf(f, "\tleaq\t.SL%d(%%rip), ", ir->src1->string_literal_index);
+            output_register_name(f, ir->dst->preg);
+            dprintf(f, "\n");
+        }
+
         else if (ir->operation == IR_LOAD_FROM_STACK) {
             stack_index = ir->src1->stack_index;
             if (stack_index >= 2) {
@@ -1873,7 +1895,7 @@ void output_function_body_code(int f, struct symbol *symbol) {
 
         else if (ir->operation == IR_CALL) {
             // Read the first 6 args from the stack in right to left order
-            pc = ir->src1->function_symbol->function_param_count;
+            pc = ir->src1->function_call_param_count;
             if (pc >= 6) output_load_param(f, pc - 6, "r9");
             if (pc >= 5) output_load_param(f, pc - 5, "r8");
             if (pc >= 4) output_load_param(f, pc - 4, "rcx");
@@ -1890,10 +1912,24 @@ void output_function_body_code(int f, struct symbol *symbol) {
             // Adjust the stack for the removed args that are in registers
             if (pc > 0) dprintf(f, "\taddq\t$%d, %%rsp\n", (pc <= 6 ? pc : 6) * 8);
 
-            dprintf(f, "\tcallq\t%s\n", ir->src1->function_symbol->identifier);
-            dprintf(f, "\tmovq\t%%rax, ");
-            output_register_name(f, ir->dst->preg);
-            dprintf(f, "\n");
+            if (ir->src1->function_symbol->builtin == IR_PRTF || ir->src1->function_symbol->builtin == IR_DPRT) {
+                dprintf(f, "\tmovl\t$0, %%eax\n");
+            }
+
+            if (ir->src1->function_symbol->builtin)
+                dprintf(f, "\tcallq\t%s@PLT\n", ir->src1->function_symbol->identifier);
+            else
+                dprintf(f, "\tcallq\t%s\n", ir->src1->function_symbol->identifier);
+
+            // For all builtins that return an int, extend it to a quad
+            if (ir->dst && ir->dst->type == TYPE_INT) dprintf(f, "\tcltq\n");
+
+            if (ir->dst) {
+                dprintf(f, "\tmovq\t%%rax, ");
+                output_register_name(f, ir->dst->preg);
+                dprintf(f, "\n");
+            }
+
         }
 
         else if (ir->operation == IR_RETURN) {
@@ -1973,9 +2009,10 @@ void output_function_body_code(int f, struct symbol *symbol) {
 }
 
 void output_code(char *input_filename, char *output_filename) {
-    int f;
+    int i, f;
     struct three_address_code *tac;
     struct symbol *s;
+    char *sl;
 
     // Write file
     if (!strcmp(output_filename, "-"))
@@ -1986,6 +2023,27 @@ void output_code(char *input_filename, char *output_filename) {
     }
 
     dprintf(f, "\t.file\t\"%s\"\n", input_filename);
+
+    if (string_literal_count > 0) {
+        dprintf(f, "\n\t.section\t.rodata\n");
+        for (i = 0; i < string_literal_count; i++) {
+            sl = string_literals[i];
+            dprintf(f, ".SL%d:\n", i);
+            dprintf(f, "\t.string \"");
+
+            while (*sl) {
+                     if (*sl == '\n') dprintf(f, "\\n");
+                else if (*sl == '\t') dprintf(f, "\\t");
+                else if (*sl == '\\') dprintf(f, "\\");
+                else if (*sl == '"')  dprintf(f, "\\\"");
+                else                  dprintf(f, "%c", *sl);
+                sl++;
+            }
+            dprintf(f, "\"\n");
+        }
+        dprintf(f, "\n");
+    }
+
     dprintf(f, "\t.text\n");
 
     s = symbol_table;
@@ -2018,10 +2076,10 @@ void output_code(char *input_filename, char *output_filename) {
     close(f);
 }
 
-void add_builtin(char *identifier, int instruction) {
+void add_builtin(char *identifier, int instruction, int type) {
     struct symbol *symbol;
     symbol = next_symbol;
-    symbol->type = TYPE_VOID;
+    symbol->type = type;
     symbol->identifier = identifier;
     symbol->builtin = instruction;
     next_symbol++;
@@ -2101,26 +2159,25 @@ int main(int argc, char **argv) {
     memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
     next_symbol = symbol_table;
 
-    data = malloc(DATA_SIZE);
-    data_start = data;
+    string_literals = malloc(MAX_STRING_LITERALS);
+    string_literal_count = 0;
     global_variable_count = 0;
 
     all_structs = malloc(sizeof(struct str_desc *) * MAX_STRUCTS);
     all_structs_count = 0;
 
-    // TODO builtins
-    // add_builtin("exit",    INSTR_EXIT);
-    // add_builtin("open",    INSTR_OPEN);
-    // add_builtin("read",    INSTR_READ);
-    // add_builtin("write",   INSTR_WRIT);
-    // add_builtin("close",   INSTR_CLOS);
-    // add_builtin("printf",  INSTR_PRTF);
-    // add_builtin("dprintf", INSTR_DPRT);
-    // add_builtin("malloc",  INSTR_MALC);
-    // add_builtin("free",    INSTR_FREE);
-    // add_builtin("memset",  INSTR_MSET);
-    // add_builtin("memcmp",  INSTR_MCMP);
-    // add_builtin("strcmp",  INSTR_SCMP);
+    add_builtin("exit",    IR_EXIT, TYPE_VOID);
+    add_builtin("open",    IR_OPEN, TYPE_INT);
+    add_builtin("read",    IR_READ, TYPE_INT);
+    add_builtin("write",   IR_WRIT, TYPE_INT);
+    add_builtin("close",   IR_CLOS, TYPE_INT);
+    add_builtin("printf",  IR_PRTF, TYPE_INT);
+    add_builtin("dprintf", IR_DPRT, TYPE_INT);
+    add_builtin("malloc",  IR_MALC, TYPE_VOID + TYPE_PTR);
+    add_builtin("free",    IR_FREE, TYPE_INT);
+    add_builtin("memset",  IR_MSET, TYPE_INT);
+    add_builtin("memcmp",  IR_MCMP, TYPE_INT);
+    add_builtin("strcmp",  IR_SCMP, TYPE_INT);
 
     f  = open(input_filename, 0, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
