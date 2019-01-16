@@ -154,9 +154,9 @@ def test_expr(expr, expected_result):
     check_exit_code("int main() {return %s;}" % expr, expected_result)
 
 
-@pytest.mark.xfail() # TODO
 def test_argc_count():
     check_exit_code("int main(int argc, int argv) {return argc;}", 1)
+
 
 @pytest.mark.xfail() # TODO
 def test_assignment():
@@ -171,6 +171,7 @@ def test_assignment():
             return a+b+argc+g;
         }
     """, 7);
+
 
 @pytest.mark.xfail() # TODO
 def test_function_calls():
@@ -192,7 +193,7 @@ def test_function_calls():
 
     """, 3);
 
-@pytest.mark.xfail() # TODO
+
 def test_split_function_declaration_and_definition():
     check_output("""
         int foo();
@@ -211,7 +212,7 @@ def test_split_function_declaration_and_definition():
         }
     """, "1 1 2\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_split_function_declaration_and_definition_backpatching():
     check_output("""
         void foo();
