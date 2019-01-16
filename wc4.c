@@ -11,6 +11,7 @@ struct symbol {
     long value;
     int stack_index;
     int function_param_count;
+    int function_local_symbol_count;
     int builtin;
     int size;
     int is_function;
@@ -25,6 +26,7 @@ struct value {
     int stack_index;
     int is_local;
     int is_string_literal;
+    int is_lvalue;
     int value;
     int string_literal_index;
     struct symbol *function_symbol;
@@ -182,6 +184,7 @@ enum {
     IR_PARAM,
     IR_CALL,
     IR_RETURN,
+    IR_ASSIGN,
     IR_ADD,
     IR_SUB,
     IR_MUL,
@@ -438,13 +441,26 @@ struct value *push_constant(int type, int vreg, int value) {
     return v;
 }
 
-struct value *pop() {
-    struct value *result;
+// Duplicate the top of the value stack and push it
+void vsdup() {
+    struct value *dst, *src;
 
-    result = *(value_stack - 1);
-    value_stack--;
+    src = value_stack[-1];
 
-    return result;
+    dst = new_value();
+    dst->type                      = src->type;
+    dst->vreg                      = src->vreg;
+    dst->preg                      = src->preg;
+    dst->stack_index               = src->stack_index;
+    dst->is_local                  = src->is_local;
+    dst->is_string_literal         = src->is_string_literal;
+    dst->is_lvalue                 = src->is_lvalue;
+    dst->value                     = src->value;
+    dst->string_literal_index      = src->string_literal_index;
+    dst->function_symbol           = src->function_symbol;
+    dst->function_call_param_count = src->function_call_param_count;
+
+    push(dst);
 }
 
 struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
@@ -454,6 +470,36 @@ struct three_address_code *add_instruction(int operation, struct value *dst, str
     ir->src2 = src2;
     ir++;
     return ir - 1;
+}
+
+// Pop a value from the stack but don't turn an lvalue into an rvalue
+struct value *raw_pop() {
+    struct value *result;
+
+    result = *(value_stack - 1);
+    value_stack--;
+
+    return result;
+}
+
+// Pop a value from the stack and turn it into an rvalue
+struct value *pop() {
+    struct value *dst, *src1;
+
+    if (!value_stack[-1]->is_lvalue) return raw_pop();
+
+    vsdup();
+
+    dst = value_stack[-1];
+    dst->is_local = 0;
+    src1 = value_stack[-2];
+
+    dst->vreg = ++vreg_count;
+
+    add_instruction(IR_LOAD_FROM_STACK, dst, src1, 0);
+    push(dst);
+
+    return dst;
 }
 
 void add_ir_constant_value(long value) {
@@ -835,7 +881,6 @@ void expression(int level) {
             function_value->function_call_param_count = param_count;
 
             return_value = 0;
-            printf("type %d\n", type);
             if (type != TYPE_VOID) {
                 return_value = new_value();
                 return_value->vreg = ++vreg_count;
@@ -861,6 +906,7 @@ void expression(int level) {
 
             src1 = new_value();
             src1->is_local = 1;
+            src1->is_lvalue = 1;
 
             if (symbol->stack_index >= 0) {
                 // Step over pushed PC and BP
@@ -870,12 +916,7 @@ void expression(int level) {
                 src1->stack_index = symbol->stack_index;
             }
 
-            dst = new_value();
-            dst->vreg = ++vreg_count;
-            dst->type = symbol->type;
-
-            add_instruction(IR_LOAD_FROM_STACK, dst, src1, 0);
-            push(dst);
+            push(src1);
         }
     }
     else if (cur_token == TOK_SIZEOF) {
@@ -1168,18 +1209,17 @@ void expression(int level) {
             // *(true_done_jmp + 1) = (long) iptr;
         }
         else if (cur_token == TOK_EQ) {
-            todo("=");
-            // next();
-            // if (!is_lvalue()) {
-            //     printf("%d: Cannot assign to an rvalue\n", cur_line);
-            //     exit(1);
-            // }
-            // iptr--;
-            // org_type = cur_type;
-            // *iptr++ = INSTR_PSH;
-            // expression(TOK_EQ);
-            // store_type(org_type);
-            // type = org_type;
+            next();
+            if (!value_stack[-1]->is_lvalue) {
+                printf("%d: Cannot assign to an rvalue\n", cur_line);
+                exit(1);
+            }
+            dst = raw_pop();
+            expression(TOK_EQ);
+            src1 = pop();
+            dst->is_lvalue = 1;
+            add_instruction(IR_ASSIGN, dst, src1, 0);
+            push(dst);
         }
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
             todo("+=, -=");
@@ -1349,7 +1389,7 @@ void statement() {
     }
 }
 
-void function_body(char *func_name, int param_count) {
+void function_body() {
     int is_main;
     int local_symbol_count;
     int base_type, type;
@@ -1357,46 +1397,44 @@ void function_body(char *func_name, int param_count) {
     vreg_count = 0;
 
     seen_return = 0;
-    is_main = !strcmp(func_name, "main");
-    // local_symbol_count = 0;
+    is_main = !strcmp(cur_function_symbol->identifier, "main");
+    local_symbol_count = 0;
 
     consume(TOK_LCURLY);
 
-    // // Parse symbols first
-    // while (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
-    //     base_type = parse_base_type();
+    // Parse symbols first
+    while (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
+        base_type = parse_base_type();
 
-    //     while (cur_token != TOK_SEMI) {
-    //         type = base_type;
-    //         while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+        while (cur_token != TOK_SEMI) {
+            type = base_type;
+            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
-    //         if (type >= TYPE_STRUCT && type < TYPE_PTR) {
-    //             printf("%d: Direct usage of struct variables not implemented\n", cur_line);
-    //             exit(1);
-    //         }
+            if (type >= TYPE_STRUCT && type < TYPE_PTR) {
+                printf("%d: Direct usage of struct variables not implemented\n", cur_line);
+                exit(1);
+            }
 
-    //         if (cur_token == TOK_EQ) {
-    //             printf("%d: Declarations with assignments aren't implemented\n", cur_line);
-    //             exit(1);
-    //         }
+            if (cur_token == TOK_EQ) {
+                printf("%d: Declarations with assignments aren't implemented\n", cur_line);
+                exit(1);
+            }
 
-    //         expect(TOK_IDENTIFIER);
-    //         cur_symbol = next_symbol;
-    //         next_symbol->type = type;
-    //         next_symbol->identifier = cur_identifier;
-    //         next_symbol->scope = cur_scope;
-    //         next_symbol->stack_index = -1 - local_symbol_count++;
-    //         next_symbol++;
-    //         next();
-    //         if (cur_token == TOK_COMMA) next();
-    //     }
-    //     expect(TOK_SEMI);
-    //     while (cur_token == TOK_SEMI) next();
-    // }
+            expect(TOK_IDENTIFIER);
+            cur_symbol = next_symbol;
+            next_symbol->type = type;
+            next_symbol->identifier = cur_identifier;
+            next_symbol->scope = cur_scope;
+            next_symbol->stack_index = -1 - local_symbol_count++;
+            next_symbol++;
+            next();
+            if (cur_token == TOK_COMMA) next();
+        }
+        expect(TOK_SEMI);
+        while (cur_token == TOK_SEMI) next();
+    }
 
-    // *iptr++ = INSTR_ENT;
-    // *iptr++ = local_symbol_count * sizeof(long); // allocate stack space for locals
-    // *iptr++ = param_count;
+    cur_function_symbol->function_local_symbol_count = local_symbol_count;
 
     while (cur_token != TOK_RCURLY) statement();
 
@@ -1497,7 +1535,8 @@ void parse() {
                     cur_function_symbol = cur_symbol;
 
                     if (cur_token == TOK_LCURLY) {
-                        function_body((char *) cur_symbol->identifier, param_count);
+                        cur_function_symbol->function_param_count = param_count;
+                        function_body();
                         cur_function_symbol->vreg_count = vreg_count;
                     }
                     else
@@ -1568,6 +1607,32 @@ void parse() {
     }
 }
 
+void printf_escaped_string_literal(char* sl) {
+    printf("\"");
+    while (*sl) {
+             if (*sl == '\n') printf("\\n");
+        else if (*sl == '\t') printf("\\t");
+        else if (*sl == '\\') printf("\\");
+        else if (*sl == '"')  printf("\\\"");
+        else                  printf("%c", *sl);
+        sl++;
+    }
+    printf("\"");
+}
+
+void dprintf_escaped_string_literal(int f, char* sl) {
+    dprintf(f, "\"");
+    while (*sl) {
+             if (*sl == '\n') dprintf(f, "\\n");
+        else if (*sl == '\t') dprintf(f, "\\t");
+        else if (*sl == '\\') dprintf(f, "\\");
+        else if (*sl == '"')  dprintf(f, "\\\"");
+        else                  dprintf(f, "%c", *sl);
+        sl++;
+    }
+    dprintf(f, "\"");
+}
+
 void print_value(struct value *v) {
     if (v->preg != -1)
         printf("p%d", v->preg);
@@ -1575,8 +1640,9 @@ void print_value(struct value *v) {
         printf("r%d", v->vreg);
     else if (v->is_local)
         printf("s[%d]", v->stack_index);
-    else if (v->is_string_literal)
-        printf("\"%s\"", string_literals[v->string_literal_index]);
+    else if (v->is_string_literal) {
+        printf_escaped_string_literal(string_literals[v->string_literal_index]);
+    }
     else
         printf("%d", v->value);
 }
@@ -1599,6 +1665,9 @@ void print_instruction(struct three_address_code *tac) {
     }
     else if (tac->operation == IR_RETURN) {
         printf("return ");
+        print_value(tac->src1);
+    }
+    else if (tac->operation == IR_ASSIGN) {
         print_value(tac->src1);
     }
 
@@ -1797,12 +1866,50 @@ void output_cmp_operation(int f, struct three_address_code *ir, char *instructio
     output_movzbl(f, ir);
 }
 
+int get_stack_offset_from_index(int function_pc, int local_vars_stack_start, int stack_index) {
+    int stack_offset;
+
+    if (stack_index >= 2) {
+        // Function argument
+        stack_index -= 2; // 0=1st arg, 1=2nd arg, etc
+
+        if (function_pc > 6) {
+            stack_index = function_pc - 7 - stack_index;
+            // Correct for split stack when there are more than 6 args
+            if (stack_index < 0) {
+                // Read pushed arg by the callee. arg 0 is at rsp-0x30, arg 2 at rsp-0x28 etc, ... arg 5 at rsp-0x08
+                stack_offset = 8 * stack_index;
+            }
+            else {
+                // Read pushed arg by the caller, arg 6 is at rsp+0x10, arg 7 at rsp+0x18, etc
+                // The +2 is to bypass the pushed rbp and return address
+                stack_offset = 8 * (stack_index + 2);
+            }
+        }
+        else {
+            // The first arg is at stack_index=0, second at stack_index=1
+            // If there aree.g. 2 args:
+            // arg 0 is at mov -0x10(%rbp), %rax
+            // arg 1 is at mov -0x08(%rbp), %rax
+            stack_offset = -8 * (stack_index + 1);
+        }
+    }
+    else {
+        // Local variable. v=-1 is the first, v=-2 the second, etc
+        stack_offset = local_vars_stack_start + 8 * (stack_index + 1);
+    }
+
+    return stack_offset;
+}
+
 void output_function_body_code(int f, struct symbol *symbol) {
     struct three_address_code *ir;
     int i;
     int function_pc, pc; // Function param count
     int stack_index;
     int stack_offset;
+    int local_stack_size;
+    int local_vars_stack_start;
 
     ir = symbol->ir;
 
@@ -1813,8 +1920,6 @@ void output_function_body_code(int f, struct symbol *symbol) {
     // Arg 7 and onwards are already pushed.
 
     function_pc = symbol->function_param_count;
-    // local_stack_size = 0;
-    // while (*s >= '0' && *s <= '9') local_stack_size = 10 * local_stack_size + (*s++ - '0');
 
     // Push the args in the registers on the stack. The order for all args is right to left.
     if (function_pc >= 6) dprintf(f, "\tpush\t%%r9\n");
@@ -1824,16 +1929,13 @@ void output_function_body_code(int f, struct symbol *symbol) {
     if (function_pc >= 2) dprintf(f, "\tpush\t%%rsi\n");
     if (function_pc >= 1) dprintf(f, "\tpush\t%%rdi\n");
 
-    // TODO locals
-    // // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
-    // local_vars_stack_start = -8 - 8 * (pc <= 6 ? pc : 6);
+    // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
+    local_vars_stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
 
-    // // Allocate stack space for local variables
-    // if (local_stack_size > 0) {
-    //     *t++= 0x48; *t++= 0x81; *t++= 0xec; // sub x,%rsp
-    //     *((int *) t) = local_stack_size;
-    //     t += 4;
-    // }
+    // Allocate stack space for local variables
+    local_stack_size = symbol->function_local_symbol_count * 8;
+    if (local_stack_size > 0)
+        dprintf(f, "\tsubq\t$%d, %%rsp\n", local_stack_size);
 
     while (ir->operation) {
         if (ir->operation == IR_LOAD_CONSTANT) {
@@ -1850,38 +1952,7 @@ void output_function_body_code(int f, struct symbol *symbol) {
         }
 
         else if (ir->operation == IR_LOAD_FROM_STACK) {
-            stack_index = ir->src1->stack_index;
-            if (stack_index >= 2) {
-                // Function argument
-                stack_index -= 2; // 0=1st arg, 1=2nd arg, etc
-
-                if (function_pc > 6) {
-                    stack_index = function_pc - 7 - stack_index;
-                    // Correct for split stack when there are more than 6 args
-                    if (stack_index < 0) {
-                        // Read pushed arg by the callee. arg 0 is at rsp-0x30, arg 2 at rsp-0x28 etc, ... arg 5 at rsp-0x08
-                        stack_offset = 8 * stack_index;
-                    }
-                    else {
-                        // Read pushed arg by the caller, arg 6 is at rsp+0x10, arg 7 at rsp+0x18, etc
-                        // The +2 is to bypass the pushed rbp and return address
-                        stack_offset = 8 * (stack_index + 2);
-                    }
-                }
-                else {
-                    // The first arg is at stack_index=0, second at stack_index=1
-                    // If there aree.g. 2 args:
-                    // arg 0 is at mov -0x10(%rbp), %rax
-                    // arg 1 is at mov -0x08(%rbp), %rax
-                    stack_offset = -8 * (stack_index + 1);
-                }
-            }
-            else {
-                todo("locals in code generation");
-                // Local variable. v=-1 is the first, v=-2 the second, etc
-                // stack_offset = local_vars_stack_start + 8 * (stack_index + 1);
-            }
-
+            stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->src1->stack_index);
             dprintf(f, "\tmovq\t%d(%%rbp), ", stack_offset);
             output_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
@@ -1942,6 +2013,14 @@ void output_function_body_code(int f, struct symbol *symbol) {
             }
             dprintf(f, "\tleaveq\n");
             dprintf(f, "\tretq\n");
+        }
+
+        else if (ir->operation == IR_ASSIGN) {
+            dprintf(f, "\tmovq\t");
+            output_register_name(f, ir->src1->preg);
+            dprintf(f, ", ");
+            stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
+            dprintf(f, "%d(%%rbp)\n", stack_offset);
         }
 
         else if (ir->operation == IR_ADD) output_op(f, "addq",  ir->src1->preg, ir->src2->preg);
@@ -2029,17 +2108,9 @@ void output_code(char *input_filename, char *output_filename) {
         for (i = 0; i < string_literal_count; i++) {
             sl = string_literals[i];
             dprintf(f, ".SL%d:\n", i);
-            dprintf(f, "\t.string \"");
-
-            while (*sl) {
-                     if (*sl == '\n') dprintf(f, "\\n");
-                else if (*sl == '\t') dprintf(f, "\\t");
-                else if (*sl == '\\') dprintf(f, "\\");
-                else if (*sl == '"')  dprintf(f, "\\\"");
-                else                  dprintf(f, "%c", *sl);
-                sl++;
-            }
-            dprintf(f, "\"\n");
+            dprintf(f, "\t.string ");
+            dprintf_escaped_string_literal(f, sl);
+            dprintf(f, "\n");
         }
         dprintf(f, "\n");
     }
