@@ -97,12 +97,12 @@ int vreg_count;
 struct liveness_interval *liveness;
 int liveness_size;
 
-long DATA_SIZE; // TODO these should be enums
-long INSTRUCTIONS_SIZE;
-long SYMBOL_TABLE_SIZE;
 int *physical_registers;
 
 enum {
+    DATA_SIZE               = 10 * 1024 * 1024,
+    INSTRUCTIONS_SIZE       = 10 * 1024 * 1024,
+    SYMBOL_TABLE_SIZE       = 10 * 1024 * 1024,
     MAX_STRUCTS             = 1024,
     MAX_STRUCT_MEMBERS      = 1024,
     MAX_INPUT_SIZE          = 10 * 1024 * 1024,
@@ -2192,10 +2192,6 @@ int main(int argc, char **argv) {
     int f;
     int help, debug, print_symbols, print_code;
     int filename_len;
-
-    DATA_SIZE = 10 * 1024 * 1024;
-    INSTRUCTIONS_SIZE = 10 * 1024 * 1024;
-    SYMBOL_TABLE_SIZE = 10 * 1024 * 1024;
 
     help = 0;
     print_ir_before = 0;
