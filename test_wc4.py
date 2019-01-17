@@ -231,6 +231,7 @@ def test_split_function_declaration_and_definition_backpatching():
         void bar() { printf("bar\n"); }
     """, "foo\nbar\nfoo\nbar\n", 0)
 
+
 def test_hello_world():
     check_output("""
         int main(int argc, char **argv) {
@@ -245,6 +246,7 @@ def test_hello_world():
             printf("1 + 1 = %d\n", a + 1);
         }
     """, "1 + 1 = 2\n")
+
 
 @pytest.mark.xfail() # TODO
 def test_pointer_to_int():
@@ -407,6 +409,7 @@ def test_pointer_arithmetic():
         "04 12 00",
         "08 24 00",
     ]) + "\n");
+
 
 @pytest.mark.xfail() # TODO
 def test_integer_sizes():

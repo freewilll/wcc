@@ -501,12 +501,12 @@ struct value *pop() {
     return dst;
 }
 
-void add_ir_constant_value(long value) {
+void add_ir_constant_value(int type, long value) {
     struct value *v, *cv;
 
     cv = new_value();
     cv->value = value;
-    cv->type = TYPE_LONG;
+    cv->type = type;
     v = new_value();
     v->vreg = ++vreg_count;
     v->type = TYPE_LONG;
@@ -739,7 +739,7 @@ void expression(int level) {
 
     if (cur_token == TOK_LOGICAL_NOT) {
         next();
-        add_ir_constant_value(0);
+        add_ir_constant_value(TYPE_LONG, 0);
         expression(TOK_INC);
         add_ir_op(IR_EQ, TYPE_INT, ++vreg_count, pop(), pop());
     }
@@ -799,11 +799,11 @@ void expression(int level) {
         next();
 
         if (cur_token == TOK_NUMBER) {
-            add_ir_constant_value(-cur_integer);
+            add_ir_constant_value(TYPE_LONG, -cur_integer);
             next();
         }
         else {
-            add_ir_constant_value(-1);
+            add_ir_constant_value(TYPE_LONG, -1);
             expression(TOK_INC);
             tac = add_ir_op(IR_MUL, TYPE_LONG, 0, pop(), pop());
             tac->dst->vreg = tac->src2->vreg;
@@ -825,7 +825,7 @@ void expression(int level) {
         }
     }
     else if (cur_token == TOK_NUMBER) {
-        add_ir_constant_value(cur_integer);
+        add_ir_constant_value(TYPE_LONG, cur_integer);
         next();
     }
     else if (cur_token == TOK_STRING_LITERAL) {
@@ -920,16 +920,11 @@ void expression(int level) {
         }
     }
     else if (cur_token == TOK_SIZEOF) {
-        todo("sizeof");
-        // next();
-        // consume(TOK_LPAREN);
-        // cur_type = parse_type();
-        // *iptr++ = INSTR_IMM;
-        // *iptr++ = get_type_size(cur_type);
-        // *iptr++ = IMM_NUMBER;
-        // *iptr++ = 0;
-        // consume(TOK_RPAREN);
-        // cur_type = TYPE_INT;
+        next();
+        consume(TOK_LPAREN);
+        type = parse_type();
+        add_ir_constant_value(TYPE_INT, get_type_size(type));
+        consume(TOK_RPAREN);
     }
     else {
         printf("%d: Unexpected token %d in expression\n", cur_line, cur_token);
