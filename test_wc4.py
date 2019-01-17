@@ -151,7 +151,11 @@ def check_output(code, expected_output, exit_code=None):
     ("0x100",         256),
 ])
 def test_expr(expr, expected_result):
-    check_exit_code("int main() {return %s;}" % expr, expected_result)
+    check_output("""
+        int main() {
+            printf("%%ld", %s);
+        }
+    """ % expr, str(expected_result))
 
 
 def test_argc_count():
