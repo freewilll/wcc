@@ -10,6 +10,7 @@ struct symbol {
     int scope;
     long value;
     int stack_index;
+    int global_offset;
     int function_param_count;
     int function_local_symbol_count;
     int builtin;
@@ -31,6 +32,7 @@ struct value {
     int string_literal_index;
     struct symbol *function_symbol;
     int function_call_param_count;
+    struct symbol *global_symbol;
 };
 
 struct three_address_code {
@@ -180,7 +182,7 @@ enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
 enum {
     IR_LOAD_CONSTANT=1,
     IR_LOAD_STRING_LITERAL,
-    IR_LOAD_FROM_STACK,
+    IR_LOAD_VARIABLE,
     IR_PARAM,
     IR_CALL,
     IR_RETURN,
@@ -442,10 +444,8 @@ struct value *push_constant(int type, int vreg, int value) {
 }
 
 // Duplicate the top of the value stack and push it
-void vsdup() {
-    struct value *dst, *src;
-
-    src = value_stack[-1];
+struct value *dup_value(struct value *src) {
+    struct value *dst;
 
     dst = new_value();
     dst->type                      = src->type;
@@ -459,8 +459,9 @@ void vsdup() {
     dst->string_literal_index      = src->string_literal_index;
     dst->function_symbol           = src->function_symbol;
     dst->function_call_param_count = src->function_call_param_count;
+    dst->global_symbol             = src->global_symbol;
 
-    push(dst);
+    return dst;
 }
 
 struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
@@ -488,16 +489,14 @@ struct value *pop() {
 
     if (!value_stack[-1]->is_lvalue) return raw_pop();
 
-    vsdup();
-
-    dst = value_stack[-1];
-    dst->is_local = 0;
-    src1 = value_stack[-2];
+    src1 = raw_pop();
+    dst = dup_value(src1);
 
     dst->vreg = ++vreg_count;
+    dst->is_local = 0;
+    dst->global_symbol = 0;
 
-    add_instruction(IR_LOAD_FROM_STACK, dst, src1, 0);
-    push(dst);
+    add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
 
     return dst;
 }
@@ -579,7 +578,7 @@ int get_type_alignment(int type) {
     }
 }
 
-int get_type_sizeof(int type) {
+int get_type_size(int type) {
          if (type == TYPE_VOID)   return sizeof(void);
     else if (type == TYPE_CHAR)   return sizeof(char);
     else if (type == TYPE_SHORT)  return sizeof(short);
@@ -677,7 +676,7 @@ int parse_struct_base_type() {
                 member->offset = offset;
                 members[member_count++] = member;
 
-                offset += get_type_sizeof(type);
+                offset += get_type_size(type);
 
                 consume(TOK_IDENTIFIER);
                 if (cur_token == TOK_COMMA) next();
@@ -701,7 +700,7 @@ int parse_struct_base_type() {
 
 int get_type_inc_dec_size(int type) {
     // How much will the ++ operator increment a type?
-    return type <= TYPE_PTR ? 1 : get_type_sizeof(type - TYPE_PTR);
+    return type <= TYPE_PTR ? 1 : get_type_size(type - TYPE_PTR);
 }
 
 struct str_member *lookup_struct_member(struct str_desc *str, char *identifier) {
@@ -734,7 +733,7 @@ void expression(int level) {
     struct str_desc *str;
     struct str_member *member;
     int i;
-    struct value *v, *cv, *dst, *src1, *function_value, *return_value;
+    struct value *v, *cv, *dst, *src1, *src2, *function_value, *return_value;
     struct three_address_code *tac;
     char *s;
 
@@ -891,20 +890,21 @@ void expression(int level) {
         }
         else if (scope == 0) {
             // Global symbol
-            todo("globals");
-            // address = (long *) symbol->value;
-            // *iptr++ = INSTR_IMM;
-            // *iptr++ = (long) address;
-            // cur_type = symbol->type;
-            // *iptr++ = IMM_GLOBAL;
-            // *iptr++ = (long) symbol;
-            // load_type();
+
+            src1 = new_value();
+            src1->type = type;
+            src1->is_lvalue = 1;
+            src1->global_symbol = symbol;
+
+            push(src1);
         }
         else {
             // Local symbol
+
             param_count = cur_function_symbol->function_param_count;
 
             src1 = new_value();
+            src1->type = type;
             src1->is_local = 1;
             src1->is_lvalue = 1;
 
@@ -925,7 +925,7 @@ void expression(int level) {
         // consume(TOK_LPAREN);
         // cur_type = parse_type();
         // *iptr++ = INSTR_IMM;
-        // *iptr++ = get_type_sizeof(cur_type);
+        // *iptr++ = get_type_size(cur_type);
         // *iptr++ = IMM_NUMBER;
         // *iptr++ = 0;
         // consume(TOK_RPAREN);
@@ -1547,20 +1547,11 @@ void parse() {
                     doing_var_declaration = 0;
                 }
                 else {
-                    todo("global var");
-                    // // Global symbol
-                    // *iptr++ = INSTR_GLB;
-                    // *iptr++ = (long) cur_identifier;
-                    // *iptr++ = get_type_sizeof(type);
-                    // *iptr++ = GLB_TYPE_VARIABLE;
-
-                    // if (seen_function) {
-                    //     printf("%d: Global variables must precede all functions\n", cur_line);
-                    //     exit(1);
-                    // }
-
-                    // cur_symbol->value = (long) data;
-                    // data += sizeof(long);
+                    // Global symbol
+                    if (seen_function) {
+                        printf("%d: Global variables must precede all functions\n", cur_line);
+                        exit(1);
+                    }
                 }
 
                 if (cur_token == TOK_COMMA) next();
@@ -1640,6 +1631,8 @@ void print_value(struct value *v) {
         printf("r%d", v->vreg);
     else if (v->is_local)
         printf("s[%d]", v->stack_index);
+    else if (v->global_symbol)
+        printf("%s", v->global_symbol->identifier);
     else if (v->is_string_literal) {
         printf_escaped_string_literal(string_literals[v->string_literal_index]);
     }
@@ -1653,7 +1646,7 @@ void print_instruction(struct three_address_code *tac) {
         printf(" = ");
     }
 
-    if (tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_FROM_STACK || tac->operation == IR_LOAD_STRING_LITERAL) {
+    if (tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_VARIABLE || tac->operation == IR_LOAD_STRING_LITERAL) {
         print_value(tac->src1);
     }
     else if (tac->operation == IR_PARAM) {
@@ -1951,9 +1944,15 @@ void output_function_body_code(int f, struct symbol *symbol) {
             dprintf(f, "\n");
         }
 
-        else if (ir->operation == IR_LOAD_FROM_STACK) {
-            stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->src1->stack_index);
-            dprintf(f, "\tmovq\t%d(%%rbp), ", stack_offset);
+        else if (ir->operation == IR_LOAD_VARIABLE) {
+            if (ir->src1->global_symbol) {
+                dprintf(f, "\tmovq\t%s(%%rip), ", ir->src1->global_symbol->identifier);
+            }
+            else {
+                stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->src1->stack_index);
+                dprintf(f, "\tmovq\t%d(%%rbp), ", stack_offset);
+            }
+
             output_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
         }
@@ -1992,8 +1991,12 @@ void output_function_body_code(int f, struct symbol *symbol) {
             else
                 dprintf(f, "\tcallq\t%s\n", ir->src1->function_symbol->identifier);
 
-            // For all builtins that return an int, extend it to a quad
-            if (ir->dst && ir->dst->type == TYPE_INT) dprintf(f, "\tcltq\n");
+            // For all builtins that return something smaller an int, extend it to a quad
+            if (ir->dst) {
+                if (ir->dst->type <= TYPE_CHAR)  dprintf(f, "\tcbtw\n");
+                if (ir->dst->type <= TYPE_SHORT) dprintf(f, "\tcwtl\n");
+                if (ir->dst->type <= TYPE_INT)   dprintf(f, "\tcltq\n");
+            }
 
             if (ir->dst) {
                 dprintf(f, "\tmovq\t%%rax, ");
@@ -2019,8 +2022,14 @@ void output_function_body_code(int f, struct symbol *symbol) {
             dprintf(f, "\tmovq\t");
             output_register_name(f, ir->src1->preg);
             dprintf(f, ", ");
-            stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
-            dprintf(f, "%d(%%rbp)\n", stack_offset);
+
+            if (ir->dst->global_symbol) {
+                dprintf(f, "%s(%%rip)\n", ir->dst->global_symbol->identifier);
+            }
+            else {
+                stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
+                dprintf(f, "%d(%%rbp)\n", stack_offset);
+            }
         }
 
         else if (ir->operation == IR_ADD) output_op(f, "addq",  ir->src1->preg, ir->src2->preg);
@@ -2102,6 +2111,14 @@ void output_code(char *input_filename, char *output_filename) {
     }
 
     dprintf(f, "\t.file\t\"%s\"\n", input_filename);
+
+    dprintf(f, "\t.text\n");
+    s = symbol_table;
+    while (s->identifier) {
+        if (s->scope || s->is_function || s->builtin) { s++; continue; };
+        dprintf(f, "\t.comm %s,%d,%d\n", s->identifier, get_type_size(s->type), get_type_alignment(s->type));
+        s++;
+    }
 
     if (string_literal_count > 0) {
         dprintf(f, "\n\t.section\t.rodata\n");

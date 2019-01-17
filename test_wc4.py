@@ -162,7 +162,6 @@ def test_argc_count():
     check_exit_code("int main(int argc, int argv) {return argc;}", 1)
 
 
-@pytest.mark.xfail() # TODO
 def test_assignment():
     check_exit_code("""
         int g;
@@ -172,12 +171,11 @@ def test_assignment():
             a = 1;
             b = 2;
             g = 3;
-            return a+b+argc+g;
+            return g + a + b + argc;
         }
     """, 7);
 
 
-@pytest.mark.xfail() # TODO
 def test_function_calls():
     check_exit_code("""
         int g;
@@ -240,14 +238,13 @@ def test_hello_world():
         }
     """, "Hello world!\n", exit_code=13)
 
-    # # TODO
-    # check_output("""
-    #     int main(int argc, char **argv) {
-    #         int a;
-    #         a = 1;
-    #         printf("1 + 1 = %d\n", a + 1);
-    #     }
-    # """, "1 + 1 = 2\n")
+    check_output("""
+        int main(int argc, char **argv) {
+            int a;
+            a = 1;
+            printf("1 + 1 = %d\n", a + 1);
+        }
+    """, "1 + 1 = 2\n")
 
 @pytest.mark.xfail() # TODO
 def test_pointer_to_int():
