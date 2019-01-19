@@ -248,12 +248,13 @@ def test_hello_world():
     """, "1 + 1 = 2\n")
 
 
-@pytest.mark.xfail() # TODO
+
 def test_pointer_to_int():
     check_output("""
         int g;
 
         int main(int argc, char **argv) {
+            int i;
             int *pi;
             int **ppi;
             pi = &g;
@@ -262,8 +263,15 @@ def test_pointer_to_int():
             printf("%d\n", g);
             **ppi = 2;
             printf("%d\n", g);
+            printf("%d\n", **ppi);
+
+            pi = &i;
+            *pi = 3;
+            printf("%d\n", i);
+            **ppi = 4;
+            printf("%d\n", i);
         }
-        """, "1\n2\n");
+        """, "1\n2\n2\n3\n4\n");
 
 @pytest.mark.xfail() # TODO
 def test_prefix_inc_dec():
@@ -827,7 +835,7 @@ def test_double_deref_assign_with_cast():
         }
     """, "20\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_double_assign():
     check_output("""
         int main(int argc, char **argv) {
@@ -837,7 +845,7 @@ def test_double_assign():
         }
     """, "1 1\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_print_assignment_with_one_arg():
     check_output("""
         int main() {
