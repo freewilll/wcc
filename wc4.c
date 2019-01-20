@@ -813,7 +813,7 @@ void expression(int level) {
         next();
         expression(TOK_INC);
         if (value_stack[-1]->type <= TYPE_PTR) {
-            printf("%d: Cannot derefence a non-pointer %d\n", cur_line, value_stack[-1]->type);
+            printf("%d: Cannot dereference a non-pointer %d\n", cur_line, value_stack[-1]->type);
             exit(1);
         }
 
