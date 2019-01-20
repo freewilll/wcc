@@ -273,7 +273,7 @@ def test_pointer_to_int():
         }
         """, "1\n2\n2\n3\n4\n");
 
-@pytest.mark.xfail() # TODO
+
 def test_prefix_inc_dec():
     check_output("""
         int main(int argc, char **argv) {
@@ -286,7 +286,7 @@ def test_prefix_inc_dec():
         }
     """, "1\n2\n1\n0\n");
 
-@pytest.mark.xfail() # TODO
+
 def test_postfix_inc_dec():
     check_output("""
         int main(int argc, char **argv) {
@@ -299,7 +299,7 @@ def test_postfix_inc_dec():
         }
     """, "0\n1\n2\n1\n");
 
-@pytest.mark.xfail() # TODO
+
 def test_inc_dec_sizes():
     check_output("""
         int main(int argc, char **argv) {

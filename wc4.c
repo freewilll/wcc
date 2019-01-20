@@ -107,7 +107,7 @@ enum {
     MAX_STRUCT_MEMBERS      = 1024,
     MAX_INPUT_SIZE          = 10 * 1024 * 1024,
     MAX_STRING_LITERALS     = 10 * 1024,
-    VALUE_STACK_SIZE        = 128,
+    VALUE_STACK_SIZE        = 10 * 1024,
     MAX_THREE_ADDRESS_CODES = 1024,
     MAX_LIVENESS_SIZE       = 1024,
     PHYSICAL_REGISTER_COUNT = 15,
@@ -513,6 +513,7 @@ struct value *pop() {
     dst->vreg = ++vreg_count;
     dst->is_local = 0;
     dst->global_symbol = 0;
+    dst->is_lvalue = 0;
 
     add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
 
@@ -750,8 +751,8 @@ void expression(int level) {
     int builtin;
     struct str_desc *str;
     struct str_member *member;
-    int i;
-    struct value *v, *cv, *dst, *src1, *src2, *function_value, *return_value;
+    int i, size;
+    struct value *v1, *v2, *cv, *dst, *src1, *src2, *function_value, *return_value;
     struct three_address_code *tac;
     char *s;
 
@@ -780,26 +781,33 @@ void expression(int level) {
     }
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
         // Prefix increment & decrement
-        todo("pre ++, --");
-        // org_token = cur_token;
-        // next();
-        // expression(1024); // Fake highest precedence, bind nothing
-        // org_type = cur_type;
-        // if (!is_lvalue()) {
-        //     printf("%d: Cannot prefix increment/decrement an rvalue on line\n", cur_line);
-        //     exit(1);
-        // }
-        // iptr--;              // Roll back load
-        // *iptr++ = INSTR_PSH; // Push address
-        // load_type();         // Push value
-        // *iptr++ = INSTR_PSH;
-        // *iptr++ = INSTR_IMM;
-        // *iptr++ = get_type_inc_dec_size(org_type);
-        // *iptr++ = IMM_NUMBER;
-        // *iptr++ = 0;
-        // *iptr++ = org_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
-        // cur_type = org_type;
-        // store_type(cur_type);
+
+        org_token = cur_token;
+        next();
+
+        expression(1024); // Fake highest precedence, bind nothing
+
+        if (!value_stack[-1]->is_lvalue) {
+            printf("%d: Cannot ++ or -- an rvalue\n", cur_line);
+            exit(1);
+        }
+
+        v1 = raw_pop(); // Preserve original lvalue
+
+        src1 = dup_value(v1);
+        push(src1); // Make an rvalue
+        src1 = pop(src1);
+
+        add_ir_constant_value(TYPE_INT, get_type_inc_dec_size(src1->type));
+        src2 = pop();
+        dst = new_value();
+        dst->vreg = ++vreg_count;
+        tac = add_instruction(org_token == TOK_INC ? IR_ADD : IR_SUB, dst, src1, src2);
+        dst->vreg = tac->src2->vreg;
+
+        add_instruction(IR_ASSIGN, v1, dst, 0);
+
+        push(v1); // Push the original lvalue back on the value stack
     }
     else if (cur_token == TOK_MULTIPLY) {
         next();
@@ -989,28 +997,36 @@ void expression(int level) {
         // In order or precedence
 
         if (cur_token == TOK_INC || cur_token == TOK_DEC) {
-            todo("postfix ++, --");
-            // // Postfix increment and decrement
-            // iptr--;              // Roll back load
-            // *iptr++ = INSTR_PSH; // Push address
-            // load_type();         // Push value
-            // *iptr++ = INSTR_PSH;
-            // *iptr++ = INSTR_IMM;
-            // *iptr++ = get_type_inc_dec_size(cur_type);
-            // *iptr++ = IMM_NUMBER;
-            // *iptr++ = 0;
-            // *iptr++ = cur_token == TOK_INC ? INSTR_ADD : INSTR_SUB;
-            // store_type(cur_type);
+            // Postfix increment & decrement
 
-            // // Dirty!
-            // *iptr++ = INSTR_PSH;
-            // *iptr++ = INSTR_IMM;
-            // *iptr++ = get_type_inc_dec_size(cur_type);
-            // *iptr++ = IMM_NUMBER;
-            // *iptr++ = 0;
-            // *iptr++ = cur_token == TOK_INC ? INSTR_SUB : INSTR_ADD;
+            if (!value_stack[-1]->is_lvalue) {
+                printf("%d: Cannot ++ or -- an rvalue\n", cur_line);
+                exit(1);
+            }
 
-            // next();
+            v1 = value_stack[-1]; // lvalue
+            src1 = dup_value(value_stack[-1]);
+            push(src1); // make an rvalue to be pushed onto the stack after the add/sub
+            src1 = pop();
+
+            // Copy the original value, since the add/sub operation destroys the original register
+            v2 = new_value();
+            v2->type = src1->type;
+            v2->vreg = ++vreg_count;
+            add_instruction(IR_ASSIGN, v2, src1, 0);
+
+            add_ir_constant_value(TYPE_INT, get_type_inc_dec_size(src1->type));
+            src2 = pop();
+
+            dst = new_value();
+            dst->vreg = ++vreg_count;
+            tac = add_instruction(cur_token == TOK_INC ? IR_ADD : IR_SUB, dst, src1, src2);
+            dst->vreg = tac->src2->vreg;
+
+            add_instruction(IR_ASSIGN, v1, dst, 0);
+
+            next();
+            push(v2); // Push the original value back on the value stack
         }
         else if (cur_token == TOK_DOT || cur_token == TOK_ARROW) {
             todo("., ->");
@@ -1109,7 +1125,7 @@ void expression(int level) {
             }
             else {
                 tac = add_ir_op(IR_SUB, type, 0, pop(), pop());
-                tac->dst->vreg = tac->src1->vreg;
+                tac->dst->vreg = tac->src2->vreg;
             }
         }
         else if (cur_token == TOK_BITWISE_LEFT) {
@@ -1645,7 +1661,7 @@ void dprintf_escaped_string_literal(int f, char* sl) {
 
 void print_value(struct value *v, int is_assignment_rhs) {
     if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->is_local)) printf("&");
-    if (!is_assignment_rhs && !(v->global_symbol || v->is_local)) printf("*");
+    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->is_local)) printf("*");
 
     if (v->preg != -1)
         printf("p%d", v->preg);
@@ -2061,22 +2077,42 @@ void output_function_body_code(int f, struct symbol *symbol) {
             dprintf(f, ", ");
 
             if (ir->dst->global_symbol) {
+                // dst a global
                 dprintf(f, "%s(%%rip)\n", ir->dst->global_symbol->identifier);
             }
             else if (ir->dst->is_local) {
+                // dst is on the stack
                 stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
                 dprintf(f, "%d(%%rbp)\n", stack_offset);
             }
+            else if (!ir->dst->is_lvalue) {
+                // Register copy
+                output_register_name(f, ir->dst->preg);
+                dprintf(f, "\n");
+            }
             else {
+                // dst is an lvalue in a register
                 dprintf(f, "(");
                 output_register_name(f, ir->dst->preg);
                 dprintf(f, ")\n");
             }
         }
 
-        else if (ir->operation == IR_ADD) output_op(f, "addq",  ir->src1->preg, ir->src2->preg);
-        else if (ir->operation == IR_SUB) output_op(f, "subq",  ir->src2->preg, ir->src1->preg);
-        else if (ir->operation == IR_MUL) output_op(f, "imulq", ir->src1->preg, ir->src2->preg);
+        else if (ir->operation == IR_ADD)
+            output_op(f, "addq",  ir->src1->preg, ir->src2->preg);
+
+        else if (ir->operation == IR_SUB) {
+            dprintf(f, "\txchg\t");
+            output_register_name(f, ir->src1->preg);
+            dprintf(f, ", ");
+            output_register_name(f, ir->src2->preg);
+            dprintf(f, "\n");
+            output_op(f, "subq",  ir->src1->preg, ir->src2->preg);
+        }
+
+        else if (ir->operation == IR_MUL)
+            output_op(f, "imulq", ir->src1->preg, ir->src2->preg);
+
         else if (ir->operation == IR_DIV || ir->operation == IR_MOD) {
             // This is slightly ugly. src1 is the dividend and needs doubling in size and placing in the RDX register.
             // It could have been put in the RDX register in the first place.
