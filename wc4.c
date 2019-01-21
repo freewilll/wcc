@@ -42,8 +42,6 @@ struct three_address_code {
     struct value *src2;
 };
 
-struct value **value_stack;
-
 struct liveness_interval {
     int start;
     int end;
@@ -87,6 +85,8 @@ int global_variable_count;
 struct symbol *symbol_table;
 struct symbol *next_symbol;
 struct symbol *cur_symbol;
+
+struct value **value_stack;
 
 struct str_desc **all_structs;
 int all_structs_count;
@@ -1423,6 +1423,12 @@ void statement() {
     else {
         expression(TOK_COMMA);
         consume(TOK_SEMI);
+        // Discard the destination of a function call to a non-void function
+        // since it's not being assigned to anything and
+        if (ir[-1].operation == IR_CALL && ir[-1].dst) {
+            ir[-1].dst = 0;
+            --vreg_count;
+        }
     }
 }
 
@@ -2051,14 +2057,11 @@ void output_function_body_code(int f, struct symbol *symbol) {
                 if (ir->dst->type <= TYPE_CHAR)  dprintf(f, "\tcbtw\n");
                 if (ir->dst->type <= TYPE_SHORT) dprintf(f, "\tcwtl\n");
                 if (ir->dst->type <= TYPE_INT)   dprintf(f, "\tcltq\n");
-            }
 
-            if (ir->dst) {
                 dprintf(f, "\tmovq\t%%rax, ");
                 output_register_name(f, ir->dst->preg);
                 dprintf(f, "\n");
             }
-
         }
 
         else if (ir->operation == IR_RETURN) {
