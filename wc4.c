@@ -853,12 +853,11 @@ void expression(int level) {
     else if (cur_token == TOK_LPAREN) {
         next();
         if (cur_token == TOK_VOID || cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
-            todo("cast");
-        //     // cast
-        //     org_type = parse_type();
-        //     consume(TOK_RPAREN);
-        //     expression(TOK_INC);
-        //     cur_type = org_type;
+            // cast
+            org_type = parse_type();
+            consume(TOK_RPAREN);
+            expression(TOK_INC);
+            vtop->type = org_type;
         }
         else {
             expression(TOK_COMMA);
@@ -1117,13 +1116,9 @@ void expression(int level) {
             expression(TOK_MULTIPLY);
 
             if (factor > 1) {
-                todo("arith +, - for pointers");
-                // *iptr++ = INSTR_PSH;
-                // *iptr++ = INSTR_IMM;
-                // *iptr++ = factor;
-                // *iptr++ = IMM_NUMBER;
-                // *iptr++ = 0;
-                // *iptr++ = INSTR_MUL;
+                add_ir_constant_value(TYPE_INT, factor);
+                tac = add_ir_op(IR_MUL, TYPE_INT, 0, pop(), pop());
+                tac->dst->vreg = tac->src2->vreg;
             }
 
             type = operation_type();

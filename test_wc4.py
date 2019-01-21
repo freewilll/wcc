@@ -360,7 +360,7 @@ def test_inc_dec_sizes():
         "8 0 8 0",
     ]) + "\n");
 
-@pytest.mark.xfail() # TODO
+
 def test_pointer_arithmetic():
     check_output("""
         int main(int argc, char **argv) {
@@ -630,7 +630,7 @@ def test_bracket_lookup():
         }
     """, "1 2 3\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_casting():
     check_output("""
         int main(int argc, char **argv) {
@@ -752,7 +752,7 @@ def test_plus_equals():
 def test_exit():
     check_output("""int main(int argc, char **argv) { exit(3); }""", "exit 3\n", with_exit_code=True)
 
-@pytest.mark.xfail() # TODO
+
 def test_cast_in_function_call():
     # Test precedence error combined with expression parser not stopping at unknown tokens
 
