@@ -573,7 +573,9 @@ long lookup_function(char *name) {
 }
 
 int operation_type(struct value *src1, struct value *src2) {
-    if (src1->type == TYPE_LONG || src2->type == TYPE_LONG) return TYPE_LONG;
+    if (src1->type >= TYPE_PTR) return src1->type;
+    else if (src2->type >= TYPE_PTR) return src2->type;
+    else if (src1->type == TYPE_LONG || src2->type == TYPE_LONG) return TYPE_LONG;
     else return TYPE_INT;
 }
 
