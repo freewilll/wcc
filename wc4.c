@@ -86,7 +86,8 @@ struct symbol *symbol_table;
 struct symbol *next_symbol;
 struct symbol *cur_symbol;
 
-struct value **value_stack;
+struct value **vs;
+struct value **org_vs;
 
 struct str_desc **all_structs;
 int all_structs_count;
@@ -429,7 +430,7 @@ struct value *new_value() {
 }
 
 void push(struct value *v) {
-    *value_stack++ = v;
+    *vs++ = v;
 }
 
 struct value *push_constant(int type, int vreg, int value) {
@@ -439,7 +440,7 @@ struct value *push_constant(int type, int vreg, int value) {
     v->preg = -1;
     v->vreg = vreg;
     v->value = value;
-    *value_stack++ = v;
+    *vs++ = v;
 
     return v;
 }
@@ -478,8 +479,8 @@ struct three_address_code *add_instruction(int operation, struct value *dst, str
 struct value *raw_pop() {
     struct value *result;
 
-    result = *(value_stack - 1);
-    value_stack--;
+    result = *(vs - 1);
+    vs--;
 
     return result;
 }
@@ -488,10 +489,10 @@ struct value *raw_pop() {
 struct value *pop() {
     struct value *dst, *src1;
 
-    if (value_stack[-1]->vreg) {
-        if (value_stack[-1]->is_lvalue) {
+    if (vs[-1]->vreg) {
+        if (vs[-1]->is_lvalue) {
             // It's an lvalue in a register. Dereference it into the same register
-            value_stack[-1]->is_lvalue = 0;
+            vs[-1]->is_lvalue = 0;
 
             src1 = raw_pop();
             dst = dup_value(src1);
@@ -767,19 +768,19 @@ void expression(int level) {
     else if (cur_token == TOK_BITWISE_NOT) {
         next();
         expression(TOK_INC);
-        type = value_stack[-1]->type;
+        type = vs[-1]->type;
         tac = add_ir_op(IR_BNOT, type, 0, pop(), 0);
         tac->dst->vreg = tac->src1->vreg;
     }
     else if (cur_token == TOK_ADDRESS_OF) {
         next();
         expression(TOK_INC);
-        if (!value_stack[-1]->is_lvalue) {
+        if (!vs[-1]->is_lvalue) {
             printf("%d: Cannot take an address of an rvalue\n", cur_line);
             exit(1);
         }
-        value_stack[-1]->is_lvalue = 0;
-        value_stack[-1]->type += TYPE_PTR;
+        vs[-1]->is_lvalue = 0;
+        vs[-1]->type += TYPE_PTR;
     }
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
         // Prefix increment & decrement
@@ -789,7 +790,7 @@ void expression(int level) {
 
         expression(1024); // Fake highest precedence, bind nothing
 
-        if (!value_stack[-1]->is_lvalue) {
+        if (!vs[-1]->is_lvalue) {
             printf("%d: Cannot ++ or -- an rvalue\n", cur_line);
             exit(1);
         }
@@ -814,8 +815,8 @@ void expression(int level) {
     else if (cur_token == TOK_MULTIPLY) {
         next();
         expression(TOK_INC);
-        if (value_stack[-1]->type <= TYPE_PTR) {
-            printf("%d: Cannot dereference a non-pointer %d\n", cur_line, value_stack[-1]->type);
+        if (vs[-1]->type <= TYPE_PTR) {
+            printf("%d: Cannot dereference a non-pointer %d\n", cur_line, vs[-1]->type);
             exit(1);
         }
 
@@ -1001,13 +1002,13 @@ void expression(int level) {
         if (cur_token == TOK_INC || cur_token == TOK_DEC) {
             // Postfix increment & decrement
 
-            if (!value_stack[-1]->is_lvalue) {
+            if (!vs[-1]->is_lvalue) {
                 printf("%d: Cannot ++ or -- an rvalue\n", cur_line);
                 exit(1);
             }
 
-            v1 = value_stack[-1]; // lvalue
-            src1 = dup_value(value_stack[-1]);
+            v1 = raw_pop(); // lvalue
+            src1 = dup_value(v1);
             push(src1); // make an rvalue to be pushed onto the stack after the add/sub
             src1 = pop();
 
@@ -1087,25 +1088,25 @@ void expression(int level) {
         else if (cur_token == TOK_MULTIPLY) {
             next();
             expression(TOK_DOT);
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
             tac = add_ir_op(IR_MUL, type, 0, pop(), pop());
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_DIVIDE) {
             next();
             expression(TOK_INC);
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
             add_ir_op(IR_DIV, type, ++vreg_count, pop(), pop());
         }
         else if (cur_token == TOK_MOD) {
             next();
             expression(TOK_INC);
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
             add_ir_op(IR_MOD, type, ++vreg_count, pop(), pop());
         }
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
             org_token = cur_token;
-            factor = get_type_inc_dec_size(value_stack[-1]->type);
+            factor = get_type_inc_dec_size(vs[-1]->type);
             next();
             expression(TOK_MULTIPLY);
 
@@ -1119,7 +1120,7 @@ void expression(int level) {
                 // *iptr++ = INSTR_MUL;
             }
 
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
 
             if (org_token == TOK_PLUS) {
                 tac = add_ir_op(IR_ADD, type, 0, pop(), pop());
@@ -1133,14 +1134,14 @@ void expression(int level) {
         else if (cur_token == TOK_BITWISE_LEFT) {
             next();
             expression(TOK_PLUS);
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
             tac = add_ir_op(IR_BSHL, type, 0, pop(), pop());
             tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_BITWISE_RIGHT) {
             next();
             expression(TOK_PLUS);
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
             tac = add_ir_op(IR_BSHR, type, 0, pop(), pop());
             tac->dst->vreg = tac->src1->vreg;
         }
@@ -1188,21 +1189,21 @@ void expression(int level) {
         else if (cur_token == TOK_ADDRESS_OF) {
             next();
             expression(TOK_DBL_EQ);
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
             tac = add_ir_op(IR_BAND, type, 0, pop(), pop());
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_XOR) {
             next();
             expression(TOK_ADDRESS_OF);
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
             tac = add_ir_op(IR_XOR, type, 0, pop(), pop());
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_BITWISE_OR) {
             next();
             expression(TOK_XOR);
-            type = operation_type(value_stack[-1], value_stack[-2]);
+            type = operation_type(vs[-1], vs[-2]);
             tac = add_ir_op(IR_BOR, type, 0, pop(), pop());
             tac->dst->vreg = tac->src2->vreg;
         }
@@ -1247,7 +1248,7 @@ void expression(int level) {
         }
         else if (cur_token == TOK_EQ) {
             next();
-            if (!value_stack[-1]->is_lvalue) {
+            if (!vs[-1]->is_lvalue) {
                 printf("%d: Cannot assign to an rvalue\n", cur_line);
                 exit(1);
             }
@@ -1302,6 +1303,8 @@ void statement() {
     long *old_cur_loop_continue_address;
     long *old_cur_loop_body_start;
     long *old_cur_loop_increment_start;
+
+    vs = org_vs;
 
     if (cur_token_is_integer_type() || cur_token == TOK_STRUCT)  {
         printf("%d: Declarations must be at the top of a function\n", cur_line);
@@ -1428,7 +1431,12 @@ void statement() {
         if (ir[-1].operation == IR_CALL && ir[-1].dst) {
             ir[-1].dst = 0;
             --vreg_count;
+            pop();
         }
+
+        // Discard unused stack value when an assignment is complete
+        // if (ir[-1].operation == IR_ASSIGN && !(!ir[-1].dst->is_lvalue && !(ir[-1].dst->global_symbol || ir[-1].dst->is_local)))
+        //     pop();
     }
 }
 
@@ -2356,7 +2364,8 @@ int main(int argc, char **argv) {
     cur_line = 1;
     next();
 
-    value_stack = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
+    vs = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
+    org_vs = vs;
     parse();
 
     if (print_symbols) do_print_symbols();
