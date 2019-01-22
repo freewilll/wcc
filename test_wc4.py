@@ -885,7 +885,7 @@ def test_first_arg_to_or_and_and_must_be_rvalue():
         }
     """, "1\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_enum():
     check_output("""
         enum {A, B};

@@ -16,6 +16,7 @@ struct symbol {
     int builtin;
     int size;
     int is_function;
+    int is_enum;
     struct three_address_code *ir;
     int vreg_count;
 };
@@ -175,7 +176,7 @@ enum {
 };
 
 // All structs start at TYPE_STRUCT up to TYPE_PTR. Pointers are represented by adding TYPE_PTR to a type.
-enum { TYPE_ENUM=1, TYPE_VOID, TYPE_CHAR, TYPE_SHORT, TYPE_INT, TYPE_LONG, TYPE_STRUCT=16, TYPE_PTR=1024 };
+enum { TYPE_VOID=1, TYPE_CHAR, TYPE_SHORT, TYPE_INT, TYPE_LONG, TYPE_STRUCT=16, TYPE_PTR=1024 };
 
 enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
 
@@ -895,14 +896,8 @@ void expression(int level) {
         next();
         type = symbol->type;
         scope = symbol->scope;
-        if (type == TYPE_ENUM) {
-            todo("enums");
-            // *iptr++ = INSTR_IMM;
-            // *iptr++ = symbol->value;
-            // *iptr++ = IMM_NUMBER;
-            // *iptr++ = 0;
-            // cur_type = symbol->type;
-        }
+        if (symbol->is_enum)
+            add_ir_constant_value(TYPE_LONG, symbol->value);
         else if (cur_token == TOK_LPAREN) {
             // Function call
             next();
@@ -1626,7 +1621,8 @@ void parse() {
                     next();
                 }
 
-                next_symbol->type = TYPE_ENUM;
+                next_symbol->is_enum = 1;
+                next_symbol->type = TYPE_LONG;
                 next_symbol->identifier = cur_identifier;
                 next_symbol->scope = 0;
                 next_symbol->value = number++;
