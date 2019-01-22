@@ -1428,9 +1428,13 @@ void statement() {
     }
     else if (cur_token == TOK_RETURN) {
         next();
-        if (cur_token == TOK_SEMI) todo("return void");
-        expression(TOK_COMMA);
-        add_instruction(IR_RETURN, 0, pl(), 0);
+        if (cur_token == TOK_SEMI) {
+            add_instruction(IR_RETURN, 0, 0, 0);
+        }
+        else {
+            expression(TOK_COMMA);
+            add_instruction(IR_RETURN, 0, pl(), 0);
+        }
         consume(TOK_SEMI);
         seen_return = 1;
     }
@@ -1735,8 +1739,12 @@ void print_instruction(struct three_address_code *tac) {
         printf("call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_call_param_count);
     }
     else if (tac->operation == IR_RETURN) {
-        printf("return ");
-        print_value(tac->src1, 1);
+        if (tac->src1) {
+            printf("return ");
+            print_value(tac->src1, 1);
+        }
+        else
+            printf("return");
     }
     else if (tac->operation == IR_ASSIGN) {
         print_value(tac->src1, 1);
@@ -2158,15 +2166,17 @@ void output_function_body_code(int f, struct symbol *symbol) {
         }
 
         else if (ir->operation == IR_RETURN) {
-            if (ir->src1->preg != REG_RAX) {
-                dprintf(f, "\tmovq\t");
-                output_quad_register_name(f, ir->src1->preg);
-                dprintf(f, ", ");
-                output_quad_register_name(f, REG_RAX);
-                dprintf(f, "\n");
+            if (ir->src1) {
+                if (ir->src1->preg != REG_RAX) {
+                    dprintf(f, "\tmovq\t");
+                    output_quad_register_name(f, ir->src1->preg);
+                    dprintf(f, ", ");
+                    output_quad_register_name(f, REG_RAX);
+                    dprintf(f, "\n");
+                }
+                dprintf(f, "\tleaveq\n");
+                dprintf(f, "\tretq\n");
             }
-            dprintf(f, "\tleaveq\n");
-            dprintf(f, "\tretq\n");
         }
 
         else if (ir->operation == IR_ASSIGN) {
