@@ -967,33 +967,35 @@ void expression(int level) {
     }
 
     if (cur_token == TOK_LBRACKET) {
-        todo("[");
-        // next();
-        // TODO is this a mistake? Should this function be part of the above if/else?
+        next();
 
-        // if (cur_type <= TYPE_PTR) {
-        //     printf("%d: Cannot do [] on a non-pointer for type %ld\n", cur_line, cur_type);
-        //     exit(1);
-        // }
+        if (vtop->type < TYPE_PTR) {
+            printf("%d: Cannot do [] on a non-pointer for type %d\n", cur_line, vtop->type);
+            exit(1);
+        }
 
-        // org_type = cur_type;
-        // *iptr++ = INSTR_PSH;
-        // expression(TOK_COMMA);
+        factor = get_type_inc_dec_size(vtop->type);
 
-        // factor = get_type_inc_dec_size(org_type);
-        // if (factor > 1) {
-        //     *iptr++ = INSTR_PSH;
-        //     *iptr++ = INSTR_IMM;
-        //     *iptr++ = factor;
-        //     *iptr++ = IMM_NUMBER;
-        //     *iptr++ = 0;
-        //     *iptr++ = INSTR_MUL;
-        // }
+        src1 = pop(); // Turn it into an rvalue
+        push(src1);
 
-        // *iptr++ = INSTR_ADD;
-        // consume(TOK_RBRACKET);
-        // cur_type = org_type - TYPE_PTR;
-        // load_type();
+        org_type = vtop->type;
+        expression(TOK_COMMA);
+
+        if (factor > 1) {
+            add_ir_constant_value(TYPE_INT, factor);
+            tac = add_ir_op(IR_MUL, TYPE_INT, 0, pop(), pop());
+            tac->dst->vreg = tac->src2->vreg;
+        }
+
+        type = operation_type();
+
+        tac = add_ir_op(IR_ADD, type, 0, pop(), pop());
+        tac->dst->vreg = tac->src2->vreg;
+
+        consume(TOK_RBRACKET);
+        vtop->type = org_type - TYPE_PTR;
+        vtop->is_lvalue = 1;
     }
 
     while (cur_token >= level) {

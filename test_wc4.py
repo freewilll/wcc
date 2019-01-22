@@ -613,7 +613,7 @@ def test_ternary():
         }
     """, "2 1 foo\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_bracket_lookup():
     check_output("""
         int main(int argc, char **argv) {
@@ -678,7 +678,7 @@ def test_free():
         }
     """, "")
 
-@pytest.mark.xfail() # TODO
+
 def test_mem_functions():
     check_output("""
         int main(int argc, char **argv) {
@@ -763,7 +763,7 @@ def test_cast_in_function_call():
         }
     """, "")
 
-@pytest.mark.xfail() # TODO
+
 def test_array_lookup_of_string_literal():
     check_output("""
         int main() {
