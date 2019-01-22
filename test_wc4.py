@@ -747,9 +747,9 @@ def test_plus_equals():
         }
     """, "2 2 2 4 2 8 2 16\n2 -1 2 -2 2 -4 2 -8\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_exit():
-    check_output("""int main(int argc, char **argv) { exit(3); }""", "exit 3\n", with_exit_code=True)
+    check_output("""int main(int argc, char **argv) { exit(3); }""", "", exit_code=3)
 
 
 def test_cast_in_function_call():
