@@ -728,8 +728,9 @@ def test_open_read_write_close():
 
                 with open(output_file.name) as f:
                     assert f.read() == "foo\n"
-@pytest.mark.xfail() # TODO
-def test_plus_equals():
+
+
+def test_assign_operation():
     check_output("""
         int main(int argc, char **argv) {
             char c, *pc;

@@ -488,30 +488,28 @@ struct value *raw_pop() {
     return result;
 }
 
-// Pop a value from the stack. Load it into a register if not already done
-struct value *pop() {
-    struct value *dst, *src1;
+struct value *make_rvalue(struct value *src1) {
+    struct value *dst;
 
-    if (vtop->vreg) {
-        if (vtop->is_lvalue) {
-            // It's an lvalue in a register. Dereference it into the same register
-            vtop->is_lvalue = 0;
+    if (!src1->is_lvalue) return src1;
 
-            src1 = raw_pop();
-            dst = dup_value(src1);
+    // It's an lvalue in a register. Dereference it into the same register
+    src1->is_lvalue = 0;
 
-            dst->is_local = 0;
-            dst->global_symbol = 0;
+    // src1 = raw_pop();
+    dst = dup_value(src1);
 
-            add_instruction(IR_INDIRECT, dst, src1, 0);
-            return dst;
-        }
+    dst->is_local = 0;
+    dst->global_symbol = 0;
 
-        return raw_pop();
-    }
+    add_instruction(IR_INDIRECT, dst, src1, 0);
+    return dst;
+}
 
-    // Allocate a register and load it
-    src1 = raw_pop();
+// Load value src1 into a register
+struct value *load(struct value *src1) {
+    struct value *dst;
+
     dst = dup_value(src1);
 
     dst->vreg = ++vreg_count;
@@ -522,6 +520,16 @@ struct value *pop() {
     add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
 
     return dst;
+}
+
+// Pop a value from the stack. Load it into a register if not already done
+struct value *pop() {
+    if (vtop->vreg) {
+        if (vtop->is_lvalue) return make_rvalue(raw_pop());
+        else return raw_pop();
+    }
+
+    return load(raw_pop());
 }
 
 void add_ir_constant_value(int type, long value) {
@@ -1009,10 +1017,8 @@ void expression(int level) {
                 exit(1);
             }
 
-            v1 = raw_pop(); // lvalue
-            src1 = dup_value(v1);
-            push(src1); // make an rvalue to be pushed onto the stack after the add/sub
-            src1 = pop();
+            v1 = raw_pop();             // lvalue
+            src1 = load(dup_value(v1)); // rvalue
 
             // Copy the original value, since the add/sub operation destroys the original register
             v2 = new_value();
@@ -1258,33 +1264,41 @@ void expression(int level) {
             push(dst);
         }
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
-            todo("+=, -=");
-            // org_token = cur_token;
-            // next();
-            // if (!is_lvalue()) {
-            //     printf("%d: Cannot assign to an rvalue\n", cur_line);
-            //     exit(1);
-            // }
-            // org_type = cur_type;
-            // iptr--;               // Roll back load
-            // *iptr++ = INSTR_PSH;  // Push address
-            // load_type();          // Push value
-            // *iptr++ = INSTR_PSH;
+            org_type = vtop->type;
+            org_token = cur_token;
 
-            // factor = get_type_inc_dec_size(org_type);
-            // if (factor > 1) {
-            //     *iptr++ = INSTR_IMM;
-            //     *iptr++ = factor;
-            //     *iptr++ = IMM_NUMBER;
-            //     *iptr++ = 0;
-            //     *iptr++ = INSTR_PSH;
-            // }
+            next();
 
-            // expression(TOK_EQ);
-            // if (factor > 1) *iptr++ = INSTR_MUL;
-            // *iptr++ = org_token == TOK_PLUS_EQ ? INSTR_ADD : INSTR_SUB;
-            // cur_type = org_type;
-            // store_type(cur_type);
+            if (!vtop->is_lvalue) {
+                printf("%d: Cannot assign to an rvalue\n", cur_line);
+                exit(1);
+            }
+
+            v1 = vtop;                  // lvalue
+            push(load(dup_value(v1)));  // rvalue
+
+            factor = get_type_inc_dec_size(org_type);
+
+            expression(TOK_EQ);
+
+            if (factor > 1) {
+                add_ir_constant_value(TYPE_INT, factor);
+                tac = add_ir_op(IR_MUL, TYPE_INT, 0, pop(), pop());
+                tac->dst->vreg = tac->src2->vreg;
+            }
+
+            if (org_token == TOK_PLUS_EQ) {
+                tac = add_ir_op(IR_ADD, type, 0, pop(), pop());
+                tac->dst->vreg = tac->src2->vreg;
+            }
+            else {
+                tac = add_ir_op(IR_SUB, type, 0, pop(), pop());
+                tac->dst->vreg = tac->src2->vreg;
+            }
+
+            vtop->type = org_type;
+
+            add_instruction(IR_ASSIGN, v1, tac->dst, 0);
         }
         else
             return; // Bail once we hit something unknown
