@@ -1677,6 +1677,8 @@ void dprintf_escaped_string_literal(int f, char* sl) {
 }
 
 void print_value(struct value *v, int is_assignment_rhs) {
+    int type;
+
     if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->is_local)) printf("&");
     if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->is_local)) printf("*");
 
@@ -1693,6 +1695,20 @@ void print_value(struct value *v, int is_assignment_rhs) {
     }
     else
         printf("%d", v->value);
+
+    printf(":");
+    type = v->type;
+    while (type >= TYPE_PTR) {
+        printf("*");
+        type -= TYPE_PTR;
+    }
+
+         if (type == TYPE_VOID)  printf("void");
+    else if (type == TYPE_CHAR)  printf("char");
+    else if (type == TYPE_INT)   printf("int");
+    else if (type == TYPE_SHORT) printf("short");
+    else if (type == TYPE_LONG)  printf("long");
+    else printf("unknown type %d", type);
 }
 
 void print_instruction(struct three_address_code *tac) {
@@ -1859,15 +1875,7 @@ void output_load_param(int f, int position, char *register_name) {
     dprintf(f, "\tmovq\t%d(%%rsp), %%%s\n", position * 8, register_name);
 }
 
-void output_register_name(int f, int preg) {
-    char *names;
-
-    names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
-    if (preg == 8 || preg == 9) dprintf(f, "%%%.2s", &names[preg * 4]);
-    else dprintf(f, "%%%.3s", &names[preg * 4]);
-}
-
-void output_8bit_register_name(int f, int preg) {
+void output_byte_register_name(int f, int preg) {
     char *names;
 
     names = "al   bl   cl   dl   sil  dil  bpl  spl  r8b  r9b  r10b r11b r12b r13b r14b r15b";
@@ -1879,34 +1887,94 @@ void output_8bit_register_name(int f, int preg) {
         dprintf(f, "%%%.4s", &names[preg * 5]);
 }
 
+void output_word_register_name(int f, int preg) {
+    char *names;
+
+    names = "ax   bx   cx   dx   si   di   bp   sp   r8w  r9w  r10w r11w r12w r13w r14w r15w";
+    if (preg < 8)
+        dprintf(f, "%%%.2s", &names[preg * 5]);
+    else if (preg < 10)
+        dprintf(f, "%%%.3s", &names[preg * 5]);
+    else
+        dprintf(f, "%%%.4s", &names[preg * 5]);
+}
+
+void output_long_register_name(int f, int preg) {
+    char *names;
+
+    names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
+    if (preg < 10)
+        dprintf(f, "%%%.3s", &names[preg * 5]);
+    else
+        dprintf(f, "%%%.4s", &names[preg * 5]);
+}
+
+void output_quad_register_name(int f, int preg) {
+    char *names;
+
+    names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
+    if (preg == 8 || preg == 9)
+        dprintf(f, "%%%.2s", &names[preg * 4]);
+    else
+        dprintf(f, "%%%.3s", &names[preg * 4]);
+}
+
+void output_type_specific_register_name(int f, int type, int preg) {
+         if (type == TYPE_CHAR)  output_byte_register_name(f, preg);
+    else if (type == TYPE_SHORT) output_word_register_name(f, preg);
+    else if (type == TYPE_INT)   output_long_register_name(f, preg);
+    else                         output_quad_register_name(f, preg);
+}
+
 void output_op(int f, char *instruction, int reg1, int reg2) {
     dprintf(f, "\t%s\t", instruction);
-    output_register_name(f, reg1);
+    output_quad_register_name(f, reg1);
     dprintf(f, ", ");
-    output_register_name(f, reg2);
+    output_quad_register_name(f, reg2);
     dprintf(f, "\n");
 }
 
 void output_cmp(int f, struct three_address_code *ir) {
     dprintf(f, "\tcmpq\t");
-    output_register_name(f, ir->src2->preg);
+    output_quad_register_name(f, ir->src2->preg);
     dprintf(f, ", ");
-    output_register_name(f, ir->src1->preg);
+    output_quad_register_name(f, ir->src1->preg);
     dprintf(f, "\n");
 }
 
 void output_cmp_result_instruction(int f, struct three_address_code *ir, char *instruction) {
     dprintf(f, "\t%s\t", instruction);
-    output_8bit_register_name(f, ir->src2->preg);
+    output_byte_register_name(f, ir->src2->preg);
     dprintf(f, "\n");
 }
 
 void output_movzbl(int f, struct three_address_code *ir) {
     dprintf(f, "\tmovzbl\t");
-    output_8bit_register_name(f, ir->src2->preg);
+    output_byte_register_name(f, ir->src2->preg);
     dprintf(f, ", ");
-    output_register_name(f, ir->dst->preg);
+    output_quad_register_name(f, ir->dst->preg);
     dprintf(f, "\n");
+}
+
+void output_type_specific_mov(int f, int type) {
+         if (type == TYPE_CHAR)  dprintf(f, "\tmovb\t");
+    else if (type == TYPE_SHORT) dprintf(f, "\tmovw\t");
+    else if (type == TYPE_INT)   dprintf(f, "\tmovl\t");
+    else                         dprintf(f, "\tmovq\t");
+}
+
+void output_type_specific_sign_extend_mov(int f, int type) {
+         if (type == TYPE_CHAR)  dprintf(f, "\tmovsbq\t");
+    else if (type == TYPE_SHORT) dprintf(f, "\tmovswq\t");
+    else if (type == TYPE_INT)   dprintf(f, "\tmovslq\t");
+    else                         dprintf(f, "\tmovq\t");
+}
+
+void output_type_specific_lea(int f, int type) {
+         if (type == TYPE_CHAR)  dprintf(f, "\tleasbq\t");
+    else if (type == TYPE_SHORT) dprintf(f, "\tleaswq\t");
+    else if (type == TYPE_INT)   dprintf(f, "\tleaslq\t");
+    else                         dprintf(f, "\tleaq\t");
 }
 
 void output_cmp_operation(int f, struct three_address_code *ir, char *instruction) {
@@ -1989,47 +2057,56 @@ void output_function_body_code(int f, struct symbol *symbol) {
     while (ir->operation) {
         if (ir->operation == IR_LOAD_CONSTANT) {
             dprintf(f, "\tmovq\t$%d, ", ir->src1->value);
-            output_register_name(f, ir->dst->preg);
+            output_quad_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
 
         }
 
         else if (ir->operation == IR_LOAD_STRING_LITERAL) {
             dprintf(f, "\tleaq\t.SL%d(%%rip), ", ir->src1->string_literal_index);
-            output_register_name(f, ir->dst->preg);
+            output_quad_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
         }
 
         else if (ir->operation == IR_LOAD_VARIABLE) {
             if (ir->src1->global_symbol) {
-                if (!ir->src1->is_lvalue)
-                    dprintf(f, "\tleaq\t%s(%%rip), ", ir->src1->global_symbol->identifier);
-                else
-                    dprintf(f, "\tmovq\t%s(%%rip), ", ir->src1->global_symbol->identifier);
+                if (!ir->src1->is_lvalue) {
+                    output_type_specific_lea(f, ir->src1->type);
+                    dprintf(f, "%s(%%rip), ", ir->src1->global_symbol->identifier);
+                }
+                else {
+                    output_type_specific_sign_extend_mov(f, ir->src1->type);
+                    dprintf(f, "%s(%%rip), ", ir->src1->global_symbol->identifier);
+                }
             }
             else {
                 stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->src1->stack_index);
-                if (!ir->src1->is_lvalue)
-                    dprintf(f, "\tleaq\t%d(%%rbp), ", stack_offset);
-                else
-                    dprintf(f, "\tmovq\t%d(%%rbp), ", stack_offset);
+                if (!ir->src1->is_lvalue) {
+                    output_type_specific_lea(f, ir->src1->type);
+                    dprintf(f, "%d(%%rbp), ", stack_offset);
+                }
+                else {
+                    output_type_specific_sign_extend_mov(f, ir->src1->type);
+                    dprintf(f, "%d(%%rbp), ", stack_offset);
+                }
             }
 
-            output_register_name(f, ir->dst->preg);
+            output_quad_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
         }
 
         else if (ir->operation == IR_INDIRECT) {
-            dprintf(f, "\tmovq\t(");
-            output_register_name(f, ir->src1->preg);
+            output_type_specific_sign_extend_mov(f, ir->dst->type);
+            dprintf(f, "(");
+            output_quad_register_name(f, ir->src1->preg);
             dprintf(f, "), ");
-            output_register_name(f, ir->dst->preg);
+            output_quad_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
         }
 
         else if (ir->operation == IR_PARAM) {
             dprintf(f, "\tpushq\t");
-            output_register_name(f, ir->src1->preg);
+            output_quad_register_name(f, ir->src1->preg);
             dprintf(f, "\n");
         }
 
@@ -2068,7 +2145,7 @@ void output_function_body_code(int f, struct symbol *symbol) {
                 if (ir->dst->type <= TYPE_INT)   dprintf(f, "\tcltq\n");
 
                 dprintf(f, "\tmovq\t%%rax, ");
-                output_register_name(f, ir->dst->preg);
+                output_quad_register_name(f, ir->dst->preg);
                 dprintf(f, "\n");
             }
         }
@@ -2076,9 +2153,9 @@ void output_function_body_code(int f, struct symbol *symbol) {
         else if (ir->operation == IR_RETURN) {
             if (ir->src1->preg != REG_RAX) {
                 dprintf(f, "\tmovq\t");
-                output_register_name(f, ir->src1->preg);
+                output_quad_register_name(f, ir->src1->preg);
                 dprintf(f, ", ");
-                output_register_name(f, REG_RAX);
+                output_quad_register_name(f, REG_RAX);
                 dprintf(f, "\n");
             }
             dprintf(f, "\tleaveq\n");
@@ -2086,28 +2163,34 @@ void output_function_body_code(int f, struct symbol *symbol) {
         }
 
         else if (ir->operation == IR_ASSIGN) {
-            dprintf(f, "\tmovq\t");
-            output_register_name(f, ir->src1->preg);
-            dprintf(f, ", ");
+            output_type_specific_mov(f, ir->dst->type);
 
             if (ir->dst->global_symbol) {
                 // dst a global
+                output_type_specific_register_name(f, ir->dst->type, ir->src1->preg);
+                dprintf(f, ", ");
                 dprintf(f, "%s(%%rip)\n", ir->dst->global_symbol->identifier);
             }
             else if (ir->dst->is_local) {
                 // dst is on the stack
+                output_type_specific_register_name(f, ir->dst->type, ir->src1->preg);
+                dprintf(f, ", ");
                 stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
                 dprintf(f, "%d(%%rbp)\n", stack_offset);
             }
             else if (!ir->dst->is_lvalue) {
                 // Register copy
-                output_register_name(f, ir->dst->preg);
+                output_type_specific_register_name(f, ir->src1->type, ir->src1->preg);
+                dprintf(f, ", ");
+                output_type_specific_register_name(f, ir->dst->type, ir->dst->preg);
                 dprintf(f, "\n");
             }
             else {
                 // dst is an lvalue in a register
+                output_type_specific_register_name(f, ir->dst->type, ir->src1->preg);
+                dprintf(f, ", ");
                 dprintf(f, "(");
-                output_register_name(f, ir->dst->preg);
+                output_quad_register_name(f, ir->dst->preg);
                 dprintf(f, ")\n");
             }
         }
@@ -2117,9 +2200,9 @@ void output_function_body_code(int f, struct symbol *symbol) {
 
         else if (ir->operation == IR_SUB) {
             dprintf(f, "\txchg\t");
-            output_register_name(f, ir->src1->preg);
+            output_quad_register_name(f, ir->src1->preg);
             dprintf(f, ", ");
-            output_register_name(f, ir->src2->preg);
+            output_quad_register_name(f, ir->src2->preg);
             dprintf(f, "\n");
             output_op(f, "subq",  ir->src1->preg, ir->src2->preg);
         }
@@ -2134,23 +2217,23 @@ void output_function_body_code(int f, struct symbol *symbol) {
             // to whatever register is allocated for the dst, which might as well have been RAX or RDX for the respective quotient and remainders.
 
             dprintf(f, "\tmovq\t");
-            output_register_name(f, ir->src1->preg);
+            output_quad_register_name(f, ir->src1->preg);
             dprintf(f, ", %%rax\n");
             dprintf(f, "\tcqto\n");
             dprintf(f, "\tidivq\t");
-            output_register_name(f, ir->src2->preg);
+            output_quad_register_name(f, ir->src2->preg);
             dprintf(f, "\n");
             if (ir->operation == IR_DIV)
                 dprintf(f, "\tmovq\t%%rax, ");
             else
                 dprintf(f, "\tmovq\t%%rdx, ");
-            output_register_name(f, ir->dst->preg);
+            output_quad_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
         }
 
         else if (ir->operation == IR_BNOT)  {
             dprintf(f, "\tnot\t");
-            output_register_name(f, ir->src1->preg);
+            output_quad_register_name(f, ir->src1->preg);
             dprintf(f, "\n");
         }
 
@@ -2168,10 +2251,10 @@ void output_function_body_code(int f, struct symbol *symbol) {
             // Ugly, this means rcx is permamently allocated
 
             dprintf(f, "\tmovq\t");
-            output_register_name(f, ir->src2->preg);
+            output_quad_register_name(f, ir->src2->preg);
             dprintf(f, ", %%rcx\n");
             dprintf(f, "\t%s\t%%cl, ", ir->operation == IR_BSHL ? "shl" : "sar");
-            output_register_name(f, ir->src1->preg);
+            output_quad_register_name(f, ir->src1->preg);
             dprintf(f, "\n");
         }
 

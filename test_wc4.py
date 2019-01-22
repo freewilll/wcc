@@ -419,7 +419,6 @@ def test_pointer_arithmetic():
     ]) + "\n");
 
 
-@pytest.mark.xfail() # TODO
 def test_integer_sizes():
     check_output("""
         int main() {
@@ -471,7 +470,7 @@ def test_integer_sizes():
         "0101010101010101",
     ]) + "\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_malloc():
     check_output("""
         int main(int argc, char **argv) {
@@ -486,7 +485,7 @@ def test_malloc():
         }
     """, "1 2 3 4\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_char_pointer_arithmetic():
     check_output("""
         int main(int argc, char **argv) {
@@ -644,7 +643,7 @@ def test_casting():
         }
     """, "4\n1\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_local_comma_var_declarations():
     check_output("""
         int main(int argc, char **argv) {
@@ -657,7 +656,7 @@ def test_local_comma_var_declarations():
         }
     """, "1 2\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_global_comma_var_declarations():
     check_output("""
         int i, j;
@@ -669,7 +668,7 @@ def test_global_comma_var_declarations():
         }
     """, "1 2\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_free():
     check_output("""
         int main(int argc, char **argv) {
@@ -819,7 +818,7 @@ def test_bad_or_and_stack_consumption():
         }
     """, 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_double_deref_assign_with_cast():
     check_output("""
         int main(int argc, char **argv) {
@@ -857,7 +856,7 @@ def test_print_assignment_with_one_arg():
         }
     """, "1 2\n2 x 4 4\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_int_char_interbreeding():
     check_output("""
         int main(int argc, char **argv) {
