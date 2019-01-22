@@ -34,10 +34,12 @@ struct value {
     struct symbol *function_symbol;
     int function_call_param_count;
     struct symbol *global_symbol;
+    int label;
 };
 
 struct three_address_code {
     int operation;
+    int label;
     struct value *dst;
     struct value *src1;
     struct value *src2;
@@ -94,6 +96,7 @@ int all_structs_count;
 
 struct three_address_code *ir; // intermediate representation
 int vreg_count;
+int label_count;
 
 struct liveness_interval *liveness;
 int liveness_size;
@@ -189,6 +192,10 @@ enum {
     IR_CALL,
     IR_RETURN,
     IR_ASSIGN,
+    IR_NOP,
+    IR_JMP,
+    IR_JZ,
+    IR_JNZ,
     IR_ADD,
     IR_SUB,
     IR_MUL,
@@ -464,12 +471,14 @@ struct value *dup_value(struct value *src) {
     dst->function_symbol           = src->function_symbol;
     dst->function_call_param_count = src->function_call_param_count;
     dst->global_symbol             = src->global_symbol;
+    dst->label                     = src->label;
 
     return dst;
 }
 
 struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
     ir->operation = operation;
+    ir->label = 0;
     ir->dst = dst;
     ir->src1 = src1;
     ir->src2 = src2;
@@ -757,8 +766,8 @@ void expression(int level) {
     int org_token;
     int org_type;
     int factor;
-    long *false_jmp;
-    long *true_done_jmp;
+    int false_label;
+    int true_done_label;
     struct symbol *symbol;
     int type;
     int scope;
@@ -768,7 +777,7 @@ void expression(int level) {
     int builtin;
     struct str_desc *str;
     struct str_member *member;
-    int i, size;
+    int i, size, l;
     struct value *v1, *v2, *cv, *dst, *src1, *src2, *function_value, *return_value;
     struct three_address_code *tac;
     char *s;
@@ -1211,15 +1220,21 @@ void expression(int level) {
         }
         else if (cur_token == TOK_AND) {
             todo("&&");
-            // temp_iptr = iptr;
-            // *iptr++ = INSTR_BZ;
-            // *iptr++ = 0;
+            // l = ++label_count;
+            // dst = new_value();
+            // dst->label = l;
+            // add_instruction(IR_JZ, dst, 0, 0)
+            // // temp_iptr = iptr;
+            // // *iptr++ = INSTR_BZ;
+            // // *iptr++ = 0;
             // next();
-            // *iptr++ = INSTR_PSH;
+            // // *iptr++ = INSTR_PSH;
             // expression(TOK_BITWISE_OR);
-            // *iptr++ = INSTR_AND;
-            // *(temp_iptr + 1) = (long) iptr;
-            // cur_type = TYPE_INT;
+            // // *iptr++ = INSTR_AND;
+            // // *(temp_iptr + 1) = (long) iptr;
+            // // cur_type = TYPE_INT;
+            // tac = add_instruction(IR_NOP, 0, 0, 0)
+            // tac->label = l;
         }
         else if (cur_token == TOK_OR) {
             todo("||");
@@ -1307,12 +1322,15 @@ void expression(int level) {
 void statement() {
     struct value *v;
     long *body_start;
-    long *false_jmp;
-    long *true_done_jmp;
+    int false_label;
+    int true_done_label;
     long *cur_loop_test_start;
     long *old_cur_loop_continue_address;
     long *old_cur_loop_body_start;
     long *old_cur_loop_increment_start;
+    struct value *dst;
+    struct three_address_code *tac;
+    int l;
 
     vs = vs_start;
 
@@ -1403,27 +1421,32 @@ void statement() {
         // consume(TOK_SEMI);
     }
     else if (cur_token == TOK_IF) {
-        todo("if");
-        // next();
-        // consume(TOK_LPAREN);
-        // expression(TOK_COMMA);
-        // consume(TOK_RPAREN);
-        // false_jmp = iptr;
-        // *iptr++ = INSTR_BZ;
-        // *iptr++ = 0;
-        // statement();
-        // *(false_jmp + 1) = (long) iptr;
-        // if (cur_token == TOK_ELSE) {
-        //     next();
-        //     true_done_jmp = iptr;
-        //     *iptr++ = INSTR_JMP;
-        //     *iptr++ = 0;
-        //     *(false_jmp + 1) = (long) iptr;
-        //     statement();
-        //     *(true_done_jmp + 1) = (long) iptr;
-        // }
-        // else
-        //     *(false_jmp + 1) = (long) iptr;
+        next();
+        consume(TOK_LPAREN);
+        expression(TOK_COMMA);
+        consume(TOK_RPAREN);
+        false_label = ++label_count;
+        dst = new_value();
+        dst->label = false_label;
+        add_instruction(IR_JZ, 0, pl(), dst);
+        statement();
+
+        if (cur_token == TOK_ELSE) {
+            next();
+            true_done_label = ++label_count;
+            dst = new_value();
+            dst->label = true_done_label;
+            add_instruction(IR_JMP, 0, dst, 0);
+            tac = add_instruction(IR_NOP, 0, 0, 0);
+            tac->label = false_label;
+            statement();
+            tac = add_instruction(IR_NOP, 0, 0, 0);
+            tac->label = true_done_label;
+        }
+        else {
+            tac = add_instruction(IR_NOP, 0, 0, 0);
+            tac->label = false_label;
+        }
     }
     else if (cur_token == TOK_RETURN) {
         next();
@@ -1723,6 +1746,11 @@ void print_value(struct value *v, int is_assignment_rhs) {
 }
 
 void print_instruction(struct three_address_code *tac) {
+    if (tac->label)
+        printf("l%-5d", tac->label);
+    else
+        printf("      ");
+
     if (tac->dst) {
         print_value(tac->dst, tac->operation != IR_ASSIGN);
         printf(" = ");
@@ -1746,9 +1774,21 @@ void print_instruction(struct three_address_code *tac) {
         else
             printf("return");
     }
-    else if (tac->operation == IR_ASSIGN) {
+    else if (tac->operation == IR_ASSIGN)
         print_value(tac->src1, 1);
+
+    else if (tac->operation == IR_NOP)
+        printf("nop");
+
+    else if (tac->operation == IR_JZ || tac->operation == IR_JNZ) {
+             if (tac->operation == IR_JZ)  printf("jz ");
+        else if (tac->operation == IR_JNZ) printf("jnz ");
+        print_value(tac->src1, 1);
+        printf(" l%d", tac->src2->label);
     }
+
+    else if (tac->operation == IR_JMP)
+        printf("jmp l%d", tac->src1->label);
 
     else if (tac->operation == IR_INDIRECT)      {                            printf("*");    print_value(tac->src1, 1); }
     else if (tac->operation == IR_ADD)           { print_value(tac->src1, 1); printf(" + ");  print_value(tac->src2, 1); }
@@ -1785,7 +1825,7 @@ void print_intermediate_representation(char *function_name, struct three_address
     printf("%s:\n", function_name);
     i = 0;
     while (ir->operation) {
-        printf("%d > ", i++);
+        printf("%-4d > ", i++);
         print_instruction(ir);
         ir++;
     }
@@ -2070,11 +2110,12 @@ void output_function_body_code(int f, struct symbol *symbol) {
         dprintf(f, "\tsubq\t$%d, %%rsp\n", local_stack_size);
 
     while (ir->operation) {
+        if (ir->label) dprintf(f, ".l%d:\n", ir->label);
+
         if (ir->operation == IR_LOAD_CONSTANT) {
             dprintf(f, "\tmovq\t$%d, ", ir->src1->value);
             output_quad_register_name(f, ir->dst->preg);
             dprintf(f, "\n");
-
         }
 
         else if (ir->operation == IR_LOAD_STRING_LITERAL) {
@@ -2211,6 +2252,19 @@ void output_function_body_code(int f, struct symbol *symbol) {
                 dprintf(f, ")\n");
             }
         }
+
+        else if (ir->operation == IR_NOP);
+
+        else if (ir->operation == IR_JZ || ir->operation == IR_JNZ) {
+            dprintf(f, "\tcmpq\t$0x0, ");
+            output_quad_register_name(f, ir->src1->preg);
+            dprintf(f, "\n");
+            if (ir->operation == IR_JZ) dprintf(f, "\tje"); else dprintf(f, "\tjne");
+            dprintf(f, "\t.l%d\n", ir->src2->label);
+        }
+
+        else if (ir->operation == IR_JMP)
+            dprintf(f, "\tjmp\t.l%d\n", ir->src1->label);
 
         else if (ir->operation == IR_ADD)
             output_op(f, "addq",  ir->src1->preg, ir->src2->preg);
@@ -2467,6 +2521,7 @@ int main(int argc, char **argv) {
 
     vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
     vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
+    label_count = 0;
     parse();
 
     if (print_symbols) do_print_symbols();

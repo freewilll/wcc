@@ -563,7 +563,7 @@ def test_while_continue():
         }
     """, "12345\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_if_else():
     check_output("""
         int main(int argc, char **argv) {
@@ -702,7 +702,7 @@ def test_mem_functions():
         "0 5 -1"
     ]) + "\n");
 
-@pytest.mark.xfail() # TODO
+
 def test_open_read_write_close():
     with tempfile.NamedTemporaryFile() as input_file:
         with open(input_file.name, 'w') as f:
