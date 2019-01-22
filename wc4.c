@@ -1444,10 +1444,6 @@ void statement() {
             --vreg_count;
             pl();
         }
-
-        // Discard unused stack value when an assignment is complete
-        // if (ir[-1].operation == IR_ASSIGN && !(!ir[-1].dst->is_lvalue && !(ir[-1].dst->global_symbol || ir[-1].dst->is_local)))
-        //     pl();
     }
 }
 
