@@ -790,7 +790,7 @@ def test_nested_while_continue():
         }
     """, "1 2 3 \n")
 
-@pytest.mark.xfail() # TODO
+
 def test_func_returns_are_lvalues():
     check_exit_code("""
         int foo() {
@@ -1077,7 +1077,7 @@ def test_function_with_a_pointer_to_a_struct_argument():
         }
     """, "3\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_struct_additions():
     check_output("""
         struct s {
