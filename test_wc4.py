@@ -904,7 +904,6 @@ def test_enum():
     ("int",   3 * 4),
     ("long",  3 * 8),
 ])
-@pytest.mark.xfail() # TODO
 def test_simple_struct(type, size):
     check_output("""
         struct s {
@@ -938,7 +937,7 @@ def test_simple_struct(type, size):
         }
     """ % (type, type), "1 2 3 4\n-1 -2\n10 20\n%d\n" % size, 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_struct_member_alignment():
     check_output("""
         struct sc1 { char  c1;           };
@@ -987,7 +986,7 @@ def test_struct_member_alignment():
         }
     """, "1 2 2 4 4 8 8 16\n2 4 8 16\n3 6 12 24\n1 2 4 8\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_struct_alignment_bug():
     check_output("""
         struct s {
@@ -1033,7 +1032,7 @@ def test_nested_struct():
         }
     """, "1 2\n8 16\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_function_returning_a_pointer_to_a_struct():
     check_output("""
         struct s {
@@ -1056,7 +1055,7 @@ def test_function_returning_a_pointer_to_a_struct():
         }
     """, "1 2\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_function_with_a_pointer_to_a_struct_argument():
     check_output("""
         struct s {
@@ -1098,7 +1097,7 @@ def test_struct_additions():
         }
     """, "16 32 16 48\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_struct_casting():
     check_output("""
         struct s {int i;};
@@ -1114,7 +1113,7 @@ def test_struct_casting():
     """, "1\n", 0)
 
 
-@pytest.mark.xfail() # TODO
+
 def test_packed_struct():
     check_output("""
         struct                              s1 {int i; char c; int j;};
@@ -1132,7 +1131,7 @@ def test_packed_struct():
         }
     """, "12 4 8\n9 4 5\n9 4 5\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_unary_precedence():
     check_output("""
         struct s {

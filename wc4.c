@@ -996,7 +996,6 @@ void expression(int level) {
         }
 
         type = operation_type();
-
         tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
         tac->dst->vreg = tac->src2->vreg;
 
@@ -1039,58 +1038,58 @@ void expression(int level) {
             push(v2); // Push the original value back on the value stack
         }
         else if (cur_token == TOK_DOT || cur_token == TOK_ARROW) {
-            todo("., ->");
-            // if (cur_token == TOK_DOT) {
-            //     // Struct member lookup. A load has already been pushed for it
+            if (cur_token == TOK_DOT) {
+                // Struct member lookup
 
-            //     if (cur_type < TYPE_STRUCT || cur_type >= TYPE_PTR) {
-            //         printf("%d: Cannot use . on a non-struct\n", cur_line);
-            //         exit(1);
-            //     }
+                if (vtop->type < TYPE_STRUCT || vtop->type >= TYPE_PTR) {
+                    printf("%d: Cannot use . on a non-struct\n", cur_line);
+                    exit(1);
+                }
 
-            //     if (!is_lvalue()) {
-            //         printf("%d: Expected lvalue for struct . operation.\n", cur_line);
-            //         exit(1);
-            //     }
-            //     iptr--; // Roll back load instruction
-            // }
-            // else {
-            //     // Pointer to struct member lookup.
+                if (!vtop->is_lvalue) {
+                    printf("%d: Expected lvalue for struct . operation.\n", cur_line);
+                    exit(1);
+                }
 
-            //     if (cur_type < TYPE_PTR) {
-            //         printf("%d: Cannot use -> on a non-pointer\n", cur_line);
-            //         exit(1);
-            //     }
+                // Pretend the lvalue is a pointer to a struct
+                vtop->is_lvalue = 0;
+                vtop->type += TYPE_PTR;
+            }
 
-            //     cur_type -= TYPE_PTR;
+            if (vtop->type < TYPE_PTR) {
+                printf("%d: Cannot use -> on a non-pointer\n", cur_line);
+                exit(1);
+            }
 
-            //     if (cur_type < TYPE_STRUCT) {
-            //         printf("%d: Cannot use -> on a pointer to a non-struct\n", cur_line);
-            //         exit(1);
-            //     }
-            // }
+            vtop->type -= TYPE_PTR;
 
-            // next();
-            // if (cur_token != TOK_IDENTIFIER) {
-            //     printf("%d: Expected identifier\n", cur_line);
-            //     exit(1);
-            // }
+            if (vtop->type < TYPE_STRUCT) {
+                printf("%d: Cannot use -> on a pointer to a non-struct\n", cur_line);
+                exit(1);
+            }
 
-            // str = all_structs[cur_type - TYPE_STRUCT];
-            // member = lookup_struct_member(str, cur_identifier);
+            next();
+            if (cur_token != TOK_IDENTIFIER) {
+                printf("%d: Expected identifier\n", cur_line);
+                exit(1);
+            }
 
-            // if (member->offset > 0) {
-            //     *iptr++ = INSTR_PSH;
-            //     *iptr++ = INSTR_IMM;
-            //     *iptr++ = member->offset;
-            //     *iptr++ = IMM_NUMBER;
-            //     *iptr++ = 0;
-            //     *iptr++ = INSTR_ADD;
-            // }
+            str = all_structs[vtop->type - TYPE_STRUCT];
+            member = lookup_struct_member(str, cur_identifier);
 
-            // cur_type = member->type;
-            // load_type();
-            // consume(TOK_IDENTIFIER);
+            if (member->offset > 0) {
+                add_ir_constant_value(TYPE_INT, member->offset);
+                type = operation_type();
+                tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
+                tac->dst->vreg = tac->src2->vreg;
+            }
+            else {
+                push(pl()); // turn into rvalue
+            }
+
+            vtop->type = member->type;
+            vtop->is_lvalue = 1;
+            consume(TOK_IDENTIFIER);
         }
         else if (cur_token == TOK_MULTIPLY) {
             next();
@@ -1714,11 +1713,12 @@ void print_value(struct value *v, int is_assignment_rhs) {
         type -= TYPE_PTR;
     }
 
-         if (type == TYPE_VOID)  printf("void");
-    else if (type == TYPE_CHAR)  printf("char");
-    else if (type == TYPE_INT)   printf("int");
-    else if (type == TYPE_SHORT) printf("short");
-    else if (type == TYPE_LONG)  printf("long");
+         if (type == TYPE_VOID)   printf("void");
+    else if (type == TYPE_CHAR)   printf("char");
+    else if (type == TYPE_INT)    printf("int");
+    else if (type == TYPE_SHORT)  printf("short");
+    else if (type == TYPE_LONG)   printf("long");
+    else if (type >= TYPE_STRUCT) printf("struct %s", all_structs[type - TYPE_STRUCT]->name);
     else printf("unknown type %d", type);
 }
 
