@@ -249,6 +249,7 @@ enum {
 };
 
 int parse_struct_base_type();
+void expression(int level);
 
 void todo(char *what) {
     printf("TODO: %s\n", what);
@@ -762,6 +763,58 @@ struct str_member *lookup_struct_member(struct str_desc *str, char *identifier) 
     exit(1);
 }
 
+struct value *new_label_dst() {
+    struct value *v;
+
+    v = new_value();
+    v->label = ++label_count;
+
+    return v;
+}
+
+void add_label_target_instruction(struct value *v) {
+    struct three_address_code *tac;
+
+    tac = add_instruction(IR_NOP, 0, 0, 0);
+    tac->label = v->label;
+}
+
+void and_or_expr(int is_and) {
+    struct value *dst, *ldst1, *ldst2, *ldst3;
+
+    next();
+
+    ldst1 = new_label_dst(); // Store zero
+    ldst2 = new_label_dst(); // Second operand test
+    ldst3 = new_label_dst(); // End
+
+    // Destination register
+    dst = new_value();
+    dst->vreg = ++vreg_count;
+    dst->type = TYPE_LONG;
+
+    // Test first operand
+    add_instruction(is_and ? IR_JNZ : IR_JZ, 0, pl(), ldst2);
+
+    // Store zero & end
+    add_label_target_instruction(ldst1);
+    add_ir_constant_value(TYPE_INT, is_and ? 0 : 1);         // Store 0
+    add_instruction(IR_ASSIGN, dst, pl(), 0);
+    push(dst);
+    add_instruction(IR_JMP, 0, ldst3, 0);
+
+    // Test second operand
+    add_label_target_instruction(ldst2);
+    expression(TOK_BITWISE_OR);
+    add_instruction(is_and ? IR_JZ : IR_JNZ, 0, pl(), ldst1);   // Store zero & end
+    add_ir_constant_value(TYPE_INT, is_and ? 1 : 0);       // Store 1
+    add_instruction(IR_ASSIGN, dst, pl(), 0);
+    push(dst);
+
+    // End
+    add_label_target_instruction(ldst3);
+}
+
 void expression(int level) {
     int org_token;
     int org_type;
@@ -777,7 +830,7 @@ void expression(int level) {
     int builtin;
     struct str_desc *str;
     struct str_member *member;
-    int i, size, l;
+    int i, size, l1;
     struct value *v1, *v2, *cv, *dst, *src1, *src2, *function_value, *return_value;
     struct three_address_code *tac;
     char *s;
@@ -1219,34 +1272,10 @@ void expression(int level) {
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_AND) {
-            todo("&&");
-            // l = ++label_count;
-            // dst = new_value();
-            // dst->label = l;
-            // add_instruction(IR_JZ, dst, 0, 0)
-            // // temp_iptr = iptr;
-            // // *iptr++ = INSTR_BZ;
-            // // *iptr++ = 0;
-            // next();
-            // // *iptr++ = INSTR_PSH;
-            // expression(TOK_BITWISE_OR);
-            // // *iptr++ = INSTR_AND;
-            // // *(temp_iptr + 1) = (long) iptr;
-            // // cur_type = TYPE_INT;
-            // tac = add_instruction(IR_NOP, 0, 0, 0)
-            // tac->label = l;
+            and_or_expr(1);
         }
         else if (cur_token == TOK_OR) {
-            todo("||");
-            // temp_iptr = iptr;
-            // *iptr++ = INSTR_BNZ;
-            // *iptr++ = 0;
-            // next();
-            // *iptr++ = INSTR_PSH;
-            // expression(TOK_AND);
-            // *iptr++ = INSTR_OR;
-            // *(temp_iptr + 1) = (long) iptr;
-            // cur_type = TYPE_INT;
+            and_or_expr(0);
         }
         else if (cur_token == TOK_TERNARY) {
             todo("?,:");

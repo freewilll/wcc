@@ -87,15 +87,14 @@ def check_output(code, expected_output, exit_code=None):
     ("1 >  1",          0),
     ("1 >= 1",          1),
 
-    # TODO
-    # ("0 || 0",          0),
-    # ("0 || 1",          1),
-    # ("1 || 0",          1),
-    # ("1 || 1",          1),
-    # ("0 && 0",          0),
-    # ("0 && 1",          0),
-    # ("1 && 0",          0),
-    # ("1 && 1",          1),
+    ("0 || 0",          0),
+    ("0 || 1",          1),
+    ("1 || 0",          1),
+    ("1 || 1",          1),
+    ("0 && 0",          0),
+    ("0 && 1",          0),
+    ("1 && 0",          0),
+    ("1 && 1",          1),
 
     ("3 & 5",           1),
     ("3 | 5",           7),
@@ -109,35 +108,34 @@ def check_output(code, expected_output, exit_code=None):
     ("256 >> 3",                      32),
     ("8192 >> 8",                     32),
 
-    # TODO
-    # # Operator precedence tests
-    # ("1+2==3",          1),
-    # ("1+2>=3==1",       1),
+    # Operator precedence tests
+    ("1+2==3",          1),
+    ("1+2>=3==1",       1),
 
-    # ("0 && 0 || 0",     0), # && binds more strongly than ||
-    # ("0 && 0 || 1",     1),
-    # ("0 && 1 || 0",     0),
-    # ("0 && 1 || 1",     1),
-    # ("1 && 0 || 0",     0),
-    # ("1 && 0 || 1",     1),
-    # ("1 && 1 || 0",     1),
-    # ("1 && 1 || 1",     1),
+    ("0 && 0 || 0",     0), # && binds more strongly than ||
+    ("0 && 0 || 1",     1),
+    ("0 && 1 || 0",     0),
+    ("0 && 1 || 1",     1),
+    ("1 && 0 || 0",     0),
+    ("1 && 0 || 1",     1),
+    ("1 && 1 || 0",     1),
+    ("1 && 1 || 1",     1),
 
-    # ("0 + 0 && 0",      0), # + binds more strongly than &&
-    # ("0 + 0 && 1",      0),
-    # ("0 + 1 && 0",      0),
-    # ("0 + 1 && 1",      1),
-    # ("1 + 0 && 0",      0),
-    # ("1 + 0 && 1",      1),
-    # ("1 + 1 && 0",      0),
-    # ("1 + 1 && 1",      1),
+    ("0 + 0 && 0",      0), # + binds more strongly than &&
+    ("0 + 0 && 1",      0),
+    ("0 + 1 && 0",      0),
+    ("0 + 1 && 1",      1),
+    ("1 + 0 && 0",      0),
+    ("1 + 0 && 1",      1),
+    ("1 + 1 && 0",      0),
+    ("1 + 1 && 1",      1),
 
-    # ("0 ==  1  & 0",    0),
-    # ("1 &   1  ^ 3",    2),
-    # ("1 ^   1  | 1",    1),
+    ("0 ==  1  & 0",    0),
+    ("1 &   1  ^ 3",    2),
+    ("1 ^   1  | 1",    1),
 
-    # ("1 + 1 << 4",     32), # + binds more strongly than <<
-    # ("1 + 16 >> 3",     2), # + binds more strongly than >>
+    ("1 + 1 << 4",     32), # + binds more strongly than <<
+    ("1 + 16 >> 3",     2), # + binds more strongly than >>
 
     # Hex
     ("0x0",             0),
@@ -585,7 +583,7 @@ def test_if_else():
         "5 if"
     ]) + "\n");
 
-@pytest.mark.xfail() # TODO
+
 def test_and_or_shortcutting():
     check_output("""
         int main(int argc, char **argv) {
@@ -872,7 +870,7 @@ def test_int_char_interbreeding():
         }
     """, "4 67174916 67174917\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_first_arg_to_or_and_and_must_be_rvalue():
     check_output("""
         int main(int argc, char **argv) {
