@@ -1004,7 +1004,7 @@ def test_struct_alignment_bug():
         }
     """, "8 16 20 24\n", 0)
 
-@pytest.mark.xfail() # TODO
+
 def test_nested_struct():
     check_output("""
         struct s1 {
@@ -1012,7 +1012,6 @@ def test_nested_struct():
         };
 
         struct s2 {
-            int i, j;
             struct s1 *s;
         };
 
@@ -1027,8 +1026,13 @@ def test_nested_struct():
             s1->j = 2;
             printf("%d %d\n", s2->s->i, s2->s->j);
             printf("%ld %ld\n", sizeof(struct s1), sizeof(struct s2));
+
+            s2->s->i = 3;
+            s2->s->j = 4;
+            printf("%d %d ", s1->i, s1->j);
+            printf("%d %d\n", s2->s->i, s2->s->j);
         }
-    """, "1 2\n8 16\n", 0)
+    """, "1 2\n8 8\n3 4 3 4\n", 0)
 
 
 def test_function_returning_a_pointer_to_a_struct():

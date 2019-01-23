@@ -505,13 +505,11 @@ struct value *make_rvalue(struct value *src1) {
     // It's an lvalue in a register. Dereference it into the same register
     src1->is_lvalue = 0;
 
-    // src1 = pop();
     dst = dup_value(src1);
-
     dst->is_local = 0;
     dst->global_symbol = 0;
-
     add_instruction(IR_INDIRECT, dst, src1, 0);
+
     return dst;
 }
 
@@ -744,6 +742,19 @@ int parse_struct_base_type() {
     }
 }
 
+void indirect() {
+    struct value *dst, *src1;
+    src1 = pl();
+    dst = new_value();
+    dst->vreg = src1->vreg;
+    dst->type = src1->type;
+    dst->is_lvalue = 1;
+    dst->type -= TYPE_PTR;
+    dst->is_local = 0;
+    dst->global_symbol = 0;
+    push(dst);
+}
+
 int get_type_inc_dec_size(int type) {
     // How much will the ++ operator increment a type?
     return type <= TYPE_PTR ? 1 : get_type_size(type - TYPE_PTR);
@@ -896,15 +907,7 @@ void expression(int level) {
             exit(1);
         }
 
-        src1 = pl();
-        dst = new_value();
-        dst->vreg = src1->vreg;
-        dst->type = src1->type;
-        dst->is_lvalue = 1;
-        dst->type -= TYPE_PTR;
-        dst->is_local = 0;
-        dst->global_symbol = 0;
-        push(dst);
+        indirect();
     }
     else if (cur_token == TOK_MINUS) {
         next();
@@ -1123,9 +1126,7 @@ void expression(int level) {
                 exit(1);
             }
 
-            vtop->type -= TYPE_PTR;
-
-            if (vtop->type < TYPE_STRUCT) {
+            if (vtop->type < TYPE_STRUCT + TYPE_PTR) {
                 printf("%d: Cannot use -> on a pointer to a non-struct\n", cur_line);
                 exit(1);
             }
@@ -1136,17 +1137,17 @@ void expression(int level) {
                 exit(1);
             }
 
-            str = all_structs[vtop->type - TYPE_STRUCT];
+            str = all_structs[vtop->type - TYPE_PTR - TYPE_STRUCT];
             member = lookup_struct_member(str, cur_identifier);
+            indirect();
 
             if (member->offset > 0) {
+                // Make the lvalue an rvalue for manipulation
+                vtop->is_lvalue = 0;
                 add_ir_constant_value(TYPE_INT, member->offset);
                 type = operation_type();
                 tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
                 tac->dst->vreg = tac->src2->vreg;
-            }
-            else {
-                push(pl()); // turn into rvalue
             }
 
             vtop->type = member->type;
@@ -1742,7 +1743,7 @@ void print_value(struct value *v, int is_assignment_rhs) {
     int type;
 
     if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->is_local)) printf("&");
-    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->is_local)) printf("*");
+    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->is_local)) printf("L");
 
     if (v->preg != -1)
         printf("p%d", v->preg);
