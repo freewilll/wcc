@@ -599,7 +599,7 @@ def test_and_or_shortcutting():
         "&& with 0"
     ]) + "\n");
 
-@pytest.mark.xfail() # TODO
+
 def test_ternary():
     check_output("""
         int main(int argc, char **argv) {

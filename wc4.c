@@ -817,8 +817,8 @@ void and_or_expr(int is_and) {
     // Test second operand
     add_label_target_instruction(ldst2);
     expression(TOK_BITWISE_OR);
-    add_instruction(is_and ? IR_JZ : IR_JNZ, 0, pl(), ldst1);   // Store zero & end
-    add_ir_constant_value(TYPE_INT, is_and ? 1 : 0);       // Store 1
+    add_instruction(is_and ? IR_JZ : IR_JNZ, 0, pl(), ldst1); // Store zero & end
+    add_ir_constant_value(TYPE_INT, is_and ? 1 : 0);          // Store 1
     add_instruction(IR_ASSIGN, dst, pl(), 0);
     push(dst);
 
@@ -842,7 +842,7 @@ void expression(int level) {
     struct str_desc *str;
     struct str_member *member;
     int i, size, l1;
-    struct value *v1, *v2, *cv, *dst, *src1, *src2, *function_value, *return_value;
+    struct value *v1, *v2, *cv, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value;
     struct three_address_code *tac;
     char *s;
 
@@ -1279,8 +1279,41 @@ void expression(int level) {
             and_or_expr(0);
         }
         else if (cur_token == TOK_TERNARY) {
-            todo("?,:");
-            // next();
+            next();
+
+            // Destination register
+            dst = new_value();
+            dst->vreg = ++vreg_count;
+
+            ldst1 = new_label_dst(); // False case
+            ldst2 = new_label_dst(); // End
+            add_instruction(IR_JZ, 0, pl(), ldst1);
+            expression(TOK_OR);
+            dst->type = vtop->type;
+            add_instruction(IR_ASSIGN, dst, pl(), 0);
+            push(dst);
+            add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
+            add_label_target_instruction(ldst1);  // Start of false case
+            consume(TOK_COLON);
+            expression(TOK_OR);
+            add_instruction(IR_ASSIGN, dst, pl(), 0);
+            push(dst);
+            add_label_target_instruction(ldst2);  // End
+
+
+            // if (cur_token == TOK_ELSE) {
+            //     next();
+            //     add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
+            //     add_label_target_instruction(ldst1); // Start of else case
+            //     statement();
+            // }
+            // else {
+            //     add_label_target_instruction(ldst1); // Start of else case
+            // }
+
+            // // End
+            // add_label_target_instruction(ldst2);
+
             // false_jmp = iptr;
             // *iptr++ = INSTR_BZ;
             // *iptr++ = 0;
@@ -1463,7 +1496,7 @@ void statement() {
         if (cur_token == TOK_ELSE) {
             next();
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
-            add_label_target_instruction(ldst1); // Start of else case
+            add_label_target_instruction(ldst1);  // Start of else case
             statement();
         }
         else {
