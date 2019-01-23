@@ -1352,8 +1352,7 @@ void expression(int level) {
 void statement() {
     struct value *v;
     long *body_start;
-    int false_label;
-    int true_done_label;
+    struct value *ldst1, *ldst2;
     long *cur_loop_test_start;
     long *old_cur_loop_continue_address;
     long *old_cur_loop_body_start;
@@ -1455,28 +1454,24 @@ void statement() {
         consume(TOK_LPAREN);
         expression(TOK_COMMA);
         consume(TOK_RPAREN);
-        false_label = ++label_count;
-        dst = new_value();
-        dst->label = false_label;
-        add_instruction(IR_JZ, 0, pl(), dst);
+
+        ldst1 = new_label_dst(); // False case
+        ldst2 = new_label_dst();  // End
+        add_instruction(IR_JZ, 0, pl(), ldst1);
         statement();
 
         if (cur_token == TOK_ELSE) {
             next();
-            true_done_label = ++label_count;
-            dst = new_value();
-            dst->label = true_done_label;
-            add_instruction(IR_JMP, 0, dst, 0);
-            tac = add_instruction(IR_NOP, 0, 0, 0);
-            tac->label = false_label;
+            add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
+            add_label_target_instruction(ldst1); // Start of else case
             statement();
-            tac = add_instruction(IR_NOP, 0, 0, 0);
-            tac->label = true_done_label;
         }
         else {
-            tac = add_instruction(IR_NOP, 0, 0, 0);
-            tac->label = false_label;
+            add_label_target_instruction(ldst1); // Start of else case
         }
+
+        // End
+        add_label_target_instruction(ldst2);
     }
     else if (cur_token == TOK_RETURN) {
         next();
