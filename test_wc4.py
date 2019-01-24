@@ -499,7 +499,7 @@ def test_char_pointer_arithmetic():
         }
     """, "foo\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_while():
     check_output("""
         int main(int argc, char **argv) {
@@ -511,7 +511,7 @@ def test_while():
     """, "0 1 2 1 2 3 \n")
 
 
-@pytest.mark.xfail() # TODO
+
 def test_for():
     check_output("""
         int main() {
@@ -527,6 +527,27 @@ def test_for():
             printf("\n");
         }
     """, "0 1 2 3 4 5 6 7 8 9 \n0 1 2 3 4 6 7 8 9 \n", 0)
+
+
+def test_for_statement_combinations():
+    check_output("""
+        int main() {
+            int i;
+            int c;
+
+            i = 0;        for(    ;        ;    ) { if (i == 10) break; i++; } printf("%d ",i);
+            i = 0;        for(    ;        ; i++) { if (i == 10) break; }      printf("%d ",i);
+            i = 0;        for(    ;  i<10  ;    ) i++;                         printf("%d ",i);
+            i = 0; c = 0; for(    ;  i<10  ; i++) c++;                         printf("%d ",i);
+                          for(i=0 ;        ;    ) { if (i == 10) break; i++; } printf("%d ",i);
+                          for(i=0 ;        ; i++) { if (i == 10) break; }      printf("%d ",i);
+                          for(i=0 ; i<10   ;    ) i++;                         printf("%d ",i);
+                   c = 0; for(i=0 ; i<10   ; i++) c++;                         printf("%d ",i);
+
+            printf("\n");
+        }
+    """, "10 10 10 10 10 10 10 10 \n")
+
 
 @pytest.mark.xfail() # TODO
 def test_string_copy():
@@ -546,7 +567,7 @@ def test_string_copy():
         }
     """, "foo=foo\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_while_continue():
     check_output("""
         int main(int argc, char **argv) {
@@ -771,7 +792,7 @@ def test_array_lookup_of_string_literal():
         }
     """, "foo bar\n")
 
-@pytest.mark.xfail() # TODO
+
 def test_nested_while_continue():
     check_output("""
         int main(int argc, char **argv) {
@@ -805,7 +826,7 @@ def test_func_returns_are_lvalues():
         }
     """, 1)
 
-@pytest.mark.xfail() # TODO
+
 def test_bad_or_and_stack_consumption():
     check_exit_code("""
         int main(int argc, char **argv) {

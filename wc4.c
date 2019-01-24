@@ -80,10 +80,9 @@ int cur_integer;
 char *cur_string_literal;
 struct symbol *cur_function_symbol;
 int seen_return;
-long *cur_loop_continue_address;
-long *cur_loop_body_start;
-long *cur_loop_increment_start;
 int global_variable_count;
+struct value *cur_loop_continue_dst;
+struct value *cur_loop_break_dst;
 
 struct symbol *symbol_table;
 struct symbol *next_symbol;
@@ -134,11 +133,12 @@ enum {
     TOK_WHILE,
     TOK_FOR,
     TOK_CONTINUE,
+    TOK_BREAK,
     TOK_RETURN,
     TOK_ENUM,
     TOK_SIZEOF,
-    TOK_RPAREN,
-    TOK_LPAREN,         // 20
+    TOK_RPAREN,         // 20
+    TOK_LPAREN,
     TOK_RBRACKET,
     TOK_LBRACKET,
     TOK_RCURLY,
@@ -147,8 +147,8 @@ enum {
     TOK_COMMA,
     TOK_EQ,
     TOK_PLUS_EQ,
-    TOK_MINUS_EQ,
-    TOK_TERNARY,        // 30
+    TOK_MINUS_EQ,       // 30
+    TOK_TERNARY,
     TOK_COLON,
     TOK_OR,
     TOK_AND,
@@ -157,8 +157,8 @@ enum {
     TOK_ADDRESS_OF,
     TOK_DBL_EQ,
     TOK_NOT_EQ,
-    TOK_LT,
-    TOK_GT,             // 40
+    TOK_LT,             // 40
+    TOK_GT,
     TOK_LE,
     TOK_GE,
     TOK_BITWISE_LEFT,
@@ -167,8 +167,8 @@ enum {
     TOK_MINUS,
     TOK_MULTIPLY,
     TOK_DIVIDE,
-    TOK_MOD,
-    TOK_LOGICAL_NOT,    // 50
+    TOK_MOD,            // 50
+    TOK_LOGICAL_NOT,
     TOK_BITWISE_NOT,
     TOK_INC,
     TOK_DEC,
@@ -251,11 +251,6 @@ enum {
 int parse_struct_base_type();
 void expression(int level);
 
-void todo(char *what) {
-    printf("TODO: %s\n", what);
-    exit(1);
-}
-
 void next() {
     char *i;
     char *id;
@@ -328,7 +323,8 @@ void next() {
         else if (input_size - ip >= 4 && !memcmp(i+ip, "struct",        6 )) { ip += 6;  cur_token = TOK_STRUCT;                     }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "while",         5 )) { ip += 5;  cur_token = TOK_WHILE;                      }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "for",           3 )) { ip += 3;  cur_token = TOK_FOR;                        }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "continue",      8 )) { ip += 8;  cur_token = TOK_CONTINUE;                   }
+        else if (input_size - ip >= 8 && !memcmp(i+ip, "continue",      8 )) { ip += 8;  cur_token = TOK_CONTINUE;                   }
+        else if (input_size - ip >= 5 && !memcmp(i+ip, "break",         5 )) { ip += 5;  cur_token = TOK_BREAK;                      }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "return",        6 )) { ip += 6;  cur_token = TOK_RETURN;                     }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "enum",          4 )) { ip += 4;  cur_token = TOK_ENUM;                       }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "sizeof",        6 )) { ip += 6;  cur_token = TOK_SIZEOF;                     }
@@ -1359,14 +1355,11 @@ void expression(int level) {
 void statement() {
     struct value *v;
     long *body_start;
-    struct value *ldst1, *ldst2;
-    long *cur_loop_test_start;
-    long *old_cur_loop_continue_address;
-    long *old_cur_loop_body_start;
-    long *old_cur_loop_increment_start;
+    struct value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst;
     struct value *dst;
     struct three_address_code *tac;
     int l;
+    int loop_token;
 
     vs = vs_start;
 
@@ -1386,75 +1379,86 @@ void statement() {
         consume(TOK_RCURLY);
         return;
     }
-    else if (cur_token == TOK_WHILE) {
-        todo("while");
-        // // Preserve previous loop addresses so that we can have nested whiles/fors
-        // old_cur_loop_continue_address = cur_loop_continue_address;
-        // old_cur_loop_body_start = cur_loop_body_start;
+    else if (cur_token == TOK_WHILE || cur_token == TOK_FOR) {
+        loop_token = cur_token;
+        next();
+        consume(TOK_LPAREN);
 
-        // next();
-        // consume(TOK_LPAREN);
+        // Preserve previous loop addresses so that we can have nested whiles/fors
+        old_loop_continue_dst = cur_loop_continue_dst;
+        old_loop_break_dst = cur_loop_break_dst;
+        linit = lcond = lafter = 0;
+        lbody  = new_label_dst();
+        lend  = new_label_dst();
+        cur_loop_continue_dst = 0;
+        cur_loop_break_dst = lend;
 
-        // cur_loop_continue_address = iptr;
-        // expression(TOK_COMMA);
-        // consume(TOK_RPAREN);
-        // *iptr++ = INSTR_BZ;
-        // *iptr++ = 0;
+        if (loop_token == TOK_FOR) {
+            if (cur_token != TOK_SEMI) {
+                linit  = new_label_dst();
+                add_label_target_instruction(linit);
+                expression(TOK_COMMA);
+            }
+            consume(TOK_SEMI);
 
-        // cur_loop_body_start = iptr;
-        // statement();
+            if (cur_token != TOK_SEMI) {
+                lcond  = new_label_dst();
+                cur_loop_continue_dst = lcond;
+                add_label_target_instruction(lcond);
+                expression(TOK_COMMA);
+                add_instruction(IR_JZ, 0, pl(), lend);
+                add_instruction(IR_JMP, 0, lbody, 0);
+            }
+            consume(TOK_SEMI);
 
-        // *iptr++ = INSTR_JMP;
-        // *iptr++ = (long) cur_loop_continue_address;
-        // *(cur_loop_body_start - 1) = (long) iptr;
+            if (cur_token != TOK_RPAREN) {
+                lafter  = new_label_dst();
+                cur_loop_continue_dst = lafter;
+                add_label_target_instruction(lafter);
+                expression(TOK_COMMA);
+                if (lcond) add_instruction(IR_JMP, 0, lcond, 0);
+            }
+        }
 
-        // // Restore previous loop addresses
-        // cur_loop_continue_address = old_cur_loop_continue_address;
-        // cur_loop_body_start = old_cur_loop_body_start;
-    }
-    else if (cur_token == TOK_FOR) {
-        todo("for");
-        // old_cur_loop_continue_address = cur_loop_continue_address;
-        // old_cur_loop_body_start = cur_loop_body_start;
+        else {
+            lcond  = new_label_dst();
+            cur_loop_continue_dst = lcond;
+            add_label_target_instruction(lcond);
+            expression(TOK_COMMA);
+            add_instruction(IR_JZ, 0, pl(), lend);
+        }
+        consume(TOK_RPAREN);
 
-        // next();
-        // consume(TOK_LPAREN);
+        if (!cur_loop_continue_dst) cur_loop_continue_dst = lbody;
+        add_label_target_instruction(lbody);
+        statement();
 
-        // expression(TOK_COMMA); // setup expression
-        // consume(TOK_SEMI);
+        if (lafter)
+            add_instruction(IR_JMP, 0, lafter, 0);
+        else if (lcond)
+            add_instruction(IR_JMP, 0, lcond, 0);
+        else
+            add_instruction(IR_JMP, 0, lbody, 0);
 
-        // cur_loop_test_start = iptr;
-        // expression(TOK_COMMA); // test expression
-        // consume(TOK_SEMI);
-        // *iptr++ = INSTR_BZ;
-        // *iptr++ = 0;
+        // Jump to the start of the body in a for loop like (;;i++)
+        if (loop_token == TOK_FOR && !linit && !lcond && lafter)
+            add_instruction(IR_JMP, 0, lbody, 0);
 
-        // *iptr++ = INSTR_JMP; // Jump to body start
-        // *iptr++;
+        add_label_target_instruction(lend);
 
-        // cur_loop_continue_address = iptr;
-        // expression(TOK_COMMA); // increment expression
-        // consume(TOK_RPAREN);
-        // *iptr++ = INSTR_JMP;
-        // *iptr++ = (long) cur_loop_test_start;
-
-        // cur_loop_body_start = iptr;
-        // *(cur_loop_continue_address - 1) = (long) iptr;
-        // statement();
-        // *iptr++ = INSTR_JMP;
-        // *iptr++ = (long) cur_loop_continue_address;
-        // *(cur_loop_continue_address - 3) = (long) iptr;
-
-        // // Restore previous loop addresses
-        // cur_loop_continue_address = old_cur_loop_continue_address;
-        // cur_loop_body_start = old_cur_loop_body_start;
+        // Restore previous loop addresses
+        cur_loop_continue_dst = old_loop_continue_dst;
+        cur_loop_break_dst = old_loop_break_dst;
     }
     else if (cur_token == TOK_CONTINUE) {
-        todo("continue");
-        // next();
-        // *iptr++ = INSTR_JMP;
-        // *iptr++ = (long) cur_loop_continue_address;
-        // consume(TOK_SEMI);
+        next();
+        add_instruction(IR_JMP, 0, cur_loop_continue_dst, 0);
+        consume(TOK_SEMI);
+    }
+    else if (cur_token == TOK_BREAK) {
+        next();
+        add_instruction(IR_JMP, 0, cur_loop_break_dst, 0);
+        consume(TOK_SEMI);
     }
     else if (cur_token == TOK_IF) {
         next();
@@ -1463,7 +1467,7 @@ void statement() {
         consume(TOK_RPAREN);
 
         ldst1 = new_label_dst(); // False case
-        ldst2 = new_label_dst();  // End
+        ldst2 = new_label_dst(); // End
         add_instruction(IR_JZ, 0, pl(), ldst1);
         statement();
 
