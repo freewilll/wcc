@@ -1299,32 +1299,6 @@ void expression(int level) {
             add_instruction(IR_ASSIGN, dst, pl(), 0);
             push(dst);
             add_label_target_instruction(ldst2);  // End
-
-
-            // if (cur_token == TOK_ELSE) {
-            //     next();
-            //     add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
-            //     add_label_target_instruction(ldst1); // Start of else case
-            //     statement();
-            // }
-            // else {
-            //     add_label_target_instruction(ldst1); // Start of else case
-            // }
-
-            // // End
-            // add_label_target_instruction(ldst2);
-
-            // false_jmp = iptr;
-            // *iptr++ = INSTR_BZ;
-            // *iptr++ = 0;
-            // expression(TOK_OR);
-            // true_done_jmp = iptr;
-            // *iptr++ = INSTR_JMP;
-            // *iptr++ = 0;
-            // consume(TOK_COLON);
-            // *(false_jmp + 1) = (long) iptr;
-            // expression(TOK_OR);
-            // *(true_done_jmp + 1) = (long) iptr;
         }
         else if (cur_token == TOK_EQ) {
             next();
