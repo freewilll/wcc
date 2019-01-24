@@ -588,15 +588,15 @@ long lookup_function(char *name) {
     return symbol->value;
 }
 
-int operation_type() {
-    struct value *src1, *src2;
-
-    src1 = vtop;
-    src2 = vs[1];
+int operation_type(struct value *src1, struct value *src2) {
     if (src1->type >= TYPE_PTR) return src1->type;
     else if (src2->type >= TYPE_PTR) return src2->type;
     else if (src1->type == TYPE_LONG || src2->type == TYPE_LONG) return TYPE_LONG;
     else return TYPE_INT;
+}
+
+int vs_operation_type() {
+    return operation_type(vtop, vs[1]);
 }
 
 int cur_token_is_integer_type() {
@@ -891,6 +891,7 @@ void expression(int level) {
         dst->vreg = ++vreg_count;
         tac = add_instruction(org_token == TOK_INC ? IR_ADD : IR_SUB, dst, src1, src2);
         dst->vreg = tac->src2->vreg;
+        dst->type = operation_type(src1, src2);
 
         add_instruction(IR_ASSIGN, v1, dst, 0);
 
@@ -1057,7 +1058,7 @@ void expression(int level) {
             tac->dst->vreg = tac->src2->vreg;
         }
 
-        type = operation_type();
+        type = vs_operation_type();
         tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
         tac->dst->vreg = tac->src2->vreg;
 
@@ -1077,7 +1078,7 @@ void expression(int level) {
                 exit(1);
             }
 
-            v1 = pop();             // lvalue
+            v1 = pop();                 // lvalue
             src1 = load(dup_value(v1)); // rvalue
 
             // Copy the original value, since the add/sub operation destroys the original register
@@ -1091,6 +1092,7 @@ void expression(int level) {
 
             dst = new_value();
             dst->vreg = ++vreg_count;
+            dst->type = operation_type(src1, src2);
             tac = add_instruction(cur_token == TOK_INC ? IR_ADD : IR_SUB, dst, src1, src2);
             dst->vreg = tac->src2->vreg;
 
@@ -1142,7 +1144,7 @@ void expression(int level) {
                 // Make the lvalue an rvalue for manipulation
                 vtop->is_lvalue = 0;
                 add_ir_constant_value(TYPE_INT, member->offset);
-                type = operation_type();
+                type = vs_operation_type();
                 tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
                 tac->dst->vreg = tac->src2->vreg;
             }
@@ -1154,20 +1156,20 @@ void expression(int level) {
         else if (cur_token == TOK_MULTIPLY) {
             next();
             expression(TOK_DOT);
-            type = operation_type();
+            type = vs_operation_type();
             tac = add_ir_op(IR_MUL, type, 0, pl(), pl());
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_DIVIDE) {
             next();
             expression(TOK_INC);
-            type = operation_type();
+            type = vs_operation_type();
             add_ir_op(IR_DIV, type, ++vreg_count, pl(), pl());
         }
         else if (cur_token == TOK_MOD) {
             next();
             expression(TOK_INC);
-            type = operation_type();
+            type = vs_operation_type();
             add_ir_op(IR_MOD, type, ++vreg_count, pl(), pl());
         }
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
@@ -1182,7 +1184,7 @@ void expression(int level) {
                 tac->dst->vreg = tac->src2->vreg;
             }
 
-            type = operation_type();
+            type = vs_operation_type();
 
             if (org_token == TOK_PLUS) {
                 tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
@@ -1196,14 +1198,14 @@ void expression(int level) {
         else if (cur_token == TOK_BITWISE_LEFT) {
             next();
             expression(TOK_PLUS);
-            type = operation_type();
+            type = vs_operation_type();
             tac = add_ir_op(IR_BSHL, type, 0, pl(), pl());
             tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_BITWISE_RIGHT) {
             next();
             expression(TOK_PLUS);
-            type = operation_type();
+            type = vs_operation_type();
             tac = add_ir_op(IR_BSHR, type, 0, pl(), pl());
             tac->dst->vreg = tac->src1->vreg;
         }
@@ -1251,21 +1253,21 @@ void expression(int level) {
         else if (cur_token == TOK_ADDRESS_OF) {
             next();
             expression(TOK_DBL_EQ);
-            type = operation_type();
+            type = vs_operation_type();
             tac = add_ir_op(IR_BAND, type, 0, pl(), pl());
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_XOR) {
             next();
             expression(TOK_ADDRESS_OF);
-            type = operation_type();
+            type = vs_operation_type();
             tac = add_ir_op(IR_XOR, type, 0, pl(), pl());
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_BITWISE_OR) {
             next();
             expression(TOK_XOR);
-            type = operation_type();
+            type = vs_operation_type();
             tac = add_ir_op(IR_BOR, type, 0, pl(), pl());
             tac->dst->vreg = tac->src2->vreg;
         }
