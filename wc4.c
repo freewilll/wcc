@@ -1518,10 +1518,10 @@ void function_body() {
     int base_type, type;
 
     vreg_count = 0;
-
     seen_return = 0;
-    is_main = !strcmp(cur_function_symbol->identifier, "main");
     local_symbol_count = 0;
+
+    is_main = !strcmp(cur_function_symbol->identifier, "main");
 
     consume(TOK_LCURLY);
 
