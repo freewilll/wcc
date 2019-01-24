@@ -549,7 +549,7 @@ def test_for_statement_combinations():
     """, "10 10 10 10 10 10 10 10 \n")
 
 
-@pytest.mark.xfail() # TODO
+
 def test_string_copy():
     check_output("""
         int main(int argc, char **argv) {

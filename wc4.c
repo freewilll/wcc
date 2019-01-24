@@ -498,6 +498,7 @@ struct value *make_rvalue(struct value *src1) {
 
     if (!src1->is_lvalue) return src1;
 
+    src1 = dup_value(src1); // Ensure no side effects on src1
     // It's an lvalue in a register. Dereference it into the same register
     src1->is_lvalue = 0;
 
