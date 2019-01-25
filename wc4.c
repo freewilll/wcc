@@ -2056,6 +2056,10 @@ void check_preg(int preg) {
         printf("Illegal attempt to output -1 preg\n");
         exit(1);
     }
+    if (preg < 0 || preg > PHYSICAL_REGISTER_COUNT) {
+        printf("Illegal preg %d\n", preg);
+        exit(1);
+    }
 }
 
 void output_byte_register_name(int f, int preg) {
