@@ -729,7 +729,7 @@ int parse_struct_base_type(int allow_incomplete_structs) {
     struct str_member **members;
     struct str_member *member;
     int member_count;
-    int i, base_type, type, offset, size, result;
+    int i, base_type, type, offset, size;
     char *strct_identifier;
     int alignment, biggest_alignment;
     int is_packed;
@@ -755,7 +755,6 @@ int parse_struct_base_type(int allow_incomplete_structs) {
         s = find_struct(strct_identifier);
         if (!s) s = new_struct();
         members = s->members;
-        result = s->type;
         member_count = 0;
         s->name = strct_identifier;
         offset = 0;
@@ -790,7 +789,7 @@ int parse_struct_base_type(int allow_incomplete_structs) {
         s->size = offset;
         s->is_incomplete = 0;
         consume(TOK_RCURLY);
-        return result;
+        return s->type;
     }
     else {
         s = find_struct(strct_identifier);
@@ -800,7 +799,7 @@ int parse_struct_base_type(int allow_incomplete_structs) {
             s = new_struct();
             s->name = strct_identifier;
             s->is_incomplete = 1;
-            result = s->type;
+            return s->type;
         }
         else {
             printf("%d: Unknown struct %s\n", cur_line, strct_identifier);
