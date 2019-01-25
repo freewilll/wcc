@@ -886,7 +886,7 @@ void expression(int level) {
     struct str_desc *str;
     struct str_member *member;
     int i, size, l1;
-    struct value *v1, *v2, *cv, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value;
+    struct value *v1, *v2, *cv, *dst, *src1, *src2, *ldst1, *ldst2, *func_value, *ret_value;
     struct three_address_code *tac;
     char *s;
 
@@ -1027,18 +1027,18 @@ void expression(int level) {
             }
             consume(TOK_RPAREN);
 
-            function_value = new_value();
-            function_value->function_symbol = symbol;
-            function_value->function_call_param_count = param_count;
+            func_value = new_value();
+            func_value->function_symbol = symbol;
+            func_value->function_call_param_count = param_count;
 
-            return_value = 0;
+            ret_value = 0;
             if (type != TYPE_VOID) {
-                return_value = new_value();
-                return_value->vreg = ++vreg_count;
-                return_value->type = type;
+                ret_value = new_value();
+                ret_value->vreg = ++vreg_count;
+                ret_value->type = type;
             }
-            add_instruction(IR_CALL, return_value, function_value, 0);
-            if (return_value) push(return_value);
+            add_instruction(IR_CALL, ret_value, func_value, 0);
+            if (ret_value) push(ret_value);
         }
         else if (scope == 0) {
             // Global symbol
