@@ -59,9 +59,11 @@ struct str_member {
 };
 
 struct str_desc {
+    int type;
     char *name;
     struct str_member **members;
     int size;
+    int is_incomplete;
 };
 
 int print_ir_before, print_ir_after, fake_register_pressure;
@@ -253,7 +255,7 @@ enum {
     REG_R15,
 };
 
-int parse_struct_base_type();
+int parse_struct_base_type(int parse_struct_base_type);
 void expression(int level);
 
 void next() {
@@ -639,7 +641,7 @@ int get_type_size(int type) {
     }
 }
 
-int parse_base_type() {
+int parse_base_type(int allow_incomplete_structs) {
     int type;
 
          if (cur_token == TOK_VOID)   type = TYPE_VOID;
@@ -647,7 +649,7 @@ int parse_base_type() {
     else if (cur_token == TOK_SHORT)  type = TYPE_SHORT;
     else if (cur_token == TOK_INT)    type = TYPE_INT;
     else if (cur_token == TOK_LONG)   type = TYPE_LONG;
-    else if (cur_token == TOK_STRUCT) return parse_struct_base_type();
+    else if (cur_token == TOK_STRUCT) return parse_struct_base_type(allow_incomplete_structs);
     else {
         printf("Unable to determine type from token %d\n", cur_token);
         exit(1);
@@ -660,13 +662,35 @@ int parse_base_type() {
 int parse_type() {
     int type;
 
-    type = parse_base_type();
+    type = parse_base_type(0);
     while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
     return type;
 }
 
-int parse_struct_base_type() {
+struct str_desc *new_struct() {
+    struct str_desc *s;
+
+    s = malloc(sizeof(struct str_desc));
+    all_structs[all_structs_count] = s;
+    s->type = TYPE_STRUCT + all_structs_count++;
+    s->members = malloc(sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
+    memset(s->members, 0, sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
+
+    return s;
+}
+
+struct str_desc *find_struct(char *identifier) {
+    struct str_desc *s;
+    int i;
+
+    for (i = 0; i < all_structs_count; i++)
+        if (!strcmp(all_structs[i]->name, identifier))
+            return all_structs[i];
+    return 0;
+}
+
+int parse_struct_base_type(int allow_incomplete_structs) {
     struct str_desc *s;
     struct str_member **members;
     struct str_member *member;
@@ -694,19 +718,17 @@ int parse_struct_base_type() {
     if (cur_token == TOK_LCURLY) {
         consume(TOK_LCURLY);
 
-        s = malloc(sizeof(struct str_desc));
-        all_structs[all_structs_count] = s;
-        result = TYPE_STRUCT + all_structs_count++;
-        members = malloc(sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
-        memset(members, 0, sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
+        s = find_struct(strct_identifier);
+        if (!s) s = new_struct();
+        members = s->members;
+        result = s->type;
         member_count = 0;
         s->name = strct_identifier;
-        s->members = members;
         offset = 0;
         size = 0;
         biggest_alignment = 0;
         while (cur_token != TOK_RCURLY) {
-            base_type = parse_base_type();
+            base_type = parse_base_type(1);
             while (cur_token != TOK_SEMI) {
                 type = base_type;
 
@@ -732,17 +754,36 @@ int parse_struct_base_type() {
         }
         offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
         s->size = offset;
+        s->is_incomplete = 0;
         consume(TOK_RCURLY);
         return result;
     }
     else {
-        for (i = 0; i < all_structs_count; i++)
-            if (!strcmp(all_structs[i]->name, strct_identifier)) {
-                return TYPE_STRUCT + i;
+        s = find_struct(strct_identifier);
+        if (s && !s->is_incomplete) return s->type;
+
+        if (allow_incomplete_structs) {
+            s = new_struct();
+            s->name = strct_identifier;
+            s->is_incomplete = 1;
+            result = s->type;
         }
-        printf("%d: Unknown struct %s\n", cur_line, strct_identifier);
-        exit(1);
+        else {
+            printf("%d: Unknown struct %s\n", cur_line, strct_identifier);
+            exit(1);
+        }
     }
+}
+
+// Ensure there are no incomplete structs
+void check_incomplete_structs() {
+    int i;
+
+    for (i = 0; i < all_structs_count; i++)
+        if (all_structs[i]->is_incomplete) {
+            printf("There are incomplete structs\n");
+            exit(1);
+        }
 }
 
 void indirect() {
@@ -1533,7 +1574,7 @@ void function_body() {
 
     // Parse symbols first
     while (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
-        base_type = parse_base_type();
+        base_type = parse_base_type(0);
 
         while (cur_token != TOK_SEMI) {
             type = base_type;
@@ -1591,7 +1632,7 @@ void parse() {
 
         if (cur_token == TOK_VOID || cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
             doing_var_declaration = 1;
-            base_type = parse_base_type();
+            base_type = parse_base_type(0);
 
             while (doing_var_declaration && cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 type = base_type;
@@ -1638,7 +1679,7 @@ void parse() {
                     param_count = 0;
                     while (cur_token != TOK_RPAREN) {
                         if (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
-                            type = parse_base_type();
+                            type = parse_base_type(0);
                             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
                             if (type >= TYPE_STRUCT && type < TYPE_PTR) {
@@ -1717,7 +1758,7 @@ void parse() {
         }
 
         else if (cur_token == TOK_STRUCT) {
-            parse_base_type(); // It's a struct declaration
+            parse_base_type(0); // It's a struct declaration
             consume(TOK_SEMI);
         }
 
@@ -2664,6 +2705,7 @@ int main(int argc, char **argv) {
     vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
     label_count = 0;
     parse();
+    check_incomplete_structs();
 
     if (print_symbols) do_print_symbols();
 

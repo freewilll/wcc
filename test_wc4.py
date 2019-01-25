@@ -1162,6 +1162,30 @@ def test_packed_struct():
     """, "12 4 8\n9 4 5\n9 4 5\n", 0)
 
 
+def test_incomplete_struct():
+    check_output("""
+        struct s1 {
+            struct s2* s2;
+        };
+
+        struct s2 {
+            int i;
+        };
+
+        int main(int argc, char **argv) {
+            struct s1 *s1;
+            struct s2 *s2;
+            s1 = malloc(sizeof(struct s1));
+            s2 = malloc(sizeof(struct s2));
+            s1->s2 = s2;
+            s1->s2->i = 1;
+            printf("%d %d ", s1->s2->i, s2->i);
+            s2->i = 2;
+            printf("%d %d\n", s1->s2->i, s2->i);
+        }
+    """, "1 1 2 2\n")
+
+
 def test_unary_precedence():
     check_output("""
         struct s {
