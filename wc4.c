@@ -2712,7 +2712,7 @@ int main(int argc, char **argv) {
         printf("Flags\n");
         printf("-d      Debug output\n");
         printf("-s      Output symbol table\n");
-        printf("-o      Output code without executing it. Use - for stdout.\n");
+        printf("-o      Output file. Use - for stdout. Defaults to the source file with extension .s\n");
         printf("-ne     Don't print exit code\n");
         printf("-nc     Don't print cycles\n");
         printf("-frp    Fake register pressure, for testing spilling code\n");
