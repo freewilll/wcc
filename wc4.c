@@ -2442,9 +2442,9 @@ void output_function_body_code(struct symbol *symbol) {
                     output_quad_register_name(REG_RAX);
                     dprintf(f, "\n");
                 }
-                dprintf(f, "\tleaveq\n");
-                dprintf(f, "\tretq\n");
             }
+            dprintf(f, "\tleaveq\n");
+            dprintf(f, "\tretq\n");
         }
 
         else if (ir->operation == IR_ASSIGN) {

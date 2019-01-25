@@ -253,6 +253,19 @@ def test_hello_world():
     """, "1 + 1 = 2\n")
 
 
+def test_void_return():
+    check_output("""
+        void foo() {
+            printf("foo\n");
+            return;
+            printf("bar\n");
+        }
+
+        void main() {
+            foo();
+        }
+    """, "foo\n")
+
 
 def test_pointer_to_int():
     check_output("""
