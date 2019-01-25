@@ -106,6 +106,7 @@ struct liveness_interval *liveness;
 
 int *physical_registers;
 int *spilled_registers;
+int *callee_saved_registers;
 
 int f; // Output file handle
 
@@ -2060,10 +2061,6 @@ void allocate_registers(struct three_address_code *ir) {
     if (fake_register_pressure) {
         // Allocate all registers, forcing all temporaries into the stack
         physical_registers[REG_RBX] = -1;
-        physical_registers[REG_RSI] = -1;
-        physical_registers[REG_RDI] = -1;
-        physical_registers[REG_RBP] = -1;
-        physical_registers[REG_RSP] = -1;
         physical_registers[REG_R12] = -1;
         physical_registers[REG_R13] = -1;
         physical_registers[REG_R14] = -1;
@@ -2257,6 +2254,57 @@ int get_stack_offset_from_index(int function_pc, int local_vars_stack_start, int
     return stack_offset;
 }
 
+void init_callee_saved_registers() {
+    callee_saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    memset(callee_saved_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+
+    callee_saved_registers[REG_RBX] = 1;
+    callee_saved_registers[REG_R12] = 1;
+    callee_saved_registers[REG_R13] = 1;
+    callee_saved_registers[REG_R14] = 1;
+    callee_saved_registers[REG_R15] = 1;
+}
+
+// Determine which registers are used, push them onto the stack and return
+// the list.
+int *push_callee_saved_registers(struct three_address_code *tac) {
+    int *saved_registers;
+    int i;
+
+    saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    memset(saved_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+
+    while (tac->operation) {
+        if (tac->dst  && tac->dst ->preg != -1 && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
+        if (tac->src1 && tac->src1->preg != -1 && callee_saved_registers[tac->src1->preg]) saved_registers[tac->src1->preg] = 1;
+        if (tac->src2 && tac->src2->preg != -1 && callee_saved_registers[tac->src2->preg]) saved_registers[tac->src2->preg] = 1;
+        tac++;
+    }
+
+    for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
+        if (saved_registers[i]) {
+            dprintf(f, "\tpushq\t");
+            output_quad_register_name(i);
+            dprintf(f, "\n");
+        }
+    }
+
+    return saved_registers;
+}
+
+// Pop the callee saved registers back
+void pop_callee_saved_registers(int *saved_registers) {
+    int i;
+
+    for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--) {
+        if (saved_registers[i]) {
+            dprintf(f, "\tpopq\t");
+            output_quad_register_name(i);
+            dprintf(f, "\n");
+        }
+    }
+}
+
 void pre_instruction_spill(struct three_address_code *ir, int spilled_registers_stack_start) {
     if (ir->src1 && ir->src1->spilled_stack_index != -1) {
         dprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", spilled_registers_stack_start - ir->src1->spilled_stack_index * 8);
@@ -2300,6 +2348,7 @@ void output_function_body_code(struct symbol *symbol) {
     int local_stack_size;
     int local_vars_stack_start;
     int spilled_registers_stack_start;
+    int *saved_registers;
 
     ir = symbol->ir;
 
@@ -2328,6 +2377,8 @@ void output_function_body_code(struct symbol *symbol) {
 
     if (local_stack_size > 0)
         dprintf(f, "\tsubq\t$%d, %%rsp\n", local_stack_size);
+
+    saved_registers = push_callee_saved_registers(ir);
 
     while (ir->operation) {
         if (output_inline_ir) {
@@ -2443,6 +2494,7 @@ void output_function_body_code(struct symbol *symbol) {
                     dprintf(f, "\n");
                 }
             }
+            pop_callee_saved_registers(saved_registers);
             dprintf(f, "\tleaveq\n");
             dprintf(f, "\tretq\n");
         }
@@ -2571,6 +2623,7 @@ void output_function_body_code(struct symbol *symbol) {
 
     if (!strcmp(symbol->identifier, "main")) dprintf(f, "\tmovq\t$0, %%rax\n");
 
+    pop_callee_saved_registers(saved_registers);
     dprintf(f, "\tleaveq\n");
     dprintf(f, "\tretq\n");
 }
@@ -2734,6 +2787,8 @@ int main(int argc, char **argv) {
 
     all_structs = malloc(sizeof(struct str_desc *) * MAX_STRUCTS);
     all_structs_count = 0;
+
+    init_callee_saved_registers();
 
     add_builtin("exit",    IR_EXIT, TYPE_VOID);
     add_builtin("open",    IR_OPEN, TYPE_INT);

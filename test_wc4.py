@@ -1250,3 +1250,27 @@ def test_spilling():
             printf("%d\n", i);
         }
     """, "262143\n")
+
+
+def test_callee_saved_registers():
+    # This test is a bit fragile. It does the job right now, but register
+    # candidates will likely change. Currently, foo() uses rbx, which is also used to
+    # store the lvalue for s->i. If rbx wasn't preserved, this code would segfault.
+
+    check_output("""
+        struct s {
+            int i;
+        };
+
+        int foo() {
+            return 2;
+        }
+
+        void main() {
+            struct s *s;
+
+            s = malloc(sizeof(struct s));
+            s->i = foo();
+            printf("%d\n", s->i);
+        }
+    """, "2\n")
