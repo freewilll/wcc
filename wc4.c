@@ -233,6 +233,8 @@ enum {
     IR_MSET,
     IR_MCMP,
     IR_SCMP,
+    IR_SLEN,
+    IR_SCPY,
 };
 
 enum {IMM_NUMBER, IMM_STRING_LITERAL, IMM_GLOBAL};
@@ -2745,6 +2747,8 @@ int main(int argc, char **argv) {
     add_builtin("memset",  IR_MSET, TYPE_INT);
     add_builtin("memcmp",  IR_MCMP, TYPE_INT);
     add_builtin("strcmp",  IR_SCMP, TYPE_INT);
+    add_builtin("strlen",  IR_SLEN, TYPE_INT);
+    add_builtin("strcpy",  IR_SCPY, TYPE_INT);
 
     f  = open(input_filename, 0, 0); // O_RDONLY = 0
     if (f < 0) { printf("Unable to open input file\n"); exit(1); }
