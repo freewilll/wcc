@@ -1,7 +1,8 @@
+import os
 import pytest
+import re
 import subprocess
 import tempfile
-import re
 
 
 def check_exit_code(code, expected_result):
@@ -19,10 +20,16 @@ def check_exit_code(code, expected_result):
 
 
 def check_output(code, expected_output, exit_code=None):
+    frp = int(os.getenv('FRP', '0'))
     with tempfile.NamedTemporaryFile(suffix=".c", delete=False) as temp_c_file:
         with open(temp_c_file.name, 'w') as f:
             f.write(code)
-        subprocess.check_output(["./wc4", f.name]).decode('utf-8')
+        wc4_cmd = ["./wc4"]
+        if frp:
+            wc4_cmd.append('-frp')
+        wc4_cmd.append(f.name);
+
+        subprocess.check_output(wc4_cmd).decode('utf-8')
         temp_s_filename = re.sub(r"\.c", ".s", temp_c_file.name)
         temp_executable_filename = re.sub(r"\.s", "", temp_s_filename)
         output = subprocess.check_output(["gcc", temp_s_filename, "-o", temp_executable_filename])
@@ -1178,3 +1185,15 @@ def test_unary_precedence():
             printf("%ld\n", (long) &s[0].j - (long) &s[0]);
         }
     """, "1\n-1\n0\n4\n", 0)
+
+
+def test_spilling():
+    # Create an expression which undoubtedly will exhaust all registers, forcing
+    # the spilling code into action
+    check_output("""
+        int main(int argc, char **argv) {
+            int i;
+            i = (1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2)))))))))))))))));
+            printf("%d\n", i);
+        }
+    """, "262143\n")

@@ -13,6 +13,7 @@ struct symbol {
     int global_offset;
     int function_param_count;
     int function_local_symbol_count;
+    int function_spilled_register_count;
     int builtin;
     int size;
     int is_function;
@@ -25,6 +26,7 @@ struct value {
     int type;
     int vreg;
     int preg;
+    int spilled_stack_index;
     int stack_index;
     int is_local;
     int is_string_literal;
@@ -62,7 +64,7 @@ struct str_desc {
     int size;
 };
 
-int print_ir_before, print_ir_after;
+int print_ir_before, print_ir_after, fake_register_pressure;
 
 char *input;
 int input_size;
@@ -96,24 +98,27 @@ int all_structs_count;
 struct three_address_code *ir; // intermediate representation
 int vreg_count;
 int label_count;
+int spilled_register_count;
 
 struct liveness_interval *liveness;
 int liveness_size;
 
 int *physical_registers;
+int *spilled_registers;
 
 enum {
-    DATA_SIZE               = 10 * 1024 * 1024,
-    INSTRUCTIONS_SIZE       = 10 * 1024 * 1024,
-    SYMBOL_TABLE_SIZE       = 10 * 1024 * 1024,
-    MAX_STRUCTS             = 1024,
-    MAX_STRUCT_MEMBERS      = 1024,
-    MAX_INPUT_SIZE          = 10 * 1024 * 1024,
-    MAX_STRING_LITERALS     = 10 * 1024,
-    VALUE_STACK_SIZE        = 10 * 1024,
-    MAX_THREE_ADDRESS_CODES = 1024,
-    MAX_LIVENESS_SIZE       = 1024,
-    PHYSICAL_REGISTER_COUNT = 15,
+    DATA_SIZE                  = 10 * 1024 * 1024,
+    INSTRUCTIONS_SIZE          = 10 * 1024 * 1024,
+    SYMBOL_TABLE_SIZE          = 10 * 1024 * 1024,
+    MAX_STRUCTS                = 1024,
+    MAX_STRUCT_MEMBERS         = 1024,
+    MAX_INPUT_SIZE             = 10 * 1024 * 1024,
+    MAX_STRING_LITERALS        = 10 * 1024,
+    VALUE_STACK_SIZE           = 10 * 1024,
+    MAX_THREE_ADDRESS_CODES    = 1024,
+    MAX_LIVENESS_SIZE          = 1024,
+    PHYSICAL_REGISTER_COUNT    = 15,
+    MAX_SPILLED_REGISTER_COUNT = 1024,
 };
 
 // In order of precedence
@@ -428,6 +433,7 @@ struct value *new_value() {
     v->type = 0;
     v->vreg = 0;
     v->preg = -1;
+    v->spilled_stack_index = -1;
     v->value = 0;
 
     return v;
@@ -441,8 +447,7 @@ void push(struct value *v) {
 struct value *push_constant(int type, int vreg, int value) {
     struct value *v;
 
-    v = malloc(sizeof(struct value));
-    v->preg = -1;
+    v = new_value();
     v->vreg = vreg;
     v->value = value;
     *--vs = v;
@@ -459,6 +464,7 @@ struct value *dup_value(struct value *src) {
     dst->type                      = src->type;
     dst->vreg                      = src->vreg;
     dst->preg                      = src->preg;
+    dst->spilled_stack_index       = src->spilled_stack_index;
     dst->stack_index               = src->stack_index;
     dst->is_local                  = src->is_local;
     dst->is_string_literal         = src->is_string_literal;
@@ -1756,6 +1762,8 @@ void print_value(struct value *v, int is_assignment_rhs) {
 
     if (v->preg != -1)
         printf("p%d", v->preg);
+    else if (v->spilled_stack_index != -1)
+        printf("S[%d]", v->spilled_stack_index);
     else if (v->vreg)
         printf("r%d", v->vreg);
     else if (v->is_local)
@@ -1835,7 +1843,7 @@ void print_instruction(struct three_address_code *tac) {
     else if (tac->operation == IR_MUL)           { print_value(tac->src1, 1); printf(" * ");  print_value(tac->src2, 1); }
     else if (tac->operation == IR_DIV)           { print_value(tac->src1, 1); printf(" / ");  print_value(tac->src2, 1); }
     else if (tac->operation == IR_MOD)           { print_value(tac->src1, 1); printf(" %% "); print_value(tac->src2, 1); }
-    else if (tac->operation == IR_BNOT)          {                            printf("!");    print_value(tac->src1, 1); }
+    else if (tac->operation == IR_BNOT)          {                            printf("~");    print_value(tac->src1, 1); }
     else if (tac->operation == IR_EQ)            { print_value(tac->src1, 1); printf(" == "); print_value(tac->src2, 1); }
     else if (tac->operation == IR_NE)            { print_value(tac->src1, 1); printf(" != "); print_value(tac->src2, 1); }
     else if (tac->operation == IR_GT)            { print_value(tac->src1, 1); printf(" > ");  print_value(tac->src2, 1); }
@@ -1904,6 +1912,20 @@ void print_liveness(int vreg_count) {
 void allocate_register(struct value *v) {
     int i;
 
+    // Return if already allocated. This can happen if values share memory
+    // between different instructions
+    if (v->preg != -1) return;
+    if (v->spilled_stack_index != -1) return;
+
+
+    // Check for already spilled registers
+    for (i = 0; i < spilled_register_count; i++) {
+        if (spilled_registers[i] == v->vreg) {
+            v->spilled_stack_index = i;
+            return;
+        }
+    }
+
     // Check for already allocated registers
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
         if (physical_registers[i] == v->vreg) {
@@ -1921,8 +1943,9 @@ void allocate_register(struct value *v) {
         }
     }
 
-    printf("Ran out of registers\n");
-    exit(1);
+    // Failed to allocate a register, spill to the stack
+    v->spilled_stack_index = spilled_register_count++;
+    spilled_registers[v->spilled_stack_index] = v->vreg;
 }
 
 void allocate_registers(struct three_address_code *ir) {
@@ -1930,6 +1953,10 @@ void allocate_registers(struct three_address_code *ir) {
 
     physical_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+
+    spilled_registers = malloc(sizeof(int) * MAX_SPILLED_REGISTER_COUNT);
+    memset(spilled_registers, 0, sizeof(int) * MAX_SPILLED_REGISTER_COUNT);
+    spilled_register_count = 0;
 
     // Don't allocate these registers. The approach is quite crude and it
     // doesn't leave a lot of registers to play with. But it'll do for a first
@@ -1945,6 +1972,19 @@ void allocate_registers(struct three_address_code *ir) {
     physical_registers[REG_R9]  = -1; // Used in function calls
     physical_registers[REG_R10] = -1; // Not preserved in function calls
     physical_registers[REG_R11] = -1; // Not preserved in function calls
+
+    if (fake_register_pressure) {
+        // Allocate all registers, forcing all temporaries into the stack
+        physical_registers[REG_RBX] = -1;
+        physical_registers[REG_RSI] = -1;
+        physical_registers[REG_RDI] = -1;
+        physical_registers[REG_RBP] = -1;
+        physical_registers[REG_RSP] = -1;
+        physical_registers[REG_R12] = -1;
+        physical_registers[REG_R13] = -1;
+        physical_registers[REG_R14] = -1;
+        physical_registers[REG_R15] = -1;
+    }
 
     line = 0;
     while (ir->operation) {
@@ -1963,14 +2003,24 @@ void allocate_registers(struct three_address_code *ir) {
     }
 
     free(physical_registers);
+    free(spilled_registers);
 }
 
 void output_load_param(int f, int position, char *register_name) {
     dprintf(f, "\tmovq\t%d(%%rsp), %%%s\n", position * 8, register_name);
 }
 
+void check_preg(int preg) {
+    if (preg == -1) {
+        printf("Illegal attempt to output -1 preg\n");
+        exit(1);
+    }
+}
+
 void output_byte_register_name(int f, int preg) {
     char *names;
+
+    check_preg(preg);
 
     names = "al   bl   cl   dl   sil  dil  bpl  spl  r8b  r9b  r10b r11b r12b r13b r14b r15b";
     if (preg < 4)
@@ -1984,6 +2034,8 @@ void output_byte_register_name(int f, int preg) {
 void output_word_register_name(int f, int preg) {
     char *names;
 
+    check_preg(preg);
+
     names = "ax   bx   cx   dx   si   di   bp   sp   r8w  r9w  r10w r11w r12w r13w r14w r15w";
     if (preg < 8)
         dprintf(f, "%%%.2s", &names[preg * 5]);
@@ -1996,6 +2048,8 @@ void output_word_register_name(int f, int preg) {
 void output_long_register_name(int f, int preg) {
     char *names;
 
+    check_preg(preg);
+
     names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
     if (preg < 10)
         dprintf(f, "%%%.3s", &names[preg * 5]);
@@ -2005,6 +2059,8 @@ void output_long_register_name(int f, int preg) {
 
 void output_quad_register_name(int f, int preg) {
     char *names;
+
+    check_preg(preg);
 
     names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
     if (preg == 8 || preg == 9)
@@ -2113,6 +2169,40 @@ int get_stack_offset_from_index(int function_pc, int local_vars_stack_start, int
     return stack_offset;
 }
 
+void pre_instruction_spill(int f, struct three_address_code *ir, int spilled_registers_stack_start) {
+    if (ir->src1 && ir->src1->spilled_stack_index != -1) {
+        dprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", spilled_registers_stack_start - ir->src1->spilled_stack_index * 8);
+        ir->src1->preg = REG_R10;
+    }
+
+    if (ir->src2 && ir->src2->spilled_stack_index != -1) {
+        dprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", spilled_registers_stack_start - ir->src2->spilled_stack_index * 8);
+        ir->src2->preg = REG_R11;
+    }
+
+    if (ir->dst && ir->dst->spilled_stack_index != -1) {
+        if (ir->src1 && ir->src1->spilled_stack_index != -1 && ir->dst->vreg == ir->src1->vreg)
+            ir->dst->preg = REG_R10;
+        else
+            ir->dst->preg = REG_R11;
+
+        if (ir->operation == IR_ASSIGN && !ir->dst->is_local && !ir->dst->global_symbol && ir->dst->is_lvalue)
+            // If there is an lvalue on the stack, move it into r11
+            dprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", spilled_registers_stack_start - ir->dst->spilled_stack_index * 8);
+    }
+}
+
+void post_instruction_spill(int f, struct three_address_code *ir, int spilled_registers_stack_start) {
+    if (ir->dst && ir->dst->spilled_stack_index != -1) {
+        // Only output a mov for assignments that are a register copy.
+        if (ir->operation == IR_ASSIGN && (ir->dst->is_local || ir->dst->global_symbol || ir->dst->is_lvalue)) return;
+
+        dprintf(f, "\tmovq\t");
+        output_quad_register_name(f, ir->dst->preg);
+        dprintf(f, ", %d(%%rbp)\n", spilled_registers_stack_start - ir->dst->spilled_stack_index * 8);
+    }
+}
+
 void output_function_body_code(int f, struct symbol *symbol) {
     struct three_address_code *ir;
     int i;
@@ -2121,6 +2211,7 @@ void output_function_body_code(int f, struct symbol *symbol) {
     int stack_offset;
     int local_stack_size;
     int local_vars_stack_start;
+    int spilled_registers_stack_start;
 
     ir = symbol->ir;
 
@@ -2142,13 +2233,17 @@ void output_function_body_code(int f, struct symbol *symbol) {
 
     // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
     local_vars_stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
+    spilled_registers_stack_start = local_vars_stack_start - 8 * symbol->function_local_symbol_count;
 
     // Allocate stack space for local variables
-    local_stack_size = symbol->function_local_symbol_count * 8;
+    local_stack_size = 8 * (symbol->function_local_symbol_count + symbol->function_spilled_register_count);
+
     if (local_stack_size > 0)
         dprintf(f, "\tsubq\t$%d, %%rsp\n", local_stack_size);
 
     while (ir->operation) {
+        pre_instruction_spill(f, ir, spilled_registers_stack_start);
+
         if (ir->label) dprintf(f, ".l%d:\n", ir->label);
 
         if (ir->operation == IR_LOAD_CONSTANT) {
@@ -2372,6 +2467,9 @@ void output_function_body_code(int f, struct symbol *symbol) {
             printf("output_function_body_code(): Unknown operation: %d\n", ir->operation);
             exit(1);
         }
+
+        post_instruction_spill(f, ir, spilled_registers_stack_start);
+
         ir++;
     }
 
@@ -2440,6 +2538,7 @@ void output_code(char *input_filename, char *output_filename) {
         analyze_liveness(s->ir, s->vreg_count);
         if (print_ir_before) print_intermediate_representation(s->identifier, s->ir);
         allocate_registers(s->ir);
+        s->function_spilled_register_count = spilled_register_count;
         if (print_ir_after) print_intermediate_representation(s->identifier, s->ir);
         output_function_body_code(f, s);
         dprintf(f, "\n");
@@ -2489,19 +2588,21 @@ int main(int argc, char **argv) {
     print_exit_code = 1;
     print_cycles = 1;
     print_symbols = 0;
+    fake_register_pressure = 0;
     output_filename = 0;
 
     argc--;
     argv++;
     while (argc > 0 && *argv[0] == '-') {
-             if (argc > 0 && !memcmp(argv[0], "-h",  3)) { help = 0;               argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-d",  2)) { debug = 1;              argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-rb", 3)) { print_ir_before = 1;    argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-ra", 3)) { print_ir_after = 1;     argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-s",  2)) { print_symbols = 1;      argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-ne", 3)) { print_exit_code = 0;    argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-nc", 3)) { print_cycles = 0;       argc--; argv++; }
-        else if (argc > 1 && !memcmp(argv[0], "-o",  2)) {
+             if (argc > 0 && !memcmp(argv[0], "-h",   3)) { help = 0;                   argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-d",   2)) { debug = 1;                  argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-rb",  3)) { print_ir_before = 1;        argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-ra",  3)) { print_ir_after = 1;         argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-s",   2)) { print_symbols = 1;          argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-ne",  3)) { print_exit_code = 0;        argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-nc",  3)) { print_cycles = 0;           argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-frp", 4)) { fake_register_pressure = 1; argc--; argv++; }
+        else if (argc > 1 && !memcmp(argv[0], "-o",   2)) {
             output_filename = argv[1];
             argc -= 2;
             argv += 2;
@@ -2517,6 +2618,7 @@ int main(int argc, char **argv) {
         printf("-o      Output code without executing it. Use - for stdout.\n");
         printf("-ne     Don't print exit code\n");
         printf("-nc     Don't print cycles\n");
+        printf("-frp    Fake register pressure, for testing spilling code\n");
         printf("-h      Help\n");
         exit(1);
     }
