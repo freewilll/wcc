@@ -1806,7 +1806,7 @@ void printf_escaped_string_literal(char* sl) {
     while (*sl) {
              if (*sl == '\n') printf("\\n");
         else if (*sl == '\t') printf("\\t");
-        else if (*sl == '\\') printf("\\");
+        else if (*sl == '\\') printf("\\\\");
         else if (*sl == '"')  printf("\\\"");
         else                  printf("%c", *sl);
         sl++;
@@ -1819,7 +1819,7 @@ void dprintf_escaped_string_literal(int f, char* sl) {
     while (*sl) {
              if (*sl == '\n') dprintf(f, "\\n");
         else if (*sl == '\t') dprintf(f, "\\t");
-        else if (*sl == '\\') dprintf(f, "\\");
+        else if (*sl == '\\') dprintf(f, "\\\\");
         else if (*sl == '"')  dprintf(f, "\\\"");
         else                  dprintf(f, "%c", *sl);
         sl++;
