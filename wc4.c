@@ -1916,13 +1916,13 @@ void print_instruction(int f, struct three_address_code *tac) {
     else if (tac->operation == IR_JMP)
         dprintf(f, "jmp l%d", tac->src1->label);
 
-    else if (tac->operation == IR_INDIRECT)      {                            dprintf(f, "*");    print_value(f, tac->src1, 1); }
+    else if (tac->operation == IR_INDIRECT)      {                               dprintf(f, "*");    print_value(f, tac->src1, 1); }
     else if (tac->operation == IR_ADD)           { print_value(f, tac->src1, 1); dprintf(f, " + ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_SUB)           { print_value(f, tac->src1, 1); dprintf(f, " - ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_MUL)           { print_value(f, tac->src1, 1); dprintf(f, " * ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_DIV)           { print_value(f, tac->src1, 1); dprintf(f, " / ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_MOD)           { print_value(f, tac->src1, 1); dprintf(f, " %% "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_BNOT)          {                            dprintf(f, "~");    print_value(f, tac->src1, 1); }
+    else if (tac->operation == IR_BNOT)          {                               dprintf(f, "~");    print_value(f, tac->src1, 1); }
     else if (tac->operation == IR_EQ)            { print_value(f, tac->src1, 1); dprintf(f, " == "); print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_NE)            { print_value(f, tac->src1, 1); dprintf(f, " != "); print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_GT)            { print_value(f, tac->src1, 1); dprintf(f, " > ");  print_value(f, tac->src2, 1); }
