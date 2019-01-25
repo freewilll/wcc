@@ -97,28 +97,27 @@ struct value **vs_start, **vs, *vtop;
 struct str_desc **all_structs;
 int all_structs_count;
 
-struct three_address_code *ir; // intermediate representation
+struct three_address_code *ir_start, *ir; // intermediate representation
 int vreg_count;
 int label_count;
 int spilled_register_count;
 
 struct liveness_interval *liveness;
-int liveness_size;
 
 int *physical_registers;
 int *spilled_registers;
 
 enum {
-    DATA_SIZE                  = 104857600,
-    INSTRUCTIONS_SIZE          = 104857600,
-    SYMBOL_TABLE_SIZE          = 104857600,
+    DATA_SIZE                  = 10485760,
+    INSTRUCTIONS_SIZE          = 10485760,
+    SYMBOL_TABLE_SIZE          = 10485760,
     MAX_STRUCTS                = 1024,
     MAX_STRUCT_MEMBERS         = 1024,
-    MAX_INPUT_SIZE             = 104857600,
+    MAX_INPUT_SIZE             = 10485760,
     MAX_STRING_LITERALS        = 10240,
     VALUE_STACK_SIZE           = 10240,
-    MAX_THREE_ADDRESS_CODES    = 1048576,
-    MAX_LIVENESS_SIZE          = 1024,
+    MAX_THREE_ADDRESS_CODES    = 102400,
+    MAX_VREG_COUNT             = 10240,
     PHYSICAL_REGISTER_COUNT    = 15,
     MAX_SPILLED_REGISTER_COUNT = 1024,
 };
@@ -488,6 +487,12 @@ struct three_address_code *add_instruction(int operation, struct value *dst, str
     ir->src1 = src1;
     ir->src2 = src2;
     ir++;
+
+    if (ir >= ir_start + MAX_THREE_ADDRESS_CODES) {
+        printf("Exceeded IR memory by\n");
+        exit(1);
+    }
+
     return ir - 1;
 }
 
@@ -518,13 +523,23 @@ struct value *make_rvalue(struct value *src1) {
     return dst;
 }
 
+int new_vreg() {
+    vreg_count++;
+    if (vreg_count >= MAX_VREG_COUNT) {
+        printf("Exceeded max vreg count %d\n", MAX_VREG_COUNT);
+        exit(1);
+    }
+    return vreg_count;
+}
+
+
 // Load value src1 into a register
 struct value *load(struct value *src1) {
     struct value *dst;
 
     dst = dup_value(src1);
 
-    dst->vreg = ++vreg_count;
+    dst->vreg = new_vreg();
     dst->is_local = 0;
     dst->global_symbol = 0;
     dst->is_lvalue = 0;
@@ -551,7 +566,7 @@ void add_ir_constant_value(int type, long value) {
     cv->value = value;
     cv->type = type;
     v = new_value();
-    v->vreg = ++vreg_count;
+    v->vreg = new_vreg();
     v->type = TYPE_LONG;
     push(v);
     add_instruction(IR_LOAD_CONSTANT, v, cv, 0);
@@ -566,6 +581,20 @@ struct three_address_code *add_ir_op(int operation, int type, int vreg, struct v
     v->type = type;
     result = add_instruction(operation, v, src1, src2);
     push(v);
+
+    return result;
+}
+
+struct symbol *new_symbol() {
+    struct symbol *result;
+
+    result = next_symbol;
+    next_symbol++;
+
+    if (next_symbol - symbol_table >= SYMBOL_TABLE_SIZE) {
+        printf("Exceeded symbol table size\n");
+        exit(1);
+    }
 
     return result;
 }
@@ -845,7 +874,7 @@ void and_or_expr(int is_and) {
 
     // Destination register
     dst = new_value();
-    dst->vreg = ++vreg_count;
+    dst->vreg = new_vreg();
     dst->type = TYPE_LONG;
 
     // Test first operand
@@ -894,7 +923,7 @@ void expression(int level) {
         next();
         add_ir_constant_value(TYPE_LONG, 0);
         expression(TOK_INC);
-        add_ir_op(IR_EQ, TYPE_INT, ++vreg_count, pl(), pl());
+        add_ir_op(IR_EQ, TYPE_INT, new_vreg(), pl(), pl());
     }
     else if (cur_token == TOK_BITWISE_NOT) {
         next();
@@ -935,7 +964,7 @@ void expression(int level) {
         add_ir_constant_value(TYPE_INT, get_type_inc_dec_size(src1->type));
         src2 = pl();
         dst = new_value();
-        dst->vreg = ++vreg_count;
+        dst->vreg = new_vreg();
         tac = add_instruction(org_token == TOK_INC ? IR_ADD : IR_SUB, dst, src1, src2);
         dst->vreg = tac->src2->vreg;
         dst->type = operation_type(src1, src2);
@@ -988,7 +1017,7 @@ void expression(int level) {
     }
     else if (cur_token == TOK_STRING_LITERAL) {
         dst = new_value();
-        dst->vreg = ++vreg_count;
+        dst->vreg = new_vreg();
         dst->type = TYPE_CHAR + TYPE_PTR;
 
         src1 = new_value();
@@ -996,6 +1025,10 @@ void expression(int level) {
         src1->string_literal_index = string_literal_count;
         src1->is_string_literal = 1;
         string_literals[string_literal_count++] = cur_string_literal;
+        if (string_literal_count >= MAX_STRING_LITERALS) {
+            printf("Exceeded max string literals %d\n", MAX_STRING_LITERALS);
+            exit(1);
+        }
         push(dst);
 
         add_instruction(IR_LOAD_STRING_LITERAL, dst, src1, 0);
@@ -1034,7 +1067,7 @@ void expression(int level) {
             ret_value = 0;
             if (type != TYPE_VOID) {
                 ret_value = new_value();
-                ret_value->vreg = ++vreg_count;
+                ret_value->vreg = new_vreg();
                 ret_value->type = type;
             }
             add_instruction(IR_CALL, ret_value, func_value, 0);
@@ -1131,14 +1164,14 @@ void expression(int level) {
             // Copy the original value, since the add/sub operation destroys the original register
             v2 = new_value();
             v2->type = src1->type;
-            v2->vreg = ++vreg_count;
+            v2->vreg = new_vreg();
             add_instruction(IR_ASSIGN, v2, src1, 0);
 
             add_ir_constant_value(TYPE_INT, get_type_inc_dec_size(src1->type));
             src2 = pl();
 
             dst = new_value();
-            dst->vreg = ++vreg_count;
+            dst->vreg = new_vreg();
             dst->type = operation_type(src1, src2);
             tac = add_instruction(cur_token == TOK_INC ? IR_ADD : IR_SUB, dst, src1, src2);
             dst->vreg = tac->src2->vreg;
@@ -1211,13 +1244,13 @@ void expression(int level) {
             next();
             expression(TOK_INC);
             type = vs_operation_type();
-            add_ir_op(IR_DIV, type, ++vreg_count, pl(), pl());
+            add_ir_op(IR_DIV, type, new_vreg(), pl(), pl());
         }
         else if (cur_token == TOK_MOD) {
             next();
             expression(TOK_INC);
             type = vs_operation_type();
-            add_ir_op(IR_MOD, type, ++vreg_count, pl(), pl());
+            add_ir_op(IR_MOD, type, new_vreg(), pl(), pl());
         }
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
             org_token = cur_token;
@@ -1259,14 +1292,14 @@ void expression(int level) {
         else if (cur_token == TOK_LT) {
             next();
             expression(TOK_BITWISE_LEFT);
-            tac = add_ir_op(IR_LT, TYPE_INT, ++vreg_count, pl(), pl());
+            tac = add_ir_op(IR_LT, TYPE_INT, new_vreg(), pl(), pl());
             tac->dst->vreg = tac->src1->vreg;
 
         }
         else if (cur_token == TOK_GT) {
             next();
             expression(TOK_PLUS);
-            tac = add_ir_op(IR_GT, TYPE_INT, ++vreg_count, pl(), pl());
+            tac = add_ir_op(IR_GT, TYPE_INT, new_vreg(), pl(), pl());
             tac->dst->vreg = tac->src1->vreg;
 
         }
@@ -1274,27 +1307,27 @@ void expression(int level) {
             next();
             expression(TOK_PLUS);
             // *iptr++ = INSTR_LE;
-            tac = add_ir_op(IR_LE, TYPE_INT, ++vreg_count, pl(), pl());
+            tac = add_ir_op(IR_LE, TYPE_INT, new_vreg(), pl(), pl());
             tac->dst->vreg = tac->src1->vreg;
 
         }
         else if (cur_token == TOK_GE) {
             next();
             expression(TOK_PLUS);
-            tac = add_ir_op(IR_GE, TYPE_INT, ++vreg_count, pl(), pl());
+            tac = add_ir_op(IR_GE, TYPE_INT, new_vreg(), pl(), pl());
             tac->dst->vreg = tac->src1->vreg;
 
         }
         else if (cur_token == TOK_DBL_EQ) {
             next();
             expression(TOK_LT);
-            tac = add_ir_op(IR_EQ, TYPE_INT, ++vreg_count, pl(), pl());
+            tac = add_ir_op(IR_EQ, TYPE_INT, new_vreg(), pl(), pl());
             tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_NOT_EQ) {
             next();
             expression(TOK_LT);
-            tac = add_ir_op(IR_NE, TYPE_INT, ++vreg_count, pl(), pl());
+            tac = add_ir_op(IR_NE, TYPE_INT, new_vreg(), pl(), pl());
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_ADDRESS_OF) {
@@ -1329,7 +1362,7 @@ void expression(int level) {
 
             // Destination register
             dst = new_value();
-            dst->vreg = ++vreg_count;
+            dst->vreg = new_vreg();
 
             ldst1 = new_label_dst(); // False case
             ldst2 = new_label_dst(); // End
@@ -1591,12 +1624,11 @@ void function_body() {
             }
 
             expect(TOK_IDENTIFIER);
-            cur_symbol = next_symbol;
-            next_symbol->type = type;
-            next_symbol->identifier = cur_identifier;
-            next_symbol->scope = cur_scope;
-            next_symbol->stack_index = -1 - local_symbol_count++;
-            next_symbol++;
+            cur_symbol = new_symbol();
+            cur_symbol->type = type;
+            cur_symbol->identifier = cur_identifier;
+            cur_symbol->scope = cur_scope;
+            cur_symbol->stack_index = -1 - local_symbol_count++;
             next();
             if (cur_token == TOK_COMMA) next();
         }
@@ -1618,7 +1650,7 @@ void parse() {
     int seen_function;
     int doing_var_declaration;
     char *cur_function_name;
-    struct symbol *existing_symbol;
+    struct symbol *existing_symbol, *param_symbol;
     int i;
 
     cur_scope = 0;
@@ -1651,12 +1683,11 @@ void parse() {
                     // Create a new symbol if it wasn't already declared. The
                     // previous declaration is left unchanged.
 
-                    cur_symbol = next_symbol;
-                    next_symbol->type = type;
-                    next_symbol->identifier = cur_identifier;
-                    next_symbol->stack_index = global_variable_count++;
-                    next_symbol->scope = 0;
-                    next_symbol++;
+                    cur_symbol = new_symbol();
+                    cur_symbol->type = type;
+                    cur_symbol->identifier = cur_identifier;
+                    cur_symbol->stack_index = global_variable_count++;
+                    cur_symbol->scope = 0;
                 }
                 else
                     cur_symbol = existing_symbol;
@@ -1672,6 +1703,7 @@ void parse() {
                     next();
 
                     ir = malloc(sizeof(struct three_address_code) * MAX_THREE_ADDRESS_CODES);
+                    ir_start = ir;
                     memset(ir, 0, sizeof(struct three_address_code) * MAX_THREE_ADDRESS_CODES);
                     cur_symbol->ir = ir;
                     cur_symbol->is_function = 1;
@@ -1693,11 +1725,11 @@ void parse() {
                         }
 
                         consume(TOK_IDENTIFIER);
-                        next_symbol->type = type;
-                        next_symbol->identifier = cur_identifier;
-                        next_symbol->scope = cur_scope;
-                        next_symbol->stack_index = param_count++;
-                        next_symbol++;
+                        param_symbol = new_symbol();
+                        param_symbol->type = type;
+                        param_symbol->identifier = cur_identifier;
+                        param_symbol->scope = cur_scope;
+                        param_symbol->stack_index = param_count++;
                         if (cur_token == TOK_COMMA) next();
                     }
                     cur_symbol->function_param_count = param_count;
@@ -1987,6 +2019,11 @@ void allocate_register(struct value *v) {
     // Failed to allocate a register, spill to the stack
     v->spilled_stack_index = spilled_register_count++;
     spilled_registers[v->spilled_stack_index] = v->vreg;
+
+    if (spilled_register_count >= MAX_SPILLED_REGISTER_COUNT) {
+        printf("Exceeded max spilled register count %d\n", MAX_SPILLED_REGISTER_COUNT);
+        exit(1);
+    }
 }
 
 void allocate_registers(struct three_address_code *ir) {
@@ -2577,8 +2614,7 @@ void output_code(char *input_filename, char *output_filename) {
         dprintf(f, "%s:\n", s->identifier);
 
         // registers start at 1
-        liveness_size = 0;
-        liveness = malloc(sizeof(struct liveness_interval) * (MAX_LIVENESS_SIZE + 1));
+        liveness = malloc(sizeof(struct liveness_interval) * (MAX_VREG_COUNT + 1));
 
         analyze_liveness(s->ir, s->vreg_count);
         if (print_ir_before) print_intermediate_representation(s->identifier, s->ir);
