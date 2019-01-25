@@ -640,6 +640,22 @@ def test_ternary():
     """, "2 1 foo\n")
 
 
+def test_ternary_cast():
+    check_output("""
+        int foo() {
+            return 2;
+        }
+
+        void main() {
+            int b;
+            long l;
+
+            b = 0; l = b ? 1 : foo(); printf("%d\n", l);
+            b = 1; l = b ? 1 : foo(); printf("%d\n", l);
+        }
+    """, "2\n1\n")
+
+
 def test_bracket_lookup():
     check_output("""
         int main(int argc, char **argv) {

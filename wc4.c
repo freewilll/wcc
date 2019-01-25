@@ -1370,13 +1370,15 @@ void expression(int level) {
             ldst2 = new_label_dst(); // End
             add_instruction(IR_JZ, 0, pl(), ldst1);
             expression(TOK_OR);
-            dst->type = vtop->type;
+            src1 = vtop;
             add_instruction(IR_ASSIGN, dst, pl(), 0);
             push(dst);
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_label_target_instruction(ldst1);  // Start of false case
             consume(TOK_COLON);
             expression(TOK_OR);
+            src2 = vtop;
+            dst->type = operation_type(src1, src2);
             add_instruction(IR_ASSIGN, dst, pl(), 0);
             push(dst);
             add_label_target_instruction(ldst2);  // End
@@ -2327,7 +2329,7 @@ void output_function_body_code(struct symbol *symbol) {
 
     while (ir->operation) {
         if (output_inline_ir) {
-            dprintf(f, "// ----------------- \t\t\t\t\t ");
+            dprintf(f, "\t// ------------------------------------- ");
             print_instruction(f, ir);
         }
 
@@ -2444,16 +2446,17 @@ void output_function_body_code(struct symbol *symbol) {
         }
 
         else if (ir->operation == IR_ASSIGN) {
-            output_type_specific_mov(ir->dst->type);
 
             if (ir->dst->global_symbol) {
                 // dst a global
+                output_type_specific_mov(ir->dst->type);
                 output_type_specific_register_name(ir->dst->type, ir->src1->preg);
                 dprintf(f, ", ");
                 dprintf(f, "%s(%%rip)\n", ir->dst->global_symbol->identifier);
             }
             else if (ir->dst->is_local) {
                 // dst is on the stack
+                output_type_specific_mov(ir->dst->type);
                 output_type_specific_register_name(ir->dst->type, ir->src1->preg);
                 dprintf(f, ", ");
                 stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
@@ -2461,13 +2464,15 @@ void output_function_body_code(struct symbol *symbol) {
             }
             else if (!ir->dst->is_lvalue) {
                 // Register copy
-                output_type_specific_register_name(ir->src1->type, ir->src1->preg);
+                dprintf(f, "\tmovq\t");
+                output_quad_register_name(ir->src1->preg);
                 dprintf(f, ", ");
-                output_type_specific_register_name(ir->dst->type, ir->dst->preg);
+                output_quad_register_name(ir->dst->preg);
                 dprintf(f, "\n");
             }
             else {
                 // dst is an lvalue in a register
+                output_type_specific_mov(ir->dst->type);
                 output_type_specific_register_name(ir->dst->type, ir->src1->preg);
                 dprintf(f, ", ");
                 dprintf(f, "(");
