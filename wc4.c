@@ -66,7 +66,7 @@ struct str_desc {
     int is_incomplete;
 };
 
-int print_ir_before, print_ir_after, fake_register_pressure;
+int print_ir_before, print_ir_after, fake_register_pressure, output_inline_ir;
 
 char *input;
 int input_size;
@@ -1829,114 +1829,114 @@ void dprintf_escaped_string_literal(int f, char* sl) {
     dprintf(f, "\"");
 }
 
-void print_value(struct value *v, int is_assignment_rhs) {
+void print_value(int f, struct value *v, int is_assignment_rhs) {
     int type;
 
-    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->is_local)) printf("&");
-    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->is_local)) printf("L");
+    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->is_local)) dprintf(f, "&");
+    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->is_local)) dprintf(f, "L");
 
     if (v->preg != -1)
-        printf("p%d", v->preg);
+        dprintf(f, "p%d", v->preg);
     else if (v->spilled_stack_index != -1)
-        printf("S[%d]", v->spilled_stack_index);
+        dprintf(f, "S[%d]", v->spilled_stack_index);
     else if (v->vreg)
-        printf("r%d", v->vreg);
+        dprintf(f, "r%d", v->vreg);
     else if (v->is_local)
-        printf("s[%d]", v->stack_index);
+        dprintf(f, "s[%d]", v->stack_index);
     else if (v->global_symbol)
-        printf("%s", v->global_symbol->identifier);
+        dprintf(f, "%s", v->global_symbol->identifier);
     else if (v->is_string_literal) {
-        printf_escaped_string_literal(string_literals[v->string_literal_index]);
+        dprintf_escaped_string_literal(f, string_literals[v->string_literal_index]);
     }
     else
-        printf("%d", v->value);
+        dprintf(f, "%d", v->value);
 
-    printf(":");
+    dprintf(f, ":");
     type = v->type;
     while (type >= TYPE_PTR) {
-        printf("*");
+        dprintf(f, "*");
         type -= TYPE_PTR;
     }
 
-         if (type == TYPE_VOID)   printf("void");
-    else if (type == TYPE_CHAR)   printf("char");
-    else if (type == TYPE_INT)    printf("int");
-    else if (type == TYPE_SHORT)  printf("short");
-    else if (type == TYPE_LONG)   printf("long");
-    else if (type >= TYPE_STRUCT) printf("struct %s", all_structs[type - TYPE_STRUCT]->name);
-    else printf("unknown type %d", type);
+         if (type == TYPE_VOID)   dprintf(f, "void");
+    else if (type == TYPE_CHAR)   dprintf(f, "char");
+    else if (type == TYPE_INT)    dprintf(f, "int");
+    else if (type == TYPE_SHORT)  dprintf(f, "short");
+    else if (type == TYPE_LONG)   dprintf(f, "long");
+    else if (type >= TYPE_STRUCT) dprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->name);
+    else dprintf(f, "unknown type %d", type);
 }
 
-void print_instruction(struct three_address_code *tac) {
+void print_instruction(int f, struct three_address_code *tac) {
     if (tac->label)
-        printf("l%-5d", tac->label);
+        dprintf(f, "l%-5d", tac->label);
     else
-        printf("      ");
+        dprintf(f, "      ");
 
     if (tac->dst) {
-        print_value(tac->dst, tac->operation != IR_ASSIGN);
-        printf(" = ");
+        print_value(f, tac->dst, tac->operation != IR_ASSIGN);
+        dprintf(f, " = ");
     }
 
     if (tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_VARIABLE || tac->operation == IR_LOAD_STRING_LITERAL) {
-        print_value(tac->src1, 1);
+        print_value(f, tac->src1, 1);
     }
     else if (tac->operation == IR_PARAM) {
-        printf("param ");
-        print_value(tac->src1, 1);
+        dprintf(f, "param ");
+        print_value(f, tac->src1, 1);
     }
     else if (tac->operation == IR_CALL) {
-        printf("call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_call_param_count);
+        dprintf(f, "call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_call_param_count);
     }
     else if (tac->operation == IR_RETURN) {
         if (tac->src1) {
-            printf("return ");
-            print_value(tac->src1, 1);
+            dprintf(f, "return ");
+            print_value(f, tac->src1, 1);
         }
         else
-            printf("return");
+            dprintf(f, "return");
     }
     else if (tac->operation == IR_ASSIGN)
-        print_value(tac->src1, 1);
+        print_value(f, tac->src1, 1);
 
     else if (tac->operation == IR_NOP)
-        printf("nop");
+        dprintf(f, "nop");
 
     else if (tac->operation == IR_JZ || tac->operation == IR_JNZ) {
-             if (tac->operation == IR_JZ)  printf("jz ");
-        else if (tac->operation == IR_JNZ) printf("jnz ");
-        print_value(tac->src1, 1);
-        printf(" l%d", tac->src2->label);
+             if (tac->operation == IR_JZ)  dprintf(f, "jz ");
+        else if (tac->operation == IR_JNZ) dprintf(f, "jnz ");
+        print_value(f, tac->src1, 1);
+        dprintf(f, " l%d", tac->src2->label);
     }
 
     else if (tac->operation == IR_JMP)
-        printf("jmp l%d", tac->src1->label);
+        dprintf(f, "jmp l%d", tac->src1->label);
 
-    else if (tac->operation == IR_INDIRECT)      {                            printf("*");    print_value(tac->src1, 1); }
-    else if (tac->operation == IR_ADD)           { print_value(tac->src1, 1); printf(" + ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_SUB)           { print_value(tac->src1, 1); printf(" - ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_MUL)           { print_value(tac->src1, 1); printf(" * ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_DIV)           { print_value(tac->src1, 1); printf(" / ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_MOD)           { print_value(tac->src1, 1); printf(" %% "); print_value(tac->src2, 1); }
-    else if (tac->operation == IR_BNOT)          {                            printf("~");    print_value(tac->src1, 1); }
-    else if (tac->operation == IR_EQ)            { print_value(tac->src1, 1); printf(" == "); print_value(tac->src2, 1); }
-    else if (tac->operation == IR_NE)            { print_value(tac->src1, 1); printf(" != "); print_value(tac->src2, 1); }
-    else if (tac->operation == IR_GT)            { print_value(tac->src1, 1); printf(" > ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_LT)            { print_value(tac->src1, 1); printf(" < ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_GE)            { print_value(tac->src1, 1); printf(" >= "); print_value(tac->src2, 1); }
-    else if (tac->operation == IR_LE)            { print_value(tac->src1, 1); printf(" <= "); print_value(tac->src2, 1); }
-    else if (tac->operation == IR_BAND)          { print_value(tac->src1, 1); printf(" & ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_BOR)           { print_value(tac->src1, 1); printf(" | ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_XOR)           { print_value(tac->src1, 1); printf(" ^ ");  print_value(tac->src2, 1); }
-    else if (tac->operation == IR_BSHL)          { print_value(tac->src1, 1); printf(" << "); print_value(tac->src2, 1); }
-    else if (tac->operation == IR_BSHR)          { print_value(tac->src1, 1); printf(" >> "); print_value(tac->src2, 1); }
+    else if (tac->operation == IR_INDIRECT)      {                            dprintf(f, "*");    print_value(f, tac->src1, 1); }
+    else if (tac->operation == IR_ADD)           { print_value(f, tac->src1, 1); dprintf(f, " + ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_SUB)           { print_value(f, tac->src1, 1); dprintf(f, " - ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_MUL)           { print_value(f, tac->src1, 1); dprintf(f, " * ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_DIV)           { print_value(f, tac->src1, 1); dprintf(f, " / ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_MOD)           { print_value(f, tac->src1, 1); dprintf(f, " %% "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_BNOT)          {                            dprintf(f, "~");    print_value(f, tac->src1, 1); }
+    else if (tac->operation == IR_EQ)            { print_value(f, tac->src1, 1); dprintf(f, " == "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_NE)            { print_value(f, tac->src1, 1); dprintf(f, " != "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_GT)            { print_value(f, tac->src1, 1); dprintf(f, " > ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_LT)            { print_value(f, tac->src1, 1); dprintf(f, " < ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_GE)            { print_value(f, tac->src1, 1); dprintf(f, " >= "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_LE)            { print_value(f, tac->src1, 1); dprintf(f, " <= "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_BAND)          { print_value(f, tac->src1, 1); dprintf(f, " & ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_BOR)           { print_value(f, tac->src1, 1); dprintf(f, " | ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_XOR)           { print_value(f, tac->src1, 1); dprintf(f, " ^ ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_BSHL)          { print_value(f, tac->src1, 1); dprintf(f, " << "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); dprintf(f, " >> "); print_value(f, tac->src2, 1); }
 
     else {
         printf("print_instruction(): Unknown operation: %d\n", tac->operation);
         exit(1);
     }
 
-    printf("\n");
+    dprintf(f, "\n");
 }
 
 void print_intermediate_representation(char *function_name, struct three_address_code *ir) {
@@ -1944,14 +1944,14 @@ void print_intermediate_representation(char *function_name, struct three_address
     struct symbol *s;
     int i;
 
-    printf("%s:\n", function_name);
+    dprintf(1, "%s:\n", function_name);
     i = 0;
     while (ir->operation) {
-        printf("%-4d > ", i++);
-        print_instruction(ir);
+        dprintf(1, "%-4d > ", i++);
+        print_instruction(1, ir);
         ir++;
     }
-    printf("\n");
+    dprintf(1, "\n");
 }
 
 void update_register_liveness(int reg, int instruction_position) {
@@ -2326,6 +2326,11 @@ void output_function_body_code(struct symbol *symbol) {
         dprintf(f, "\tsubq\t$%d, %%rsp\n", local_stack_size);
 
     while (ir->operation) {
+        if (output_inline_ir) {
+            dprintf(f, "// ----------------- \t\t\t\t\t ");
+            print_instruction(f, ir);
+        }
+
         pre_instruction_spill(ir, spilled_registers_stack_start);
 
         if (ir->label) dprintf(f, ".l%d:\n", ir->label);
@@ -2672,6 +2677,7 @@ int main(int argc, char **argv) {
     print_cycles = 1;
     print_symbols = 0;
     fake_register_pressure = 0;
+    output_inline_ir = 0;
     output_filename = 0;
 
     argc--;
@@ -2685,6 +2691,7 @@ int main(int argc, char **argv) {
         else if (argc > 0 && !memcmp(argv[0], "-ne",  3)) { print_exit_code = 0;        argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-nc",  3)) { print_cycles = 0;           argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-frp", 4)) { fake_register_pressure = 1; argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-iir", 4)) { output_inline_ir = 1;       argc--; argv++; }
         else if (argc > 1 && !memcmp(argv[0], "-o",   2)) {
             output_filename = argv[1];
             argc -= 2;
@@ -2702,6 +2709,7 @@ int main(int argc, char **argv) {
         printf("-ne     Don't print exit code\n");
         printf("-nc     Don't print cycles\n");
         printf("-frp    Fake register pressure, for testing spilling code\n");
+        printf("-iir    Output inline intermediate representation\n");
         printf("-h      Help\n");
         exit(1);
     }
