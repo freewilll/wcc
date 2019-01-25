@@ -109,14 +109,14 @@ int *physical_registers;
 int *spilled_registers;
 
 enum {
-    DATA_SIZE                  = 10 * 1024 * 1024,
-    INSTRUCTIONS_SIZE          = 10 * 1024 * 1024,
-    SYMBOL_TABLE_SIZE          = 10 * 1024 * 1024,
+    DATA_SIZE                  = 104857600,
+    INSTRUCTIONS_SIZE          = 104857600,
+    SYMBOL_TABLE_SIZE          = 104857600,
     MAX_STRUCTS                = 1024,
     MAX_STRUCT_MEMBERS         = 1024,
-    MAX_INPUT_SIZE             = 10 * 1024 * 1024,
-    MAX_STRING_LITERALS        = 10 * 1024,
-    VALUE_STACK_SIZE           = 10 * 1024,
+    MAX_INPUT_SIZE             = 104857600,
+    MAX_STRING_LITERALS        = 10240,
+    VALUE_STACK_SIZE           = 10240,
     MAX_THREE_ADDRESS_CODES    = 1024,
     MAX_LIVENESS_SIZE          = 1024,
     PHYSICAL_REGISTER_COUNT    = 15,
