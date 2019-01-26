@@ -1374,7 +1374,6 @@ void expression(int level) {
             expression(TOK_OR);
             src1 = vtop;
             add_instruction(IR_ASSIGN, dst, pl(), 0);
-            push(dst);
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_label_target_instruction(ldst1);  // Start of false case
             consume(TOK_COLON);

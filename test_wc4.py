@@ -644,13 +644,19 @@ def test_and_or_shortcutting():
 def test_ternary():
     check_output("""
         int main(int argc, char **argv) {
-            printf("%d %d %s\n",
+            int i;
+
+            printf("%d %d %s ",
                 (0 ? 1 : 2),
                 (1 ? 1 : 2),
                 (1 ? "foo" : "bar")
             );
+
+            i = 0 + 2 * (1 ? 3 : 4);
+            printf("%d\n", i);
+
         }
-    """, "2 1 foo\n")
+    """, "2 1 foo 6\n")
 
 
 def test_ternary_cast():
@@ -1254,8 +1260,9 @@ def test_spilling():
 
 def test_callee_saved_registers():
     # This test is a bit fragile. It does the job right now, but register
-    # candidates will likely change. Currently, foo() uses rbx, which is also used to
-    # store the lvalue for s->i. If rbx wasn't preserved, this code would segfault.
+    # candidates will likely change. Currently, foo() uses rbx, which is also
+    # used to store the lvalue for s->i. If rbx wasn't preserved, this code
+    # would segfault.
 
     check_output("""
         struct s {
