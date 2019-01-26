@@ -556,18 +556,17 @@ struct value *load(struct value *src1) {
     struct value *dst;
 
     dst = dup_value(src1);
+    dst->vreg = new_vreg();
+    dst->is_lvalue = 0;
 
     if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
-        dst->vreg = new_vreg();
         add_instruction(IR_INDIRECT, dst, src1, 0);
     }
     else {
         // Load a global or local into a register
-        dst->vreg = new_vreg();
         dst->is_local = 0;
         dst->global_symbol = 0;
-        dst->is_lvalue = 0;
         add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
     }
 

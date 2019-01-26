@@ -391,10 +391,13 @@ def test_dereferenced_pointer_inc_dec():
             s->i = 0;
             s->i++;    printf("%d\n", s->i);
             ++s->i;    printf("%d\n", s->i);
+            s->i += 1; printf("%d\n", s->i);
+
             s->i--;    printf("%d\n", s->i);
             --s->i;    printf("%d\n", s->i);
+            s->i -= 1; printf("%d\n", s->i);
         }
-    """, "1\n2\n1\n0\n")
+    """, "1\n2\n3\n2\n1\n0\n")
 
 
 
