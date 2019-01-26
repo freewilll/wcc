@@ -379,7 +379,7 @@ def test_inc_dec_sizes():
     ]) + "\n");
 
 
-def test_dereferenced_pointer_postfix_increment():
+def test_dereferenced_pointer_inc_dec():
     check_output("""
         struct s {
             int i;
@@ -389,10 +389,14 @@ def test_dereferenced_pointer_postfix_increment():
             struct s *s;
             s = malloc(sizeof(struct s));
             s->i = 0;
-            s->i++;
-            printf("%d\n", s->i);
+            s->i++;    printf("%d\n", s->i);
+            ++s->i;    printf("%d\n", s->i);
+            s->i--;    printf("%d\n", s->i);
+            --s->i;    printf("%d\n", s->i);
         }
-    """, "1\n")
+    """, "1\n2\n1\n0\n")
+
+
 
 def test_pointer_arithmetic():
     check_output("""

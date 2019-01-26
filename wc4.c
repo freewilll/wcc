@@ -551,7 +551,6 @@ int new_vreg() {
     return vreg_count;
 }
 
-
 // Load value src1 into a register
 struct value *load(struct value *src1) {
     struct value *dst;
@@ -977,7 +976,7 @@ void expression(int level) {
         org_token = cur_token;
         next();
 
-        expression(1024); // Fake highest precedence, bind nothing
+        expression(TOK_DOT);
 
         if (!vtop->is_lvalue) {
             printf("%d: Cannot ++ or -- an rvalue\n", cur_line);
