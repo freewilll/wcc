@@ -564,7 +564,8 @@ struct value *load(struct value *src1) {
         add_instruction(IR_INDIRECT, dst, src1, 0);
     }
     else {
-        // Load a global or local into a register
+        // Load a value into a register. This could be a global, local
+        // or the result of a &.
         dst->is_local = 0;
         dst->global_symbol = 0;
         add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
