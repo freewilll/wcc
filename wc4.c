@@ -432,6 +432,20 @@ void consume(int token) {
     next();
 }
 
+// A useful function for debugging
+void print_value_stack() {
+    struct value **lvs, *v;
+
+    printf("%-4s %-4s %-4s %-11s %-8s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "is_local", "stack_index", "is_lv");
+    lvs = vs;
+    while (lvs != vs_start) {
+        v = *lvs;
+        printf("%-4d %-4d %-4d %-11s %-8d %-11d %-5d\n",
+            v->type, v->vreg, v->preg, v->global_symbol ? v->global_symbol->identifier : 0, v->is_local, v->stack_index, v->is_lvalue);
+        lvs++;
+    }
+}
+
 struct value *new_value() {
     struct value *v;
 
@@ -544,12 +558,19 @@ struct value *load(struct value *src1) {
 
     dst = dup_value(src1);
 
-    dst->vreg = new_vreg();
-    dst->is_local = 0;
-    dst->global_symbol = 0;
-    dst->is_lvalue = 0;
-
-    add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
+    if (src1->vreg && src1->is_lvalue) {
+        // An lvalue in a register needs a dereference
+        dst->vreg = new_vreg();
+        add_instruction(IR_INDIRECT, dst, src1, 0);
+    }
+    else {
+        // Load a global or local into a register
+        dst->vreg = new_vreg();
+        dst->is_local = 0;
+        dst->global_symbol = 0;
+        dst->is_lvalue = 0;
+        add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
+    }
 
     return dst;
 }
@@ -821,7 +842,11 @@ void check_incomplete_structs() {
 
 void indirect() {
     struct value *dst, *src1;
+
+    // The stack contains an rvalue which is a pointer. All that needs doing
+    // is conversion of the rvalue into an lvalue on the stack and a type
     src1 = pl();
+    if (src1->is_lvalue) { printf("Internal error: expected rvalue\n"); exit(1); }
     dst = new_value();
     dst->vreg = src1->vreg;
     dst->type = src1->type;
@@ -2498,9 +2523,9 @@ void output_function_body_code(struct symbol *symbol) {
         }
 
         else if (ir->operation == IR_ASSIGN) {
-
             if (ir->dst->global_symbol) {
                 // dst a global
+                if (ir->dst->vreg) { printf("Unexpected vreg in assign\n"); exit(1); }
                 output_type_specific_mov(ir->dst->type);
                 output_type_specific_register_name(ir->dst->type, ir->src1->preg);
                 dprintf(f, ", ");
@@ -2508,6 +2533,7 @@ void output_function_body_code(struct symbol *symbol) {
             }
             else if (ir->dst->is_local) {
                 // dst is on the stack
+                if (ir->dst->vreg) { printf("Unexpected vreg in assign\n"); exit(1); }
                 output_type_specific_mov(ir->dst->type);
                 output_type_specific_register_name(ir->dst->type, ir->src1->preg);
                 dprintf(f, ", ");

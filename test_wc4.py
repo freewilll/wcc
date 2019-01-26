@@ -379,6 +379,21 @@ def test_inc_dec_sizes():
     ]) + "\n");
 
 
+def test_dereferenced_pointer_postfix_increment():
+    check_output("""
+        struct s {
+            int i;
+        };
+
+        void main() {
+            struct s *s;
+            s = malloc(sizeof(struct s));
+            s->i = 0;
+            s->i++;
+            printf("%d\n", s->i);
+        }
+    """, "1\n")
+
 def test_pointer_arithmetic():
     check_output("""
         int main(int argc, char **argv) {
