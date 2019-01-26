@@ -262,6 +262,39 @@ enum {
 int parse_struct_base_type(int parse_struct_base_type);
 void expression(int level);
 
+void panic(char *message) {
+    printf("%d: %s\n", cur_line, message);
+    exit(1);
+}
+
+void panic1d(char *fmt, int i) {
+    printf("%d: ", cur_line);
+    printf(fmt, i);
+    printf("\n");
+    exit(1);
+}
+
+void panic1s(char *fmt, char *s) {
+    printf("%d: ", cur_line);
+    printf(fmt, s);
+    printf("\n");
+    exit(1);
+}
+
+void panic2d(char *fmt, int i1, int i2) {
+    printf("%d: ", cur_line);
+    printf(fmt, i1, i2);
+    printf("\n");
+    exit(1);
+}
+
+void panic2s(char *fmt, char *s1, char *s2) {
+    printf("%d: ", cur_line);
+    printf(fmt, s1, s2);
+    printf("\n");
+    exit(1);
+}
+
 void next() {
     char *i;
     char *id;
@@ -397,10 +430,7 @@ void next() {
                     else if (i[ip+1] == '\\') sl[slp++] = '\\';
                     else if (i[ip+1] == '\'') sl[slp++] = '\'';
                     else if (i[ip+1] == '\"') sl[slp++] = '\"';
-                    else {
-                        printf("%d: Unknown \\ escape in string literal\n", cur_line);
-                        exit(1);
-                    }
+                    else panic("Unknown \\ escape in string literal");
                     ip += 2;
                 }
             }
@@ -409,10 +439,8 @@ void next() {
             cur_string_literal = sl;
         }
 
-        else {
-            printf("%d: Unknown token %d\n", cur_line, cur_token);
-            exit(1);
-        }
+        else
+            panic1d("Unknown token %d", cur_token);
 
         return;
     }
@@ -421,10 +449,7 @@ void next() {
 }
 
 void expect(int token) {
-    if (cur_token != token) {
-        printf("%d: Expected token %d, got %d\n", cur_line, token, cur_token);
-        exit(1);
-    }
+    if (cur_token != token) panic2d("Expected token %d, got %d", token, cur_token);
 }
 
 void consume(int token) {
@@ -507,10 +532,7 @@ struct three_address_code *add_instruction(int operation, struct value *dst, str
     ir->src2 = src2;
     ir++;
 
-    if (ir >= ir_start + MAX_THREE_ADDRESS_CODES) {
-        printf("Exceeded IR memory by\n");
-        exit(1);
-    }
+    if (ir >= ir_start + MAX_THREE_ADDRESS_CODES) panic("Exceeded IR memory");
 
     return ir - 1;
 }
@@ -544,10 +566,7 @@ struct value *make_rvalue(struct value *src1) {
 
 int new_vreg() {
     vreg_count++;
-    if (vreg_count >= MAX_VREG_COUNT) {
-        printf("Exceeded max vreg count %d\n", MAX_VREG_COUNT);
-        exit(1);
-    }
+    if (vreg_count >= MAX_VREG_COUNT) panic1d("Exceeded max vreg count %d", MAX_VREG_COUNT);
     return vreg_count;
 }
 
@@ -616,10 +635,7 @@ struct symbol *new_symbol() {
     result = next_symbol;
     next_symbol++;
 
-    if (next_symbol - symbol_table >= SYMBOL_TABLE_SIZE) {
-        printf("Exceeded symbol table size\n");
-        exit(1);
-    }
+    if (next_symbol - symbol_table >= SYMBOL_TABLE_SIZE) panic("Exceeded symbol table size");
 
     return result;
 }
@@ -636,18 +652,6 @@ struct symbol *lookup_symbol(char *name, int scope) {
     if (scope != 0) return lookup_symbol(name, 0);
 
     return 0;
-}
-
-long lookup_function(char *name) {
-    struct symbol *symbol;
-
-    symbol = lookup_symbol(name, 0);
-    if (!symbol) {
-        printf("%d: Unknown function \"%s\"\n", cur_line, name);
-        exit(1);
-    }
-
-    return symbol->value;
 }
 
 int operation_type(struct value *src1, struct value *src2) {
@@ -671,14 +675,10 @@ int get_type_alignment(int type) {
     else if (type == TYPE_SHORT) return 2;
     else if (type == TYPE_INT)   return 4;
     else if (type == TYPE_LONG)  return 8;
-    else if (type >= TYPE_STRUCT) {
-        printf("%d: Usage of structs as struct members not implemented\n", cur_line);
-        exit(1);
-    }
-    else {
-        printf("%d: align of unknown type %d\n", cur_line, type);
-        exit(1);
-    }
+    else if (type >= TYPE_STRUCT)
+        panic("Usage of structs as struct members not implemented");
+    else
+        panic1d("align of unknown type %d", type);
 }
 
 int get_type_size(int type) {
@@ -689,10 +689,7 @@ int get_type_size(int type) {
     else if (type == TYPE_LONG)   return sizeof(long);
     else if (type >  TYPE_PTR)    return sizeof(void *);
     else if (type >= TYPE_STRUCT) return all_structs[type - TYPE_STRUCT]->size;
-    else {
-        printf("%d: sizeof unknown type %d\n", cur_line, type);
-        exit(1);
-    }
+    else panic1d("sizeof unknown type %d", type);
 }
 
 int parse_base_type(int allow_incomplete_structs) {
@@ -704,10 +701,8 @@ int parse_base_type(int allow_incomplete_structs) {
     else if (cur_token == TOK_INT)    type = TYPE_INT;
     else if (cur_token == TOK_LONG)   type = TYPE_LONG;
     else if (cur_token == TOK_STRUCT) return parse_struct_base_type(allow_incomplete_structs);
-    else {
-        printf("Unable to determine type from token %d\n", cur_token);
-        exit(1);
-    }
+    else panic("Unable to determine type from token %d");
+
     next();
 
     return type;
@@ -821,10 +816,8 @@ int parse_struct_base_type(int allow_incomplete_structs) {
             s->is_incomplete = 1;
             return s->type;
         }
-        else {
-            printf("%d: Unknown struct %s\n", cur_line, strct_identifier);
-            exit(1);
-        }
+        else
+            panic1s("Unknown struct %s", strct_identifier);
     }
 }
 
@@ -833,10 +826,8 @@ void check_incomplete_structs() {
     int i;
 
     for (i = 0; i < all_structs_count; i++)
-        if (all_structs[i]->is_incomplete) {
-            printf("There are incomplete structs\n");
-            exit(1);
-        }
+        if (all_structs[i]->is_incomplete)
+            panic("There are incomplete structs");
 }
 
 void indirect() {
@@ -845,7 +836,7 @@ void indirect() {
     // The stack contains an rvalue which is a pointer. All that needs doing
     // is conversion of the rvalue into an lvalue on the stack and a type
     src1 = pl();
-    if (src1->is_lvalue) { printf("Internal error: expected rvalue\n"); exit(1); }
+    if (src1->is_lvalue) panic("Internal error: expected rvalue");
     dst = new_value();
     dst->vreg = src1->vreg;
     dst->type = src1->type;
@@ -871,8 +862,7 @@ struct str_member *lookup_struct_member(struct str_desc *str, char *identifier) 
         pmember++;
     }
 
-    printf("%d: Unknown member %s in struct %s\n", cur_line, identifier, str->name);
-    exit(1);
+    panic2s("Unknown member %s in struct %s\n", identifier, str->name);
 }
 
 struct value *new_label_dst() {
@@ -965,10 +955,7 @@ void expression(int level) {
     else if (cur_token == TOK_ADDRESS_OF) {
         next();
         expression(TOK_INC);
-        if (!vtop->is_lvalue) {
-            printf("%d: Cannot take an address of an rvalue\n", cur_line);
-            exit(1);
-        }
+        if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
         vtop->is_lvalue = 0;
         vtop->type += TYPE_PTR;
     }
@@ -980,10 +967,7 @@ void expression(int level) {
 
         expression(TOK_DOT);
 
-        if (!vtop->is_lvalue) {
-            printf("%d: Cannot ++ or -- an rvalue\n", cur_line);
-            exit(1);
-        }
+        if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
 
         v1 = pop();                 // lvalue
         src1 = load(dup_value(v1)); // rvalue
@@ -1003,10 +987,8 @@ void expression(int level) {
     else if (cur_token == TOK_MULTIPLY) {
         next();
         expression(TOK_INC);
-        if (vtop->type <= TYPE_PTR) {
-            printf("%d: Cannot dereference a non-pointer %d\n", cur_line, vtop->type);
-            exit(1);
-        }
+        if (vtop->type <= TYPE_PTR)
+            panic1d("Cannot dereference a non-pointer %d", vtop->type);
 
         indirect();
     }
@@ -1054,10 +1036,7 @@ void expression(int level) {
         src1->string_literal_index = string_literal_count;
         src1->is_string_literal = 1;
         string_literals[string_literal_count++] = cur_string_literal;
-        if (string_literal_count >= MAX_STRING_LITERALS) {
-            printf("Exceeded max string literals %d\n", MAX_STRING_LITERALS);
-            exit(1);
-        }
+        if (string_literal_count >= MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);
         push(dst);
 
         add_instruction(IR_LOAD_STRING_LITERAL, dst, src1, 0);
@@ -1067,10 +1046,7 @@ void expression(int level) {
     else if (cur_token == TOK_IDENTIFIER) {
         symbol = lookup_symbol(cur_identifier, cur_scope);
 
-        if (!symbol) {
-            printf("%d: Unknown symbol \"%s\"\n", cur_line, cur_identifier);
-            exit(1);
-        }
+        if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
 
         next();
         type = symbol->type;
@@ -1140,18 +1116,14 @@ void expression(int level) {
         add_ir_constant_value(TYPE_INT, get_type_size(type));
         consume(TOK_RPAREN);
     }
-    else {
-        printf("%d: Unexpected token %d in expression\n", cur_line, cur_token);
-        exit(1);
-    }
+    else
+        panic1d("Unexpected token %d in expression", cur_token);
 
     if (cur_token == TOK_LBRACKET) {
         next();
 
-        if (vtop->type < TYPE_PTR) {
-            printf("%d: Cannot do [] on a non-pointer for type %d\n", cur_line, vtop->type);
-            exit(1);
-        }
+        if (vtop->type < TYPE_PTR)
+            panic1d("Cannot do [] on a non-pointer for type %d", vtop->type);
 
         factor = get_type_inc_dec_size(vtop->type);
 
@@ -1186,10 +1158,7 @@ void expression(int level) {
         if (cur_token == TOK_INC || cur_token == TOK_DEC) {
             // Postfix increment & decrement
 
-            if (!vtop->is_lvalue) {
-                printf("%d: Cannot ++ or -- an rvalue\n", cur_line);
-                exit(1);
-            }
+            if (!vtop->is_lvalue) panic(" Cannot ++ or -- an rvalue");
 
             v1 = pop();                 // lvalue
             src1 = load(dup_value(v1)); // rvalue
@@ -1218,36 +1187,19 @@ void expression(int level) {
             if (cur_token == TOK_DOT) {
                 // Struct member lookup
 
-                if (vtop->type < TYPE_STRUCT || vtop->type >= TYPE_PTR) {
-                    printf("%d: Cannot use . on a non-struct\n", cur_line);
-                    exit(1);
-                }
-
-                if (!vtop->is_lvalue) {
-                    printf("%d: Expected lvalue for struct . operation.\n", cur_line);
-                    exit(1);
-                }
+                if (vtop->type < TYPE_STRUCT || vtop->type >= TYPE_PTR) panic("Cannot use . on a non-struct");
+                if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
 
                 // Pretend the lvalue is a pointer to a struct
                 vtop->is_lvalue = 0;
                 vtop->type += TYPE_PTR;
             }
 
-            if (vtop->type < TYPE_PTR) {
-                printf("%d: Cannot use -> on a non-pointer\n", cur_line);
-                exit(1);
-            }
-
-            if (vtop->type < TYPE_STRUCT + TYPE_PTR) {
-                printf("%d: Cannot use -> on a pointer to a non-struct\n", cur_line);
-                exit(1);
-            }
+            if (vtop->type < TYPE_PTR) panic("Cannot use -> on a non-pointer");
+            if (vtop->type < TYPE_STRUCT + TYPE_PTR) panic("Cannot use -> on a pointer to a non-struct");
 
             next();
-            if (cur_token != TOK_IDENTIFIER) {
-                printf("%d: Expected identifier\n", cur_line);
-                exit(1);
-            }
+            if (cur_token != TOK_IDENTIFIER) panic("Expected identifier\n");
 
             str = all_structs[vtop->type - TYPE_PTR - TYPE_STRUCT];
             member = lookup_struct_member(str, cur_identifier);
@@ -1451,10 +1403,7 @@ void expression(int level) {
         }
         else if (cur_token == TOK_EQ) {
             next();
-            if (!vtop->is_lvalue) {
-                printf("%d: Cannot assign to an rvalue\n", cur_line);
-                exit(1);
-            }
+            if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
             dst = pop();
             expression(TOK_EQ);
             src1 = pl();
@@ -1468,10 +1417,7 @@ void expression(int level) {
 
             next();
 
-            if (!vtop->is_lvalue) {
-                printf("%d: Cannot assign to an rvalue\n", cur_line);
-                exit(1);
-            }
+            if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
 
             v1 = vtop;                  // lvalue
             push(load(dup_value(v1)));  // rvalue
@@ -1522,10 +1468,8 @@ void statement() {
 
     vs = vs_start;
 
-    if (cur_token_is_integer_type() || cur_token == TOK_STRUCT)  {
-        printf("%d: Declarations must be at the top of a function\n", cur_line);
-        exit(1);
-    }
+    if (cur_token_is_integer_type() || cur_token == TOK_STRUCT)
+        panic("Declarations must be at the top of a function");
 
     if (cur_token == TOK_SEMI) {
         // Empty statement
@@ -1689,15 +1633,11 @@ void function_body() {
             type = base_type;
             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
-            if (type >= TYPE_STRUCT && type < TYPE_PTR) {
-                printf("%d: Direct usage of struct variables not implemented\n", cur_line);
-                exit(1);
-            }
+            if (type >= TYPE_STRUCT && type < TYPE_PTR)
+                panic("Direct usage of struct variables not implemented");
 
-            if (cur_token == TOK_EQ) {
-                printf("%d: Declarations with assignments aren't implemented\n", cur_line);
-                exit(1);
-            }
+            if (cur_token == TOK_EQ)
+                panic("Declarations with assignments aren't implemented");
 
             expect(TOK_IDENTIFIER);
             cur_symbol = new_symbol();
@@ -1746,10 +1686,8 @@ void parse() {
                 type = base_type;
                 while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
-                if (type >= TYPE_STRUCT && type < TYPE_PTR) {
-                    printf("%d: Direct usage of struct variables not implemented\n", cur_line);
-                    exit(1);
-                }
+                if (type >= TYPE_STRUCT && type < TYPE_PTR)
+                    panic("Direct usage of struct variables not implemented");
 
                 expect(TOK_IDENTIFIER);
                 cur_function_name = cur_identifier;
@@ -1790,15 +1728,11 @@ void parse() {
                             type = parse_base_type(0);
                             while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
 
-                            if (type >= TYPE_STRUCT && type < TYPE_PTR) {
-                                printf("%d: Direct usage of struct variables not implemented\n", cur_line);
-                                exit(1);
-                            }
+                            if (type >= TYPE_STRUCT && type < TYPE_PTR)
+                                panic("Direct usage of struct variables not implemented");
                         }
-                        else {
-                            printf("%d: Unknown type token in function def %d\n", cur_line, cur_token);
-                            exit(1);
-                        }
+                        else
+                            panic1d("Unknown type token in function def %d", cur_token);
 
                         consume(TOK_IDENTIFIER);
                         param_symbol = new_symbol();
@@ -1826,10 +1760,7 @@ void parse() {
                 }
                 else {
                     // Global symbol
-                    if (seen_function) {
-                        printf("%d: Global variables must precede all functions\n", cur_line);
-                        exit(1);
-                    }
+                    if (seen_function) panic("Global variables must precede all functions");
                 }
 
                 if (cur_token == TOK_COMMA) next();
@@ -1870,10 +1801,8 @@ void parse() {
             consume(TOK_SEMI);
         }
 
-        else {
-            printf("%d: Expected global declaration or function\n", cur_line);
-            exit(1);
-        }
+        else
+            panic("Expected global declaration or function");
     }
 }
 
@@ -2005,10 +1934,8 @@ void print_instruction(int f, struct three_address_code *tac) {
     else if (tac->operation == IR_BSHL)          { print_value(f, tac->src1, 1); dprintf(f, " << "); print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); dprintf(f, " >> "); print_value(f, tac->src2, 1); }
 
-    else {
-        printf("print_instruction(): Unknown operation: %d\n", tac->operation);
-        exit(1);
-    }
+    else
+        panic1d("print_instruction(): Unknown operation: %d", tac->operation);
 
     dprintf(f, "\n");
 }
@@ -2096,10 +2023,8 @@ void allocate_register(struct value *v) {
     v->spilled_stack_index = spilled_register_count++;
     spilled_registers[v->spilled_stack_index] = v->vreg;
 
-    if (spilled_register_count >= MAX_SPILLED_REGISTER_COUNT) {
-        printf("Exceeded max spilled register count %d\n", MAX_SPILLED_REGISTER_COUNT);
-        exit(1);
-    }
+    if (spilled_register_count >= MAX_SPILLED_REGISTER_COUNT)
+        panic1d("Exceeded max spilled register count %d", MAX_SPILLED_REGISTER_COUNT);
 }
 
 void allocate_registers(struct three_address_code *ir) {
@@ -2161,14 +2086,8 @@ void output_load_param(int position, char *register_name) {
 }
 
 void check_preg(int preg) {
-    if (preg == -1) {
-        printf("Illegal attempt to output -1 preg\n");
-        exit(1);
-    }
-    if (preg < 0 || preg > PHYSICAL_REGISTER_COUNT) {
-        printf("Illegal preg %d\n", preg);
-        exit(1);
-    }
+    if (preg == -1) panic("Illegal attempt to output -1 preg");
+    if (preg < 0 || preg > PHYSICAL_REGISTER_COUNT) panic1d("Illegal preg %d", preg);
 }
 
 void output_byte_register_name(int preg) {
@@ -2571,7 +2490,7 @@ void output_function_body_code(struct symbol *symbol) {
         else if (ir->operation == IR_ASSIGN) {
             if (ir->dst->global_symbol) {
                 // dst a global
-                if (ir->dst->vreg) { printf("Unexpected vreg in assign\n"); exit(1); }
+                if (ir->dst->vreg) panic("Unexpected vreg in assign");
                 output_type_specific_mov(ir->dst->type);
                 output_type_specific_register_name(ir->dst->type, ir->src1->preg);
                 dprintf(f, ", ");
@@ -2579,7 +2498,7 @@ void output_function_body_code(struct symbol *symbol) {
             }
             else if (ir->dst->is_local) {
                 // dst is on the stack
-                if (ir->dst->vreg) { printf("Unexpected vreg in assign\n"); exit(1); }
+                if (ir->dst->vreg) panic("Unexpected vreg in assign");
                 output_type_specific_mov(ir->dst->type);
                 output_type_specific_register_name(ir->dst->type, ir->src1->preg);
                 dprintf(f, ", ");
@@ -2681,10 +2600,8 @@ void output_function_body_code(struct symbol *symbol) {
             dprintf(f, "\n");
         }
 
-        else {
-            printf("output_function_body_code(): Unknown operation: %d\n", ir->operation);
-            exit(1);
-        }
+        else
+            panic1d("output_function_body_code(): Unknown operation: %d", ir->operation);
 
         post_instruction_spill(ir, spilled_registers_stack_start);
 
@@ -2709,7 +2626,10 @@ void output_code(char *input_filename, char *output_filename) {
         f = 1;
     else {
         f = open(output_filename, 577, 420); // O_TRUNC=512, O_CREAT=64, O_WRONLY=1, mode=555 http://man7.org/linux/man-pages/man2/open.2.html
-        if (f < 0) { printf("Unable to open write output file\n"); exit(1); }
+        if (f < 0) {
+            printf("Unable to open write output file\n");
+            exit(1);
+        }
     }
 
     dprintf(f, "\t.file\t\"%s\"\n", input_filename);
@@ -2827,7 +2747,10 @@ int main(int argc, char **argv) {
             argc -= 2;
             argv += 2;
         }
-        else { printf("Unknown parameter %s\n", argv[0]); exit(1); }
+        else {
+            printf("Unknown parameter %s\n", argv[0]);
+            exit(1);
+        }
     }
 
     if (help || argc < 1) {
@@ -2876,10 +2799,16 @@ int main(int argc, char **argv) {
     add_builtin("strcpy",  IR_SCPY, TYPE_INT);
 
     f  = open(input_filename, 0, 0); // O_RDONLY = 0
-    if (f < 0) { printf("Unable to open input file\n"); exit(1); }
+    if (f < 0) {
+        printf("Unable to open input file\n");
+        exit(1);
+    }
     input_size = read(f, input, 10 * 1024 * 1024);
     input[input_size] = 0;
-    if (input_size < 0) { printf("Unable to read input file\n"); exit(1); }
+    if (input_size < 0) {
+        printf("Unable to read input file\n");
+        exit(1);
+    }
     close(f);
 
     cur_line = 1;
