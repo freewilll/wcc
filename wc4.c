@@ -983,11 +983,8 @@ void expression(int level) {
             exit(1);
         }
 
-        v1 = pop(); // Preserve original lvalue
-
-        src1 = dup_value(v1);
-        push(src1); // Make an rvalue
-        src1 = pl(src1);
+        v1 = pop();                 // lvalue
+        src1 = load(dup_value(v1)); // rvalue
 
         add_ir_constant_value(TYPE_INT, get_type_inc_dec_size(src1->type));
         src2 = pl();
