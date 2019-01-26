@@ -2328,7 +2328,7 @@ void post_instruction_spill(struct three_address_code *ir, int spilled_registers
 }
 
 void output_function_body_code(struct symbol *symbol) {
-    struct three_address_code *ir;
+    struct three_address_code *tac;
     int i;
     int function_pc, pc; // Function param count
     int stack_index;
@@ -2338,7 +2338,7 @@ void output_function_body_code(struct symbol *symbol) {
     int spilled_registers_stack_start;
     int *saved_registers;
 
-    ir = symbol->ir;
+    tac = symbol->ir;
 
     dprintf(f, "\tpush\t%%rbp\n");
     dprintf(f, "\tmovq\t%%rsp, %%rbp\n");
@@ -2366,75 +2366,75 @@ void output_function_body_code(struct symbol *symbol) {
     if (local_stack_size > 0)
         dprintf(f, "\tsubq\t$%d, %%rsp\n", local_stack_size);
 
-    saved_registers = push_callee_saved_registers(ir);
+    saved_registers = push_callee_saved_registers(tac);
 
-    while (ir->operation) {
+    while (tac->operation) {
         if (output_inline_ir) {
             dprintf(f, "\t// ------------------------------------- ");
-            print_instruction(f, ir);
+            print_instruction(f, tac);
         }
 
-        pre_instruction_spill(ir, spilled_registers_stack_start);
+        pre_instruction_spill(tac, spilled_registers_stack_start);
 
-        if (ir->label) dprintf(f, ".l%d:\n", ir->label);
+        if (tac->label) dprintf(f, ".l%d:\n", tac->label);
 
-        if (ir->operation == IR_LOAD_CONSTANT) {
-            dprintf(f, "\tmovq\t$%d, ", ir->src1->value);
-            output_quad_register_name(ir->dst->preg);
+        if (tac->operation == IR_LOAD_CONSTANT) {
+            dprintf(f, "\tmovq\t$%d, ", tac->src1->value);
+            output_quad_register_name(tac->dst->preg);
             dprintf(f, "\n");
         }
 
-        else if (ir->operation == IR_LOAD_STRING_LITERAL) {
-            dprintf(f, "\tleaq\t.SL%d(%%rip), ", ir->src1->string_literal_index);
-            output_quad_register_name(ir->dst->preg);
+        else if (tac->operation == IR_LOAD_STRING_LITERAL) {
+            dprintf(f, "\tleaq\t.SL%d(%%rip), ", tac->src1->string_literal_index);
+            output_quad_register_name(tac->dst->preg);
             dprintf(f, "\n");
         }
 
-        else if (ir->operation == IR_LOAD_VARIABLE) {
-            if (ir->src1->global_symbol) {
-                if (!ir->src1->is_lvalue) {
-                    output_type_specific_lea(ir->src1->type);
-                    dprintf(f, "%s(%%rip), ", ir->src1->global_symbol->identifier);
+        else if (tac->operation == IR_LOAD_VARIABLE) {
+            if (tac->src1->global_symbol) {
+                if (!tac->src1->is_lvalue) {
+                    output_type_specific_lea(tac->src1->type);
+                    dprintf(f, "%s(%%rip), ", tac->src1->global_symbol->identifier);
                 }
                 else {
-                    output_type_specific_sign_extend_mov(ir->src1->type);
-                    dprintf(f, "%s(%%rip), ", ir->src1->global_symbol->identifier);
+                    output_type_specific_sign_extend_mov(tac->src1->type);
+                    dprintf(f, "%s(%%rip), ", tac->src1->global_symbol->identifier);
                 }
             }
             else {
-                stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->src1->stack_index);
-                if (!ir->src1->is_lvalue) {
-                    output_type_specific_lea(ir->src1->type);
+                stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, tac->src1->stack_index);
+                if (!tac->src1->is_lvalue) {
+                    output_type_specific_lea(tac->src1->type);
                     dprintf(f, "%d(%%rbp), ", stack_offset);
                 }
                 else {
-                    output_type_specific_sign_extend_mov(ir->src1->type);
+                    output_type_specific_sign_extend_mov(tac->src1->type);
                     dprintf(f, "%d(%%rbp), ", stack_offset);
                 }
             }
 
-            output_quad_register_name(ir->dst->preg);
+            output_quad_register_name(tac->dst->preg);
             dprintf(f, "\n");
         }
 
-        else if (ir->operation == IR_INDIRECT) {
-            output_type_specific_sign_extend_mov(ir->dst->type);
+        else if (tac->operation == IR_INDIRECT) {
+            output_type_specific_sign_extend_mov(tac->dst->type);
             dprintf(f, "(");
-            output_quad_register_name(ir->src1->preg);
+            output_quad_register_name(tac->src1->preg);
             dprintf(f, "), ");
-            output_quad_register_name(ir->dst->preg);
+            output_quad_register_name(tac->dst->preg);
             dprintf(f, "\n");
         }
 
-        else if (ir->operation == IR_PARAM) {
+        else if (tac->operation == IR_PARAM) {
             dprintf(f, "\tpushq\t");
-            output_quad_register_name(ir->src1->preg);
+            output_quad_register_name(tac->src1->preg);
             dprintf(f, "\n");
         }
 
-        else if (ir->operation == IR_CALL) {
+        else if (tac->operation == IR_CALL) {
             // Read the first 6 args from the stack in right to left order
-            pc = ir->src1->function_call_param_count;
+            pc = tac->src1->function_call_param_count;
             if (pc >= 6) output_load_param(pc - 6, "r9");
             if (pc >= 5) output_load_param(pc - 5, "r8");
             if (pc >= 4) output_load_param(pc - 4, "rcx");
@@ -2451,32 +2451,32 @@ void output_function_body_code(struct symbol *symbol) {
             // Adjust the stack for the removed args that are in registers
             if (pc > 0) dprintf(f, "\taddq\t$%d, %%rsp\n", (pc <= 6 ? pc : 6) * 8);
 
-            if (ir->src1->function_symbol->builtin == IR_PRTF || ir->src1->function_symbol->builtin == IR_DPRT) {
+            if (tac->src1->function_symbol->builtin == IR_PRTF || tac->src1->function_symbol->builtin == IR_DPRT) {
                 dprintf(f, "\tmovl\t$0, %%eax\n");
             }
 
-            if (ir->src1->function_symbol->builtin)
-                dprintf(f, "\tcallq\t%s@PLT\n", ir->src1->function_symbol->identifier);
+            if (tac->src1->function_symbol->builtin)
+                dprintf(f, "\tcallq\t%s@PLT\n", tac->src1->function_symbol->identifier);
             else
-                dprintf(f, "\tcallq\t%s\n", ir->src1->function_symbol->identifier);
+                dprintf(f, "\tcallq\t%s\n", tac->src1->function_symbol->identifier);
 
             // For all builtins that return something smaller an int, extend it to a quad
-            if (ir->dst) {
-                if (ir->dst->type <= TYPE_CHAR)  dprintf(f, "\tcbtw\n");
-                if (ir->dst->type <= TYPE_SHORT) dprintf(f, "\tcwtl\n");
-                if (ir->dst->type <= TYPE_INT)   dprintf(f, "\tcltq\n");
+            if (tac->dst) {
+                if (tac->dst->type <= TYPE_CHAR)  dprintf(f, "\tcbtw\n");
+                if (tac->dst->type <= TYPE_SHORT) dprintf(f, "\tcwtl\n");
+                if (tac->dst->type <= TYPE_INT)   dprintf(f, "\tcltq\n");
 
                 dprintf(f, "\tmovq\t%%rax, ");
-                output_quad_register_name(ir->dst->preg);
+                output_quad_register_name(tac->dst->preg);
                 dprintf(f, "\n");
             }
         }
 
-        else if (ir->operation == IR_RETURN) {
-            if (ir->src1) {
-                if (ir->src1->preg != REG_RAX) {
+        else if (tac->operation == IR_RETURN) {
+            if (tac->src1) {
+                if (tac->src1->preg != REG_RAX) {
                     dprintf(f, "\tmovq\t");
-                    output_quad_register_name(ir->src1->preg);
+                    output_quad_register_name(tac->src1->preg);
                     dprintf(f, ", ");
                     output_quad_register_name(REG_RAX);
                     dprintf(f, "\n");
@@ -2487,125 +2487,125 @@ void output_function_body_code(struct symbol *symbol) {
             dprintf(f, "\tretq\n");
         }
 
-        else if (ir->operation == IR_ASSIGN) {
-            if (ir->dst->global_symbol) {
+        else if (tac->operation == IR_ASSIGN) {
+            if (tac->dst->global_symbol) {
                 // dst a global
-                if (ir->dst->vreg) panic("Unexpected vreg in assign");
-                output_type_specific_mov(ir->dst->type);
-                output_type_specific_register_name(ir->dst->type, ir->src1->preg);
+                if (tac->dst->vreg) panic("Unexpected vreg in assign");
+                output_type_specific_mov(tac->dst->type);
+                output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 dprintf(f, ", ");
-                dprintf(f, "%s(%%rip)\n", ir->dst->global_symbol->identifier);
+                dprintf(f, "%s(%%rip)\n", tac->dst->global_symbol->identifier);
             }
-            else if (ir->dst->is_local) {
+            else if (tac->dst->is_local) {
                 // dst is on the stack
-                if (ir->dst->vreg) panic("Unexpected vreg in assign");
-                output_type_specific_mov(ir->dst->type);
-                output_type_specific_register_name(ir->dst->type, ir->src1->preg);
+                if (tac->dst->vreg) panic("Unexpected vreg in assign");
+                output_type_specific_mov(tac->dst->type);
+                output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 dprintf(f, ", ");
-                stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
+                stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, tac->dst->stack_index);
                 dprintf(f, "%d(%%rbp)\n", stack_offset);
             }
-            else if (!ir->dst->is_lvalue) {
+            else if (!tac->dst->is_lvalue) {
                 // Register copy
                 dprintf(f, "\tmovq\t");
-                output_quad_register_name(ir->src1->preg);
+                output_quad_register_name(tac->src1->preg);
                 dprintf(f, ", ");
-                output_quad_register_name(ir->dst->preg);
+                output_quad_register_name(tac->dst->preg);
                 dprintf(f, "\n");
             }
             else {
                 // dst is an lvalue in a register
-                output_type_specific_mov(ir->dst->type);
-                output_type_specific_register_name(ir->dst->type, ir->src1->preg);
+                output_type_specific_mov(tac->dst->type);
+                output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 dprintf(f, ", ");
                 dprintf(f, "(");
-                output_quad_register_name(ir->dst->preg);
+                output_quad_register_name(tac->dst->preg);
                 dprintf(f, ")\n");
             }
         }
 
-        else if (ir->operation == IR_NOP);
+        else if (tac->operation == IR_NOP);
 
-        else if (ir->operation == IR_JZ || ir->operation == IR_JNZ) {
+        else if (tac->operation == IR_JZ || tac->operation == IR_JNZ) {
             dprintf(f, "\tcmpq\t$0x0, ");
-            output_quad_register_name(ir->src1->preg);
+            output_quad_register_name(tac->src1->preg);
             dprintf(f, "\n");
-            if (ir->operation == IR_JZ) dprintf(f, "\tje"); else dprintf(f, "\tjne");
-            dprintf(f, "\t.l%d\n", ir->src2->label);
+            if (tac->operation == IR_JZ) dprintf(f, "\tje"); else dprintf(f, "\tjne");
+            dprintf(f, "\t.l%d\n", tac->src2->label);
         }
 
-        else if (ir->operation == IR_JMP)
-            dprintf(f, "\tjmp\t.l%d\n", ir->src1->label);
+        else if (tac->operation == IR_JMP)
+            dprintf(f, "\tjmp\t.l%d\n", tac->src1->label);
 
-        else if (ir->operation == IR_ADD)
-            output_op("addq",  ir->src1->preg, ir->src2->preg);
+        else if (tac->operation == IR_ADD)
+            output_op("addq",  tac->src1->preg, tac->src2->preg);
 
-        else if (ir->operation == IR_SUB) {
+        else if (tac->operation == IR_SUB) {
             dprintf(f, "\txchg\t");
-            output_quad_register_name(ir->src1->preg);
+            output_quad_register_name(tac->src1->preg);
             dprintf(f, ", ");
-            output_quad_register_name(ir->src2->preg);
+            output_quad_register_name(tac->src2->preg);
             dprintf(f, "\n");
-            output_op("subq",  ir->src1->preg, ir->src2->preg);
+            output_op("subq",  tac->src1->preg, tac->src2->preg);
         }
 
-        else if (ir->operation == IR_MUL)
-            output_op("imulq", ir->src1->preg, ir->src2->preg);
+        else if (tac->operation == IR_MUL)
+            output_op("imulq", tac->src1->preg, tac->src2->preg);
 
-        else if (ir->operation == IR_DIV || ir->operation == IR_MOD) {
+        else if (tac->operation == IR_DIV || tac->operation == IR_MOD) {
             // This is slightly ugly. src1 is the dividend and needs doubling in size and placing in the RDX register.
             // It could have been put in the RDX register in the first place.
             // The quotient is stored in RAX and remainder in RDX, but is then copied
             // to whatever register is allocated for the dst, which might as well have been RAX or RDX for the respective quotient and remainders.
 
             dprintf(f, "\tmovq\t");
-            output_quad_register_name(ir->src1->preg);
+            output_quad_register_name(tac->src1->preg);
             dprintf(f, ", %%rax\n");
             dprintf(f, "\tcqto\n");
             dprintf(f, "\tidivq\t");
-            output_quad_register_name(ir->src2->preg);
+            output_quad_register_name(tac->src2->preg);
             dprintf(f, "\n");
-            if (ir->operation == IR_DIV)
+            if (tac->operation == IR_DIV)
                 dprintf(f, "\tmovq\t%%rax, ");
             else
                 dprintf(f, "\tmovq\t%%rdx, ");
-            output_quad_register_name(ir->dst->preg);
+            output_quad_register_name(tac->dst->preg);
             dprintf(f, "\n");
         }
 
-        else if (ir->operation == IR_BNOT)  {
+        else if (tac->operation == IR_BNOT)  {
             dprintf(f, "\tnot\t");
-            output_quad_register_name(ir->src1->preg);
+            output_quad_register_name(tac->src1->preg);
             dprintf(f, "\n");
         }
 
-        else if (ir->operation == IR_EQ)   output_cmp_operation(ir, "sete");
-        else if (ir->operation == IR_NE)   output_cmp_operation(ir, "setne");
-        else if (ir->operation == IR_LT)   output_cmp_operation(ir, "setl");
-        else if (ir->operation == IR_GT)   output_cmp_operation(ir, "setg");
-        else if (ir->operation == IR_LE)   output_cmp_operation(ir, "setle");
-        else if (ir->operation == IR_GE)   output_cmp_operation(ir, "setge");
-        else if (ir->operation == IR_BOR)  output_op("orq",  ir->src1->preg, ir->src2->preg);
-        else if (ir->operation == IR_BAND) output_op("andq", ir->src1->preg, ir->src2->preg);
-        else if (ir->operation == IR_XOR)  output_op("xorq", ir->src1->preg, ir->src2->preg);
+        else if (tac->operation == IR_EQ)   output_cmp_operation(tac, "sete");
+        else if (tac->operation == IR_NE)   output_cmp_operation(tac, "setne");
+        else if (tac->operation == IR_LT)   output_cmp_operation(tac, "setl");
+        else if (tac->operation == IR_GT)   output_cmp_operation(tac, "setg");
+        else if (tac->operation == IR_LE)   output_cmp_operation(tac, "setle");
+        else if (tac->operation == IR_GE)   output_cmp_operation(tac, "setge");
+        else if (tac->operation == IR_BOR)  output_op("orq",  tac->src1->preg, tac->src2->preg);
+        else if (tac->operation == IR_BAND) output_op("andq", tac->src1->preg, tac->src2->preg);
+        else if (tac->operation == IR_XOR)  output_op("xorq", tac->src1->preg, tac->src2->preg);
 
-        else if (ir->operation == IR_BSHL || ir->operation == IR_BSHR) {
+        else if (tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
             // Ugly, this means rcx is permamently allocated
 
             dprintf(f, "\tmovq\t");
-            output_quad_register_name(ir->src2->preg);
+            output_quad_register_name(tac->src2->preg);
             dprintf(f, ", %%rcx\n");
-            dprintf(f, "\t%s\t%%cl, ", ir->operation == IR_BSHL ? "shl" : "sar");
-            output_quad_register_name(ir->src1->preg);
+            dprintf(f, "\t%s\t%%cl, ", tac->operation == IR_BSHL ? "shl" : "sar");
+            output_quad_register_name(tac->src1->preg);
             dprintf(f, "\n");
         }
 
         else
-            panic1d("output_function_body_code(): Unknown operation: %d", ir->operation);
+            panic1d("output_function_body_code(): Unknown operation: %d", tac->operation);
 
-        post_instruction_spill(ir, spilled_registers_stack_start);
+        post_instruction_spill(tac, spilled_registers_stack_start);
 
-        ir++;
+        tac++;
     }
 
     if (!strcmp(symbol->identifier, "main")) dprintf(f, "\tmovq\t$0, %%rax\n");
