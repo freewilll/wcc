@@ -4,7 +4,11 @@ wc4
 wc42
 venv
 test.c
+test1.c
+test2.c
 test
+test1
+test2
 core
 __pycache__
 *.pyc
