@@ -951,7 +951,9 @@ void expression(int level) {
         next();
         add_ir_constant_value(TYPE_LONG, 0);
         expression(TOK_INC);
-        add_ir_op(IR_EQ, TYPE_INT, new_vreg(), pl(), pl());
+        src1 = pl();
+        src2 = pl();
+        add_ir_op(IR_EQ, TYPE_INT, new_vreg(), src1, src2);
     }
     else if (cur_token == TOK_BITWISE_NOT) {
         next();
@@ -1018,7 +1020,9 @@ void expression(int level) {
         else {
             add_ir_constant_value(TYPE_LONG, -1);
             expression(TOK_INC);
-            tac = add_ir_op(IR_MUL, TYPE_LONG, 0, pl(), pl());
+            src1 = pl();
+            src2 = pl();
+            tac = add_ir_op(IR_MUL, TYPE_LONG, 0, src1, src2);
             tac->dst->vreg = tac->src2->vreg;
         }
     }
@@ -1159,12 +1163,16 @@ void expression(int level) {
 
         if (factor > 1) {
             add_ir_constant_value(TYPE_INT, factor);
-            tac = add_ir_op(IR_MUL, TYPE_INT, 0, pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_MUL, TYPE_INT, 0, src1, src2);
             tac->dst->vreg = tac->src2->vreg;
         }
 
         type = vs_operation_type();
-        tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
+        src2 = pl();
+        src1 = pl();
+        tac = add_ir_op(IR_ADD, type, 0, src1, src2);
         tac->dst->vreg = tac->src2->vreg;
 
         consume(TOK_RBRACKET);
@@ -1250,7 +1258,9 @@ void expression(int level) {
                 vtop->is_lvalue = 0;
                 add_ir_constant_value(TYPE_INT, member->offset);
                 type = vs_operation_type();
-                tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
+                src2 = pl();
+                src1 = pl();
+                tac = add_ir_op(IR_ADD, type, 0, src1, src2);
                 tac->dst->vreg = tac->src2->vreg;
             }
 
@@ -1262,20 +1272,26 @@ void expression(int level) {
             next();
             expression(TOK_DOT);
             type = vs_operation_type();
-            tac = add_ir_op(IR_MUL, type, 0, pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_MUL, type, 0, src1, src2);
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_DIVIDE) {
             next();
             expression(TOK_INC);
             type = vs_operation_type();
-            add_ir_op(IR_DIV, type, new_vreg(), pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            add_ir_op(IR_DIV, type, new_vreg(), src1, src2);
         }
         else if (cur_token == TOK_MOD) {
             next();
             expression(TOK_INC);
             type = vs_operation_type();
-            add_ir_op(IR_MOD, type, new_vreg(), pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            add_ir_op(IR_MOD, type, new_vreg(), src1, src2);
         }
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
             org_token = cur_token;
@@ -1285,18 +1301,24 @@ void expression(int level) {
 
             if (factor > 1) {
                 add_ir_constant_value(TYPE_INT, factor);
-                tac = add_ir_op(IR_MUL, TYPE_INT, 0, pl(), pl());
+                src2 = pl();
+                src1 = pl();
+                tac = add_ir_op(IR_MUL, TYPE_INT, 0, src1, src2);
                 tac->dst->vreg = tac->src2->vreg;
             }
 
             type = vs_operation_type();
 
             if (org_token == TOK_PLUS) {
-                tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
+                src2 = pl();
+                src1 = pl();
+                tac = add_ir_op(IR_ADD, type, 0, src1, src2);
                 tac->dst->vreg = tac->src2->vreg;
             }
             else {
-                tac = add_ir_op(IR_SUB, type, 0, pl(), pl());
+                src2 = pl();
+                src1 = pl();
+                tac = add_ir_op(IR_SUB, type, 0, src1, src2);
                 tac->dst->vreg = tac->src2->vreg;
             }
         }
@@ -1304,27 +1326,35 @@ void expression(int level) {
             next();
             expression(TOK_PLUS);
             type = vs_operation_type();
-            tac = add_ir_op(IR_BSHL, type, 0, pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_BSHL, type, 0, src1, src2);
             tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_BITWISE_RIGHT) {
             next();
             expression(TOK_PLUS);
             type = vs_operation_type();
-            tac = add_ir_op(IR_BSHR, type, 0, pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_BSHR, type, 0, src1, src2);
             tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_LT) {
             next();
             expression(TOK_BITWISE_LEFT);
-            tac = add_ir_op(IR_LT, TYPE_INT, new_vreg(), pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_LT, TYPE_INT, new_vreg(), src1, src2);
             tac->dst->vreg = tac->src1->vreg;
 
         }
         else if (cur_token == TOK_GT) {
             next();
             expression(TOK_PLUS);
-            tac = add_ir_op(IR_GT, TYPE_INT, new_vreg(), pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_GT, TYPE_INT, new_vreg(), src1, src2);
             tac->dst->vreg = tac->src1->vreg;
 
         }
@@ -1332,48 +1362,62 @@ void expression(int level) {
             next();
             expression(TOK_PLUS);
             // *iptr++ = INSTR_LE;
-            tac = add_ir_op(IR_LE, TYPE_INT, new_vreg(), pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_LE, TYPE_INT, new_vreg(), src1, src2);
             tac->dst->vreg = tac->src1->vreg;
 
         }
         else if (cur_token == TOK_GE) {
             next();
             expression(TOK_PLUS);
-            tac = add_ir_op(IR_GE, TYPE_INT, new_vreg(), pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_GE, TYPE_INT, new_vreg(), src1, src2);
             tac->dst->vreg = tac->src1->vreg;
 
         }
         else if (cur_token == TOK_DBL_EQ) {
             next();
             expression(TOK_LT);
-            tac = add_ir_op(IR_EQ, TYPE_INT, new_vreg(), pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_EQ, TYPE_INT, new_vreg(), src1, src2);
             tac->dst->vreg = tac->src1->vreg;
         }
         else if (cur_token == TOK_NOT_EQ) {
             next();
             expression(TOK_LT);
-            tac = add_ir_op(IR_NE, TYPE_INT, new_vreg(), pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_NE, TYPE_INT, new_vreg(), src1, src2);
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_ADDRESS_OF) {
             next();
             expression(TOK_DBL_EQ);
             type = vs_operation_type();
-            tac = add_ir_op(IR_BAND, type, 0, pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_BAND, type, 0, src1, src2);
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_XOR) {
             next();
             expression(TOK_ADDRESS_OF);
             type = vs_operation_type();
-            tac = add_ir_op(IR_XOR, type, 0, pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_XOR, type, 0, src1, src2);
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_BITWISE_OR) {
             next();
             expression(TOK_XOR);
             type = vs_operation_type();
-            tac = add_ir_op(IR_BOR, type, 0, pl(), pl());
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_BOR, type, 0, src1, src2);
             tac->dst->vreg = tac->src2->vreg;
         }
         else if (cur_token == TOK_AND) {
@@ -1438,16 +1482,22 @@ void expression(int level) {
 
             if (factor > 1) {
                 add_ir_constant_value(TYPE_INT, factor);
-                tac = add_ir_op(IR_MUL, TYPE_INT, 0, pl(), pl());
+                src2 = pl();
+                src1 = pl();
+                tac = add_ir_op(IR_MUL, TYPE_INT, 0, src1, src2);
                 tac->dst->vreg = tac->src2->vreg;
             }
 
             if (org_token == TOK_PLUS_EQ) {
-                tac = add_ir_op(IR_ADD, type, 0, pl(), pl());
+                src2 = pl();
+                src1 = pl();
+                tac = add_ir_op(IR_ADD, type, 0, src1, src2);
                 tac->dst->vreg = tac->src2->vreg;
             }
             else {
-                tac = add_ir_op(IR_SUB, type, 0, pl(), pl());
+                src2 = pl();
+                src1 = pl();
+                tac = add_ir_op(IR_SUB, type, 0, src1, src2);
                 tac->dst->vreg = tac->src2->vreg;
             }
 
