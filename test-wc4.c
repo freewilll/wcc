@@ -83,6 +83,7 @@ struct __attribute__ ((__packed__)) pss2 { int i; char c; int j; };
 struct __attribute__ ((packed))     pss3 { int i; char c; int j; };
 
 struct is1 {
+    struct is2* s1;
     struct is2* s2;
 };
 
@@ -1027,16 +1028,26 @@ void test_packed_struct() {
 
 void test_incomplete_struct() {
     struct is1 *s1;
-    struct is2 *s2;
+    struct is2 *s21;
+    struct is2 *s22;
+
     s1 = malloc(sizeof(struct is1));
-    s2 = malloc(sizeof(struct is2));
-    s1->s2 = s2;
-    s1->s2->i = 1;
-    assert_int(1, s1->s2->i, "incomplete struct 1");
-    assert_int(1, s2->i,     "incomplete struct 1");
-    s2->i = 2;
+    s21 = malloc(sizeof(struct is2));
+    s22 = malloc(sizeof(struct is2));
+    s1->s1 = s21;
+    s1->s2 = s22;
+    s1->s1->i = 1;
+    s1->s2->i = 2;
+    assert_int(1, s1->s1->i, "incomplete struct 1");
+    assert_int(1, s21->i,    "incomplete struct 2");
     assert_int(2, s1->s2->i, "incomplete struct 3");
-    assert_int(2, s2->i,     "incomplete struct 4");
+    assert_int(2, s22->i,    "incomplete struct 4");
+    s21->i = 3;
+    s22->i = 4;
+    assert_int(3, s1->s1->i, "incomplete struct 5");
+    assert_int(3, s21->i,    "incomplete struct 6");
+    assert_int(4, s1->s2->i, "incomplete struct 7");
+    assert_int(4, s22->i,    "incomplete struct 8");
 }
 
 void test_struct_member_array_lookup() {
