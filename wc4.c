@@ -33,14 +33,13 @@ struct value {
     int preg;                       // Allocated physical register
     int is_lvalue;                  // Is the value an lvalue?
     int spilled_stack_index;        // Allocated stack index in case of a register spill
-    int is_local;                   // Is the variable local?
-    int stack_index;                // Stack index for local variable
+    int stack_index;                // Stack index for local variable. Zero if it's not a local variable.
     int is_string_literal;          // Is the value a string literal?
     int string_literal_index;       // Index in the string_literals array in the case of a string literal
     long value;                     // Value in the case of a constant
     struct symbol *function_symbol; // Corresponding symbol in the case of a function call
     int function_call_arg_count;    // Number of arguments in the case of a function call
-    struct symbol *global_symbol;   // Set if the value is a global symbol
+    struct symbol *global_symbol;   // Pointer to a global symbol if the value is a global symbol
     int label;                      // Target label in the case of jump instructions
 };
 
@@ -477,12 +476,12 @@ void consume(int token, char *what) {
 void print_value_stack() {
     struct value **lvs, *v;
 
-    printf("%-4s %-4s %-4s %-11s %-8s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "is_local", "stack_index", "is_lv");
+    printf("%-4s %-4s %-4s %-11s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "stack_index", "is_lv");
     lvs = vs;
     while (lvs != vs_start) {
         v = *lvs;
-        printf("%-4d %-4d %-4d %-11s %-8d %-11d %-5d\n",
-            v->type, v->vreg, v->preg, v->global_symbol ? v->global_symbol->identifier : 0, v->is_local, v->stack_index, v->is_lvalue);
+        printf("%-4d %-4d %-4d %-11s %-11d %-5d\n",
+            v->type, v->vreg, v->preg, v->global_symbol ? v->global_symbol->identifier : 0, v->stack_index, v->is_lvalue);
         lvs++;
     }
 }
@@ -524,7 +523,6 @@ struct value *dup_value(struct value *src) {
     dst->preg                      = src->preg;
     dst->is_lvalue                 = src->is_lvalue;
     dst->spilled_stack_index       = src->spilled_stack_index;
-    dst->is_local                  = src->is_local;
     dst->stack_index               = src->stack_index;
     dst->is_string_literal         = src->is_string_literal;
     dst->string_literal_index      = src->string_literal_index;
@@ -573,7 +571,7 @@ struct value *load(struct value *src1) {
     else {
         // Load a value into a register. This could be a global, local
         // or the result of a &.
-        dst->is_local = 0;
+        dst->stack_index = 0;
         dst->global_symbol = 0;
         add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
     }
@@ -592,7 +590,7 @@ struct value *make_rvalue(struct value *src1) {
     src1->is_lvalue = 0;
 
     dst = dup_value(src1);
-    dst->is_local = 0;
+    dst->stack_index = 0;
     dst->global_symbol = 0;
     add_instruction(IR_INDIRECT, dst, src1, 0);
 
@@ -1123,7 +1121,6 @@ void expression(int level) {
             // Local symbol
             src1 = new_value();
             src1->type = type;
-            src1->is_local = 1;
             src1->is_lvalue = 1;
 
             if (symbol->stack_index >= 0)
@@ -1863,8 +1860,8 @@ void fprintf_escaped_string_literal(void *f, char* sl) {
 void print_value(void *f, struct value *v, int is_assignment_rhs) {
     int type;
 
-    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->is_local)) fprintf(f, "&");
-    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->is_local)) fprintf(f, "L");
+    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->stack_index)) fprintf(f, "&");
+    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->stack_index)) fprintf(f, "L");
 
     if (v->preg != -1)
         fprintf(f, "p%d", v->preg);
@@ -1872,7 +1869,7 @@ void print_value(void *f, struct value *v, int is_assignment_rhs) {
         fprintf(f, "S[%d]", v->spilled_stack_index);
     else if (v->vreg)
         fprintf(f, "r%d", v->vreg);
-    else if (v->is_local)
+    else if (v->stack_index)
         fprintf(f, "s[%d]", v->stack_index);
     else if (v->global_symbol)
         fprintf(f, "%s", v->global_symbol->identifier);
@@ -2366,7 +2363,7 @@ void pre_instruction_spill(struct three_address_code *ir, int spilled_registers_
 
         // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
         // The assign code will use that to store the result of the assignment.
-        if (ir->operation == IR_ASSIGN && !ir->dst->is_local && !ir->dst->global_symbol && ir->dst->is_lvalue)
+        if (ir->operation == IR_ASSIGN && !ir->dst->stack_index && !ir->dst->global_symbol && ir->dst->is_lvalue)
             fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", spilled_registers_stack_start - ir->dst->spilled_stack_index * 8);
     }
 }
@@ -2374,7 +2371,7 @@ void pre_instruction_spill(struct three_address_code *ir, int spilled_registers_
 void post_instruction_spill(struct three_address_code *ir, int spilled_registers_stack_start) {
     if (ir->dst && ir->dst->spilled_stack_index != -1) {
         // Output a mov for assignments that are a register copy.
-        if (ir->operation == IR_ASSIGN && (ir->dst->is_local || ir->dst->global_symbol || ir->dst->is_lvalue)) return;
+        if (ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue)) return;
 
         fprintf(f, "\tmovq\t");
         output_quad_register_name(ir->dst->preg);
@@ -2553,7 +2550,7 @@ void output_function_body_code(struct symbol *symbol) {
                 fprintf(f, ", ");
                 fprintf(f, "%s(%%rip)\n", tac->dst->global_symbol->identifier);
             }
-            else if (tac->dst->is_local) {
+            else if (tac->dst->stack_index) {
                 // dst is on the stack
                 if (tac->dst->vreg) panic("Unexpected vreg in assign");
                 output_type_specific_mov(tac->dst->type);
