@@ -434,6 +434,14 @@ void test_pointer_arithmetic() {
     ppl = ppl + 1; assert_int(8, ppl, "ptr arith ca"); ppl = ppl + 2; assert_int(24, ppl, "ptr arith cb"); ppl = ppl - 3; assert_int(0, ppl, "ptr arith cc"); ppl = ppl - 1;
 }
 
+// Test 64 bit constants are assigned properly
+void test_long_constant() {
+    long l;
+
+    l = 0x1000000001010101;
+    assert_int(1, l && 0x1000000000000000, "64 bit constants");
+}
+
 void test_integer_sizes() {
     int i;
     char *data;
@@ -458,14 +466,14 @@ void test_integer_sizes() {
 
     memset(data, -1, 8); *((char  *) data) = 1; assert_long(0xffffffffffffff01, *((long *) data), "char assignment");
     memset(data, -1, 8); *((short *) data) = 1; assert_long(0xffffffffffff0001, *((long *) data), "short assignment");
-    // memset(data, -1, 8); *((int   *) data) = 1; assert_long(0xffffffff00000001, *((long *) data), "int assignment"); // FIXME int assignment
+    memset(data, -1, 8); *((int   *) data) = 1; assert_long(0xffffffff00000001, *((long *) data), "int assignment");
     memset(data, -1, 8); *((long  *) data) = 1; assert_long(0x0000000000000001, *((long *) data), "long assignment");
 
     memset(data, 1, 8);
     assert_long(0x0000000000000001, *((char  *) data), "char read 2");
     assert_long(0x0000000000000101, *((short *) data), "short read 2");
-    assert_long(0x1000000001010101, *((int   *) data), "int read 2");   // FIXME this test should fail due to the spurious 1
-    // assert_long(0x0101010101010101, *((long  *) data), "long read 2");  // FIXME long read
+    assert_long(0x0000000001010101, *((int   *) data), "int read 2");
+    assert_long(0x0101010101010101, *((long  *) data), "long read 2");
 }
 
 void test_malloc() {
@@ -1098,6 +1106,7 @@ int main(int argc, char **argv) {
     test_inc_dec_sizes();
     test_dereferenced_pointer_inc_dec();
     test_pointer_arithmetic();
+    test_long_constant();
     test_integer_sizes();
     test_malloc();
     test_char_pointer_arithmetic();

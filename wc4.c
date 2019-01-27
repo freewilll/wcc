@@ -31,7 +31,7 @@ struct value {
     int is_local;
     int is_string_literal;
     int is_lvalue;
-    int value;
+    long value;
     int string_literal_index;
     struct symbol *function_symbol;
     int function_call_param_count;
@@ -80,7 +80,7 @@ int cur_line;
 int cur_token;
 int cur_scope;
 char *cur_identifier;
-int cur_integer;
+long cur_long;
 char *cur_string_literal;
 struct symbol *cur_function_symbol;
 int seen_return;
@@ -299,7 +299,7 @@ void next() {
     char *i;
     char *id;
     int idp;
-    int value;
+    long value;
     char *sl;
     int slp;
     char c1, c2;
@@ -375,13 +375,13 @@ void next() {
         else if (input_size - ip >= 5 && !memcmp(i+ip, "__attribute__", 13)) { ip += 13; cur_token = TOK_ATTRIBUTE;                  }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "__packed__",    10)) { ip += 10; cur_token = TOK_PACKED;                     }
         else if (input_size - ip >= 5 && !memcmp(i+ip, "packed",        6 )) { ip += 6;  cur_token = TOK_PACKED;                     }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_integer = '\t'; }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_integer = '\n'; }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_integer = '\''; }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_integer = '\"'; }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_integer = '\\'; }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\t';    }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\n';    }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\'';    }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\"';    }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\\';    }
 
-        else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_integer = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
+        else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_long = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
 
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z')) {
             cur_token = TOK_IDENTIFIER;
@@ -400,14 +400,14 @@ void next() {
                 value = value * 16 + (i[ip] >= 'a' ? i[ip] - 'a' + 10 : i[ip] - '0');
                 ip++;
             }
-            cur_integer = value;
+            cur_long = value;
         }
 
         else if ((c1 >= '0' && c1 <= '9')) {
             cur_token = TOK_NUMBER;
             value = 0;
             while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { value = value * 10 + (i[ip] - '0'); ip++; }
-            cur_integer = value;
+            cur_long = value;
         }
 
         else if (c1 == '#') {
@@ -996,7 +996,7 @@ void expression(int level) {
         next();
 
         if (cur_token == TOK_NUMBER) {
-            add_ir_constant_value(TYPE_LONG, -cur_integer);
+            add_ir_constant_value(TYPE_LONG, -cur_long);
             next();
         }
         else {
@@ -1023,7 +1023,7 @@ void expression(int level) {
         }
     }
     else if (cur_token == TOK_NUMBER) {
-        add_ir_constant_value(TYPE_LONG, cur_integer);
+        add_ir_constant_value(TYPE_LONG, cur_long);
         next();
     }
     else if (cur_token == TOK_STRING_LITERAL) {
@@ -1779,7 +1779,7 @@ void parse() {
                 if (cur_token == TOK_EQ) {
                     next();
                     expect(TOK_NUMBER);
-                    number = cur_integer;
+                    number = cur_long;
                     next();
                 }
 
@@ -1852,7 +1852,7 @@ void print_value(int f, struct value *v, int is_assignment_rhs) {
         dprintf_escaped_string_literal(f, string_literals[v->string_literal_index]);
     }
     else
-        dprintf(f, "%d", v->value);
+        dprintf(f, "%ld", v->value);
 
     dprintf(f, ":");
     type = v->type;
@@ -2379,7 +2379,7 @@ void output_function_body_code(struct symbol *symbol) {
         if (tac->label) dprintf(f, ".l%d:\n", tac->label);
 
         if (tac->operation == IR_LOAD_CONSTANT) {
-            dprintf(f, "\tmovq\t$%d, ", tac->src1->value);
+            dprintf(f, "\tmovq\t$%ld, ", tac->src1->value);
             output_quad_register_name(tac->dst->preg);
             dprintf(f, "\n");
         }
