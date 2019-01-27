@@ -19,22 +19,37 @@ wc43.s: wc42
 wc43: wc43.s
 	gcc wc43.s -o wc43
 
-.PHONY: test
-test-unit: wc4
-	venv/bin/py.test -vs test_wc4.py
+test-wc4.s: wc4 test-wc4.c
+	@# Workaround poor performance on NFS due to missing buffering in dprintf
+	./wc4 -o /tmp/test-wc4.s test-wc4.c
+	cp /tmp/test-wc4.s test-wc4.s
+	@echo self compilation test passed
 
-test-unit-frp: wc4
-	FRP=1 venv/bin/py.test -vs test_wc4.py
+test-wc4: test-wc4.s
+	gcc test-wc4.s -o test-wc4
+
+run-test-wc4: test-wc4
+	./test-wc4
+	@echo wc4 tests passed
+
+test-wc4-gcc: test-wc4.c
+	gcc test-wc4.c -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types
+
+run-test-wc4-gcc: test-wc4-gcc
+	./test-wc4-gcc
+	@echo gcc tests passed
 
 test-self-compilation: wc42.s wc43.s
 	diff wc42.s wc43.s
 
-test: test-unit test-unit-frp test-self-compilation
+test: run-test-wc4 run-test-wc4-gcc test-self-compilation
 
 clean:
 	@rm -f wc4
 	@rm -f wc42
 	@rm -f wc43
+	@rm -f test-wc4
+	@rm -f test-wc4-gcc
 	@rm -f *.s
 	@rm -f *.o
 	@rm -f test.c test test1.c test1 test2.c test2
