@@ -760,7 +760,6 @@ struct str_desc *find_struct(char *identifier) {
 // Parse struct definitions, declarations and type
 int parse_struct_base_type(int allow_incomplete_structs) {
     struct str_desc *s;
-    struct str_member **members;
     struct str_member *member;
     int member_count;
     int i, base_type, type, offset, size;
@@ -788,7 +787,6 @@ int parse_struct_base_type(int allow_incomplete_structs) {
 
         s = find_struct(strct_identifier);
         if (!s) s = new_struct();
-        members = s->members;
         member_count = 0;
         s->identifier = strct_identifier;
         offset = 0;
@@ -810,7 +808,7 @@ int parse_struct_base_type(int allow_incomplete_structs) {
                 member->identifier = cur_identifier;
                 member->type = type;
                 member->offset = offset;
-                members[member_count++] = member;
+                s->members[member_count++] = member;
 
                 offset += get_type_size(type);
 
