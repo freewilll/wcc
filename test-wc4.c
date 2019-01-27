@@ -90,6 +90,10 @@ struct is2 {
     int i;
 };
 
+struct smals {
+    char **s;
+};
+
 struct ups {
     int i, j;
 };
@@ -1035,6 +1039,19 @@ void test_incomplete_struct() {
     assert_int(2, s2->i,     "incomplete struct 4");
 }
 
+void test_struct_member_array_lookup() {
+    struct smals *s;
+
+    s = malloc(sizeof(struct smals));
+    s->s = malloc(sizeof(char *) * 2);
+    s->s[0] = "foo";
+    s->s[1] = "bar";
+
+    assert_string("foo", *s->s,   "struct member array lookup 1");
+    assert_string("foo", s->s[0], "struct member array lookup 2");
+    assert_string("bar", s->s[1], "struct member array lookup 3");
+}
+
 void test_unary_precedence() {
     struct ups *s;
     s = malloc(sizeof(struct ups));
@@ -1147,6 +1164,7 @@ int main(int argc, char **argv) {
     test_struct_casting();
     test_packed_struct();
     test_incomplete_struct();
+    test_struct_member_array_lookup();
     test_unary_precedence();
     test_spilling_stress();
     test_callee_saved_registers();

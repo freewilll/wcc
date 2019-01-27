@@ -155,8 +155,6 @@ enum {
     TOK_SIZEOF,
     TOK_RPAREN,         // 20
     TOK_LPAREN,
-    TOK_RBRACKET,
-    TOK_LBRACKET,
     TOK_RCURLY,
     TOK_LCURLY,
     TOK_SEMI,
@@ -190,6 +188,8 @@ enum {
     TOK_DEC,
     TOK_DOT,
     TOK_ARROW,
+    TOK_RBRACKET,
+    TOK_LBRACKET,
     TOK_ATTRIBUTE,
     TOK_PACKED,
 };
@@ -1138,43 +1138,43 @@ void expression(int level) {
     else
         panic1d("Unexpected token %d in expression", cur_token);
 
-    if (cur_token == TOK_LBRACKET) {
-        next();
-
-        if (vtop->type < TYPE_PTR)
-            panic1d("Cannot do [] on a non-pointer for type %d", vtop->type);
-
-        factor = get_type_inc_dec_size(vtop->type);
-
-        src1 = pl(); // Turn it into an rvalue
-        push(src1);
-
-        org_type = vtop->type;
-        expression(TOK_COMMA);
-
-        if (factor > 1) {
-            add_ir_constant_value(TYPE_INT, factor);
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_MUL, TYPE_INT, 0, src1, src2);
-            tac->dst->vreg = tac->src2->vreg;
-        }
-
-        type = vs_operation_type();
-        src2 = pl();
-        src1 = pl();
-        tac = add_ir_op(IR_ADD, type, 0, src1, src2);
-        tac->dst->vreg = tac->src2->vreg;
-
-        consume(TOK_RBRACKET);
-        vtop->type = org_type - TYPE_PTR;
-        vtop->is_lvalue = 1;
-    }
-
     while (cur_token >= level) {
         // In order or precedence
 
-        if (cur_token == TOK_INC || cur_token == TOK_DEC) {
+        if (cur_token == TOK_LBRACKET) {
+            next();
+
+            if (vtop->type < TYPE_PTR)
+                panic1d("Cannot do [] on a non-pointer for type %d", vtop->type);
+
+            factor = get_type_inc_dec_size(vtop->type);
+
+            src1 = pl(); // Turn it into an rvalue
+            push(src1);
+
+            org_type = vtop->type;
+            expression(TOK_COMMA);
+
+            if (factor > 1) {
+                add_ir_constant_value(TYPE_INT, factor);
+                src2 = pl();
+                src1 = pl();
+                tac = add_ir_op(IR_MUL, TYPE_INT, 0, src1, src2);
+                tac->dst->vreg = tac->src2->vreg;
+            }
+
+            type = vs_operation_type();
+            src2 = pl();
+            src1 = pl();
+            tac = add_ir_op(IR_ADD, type, 0, src1, src2);
+            tac->dst->vreg = tac->src2->vreg;
+
+            consume(TOK_RBRACKET);
+            vtop->type = org_type - TYPE_PTR;
+            vtop->is_lvalue = 1;
+        }
+
+        else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
             // Postfix increment & decrement
 
             if (!vtop->is_lvalue) panic(" Cannot ++ or -- an rvalue");
