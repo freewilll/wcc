@@ -1084,11 +1084,14 @@ void expression(int level) {
             // Function call
             next();
             arg_count = 0;
-            while (cur_token != TOK_RPAREN) {
+            while (1) {
+                if (cur_token == TOK_RPAREN) break;
                 expression(TOK_COMMA);
                 add_instruction(IR_PARAM, 0, pl(), 0);
-                if (cur_token == TOK_COMMA) next();
                 arg_count++;
+                if (cur_token == TOK_RPAREN) break;
+                consume(TOK_COMMA);
+                if (cur_token == TOK_RPAREN) panic("Expected expression");
             }
             consume(TOK_RPAREN);
 
@@ -1683,6 +1686,7 @@ void function_body() {
             s->scope = cur_scope;
             s->stack_index = -1 - local_symbol_count++;
             next();
+            if (cur_token != TOK_SEMI && cur_token != TOK_COMMA) panic("Expected ; or ,");
             if (cur_token == TOK_COMMA) next();
         }
         expect(TOK_SEMI);
@@ -1754,13 +1758,15 @@ void parse() {
                     s->is_function = 1;
 
                     param_count = 0;
-                    while (cur_token != TOK_RPAREN) {
+                    while (1) {
+                        if (cur_token == TOK_RPAREN) break;
+
                         if (cur_token_is_type()) {
                             type = parse_type(0);
                             if (type >= TYPE_STRUCT && type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
                         }
                         else
-                            panic1d("Unknown type token in function def %d", cur_token);
+                            panic("Expected type");
 
                         expect(TOK_IDENTIFIER);
                         param_symbol = new_symbol();
@@ -1769,7 +1775,10 @@ void parse() {
                         param_symbol->scope = cur_scope;
                         param_symbol->stack_index = param_count++;
                         next();
-                        if (cur_token == TOK_COMMA) next();
+
+                        if (cur_token == TOK_RPAREN) break;
+                        consume(TOK_COMMA);
+                        if (cur_token == TOK_RPAREN) panic("Expected expression");
                     }
 
                     s->function_param_count = param_count;
