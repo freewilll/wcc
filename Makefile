@@ -4,32 +4,22 @@ wc4: wc4.c
 	gcc wc4.c -o wc4 -g -Wno-parentheses
 
 wc42.s: wc4
-	@# Workaround poor performance on NFS due to missing buffering in dprintf
-	./wc4 -o /tmp/wc42.s wc4.c
-	cp /tmp/wc42.s wc42.s
+	./wc4 -o wc42.s wc4.c
 
 wc42: wc42.s
 	gcc wc42.s -o wc42
 
 wc43.s: wc42
-	@# Workaround poor performance on NFS due to missing buffering in dprintf
-	./wc42 -o /tmp/wc43.s wc4.c
-	cp /tmp/wc43.s wc43.s
+	./wc42 -o wc43.s wc4.c
 
 wc43: wc43.s
 	gcc wc43.s -o wc43
 
 test-wc4.s: wc4 test-wc4.c
-	@# Workaround poor performance on NFS due to missing buffering in dprintf
-	./wc4 -o /tmp/test-wc4.s test-wc4.c
-	cp /tmp/test-wc4.s test-wc4.s
-	@echo self compilation test passed
+	./wc4 test-wc4.c
 
 test-wc4-frp.s: wc4 test-wc4.c
-	@# Workaround poor performance on NFS due to missing buffering in dprintf
-	./wc4 -frp -o /tmp/test-wc4-frp.s test-wc4.c
-	cp /tmp/test-wc4-frp.s test-wc4-frp.s
-	@echo self compilation test passed
+	./wc4 -frp -o test-wc4-frp.s test-wc4.c
 
 test-wc4: test-wc4.s
 	gcc test-wc4.s -o test-wc4
@@ -57,6 +47,7 @@ run-test-wc4-gcc: test-wc4-gcc
 
 test-self-compilation: wc42.s wc43.s
 	diff wc42.s wc43.s
+	@echo self compilation test passed
 
 .PHONY: test
 test: run-test-wc4 run-test-wc4-frp run-test-wc4-gcc test-self-compilation

@@ -702,23 +702,24 @@ void test_mem_functions() {
 }
 
 void test_open_read_write_close() {
-    int f, i;
+    void *f;
+    int i;
     char *data;
 
-    f = open("/tmp/write-test", 577, 420);
+    f = fopen("/tmp/write-test", "w");
     assert_int(1, f > 0, "open file for writing");
-    i = write(f, "foo\n", 4);
+    i = fwrite("foo\n", 1, 4, f);
     assert_int(4, i, "write 4 bytes");
-    close(f);
+    fclose(f);
 
     data = malloc(16);
     memset(data, 0, 16);
-    f = open("/tmp/write-test", 0, 0);
+    f = fopen("/tmp/write-test", "r");
     assert_int(1, f > 0, "open file for reading");
-    assert_int(4, read(f, data, 16), "open, read, write, close 1");
-    close(f);
+    assert_int(4, fread(data, 1, 16, f), "read 4 bytes");
+    fclose(f);
 
-    assert_int(0, memcmp(data, "foo", 3), "open, read, write, close 2");
+    assert_int(0, memcmp(data, "foo", 3), "read/write bytes match");
 }
 
 void test_assign_operation() {
