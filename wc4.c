@@ -5,108 +5,115 @@
 #include <string.h>
 
 struct symbol {
-    int type;
-    char *identifier;
-    int scope;
-    long value;
-    int stack_index;
-    int global_offset;
-    int function_param_count;
-    int function_local_symbol_count;
-    int function_spilled_register_count;
-    int builtin;
-    int size;
-    int is_function;
-    int is_enum;
-    struct three_address_code *ir;
-    int vreg_count;
+    int type;                                   // Type
+    int size;                                   // Size
+    char *identifier;                           // Identifier
+    int scope;                                  // Scope
+    long value;                                 // Value in the case of a constant
+    int stack_index;                            // For locals, index on the stack, starting with -1 and going downwards
+    int is_function;                            // Is the symbol a function?
+    int function_param_count;                   // For functions, number of parameters
+    int function_local_symbol_count;            // For functions, number of local symbols
+    int function_vreg_count;                    // For functions, number of virtual registers used in IR
+    int function_spilled_register_count;        // For functions, amount of stack space needed for registers spills
+    struct three_address_code *function_ir;     // For functions, intermediate representation
+    int function_builtin;                       // For builtin functions, IR number of the builtin
+    int is_enum;                                // Enums are symbols with a value
 };
 
+// struct value is a value on the value stack. A value can be one of
+// - global
+// - local
+// - constant
+// - string literal
+// - register
 struct value {
-    int type;
-    int vreg;
-    int preg;
-    int spilled_stack_index;
-    int stack_index;
-    int is_local;
-    int is_string_literal;
-    int is_lvalue;
-    long value;
-    int string_literal_index;
-    struct symbol *function_symbol;
-    int function_call_param_count;
-    struct symbol *global_symbol;
-    int label;
+    int type;                       // Type
+    int vreg;                       // Optional vreg number
+    int preg;                       // Allocated physical register
+    int is_lvalue;                  // Is the value an lvalue?
+    int spilled_stack_index;        // Allocated stack index in case of a register spill
+    int is_local;                   // Is the variable local?
+    int stack_index;                // Stack index for local variable
+    int is_string_literal;          // Is the value a string literal?
+    int string_literal_index;       // Index in the string_literals array in the case of a string literal
+    long value;                     // Value in the case of a constant
+    struct symbol *function_symbol; // Corresponding symbol in the case of a function call
+    int function_call_arg_count;    // Number of arguments in the case of a function call
+    struct symbol *global_symbol;   // Set if the value is a global symbol
+    int label;                      // Target label in the case of jump instructions
 };
 
 struct three_address_code {
-    int operation;
-    int label;
-    struct value *dst;
-    struct value *src1;
-    struct value *src2;
+    int operation;      // IR_* operation
+    int label;          // Label if this instruction is jumped to
+    struct value *dst;  // Destination
+    struct value *src1; // First rhs operand
+    struct value *src2; // Second rhs operand
 };
 
+// Start and end indexes in the IR
 struct liveness_interval {
     int start;
     int end;
 };
 
+// Struct member
 struct str_member {
-    char *name;
+    char *identifier;
     int type;
     int offset;
 };
 
+// Struct description
 struct str_desc {
     int type;
-    char *name;
+    char *identifier;
     struct str_member **members;
     int size;
-    int is_incomplete;
+    int is_incomplete;          // Set to 1 if the struct has been used in a member but not yet declared
 };
 
-int print_ir_before, print_ir_after, fake_register_pressure, output_inline_ir;
+int print_ir_before;            // Print IR before register allocation
+int print_ir_after;             // Print IR after register allocation
+int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
+int output_inline_ir;           // Output IR inline with the assembly
 
-char *input;
-int input_size;
-int ip;
-char **string_literals;
-int string_literal_count;
+char *input;                    // Input file data
+int input_size;                 // Size of the input file
+int ip;                         // Offset into *input, used by the lexer
+int cur_line;                   // Current line number being lexed
+int cur_token;                  // Current token
+char *cur_identifier;           // Current identifier if the token is an identifier
+long cur_long;                  // Current long if the token is a number
+char *cur_string_literal;       // Current string literal if the token is a string literal
+int cur_scope;                  // Current scope. 0 is global. non-zero is function. Nested scopes isn't implemented.
+char **string_literals;         // Each string literal has an index in this array, with a pointer to the string literal
+int string_literal_count;       // Amount of string literals
 
-int print_exit_code;
-int print_cycles;
-int cur_line;
-int cur_token;
-int cur_scope;
-char *cur_identifier;
-long cur_long;
-char *cur_string_literal;
-struct symbol *cur_function_symbol;
-int seen_return;
-int global_variable_count;
-struct value *cur_loop_continue_dst;
-struct value *cur_loop_break_dst;
+struct symbol *cur_function_symbol;     // Currently parsed function
+struct value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
+struct value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
 
-struct symbol *symbol_table;
-struct symbol *next_symbol;
-struct symbol *cur_symbol;
+struct symbol *symbol_table;    // Symbol table, terminated by a null symbol
+struct symbol *next_symbol;     // Next free symbol in the symbol table
 
-struct value **vs_start, **vs, *vtop;
+struct value **vs_start;        // Value stack start
+struct value **vs;              // Value stack current position
+struct value *vtop;             // Value at the top of the stack
 
-struct str_desc **all_structs;
-int all_structs_count;
+struct str_desc **all_structs;  // All structs defined globally. Local struct definitions isn't implemented.
+int all_structs_count;          // Number of structs, complete and incomplete
 
-struct three_address_code *ir_start, *ir; // intermediate representation
-int vreg_count;
-int label_count;
-int spilled_register_count;
+struct three_address_code *ir_start, *ir;   // intermediate representation for currently parsed function
+int vreg_count;                             // Virtual register count for currently parsed function
+int label_count;                            // Global label count, always growing
+int spilled_register_count;                 // Spilled register count for current function that's undergoing register allocation
 
-struct liveness_interval *liveness;
-
-int *physical_registers;
-int *spilled_registers;
-int *callee_saved_registers;
+struct liveness_interval *liveness;         // Keeps track of live vregs. Array of length vreg_count. Each element is a vreg, or zero if not live.
+int *physical_registers;                    // Associated liveness interval for each in-use physical register.
+int *spilled_registers;                     // Associated liveness interval for each in-use spilled register.
+int *callee_saved_registers;                // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
 
 int f; // Output file handle
 
@@ -125,7 +132,7 @@ enum {
     MAX_SPILLED_REGISTER_COUNT = 1024,
 };
 
-// In order of precedence
+// Tokens in order of precedence
 enum {
     TOK_EOF=1,
     TOK_IDENTIFIER,
@@ -184,45 +191,53 @@ enum {
     TOK_DOT,
     TOK_ARROW,
     TOK_ATTRIBUTE,
-    TOK_PACKED
+    TOK_PACKED,
 };
 
-// All structs start at TYPE_STRUCT up to TYPE_PTR. Pointers are represented by adding TYPE_PTR to a type.
-enum { TYPE_VOID=1, TYPE_CHAR, TYPE_SHORT, TYPE_INT, TYPE_LONG, TYPE_STRUCT=16, TYPE_PTR=1024 };
-
-enum { GLB_TYPE_FUNCTION=1, GLB_TYPE_VARIABLE };
-
+// Types. All structs start at TYPE_STRUCT up to TYPE_PTR. Pointers are represented by adding TYPE_PTR to a type.
+// all_structs[i] corresponds to type i - TYPE_STRUCT
 enum {
-    IR_LOAD_CONSTANT=1,
-    IR_LOAD_STRING_LITERAL,
-    IR_LOAD_VARIABLE,
-    IR_INDIRECT,
-    IR_PARAM,
-    IR_CALL,
-    IR_RETURN,
-    IR_ASSIGN,
-    IR_NOP,
-    IR_JMP,
-    IR_JZ,
-    IR_JNZ,
-    IR_ADD,
-    IR_SUB,
-    IR_MUL,
-    IR_DIV,
-    IR_MOD,
-    IR_EQ,
-    IR_NE,
-    IR_BNOT,
-    IR_BOR,
-    IR_BAND,
-    IR_XOR,
-    IR_BSHL,
-    IR_BSHR,
-    IR_LT,
-    IR_GT,
-    IR_LE,
-    IR_GE,
-    IR_EXIT,
+    TYPE_VOID   = 1,
+    TYPE_CHAR   = 2,
+    TYPE_SHORT  = 3,
+    TYPE_INT    = 4,
+    TYPE_LONG   = 5,
+    TYPE_STRUCT = 16,
+    TYPE_PTR    = 1024,
+};
+
+// Intermediate representation operations
+enum {
+    IR_LOAD_CONSTANT=1,     // Load constant
+    IR_LOAD_STRING_LITERAL, // Load string literal
+    IR_LOAD_VARIABLE,       // Load global or local
+    IR_INDIRECT,            // Pointer or lvalue dereference
+    IR_PARAM,               // Function call parameter
+    IR_CALL,                // Function call
+    IR_RETURN,              // Return in function
+    IR_ASSIGN,              // Assignment/store. Target is either a global, local, lvalue in register or register
+    IR_NOP,                 // No operation. Used for label destinations. No code is generated for this other than the label itself.
+    IR_JMP,                 // Unconditional jump
+    IR_JZ,                  // Jump if zero
+    IR_JNZ,                 // Jump if not zero
+    IR_ADD,                 // +
+    IR_SUB,                 // -
+    IR_MUL,                 // *
+    IR_DIV,                 // /
+    IR_MOD,                 // %
+    IR_EQ,                  // ==
+    IR_NE,                  // !=
+    IR_BNOT,                // Binary not ~
+    IR_BOR,                 // Binary or |
+    IR_BAND,                // Binary and &
+    IR_XOR,                 // Binary xor ^
+    IR_BSHL,                // Binary shift left <<
+    IR_BSHR,                // Binary shift right >>
+    IR_LT,                  // <
+    IR_GT,                  // >
+    IR_LE,                  // <=
+    IR_GE,                  // >=
+    IR_EXIT,                // Builtin functions
     IR_OPEN,
     IR_READ,
     IR_WRIT,
@@ -238,8 +253,7 @@ enum {
     IR_SCPY,
 };
 
-enum {IMM_NUMBER, IMM_STRING_LITERAL, IMM_GLOBAL};
-
+// Physical registers
 enum {
     REG_RAX,
     REG_RBX,
@@ -295,14 +309,11 @@ void panic2s(char *fmt, char *s1, char *s2) {
     exit(1);
 }
 
+// Lexer. Lex a next token or TOK_EOF if the file is ended
 void next() {
-    char *i;
-    char *id;
-    int idp;
-    long value;
-    char *sl;
-    int slp;
-    char c1, c2;
+    char *i;        // Assigned to input for brevity
+    int j;          // Counter
+    char c1, c2;    // Next two characters in input
 
     i = input;
 
@@ -383,60 +394,63 @@ void next() {
 
         else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_long = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
 
+        // Identifier
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z')) {
             cur_token = TOK_IDENTIFIER;
-            id = malloc(1024);
-            idp = 0;
-            while (((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z') || (i[ip] >= '0' && i[ip] <= '9') || (i[ip] == '_')) && ip < input_size) { id[idp] = i[ip]; idp++; ip++; }
-            id[idp] = 0;
-            cur_identifier = id;
+            cur_identifier = malloc(1024);
+            j = 0;
+            while (((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z') || (i[ip] >= '0' && i[ip] <= '9') || (i[ip] == '_')) && ip < input_size) {
+                cur_identifier[j] = i[ip];
+                j++; ip++;
+            }
+            cur_identifier[j] = 0;
         }
 
+        // Hex numeric literal
         else if (c1 == '0' && input_size - ip >= 2 && i[ip+1] == 'x') {
             ip += 2;
             cur_token = TOK_NUMBER;
-            value = 0;
+            cur_long = 0;
             while (((i[ip] >= '0' && i[ip] <= '9')  || (i[ip] >= 'a' && i[ip] <= 'f')) && ip < input_size) {
-                value = value * 16 + (i[ip] >= 'a' ? i[ip] - 'a' + 10 : i[ip] - '0');
+                cur_long = cur_long * 16 + (i[ip] >= 'a' ? i[ip] - 'a' + 10 : i[ip] - '0');
                 ip++;
             }
-            cur_long = value;
         }
 
+        // Decimal numeric literal
         else if ((c1 >= '0' && c1 <= '9')) {
             cur_token = TOK_NUMBER;
-            value = 0;
-            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { value = value * 10 + (i[ip] - '0'); ip++; }
-            cur_long = value;
+            cur_long = 0;
+            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { cur_long = cur_long * 10 + (i[ip] - '0'); ip++; }
         }
 
+        // Ignore CPP directives
         else if (c1 == '#') {
-            // Ignore CPP directives
             while (i[ip++] != '\n');
             cur_line++;
             continue;
         }
 
+        // String literal
         else if (i[ip] == '"') {
             cur_token = TOK_STRING_LITERAL;
-            sl = malloc(1024);
-            slp = 0;
+            cur_string_literal = malloc(1024);
+            j = 0;
             ip += 1;
             while (input_size - ip >= 1 && i[ip] != '"') {
-                     if (i[ip] != '\\') { sl[slp] = i[ip]; slp++; ip++; }
+                     if (i[ip] != '\\') { cur_string_literal[j] = i[ip]; j++; ip++; }
                 else if (input_size - ip >= 2 && i[ip] == '\\') {
-                         if (i[ip+1] == 't' ) sl[slp++] = 9;
-                    else if (i[ip+1] == 'n' ) sl[slp++] = 10;
-                    else if (i[ip+1] == '\\') sl[slp++] = '\\';
-                    else if (i[ip+1] == '\'') sl[slp++] = '\'';
-                    else if (i[ip+1] == '\"') sl[slp++] = '\"';
+                         if (i[ip+1] == 't' ) cur_string_literal[j++] = 9;
+                    else if (i[ip+1] == 'n' ) cur_string_literal[j++] = 10;
+                    else if (i[ip+1] == '\\') cur_string_literal[j++] = '\\';
+                    else if (i[ip+1] == '\'') cur_string_literal[j++] = '\'';
+                    else if (i[ip+1] == '\"') cur_string_literal[j++] = '\"';
                     else panic("Unknown \\ escape in string literal");
                     ip += 2;
                 }
             }
             ip++;
-            sl[slp] = 0;
-            cur_string_literal = sl;
+            cur_string_literal[j] = 0;
         }
 
         else
@@ -475,33 +489,30 @@ struct value *new_value() {
     struct value *v;
 
     v = malloc(sizeof(struct value));
-    v->type = 0;
-    v->vreg = 0;
+    memset(v, 0, sizeof(struct value));
     v->preg = -1;
     v->spilled_stack_index = -1;
-    v->value = 0;
 
     return v;
 }
 
+// Push a value to the stack
 void push(struct value *v) {
     *--vs = v;
     vtop = *vs;
 }
 
-struct value *push_constant(int type, int vreg, int value) {
-    struct value *v;
+// Pop a value from the stack
+struct value *pop() {
+    struct value *result;
 
-    v = new_value();
-    v->vreg = vreg;
-    v->value = value;
-    *--vs = v;
+    result = *vs++;
     vtop = *vs;
 
-    return v;
+    return result;
 }
 
-// Duplicate the top of the value stack and push it
+// Duplicate a value
 struct value *dup_value(struct value *src) {
     struct value *dst;
 
@@ -509,21 +520,22 @@ struct value *dup_value(struct value *src) {
     dst->type                      = src->type;
     dst->vreg                      = src->vreg;
     dst->preg                      = src->preg;
-    dst->spilled_stack_index       = src->spilled_stack_index;
-    dst->stack_index               = src->stack_index;
-    dst->is_local                  = src->is_local;
-    dst->is_string_literal         = src->is_string_literal;
     dst->is_lvalue                 = src->is_lvalue;
-    dst->value                     = src->value;
+    dst->spilled_stack_index       = src->spilled_stack_index;
+    dst->is_local                  = src->is_local;
+    dst->stack_index               = src->stack_index;
+    dst->is_string_literal         = src->is_string_literal;
     dst->string_literal_index      = src->string_literal_index;
+    dst->value                     = src->value;
     dst->function_symbol           = src->function_symbol;
-    dst->function_call_param_count = src->function_call_param_count;
+    dst->function_call_arg_count   = src->function_call_arg_count;
     dst->global_symbol             = src->global_symbol;
     dst->label                     = src->label;
 
     return dst;
 }
 
+// Add instruction to the global intermediate representation ir
 struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
     ir->operation = operation;
     ir->label = 0;
@@ -537,40 +549,14 @@ struct three_address_code *add_instruction(int operation, struct value *dst, str
     return ir - 1;
 }
 
-// Pop a value from the stack but don't turn an lvalue into an rvalue
-struct value *pop() {
-    struct value *result;
-
-    result = *vs++;
-    vtop = *vs;
-
-    return result;
-}
-
-struct value *make_rvalue(struct value *src1) {
-    struct value *dst;
-
-    if (!src1->is_lvalue) return src1;
-
-    src1 = dup_value(src1); // Ensure no side effects on src1
-    // It's an lvalue in a register. Dereference it into the same register
-    src1->is_lvalue = 0;
-
-    dst = dup_value(src1);
-    dst->is_local = 0;
-    dst->global_symbol = 0;
-    add_instruction(IR_INDIRECT, dst, src1, 0);
-
-    return dst;
-}
-
+// Allocate a new virtual register
 int new_vreg() {
     vreg_count++;
     if (vreg_count >= MAX_VREG_COUNT) panic1d("Exceeded max vreg count %d", MAX_VREG_COUNT);
     return vreg_count;
 }
 
-// Load value src1 into a register
+// Load a value into a register.
 struct value *load(struct value *src1) {
     struct value *dst;
 
@@ -593,7 +579,26 @@ struct value *load(struct value *src1) {
     return dst;
 }
 
-// Pop a value from the stack and load it into a register if not already done
+// Turn an lvalue into an rvalue by dereferencing it
+struct value *make_rvalue(struct value *src1) {
+    struct value *dst;
+
+    if (!src1->is_lvalue) return src1;
+
+    // It's an lvalue in a register. Dereference it into the same register
+    src1 = dup_value(src1); // Ensure no side effects on src1
+    src1->is_lvalue = 0;
+
+    dst = dup_value(src1);
+    dst->is_local = 0;
+    dst->global_symbol = 0;
+    add_instruction(IR_INDIRECT, dst, src1, 0);
+
+    return dst;
+}
+
+// Pop and load. Pop a value from the stack and load it into a register if not already done.
+// Lvalues are converted into rvalues.
 struct value *pl() {
     if (vtop->vreg) {
         if (vtop->is_lvalue) return make_rvalue(pop());
@@ -603,6 +608,7 @@ struct value *pl() {
     return load(pop());
 }
 
+// Create a new type constant value, push it to the stack and add a load instruction for it in the IR.
 void add_ir_constant_value(int type, long value) {
     struct value *v, *cv;
 
@@ -616,6 +622,7 @@ void add_ir_constant_value(int type, long value) {
     add_instruction(IR_LOAD_CONSTANT, v, cv, 0);
 }
 
+// Add an operation to the IR
 struct three_address_code *add_ir_op(int operation, int type, int vreg, struct value *src1, struct value *src2) {
     struct value *v;
     struct three_address_code *result;
@@ -640,6 +647,7 @@ struct symbol *new_symbol() {
     return result;
 }
 
+// Search for a symbol in a scope. Returns zero if not found
 struct symbol *lookup_symbol(char *name, int scope) {
     struct symbol *s;
 
@@ -654,6 +662,7 @@ struct symbol *lookup_symbol(char *name, int scope) {
     return 0;
 }
 
+// Returns destination type of an operation with two operands
 int operation_type(struct value *src1, struct value *src2) {
     if (src1->type >= TYPE_PTR) return src1->type;
     else if (src2->type >= TYPE_PTR) return src2->type;
@@ -661,24 +670,29 @@ int operation_type(struct value *src1, struct value *src2) {
     else return TYPE_INT;
 }
 
+// Returns destination type of an operation using the top two values in the stack
 int vs_operation_type() {
     return operation_type(vtop, vs[1]);
 }
 
-int cur_token_is_integer_type() {
-    return (cur_token == TOK_CHAR || cur_token == TOK_SHORT || cur_token == TOK_INT || cur_token == TOK_LONG);
+int cur_token_is_type() {
+    return (
+        cur_token == TOK_VOID ||
+        cur_token == TOK_CHAR ||
+        cur_token == TOK_SHORT ||
+        cur_token == TOK_INT ||
+        cur_token == TOK_LONG ||
+        cur_token == TOK_STRUCT);
 }
 
 int get_type_alignment(int type) {
-         if (type  > TYPE_PTR)   return 8;
-    else if (type == TYPE_CHAR)  return 1;
-    else if (type == TYPE_SHORT) return 2;
-    else if (type == TYPE_INT)   return 4;
-    else if (type == TYPE_LONG)  return 8;
-    else if (type >= TYPE_STRUCT)
-        panic("Usage of structs as struct members not implemented");
-    else
-        panic1d("align of unknown type %d", type);
+         if (type  > TYPE_PTR)    return 8;
+    else if (type == TYPE_CHAR)   return 1;
+    else if (type == TYPE_SHORT)  return 2;
+    else if (type == TYPE_INT)    return 4;
+    else if (type == TYPE_LONG)   return 8;
+    else if (type >= TYPE_STRUCT) panic("Alignment of structs not implemented");
+    else panic1d("align of unknown type %d", type);
 }
 
 int get_type_size(int type) {
@@ -692,6 +706,7 @@ int get_type_size(int type) {
     else panic1d("sizeof unknown type %d", type);
 }
 
+// Parse type up to the point where identifiers or * are lexed
 int parse_base_type(int allow_incomplete_structs) {
     int type;
 
@@ -708,6 +723,7 @@ int parse_base_type(int allow_incomplete_structs) {
     return type;
 }
 
+// Parse type, including *
 int parse_type() {
     int type;
 
@@ -717,6 +733,7 @@ int parse_type() {
     return type;
 }
 
+// Allocate a new str_desc
 struct str_desc *new_struct() {
     struct str_desc *s;
 
@@ -729,16 +746,18 @@ struct str_desc *new_struct() {
     return s;
 }
 
+// Search for a struct. Returns 0 if not found.
 struct str_desc *find_struct(char *identifier) {
     struct str_desc *s;
     int i;
 
     for (i = 0; i < all_structs_count; i++)
-        if (!strcmp(all_structs[i]->name, identifier))
+        if (!strcmp(all_structs[i]->identifier, identifier))
             return all_structs[i];
     return 0;
 }
 
+// Parse struct definitions, declarations and type
 int parse_struct_base_type(int allow_incomplete_structs) {
     struct str_desc *s;
     struct str_member **members;
@@ -771,7 +790,7 @@ int parse_struct_base_type(int allow_incomplete_structs) {
         if (!s) s = new_struct();
         members = s->members;
         member_count = 0;
-        s->name = strct_identifier;
+        s->identifier = strct_identifier;
         offset = 0;
         size = 0;
         biggest_alignment = 0;
@@ -788,7 +807,7 @@ int parse_struct_base_type(int allow_incomplete_structs) {
 
                 member = malloc(sizeof(struct str_member));
                 memset(member, 0, sizeof(struct str_member));
-                member->name = cur_identifier;
+                member->identifier = cur_identifier;
                 member->type = type;
                 member->offset = offset;
                 members[member_count++] = member;
@@ -812,7 +831,7 @@ int parse_struct_base_type(int allow_incomplete_structs) {
 
         if (allow_incomplete_structs) {
             s = new_struct();
-            s->name = strct_identifier;
+            s->identifier = strct_identifier;
             s->is_incomplete = 1;
             return s->type;
         }
@@ -858,11 +877,11 @@ struct str_member *lookup_struct_member(struct str_desc *str, char *identifier) 
     pmember = str->members;
 
     while (*pmember) {
-        if (!strcmp((*pmember)->name, identifier)) return *pmember;
+        if (!strcmp((*pmember)->identifier, identifier)) return *pmember;
         pmember++;
     }
 
-    panic2s("Unknown member %s in struct %s\n", identifier, str->name);
+    panic2s("Unknown member %s in struct %s\n", identifier, str->identifier);
 }
 
 struct value *new_label_dst() {
@@ -927,7 +946,7 @@ void expression(int level) {
     int type;
     int scope;
     long *address;
-    long param_count;
+    long param_count, arg_count;
     long stack_index;
     int builtin;
     struct str_desc *str;
@@ -1010,7 +1029,7 @@ void expression(int level) {
     }
     else if (cur_token == TOK_LPAREN) {
         next();
-        if (cur_token == TOK_VOID || cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
+        if (cur_token_is_type()) {
             // cast
             org_type = parse_type();
             consume(TOK_RPAREN);
@@ -1056,18 +1075,18 @@ void expression(int level) {
         else if (cur_token == TOK_LPAREN) {
             // Function call
             next();
-            param_count = 0;
+            arg_count = 0;
             while (cur_token != TOK_RPAREN) {
                 expression(TOK_COMMA);
                 add_instruction(IR_PARAM, 0, pl(), 0);
                 if (cur_token == TOK_COMMA) next();
-                param_count++;
+                arg_count++;
             }
             consume(TOK_RPAREN);
 
             func_value = new_value();
             func_value->function_symbol = symbol;
-            func_value->function_call_param_count = param_count;
+            func_value->function_call_arg_count = arg_count;
 
             ret_value = 0;
             if (type != TYPE_VOID) {
@@ -1468,7 +1487,7 @@ void statement() {
 
     vs = vs_start;
 
-    if (cur_token_is_integer_type() || cur_token == TOK_STRUCT)
+    if (cur_token_is_type())
         panic("Declarations must be at the top of a function");
 
     if (cur_token == TOK_SEMI) {
@@ -1597,7 +1616,6 @@ void statement() {
             add_instruction(IR_RETURN, 0, pl(), 0);
         }
         consume(TOK_SEMI);
-        seen_return = 1;
     }
     else {
         expression(TOK_COMMA);
@@ -1616,9 +1634,9 @@ void function_body() {
     int is_main;
     int local_symbol_count;
     int base_type, type;
+    struct symbol *s;
 
     vreg_count = 0;
-    seen_return = 0;
     local_symbol_count = 0;
 
     is_main = !strcmp(cur_function_symbol->identifier, "main");
@@ -1626,7 +1644,7 @@ void function_body() {
     consume(TOK_LCURLY);
 
     // Parse symbols first
-    while (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
+    while (cur_token_is_type()) {
         base_type = parse_base_type(0);
 
         while (cur_token != TOK_SEMI) {
@@ -1640,11 +1658,11 @@ void function_body() {
                 panic("Declarations with assignments aren't implemented");
 
             expect(TOK_IDENTIFIER);
-            cur_symbol = new_symbol();
-            cur_symbol->type = type;
-            cur_symbol->identifier = cur_identifier;
-            cur_symbol->scope = cur_scope;
-            cur_symbol->stack_index = -1 - local_symbol_count++;
+            s = new_symbol();
+            s->type = type;
+            s->identifier = cur_identifier;
+            s->scope = cur_scope;
+            s->stack_index = -1 - local_symbol_count++;
             next();
             if (cur_token == TOK_COMMA) next();
         }
@@ -1666,7 +1684,7 @@ void parse() {
     int seen_function;
     int doing_var_declaration;
     char *cur_function_name;
-    struct symbol *existing_symbol, *param_symbol;
+    struct symbol *existing_symbol, *param_symbol, *s;
     int i;
 
     cur_scope = 0;
@@ -1678,7 +1696,7 @@ void parse() {
             continue;
         }
 
-        if (cur_token == TOK_VOID || cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
+        if (cur_token_is_type() ) {
             doing_var_declaration = 1;
             base_type = parse_base_type(0);
 
@@ -1697,19 +1715,18 @@ void parse() {
                     // Create a new symbol if it wasn't already declared. The
                     // previous declaration is left unchanged.
 
-                    cur_symbol = new_symbol();
-                    cur_symbol->type = type;
-                    cur_symbol->identifier = cur_identifier;
-                    cur_symbol->stack_index = global_variable_count++;
-                    cur_symbol->scope = 0;
+                    s = new_symbol();
+                    s->type = type;
+                    s->identifier = cur_identifier;
+                    s->scope = 0;
                 }
                 else
-                    cur_symbol = existing_symbol;
+                    s = existing_symbol;
 
                 next();
 
                 if (cur_token == TOK_LPAREN) {
-                    cur_function_symbol = cur_symbol;
+                    cur_function_symbol = s;
                     // Function declaration or definition
 
                     seen_function = 1;
@@ -1719,14 +1736,13 @@ void parse() {
                     ir = malloc(sizeof(struct three_address_code) * MAX_THREE_ADDRESS_CODES);
                     ir_start = ir;
                     memset(ir, 0, sizeof(struct three_address_code) * MAX_THREE_ADDRESS_CODES);
-                    cur_symbol->ir = ir;
-                    cur_symbol->is_function = 1;
+                    s->function_ir = ir;
+                    s->is_function = 1;
 
                     param_count = 0;
                     while (cur_token != TOK_RPAREN) {
-                        if (cur_token_is_integer_type() || cur_token == TOK_STRUCT) {
-                            type = parse_base_type(0);
-                            while (cur_token == TOK_MULTIPLY) { type += TYPE_PTR; next(); }
+                        if (cur_token_is_type()) {
+                            type = parse_type(0);
 
                             if (type >= TYPE_STRUCT && type < TYPE_PTR)
                                 panic("Direct usage of struct variables not implemented");
@@ -1742,14 +1758,14 @@ void parse() {
                         param_symbol->stack_index = param_count++;
                         if (cur_token == TOK_COMMA) next();
                     }
-                    cur_symbol->function_param_count = param_count;
+                    s->function_param_count = param_count;
                     consume(TOK_RPAREN);
-                    cur_function_symbol = cur_symbol;
+                    cur_function_symbol = s;
 
                     if (cur_token == TOK_LCURLY) {
                         cur_function_symbol->function_param_count = param_count;
                         function_body();
-                        cur_function_symbol->vreg_count = vreg_count;
+                        cur_function_symbol->function_vreg_count = vreg_count;
                     }
                     else
                         // Make it clear that this symbol will need to be backpatched if used
@@ -1783,12 +1799,13 @@ void parse() {
                     next();
                 }
 
-                next_symbol->is_enum = 1;
-                next_symbol->type = TYPE_LONG;
-                next_symbol->identifier = cur_identifier;
-                next_symbol->scope = 0;
-                next_symbol->value = number++;
-                next_symbol++;
+                s = new_symbol();
+                s->is_enum = 1;
+                s->type = TYPE_LONG;
+                s->identifier = cur_identifier;
+                s->scope = 0;
+                s->value = number++;
+                s++;
 
                 if (cur_token == TOK_COMMA) next();
             }
@@ -1866,7 +1883,7 @@ void print_value(int f, struct value *v, int is_assignment_rhs) {
     else if (type == TYPE_INT)    dprintf(f, "int");
     else if (type == TYPE_SHORT)  dprintf(f, "short");
     else if (type == TYPE_LONG)   dprintf(f, "long");
-    else if (type >= TYPE_STRUCT) dprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->name);
+    else if (type >= TYPE_STRUCT) dprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->identifier);
     else dprintf(f, "unknown type %d", type);
 }
 
@@ -1889,7 +1906,7 @@ void print_instruction(int f, struct three_address_code *tac) {
         print_value(f, tac->src1, 1);
     }
     else if (tac->operation == IR_CALL) {
-        dprintf(f, "call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_call_param_count);
+        dprintf(f, "call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_call_arg_count);
     }
     else if (tac->operation == IR_RETURN) {
         if (tac->src1) {
@@ -2354,7 +2371,7 @@ void output_function_body_code(struct symbol *symbol) {
     int spilled_registers_stack_start;
     int *saved_registers;
 
-    tac = symbol->ir;
+    tac = symbol->function_ir;
 
     dprintf(f, "\tpush\t%%rbp\n");
     dprintf(f, "\tmovq\t%%rsp, %%rbp\n");
@@ -2450,7 +2467,7 @@ void output_function_body_code(struct symbol *symbol) {
 
         else if (tac->operation == IR_CALL) {
             // Read the first 6 args from the stack in right to left order
-            pc = tac->src1->function_call_param_count;
+            pc = tac->src1->function_call_arg_count;
             if (pc >= 6) output_load_param(pc - 6, "r9");
             if (pc >= 5) output_load_param(pc - 5, "r8");
             if (pc >= 4) output_load_param(pc - 4, "rcx");
@@ -2467,11 +2484,11 @@ void output_function_body_code(struct symbol *symbol) {
             // Adjust the stack for the removed args that are in registers
             if (pc > 0) dprintf(f, "\taddq\t$%d, %%rsp\n", (pc <= 6 ? pc : 6) * 8);
 
-            if (tac->src1->function_symbol->builtin == IR_PRTF || tac->src1->function_symbol->builtin == IR_DPRT) {
+            if (tac->src1->function_symbol->function_builtin == IR_PRTF || tac->src1->function_symbol->function_builtin == IR_DPRT) {
                 dprintf(f, "\tmovl\t$0, %%eax\n");
             }
 
-            if (tac->src1->function_symbol->builtin)
+            if (tac->src1->function_symbol->function_builtin)
                 dprintf(f, "\tcallq\t%s@PLT\n", tac->src1->function_symbol->identifier);
             else
                 dprintf(f, "\tcallq\t%s\n", tac->src1->function_symbol->identifier);
@@ -2653,7 +2670,7 @@ void output_code(char *input_filename, char *output_filename) {
     dprintf(f, "\t.text\n");
     s = symbol_table;
     while (s->identifier) {
-        if (s->scope || s->is_function || s->builtin) { s++; continue; };
+        if (s->scope || s->is_function || s->function_builtin) { s++; continue; };
         dprintf(f, "\t.comm %s,%d,%d\n", s->identifier, get_type_size(s->type), get_type_alignment(s->type));
         s++;
     }
@@ -2689,11 +2706,11 @@ void output_code(char *input_filename, char *output_filename) {
         // registers start at 1
         liveness = malloc(sizeof(struct liveness_interval) * (MAX_VREG_COUNT + 1));
 
-        analyze_liveness(s->ir, s->vreg_count);
-        if (print_ir_before) print_intermediate_representation(s->identifier, s->ir);
-        allocate_registers(s->ir);
+        analyze_liveness(s->function_ir, s->function_vreg_count);
+        if (print_ir_before) print_intermediate_representation(s->identifier, s->function_ir);
+        allocate_registers(s->function_ir);
         s->function_spilled_register_count = spilled_register_count;
-        if (print_ir_after) print_intermediate_representation(s->identifier, s->ir);
+        if (print_ir_after) print_intermediate_representation(s->identifier, s->function_ir);
         output_function_body_code(s);
         dprintf(f, "\n");
         s++;
@@ -2703,12 +2720,12 @@ void output_code(char *input_filename, char *output_filename) {
 }
 
 void add_builtin(char *identifier, int instruction, int type) {
-    struct symbol *symbol;
-    symbol = next_symbol;
-    symbol->type = type;
-    symbol->identifier = identifier;
-    symbol->builtin = instruction;
-    next_symbol++;
+    struct symbol *s;
+
+    s = new_symbol();
+    s->type = type;
+    s->identifier = identifier;
+    s->function_builtin = instruction;
 }
 
 void do_print_symbols() {
@@ -2731,16 +2748,13 @@ void do_print_symbols() {
 }
 
 int main(int argc, char **argv) {
-    char *input_filename, *output_filename;
-    int f;
     int help, debug, print_symbols, print_code;
-    int filename_len;
+    char *input_filename, *output_filename;
+    int f, filename_len;
 
     help = 0;
     print_ir_before = 0;
     print_ir_after = 0;
-    print_exit_code = 1;
-    print_cycles = 1;
     print_symbols = 0;
     fake_register_pressure = 0;
     output_inline_ir = 0;
@@ -2754,8 +2768,6 @@ int main(int argc, char **argv) {
         else if (argc > 0 && !memcmp(argv[0], "-rb",  3)) { print_ir_before = 1;        argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-ra",  3)) { print_ir_after = 1;         argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-s",   2)) { print_symbols = 1;          argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-ne",  3)) { print_exit_code = 0;        argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-nc",  3)) { print_cycles = 0;           argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-frp", 4)) { fake_register_pressure = 1; argc--; argv++; }
         else if (argc > 0 && !memcmp(argv[0], "-iir", 4)) { output_inline_ir = 1;       argc--; argv++; }
         else if (argc > 1 && !memcmp(argv[0], "-o",   2)) {
@@ -2775,8 +2787,6 @@ int main(int argc, char **argv) {
         printf("-d      Debug output\n");
         printf("-s      Output symbol table\n");
         printf("-o      Output file. Use - for stdout. Defaults to the source file with extension .s\n");
-        printf("-ne     Don't print exit code\n");
-        printf("-nc     Don't print cycles\n");
         printf("-frp    Fake register pressure, for testing spilling code\n");
         printf("-iir    Output inline intermediate representation\n");
         printf("-h      Help\n");
@@ -2792,7 +2802,6 @@ int main(int argc, char **argv) {
 
     string_literals = malloc(MAX_STRING_LITERALS);
     string_literal_count = 0;
-    global_variable_count = 0;
 
     all_structs = malloc(sizeof(struct str_desc *) * MAX_STRUCTS);
     all_structs_count = 0;
