@@ -33,7 +33,7 @@ struct value {
     int preg;                       // Allocated physical register
     int is_lvalue;                  // Is the value an lvalue?
     int spilled_stack_index;        // Allocated stack index in case of a register spill
-    int stack_index;                // Stack index for local variable. Zero if it's not a local variable.
+    int stack_index;                // Stack index for local variable. Zero if it's not a local variable. Starts at -1 and grows downwards.
     int is_string_literal;          // Is the value a string literal?
     int string_literal_index;       // Index in the string_literals array in the case of a string literal
     long value;                     // Value in the case of a constant
@@ -2363,7 +2363,7 @@ void pre_instruction_spill(struct three_address_code *ir, int spilled_registers_
 
         // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
         // The assign code will use that to store the result of the assignment.
-        if (ir->operation == IR_ASSIGN && !ir->dst->stack_index && !ir->dst->global_symbol && ir->dst->is_lvalue)
+        if (ir->operation == IR_ASSIGN && ir->dst->vreg && ir->dst->is_lvalue)
             fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", spilled_registers_stack_start - ir->dst->spilled_stack_index * 8);
     }
 }
@@ -2551,7 +2551,7 @@ void output_function_body_code(struct symbol *symbol) {
                 fprintf(f, "%s(%%rip)\n", tac->dst->global_symbol->identifier);
             }
             else if (tac->dst->stack_index) {
-                // dst is on the stack
+                // dst is a local variable on the stack
                 if (tac->dst->vreg) panic("Unexpected vreg in assign");
                 output_type_specific_mov(tac->dst->type);
                 output_type_specific_register_name(tac->dst->type, tac->src1->preg);
@@ -2559,15 +2559,7 @@ void output_function_body_code(struct symbol *symbol) {
                 stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, tac->dst->stack_index);
                 fprintf(f, "%d(%%rbp)\n", stack_offset);
             }
-            else if (!tac->dst->is_lvalue) {
-                // Register copy
-                fprintf(f, "\tmovq\t");
-                output_quad_register_name(tac->src1->preg);
-                fprintf(f, ", ");
-                output_quad_register_name(tac->dst->preg);
-                fprintf(f, "\n");
-            }
-            else {
+            else if (tac->dst->is_lvalue) {
                 // dst is an lvalue in a register
                 output_type_specific_mov(tac->dst->type);
                 output_type_specific_register_name(tac->dst->type, tac->src1->preg);
@@ -2575,6 +2567,14 @@ void output_function_body_code(struct symbol *symbol) {
                 fprintf(f, "(");
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, ")\n");
+            }
+            else {
+                // Register copy
+                fprintf(f, "\tmovq\t");
+                output_quad_register_name(tac->src1->preg);
+                fprintf(f, ", ");
+                output_quad_register_name(tac->dst->preg);
+                fprintf(f, "\n");
             }
         }
 
