@@ -4,22 +4,22 @@ wc4: wc4.c
 	gcc wc4.c -o wc4 -g -Wno-parentheses
 
 wc42.s: wc4
-	./wc4 -o wc42.s wc4.c
+	./wc4 -c -S -o wc42.s wc4.c
 
 wc42: wc42.s
 	gcc wc42.s -o wc42
 
 wc43.s: wc42
-	./wc42 -o wc43.s wc4.c
+	./wc42 -c -S -o wc43.s wc4.c
 
 wc43: wc43.s
 	gcc wc43.s -o wc43
 
 test-wc4.s: wc4 test-wc4.c
-	./wc4 test-wc4.c
+	./wc4 -c -S test-wc4.c
 
 test-wc4-frp.s: wc4 test-wc4.c
-	./wc4 -frp -o test-wc4-frp.s test-wc4.c
+	./wc4 -frp -c -S -o test-wc4-frp.s test-wc4.c
 
 test-wc4: test-wc4.s
 	gcc test-wc4.s -o test-wc4

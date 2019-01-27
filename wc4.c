@@ -73,6 +73,12 @@ struct struct_desc {
     int is_incomplete;          // Set to 1 if the struct has been used in a member but not yet declared
 };
 
+int verbose;                    // Print invoked program command lines
+int compile;                    // Compile .c file
+int run_assembler;              // Assemble .s file
+int run_linker;                 // Link .o file
+int target_is_object_file;
+int target_is_assembly_file;
 int print_ir_before;            // Print IR before register allocation
 int print_ir_after;             // Print IR after register allocation
 int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
@@ -237,20 +243,29 @@ enum {
     IR_LE,                  // <=
     IR_GE,                  // >=
     IR_EXIT,                // Builtin functions
-    IR_OPEN,
-    IR_READ,
-    IR_WRIT,
-    IR_CLOS,
-    IR_STDO,
-    IR_PRTF,
-    IR_DPRT,
-    IR_MALC,
+    IR_FOPEN,
+    IR_FREAD,
+    IR_FWRITE,
+    IR_FCLOSE,
+    IR_CLOSE,
+    IR_STDOUT,
+    IR_PRINTF,
+    IR_FPRINTF,
+    IR_MALLOC,
     IR_FREE,
-    IR_MSET,
-    IR_MCMP,
-    IR_SCMP,
-    IR_SLEN,
-    IR_SCPY,
+    IR_MEMSET,
+    IR_MEMCMP,
+    IR_STRCMP,
+    IR_STRLEN,
+    IR_STRCPY,
+    IR_STRRCHR,
+    IR_SPRINTF,
+    IR_ASPRINTF,
+    IR_STRDUP,
+    IR_MEMCPY,
+    IR_MKTEMPS,
+    IR_PERROR,
+    IR_SYSTEM,
 };
 
 // Physical registers
@@ -2508,7 +2523,7 @@ void output_function_body_code(struct symbol *symbol) {
             // Adjust the stack for the removed args that are in registers
             if (ac > 0) fprintf(f, "\taddq\t$%d, %%rsp\n", (ac <= 6 ? ac : 6) * 8);
 
-            if (tac->src1->function_symbol->function_builtin == IR_PRTF || tac->src1->function_symbol->function_builtin == IR_DPRT) {
+            if (tac->src1->function_symbol->function_builtin == IR_PRINTF || tac->src1->function_symbol->function_builtin == IR_FPRINTF) {
                 fprintf(f, "\tmovl\t$0, %%eax\n");
             }
 
@@ -2683,8 +2698,8 @@ void output_code(char *input_filename, char *output_filename) {
     else {
         // Open output file for writing
         f = fopen(output_filename, "w");
-        if (f < 0) {
-            printf("Unable to open output file\n");
+        if (f == 0) {
+            perror(output_filename);
             exit(1);
         }
     }
@@ -2777,12 +2792,59 @@ void do_print_symbols() {
     printf("\n");
 }
 
+char *replace_extension(char *input, char *ext) {
+    char *p;
+    char *result;
+    int len;
+
+    p  = strrchr(input,'.');
+    if (!p) {
+        result = malloc(strlen(input) + strlen(ext) + 2);
+        sprintf(result, "%s.%s", input, ext);
+        return result;
+    }
+    else {
+        len = p - input + strlen(ext) + 1;
+        result = malloc(len + 1);
+        memcpy(result, input, p - input);
+        result[p  - input] = '.';
+        memcpy(result + (p - input + 1), ext, strlen(ext));
+        result[len] = 0;
+        return result;
+    }
+}
+
+char *make_temp_filename(char *template) {
+    int fd;
+
+    template = strdup(template);
+    fd = mkstemps(template, 2);
+    if (fd == -1) {
+        perror("in make_temp_filename");
+        exit(1);
+    }
+    close(fd);
+
+    return strdup(template);
+}
+
 int main(int argc, char **argv) {
     int help, debug, print_symbols, print_code;
     char *input_filename, *output_filename;
+    char *compiler_input_filename, *compiler_output_filename;
+    char *assembler_input_filename, *assembler_output_filename;
+    char *linker_input_filename, *linker_output_filename;
     void *f;
     int filename_len;
+    char *command;
+    int result;
 
+    verbose = 0;
+    compile = 1;
+    run_assembler = 1;
+    run_linker = 1;
+    target_is_object_file = 0;
+    target_is_assembly_file = 0;
     help = 0;
     print_ir_before = 0;
     print_ir_after = 0;
@@ -2790,114 +2852,211 @@ int main(int argc, char **argv) {
     fake_register_pressure = 0;
     output_inline_ir = 0;
     output_filename = 0;
+    input_filename = 0;
 
     argc--;
     argv++;
-    while (argc > 0 && *argv[0] == '-') {
-             if (argc > 0 && !memcmp(argv[0], "-h",   3)) { help = 0;                   argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-d",   2)) { debug = 1;                  argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-rb",  3)) { print_ir_before = 1;        argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-ra",  3)) { print_ir_after = 1;         argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-s",   2)) { print_symbols = 1;          argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-frp", 4)) { fake_register_pressure = 1; argc--; argv++; }
-        else if (argc > 0 && !memcmp(argv[0], "-iir", 4)) { output_inline_ir = 1;       argc--; argv++; }
-        else if (argc > 1 && !memcmp(argv[0], "-o",   2)) {
-            output_filename = argv[1];
-            argc -= 2;
-            argv += 2;
+    while (argc > 0) {
+        if (*argv[0] == '-') {
+                 if (argc > 0 && !memcmp(argv[0], "-h",   3)) { help = 1;                   argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-v",   2)) { verbose = 1;                argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-d",   2)) { debug = 1;                  argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-rb",  3)) { print_ir_before = 1;        argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-ra",  3)) { print_ir_after = 1;         argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-s",   2)) { print_symbols = 1;          argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-frp", 4)) { fake_register_pressure = 1; argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-iir", 4)) { output_inline_ir = 1;       argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-S",   2)) {
+                run_assembler = 0;
+                run_linker = 0;
+                target_is_assembly_file = 1;
+                argc--;
+                argv++;
+            }
+            else if (argc > 0 && !memcmp(argv[0], "-c",   2)) {
+                run_linker = 0;
+                target_is_object_file = 1;
+                argc--;
+                argv++;
+            }
+            else if (argc > 1 && !memcmp(argv[0], "-o",   2)) {
+                output_filename = argv[1];
+                argc -= 2;
+                argv += 2;
+            }
+            else {
+                printf("Unknown parameter %s\n", argv[0]);
+                exit(1);
+            }
         }
         else {
-            printf("Unknown parameter %s\n", argv[0]);
-            exit(1);
+            if (input_filename) {
+                printf("Duplicate input filename\n");
+                exit(1);
+            }
+            input_filename = argv[0];
+            argc--;
+            argv++;
         }
     }
 
-    if (help || argc < 1) {
-        printf("Usage: wc4 [-d -rb -ra -s -c-ne -nc] INPUT-FILE\n\n");
+    if (help) {
+        printf("Usage: wc4 [-S -c -v -d -rb -ra -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
         printf("Flags\n");
-        printf("-d      Debug output\n");
-        printf("-s      Output symbol table\n");
-        printf("-o      Output file. Use - for stdout. Defaults to the source file with extension .s\n");
-        printf("-frp    Fake register pressure, for testing spilling code\n");
-        printf("-iir    Output inline intermediate representation\n");
-        printf("-h      Help\n");
+        printf("-S          Compile only; do not assemble or link\n");
+        printf("-c          Compile and assemble, but do not link\n");
+        printf("-o <file>   Output file. Use - for stdout. Defaults to the source file with extension .s\n");
+        printf("-v          Display the programs invoked by the compiler\n");
+        printf("-d          Debug output\n");
+        printf("-s          Output symbol table\n");
+        printf("-frp        Fake register pressure, for testing spilling code\n");
+        printf("-iir        Output inline intermediate representation\n");
+        printf("-h          Help\n");
         exit(1);
     }
 
-    input_filename = argv[0];
+    if (!input_filename) {
+        printf("Missing input filename\n");
+        exit(1);
+    }
 
-    input = malloc(10 * 1024 * 1024);
-    symbol_table = malloc(SYMBOL_TABLE_SIZE);
-    memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
-    next_symbol = symbol_table;
+    filename_len = strlen(input_filename);
 
-    string_literals = malloc(MAX_STRING_LITERALS);
-    string_literal_count = 0;
+    if (filename_len > 2 && input_filename[filename_len - 2] == '.') {
+        if (input_filename[filename_len - 1] == 'o') {
+            compile = 0;
+            run_assembler = 0;
+            run_linker = 1;
+        }
+        else if (input_filename[filename_len - 1] == 's') {
+            compile = 0;
+            run_assembler = 1;
+        }
+    }
 
-    all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
-    all_structs_count = 0;
+    if (!output_filename) {
+        if (run_linker)
+            output_filename = "a.out";
+        else if (run_assembler)
+            output_filename = replace_extension(input_filename, "o");
+        else
+            output_filename = replace_extension(input_filename, "s");
+    }
+
+    if (compile) {
+        compiler_input_filename = input_filename;
+        if (run_assembler)
+            compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
+        else
+            compiler_output_filename = strdup(output_filename);
+    }
+
+    if (run_assembler) {
+        if (compile)
+            assembler_input_filename = compiler_output_filename;
+        else
+            assembler_input_filename = input_filename;
+
+        if (run_linker)
+            assembler_output_filename = make_temp_filename("/tmp/XXXXXX.o");
+        else
+            assembler_output_filename = strdup(output_filename);
+    }
 
     init_callee_saved_registers();
 
-    add_builtin("exit",    IR_EXIT, TYPE_VOID);
-    add_builtin("fopen",   IR_OPEN, TYPE_VOID + TYPE_PTR);
-    add_builtin("fread",   IR_READ, TYPE_INT);
-    add_builtin("fwrite",  IR_WRIT, TYPE_INT);
-    add_builtin("fclose",  IR_CLOS, TYPE_INT);
-    add_builtin("stdout",  IR_STDO, TYPE_LONG);
-    add_builtin("printf",  IR_PRTF, TYPE_INT);
-    add_builtin("fprintf", IR_DPRT, TYPE_INT);
-    add_builtin("malloc",  IR_MALC, TYPE_VOID + TYPE_PTR);
-    add_builtin("free",    IR_FREE, TYPE_INT);
-    add_builtin("memset",  IR_MSET, TYPE_INT);
-    add_builtin("memcmp",  IR_MCMP, TYPE_INT);
-    add_builtin("strcmp",  IR_SCMP, TYPE_INT);
-    add_builtin("strlen",  IR_SLEN, TYPE_INT);
-    add_builtin("strcpy",  IR_SCPY, TYPE_INT);
+    command = malloc(1024);
 
-    f  = fopen(input_filename, "r");
-    if (f < 0) {
-        printf("Unable to open input file\n");
-        exit(1);
-    }
-    input_size = fread(input, 1, 10 * 1024 * 1024, f);
-    if (input_size < 0) {
-        printf("Unable to read input file\n");
-        exit(1);
-    }
-    input[input_size] = 0;
-    if (input_size < 0) {
-        printf("Unable to read input file\n");
-        exit(1);
-    }
-    fclose(f);
+    if (compile) {
+        input = malloc(10 * 1024 * 1024);
+        symbol_table = malloc(SYMBOL_TABLE_SIZE);
+        memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
+        next_symbol = symbol_table;
 
-    cur_line = 1;
-    next();
+        string_literals = malloc(MAX_STRING_LITERALS);
+        string_literal_count = 0;
 
-    vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
-    vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
-    label_count = 0;
-    parse();
-    check_incomplete_structs();
+        all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
+        all_structs_count = 0;
 
-    if (print_symbols) do_print_symbols();
+        add_builtin("exit",     IR_EXIT,     TYPE_VOID);
+        add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR);
+        add_builtin("fread",    IR_FREAD,    TYPE_INT);
+        add_builtin("fwrite",   IR_FWRITE,   TYPE_INT);
+        add_builtin("fclose",   IR_FCLOSE,   TYPE_INT);
+        add_builtin("close",    IR_CLOSE,    TYPE_INT);
+        add_builtin("stdout",   IR_STDOUT,   TYPE_LONG);
+        add_builtin("printf",   IR_PRINTF,   TYPE_INT);
+        add_builtin("fprintf",  IR_FPRINTF,  TYPE_INT);
+        add_builtin("malloc",   IR_MALLOC,   TYPE_VOID + TYPE_PTR);
+        add_builtin("free",     IR_FREE,     TYPE_INT);
+        add_builtin("memset",   IR_MEMSET,   TYPE_INT);
+        add_builtin("memcmp",   IR_MEMCMP,   TYPE_INT);
+        add_builtin("strcmp",   IR_STRCMP,   TYPE_INT);
+        add_builtin("strlen",   IR_STRLEN,   TYPE_INT);
+        add_builtin("strcpy",   IR_STRCPY,   TYPE_INT);
+        add_builtin("strrchr",  IR_STRRCHR,  TYPE_CHAR + TYPE_PTR);
+        add_builtin("sprintf",  IR_SPRINTF,  TYPE_INT);
+        add_builtin("asprintf", IR_ASPRINTF, TYPE_INT);
+        add_builtin("strdup",   IR_STRDUP,   TYPE_CHAR + TYPE_PTR);
+        add_builtin("memcpy",   IR_MEMCPY,   TYPE_VOID + TYPE_PTR);
+        add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT);
+        add_builtin("perror",   IR_PERROR,   TYPE_VOID);
+        add_builtin("system",   IR_SYSTEM,   TYPE_INT);
 
-    if (!output_filename) {
-        // Write output file with .s extension from an expected source extension of .c
-        filename_len = strlen(input_filename);
-        if (filename_len > 2 && input_filename[filename_len - 2] == '.' && input_filename[filename_len - 1] == 'c') {
-            output_filename = malloc(filename_len + 1);
-            strcpy(output_filename, input_filename);
-            output_filename[filename_len - 1] = 's';
-        }
-        else {
-            printf("Unable to determine output filename\n");
+        f  = fopen(compiler_input_filename, "r");
+        if (f == 0) {
+            perror(compiler_input_filename);
             exit(1);
         }
+        input_size = fread(input, 1, 10 * 1024 * 1024, f);
+        if (input_size < 0) {
+            printf("Unable to read input file\n");
+            exit(1);
+        }
+        input[input_size] = 0;
+        fclose(f);
+
+        cur_line = 1;
+        next();
+
+        vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
+        vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
+        label_count = 0;
+        parse();
+        check_incomplete_structs();
+
+        if (print_symbols) do_print_symbols();
+
+        output_code(compiler_input_filename, compiler_output_filename);
     }
 
-    output_code(input_filename, output_filename);
+    if (run_assembler) {
+        sprintf(command, "as -64 %s -o %s", assembler_input_filename, assembler_output_filename);
+        if (verbose) {
+            sprintf(command, "%s %s\n", command, "-v");
+            printf("%s\n", command);
+        }
+        result = system(command);
+        if (result != 0) exit(result);
+    }
+
+    if (run_linker) {
+        if (run_assembler)
+            linker_input_filename = assembler_output_filename;
+        else
+            linker_input_filename = input_filename;
+
+        linker_output_filename = output_filename;
+
+        sprintf(command, "gcc %s -o %s", linker_input_filename, linker_output_filename);
+        if (verbose) {
+            sprintf(command, "%s %s\n", command, "-v");
+            printf("%s\n", command);
+        }
+        result = system(command);
+        if (result != 0) exit(result);
+    }
 
     exit(0);
 }
