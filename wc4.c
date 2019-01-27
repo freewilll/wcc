@@ -1993,7 +1993,6 @@ void allocate_register(struct value *v) {
     if (v->preg != -1) return;
     if (v->spilled_stack_index != -1) return;
 
-
     // Check for already spilled registers
     for (i = 0; i < spilled_register_count; i++) {
         if (spilled_registers[i] == v->vreg) {
@@ -2019,7 +2018,17 @@ void allocate_register(struct value *v) {
         }
     }
 
-    // Failed to allocate a register, spill to the stack
+    // Failed to allocate a register, spill to the stack.
+    // First try and reuse a previously used spilled stack register
+    for (i = 0; i < spilled_register_count; i++) {
+        if (!spilled_registers[i]) {
+            v->spilled_stack_index = i;
+            spilled_registers[i] = v->vreg;
+            return;
+        }
+    }
+
+    // All spilled register stack locations are in use. Allocate a new one
     v->spilled_stack_index = spilled_register_count++;
     spilled_registers[v->spilled_stack_index] = v->vreg;
 
@@ -2063,16 +2072,23 @@ void allocate_registers(struct three_address_code *ir) {
 
     line = 0;
     while (ir->operation) {
+        // Allocate registers
         if (ir->dst  && ir->dst->vreg)  allocate_register(ir->dst);
         if (ir->src1 && ir->src1->vreg) allocate_register(ir->src1);
         if (ir->src2 && ir->src2->vreg) allocate_register(ir->src2);
 
         // Free registers
         for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
-            if (physical_registers[i] > 0 && liveness[physical_registers[i]].end == line) {
+            if (physical_registers[i] > 0 && liveness[physical_registers[i]].end == line)
                 physical_registers[i] = 0;
-            }
         }
+
+        // Free spilled stack locations
+        for (i = 0; i < spilled_register_count; i++) {
+            if (spilled_registers[i] > 0 && liveness[spilled_registers[i]].end == line)
+                spilled_registers[i] = 0;
+        }
+
         ir++;
         line++;
     }
