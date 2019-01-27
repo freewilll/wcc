@@ -463,12 +463,12 @@ void next() {
     cur_token = TOK_EOF;
 }
 
-void expect(int token) {
-    if (cur_token != token) panic2d("Expected token %d, got %d", token, cur_token);
+void expect(int token, char *what) {
+    if (cur_token != token) panic1s("Expected %s", what);
 }
 
-void consume(int token) {
-    expect(token);
+void consume(int token, char *what) {
+    expect(token, what);
     next();
 }
 
@@ -771,26 +771,26 @@ int parse_struct_base_type(int allow_incomplete_structs) {
     int member_count;
     int i, base_type, type, offset, is_packed, alignment, biggest_alignment;
 
-    consume(TOK_STRUCT);
+    consume(TOK_STRUCT, "struct");
 
     // Check for packed attribute
     is_packed = 0;
     if (cur_token == TOK_ATTRIBUTE) {
-        consume(TOK_ATTRIBUTE);
-        consume(TOK_LPAREN);
-        consume(TOK_LPAREN);
-        consume(TOK_PACKED);
-        consume(TOK_RPAREN);
-        consume(TOK_RPAREN);
+        consume(TOK_ATTRIBUTE, "attribute");
+        consume(TOK_LPAREN, "(");
+        consume(TOK_LPAREN, "(");
+        consume(TOK_PACKED, "packed");
+        consume(TOK_RPAREN, ")");
+        consume(TOK_RPAREN, ")");
         is_packed = 1;
     }
 
     identifier = cur_identifier;
-    consume(TOK_IDENTIFIER);
+    consume(TOK_IDENTIFIER, "identifier");
     if (cur_token == TOK_LCURLY) {
         // Struct definition
 
-        consume(TOK_LCURLY);
+        consume(TOK_LCURLY, "}");
 
         s = find_struct(identifier);
         if (!s) s = new_struct();
@@ -819,15 +819,15 @@ int parse_struct_base_type(int allow_incomplete_structs) {
                 s->members[member_count++] = member;
 
                 offset += get_type_size(type);
-                consume(TOK_IDENTIFIER);
+                consume(TOK_IDENTIFIER, "identifier");
                 if (cur_token == TOK_COMMA) next();
             }
-            while (cur_token == TOK_SEMI) consume(TOK_SEMI);
+            while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
         }
         offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
         s->size = offset;
         s->is_incomplete = 0;
-        consume(TOK_RCURLY);
+        consume(TOK_RCURLY, "}");
         return s->type;
     }
     else {
@@ -1039,13 +1039,13 @@ void expression(int level) {
         if (cur_token_is_type()) {
             // cast
             org_type = parse_type();
-            consume(TOK_RPAREN);
+            consume(TOK_RPAREN, ")");
             expression(TOK_INC);
             vtop->type = org_type;
         }
         else {
             expression(TOK_COMMA);
-            consume(TOK_RPAREN);
+            consume(TOK_RPAREN, ")");
         }
     }
 
@@ -1090,10 +1090,10 @@ void expression(int level) {
                 add_instruction(IR_PARAM, 0, pl(), 0);
                 arg_count++;
                 if (cur_token == TOK_RPAREN) break;
-                consume(TOK_COMMA);
+                consume(TOK_COMMA, ",");
                 if (cur_token == TOK_RPAREN) panic("Expected expression");
             }
-            consume(TOK_RPAREN);
+            consume(TOK_RPAREN, ")");
 
             function_value = new_value();
             function_value->function_symbol = symbol;
@@ -1137,10 +1137,10 @@ void expression(int level) {
 
     else if (cur_token == TOK_SIZEOF) {
         next();
-        consume(TOK_LPAREN);
+        consume(TOK_LPAREN, "(");
         type = parse_type();
         add_ir_constant_value(TYPE_INT, get_type_size(type));
-        consume(TOK_RPAREN);
+        consume(TOK_RPAREN, ")");
     }
 
     else
@@ -1177,7 +1177,7 @@ void expression(int level) {
             tac = add_ir_op(IR_ADD, type, 0, src1, src2);
             tac->dst->vreg = tac->src2->vreg;
 
-            consume(TOK_RBRACKET);
+            consume(TOK_RBRACKET, "]");
             vtop->type = org_type - TYPE_PTR;
             vtop->is_lvalue = 1;
         }
@@ -1246,7 +1246,7 @@ void expression(int level) {
 
             vtop->type = member->type;
             vtop->is_lvalue = 1;
-            consume(TOK_IDENTIFIER);
+            consume(TOK_IDENTIFIER, "identifier");
         }
 
         else if (cur_token == TOK_MULTIPLY) {
@@ -1432,7 +1432,7 @@ void expression(int level) {
             add_instruction(IR_ASSIGN, dst, pl(), 0);
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_jmp_target_instruction(ldst1);    // Start of false case
-            consume(TOK_COLON);
+            consume(TOK_COLON, ":");
             expression(TOK_OR);
             src2 = vtop;
             dst->type = operation_type(src1, src2);
@@ -1517,14 +1517,14 @@ void statement() {
     else if (cur_token == TOK_LCURLY) {
         next();
         while (cur_token != TOK_RCURLY) statement();
-        consume(TOK_RCURLY);
+        consume(TOK_RCURLY, "}");
         return;
     }
 
     else if (cur_token == TOK_WHILE || cur_token == TOK_FOR) {
         loop_token = cur_token;
         next();
-        consume(TOK_LPAREN);
+        consume(TOK_LPAREN, "(");
 
         // Preserve previous loop addresses so that we can have nested whiles/fors
         old_loop_continue_dst = cur_loop_continue_dst;
@@ -1542,7 +1542,7 @@ void statement() {
                 add_jmp_target_instruction(linit);
                 expression(TOK_COMMA);
             }
-            consume(TOK_SEMI);
+            consume(TOK_SEMI, ";");
 
             if (cur_token != TOK_SEMI) {
                 lcond  = new_label_dst();
@@ -1552,7 +1552,7 @@ void statement() {
                 add_instruction(IR_JZ, 0, pl(), lend);
                 add_instruction(IR_JMP, 0, lbody, 0);
             }
-            consume(TOK_SEMI);
+            consume(TOK_SEMI, ";");
 
             if (cur_token != TOK_RPAREN) {
                 lafter  = new_label_dst();
@@ -1570,7 +1570,7 @@ void statement() {
             expression(TOK_COMMA);
             add_instruction(IR_JZ, 0, pl(), lend);
         }
-        consume(TOK_RPAREN);
+        consume(TOK_RPAREN, ")");
 
         if (!cur_loop_continue_dst) cur_loop_continue_dst = lbody;
         add_jmp_target_instruction(lbody);
@@ -1597,20 +1597,20 @@ void statement() {
     else if (cur_token == TOK_CONTINUE) {
         next();
         add_instruction(IR_JMP, 0, cur_loop_continue_dst, 0);
-        consume(TOK_SEMI);
+        consume(TOK_SEMI, ";");
     }
 
     else if (cur_token == TOK_BREAK) {
         next();
         add_instruction(IR_JMP, 0, cur_loop_break_dst, 0);
-        consume(TOK_SEMI);
+        consume(TOK_SEMI, ";");
     }
 
     else if (cur_token == TOK_IF) {
         next();
-        consume(TOK_LPAREN);
+        consume(TOK_LPAREN, "(");
         expression(TOK_COMMA);
-        consume(TOK_RPAREN);
+        consume(TOK_RPAREN, ")");
 
         ldst1 = new_label_dst(); // False case
         ldst2 = new_label_dst(); // End
@@ -1640,12 +1640,12 @@ void statement() {
             expression(TOK_COMMA);
             add_instruction(IR_RETURN, 0, pl(), 0);
         }
-        consume(TOK_SEMI);
+        consume(TOK_SEMI, ";");
     }
 
     else {
         expression(TOK_COMMA);
-        consume(TOK_SEMI);
+        consume(TOK_SEMI, ";");
 
         // Discard the destination of a function call to a non-void function
         // since it's not being assigned to anything and
@@ -1666,7 +1666,7 @@ void function_body() {
     vreg_count = 0; // Reset global vreg_count
     local_symbol_count = 0;
 
-    consume(TOK_LCURLY);
+    consume(TOK_LCURLY, "}");
 
     // Parse symbols first
     while (cur_token_is_type()) {
@@ -1679,7 +1679,7 @@ void function_body() {
             if (type >= TYPE_STRUCT && type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
             if (cur_token == TOK_EQ) panic("Declarations with assignments aren't implemented");
 
-            expect(TOK_IDENTIFIER);
+            expect(TOK_IDENTIFIER, "identifier");
             s = new_symbol();
             s->type = type;
             s->identifier = cur_identifier;
@@ -1689,7 +1689,7 @@ void function_body() {
             if (cur_token != TOK_SEMI && cur_token != TOK_COMMA) panic("Expected ; or ,");
             if (cur_token == TOK_COMMA) next();
         }
-        expect(TOK_SEMI);
+        expect(TOK_SEMI, ";");
         while (cur_token == TOK_SEMI) next();
     }
 
@@ -1697,7 +1697,7 @@ void function_body() {
 
     while (cur_token != TOK_RCURLY) statement();
 
-    consume(TOK_RCURLY);
+    consume(TOK_RCURLY, "}");
 }
 
 // Parse a translation unit
@@ -1728,7 +1728,7 @@ void parse() {
 
                 if (type >= TYPE_STRUCT && type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
 
-                expect(TOK_IDENTIFIER);
+                expect(TOK_IDENTIFIER, "identifier");
 
                 s = lookup_symbol(cur_identifier, 0);
                 if (!s) {
@@ -1766,9 +1766,9 @@ void parse() {
                             if (type >= TYPE_STRUCT && type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
                         }
                         else
-                            panic("Expected type");
+                            panic("Expected type or )");
 
-                        expect(TOK_IDENTIFIER);
+                        expect(TOK_IDENTIFIER, "identifier");
                         param_symbol = new_symbol();
                         param_symbol->type = type;
                         param_symbol->identifier = cur_identifier;
@@ -1777,13 +1777,13 @@ void parse() {
                         next();
 
                         if (cur_token == TOK_RPAREN) break;
-                        consume(TOK_COMMA);
+                        consume(TOK_COMMA, ",");
                         if (cur_token == TOK_RPAREN) panic("Expected expression");
                     }
 
                     s->function_param_count = param_count;
                     cur_function_symbol = s;
-                    consume(TOK_RPAREN);
+                    consume(TOK_RPAREN, ")");
 
                     if (cur_token == TOK_LCURLY) {
                         cur_function_symbol->function_param_count = param_count;
@@ -1809,16 +1809,16 @@ void parse() {
         }
 
         else if (cur_token == TOK_ENUM) {
-            consume(TOK_ENUM);
-            consume(TOK_LCURLY);
+            consume(TOK_ENUM, "enum");
+            consume(TOK_LCURLY, "}");
 
             value = 0;
             while (cur_token != TOK_RCURLY) {
-                expect(TOK_IDENTIFIER);
+                expect(TOK_IDENTIFIER, "identifier");
                 next();
                 if (cur_token == TOK_EQ) {
                     next();
-                    expect(TOK_NUMBER);
+                    expect(TOK_NUMBER, "number");
                     value = cur_long;
                     next();
                 }
@@ -1833,13 +1833,13 @@ void parse() {
 
                 if (cur_token == TOK_COMMA) next();
             }
-            consume(TOK_RCURLY);
-            consume(TOK_SEMI);
+            consume(TOK_RCURLY, "}");
+            consume(TOK_SEMI, ";");
         }
 
         else if (cur_token == TOK_STRUCT) {
             parse_base_type(0); // It's a struct declaration
-            consume(TOK_SEMI);
+            consume(TOK_SEMI, ";");
         }
 
         else panic("Expected global declaration or function");
