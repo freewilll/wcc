@@ -59,17 +59,17 @@ struct liveness_interval {
 };
 
 // Struct member
-struct str_member {
+struct struct_member {
     char *identifier;
     int type;
     int offset;
 };
 
 // Struct description
-struct str_desc {
+struct struct_desc {
     int type;
     char *identifier;
-    struct str_member **members;
+    struct struct_member **members;
     int size;
     int is_incomplete;          // Set to 1 if the struct has been used in a member but not yet declared
 };
@@ -102,8 +102,8 @@ struct value **vs_start;        // Value stack start
 struct value **vs;              // Value stack current position
 struct value *vtop;             // Value at the top of the stack
 
-struct str_desc **all_structs;  // All structs defined globally. Local struct definitions isn't implemented.
-int all_structs_count;          // Number of structs, complete and incomplete
+struct struct_desc **all_structs; // All structs defined globally. Local struct definitions isn't implemented.
+int all_structs_count;            // Number of structs, complete and incomplete
 
 struct three_address_code *ir_start, *ir;   // intermediate representation for currently parsed function
 int vreg_count;                             // Virtual register count for currently parsed function
@@ -368,24 +368,6 @@ void next() {
         else if (                        c1 == '&'                        )  { ip += 1;  cur_token = TOK_ADDRESS_OF;                 }
         else if (                        c1 == '|'                        )  { ip += 1;  cur_token = TOK_BITWISE_OR;                 }
         else if (                        c1 == '^'                        )  { ip += 1;  cur_token = TOK_XOR;                        }
-        else if (input_size - ip >= 2 && !memcmp(i+ip, "if",            2 )) { ip += 2;  cur_token = TOK_IF;                         }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "else",          4 )) { ip += 4;  cur_token = TOK_ELSE;                       }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "char",          4 )) { ip += 4;  cur_token = TOK_CHAR;                       }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "short",         5 )) { ip += 5;  cur_token = TOK_SHORT;                      }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "int",           3 )) { ip += 3;  cur_token = TOK_INT;                        }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "long",          4 )) { ip += 4;  cur_token = TOK_LONG;                       }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "void",          4 )) { ip += 4;  cur_token = TOK_VOID;                       }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "struct",        6 )) { ip += 6;  cur_token = TOK_STRUCT;                     }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "while",         5 )) { ip += 5;  cur_token = TOK_WHILE;                      }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "for",           3 )) { ip += 3;  cur_token = TOK_FOR;                        }
-        else if (input_size - ip >= 8 && !memcmp(i+ip, "continue",      8 )) { ip += 8;  cur_token = TOK_CONTINUE;                   }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "break",         5 )) { ip += 5;  cur_token = TOK_BREAK;                      }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "return",        6 )) { ip += 6;  cur_token = TOK_RETURN;                     }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "enum",          4 )) { ip += 4;  cur_token = TOK_ENUM;                       }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "sizeof",        6 )) { ip += 6;  cur_token = TOK_SIZEOF;                     }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "__attribute__", 13)) { ip += 13; cur_token = TOK_ATTRIBUTE;                  }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "__packed__",    10)) { ip += 10; cur_token = TOK_PACKED;                     }
-        else if (input_size - ip >= 5 && !memcmp(i+ip, "packed",        6 )) { ip += 6;  cur_token = TOK_PACKED;                     }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\t';    }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\n';    }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\'';    }
@@ -394,8 +376,8 @@ void next() {
 
         else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_long = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
 
-        // Identifier
-        else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z')) {
+        // Identifier or keyword
+        else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             cur_token = TOK_IDENTIFIER;
             cur_identifier = malloc(1024);
             j = 0;
@@ -404,6 +386,25 @@ void next() {
                 j++; ip++;
             }
             cur_identifier[j] = 0;
+
+                 if (!strcmp(cur_identifier, "if"           )) { cur_token = TOK_IF;        }
+            else if (!strcmp(cur_identifier, "else"         )) { cur_token = TOK_ELSE;      }
+            else if (!strcmp(cur_identifier, "char"         )) { cur_token = TOK_CHAR;      }
+            else if (!strcmp(cur_identifier, "short"        )) { cur_token = TOK_SHORT;     }
+            else if (!strcmp(cur_identifier, "int"          )) { cur_token = TOK_INT;       }
+            else if (!strcmp(cur_identifier, "long"         )) { cur_token = TOK_LONG;      }
+            else if (!strcmp(cur_identifier, "void"         )) { cur_token = TOK_VOID;      }
+            else if (!strcmp(cur_identifier, "struct"       )) { cur_token = TOK_STRUCT;    }
+            else if (!strcmp(cur_identifier, "while"        )) { cur_token = TOK_WHILE;     }
+            else if (!strcmp(cur_identifier, "for"          )) { cur_token = TOK_FOR;       }
+            else if (!strcmp(cur_identifier, "continue"     )) { cur_token = TOK_CONTINUE;  }
+            else if (!strcmp(cur_identifier, "break"        )) { cur_token = TOK_BREAK;     }
+            else if (!strcmp(cur_identifier, "return"       )) { cur_token = TOK_RETURN;    }
+            else if (!strcmp(cur_identifier, "enum"         )) { cur_token = TOK_ENUM;      }
+            else if (!strcmp(cur_identifier, "sizeof"       )) { cur_token = TOK_SIZEOF;    }
+            else if (!strcmp(cur_identifier, "__attribute__")) { cur_token = TOK_ATTRIBUTE; }
+            else if (!strcmp(cur_identifier, "__packed__"   )) { cur_token = TOK_PACKED;    }
+            else if (!strcmp(cur_identifier, "packed"       )) { cur_token = TOK_PACKED;    }
         }
 
         // Hex numeric literal
@@ -738,22 +739,22 @@ int parse_type() {
     return type;
 }
 
-// Allocate a new str_desc
-struct str_desc *new_struct() {
-    struct str_desc *s;
+// Allocate a new struct_desc
+struct struct_desc *new_struct() {
+    struct struct_desc *s;
 
-    s = malloc(sizeof(struct str_desc));
+    s = malloc(sizeof(struct struct_desc));
     all_structs[all_structs_count] = s;
     s->type = TYPE_STRUCT + all_structs_count++;
-    s->members = malloc(sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
-    memset(s->members, 0, sizeof(struct str_member *) * MAX_STRUCT_MEMBERS);
+    s->members = malloc(sizeof(struct struct_member *) * MAX_STRUCT_MEMBERS);
+    memset(s->members, 0, sizeof(struct struct_member *) * MAX_STRUCT_MEMBERS);
 
     return s;
 }
 
 // Search for a struct. Returns 0 if not found.
-struct str_desc *find_struct(char *identifier) {
-    struct str_desc *s;
+struct struct_desc *find_struct(char *identifier) {
+    struct struct_desc *s;
     int i;
 
     for (i = 0; i < all_structs_count; i++)
@@ -765,8 +766,8 @@ struct str_desc *find_struct(char *identifier) {
 // Parse struct definitions and uses. Declarations aren't implemented.
 int parse_struct_base_type(int allow_incomplete_structs) {
     char *identifier;
-    struct str_desc *s;
-    struct str_member *member;
+    struct struct_desc *s;
+    struct struct_member *member;
     int member_count;
     int i, base_type, type, offset, is_packed, alignment, biggest_alignment;
 
@@ -810,8 +811,8 @@ int parse_struct_base_type(int allow_incomplete_structs) {
                 if (alignment > biggest_alignment) biggest_alignment = alignment;
                 offset = ((offset + alignment  - 1) & (~(alignment - 1)));
 
-                member = malloc(sizeof(struct str_member));
-                memset(member, 0, sizeof(struct str_member));
+                member = malloc(sizeof(struct struct_member));
+                memset(member, 0, sizeof(struct struct_member));
                 member->identifier = cur_identifier;
                 member->type = type;
                 member->offset = offset;
@@ -875,17 +876,17 @@ void indirect() {
 }
 
 // Search for a struct member. Panics if it doesn't exist
-struct str_member *lookup_struct_member(struct str_desc *str, char *identifier) {
-    struct str_member **pmember;
+struct struct_member *lookup_struct_member(struct struct_desc *struct_desc, char *identifier) {
+    struct struct_member **pmember;
 
-    pmember = str->members;
+    pmember = struct_desc->members;
 
     while (*pmember) {
         if (!strcmp((*pmember)->identifier, identifier)) return *pmember;
         pmember++;
     }
 
-    panic2s("Unknown member %s in struct %s\n", identifier, str->identifier);
+    panic2s("Unknown member %s in struct %s\n", identifier, struct_desc->identifier);
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
@@ -954,9 +955,9 @@ void expression(int level) {
     int scope;
     int arg_count;
     struct symbol *symbol;
-    struct str_desc *str;
-    struct str_member *member;
-    struct value *v1, *v2, *dst, *src1, *src2, *ldst1, *ldst2, *func_value, *ret_value;
+    struct struct_desc *str;
+    struct struct_member *member;
+    struct value *v1, *v2, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value;
     struct three_address_code *tac;
 
     // Parse any tokens that can be at the start of an expression
@@ -1091,18 +1092,18 @@ void expression(int level) {
             }
             consume(TOK_RPAREN);
 
-            func_value = new_value();
-            func_value->function_symbol = symbol;
-            func_value->function_call_arg_count = arg_count;
+            function_value = new_value();
+            function_value->function_symbol = symbol;
+            function_value->function_call_arg_count = arg_count;
 
-            ret_value = 0;
+            return_value = 0;
             if (type != TYPE_VOID) {
-                ret_value = new_value();
-                ret_value->vreg = new_vreg();
-                ret_value->type = type;
+                return_value = new_value();
+                return_value->vreg = new_vreg();
+                return_value->type = type;
             }
-            add_instruction(IR_CALL, ret_value, func_value, 0);
-            if (ret_value) push(ret_value);
+            add_instruction(IR_CALL, return_value, function_value, 0);
+            if (return_value) push(return_value);
         }
 
         else if (scope == 0) {
@@ -2822,7 +2823,7 @@ int main(int argc, char **argv) {
     string_literals = malloc(MAX_STRING_LITERALS);
     string_literal_count = 0;
 
-    all_structs = malloc(sizeof(struct str_desc *) * MAX_STRUCTS);
+    all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
     all_structs_count = 0;
 
     init_callee_saved_registers();
