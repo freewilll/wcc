@@ -568,9 +568,10 @@ struct value *load(struct value *src1) {
         // An lvalue in a register needs a dereference
         add_instruction(IR_INDIRECT, dst, src1, 0);
     }
+    else if (src1->vreg)
+        panic("Internal error: unexpected register");
     else {
-        // Load a value into a register. This could be a global, local
-        // or the result of a &.
+        // Load a value into a register. This could be a global or a local.
         dst->stack_index = 0;
         dst->global_symbol = 0;
         add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
@@ -579,11 +580,13 @@ struct value *load(struct value *src1) {
     return dst;
 }
 
-// Turn an lvalue into an rvalue by dereferencing it
+// Turn an lvalue in a register into an rvalue by dereferencing it
 struct value *make_rvalue(struct value *src1) {
     struct value *dst;
 
     if (!src1->is_lvalue) return src1;
+
+    if (!src1->vreg) panic("Internal error: unexpected missing register");
 
     // It's an lvalue in a register. Dereference it into the same register
     src1 = dup_value(src1); // Ensure no side effects on src1
