@@ -79,8 +79,9 @@ int run_assembler;              // Assemble .s file
 int run_linker;                 // Link .o file
 int target_is_object_file;
 int target_is_assembly_file;
-int print_ir_before;            // Print IR before register allocation
-int print_ir_after;             // Print IR after register allocation
+int print_ir1;                  // Print IR after parsing
+int print_ir2;                  // Print IR after x84_64 arch manipulation
+int print_ir3;                  // Print IR after register allocation
 int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
 int output_inline_ir;           // Output IR inline with the assembly
 
@@ -227,6 +228,7 @@ enum {
     IR_JNZ,                 // Jump if not zero
     IR_ADD,                 // +
     IR_SUB,                 // -
+    IR_RSUB,                // reverse -, used to facilitate code generation for the x86 SUB instruction
     IR_MUL,                 // *
     IR_DIV,                 // /
     IR_MOD,                 // %
@@ -608,6 +610,7 @@ struct value *make_rvalue(struct value *src1) {
     src1->is_lvalue = 0;
 
     dst = dup_value(src1);
+    dst->vreg = new_vreg();
     dst->stack_index = 0;
     dst->global_symbol = 0;
     add_instruction(IR_INDIRECT, dst, src1, 0);
@@ -991,8 +994,7 @@ void expression(int level) {
         next();
         expression(TOK_INC);
         type = vtop->type;
-        tac = add_ir_op(IR_BNOT, type, 0, pl(), 0);
-        tac->dst->vreg = tac->src1->vreg;
+        tac = add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
     }
 
     else if (cur_token == TOK_ADDRESS_OF) {
@@ -1020,7 +1022,6 @@ void expression(int level) {
         dst = new_value();
         dst->vreg = new_vreg();
         tac = add_instruction(org_token == TOK_INC ? IR_ADD : IR_SUB, dst, src1, src2);
-        dst->vreg = tac->src2->vreg;
         dst->type = operation_type(src1, src2);
 
         add_instruction(IR_ASSIGN, v1, dst, 0);
@@ -1046,8 +1047,7 @@ void expression(int level) {
             expression(TOK_INC);
             src1 = pl();
             src2 = pl();
-            tac = add_ir_op(IR_MUL, TYPE_LONG, 0, src1, src2);
-            tac->dst->vreg = tac->src2->vreg;
+            tac = add_ir_op(IR_MUL, TYPE_LONG, new_vreg(), src1, src2);
         }
     }
 
@@ -1183,15 +1183,13 @@ void expression(int level) {
                 add_ir_constant_value(TYPE_INT, factor);
                 src2 = pl();
                 src1 = pl();
-                tac = add_ir_op(IR_MUL, TYPE_INT, 0, src1, src2);
-                tac->dst->vreg = tac->src2->vreg;
+                tac = add_ir_op(IR_MUL, TYPE_INT, new_vreg(), src1, src2);
             }
 
             type = vs_operation_type();
             src2 = pl();
             src1 = pl();
-            tac = add_ir_op(IR_ADD, type, 0, src1, src2);
-            tac->dst->vreg = tac->src2->vreg;
+            tac = add_ir_op(IR_ADD, type, new_vreg(), src1, src2);
 
             consume(TOK_RBRACKET, "]");
             vtop->type = org_type - TYPE_PTR;
@@ -1206,25 +1204,19 @@ void expression(int level) {
             v1 = pop();                 // lvalue
             src1 = load(dup_value(v1)); // rvalue
 
-            // Copy the original value, since the add/sub operation destroys the original register
-            v2 = new_value();
-            v2->type = src1->type;
-            v2->vreg = new_vreg();
-            add_instruction(IR_ASSIGN, v2, src1, 0);
-
             add_ir_constant_value(TYPE_INT, get_type_inc_dec_size(src1->type));
             src2 = pl();
 
             dst = new_value();
             dst->vreg = new_vreg();
             dst->type = operation_type(src1, src2);
+            dst->vreg = new_vreg();
             tac = add_instruction(cur_token == TOK_INC ? IR_ADD : IR_SUB, dst, src1, src2);
-            dst->vreg = tac->src2->vreg;
 
             add_instruction(IR_ASSIGN, v1, dst, 0);
 
             next();
-            push(v2); // Push the original value back on the value stack
+            push(src1); // Push the original value back on the value stack
         }
 
         else if (cur_token == TOK_DOT || cur_token == TOK_ARROW) {
@@ -1256,8 +1248,7 @@ void expression(int level) {
                 type = vs_operation_type();
                 src2 = pl();
                 src1 = pl();
-                tac = add_ir_op(IR_ADD, type, 0, src1, src2);
-                tac->dst->vreg = tac->src2->vreg;
+                tac = add_ir_op(IR_ADD, type, new_vreg(), src1, src2);
             }
 
             vtop->type = member->type;
@@ -1271,8 +1262,7 @@ void expression(int level) {
             type = vs_operation_type();
             src2 = pl();
             src1 = pl();
-            tac = add_ir_op(IR_MUL, type, 0, src1, src2);
-            tac->dst->vreg = tac->src2->vreg;
+            tac = add_ir_op(IR_MUL, type, new_vreg(), src1, src2);
         }
 
         else if (cur_token == TOK_DIVIDE) {
@@ -1303,8 +1293,7 @@ void expression(int level) {
                 add_ir_constant_value(TYPE_INT, factor);
                 src2 = pl();
                 src1 = pl();
-                tac = add_ir_op(IR_MUL, TYPE_INT, 0, src1, src2);
-                tac->dst->vreg = tac->src2->vreg;
+                tac = add_ir_op(IR_MUL, TYPE_INT, new_vreg(), src1, src2);
             }
 
             type = vs_operation_type();
@@ -1312,14 +1301,12 @@ void expression(int level) {
             if (org_token == TOK_PLUS) {
                 src2 = pl();
                 src1 = pl();
-                tac = add_ir_op(IR_ADD, type, 0, src1, src2);
-                tac->dst->vreg = tac->src2->vreg;
+                tac = add_ir_op(IR_ADD, type, new_vreg(), src1, src2);
             }
             else {
                 src2 = pl();
                 src1 = pl();
-                tac = add_ir_op(IR_SUB, type, 0, src1, src2);
-                tac->dst->vreg = tac->src2->vreg;
+                tac = add_ir_op(IR_SUB, type, new_vreg(), src1, src2);
             }
         }
 
@@ -1329,8 +1316,7 @@ void expression(int level) {
             type = vs_operation_type();
             src2 = pl();
             src1 = pl();
-            tac = add_ir_op(IR_BSHL, type, 0, src1, src2);
-            tac->dst->vreg = tac->src1->vreg;
+            tac = add_ir_op(IR_BSHL, type, new_vreg(), src1, src2);
         }
 
         else if (cur_token == TOK_BITWISE_RIGHT) {
@@ -1339,8 +1325,7 @@ void expression(int level) {
             type = vs_operation_type();
             src2 = pl();
             src1 = pl();
-            tac = add_ir_op(IR_BSHR, type, 0, src1, src2);
-            tac->dst->vreg = tac->src1->vreg;
+            tac = add_ir_op(IR_BSHR, type, new_vreg(), src1, src2);
         }
 
         else if (cur_token == TOK_LT) {
@@ -1349,7 +1334,6 @@ void expression(int level) {
             src2 = pl();
             src1 = pl();
             tac = add_ir_op(IR_LT, TYPE_INT, new_vreg(), src1, src2);
-            tac->dst->vreg = tac->src1->vreg;
         }
 
         else if (cur_token == TOK_GT) {
@@ -1358,7 +1342,6 @@ void expression(int level) {
             src2 = pl();
             src1 = pl();
             tac = add_ir_op(IR_GT, TYPE_INT, new_vreg(), src1, src2);
-            tac->dst->vreg = tac->src1->vreg;
         }
 
         else if (cur_token == TOK_LE) {
@@ -1367,7 +1350,6 @@ void expression(int level) {
             src2 = pl();
             src1 = pl();
             tac = add_ir_op(IR_LE, TYPE_INT, new_vreg(), src1, src2);
-            tac->dst->vreg = tac->src1->vreg;
         }
 
         else if (cur_token == TOK_GE) {
@@ -1376,7 +1358,6 @@ void expression(int level) {
             src2 = pl();
             src1 = pl();
             tac = add_ir_op(IR_GE, TYPE_INT, new_vreg(), src1, src2);
-            tac->dst->vreg = tac->src1->vreg;
         }
 
         else if (cur_token == TOK_DBL_EQ) {
@@ -1385,7 +1366,6 @@ void expression(int level) {
             src2 = pl();
             src1 = pl();
             tac = add_ir_op(IR_EQ, TYPE_INT, new_vreg(), src1, src2);
-            tac->dst->vreg = tac->src1->vreg;
         }
 
         else if (cur_token == TOK_NOT_EQ) {
@@ -1394,7 +1374,6 @@ void expression(int level) {
             src2 = pl();
             src1 = pl();
             tac = add_ir_op(IR_NE, TYPE_INT, new_vreg(), src1, src2);
-            tac->dst->vreg = tac->src2->vreg;
         }
 
         else if (cur_token == TOK_ADDRESS_OF) {
@@ -1403,8 +1382,7 @@ void expression(int level) {
             type = vs_operation_type();
             src2 = pl();
             src1 = pl();
-            tac = add_ir_op(IR_BAND, type, 0, src1, src2);
-            tac->dst->vreg = tac->src2->vreg;
+            tac = add_ir_op(IR_BAND, type, new_vreg(), src1, src2);
         }
 
         else if (cur_token == TOK_XOR) {
@@ -1413,8 +1391,7 @@ void expression(int level) {
             type = vs_operation_type();
             src2 = pl();
             src1 = pl();
-            tac = add_ir_op(IR_XOR, type, 0, src1, src2);
-            tac->dst->vreg = tac->src2->vreg;
+            tac = add_ir_op(IR_XOR, type, new_vreg(), src1, src2);
         }
 
         else if (cur_token == TOK_BITWISE_OR) {
@@ -1423,8 +1400,7 @@ void expression(int level) {
             type = vs_operation_type();
             src2 = pl();
             src1 = pl();
-            tac = add_ir_op(IR_BOR, type, 0, src1, src2);
-            tac->dst->vreg = tac->src2->vreg;
+            tac = add_ir_op(IR_BOR, type, new_vreg(), src1, src2);
         }
 
         else if (cur_token == TOK_AND)
@@ -1487,21 +1463,18 @@ void expression(int level) {
                 add_ir_constant_value(TYPE_INT, factor);
                 src2 = pl();
                 src1 = pl();
-                tac = add_ir_op(IR_MUL, TYPE_INT, 0, src1, src2);
-                tac->dst->vreg = tac->src2->vreg;
+                tac = add_ir_op(IR_MUL, TYPE_INT, new_vreg(), src1, src2);
             }
 
             if (org_token == TOK_PLUS_EQ) {
                 src2 = pl();
                 src1 = pl();
-                tac = add_ir_op(IR_ADD, type, 0, src1, src2);
-                tac->dst->vreg = tac->src2->vreg;
+                tac = add_ir_op(IR_ADD, type, new_vreg(), src1, src2);
             }
             else {
                 src2 = pl();
                 src1 = pl();
-                tac = add_ir_op(IR_SUB, type, 0, src1, src2);
-                tac->dst->vreg = tac->src2->vreg;
+                tac = add_ir_op(IR_SUB, type, new_vreg(), src1, src2);
             }
 
             vtop->type = org_type;
@@ -1965,6 +1938,7 @@ void print_instruction(void *f, struct three_address_code *tac) {
     else if (tac->operation == IR_INDIRECT)      {                               fprintf(f, "*");    print_value(f, tac->src1, 1); }
     else if (tac->operation == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");  print_value(f, tac->src2, 1); }
+    else if (tac->operation == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");  print_value(f, tac->src1, 1); printf(" [reverse]"); }
     else if (tac->operation == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_DIV)           { print_value(f, tac->src1, 1); fprintf(f, " / ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_MOD)           { print_value(f, tac->src1, 1); fprintf(f, " %% "); print_value(f, tac->src2, 1); }
@@ -2002,6 +1976,49 @@ void print_intermediate_representation(char *function_name, struct three_address
     fprintf(stdout, "\n");
 }
 
+// We're not quite entirely SSA but a step in the right direction.
+void ensure_must_be_ssa_ish(struct three_address_code *ir) {
+    struct three_address_code *tac1, *tac2;
+
+    int i, j, dst, src1, src2;
+
+    i = 0;
+    tac1 = ir;
+    while (tac1->operation) {
+        dst = src1 = src2 = 0;
+
+        // Ensure dst isn't the same as src1 nor src2
+        if (tac1-> dst && tac1-> dst->vreg != -1) dst  = tac1-> dst->vreg;
+        if (tac1->src1 && tac1->src1->vreg != -1) src1 = tac1->src1->vreg;
+        if (tac1->src2 && tac1->src2->vreg != -1) src2 = tac1->src2->vreg;
+
+        if (dst && ((dst == src1 || dst == src2))) {
+            print_instruction(stdout, tac1);
+            printf("Not SSA in IR instruction %d\n", i);
+            exit(1);
+        }
+
+        // FIXME the ternary generates code with 2 register assigns, which violates SSA
+        // if (ir->operation != IR_TERNARY && dst) {
+        //     tac2 = tac1 + 1;
+        //     j = 0;
+        //     while (tac2->operation) {
+        //         if (tac2->dst && tac2->dst->vreg == dst) {
+        //             printf("IR instructions not SSA\n");
+        //             fprintf(stdout, "%-4d > ", i); print_instruction(stdout, tac1);
+        //             fprintf(stdout, "%-4d > ", j); print_instruction(stdout, tac2);
+        //             exit(1);
+        //         }
+        //         tac2++;
+        //         j++;
+        //     }
+        // }
+
+        i++;
+        tac1++;
+    }
+}
+
 void update_register_liveness(int reg, int instruction_position) {
     if (liveness[reg].start == -1 || instruction_position < liveness[reg].start) liveness[reg].start = instruction_position;
     if (liveness[reg].end == -1 || instruction_position > liveness[reg].end) liveness[reg].end = instruction_position;
@@ -2031,6 +2048,74 @@ void print_liveness(int vreg_count) {
 
     for (i = 1; i <= vreg_count; i++)
         printf("r%d %d %d\n", i, liveness[i].start, liveness[i].end);
+}
+
+void renumber_ir_vreg(struct three_address_code *ir, int src, int dst) {
+    struct three_address_code *tac;
+
+    tac = ir;
+    while (tac->operation) {
+        if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
+        if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
+        if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
+        tac++;
+    }
+
+    if (src == -2) src == 0;
+    if (dst == -2) dst == 0;
+    liveness[dst] = liveness[src];
+}
+
+void swap_ir_registers(struct three_address_code *ir, int vreg1, int vreg2) {
+    renumber_ir_vreg(ir, vreg1, -2);
+    renumber_ir_vreg(ir, vreg2, vreg1);
+    renumber_ir_vreg(ir, -2, vreg2);
+}
+
+void rearrange_ir_for_arch(struct three_address_code *ir) {
+    struct three_address_code *tac;
+
+    int i, vreg1, vreg2;
+
+    i = 0;
+    tac = ir;
+    while (tac->operation) {
+        // Convert sub to reverse sub. Swap registers everywhere except
+        // this tac and convert the operation to RSUB.
+        if (tac->operation == IR_SUB) {
+            tac->operation = IR_RSUB;
+            vreg1 = tac->src1->vreg;
+            vreg2 = tac->src2->vreg;
+            swap_ir_registers(ir, tac->src1->vreg, tac->src2->vreg);
+            tac->src1 = dup_value(tac->src1);
+            tac->src2 = dup_value(tac->src2);
+            tac->src1->vreg = vreg1;
+            tac->src2->vreg = vreg2;
+        }
+
+        // If src2 isn't live after this instruction, then the operation
+        // is allowed to change it. dst->vreg can be replaced with src2->vreg
+        // which saves a vreg.
+        if ((   tac->operation == IR_ADD || tac->operation == IR_RSUB ||
+                tac->operation == IR_MUL || tac->operation == IR_DIV || tac->operation == IR_MOD ||
+                tac->operation == IR_BOR || tac->operation == IR_BAND || tac->operation == IR_XOR) && i == liveness[tac->src2->vreg].end)
+            renumber_ir_vreg(ir, tac->dst->vreg, tac->src2->vreg);
+
+        // Free either src1 or src2's vreg if possible
+        if (tac->operation == IR_LT || tac->operation == IR_GT || tac->operation == IR_LE || tac->operation == IR_GE || tac->operation == IR_EQ || tac->operation == IR_NE) {
+            if (i == liveness[tac->src1->vreg].end)
+                renumber_ir_vreg(ir, tac->dst->vreg, tac->src1->vreg);
+            else if (i == liveness[tac->src2->vreg].end)
+                renumber_ir_vreg(ir, tac->dst->vreg, tac->src2->vreg);
+        }
+
+        // The same applies to the one-operand opcodes
+        if ((tac->operation == IR_INDIRECT || tac->operation == IR_BNOT || tac->operation == IR_BSHL || tac->operation == IR_BSHR) && i == liveness[tac->src1->vreg].end)
+            renumber_ir_vreg(ir, tac->dst->vreg, tac->src1->vreg);
+
+        i++;
+        tac++;
+    }
 }
 
 void allocate_register(struct value *v) {
@@ -2192,6 +2277,16 @@ void output_quad_register_name(int preg) {
     else                        fprintf(f, "%%%.3s", &names[preg * 4]);
 }
 
+void move_quad_register_to_register(int preg1, int preg2) {
+    if (preg1 != preg2) {
+        fprintf(f, "\tmovq\t");
+        output_quad_register_name(preg1);
+        fprintf(f, ", ");
+        output_quad_register_name(preg2);
+        fprintf(f, "\n");
+    }
+}
+
 void output_type_specific_register_name(int type, int preg) {
          if (type == TYPE_CHAR)  output_byte_register_name(preg);
     else if (type == TYPE_SHORT) output_word_register_name(preg);
@@ -2199,11 +2294,12 @@ void output_type_specific_register_name(int type, int preg) {
     else                         output_quad_register_name(preg);
 }
 
-void output_op(char *instruction, int reg1, int reg2) {
+void output_op(char *instruction, struct three_address_code *tac) {
+    move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
     fprintf(f, "\t%s\t", instruction);
-    output_quad_register_name(reg1);
+    output_quad_register_name(tac->src1->preg);
     fprintf(f, ", ");
-    output_quad_register_name(reg2);
+    output_quad_register_name(tac->dst->preg);
     fprintf(f, "\n");
 }
 
@@ -2217,13 +2313,13 @@ void output_cmp(struct three_address_code *ir) {
 
 void output_cmp_result_instruction(struct three_address_code *ir, char *instruction) {
     fprintf(f, "\t%s\t", instruction);
-    output_byte_register_name(ir->src2->preg);
+    output_byte_register_name(ir->dst->preg);
     fprintf(f, "\n");
 }
 
-void output_movzbl(struct three_address_code *ir) {
-    fprintf(f, "\tmovzbl\t");
-    output_byte_register_name(ir->src2->preg);
+void output_movzbq(struct three_address_code *ir) {
+    fprintf(f, "\tmovzbq\t");
+    output_byte_register_name(ir->dst->preg);
     fprintf(f, ", ");
     output_quad_register_name(ir->dst->preg);
     fprintf(f, "\n");
@@ -2250,10 +2346,10 @@ void output_type_specific_lea(int type) {
     else                         fprintf(f, "\tleaq\t");
 }
 
-void output_cmp_operation(struct three_address_code *ir, char *instruction) {
-    output_cmp(ir);
-    output_cmp_result_instruction(ir, instruction);
-    output_movzbl(ir);
+void output_cmp_operation(struct three_address_code *tac, char *instruction) {
+    output_cmp(tac);
+    output_cmp_result_instruction(tac, instruction);
+    output_movzbq(tac);
 }
 
 // Get offset from the stack in bytes, from a stack_index. This is a hairy function
@@ -2607,20 +2703,19 @@ void output_function_body_code(struct symbol *symbol) {
         else if (tac->operation == IR_JMP)
             fprintf(f, "\tjmp\t.l%d\n", tac->src1->label);
 
-        else if (tac->operation == IR_ADD)
-            output_op("addq",  tac->src1->preg, tac->src2->preg);
+        else if (tac->operation == IR_EQ) output_cmp_operation(tac, "sete");
+        else if (tac->operation == IR_NE) output_cmp_operation(tac, "setne");
+        else if (tac->operation == IR_LT) output_cmp_operation(tac, "setl");
+        else if (tac->operation == IR_GT) output_cmp_operation(tac, "setg");
+        else if (tac->operation == IR_LE) output_cmp_operation(tac, "setle");
+        else if (tac->operation == IR_GE) output_cmp_operation(tac, "setge");
 
-        else if (tac->operation == IR_SUB) {
-            fprintf(f, "\txchg\t");
-            output_quad_register_name(tac->src1->preg);
-            fprintf(f, ", ");
-            output_quad_register_name(tac->src2->preg);
-            fprintf(f, "\n");
-            output_op("subq",  tac->src1->preg, tac->src2->preg);
-        }
-
-        else if (tac->operation == IR_MUL)
-            output_op("imulq", tac->src1->preg, tac->src2->preg);
+        else if (tac->operation == IR_BOR)  output_op("orq",   tac);
+        else if (tac->operation == IR_BAND) output_op("andq",  tac);
+        else if (tac->operation == IR_XOR)  output_op("xorq",  tac);
+        else if (tac->operation == IR_ADD)  output_op("addq",  tac);
+        else if (tac->operation == IR_RSUB) output_op("subq",  tac);
+        else if (tac->operation == IR_MUL)  output_op("imulq", tac);
 
         else if (tac->operation == IR_DIV || tac->operation == IR_MOD) {
             // This is slightly ugly. src1 is the dividend and needs doubling in size and placing in the RDX register.
@@ -2628,45 +2723,36 @@ void output_function_body_code(struct symbol *symbol) {
             // The quotient is stored in RAX and remainder in RDX, but is then copied
             // to whatever register is allocated for the dst, which might as well have been RAX or RDX for the respective quotient and remainders.
 
+            move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
             fprintf(f, "\tmovq\t");
             output_quad_register_name(tac->src1->preg);
             fprintf(f, ", %%rax\n");
             fprintf(f, "\tcqto\n");
             fprintf(f, "\tidivq\t");
-            output_quad_register_name(tac->src2->preg);
+            output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
+
             if (tac->operation == IR_DIV)
-                fprintf(f, "\tmovq\t%%rax, ");
+                move_quad_register_to_register(REG_RAX, tac->dst->preg);
             else
-                fprintf(f, "\tmovq\t%%rdx, ");
+                move_quad_register_to_register(REG_RDX, tac->dst->preg);
+        }
+
+        else if (tac->operation == IR_BNOT)  {
+            move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
+            fprintf(f, "\tnot\t");
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
         }
 
-        else if (tac->operation == IR_BNOT)  {
-            fprintf(f, "\tnot\t");
-            output_quad_register_name(tac->src1->preg);
-            fprintf(f, "\n");
-        }
-
-        else if (tac->operation == IR_EQ)   output_cmp_operation(tac, "sete");
-        else if (tac->operation == IR_NE)   output_cmp_operation(tac, "setne");
-        else if (tac->operation == IR_LT)   output_cmp_operation(tac, "setl");
-        else if (tac->operation == IR_GT)   output_cmp_operation(tac, "setg");
-        else if (tac->operation == IR_LE)   output_cmp_operation(tac, "setle");
-        else if (tac->operation == IR_GE)   output_cmp_operation(tac, "setge");
-
-        else if (tac->operation == IR_BOR)  output_op("orq",  tac->src1->preg, tac->src2->preg);
-        else if (tac->operation == IR_BAND) output_op("andq", tac->src1->preg, tac->src2->preg);
-        else if (tac->operation == IR_XOR)  output_op("xorq", tac->src1->preg, tac->src2->preg);
-
         else if (tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
             // Ugly, this means rcx is permamently allocated
+            move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
             fprintf(f, "\tmovq\t");
             output_quad_register_name(tac->src2->preg);
             fprintf(f, ", %%rcx\n");
             fprintf(f, "\t%s\t%%cl, ", tac->operation == IR_BSHL ? "shl" : "sar");
-            output_quad_register_name(tac->src1->preg);
+            output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
         }
 
@@ -2744,16 +2830,22 @@ void output_code(char *input_filename, char *output_filename) {
     while (s->identifier) {
         if (!s->is_function) { s++; continue; }
 
+        ensure_must_be_ssa_ish(s->function_ir);
+
         fprintf(f, "%s:\n", s->identifier);
 
         // registers start at 1
         liveness = malloc(sizeof(struct liveness_interval) * (MAX_VREG_COUNT + 1));
 
+        if (print_ir1) print_intermediate_representation(s->identifier, s->function_ir);
+
         analyze_liveness(s->function_ir, s->function_vreg_count);
-        if (print_ir_before) print_intermediate_representation(s->identifier, s->function_ir);
+        rearrange_ir_for_arch(s->function_ir);
+        if (print_ir2) print_intermediate_representation(s->identifier, s->function_ir);
+
         allocate_registers(s->function_ir);
         s->function_spilled_register_count = spilled_register_count;
-        if (print_ir_after) print_intermediate_representation(s->identifier, s->function_ir);
+        if (print_ir3) print_intermediate_representation(s->identifier, s->function_ir);
 
         output_function_body_code(s);
         fprintf(f, "\n");
@@ -2846,8 +2938,9 @@ int main(int argc, char **argv) {
     target_is_object_file = 0;
     target_is_assembly_file = 0;
     help = 0;
-    print_ir_before = 0;
-    print_ir_after = 0;
+    print_ir1 = 0;
+    print_ir2 = 0;
+    print_ir3 = 0;
     print_symbols = 0;
     fake_register_pressure = 0;
     output_inline_ir = 0;
@@ -2861,8 +2954,9 @@ int main(int argc, char **argv) {
                  if (argc > 0 && !memcmp(argv[0], "-h",   3)) { help = 1;                   argc--; argv++; }
             else if (argc > 0 && !memcmp(argv[0], "-v",   2)) { verbose = 1;                argc--; argv++; }
             else if (argc > 0 && !memcmp(argv[0], "-d",   2)) { debug = 1;                  argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-rb",  3)) { print_ir_before = 1;        argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-ra",  3)) { print_ir_after = 1;         argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-ir1", 4)) { print_ir1 = 1;              argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-ir2", 4)) { print_ir2 = 1;              argc--; argv++; }
+            else if (argc > 0 && !memcmp(argv[0], "-ir3", 4)) { print_ir3 = 1;              argc--; argv++; }
             else if (argc > 0 && !memcmp(argv[0], "-s",   2)) { print_symbols = 1;          argc--; argv++; }
             else if (argc > 0 && !memcmp(argv[0], "-frp", 4)) { fake_register_pressure = 1; argc--; argv++; }
             else if (argc > 0 && !memcmp(argv[0], "-iir", 4)) { output_inline_ir = 1;       argc--; argv++; }
@@ -2901,7 +2995,7 @@ int main(int argc, char **argv) {
     }
 
     if (help) {
-        printf("Usage: wc4 [-S -c -v -d -rb -ra -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
+        printf("Usage: wc4 [-S -c -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
         printf("Flags\n");
         printf("-S          Compile only; do not assemble or link\n");
         printf("-c          Compile and assemble, but do not link\n");
@@ -2911,6 +3005,9 @@ int main(int argc, char **argv) {
         printf("-s          Output symbol table\n");
         printf("-frp        Fake register pressure, for testing spilling code\n");
         printf("-iir        Output inline intermediate representation\n");
+        printf("-ir1        Output intermediate representation after parsing\n");
+        printf("-ir2        Output intermediate representation after x86_64 rearrangements\n");
+        printf("-ir3        Output intermediate representation after register allocation\n");
         printf("-h          Help\n");
         exit(1);
     }
