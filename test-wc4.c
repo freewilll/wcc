@@ -159,35 +159,63 @@ void finalize() {
 }
 
 void test_expr() {
-    assert_long( 1,  1,               "1");
-    assert_long( 3,  1+2,             "1+2");
-    assert_long( 1,  2-1,             "2-1");
-    assert_long( 1,  3-2,             "3-2");
-    assert_long( 0,  3-2-1,           "3-2-1");
-    assert_long( 4,  3+2-1,           "3+2-1");
-    assert_long( 2,  3-2+1,           "3-2+1");
-    assert_long( 7,  1+2*3,           "1+2*3");
-    assert_long(10,  2*3+4,           "2*3+4");
-    assert_long( 3,  2*3/2,           "2*3/2");
-    assert_long( 3,  6/2,             "6/2");
-    assert_long( 0,  6%2,             "6%2");
-    assert_long( 1,  7%2,             "7%2");
-    assert_long(64,  1*2+3*4+5*10,    "1*2+3*4+5*10");
-    assert_long(74,  1*2+3*4+5*10+10, "1*2+3*4+5*10+10");
-    assert_long( 9,  (1+2)*3,         "(1+2)*3");
-    assert_long( 7,  (2*3)+1,         "(2*3)+1");
-    assert_long( 0,  3-(2+1),         "3-(2+1)");
-    assert_long(-3,  3-(2+1)*2,       "3-(2+1)*2");
-    assert_long( 7,  3-(2+1)*2+10,    "3-(2+1)*2+10");
-    assert_long(-1,  -1,              "-1");
-    assert_long( 1,  -1+2,            "-1+2");
-    assert_long(-2,  -1-1,            "-1-1");
-    assert_long( 3,  2- -1,           "2- -1");
-    assert_long(-6,  -(2*3),          "-(2*3)");
-    assert_long(-5,  -(2*3)+1,        "-(2*3)+1");
-    assert_long(-11, -(2*3)*2+1,      "-(2*3)*2+1");
+    int i, j, k, l;
+
+    i = 1; j = 2; assert_long( 1,  1,               "1");
+    i = 1; j = 2; assert_long( 3,  1+2,             "1+2 a");
+    i = 1; j = 2; assert_long( 3,  i+2,             "1+2 b");
+    i = 1; j = 2; assert_long( 3,  1+j,             "1+2 c");
+    i = 1; j = 2; assert_long( 3,  i+j,             "1+2 d");
+    i = 1; j = 2; assert_long( 1,  2-1,             "2-1 a");
+    i = 1; j = 2; assert_long( 1,  j-1,             "2-1 c");
+    i = 1; j = 2; assert_long( 1,  2-i,             "2-1 b");
+    i = 1; j = 2; assert_long( 1,  j-i,             "2-1 d");
+    i = 1; j = 2; assert_long( 1,  3-2,             "3-2");
+    i = 1; j = 2; assert_long( 0,  3-2-1,           "3-2-1");
+    i = 1; j = 2; assert_long( 4,  3+2-1,           "3+2-1");
+    i = 1; j = 2; assert_long( 2,  3-2+1,           "3-2+1");
+    i = 2; j = 3; assert_long( 6,  2*3,             "2*3 a");
+    i = 2; j = 3; assert_long( 6,  i*3,             "2*3 b");
+    i = 2; j = 3; assert_long( 6,  2*j,             "2*3 c");
+    i = 2; j = 3; assert_long( 6,  i*j,             "2*3 d");
+    i = 1; j = 2; assert_long( 7,  1+2*3,           "1+2*3");
+    i = 1; j = 2; assert_long(10,  2*3+4,           "2*3+4");
+    i = 1; j = 2; assert_long( 3,  2*3/2,           "2*3/2");
+    i = 6; j = 2; assert_long( 3,  6/2,             "6/2 a");
+    i = 6; j = 2; assert_long( 3,  i/2,             "6/2 b");
+    i = 6; j = 2; assert_long( 3,  6/j,             "6/2 c");
+    i = 6; j = 2; assert_long( 3,  i/j,             "6/2 d");
+    i = 6; j = 2; assert_long( 0,  6%2,             "6%2 a");
+    i = 6; j = 2; assert_long( 0,  i%2,             "6%2 b");
+    i = 6; j = 2; assert_long( 0,  6%j,             "6%2 c");
+    i = 6; j = 2; assert_long( 0,  i%j,             "6%2 d");
+    i = 7; j = 2; assert_long( 1,  7%2,             "7%2 a");
+    i = 7; j = 2; assert_long( 1,  i%2,             "7%2 b");
+    i = 7; j = 2; assert_long( 1,  7%j,             "7%2 c");
+    i = 7; j = 2; assert_long( 1,  i%j,             "7%2 d");
+    i = 1; j = 2; assert_long(64,  1*2+3*4+5*10,    "1*2+3*4+5*10");
+    i = 1; j = 2; assert_long(74,  1*2+3*4+5*10+10, "1*2+3*4+5*10+10");
+    i = 1; j = 2; assert_long( 9,  (1+2)*3,         "(1+2)*3");
+    i = 1; j = 2; assert_long( 7,  (2*3)+1,         "(2*3)+1");
+    i = 1; j = 2; assert_long( 0,  3-(2+1),         "3-(2+1)");
+    i = 1; j = 2; assert_long(-3,  3-(2+1)*2,       "3-(2+1)*2");
+    i = 1; j = 2; assert_long( 7,  3-(2+1)*2+10,    "3-(2+1)*2+10");
+    i = 1; j = 2; assert_long(-1,  -1,              "-1");
+    i = 1; j = 2; assert_long( 1,  -1+2,            "-1+2");
+    i = 1; j = 2; assert_long(-2,  -1-1,            "-1-1");
+    i = 1; j = 2; assert_long( 3,  2- -1,           "2- -1");
+    i = 2; j = 3; assert_long(-6,  -(2*3),          "-(2*3) a");
+    i = 2; j = 3; assert_long(-6,  -(i*3),          "-(2*3) b");
+    i = 2; j = 3; assert_long(-6,  -(2*j),          "-(2*3) c");
+    i = 2; j = 3; assert_long(-6,  -(i*j),          "-(2*3) d");
+    i = 1; j = 2; assert_long(-5,  -(2*3)+1,        "-(2*3)+1");
+    i = 1; j = 2; assert_long(-11, -(2*3)*2+1,      "-(2*3)*2+1");
+
+    i = 0; j = 1; k = 2; l = 3;
 
     assert_long(                   1, 1 == 1,            "1 == 1"      );
+    assert_long(                   1, j == 1,            "j == 1"      );
+    assert_long(                   1, 1 == j,            "i == i"      );
     assert_long(                   1, 2 == 2,            "2 == 2"      );
     assert_long(                   0, 1 == 0,            "1 == 0"      );
     assert_long(                   0, 0 == 1,            "0 == 1"      );
@@ -195,20 +223,48 @@ void test_expr() {
     assert_long(                   0, 2 != 2,            "2 != 2"      );
     assert_long(                   1, 1 != 0,            "1 != 0"      );
     assert_long(                   1, 0 != 1,            "0 != 1"      );
-    assert_long(                   1, !0,                "!0"          );
-    assert_long(                   0, !1,                "!1"          );
-    assert_long(                   0, !2,                "!2"          );
-    assert_long(                  -1, ~0,                "~0"          );
-    assert_long(                  -2, ~1,                "~1"          );
-    assert_long(                  -3, ~2,                "~2"          );
-    assert_long(                   1, 0 <  1,            "0 <  1"      );
-    assert_long(                   1, 0 <= 1,            "0 <= 1"      );
-    assert_long(                   0, 0 >  1,            "0 >  1"      );
-    assert_long(                   0, 0 >= 1,            "0 >= 1"      );
-    assert_long(                   0, 1 <  1,            "1 <  1"      );
-    assert_long(                   1, 1 <= 1,            "1 <= 1"      );
-    assert_long(                   0, 1 >  1,            "1 >  1"      );
-    assert_long(                   1, 1 >= 1,            "1 >= 1"      );
+    assert_long(                   1, !0,                "!0 a"        );
+    assert_long(                   1, !i,                "!0 b"        );
+    assert_long(                   0, !1,                "!1 a"        );
+    assert_long(                   0, !j,                "!1 b"        );
+    assert_long(                   0, !2,                "!2 a"        );
+    assert_long(                   0, !k,                "!2 b"        );
+    assert_long(                  -1, ~0,                "~0 a"        );
+    assert_long(                  -1, ~i,                "~0 b"        );
+    assert_long(                  -2, ~1,                "~1 a"        );
+    assert_long(                  -2, ~j,                "~1 b"        );
+    assert_long(                  -3, ~2,                "~2 a"        );
+    assert_long(                  -3, ~k,                "~2 b"        );
+
+    assert_long(                   1, 0 <  1,            "0 <  1 a"     );
+    assert_long(                   1, i <  1,            "0 <  1 b"     );
+    assert_long(                   1, 0 <  j,            "0 <  1 c"     );
+    assert_long(                   1, i <  j,            "0 <  1 d"     );
+    assert_long(                   1, 0 <= 1,            "0 <= 1 a"     );
+    assert_long(                   1, i <= 1,            "0 <= 1 b"     );
+    assert_long(                   1, 0 <= j,            "0 <= 1 c"     );
+    assert_long(                   1, i <= j,            "0 <= 1 d"     );
+    assert_long(                   0, 0 >  1,            "0 >  1 a"     );
+    assert_long(                   0, i >  1,            "0 >  1 b"     );
+    assert_long(                   0, 0 >  j,            "0 >  1 c"     );
+    assert_long(                   0, i >  j,            "0 >  1 d"     );
+    assert_long(                   0, 0 >= 1,            "0 >= 1 a"     );
+    assert_long(                   0, i >= 1,            "0 >= 1 b"     );
+    assert_long(                   0, 0 >= j,            "0 >= 1 c"     );
+    assert_long(                   0, i >= j,            "0 >= 1 d"     );
+    assert_long(                   0, 1 <  1,            "1 <  1 a"     );
+    assert_long(                   0, i >= 1,            "0 >= 1 b"     );
+    assert_long(                   0, 0 >= j,            "0 >= 1 c"     );
+    assert_long(                   1, i <= j,            "1 <= 1 d"     );
+    assert_long(                   1, 1 <= 1,            "1 <= 1 a"     );
+    assert_long(                   1, i <= 1,            "1 <= 1 b"     );
+    assert_long(                   0, 1 >  j,            "1 >  1 c"     );
+    assert_long(                   0, i >  j,            "1 >  1 d"     );
+    assert_long(                   0, 1 >  1,            "1 >  1 a"     );
+    assert_long(                   1, j >= 1,            "1 >= 1 b"     );
+    assert_long(                   1, 1 >= j,            "1 >= 1 c"     );
+    assert_long(                   1, j >= j,            "1 >= 1 d"     );
+
     assert_long(                   0, 0 || 0,            "0 || 0"      );
     assert_long(                   1, 0 || 1,            "0 || 1"      );
     assert_long(                   1, 1 || 0,            "1 || 0"      );
@@ -217,17 +273,39 @@ void test_expr() {
     assert_long(                   0, 0 && 1,            "0 && 1"      );
     assert_long(                   0, 1 && 0,            "1 && 0"      );
     assert_long(                   1, 1 && 1,            "1 && 1"      );
-    assert_long(                   1, 3 & 5,             "3 & 5"       );
-    assert_long(                   7, 3 | 5,             "3 | 5"       );
-    assert_long(                   6, 3 ^ 5,             "3 ^ 5"       );
-    assert_long(                   4, 1 << 2,            "1 << 2"      );
+
+    i = 3; j = 5;
+    assert_long(                   1, 3 & 5,             "3 & 5 a"     );
+    assert_long(                   1, i & 5,             "3 & 5 b"     );
+    assert_long(                   1, 3 & j,             "3 & 5 c"     );
+    assert_long(                   1, i & j,             "3 & 5 d"     );
+    assert_long(                   7, 3 | 5,             "3 | 5 a"     );
+    assert_long(                   7, i | 5,             "3 | 5 b"     );
+    assert_long(                   7, 3 | j,             "3 | 5 c"     );
+    assert_long(                   7, i | j,             "3 | 5 d"     );
+    assert_long(                   6, 3 ^ 5,             "3 ^ 5 a"     );
+    assert_long(                   6, i ^ 5,             "3 ^ 5 b"     );
+    assert_long(                   6, 3 ^ j,             "3 ^ 5 c"     );
+    assert_long(                   6, i ^ j,             "3 ^ 5 d"     );
+
+    i = 1; j = 2;
+    assert_long(                   4, 1 << 2,            "1 << 2 a"      );
+    assert_long(                   4, i << 2,            "1 << 2 b"      );
+    assert_long(                   4, 1 << j,            "1 << 2 c"      );
+    assert_long(                   4, i << j,            "1 << 2 d"      );
     assert_long(                   8, 1 << 3,            "1 << 3"      );
     assert_long(          1073741824, 1 << 30,           "1 << 31"     );
     // assert_long(          2147483648, 1 << 31,           "1 << 31"     ); // FIXME assert_long isn't able to handle longs
     // assert_long(-9223372036854775808, 1 << 63,           "1 << 63"     ); // FIXME assert_long isn't able to handle longs
-    assert_long(                  64, 256 >> 2,          "256 >> 2"    );
+
+    i = 256; j = 2;
+    assert_long(                  64, 256 >> 2,          "256 >> 2 a"    );
+    assert_long(                  64, i   >> 2,          "256 >> 2 b"    );
+    assert_long(                  64, 256 >> j,          "256 >> 2 c"    );
+    assert_long(                  64, i   >> j,          "256 >> 2 d"    );
     assert_long(                  32, 256 >> 3,          "256 >> 3"    );
     assert_long(                  32, 8192 >> 8,         "8192 >> 8"   );
+
     assert_long(                   1, 1+2==3,            "1+2==3"      );
     assert_long(                   1, 1+2>=3==1,         "1+2>=3==1"   );
     assert_long(                   0, 0 && 0 || 0,       "0 && 0 || 0" ); // && binds more strongly than ||
@@ -636,15 +714,23 @@ void test_ternary_cast() {
 void test_bracket_lookup() {
     long *pi;
     long *opi;
+    int i;
     pi = malloc(3 * sizeof(long));
-    opi  =pi;
+    opi = pi;
     pi[0] = 1;
     pi[1] = 2;
     pi = pi + 3;
     pi[-1] = 3;
+
     assert_int(1, *opi,       "[] 1");
-    assert_int(2, *(opi + 1), "[] 1");
-    assert_int(3, *(opi + 2), "[] 2");
+    assert_int(2, *(opi + 1), "[] 2");
+    assert_int(3, *(opi + 2), "[] 3");
+
+    pi = opi;
+    i = 0; pi[i] = 2;
+    i = 1; pi[i] = 3;
+    assert_int(2, *pi,       "[] 4");
+    assert_int(3, *(pi + 1), "[] 5");
 }
 
 void test_casting() {
