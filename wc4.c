@@ -964,6 +964,17 @@ void and_or_expr(int is_and) {
     add_jmp_target_instruction(ldst3);
 }
 
+void arithmetic_operation(int level, int type, int operation) {
+    struct value *src1, *src2;
+
+    next();
+    expression(level);
+    if (!type) type = vs_operation_type();
+    src2 = pl();
+    src1 = pl();
+    add_ir_op(operation, type, new_vreg(), src1, src2);
+}
+
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
@@ -1256,32 +1267,9 @@ void expression(int level) {
             consume(TOK_IDENTIFIER, "identifier");
         }
 
-        else if (cur_token == TOK_MULTIPLY) {
-            next();
-            expression(TOK_DOT);
-            type = vs_operation_type();
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_MUL, type, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_DIVIDE) {
-            next();
-            expression(TOK_INC);
-            type = vs_operation_type();
-            src2 = pl();
-            src1 = pl();
-            add_ir_op(IR_DIV, type, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_MOD) {
-            next();
-            expression(TOK_INC);
-            type = vs_operation_type();
-            src2 = pl();
-            src1 = pl();
-            add_ir_op(IR_MOD, type, new_vreg(), src1, src2);
-        }
+        else if (cur_token == TOK_MULTIPLY) arithmetic_operation(TOK_DOT, 0, IR_MUL);
+        else if (cur_token == TOK_DIVIDE)   arithmetic_operation(TOK_INC, 0, IR_DIV);
+        else if (cur_token == TOK_MOD)      arithmetic_operation(TOK_INC, 0, IR_MOD);
 
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
             org_token = cur_token;
@@ -1310,104 +1298,19 @@ void expression(int level) {
             }
         }
 
-        else if (cur_token == TOK_BITWISE_LEFT) {
-            next();
-            expression(TOK_PLUS);
-            type = vs_operation_type();
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_BSHL, type, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_BITWISE_RIGHT) {
-            next();
-            expression(TOK_PLUS);
-            type = vs_operation_type();
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_BSHR, type, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_LT) {
-            next();
-            expression(TOK_BITWISE_LEFT);
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_LT, TYPE_INT, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_GT) {
-            next();
-            expression(TOK_PLUS);
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_GT, TYPE_INT, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_LE) {
-            next();
-            expression(TOK_PLUS);
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_LE, TYPE_INT, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_GE) {
-            next();
-            expression(TOK_PLUS);
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_GE, TYPE_INT, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_DBL_EQ) {
-            next();
-            expression(TOK_LT);
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_EQ, TYPE_INT, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_NOT_EQ) {
-            next();
-            expression(TOK_LT);
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_NE, TYPE_INT, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_ADDRESS_OF) {
-            next();
-            expression(TOK_DBL_EQ);
-            type = vs_operation_type();
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_BAND, type, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_XOR) {
-            next();
-            expression(TOK_ADDRESS_OF);
-            type = vs_operation_type();
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_XOR, type, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_BITWISE_OR) {
-            next();
-            expression(TOK_XOR);
-            type = vs_operation_type();
-            src2 = pl();
-            src1 = pl();
-            tac = add_ir_op(IR_BOR, type, new_vreg(), src1, src2);
-        }
-
-        else if (cur_token == TOK_AND)
-            and_or_expr(1);
-
-        else if (cur_token == TOK_OR)
-            and_or_expr(0);
+        else if (cur_token == TOK_BITWISE_LEFT)  arithmetic_operation(TOK_PLUS,         0,        IR_BSHL);
+        else if (cur_token == TOK_BITWISE_RIGHT) arithmetic_operation(TOK_PLUS,         0,        IR_BSHR);
+        else if (cur_token == TOK_LT)            arithmetic_operation(TOK_BITWISE_LEFT, TYPE_INT, IR_LT);
+        else if (cur_token == TOK_GT)            arithmetic_operation(TOK_BITWISE_LEFT, TYPE_INT, IR_GT);
+        else if (cur_token == TOK_LE)            arithmetic_operation(TOK_BITWISE_LEFT, TYPE_INT, IR_LE);
+        else if (cur_token == TOK_GE)            arithmetic_operation(TOK_BITWISE_LEFT, TYPE_INT, IR_GE);
+        else if (cur_token == TOK_DBL_EQ)        arithmetic_operation(TOK_LT,           0,        IR_EQ);
+        else if (cur_token == TOK_NOT_EQ)        arithmetic_operation(TOK_LT,           0,        IR_NE);
+        else if (cur_token == TOK_ADDRESS_OF)    arithmetic_operation(TOK_DBL_EQ,       0,        IR_BAND);
+        else if (cur_token == TOK_XOR)           arithmetic_operation(TOK_ADDRESS_OF,   0,        IR_XOR);
+        else if (cur_token == TOK_BITWISE_OR)    arithmetic_operation(TOK_XOR,          0,        IR_BOR);
+        else if (cur_token == TOK_AND)           and_or_expr(1);
+        else if (cur_token == TOK_OR)            and_or_expr(0);
 
         else if (cur_token == TOK_TERNARY) {
             next();
