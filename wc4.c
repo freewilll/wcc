@@ -45,11 +45,12 @@ struct value {
 };
 
 struct three_address_code {
-    int operation;      // IR_* operation
-    int label;          // Label if this instruction is jumped to
-    struct value *dst;  // Destination
-    struct value *src1; // First rhs operand
-    struct value *src2; // Second rhs operand
+    int operation;                      // IR_* operation
+    int label;                          // Label if this instruction is jumped to
+    struct value *dst;                  // Destination
+    struct value *src1;                 // First rhs operand
+    struct value *src2;                 // Second rhs operand
+    struct three_address_code *next;    // Next in a linked-list
 };
 
 // Start and end indexes in the IR
@@ -133,7 +134,6 @@ enum {
     MAX_INPUT_SIZE             = 10485760,
     MAX_STRING_LITERALS        = 10240,
     VALUE_STACK_SIZE           = 10240,
-    MAX_THREE_ADDRESS_CODES    = 102400,
     MAX_VREG_COUNT             = 10240,
     PHYSICAL_REGISTER_COUNT    = 15,
     MAX_SPILLED_REGISTER_COUNT = 1024,
@@ -557,16 +557,26 @@ struct value *dup_value(struct value *src) {
 
 // Add instruction to the global intermediate representation ir
 struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
-    ir->operation = operation;
-    ir->label = 0;
-    ir->dst = dst;
-    ir->src1 = src1;
-    ir->src2 = src2;
-    ir++;
+    struct three_address_code *tac;
 
-    if (ir >= ir_start + MAX_THREE_ADDRESS_CODES) panic("Exceeded IR memory");
+    tac = malloc(sizeof(struct three_address_code));
+    tac->operation = operation;
+    tac->label = 0;
+    tac->dst = dst;
+    tac->src1 = src1;
+    tac->src2 = src2;
+    tac->next = 0;
 
-    return ir - 1;
+    if (!ir_start) {
+        ir_start = tac;
+        ir = tac;
+    }
+    else {
+        ir->next = tac;
+        ir = tac;
+    }
+
+    return tac;
 }
 
 // Allocate a new virtual register
@@ -1030,10 +1040,12 @@ void arithmetic_operation(int operation, int type) {
             else if (operation == IR_GE) operation = IR_LE;
         }
 
+        // TODO move backend specific code to backend
         // 1 - i case can't be done in x86_64 and needs to be done with registers
         else if (operation == IR_SUB && src1->is_constant)
             src1 = load_constant(src1);
 
+        // TODO move backend specific code to backend
         // 1 << i and 1 >> j cases doesn't play well with the stack spilling code
         else if ((operation == IR_BSHL || operation == IR_BSHR) && src1->is_constant)
             src1 = load_constant(src1);
@@ -1686,10 +1698,10 @@ void parse() {
                     cur_scope++;
                     next();
 
-                    ir = malloc(sizeof(struct three_address_code) * MAX_THREE_ADDRESS_CODES);
-                    ir_start = ir;
-                    memset(ir, 0, sizeof(struct three_address_code) * MAX_THREE_ADDRESS_CODES);
-                    s->function_ir = ir;
+                    // Setup the intermediate representation with a dummy no operation instruction.
+                    ir_start = 0;
+                    ir_start = add_instruction(IR_NOP, 0, 0, 0);
+                    s->function_ir = ir_start;
                     s->is_function = 1;
 
                     param_count = 0;
@@ -1916,10 +1928,10 @@ void print_intermediate_representation(char *function_name, struct three_address
 
     fprintf(stdout, "%s:\n", function_name);
     i = 0;
-    while (ir->operation) {
+    while (ir) {
         fprintf(stdout, "%-4d > ", i++);
         print_instruction(stdout, ir);
-        ir++;
+        ir = ir->next;
     }
     fprintf(stdout, "\n");
 }
@@ -1932,7 +1944,7 @@ void ensure_must_be_ssa_ish(struct three_address_code *ir) {
 
     i = 0;
     tac1 = ir;
-    while (tac1->operation) {
+    while (tac1) {
         dst = src1 = src2 = 0;
 
         // Ensure dst isn't the same as src1 nor src2
@@ -1963,7 +1975,7 @@ void ensure_must_be_ssa_ish(struct three_address_code *ir) {
         // }
 
         i++;
-        tac1++;
+        tac1 = tac1->next;
     }
 }
 
@@ -1981,11 +1993,11 @@ void analyze_liveness(struct three_address_code *ir, int vreg_count) {
     }
 
     i = 0;
-    while (ir->operation) {
+    while (ir) {
         if (ir->dst  && ir->dst->vreg)  update_register_liveness(ir->dst->vreg,  i);
         if (ir->src1 && ir->src1->vreg) update_register_liveness(ir->src1->vreg, i);
         if (ir->src2 && ir->src2->vreg) update_register_liveness(ir->src2->vreg, i);
-        ir++;
+        ir = ir->next;
         i++;
     }
 }
@@ -2002,11 +2014,11 @@ void renumber_ir_vreg(struct three_address_code *ir, int src, int dst) {
     struct three_address_code *tac;
 
     tac = ir;
-    while (tac->operation) {
+    while (tac) {
         if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
         if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
         if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
-        tac++;
+        tac = tac->next;
     }
 
     if (src == -2) src == 0;
@@ -2028,7 +2040,7 @@ void rearrange_ir_for_arch(struct three_address_code *ir) {
 
     i = 0;
     tac = ir;
-    while (tac->operation) {
+    while (tac) {
         if (tac->operation == IR_SUB) {
             tac->operation = IR_RSUB;
 
@@ -2073,7 +2085,7 @@ void rearrange_ir_for_arch(struct three_address_code *ir) {
             renumber_ir_vreg(ir, tac->dst->vreg, tac->src1->vreg);
 
         i++;
-        tac++;
+        tac = tac->next;
     }
 }
 
@@ -2163,7 +2175,7 @@ void allocate_registers(struct three_address_code *ir) {
     }
 
     line = 0;
-    while (ir->operation) {
+    while (ir) {
         // Allocate registers
         if (ir->dst  && ir->dst->vreg)  allocate_register(ir->dst);
         if (ir->src1 && ir->src1->vreg) allocate_register(ir->src1);
@@ -2181,7 +2193,7 @@ void allocate_registers(struct three_address_code *ir) {
                 spilled_registers[i] = 0;
         }
 
-        ir++;
+        ir = ir->next;
         line++;
     }
 
@@ -2409,11 +2421,11 @@ int *push_callee_saved_registers(struct three_address_code *tac) {
     saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(saved_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
 
-    while (tac->operation) {
+    while (tac) {
         if (tac->dst  && tac->dst ->preg != -1 && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
         if (tac->src1 && tac->src1->preg != -1 && callee_saved_registers[tac->src1->preg]) saved_registers[tac->src1->preg] = 1;
         if (tac->src2 && tac->src2->preg != -1 && callee_saved_registers[tac->src2->preg]) saved_registers[tac->src2->preg] = 1;
-        tac++;
+        tac = tac->next;
     }
 
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
@@ -2522,7 +2534,7 @@ void output_function_body_code(struct symbol *symbol) {
     tac = symbol->function_ir;
     saved_registers = push_callee_saved_registers(tac);
 
-    while (tac->operation) {
+    while (tac) {
         if (output_inline_ir) {
             fprintf(f, "\t// ------------------------------------- ");
             print_instruction(f, tac);
@@ -2767,7 +2779,7 @@ void output_function_body_code(struct symbol *symbol) {
 
         post_instruction_spill(tac, spilled_registers_stack_start);
 
-        tac++;
+        tac = tac->next;
     }
 
     // Special case for main, return 0 if no return statement is present
