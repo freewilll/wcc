@@ -289,14 +289,14 @@ void test_expr() {
     assert_long(                   6, i ^ j,             "3 ^ 5 d"     );
 
     i = 1; j = 2;
-    assert_long(                   4, 1 << 2,            "1 << 2 a"      );
-    assert_long(                   4, i << 2,            "1 << 2 b"      );
-    assert_long(                   4, 1 << j,            "1 << 2 c"      );
-    assert_long(                   4, i << j,            "1 << 2 d"      );
-    assert_long(                   8, 1 << 3,            "1 << 3"      );
-    assert_long(          1073741824, 1 << 30,           "1 << 31"     );
-    // assert_long(          2147483648, 1 << 31,           "1 << 31"     ); // FIXME assert_long isn't able to handle longs
-    // assert_long(-9223372036854775808, 1 << 63,           "1 << 63"     ); // FIXME assert_long isn't able to handle longs
+    assert_long(                  4, 1 << 2,            "1 << 2 a");
+    assert_long(                  4, i << 2,            "1 << 2 b");
+    assert_long(                  4, 1 << j,            "1 << 2 c");
+    assert_long(                  4, i << j,            "1 << 2 d");
+    assert_long(                  8, 1 << 3,            "1 << 3"  );
+    assert_long(         1073741824, 1 << 30,           "1 << 31" );
+    assert_long(         2147483648, (long) 1 << 31,    "1 << 31" );
+    assert_long(4611686018427387904, (long) 1 << 62,    "1 << 62" );
 
     i = 256; j = 2;
     assert_long(                  64, 256 >> 2,          "256 >> 2 a"    );
