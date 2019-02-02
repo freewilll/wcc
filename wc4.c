@@ -51,6 +51,7 @@ struct three_address_code {
     struct value *src1;                 // First rhs operand
     struct value *src2;                 // Second rhs operand
     struct three_address_code *next;    // Next in a linked-list
+    struct three_address_code *prev;    // Previous in a linked-list
 };
 
 // Start and end indexes in the IR
@@ -555,23 +556,34 @@ struct value *dup_value(struct value *src) {
     return dst;
 }
 
+struct three_address_code *new_instruction(int operation) {
+    struct three_address_code *tac;
+
+    tac = malloc(sizeof(struct three_address_code));
+    memset(tac, 0, sizeof(struct three_address_code));
+    tac->operation = operation;
+
+    return tac;
+}
+
 // Add instruction to the global intermediate representation ir
 struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
     struct three_address_code *tac;
 
-    tac = malloc(sizeof(struct three_address_code));
-    tac->operation = operation;
+    tac = new_instruction(operation);
     tac->label = 0;
     tac->dst = dst;
     tac->src1 = src1;
     tac->src2 = src2;
     tac->next = 0;
+    tac->prev = 0;
 
     if (!ir_start) {
         ir_start = tac;
         ir = tac;
     }
     else {
+        tac->prev = ir;
         ir->next = tac;
         ir = tac;
     }
@@ -1029,26 +1041,18 @@ void arithmetic_operation(int operation, int type) {
         if (vtop->is_constant) src2 = pop(); else src2 = pl();
         if (vtop->is_constant) src1 = pop(); else src1 = pl();
 
+        // If the second arg is a constant, flip it to be the first for commutative operations
         if (operation != IR_SUB && operation != IR_BSHL && operation != IR_BSHR && src2->is_constant) {
             t = src1;
             src1 = src2;
             src2 = t;
 
+            // Flip comparison operation
                  if (operation == IR_LT) operation = IR_GT;
             else if (operation == IR_GT) operation = IR_LT;
             else if (operation == IR_LE) operation = IR_GE;
             else if (operation == IR_GE) operation = IR_LE;
         }
-
-        // TODO move backend specific code to backend
-        // 1 - i case can't be done in x86_64 and needs to be done with registers
-        else if (operation == IR_SUB && src1->is_constant)
-            src1 = load_constant(src1);
-
-        // TODO move backend specific code to backend
-        // 1 << i and 1 >> j cases doesn't play well with the stack spilling code
-        else if ((operation == IR_BSHL || operation == IR_BSHR) && src1->is_constant)
-            src1 = load_constant(src1);
     }
     else {
         src2 = pl();
@@ -2003,10 +2007,10 @@ void analyze_liveness(struct three_address_code *ir, int vreg_count) {
 }
 
 // Debug function
-void print_liveness(int vreg_count) {
+void print_liveness(struct symbol *function) {
     int i;
 
-    for (i = 1; i <= vreg_count; i++)
+    for (i = 1; i <= function->function_vreg_count; i++)
         printf("r%d %d %d\n", i, liveness[i].start, liveness[i].end);
 }
 
@@ -2032,60 +2036,116 @@ void swap_ir_registers(struct three_address_code *ir, int vreg1, int vreg2) {
     renumber_ir_vreg(ir, -2, vreg2);
 }
 
-void rearrange_ir_for_arch(struct three_address_code *ir) {
-    struct three_address_code *tac;
+struct three_address_code *insert_instruction(struct three_address_code *ir, int ir_index, struct three_address_code *tac) {
+    int i;
+    struct three_address_code *prev;
+
+    prev = ir->prev;
+    tac->prev = prev;
+    tac->next = ir;
+    prev->next = tac;
+
+    for (i = 0; i < vreg_count; i++) {
+        if (liveness[i].start >= ir_index) liveness[i].start++;
+        if (liveness[i].end >= ir_index) liveness[i].end++;
+    }
+}
+
+void rearrange_reverse_sub_operation(struct three_address_code *ir, struct three_address_code *tac) {
+    struct value *src1, *src2;
+    int vreg1, vreg2;
+
+    if (tac->operation == IR_SUB) {
+        tac->operation = IR_RSUB;
+
+        if (tac->src2->is_constant) {
+            // Flip the operands
+            src1 = dup_value(tac->src1);
+            src2 = dup_value(tac->src2);
+            tac->src1 = src2;
+            tac->src2 = src1;
+        }
+        else {
+            // Convert sub to reverse sub. Swap registers everywhere except
+            // this tac and convert the operation to RSUB.
+            vreg1 = tac->src1->vreg;
+            vreg2 = tac->src2->vreg;
+            swap_ir_registers(ir, tac->src1->vreg, tac->src2->vreg);
+            tac->src1 = dup_value(tac->src1);
+            tac->src2 = dup_value(tac->src2);
+            tac->src1->vreg = vreg1;
+            tac->src2->vreg = vreg2;
+        }
+    }
+}
+
+void coalesce_operation_registers(struct three_address_code *ir, struct three_address_code *tac, int i) {
     struct value *src1, *src2;
 
-    int i, vreg1, vreg2;
+    // If src2 isn't live after this instruction, then the operation
+    // is allowed to change it. dst->vreg can be replaced with src2->vreg
+    // which saves a vreg.
+    if ((   tac->operation == IR_ADD || tac->operation == IR_RSUB ||
+            tac->operation == IR_MUL || tac->operation == IR_DIV || tac->operation == IR_MOD ||
+            tac->operation == IR_BOR || tac->operation == IR_BAND || tac->operation == IR_XOR) && i == liveness[tac->src2->vreg].end)
+        renumber_ir_vreg(ir, tac->dst->vreg, tac->src2->vreg);
 
-    i = 0;
-    tac = ir;
-    while (tac) {
-        if (tac->operation == IR_SUB) {
-            tac->operation = IR_RSUB;
-
-            if (tac->src2->is_constant) {
-                // Flip the operands
-                src1 = dup_value(tac->src1);
-                src2 = dup_value(tac->src2);
-                tac->src1 = src2;
-                tac->src2 = src1;
-            }
-            else {
-                // Convert sub to reverse sub. Swap registers everywhere except
-                // this tac and convert the operation to RSUB.
-                vreg1 = tac->src1->vreg;
-                vreg2 = tac->src2->vreg;
-                swap_ir_registers(ir, tac->src1->vreg, tac->src2->vreg);
-                tac->src1 = dup_value(tac->src1);
-                tac->src2 = dup_value(tac->src2);
-                tac->src1->vreg = vreg1;
-                tac->src2->vreg = vreg2;
-            }
-        }
-
-        // If src2 isn't live after this instruction, then the operation
-        // is allowed to change it. dst->vreg can be replaced with src2->vreg
-        // which saves a vreg.
-        if ((   tac->operation == IR_ADD || tac->operation == IR_RSUB ||
-                tac->operation == IR_MUL || tac->operation == IR_DIV || tac->operation == IR_MOD ||
-                tac->operation == IR_BOR || tac->operation == IR_BAND || tac->operation == IR_XOR) && i == liveness[tac->src2->vreg].end)
-            renumber_ir_vreg(ir, tac->dst->vreg, tac->src2->vreg);
-
-        // Free either src1 or src2's vreg if possible
-        if (tac->operation == IR_LT || tac->operation == IR_GT || tac->operation == IR_LE || tac->operation == IR_GE || tac->operation == IR_EQ || tac->operation == IR_NE) {
-            if (i == liveness[tac->src1->vreg].end)
-                renumber_ir_vreg(ir, tac->dst->vreg, tac->src1->vreg);
-            else if (i == liveness[tac->src2->vreg].end)
-                renumber_ir_vreg(ir, tac->dst->vreg, tac->src2->vreg);
-        }
-
-        // The same applies to the one-operand opcodes
-        if ((tac->operation == IR_INDIRECT || tac->operation == IR_BNOT || tac->operation == IR_BSHL || tac->operation == IR_BSHR) && i == liveness[tac->src1->vreg].end)
+    // Free either src1 or src2's vreg if possible
+    if (tac->operation == IR_LT || tac->operation == IR_GT || tac->operation == IR_LE || tac->operation == IR_GE || tac->operation == IR_EQ || tac->operation == IR_NE) {
+        if (i == liveness[tac->src1->vreg].end)
             renumber_ir_vreg(ir, tac->dst->vreg, tac->src1->vreg);
+        else if (i == liveness[tac->src2->vreg].end)
+            renumber_ir_vreg(ir, tac->dst->vreg, tac->src2->vreg);
+    }
 
-        i++;
+    // The same applies to the one-operand opcodes
+    if ((tac->operation == IR_INDIRECT || tac->operation == IR_BNOT || tac->operation == IR_BSHL || tac->operation == IR_BSHR) && i == liveness[tac->src1->vreg].end)
+        renumber_ir_vreg(ir, tac->dst->vreg, tac->src1->vreg);
+}
+
+void preload_src1_constant_into_register(struct three_address_code *tac, int *i) {
+    struct value *dst, *src1;
+    struct three_address_code *load_tac;
+
+    load_tac = new_instruction(IR_LOAD_CONSTANT);
+
+    load_tac->src1 = tac->src1;
+
+    dst = new_value();
+    dst->vreg = new_vreg();
+    dst->type = TYPE_LONG;
+
+    load_tac->dst = dst;
+    insert_instruction(tac, *i, load_tac);
+    tac->src1 = dst;
+
+    liveness[dst->vreg].start = *i;
+    liveness[dst->vreg].end = *i + 1;
+    (*i)++;
+}
+
+void allocate_registers_for_constants(struct three_address_code *tac, int *i) {
+    // Some instructions can't handle one of the operands being a constant. Allocate a vreg for it
+    // and load the constant into it.
+
+    // 1 - i case can't be done in x86_64 and needs to be done with registers
+    // 1 << i and 1 >> j cases doesn't play well with the stack spilling code
+    if ((tac->operation == IR_SUB || tac->operation == IR_BSHL || tac->operation == IR_BSHR) && tac->src1->is_constant)
+        preload_src1_constant_into_register(tac, i);
+}
+
+void rearrange_ir_for_arch(struct three_address_code *ir) {
+    struct three_address_code *tac;
+    int i;
+
+    tac = ir;
+    i = 0;
+    while (tac) {
+        allocate_registers_for_constants(tac, &i);
+        rearrange_reverse_sub_operation(ir, tac);
+        coalesce_operation_registers(ir, tac, i);
         tac = tac->next;
+        i++;
     }
 }
 
@@ -2858,7 +2918,11 @@ void output_code(char *input_filename, char *output_filename) {
         if (print_ir1) print_intermediate_representation(s->identifier, s->function_ir);
 
         analyze_liveness(s->function_ir, s->function_vreg_count);
+
+        vreg_count = s->function_vreg_count;
         rearrange_ir_for_arch(s->function_ir);
+        s->function_vreg_count = vreg_count;
+
         if (print_ir2) print_intermediate_representation(s->identifier, s->function_ir);
 
         allocate_registers(s->function_ir);

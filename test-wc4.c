@@ -166,10 +166,10 @@ void test_expr() {
     i = 1; j = 2; assert_long( 3,  i+2,             "1+2 b");
     i = 1; j = 2; assert_long( 3,  1+j,             "1+2 c");
     i = 1; j = 2; assert_long( 3,  i+j,             "1+2 d");
-    i = 1; j = 2; assert_long( 1,  2-1,             "2-1 a");
-    i = 1; j = 2; assert_long( 1,  j-1,             "2-1 c");
-    i = 1; j = 2; assert_long( 1,  2-i,             "2-1 b");
-    i = 1; j = 2; assert_long( 1,  j-i,             "2-1 d");
+    i = 1; j = 3; assert_long( 2,  3-1,             "3-1 a");
+    i = 1; j = 3; assert_long( 2,  j-1,             "3-1 b");
+    i = 1; j = 3; assert_long( 2,  3-i,             "3-1 c");
+    i = 1; j = 3; assert_long( 2,  j-i,             "3-1 d");
     i = 1; j = 2; assert_long( 1,  3-2,             "3-2");
     i = 1; j = 2; assert_long( 0,  3-2-1,           "3-2-1");
     i = 1; j = 2; assert_long( 4,  3+2-1,           "3+2-1");
