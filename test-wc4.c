@@ -1188,6 +1188,26 @@ void test_callee_saved_registers() {
     assert_int(2, s->i, "callee saved registers");
 }
 
+int set_rax(int i) {
+    return i;
+}
+
+// Variadic functions have the number of floating point arguments passed in al.
+// Since floating point numbers isn't implemented, this should be set to zero.
+// A bug was present where this wasn't being set in sprintf. This code below
+// would segfault at the second sprintf.
+void test_variadic_arg_bug() {
+    char *s;
+
+    s = malloc(10);
+
+    set_rax(0);
+    sprintf(s, "1\n");
+
+    set_rax(1);
+    sprintf(s, "2\n");
+}
+
 int main(int argc, char **argv) {
     int help;
 
@@ -1270,6 +1290,7 @@ int main(int argc, char **argv) {
     test_unary_precedence();
     test_spilling_stress();
     test_callee_saved_registers();
+    test_variadic_arg_bug();
 
     finalize();
 }

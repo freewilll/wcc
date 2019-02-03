@@ -18,6 +18,7 @@ struct symbol {
     int function_spilled_register_count;        // For functions, amount of stack space needed for registers spills
     struct three_address_code *function_ir;     // For functions, intermediate representation
     int function_builtin;                       // For builtin functions, IR number of the builtin
+    int function_is_variadic;                   // Set to 1 for builtin variadic functions
     int is_enum;                                // Enums are symbols with a value
 };
 
@@ -2787,9 +2788,10 @@ void output_function_body_code(struct symbol *symbol) {
             // Adjust the stack for the removed args that are in registers
             if (ac > 0) fprintf(f, "\taddq\t$%d, %%rsp\n", (ac <= 6 ? ac : 6) * 8);
 
-            if (tac->src1->function_symbol->function_builtin == IR_PRINTF || tac->src1->function_symbol->function_builtin == IR_FPRINTF) {
-                fprintf(f, "\tmovl\t$0, %%eax\n");
-            }
+            // Variadic functions have the number of floating point arguments passed in al.
+            // Since floating point numbers isn't implemented, this is zero.
+            if (tac->src1->function_symbol->function_is_variadic)
+                fprintf(f, "\tmovb\t$0, %%al\n");
 
             if (tac->src1->function_symbol->function_builtin)
                 fprintf(f, "\tcallq\t%s@PLT\n", tac->src1->function_symbol->identifier);
@@ -3086,13 +3088,14 @@ void output_code(char *input_filename, char *output_filename) {
 }
 
 // Add a builtin symbol
-void add_builtin(char *identifier, int instruction, int type) {
+void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
     struct symbol *s;
 
     s = new_symbol();
     s->type = type;
     s->identifier = identifier;
     s->function_builtin = instruction;
+    s->function_is_variadic = is_variadic;
 }
 
 void do_print_symbols() {
@@ -3309,30 +3312,30 @@ int main(int argc, char **argv) {
         all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
         all_structs_count = 0;
 
-        add_builtin("exit",     IR_EXIT,     TYPE_VOID);
-        add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR);
-        add_builtin("fread",    IR_FREAD,    TYPE_INT);
-        add_builtin("fwrite",   IR_FWRITE,   TYPE_INT);
-        add_builtin("fclose",   IR_FCLOSE,   TYPE_INT);
-        add_builtin("close",    IR_CLOSE,    TYPE_INT);
-        add_builtin("stdout",   IR_STDOUT,   TYPE_LONG);
-        add_builtin("printf",   IR_PRINTF,   TYPE_INT);
-        add_builtin("fprintf",  IR_FPRINTF,  TYPE_INT);
-        add_builtin("malloc",   IR_MALLOC,   TYPE_VOID + TYPE_PTR);
-        add_builtin("free",     IR_FREE,     TYPE_INT);
-        add_builtin("memset",   IR_MEMSET,   TYPE_INT);
-        add_builtin("memcmp",   IR_MEMCMP,   TYPE_INT);
-        add_builtin("strcmp",   IR_STRCMP,   TYPE_INT);
-        add_builtin("strlen",   IR_STRLEN,   TYPE_INT);
-        add_builtin("strcpy",   IR_STRCPY,   TYPE_INT);
-        add_builtin("strrchr",  IR_STRRCHR,  TYPE_CHAR + TYPE_PTR);
-        add_builtin("sprintf",  IR_SPRINTF,  TYPE_INT);
-        add_builtin("asprintf", IR_ASPRINTF, TYPE_INT);
-        add_builtin("strdup",   IR_STRDUP,   TYPE_CHAR + TYPE_PTR);
-        add_builtin("memcpy",   IR_MEMCPY,   TYPE_VOID + TYPE_PTR);
-        add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT);
-        add_builtin("perror",   IR_PERROR,   TYPE_VOID);
-        add_builtin("system",   IR_SYSTEM,   TYPE_INT);
+        add_builtin("exit",     IR_EXIT,     TYPE_VOID,            0);
+        add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR, 0);
+        add_builtin("fread",    IR_FREAD,    TYPE_INT,             0);
+        add_builtin("fwrite",   IR_FWRITE,   TYPE_INT,             0);
+        add_builtin("fclose",   IR_FCLOSE,   TYPE_INT,             0);
+        add_builtin("close",    IR_CLOSE,    TYPE_INT,             0);
+        add_builtin("stdout",   IR_STDOUT,   TYPE_LONG,            0);
+        add_builtin("printf",   IR_PRINTF,   TYPE_INT,             1);
+        add_builtin("fprintf",  IR_FPRINTF,  TYPE_INT,             1);
+        add_builtin("malloc",   IR_MALLOC,   TYPE_VOID + TYPE_PTR, 0);
+        add_builtin("free",     IR_FREE,     TYPE_INT,             0);
+        add_builtin("memset",   IR_MEMSET,   TYPE_INT,             0);
+        add_builtin("memcmp",   IR_MEMCMP,   TYPE_INT,             0);
+        add_builtin("strcmp",   IR_STRCMP,   TYPE_INT,             0);
+        add_builtin("strlen",   IR_STRLEN,   TYPE_INT,             0);
+        add_builtin("strcpy",   IR_STRCPY,   TYPE_INT,             0);
+        add_builtin("strrchr",  IR_STRRCHR,  TYPE_CHAR + TYPE_PTR, 0);
+        add_builtin("sprintf",  IR_SPRINTF,  TYPE_INT,             1);
+        add_builtin("asprintf", IR_ASPRINTF, TYPE_INT,             1);
+        add_builtin("strdup",   IR_STRDUP,   TYPE_CHAR + TYPE_PTR, 0);
+        add_builtin("memcpy",   IR_MEMCPY,   TYPE_VOID + TYPE_PTR, 0);
+        add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT,             0);
+        add_builtin("perror",   IR_PERROR,   TYPE_VOID,            0);
+        add_builtin("system",   IR_SYSTEM,   TYPE_INT,             0);
 
         f  = fopen(compiler_input_filename, "r");
         if (f == 0) {
