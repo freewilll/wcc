@@ -274,6 +274,10 @@ void test_expr() {
     assert_long(                   0, 1 && 0,            "1 && 0"      );
     assert_long(                   1, 1 && 1,            "1 && 1"      );
 
+    assert_long(                   1, 2 || 0,            "2 || 0"      ); // Ensure that the result is always 1 or zero
+    assert_long(                   1, 0 || 2,            "0 || 2"      );
+    assert_long(                   1, 2 && 3,            "2 && 3"      );
+
     i = 3; j = 5;
     assert_long(                   1, 3 & 5,             "3 & 5 a"     );
     assert_long(                   1, i & 5,             "3 & 5 b"     );

@@ -36,6 +36,7 @@ struct value {
     int stack_index;                // Stack index for local variable. Zero if it's not a local variable. Starts at -1 and grows downwards.
     int is_constant;                // Is it a constant? If so, value is the value.
     int is_string_literal;          // Is the value a string literal?
+    int is_in_cpu_flags;            // Is the result stored in cpu flags?
     int string_literal_index;       // Index in the string_literals array in the case of a string literal
     long value;                     // Value in the case of a constant
     struct symbol *function_symbol; // Corresponding symbol in the case of a function call
@@ -547,6 +548,7 @@ struct value *dup_value(struct value *src) {
     dst->stack_index               = src->stack_index;
     dst->is_constant               = src->is_constant;
     dst->is_string_literal         = src->is_string_literal;
+    dst->is_in_cpu_flags           = src->is_in_cpu_flags;
     dst->string_literal_index      = src->string_literal_index;
     dst->value                     = src->value;
     dst->function_symbol           = src->function_symbol;
@@ -606,6 +608,7 @@ struct value *load(struct value *src1) {
     dst = dup_value(src1);
     dst->vreg = new_vreg();
     dst->is_lvalue = 0;
+    dst->is_in_cpu_flags = 0;
 
     if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
@@ -613,6 +616,11 @@ struct value *load(struct value *src1) {
     }
     else if (src1->vreg)
         panic("Internal error: unexpected register");
+    else if (src1->is_in_cpu_flags) {
+        dst->stack_index = 0;
+        dst->global_symbol = 0;
+        add_instruction(IR_ASSIGN, dst, src1, 0);
+    }
     else {
         // Load a value into a register. This could be a global or a local.
         dst->stack_index = 0;
@@ -648,6 +656,7 @@ struct value *make_rvalue(struct value *src1) {
 // Lvalues are converted into rvalues.
 struct value *pl() {
     if (vtop->is_constant) push(load_constant(pop()));
+    if (vtop->is_in_cpu_flags) push(load(pop()));
 
     if (vtop->vreg) {
         if (vtop->is_lvalue) return make_rvalue(pop());
@@ -967,6 +976,14 @@ void add_jmp_target_instruction(struct value *v) {
     tac->label = v->label;
 }
 
+void add_conditional_jump(int operation, struct value *dst) {
+    if (vtop->is_in_cpu_flags)
+        add_instruction(operation, 0, pop(), dst);
+    else
+        // Load the result into a register
+        add_instruction(operation, 0, pl(), dst);
+}
+
 // Add instructions for && and || operators
 void and_or_expr(int is_and) {
     struct value *dst, *ldst1, *ldst2, *ldst3;
@@ -983,7 +1000,7 @@ void and_or_expr(int is_and) {
     dst->type = TYPE_LONG;
 
     // Test first operand
-    add_instruction(is_and ? IR_JNZ : IR_JZ, 0, pl(), ldst2);
+    add_conditional_jump(is_and ? IR_JNZ : IR_JZ, ldst2);
 
     // Store zero & end
     add_jmp_target_instruction(ldst1);
@@ -995,8 +1012,8 @@ void and_or_expr(int is_and) {
     // Test second operand
     add_jmp_target_instruction(ldst2);
     expression(TOK_BITWISE_OR);
-    add_instruction(is_and ? IR_JZ : IR_JNZ, 0, pl(), ldst1); // Store zero & end
-    push_constant(TYPE_INT, is_and ? 1 : 0);                  // Store 1
+    add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
+    push_constant(TYPE_INT, is_and ? 1 : 0);          // Store 1
     add_instruction(IR_ASSIGN, dst, pl(), 0);
     push(dst);
 
@@ -1009,7 +1026,9 @@ void arithmetic_operation(int operation, int type) {
     // is generated when the operands can't be valuated directly.
 
     struct value *src1, *src2, *t;
+    struct three_address_code *tac;
     long v1, v2;
+    int vreg;
 
     if (!type) type = vs_operation_type();
 
@@ -1060,7 +1079,16 @@ void arithmetic_operation(int operation, int type) {
         src1 = pl();
     }
 
-    add_ir_op(operation, type, new_vreg(), src1, src2);
+    // Store the result in the CPU flags for comparison operations
+    // It will get loaded into a register in later instructions if needed.
+    if (operation == IR_GT || operation == IR_LT || operation == IR_GE || operation == IR_LE || operation == IR_EQ || operation == IR_NE)
+        vreg = 0;
+    else
+        vreg = new_vreg();
+
+    tac = add_ir_op(operation, type, vreg, src1, src2);
+
+    if (!vreg) tac->dst->is_in_cpu_flags = 1;
 }
 
 void parse_arithmetic_operation(int level, int operation, int type) {
@@ -1395,7 +1423,7 @@ void expression(int level) {
 
             ldst1 = new_label_dst(); // False case
             ldst2 = new_label_dst(); // End
-            add_instruction(IR_JZ, 0, pl(), ldst1);
+            add_conditional_jump(IR_JZ, ldst1);
             expression(TOK_OR);
             src1 = vtop;
             add_instruction(IR_ASSIGN, dst, pl(), 0);
@@ -1501,7 +1529,7 @@ void statement() {
                 cur_loop_continue_dst = lcond;
                 add_jmp_target_instruction(lcond);
                 expression(TOK_COMMA);
-                add_instruction(IR_JZ, 0, pl(), lend);
+                add_conditional_jump(IR_JZ, lend);
                 add_instruction(IR_JMP, 0, lbody, 0);
             }
             consume(TOK_SEMI, ";");
@@ -1520,7 +1548,7 @@ void statement() {
             cur_loop_continue_dst = lcond;
             add_jmp_target_instruction(lcond);
             expression(TOK_COMMA);
-            add_instruction(IR_JZ, 0, pl(), lend);
+            add_conditional_jump(IR_JZ, lend);
         }
         consume(TOK_RPAREN, ")");
 
@@ -1566,7 +1594,7 @@ void statement() {
 
         ldst1 = new_label_dst(); // False case
         ldst2 = new_label_dst(); // End
-        add_instruction(IR_JZ, 0, pl(), ldst1);
+        add_conditional_jump(IR_JZ, ldst1);
         statement();
 
         if (cur_token == TOK_ELSE) {
@@ -1819,6 +1847,8 @@ void print_value(void *f, struct value *v, int is_assignment_rhs) {
 
     if (v->is_constant)
         fprintf(f, "%ld", v->value);
+    else if (v->is_in_cpu_flags)
+        fprintf(f, "cpu");
     else if (v->preg != -1)
         fprintf(f, "p%d", v->preg);
     else if (v->spilled_stack_index != -1)
@@ -2018,6 +2048,8 @@ void print_liveness(struct symbol *function) {
 void renumber_ir_vreg(struct three_address_code *ir, int src, int dst) {
     struct three_address_code *tac;
 
+    if (src == 0 || dst == 0) panic("Unexpected zero reg renumber");
+
     tac = ir;
     while (tac) {
         if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
@@ -2093,9 +2125,9 @@ void coalesce_operation_registers(struct three_address_code *ir, struct three_ad
 
     // Free either src1 or src2's vreg if possible
     if (tac->operation == IR_LT || tac->operation == IR_GT || tac->operation == IR_LE || tac->operation == IR_GE || tac->operation == IR_EQ || tac->operation == IR_NE) {
-        if (i == liveness[tac->src1->vreg].end)
+        if (tac->dst->vreg && tac->src1->vreg && i == liveness[tac->src1->vreg].end)
             renumber_ir_vreg(ir, tac->dst->vreg, tac->src1->vreg);
-        else if (i == liveness[tac->src2->vreg].end)
+        else if (tac->dst->vreg && tac->src2->vreg && i == liveness[tac->src2->vreg].end)
             renumber_ir_vreg(ir, tac->dst->vreg, tac->src2->vreg);
     }
 
@@ -2130,8 +2162,7 @@ void allocate_registers_for_constants(struct three_address_code *tac, int *i) {
     // and load the constant into it.
 
     // 1 - i case can't be done in x86_64 and needs to be done with registers
-    // 1 << i and 1 >> j cases doesn't play well with the stack spilling code
-    if ((tac->operation == IR_SUB || tac->operation == IR_BSHL || tac->operation == IR_BSHR) && tac->src1->is_constant)
+    if (tac->operation == IR_SUB && tac->src1->is_constant)
         preload_src1_constant_into_register(tac, i);
 }
 
@@ -2409,6 +2440,7 @@ void output_type_specific_lea(int type) {
 
 void output_reverse_cmp_operation(struct three_address_code *tac, char *instruction) {
     output_reverse_cmp(tac);
+    if (tac->dst->is_in_cpu_flags) return;
     output_cmp_result_instruction(tac, instruction);
     output_movzbq(tac);
 }
@@ -2549,7 +2581,7 @@ void pre_instruction_spill(struct three_address_code *ir, int spilled_registers_
 void post_instruction_spill(struct three_address_code *ir, int spilled_registers_stack_start) {
     if (ir->dst && ir->dst->spilled_stack_index != -1) {
         // Output a mov for assignments that are a register copy.
-        if (ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue)) return;
+        if (ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue || ir->dst->is_in_cpu_flags)) return;
 
         fprintf(f, "\tmovq\t");
         output_quad_register_name(ir->dst->preg);
@@ -2567,6 +2599,7 @@ void output_function_body_code(struct symbol *symbol) {
     int local_vars_stack_start;         // Stack start for the local variables
     int spilled_registers_stack_start;  // Stack start for the spilled registers
     int *saved_registers;               // Callee saved registers
+    char *s;
 
     fprintf(f, "\tpush\t%%rbp\n");
     fprintf(f, "\tmovq\t%%rsp, %%rbp\n");
@@ -2720,9 +2753,21 @@ void output_function_body_code(struct symbol *symbol) {
         }
 
         else if (tac->operation == IR_ASSIGN) {
-            if (tac->dst->global_symbol) {
+            if (tac->dst->is_in_cpu_flags); // Do nothing
+            else if (tac->src1->is_in_cpu_flags) {
+                     if (tac->prev->operation == IR_EQ) s = "sete";
+                else if (tac->prev->operation == IR_NE) s = "setne";
+                else if (tac->prev->operation == IR_LT) s = "setg";
+                else if (tac->prev->operation == IR_GT) s = "setl";
+                else if (tac->prev->operation == IR_LE) s = "setge";
+                else if (tac->prev->operation == IR_GE) s = "setle";
+                else panic1d("Internal error: unknown comparison operation %d", tac->prev->operation);
+                output_cmp_result_instruction(tac, s);
+                output_movzbq(tac);
+            }
+            else if (tac->dst->global_symbol) {
                 // dst a global
-                if (tac->dst->vreg) panic("Unexpected vreg in assign");
+                if (tac->dst->vreg) panic("Unexpected vreg in assign for global");
                 output_type_specific_mov(tac->dst->type);
                 output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 fprintf(f, ", ");
@@ -2730,7 +2775,7 @@ void output_function_body_code(struct symbol *symbol) {
             }
             else if (tac->dst->stack_index) {
                 // dst is a local variable on the stack
-                if (tac->dst->vreg) panic("Unexpected vreg in assign");
+                if (tac->dst->vreg) panic("Unexpected vreg in assign for local");
                 output_type_specific_mov(tac->dst->type);
                 output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 fprintf(f, ", ");
@@ -2757,11 +2802,37 @@ void output_function_body_code(struct symbol *symbol) {
         }
 
         else if (tac->operation == IR_JZ || tac->operation == IR_JNZ) {
-            fprintf(f, "\tcmpq\t$0x0, ");
-            output_quad_register_name(tac->src1->preg);
-            fprintf(f, "\n");
-            if (tac->operation == IR_JZ) fprintf(f, "\tje"); else fprintf(f, "\tjne");
-            fprintf(f, "\t.l%d\n", tac->src2->label);
+            if (tac->src1->is_in_cpu_flags) {
+                // src1 and src2 is backwards to facilitate constant handling,
+                // hence the flipping of the comparision direction.
+                     if (tac->prev->operation == IR_GT && tac->operation == IR_JNZ) s = "jl";
+                else if (tac->prev->operation == IR_GT && tac->operation == IR_JZ)  s = "jnl";
+                else if (tac->prev->operation == IR_LT && tac->operation == IR_JNZ) s = "jg";
+                else if (tac->prev->operation == IR_LT && tac->operation == IR_JZ)  s = "jng";
+                else if (tac->prev->operation == IR_GE && tac->operation == IR_JNZ) s = "jle";
+                else if (tac->prev->operation == IR_GE && tac->operation == IR_JZ)  s = "jnle";
+                else if (tac->prev->operation == IR_LE && tac->operation == IR_JNZ) s = "jge";
+                else if (tac->prev->operation == IR_LE && tac->operation == IR_JZ)  s = "jnge";
+                else if (tac->prev->operation == IR_EQ && tac->operation == IR_JNZ) s = "je";
+                else if (tac->prev->operation == IR_EQ && tac->operation == IR_JZ)  s = "jne";
+                else if (tac->prev->operation == IR_NE && tac->operation == IR_JNZ) s = "jne";
+                else if (tac->prev->operation == IR_NE && tac->operation == IR_JZ)  s = "je";
+
+                else {
+                    panic1d("Unknown comparison operator %d", tac->prev->operation);
+                    exit(1);
+                }
+
+                fprintf(f, "\t%s\t.l%d\n", s, tac->src2->label);
+            }
+
+            else  {
+                // The condition is in a register. Check if it's zero.
+                fprintf(f, "\tcmpq\t$0x0, ");
+                output_quad_register_name(tac->src1->preg);
+                fprintf(f, "\n");
+                fprintf(f, "\t%s\t.l%d\n", tac->operation == IR_JZ ? "je" : "jne", tac->src2->label);
+            }
         }
 
         else if (tac->operation == IR_JMP)
