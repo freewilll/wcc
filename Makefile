@@ -19,13 +19,19 @@ test-wc4.s: wc4 test-wc4.c
 	./wc4 -c -S test-wc4.c
 
 test-wc4-frp.s: wc4 test-wc4.c
-	./wc4 -frp -c -S -o test-wc4-frp.s test-wc4.c
+	./wc4 --frp -c -S -o test-wc4-frp.s test-wc4.c
+
+test-wc4-frp-drc.s: wc4 test-wc4.c
+	./wc4 --frp --drc -c -S -o test-wc4-frp-drc.s test-wc4.c
 
 test-wc4: test-wc4.s
 	gcc test-wc4.s -o test-wc4
 
 test-wc4-frp: test-wc4-frp.s
 	gcc test-wc4-frp.s -o test-wc4-frp
+
+test-wc4-frp-drc: test-wc4-frp-drc.s
+	gcc test-wc4-frp-drc.s -o test-wc4-frp-drc
 
 .PHONY: run-test-wc4
 run-test-wc4: test-wc4
@@ -36,6 +42,11 @@ run-test-wc4: test-wc4
 run-test-wc4-frp: test-wc4-frp
 	./test-wc4-frp
 	@echo wc4 FRP tests passed
+
+.PHONY: run-test-wc4-gcc
+run-test-wc4-frp-drc: test-wc4-frp-drc
+	./test-wc4-frp-drc
+	@echo wc4 FRP DRC tests passed
 
 test-wc4-gcc: test-wc4.c
 	gcc test-wc4.c -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types
@@ -50,7 +61,7 @@ test-self-compilation: wc42.s wc43.s
 	@echo self compilation test passed
 
 .PHONY: test
-test: run-test-wc4 run-test-wc4-frp run-test-wc4-gcc test-self-compilation
+test: run-test-wc4 run-test-wc4-frp test-wc4-frp-drc run-test-wc4-gcc test-self-compilation
 
 clean:
 	@rm -f wc4
@@ -59,6 +70,7 @@ clean:
 	@rm -f test-wc4
 	@rm -f test-wc4-frp
 	@rm -f test-wc4-gcc
+	@rm -f test-wc4-frp-drc
 	@rm -f *.s
 	@rm -f *.o
 	@rm -f test.c test test1.c test1 test2.c test2

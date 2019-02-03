@@ -87,6 +87,7 @@ int print_ir2;                  // Print IR after x84_64 arch manipulation
 int print_ir3;                  // Print IR after register allocation
 int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
 int output_inline_ir;           // Output IR inline with the assembly
+int enable_register_coalescing;
 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
@@ -2143,7 +2144,7 @@ void rearrange_ir_for_arch(struct three_address_code *ir) {
     while (tac) {
         allocate_registers_for_constants(tac, &i);
         rearrange_reverse_sub_operation(ir, tac);
-        coalesce_operation_registers(ir, tac, i);
+        if (enable_register_coalescing) coalesce_operation_registers(ir, tac, i);
         tac = tac->next;
         i++;
     }
@@ -2518,19 +2519,22 @@ void pre_instruction_spill(struct three_address_code *ir, int spilled_registers_
     // Load src1 into r10
     if (ir->src1 && ir->src1->spilled_stack_index != -1) {
         fprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", spilled_registers_stack_start - ir->src1->spilled_stack_index * 8);
+        ir->src1 = dup_value(ir->src1); // Ensure no side effects
         ir->src1->preg = REG_R10;
     }
 
     // Load src2 into r11
     if (ir->src2 && ir->src2->spilled_stack_index != -1) {
         fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", spilled_registers_stack_start - ir->src2->spilled_stack_index * 8);
+        ir->src2 = dup_value(ir->src2); // Ensure no side effects
         ir->src2->preg = REG_R11;
     }
 
     if (ir->dst && ir->dst->spilled_stack_index != -1) {
         // Set the dst preg to r10 or r11 depending on what the operation type has set
 
-        if (ir->src1 && ir->src1->spilled_stack_index != -1 && ir->dst->vreg == ir->src1->vreg)
+        ir->dst = dup_value(ir->dst); // Ensure no side effects
+        if (ir->operation == IR_BSHR || ir->operation == IR_BSHL)
             ir->dst->preg = REG_R10;
         else
             ir->dst->preg = REG_R11;
@@ -3025,6 +3029,7 @@ int main(int argc, char **argv) {
     print_ir3 = 0;
     print_symbols = 0;
     fake_register_pressure = 0;
+    enable_register_coalescing = 1;
     output_inline_ir = 0;
     output_filename = 0;
     input_filename = 0;
@@ -3033,16 +3038,17 @@ int main(int argc, char **argv) {
     argv++;
     while (argc > 0) {
         if (*argv[0] == '-') {
-                 if (argc > 0 && !memcmp(argv[0], "-h",   3)) { help = 1;                   argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-v",   2)) { verbose = 1;                argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-d",   2)) { debug = 1;                  argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-ir1", 4)) { print_ir1 = 1;              argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-ir2", 4)) { print_ir2 = 1;              argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-ir3", 4)) { print_ir3 = 1;              argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-s",   2)) { print_symbols = 1;          argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-frp", 4)) { fake_register_pressure = 1; argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-iir", 4)) { output_inline_ir = 1;       argc--; argv++; }
-            else if (argc > 0 && !memcmp(argv[0], "-S",   2)) {
+                 if (argc > 0 && !strcmp(argv[0], "-h"   )) { help = 1;                       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-v"   )) { verbose = 1;                    argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-d"   )) { debug = 1;                      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-s"   )) { print_symbols = 1;              argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir1")) { print_ir1 = 1;                  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir2")) { print_ir2 = 1;                  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir3")) { print_ir3 = 1;                  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--frp")) { fake_register_pressure = 1;     argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--iir")) { output_inline_ir = 1;           argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--drc")) { enable_register_coalescing = 0; argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-S"   )) {
                 run_assembler = 0;
                 run_linker = 0;
                 target_is_assembly_file = 1;
@@ -3087,6 +3093,7 @@ int main(int argc, char **argv) {
         printf("-s          Output symbol table\n");
         printf("-frp        Fake register pressure, for testing spilling code\n");
         printf("-iir        Output inline intermediate representation\n");
+        printf("-drc        Disable register coalescing\n");
         printf("-ir1        Output intermediate representation after parsing\n");
         printf("-ir2        Output intermediate representation after x86_64 rearrangements\n");
         printf("-ir3        Output intermediate representation after register allocation\n");
