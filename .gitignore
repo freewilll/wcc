@@ -2,11 +2,13 @@
 *.s
 wc4
 wc42
+wc42-frp
+wc43
 test-wc4
 test-wc4-frp
 test-wc4-gcc
 test-wc4-frp-drc
-venv
+benchmark
 test.c
 test1.c
 test2.c

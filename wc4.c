@@ -1032,7 +1032,6 @@ void arithmetic_operation(int operation, int type) {
 
     if (!type) type = vs_operation_type();
 
-    // if (0) {
     if (    operation == IR_ADD || operation == IR_SUB || operation == IR_MUL || operation == IR_BAND || operation == IR_BOR || operation == IR_XOR ||
             operation == IR_EQ || operation == IR_NE || operation == IR_LT || operation == IR_GT || operation == IR_LE || operation == IR_GE ||
             operation == IR_BSHL || operation == IR_BSHR) {
