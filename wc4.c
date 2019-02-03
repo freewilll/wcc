@@ -2083,6 +2083,75 @@ struct three_address_code *insert_instruction(struct three_address_code *ir, int
     }
 }
 
+// Merge tac with the instruction after it. The next instruction is removed from the chain.
+void merge_instructions(struct three_address_code *tac, int ir_index) {
+    int i;
+    struct three_address_code *next;
+
+    if (!tac->next) panic("merge_instructions called on a tac without next\n");
+
+    next = tac->next;
+    tac->next = next->next;
+    if (tac->next) tac->next->prev = tac;
+
+    // Nuke the references to the removed node to prevent confusion
+    next->prev = 0;
+    next->next = 0;
+
+    for (i = 0; i < vreg_count; i++) {
+        if (liveness[i].start > ir_index) liveness[i].start--;
+        if (liveness[i].end > ir_index) liveness[i].end--;
+    }
+}
+
+void renumber_label(struct three_address_code *ir, int l1, int l2) {
+    struct three_address_code *t;
+
+    t = ir;
+    while (t) {
+        if (t->src1 && t->src1->label == l1) t->src1->label = l2;
+        if (t->src2 && t->src2->label == l1) t->src2->label = l2;
+        if (t->label == l1) t->label = l2;
+        t = t->next;
+    }
+}
+
+void merge_labels(struct three_address_code *ir, struct three_address_code *tac, int ir_index) {
+    struct three_address_code *deleted_tac, *t;
+    int l;
+
+    while(1) {
+        if (!tac->label || !tac->next || !tac->next->label) return;
+
+        deleted_tac = tac->next;
+        merge_instructions(tac, ir_index);
+        renumber_label(ir, deleted_tac->label, tac->label);
+    }
+}
+
+// Renumber all labels so they are consecutive. Uses label_count global.
+void renumber_labels(struct three_address_code *ir) {
+    struct three_address_code *t;
+    int temp_labels;
+
+    temp_labels = -2;
+
+    t = ir;
+    while (t) {
+        if (t->label) {
+            // Rename target label out of the way
+            renumber_label(ir, label_count + 1, temp_labels);
+            temp_labels--;
+
+            // Replace t->label with label_count + 1
+            renumber_label(ir, t->label, -1);
+            t->label = ++label_count;
+            renumber_label(ir, -1, t->label);
+        }
+        t = t->next;
+    }
+}
+
 void rearrange_reverse_sub_operation(struct three_address_code *ir, struct three_address_code *tac) {
     struct value *src1, *src2;
     int vreg1, vreg2;
@@ -2165,19 +2234,22 @@ void allocate_registers_for_constants(struct three_address_code *tac, int *i) {
         preload_src1_constant_into_register(tac, i);
 }
 
-void rearrange_ir_for_arch(struct three_address_code *ir) {
+void rearrange_ir(struct three_address_code *ir) {
     struct three_address_code *tac;
     int i;
 
     tac = ir;
     i = 0;
     while (tac) {
+        merge_labels(ir, tac, i);
         allocate_registers_for_constants(tac, &i);
         rearrange_reverse_sub_operation(ir, tac);
         if (enable_register_coalescing) coalesce_operation_registers(ir, tac, i);
         tac = tac->next;
         i++;
     }
+
+    renumber_labels(ir);
 }
 
 void allocate_register(struct value *v) {
@@ -2977,6 +3049,8 @@ void output_code(char *input_filename, char *output_filename) {
     }
     fprintf(f, "\n");
 
+    label_count = 0; // Used in label renumbering
+
     // Generate body code for all functions
     s = symbol_table;
     while (s->identifier) {
@@ -2994,7 +3068,7 @@ void output_code(char *input_filename, char *output_filename) {
         analyze_liveness(s->function_ir, s->function_vreg_count);
 
         vreg_count = s->function_vreg_count;
-        rearrange_ir_for_arch(s->function_ir);
+        rearrange_ir(s->function_ir);
         s->function_vreg_count = vreg_count;
 
         if (print_ir2) print_intermediate_representation(s->identifier, s->function_ir);
