@@ -39,7 +39,7 @@ test-wc4-frp: test-wc4-frp.s
 test-wc4-frp-drc: test-wc4-frp-drc.s
 	gcc test-wc4-frp-drc.s -o test-wc4-frp-drc
 
-benchmark: wc4 wc42 benchmark.c
+benchmark: wc4 wc42 wc42-frp benchmark.c
 	gcc benchmark.c -o benchmark
 
 run-benchmark: benchmark
