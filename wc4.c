@@ -16,6 +16,7 @@ struct symbol {
     int function_local_symbol_count;            // For functions, number of local symbols
     int function_vreg_count;                    // For functions, number of virtual registers used in IR
     int function_spilled_register_count;        // For functions, amount of stack space needed for registers spills
+    int function_call_count;                    // For functions, number of calls to other functions
     struct three_address_code *function_ir;     // For functions, intermediate representation
     int function_builtin;                       // For builtin functions, IR number of the builtin
     int function_is_variadic;                   // Set to 1 for builtin variadic functions
@@ -54,6 +55,12 @@ struct three_address_code {
     struct value *src2;                 // Second rhs operand
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
+};
+
+// Temporary struct for reversing function call arguments
+struct tac_interval {
+    struct three_address_code *start;
+    struct three_address_code *end;
 };
 
 // Start and end indexes in the IR
@@ -120,6 +127,7 @@ int all_structs_count;            // Number of structs, complete and incomplete
 struct three_address_code *ir_start, *ir;   // intermediate representation for currently parsed function
 int vreg_count;                             // Virtual register count for currently parsed function
 int label_count;                            // Global label count, always growing
+int function_call_count;                             // Uniquely identify a function call, always growing
 int spilled_register_count;                 // Spilled register count for current function that's undergoing register allocation
 
 struct liveness_interval *liveness;         // Keeps track of live vregs. Array of length vreg_count. Each element is a vreg, or zero if not live.
@@ -223,8 +231,10 @@ enum {
     IR_LOAD_STRING_LITERAL, // Load string literal
     IR_LOAD_VARIABLE,       // Load global or local
     IR_INDIRECT,            // Pointer or lvalue dereference
-    IR_PARAM,               // Function call parameter
-    IR_CALL,                // Function call
+    IR_START_CALL,          // Function call
+    IR_ARG,                 // Function call argument
+    IR_CALL,                // Start of function call
+    IR_END_CALL,            // End of function call
     IR_RETURN,              // Return in function
     IR_ASSIGN,              // Assignment/store. Target is either a global, local, lvalue in register or register
     IR_NOP,                 // No operation. Used for label destinations. No code is generated for this other than the label itself.
@@ -1106,7 +1116,7 @@ void expression(int level) {
     int factor;
     int type;
     int scope;
-    int arg_count;
+    int function_call, arg_count;
     struct symbol *symbol;
     struct struct_desc *str;
     struct struct_member *member;
@@ -1232,12 +1242,16 @@ void expression(int level) {
             push_constant(TYPE_LONG, symbol->value);
         else if (cur_token == TOK_LPAREN) {
             // Function call
+            function_call = function_call_count++;
             next();
+            src1 = new_value();
+            src1->value = function_call;
+            add_instruction(IR_START_CALL, 0, src1, 0);
             arg_count = 0;
             while (1) {
                 if (cur_token == TOK_RPAREN) break;
                 expression(TOK_COMMA);
-                add_instruction(IR_PARAM, 0, pl(), 0);
+                add_instruction(IR_ARG, 0, src1, pl());
                 arg_count++;
                 if (cur_token == TOK_RPAREN) break;
                 consume(TOK_COMMA, ",");
@@ -1256,6 +1270,7 @@ void expression(int level) {
                 return_value->type = type;
             }
             add_instruction(IR_CALL, return_value, function_value, 0);
+            add_instruction(IR_END_CALL, 0, src1, 0);
             if (return_value) push(return_value);
         }
 
@@ -1645,6 +1660,7 @@ void function_body() {
 
     vreg_count = 0; // Reset global vreg_count
     local_symbol_count = 0;
+    function_call_count = 0;
 
     consume(TOK_LCURLY, "}");
 
@@ -1674,6 +1690,7 @@ void function_body() {
     }
 
     cur_function_symbol->function_local_symbol_count = local_symbol_count;
+    cur_function_symbol->function_call_count = function_call_count;
 
     while (cur_token != TOK_RCURLY) statement();
 
@@ -1896,9 +1913,12 @@ void print_instruction(void *f, struct three_address_code *tac) {
         print_value(f, tac->src1, 1);
     }
 
-    else if (tac->operation == IR_PARAM) {
-        fprintf(f, "param ");
-        print_value(f, tac->src1, 1);
+    else if (tac->operation == IR_START_CALL) printf("start call %ld", tac->src1->value);
+    else if (tac->operation == IR_END_CALL) printf("end call %ld", tac->src1->value);
+
+    else if (tac->operation == IR_ARG) {
+        fprintf(f, "arg for call %ld ", tac->src1->value);
+        print_value(f, tac->src2, 1);
     }
 
     else if (tac->operation == IR_CALL) {
@@ -2043,6 +2063,74 @@ void print_liveness(struct symbol *function) {
 
     for (i = 1; i <= function->function_vreg_count; i++)
         printf("r%d %d %d\n", i, liveness[i].start, liveness[i].end);
+}
+
+// The arguments are pushed onto the stack right to left, but
+// the ABI requries the seventh arg and later to be pushed in reverse
+// order. Easiest is to flip all args backwards, so they are pushed
+// left to right.
+void reverse_function_argument_order(struct symbol *function_symbol){
+    struct three_address_code *tac, *call_start, *call;
+    int i, j, arg_count, function_call_count;
+
+    struct tac_interval *args;
+
+    ir = function_symbol->function_ir;
+    args = malloc(sizeof(struct tac_interval *) * 256);
+
+    // Need to count this IR's function_call_count
+    function_call_count = 0;
+    tac = function_symbol->function_ir;
+    while (tac) {
+        if (tac->operation == IR_START_CALL) function_call_count++;
+        tac = tac->next;
+    }
+
+    for (i = 0; i < function_call_count; i++) {
+        tac = function_symbol->function_ir;
+        arg_count = 0;
+        call_start = 0;
+        call = 0;
+        while (tac) {
+            if (tac->operation == IR_START_CALL && tac->src1->value == i) {
+                call_start = tac;
+                tac = tac->next;
+                args[arg_count].start = tac;
+            }
+            else if (tac->operation == IR_END_CALL && tac->src1->value == i) {
+                call = tac->prev;
+                tac = tac->next;
+            }
+            else if (tac->operation == IR_ARG && tac->src1->value == i) {
+                args[arg_count].end = tac;
+                arg_count++;
+                tac = tac->next;
+                if (tac->operation != IR_END_CALL) args[arg_count].start = tac;
+            }
+            else
+                tac = tac->next;
+        }
+
+        if (arg_count > 1) {
+            call_start->next = args[arg_count - 1].start;
+            args[arg_count - 1].start->prev = call_start;
+            args[0].end->next = call;
+            call->prev = args[0].end;
+
+            for (j = 0; j < arg_count; j++) {
+                // Rearrange args backwards from this IR
+                // cs -> p0.start -> p0.end -> p1.start -> p1.end -> cs.end
+                // cs -> p0.start -> p0.end -> p1.start -> p1.end -> p2.start -> p2.end -> cs.end
+                if (j < arg_count - 1) {
+                    args[j + 1].end->next = args[j].start;
+                    args[j].start->prev = args[j + 1].end;
+                }
+            }
+        }
+
+    }
+
+    free(args);
 }
 
 void renumber_ir_vreg(struct three_address_code *ir, int src, int dst) {
@@ -2235,9 +2323,12 @@ void allocate_registers_for_constants(struct three_address_code *tac, int *i) {
         preload_src1_constant_into_register(tac, i);
 }
 
-void rearrange_ir(struct three_address_code *ir) {
-    struct three_address_code *tac;
+void rearrange_ir(struct symbol *function_symbol) {
+    struct three_address_code *ir, *tac;
     int i;
+
+    ir = function_symbol->function_ir;
+    reverse_function_argument_order(function_symbol);
 
     tac = ir;
     i = 0;
@@ -2363,10 +2454,6 @@ void allocate_registers(struct three_address_code *ir) {
 
     free(physical_registers);
     free(spilled_registers);
-}
-
-void output_load_arg(int position, char *register_name) {
-    fprintf(f, "\tmovq\t%d(%%rsp), %%%s\n", position * 8, register_name);
 }
 
 void check_preg(int preg) {
@@ -2552,7 +2639,7 @@ int get_stack_offset_from_index(int function_pc, int local_vars_stack_start, int
         }
         else {
             // The first arg is at stack_index=0, second at stack_index=1
-            // If there aree.g. 2 args:
+            // If there are e.g. 2 args:
             // arg 0 is at mov -0x10(%rbp), %rax
             // arg 1 is at mov -0x08(%rbp), %rax
             stack_offset = -8 * (stack_index + 1);
@@ -2763,30 +2850,25 @@ void output_function_body_code(struct symbol *symbol) {
             fprintf(f, "\n");
         }
 
-        else if (tac->operation == IR_PARAM) {
+        else if (tac->operation == IR_START_CALL);
+        else if (tac->operation == IR_END_CALL);
+
+        else if (tac->operation == IR_ARG) {
             fprintf(f, "\tpushq\t");
-            output_quad_register_name(tac->src1->preg);
+            output_quad_register_name(tac->src2->preg);
             fprintf(f, "\n");
         }
 
         else if (tac->operation == IR_CALL) {
             // Read the first 6 args from the stack in right to left order
             ac = tac->src1->function_call_arg_count;
-            if (ac >= 6) output_load_arg(ac - 6, "r9");
-            if (ac >= 5) output_load_arg(ac - 5, "r8");
-            if (ac >= 4) output_load_arg(ac - 4, "rcx");
-            if (ac >= 3) output_load_arg(ac - 3, "rdx");
-            if (ac >= 2) output_load_arg(ac - 2, "rsi");
-            if (ac >= 1) output_load_arg(ac - 1, "rdi");
 
-            // For the remaining args after the first 6, swap the opposite ends of the stack
-            for (i = 0; i < ac - 6; i++) {
-                fprintf(f, "\tmovq\t%d(%%rsp), %%rax\n", i * 8);
-                fprintf(f, "\tmovq\t%%rax, %d(%%rsp)\n", (ac - i - 1) * 8);
-            }
-
-            // Adjust the stack for the removed args that are in registers
-            if (ac > 0) fprintf(f, "\taddq\t$%d, %%rsp\n", (ac <= 6 ? ac : 6) * 8);
+            if (ac >= 1) fprintf(f, "\tpopq\t%%rdi\n");
+            if (ac >= 2) fprintf(f, "\tpopq\t%%rsi\n");
+            if (ac >= 3) fprintf(f, "\tpopq\t%%rdx\n");
+            if (ac >= 4) fprintf(f, "\tpopq\t%%rcx\n");
+            if (ac >= 5) fprintf(f, "\tpopq\t%%r8\n");
+            if (ac >= 6) fprintf(f, "\tpopq\t%%r9\n");
 
             // Variadic functions have the number of floating point arguments passed in al.
             // Since floating point numbers isn't implemented, this is zero.
@@ -2808,6 +2890,9 @@ void output_function_body_code(struct symbol *symbol) {
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, "\n");
             }
+
+            // Adjust the stack for any args that are on in stack
+            if (ac > 6) fprintf(f, "\taddq\t$%d, %%rsp\n", (ac - 6) * 8);
         }
 
         else if (tac->operation == IR_RETURN) {
@@ -3070,8 +3155,9 @@ void output_code(char *input_filename, char *output_filename) {
         analyze_liveness(s->function_ir, s->function_vreg_count);
 
         vreg_count = s->function_vreg_count;
-        rearrange_ir(s->function_ir);
+        rearrange_ir(s);
         s->function_vreg_count = vreg_count;
+        analyze_liveness(s->function_ir, s->function_vreg_count);
 
         if (print_ir2) print_intermediate_representation(s->identifier, s->function_ir);
 
