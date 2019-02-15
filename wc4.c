@@ -2039,10 +2039,12 @@ void update_register_liveness(int reg, int instruction_position) {
     if (liveness[reg].end == -1 || instruction_position > liveness[reg].end) liveness[reg].end = instruction_position;
 }
 
-void analyze_liveness(struct three_address_code *ir, int vreg_count) {
+void analyze_liveness(struct symbol *function_symbol) {
     int i;
+    struct three_address_code *ir;
 
-    for (i = 1; i <= vreg_count; i++) {
+    ir = function_symbol->function_ir;
+    for (i = 1; i <= function_symbol->function_vreg_count; i++) {
         liveness[i].start = -1;
         liveness[i].end = -1;
     }
@@ -2065,11 +2067,11 @@ void print_liveness(struct symbol *function) {
         printf("r%d %d %d\n", i, liveness[i].start, liveness[i].end);
 }
 
-// The arguments are pushed onto the stack right to left, but
-// the ABI requries the seventh arg and later to be pushed in reverse
-// order. Easiest is to flip all args backwards, so they are pushed
-// left to right.
-void reverse_function_argument_order(struct symbol *function_symbol){
+// The arguments are pushed onto the stack right to left, but the ABI requries
+// the seventh arg and later to be pushed in reverse order. Easiest is to flip
+// all args backwards, so they are pushed left to right. This nukes the
+// liveness which will need regenerating.
+void reverse_function_argument_order(struct symbol *function_symbol) {
     struct three_address_code *tac, *call_start, *call;
     int i, j, arg_count, function_call_count;
 
@@ -2130,6 +2132,7 @@ void reverse_function_argument_order(struct symbol *function_symbol){
 
     }
 
+    analyze_liveness(function_symbol);
     free(args);
 }
 
@@ -3152,12 +3155,11 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir1) print_intermediate_representation(s->identifier, s->function_ir);
 
-        analyze_liveness(s->function_ir, s->function_vreg_count);
+        analyze_liveness(s);
 
         vreg_count = s->function_vreg_count;
         rearrange_ir(s);
         s->function_vreg_count = vreg_count;
-        analyze_liveness(s->function_ir, s->function_vreg_count);
 
         if (print_ir2) print_intermediate_representation(s->identifier, s->function_ir);
 
