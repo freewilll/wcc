@@ -55,6 +55,7 @@ struct three_address_code {
     struct value *src2;                 // Second rhs operand
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
+    int in_conditional;                 // Used for live range extending. True if the code is inside an if or ternary.
 };
 
 // Temporary struct for reversing function call arguments
@@ -97,6 +98,7 @@ int print_ir3;                  // Print IR after register allocation
 int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
 int output_inline_ir;           // Output IR inline with the assembly
 int enable_register_coalescing;
+int use_registers_for_locals;   // Experimental. Don't use the stack for local variables.
 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
@@ -113,6 +115,7 @@ int string_literal_count;       // Amount of string literals
 struct symbol *cur_function_symbol;     // Currently parsed function
 struct value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
 struct value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
+int in_conditional;                     // Used in the parser to determine if something is in a conditional
 
 struct symbol *symbol_table;    // Symbol table, terminated by a null symbol
 struct symbol *next_symbol;     // Next free symbol in the symbol table
@@ -127,7 +130,9 @@ int all_structs_count;            // Number of structs, complete and incomplete
 struct three_address_code *ir_start, *ir;   // intermediate representation for currently parsed function
 int vreg_count;                             // Virtual register count for currently parsed function
 int label_count;                            // Global label count, always growing
-int function_call_count;                             // Uniquely identify a function call, always growing
+int function_call_count;                    // Uniquely identify a function call, always growing
+int cur_loop;                               // Current loop being parsed
+int loop_count;                             // Loop counter
 int spilled_register_count;                 // Spilled register count for current function that's undergoing register allocation
 
 struct liveness_interval *liveness;         // Keeps track of live vregs. Array of length vreg_count. Each element is a vreg, or zero if not live.
@@ -236,6 +241,8 @@ enum {
     IR_CALL,                // Start of function call
     IR_END_CALL,            // End of function call
     IR_RETURN,              // Return in function
+    IR_START_LOOP,          // Start of a for or while loop
+    IR_END_LOOP,            // End of a for or while loop
     IR_ASSIGN,              // Assignment/store. Target is either a global, local, lvalue in register or register
     IR_NOP,                 // No operation. Used for label destinations. No code is generated for this other than the label itself.
     IR_JMP,                 // Unconditional jump
@@ -591,6 +598,7 @@ struct three_address_code *add_instruction(int operation, struct value *dst, str
     tac->src2 = src2;
     tac->next = 0;
     tac->prev = 0;
+    tac->in_conditional = in_conditional;
 
     if (!ir_start) {
         ir_start = tac;
@@ -1117,6 +1125,7 @@ void expression(int level) {
     int type;
     int scope;
     int function_call, arg_count;
+    int prev_in_conditional;
     struct symbol *symbol;
     struct struct_desc *str;
     struct struct_member *member;
@@ -1432,6 +1441,9 @@ void expression(int level) {
         else if (cur_token == TOK_TERNARY) {
             next();
 
+            prev_in_conditional = in_conditional;
+            in_conditional = 1;
+
             // Destination register
             dst = new_value();
             dst->vreg = new_vreg();
@@ -1451,6 +1463,7 @@ void expression(int level) {
             add_instruction(IR_ASSIGN, dst, pl(), 0);
             push(dst);
             add_jmp_target_instruction(ldst2); // End
+            in_conditional = prev_in_conditional;
         }
 
         else if (cur_token == TOK_EQ) {
@@ -1495,9 +1508,11 @@ void expression(int level) {
 
 // Parse a statement
 void statement() {
-    struct value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst;
+    struct value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
     struct three_address_code *tac;
     int loop_token;
+    int prev_in_conditional;
+    int prev_loop;
 
     vs = vs_start; // Reset value stack
 
@@ -1517,6 +1532,14 @@ void statement() {
     }
 
     else if (cur_token == TOK_WHILE || cur_token == TOK_FOR) {
+        prev_loop = cur_loop;
+        cur_loop = ++loop_count;
+        src1 = new_value();
+        src1->value = prev_loop;
+        src2 = new_value();
+        src2->value = cur_loop;
+        add_instruction(IR_START_LOOP, 0, src1, src2);
+
         loop_token = cur_token;
         next();
         consume(TOK_LPAREN, "(");
@@ -1587,6 +1610,11 @@ void statement() {
         // Restore previous loop addresses
         cur_loop_continue_dst = old_loop_continue_dst;
         cur_loop_break_dst = old_loop_break_dst;
+
+        // Restore outer loop counter
+        cur_loop = prev_loop;
+
+        add_instruction(IR_END_LOOP, 0, src1, src2);
     }
 
     else if (cur_token == TOK_CONTINUE) {
@@ -1603,6 +1631,10 @@ void statement() {
 
     else if (cur_token == TOK_IF) {
         next();
+
+        prev_in_conditional = in_conditional;
+        in_conditional = 1;
+
         consume(TOK_LPAREN, "(");
         expression(TOK_COMMA);
         consume(TOK_RPAREN, ")");
@@ -1624,6 +1656,8 @@ void statement() {
 
         // End
         add_jmp_target_instruction(ldst2);
+
+        in_conditional = prev_in_conditional;
     }
 
     else if (cur_token == TOK_RETURN) {
@@ -1661,6 +1695,9 @@ void function_body() {
     vreg_count = 0; // Reset global vreg_count
     local_symbol_count = 0;
     function_call_count = 0;
+    cur_loop = 0;
+    loop_count = 0;
+    in_conditional = 0;
 
     consume(TOK_LCURLY, "}");
 
@@ -1934,6 +1971,9 @@ void print_instruction(void *f, struct three_address_code *tac) {
             fprintf(f, "return");
     }
 
+    else if (tac->operation == IR_START_LOOP) printf("start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
+    else if (tac->operation == IR_END_LOOP)   printf("end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
+
     else if (tac->operation == IR_ASSIGN)
         print_value(f, tac->src1, 1);
 
@@ -1976,17 +2016,17 @@ void print_instruction(void *f, struct three_address_code *tac) {
     fprintf(f, "\n");
 }
 
-void print_intermediate_representation(char *function_name, struct three_address_code *ir) {
+void print_intermediate_representation(struct symbol *function) {
     struct three_address_code *tac;
-    struct symbol *s;
     int i;
 
-    fprintf(stdout, "%s:\n", function_name);
+    fprintf(stdout, "%s:\n", function->identifier);
     i = 0;
-    while (ir) {
+    tac = function->function_ir;
+    while (tac) {
         fprintf(stdout, "%-4d > ", i++);
-        print_instruction(stdout, ir);
-        ir = ir->next;
+        print_instruction(stdout, tac);
+        tac = tac->next;
     }
     fprintf(stdout, "\n");
 }
@@ -2034,29 +2074,24 @@ void ensure_must_be_ssa_ish(struct three_address_code *ir) {
     }
 }
 
-void update_register_liveness(int reg, int instruction_position) {
-    if (liveness[reg].start == -1 || instruction_position < liveness[reg].start) liveness[reg].start = instruction_position;
-    if (liveness[reg].end == -1 || instruction_position > liveness[reg].end) liveness[reg].end = instruction_position;
+void update_register_liveness(int vreg, int instruction_position) {
+    if (liveness[vreg].start == -1 || instruction_position < liveness[vreg].start) liveness[vreg].start = instruction_position;
+    if (liveness[vreg].end == -1 || instruction_position > liveness[vreg].end) liveness[vreg].end = instruction_position;
 }
 
-void analyze_liveness(struct symbol *function_symbol) {
+int get_instruction_for_label(struct symbol *function, int label) {
+    struct three_address_code *tac;
     int i;
-    struct three_address_code *ir;
-
-    ir = function_symbol->function_ir;
-    for (i = 1; i <= function_symbol->function_vreg_count; i++) {
-        liveness[i].start = -1;
-        liveness[i].end = -1;
-    }
 
     i = 0;
-    while (ir) {
-        if (ir->dst  && ir->dst->vreg)  update_register_liveness(ir->dst->vreg,  i);
-        if (ir->src1 && ir->src1->vreg) update_register_liveness(ir->src1->vreg, i);
-        if (ir->src2 && ir->src2->vreg) update_register_liveness(ir->src2->vreg, i);
-        ir = ir->next;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->label == label) return i;
+        tac = tac->next;
         i++;
     }
+
+    panic1d("Unknown label %d", label);
 }
 
 // Debug function
@@ -2064,32 +2099,127 @@ void print_liveness(struct symbol *function) {
     int i;
 
     for (i = 1; i <= function->function_vreg_count; i++)
-        printf("r%d %d %d\n", i, liveness[i].start, liveness[i].end);
+        printf("r%-4d %4d - %4d\n", i, liveness[i].start, liveness[i].end);
+}
+
+// Make a liveness_interval for each three address code in the IR. The liveness
+// interval, if set, corresponds with the most outer for-loop.
+struct liveness_interval **make_outer_loops(struct symbol *function) {
+    struct three_address_code *tac, *end;
+    struct liveness_interval **result, *l;
+    int i, ir_len, loop;
+
+    // Allocate result, one liveness_interval per three address code in the IR
+    ir_len = 1;
+    tac = function->function_ir;
+    while (tac = tac->next) ir_len++;
+    result = malloc(sizeof(struct liveness_interval *) * ir_len);
+
+    i = 0;
+    l = 0;
+    tac = function->function_ir;
+    while (tac) {
+        if (!l && tac->operation == IR_START_LOOP) {
+            l = malloc(sizeof(struct liveness_interval));
+            l->start = i;
+            loop = tac->src2->value;
+        }
+        else if (tac->operation == IR_END_LOOP && tac->src2->value == loop) {
+            l->end = i;
+            l = 0;
+        }
+
+        result[i] = l;
+        tac = tac->next;
+        i++;
+    }
+
+    return result;
+}
+
+void analyze_liveness(struct symbol *function) {
+    int i, j, k, l;
+    struct three_address_code *tac;
+    struct liveness_interval *liveness_interval, **outer_loops;
+
+    for (i = 1; i <= function->function_vreg_count; i++) {
+        liveness[i].start = -1;
+        liveness[i].end = -1;
+    }
+
+    // Update liveness based on usage in IR
+    i = 0;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->dst  && tac->dst->vreg)  update_register_liveness(tac->dst->vreg,  i);
+        if (tac->src1 && tac->src1->vreg) update_register_liveness(tac->src1->vreg, i);
+        if (tac->src2 && tac->src2->vreg) update_register_liveness(tac->src2->vreg, i);
+        tac = tac->next;
+        i++;
+    }
+
+    if (use_registers_for_locals) {
+        // Deal with backwards jumps. Any backwards jump targets that are in a live
+        // range need the live range extending to include the jump instruction
+        // since the value might have changed just before the jump.
+        // Update liveness based on usage in IR.
+        i = 0;
+        tac = function->function_ir;
+        while (tac) {
+            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ) {
+                l = get_instruction_for_label(function, tac->src1->label);
+                if (i > l)
+                    for (j = 1; j <= function->function_vreg_count; j++)
+                        if (liveness[j].start <= l && liveness[j].end >= l && i > liveness[j].end) liveness[j].end = i;
+            }
+            tac = tac->next;
+            i++;
+        }
+
+        // Look for assignments in a conditional in a loop. The liveness needs extending.
+        // to include the outmost loop.
+        outer_loops = make_outer_loops(function);
+
+        i = 0;
+        tac = function->function_ir;
+        while (tac) {
+            if (tac->dst && tac->dst->vreg && tac->in_conditional) {
+                liveness_interval = outer_loops[i];
+                if (liveness_interval) {
+                    if (liveness_interval->start < liveness[tac->dst->vreg].start) liveness[tac->dst->vreg].start = liveness_interval->start;
+                    if (liveness_interval->end > liveness[tac->dst->vreg].end) liveness[tac->dst->vreg].end = liveness_interval->end;
+                }
+            }
+
+            tac = tac->next;
+            i++;
+        }
+    }
 }
 
 // The arguments are pushed onto the stack right to left, but the ABI requries
 // the seventh arg and later to be pushed in reverse order. Easiest is to flip
 // all args backwards, so they are pushed left to right. This nukes the
 // liveness which will need regenerating.
-void reverse_function_argument_order(struct symbol *function_symbol) {
+void reverse_function_argument_order(struct symbol *function) {
     struct three_address_code *tac, *call_start, *call;
     int i, j, arg_count, function_call_count;
 
     struct tac_interval *args;
 
-    ir = function_symbol->function_ir;
+    ir = function->function_ir;
     args = malloc(sizeof(struct tac_interval *) * 256);
 
     // Need to count this IR's function_call_count
     function_call_count = 0;
-    tac = function_symbol->function_ir;
+    tac = function->function_ir;
     while (tac) {
         if (tac->operation == IR_START_CALL) function_call_count++;
         tac = tac->next;
     }
 
     for (i = 0; i < function_call_count; i++) {
-        tac = function_symbol->function_ir;
+        tac = function->function_ir;
         arg_count = 0;
         call_start = 0;
         call = 0;
@@ -2132,8 +2262,44 @@ void reverse_function_argument_order(struct symbol *function_symbol) {
 
     }
 
-    analyze_liveness(function_symbol);
+    analyze_liveness(function);
     free(args);
+}
+
+void assign_locals_to_registers(struct symbol *function) {
+    struct three_address_code *ir;
+    int i, vreg;
+
+    int *has_address_of;
+
+    has_address_of = malloc(sizeof(int) * (function->function_local_symbol_count + 1));
+    memset(has_address_of, 0, sizeof(int) * (function->function_local_symbol_count + 1));
+
+    ir = function->function_ir;
+    while (ir) {
+        if (ir->dst  && !ir->dst ->is_lvalue && ir->dst ->stack_index < 0) has_address_of[-ir->dst ->stack_index] = 1;
+        if (ir->src1 && !ir->src1->is_lvalue && ir->src1->stack_index < 0) has_address_of[-ir->src1->stack_index] = 1;
+        if (ir->src2 && !ir->src2->is_lvalue && ir->src2->stack_index < 0) has_address_of[-ir->src2->stack_index] = 1;
+        ir = ir ->next;
+    }
+
+    for (i = 1; i <= function->function_local_symbol_count; i++) {
+        if (has_address_of[i]) continue;
+        vreg = ++vreg_count;
+
+        ir = function->function_ir;
+        while (ir) {
+            if (ir->dst  && ir->dst ->stack_index == -i) { ir->dst ->stack_index = 0; ir->dst ->is_lvalue = 0; ir->dst ->vreg = vreg; }
+            if (ir->src1 && ir->src1->stack_index == -i) { ir->src1->stack_index = 0; ir->src1->is_lvalue = 0; ir->src1->vreg = vreg; }
+            if (ir->src2 && ir->src2->stack_index == -i) { ir->src2->stack_index = 0; ir->src2->is_lvalue = 0; ir->src2->vreg = vreg; }
+            if (ir->operation == IR_LOAD_VARIABLE && ir->src1->vreg == vreg) ir->operation = IR_ASSIGN;
+
+            ir = ir ->next;
+        }
+    }
+
+    function->function_vreg_count = vreg_count;
+    analyze_liveness(function);
 }
 
 void renumber_ir_vreg(struct three_address_code *ir, int src, int dst) {
@@ -2326,12 +2492,14 @@ void allocate_registers_for_constants(struct three_address_code *tac, int *i) {
         preload_src1_constant_into_register(tac, i);
 }
 
-void rearrange_ir(struct symbol *function_symbol) {
+void rearrange_ir(struct symbol *function) {
     struct three_address_code *ir, *tac;
     int i;
 
-    ir = function_symbol->function_ir;
-    reverse_function_argument_order(function_symbol);
+    ir = function->function_ir;
+    reverse_function_argument_order(function);
+
+    if (use_registers_for_locals) assign_locals_to_registers(function);
 
     tac = ir;
     i = 0;
@@ -2803,7 +2971,7 @@ void output_function_body_code(struct symbol *symbol) {
 
         if (tac->label) fprintf(f, ".l%d:\n", tac->label);
 
-        if (tac->operation == IR_NOP);
+        if (tac->operation == IR_NOP || tac->operation == IR_START_LOOP || tac->operation == IR_END_LOOP);
 
         else if (tac->operation == IR_LOAD_CONSTANT) {
             fprintf(f, "\tmovq\t$%ld, ", tac->src1->value);
@@ -3153,7 +3321,7 @@ void output_code(char *input_filename, char *output_filename) {
         // registers start at 1
         liveness = malloc(sizeof(struct liveness_interval) * (MAX_VREG_COUNT + 1));
 
-        if (print_ir1) print_intermediate_representation(s->identifier, s->function_ir);
+        if (print_ir1) print_intermediate_representation(s);
 
         analyze_liveness(s);
 
@@ -3161,11 +3329,11 @@ void output_code(char *input_filename, char *output_filename) {
         rearrange_ir(s);
         s->function_vreg_count = vreg_count;
 
-        if (print_ir2) print_intermediate_representation(s->identifier, s->function_ir);
+        if (print_ir2) print_intermediate_representation(s);
 
         allocate_registers(s->function_ir);
         s->function_spilled_register_count = spilled_register_count;
-        if (print_ir3) print_intermediate_representation(s->identifier, s->function_ir);
+        if (print_ir3) print_intermediate_representation(s);
 
         output_function_body_code(s);
         fprintf(f, "\n");
@@ -3265,6 +3433,7 @@ int main(int argc, char **argv) {
     print_symbols = 0;
     fake_register_pressure = 0;
     enable_register_coalescing = 1;
+    use_registers_for_locals = 0;
     output_inline_ir = 0;
     output_filename = 0;
     input_filename = 0;
@@ -3273,17 +3442,18 @@ int main(int argc, char **argv) {
     argv++;
     while (argc > 0) {
         if (*argv[0] == '-') {
-                 if (argc > 0 && !strcmp(argv[0], "-h"   )) { help = 1;                       argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-v"   )) { verbose = 1;                    argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-d"   )) { debug = 1;                      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-s"   )) { print_symbols = 1;              argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir1")) { print_ir1 = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir2")) { print_ir2 = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir3")) { print_ir3 = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--frp")) { fake_register_pressure = 1;     argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--iir")) { output_inline_ir = 1;           argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--drc")) { enable_register_coalescing = 0; argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-S"   )) {
+                 if (argc > 0 && !strcmp(argv[0], "-h"                        )) { help = 1;                       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-v"                        )) { verbose = 1;                    argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-d"                        )) { debug = 1;                      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-s"                        )) { print_symbols = 1;              argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir1"                     )) { print_ir1 = 1;                  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir2"                     )) { print_ir2 = 1;                  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir3"                     )) { print_ir3 = 1;                  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--frp"                     )) { fake_register_pressure = 1;     argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--iir"                     )) { output_inline_ir = 1;           argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--drc"                     )) { enable_register_coalescing = 0; argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals")) { use_registers_for_locals = 1;   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-S"                        )) {
                 run_assembler = 0;
                 run_linker = 0;
                 target_is_assembly_file = 1;

@@ -1267,6 +1267,36 @@ void test_variadic_arg_bug() {
     sprintf(s, "2\n");
 }
 
+void test_backwards_jumps() {
+    int i, j, k;
+    int *r;
+
+    r = malloc(sizeof(int) * 3);
+    i = 0;
+    j = 0;
+    for (i = 0; i < 3; i++) {
+        j += 10;
+        r[i] = j;
+        k = j + 1; // Trigger register reuse in the buggy case
+    }
+
+    assert_int(10, r[0], "backwards jumps liveness 1");
+    assert_int(20, r[1], "backwards jumps liveness 2");
+    assert_int(30, r[2], "backwards jumps liveness 3");
+}
+
+void test_first_declaration_in_if_in_for_liveness() {
+    int i, j, k, l;
+
+    i = 0;
+    for (i = 0; i < 3; i++) {
+        if (i == 0) j = 1; else k = j * 2;
+        l = l + (l + (l + (l + (l + (l + (l + (l + (l + (l + (l + (l + (l + 1))))))))))));
+    }
+
+    assert_int(2, k, "liveness extension for conditional declaration inside loop");
+}
+
 int main(int argc, char **argv) {
     int help;
 
@@ -1352,6 +1382,8 @@ int main(int argc, char **argv) {
     test_spilling_stress();
     test_callee_saved_registers();
     test_variadic_arg_bug();
+    test_backwards_jumps();
+    test_first_declaration_in_if_in_for_liveness();
 
     finalize();
 }
