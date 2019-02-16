@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     commands[0] = "./wc4 wc4.c -c -S -o /dev/null";
     commands[1] = "./wc42 wc4.c -c -S -o /dev/null";
     commands[2] = "./wc42-frp wc4.c -c -S -o /dev/null";
-    commands[3] = "./wc42-urfl wc4.c -c -S -o /dev/null";
+    commands[3] = "./wc42-O1 wc4.c -c -S -o /dev/null";
 
     run_count = 19; // Must be odd for the median to work correctly
     times = malloc(sizeof(long) * run_count);

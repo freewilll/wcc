@@ -3,13 +3,13 @@
 wc4
 wc42
 wc42-frp
-wc42-urfl
+wc42-O1
 wc43
 test-wc4
 test-wc4-frp
 test-wc4-gcc
-test-wc4-frp-drc
-test-wc4-urfl
+test-wc4-frp-ncr
+test-wc4-O1
 benchmark
 test.c
 test1.c

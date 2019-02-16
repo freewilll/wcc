@@ -97,8 +97,9 @@ int print_ir2;                  // Print IR after x84_64 arch manipulation
 int print_ir3;                  // Print IR after register allocation
 int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
 int output_inline_ir;           // Output IR inline with the assembly
-int enable_register_coalescing;
-int use_registers_for_locals;   // Experimental. Don't use the stack for local variables.
+int opt_enable_register_coalescing; // Merge registers that can be reused within the same operation
+int opt_use_registers_for_locals;   // Experimental. Don't use the stack for local variables.
+int opt_merge_redundant_moves;      // Merge move statements that are only things between registers
 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
@@ -2158,7 +2159,7 @@ void analyze_liveness(struct symbol *function) {
         i++;
     }
 
-    if (use_registers_for_locals) {
+    if (opt_use_registers_for_locals) {
         // Deal with backwards jumps. Any backwards jump targets that are in a live
         // range need the live range extending to include the jump instruction
         // since the value might have changed just before the jump.
@@ -2194,6 +2195,77 @@ void analyze_liveness(struct symbol *function) {
             tac = tac->next;
             i++;
         }
+    }
+}
+
+// Merge tac with the instruction after it. The next instruction is removed from the chain.
+void merge_instructions(struct three_address_code *tac, int ir_index) {
+    int i;
+    struct three_address_code *next;
+
+    if (!tac->next) panic("merge_instructions called on a tac without next\n");
+
+    next = tac->next;
+    tac->next = next->next;
+    if (tac->next) tac->next->prev = tac;
+
+    // Nuke the references to the removed node to prevent confusion
+    next->prev = 0;
+    next->next = 0;
+
+    for (i = 0; i < vreg_count; i++) {
+        if (liveness[i].start > ir_index) liveness[i].start--;
+        if (liveness[i].end > ir_index) liveness[i].end--;
+    }
+}
+
+// Replace
+// 1    >       r1:int = 1
+// 2    >       r7:int = r1:int
+// with
+// 1    >       r7:int = 1
+// 2    >       nop
+//
+// And also combinations such as
+// 1    >       r1:int = 1
+// 2    >       r7:int = r1:int
+// 3    >       r8:int = r7:int
+// with
+// 1    >       r8:int = 1
+// 2    >       nop
+//
+// Also
+// 4    >       r1:int = r4:int
+// 5    >       arg for call 0 r1:int
+// with
+// 4    >       arg for call 0 r4:int
+
+void merge_redundant_moves(struct symbol *function) {
+    struct three_address_code *tac;
+    int i, vreg;
+
+    tac = function->function_ir;
+    i = 0;
+    while (tac) {
+        if (
+                ((tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_VARIABLE || tac->operation == IR_ASSIGN)) &&
+                tac->dst->vreg &&
+                tac->next &&
+                tac->next->operation == IR_ASSIGN && tac->next->dst->vreg &&
+                ((tac->next->src1 && tac->next->src1->vreg == tac->dst->vreg) || (tac->next->src2 && tac->next->src2->vreg == tac->dst->vreg))) {
+
+            vreg = tac->dst->vreg;
+            if (liveness[vreg].start == i && liveness[vreg].end == i + 1 && !tac->next->dst->is_lvalue) {
+                liveness[tac->dst->vreg].start = -1;
+                liveness[tac->dst->vreg].end = -1;
+                tac->dst = tac->next->dst;
+                merge_instructions(tac, i);
+                continue; // Allow for another potential merge at the same instruction
+            }
+        }
+
+        tac = tac->next;
+        i++;
     }
 }
 
@@ -2341,27 +2413,6 @@ struct three_address_code *insert_instruction(struct three_address_code *ir, int
     }
 }
 
-// Merge tac with the instruction after it. The next instruction is removed from the chain.
-void merge_instructions(struct three_address_code *tac, int ir_index) {
-    int i;
-    struct three_address_code *next;
-
-    if (!tac->next) panic("merge_instructions called on a tac without next\n");
-
-    next = tac->next;
-    tac->next = next->next;
-    if (tac->next) tac->next->prev = tac;
-
-    // Nuke the references to the removed node to prevent confusion
-    next->prev = 0;
-    next->next = 0;
-
-    for (i = 0; i < vreg_count; i++) {
-        if (liveness[i].start > ir_index) liveness[i].start--;
-        if (liveness[i].end > ir_index) liveness[i].end--;
-    }
-}
-
 void renumber_label(struct three_address_code *ir, int l1, int l2) {
     struct three_address_code *t;
 
@@ -2492,14 +2543,16 @@ void allocate_registers_for_constants(struct three_address_code *tac, int *i) {
         preload_src1_constant_into_register(tac, i);
 }
 
-void rearrange_ir(struct symbol *function) {
+void optimize_ir(struct symbol *function) {
     struct three_address_code *ir, *tac;
     int i;
 
     ir = function->function_ir;
+
     reverse_function_argument_order(function);
 
-    if (use_registers_for_locals) assign_locals_to_registers(function);
+    if (opt_use_registers_for_locals) assign_locals_to_registers(function);
+    if (opt_merge_redundant_moves) merge_redundant_moves(function);
 
     tac = ir;
     i = 0;
@@ -2507,7 +2560,7 @@ void rearrange_ir(struct symbol *function) {
         merge_labels(ir, tac, i);
         allocate_registers_for_constants(tac, &i);
         rearrange_reverse_sub_operation(ir, tac);
-        if (enable_register_coalescing) coalesce_operation_registers(ir, tac, i);
+        if (opt_enable_register_coalescing) coalesce_operation_registers(ir, tac, i);
         tac = tac->next;
         i++;
     }
@@ -3326,7 +3379,7 @@ void output_code(char *input_filename, char *output_filename) {
         analyze_liveness(s);
 
         vreg_count = s->function_vreg_count;
-        rearrange_ir(s);
+        optimize_ir(s);
         s->function_vreg_count = vreg_count;
 
         if (print_ir2) print_intermediate_representation(s);
@@ -3432,8 +3485,9 @@ int main(int argc, char **argv) {
     print_ir3 = 0;
     print_symbols = 0;
     fake_register_pressure = 0;
-    enable_register_coalescing = 1;
-    use_registers_for_locals = 0;
+    opt_enable_register_coalescing = 1;
+    opt_use_registers_for_locals = 0;
+    opt_merge_redundant_moves = 0;
     output_inline_ir = 0;
     output_filename = 0;
     input_filename = 0;
@@ -3442,21 +3496,29 @@ int main(int argc, char **argv) {
     argv++;
     while (argc > 0) {
         if (*argv[0] == '-') {
-                 if (argc > 0 && !strcmp(argv[0], "-h"                        )) { help = 1;                       argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-v"                        )) { verbose = 1;                    argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-d"                        )) { debug = 1;                      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-s"                        )) { print_symbols = 1;              argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir1"                     )) { print_ir1 = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir2"                     )) { print_ir2 = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir3"                     )) { print_ir3 = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--frp"                     )) { fake_register_pressure = 1;     argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--iir"                     )) { output_inline_ir = 1;           argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--drc"                     )) { enable_register_coalescing = 0; argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals")) { use_registers_for_locals = 1;   argc--; argv++; }
+                 if (argc > 0 && !strcmp(argv[0], "-h"                        )) { help = 1;                           argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-v"                        )) { verbose = 1;                        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-d"                        )) { debug = 1;                          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-s"                        )) { print_symbols = 1;                  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir1"                     )) { print_ir1 = 1;                      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir2"                     )) { print_ir2 = 1;                      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir3"                     )) { print_ir3 = 1;                      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--frp"                     )) { fake_register_pressure = 1;         argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--iir"                     )) { output_inline_ir = 1;               argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-registers"   )) { opt_enable_register_coalescing = 0; argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals")) { opt_use_registers_for_locals = 1;   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fmerge-redundant-moves"   )) { opt_merge_redundant_moves = 1;      argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-S"                        )) {
                 run_assembler = 0;
                 run_linker = 0;
                 target_is_assembly_file = 1;
+                argc--;
+                argv++;
+            }
+            else if (argc > 0 && !memcmp(argv[0], "-O1",   2)) {
+                opt_enable_register_coalescing = 1;
+                opt_use_registers_for_locals = 1;
+                opt_merge_redundant_moves = 1;
                 argc--;
                 argv++;
             }
