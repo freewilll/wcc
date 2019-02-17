@@ -118,3 +118,4 @@ clean:
 	@rm -f *.o
 	@rm -f test.c test test1.c test1 test2.c test2
 	@rm -f core
+	@rm -f a.out

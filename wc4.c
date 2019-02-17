@@ -2239,33 +2239,55 @@ void merge_instructions(struct three_address_code *tac, int ir_index) {
 // 5    >       arg for call 0 r1:int
 // with
 // 4    >       arg for call 0 r4:int
-
 void merge_redundant_moves(struct symbol *function) {
     struct three_address_code *tac;
-    int i, vreg;
+    int i, vreg, changed;
 
-    tac = function->function_ir;
-    i = 0;
-    while (tac) {
-        if (
-                ((tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_VARIABLE || tac->operation == IR_ASSIGN)) &&
-                tac->dst->vreg &&
-                tac->next &&
-                tac->next->operation == IR_ASSIGN && tac->next->dst->vreg &&
-                ((tac->next->src1 && tac->next->src1->vreg == tac->dst->vreg) || (tac->next->src2 && tac->next->src2->vreg == tac->dst->vreg))) {
+    changed = 1;
+    while (changed) {
+        changed = 0;
+        tac = function->function_ir;
+        i = 0;
+        while (tac) {
+            if (
+                    ((tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_VARIABLE || tac->operation == IR_ASSIGN)) &&
+                    tac->dst->vreg &&
+                    tac->next &&
+                    tac->next->operation == IR_ASSIGN && tac->next->dst->vreg &&
+                    ((tac->next->src1 && tac->next->src1->vreg == tac->dst->vreg) || (tac->next->src2 && tac->next->src2->vreg == tac->dst->vreg))) {
 
-            vreg = tac->dst->vreg;
-            if (liveness[vreg].start == i && liveness[vreg].end == i + 1 && !tac->next->dst->is_lvalue) {
-                liveness[tac->dst->vreg].start = -1;
-                liveness[tac->dst->vreg].end = -1;
-                tac->dst = tac->next->dst;
-                merge_instructions(tac, i);
-                continue; // Allow for another potential merge at the same instruction
+                vreg = tac->dst->vreg;
+                if (liveness[vreg].start == i && liveness[vreg].end == i + 1 && !tac->next->dst->is_lvalue) {
+                    liveness[tac->dst->vreg].start = -1;
+                    liveness[tac->dst->vreg].end = -1;
+                    tac->dst = tac->next->dst;
+                    merge_instructions(tac, i);
+                    changed = 1;
+                }
             }
-        }
 
-        tac = tac->next;
-        i++;
+            if (
+                    tac->operation == IR_ASSIGN &&
+                    tac->dst->vreg && !tac->src1->is_in_cpu_flags &&
+                    tac->next && tac->next->operation == IR_ARG &&
+                    tac->dst->vreg == tac->next->src2->vreg) {
+
+                vreg = tac->dst->vreg;
+                if (liveness[vreg].start == i && liveness[vreg].end == i + 1) {
+                    liveness[tac->dst->vreg].start = -1;
+                    liveness[tac->dst->vreg].end = -1;
+                    tac->operation = IR_ARG;
+                    tac->src2 = tac->src1;
+                    tac->src1 = tac->next->src1;
+                    tac->dst = 0;
+                    merge_instructions(tac, i);
+                    changed = 1;
+                }
+            }
+
+            tac = tac->next;
+            i++;
+        }
     }
 }
 
@@ -2332,6 +2354,20 @@ void reverse_function_argument_order(struct symbol *function) {
             }
         }
 
+    }
+
+    // Remove start & end function markers since they aren't needed any more and
+    // will interfere with the redundant move optimization code.
+    tac = function->function_ir;
+    i = 0;
+    while (tac) {
+        if (tac->next && (tac->operation == IR_START_CALL || tac->operation == IR_END_CALL)) {
+            tac = tac->prev;
+            i--;
+            merge_instructions(tac, i);
+        }
+        tac = tac->next;
+        i++;
     }
 
     analyze_liveness(function);
