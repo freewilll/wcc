@@ -1227,8 +1227,9 @@ void test_unary_precedence() {
 // the spilling code into action
 void test_spilling_stress() {
     int i;
-    i = (1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2*(1+2)))))))))))))))));
-    assert_int(262143, i, "spilling stress");
+    i = 1;
+    i = (i + 2) * (i + (i + 2) * (i + (i + 2) * (i + i + (i + 2) * (i + 3))));
+    assert_int(390, i, "spilling stress");
 }
 
 int csr() {
