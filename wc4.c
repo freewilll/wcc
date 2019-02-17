@@ -1951,8 +1951,8 @@ void print_instruction(void *f, struct three_address_code *tac) {
         print_value(f, tac->src1, 1);
     }
 
-    else if (tac->operation == IR_START_CALL) printf("start call %ld", tac->src1->value);
-    else if (tac->operation == IR_END_CALL) printf("end call %ld", tac->src1->value);
+    else if (tac->operation == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->value);
+    else if (tac->operation == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->value);
 
     else if (tac->operation == IR_ARG) {
         fprintf(f, "arg for call %ld ", tac->src1->value);
@@ -1972,8 +1972,8 @@ void print_instruction(void *f, struct three_address_code *tac) {
             fprintf(f, "return");
     }
 
-    else if (tac->operation == IR_START_LOOP) printf("start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
-    else if (tac->operation == IR_END_LOOP)   printf("end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
+    else if (tac->operation == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
+    else if (tac->operation == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
 
     else if (tac->operation == IR_ASSIGN)
         print_value(f, tac->src1, 1);
