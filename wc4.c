@@ -2199,11 +2199,12 @@ void analyze_liveness(struct symbol *function) {
 }
 
 // Merge tac with the instruction after it. The next instruction is removed from the chain.
-void merge_instructions(struct three_address_code *tac, int ir_index) {
+void merge_instructions(struct three_address_code *tac, int ir_index, int allow_labelled_next) {
     int i;
     struct three_address_code *next;
 
     if (!tac->next) panic("merge_instructions called on a tac without next\n");
+    if (tac->next->label && !allow_labelled_next) panic("merge_instructions called on a tac with a label");
 
     next = tac->next;
     tac->next = next->next;
@@ -2261,7 +2262,7 @@ void merge_redundant_moves(struct symbol *function) {
                     liveness[tac->dst->vreg].start = -1;
                     liveness[tac->dst->vreg].end = -1;
                     tac->dst = tac->next->dst;
-                    merge_instructions(tac, i);
+                    merge_instructions(tac, i, 0);
                     changed = 1;
                 }
             }
@@ -2280,7 +2281,7 @@ void merge_redundant_moves(struct symbol *function) {
                     tac->src2 = tac->src1;
                     tac->src1 = tac->next->src1;
                     tac->dst = 0;
-                    merge_instructions(tac, i);
+                    merge_instructions(tac, i, 0);
                     changed = 1;
                 }
             }
@@ -2364,7 +2365,7 @@ void reverse_function_argument_order(struct symbol *function) {
         if (tac->next && (tac->operation == IR_START_CALL || tac->operation == IR_END_CALL)) {
             tac = tac->prev;
             i--;
-            merge_instructions(tac, i);
+            merge_instructions(tac, i, 0);
         }
         tac = tac->next;
         i++;
@@ -2469,7 +2470,7 @@ void merge_labels(struct three_address_code *ir, struct three_address_code *tac,
         if (!tac->label || !tac->next || !tac->next->label) return;
 
         deleted_tac = tac->next;
-        merge_instructions(tac, ir_index);
+        merge_instructions(tac, ir_index, 1);
         renumber_label(ir, deleted_tac->label, tac->label);
     }
 }
