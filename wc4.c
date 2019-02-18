@@ -879,7 +879,7 @@ int parse_struct_base_type(int allow_incomplete_structs) {
     if (cur_token == TOK_LCURLY) {
         // Struct definition
 
-        consume(TOK_LCURLY, "}");
+        consume(TOK_LCURLY, "{");
 
         s = find_struct(identifier);
         if (!s) s = new_struct();
@@ -1700,7 +1700,7 @@ void function_body() {
     loop_count = 0;
     in_conditional = 0;
 
-    consume(TOK_LCURLY, "}");
+    consume(TOK_LCURLY, "{");
 
     // Parse symbols first
     while (cur_token_is_type()) {
@@ -1845,7 +1845,7 @@ void parse() {
 
         else if (cur_token == TOK_ENUM) {
             consume(TOK_ENUM, "enum");
-            consume(TOK_LCURLY, "}");
+            consume(TOK_LCURLY, "{");
 
             value = 0;
             while (cur_token != TOK_RCURLY) {
