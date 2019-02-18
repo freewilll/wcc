@@ -81,7 +81,7 @@ run-test-wc4-frp-ncr: test-wc4-frp-ncr
 .PHONY: run-test-wc4-O1
 run-test-wc4-O1: test-wc4-O1
 	./test-wc4-O1
-	@echo wc4 URFL tests passed
+	@echo wc4 -O1 tests passed
 
 test-wc4-gcc: test-wc4.c
 	gcc test-wc4.c -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types

@@ -1298,6 +1298,26 @@ void test_first_declaration_in_if_in_for_liveness() {
     assert_int(2, k, "liveness extension for conditional declaration inside loop");
 }
 
+void test_spilling_locals_to_stack_bug() {
+    int i, j, k;
+    int r1, r2, r3, r4, r5, r6, r7, r8, r9, r10;
+    int q1, q2, q3, q4, q5, q6, q7, q8, q9, q10;
+
+    r1 = r2 = r3 = r4 = r5 = r6 = r7 = r8 = r9 = r10 = 1;
+    assert_int(1, r1,  "Local stack spilling clobber bug 1");
+    assert_int(1, r2,  "Local stack spilling clobber bug 2");
+    assert_int(1, r3,  "Local stack spilling clobber bug 3");
+    assert_int(1, r4,  "Local stack spilling clobber bug 4");
+    assert_int(1, r5,  "Local stack spilling clobber bug 5");
+    assert_int(1, r6,  "Local stack spilling clobber bug 6");
+    assert_int(1, r7,  "Local stack spilling clobber bug 7");
+    assert_int(1, r8,  "Local stack spilling clobber bug 8");
+    assert_int(1, r9,  "Local stack spilling clobber bug 9");
+    assert_int(1, r10, "Local stack spilling clobber bug 10");
+
+    r10++; // This forces a spill of r10
+}
+
 int main(int argc, char **argv) {
     int help;
 
@@ -1385,6 +1405,7 @@ int main(int argc, char **argv) {
     test_variadic_arg_bug();
     test_backwards_jumps();
     test_first_declaration_in_if_in_for_liveness();
+    test_spilling_locals_to_stack_bug();
 
     finalize();
 }

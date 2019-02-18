@@ -45,6 +45,9 @@ struct value {
     int function_call_arg_count;    // Number of arguments in the case of a function call
     struct symbol *global_symbol;   // Pointer to a global symbol if the value is a global symbol
     int label;                      // Target label in the case of jump instructions
+    int original_stack_index;
+    int original_is_lvalue;
+    int original_vreg;
 };
 
 struct three_address_code {
@@ -92,14 +95,16 @@ int run_assembler;              // Assemble .s file
 int run_linker;                 // Link .o file
 int target_is_object_file;
 int target_is_assembly_file;
+int print_spilled_register_count;
 int print_ir1;                  // Print IR after parsing
 int print_ir2;                  // Print IR after x84_64 arch manipulation
 int print_ir3;                  // Print IR after register allocation
 int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
 int output_inline_ir;           // Output IR inline with the assembly
-int opt_enable_register_coalescing; // Merge registers that can be reused within the same operation
-int opt_use_registers_for_locals;   // Experimental. Don't use the stack for local variables.
-int opt_merge_redundant_moves;      // Merge move statements that are only things between registers
+int opt_enable_register_coalescing;   // Merge registers that can be reused within the same operation
+int opt_use_registers_for_locals;     // Experimental. Don't use the stack for local variables.
+int opt_merge_redundant_moves;        // Merge move statements that are only things between registers
+int opt_spill_furthest_liveness_end;  // Prioritize spilling physical registers with furthest liveness end
 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
@@ -135,11 +140,14 @@ int function_call_count;                    // Uniquely identify a function call
 int cur_loop;                               // Current loop being parsed
 int loop_count;                             // Loop counter
 int spilled_register_count;                 // Spilled register count for current function that's undergoing register allocation
+int total_spilled_register_count;           // Spilled register count for all functions
 
 struct liveness_interval *liveness;         // Keeps track of live vregs. Array of length vreg_count. Each element is a vreg, or zero if not live.
 int *physical_registers;                    // Associated liveness interval for each in-use physical register.
 int *spilled_registers;                     // Associated liveness interval for each in-use spilled register.
 int *callee_saved_registers;                // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
+
+int debug_register_allocations;
 
 void *f; // Output file handle
 
@@ -2185,10 +2193,14 @@ void analyze_liveness(struct symbol *function) {
         tac = function->function_ir;
         while (tac) {
             if (tac->dst && tac->dst->vreg && tac->in_conditional) {
-                liveness_interval = outer_loops[i];
-                if (liveness_interval) {
-                    if (liveness_interval->start < liveness[tac->dst->vreg].start) liveness[tac->dst->vreg].start = liveness_interval->start;
-                    if (liveness_interval->end > liveness[tac->dst->vreg].end) liveness[tac->dst->vreg].end = liveness_interval->end;
+                // Only extend liveness for variables, not temporaries.
+                if (tac->dst->stack_index || tac->dst->original_stack_index) {
+                    if (debug_register_allocations) printf("extending liveness due to if/for for vreg=%d\n", tac->dst->vreg);
+                    liveness_interval = outer_loops[i];
+                    if (liveness_interval) {
+                        if (liveness_interval->start < liveness[tac->dst->vreg].start) liveness[tac->dst->vreg].start = liveness_interval->start;
+                        if (liveness_interval->end > liveness[tac->dst->vreg].end) liveness[tac->dst->vreg].end = liveness_interval->end;
+                    }
                 }
             }
 
@@ -2375,8 +2387,26 @@ void reverse_function_argument_order(struct symbol *function) {
     free(args);
 }
 
+void assign_local_to_register(struct value *v, int vreg) {
+    v->original_stack_index = v->stack_index;
+    v->original_is_lvalue = v->is_lvalue;
+    v->original_vreg = v->vreg;
+    v->stack_index = 0;
+    v->is_lvalue = 0;
+    v->vreg = vreg;
+}
+
+void spill_local_value_back_to_stack(struct value *v) {
+    if (v->stack_index < 0) return; // already done
+    if (debug_register_allocations) printf("spill_local_value_back_to_stack preg=%d, vreg=%d, ovreg=%d, s=%d\n", v->preg, v->vreg, v->original_vreg, v->original_stack_index);
+    v->vreg = v->original_vreg;
+    v->stack_index = v->original_stack_index;
+    v->is_lvalue = v->original_is_lvalue;
+    v->preg = -1;
+}
+
 void assign_locals_to_registers(struct symbol *function) {
-    struct three_address_code *ir;
+    struct three_address_code *tac;
     int i, vreg;
 
     int *has_address_of;
@@ -2384,26 +2414,27 @@ void assign_locals_to_registers(struct symbol *function) {
     has_address_of = malloc(sizeof(int) * (function->function_local_symbol_count + 1));
     memset(has_address_of, 0, sizeof(int) * (function->function_local_symbol_count + 1));
 
-    ir = function->function_ir;
-    while (ir) {
-        if (ir->dst  && !ir->dst ->is_lvalue && ir->dst ->stack_index < 0) has_address_of[-ir->dst ->stack_index] = 1;
-        if (ir->src1 && !ir->src1->is_lvalue && ir->src1->stack_index < 0) has_address_of[-ir->src1->stack_index] = 1;
-        if (ir->src2 && !ir->src2->is_lvalue && ir->src2->stack_index < 0) has_address_of[-ir->src2->stack_index] = 1;
-        ir = ir ->next;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->dst  && !tac->dst ->is_lvalue && tac->dst ->stack_index < 0) has_address_of[-tac->dst ->stack_index] = 1;
+        if (tac->src1 && !tac->src1->is_lvalue && tac->src1->stack_index < 0) has_address_of[-tac->src1->stack_index] = 1;
+        if (tac->src2 && !tac->src2->is_lvalue && tac->src2->stack_index < 0) has_address_of[-tac->src2->stack_index] = 1;
+        tac = tac ->next;
     }
 
     for (i = 1; i <= function->function_local_symbol_count; i++) {
         if (has_address_of[i]) continue;
         vreg = ++vreg_count;
 
-        ir = function->function_ir;
-        while (ir) {
-            if (ir->dst  && ir->dst ->stack_index == -i) { ir->dst ->stack_index = 0; ir->dst ->is_lvalue = 0; ir->dst ->vreg = vreg; }
-            if (ir->src1 && ir->src1->stack_index == -i) { ir->src1->stack_index = 0; ir->src1->is_lvalue = 0; ir->src1->vreg = vreg; }
-            if (ir->src2 && ir->src2->stack_index == -i) { ir->src2->stack_index = 0; ir->src2->is_lvalue = 0; ir->src2->vreg = vreg; }
-            if (ir->operation == IR_LOAD_VARIABLE && ir->src1->vreg == vreg) ir->operation = IR_ASSIGN;
+        tac = function->function_ir;
+        while (tac) {
+            if (tac->dst  && tac->dst ->stack_index == -i) assign_local_to_register(tac->dst , vreg);
+            if (tac->src1 && tac->src1->stack_index == -i) assign_local_to_register(tac->src1, vreg);
+            if (tac->src2 && tac->src2->stack_index == -i) assign_local_to_register(tac->src2, vreg);
+            if (tac->operation == IR_LOAD_VARIABLE && tac->src1->vreg == vreg)
+                tac->operation = IR_ASSIGN;
 
-            ir = ir ->next;
+            tac = tac ->next;
         }
     }
 
@@ -2589,7 +2620,7 @@ void optimize_ir(struct symbol *function) {
     reverse_function_argument_order(function);
 
     if (opt_use_registers_for_locals) assign_locals_to_registers(function);
-    if (opt_merge_redundant_moves) merge_redundant_moves(function);
+    // if (opt_merge_redundant_moves) merge_redundant_moves(function); // FIXME
 
     tac = ir;
     i = 0;
@@ -2605,8 +2636,112 @@ void optimize_ir(struct symbol *function) {
     renumber_labels(ir);
 }
 
-void allocate_register(struct value *v) {
+void spill_local_in_register_back_to_stack(struct three_address_code *ir, int original_stack_index) {
+    struct three_address_code *tac;
+
+    tac = ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->original_stack_index == original_stack_index) spill_local_value_back_to_stack(tac->dst);
+        if (tac->src1 && tac->src1->original_stack_index == original_stack_index) spill_local_value_back_to_stack(tac->src1);
+        if (tac->src2 && tac->src2->original_stack_index == original_stack_index) spill_local_value_back_to_stack(tac->src2);
+        if (tac->operation == IR_ASSIGN && tac->src1->stack_index == original_stack_index)
+            tac->operation = IR_LOAD_VARIABLE;
+        tac = tac->next;
+    }
+}
+
+int get_spilled_register_stack_index() {
+    int i, result;
+
+    // First try and reuse a previously used spilled stack register
+    for (i = 0; i < spilled_register_count; i++)
+        if (!spilled_registers[i]) return i;
+
+    // All spilled register stack locations are in use. Allocate a new one
+    result = spilled_register_count++;
+
+    if (spilled_register_count >= MAX_SPILLED_REGISTER_COUNT)
+        panic1d("Exceeded max spilled register count %d", MAX_SPILLED_REGISTER_COUNT);
+    return result;
+}
+
+void spill_vreg_for_value(struct three_address_code *ir, struct value *v) {
+    struct three_address_code *tac;
+    int i, spilled_register_stack_index, original_stack_index, original_vreg;
+
+    original_stack_index = v->original_stack_index;
+    original_vreg = v->vreg;
+
+    if (v->original_stack_index < 0) {
+        if (debug_register_allocations) printf("spill_vreg_for_value spill_local_in_register_back_to_stack to s=%d for vreg=%d\n", original_stack_index, v->vreg);
+        // We have a stack index already, use that
+        spill_local_in_register_back_to_stack(ir, original_stack_index);
+        return;
+    }
+
+    spilled_register_stack_index = get_spilled_register_stack_index();
+    v->spilled_stack_index = spilled_register_stack_index;
+    spilled_registers[spilled_register_stack_index] = v->vreg;
+    if (debug_register_allocations) printf("spilling to S=%d for vreg=%d\n", spilled_register_stack_index, v->vreg);
+}
+
+// Spill a previously allocated physical register to the stack
+void spill_preg(struct three_address_code *ir, struct value *v, int preg) {
+    struct three_address_code *tac;
+    int vreg, spilled_register_stack_index, original_stack_index;
+
+    // Check if preg belongs to a local variable. Keep looping until the latest TAC,
+    // since the preg could have been resued may times.
+    original_stack_index = 0;
+    tac = ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->preg == preg) { original_stack_index = tac->dst ->original_stack_index; }
+        if (tac->src1 && tac->src1->preg == preg) { original_stack_index = tac->src1->original_stack_index; }
+        if (tac->src2 && tac->src2->preg == preg) { original_stack_index = tac->src2->original_stack_index; }
+        tac = tac->next;
+    }
+
+    // It's already allocated a stack index, use that
+    if (original_stack_index < 0) {
+        if (debug_register_allocations) printf("spill_preg preg=%d to s=%d\n", preg, original_stack_index);
+        spill_local_in_register_back_to_stack(ir, original_stack_index);
+    }
+
+    else {
+        // Always allocate a new stack index. It must be new since this stack index
+        // is applied to the entire IR, so it must not overlap with a previously
+        // used stack index.
+        spilled_register_stack_index = get_spilled_register_stack_index();
+        vreg = physical_registers[preg];
+        spilled_registers[spilled_register_stack_index] = vreg;
+        if (debug_register_allocations) printf("spill_preg preg=%d for vreg=%d to S=%d\n", preg, vreg, original_stack_index);
+
+        tac = ir;
+        while (tac) {
+            if (tac->dst  && tac->dst ->vreg == vreg) { tac->dst ->preg = -1; tac->dst ->spilled_stack_index = spilled_register_stack_index; }
+            if (tac->src1 && tac->src1->vreg == vreg) { tac->src1->preg = -1; tac->src1->spilled_stack_index = spilled_register_stack_index; }
+            if (tac->src2 && tac->src2->vreg == vreg) { tac->src2->preg = -1; tac->src2->spilled_stack_index = spilled_register_stack_index; }
+            tac = tac->next;
+        }
+    }
+
+    if (debug_register_allocations) {
+        printf("spill_preg repurposed preg=%d for vreg=%d\n", preg, v->vreg);
+        tac = ir;
+        while (tac) {
+            print_instruction(stdout, tac);
+            tac = tac->next;
+        }
+    }
+
+    physical_registers[preg] = v->vreg;
+    v->preg = preg;
+}
+
+void allocate_register(struct three_address_code *ir, struct value *v) {
     int i;
+    int existing_preg, existing_preg_liveness_end;
+    struct three_address_code *tac;
 
     // Return if already allocated. This can happen if values share memory
     // between different instructions
@@ -2632,32 +2767,37 @@ void allocate_register(struct value *v) {
     // Find a free register
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
         if (!physical_registers[i]) {
+            if (debug_register_allocations) printf("allocated preg=%d for vreg=%d\n", i, v->vreg);
             physical_registers[i] = v->vreg;
             v->preg = i;
+
             return;
         }
     }
 
-    // Failed to allocate a register, spill to the stack.
-    // First try and reuse a previously used spilled stack register
-    for (i = 0; i < spilled_register_count; i++) {
-        if (!spilled_registers[i]) {
-            v->spilled_stack_index = i;
-            spilled_registers[i] = v->vreg;
-            return;
+    // Failed to allocate a register, something needs to be spilled.
+    existing_preg = -1;
+    existing_preg_liveness_end = -1;
+    for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
+        if (physical_registers[i] > 0) {
+            if (liveness[physical_registers[i]].end > existing_preg_liveness_end) {
+                existing_preg = i;
+                existing_preg_liveness_end = liveness[physical_registers[i]].end;
+            }
         }
     }
 
-    // All spilled register stack locations are in use. Allocate a new one
-    v->spilled_stack_index = spilled_register_count++;
-    spilled_registers[v->spilled_stack_index] = v->vreg;
+    if (opt_spill_furthest_liveness_end && existing_preg_liveness_end > liveness[v->vreg].end) {
+        spill_preg(ir, v, existing_preg);
+        return;
+    }
 
-    if (spilled_register_count >= MAX_SPILLED_REGISTER_COUNT)
-        panic1d("Exceeded max spilled register count %d", MAX_SPILLED_REGISTER_COUNT);
+    spill_vreg_for_value(ir, v);
 }
 
 void allocate_registers(struct three_address_code *ir) {
-    int line, i, j;
+    int line, i, j, vreg;
+    struct three_address_code *tac, *tac2;
 
     physical_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
@@ -2691,16 +2831,24 @@ void allocate_registers(struct three_address_code *ir) {
     }
 
     line = 0;
-    while (ir) {
+    tac = ir;
+    while (tac) {
+        if (debug_register_allocations) {
+            printf("%d ", line);
+            print_instruction(stdout, tac);
+        }
+
         // Allocate registers
-        if (ir->dst  && ir->dst->vreg)  allocate_register(ir->dst);
-        if (ir->src1 && ir->src1->vreg) allocate_register(ir->src1);
-        if (ir->src2 && ir->src2->vreg) allocate_register(ir->src2);
+        if (tac->dst  && tac->dst->vreg)  allocate_register(ir, tac->dst);
+        if (tac->src1 && tac->src1->vreg) allocate_register(ir, tac->src1);
+        if (tac->src2 && tac->src2->vreg) allocate_register(ir, tac->src2);
 
         // Free registers
         for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
-            if (physical_registers[i] > 0 && liveness[physical_registers[i]].end == line)
+            if (physical_registers[i] > 0 && liveness[physical_registers[i]].end == line) {
+                if (debug_register_allocations) printf("freeing preg=%d for vreg=%d\n", i, physical_registers[i]);
                 physical_registers[i] = 0;
+            }
         }
 
         // Free spilled stack locations
@@ -2709,12 +2857,14 @@ void allocate_registers(struct three_address_code *ir) {
                 spilled_registers[i] = 0;
         }
 
-        ir = ir->next;
+        tac = tac->next;
         line++;
     }
 
     free(physical_registers);
     free(spilled_registers);
+
+    total_spilled_register_count += spilled_register_count;
 }
 
 void check_preg(int preg) {
@@ -3421,6 +3571,7 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir2) print_intermediate_representation(s);
 
+        if (debug_register_allocations) print_liveness(s);
         allocate_registers(s->function_ir);
         s->function_spilled_register_count = spilled_register_count;
         if (print_ir3) print_intermediate_representation(s);
@@ -3517,6 +3668,7 @@ int main(int argc, char **argv) {
     target_is_object_file = 0;
     target_is_assembly_file = 0;
     help = 0;
+    print_spilled_register_count = 0;
     print_ir1 = 0;
     print_ir2 = 0;
     print_ir3 = 0;
@@ -3525,27 +3677,32 @@ int main(int argc, char **argv) {
     opt_enable_register_coalescing = 1;
     opt_use_registers_for_locals = 0;
     opt_merge_redundant_moves = 0;
+    opt_spill_furthest_liveness_end = 0;
     output_inline_ir = 0;
     output_filename = 0;
     input_filename = 0;
+
+    debug_register_allocations = 0;
 
     argc--;
     argv++;
     while (argc > 0) {
         if (*argv[0] == '-') {
-                 if (argc > 0 && !strcmp(argv[0], "-h"                        )) { help = 1;                           argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-v"                        )) { verbose = 1;                        argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-d"                        )) { debug = 1;                          argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-s"                        )) { print_symbols = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir1"                     )) { print_ir1 = 1;                      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir2"                     )) { print_ir2 = 1;                      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir3"                     )) { print_ir3 = 1;                      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--frp"                     )) { fake_register_pressure = 1;         argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--iir"                     )) { output_inline_ir = 1;               argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-registers"   )) { opt_enable_register_coalescing = 0; argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals")) { opt_use_registers_for_locals = 1;   argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fmerge-redundant-moves"   )) { opt_merge_redundant_moves = 1;      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-S"                        )) {
+                 if (argc > 0 && !strcmp(argv[0], "-h"                            )) { help = 1;                            argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-v"                            )) { verbose = 1;                         argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-d"                            )) { debug = 1;                           argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-s"                            )) { print_symbols = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--prc"                         )) { print_spilled_register_count = 1;    argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir1"                         )) { print_ir1 = 1;                       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir2"                         )) { print_ir2 = 1;                       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir3"                         )) { print_ir3 = 1;                       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--frp"                         )) { fake_register_pressure = 1;          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--iir"                         )) { output_inline_ir = 1;                argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-registers"       )) { opt_enable_register_coalescing = 0;  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals"    )) { opt_use_registers_for_locals = 1;    argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fmerge-redundant-moves"       )) { opt_merge_redundant_moves = 1;       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end" )) { opt_spill_furthest_liveness_end = 1; argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-S"                            )) {
                 run_assembler = 0;
                 run_linker = 0;
                 target_is_assembly_file = 1;
@@ -3556,6 +3713,7 @@ int main(int argc, char **argv) {
                 opt_enable_register_coalescing = 1;
                 opt_use_registers_for_locals = 1;
                 opt_merge_redundant_moves = 1;
+                opt_spill_furthest_liveness_end = 1;
                 argc--;
                 argv++;
             }
@@ -3598,9 +3756,10 @@ int main(int argc, char **argv) {
         printf("-frp        Fake register pressure, for testing spilling code\n");
         printf("-iir        Output inline intermediate representation\n");
         printf("-drc        Disable register coalescing\n");
-        printf("-ir1        Output intermediate representation after parsing\n");
-        printf("-ir2        Output intermediate representation after x86_64 rearrangements\n");
-        printf("-ir3        Output intermediate representation after register allocation\n");
+        printf("--prc       Output spilled register count\n");
+        printf("--ir1       Output intermediate representation after parsing\n");
+        printf("--ir2       Output intermediate representation after x86_64 rearrangements\n");
+        printf("--ir3       Output intermediate representation after register allocation\n");
         printf("-h          Help\n");
         exit(1);
     }
@@ -3713,12 +3872,16 @@ int main(int argc, char **argv) {
         vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
         vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
         label_count = 0;
+        total_spilled_register_count;
         parse();
         check_incomplete_structs();
 
         if (print_symbols) do_print_symbols();
 
         output_code(compiler_input_filename, compiler_output_filename);
+
+        if (print_spilled_register_count) printf("spilled_register_count=%d\n", total_spilled_register_count);
+
     }
 
     if (run_assembler) {
