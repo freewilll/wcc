@@ -89,6 +89,12 @@ struct struct_desc {
     int is_incomplete;          // Set to 1 if the struct has been used in a member but not yet declared
 };
 
+struct function_usages {
+    int div_or_mod;
+    int function_call;
+    int binary_shift;
+};
+
 int verbose;                    // Print invoked program command lines
 int compile;                    // Compile .c file
 int run_assembler;              // Assemble .s file
@@ -2795,9 +2801,28 @@ void allocate_register(struct three_address_code *ir, struct value *v) {
     spill_vreg_for_value(ir, v);
 }
 
+struct function_usages *get_function_usages(struct three_address_code *ir) {
+    struct function_usages *result;
+    struct three_address_code *tac;
+
+    result = malloc(sizeof(struct function_usages));
+    memset(result, 0, sizeof(struct function_usages));
+
+    tac = ir;
+    while (tac) {
+        if (tac->operation == IR_DIV || tac->operation == IR_MOD) result->div_or_mod = 1;
+        if (tac->operation == IR_CALL) result->function_call = 1;
+        if (tac->operation == IR_BSHR || tac->operation == IR_BSHL) result->binary_shift = 1;
+        tac = tac->next;
+    }
+
+    return result;
+}
+
 void allocate_registers(struct three_address_code *ir) {
     int line, i, j, vreg;
     struct three_address_code *tac, *tac2;
+    struct function_usages *function_usages;
 
     physical_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
@@ -2806,20 +2831,20 @@ void allocate_registers(struct three_address_code *ir) {
     memset(spilled_registers, 0, sizeof(int) * MAX_SPILLED_REGISTER_COUNT);
     spilled_register_count = 0;
 
-    // Don't allocate these registers. The approach is quite crude and it
-    // doesn't leave a lot of registers to play with. But it'll do for a first
-    // approach.
-    physical_registers[REG_RAX] = -1; // RAX and RDX are used for division & modulo. RAX is also a function return value
-    physical_registers[REG_RDX] = -1;
-    physical_registers[REG_RCX] = -1; // RCX is used for shifts
-    physical_registers[REG_RSP] = -1;
-    physical_registers[REG_RBP] = -1;
-    physical_registers[REG_RSI] = -1; // Used in function calls
-    physical_registers[REG_RDI] = -1; // Used in function calls
-    physical_registers[REG_R8]  = -1; // Used in function calls
-    physical_registers[REG_R9]  = -1; // Used in function calls
-    physical_registers[REG_R10] = -1; // Not preserved in function calls
-    physical_registers[REG_R11] = -1; // Not preserved in function calls
+    // Blacklist registers if certain operations are happening in this function.
+    function_usages = get_function_usages(ir);
+
+    physical_registers[REG_RAX] = function_usages->function_call || function_usages->div_or_mod   ? -1 : 0;
+    physical_registers[REG_RDX] = function_usages->function_call || function_usages->div_or_mod   ? -1 : 0;
+    physical_registers[REG_RCX] = function_usages->function_call || function_usages->binary_shift ? -1 : 0;
+    physical_registers[REG_RSI] = function_usages->function_call                                  ? -1 : 0;
+    physical_registers[REG_RDI] = function_usages->function_call                                  ? -1 : 0;
+    physical_registers[REG_R8]  = function_usages->function_call                                  ? -1 : 0;
+    physical_registers[REG_R9]  = function_usages->function_call                                  ? -1 : 0;
+    physical_registers[REG_RSP] = -1; // Stack pointer
+    physical_registers[REG_RBP] = -1; // Base pointer
+    physical_registers[REG_R10] = -1; // Not preserved in function calls & used as temporary
+    physical_registers[REG_R11] = -1; // Not preserved in function calls & used as temporary
 
     if (fake_register_pressure) {
         // Allocate all registers, forcing all temporaries into the stack
@@ -3507,7 +3532,6 @@ void output_function_body_code(struct symbol *symbol) {
         }
 
         else if (tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
-            // Ugly, this means rcx is permamently allocated
             if (tac->src2->is_constant) {
                 // Shift a non-constant by a constant amount
                 move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
