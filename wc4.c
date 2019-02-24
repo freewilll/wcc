@@ -17,6 +17,7 @@ struct symbol {
     int function_vreg_count;                    // For functions, number of virtual registers used in IR
     int function_spilled_register_count;        // For functions, amount of stack space needed for registers spills
     int function_call_count;                    // For functions, number of calls to other functions
+    int function_is_defined;                    // For functions, if a definition has been found
     struct three_address_code *function_ir;     // For functions, intermediate representation
     int function_builtin;                       // For builtin functions, IR number of the builtin
     int function_is_variadic;                   // Set to 1 for builtin variadic functions
@@ -169,6 +170,7 @@ enum {
     MAX_VREG_COUNT             = 10240,
     PHYSICAL_REGISTER_COUNT    = 15,
     MAX_SPILLED_REGISTER_COUNT = 1024,
+    MAX_INPUT_FILENAMES        = 1024,
 };
 
 // Tokens in order of precedence
@@ -1835,6 +1837,7 @@ void parse() {
                     consume(TOK_RPAREN, ")");
 
                     if (cur_token == TOK_LCURLY) {
+                        cur_function_symbol->function_is_defined = 1;
                         cur_function_symbol->function_param_count = param_count;
                         function_body();
                         cur_function_symbol->function_vreg_count = vreg_count;
@@ -3633,7 +3636,7 @@ void output_code(char *input_filename, char *output_filename) {
     // Generate body code for all functions
     s = symbol_table;
     while (s->identifier) {
-        if (!s->is_function) { s++; continue; }
+        if (!s->is_function || !s->function_is_defined) { s++; continue; }
 
         ensure_must_be_ssa_ish(s->function_ir);
 
@@ -3733,13 +3736,14 @@ char *make_temp_filename(char *template) {
 
 int main(int argc, char **argv) {
     int help, debug, print_symbols, print_code;
-    char *input_filename, *output_filename;
+    int input_filename_count;
+    char **input_filenames, *input_filename, *output_filename, *local_output_filename;
     char *compiler_input_filename, *compiler_output_filename;
     char *assembler_input_filename, *assembler_output_filename;
-    char *linker_input_filename, *linker_output_filename;
+    char **linker_input_filenames, *linker_input_filenames_str;
     int filename_len;
-    char *command;
-    int result;
+    char *command, *linker_filenames;
+    int i, j, k, len, result;
 
     verbose = 0;
     compile = 1;
@@ -3759,8 +3763,13 @@ int main(int argc, char **argv) {
     opt_merge_redundant_moves = 0;
     opt_spill_furthest_liveness_end = 0;
     output_inline_ir = 0;
+
     output_filename = 0;
-    input_filename = 0;
+    input_filename_count = 0;
+    input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
+    memset(input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
+    linker_input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
+    memset(linker_input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
 
     debug_register_allocations = 0;
 
@@ -3814,11 +3823,8 @@ int main(int argc, char **argv) {
             }
         }
         else {
-            if (input_filename) {
-                printf("Duplicate input filename\n");
-                exit(1);
-            }
-            input_filename = argv[0];
+            if (input_filename_count == MAX_INPUT_FILENAMES) panic("Exceeded max input filenames");
+            input_filenames[input_filename_count++] = argv[0];
             argc--;
             argv++;
         }
@@ -3849,145 +3855,170 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    if (!input_filename) {
+    if (!input_filename_count) {
         printf("Missing input filename\n");
         exit(1);
     }
 
-    filename_len = strlen(input_filename);
+    if (output_filename && input_filename_count > 1 && (target_is_object_file || target_is_assembly_file)) {
+        panic("cannot specify -o with -c or -S with multiple files");
+    }
 
-    if (filename_len > 2 && input_filename[filename_len - 2] == '.') {
-        if (input_filename[filename_len - 1] == 'o') {
-            compile = 0;
-            run_assembler = 0;
-            run_linker = 1;
+    for (i = 0; i < input_filename_count; i++) {
+        input_filename = input_filenames[i];
+        filename_len = strlen(input_filename);
+
+        if (filename_len > 2 && input_filename[filename_len - 2] == '.') {
+            if (input_filename[filename_len - 1] == 'o') {
+                compile = 0;
+                run_assembler = 0;
+                run_linker = 1;
+            }
+            else if (input_filename[filename_len - 1] == 's') {
+                compile = 0;
+                run_assembler = 1;
+            }
         }
-        else if (input_filename[filename_len - 1] == 's') {
-            compile = 0;
-            run_assembler = 1;
-        }
-    }
-
-    if (!output_filename) {
-        if (run_linker)
-            output_filename = "a.out";
-        else if (run_assembler)
-            output_filename = replace_extension(input_filename, "o");
-        else
-            output_filename = replace_extension(input_filename, "s");
-    }
-
-    if (compile) {
-        compiler_input_filename = input_filename;
-        if (run_assembler)
-            compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
-        else
-            compiler_output_filename = strdup(output_filename);
-    }
-
-    if (run_assembler) {
-        if (compile)
-            assembler_input_filename = compiler_output_filename;
-        else
-            assembler_input_filename = input_filename;
-
-        if (run_linker)
-            assembler_output_filename = make_temp_filename("/tmp/XXXXXX.o");
-        else
-            assembler_output_filename = strdup(output_filename);
     }
 
     init_callee_saved_registers();
 
-    command = malloc(1024);
+    command = malloc(1024 * 100);
 
-    if (compile) {
-        input = malloc(10 * 1024 * 1024);
-        symbol_table = malloc(SYMBOL_TABLE_SIZE);
-        memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
-        next_symbol = symbol_table;
+    for (i = 0; i < input_filename_count; i++) {
+        input_filename = input_filenames[i];
 
-        string_literals = malloc(MAX_STRING_LITERALS);
-        string_literal_count = 0;
+        if (compile) {
+            if (!output_filename) {
+                if (run_linker)
+                    output_filename = "a.out";
+                else if (run_assembler)
+                    local_output_filename = replace_extension(input_filename, "o");
+                else
+                    local_output_filename = replace_extension(input_filename, "s");
+            }
+            else
+                local_output_filename = output_filename;
 
-        all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
-        all_structs_count = 0;
+            if (compile) {
+                compiler_input_filename = input_filename;
+                if (run_assembler)
+                    compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
+                else
+                    compiler_output_filename = strdup(local_output_filename);
+            }
 
-        add_builtin("exit",     IR_EXIT,     TYPE_VOID,            0);
-        add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR, 0);
-        add_builtin("fread",    IR_FREAD,    TYPE_INT,             0);
-        add_builtin("fwrite",   IR_FWRITE,   TYPE_INT,             0);
-        add_builtin("fclose",   IR_FCLOSE,   TYPE_INT,             0);
-        add_builtin("close",    IR_CLOSE,    TYPE_INT,             0);
-        add_builtin("stdout",   IR_STDOUT,   TYPE_LONG,            0);
-        add_builtin("printf",   IR_PRINTF,   TYPE_INT,             1);
-        add_builtin("fprintf",  IR_FPRINTF,  TYPE_INT,             1);
-        add_builtin("malloc",   IR_MALLOC,   TYPE_VOID + TYPE_PTR, 0);
-        add_builtin("free",     IR_FREE,     TYPE_INT,             0);
-        add_builtin("memset",   IR_MEMSET,   TYPE_INT,             0);
-        add_builtin("memcmp",   IR_MEMCMP,   TYPE_INT,             0);
-        add_builtin("strcmp",   IR_STRCMP,   TYPE_INT,             0);
-        add_builtin("strlen",   IR_STRLEN,   TYPE_INT,             0);
-        add_builtin("strcpy",   IR_STRCPY,   TYPE_INT,             0);
-        add_builtin("strrchr",  IR_STRRCHR,  TYPE_CHAR + TYPE_PTR, 0);
-        add_builtin("sprintf",  IR_SPRINTF,  TYPE_INT,             1);
-        add_builtin("asprintf", IR_ASPRINTF, TYPE_INT,             1);
-        add_builtin("strdup",   IR_STRDUP,   TYPE_CHAR + TYPE_PTR, 0);
-        add_builtin("memcpy",   IR_MEMCPY,   TYPE_VOID + TYPE_PTR, 0);
-        add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT,             0);
-        add_builtin("perror",   IR_PERROR,   TYPE_VOID,            0);
-        add_builtin("system",   IR_SYSTEM,   TYPE_INT,             0);
+            if (run_assembler) {
+                if (compile)
+                    assembler_input_filename = compiler_output_filename;
+                else
+                    assembler_input_filename = input_filename;
 
-        f  = fopen(compiler_input_filename, "r");
-        if (f == 0) {
-            perror(compiler_input_filename);
-            exit(1);
+                if (run_linker)
+                    assembler_output_filename = make_temp_filename("/tmp/XXXXXX.o");
+                else
+                    assembler_output_filename = strdup(local_output_filename);
+            }
+
+            ip = 0;
+            input = malloc(10 * 1024 * 1024);
+            symbol_table = malloc(SYMBOL_TABLE_SIZE);
+            memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
+            next_symbol = symbol_table;
+
+            string_literals = malloc(MAX_STRING_LITERALS);
+            string_literal_count = 0;
+
+            all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
+            all_structs_count = 0;
+
+            add_builtin("exit",     IR_EXIT,     TYPE_VOID,            0);
+            add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR, 0);
+            add_builtin("fread",    IR_FREAD,    TYPE_INT,             0);
+            add_builtin("fwrite",   IR_FWRITE,   TYPE_INT,             0);
+            add_builtin("fclose",   IR_FCLOSE,   TYPE_INT,             0);
+            add_builtin("close",    IR_CLOSE,    TYPE_INT,             0);
+            add_builtin("stdout",   IR_STDOUT,   TYPE_LONG,            0);
+            add_builtin("printf",   IR_PRINTF,   TYPE_INT,             1);
+            add_builtin("fprintf",  IR_FPRINTF,  TYPE_INT,             1);
+            add_builtin("malloc",   IR_MALLOC,   TYPE_VOID + TYPE_PTR, 0);
+            add_builtin("free",     IR_FREE,     TYPE_INT,             0);
+            add_builtin("memset",   IR_MEMSET,   TYPE_INT,             0);
+            add_builtin("memcmp",   IR_MEMCMP,   TYPE_INT,             0);
+            add_builtin("strcmp",   IR_STRCMP,   TYPE_INT,             0);
+            add_builtin("strlen",   IR_STRLEN,   TYPE_INT,             0);
+            add_builtin("strcpy",   IR_STRCPY,   TYPE_INT,             0);
+            add_builtin("strrchr",  IR_STRRCHR,  TYPE_CHAR + TYPE_PTR, 0);
+            add_builtin("sprintf",  IR_SPRINTF,  TYPE_INT,             1);
+            add_builtin("asprintf", IR_ASPRINTF, TYPE_INT,             1);
+            add_builtin("strdup",   IR_STRDUP,   TYPE_CHAR + TYPE_PTR, 0);
+            add_builtin("memcpy",   IR_MEMCPY,   TYPE_VOID + TYPE_PTR, 0);
+            add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT,             0);
+            add_builtin("perror",   IR_PERROR,   TYPE_VOID,            0);
+            add_builtin("system",   IR_SYSTEM,   TYPE_INT,             0);
+
+            f  = fopen(compiler_input_filename, "r");
+            if (f == 0) {
+                perror(compiler_input_filename);
+                exit(1);
+            }
+            input_size = fread(input, 1, 10 * 1024 * 1024, f);
+            if (input_size < 0) {
+                printf("Unable to read input file\n");
+                exit(1);
+            }
+            input[input_size] = 0;
+            fclose(f);
+
+            cur_line = 1;
+            next();
+
+            vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
+            vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
+            label_count = 0;
+            total_spilled_register_count;
+            parse();
+            check_incomplete_structs();
+
+            if (print_symbols) do_print_symbols();
+
+            output_code(compiler_input_filename, compiler_output_filename);
+
+            if (print_spilled_register_count) printf("spilled_register_count=%d\n", total_spilled_register_count);
+
         }
-        input_size = fread(input, 1, 10 * 1024 * 1024, f);
-        if (input_size < 0) {
-            printf("Unable to read input file\n");
-            exit(1);
+
+        if (run_assembler) {
+            sprintf(command, "as -64 %s -o %s", assembler_input_filename, assembler_output_filename);
+            if (verbose) {
+                sprintf(command, "%s %s\n", command, "-v");
+                printf("%s\n", command);
+            }
+            result = system(command);
+            if (result != 0) exit(result);
+            linker_input_filenames[i] = assembler_output_filename;
         }
-        input[input_size] = 0;
-        fclose(f);
-
-        cur_line = 1;
-        next();
-
-        vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
-        vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
-        label_count = 0;
-        total_spilled_register_count;
-        parse();
-        check_incomplete_structs();
-
-        if (print_symbols) do_print_symbols();
-
-        output_code(compiler_input_filename, compiler_output_filename);
-
-        if (print_spilled_register_count) printf("spilled_register_count=%d\n", total_spilled_register_count);
-
-    }
-
-    if (run_assembler) {
-        sprintf(command, "as -64 %s -o %s", assembler_input_filename, assembler_output_filename);
-        if (verbose) {
-            sprintf(command, "%s %s\n", command, "-v");
-            printf("%s\n", command);
-        }
-        result = system(command);
-        if (result != 0) exit(result);
+        else
+            linker_input_filenames[i] = input_filename;
     }
 
     if (run_linker) {
-        if (run_assembler)
-            linker_input_filename = assembler_output_filename;
-        else
-            linker_input_filename = input_filename;
+        len = 0;
+        for (i = 0; i < input_filename_count; i++) len += strlen(linker_input_filenames[i]);
+        len += input_filename_count - 1; // For the spaces
+        linker_input_filenames_str = malloc(len + 1);
+        memset(linker_input_filenames_str, ' ', len + 1);
+        linker_input_filenames_str[len] = 0;
 
-        linker_output_filename = output_filename;
+        k = 0;
+        for (i = 0; i < input_filename_count; i++) {
+            input_filename = linker_input_filenames[i];
+            len = strlen(linker_input_filenames[i]);
+            for (j = 0; j < len; j++) linker_input_filenames_str[k++] = input_filename[j];
+            k++;
+        }
 
-        sprintf(command, "gcc %s -o %s", linker_input_filename, linker_output_filename);
+        sprintf(command, "gcc %s -o %s", linker_input_filenames_str, output_filename);
         if (verbose) {
             sprintf(command, "%s %s\n", command, "-v");
             printf("%s\n", command);
