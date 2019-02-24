@@ -3803,20 +3803,25 @@ int main(int argc, char **argv) {
     if (help) {
         printf("Usage: wc4 [-S -c -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
         printf("Flags\n");
-        printf("-S          Compile only; do not assemble or link\n");
-        printf("-c          Compile and assemble, but do not link\n");
-        printf("-o <file>   Output file. Use - for stdout. Defaults to the source file with extension .s\n");
-        printf("-v          Display the programs invoked by the compiler\n");
-        printf("-d          Debug output\n");
-        printf("-s          Output symbol table\n");
-        printf("-frp        Fake register pressure, for testing spilling code\n");
-        printf("-iir        Output inline intermediate representation\n");
-        printf("-drc        Disable register coalescing\n");
-        printf("--prc       Output spilled register count\n");
-        printf("--ir1       Output intermediate representation after parsing\n");
-        printf("--ir2       Output intermediate representation after x86_64 rearrangements\n");
-        printf("--ir3       Output intermediate representation after register allocation\n");
-        printf("-h          Help\n");
+        printf("-S                             Compile only; do not assemble or link\n");
+        printf("-c                             Compile and assemble, but do not link\n");
+        printf("-o <file>                      Output file. Use - for stdout. Defaults to the source file with extension .s\n");
+        printf("-v                             Display the programs invoked by the compiler\n");
+        printf("-d                             Debug output\n");
+        printf("-s                             Output symbol table\n");
+        printf("-frp                           Fake register pressure, for testing spilling code\n");
+        printf("-iir                           Output inline intermediate representation\n");
+        printf("--prc                          Output spilled register count\n");
+        printf("--ir1                          Output intermediate representation after parsing\n");
+        printf("--ir2                          Output intermediate representation after x86_64 rearrangements\n");
+        printf("--ir3                          Output intermediate representation after register allocation\n");
+        printf("-h                             Help\n");
+        printf("\n");
+        printf("Optimization options:\n");
+        printf("-fno-coalesce-registers        Disable register coalescing\n");
+        printf("-fuse-registers-for-locals     Allocate registers for locals instead of using the stack by default\n");
+        printf("-fmerge-redundant-moves        Merge redundant register moves\n");
+        printf("-fspill-furthest-liveness-end  Spill liveness intervals that have the greatest end liveness interval\n");
         exit(1);
     }
 
