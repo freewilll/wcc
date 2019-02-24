@@ -99,8 +99,14 @@ test-O1-self-compilation: wc42-O1.s wc43-O1.s
 	diff wc42-O1.s wc43-O1.s
 	@echo O1 self compilation test passed
 
+test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
+	cd test-include && ../wc4 main.c foo.c -o test-include
+
+run-test-include: test-include/test-include
+	test-include/test-include
+
 .PHONY: test
-test: run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-wc4-gcc test-self-compilation test-O1-self-compilation
+test: run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
 
 clean:
 	@rm -f wc4
@@ -119,3 +125,4 @@ clean:
 	@rm -f test.c test test1.c test1 test2.c test2
 	@rm -f core
 	@rm -f a.out
+	@rm -f test-include/test-include

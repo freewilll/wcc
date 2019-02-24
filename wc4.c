@@ -116,7 +116,18 @@ int opt_spill_furthest_liveness_end;  // Prioritize spilling physical registers 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
 int ip;                         // Offset into *input, used by the lexer
+char *cur_filename;             // Current filename being lexed
 int cur_line;                   // Current line number being lexed
+
+// Copies of the above, for when a header is being parsed
+char *c_input;                  // Input file data
+int c_input_size;               // Size of the input file
+int c_ip;                       // Offset into *input, used by the lexer
+char *c_cur_filename;           // Current filename being lexed
+int c_cur_line;                 // Current line number being lexed
+
+int parsing_header;             // I a header being parsed?
+
 int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
 long cur_long;                  // Current long if the token is a number
@@ -233,6 +244,8 @@ enum {
     TOK_LBRACKET,
     TOK_ATTRIBUTE,
     TOK_PACKED,
+    TOK_HASH,
+    TOK_INCLUDE,
 };
 
 // Types. All structs start at TYPE_STRUCT up to TYPE_PTR. Pointers are represented by adding TYPE_PTR to a type.
@@ -332,35 +345,36 @@ enum {
 int parse_struct_base_type(int parse_struct_base_type);
 struct value *load_constant(struct value *cv);
 void expression(int level);
+void finish_parsing_header();
 
 void panic(char *message) {
-    printf("%d: %s\n", cur_line, message);
+    printf("%s:%d: %s\n", cur_filename, cur_line, message);
     exit(1);
 }
 
 void panic1d(char *fmt, int i) {
-    printf("%d: ", cur_line);
+    printf("%s:%d: ", cur_filename, cur_line);
     printf(fmt, i);
     printf("\n");
     exit(1);
 }
 
 void panic1s(char *fmt, char *s) {
-    printf("%d: ", cur_line);
+    printf("%s:%d: ", cur_filename, cur_line);
     printf(fmt, s);
     printf("\n");
     exit(1);
 }
 
 void panic2d(char *fmt, int i1, int i2) {
-    printf("%d: ", cur_line);
+    printf("%s:%d: ", cur_filename, cur_line);
     printf(fmt, i1, i2);
     printf("\n");
     exit(1);
 }
 
 void panic2s(char *fmt, char *s1, char *s2) {
-    printf("%d: ", cur_line);
+    printf("%s:%d: ", cur_filename, cur_line);
     printf(fmt, s1, s2);
     printf("\n");
     exit(1);
@@ -425,6 +439,7 @@ void next() {
         else if (                        c1 == '&'                        )  { ip += 1;  cur_token = TOK_ADDRESS_OF;                 }
         else if (                        c1 == '|'                        )  { ip += 1;  cur_token = TOK_BITWISE_OR;                 }
         else if (                        c1 == '^'                        )  { ip += 1;  cur_token = TOK_XOR;                        }
+        else if (                        c1 == '#'                        )  { ip += 1;  cur_token = TOK_HASH;                       }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\t';    }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\n';    }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\'';    }
@@ -462,6 +477,7 @@ void next() {
             else if (!strcmp(cur_identifier, "__attribute__")) { cur_token = TOK_ATTRIBUTE; }
             else if (!strcmp(cur_identifier, "__packed__"   )) { cur_token = TOK_PACKED;    }
             else if (!strcmp(cur_identifier, "packed"       )) { cur_token = TOK_PACKED;    }
+            else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
         }
 
         // Hex numeric literal
@@ -517,7 +533,10 @@ void next() {
         return;
     }
 
-    cur_token = TOK_EOF;
+    if (parsing_header)
+        finish_parsing_header();
+    else
+        cur_token = TOK_EOF;
 }
 
 void expect(int token, char *what) {
@@ -1751,6 +1770,69 @@ void function_body() {
     consume(TOK_RCURLY, "}");
 }
 
+void init_lexer(char *filename) {
+    void *f;
+
+    ip = 0;
+    input = malloc(10 * 1024 * 1024);
+    f  = fopen(filename, "r");
+    if (f == 0) {
+        perror(filename);
+        exit(1);
+    }
+    input_size = fread(input, 1, 10 * 1024 * 1024, f);
+    if (input_size < 0) {
+        printf("Unable to read input file\n");
+        exit(1);
+    }
+    input[input_size] = 0;
+    fclose(f);
+
+    cur_filename = filename;
+    cur_line = 1;
+    next();
+}
+
+void parse_directive() {
+    char *filename;
+
+    if (parsing_header) panic("Nested headers not impemented");
+
+    consume(TOK_HASH, "#");
+    consume(TOK_INCLUDE, "include");
+    if (cur_token == TOK_LT) {
+        // Ignore #include <...>
+        next();
+        while (cur_token != TOK_GT) next();
+        next();
+        return;
+    }
+
+    if (cur_token != TOK_STRING_LITERAL) panic("Expected string literal in #include");
+
+    filename = cur_string_literal;
+
+    c_input        = input;
+    c_input_size   = input_size;
+    c_ip           = ip;
+    c_cur_filename = cur_filename;
+    c_cur_line     = cur_line;
+
+    parsing_header = 1;
+    init_lexer(filename);
+}
+
+void finish_parsing_header() {
+    input        = c_input;
+    input_size   = c_input_size;
+    ip           = c_ip;
+    cur_filename = c_cur_filename;
+    cur_line     = c_cur_line;
+
+    parsing_header = 0;
+    next();
+}
+
 // Parse a translation unit
 void parse() {
     int base_type, type;
@@ -1769,7 +1851,9 @@ void parse() {
             continue;
         }
 
-        if (cur_token_is_type() ) {
+        if (cur_token == TOK_HASH )
+            parse_directive();
+        else if (cur_token_is_type() ) {
             // Variable or function definition
             base_type = parse_base_type(0);
 
@@ -3887,6 +3971,7 @@ int main(int argc, char **argv) {
 
     for (i = 0; i < input_filename_count; i++) {
         input_filename = input_filenames[i];
+        parsing_header = 0;
 
         if (compile) {
             if (!output_filename) {
@@ -3920,8 +4005,6 @@ int main(int argc, char **argv) {
                     assembler_output_filename = strdup(local_output_filename);
             }
 
-            ip = 0;
-            input = malloc(10 * 1024 * 1024);
             symbol_table = malloc(SYMBOL_TABLE_SIZE);
             memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
             next_symbol = symbol_table;
@@ -3957,21 +4040,7 @@ int main(int argc, char **argv) {
             add_builtin("perror",   IR_PERROR,   TYPE_VOID,            0);
             add_builtin("system",   IR_SYSTEM,   TYPE_INT,             0);
 
-            f  = fopen(compiler_input_filename, "r");
-            if (f == 0) {
-                perror(compiler_input_filename);
-                exit(1);
-            }
-            input_size = fread(input, 1, 10 * 1024 * 1024, f);
-            if (input_size < 0) {
-                printf("Unable to read input file\n");
-                exit(1);
-            }
-            input[input_size] = 0;
-            fclose(f);
-
-            cur_line = 1;
-            next();
+            init_lexer(compiler_input_filename);
 
             vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
             vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
