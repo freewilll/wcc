@@ -3119,7 +3119,7 @@ void pre_instruction_local_load(struct three_address_code *ir, int function_pc, 
     int stack_offset;
 
     // Load src1 into r10
-    if (ir->src1 && ir->src1->preg == -1 && ir->src1->stack_index < 0) {
+    if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->preg == -1 && ir->src1->stack_index < 0) {
         stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->src1->stack_index);
         output_type_specific_sign_extend_mov(ir->src1->type);
         fprintf(f, "%d(%%rbp), %%r10\n", stack_offset);
