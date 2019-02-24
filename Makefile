@@ -1,6 +1,6 @@
 all: wc4 wc42 wc42-frp wc43 benchmark
 
-wc4: wc4.c
+wc4: wc4.h wc4.c
 	gcc wc4.c -o wc4 -g -Wno-parentheses
 
 wc42.s: wc4
