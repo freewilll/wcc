@@ -263,7 +263,16 @@ enum {
     REG_R15,
 };
 
+char *cur_filename;             // Current filename being lexed
+int cur_line;                   // Current line number being lexed
 int parse_struct_base_type(int parse_struct_base_type);
+
 struct value *load_constant(struct value *cv);
 void expression(int level);
 void finish_parsing_header();
+
+void panic(char *message);
+void panic1d(char *fmt, int i);
+void panic1s(char *fmt, char *s);
+void panic2d(char *fmt, int i1, int i2);
+void panic2s(char *fmt, char *s1, char *s2);

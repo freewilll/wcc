@@ -1,37 +1,71 @@
-all: wc4 wc42 wc42-frp wc43 benchmark
+all: wc4 wc42 wc42-O1 wc42-frp wc43 wc43-O1 benchmark
 
-wc4: wc4.h wc4.c
-	gcc wc4.c -o wc4 -g -Wno-parentheses
+SOURCES = \
+  wc4.c \
+  utils.c \
 
-wc42.s: wc4
-	./wc4 -c -S -o wc42.s wc4.c
+# OBJECTS := ${SOURCES:c=o}
+ASSEMBLIES := ${SOURCES:c=s}
 
-wc42-O1.s: wc4
-	./wc4 -c -S -O1 -o wc42-O1.s wc4.c
+build:
+	@mkdir -p build/wc42
+	@mkdir -p build/wc42-O1
+	@mkdir -p build/wc42-frp
+	@mkdir -p build/wc43
+	@mkdir -p build/wc43-O1
 
-wc42-frp.s: wc4
-	./wc4 -c -S --frp -o wc42-frp.s wc4.c
+wc4: ${SOURCES} wc4.h build
+	gcc ${SOURCES} -o wc4 -g
 
-wc42: wc42.s
-	gcc wc42.s -o wc42
+# wc42
+WC42_SOURCES := ${SOURCES:%=build/wc42/%}
+WC42_ASSEMBLIES := ${WC42_SOURCES:.c=.s}
 
-wc42-O1: wc42-O1.s
-	gcc wc42-O1.s -o wc42-O1
+build/wc42/%.s: %.c wc4
+	./wc4 -c $< -S -o $@
 
-wc42-frp: wc42-frp.s
-	gcc wc42-frp.s -o wc42-frp
+wc42: ${WC42_ASSEMBLIES}
+	gcc ${WC42_ASSEMBLIES} -o wc42
 
-wc43.s: wc42
-	./wc42 -c -S -o wc43.s wc4.c
+# wc42-O1
+WC42_O1_SOURCES := ${SOURCES:%=build/wc42-O1/%}
+WC42_O1_ASSEMBLIES := ${WC42_O1_SOURCES:.c=.s}
 
-wc43-O1.s: wc42-O1
-	./wc42-O1 -c -S -O1 -o wc43-O1.s wc4.c
+build/wc42-O1/%.s: %.c wc4
+	./wc4 -c $< -S -o $@ -O1
 
-wc43: wc43.s
-	gcc wc43.s -o wc43
+wc42-O1: ${WC42_O1_ASSEMBLIES}
+	gcc ${WC42_O1_ASSEMBLIES} -o wc42-O1
 
-wc43-O1: wc43.s
-	gcc wc43-O1.s -o wc43-O1
+# wc42-frp
+WC42_FRP_SOURCES := ${SOURCES:%=build/wc42-frp/%}
+WC42_FRP_ASSEMBLIES := ${WC42_FRP_SOURCES:.c=.s}
+
+build/wc42-frp/%.s: %.c wc4
+	./wc4 -c $< -S -o $@ --frp
+
+wc42-frp: ${WC42_FRP_ASSEMBLIES}
+	gcc ${WC42_FRP_ASSEMBLIES} -o wc42-frp
+
+# wc43
+WC43_SOURCES := ${SOURCES:%=build/wc43/%}
+WC43_ASSEMBLIES := ${WC43_SOURCES:.c=.s}
+
+build/wc43/%.s: %.c wc42
+	./wc42 -c $< -S -o $@
+
+wc43: ${WC43_ASSEMBLIES}
+	gcc ${WC43_ASSEMBLIES} -o wc43
+
+# wc43-O1
+WC43_O1_SOURCES := ${SOURCES:%=build/wc43-O1/%}
+WC43_O1_ASSEMBLIES := ${WC43_O1_SOURCES:.c=.s}
+
+build/wc43-O1/%.s: %.c wc42-O1
+	./wc42-O1 -c $< -S -o $@ -O1
+
+wc43-O1: ${WC43_O1_ASSEMBLIES}
+	gcc ${WC43_O1_ASSEMBLIES} -o wc43-O1
 
 test-wc4.s: wc4 test-wc4.c
 	./wc4 -c -S test-wc4.c
@@ -91,12 +125,16 @@ run-test-wc4-gcc: test-wc4-gcc
 	./test-wc4-gcc
 	@echo gcc tests passed
 
-test-self-compilation: wc42.s wc43.s
-	diff wc42.s wc43.s
+test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
+	cat build/wc42/*.s > build/wc42/all-s
+	cat build/wc43/*.s > build/wc43/all-s
+	diff build/wc42/all-s build/wc43/all-s
 	@echo self compilation test passed
 
-test-O1-self-compilation: wc42-O1.s wc43-O1.s
-	diff wc42-O1.s wc43-O1.s
+test-O1-self-compilation: ${WC42_O1_ASSEMBLIES} ${WC43_O1_ASSEMBLIES}
+	cat build/wc42-O1/*.s > build/wc42-O1/all-s
+	cat build/wc43-O1/*.s > build/wc43-O1/all-s
+	diff build/wc42-O1/all-s build/wc43-O1/all-s
 	@echo O1 self compilation test passed
 
 test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
@@ -114,6 +152,7 @@ clean:
 	@rm -f wc42-frp
 	@rm -f wc42-O1
 	@rm -f wc43
+	@rm -f wc43-O1
 	@rm -f test-wc4
 	@rm -f test-wc4-frp
 	@rm -f test-wc4-gcc
@@ -126,3 +165,4 @@ clean:
 	@rm -f core
 	@rm -f a.out
 	@rm -f test-include/test-include
+	@rm -Rf build

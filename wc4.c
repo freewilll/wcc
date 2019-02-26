@@ -26,8 +26,6 @@ int opt_spill_furthest_liveness_end;  // Prioritize spilling physical registers 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
 int ip;                         // Offset into *input, used by the lexer
-char *cur_filename;             // Current filename being lexed
-int cur_line;                   // Current line number being lexed
 
 // Copies of the above, for when a header is being parsed
 char *c_input;                  // Input file data
@@ -78,39 +76,6 @@ int *callee_saved_registers;                // Constant list of length PHYSICAL_
 int debug_register_allocations;
 
 void *f; // Output file handle
-
-void panic(char *message) {
-    printf("%s:%d: %s\n", cur_filename, cur_line, message);
-    exit(1);
-}
-
-void panic1d(char *fmt, int i) {
-    printf("%s:%d: ", cur_filename, cur_line);
-    printf(fmt, i);
-    printf("\n");
-    exit(1);
-}
-
-void panic1s(char *fmt, char *s) {
-    printf("%s:%d: ", cur_filename, cur_line);
-    printf(fmt, s);
-    printf("\n");
-    exit(1);
-}
-
-void panic2d(char *fmt, int i1, int i2) {
-    printf("%s:%d: ", cur_filename, cur_line);
-    printf(fmt, i1, i2);
-    printf("\n");
-    exit(1);
-}
-
-void panic2s(char *fmt, char *s1, char *s2) {
-    printf("%s:%d: ", cur_filename, cur_line);
-    printf(fmt, s1, s2);
-    printf("\n");
-    exit(1);
-}
 
 // Lexer. Lex a next token or TOK_EOF if the file is ended
 void next() {

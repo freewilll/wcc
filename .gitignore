@@ -5,6 +5,7 @@ wc42
 wc42-frp
 wc42-O1
 wc43
+wc43-O1
 test-wc4
 test-wc4-frp
 test-wc4-gcc
@@ -21,3 +22,4 @@ test2
 core
 a.out
 test-include/test-include
+build
