@@ -2,6 +2,10 @@ all: wc4 wc42 wc42-O1 wc42-frp wc43 wc43-O1 benchmark
 
 SOURCES = \
   wc4.c \
+  lexer.c \
+  parser.c \
+  ir.c \
+  codegen.c \
   utils.c \
 
 # OBJECTS := ${SOURCES:c=o}

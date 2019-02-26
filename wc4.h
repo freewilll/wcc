@@ -265,14 +265,116 @@ enum {
 
 char *cur_filename;             // Current filename being lexed
 int cur_line;                   // Current line number being lexed
-int parse_struct_base_type(int parse_struct_base_type);
 
-struct value *load_constant(struct value *cv);
-void expression(int level);
-void finish_parsing_header();
+int verbose;                    // Print invoked program command lines
+int compile;                    // Compile .c file
+int run_assembler;              // Assemble .s file
+int run_linker;                 // Link .o file
+int target_is_object_file;
+int target_is_assembly_file;
+int print_spilled_register_count;
+int print_ir1;                  // Print IR after parsing
+int print_ir2;                  // Print IR after x84_64 arch manipulation
+int print_ir3;                  // Print IR after register allocation
+int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
+int output_inline_ir;           // Output IR inline with the assembly
+int opt_enable_register_coalescing;   // Merge registers that can be reused within the same operation
+int opt_use_registers_for_locals;     // Experimental. Don't use the stack for local variables.
+int opt_merge_redundant_moves;        // Merge move statements that are only things between registers
+int opt_spill_furthest_liveness_end;  // Prioritize spilling physical registers with furthest liveness end
 
+char *input;                    // Input file data
+int input_size;                 // Size of the input file
+int ip;                         // Offset into *input, used by the lexer
+
+// Copies of the above, for when a header is being parsed
+char *c_input;                  // Input file data
+int c_input_size;               // Size of the input file
+int c_ip;                       // Offset into *input, used by the lexer
+char *c_cur_filename;           // Current filename being lexed
+int c_cur_line;                 // Current line number being lexed
+
+int parsing_header;             // I a header being parsed?
+
+int cur_token;                  // Current token
+char *cur_identifier;           // Current identifier if the token is an identifier
+long cur_long;                  // Current long if the token is a number
+char *cur_string_literal;       // Current string literal if the token is a string literal
+int cur_scope;                  // Current scope. 0 is global. non-zero is function. Nested scopes isn't implemented.
+char **string_literals;         // Each string literal has an index in this array, with a pointer to the string literal
+int string_literal_count;       // Amount of string literals
+
+struct symbol *cur_function_symbol;     // Currently parsed function
+struct value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
+struct value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
+int in_conditional;                     // Used in the parser to determine if something is in a conditional
+
+struct symbol *symbol_table;    // Symbol table, terminated by a null symbol
+struct symbol *next_symbol;     // Next free symbol in the symbol table
+
+struct value **vs_start;        // Value stack start
+struct value **vs;              // Value stack current position
+struct value *vtop;             // Value at the top of the stack
+
+struct struct_desc **all_structs; // All structs defined globally. Local struct definitions isn't implemented.
+int all_structs_count;            // Number of structs, complete and incomplete
+
+struct three_address_code *ir_start, *ir;   // intermediate representation for currently parsed function
+int vreg_count;                             // Virtual register count for currently parsed function
+int label_count;                            // Global label count, always growing
+int function_call_count;                    // Uniquely identify a function call, always growing
+int cur_loop;                               // Current loop being parsed
+int loop_count;                             // Loop counter
+int spilled_register_count;                 // Spilled register count for current function that's undergoing register allocation
+int total_spilled_register_count;           // Spilled register count for all functions
+
+struct liveness_interval *liveness;         // Keeps track of live vregs. Array of length vreg_count. Each element is a vreg, or zero if not live.
+int *physical_registers;                    // Associated liveness interval for each in-use physical register.
+int *spilled_registers;                     // Associated liveness interval for each in-use spilled register.
+int *callee_saved_registers;                // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
+
+int debug_register_allocations;
+
+void *f; // Output file handle
+
+// utils.c
 void panic(char *message);
 void panic1d(char *fmt, int i);
 void panic1s(char *fmt, char *s);
 void panic2d(char *fmt, int i1, int i2);
 void panic2s(char *fmt, char *s1, char *s2);
+
+// lexer.c
+void init_lexer(char *filename);
+void next();
+void expect(int token, char *what);
+void consume(int token, char *what);
+
+// parser.c
+struct value *new_value();
+struct value *dup_value(struct value *src);
+struct three_address_code *new_instruction(int operation);
+struct value *load_constant(struct value *cv);
+int get_type_alignment(int type);
+int get_type_size(int type);
+int new_vreg();
+struct symbol *new_symbol();
+int parse_struct_base_type(int parse_struct_base_type);
+void check_incomplete_structs();
+void expression(int level);
+void finish_parsing_header();
+void parse();
+
+// ir.c
+void fprintf_escaped_string_literal(void *f, char* sl);
+void print_instruction(void *f, struct three_address_code *tac);
+void print_intermediate_representation(struct symbol *function);
+void ensure_must_be_ssa_ish(struct three_address_code *ir);
+void print_liveness(struct symbol *function);
+void analyze_liveness(struct symbol *function);
+void optimize_ir(struct symbol *function);
+void allocate_registers(struct three_address_code *ir);
+
+// codegen.c
+void init_callee_saved_registers();
+void output_code(char *input_filename, char *output_filename);
