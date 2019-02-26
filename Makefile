@@ -19,7 +19,7 @@ build:
 	@mkdir -p build/wc43-O1
 
 wc4: ${SOURCES} wc4.h build
-	gcc ${SOURCES} -o wc4 -g
+	gcc ${SOURCES} -o wc4 -g -Wno-return-type
 
 # wc42
 WC42_SOURCES := ${SOURCES:%=build/wc42/%}

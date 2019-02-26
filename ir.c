@@ -236,7 +236,7 @@ struct liveness_interval **make_outer_loops(struct symbol *function) {
     // Allocate result, one liveness_interval per three address code in the IR
     ir_len = 1;
     tac = function->function_ir;
-    while (tac = tac->next) ir_len++;
+    while ((tac = tac->next)) ir_len++;
     result = malloc(sizeof(struct liveness_interval *) * ir_len);
 
     i = 0;
@@ -570,8 +570,6 @@ void renumber_ir_vreg(struct three_address_code *ir, int src, int dst) {
         tac = tac->next;
     }
 
-    if (src == -2) src == 0;
-    if (dst == -2) dst == 0;
     liveness[dst] = liveness[src];
 }
 

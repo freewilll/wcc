@@ -298,7 +298,6 @@ int main(int argc, char **argv) {
             vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
             vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
             label_count = 0;
-            total_spilled_register_count;
             parse();
             check_incomplete_structs();
 

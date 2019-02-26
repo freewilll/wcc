@@ -273,7 +273,8 @@ int get_type_alignment(int type) {
     else if (type == TYPE_INT)    return 4;
     else if (type == TYPE_LONG)   return 8;
     else if (type >= TYPE_STRUCT) panic("Alignment of structs not implemented");
-    else panic1d("align of unknown type %d", type);
+
+    panic1d("align of unknown type %d", type);
 }
 
 int get_type_size(int type) {
@@ -284,7 +285,8 @@ int get_type_size(int type) {
     else if (type == TYPE_LONG)   return sizeof(long);
     else if (type >  TYPE_PTR)    return sizeof(void *);
     else if (type >= TYPE_STRUCT) return all_structs[type - TYPE_STRUCT]->size;
-    else panic1d("sizeof unknown type %d", type);
+
+    panic1d("sizeof unknown type %d", type);
 }
 
 // How much will the ++, --, +=, -= operators increment a type?
@@ -1329,7 +1331,7 @@ void parse() {
                         if (cur_token == TOK_RPAREN) break;
 
                         if (cur_token_is_type()) {
-                            type = parse_type(0);
+                            type = parse_type();
                             if (type >= TYPE_STRUCT && type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
                         }
                         else
