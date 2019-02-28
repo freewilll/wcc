@@ -484,19 +484,20 @@ void reverse_function_argument_order(struct symbol *function) {
 
     }
 
-    // Remove start & end function markers since they aren't needed any more and
-    // will interfere with the redundant move optimization code.
-    tac = function->function_ir;
-    i = 0;
-    while (tac) {
-        if (tac->next && (tac->operation == IR_START_CALL || tac->operation == IR_END_CALL)) {
-            tac = tac->prev;
-            i--;
-            merge_instructions(tac, i, 0);
-        }
-        tac = tac->next;
-        i++;
-    }
+    // FIXME get redundant move code working again for start/end function calls
+    // // Remove start & end function markers since they aren't needed any more and
+    // // will interfere with the redundant move optimization code.
+    // tac = function->function_ir;
+    // i = 0;
+    // while (tac) {
+    //     if (tac->next && (tac->operation == IR_START_CALL || tac->operation == IR_END_CALL)) {
+    //         tac = tac->prev;
+    //         i--;
+    //         merge_instructions(tac, i, 0);
+    //     }
+    //     tac = tac->next;
+    //     i++;
+    // }
 
     analyze_liveness(function);
     free(args);

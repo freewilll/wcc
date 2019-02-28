@@ -71,6 +71,10 @@ build/wc43-O1/%.s: %.c wc42-O1
 wc43-O1: ${WC43_O1_ASSEMBLIES}
 	gcc ${WC43_O1_ASSEMBLIES} -o wc43-O1
 
+# tests
+stack-check.o: stack-check.c
+	gcc stack-check.c -c
+
 test-wc4.s: wc4 test-wc4.c
 	./wc4 -c -S test-wc4.c
 
@@ -83,17 +87,17 @@ test-wc4-frp-ncr.s: wc4 test-wc4.c
 test-wc4-O1.s: wc4 test-wc4.c
 	./wc4 -O1 -c -S -o test-wc4-O1.s test-wc4.c
 
-test-wc4: test-wc4.s
-	gcc test-wc4.s -o test-wc4
+test-wc4: test-wc4.s stack-check.o
+	gcc test-wc4.s stack-check.o -o test-wc4
 
-test-wc4-frp: test-wc4-frp.s
-	gcc test-wc4-frp.s -o test-wc4-frp
+test-wc4-frp: test-wc4-frp.s stack-check.o
+	gcc test-wc4-frp.s stack-check.o -o test-wc4-frp
 
-test-wc4-frp-ncr: test-wc4-frp-ncr.s
-	gcc test-wc4-frp-ncr.s -o test-wc4-frp-ncr
+test-wc4-frp-ncr: test-wc4-frp-ncr.s stack-check.o
+	gcc test-wc4-frp-ncr.s stack-check.o -o test-wc4-frp-ncr
 
-test-wc4-O1: test-wc4-O1.s
-	gcc test-wc4-O1.s -o test-wc4-O1
+test-wc4-O1: test-wc4-O1.s stack-check.o
+	gcc test-wc4-O1.s stack-check.o -o test-wc4-O1
 
 benchmark: wc4 wc42 wc42-frp wc42-O1 benchmark.c
 	gcc benchmark.c -o benchmark
@@ -122,7 +126,7 @@ run-test-wc4-O1: test-wc4-O1
 	@echo wc4 -O1 tests passed
 
 test-wc4-gcc: test-wc4.c
-	gcc test-wc4.c -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types
+	gcc test-wc4.c stack-check.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types
 
 .PHONY: run-test-wc4-gcc
 run-test-wc4-gcc: test-wc4-gcc

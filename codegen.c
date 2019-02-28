@@ -5,6 +5,8 @@
 
 #include "wc4.h"
 
+int cur_stack_push_count;
+
 void check_preg(int preg) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
     if (preg < 0 || preg >= PHYSICAL_REGISTER_COUNT) panic1d("Illegal preg %d", preg);
@@ -231,6 +233,7 @@ int *push_callee_saved_registers(struct three_address_code *tac) {
 
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
         if (saved_registers[i]) {
+            cur_stack_push_count++;
             fprintf(f, "\tpushq\t");
             output_quad_register_name(i);
             fprintf(f, "\n");
@@ -246,6 +249,7 @@ void pop_callee_saved_registers(int *saved_registers) {
 
     for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--) {
         if (saved_registers[i]) {
+            cur_stack_push_count--;
             fprintf(f, "\tpopq\t");
             output_quad_register_name(i);
             fprintf(f, "\n");
@@ -364,8 +368,10 @@ void output_function_body_code(struct symbol *symbol) {
     int local_vars_stack_start;         // Stack start for the local variables
     int spilled_registers_stack_start;  // Stack start for the spilled registers
     int *saved_registers;               // Callee saved registers
+    int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
     char *s;
 
+    cur_stack_push_count++;
     fprintf(f, "\tpush\t%%rbp\n");
     fprintf(f, "\tmovq\t%%rsp, %%rbp\n");
 
@@ -375,12 +381,12 @@ void output_function_body_code(struct symbol *symbol) {
     function_pc = symbol->function_param_count;
 
     // Push the args in the registers on the stack. The order for all args is right to left.
-    if (function_pc >= 6) fprintf(f, "\tpush\t%%r9\n");
-    if (function_pc >= 5) fprintf(f, "\tpush\t%%r8\n");
-    if (function_pc >= 4) fprintf(f, "\tpush\t%%rcx\n");
-    if (function_pc >= 3) fprintf(f, "\tpush\t%%rdx\n");
-    if (function_pc >= 2) fprintf(f, "\tpush\t%%rsi\n");
-    if (function_pc >= 1) fprintf(f, "\tpush\t%%rdi\n");
+    if (function_pc >= 6) { cur_stack_push_count++; fprintf(f, "\tpush\t%%r9\n");  }
+    if (function_pc >= 5) { cur_stack_push_count++; fprintf(f, "\tpush\t%%r8\n");  }
+    if (function_pc >= 4) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rcx\n"); }
+    if (function_pc >= 3) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rdx\n"); }
+    if (function_pc >= 2) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rsi\n"); }
+    if (function_pc >= 1) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rdi\n"); }
 
     // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
     local_vars_stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
@@ -390,8 +396,10 @@ void output_function_body_code(struct symbol *symbol) {
     local_stack_size = 8 * (symbol->function_local_symbol_count + symbol->function_spilled_register_count);
 
     // Allocate local stack
-    if (local_stack_size > 0)
+    if (local_stack_size > 0) {
         fprintf(f, "\tsubq\t$%d, %%rsp\n", local_stack_size);
+        cur_stack_push_count += local_stack_size / 8;
+    }
 
     tac = symbol->function_ir;
     saved_registers = push_callee_saved_registers(tac);
@@ -456,10 +464,25 @@ void output_function_body_code(struct symbol *symbol) {
             fprintf(f, "\n");
         }
 
-        else if (tac->operation == IR_START_CALL);
-        else if (tac->operation == IR_END_CALL);
+        else if (tac->operation == IR_START_CALL) {
+            // Align the stack. This is matched with a pop when the function call ends
+            need_aligned_call_push = ((cur_stack_push_count + tac->src1->function_call_arg_count) % 2 == 0);
+            if (need_aligned_call_push)  {
+                tac->src1->pushed_stack_aligned_quad = 1;
+                cur_stack_push_count++;
+                fprintf(f, "\tsubq\t$8, %%rsp\n");
+            }
+        }
+
+        else if (tac->operation == IR_END_CALL) {
+            if (tac->src1->pushed_stack_aligned_quad)  {
+                cur_stack_push_count--;
+                fprintf(f, "\taddq\t$8, %%rsp\n");
+            }
+        }
 
         else if (tac->operation == IR_ARG) {
+            cur_stack_push_count++;
             fprintf(f, "\tpushq\t");
             output_quad_register_name(tac->src2->preg);
             fprintf(f, "\n");
@@ -469,12 +492,12 @@ void output_function_body_code(struct symbol *symbol) {
             // Read the first 6 args from the stack in right to left order
             ac = tac->src1->function_call_arg_count;
 
-            if (ac >= 1) fprintf(f, "\tpopq\t%%rdi\n");
-            if (ac >= 2) fprintf(f, "\tpopq\t%%rsi\n");
-            if (ac >= 3) fprintf(f, "\tpopq\t%%rdx\n");
-            if (ac >= 4) fprintf(f, "\tpopq\t%%rcx\n");
-            if (ac >= 5) fprintf(f, "\tpopq\t%%r8\n");
-            if (ac >= 6) fprintf(f, "\tpopq\t%%r9\n");
+            if (ac >= 1) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%rdi\n"); }
+            if (ac >= 2) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%rsi\n"); }
+            if (ac >= 3) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%rdx\n"); }
+            if (ac >= 4) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%rcx\n"); }
+            if (ac >= 5) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%r8\n");  }
+            if (ac >= 6) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%r9\n");  }
 
             // Variadic functions have the number of floating point arguments passed in al.
             // Since floating point numbers isn't implemented, this is zero.
@@ -498,7 +521,10 @@ void output_function_body_code(struct symbol *symbol) {
             }
 
             // Adjust the stack for any args that are on in stack
-            if (ac > 6) fprintf(f, "\taddq\t$%d, %%rsp\n", (ac - 6) * 8);
+            if (ac > 6) {
+                fprintf(f, "\taddq\t$%d, %%rsp\n", (ac - 6) * 8);
+                cur_stack_push_count -= ac - 6;
+            }
         }
 
         else if (tac->operation == IR_RETURN) {
@@ -748,6 +774,7 @@ void output_code(char *input_filename, char *output_filename) {
     while (s->identifier) {
         if (!s->is_function || !s->function_is_defined) { s++; continue; }
 
+        cur_stack_push_count = 0;
         ensure_must_be_ssa_ish(s->function_ir);
 
         fprintf(f, "%s:\n", s->identifier);

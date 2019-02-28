@@ -43,6 +43,7 @@ struct value {
     int original_stack_index;
     int original_is_lvalue;
     int original_vreg;
+    int pushed_stack_aligned_quad;  // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
 };
 
 struct three_address_code {

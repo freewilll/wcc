@@ -4,6 +4,8 @@
 #include <fcntl.h>
 #include <string.h>
 
+int check_stack_alignment();
+
 int verbose;
 int passes;
 int failures;
@@ -106,13 +108,13 @@ struct csrs {
 void assert_int(int expected, int actual, char *message) {
     if (expected != actual) {
         failures++;
-        printf("%-50s ", message);
+        printf("%-60s ", message);
         printf("failed, expected %d got %d\n", expected, actual);
     }
     else {
         passes++;
         if (verbose) {
-            printf("%-50s ", message);
+            printf("%-60s ", message);
             printf("ok\n");
         }
     }
@@ -121,13 +123,13 @@ void assert_int(int expected, int actual, char *message) {
 void assert_long(long expected, long actual, char *message) {
     if (expected != actual) {
         failures++;
-        printf("%-50s ", message);
+        printf("%-60s ", message);
         printf("failed, expected %ld got %ld\n", expected, actual);
     }
     else {
         passes++;
         if (verbose) {
-            printf("%-50s ", message);
+            printf("%-60s ", message);
             printf("ok\n");
         }
     }
@@ -136,13 +138,13 @@ void assert_long(long expected, long actual, char *message) {
 void assert_string(char *expected, char *actual, char *message) {
     if (strcmp(expected, actual)) {
         failures++;
-        printf("%-50s ", message);
+        printf("%-60s ", message);
         printf("failed, expected \"%s\" got \"%s\"\n", expected, actual);
     }
     else {
         passes++;
         if (verbose) {
-            printf("%-50s ", message);
+            printf("%-60s ", message);
             printf("ok\n");
         }
     }
@@ -840,7 +842,7 @@ void test_mem_functions() {
     assert_int(-1, pi1[0], "memory functions 2");
     assert_int(-1, pi1[3], "memory functions 3");
 
-    assert_int(255, memcmp(pi1, pi2, 32), "memory funtions 4");
+    assert_int(255, memcmp(pi1, pi2, 32), "memory functions 4");
 
     // gcc's strcmp is builtin and returns different numbers than the
     // std library's. Only the sign is the same. Hence, we have to use <
@@ -1318,6 +1320,16 @@ void test_spilling_locals_to_stack_bug() {
     r10++; // This forces a spill of r10
 }
 
+void test_stack_alignment0() {           assert_int(0, check_stack_alignment(), "Stack alignment 0"); }
+void test_stack_alignment1() { int i;    assert_int(0, check_stack_alignment(), "Stack alignment 1"); }
+void test_stack_alignment2() { int i, j; assert_int(0, check_stack_alignment(), "Stack alignment 2"); }
+
+void test_stack_alignment() {
+    test_stack_alignment0();
+    test_stack_alignment1();
+    test_stack_alignment2();
+}
+
 int main(int argc, char **argv) {
     int help;
 
@@ -1406,6 +1418,7 @@ int main(int argc, char **argv) {
     test_backwards_jumps();
     test_first_declaration_in_if_in_for_liveness();
     test_spilling_locals_to_stack_bug();
+    test_stack_alignment();
 
     finalize();
 }
