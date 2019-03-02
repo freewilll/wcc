@@ -11,6 +11,7 @@ test-wc4-frp
 test-wc4-gcc
 test-wc4-frp-ncr
 test-wc4-O1
+test-intset
 benchmark
 test.c
 test1.c

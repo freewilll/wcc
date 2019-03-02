@@ -1,3 +1,11 @@
+struct block {
+    int start, end;
+};
+
+struct edge {
+    int from, to;
+};
+
 struct symbol {
     int type;                                   // Type
     int size;                                   // Size
@@ -15,6 +23,8 @@ struct symbol {
     struct three_address_code *function_ir;     // For functions, intermediate representation
     int function_builtin;                       // For builtin functions, IR number of the builtin
     int function_is_variadic;                   // Set to 1 for builtin variadic functions
+    struct block *function_blocks;              // For functions, the blocks
+    struct edge *function_edges;                // For functions, the edges between blocks
     int is_enum;                                // Enums are symbols with a value
 };
 
@@ -91,6 +101,10 @@ struct function_usages {
     int binary_shift;
 };
 
+struct intset {
+    int *elements;
+};
+
 enum {
     DATA_SIZE                  = 10485760,
     INSTRUCTIONS_SIZE          = 10485760,
@@ -104,6 +118,9 @@ enum {
     PHYSICAL_REGISTER_COUNT    = 15,
     MAX_SPILLED_REGISTER_COUNT = 1024,
     MAX_INPUT_FILENAMES        = 1024,
+    MAX_INT_SET_ELEMENTS       = 1024,
+    MAX_BLOCKS                 = 1024,
+    MAX_BLOCK_EDGES            = 1024,
 };
 
 // Tokens in order of precedence
@@ -338,6 +355,16 @@ int debug_register_allocations;
 
 void *f; // Output file handle
 
+
+// intset.c
+struct intset *new_intset();
+void *add_to_set(struct intset *s, int value);
+int *in_set(struct intset *s, int value);
+void *delete_from_set(struct intset *s, int value);
+struct intset *set_intersection(struct intset *s1, struct intset *s2);
+struct intset *set_union(struct intset *s1, struct intset *s2);
+struct intset *set_difference(struct intset *s1, struct intset *s2);
+
 // utils.c
 void panic(char *message);
 void panic1d(char *fmt, int i);
@@ -374,6 +401,7 @@ void ensure_must_be_ssa_ish(struct three_address_code *ir);
 void print_liveness(struct symbol *function);
 void analyze_liveness(struct symbol *function);
 void optimize_ir(struct symbol *function);
+void make_control_flow_graph(struct symbol *function);
 void allocate_registers(struct three_address_code *ir);
 
 // codegen.c

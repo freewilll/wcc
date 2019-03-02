@@ -5,6 +5,7 @@ SOURCES = \
   lexer.c \
   parser.c \
   ir.c \
+  ssa.c \
   codegen.c \
   utils.c \
 
@@ -151,8 +152,14 @@ test-include/test-include: wc4 test-include/include.h test-include/main.c test-i
 run-test-include: test-include/test-include
 	test-include/test-include
 
+test-intset: wc4 test-intset.c intset.c
+	./wc4 intset.c test-intset.c -o test-intset
+
+run-test-intset: test-intset
+	 ./test-intset
+
 .PHONY: test
-test: run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
+test: run-test-intset run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
 
 clean:
 	@rm -f wc4
@@ -166,6 +173,7 @@ clean:
 	@rm -f test-wc4-gcc
 	@rm -f test-wc4-frp-ncr
 	@rm -f test-wc4-O1
+	@rm -f test-intset
 	@rm -f benchmark
 	@rm -f *.s
 	@rm -f *.o

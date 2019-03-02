@@ -799,6 +799,8 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir2) print_intermediate_representation(s);
 
+        make_control_flow_graph(s);
+
         if (debug_register_allocations) print_liveness(s);
         allocate_registers(s->function_ir);
         s->function_spilled_register_count = spilled_register_count;
