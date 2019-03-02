@@ -34,24 +34,37 @@ void test_merges() {
     struct intset *s1, *s2, *s3;
 
     s1 = new_intset(); add_to_set(s1, 1); add_to_set(s1, 2);
-    s2 = new_intset(); add_to_set(s1, 1); add_to_set(s1, 3);
+    s2 = new_intset(); add_to_set(s2, 1); add_to_set(s2, 3);
 
-    s3 = set_intersection(s1, s3);
+    s3 = set_intersection(s1, s2);
     assert(1, in_set(s3, 1));
     assert(0, in_set(s3, 2));
     assert(0, in_set(s3, 3));
 
-    s3 = set_union(s1, s3);
+    s3 = set_union(s1, s2);
     assert(1, in_set(s3, 1));
     assert(1, in_set(s3, 2));
     assert(1, in_set(s3, 3));
 
-    s3 = set_difference(s1, s3);
+    s3 = set_difference(s1, s2);
     assert(0, in_set(s3, 1));
     assert(1, in_set(s3, 2));
     assert(0, in_set(s3, 3));
 }
 
+void test_set_eq() {
+    struct intset *s1, *s2, *s3;
+
+    s1 = new_intset(); add_to_set(s1, 1); add_to_set(s1, 2);
+    s2 = new_intset(); add_to_set(s2, 1); add_to_set(s2, 3);
+    assert(0, set_eq(s1, s2));
+
+    s2 = new_intset(); add_to_set(s2, 1); add_to_set(s2, 2);
+    assert(1, set_eq(s1, s2));
+}
+
 int main() {
     test_add_delete();
+    test_merges();
+    test_set_eq();
 }

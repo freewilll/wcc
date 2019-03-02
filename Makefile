@@ -8,6 +8,7 @@ SOURCES = \
   ssa.c \
   codegen.c \
   utils.c \
+  intset.c \
 
 # OBJECTS := ${SOURCES:c=o}
 ASSEMBLIES := ${SOURCES:c=s}
@@ -158,8 +159,14 @@ test-intset: wc4 test-intset.c intset.c
 run-test-intset: test-intset
 	 ./test-intset
 
+test-ssa: wc4 test-ssa.c ssa.c intset.c
+	./wc4 ssa.c test-ssa.c intset.c -o test-ssa
+
+run-test-ssa: test-ssa
+	 ./test-ssa
+
 .PHONY: test
-test: run-test-intset run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
+test: run-test-intset run-test-ssa run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
 
 clean:
 	@rm -f wc4
@@ -174,6 +181,7 @@ clean:
 	@rm -f test-wc4-frp-ncr
 	@rm -f test-wc4-O1
 	@rm -f test-intset
+	@rm -f test-ssa
 	@rm -f benchmark
 	@rm -f *.s
 	@rm -f *.o

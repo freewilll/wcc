@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "wc4.h"
 
 struct intset *new_intset() {
@@ -11,6 +15,28 @@ struct intset *new_intset() {
     return result;
 }
 
+void empty_set(struct intset *s) {
+    int i;
+
+    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) s->elements[i] = 0;
+}
+
+void print_set(struct intset *s) {
+    int i;
+    int first;
+
+    first = 1;
+    printf("{");
+    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) {
+        if (s->elements[i]) {
+            if (!first) { printf(", "); }
+            printf("%d", i);
+            first = 0;
+        }
+    }
+    printf("}");
+}
+
 void *add_to_set(struct intset *s, int value) {
     s->elements[value] = 1;
 }
@@ -19,8 +45,17 @@ void *delete_from_set(struct intset *s, int value) {
     s->elements[value] = 0;
 }
 
-int *in_set(struct intset *s, int value) {
+int in_set(struct intset *s, int value) {
     return s->elements[value] == 1;
+}
+
+int set_eq(struct intset *s1, struct intset *s2) {
+    int i;
+
+    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
+        if (s1->elements[i] != s2->elements[i]) return 0;
+
+    return 1;
 }
 
 struct intset *set_intersection(struct intset *s1, struct intset *s2) {
@@ -29,7 +64,7 @@ struct intset *set_intersection(struct intset *s1, struct intset *s2) {
 
     result = new_intset();
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
-        if (s1->elements[i] && s2->elements[i]) result->elements[i] = 1;
+        result->elements[i] = s1->elements[i] && s2->elements[i];
 
     return result;
 }
@@ -40,7 +75,7 @@ struct intset *set_union(struct intset *s1, struct intset *s2) {
 
     result = new_intset();
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
-        if (s1->elements[i] || s2->elements[i]) result->elements[i] = 1;
+        result->elements[i] = s1->elements[i] || s2->elements[i];
 
     return result;
 }
@@ -51,7 +86,7 @@ struct intset *set_difference(struct intset *s1, struct intset *s2) {
 
     result = new_intset();
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
-        if (s1->elements[i] && !s2->elements[i]) result->elements[i] = 1;
+        result->elements[i] = s1->elements[i] && !s2->elements[i];
 
     return result;
 }

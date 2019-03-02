@@ -6,6 +6,10 @@ struct edge {
     int from, to;
 };
 
+struct intset {
+    int *elements;
+};
+
 struct symbol {
     int type;                                   // Type
     int size;                                   // Size
@@ -24,7 +28,10 @@ struct symbol {
     int function_builtin;                       // For builtin functions, IR number of the builtin
     int function_is_variadic;                   // Set to 1 for builtin variadic functions
     struct block *function_blocks;              // For functions, the blocks
+    int function_block_count;                   //
     struct edge *function_edges;                // For functions, the edges between blocks
+    int function_edge_count;                    //
+    struct intset **function_dominance;         // For functions, nlock dominances
     int is_enum;                                // Enums are symbols with a value
 };
 
@@ -99,10 +106,6 @@ struct function_usages {
     int div_or_mod;
     int function_call;
     int binary_shift;
-};
-
-struct intset {
-    int *elements;
 };
 
 enum {
@@ -358,8 +361,11 @@ void *f; // Output file handle
 
 // intset.c
 struct intset *new_intset();
+void empty_set(struct intset *s);
+void print_set(struct intset *s);
 void *add_to_set(struct intset *s, int value);
-int *in_set(struct intset *s, int value);
+int in_set(struct intset *s, int value);
+int set_eq(struct intset *s1, struct intset *s2);
 void *delete_from_set(struct intset *s, int value);
 struct intset *set_intersection(struct intset *s1, struct intset *s2);
 struct intset *set_union(struct intset *s1, struct intset *s2);
@@ -401,8 +407,11 @@ void ensure_must_be_ssa_ish(struct three_address_code *ir);
 void print_liveness(struct symbol *function);
 void analyze_liveness(struct symbol *function);
 void optimize_ir(struct symbol *function);
-void make_control_flow_graph(struct symbol *function);
 void allocate_registers(struct three_address_code *ir);
+
+// ssa.c
+void make_control_flow_graph(struct symbol *function);
+void make_block_dominance(struct symbol *function);
 
 // codegen.c
 void init_callee_saved_registers();
