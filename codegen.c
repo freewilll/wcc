@@ -298,15 +298,22 @@ void pre_instruction_local_load(struct three_address_code *ir, int function_pc, 
 
 void post_instruction_local_store(struct three_address_code *ir, int function_pc, int local_vars_stack_start) {
     int stack_offset;
+    int assign;
 
+    assign = 0;
     if (ir->dst && ir->dst->preg != -1 && ir->dst->stack_index < 0) {
-        // Output a mov for assignments that are a register copy.
-        if (ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue || ir->dst->is_in_cpu_flags)) return;
+        // Output a mov for assignments that are a copy from a cpu flag to a local variable on the stack
+        if (ir->operation == IR_ASSIGN && ir->src1->is_in_cpu_flags && ir->dst->stack_index) assign = 1;
 
-        stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
-        fprintf(f, "\tmovq\t");
-        output_quad_register_name(ir->dst->preg);
-        fprintf(f, ", %d(%%rbp)\n", stack_offset);
+        // Output a mov for assignments that are a register copy.
+        if (!(ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue || ir->dst->is_in_cpu_flags))) assign = 1;
+
+        if (assign) {
+            stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
+            fprintf(f, "\tmovq\t");
+            output_quad_register_name(ir->dst->preg);
+            fprintf(f, ", %d(%%rbp)\n", stack_offset);
+        }
     }
 }
 
