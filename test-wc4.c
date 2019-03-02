@@ -35,6 +35,7 @@ struct ns2 {
 
 enum {A, B};
 enum {C=2, D};
+enum {E=-2, F};
 
 struct sc { char  i, j; char  k; };
 struct ss { short i, j; short k; };
@@ -994,10 +995,12 @@ void test_first_arg_to_or_and_and_must_be_rvalue() {
 
 
 void test_enum() {
-    assert_int(0, A, "enum 1");
-    assert_int(1, B, "enum 2");
-    assert_int(2, C, "enum 3");
-    assert_int(3, D, "enum 4");
+    assert_int(0,  A, "enum 1");
+    assert_int(1,  B, "enum 2");
+    assert_int(2,  C, "enum 3");
+    assert_int(3,  D, "enum 4");
+    assert_int(-2, E, "enum 5");
+    assert_int(-1, F, "enum 6");
 }
 
 void test_simple_struct() {

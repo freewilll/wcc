@@ -1275,7 +1275,7 @@ void parse() {
     int param_count;                    // Number of parameters to a function
     int seen_function_declaration;      // If a function has been seen, then variable declarations afterwards are forbidden
     struct symbol *param_symbol, *s;
-    int i;
+    int i, sign;
 
     cur_scope = 0;
     seen_function_declaration = 0;
@@ -1389,8 +1389,13 @@ void parse() {
                 next();
                 if (cur_token == TOK_EQ) {
                     next();
+                    sign = 1;
+                    if (cur_token == TOK_MINUS) {
+                        sign = -1;
+                        next();
+                    }
                     expect(TOK_NUMBER, "number");
-                    value = cur_long;
+                    value = sign * cur_long;
                     next();
                 }
 
