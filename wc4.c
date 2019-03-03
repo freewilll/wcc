@@ -100,6 +100,7 @@ int main(int argc, char **argv) {
     opt_merge_redundant_moves = 0;
     opt_spill_furthest_liveness_end = 0;
     output_inline_ir = 0;
+    experimental_ssa = 0;
 
     output_filename = 0;
     input_filename_count = 0;
@@ -124,6 +125,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--ir3"                         )) { print_ir3 = 1;                       argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--frp"                         )) { fake_register_pressure = 1;          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--iir"                         )) { output_inline_ir = 1;                argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ssa"                         )) { experimental_ssa = 1;                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-registers"       )) { opt_enable_register_coalescing = 0;  argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals"    )) { opt_use_registers_for_locals = 1;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fmerge-redundant-moves"       )) { opt_merge_redundant_moves = 1;       argc--; argv++; }
@@ -176,8 +178,9 @@ int main(int argc, char **argv) {
         printf("-v                             Display the programs invoked by the compiler\n");
         printf("-d                             Debug output\n");
         printf("-s                             Output symbol table\n");
-        printf("-frp                           Fake register pressure, for testing spilling code\n");
-        printf("-iir                           Output inline intermediate representation\n");
+        printf("--frp                          Fake register pressure, for testing spilling code\n");
+        printf("--iir                          Output inline intermediate representation\n");
+        printf("--ssa                          Enable experimental SSA code\n");
         printf("--prc                          Output spilled register count\n");
         printf("--ir1                          Output intermediate representation after parsing\n");
         printf("--ir2                          Output intermediate representation after x86_64 rearrangements\n");

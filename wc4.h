@@ -31,7 +31,10 @@ struct symbol {
     int function_block_count;                   //
     struct edge *function_edges;                // For functions, the edges between blocks
     int function_edge_count;                    //
-    struct intset **function_dominance;         // For functions, nlock dominances
+    struct intset **function_dominance;         // For functions, block dominances
+    struct intset **function_uevar;             // For functions, the upward exposed set for each block
+    struct intset **function_varkill;           // For functions, the killed var set for each block
+    struct intset **function_liveout;           // For functions, the liveout set for each block
     int is_enum;                                // Enums are symbols with a value
 };
 
@@ -124,6 +127,10 @@ enum {
     MAX_INT_SET_ELEMENTS       = 1024,
     MAX_BLOCKS                 = 1024,
     MAX_BLOCK_EDGES            = 1024,
+};
+
+enum {
+    DEBUG_SSA = 0,
 };
 
 // Tokens in order of precedence
@@ -299,6 +306,7 @@ int print_ir2;                  // Print IR after x84_64 arch manipulation
 int print_ir3;                  // Print IR after register allocation
 int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
 int output_inline_ir;           // Output IR inline with the assembly
+int experimental_ssa;           // Enable experimental SSA code
 int opt_enable_register_coalescing;   // Merge registers that can be reused within the same operation
 int opt_use_registers_for_locals;     // Experimental. Don't use the stack for local variables.
 int opt_merge_redundant_moves;        // Merge move statements that are only things between registers
@@ -385,9 +393,6 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
-struct value *new_value();
-struct value *dup_value(struct value *src);
-struct three_address_code *new_instruction(int operation);
 struct value *load_constant(struct value *cv);
 int get_type_alignment(int type);
 int get_type_size(int type);
@@ -400,6 +405,12 @@ void finish_parsing_header();
 void parse();
 
 // ir.c
+struct value *new_value();
+struct value *new_constant(int type, long value);
+struct value *dup_value(struct value *src);
+struct three_address_code *new_instruction(int operation);
+struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2);
+int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
 void print_instruction(void *f, struct three_address_code *tac);
 void print_intermediate_representation(struct symbol *function);
@@ -410,8 +421,10 @@ void optimize_ir(struct symbol *function);
 void allocate_registers(struct three_address_code *ir);
 
 // ssa.c
+void do_ssa_experiments(struct symbol *function);
 void make_control_flow_graph(struct symbol *function);
 void make_block_dominance(struct symbol *function);
+void make_liveout(struct symbol *function);
 
 // codegen.c
 void init_callee_saved_registers();

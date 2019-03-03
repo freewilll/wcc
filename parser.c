@@ -4,31 +4,6 @@
 
 #include "wc4.h"
 
-// A useful function for debugging
-void print_value_stack() {
-    struct value **lvs, *v;
-
-    printf("%-4s %-4s %-4s %-11s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "stack_index", "is_lv");
-    lvs = vs;
-    while (lvs != vs_start) {
-        v = *lvs;
-        printf("%-4d %-4d %-4d %-11s %-11d %-5d\n",
-            v->type, v->vreg, v->preg, v->global_symbol ? v->global_symbol->identifier : 0, v->stack_index, v->is_lvalue);
-        lvs++;
-    }
-}
-
-struct value *new_value() {
-    struct value *v;
-
-    v = malloc(sizeof(struct value));
-    memset(v, 0, sizeof(struct value));
-    v->preg = -1;
-    v->spilled_stack_index = -1;
-
-    return v;
-}
-
 // Push a value to the stack
 void push(struct value *v) {
     *--vs = v;
@@ -43,73 +18,6 @@ struct value *pop() {
     vtop = *vs;
 
     return result;
-}
-
-// Duplicate a value
-struct value *dup_value(struct value *src) {
-    struct value *dst;
-
-    dst = new_value();
-    dst->type                      = src->type;
-    dst->vreg                      = src->vreg;
-    dst->preg                      = src->preg;
-    dst->is_lvalue                 = src->is_lvalue;
-    dst->spilled_stack_index       = src->spilled_stack_index;
-    dst->stack_index               = src->stack_index;
-    dst->is_constant               = src->is_constant;
-    dst->is_string_literal         = src->is_string_literal;
-    dst->is_in_cpu_flags           = src->is_in_cpu_flags;
-    dst->string_literal_index      = src->string_literal_index;
-    dst->value                     = src->value;
-    dst->function_symbol           = src->function_symbol;
-    dst->function_call_arg_count   = src->function_call_arg_count;
-    dst->global_symbol             = src->global_symbol;
-    dst->label                     = src->label;
-
-    return dst;
-}
-
-struct three_address_code *new_instruction(int operation) {
-    struct three_address_code *tac;
-
-    tac = malloc(sizeof(struct three_address_code));
-    memset(tac, 0, sizeof(struct three_address_code));
-    tac->operation = operation;
-
-    return tac;
-}
-
-// Add instruction to the global intermediate representation ir
-struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
-    struct three_address_code *tac;
-
-    tac = new_instruction(operation);
-    tac->label = 0;
-    tac->dst = dst;
-    tac->src1 = src1;
-    tac->src2 = src2;
-    tac->next = 0;
-    tac->prev = 0;
-    tac->in_conditional = in_conditional;
-
-    if (!ir_start) {
-        ir_start = tac;
-        ir = tac;
-    }
-    else {
-        tac->prev = ir;
-        ir->next = tac;
-        ir = tac;
-    }
-
-    return tac;
-}
-
-// Allocate a new virtual register
-int new_vreg() {
-    vreg_count++;
-    if (vreg_count >= MAX_VREG_COUNT) panic1d("Exceeded max vreg count %d", MAX_VREG_COUNT);
-    return vreg_count;
 }
 
 // Load a value into a register.
@@ -185,17 +93,6 @@ struct value *load_constant(struct value *cv) {
     v->type = TYPE_LONG;
     add_instruction(IR_LOAD_CONSTANT, v, cv, 0);
     return v;
-}
-
-// Create a new typed constant value
-struct value *new_constant(int type, long value) {
-    struct value *cv;
-
-    cv = new_value();
-    cv->value = value;
-    cv->type = type;
-    cv->is_constant = 1;
-    return cv;
 }
 
 // Create a new typed constant value and push it to the stack

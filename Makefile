@@ -159,8 +159,8 @@ test-intset: wc4 test-intset.c intset.c
 run-test-intset: test-intset
 	 ./test-intset
 
-test-ssa: wc4 test-ssa.c ssa.c intset.c
-	./wc4 ssa.c test-ssa.c intset.c -o test-ssa
+test-ssa: wc4 test-ssa.c ssa.c intset.c ir.c utils.c
+	./wc4 ssa.c test-ssa.c intset.c ir.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa
