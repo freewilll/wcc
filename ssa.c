@@ -171,6 +171,115 @@ void make_block_dominance(struct symbol *function) {
     for (i = 0; i < block_count; i++) function->function_dominance[i] = dom[i];
 }
 
+void make_rpo(struct symbol *function, int *rpos, int *pos, int *visited, int block) {
+    struct block *blocks;
+    struct edge *edges;
+    int i, block_count, edge_count;
+
+    if (visited[block]) return;
+    visited[block] = 1;
+
+    blocks = function->function_blocks;
+    block_count = function->function_block_count;
+    edges = function->function_edges;
+    edge_count = function->function_edge_count;
+
+    for (i = 0; i < edge_count; i++) {
+        if (edges[i].from == block) {
+            make_rpo(function, rpos, pos, visited, edges[i].to);
+        }
+    }
+
+    rpos[block] = *pos;
+    (*pos)--;
+}
+
+int intersect(int *rpos, int *idoms, int i, int j) {
+    int f1, f2;
+
+    f1 = i;
+    f2 = j;
+
+    while (f1 != f2) {
+        while (rpos[f1] > rpos[f2]) f1 = idoms[f1];
+        while (rpos[f2] > rpos[f1]) f2 = idoms[f2];
+    }
+
+    return f1;
+}
+
+// Algorithm on page 532 of engineering a compiler
+void make_block_immediate_dominators(struct symbol *function) {
+    struct block *blocks;
+    struct edge *edges;
+    int block_count, edge_count, i, j, changed;
+    int *rpos, pos, *visited, *idoms, *rpos_order, b, p, new_idom;
+
+    blocks = function->function_blocks;
+    block_count = function->function_block_count;
+    edges = function->function_edges;
+    edge_count = function->function_edge_count;
+
+    rpos = malloc(block_count * sizeof(int));
+    memset(rpos, 0, block_count * sizeof(int));
+
+    visited = malloc(block_count * sizeof(int));
+    memset(visited, 0, block_count * sizeof(int));
+
+    pos = block_count - 1;
+    make_rpo(function, rpos, &pos, visited, 0);
+
+    rpos_order = malloc(block_count * sizeof(int));
+    memset(rpos_order, 0, block_count * sizeof(int));
+    for (i = 0; i < block_count; i++) rpos_order[rpos[i]] = i;
+
+    idoms = malloc(block_count * sizeof(int));
+    memset(idoms, 0, block_count * sizeof(int));
+
+    for (i = 0; i < block_count; i++) idoms[i] = -1;
+    idoms[0] = 0;
+
+    changed = 1;
+    while (changed) {
+        changed = 0;
+
+        for (i = 0; i < block_count; i++) {
+            b = rpos_order[i];
+            if (b == 0) continue;
+
+            new_idom = -1;
+            for (j = 0; j < edge_count; j++) {
+                if (edges[j].to != b) continue;
+                p = edges[j].from;
+
+                if (idoms[p] != -1) {
+                    if (new_idom == -1)
+                        new_idom = p;
+                    else
+                        new_idom = intersect(rpos, idoms, p, new_idom);
+                }
+            }
+
+            if (idoms[b] != new_idom) {
+                idoms[b] = new_idom;
+                changed = 1;
+            }
+        }
+    }
+
+    idoms[0] = -1;
+
+    if (DEBUG_SSA) {
+        printf("\nIdoms:\n");
+        for (i = 0; i < block_count; i++) printf("%d: %d\n", i, idoms[i]);
+    }
+
+    function->function_idom = malloc(block_count * sizeof(int));
+    memset(function->function_idom, 0, block_count * sizeof(int));
+
+    for (i = 0; i < block_count; i++) function->function_idom[i] = idoms[i];
+}
+
 void make_uevar_and_varkill(struct symbol *function) {
     struct block *blocks;
     int i, j, block_count;
@@ -247,7 +356,6 @@ void make_liveout(struct symbol *function) {
 
     changed = 1;
     while (changed) {
-        // printf("---\n");
         changed = 0;
 
         for (i = 0; i < block_count; i++) {
@@ -284,6 +392,7 @@ void make_liveout(struct symbol *function) {
 void do_ssa_experiments(struct symbol *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
+    make_block_immediate_dominators(function);
     make_uevar_and_varkill(function);
     make_liveout(function);
 }

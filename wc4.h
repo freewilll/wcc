@@ -35,6 +35,7 @@ struct symbol {
     struct intset **function_uevar;             // For functions, the upward exposed set for each block
     struct intset **function_varkill;           // For functions, the killed var set for each block
     struct intset **function_liveout;           // For functions, the liveout set for each block
+    int *function_idom;                         // For functions, immediate dominator for each block
     int is_enum;                                // Enums are symbols with a value
 };
 

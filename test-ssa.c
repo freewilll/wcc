@@ -154,8 +154,8 @@ void test_liveout1() {
     assert_set(function->function_liveout[4], -1, -1, -1, -1, -1);
 }
 
-// Test example on page 484 of engineering a compiler
-void test_liveout2() {
+// Make IR for the test example on page 484 of engineering a compiler
+struct symbol *make_ir2() {
     struct symbol *function;
     struct three_address_code *tac;
 
@@ -200,6 +200,15 @@ void test_liveout2() {
 
     if (DEBUG_SSA) print_intermediate_representation(function);
 
+    return function;
+}
+
+// Test example on page 484 of engineering a compiler
+void test_liveout2() {
+    struct symbol *function;
+
+    function = make_ir2();
+
     do_ssa_experiments(function);
 
     assert(9, function->function_block_count);
@@ -236,8 +245,27 @@ void test_liveout2() {
     assert_set(function->function_liveout[8],  1,  2,  4,  5, -1);
 }
 
+// Test example on page 484 and 531 of engineering a compiler
+void test_idom2() {
+    struct symbol *function;
+
+    function = make_ir2();
+
+    do_ssa_experiments(function);
+    assert(-1, function->function_idom[0]);
+    assert( 0, function->function_idom[1]);
+    assert( 1, function->function_idom[2]);
+    assert( 1, function->function_idom[3]);
+    assert( 3, function->function_idom[4]);
+    assert( 1, function->function_idom[5]);
+    assert( 5, function->function_idom[6]);
+    assert( 5, function->function_idom[7]);
+    assert( 5, function->function_idom[8]);
+}
+
 int main() {
     test_dominance();
     test_liveout1();
     test_liveout2();
+    test_idom2();
 }
