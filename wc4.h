@@ -11,32 +11,33 @@ struct intset {
 };
 
 struct symbol {
-    int type;                                   // Type
-    int size;                                   // Size
-    char *identifier;                           // Identifier
-    int scope;                                  // Scope
-    long value;                                 // Value in the case of a constant
-    int stack_index;                            // For locals, index on the stack, starting with -1 and going downwards
-    int is_function;                            // Is the symbol a function?
-    int function_param_count;                   // For functions, number of parameters
-    int function_local_symbol_count;            // For functions, number of local symbols
-    int function_vreg_count;                    // For functions, number of virtual registers used in IR
-    int function_spilled_register_count;        // For functions, amount of stack space needed for registers spills
-    int function_call_count;                    // For functions, number of calls to other functions
-    int function_is_defined;                    // For functions, if a definition has been found
-    struct three_address_code *function_ir;     // For functions, intermediate representation
-    int function_builtin;                       // For builtin functions, IR number of the builtin
-    int function_is_variadic;                   // Set to 1 for builtin variadic functions
-    struct block *function_blocks;              // For functions, the blocks
-    int function_block_count;                   //
-    struct edge *function_edges;                // For functions, the edges between blocks
-    int function_edge_count;                    //
-    struct intset **function_dominance;         // For functions, block dominances
-    struct intset **function_uevar;             // For functions, the upward exposed set for each block
-    struct intset **function_varkill;           // For functions, the killed var set for each block
-    struct intset **function_liveout;           // For functions, the liveout set for each block
-    int *function_idom;                         // For functions, immediate dominator for each block
-    int is_enum;                                // Enums are symbols with a value
+    int type;                                     // Type
+    int size;                                     // Size
+    char *identifier;                             // Identifier
+    int scope;                                    // Scope
+    long value;                                   // Value in the case of a constant
+    int stack_index;                              // For locals, index on the stack, starting with -1 and going downwards
+    int is_function;                              // Is the symbol a function?
+    int function_param_count;                     // For functions, number of parameters
+    int function_local_symbol_count;              // For functions, number of local symbols
+    int function_vreg_count;                      // For functions, number of virtual registers used in IR
+    int function_spilled_register_count;          // For functions, amount of stack space needed for registers spills
+    int function_call_count;                      // For functions, number of calls to other functions
+    int function_is_defined;                      // For functions, if a definition has been found
+    struct three_address_code *function_ir;       // For functions, intermediate representation
+    int function_builtin;                         // For builtin functions, IR number of the builtin
+    int function_is_variadic;                     // Set to 1 for builtin variadic functions
+    struct block *function_blocks;                // For functions, the blocks
+    int function_block_count;                     //
+    struct edge *function_edges;                  // For functions, the edges between blocks
+    int function_edge_count;                      //
+    struct intset **function_dominance;           // For functions, block dominances
+    struct intset **function_uevar;               // For functions, the upward exposed set for each block
+    struct intset **function_varkill;             // For functions, the killed var set for each block
+    struct intset **function_liveout;             // For functions, the liveout set for each block
+    int *function_idom;                           // For functions, immediate dominator for each block
+    struct intset **function_dominance_frontiers; // For functions, dominance frontier for each block
+    int is_enum;                                  // Enums are symbols with a value
 };
 
 // struct value is a value on the value stack. A value can be one of

@@ -261,6 +261,17 @@ void test_idom2() {
     assert( 5, function->function_idom[6]);
     assert( 5, function->function_idom[7]);
     assert( 5, function->function_idom[8]);
+
+    // Page 500 of engineering a compiler
+    assert_set(function->function_dominance_frontiers[0], -1, -1, -1, -1, -1);
+    assert_set(function->function_dominance_frontiers[1],  1, -1, -1, -1, -1);
+    assert_set(function->function_dominance_frontiers[2],  3, -1, -1, -1, -1);
+    assert_set(function->function_dominance_frontiers[3],  1, -1, -1, -1, -1);
+    assert_set(function->function_dominance_frontiers[4], -1, -1, -1, -1, -1);
+    assert_set(function->function_dominance_frontiers[5],  3, -1, -1, -1, -1);
+    assert_set(function->function_dominance_frontiers[6],  7, -1, -1, -1, -1);
+    assert_set(function->function_dominance_frontiers[7],  3, -1, -1, -1, -1);
+    assert_set(function->function_dominance_frontiers[8],  7, -1, -1, -1, -1);
 }
 
 int main() {

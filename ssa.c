@@ -280,6 +280,60 @@ void make_block_immediate_dominators(struct symbol *function) {
     for (i = 0; i < block_count; i++) function->function_idom[i] = idoms[i];
 }
 
+// Algorithm on page 499 of engineering a compiler
+void make_block_dominance_frontiers(struct symbol *function) {
+    struct block *blocks;
+    struct edge *edges;
+    int block_count, edge_count, i, j;
+    struct intset **df;
+    int *predecessors, predecessor_count, p, runner, *idom;
+
+    blocks = function->function_blocks;
+    block_count = function->function_block_count;
+    edges = function->function_edges;
+    edge_count = function->function_edge_count;
+
+    df = malloc(block_count * sizeof(struct intset));
+    memset(df, 0, block_count * sizeof(struct intset));
+
+    for (i = 0; i < block_count; i++) df[i] = new_intset();
+
+    predecessors = malloc(block_count * sizeof(int));
+
+    idom = function->function_idom;
+
+    for (i = 0; i < block_count; i++) {
+        predecessor_count = 0;
+        for (j = 0; j < edge_count; j++) {
+            if (edges[j].to == i)
+                predecessors[predecessor_count++] = edges[j].from;
+        }
+
+        if (predecessor_count > 1) {
+            for (j = 0; j < predecessor_count; j++) {
+                p = predecessors[j];
+                runner = p;
+                while (runner != idom[i]) {
+                    add_to_set(df[runner], i);
+                    runner = idom[runner];
+                }
+            }
+        }
+    }
+
+    function->function_dominance_frontiers = malloc(block_count * sizeof(struct intset *));
+    for (i = 0; i < block_count; i++) function->function_dominance_frontiers[i] = df[i];
+
+    if (DEBUG_SSA) {
+        printf("\nDominance frontiers:\n");
+        for (i = 0; i < block_count; i++) {
+            printf("%d: ", i);
+            print_set(df[i]);
+            printf("\n");
+        }
+    }
+}
+
 void make_uevar_and_varkill(struct symbol *function) {
     struct block *blocks;
     int i, j, block_count;
@@ -393,6 +447,7 @@ void do_ssa_experiments(struct symbol *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
     make_block_immediate_dominators(function);
+    make_block_dominance_frontiers(function);
     make_uevar_and_varkill(function);
     make_liveout(function);
 }
