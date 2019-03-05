@@ -208,7 +208,6 @@ void test_liveout2() {
     struct symbol *function;
 
     function = make_ir2();
-
     do_ssa_experiments(function);
 
     assert(9, function->function_block_count);
@@ -250,8 +249,8 @@ void test_idom2() {
     struct symbol *function;
 
     function = make_ir2();
-
     do_ssa_experiments(function);
+
     assert(-1, function->function_idom[0]);
     assert( 0, function->function_idom[1]);
     assert( 1, function->function_idom[2]);
@@ -274,9 +273,38 @@ void test_idom2() {
     assert_set(function->function_dominance_frontiers[8],  7, -1, -1, -1, -1);
 }
 
+void test_phi_function_list2() {
+    struct symbol *function;
+
+    function = make_ir2();
+    do_ssa_experiments(function);
+
+    // Page 502 of engineering a compiler
+    assert_set(function->function_globals, 1, 2, 3, 4, 5);
+
+    assert_set(function->function_var_blocks[1],  0,  3, -1, -1, -1); // i
+    assert_set(function->function_var_blocks[2],  1,  5, -1, -1, -1); // a
+    assert_set(function->function_var_blocks[3],  2,  7, -1, -1, -1); // b
+    assert_set(function->function_var_blocks[4],  1,  2,  8, -1, -1); // c
+    assert_set(function->function_var_blocks[5],  2,  5,  6, -1, -1); // d
+    assert_set(function->function_var_blocks[6],  3, -1, -1, -1, -1); // y
+    assert_set(function->function_var_blocks[7],  3, -1, -1, -1, -1); // z
+
+    // Page 503 of engineering a compiler
+    assert_set(function->function_phi_functions[0], -1, -1, -1, -1, -1);
+    assert_set(function->function_phi_functions[1],  1,  2,  3,  4,  5);
+    assert_set(function->function_phi_functions[2], -1, -1, -1, -1, -1);
+    assert_set(function->function_phi_functions[3],  2,  3,  4,  5, -1);
+    assert_set(function->function_phi_functions[4], -1, -1, -1, -1, -1);
+    assert_set(function->function_phi_functions[5], -1, -1, -1, -1, -1);
+    assert_set(function->function_phi_functions[6], -1, -1, -1, -1, -1);
+    assert_set(function->function_phi_functions[7],  4,  5, -1, -1, -1);
+}
+
 int main() {
     test_dominance();
     test_liveout1();
     test_liveout2();
     test_idom2();
+    test_phi_function_list2();
 }

@@ -21,6 +21,25 @@ void empty_set(struct intset *s) {
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) s->elements[i] = 0;
 }
 
+struct intset *copy_intset(struct intset *s) {
+    struct intset *result;
+    int i;
+
+    result = new_intset();
+    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) result->elements[i] = s->elements[i];
+
+    return result;
+}
+
+int set_len(struct intset *s) {
+    int i, result;
+
+    result = 0;
+    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) if (s->elements[i]) result++;
+
+    return result;
+}
+
 void print_set(struct intset *s) {
     int i;
     int first;

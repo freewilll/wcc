@@ -37,6 +37,9 @@ struct symbol {
     struct intset **function_liveout;             // For functions, the liveout set for each block
     int *function_idom;                           // For functions, immediate dominator for each block
     struct intset **function_dominance_frontiers; // For functions, dominance frontier for each block
+    struct intset **function_var_blocks;          // For functions, var/block associations for vars that are written to
+    struct intset *function_globals;              // For functions, all variables that are assigned to
+    struct intset **function_phi_functions;       // For functions, all variables that need phi functions for each block
     int is_enum;                                  // Enums are symbols with a value
 };
 
@@ -372,6 +375,8 @@ void *f; // Output file handle
 // intset.c
 struct intset *new_intset();
 void empty_set(struct intset *s);
+struct intset *copy_intset(struct intset *s);
+int set_len(struct intset *s);
 void print_set(struct intset *s);
 void *add_to_set(struct intset *s, int value);
 int in_set(struct intset *s, int value);

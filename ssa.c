@@ -281,6 +281,8 @@ void make_block_immediate_dominators(struct symbol *function) {
 }
 
 // Algorithm on page 499 of engineering a compiler
+// Walk the dominator tree defined by the idom (immediate dominator)s.
+
 void make_block_dominance_frontiers(struct symbol *function) {
     struct block *blocks;
     struct edge *edges;
@@ -443,6 +445,113 @@ void make_liveout(struct symbol *function) {
     }
 }
 
+// Algorithm on page 501 of engineering a compiler
+void make_globals_and_var_blocks(struct symbol *function) {
+    struct block *blocks;
+    int i, j, block_count, vreg_count;
+    struct intset *globals, **var_blocks, *varkill;
+    struct three_address_code *tac, **flat_tac;
+
+    blocks = function->function_blocks;
+    block_count = function->function_block_count;
+
+    globals = new_intset();
+
+    vreg_count = 0;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
+        tac = tac->next;
+    }
+
+    var_blocks = malloc((vreg_count + 1) * sizeof(struct intset *));
+    memset(var_blocks, 0, (vreg_count + 1) * sizeof(struct intset *));
+    for (i = 1; i <= vreg_count; i++) var_blocks[i] = new_intset();
+
+    flat_tac = make_flat_tac(function->function_ir);
+    globals = new_intset();
+
+    for (i = 0; i < block_count; i++) {
+        varkill = new_intset();
+
+        for (j = blocks[i].start; j <= blocks[i].end; j++) {
+            tac = flat_tac[j];
+            if (tac->src1 && tac->src1->vreg && !in_set(varkill, tac->src1->vreg)) add_to_set(globals, tac->src1->vreg);
+            if (tac->src2 && tac->src2->vreg && !in_set(varkill, tac->src2->vreg)) add_to_set(globals, tac->src2->vreg);
+            if (tac->dst && tac->dst->vreg) {
+                add_to_set(varkill, tac->dst->vreg);
+                add_to_set(var_blocks[tac->dst->vreg], i);
+            }
+        }
+    }
+
+    function->function_var_blocks = var_blocks;
+
+    if (DEBUG_SSA) {
+        printf("\nvar write blocks:\n");
+        for (i = 1; i <= vreg_count; i++) {
+            printf("%d: ", i);
+            print_set(var_blocks[i]);
+            printf("\n");
+        }
+
+        printf("\nFunction globals: ");
+        print_set(globals);
+        printf("\n");
+    }
+
+    function->function_globals = globals;
+}
+
+// Algorithm on page 501 of engineering a compiler
+void insert_phi_functions(struct symbol *function) {
+    struct intset *globals, *global_blocks, *work_list, *df;
+    int i, block_count, global, b, d;
+    struct intset **phi_functions;
+
+    block_count = function->function_block_count;
+    globals = function->function_globals;
+
+    phi_functions = malloc(block_count * sizeof(struct intset *));
+    for (i = 0; i < block_count; i++) phi_functions[i] = new_intset();
+
+    for (global = 0; global < MAX_INT_SET_ELEMENTS; global++) {
+        if (!globals->elements[global]) continue;
+
+        work_list = copy_intset(function->function_var_blocks[global]);
+
+        while (set_len(work_list)) {
+            for (b = 0; b < MAX_INT_SET_ELEMENTS; b++) {
+                if (!work_list->elements[b]) continue;
+                delete_from_set(work_list, b);
+
+                df = function->function_dominance_frontiers[b];
+                for (d = 0; d < MAX_INT_SET_ELEMENTS; d++) {
+                    if (!df->elements[d]) continue;
+
+                    if (!in_set(phi_functions[d], global)) {
+                        add_to_set(phi_functions[d], global);
+                        add_to_set(work_list, d);
+                    }
+                }
+            }
+        }
+    }
+
+    function->function_phi_functions = phi_functions;
+
+    if (DEBUG_SSA) {
+        printf("phi functions to add:\n");
+        for (b = 0; b < block_count; b++) {
+            printf("%d: ", b);
+            print_set(phi_functions[b]);
+            printf("\n");
+        }
+    }
+}
+
 void do_ssa_experiments(struct symbol *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
@@ -450,4 +559,6 @@ void do_ssa_experiments(struct symbol *function) {
     make_block_dominance_frontiers(function);
     make_uevar_and_varkill(function);
     make_liveout(function);
+    make_globals_and_var_blocks(function);
+    insert_phi_functions(function);
 }
