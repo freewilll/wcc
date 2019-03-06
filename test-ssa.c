@@ -273,7 +273,14 @@ void test_idom2() {
     assert_set(function->function_dominance_frontiers[8],  7, -1, -1, -1, -1);
 }
 
-void test_phi_function_list2() {
+void check_phi(struct three_address_code *tac, int vreg) {
+    assert(IR_PHI_FUNCTION, tac->operation);
+    assert(vreg, tac->dst->vreg);
+    assert(vreg, tac->src1->vreg);
+    assert(vreg, tac->src2->vreg);
+}
+
+void test_phi_insertion2() {
     struct symbol *function;
 
     function = make_ir2();
@@ -299,6 +306,29 @@ void test_phi_function_list2() {
     assert_set(function->function_phi_functions[5], -1, -1, -1, -1, -1);
     assert_set(function->function_phi_functions[6], -1, -1, -1, -1, -1);
     assert_set(function->function_phi_functions[7],  4,  5, -1, -1, -1);
+
+    // Check the pre existing labels have been moved
+    assert(0, function->function_blocks[0].start->label);
+    assert(1, function->function_blocks[1].start->label);
+    assert(0, function->function_blocks[2].start->label);
+    assert(3, function->function_blocks[3].start->label);
+    assert(0, function->function_blocks[4].start->label);
+    assert(5, function->function_blocks[5].start->label);
+    assert(0, function->function_blocks[6].start->label);
+    assert(7, function->function_blocks[7].start->label);
+
+    // Check phi functions are in place
+    check_phi(function->function_blocks[1].start,                         1); // i
+    check_phi(function->function_blocks[1].start->next,                   2); // a
+    check_phi(function->function_blocks[1].start->next->next,             3); // b
+    check_phi(function->function_blocks[1].start->next->next->next,       4); // c
+    check_phi(function->function_blocks[1].start->next->next->next->next, 5); // d
+    // check_phi(function->function_blocks[3].start,                         2); // a
+    // check_phi(function->function_blocks[3].start->next,                   3); // b
+    // check_phi(function->function_blocks[3].start->next->next,             4); // c
+    // check_phi(function->function_blocks[3].start->next->next->next,       5); // d
+    // check_phi(function->function_blocks[7].start,                         4); // c
+    // check_phi(function->function_blocks[7].start->next,                   5); // d
 }
 
 int main() {
@@ -306,5 +336,5 @@ int main() {
     test_liveout1();
     test_liveout2();
     test_idom2();
-    test_phi_function_list2();
+    test_phi_insertion2();
 }

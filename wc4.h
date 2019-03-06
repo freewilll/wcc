@@ -251,6 +251,7 @@ enum {
     IR_GT,                  // >
     IR_LE,                  // <=
     IR_GE,                  // >=
+    IR_PHI_FUNCTION,        // SSA phi function
     IR_EXIT,                // Builtin functions
     IR_FOPEN,
     IR_FREAD,

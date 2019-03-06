@@ -217,6 +217,14 @@ void print_instruction(void *f, struct three_address_code *tac) {
     else if (tac->operation == IR_JMP)
         fprintf(f, "jmp l%d", tac->src1->label);
 
+    else if (tac->operation == IR_PHI_FUNCTION) {
+        fprintf(f, "Φ(");
+        print_value(f, tac->src1, 1);
+        fprintf(f, ", ");
+        print_value(f, tac->src1, 2);
+        fprintf(f, ")");
+    }
+
     else if (tac->operation == IR_INDIRECT)      {                               fprintf(f, "*");    print_value(f, tac->src1, 1); }
     else if (tac->operation == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");  print_value(f, tac->src2, 1); }

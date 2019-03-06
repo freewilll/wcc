@@ -505,9 +505,12 @@ void make_globals_and_var_blocks(struct symbol *function) {
 // Algorithm on page 501 of engineering a compiler
 void insert_phi_functions(struct symbol *function) {
     struct intset *globals, *global_blocks, *work_list, *df;
-    int i, block_count, global, b, d;
-    struct intset **phi_functions;
+    int i, v, block_count, global, b, d, label;
+    struct intset **phi_functions, *vars;
+    struct block *blocks;
+    struct three_address_code *tac, *prev;
 
+    blocks = function->function_blocks;
     block_count = function->function_block_count;
     globals = function->function_globals;
 
@@ -539,13 +542,39 @@ void insert_phi_functions(struct symbol *function) {
 
     function->function_phi_functions = phi_functions;
 
-    if (DEBUG_SSA) {
-        printf("phi functions to add:\n");
-        for (b = 0; b < block_count; b++) {
+    if (DEBUG_SSA) printf("phi functions to add:\n");
+    for (b = 0; b < block_count; b++) {
+        if (DEBUG_SSA) {
             printf("%d: ", b);
             print_set(phi_functions[b]);
             printf("\n");
         }
+
+        label = blocks[b].start->label;
+        blocks[b].start->label = 0;
+
+        vars = phi_functions[b];
+        for (v = MAX_INT_SET_ELEMENTS - 1; v >= 0; v--) {
+            if (!vars->elements[v]) continue;
+
+            tac = new_instruction(IR_PHI_FUNCTION);
+            tac->src1 = new_value(); tac->src1->type = TYPE_LONG; tac->src1->vreg = v;
+            tac->src2 = new_value(); tac->src2->type = TYPE_LONG; tac->src2->vreg = v;
+            tac->dst  = new_value(); tac->dst ->type = TYPE_LONG; tac->dst-> vreg = v;
+
+            prev = blocks[b].start->prev;
+            tac->prev = prev;
+            tac->next = blocks[b].start;
+            prev->next = tac;
+            blocks[b].start = tac;
+        }
+
+        blocks[b].start->label = label;
+    }
+
+    if (DEBUG_SSA) {
+        printf("\nIR with phi functions:\n");
+        print_intermediate_representation(function);
     }
 }
 
