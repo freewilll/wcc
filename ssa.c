@@ -578,7 +578,170 @@ void insert_phi_functions(struct symbol *function) {
     }
 }
 
-void do_ssa_experiments(struct symbol *function) {
+int new_subscript(struct stack **stack, int *counters, int n) {
+    int i;
+
+    i = counters[n]++;
+    push_onto_stack(stack[n], i);
+
+    return i;
+}
+
+void print_stack_and_counters(struct stack **stack, int *counters, int vreg_count) {
+    int i;
+
+    printf("         ");
+    for (i = 1; i <= vreg_count; i++) printf("%-2d ", i);
+    printf("\n");
+    printf("counters ");
+    for (i = 1; i <= vreg_count; i++) printf("%-2d ", counters[i]);
+    printf("\n");
+    printf("stack    ");
+    for (i = 1; i <= vreg_count; i++) {
+        if (stack[i]->pos == MAX_STACK_SIZE)
+            printf("   ");
+        else
+            printf("%-2d ", stack_top(stack[i]));
+    }
+    printf("\n");
+}
+
+// Algorithm on page 506 of engineering a compiler
+void rename_vars(struct symbol *function, struct stack **stack, int *counters, int block_number, int vreg_count) {
+    struct three_address_code *tac, *tac2, *end;
+    int i, x, block_count, edge_count;
+    struct block *blocks;
+    struct edge *edges;
+    struct block *b;
+    int *idoms;
+
+    if (DEBUG_SSA_PHI_RENUMBERING) {
+        printf("\n----------------------------------------\nrename_vars\n");
+        print_stack_and_counters(stack, counters, vreg_count);
+        printf("\n");
+    }
+
+    blocks = function->function_blocks;
+    block_count = function->function_block_count;
+    edges = function->function_edges;
+    edge_count = function->function_edge_count;
+    idoms = function->function_idom;
+
+    b = &blocks[block_number];
+
+    // Rewrite phi function dsts
+    if (DEBUG_SSA_PHI_RENUMBERING) printf("Rewriting phi function dsts\n");
+    tac = b->start;
+    while (tac->operation == IR_PHI_FUNCTION) {
+        // Rewrite x as new_subscript(x)
+        if (DEBUG_SSA_PHI_RENUMBERING) printf("Renaming %d ", tac->dst->vreg);
+        tac->dst->ssa_subscript = new_subscript(stack, counters, tac->dst->vreg);
+        if (DEBUG_SSA_PHI_RENUMBERING) printf("to %d in phi function\n", tac->dst->vreg);
+
+        if (tac == b->end) break;
+        tac = tac->next;
+    }
+
+    // Rewrite operations
+    if (DEBUG_SSA_PHI_RENUMBERING) printf("Rewriting operations\n");
+    tac = b->start;
+    while (1) {
+        if (tac->operation != IR_PHI_FUNCTION) {
+            // printf("checking rewrite "); print_instruction(stdout, tac);
+            if (tac->src1 && tac->src1->vreg) {
+                tac->src1->ssa_subscript = stack_top(stack[tac->src1->vreg]);
+                if (DEBUG_SSA_PHI_RENUMBERING)  printf("rewrote src1 %d\n", tac->src1->vreg);
+            }
+            if (tac->src2 && tac->src2->vreg) {
+                tac->src2->ssa_subscript = stack_top(stack[tac->src2->vreg]);
+                if (DEBUG_SSA_PHI_RENUMBERING)  printf("rewrote src2 %d\n", tac->src2->vreg);
+            }
+
+            if (tac->dst && tac->dst->vreg) {
+                tac->dst->ssa_subscript = new_subscript(stack, counters, tac->dst->vreg);
+                if (DEBUG_SSA_PHI_RENUMBERING)  printf("got new name for dst %d\n", tac->dst->vreg);
+            }
+        }
+
+        if (tac == b->end) break;
+        tac = tac->next;
+    }
+
+    // Rewrite phi function parameters in successors
+    if (DEBUG_SSA_PHI_RENUMBERING) printf("Rewriting successor function params\n");
+    for (i = 0; i < edge_count; i++) {
+        if (edges[i].from != block_number) continue;
+        if (DEBUG_SSA_PHI_RENUMBERING) printf("Successor %d\n", edges[i].to);
+        tac = function->function_blocks[edges[i].to].start;
+        end = function->function_blocks[edges[i].to].end;
+        while (1) {
+            if (tac->operation == IR_PHI_FUNCTION) {
+                if (tac->src1->ssa_subscript == -1) {
+                    tac->src1->ssa_subscript = stack_top(stack[tac->src1->vreg]);
+                    if (DEBUG_SSA_PHI_RENUMBERING) printf("  rw src1 to %d\n", tac->src1->vreg);
+                }
+                else {
+                    tac->src2->ssa_subscript = stack_top(stack[tac->src2->vreg]);
+                    if (DEBUG_SSA_PHI_RENUMBERING) printf("  rw src2 to %d\n", tac->src2->vreg);
+                }
+            }
+            if (tac == end) break;
+            tac = tac->next;
+        }
+    }
+
+    // Recurse down the dominator tree
+    for (i = 0; i < block_count; i++) {
+        if (idoms[i] == block_number) {
+            if (DEBUG_SSA_PHI_RENUMBERING) printf("going into idom successor %d\n", i);
+            rename_vars(function, stack, counters, i, vreg_count);
+        }
+    }
+
+    // Pop contents of current block assignments off of the stack
+    if (DEBUG_SSA_PHI_RENUMBERING) printf("Block done. Cleaning up stack\n");
+    tac = b->start;
+    while (1) {
+        if (tac->dst && tac->dst->vreg) {
+            pop_from_stack(stack[tac->dst->vreg]);
+        }
+        if (tac == b->end) break;
+        tac = tac->next;
+    }
+}
+
+// Algorithm on page 506 of engineering a compiler
+void rename_phi_function_variables_common_prep(struct symbol *function, struct stack ***stack, int **counters, int *vreg_count) {
+    int i;
+    struct three_address_code *tac;
+
+    *vreg_count = 0;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > *vreg_count) *vreg_count = tac->dst ->vreg;
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > *vreg_count) *vreg_count = tac->src1->vreg;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > *vreg_count) *vreg_count = tac->src2->vreg;
+        tac = tac->next;
+    }
+
+    *counters = malloc((*vreg_count + 1) * sizeof(int));
+    memset(*counters, 0, (*vreg_count + 1) * sizeof(int));
+
+    *stack = malloc((*vreg_count + 1) * sizeof(struct stack *));
+    for (i = 1; i <= *vreg_count; i++) (*stack)[i] = new_stack();
+}
+
+// Algorithm on page 506 of engineering a compiler
+void rename_phi_function_variables(struct symbol *function) {
+    int vreg_count;
+    int *counters;
+    struct stack **stack;
+
+    rename_phi_function_variables_common_prep(function, &stack, &counters, &vreg_count);
+    rename_vars(function, stack, counters, 0, vreg_count);
+}
+
+void do_ssa_experiments_common_prep(struct symbol *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
     make_block_immediate_dominators(function);
@@ -587,4 +750,9 @@ void do_ssa_experiments(struct symbol *function) {
     make_liveout(function);
     make_globals_and_var_blocks(function);
     insert_phi_functions(function);
+}
+
+void do_ssa_experiments(struct symbol *function, int rename_vars) {
+    do_ssa_experiments_common_prep(function);
+    if (rename_vars) rename_phi_function_variables(function);
 }

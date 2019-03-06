@@ -32,6 +32,7 @@ struct value *new_value() {
     memset(v, 0, sizeof(struct value));
     v->preg = -1;
     v->spilled_stack_index = -1;
+    v->ssa_subscript = -1;
 
     return v;
 }
@@ -67,6 +68,7 @@ struct value *dup_value(struct value *src) {
     dst->function_call_arg_count   = src->function_call_arg_count;
     dst->global_symbol             = src->global_symbol;
     dst->label                     = src->label;
+    dst->ssa_subscript             = src->ssa_subscript;
 
     return dst;
 }
@@ -134,8 +136,10 @@ void print_value(void *f, struct value *v, int is_assignment_rhs) {
         fprintf(f, "p%d", v->preg);
     else if (v->spilled_stack_index != -1)
         fprintf(f, "S[%d]", v->spilled_stack_index);
-    else if (v->vreg)
+    else if (v->vreg) {
         fprintf(f, "r%d", v->vreg);
+        if (v->ssa_subscript != -1) fprintf(f, "_%d", v->ssa_subscript);
+    }
     else if (v->stack_index)
         fprintf(f, "s[%d]", v->stack_index);
     else if (v->global_symbol)
@@ -221,7 +225,7 @@ void print_instruction(void *f, struct three_address_code *tac) {
         fprintf(f, "Φ(");
         print_value(f, tac->src1, 1);
         fprintf(f, ", ");
-        print_value(f, tac->src1, 2);
+        print_value(f, tac->src2, 2);
         fprintf(f, ")");
     }
 

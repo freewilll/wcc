@@ -10,6 +10,11 @@ struct intset {
     int *elements;
 };
 
+struct stack {
+    int *elements;
+    int pos;
+};
+
 struct symbol {
     int type;                                     // Type
     int size;                                     // Size
@@ -69,6 +74,7 @@ struct value {
     int original_is_lvalue;
     int original_vreg;
     int pushed_stack_aligned_quad;  // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
+    int ssa_subscript;              // Optional SSA enumeration
 };
 
 struct three_address_code {
@@ -133,10 +139,12 @@ enum {
     MAX_INT_SET_ELEMENTS       = 1024,
     MAX_BLOCKS                 = 1024,
     MAX_BLOCK_EDGES            = 1024,
+    MAX_STACK_SIZE             = 10240,
 };
 
 enum {
     DEBUG_SSA = 0,
+    DEBUG_SSA_PHI_RENUMBERING = 0,
 };
 
 // Tokens in order of precedence
@@ -388,6 +396,12 @@ struct intset *set_intersection(struct intset *s1, struct intset *s2);
 struct intset *set_union(struct intset *s1, struct intset *s2);
 struct intset *set_difference(struct intset *s1, struct intset *s2);
 
+// stack.c
+struct stack *new_stack();
+int stack_top(struct stack *s);
+void push_onto_stack(struct stack *s, int v);
+int pop_from_stack(struct stack *s);
+
 // utils.c
 void panic(char *message);
 void panic1d(char *fmt, int i);
@@ -430,7 +444,11 @@ void optimize_ir(struct symbol *function);
 void allocate_registers(struct three_address_code *ir);
 
 // ssa.c
-void do_ssa_experiments(struct symbol *function);
+int new_subscript(struct stack **stack, int *counters, int n);
+void rename_vars(struct symbol *function, struct stack **stack, int *counters, int block_number, int vreg_count);
+void rename_phi_function_variables_common_prep(struct symbol *function, struct stack ***stack, int **counters, int *vreg_count);
+void do_ssa_experiments_common_prep(struct symbol *function);
+void do_ssa_experiments(struct symbol *function, int rename_phi_function_variables);
 void make_control_flow_graph(struct symbol *function);
 void make_block_dominance(struct symbol *function);
 void make_liveout(struct symbol *function);

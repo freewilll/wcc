@@ -9,6 +9,7 @@ SOURCES = \
   codegen.c \
   utils.c \
   intset.c \
+  stack.c \
 
 # OBJECTS := ${SOURCES:c=o}
 ASSEMBLIES := ${SOURCES:c=s}
@@ -159,8 +160,8 @@ test-intset: wc4 test-intset.c intset.c
 run-test-intset: test-intset
 	 ./test-intset
 
-test-ssa: wc4 test-ssa.c ssa.c intset.c ir.c utils.c
-	./wc4 ssa.c test-ssa.c intset.c ir.c utils.c -o test-ssa
+test-ssa: wc4 test-ssa.c ssa.c intset.c stack.c ir.c utils.c
+	./wc4 ssa.c test-ssa.c intset.c stack.c ir.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa

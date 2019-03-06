@@ -130,7 +130,7 @@ void test_liveout1() {
 
     if (DEBUG_SSA) print_intermediate_representation(function);
 
-    do_ssa_experiments(function);
+    do_ssa_experiments(function, 0);
 
     assert(5, function->function_block_count);
     assert(6, function->function_edge_count);
@@ -208,7 +208,7 @@ void test_liveout2() {
     struct symbol *function;
 
     function = make_ir2();
-    do_ssa_experiments(function);
+    do_ssa_experiments(function, 0);
 
     assert(9, function->function_block_count);
     assert(11, function->function_edge_count);
@@ -249,7 +249,7 @@ void test_idom2() {
     struct symbol *function;
 
     function = make_ir2();
-    do_ssa_experiments(function);
+    do_ssa_experiments(function, 0);
 
     assert(-1, function->function_idom[0]);
     assert( 0, function->function_idom[1]);
@@ -284,7 +284,7 @@ void test_phi_insertion2() {
     struct symbol *function;
 
     function = make_ir2();
-    do_ssa_experiments(function);
+    do_ssa_experiments(function, 0);
 
     // Page 502 of engineering a compiler
     assert_set(function->function_globals, 1, 2, 3, 4, 5);
@@ -323,12 +323,58 @@ void test_phi_insertion2() {
     check_phi(function->function_blocks[1].start->next->next,             3); // b
     check_phi(function->function_blocks[1].start->next->next->next,       4); // c
     check_phi(function->function_blocks[1].start->next->next->next->next, 5); // d
-    // check_phi(function->function_blocks[3].start,                         2); // a
-    // check_phi(function->function_blocks[3].start->next,                   3); // b
-    // check_phi(function->function_blocks[3].start->next->next,             4); // c
-    // check_phi(function->function_blocks[3].start->next->next->next,       5); // d
-    // check_phi(function->function_blocks[7].start,                         4); // c
-    // check_phi(function->function_blocks[7].start->next,                   5); // d
+    check_phi(function->function_blocks[3].start,                         2); // a
+    check_phi(function->function_blocks[3].start->next,                   3); // b
+    check_phi(function->function_blocks[3].start->next->next,             4); // c
+    check_phi(function->function_blocks[3].start->next->next->next,       5); // d
+    check_phi(function->function_blocks[7].start,                         4); // c
+    check_phi(function->function_blocks[7].start->next,                   5); // d
+}
+
+// Check renumbered phi functions
+void check_rphi(struct three_address_code *tac, int dst_vreg, int dst_ss, int src1_vreg, int src1_ss, int src2_vreg, int src2_ss) {
+    assert(IR_PHI_FUNCTION, tac->operation);
+    assert(dst_vreg,  tac->dst ->vreg); assert(dst_ss,  tac->dst ->ssa_subscript);
+    assert(src1_vreg, tac->src1->vreg); assert(src1_ss, tac->src1->ssa_subscript);
+    assert(src2_vreg, tac->src2->vreg); assert(src2_ss, tac->src2->ssa_subscript);
+}
+
+void test_phi_renumbering() {
+    struct symbol *function;
+    int vreg_count;
+    int *counters;
+    struct stack **stack;
+
+    function = make_ir2();
+    do_ssa_experiments_common_prep(function);
+
+    rename_phi_function_variables_common_prep(function, &stack, &counters, &vreg_count);
+
+    // Special case for example, assume a, b, c, d are defined before B0
+    new_subscript(stack, counters, 2);
+    new_subscript(stack, counters, 3);
+    new_subscript(stack, counters, 4);
+    new_subscript(stack, counters, 5);
+
+    rename_vars(function, stack, counters, 0, vreg_count);
+
+    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function);
+
+    // Check renumberd args to phi functions are correct, page 509.
+    // No effort is done to validate all other vars. It's safe to assume that
+    // if the phi functions are correct, then it's pretty likely the other
+    // vars are ok too.
+    check_rphi(function->function_blocks[1].start,                         1, 1,  1, 0,  1, 2); // i
+    check_rphi(function->function_blocks[1].start->next,                   2, 1,  2, 0,  2, 3); // a
+    check_rphi(function->function_blocks[1].start->next->next,             3, 1,  3, 0,  3, 3); // b
+    check_rphi(function->function_blocks[1].start->next->next->next,       4, 1,  4, 0,  4, 4); // c
+    check_rphi(function->function_blocks[1].start->next->next->next->next, 5, 1,  5, 0,  5, 3); // d
+    check_rphi(function->function_blocks[3].start,                         2, 3,  2, 2,  2, 4); // a
+    check_rphi(function->function_blocks[3].start->next,                   3, 3,  3, 2,  3, 4); // b
+    check_rphi(function->function_blocks[3].start->next->next,             4, 4,  4, 3,  4, 5); // c
+    check_rphi(function->function_blocks[3].start->next->next->next,       5, 3,  5, 2,  5, 6); // d
+    check_rphi(function->function_blocks[7].start,                         4, 5,  4, 2,  4, 6); // c
+    check_rphi(function->function_blocks[7].start->next,                   5, 6,  5, 5,  5, 4); // d
 }
 
 int main() {
@@ -337,4 +383,5 @@ int main() {
     test_liveout2();
     test_idom2();
     test_phi_insertion2();
+    test_phi_renumbering();
 }
