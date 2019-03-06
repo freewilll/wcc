@@ -1,5 +1,5 @@
 struct block {
-    int start, end;
+    struct three_address_code *start, *end;
 };
 
 struct edge {
@@ -72,6 +72,7 @@ struct value {
 };
 
 struct three_address_code {
+    int index;                          // Index in a tac chain
     int operation;                      // IR_* operation
     int label;                          // Label if this instruction is jumped to
     struct value *dst;                  // Destination

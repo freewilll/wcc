@@ -4,32 +4,22 @@
 
 #include "wc4.h"
 
-struct three_address_code **make_flat_tac(struct three_address_code *ir) {
-    struct three_address_code *tac, **result;
-    int i, ir_len;
+void index_tac(struct three_address_code *ir) {
+    struct three_address_code *tac;
+    int i;
 
-    tac = ir;
-    ir_len = 0;
-    while (tac) {
-        tac = tac->next;
-        ir_len++;
-    }
-
-    result = malloc(ir_len * sizeof(struct three_address_code *));
     tac = ir;
     i = 0;
     while (tac) {
-        result[i] = tac;
+        tac->index = i;
         tac = tac->next;
         i++;
     }
-
-    return result;
 }
 
 void make_control_flow_graph(struct symbol *function) {
-    struct three_address_code *tac, **flat_tac;
-    int i, j, k, ir_len, block_count, edge_count, label;
+    struct three_address_code *tac;
+    int i, j, k, block_count, edge_count, label;
     struct block *blocks;
     struct edge *edges;
 
@@ -37,44 +27,42 @@ void make_control_flow_graph(struct symbol *function) {
 
     blocks = malloc(MAX_BLOCKS * sizeof(struct block));
     memset(blocks, 0, MAX_BLOCKS * sizeof(struct block));
-    blocks[0].start = 0;
+    blocks[0].start = function->function_ir;
     block_count = 1;
 
-    i = 0;
     tac = function->function_ir;
     while (tac) {
         if (tac->label) {
-            blocks[block_count - 1].end = i - 1;
-            blocks[block_count++].start = i;
+            blocks[block_count - 1].end = tac->prev;
+            blocks[block_count++].start = tac;
         }
 
         // Start a new block after a conditional jump.
         // Check if a label is set so that we don't get a double block
         if (tac->next && !tac->next->label && (tac->operation == IR_JZ || tac->operation == IR_JNZ)) {
-            blocks[block_count - 1].end = i;
-            blocks[block_count++].start = i + 1;
+            blocks[block_count - 1].end = tac;
+            blocks[block_count++].start = tac->next;
         }
 
-        i++;
         tac = tac->next;
     }
-    ir_len = i;
-    blocks[block_count - 1].end = ir_len - 1;
 
-    flat_tac = make_flat_tac(function->function_ir);
+    tac = function->function_ir;
+    while (tac->next) tac = tac->next;
+    blocks[block_count - 1].end = tac;
 
     edges = malloc(MAX_BLOCK_EDGES * sizeof(struct edge));
     memset(edges, 0, MAX_BLOCK_EDGES * sizeof(struct edge));
     edge_count = 0;
-    for (i = 0; i < block_count; i++) {
-        for (j = blocks[i].start; j <= blocks[i].end; j++) {
-            tac = flat_tac[j];
 
+    for (i = 0; i < block_count; i++) {
+        tac = blocks[i].start;
+        while (1) {
             if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ) {
                 label = tac->operation == IR_JMP ? tac->src1->label : tac->src2->label;
                 edges[edge_count].from = i;
                 for (k = 0; k < block_count; k++)
-                    if (flat_tac[blocks[k].start]->label == label) edges[edge_count].to = k;
+                    if (blocks[k].start->label == label) edges[edge_count].to = k;
                 edge_count++;
             }
             else if (tac->operation != IR_RETURN && tac->next && tac->next->label) {
@@ -89,6 +77,9 @@ void make_control_flow_graph(struct symbol *function) {
                 edges[edge_count].to = i + 1;
                 edge_count++;
             }
+
+            if (tac == blocks[i].end) break;
+            tac = tac->next;
         }
     }
 
@@ -97,9 +88,11 @@ void make_control_flow_graph(struct symbol *function) {
     function->function_edges = edges;
     function->function_edge_count = edge_count;
 
+    index_tac(function->function_ir);
+
     if (DEBUG_SSA) {
         printf("Blocks:\n");
-        for (i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start, blocks[i].end);
+        for (i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start->index, blocks[i].end->index);
 
         printf("\nEdges:\n");
         for (i = 0; i < edge_count; i++) printf("%d: %d -> %d\n", i, edges[i].from, edges[i].to);
@@ -340,7 +333,7 @@ void make_uevar_and_varkill(struct symbol *function) {
     struct block *blocks;
     int i, j, block_count;
     struct intset *uevar, *varkill;
-    struct three_address_code *tac, **flat_tac;
+    struct three_address_code *tac;
 
     blocks = function->function_blocks;
     block_count = function->function_block_count;
@@ -350,19 +343,20 @@ void make_uevar_and_varkill(struct symbol *function) {
     function->function_varkill = malloc(block_count * sizeof(struct intset *));
     memset(function->function_varkill, 0, block_count * sizeof(struct intset *));
 
-    flat_tac = make_flat_tac(function->function_ir);
-
     for (i = 0; i < block_count; i++) {
         uevar = new_intset();
         varkill = new_intset();
         function->function_uevar[i] = uevar;
         function->function_varkill[i] = varkill;
 
-        for (j = blocks[i].start; j <= blocks[i].end; j++) {
-            tac = flat_tac[j];
+        tac = blocks[i].start;
+        while (1) {
             if (tac->src1 && tac->src1->vreg && !in_set(varkill, tac->src1->vreg)) add_to_set(uevar, tac->src1->vreg);
             if (tac->src2 && tac->src2->vreg && !in_set(varkill, tac->src2->vreg)) add_to_set(uevar, tac->src2->vreg);
             if (tac->dst && tac->dst->vreg) add_to_set(varkill, tac->dst->vreg);
+
+            if (tac == blocks[i].end) break;
+            tac = tac->next;
         }
     }
 
@@ -383,7 +377,7 @@ void make_liveout(struct symbol *function) {
     struct edge *edges;
     int i, j, block_count, edge_count, changed, successor_block;
     struct intset *unions, **liveout, *all_vars, *inv_varkill, *is;
-    struct three_address_code *tac, **flat_tac;
+    struct three_address_code *tac;
 
     blocks = function->function_blocks;
     block_count = function->function_block_count;
@@ -398,15 +392,16 @@ void make_liveout(struct symbol *function) {
         function->function_liveout[i] = new_intset();
 
     // Set all_vars to {0, 1, 2, ... n}, i.e. the set of all vars in a block
-    flat_tac = make_flat_tac(function->function_ir);
-
     all_vars = new_intset();
     for (i = 0; i < block_count; i++) {
-        for (j = blocks[i].start; j <= blocks[i].end; j++) {
-            tac = flat_tac[j];
+        tac = blocks[i].start;
+        while (1) {
             if (tac->src1 && tac->src1->vreg) add_to_set(all_vars, tac->src1->vreg);
             if (tac->src2 && tac->src2->vreg) add_to_set(all_vars, tac->src2->vreg);
             if (tac->dst && tac->dst->vreg) add_to_set(all_vars, tac->dst->vreg);
+
+            if (tac == blocks[i].end) break;
+            tac = tac->next;
         }
     }
 
@@ -450,7 +445,7 @@ void make_globals_and_var_blocks(struct symbol *function) {
     struct block *blocks;
     int i, j, block_count, vreg_count;
     struct intset *globals, **var_blocks, *varkill;
-    struct three_address_code *tac, **flat_tac;
+    struct three_address_code *tac;
 
     blocks = function->function_blocks;
     block_count = function->function_block_count;
@@ -470,20 +465,22 @@ void make_globals_and_var_blocks(struct symbol *function) {
     memset(var_blocks, 0, (vreg_count + 1) * sizeof(struct intset *));
     for (i = 1; i <= vreg_count; i++) var_blocks[i] = new_intset();
 
-    flat_tac = make_flat_tac(function->function_ir);
     globals = new_intset();
 
     for (i = 0; i < block_count; i++) {
         varkill = new_intset();
 
-        for (j = blocks[i].start; j <= blocks[i].end; j++) {
-            tac = flat_tac[j];
+        tac = blocks[i].start;
+        while (1) {
             if (tac->src1 && tac->src1->vreg && !in_set(varkill, tac->src1->vreg)) add_to_set(globals, tac->src1->vreg);
             if (tac->src2 && tac->src2->vreg && !in_set(varkill, tac->src2->vreg)) add_to_set(globals, tac->src2->vreg);
             if (tac->dst && tac->dst->vreg) {
                 add_to_set(varkill, tac->dst->vreg);
                 add_to_set(var_blocks[tac->dst->vreg], i);
             }
+
+            if (tac == blocks[i].end) break;
+            tac = tac->next;
         }
     }
 
