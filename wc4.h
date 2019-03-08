@@ -449,8 +449,6 @@ void allocate_registers(struct three_address_code *ir);
 int new_subscript(struct stack **stack, int *counters, int n);
 void rename_vars(struct symbol *function, struct stack **stack, int *counters, int block_number, int vreg_count);
 void make_live_ranges(struct symbol *function);
-void rename_phi_function_variables_common_prep(struct symbol *function, struct stack ***stack, int **counters, int *vreg_count);
-void do_ssa_experiments_common_prep(struct symbol *function);
 void do_ssa_experiments(struct symbol *function, int rename_phi_function_variables);
 void make_control_flow_graph(struct symbol *function);
 void make_block_dominance(struct symbol *function);

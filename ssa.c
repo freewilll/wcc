@@ -711,33 +711,26 @@ void rename_vars(struct symbol *function, struct stack **stack, int *counters, i
 }
 
 // Algorithm on page 506 of engineering a compiler
-void rename_phi_function_variables_common_prep(struct symbol *function, struct stack ***stack, int **counters, int *vreg_count) {
-    int i;
+void rename_phi_function_variables(struct symbol *function) {
+    int i, vreg_count, *counters;
+    struct stack **stack;
     struct three_address_code *tac;
 
-    *vreg_count = 0;
+    vreg_count = 0;
     tac = function->function_ir;
     while (tac) {
-        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > *vreg_count) *vreg_count = tac->dst ->vreg;
-        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > *vreg_count) *vreg_count = tac->src1->vreg;
-        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > *vreg_count) *vreg_count = tac->src2->vreg;
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
         tac = tac->next;
     }
 
-    *counters = malloc((*vreg_count + 1) * sizeof(int));
-    memset(*counters, 0, (*vreg_count + 1) * sizeof(int));
+    counters = malloc((vreg_count + 1) * sizeof(int));
+    memset(counters, 0, (vreg_count + 1) * sizeof(int));
 
-    *stack = malloc((*vreg_count + 1) * sizeof(struct stack *));
-    for (i = 1; i <= *vreg_count; i++) (*stack)[i] = new_stack();
-}
+    stack = malloc((vreg_count + 1) * sizeof(struct stack *));
+    for (i = 1; i <= vreg_count; i++) stack[i] = new_stack();
 
-// Algorithm on page 506 of engineering a compiler
-void rename_phi_function_variables(struct symbol *function) {
-    int vreg_count;
-    int *counters;
-    struct stack **stack;
-
-    rename_phi_function_variables_common_prep(function, &stack, &counters, &vreg_count);
     rename_vars(function, stack, counters, 0, vreg_count);
 }
 
@@ -893,7 +886,7 @@ void make_live_ranges(struct symbol *function) {
     if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function);
 }
 
-void do_ssa_experiments_common_prep(struct symbol *function) {
+void do_ssa_experiments(struct symbol *function, int rename_vars) {
     make_control_flow_graph(function);
     make_block_dominance(function);
     make_block_immediate_dominators(function);
@@ -902,10 +895,7 @@ void do_ssa_experiments_common_prep(struct symbol *function) {
     make_liveout(function);
     make_globals_and_var_blocks(function);
     insert_phi_functions(function);
-}
 
-void do_ssa_experiments(struct symbol *function, int rename_vars) {
-    do_ssa_experiments_common_prep(function);
     if (rename_vars) {
         rename_phi_function_variables(function);
         make_live_ranges(function);

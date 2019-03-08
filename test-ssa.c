@@ -155,7 +155,7 @@ void test_liveout1() {
 }
 
 // Make IR for the test example on page 484 of engineering a compiler
-struct symbol *make_ir2() {
+struct symbol *make_ir2(int init_four_vars) {
     struct symbol *function;
     struct three_address_code *tac;
 
@@ -172,6 +172,15 @@ struct symbol *make_ir2() {
     // z = 7
     ir_start = 0;
     i(0, IR_NOP,     0,    0,    0   );
+
+    if (init_four_vars) {
+        // Initialize a, b, c, d
+        i(0, IR_ASSIGN,  v(2), c(1), 0);
+        i(0, IR_ASSIGN,  v(3), c(1), 0);
+        i(0, IR_ASSIGN,  v(4), c(1), 0);
+        i(0, IR_ASSIGN,  v(5), c(1), 0);
+    }
+
     i(0, IR_ASSIGN,  v(1), c(1), 0   );
     i(1, IR_ASSIGN,  v(2), c(1), 0   );
     i(0, IR_ASSIGN,  v(4), c(1), 0   );
@@ -207,7 +216,7 @@ struct symbol *make_ir2() {
 void test_liveout2() {
     struct symbol *function;
 
-    function = make_ir2();
+    function = make_ir2(0);
     do_ssa_experiments(function, 0);
 
     assert(9, function->function_block_count);
@@ -248,7 +257,7 @@ void test_liveout2() {
 void test_idom2() {
     struct symbol *function;
 
-    function = make_ir2();
+    function = make_ir2(0);
     do_ssa_experiments(function, 0);
 
     assert(-1, function->function_idom[0]);
@@ -283,7 +292,7 @@ void check_phi(struct three_address_code *tac, int vreg) {
 void test_phi_insertion2() {
     struct symbol *function;
 
-    function = make_ir2();
+    function = make_ir2(0);
     do_ssa_experiments(function, 0);
 
     // Page 502 of engineering a compiler
@@ -346,18 +355,8 @@ void test_phi_renumbering() {
     struct stack **stack;
     struct three_address_code *tac;
 
-    function = make_ir2();
-    do_ssa_experiments_common_prep(function);
-
-    rename_phi_function_variables_common_prep(function, &stack, &counters, &vreg_count);
-
-    // Special case for example, assume a, b, c, d are defined before B0
-    new_subscript(stack, counters, 2);
-    new_subscript(stack, counters, 3);
-    new_subscript(stack, counters, 4);
-    new_subscript(stack, counters, 5);
-
-    rename_vars(function, stack, counters, 0, vreg_count);
+    function = make_ir2(1);
+    do_ssa_experiments(function, 1);
 
     if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function);
 
@@ -377,7 +376,6 @@ void test_phi_renumbering() {
     check_rphi(function->function_blocks[7].start,                         4, 5,  4, 2,  4, 6); // c
     check_rphi(function->function_blocks[7].start->next,                   5, 6,  5, 5,  5, 4); // d
 
-    make_live_ranges(function);
 
     // In the textbook example, all variables end up being mapped straight onto their own live ranges
     tac = function->function_ir;
