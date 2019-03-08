@@ -104,23 +104,23 @@ void make_block_dominance(struct symbol *function) {
     struct block *blocks;
     struct edge *edges;
     int i, j, block_count, edge_count, changed, got_predecessors;
-    struct intset **dom, *is, *pred_intersections;
+    struct set **dom, *is, *pred_intersections;
 
     blocks = function->function_blocks;
     block_count = function->function_block_count;
     edges = function->function_edges;
     edge_count = function->function_edge_count;
 
-    dom = malloc(block_count * sizeof(struct intset));
-    memset(dom, 0, block_count * sizeof(struct intset));
+    dom = malloc(block_count * sizeof(struct set));
+    memset(dom, 0, block_count * sizeof(struct set));
 
     // dom[0] = {0}
-    dom[0] = new_intset();
+    dom[0] = new_set();
     add_to_set(dom[0], 0);
 
     // dom[1 to n] = {0,1,2,..., n}, i.e. the set of all blocks
     for (i = 1; i < block_count; i++) {
-        dom[i] = new_intset();
+        dom[i] = new_set();
         for (j = 0; j < block_count; j++) add_to_set(dom[i], j);
     }
 
@@ -131,7 +131,7 @@ void make_block_dominance(struct symbol *function) {
         changed = 0;
 
         for (i = 0; i < block_count; i++) {
-            pred_intersections = new_intset();
+            pred_intersections = new_set();
             for (j = 0; j < block_count; j++) add_to_set(pred_intersections, j);
             got_predecessors = 0;
 
@@ -143,10 +143,10 @@ void make_block_dominance(struct symbol *function) {
                 }
             }
 
-            if (!got_predecessors) pred_intersections = new_intset();
+            if (!got_predecessors) pred_intersections = new_set();
 
             // Union with {i}
-            is = new_intset();
+            is = new_set();
             add_to_set(is, i);
             is = set_union(is, pred_intersections);
 
@@ -158,8 +158,8 @@ void make_block_dominance(struct symbol *function) {
         }
     }
 
-    function->function_dominance = malloc(block_count * sizeof(struct intset));
-    memset(function->function_dominance, 0, block_count * sizeof(struct intset));
+    function->function_dominance = malloc(block_count * sizeof(struct set));
+    memset(function->function_dominance, 0, block_count * sizeof(struct set));
 
     for (i = 0; i < block_count; i++) function->function_dominance[i] = dom[i];
 }
@@ -280,7 +280,7 @@ void make_block_dominance_frontiers(struct symbol *function) {
     struct block *blocks;
     struct edge *edges;
     int block_count, edge_count, i, j;
-    struct intset **df;
+    struct set **df;
     int *predecessors, predecessor_count, p, runner, *idom;
 
     blocks = function->function_blocks;
@@ -288,10 +288,10 @@ void make_block_dominance_frontiers(struct symbol *function) {
     edges = function->function_edges;
     edge_count = function->function_edge_count;
 
-    df = malloc(block_count * sizeof(struct intset));
-    memset(df, 0, block_count * sizeof(struct intset));
+    df = malloc(block_count * sizeof(struct set));
+    memset(df, 0, block_count * sizeof(struct set));
 
-    for (i = 0; i < block_count; i++) df[i] = new_intset();
+    for (i = 0; i < block_count; i++) df[i] = new_set();
 
     predecessors = malloc(block_count * sizeof(int));
 
@@ -316,7 +316,7 @@ void make_block_dominance_frontiers(struct symbol *function) {
         }
     }
 
-    function->function_dominance_frontiers = malloc(block_count * sizeof(struct intset *));
+    function->function_dominance_frontiers = malloc(block_count * sizeof(struct set *));
     for (i = 0; i < block_count; i++) function->function_dominance_frontiers[i] = df[i];
 
     if (DEBUG_SSA) {
@@ -332,20 +332,20 @@ void make_block_dominance_frontiers(struct symbol *function) {
 void make_uevar_and_varkill(struct symbol *function) {
     struct block *blocks;
     int i, j, block_count;
-    struct intset *uevar, *varkill;
+    struct set *uevar, *varkill;
     struct three_address_code *tac;
 
     blocks = function->function_blocks;
     block_count = function->function_block_count;
 
-    function->function_uevar = malloc(block_count * sizeof(struct intset *));
-    memset(function->function_uevar, 0, block_count * sizeof(struct intset *));
-    function->function_varkill = malloc(block_count * sizeof(struct intset *));
-    memset(function->function_varkill, 0, block_count * sizeof(struct intset *));
+    function->function_uevar = malloc(block_count * sizeof(struct set *));
+    memset(function->function_uevar, 0, block_count * sizeof(struct set *));
+    function->function_varkill = malloc(block_count * sizeof(struct set *));
+    memset(function->function_varkill, 0, block_count * sizeof(struct set *));
 
     for (i = 0; i < block_count; i++) {
-        uevar = new_intset();
-        varkill = new_intset();
+        uevar = new_set();
+        varkill = new_set();
         function->function_uevar[i] = uevar;
         function->function_varkill[i] = varkill;
 
@@ -376,7 +376,7 @@ void make_liveout(struct symbol *function) {
     struct block *blocks;
     struct edge *edges;
     int i, j, block_count, edge_count, changed, successor_block;
-    struct intset *unions, **liveout, *all_vars, *inv_varkill, *is;
+    struct set *unions, **liveout, *all_vars, *inv_varkill, *is;
     struct three_address_code *tac;
 
     blocks = function->function_blocks;
@@ -384,15 +384,15 @@ void make_liveout(struct symbol *function) {
     edges = function->function_edges;
     edge_count = function->function_edge_count;
 
-    function->function_liveout = malloc(block_count * sizeof(struct intset *));
-    memset(function->function_liveout, 0, block_count * sizeof(struct intset *));
+    function->function_liveout = malloc(block_count * sizeof(struct set *));
+    memset(function->function_liveout, 0, block_count * sizeof(struct set *));
 
     // Set all liveouts to {0}
     for (i = 0; i < block_count; i++)
-        function->function_liveout[i] = new_intset();
+        function->function_liveout[i] = new_set();
 
     // Set all_vars to {0, 1, 2, ... n}, i.e. the set of all vars in a block
-    all_vars = new_intset();
+    all_vars = new_set();
     for (i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
@@ -410,7 +410,7 @@ void make_liveout(struct symbol *function) {
         changed = 0;
 
         for (i = 0; i < block_count; i++) {
-            unions = new_intset();
+            unions = new_set();
 
             for (j = 0; j < edge_count; j++) {
                 if (edges[j].from != i) continue;
@@ -444,13 +444,13 @@ void make_liveout(struct symbol *function) {
 void make_globals_and_var_blocks(struct symbol *function) {
     struct block *blocks;
     int i, j, block_count, vreg_count;
-    struct intset *globals, **var_blocks, *varkill;
+    struct set *globals, **var_blocks, *varkill;
     struct three_address_code *tac;
 
     blocks = function->function_blocks;
     block_count = function->function_block_count;
 
-    globals = new_intset();
+    globals = new_set();
 
     vreg_count = 0;
     tac = function->function_ir;
@@ -461,14 +461,14 @@ void make_globals_and_var_blocks(struct symbol *function) {
         tac = tac->next;
     }
 
-    var_blocks = malloc((vreg_count + 1) * sizeof(struct intset *));
-    memset(var_blocks, 0, (vreg_count + 1) * sizeof(struct intset *));
-    for (i = 1; i <= vreg_count; i++) var_blocks[i] = new_intset();
+    var_blocks = malloc((vreg_count + 1) * sizeof(struct set *));
+    memset(var_blocks, 0, (vreg_count + 1) * sizeof(struct set *));
+    for (i = 1; i <= vreg_count; i++) var_blocks[i] = new_set();
 
-    globals = new_intset();
+    globals = new_set();
 
     for (i = 0; i < block_count; i++) {
-        varkill = new_intset();
+        varkill = new_set();
 
         tac = blocks[i].start;
         while (1) {
@@ -504,9 +504,9 @@ void make_globals_and_var_blocks(struct symbol *function) {
 
 // Algorithm on page 501 of engineering a compiler
 void insert_phi_functions(struct symbol *function) {
-    struct intset *globals, *global_blocks, *work_list, *df;
+    struct set *globals, *global_blocks, *work_list, *df;
     int i, v, block_count, global, b, d, label;
-    struct intset **phi_functions, *vars;
+    struct set **phi_functions, *vars;
     struct block *blocks;
     struct three_address_code *tac, *prev;
 
@@ -514,13 +514,13 @@ void insert_phi_functions(struct symbol *function) {
     block_count = function->function_block_count;
     globals = function->function_globals;
 
-    phi_functions = malloc(block_count * sizeof(struct intset *));
-    for (i = 0; i < block_count; i++) phi_functions[i] = new_intset();
+    phi_functions = malloc(block_count * sizeof(struct set *));
+    for (i = 0; i < block_count; i++) phi_functions[i] = new_set();
 
     for (global = 0; global < MAX_INT_SET_ELEMENTS; global++) {
         if (!globals->elements[global]) continue;
 
-        work_list = copy_intset(function->function_var_blocks[global]);
+        work_list = copy_set(function->function_var_blocks[global]);
 
         while (set_len(work_list)) {
             for (b = 0; b < MAX_INT_SET_ELEMENTS; b++) {
@@ -741,13 +741,13 @@ void make_live_ranges(struct symbol *function) {
     int dst, src1, src2;
     struct three_address_code *tac, *prev;
     int *map, first;
-    struct intset *ssa_vars, **live_ranges;
-    struct intset *dst_set, *src1_set, *src2_set, *s;
+    struct set *ssa_vars, **live_ranges;
+    struct set *dst_set, *src1_set, *src2_set, *s;
     int dst_set_index, src1_set_index, src2_set_index;
 
     if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function);
 
-    ssa_vars = new_intset();
+    ssa_vars = new_set();
     vreg_count = 0;
     ssa_subscript_count = 0;
     tac = function->function_ir;
@@ -775,10 +775,10 @@ void make_live_ranges(struct symbol *function) {
 
     // Create live ranges sets for all variables, each set with the variable itself in it
     live_range_count = (vreg_count + 1) * ssa_subscript_count;
-    live_ranges = malloc(live_range_count * sizeof(struct intset *));
+    live_ranges = malloc(live_range_count * sizeof(struct set *));
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) {
         if (!ssa_vars->elements[i]) continue;
-        live_ranges[i] = new_intset();
+        live_ranges[i] = new_set();
         add_to_set(live_ranges[i], i);
     }
 
@@ -804,8 +804,8 @@ void make_live_ranges(struct symbol *function) {
 
             s = set_union(set_union(dst_set, src1_set), src2_set);
             live_ranges[dst_set_index] = s;
-            live_ranges[src1_set_index] = new_intset();
-            live_ranges[src2_set_index] = new_intset();
+            live_ranges[src1_set_index] = new_set();
+            live_ranges[src2_set_index] = new_set();
         }
         tac = tac->next;
     }

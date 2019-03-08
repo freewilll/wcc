@@ -8,7 +8,7 @@ SOURCES = \
   ssa.c \
   codegen.c \
   utils.c \
-  intset.c \
+  set.c \
   stack.c \
 
 # OBJECTS := ${SOURCES:c=o}
@@ -154,20 +154,20 @@ test-include/test-include: wc4 test-include/include.h test-include/main.c test-i
 run-test-include: test-include/test-include
 	test-include/test-include
 
-test-intset: wc4 test-intset.c intset.c
-	./wc4 intset.c test-intset.c -o test-intset
+test-set: wc4 test-set.c set.c
+	./wc4 set.c test-set.c -o test-set
 
-run-test-intset: test-intset
-	 ./test-intset
+run-test-set: test-set
+	 ./test-set
 
-test-ssa: wc4 test-ssa.c ssa.c intset.c stack.c ir.c utils.c
-	./wc4 ssa.c test-ssa.c intset.c stack.c ir.c utils.c -o test-ssa
+test-ssa: wc4 test-ssa.c ssa.c set.c stack.c ir.c utils.c
+	./wc4 ssa.c test-ssa.c set.c stack.c ir.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa
 
 .PHONY: test
-test: run-test-intset run-test-ssa run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
+test: run-test-set run-test-ssa run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
 
 clean:
 	@rm -f wc4
@@ -181,7 +181,7 @@ clean:
 	@rm -f test-wc4-gcc
 	@rm -f test-wc4-frp-ncr
 	@rm -f test-wc4-O1
-	@rm -f test-intset
+	@rm -f test-set
 	@rm -f test-ssa
 	@rm -f benchmark
 	@rm -f *.s

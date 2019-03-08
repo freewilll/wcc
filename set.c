@@ -4,34 +4,34 @@
 
 #include "wc4.h"
 
-struct intset *new_intset() {
-    struct intset *result;
+struct set *new_set() {
+    struct set *result;
 
-    result = malloc(sizeof(struct intset *));
-    memset(result, 0, sizeof(struct intset *));
+    result = malloc(sizeof(struct set *));
+    memset(result, 0, sizeof(struct set *));
     result->elements = malloc(MAX_INT_SET_ELEMENTS * sizeof(int));
     memset(result->elements, 0, MAX_INT_SET_ELEMENTS * sizeof(int));
 
     return result;
 }
 
-void empty_set(struct intset *s) {
+void empty_set(struct set *s) {
     int i;
 
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) s->elements[i] = 0;
 }
 
-struct intset *copy_intset(struct intset *s) {
-    struct intset *result;
+struct set *copy_set(struct set *s) {
+    struct set *result;
     int i;
 
-    result = new_intset();
+    result = new_set();
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) result->elements[i] = s->elements[i];
 
     return result;
 }
 
-int set_len(struct intset *s) {
+int set_len(struct set *s) {
     int i, result;
 
     result = 0;
@@ -40,7 +40,7 @@ int set_len(struct intset *s) {
     return result;
 }
 
-void print_set(struct intset *s) {
+void print_set(struct set *s) {
     int i;
     int first;
 
@@ -56,19 +56,19 @@ void print_set(struct intset *s) {
     printf("}");
 }
 
-void *add_to_set(struct intset *s, int value) {
+void *add_to_set(struct set *s, int value) {
     s->elements[value] = 1;
 }
 
-void *delete_from_set(struct intset *s, int value) {
+void *delete_from_set(struct set *s, int value) {
     s->elements[value] = 0;
 }
 
-int in_set(struct intset *s, int value) {
+int in_set(struct set *s, int value) {
     return s->elements[value] == 1;
 }
 
-int set_eq(struct intset *s1, struct intset *s2) {
+int set_eq(struct set *s1, struct set *s2) {
     int i;
 
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
@@ -77,33 +77,33 @@ int set_eq(struct intset *s1, struct intset *s2) {
     return 1;
 }
 
-struct intset *set_intersection(struct intset *s1, struct intset *s2) {
-    struct intset *result;
+struct set *set_intersection(struct set *s1, struct set *s2) {
+    struct set *result;
     int i;
 
-    result = new_intset();
+    result = new_set();
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
         result->elements[i] = s1->elements[i] && s2->elements[i];
 
     return result;
 }
 
-struct intset *set_union(struct intset *s1, struct intset *s2) {
-    struct intset *result;
+struct set *set_union(struct set *s1, struct set *s2) {
+    struct set *result;
     int i;
 
-    result = new_intset();
+    result = new_set();
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
         result->elements[i] = s1->elements[i] || s2->elements[i];
 
     return result;
 }
 
-struct intset *set_difference(struct intset *s1, struct intset *s2) {
-    struct intset *result;
+struct set *set_difference(struct set *s1, struct set *s2) {
+    struct set *result;
     int i;
 
-    result = new_intset();
+    result = new_set();
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
         result->elements[i] = s1->elements[i] && !s2->elements[i];
 

@@ -9,10 +9,10 @@ void assert(int expected, int actual) {
     }
 }
 
-void assert_set(struct intset *set, int v1, int v2, int v3, int v4, int v5) {
-    struct intset *is;
+void assert_set(struct set *set, int v1, int v2, int v3, int v4, int v5) {
+    struct set *is;
 
-    is = new_intset();
+    is = new_set();
     if (v1 != -1) add_to_set(is, v1);
     if (v2 != -1) add_to_set(is, v2);
     if (v3 != -1) add_to_set(is, v3);

@@ -6,7 +6,7 @@ struct edge {
     int from, to;
 };
 
-struct intset {
+struct set {
     int *elements;
 };
 
@@ -36,15 +36,15 @@ struct symbol {
     int function_block_count;                     //
     struct edge *function_edges;                  // For functions, the edges between blocks
     int function_edge_count;                      //
-    struct intset **function_dominance;           // For functions, block dominances
-    struct intset **function_uevar;               // For functions, the upward exposed set for each block
-    struct intset **function_varkill;             // For functions, the killed var set for each block
-    struct intset **function_liveout;             // For functions, the liveout set for each block
+    struct set **function_dominance;           // For functions, block dominances
+    struct set **function_uevar;               // For functions, the upward exposed set for each block
+    struct set **function_varkill;             // For functions, the killed var set for each block
+    struct set **function_liveout;             // For functions, the liveout set for each block
     int *function_idom;                           // For functions, immediate dominator for each block
-    struct intset **function_dominance_frontiers; // For functions, dominance frontier for each block
-    struct intset **function_var_blocks;          // For functions, var/block associations for vars that are written to
-    struct intset *function_globals;              // For functions, all variables that are assigned to
-    struct intset **function_phi_functions;       // For functions, all variables that need phi functions for each block
+    struct set **function_dominance_frontiers; // For functions, dominance frontier for each block
+    struct set **function_var_blocks;          // For functions, var/block associations for vars that are written to
+    struct set *function_globals;              // For functions, all variables that are assigned to
+    struct set **function_phi_functions;       // For functions, all variables that need phi functions for each block
     int is_enum;                                  // Enums are symbols with a value
 };
 
@@ -384,19 +384,19 @@ int debug_register_allocations;
 void *f; // Output file handle
 
 
-// intset.c
-struct intset *new_intset();
-void empty_set(struct intset *s);
-struct intset *copy_intset(struct intset *s);
-int set_len(struct intset *s);
-void print_set(struct intset *s);
-void *add_to_set(struct intset *s, int value);
-int in_set(struct intset *s, int value);
-int set_eq(struct intset *s1, struct intset *s2);
-void *delete_from_set(struct intset *s, int value);
-struct intset *set_intersection(struct intset *s1, struct intset *s2);
-struct intset *set_union(struct intset *s1, struct intset *s2);
-struct intset *set_difference(struct intset *s1, struct intset *s2);
+// set.c
+struct set *new_set();
+void empty_set(struct set *s);
+struct set *copy_set(struct set *s);
+int set_len(struct set *s);
+void print_set(struct set *s);
+void *add_to_set(struct set *s, int value);
+int in_set(struct set *s, int value);
+int set_eq(struct set *s1, struct set *s2);
+void *delete_from_set(struct set *s, int value);
+struct set *set_intersection(struct set *s1, struct set *s2);
+struct set *set_union(struct set *s1, struct set *s2);
+struct set *set_difference(struct set *s1, struct set *s2);
 
 // stack.c
 struct stack *new_stack();
