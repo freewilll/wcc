@@ -130,7 +130,7 @@ void test_liveout1() {
 
     if (DEBUG_SSA) print_intermediate_representation(function);
 
-    do_ssa_experiments(function, 0);
+    do_ssa_experiments1(function);
 
     assert(5, function->function_block_count);
     assert(6, function->function_edge_count);
@@ -217,7 +217,7 @@ void test_liveout2() {
     struct symbol *function;
 
     function = make_ir2(0);
-    do_ssa_experiments(function, 0);
+    do_ssa_experiments1(function);
 
     assert(9, function->function_block_count);
     assert(11, function->function_edge_count);
@@ -258,7 +258,7 @@ void test_idom2() {
     struct symbol *function;
 
     function = make_ir2(0);
-    do_ssa_experiments(function, 0);
+    do_ssa_experiments1(function);
 
     assert(-1, function->function_idom[0]);
     assert( 0, function->function_idom[1]);
@@ -289,11 +289,11 @@ void check_phi(struct three_address_code *tac, int vreg) {
     assert(vreg, tac->src2->vreg);
 }
 
-void test_phi_insertion2() {
+void test_phi_insertion() {
     struct symbol *function;
 
     function = make_ir2(0);
-    do_ssa_experiments(function, 0);
+    do_ssa_experiments1(function);
 
     // Page 502 of engineering a compiler
     assert_set(function->function_globals, 1, 2, 3, 4, 5);
@@ -356,11 +356,12 @@ void test_phi_renumbering() {
     struct three_address_code *tac;
 
     function = make_ir2(1);
-    do_ssa_experiments(function, 1);
+    do_ssa_experiments1(function);
+    rename_phi_function_variables(function);
 
     if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function);
 
-    // Check renumberd args to phi functions are correct, page 509.
+    // Check renumbered args to phi functions are correct, page 509.
     // No effort is done to validate all other vars. It's safe to assume that
     // if the phi functions are correct, then it's pretty likely the other
     // vars are ok too.
@@ -376,16 +377,83 @@ void test_phi_renumbering() {
     check_rphi(function->function_blocks[7].start,                         4, 5,  4, 2,  4, 6); // c
     check_rphi(function->function_blocks[7].start->next,                   5, 6,  5, 5,  5, 4); // d
 
-
     // In the textbook example, all variables end up being mapped straight onto their own live ranges
+    make_live_ranges(function);
     tac = function->function_ir;
     while (tac) {
-        if (tac->dst  && tac->dst ->vreg) assert(tac->dst ->vreg, tac->dst ->live_range + 1);
-        if (tac->src1 && tac->src1->vreg) assert(tac->src1->vreg, tac->src1->live_range + 1);
-        if (tac->src2 && tac->src2->vreg) assert(tac->src2->vreg, tac->src2->live_range + 1);
-
+        if (tac->dst  && tac->dst ->vreg) assert(tac->dst ->vreg, tac->dst ->live_range);
+        if (tac->src1 && tac->src1->vreg) assert(tac->src1->vreg, tac->src1->live_range);
+        if (tac->src2 && tac->src2->vreg) assert(tac->src2->vreg, tac->src2->live_range);
         tac = tac->next;
     }
+}
+
+void test_interference_graph1() {
+    struct symbol *function;
+    struct edge *ig;
+
+    function = malloc(sizeof(struct symbol));
+    memset(function, 0, sizeof(struct symbol));
+
+    ir_start = 0;
+    i(0, IR_NOP,    0,    0,    0   );
+    i(0, IR_ASSIGN, v(1), c(1), 0   ); // a = 0
+    i(0, IR_JZ,     0,    v(1), l(1)); // jz l1
+    i(0, IR_ASSIGN, v(2), c(0), 0   ); // b   = 0
+    i(0, IR_ADD,    0,    v(2), v(2)); // ... = b
+    i(0, IR_ASSIGN, v(4), c(0), 0   ); // d   = 0
+    i(0, IR_JMP,     0,   l(2), 0   ); // jmp l2
+    i(1, IR_NOP,    0,    0,    0   );
+    i(0, IR_ASSIGN, v(3), c(0), 0   ); // c   = 0
+    i(0, IR_ASSIGN, v(4), v(3), 0   ); // d   = c
+    i(2, IR_NOP,    0,    0,    0   );
+    i(0, IR_ADD,    0,    v(1), v(1)); // ... = a
+    i(0, IR_ADD,    0,    v(4), v(4)); // ... = d
+
+    function->function_ir = ir_start;
+    function->identifier = "test";
+
+    do_ssa_experiments1(function);
+    do_ssa_experiments2(function);
+
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function);
+
+    ig = function->function_interference_graph;
+    assert(3, function->function_interference_graph_edge_count);
+    assert(1, ig[0].from); assert(2, ig[0].to);
+    assert(1, ig[1].from); assert(3, ig[1].to);
+    assert(1, ig[2].from); assert(4, ig[2].to);
+}
+
+void test_interference_graph2() {
+    struct symbol *function;
+    struct edge *ig;
+
+    function = malloc(sizeof(struct symbol));
+    memset(function, 0, sizeof(struct symbol));
+
+    function = make_ir2(1);
+    do_ssa_experiments1(function);
+    do_ssa_experiments2(function);
+
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function);
+
+    ig = function->function_interference_graph;
+    assert(14, function->function_interference_graph_edge_count);
+    assert(1, ig[ 0].from); assert(2, ig[ 0].to);
+    assert(1, ig[ 1].from); assert(3, ig[ 1].to);
+    assert(1, ig[ 2].from); assert(4, ig[ 2].to);
+    assert(1, ig[ 3].from); assert(5, ig[ 3].to);
+    assert(1, ig[ 4].from); assert(6, ig[ 4].to);
+    assert(1, ig[ 5].from); assert(7, ig[ 5].to);
+    assert(2, ig[ 6].from); assert(3, ig[ 6].to);
+    assert(2, ig[ 7].from); assert(4, ig[ 7].to);
+    assert(2, ig[ 8].from); assert(5, ig[ 8].to);
+    assert(3, ig[ 9].from); assert(4, ig[ 9].to);
+    assert(3, ig[10].from); assert(5, ig[10].to);
+    assert(4, ig[11].from); assert(5, ig[11].to);
+    assert(4, ig[12].from); assert(6, ig[12].to);
+    assert(5, ig[13].from); assert(6, ig[13].to);
 }
 
 int main() {
@@ -393,6 +461,8 @@ int main() {
     test_liveout1();
     test_liveout2();
     test_idom2();
-    test_phi_insertion2();
+    test_phi_insertion();
     test_phi_renumbering();
+    test_interference_graph1();
+    test_interference_graph2();
 }

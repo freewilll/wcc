@@ -799,7 +799,10 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir2) print_intermediate_representation(s);
 
-        if (experimental_ssa) do_ssa_experiments(s, 1);
+        if (experimental_ssa) {
+            do_ssa_experiments1(s);
+            do_ssa_experiments2(s);
+        }
 
         if (debug_register_allocations) print_liveness(s);
         allocate_registers(s->function_ir);

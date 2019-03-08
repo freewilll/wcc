@@ -91,6 +91,8 @@ void make_control_flow_graph(struct symbol *function) {
     index_tac(function->function_ir);
 
     if (DEBUG_SSA) {
+        print_intermediate_representation(function);
+
         printf("Blocks:\n");
         for (i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start->index, blocks[i].end->index);
 
@@ -440,6 +442,21 @@ void make_liveout(struct symbol *function) {
     }
 }
 
+void make_vreg_count(struct symbol *function) {
+    int vreg_count;
+    struct three_address_code *tac;
+
+    vreg_count = 0;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
+        tac = tac->next;
+    }
+    function->function_vreg_count = vreg_count;
+}
+
 // Algorithm on page 501 of engineering a compiler
 void make_globals_and_var_blocks(struct symbol *function) {
     struct block *blocks;
@@ -452,15 +469,8 @@ void make_globals_and_var_blocks(struct symbol *function) {
 
     globals = new_set();
 
-    vreg_count = 0;
-    tac = function->function_ir;
-    while (tac) {
-        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
-        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
-        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
-        tac = tac->next;
-    }
-
+    make_vreg_count(function);
+    vreg_count = function->function_vreg_count;
     var_blocks = malloc((vreg_count + 1) * sizeof(struct set *));
     memset(var_blocks, 0, (vreg_count + 1) * sizeof(struct set *));
     for (i = 1; i <= vreg_count; i++) var_blocks[i] = new_set();
@@ -737,13 +747,14 @@ void rename_phi_function_variables(struct symbol *function) {
 // Page 696 engineering a compiler
 // To build live ranges from ssa form, the allocator uses the disjoint-set union- find algorithm.
 void make_live_ranges(struct symbol *function) {
-    int i, j, live_range_count, vreg_count, ssa_subscript_count;
+    int i, j, live_range_count, vreg_count, ssa_subscript_count, block_count;
     int dst, src1, src2;
     struct three_address_code *tac, *prev;
     int *map, first;
     struct set *ssa_vars, **live_ranges;
     struct set *dst_set, *src1_set, *src2_set, *s;
     int dst_set_index, src1_set_index, src2_set_index;
+    struct block *blocks;
 
     if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function);
 
@@ -836,10 +847,12 @@ void make_live_ranges(struct symbol *function) {
         }
     }
 
+    // From here on, live ranges are +1
+
     if (DEBUG_SSA_LIVE_RANGE) {
         printf("Live ranges:\n");
         for (i = 0; i < live_range_count; i++) {
-            printf("%d: ", i);
+            printf("%d: ", i + 1);
             printf("{");
             first = 1;
             for (j = 0; j < MAX_INT_SET_ELEMENTS; j++) {
@@ -861,32 +874,136 @@ void make_live_ranges(struct symbol *function) {
     tac = function->function_ir;
     while (tac) {
         if (tac->dst && tac->dst->vreg)
-            tac->dst->live_range = map[tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript];
+            tac->dst->live_range = map[tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript] + 1;
 
         if (tac->src1 && tac->src1->vreg)
-            tac->src1->live_range = map[tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript];
+            tac->src1->live_range = map[tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript] + 1;
 
         if (tac->src2 && tac->src2->vreg)
-            tac->src2->live_range = map[tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript];
+            tac->src2->live_range = map[tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript] + 1;
 
         tac = tac->next;
     }
 
     // Remove phi functions
-    tac = function->function_ir;
-    while (tac) {
-        if (tac->operation == IR_PHI_FUNCTION) {
+    blocks = function->function_blocks;
+    block_count = function->function_block_count;
+
+    for (i = 0; i < block_count; i++) {
+        tac = blocks[i].start;
+        while (tac->operation == IR_PHI_FUNCTION) {
             tac->next->label = tac->label;
             tac->next->prev = tac->prev;
             tac->prev->next = tac->next;
+            tac = tac->next;
         }
-        tac = tac->next;
+        blocks[i].start = tac;
     }
 
     if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function);
 }
 
-void do_ssa_experiments(struct symbol *function, int rename_vars) {
+// Having vreg & live_range separately isn't particularly useful, since most
+// downstream code traditionally deals with vregs. So do a vreg=live_range
+// for all values
+void blast_vregs_with_live_ranges(struct symbol *function) {
+    struct three_address_code *tac;
+
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->src1 && tac->src1->vreg) tac->src1->vreg = tac->src1->live_range;
+        if (tac->src2 && tac->src2->vreg) tac->src2->vreg = tac->src2->live_range;
+        if (tac->dst  && tac->dst-> vreg) tac->dst-> vreg = tac->dst-> live_range;
+        tac = tac->next;
+    }
+}
+
+// Page 701 of engineering a compiler
+void make_interference_graph(struct symbol *function) {
+    int i, j, vreg_count, block_count, edge_count, from, to, index;
+    struct block *blocks;
+    struct edge *edges;
+    struct set *livenow;
+    struct three_address_code *tac;
+    int *edge_matrix; // Triangular matrix of edges
+
+    // Need to recalculate all these in case anything changed in the
+    // phi representation.
+    blast_vregs_with_live_ranges(function);
+    make_uevar_and_varkill(function);
+    make_liveout(function);
+
+    make_vreg_count(function);
+    vreg_count = function->function_vreg_count;
+
+    edge_matrix = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
+    memset(edge_matrix, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(int));
+
+    blocks = function->function_blocks;
+    block_count = function->function_block_count;
+
+    for (i = 0; i < block_count; i++) {
+        livenow = copy_set(function->function_liveout[i]);
+
+        tac = blocks[i].end;
+        while (tac) {
+            // A register copy doesn't create an edge
+            if (!(tac->operation == IR_ASSIGN && tac->dst->vreg && tac->src1->vreg)) {
+                if (tac->dst && tac->dst->vreg) {
+                    for (j = 0; j < MAX_INT_SET_ELEMENTS; j++) {
+                        if (!livenow->elements[j]) continue;
+                        if (j == tac->dst->vreg) continue;
+
+                        if (j < tac->dst->vreg) {
+                            from = j;
+                            to = tac->dst->vreg;
+                        }
+                        else {
+                            from = tac->dst->vreg;
+                            to = j;
+                        }
+
+                        index = from * vreg_count + to;
+                        if (!edge_matrix[index]) edge_matrix[index] = 1;
+                    }
+                }
+            }
+
+            if (tac->dst && tac->dst->vreg) delete_from_set(livenow, tac->dst->vreg);
+            if (tac->src1 && tac->src1->vreg) add_to_set(livenow, tac->src1->vreg);
+            if (tac->src2 && tac->src2->vreg) add_to_set(livenow, tac->src2->vreg);
+
+            if (tac == blocks[i].start) break;
+            tac = tac->prev;
+        }
+    }
+
+    // Convert the triangular matrix into an array of edges
+    edges = malloc(MAX_INTERFERENCE_GRAPH_EDGES * sizeof(struct edge));
+    memset(edges, 0, MAX_INTERFERENCE_GRAPH_EDGES * sizeof(struct edge));
+    edge_count = 0;
+    for (from = 1; from <= vreg_count; from++) {
+        for (to = 1; to <= vreg_count; to++) {
+            if (edge_matrix[from * vreg_count + to]) {
+                edges[edge_count].from = from;
+                edges[edge_count].to = to;
+                edge_count++;
+            }
+        }
+    }
+
+    function->function_interference_graph = edges;
+    function->function_interference_graph_edge_count = edge_count;
+
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) {
+        printf("Edges:\n");
+        for (i = 0; i < edge_count; i++)
+            printf("%d - %d\n", edges[i].from, edges[i].to);
+        printf("\n");
+    }
+}
+
+void do_ssa_experiments1(struct symbol *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
     make_block_immediate_dominators(function);
@@ -895,9 +1012,10 @@ void do_ssa_experiments(struct symbol *function, int rename_vars) {
     make_liveout(function);
     make_globals_and_var_blocks(function);
     insert_phi_functions(function);
+}
 
-    if (rename_vars) {
-        rename_phi_function_variables(function);
-        make_live_ranges(function);
-    }
+void do_ssa_experiments2(struct symbol *function) {
+    rename_phi_function_variables(function);
+    make_live_ranges(function);
+    make_interference_graph(function);
 }

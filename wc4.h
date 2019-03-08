@@ -36,15 +36,17 @@ struct symbol {
     int function_block_count;                     //
     struct edge *function_edges;                  // For functions, the edges between blocks
     int function_edge_count;                      //
-    struct set **function_dominance;           // For functions, block dominances
-    struct set **function_uevar;               // For functions, the upward exposed set for each block
-    struct set **function_varkill;             // For functions, the killed var set for each block
-    struct set **function_liveout;             // For functions, the liveout set for each block
+    struct set **function_dominance;              // For functions, block dominances
+    struct set **function_uevar;                  // For functions, the upward exposed set for each block
+    struct set **function_varkill;                // For functions, the killed var set for each block
+    struct set **function_liveout;                // For functions, the liveout set for each block
     int *function_idom;                           // For functions, immediate dominator for each block
-    struct set **function_dominance_frontiers; // For functions, dominance frontier for each block
-    struct set **function_var_blocks;          // For functions, var/block associations for vars that are written to
-    struct set *function_globals;              // For functions, all variables that are assigned to
-    struct set **function_phi_functions;       // For functions, all variables that need phi functions for each block
+    struct set **function_dominance_frontiers;    // For functions, dominance frontier for each block
+    struct set **function_var_blocks;             // For functions, var/block associations for vars that are written to
+    struct set *function_globals;                 // For functions, all variables that are assigned to
+    struct set **function_phi_functions;          // For functions, all variables that need phi functions for each block
+    struct edge *function_interference_graph;     // For functions, the interference graph of live ranges
+    int function_interference_graph_edge_count;   // For functions, the amount of edges in the interference graph of live ranges
     int is_enum;                                  // Enums are symbols with a value
 };
 
@@ -125,28 +127,30 @@ struct function_usages {
 };
 
 enum {
-    DATA_SIZE                  = 10485760,
-    INSTRUCTIONS_SIZE          = 10485760,
-    SYMBOL_TABLE_SIZE          = 10485760,
-    MAX_STRUCTS                = 1024,
-    MAX_STRUCT_MEMBERS         = 1024,
-    MAX_INPUT_SIZE             = 10485760,
-    MAX_STRING_LITERALS        = 10240,
-    VALUE_STACK_SIZE           = 10240,
-    MAX_VREG_COUNT             = 10240,
-    PHYSICAL_REGISTER_COUNT    = 15,
-    MAX_SPILLED_REGISTER_COUNT = 1024,
-    MAX_INPUT_FILENAMES        = 1024,
-    MAX_INT_SET_ELEMENTS       = 1024,
-    MAX_BLOCKS                 = 1024,
-    MAX_BLOCK_EDGES            = 1024,
-    MAX_STACK_SIZE             = 10240,
+    DATA_SIZE                     = 10485760,
+    INSTRUCTIONS_SIZE             = 10485760,
+    SYMBOL_TABLE_SIZE             = 10485760,
+    MAX_STRUCTS                   = 1024,
+    MAX_STRUCT_MEMBERS            = 1024,
+    MAX_INPUT_SIZE                = 10485760,
+    MAX_STRING_LITERALS           = 10240,
+    VALUE_STACK_SIZE              = 10240,
+    MAX_VREG_COUNT                = 10240,
+    PHYSICAL_REGISTER_COUNT       = 15,
+    MAX_SPILLED_REGISTER_COUNT    = 1024,
+    MAX_INPUT_FILENAMES           = 1024,
+    MAX_INT_SET_ELEMENTS          = 1024,
+    MAX_BLOCKS                    = 1024,
+    MAX_BLOCK_EDGES               = 1024,
+    MAX_INTERFERENCE_GRAPH_EDGES  = 1024,
+    MAX_STACK_SIZE                = 10240,
 };
 
 enum {
-    DEBUG_SSA                 = 0,
-    DEBUG_SSA_PHI_RENUMBERING = 0,
-    DEBUG_SSA_LIVE_RANGE      = 0,
+    DEBUG_SSA                    = 0,
+    DEBUG_SSA_PHI_RENUMBERING    = 0,
+    DEBUG_SSA_LIVE_RANGE         = 0,
+    DEBUG_SSA_INTERFERENCE_GRAPH = 0,
 };
 
 // Tokens in order of precedence
@@ -447,9 +451,12 @@ void allocate_registers(struct three_address_code *ir);
 
 // ssa.c
 int new_subscript(struct stack **stack, int *counters, int n);
+void rename_phi_function_variables(struct symbol *function);
+void make_live_ranges(struct symbol *function);
 void rename_vars(struct symbol *function, struct stack **stack, int *counters, int block_number, int vreg_count);
 void make_live_ranges(struct symbol *function);
-void do_ssa_experiments(struct symbol *function, int rename_phi_function_variables);
+void do_ssa_experiments1(struct symbol *function);
+void do_ssa_experiments2(struct symbol *function);
 void make_control_flow_graph(struct symbol *function);
 void make_block_dominance(struct symbol *function);
 void make_liveout(struct symbol *function);
