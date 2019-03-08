@@ -75,6 +75,7 @@ struct value {
     int original_vreg;
     int pushed_stack_aligned_quad;  // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
     int ssa_subscript;              // Optional SSA enumeration
+    int live_range;                 // Optional SSA live range
 };
 
 struct three_address_code {
@@ -143,8 +144,9 @@ enum {
 };
 
 enum {
-    DEBUG_SSA = 0,
+    DEBUG_SSA                 = 0,
     DEBUG_SSA_PHI_RENUMBERING = 0,
+    DEBUG_SSA_LIVE_RANGE      = 0,
 };
 
 // Tokens in order of precedence
@@ -446,6 +448,7 @@ void allocate_registers(struct three_address_code *ir);
 // ssa.c
 int new_subscript(struct stack **stack, int *counters, int n);
 void rename_vars(struct symbol *function, struct stack **stack, int *counters, int block_number, int vreg_count);
+void make_live_ranges(struct symbol *function);
 void rename_phi_function_variables_common_prep(struct symbol *function, struct stack ***stack, int **counters, int *vreg_count);
 void do_ssa_experiments_common_prep(struct symbol *function);
 void do_ssa_experiments(struct symbol *function, int rename_phi_function_variables);

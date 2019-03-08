@@ -741,6 +741,158 @@ void rename_phi_function_variables(struct symbol *function) {
     rename_vars(function, stack, counters, 0, vreg_count);
 }
 
+// Page 696 engineering a compiler
+// To build live ranges from ssa form, the allocator uses the disjoint-set union- find algorithm.
+void make_live_ranges(struct symbol *function) {
+    int i, j, live_range_count, vreg_count, ssa_subscript_count;
+    int dst, src1, src2;
+    struct three_address_code *tac, *prev;
+    int *map, first;
+    struct intset *ssa_vars, **live_ranges;
+    struct intset *dst_set, *src1_set, *src2_set, *s;
+    int dst_set_index, src1_set_index, src2_set_index;
+
+    if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function);
+
+    ssa_vars = new_intset();
+    vreg_count = 0;
+    ssa_subscript_count = 0;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
+
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->dst ->ssa_subscript;
+        if (tac->src1 && tac->src1->vreg && tac->src1->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src1->ssa_subscript;
+        if (tac->src2 && tac->src2->vreg && tac->src2->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src2->ssa_subscript;
+
+        tac = tac->next;
+    }
+
+    ssa_subscript_count += 1; // Starts at zero, so the count is one more
+
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->vreg) add_to_set(ssa_vars, tac->dst ->vreg * ssa_subscript_count + tac->dst ->ssa_subscript);
+        if (tac->src1 && tac->src1->vreg) add_to_set(ssa_vars, tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript);
+        if (tac->src2 && tac->src2->vreg) add_to_set(ssa_vars, tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript);
+        tac = tac->next;
+    }
+
+    // Create live ranges sets for all variables, each set with the variable itself in it
+    live_range_count = (vreg_count + 1) * ssa_subscript_count;
+    live_ranges = malloc(live_range_count * sizeof(struct intset *));
+    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) {
+        if (!ssa_vars->elements[i]) continue;
+        live_ranges[i] = new_intset();
+        add_to_set(live_ranges[i], i);
+    }
+
+    // Make live ranges out of SSA variables in phi functions
+    // live_range_count = 0;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->operation == IR_PHI_FUNCTION) {
+            dst  = tac->dst ->vreg * ssa_subscript_count + tac->dst ->ssa_subscript;
+            src1 = tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript;
+            src2 = tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript;
+
+            for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) {
+                if (!ssa_vars->elements[i]) continue;
+                if (in_set(live_ranges[i], dst )) dst_set_index  = i;
+                if (in_set(live_ranges[i], src1)) src1_set_index = i;
+                if (in_set(live_ranges[i], src2)) src2_set_index = i;
+            }
+
+            dst_set  = live_ranges[dst_set_index];
+            src1_set = live_ranges[src1_set_index];
+            src2_set = live_ranges[src2_set_index];
+
+            s = set_union(set_union(dst_set, src1_set), src2_set);
+            live_ranges[dst_set_index] = s;
+            live_ranges[src1_set_index] = new_intset();
+            live_ranges[src2_set_index] = new_intset();
+        }
+        tac = tac->next;
+    }
+
+    live_range_count = 0;
+    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
+        if (ssa_vars->elements[i] && live_ranges[i] && set_len(live_ranges[i])) live_range_count++;
+
+    // Remove empty live ranges
+    j = 0;
+    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) {
+        if (!ssa_vars->elements[i]) continue;
+        if (!live_ranges[i]) continue;
+        if (!set_len(live_ranges[i])) continue;
+        live_ranges[j++] = live_ranges[i];
+    }
+    live_range_count = j;
+
+    // Make a map of variable names to live range
+    map = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(int));
+    memset(map, -1, (vreg_count + 1) * ssa_subscript_count * sizeof(int));
+
+    for (i = 0; i < live_range_count; i++) {
+        s = live_ranges[i];
+        for (j = 0; j < MAX_INT_SET_ELEMENTS; j++) {
+            if (!s->elements[j]) continue;
+            map[j] = i;
+        }
+    }
+
+    if (DEBUG_SSA_LIVE_RANGE) {
+        printf("Live ranges:\n");
+        for (i = 0; i < live_range_count; i++) {
+            printf("%d: ", i);
+            printf("{");
+            first = 1;
+            for (j = 0; j < MAX_INT_SET_ELEMENTS; j++) {
+                if (!live_ranges[i]->elements[j]) continue;
+                if (!first)
+                    printf(", ");
+                else
+                    first = 0;
+                printf("%d_%d", j / ssa_subscript_count, j % ssa_subscript_count);
+            }
+
+            printf("}\n");
+        }
+
+        printf("\n");
+    }
+
+    // Assign live ranges to TAC & build live_ranges set
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->dst && tac->dst->vreg)
+            tac->dst->live_range = map[tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript];
+
+        if (tac->src1 && tac->src1->vreg)
+            tac->src1->live_range = map[tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript];
+
+        if (tac->src2 && tac->src2->vreg)
+            tac->src2->live_range = map[tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript];
+
+        tac = tac->next;
+    }
+
+    // Remove phi functions
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->operation == IR_PHI_FUNCTION) {
+            tac->next->label = tac->label;
+            tac->next->prev = tac->prev;
+            tac->prev->next = tac->next;
+        }
+        tac = tac->next;
+    }
+
+    if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function);
+}
+
 void do_ssa_experiments_common_prep(struct symbol *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
@@ -754,5 +906,8 @@ void do_ssa_experiments_common_prep(struct symbol *function) {
 
 void do_ssa_experiments(struct symbol *function, int rename_vars) {
     do_ssa_experiments_common_prep(function);
-    if (rename_vars) rename_phi_function_variables(function);
+    if (rename_vars) {
+        rename_phi_function_variables(function);
+        make_live_ranges(function);
+    }
 }

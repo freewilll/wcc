@@ -33,6 +33,7 @@ struct value *new_value() {
     v->preg = -1;
     v->spilled_stack_index = -1;
     v->ssa_subscript = -1;
+    v->live_range = -1;
 
     return v;
 }
@@ -69,6 +70,7 @@ struct value *dup_value(struct value *src) {
     dst->global_symbol             = src->global_symbol;
     dst->label                     = src->label;
     dst->ssa_subscript             = src->ssa_subscript;
+    dst->live_range                = src->live_range;
 
     return dst;
 }
@@ -136,6 +138,8 @@ void print_value(void *f, struct value *v, int is_assignment_rhs) {
         fprintf(f, "p%d", v->preg);
     else if (v->spilled_stack_index != -1)
         fprintf(f, "S[%d]", v->spilled_stack_index);
+    else if (v->live_range != -1)
+        fprintf(f, "LR%d", v->live_range);
     else if (v->vreg) {
         fprintf(f, "r%d", v->vreg);
         if (v->ssa_subscript != -1) fprintf(f, "_%d", v->ssa_subscript);
@@ -442,7 +446,7 @@ void analyze_liveness(struct symbol *function) {
 
 // Merge tac with the instruction after it. The next instruction is removed from the chain.
 void merge_instructions(struct three_address_code *tac, int ir_index, int allow_labelled_next) {
-    int i;
+    int i, label;
     struct three_address_code *next;
 
     if (!tac->next) panic("merge_instructions called on a tac without next\n");

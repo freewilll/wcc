@@ -344,6 +344,7 @@ void test_phi_renumbering() {
     int vreg_count;
     int *counters;
     struct stack **stack;
+    struct three_address_code *tac;
 
     function = make_ir2();
     do_ssa_experiments_common_prep(function);
@@ -375,6 +376,18 @@ void test_phi_renumbering() {
     check_rphi(function->function_blocks[3].start->next->next->next,       5, 3,  5, 2,  5, 6); // d
     check_rphi(function->function_blocks[7].start,                         4, 5,  4, 2,  4, 6); // c
     check_rphi(function->function_blocks[7].start->next,                   5, 6,  5, 5,  5, 4); // d
+
+    make_live_ranges(function);
+
+    // In the textbook example, all variables end up being mapped straight onto their own live ranges
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->vreg) assert(tac->dst ->vreg, tac->dst ->live_range + 1);
+        if (tac->src1 && tac->src1->vreg) assert(tac->src1->vreg, tac->src1->live_range + 1);
+        if (tac->src2 && tac->src2->vreg) assert(tac->src2->vreg, tac->src2->live_range + 1);
+
+        tac = tac->next;
+    }
 }
 
 int main() {
