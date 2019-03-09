@@ -201,7 +201,7 @@ int parse_base_type(int allow_incomplete_structs) {
     else if (cur_token == TOK_INT)    type = TYPE_INT;
     else if (cur_token == TOK_LONG)   type = TYPE_LONG;
     else if (cur_token == TOK_STRUCT) return parse_struct_base_type(allow_incomplete_structs);
-    else panic("Unable to determine type from token %d");
+    else panic1d("Unable to determine type from token %d", cur_token);
 
     next();
 
