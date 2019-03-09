@@ -621,6 +621,14 @@ void print_stack_and_counters(struct stack **stack, int *counters, int vreg_coun
     printf("\n");
 }
 
+// If nothing is on the stack, push one. This is to deal with undefined
+// variables being used.
+int safe_stack_top(struct stack **stack, int *counters, int n) {
+
+    if (stack[n]->pos == MAX_STACK_SIZE) new_subscript(stack, counters, n);
+    return stack_top(stack[n]);
+}
+
 // Algorithm on page 506 of engineering a compiler
 void rename_vars(struct function *function, struct stack **stack, int *counters, int block_number, int vreg_count) {
     struct three_address_code *tac, *tac2, *end;
@@ -662,19 +670,18 @@ void rename_vars(struct function *function, struct stack **stack, int *counters,
     tac = b->start;
     while (1) {
         if (tac->operation != IR_PHI_FUNCTION) {
-            // printf("checking rewrite "); print_instruction(stdout, tac);
             if (tac->src1 && tac->src1->vreg) {
-                tac->src1->ssa_subscript = stack_top(stack[tac->src1->vreg]);
-                if (DEBUG_SSA_PHI_RENUMBERING)  printf("rewrote src1 %d\n", tac->src1->vreg);
+                tac->src1->ssa_subscript = safe_stack_top(stack, counters, tac->src1->vreg);
+                if (DEBUG_SSA_PHI_RENUMBERING) printf("rewrote src1 %d\n", tac->src1->vreg);
             }
             if (tac->src2 && tac->src2->vreg) {
-                tac->src2->ssa_subscript = stack_top(stack[tac->src2->vreg]);
-                if (DEBUG_SSA_PHI_RENUMBERING)  printf("rewrote src2 %d\n", tac->src2->vreg);
+                tac->src2->ssa_subscript = safe_stack_top(stack, counters, tac->src2->vreg);
+                if (DEBUG_SSA_PHI_RENUMBERING) printf("rewrote src2 %d\n", tac->src2->vreg);
             }
 
             if (tac->dst && tac->dst->vreg) {
                 tac->dst->ssa_subscript = new_subscript(stack, counters, tac->dst->vreg);
-                if (DEBUG_SSA_PHI_RENUMBERING)  printf("got new name for dst %d\n", tac->dst->vreg);
+                if (DEBUG_SSA_PHI_RENUMBERING) printf("got new name for dst %d\n", tac->dst->vreg);
             }
         }
 
@@ -692,11 +699,11 @@ void rename_vars(struct function *function, struct stack **stack, int *counters,
         while (1) {
             if (tac->operation == IR_PHI_FUNCTION) {
                 if (tac->src1->ssa_subscript == -1) {
-                    tac->src1->ssa_subscript = stack_top(stack[tac->src1->vreg]);
+                    tac->src1->ssa_subscript = safe_stack_top(stack, counters, tac->src1->vreg);
                     if (DEBUG_SSA_PHI_RENUMBERING) printf("  rw src1 to %d\n", tac->src1->vreg);
                 }
                 else {
-                    tac->src2->ssa_subscript = stack_top(stack[tac->src2->vreg]);
+                    tac->src2->ssa_subscript = safe_stack_top(stack, counters, tac->src2->vreg);
                     if (DEBUG_SSA_PHI_RENUMBERING) printf("  rw src2 to %d\n", tac->src2->vreg);
                 }
             }
