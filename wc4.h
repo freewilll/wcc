@@ -155,6 +155,8 @@ enum {
 
 enum {
     DEBUG_SSA                             = 0,
+    DEBUG_SSA_LIVEOUT                     = 0,
+    DEBUG_SSA_CFG                         = 0,
     DEBUG_SSA_PHI_RENUMBERING             = 0,
     DEBUG_SSA_LIVE_RANGE                  = 0,
     DEBUG_SSA_INTERFERENCE_GRAPH          = 0,

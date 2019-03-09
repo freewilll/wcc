@@ -95,7 +95,7 @@ void make_control_flow_graph(struct symbol *function) {
 
     index_tac(function->function_ir);
 
-    if (DEBUG_SSA) {
+    if (DEBUG_SSA_CFG) {
         print_intermediate_representation(function);
 
         printf("Blocks:\n");
@@ -437,7 +437,7 @@ void make_liveout(struct symbol *function) {
         }
     }
 
-    if (DEBUG_SSA) {
+    if (DEBUG_SSA_LIVEOUT) {
         printf("\nLiveouts:\n");
         for (i = 0; i < block_count; i++) {
             printf("%d: ", i);
@@ -952,25 +952,26 @@ void make_interference_graph(struct symbol *function) {
 
         tac = blocks[i].end;
         while (tac) {
-            // A register copy doesn't create an edge
-            if (!(tac->operation == IR_ASSIGN && tac->dst->vreg && tac->src1->vreg)) {
-                if (tac->dst && tac->dst->vreg) {
-                    for (j = 0; j < MAX_INT_SET_ELEMENTS; j++) {
-                        if (!livenow->elements[j]) continue;
-                        if (j == tac->dst->vreg) continue;
+            if (tac->dst && tac->dst->vreg) {
+                for (j = 0; j < MAX_INT_SET_ELEMENTS; j++) {
+                    if (!livenow->elements[j]) continue;
 
-                        if (j < tac->dst->vreg) {
-                            from = j;
-                            to = tac->dst->vreg;
-                        }
-                        else {
-                            from = tac->dst->vreg;
-                            to = j;
-                        }
+                    if (j == tac->dst->vreg) continue; // Ignore self assignment
 
-                        index = from * vreg_count + to;
-                        if (!edge_matrix[index]) edge_matrix[index] = 1;
+                    // Don't add an edge for register copies
+                    if (tac->operation == IR_ASSIGN && tac->src1->vreg && tac->src1->vreg == j) continue;
+
+                    if (j < tac->dst->vreg) {
+                        from = j;
+                        to = tac->dst->vreg;
                     }
+                    else {
+                        from = tac->dst->vreg;
+                        to = j;
+                    }
+
+                    index = from * vreg_count + to;
+                    if (!edge_matrix[index]) edge_matrix[index] = 1;
                 }
             }
 
@@ -1001,7 +1002,7 @@ void make_interference_graph(struct symbol *function) {
     function->function_interference_graph_edge_count = edge_count;
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) {
-        printf("Edges:\n");
+        printf("Inference graph edges:\n");
         for (i = 0; i < edge_count; i++)
             printf("%d - %d\n", edges[i].from, edges[i].to);
         printf("\n");

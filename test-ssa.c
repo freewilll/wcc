@@ -470,6 +470,38 @@ void test_interference_graph2() {
     assert(5, ig[13].from); assert(6, ig[13].to);
 }
 
+void test_interference_graph3() {
+    // Test the special case of a register copy not introducing an edge
+
+    struct symbol *function;
+    struct edge *ig;
+
+    function = malloc(sizeof(struct symbol));
+    memset(function, 0, sizeof(struct symbol));
+
+    ir_start = 0;
+
+    i(0, IR_NOP,    0,    0,    0   );
+    i(0, IR_ASSIGN, v(1), c(1), 0   ); // a   = 0
+    i(0, IR_ASSIGN, v(2), c(1), 0   ); // b   = 0
+    i(0, IR_ASSIGN, v(3), v(2), 0   ); // c   = b  c interferes with a, but not with b
+    i(0, IR_ADD,    0,    v(3), v(3)); // ... = c
+    i(0, IR_ADD,    0,    v(1), v(1)); // ... = a
+
+    function->function_ir = ir_start;
+    function->identifier = "test";
+
+    do_ssa_experiments1(function);
+    do_ssa_experiments2(function);
+
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function);
+
+    ig = function->function_interference_graph;
+    assert(2, function->function_interference_graph_edge_count);
+    assert(1, ig[0].from); assert(2, ig[0].to);
+    assert(1, ig[1].from); assert(3, ig[1].to);
+}
+
 void test_spill_cost() {
     struct symbol *function;
     int i, *spill_cost;
@@ -591,6 +623,7 @@ int main() {
     test_phi_renumbering();
     test_interference_graph1();
     test_interference_graph2();
+    test_interference_graph3();
     test_spill_cost();
     test_top_down_register_allocation();
 }
