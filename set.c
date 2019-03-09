@@ -7,10 +7,10 @@
 struct set *new_set() {
     struct set *result;
 
-    result = malloc(sizeof(struct set *));
-    memset(result, 0, sizeof(struct set *));
-    result->elements = malloc(MAX_INT_SET_ELEMENTS * sizeof(int));
-    memset(result->elements, 0, MAX_INT_SET_ELEMENTS * sizeof(int));
+    result = malloc(sizeof(struct set));
+    memset(result, 0, sizeof(struct set));
+    result->elements = malloc(MAX_INT_SET_ELEMENTS * sizeof(char));
+    memset(result->elements, 0, MAX_INT_SET_ELEMENTS * sizeof(char));
 
     return result;
 }

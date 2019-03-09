@@ -111,7 +111,7 @@ void make_block_dominance(struct function *function) {
     struct block *blocks;
     struct edge *edges;
     int i, j, block_count, edge_count, changed, got_predecessors;
-    struct set **dom, *is, *pred_intersections;
+    struct set **dom, *is1, *is2, *pred_intersections;
 
     blocks = function->blocks;
     block_count = function->block_count;
@@ -153,15 +153,18 @@ void make_block_dominance(struct function *function) {
             if (!got_predecessors) pred_intersections = new_set();
 
             // Union with {i}
-            is = new_set();
-            add_to_set(is, i);
-            is = set_union(is, pred_intersections);
+            is1 = new_set();
+            add_to_set(is1, i);
+            is2 = set_union(is1, pred_intersections);
 
             // Update if changed & keep looping
-            if (!set_eq(is, dom[i])) {
-                dom[i] = is;
+            if (!set_eq(is2, dom[i])) {
+                dom[i] = copy_set(is2);
                 changed = 1;
             }
+
+            free_set(is1);
+            free_set(is2);
         }
     }
 
@@ -996,6 +999,8 @@ void make_interference_graph(struct function *function) {
             if (tac == blocks[i].start) break;
             tac = tac->prev;
         }
+
+        free_set(livenow);
     }
 
     // Convert the triangular matrix into an array of edges
@@ -1008,6 +1013,7 @@ void make_interference_graph(struct function *function) {
                 edges[edge_count].from = from;
                 edges[edge_count].to = to;
                 edge_count++;
+                if (edge_count >= MAX_INTERFERENCE_GRAPH_EDGES) panic("Exceeded max MAX_INTERFERENCE_GRAPH_EDGES");
             }
         }
     }
@@ -1210,6 +1216,9 @@ void allocate_registers_top_down(struct function *function, int physical_registe
 
     function->vreg_locations = vreg_locations;
     function->spilled_register_count = spilled_register_count;
+
+    free_set(constrained);
+    free_set(unconstrained);
 }
 
 void assign_vreg_locations(struct function *function) {

@@ -7,7 +7,7 @@ struct edge {
 };
 
 struct set {
-    int *elements;
+    char *elements;
 };
 
 struct stack {
@@ -153,7 +153,7 @@ enum {
     MAX_INT_SET_ELEMENTS          = 10240,
     MAX_BLOCKS                    = 1024,
     MAX_BLOCK_EDGES               = 1024,
-    MAX_INTERFERENCE_GRAPH_EDGES  = 1024,
+    MAX_INTERFERENCE_GRAPH_EDGES  = 10240,
     MAX_STACK_SIZE                = 10240,
 };
 
