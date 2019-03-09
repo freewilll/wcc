@@ -1237,6 +1237,23 @@ void assign_vreg_locations(struct function *function) {
     function->local_symbol_count = 0; // This nukes ancient code that assumes local vars are on the stack
 }
 
+void remove_self_moves(struct function *function) {
+    // This removes instructions that copy a physical register to itself by replacing them with noops.
+
+    struct three_address_code *tac;
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == IR_ASSIGN && tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg) {
+            tac->operation = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+        }
+
+        tac = tac->next;
+    }
+}
+
 void do_ssa_experiments1(struct function *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
@@ -1258,4 +1275,5 @@ void do_ssa_experiments2(struct function *function) {
 void do_ssa_experiments3(struct function *function) {
     allocate_registers_top_down(function, ssa_physical_register_count);
     assign_vreg_locations(function);
+    remove_self_moves(function);
 }
