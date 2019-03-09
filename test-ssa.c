@@ -388,9 +388,10 @@ void test_phi_renumbering() {
     }
 }
 
-void test_interference_graph1() {
+// Make IR for the test example on page 484 of engineering a compiler
+struct symbol *make_ir3(int loop_count) {
     struct symbol *function;
-    struct edge *ig;
+    struct three_address_code *tac;
 
     function = malloc(sizeof(struct symbol));
     memset(function, 0, sizeof(struct symbol));
@@ -404,7 +405,11 @@ void test_interference_graph1() {
     i(0, IR_ASSIGN, v(4), c(0), 0   ); // d   = 0
     i(0, IR_JMP,     0,   l(2), 0   ); // jmp l2
     i(1, IR_NOP,    0,    0,    0   );
+    if (loop_count > 0) i(0, IR_START_LOOP,  0, c(0), c(1));
+    if (loop_count > 1) i(0, IR_START_LOOP,  0, c(1), c(2));
     i(0, IR_ASSIGN, v(3), c(0), 0   ); // c   = 0
+    if (loop_count > 1) i(0, IR_END_LOOP,  0, c(1), c(2));
+    if (loop_count > 0) i(0, IR_END_LOOP,  0, c(0), c(1));
     i(0, IR_ASSIGN, v(4), v(3), 0   ); // d   = c
     i(2, IR_NOP,    0,    0,    0   );
     i(0, IR_ADD,    0,    v(1), v(1)); // ... = a
@@ -413,10 +418,19 @@ void test_interference_graph1() {
     function->function_ir = ir_start;
     function->identifier = "test";
 
-    do_ssa_experiments1(function);
-    do_ssa_experiments2(function);
+    return function;
+}
+
+void test_interference_graph1() {
+    struct symbol *function;
+    struct edge *ig;
+
+    function = make_ir3(0);
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function);
+
+    do_ssa_experiments1(function);
+    do_ssa_experiments2(function);
 
     ig = function->function_interference_graph;
     assert(3, function->function_interference_graph_edge_count);
@@ -456,6 +470,31 @@ void test_interference_graph2() {
     assert(5, ig[13].from); assert(6, ig[13].to);
 }
 
+void test_spill_cost() {
+    struct symbol *function;
+    int i, *spill_cost;
+    int p;
+
+    for (i = 0; i < 3; i++) {
+        function = make_ir3(i);
+
+        do_ssa_experiments1(function);
+        do_ssa_experiments2(function);
+
+        if (DEBUG_SSA_SPILL_COST) print_intermediate_representation(function);
+
+        if (i == 0) p = 1;
+        else if (i == 1) p = 10;
+        else if (i == 2) p = 100;
+
+        spill_cost = function->function_spill_cost;
+        assert(4, spill_cost[1]);
+        assert(3, spill_cost[2]);
+        assert(p + 1, spill_cost[3]);
+        assert(4, spill_cost[4]);
+    }
+}
+
 int main() {
     test_dominance();
     test_liveout1();
@@ -465,4 +504,5 @@ int main() {
     test_phi_renumbering();
     test_interference_graph1();
     test_interference_graph2();
+    test_spill_cost();
 }

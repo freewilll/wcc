@@ -1003,6 +1003,48 @@ void make_interference_graph(struct symbol *function) {
     }
 }
 
+// 10^p
+int ten_power(int p) {
+    int i, result;
+
+    result = 1;
+    for (i = 0; i < p; i++) result = result * 10;
+
+    return result;
+}
+
+void make_live_range_spill_cost(struct symbol *function) {
+    struct three_address_code *tac;
+    int i, vreg_count, for_loop_depth, *spill_cost;
+
+    make_vreg_count(function);
+    vreg_count = function->function_vreg_count;
+    spill_cost = malloc((vreg_count + 1) * sizeof(int));
+    memset(spill_cost, 0, (vreg_count + 1) * sizeof(int));
+
+    for_loop_depth = 0;
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->operation == IR_START_LOOP) for_loop_depth++;
+        if (tac->operation == IR_END_LOOP) for_loop_depth--;
+
+        if (tac->dst  && tac->dst ->vreg) spill_cost[tac->dst ->vreg] += ten_power(for_loop_depth);
+        if (tac->src1 && tac->src1->vreg) spill_cost[tac->src1->vreg] += ten_power(for_loop_depth);
+        if (tac->src2 && tac->src2->vreg) spill_cost[tac->src2->vreg] += ten_power(for_loop_depth);
+
+        tac = tac->next;
+    }
+
+    function->function_spill_cost = spill_cost;
+
+    if (DEBUG_SSA_SPILL_COST) {
+        printf("Spill costs:\n");
+        for (i = 1; i <= vreg_count; i++)
+            printf("%d: %d\n", i, spill_cost[i]);
+
+    }
+}
+
 void do_ssa_experiments1(struct symbol *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
@@ -1018,4 +1060,5 @@ void do_ssa_experiments2(struct symbol *function) {
     rename_phi_function_variables(function);
     make_live_ranges(function);
     make_interference_graph(function);
+    make_live_range_spill_cost(function);
 }

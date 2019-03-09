@@ -47,6 +47,7 @@ struct symbol {
     struct set **function_phi_functions;          // For functions, all variables that need phi functions for each block
     struct edge *function_interference_graph;     // For functions, the interference graph of live ranges
     int function_interference_graph_edge_count;   // For functions, the amount of edges in the interference graph of live ranges
+    int *function_spill_cost;                     // For functions, the estimated spill cost for each live range
     int is_enum;                                  // Enums are symbols with a value
 };
 
@@ -151,6 +152,7 @@ enum {
     DEBUG_SSA_PHI_RENUMBERING    = 0,
     DEBUG_SSA_LIVE_RANGE         = 0,
     DEBUG_SSA_INTERFERENCE_GRAPH = 0,
+    DEBUG_SSA_SPILL_COST         = 0,
 };
 
 // Tokens in order of precedence
@@ -460,6 +462,7 @@ void do_ssa_experiments2(struct symbol *function);
 void make_control_flow_graph(struct symbol *function);
 void make_block_dominance(struct symbol *function);
 void make_liveout(struct symbol *function);
+void make_live_range_spill_cost(struct symbol *function);
 
 // codegen.c
 void init_callee_saved_registers();
