@@ -802,11 +802,14 @@ void output_code(char *input_filename, char *output_filename) {
         if (experimental_ssa) {
             do_ssa_experiments1(s);
             do_ssa_experiments2(s);
+            do_ssa_experiments3(s);
+        }
+        else {
+            if (debug_register_allocations) print_liveness(s);
+            allocate_registers(s->function_ir);
+            s->function_spilled_register_count = spilled_register_count;
         }
 
-        if (debug_register_allocations) print_liveness(s);
-        allocate_registers(s->function_ir);
-        s->function_spilled_register_count = spilled_register_count;
         if (print_ir3) print_intermediate_representation(s);
 
         output_function_body_code(s);

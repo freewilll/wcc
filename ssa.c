@@ -4,6 +4,11 @@
 
 #include "wc4.h"
 
+struct vreg_cost {
+    int vreg;
+    int cost;
+};
+
 void index_tac(struct three_address_code *ir) {
     struct three_address_code *tac;
     int i;
@@ -1045,6 +1050,182 @@ void make_live_range_spill_cost(struct symbol *function) {
     }
 }
 
+void quicksort_vreg_cost(struct vreg_cost *vreg_cost, int left, int right) {
+    int i, j, pivot;
+    int tmp_vreg, tmp_cost;
+
+    if (left >= right) return;
+
+    i = left;
+    j = right;
+    pivot = vreg_cost[i].cost;
+
+    while (1) {
+        while (vreg_cost[i].cost > pivot) i++;
+        while (pivot > vreg_cost[j].cost) j--;
+        if (i >= j) break;
+
+        tmp_vreg = vreg_cost[i].vreg;
+        tmp_cost = vreg_cost[i].cost;
+        vreg_cost[i].vreg = vreg_cost[j].vreg;
+        vreg_cost[i].cost = vreg_cost[j].cost;
+        vreg_cost[j].vreg = tmp_vreg;
+        vreg_cost[j].cost = tmp_cost;
+
+        i++;
+        j--;
+    }
+
+    quicksort_vreg_cost(vreg_cost, left, i - 1);
+    quicksort_vreg_cost(vreg_cost, j + 1, right);
+}
+
+int graph_node_degree(struct edge *edges, int edge_count, int node) {
+    int i, result;
+
+    result = 0;
+    for (i = 0; i < edge_count; i++)
+        if (node == edges[i].from || node == edges[i].to) result++;
+
+    return result;
+}
+
+void color_vreg(struct edge *edges, int edge_count, struct vreg_location *vreg_locations, int physical_register_count, int *spilled_register_count, int vreg) {
+    int i, j, neighbor, preg;
+    struct set *neighbor_colors;
+
+    neighbor_colors = new_set();
+    for (i = 0; i < edge_count; i++) {
+        neighbor = -1;
+        if (edges[i].from == vreg) neighbor = edges[i].to;
+        else if (edges[i].to == vreg) neighbor = edges[i].from;
+        if (neighbor == -1) continue;
+
+        preg = vreg_locations[neighbor].preg;
+        if (preg != -1) add_to_set(neighbor_colors, preg);
+    }
+
+    if (set_len(neighbor_colors) == physical_register_count) {
+        vreg_locations[vreg].spilled_index = *spilled_register_count;
+        (*spilled_register_count)++;
+    }
+    else {
+        // Find first free physical register
+        for (j = 0; j < physical_register_count; j++) {
+            if (!in_set(neighbor_colors, j)) {
+                vreg_locations[vreg].preg = j;
+                return;
+            }
+        }
+
+        panic("Should not get here");
+    }
+}
+
+void allocate_registers_top_down(struct symbol *function, int physical_register_count) {
+    int i, vreg_count, *spill_cost, edge_count, degree, spilled_register_count, vreg;
+    struct vreg_location *vreg_locations;
+    struct set *constrained, *unconstrained;
+    struct vreg_cost *ordered_nodes;
+    struct edge *edges;
+
+    vreg_count = function->function_vreg_count;
+    spill_cost = function->function_spill_cost;
+
+    edges = function->function_interference_graph;
+    edge_count = function->function_interference_graph_edge_count;
+
+    ordered_nodes = malloc((vreg_count + 1) * sizeof(struct vreg_cost));
+    for (i = 1; i <= vreg_count; i++) {
+        ordered_nodes[i].vreg = i;
+        ordered_nodes[i].cost = spill_cost[i];
+    }
+
+    quicksort_vreg_cost(ordered_nodes, 1, vreg_count);
+
+    constrained = new_set();
+    unconstrained = new_set();
+
+    for (i = 1; i <= vreg_count; i++) {
+        degree = graph_node_degree(edges, edge_count, ordered_nodes[i].vreg);
+        if (degree < physical_register_count)
+            add_to_set(unconstrained, ordered_nodes[i].vreg);
+        else
+            add_to_set(constrained, ordered_nodes[i].vreg);
+    }
+
+    if (DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR) {
+        printf("Nodes in order of decreasing cost:\n");
+        for (i = 1; i <= vreg_count; i++)
+            printf("%d: cost=%d degree=%d\n", ordered_nodes[i].vreg, ordered_nodes[i].cost, graph_node_degree(edges, edge_count, ordered_nodes[i].vreg));
+
+        printf("\nPriority sets:\n");
+        printf("constrained:   "); print_set(constrained); printf("\n");
+        printf("unconstrained: "); print_set(unconstrained); printf("\n\n");
+    }
+
+    vreg_locations = malloc((vreg_count + 1) * sizeof(struct vreg_location));
+    memset(vreg_locations, -1, (vreg_count + 1) * sizeof(struct vreg_location));
+    spilled_register_count = 0;
+
+    // Color constrained nodes first
+    for (i = 1; i <= vreg_count; i++) {
+        vreg = ordered_nodes[i].vreg;
+        if (!constrained->elements[vreg]) continue;
+        color_vreg(edges, edge_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
+    }
+
+    // Color unconstrained nodes
+    for (i = 1; i <= vreg_count; i++) {
+        vreg = ordered_nodes[i].vreg;
+        if (!unconstrained->elements[vreg]) continue;
+        color_vreg(edges, edge_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
+    }
+
+    if (DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR) {
+        printf("Assigned physical registers and stack indexes:\n");
+
+        for (i = 1; i <= vreg_count; i++) {
+            printf("%d: ", i);
+            if (vreg_locations[i].preg == -1) printf("    "); else printf("%3d", vreg_locations[i].preg);
+            if (vreg_locations[i].spilled_index == -1) printf("    "); else printf("%3d", vreg_locations[i].spilled_index);
+            printf("\n");
+        }
+    }
+
+    function->function_vreg_locations = vreg_locations;
+}
+
+void assign_vreg_locations(struct symbol *function) {
+    struct three_address_code *tac;
+    struct vreg_location *function_vl, *vl;
+
+    function_vl = function->function_vreg_locations;
+
+    tac = function->function_ir;
+    while (tac) {
+        if (tac->dst && tac->dst->vreg) {
+            vl = &function_vl[tac->dst->vreg];
+            if (vl->spilled_index != -1) panic("SSA spilling not yet implemented");
+            tac->dst->preg = vl->preg;
+        }
+
+        if (tac->src1 && tac->src1->vreg) {
+            vl = &function_vl[tac->src1->vreg];
+            if (vl->spilled_index != -1) panic("SSA spilling not yet implemented");
+            tac->src1->preg = vl->preg;
+        }
+
+        if (tac->src2 && tac->src2->vreg) {
+            vl = &function_vl[tac->src2->vreg];
+            if (vl->spilled_index != -1) panic("SSA spilling not yet implemented");
+            tac->src2->preg = vl->preg;
+        }
+
+        tac = tac->next;
+    }
+}
+
 void do_ssa_experiments1(struct symbol *function) {
     make_control_flow_graph(function);
     make_block_dominance(function);
@@ -1061,4 +1242,9 @@ void do_ssa_experiments2(struct symbol *function) {
     make_live_ranges(function);
     make_interference_graph(function);
     make_live_range_spill_cost(function);
+}
+
+void do_ssa_experiments3(struct symbol *function) {
+    allocate_registers_top_down(function, ssa_physical_register_count);
+    assign_vreg_locations(function);
 }

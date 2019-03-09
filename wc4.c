@@ -101,6 +101,7 @@ int main(int argc, char **argv) {
     opt_spill_furthest_liveness_end = 0;
     output_inline_ir = 0;
     experimental_ssa = 0;
+    ssa_physical_register_count = 5;
 
     output_filename = 0;
     input_filename_count = 0;
@@ -137,7 +138,7 @@ int main(int argc, char **argv) {
                 argc--;
                 argv++;
             }
-            else if (argc > 0 && !memcmp(argv[0], "-O1",   2)) {
+            else if (argc > 0 && !memcmp(argv[0], "-O1", 2)) {
                 opt_enable_register_coalescing = 1;
                 opt_use_registers_for_locals = 1;
                 opt_merge_redundant_moves = 1;
@@ -145,14 +146,19 @@ int main(int argc, char **argv) {
                 argc--;
                 argv++;
             }
-            else if (argc > 0 && !memcmp(argv[0], "-c",   2)) {
+            else if (argc > 0 && !memcmp(argv[0], "-c", 2)) {
                 run_linker = 0;
                 target_is_object_file = 1;
                 argc--;
                 argv++;
             }
-            else if (argc > 1 && !memcmp(argv[0], "-o",   2)) {
+            else if (argc > 1 && !memcmp(argv[0], "-o", 2)) {
                 output_filename = argv[1];
+                argc -= 2;
+                argv += 2;
+            }
+            else if (argc > 1 && !memcmp(argv[0], "--ssa-regs", 10)) {
+                ssa_physical_register_count = argv[1][0] - '0'; // Really pathetic int to str converstion
                 argc -= 2;
                 argv += 2;
             }
@@ -181,6 +187,7 @@ int main(int argc, char **argv) {
         printf("--frp                          Fake register pressure, for testing spilling code\n");
         printf("--iir                          Output inline intermediate representation\n");
         printf("--ssa                          Enable experimental SSA code\n");
+        printf("--ssa-regs <n>                 Limit physical register availability to n in experimental SSA code\n");
         printf("--prc                          Output spilled register count\n");
         printf("--ir1                          Output intermediate representation after parsing\n");
         printf("--ir2                          Output intermediate representation after x86_64 rearrangements\n");

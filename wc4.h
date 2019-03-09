@@ -15,40 +15,46 @@ struct stack {
     int pos;
 };
 
+struct vreg_location {
+    int preg;
+    int spilled_index;
+};
+
 struct symbol {
-    int type;                                     // Type
-    int size;                                     // Size
-    char *identifier;                             // Identifier
-    int scope;                                    // Scope
-    long value;                                   // Value in the case of a constant
-    int stack_index;                              // For locals, index on the stack, starting with -1 and going downwards
-    int is_function;                              // Is the symbol a function?
-    int function_param_count;                     // For functions, number of parameters
-    int function_local_symbol_count;              // For functions, number of local symbols
-    int function_vreg_count;                      // For functions, number of virtual registers used in IR
-    int function_spilled_register_count;          // For functions, amount of stack space needed for registers spills
-    int function_call_count;                      // For functions, number of calls to other functions
-    int function_is_defined;                      // For functions, if a definition has been found
-    struct three_address_code *function_ir;       // For functions, intermediate representation
-    int function_builtin;                         // For builtin functions, IR number of the builtin
-    int function_is_variadic;                     // Set to 1 for builtin variadic functions
-    struct block *function_blocks;                // For functions, the blocks
-    int function_block_count;                     //
-    struct edge *function_edges;                  // For functions, the edges between blocks
-    int function_edge_count;                      //
-    struct set **function_dominance;              // For functions, block dominances
-    struct set **function_uevar;                  // For functions, the upward exposed set for each block
-    struct set **function_varkill;                // For functions, the killed var set for each block
-    struct set **function_liveout;                // For functions, the liveout set for each block
-    int *function_idom;                           // For functions, immediate dominator for each block
-    struct set **function_dominance_frontiers;    // For functions, dominance frontier for each block
-    struct set **function_var_blocks;             // For functions, var/block associations for vars that are written to
-    struct set *function_globals;                 // For functions, all variables that are assigned to
-    struct set **function_phi_functions;          // For functions, all variables that need phi functions for each block
-    struct edge *function_interference_graph;     // For functions, the interference graph of live ranges
-    int function_interference_graph_edge_count;   // For functions, the amount of edges in the interference graph of live ranges
-    int *function_spill_cost;                     // For functions, the estimated spill cost for each live range
-    int is_enum;                                  // Enums are symbols with a value
+    int type;                                      // Type
+    int size;                                      // Size
+    char *identifier;                              // Identifier
+    int scope;                                     // Scope
+    long value;                                    // Value in the case of a constant
+    int stack_index;                               // For locals, index on the stack, starting with -1 and going downwards
+    int is_function;                               // Is the symbol a function?
+    int function_param_count;                      // For functions, number of parameters
+    int function_local_symbol_count;               // For functions, number of local symbols
+    int function_vreg_count;                       // For functions, number of virtual registers used in IR
+    int function_spilled_register_count;           // For functions, amount of stack space needed for registers spills
+    int function_call_count;                       // For functions, number of calls to other functions
+    int function_is_defined;                       // For functions, if a definition has been found
+    struct three_address_code *function_ir;        // For functions, intermediate representation
+    int function_builtin;                          // For builtin functions, IR number of the builtin
+    int function_is_variadic;                      // Set to 1 for builtin variadic functions
+    struct block *function_blocks;                 // For functions, the blocks
+    int function_block_count;                      //
+    struct edge *function_edges;                   // For functions, the edges between blocks
+    int function_edge_count;                       //
+    struct set **function_dominance;               // For functions, block dominances
+    struct set **function_uevar;                   // For functions, the upward exposed set for each block
+    struct set **function_varkill;                 // For functions, the killed var set for each block
+    struct set **function_liveout;                 // For functions, the liveout set for each block
+    int *function_idom;                            // For functions, immediate dominator for each block
+    struct set **function_dominance_frontiers;     // For functions, dominance frontier for each block
+    struct set **function_var_blocks;              // For functions, var/block associations for vars that are written to
+    struct set *function_globals;                  // For functions, all variables that are assigned to
+    struct set **function_phi_functions;           // For functions, all variables that need phi functions for each block
+    struct edge *function_interference_graph;      // For functions, the interference graph of live ranges
+    struct vreg_location *function_vreg_locations; // For functions, allocated physical registers and spilled stack indexes
+    int function_interference_graph_edge_count;    // For functions, the amount of edges in the interference graph of live ranges
+    int *function_spill_cost;                      // For functions, the estimated spill cost for each live range
+    int is_enum;                                   // Enums are symbols with a value
 };
 
 // struct value is a value on the value stack. A value can be one of
@@ -148,11 +154,12 @@ enum {
 };
 
 enum {
-    DEBUG_SSA                    = 0,
-    DEBUG_SSA_PHI_RENUMBERING    = 0,
-    DEBUG_SSA_LIVE_RANGE         = 0,
-    DEBUG_SSA_INTERFERENCE_GRAPH = 0,
-    DEBUG_SSA_SPILL_COST         = 0,
+    DEBUG_SSA                             = 0,
+    DEBUG_SSA_PHI_RENUMBERING             = 0,
+    DEBUG_SSA_LIVE_RANGE                  = 0,
+    DEBUG_SSA_INTERFERENCE_GRAPH          = 0,
+    DEBUG_SSA_SPILL_COST                  = 0,
+    DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR = 0,
 };
 
 // Tokens in order of precedence
@@ -324,12 +331,13 @@ int run_linker;                 // Link .o file
 int target_is_object_file;
 int target_is_assembly_file;
 int print_spilled_register_count;
-int print_ir1;                  // Print IR after parsing
-int print_ir2;                  // Print IR after x84_64 arch manipulation
-int print_ir3;                  // Print IR after register allocation
-int fake_register_pressure;     // Simulate running out of all registers, triggering spill code
-int output_inline_ir;           // Output IR inline with the assembly
-int experimental_ssa;           // Enable experimental SSA code
+int print_ir1;                        // Print IR after parsing
+int print_ir2;                        // Print IR after x84_64 arch manipulation
+int print_ir3;                        // Print IR after register allocation
+int fake_register_pressure;           // Simulate running out of all registers, triggering spill code
+int output_inline_ir;                 // Output IR inline with the assembly
+int experimental_ssa;                 // Enable experimental SSA code
+int ssa_physical_register_count;      // Experimental physical register count
 int opt_enable_register_coalescing;   // Merge registers that can be reused within the same operation
 int opt_use_registers_for_locals;     // Experimental. Don't use the stack for local variables.
 int opt_merge_redundant_moves;        // Merge move statements that are only things between registers
@@ -457,12 +465,14 @@ void rename_phi_function_variables(struct symbol *function);
 void make_live_ranges(struct symbol *function);
 void rename_vars(struct symbol *function, struct stack **stack, int *counters, int block_number, int vreg_count);
 void make_live_ranges(struct symbol *function);
-void do_ssa_experiments1(struct symbol *function);
-void do_ssa_experiments2(struct symbol *function);
 void make_control_flow_graph(struct symbol *function);
 void make_block_dominance(struct symbol *function);
 void make_liveout(struct symbol *function);
 void make_live_range_spill_cost(struct symbol *function);
+void allocate_registers_top_down(struct symbol *function, int physical_register_count);
+void do_ssa_experiments1(struct symbol *function);
+void do_ssa_experiments2(struct symbol *function);
+void do_ssa_experiments3(struct symbol *function);
 
 // codegen.c
 void init_callee_saved_registers();
