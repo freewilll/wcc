@@ -150,7 +150,7 @@ enum {
     PHYSICAL_REGISTER_COUNT       = 15,
     MAX_SPILLED_REGISTER_COUNT    = 1024,
     MAX_INPUT_FILENAMES           = 1024,
-    MAX_INT_SET_ELEMENTS          = 1024,
+    MAX_INT_SET_ELEMENTS          = 10240,
     MAX_BLOCKS                    = 1024,
     MAX_BLOCK_EDGES               = 1024,
     MAX_INTERFERENCE_GRAPH_EDGES  = 1024,

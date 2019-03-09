@@ -57,14 +57,17 @@ void print_set(struct set *s) {
 }
 
 void *add_to_set(struct set *s, int value) {
+    if (value >= MAX_INT_SET_ELEMENTS) panic1d("Sets can only deal with %d elements", MAX_INT_SET_ELEMENTS);
     s->elements[value] = 1;
 }
 
 void *delete_from_set(struct set *s, int value) {
+    if (value >= MAX_INT_SET_ELEMENTS) panic1d("Sets can only deal with %d elements", MAX_INT_SET_ELEMENTS);
     s->elements[value] = 0;
 }
 
 int in_set(struct set *s, int value) {
+    if (value >= MAX_INT_SET_ELEMENTS) panic1d("Sets can only deal with %d elements", MAX_INT_SET_ELEMENTS);
     return s->elements[value] == 1;
 }
 

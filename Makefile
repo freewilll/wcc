@@ -154,8 +154,8 @@ test-include/test-include: wc4 test-include/include.h test-include/main.c test-i
 run-test-include: test-include/test-include
 	test-include/test-include
 
-test-set: wc4 test-set.c set.c
-	./wc4 set.c test-set.c -o test-set
+test-set: wc4 set.c utils.c test-set.c
+	./wc4 set.c utils.c test-set.c -o test-set
 
 run-test-set: test-set
 	 ./test-set
