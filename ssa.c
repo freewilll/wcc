@@ -1195,6 +1195,7 @@ void allocate_registers_top_down(struct function *function, int physical_registe
     }
 
     function->vreg_locations = vreg_locations;
+    function->spilled_register_count = spilled_register_count;
 }
 
 void assign_vreg_locations(struct function *function) {
@@ -1207,24 +1208,33 @@ void assign_vreg_locations(struct function *function) {
     while (tac) {
         if (tac->dst && tac->dst->vreg) {
             vl = &function_vl[tac->dst->vreg];
-            if (vl->spilled_index != -1) panic("SSA spilling not yet implemented");
-            tac->dst->preg = vl->preg;
+
+            if (vl->spilled_index != -1)
+                tac->dst->spilled_stack_index = vl->spilled_index;
+            else
+                tac->dst->preg = vl->preg;
         }
 
         if (tac->src1 && tac->src1->vreg) {
             vl = &function_vl[tac->src1->vreg];
-            if (vl->spilled_index != -1) panic("SSA spilling not yet implemented");
-            tac->src1->preg = vl->preg;
+            if (vl->spilled_index != -1)
+                tac->src1->spilled_stack_index = vl->spilled_index;
+            else
+                tac->src1->preg = vl->preg;
         }
 
         if (tac->src2 && tac->src2->vreg) {
             vl = &function_vl[tac->src2->vreg];
-            if (vl->spilled_index != -1) panic("SSA spilling not yet implemented");
-            tac->src2->preg = vl->preg;
+            if (vl->spilled_index != -1)
+                tac->src2->spilled_stack_index = vl->spilled_index;
+            else
+                tac->src2->preg = vl->preg;
         }
 
         tac = tac->next;
     }
+
+    function->local_symbol_count = 0; // This nukes ancient code that assumes local vars are on the stack
 }
 
 void do_ssa_experiments1(struct function *function) {
