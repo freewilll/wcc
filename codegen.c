@@ -385,7 +385,7 @@ void output_function_body_code(struct symbol *symbol) {
     // Push up to the first 6 args onto the stack, so all args are on the stack with leftmost arg first.
     // Arg 7 and onwards are already pushed.
 
-    function_pc = symbol->function_param_count;
+    function_pc = symbol->function->param_count;
 
     // Push the args in the registers on the stack. The order for all args is right to left.
     if (function_pc >= 6) { cur_stack_push_count++; fprintf(f, "\tpush\t%%r9\n");  }
@@ -397,10 +397,10 @@ void output_function_body_code(struct symbol *symbol) {
 
     // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
     local_vars_stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
-    spilled_registers_stack_start = local_vars_stack_start - 8 * symbol->function_local_symbol_count;
+    spilled_registers_stack_start = local_vars_stack_start - 8 * symbol->function->local_symbol_count;
 
     // Allocate stack space for local variables and spilled registers
-    local_stack_size = 8 * (symbol->function_local_symbol_count + symbol->function_spilled_register_count);
+    local_stack_size = 8 * (symbol->function->local_symbol_count + symbol->function->spilled_register_count);
 
     // Allocate local stack
     if (local_stack_size > 0) {
@@ -408,7 +408,7 @@ void output_function_body_code(struct symbol *symbol) {
         cur_stack_push_count += local_stack_size / 8;
     }
 
-    tac = symbol->function_ir;
+    tac = symbol->function->ir;
     saved_registers = push_callee_saved_registers(tac);
 
     while (tac) {
@@ -508,10 +508,10 @@ void output_function_body_code(struct symbol *symbol) {
 
             // Variadic functions have the number of floating point arguments passed in al.
             // Since floating point numbers isn't implemented, this is zero.
-            if (tac->src1->function_symbol->function_is_variadic)
+            if (tac->src1->function_symbol->function->is_variadic)
                 fprintf(f, "\tmovb\t$0, %%al\n");
 
-            if (tac->src1->function_symbol->function_builtin)
+            if (tac->src1->function_symbol->function->builtin)
                 fprintf(f, "\tcallq\t%s@PLT\n", tac->src1->function_symbol->identifier);
             else
                 fprintf(f, "\tcallq\t%s\n", tac->src1->function_symbol->identifier);
@@ -745,7 +745,7 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "\t.text\n");
     s = symbol_table;
     while (s->identifier) {
-        if (s->scope || s->is_function || s->function_builtin) { s++; continue; };
+        if (s->scope || s->is_function) { s++; continue; };
         fprintf(f, "\t.comm %s,%d,%d\n", s->identifier, get_type_size(s->type), get_type_alignment(s->type));
         s++;
     }
@@ -779,38 +779,38 @@ void output_code(char *input_filename, char *output_filename) {
     // Generate body code for all functions
     s = symbol_table;
     while (s->identifier) {
-        if (!s->is_function || !s->function_is_defined) { s++; continue; }
+        if (!s->is_function || !s->function->is_defined) { s++; continue; }
 
         cur_stack_push_count = 0;
-        ensure_must_be_ssa_ish(s->function_ir);
+        ensure_must_be_ssa_ish(s->function->ir);
 
         fprintf(f, "%s:\n", s->identifier);
 
         // registers start at 1
         liveness = malloc(sizeof(struct liveness_interval) * (MAX_VREG_COUNT + 1));
 
-        if (print_ir1) print_intermediate_representation(s);
+        if (print_ir1) print_intermediate_representation(s->function, s->identifier);
 
         analyze_liveness(s);
 
-        vreg_count = s->function_vreg_count;
+        vreg_count = s->function->vreg_count;
         optimize_ir(s);
-        s->function_vreg_count = vreg_count;
+        s->function->vreg_count = vreg_count;
 
-        if (print_ir2) print_intermediate_representation(s);
+        if (print_ir2) print_intermediate_representation(s->function, s->identifier);
 
         if (experimental_ssa) {
-            do_ssa_experiments1(s);
-            do_ssa_experiments2(s);
-            do_ssa_experiments3(s);
+            do_ssa_experiments1(s->function);
+            do_ssa_experiments2(s->function);
+            do_ssa_experiments3(s->function);
         }
         else {
             if (debug_register_allocations) print_liveness(s);
-            allocate_registers(s->function_ir);
-            s->function_spilled_register_count = spilled_register_count;
+            allocate_registers(s->function->ir);
+            s->function->spilled_register_count = spilled_register_count;
         }
 
-        if (print_ir3) print_intermediate_representation(s);
+        if (print_ir3) print_intermediate_representation(s->function, s->identifier);
 
         output_function_body_code(s);
         fprintf(f, "\n");

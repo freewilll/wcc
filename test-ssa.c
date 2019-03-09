@@ -21,25 +21,33 @@ void assert_set(struct set *set, int v1, int v2, int v3, int v4, int v5) {
     assert(1, set_eq(set, is));
 }
 
+struct function *new_function() {
+    struct function *function;
+
+    function = malloc(sizeof(struct function));
+    memset(function, 0, sizeof(struct function));
+
+    return function;
+}
+
 // Test example on page 478 of engineering a compiler
 void test_dominance() {
-    struct symbol *function;
+    struct function *function;
     struct block *blocks;
     struct edge *edges;
     int i;
 
-    function = malloc(sizeof(struct symbol));
-    memset(function, 0, sizeof(struct symbol));
+    function = new_function();
 
     blocks = malloc(20 * sizeof(struct block));
     memset(blocks, 0, 20 * sizeof(struct block));
     edges = malloc(20 * sizeof(struct edge));
     memset(edges, 0, 20 * sizeof(struct edge));
 
-    function->function_blocks = blocks;
-    function->function_block_count = 9;
-    function->function_edges = edges;
-    function->function_edge_count = 11;
+    function->blocks = blocks;
+    function->block_count = 9;
+    function->edges = edges;
+    function->edge_count = 11;
 
     edges[ 0].from = 0; edges[ 0].to = 1; // 0 -> 1
     edges[ 1].from = 1; edges[ 1].to = 2; // 1 -> 2
@@ -66,15 +74,15 @@ void test_dominance() {
     // 7: {0, 1, 5, 7}
     // 8: {0, 1, 5, 8}
 
-    assert_set(function->function_dominance[0], 0, -1, -1, -1, -1);
-    assert_set(function->function_dominance[1], 0,  1, -1, -1, -1);
-    assert_set(function->function_dominance[2], 0,  1,  2, -1, -1);
-    assert_set(function->function_dominance[3], 0,  1,  3, -1, -1);
-    assert_set(function->function_dominance[4], 0,  1,  3,  4, -1);
-    assert_set(function->function_dominance[5], 0,  1,  5, -1, -1);
-    assert_set(function->function_dominance[6], 0,  1,  5,  6, -1);
-    assert_set(function->function_dominance[7], 0,  1,  5,  7, -1);
-    assert_set(function->function_dominance[8], 0,  1,  5,  8, -1);
+    assert_set(function->dominance[0], 0, -1, -1, -1, -1);
+    assert_set(function->dominance[1], 0,  1, -1, -1, -1);
+    assert_set(function->dominance[2], 0,  1,  2, -1, -1);
+    assert_set(function->dominance[3], 0,  1,  3, -1, -1);
+    assert_set(function->dominance[4], 0,  1,  3,  4, -1);
+    assert_set(function->dominance[5], 0,  1,  5, -1, -1);
+    assert_set(function->dominance[6], 0,  1,  5,  6, -1);
+    assert_set(function->dominance[7], 0,  1,  5,  7, -1);
+    assert_set(function->dominance[8], 0,  1,  5,  8, -1);
 }
 
 void i(int label, int operation, struct value *dst, struct value *src1, struct value *src2) {
@@ -109,11 +117,10 @@ struct value *c(int value) {
 
 // Test example on page 448 of engineering a compiler
 void test_liveout1() {
-    struct symbol *function;
+    struct function *function;
     struct three_address_code *tac;
 
-    function = malloc(sizeof(struct symbol));
-    memset(function, 0, sizeof(struct symbol));
+    function = new_function();
 
     ir_start = 0;
     i(0, IR_NOP,    0,    0,    0   );
@@ -125,42 +132,40 @@ void test_liveout1() {
     i(0, IR_JZ,     0,    v(1), l(1));
     i(0, IR_ARG,    0,    c(1), v(2));
 
-    function->function_ir = ir_start;
-    function->identifier = "test";
+    function->ir = ir_start;
 
-    if (DEBUG_SSA) print_intermediate_representation(function);
+    if (DEBUG_SSA) print_intermediate_representation(function, 0);
 
     do_ssa_experiments1(function);
 
-    assert(5, function->function_block_count);
-    assert(6, function->function_edge_count);
+    assert(5, function->block_count);
+    assert(6, function->edge_count);
 
-    assert_set(function->function_uevar[0], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[1],  1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[2], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[3],  1,  2, -1, -1, -1);
-    assert_set(function->function_uevar[4], -1,  2, -1, -1, -1);
+    assert_set(function->uevar[0], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[1],  1, -1, -1, -1, -1);
+    assert_set(function->uevar[2], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[3],  1,  2, -1, -1, -1);
+    assert_set(function->uevar[4], -1,  2, -1, -1, -1);
 
-    assert_set(function->function_varkill[0],  1, -1, -1, -1, -1);
-    assert_set(function->function_varkill[1], -1, -1, -1, -1, -1);
-    assert_set(function->function_varkill[2], -1,  2, -1, -1, -1);
-    assert_set(function->function_varkill[3],  1,  2, -1, -1, -1);
-    assert_set(function->function_varkill[4], -1, -1, -1, -1, -1);
+    assert_set(function->varkill[0],  1, -1, -1, -1, -1);
+    assert_set(function->varkill[1], -1, -1, -1, -1, -1);
+    assert_set(function->varkill[2], -1,  2, -1, -1, -1);
+    assert_set(function->varkill[3],  1,  2, -1, -1, -1);
+    assert_set(function->varkill[4], -1, -1, -1, -1, -1);
 
-    assert_set(function->function_liveout[0],  1,  2, -1, -1, -1);
-    assert_set(function->function_liveout[1],  1,  2, -1, -1, -1);
-    assert_set(function->function_liveout[2],  1,  2, -1, -1, -1);
-    assert_set(function->function_liveout[3],  1,  2, -1, -1, -1);
-    assert_set(function->function_liveout[4], -1, -1, -1, -1, -1);
+    assert_set(function->liveout[0],  1,  2, -1, -1, -1);
+    assert_set(function->liveout[1],  1,  2, -1, -1, -1);
+    assert_set(function->liveout[2],  1,  2, -1, -1, -1);
+    assert_set(function->liveout[3],  1,  2, -1, -1, -1);
+    assert_set(function->liveout[4], -1, -1, -1, -1, -1);
 }
 
 // Make IR for the test example on page 484 of engineering a compiler
-struct symbol *make_ir2(int init_four_vars) {
-    struct symbol *function;
+struct function *make_ir2(int init_four_vars) {
+    struct function *function;
     struct three_address_code *tac;
 
-    function = malloc(sizeof(struct symbol));
-    memset(function, 0, sizeof(struct symbol));
+    function = new_function();
 
     // var/register
     // i = 1
@@ -204,82 +209,81 @@ struct symbol *make_ir2(int init_four_vars) {
     i(8, IR_ASSIGN,  v(4), c(0), 0   );
     i(0, IR_JMP,     0,    l(7), 0   );
 
-    function->function_ir = ir_start;
-    function->identifier = "test";
+    function->ir = ir_start;
 
-    if (DEBUG_SSA) print_intermediate_representation(function);
+    if (DEBUG_SSA) print_intermediate_representation(function, 0);
 
     return function;
 }
 
 // Test example on page 484 of engineering a compiler
 void test_liveout2() {
-    struct symbol *function;
+    struct function *function;
 
     function = make_ir2(0);
     do_ssa_experiments1(function);
 
-    assert(9, function->function_block_count);
-    assert(11, function->function_edge_count);
+    assert(9, function->block_count);
+    assert(11, function->edge_count);
 
-    assert_set(function->function_uevar[0], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[1], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[2], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[3],  1,  2,  3,  4,  5);
-    assert_set(function->function_uevar[4], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[5], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[6], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[7], -1, -1, -1, -1, -1);
-    assert_set(function->function_uevar[8], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[0], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[1], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[2], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[3],  1,  2,  3,  4,  5);
+    assert_set(function->uevar[4], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[5], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[6], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[7], -1, -1, -1, -1, -1);
+    assert_set(function->uevar[8], -1, -1, -1, -1, -1);
 
-    assert_set(function->function_varkill[0],  1, -1, -1, -1, -1);
-    assert_set(function->function_varkill[1],  2,  4, -1, -1, -1);
-    assert_set(function->function_varkill[2],  3,  4,  5, -1, -1);
-    assert_set(function->function_varkill[3],  1,  6,  7, -1, -1);
-    assert_set(function->function_varkill[4], -1, -1, -1, -1, -1);
-    assert_set(function->function_varkill[5],  2,  5, -1, -1, -1);
-    assert_set(function->function_varkill[6],  5, -1, -1, -1, -1);
-    assert_set(function->function_varkill[7],  3, -1, -1, -1, -1);
-    assert_set(function->function_varkill[8],  4, -1, -1, -1, -1);
+    assert_set(function->varkill[0],  1, -1, -1, -1, -1);
+    assert_set(function->varkill[1],  2,  4, -1, -1, -1);
+    assert_set(function->varkill[2],  3,  4,  5, -1, -1);
+    assert_set(function->varkill[3],  1,  6,  7, -1, -1);
+    assert_set(function->varkill[4], -1, -1, -1, -1, -1);
+    assert_set(function->varkill[5],  2,  5, -1, -1, -1);
+    assert_set(function->varkill[6],  5, -1, -1, -1, -1);
+    assert_set(function->varkill[7],  3, -1, -1, -1, -1);
+    assert_set(function->varkill[8],  4, -1, -1, -1, -1);
 
-    assert_set(function->function_liveout[0],  1, -1, -1, -1, -1);
-    assert_set(function->function_liveout[1],  2,  4,  1, -1, -1);
-    assert_set(function->function_liveout[2],  1,  2,  3,  4,  5);
-    assert_set(function->function_liveout[3],  1, -1, -1, -1, -1);
-    assert_set(function->function_liveout[4], -1, -1, -1, -1, -1);
-    assert_set(function->function_liveout[5],  1,  2,  4,  5, -1);
-    assert_set(function->function_liveout[6],  1,  2,  4,  5, -1);
-    assert_set(function->function_liveout[7],  1,  2,  3,  4,  5);
-    assert_set(function->function_liveout[8],  1,  2,  4,  5, -1);
+    assert_set(function->liveout[0],  1, -1, -1, -1, -1);
+    assert_set(function->liveout[1],  2,  4,  1, -1, -1);
+    assert_set(function->liveout[2],  1,  2,  3,  4,  5);
+    assert_set(function->liveout[3],  1, -1, -1, -1, -1);
+    assert_set(function->liveout[4], -1, -1, -1, -1, -1);
+    assert_set(function->liveout[5],  1,  2,  4,  5, -1);
+    assert_set(function->liveout[6],  1,  2,  4,  5, -1);
+    assert_set(function->liveout[7],  1,  2,  3,  4,  5);
+    assert_set(function->liveout[8],  1,  2,  4,  5, -1);
 }
 
 // Test example on page 484 and 531 of engineering a compiler
 void test_idom2() {
-    struct symbol *function;
+    struct function *function;
 
     function = make_ir2(0);
     do_ssa_experiments1(function);
 
-    assert(-1, function->function_idom[0]);
-    assert( 0, function->function_idom[1]);
-    assert( 1, function->function_idom[2]);
-    assert( 1, function->function_idom[3]);
-    assert( 3, function->function_idom[4]);
-    assert( 1, function->function_idom[5]);
-    assert( 5, function->function_idom[6]);
-    assert( 5, function->function_idom[7]);
-    assert( 5, function->function_idom[8]);
+    assert(-1, function->idom[0]);
+    assert( 0, function->idom[1]);
+    assert( 1, function->idom[2]);
+    assert( 1, function->idom[3]);
+    assert( 3, function->idom[4]);
+    assert( 1, function->idom[5]);
+    assert( 5, function->idom[6]);
+    assert( 5, function->idom[7]);
+    assert( 5, function->idom[8]);
 
     // Page 500 of engineering a compiler
-    assert_set(function->function_dominance_frontiers[0], -1, -1, -1, -1, -1);
-    assert_set(function->function_dominance_frontiers[1],  1, -1, -1, -1, -1);
-    assert_set(function->function_dominance_frontiers[2],  3, -1, -1, -1, -1);
-    assert_set(function->function_dominance_frontiers[3],  1, -1, -1, -1, -1);
-    assert_set(function->function_dominance_frontiers[4], -1, -1, -1, -1, -1);
-    assert_set(function->function_dominance_frontiers[5],  3, -1, -1, -1, -1);
-    assert_set(function->function_dominance_frontiers[6],  7, -1, -1, -1, -1);
-    assert_set(function->function_dominance_frontiers[7],  3, -1, -1, -1, -1);
-    assert_set(function->function_dominance_frontiers[8],  7, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[0], -1, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[1],  1, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[2],  3, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[3],  1, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[4], -1, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[5],  3, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[6],  7, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[7],  3, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[8],  7, -1, -1, -1, -1);
 }
 
 void check_phi(struct three_address_code *tac, int vreg) {
@@ -290,54 +294,54 @@ void check_phi(struct three_address_code *tac, int vreg) {
 }
 
 void test_phi_insertion() {
-    struct symbol *function;
+    struct function *function;
 
     function = make_ir2(0);
     do_ssa_experiments1(function);
 
     // Page 502 of engineering a compiler
-    assert_set(function->function_globals, 1, 2, 3, 4, 5);
+    assert_set(function->globals, 1, 2, 3, 4, 5);
 
-    assert_set(function->function_var_blocks[1],  0,  3, -1, -1, -1); // i
-    assert_set(function->function_var_blocks[2],  1,  5, -1, -1, -1); // a
-    assert_set(function->function_var_blocks[3],  2,  7, -1, -1, -1); // b
-    assert_set(function->function_var_blocks[4],  1,  2,  8, -1, -1); // c
-    assert_set(function->function_var_blocks[5],  2,  5,  6, -1, -1); // d
-    assert_set(function->function_var_blocks[6],  3, -1, -1, -1, -1); // y
-    assert_set(function->function_var_blocks[7],  3, -1, -1, -1, -1); // z
+    assert_set(function->var_blocks[1],  0,  3, -1, -1, -1); // i
+    assert_set(function->var_blocks[2],  1,  5, -1, -1, -1); // a
+    assert_set(function->var_blocks[3],  2,  7, -1, -1, -1); // b
+    assert_set(function->var_blocks[4],  1,  2,  8, -1, -1); // c
+    assert_set(function->var_blocks[5],  2,  5,  6, -1, -1); // d
+    assert_set(function->var_blocks[6],  3, -1, -1, -1, -1); // y
+    assert_set(function->var_blocks[7],  3, -1, -1, -1, -1); // z
 
     // Page 503 of engineering a compiler
-    assert_set(function->function_phi_functions[0], -1, -1, -1, -1, -1);
-    assert_set(function->function_phi_functions[1],  1,  2,  3,  4,  5);
-    assert_set(function->function_phi_functions[2], -1, -1, -1, -1, -1);
-    assert_set(function->function_phi_functions[3],  2,  3,  4,  5, -1);
-    assert_set(function->function_phi_functions[4], -1, -1, -1, -1, -1);
-    assert_set(function->function_phi_functions[5], -1, -1, -1, -1, -1);
-    assert_set(function->function_phi_functions[6], -1, -1, -1, -1, -1);
-    assert_set(function->function_phi_functions[7],  4,  5, -1, -1, -1);
+    assert_set(function->phi_functions[0], -1, -1, -1, -1, -1);
+    assert_set(function->phi_functions[1],  1,  2,  3,  4,  5);
+    assert_set(function->phi_functions[2], -1, -1, -1, -1, -1);
+    assert_set(function->phi_functions[3],  2,  3,  4,  5, -1);
+    assert_set(function->phi_functions[4], -1, -1, -1, -1, -1);
+    assert_set(function->phi_functions[5], -1, -1, -1, -1, -1);
+    assert_set(function->phi_functions[6], -1, -1, -1, -1, -1);
+    assert_set(function->phi_functions[7],  4,  5, -1, -1, -1);
 
     // Check the pre existing labels have been moved
-    assert(0, function->function_blocks[0].start->label);
-    assert(1, function->function_blocks[1].start->label);
-    assert(0, function->function_blocks[2].start->label);
-    assert(3, function->function_blocks[3].start->label);
-    assert(0, function->function_blocks[4].start->label);
-    assert(5, function->function_blocks[5].start->label);
-    assert(0, function->function_blocks[6].start->label);
-    assert(7, function->function_blocks[7].start->label);
+    assert(0, function->blocks[0].start->label);
+    assert(1, function->blocks[1].start->label);
+    assert(0, function->blocks[2].start->label);
+    assert(3, function->blocks[3].start->label);
+    assert(0, function->blocks[4].start->label);
+    assert(5, function->blocks[5].start->label);
+    assert(0, function->blocks[6].start->label);
+    assert(7, function->blocks[7].start->label);
 
     // Check phi functions are in place
-    check_phi(function->function_blocks[1].start,                         1); // i
-    check_phi(function->function_blocks[1].start->next,                   2); // a
-    check_phi(function->function_blocks[1].start->next->next,             3); // b
-    check_phi(function->function_blocks[1].start->next->next->next,       4); // c
-    check_phi(function->function_blocks[1].start->next->next->next->next, 5); // d
-    check_phi(function->function_blocks[3].start,                         2); // a
-    check_phi(function->function_blocks[3].start->next,                   3); // b
-    check_phi(function->function_blocks[3].start->next->next,             4); // c
-    check_phi(function->function_blocks[3].start->next->next->next,       5); // d
-    check_phi(function->function_blocks[7].start,                         4); // c
-    check_phi(function->function_blocks[7].start->next,                   5); // d
+    check_phi(function->blocks[1].start,                         1); // i
+    check_phi(function->blocks[1].start->next,                   2); // a
+    check_phi(function->blocks[1].start->next->next,             3); // b
+    check_phi(function->blocks[1].start->next->next->next,       4); // c
+    check_phi(function->blocks[1].start->next->next->next->next, 5); // d
+    check_phi(function->blocks[3].start,                         2); // a
+    check_phi(function->blocks[3].start->next,                   3); // b
+    check_phi(function->blocks[3].start->next->next,             4); // c
+    check_phi(function->blocks[3].start->next->next->next,       5); // d
+    check_phi(function->blocks[7].start,                         4); // c
+    check_phi(function->blocks[7].start->next,                   5); // d
 }
 
 // Check renumbered phi functions
@@ -349,7 +353,7 @@ void check_rphi(struct three_address_code *tac, int dst_vreg, int dst_ss, int sr
 }
 
 void test_phi_renumbering() {
-    struct symbol *function;
+    struct function *function;
     int vreg_count;
     int *counters;
     struct stack **stack;
@@ -359,27 +363,27 @@ void test_phi_renumbering() {
     do_ssa_experiments1(function);
     rename_phi_function_variables(function);
 
-    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function);
+    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
 
     // Check renumbered args to phi functions are correct, page 509.
     // No effort is done to validate all other vars. It's safe to assume that
     // if the phi functions are correct, then it's pretty likely the other
     // vars are ok too.
-    check_rphi(function->function_blocks[1].start,                         1, 1,  1, 0,  1, 2); // i
-    check_rphi(function->function_blocks[1].start->next,                   2, 1,  2, 0,  2, 3); // a
-    check_rphi(function->function_blocks[1].start->next->next,             3, 1,  3, 0,  3, 3); // b
-    check_rphi(function->function_blocks[1].start->next->next->next,       4, 1,  4, 0,  4, 4); // c
-    check_rphi(function->function_blocks[1].start->next->next->next->next, 5, 1,  5, 0,  5, 3); // d
-    check_rphi(function->function_blocks[3].start,                         2, 3,  2, 2,  2, 4); // a
-    check_rphi(function->function_blocks[3].start->next,                   3, 3,  3, 2,  3, 4); // b
-    check_rphi(function->function_blocks[3].start->next->next,             4, 4,  4, 3,  4, 5); // c
-    check_rphi(function->function_blocks[3].start->next->next->next,       5, 3,  5, 2,  5, 6); // d
-    check_rphi(function->function_blocks[7].start,                         4, 5,  4, 2,  4, 6); // c
-    check_rphi(function->function_blocks[7].start->next,                   5, 6,  5, 5,  5, 4); // d
+    check_rphi(function->blocks[1].start,                         1, 1,  1, 0,  1, 2); // i
+    check_rphi(function->blocks[1].start->next,                   2, 1,  2, 0,  2, 3); // a
+    check_rphi(function->blocks[1].start->next->next,             3, 1,  3, 0,  3, 3); // b
+    check_rphi(function->blocks[1].start->next->next->next,       4, 1,  4, 0,  4, 4); // c
+    check_rphi(function->blocks[1].start->next->next->next->next, 5, 1,  5, 0,  5, 3); // d
+    check_rphi(function->blocks[3].start,                         2, 3,  2, 2,  2, 4); // a
+    check_rphi(function->blocks[3].start->next,                   3, 3,  3, 2,  3, 4); // b
+    check_rphi(function->blocks[3].start->next->next,             4, 4,  4, 3,  4, 5); // c
+    check_rphi(function->blocks[3].start->next->next->next,       5, 3,  5, 2,  5, 6); // d
+    check_rphi(function->blocks[7].start,                         4, 5,  4, 2,  4, 6); // c
+    check_rphi(function->blocks[7].start->next,                   5, 6,  5, 5,  5, 4); // d
 
     // In the textbook example, all variables end up being mapped straight onto their own live ranges
     make_live_ranges(function);
-    tac = function->function_ir;
+    tac = function->ir;
     while (tac) {
         if (tac->dst  && tac->dst ->vreg) assert(tac->dst ->vreg, tac->dst ->live_range);
         if (tac->src1 && tac->src1->vreg) assert(tac->src1->vreg, tac->src1->live_range);
@@ -389,12 +393,11 @@ void test_phi_renumbering() {
 }
 
 // Make IR for the test example on page 484 of engineering a compiler
-struct symbol *make_ir3(int loop_count) {
-    struct symbol *function;
+struct function *make_ir3(int loop_count) {
+    struct function *function;
     struct three_address_code *tac;
 
-    function = malloc(sizeof(struct symbol));
-    memset(function, 0, sizeof(struct symbol));
+    function = new_function();
 
     ir_start = 0;
     i(0, IR_NOP,    0,    0,    0   );
@@ -415,45 +418,43 @@ struct symbol *make_ir3(int loop_count) {
     i(0, IR_ADD,    0,    v(1), v(1)); // ... = a
     i(0, IR_ADD,    0,    v(4), v(4)); // ... = d
 
-    function->function_ir = ir_start;
-    function->identifier = "test";
+    function->ir = ir_start;
 
     return function;
 }
 
 void test_interference_graph1() {
-    struct symbol *function;
+    struct function *function;
     struct edge *ig;
 
     function = make_ir3(0);
 
-    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function);
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
     do_ssa_experiments1(function);
     do_ssa_experiments2(function);
 
-    ig = function->function_interference_graph;
-    assert(3, function->function_interference_graph_edge_count);
+    ig = function->interference_graph;
+    assert(3, function->interference_graph_edge_count);
     assert(1, ig[0].from); assert(2, ig[0].to);
     assert(1, ig[1].from); assert(3, ig[1].to);
     assert(1, ig[2].from); assert(4, ig[2].to);
 }
 
 void test_interference_graph2() {
-    struct symbol *function;
+    struct function *function;
     struct edge *ig;
 
-    function = malloc(sizeof(struct symbol));
-    memset(function, 0, sizeof(struct symbol));
+    function = new_function();
 
     function = make_ir2(1);
     do_ssa_experiments1(function);
     do_ssa_experiments2(function);
 
-    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function);
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
-    ig = function->function_interference_graph;
-    assert(14, function->function_interference_graph_edge_count);
+    ig = function->interference_graph;
+    assert(14, function->interference_graph_edge_count);
     assert(1, ig[ 0].from); assert(2, ig[ 0].to);
     assert(1, ig[ 1].from); assert(3, ig[ 1].to);
     assert(1, ig[ 2].from); assert(4, ig[ 2].to);
@@ -473,11 +474,10 @@ void test_interference_graph2() {
 void test_interference_graph3() {
     // Test the special case of a register copy not introducing an edge
 
-    struct symbol *function;
+    struct function *function;
     struct edge *ig;
 
-    function = malloc(sizeof(struct symbol));
-    memset(function, 0, sizeof(struct symbol));
+    function = new_function();
 
     ir_start = 0;
 
@@ -488,22 +488,21 @@ void test_interference_graph3() {
     i(0, IR_ADD,    0,    v(3), v(3)); // ... = c
     i(0, IR_ADD,    0,    v(1), v(1)); // ... = a
 
-    function->function_ir = ir_start;
-    function->identifier = "test";
+    function->ir = ir_start;
 
     do_ssa_experiments1(function);
     do_ssa_experiments2(function);
 
-    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function);
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
-    ig = function->function_interference_graph;
-    assert(2, function->function_interference_graph_edge_count);
+    ig = function->interference_graph;
+    assert(2, function->interference_graph_edge_count);
     assert(1, ig[0].from); assert(2, ig[0].to);
     assert(1, ig[1].from); assert(3, ig[1].to);
 }
 
 void test_spill_cost() {
-    struct symbol *function;
+    struct function *function;
     int i, *spill_cost;
     int p;
 
@@ -513,13 +512,13 @@ void test_spill_cost() {
         do_ssa_experiments1(function);
         do_ssa_experiments2(function);
 
-        if (DEBUG_SSA_SPILL_COST) print_intermediate_representation(function);
+        if (DEBUG_SSA_SPILL_COST) print_intermediate_representation(function, 0);
 
         if (i == 0) p = 1;
         else if (i == 1) p = 10;
         else if (i == 2) p = 100;
 
-        spill_cost = function->function_spill_cost;
+        spill_cost = function->spill_cost;
         assert(4, spill_cost[1]);
         assert(3, spill_cost[2]);
         assert(p + 1, spill_cost[3]);
@@ -529,7 +528,7 @@ void test_spill_cost() {
 
 void test_top_down_register_allocation() {
     int i, vreg_count;
-    struct symbol *function;
+    struct function *function;
     struct edge *edges;
     struct vreg_location *vl;
 
@@ -538,19 +537,18 @@ void test_top_down_register_allocation() {
     // | \
     // 2   3
 
-    function = malloc(sizeof(struct symbol));
-    memset(function, 0, sizeof(struct symbol));
+    function = new_function();
 
     vreg_count =  4;
-    function->function_vreg_count = 4;
+    function->vreg_count = 4;
 
     // For some determinism, assign costs equal to the vreg number
-    function->function_spill_cost = malloc((vreg_count + 1) * sizeof(int));
-    for (i = 1; i <= vreg_count; i++) function->function_spill_cost[i] = i;
+    function->spill_cost = malloc((vreg_count + 1) * sizeof(int));
+    for (i = 1; i <= vreg_count; i++) function->spill_cost[i] = i;
 
-    function->function_interference_graph_edge_count = 3;
+    function->interference_graph_edge_count = 3;
     edges = malloc(16 * sizeof(struct edge));
-    function->function_interference_graph = edges;
+    function->interference_graph = edges;
     edges[0].from = 1; edges[0].to = 2;
     edges[1].from = 1; edges[1].to = 3;
     edges[2].from = 1; edges[2].to = 4;
@@ -558,7 +556,7 @@ void test_top_down_register_allocation() {
     // Everything is spilled. All nodes are constrained.
     // The vregs with the lowest cost get spilled first
     allocate_registers_top_down(function, 0);
-    vl = function->function_vreg_locations;
+    vl = function->vreg_locations;
     assert(3, vl[1].spilled_index);
     assert(2, vl[2].spilled_index);
     assert(1, vl[3].spilled_index);
@@ -567,7 +565,7 @@ void test_top_down_register_allocation() {
     // Only on register is available. All nodes are constrained.
     // The most expensive non interfering nodes get the register
     allocate_registers_top_down(function, 1);
-    vl = function->function_vreg_locations;
+    vl = function->vreg_locations;
     assert(0, vl[1].spilled_index);
     assert(0, vl[2].preg);
     assert(0, vl[3].preg);
@@ -577,7 +575,7 @@ void test_top_down_register_allocation() {
     // first register. The rest don't interfere and all get the second
     // register.
     allocate_registers_top_down(function, 2);
-    vl = function->function_vreg_locations;
+    vl = function->vreg_locations;
     assert(0, vl[1].preg);
     assert(1, vl[2].preg);
     assert(1, vl[3].preg);
@@ -592,10 +590,10 @@ void test_top_down_register_allocation() {
     // Then 2 gets register 1
     // Then 1 gets spilled to 0
     // Finally, when 3 gets done, all registers are free since node 0 was spilled. So it gets 0.
-    function->function_interference_graph_edge_count++;
+    function->interference_graph_edge_count++;
     edges[3].from = 2; edges[3].to = 4;
     allocate_registers_top_down(function, 2);
-    vl = function->function_vreg_locations;
+    vl = function->vreg_locations;
     assert(0, vl[1].spilled_index);
     assert(1, vl[2].preg);
     assert(0, vl[3].preg);
@@ -607,7 +605,7 @@ void test_top_down_register_allocation() {
     // 3 gets 1 since 0 is used by node 1
     // 2 gets 2 since 0 and 1 are in use by 1 and 4
     allocate_registers_top_down(function, 3);
-    vl = function->function_vreg_locations;
+    vl = function->vreg_locations;
     assert(0, vl[1].preg);
     assert(2, vl[2].preg);
     assert(1, vl[3].preg);

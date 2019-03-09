@@ -691,7 +691,7 @@ void expression(int level) {
 
             if (symbol->stack_index >= 0)
                 // Step over pushed PC and BP
-                src1->stack_index = cur_function_symbol->function_param_count - symbol->stack_index + 1;
+                src1->stack_index = cur_function_symbol->function->param_count - symbol->stack_index + 1;
             else
                 src1->stack_index = symbol->stack_index;
 
@@ -1117,8 +1117,8 @@ void function_body() {
         while (cur_token == TOK_SEMI) next();
     }
 
-    cur_function_symbol->function_local_symbol_count = local_symbol_count;
-    cur_function_symbol->function_call_count = function_call_count;
+    cur_function_symbol->function->local_symbol_count = local_symbol_count;
+    cur_function_symbol->function->call_count = function_call_count;
 
     while (cur_token != TOK_RCURLY) statement();
 
@@ -1220,8 +1220,10 @@ void parse() {
                     // Setup the intermediate representation with a dummy no operation instruction.
                     ir_start = 0;
                     ir_start = add_instruction(IR_NOP, 0, 0, 0);
-                    s->function_ir = ir_start;
                     s->is_function = 1;
+                    s->function = malloc(sizeof(struct function));
+                    memset(s->function, 0, sizeof(struct function));
+                    s->function->ir = ir_start;
 
                     param_count = 0;
                     while (1) {
@@ -1247,16 +1249,16 @@ void parse() {
                         if (cur_token == TOK_RPAREN) panic("Expected expression");
                     }
 
-                    s->function_param_count = param_count;
+                    s->function->param_count = param_count;
                     cur_function_symbol = s;
                     consume(TOK_RPAREN, ")");
 
                     if (cur_token == TOK_LCURLY) {
                         seen_function_declaration = 1;
-                        cur_function_symbol->function_is_defined = 1;
-                        cur_function_symbol->function_param_count = param_count;
+                        cur_function_symbol->function->is_defined = 1;
+                        cur_function_symbol->function->param_count = param_count;
                         function_body();
-                        cur_function_symbol->function_vreg_count = vreg_count;
+                        cur_function_symbol->function->vreg_count = vreg_count;
                     }
                     else
                         // Make it clear that this symbol will need to be backpatched if used

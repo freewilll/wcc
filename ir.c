@@ -259,13 +259,13 @@ void print_instruction(void *f, struct three_address_code *tac) {
     fprintf(f, "\n");
 }
 
-void print_intermediate_representation(struct symbol *function) {
+void print_intermediate_representation(struct function *function, char *name) {
     struct three_address_code *tac;
     int i;
 
-    fprintf(stdout, "%s:\n", function->identifier);
+    if (name) fprintf(stdout, "%s:\n", name);
     i = 0;
-    tac = function->function_ir;
+    tac = function->ir;
     while (tac) {
         fprintf(stdout, "%-4d > ", i++);
         print_instruction(stdout, tac);
@@ -327,7 +327,7 @@ int get_instruction_for_label(struct symbol *function, int label) {
     int i;
 
     i = 0;
-    tac = function->function_ir;
+    tac = function->function->ir;
     while (tac) {
         if (tac->label == label) return i;
         tac = tac->next;
@@ -341,7 +341,7 @@ int get_instruction_for_label(struct symbol *function, int label) {
 void print_liveness(struct symbol *function) {
     int i;
 
-    for (i = 1; i <= function->function_vreg_count; i++)
+    for (i = 1; i <= function->function->vreg_count; i++)
         printf("r%-4d %4d - %4d\n", i, liveness[i].start, liveness[i].end);
 }
 
@@ -354,13 +354,13 @@ struct liveness_interval **make_outer_loops(struct symbol *function) {
 
     // Allocate result, one liveness_interval per three address code in the IR
     ir_len = 1;
-    tac = function->function_ir;
+    tac = function->function->ir;
     while ((tac = tac->next)) ir_len++;
     result = malloc(sizeof(struct liveness_interval *) * ir_len);
 
     i = 0;
     l = 0;
-    tac = function->function_ir;
+    tac = function->function->ir;
     while (tac) {
         if (!l && tac->operation == IR_START_LOOP) {
             l = malloc(sizeof(struct liveness_interval));
@@ -385,14 +385,14 @@ void analyze_liveness(struct symbol *function) {
     struct three_address_code *tac;
     struct liveness_interval *liveness_interval, **outer_loops;
 
-    for (i = 1; i <= function->function_vreg_count; i++) {
+    for (i = 1; i <= function->function->vreg_count; i++) {
         liveness[i].start = -1;
         liveness[i].end = -1;
     }
 
     // Update liveness based on usage in IR
     i = 0;
-    tac = function->function_ir;
+    tac = function->function->ir;
     while (tac) {
         if (tac->dst  && tac->dst->vreg)  update_register_liveness(tac->dst->vreg,  i);
         if (tac->src1 && tac->src1->vreg) update_register_liveness(tac->src1->vreg, i);
@@ -407,12 +407,12 @@ void analyze_liveness(struct symbol *function) {
         // since the value might have changed just before the jump.
         // Update liveness based on usage in IR.
         i = 0;
-        tac = function->function_ir;
+        tac = function->function->ir;
         while (tac) {
             if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ) {
                 l = get_instruction_for_label(function, tac->src1->label);
                 if (i > l)
-                    for (j = 1; j <= function->function_vreg_count; j++)
+                    for (j = 1; j <= function->function->vreg_count; j++)
                         if (liveness[j].start <= l && liveness[j].end >= l && i > liveness[j].end) liveness[j].end = i;
             }
             tac = tac->next;
@@ -424,7 +424,7 @@ void analyze_liveness(struct symbol *function) {
         outer_loops = make_outer_loops(function);
 
         i = 0;
-        tac = function->function_ir;
+        tac = function->function->ir;
         while (tac) {
             if (tac->dst && tac->dst->vreg && tac->in_conditional) {
                 // Only extend liveness for variables, not temporaries.
@@ -493,7 +493,7 @@ void merge_redundant_moves(struct symbol *function) {
     changed = 1;
     while (changed) {
         changed = 0;
-        tac = function->function_ir;
+        tac = function->function->ir;
         i = 0;
         while (tac) {
             if (
@@ -548,19 +548,19 @@ void reverse_function_argument_order(struct symbol *function) {
 
     struct tac_interval *args;
 
-    ir = function->function_ir;
+    ir = function->function->ir;
     args = malloc(sizeof(struct tac_interval *) * 256);
 
     // Need to count this IR's function_call_count
     function_call_count = 0;
-    tac = function->function_ir;
+    tac = function->function->ir;
     while (tac) {
         if (tac->operation == IR_START_CALL) function_call_count++;
         tac = tac->next;
     }
 
     for (i = 0; i < function_call_count; i++) {
-        tac = function->function_ir;
+        tac = function->function->ir;
         arg_count = 0;
         call_start = 0;
         call = 0;
@@ -631,10 +631,10 @@ void assign_locals_to_registers(struct symbol *function) {
 
     int *has_address_of;
 
-    has_address_of = malloc(sizeof(int) * (function->function_local_symbol_count + 1));
-    memset(has_address_of, 0, sizeof(int) * (function->function_local_symbol_count + 1));
+    has_address_of = malloc(sizeof(int) * (function->function->local_symbol_count + 1));
+    memset(has_address_of, 0, sizeof(int) * (function->function->local_symbol_count + 1));
 
-    tac = function->function_ir;
+    tac = function->function->ir;
     while (tac) {
         if (tac->dst  && !tac->dst ->is_lvalue && tac->dst ->stack_index < 0) has_address_of[-tac->dst ->stack_index] = 1;
         if (tac->src1 && !tac->src1->is_lvalue && tac->src1->stack_index < 0) has_address_of[-tac->src1->stack_index] = 1;
@@ -642,11 +642,11 @@ void assign_locals_to_registers(struct symbol *function) {
         tac = tac ->next;
     }
 
-    for (i = 1; i <= function->function_local_symbol_count; i++) {
+    for (i = 1; i <= function->function->local_symbol_count; i++) {
         if (has_address_of[i]) continue;
         vreg = ++vreg_count;
 
-        tac = function->function_ir;
+        tac = function->function->ir;
         while (tac) {
             if (tac->dst  && tac->dst ->stack_index == -i) assign_local_to_register(tac->dst , vreg);
             if (tac->src1 && tac->src1->stack_index == -i) assign_local_to_register(tac->src1, vreg);
@@ -658,7 +658,7 @@ void assign_locals_to_registers(struct symbol *function) {
         }
     }
 
-    function->function_vreg_count = vreg_count;
+    function->function->vreg_count = vreg_count;
     analyze_liveness(function);
 }
 
@@ -833,7 +833,7 @@ void optimize_ir(struct symbol *function) {
     struct three_address_code *ir, *tac;
     int i;
 
-    ir = function->function_ir;
+    ir = function->function->ir;
 
     reverse_function_argument_order(function);
 
