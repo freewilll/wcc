@@ -383,7 +383,7 @@ void make_liveout(struct function *function) {
     struct block *blocks;
     struct edge *edges;
     int i, j, block_count, edge_count, changed, successor_block;
-    struct set *unions, **liveout, *all_vars, *inv_varkill, *is;
+    struct set *unions, **liveout, *all_vars, *inv_varkill, *is1, *is2, *is3;
     struct three_address_code *tac;
 
     blocks = function->blocks;
@@ -425,15 +425,22 @@ void make_liveout(struct function *function) {
                 successor_block = edges[j].to;
 
                 inv_varkill = set_difference(all_vars, function->varkill[successor_block]);
-                is = set_intersection(function->liveout[successor_block], inv_varkill);
-                is = set_union(is, function->uevar[successor_block]);
-                unions = set_union(unions, is);
+                is1 = set_intersection(function->liveout[successor_block], inv_varkill);
+                is2 = set_union(is1, function->uevar[successor_block]);
+                is3 = set_union(unions, is2);
+                free_set(unions);
+                unions = is3;
+                free_set(inv_varkill);
+                free_set(is1);
+                free_set(is2);
             }
 
             if (!set_eq(unions, function->liveout[i])) {
-                function->liveout[i] = unions;
+                function->liveout[i] = copy_set(unions);
                 changed = 1;
             }
+
+            free_set(unions);
         }
     }
 

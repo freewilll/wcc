@@ -15,6 +15,11 @@ struct set *new_set() {
     return result;
 }
 
+void free_set(struct set *s) {
+    free(s->elements);
+    free(s);
+}
+
 void empty_set(struct set *s) {
     int i;
 

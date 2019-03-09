@@ -406,6 +406,7 @@ void *f; // Output file handle
 
 // set.c
 struct set *new_set();
+void free_set(struct set *s);
 void empty_set(struct set *s);
 struct set *copy_set(struct set *s);
 int set_len(struct set *s);
