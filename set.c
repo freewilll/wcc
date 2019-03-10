@@ -100,6 +100,17 @@ struct set *set_intersection(struct set *s1, struct set *s2) {
     return result;
 }
 
+void set_intersection_to(struct set *dst, struct set *s1, struct set *s2) {
+    struct set *result;
+    int i;
+
+    if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_intersection_to");
+    if (s1->max_value != dst->max_value) panic("Unequal set sizes in set_intersection_to");
+
+    for (i = 0; i <= s1->max_value; i++)
+        dst->elements[i] = s1->elements[i] && s2->elements[i];
+}
+
 struct set *set_union(struct set *s1, struct set *s2) {
     struct set *result;
     int i;
@@ -113,6 +124,18 @@ struct set *set_union(struct set *s1, struct set *s2) {
     return result;
 }
 
+
+void set_union_to(struct set *dst, struct set *s1, struct set *s2) {
+    struct set *result;
+    int i;
+
+    if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_union_to");
+    if (s1->max_value != dst->max_value) panic("Unequal set sizes in set_union_to");
+
+    for (i = 0; i <= s1->max_value; i++)
+        dst->elements[i] = s1->elements[i] || s2->elements[i];
+}
+
 struct set *set_difference(struct set *s1, struct set *s2) {
     struct set *result;
     int i;
@@ -124,4 +147,15 @@ struct set *set_difference(struct set *s1, struct set *s2) {
         result->elements[i] = s1->elements[i] && !s2->elements[i];
 
     return result;
+}
+
+void set_difference_to(struct set *dst, struct set *s1, struct set *s2) {
+    struct set *result;
+    int i;
+
+    if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_difference_to");
+    if (s1->max_value != dst->max_value) panic("Unequal set sizes in set_difference_to");
+
+    for (i = 0; i <= s1->max_value; i++)
+        dst->elements[i] = s1->elements[i] && !s2->elements[i];
 }

@@ -131,6 +131,9 @@ void make_block_dominance(struct function *function) {
         for (j = 0; j < block_count; j++) add_to_set(dom[i], j);
     }
 
+    is1 = new_set(block_count);
+    is2 = new_set(block_count);
+
     // Recalculate dom by looking at each node's predecessors until nothing changes
     // Dom(n) = {n} union (intersection of all predecessor's doms)
     changed = 1;
@@ -153,20 +156,20 @@ void make_block_dominance(struct function *function) {
             if (!got_predecessors) pred_intersections = new_set(block_count);
 
             // Union with {i}
-            is1 = new_set(block_count);
+            empty_set(is1);
             add_to_set(is1, i);
-            is2 = set_union(is1, pred_intersections);
+            set_union_to(is2, is1, pred_intersections);
 
             // Update if changed & keep looping
             if (!set_eq(is2, dom[i])) {
                 dom[i] = copy_set(is2);
                 changed = 1;
             }
-
-            free_set(is1);
-            free_set(is2);
         }
     }
+
+    free_set(is1);
+    free_set(is2);
 
     function->dominance = malloc(block_count * sizeof(struct set));
     memset(function->dominance, 0, block_count * sizeof(struct set));
@@ -405,7 +408,7 @@ void make_liveout(struct function *function) {
     struct block *blocks;
     struct edge *edges;
     int i, j, block_count, edge_count, vreg_count, changed, successor_block;
-    struct set *unions, **liveout, *all_vars, *inv_varkill, *is1, *is2, *is3;
+    struct set *unions, **liveout, *all_vars, *inv_varkill, *is1, *is2;
     struct three_address_code *tac;
 
     blocks = function->blocks;
@@ -436,37 +439,40 @@ void make_liveout(struct function *function) {
         }
     }
 
+    unions = new_set(vreg_count);
+    inv_varkill = new_set(vreg_count);
+    is1 = new_set(vreg_count);
+    is2 = new_set(vreg_count);
+
     changed = 1;
     while (changed) {
         changed = 0;
 
         for (i = 0; i < block_count; i++) {
-            unions = new_set(vreg_count);
+            empty_set(unions);
 
             for (j = 0; j < edge_count; j++) {
                 if (edges[j].from != i) continue;
                 // Got a successor edge from i -> successor_block
                 successor_block = edges[j].to;
 
-                inv_varkill = set_difference(all_vars, function->varkill[successor_block]);
-                is1 = set_intersection(function->liveout[successor_block], inv_varkill);
-                is2 = set_union(is1, function->uevar[successor_block]);
-                is3 = set_union(unions, is2);
-                free_set(unions);
-                unions = is3;
-                free_set(inv_varkill);
-                free_set(is1);
-                free_set(is2);
+                set_difference_to(inv_varkill, all_vars, function->varkill[successor_block]);
+                set_intersection_to(is1, function->liveout[successor_block], inv_varkill);
+                set_union_to(is2, is1, function->uevar[successor_block]);
+                set_union_to(unions, unions, is2);
             }
 
             if (!set_eq(unions, function->liveout[i])) {
                 function->liveout[i] = copy_set(unions);
                 changed = 1;
             }
-
-            free_set(unions);
         }
     }
+
+    free_set(unions);
+    free_set(inv_varkill);
+    free_set(is1);
+    free_set(is2);
 
     if (DEBUG_SSA_LIVEOUT) {
         printf("\nLiveouts:\n");
@@ -782,7 +788,7 @@ void make_live_ranges(struct function *function) {
     struct three_address_code *tac, *prev;
     int *map, first;
     struct set *ssa_vars, **live_ranges;
-    struct set *dst_set, *src1_set, *src2_set, *s, *s1, *s2;
+    struct set *dst_set, *src1_set, *src2_set, *s;
     int dst_set_index, src1_set_index, src2_set_index;
     struct block *blocks;
 
@@ -821,6 +827,8 @@ void make_live_ranges(struct function *function) {
         add_to_set(live_ranges[i], i);
     }
 
+    s = new_set(max_ssa_var);
+
     // Make live ranges out of SSA variables in phi functions
     tac = function->ir;
     while (tac) {
@@ -840,15 +848,15 @@ void make_live_ranges(struct function *function) {
             src1_set = live_ranges[src1_set_index];
             src2_set = live_ranges[src2_set_index];
 
-            s1 = set_union(dst_set, src1_set);
-            s2 = set_union(s1, src2_set);
-            live_ranges[dst_set_index] = s2;
-            free_set(s1);
+            set_union_to(s, dst_set, src1_set);
+            set_union_to(live_ranges[dst_set_index], s, src2_set);
             if (src1_set_index != dst_set_index) live_ranges[src1_set_index] = new_set(max_ssa_var);
             if (src2_set_index != dst_set_index) live_ranges[src2_set_index] = new_set(max_ssa_var);
         }
         tac = tac->next;
     }
+
+    free_set(s);
 
     // Remove empty live ranges
     live_range_count = 0;

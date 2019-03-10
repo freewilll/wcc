@@ -416,8 +416,11 @@ int in_set(struct set *s, int value);
 int set_eq(struct set *s1, struct set *s2);
 void *delete_from_set(struct set *s, int value);
 struct set *set_intersection(struct set *s1, struct set *s2);
+void set_intersection_to(struct set *dst, struct set *s1, struct set *s2);
 struct set *set_union(struct set *s1, struct set *s2);
+void set_union_to(struct set *dst, struct set *s1, struct set *s2);
 struct set *set_difference(struct set *s1, struct set *s2);
+void set_difference_to(struct set *dst, struct set *s1, struct set *s2);
 
 // stack.c
 struct stack *new_stack();
