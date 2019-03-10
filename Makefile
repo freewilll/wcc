@@ -90,6 +90,9 @@ test-wc4-frp-ncr.s: wc4 test-wc4.c
 test-wc4-O1.s: wc4 test-wc4.c
 	./wc4 -O1 -c -S -o test-wc4-O1.s test-wc4.c
 
+test-wc4-ssa.s: wc4 test-wc4.c
+	./wc4 -fuse-registers-for-locals --ssa -c -S -o test-wc4-ssa.s test-wc4.c
+
 test-wc4: test-wc4.s stack-check.o
 	gcc test-wc4.s stack-check.o -o test-wc4
 
@@ -101,6 +104,9 @@ test-wc4-frp-ncr: test-wc4-frp-ncr.s stack-check.o
 
 test-wc4-O1: test-wc4-O1.s stack-check.o
 	gcc test-wc4-O1.s stack-check.o -o test-wc4-O1
+
+test-wc4-ssa: test-wc4-ssa.s stack-check.o
+	gcc test-wc4-ssa.s stack-check.o -o test-wc4-ssa
 
 benchmark: wc4 wc42 wc42-frp wc42-O1 benchmark.c
 	gcc benchmark.c -o benchmark
@@ -127,6 +133,11 @@ run-test-wc4-frp-ncr: test-wc4-frp-ncr
 run-test-wc4-O1: test-wc4-O1
 	./test-wc4-O1
 	@echo wc4 -O1 tests passed
+
+.PHONY: run-test-wc4-ssa
+run-test-wc4-ssa: test-wc4-ssa
+	./test-wc4-ssa
+	@echo wc4 SSA tests passed
 
 test-wc4-gcc: test-wc4.c
 	gcc test-wc4.c stack-check.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types
@@ -181,6 +192,7 @@ clean:
 	@rm -f test-wc4-gcc
 	@rm -f test-wc4-frp-ncr
 	@rm -f test-wc4-O1
+	@rm -f test-wc4-ssa
 	@rm -f test-set
 	@rm -f test-ssa
 	@rm -f benchmark
