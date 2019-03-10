@@ -774,7 +774,7 @@ void make_live_ranges(struct function *function) {
     struct three_address_code *tac, *prev;
     int *map, first;
     struct set *ssa_vars, **live_ranges;
-    struct set *dst_set, *src1_set, *src2_set, *s;
+    struct set *dst_set, *src1_set, *src2_set, *s, *s1, *s2;
     int dst_set_index, src1_set_index, src2_set_index;
     struct block *blocks;
 
@@ -798,6 +798,7 @@ void make_live_ranges(struct function *function) {
 
     ssa_subscript_count += 1; // Starts at zero, so the count is one more
 
+    // Poor mans 2D array. 2d[vreg][subscript] => 1d[vreg * ssa_subscript_count + ssa_subscript]
     tac = function->ir;
     while (tac) {
         if (tac->dst  && tac->dst ->vreg) add_to_set(ssa_vars, tac->dst ->vreg * ssa_subscript_count + tac->dst ->ssa_subscript);
@@ -806,9 +807,9 @@ void make_live_ranges(struct function *function) {
         tac = tac->next;
     }
 
-    // Create live ranges sets for all variables, each set with the variable itself in it
-    live_range_count = (vreg_count + 1) * ssa_subscript_count;
-    live_ranges = malloc(live_range_count * sizeof(struct set *));
+    // Create live ranges sets for all variables, each set with the variable itself in it.
+    // Allocate all the memory we need. live_range_count
+    live_ranges = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(struct set *));
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) {
         if (!ssa_vars->elements[i]) continue;
         live_ranges[i] = new_set();
@@ -816,7 +817,6 @@ void make_live_ranges(struct function *function) {
     }
 
     // Make live ranges out of SSA variables in phi functions
-    // live_range_count = 0;
     tac = function->ir;
     while (tac) {
         if (tac->operation == IR_PHI_FUNCTION) {
@@ -835,42 +835,23 @@ void make_live_ranges(struct function *function) {
             src1_set = live_ranges[src1_set_index];
             src2_set = live_ranges[src2_set_index];
 
-            s = set_union(set_union(dst_set, src1_set), src2_set);
-            live_ranges[dst_set_index] = s;
-            live_ranges[src1_set_index] = new_set();
-            live_ranges[src2_set_index] = new_set();
+            s1 = set_union(dst_set, src1_set);
+            s2 = set_union(s1, src2_set);
+            live_ranges[dst_set_index] = s2;
+            free_set(s1);
+            if (src1_set_index != dst_set_index) live_ranges[src1_set_index] = new_set();
+            if (src2_set_index != dst_set_index) live_ranges[src2_set_index] = new_set();
         }
         tac = tac->next;
     }
 
+    // Remove empty live ranges
     live_range_count = 0;
     for (i = 0; i < MAX_INT_SET_ELEMENTS; i++)
-        if (ssa_vars->elements[i] && live_ranges[i] && set_len(live_ranges[i])) live_range_count++;
+        if (ssa_vars->elements[i] && set_len(live_ranges[i]))
+            live_ranges[live_range_count++] = live_ranges[i];
 
-    // Remove empty live ranges
-    j = 0;
-    for (i = 0; i < MAX_INT_SET_ELEMENTS; i++) {
-        if (!ssa_vars->elements[i]) continue;
-        if (!live_ranges[i]) continue;
-        if (!set_len(live_ranges[i])) continue;
-        live_ranges[j++] = live_ranges[i];
-    }
-    live_range_count = j;
-
-    // Make a map of variable names to live range
-    map = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(int));
-    memset(map, -1, (vreg_count + 1) * ssa_subscript_count * sizeof(int));
-
-    for (i = 0; i < live_range_count; i++) {
-        s = live_ranges[i];
-        for (j = 0; j < MAX_INT_SET_ELEMENTS; j++) {
-            if (!s->elements[j]) continue;
-            map[j] = i;
-        }
-    }
-
-    // From here on, live ranges are +1
-
+    // From here on, live ranges start at 1
     if (DEBUG_SSA_LIVE_RANGE) {
         printf("Live ranges:\n");
         for (i = 0; i < live_range_count; i++) {
@@ -890,6 +871,18 @@ void make_live_ranges(struct function *function) {
         }
 
         printf("\n");
+    }
+
+    // Make a map of variable names to live range
+    map = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(int));
+    memset(map, -1, (vreg_count + 1) * ssa_subscript_count * sizeof(int));
+
+    for (i = 0; i < live_range_count; i++) {
+        s = live_ranges[i];
+        for (j = 0; j < MAX_INT_SET_ELEMENTS; j++) {
+            if (!s->elements[j]) continue;
+            map[j] = i;
+        }
     }
 
     // Assign live ranges to TAC & build live_ranges set
