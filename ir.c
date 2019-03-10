@@ -1031,17 +1031,11 @@ struct function_usages *get_function_usages(struct three_address_code *ir) {
     return result;
 }
 
-void allocate_registers(struct three_address_code *ir) {
-    int line, i, j, vreg;
-    struct three_address_code *tac, *tac2;
+void make_available_phyical_register_list(struct three_address_code *ir) {
     struct function_usages *function_usages;
 
     physical_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
-
-    spilled_registers = malloc(sizeof(int) * MAX_SPILLED_REGISTER_COUNT);
-    memset(spilled_registers, 0, sizeof(int) * MAX_SPILLED_REGISTER_COUNT);
-    spilled_register_count = 0;
 
     // Blacklist registers if certain operations are happening in this function.
     function_usages = get_function_usages(ir);
@@ -1066,6 +1060,17 @@ void allocate_registers(struct three_address_code *ir) {
         physical_registers[REG_R14] = -1;
         physical_registers[REG_R15] = -1;
     }
+}
+
+void allocate_registers(struct three_address_code *ir) {
+    int line, i, j, vreg;
+    struct three_address_code *tac, *tac2;
+
+    make_available_phyical_register_list(ir);
+
+    spilled_registers = malloc(sizeof(int) * MAX_SPILLED_REGISTER_COUNT);
+    memset(spilled_registers, 0, sizeof(int) * MAX_SPILLED_REGISTER_COUNT);
+    spilled_register_count = 0;
 
     line = 0;
     tac = ir;

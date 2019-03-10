@@ -1214,6 +1214,34 @@ void allocate_registers_top_down(struct function *function, int physical_registe
     free_set(unconstrained);
 }
 
+void ssa_allocate_registers(struct function *function) {
+    int i, *preg_map, preg_count, vreg_count;
+    struct vreg_location *function_vl, *vl;
+
+    preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    memset(preg_map, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+
+    // Determine amount of free physical registers
+    make_available_phyical_register_list(function->ir);
+    preg_count = 0;
+    for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
+        if (physical_registers[i] != -1)
+            preg_map[preg_count++] = i;
+
+    // Reduce the amount of the command line option has used to reduce it
+    if (preg_count > ssa_physical_register_count) preg_count = ssa_physical_register_count;
+
+    allocate_registers_top_down(function, preg_count);
+
+    // Remap SSA pregs which run from 0 to preg_count -1 to the actual
+    // x86_64 physical register numbers.
+    vreg_count = function->vreg_count;
+    for (i = 0; i < vreg_count; i++) {
+        if (function->vreg_locations[i].preg != -1)
+            function->vreg_locations[i].preg = preg_map[function->vreg_locations[i].preg];
+    }
+}
+
 void assign_vreg_locations(struct function *function) {
     struct three_address_code *tac;
     struct vreg_location *function_vl, *vl;
@@ -1289,7 +1317,7 @@ void do_ssa_experiments2(struct function *function) {
 }
 
 void do_ssa_experiments3(struct function *function) {
-    allocate_registers_top_down(function, ssa_physical_register_count);
+    ssa_allocate_registers(function);
     assign_vreg_locations(function);
     remove_self_moves(function);
 }
