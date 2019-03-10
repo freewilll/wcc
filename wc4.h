@@ -7,6 +7,7 @@ struct edge {
 };
 
 struct set {
+    int max_value;
     char *elements;
 };
 
@@ -150,7 +151,6 @@ enum {
     PHYSICAL_REGISTER_COUNT       = 15,
     MAX_SPILLED_REGISTER_COUNT    = 1024,
     MAX_INPUT_FILENAMES           = 1024,
-    MAX_INT_SET_ELEMENTS          = 10240,
     MAX_BLOCKS                    = 1024,
     MAX_BLOCK_EDGES               = 1024,
     MAX_INTERFERENCE_GRAPH_EDGES  = 10240,
@@ -405,7 +405,7 @@ void *f; // Output file handle
 
 
 // set.c
-struct set *new_set();
+struct set *new_set(int max_value);
 void free_set(struct set *s);
 void empty_set(struct set *s);
 struct set *copy_set(struct set *s);
