@@ -1243,7 +1243,7 @@ void ssa_allocate_registers(struct function *function) {
     // Remap SSA pregs which run from 0 to preg_count -1 to the actual
     // x86_64 physical register numbers.
     vreg_count = function->vreg_count;
-    for (i = 0; i < vreg_count; i++) {
+    for (i = 1; i <= vreg_count; i++) {
         if (function->vreg_locations[i].preg != -1)
             function->vreg_locations[i].preg = preg_map[function->vreg_locations[i].preg];
     }
