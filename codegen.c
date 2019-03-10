@@ -803,6 +803,7 @@ void output_code(char *input_filename, char *output_filename) {
             do_ssa_experiments1(s->function);
             do_ssa_experiments2(s->function);
             do_ssa_experiments3(s->function);
+            do_ssa_experiments4(s->function);
         }
         else {
             if (debug_register_allocations) print_liveness(s);

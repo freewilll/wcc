@@ -957,12 +957,6 @@ void make_interference_graph(struct function *function) {
     struct three_address_code *tac;
     int *edge_matrix; // Triangular matrix of edges
 
-    // Need to recalculate all these in case anything changed in the
-    // phi representation.
-    blast_vregs_with_live_ranges(function);
-    make_uevar_and_varkill(function);
-    make_liveout(function);
-
     vreg_count = function->vreg_count;
 
     edge_matrix = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
@@ -1317,20 +1311,24 @@ void do_ssa_experiments1(struct function *function) {
     make_block_dominance(function);
     make_block_immediate_dominators(function);
     make_block_dominance_frontiers(function);
-    make_uevar_and_varkill(function);
-    make_liveout(function);
+}
+
+void do_ssa_experiments2(struct function *function) {
     make_globals_and_var_blocks(function);
     insert_phi_functions(function);
 }
 
-void do_ssa_experiments2(struct function *function) {
+void do_ssa_experiments3(struct function *function) {
     rename_phi_function_variables(function);
     make_live_ranges(function);
+    blast_vregs_with_live_ranges(function);
+    make_uevar_and_varkill(function);
+    make_liveout(function);
     make_interference_graph(function);
     make_live_range_spill_cost(function);
 }
 
-void do_ssa_experiments3(struct function *function) {
+void do_ssa_experiments4(struct function *function) {
     ssa_allocate_registers(function);
     assign_vreg_locations(function);
     remove_self_moves(function);

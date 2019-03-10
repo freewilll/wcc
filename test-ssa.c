@@ -137,6 +137,8 @@ void test_liveout1() {
     if (DEBUG_SSA) print_intermediate_representation(function, 0);
 
     do_ssa_experiments1(function);
+    make_uevar_and_varkill(function);
+    make_liveout(function);
 
     assert(5, function->block_count);
     assert(6, function->edge_count);
@@ -222,6 +224,8 @@ void test_liveout2() {
 
     function = make_ir2(0);
     do_ssa_experiments1(function);
+    make_uevar_and_varkill(function);
+    make_liveout(function);
 
     assert(9, function->block_count);
     assert(11, function->edge_count);
@@ -263,6 +267,7 @@ void test_idom2() {
 
     function = make_ir2(0);
     do_ssa_experiments1(function);
+    do_ssa_experiments2(function);
 
     assert(-1, function->idom[0]);
     assert( 0, function->idom[1]);
@@ -298,6 +303,7 @@ void test_phi_insertion() {
 
     function = make_ir2(0);
     do_ssa_experiments1(function);
+    do_ssa_experiments2(function);
 
     // Page 502 of engineering a compiler
     assert_set(function->globals, 1, 2, 3, 4, 5);
@@ -361,6 +367,7 @@ void test_phi_renumbering() {
 
     function = make_ir2(1);
     do_ssa_experiments1(function);
+    do_ssa_experiments2(function);
     rename_phi_function_variables(function);
 
     if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
@@ -433,6 +440,7 @@ void test_interference_graph1() {
 
     do_ssa_experiments1(function);
     do_ssa_experiments2(function);
+    do_ssa_experiments3(function);
 
     ig = function->interference_graph;
     assert(3, function->interference_graph_edge_count);
@@ -450,6 +458,7 @@ void test_interference_graph2() {
     function = make_ir2(1);
     do_ssa_experiments1(function);
     do_ssa_experiments2(function);
+    do_ssa_experiments3(function);
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
@@ -492,6 +501,7 @@ void test_interference_graph3() {
 
     do_ssa_experiments1(function);
     do_ssa_experiments2(function);
+    do_ssa_experiments3(function);
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
@@ -511,6 +521,7 @@ void test_spill_cost() {
 
         do_ssa_experiments1(function);
         do_ssa_experiments2(function);
+        do_ssa_experiments3(function);
 
         if (DEBUG_SSA_SPILL_COST) print_intermediate_representation(function, 0);
 

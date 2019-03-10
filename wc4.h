@@ -472,6 +472,8 @@ void allocate_registers(struct three_address_code *ir);
 
 // ssa.c
 int new_subscript(struct stack **stack, int *counters, int n);
+void make_uevar_and_varkill(struct function *function);
+void make_liveout(struct function *function);
 void rename_phi_function_variables(struct function *function);
 void make_live_ranges(struct function *function);
 void rename_vars(struct function *function, struct stack **stack, int *counters, int block_number, int vreg_count);
@@ -484,6 +486,7 @@ void allocate_registers_top_down(struct function *function, int physical_registe
 void do_ssa_experiments1(struct function *function);
 void do_ssa_experiments2(struct function *function);
 void do_ssa_experiments3(struct function *function);
+void do_ssa_experiments4(struct function *function);
 
 // codegen.c
 void init_callee_saved_registers();
