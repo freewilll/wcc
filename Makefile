@@ -91,7 +91,7 @@ test-wc4-O1.s: wc4 test-wc4.c
 	./wc4 -O1 -c -S -o test-wc4-O1.s test-wc4.c
 
 test-wc4-ssa.s: wc4 test-wc4.c
-	./wc4 -fuse-registers-for-locals --ssa -c -S -o test-wc4-ssa.s test-wc4.c
+	./wc4 -fuse-registers-for-locals -fno-coalesce-registers --ssa -c -S -o test-wc4-ssa.s test-wc4.c
 
 test-wc4: test-wc4.s stack-check.o
 	gcc test-wc4.s stack-check.o -o test-wc4
@@ -172,13 +172,19 @@ run-test-set: test-set
 	 ./test-set
 
 test-ssa: wc4 test-ssa.c ssa.c set.c stack.c ir.c utils.c
-	./wc4 ssa.c test-ssa.c set.c stack.c ir.c utils.c -o test-ssa
+	./wc4 test-ssa.c ssa.c set.c stack.c ir.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa
 
+test-codegen: wc4 test-codegen.c codegen.c utils.c ir.c ssa.c set.c stack.c parser.c lexer.c
+	./wc4 test-codegen.c codegen.c utils.c ir.c ssa.c set.c stack.c parser.c lexer.c -o test-codegen
+
+run-test-codegen: test-codegen
+	 ./test-codegen
+
 .PHONY: test
-test: run-test-set run-test-ssa run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
+test: run-test-set run-test-ssa run-test-codegen run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
 
 clean:
 	@rm -f wc4
@@ -195,6 +201,7 @@ clean:
 	@rm -f test-wc4-ssa
 	@rm -f test-set
 	@rm -f test-ssa
+	@rm -f test-codegen
 	@rm -f benchmark
 	@rm -f *.s
 	@rm -f *.o

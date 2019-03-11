@@ -399,6 +399,8 @@ int *physical_registers;                    // Associated liveness interval for 
 int *spilled_registers;                     // Associated liveness interval for each in-use spilled register.
 int *callee_saved_registers;                // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
 
+int cur_stack_push_count;                   // Used in codegen to keep track of stack position
+
 int debug_register_allocations;
 
 void *f; // Output file handle
@@ -490,4 +492,5 @@ void do_ssa_experiments4(struct function *function);
 
 // codegen.c
 void init_callee_saved_registers();
+void output_function_body_code(struct symbol *symbol);
 void output_code(char *input_filename, char *output_filename);

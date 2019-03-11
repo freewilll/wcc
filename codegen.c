@@ -5,8 +5,6 @@
 
 #include "wc4.h"
 
-int cur_stack_push_count;
-
 void check_preg(int preg) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
     if (preg < 0 || preg >= PHYSICAL_REGISTER_COUNT) panic1d("Illegal preg %d", preg);
@@ -67,13 +65,46 @@ void output_type_specific_register_name(int type, int preg) {
     else                         output_quad_register_name(preg);
 }
 
-void _output_op(char *instruction, struct three_address_code *tac) {
-    move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
+void output_op_instruction(char *instruction, int src, int dst) {
     fprintf(f, "\t%s\t", instruction);
-    output_quad_register_name(tac->src1->preg);
+    output_quad_register_name(src);
     fprintf(f, ", ");
-    output_quad_register_name(tac->dst->preg);
+    output_quad_register_name(dst);
     fprintf(f, "\n");
+}
+
+void _output_op(char *instruction, struct three_address_code *tac) {
+    int v, dst, src1, src2;
+
+    dst = tac->dst->preg;
+    src1 = tac->src1->preg;
+    src2 = tac->src2->preg;
+
+    // Special cases for commutative operations
+    if (tac->operation == IR_ADD || tac->operation == IR_MUL || tac->operation == IR_BOR || tac->operation == IR_BAND || tac->operation == IR_XOR) {
+        if (dst == src1) {
+            // pn = pn + pm
+            move_quad_register_to_register(src1, dst);
+            output_op_instruction(instruction, src2, dst);
+            return;
+        }
+        else if (dst == src2) {
+            // pn = pm + pn
+            output_op_instruction(instruction, src1, dst);
+            return;
+        }
+    }
+
+    else if (tac->operation == IR_RSUB) {
+        // The register allocator must not allow dst to be the same as src1,
+        // otherwise we get an incorrect result:
+        // mov src2 -> dst
+        // dst = src1 - src1 = 0
+        if (dst == src1) panic("Illegal attempt to use the same preg for dst and src1 in subtraction");
+    }
+
+    move_quad_register_to_register(src2, dst);
+    output_op_instruction(instruction, src1, dst);
 }
 
 void output_constant_operation(char *instruction, struct three_address_code *tac) {
@@ -379,13 +410,13 @@ void output_function_body_code(struct symbol *symbol) {
     char *s;
 
     cur_stack_push_count++;
+    function_pc = symbol->function->param_count;
+
     fprintf(f, "\tpush\t%%rbp\n");
     fprintf(f, "\tmovq\t%%rsp, %%rbp\n");
 
     // Push up to the first 6 args onto the stack, so all args are on the stack with leftmost arg first.
     // Arg 7 and onwards are already pushed.
-
-    function_pc = symbol->function->param_count;
 
     // Push the args in the registers on the stack. The order for all args is right to left.
     if (function_pc >= 6) { cur_stack_push_count++; fprintf(f, "\tpush\t%%r9\n");  }
@@ -655,11 +686,11 @@ void output_function_body_code(struct symbol *symbol) {
             // The quotient is stored in RAX and remainder in RDX, but is then copied
             // to whatever register is allocated for the dst, which might as well have been RAX or RDX for the respective quotient and remainders.
 
-            move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
             fprintf(f, "\tmovq\t");
             output_quad_register_name(tac->src1->preg);
             fprintf(f, ", %%rax\n");
             fprintf(f, "\tcqto\n");
+            move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
             fprintf(f, "\tidivq\t");
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
@@ -686,6 +717,10 @@ void output_function_body_code(struct symbol *symbol) {
                 fprintf(f, "\n");
             }
             else {
+                fprintf(f, "\tmovq\t");
+                output_quad_register_name(tac->src2->preg);
+                fprintf(f, ", %%rcx\n");
+
                 if (tac->src1->is_constant) {
                     // Shift a constant by a non-constant amount
                     fprintf(f, "\tmovq\t$%ld, ", tac->src1->value);
@@ -696,9 +731,6 @@ void output_function_body_code(struct symbol *symbol) {
                     // Shift a non-constant by a non-constant amount
                     move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
 
-                fprintf(f, "\tmovq\t");
-                output_quad_register_name(tac->src2->preg);
-                fprintf(f, ", %%rcx\n");
                 fprintf(f, "\t%s\t%%cl, ", tac->operation == IR_BSHL ? "shl" : "sar");
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, "\n");

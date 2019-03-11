@@ -14,6 +14,7 @@ test-wc4-O1
 test-wc4-ssa
 test-set
 test-ssa
+test-codegen
 benchmark
 test.c
 test1.c

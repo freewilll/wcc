@@ -971,7 +971,26 @@ void make_interference_graph(struct function *function) {
         tac = blocks[i].end;
         while (tac) {
             if (tac->dst && tac->dst->vreg) {
+                if (tac->operation == IR_RSUB && tac->src1->vreg) {
+                    // Ensure that dst and src1 don't reside in the same preg.
+                    // This allowes codegen to generate code with just one operation while
+                    // ensuring the other registers preserve their values.
+
+                    if (tac->src1->vreg < tac->dst->vreg) {
+                        from = tac->src1->vreg;
+                        to = tac->dst->vreg;
+                    }
+                    else {
+                        from = tac->dst->vreg;
+                        to = tac->src1->vreg;
+                    }
+
+                    index = from * vreg_count + to;
+                    if (!edge_matrix[index]) edge_matrix[index] = 1;
+                }
+
                 for (j = 0; j <= livenow->max_value; j++) {
+
                     if (!livenow->elements[j]) continue;
 
                     if (j == tac->dst->vreg) continue; // Ignore self assignment
