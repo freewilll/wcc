@@ -9,6 +9,25 @@ struct vreg_cost {
     int cost;
 };
 
+// dst is an lvalue in a register. The difference with the regular IS_ASSIGN is
+// that src1 is the destination and src2 is the src. The reason for that is
+// that it makes the SSA calulation easier since both dst and src1 are values
+// in registers that are read but not written to in this instruction.
+void rewrite_lvalue_reg_assignments(struct function *function) {
+    struct three_address_code *tac;
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == IR_ASSIGN && tac->dst->vreg && tac->dst->is_lvalue) {
+            tac->operation = IR_ASSIGN_TO_REG_LVALUE;
+            tac->src2 = tac->src1;
+            tac->src1 = tac->dst;
+            tac->dst = 0;
+        }
+        tac = tac->next;
+    }
+}
+
 void index_tac(struct three_address_code *ir) {
     struct three_address_code *tac;
     int i;
@@ -1325,6 +1344,7 @@ void remove_self_moves(struct function *function) {
 }
 
 void do_ssa_experiments1(struct function *function) {
+    rewrite_lvalue_reg_assignments(function);
     make_vreg_count(function);
     make_control_flow_graph(function);
     make_block_dominance(function);

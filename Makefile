@@ -184,7 +184,7 @@ run-test-codegen: test-codegen
 	 ./test-codegen
 
 .PHONY: test
-test: run-test-set run-test-ssa run-test-codegen run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
+test: run-test-set run-test-ssa run-test-codegen run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-wc4-ssa run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
 
 clean:
 	@rm -f wc4

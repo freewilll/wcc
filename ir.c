@@ -212,6 +212,13 @@ void print_instruction(void *f, struct three_address_code *tac) {
     else if (tac->operation == IR_ASSIGN)
         print_value(f, tac->src1, 1);
 
+    else if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) {
+        print_value(f, tac->src1, 0);
+        printf(" = ");
+        print_value(f, tac->src2, 1);
+        printf(" [assign to lvalue]");
+    }
+
     else if (tac->operation == IR_NOP)
         fprintf(f, "nop");
 

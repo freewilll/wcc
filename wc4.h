@@ -246,42 +246,43 @@ enum {
 
 // Intermediate representation operations
 enum {
-    IR_LOAD_CONSTANT=1,     // Load constant
-    IR_LOAD_STRING_LITERAL, // Load string literal
-    IR_LOAD_VARIABLE,       // Load global or local
-    IR_INDIRECT,            // Pointer or lvalue dereference
-    IR_START_CALL,          // Function call
-    IR_ARG,                 // Function call argument
-    IR_CALL,                // Start of function call
-    IR_END_CALL,            // End of function call
-    IR_RETURN,              // Return in function
-    IR_START_LOOP,          // Start of a for or while loop
-    IR_END_LOOP,            // End of a for or while loop
-    IR_ASSIGN,              // Assignment/store. Target is either a global, local, lvalue in register or register
-    IR_NOP,                 // No operation. Used for label destinations. No code is generated for this other than the label itself.
-    IR_JMP,                 // Unconditional jump
-    IR_JZ,                  // Jump if zero
-    IR_JNZ,                 // Jump if not zero
-    IR_ADD,                 // +
-    IR_SUB,                 // -
-    IR_RSUB,                // reverse -, used to facilitate code generation for the x86 SUB instruction
-    IR_MUL,                 // *
-    IR_DIV,                 // /
-    IR_MOD,                 // %
-    IR_EQ,                  // ==
-    IR_NE,                  // !=
-    IR_BNOT,                // Binary not ~
-    IR_BOR,                 // Binary or |
-    IR_BAND,                // Binary and &
-    IR_XOR,                 // Binary xor ^
-    IR_BSHL,                // Binary shift left <<
-    IR_BSHR,                // Binary shift right >>
-    IR_LT,                  // <
-    IR_GT,                  // >
-    IR_LE,                  // <=
-    IR_GE,                  // >=
-    IR_PHI_FUNCTION,        // SSA phi function
-    IR_EXIT,                // Builtin functions
+    IR_LOAD_CONSTANT=1,       // Load constant
+    IR_LOAD_STRING_LITERAL,   // Load string literal
+    IR_LOAD_VARIABLE,         // Load global or local
+    IR_INDIRECT,              // Pointer or lvalue dereference
+    IR_START_CALL,            // Function call
+    IR_ARG,                   // Function call argument
+    IR_CALL,                  // Start of function call
+    IR_END_CALL,              // End of function call
+    IR_RETURN,                // Return in function
+    IR_START_LOOP,            // Start of a for or while loop
+    IR_END_LOOP,              // End of a for or while loop
+    IR_ASSIGN,                // Assignment/store. Target is either a global, local, lvalue in register or register
+    IR_ASSIGN_TO_REG_LVALUE,  // Assignment to an lvalue in a register
+    IR_NOP,                   // No operation. Used for label destinations. No code is generated for this other than the label itself.
+    IR_JMP,                   // Unconditional jump
+    IR_JZ,                    // Jump if zero
+    IR_JNZ,                   // Jump if not zero
+    IR_ADD,                   // +
+    IR_SUB,                   // -
+    IR_RSUB,                  // reverse -, used to facilitate code generation for the x86 SUB instruction
+    IR_MUL,                   // *
+    IR_DIV,                   // /
+    IR_MOD,                   // %
+    IR_EQ,                    // ==
+    IR_NE,                    // !=
+    IR_BNOT,                  // Binary not ~
+    IR_BOR,                   // Binary or |
+    IR_BAND,                  // Binary and &
+    IR_XOR,                   // Binary xor ^
+    IR_BSHL,                  // Binary shift left <<
+    IR_BSHR,                  // Binary shift right >>
+    IR_LT,                    // <
+    IR_GT,                    // >
+    IR_LE,                    // <=
+    IR_GE,                    // >=
+    IR_PHI_FUNCTION,          // SSA phi function
+    IR_EXIT,                  // Builtin functions
     IR_FOPEN,
     IR_FREAD,
     IR_FWRITE,

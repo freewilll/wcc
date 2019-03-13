@@ -629,6 +629,21 @@ void output_function_body_code(struct symbol *symbol) {
             }
         }
 
+        else if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) {
+            // dst is an lvalue in a register. The difference with the regular
+            // IS_ASSIGN is that src1 is the destination and src2 is the src.
+            // The reason for that is that it makes the SSA calulation easier
+            // since both dst and src1 are values in registers that are read
+            // but not written to in this instruction.
+
+            output_type_specific_mov(tac->src1->type);
+            output_type_specific_register_name(tac->src1->type, tac->src2->preg);
+            fprintf(f, ", ");
+            fprintf(f, "(");
+            output_quad_register_name(tac->src1->preg);
+            fprintf(f, ")\n");
+        }
+
         else if (tac->operation == IR_JZ || tac->operation == IR_JNZ) {
             if (tac->src1->is_in_cpu_flags) {
                 // src1 and src2 is backwards to facilitate constant handling,
