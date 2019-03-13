@@ -797,6 +797,8 @@ void rename_phi_function_variables(struct function *function) {
     for (i = 1; i <= vreg_count; i++) stack[i] = new_stack();
 
     rename_vars(function, stack, counters, 0, vreg_count);
+
+    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
 }
 
 // Page 696 engineering a compiler

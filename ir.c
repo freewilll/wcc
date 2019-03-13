@@ -718,19 +718,6 @@ void renumber_label(struct three_address_code *ir, int l1, int l2) {
     }
 }
 
-void merge_labels(struct three_address_code *ir, struct three_address_code *tac, int ir_index) {
-    struct three_address_code *deleted_tac, *t;
-    int l;
-
-    while(1) {
-        if (!tac->label || !tac->next || !tac->next->label) return;
-
-        deleted_tac = tac->next;
-        merge_instructions(tac, ir_index, 1);
-        renumber_label(ir, deleted_tac->label, tac->label);
-    }
-}
-
 // Renumber all labels so they are consecutive. Uses label_count global.
 void renumber_labels(struct three_address_code *ir) {
     struct three_address_code *t;
@@ -752,6 +739,36 @@ void renumber_labels(struct three_address_code *ir) {
         }
         t = t->next;
     }
+}
+
+void merge_tac_labels(struct three_address_code *ir, struct three_address_code *tac, int ir_index) {
+    struct three_address_code *deleted_tac, *t;
+    int l;
+
+    while(1) {
+        if (!tac->label || !tac->next || !tac->next->label) return;
+
+        deleted_tac = tac->next;
+        merge_instructions(tac, ir_index, 1);
+        renumber_label(ir, deleted_tac->label, tac->label);
+    }
+}
+
+void merge_labels(struct symbol *function) {
+    struct three_address_code *ir, *tac;
+    int i;
+
+    ir = function->function->ir;
+
+    tac = ir;
+    i = 0;
+    while (tac) {
+        merge_tac_labels(ir, tac, i);
+        tac = tac->next;
+        i++;
+    }
+
+    renumber_labels(ir);
 }
 
 void rearrange_reverse_sub_operation(struct three_address_code *ir, struct three_address_code *tac) {
@@ -850,15 +867,12 @@ void optimize_ir(struct symbol *function) {
     tac = ir;
     i = 0;
     while (tac) {
-        merge_labels(ir, tac, i);
         allocate_registers_for_constants(tac, &i);
         rearrange_reverse_sub_operation(ir, tac);
         if (opt_enable_register_coalescing) coalesce_operation_registers(ir, tac, i);
         tac = tac->next;
         i++;
     }
-
-    renumber_labels(ir);
 }
 
 void spill_local_in_register_back_to_stack(struct three_address_code *ir, int original_stack_index) {
