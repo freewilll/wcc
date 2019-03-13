@@ -1,4 +1,4 @@
-all: wc4 wc42 wc42-O1 wc42-frp wc43 wc43-O1 benchmark
+all: wc4 wc42 wc42-O1 wc42-ssa wc42-frp wc43 wc43-O1 benchmark
 
 SOURCES = \
   wc4.c \
@@ -17,9 +17,11 @@ ASSEMBLIES := ${SOURCES:c=s}
 build:
 	@mkdir -p build/wc42
 	@mkdir -p build/wc42-O1
+	@mkdir -p build/wc42-ssa
 	@mkdir -p build/wc42-frp
 	@mkdir -p build/wc43
 	@mkdir -p build/wc43-O1
+	@mkdir -p build/wc43-ssa
 
 wc4: ${SOURCES} wc4.h build
 	gcc ${SOURCES} -o wc4 -g -Wno-return-type
@@ -43,6 +45,16 @@ build/wc42-O1/%.s: %.c wc4
 
 wc42-O1: ${WC42_O1_ASSEMBLIES}
 	gcc ${WC42_O1_ASSEMBLIES} -o wc42-O1
+
+# wc42-ssa
+WC42_SSA_SOURCES := ${SOURCES:%=build/wc42-ssa/%}
+WC42_SSA_ASSEMBLIES := ${WC42_SSA_SOURCES:.c=.s}
+
+build/wc42-ssa/%.s: %.c wc4
+	./wc4 -c $< -S -o $@ -fuse-registers-for-locals -fno-coalesce-registers --ssa
+
+wc42-ssa: ${WC42_SSA_ASSEMBLIES}
+	gcc ${WC42_SSA_ASSEMBLIES} -o wc42-ssa
 
 # wc42-frp
 WC42_FRP_SOURCES := ${SOURCES:%=build/wc42-frp/%}
@@ -73,6 +85,16 @@ build/wc43-O1/%.s: %.c wc42-O1
 
 wc43-O1: ${WC43_O1_ASSEMBLIES}
 	gcc ${WC43_O1_ASSEMBLIES} -o wc43-O1
+
+# wc43-ssa
+WC43_SSA_SOURCES := ${SOURCES:%=build/wc43-ssa/%}
+WC43_SSA_ASSEMBLIES := ${WC43_SSA_SOURCES:.c=.s}
+
+build/wc43-ssa/%.s: %.c wc42-ssa
+	./wc42-ssa -c $< -S -o $@ -fuse-registers-for-locals -fno-coalesce-registers --ssa
+
+wc43-ssa: ${WC43_SSA_ASSEMBLIES}
+	gcc ${WC43_SSA_ASSEMBLIES} -o wc43-ssa
 
 # tests
 stack-check.o: stack-check.c
@@ -158,6 +180,12 @@ test-O1-self-compilation: ${WC42_O1_ASSEMBLIES} ${WC43_O1_ASSEMBLIES}
 	cat build/wc43-O1/*.s > build/wc43-O1/all-s
 	diff build/wc42-O1/all-s build/wc43-O1/all-s
 	@echo O1 self compilation test passed
+
+test-ssa-self-compilation: ${WC42_SSA_ASSEMBLIES} ${WC43_SSA_ASSEMBLIES}
+	cat build/wc42-ssa/*.s > build/wc42-ssa/all-s
+	cat build/wc43-ssa/*.s > build/wc43-ssa/all-s
+	diff build/wc42-ssa/all-s build/wc43-ssa/all-s
+	@echo SS self compilation test passed
 
 test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
 	cd test-include && ../wc4 main.c foo.c -o test-include
