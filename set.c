@@ -36,6 +36,12 @@ struct set *copy_set(struct set *s) {
     return result;
 }
 
+void copy_set_to(struct set *dst, struct set *src) {
+    int i;
+
+    for (i = 0; i <= src->max_value; i++) dst->elements[i] = src->elements[i];
+}
+
 int set_len(struct set *s) {
     int i, result;
 

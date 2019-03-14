@@ -562,13 +562,17 @@ void make_globals_and_var_blocks(struct function *function) {
 // Algorithm on page 501 of engineering a compiler
 void insert_phi_functions(struct function *function) {
     struct set *globals, *global_blocks, *work_list, *df;
-    int i, v, block_count, vreg_count, global, b, d, label;
+    int i, v, block_count, edge_count, vreg_count, global, b, d, label, predecessor_count;
     struct set **phi_functions, *vars;
     struct block *blocks;
+    struct edge *edges;
     struct three_address_code *tac, *prev;
+    struct value *phi_values;
 
     blocks = function->blocks;
     block_count = function->block_count;
+    edges = function->edges;
+    edge_count = function->edge_count;
     globals = function->globals;
     vreg_count = function->vreg_count;
 
@@ -600,9 +604,9 @@ void insert_phi_functions(struct function *function) {
 
     function->phi_functions = phi_functions;
 
-    if (DEBUG_SSA) printf("phi functions to add:\n");
+    if (DEBUG_SSA_PHI_INSERTION) printf("phi functions to add:\n");
     for (b = 0; b < block_count; b++) {
-        if (DEBUG_SSA) {
+        if (DEBUG_SSA_PHI_INSERTION) {
             printf("%d: ", b);
             print_set(phi_functions[b]);
             printf("\n");
@@ -616,9 +620,22 @@ void insert_phi_functions(struct function *function) {
             if (!vars->elements[v]) continue;
 
             tac = new_instruction(IR_PHI_FUNCTION);
-            tac->src1 = new_value(); tac->src1->type = TYPE_LONG; tac->src1->vreg = v;
-            tac->src2 = new_value(); tac->src2->type = TYPE_LONG; tac->src2->vreg = v;
-            tac->dst  = new_value(); tac->dst ->type = TYPE_LONG; tac->dst-> vreg = v;
+            tac->dst  = new_value();
+            tac->dst ->type = TYPE_LONG;
+            tac->dst-> vreg = v;
+
+            predecessor_count = 0;
+            for (i = 0; i < edge_count; i++)
+                if (edges[i].to == b) predecessor_count++;
+
+            phi_values = malloc((predecessor_count + 1) * sizeof(struct value));
+            memset(phi_values, 0, (predecessor_count + 1) * sizeof(struct value));
+            for (i = 0; i < predecessor_count; i++) {
+                init_value(&phi_values[i]);
+                phi_values[i].type = TYPE_LONG;
+                phi_values[i].vreg = v;
+            }
+            tac->phi_values = phi_values;
 
             prev = blocks[b].start->prev;
             tac->prev = prev;
@@ -630,7 +647,7 @@ void insert_phi_functions(struct function *function) {
         blocks[b].start->label = label;
     }
 
-    if (DEBUG_SSA) {
+    if (DEBUG_SSA_PHI_INSERTION) {
         printf("\nIR with phi functions:\n");
         print_intermediate_representation(function, 0);
     }
@@ -680,6 +697,7 @@ void rename_vars(struct function *function, struct stack **stack, int *counters,
     struct edge *edges;
     struct block *b;
     int *idoms;
+    struct value *v;
 
     if (DEBUG_SSA_PHI_RENUMBERING) {
         printf("\n----------------------------------------\nrename_vars\n");
@@ -717,6 +735,7 @@ void rename_vars(struct function *function, struct stack **stack, int *counters,
                 tac->src1->ssa_subscript = safe_stack_top(stack, counters, tac->src1->vreg);
                 if (DEBUG_SSA_PHI_RENUMBERING) printf("rewrote src1 %d\n", tac->src1->vreg);
             }
+
             if (tac->src2 && tac->src2->vreg) {
                 tac->src2->ssa_subscript = safe_stack_top(stack, counters, tac->src2->vreg);
                 if (DEBUG_SSA_PHI_RENUMBERING) printf("rewrote src2 %d\n", tac->src2->vreg);
@@ -741,13 +760,14 @@ void rename_vars(struct function *function, struct stack **stack, int *counters,
         end = function->blocks[edges[i].to].end;
         while (1) {
             if (tac->operation == IR_PHI_FUNCTION) {
-                if (tac->src1->ssa_subscript == -1) {
-                    tac->src1->ssa_subscript = safe_stack_top(stack, counters, tac->src1->vreg);
-                    if (DEBUG_SSA_PHI_RENUMBERING) printf("  rw src1 to %d\n", tac->src1->vreg);
-                }
-                else {
-                    tac->src2->ssa_subscript = safe_stack_top(stack, counters, tac->src2->vreg);
-                    if (DEBUG_SSA_PHI_RENUMBERING) printf("  rw src2 to %d\n", tac->src2->vreg);
+                v = tac->phi_values;
+                while (v->type) {
+                    if (v->ssa_subscript == -1) {
+                        v->ssa_subscript = safe_stack_top(stack, counters, v->vreg);
+                        if (DEBUG_SSA_PHI_RENUMBERING) printf("  rewrote arg to %d\n", v->vreg);
+                        break;
+                    }
+                    v++;
                 }
             }
             if (tac == end) break;
@@ -797,6 +817,8 @@ void rename_phi_function_variables(struct function *function) {
     for (i = 1; i <= vreg_count; i++) stack[i] = new_stack();
 
     rename_vars(function, stack, counters, 0, vreg_count);
+
+    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
 }
 
 // Page 696 engineering a compiler
@@ -810,6 +832,9 @@ void make_live_ranges(struct function *function) {
     struct set *dst_set, *src1_set, *src2_set, *s;
     int dst_set_index, src1_set_index, src2_set_index;
     struct block *blocks;
+    struct value *v;
+    int *src_ssa_vars, *src_set_indexes;
+    int value_count, set_index;
 
     if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function, 0);
 
@@ -820,6 +845,15 @@ void make_live_ranges(struct function *function) {
         if (tac->dst  && tac->dst ->vreg && tac->dst ->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->dst ->ssa_subscript;
         if (tac->src1 && tac->src1->vreg && tac->src1->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src1->ssa_subscript;
         if (tac->src2 && tac->src2->vreg && tac->src2->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src2->ssa_subscript;
+
+        if (tac->operation == IR_PHI_FUNCTION) {
+            v = tac->phi_values;
+            while (v->type) {
+                if (v->ssa_subscript > ssa_subscript_count) ssa_subscript_count = v->ssa_subscript;
+                v++;
+            }
+        }
+
         tac = tac->next;
     }
 
@@ -834,6 +868,15 @@ void make_live_ranges(struct function *function) {
         if (tac->dst  && tac->dst ->vreg) add_to_set(ssa_vars, tac->dst ->vreg * ssa_subscript_count + tac->dst ->ssa_subscript);
         if (tac->src1 && tac->src1->vreg) add_to_set(ssa_vars, tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript);
         if (tac->src2 && tac->src2->vreg) add_to_set(ssa_vars, tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript);
+
+        if (tac->operation == IR_PHI_FUNCTION) {
+            v = tac->phi_values;
+            while (v->type) {
+                add_to_set(ssa_vars, v->vreg * ssa_subscript_count + v->ssa_subscript);
+                v++;
+            }
+        }
+
         tac = tac->next;
     }
 
@@ -848,29 +891,45 @@ void make_live_ranges(struct function *function) {
 
     s = new_set(max_ssa_var);
 
+    src_ssa_vars = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
+    src_set_indexes = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
+
     // Make live ranges out of SSA variables in phi functions
     tac = function->ir;
     while (tac) {
         if (tac->operation == IR_PHI_FUNCTION) {
-            dst  = tac->dst ->vreg * ssa_subscript_count + tac->dst ->ssa_subscript;
-            src1 = tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript;
-            src2 = tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript;
+            value_count = 0;
+            v = tac->phi_values;
+            while (v->type) {
+                if (value_count == MAX_BLOCK_PREDECESSOR_COUNT) panic("Exceeded MAX_BLOCK_PREDECESSOR_COUNT");
+                src_ssa_vars[value_count++] = v->vreg * ssa_subscript_count + v->ssa_subscript;
+                v++;
+            }
+
+            dst = tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript;
 
             for (i = 0; i <= max_ssa_var; i++) {
                 if (!ssa_vars->elements[i]) continue;
-                if (in_set(live_ranges[i], dst )) dst_set_index  = i;
-                if (in_set(live_ranges[i], src1)) src1_set_index = i;
-                if (in_set(live_ranges[i], src2)) src2_set_index = i;
+
+                if (in_set(live_ranges[i], dst)) dst_set_index = i;
+
+                for (j = 0; j < value_count; j++)
+                    if (in_set(live_ranges[i], src_ssa_vars[j])) src_set_indexes[j] = i;
             }
 
-            dst_set  = live_ranges[dst_set_index];
-            src1_set = live_ranges[src1_set_index];
-            src2_set = live_ranges[src2_set_index];
+            dst_set = live_ranges[dst_set_index];
 
-            set_union_to(s, dst_set, src1_set);
-            set_union_to(live_ranges[dst_set_index], s, src2_set);
-            if (src1_set_index != dst_set_index) live_ranges[src1_set_index] = new_set(max_ssa_var);
-            if (src2_set_index != dst_set_index) live_ranges[src2_set_index] = new_set(max_ssa_var);
+            copy_set_to(s, dst_set);
+            for (j = 0; j < value_count; j++) {
+                set_index = src_set_indexes[j];
+                set_union_to(s, s, live_ranges[set_index]);
+            }
+            copy_set_to(live_ranges[dst_set_index], s);
+
+            for (j = 0; j < value_count; j++) {
+                set_index = src_set_indexes[j];
+                if (set_index != dst_set_index) live_ranges[set_index] = new_set(max_ssa_var); // TODO can we just empty it?
+            }
         }
         tac = tac->next;
     }

@@ -25,15 +25,19 @@ void print_value_stack() {
     }
 }
 
+ void init_value(struct value *v) {
+    v->preg = -1;
+    v->spilled_stack_index = -1;
+    v->ssa_subscript = -1;
+    v->live_range = -1;
+}
+
 struct value *new_value() {
     struct value *v;
 
     v = malloc(sizeof(struct value));
     memset(v, 0, sizeof(struct value));
-    v->preg = -1;
-    v->spilled_stack_index = -1;
-    v->ssa_subscript = -1;
-    v->live_range = -1;
+    init_value(v);
 
     return v;
 }
@@ -171,6 +175,9 @@ void print_value(void *f, struct value *v, int is_assignment_rhs) {
 }
 
 void print_instruction(void *f, struct three_address_code *tac) {
+    int first;
+    struct value *v;
+
     if (tac->label)
         fprintf(f, "l%-5d", tac->label);
     else
@@ -234,9 +241,14 @@ void print_instruction(void *f, struct three_address_code *tac) {
 
     else if (tac->operation == IR_PHI_FUNCTION) {
         fprintf(f, "Φ(");
-        print_value(f, tac->src1, 1);
-        fprintf(f, ", ");
-        print_value(f, tac->src2, 2);
+        v = tac->phi_values;
+        first = 1;
+        while (v->type) {
+            if (!first) fprintf(f, ", ");
+            print_value(f, v, 1);
+            first = 0;
+            v++;
+        }
         fprintf(f, ")");
     }
 

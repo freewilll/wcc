@@ -99,6 +99,7 @@ struct three_address_code {
     struct value *dst;                  // Destination
     struct value *src1;                 // First rhs operand
     struct value *src2;                 // Second rhs operand
+    struct value *phi_values;           // For phi functions, a null terminated array of values for the args
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
     int in_conditional;                 // Used for live range extending. True if the code is inside an if or ternary.
@@ -155,12 +156,14 @@ enum {
     MAX_BLOCK_EDGES               = 1024,
     MAX_INTERFERENCE_GRAPH_EDGES  = 10240,
     MAX_STACK_SIZE                = 10240,
+    MAX_BLOCK_PREDECESSOR_COUNT   = 128,
 };
 
 enum {
     DEBUG_SSA                             = 0,
     DEBUG_SSA_LIVEOUT                     = 0,
     DEBUG_SSA_CFG                         = 0,
+    DEBUG_SSA_PHI_INSERTION               = 0,
     DEBUG_SSA_PHI_RENUMBERING             = 0,
     DEBUG_SSA_LIVE_RANGE                  = 0,
     DEBUG_SSA_INTERFERENCE_GRAPH          = 0,
@@ -412,6 +415,7 @@ struct set *new_set(int max_value);
 void free_set(struct set *s);
 void empty_set(struct set *s);
 struct set *copy_set(struct set *s);
+void copy_set_to(struct set *dst, struct set *src);
 int set_len(struct set *s);
 void print_set(struct set *s);
 void *add_to_set(struct set *s, int value);
@@ -457,6 +461,7 @@ void finish_parsing_header();
 void parse();
 
 // ir.c
+void init_value(struct value *v);
 struct value *new_value();
 struct value *new_constant(int type, long value);
 struct value *dup_value(struct value *src);

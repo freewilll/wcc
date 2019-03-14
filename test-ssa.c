@@ -294,8 +294,8 @@ void test_idom2() {
 void check_phi(struct three_address_code *tac, int vreg) {
     assert(IR_PHI_FUNCTION, tac->operation);
     assert(vreg, tac->dst->vreg);
-    assert(vreg, tac->src1->vreg);
-    assert(vreg, tac->src2->vreg);
+    assert(vreg, tac->phi_values[0].vreg);
+    assert(vreg, tac->phi_values[1].vreg);
 }
 
 void test_phi_insertion() {
@@ -351,14 +351,18 @@ void test_phi_insertion() {
 }
 
 // Check renumbered phi functions
-void check_rphi(struct three_address_code *tac, int dst_vreg, int dst_ss, int src1_vreg, int src1_ss, int src2_vreg, int src2_ss) {
+void check_rphi(struct three_address_code *tac, int dst_vreg, int dst_ss, int src1_vreg, int src1_ss, int src2_vreg, int src2_ss, int src3_vreg, int src3_ss) {
     assert(IR_PHI_FUNCTION, tac->operation);
     assert(dst_vreg,  tac->dst ->vreg); assert(dst_ss,  tac->dst ->ssa_subscript);
-    assert(src1_vreg, tac->src1->vreg); assert(src1_ss, tac->src1->ssa_subscript);
-    assert(src2_vreg, tac->src2->vreg); assert(src2_ss, tac->src2->ssa_subscript);
+    assert(src1_vreg, tac->phi_values[0].vreg); assert(src1_ss, tac->phi_values[0].ssa_subscript);
+    assert(src2_vreg, tac->phi_values[1].vreg); assert(src2_ss, tac->phi_values[1].ssa_subscript);
+
+    if (src3_vreg) {
+        assert(src3_vreg, tac->phi_values[2].vreg); assert(src3_ss, tac->phi_values[2].ssa_subscript);
+    }
 }
 
-void test_phi_renumbering() {
+void test_phi_renumbering1() {
     struct function *function;
     int vreg_count;
     int *counters;
@@ -376,17 +380,17 @@ void test_phi_renumbering() {
     // No effort is done to validate all other vars. It's safe to assume that
     // if the phi functions are correct, then it's pretty likely the other
     // vars are ok too.
-    check_rphi(function->blocks[1].start,                         1, 1,  1, 0,  1, 2); // i
-    check_rphi(function->blocks[1].start->next,                   2, 1,  2, 0,  2, 3); // a
-    check_rphi(function->blocks[1].start->next->next,             3, 1,  3, 0,  3, 3); // b
-    check_rphi(function->blocks[1].start->next->next->next,       4, 1,  4, 0,  4, 4); // c
-    check_rphi(function->blocks[1].start->next->next->next->next, 5, 1,  5, 0,  5, 3); // d
-    check_rphi(function->blocks[3].start,                         2, 3,  2, 2,  2, 4); // a
-    check_rphi(function->blocks[3].start->next,                   3, 3,  3, 2,  3, 4); // b
-    check_rphi(function->blocks[3].start->next->next,             4, 4,  4, 3,  4, 5); // c
-    check_rphi(function->blocks[3].start->next->next->next,       5, 3,  5, 2,  5, 6); // d
-    check_rphi(function->blocks[7].start,                         4, 5,  4, 2,  4, 6); // c
-    check_rphi(function->blocks[7].start->next,                   5, 6,  5, 5,  5, 4); // d
+    check_rphi(function->blocks[1].start,                         1, 1,  1, 0,  1, 2,  0, 0); // i
+    check_rphi(function->blocks[1].start->next,                   2, 1,  2, 0,  2, 3,  0, 0); // a
+    check_rphi(function->blocks[1].start->next->next,             3, 1,  3, 0,  3, 3,  0, 0); // b
+    check_rphi(function->blocks[1].start->next->next->next,       4, 1,  4, 0,  4, 4,  0, 0); // c
+    check_rphi(function->blocks[1].start->next->next->next->next, 5, 1,  5, 0,  5, 3,  0, 0); // d
+    check_rphi(function->blocks[3].start,                         2, 3,  2, 2,  2, 4,  0, 0); // a
+    check_rphi(function->blocks[3].start->next,                   3, 3,  3, 2,  3, 4,  0, 0); // b
+    check_rphi(function->blocks[3].start->next->next,             4, 4,  4, 3,  4, 5,  0, 0); // c
+    check_rphi(function->blocks[3].start->next->next->next,       5, 3,  5, 2,  5, 6,  0, 0); // d
+    check_rphi(function->blocks[7].start,                         4, 5,  4, 2,  4, 6,  0, 0); // c
+    check_rphi(function->blocks[7].start->next,                   5, 6,  5, 5,  5, 4,  0, 0); // d
 
     // In the textbook example, all variables end up being mapped straight onto their own live ranges
     make_live_ranges(function);
@@ -397,6 +401,39 @@ void test_phi_renumbering() {
         if (tac->src2 && tac->src2->vreg) assert(tac->src2->vreg, tac->src2->live_range);
         tac = tac->next;
     }
+}
+
+// Test the case of a block that has three predecessors.
+// The example here should create a phi function with 3 arguments
+void test_phi_renumbering2() {
+    struct function *function;
+    int vreg_count;
+    int *counters;
+    struct stack **stack;
+    struct three_address_code *tac;
+
+    function = new_function();
+    ir_start = 0;
+
+    i(0, IR_NOP,    0,    0,    0  );
+    i(0, IR_ASSIGN, v(1), c(0), 0  );
+    i(0, IR_JZ,     0,    v(1), l(1));
+    i(0, IR_ASSIGN, v(1), c(1), 0  );
+    i(0, IR_JZ,     0,    v(1), l(1));
+    i(0, IR_ASSIGN, v(1), c(2), 0  );
+    i(1, IR_NOP,    0,    0,    0  );
+    i(0, IR_ASSIGN, v(2), v(1), 0  );
+
+    function->ir = ir_start;
+
+    do_ssa_experiments1(function);
+    do_ssa_experiments2(function);
+    rename_phi_function_variables(function);
+
+    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
+
+    // r1_3:long = Φ(r1_0:long, r1_1:long, r1_2:long)
+    check_rphi(function->blocks[3].start, 1, 3,  1, 0,  1, 1,  1, 2);
 }
 
 // Make IR for the test example on page 484 of engineering a compiler
@@ -629,7 +666,8 @@ int main() {
     test_liveout2();
     test_idom2();
     test_phi_insertion();
-    test_phi_renumbering();
+    test_phi_renumbering1();
+    test_phi_renumbering2();
     test_interference_graph1();
     test_interference_graph2();
     test_interference_graph3();
