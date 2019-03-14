@@ -603,6 +603,7 @@ void test_top_down_register_allocation() {
 
     // Everything is spilled. All nodes are constrained.
     // The vregs with the lowest cost get spilled first
+    function->spilled_register_count = 0;
     allocate_registers_top_down(function, 0);
     vl = function->vreg_locations;
     assert(3, vl[1].spilled_index);
@@ -612,6 +613,7 @@ void test_top_down_register_allocation() {
 
     // Only on register is available. All nodes are constrained.
     // The most expensive non interfering nodes get the register
+    function->spilled_register_count = 0;
     allocate_registers_top_down(function, 1);
     vl = function->vreg_locations;
     assert(0, vl[1].spilled_index);
@@ -622,6 +624,7 @@ void test_top_down_register_allocation() {
     // Register bliss. Only node 1 is constrained and it gets allocated the
     // first register. The rest don't interfere and all get the second
     // register.
+    function->spilled_register_count = 0;
     allocate_registers_top_down(function, 2);
     vl = function->vreg_locations;
     assert(0, vl[1].preg);
@@ -640,6 +643,7 @@ void test_top_down_register_allocation() {
     // Finally, when 3 gets done, all registers are free since node 0 was spilled. So it gets 0.
     function->interference_graph_edge_count++;
     edges[3].from = 2; edges[3].to = 4;
+    function->spilled_register_count = 0;
     allocate_registers_top_down(function, 2);
     vl = function->vreg_locations;
     assert(0, vl[1].spilled_index);
@@ -652,6 +656,7 @@ void test_top_down_register_allocation() {
     // 4 gets 1, since 0 is used by node 1
     // 3 gets 1 since 0 is used by node 1
     // 2 gets 2 since 0 and 1 are in use by 1 and 4
+    function->spilled_register_count = 0;
     allocate_registers_top_down(function, 3);
     vl = function->vreg_locations;
     assert(0, vl[1].preg);

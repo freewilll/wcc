@@ -354,14 +354,14 @@ void pre_instruction_spill(struct three_address_code *ir, int function_pc, int l
     pre_instruction_local_load(ir, function_pc, local_vars_stack_start);
 
     // Load src1 into r10
-    if (ir->src1 && ir->src1->spilled_stack_index != -1) {
+    if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->spilled_stack_index != -1) {
         fprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", spilled_registers_stack_start - ir->src1->spilled_stack_index * 8);
         ir->src1 = dup_value(ir->src1); // Ensure no side effects
         ir->src1->preg = REG_R10;
     }
 
     // Load src2 into r11
-    if (ir->src2 && ir->src2->spilled_stack_index != -1) {
+    if (ir->operation != IR_LOAD_VARIABLE && ir->src2 && ir->src2->spilled_stack_index != -1) {
         fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", spilled_registers_stack_start - ir->src2->spilled_stack_index * 8);
         ir->src2 = dup_value(ir->src2); // Ensure no side effects
         ir->src2->preg = REG_R11;

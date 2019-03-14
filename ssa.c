@@ -28,6 +28,58 @@ void rewrite_lvalue_reg_assignments(struct function *function) {
     }
 }
 
+// If any vregs have &, then they are mapped to a stack_index and not
+// mapped to a vreg by the existing code. They need to be mapped
+// to the new approach of using a stack_index. stack_index_map is the
+// map from -stack_index => spilled_stack_index.
+// The original stack_index remains, since downstream codegen code needs
+// it.
+void map_stack_index_to_spilled_stack_index(struct function *function) {
+    int spilled_register_count;
+    struct three_address_code *tac;
+    int *stack_index_map;
+
+    spilled_register_count = 0;
+
+    stack_index_map = malloc(function->local_symbol_count * sizeof(int));
+    memset(stack_index_map, -1, function->local_symbol_count * sizeof(int));
+
+    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_intermediate_representation(function, 0);
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->dst && tac->dst->stack_index < 0) {
+            if (stack_index_map[-tac->dst->stack_index] == -1)
+                stack_index_map[-tac->dst->stack_index] = spilled_register_count++;
+
+            tac->dst->spilled_stack_index = stack_index_map[-tac->dst->stack_index];
+        }
+
+        if (tac->src1 && tac->src1->stack_index < 0) {
+            if (stack_index_map[-tac->src1->stack_index] == -1)
+                stack_index_map[-tac->src1->stack_index] = spilled_register_count++;
+
+            tac->src1->spilled_stack_index = stack_index_map[-tac->src1->stack_index];
+        }
+
+        if (tac->src2 && tac->src2->stack_index < 0) {
+            if (stack_index_map[-tac->src2->stack_index] == -1)
+                stack_index_map[-tac->src2->stack_index] = spilled_register_count++;
+
+            tac->src2->spilled_stack_index = stack_index_map[-tac->src2->stack_index];
+        }
+
+        tac = tac ->next;
+    }
+
+    function->spilled_register_count = spilled_register_count;
+
+    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES)
+        printf("Spilled %d registers due to & use\n", spilled_register_count);
+
+    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_intermediate_representation(function, 0);
+}
+
 void index_tac(struct three_address_code *ir) {
     struct three_address_code *tac;
     int i;
@@ -1284,7 +1336,7 @@ void allocate_registers_top_down(struct function *function, int physical_registe
 
     vreg_locations = malloc((vreg_count + 1) * sizeof(struct vreg_location));
     memset(vreg_locations, -1, (vreg_count + 1) * sizeof(struct vreg_location));
-    spilled_register_count = 0;
+    spilled_register_count = function->spilled_register_count;
 
     // Color constrained nodes first
     for (i = 1; i <= vreg_count; i++) {
@@ -1403,6 +1455,7 @@ void remove_self_moves(struct function *function) {
 }
 
 void do_ssa_experiments1(struct function *function) {
+    map_stack_index_to_spilled_stack_index(function);
     rewrite_lvalue_reg_assignments(function);
     make_vreg_count(function);
     make_control_flow_graph(function);
