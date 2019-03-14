@@ -858,8 +858,6 @@ void output_code(char *input_filename, char *output_filename) {
             s->function->spilled_register_count = spilled_register_count;
         }
 
-        merge_labels(s);
-
         if (print_ir3) print_intermediate_representation(s->function, s->identifier);
 
         output_function_body_code(s);

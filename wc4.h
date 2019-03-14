@@ -469,7 +469,6 @@ void print_intermediate_representation(struct function *function, char *name);
 void ensure_must_be_ssa_ish(struct three_address_code *ir);
 void print_liveness(struct symbol *function);
 void analyze_liveness(struct symbol *function);
-void merge_labels(struct symbol *function);
 void optimize_ir(struct symbol *function);
 void make_available_phyical_register_list(struct three_address_code *ir);
 void allocate_registers(struct three_address_code *ir);

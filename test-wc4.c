@@ -1333,16 +1333,6 @@ void test_stack_alignment() {
     test_stack_alignment2();
 }
 
-void test_ssa_label_merge_bug() {
-    int i;
-
-         if (0) i = 1;
-    else if (1) i = 2;
-    else if (0) i = 3;
-
-    assert_int(2, i, "Label merge bug in three level if/else");
-}
-
 int main(int argc, char **argv) {
     int help;
 
@@ -1432,7 +1422,6 @@ int main(int argc, char **argv) {
     test_first_declaration_in_if_in_for_liveness();
     test_spilling_locals_to_stack_bug();
     test_stack_alignment();
-    test_ssa_label_merge_bug();
 
     finalize();
 }
