@@ -51,7 +51,7 @@ WC42_SSA_SOURCES := ${SOURCES:%=build/wc42-ssa/%}
 WC42_SSA_ASSEMBLIES := ${WC42_SSA_SOURCES:.c=.s}
 
 build/wc42-ssa/%.s: %.c wc4
-	./wc4 -c $< -S -o $@ -fuse-registers-for-locals -fno-coalesce-registers --ssa
+	./wc4 -c $< -S -o $@ --ssa
 
 wc42-ssa: ${WC42_SSA_ASSEMBLIES}
 	gcc ${WC42_SSA_ASSEMBLIES} -o wc42-ssa
@@ -91,7 +91,7 @@ WC43_SSA_SOURCES := ${SOURCES:%=build/wc43-ssa/%}
 WC43_SSA_ASSEMBLIES := ${WC43_SSA_SOURCES:.c=.s}
 
 build/wc43-ssa/%.s: %.c wc42-ssa
-	./wc42-ssa -c $< -S -o $@ -fuse-registers-for-locals -fno-coalesce-registers --ssa
+	./wc42-ssa -c $< -S -o $@ --ssa
 
 wc43-ssa: ${WC43_SSA_ASSEMBLIES}
 	gcc ${WC43_SSA_ASSEMBLIES} -o wc43-ssa
@@ -113,7 +113,7 @@ test-wc4-O1.s: wc4 test-wc4.c
 	./wc4 -O1 -c -S -o test-wc4-O1.s test-wc4.c
 
 test-wc4-ssa.s: wc4 test-wc4.c
-	./wc4 -fuse-registers-for-locals -fno-coalesce-registers --ssa -c -S -o test-wc4-ssa.s test-wc4.c
+	./wc4 --ssa -c -S -o test-wc4-ssa.s test-wc4.c
 
 test-wc4: test-wc4.s stack-check.o
 	gcc test-wc4.s stack-check.o -o test-wc4

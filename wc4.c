@@ -205,6 +205,11 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    if (experimental_ssa) {
+        opt_use_registers_for_locals = 1;
+        opt_enable_register_coalescing = 0;
+    }
+
     if (!input_filename_count) {
         printf("Missing input filename\n");
         exit(1);
