@@ -46,6 +46,11 @@ void map_stack_index_to_spilled_stack_index(struct function *function) {
 
     if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_intermediate_representation(function, 0);
 
+    // The -1 in stack_index assignment below is due to conventions in the old
+    // register allocation code. In the legacy code, stack_index starts at -1
+    // and grows downwards. In the SSA code, the stack index starts at 0
+    // and grows upwards.
+
     tac = function->ir;
     while (tac) {
         if (tac->dst && tac->dst->stack_index < 0) {
@@ -53,6 +58,7 @@ void map_stack_index_to_spilled_stack_index(struct function *function) {
                 stack_index_map[-tac->dst->stack_index] = spilled_register_count++;
 
             tac->dst->spilled_stack_index = stack_index_map[-tac->dst->stack_index];
+            tac->dst->stack_index = -tac->dst->spilled_stack_index - 1;
         }
 
         if (tac->src1 && tac->src1->stack_index < 0) {
@@ -60,6 +66,7 @@ void map_stack_index_to_spilled_stack_index(struct function *function) {
                 stack_index_map[-tac->src1->stack_index] = spilled_register_count++;
 
             tac->src1->spilled_stack_index = stack_index_map[-tac->src1->stack_index];
+            tac->src1->stack_index = -tac->src1->spilled_stack_index - 1;
         }
 
         if (tac->src2 && tac->src2->stack_index < 0) {
@@ -67,6 +74,7 @@ void map_stack_index_to_spilled_stack_index(struct function *function) {
                 stack_index_map[-tac->src2->stack_index] = spilled_register_count++;
 
             tac->src2->spilled_stack_index = stack_index_map[-tac->src2->stack_index];
+            tac->src2->stack_index = -tac->src2->spilled_stack_index - 1;
         }
 
         tac = tac ->next;
@@ -1408,7 +1416,6 @@ void assign_vreg_locations(struct function *function) {
     while (tac) {
         if (tac->dst && tac->dst->vreg) {
             vl = &function_vl[tac->dst->vreg];
-
             if (vl->spilled_index != -1)
                 tac->dst->spilled_stack_index = vl->spilled_index;
             else
