@@ -41,8 +41,8 @@ void map_stack_index_to_spilled_stack_index(struct function *function) {
 
     spilled_register_count = 0;
 
-    stack_index_map = malloc(function->local_symbol_count * sizeof(int));
-    memset(stack_index_map, -1, function->local_symbol_count * sizeof(int));
+    stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
+    memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
 
     if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_intermediate_representation(function, 0);
 

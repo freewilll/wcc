@@ -1,4 +1,4 @@
-all: wc4 wc42 wc42-O1 wc42-ssa wc42-frp wc43 wc43-O1 benchmark
+all: wc4 wc42 wc42-O1 wc42-ssa wc42-frp wc43 wc43-O1 wc43-ssa benchmark
 
 SOURCES = \
   wc4.c \
@@ -185,7 +185,7 @@ test-ssa-self-compilation: ${WC42_SSA_ASSEMBLIES} ${WC43_SSA_ASSEMBLIES}
 	cat build/wc42-ssa/*.s > build/wc42-ssa/all-s
 	cat build/wc43-ssa/*.s > build/wc43-ssa/all-s
 	diff build/wc42-ssa/all-s build/wc43-ssa/all-s
-	@echo SS self compilation test passed
+	@echo SSA self compilation test passed
 
 test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
 	cd test-include && ../wc4 main.c foo.c -o test-include
@@ -212,7 +212,7 @@ run-test-codegen: test-codegen
 	 ./test-codegen
 
 .PHONY: test
-test: run-test-set run-test-ssa run-test-codegen run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-wc4-ssa run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation
+test: run-test-set run-test-ssa run-test-codegen run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-wc4-ssa run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation test-ssa-self-compilation
 
 clean:
 	@rm -f wc4

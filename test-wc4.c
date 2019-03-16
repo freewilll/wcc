@@ -1343,6 +1343,16 @@ void test_ssa_label_merge_bug() {
     assert_int(2, i, "Label merge bug in three level if/else");
 }
 
+void tsmab(int *i) {}
+
+void test_ssa_memory_alocation_bug() {
+    int a, b;
+    int i;
+
+    i = 0;
+    tsmab(&i);
+}
+
 int main(int argc, char **argv) {
     int help;
 
@@ -1433,6 +1443,7 @@ int main(int argc, char **argv) {
     test_spilling_locals_to_stack_bug();
     test_stack_alignment();
     test_ssa_label_merge_bug();
+    test_ssa_memory_alocation_bug();
 
     finalize();
 }
