@@ -720,6 +720,7 @@ void test_while_continue() {
         c1 = c1 * 10 + 9;
     }
     assert_int(12345, c1, "while continue");
+    printf("%d\n", c1);
 }
 
 void test_if_else() {
@@ -1353,6 +1354,30 @@ void test_ssa_memory_alocation_bug() {
     tsmab(&i);
 }
 
+int test_ssa_continue_with_statements_afterwards() {
+    // A silly example, but a bug was leading to incorrect liveness, leading to
+    // in correct register allocations.
+    int i;
+
+    i = 0;
+    while (i++ < 3) {
+        continue;
+        i = 1;
+    }
+}
+
+int test_ssa_break_with_statements_afterwards() {
+    // A silly example, but a bug was leading to incorrect liveness, leading to
+    // in correct register allocations.
+    int i;
+
+    i = 0;
+    while (i++ < 3) {
+        continue;
+        i = 1;
+    }
+}
+
 int main(int argc, char **argv) {
     int help;
 
@@ -1444,6 +1469,8 @@ int main(int argc, char **argv) {
     test_stack_alignment();
     test_ssa_label_merge_bug();
     test_ssa_memory_alocation_bug();
+    test_ssa_continue_with_statements_afterwards();
+    test_ssa_break_with_statements_afterwards();
 
     finalize();
 }

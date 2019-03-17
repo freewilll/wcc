@@ -135,6 +135,23 @@ void make_control_flow_graph(struct function *function) {
     while (tac->next) tac = tac->next;
     blocks[block_count - 1].end = tac;
 
+    // Truncate blocks with JMP operations in them since the instructions
+    // afterwards will never get executed. Furthermore, the instructions later
+    // on will mess with the liveness analysis, leading to incorrect live
+    // ranges for the code that _is_ executed, so they need to get excluded.
+    for (i = 0; i < block_count; i++) {
+        tac = blocks[i].start;
+        while (1) {
+            if (tac->operation == IR_JMP) {
+                blocks[i].end = tac;
+                break;
+            }
+
+            if (tac == blocks[i].end) break;
+            tac = tac->next;
+        }
+    }
+
     edges = malloc(MAX_BLOCK_EDGES * sizeof(struct edge));
     memset(edges, 0, MAX_BLOCK_EDGES * sizeof(struct edge));
     edge_count = 0;

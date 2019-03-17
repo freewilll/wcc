@@ -481,6 +481,7 @@ void make_available_phyical_register_list(struct three_address_code *ir);
 void allocate_registers(struct three_address_code *ir);
 
 // ssa.c
+int make_vreg_count(struct function *function);
 int new_subscript(struct stack **stack, int *counters, int n);
 void make_uevar_and_varkill(struct function *function);
 void make_liveout(struct function *function);

@@ -30,6 +30,64 @@ struct function *new_function() {
     return function;
 }
 
+struct three_address_code *i(int label, int operation, struct value *dst, struct value *src1, struct value *src2) {
+    struct three_address_code *tac;
+
+    tac = add_instruction(operation, dst, src1, src2);
+    tac->label = label;
+    return tac;
+}
+
+struct value *v(int vreg) {
+    struct value *v;
+
+    v = new_value();
+    v->type = TYPE_INT;
+    v->vreg = vreg;
+
+    return v;
+}
+
+struct value *l(int label) {
+    struct value *v;
+
+    v = new_value();
+    v->label = label;
+
+    return v;
+}
+
+struct value *c(int value) {
+    return new_constant(TYPE_INT, value);
+}
+
+// Ensure a JMP statement in the middle of a block ends the block
+void test_cfg_jmp() {
+    struct function *function;
+    struct edge *ig;
+    struct three_address_code *t1, *t2, *t3, *t4;
+
+    function = new_function();
+
+    ir_start = 0;
+
+    t1 = i(0, IR_NOP, 0, 0,    0);
+    t2 = i(0, IR_JMP, 0, l(1), 0);
+    t3 = i(0, IR_NOP, 0, 0,    0);
+    t4 = i(1, IR_NOP, 0, 0,    0);
+
+    function->ir = ir_start;
+
+    make_vreg_count(function);
+    make_control_flow_graph(function);
+
+    assert(2, function->block_count);
+    assert(1, function->edge_count);
+    assert(t1, function->blocks[0].start); assert(t2, function->blocks[0].end);
+    assert(t4, function->blocks[1].start); assert(t4, function->blocks[1].end);
+    assert(0, function->edges[0].from); assert(1, function->edges[0].to);
+}
+
 // Test example on page 478 of engineering a compiler
 void test_dominance() {
     struct function *function;
@@ -83,36 +141,6 @@ void test_dominance() {
     assert_set(function->dominance[6], 0,  1,  5,  6, -1);
     assert_set(function->dominance[7], 0,  1,  5,  7, -1);
     assert_set(function->dominance[8], 0,  1,  5,  8, -1);
-}
-
-void i(int label, int operation, struct value *dst, struct value *src1, struct value *src2) {
-    struct three_address_code *tac;
-
-    tac = add_instruction(operation, dst, src1, src2);
-    tac->label = label;
-}
-
-struct value *v(int vreg) {
-    struct value *v;
-
-    v = new_value();
-    v->type = TYPE_INT;
-    v->vreg = vreg;
-
-    return v;
-}
-
-struct value *l(int label) {
-    struct value *v;
-
-    v = new_value();
-    v->label = label;
-
-    return v;
-}
-
-struct value *c(int value) {
-    return new_constant(TYPE_INT, value);
 }
 
 // Test example on page 448 of engineering a compiler
@@ -666,6 +694,7 @@ void test_top_down_register_allocation() {
 }
 
 int main() {
+    test_cfg_jmp();
     test_dominance();
     test_liveout1();
     test_liveout2();
