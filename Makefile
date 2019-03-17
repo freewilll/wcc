@@ -130,7 +130,7 @@ test-wc4-O1: test-wc4-O1.s stack-check.o
 test-wc4-ssa: test-wc4-ssa.s stack-check.o
 	gcc test-wc4-ssa.s stack-check.o -o test-wc4-ssa
 
-benchmark: wc4 wc42 wc42-frp wc42-O1 benchmark.c
+benchmark: wc4 wc42 wc42-frp wc42-O1 wc42-ssa benchmark.c
 	gcc benchmark.c -o benchmark
 
 run-benchmark: benchmark
@@ -221,6 +221,7 @@ clean:
 	@rm -f wc42-O1
 	@rm -f wc43
 	@rm -f wc43-O1
+	@rm -f wc43-ssa
 	@rm -f test-wc4
 	@rm -f test-wc4-frp
 	@rm -f test-wc4-gcc
