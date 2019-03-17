@@ -332,22 +332,6 @@ void ensure_must_be_ssa_ish(struct three_address_code *ir) {
             exit(1);
         }
 
-        // FIXME the ternary generates code with 2 register assigns, which violates SSA
-        // if (ir->operation != IR_TERNARY && dst) {
-        //     tac2 = tac1 + 1;
-        //     j = 0;
-        //     while (tac2->operation) {
-        //         if (tac2->dst && tac2->dst->vreg == dst) {
-        //             printf("IR instructions not SSA\n");
-        //             fprintf(stdout, "%-4d > ", i); print_instruction(stdout, tac1);
-        //             fprintf(stdout, "%-4d > ", j); print_instruction(stdout, tac2);
-        //             exit(1);
-        //         }
-        //         tac2++;
-        //         j++;
-        //     }
-        // }
-
         i++;
         tac1 = tac1->next;
     }
