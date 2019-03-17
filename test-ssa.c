@@ -78,7 +78,7 @@ void test_cfg_jmp() {
 
     function->ir = ir_start;
 
-    make_vreg_count(function);
+    make_vreg_count(function, 0);
     make_control_flow_graph(function);
 
     assert(2, function->block_count);
@@ -424,9 +424,9 @@ void test_phi_renumbering1() {
     make_live_ranges(function);
     tac = function->ir;
     while (tac) {
-        if (tac->dst  && tac->dst ->vreg) assert(tac->dst ->vreg, tac->dst ->live_range);
-        if (tac->src1 && tac->src1->vreg) assert(tac->src1->vreg, tac->src1->live_range);
-        if (tac->src2 && tac->src2->vreg) assert(tac->src2->vreg, tac->src2->live_range);
+        if (tac->dst  && tac->dst ->vreg) assert(tac->dst ->vreg, tac->dst ->live_range - live_range_reserved_pregs_offset);
+        if (tac->src1 && tac->src1->vreg) assert(tac->src1->vreg, tac->src1->live_range - live_range_reserved_pregs_offset);
+        if (tac->src2 && tac->src2->vreg) assert(tac->src2->vreg, tac->src2->live_range - live_range_reserved_pregs_offset);
         tac = tac->next;
     }
 }
@@ -498,6 +498,9 @@ struct function *make_ir3(int loop_count) {
 void test_interference_graph1() {
     struct function *function;
     struct edge *ig;
+    int l;
+
+    l = live_range_reserved_pregs_offset;
 
     function = make_ir3(0);
 
@@ -509,14 +512,18 @@ void test_interference_graph1() {
 
     ig = function->interference_graph;
     assert(3, function->interference_graph_edge_count);
-    assert(1, ig[0].from); assert(2, ig[0].to);
-    assert(1, ig[1].from); assert(3, ig[1].to);
-    assert(1, ig[2].from); assert(4, ig[2].to);
+
+    assert(l + 1, ig[0].from); assert(l + 2, ig[0].to);
+    assert(l + 1, ig[1].from); assert(l + 3, ig[1].to);
+    assert(l + 1, ig[2].from); assert(l + 4, ig[2].to);
 }
 
 void test_interference_graph2() {
     struct function *function;
     struct edge *ig;
+    int l;
+
+    l = live_range_reserved_pregs_offset;
 
     function = new_function();
 
@@ -529,20 +536,20 @@ void test_interference_graph2() {
 
     ig = function->interference_graph;
     assert(14, function->interference_graph_edge_count);
-    assert(1, ig[ 0].from); assert(2, ig[ 0].to);
-    assert(1, ig[ 1].from); assert(3, ig[ 1].to);
-    assert(1, ig[ 2].from); assert(4, ig[ 2].to);
-    assert(1, ig[ 3].from); assert(5, ig[ 3].to);
-    assert(1, ig[ 4].from); assert(6, ig[ 4].to);
-    assert(1, ig[ 5].from); assert(7, ig[ 5].to);
-    assert(2, ig[ 6].from); assert(3, ig[ 6].to);
-    assert(2, ig[ 7].from); assert(4, ig[ 7].to);
-    assert(2, ig[ 8].from); assert(5, ig[ 8].to);
-    assert(3, ig[ 9].from); assert(4, ig[ 9].to);
-    assert(3, ig[10].from); assert(5, ig[10].to);
-    assert(4, ig[11].from); assert(5, ig[11].to);
-    assert(4, ig[12].from); assert(6, ig[12].to);
-    assert(5, ig[13].from); assert(6, ig[13].to);
+    assert(l + 1, ig[ 0].from); assert(l + 2, ig[ 0].to);
+    assert(l + 1, ig[ 1].from); assert(l + 3, ig[ 1].to);
+    assert(l + 1, ig[ 2].from); assert(l + 4, ig[ 2].to);
+    assert(l + 1, ig[ 3].from); assert(l + 5, ig[ 3].to);
+    assert(l + 1, ig[ 4].from); assert(l + 6, ig[ 4].to);
+    assert(l + 1, ig[ 5].from); assert(l + 7, ig[ 5].to);
+    assert(l + 2, ig[ 6].from); assert(l + 3, ig[ 6].to);
+    assert(l + 2, ig[ 7].from); assert(l + 4, ig[ 7].to);
+    assert(l + 2, ig[ 8].from); assert(l + 5, ig[ 8].to);
+    assert(l + 3, ig[ 9].from); assert(l + 4, ig[ 9].to);
+    assert(l + 3, ig[10].from); assert(l + 5, ig[10].to);
+    assert(l + 4, ig[11].from); assert(l + 5, ig[11].to);
+    assert(l + 4, ig[12].from); assert(l + 6, ig[12].to);
+    assert(l + 5, ig[13].from); assert(l + 6, ig[13].to);
 }
 
 void test_interference_graph3() {
@@ -550,6 +557,9 @@ void test_interference_graph3() {
 
     struct function *function;
     struct edge *ig;
+    int l;
+
+    l = live_range_reserved_pregs_offset;
 
     function = new_function();
 
@@ -572,14 +582,15 @@ void test_interference_graph3() {
 
     ig = function->interference_graph;
     assert(2, function->interference_graph_edge_count);
-    assert(1, ig[0].from); assert(2, ig[0].to);
-    assert(1, ig[1].from); assert(3, ig[1].to);
+    assert(l + 1, ig[0].from); assert(l + 2, ig[0].to);
+    assert(l + 1, ig[1].from); assert(l + 3, ig[1].to);
 }
 
 void test_spill_cost() {
     struct function *function;
-    int i, *spill_cost;
-    int p;
+    int i, *spill_cost, p, l;
+
+    l = live_range_reserved_pregs_offset;
 
     for (i = 0; i < 3; i++) {
         function = make_ir3(i);
@@ -595,18 +606,21 @@ void test_spill_cost() {
         else if (i == 2) p = 100;
 
         spill_cost = function->spill_cost;
-        assert(4, spill_cost[1]);
-        assert(3, spill_cost[2]);
-        assert(p + 1, spill_cost[3]);
-        assert(4, spill_cost[4]);
+        assert(4, spill_cost[l + 1]);
+        assert(3, spill_cost[l + 2]);
+        assert(p + 1, spill_cost[l + 3]);
+        assert(4, spill_cost[l + 4]);
     }
 }
 
 void test_top_down_register_allocation() {
-    int i, vreg_count;
+    int i, l, vreg_count;
     struct function *function;
     struct edge *edges;
     struct vreg_location *vl;
+
+    // Don't reserve any physical registers, for simplicity
+    live_range_reserved_pregs_offset = 0;
 
     // Create the graph on page 700 of engineering a compiler
     // 1 - 4

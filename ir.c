@@ -115,6 +115,23 @@ struct three_address_code *add_instruction(int operation, struct value *dst, str
     return tac;
 }
 
+// Ensure the double linked list in an IR is correct by checking last pointers
+void sanity_test_ir_linkage(struct three_address_code *ir) {
+    struct three_address_code *tac;
+
+    tac = ir;
+    while (tac) {
+        if (tac->next && tac->next->prev != tac) {
+            printf("Linkage broken between:\n");
+            print_instruction(stdout, tac);
+            print_instruction(stdout, tac->next);
+            panic("Bailing");
+        }
+
+        tac = tac->next;
+    }
+}
+
 void fprintf_escaped_string_literal(void *f, char* sl) {
     fprintf(f, "\"");
     while (*sl) {
@@ -710,6 +727,7 @@ struct three_address_code *insert_instruction(struct three_address_code *ir, int
     prev = ir->prev;
     tac->prev = prev;
     tac->next = ir;
+    ir->prev = tac;
     prev->next = tac;
 
     for (i = 0; i < vreg_count; i++) {

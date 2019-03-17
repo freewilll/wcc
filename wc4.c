@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
     opt_spill_furthest_liveness_end = 0;
     output_inline_ir = 0;
     experimental_ssa = 0;
-    ssa_physical_register_count = 5;
+    ssa_physical_register_count = 12;
 
     output_filename = 0;
     input_filename_count = 0;

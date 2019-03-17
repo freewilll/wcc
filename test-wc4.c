@@ -720,7 +720,6 @@ void test_while_continue() {
         c1 = c1 * 10 + 9;
     }
     assert_int(12345, c1, "while continue");
-    printf("%d\n", c1);
 }
 
 void test_if_else() {

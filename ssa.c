@@ -4,6 +4,15 @@
 
 #include "wc4.h"
 
+// Indexes used to reference the physically reserved registers, starting at 0
+int SSA_PREG_REG_RAX;
+int SSA_PREG_REG_RCX;
+int SSA_PREG_REG_RDX;
+int SSA_PREG_REG_RSI;
+int SSA_PREG_REG_RDI;
+int SSA_PREG_REG_R8;
+int SSA_PREG_REG_R9;
+
 struct vreg_cost {
     int vreg;
     int cost;
@@ -438,11 +447,11 @@ void make_block_dominance_frontiers(struct function *function) {
     }
 }
 
-int make_vreg_count(struct function *function) {
+int make_vreg_count(struct function *function, int starting_count) {
     int vreg_count;
     struct three_address_code *tac;
 
-    vreg_count = 0;
+    vreg_count = starting_count;
     tac = function->ir;
     while (tac) {
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
@@ -596,7 +605,7 @@ void make_globals_and_var_blocks(struct function *function) {
     memset(var_blocks, 0, (vreg_count + 1) * sizeof(struct set *));
     for (i = 1; i <= vreg_count; i++) var_blocks[i] = new_set(block_count);
 
-    make_vreg_count(function);
+    make_vreg_count(function, 0);
     globals = new_set(vreg_count);
 
     for (i = 0; i < block_count; i++) {
@@ -913,6 +922,8 @@ void make_live_ranges(struct function *function) {
     int *src_ssa_vars, *src_set_indexes;
     int value_count, set_index;
 
+    live_range_reserved_pregs_offset = RESERVED_PHYSICAL_REGISTER_COUNT; // See the list at the top of the file
+
     if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function, 0);
 
     vreg_count = function->vreg_count;
@@ -1019,11 +1030,11 @@ void make_live_ranges(struct function *function) {
         if (ssa_vars->elements[i] && set_len(live_ranges[i]))
             live_ranges[live_range_count++] = live_ranges[i];
 
-    // From here on, live ranges start at 1
+    // From here on, live ranges start at live_range_reserved_pregs_offset + 1
     if (DEBUG_SSA_LIVE_RANGE) {
         printf("Live ranges:\n");
         for (i = 0; i < live_range_count; i++) {
-            printf("%d: ", i + 1);
+            printf("%d: ", i + live_range_reserved_pregs_offset + 1);
             printf("{");
             first = 1;
             for (j = 0; j <= live_ranges[i]->max_value; j++) {
@@ -1057,13 +1068,13 @@ void make_live_ranges(struct function *function) {
     tac = function->ir;
     while (tac) {
         if (tac->dst && tac->dst->vreg)
-            tac->dst->live_range = map[tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript] + 1;
+            tac->dst->live_range = map[tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript] + live_range_reserved_pregs_offset + 1;
 
         if (tac->src1 && tac->src1->vreg)
-            tac->src1->live_range = map[tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript] + 1;
+            tac->src1->live_range = map[tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript] + live_range_reserved_pregs_offset + 1;
 
         if (tac->src2 && tac->src2->vreg)
-            tac->src2->live_range = map[tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript] + 1;
+            tac->src2->live_range = map[tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript] + live_range_reserved_pregs_offset + 1;
 
         tac = tac->next;
     }
@@ -1100,7 +1111,31 @@ void blast_vregs_with_live_ranges(struct function *function) {
         tac = tac->next;
     }
 
-    make_vreg_count(function);
+    make_vreg_count(function, RESERVED_PHYSICAL_REGISTER_COUNT);
+}
+
+void add_interference_edge(int *edge_matrix, int vreg_count, int to, int from) {
+    int t, index;
+
+    if (from > to) {
+        t = from;
+        from = to;
+        to = t;
+    }
+
+    index = from * vreg_count + to;
+    if (!edge_matrix[index]) edge_matrix[index] = 1;
+}
+
+void add_interference_edge_for_reserved_register(int *edge_matrix, int vreg_count, struct set *livenow, struct three_address_code *tac, int preg_reg_index) {
+    int i;
+
+    for (i = 0; i <= livenow->max_value; i++)
+        if (livenow->elements[i]) add_interference_edge(edge_matrix, vreg_count, preg_reg_index, i);
+
+    if (tac->dst  && tac->dst ->vreg) add_interference_edge(edge_matrix, vreg_count, preg_reg_index, tac->dst->vreg );
+    if (tac->src1 && tac->src1->vreg) add_interference_edge(edge_matrix, vreg_count, preg_reg_index, tac->src1->vreg);
+    if (tac->src2 && tac->src2->vreg) add_interference_edge(edge_matrix, vreg_count, preg_reg_index, tac->src2->vreg);
 }
 
 // Page 701 of engineering a compiler
@@ -1111,6 +1146,7 @@ void make_interference_graph(struct function *function) {
     struct set *livenow;
     struct three_address_code *tac;
     int *edge_matrix; // Triangular matrix of edges
+    int function_call_depth;
 
     vreg_count = function->vreg_count;
 
@@ -1120,50 +1156,49 @@ void make_interference_graph(struct function *function) {
     blocks = function->blocks;
     block_count = function->block_count;
 
-    for (i = 0; i < block_count; i++) {
+    function_call_depth = 0;
+    for (i = block_count - 1; i >= 0; i--) {
         livenow = copy_set(function->liveout[i]);
 
         tac = blocks[i].end;
         while (tac) {
+            if (tac->operation == IR_END_CALL) function_call_depth++;
+            else if (tac->operation == IR_START_CALL) function_call_depth--;
+
+            if (function_call_depth > 0) {
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
+            }
+
+            if (tac->operation == IR_DIV || tac->operation == IR_MOD) {
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+            }
+
+            if (tac->operation == IR_BSHL || tac->operation == IR_BSHR)
+                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+
             if (tac->dst && tac->dst->vreg) {
                 if (tac->operation == IR_RSUB && tac->src1->vreg) {
                     // Ensure that dst and src1 don't reside in the same preg.
                     // This allowes codegen to generate code with just one operation while
                     // ensuring the other registers preserve their values.
-
-                    if (tac->src1->vreg < tac->dst->vreg) {
-                        from = tac->src1->vreg;
-                        to = tac->dst->vreg;
-                    }
-                    else {
-                        from = tac->dst->vreg;
-                        to = tac->src1->vreg;
-                    }
-
-                    index = from * vreg_count + to;
-                    if (!edge_matrix[index]) edge_matrix[index] = 1;
+                    add_interference_edge(edge_matrix, vreg_count, tac->src1->vreg, tac->dst->vreg);
                 }
 
                 for (j = 0; j <= livenow->max_value; j++) {
-
                     if (!livenow->elements[j]) continue;
 
                     if (j == tac->dst->vreg) continue; // Ignore self assignment
 
                     // Don't add an edge for register copies
                     if (tac->operation == IR_ASSIGN && tac->src1->vreg && tac->src1->vreg == j) continue;
-
-                    if (j < tac->dst->vreg) {
-                        from = j;
-                        to = tac->dst->vreg;
-                    }
-                    else {
-                        from = tac->dst->vreg;
-                        to = j;
-                    }
-
-                    index = from * vreg_count + to;
-                    if (!edge_matrix[index]) edge_matrix[index] = 1;
+                    add_interference_edge(edge_matrix, vreg_count, tac->dst->vreg, j);
                 }
             }
 
@@ -1197,7 +1232,7 @@ void make_interference_graph(struct function *function) {
     function->interference_graph_edge_count = edge_count;
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) {
-        printf("\nInference graph edges:\n");
+        printf("\nInterference graph edges:\n");
         for (i = 0; i < edge_count; i++)
             printf("%d - %d\n", edges[i].from, edges[i].to);
         printf("\n");
@@ -1363,10 +1398,22 @@ void allocate_registers_top_down(struct function *function, int physical_registe
     memset(vreg_locations, -1, (vreg_count + 1) * sizeof(struct vreg_location));
     spilled_register_count = function->spilled_register_count;
 
+    // Pre-color reserved registers
+    if (live_range_reserved_pregs_offset > 0) {
+        vreg_locations[LIVE_RANGE_PREG_RAX_INDEX].preg = SSA_PREG_REG_RAX;
+        vreg_locations[LIVE_RANGE_PREG_RCX_INDEX].preg = SSA_PREG_REG_RCX;
+        vreg_locations[LIVE_RANGE_PREG_RDX_INDEX].preg = SSA_PREG_REG_RDX;
+        vreg_locations[LIVE_RANGE_PREG_RSI_INDEX].preg = SSA_PREG_REG_RSI;
+        vreg_locations[LIVE_RANGE_PREG_RDI_INDEX].preg = SSA_PREG_REG_RDI;
+        vreg_locations[LIVE_RANGE_PREG_R8_INDEX ].preg = SSA_PREG_REG_R8;
+        vreg_locations[LIVE_RANGE_PREG_R9_INDEX ].preg = SSA_PREG_REG_R9;
+    }
+
     // Color constrained nodes first
     for (i = 1; i <= vreg_count; i++) {
         vreg = ordered_nodes[i].vreg;
         if (!constrained->elements[vreg]) continue;
+        if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
         color_vreg(edges, edge_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
     }
 
@@ -1374,6 +1421,7 @@ void allocate_registers_top_down(struct function *function, int physical_registe
     for (i = 1; i <= vreg_count; i++) {
         vreg = ordered_nodes[i].vreg;
         if (!unconstrained->elements[vreg]) continue;
+        if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
         color_vreg(edges, edge_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
     }
 
@@ -1404,10 +1452,28 @@ void ssa_allocate_registers(struct function *function) {
 
     // Determine amount of free physical registers
     make_available_phyical_register_list(function->ir);
+
+    physical_registers[REG_RAX] = 0;
+    physical_registers[REG_RCX] = 0;
+    physical_registers[REG_RDX] = 0;
+    physical_registers[REG_RSI] = 0;
+    physical_registers[REG_RDI] = 0;
+    physical_registers[REG_R8]  = 0;
+    physical_registers[REG_R9]  = 0;
+
     preg_count = 0;
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
-        if (physical_registers[i] != -1)
+        if (physical_registers[i] != -1) {
+            if (i == REG_RAX) SSA_PREG_REG_RAX = preg_count;
+            if (i == REG_RCX) SSA_PREG_REG_RCX = preg_count;
+            if (i == REG_RDX) SSA_PREG_REG_RDX = preg_count;
+            if (i == REG_RSI) SSA_PREG_REG_RSI = preg_count;
+            if (i == REG_RDI) SSA_PREG_REG_RDI = preg_count;
+            if (i == REG_R8)  SSA_PREG_REG_R8  = preg_count;
+            if (i == REG_R9)  SSA_PREG_REG_R9  = preg_count;
+
             preg_map[preg_count++] = i;
+        }
 
     // Reduce the amount of the command line option has used to reduce it
     if (preg_count > ssa_physical_register_count) preg_count = ssa_physical_register_count;
@@ -1479,9 +1545,10 @@ void remove_self_moves(struct function *function) {
 }
 
 void do_ssa_experiments1(struct function *function) {
+    sanity_test_ir_linkage(function->ir);
     map_stack_index_to_spilled_stack_index(function);
     rewrite_lvalue_reg_assignments(function);
-    make_vreg_count(function);
+    make_vreg_count(function, 0);
     make_control_flow_graph(function);
     make_block_dominance(function);
     make_block_immediate_dominators(function);

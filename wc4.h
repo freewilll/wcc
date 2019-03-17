@@ -154,7 +154,7 @@ enum {
     MAX_INPUT_FILENAMES           = 1024,
     MAX_BLOCKS                    = 1024,
     MAX_BLOCK_EDGES               = 1024,
-    MAX_INTERFERENCE_GRAPH_EDGES  = 10240,
+    MAX_INTERFERENCE_GRAPH_EDGES  = 20480,
     MAX_STACK_SIZE                = 10240,
     MAX_BLOCK_PREDECESSOR_COUNT   = 128,
 };
@@ -469,6 +469,7 @@ struct value *new_constant(int type, long value);
 struct value *dup_value(struct value *src);
 struct three_address_code *new_instruction(int operation);
 struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2);
+void sanity_test_ir_linkage(struct three_address_code *ir);
 int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
 void print_instruction(void *f, struct three_address_code *tac);
@@ -481,7 +482,23 @@ void make_available_phyical_register_list(struct three_address_code *ir);
 void allocate_registers(struct three_address_code *ir);
 
 // ssa.c
-int make_vreg_count(struct function *function);
+enum {
+    RESERVED_PHYSICAL_REGISTER_COUNT = 7,
+
+    // Liveness interval indexes corresponding to reserved physical registers
+    LIVE_RANGE_PREG_RAX_INDEX = 1,
+    LIVE_RANGE_PREG_RCX_INDEX,
+    LIVE_RANGE_PREG_RDX_INDEX,
+    LIVE_RANGE_PREG_RSI_INDEX,
+    LIVE_RANGE_PREG_RDI_INDEX,
+    LIVE_RANGE_PREG_R8_INDEX,
+    LIVE_RANGE_PREG_R9_INDEX,
+};
+
+// Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
+int live_range_reserved_pregs_offset;
+
+int make_vreg_count(struct function *function, int starting_count);
 int new_subscript(struct stack **stack, int *counters, int n);
 void make_uevar_and_varkill(struct function *function);
 void make_liveout(struct function *function);
