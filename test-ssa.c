@@ -508,6 +508,7 @@ void test_interference_graph1() {
 
     do_ssa_experiments1(function);
     do_ssa_experiments2(function);
+    disable_live_ranges_coalesce = 1;
     do_ssa_experiments3(function);
 
     ig = function->interference_graph;
@@ -576,6 +577,7 @@ void test_interference_graph3() {
 
     do_ssa_experiments1(function);
     do_ssa_experiments2(function);
+    disable_live_ranges_coalesce = 1;
     do_ssa_experiments3(function);
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
@@ -597,6 +599,7 @@ void test_spill_cost() {
 
         do_ssa_experiments1(function);
         do_ssa_experiments2(function);
+        disable_live_ranges_coalesce = 1;
         do_ssa_experiments3(function);
 
         if (DEBUG_SSA_SPILL_COST) print_intermediate_representation(function, 0);

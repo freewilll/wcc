@@ -1110,8 +1110,6 @@ void blast_vregs_with_live_ranges(struct function *function) {
         if (tac->dst  && tac->dst-> vreg) tac->dst-> vreg = tac->dst-> live_range;
         tac = tac->next;
     }
-
-    make_vreg_count(function, RESERVED_PHYSICAL_REGISTER_COUNT);
 }
 
 void add_interference_edge(int *edge_matrix, int vreg_count, int to, int from) {
@@ -1236,6 +1234,113 @@ void make_interference_graph(struct function *function) {
         for (i = 0; i < edge_count; i++)
             printf("%d - %d\n", edges[i].from, edges[i].to);
         printf("\n");
+    }
+}
+
+// Delete src, merging it into dst
+void coalesce_live_range(struct function *function, int src, int dst) {
+    struct three_address_code *tac;
+    struct edge *edges;
+    int i, j, edge_count, changed;
+
+    // Rewrite IR src => dst
+    tac = function->ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->vreg == src) { tac->dst ->vreg = dst; tac->dst ->live_range = dst; }
+        if (tac->src1 && tac->src1->vreg == src) { tac->src1->vreg = dst; tac->src1->live_range = dst; }
+        if (tac->src2 && tac->src2->vreg == src) { tac->src2->vreg = dst; tac->src2->live_range = dst; }
+
+        if (tac->operation == IR_ASSIGN && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            tac->operation = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+            tac->src2 = 0;
+        }
+
+        tac = tac->next;
+    }
+
+    // Move src edges to dst
+    edges = function->interference_graph;
+    edge_count = function->interference_graph_edge_count;
+
+    for (i = 0; i < edge_count; i++) {
+        changed = 0;
+        if (edges[i].from == src) { edges[i].from = dst; changed = 1; }
+        if (edges[i].to   == src) { edges[i].to   = dst; changed = 1; }
+    }
+}
+
+// Page 706 of engineering a compiler
+void coalesce_live_ranges(struct function *function) {
+    int vreg_count;
+    char *merge_candidates;
+    struct three_address_code *tac;
+    int i, j, k, dst, src, edge_count, changed, intersects;
+    struct edge *edges;
+
+    make_vreg_count(function, RESERVED_PHYSICAL_REGISTER_COUNT);
+    vreg_count = function->vreg_count;
+    merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+
+    changed = 1;
+    while (changed) {
+        changed = 0;
+
+        make_uevar_and_varkill(function);
+        make_liveout(function);
+        make_live_range_spill_cost(function);
+        make_interference_graph(function);
+
+        if (disable_live_ranges_coalesce) return;
+
+        edges = function->interference_graph;
+        edge_count = function->interference_graph_edge_count;
+
+        // A lower triangular matrix of all register copy operations
+        memset(merge_candidates, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+
+        tac = function->ir;
+        while (tac) {
+            // print_instruction(stdout, tac);
+            if (tac->operation == IR_ASSIGN && tac->dst->vreg && tac->src1->vreg) {
+                // printf("added candidate %d -> %d \n", tac->dst->vreg, tac->src1->vreg );
+                merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
+            }
+            tac = tac->next;
+        }
+
+        if (DEBUG_SSA_LIVE_RANGE_COALESCING) {
+            print_intermediate_representation(function, 0);
+            printf("Live range coalesces:\n");
+        }
+
+        for (dst = 1; dst <= vreg_count; dst++) {
+            for (src = 1; src <= vreg_count; src++) {
+                if (merge_candidates[dst * vreg_count + src] == 1) {
+                    intersects = 0;
+                    for (k = 0; k < edge_count; k++) {
+                        if ((edges[k].from == dst && edges[k].to == src) || (edges[k].from == src && edges[k].to == dst)){
+                            intersects = 1;
+                            break;
+                        }
+                    }
+
+                    if (!intersects) {
+                        if (DEBUG_SSA_LIVE_RANGE_COALESCING) printf("%d -> %d\n", dst, src);
+                        coalesce_live_range(function, dst, src);
+                        changed = 1;
+                    }
+                }
+            }
+        }
+    }
+
+    free(merge_candidates);
+
+    if (DEBUG_SSA_LIVE_RANGE_COALESCING) {
+        printf("\n");
+        print_intermediate_representation(function, 0);
     }
 }
 
@@ -1487,6 +1592,8 @@ void ssa_allocate_registers(struct function *function) {
         if (function->vreg_locations[i].preg != -1)
             function->vreg_locations[i].preg = preg_map[function->vreg_locations[i].preg];
     }
+
+    total_spilled_register_count += function->spilled_register_count;
 }
 
 void assign_vreg_locations(struct function *function) {
@@ -1545,6 +1652,8 @@ void remove_self_moves(struct function *function) {
 }
 
 void do_ssa_experiments1(struct function *function) {
+    disable_live_ranges_coalesce = !opt_enable_live_range_coalescing;
+
     sanity_test_ir_linkage(function->ir);
     map_stack_index_to_spilled_stack_index(function);
     rewrite_lvalue_reg_assignments(function);
@@ -1564,10 +1673,7 @@ void do_ssa_experiments3(struct function *function) {
     rename_phi_function_variables(function);
     make_live_ranges(function);
     blast_vregs_with_live_ranges(function);
-    make_uevar_and_varkill(function);
-    make_liveout(function);
-    make_interference_graph(function);
-    make_live_range_spill_cost(function);
+    coalesce_live_ranges(function);
 }
 
 void do_ssa_experiments4(struct function *function) {

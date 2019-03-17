@@ -169,6 +169,7 @@ enum {
     DEBUG_SSA_PHI_RENUMBERING             = 0,
     DEBUG_SSA_LIVE_RANGE                  = 0,
     DEBUG_SSA_INTERFERENCE_GRAPH          = 0,
+    DEBUG_SSA_LIVE_RANGE_COALESCING       = 0,
     DEBUG_SSA_SPILL_COST                  = 0,
     DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR = 0,
 };
@@ -351,6 +352,7 @@ int output_inline_ir;                 // Output IR inline with the assembly
 int experimental_ssa;                 // Enable experimental SSA code
 int ssa_physical_register_count;      // Experimental physical register count
 int opt_enable_register_coalescing;   // Merge registers that can be reused within the same operation
+int opt_enable_live_range_coalescing; // Merge live ranges where possible
 int opt_use_registers_for_locals;     // Experimental. Don't use the stack for local variables.
 int opt_merge_redundant_moves;        // Merge move statements that are only things between registers
 int opt_spill_furthest_liveness_end;  // Prioritize spilling physical registers with furthest liveness end
@@ -497,6 +499,7 @@ enum {
 
 // Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
 int live_range_reserved_pregs_offset;
+int disable_live_ranges_coalesce;
 
 int make_vreg_count(struct function *function, int starting_count);
 int new_subscript(struct stack **stack, int *counters, int n);

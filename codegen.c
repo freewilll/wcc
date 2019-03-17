@@ -100,7 +100,10 @@ void _output_op(char *instruction, struct three_address_code *tac) {
         // otherwise we get an incorrect result:
         // mov src2 -> dst
         // dst = src1 - src1 = 0
-        if (dst == src1) panic("Illegal attempt to use the same preg for dst and src1 in subtraction");
+        if (dst == src1) {
+            print_instruction(stdout, tac);
+            panic("Illegal attempt to use the same preg for dst and src1 in subtraction");
+        }
     }
 
     move_quad_register_to_register(src2, dst);

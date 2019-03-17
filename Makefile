@@ -18,6 +18,7 @@ build:
 	@mkdir -p build/wc42
 	@mkdir -p build/wc42-O1
 	@mkdir -p build/wc42-ssa
+	@mkdir -p build/wc42-ssa-nclr
 	@mkdir -p build/wc42-frp
 	@mkdir -p build/wc43
 	@mkdir -p build/wc43-O1
@@ -55,6 +56,16 @@ build/wc42-ssa/%.s: %.c wc4
 
 wc42-ssa: ${WC42_SSA_ASSEMBLIES}
 	gcc ${WC42_SSA_ASSEMBLIES} -o wc42-ssa
+
+# wc42-ssa-nclr
+WC42_SSA_NCLR_SOURCES := ${SOURCES:%=build/wc42-ssa-nclr/%}
+WC42_SSA_NCLR_ASSEMBLIES := ${WC42_SSA_NCLR_SOURCES:.c=.s}
+
+build/wc42-ssa-nclr/%.s: %.c wc4
+	./wc4 -c $< -S -o $@ --ssa -fno-coalesce-live-range
+
+wc42-ssa-nclr: ${WC42_SSA_NCLR_ASSEMBLIES}
+	gcc ${WC42_SSA_NCLR_ASSEMBLIES} -o wc42-ssa-nclr
 
 # wc42-frp
 WC42_FRP_SOURCES := ${SOURCES:%=build/wc42-frp/%}
@@ -130,7 +141,7 @@ test-wc4-O1: test-wc4-O1.s stack-check.o
 test-wc4-ssa: test-wc4-ssa.s stack-check.o
 	gcc test-wc4-ssa.s stack-check.o -o test-wc4-ssa
 
-benchmark: wc4 wc42 wc42-frp wc42-O1 wc42-ssa benchmark.c
+benchmark: wc4 wc42 wc42-frp wc42-O1 wc42-ssa wc42-ssa-nclr benchmark.c
 	gcc benchmark.c -o benchmark
 
 run-benchmark: benchmark
@@ -219,6 +230,7 @@ clean:
 	@rm -f wc42
 	@rm -f wc42-frp
 	@rm -f wc42-O1
+	@rm -f wc42-ssa
 	@rm -f wc43
 	@rm -f wc43-O1
 	@rm -f wc43-ssa
