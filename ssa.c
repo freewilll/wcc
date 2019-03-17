@@ -1016,7 +1016,7 @@ void make_live_ranges(struct function *function) {
 
             for (j = 0; j < value_count; j++) {
                 set_index = src_set_indexes[j];
-                if (set_index != dst_set_index) live_ranges[set_index] = new_set(max_ssa_var); // TODO can we just empty it?
+                if (set_index != dst_set_index) empty_set(live_ranges[set_index]);
             }
         }
         tac = tac->next;
