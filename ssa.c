@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "wc4.h"
 
@@ -509,10 +510,11 @@ void make_uevar_and_varkill(struct function *function) {
     }
 }
 
+// Page 447 of Engineering a compiler
 void make_liveout(struct function *function) {
     struct block *blocks;
     struct edge *edges;
-    int i, j, block_count, edge_count, vreg_count, changed, successor_block;
+    int i, j, k, vreg, block_count, edge_count, vreg_count, changed, successor_block;
     struct set *unions, **liveout, *all_vars, *inv_varkill, *is1, *is2;
     struct three_address_code *tac;
 
@@ -549,6 +551,8 @@ void make_liveout(struct function *function) {
     is1 = new_set(vreg_count);
     is2 = new_set(vreg_count);
 
+    if (DEBUG_SSA_LIVEOUT) printf("Doing liveout on %d blocks\n", block_count);
+
     changed = 1;
     while (changed) {
         changed = 0;
@@ -561,10 +565,14 @@ void make_liveout(struct function *function) {
                 // Got a successor edge from i -> successor_block
                 successor_block = edges[j].to;
 
-                set_difference_to(inv_varkill, all_vars, function->varkill[successor_block]);
-                set_intersection_to(is1, function->liveout[successor_block], inv_varkill);
-                set_union_to(is2, is1, function->uevar[successor_block]);
-                set_union_to(unions, unions, is2);
+                for (k = 1; k <= vreg_count; k++) {
+                    unions->elements[k] =
+                        (function->liveout[successor_block]->elements[k] &&                             // intersection
+                            (all_vars->elements[k] && !function->varkill[successor_block]->elements[k]) // difference
+                        ) ||                                                                            // union
+                        function->uevar[successor_block]->elements[k] ||                                // union
+                        unions->elements[k];
+                }
             }
 
             if (!set_eq(unions, function->liveout[i])) {
