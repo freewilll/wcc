@@ -1248,8 +1248,10 @@ void make_interference_graph(struct function *function) {
 // Delete src, merging it into dst
 void coalesce_live_range(struct function *function, int src, int dst) {
     struct three_address_code *tac;
+    struct block *blocks;
     struct edge *edges;
-    int i, j, edge_count, changed;
+    struct set *l;
+    int i, j, block_count, edge_count, changed;
 
     // Rewrite IR src => dst
     tac = function->ir;
@@ -1277,6 +1279,17 @@ void coalesce_live_range(struct function *function, int src, int dst) {
         if (edges[i].from == src) { edges[i].from = dst; changed = 1; }
         if (edges[i].to   == src) { edges[i].to   = dst; changed = 1; }
     }
+
+    // Migrate liveouts
+    blocks = function->blocks;
+    block_count = function->block_count;
+    for (i = 0; i < block_count; i++) {
+        l = function->liveout[i];
+        if (in_set(l, src)) {
+            delete_from_set(l, src);
+            add_to_set(l, dst);
+        }
+    }
 }
 
 // Page 706 of engineering a compiler
@@ -1291,12 +1304,13 @@ void coalesce_live_ranges(struct function *function) {
     vreg_count = function->vreg_count;
     merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
 
+    make_uevar_and_varkill(function);
+    make_liveout(function);
+
     changed = 1;
     while (changed) {
         changed = 0;
 
-        make_uevar_and_varkill(function);
-        make_liveout(function);
         make_live_range_spill_cost(function);
         make_interference_graph(function);
 
