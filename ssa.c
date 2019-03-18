@@ -19,6 +19,42 @@ struct vreg_cost {
     int cost;
 };
 
+void optimize_arithmetic_operations(struct function *function) {
+    struct three_address_code *tac;
+    long v, l;
+
+    if (!opt_optimize_arithmetic_operations) return;
+
+    tac = function->ir;
+    while (tac) {
+        // Optimize multiply operations
+        if (tac->operation == IR_MUL && tac->src1->is_constant) {
+            v = tac->src1->value;
+            if (v == 0) {
+                tac->operation = IR_LOAD_CONSTANT;
+                tac->src1 = new_constant(tac->dst->type, 0);
+                tac->src2 = 0;
+            }
+
+            else if (v == 1) {
+                tac->operation = IR_ASSIGN;
+                tac->src1 = tac->src2;
+                tac->src2 = 0;
+            }
+
+            else if ((v & (v - 1)) == 0) {
+                l = -1;
+                while (v > 0) { v = v >> 1; l++; }
+                tac->operation = IR_BSHL;
+                tac->src1 = tac->src2;
+                tac->src2 = new_constant(TYPE_INT, l);
+            }
+        }
+
+        tac = tac->next;
+    }
+}
+
 // dst is an lvalue in a register. The difference with the regular IS_ASSIGN is
 // that src1 is the destination and src2 is the src. The reason for that is
 // that it makes the SSA calulation easier since both dst and src1 are values
@@ -1722,6 +1758,7 @@ void remove_self_moves(struct function *function) {
 void do_ssa_experiments1(struct function *function) {
     disable_live_ranges_coalesce = !opt_enable_live_range_coalescing;
 
+    optimize_arithmetic_operations(function);
     sanity_test_ir_linkage(function->ir);
     map_stack_index_to_spilled_stack_index(function);
     rewrite_lvalue_reg_assignments(function);

@@ -104,6 +104,7 @@ int main(int argc, char **argv) {
     opt_merge_redundant_moves = 0;
     opt_spill_furthest_liveness_end = 0;
     opt_short_lr_infinite_spill_costs = 1;
+    opt_optimize_arithmetic_operations = 1;
     output_inline_ir = 0;
     experimental_ssa = 0;
     ssa_physical_register_count = 12;
@@ -121,23 +122,24 @@ int main(int argc, char **argv) {
     argv++;
     while (argc > 0) {
         if (*argv[0] == '-') {
-                 if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                              argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                           argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-d"                                )) { debug = 1;                             argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                     argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_spilled_register_count = 1;      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                         argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                         argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir3"                             )) { print_ir3 = 1;                         argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--frp"                             )) { fake_register_pressure = 1;            argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--iir"                             )) { output_inline_ir = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ssa"                             )) { experimental_ssa = 1;                  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-registers"           )) { opt_enable_register_coalescing = 0;    argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals"        )) { opt_use_registers_for_locals = 1;      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fmerge-redundant-moves"           )) { opt_merge_redundant_moves = 1;         argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;   argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0; argc--; argv++; }
+                 if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                               argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                            argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-d"                                )) { debug = 1;                              argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_spilled_register_count = 1;       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir3"                             )) { print_ir3 = 1;                          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--frp"                             )) { fake_register_pressure = 1;             argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--iir"                             )) { output_inline_ir = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ssa"                             )) { experimental_ssa = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-registers"           )) { opt_enable_register_coalescing = 0;     argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals"        )) { opt_use_registers_for_locals = 1;       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fmerge-redundant-moves"           )) { opt_merge_redundant_moves = 1;          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;    argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0; argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-S"                                )) {
                 run_assembler = 0;
                 run_linker = 0;
@@ -208,6 +210,7 @@ int main(int argc, char **argv) {
         printf("-fmerge-redundant-moves            Merge redundant register moves\n");
         printf("-fspill-furthest-liveness-end      Spill liveness intervals that have the greatest end liveness interval\n");
         printf("-fno-dont-spill-short-live-ranges  Disable infinite spill costs for short live ranges\n");
+        printf("-fno-optimize-arithmetic           Disable arithmetic optimizations\n ");
         exit(1);
     }
 

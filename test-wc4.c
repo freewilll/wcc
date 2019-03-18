@@ -1377,6 +1377,22 @@ int test_ssa_break_with_statements_afterwards() {
     }
 }
 
+void test_ssa_arithmetic_optimizations() {
+    int i;
+
+    i = 10;
+
+    assert_int( 0, i * 0, "Arithetic optimization i * 0");
+    assert_int(10, i * 1, "Arithetic optimization i * 1");
+    assert_int(20, i * 2, "Arithetic optimization i * 2");
+    assert_int(30, i * 3, "Arithetic optimization i * 3");
+    assert_int(40, i * 4, "Arithetic optimization i * 4");
+    assert_int(50, i * 5, "Arithetic optimization i * 5");
+    assert_int(60, i * 6, "Arithetic optimization i * 6");
+    assert_int(70, i * 7, "Arithetic optimization i * 7");
+    assert_int(80, i * 8, "Arithetic optimization i * 8");
+}
+
 int main(int argc, char **argv) {
     int help;
 
@@ -1470,6 +1486,7 @@ int main(int argc, char **argv) {
     test_ssa_memory_alocation_bug();
     test_ssa_continue_with_statements_afterwards();
     test_ssa_break_with_statements_afterwards();
+    test_ssa_arithmetic_optimizations();
 
     finalize();
 }

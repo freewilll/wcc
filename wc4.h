@@ -357,6 +357,7 @@ int opt_use_registers_for_locals;       // Experimental. Don't use the stack for
 int opt_merge_redundant_moves;          // Merge move statements that are only things between registers
 int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end
 int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
+int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
