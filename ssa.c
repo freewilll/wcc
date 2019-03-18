@@ -1376,6 +1376,50 @@ int ten_power(int p) {
     return result;
 }
 
+// Page 699 of engineering a compiler
+// The algorithm is incomplete though. It only looks ad adjacent instructions
+// That have a store and a load. A more general version should check for
+// any live ranges that have no other live ranges ending between their store
+// and loads.
+void add_infinite_spill_costs(struct function *function) {
+    int i, vreg_count, block_count, edge_count, *spill_cost;
+    struct block *blocks;
+    struct set *livenow;
+    struct three_address_code *tac;
+
+    spill_cost = function->spill_cost;
+    vreg_count = function->vreg_count;
+
+    blocks = function->blocks;
+    block_count = function->block_count;
+
+    for (i = block_count - 1; i >= 0; i--) {
+        livenow = copy_set(function->liveout[i]);
+
+        tac = blocks[i].end;
+        while (tac) {
+
+            if (tac->prev && tac->prev->dst && tac->prev->dst->vreg) {
+                if ((tac->src1 && tac->src1->vreg && tac->src1->vreg == tac->prev->dst->vreg) ||
+                    (tac->src2 && tac->src2->vreg && tac->src2->vreg == tac->prev->dst->vreg)) {
+
+                    if (!in_set(livenow, tac->prev->dst->vreg)) {
+                        spill_cost[tac->prev->dst->vreg] = 2 << 15;
+                    }
+                }
+            }
+            if (tac->dst && tac->dst->vreg) delete_from_set(livenow, tac->dst->vreg);
+            if (tac->src1 && tac->src1->vreg) add_to_set(livenow, tac->src1->vreg);
+            if (tac->src2 && tac->src2->vreg) add_to_set(livenow, tac->src2->vreg);
+
+            if (tac == blocks[i].start) break;
+            tac = tac->prev;
+        }
+
+        free_set(livenow);
+    }
+}
+
 void make_live_range_spill_cost(struct function *function) {
     struct three_address_code *tac;
     int i, vreg_count, for_loop_depth, *spill_cost;
@@ -1398,6 +1442,8 @@ void make_live_range_spill_cost(struct function *function) {
     }
 
     function->spill_cost = spill_cost;
+
+    if (opt_short_lr_infinite_spill_costs) add_infinite_spill_costs(function);
 
     if (DEBUG_SSA_SPILL_COST) {
         printf("Spill costs:\n");

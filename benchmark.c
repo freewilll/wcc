@@ -21,11 +21,11 @@ int main(int argc, char **argv) {
 
     command_count = 5;
     commands = malloc(sizeof(char *) * command_count);
-    commands[0] = "./wc4           wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
-    commands[1] = "./wc42          wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
-    commands[2] = "./wc42-O1       wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
-    commands[3] = "./wc42-ssa      wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
-    commands[4] = "./wc42-ssa-nclr wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
+    commands[0] = "./wc4            wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
+    commands[1] = "./wc42           wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
+    commands[2] = "./wc42-O1        wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
+    commands[3] = "./wc42-ssa       wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
+    commands[4] = "./wc42-ssa-dsslr wc4.c -fuse-registers-for-locals -fno-coalesce-registers -fno-coalesce-live-range --ssa -c -S -o /dev/null";
 
     run_count = 31; // Must be odd for the median to work correctly
     times = malloc(sizeof(long) * run_count);

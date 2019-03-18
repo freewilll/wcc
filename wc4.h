@@ -344,18 +344,19 @@ int run_linker;                 // Link .o file
 int target_is_object_file;
 int target_is_assembly_file;
 int print_spilled_register_count;
-int print_ir1;                        // Print IR after parsing
-int print_ir2;                        // Print IR after x84_64 arch manipulation
-int print_ir3;                        // Print IR after register allocation
-int fake_register_pressure;           // Simulate running out of all registers, triggering spill code
-int output_inline_ir;                 // Output IR inline with the assembly
-int experimental_ssa;                 // Enable experimental SSA code
-int ssa_physical_register_count;      // Experimental physical register count
-int opt_enable_register_coalescing;   // Merge registers that can be reused within the same operation
-int opt_enable_live_range_coalescing; // Merge live ranges where possible
-int opt_use_registers_for_locals;     // Experimental. Don't use the stack for local variables.
-int opt_merge_redundant_moves;        // Merge move statements that are only things between registers
-int opt_spill_furthest_liveness_end;  // Prioritize spilling physical registers with furthest liveness end
+int print_ir1;                          // Print IR after parsing
+int print_ir2;                          // Print IR after x84_64 arch manipulation
+int print_ir3;                          // Print IR after register allocation
+int fake_register_pressure;             // Simulate running out of all registers, triggering spill code
+int output_inline_ir;                   // Output IR inline with the assembly
+int experimental_ssa;                   // Enable experimental SSA code
+int ssa_physical_register_count;        // Experimental physical register count
+int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
+int opt_enable_live_range_coalescing;   // Merge live ranges where possible
+int opt_use_registers_for_locals;       // Experimental. Don't use the stack for local variables.
+int opt_merge_redundant_moves;          // Merge move statements that are only things between registers
+int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end
+int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
