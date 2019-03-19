@@ -97,16 +97,12 @@ int main(int argc, char **argv) {
     print_ir2 = 0;
     print_ir3 = 0;
     print_symbols = 0;
-    fake_register_pressure = 0;
     opt_enable_register_coalescing = 1;
     opt_enable_live_range_coalescing = 1;
-    opt_use_registers_for_locals = 0;
-    opt_merge_redundant_moves = 0;
     opt_spill_furthest_liveness_end = 0;
     opt_short_lr_infinite_spill_costs = 1;
     opt_optimize_arithmetic_operations = 1;
     output_inline_ir = 0;
-    experimental_ssa = 0;
     ssa_physical_register_count = 12;
 
     output_filename = 0;
@@ -115,8 +111,6 @@ int main(int argc, char **argv) {
     memset(input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
     linker_input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
     memset(linker_input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
-
-    debug_register_allocations = 0;
 
     argc--;
     argv++;
@@ -130,13 +124,8 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir3"                             )) { print_ir3 = 1;                          argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--frp"                             )) { fake_register_pressure = 1;             argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--iir"                             )) { output_inline_ir = 1;                   argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ssa"                             )) { experimental_ssa = 1;                   argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-registers"           )) { opt_enable_register_coalescing = 0;     argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;   argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fuse-registers-for-locals"        )) { opt_use_registers_for_locals = 1;       argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fmerge-redundant-moves"           )) { opt_merge_redundant_moves = 1;          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;  argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0; argc--; argv++; }
@@ -144,14 +133,6 @@ int main(int argc, char **argv) {
                 run_assembler = 0;
                 run_linker = 0;
                 target_is_assembly_file = 1;
-                argc--;
-                argv++;
-            }
-            else if (argc > 0 && !memcmp(argv[0], "-O1", 2)) {
-                opt_enable_register_coalescing = 1;
-                opt_use_registers_for_locals = 1;
-                opt_merge_redundant_moves = 1;
-                opt_spill_furthest_liveness_end = 1;
                 argc--;
                 argv++;
             }
@@ -193,7 +174,6 @@ int main(int argc, char **argv) {
         printf("-v                             Display the programs invoked by the compiler\n");
         printf("-d                             Debug output\n");
         printf("-s                             Output symbol table\n");
-        printf("--frp                          Fake register pressure, for testing spilling code\n");
         printf("--iir                          Output inline intermediate representation\n");
         printf("--ssa                          Enable experimental SSA code\n");
         printf("--ssa-regs <n>                 Limit physical register availability to n in experimental SSA code\n");
@@ -204,7 +184,6 @@ int main(int argc, char **argv) {
         printf("-h                             Help\n");
         printf("\n");
         printf("Optimization options:\n");
-        printf("-fno-coalesce-registers            Disable register coalescing\n");
         printf("-fno-coalesce-live-range           Disable SSA live range coalescing\n");
         printf("-fuse-registers-for-locals         Allocate registers for locals instead of using the stack by default\n");
         printf("-fmerge-redundant-moves            Merge redundant register moves\n");
@@ -212,11 +191,6 @@ int main(int argc, char **argv) {
         printf("-fno-dont-spill-short-live-ranges  Disable infinite spill costs for short live ranges\n");
         printf("-fno-optimize-arithmetic           Disable arithmetic optimizations\n ");
         exit(1);
-    }
-
-    if (experimental_ssa) {
-        opt_use_registers_for_locals = 1;
-        opt_enable_register_coalescing = 0;
     }
 
     if (!input_filename_count) {
@@ -246,6 +220,7 @@ int main(int argc, char **argv) {
     }
 
     init_callee_saved_registers();
+    init_allocate_registers();
 
     command = malloc(1024 * 100);
 

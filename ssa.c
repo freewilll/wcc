@@ -19,6 +19,8 @@ struct vreg_cost {
     int cost;
 };
 
+int *physical_registers, *preg_map, preg_count;
+
 void optimize_arithmetic_operations(struct function *function) {
     struct three_address_code *tac;
     long v, l;
@@ -1652,27 +1654,27 @@ void allocate_registers_top_down(struct function *function, int physical_registe
     free_set(unconstrained);
 }
 
-void ssa_allocate_registers(struct function *function) {
-    int i, *preg_map, preg_count, vreg_count;
-    struct vreg_location *function_vl, *vl;
+void init_allocate_registers() {
+    int i;
+    struct set *reserved_registers;
 
     preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(preg_map, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
 
     // Determine amount of free physical registers
-    make_available_phyical_register_list(function->ir);
+    physical_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
 
-    physical_registers[REG_RAX] = 0;
-    physical_registers[REG_RCX] = 0;
-    physical_registers[REG_RDX] = 0;
-    physical_registers[REG_RSI] = 0;
-    physical_registers[REG_RDI] = 0;
-    physical_registers[REG_R8]  = 0;
-    physical_registers[REG_R9]  = 0;
+    // Blacklist registers if certain operations are happening in this function.
+    reserved_registers = new_set(PHYSICAL_REGISTER_COUNT);
+    add_to_set(reserved_registers, REG_RSP); // Stack pointer
+    add_to_set(reserved_registers, REG_RBP); // Base pointer
+    add_to_set(reserved_registers, REG_R10); // Not preserved in function calls & used as temporary
+    add_to_set(reserved_registers, REG_R11); // Not preserved in function calls & used as temporary
 
     preg_count = 0;
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
-        if (physical_registers[i] != -1) {
+        if (!in_set(reserved_registers, i)) {
             if (i == REG_RAX) SSA_PREG_REG_RAX = preg_count;
             if (i == REG_RCX) SSA_PREG_REG_RCX = preg_count;
             if (i == REG_RDX) SSA_PREG_REG_RDX = preg_count;
@@ -1686,6 +1688,10 @@ void ssa_allocate_registers(struct function *function) {
 
     // Reduce the amount of the command line option has used to reduce it
     if (preg_count > ssa_physical_register_count) preg_count = ssa_physical_register_count;
+}
+
+void allocate_registers(struct function *function) {
+    int i, vreg_count;
 
     allocate_registers_top_down(function, preg_count);
 
@@ -1755,7 +1761,7 @@ void remove_self_moves(struct function *function) {
     }
 }
 
-void do_ssa_experiments1(struct function *function) {
+void do_oar1(struct function *function) {
     disable_live_ranges_coalesce = !opt_enable_live_range_coalescing;
 
     optimize_arithmetic_operations(function);
@@ -1769,20 +1775,27 @@ void do_ssa_experiments1(struct function *function) {
     make_block_dominance_frontiers(function);
 }
 
-void do_ssa_experiments2(struct function *function) {
+void do_oar2(struct function *function) {
     make_globals_and_var_blocks(function);
     insert_phi_functions(function);
 }
 
-void do_ssa_experiments3(struct function *function) {
+void do_oar3(struct function *function) {
     rename_phi_function_variables(function);
     make_live_ranges(function);
     blast_vregs_with_live_ranges(function);
     coalesce_live_ranges(function);
 }
 
-void do_ssa_experiments4(struct function *function) {
-    ssa_allocate_registers(function);
+void do_oar4(struct function *function) {
+    allocate_registers(function);
     assign_vreg_locations(function);
     remove_self_moves(function);
+}
+
+void optimize_and_allocate_registers(struct function *function) {
+    do_oar1(function);
+    do_oar2(function);
+    do_oar3(function);
+    do_oar4(function);
 }

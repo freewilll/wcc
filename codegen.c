@@ -832,16 +832,10 @@ void output_code(char *input_filename, char *output_filename) {
         if (!s->is_function || !s->function->is_defined) { s++; continue; }
 
         cur_stack_push_count = 0;
-        ensure_must_be_ssa_ish(s->function->ir);
 
         fprintf(f, "%s:\n", s->identifier);
 
-        // registers start at 1
-        liveness = malloc(sizeof(struct liveness_interval) * (MAX_VREG_COUNT + 1));
-
         if (print_ir1) print_intermediate_representation(s->function, s->identifier);
-
-        analyze_liveness(s);
 
         vreg_count = s->function->vreg_count;
         optimize_ir(s);
@@ -849,17 +843,7 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir2) print_intermediate_representation(s->function, s->identifier);
 
-        if (experimental_ssa) {
-            do_ssa_experiments1(s->function);
-            do_ssa_experiments2(s->function);
-            do_ssa_experiments3(s->function);
-            do_ssa_experiments4(s->function);
-        }
-        else {
-            if (debug_register_allocations) print_liveness(s);
-            allocate_registers(s->function->ir);
-            s->function->spilled_register_count = spilled_register_count;
-        }
+        optimize_and_allocate_registers(s->function);
 
         if (print_ir3) print_intermediate_representation(s->function, s->identifier);
 

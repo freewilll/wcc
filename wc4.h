@@ -347,14 +347,10 @@ int print_spilled_register_count;
 int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after x84_64 arch manipulation
 int print_ir3;                          // Print IR after register allocation
-int fake_register_pressure;             // Simulate running out of all registers, triggering spill code
 int output_inline_ir;                   // Output IR inline with the assembly
-int experimental_ssa;                   // Enable experimental SSA code
 int ssa_physical_register_count;        // Experimental physical register count
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible
-int opt_use_registers_for_locals;       // Experimental. Don't use the stack for local variables.
-int opt_merge_redundant_moves;          // Merge move statements that are only things between registers
 int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end
 int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
 int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
@@ -403,18 +399,10 @@ int cur_loop;                               // Current loop being parsed
 int loop_count;                             // Loop counter
 int spilled_register_count;                 // Spilled register count for current function that's undergoing register allocation
 int total_spilled_register_count;           // Spilled register count for all functions
-
-struct liveness_interval *liveness;         // Keeps track of live vregs. Array of length vreg_count. Each element is a vreg, or zero if not live.
-int *physical_registers;                    // Associated liveness interval for each in-use physical register.
-int *spilled_registers;                     // Associated liveness interval for each in-use spilled register.
 int *callee_saved_registers;                // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
-
 int cur_stack_push_count;                   // Used in codegen to keep track of stack position
 
-int debug_register_allocations;
-
 void *f; // Output file handle
-
 
 // set.c
 struct set *new_set(int max_value);
@@ -478,12 +466,7 @@ int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
 void print_instruction(void *f, struct three_address_code *tac);
 void print_intermediate_representation(struct function *function, char *name);
-void ensure_must_be_ssa_ish(struct three_address_code *ir);
-void print_liveness(struct symbol *function);
-void analyze_liveness(struct symbol *function);
 void optimize_ir(struct symbol *function);
-void make_available_phyical_register_list(struct three_address_code *ir);
-void allocate_registers(struct three_address_code *ir);
 
 // ssa.c
 enum {
@@ -515,11 +498,13 @@ void make_control_flow_graph(struct function *function);
 void make_block_dominance(struct function *function);
 void make_liveout(struct function *function);
 void make_live_range_spill_cost(struct function *function);
+void init_allocate_registers();
 void allocate_registers_top_down(struct function *function, int physical_register_count);
-void do_ssa_experiments1(struct function *function);
-void do_ssa_experiments2(struct function *function);
-void do_ssa_experiments3(struct function *function);
-void do_ssa_experiments4(struct function *function);
+void do_oar1(struct function *function);
+void do_oar2(struct function *function);
+void do_oar3(struct function *function);
+void do_oar4(struct function *function);
+void optimize_and_allocate_registers(struct function *function);
 
 // codegen.c
 void init_callee_saved_registers();

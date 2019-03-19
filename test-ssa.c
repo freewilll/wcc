@@ -164,7 +164,7 @@ void test_liveout1() {
 
     if (DEBUG_SSA) print_intermediate_representation(function, 0);
 
-    do_ssa_experiments1(function);
+    do_oar1(function);
     make_uevar_and_varkill(function);
     make_liveout(function);
 
@@ -251,7 +251,7 @@ void test_liveout2() {
     struct function *function;
 
     function = make_ir2(0);
-    do_ssa_experiments1(function);
+    do_oar1(function);
     make_uevar_and_varkill(function);
     make_liveout(function);
 
@@ -294,8 +294,8 @@ void test_idom2() {
     struct function *function;
 
     function = make_ir2(0);
-    do_ssa_experiments1(function);
-    do_ssa_experiments2(function);
+    do_oar1(function);
+    do_oar2(function);
 
     assert(-1, function->idom[0]);
     assert( 0, function->idom[1]);
@@ -330,8 +330,8 @@ void test_phi_insertion() {
     struct function *function;
 
     function = make_ir2(0);
-    do_ssa_experiments1(function);
-    do_ssa_experiments2(function);
+    do_oar1(function);
+    do_oar2(function);
 
     // Page 502 of engineering a compiler
     assert_set(function->globals, 1, 2, 3, 4, 5);
@@ -398,8 +398,8 @@ void test_phi_renumbering1() {
     struct three_address_code *tac;
 
     function = make_ir2(1);
-    do_ssa_experiments1(function);
-    do_ssa_experiments2(function);
+    do_oar1(function);
+    do_oar2(function);
     rename_phi_function_variables(function);
 
     if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
@@ -454,8 +454,8 @@ void test_phi_renumbering2() {
 
     function->ir = ir_start;
 
-    do_ssa_experiments1(function);
-    do_ssa_experiments2(function);
+    do_oar1(function);
+    do_oar2(function);
     rename_phi_function_variables(function);
 
     if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
@@ -506,10 +506,10 @@ void test_interference_graph1() {
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
-    do_ssa_experiments1(function);
-    do_ssa_experiments2(function);
+    do_oar1(function);
+    do_oar2(function);
     disable_live_ranges_coalesce = 1;
-    do_ssa_experiments3(function);
+    do_oar3(function);
 
     ig = function->interference_graph;
     assert(3, function->interference_graph_edge_count);
@@ -529,9 +529,9 @@ void test_interference_graph2() {
     function = new_function();
 
     function = make_ir2(1);
-    do_ssa_experiments1(function);
-    do_ssa_experiments2(function);
-    do_ssa_experiments3(function);
+    do_oar1(function);
+    do_oar2(function);
+    do_oar3(function);
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
@@ -575,10 +575,10 @@ void test_interference_graph3() {
 
     function->ir = ir_start;
 
-    do_ssa_experiments1(function);
-    do_ssa_experiments2(function);
+    do_oar1(function);
+    do_oar2(function);
     disable_live_ranges_coalesce = 1;
-    do_ssa_experiments3(function);
+    do_oar3(function);
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
@@ -597,10 +597,10 @@ void test_spill_cost() {
     for (i = 0; i < 3; i++) {
         function = make_ir3(i);
 
-        do_ssa_experiments1(function);
-        do_ssa_experiments2(function);
+        do_oar1(function);
+        do_oar2(function);
         disable_live_ranges_coalesce = 1;
-        do_ssa_experiments3(function);
+        do_oar3(function);
 
         if (DEBUG_SSA_SPILL_COST) print_intermediate_representation(function, 0);
 
@@ -711,6 +711,8 @@ void test_top_down_register_allocation() {
 }
 
 int main() {
+    init_allocate_registers();
+
     test_cfg_jmp();
     test_dominance();
     test_liveout1();

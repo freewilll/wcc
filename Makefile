@@ -1,4 +1,4 @@
-all: wc4 wc42 wc42-O1 wc42-ssa wc42-frp wc43 wc43-O1 wc43-ssa benchmark
+all: wc4 wc42 wc43 benchmark
 
 SOURCES = \
   wc4.c \
@@ -11,18 +11,11 @@ SOURCES = \
   set.c \
   stack.c \
 
-# OBJECTS := ${SOURCES:c=o}
 ASSEMBLIES := ${SOURCES:c=s}
 
 build:
 	@mkdir -p build/wc42
-	@mkdir -p build/wc42-O1
-	@mkdir -p build/wc42-ssa
-	@mkdir -p build/wc42-ssa-test
-	@mkdir -p build/wc42-frp
 	@mkdir -p build/wc43
-	@mkdir -p build/wc43-O1
-	@mkdir -p build/wc43-ssa
 
 wc4: ${SOURCES} wc4.h build
 	gcc ${SOURCES} -o wc4 -g -Wno-return-type
@@ -37,46 +30,6 @@ build/wc42/%.s: %.c wc4
 wc42: ${WC42_ASSEMBLIES}
 	gcc ${WC42_ASSEMBLIES} -o wc42
 
-# wc42-O1
-WC42_O1_SOURCES := ${SOURCES:%=build/wc42-O1/%}
-WC42_O1_ASSEMBLIES := ${WC42_O1_SOURCES:.c=.s}
-
-build/wc42-O1/%.s: %.c wc4
-	./wc4 -c $< -S -o $@ -O1
-
-wc42-O1: ${WC42_O1_ASSEMBLIES}
-	gcc ${WC42_O1_ASSEMBLIES} -o wc42-O1
-
-# wc42-ssa
-WC42_SSA_SOURCES := ${SOURCES:%=build/wc42-ssa/%}
-WC42_SSA_ASSEMBLIES := ${WC42_SSA_SOURCES:.c=.s}
-
-build/wc42-ssa/%.s: %.c wc4
-	./wc4 -c $< -S -o $@ --ssa
-
-wc42-ssa: ${WC42_SSA_ASSEMBLIES}
-	gcc ${WC42_SSA_ASSEMBLIES} -o wc42-ssa
-
-# wc42-ssa-test
-WC42_SSA_TEST_SOURCES := ${SOURCES:%=build/wc42-ssa-test/%}
-WC42_SSA_TEST_ASSEMBLIES := ${WC42_SSA_TEST_SOURCES:.c=.s}
-
-build/wc42-ssa-test/%.s: %.c wc4
-	./wc4 -c $< -S -o $@ --ssa -fno-optimize-arithmetic
-
-wc42-ssa-test: ${WC42_SSA_TEST_ASSEMBLIES}
-	gcc ${WC42_SSA_TEST_ASSEMBLIES} -o wc42-ssa-test
-
-# wc42-frp
-WC42_FRP_SOURCES := ${SOURCES:%=build/wc42-frp/%}
-WC42_FRP_ASSEMBLIES := ${WC42_FRP_SOURCES:.c=.s}
-
-build/wc42-frp/%.s: %.c wc4
-	./wc4 -c $< -S -o $@ --frp
-
-wc42-frp: ${WC42_FRP_ASSEMBLIES}
-	gcc ${WC42_FRP_ASSEMBLIES} -o wc42-frp
-
 # wc43
 WC43_SOURCES := ${SOURCES:%=build/wc43/%}
 WC43_ASSEMBLIES := ${WC43_SOURCES:.c=.s}
@@ -87,26 +40,6 @@ build/wc43/%.s: %.c wc42
 wc43: ${WC43_ASSEMBLIES}
 	gcc ${WC43_ASSEMBLIES} -o wc43
 
-# wc43-O1
-WC43_O1_SOURCES := ${SOURCES:%=build/wc43-O1/%}
-WC43_O1_ASSEMBLIES := ${WC43_O1_SOURCES:.c=.s}
-
-build/wc43-O1/%.s: %.c wc42-O1
-	./wc42-O1 -c $< -S -o $@ -O1
-
-wc43-O1: ${WC43_O1_ASSEMBLIES}
-	gcc ${WC43_O1_ASSEMBLIES} -o wc43-O1
-
-# wc43-ssa
-WC43_SSA_SOURCES := ${SOURCES:%=build/wc43-ssa/%}
-WC43_SSA_ASSEMBLIES := ${WC43_SSA_SOURCES:.c=.s}
-
-build/wc43-ssa/%.s: %.c wc42-ssa
-	./wc42-ssa -c $< -S -o $@ --ssa
-
-wc43-ssa: ${WC43_SSA_ASSEMBLIES}
-	gcc ${WC43_SSA_ASSEMBLIES} -o wc43-ssa
-
 # tests
 stack-check.o: stack-check.c
 	gcc stack-check.c -c
@@ -114,34 +47,10 @@ stack-check.o: stack-check.c
 test-wc4.s: wc4 test-wc4.c
 	./wc4 -c -S test-wc4.c
 
-test-wc4-frp.s: wc4 test-wc4.c
-	./wc4 --frp -c -S -o test-wc4-frp.s test-wc4.c
-
-test-wc4-frp-ncr.s: wc4 test-wc4.c
-	./wc4 --frp -fno-coalesce-registers -c -S -o test-wc4-frp-ncr.s test-wc4.c
-
-test-wc4-O1.s: wc4 test-wc4.c
-	./wc4 -O1 -c -S -o test-wc4-O1.s test-wc4.c
-
-test-wc4-ssa.s: wc4 test-wc4.c
-	./wc4 --ssa -c -S -o test-wc4-ssa.s test-wc4.c
-
 test-wc4: test-wc4.s stack-check.o
 	gcc test-wc4.s stack-check.o -o test-wc4
 
-test-wc4-frp: test-wc4-frp.s stack-check.o
-	gcc test-wc4-frp.s stack-check.o -o test-wc4-frp
-
-test-wc4-frp-ncr: test-wc4-frp-ncr.s stack-check.o
-	gcc test-wc4-frp-ncr.s stack-check.o -o test-wc4-frp-ncr
-
-test-wc4-O1: test-wc4-O1.s stack-check.o
-	gcc test-wc4-O1.s stack-check.o -o test-wc4-O1
-
-test-wc4-ssa: test-wc4-ssa.s stack-check.o
-	gcc test-wc4-ssa.s stack-check.o -o test-wc4-ssa
-
-benchmark: wc4 wc42 wc42-frp wc42-O1 wc42-ssa wc42-ssa-test benchmark.c
+benchmark: wc4 wc42 benchmark.c
 	gcc benchmark.c -o benchmark
 
 run-benchmark: benchmark
@@ -151,26 +60,6 @@ run-benchmark: benchmark
 run-test-wc4: test-wc4
 	./test-wc4
 	@echo wc4 tests passed
-
-.PHONY: run-test-wc4-frp
-run-test-wc4-frp: test-wc4-frp
-	./test-wc4-frp
-	@echo wc4 FRP tests passed
-
-.PHONY: run-test-wc4-frp-ncr
-run-test-wc4-frp-ncr: test-wc4-frp-ncr
-	./test-wc4-frp-ncr
-	@echo wc4 FRP NRC tests passed
-
-.PHONY: run-test-wc4-O1
-run-test-wc4-O1: test-wc4-O1
-	./test-wc4-O1
-	@echo wc4 -O1 tests passed
-
-.PHONY: run-test-wc4-ssa
-run-test-wc4-ssa: test-wc4-ssa
-	./test-wc4-ssa
-	@echo wc4 SSA tests passed
 
 test-wc4-gcc: test-wc4.c
 	gcc test-wc4.c stack-check.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types
@@ -185,18 +74,6 @@ test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
 	cat build/wc43/*.s > build/wc43/all-s
 	diff build/wc42/all-s build/wc43/all-s
 	@echo self compilation test passed
-
-test-O1-self-compilation: ${WC42_O1_ASSEMBLIES} ${WC43_O1_ASSEMBLIES}
-	cat build/wc42-O1/*.s > build/wc42-O1/all-s
-	cat build/wc43-O1/*.s > build/wc43-O1/all-s
-	diff build/wc42-O1/all-s build/wc43-O1/all-s
-	@echo O1 self compilation test passed
-
-test-ssa-self-compilation: ${WC42_SSA_ASSEMBLIES} ${WC43_SSA_ASSEMBLIES}
-	cat build/wc42-ssa/*.s > build/wc42-ssa/all-s
-	cat build/wc43-ssa/*.s > build/wc43-ssa/all-s
-	diff build/wc42-ssa/all-s build/wc43-ssa/all-s
-	@echo SSA self compilation test passed
 
 test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
 	cd test-include && ../wc4 main.c foo.c -o test-include
@@ -223,23 +100,14 @@ run-test-codegen: test-codegen
 	 ./test-codegen
 
 .PHONY: test
-test: run-test-set run-test-ssa run-test-codegen run-test-wc4 run-test-wc4-frp test-wc4-frp-ncr run-test-wc4-O1 run-test-wc4-ssa run-test-include run-test-wc4-gcc test-self-compilation test-O1-self-compilation test-ssa-self-compilation
+test: run-test-set run-test-ssa run-test-codegen run-test-wc4 run-test-include run-test-wc4-gcc test-self-compilation
 
 clean:
 	@rm -f wc4
 	@rm -f wc42
-	@rm -f wc42-frp
-	@rm -f wc42-O1
-	@rm -f wc42-ssa
 	@rm -f wc43
-	@rm -f wc43-O1
-	@rm -f wc43-ssa
 	@rm -f test-wc4
-	@rm -f test-wc4-frp
 	@rm -f test-wc4-gcc
-	@rm -f test-wc4-frp-ncr
-	@rm -f test-wc4-O1
-	@rm -f test-wc4-ssa
 	@rm -f test-set
 	@rm -f test-ssa
 	@rm -f test-codegen
