@@ -202,7 +202,7 @@ void output_reverse_cmp_operation(struct three_address_code *tac, char *instruct
 //                     saved registers
 // -1           -1     first local
 // -2           -2     second local
-int get_stack_offset_from_index(int function_pc, int local_vars_stack_start, int stack_index) {
+int get_stack_offset_from_index(int function_pc, int stack_start, int stack_index) {
     int stack_offset;
 
     if (stack_index >= 2) {
@@ -232,7 +232,7 @@ int get_stack_offset_from_index(int function_pc, int local_vars_stack_start, int
     }
     else {
         // Local variable. v=-1 is the first, v=-2 the second, etc
-        stack_offset = local_vars_stack_start + 8 * (stack_index + 1);
+        stack_offset = stack_start + 8 * (stack_index + 1);
     }
 
     return stack_offset;
@@ -291,12 +291,12 @@ void pop_callee_saved_registers(int *saved_registers) {
     }
 }
 
-void pre_instruction_local_load(struct three_address_code *ir, int function_pc, int local_vars_stack_start) {
+void pre_instruction_local_load(struct three_address_code *ir, int function_pc, int stack_start) {
     int stack_offset;
 
     // Load src1 into r10
     if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->preg == -1 && ir->src1->stack_index < 0) {
-        stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->src1->stack_index);
+        stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src1->stack_index);
         output_type_specific_sign_extend_mov(ir->src1->type);
         fprintf(f, "%d(%%rbp), %%r10\n", stack_offset);
         ir->src1 = dup_value(ir->src1); // Ensure no side effects
@@ -305,7 +305,7 @@ void pre_instruction_local_load(struct three_address_code *ir, int function_pc, 
 
     // Load src2 into r11
     if (ir->src2 && ir->src2->preg == -1 && ir->src2->stack_index < 0) {
-        stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->src2->stack_index);
+        stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src2->stack_index);
         output_type_specific_sign_extend_mov(ir->src2->type);
         fprintf(f, "%d(%%rbp), %%r11\n", stack_offset);
         ir->src2 = dup_value(ir->src2); // Ensure no side effects
@@ -324,13 +324,13 @@ void pre_instruction_local_load(struct three_address_code *ir, int function_pc, 
         // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
         // The assign code will use that to store the result of the assignment.
         if (ir->operation == IR_ASSIGN && ir->dst->vreg && ir->dst->is_lvalue) {
-            stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
+            stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->dst->stack_index);
             fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_offset);
         }
     }
 }
 
-void post_instruction_local_store(struct three_address_code *ir, int function_pc, int local_vars_stack_start) {
+void post_instruction_local_store(struct three_address_code *ir, int function_pc, int stack_start) {
     int stack_offset;
     int assign;
 
@@ -343,7 +343,7 @@ void post_instruction_local_store(struct three_address_code *ir, int function_pc
         if (!(ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue || ir->dst->is_in_cpu_flags))) assign = 1;
 
         if (assign) {
-            stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, ir->dst->stack_index);
+            stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->dst->stack_index);
             fprintf(f, "\tmovq\t");
             output_quad_register_name(ir->dst->preg);
             fprintf(f, ", %d(%%rbp)\n", stack_offset);
@@ -353,19 +353,19 @@ void post_instruction_local_store(struct three_address_code *ir, int function_pc
 
 // If any of the operands are spilled, output code to read the stack locations into registers r10 and r11
 // and set the preg accordingly. Also set the dst preg.
-void pre_instruction_spill(struct three_address_code *ir, int function_pc, int local_vars_stack_start, int spilled_registers_stack_start) {
-    pre_instruction_local_load(ir, function_pc, local_vars_stack_start);
+void pre_instruction_spill(struct three_address_code *ir, int function_pc, int stack_start) {
+    pre_instruction_local_load(ir, function_pc, stack_start);
 
     // Load src1 into r10
     if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->spilled_stack_index != -1) {
-        fprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", spilled_registers_stack_start - ir->src1->spilled_stack_index * 8);
+        fprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", stack_start - ir->src1->spilled_stack_index * 8);
         ir->src1 = dup_value(ir->src1); // Ensure no side effects
         ir->src1->preg = REG_R10;
     }
 
     // Load src2 into r11
     if (ir->operation != IR_LOAD_VARIABLE && ir->src2 && ir->src2->spilled_stack_index != -1) {
-        fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", spilled_registers_stack_start - ir->src2->spilled_stack_index * 8);
+        fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_start - ir->src2->spilled_stack_index * 8);
         ir->src2 = dup_value(ir->src2); // Ensure no side effects
         ir->src2->preg = REG_R11;
     }
@@ -382,12 +382,12 @@ void pre_instruction_spill(struct three_address_code *ir, int function_pc, int l
         // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
         // The assign code will use that to store the result of the assignment.
         if (ir->operation == IR_ASSIGN && ir->dst->vreg && ir->dst->is_lvalue)
-            fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", spilled_registers_stack_start - ir->dst->spilled_stack_index * 8);
+            fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_start - ir->dst->spilled_stack_index * 8);
     }
 }
 
-void post_instruction_spill(struct three_address_code *ir, int function_pc, int local_vars_stack_start, int spilled_registers_stack_start) {
-    post_instruction_local_store(ir, function_pc, local_vars_stack_start);
+void post_instruction_spill(struct three_address_code *ir, int function_pc, int stack_start) {
+    post_instruction_local_store(ir, function_pc, stack_start);
 
     if (ir->dst && ir->dst->spilled_stack_index != -1) {
         // Output a mov for assignments that are a register copy.
@@ -395,7 +395,7 @@ void post_instruction_spill(struct three_address_code *ir, int function_pc, int 
 
         fprintf(f, "\tmovq\t");
         output_quad_register_name(ir->dst->preg);
-        fprintf(f, ", %d(%%rbp)\n", spilled_registers_stack_start - ir->dst->spilled_stack_index * 8);
+        fprintf(f, ", %d(%%rbp)\n", stack_start - ir->dst->spilled_stack_index * 8);
     }
 }
 
@@ -406,8 +406,7 @@ void output_function_body_code(struct symbol *symbol) {
     int function_pc;                    // The Function's param count
     int ac;                             // A function call's arg count
     int local_stack_size;               // Size of the stack containing local variables and spilled registers
-    int local_vars_stack_start;         // Stack start for the local variables
-    int spilled_registers_stack_start;  // Stack start for the spilled registers
+    int stack_start;                    // Stack start for the local variables
     int *saved_registers;               // Callee saved registers
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
     char *s;
@@ -430,11 +429,10 @@ void output_function_body_code(struct symbol *symbol) {
     if (function_pc >= 1) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rdi\n"); }
 
     // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
-    local_vars_stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
-    spilled_registers_stack_start = local_vars_stack_start - 8 * symbol->function->local_symbol_count;
+    stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
 
     // Allocate stack space for local variables and spilled registers
-    local_stack_size = 8 * (symbol->function->local_symbol_count + symbol->function->spilled_register_count);
+    local_stack_size = 8 * (symbol->function->spilled_register_count);
 
     // Allocate local stack
     if (local_stack_size > 0) {
@@ -451,7 +449,7 @@ void output_function_body_code(struct symbol *symbol) {
             print_instruction(f, tac);
         }
 
-        pre_instruction_spill(tac, function_pc, local_vars_stack_start, spilled_registers_stack_start);
+        pre_instruction_spill(tac, function_pc, stack_start);
 
         if (tac->label) fprintf(f, ".l%d:\n", tac->label);
 
@@ -481,7 +479,7 @@ void output_function_body_code(struct symbol *symbol) {
                 }
             }
             else {
-                stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, tac->src1->stack_index);
+                stack_offset = get_stack_offset_from_index(function_pc, stack_start, tac->src1->stack_index);
                 if (!tac->src1->is_lvalue) {
                     output_type_specific_lea(tac->src1->type);
                     fprintf(f, "%d(%%rbp), ", stack_offset);
@@ -610,7 +608,7 @@ void output_function_body_code(struct symbol *symbol) {
                 output_type_specific_mov(tac->dst->type);
                 output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 fprintf(f, ", ");
-                stack_offset = get_stack_offset_from_index(function_pc, local_vars_stack_start, tac->dst->stack_index);
+                stack_offset = get_stack_offset_from_index(function_pc, stack_start, tac->dst->stack_index);
                 fprintf(f, "%d(%%rbp)\n", stack_offset);
             }
             else if (tac->dst->is_lvalue) {
@@ -758,7 +756,7 @@ void output_function_body_code(struct symbol *symbol) {
         else
             panic1d("output_function_body_code(): Unknown operation: %d", tac->operation);
 
-        post_instruction_spill(tac, function_pc, local_vars_stack_start, spilled_registers_stack_start);
+        post_instruction_spill(tac, function_pc, stack_start);
 
         tac = tac->next;
     }
