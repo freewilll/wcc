@@ -5,14 +5,14 @@
 #include "wc4.h"
 
 // Push a value to the stack
-void push(struct value *v) {
+void push(Value *v) {
     *--vs = v;
     vtop = *vs;
 }
 
 // Pop a value from the stack
-struct value *pop() {
-    struct value *result;
+Value *pop() {
+    Value *result;
 
     result = *vs++;
     vtop = *vs;
@@ -21,8 +21,8 @@ struct value *pop() {
 }
 
 // Load a value into a register.
-struct value *load(struct value *src1) {
-    struct value *dst;
+Value *load(Value *src1) {
+    Value *dst;
 
     dst = dup_value(src1);
     dst->vreg = new_vreg();
@@ -51,8 +51,8 @@ struct value *load(struct value *src1) {
 }
 
 // Turn an lvalue in a register into an rvalue by dereferencing it
-struct value *make_rvalue(struct value *src1) {
-    struct value *dst;
+Value *make_rvalue(Value *src1) {
+    Value *dst;
 
     if (!src1->is_lvalue) return src1;
 
@@ -73,7 +73,7 @@ struct value *make_rvalue(struct value *src1) {
 
 // Pop and load. Pop a value from the stack and load it into a register if not already done.
 // Lvalues are converted into rvalues.
-struct value *pl() {
+Value *pl() {
     if (vtop->is_constant) push(load_constant(pop()));
     if (vtop->is_in_cpu_flags) push(load(pop()));
 
@@ -85,8 +85,8 @@ struct value *pl() {
     return load(pop());
 }
 
-struct value *load_constant(struct value *cv) {
-    struct value *v;
+Value *load_constant(Value *cv) {
+    Value *v;
 
     v = new_value();
     v->vreg = new_vreg();
@@ -101,9 +101,9 @@ void push_constant(int type, long value) {
 }
 
 // Add an operation to the IR
-struct three_address_code *add_ir_op(int operation, int type, int vreg, struct value *src1, struct value *src2) {
-    struct value *v;
-    struct three_address_code *result;
+Tac *add_ir_op(int operation, int type, int vreg, Value *src1, Value *src2) {
+    Value *v;
+    Tac *result;
 
     v = new_value();
     v->vreg = vreg;
@@ -114,8 +114,8 @@ struct three_address_code *add_ir_op(int operation, int type, int vreg, struct v
     return result;
 }
 
-struct symbol *new_symbol() {
-    struct symbol *result;
+Symbol *new_symbol() {
+    Symbol *result;
 
     result = next_symbol;
     next_symbol++;
@@ -126,8 +126,8 @@ struct symbol *new_symbol() {
 }
 
 // Search for a symbol in a scope. Returns zero if not found
-struct symbol *lookup_symbol(char *name, int scope) {
-    struct symbol *s;
+Symbol *lookup_symbol(char *name, int scope) {
+    Symbol *s;
 
     s = symbol_table;
     while (s->identifier) {
@@ -141,7 +141,7 @@ struct symbol *lookup_symbol(char *name, int scope) {
 }
 
 // Returns destination type of an operation with two operands
-int operation_type(struct value *src1, struct value *src2) {
+int operation_type(Value *src1, Value *src2) {
     if (src1->type >= TYPE_PTR) return src1->type;
     else if (src2->type >= TYPE_PTR) return src2->type;
     else if (src1->type == TYPE_LONG || src2->type == TYPE_LONG) return TYPE_LONG;
@@ -221,21 +221,21 @@ int parse_type() {
 }
 
 // Allocate a new struct_desc
-struct struct_desc *new_struct() {
-    struct struct_desc *s;
+Struct *new_struct() {
+    Struct *s;
 
-    s = malloc(sizeof(struct struct_desc));
+    s = malloc(sizeof(Struct));
     all_structs[all_structs_count] = s;
     s->type = TYPE_STRUCT + all_structs_count++;
-    s->members = malloc(sizeof(struct struct_member *) * MAX_STRUCT_MEMBERS);
-    memset(s->members, 0, sizeof(struct struct_member *) * MAX_STRUCT_MEMBERS);
+    s->members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
+    memset(s->members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
 
     return s;
 }
 
 // Search for a struct. Returns 0 if not found.
-struct struct_desc *find_struct(char *identifier) {
-    struct struct_desc *s;
+Struct *find_struct(char *identifier) {
+    Struct *s;
     int i;
 
     for (i = 0; i < all_structs_count; i++)
@@ -247,8 +247,8 @@ struct struct_desc *find_struct(char *identifier) {
 // Parse struct definitions and uses. Declarations aren't implemented.
 int parse_struct_base_type(int allow_incomplete_structs) {
     char *identifier;
-    struct struct_desc *s;
-    struct struct_member *member;
+    Struct *s;
+    StructMember *member;
     int member_count;
     int i, base_type, type, offset, is_packed, alignment, biggest_alignment;
 
@@ -290,8 +290,8 @@ int parse_struct_base_type(int allow_incomplete_structs) {
                 if (alignment > biggest_alignment) biggest_alignment = alignment;
                 offset = ((offset + alignment  - 1) & (~(alignment - 1)));
 
-                member = malloc(sizeof(struct struct_member));
-                memset(member, 0, sizeof(struct struct_member));
+                member = malloc(sizeof(StructMember));
+                memset(member, 0, sizeof(StructMember));
                 member->identifier = cur_identifier;
                 member->type = type;
                 member->offset = offset;
@@ -339,9 +339,9 @@ void check_incomplete_structs() {
 
 // Parse "typedef struct struct_id typedef_id"
 void parse_typedef() {
-    struct struct_desc *s;
+    Struct *s;
     char *identifier;
-    struct typedef_desc *t;
+    Typedef *t;
 
     next();
 
@@ -355,8 +355,8 @@ void parse_typedef() {
 
     if (all_typedefs_count == MAX_TYPEDEFS) panic("Exceeded max typedefs");
 
-    t = malloc(sizeof(struct typedef_desc));
-    memset(t, 0, sizeof(struct typedef_desc));
+    t = malloc(sizeof(Typedef));
+    memset(t, 0, sizeof(Typedef));
     t->identifier = cur_identifier;
     t->struct_type = s->type;
     all_typedefs[all_typedefs_count++] = t;
@@ -365,7 +365,7 @@ void parse_typedef() {
 }
 
 void indirect() {
-    struct value *dst, *src1;
+    Value *dst, *src1;
 
     // The stack contains an rvalue which is a pointer. All that needs doing
     // is conversion of the rvalue into an lvalue on the stack and a type
@@ -382,8 +382,8 @@ void indirect() {
 }
 
 // Search for a struct member. Panics if it doesn't exist
-struct struct_member *lookup_struct_member(struct struct_desc *struct_desc, char *identifier) {
-    struct struct_member **pmember;
+StructMember *lookup_struct_member(Struct *struct_desc, char *identifier) {
+    StructMember **pmember;
 
     pmember = struct_desc->members;
 
@@ -396,8 +396,8 @@ struct struct_member *lookup_struct_member(struct struct_desc *struct_desc, char
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
-struct value *new_label_dst() {
-    struct value *v;
+Value *new_label_dst() {
+    Value *v;
 
     v = new_value();
     v->label = ++label_count;
@@ -406,14 +406,14 @@ struct value *new_label_dst() {
 }
 
 // Add a no-op instruction with a label
-void add_jmp_target_instruction(struct value *v) {
-    struct three_address_code *tac;
+void add_jmp_target_instruction(Value *v) {
+    Tac *tac;
 
     tac = add_instruction(IR_NOP, 0, 0, 0);
     tac->label = v->label;
 }
 
-void add_conditional_jump(int operation, struct value *dst) {
+void add_conditional_jump(int operation, Value *dst) {
     if (vtop->is_in_cpu_flags)
         add_instruction(operation, 0, pop(), dst);
     else
@@ -423,7 +423,7 @@ void add_conditional_jump(int operation, struct value *dst) {
 
 // Add instructions for && and || operators
 void and_or_expr(int is_and) {
-    struct value *dst, *ldst1, *ldst2, *ldst3;
+    Value *dst, *ldst1, *ldst2, *ldst3;
 
     next();
 
@@ -462,8 +462,8 @@ void arithmetic_operation(int operation, int type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be valuated directly.
 
-    struct value *src1, *src2, *t;
-    struct three_address_code *tac;
+    Value *src1, *src2, *t;
+    Tac *tac;
     long v1, v2;
     int vreg;
 
@@ -544,11 +544,11 @@ void expression(int level) {
     int scope;
     int function_call, arg_count;
     int prev_in_conditional;
-    struct symbol *symbol;
-    struct struct_desc *str;
-    struct struct_member *member;
-    struct value *v1, *v2, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value;
-    struct three_address_code *tac;
+    Symbol *symbol;
+    Struct *str;
+    StructMember *member;
+    Value *v1, *v2, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value;
+    Tac *tac;
 
     // Parse any tokens that can be at the start of an expression
     if (cur_token == TOK_LOGICAL_NOT) {
@@ -926,8 +926,8 @@ void expression(int level) {
 
 // Parse a statement
 void statement() {
-    struct value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
-    struct three_address_code *tac;
+    Value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
+    Tac *tac;
     int loop_token;
     int prev_in_conditional;
     int prev_loop;
@@ -1108,7 +1108,7 @@ void statement() {
 void function_body() {
     int local_symbol_count;
     int base_type, type;
-    struct symbol *s;
+    Symbol *s;
 
     vreg_count = 0; // Reset global vreg_count
     local_symbol_count = 0;
@@ -1198,7 +1198,7 @@ void parse() {
     long value;                         // Enum value
     int param_count;                    // Number of parameters to a function
     int seen_function_declaration;      // If a function has been seen, then variable declarations afterwards are forbidden
-    struct symbol *param_symbol, *s;
+    Symbol *param_symbol, *s;
     int i, sign;
 
     cur_scope = 0;
@@ -1248,8 +1248,8 @@ void parse() {
                     ir_start = 0;
                     ir_start = add_instruction(IR_NOP, 0, 0, 0);
                     s->is_function = 1;
-                    s->function = malloc(sizeof(struct function));
-                    memset(s->function, 0, sizeof(struct function));
+                    s->function = malloc(sizeof(Function));
+                    memset(s->function, 0, sizeof(Function));
                     s->function->ir = ir_start;
 
                     param_count = 0;

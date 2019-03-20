@@ -6,28 +6,28 @@ int failures;
 char *input_filename, *output_filename;
 int label;
 
-struct function *new_function() {
-    struct function *function;
+Function *new_function() {
+    Function *function;
 
-    function = malloc(sizeof(struct function));
-    memset(function, 0, sizeof(struct function));
+    function = malloc(sizeof(Function));
+    memset(function, 0, sizeof(Function));
 
     return function;
 }
 
-void i(int operation, struct value *dst, struct value *src1, struct value *src2) {
+void i(int operation, Value *dst, Value *src1, Value *src2) {
     add_instruction(operation, dst, src1, src2);
 }
 
-void li(int label, int operation, struct value *dst, struct value *src1, struct value *src2) {
-    struct three_address_code *tac;
+void li(int label, int operation, Value *dst, Value *src1, Value *src2) {
+    Tac *tac;
 
     tac = add_instruction(operation, dst, src1, src2);
     tac->label = label;
 }
 
-struct value *p(int preg) {
-    struct value *v;
+Value *p(int preg) {
+    Value *v;
 
     v = new_value();
     v->type = TYPE_INT;
@@ -36,8 +36,8 @@ struct value *p(int preg) {
     return v;
 }
 
-struct value *cpu() {
-    struct value *v;
+Value *cpu() {
+    Value *v;
 
     v = new_value();
     v->type = TYPE_INT;
@@ -46,8 +46,8 @@ struct value *cpu() {
     return v;
 }
 
-struct value *l(int label) {
-    struct value *v;
+Value *l(int label) {
+    Value *v;
 
     v = new_value();
     v->label = label;
@@ -55,11 +55,11 @@ struct value *l(int label) {
     return v;
 }
 
-struct value *c(int value) {
+Value *c(int value) {
     return new_constant(TYPE_INT, value);
 }
 
-void add_test(int test_number, int op, struct value *dst, struct value *src1, struct value *src2, int ip0, int ip1, int ip2, int op0, int op1, int op2) {
+void add_test(int test_number, int op, Value *dst, Value *src1, Value *src2, int ip0, int ip1, int ip2, int op0, int op1, int op2) {
     int first_label;
 
     if (ir_start == 0)
@@ -93,15 +93,15 @@ void add_test(int test_number, int op, struct value *dst, struct value *src1, st
 }
 
 void run_added_tests() {
-    struct symbol *s;
+    Symbol *s;
     int size, result;
     char *assembly, *command;
 
     li(label, IR_LOAD_CONSTANT, p(0), c(0), 0);
     i(IR_RETURN, 0, 0, 0);
 
-    s = malloc(sizeof(struct symbol));
-    memset(s, 0, sizeof(struct symbol));
+    s = malloc(sizeof(Symbol));
+    memset(s, 0, sizeof(Symbol));
     s->function = new_function();
     s->identifier = "main";
     s->function->ir = ir_start;

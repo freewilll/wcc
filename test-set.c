@@ -10,7 +10,7 @@ void assert(int expected, int actual, char *message) {
 }
 
 void test_add_delete() {
-    struct set *s;
+    Set *s;
 
     s = new_set(2);
 
@@ -31,7 +31,7 @@ void test_add_delete() {
 }
 
 void test_merges() {
-    struct set *s1, *s2, *s3;
+    Set *s1, *s2, *s3;
 
     s1 = new_set(3); add_to_set(s1, 1); add_to_set(s1, 2);
     s2 = new_set(3); add_to_set(s2, 1); add_to_set(s2, 3);
@@ -53,7 +53,7 @@ void test_merges() {
 }
 
 void test_set_eq() {
-    struct set *s1, *s2, *s3;
+    Set *s1, *s2, *s3;
 
     s1 = new_set(3); add_to_set(s1, 1); add_to_set(s1, 2);
     s2 = new_set(3); add_to_set(s2, 1); add_to_set(s2, 3);

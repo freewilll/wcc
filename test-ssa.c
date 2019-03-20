@@ -9,8 +9,8 @@ void assert(int expected, int actual) {
     }
 }
 
-void assert_set(struct set *set, int v1, int v2, int v3, int v4, int v5) {
-    struct set *is;
+void assert_set(Set *set, int v1, int v2, int v3, int v4, int v5) {
+    Set *is;
 
     is = new_set(set->max_value);
     if (v1 != -1) add_to_set(is, v1);
@@ -21,25 +21,25 @@ void assert_set(struct set *set, int v1, int v2, int v3, int v4, int v5) {
     assert(1, set_eq(set, is));
 }
 
-struct function *new_function() {
-    struct function *function;
+Function *new_function() {
+    Function *function;
 
-    function = malloc(sizeof(struct function));
-    memset(function, 0, sizeof(struct function));
+    function = malloc(sizeof(Function));
+    memset(function, 0, sizeof(Function));
 
     return function;
 }
 
-struct three_address_code *i(int label, int operation, struct value *dst, struct value *src1, struct value *src2) {
-    struct three_address_code *tac;
+Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2) {
+    Tac *tac;
 
     tac = add_instruction(operation, dst, src1, src2);
     tac->label = label;
     return tac;
 }
 
-struct value *v(int vreg) {
-    struct value *v;
+Value *v(int vreg) {
+    Value *v;
 
     v = new_value();
     v->type = TYPE_INT;
@@ -48,8 +48,8 @@ struct value *v(int vreg) {
     return v;
 }
 
-struct value *l(int label) {
-    struct value *v;
+Value *l(int label) {
+    Value *v;
 
     v = new_value();
     v->label = label;
@@ -57,15 +57,15 @@ struct value *l(int label) {
     return v;
 }
 
-struct value *c(int value) {
+Value *c(int value) {
     return new_constant(TYPE_INT, value);
 }
 
 // Ensure a JMP statement in the middle of a block ends the block
 void test_cfg_jmp() {
-    struct function *function;
-    struct edge *ig;
-    struct three_address_code *t1, *t2, *t3, *t4;
+    Function *function;
+    Edge *ig;
+    Tac *t1, *t2, *t3, *t4;
 
     function = new_function();
 
@@ -90,17 +90,17 @@ void test_cfg_jmp() {
 
 // Test example on page 478 of engineering a compiler
 void test_dominance() {
-    struct function *function;
-    struct block *blocks;
-    struct edge *edges;
+    Function *function;
+    Block *blocks;
+    Edge *edges;
     int i;
 
     function = new_function();
 
-    blocks = malloc(20 * sizeof(struct block));
-    memset(blocks, 0, 20 * sizeof(struct block));
-    edges = malloc(20 * sizeof(struct edge));
-    memset(edges, 0, 20 * sizeof(struct edge));
+    blocks = malloc(20 * sizeof(Block));
+    memset(blocks, 0, 20 * sizeof(Block));
+    edges = malloc(20 * sizeof(Edge));
+    memset(edges, 0, 20 * sizeof(Edge));
 
     function->blocks = blocks;
     function->block_count = 9;
@@ -145,8 +145,8 @@ void test_dominance() {
 
 // Test example on page 448 of engineering a compiler
 void test_liveout1() {
-    struct function *function;
-    struct three_address_code *tac;
+    Function *function;
+    Tac *tac;
 
     function = new_function();
 
@@ -191,9 +191,9 @@ void test_liveout1() {
 }
 
 // Make IR for the test example on page 484 of engineering a compiler
-struct function *make_ir2(int init_four_vars) {
-    struct function *function;
-    struct three_address_code *tac;
+Function *make_ir2(int init_four_vars) {
+    Function *function;
+    Tac *tac;
 
     function = new_function();
 
@@ -248,7 +248,7 @@ struct function *make_ir2(int init_four_vars) {
 
 // Test example on page 484 of engineering a compiler
 void test_liveout2() {
-    struct function *function;
+    Function *function;
 
     function = make_ir2(0);
     do_oar1(function);
@@ -291,7 +291,7 @@ void test_liveout2() {
 
 // Test example on page 484 and 531 of engineering a compiler
 void test_idom2() {
-    struct function *function;
+    Function *function;
 
     function = make_ir2(0);
     do_oar1(function);
@@ -319,7 +319,7 @@ void test_idom2() {
     assert_set(function->dominance_frontiers[8],  7, -1, -1, -1, -1);
 }
 
-void check_phi(struct three_address_code *tac, int vreg) {
+void check_phi(Tac *tac, int vreg) {
     assert(IR_PHI_FUNCTION, tac->operation);
     assert(vreg, tac->dst->vreg);
     assert(vreg, tac->phi_values[0].vreg);
@@ -327,7 +327,7 @@ void check_phi(struct three_address_code *tac, int vreg) {
 }
 
 void test_phi_insertion() {
-    struct function *function;
+    Function *function;
 
     function = make_ir2(0);
     do_oar1(function);
@@ -379,7 +379,7 @@ void test_phi_insertion() {
 }
 
 // Check renumbered phi functions
-void check_rphi(struct three_address_code *tac, int dst_vreg, int dst_ss, int src1_vreg, int src1_ss, int src2_vreg, int src2_ss, int src3_vreg, int src3_ss) {
+void check_rphi(Tac *tac, int dst_vreg, int dst_ss, int src1_vreg, int src1_ss, int src2_vreg, int src2_ss, int src3_vreg, int src3_ss) {
     assert(IR_PHI_FUNCTION, tac->operation);
     assert(dst_vreg,  tac->dst ->vreg); assert(dst_ss,  tac->dst ->ssa_subscript);
     assert(src1_vreg, tac->phi_values[0].vreg); assert(src1_ss, tac->phi_values[0].ssa_subscript);
@@ -391,11 +391,11 @@ void check_rphi(struct three_address_code *tac, int dst_vreg, int dst_ss, int sr
 }
 
 void test_phi_renumbering1() {
-    struct function *function;
+    Function *function;
     int vreg_count;
     int *counters;
-    struct stack **stack;
-    struct three_address_code *tac;
+    Stack **stack;
+    Tac *tac;
 
     function = make_ir2(1);
     do_oar1(function);
@@ -434,11 +434,11 @@ void test_phi_renumbering1() {
 // Test the case of a block that has three predecessors.
 // The example here should create a phi function with 3 arguments
 void test_phi_renumbering2() {
-    struct function *function;
+    Function *function;
     int vreg_count;
     int *counters;
-    struct stack **stack;
-    struct three_address_code *tac;
+    Stack **stack;
+    Tac *tac;
 
     function = new_function();
     ir_start = 0;
@@ -465,9 +465,9 @@ void test_phi_renumbering2() {
 }
 
 // Make IR for the test example on page 484 of engineering a compiler
-struct function *make_ir3(int loop_count) {
-    struct function *function;
-    struct three_address_code *tac;
+Function *make_ir3(int loop_count) {
+    Function *function;
+    Tac *tac;
 
     function = new_function();
 
@@ -496,8 +496,8 @@ struct function *make_ir3(int loop_count) {
 }
 
 void test_interference_graph1() {
-    struct function *function;
-    struct edge *ig;
+    Function *function;
+    Edge *ig;
     int l;
 
     l = live_range_reserved_pregs_offset;
@@ -520,8 +520,8 @@ void test_interference_graph1() {
 }
 
 void test_interference_graph2() {
-    struct function *function;
-    struct edge *ig;
+    Function *function;
+    Edge *ig;
     int l;
 
     l = live_range_reserved_pregs_offset;
@@ -556,8 +556,8 @@ void test_interference_graph2() {
 void test_interference_graph3() {
     // Test the special case of a register copy not introducing an edge
 
-    struct function *function;
-    struct edge *ig;
+    Function *function;
+    Edge *ig;
     int l;
 
     l = live_range_reserved_pregs_offset;
@@ -589,7 +589,7 @@ void test_interference_graph3() {
 }
 
 void test_spill_cost() {
-    struct function *function;
+    Function *function;
     int i, *spill_cost, p, l;
 
     l = live_range_reserved_pregs_offset;
@@ -618,9 +618,9 @@ void test_spill_cost() {
 
 void test_top_down_register_allocation() {
     int i, l, vreg_count;
-    struct function *function;
-    struct edge *edges;
-    struct vreg_location *vl;
+    Function *function;
+    Edge *edges;
+    VregLocation *vl;
 
     // Don't reserve any physical registers, for simplicity
     live_range_reserved_pregs_offset = 0;
@@ -640,7 +640,7 @@ void test_top_down_register_allocation() {
     for (i = 1; i <= vreg_count; i++) function->spill_cost[i] = i;
 
     function->interference_graph_edge_count = 3;
-    edges = malloc(16 * sizeof(struct edge));
+    edges = malloc(16 * sizeof(Edge));
     function->interference_graph = edges;
     edges[0].from = 1; edges[0].to = 2;
     edges[1].from = 1; edges[1].to = 3;

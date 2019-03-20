@@ -13,7 +13,7 @@ int new_vreg() {
 
 // A useful function for debugging
 void print_value_stack() {
-    struct value **lvs, *v;
+    Value **lvs, *v;
 
     printf("%-4s %-4s %-4s %-11s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "stack_index", "is_lv");
     lvs = vs;
@@ -25,26 +25,26 @@ void print_value_stack() {
     }
 }
 
- void init_value(struct value *v) {
+ void init_value(Value *v) {
     v->preg = -1;
     v->spilled_stack_index = -1;
     v->ssa_subscript = -1;
     v->live_range = -1;
 }
 
-struct value *new_value() {
-    struct value *v;
+Value *new_value() {
+    Value *v;
 
-    v = malloc(sizeof(struct value));
-    memset(v, 0, sizeof(struct value));
+    v = malloc(sizeof(Value));
+    memset(v, 0, sizeof(Value));
     init_value(v);
 
     return v;
 }
 
 // Create a new typed constant value
-struct value *new_constant(int type, long value) {
-    struct value *cv;
+Value *new_constant(int type, long value) {
+    Value *cv;
 
     cv = new_value();
     cv->value = value;
@@ -54,8 +54,8 @@ struct value *new_constant(int type, long value) {
 }
 
 // Duplicate a value
-struct value *dup_value(struct value *src) {
-    struct value *dst;
+Value *dup_value(Value *src) {
+    Value *dst;
 
     dst = new_value();
     dst->type                      = src->type;
@@ -79,19 +79,19 @@ struct value *dup_value(struct value *src) {
     return dst;
 }
 
-struct three_address_code *new_instruction(int operation) {
-    struct three_address_code *tac;
+Tac *new_instruction(int operation) {
+    Tac *tac;
 
-    tac = malloc(sizeof(struct three_address_code));
-    memset(tac, 0, sizeof(struct three_address_code));
+    tac = malloc(sizeof(Tac));
+    memset(tac, 0, sizeof(Tac));
     tac->operation = operation;
 
     return tac;
 }
 
 // Add instruction to the global intermediate representation ir
-struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2) {
-    struct three_address_code *tac;
+Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
+    Tac *tac;
 
     tac = new_instruction(operation);
     tac->label = 0;
@@ -116,8 +116,8 @@ struct three_address_code *add_instruction(int operation, struct value *dst, str
 }
 
 // Ensure the double linked list in an IR is correct by checking last pointers
-void sanity_test_ir_linkage(struct three_address_code *ir) {
-    struct three_address_code *tac;
+void sanity_test_ir_linkage(Tac *ir) {
+    Tac *tac;
 
     tac = ir;
     while (tac) {
@@ -145,7 +145,7 @@ void fprintf_escaped_string_literal(void *f, char* sl) {
     fprintf(f, "\"");
 }
 
-void print_value(void *f, struct value *v, int is_assignment_rhs) {
+void print_value(void *f, Value *v, int is_assignment_rhs) {
     int type;
 
     if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->stack_index)) fprintf(f, "&");
@@ -191,9 +191,9 @@ void print_value(void *f, struct value *v, int is_assignment_rhs) {
     else fprintf(f, "unknown type %d", type);
 }
 
-void print_instruction(void *f, struct three_address_code *tac) {
+void print_instruction(void *f, Tac *tac) {
     int first;
-    struct value *v;
+    Value *v;
 
     if (tac->label)
         fprintf(f, "l%-5d", tac->label);
@@ -295,8 +295,8 @@ void print_instruction(void *f, struct three_address_code *tac) {
     fprintf(f, "\n");
 }
 
-void print_intermediate_representation(struct function *function, char *name) {
-    struct three_address_code *tac;
+void print_intermediate_representation(Function *function, char *name) {
+    Tac *tac;
     int i;
 
     if (name) fprintf(stdout, "%s:\n", name);
@@ -311,9 +311,9 @@ void print_intermediate_representation(struct function *function, char *name) {
 }
 
 // Merge tac with the instruction after it. The next instruction is removed from the chain.
-void merge_instructions(struct three_address_code *tac, int ir_index, int allow_labelled_next) {
+void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) {
     int i, label;
-    struct three_address_code *next;
+    Tac *next;
 
     if (!tac->next) panic("merge_instructions called on a tac without next\n");
     if (tac->next->label && !allow_labelled_next) panic("merge_instructions called on a tac with a label");
@@ -330,14 +330,14 @@ void merge_instructions(struct three_address_code *tac, int ir_index, int allow_
 // The arguments are pushed onto the stack right to left, but the ABI requries
 // the seventh arg and later to be pushed in reverse order. Easiest is to flip
 // all args backwards, so they are pushed left to right.
-void reverse_function_argument_order(struct symbol *function) {
-    struct three_address_code *tac, *call_start, *call;
+void reverse_function_argument_order(Symbol *function) {
+    Tac *tac, *call_start, *call;
     int i, j, arg_count, function_call_count;
 
-    struct tac_interval *args;
+    TacInterval *args;
 
     ir = function->function->ir;
-    args = malloc(sizeof(struct tac_interval *) * 256);
+    args = malloc(sizeof(TacInterval *) * 256);
 
     // Need to count this IR's function_call_count
     function_call_count = 0;
@@ -394,7 +394,7 @@ void reverse_function_argument_order(struct symbol *function) {
     free(args);
 }
 
-void assign_local_to_register(struct value *v, int vreg) {
+void assign_local_to_register(Value *v, int vreg) {
     v->original_stack_index = v->stack_index;
     v->original_is_lvalue = v->is_lvalue;
     v->original_vreg = v->vreg;
@@ -403,8 +403,8 @@ void assign_local_to_register(struct value *v, int vreg) {
     v->vreg = vreg;
 }
 
-void assign_locals_to_registers(struct symbol *function) {
-    struct three_address_code *tac;
+void assign_locals_to_registers(Symbol *function) {
+    Tac *tac;
     int i, vreg;
 
     int *has_address_of;
@@ -439,8 +439,8 @@ void assign_locals_to_registers(struct symbol *function) {
     function->function->vreg_count = vreg_count;
 }
 
-void renumber_ir_vreg(struct three_address_code *ir, int src, int dst) {
-    struct three_address_code *tac;
+void renumber_ir_vreg(Tac *ir, int src, int dst) {
+    Tac *tac;
 
     if (src == 0 || dst == 0) panic("Unexpected zero reg renumber");
 
@@ -453,15 +453,15 @@ void renumber_ir_vreg(struct three_address_code *ir, int src, int dst) {
     }
 }
 
-void swap_ir_registers(struct three_address_code *ir, int vreg1, int vreg2) {
+void swap_ir_registers(Tac *ir, int vreg1, int vreg2) {
     renumber_ir_vreg(ir, vreg1, -2);
     renumber_ir_vreg(ir, vreg2, vreg1);
     renumber_ir_vreg(ir, -2, vreg2);
 }
 
-struct three_address_code *insert_instruction(struct three_address_code *ir, int ir_index, struct three_address_code *tac) {
+Tac *insert_instruction(Tac *ir, int ir_index, Tac *tac) {
     int i;
-    struct three_address_code *prev;
+    Tac *prev;
 
     prev = ir->prev;
     tac->prev = prev;
@@ -470,8 +470,8 @@ struct three_address_code *insert_instruction(struct three_address_code *ir, int
     prev->next = tac;
 }
 
-void renumber_label(struct three_address_code *ir, int l1, int l2) {
-    struct three_address_code *t;
+void renumber_label(Tac *ir, int l1, int l2) {
+    Tac *t;
 
     t = ir;
     while (t) {
@@ -482,8 +482,8 @@ void renumber_label(struct three_address_code *ir, int l1, int l2) {
     }
 }
 
-void merge_labels(struct three_address_code *ir, struct three_address_code *tac, int ir_index) {
-    struct three_address_code *deleted_tac, *t;
+void merge_labels(Tac *ir, Tac *tac, int ir_index) {
+    Tac *deleted_tac, *t;
     int l;
 
     while(1) {
@@ -496,8 +496,8 @@ void merge_labels(struct three_address_code *ir, struct three_address_code *tac,
 }
 
 // Renumber all labels so they are consecutive. Uses label_count global.
-void renumber_labels(struct three_address_code *ir) {
-    struct three_address_code *t;
+void renumber_labels(Tac *ir) {
+    Tac *t;
     int temp_labels;
 
     temp_labels = -2;
@@ -518,8 +518,8 @@ void renumber_labels(struct three_address_code *ir) {
     }
 }
 
-void rearrange_reverse_sub_operation(struct three_address_code *ir, struct three_address_code *tac) {
-    struct value *src1, *src2;
+void rearrange_reverse_sub_operation(Tac *ir, Tac *tac) {
+    Value *src1, *src2;
     int vreg1, vreg2;
 
     if (tac->operation == IR_SUB) {
@@ -546,9 +546,9 @@ void rearrange_reverse_sub_operation(struct three_address_code *ir, struct three
     }
 }
 
-void preload_src1_constant_into_register(struct three_address_code *tac, int *i) {
-    struct value *dst, *src1;
-    struct three_address_code *load_tac;
+void preload_src1_constant_into_register(Tac *tac, int *i) {
+    Value *dst, *src1;
+    Tac *load_tac;
 
     load_tac = new_instruction(IR_LOAD_CONSTANT);
 
@@ -565,7 +565,7 @@ void preload_src1_constant_into_register(struct three_address_code *tac, int *i)
     (*i)++;
 }
 
-void allocate_registers_for_constants(struct three_address_code *tac, int *i) {
+void allocate_registers_for_constants(Tac *tac, int *i) {
     // Some instructions can't handle one of the operands being a constant. Allocate a vreg for it
     // and load the constant into it.
 
@@ -574,8 +574,8 @@ void allocate_registers_for_constants(struct three_address_code *tac, int *i) {
         preload_src1_constant_into_register(tac, i);
 }
 
-void optimize_ir(struct symbol *function) {
-    struct three_address_code *ir, *tac;
+void optimize_ir(Symbol *function) {
+    Tac *ir, *tac;
     int i;
 
     ir = function->function->ir;

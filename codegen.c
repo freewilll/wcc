@@ -73,7 +73,7 @@ void output_op_instruction(char *instruction, int src, int dst) {
     fprintf(f, "\n");
 }
 
-void _output_op(char *instruction, struct three_address_code *tac) {
+void _output_op(char *instruction, Tac *tac) {
     int v, dst, src1, src2;
 
     dst = tac->dst->preg;
@@ -110,7 +110,7 @@ void _output_op(char *instruction, struct three_address_code *tac) {
     output_op_instruction(instruction, src1, dst);
 }
 
-void output_constant_operation(char *instruction, struct three_address_code *tac) {
+void output_constant_operation(char *instruction, Tac *tac) {
     if (tac->src1->is_constant) {
         move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
         fprintf(f, "\t%s\t$%ld", instruction, tac->src1->value);
@@ -122,7 +122,7 @@ void output_constant_operation(char *instruction, struct three_address_code *tac
         _output_op(instruction, tac);
 }
 
-void output_op(char *instruction, struct three_address_code *tac) {
+void output_op(char *instruction, Tac *tac) {
     if (tac->operation == IR_ADD || tac->operation == IR_RSUB || tac->operation == IR_MUL || tac->operation == IR_BAND || tac->operation == IR_BOR || tac->operation == IR_XOR) {
         output_constant_operation(instruction, tac);
         return;
@@ -134,7 +134,7 @@ void output_op(char *instruction, struct three_address_code *tac) {
 // src1 and src2 are swapped, to facilitate treating the first operand as a potential
 // constant. src1 is output first, which is backwards to src1 <op> src2.
 // Therefore, this function is called reverse.
-void output_reverse_cmp(struct three_address_code *tac) {
+void output_reverse_cmp(Tac *tac) {
     fprintf(f, "\tcmpq\t");
 
     if (tac->src1->is_constant)
@@ -147,13 +147,13 @@ void output_reverse_cmp(struct three_address_code *tac) {
     fprintf(f, "\n");
 }
 
-void output_cmp_result_instruction(struct three_address_code *ir, char *instruction) {
+void output_cmp_result_instruction(Tac *ir, char *instruction) {
     fprintf(f, "\t%s\t", instruction);
     output_byte_register_name(ir->dst->preg);
     fprintf(f, "\n");
 }
 
-void output_movzbq(struct three_address_code *ir) {
+void output_movzbq(Tac *ir) {
     fprintf(f, "\tmovzbq\t");
     output_byte_register_name(ir->dst->preg);
     fprintf(f, ", ");
@@ -182,7 +182,7 @@ void output_type_specific_lea(int type) {
     else                         fprintf(f, "\tleaq\t");
 }
 
-void output_reverse_cmp_operation(struct three_address_code *tac, char *instruction) {
+void output_reverse_cmp_operation(Tac *tac, char *instruction) {
     output_reverse_cmp(tac);
     if (tac->dst->is_in_cpu_flags) return;
     output_cmp_result_instruction(tac, instruction);
@@ -251,7 +251,7 @@ void init_callee_saved_registers() {
 }
 
 // Determine which registers are used in a function, push them onto the stack and return the list
-int *push_callee_saved_registers(struct three_address_code *tac) {
+int *push_callee_saved_registers(Tac *tac) {
     int *saved_registers;
     int i;
 
@@ -291,7 +291,7 @@ void pop_callee_saved_registers(int *saved_registers) {
     }
 }
 
-void pre_instruction_local_load(struct three_address_code *ir, int function_pc, int stack_start) {
+void pre_instruction_local_load(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
 
     // Load src1 into r10
@@ -330,7 +330,7 @@ void pre_instruction_local_load(struct three_address_code *ir, int function_pc, 
     }
 }
 
-void post_instruction_local_store(struct three_address_code *ir, int function_pc, int stack_start) {
+void post_instruction_local_store(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
     int assign;
 
@@ -353,7 +353,7 @@ void post_instruction_local_store(struct three_address_code *ir, int function_pc
 
 // If any of the operands are spilled, output code to read the stack locations into registers r10 and r11
 // and set the preg accordingly. Also set the dst preg.
-void pre_instruction_spill(struct three_address_code *ir, int function_pc, int stack_start) {
+void pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     pre_instruction_local_load(ir, function_pc, stack_start);
 
     // Load src1 into r10
@@ -386,7 +386,7 @@ void pre_instruction_spill(struct three_address_code *ir, int function_pc, int s
     }
 }
 
-void post_instruction_spill(struct three_address_code *ir, int function_pc, int stack_start) {
+void post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     post_instruction_local_store(ir, function_pc, stack_start);
 
     if (ir->dst && ir->dst->spilled_stack_index != -1) {
@@ -400,9 +400,9 @@ void post_instruction_spill(struct three_address_code *ir, int function_pc, int 
 }
 
 // Output code from the IR of a function
-void output_function_body_code(struct symbol *symbol) {
+void output_function_body_code(Symbol *symbol) {
     int i, stack_offset;
-    struct three_address_code *tac;
+    Tac *tac;
     int function_pc;                    // The Function's param count
     int ac;                             // A function call's arg count
     int local_stack_size;               // Size of the stack containing local variables and spilled registers
@@ -772,8 +772,8 @@ void output_function_body_code(struct symbol *symbol) {
 // Output code for the translation unit
 void output_code(char *input_filename, char *output_filename) {
     int i;
-    struct three_address_code *tac;
-    struct symbol *s;
+    Tac *tac;
+    Symbol *s;
     char *sl;
 
     if (!strcmp(output_filename, "-"))

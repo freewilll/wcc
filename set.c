@@ -4,10 +4,10 @@
 
 #include "wc4.h"
 
-struct set *new_set(int max_value) {
-    struct set *result;
+Set *new_set(int max_value) {
+    Set *result;
 
-    result = malloc(sizeof(struct set));
+    result = malloc(sizeof(Set));
     result->max_value = max_value;
     result->elements = malloc((max_value + 1) * sizeof(char));
     memset(result->elements, 0, (max_value + 1) * sizeof(char));
@@ -15,19 +15,19 @@ struct set *new_set(int max_value) {
     return result;
 }
 
-void free_set(struct set *s) {
+void free_set(Set *s) {
     free(s->elements);
     free(s);
 }
 
-void empty_set(struct set *s) {
+void empty_set(Set *s) {
     int i;
 
     for (i = 0; i <= s->max_value; i++) s->elements[i] = 0;
 }
 
-struct set *copy_set(struct set *s) {
-    struct set *result;
+Set *copy_set(Set *s) {
+    Set *result;
     int i;
 
     result = new_set(s->max_value);
@@ -36,13 +36,13 @@ struct set *copy_set(struct set *s) {
     return result;
 }
 
-void copy_set_to(struct set *dst, struct set *src) {
+void copy_set_to(Set *dst, Set *src) {
     int i;
 
     for (i = 0; i <= src->max_value; i++) dst->elements[i] = src->elements[i];
 }
 
-int set_len(struct set *s) {
+int set_len(Set *s) {
     int i, result;
 
     result = 0;
@@ -51,7 +51,7 @@ int set_len(struct set *s) {
     return result;
 }
 
-void print_set(struct set *s) {
+void print_set(Set *s) {
     int i;
     int first;
 
@@ -67,22 +67,22 @@ void print_set(struct set *s) {
     printf("}");
 }
 
-void *add_to_set(struct set *s, int value) {
+void *add_to_set(Set *s, int value) {
     if (value > s->max_value) panic2d("Max set value of %d exceeded with %d in add_to_set", s->max_value, value);
     s->elements[value] = 1;
 }
 
-void *delete_from_set(struct set *s, int value) {
+void *delete_from_set(Set *s, int value) {
     if (value > s->max_value) panic2d("Max set value of %d exceeded with %d in delete_from_set", s->max_value, value);
     s->elements[value] = 0;
 }
 
-int in_set(struct set *s, int value) {
+int in_set(Set *s, int value) {
     if (value > s->max_value) panic2d("Max set value of %d exceeded with %d in in_set", s->max_value, value);
     return s->elements[value] == 1;
 }
 
-int set_eq(struct set *s1, struct set *s2) {
+int set_eq(Set *s1, Set *s2) {
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_eq");
@@ -93,8 +93,8 @@ int set_eq(struct set *s1, struct set *s2) {
     return 1;
 }
 
-struct set *set_intersection(struct set *s1, struct set *s2) {
-    struct set *result;
+Set *set_intersection(Set *s1, Set *s2) {
+    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_intersection");
@@ -106,8 +106,8 @@ struct set *set_intersection(struct set *s1, struct set *s2) {
     return result;
 }
 
-void set_intersection_to(struct set *dst, struct set *s1, struct set *s2) {
-    struct set *result;
+void set_intersection_to(Set *dst, Set *s1, Set *s2) {
+    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_intersection_to");
@@ -117,8 +117,8 @@ void set_intersection_to(struct set *dst, struct set *s1, struct set *s2) {
         dst->elements[i] = s1->elements[i] && s2->elements[i];
 }
 
-struct set *set_union(struct set *s1, struct set *s2) {
-    struct set *result;
+Set *set_union(Set *s1, Set *s2) {
+    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_union");
@@ -131,8 +131,8 @@ struct set *set_union(struct set *s1, struct set *s2) {
 }
 
 
-void set_union_to(struct set *dst, struct set *s1, struct set *s2) {
-    struct set *result;
+void set_union_to(Set *dst, Set *s1, Set *s2) {
+    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_union_to");
@@ -142,8 +142,8 @@ void set_union_to(struct set *dst, struct set *s1, struct set *s2) {
         dst->elements[i] = s1->elements[i] || s2->elements[i];
 }
 
-struct set *set_difference(struct set *s1, struct set *s2) {
-    struct set *result;
+Set *set_difference(Set *s1, Set *s2) {
+    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_difference");
@@ -155,8 +155,8 @@ struct set *set_difference(struct set *s1, struct set *s2) {
     return result;
 }
 
-void set_difference_to(struct set *dst, struct set *s1, struct set *s2) {
-    struct set *result;
+void set_difference_to(Set *dst, Set *s1, Set *s2) {
+    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_difference_to");

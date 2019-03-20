@@ -1,27 +1,27 @@
-struct block {
+typedef struct block {
     struct three_address_code *start, *end;
-};
+} Block;
 
-struct edge {
+typedef struct edge {
     int from, to;
-};
+} Edge;
 
-struct set {
+typedef struct set {
     int max_value;
     char *elements;
-};
+} Set;
 
-struct stack {
+typedef struct stack {
     int *elements;
     int pos;
-};
+} Stack;
 
-struct vreg_location {
+typedef struct vreg_location {
     int preg;
     int spilled_index;
-};
+} VregLocation;
 
-struct symbol {
+typedef struct symbol {
     int type;                               // Type
     int size;                               // Size
     char *identifier;                       // Identifier
@@ -31,9 +31,9 @@ struct symbol {
     int is_function;                        // Is the symbol a function?
     int is_enum;                            // Enums are symbols with a value
     struct function *function;              // Details specific to symbols that are functions
-};
+} Symbol;
 
-struct function {
+typedef struct function {
     int param_count;                      // Number of parameters
     int local_symbol_count;               // Number of local symbols
     int vreg_count;                       // Number of virtual registers used in IR
@@ -43,32 +43,32 @@ struct function {
     int builtin;                          // For builtin functions, IR number of the builtin
     int is_variadic;                      // Set to 1 for builtin variadic functions
     struct three_address_code *ir;        // Intermediate representation
-    struct block *blocks;                 // For functions, the blocks
+    Block *blocks;                        // For functions, the blocks
     int block_count;                      //
-    struct edge *edges;                   // For functions, the edges between blocks
+    Edge *edges;                          // For functions, the edges between blocks
     int edge_count;                       //
-    struct set **dominance;               // Block dominances
-    struct set **uevar;                   // The upward exposed set for each block
-    struct set **varkill;                 // The killed var set for each block
-    struct set **liveout;                 // The liveout set for each block
+    Set **dominance;                      // Block dominances
+    Set **uevar;                          // The upward exposed set for each block
+    Set **varkill;                        // The killed var set for each block
+    Set **liveout;                        // The liveout set for each block
     int *idom;                            // Immediate dominator for each block
-    struct set **dominance_frontiers;     // Dominance frontier for each block
-    struct set **var_blocks;              // Var/block associations for vars that are written to
-    struct set *globals;                  // All variables that are assigned to
-    struct set **phi_functions;           // All variables that need phi functions for each block
+    Set **dominance_frontiers;            // Dominance frontier for each block
+    Set **var_blocks;                     // Var/block associations for vars that are written to
+    Set *globals;                         // All variables that are assigned to
+    Set **phi_functions;                  // All variables that need phi functions for each block
     struct edge *interference_graph;      // The interference graph of live ranges
     struct vreg_location *vreg_locations; // Allocated physical registers and spilled stack indexes
     int interference_graph_edge_count;    // The amount of edges in the interference graph of live ranges
     int *spill_cost;                      // The estimated spill cost for each live range
-};
+} Function;
 
-// struct value is a value on the value stack. A value can be one of
+// Value is a value on the value stack. A value can be one of
 // - global
 // - local
 // - constant
 // - string literal
 // - register
-struct value {
+typedef struct value {
     int type;                       // Type
     int vreg;                       // Optional vreg number
     int preg;                       // Allocated physical register
@@ -80,9 +80,9 @@ struct value {
     int is_in_cpu_flags;            // Is the result stored in cpu flags?
     int string_literal_index;       // Index in the string_literals array in the case of a string literal
     long value;                     // Value in the case of a constant
-    struct symbol *function_symbol; // Corresponding symbol in the case of a function call
+    Symbol *function_symbol;        // Corresponding symbol in the case of a function call
     int function_call_arg_count;    // Number of arguments in the case of a function call
-    struct symbol *global_symbol;   // Pointer to a global symbol if the value is a global symbol
+    Symbol *global_symbol;          // Pointer to a global symbol if the value is a global symbol
     int label;                      // Target label in the case of jump instructions
     int original_stack_index;
     int original_is_lvalue;
@@ -90,59 +90,47 @@ struct value {
     int pushed_stack_aligned_quad;  // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
     int ssa_subscript;              // Optional SSA enumeration
     int live_range;                 // Optional SSA live range
-};
+} Value;
 
-struct three_address_code {
+typedef struct three_address_code {
     int index;                          // Index in a tac chain
     int operation;                      // IR_* operation
     int label;                          // Label if this instruction is jumped to
-    struct value *dst;                  // Destination
-    struct value *src1;                 // First rhs operand
-    struct value *src2;                 // Second rhs operand
-    struct value *phi_values;           // For phi functions, a null terminated array of values for the args
+    Value *dst;                         // Destination
+    Value *src1;                        // First rhs operand
+    Value *src2;                        // Second rhs operand
+    Value *phi_values;                  // For phi functions, a null terminated array of values for the args
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
     int in_conditional;                 // Used for live range extending. True if the code is inside an if or ternary.
-};
+} Tac;
 
 // Temporary struct for reversing function call arguments
-struct tac_interval {
-    struct three_address_code *start;
-    struct three_address_code *end;
-};
-
-// Start and end indexes in the IR
-struct liveness_interval {
-    int start;
-    int end;
-};
+typedef struct tac_interval {
+    Tac *start;
+    Tac *end;
+} TacInterval;
 
 // Struct member
-struct struct_member {
+typedef struct struct_member {
     char *identifier;
     int type;
     int offset;
-};
+} StructMember;
 
 // Struct description
-struct struct_desc {
+typedef struct struct_desc {
     int type;
     char *identifier;
     struct struct_member **members;
     int size;
     int is_incomplete;          // Set to 1 if the struct has been used in a member but not yet declared
-};
+} Struct;
 
-struct function_usages {
-    int div_or_mod;
-    int function_call;
-    int binary_shift;
-};
-
-struct typedef_desc {
+typedef struct typedef_desc {
     char *identifier;
     int struct_type;
-};
+} Typedef;
 
 enum {
     DATA_SIZE                     = 10485760,
@@ -385,61 +373,61 @@ int cur_scope;                  // Current scope. 0 is global. non-zero is funct
 char **string_literals;         // Each string literal has an index in this array, with a pointer to the string literal
 int string_literal_count;       // Amount of string literals
 
-struct symbol *cur_function_symbol;     // Currently parsed function
-struct value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
-struct value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
-int in_conditional;                     // Used in the parser to determine if something is in a conditional
+Symbol *cur_function_symbol;     // Currently parsed function
+Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
+Value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
+int in_conditional;              // Used in the parser to determine if something is in a conditional
 
-struct symbol *symbol_table;    // Symbol table, terminated by a null symbol
-struct symbol *next_symbol;     // Next free symbol in the symbol table
+Symbol *symbol_table;    // Symbol table, terminated by a null symbol
+Symbol *next_symbol;     // Next free symbol in the symbol table
 
-struct value **vs_start;        // Value stack start
-struct value **vs;              // Value stack current position
-struct value *vtop;             // Value at the top of the stack
+Value **vs_start;        // Value stack start
+Value **vs;              // Value stack current position
+Value *vtop;             // Value at the top of the stack
 
-struct struct_desc **all_structs; // All structs defined globally. Local struct definitions isn't implemented.
-int all_structs_count;            // Number of structs, complete and incomplete
+Struct **all_structs;     // All structs defined globally. Local struct definitions isn't implemented.
+int all_structs_count;    // Number of structs, complete and incomplete
 
-struct typedef_desc **all_typedefs; // All typedefs defined globally. Local typedef definitions isn't implemented.
-int all_typedefs_count;             // Number of typedefs
+Typedef **all_typedefs;   // All typedefs defined globally. Local typedef definitions isn't implemented.
+int all_typedefs_count;   // Number of typedefs
 
-struct three_address_code *ir_start, *ir;   // intermediate representation for currently parsed function
-int vreg_count;                             // Virtual register count for currently parsed function
-int label_count;                            // Global label count, always growing
-int function_call_count;                    // Uniquely identify a function call, always growing
-int cur_loop;                               // Current loop being parsed
-int loop_count;                             // Loop counter
-int spilled_register_count;                 // Spilled register count for current function that's undergoing register allocation
-int total_spilled_register_count;           // Spilled register count for all functions
-int *callee_saved_registers;                // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
-int cur_stack_push_count;                   // Used in codegen to keep track of stack position
+Tac *ir_start, *ir;               // intermediate representation for currently parsed function
+int vreg_count;                   // Virtual register count for currently parsed function
+int label_count;                  // Global label count, always growing
+int function_call_count;          // Uniquely identify a function call, always growing
+int cur_loop;                     // Current loop being parsed
+int loop_count;                   // Loop counter
+int spilled_register_count;       // Spilled register count for current function that's undergoing register allocation
+int total_spilled_register_count; // Spilled register count for all functions
+int *callee_saved_registers;      // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
+int cur_stack_push_count;         // Used in codegen to keep track of stack position
 
 void *f; // Output file handle
 
 // set.c
-struct set *new_set(int max_value);
-void free_set(struct set *s);
-void empty_set(struct set *s);
-struct set *copy_set(struct set *s);
-void copy_set_to(struct set *dst, struct set *src);
-int set_len(struct set *s);
-void print_set(struct set *s);
-void *add_to_set(struct set *s, int value);
-int in_set(struct set *s, int value);
-int set_eq(struct set *s1, struct set *s2);
-void *delete_from_set(struct set *s, int value);
-struct set *set_intersection(struct set *s1, struct set *s2);
-void set_intersection_to(struct set *dst, struct set *s1, struct set *s2);
-struct set *set_union(struct set *s1, struct set *s2);
-void set_union_to(struct set *dst, struct set *s1, struct set *s2);
-struct set *set_difference(struct set *s1, struct set *s2);
-void set_difference_to(struct set *dst, struct set *s1, struct set *s2);
+Set *new_set(int max_value);
+void free_set(Set *s);
+void empty_set(Set *s);
+Set *copy_set(Set *s);
+void copy_set_to(Set *dst, Set *src);
+int set_len(Set *s);
+void print_set(Set *s);
+void *add_to_set(Set *s, int value);
+int in_set(Set *s, int value);
+int set_eq(Set *s1, Set *s2);
+void *delete_from_set(Set *s, int value);
+Set *set_intersection(Set *s1, Set *s2);
+void set_intersection_to(Set *dst, Set *s1, Set *s2);
+Set *set_union(Set *s1, Set *s2);
+void set_union_to(Set *dst, Set *s1, Set *s2);
+Set *set_difference(Set *s1, Set *s2);
+void set_difference_to(Set *dst, Set *s1, Set *s2);
 
 // stack.c
-struct stack *new_stack();
-int stack_top(struct stack *s);
-void push_onto_stack(struct stack *s, int v);
-int pop_from_stack(struct stack *s);
+Stack *new_stack();
+int stack_top(Stack *s);
+void push_onto_stack(Stack *s, int v);
+int pop_from_stack(Stack *s);
 
 // utils.c
 void panic(char *message);
@@ -455,11 +443,11 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
-struct value *load_constant(struct value *cv);
+Value *load_constant(Value *cv);
 int get_type_alignment(int type);
 int get_type_size(int type);
 int new_vreg();
-struct symbol *new_symbol();
+Symbol *new_symbol();
 int parse_struct_base_type(int parse_struct_base_type);
 void check_incomplete_structs();
 void expression(int level);
@@ -467,18 +455,18 @@ void finish_parsing_header();
 void parse();
 
 // ir.c
-void init_value(struct value *v);
-struct value *new_value();
-struct value *new_constant(int type, long value);
-struct value *dup_value(struct value *src);
-struct three_address_code *new_instruction(int operation);
-struct three_address_code *add_instruction(int operation, struct value *dst, struct value *src1, struct value *src2);
-void sanity_test_ir_linkage(struct three_address_code *ir);
+void init_value(Value *v);
+Value *new_value();
+Value *new_constant(int type, long value);
+Value *dup_value(Value *src);
+Tac *new_instruction(int operation);
+Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
+void sanity_test_ir_linkage(Tac *ir);
 int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
-void print_instruction(void *f, struct three_address_code *tac);
-void print_intermediate_representation(struct function *function, char *name);
-void optimize_ir(struct symbol *function);
+void print_instruction(void *f, Tac *tac);
+void print_intermediate_representation(Function *function, char *name);
+void optimize_ir(Symbol *function);
 
 // ssa.c
 enum {
@@ -498,27 +486,27 @@ enum {
 int live_range_reserved_pregs_offset;
 int disable_live_ranges_coalesce;
 
-int make_vreg_count(struct function *function, int starting_count);
-int new_subscript(struct stack **stack, int *counters, int n);
-void make_uevar_and_varkill(struct function *function);
-void make_liveout(struct function *function);
-void rename_phi_function_variables(struct function *function);
-void make_live_ranges(struct function *function);
-void rename_vars(struct function *function, struct stack **stack, int *counters, int block_number, int vreg_count);
-void make_live_ranges(struct function *function);
-void make_control_flow_graph(struct function *function);
-void make_block_dominance(struct function *function);
-void make_liveout(struct function *function);
-void make_live_range_spill_cost(struct function *function);
+int make_vreg_count(Function *function, int starting_count);
+int new_subscript(Stack **stack, int *counters, int n);
+void make_uevar_and_varkill(Function *function);
+void make_liveout(Function *function);
+void rename_phi_function_variables(Function *function);
+void make_live_ranges(Function *function);
+void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count);
+void make_live_ranges(Function *function);
+void make_control_flow_graph(Function *function);
+void make_block_dominance(Function *function);
+void make_liveout(Function *function);
+void make_live_range_spill_cost(Function *function);
 void init_allocate_registers();
-void allocate_registers_top_down(struct function *function, int physical_register_count);
-void do_oar1(struct function *function);
-void do_oar2(struct function *function);
-void do_oar3(struct function *function);
-void do_oar4(struct function *function);
-void optimize_and_allocate_registers(struct function *function);
+void allocate_registers_top_down(Function *function, int physical_register_count);
+void do_oar1(Function *function);
+void do_oar2(Function *function);
+void do_oar3(Function *function);
+void do_oar4(Function *function);
+void optimize_and_allocate_registers(Function *function);
 
 // codegen.c
 void init_callee_saved_registers();
-void output_function_body_code(struct symbol *symbol);
+void output_function_body_code(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);

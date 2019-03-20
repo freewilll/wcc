@@ -7,21 +7,21 @@
 
 // Add a builtin symbol
 void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
-    struct symbol *s;
+    Symbol *s;
 
     s = new_symbol();
     s->type = type;
     s->identifier = identifier;
     s->is_function = 1;
-    s->function = malloc(sizeof(struct function));
-    memset(s->function, 0, sizeof(struct function));
+    s->function = malloc(sizeof(Function));
+    memset(s->function, 0, sizeof(Function));
     s->function->builtin = instruction;
     s->function->is_variadic = is_variadic;
 }
 
 void do_print_symbols() {
     long type, scope, value, stack_index;
-    struct symbol *s;
+    Symbol *s;
     char *identifier;
 
     printf("Symbols:\n");
