@@ -115,6 +115,7 @@ void next() {
             else if (!strcmp(cur_identifier, "long"         )) { cur_token = TOK_LONG;      }
             else if (!strcmp(cur_identifier, "void"         )) { cur_token = TOK_VOID;      }
             else if (!strcmp(cur_identifier, "struct"       )) { cur_token = TOK_STRUCT;    }
+            else if (!strcmp(cur_identifier, "typedef"      )) { cur_token = TOK_TYPEDEF;   }
             else if (!strcmp(cur_identifier, "while"        )) { cur_token = TOK_WHILE;     }
             else if (!strcmp(cur_identifier, "for"          )) { cur_token = TOK_FOR;       }
             else if (!strcmp(cur_identifier, "continue"     )) { cur_token = TOK_CONTINUE;  }
@@ -126,6 +127,13 @@ void next() {
             else if (!strcmp(cur_identifier, "__packed__"   )) { cur_token = TOK_PACKED;    }
             else if (!strcmp(cur_identifier, "packed"       )) { cur_token = TOK_PACKED;    }
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
+
+            for (j = 0; j < all_typedefs_count; j++) {
+                if (!strcmp(all_typedefs[j]->identifier, cur_identifier)) {
+                    cur_token = TOK_TYPEDEF_TYPE;
+                    cur_type = all_typedefs[j]->struct_type;
+                }
+            }
         }
 
         // Hex numeric literal

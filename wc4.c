@@ -270,6 +270,9 @@ int main(int argc, char **argv) {
             all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
             all_structs_count = 0;
 
+            all_typedefs = malloc(sizeof(struct typedef_desc *) * MAX_TYPEDEFS);
+            all_typedefs_count = 0;
+
             add_builtin("exit",     IR_EXIT,     TYPE_VOID,            0);
             add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR, 0);
             add_builtin("fread",    IR_FREAD,    TYPE_INT,             0);

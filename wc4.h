@@ -139,11 +139,17 @@ struct function_usages {
     int binary_shift;
 };
 
+struct typedef_desc {
+    char *identifier;
+    int struct_type;
+};
+
 enum {
     DATA_SIZE                     = 10485760,
     INSTRUCTIONS_SIZE             = 10485760,
     SYMBOL_TABLE_SIZE             = 10485760,
     MAX_STRUCTS                   = 1024,
+    MAX_TYPEDEFS                  = 1024,
     MAX_STRUCT_MEMBERS            = 1024,
     MAX_INPUT_SIZE                = 10485760,
     MAX_STRING_LITERALS           = 10240,
@@ -188,22 +194,24 @@ enum {
     TOK_SHORT,          // 10
     TOK_LONG,
     TOK_STRUCT,
+    TOK_TYPEDEF,
+    TOK_TYPEDEF_TYPE,
     TOK_WHILE,
     TOK_FOR,
     TOK_CONTINUE,
     TOK_BREAK,
     TOK_RETURN,
-    TOK_ENUM,
+    TOK_ENUM,           // 20
     TOK_SIZEOF,
-    TOK_RPAREN,         // 20
+    TOK_RPAREN,
     TOK_LPAREN,
     TOK_RCURLY,
     TOK_LCURLY,
     TOK_SEMI,
     TOK_COMMA,
     TOK_EQ,
-    TOK_PLUS_EQ,
-    TOK_MINUS_EQ,       // 30
+    TOK_PLUS_EQ,        // 30
+    TOK_MINUS_EQ,
     TOK_TERNARY,
     TOK_COLON,
     TOK_OR,
@@ -212,8 +220,8 @@ enum {
     TOK_XOR,
     TOK_ADDRESS_OF,
     TOK_DBL_EQ,
-    TOK_NOT_EQ,
-    TOK_LT,             // 40
+    TOK_NOT_EQ,         // 40
+    TOK_LT,
     TOK_GT,
     TOK_LE,
     TOK_GE,
@@ -222,8 +230,8 @@ enum {
     TOK_PLUS,
     TOK_MINUS,
     TOK_MULTIPLY,
-    TOK_DIVIDE,
-    TOK_MOD,            // 50
+    TOK_DIVIDE,         // 50
+    TOK_MOD,
     TOK_LOGICAL_NOT,
     TOK_BITWISE_NOT,
     TOK_INC,
@@ -231,7 +239,7 @@ enum {
     TOK_DOT,
     TOK_ARROW,
     TOK_RBRACKET,
-    TOK_LBRACKET,
+    TOK_LBRACKET,       // 60
     TOK_ATTRIBUTE,
     TOK_PACKED,
     TOK_HASH,
@@ -370,6 +378,7 @@ int parsing_header;             // I a header being parsed?
 
 int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
+int cur_type;                   // Associated type if the current token is a typedef
 long cur_long;                  // Current long if the token is a number
 char *cur_string_literal;       // Current string literal if the token is a string literal
 int cur_scope;                  // Current scope. 0 is global. non-zero is function. Nested scopes isn't implemented.
@@ -390,6 +399,9 @@ struct value *vtop;             // Value at the top of the stack
 
 struct struct_desc **all_structs; // All structs defined globally. Local struct definitions isn't implemented.
 int all_structs_count;            // Number of structs, complete and incomplete
+
+struct typedef_desc **all_typedefs; // All typedefs defined globally. Local typedef definitions isn't implemented.
+int all_typedefs_count;             // Number of typedefs
 
 struct three_address_code *ir_start, *ir;   // intermediate representation for currently parsed function
 int vreg_count;                             // Virtual register count for currently parsed function

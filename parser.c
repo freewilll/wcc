@@ -160,7 +160,8 @@ int cur_token_is_type() {
         cur_token == TOK_SHORT ||
         cur_token == TOK_INT ||
         cur_token == TOK_LONG ||
-        cur_token == TOK_STRUCT);
+        cur_token == TOK_STRUCT ||
+        cur_token == TOK_TYPEDEF_TYPE);
 }
 
 int get_type_alignment(int type) {
@@ -195,12 +196,13 @@ int get_type_inc_dec_size(int type) {
 int parse_base_type(int allow_incomplete_structs) {
     int type;
 
-         if (cur_token == TOK_VOID)   type = TYPE_VOID;
-    else if (cur_token == TOK_CHAR)   type = TYPE_CHAR;
-    else if (cur_token == TOK_SHORT)  type = TYPE_SHORT;
-    else if (cur_token == TOK_INT)    type = TYPE_INT;
-    else if (cur_token == TOK_LONG)   type = TYPE_LONG;
-    else if (cur_token == TOK_STRUCT) return parse_struct_base_type(allow_incomplete_structs);
+         if (cur_token == TOK_VOID)         type = TYPE_VOID;
+    else if (cur_token == TOK_CHAR)         type = TYPE_CHAR;
+    else if (cur_token == TOK_SHORT)        type = TYPE_SHORT;
+    else if (cur_token == TOK_INT)          type = TYPE_INT;
+    else if (cur_token == TOK_LONG)         type = TYPE_LONG;
+    else if (cur_token == TOK_STRUCT)       { next(); return parse_struct_base_type(allow_incomplete_structs); }
+    else if (cur_token == TOK_TYPEDEF_TYPE) type = cur_type;
     else panic1d("Unable to determine type from token %d", cur_token);
 
     next();
@@ -249,8 +251,6 @@ int parse_struct_base_type(int allow_incomplete_structs) {
     struct struct_member *member;
     int member_count;
     int i, base_type, type, offset, is_packed, alignment, biggest_alignment;
-
-    consume(TOK_STRUCT, "struct");
 
     // Check for packed attribute
     is_packed = 0;
@@ -335,6 +335,33 @@ void check_incomplete_structs() {
     for (i = 0; i < all_structs_count; i++)
         if (all_structs[i]->is_incomplete)
             panic("There are incomplete structs");
+}
+
+// Parse "typedef struct struct_id typedef_id"
+void parse_typedef() {
+    struct struct_desc *s;
+    char *identifier;
+    struct typedef_desc *t;
+
+    next();
+
+    if (cur_token != TOK_STRUCT) panic("Typedefs are only implemented for structs");
+    next();
+
+    cur_type = parse_struct_base_type(0);
+    s = all_structs[cur_type - TYPE_STRUCT];
+
+    if (cur_token != TOK_IDENTIFIER) panic("Typedefs are only implemented for previously defined structs");
+
+    if (all_typedefs_count == MAX_TYPEDEFS) panic("Exceeded max typedefs");
+
+    t = malloc(sizeof(struct typedef_desc));
+    memset(t, 0, sizeof(struct typedef_desc));
+    t->identifier = cur_identifier;
+    t->struct_type = s->type;
+    all_typedefs[all_typedefs_count++] = t;
+
+    next();
 }
 
 void indirect() {
@@ -1314,6 +1341,11 @@ void parse() {
 
         else if (cur_token == TOK_STRUCT) {
             parse_base_type(0); // It's a struct declaration
+            consume(TOK_SEMI, ";");
+        }
+
+        else if (cur_token == TOK_TYPEDEF) {
+            parse_typedef();
             consume(TOK_SEMI, ";");
         }
 

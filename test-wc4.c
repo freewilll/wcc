@@ -25,6 +25,10 @@ struct s2 {
     short  s1;
 };
 
+typedef struct s1 S1;
+
+typedef struct _s2_ { int i; } S2;
+
 struct ns1 {
     int i, j;
 };
@@ -1218,6 +1222,22 @@ void test_struct_member_array_lookup() {
     assert_string("bar", s->s[1], "struct member array lookup 3");
 }
 
+void test_typedef1() {
+    S1 *s;
+
+    s = malloc(sizeof(S1));
+    s->i = 1;
+    assert_int(1, s->i, "Struct typedef 1");
+}
+
+void test_typedef2() {
+    S2 *s;
+
+    s = malloc(sizeof(S2));
+    s->i = 1;
+    assert_int(1, s->i, "Struct typedef 2");
+}
+
 void test_unary_precedence() {
     struct ups *s;
     s = malloc(sizeof(struct ups));
@@ -1474,6 +1494,8 @@ int main(int argc, char **argv) {
     test_packed_struct();
     test_incomplete_struct();
     test_struct_member_array_lookup();
+    test_typedef1();
+    test_typedef2();
     test_unary_precedence();
     test_spilling_stress();
     test_callee_saved_registers();
