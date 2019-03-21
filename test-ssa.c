@@ -1,10 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "wc4.h"
 
-void assert(int expected, int actual) {
+void assert(long expected, long actual) {
     if (expected != actual) {
-        printf("Expected %d, got %d\n", expected, actual);
+        printf("Expected %ld, got %ld\n", expected, actual);
         exit(1);
     }
 }
@@ -64,7 +66,6 @@ Value *c(int value) {
 // Ensure a JMP statement in the middle of a block ends the block
 void test_cfg_jmp() {
     Function *function;
-    Edge *ig;
     Tac *t1, *t2, *t3, *t4;
 
     function = new_function();
@@ -81,43 +82,38 @@ void test_cfg_jmp() {
     make_vreg_count(function, 0);
     make_control_flow_graph(function);
 
-    assert(2, function->block_count);
-    assert(1, function->edge_count);
+    assert(2, function->cfg->node_count);
+    assert(1, function->cfg->edge_count);
     assert(t1, function->blocks[0].start); assert(t2, function->blocks[0].end);
     assert(t4, function->blocks[1].start); assert(t4, function->blocks[1].end);
-    assert(0, function->edges[0].from); assert(1, function->edges[0].to);
+    assert(0, function->cfg->edges[0].from->id); assert(1, function->cfg->edges[0].to->id);
 }
 
 // Test example on page 478 of engineering a compiler
 void test_dominance() {
+    int i;
     Function *function;
     Block *blocks;
-    Edge *edges;
-    int i;
 
     function = new_function();
 
-    blocks = malloc(20 * sizeof(Block));
-    memset(blocks, 0, 20 * sizeof(Block));
-    edges = malloc(20 * sizeof(Edge));
-    memset(edges, 0, 20 * sizeof(Edge));
+    blocks = malloc(9 * sizeof(Block));
+    memset(blocks, 0, 9 * sizeof(Block));
 
+    function->cfg = new_graph(9, 11);
     function->blocks = blocks;
-    function->block_count = 9;
-    function->edges = edges;
-    function->edge_count = 11;
 
-    edges[ 0].from = 0; edges[ 0].to = 1; // 0 -> 1
-    edges[ 1].from = 1; edges[ 1].to = 2; // 1 -> 2
-    edges[ 2].from = 1; edges[ 2].to = 5; // 1 -> 5
-    edges[ 3].from = 2; edges[ 3].to = 3; // 2 -> 3
-    edges[ 4].from = 5; edges[ 4].to = 6; // 5 -> 6
-    edges[ 5].from = 5; edges[ 5].to = 8; // 5 -> 8
-    edges[ 6].from = 6; edges[ 6].to = 7; // 6 -> 7
-    edges[ 7].from = 8; edges[ 7].to = 7; // 8 -> 7
-    edges[ 8].from = 7; edges[ 8].to = 3; // 7 -> 3
-    edges[ 9].from = 3; edges[ 9].to = 4; // 3 -> 4
-    edges[10].from = 3; edges[10].to = 1; // 3 -> 1
+    add_graph_edge(function->cfg, 0, 1);
+    add_graph_edge(function->cfg, 1, 2);
+    add_graph_edge(function->cfg, 1, 5);
+    add_graph_edge(function->cfg, 2, 3);
+    add_graph_edge(function->cfg, 5, 6);
+    add_graph_edge(function->cfg, 5, 8);
+    add_graph_edge(function->cfg, 6, 7);
+    add_graph_edge(function->cfg, 8, 7);
+    add_graph_edge(function->cfg, 7, 3);
+    add_graph_edge(function->cfg, 3, 4);
+    add_graph_edge(function->cfg, 3, 1);
 
     make_block_dominance(function);
 
@@ -168,8 +164,8 @@ void test_liveout1() {
     make_uevar_and_varkill(function);
     make_liveout(function);
 
-    assert(5, function->block_count);
-    assert(6, function->edge_count);
+    assert(5, function->cfg->node_count);
+    assert(6, function->cfg->edge_count);
 
     assert_set(function->uevar[0], -1, -1, -1, -1, -1);
     assert_set(function->uevar[1],  1, -1, -1, -1, -1);
@@ -255,8 +251,8 @@ void test_liveout2() {
     make_uevar_and_varkill(function);
     make_liveout(function);
 
-    assert(9, function->block_count);
-    assert(11, function->edge_count);
+    assert(9, function->cfg->node_count);
+    assert(11, function->cfg->edge_count);
 
     assert_set(function->uevar[0], -1, -1, -1, -1, -1);
     assert_set(function->uevar[1], -1, -1, -1, -1, -1);
@@ -295,7 +291,7 @@ void test_idom2() {
 
     function = make_ir2(0);
     do_oar1(function);
-    do_oar2(function);
+    // do_oar2(function);
 
     assert(-1, function->idom[0]);
     assert( 0, function->idom[1]);
@@ -495,10 +491,14 @@ Function *make_ir3(int loop_count) {
     return function;
 }
 
+void assert_has_ig_edge(char *ig, int vreg_count, int from, int to) {
+    return (to > from && ig[from * vreg_count + to]) || ig[to * vreg_count + from];
+}
+
 void test_interference_graph1() {
-    Function *function;
-    Edge *ig;
     int l;
+    char *ig;
+    Function *function;
 
     l = live_range_reserved_pregs_offset;
 
@@ -512,23 +512,22 @@ void test_interference_graph1() {
     do_oar3(function);
 
     ig = function->interference_graph;
-    assert(3, function->interference_graph_edge_count);
+    vreg_count = function->vreg_count;
 
-    assert(l + 1, ig[0].from); assert(l + 2, ig[0].to);
-    assert(l + 1, ig[1].from); assert(l + 3, ig[1].to);
-    assert(l + 1, ig[2].from); assert(l + 4, ig[2].to);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 2);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 3);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 4);
 }
 
 void test_interference_graph2() {
-    Function *function;
-    Edge *ig;
     int l;
+    char *ig;
+    Function *function;
 
     l = live_range_reserved_pregs_offset;
 
-    function = new_function();
-
     function = make_ir2(1);
+
     do_oar1(function);
     do_oar2(function);
     do_oar3(function);
@@ -536,29 +535,29 @@ void test_interference_graph2() {
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
     ig = function->interference_graph;
-    assert(14, function->interference_graph_edge_count);
-    assert(l + 1, ig[ 0].from); assert(l + 2, ig[ 0].to);
-    assert(l + 1, ig[ 1].from); assert(l + 3, ig[ 1].to);
-    assert(l + 1, ig[ 2].from); assert(l + 4, ig[ 2].to);
-    assert(l + 1, ig[ 3].from); assert(l + 5, ig[ 3].to);
-    assert(l + 1, ig[ 4].from); assert(l + 6, ig[ 4].to);
-    assert(l + 1, ig[ 5].from); assert(l + 7, ig[ 5].to);
-    assert(l + 2, ig[ 6].from); assert(l + 3, ig[ 6].to);
-    assert(l + 2, ig[ 7].from); assert(l + 4, ig[ 7].to);
-    assert(l + 2, ig[ 8].from); assert(l + 5, ig[ 8].to);
-    assert(l + 3, ig[ 9].from); assert(l + 4, ig[ 9].to);
-    assert(l + 3, ig[10].from); assert(l + 5, ig[10].to);
-    assert(l + 4, ig[11].from); assert(l + 5, ig[11].to);
-    assert(l + 4, ig[12].from); assert(l + 6, ig[12].to);
-    assert(l + 5, ig[13].from); assert(l + 6, ig[13].to);
+    vreg_count = function->vreg_count;
+
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 2);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 3);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 4);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 5);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 6);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 7);
+    assert_has_ig_edge(ig, vreg_count, l + 2, l + 3);
+    assert_has_ig_edge(ig, vreg_count, l + 2, l + 4);
+    assert_has_ig_edge(ig, vreg_count, l + 2, l + 5);
+    assert_has_ig_edge(ig, vreg_count, l + 3, l + 4);
+    assert_has_ig_edge(ig, vreg_count, l + 3, l + 5);
+    assert_has_ig_edge(ig, vreg_count, l + 4, l + 5);
+    assert_has_ig_edge(ig, vreg_count, l + 4, l + 6);
+    assert_has_ig_edge(ig, vreg_count, l + 5, l + 6);
 }
 
+// Test the special case of a register copy not introducing an edge
 void test_interference_graph3() {
-    // Test the special case of a register copy not introducing an edge
-
-    Function *function;
-    Edge *ig;
     int l;
+    char *ig;
+    Function *function;
 
     l = live_range_reserved_pregs_offset;
 
@@ -583,14 +582,15 @@ void test_interference_graph3() {
     if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
 
     ig = function->interference_graph;
-    assert(2, function->interference_graph_edge_count);
-    assert(l + 1, ig[0].from); assert(l + 2, ig[0].to);
-    assert(l + 1, ig[1].from); assert(l + 3, ig[1].to);
+    vreg_count = function->vreg_count;
+
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 2);
+    assert_has_ig_edge(ig, vreg_count, l + 1, l + 3);
 }
 
 void test_spill_cost() {
-    Function *function;
     int i, *spill_cost, p, l;
+    Function *function;
 
     l = live_range_reserved_pregs_offset;
 
@@ -618,8 +618,8 @@ void test_spill_cost() {
 
 void test_top_down_register_allocation() {
     int i, l, vreg_count;
+    char *ig;
     Function *function;
-    Edge *edges;
     VregLocation *vl;
 
     // Don't reserve any physical registers, for simplicity
@@ -633,18 +633,19 @@ void test_top_down_register_allocation() {
     function = new_function();
 
     vreg_count =  4;
-    function->vreg_count = 4;
+    function->vreg_count = vreg_count;
 
     // For some determinism, assign costs equal to the vreg number
     function->spill_cost = malloc((vreg_count + 1) * sizeof(int));
     for (i = 1; i <= vreg_count; i++) function->spill_cost[i] = i;
 
-    function->interference_graph_edge_count = 3;
-    edges = malloc(16 * sizeof(Edge));
-    function->interference_graph = edges;
-    edges[0].from = 1; edges[0].to = 2;
-    edges[1].from = 1; edges[1].to = 3;
-    edges[2].from = 1; edges[2].to = 4;
+    ig = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
+    memset(ig, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(int));
+    function->interference_graph = ig;
+
+    ad_ig_edge(ig, vreg_count, 1, 2);
+    ad_ig_edge(ig, vreg_count, 1, 3);
+    ad_ig_edge(ig, vreg_count, 1, 4);
 
     // Everything is spilled. All nodes are constrained.
     // The vregs with the lowest cost get spilled first
@@ -656,7 +657,7 @@ void test_top_down_register_allocation() {
     assert(1, vl[3].spilled_index);
     assert(0, vl[4].spilled_index);
 
-    // Only on register is available. All nodes are constrained.
+    // Only one register is available. All nodes are constrained.
     // The most expensive non interfering nodes get the register
     function->spilled_register_count = 0;
     allocate_registers_top_down(function, 1);
@@ -686,8 +687,11 @@ void test_top_down_register_allocation() {
     // Then 2 gets register 1
     // Then 1 gets spilled to 0
     // Finally, when 3 gets done, all registers are free since node 0 was spilled. So it gets 0.
-    function->interference_graph_edge_count++;
-    edges[3].from = 2; edges[3].to = 4;
+
+    // function->interference_graph_edge_count++;
+    // edges[3].from = 2; edges[3].to = 4;
+    ad_ig_edge(ig, vreg_count, 2, 4);
+
     function->spilled_register_count = 0;
     allocate_registers_top_down(function, 2);
     vl = function->vreg_locations;

@@ -6,6 +6,7 @@ wc43
 test-wc4
 test-wc4-gcc
 test-set
+test-graph
 test-ssa
 test-codegen
 benchmark

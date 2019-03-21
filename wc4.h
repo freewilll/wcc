@@ -2,9 +2,27 @@ typedef struct block {
     struct three_address_code *start, *end;
 } Block;
 
-typedef struct edge {
-    int from, to;
-} Edge;
+typedef struct graph_node {
+    int id;
+    struct graph_edge *pred;
+    struct graph_edge *succ;
+} GraphNode;
+
+typedef struct graph_edge {
+    int id;
+    GraphNode *from;
+    GraphNode *to;
+    struct graph_edge *next_pred;
+    struct graph_edge *next_succ;
+} GraphEdge;
+
+typedef struct graph {
+    GraphNode *nodes;
+    GraphEdge *edges;
+    int node_count;
+    int edge_count;
+    int max_edge_count;
+} Graph;
 
 typedef struct set {
     int max_value;
@@ -43,10 +61,8 @@ typedef struct function {
     int builtin;                          // For builtin functions, IR number of the builtin
     int is_variadic;                      // Set to 1 for builtin variadic functions
     struct three_address_code *ir;        // Intermediate representation
+    Graph *cfg;                           // Control flow graph
     Block *blocks;                        // For functions, the blocks
-    int block_count;                      //
-    Edge *edges;                          // For functions, the edges between blocks
-    int edge_count;                       //
     Set **dominance;                      // Block dominances
     Set **uevar;                          // The upward exposed set for each block
     Set **varkill;                        // The killed var set for each block
@@ -56,9 +72,8 @@ typedef struct function {
     Set **var_blocks;                     // Var/block associations for vars that are written to
     Set *globals;                         // All variables that are assigned to
     Set **phi_functions;                  // All variables that need phi functions for each block
-    struct edge *interference_graph;      // The interference graph of live ranges
+    char *interference_graph;             // The interference graph of live ranges, in a lower diagonal matrix
     struct vreg_location *vreg_locations; // Allocated physical registers and spilled stack indexes
-    int interference_graph_edge_count;    // The amount of edges in the interference graph of live ranges
     int *spill_cost;                      // The estimated spill cost for each live range
 } Function;
 
@@ -148,9 +163,9 @@ enum {
     MAX_INPUT_FILENAMES           = 1024,
     MAX_BLOCKS                    = 1024,
     MAX_BLOCK_EDGES               = 1024,
-    MAX_INTERFERENCE_GRAPH_EDGES  = 20480,
     MAX_STACK_SIZE                = 10240,
     MAX_BLOCK_PREDECESSOR_COUNT   = 128,
+    MAX_GRAPH_EDGE_COUNT          = 10240,
 };
 
 enum {
@@ -429,6 +444,11 @@ int stack_top(Stack *s);
 void push_onto_stack(Stack *s, int v);
 int pop_from_stack(Stack *s);
 
+// graph.c
+Graph *new_graph(int node_count, int edge_count);
+void dump_graph(Graph *g);
+GraphEdge *add_graph_edge(Graph *g, int from, int to);
+
 // utils.c
 void panic(char *message);
 void panic1d(char *fmt, int i);
@@ -499,6 +519,7 @@ void make_block_dominance(Function *function);
 void make_liveout(Function *function);
 void make_live_range_spill_cost(Function *function);
 void init_allocate_registers();
+void ad_ig_edge(char *ig, int vreg_count, int to, int from);
 void allocate_registers_top_down(Function *function, int physical_register_count);
 void do_oar1(Function *function);
 void do_oar2(Function *function);

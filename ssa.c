@@ -150,10 +150,10 @@ void index_tac(Tac *ir) {
 }
 
 void make_control_flow_graph(Function *function) {
+    int i, j, k, block_count, label;
     Tac *tac;
-    int i, j, k, block_count, edge_count, label;
     Block *blocks;
-    Edge *edges;
+    Graph *cfg;
 
     block_count = 0;
 
@@ -200,32 +200,23 @@ void make_control_flow_graph(Function *function) {
         }
     }
 
-    edges = malloc(MAX_BLOCK_EDGES * sizeof(Edge));
-    memset(edges, 0, MAX_BLOCK_EDGES * sizeof(Edge));
-    edge_count = 0;
+    cfg = new_graph(block_count, 0);
 
     for (i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
             if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ) {
                 label = tac->operation == IR_JMP ? tac->src1->label : tac->src2->label;
-                edges[edge_count].from = i;
                 for (k = 0; k < block_count; k++)
-                    if (blocks[k].start->label == label) edges[edge_count].to = k;
-                edge_count++;
+                    if (blocks[k].start->label == label)
+                        add_graph_edge(cfg, i, k);
             }
-            else if (tac->operation != IR_RETURN && tac->next && tac->next->label) {
+            else if (tac->operation != IR_RETURN && tac->next && tac->next->label)
                 // For normal instructions, check if the next instruction is a label, if so it's an edge
-                edges[edge_count].from = i;
-                edges[edge_count].to = i + 1;
-                edge_count++;
-            }
+                add_graph_edge(cfg, i, i + 1);
 
-            if (tac->operation == IR_JZ || tac->operation == IR_JNZ) {
-                edges[edge_count].from = i;
-                edges[edge_count].to = i + 1;
-                edge_count++;
-            }
+            if (tac->operation == IR_JZ || tac->operation == IR_JNZ)
+                add_graph_edge(cfg, i, i + 1);
 
             if (tac == blocks[i].end) break;
             tac = tac->next;
@@ -233,9 +224,7 @@ void make_control_flow_graph(Function *function) {
     }
 
     function->blocks = blocks;
-    function->block_count = block_count;
-    function->edges = edges;
-    function->edge_count = edge_count;
+    function->cfg = cfg;
 
     index_tac(function->ir);
 
@@ -246,21 +235,21 @@ void make_control_flow_graph(Function *function) {
         for (i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start->index, blocks[i].end->index);
 
         printf("\nEdges:\n");
-        for (i = 0; i < edge_count; i++) printf("%d: %d -> %d\n", i, edges[i].from, edges[i].to);
+        for (i = 0; i < cfg->edge_count; i++) printf("%d: %d -> %d\n", i, cfg->edges[i].from->id, cfg->edges[i].to->id);
     }
 }
 
 // Algorithm from page 503 of Engineering a compiler
 void make_block_dominance(Function *function) {
+    int i, j, changed, block_count, got_predecessors;
     Block *blocks;
-    Edge *edges;
-    int i, j, block_count, edge_count, changed, got_predecessors;
+    Graph *cfg;
+    GraphEdge *e;
     Set **dom, *is1, *is2, *pred_intersections;
 
     blocks = function->blocks;
-    block_count = function->block_count;
-    edges = function->edges;
-    edge_count = function->edge_count;
+    cfg = function->cfg;
+    block_count = cfg->node_count;
 
     dom = malloc(block_count * sizeof(Set));
     memset(dom, 0, block_count * sizeof(Set));
@@ -289,12 +278,11 @@ void make_block_dominance(Function *function) {
             for (j = 0; j < block_count; j++) add_to_set(pred_intersections, j);
             got_predecessors = 0;
 
-            for (j = 0; j < edge_count; j++) {
-                if (edges[j].to == i) {
-                    // Got a predecessor edge from edges[j].from -> i
-                    pred_intersections = set_intersection(pred_intersections, dom[edges[j].from]);
-                    got_predecessors = 1;
-                }
+            e = cfg->nodes[i].pred;
+            while (e) {
+                pred_intersections = set_intersection(pred_intersections, dom[e->from->id]);
+                got_predecessors = 1;
+                e = e->next_pred;
             }
 
             if (!got_predecessors) pred_intersections = new_set(block_count);
@@ -323,21 +311,19 @@ void make_block_dominance(Function *function) {
 
 void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) {
     Block *blocks;
-    Edge *edges;
-    int i, block_count, edge_count;
+    Graph *cfg;
+    GraphEdge *e;
 
     if (visited[block]) return;
     visited[block] = 1;
 
     blocks = function->blocks;
-    block_count = function->block_count;
-    edges = function->edges;
-    edge_count = function->edge_count;
+    cfg = function->cfg;
 
-    for (i = 0; i < edge_count; i++) {
-        if (edges[i].from == block) {
-            make_rpo(function, rpos, pos, visited, edges[i].to);
-        }
+    e = cfg->nodes[block].succ;
+    while (e) {
+        make_rpo(function, rpos, pos, visited, e->to->id);
+        e = e->next_succ;
     }
 
     rpos[block] = *pos;
@@ -360,15 +346,13 @@ int intersect(int *rpos, int *idoms, int i, int j) {
 
 // Algorithm on page 532 of engineering a compiler
 void make_block_immediate_dominators(Function *function) {
-    Block *blocks;
-    Edge *edges;
-    int block_count, edge_count, i, j, changed;
+    int block_count, edge_count, i, changed;
     int *rpos, pos, *visited, *idoms, *rpos_order, b, p, new_idom;
+    Graph *cfg;
+    GraphEdge *e;
 
-    blocks = function->blocks;
-    block_count = function->block_count;
-    edges = function->edges;
-    edge_count = function->edge_count;
+    cfg = function->cfg;
+    block_count = function->cfg->node_count;
 
     rpos = malloc(block_count * sizeof(int));
     memset(rpos, 0, block_count * sizeof(int));
@@ -398,9 +382,9 @@ void make_block_immediate_dominators(Function *function) {
             if (b == 0) continue;
 
             new_idom = -1;
-            for (j = 0; j < edge_count; j++) {
-                if (edges[j].to != b) continue;
-                p = edges[j].from;
+            e = cfg->nodes[b].pred;
+            while (e) {
+                p = e->from->id;
 
                 if (idoms[p] != -1) {
                     if (new_idom == -1)
@@ -408,6 +392,8 @@ void make_block_immediate_dominators(Function *function) {
                     else
                         new_idom = intersect(rpos, idoms, p, new_idom);
                 }
+
+                e = e->next_pred;
             }
 
             if (idoms[b] != new_idom) {
@@ -432,18 +418,15 @@ void make_block_immediate_dominators(Function *function) {
 
 // Algorithm on page 499 of engineering a compiler
 // Walk the dominator tree defined by the idom (immediate dominator)s.
-
 void make_block_dominance_frontiers(Function *function) {
+    int block_count, i, j, *predecessors, predecessor_count, p, runner, *idom;
     Block *blocks;
-    Edge *edges;
-    int block_count, edge_count, i, j;
+    Graph *cfg;
+    GraphEdge *e;
     Set **df;
-    int *predecessors, predecessor_count, p, runner, *idom;
 
-    blocks = function->blocks;
-    block_count = function->block_count;
-    edges = function->edges;
-    edge_count = function->edge_count;
+    cfg = function->cfg;
+    block_count = function->cfg->node_count;
 
     df = malloc(block_count * sizeof(Set));
     memset(df, 0, block_count * sizeof(Set));
@@ -456,9 +439,10 @@ void make_block_dominance_frontiers(Function *function) {
 
     for (i = 0; i < block_count; i++) {
         predecessor_count = 0;
-        for (j = 0; j < edge_count; j++) {
-            if (edges[j].to == i)
-                predecessors[predecessor_count++] = edges[j].from;
+        e = cfg->nodes[i].pred;
+        while (e) {
+            predecessors[predecessor_count++] = e->from->id;
+            e = e ->next_pred;
         }
 
         if (predecessor_count > 1) {
@@ -510,7 +494,7 @@ void make_uevar_and_varkill(Function *function) {
     Tac *tac;
 
     blocks = function->blocks;
-    block_count = function->block_count;
+    block_count = function->cfg->node_count;
 
     function->uevar = malloc(block_count * sizeof(Set *));
     memset(function->uevar, 0, block_count * sizeof(Set *));
@@ -550,16 +534,16 @@ void make_uevar_and_varkill(Function *function) {
 
 // Page 447 of Engineering a compiler
 void make_liveout(Function *function) {
+    int i, j, k, vreg, block_count, vreg_count, changed, successor_block;
     Block *blocks;
-    Edge *edges;
-    int i, j, k, vreg, block_count, edge_count, vreg_count, changed, successor_block;
     Set *unions, **liveout, *all_vars, *inv_varkill, *is1, *is2;
     Tac *tac;
+    Graph *cfg;
+    GraphEdge *e;
 
     blocks = function->blocks;
-    block_count = function->block_count;
-    edges = function->edges;
-    edge_count = function->edge_count;
+    cfg = function->cfg;
+    block_count = cfg->node_count;
 
     function->liveout = malloc(block_count * sizeof(Set *));
     memset(function->liveout, 0, block_count * sizeof(Set *));
@@ -598,10 +582,10 @@ void make_liveout(Function *function) {
         for (i = 0; i < block_count; i++) {
             empty_set(unions);
 
-            for (j = 0; j < edge_count; j++) {
-                if (edges[j].from != i) continue;
+            e = cfg->nodes[i].succ;
+            while (e) {
                 // Got a successor edge from i -> successor_block
-                successor_block = edges[j].to;
+                successor_block = e->to->id;
 
                 for (k = 1; k <= vreg_count; k++) {
                     unions->elements[k] =
@@ -611,6 +595,8 @@ void make_liveout(Function *function) {
                         function->uevar[successor_block]->elements[k] ||                                // union
                         unions->elements[k];
                 }
+
+                e = e->next_succ;
             }
 
             if (!set_eq(unions, function->liveout[i])) {
@@ -643,7 +629,7 @@ void make_globals_and_var_blocks(Function *function) {
     Tac *tac;
 
     blocks = function->blocks;
-    block_count = function->block_count;
+    block_count = function->cfg->node_count;
 
     vreg_count = function->vreg_count;
 
@@ -697,14 +683,14 @@ void insert_phi_functions(Function *function) {
     int i, v, block_count, edge_count, vreg_count, global, b, d, label, predecessor_count;
     Set **phi_functions, *vars;
     Block *blocks;
-    Edge *edges;
+    Graph *cfg;
+    GraphEdge *e;
     Tac *tac, *prev;
     Value *phi_values;
 
     blocks = function->blocks;
-    block_count = function->block_count;
-    edges = function->edges;
-    edge_count = function->edge_count;
+    cfg = function->cfg;
+    block_count = cfg->node_count;
     globals = function->globals;
     vreg_count = function->vreg_count;
 
@@ -757,8 +743,8 @@ void insert_phi_functions(Function *function) {
             tac->dst-> vreg = v;
 
             predecessor_count = 0;
-            for (i = 0; i < edge_count; i++)
-                if (edges[i].to == b) predecessor_count++;
+            e = cfg->nodes[b].pred;
+            while (e) { predecessor_count++; e = e->next_pred; }
 
             phi_values = malloc((predecessor_count + 1) * sizeof(Value));
             memset(phi_values, 0, (predecessor_count + 1) * sizeof(Value));
@@ -823,12 +809,12 @@ int safe_stack_top(Stack **stack, int *counters, int n) {
 
 // Algorithm on page 506 of engineering a compiler
 void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count) {
+    int i, x, block_count, edge_count, *idoms;;
     Tac *tac, *tac2, *end;
-    int i, x, block_count, edge_count;
     Block *blocks;
-    Edge *edges;
     Block *b;
-    int *idoms;
+    Graph *cfg;
+    GraphEdge *e;
     Value *v;
 
     if (DEBUG_SSA_PHI_RENUMBERING) {
@@ -838,9 +824,8 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
     }
 
     blocks = function->blocks;
-    block_count = function->block_count;
-    edges = function->edges;
-    edge_count = function->edge_count;
+    cfg = function->cfg;
+    block_count = cfg->node_count;
     idoms = function->idom;
 
     b = &blocks[block_number];
@@ -885,11 +870,11 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
 
     // Rewrite phi function parameters in successors
     if (DEBUG_SSA_PHI_RENUMBERING) printf("Rewriting successor function params\n");
-    for (i = 0; i < edge_count; i++) {
-        if (edges[i].from != block_number) continue;
-        if (DEBUG_SSA_PHI_RENUMBERING) printf("Successor %d\n", edges[i].to);
-        tac = function->blocks[edges[i].to].start;
-        end = function->blocks[edges[i].to].end;
+    e = cfg->nodes[block_number].succ;
+    while (e) {
+        if (DEBUG_SSA_PHI_RENUMBERING) printf("Successor %d\n", e->to->id);
+        tac = function->blocks[e->to->id].start;
+        end = function->blocks[e->to->id].end;
         while (1) {
             if (tac->operation == IR_PHI_FUNCTION) {
                 v = tac->phi_values;
@@ -905,6 +890,8 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
             if (tac == end) break;
             tac = tac->next;
         }
+
+        e = e->next_succ;
     }
 
     // Recurse down the dominator tree
@@ -1127,7 +1114,7 @@ void make_live_ranges(Function *function) {
 
     // Remove phi functions
     blocks = function->blocks;
-    block_count = function->block_count;
+    block_count = function->cfg->node_count;
 
     for (i = 0; i < block_count; i++) {
         tac = blocks[i].start;
@@ -1158,47 +1145,44 @@ void blast_vregs_with_live_ranges(Function *function) {
     }
 }
 
-void add_interference_edge(int *edge_matrix, int vreg_count, int to, int from) {
-    int t, index;
+void ad_ig_edge(char *ig, int vreg_count, int to, int from) {
+    int index;
 
-    if (from > to) {
-        t = from;
-        from = to;
-        to = t;
-    }
+    if (from > to)
+        index = to * vreg_count + from;
+    else
+        index = from * vreg_count + to;
 
-    index = from * vreg_count + to;
-    if (!edge_matrix[index]) edge_matrix[index] = 1;
+    if (!ig[index]) ig[index] = 1;
 }
 
-void add_interference_edge_for_reserved_register(int *edge_matrix, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
+void ad_ig_edge_for_reserved_register(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
     int i;
 
     for (i = 0; i <= livenow->max_value; i++)
-        if (livenow->elements[i]) add_interference_edge(edge_matrix, vreg_count, preg_reg_index, i);
+        if (livenow->elements[i]) ad_ig_edge(ig, vreg_count, preg_reg_index, i);
 
-    if (tac->dst  && tac->dst ->vreg) add_interference_edge(edge_matrix, vreg_count, preg_reg_index, tac->dst->vreg );
-    if (tac->src1 && tac->src1->vreg) add_interference_edge(edge_matrix, vreg_count, preg_reg_index, tac->src1->vreg);
-    if (tac->src2 && tac->src2->vreg) add_interference_edge(edge_matrix, vreg_count, preg_reg_index, tac->src2->vreg);
+    if (tac->dst  && tac->dst ->vreg) ad_ig_edge(ig, vreg_count, preg_reg_index, tac->dst->vreg );
+    if (tac->src1 && tac->src1->vreg) ad_ig_edge(ig, vreg_count, preg_reg_index, tac->src1->vreg);
+    if (tac->src2 && tac->src2->vreg) ad_ig_edge(ig, vreg_count, preg_reg_index, tac->src2->vreg);
 }
 
 // Page 701 of engineering a compiler
 void make_interference_graph(Function *function) {
-    int i, j, vreg_count, block_count, edge_count, from, to, index;
+    int i, j, vreg_count, block_count, edge_count, from, to, index, from_offset;
     Block *blocks;
-    Edge *edges;
     Set *livenow;
     Tac *tac;
-    int *edge_matrix; // Triangular matrix of edges
+    char *interference_graph; // Triangular matrix of edges
     int function_call_depth;
 
     vreg_count = function->vreg_count;
 
-    edge_matrix = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
-    memset(edge_matrix, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(int));
+    interference_graph = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
+    memset(interference_graph, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(int));
 
     blocks = function->blocks;
-    block_count = function->block_count;
+    block_count = function->cfg->node_count;
 
     function_call_depth = 0;
     for (i = block_count - 1; i >= 0; i--) {
@@ -1210,29 +1194,29 @@ void make_interference_graph(Function *function) {
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
             if (function_call_depth > 0) {
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
             }
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD) {
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
             }
 
             if (tac->operation == IR_BSHL || tac->operation == IR_BSHR)
-                add_interference_edge_for_reserved_register(edge_matrix, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
 
             if (tac->dst && tac->dst->vreg) {
                 if (tac->operation == IR_RSUB && tac->src1->vreg) {
                     // Ensure that dst and src1 don't reside in the same preg.
                     // This allowes codegen to generate code with just one operation while
                     // ensuring the other registers preserve their values.
-                    add_interference_edge(edge_matrix, vreg_count, tac->src1->vreg, tac->dst->vreg);
+                    ad_ig_edge(interference_graph, vreg_count, tac->src1->vreg, tac->dst->vreg);
                 }
 
                 for (j = 0; j <= livenow->max_value; j++) {
@@ -1242,7 +1226,7 @@ void make_interference_graph(Function *function) {
 
                     // Don't add an edge for register copies
                     if (tac->operation == IR_ASSIGN && tac->src1->vreg && tac->src1->vreg == j) continue;
-                    add_interference_edge(edge_matrix, vreg_count, tac->dst->vreg, j);
+                    ad_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
                 }
             }
 
@@ -1257,39 +1241,25 @@ void make_interference_graph(Function *function) {
         free_set(livenow);
     }
 
-    // Convert the triangular matrix into an array of edges
-    edges = malloc(MAX_INTERFERENCE_GRAPH_EDGES * sizeof(Edge));
-    memset(edges, 0, MAX_INTERFERENCE_GRAPH_EDGES * sizeof(Edge));
-    edge_count = 0;
-    for (from = 1; from <= vreg_count; from++) {
-        for (to = 1; to <= vreg_count; to++) {
-            if (edge_matrix[from * vreg_count + to]) {
-                edges[edge_count].from = from;
-                edges[edge_count].to = to;
-                edge_count++;
-                if (edge_count >= MAX_INTERFERENCE_GRAPH_EDGES) panic("Exceeded max MAX_INTERFERENCE_GRAPH_EDGES");
-            }
-        }
-    }
-
-    function->interference_graph = edges;
-    function->interference_graph_edge_count = edge_count;
+    function->interference_graph = interference_graph;
 
     if (DEBUG_SSA_INTERFERENCE_GRAPH) {
-        printf("\nInterference graph edges:\n");
-        for (i = 0; i < edge_count; i++)
-            printf("%d - %d\n", edges[i].from, edges[i].to);
-        printf("\n");
+        for (from = 1; from <= vreg_count; from++) {
+            from_offset = from * vreg_count;
+            for (to = from + 1; to <= vreg_count; to++) {
+                if (interference_graph[from_offset + to])
+                    printf("%d - %d\n", to, from);
+            }
+        }
     }
 }
 
 // Delete src, merging it into dst
 void coalesce_live_range(Function *function, int src, int dst) {
+    char *ig;
+    int i, j, block_count, changed, vreg_count, from, to, from_offset;
     Tac *tac;
-    Block *blocks;
-    Edge *edges;
     Set *l;
-    int i, j, block_count, edge_count, changed;
 
     // Rewrite IR src => dst
     tac = function->ir;
@@ -1309,18 +1279,47 @@ void coalesce_live_range(Function *function, int src, int dst) {
     }
 
     // Move src edges to dst
-    edges = function->interference_graph;
-    edge_count = function->interference_graph_edge_count;
+    ig = function->interference_graph;
 
-    for (i = 0; i < edge_count; i++) {
-        changed = 0;
-        if (edges[i].from == src) { edges[i].from = dst; changed = 1; }
-        if (edges[i].to   == src) { edges[i].to   = dst; changed = 1; }
+    vreg_count = function->vreg_count;
+
+    for (from = 1; from <= vreg_count; from++) {
+        from_offset = from * vreg_count;
+        for (to = 1; to <= vreg_count; to++) {
+            if (ig[from_offset + src]) {
+                ig[from_offset + src] = 0;
+                ad_ig_edge(ig, vreg_count, from, dst);
+                changed = 1;
+            }
+
+            else if (ig[to * vreg_count + src]) {
+                ig[to * vreg_count + src] = 0;
+                ad_ig_edge(ig, vreg_count, to, dst);
+                changed = 1;
+            }
+
+            if (ig[from_offset + dst]) {
+                ig[from_offset + dst] = 0;
+                ad_ig_edge(ig, vreg_count, from, src);
+                changed = 1;
+            }
+
+            if (ig[to * vreg_count + dst]) {
+                ig[to * vreg_count + dst] = 0;
+                ad_ig_edge(ig, vreg_count, to, src);
+                changed = 1;
+            }
+        }
     }
 
+    // for (i = 0; i < interference_graph->edge_count; i++) {
+    //     changed = 0;
+    //     if (edges[i].from == src) { edges[i].from = dst; changed = 1; }
+    //     if (edges[i].to   == src) { edges[i].to   = dst; changed = 1; }
+    // }
+
     // Migrate liveouts
-    blocks = function->blocks;
-    block_count = function->block_count;
+    block_count = function->cfg->node_count;
     for (i = 0; i < block_count; i++) {
         l = function->liveout[i];
         if (in_set(l, src)) {
@@ -1332,11 +1331,9 @@ void coalesce_live_range(Function *function, int src, int dst) {
 
 // Page 706 of engineering a compiler
 void coalesce_live_ranges(Function *function) {
-    int vreg_count;
-    char *merge_candidates;
+    int i, j, k, dst, src, edge_count, changed, intersects, vreg_count;
+    char *interference_graph, *merge_candidates;
     Tac *tac;
-    int i, j, k, dst, src, edge_count, changed, intersects;
-    Edge *edges;
 
     make_vreg_count(function, RESERVED_PHYSICAL_REGISTER_COUNT);
     vreg_count = function->vreg_count;
@@ -1352,21 +1349,18 @@ void coalesce_live_ranges(Function *function) {
         make_live_range_spill_cost(function);
         make_interference_graph(function);
 
-        if (disable_live_ranges_coalesce) return;
+        // if (disable_live_ranges_coalesce) return;
+        return; // TODO coalescing
 
-        edges = function->interference_graph;
-        edge_count = function->interference_graph_edge_count;
+        interference_graph = function->interference_graph;
 
         // A lower triangular matrix of all register copy operations
         memset(merge_candidates, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
 
         tac = function->ir;
         while (tac) {
-            // print_instruction(stdout, tac);
-            if (tac->operation == IR_ASSIGN && tac->dst->vreg && tac->src1->vreg) {
-                // printf("added candidate %d -> %d \n", tac->dst->vreg, tac->src1->vreg );
+            if (tac->operation == IR_ASSIGN && tac->dst->vreg && tac->src1->vreg)
                 merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
-            }
             tac = tac->next;
         }
 
@@ -1379,14 +1373,7 @@ void coalesce_live_ranges(Function *function) {
             for (src = 1; src <= vreg_count; src++) {
                 if (merge_candidates[dst * vreg_count + src] == 1) {
                     intersects = 0;
-                    for (k = 0; k < edge_count; k++) {
-                        if ((edges[k].from == dst && edges[k].to == src) || (edges[k].from == src && edges[k].to == dst)){
-                            intersects = 1;
-                            break;
-                        }
-                    }
-
-                    if (!intersects) {
+                    if (!((src < dst && interference_graph[src * vreg_count + dst]) || (interference_graph[dst * vreg_count + src]))) {
                         if (DEBUG_SSA_LIVE_RANGE_COALESCING) printf("%d -> %d\n", dst, src);
                         coalesce_live_range(function, dst, src);
                         changed = 1;
@@ -1429,7 +1416,7 @@ void add_infinite_spill_costs(Function *function) {
     vreg_count = function->vreg_count;
 
     blocks = function->blocks;
-    block_count = function->block_count;
+    block_count = function->cfg->node_count;
 
     for (i = block_count - 1; i >= 0; i--) {
         livenow = copy_set(function->liveout[i]);
@@ -1521,29 +1508,29 @@ void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
     quicksort_vreg_cost(vreg_cost, j + 1, right);
 }
 
-int graph_node_degree(Edge *edges, int edge_count, int node) {
-    int i, result;
+int graph_node_degree(char *ig, int vreg_count, int node) {
+    int i, result, offset;
 
     result = 0;
-    for (i = 0; i < edge_count; i++)
-        if (node == edges[i].from || node == edges[i].to) result++;
+    offset = node * vreg_count;
+    for (i = 1; i <= vreg_count; i++)
+        if ((i < node && ig[i * vreg_count + node]) || ig[offset + i]) result++;
 
     return result;
 }
 
-void color_vreg(Edge *edges, int edge_count, VregLocation *vreg_locations, int physical_register_count, int *spilled_register_count, int vreg) {
-    int i, j, neighbor, preg;
+void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int physical_register_count, int *spilled_register_count, int vreg) {
+    int i, j, preg, offset;
     Set *neighbor_colors;
 
     neighbor_colors = new_set(physical_register_count);
-    for (i = 0; i < edge_count; i++) {
-        neighbor = -1;
-        if (edges[i].from == vreg) neighbor = edges[i].to;
-        else if (edges[i].to == vreg) neighbor = edges[i].from;
-        if (neighbor == -1) continue;
 
-        preg = vreg_locations[neighbor].preg;
-        if (preg != -1) add_to_set(neighbor_colors, preg);
+    offset = vreg * vreg_count;
+    for (i = 1; i <= vreg_count; i++) {
+        if ((i < vreg && ig[i * vreg_count + vreg]) || ig[offset + i]) {
+            preg = vreg_locations[i].preg;
+            if (preg != -1) add_to_set(neighbor_colors, preg);
+        }
     }
 
     if (set_len(neighbor_colors) == physical_register_count) {
@@ -1561,20 +1548,20 @@ void color_vreg(Edge *edges, int edge_count, VregLocation *vreg_locations, int p
 
         panic("Should not get here");
     }
+
+    free_set(neighbor_colors);
 }
 
 void allocate_registers_top_down(Function *function, int physical_register_count) {
     int i, vreg_count, *spill_cost, edge_count, degree, spilled_register_count, vreg;
+    char *interference_graph;
     VregLocation *vreg_locations;
     Set *constrained, *unconstrained;
     VregCost *ordered_nodes;
-    Edge *edges;
 
+    interference_graph = function->interference_graph;
     vreg_count = function->vreg_count;
     spill_cost = function->spill_cost;
-
-    edges = function->interference_graph;
-    edge_count = function->interference_graph_edge_count;
 
     ordered_nodes = malloc((vreg_count + 1) * sizeof(VregCost));
     for (i = 1; i <= vreg_count; i++) {
@@ -1588,7 +1575,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     unconstrained = new_set(vreg_count);
 
     for (i = 1; i <= vreg_count; i++) {
-        degree = graph_node_degree(edges, edge_count, ordered_nodes[i].vreg);
+        degree = graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg);
         if (degree < physical_register_count)
             add_to_set(unconstrained, ordered_nodes[i].vreg);
         else
@@ -1598,7 +1585,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     if (DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR) {
         printf("Nodes in order of decreasing cost:\n");
         for (i = 1; i <= vreg_count; i++)
-            printf("%d: cost=%d degree=%d\n", ordered_nodes[i].vreg, ordered_nodes[i].cost, graph_node_degree(edges, edge_count, ordered_nodes[i].vreg));
+            printf("%d: cost=%d degree=%d\n", ordered_nodes[i].vreg, ordered_nodes[i].cost, graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg));
 
         printf("\nPriority sets:\n");
         printf("constrained:   "); print_set(constrained); printf("\n");
@@ -1625,7 +1612,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg = ordered_nodes[i].vreg;
         if (!constrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(edges, edge_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
     }
 
     // Color unconstrained nodes
@@ -1633,7 +1620,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg = ordered_nodes[i].vreg;
         if (!unconstrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(edges, edge_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
     }
 
     if (DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR) {

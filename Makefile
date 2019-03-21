@@ -10,6 +10,7 @@ SOURCES = \
   utils.c \
   set.c \
   stack.c \
+  graph.c \
 
 ASSEMBLIES := ${SOURCES:c=s}
 
@@ -87,20 +88,26 @@ test-set: wc4 set.c utils.c test-set.c
 run-test-set: test-set
 	 ./test-set
 
-test-ssa: wc4 test-ssa.c ssa.c set.c stack.c ir.c utils.c
-	./wc4 test-ssa.c ssa.c set.c stack.c ir.c utils.c -o test-ssa
+test-ssa: wc4 test-ssa.c ssa.c set.c stack.c graph.c ir.c utils.c
+	./wc4 test-ssa.c ssa.c set.c stack.c graph.c ir.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa
 
-test-codegen: wc4 test-codegen.c codegen.c utils.c ir.c ssa.c set.c stack.c parser.c lexer.c
-	./wc4 test-codegen.c codegen.c utils.c ir.c ssa.c set.c stack.c parser.c lexer.c -o test-codegen
+test-graph: wc4 test-graph.c graph.c set.c stack.c ir.c utils.c
+	./wc4 test-graph.c graph.c utils.c -o test-graph
+
+run-test-graph: test-graph
+	 ./test-graph
+
+test-codegen: wc4 test-codegen.c codegen.c utils.c ir.c ssa.c set.c stack.c graph.c parser.c lexer.c
+	./wc4 test-codegen.c codegen.c utils.c ir.c ssa.c set.c stack.c graph.c parser.c lexer.c -o test-codegen
 
 run-test-codegen: test-codegen
 	 ./test-codegen
 
 .PHONY: test
-test: run-test-set run-test-ssa run-test-codegen run-test-wc4 run-test-include run-test-wc4-gcc test-self-compilation
+test: run-test-set run-test-ssa run-test-graph run-test-codegen run-test-wc4 run-test-include run-test-wc4-gcc test-self-compilation
 
 clean:
 	@rm -f wc4
@@ -109,6 +116,7 @@ clean:
 	@rm -f test-wc4
 	@rm -f test-wc4-gcc
 	@rm -f test-set
+	@rm -f test-graph
 	@rm -f test-ssa
 	@rm -f test-codegen
 	@rm -f benchmark
