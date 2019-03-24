@@ -291,13 +291,18 @@ void pop_callee_saved_registers(int *saved_registers) {
     }
 }
 
-void pre_instruction_local_load(Tac *ir, int function_pc, int stack_start) {
+void pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
 
     // Load src1 into r10
     if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->preg == -1 && ir->src1->stack_index < 0) {
         stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src1->stack_index);
-        output_type_specific_sign_extend_mov(ir->src1->type);
+
+        if (ir->operation == IR_ASSIGN_TO_REG_LVALUE)
+            fprintf(f, "\tmovq\t");
+        else
+            output_type_specific_sign_extend_mov(ir->src1->type);
+
         fprintf(f, "%d(%%rbp), %%r10\n", stack_offset);
         ir->src1 = dup_value(ir->src1); // Ensure no side effects
         ir->src1->preg = REG_R10;
@@ -312,7 +317,7 @@ void pre_instruction_local_load(Tac *ir, int function_pc, int stack_start) {
         ir->src2->preg = REG_R11;
     }
 
-    if (ir->dst && ir->dst->preg == -1 && ir->dst->stack_index < 0) {
+    if (ir->operation != IR_ASSIGN && ir->dst && ir->dst->preg == -1 && ir->dst->stack_index < 0) {
         // Set the dst preg to r10 or r11 depending on what the operation type has set
 
         ir->dst = dup_value(ir->dst); // Ensure no side effects
@@ -320,17 +325,17 @@ void pre_instruction_local_load(Tac *ir, int function_pc, int stack_start) {
             ir->dst->preg = REG_R10;
         else
             ir->dst->preg = REG_R11;
+    }
 
-        // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
-        // The assign code will use that to store the result of the assignment.
-        if (ir->operation == IR_ASSIGN && ir->dst->vreg && ir->dst->is_lvalue) {
-            stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->dst->stack_index);
-            fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_offset);
-        }
+    // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
+    // The assign code will use that to store the result of the assignment.
+    if (ir->operation == IR_ASSIGN && ir->dst->preg == -1 && ir->dst->is_lvalue && ir->dst->stack_index < 0) {
+        stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->dst->stack_index);
+        fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_offset);
     }
 }
 
-void post_instruction_local_store(Tac *ir, int function_pc, int stack_start) {
+void post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
     int assign;
 
@@ -348,54 +353,6 @@ void post_instruction_local_store(Tac *ir, int function_pc, int stack_start) {
             output_quad_register_name(ir->dst->preg);
             fprintf(f, ", %d(%%rbp)\n", stack_offset);
         }
-    }
-}
-
-// If any of the operands are spilled, output code to read the stack locations into registers r10 and r11
-// and set the preg accordingly. Also set the dst preg.
-void pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
-    pre_instruction_local_load(ir, function_pc, stack_start);
-
-    // Load src1 into r10
-    if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->spilled_stack_index) {
-        fprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", stack_start + ir->src1->spilled_stack_index * 8 + 8);
-        ir->src1 = dup_value(ir->src1); // Ensure no side effects
-        ir->src1->preg = REG_R10;
-    }
-
-    // Load src2 into r11
-    if (ir->operation != IR_LOAD_VARIABLE && ir->src2 && ir->src2->spilled_stack_index) {
-        fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_start + ir->src2->spilled_stack_index * 8 + 8);
-        ir->src2 = dup_value(ir->src2); // Ensure no side effects
-        ir->src2->preg = REG_R11;
-    }
-
-    if (ir->dst && ir->dst->spilled_stack_index) {
-        // Set the dst preg to r10 or r11 depending on what the operation type has set
-
-        ir->dst = dup_value(ir->dst); // Ensure no side effects
-        if (ir->operation == IR_BSHR || ir->operation == IR_BSHL)
-            ir->dst->preg = REG_R10;
-        else
-            ir->dst->preg = REG_R11;
-
-        // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
-        // The assign code will use that to store the result of the assignment.
-        if (ir->operation == IR_ASSIGN && ir->dst->vreg && ir->dst->is_lvalue)
-            fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_start + ir->dst->spilled_stack_index * 8 + 8);
-    }
-}
-
-void post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
-    post_instruction_local_store(ir, function_pc, stack_start);
-
-    if (ir->dst && ir->dst->spilled_stack_index) {
-        // Output a mov for assignments that are a register copy.
-        if (ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue || ir->dst->is_in_cpu_flags)) return;
-
-        fprintf(f, "\tmovq\t");
-        output_quad_register_name(ir->dst->preg);
-        fprintf(f, ", %d(%%rbp)\n", stack_start + ir->dst->spilled_stack_index * 8 + 8);
     }
 }
 
@@ -596,22 +553,21 @@ void output_function_body_code(Symbol *symbol) {
             }
             else if (tac->dst->global_symbol) {
                 // dst a global
-                if (tac->dst->vreg) panic("Unexpected vreg in assign for global");
+                if (tac->dst->preg != -1) panic("Unexpected preg in assign for global");
                 output_type_specific_mov(tac->dst->type);
                 output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 fprintf(f, ", ");
                 fprintf(f, "%s(%%rip)\n", tac->dst->global_symbol->identifier);
             }
-            else if (tac->dst->stack_index) {
-                // dst is a local variable on the stack
-                if (tac->dst->vreg) panic("Unexpected vreg in assign for local");
-                output_type_specific_mov(tac->dst->type);
-                output_type_specific_register_name(tac->dst->type, tac->src1->preg);
+            else if (tac->dst->preg != -1) {
+                // Register copy
+                fprintf(f, "\tmovq\t");
+                output_quad_register_name(tac->src1->preg);
                 fprintf(f, ", ");
-                stack_offset = get_stack_offset_from_index(function_pc, stack_start, tac->dst->stack_index);
-                fprintf(f, "%d(%%rbp)\n", stack_offset);
+                output_quad_register_name(tac->dst->preg);
+                fprintf(f, "\n");
             }
-            else if (tac->dst->is_lvalue) {
+            else if (!tac->dst->stack_index && tac->dst->is_lvalue) {
                 // dst is an lvalue in a register
                 output_type_specific_mov(tac->dst->type);
                 output_type_specific_register_name(tac->dst->type, tac->src1->preg);
@@ -621,12 +577,13 @@ void output_function_body_code(Symbol *symbol) {
                 fprintf(f, ")\n");
             }
             else {
-                // Register copy
-                fprintf(f, "\tmovq\t");
-                output_quad_register_name(tac->src1->preg);
+                // dst is a local variable on the stack
+                if (tac->dst->preg != -1) panic("Unexpected preg in assign for local");
+                output_type_specific_mov(tac->dst->type);
+                output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 fprintf(f, ", ");
-                output_quad_register_name(tac->dst->preg);
-                fprintf(f, "\n");
+                stack_offset = get_stack_offset_from_index(function_pc, stack_start, tac->dst->stack_index);
+                fprintf(f, "%d(%%rbp)\n", stack_offset);
             }
         }
 

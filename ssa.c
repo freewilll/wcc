@@ -78,7 +78,7 @@ void rewrite_lvalue_reg_assignments(Function *function) {
 
 // If any vregs have &, then they are mapped to a stack_index and not
 // mapped to a vreg by the existing code. They need to be mapped
-// to the new approach of using a stack_index. stack_index_map is the
+// to the new approach of using a spilled_stack_index. stack_index_map is the
 // map from -stack_index => spilled_stack_index.
 // The original stack_index remains, since downstream codegen code needs
 // it.
@@ -96,6 +96,7 @@ void map_stack_index_to_spilled_stack_index(Function *function) {
 
     tac = function->ir;
     while (tac) {
+        // Map registers forced onto the stack due to use of &
         if (tac->dst && tac->dst->stack_index < 0) {
             if (stack_index_map[-tac->dst->stack_index] == -1)
                 stack_index_map[-tac->dst->stack_index] = spilled_register_count++;
@@ -119,6 +120,11 @@ void map_stack_index_to_spilled_stack_index(Function *function) {
             tac->src2->spilled_stack_index = -stack_index_map[-tac->src2->stack_index] - 1;
             tac->src2->stack_index = tac->src2->spilled_stack_index;
         }
+
+        // Map function call parameters
+        if (tac->dst  && tac->dst ->stack_index > 0) tac->dst ->spilled_stack_index = tac->dst ->stack_index;
+        if (tac->src1 && tac->src1->stack_index > 0) tac->src1->spilled_stack_index = tac->src1->stack_index;
+        if (tac->src2 && tac->src2->stack_index > 0) tac->src2->spilled_stack_index = tac->src2->stack_index;
 
         tac = tac ->next;
     }
@@ -1723,6 +1729,16 @@ void assign_vreg_locations(Function *function) {
             else
                 tac->src2->preg = vl->preg;
         }
+
+        tac = tac->next;
+    }
+
+    // All downstream code uses stack_index
+    tac = function->ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->spilled_stack_index) tac->dst ->stack_index = tac->dst ->spilled_stack_index;
+        if (tac->src1 && tac->src1->spilled_stack_index) tac->src1->stack_index = tac->src1->spilled_stack_index;
+        if (tac->src2 && tac->src2->spilled_stack_index) tac->src2->stack_index = tac->src2->spilled_stack_index;
 
         tac = tac->next;
     }

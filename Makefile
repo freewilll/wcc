@@ -107,7 +107,7 @@ run-test-codegen: test-codegen
 	 ./test-codegen
 
 .PHONY: test
-test: run-test-set run-test-ssa run-test-graph run-test-codegen run-test-wc4 run-test-include run-test-wc4-gcc test-self-compilation
+test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-graph run-test-codegen run-test-wc4-gcc test-self-compilation
 
 clean:
 	@rm -f wc4
