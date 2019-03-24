@@ -34,9 +34,10 @@ typedef struct stack {
     int pos;
 } Stack;
 
+// One of preg or spilled_index must have a value. (preg != 0) != (spilled_index < 0)
 typedef struct vreg_location {
-    int preg;
-    int spilled_index;
+    int preg;           // Physical register starting at 0. -1 is unused.
+    int spilled_index;  // Stack index starting at -1. 0 is unused.
 } VregLocation;
 
 typedef struct symbol {

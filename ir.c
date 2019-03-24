@@ -27,7 +27,7 @@ void print_value_stack() {
 
  void init_value(Value *v) {
     v->preg = -1;
-    v->spilled_stack_index = -1;
+    v->spilled_stack_index = 0;
     v->ssa_subscript = -1;
     v->live_range = -1;
 }
@@ -157,7 +157,7 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
         fprintf(f, "cpu");
     else if (v->preg != -1)
         fprintf(f, "p%d", v->preg);
-    else if (v->spilled_stack_index != -1)
+    else if (v->spilled_stack_index)
         fprintf(f, "S[%d]", v->spilled_stack_index);
     else if (v->live_range != -1)
         fprintf(f, "LR%d", v->live_range);

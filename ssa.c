@@ -94,35 +94,30 @@ void map_stack_index_to_spilled_stack_index(Function *function) {
 
     if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_intermediate_representation(function, 0);
 
-    // The -1 in stack_index assignment below is due to conventions in the old
-    // register allocation code. In the legacy code, stack_index starts at -1
-    // and grows downwards. In the SSA code, the stack index starts at 0
-    // and grows upwards.
-
     tac = function->ir;
     while (tac) {
         if (tac->dst && tac->dst->stack_index < 0) {
             if (stack_index_map[-tac->dst->stack_index] == -1)
                 stack_index_map[-tac->dst->stack_index] = spilled_register_count++;
 
-            tac->dst->spilled_stack_index = stack_index_map[-tac->dst->stack_index];
-            tac->dst->stack_index = -tac->dst->spilled_stack_index - 1;
+            tac->dst->spilled_stack_index = -stack_index_map[-tac->dst->stack_index] - 1;
+            tac->dst->stack_index = tac->dst->spilled_stack_index;
         }
 
         if (tac->src1 && tac->src1->stack_index < 0) {
             if (stack_index_map[-tac->src1->stack_index] == -1)
                 stack_index_map[-tac->src1->stack_index] = spilled_register_count++;
 
-            tac->src1->spilled_stack_index = stack_index_map[-tac->src1->stack_index];
-            tac->src1->stack_index = -tac->src1->spilled_stack_index - 1;
+            tac->src1->spilled_stack_index = -stack_index_map[-tac->src1->stack_index] - 1;
+            tac->src1->stack_index = tac->src1->spilled_stack_index;
         }
 
         if (tac->src2 && tac->src2->stack_index < 0) {
             if (stack_index_map[-tac->src2->stack_index] == -1)
                 stack_index_map[-tac->src2->stack_index] = spilled_register_count++;
 
-            tac->src2->spilled_stack_index = stack_index_map[-tac->src2->stack_index];
-            tac->src2->stack_index = -tac->src2->spilled_stack_index - 1;
+            tac->src2->spilled_stack_index = -stack_index_map[-tac->src2->stack_index] - 1;
+            tac->src2->stack_index = tac->src2->spilled_stack_index;
         }
 
         tac = tac ->next;
@@ -1534,7 +1529,7 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
     }
 
     if (set_len(neighbor_colors) == physical_register_count) {
-        vreg_locations[vreg].spilled_index = *spilled_register_count;
+        vreg_locations[vreg].spilled_index = -*spilled_register_count - 1;
         (*spilled_register_count)++;
     }
     else {
@@ -1593,7 +1588,11 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     }
 
     vreg_locations = malloc((vreg_count + 1) * sizeof(VregLocation));
-    memset(vreg_locations, -1, (vreg_count + 1) * sizeof(VregLocation));
+    for (i = 1; i <= vreg_count; i++) {
+        vreg_locations[i].preg = -1;
+        vreg_locations[i].spilled_index = 0;
+    }
+
     spilled_register_count = function->spilled_register_count;
 
     // Pre-color reserved registers
@@ -1629,7 +1628,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         for (i = 1; i <= vreg_count; i++) {
             printf("%d: ", i);
             if (vreg_locations[i].preg == -1) printf("    "); else printf("%3d", vreg_locations[i].preg);
-            if (vreg_locations[i].spilled_index == -1) printf("    "); else printf("%3d", vreg_locations[i].spilled_index);
+            if (vreg_locations[i].spilled_index) printf("    "); else printf("%3d", vreg_locations[i].spilled_index);
             printf("\n");
         }
     }
@@ -1703,7 +1702,7 @@ void assign_vreg_locations(Function *function) {
     while (tac) {
         if (tac->dst && tac->dst->vreg) {
             vl = &function_vl[tac->dst->vreg];
-            if (vl->spilled_index != -1)
+            if (vl->spilled_index)
                 tac->dst->spilled_stack_index = vl->spilled_index;
             else
                 tac->dst->preg = vl->preg;
@@ -1711,7 +1710,7 @@ void assign_vreg_locations(Function *function) {
 
         if (tac->src1 && tac->src1->vreg) {
             vl = &function_vl[tac->src1->vreg];
-            if (vl->spilled_index != -1)
+            if (vl->spilled_index)
                 tac->src1->spilled_stack_index = vl->spilled_index;
             else
                 tac->src1->preg = vl->preg;
@@ -1719,7 +1718,7 @@ void assign_vreg_locations(Function *function) {
 
         if (tac->src2 && tac->src2->vreg) {
             vl = &function_vl[tac->src2->vreg];
-            if (vl->spilled_index != -1)
+            if (vl->spilled_index)
                 tac->src2->spilled_stack_index = vl->spilled_index;
             else
                 tac->src2->preg = vl->preg;

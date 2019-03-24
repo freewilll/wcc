@@ -652,20 +652,20 @@ void test_top_down_register_allocation() {
     function->spilled_register_count = 0;
     allocate_registers_top_down(function, 0);
     vl = function->vreg_locations;
-    assert(3, vl[1].spilled_index);
-    assert(2, vl[2].spilled_index);
-    assert(1, vl[3].spilled_index);
-    assert(0, vl[4].spilled_index);
+    assert(-4, vl[1].spilled_index);
+    assert(-3, vl[2].spilled_index);
+    assert(-2, vl[3].spilled_index);
+    assert(-1, vl[4].spilled_index);
 
     // Only one register is available. All nodes are constrained.
     // The most expensive non interfering nodes get the register
     function->spilled_register_count = 0;
     allocate_registers_top_down(function, 1);
     vl = function->vreg_locations;
-    assert(0, vl[1].spilled_index);
-    assert(0, vl[2].preg);
-    assert(0, vl[3].preg);
-    assert(0, vl[4].preg);
+    assert(-1, vl[1].spilled_index);
+    assert(0,  vl[2].preg);
+    assert(0,  vl[3].preg);
+    assert(0,  vl[4].preg);
 
     // Register bliss. Only node 1 is constrained and it gets allocated the
     // first register. The rest don't interfere and all get the second
@@ -695,10 +695,10 @@ void test_top_down_register_allocation() {
     function->spilled_register_count = 0;
     allocate_registers_top_down(function, 2);
     vl = function->vreg_locations;
-    assert(0, vl[1].spilled_index);
-    assert(1, vl[2].preg);
-    assert(0, vl[3].preg);
-    assert(0, vl[4].preg);
+    assert(-1, vl[1].spilled_index);
+    assert(1,  vl[2].preg);
+    assert(0,  vl[3].preg);
+    assert(0,  vl[4].preg);
 
     // 3 registers. 1 is the only constrained one and gets a register first
     // 4, 3, 2 are done in order.

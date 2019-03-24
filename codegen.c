@@ -357,20 +357,20 @@ void pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     pre_instruction_local_load(ir, function_pc, stack_start);
 
     // Load src1 into r10
-    if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->spilled_stack_index != -1) {
-        fprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", stack_start - ir->src1->spilled_stack_index * 8);
+    if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->spilled_stack_index) {
+        fprintf(f, "\tmovq\t%d(%%rbp), %%r10\n", stack_start + ir->src1->spilled_stack_index * 8 + 8);
         ir->src1 = dup_value(ir->src1); // Ensure no side effects
         ir->src1->preg = REG_R10;
     }
 
     // Load src2 into r11
-    if (ir->operation != IR_LOAD_VARIABLE && ir->src2 && ir->src2->spilled_stack_index != -1) {
-        fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_start - ir->src2->spilled_stack_index * 8);
+    if (ir->operation != IR_LOAD_VARIABLE && ir->src2 && ir->src2->spilled_stack_index) {
+        fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_start + ir->src2->spilled_stack_index * 8 + 8);
         ir->src2 = dup_value(ir->src2); // Ensure no side effects
         ir->src2->preg = REG_R11;
     }
 
-    if (ir->dst && ir->dst->spilled_stack_index != -1) {
+    if (ir->dst && ir->dst->spilled_stack_index) {
         // Set the dst preg to r10 or r11 depending on what the operation type has set
 
         ir->dst = dup_value(ir->dst); // Ensure no side effects
@@ -382,20 +382,20 @@ void pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
         // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
         // The assign code will use that to store the result of the assignment.
         if (ir->operation == IR_ASSIGN && ir->dst->vreg && ir->dst->is_lvalue)
-            fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_start - ir->dst->spilled_stack_index * 8);
+            fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_start + ir->dst->spilled_stack_index * 8 + 8);
     }
 }
 
 void post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     post_instruction_local_store(ir, function_pc, stack_start);
 
-    if (ir->dst && ir->dst->spilled_stack_index != -1) {
+    if (ir->dst && ir->dst->spilled_stack_index) {
         // Output a mov for assignments that are a register copy.
         if (ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue || ir->dst->is_in_cpu_flags)) return;
 
         fprintf(f, "\tmovq\t");
         output_quad_register_name(ir->dst->preg);
-        fprintf(f, ", %d(%%rbp)\n", stack_start - ir->dst->spilled_stack_index * 8);
+        fprintf(f, ", %d(%%rbp)\n", stack_start + ir->dst->spilled_stack_index * 8 + 8);
     }
 }
 
@@ -428,7 +428,7 @@ void output_function_body_code(Symbol *symbol) {
     if (function_pc >= 2) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rsi\n"); }
     if (function_pc >= 1) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rdi\n"); }
 
-    // Calculate stack start for locals. reduce by pushed bsp and  above pushed args.
+    // Calculate stack start for locals. reduce by pushed bsp and above pushed args.
     stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
 
     // Allocate stack space for local variables and spilled registers
