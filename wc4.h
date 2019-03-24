@@ -34,22 +34,22 @@ typedef struct stack {
     int pos;
 } Stack;
 
-// One of preg or spilled_index must have a value. (preg != 0) != (spilled_index < 0)
+// One of preg or stack_index must have a value. (preg != 0) != (stack_index < 0)
 typedef struct vreg_location {
-    int preg;           // Physical register starting at 0. -1 is unused.
-    int spilled_index;  // Stack index starting at -1. 0 is unused.
+    int preg;         // Physical register starting at 0. -1 is unused.
+    int stack_index;  // Stack index starting at -1. 0 is unused.
 } VregLocation;
 
 typedef struct symbol {
-    int type;                               // Type
-    int size;                               // Size
-    char *identifier;                       // Identifier
-    int scope;                              // Scope
-    long value;                             // Value in the case of a constant
-    int stack_index;                        // For locals, index on the stack, starting with -1 and going downwards
-    int is_function;                        // Is the symbol a function?
-    int is_enum;                            // Enums are symbols with a value
-    struct function *function;              // Details specific to symbols that are functions
+    int type;                             // Type
+    int size;                             // Size
+    char *identifier;                     // Identifier
+    int scope;                            // Scope
+    long value;                           // Value in the case of a constant
+    int local_index;                      // For locals variables and function arguments
+    int is_function;                      // Is the symbol a function?
+    int is_enum;                          // Enums are symbols with a value
+    struct function *function;            // Details specific to symbols that are functions
 } Symbol;
 
 typedef struct function {
@@ -89,8 +89,8 @@ typedef struct value {
     int vreg;                       // Optional vreg number
     int preg;                       // Allocated physical register
     int is_lvalue;                  // Is the value an lvalue?
-    int spilled_stack_index;        // Allocated stack index in case of a register spill
-    int stack_index;                // Stack index for local variable. Zero if it's not a local variable. Starts at -1 and grows downwards.
+    int local_index;                // For locals variables and function arguments
+    int stack_index;                // Allocated stack index in case of a spill
     int is_constant;                // Is it a constant? If so, value is the value.
     int is_string_literal;          // Is the value a string literal?
     int is_in_cpu_flags;            // Is the result stored in cpu flags?

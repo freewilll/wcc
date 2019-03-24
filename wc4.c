@@ -20,7 +20,7 @@ void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
 }
 
 void do_print_symbols() {
-    long type, scope, value, stack_index;
+    long type, scope, value, local_index;
     Symbol *s;
     char *identifier;
 
@@ -31,8 +31,8 @@ void do_print_symbols() {
         identifier = (char *) s->identifier;
         scope = s->scope;
         value = s->value;
-        stack_index = s->stack_index;
-        printf("%-20ld %-5ld %-3ld %-3ld %-20ld %s\n", (long) s, type, scope, stack_index, value, identifier);
+        local_index = s->local_index;
+        printf("%-20ld %-5ld %-3ld %-3ld %-20ld %s\n", (long) s, type, scope, local_index, value, identifier);
         s++;
     }
     printf("\n");

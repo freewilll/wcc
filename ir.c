@@ -15,19 +15,19 @@ int new_vreg() {
 void print_value_stack() {
     Value **lvs, *v;
 
-    printf("%-4s %-4s %-4s %-11s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "stack_index", "is_lv");
+    printf("%-4s %-4s %-4s %-11s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "local_index", "is_lv");
     lvs = vs;
     while (lvs != vs_start) {
         v = *lvs;
         printf("%-4d %-4d %-4d %-11s %-11d %-5d\n",
-            v->type, v->vreg, v->preg, v->global_symbol ? v->global_symbol->identifier : 0, v->stack_index, v->is_lvalue);
+            v->type, v->vreg, v->preg, v->global_symbol ? v->global_symbol->identifier : 0, v->local_index, v->is_lvalue);
         lvs++;
     }
 }
 
  void init_value(Value *v) {
     v->preg = -1;
-    v->spilled_stack_index = 0;
+    v->stack_index = 0;
     v->ssa_subscript = -1;
     v->live_range = -1;
 }
@@ -62,8 +62,8 @@ Value *dup_value(Value *src) {
     dst->vreg                      = src->vreg;
     dst->preg                      = src->preg;
     dst->is_lvalue                 = src->is_lvalue;
-    dst->spilled_stack_index       = src->spilled_stack_index;
     dst->stack_index               = src->stack_index;
+    dst->local_index               = src->local_index;
     dst->is_constant               = src->is_constant;
     dst->is_string_literal         = src->is_string_literal;
     dst->is_in_cpu_flags           = src->is_in_cpu_flags;
@@ -148,8 +148,8 @@ void fprintf_escaped_string_literal(void *f, char* sl) {
 void print_value(void *f, Value *v, int is_assignment_rhs) {
     int type;
 
-    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->stack_index)) fprintf(f, "&");
-    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->stack_index)) fprintf(f, "L");
+    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->local_index)) fprintf(f, "&");
+    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->local_index)) fprintf(f, "L");
 
     if (v->is_constant)
         fprintf(f, "%ld", v->value);
@@ -157,16 +157,16 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
         fprintf(f, "cpu");
     else if (v->preg != -1)
         fprintf(f, "p%d", v->preg);
-    else if (v->spilled_stack_index)
-        fprintf(f, "S[%d]", v->spilled_stack_index);
+    else if (v->stack_index)
+        fprintf(f, "S[%d]", v->stack_index);
     else if (v->live_range != -1)
         fprintf(f, "LR%d", v->live_range);
     else if (v->vreg) {
         fprintf(f, "r%d", v->vreg);
         if (v->ssa_subscript != -1) fprintf(f, "_%d", v->ssa_subscript);
     }
-    else if (v->stack_index)
-        fprintf(f, "s[%d]", v->stack_index);
+    else if (v->local_index)
+        fprintf(f, "s[%d]", v->local_index);
     else if (v->global_symbol)
         fprintf(f, "%s", v->global_symbol->identifier);
     else if (v->is_string_literal) {
@@ -395,10 +395,10 @@ void reverse_function_argument_order(Symbol *function) {
 }
 
 void assign_local_to_register(Value *v, int vreg) {
-    v->original_stack_index = v->stack_index;
+    v->original_stack_index = v->local_index;
     v->original_is_lvalue = v->is_lvalue;
     v->original_vreg = v->vreg;
-    v->stack_index = 0;
+    v->local_index = 0;
     v->is_lvalue = 0;
     v->vreg = vreg;
 }
@@ -414,9 +414,9 @@ void assign_locals_to_registers(Symbol *function) {
 
     tac = function->function->ir;
     while (tac) {
-        if (tac->dst  && !tac->dst ->is_lvalue && tac->dst ->stack_index < 0) has_address_of[-tac->dst ->stack_index] = 1;
-        if (tac->src1 && !tac->src1->is_lvalue && tac->src1->stack_index < 0) has_address_of[-tac->src1->stack_index] = 1;
-        if (tac->src2 && !tac->src2->is_lvalue && tac->src2->stack_index < 0) has_address_of[-tac->src2->stack_index] = 1;
+        if (tac->dst  && !tac->dst ->is_lvalue && tac->dst ->local_index < 0) has_address_of[-tac->dst ->local_index] = 1;
+        if (tac->src1 && !tac->src1->is_lvalue && tac->src1->local_index < 0) has_address_of[-tac->src1->local_index] = 1;
+        if (tac->src2 && !tac->src2->is_lvalue && tac->src2->local_index < 0) has_address_of[-tac->src2->local_index] = 1;
         tac = tac ->next;
     }
 
@@ -426,9 +426,9 @@ void assign_locals_to_registers(Symbol *function) {
 
         tac = function->function->ir;
         while (tac) {
-            if (tac->dst  && tac->dst ->stack_index == -i) assign_local_to_register(tac->dst , vreg);
-            if (tac->src1 && tac->src1->stack_index == -i) assign_local_to_register(tac->src1, vreg);
-            if (tac->src2 && tac->src2->stack_index == -i) assign_local_to_register(tac->src2, vreg);
+            if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
+            if (tac->src1 && tac->src1->local_index == -i) assign_local_to_register(tac->src1, vreg);
+            if (tac->src2 && tac->src2->local_index == -i) assign_local_to_register(tac->src2, vreg);
             if (tac->operation == IR_LOAD_VARIABLE && tac->src1->vreg == vreg)
                 tac->operation = IR_ASSIGN;
 

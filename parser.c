@@ -36,13 +36,13 @@ Value *load(Value *src1) {
     else if (src1->vreg)
         panic("Internal error: unexpected register");
     else if (src1->is_in_cpu_flags) {
-        dst->stack_index = 0;
+        dst->local_index = 0;
         dst->global_symbol = 0;
         add_instruction(IR_ASSIGN, dst, src1, 0);
     }
     else {
         // Load a value into a register. This could be a global or a local.
-        dst->stack_index = 0;
+        dst->local_index = 0;
         dst->global_symbol = 0;
         add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
     }
@@ -64,7 +64,7 @@ Value *make_rvalue(Value *src1) {
 
     dst = dup_value(src1);
     dst->vreg = new_vreg();
-    dst->stack_index = 0;
+    dst->local_index = 0;
     dst->global_symbol = 0;
     add_instruction(IR_INDIRECT, dst, src1, 0);
 
@@ -716,11 +716,11 @@ void expression(int level) {
             src1->type = type;
             src1->is_lvalue = 1;
 
-            if (symbol->stack_index >= 0)
+            if (symbol->local_index >= 0)
                 // Step over pushed PC and BP
-                src1->stack_index = cur_function_symbol->function->param_count - symbol->stack_index + 1;
+                src1->local_index = cur_function_symbol->function->param_count - symbol->local_index + 1;
             else
-                src1->stack_index = symbol->stack_index;
+                src1->local_index = symbol->local_index;
 
             push(src1);
         }
@@ -1135,7 +1135,7 @@ void function_body() {
             s->type = type;
             s->identifier = cur_identifier;
             s->scope = cur_scope;
-            s->stack_index = -1 - local_symbol_count++;
+            s->local_index = -1 - local_symbol_count++;
             next();
             if (cur_token != TOK_SEMI && cur_token != TOK_COMMA) panic("Expected ; or ,");
             if (cur_token == TOK_COMMA) next();
@@ -1268,7 +1268,7 @@ void parse() {
                         param_symbol->type = type;
                         param_symbol->identifier = cur_identifier;
                         param_symbol->scope = cur_scope;
-                        param_symbol->stack_index = param_count++;
+                        param_symbol->local_index = param_count++;
                         next();
 
                         if (cur_token == TOK_RPAREN) break;
