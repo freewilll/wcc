@@ -100,9 +100,6 @@ typedef struct value {
     int function_call_arg_count;    // Number of arguments in the case of a function call
     Symbol *global_symbol;          // Pointer to a global symbol if the value is a global symbol
     int label;                      // Target label in the case of jump instructions
-    int original_stack_index;
-    int original_is_lvalue;
-    int original_vreg;
     int pushed_stack_aligned_quad;  // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
     int ssa_subscript;              // Optional SSA enumeration
     int live_range;                 // Optional SSA live range

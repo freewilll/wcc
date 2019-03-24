@@ -395,9 +395,6 @@ void reverse_function_argument_order(Symbol *function) {
 }
 
 void assign_local_to_register(Value *v, int vreg) {
-    v->original_stack_index = v->local_index;
-    v->original_is_lvalue = v->is_lvalue;
-    v->original_vreg = v->vreg;
     v->local_index = 0;
     v->is_lvalue = 0;
     v->vreg = vreg;
