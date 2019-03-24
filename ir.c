@@ -238,9 +238,9 @@ void print_instruction(void *f, Tac *tac) {
 
     else if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) {
         print_value(f, tac->src1, 0);
-        printf(" = ");
+        fprintf(f, " = ");
         print_value(f, tac->src2, 1);
-        printf(" [assign to lvalue]");
+        fprintf(f, " [assign to lvalue]");
     }
 
     else if (tac->operation == IR_NOP)
