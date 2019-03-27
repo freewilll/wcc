@@ -5,9 +5,10 @@
 #include "wc4.h"
 
 // Push a value to the stack
-void push(Value *v) {
+Value *push(Value *v) {
     *--vs = v;
     vtop = *vs;
+    return v;
 }
 
 // Pop a value from the stack
@@ -53,15 +54,13 @@ Value *load(Value *src1) {
 // Pop and load. Pop a value from the stack and load it into a register if not already done.
 // Lvalues are converted into rvalues.
 Value *pl() {
-    if (vtop->is_constant) push(load_constant(pop()));
-    if (vtop->is_in_cpu_flags) push(load(pop()));
+    Value *v;
 
-    if (vtop->vreg) {
-        if (vtop->is_lvalue) return load(pop());
-        else return pop();
-    }
+    v = pop();
+    if (v->is_constant) return load_constant(v);
+    if (v->vreg && !v->is_lvalue) return v;
 
-    return load(pop());
+    return load(v);
 }
 
 Value *load_constant(Value *cv) {
