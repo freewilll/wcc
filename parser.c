@@ -52,23 +52,10 @@ Value *load(Value *src1) {
 
 // Turn an lvalue in a register into an rvalue by dereferencing it
 Value *make_rvalue(Value *src1) {
-    Value *dst;
-
     if (!src1->is_lvalue) return src1;
-
     if (!src1->vreg) panic("Internal error: unexpected missing register");
 
-    // It's an lvalue in a register. Dereference it into the same register
-    src1 = dup_value(src1); // Ensure no side effects on src1
-    src1->is_lvalue = 0;
-
-    dst = dup_value(src1);
-    dst->vreg = new_vreg();
-    dst->local_index = 0;
-    dst->global_symbol = 0;
-    add_instruction(IR_INDIRECT, dst, src1, 0);
-
-    return dst;
+    return load(src1);
 }
 
 // Pop and load. Pop a value from the stack and load it into a register if not already done.
