@@ -50,14 +50,6 @@ Value *load(Value *src1) {
     return dst;
 }
 
-// Turn an lvalue in a register into an rvalue by dereferencing it
-Value *make_rvalue(Value *src1) {
-    if (!src1->is_lvalue) return src1;
-    if (!src1->vreg) panic("Internal error: unexpected missing register");
-
-    return load(src1);
-}
-
 // Pop and load. Pop a value from the stack and load it into a register if not already done.
 // Lvalues are converted into rvalues.
 Value *pl() {
@@ -65,7 +57,7 @@ Value *pl() {
     if (vtop->is_in_cpu_flags) push(load(pop()));
 
     if (vtop->vreg) {
-        if (vtop->is_lvalue) return make_rvalue(pop());
+        if (vtop->is_lvalue) return load(pop());
         else return pop();
     }
 
