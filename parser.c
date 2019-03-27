@@ -21,9 +21,13 @@ Value *pop() {
     return result;
 }
 
-// Load a value into a register.
+// load a value into a register if not already done. lvalues are converted into
+// rvalues.
 Value *load(Value *src1) {
     Value *dst;
+
+    if (src1->is_constant) return load_constant(src1);
+    if (src1->vreg && !src1->is_lvalue) return src1;
 
     dst = dup_value(src1);
     dst->vreg = new_vreg();
@@ -34,8 +38,6 @@ Value *load(Value *src1) {
         // An lvalue in a register needs a dereference
         add_instruction(IR_INDIRECT, dst, src1, 0);
     }
-    else if (src1->vreg)
-        panic("Internal error: unexpected register");
     else if (src1->is_in_cpu_flags) {
         dst->local_index = 0;
         dst->global_symbol = 0;
@@ -51,16 +53,9 @@ Value *load(Value *src1) {
     return dst;
 }
 
-// Pop and load. Pop a value from the stack and load it into a register if not already done.
-// Lvalues are converted into rvalues.
+// Pop and load.
 Value *pl() {
-    Value *v;
-
-    v = pop();
-    if (v->is_constant) return load_constant(v);
-    if (v->vreg && !v->is_lvalue) return v;
-
-    return load(v);
+    return load(pop());
 }
 
 Value *load_constant(Value *cv) {
