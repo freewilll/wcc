@@ -97,6 +97,7 @@ int main(int argc, char **argv) {
     print_ir2 = 0;
     print_ir3 = 0;
     print_symbols = 0;
+    instruction_selection_wip = 0;
     opt_enable_register_coalescing = 1;
     opt_enable_live_range_coalescing = 1;
     opt_spill_furthest_liveness_end = 0;
@@ -125,6 +126,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir3"                             )) { print_ir3 = 1;                          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--iir"                             )) { output_inline_ir = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--instruction-selection-wip"       )) { instruction_selection_wip = 1;          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;   argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;  argc--; argv++; }

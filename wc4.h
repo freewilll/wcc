@@ -356,6 +356,7 @@ int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after x84_64 arch manipulation
 int print_ir3;                          // Print IR after register allocation
 int output_inline_ir;                   // Output IR inline with the assembly
+int instruction_selection_wip;          // Experimental instruction selection
 int ssa_physical_register_count;        // Experimental physical register count
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible
@@ -441,6 +442,7 @@ void push_onto_stack(Stack *s, int v);
 int pop_from_stack(Stack *s);
 
 // graph.c
+void init_graph(Graph *g, int node_count, int edge_count);
 Graph *new_graph(int node_count, int edge_count);
 void dump_graph(Graph *g);
 GraphEdge *add_graph_edge(Graph *g, int from, int to);
@@ -480,6 +482,7 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 void sanity_test_ir_linkage(Tac *ir);
 int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
+void print_value(void *f, Value *v, int is_assignment_rhs);
 void print_instruction(void *f, Tac *tac);
 void print_intermediate_representation(Function *function, char *name);
 void optimize_ir(Symbol *function);
@@ -522,6 +525,9 @@ void do_oar2(Function *function);
 void do_oar3(Function *function);
 void do_oar4(Function *function);
 void optimize_and_allocate_registers(Function *function);
+
+// instrsel.c
+void experimental_instruction_selection(Function *function);
 
 // codegen.c
 void init_callee_saved_registers();

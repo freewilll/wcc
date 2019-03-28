@@ -582,7 +582,7 @@ void optimize_ir(Symbol *function) {
     while (tac) {
         merge_labels(ir, tac, i);
         allocate_registers_for_constants(tac, &i);
-        rearrange_reverse_sub_operation(ir, tac);
+        if (!instruction_selection_wip) rearrange_reverse_sub_operation(ir, tac);
         tac = tac->next;
         i++;
     }

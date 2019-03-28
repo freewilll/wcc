@@ -13,17 +13,22 @@ void allocate_graph_storage(Graph *g) {
     memset(g->edges, 0, g->max_edge_count * sizeof(GraphEdge));
 }
 
-Graph *new_graph(int node_count, int edge_count) {
-    Graph *g;
+void init_graph(Graph *g, int node_count, int edge_count) {
     int i;
 
-    g = malloc(sizeof(Graph));
-    memset(g, 0, sizeof(Graph));
     g->node_count = node_count;
     g->max_edge_count = edge_count ? edge_count : MAX_GRAPH_EDGE_COUNT;
     allocate_graph_storage(g);
 
     for (i = 0; i < node_count; i++) g->nodes[i].id = i;
+}
+
+Graph *new_graph(int node_count, int edge_count) {
+    Graph *g;
+
+    g = malloc(sizeof(Graph));
+    memset(g, 0, sizeof(Graph));
+    init_graph(g, node_count, edge_count);
 
     return g;
 }
