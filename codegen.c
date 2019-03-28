@@ -540,6 +540,7 @@ void output_function_body_code(Symbol *symbol) {
 
         else if (tac->operation == IR_ASSIGN) {
             if (tac->dst->is_in_cpu_flags); // Do nothing
+
             else if (tac->src1->is_in_cpu_flags) {
                      if (tac->prev->operation == IR_EQ) s = "sete";
                 else if (tac->prev->operation == IR_NE) s = "setne";
@@ -551,6 +552,7 @@ void output_function_body_code(Symbol *symbol) {
                 output_cmp_result_instruction(tac, s);
                 output_movzbq(tac);
             }
+
             else if (tac->dst->global_symbol) {
                 // dst a global
                 if (tac->dst->preg != -1) panic("Unexpected preg in assign for global");
@@ -559,6 +561,7 @@ void output_function_body_code(Symbol *symbol) {
                 fprintf(f, ", ");
                 fprintf(f, "%s(%%rip)\n", tac->dst->global_symbol->identifier);
             }
+
             else if (tac->dst->preg != -1) {
                 // Register copy
                 fprintf(f, "\tmovq\t");
@@ -567,15 +570,10 @@ void output_function_body_code(Symbol *symbol) {
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, "\n");
             }
-            else if (!tac->dst->stack_index && tac->dst->is_lvalue) {
-                // dst is an lvalue in a register
-                output_type_specific_mov(tac->dst->type);
-                output_type_specific_register_name(tac->dst->type, tac->src1->preg);
-                fprintf(f, ", ");
-                fprintf(f, "(");
-                output_quad_register_name(tac->dst->preg);
-                fprintf(f, ")\n");
-            }
+
+            else if (!tac->dst->stack_index && tac->dst->is_lvalue)
+                panic("Internal error: Assign to lvalue in register should have been rewritten to IR_ASSIGN_TO_REG_LVALUE");
+
             else {
                 // dst is a local variable on the stack
                 if (tac->dst->preg != -1) panic("Unexpected preg in assign for local");
