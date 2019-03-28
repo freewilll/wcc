@@ -576,7 +576,6 @@ void output_function_body_code(Symbol *symbol) {
 
             else {
                 // dst is a local variable on the stack
-                if (tac->dst->preg != -1) panic("Unexpected preg in assign for local");
                 output_type_specific_mov(tac->dst->type);
                 output_type_specific_register_name(tac->dst->type, tac->src1->preg);
                 fprintf(f, ", ");
