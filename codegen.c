@@ -48,7 +48,7 @@ void output_quad_register_name(int preg) {
     else                        fprintf(f, "%%%.3s", &names[preg * 4]);
 }
 
-void move_quad_register_to_register(int preg1, int preg2) {
+void output_move_quad_register_to_register(int preg1, int preg2) {
     if (preg1 != preg2) {
         fprintf(f, "\tmovq\t");
         output_quad_register_name(preg1);
@@ -84,7 +84,7 @@ void _output_op(char *instruction, Tac *tac) {
     if (tac->operation == IR_ADD || tac->operation == IR_MUL || tac->operation == IR_BOR || tac->operation == IR_BAND || tac->operation == IR_XOR) {
         if (dst == src1) {
             // pn = pn + pm
-            move_quad_register_to_register(src1, dst);
+            output_move_quad_register_to_register(src1, dst);
             output_op_instruction(instruction, src2, dst);
             return;
         }
@@ -106,13 +106,13 @@ void _output_op(char *instruction, Tac *tac) {
         }
     }
 
-    move_quad_register_to_register(src2, dst);
+    output_move_quad_register_to_register(src2, dst);
     output_op_instruction(instruction, src1, dst);
 }
 
 void output_constant_operation(char *instruction, Tac *tac) {
     if (tac->src1->is_constant) {
-        move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
+        output_move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
         fprintf(f, "\t%s\t$%ld", instruction, tac->src1->value);
         fprintf(f, ", ");
         output_quad_register_name(tac->dst->preg);
@@ -251,7 +251,7 @@ void init_callee_saved_registers() {
 }
 
 // Determine which registers are used in a function, push them onto the stack and return the list
-int *push_callee_saved_registers(Tac *tac) {
+int *output_push_callee_saved_registers(Tac *tac) {
     int *saved_registers;
     int i;
 
@@ -278,7 +278,7 @@ int *push_callee_saved_registers(Tac *tac) {
 }
 
 // Pop the callee saved registers back
-void pop_callee_saved_registers(int *saved_registers) {
+void output_pop_callee_saved_registers(int *saved_registers) {
     int i;
 
     for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--) {
@@ -291,7 +291,7 @@ void pop_callee_saved_registers(int *saved_registers) {
     }
 }
 
-void pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
+void output_pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
 
     // Load src1 into r10
@@ -335,7 +335,7 @@ void pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     }
 }
 
-void post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
+void output_post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
     int assign;
 
@@ -398,7 +398,7 @@ void output_function_body_code(Symbol *symbol) {
     }
 
     tac = symbol->function->ir;
-    saved_registers = push_callee_saved_registers(tac);
+    saved_registers = output_push_callee_saved_registers(tac);
 
     while (tac) {
         if (output_inline_ir) {
@@ -406,7 +406,7 @@ void output_function_body_code(Symbol *symbol) {
             print_instruction(f, tac);
         }
 
-        pre_instruction_spill(tac, function_pc, stack_start);
+        output_pre_instruction_spill(tac, function_pc, stack_start);
 
         if (tac->label) fprintf(f, ".l%d:\n", tac->label);
 
@@ -533,7 +533,7 @@ void output_function_body_code(Symbol *symbol) {
                     fprintf(f, "\n");
                 }
             }
-            pop_callee_saved_registers(saved_registers);
+            output_pop_callee_saved_registers(saved_registers);
             fprintf(f, "\tleaveq\n");
             fprintf(f, "\tretq\n");
         }
@@ -663,19 +663,19 @@ void output_function_body_code(Symbol *symbol) {
             output_quad_register_name(tac->src1->preg);
             fprintf(f, ", %%rax\n");
             fprintf(f, "\tcqto\n");
-            move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
+            output_move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
             fprintf(f, "\tidivq\t");
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
 
             if (tac->operation == IR_DIV)
-                move_quad_register_to_register(REG_RAX, tac->dst->preg);
+                output_move_quad_register_to_register(REG_RAX, tac->dst->preg);
             else
-                move_quad_register_to_register(REG_RDX, tac->dst->preg);
+                output_move_quad_register_to_register(REG_RDX, tac->dst->preg);
         }
 
         else if (tac->operation == IR_BNOT)  {
-            move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
+            output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
             fprintf(f, "\tnot\t");
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
@@ -684,7 +684,7 @@ void output_function_body_code(Symbol *symbol) {
         else if (tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
             if (tac->src2->is_constant) {
                 // Shift a non-constant by a constant amount
-                move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
+                output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
                 fprintf(f, "\t%s\t$%ld, ", tac->operation == IR_BSHL ? "shl" : "sar", tac->src2->value);
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, "\n");
@@ -702,7 +702,7 @@ void output_function_body_code(Symbol *symbol) {
                 }
                 else
                     // Shift a non-constant by a non-constant amount
-                    move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
+                    output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
 
                 fprintf(f, "\t%s\t%%cl, ", tac->operation == IR_BSHL ? "shl" : "sar");
                 output_quad_register_name(tac->dst->preg);
@@ -713,7 +713,7 @@ void output_function_body_code(Symbol *symbol) {
         else
             panic1d("output_function_body_code(): Unknown operation: %d", tac->operation);
 
-        post_instruction_spill(tac, function_pc, stack_start);
+        output_post_instruction_spill(tac, function_pc, stack_start);
 
         tac = tac->next;
     }
@@ -721,7 +721,7 @@ void output_function_body_code(Symbol *symbol) {
     // Special case for main, return 0 if no return statement is present
     if (!strcmp(symbol->identifier, "main")) fprintf(f, "\tmovq\t$0, %%rax\n");
 
-    pop_callee_saved_registers(saved_registers);
+    output_pop_callee_saved_registers(saved_registers);
     fprintf(f, "\tleaveq\n");
     fprintf(f, "\tretq\n");
 }
