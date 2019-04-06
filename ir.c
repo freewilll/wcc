@@ -159,8 +159,6 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
         fprintf(f, "p%d", v->preg);
     else if (v->stack_index)
         fprintf(f, "S[%d]", v->stack_index);
-    else if (v->live_range != -1)
-        fprintf(f, "LR%d", v->live_range);
     else if (v->vreg) {
         fprintf(f, "r%d", v->vreg);
         if (v->ssa_subscript != -1) fprintf(f, "_%d", v->ssa_subscript);

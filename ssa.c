@@ -1141,6 +1141,15 @@ void blast_vregs_with_live_ranges(Function *function) {
         if (tac->dst  && tac->dst-> vreg) tac->dst-> vreg = tac->dst-> live_range;
         tac = tac->next;
     }
+
+    // Nuke the live ranges, they should not be used downstream and this guarantees a horrible failure if they are.
+    tac = function->ir;
+    while (tac) {
+        if (tac->src1 && tac->src1->vreg) { tac->src1->live_range = -100000; }
+        if (tac->src2 && tac->src2->vreg) { tac->src2->live_range = -100000; }
+        if (tac->dst  && tac->dst-> vreg) { tac->dst-> live_range = -100000; }
+        tac = tac->next;
+    }
 }
 
 void ad_ig_edge(char *ig, int vreg_count, int to, int from) {
@@ -1262,9 +1271,9 @@ void coalesce_live_range(Function *function, int src, int dst) {
     // Rewrite IR src => dst
     tac = function->ir;
     while (tac) {
-        if (tac->dst  && tac->dst ->vreg == src) { tac->dst ->vreg = dst; tac->dst ->live_range = dst; }
-        if (tac->src1 && tac->src1->vreg == src) { tac->src1->vreg = dst; tac->src1->live_range = dst; }
-        if (tac->src2 && tac->src2->vreg == src) { tac->src2->vreg = dst; tac->src2->live_range = dst; }
+        if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
+        if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
+        if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
 
         if (tac->operation == IR_ASSIGN && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
             tac->operation = IR_NOP;
