@@ -40,6 +40,22 @@ typedef struct vreg_location {
     int stack_index;  // Stack index starting at -1. 0 is unused.
 } VregLocation;
 
+typedef struct vreg_i_graph {
+    int igraph_id;
+    int count;
+} VregIGraph;
+
+typedef struct i_graph_node {
+    struct three_address_code *tac;
+    struct value *value;
+} IGraphNode;
+
+typedef struct i_graph {
+    IGraphNode *nodes;
+    Graph *graph;
+    int node_count;
+} IGraph;
+
 typedef struct symbol {
     int type;                             // Type
     int size;                             // Size
@@ -76,6 +92,8 @@ typedef struct function {
     char *interference_graph;             // The interference graph of live ranges, in a lower diagonal matrix
     struct vreg_location *vreg_locations; // Allocated physical registers and spilled stack indexes
     int *spill_cost;                      // The estimated spill cost for each live range
+    IGraph *eis_igraphs;                  // Experimental instruction selection instruction graphs
+    int eis_instr_count;
 } Function;
 
 // Value is a value on the value stack. A value can be one of
@@ -178,6 +196,9 @@ enum {
     DEBUG_SSA_LIVE_RANGE_COALESCING       = 0,
     DEBUG_SSA_SPILL_COST                  = 0,
     DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR = 0,
+    DEBUG_INSTSEL_IGRAPHS_DEEP            = 0,
+    DEBUG_INSTSEL_IGRAPHS                 = 0,
+    DEBUG_INSTSEL_TILING                  = 0,
 };
 
 // Tokens in order of precedence
@@ -453,6 +474,7 @@ void panic1d(char *fmt, int i);
 void panic1s(char *fmt, char *s);
 void panic2d(char *fmt, int i1, int i2);
 void panic2s(char *fmt, char *s1, char *s2);
+Function *new_function();
 
 // lexer.c
 void init_lexer(char *filename);
@@ -527,7 +549,49 @@ void do_oar4(Function *function);
 void optimize_and_allocate_registers(Function *function);
 
 // instrsel.c
+enum {
+    MAX_RULE_COUNT = 100,
+
+    REG = 1,
+    CST,
+    DST,
+    SRC1,
+    SRC2,
+    CST1,
+    CST2,
+    DST_REG,
+    DST_CST,
+
+    X_START = 1000,
+    X_MOV   = 1001,
+    X_ADD   = 1002,
+    X_MUL   = 1003,
+};
+
+typedef struct rule {
+    int index;
+    int non_terminal;
+    int operation;
+    int src1;
+    int src2;
+    int cost;
+    struct x86_operation *x86_operations;
+} Rule;
+
+typedef struct x86_operation {
+    int operation;
+    int dst, v1, v2;
+    char *template;
+    struct x86_operation *next;
+} X86Operation;
+
+int instr_rule_count;
+Rule *instr_rules;
+
 void experimental_instruction_selection(Function *function);
+
+// rules.c
+void init_instruction_selection_rules();
 
 // codegen.c
 void init_callee_saved_registers();

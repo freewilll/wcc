@@ -147,6 +147,8 @@ void fprintf_escaped_string_literal(void *f, char* sl) {
 void print_value(void *f, Value *v, int is_assignment_rhs) {
     int type;
 
+    if (!v) panic("print_value got null");
+
     if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->local_index)) fprintf(f, "&");
     if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->local_index)) fprintf(f, "L");
 
@@ -197,7 +199,7 @@ void print_instruction(void *f, Tac *tac) {
     else
         fprintf(f, "      ");
 
-    if (tac->dst) {
+    if (tac->dst && tac->operation < X_START) {
         print_value(f, tac->dst, tac->operation != IR_ASSIGN);
         fprintf(f, " = ");
     }
@@ -285,6 +287,10 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
+
+    else if (tac->operation == X_MOV) { fprintf(f, "mov "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
+    else if (tac->operation == X_ADD) { fprintf(f, "add "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
+    else if (tac->operation == X_MUL) { fprintf(f, "mul "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
 
     else
         panic1d("print_instruction(): Unknown operation: %d", tac->operation);

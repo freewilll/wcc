@@ -23,15 +23,6 @@ void assert_set(Set *set, int v1, int v2, int v3, int v4, int v5) {
     assert(1, set_eq(set, is));
 }
 
-Function *new_function() {
-    Function *function;
-
-    function = malloc(sizeof(Function));
-    memset(function, 0, sizeof(Function));
-
-    return function;
-}
-
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac;
 

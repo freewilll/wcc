@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "wc4.h"
+
+Rule *add_rule(int non_terminal, int operation, int src1, int src2, int cost) {
+    Rule *r;
+
+    if (instr_rule_count == MAX_RULE_COUNT) panic("Exceeded maximum number of rules");
+
+    r = &(instr_rules[instr_rule_count]);
+
+    r->index          = instr_rule_count;
+    r->operation      = operation;
+    r->non_terminal   = non_terminal;
+    r->src1           = src1;
+    r->src2           = src2;
+    r->cost           = cost;
+    r->x86_operations = 0;
+
+    instr_rule_count++;
+
+    return r;
+}
+
+void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
+    X86Operation *x86op, *o;
+
+    x86op = malloc(sizeof(X86Operation));
+    x86op->operation = operation;
+    x86op->dst = dst ? dst : v2; // By default, the second operand is the dst
+    x86op->v1 = v1;
+    x86op->v2 = v2;
+
+    x86op->template = template;
+    x86op->next = 0;
+
+    if (!r->x86_operations)
+        r->x86_operations = x86op;
+    else {
+        o = r->x86_operations;
+        while (o->next) o = o->next;
+        o->next = x86op;
+    }
+}
+
+void init_instruction_selection_rules() {
+    Rule *r;
+
+    instr_rule_count = 0;
+
+    instr_rules = malloc(MAX_RULE_COUNT * sizeof(Rule));
+    memset(instr_rules, 0, MAX_RULE_COUNT * sizeof(Rule));
+
+    r = add_rule(REG,    0,                 REG, 0,    0);
+    r = add_rule(CST,    0,                 CST, 0,    0);
+    r = add_rule(REG,    IR_ASSIGN,         REG, 0,    1);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t%v1, %v2" );
+    r = add_rule(REG,    IR_LOAD_CONSTANT,  CST, 0,    1);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t$%v1, %v2" );
+    r = add_rule(REG,    0,                 CST, 0,    1);  add_op(r, X_MOV, 0, CST1, DST,  "mov\t$%v1, %v2");
+
+    r = add_rule(REG,    IR_ADD,            REG, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
+                                                            add_op(r, X_ADD, 0, SRC1, SRC2, "add\t%v1, %v2" );
+    r = add_rule(REG,    IR_ADD,            CST, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
+                                                            add_op(r, X_ADD, 0, SRC1, SRC2, "add\t%$v1, %v2");
+    r = add_rule(REG,    IR_ADD,            REG, CST, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
+                                                            add_op(r, X_ADD, 0, SRC1, SRC2, "add\t%$v1, %v2");
+
+    r = add_rule(REG,    IR_MUL,            REG, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
+                                                            add_op(r, X_MUL, 0, SRC1, SRC2, "imul\t%v1, %v2" );
+    r = add_rule(REG,    IR_MUL,            CST, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
+                                                            add_op(r, X_MUL, 0, SRC1, SRC2, "imul\t%$v1, %v2");
+    r = add_rule(REG,    IR_MUL,            REG, CST, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
+                                                            add_op(r, X_MUL, 0, SRC1, SRC2, "imul\t%$v1, %v2");
+}

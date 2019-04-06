@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "wc4.h"
 
@@ -34,4 +35,13 @@ void panic2s(char *fmt, char *s1, char *s2) {
     printf(fmt, s1, s2);
     printf("\n");
     exit(1);
+}
+
+Function *new_function() {
+    Function *function;
+
+    function = malloc(sizeof(Function));
+    memset(function, 0, sizeof(Function));
+
+    return function;
 }

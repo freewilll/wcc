@@ -6,15 +6,6 @@ int failures;
 char *input_filename, *output_filename;
 int label;
 
-Function *new_function() {
-    Function *function;
-
-    function = malloc(sizeof(Function));
-    memset(function, 0, sizeof(Function));
-
-    return function;
-}
-
 void i(int operation, Value *dst, Value *src1, Value *src2) {
     add_instruction(operation, dst, src1, src2);
 }

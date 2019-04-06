@@ -7,6 +7,7 @@ SOURCES = \
   ir.c \
   ssa.c \
   instrsel.c \
+  instrrules.c \
   codegen.c \
   utils.c \
   set.c \

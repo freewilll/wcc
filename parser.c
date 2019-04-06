@@ -470,8 +470,10 @@ void arithmetic_operation(int operation, int type) {
         if (vtop->is_constant) src2 = pop(); else src2 = pl();
         if (vtop->is_constant) src1 = pop(); else src1 = pl();
 
-        // If the second arg is a constant, flip it to be the first for commutative operations
-        if (operation != IR_SUB && operation != IR_BSHL && operation != IR_BSHR && src2->is_constant) {
+        // If the second arg is a constant, flip it to be the first for commutative operations,
+        // unless the new experimental instruction selection has been enabled, which replaces
+        // this.
+        if (!instruction_selection_wip && operation != IR_SUB && operation != IR_BSHL && operation != IR_BSHR && src2->is_constant) {
             t = src1;
             src1 = src2;
             src2 = t;

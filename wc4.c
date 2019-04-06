@@ -223,6 +223,7 @@ int main(int argc, char **argv) {
 
     init_callee_saved_registers();
     init_allocate_registers();
+    init_instruction_selection_rules();
 
     command = malloc(1024 * 100);
 
