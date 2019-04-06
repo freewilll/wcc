@@ -100,7 +100,6 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
     tac->src2 = src2;
     tac->next = 0;
     tac->prev = 0;
-    tac->in_conditional = in_conditional;
 
     if (!ir_start) {
         ir_start = tac;

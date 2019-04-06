@@ -516,7 +516,6 @@ void expression(int level) {
     int type;
     int scope;
     int function_call, arg_count;
-    int prev_in_conditional;
     Symbol *symbol;
     Struct *str;
     StructMember *member;
@@ -832,9 +831,6 @@ void expression(int level) {
         else if (cur_token == TOK_TERNARY) {
             next();
 
-            prev_in_conditional = in_conditional;
-            in_conditional = 1;
-
             // Destination register
             dst = new_value();
             dst->vreg = new_vreg();
@@ -854,7 +850,6 @@ void expression(int level) {
             add_instruction(IR_ASSIGN, dst, pl(), 0);
             push(dst);
             add_jmp_target_instruction(ldst2); // End
-            in_conditional = prev_in_conditional;
         }
 
         else if (cur_token == TOK_EQ) {
@@ -902,7 +897,6 @@ void statement() {
     Value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
     Tac *tac;
     int loop_token;
-    int prev_in_conditional;
     int prev_loop;
 
     vs = vs_start; // Reset value stack
@@ -1023,9 +1017,6 @@ void statement() {
     else if (cur_token == TOK_IF) {
         next();
 
-        prev_in_conditional = in_conditional;
-        in_conditional = 1;
-
         consume(TOK_LPAREN, "(");
         expression(TOK_COMMA);
         consume(TOK_RPAREN, ")");
@@ -1047,8 +1038,6 @@ void statement() {
 
         // End
         add_jmp_target_instruction(ldst2);
-
-        in_conditional = prev_in_conditional;
     }
 
     else if (cur_token == TOK_RETURN) {
@@ -1088,7 +1077,6 @@ void function_body() {
     function_call_count = 0;
     cur_loop = 0;
     loop_count = 0;
-    in_conditional = 0;
 
     consume(TOK_LCURLY, "{");
 

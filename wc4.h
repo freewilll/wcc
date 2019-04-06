@@ -115,7 +115,6 @@ typedef struct three_address_code {
     Value *phi_values;                  // For phi functions, a null terminated array of values for the args
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
-    int in_conditional;                 // Used for live range extending. True if the code is inside an if or ternary.
 } Tac;
 
 // Temporary struct for reversing function call arguments
@@ -389,7 +388,6 @@ int string_literal_count;       // Amount of string literals
 Symbol *cur_function_symbol;     // Currently parsed function
 Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
 Value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
-int in_conditional;              // Used in the parser to determine if something is in a conditional
 
 Symbol *symbol_table;    // Symbol table, terminated by a null symbol
 Symbol *next_symbol;     // Next free symbol in the symbol table
