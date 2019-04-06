@@ -1152,7 +1152,7 @@ void blast_vregs_with_live_ranges(Function *function) {
     }
 }
 
-void ad_ig_edge(char *ig, int vreg_count, int to, int from) {
+void add_ig_edge(char *ig, int vreg_count, int to, int from) {
     int index;
 
     if (from > to)
@@ -1163,15 +1163,15 @@ void ad_ig_edge(char *ig, int vreg_count, int to, int from) {
     if (!ig[index]) ig[index] = 1;
 }
 
-void ad_ig_edge_for_reserved_register(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
+void add_ig_edge_for_reserved_register(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
     int i;
 
     for (i = 0; i <= livenow->max_value; i++)
-        if (livenow->elements[i]) ad_ig_edge(ig, vreg_count, preg_reg_index, i);
+        if (livenow->elements[i]) add_ig_edge(ig, vreg_count, preg_reg_index, i);
 
-    if (tac->dst  && tac->dst ->vreg) ad_ig_edge(ig, vreg_count, preg_reg_index, tac->dst->vreg );
-    if (tac->src1 && tac->src1->vreg) ad_ig_edge(ig, vreg_count, preg_reg_index, tac->src1->vreg);
-    if (tac->src2 && tac->src2->vreg) ad_ig_edge(ig, vreg_count, preg_reg_index, tac->src2->vreg);
+    if (tac->dst  && tac->dst ->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->dst->vreg );
+    if (tac->src1 && tac->src1->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->src1->vreg);
+    if (tac->src2 && tac->src2->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->src2->vreg);
 }
 
 // Page 701 of engineering a compiler
@@ -1201,29 +1201,29 @@ void make_interference_graph(Function *function) {
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
             if (function_call_depth > 0) {
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
             }
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD) {
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
             }
 
             if (tac->operation == IR_BSHL || tac->operation == IR_BSHR)
-                ad_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
 
             if (tac->dst && tac->dst->vreg) {
                 if (tac->operation == IR_RSUB && tac->src1->vreg) {
                     // Ensure that dst and src1 don't reside in the same preg.
                     // This allowes codegen to generate code with just one operation while
                     // ensuring the other registers preserve their values.
-                    ad_ig_edge(interference_graph, vreg_count, tac->src1->vreg, tac->dst->vreg);
+                    add_ig_edge(interference_graph, vreg_count, tac->src1->vreg, tac->dst->vreg);
                 }
 
                 for (j = 0; j <= livenow->max_value; j++) {
@@ -1233,7 +1233,7 @@ void make_interference_graph(Function *function) {
 
                     // Don't add an edge for register copies
                     if (tac->operation == IR_ASSIGN && tac->src1->vreg && tac->src1->vreg == j) continue;
-                    ad_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
+                    add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
                 }
             }
 
@@ -1295,25 +1295,25 @@ void coalesce_live_range(Function *function, int src, int dst) {
         for (to = 1; to <= vreg_count; to++) {
             if (ig[from_offset + src]) {
                 ig[from_offset + src] = 0;
-                ad_ig_edge(ig, vreg_count, from, dst);
+                add_ig_edge(ig, vreg_count, from, dst);
                 changed = 1;
             }
 
             else if (ig[to * vreg_count + src]) {
                 ig[to * vreg_count + src] = 0;
-                ad_ig_edge(ig, vreg_count, to, dst);
+                add_ig_edge(ig, vreg_count, to, dst);
                 changed = 1;
             }
 
             if (ig[from_offset + dst]) {
                 ig[from_offset + dst] = 0;
-                ad_ig_edge(ig, vreg_count, from, src);
+                add_ig_edge(ig, vreg_count, from, src);
                 changed = 1;
             }
 
             if (ig[to * vreg_count + dst]) {
                 ig[to * vreg_count + dst] = 0;
-                ad_ig_edge(ig, vreg_count, to, src);
+                add_ig_edge(ig, vreg_count, to, src);
                 changed = 1;
             }
         }

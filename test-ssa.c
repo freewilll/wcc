@@ -643,9 +643,9 @@ void test_top_down_register_allocation() {
     memset(ig, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(int));
     function->interference_graph = ig;
 
-    ad_ig_edge(ig, vreg_count, 1, 2);
-    ad_ig_edge(ig, vreg_count, 1, 3);
-    ad_ig_edge(ig, vreg_count, 1, 4);
+    add_ig_edge(ig, vreg_count, 1, 2);
+    add_ig_edge(ig, vreg_count, 1, 3);
+    add_ig_edge(ig, vreg_count, 1, 4);
 
     // Everything is spilled. All nodes are constrained.
     // The vregs with the lowest cost get spilled first
@@ -690,7 +690,7 @@ void test_top_down_register_allocation() {
 
     // function->interference_graph_edge_count++;
     // edges[3].from = 2; edges[3].to = 4;
-    ad_ig_edge(ig, vreg_count, 2, 4);
+    add_ig_edge(ig, vreg_count, 2, 4);
 
     function->spilled_register_count = 0;
     allocate_registers_top_down(function, 2);

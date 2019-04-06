@@ -517,7 +517,7 @@ void make_block_dominance(Function *function);
 void make_liveout(Function *function);
 void make_live_range_spill_cost(Function *function);
 void init_allocate_registers();
-void ad_ig_edge(char *ig, int vreg_count, int to, int from);
+void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void allocate_registers_top_down(Function *function, int physical_register_count);
 void do_oar1(Function *function);
 void do_oar2(Function *function);
