@@ -756,6 +756,7 @@ void insert_phi_functions(Function *function) {
             tac->prev = prev;
             tac->next = blocks[b].start;
             prev->next = tac;
+            blocks[b].start->prev = tac;
             blocks[b].start = tac;
         }
 
