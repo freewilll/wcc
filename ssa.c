@@ -1770,22 +1770,29 @@ void remove_self_moves(Function *function) {
 }
 
 void do_oar1(Function *function) {
-    disable_live_ranges_coalesce = !opt_enable_live_range_coalescing;
-
-    optimize_arithmetic_operations(function);
-    sanity_test_ir_linkage(function->ir);
-    map_stack_index_to_stack_index(function);
-    rewrite_lvalue_reg_assignments(function);
-    make_vreg_count(function, 0);
-    make_control_flow_graph(function);
-    make_block_dominance(function);
-    make_block_immediate_dominators(function);
-    make_block_dominance_frontiers(function);
+    do_oar1a(function);
+    do_oar1b(function);
 }
 
 void do_oar2(Function *function) {
     make_globals_and_var_blocks(function);
     insert_phi_functions(function);
+}
+
+void do_oar1a(Function *function) {
+    disable_live_ranges_coalesce = !opt_enable_live_range_coalescing;
+    optimize_arithmetic_operations(function);
+    sanity_test_ir_linkage(function->ir);
+    map_stack_index_to_stack_index(function);
+    rewrite_lvalue_reg_assignments(function);
+}
+
+void do_oar1b(Function *function) {
+    make_vreg_count(function, 0);
+    make_control_flow_graph(function);
+    make_block_dominance(function);
+    make_block_immediate_dominators(function);
+    make_block_dominance_frontiers(function);
 }
 
 void do_oar3(Function *function) {

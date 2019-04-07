@@ -238,6 +238,41 @@ int get_stack_offset_from_index(int function_pc, int stack_start, int stack_inde
     return stack_offset;
 }
 
+void output_x86_operation(Tac *tac) {
+    char *t;
+    Value *v;
+
+    t = tac->x86_template;
+
+    fprintf(f, "\t");
+
+    while (*t) {
+        if (*t == '%') {
+            if (t[1] == '%') {
+                fprintf(f, "%%");
+                t += 1;
+            }
+            else {
+                if (t[2] == '1') v = tac->src1;
+                else if (t[2] == '2') v = tac->src2;
+                else panic1d("Unknown placeholder number %d", t[2]);
+
+                if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
+                if (v->is_constant) fprintf(f, "%ld", v->value);
+                else if (v->preg != -1) output_quad_register_name(v->preg);
+                else panic("Don't know how to render template value");
+                t += 2;
+            }
+        }
+        else
+            fprintf(f, "%c", *t);
+
+        t++;
+    }
+
+    fprintf(f, "\n");
+}
+
 // Called once at startup to indicate which registers are preserved across function calls
 void init_callee_saved_registers() {
     callee_saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
@@ -412,6 +447,9 @@ void output_function_body_code(Symbol *symbol) {
 
         if (tac->operation == IR_NOP || tac->operation == IR_START_LOOP || tac->operation == IR_END_LOOP);
 
+        else if (tac->operation > X_START && tac->operation != X_RET)
+            output_x86_operation(tac);
+
         else if (tac->operation == IR_LOAD_CONSTANT) {
             fprintf(f, "\tmovq\t$%ld, ", tac->src1->value);
             output_quad_register_name(tac->dst->preg);
@@ -521,6 +559,13 @@ void output_function_body_code(Symbol *symbol) {
                 fprintf(f, "\taddq\t$%d, %%rsp\n", (ac - 6) * 8);
                 cur_stack_push_count -= ac - 6;
             }
+        }
+
+        else if (tac->operation == X_RET) {
+            output_x86_operation(tac);
+            output_pop_callee_saved_registers(saved_registers);
+            fprintf(f, "\tleaveq\n");
+            fprintf(f, "\tretq\n");
         }
 
         else if (tac->operation == IR_RETURN) {
@@ -796,7 +841,7 @@ void output_code(char *input_filename, char *output_filename) {
         if (print_ir2) print_intermediate_representation(s->function, s->identifier);
 
         if (instruction_selection_wip) {
-            experimental_instruction_selection(s->function);
+            experimental_instruction_selection(s);
             s++;
             continue;
         }

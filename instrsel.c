@@ -42,6 +42,7 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_INDIRECT) printf("indirect\n");
         else if (operation == IR_LOAD_CONSTANT) printf("load constant\n");
         else if (operation == IR_NOP) printf("noop\n");
+        else if (operation == IR_RETURN) printf("return\n");
         else printf("Operation %d\n", operation);
     }
     else {
@@ -228,10 +229,6 @@ void make_igraphs(Function *function) {
     VregIGraph* vreg_igraphs;
     Value *v;
 
-    do_oar1(function);
-    do_oar2(function);
-    do_oar3(function);
-
     if (DEBUG_INSTSEL_IGRAPHS_DEEP) print_intermediate_representation(function, 0);
 
     vreg_count = function->vreg_count;
@@ -378,6 +375,7 @@ void recursive_print_cost_graph(Graph *cost_graph, int *cost_rules, int *accumul
             src = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
             match = rules_match(src, &(instr_rules[cost_rules[choice_node_id]]));
             if (match) {
+                printf("%-3d ", choice_node_id);
                 for (i = 0; i < indent; i++) printf("  ");
                 printf("%d ", cost_rules[choice_node_id]);
             }
@@ -391,6 +389,7 @@ void recursive_print_cost_graph(Graph *cost_graph, int *cost_rules, int *accumul
             e = choice_node->succ;
             j = 1;
             while (e) {
+                printf("%-3d ", choice_node_id);
                 for (i = 0; i < indent + 1; i++) printf("  ");
                 printf("src%d\n", j);
                 recursive_print_cost_graph(cost_graph, cost_rules, accumulated_cost, e->to->id, choice_node_id, j, indent + 2);
@@ -512,6 +511,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     if (DEBUG_INSTSEL_TILING) {
         printf("back from recursing at node=%d\n\n", node_id);
         printf("src1 labels: "); print_set(igraph_labels[src1_id]); printf(" ");
+        printf("\n");
 
         if (src2_id) {
             printf("src2 labels: ");
@@ -529,9 +529,8 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (src2_id && !r->src2) continue;
         if (!src2_id && r->src2) continue;
 
-        // The top level parent node can only match a rule that
-        // with a REG as a dst.
-        if (node_id == 0 && !rules_match(REG, r)) continue;
+        // If the top level parent node wants a reg, ensure it gets it
+        if (node_id == 0 && tac->dst && tac->dst->vreg && !rules_match(REG, r)) continue;
 
         // Check dst of the subtree tile matches what is needed
         matched_src = 0;
@@ -622,7 +621,7 @@ int recursive_tile_igraphs(IGraph *igraph, int node_id) {
 }
 
 // Add instructions to the intermediate representation by doing a post-order walk over the cost tree, picking the matching rules with lowest cost
-Value *recursive_make_intermediate_representation(IGraph *igraph, int cost_graph_node_id, int parent_node_id, int parent_src) {
+Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
     int i, pv, choice_node_id, match;
     int least_expensive_choice_node_id, min_cost, cost, igraph_node_id, dst_type;
     GraphEdge *choice_edge, *e;
@@ -630,10 +629,11 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int cost_graph
     IGraphNode *ign;
     Value *src, *dst, *src1, *src2, *x86_dst, *x86_v1, *x86_v2;
     X86Operation *x86op;
+    Tac *tac;
 
     min_cost = 100000000;
     least_expensive_choice_node_id = -1;
-    choice_edge = cost_graph->nodes[cost_graph_node_id].succ;
+    choice_edge = cost_graph->nodes[node_id].succ;
     while (choice_edge) {
         choice_node_id = choice_edge->to->id;
 
@@ -667,7 +667,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int cost_graph
     src2 = 0;
 
     while (e) {
-        src = recursive_make_intermediate_representation(igraph, e->to->id, choice_node_id, i);
+        src = recursive_make_intermediate_representation(igraph, e->to->id, least_expensive_choice_node_id, i);
         if (i == 1)
             src1 = src;
         else
@@ -723,13 +723,15 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int cost_graph
         else if (x86op->v1 == DST)                       x86_v1 = dst;
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v1);
 
-             if (x86op->v2 == SRC1 || x86op->v2 == CST1) x86_v2 = src1;
+             if (x86op->v2 == 0)                         x86_v2 = 0;
+        else if (x86op->v2 == SRC1 || x86op->v2 == CST1) x86_v2 = src1;
         else if (x86op->v2 == SRC2 || x86op->v2 == CST2) x86_v2 = src2;
         else if (x86op->v2 == DST)                       x86_v2 = dst;
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v2);
 
         if (DEBUG_INSTSEL_TILING) printf("  adding instruction for operation %d: %s\n", x86op->operation, x86op->template);
-        add_instruction(x86op->operation, dst, x86_v1, x86_v2);
+        tac = add_instruction(x86op->operation, dst, x86_v1, x86_v2);
+        tac->x86_template = x86op->template;
         x86op = x86op->next;
     }
 
@@ -750,15 +752,35 @@ void tile_igraphs(Function *function) {
     int i, j, instr_count;
     IGraph *igraphs;
     Function *f;
-    Tac *tac;
+    Tac *tac, *current_instruction_ir_start;
 
     igraphs = function->eis_igraphs;
     instr_count = function->eis_instr_count;
 
+    ir_start = 0;
+    function->ir = ir_start;
+
     for (i = 0; i < instr_count; i++) {
         if (!igraphs[i].node_count) continue;
         tac = igraphs[i].nodes[0].tac;
-        if (tac && tac->operation == IR_NOP) continue;
+
+        if (tac && tac->operation == IR_NOP) {
+            add_tac_to_ir(tac);
+            continue;
+        }
+
+        // Whitelist operations there are rules for, pass everything else through
+        if (tac &&
+            tac->operation != IR_RETURN &&
+            tac->operation != IR_ASSIGN &&
+            tac->operation != IR_LOAD_CONSTANT &&
+            tac->operation != IR_ADD &&
+            tac->operation != IR_MUL) {
+
+            printf("Added tac %d\n", tac->operation);
+            add_tac_to_ir(tac);
+            continue;
+        }
 
         igraph_labels = malloc(igraphs[i].node_count * sizeof(Set *));
         for (j = 0; j < igraphs[i].node_count; j++) igraph_labels[j] = new_set(instr_rule_count);
@@ -787,21 +809,44 @@ void tile_igraphs(Function *function) {
         recursive_tile_igraphs(&(igraphs[i]), 0);
         if (DEBUG_INSTSEL_TILING) print_cost_graph(cost_graph, cost_rules, accumulated_cost);
 
-        ir_start = 0;
         add_instruction(IR_NOP, 0, 0, 0);
         if (tac) ir_start->label = tac->label;
 
         vreg_count = function->vreg_count;
+        current_instruction_ir_start = ir;
         make_intermediate_representation(&(igraphs[i]));
         if (DEBUG_INSTSEL_TILING) {
             f = new_function();
-            f->ir = ir_start;
+            f->ir = current_instruction_ir_start;
             print_intermediate_representation(f, 0);
         }
     }
+
+    function->ir = ir_start;
+    if (DEBUG_INSTSEL_TILING) {
+        printf("Final IR:\n");
+        print_intermediate_representation(function, 0);
+    }
 }
 
-void experimental_instruction_selection(Function *function) {
+void experimental_instruction_selection(Symbol *function_symbol) {
+    Function *function;
+
+    function = function_symbol->function;
+
+    do_oar1(function);
+    do_oar2(function);
+    do_oar3(function);
     make_igraphs(function);
     tile_igraphs(function);
+    do_oar1b(function);
+    coalesce_live_ranges(function);
+    do_oar4(function);
+
+    if (DEBUG_INSTSEL_TILING) print_intermediate_representation(function, 0);
+
+    output_function_body_code(function_symbol);
+    fprintf(f, "\n");
+
+    if (print_ir3) print_intermediate_representation(function_symbol->function, function_symbol->identifier);
 }

@@ -133,6 +133,7 @@ typedef struct three_address_code {
     Value *phi_values;                  // For phi functions, a null terminated array of values for the args
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
+    char *x86_template;                 // Template for rendering x86 instruction
 } Tac;
 
 // Temporary struct for reversing function call arguments
@@ -499,6 +500,7 @@ void init_value(Value *v);
 Value *new_value();
 Value *new_constant(int type, long value);
 Value *dup_value(Value *src);
+void add_tac_to_ir(Tac *tac);
 Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 void sanity_test_ir_linkage(Tac *ir);
@@ -539,10 +541,13 @@ void make_control_flow_graph(Function *function);
 void make_block_dominance(Function *function);
 void make_liveout(Function *function);
 void make_live_range_spill_cost(Function *function);
+void coalesce_live_ranges(Function *function);
 void init_allocate_registers();
 void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void allocate_registers_top_down(Function *function, int physical_register_count);
 void do_oar1(Function *function);
+void do_oar1a(Function *function);
+void do_oar1b(Function *function);
 void do_oar2(Function *function);
 void do_oar3(Function *function);
 void do_oar4(Function *function);
@@ -562,10 +567,11 @@ enum {
     DST_REG,
     DST_CST,
 
-    X_START = 1000,
-    X_MOV   = 1001,
-    X_ADD   = 1002,
-    X_MUL   = 1003,
+    X_START  = 1000,
+    X_RET    = 1001,
+    X_MOV    = 1002,
+    X_ADD    = 1003,
+    X_MUL    = 1004,
 };
 
 typedef struct rule {
@@ -588,7 +594,7 @@ typedef struct x86_operation {
 int instr_rule_count;
 Rule *instr_rules;
 
-void experimental_instruction_selection(Function *function);
+void experimental_instruction_selection(Symbol *function_symbol);
 
 // rules.c
 void init_instruction_selection_rules();

@@ -79,6 +79,18 @@ Value *dup_value(Value *src) {
     return dst;
 }
 
+void add_tac_to_ir(Tac *tac) {
+    if (!ir_start) {
+        ir_start = tac;
+        ir = tac;
+    }
+    else {
+        tac->prev = ir;
+        ir->next = tac;
+        ir = tac;
+    }
+}
+
 Tac *new_instruction(int operation) {
     Tac *tac;
 
@@ -101,15 +113,7 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
     tac->next = 0;
     tac->prev = 0;
 
-    if (!ir_start) {
-        ir_start = tac;
-        ir = tac;
-    }
-    else {
-        tac->prev = ir;
-        ir->next = tac;
-        ir = tac;
-    }
+    add_tac_to_ir(tac);
 
     return tac;
 }
@@ -288,6 +292,7 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
 
+    else if (tac->operation == X_RET) { fprintf(f, "ret "); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_MOV) { fprintf(f, "mov "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
     else if (tac->operation == X_ADD) { fprintf(f, "add "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
     else if (tac->operation == X_MUL) { fprintf(f, "mul "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }

@@ -55,21 +55,25 @@ void init_instruction_selection_rules() {
 
     r = add_rule(REG,    0,                 REG, 0,    0);
     r = add_rule(CST,    0,                 CST, 0,    0);
-    r = add_rule(REG,    IR_ASSIGN,         REG, 0,    1);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t%v1, %v2" );
-    r = add_rule(REG,    IR_LOAD_CONSTANT,  CST, 0,    1);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t$%v1, %v2" );
-    r = add_rule(REG,    0,                 CST, 0,    1);  add_op(r, X_MOV, 0, CST1, DST,  "mov\t$%v1, %v2");
 
-    r = add_rule(REG,    IR_ADD,            REG, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
-                                                            add_op(r, X_ADD, 0, SRC1, SRC2, "add\t%v1, %v2" );
-    r = add_rule(REG,    IR_ADD,            CST, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
-                                                            add_op(r, X_ADD, 0, SRC1, SRC2, "add\t%$v1, %v2");
-    r = add_rule(REG,    IR_ADD,            REG, CST, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
-                                                            add_op(r, X_ADD, 0, SRC1, SRC2, "add\t%$v1, %v2");
+    r = add_rule(0,      IR_RETURN,         CST, 0,    1);  add_op(r, X_RET, 0, CST1, 0,    "mov\t$%v1, %%rax");
+    r = add_rule(0,      IR_RETURN,         REG, 0,    1);  add_op(r, X_RET, 0, SRC1, 0,    "mov\t%v1, %%rax" );
 
-    r = add_rule(REG,    IR_MUL,            REG, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
-                                                            add_op(r, X_MUL, 0, SRC1, SRC2, "imul\t%v1, %v2" );
-    r = add_rule(REG,    IR_MUL,            CST, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
-                                                            add_op(r, X_MUL, 0, SRC1, SRC2, "imul\t%$v1, %v2");
-    r = add_rule(REG,    IR_MUL,            REG, CST, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2" );
-                                                            add_op(r, X_MUL, 0, SRC1, SRC2, "imul\t%$v1, %v2");
+    r = add_rule(REG,    IR_ASSIGN,         REG, 0,    1);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t%v1, %v2"   );
+    r = add_rule(REG,    IR_LOAD_CONSTANT,  CST, 0,    1);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t$%v1, %v2"  );
+    r = add_rule(REG,    0,                 CST, 0,    1);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t$%v1, %v2"  );
+
+    r = add_rule(REG,    IR_ADD,            REG, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2"   );
+                                                            add_op(r, X_ADD, 0, SRC1, DST,  "add\t%v1, %v2"   );
+    r = add_rule(REG,    IR_ADD,            CST, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2"   );
+                                                            add_op(r, X_ADD, 0, SRC1, DST,  "add\t$%v1, %v2"  );
+    r = add_rule(REG,    IR_ADD,            REG, CST, 10);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t%v1, %v2"   );
+                                                            add_op(r, X_ADD, 0, SRC2, DST,  "add\t$%v1, %v2"  );
+
+    r = add_rule(REG,    IR_MUL,            REG, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2"   );
+                                                            add_op(r, X_MUL, 0, SRC1, DST,  "imul\t%v1, %v2"  );
+    r = add_rule(REG,    IR_MUL,            CST, REG, 10);  add_op(r, X_MOV, 0, SRC2, DST,  "mov\t%v1, %v2"  );
+                                                            add_op(r, X_MUL, 0, SRC1, DST,  "imul\t$%v1, %v2");
+    r = add_rule(REG,    IR_MUL,            REG, CST, 10);  add_op(r, X_MOV, 0, SRC1, DST,  "mov\t%v1, %v2"  );
+                                                            add_op(r, X_MUL, 0, SRC2, DST,  "imul\t$%v1, %v2");
 }
