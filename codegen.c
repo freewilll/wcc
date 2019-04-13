@@ -447,7 +447,7 @@ void output_function_body_code(Symbol *symbol) {
 
         if (tac->operation == IR_NOP || tac->operation == IR_START_LOOP || tac->operation == IR_END_LOOP);
 
-        else if (tac->operation > X_START && tac->operation != X_RET)
+        else if (tac->operation > X_START && tac->operation != X_RET && tac->operation != X_ARG)
             output_x86_operation(tac);
 
         else if (tac->operation == IR_LOAD_CONSTANT) {
@@ -520,6 +520,11 @@ void output_function_body_code(Symbol *symbol) {
             fprintf(f, "\tpushq\t");
             output_quad_register_name(tac->src2->preg);
             fprintf(f, "\n");
+        }
+
+        else if (tac->operation == X_ARG) {
+            cur_stack_push_count++;
+            output_x86_operation(tac);
         }
 
         else if (tac->operation == IR_CALL) {

@@ -43,6 +43,7 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_LOAD_CONSTANT) printf("load constant\n");
         else if (operation == IR_NOP) printf("noop\n");
         else if (operation == IR_RETURN) printf("return\n");
+        else if (operation == IR_ARG) printf("arg\n");
         else printf("Operation %d\n", operation);
     }
     else {
@@ -771,6 +772,7 @@ void tile_igraphs(Function *function) {
 
         // Whitelist operations there are rules for, pass everything else through
         if (tac &&
+            tac->operation != IR_ARG &&
             tac->operation != IR_RETURN &&
             tac->operation != IR_ASSIGN &&
             tac->operation != IR_LOAD_CONSTANT &&

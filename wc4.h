@@ -569,9 +569,10 @@ enum {
 
     X_START  = 1000,
     X_RET    = 1001,
-    X_MOV    = 1002,
-    X_ADD    = 1003,
-    X_MUL    = 1004,
+    X_ARG    = 1002,
+    X_MOV    = 1003,
+    X_ADD    = 1004,
+    X_MUL    = 1005,
 };
 
 typedef struct rule {

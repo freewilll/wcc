@@ -215,7 +215,7 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->value);
     else if (tac->operation == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->value);
 
-    else if (tac->operation == IR_ARG) {
+    else if (tac->operation == IR_ARG || tac->operation == X_ARG) {
         fprintf(f, "arg for call %ld ", tac->src1->value);
         print_value(f, tac->src2, 1);
     }
