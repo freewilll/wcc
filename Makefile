@@ -90,11 +90,17 @@ test-set: wc4 set.c utils.c test-set.c
 run-test-set: test-set
 	 ./test-set
 
-test-ssa: wc4 test-ssa.c ssa.c set.c stack.c graph.c ir.c utils.c
-	./wc4 test-ssa.c ssa.c set.c stack.c graph.c ir.c utils.c -o test-ssa
+test-ssa: wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c utils.c
+	./wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa
+
+test-instrsel: wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c graph.c set.c ssa.c stack.c utils.c
+	./wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c graph.c set.c ssa.c stack.c utils.c -o test-instrsel
+
+run-test-instrsel: test-instrsel
+	 ./test-instrsel
 
 test-graph: wc4 test-graph.c graph.c set.c stack.c ir.c utils.c
 	./wc4 test-graph.c graph.c utils.c -o test-graph
@@ -109,7 +115,7 @@ run-test-codegen: test-codegen
 	 ./test-codegen
 
 .PHONY: test
-test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-graph run-test-codegen run-test-wc4-gcc test-self-compilation
+test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-instrsel run-test-graph run-test-codegen run-test-wc4-gcc test-self-compilation
 
 clean:
 	@rm -f wc4
@@ -118,6 +124,7 @@ clean:
 	@rm -f test-wc4
 	@rm -f test-wc4-gcc
 	@rm -f test-set
+	@rm -f test-instrsel
 	@rm -f test-graph
 	@rm -f test-ssa
 	@rm -f test-codegen

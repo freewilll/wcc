@@ -840,13 +840,10 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir2) print_intermediate_representation(s->function, s->identifier);
 
-        if (instruction_selection_wip) {
+        if (instruction_selection_wip)
             experimental_instruction_selection(s);
-            s++;
-            continue;
-        }
-
-        optimize_and_allocate_registers(s->function);
+        else
+            optimize_and_allocate_registers(s->function);
 
         if (print_ir3) print_intermediate_representation(s->function, s->identifier);
 

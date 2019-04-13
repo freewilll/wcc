@@ -8,6 +8,7 @@ test-wc4-gcc
 test-set
 test-graph
 test-ssa
+test-instrsel
 test-codegen
 benchmark
 test.c

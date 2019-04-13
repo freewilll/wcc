@@ -78,7 +78,7 @@ void rewrite_lvalue_reg_assignments(Function *function) {
 
 // If any vregs have &, then they are mapped to a local_index and not mapped to
 // a vreg by the existing code. They need to be mapped to a stack_index.
-void map_stack_index_to_stack_index(Function *function) {
+void map_stack_index_to_local_index(Function *function) {
     int spilled_register_count;
     Tac *tac;
     int *stack_index_map;
@@ -1143,11 +1143,13 @@ void blast_vregs_with_live_ranges(Function *function) {
     }
 
     // Nuke the live ranges, they should not be used downstream and this guarantees a horrible failure if they are.
+    // Also, remove ssa_subscript, since this is no longer used. Mostly so that print_intermediate_representation
+    // doesn't show them.
     tac = function->ir;
     while (tac) {
-        if (tac->src1 && tac->src1->vreg) { tac->src1->live_range = -100000; }
-        if (tac->src2 && tac->src2->vreg) { tac->src2->live_range = -100000; }
-        if (tac->dst  && tac->dst-> vreg) { tac->dst-> live_range = -100000; }
+        if (tac->src1 && tac->src1->vreg) { tac->src1->live_range = -100000; tac->src1->ssa_subscript = -1; }
+        if (tac->src2 && tac->src2->vreg) { tac->src2->live_range = -100000; tac->src2->ssa_subscript = -1; }
+        if (tac->dst  && tac->dst-> vreg) { tac->dst-> live_range = -100000; tac->dst-> ssa_subscript = -1; }
         tac = tac->next;
     }
 }
@@ -1783,7 +1785,7 @@ void do_oar1a(Function *function) {
     disable_live_ranges_coalesce = !opt_enable_live_range_coalescing;
     optimize_arithmetic_operations(function);
     sanity_test_ir_linkage(function->ir);
-    map_stack_index_to_stack_index(function);
+    map_stack_index_to_local_index(function);
     rewrite_lvalue_reg_assignments(function);
 }
 

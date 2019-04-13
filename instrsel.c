@@ -695,7 +695,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             // It's an operation on a non-root node. Allocate a vreg.
             dst = new_value();
             dst->vreg = new_vreg();
-            dst->ssa_subscript = 0;
+            dst->ssa_subscript = -1;
 
             // Infer the dst type from the operands by picking the type with the largest size.
             dst_type = 0;
@@ -777,7 +777,6 @@ void tile_igraphs(Function *function) {
             tac->operation != IR_ADD &&
             tac->operation != IR_MUL) {
 
-            printf("Added tac %d\n", tac->operation);
             add_tac_to_ir(tac);
             continue;
         }
@@ -809,8 +808,10 @@ void tile_igraphs(Function *function) {
         recursive_tile_igraphs(&(igraphs[i]), 0);
         if (DEBUG_INSTSEL_TILING) print_cost_graph(cost_graph, cost_rules, accumulated_cost);
 
-        add_instruction(IR_NOP, 0, 0, 0);
-        if (tac) ir_start->label = tac->label;
+        if (tac && tac->label) {
+            add_instruction(IR_NOP, 0, 0, 0);
+            ir_start->label = tac->label;
+        }
 
         vreg_count = function->vreg_count;
         current_instruction_ir_start = ir;
@@ -829,11 +830,7 @@ void tile_igraphs(Function *function) {
     }
 }
 
-void experimental_instruction_selection(Symbol *function_symbol) {
-    Function *function;
-
-    function = function_symbol->function;
-
+void eis1(Function *function) {
     do_oar1(function);
     do_oar2(function);
     do_oar3(function);
@@ -841,12 +838,16 @@ void experimental_instruction_selection(Symbol *function_symbol) {
     tile_igraphs(function);
     do_oar1b(function);
     coalesce_live_ranges(function);
+}
+
+void eis2(Function *function) {
     do_oar4(function);
+}
 
-    if (DEBUG_INSTSEL_TILING) print_intermediate_representation(function, 0);
+void experimental_instruction_selection(Symbol *function_symbol) {
+    Function *function;
+    function = function_symbol->function;
 
-    output_function_body_code(function_symbol);
-    fprintf(f, "\n");
-
-    if (print_ir3) print_intermediate_representation(function_symbol->function, function_symbol->identifier);
+    eis1(function);
+    eis2(function);
 }

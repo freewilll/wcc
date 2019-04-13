@@ -594,6 +594,8 @@ typedef struct x86_operation {
 int instr_rule_count;
 Rule *instr_rules;
 
+void eis1(Function *function);
+void eis2(Function *function);
 void experimental_instruction_selection(Symbol *function_symbol);
 
 // rules.c
@@ -603,3 +605,9 @@ void init_instruction_selection_rules();
 void init_callee_saved_registers();
 void output_function_body_code(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
+
+// test-utils.c
+Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
+Value *v(int vreg);
+Value *l(int label);
+Value *c(int value);
