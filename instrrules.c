@@ -68,15 +68,19 @@ void init_instruction_selection_rules() {
     instr_rules = malloc(MAX_RULE_COUNT * sizeof(Rule));
     memset(instr_rules, 0, MAX_RULE_COUNT * sizeof(Rule));
 
+    // Identity rules
     r = add_rule(REG, 0,                REG, 0,   0);
     r = add_rule(CST, 0,                CST, 0,   0);
-    r = add_rule(0,   IR_RETURN,        CST, 0,   1);  add_op(r, X_RET,  0, CST1, 0,    "mov\t$%v1, %%rax");
-    r = add_rule(0,   IR_RETURN,        REG, 0,   1);  add_op(r, X_RET,  0, SRC1, 0,    "mov\t%v1, %%rax" );
-    r = add_rule(REG, IR_ASSIGN,        REG, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t%v1, %v2"   );
-    r = add_rule(REG, IR_LOAD_CONSTANT, CST, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t$%v1, %v2"  );
-    r = add_rule(REG, 0,                CST, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t$%v1, %v2"  );
-    r = add_rule(0,   IR_ARG,           CST, CST, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t$%v2"     );
-    r = add_rule(0,   IR_ARG,           CST, REG, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t%v2"      );
+    r = add_rule(STL, 0,                STL, 0,   0);
+
+    r = add_rule(0,   IR_RETURN,        CST, 0,   1);  add_op(r, X_RET,  0, SRC1, 0,    "mov\t$%v1, %%rax"        ); // Return constant
+    r = add_rule(0,   IR_RETURN,        REG, 0,   1);  add_op(r, X_RET,  0, SRC1, 0,    "mov\t%v1, %%rax"         ); // Return register
+    r = add_rule(REG, IR_ASSIGN,        REG, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t%v1, %v2"           ); // Register to register copy
+    r = add_rule(REG, IR_LOAD_CONSTANT, CST, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t$%v1, %v2"          ); // Process standalone r1 = constant
+    r = add_rule(REG, 0,                CST, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t$%v1, %v2"          ); // Load constant into register
+    r = add_rule(REG, 0,                STL, 0,   1);  add_op(r, X_LEA,  0, SRC1, DST,  "leaq\t.SL%v1(%%rip), %v2"); // Load string literal into register
+    r = add_rule(0,   IR_ARG,           CST, CST, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t$%v2"             ); // Use constant as function arg
+    r = add_rule(0,   IR_ARG,           CST, REG, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t%v2"              ); // Use register as function arg
 
     add_commutative_operation_rules("add",  IR_ADD, X_ADD, 10);
     add_commutative_operation_rules("imul", IR_MUL, X_MUL, 30);

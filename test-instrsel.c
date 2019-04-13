@@ -11,12 +11,39 @@ void assert(long expected, long actual) {
     }
 }
 
+void assert_value(Value *v1, Value *v2) {
+    if (v1->is_constant)
+        assert(v1->value, v2->value);
+    else if (v1->is_string_literal)
+        assert(v1->vreg, v2->vreg);
+    else if (v1->vreg)
+        assert(v1->vreg, v2->vreg);
+    else
+        panic("Don't know how to assert_value");
+}
+
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
     assert(operation, tac->operation);
 
-    if (dst  && dst-> is_constant) assert(dst-> value, tac->dst-> value); else if (dst ) assert(dst-> vreg, tac->dst-> vreg);
-    if (src1 && src1->is_constant) assert(src1->value, tac->src1->value); else if (src1) assert(src1->vreg, tac->src1->vreg);
-    if (src2 && src2->is_constant) assert(src2->value, tac->src2->value); else if (src2) assert(src2->vreg, tac->src2->vreg);
+    if (dst) assert_value(tac->dst, dst);
+    if (src1) assert_value(tac->src1, src1);
+    if (src2) assert_value(tac->src2, src2);
+
+    if (dst  && dst-> is_constant)
+        assert(dst-> value, tac->dst-> value);
+    else if (dst )
+        assert(dst-> vreg, tac->dst-> vreg);
+
+    if (src1 && src1->is_constant)
+        assert(src1->value, tac->src1->value);
+    else if (src1)
+        assert(src1->vreg, tac->src1->vreg);
+
+    if (src2 && src2->is_constant)
+        assert(src2->value, tac->src2->value);
+    else if (src2)
+        assert(src2->vreg, tac->src2->vreg);
+
 }
 
 void remove_reserved_physical_register_count_from_tac(Tac *ir) {
@@ -120,12 +147,20 @@ void test_instrsel() {
     i(0, IR_ARG, 0, c(0), v(1));
     finish_ir(function);
     assert_tac(ir_start, X_ARG, 0, c(0), v(1));
+
+    // arg s
+    start_ir();
+    i(0, IR_ARG, 0, c(0), s(1));
+    finish_ir(function);
+    assert_tac(ir_start,       X_LEA, 0, s(1), v(1));
+    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
 }
 
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
     opt_optimize_arithmetic_operations = 1;
+    string_literals = malloc(MAX_STRING_LITERALS);
 
     init_allocate_registers();
     init_instruction_selection_rules();

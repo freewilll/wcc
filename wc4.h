@@ -559,20 +559,18 @@ enum {
 
     REG = 1,
     CST,
+    STL,
     DST,
     SRC1,
     SRC2,
-    CST1,
-    CST2,
-    DST_REG,
-    DST_CST,
 
     X_START  = 1000,
     X_RET    = 1001,
     X_ARG    = 1002,
     X_MOV    = 1003,
-    X_ADD    = 1004,
-    X_MUL    = 1005,
+    X_LEA    = 1004,
+    X_ADD    = 1005,
+    X_MUL    = 1006,
 };
 
 typedef struct rule {
@@ -612,3 +610,4 @@ Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
 Value *v(int vreg);
 Value *l(int label);
 Value *c(int value);
+Value *s(int string_literal_index);

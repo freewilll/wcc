@@ -34,16 +34,19 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
 
     if (ign->tac) {
         operation = ign->tac->operation;
-        if (operation == IR_ASSIGN) printf("=\n");
-        else if (operation == IR_ADD) printf("+\n");
-        else if (operation == IR_SUB) printf("-\n");
-        else if (operation == IR_MUL) printf("*\n");
-        else if (operation == IR_DIV) printf("/\n");
-        else if (operation == IR_INDIRECT) printf("indirect\n");
+             if (operation == IR_ASSIGN)        printf("=\n");
+        else if (operation == IR_ADD)           printf("+\n");
+        else if (operation == IR_SUB)           printf("-\n");
+        else if (operation == IR_MUL)           printf("*\n");
+        else if (operation == IR_DIV)           printf("/\n");
+        else if (operation == IR_INDIRECT)      printf("indirect\n");
         else if (operation == IR_LOAD_CONSTANT) printf("load constant\n");
-        else if (operation == IR_NOP) printf("noop\n");
-        else if (operation == IR_RETURN) printf("return\n");
-        else if (operation == IR_ARG) printf("arg\n");
+        else if (operation == IR_NOP)           printf("noop\n");
+        else if (operation == IR_RETURN)        printf("return\n");
+        else if (operation == IR_START_CALL)    printf("start call\n");
+        else if (operation == IR_END_CALL)      printf("end call\n");
+        else if (operation == IR_ARG)           printf("arg\n");
+        else if (operation == IR_CALL)          printf("call\n");
         else printf("Operation %d\n", operation);
     }
     else {
@@ -69,13 +72,15 @@ void copy_inode(IGraphNode *src, IGraphNode *dst) {
 }
 
 IGraph *merge_assignment_igraphs(IGraph *g1, IGraph *g2, int vreg) {
-    int i, replacement_vreg, replacement_value, replacement_is_constant;
+    int i, replacement_vreg, replacement_value, replacement_is_constant, replacement_is_string_literal, replacement_string_literal_index;
     IGraphNode *in;
     Value *v;
 
     replacement_vreg = g2->nodes[1].value->vreg;
     replacement_value = g2->nodes[1].value->value;
     replacement_is_constant = g2->nodes[1].value->is_constant;
+    replacement_is_string_literal = g2->nodes[1].value->is_string_literal;
+    replacement_string_literal_index = g2->nodes[1].value->string_literal_index;
     for (i = 0; i < g1->node_count; i++) {
         in = &(g1->nodes[i]);
         if (in->value && in->value->vreg == vreg) {
@@ -84,6 +89,8 @@ IGraph *merge_assignment_igraphs(IGraph *g1, IGraph *g2, int vreg) {
             in->value->vreg = replacement_vreg;
             in->value->value = replacement_value;
             in->value->is_constant = replacement_is_constant;
+            in->value->is_string_literal = replacement_is_string_literal;
+            in->value->string_literal_index = replacement_string_literal_index;
 
             if (DEBUG_INSTSEL_IGRAPHS_DEEP) {
                 printf("\nreusing tweaked g1 for g:\n");
@@ -118,6 +125,11 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     if (g1->node_count == 2) {
         tac = g1->nodes[0].tac;
         operation = tac->operation;
+        // g1 is one of
+        //     r1 = r2(var)
+        //     r1 = r2(temp)
+        // g2 is r2 = src1 (op) src2
+        // Subsitute r2 with g2
         if (operation == IR_LOAD_VARIABLE ||
             (operation == IR_ASSIGN && tac->dst->vreg && tac->src1->vreg)) {
 
@@ -131,13 +143,19 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
             return g2;
         }
-        else if (operation == IR_LOAD_CONSTANT)
-            return merge_assignment_igraphs(g2, g1, vreg);
     }
 
     if (g2->node_count == 2) {
+        // g1 is a generic dst = r1 (op) r2
+        // g2 is one of
+        //     r2 = r3(var)
+        //     r2 = r3(expr)
+        //     r2 = constant
+        //     r2 = string literal
+        // turn that into dst |- r1
+        //                     - expr
         operation = g2->nodes[0].tac->operation;
-        if (operation == IR_ASSIGN || operation == IR_LOAD_VARIABLE || operation == IR_LOAD_CONSTANT)
+        if (operation == IR_ASSIGN || operation == IR_LOAD_VARIABLE || operation == IR_LOAD_CONSTANT || operation == IR_LOAD_STRING_LITERAL)
             return merge_assignment_igraphs(g1, g2, vreg);
     }
 
@@ -415,7 +433,7 @@ int new_cost_graph_node() {
 }
 
 int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
-    int i, vc, vr, cost_graph_node_id, choice_node_id, matched, matched_dst;
+    int i, vc, vr, vs, cost_graph_node_id, choice_node_id, matched, matched_dst;
     Value *v;
     Rule *r;
 
@@ -426,6 +444,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
     v = igraph->nodes[node_id].value;
     vc = v->is_constant;
+    vs = v->is_string_literal;
     vr = v->vreg != 0;
 
     if (DEBUG_INSTSEL_TILING) printf("leaf vc=%d vr=%d\n", vc, vr);
@@ -441,7 +460,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         else
             matched_dst = rules_match(REG, r);
 
-        if (matched_dst && ((r->src1 == CST && vc) || (r->src1 == REG && vr))) {
+        if (matched_dst && ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs))) {
             if (DEBUG_INSTSEL_TILING) printf("  matched rule %d\n", i);
             add_to_set(igraph_labels[node_id], i);
 
@@ -719,15 +738,15 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     // Add x86 operations to the IR
     x86op = rule->x86_operations;
     while (x86op) {
-             if (x86op->v1 == SRC1 || x86op->v1 == CST1) x86_v1 = src1;
-        else if (x86op->v1 == SRC2 || x86op->v1 == CST2) x86_v1 = src2;
-        else if (x86op->v1 == DST)                       x86_v1 = dst;
+             if (x86op->v1 == SRC1) x86_v1 = src1;
+        else if (x86op->v1 == SRC2) x86_v1 = src2;
+        else if (x86op->v1 == DST)  x86_v1 = dst;
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v1);
 
-             if (x86op->v2 == 0)                         x86_v2 = 0;
-        else if (x86op->v2 == SRC1 || x86op->v2 == CST1) x86_v2 = src1;
-        else if (x86op->v2 == SRC2 || x86op->v2 == CST2) x86_v2 = src2;
-        else if (x86op->v2 == DST)                       x86_v2 = dst;
+             if (x86op->v2 == 0)    x86_v2 = 0;
+        else if (x86op->v2 == SRC1) x86_v2 = src1;
+        else if (x86op->v2 == SRC2) x86_v2 = src2;
+        else if (x86op->v2 == DST)  x86_v2 = dst;
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v2);
 
         if (DEBUG_INSTSEL_TILING) printf("  adding instruction for operation %d: %s\n", x86op->operation, x86op->template);

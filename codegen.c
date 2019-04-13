@@ -258,8 +258,12 @@ void output_x86_operation(Tac *tac) {
                 else panic1d("Unknown placeholder number %d", t[2]);
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
-                if (v->is_constant) fprintf(f, "%ld", v->value);
-                else if (v->preg != -1) output_quad_register_name(v->preg);
+                if (v->is_constant)
+                    fprintf(f, "%ld", v->value);
+                else if (v->is_string_literal)
+                    fprintf(f, "%d", v->string_literal_index);
+                else if (v->preg != -1)
+                    output_quad_register_name(v->preg);
                 else panic("Don't know how to render template value");
                 t += 2;
             }
