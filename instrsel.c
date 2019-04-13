@@ -316,8 +316,6 @@ void make_igraphs(Function *function) {
         }
 
         if (vreg_igraphs[dst].count == 1) {
-            // TODO free memory
-
             g1_igraph_id = vreg_igraphs[dst].igraph_id;
             if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
             if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("in locs %d and %d on vreg=%d\n----------------------------------------------------------\n", g1_igraph_id, i, dst);
