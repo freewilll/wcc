@@ -72,25 +72,15 @@ void copy_inode(IGraphNode *src, IGraphNode *dst) {
 }
 
 IGraph *merge_assignment_igraphs(IGraph *g1, IGraph *g2, int vreg) {
-    int i, replacement_vreg, replacement_value, replacement_is_constant, replacement_is_string_literal, replacement_string_literal_index;
+    int i, replacement_vreg;
     IGraphNode *in;
     Value *v;
 
-    replacement_vreg = g2->nodes[1].value->vreg;
-    replacement_value = g2->nodes[1].value->value;
-    replacement_is_constant = g2->nodes[1].value->is_constant;
-    replacement_is_string_literal = g2->nodes[1].value->is_string_literal;
-    replacement_string_literal_index = g2->nodes[1].value->string_literal_index;
     for (i = 0; i < g1->node_count; i++) {
         in = &(g1->nodes[i]);
         if (in->value && in->value->vreg == vreg) {
             v = dup_value(in->value); // For no side effects
-            in->value = v;
-            in->value->vreg = replacement_vreg;
-            in->value->value = replacement_value;
-            in->value->is_constant = replacement_is_constant;
-            in->value->is_string_literal = replacement_is_string_literal;
-            in->value->string_literal_index = replacement_string_literal_index;
+            in->value = dup_value(g2->nodes[1].value);
 
             if (DEBUG_INSTSEL_IGRAPHS_DEEP) {
                 printf("\nreusing tweaked g1 for g:\n");
@@ -152,6 +142,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
         //     r2 = r3(expr)
         //     r2 = constant
         //     r2 = string literal
+        //     r2 = global
         // turn that into dst |- r1
         //                     - expr
         operation = g2->nodes[0].tac->operation;
@@ -433,9 +424,10 @@ int new_cost_graph_node() {
 }
 
 int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
-    int i, vc, vr, vs, cost_graph_node_id, choice_node_id, matched, matched_dst;
+    int i, vc, vr, vs, vg, cost_graph_node_id, choice_node_id, matched, matched_dst;
     Value *v;
     Rule *r;
+    Tac *tac;
 
     if (DEBUG_INSTSEL_TILING) dump_igraph(igraph);
 
@@ -445,9 +437,10 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     v = igraph->nodes[node_id].value;
     vc = v->is_constant;
     vs = v->is_string_literal;
+    vg = !!v->global_symbol;
     vr = v->vreg != 0;
 
-    if (DEBUG_INSTSEL_TILING) printf("leaf vc=%d vr=%d\n", vc, vr);
+    if (DEBUG_INSTSEL_TILING) printf("leaf vc=%d vr=%d vg=%d\n", vc, vr, vg);
 
     // Find a matching instruction
     matched = 0;
@@ -457,10 +450,13 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
         if (node_id > 0)
             matched_dst = 1;
-        else
+        else {
+            panic("This code is duff. Should never get here");
+            tac = igraph->nodes[node_id].tac;
             matched_dst = rules_match(REG, r);
+        }
 
-        if (matched_dst && ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs))) {
+        if (matched_dst && ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs) || (r->src1 == GLB && vg))) {
             if (DEBUG_INSTSEL_TILING) printf("  matched rule %d\n", i);
             add_to_set(igraph_labels[node_id], i);
 
@@ -495,7 +491,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     Rule *r, *child_rule;
     Set *l;
 
-    if (DEBUG_INSTSEL_TILING) printf("\tile_igraph_operation_node on node=%d\n", node_id);
+    if (DEBUG_INSTSEL_TILING) printf("tile_igraph_operation_node on node=%d\n", node_id);
 
     inodes = igraph->nodes;
     inode = &(igraph->nodes[node_id]);
@@ -551,6 +547,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
         // If the top level parent node wants a reg, ensure it gets it
         if (node_id == 0 && tac->dst && tac->dst->vreg && !rules_match(REG, r)) continue;
+        if (node_id == 0 && tac->dst && tac->dst->global_symbol && !rules_match(GLB, r)) continue;
 
         // Check dst of the subtree tile matches what is needed
         matched_src = 0;

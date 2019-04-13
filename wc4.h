@@ -560,6 +560,7 @@ enum {
     REG = 1,
     CST,
     STL,
+    GLB,
     DST,
     SRC1,
     SRC2,
@@ -611,3 +612,4 @@ Value *v(int vreg);
 Value *l(int label);
 Value *c(int value);
 Value *s(int string_literal_index);
+Value *g(int index);

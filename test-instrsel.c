@@ -18,6 +18,8 @@ void assert_value(Value *v1, Value *v2) {
         assert(v1->vreg, v2->vreg);
     else if (v1->vreg)
         assert(v1->vreg, v2->vreg);
+    else if (v1->global_symbol)
+        assert(v1->global_symbol->identifier[0], v2->global_symbol->identifier[0]);
     else
         panic("Don't know how to assert_value");
 }
@@ -70,13 +72,13 @@ void finish_ir(Function *function) {
     remove_reserved_physical_register_count_from_tac(function->ir);
 }
 
-void nuke_rule(int operation, int src1, int src2) {
+void nuke_rule(int non_terminal, int operation, int src1, int src2) {
     int i;
     Rule *r;
 
     for (i = 0; i < instr_rule_count; i++) {
         r = &(instr_rules[i]);
-        if (r->operation == operation && r->src1 == src1 && r->src2 == src2)
+        if (r->operation == operation && r->non_terminal == non_terminal && r->src1 == src1 && r->src2 == src2)
             r->operation = -1;
     }
 }
@@ -95,7 +97,7 @@ void test_instrsel() {
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
     start_ir();
-    nuke_rule(IR_ADD, CST, REG); nuke_rule(IR_ADD, REG, CST);
+    nuke_rule(REG, IR_ADD, CST, REG); nuke_rule(REG, IR_ADD, REG, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,                   X_MOV, v(2), c(1), v(2));
@@ -105,7 +107,7 @@ void test_instrsel() {
 
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
-    nuke_rule(IR_ADD, REG, CST);
+    nuke_rule(REG, IR_ADD, REG, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,             X_MOV, v(2), c(2), v(2));
@@ -114,7 +116,7 @@ void test_instrsel() {
 
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
-    nuke_rule(IR_ADD, CST, REG);
+    nuke_rule(REG, IR_ADD, CST, REG);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,             X_MOV, v(2), c(1), v(2));
@@ -130,7 +132,7 @@ void test_instrsel() {
 
     // arg c with only the reg rule. Forces a load of c into r1
     start_ir();
-    nuke_rule(IR_ARG, CST, CST);
+    nuke_rule(0, IR_ARG, CST, CST);
     i(0, IR_ARG, 0, c(0), c(1));
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, v(1), c(1), v(1));
@@ -154,6 +156,40 @@ void test_instrsel() {
     finish_ir(function);
     assert_tac(ir_start,       X_LEA, 0, s(1), v(1));
     assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
+
+    // arg g
+    start_ir();
+    i(0, IR_ARG, 0, c(0), g(1));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, 0, g(1), v(1));
+    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
+
+    // Store c in g
+    start_ir();
+    i(0, IR_ASSIGN, g(1), c(1), 0);
+    finish_ir(function);
+    assert_tac(ir_start, X_MOV, 0, c(1), g(1));
+
+    // Store c in g with only the reg fule, forcing c into r1
+    start_ir();
+    nuke_rule(GLB, IR_ASSIGN, CST, 0);
+    i(0, IR_ASSIGN, g(1), c(1), 0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, 0, c(1), v(1));
+    assert_tac(ir_start->next, X_MOV, 0, v(1), g(1));
+
+    // Store v1 in g
+    start_ir();
+    i(0, IR_ASSIGN, g(1), v(1), 0);
+    finish_ir(function);
+    assert_tac(ir_start, X_MOV, 0, v(1), g(1));
+
+    // Load g into v1
+    start_ir();
+    i(0, IR_ASSIGN, v(1), g(1), 0);
+    finish_ir(function);
+    assert_tac(ir_start, X_MOV, 0, g(1), v(1));
+
 }
 
 int main() {
