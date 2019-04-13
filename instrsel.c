@@ -11,6 +11,9 @@ enum {
     MAX_CHOICE_TRAIL_COUNT = 32,
 };
 
+IGraph *eis_igraphs;            // The current block's igraphs
+int eis_instr_count;            // The current block's instruction count
+
 Graph *cost_graph;              // Graph of all possible options when tiling
 int cost_graph_node_count;      // Number of nodes in cost graph
 int *cost_to_igraph_map;        // Mapping of a cost graph node back to the instruction graph node
@@ -41,6 +44,7 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_DIV)           printf("/\n");
         else if (operation == IR_INDIRECT)      printf("indirect\n");
         else if (operation == IR_LOAD_CONSTANT) printf("load constant\n");
+        else if (operation == IR_LOAD_VARIABLE) printf("load variable\n");
         else if (operation == IR_NOP)           printf("noop\n");
         else if (operation == IR_RETURN)        printf("return\n");
         else if (operation == IR_START_CALL)    printf("start call\n");
@@ -229,9 +233,10 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     return g;
 }
 
-void make_igraphs(Function *function) {
+void make_igraphs(Function *function, int block_id) {
     int instr_count, i, j, node_count, vreg_count;
     int dst, src1, src2, g1_igraph_id;
+    Block *blocks;
     Tac *tac;
     IGraph *igraphs, *ig;
     IGraphNode *nodes;
@@ -239,22 +244,29 @@ void make_igraphs(Function *function) {
     VregIGraph* vreg_igraphs;
     Value *v;
 
-    if (DEBUG_INSTSEL_IGRAPHS_DEEP) print_intermediate_representation(function, 0);
+    blocks = function->blocks;
 
-    vreg_count = function->vreg_count;
-
-    // TODO loop over blocks
+    vreg_count = 0;
     instr_count = 0;
-    tac = function->ir;
-    while (tac) {
+
+    tac = blocks[block_id].start;
+    while (1) {
+        if (DEBUG_INSTSEL_IGRAPHS_DEEP) print_instruction(stdout, tac);
+
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
+        if (tac-> dst && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
+
         instr_count++;
+
+        if (tac == blocks[block_id].end) break;
         tac = tac->next;
     }
 
     igraphs = malloc(instr_count * sizeof(IGraph));
 
     i = 0;
-    tac = function->ir;
+    tac = blocks[block_id].start;
     while (tac) {
         node_count = 1;
         if (tac->src1) node_count++;
@@ -274,21 +286,18 @@ void make_igraphs(Function *function) {
         igraphs[i].nodes = nodes;
         igraphs[i].node_count = node_count;
 
-        tac = tac->next;
         i++;
+
+        if (tac == blocks[block_id].end) break;
+        tac = tac->next;
     }
 
     vreg_igraphs = malloc((vreg_count + 1) * sizeof(VregIGraph));
     memset(vreg_igraphs, 0, (vreg_count + 1) * sizeof(VregIGraph));
 
-    tac = function->ir;
-    i = 0;
-    while (tac->next) { tac = tac->next; i++; }
-
+    i = instr_count - 1;
+    tac = blocks[block_id].end;
     while (tac) {
-        // TODO one block at a time
-        // TODO init vreg_igraphs with liveout
-
         dst = src1 = src2 = 0;
 
         if (tac->dst  && tac->dst ->vreg) dst  = tac->dst ->vreg;
@@ -335,6 +344,8 @@ void make_igraphs(Function *function) {
         if (dst) vreg_igraphs[dst].count = 0;
 
         i--;
+
+        if (tac == blocks[block_id].start) break;
         tac = tac->prev;
     }
 
@@ -357,8 +368,8 @@ void make_igraphs(Function *function) {
         }
     }
 
-    function->eis_igraphs = igraphs;
-    function->eis_instr_count = instr_count;
+    eis_igraphs = igraphs;
+    eis_instr_count = instr_count;
 }
 
 int rules_match(int parent_src, Rule *child) {
@@ -764,18 +775,16 @@ void make_intermediate_representation(IGraph *igraph) {
 }
 
 void tile_igraphs(Function *function) {
-    int i, j, instr_count;
+    int i, j;
     IGraph *igraphs;
     Function *f;
     Tac *tac, *current_instruction_ir_start;
 
-    igraphs = function->eis_igraphs;
-    instr_count = function->eis_instr_count;
+    igraphs = eis_igraphs;
 
     ir_start = 0;
-    function->ir = ir_start;
 
-    for (i = 0; i < instr_count; i++) {
+    for (i = 0; i < eis_instr_count; i++) {
         if (!igraphs[i].node_count) continue;
         tac = igraphs[i].nodes[0].tac;
 
@@ -839,19 +848,49 @@ void tile_igraphs(Function *function) {
         }
     }
 
-    function->ir = ir_start;
     if (DEBUG_INSTSEL_TILING) {
         printf("Final IR:\n");
         print_intermediate_representation(function, 0);
     }
 }
 
+void select_instructions(Function *function) {
+    int i, block_count;
+    Block *blocks;
+    Graph *cfg;
+    Tac *tac;
+    Tac *new_ir_start, *new_ir_pos;
+
+    blocks = function->blocks;
+    cfg = function->cfg;
+    block_count = cfg->node_count;
+
+    // new_ir_start is the start of the new IR
+    new_ir_start = new_instruction(IR_NOP);
+    new_ir_pos = new_ir_start;
+
+    // Loop over all blocks
+    for (i = 0; i < block_count; i++) {
+        blocks[i].end->next = 0; // Will be re-entangled later
+
+        make_igraphs(function, i);
+        tile_igraphs(function);
+
+        new_ir_pos->next = ir_start;
+        ir_start->prev = new_ir_pos;
+
+        while (new_ir_pos->next) new_ir_pos = new_ir_pos->next;
+    }
+
+    function->ir = new_ir_start;
+}
+
 void eis1(Function *function) {
+
     do_oar1(function);
     do_oar2(function);
     do_oar3(function);
-    make_igraphs(function);
-    tile_igraphs(function);
+    select_instructions(function);
     do_oar1b(function);
     coalesce_live_ranges(function);
 }

@@ -92,8 +92,6 @@ typedef struct function {
     char *interference_graph;             // The interference graph of live ranges, in a lower diagonal matrix
     struct vreg_location *vreg_locations; // Allocated physical registers and spilled stack indexes
     int *spill_cost;                      // The estimated spill cost for each live range
-    IGraph *eis_igraphs;                  // Experimental instruction selection instruction graphs
-    int eis_instr_count;
 } Function;
 
 // Value is a value on the value stack. A value can be one of
