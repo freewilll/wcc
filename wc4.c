@@ -177,7 +177,6 @@ int main(int argc, char **argv) {
         printf("-d                             Debug output\n");
         printf("-s                             Output symbol table\n");
         printf("--iir                          Output inline intermediate representation\n");
-        printf("--ssa                          Enable experimental SSA code\n");
         printf("--ssa-regs <n>                 Limit physical register availability to n in experimental SSA code\n");
         printf("--prc                          Output spilled register count\n");
         printf("--ir1                          Output intermediate representation after parsing\n");
