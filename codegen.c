@@ -264,8 +264,10 @@ void output_x86_operation(Tac *tac) {
                     fprintf(f, "%d", v->string_literal_index);
                 else if (v->preg != -1)
                     output_quad_register_name(v->preg);
-                else if (!!v->global_symbol)
+                else if (v->global_symbol)
                     fprintf(f, "%s", v->global_symbol->identifier);
+                else if (v->label)
+                    fprintf(f, "%d", v->label);
                 else panic("Don't know how to render template value");
                 t += 2;
             }

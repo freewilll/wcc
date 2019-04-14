@@ -19,7 +19,9 @@ void assert_value(Value *v1, Value *v2) {
     else if (v1->vreg)
         assert(v1->vreg, v2->vreg);
     else if (v1->global_symbol)
-        assert(v1->global_symbol->identifier[0], v2->global_symbol->identifier[0]);
+        assert(v1->global_symbol->identifier[1], v2->global_symbol->identifier[1]);
+    else if (v1->label)
+        assert(v1->label, v2->label);
     else
         panic("Don't know how to assert_value");
 }
@@ -67,9 +69,16 @@ void start_ir() {
 }
 
 void finish_ir(Function *function) {
+    Tac *tac;
+
     function->ir = ir_start;
     eis1(function);
     remove_reserved_physical_register_count_from_tac(function->ir);
+
+    // Move ir_start to first non-noop for convenience
+    ir_start = function->ir;
+    while (ir_start->operation == IR_NOP) ir_start = ir_start->next;
+    function->ir = ir_start;
 }
 
 void nuke_rule(int non_terminal, int operation, int src1, int src2) {
@@ -84,15 +93,10 @@ void nuke_rule(int non_terminal, int operation, int src1, int src2) {
 }
 
 void test_instrsel() {
-    Symbol *symbol;
     Function *function;
     Tac *tac;
 
-    symbol = malloc(sizeof(Symbol));
-    memset(symbol, 0, sizeof(Symbol));
-
     function = new_function();
-    symbol->function = function;
 
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
@@ -184,12 +188,43 @@ void test_instrsel() {
     finish_ir(function);
     assert_tac(ir_start, X_MOV, 0, v(1), g(1));
 
-    // Load g into v1
+    // Load g into r1
     start_ir();
     i(0, IR_ASSIGN, v(1), g(1), 0);
     finish_ir(function);
     assert_tac(ir_start, X_MOV, 0, g(1), v(1));
 
+    // jz with r1
+    start_ir();
+    i(0, IR_JZ,  0,    v(1), l(1));
+    i(1, IR_NOP, 0,    0,    0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
+
+    // jz with global
+    start_ir();
+    i(0, IR_JZ,  0,    g(1), l(1));
+    i(1, IR_NOP, 0,    0,    0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_CMPZ, 0, g(1), 0);
+    assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
+
+    // jnz with r1
+    start_ir();
+    i(0, IR_JNZ, 0,    v(1), l(1));
+    i(1, IR_NOP, 0,    0,    0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
+
+    // jnz with global
+    start_ir();
+    i(0, IR_JNZ, 0,    g(1), l(1));
+    i(1, IR_NOP, 0,    0,    0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_CMPZ, 0, g(1), 0);
+    assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
 }
 
 int main() {

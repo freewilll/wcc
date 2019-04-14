@@ -559,6 +559,7 @@ enum {
     CST,
     STL,
     GLB,
+    LAB,
     DST,
     SRC1,
     SRC2,
@@ -570,6 +571,9 @@ enum {
     X_LEA    = 1004,
     X_ADD    = 1005,
     X_MUL    = 1006,
+    X_CMPZ   = 1007,
+    X_JZ     = 1008,
+    X_JNZ    = 1009,
 };
 
 typedef struct rule {

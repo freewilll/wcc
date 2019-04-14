@@ -73,6 +73,7 @@ void init_instruction_selection_rules() {
     r = add_rule(CST, 0,                CST, 0,   0);
     r = add_rule(STL, 0,                STL, 0,   0);
     r = add_rule(GLB, 0,                GLB, 0,   0);
+    r = add_rule(LAB, 0,                LAB, 0,   0);
 
     r = add_rule(0,   IR_RETURN,        CST, 0,   1);  add_op(r, X_RET,  0, SRC1, 0,    "mov\t$%v1, %%rax"        ); // Return constant
     r = add_rule(0,   IR_RETURN,        REG, 0,   1);  add_op(r, X_RET,  0, SRC1, 0,    "mov\t%v1, %%rax"         ); // Return register
@@ -87,6 +88,17 @@ void init_instruction_selection_rules() {
     r = add_rule(0,   IR_ARG,           CST, CST, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t$%v2"             ); // Use constant as function arg
     r = add_rule(0,   IR_ARG,           CST, REG, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t%v2"              ); // Use register as function arg
 
+    r = add_rule(0,   IR_JZ,            REG, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1"           ); // JZ with register
+                                                       add_op(r, X_JZ,   0, SRC2, 0,    "jz\t.l%v1"               );
+    r = add_rule(0,   IR_JZ,            GLB, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1(%%rip)"    ); // JZ with global
+                                                       add_op(r, X_JZ,   0, SRC2, 0,    "jz\t.l%v1"               );
+    r = add_rule(0,   IR_JNZ,           REG, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1"           ); // JNZ with register
+                                                       add_op(r, X_JNZ,  0, SRC2, 0,    "jnz\t.l%v1"              );
+    r = add_rule(0,   IR_JNZ,           GLB, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1(%%rip)"    ); // JNZ with global
+                                                       add_op(r, X_JNZ,  0, SRC2, 0,    "jnz\t.l%v1"              );
+
     add_commutative_operation_rules("add",  IR_ADD, X_ADD, 10);
     add_commutative_operation_rules("imul", IR_MUL, X_MUL, 30);
+
+
 }

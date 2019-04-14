@@ -172,26 +172,30 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
         fprintf(f, "s[%d]", v->local_index);
     else if (v->global_symbol)
         fprintf(f, "%s", v->global_symbol->identifier);
-    else if (v->is_string_literal) {
+    else if (v->is_string_literal)
         fprintf_escaped_string_literal(f, string_literals[v->string_literal_index]);
-    }
+    else if (v->label)
+        fprintf(f, "l%d", v->label);
     else
-        fprintf(f, "%ld", v->value);
+        // What's this?
+        fprintf(f, "?%ld", v->value);
 
-    fprintf(f, ":");
-    type = v->type;
-    while (type >= TYPE_PTR) {
-        fprintf(f, "*");
-        type -= TYPE_PTR;
+    if (!v->label) {
+        fprintf(f, ":");
+        type = v->type;
+        while (type >= TYPE_PTR) {
+            fprintf(f, "*");
+            type -= TYPE_PTR;
+        }
+
+             if (type == TYPE_VOID)   fprintf(f, "void");
+        else if (type == TYPE_CHAR)   fprintf(f, "char");
+        else if (type == TYPE_INT)    fprintf(f, "int");
+        else if (type == TYPE_SHORT)  fprintf(f, "short");
+        else if (type == TYPE_LONG)   fprintf(f, "long");
+        else if (type >= TYPE_STRUCT) fprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->identifier);
+        else fprintf(f, "unknown type %d", type);
     }
-
-         if (type == TYPE_VOID)   fprintf(f, "void");
-    else if (type == TYPE_CHAR)   fprintf(f, "char");
-    else if (type == TYPE_INT)    fprintf(f, "int");
-    else if (type == TYPE_SHORT)  fprintf(f, "short");
-    else if (type == TYPE_LONG)   fprintf(f, "long");
-    else if (type >= TYPE_STRUCT) fprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->identifier);
-    else fprintf(f, "unknown type %d", type);
 }
 
 void print_instruction(void *f, Tac *tac) {
@@ -253,7 +257,8 @@ void print_instruction(void *f, Tac *tac) {
              if (tac->operation == IR_JZ)  fprintf(f, "jz ");
         else if (tac->operation == IR_JNZ) fprintf(f, "jnz ");
         print_value(f, tac->src1, 1);
-        fprintf(f, " l%d", tac->src2->label);
+        fprintf(f, ", ");
+        print_value(f, tac->src2, 1);
     }
 
     else if (tac->operation == IR_JMP)
@@ -292,11 +297,14 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
 
-    else if (tac->operation == X_RET) { fprintf(f, "ret "); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_LEA) { fprintf(f, "lea "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
-    else if (tac->operation == X_MOV) { fprintf(f, "mov "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
-    else if (tac->operation == X_ADD) { fprintf(f, "add "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
-    else if (tac->operation == X_MUL) { fprintf(f, "mul "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst, 1); }
+    else if (tac->operation == X_RET)  { fprintf(f, "ret " ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_LEA)  { fprintf(f, "lea " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_MOV)  { fprintf(f, "mov " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_ADD)  { fprintf(f, "add " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_MUL)  { fprintf(f, "mul " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_CMPZ) { fprintf(f, "cmpz "); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JZ)   { fprintf(f, "jz "  ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JNZ)  { fprintf(f, "jnz " ); print_value(f, tac->src1, 1); }
 
     else
         panic1d("print_instruction(): Unknown operation: %d", tac->operation);

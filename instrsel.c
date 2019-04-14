@@ -51,6 +51,9 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_END_CALL)      printf("end call\n");
         else if (operation == IR_ARG)           printf("arg\n");
         else if (operation == IR_CALL)          printf("call\n");
+        else if (operation == IR_JZ)            printf("jz\n");
+        else if (operation == IR_JNZ)           printf("jnz\n");
+        else if (operation == IR_JMP)           printf("jmp\n");
         else printf("Operation %d\n", operation);
     }
     else {
@@ -269,6 +272,7 @@ void make_igraphs(Function *function, int block_id) {
     tac = blocks[block_id].start;
     while (tac) {
         node_count = 1;
+
         if (tac->src1) node_count++;
         if (tac->src2) node_count++;
 
@@ -279,8 +283,9 @@ void make_igraphs(Function *function, int block_id) {
 
         nodes[0].tac = tac;
         node_count = 1;
-        if (tac->src1) {nodes[node_count].value = tac->src1; add_graph_edge(graph, 0, node_count); node_count++;}
-        if (tac->src2) {nodes[node_count].value = tac->src2; add_graph_edge(graph, 0, node_count); node_count++;}
+
+        if (tac->src1) { nodes[node_count].value = tac->src1; add_graph_edge(graph, 0, node_count); node_count++; }
+        if (tac->src2) { nodes[node_count].value = tac->src2; add_graph_edge(graph, 0, node_count); node_count++; }
 
         igraphs[i].graph = graph;
         igraphs[i].nodes = nodes;
@@ -433,7 +438,7 @@ int new_cost_graph_node() {
 }
 
 int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
-    int i, vc, vr, vs, vg, cost_graph_node_id, choice_node_id, matched, matched_dst;
+    int i, vc, vr, vs, vg, vl, cost_graph_node_id, choice_node_id, matched, matched_dst;
     Value *v;
     Rule *r;
     Tac *tac;
@@ -447,9 +452,10 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     vc = v->is_constant;
     vs = v->is_string_literal;
     vg = !!v->global_symbol;
-    vr = v->vreg != 0;
+    vr = !!v->vreg;
+    vl = !!v->label;
 
-    if (DEBUG_INSTSEL_TILING) printf("leaf vc=%d vr=%d vg=%d\n", vc, vr, vg);
+    if (DEBUG_INSTSEL_TILING) printf("leaf vc=%d vr=%d vg=%d vl=%d\n", vc, vr, vg, vl);
 
     // Find a matching instruction
     matched = 0;
@@ -465,7 +471,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
             matched_dst = rules_match(REG, r);
         }
 
-        if (matched_dst && ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs) || (r->src1 == GLB && vg))) {
+        if (matched_dst && ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs) || (r->src1 == GLB && vg) || (r->src1 == LAB && vl))) {
             if (DEBUG_INSTSEL_TILING) printf("  matched rule %d\n", i);
             add_to_set(igraph_labels[node_id], i);
 
@@ -800,7 +806,9 @@ void tile_igraphs(Function *function) {
             tac->operation != IR_ASSIGN &&
             tac->operation != IR_LOAD_CONSTANT &&
             tac->operation != IR_ADD &&
-            tac->operation != IR_MUL) {
+            tac->operation != IR_MUL &&
+            tac->operation != IR_JZ &&
+            tac->operation != IR_JNZ) {
 
             add_tac_to_ir(tac);
             continue;

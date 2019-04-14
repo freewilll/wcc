@@ -168,7 +168,7 @@ void make_control_flow_graph(Function *function) {
 
         // Start a new block after a conditional jump.
         // Check if a label is set so that we don't get a double block
-        if (tac->next && !tac->next->label && (tac->operation == IR_JZ || tac->operation == IR_JNZ)) {
+        if (tac->next && !tac->next->label && (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ)) {
             blocks[block_count - 1].end = tac;
             blocks[block_count++].start = tac->next;
         }
@@ -202,8 +202,10 @@ void make_control_flow_graph(Function *function) {
     for (i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
-            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ) {
-                label = tac->operation == IR_JMP ? tac->src1->label : tac->src2->label;
+            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ) {
+                label = tac->operation == IR_JMP || tac->operation == X_JZ || tac->operation == X_JNZ
+                    ? tac->src1->label
+                    : tac->src2->label;
                 for (k = 0; k < block_count; k++)
                     if (blocks[k].start->label == label)
                         add_graph_edge(cfg, i, k);
@@ -212,7 +214,7 @@ void make_control_flow_graph(Function *function) {
                 // For normal instructions, check if the next instruction is a label, if so it's an edge
                 add_graph_edge(cfg, i, i + 1);
 
-            if (tac->operation == IR_JZ || tac->operation == IR_JNZ)
+            if (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ)
                 add_graph_edge(cfg, i, i + 1);
 
             if (tac == blocks[i].end) break;
@@ -1772,24 +1774,27 @@ void remove_self_moves(Function *function) {
 }
 
 void do_oar1(Function *function) {
+    sanity_test_ir_linkage(function->ir);
     do_oar1a(function);
     do_oar1b(function);
 }
 
 void do_oar2(Function *function) {
+    sanity_test_ir_linkage(function->ir);
     make_globals_and_var_blocks(function);
     insert_phi_functions(function);
 }
 
 void do_oar1a(Function *function) {
+    sanity_test_ir_linkage(function->ir);
     disable_live_ranges_coalesce = !opt_enable_live_range_coalescing;
     optimize_arithmetic_operations(function);
-    sanity_test_ir_linkage(function->ir);
     map_stack_index_to_local_index(function);
     rewrite_lvalue_reg_assignments(function);
 }
 
 void do_oar1b(Function *function) {
+    sanity_test_ir_linkage(function->ir);
     make_vreg_count(function, 0);
     make_control_flow_graph(function);
     make_block_dominance(function);
@@ -1798,6 +1803,7 @@ void do_oar1b(Function *function) {
 }
 
 void do_oar3(Function *function) {
+    sanity_test_ir_linkage(function->ir);
     rename_phi_function_variables(function);
     make_live_ranges(function);
     blast_vregs_with_live_ranges(function);
@@ -1805,6 +1811,7 @@ void do_oar3(Function *function) {
 }
 
 void do_oar4(Function *function) {
+    sanity_test_ir_linkage(function->ir);
     allocate_registers(function);
     assign_vreg_locations(function);
     remove_self_moves(function);
