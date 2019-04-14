@@ -574,6 +574,7 @@ enum {
     X_CMPZ   = 1007,
     X_JZ     = 1008,
     X_JNZ    = 1009,
+    X_JMP    = 1010,
 };
 
 typedef struct rule {

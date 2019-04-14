@@ -794,21 +794,12 @@ void tile_igraphs(Function *function) {
         if (!igraphs[i].node_count) continue;
         tac = igraphs[i].nodes[0].tac;
 
-        if (tac && tac->operation == IR_NOP) {
-            add_tac_to_ir(tac);
-            continue;
-        }
-
-        // Whitelist operations there are rules for, pass everything else through
+        // Whitelist operations there are no rules for
         if (tac &&
-            tac->operation != IR_ARG &&
-            tac->operation != IR_RETURN &&
-            tac->operation != IR_ASSIGN &&
-            tac->operation != IR_LOAD_CONSTANT &&
-            tac->operation != IR_ADD &&
-            tac->operation != IR_MUL &&
-            tac->operation != IR_JZ &&
-            tac->operation != IR_JNZ) {
+            tac->operation == IR_NOP ||
+            tac->operation == IR_START_CALL ||
+            tac->operation == IR_CALL ||
+            tac->operation == IR_END_CALL) {
 
             add_tac_to_ir(tac);
             continue;

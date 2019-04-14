@@ -187,7 +187,7 @@ void make_control_flow_graph(Function *function) {
     for (i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
-            if (tac->operation == IR_JMP) {
+            if (tac->operation == IR_JMP || tac->operation == X_JMP) {
                 blocks[i].end = tac;
                 break;
             }
@@ -202,8 +202,8 @@ void make_control_flow_graph(Function *function) {
     for (i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
-            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ) {
-                label = tac->operation == IR_JMP || tac->operation == X_JZ || tac->operation == X_JNZ
+            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ) {
+                label = tac->operation == IR_JMP ||  tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ
                     ? tac->src1->label
                     : tac->src2->label;
                 for (k = 0; k < block_count; k++)

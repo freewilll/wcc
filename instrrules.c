@@ -88,6 +88,7 @@ void init_instruction_selection_rules() {
     r = add_rule(0,   IR_ARG,           CST, CST, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t$%v2"             ); // Use constant as function arg
     r = add_rule(0,   IR_ARG,           CST, REG, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t%v2"              ); // Use register as function arg
 
+    r = add_rule(0,   IR_JMP,           LAB, 0,   1);  add_op(r, X_JMP,  0, SRC1, 0,    "jmp\t.l%v1"              ); // JMP
     r = add_rule(0,   IR_JZ,            REG, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1"           ); // JZ with register
                                                        add_op(r, X_JZ,   0, SRC2, 0,    "jz\t.l%v1"               );
     r = add_rule(0,   IR_JZ,            GLB, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1(%%rip)"    ); // JZ with global

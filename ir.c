@@ -303,6 +303,7 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == X_ADD)  { fprintf(f, "add " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (tac->operation == X_MUL)  { fprintf(f, "mul " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (tac->operation == X_CMPZ) { fprintf(f, "cmpz "); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JMP)  { fprintf(f, "jmp " ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JZ)   { fprintf(f, "jz "  ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JNZ)  { fprintf(f, "jnz " ); print_value(f, tac->src1, 1); }
 
