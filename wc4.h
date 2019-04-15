@@ -553,28 +553,40 @@ void optimize_and_allocate_registers(Function *function);
 
 // instrsel.c
 enum {
-    MAX_RULE_COUNT = 100,
+    MAX_RULE_COUNT = 1000,
 
     REG = 1,
     CST,
     STL,
     GLB,
     LAB,
+    CPU,
     DST,
     SRC1,
     SRC2,
 
-    X_START  = 1000,
-    X_RET    = 1001,
-    X_ARG    = 1002,
-    X_MOV    = 1003,
-    X_LEA    = 1004,
-    X_ADD    = 1005,
-    X_MUL    = 1006,
-    X_CMPZ   = 1007,
-    X_JZ     = 1008,
-    X_JNZ    = 1009,
-    X_JMP    = 1010,
+    X_START = 1000,
+    X_RET   = 1001,
+    X_ARG   = 1002,
+    X_MOV   = 1003,
+    X_LEA   = 1004,
+    X_ADD   = 1005,
+    X_MUL   = 1006,
+    X_CMP   = 1007,
+    X_CMPZ  = 1008,
+    X_JZ    = 1009,
+    X_JNZ   = 1010,
+    X_JMP   = 1011,
+
+    X_JE    = 1012,
+    X_JNE   = 1013,
+    X_JLT   = 1016,
+    X_JGT   = 1017,
+    X_JLE   = 1018,
+    X_JGE   = 1019,
+
+    X_SETE    = 1019,
+    X_MOVZBQ  = 1020,
 };
 
 typedef struct rule {
@@ -597,11 +609,12 @@ typedef struct x86_operation {
 int instr_rule_count;
 Rule *instr_rules;
 
-void eis1(Function *function);
+void eis1(Function *function, int flip_jz_jnz);
 void eis2(Function *function);
 void experimental_instruction_selection(Symbol *function_symbol);
 
 // rules.c
+void print_rule(Rule *r);
 void init_instruction_selection_rules();
 
 // codegen.c

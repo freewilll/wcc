@@ -297,15 +297,23 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
 
-    else if (tac->operation == X_RET)  { fprintf(f, "ret " ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_LEA)  { fprintf(f, "lea " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_MOV)  { fprintf(f, "mov " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_ADD)  { fprintf(f, "add " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_MUL)  { fprintf(f, "mul " ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_CMPZ) { fprintf(f, "cmpz "); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JMP)  { fprintf(f, "jmp " ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JZ)   { fprintf(f, "jz "  ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JNZ)  { fprintf(f, "jnz " ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_RET)    { fprintf(f, "ret "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_LEA)    { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_MOV)    { fprintf(f, "mov "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_ADD)    { fprintf(f, "add "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_MUL)    { fprintf(f, "mul "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_CMP)    { fprintf(f, "cmp "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == X_CMPZ)   { fprintf(f, "cmpz "  ); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JMP)    { fprintf(f, "jmp "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JZ)     { fprintf(f, "jz "    ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JNZ)    { fprintf(f, "jnz "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JE)     { fprintf(f, "je "    ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JLT)    { fprintf(f, "jlt "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JGT)    { fprintf(f, "jgt "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JLE)    { fprintf(f, "jle "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JGE)    { fprintf(f, "jge "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_SETE)   { fprintf(f, "sete "  ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_MOVZBQ) { fprintf(f, "movzbq "); print_value(f, tac->src1, 1); }
 
     else
         panic1d("print_instruction(): Unknown operation: %d", tac->operation);

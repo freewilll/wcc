@@ -72,7 +72,7 @@ void finish_ir(Function *function) {
     Tac *tac;
 
     function->ir = ir_start;
-    eis1(function);
+    eis1(function, 0);
     remove_reserved_physical_register_count_from_tac(function->ir);
 
     // Move ir_start to first non-noop for convenience
@@ -90,6 +90,26 @@ void nuke_rule(int non_terminal, int operation, int src1, int src2) {
         if (r->operation == operation && r->non_terminal == non_terminal && r->src1 == src1 && r->src2 == src2)
             r->operation = -1;
     }
+}
+
+void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, int x86_jmp_operation) {
+    start_ir();
+    i(0, cmp_operation,  v(3), v(1), v(2));
+    i(0, jmp_operation,  0,    v(3), l(1));
+    i(1, IR_NOP,         0,    0,    0   );
+    finish_ir(function);
+    assert_tac(ir_start,       X_CMP,             0, v(1), v(2));
+    assert_tac(ir_start->next, x86_jmp_operation, 0, l(1), 0   );
+}
+
+void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2) {
+    start_ir();
+    i(0, IR_LT,  v(3), src1, src2);
+    i(0, IR_JZ,  0,    v(3), l(1));
+    i(1, IR_NOP, 0,    0,    0   );
+    finish_ir(function);
+    assert_tac(ir_start,       X_CMP, 0, src1, src2);
+    assert_tac(ir_start->next, X_JLT, 0, l(1), 0   );
 }
 
 void test_instrsel() {
@@ -225,6 +245,22 @@ void test_instrsel() {
     finish_ir(function);
     assert_tac(ir_start,       X_CMPZ, 0, g(1), 0);
     assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
+
+    // JZ                                                          JNZ
+    test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ,  X_JE ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, X_JNE);
+    test_cmp_with_conditional_jmp(function, IR_NE, IR_JZ,  X_JNE); test_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, X_JE );
+    test_cmp_with_conditional_jmp(function, IR_LT, IR_JZ,  X_JLT); test_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, X_JGE);
+    test_cmp_with_conditional_jmp(function, IR_GT, IR_JZ,  X_JGT); test_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, X_JLE);
+    test_cmp_with_conditional_jmp(function, IR_LE, IR_JZ,  X_JLE); test_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, X_JGT);
+    test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ,  X_JGE); test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, X_JLT);
+
+    // a < b with a conditional
+    test_less_than_with_conditional_jmp(function, c(1), v(1));
+    test_less_than_with_conditional_jmp(function, v(1), c(1));
+    test_less_than_with_conditional_jmp(function, c(1), g(1));
+    test_less_than_with_conditional_jmp(function, g(1), c(1));
+    test_less_than_with_conditional_jmp(function, v(1), g(1));
+    test_less_than_with_conditional_jmp(function, g(1), v(1));
 }
 
 int main() {

@@ -45,6 +45,44 @@ void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     }
 }
 
+void print_rule(Rule *r) {
+    printf("operation=%d nt=%d src1=%d src2=%d\n", r->operation, r->non_terminal, r->src1, r->src2);
+}
+
+void add_comparison_conditional_jmp_rules(int *cjn, int src1, int src2, char *template) {
+    Rule *r;
+
+    (*cjn)++;
+    r = add_rule(*cjn, IR_EQ,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je\t.l%v1" );
+    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne\t.l%v1");
+
+    (*cjn)++;
+    r = add_rule(*cjn, IR_NE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne\t.l%v1");
+    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je\t.l%v1" );
+
+    (*cjn)++;
+    r = add_rule(*cjn, IR_LT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl\t.l%v1" );
+    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge\t.l%v1");
+
+    (*cjn)++;
+    r = add_rule(*cjn, IR_GT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg\t.l%v1" );
+    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle\t.l%v1");
+
+    (*cjn)++;
+    r = add_rule(*cjn, IR_LE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle\t.l%v1");
+    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg\t.l%v1" );
+
+    (*cjn)++;
+    r = add_rule(*cjn, IR_GE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge\t.l%v1");
+    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl\t.l%v1" );
+}
+
 void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
     char *op_rr, *op_cr;
     Rule *r;
@@ -62,6 +100,7 @@ void add_commutative_operation_rules(char *x86_operand, int operation, int x86_o
 
 void init_instruction_selection_rules() {
     Rule *r;
+    int cjn;  // Comparison + jump non terminal
 
     instr_rule_count = 0;
 
@@ -75,31 +114,41 @@ void init_instruction_selection_rules() {
     r = add_rule(GLB, 0,                GLB, 0,   0);
     r = add_rule(LAB, 0,                LAB, 0,   0);
 
-    r = add_rule(0,   IR_RETURN,        CST, 0,   1);  add_op(r, X_RET,  0, SRC1, 0,    "mov\t$%v1, %%rax"        ); // Return constant
-    r = add_rule(0,   IR_RETURN,        REG, 0,   1);  add_op(r, X_RET,  0, SRC1, 0,    "mov\t%v1, %%rax"         ); // Return register
-    r = add_rule(REG, IR_ASSIGN,        REG, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t%v1, %v2"           ); // Register to register copy
-    r = add_rule(GLB, IR_ASSIGN,        CST, 0,   2);  add_op(r, X_MOV,  0, SRC1, DST,  "movq\t$%v1, %v2(%%rip)"  ); // Store constant in global
-    r = add_rule(GLB, IR_ASSIGN,        REG, 0,   2);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t%v1, %v2(%%rip)"    ); // Store register in global
-    r = add_rule(REG, IR_LOAD_CONSTANT, CST, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t$%v1, %v2"          ); // Process standalone r1 = constant
-    r = add_rule(REG, IR_ASSIGN,        GLB, 0,   2);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t%v1(%%rip), %v2"    ); // Load standalone global into register
-    r = add_rule(REG, 0,                CST, 0,   1);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t$%v1, %v2"          ); // Load constant into register
-    r = add_rule(REG, 0,                STL, 0,   1);  add_op(r, X_LEA,  0, SRC1, DST,  "leaq\t.SL%v1(%%rip), %v2"); // Load string literal into register
-    r = add_rule(REG, 0,                GLB, 0,   2);  add_op(r, X_MOV,  0, SRC1, DST,  "mov\t%v1(%%rip), %v2"    ); // Load global into register
-    r = add_rule(0,   IR_ARG,           CST, CST, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t$%v2"             ); // Use constant as function arg
-    r = add_rule(0,   IR_ARG,           CST, REG, 2);  add_op(r, X_ARG,  0, SRC1, SRC2, "pushq\t%v2"              ); // Use register as function arg
+    r = add_rule(0,   IR_RETURN,        CST, 0,   1);  add_op(r, X_RET,     0, SRC1, 0,    "mov\t$%v1, %%rax"        ); // Return constant
+    r = add_rule(0,   IR_RETURN,        REG, 0,   1);  add_op(r, X_RET,     0, SRC1, 0,    "mov\t%v1, %%rax"         ); // Return register
+    r = add_rule(REG, IR_ASSIGN,        REG, 0,   1);  add_op(r, X_MOV,     0, SRC1, DST,  "mov\t%v1, %v2"           ); // Register to register copy
+    r = add_rule(GLB, IR_ASSIGN,        CST, 0,   2);  add_op(r, X_MOV,     0, SRC1, DST,  "movq\t$%v1, %v2(%%rip)"  ); // Store constant in global
+    r = add_rule(GLB, IR_ASSIGN,        REG, 0,   2);  add_op(r, X_MOV,     0, SRC1, DST,  "mov\t%v1, %v2(%%rip)"    ); // Store register in global
+    r = add_rule(REG, IR_LOAD_CONSTANT, CST, 0,   1);  add_op(r, X_MOV,     0, SRC1, DST,  "mov\t$%v1, %v2"          ); // Process standalone r1 = constant
 
-    r = add_rule(0,   IR_JMP,           LAB, 0,   1);  add_op(r, X_JMP,  0, SRC1, 0,    "jmp\t.l%v1"              ); // JMP
-    r = add_rule(0,   IR_JZ,            REG, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1"           ); // JZ with register
-                                                       add_op(r, X_JZ,   0, SRC2, 0,    "jz\t.l%v1"               );
-    r = add_rule(0,   IR_JZ,            GLB, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1(%%rip)"    ); // JZ with global
-                                                       add_op(r, X_JZ,   0, SRC2, 0,    "jz\t.l%v1"               );
-    r = add_rule(0,   IR_JNZ,           REG, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1"           ); // JNZ with register
-                                                       add_op(r, X_JNZ,  0, SRC2, 0,    "jnz\t.l%v1"              );
-    r = add_rule(0,   IR_JNZ,           GLB, LAB, 1);  add_op(r, X_CMPZ, 0, SRC1, 0,    "cmpq\t$0, %v1(%%rip)"    ); // JNZ with global
-                                                       add_op(r, X_JNZ,  0, SRC2, 0,    "jnz\t.l%v1"              );
+    r = add_rule(REG, IR_ASSIGN,        GLB, 0,   2);  add_op(r, X_MOV,     0, SRC1, DST,  "mov\t%v1(%%rip), %v2"    ); // Load standalone global into register
+    r = add_rule(REG, 0,                GLB, 0,   2);  add_op(r, X_MOV,     0, SRC1, DST,  "mov\t%v1(%%rip), %v2"    ); // Load temp global into register
+
+    r = add_rule(REG, 0,                CST, 0,   1);  add_op(r, X_MOV,     0, SRC1, DST,  "mov\t$%v1, %v2"          ); // Load constant into register
+    r = add_rule(REG, 0,                STL, 0,   1);  add_op(r, X_LEA,     0, SRC1, DST,  "leaq\t.SL%v1(%%rip), %v2"); // Load string literal into register
+    r = add_rule(0,   IR_ARG,           CST, CST, 2);  add_op(r, X_ARG,     0, SRC1, SRC2, "pushq\t$%v2"             ); // Use constant as function arg
+    r = add_rule(0,   IR_ARG,           CST, REG, 2);  add_op(r, X_ARG,     0, SRC1, SRC2, "pushq\t%v2"              ); // Use register as function arg
+
+    r = add_rule(0,   IR_JMP,           LAB, 0,   1);  add_op(r, X_JMP,     0, SRC1, 0,    "jmp\t.l%v1"              ); // JMP
+    r = add_rule(0,   IR_JZ,            REG, LAB, 1);  add_op(r, X_CMPZ,    0, SRC1, 0,    "cmpq\t$0, %v1"           ); // JZ with register
+                                                       add_op(r, X_JZ,      0, SRC2, 0,    "jz\t.l%v1"               );
+    r = add_rule(0,   IR_JZ,            GLB, LAB, 1);  add_op(r, X_CMPZ,    0, SRC1, 0,    "cmpq\t$0, %v1(%%rip)"    ); // JZ with global
+                                                       add_op(r, X_JZ,      0, SRC2, 0,    "jz\t.l%v1"               );
+    r = add_rule(0,   IR_JNZ,           REG, LAB, 1);  add_op(r, X_CMPZ,    0, SRC1, 0,    "cmpq\t$0, %v1"           ); // JNZ with register
+                                                       add_op(r, X_JNZ,     0, SRC2, 0,    "jnz\t.l%v1"              );
+    r = add_rule(0,   IR_JNZ,           GLB, LAB, 1);  add_op(r, X_CMPZ,    0, SRC1, 0,    "cmpq\t$0, %v1(%%rip)"    ); // JNZ with global
+                                                       add_op(r, X_JNZ,     0, SRC2, 0,    "jnz\t.l%v1"              );
+
+    // Comparision + conditional jump
+    cjn = 2000;
+    add_comparison_conditional_jmp_rules(&cjn, REG, REG, "cmp\t%v2, %v1");
+    add_comparison_conditional_jmp_rules(&cjn, REG, CST, "cmp\t$%v2, %v1");
+    add_comparison_conditional_jmp_rules(&cjn, CST, REG, "cmp\t$%v2, $%v1");
+    add_comparison_conditional_jmp_rules(&cjn, REG, GLB, "cmp\t%v2(%%rip), %v1");
+    add_comparison_conditional_jmp_rules(&cjn, GLB, REG, "cmp\t%v2, %v1(%%rip)");
+    add_comparison_conditional_jmp_rules(&cjn, GLB, CST, "cmp\t$%v2, %v1(%%rip)");
+    add_comparison_conditional_jmp_rules(&cjn, CST, GLB, "cmp\t%v2(%%rip), $%v1");
 
     add_commutative_operation_rules("add",  IR_ADD, X_ADD, 10);
     add_commutative_operation_rules("imul", IR_MUL, X_MUL, 30);
-
-
 }

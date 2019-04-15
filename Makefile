@@ -108,8 +108,8 @@ test-graph: wc4 test-graph.c graph.c set.c stack.c ir.c utils.c
 run-test-graph: test-graph
 	 ./test-graph
 
-test-codegen: wc4 test-codegen.c instrsel.c codegen.c utils.c ir.c ssa.c set.c stack.c graph.c parser.c lexer.c
-	./wc4 test-codegen.c instrsel.c codegen.c utils.c ir.c ssa.c set.c stack.c graph.c parser.c lexer.c -o test-codegen
+test-codegen: wc4 test-codegen.c instrsel.c instrrules.c codegen.c utils.c ir.c ssa.c set.c stack.c graph.c parser.c lexer.c
+	./wc4 test-codegen.c instrsel.c instrrules.c codegen.c utils.c ir.c ssa.c set.c stack.c graph.c parser.c lexer.c -o test-codegen
 
 run-test-codegen: test-codegen
 	 ./test-codegen

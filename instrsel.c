@@ -23,6 +23,23 @@ Set **igraph_labels;            // Matched instruction rule ids for a igraph nod
 
 int recursive_tile_igraphs(IGraph *igraph, int node_id);
 
+// Amazingly, the parser produces code with JZ and JNZ the wrong way around
+// Bring this back to normality.
+void turn_around_jz_jnz_insanity(Function *function) {
+    Tac *tac;
+
+    print_intermediate_representation(function, "");
+
+    tac = function->ir;
+    while (tac) {
+             if (tac->operation == IR_JZ)  tac->operation = IR_JNZ;
+        else if (tac->operation == IR_JNZ) tac->operation = IR_JZ;
+        tac = tac->next;
+    }
+
+    print_intermediate_representation(function, "");
+}
+
 void recursive_dump_igraph(IGraph *ig, int node, int indent) {
     int i, operation;
     Graph *g;
@@ -54,6 +71,13 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_JZ)            printf("jz\n");
         else if (operation == IR_JNZ)           printf("jnz\n");
         else if (operation == IR_JMP)           printf("jmp\n");
+        else if (operation == IR_EQ)            printf("==\n");
+        else if (operation == IR_NE)            printf("!=\n");
+        else if (operation == IR_LT)            printf("<\n");
+        else if (operation == IR_GT)            printf(">\n");
+        else if (operation == IR_LE)            printf(">=\n");
+        else if (operation == IR_GE)            printf("<=\n");
+
         else printf("Operation %d\n", operation);
     }
     else {
@@ -464,7 +488,10 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         if (r->operation) continue;
 
         if ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs) || (r->src1 == GLB && vg) || (r->src1 == LAB && vl)) {
-            if (DEBUG_INSTSEL_TILING) printf("  matched rule %d\n", i);
+            if (DEBUG_INSTSEL_TILING) {
+                printf("matched rule %d: ", i);
+                print_rule(r);
+            }
             add_to_set(igraph_labels[node_id], i);
 
             choice_node_id = new_cost_graph_node();
@@ -580,7 +607,10 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         // We have a match, do some accounting ...
         matched = 1;
 
-        if (DEBUG_INSTSEL_TILING) printf("matched rule %d\n", i);
+        if (DEBUG_INSTSEL_TILING) {
+            printf("matched rule %d: ", i);
+            print_rule(r);
+        }
         add_to_set(igraph_labels[node_id], i);
 
         choice_node_id = new_cost_graph_node();
@@ -719,9 +749,12 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         // Determine the result from the x86 definition
         if (rule->x86_operations) {
             // It's an operation on a non-root node. Allocate a vreg.
+
             dst = new_value();
             dst->vreg = new_vreg();
             dst->ssa_subscript = -1;
+
+            if (DEBUG_INSTSEL_TILING) printf("allocated new vreg %d\n", dst->vreg);
 
             // Infer the dst type from the operands by picking the type with the largest size.
             dst_type = 0;
@@ -842,8 +875,10 @@ void tile_igraphs(Function *function) {
     }
 
     if (DEBUG_INSTSEL_TILING) {
-        printf("Final IR:\n");
-        print_intermediate_representation(function, 0);
+        printf("\nFinal IR for block:\n");
+        f = new_function();
+        f->ir = ir_start;
+        print_intermediate_representation(f, 0);
     }
 }
 
@@ -876,9 +911,16 @@ void select_instructions(Function *function) {
     }
 
     function->ir = new_ir_start;
+
+    if (DEBUG_INSTSEL_TILING) {
+        printf("\nFinal IR for function:\n");
+        print_intermediate_representation(function, 0);
+    }
+
 }
 
-void eis1(Function *function) {
+void eis1(Function *function, int flip_jz_jnz) {
+    if (flip_jz_jnz) turn_around_jz_jnz_insanity(function);
 
     do_oar1(function);
     do_oar2(function);
@@ -896,6 +938,6 @@ void experimental_instruction_selection(Symbol *function_symbol) {
     Function *function;
     function = function_symbol->function;
 
-    eis1(function);
+    eis1(function, 1);
     eis2(function);
 }

@@ -168,7 +168,7 @@ void make_control_flow_graph(Function *function) {
 
         // Start a new block after a conditional jump.
         // Check if a label is set so that we don't get a double block
-        if (tac->next && !tac->next->label && (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ)) {
+        if (tac->next && !tac->next->label && (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE)) {
             blocks[block_count - 1].end = tac;
             blocks[block_count++].start = tac->next;
         }
@@ -202,8 +202,8 @@ void make_control_flow_graph(Function *function) {
     for (i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
-            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ) {
-                label = tac->operation == IR_JMP ||  tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ
+            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE) {
+                label = tac->operation == IR_JMP ||  tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE
                     ? tac->src1->label
                     : tac->src2->label;
                 for (k = 0; k < block_count; k++)
@@ -214,7 +214,7 @@ void make_control_flow_graph(Function *function) {
                 // For normal instructions, check if the next instruction is a label, if so it's an edge
                 add_graph_edge(cfg, i, i + 1);
 
-            if (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ)
+            if (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE)
                 add_graph_edge(cfg, i, i + 1);
 
             if (tac == blocks[i].end) break;
@@ -1545,6 +1545,7 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
     }
 
     if (set_len(neighbor_colors) == physical_register_count) {
+        if (instruction_selection_wip) panic("TODO: Register spilling in new instruction selector");
         vreg_locations[vreg].stack_index = -*spilled_register_count - 1;
         (*spilled_register_count)++;
     }

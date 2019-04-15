@@ -388,6 +388,7 @@ void add_jmp_target_instruction(Value *v) {
 
 void add_conditional_jump(int operation, Value *dst) {
     if (vtop->is_in_cpu_flags)
+        // Conditional jump instructions can cope with things in cpu flags.
         add_instruction(operation, 0, pop(), dst);
     else
         // Load the result into a register
@@ -492,7 +493,11 @@ void arithmetic_operation(int operation, int type) {
 
     // Store the result in the CPU flags for comparison operations
     // It will get loaded into a register in later instructions if needed.
-    if (operation == IR_GT || operation == IR_LT || operation == IR_GE || operation == IR_LE || operation == IR_EQ || operation == IR_NE)
+    if (instruction_selection_wip)
+        // The instruction selection code takes care of cpu flags for comparisons, so
+        // don't do it here.
+        vreg = new_vreg();
+    else if (operation == IR_GT || operation == IR_LT || operation == IR_GE || operation == IR_LE || operation == IR_EQ || operation == IR_NE)
         vreg = 0;
     else
         vreg = new_vreg();
@@ -1036,7 +1041,7 @@ void statement() {
             statement();
         }
         else {
-            add_jmp_target_instruction(ldst1); // Start of else case
+            add_jmp_target_instruction(ldst1); // End of true case
         }
 
         // End
