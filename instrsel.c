@@ -552,9 +552,11 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (src2_id && !r->src2) continue;
         if (!src2_id && r->src2) continue;
 
-        // If the top level parent node wants a reg, ensure it gets it
-        if (node_id == 0 && tac->dst && tac->dst->vreg && !rules_match(REG, r)) continue;
-        if (node_id == 0 && tac->dst && tac->dst->global_symbol && !rules_match(GLB, r)) continue;
+        // If this is the top level, ensure the dst matches
+        if (node_id == 0 && tac->dst) {
+            if (tac->dst->vreg && !rules_match(REG, r)) continue;
+            if (tac->dst->global_symbol && !rules_match(GLB, r)) continue;
+        }
 
         // Check dst of the subtree tile matches what is needed
         matched_src = 0;
