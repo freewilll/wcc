@@ -463,15 +463,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         r = &(instr_rules[i]);
         if (r->operation) continue;
 
-        if (node_id > 0)
-            matched_dst = 1;
-        else {
-            panic("This code is duff. Should never get here");
-            tac = igraph->nodes[node_id].tac;
-            matched_dst = rules_match(REG, r);
-        }
-
-        if (matched_dst && ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs) || (r->src1 == GLB && vg) || (r->src1 == LAB && vl))) {
+        if ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs) || (r->src1 == GLB && vg) || (r->src1 == LAB && vl)) {
             if (DEBUG_INSTSEL_TILING) printf("  matched rule %d\n", i);
             add_to_set(igraph_labels[node_id], i);
 
