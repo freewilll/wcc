@@ -308,12 +308,18 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == X_JZ)     { fprintf(f, "jz "    ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JNZ)    { fprintf(f, "jnz "   ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JE)     { fprintf(f, "je "    ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_JNE)    { fprintf(f, "jne "   ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JLT)    { fprintf(f, "jlt "   ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JGT)    { fprintf(f, "jgt "   ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JLE)    { fprintf(f, "jle "   ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JGE)    { fprintf(f, "jge "   ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_SETE)   { fprintf(f, "sete "  ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_MOVZBQ) { fprintf(f, "movzbq "); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_SETE)   { fprintf(f, "sete "  ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_SETNE)  { fprintf(f, "setne " ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_SETLT)  { fprintf(f, "setlt " ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_SETGT)  { fprintf(f, "setgt " ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_SETLE)  { fprintf(f, "setle " ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_SETGE)  { fprintf(f, "setge " ); print_value(f, tac->src1, 1); }
 
     else
         panic1d("print_instruction(): Unknown operation: %d", tac->operation);

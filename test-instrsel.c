@@ -112,6 +112,26 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     assert_tac(ir_start->next, X_JLT, 0, l(1), 0   );
 }
 
+void test_cmp_with_assignment(Function *function, int cmp_operation, int x86_set_operation) {
+    start_ir();
+    i(0, cmp_operation, v(3), v(1), v(2));
+    i(0, IR_ASSIGN,     v(4), v(3), 0   );
+    finish_ir(function);
+    assert_tac(ir_start,             X_CMP,             0,    v(1), v(2));
+    assert_tac(ir_start->next,       x86_set_operation, 0,    v(4), 0   );
+    assert_tac(ir_start->next->next, X_MOVZBQ,          v(4), v(4), 0   );
+}
+
+void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, Value *dst) {
+    // dst is the renumbered live range that the output goes to. It's basically the first free register after src1 and src2.
+    start_ir();
+    i(0, IR_LT, v(3), src1, src2);
+    finish_ir(function);
+    assert_tac(ir_start,             X_CMP,    0,    src1, src2);
+    assert_tac(ir_start->next,       X_SETLT,  0,    dst, 0    );
+    assert_tac(ir_start->next->next, X_MOVZBQ, dst,  dst, 0    );
+}
+
 void test_instrsel() {
     Function *function;
     Tac *tac;
@@ -254,13 +274,29 @@ void test_instrsel() {
     test_cmp_with_conditional_jmp(function, IR_LE, IR_JZ,  X_JLE); test_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, X_JGT);
     test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ,  X_JGE); test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, X_JLT);
 
-    // a < b with a conditional
+    // a < b with a conditional with different src1 and src2 operands
     test_less_than_with_conditional_jmp(function, c(1), v(1));
     test_less_than_with_conditional_jmp(function, v(1), c(1));
     test_less_than_with_conditional_jmp(function, c(1), g(1));
     test_less_than_with_conditional_jmp(function, g(1), c(1));
     test_less_than_with_conditional_jmp(function, v(1), g(1));
     test_less_than_with_conditional_jmp(function, g(1), v(1));
+
+    // Conditional assignment with 2 registers
+    test_cmp_with_assignment(function, IR_EQ, X_SETE);
+    test_cmp_with_assignment(function, IR_NE, X_SETNE);
+    test_cmp_with_assignment(function, IR_LT, X_SETLT);
+    test_cmp_with_assignment(function, IR_GT, X_SETGT);
+    test_cmp_with_assignment(function, IR_LE, X_SETLE);
+    test_cmp_with_assignment(function, IR_GE, X_SETGE);
+
+    // Test r1 = a < b with different src1 and src2 operands
+    test_less_than_with_cmp_assignment(function, c(1), v(1), v(2));
+    test_less_than_with_cmp_assignment(function, v(1), c(1), v(2));
+    test_less_than_with_cmp_assignment(function, c(1), g(1), v(1));
+    test_less_than_with_cmp_assignment(function, g(1), c(1), v(1));
+    test_less_than_with_cmp_assignment(function, v(1), g(1), v(2));
+    test_less_than_with_cmp_assignment(function, g(1), v(1), v(2));
 }
 
 int main() {

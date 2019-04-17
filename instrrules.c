@@ -49,38 +49,61 @@ void print_rule(Rule *r) {
     printf("operation=%d nt=%d src1=%d src2=%d\n", r->operation, r->non_terminal, r->src1, r->src2);
 }
 
-void add_comparison_conditional_jmp_rules(int *cjn, int src1, int src2, char *template) {
+void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *template) {
     Rule *r;
 
-    (*cjn)++;
-    r = add_rule(*cjn, IR_EQ,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
-    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je\t.l%v1" );
-    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne\t.l%v1");
+    (*ntc)++;
+    r = add_rule(*ntc, IR_EQ,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je\t.l%v1" );
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne\t.l%v1");
 
-    (*cjn)++;
-    r = add_rule(*cjn, IR_NE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
-    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne\t.l%v1");
-    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je\t.l%v1" );
+    (*ntc)++;
+    r = add_rule(*ntc, IR_NE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne\t.l%v1");
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je\t.l%v1" );
 
-    (*cjn)++;
-    r = add_rule(*cjn, IR_LT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
-    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl\t.l%v1" );
-    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge\t.l%v1");
+    (*ntc)++;
+    r = add_rule(*ntc, IR_LT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl\t.l%v1" );
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge\t.l%v1");
 
-    (*cjn)++;
-    r = add_rule(*cjn, IR_GT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
-    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg\t.l%v1" );
-    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle\t.l%v1");
+    (*ntc)++;
+    r = add_rule(*ntc, IR_GT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg\t.l%v1" );
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle\t.l%v1");
 
-    (*cjn)++;
-    r = add_rule(*cjn, IR_LE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
-    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle\t.l%v1");
-    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg\t.l%v1" );
+    (*ntc)++;
+    r = add_rule(*ntc, IR_LE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle\t.l%v1");
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg\t.l%v1" );
 
-    (*cjn)++;
-    r = add_rule(*cjn, IR_GE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
-    r = add_rule(0,    IR_JZ,  *cjn, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge\t.l%v1");
-    r = add_rule(0,    IR_JNZ, *cjn, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl\t.l%v1" );
+    (*ntc)++;
+    r = add_rule(*ntc, IR_GE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template    );
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge\t.l%v1");
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl\t.l%v1" );
+}
+
+void add_comparison_assignment_rules(int src1, int src2, char *template) {
+    Rule *r;
+
+    r = add_rule(REG, IR_EQ, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
+                                              add_op(r, X_SETE,    0, DST, 0,     "sete\t%vb1"       );
+                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq\t%vb1, %v1");
+    r = add_rule(REG, IR_NE, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
+                                              add_op(r, X_SETNE,   0, DST, 0,     "setne\t%vb1"      );
+                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq\t%vb1, %v1");
+    r = add_rule(REG, IR_LT, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
+                                              add_op(r, X_SETLT,   0, DST, 0,     "setl\t%vb1"       );
+                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq\t%vb1, %v1");
+    r = add_rule(REG, IR_GT, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
+                                              add_op(r, X_SETGT,   0, DST, 0,     "setg\t%vb1"       );
+                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq\t%vb1, %v1");
+    r = add_rule(REG, IR_LE, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
+                                              add_op(r, X_SETLE,   0, DST, 0,     "setle\t%vb1"      );
+                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq\t%vb1, %v1");
+    r = add_rule(REG, IR_GE, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
+                                              add_op(r, X_SETGE,   0, DST, 0,     "setge\t%vb1"      );
+                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq\t%vb1, %v1");
 }
 
 void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
@@ -100,7 +123,8 @@ void add_commutative_operation_rules(char *x86_operand, int operation, int x86_o
 
 void init_instruction_selection_rules() {
     Rule *r;
-    int cjn;  // Comparison + jump non terminal
+    int ntc;  // Non terminal counter
+    char *cmp_rr, *cmp_rc, *cmp_cr, *cmp_rg, *cmp_gr, *cmp_gc, *cmp_cg;
 
     instr_rule_count = 0;
 
@@ -139,15 +163,32 @@ void init_instruction_selection_rules() {
     r = add_rule(0,   IR_JNZ,           GLB, LAB, 1);  add_op(r, X_CMPZ,    0, SRC1, 0,    "cmpq\t$0, %v1(%%rip)"    ); // JNZ with global
                                                        add_op(r, X_JNZ,     0, SRC2, 0,    "jnz\t.l%v1"              );
 
+
+    cmp_rr = "cmp\t%v2, %v1";
+    cmp_rc = "cmp\t$%v2, %v1";
+    cmp_cr = "cmp\t$%v2, $%v1";
+    cmp_rg = "cmp\t%v2(%%rip), %v1";
+    cmp_gr = "cmp\t%v2, %v1(%%rip)";
+    cmp_gc = "cmp\t$%v2, %v1(%%rip)";
+    cmp_cg = "cmp\t%v2(%%rip), $%v1";
+
     // Comparision + conditional jump
-    cjn = 2000;
-    add_comparison_conditional_jmp_rules(&cjn, REG, REG, "cmp\t%v2, %v1");
-    add_comparison_conditional_jmp_rules(&cjn, REG, CST, "cmp\t$%v2, %v1");
-    add_comparison_conditional_jmp_rules(&cjn, CST, REG, "cmp\t$%v2, $%v1");
-    add_comparison_conditional_jmp_rules(&cjn, REG, GLB, "cmp\t%v2(%%rip), %v1");
-    add_comparison_conditional_jmp_rules(&cjn, GLB, REG, "cmp\t%v2, %v1(%%rip)");
-    add_comparison_conditional_jmp_rules(&cjn, GLB, CST, "cmp\t$%v2, %v1(%%rip)");
-    add_comparison_conditional_jmp_rules(&cjn, CST, GLB, "cmp\t%v2(%%rip), $%v1");
+    ntc = 2000;
+    add_comparison_conditional_jmp_rules(&ntc, REG, REG, cmp_rr);
+    add_comparison_conditional_jmp_rules(&ntc, REG, CST, cmp_rc);
+    add_comparison_conditional_jmp_rules(&ntc, CST, REG, cmp_cr);
+    add_comparison_conditional_jmp_rules(&ntc, REG, GLB, cmp_rg);
+    add_comparison_conditional_jmp_rules(&ntc, GLB, REG, cmp_gr);
+    add_comparison_conditional_jmp_rules(&ntc, GLB, CST, cmp_gc);
+    add_comparison_conditional_jmp_rules(&ntc, CST, GLB, cmp_cg);
+
+    add_comparison_assignment_rules(REG, REG, cmp_rr);
+    add_comparison_assignment_rules(REG, CST, cmp_rc);
+    add_comparison_assignment_rules(CST, REG, cmp_cr);
+    add_comparison_assignment_rules(REG, GLB, cmp_rg);
+    add_comparison_assignment_rules(GLB, REG, cmp_gr);
+    add_comparison_assignment_rules(GLB, CST, cmp_gc);
+    add_comparison_assignment_rules(CST, GLB, cmp_cg);
 
     add_commutative_operation_rules("add",  IR_ADD, X_ADD, 10);
     add_commutative_operation_rules("imul", IR_MUL, X_MUL, 30);

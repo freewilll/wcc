@@ -585,8 +585,13 @@ enum {
     X_JLE   = 1018,
     X_JGE   = 1019,
 
-    X_SETE    = 1019,
     X_MOVZBQ  = 1020,
+    X_SETE    = 1021,
+    X_SETNE   = 1022,
+    X_SETLT   = 1023,
+    X_SETGT   = 1024,
+    X_SETLE   = 1025,
+    X_SETGE   = 1026,
 };
 
 typedef struct rule {

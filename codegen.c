@@ -241,6 +241,7 @@ int get_stack_offset_from_index(int function_pc, int stack_start, int stack_inde
 void output_x86_operation(Tac *tac) {
     char *t;
     Value *v;
+    int is_byte;
 
     t = tac->x86_template;
 
@@ -253,23 +254,35 @@ void output_x86_operation(Tac *tac) {
                 t += 1;
             }
             else {
-                if (t[2] == '1') v = tac->src1;
-                else if (t[2] == '2') v = tac->src2;
-                else panic1d("Unknown placeholder number %d", t[2]);
+                t += 2;
+
+                is_byte = 0;
+
+                if (t[0] == 'b') {
+                    is_byte = 1;
+                    t++;
+                }
+
+                if (t[0] == '1') v = tac->src1;
+                else if (t[0] == '2') v = tac->src2;
+                else panic1d("Unknown placeholder number %d", t[0]);
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
                 if (v->is_constant)
                     fprintf(f, "%ld", v->value);
                 else if (v->is_string_literal)
                     fprintf(f, "%d", v->string_literal_index);
-                else if (v->preg != -1)
-                    output_quad_register_name(v->preg);
+                else if (v->preg != -1) {
+                    if (is_byte)
+                        output_byte_register_name(v->preg);
+                    else
+                        output_quad_register_name(v->preg);
+                }
                 else if (v->global_symbol)
                     fprintf(f, "%s", v->global_symbol->identifier);
                 else if (v->label)
                     fprintf(f, "%d", v->label);
                 else panic("Don't know how to render template value");
-                t += 2;
             }
         }
         else
