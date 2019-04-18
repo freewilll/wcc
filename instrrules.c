@@ -124,7 +124,7 @@ void add_commutative_operation_rules(char *x86_operand, int operation, int x86_o
 void init_instruction_selection_rules() {
     Rule *r;
     int ntc;  // Non terminal counter
-    char *cmp_rr, *cmp_rc, *cmp_cr, *cmp_rg, *cmp_gr, *cmp_gc, *cmp_cg;
+    char *cmp_rr, *cmp_rc, *cmp_cr, *cmp_rg, *cmp_gr, *cmp_gc, *cmp_cg, *cmp_rs, *cmp_sr, *cmp_sc, *cmp_cs;
 
     instr_rule_count = 0;
 
@@ -169,6 +169,7 @@ void init_instruction_selection_rules() {
                                                        add_op(r, X_JNZ,     0, SRC2, 0,    "jnz\t.l%v1"              );
 
 
+    // All pairwise combinations of (CST, REG, GLB, STL) that have associated x86 instructions
     cmp_rr = "cmp\t%v2, %v1";
     cmp_rc = "cmp\t$%v2, %v1";
     cmp_cr = "cmp\t$%v2, $%v1";
@@ -176,6 +177,10 @@ void init_instruction_selection_rules() {
     cmp_gr = "cmp\t%v2, %v1(%%rip)";
     cmp_gc = "cmp\t$%v2, %v1(%%rip)";
     cmp_cg = "cmp\t%v2(%%rip), $%v1";
+    cmp_rs = "cmp\t%v2(%%rbp), %v1";
+    cmp_sr = "cmp\t%v2, %v1(%%rbp)";
+    cmp_sc = "cmp\t$%v2, %v1(%%rbp)";
+    cmp_cs = "cmp\t%v2(%%rbp), $%v1";
 
     // Comparision + conditional jump
     ntc = 2000;
@@ -184,16 +189,25 @@ void init_instruction_selection_rules() {
     add_comparison_conditional_jmp_rules(&ntc, CST, REG, cmp_cr);
     add_comparison_conditional_jmp_rules(&ntc, REG, GLB, cmp_rg);
     add_comparison_conditional_jmp_rules(&ntc, GLB, REG, cmp_gr);
-    add_comparison_conditional_jmp_rules(&ntc, GLB, CST, cmp_gc);
     add_comparison_conditional_jmp_rules(&ntc, CST, GLB, cmp_cg);
+    add_comparison_conditional_jmp_rules(&ntc, GLB, CST, cmp_gc);
+    add_comparison_conditional_jmp_rules(&ntc, REG, STK, cmp_rs);
+    add_comparison_conditional_jmp_rules(&ntc, STK, REG, cmp_sr);
+    add_comparison_conditional_jmp_rules(&ntc, CST, STK, cmp_sc);
+    add_comparison_conditional_jmp_rules(&ntc, STK, CST, cmp_cs);
 
     add_comparison_assignment_rules(REG, REG, cmp_rr);
     add_comparison_assignment_rules(REG, CST, cmp_rc);
     add_comparison_assignment_rules(CST, REG, cmp_cr);
     add_comparison_assignment_rules(REG, GLB, cmp_rg);
     add_comparison_assignment_rules(GLB, REG, cmp_gr);
-    add_comparison_assignment_rules(GLB, CST, cmp_gc);
     add_comparison_assignment_rules(CST, GLB, cmp_cg);
+    add_comparison_assignment_rules(GLB, CST, cmp_gc);
+
+    add_comparison_assignment_rules(REG, STK, cmp_rs);
+    add_comparison_assignment_rules(STK, REG, cmp_sr);
+    add_comparison_assignment_rules(CST, STK, cmp_cs);
+    add_comparison_assignment_rules(STK, CST, cmp_sc);
 
     add_commutative_operation_rules("add",  IR_ADD, X_ADD, 10);
     add_commutative_operation_rules("imul", IR_MUL, X_MUL, 30);

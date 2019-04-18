@@ -297,6 +297,10 @@ void test_instrsel() {
     test_less_than_with_conditional_jmp(function, g(1), c(1));
     test_less_than_with_conditional_jmp(function, v(1), g(1));
     test_less_than_with_conditional_jmp(function, g(1), v(1));
+    test_less_than_with_conditional_jmp(function, v(1), S(1));
+    test_less_than_with_conditional_jmp(function, S(1), v(1));
+    test_less_than_with_conditional_jmp(function, c(1), S(1));
+    test_less_than_with_conditional_jmp(function, S(1), c(1));
 
     // Conditional assignment with 2 registers
     test_cmp_with_assignment(function, IR_EQ, X_SETE);
@@ -313,6 +317,10 @@ void test_instrsel() {
     test_less_than_with_cmp_assignment(function, g(1), c(1), v(1));
     test_less_than_with_cmp_assignment(function, v(1), g(1), v(2));
     test_less_than_with_cmp_assignment(function, g(1), v(1), v(2));
+    test_less_than_with_cmp_assignment(function, c(1), S(1), v(1));
+    test_less_than_with_cmp_assignment(function, S(1), c(1), v(1));
+    test_less_than_with_cmp_assignment(function, v(1), S(1), v(2));
+    test_less_than_with_cmp_assignment(function, S(1), v(1), v(2));
 }
 
 int main() {

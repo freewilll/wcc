@@ -281,7 +281,7 @@ void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
                 else if (v->global_symbol)
                     fprintf(f, "%s", v->global_symbol->identifier);
                 else if (v->stack_index) {
-                    stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src1->stack_index);
+                    stack_offset = get_stack_offset_from_index(function_pc, stack_start, v->stack_index);
                     fprintf(f, "%d", stack_offset);
                 }
                 else if (v->label)
