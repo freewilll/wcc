@@ -28,16 +28,12 @@ int recursive_tile_igraphs(IGraph *igraph, int node_id);
 void turn_around_jz_jnz_insanity(Function *function) {
     Tac *tac;
 
-    print_intermediate_representation(function, "");
-
     tac = function->ir;
     while (tac) {
              if (tac->operation == IR_JZ)  tac->operation = IR_JNZ;
         else if (tac->operation == IR_JNZ) tac->operation = IR_JZ;
         tac = tac->next;
     }
-
-    print_intermediate_representation(function, "");
 }
 
 void recursive_dump_igraph(IGraph *ig, int node, int indent) {
@@ -462,7 +458,7 @@ int new_cost_graph_node() {
 }
 
 int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
-    int i, vc, vr, vs, vg, vl, cost_graph_node_id, choice_node_id, matched, matched_dst;
+    int i, vc, vr, vstl, vstk, vg, vl, cost_graph_node_id, choice_node_id, matched, matched_dst;
     Value *v;
     Rule *r;
     Tac *tac;
@@ -474,12 +470,13 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
     v = igraph->nodes[node_id].value;
     vc = v->is_constant;
-    vs = v->is_string_literal;
-    vg = !!v->global_symbol;
     vr = !!v->vreg;
+    vstl = v->is_string_literal;
+    vg = !!v->global_symbol;
+    vstk = !!v->stack_index;
     vl = !!v->label;
 
-    if (DEBUG_INSTSEL_TILING) printf("leaf vc=%d vr=%d vg=%d vl=%d\n", vc, vr, vg, vl);
+    if (DEBUG_INSTSEL_TILING) printf("leaf vc=%d vr=%d vstl=%d vg=%d vstk=%d vl=%d\n", vc, vstl, vr, vg, vstk, vl);
 
     // Find a matching instruction
     matched = 0;
@@ -487,7 +484,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         r = &(instr_rules[i]);
         if (r->operation) continue;
 
-        if ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vs) || (r->src1 == GLB && vg) || (r->src1 == LAB && vl)) {
+        if ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vstl) || (r->src1 == GLB && vg) || (r->src1 == STK && vstk) || (r->src1 == LAB && vl)) {
             if (DEBUG_INSTSEL_TILING) {
                 printf("matched rule %d: ", i);
                 print_rule(r);
@@ -583,6 +580,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (node_id == 0 && tac->dst) {
             if (tac->dst->vreg && !rules_match(REG, r)) continue;
             if (tac->dst->global_symbol && !rules_match(GLB, r)) continue;
+            if (tac->dst->stack_index && !rules_match(STK, r)) continue;
         }
 
         // Check dst of the subtree tile matches what is needed

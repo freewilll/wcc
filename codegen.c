@@ -238,10 +238,10 @@ int get_stack_offset_from_index(int function_pc, int stack_start, int stack_inde
     return stack_offset;
 }
 
-void output_x86_operation(Tac *tac) {
+void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
     char *t;
     Value *v;
-    int is_byte;
+    int is_byte, stack_offset;
 
     t = tac->x86_template;
 
@@ -280,6 +280,10 @@ void output_x86_operation(Tac *tac) {
                 }
                 else if (v->global_symbol)
                     fprintf(f, "%s", v->global_symbol->identifier);
+                else if (v->stack_index) {
+                    stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src1->stack_index);
+                    fprintf(f, "%d", stack_offset);
+                }
                 else if (v->label)
                     fprintf(f, "%d", v->label);
                 else panic("Don't know how to render template value");
@@ -469,7 +473,7 @@ void output_function_body_code(Symbol *symbol) {
         if (tac->operation == IR_NOP || tac->operation == IR_START_LOOP || tac->operation == IR_END_LOOP);
 
         else if (tac->operation > X_START && tac->operation != X_RET && tac->operation != X_ARG)
-            output_x86_operation(tac);
+            output_x86_operation(tac, function_pc, stack_start);
 
         else if (tac->operation == IR_LOAD_CONSTANT) {
             fprintf(f, "\tmovq\t$%ld, ", tac->src1->value);
@@ -545,7 +549,7 @@ void output_function_body_code(Symbol *symbol) {
 
         else if (tac->operation == X_ARG) {
             cur_stack_push_count++;
-            output_x86_operation(tac);
+            output_x86_operation(tac, function_pc, stack_start);
         }
 
         else if (tac->operation == IR_CALL) {
@@ -588,7 +592,7 @@ void output_function_body_code(Symbol *symbol) {
         }
 
         else if (tac->operation == X_RET) {
-            output_x86_operation(tac);
+            output_x86_operation(tac, function_pc, stack_start);
             output_pop_callee_saved_registers(saved_registers);
             fprintf(f, "\tleaveq\n");
             fprintf(f, "\tretq\n");

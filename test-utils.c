@@ -47,6 +47,17 @@ Value *s(int string_literal_index) {
     return v;
 }
 
+
+Value *S(int stack_index) {
+    Value *v;
+
+    v = new_value();
+    v->type = TYPE_INT;
+    v->stack_index = stack_index;
+
+    return v;
+}
+
 Value *g(int index) {
     Value *v;
     Symbol *s;

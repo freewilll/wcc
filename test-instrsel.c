@@ -22,6 +22,8 @@ void assert_value(Value *v1, Value *v2) {
         assert(v1->global_symbol->identifier[1], v2->global_symbol->identifier[1]);
     else if (v1->label)
         assert(v1->label, v2->label);
+    else if (v1->stack_index)
+        assert(v1->stack_index, v2->stack_index);
     else
         panic("Don't know how to assert_value");
 }
@@ -233,6 +235,20 @@ void test_instrsel() {
     i(0, IR_ASSIGN, v(1), g(1), 0);
     finish_ir(function);
     assert_tac(ir_start, X_MOV, 0, g(1), v(1));
+
+    // Push a local
+    start_ir();
+    i(0, IR_ARG, 0, c(0), S(1));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, 0, S(1), v(1));
+    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
+
+    // Assign to a local
+    start_ir();
+    i(0, IR_ASSIGN, S(1), c(0), 0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, 0, c(0), v(1));
+    assert_tac(ir_start->next, X_MOV, 0, v(1), S(1));
 
     // jz with r1
     start_ir();

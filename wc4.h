@@ -555,16 +555,20 @@ void optimize_and_allocate_registers(Function *function);
 enum {
     MAX_RULE_COUNT = 1000,
 
-    REG = 1,
-    CST,
-    STL,
-    GLB,
-    LAB,
-    CPU,
+    // Non terminals
+    REG = 1,    // Register
+    CST,        // Constant
+    STL,        // String literal
+    GLB,        // Global
+    STK,        // Stack location
+    LAB,        // Label, i.e. a target for a (conditional) jump
+
+    // Operands
     DST,
     SRC1,
     SRC2,
 
+    // x86 instructions
     X_START = 1000,
     X_RET   = 1001,
     X_ARG   = 1002,
@@ -633,4 +637,5 @@ Value *v(int vreg);
 Value *l(int label);
 Value *c(int value);
 Value *s(int string_literal_index);
+Value *S(int stack_index);
 Value *g(int index);
