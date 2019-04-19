@@ -107,18 +107,30 @@ void add_comparison_assignment_rules(int src1, int src2, char *template) {
 }
 
 void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
-    char *op_rr, *op_cr;
+    char *op_rr, *op_cr, *op_rs, *op_rg;
     Rule *r;
 
-    asprintf(&op_rr, "%s\t%%v1, %%v2", x86_operand);  // Perform operation on two registers
-    asprintf(&op_cr, "%s\t$%%v1, %%v2", x86_operand); // Perform operation on a constant and a register
+    asprintf(&op_rr, "%s\t%%v1, %%v2",          x86_operand);  // Perform operation on two registers
+    asprintf(&op_cr, "%s\t$%%v1, %%v2",         x86_operand);  // Perform operation on a constant and a register
+    asprintf(&op_rs, "%s\t%%v1(%%%%rbp), %%v2", x86_operand);  // Perform operation on a register and a stack local
+    asprintf(&op_rs, "%s\t%%v1(%%%%rip), %%v2", x86_operand);  // Perform operation on a register and a global
 
-    r = add_rule(REG, operation, REG, REG, cost);  add_op(r, X_MOV,         0, SRC2, DST,  "mov\t%v1, %v2");
-                                                   add_op(r, x86_operation, 0, SRC1, DST,  op_rr          );
-    r = add_rule(REG, operation, CST, REG, cost);  add_op(r, X_MOV,         0, SRC2, DST,  "mov\t%v1, %v2");
-                                                   add_op(r, x86_operation, 0, SRC1, DST,  op_cr          );
-    r = add_rule(REG, operation, REG, CST, cost);  add_op(r, X_MOV,         0, SRC1, DST,  "mov\t%v1, %v2");
-                                                   add_op(r, x86_operation, 0, SRC2, DST,  op_cr          );
+    r = add_rule(REG, operation, REG, REG, cost); add_op(r, X_MOV,         0, SRC2, DST,  "mov\t%v1, %v2");
+                                                  add_op(r, x86_operation, 0, SRC1, DST,  op_rr          );
+    r = add_rule(REG, operation, CST, REG, cost); add_op(r, X_MOV,         0, SRC2, DST,  "mov\t%v1, %v2");
+                                                  add_op(r, x86_operation, 0, SRC1, DST,  op_cr          );
+    r = add_rule(REG, operation, REG, CST, cost); add_op(r, X_MOV,         0, SRC1, DST,  "mov\t%v1, %v2");
+                                                  add_op(r, x86_operation, 0, SRC2, DST,  op_cr          );
+
+    r = add_rule(REG, operation, REG, GLB, cost + 1); add_op(r, X_MOV,         0, SRC1, DST,  "mov\t%v1, %v2");
+                                                      add_op(r, x86_operation, 0, SRC2, DST,  op_rg          );
+    r = add_rule(REG, operation, GLB, REG, cost + 1); add_op(r, X_MOV,         0, SRC2, DST,  "mov\t%v1, %v2");
+                                                      add_op(r, x86_operation, 0, SRC1, DST,  op_rg          );
+
+    r = add_rule(REG, operation, REG, STK, cost + 1); add_op(r, X_MOV,         0, SRC1, DST,  "mov\t%v1, %v2");
+                                                      add_op(r, x86_operation, 0, SRC2, DST,  op_rs          );
+    r = add_rule(REG, operation, STK, REG, cost + 1); add_op(r, X_MOV,         0, SRC2, DST,  "mov\t%v1, %v2");
+                                                      add_op(r, x86_operation, 0, SRC1, DST,  op_rs          );
 }
 
 void init_instruction_selection_rules() {
@@ -203,7 +215,6 @@ void init_instruction_selection_rules() {
     add_comparison_assignment_rules(GLB, REG, cmp_gr);
     add_comparison_assignment_rules(CST, GLB, cmp_cg);
     add_comparison_assignment_rules(GLB, CST, cmp_gc);
-
     add_comparison_assignment_rules(REG, STK, cmp_rs);
     add_comparison_assignment_rules(STK, REG, cmp_sr);
     add_comparison_assignment_rules(CST, STK, cmp_cs);

@@ -176,6 +176,34 @@ void test_instrsel() {
     assert_tac(ir_start,       X_MOV, v(3), v(2), v(3));
     assert_tac(ir_start->next, X_ADD, v(3), v(1), v(3));
 
+    // r1 + S1
+    start_ir();
+    i(0, IR_ADD, v(2), v(1), S(1));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, v(2), v(1), v(2));
+    assert_tac(ir_start->next, X_ADD, v(2), S(1), v(2));
+
+    // S1 + r1
+    start_ir();
+    i(0, IR_ADD, v(2), v(1), S(1));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, v(2), v(1), v(2));
+    assert_tac(ir_start->next, X_ADD, v(2), S(1), v(2));
+
+    // r1 + g1
+    start_ir();
+    i(0, IR_ADD, v(2), v(1), g(1));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, v(2), v(1), v(2));
+    assert_tac(ir_start->next, X_ADD, v(2), g(1), v(2));
+
+    // g1 + r1
+    start_ir();
+    i(0, IR_ADD, v(2), v(1), g(1));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, v(2), v(1), v(2));
+    assert_tac(ir_start->next, X_ADD, v(2), g(1), v(2));
+
     // arg c with only the reg rule. Forces a load of c into r1
     start_ir();
     nuke_rule(0, IR_ARG, CST, CST);
