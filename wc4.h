@@ -557,7 +557,7 @@ void optimize_and_allocate_registers(Function *function);
 
 // instrsel.c
 enum {
-    MAX_RULE_COUNT = 1000,
+    MAX_RULE_COUNT = 2000,
 
     // Non terminals
     CST = 1,                     // Constant
@@ -593,20 +593,22 @@ enum {
     X_JLE   = 1018,
     X_JGE   = 1019,
 
-    X_MOVZBQ  = 1020,
-    X_SETE    = 1021,
-    X_SETNE   = 1022,
-    X_SETLT   = 1023,
-    X_SETGT   = 1024,
-    X_SETLE   = 1025,
-    X_SETGE   = 1026,
+    X_MOVZBW  = 1020,
+    X_MOVZBL  = 1021,
+    X_MOVZBQ  = 1022,
+    X_SETE    = 1023,
+    X_SETNE   = 1024,
+    X_SETLT   = 1025,
+    X_SETGT   = 1026,
+    X_SETLE   = 1027,
+    X_SETGE   = 1028,
 
-    X_MOVSBW   = 1027,
-    X_MOVSBL   = 1028,
-    X_MOVSBQ   = 1029,
-    X_MOVSWL   = 1030,
-    X_MOVSWQ   = 1031,
-    X_MOVSLQ   = 1032,
+    X_MOVSBW   = 1029,
+    X_MOVSBL   = 1030,
+    X_MOVSBQ   = 1031,
+    X_MOVSWL   = 1032,
+    X_MOVSWQ   = 1033,
+    X_MOVSLQ   = 1034,
 
 };
 

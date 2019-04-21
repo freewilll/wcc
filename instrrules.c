@@ -7,7 +7,7 @@
 Rule *add_rule(int non_terminal, int operation, int src1, int src2, int cost) {
     Rule *r;
 
-    if (instr_rule_count == MAX_RULE_COUNT) panic("Exceeded maximum number of rules");
+    if (instr_rule_count == MAX_RULE_COUNT) panic1d("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
 
     r = &(instr_rules[instr_rule_count]);
 
@@ -83,13 +83,16 @@ char *add_size_to_template(char *template, int size) {
     result = malloc(128);
     dst = result;
 
+    // Add size to registers, converting e.g. %v1 -> %v1b if size=1
+    // Registers that already have the size are untouched, so that
+    // specific things like sign extensions work.
     c = template;
     while (*c) {
         if (c[0] == '%' && c[1] == 's') {
             *dst++ = x86_size;
             c++;
         }
-        else if (c[0] == '%' && c[1] == 'v') {
+        else if (c[0] == '%' && c[1] == 'v' && (c[3] != 'b' && c[3] != 'w' && c[3] != 'l' && c[3] != 'q')) {
             *dst++ = '%';
             *dst++ = 'v';
             *dst++ = c[2];
@@ -222,33 +225,30 @@ void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *te
     r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl .l%v1" ); fin_rule(r);
 }
 
+void add_comparison_assignment_rule(int src1, int src2, char *cmp_template, int operation, int set_operation, char *set_template) {
+    int i;
+    Rule *r;
+
+    for (i = 1; i <= 4; i++) {
+        r = add_rule(REG + i, operation, src1, src2, 12 + (i > 1));
+        add_op(r, X_CMP,         0, SRC1, SRC2, cmp_template      );
+        add_op(r, set_operation, 0, DST, 0,     set_template      );
+             if (i == 2) add_op(r, X_MOVZBW, 0, DST, 0, "movzbw %v1b, %v1w");
+        else if (i == 3) add_op(r, X_MOVZBL, 0, DST, 0, "movzbl %v1b, %v1l");
+        else if (i == 4) add_op(r, X_MOVZBQ, 0, DST, 0, "movzbq %v1b, %v1q");
+        fin_rule(r);
+    }
+}
+
 void add_comparison_assignment_rules(int src1, int src2, char *template) {
     Rule *r;
 
-    r = add_rule(REG, IR_EQ, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
-                                              add_op(r, X_SETE,    0, DST, 0,     "sete %v1b"       );
-                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq %v1b, %v1");
-                                              fin_rule(r);
-    r = add_rule(REG, IR_NE, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
-                                              add_op(r, X_SETNE,   0, DST, 0,     "setne %v1b"      );
-                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq %v1b, %v1");
-                                              fin_rule(r);
-    r = add_rule(REG, IR_LT, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
-                                              add_op(r, X_SETLT,   0, DST, 0,     "setl %v1b"       );
-                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq %v1b, %v1");
-                                              fin_rule(r);
-    r = add_rule(REG, IR_GT, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
-                                              add_op(r, X_SETGT,   0, DST, 0,     "setg %v1b"       );
-                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq %v1b, %v1");
-                                              fin_rule(r);
-    r = add_rule(REG, IR_LE, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
-                                              add_op(r, X_SETLE,   0, DST, 0,     "setle %v1b"      );
-                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq %v1b, %v1");
-                                              fin_rule(r);
-    r = add_rule(REG, IR_GE, src1, src2, 12); add_op(r, X_CMP,     0, SRC1, SRC2, template           );
-                                              add_op(r, X_SETGE,   0, DST, 0,     "setge %v1b"      );
-                                              add_op(r, X_MOVZBQ,  0, DST, 0,     "movzbq %v1b, %v1");
-                                              fin_rule(r);
+    add_comparison_assignment_rule(src1, src2, template, IR_EQ, X_SETE,  "sete %v1b");
+    add_comparison_assignment_rule(src1, src2, template, IR_NE, X_SETNE, "setne %v1b");
+    add_comparison_assignment_rule(src1, src2, template, IR_LT, X_SETLT, "setl %v1b");
+    add_comparison_assignment_rule(src1, src2, template, IR_GT, X_SETGT, "setg %v1b");
+    add_comparison_assignment_rule(src1, src2, template, IR_LE, X_SETLE, "setle %v1b");
+    add_comparison_assignment_rule(src1, src2, template, IR_GE, X_SETGE, "setge %v1b");
 }
 
 void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {

@@ -113,11 +113,11 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
 void test_cmp_with_assignment(Function *function, int cmp_operation, int x86_set_operation) {
     start_ir();
     i(0, cmp_operation, v(3), v(1), v(2));
-    i(0, IR_ASSIGN,     v(4), v(3), 0   );
+    // i(0, IR_ASSIGN,     v(4), v(3), 0   );
     finish_ir(function);
     assert_tac(ir_start,             X_CMP,             0,    v(1), v(2));
-    assert_tac(ir_start->next,       x86_set_operation, 0,    v(4), 0   );
-    assert_tac(ir_start->next->next, X_MOVZBQ,          v(4), v(4), 0   );
+    assert_tac(ir_start->next,       x86_set_operation, 0,    v(3), 0   );
+    assert_tac(ir_start->next->next, X_MOVZBQ,          v(3), v(3), 0   );
 }
 
 void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, Value *dst) {
@@ -422,10 +422,8 @@ Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, V
     return tac;
 }
 
-void test_instrsel_add_glb_vreg() {
+void test_instrsel_types_add_mem_vreg() {
     Function *function;
-    Tac *tac;
-    char *b;
 
     function = new_function();
     remove_reserved_physical_registers = 1;
@@ -490,6 +488,39 @@ void test_instrsel_add_glb_vreg() {
     assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addw    g1(%rip), r2w"));
 }
 
+void test_instrsel_types_cmp_assignment() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // Test s = l == l
+    start_ir();
+    i(0, IR_EQ, vsz(3, TYPE_SHORT), v(1), v(2));
+    finish_ir(function);
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "cmpq    r2q, r1q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "sete    r3b"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "movzbw  r3b, r3w"));
+
+    // Test c = s == s
+    start_ir();
+    i(0, IR_EQ, vsz(3, TYPE_CHAR), vsz(1, TYPE_SHORT), vsz(2, TYPE_SHORT));
+    finish_ir(function);
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "cmpw    r2w, r1w"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "sete    r3b"     ));
+
+    // Test s = c == l
+    start_ir();
+    i(0, IR_EQ, vsz(3, TYPE_SHORT), vsz(1, TYPE_CHAR), vsz(2, TYPE_LONG));
+    finish_ir(function);
+    print_intermediate_representation(function, "");
+    assert(0, strcmp(render_x86_operation(ir_start,                   0, 0, 0), "movsbq  r1b, r4q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,             0, 0, 0), "cmpq    r2q, r4q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next,       0, 0, 0), "sete    r3b"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next->next, 0, 0, 0), "movzbw  r3b, r3w"));
+}
+
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -500,5 +531,6 @@ int main() {
     init_instruction_selection_rules();
     test_instrsel();
     test_instrsel_types_add_vregs();
-    test_instrsel_add_glb_vreg();
+    test_instrsel_types_add_mem_vreg();
+    test_instrsel_types_cmp_assignment();
 }

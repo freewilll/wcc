@@ -21,7 +21,7 @@ build:
 	@mkdir -p build/wc42
 	@mkdir -p build/wc43
 
-%.o: %.c
+%.o: %.c wc4.h
 	gcc -c $< -o $@ -g -Wno-return-type -D _GNU_SOURCE
 
 wc4: ${OBJECTS} wc4.h build
