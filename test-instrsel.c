@@ -4,6 +4,8 @@
 
 #include "wc4.h"
 
+int remove_reserved_physical_registers;
+
 void assert(long expected, long actual) {
     if (expected != actual) {
         printf("Expected %ld, got %ld\n", expected, actual);
@@ -44,6 +46,8 @@ void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
 
 void remove_reserved_physical_register_count_from_tac(Tac *ir) {
     Tac *tac;
+
+    if (!remove_reserved_physical_registers) return;
 
     tac = ir;
     while (tac) {
@@ -133,6 +137,7 @@ void test_instrsel() {
     Tac *tac;
 
     function = new_function();
+    remove_reserved_physical_registers = 1;
 
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
@@ -407,28 +412,82 @@ void test_instrsel_types_add_vregs() {
 }
 
 // Test instruction add
-Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, Value *src2, int counts) {
-    int j;
+Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac;
 
     start_ir();
-    for (j = 0; j < counts; j++)
-        i(label, operation, dst, src1, src2);
+    i(label, operation, dst, src1, src2);
     finish_ir(function);
-    print_intermediate_representation(function, "");
-
-    // Ensure all operands are the same x86 size
-    tac = ir_start;
-    while (tac) {
-        if (tac->dst->x86_size != tac->src1->x86_size || tac->dst->x86_size != tac->src2->x86_size) {
-            printf("Mismatching x86 size: dst=%d, src1=%d, src2=%d\n", tac->dst->x86_size, tac->src1->x86_size, tac->src2->x86_size);
-            print_instruction(stdout, tac);
-            exit(1);
-        }
-        tac = tac->next;
-    }
 
     return tac;
+}
+
+void test_instrsel_add_glb_vreg() {
+    Function *function;
+    Tac *tac;
+    char *b;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // A non exhaustive set of tests to check global/reg addition with various integer sizes
+
+    // Test sign extension of globals
+    // ------------------------------
+
+    // c = vs + gc
+    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_SHORT), gsz(1, TYPE_CHAR));
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbw  g1(%rip), r3w"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movw    r3w, r2w"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addw    r1w, r2w"     ));
+
+    // c = vi + gc
+    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_INT), gsz(1, TYPE_CHAR));
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbl  g1(%rip), r3l"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movl    r3l, r2l"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addl    r1l, r2l"     ));
+
+    // c = vl + gc
+    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_LONG), gsz(1, TYPE_CHAR));
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbq  g1(%rip), r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movq    r3q, r2q"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addq    r1q, r2q"     ));
+
+    // l = vi + gc
+    si(function, 0, IR_ADD, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), gsz(1, TYPE_CHAR));
+    assert(0, strcmp(render_x86_operation(ir_start,                   0, 0, 0), "movslq  r1l, r3q"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next,             0, 0, 0), "movsbq  g1(%rip), r4q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next,       0, 0, 0), "movq    r4q, r2q"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next->next, 0, 0, 0), "addq    r3q, r2q"     ));
+
+    // l = vl + gc
+    si(function, 0, IR_ADD, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), gsz(1, TYPE_CHAR));
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbq  g1(%rip), r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movq    r3q, r2q"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addq    r1q, r2q"     ));
+
+    // l = gc + vl
+    si(function, 0, IR_ADD, vsz(2, TYPE_LONG), gsz(1, TYPE_CHAR), vsz(1, TYPE_LONG));
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbq  g1(%rip), r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movq    r1q, r2q"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addq    r3q, r2q"     ));
+
+    // Test sign extension of locals
+    // ------------------------------
+
+    // c = vs + gc
+    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_SHORT), Ssz(1, TYPE_CHAR));
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbw  16(%rbp), r3w"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movw    r3w, r2w"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addw    r1w, r2w"     ));
+
+    // Test sign extension of registers
+    // --------------------------------
+    // c = vc + gs
+    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_CHAR), gsz(1, TYPE_SHORT));
+    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbw  r1b, r3w"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movw    r3w, r2w"     ));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addw    g1(%rip), r2w"));
 }
 
 int main() {
@@ -441,4 +500,5 @@ int main() {
     init_instruction_selection_rules();
     test_instrsel();
     test_instrsel_types_add_vregs();
+    test_instrsel_add_glb_vreg();
 }

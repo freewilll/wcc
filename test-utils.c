@@ -68,6 +68,16 @@ Value *S(int stack_index) {
     return v;
 }
 
+Value *Ssz(int stack_index, int type) {
+    Value *v;
+
+    v = new_value();
+    v->type = type;
+    v->stack_index = stack_index;
+
+    return v;
+}
+
 Value *g(int index) {
     Value *v;
     Symbol *s;

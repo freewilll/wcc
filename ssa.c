@@ -19,7 +19,7 @@ typedef struct vreg_cost {
     int cost;
 } VregCost;
 
-int *physical_registers, *preg_map, preg_count;
+int *physical_registers, *preg_map;
 
 void optimize_arithmetic_operations(Function *function) {
     Tac *tac;

@@ -15,13 +15,17 @@ SOURCES = \
   graph.c \
 
 ASSEMBLIES := ${SOURCES:c=s}
+OBJECTS := ${SOURCES:c=o}
 
 build:
 	@mkdir -p build/wc42
 	@mkdir -p build/wc43
 
-wc4: ${SOURCES} wc4.h build
-	gcc ${SOURCES} -o wc4 -g -Wno-return-type -D _GNU_SOURCE
+%.o: %.c
+	gcc -c $< -o $@ -g -Wno-return-type -D _GNU_SOURCE
+
+wc4: ${OBJECTS} wc4.h build
+	gcc ${OBJECTS} -o wc4 -g -Wno-return-type -D _GNU_SOURCE
 
 # wc42
 WC42_SOURCES := ${SOURCES:%=build/wc42/%}
@@ -90,14 +94,15 @@ test-set: wc4 set.c utils.c test-set.c
 run-test-set: test-set
 	 ./test-set
 
-test-ssa: wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c utils.c
-	./wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c utils.c -o test-ssa
+test-ssa: wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c parser.c lexer.c codegen.c instrrules.c instrsel.c utils.c
+	./wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c parser.c lexer.c codegen.c instrrules.c instrsel.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa
 
-test-instrsel: wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c graph.c set.c ssa.c stack.c utils.c
-	./wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c graph.c set.c ssa.c stack.c utils.c -o test-instrsel
+test-instrsel: wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c codegen.c parser.c lexer.c graph.c set.c ssa.c stack.c utils.c
+	#./wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c codegen.c parser.c lexer.c graph.c set.c ssa.c stack.c utils.c -o test-instrsel
+	gcc test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c codegen.c parser.c lexer.c graph.c set.c ssa.c stack.c utils.c -D_GNU_SOURCE -o test-instrsel
 
 run-test-instrsel: test-instrsel
 	 ./test-instrsel

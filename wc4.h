@@ -528,6 +528,8 @@ enum {
 // Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
 int live_range_reserved_pregs_offset;
 int disable_live_ranges_coalesce;
+int preg_count;
+int ir_vreg_offset;
 
 int make_vreg_count(Function *function, int starting_count);
 int new_subscript(Stack **stack, int *counters, int n);
@@ -632,7 +634,8 @@ void eis1(Function *function, int flip_jz_jnz);
 void eis2(Function *function);
 void experimental_instruction_selection(Symbol *function_symbol);
 
-// rules.c
+// instrrules.c
+char size_to_x86_size(int size);
 void print_rule(Rule *r);
 void print_rules();
 void make_value_x86_size(Value *v);
@@ -640,6 +643,7 @@ void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
 void init_instruction_selection_rules();
 
 // codegen.c
+char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expect_preg);
 void init_callee_saved_registers();
 void output_function_body_code(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
@@ -652,5 +656,6 @@ Value *l(int label);
 Value *c(int value);
 Value *s(int string_literal_index);
 Value *S(int stack_index);
+Value *Ssz(int stack_index, int type);
 Value *g(int index);
 Value *gsz(int index, int type);

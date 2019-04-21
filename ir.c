@@ -206,12 +206,20 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 
 void print_instruction(void *f, Tac *tac) {
     int first;
+    char *buffer;
     Value *v;
 
     if (tac->label)
         fprintf(f, "l%-5d", tac->label);
     else
         fprintf(f, "      ");
+
+    if (tac->x86_template) {
+        buffer = render_x86_operation(tac, 0, 0, 0);
+        fprintf(f, "%s\n", buffer);
+        free(buffer);
+        return;
+    }
 
     if (tac->dst && tac->operation < X_START) {
         print_value(f, tac->dst, tac->operation != IR_ASSIGN);
@@ -337,7 +345,6 @@ void print_instruction(void *f, Tac *tac) {
     else
         panic1d("print_instruction(): Unknown operation: %d", tac->operation);
 
-    if (tac->x86_template) printf(" x86_template: %s", tac->x86_template);
     fprintf(f, "\n");
 }
 

@@ -20,6 +20,16 @@ void output_byte_register_name(int preg) {
     else                fprintf(f, "%%%.4s", &names[preg * 5]);
 }
 
+void append_byte_register_name(char *buffer, int preg) {
+    char *names;
+
+    check_preg(preg);
+    names = "al   bl   cl   dl   sil  dil  bpl  spl  r8b  r9b  r10b r11b r12b r13b r14b r15b";
+         if (preg < 4)  sprintf(buffer, "%%%.2s", &names[preg * 5]);
+    else if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
+    else                sprintf(buffer, "%%%.4s", &names[preg * 5]);
+}
+
 void output_word_register_name(int preg) {
     char *names;
 
@@ -28,6 +38,16 @@ void output_word_register_name(int preg) {
          if (preg < 8)  fprintf(f, "%%%.2s", &names[preg * 5]);
     else if (preg < 10) fprintf(f, "%%%.3s", &names[preg * 5]);
     else                fprintf(f, "%%%.4s", &names[preg * 5]);
+}
+
+void append_word_register_name(char *buffer, int preg) {
+    char *names;
+
+    check_preg(preg);
+    names = "ax   bx   cx   dx   si   di   bp   sp   r8w  r9w  r10w r11w r12w r13w r14w r15w";
+         if (preg < 8)  sprintf(buffer, "%%%.2s", &names[preg * 5]);
+    else if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
+    else                sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
 void output_long_register_name(int preg) {
@@ -39,6 +59,15 @@ void output_long_register_name(int preg) {
     else           fprintf(f, "%%%.4s", &names[preg * 5]);
 }
 
+void append_long_register_name(char *buffer, int preg) {
+    char *names;
+
+    check_preg(preg);
+    names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
+    if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
+    else           sprintf(buffer, "%%%.4s", &names[preg * 5]);
+}
+
 void output_quad_register_name(int preg) {
     char *names;
 
@@ -46,6 +75,15 @@ void output_quad_register_name(int preg) {
     names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
     if (preg == 8 || preg == 9) fprintf(f, "%%%.2s", &names[preg * 4]);
     else                        fprintf(f, "%%%.3s", &names[preg * 4]);
+}
+
+void append_quad_register_name(char *buffer, int preg) {
+    char *names;
+
+    check_preg(preg);
+    names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
+    if (preg == 8 || preg == 9) sprintf(buffer, "%%%.2s", &names[preg * 4]);
+    else                        sprintf(buffer, "%%%.3s", &names[preg * 4]);
 }
 
 void output_move_quad_register_to_register(int preg1, int preg2) {
@@ -238,92 +276,98 @@ int get_stack_offset_from_index(int function_pc, int stack_start, int stack_inde
     return stack_offset;
 }
 
-void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
-    char *t;
+char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expect_preg) {
+    char *t, *result, *buffer;
+    int i, x86_size, stack_offset, mnemonic_length;
     Value *v;
-    int common_x86_size, x86_size, stack_offset;
 
     t = tac->x86_template;
 
-    common_x86_size = 0;
-    if (tac->src1 && tac->src1->x86_size) common_x86_size = tac->src1->x86_size;
-    if (tac->src2 && tac->src2->x86_size) common_x86_size = tac->src2->x86_size;
-    fprintf(f, "\t");
+    buffer = malloc(128);
+    memset(buffer, 0, 128);
+    result = buffer;
+
+    while (*t != ' ') *buffer++ = *t++;
+    *t++;
+    mnemonic_length = buffer - result;
+    for (i = 0; i < 8 - mnemonic_length; i++) *buffer++ = ' ';
 
     while (*t) {
         if (*t == '%') {
             if (t[1] == '%') {
-                fprintf(f, "%%");
+                *buffer++ = '%';
                 t += 1;
             }
             else {
                 t++;
 
-                x86_size = 0;
-
-                if (t[0] == 's') {
-                    if (!common_x86_size) panic1s("Got %%s %s placeholder but could not determine size in %s ", tac->x86_template);
-                         if (common_x86_size == 1) fprintf(f, "b");
-                    else if (common_x86_size == 2) fprintf(f, "w");
-                    else if (common_x86_size == 3) fprintf(f, "l");
-                    else if (common_x86_size == 4) fprintf(f, "q");
-                    else panic1d("Unknown common_x86_size %d", common_x86_size);
-
-                    t++;
-                    continue;
-                }
-
                 if (t[0] != 'v') panic1s("Unknown placeholder in %s", tac->x86_template);
 
                 t++;
-
-                if (t[0] == 'b') { x86_size = 1;  t++; }
-                if (t[0] == 'w') { x86_size = 2;  t++; }
-                if (t[0] == 'l') { x86_size = 3;  t++; }
-                if (t[0] == 'q') { x86_size = 4;  t++; }
 
                      if (t[0] == '1') v = tac->src1;
                 else if (t[0] == '2') v = tac->src2;
                 else panic1s("Indecipherable placeholder \"%s\"", tac->x86_template);
 
+                t++;
+
+                x86_size = 0;
+                     if (t[0] == 'b') x86_size = 1;
+                else if (t[0] == 'w') x86_size = 2;
+                else if (t[0] == 'l') x86_size = 3;
+                else if (t[0] == 'q') x86_size = 4;
+
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
-                if (v->is_constant)
-                    fprintf(f, "%ld", v->value);
-                else if (v->is_string_literal)
-                    fprintf(f, "%d", v->string_literal_index);
-                else if (v->preg != -1) {
-                    if (!x86_size && v->x86_size)
-                        x86_size = v->x86_size;
+                if (!expect_preg && v->vreg) {
+                    if (!x86_size) panic1s("Missing size on register value \"%s\"", tac->x86_template);
 
-                    if (!x86_size)
-                        panic("Register without x86 size");
-
-                         if (x86_size == 1) output_byte_register_name(v->preg);
-                    else if (x86_size == 2) output_word_register_name(v->preg);
-                    else if (x86_size == 3) output_long_register_name(v->preg);
-                    else if (x86_size == 4) output_quad_register_name(v->preg);
-                    else
-                        panic1d("Unknown register size %d", x86_size);
+                    *buffer++ = 'r';
+                    sprintf(buffer, "%d", v->vreg - ir_vreg_offset);
+                    while (*buffer) *buffer++;
+                    *buffer++ = size_to_x86_size(x86_size);
                 }
+                else if (expect_preg && v->preg != -1) {
+                    if (!x86_size) panic1s("Missing size on register value \"%s\"", tac->x86_template);
+
+                         if (x86_size == 1) append_byte_register_name(buffer, v->preg);
+                    else if (x86_size == 2) append_word_register_name(buffer, v->preg);
+                    else if (x86_size == 3) append_long_register_name(buffer, v->preg);
+                    else if (x86_size == 4) append_quad_register_name(buffer, v->preg);
+                    else panic1d("Unknown register size %d", x86_size);
+                }
+                else if (v->is_constant)
+                    sprintf(buffer, "%ld", v->value);
+                else if (v->is_string_literal)
+                    sprintf(buffer, "%d", v->string_literal_index);
                 else if (v->global_symbol)
-                    fprintf(f, "%s", v->global_symbol->identifier);
+                    sprintf(buffer, "%s", v->global_symbol->identifier);
                 else if (v->stack_index) {
                     stack_offset = get_stack_offset_from_index(function_pc, stack_start, v->stack_index);
-                    fprintf(f, "%d", stack_offset);
+                    sprintf(buffer, "%d", stack_offset);
                 }
                 else if (v->label)
-                    fprintf(f, "%d", v->label);
-                else panic("Don't know how to render template value");
+                    sprintf(buffer, "%d", v->label);
+                else
+                    panic("Don't know how to render template value");
             }
         }
         else
-            fprintf(f, "%c", *t);
+            *buffer++ = *t;
 
+        while (*buffer) *buffer++;
         t++;
     }
 
-    fprintf(f, "\n");
+    return result;
+}
+
+void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
+    char *buffer;
+
+    buffer = render_x86_operation(tac, function_pc, stack_start, 1);
+    fprintf(f, "    %s\n", buffer);
+    free(buffer);
 }
 
 // Called once at startup to indicate which registers are preserved across function calls
