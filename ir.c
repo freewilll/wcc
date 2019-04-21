@@ -75,6 +75,7 @@ Value *dup_value(Value *src) {
     dst->label                     = src->label;
     dst->ssa_subscript             = src->ssa_subscript;
     dst->live_range                = src->live_range;
+    dst->x86_size                  = src->x86_size;
 
     return dst;
 }
@@ -182,19 +183,24 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 
     if (!v->label) {
         fprintf(f, ":");
-        type = v->type;
-        while (type >= TYPE_PTR) {
-            fprintf(f, "*");
-            type -= TYPE_PTR;
-        }
 
-             if (type == TYPE_VOID)   fprintf(f, "void");
-        else if (type == TYPE_CHAR)   fprintf(f, "char");
-        else if (type == TYPE_INT)    fprintf(f, "int");
-        else if (type == TYPE_SHORT)  fprintf(f, "short");
-        else if (type == TYPE_LONG)   fprintf(f, "long");
-        else if (type >= TYPE_STRUCT) fprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->identifier);
-        else fprintf(f, "unknown type %d", type);
+        if (v->x86_size)
+            fprintf(f, "%d", v->x86_size);
+        else {
+            type = v->type;
+            while (type >= TYPE_PTR) {
+                fprintf(f, "*");
+                type -= TYPE_PTR;
+            }
+
+                 if (type == TYPE_VOID)   fprintf(f, "void");
+            else if (type == TYPE_CHAR)   fprintf(f, "char");
+            else if (type == TYPE_INT)    fprintf(f, "int");
+            else if (type == TYPE_SHORT)  fprintf(f, "short");
+            else if (type == TYPE_LONG)   fprintf(f, "long");
+            else if (type >= TYPE_STRUCT) fprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->identifier);
+            else fprintf(f, "unknown type %d", type);
+        }
     }
 }
 
@@ -321,9 +327,17 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == X_SETLE)  { fprintf(f, "setle " ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_SETGE)  { fprintf(f, "setge " ); print_value(f, tac->src1, 1); }
 
+    else if (tac->operation == X_MOVSBW) { fprintf(f, "movsbw "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == X_MOVSBL) { fprintf(f, "movsbl "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == X_MOVSBQ) { fprintf(f, "movsbq "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == X_MOVSWL) { fprintf(f, "movswl "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == X_MOVSWQ) { fprintf(f, "movswq "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (tac->operation == X_MOVSLQ) { fprintf(f, "movslq "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+
     else
         panic1d("print_instruction(): Unknown operation: %d", tac->operation);
 
+    if (tac->x86_template) printf(" x86_template: %s", tac->x86_template);
     fprintf(f, "\n");
 }
 

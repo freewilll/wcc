@@ -119,6 +119,7 @@ typedef struct value {
     int pushed_stack_aligned_quad;  // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
     int ssa_subscript;              // Optional SSA enumeration
     int live_range;                 // Optional SSA live range
+    int x86_size;                   // Current size while generating x86 code
 } Value;
 
 typedef struct three_address_code {
@@ -198,6 +199,7 @@ enum {
     DEBUG_INSTSEL_IGRAPHS_DEEP            = 0,
     DEBUG_INSTSEL_IGRAPHS                 = 0,
     DEBUG_INSTSEL_TILING                  = 0,
+    DEBUG_SIGN_EXTENSION                  = 0,
 };
 
 // Tokens in order of precedence
@@ -556,12 +558,12 @@ enum {
     MAX_RULE_COUNT = 1000,
 
     // Non terminals
-    REG = 1,    // Register
-    CST,        // Constant
-    STL,        // String literal
-    GLB,        // Global
-    STK,        // Stack location
-    LAB,        // Label, i.e. a target for a (conditional) jump
+    CST = 1,                     // Constant
+    STL,                         // String literal
+    LAB,                         // Label, i.e. a target for a (conditional) jump
+    REG, REGB, REGW, REGL, REGQ, // Registers
+    GLB, GLBB, GLBW, GLBL, GLBQ, // Globals
+    STK, STKB, STKW, STKL, STKQ, // Stack locations
 
     // Operands
     DST,
@@ -596,6 +598,14 @@ enum {
     X_SETGT   = 1024,
     X_SETLE   = 1025,
     X_SETGE   = 1026,
+
+    X_MOVSBW   = 1027,
+    X_MOVSBL   = 1028,
+    X_MOVSBQ   = 1029,
+    X_MOVSWL   = 1030,
+    X_MOVSWQ   = 1031,
+    X_MOVSLQ   = 1032,
+
 };
 
 typedef struct rule {
@@ -624,6 +634,9 @@ void experimental_instruction_selection(Symbol *function_symbol);
 
 // rules.c
 void print_rule(Rule *r);
+void print_rules();
+void make_value_x86_size(Value *v);
+void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
 void init_instruction_selection_rules();
 
 // codegen.c
@@ -634,8 +647,10 @@ void output_code(char *input_filename, char *output_filename);
 // test-utils.c
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
 Value *v(int vreg);
+Value *vsz(int vreg, int type);
 Value *l(int label);
 Value *c(int value);
 Value *s(int string_literal_index);
 Value *S(int stack_index);
 Value *g(int index);
+Value *gsz(int index, int type);

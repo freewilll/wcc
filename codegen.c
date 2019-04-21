@@ -241,10 +241,13 @@ int get_stack_offset_from_index(int function_pc, int stack_start, int stack_inde
 void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
     char *t;
     Value *v;
-    int is_byte, stack_offset;
+    int common_x86_size, x86_size, stack_offset;
 
     t = tac->x86_template;
 
+    common_x86_size = 0;
+    if (tac->src1 && tac->src1->x86_size) common_x86_size = tac->src1->x86_size;
+    if (tac->src2 && tac->src2->x86_size) common_x86_size = tac->src2->x86_size;
     fprintf(f, "\t");
 
     while (*t) {
@@ -254,29 +257,54 @@ void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
                 t += 1;
             }
             else {
-                t += 2;
+                t++;
 
-                is_byte = 0;
+                x86_size = 0;
 
-                if (t[0] == 'b') {
-                    is_byte = 1;
+                if (t[0] == 's') {
+                    if (!common_x86_size) panic1s("Got %%s %s placeholder but could not determine size in %s ", tac->x86_template);
+                         if (common_x86_size == 1) fprintf(f, "b");
+                    else if (common_x86_size == 2) fprintf(f, "w");
+                    else if (common_x86_size == 3) fprintf(f, "l");
+                    else if (common_x86_size == 4) fprintf(f, "q");
+                    else panic1d("Unknown common_x86_size %d", common_x86_size);
+
                     t++;
+                    continue;
                 }
 
-                if (t[0] == '1') v = tac->src1;
+                if (t[0] != 'v') panic1s("Unknown placeholder in %s", tac->x86_template);
+
+                t++;
+
+                if (t[0] == 'b') { x86_size = 1;  t++; }
+                if (t[0] == 'w') { x86_size = 2;  t++; }
+                if (t[0] == 'l') { x86_size = 3;  t++; }
+                if (t[0] == 'q') { x86_size = 4;  t++; }
+
+                     if (t[0] == '1') v = tac->src1;
                 else if (t[0] == '2') v = tac->src2;
-                else panic1d("Unknown placeholder number %d", t[0]);
+                else panic1s("Indecipherable placeholder \"%s\"", tac->x86_template);
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
+
                 if (v->is_constant)
                     fprintf(f, "%ld", v->value);
                 else if (v->is_string_literal)
                     fprintf(f, "%d", v->string_literal_index);
                 else if (v->preg != -1) {
-                    if (is_byte)
-                        output_byte_register_name(v->preg);
+                    if (!x86_size && v->x86_size)
+                        x86_size = v->x86_size;
+
+                    if (!x86_size)
+                        panic("Register without x86 size");
+
+                         if (x86_size == 1) output_byte_register_name(v->preg);
+                    else if (x86_size == 2) output_word_register_name(v->preg);
+                    else if (x86_size == 3) output_long_register_name(v->preg);
+                    else if (x86_size == 4) output_quad_register_name(v->preg);
                     else
-                        output_quad_register_name(v->preg);
+                        panic1d("Unknown register size %d", x86_size);
                 }
                 else if (v->global_symbol)
                     fprintf(f, "%s", v->global_symbol->identifier);

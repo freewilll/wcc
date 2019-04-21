@@ -16,7 +16,17 @@ Value *v(int vreg) {
     Value *v;
 
     v = new_value();
-    v->type = TYPE_INT;
+    v->type = TYPE_LONG;
+    v->vreg = vreg;
+
+    return v;
+}
+
+Value *vsz(int vreg, int type) {
+    Value *v;
+
+    v = new_value();
+    v->type = type;
     v->vreg = vreg;
 
     return v;
@@ -32,7 +42,7 @@ Value *l(int label) {
 }
 
 Value *c(int value) {
-    return new_constant(TYPE_INT, value);
+    return new_constant(TYPE_LONG, value);
 }
 
 Value *s(int string_literal_index) {
@@ -52,7 +62,7 @@ Value *S(int stack_index) {
     Value *v;
 
     v = new_value();
-    v->type = TYPE_INT;
+    v->type = TYPE_LONG;
     v->stack_index = stack_index;
 
     return v;
@@ -67,9 +77,18 @@ Value *g(int index) {
     asprintf(&(s->identifier), "g%d", index);
 
     v = new_value();
-    v->type = TYPE_INT;
+    v->type = TYPE_LONG;
     v->global_symbol = s;
     v->is_lvalue = 1;
+
+    return v;
+}
+
+Value *gsz(int index, int type) {
+    Value *v;
+
+    v = g(index);
+    v->type = type;
 
     return v;
 }

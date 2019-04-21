@@ -397,8 +397,38 @@ void make_igraphs(Function *function, int block_id) {
     eis_instr_count = instr_count;
 }
 
-int rules_match(int parent_src, Rule *child) {
-    return parent_src == child->non_terminal;
+int rules_match(int parent, Rule *child, int allow_downsize) {
+    if (!allow_downsize) return parent == child->non_terminal;
+
+    if (parent == child->non_terminal) return 1;
+
+    if (parent == REGB && child->non_terminal == REGW) return 1;
+    if (parent == REGB && child->non_terminal == REGL) return 1;
+    if (parent == REGB && child->non_terminal == REGQ) return 1;
+    if (parent == REGW && child->non_terminal == REGL) return 1;
+    if (parent == REGW && child->non_terminal == REGQ) return 1;
+    if (parent == REGL && child->non_terminal == REGQ) return 1;
+
+    return 0;
+}
+
+int non_terminal_for_value(Value *v) {
+    make_value_x86_size(v);
+
+         if (v->is_constant)       return CST;
+    else if (v->is_string_literal) return STL;
+    else if (v->label)             return LAB;
+    else if (v->vreg)              return REG + v->x86_size;
+    else if (v->global_symbol)     return GLB + v->x86_size;
+    else if (v->stack_index)       return STK + v->x86_size;
+}
+
+int match_value_to_rule_src(Value *v, int src) {
+    return non_terminal_for_value(v) == src;
+}
+
+int match_value_to_rule_dst(Value *v, Rule *r) {
+    return rules_match(non_terminal_for_value(v), r, 1);
 }
 
 // Print the cost graph, only showing choices where parent src and child dst match
@@ -417,7 +447,7 @@ void recursive_print_cost_graph(Graph *cost_graph, int *cost_rules, int *accumul
         if (parent_node_id != -1) {
             parent_rule = &(instr_rules[cost_rules[parent_node_id]]);
             src = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
-            match = rules_match(src, &(instr_rules[cost_rules[choice_node_id]]));
+            match = rules_match(src, &(instr_rules[cost_rules[choice_node_id]]), 0);
             if (match) {
                 printf("%-3d ", choice_node_id);
                 for (i = 0; i < indent; i++) printf("  ");
@@ -458,7 +488,7 @@ int new_cost_graph_node() {
 }
 
 int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
-    int i, vc, vr, vstl, vstk, vg, vl, cost_graph_node_id, choice_node_id, matched, matched_dst;
+    int i,  cost_graph_node_id, choice_node_id, matched, matched_dst;
     Value *v;
     Rule *r;
     Tac *tac;
@@ -469,14 +499,6 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     cost_to_igraph_map[cost_graph_node_id] = node_id;
 
     v = igraph->nodes[node_id].value;
-    vc = v->is_constant;
-    vr = !!v->vreg;
-    vstl = v->is_string_literal;
-    vg = !!v->global_symbol;
-    vstk = !!v->stack_index;
-    vl = !!v->label;
-
-    if (DEBUG_INSTSEL_TILING) printf("leaf vc=%d vr=%d vstl=%d vg=%d vstk=%d vl=%d\n", vc, vstl, vr, vg, vstk, vl);
 
     // Find a matching instruction
     matched = 0;
@@ -484,7 +506,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         r = &(instr_rules[i]);
         if (r->operation) continue;
 
-        if ((r->src1 == CST && vc) || (r->src1 == REG && vr) || (r->src1 == STL && vstl) || (r->src1 == GLB && vg) || (r->src1 == STK && vstk) || (r->src1 == LAB && vl)) {
+        if (match_value_to_rule_src(v, r->src1)) {
             if (DEBUG_INSTSEL_TILING) {
                 printf("matched rule %d: ", i);
                 print_rule(r);
@@ -503,6 +525,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     }
 
     if (!matched) {
+        printf("oops 1\n");
         dump_igraph(igraph);
         panic("Did not match any rules");
     }
@@ -577,11 +600,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (!src2_id && r->src2) continue;
 
         // If this is the top level, ensure the dst matches
-        if (node_id == 0 && tac->dst) {
-            if (tac->dst->vreg && !rules_match(REG, r)) continue;
-            if (tac->dst->global_symbol && !rules_match(GLB, r)) continue;
-            if (tac->dst->stack_index && !rules_match(STK, r)) continue;
-        }
+        if (node_id == 0 && tac->dst && !match_value_to_rule_dst(tac->dst, r)) continue;
 
         // Check dst of the subtree tile matches what is needed
         matched_src = 0;
@@ -633,7 +652,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             while (e) {
                 child_rule = &(instr_rules[cost_rules[e->to->id]]);
 
-                if (rules_match(src, child_rule)) {
+                if (rules_match(src, child_rule, 0)) {
                     cost = accumulated_cost[e->to->id];
                     if (cost < min_cost) min_cost = cost;
                 }
@@ -653,6 +672,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     }
 
     if (!matched) {
+        printf("oops 2\n");
         print_instruction(stdout, tac);
         dump_igraph(igraph);
         panic("Did not match any rules");
@@ -695,7 +715,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             // Ensure src and dst match for non-root nodes
             parent_rule = &(instr_rules[cost_rules[parent_node_id]]);
             pv = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
-            match = rules_match(pv, &(instr_rules[cost_rules[choice_node_id]]));
+            match = rules_match(pv, &(instr_rules[cost_rules[choice_node_id]]), 0);
         }
         else
             match = 1;
@@ -733,7 +753,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
 
     rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
 
-    if (DEBUG_INSTSEL_TILING) printf("processing rule %d\n", cost_rules[least_expensive_choice_node_id]);
+    if (DEBUG_INSTSEL_TILING || DEBUG_SIGN_EXTENSION) printf("processing rule %d\n", cost_rules[least_expensive_choice_node_id]);
 
     dst = 0;
     if (parent_node_id == -1) {
@@ -772,6 +792,10 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             dst = src1; // Passthrough for cst or reg
     }
 
+    if (dst) make_value_x86_size(dst);
+    if (src1) make_value_x86_size(src1);
+    if (src2) make_value_x86_size(src2);
+
     // Add x86 operations to the IR
     x86op = rule->x86_operations;
     while (x86op) {
@@ -786,9 +810,11 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         else if (x86op->v2 == DST)  x86_v2 = dst;
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v2);
 
-        if (DEBUG_INSTSEL_TILING) printf("  adding instruction for operation %d: %s\n", x86op->operation, x86op->template);
-        tac = add_instruction(x86op->operation, dst, x86_v1, x86_v2);
-        tac->x86_template = x86op->template;
+        if (dst) dst = dup_value(dst);
+        if (x86_v1) x86_v1 = dup_value(x86_v1);
+        if (x86_v2) x86_v2 = dup_value(x86_v2);
+        add_x86_instruction(x86op, dst, x86_v1, x86_v2);
+
         x86op = x86op->next;
     }
 

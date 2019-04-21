@@ -12,6 +12,12 @@ void assert(long expected, long actual) {
 }
 
 void assert_value(Value *v1, Value *v2) {
+    // printf("assert_value: ");
+    // print_value(stdout, v1, 0);
+    // printf(", ");
+    // print_value(stdout, v2, 0);
+    // printf("\n");
+
     if (v1->is_constant)
         assert(v1->value, v2->value);
     else if (v1->is_string_literal)
@@ -31,25 +37,9 @@ void assert_value(Value *v1, Value *v2) {
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
     assert(operation, tac->operation);
 
-    if (dst) assert_value(tac->dst, dst);
-    if (src1) assert_value(tac->src1, src1);
-    if (src2) assert_value(tac->src2, src2);
-
-    if (dst  && dst-> is_constant)
-        assert(dst-> value, tac->dst-> value);
-    else if (dst )
-        assert(dst-> vreg, tac->dst-> vreg);
-
-    if (src1 && src1->is_constant)
-        assert(src1->value, tac->src1->value);
-    else if (src1)
-        assert(src1->vreg, tac->src1->vreg);
-
-    if (src2 && src2->is_constant)
-        assert(src2->value, tac->src2->value);
-    else if (src2)
-        assert(src2->vreg, tac->src2->vreg);
-
+    if (dst)  assert_value(dst,  tac->dst);
+    if (src1) assert_value(src1, tac->src1);
+    if (src2) assert_value(src2, tac->src2);
 }
 
 void remove_reserved_physical_register_count_from_tac(Tac *ir) {
@@ -109,6 +99,8 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     i(0, IR_LT,  v(3), src1, src2);
     i(0, IR_JZ,  0,    v(3), l(1));
     i(1, IR_NOP, 0,    0,    0   );
+    src1 = dup_value(src1);
+    src2 = dup_value(src2);
     finish_ir(function);
     assert_tac(ir_start,       X_CMP, 0, src1, src2);
     assert_tac(ir_start->next, X_JLT, 0, l(1), 0   );
@@ -128,6 +120,8 @@ void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *
     // dst is the renumbered live range that the output goes to. It's basically the first free register after src1 and src2.
     start_ir();
     i(0, IR_LT, v(3), src1, src2);
+    src1 = dup_value(src1);
+    src2 = dup_value(src2);
     finish_ir(function);
     assert_tac(ir_start,             X_CMP,    0,    src1, src2);
     assert_tac(ir_start->next,       X_SETLT,  0,    dst, 0    );
@@ -143,7 +137,7 @@ void test_instrsel() {
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
     start_ir();
-    nuke_rule(REG, IR_ADD, CST, REG); nuke_rule(REG, IR_ADD, REG, CST);
+    nuke_rule(REGQ, IR_ADD, CST, REGQ); nuke_rule(REGQ, IR_ADD, REGQ, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,                   X_MOV, v(2), c(1), v(2));
@@ -153,7 +147,7 @@ void test_instrsel() {
 
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
-    nuke_rule(REG, IR_ADD, REG, CST);
+    nuke_rule(REG, IR_ADD, REGQ, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,             X_MOV, v(2), c(2), v(2));
@@ -162,7 +156,7 @@ void test_instrsel() {
 
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
-    nuke_rule(REG, IR_ADD, CST, REG);
+    nuke_rule(REGQ, IR_ADD, CST, REGQ);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,             X_MOV, v(2), c(1), v(2));
@@ -246,7 +240,7 @@ void test_instrsel() {
 
     // Store c in g with only the reg fule, forcing c into r1
     start_ir();
-    nuke_rule(GLB, IR_ASSIGN, CST, 0);
+    nuke_rule(GLBQ, IR_ASSIGN, CST, 0);
     i(0, IR_ASSIGN, g(1), c(1), 0);
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, 0, c(1), v(1));
@@ -319,15 +313,12 @@ void test_instrsel() {
     test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ,  X_JGE); test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, X_JLT);
 
     // a < b with a conditional with different src1 and src2 operands
-    test_less_than_with_conditional_jmp(function, c(1), v(1));
     test_less_than_with_conditional_jmp(function, v(1), c(1));
-    test_less_than_with_conditional_jmp(function, c(1), g(1));
     test_less_than_with_conditional_jmp(function, g(1), c(1));
     test_less_than_with_conditional_jmp(function, v(1), g(1));
     test_less_than_with_conditional_jmp(function, g(1), v(1));
     test_less_than_with_conditional_jmp(function, v(1), S(1));
     test_less_than_with_conditional_jmp(function, S(1), v(1));
-    test_less_than_with_conditional_jmp(function, c(1), S(1));
     test_less_than_with_conditional_jmp(function, S(1), c(1));
 
     // Conditional assignment with 2 registers
@@ -339,16 +330,105 @@ void test_instrsel() {
     test_cmp_with_assignment(function, IR_GE, X_SETGE);
 
     // Test r1 = a < b with different src1 and src2 operands
-    test_less_than_with_cmp_assignment(function, c(1), v(1), v(2));
     test_less_than_with_cmp_assignment(function, v(1), c(1), v(2));
-    test_less_than_with_cmp_assignment(function, c(1), g(1), v(1));
     test_less_than_with_cmp_assignment(function, g(1), c(1), v(1));
     test_less_than_with_cmp_assignment(function, v(1), g(1), v(2));
     test_less_than_with_cmp_assignment(function, g(1), v(1), v(2));
-    test_less_than_with_cmp_assignment(function, c(1), S(1), v(1));
     test_less_than_with_cmp_assignment(function, S(1), c(1), v(1));
     test_less_than_with_cmp_assignment(function, v(1), S(1), v(2));
     test_less_than_with_cmp_assignment(function, S(1), v(1), v(2));
+}
+
+// Convert (b, w, l, q) -> (1, 2, 3, 4)
+int x86_size_to_int(char s) {
+         if (s == 'b') return 1;
+    else if (s == 'w') return 2;
+    else if (s == 'l') return 3;
+    else if (s == 'q') return 4;
+    else panic1d("Unknown x86 size %d", s);
+}
+
+// Test addition with integer type combinations for (dst, src1, src2)
+// The number of tests = 4 * 4 * 4 = 64.
+void test_instrsel_types_add_vregs() {
+    int dst, src1, src2, count;
+    int extend_src1, extend_src2, type;
+    Function *function;
+    Tac *tac;
+
+    function = new_function();
+
+    for (dst = 1; dst <= 4; dst++) {
+        for (src1 = 1; src1 <= 4; src1++) {
+            for (src2 = 1; src2 <= 4; src2++) {
+                start_ir();
+                tac = i(0, IR_ADD, v(3), v(1), v(2));
+                tac->dst ->type = TYPE_CHAR + dst  - 1;
+                tac->src1->type = TYPE_CHAR + src1 - 1;
+                tac->src2->type = TYPE_CHAR + src2 - 1;
+                finish_ir(function);
+
+                // Count the number of intructions
+                tac = ir_start;
+                count = 0;
+                while (tac) { count++; tac = tac->next; }
+
+                // The type is the max of (dst, src1, src2)
+                type = src1;
+                if (src2 > type) type = src2;
+                if (dst > type) type = dst;
+
+                // Determine which src operands should be extended
+                extend_src1 = extend_src2 = 0;
+                if (src1 < src2) extend_src1 = 1;
+                if (src1 > src2) extend_src2 = 1;
+                if (src1 < dst) extend_src1 = 1;
+                if (src2 < dst) extend_src2 = 1;
+
+                // Check instruction counts match
+                assert(extend_src1 + extend_src2 + 2, count);
+
+                // The first instruction sign extends src1 if necessary
+                if (extend_src1) {
+                    assert(src1, x86_size_to_int(ir_start->x86_template[4]));
+                    assert(type, x86_size_to_int(ir_start->x86_template[5]));
+                    ir_start = ir_start->next;
+                }
+
+                // The first instruction sign extends src2 if necessary
+                if (extend_src2) {
+                    assert(src2, x86_size_to_int(ir_start->x86_template[4]));
+                    assert(type, x86_size_to_int(ir_start->x86_template[5]));
+                    ir_start = ir_start->next;
+                }
+            }
+        }
+    }
+}
+
+// Test instruction add
+Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, Value *src2, int counts) {
+    int j;
+    Tac *tac;
+
+    start_ir();
+    for (j = 0; j < counts; j++)
+        i(label, operation, dst, src1, src2);
+    finish_ir(function);
+    print_intermediate_representation(function, "");
+
+    // Ensure all operands are the same x86 size
+    tac = ir_start;
+    while (tac) {
+        if (tac->dst->x86_size != tac->src1->x86_size || tac->dst->x86_size != tac->src2->x86_size) {
+            printf("Mismatching x86 size: dst=%d, src1=%d, src2=%d\n", tac->dst->x86_size, tac->src1->x86_size, tac->src2->x86_size);
+            print_instruction(stdout, tac);
+            exit(1);
+        }
+        tac = tac->next;
+    }
+
+    return tac;
 }
 
 int main() {
@@ -360,4 +440,5 @@ int main() {
     init_allocate_registers();
     init_instruction_selection_rules();
     test_instrsel();
+    test_instrsel_types_add_vregs();
 }
