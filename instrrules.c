@@ -354,6 +354,7 @@ void init_instruction_selection_rules() {
 
     r = add_rule(0,   IR_RETURN,        CST, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "mov $%v1q, %%rax"        ); fin_rule(r); // Return constant
     r = add_rule(0,   IR_RETURN,        REG, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "mov %v1q, %%rax"         ); fin_rule(r); // Return register
+
     r = add_rule(REG, IR_ASSIGN,        REG, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"          ); fin_rule(r); // Register to register copy
     r = add_rule(GLB, IR_ASSIGN,        CST, 0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd(%%rip)"  ); fin_rule(r); // Store constant in global
     r = add_rule(GLB, IR_ASSIGN,        REG, 0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd(%%rip)"   ); fin_rule(r); // Store register in global

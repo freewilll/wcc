@@ -583,6 +583,25 @@ void test_instrsel_types_cmp_assignment() {
     assert(0, strcmp(render_x86_operation(ir_start->next->next->next, 0, 0, 0), "movzbw  r3b, r3w"));
 }
 
+void test_instrsel_returns() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // return c
+    start_ir();
+    i(0, IR_RETURN, 0, c(1), 0);
+    finish_ir(function);
+    assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "mov     $1, %rax"));
+
+    // return c
+    start_ir();
+    i(0, IR_RETURN, 0, v(1), 0);
+    finish_ir(function);
+    assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "mov     r1q, %rax"));
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -597,4 +616,5 @@ int main() {
     test_instrsel_types_add_vregs();
     test_instrsel_types_add_mem_vreg();
     test_instrsel_types_cmp_assignment();
+    test_instrsel_returns();
 }
