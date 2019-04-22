@@ -563,6 +563,7 @@ enum {
     CST = 1,                     // Constant
     STL,                         // String literal
     LAB,                         // Label, i.e. a target for a (conditional) jump
+    FUN,                         // Function, used for calls
     REG, REGB, REGW, REGL, REGQ, // Registers
     MEM, MEMB, MEMW, MEML, MEMQ, // Memory, in stack or globals
 
@@ -572,9 +573,10 @@ enum {
     SRC2,
 
     // x86 instructions
-    X_START   = 1000,
+    X_START = 1000,
     X_RET,
     X_ARG,
+    X_CALL,
 
     X_MOV,
     X_MOVZBW,
@@ -661,3 +663,4 @@ Value *S(int stack_index);
 Value *Ssz(int stack_index, int type);
 Value *g(int index);
 Value *gsz(int index, int type);
+Value *fu(int index);

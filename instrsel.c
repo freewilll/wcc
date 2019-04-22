@@ -6,8 +6,8 @@
 
 enum {
     MAX_INSTRUCTION_GRAPH_EDGE_COUNT = 32,
-    MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT = 256,
-    MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT = 256,
+    MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT = 512,
+    MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT = 512,
     MAX_CHOICE_TRAIL_COUNT = 32,
 };
 
@@ -433,6 +433,7 @@ int non_terminal_for_value(Value *v) {
     else if (v->vreg)              return REG + v->x86_size;
     else if (v->global_symbol)     return MEM + v->x86_size;
     else if (v->stack_index)       return MEM + v->x86_size;
+    else if (v->function_symbol)   return FUN;
 }
 
 int match_value_to_rule_src(Value *v, int src) {
@@ -783,20 +784,6 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             dst->ssa_subscript = -1;
 
             if (DEBUG_INSTSEL_TILING) printf("allocated new vreg %d\n", dst->vreg);
-
-            // Infer the dst type from the operands by picking the type with the largest size.
-            dst_type = 0;
-            if (rule->src1) {
-                if (!rule->src2)
-                    dst_type = src1->type;
-                else if (src1->type > src2->type)
-                    dst_type = src1->type;
-                else
-                    dst_type = src2->type;
-            }
-            if (!dst_type) panic("Unable to determine x86 dst type");
-
-            dst->type = dst_type;
         }
         else
             dst = src1; // Passthrough for cst or reg
@@ -860,7 +847,6 @@ void tile_igraphs(Function *function) {
         if (tac &&
             tac->operation == IR_NOP ||
             tac->operation == IR_START_CALL ||
-            tac->operation == IR_CALL ||
             tac->operation == IR_END_CALL) {
 
             add_tac_to_ir(tac);

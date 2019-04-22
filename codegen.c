@@ -282,6 +282,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
     Value *v;
 
     t = tac->x86_template;
+    if (!t) return 0;
 
     buffer = malloc(128);
     memset(buffer, 0, 128);
@@ -367,8 +368,10 @@ void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
     char *buffer;
 
     buffer = render_x86_operation(tac, function_pc, stack_start, 1);
-    fprintf(f, "    %s\n", buffer);
-    free(buffer);
+    if (buffer) {
+        fprintf(f, "    %s\n", buffer);
+        free(buffer);
+    }
 }
 
 // Called once at startup to indicate which registers are preserved across function calls
@@ -500,6 +503,7 @@ void output_function_body_code(Symbol *symbol) {
     int *saved_registers;               // Callee saved registers
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
     char *s;
+    int type;
 
     cur_stack_push_count++;
     function_pc = symbol->function->param_count;
@@ -545,7 +549,7 @@ void output_function_body_code(Symbol *symbol) {
 
         if (tac->operation == IR_NOP || tac->operation == IR_START_LOOP || tac->operation == IR_END_LOOP);
 
-        else if (tac->operation > X_START && tac->operation != X_RET && tac->operation != X_ARG)
+        else if (tac->operation > X_START && tac->operation != X_RET && tac->operation != X_ARG && tac->operation != X_CALL)
             output_x86_operation(tac, function_pc, stack_start);
 
         else if (tac->operation == IR_LOAD_CONSTANT) {
@@ -625,7 +629,7 @@ void output_function_body_code(Symbol *symbol) {
             output_x86_operation(tac, function_pc, stack_start);
         }
 
-        else if (tac->operation == IR_CALL) {
+        else if (tac->operation == IR_CALL || tac->operation == X_CALL) {
             // Read the first 6 args from the stack in right to left order
             ac = tac->src1->function_call_arg_count;
 
@@ -648,9 +652,10 @@ void output_function_body_code(Symbol *symbol) {
 
             // For all builtins that return something smaller an int, extend it to a quad
             if (tac->dst) {
-                if (tac->dst->type <= TYPE_CHAR)  fprintf(f, "\tcbtw\n");
-                if (tac->dst->type <= TYPE_SHORT) fprintf(f, "\tcwtl\n");
-                if (tac->dst->type <= TYPE_INT)   fprintf(f, "\tcltq\n");
+                type = tac->src1->function_symbol->type;
+                if (type <= TYPE_CHAR)  fprintf(f, "\tcbtw\n");
+                if (type <= TYPE_SHORT) fprintf(f, "\tcwtl\n");
+                if (type <= TYPE_INT)   fprintf(f, "\tcltq\n");
 
                 fprintf(f, "\tmovq\t%%rax, ");
                 output_quad_register_name(tac->dst->preg);

@@ -36,6 +36,8 @@ void assert_value(Value *v1, Value *v2) {
         assert(v1->label, v2->label);
     else if (v1->stack_index)
         assert(v1->stack_index, v2->stack_index);
+    else if (v1->function_symbol)
+        assert(v1->function_symbol->identifier[1], v2->function_symbol->identifier[1]);
     else
         panic("Don't know how to assert_value");
 }
@@ -602,6 +604,20 @@ void test_instrsel_returns() {
     si(function, 0, IR_RETURN, 0, gsz(1, TYPE_LONG),  0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movq    g1(%rip), %rax"));
 }
 
+void test_instrsel_function_calls() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // The legacy backend extends %rax coming from a call to a quad. These
+    // tests don't test much, just that the rules will work.
+    si(function, 0, IR_CALL, vsz(1, TYPE_CHAR),  fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_SHORT), fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_INT),   fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_LONG),  fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -617,4 +633,5 @@ int main() {
     test_instrsel_types_add_mem_vreg();
     test_instrsel_types_cmp_assignment();
     test_instrsel_returns();
+    test_instrsel_function_calls();
 }

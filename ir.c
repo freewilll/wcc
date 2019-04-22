@@ -179,6 +179,10 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
         fprintf_escaped_string_literal(f, string_literals[v->string_literal_index]);
     else if (v->label)
         fprintf(f, "l%d", v->label);
+    else if (v->function_symbol) {
+        fprintf(f, "function:%s", v->function_symbol->identifier);
+        return;
+    }
     else
         // What's this?
         fprintf(f, "?%ld", v->value);
@@ -314,6 +318,7 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
 
     else if (tac->operation == X_RET)    { fprintf(f, "ret "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_CALL)   { fprintf(f, "call "  ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_LEA)    { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (tac->operation == X_MOV)    { fprintf(f, "mov "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (tac->operation == X_ADD)    { fprintf(f, "add "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }

@@ -102,3 +102,23 @@ Value *gsz(int index, int type) {
 
     return v;
 }
+
+Value *fu(int index) {
+    Value *v;
+    Symbol *s;
+
+    v = new_value();
+    v->type = 0;
+    v->function_symbol = s;
+
+    v->function_symbol = malloc(sizeof(Symbol));
+    memset(v->function_symbol, 0, sizeof(Symbol));
+
+    v->function_symbol->function = malloc(sizeof(Function));
+    memset(v->function_symbol->function, 0, sizeof(Function));
+
+    asprintf(&(v->function_symbol->identifier), "f%d", index);
+
+
+    return v;
+}

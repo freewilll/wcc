@@ -39,7 +39,7 @@ X86Operation *dup_x86_operation(X86Operation *operation) {
     result->dst = operation->dst;
     result->v1 = operation->v1;
     result->v2 = operation->v2;
-    result->template = strdup(operation->template);
+    result->template = operation->template ? strdup(operation->template) : 0;
     result->next = 0;
 }
 
@@ -77,6 +77,8 @@ char size_to_x86_size(int size) {
 char *add_size_to_template(char *template, int size) {
     char *src, *dst, *c;
     char *result, x86_size;
+
+    if (!template) return 0; // Some magic operations have no templates but are implemented in codegen.
 
     x86_size = size_to_x86_size(size);
     src = template;
@@ -175,7 +177,7 @@ void print_rule(Rule *r) {
     while (operation) {
         if (!first) printf("                           ");
         first = 0;
-        printf("%s\n", operation->template);
+        printf("%s\n", operation->template ? operation->template : "-");
         operation = operation->next;
     }
 
@@ -318,6 +320,7 @@ void init_instruction_selection_rules() {
     r = add_rule(STL, 0, STL, 0,    0); fin_rule(r);
     r = add_rule(MEM, 0, MEM, 0,    0); fin_rule(r);
     r = add_rule(LAB, 0, LAB, 0,    0); fin_rule(r);
+    r = add_rule(FUN, 0, FUN, 0,    0); fin_rule(r);
 
     // Register -> register sign extension
     r = add_rule(REGW, 0, REGB, 0, 1); add_op(r, X_MOVSBW, DST, SRC1, 0 , "movsbw %v1b, %vdw"); fin_rule(r);
@@ -335,15 +338,20 @@ void init_instruction_selection_rules() {
     r = add_rule(REGQ, 0, MEMW, 0, 2); add_op(r, X_MOVSWQ, DST, SRC1, 0 , "movswq %v1w, %vdq"); fin_rule(r);
     r = add_rule(REGQ, 0, MEML, 0, 2); add_op(r, X_MOVSLQ, DST, SRC1, 0 , "movslq %v1l, %vdq"); fin_rule(r);
 
-    r = add_rule(0,   IR_RETURN,        CST,  0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "mov $%v1q, %%rax"  ); fin_rule(r); // Return constant
-    r = add_rule(0,   IR_RETURN,        REGB, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "movsbq %v1b, %%rax"); fin_rule(r); // Return register byte
-    r = add_rule(0,   IR_RETURN,        REGW, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "movswq %v1w, %%rax"); fin_rule(r); // Return register word
-    r = add_rule(0,   IR_RETURN,        REGL, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "movslq %v1l, %%rax"); fin_rule(r); // Return register long
-    r = add_rule(0,   IR_RETURN,        REGQ, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "movq %v1q, %%rax"  ); fin_rule(r); // Return register quad
-    r = add_rule(0,   IR_RETURN,        MEMB, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "movsbq %v1b, %%rax"); fin_rule(r); // Return memory byte
-    r = add_rule(0,   IR_RETURN,        MEMW, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "movswq %v1w, %%rax"); fin_rule(r); // Return memory word
-    r = add_rule(0,   IR_RETURN,        MEML, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "movslq %v1l, %%rax"); fin_rule(r); // Return memory long
-    r = add_rule(0,   IR_RETURN,        MEMQ, 0,    1); add_op(r, X_RET,  0,   SRC1, 0,    "movq %v1q, %%rax"  ); fin_rule(r); // Return memory quad
+    r = add_rule(0, IR_RETURN, CST,  0, 1); add_op(r, X_RET,  0,   SRC1, 0, "mov $%v1q, %%rax"  ); fin_rule(r); // Return constant
+    r = add_rule(0, IR_RETURN, REGB, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movsbq %v1b, %%rax"); fin_rule(r); // Return register byte
+    r = add_rule(0, IR_RETURN, REGW, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movswq %v1w, %%rax"); fin_rule(r); // Return register word
+    r = add_rule(0, IR_RETURN, REGL, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movslq %v1l, %%rax"); fin_rule(r); // Return register long
+    r = add_rule(0, IR_RETURN, REGQ, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movq %v1q, %%rax"  ); fin_rule(r); // Return register quad
+    r = add_rule(0, IR_RETURN, MEMB, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movsbq %v1b, %%rax"); fin_rule(r); // Return memory byte
+    r = add_rule(0, IR_RETURN, MEMW, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movswq %v1w, %%rax"); fin_rule(r); // Return memory word
+    r = add_rule(0, IR_RETURN, MEML, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movslq %v1l, %%rax"); fin_rule(r); // Return memory long
+    r = add_rule(0, IR_RETURN, MEMQ, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movq %v1q, %%rax"  ); fin_rule(r); // Return memory quad
+
+    r = add_rule(0, IR_ARG, CST,  CST,  2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);  // Use constant as function arg
+    r = add_rule(0, IR_ARG, CST,  REGQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); fin_rule(r);  // Use register as function arg
+
+    r = add_rule(REG, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, 0, SRC1, 0, 0); fin_rule(r);  // Function call with a return value
 
     r = add_rule(REG, IR_ASSIGN,        REG,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Register to register copy
     r = add_rule(MEM, IR_ASSIGN,        CST,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Store constant in memory
@@ -354,8 +362,7 @@ void init_instruction_selection_rules() {
     r = add_rule(REG, 0,                CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r);  // Load constant into register
     r = add_rule(REG, IR_ASSIGN,        CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r);  // Load standalone constant into register
     r = add_rule(REG, 0,                STL,  0,    1); add_op(r, X_LEA,  DST, SRC1, 0,    "leaq .SL%v1, %vd"); fin_rule(r);  // Load string literal into register
-    r = add_rule(0,   IR_ARG,           CST,  CST,  2); add_op(r, X_ARG,  0,   SRC1, SRC2, "pushq $%v2q"     ); fin_rule(r);  // Use constant as function arg
-    r = add_rule(0,   IR_ARG,           CST,  REGQ, 2); add_op(r, X_ARG,  0,   SRC1, SRC2, "pushq %v2q"      ); fin_rule(r);  // Use register as function arg
+
     r = add_rule(0,   IR_JMP,           LAB,  0,    1); add_op(r, X_JMP,  0,   SRC1, 0,    "jmp .l%v1"       ); fin_rule(r);  // JMP
 
     r = add_rule(0,   IR_JZ,            REG,  LAB,  1); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JZ with register
