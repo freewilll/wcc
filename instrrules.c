@@ -357,11 +357,12 @@ void init_instruction_selection_rules() {
     r = add_rule(MEM, IR_ASSIGN,        CST,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Store constant in memory
     r = add_rule(MEM, IR_ASSIGN,        REG,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Store register in memory
     r = add_rule(REG, IR_LOAD_CONSTANT, CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Process standalone r1 = constant
-    r = add_rule(REG, IR_ASSIGN,        MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r);  // Load standalone memory into register
-    r = add_rule(REG, 0,                MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r);  // Load temp memory into register
-    r = add_rule(REG, 0,                CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r);  // Load constant into register
-    r = add_rule(REG, IR_ASSIGN,        CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r);  // Load standalone constant into register
-    r = add_rule(REG, 0,                STL,  0,    1); add_op(r, X_LEA,  DST, SRC1, 0,    "leaq .SL%v1, %vd"); fin_rule(r);  // Load string literal into register
+    r = add_rule(REG, IR_ASSIGN,        MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Load standalone memory into register
+    r = add_rule(REG, IR_LOAD_VARIABLE, MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Load standalone memory into register
+    r = add_rule(REG, 0,                MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Load temp memory into register
+    r = add_rule(REG, 0,                CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Load constant into register
+    r = add_rule(REG, IR_ASSIGN,        CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Load standalone constant into register
+    r = add_rule(REG, 0,                STL,  0,    1); add_op(r, X_LEA,  DST, SRC1, 0,    "leaq .SL%v1, %vd"); fin_rule(r); // Load string literal into register
 
     r = add_rule(0,   IR_JMP,           LAB,  0,    1); add_op(r, X_JMP,  0,   SRC1, 0,    "jmp .l%v1"       ); fin_rule(r);  // JMP
 

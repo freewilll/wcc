@@ -310,17 +310,35 @@ void test_instrsel() {
     assert_tac(ir_start,       X_MOV, v(1), c(1), 0);
     assert_tac(ir_start->next, X_MOV, g(1), v(1), 0);
 
-    // Store v1 in g
+    // Store v1 in g using IR_ASSIGN
     start_ir();
     i(0, IR_ASSIGN, g(1), v(1), 0);
     finish_ir(function);
     assert_tac(ir_start, X_MOV, g(1), v(1), 0);
 
-    // Load g into r1
+    // Load g into r1 using IR_ASSIGN
     start_ir();
     i(0, IR_ASSIGN, v(1), g(1), 0);
     finish_ir(function);
     assert_tac(ir_start, X_MOV, v(1), g(1), 0);
+
+    // Load S into r1
+    start_ir();
+    i(0, IR_ASSIGN, v(1), S(1), 0);
+    finish_ir(function);
+    assert_tac(ir_start, X_MOV, v(1), S(1), 0);
+
+    // Load g into r1 using IR_LOAD_VARIABLE
+    start_ir();
+    i(0, IR_LOAD_VARIABLE, v(1), g(1), 0);
+    finish_ir(function);
+    assert_tac(ir_start, X_MOV, v(1), g(1), 0);
+
+    // Load S into r1 using IR_LOAD_VARIABLE
+    start_ir();
+    i(0, IR_LOAD_VARIABLE, v(1), S(1), 0);
+    finish_ir(function);
+    assert_tac(ir_start, X_MOV, v(1), S(1), 0);
 
     // Push a local
     start_ir();
