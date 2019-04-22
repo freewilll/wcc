@@ -81,6 +81,8 @@ Value *dup_value(Value *src) {
 }
 
 void add_tac_to_ir(Tac *tac) {
+    tac->next = 0;
+
     if (!ir_start) {
         ir_start = tac;
         ir = tac;
