@@ -537,7 +537,6 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     }
 
     if (!matched) {
-        printf("oops 1\n");
         dump_igraph(igraph);
         panic("Did not match any rules");
     }
@@ -684,7 +683,6 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     }
 
     if (!matched) {
-        printf("oops 2\n");
         print_instruction(stdout, tac);
         dump_igraph(igraph);
         panic("Did not match any rules");
@@ -811,7 +809,8 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     // Add x86 operations to the IR
     x86op = rule->x86_operations;
     while (x86op) {
-             if (x86op->v1 == SRC1) x86_v1 = src1;
+             if (x86op->v1 == 0)    x86_v1 = 0;
+        else if (x86op->v1 == SRC1) x86_v1 = src1;
         else if (x86op->v1 == SRC2) x86_v1 = src2;
         else if (x86op->v1 == DST)  x86_v1 = dst;
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v1);

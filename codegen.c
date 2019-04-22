@@ -307,6 +307,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
 
                      if (t[0] == '1') v = tac->src1;
                 else if (t[0] == '2') v = tac->src2;
+                else if (t[0] == 'd') v = tac->dst;
                 else panic1s("Indecipherable placeholder \"%s\"", tac->x86_template);
 
                 t++;
