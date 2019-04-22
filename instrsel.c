@@ -359,7 +359,9 @@ void make_igraphs(Function *function, int block_id) {
         }
 
         // If dst is only used once and it's not in liveout, merge it.
-        if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1) {
+        // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL contraints don't permit
+        // rearranging function calls without dire dowmstream side effects.
+        if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 && tac->operation != IR_CALL) {
             g1_igraph_id = vreg_igraphs[dst].igraph_id;
             if (DEBUG_INSTSEL_TREE_MERGING) {
                 printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);

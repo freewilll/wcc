@@ -618,6 +618,26 @@ void test_instrsel_function_calls() {
     si(function, 0, IR_CALL, vsz(1, TYPE_LONG),  fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
 }
 
+void test_instrsel_some_bullshit() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    start_ir();
+    i(0, IR_START_CALL, 0,    c(0),  0);
+    i(0, IR_CALL,       v(1), fu(1), 0);
+    i(0, IR_END_CALL,   0,    c(0),  0);
+    i(0, IR_ASSIGN,     g(1), v(1),  0);
+    finish_ir(function);
+    print_ir(function, 0);
+
+    assert_tac(ir_start,                   IR_START_CALL, 0, c(0), 0);
+    assert_tac(ir_start->next,             X_CALL, v(1), fu(1), 0);
+    assert_tac(ir_start->next->next,       IR_END_CALL, 0, c(0), 0);
+    assert_tac(ir_start->next->next->next, X_MOV, g(1), v(1), 0);
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -634,4 +654,5 @@ int main() {
     test_instrsel_types_cmp_assignment();
     test_instrsel_returns();
     test_instrsel_function_calls();
+    test_instrsel_some_bullshit();
 }
