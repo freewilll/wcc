@@ -191,6 +191,30 @@ void print_rules() {
     }
 }
 
+void make_value_x86_size(Value *v) {
+    if (v->x86_size) return;
+
+    if (v->is_string_literal)
+        v->x86_size = 4;
+    else if (v->vreg || v->global_symbol || v->stack_index) {
+        if (v->type >= TYPE_PTR)
+            v->x86_size = 4;
+        else
+            v->x86_size = v->type - TYPE_CHAR + 1;
+    }
+}
+
+void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
+    Tac *tac;
+
+    if (v1) make_value_x86_size(v1);
+    if (v2) make_value_x86_size(v2);
+
+    if (DEBUG_SIGN_EXTENSION) printf("  adding instruction for operation %d: %s\n", x86op->operation, x86op->template);
+    tac = add_instruction(x86op->operation, dst, v1, v2);
+    tac->x86_template = x86op->template;
+}
+
 void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *template) {
     Rule *r;
 
@@ -283,30 +307,6 @@ void add_commutative_operation_rules(char *x86_operand, int operation, int x86_o
     r = add_rule(REG, operation, STK, REG, cost + 1); add_op(r, X_MOV,         0, SRC2, DST,  "mov%s %v1, %v2");
                                                       add_op(r, x86_operation, 0, SRC1, DST,  op_rs          );
                                                       fin_rule(r);
-}
-
-void make_value_x86_size(Value *v) {
-    if (v->x86_size) return;
-
-    if (v->is_string_literal)
-        v->x86_size = 4;
-    else if (v->vreg || v->global_symbol || v->stack_index) {
-        if (v->type >= TYPE_PTR)
-            v->x86_size = 4;
-        else
-            v->x86_size = v->type - TYPE_CHAR + 1;
-    }
-}
-
-void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
-    Tac *tac;
-
-    if (v1) make_value_x86_size(v1);
-    if (v2) make_value_x86_size(v2);
-
-    if (DEBUG_SIGN_EXTENSION) printf("  adding instruction for operation %d: %s\n", x86op->operation, x86op->template);
-    tac = add_instruction(x86op->operation, dst, v1, v2);
-    tac->x86_template = x86op->template;
 }
 
 void init_instruction_selection_rules() {
