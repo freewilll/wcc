@@ -1236,7 +1236,19 @@ void make_interference_graph(Function *function) {
                     if (j == tac->dst->vreg) continue; // Ignore self assignment
 
                     // Don't add an edge for register copies
-                    if (tac->operation == IR_ASSIGN && tac->src1->vreg && tac->src1->vreg == j) continue;
+                    if ((
+                        tac->operation == IR_ASSIGN ||
+                        tac->operation == X_MOV ||
+                        tac->operation == X_MOVZBW ||
+                        tac->operation == X_MOVZBL ||
+                        tac->operation == X_MOVZBQ ||
+                        tac->operation == X_MOVSBW ||
+                        tac->operation == X_MOVSBL ||
+                        tac->operation == X_MOVSBQ ||
+                        tac->operation == X_MOVSWL ||
+                        tac->operation == X_MOVSWQ ||
+                        tac->operation == X_MOVSLQ
+                       ) && tac->src1->vreg && tac->src1->vreg == j) continue;
                     add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
                 }
             }
