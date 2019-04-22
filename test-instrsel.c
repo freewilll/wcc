@@ -88,6 +88,42 @@ void nuke_rule(int non_terminal, int operation, int src1, int src2) {
     }
 }
 
+void test_instrsel_tree_merging() {
+    int j;
+    Function *function;
+    Tac *tac;
+
+    function = new_function();
+    remove_reserved_physical_registers = 0;
+
+    // Test edge case of a split block with variables being live on the way
+    // out. This should pervent tree merging of the assigns with the first equals.
+    // The label splits the block and causes v(1) and v(2) to be in block[0] liveout
+    start_ir();
+    i(0, IR_ASSIGN, v(1), c(1), 0   );
+    i(0, IR_ASSIGN, v(2), c(2), 0   );
+    i(0, IR_EQ,     v(3), v(1), v(2));
+    i(1, IR_EQ,     v(4), v(1), v(2));
+    finish_ir(function);
+
+    // Ensure both CMP instructions operate on registers
+    tac = ir_start;
+    for (j = 0; j < 2; j++) {
+        while (tac && tac->operation != X_CMP) tac = tac->next;
+        assert(1, !!tac);
+        assert(1, tac->src1->vreg > 0);
+        assert(1, tac->src2->vreg > 0);
+    }
+
+    // Ensure a liveout in another block doesn't lead to an attempted
+    // merge.
+    start_ir();
+    i(0, IR_ASSIGN, v(1), c(1), 0   );
+    i(0, IR_ASSIGN, v(2), c(2), 0   );
+    i(1, IR_EQ,     v(4), v(1), v(2));
+    finish_ir(function);
+}
+
 void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, int x86_jmp_operation) {
     start_ir();
     i(0, cmp_operation,  v(3), v(1), v(2));
@@ -513,7 +549,6 @@ void test_instrsel_types_cmp_assignment() {
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_SHORT), vsz(1, TYPE_CHAR), vsz(2, TYPE_LONG));
     finish_ir(function);
-    print_intermediate_representation(function, "");
     assert(0, strcmp(render_x86_operation(ir_start,                   0, 0, 0), "movsbq  r1b, r4q"));
     assert(0, strcmp(render_x86_operation(ir_start->next,             0, 0, 0), "cmpq    r2q, r4q"));
     assert(0, strcmp(render_x86_operation(ir_start->next->next,       0, 0, 0), "sete    r3b"     ));
@@ -529,6 +564,7 @@ int main() {
 
     init_allocate_registers();
     init_instruction_selection_rules();
+    test_instrsel_tree_merging();
     test_instrsel();
     test_instrsel_types_add_vregs();
     test_instrsel_types_add_mem_vreg();

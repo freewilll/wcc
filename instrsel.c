@@ -263,6 +263,7 @@ void make_igraphs(Function *function, int block_id) {
     Tac *tac;
     IGraph *igraphs, *ig;
     IGraphNode *nodes;
+    Set *liveout;
     Graph *graph;
     VregIGraph* vreg_igraphs;
     Value *v;
@@ -320,6 +321,14 @@ void make_igraphs(Function *function, int block_id) {
     vreg_igraphs = malloc((vreg_count + 1) * sizeof(VregIGraph));
     memset(vreg_igraphs, 0, (vreg_count + 1) * sizeof(VregIGraph));
 
+    // Mark liveouts as off-limits for merging
+    liveout = function->liveout[block_id];
+    for (i = 0; i <= liveout->max_value; i++) {
+        if (!liveout->elements[i]) continue;
+        vreg_igraphs[i].count++;
+        vreg_igraphs[i].igraph_id = -1;
+    }
+
     i = instr_count - 1;
     tac = blocks[block_id].end;
     while (tac) {
@@ -349,10 +358,13 @@ void make_igraphs(Function *function, int block_id) {
             panic("src1 == src2 not handled");
         }
 
-        if (vreg_igraphs[dst].count == 1) {
+        // If dst is only used once and it's not in liveout, merge it.
+        if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1) {
             g1_igraph_id = vreg_igraphs[dst].igraph_id;
-            if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
-            if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("in locs %d and %d on vreg=%d\n----------------------------------------------------------\n", g1_igraph_id, i, dst);
+            if (DEBUG_INSTSEL_IGRAPHS_DEEP) {
+                printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
+                printf("in locs %d and %d on vreg=%d\n----------------------------------------------------------\n", g1_igraph_id, i, dst);
+            }
             ig = merge_igraphs(&(igraphs[g1_igraph_id]), &(igraphs[i]), dst);
 
             igraphs[g1_igraph_id].nodes = ig->nodes;
