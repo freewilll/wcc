@@ -109,7 +109,7 @@ IGraph *merge_assignment_igraphs(IGraph *g1, IGraph *g2, int vreg) {
             v = dup_value(in->value); // For no side effects
             in->value = dup_value(g2->nodes[1].value);
 
-            if (DEBUG_INSTSEL_IGRAPHS_DEEP) {
+            if (DEBUG_INSTSEL_TREE_MERGING) {
                 printf("\nreusing tweaked g1 for g:\n");
                 dump_igraph(g1);
             }
@@ -131,7 +131,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     Value *v;
     Tac *tac;
 
-    if (DEBUG_INSTSEL_IGRAPHS_DEEP) {
+    if (DEBUG_INSTSEL_TREE_MERGING) {
         printf("g1:\n");
         dump_igraph(g1);
         printf("\ng2:\n");
@@ -153,7 +153,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
             // For no side effects
             g2->nodes[0].tac->dst = dup_value(g1->nodes[0].tac->dst);
 
-            if (DEBUG_INSTSEL_IGRAPHS_DEEP) {
+            if (DEBUG_INSTSEL_TREE_MERGING) {
                 printf("\nreusing g2 for g:\n");
                 dump_igraph(g2);
             }
@@ -192,11 +192,11 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     if (g1->node_count == 0) panic("Unexpectedly got 0 g1->node_count");
 
-    if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("g1->node_count=%d\n", g1->node_count);
-    if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("g2->node_count=%d\n", g2->node_count);
+    if (DEBUG_INSTSEL_TREE_MERGING) printf("g1->node_count=%d\n", g1->node_count);
+    if (DEBUG_INSTSEL_TREE_MERGING) printf("g2->node_count=%d\n", g2->node_count);
 
     for (i = 0; i < g1->node_count; i++) {
-        if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("Copying g1 %d to %d\n", i, i);
+        if (DEBUG_INSTSEL_TREE_MERGING) printf("Copying g1 %d to %d\n", i, i);
         copy_inode(&(g1->nodes[i]), &(inodes[i]));
 
         g1_inodes = g1->nodes;
@@ -209,11 +209,11 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
             if (in->value && in->value->vreg == vreg) {
                 join_from = e->from->id;
                 join_to = e->to->id;
-                if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("Adding join edge %d -> %d\n", join_from, join_to);
+                if (DEBUG_INSTSEL_TREE_MERGING) printf("Adding join edge %d -> %d\n", join_from, join_to);
                 add_graph_edge(g->graph, join_from, join_to);
             }
             else {
-                if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("Adding g1 edge %d -> %d\n", e->from->id, e->to->id);
+                if (DEBUG_INSTSEL_TREE_MERGING) printf("Adding g1 edge %d -> %d\n", e->from->id, e->to->id);
                 add_graph_edge(g->graph, e->from->id, e->to->id);
             }
 
@@ -223,7 +223,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     if (join_from == -1 || join_to == -1) panic("Attempt to join two trees without a join node");
 
-    if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("\n");
+    if (DEBUG_INSTSEL_TREE_MERGING) printf("\n");
     for (i = 0; i < g2->node_count; i++) {
         d = (i == 0) ? join_to : g1->node_count + i - 1;
         copy_inode(&(g2->nodes[i]), &(inodes[d]));
@@ -242,13 +242,13 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
             to += g1->node_count - 1;
 
-            if (DEBUG_INSTSEL_IGRAPHS_DEEP) printf("Adding g2 edge %d -> %d\n", from, to);
+            if (DEBUG_INSTSEL_TREE_MERGING) printf("Adding g2 edge %d -> %d\n", from, to);
             add_graph_edge(g->graph, from, to);
             e = e->next_succ;
         }
     }
 
-    if (DEBUG_INSTSEL_IGRAPHS_DEEP) {
+    if (DEBUG_INSTSEL_TREE_MERGING) {
         printf("\ng:\n");
         dump_igraph(g);
     }
@@ -275,7 +275,7 @@ void make_igraphs(Function *function, int block_id) {
 
     tac = blocks[block_id].start;
     while (1) {
-        if (DEBUG_INSTSEL_IGRAPHS_DEEP) print_instruction(stdout, tac);
+        if (DEBUG_INSTSEL_TREE_MERGING) print_instruction(stdout, tac);
 
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
@@ -361,7 +361,7 @@ void make_igraphs(Function *function, int block_id) {
         // If dst is only used once and it's not in liveout, merge it.
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1) {
             g1_igraph_id = vreg_igraphs[dst].igraph_id;
-            if (DEBUG_INSTSEL_IGRAPHS_DEEP) {
+            if (DEBUG_INSTSEL_TREE_MERGING) {
                 printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
                 printf("in locs %d and %d on vreg=%d\n----------------------------------------------------------\n", g1_igraph_id, i, dst);
             }
@@ -386,7 +386,7 @@ void make_igraphs(Function *function, int block_id) {
         tac = tac->prev;
     }
 
-    if (DEBUG_INSTSEL_IGRAPHS_DEEP)
+    if (DEBUG_INSTSEL_TREE_MERGING)
         printf("\n=================================\n");
 
     if (DEBUG_INSTSEL_IGRAPHS) {

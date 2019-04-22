@@ -196,7 +196,7 @@ enum {
     DEBUG_SSA_LIVE_RANGE_COALESCING       = 0,
     DEBUG_SSA_SPILL_COST                  = 0,
     DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR = 0,
-    DEBUG_INSTSEL_IGRAPHS_DEEP            = 0,
+    DEBUG_INSTSEL_TREE_MERGING            = 0,
     DEBUG_INSTSEL_IGRAPHS                 = 0,
     DEBUG_INSTSEL_TILING                  = 0,
     DEBUG_SIGN_EXTENSION                  = 0,
