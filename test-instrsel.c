@@ -175,6 +175,12 @@ void test_instrsel() {
     function = new_function();
     remove_reserved_physical_registers = 1;
 
+    // Load constant into register with IR_ASSIGN
+    start_ir();
+    i(0, IR_ASSIGN, v(1), c(1), 0);
+    finish_ir(function);
+    assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movq    $1, r1q"));
+
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
     start_ir();
@@ -306,8 +312,15 @@ void test_instrsel() {
     assert_tac(ir_start,       X_MOV, 0, S(1), v(1));
     assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
 
-    // Assign to a local
+    // Assign constant to a local.
     start_ir();
+    i(0, IR_ASSIGN, S(1), c(0), 0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, 0, c(0), S(1));
+
+    // Assign constant to a local. Forces c into a register
+    start_ir();
+    nuke_rule(STKQ, IR_ASSIGN, CST, 0);
     i(0, IR_ASSIGN, S(1), c(0), 0);
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, 0, c(0), v(1));

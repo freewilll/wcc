@@ -357,6 +357,7 @@ void init_instruction_selection_rules() {
     r = add_rule(GLB, IR_ASSIGN,        CST, 0,    2); add_op(r, X_MOV,     0, SRC1, DST,  "mov%s $%v1, %v2(%%rip)"  ); fin_rule(r); // Store constant in global
     r = add_rule(GLB, IR_ASSIGN,        REG, 0,    2); add_op(r, X_MOV,     0, SRC1, DST,  "mov%s %v1, %v2(%%rip)"   ); fin_rule(r); // Store register in global
     r = add_rule(STK, IR_ASSIGN,        REG, 0,    2); add_op(r, X_MOV,     0, SRC1, DST,  "mov%s %v1, %v2(%%rbp)"   ); fin_rule(r); // Store register in stack local
+    r = add_rule(STK, IR_ASSIGN,        CST, 0,    2); add_op(r, X_MOV,     0, SRC1, DST,  "mov%s $%v1, %v2(%%rbp)"  ); fin_rule(r); // Store constant in stack local
     r = add_rule(REG, IR_LOAD_CONSTANT, CST, 0,    1); add_op(r, X_MOV,     0, SRC1, DST,  "mov%s $%v1, %v2"         ); fin_rule(r); // Process standalone r1 = constant
 
 
@@ -365,6 +366,7 @@ void init_instruction_selection_rules() {
 
     r = add_rule(REG, 0,                STK, 0,    2); add_op(r, X_MOV,     0, SRC1, DST,  "mov%s %v1(%%rbp), %v2"   ); fin_rule(r);  // Load temp stack local into register
     r = add_rule(REG, 0,                CST, 0,    1); add_op(r, X_MOV,     0, SRC1, DST,  "mov%s $%v1, %v2"         ); fin_rule(r);  // Load constant into register
+    r = add_rule(REG, IR_ASSIGN,        CST, 0,    1); add_op(r, X_MOV,     0, SRC1, DST,  "mov%s $%v1, %v2"         ); fin_rule(r);  // Load standalone constant into register
     r = add_rule(REG, 0,                STL, 0,    1); add_op(r, X_LEA,     0, SRC1, DST,  "leaq .SL%v1(%%rip), %v2" ); fin_rule(r);  // Load string literal into register
     r = add_rule(0,   IR_ARG,           CST, CST,  2); add_op(r, X_ARG,     0, SRC1, SRC2, "pushq $%v2q"             ); fin_rule(r);  // Use constant as function arg
     r = add_rule(0,   IR_ARG,           CST, REGQ, 2); add_op(r, X_ARG,     0, SRC1, SRC2, "pushq %v2q"              ); fin_rule(r);  // Use register as function arg
