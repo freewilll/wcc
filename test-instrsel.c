@@ -555,7 +555,6 @@ void test_instrsel_types_cmp_assignment() {
     assert(0, strcmp(render_x86_operation(ir_start->next->next->next, 0, 0, 0), "movzbw  r3b, r3w"));
 }
 
-
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -564,6 +563,7 @@ int main() {
 
     init_allocate_registers();
     init_instruction_selection_rules();
+
     test_instrsel_tree_merging();
     test_instrsel();
     test_instrsel_types_add_vregs();

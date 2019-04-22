@@ -508,7 +508,7 @@ int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
 void print_value(void *f, Value *v, int is_assignment_rhs);
 void print_instruction(void *f, Tac *tac);
-void print_intermediate_representation(Function *function, char *name);
+void print_ir(Function *function, char *name);
 void optimize_ir(Symbol *function);
 
 // ssa.c

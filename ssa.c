@@ -88,7 +88,7 @@ void map_stack_index_to_local_index(Function *function) {
     stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
     memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
 
-    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_ir(function, 0);
 
     tac = function->ir;
     while (tac) {
@@ -130,7 +130,7 @@ void map_stack_index_to_local_index(Function *function) {
     if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES)
         printf("Spilled %d registers due to & use\n", spilled_register_count);
 
-    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_ir(function, 0);
 }
 
 void index_tac(Tac *ir) {
@@ -228,7 +228,7 @@ void make_control_flow_graph(Function *function) {
     index_tac(function->ir);
 
     if (DEBUG_SSA_CFG) {
-        print_intermediate_representation(function, 0);
+        print_ir(function, 0);
 
         printf("Blocks:\n");
         for (i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start->index, blocks[i].end->index);
@@ -767,7 +767,7 @@ void insert_phi_functions(Function *function) {
 
     if (DEBUG_SSA_PHI_INSERTION) {
         printf("\nIR with phi functions:\n");
-        print_intermediate_representation(function, 0);
+        print_ir(function, 0);
     }
 }
 
@@ -937,7 +937,7 @@ void rename_phi_function_variables(Function *function) {
 
     rename_vars(function, stack, counters, 0, vreg_count);
 
-    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_PHI_RENUMBERING) print_ir(function, 0);
 }
 
 // Page 696 engineering a compiler
@@ -957,7 +957,7 @@ void make_live_ranges(Function *function) {
 
     live_range_reserved_pregs_offset = RESERVED_PHYSICAL_REGISTER_COUNT; // See the list at the top of the file
 
-    if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_LIVE_RANGE) print_ir(function, 0);
 
     vreg_count = function->vreg_count;
     ssa_subscript_count = 0;
@@ -1127,7 +1127,7 @@ void make_live_ranges(Function *function) {
         blocks[i].start = tac;
     }
 
-    if (DEBUG_SSA_LIVE_RANGE) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_LIVE_RANGE) print_ir(function, 0);
 }
 
 // Having vreg & live_range separately isn't particularly useful, since most
@@ -1145,7 +1145,7 @@ void blast_vregs_with_live_ranges(Function *function) {
     }
 
     // Nuke the live ranges, they should not be used downstream and this guarantees a horrible failure if they are.
-    // Also, remove ssa_subscript, since this is no longer used. Mostly so that print_intermediate_representation
+    // Also, remove ssa_subscript, since this is no longer used. Mostly so that print_ir
     // doesn't show them.
     tac = function->ir;
     while (tac) {
@@ -1376,7 +1376,7 @@ void coalesce_live_ranges(Function *function) {
         }
 
         if (DEBUG_SSA_LIVE_RANGE_COALESCING) {
-            print_intermediate_representation(function, 0);
+            print_ir(function, 0);
             printf("Live range coalesces:\n");
         }
 
@@ -1398,7 +1398,7 @@ void coalesce_live_ranges(Function *function) {
 
     if (DEBUG_SSA_LIVE_RANGE_COALESCING) {
         printf("\n");
-        print_intermediate_representation(function, 0);
+        print_ir(function, 0);
     }
 }
 

@@ -934,20 +934,20 @@ void output_code(char *input_filename, char *output_filename) {
 
         fprintf(f, "%s:\n", s->identifier);
 
-        if (print_ir1) print_intermediate_representation(s->function, s->identifier);
+        if (print_ir1) print_ir(s->function, s->identifier);
 
         vreg_count = s->function->vreg_count;
         optimize_ir(s);
         s->function->vreg_count = vreg_count;
 
-        if (print_ir2) print_intermediate_representation(s->function, s->identifier);
+        if (print_ir2) print_ir(s->function, s->identifier);
 
         if (instruction_selection_wip)
             experimental_instruction_selection(s);
         else
             optimize_and_allocate_registers(s->function);
 
-        if (print_ir3) print_intermediate_representation(s->function, s->identifier);
+        if (print_ir3) print_ir(s->function, s->identifier);
 
         output_function_body_code(s);
         fprintf(f, "\n");

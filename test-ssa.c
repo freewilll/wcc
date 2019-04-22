@@ -118,7 +118,7 @@ void test_liveout1() {
 
     function->ir = ir_start;
 
-    if (DEBUG_SSA) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA) print_ir(function, 0);
 
     do_oar1(function);
     make_uevar_and_varkill(function);
@@ -197,7 +197,7 @@ Function *make_ir2(int init_four_vars) {
 
     function->ir = ir_start;
 
-    if (DEBUG_SSA) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA) print_ir(function, 0);
 
     return function;
 }
@@ -358,7 +358,7 @@ void test_phi_renumbering1() {
     do_oar2(function);
     rename_phi_function_variables(function);
 
-    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_PHI_RENUMBERING) print_ir(function, 0);
 
     // Check renumbered args to phi functions are correct, page 509.
     // No effort is done to validate all other vars. It's safe to assume that
@@ -414,7 +414,7 @@ void test_phi_renumbering2() {
     do_oar2(function);
     rename_phi_function_variables(function);
 
-    if (DEBUG_SSA_PHI_RENUMBERING) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_PHI_RENUMBERING) print_ir(function, 0);
 
     // r1_3:long = Φ(r1_0:long, r1_1:long, r1_2:long)
     check_rphi(function->blocks[3].start, 1, 3,  1, 0,  1, 1,  1, 2);
@@ -464,7 +464,7 @@ void test_interference_graph1() {
 
     function = make_ir3(0);
 
-    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_ir(function, 0);
 
     do_oar1(function);
     do_oar2(function);
@@ -492,7 +492,7 @@ void test_interference_graph2() {
     do_oar2(function);
     do_oar3(function);
 
-    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_ir(function, 0);
 
     ig = function->interference_graph;
     vreg_count = function->vreg_count;
@@ -539,7 +539,7 @@ void test_interference_graph3() {
     disable_live_ranges_coalesce = 1;
     do_oar3(function);
 
-    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_intermediate_representation(function, 0);
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_ir(function, 0);
 
     ig = function->interference_graph;
     vreg_count = function->vreg_count;
@@ -562,7 +562,7 @@ void test_spill_cost() {
         disable_live_ranges_coalesce = 1;
         do_oar3(function);
 
-        if (DEBUG_SSA_SPILL_COST) print_intermediate_representation(function, 0);
+        if (DEBUG_SSA_SPILL_COST) print_ir(function, 0);
 
         if (i == 0) p = 1;
         else if (i == 1) p = 10;

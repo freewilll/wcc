@@ -348,7 +348,7 @@ void print_instruction(void *f, Tac *tac) {
     fprintf(f, "\n");
 }
 
-void print_intermediate_representation(Function *function, char *name) {
+void print_ir(Function *function, char *name) {
     Tac *tac;
     int i;
 

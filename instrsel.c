@@ -906,7 +906,7 @@ void tile_igraphs(Function *function) {
         if (DEBUG_INSTSEL_TILING) {
             f = new_function();
             f->ir = current_instruction_ir_start;
-            print_intermediate_representation(f, 0);
+            print_ir(f, 0);
         }
     }
 
@@ -914,7 +914,7 @@ void tile_igraphs(Function *function) {
         printf("\nFinal IR for block:\n");
         f = new_function();
         f->ir = ir_start;
-        print_intermediate_representation(f, 0);
+        print_ir(f, 0);
     }
 }
 
@@ -950,7 +950,7 @@ void select_instructions(Function *function) {
 
     if (DEBUG_INSTSEL_TILING) {
         printf("\nFinal IR for function:\n");
-        print_intermediate_representation(function, 0);
+        print_ir(function, 0);
     }
 
 }
