@@ -431,8 +431,8 @@ int non_terminal_for_value(Value *v) {
     else if (v->is_string_literal) return STL;
     else if (v->label)             return LAB;
     else if (v->vreg)              return REG + v->x86_size;
-    else if (v->global_symbol)     return GLB + v->x86_size;
-    else if (v->stack_index)       return STK + v->x86_size;
+    else if (v->global_symbol)     return MEM + v->x86_size;
+    else if (v->stack_index)       return MEM + v->x86_size;
 }
 
 int match_value_to_rule_src(Value *v, int src) {

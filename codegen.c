@@ -342,10 +342,10 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
                 else if (v->is_string_literal)
                     sprintf(buffer, "%d", v->string_literal_index);
                 else if (v->global_symbol)
-                    sprintf(buffer, "%s", v->global_symbol->identifier);
+                    sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
                 else if (v->stack_index) {
                     stack_offset = get_stack_offset_from_index(function_pc, stack_start, v->stack_index);
-                    sprintf(buffer, "%d", stack_offset);
+                    sprintf(buffer, "%d(%%rbp)", stack_offset);
                 }
                 else if (v->label)
                     sprintf(buffer, "%d", v->label);

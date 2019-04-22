@@ -302,7 +302,7 @@ void test_instrsel() {
 
     // Store c in g with only the reg fule, forcing c into r1
     start_ir();
-    nuke_rule(GLBQ, IR_ASSIGN, CST, 0);
+    nuke_rule(MEMQ, IR_ASSIGN, CST, 0);
     i(0, IR_ASSIGN, g(1), c(1), 0);
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, v(1), c(1), 0);
@@ -335,7 +335,7 @@ void test_instrsel() {
 
     // Assign constant to a local. Forces c into a register
     start_ir();
-    nuke_rule(STKQ, IR_ASSIGN, CST, 0);
+    nuke_rule(MEMQ, IR_ASSIGN, CST, 0);
     i(0, IR_ASSIGN, S(1), c(0), 0);
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, v(1), c(0), 0);

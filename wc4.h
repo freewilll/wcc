@@ -564,8 +564,7 @@ enum {
     STL,                         // String literal
     LAB,                         // Label, i.e. a target for a (conditional) jump
     REG, REGB, REGW, REGL, REGQ, // Registers
-    GLB, GLBB, GLBW, GLBL, GLBQ, // Globals
-    STK, STKB, STKW, STKL, STKQ, // Stack locations
+    MEM, MEMB, MEMW, MEML, MEMQ, // Memory, in stack or globals
 
     // Operands
     DST,
