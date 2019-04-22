@@ -504,6 +504,10 @@ void arithmetic_operation(int operation, int type) {
 
     tac = add_ir_op(operation, type, vreg, src1, src2);
 
+    // Set flag to be used by turn_around_jz_jnz_insanity code
+    if (instruction_selection_wip && (operation == IR_GT || operation == IR_LT || operation == IR_GE || operation == IR_LE || operation == IR_EQ || operation == IR_NE))
+        tac->dst->is_in_cpu_flags = 1;
+
     if (!vreg) tac->dst->is_in_cpu_flags = 1;
 }
 
