@@ -593,6 +593,10 @@ enum {
     X_LEA,
     X_ADD,
     X_MUL,
+    X_BOR,
+    X_BAND,
+    X_XOR,
+
     X_CMP,
     X_CMPZ,
     X_JZ,

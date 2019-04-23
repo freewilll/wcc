@@ -637,7 +637,6 @@ void test_instrsel_function_calls() {
 }
 
 void test_instrsel_function_call_rearranging() {
-
     Function *function;
 
     function = new_function();
@@ -654,6 +653,25 @@ void test_instrsel_function_call_rearranging() {
     assert_tac(ir_start->next,             X_CALL, v(1), fu(1), 0);
     assert_tac(ir_start->next->next,       IR_END_CALL, 0, c(0), 0);
     assert_tac(ir_start->next->next->next, X_MOV, g(1), v(1), 0);
+}
+
+void test_misc_commutative_operations() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    si(function, 0, IR_BOR, v(3), v(1), v(2));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r2q, r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "orq     r1q, r3q"));
+
+    si(function, 0, IR_BAND, v(3), v(1), v(2));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r2q, r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "andq    r1q, r3q"));
+
+    si(function, 0, IR_XOR, v(3), v(1), v(2));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r2q, r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "xorq    r1q, r3q"));
 }
 
 int main() {
@@ -673,5 +691,5 @@ int main() {
     test_instrsel_returns();
     test_instrsel_function_calls();
     test_instrsel_function_call_rearranging();
-
+    test_misc_commutative_operations();
 }
