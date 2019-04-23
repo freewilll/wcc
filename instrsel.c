@@ -30,8 +30,6 @@ void turn_around_jz_jnz_insanity(Function *function) {
 
     tac = function->ir;
     while (tac) {
-        if (tac->operation == IR_JZ || tac->operation == IR_JZ) printf("%d\n", tac->src1->is_in_cpu_flags);
-
         if (tac->src1 && tac->src1->is_in_cpu_flags)  {
                  if (tac->operation == IR_JZ)  tac->operation = IR_JNZ;
             else if (tac->operation == IR_JNZ) tac->operation = IR_JZ;
