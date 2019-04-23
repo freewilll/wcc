@@ -341,7 +341,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
                 else if (v->is_constant)
                     sprintf(buffer, "%ld", v->value);
                 else if (v->is_string_literal)
-                    sprintf(buffer, "%d(%%rip)", v->string_literal_index);
+                    sprintf(buffer, ".SL%d(%%rip)", v->string_literal_index);
                 else if (v->global_symbol)
                     sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
                 else if (v->stack_index) {
@@ -349,7 +349,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
                     sprintf(buffer, "%d(%%rbp)", stack_offset);
                 }
                 else if (v->label)
-                    sprintf(buffer, "%d", v->label);
+                    sprintf(buffer, ".l%d", v->label);
                 else
                     panic("Don't know how to render template value");
             }

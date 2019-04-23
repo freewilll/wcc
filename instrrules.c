@@ -221,34 +221,34 @@ void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *te
     Rule *r;
 
     (*ntc)++;
-    r = add_rule(*ntc, IR_EQ,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template   ); fin_rule(r);
-    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je .l%v1" ); fin_rule(r);
-    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne .l%v1"); fin_rule(r);
+    r = add_rule(*ntc, IR_EQ,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template ); fin_rule(r);
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je %v1" ); fin_rule(r);
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne %v1"); fin_rule(r);
 
     (*ntc)++;
-    r = add_rule(*ntc, IR_NE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template   ); fin_rule(r);
-    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne .l%v1"); fin_rule(r);
-    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je .l%v1" ); fin_rule(r);
+    r = add_rule(*ntc, IR_NE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template ); fin_rule(r);
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JNE, 0, SRC2, 0,    "jne %v1"); fin_rule(r);
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JE,  0, SRC2, 0,    "je %v1" ); fin_rule(r);
 
     (*ntc)++;
-    r = add_rule(*ntc, IR_LT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template   ); fin_rule(r);
-    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl .l%v1" ); fin_rule(r);
-    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge .l%v1"); fin_rule(r);
+    r = add_rule(*ntc, IR_LT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template ); fin_rule(r);
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl %v1" ); fin_rule(r);
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge %v1"); fin_rule(r);
 
     (*ntc)++;
-    r = add_rule(*ntc, IR_GT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template   ); fin_rule(r);
-    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg .l%v1" ); fin_rule(r);
-    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle .l%v1"); fin_rule(r);
+    r = add_rule(*ntc, IR_GT,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template ); fin_rule(r);
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg %v1" ); fin_rule(r);
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle %v1"); fin_rule(r);
 
     (*ntc)++;
-    r = add_rule(*ntc, IR_LE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template   ); fin_rule(r);
-    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle .l%v1"); fin_rule(r);
-    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg .l%v1" ); fin_rule(r);
+    r = add_rule(*ntc, IR_LE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template ); fin_rule(r);
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JLE, 0, SRC2, 0,    "jle %v1"); fin_rule(r);
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JGT, 0, SRC2, 0,    "jg %v1" ); fin_rule(r);
 
     (*ntc)++;
-    r = add_rule(*ntc, IR_GE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template   ); fin_rule(r);
-    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge .l%v1"); fin_rule(r);
-    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl .l%v1" ); fin_rule(r);
+    r = add_rule(*ntc, IR_GE,  src1, src2, 10); add_op(r, X_CMP, 0, SRC1, SRC2, template ); fin_rule(r);
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JGE, 0, SRC2, 0,    "jge %v1"); fin_rule(r);
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl %v1" ); fin_rule(r);
 }
 
 void add_comparison_assignment_rule(int src1, int src2, char *cmp_template, int operation, int set_operation, char *set_template) {
@@ -362,21 +362,21 @@ void init_instruction_selection_rules() {
     r = add_rule(REG, 0,                MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Load temp memory into register
     r = add_rule(REG, 0,                CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Load constant into register
     r = add_rule(REG, IR_ASSIGN,        CST,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Load standalone constant into register
-    r = add_rule(REG, 0,                STL,  0,    1); add_op(r, X_LEA,  DST, SRC1, 0,    "leaq .SL%v1, %vd"); fin_rule(r); // Load string literal into register
+    r = add_rule(REG, 0,                STL,  0,    1); add_op(r, X_LEA,  DST, SRC1, 0,    "leaq %v1, %vd"   ); fin_rule(r); // Load string literal into register
 
-    r = add_rule(0,   IR_JMP,           LAB,  0,    1); add_op(r, X_JMP,  0,   SRC1, 0,    "jmp .l%v1"       ); fin_rule(r);  // JMP
+    r = add_rule(0,   IR_JMP,           LAB,  0,    1); add_op(r, X_JMP,  0,   SRC1, 0,    "jmp %v1"         ); fin_rule(r);  // JMP
 
     r = add_rule(0,   IR_JZ,            REG,  LAB,  1); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JZ with register
-                                                        add_op(r, X_JZ,   0,   SRC2, 0,    "jz .l%v1"        );
+                                                        add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1"          );
                                                         fin_rule(r);
     r = add_rule(0,   IR_JZ,            MEM,  LAB,  1); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JZ with memory
-                                                        add_op(r, X_JZ,   0,   SRC2, 0,    "jz .l%v1"        );
+                                                        add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1"          );
                                                         fin_rule(r);
     r = add_rule(0,   IR_JNZ,           REG,  LAB,  1); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JNZ with register
-                                                        add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz .l%v1"       );
+                                                        add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1"         );
                                                         fin_rule(r);
     r = add_rule(0,   IR_JNZ,           MEM,  LAB,  1); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JNZ with memory
-                                                        add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz .l%v1"       );
+                                                        add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1"         );
                                                         fin_rule(r);
 
     // All pairwise combinations of (CST, REG, MEM) that have associated x86 instructions
