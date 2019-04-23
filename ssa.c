@@ -1776,11 +1776,8 @@ void remove_self_moves(Function *function) {
 
     tac = function->ir;
     while (tac) {
-        if (tac->operation == IR_ASSIGN && tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg) {
+        if ((tac->operation == IR_ASSIGN || tac->operation == X_MOV) && tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
             tac->operation = IR_NOP;
-            tac->dst = 0;
-            tac->src1 = 0;
-        }
 
         tac = tac->next;
     }
