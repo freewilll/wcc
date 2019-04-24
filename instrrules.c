@@ -304,6 +304,27 @@ void add_commutative_operation_rules(char *x86_operand, int operation, int x86_o
                                                       fin_rule(r);
 }
 
+void add_sub_rule(int src1, int src2, int cost, char *mov_template, char *sub_template) {
+    Rule *r;
+
+    r = add_rule(REG, IR_SUB, src1, src2, cost);
+    add_op(r, X_MOV, DST, SRC1, 0,   mov_template);
+    add_op(r, X_SUB, DST, SRC2, DST, sub_template);
+    fin_rule(r);
+}
+
+void add_sub_rules() {
+    Rule *r;
+
+    add_sub_rule(REG, REG, 10, "mov%s %v1, %vd",  "sub%s %v1, %vd");
+    add_sub_rule(CST, REG, 10, "mov%s $%v1, %vd", "sub%s %v1, %vd");
+    add_sub_rule(REG, CST, 10, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+    add_sub_rule(REG, MEM, 11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
+    add_sub_rule(MEM, REG, 11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
+    add_sub_rule(CST, MEM, 11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
+    add_sub_rule(MEM, CST, 11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+}
+
 void init_instruction_selection_rules() {
     Rule *r;
     int ntc;  // Non terminal counter
@@ -405,4 +426,6 @@ void init_instruction_selection_rules() {
     add_commutative_operation_rules("or%s",   IR_BOR,  X_BOR,  3);
     add_commutative_operation_rules("and%s",  IR_BAND, X_BAND, 3);
     add_commutative_operation_rules("xor%s",  IR_XOR,  X_XOR,  3);
+
+    add_sub_rules();
 }

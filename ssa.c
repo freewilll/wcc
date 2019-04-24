@@ -1225,9 +1225,16 @@ void make_interference_graph(Function *function) {
             if (tac->dst && tac->dst->vreg) {
                 if (tac->operation == IR_RSUB && tac->src1->vreg) {
                     // Ensure that dst and src1 don't reside in the same preg.
-                    // This allowes codegen to generate code with just one operation while
+                    // This allows codegen to generate code with just one operation while
                     // ensuring the other registers preserve their values.
                     add_ig_edge(interference_graph, vreg_count, tac->src1->vreg, tac->dst->vreg);
+                }
+
+                if (tac->operation == X_SUB && tac->src2->vreg) {
+                    // Ensure that dst and src2 don't reside in the same preg.
+                    // This allows codegen to generate code with just one mov and sub while
+                    // ensuring the other registers preserve their values.
+                    add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, tac->dst->vreg);
                 }
 
                 for (j = 0; j <= livenow->max_value; j++) {

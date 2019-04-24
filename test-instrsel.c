@@ -674,6 +674,41 @@ void test_misc_commutative_operations() {
     assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "xorq    r1q, r3q"));
 }
 
+void test_sub_operations() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    si(function, 0, IR_SUB, v(3), v(1), v(2));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r1q, r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    r2q, r3q"));
+
+    si(function, 0, IR_SUB, v(3), c(1), v(2));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    $1, r2q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    r1q, r2q"));
+
+    si(function, 0, IR_SUB, v(3), v(1), c(1));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r1q, r2q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    $1, r2q"));
+
+    si(function, 0, IR_SUB, v(3), v(1), g(1));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r1q, r2q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    g1(%rip), r2q"));
+
+    si(function, 0, IR_SUB, v(3), g(1), v(1));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    g1(%rip), r2q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    r1q, r2q"));
+
+    si(function, 0, IR_SUB, v(3), c(1), g(1));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    $1, r1q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    g1(%rip), r1q"));
+
+    si(function, 0, IR_SUB, v(3), g(1), c(1));
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    g1(%rip), r1q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    $1, r1q"));
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -692,4 +727,5 @@ int main() {
     test_instrsel_function_calls();
     test_instrsel_function_call_rearranging();
     test_misc_commutative_operations();
+    test_sub_operations();
 }

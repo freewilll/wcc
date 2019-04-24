@@ -592,6 +592,7 @@ enum {
 
     X_LEA,
     X_ADD,
+    X_SUB,
     X_MUL,
     X_BOR,
     X_BAND,
