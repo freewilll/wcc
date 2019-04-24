@@ -280,27 +280,32 @@ void add_comparison_assignment_rules(int src1, int src2, char *template) {
 }
 
 void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
-    char *op_rr, *op_cr, *op_rm;
+    char *op_vv, *op_cv;
     Rule *r;
 
-    asprintf(&op_rr, "%s %%v1, %%v2",  x86_operand);  // Perform operation on two registers
-    asprintf(&op_cr, "%s $%%v1, %%v2", x86_operand);  // Perform operation on a constant and a register
-    asprintf(&op_rm, "%s %%v1, %%v2",  x86_operand);  // Perform operation on a register and memory
+    asprintf(&op_vv, "%s %%v1, %%v2",  x86_operand);  // Perform operation on two registers or memory
+    asprintf(&op_cv, "%s $%%v1, %%v2", x86_operand);  // Perform operation on a constant and a register
 
-    r = add_rule(REG, operation, REG, REG, cost);     add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd");
-                                                      add_op(r, x86_operation, DST, SRC1, DST, op_rr           );
+    r = add_rule(REG, operation, REG, REG, cost);     add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd" );
+                                                      add_op(r, x86_operation, DST, SRC1, DST, op_vv            );
                                                       fin_rule(r);
-    r = add_rule(REG, operation, CST, REG, cost);     add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd");
-                                                      add_op(r, x86_operation, DST, SRC1, DST, op_cr           );
+    r = add_rule(REG, operation, CST, REG, cost);     add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd" );
+                                                      add_op(r, x86_operation, DST, SRC1, DST, op_cv            );
                                                       fin_rule(r);
-    r = add_rule(REG, operation, REG, CST, cost);     add_op(r, X_MOV,         DST, SRC1, 0,   "mov%s %v1, %vd");
-                                                      add_op(r, x86_operation, DST, SRC2, DST, op_cr           );
+    r = add_rule(REG, operation, REG, CST, cost);     add_op(r, X_MOV,         DST, SRC1, 0,   "mov%s %v1, %vd" );
+                                                      add_op(r, x86_operation, DST, SRC2, DST, op_cv            );
                                                       fin_rule(r);
-    r = add_rule(REG, operation, REG, MEM, cost + 1); add_op(r, X_MOV,         DST, SRC1, 0,   "mov%s %v1, %vd");
-                                                      add_op(r, x86_operation, DST, SRC2, DST, op_rm           );
+    r = add_rule(REG, operation, REG, MEM, cost + 1); add_op(r, X_MOV,         DST, SRC1, 0,   "mov%s %v1, %vd" );
+                                                      add_op(r, x86_operation, DST, SRC2, DST, op_vv            );
                                                       fin_rule(r);
-    r = add_rule(REG, operation, MEM, REG, cost + 1); add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd");
-                                                      add_op(r, x86_operation, DST, SRC1, DST, op_rm           );
+    r = add_rule(REG, operation, MEM, REG, cost + 1); add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd" );
+                                                      add_op(r, x86_operation, DST, SRC1, DST, op_vv            );
+                                                      fin_rule(r);
+    r = add_rule(REG, operation, CST, MEM, cost + 1); add_op(r, X_MOV,         DST, SRC1, 0,   "mov%s $%v1, %vd");
+                                                      add_op(r, x86_operation, DST, SRC2, DST, op_vv            );
+                                                      fin_rule(r);
+    r = add_rule(REG, operation, MEM, CST, cost + 1); add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s $%v1, %vd");
+                                                      add_op(r, x86_operation, DST, SRC1, DST, op_vv            );
                                                       fin_rule(r);
 }
 
