@@ -62,6 +62,10 @@ void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
 
 }
 
+char *rx86op(Tac *tac) {
+    return render_x86_operation(tac, 0, 0, 0);
+}
+
 void remove_reserved_physical_register_count_from_tac(Tac *ir) {
     Tac *tac;
 
@@ -196,7 +200,7 @@ void test_instrsel() {
     start_ir();
     i(0, IR_ASSIGN, v(1), c(1), 0);
     finish_ir(function);
-    assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movq    $1, r1q"));
+    assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
 
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
@@ -533,57 +537,57 @@ void test_instrsel_types_add_mem_vreg() {
 
     // c = vs + gc
     si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_SHORT), gsz(1, TYPE_CHAR));
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbw  g1(%rip), r3w"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movw    r3w, r2w"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addw    r1w, r2w"     ));
+    assert(0, strcmp(rx86op(ir_start            ), "movsbw  g1(%rip), r3w"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movw    r3w, r2w"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next), "addw    r1w, r2w"     ));
 
     // c = vi + gc
     si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_INT), gsz(1, TYPE_CHAR));
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbl  g1(%rip), r3l"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movl    r3l, r2l"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addl    r1l, r2l"     ));
+    assert(0, strcmp(rx86op(ir_start            ), "movsbl  g1(%rip), r3l"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movl    r3l, r2l"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next), "addl    r1l, r2l"     ));
 
     // c = vl + gc
     si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_LONG), gsz(1, TYPE_CHAR));
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbq  g1(%rip), r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movq    r3q, r2q"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addq    r1q, r2q"     ));
+    assert(0, strcmp(rx86op(ir_start            ), "movsbq  g1(%rip), r3q"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r3q, r2q"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next), "addq    r1q, r2q"     ));
 
     // l = vi + gc
     si(function, 0, IR_ADD, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), gsz(1, TYPE_CHAR));
-    assert(0, strcmp(render_x86_operation(ir_start,                   0, 0, 0), "movslq  r1l, r3q"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next,             0, 0, 0), "movsbq  g1(%rip), r4q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next,       0, 0, 0), "movq    r4q, r2q"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next->next, 0, 0, 0), "addq    r3q, r2q"     ));
+    assert(0, strcmp(rx86op(ir_start                  ), "movslq  r1l, r3q"     ));
+    assert(0, strcmp(rx86op(ir_start->next            ), "movsbq  g1(%rip), r4q"));
+    assert(0, strcmp(rx86op(ir_start->next->next      ), "movq    r4q, r2q"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next->next), "addq    r3q, r2q"     ));
 
     // l = vl + gc
     si(function, 0, IR_ADD, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), gsz(1, TYPE_CHAR));
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbq  g1(%rip), r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movq    r3q, r2q"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addq    r1q, r2q"     ));
+    assert(0, strcmp(rx86op(ir_start            ), "movsbq  g1(%rip), r3q"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r3q, r2q"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next), "addq    r1q, r2q"     ));
 
     // l = gc + vl
     si(function, 0, IR_ADD, vsz(2, TYPE_LONG), gsz(1, TYPE_CHAR), vsz(1, TYPE_LONG));
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbq  g1(%rip), r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movq    r1q, r2q"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addq    r3q, r2q"     ));
+    assert(0, strcmp(rx86op(ir_start            ), "movsbq  g1(%rip), r3q"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r2q"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next), "addq    r3q, r2q"     ));
 
     // Test sign extension of locals
     // ------------------------------
 
     // c = vs + gc
     si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_SHORT), Ssz(1, TYPE_CHAR));
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbw  16(%rbp), r3w"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movw    r3w, r2w"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addw    r1w, r2w"     ));
+    assert(0, strcmp(rx86op(ir_start            ), "movsbw  16(%rbp), r3w"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movw    r3w, r2w"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next), "addw    r1w, r2w"     ));
 
     // Test sign extension of registers
     // --------------------------------
     // c = vc + gs
     si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_CHAR), gsz(1, TYPE_SHORT));
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "movsbw  r1b, r3w"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "movw    r3w, r2w"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "addw    g1(%rip), r2w"));
+    assert(0, strcmp(rx86op(ir_start            ), "movsbw  r1b, r3w"     ));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movw    r3w, r2w"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next), "addw    g1(%rip), r2w"));
 }
 
 void test_instrsel_types_cmp_assignment() {
@@ -596,25 +600,25 @@ void test_instrsel_types_cmp_assignment() {
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_SHORT), v(1), v(2));
     finish_ir(function);
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "cmpq    r2q, r1q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "sete    r3b"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next, 0, 0, 0), "movzbw  r3b, r3w"));
+    assert(0, strcmp(rx86op(ir_start            ), "cmpq    r2q, r1q"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "sete    r3b"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next), "movzbw  r3b, r3w"));
 
     // Test c = s == s
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_CHAR), vsz(1, TYPE_SHORT), vsz(2, TYPE_SHORT));
     finish_ir(function);
-    assert(0, strcmp(render_x86_operation(ir_start,             0, 0, 0), "cmpw    r2w, r1w"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,       0, 0, 0), "sete    r3b"     ));
+    assert(0, strcmp(rx86op(ir_start            ), "cmpw    r2w, r1w"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "sete    r3b"     ));
 
     // Test s = c == l
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_SHORT), vsz(1, TYPE_CHAR), vsz(2, TYPE_LONG));
     finish_ir(function);
-    assert(0, strcmp(render_x86_operation(ir_start,                   0, 0, 0), "movsbq  r1b, r4q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,             0, 0, 0), "cmpq    r2q, r4q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next,       0, 0, 0), "sete    r3b"     ));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next->next, 0, 0, 0), "movzbw  r3b, r3w"));
+    assert(0, strcmp(rx86op(ir_start                  ), "movsbq  r1b, r4q"));
+    assert(0, strcmp(rx86op(ir_start->next            ), "cmpq    r2q, r4q"));
+    assert(0, strcmp(rx86op(ir_start->next->next      ), "sete    r3b"     ));
+    assert(0, strcmp(rx86op(ir_start->next->next->next), "movzbw  r3b, r3w"));
 }
 
 void test_instrsel_returns() {
@@ -624,16 +628,16 @@ void test_instrsel_returns() {
     remove_reserved_physical_registers = 1;
 
     // Return constant & vregs
-    si(function, 0, IR_RETURN, 0, c(1), 0);               assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "mov     $1, %rax"));
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_CHAR),  0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movsbq  r1b, %rax"));
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_SHORT), 0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movswq  r1w, %rax"));
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_INT),   0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movslq  r1l, %rax"));
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_LONG),  0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movq    r1q, %rax"));
+    si(function, 0, IR_RETURN, 0, c(1), 0);               assert(0, strcmp(rx86op(ir_start), "mov     $1, %rax"));
+    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_CHAR),  0); assert(0, strcmp(rx86op(ir_start), "movsbq  r1b, %rax"));
+    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_SHORT), 0); assert(0, strcmp(rx86op(ir_start), "movswq  r1w, %rax"));
+    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_INT),   0); assert(0, strcmp(rx86op(ir_start), "movslq  r1l, %rax"));
+    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_LONG),  0); assert(0, strcmp(rx86op(ir_start), "movq    r1q, %rax"));
 
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_CHAR),  0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movsbq  g1(%rip), %rax"));
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_SHORT), 0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movswq  g1(%rip), %rax"));
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_INT),   0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movslq  g1(%rip), %rax"));
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_LONG),  0); assert(0, strcmp(render_x86_operation(ir_start, 0, 0, 0), "movq    g1(%rip), %rax"));
+    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_CHAR),  0); assert(0, strcmp(rx86op(ir_start), "movsbq  g1(%rip), %rax"));
+    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_SHORT), 0); assert(0, strcmp(rx86op(ir_start), "movswq  g1(%rip), %rax"));
+    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_INT),   0); assert(0, strcmp(rx86op(ir_start), "movslq  g1(%rip), %rax"));
+    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_LONG),  0); assert(0, strcmp(rx86op(ir_start), "movq    g1(%rip), %rax"));
 }
 
 void test_instrsel_function_calls() {
@@ -676,16 +680,16 @@ void test_misc_commutative_operations() {
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_BOR, v(3), v(1), v(2));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r2q, r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "orq     r1q, r3q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r2q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next), "orq     r1q, r3q"));
 
     si(function, 0, IR_BAND, v(3), v(1), v(2));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r2q, r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "andq    r1q, r3q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r2q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next), "andq    r1q, r3q"));
 
     si(function, 0, IR_XOR, v(3), v(1), v(2));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r2q, r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "xorq    r1q, r3q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r2q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next), "xorq    r1q, r3q"));
 }
 
 void test_sub_operations() {
@@ -695,32 +699,32 @@ void test_sub_operations() {
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_SUB, v(3), v(1), v(2));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r1q, r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    r2q, r3q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next), "subq    r2q, r3q"));
 
     si(function, 0, IR_SUB, v(3), c(1), v(2));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    $1, r2q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    r1q, r2q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    $1, r2q"));
+    assert(0, strcmp(rx86op(ir_start->next), "subq    r1q, r2q"));
 
     si(function, 0, IR_SUB, v(3), v(1), c(1));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r1q, r2q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    $1, r2q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
+    assert(0, strcmp(rx86op(ir_start->next), "subq    $1, r2q"));
 
     si(function, 0, IR_SUB, v(3), v(1), g(1));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r1q, r2q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    g1(%rip), r2q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
+    assert(0, strcmp(rx86op(ir_start->next), "subq    g1(%rip), r2q"));
 
     si(function, 0, IR_SUB, v(3), g(1), v(1));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    g1(%rip), r2q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    r1q, r2q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r2q"));
+    assert(0, strcmp(rx86op(ir_start->next), "subq    r1q, r2q"));
 
     si(function, 0, IR_SUB, v(3), c(1), g(1));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    $1, r1q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    g1(%rip), r1q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    $1, r1q"));
+    assert(0, strcmp(rx86op(ir_start->next), "subq    g1(%rip), r1q"));
 
     si(function, 0, IR_SUB, v(3), g(1), c(1));
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    g1(%rip), r1q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    $1, r1q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r1q"));
+    assert(0, strcmp(rx86op(ir_start->next), "subq    $1, r1q"));
 }
 
 void test_div_operations() {
@@ -730,18 +734,18 @@ void test_div_operations() {
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_DIV, v(3), v(1), v(2));
-    assert(0, strcmp(render_x86_operation(ir_start,                         0, 0, 0), "movq    r1q, %rax"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,                   0, 0, 0), "cqto"));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next,             0, 0, 0), "movq    r2q, r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next->next,       0, 0, 0), "idivq   r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next->next->next, 0, 0, 0), "movq    %rax, r3q"));
+    assert(0, strcmp(rx86op(ir_start                        ), "movq    r1q, %rax"));
+    assert(0, strcmp(rx86op(ir_start->next                  ), "cqto"));
+    assert(0, strcmp(rx86op(ir_start->next->next            ), "movq    r2q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next->next->next      ), "idivq   r3q"));
+    assert(0, strcmp(rx86op(ir_start->next->next->next->next), "movq    %rax, r3q"));
 
     si(function, 0, IR_MOD, v(3), v(1), v(2));
-    assert(0, strcmp(render_x86_operation(ir_start,                         0, 0, 0), "movq    r1q, %rax"));
-    assert(0, strcmp(render_x86_operation(ir_start->next,                   0, 0, 0), "cqto"));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next,             0, 0, 0), "movq    r2q, r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next->next,       0, 0, 0), "idivq   r3q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next->next->next->next, 0, 0, 0), "movq    %rdx, r3q"));
+    assert(0, strcmp(rx86op(ir_start                        ), "movq    r1q, %rax"));
+    assert(0, strcmp(rx86op(ir_start->next                  ), "cqto"));
+    assert(0, strcmp(rx86op(ir_start->next->next            ), "movq    r2q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next->next->next      ), "idivq   r3q"));
+    assert(0, strcmp(rx86op(ir_start->next->next->next->next), "movq    %rdx, r3q"));
 
 }
 
@@ -753,30 +757,30 @@ void test_bnot_operations() {
 
     // Test ~v with the 4 types
     si(function, 0, IR_BNOT, vsz(3, TYPE_CHAR), vsz(1, TYPE_CHAR), 0);
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movb    r1b, r2b"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notb    r2b"));
+    assert(0, strcmp(rx86op(ir_start      ), "movb    r1b, r2b"));
+    assert(0, strcmp(rx86op(ir_start->next), "notb    r2b"));
 
     si(function, 0, IR_BNOT, vsz(3, TYPE_SHORT), vsz(1, TYPE_SHORT), 0);
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movw    r1w, r2w"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notw    r2w"));
+    assert(0, strcmp(rx86op(ir_start      ), "movw    r1w, r2w"));
+    assert(0, strcmp(rx86op(ir_start->next), "notw    r2w"));
 
     si(function, 0, IR_BNOT, vsz(3, TYPE_INT), vsz(1, TYPE_INT), 0);
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movl    r1l, r2l"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notl    r2l"));
+    assert(0, strcmp(rx86op(ir_start      ), "movl    r1l, r2l"));
+    assert(0, strcmp(rx86op(ir_start->next), "notl    r2l"));
 
     si(function, 0, IR_BNOT, v(3), v(1), 0);
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r1q, r2q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notq    r2q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
+    assert(0, strcmp(rx86op(ir_start->next), "notq    r2q"));
 
     // ~g
     si(function, 0, IR_BNOT, v(3), g(1), 0);
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    g1(%rip), r1q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notq    r1q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r1q"));
+    assert(0, strcmp(rx86op(ir_start->next), "notq    r1q"));
 
     // ~s
     si(function, 0, IR_BNOT, v(3), S(1), 0);
-    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    16(%rbp), r1q"));
-    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notq    r1q"));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    16(%rbp), r1q"));
+    assert(0, strcmp(rx86op(ir_start->next), "notq    r1q"));
 }
 
 int main() {
