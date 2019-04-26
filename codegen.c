@@ -288,10 +288,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
     memset(buffer, 0, 128);
     result = buffer;
 
-    while (*t != ' ') *buffer++ = *t++;
+    while (*t && *t != ' ') *buffer++ = *t++;
     *t++;
-    mnemonic_length = buffer - result;
-    for (i = 0; i < 8 - mnemonic_length; i++) *buffer++ = ' ';
+    if (*t) {
+        mnemonic_length = buffer - result;
+        for (i = 0; i < 8 - mnemonic_length; i++) *buffer++ = ' ';
+    }
 
     while (*t) {
         if (*t == '%') {

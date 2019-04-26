@@ -330,6 +330,30 @@ void add_sub_rules() {
     add_sub_rule(MEM, CST, 11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
 }
 
+void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *t4, char *tdiv, char *tmod) {
+    Rule *r;
+
+    r = add_rule(dst, IR_DIV, src1,  src2,  cost); add_op(r, X_MOV,  0,    SRC1, 0,    t1);
+                                                   add_op(r, X_CLTD, 0,    0,    0,    t2);
+                                                   add_op(r, X_MOV,  DST,  SRC2, 0,    t3);
+                                                   add_op(r, X_IDIV, DST,  SRC1, SRC2, t4);
+                                                   add_op(r, X_MOV,  DST,  0,    0,    tdiv);
+                                                   fin_rule(r);
+    r = add_rule(dst, IR_MOD, src1,  src2,  cost); add_op(r, X_MOV,  0,    SRC1, 0,    t1);
+                                                   add_op(r, X_CLTD, 0,    0,    0,    t2);
+                                                   add_op(r, X_MOV,  DST,  SRC2, 0,    t3);
+                                                   add_op(r, X_IDIV, DST,  SRC1, SRC2, t4);
+                                                   add_op(r, X_MOV,  DST,  0,    0,    tmod);
+                                                   fin_rule(r);
+}
+
+void add_div_rules() {
+    Rule *r;
+
+    add_div_rule(REGL, REGL, REGL, 40, "movl %v1l, %%eax", "cltd", "movl %v1l, %vdl", "idivl %vdl", "movl %%eax, %vdl", "movl %%edx, %vdl");
+    add_div_rule(REGQ, REGQ, REGQ, 50, "movq %v1q, %%rax", "cqto", "movq %v1q, %vdq", "idivq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
+}
+
 void init_instruction_selection_rules() {
     Rule *r;
     int ntc;  // Non terminal counter
@@ -433,4 +457,5 @@ void init_instruction_selection_rules() {
     add_commutative_operation_rules("xor%s",  IR_XOR,  X_XOR,  3);
 
     add_sub_rules();
+    add_div_rules();
 }

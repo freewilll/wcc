@@ -323,6 +323,8 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == X_MOV)    { fprintf(f, "mov "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (tac->operation == X_ADD)    { fprintf(f, "add "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (tac->operation == X_MUL)    { fprintf(f, "mul "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_IDIV)   { fprintf(f, "idiv "  ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (tac->operation == X_CQTO)   { fprintf(f, "cqto "  ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (tac->operation == X_CMP)    { fprintf(f, "cmp "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
     else if (tac->operation == X_CMPZ)   { fprintf(f, "cmpz "  ); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_JMP)    { fprintf(f, "jmp "   ); print_value(f, tac->src1, 1); }
@@ -341,7 +343,6 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == X_SETGT)  { fprintf(f, "setgt " ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_SETLE)  { fprintf(f, "setle " ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_SETGE)  { fprintf(f, "setge " ); print_value(f, tac->src1, 1); }
-
     else if (tac->operation == X_MOVSBW) { fprintf(f, "movsbw "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
     else if (tac->operation == X_MOVSBL) { fprintf(f, "movsbl "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
     else if (tac->operation == X_MOVSBQ) { fprintf(f, "movsbq "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }

@@ -723,6 +723,28 @@ void test_sub_operations() {
     assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "subq    $1, r1q"));
 }
 
+void test_div_operations() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    si(function, 0, IR_DIV, v(3), v(1), v(2));
+    assert(0, strcmp(render_x86_operation(ir_start,                         0, 0, 0), "movq    r1q, %rax"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,                   0, 0, 0), "cqto"));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next,             0, 0, 0), "movq    r2q, r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next->next,       0, 0, 0), "idivq   r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next->next->next, 0, 0, 0), "movq    %rax, r3q"));
+
+    si(function, 0, IR_MOD, v(3), v(1), v(2));
+    assert(0, strcmp(render_x86_operation(ir_start,                         0, 0, 0), "movq    r1q, %rax"));
+    assert(0, strcmp(render_x86_operation(ir_start->next,                   0, 0, 0), "cqto"));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next,             0, 0, 0), "movq    r2q, r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next->next,       0, 0, 0), "idivq   r3q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next->next->next->next, 0, 0, 0), "movq    %rdx, r3q"));
+
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -742,4 +764,5 @@ int main() {
     test_instrsel_function_call_rearranging();
     test_misc_commutative_operations();
     test_sub_operations();
+    test_div_operations();
 }

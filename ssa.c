@@ -1214,9 +1214,13 @@ void make_interference_graph(Function *function) {
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
             }
 
-            if (tac->operation == IR_DIV || tac->operation == IR_MOD) {
+            if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+
+                // Works together with the instruction rules
+                if (tac->operation == X_IDIV)
+                    add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, tac->dst->vreg);
             }
 
             if (tac->operation == IR_BSHL || tac->operation == IR_BSHR)
@@ -1255,7 +1259,7 @@ void make_interference_graph(Function *function) {
                         tac->operation == X_MOVSWL ||
                         tac->operation == X_MOVSWQ ||
                         tac->operation == X_MOVSLQ
-                       ) && tac->src1->vreg && tac->src1->vreg == j) continue;
+                       ) && tac->src1 && tac->src1->vreg && tac->src1->vreg == j) continue;
                     add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
                 }
             }
