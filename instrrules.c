@@ -365,6 +365,41 @@ void add_bnot_rules() {
                                            fin_rule(r);
 }
 
+void add_binary_shift_rule(int src2, char *template) {
+    Rule *r;
+
+    r = add_rule(REG, IR_BSHL, REG, src2, 4); add_op(r, X_MOV, DST, SRC2, 0, template);
+                                              add_op(r, X_MOV, DST, SRC1, 0, "mov%s %v1, %vd");
+                                              add_op(r, X_SHL, DST, SRC2, 0, "shl%s %%cl, %vd");
+                                              fin_rule(r);
+    r = add_rule(REG, IR_BSHR, REG, src2, 4); add_op(r, X_MOV, DST, SRC2, 0, template);
+                                              add_op(r, X_MOV, DST, SRC1, 0, "mov%s %v1, %vd");
+                                              add_op(r, X_SAR, DST, SRC2, 0, "sar%s %%cl, %vd");
+                                              fin_rule(r);
+}
+
+void add_binary_shift_rules() {
+    Rule *r;
+
+    r = add_rule(REG, IR_BSHL, REG, CST, 3); add_op(r, X_MOV, DST, SRC1, 0, "mov%s %v1, %vd");
+                                             add_op(r, X_SHL, DST, SRC2, 0, "shl%s $%v1, %vd");
+                                             fin_rule(r);
+    r = add_rule(REG, IR_BSHR, REG, CST, 3); add_op(r, X_MOV, DST, SRC1, 0, "mov%s %v1, %vd");
+                                             add_op(r, X_SAR, DST, SRC2, 0, "sar%s $%v1, %vd");
+                                             fin_rule(r);
+    r = add_rule(REG, IR_BSHL, MEM, CST, 4); add_op(r, X_MOV, DST, SRC1, 0, "mov%s %v1, %vd");
+                                             add_op(r, X_SHL, DST, SRC2, 0, "shl%s $%v1, %vd");
+                                             fin_rule(r);
+    r = add_rule(REG, IR_BSHR, MEM, CST, 4); add_op(r, X_MOV, DST, SRC1, 0, "mov%s %v1, %vd");
+                                             add_op(r, X_SAR, DST, SRC2, 0, "sar%s $%v1, %vd");
+                                             fin_rule(r);
+
+    add_binary_shift_rule(REGB, "movb %v1b, %%cl");
+    add_binary_shift_rule(REGW, "movw %v1w, %%cx");
+    add_binary_shift_rule(REGL, "movl %v1l, %%ecx");
+    add_binary_shift_rule(REGQ, "movq %v1q, %%rcx");
+}
+
 void init_instruction_selection_rules() {
     Rule *r;
     int ntc;  // Non terminal counter
@@ -470,4 +505,5 @@ void init_instruction_selection_rules() {
     add_sub_rules();
     add_div_rules();
     add_bnot_rules();
+    add_binary_shift_rules();
 }

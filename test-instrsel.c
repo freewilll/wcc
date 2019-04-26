@@ -783,6 +783,63 @@ void test_bnot_operations() {
     assert(0, strcmp(rx86op(ir_start->next), "notq    r1q"));
 }
 
+void test_binary_shift_operations() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // v << c
+    si(function, 0, IR_BSHL, v(3), v(1), c(1));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
+    assert(0, strcmp(rx86op(ir_start->next), "shlq    $1, r2q"));
+
+    // v >> c
+    si(function, 0, IR_BSHR, v(3), v(1), c(1));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
+    assert(0, strcmp(rx86op(ir_start->next), "sarq    $1, r2q"));
+
+    // g << c
+    si(function, 0, IR_BSHL, v(3), g(1), c(1));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r1q"));
+    assert(0, strcmp(rx86op(ir_start->next), "shlq    $1, r1q"));
+
+    // g >> c
+    si(function, 0, IR_BSHR, v(3), g(1), c(1));
+    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r1q"));
+    assert(0, strcmp(rx86op(ir_start->next), "sarq    $1, r1q"));
+
+    // vs << cb
+    si(function, 0, IR_BSHL, vsz(3, TYPE_SHORT), vsz(1, TYPE_SHORT), vsz(2, TYPE_CHAR));
+    assert(0, strcmp(rx86op(ir_start            ), "movb    r2b, %cl"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movw    r1w, r3w"));
+    assert(0, strcmp(rx86op(ir_start->next->next), "shlw    %cl, r3w"));
+
+    // vl << cb
+    si(function, 0, IR_BSHL, v(3), v(1), vsz(2, TYPE_CHAR));
+    assert(0, strcmp(rx86op(ir_start            ), "movb    r2b, %cl"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
+
+    // vl << cs
+    si(function, 0, IR_BSHL, v(3), v(1), vsz(2, TYPE_SHORT));
+    assert(0, strcmp(rx86op(ir_start            ), "movw    r2w, %cx"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
+
+    // vl << ci
+    si(function, 0, IR_BSHL, v(3), v(1), vsz(2, TYPE_INT));
+    assert(0, strcmp(rx86op(ir_start            ), "movl    r2l, %ecx"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
+
+    // vl << cl
+    si(function, 0, IR_BSHL, v(3), v(1), vsz(2, TYPE_LONG));
+    assert(0, strcmp(rx86op(ir_start            ), "movq    r2q, %rcx"));
+    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r3q"));
+    assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -804,4 +861,5 @@ int main() {
     test_sub_operations();
     test_div_operations();
     test_bnot_operations();
+    test_binary_shift_operations();
 }

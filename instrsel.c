@@ -58,6 +58,8 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_MUL)           printf("*\n");
         else if (operation == IR_DIV)           printf("/\n");
         else if (operation == IR_BNOT)          printf("~\n");
+        else if (operation == IR_BSHL)          printf("<<\n");
+        else if (operation == IR_BSHR)          printf(">>\n");
         else if (operation == IR_INDIRECT)      printf("indirect\n");
         else if (operation == IR_LOAD_CONSTANT) printf("load constant\n");
         else if (operation == IR_LOAD_VARIABLE) printf("load variable\n");
