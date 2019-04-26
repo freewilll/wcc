@@ -745,6 +745,40 @@ void test_div_operations() {
 
 }
 
+void test_bnot_operations() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // Test ~v with the 4 types
+    si(function, 0, IR_BNOT, vsz(3, TYPE_CHAR), vsz(1, TYPE_CHAR), 0);
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movb    r1b, r2b"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notb    r2b"));
+
+    si(function, 0, IR_BNOT, vsz(3, TYPE_SHORT), vsz(1, TYPE_SHORT), 0);
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movw    r1w, r2w"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notw    r2w"));
+
+    si(function, 0, IR_BNOT, vsz(3, TYPE_INT), vsz(1, TYPE_INT), 0);
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movl    r1l, r2l"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notl    r2l"));
+
+    si(function, 0, IR_BNOT, v(3), v(1), 0);
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    r1q, r2q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notq    r2q"));
+
+    // ~g
+    si(function, 0, IR_BNOT, v(3), g(1), 0);
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    g1(%rip), r1q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notq    r1q"));
+
+    // ~s
+    si(function, 0, IR_BNOT, v(3), S(1), 0);
+    assert(0, strcmp(render_x86_operation(ir_start,       0, 0, 0), "movq    16(%rbp), r1q"));
+    assert(0, strcmp(render_x86_operation(ir_start->next, 0, 0, 0), "notq    r1q"));
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -765,4 +799,5 @@ int main() {
     test_misc_commutative_operations();
     test_sub_operations();
     test_div_operations();
+    test_bnot_operations();
 }

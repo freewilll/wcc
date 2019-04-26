@@ -354,6 +354,17 @@ void add_div_rules() {
     add_div_rule(REGQ, REGQ, REGQ, 50, "movq %v1q, %%rax", "cqto", "movq %v1q, %vdq", "idivq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
 }
 
+void add_bnot_rules() {
+    Rule *r;
+
+    r = add_rule(REG, IR_BNOT, REG, 0, 3); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");
+                                           add_op(r, X_BNOT, DST, 0,    0, "not%s %vd");
+                                           fin_rule(r);
+    r = add_rule(REG, IR_BNOT, MEM, 0, 3); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");
+                                           add_op(r, X_BNOT, DST, 0,    0, "not%s %vd");
+                                           fin_rule(r);
+}
+
 void init_instruction_selection_rules() {
     Rule *r;
     int ntc;  // Non terminal counter
@@ -458,4 +469,5 @@ void init_instruction_selection_rules() {
 
     add_sub_rules();
     add_div_rules();
+    add_bnot_rules();
 }

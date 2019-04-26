@@ -601,6 +601,7 @@ enum {
     X_BOR,
     X_BAND,
     X_XOR,
+    X_BNOT,
 
     X_CMP,
     X_CMPZ,
