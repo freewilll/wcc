@@ -1187,6 +1187,8 @@ void make_interference_graph(Function *function) {
     char *interference_graph; // Triangular matrix of edges
     int function_call_depth;
 
+    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_ir(function, 0);
+
     vreg_count = function->vreg_count;
 
     interference_graph = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
@@ -1201,6 +1203,8 @@ void make_interference_graph(Function *function) {
 
         tac = blocks[i].end;
         while (tac) {
+            if (DEBUG_SSA_INTERFERENCE_GRAPH) print_instruction(stdout, tac);
+
             if (tac->operation == IR_END_CALL) function_call_depth++;
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
@@ -1232,6 +1236,7 @@ void make_interference_graph(Function *function) {
                     // This allows codegen to generate code with just one operation while
                     // ensuring the other registers preserve their values.
                     add_ig_edge(interference_graph, vreg_count, tac->src1->vreg, tac->dst->vreg);
+                    if (DEBUG_SSA_INTERFERENCE_GRAPH) printf("added src1 <-> dst %d <-> %d\n", tac->src1->vreg, tac->dst->vreg);
                 }
 
                 if (tac->operation == X_SUB && tac->src2->vreg) {
@@ -1239,6 +1244,7 @@ void make_interference_graph(Function *function) {
                     // This allows codegen to generate code with just one mov and sub while
                     // ensuring the other registers preserve their values.
                     add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, tac->dst->vreg);
+                    if (DEBUG_SSA_INTERFERENCE_GRAPH) printf("added src2 <-> dst %d <-> %d\n", tac->src2->vreg, tac->dst->vreg);
                 }
 
                 for (j = 0; j <= livenow->max_value; j++) {
@@ -1261,12 +1267,30 @@ void make_interference_graph(Function *function) {
                         tac->operation == X_MOVSLQ
                        ) && tac->src1 && tac->src1->vreg && tac->src1->vreg == j) continue;
                     add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
+                    if (DEBUG_SSA_INTERFERENCE_GRAPH) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, j);
                 }
             }
 
-            if (tac->dst && tac->dst->vreg) delete_from_set(livenow, tac->dst->vreg);
-            if (tac->src1 && tac->src1->vreg) add_to_set(livenow, tac->src1->vreg);
-            if (tac->src2 && tac->src2->vreg) add_to_set(livenow, tac->src2->vreg);
+            if (tac->dst && tac->dst->vreg) {
+                if (DEBUG_SSA_INTERFERENCE_GRAPH)
+                    printf("livenow: -= %d -> ", tac->dst->vreg);
+                delete_from_set(livenow, tac->dst->vreg);
+                if (DEBUG_SSA_INTERFERENCE_GRAPH) { print_set(livenow); printf("\n"); }
+            }
+
+            if (tac->src1 && tac->src1->vreg) {
+                if (DEBUG_SSA_INTERFERENCE_GRAPH)
+                    printf("livenow: += (src1) %d -> ", tac->src1->vreg);
+                add_to_set(livenow, tac->src1->vreg);
+                if (DEBUG_SSA_INTERFERENCE_GRAPH) { print_set(livenow); printf("\n"); }
+            }
+
+            if (tac->src2 && tac->src2->vreg) {
+                if (DEBUG_SSA_INTERFERENCE_GRAPH)
+                    printf("livenow: += (src2) %d -> ", tac->src2->vreg);
+                add_to_set(livenow, tac->src2->vreg);
+                if (DEBUG_SSA_INTERFERENCE_GRAPH) { print_set(livenow); printf("\n"); }
+            }
 
             if (tac == blocks[i].start) break;
             tac = tac->prev;

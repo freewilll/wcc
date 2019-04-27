@@ -361,10 +361,10 @@ void add_bnot_rules() {
     Rule *r;
 
     r = add_rule(REG, IR_BNOT, REG, 0, 3); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");
-                                           add_op(r, X_BNOT, DST, 0,    0, "not%s %vd");
+                                           add_op(r, X_BNOT, DST, DST,  0, "not%s %vd");
                                            fin_rule(r);
     r = add_rule(REG, IR_BNOT, MEM, 0, 3); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");
-                                           add_op(r, X_BNOT, DST, 0,    0, "not%s %vd");
+                                           add_op(r, X_BNOT, DST, DST,  0, "not%s %vd");
                                            fin_rule(r);
 }
 

@@ -810,6 +810,12 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     // Add x86 operations to the IR
     x86op = rule->x86_operations;
     while (x86op) {
+             if (x86op->dst == 0)    x86_dst = 0;
+        else if (x86op->dst == SRC1) x86_dst = src1;
+        else if (x86op->dst == SRC2) x86_dst = src2;
+        else if (x86op->dst == DST)  x86_dst = dst;
+        else panic1d("Unknown operand to x86 instruction: %d", x86op->v1);
+
              if (x86op->v1 == 0)    x86_v1 = 0;
         else if (x86op->v1 == SRC1) x86_v1 = src1;
         else if (x86op->v1 == SRC2) x86_v1 = src2;
@@ -825,7 +831,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         if (dst) dst = dup_value(dst);
         if (x86_v1) x86_v1 = dup_value(x86_v1);
         if (x86_v2) x86_v2 = dup_value(x86_v2);
-        add_x86_instruction(x86op, dst, x86_v1, x86_v2);
+        add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
 
         x86op = x86op->next;
     }

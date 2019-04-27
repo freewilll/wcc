@@ -163,8 +163,8 @@ void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jm
     i(0, jmp_operation,  0,    v(3), l(1));
     i(1, IR_NOP,         0,    0,    0   );
     finish_ir(function);
-    assert_tac(ir_start,       X_CMP,             v(-1), v(1), v(2));  // v(4) is allocated but not used
-    assert_tac(ir_start->next, x86_jmp_operation, 0,     l(1), 0   );
+    assert_tac(ir_start,       X_CMP,             0, v(1), v(2));  // v(4) is allocated but not used
+    assert_tac(ir_start->next, x86_jmp_operation, 0, l(1), 0   );
 }
 
 void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2) {
@@ -175,17 +175,17 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     src1 = dup_value(src1);
     src2 = dup_value(src2);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMP, v(-1), src1, src2);
-    assert_tac(ir_start->next, X_JLT, 0,     l(1), 0   );
+    assert_tac(ir_start,       X_CMP, 0, src1, src2);
+    assert_tac(ir_start->next, X_JLT, 0, l(1), 0   );
 }
 
 void test_cmp_with_assignment(Function *function, int cmp_operation, int x86_set_operation) {
     start_ir();
     i(0, cmp_operation, v(3), v(1), v(2));
     finish_ir(function);
-    assert_tac(ir_start,             X_CMP,             v(-1), v(1), v(2));
-    assert_tac(ir_start->next,       x86_set_operation, v(3),  0,    0   );
-    assert_tac(ir_start->next->next, X_MOVZBQ,          v(3),  v(3), 0   );
+    assert_tac(ir_start,             X_CMP,             0,    v(1), v(2));
+    assert_tac(ir_start->next,       x86_set_operation, v(3), 0,    0   );
+    assert_tac(ir_start->next->next, X_MOVZBQ,          v(3), v(3), 0   );
 }
 
 void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, Value *dst) {
@@ -195,7 +195,7 @@ void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *
     src1 = dup_value(src1);
     src2 = dup_value(src2);
     finish_ir(function);
-    assert_tac(ir_start,             X_CMP,    v(-1), src1, src2);
+    assert_tac(ir_start,             X_CMP,    0,     src1, src2);
     assert_tac(ir_start->next,       X_SETLT,  v(-1), 0,   0    );
     assert_tac(ir_start->next->next, X_MOVZBQ, dst,   dst, 0    );
 }
@@ -714,10 +714,10 @@ void test_instrsel_function_calls() {
 
     // The legacy backend extends %rax coming from a call to a quad. These
     // tests don't test much, just that the rules will work.
-    si(function, 0, IR_CALL, vsz(1, TYPE_CHAR),  fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_SHORT), fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_INT),   fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_LONG),  fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_CHAR),  fu(1), 0); assert_tac(ir_start, X_CALL, 0, fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_SHORT), fu(1), 0); assert_tac(ir_start, X_CALL, 0, fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_INT),   fu(1), 0); assert_tac(ir_start, X_CALL, 0, fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_LONG),  fu(1), 0); assert_tac(ir_start, X_CALL, 0, fu(1), 0);
 }
 
 void test_instrsel_function_call_rearranging() {
@@ -728,15 +728,15 @@ void test_instrsel_function_call_rearranging() {
 
     start_ir();
     i(0, IR_START_CALL, 0,    c(0),  0);
-    i(0, IR_CALL,       v(1), fu(1), 0);
+    i(0, IR_CALL,       0,    fu(1), 0);
     i(0, IR_END_CALL,   0,    c(0),  0);
     i(0, IR_ASSIGN,     g(1), v(1),  0);
     finish_ir(function);
 
-    assert_tac(ir_start,                   IR_START_CALL, 0, c(0), 0);
-    assert_tac(ir_start->next,             X_CALL, v(1), fu(1), 0);
-    assert_tac(ir_start->next->next,       IR_END_CALL, 0, c(0), 0);
-    assert_tac(ir_start->next->next->next, X_MOV, g(1), v(1), 0);
+    assert_tac(ir_start,                   IR_START_CALL, 0,    c(0),  0);
+    assert_tac(ir_start->next,             X_CALL,        0,    fu(1), 0);
+    assert_tac(ir_start->next->next,       IR_END_CALL,   0,    c(0),  0);
+    assert_tac(ir_start->next->next->next, X_MOV,         g(1), v(1),  0);
 }
 
 void test_misc_commutative_operations() {
