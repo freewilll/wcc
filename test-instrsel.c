@@ -99,6 +99,17 @@ void finish_ir(Function *function) {
     function->ir = ir_start;
 }
 
+// Run with a single instruction
+Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, Value *src2) {
+    Tac *tac;
+
+    start_ir();
+    i(label, operation, dst, src1, src2);
+    finish_ir(function);
+
+    return tac;
+}
+
 void nuke_rule(int non_terminal, int operation, int src1, int src2) {
     int i;
     Rule *r;
@@ -189,6 +200,52 @@ void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *
     assert_tac(ir_start->next->next, X_MOVZBQ, dst,   dst, 0    );
 }
 
+void test_cst_load(int operation, Value *dst, Value *src, char *code) {
+    Function *function;
+    function = new_function();
+
+    si(function, 0, operation, dst, src, 0);
+    assert(0, strcmp(rx86op(ir_start), code));
+}
+
+void test_instrsel_constant_loading() {
+    Function *function;
+    Tac *tac;
+    long l;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+    l = 4294967296;
+
+    // Note: the arg push tests cover the rules that load constant into temporary registers
+
+    // IR_ASSIGN
+    // with a 32 bit int
+    test_cst_load(IR_ASSIGN, vsz(3, TYPE_CHAR),  c(1), "movl    $1, r1l");
+    test_cst_load(IR_ASSIGN, vsz(3, TYPE_SHORT), c(1), "movl    $1, r1l");
+    test_cst_load(IR_ASSIGN, vsz(3, TYPE_INT),   c(1), "movl    $1, r1l");
+    test_cst_load(IR_ASSIGN, vsz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
+
+    // with a 64 bit long. The first 3 are overflows, so a programmer error.
+    test_cst_load(IR_ASSIGN, vsz(3, TYPE_CHAR),  c(l), "movq    $4294967296, r1q");
+    test_cst_load(IR_ASSIGN, vsz(3, TYPE_SHORT), c(l), "movq    $4294967296, r1q");
+    test_cst_load(IR_ASSIGN, vsz(3, TYPE_INT),   c(l), "movq    $4294967296, r1q");
+    test_cst_load(IR_ASSIGN, vsz(3, TYPE_LONG),  c(l), "movq    $4294967296, r1q");
+
+    // IR_LOAD_CONSTANT
+    // with a 32 bit int
+    test_cst_load(IR_LOAD_CONSTANT, vsz(3, TYPE_CHAR),  c(1), "movl    $1, r1l");
+    test_cst_load(IR_LOAD_CONSTANT, vsz(3, TYPE_SHORT), c(1), "movl    $1, r1l");
+    test_cst_load(IR_LOAD_CONSTANT, vsz(3, TYPE_INT),   c(1), "movl    $1, r1l");
+    test_cst_load(IR_LOAD_CONSTANT, vsz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
+
+    // with a 64 bit long. The first 3 are overflows, so a programmer error.
+    test_cst_load(IR_LOAD_CONSTANT, vsz(3, TYPE_CHAR),  c(l), "movq    $4294967296, r1q");
+    test_cst_load(IR_LOAD_CONSTANT, vsz(3, TYPE_SHORT), c(l), "movq    $4294967296, r1q");
+    test_cst_load(IR_LOAD_CONSTANT, vsz(3, TYPE_INT),   c(l), "movq    $4294967296, r1q");
+    test_cst_load(IR_LOAD_CONSTANT, vsz(3, TYPE_LONG),  c(l), "movq    $4294967296, r1q");
+}
+
 void test_instrsel() {
     Function *function;
     Tac *tac;
@@ -205,7 +262,7 @@ void test_instrsel() {
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
     start_ir();
-    nuke_rule(REGQ, IR_ADD, CST, REGQ); nuke_rule(REGQ, IR_ADD, REGQ, CST);
+    nuke_rule(REGQ, IR_ADD, CSTL, REGQ); nuke_rule(REGQ, IR_ADD, REGQ, CSTL);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,                   X_MOV, v(2), c(1), 0   );
@@ -215,7 +272,7 @@ void test_instrsel() {
 
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
-    nuke_rule(REG, IR_ADD, REGQ, CST);
+    nuke_rule(REG, IR_ADD, REGQ, CSTL);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,             X_MOV, v(2), c(2), 0   );
@@ -224,7 +281,7 @@ void test_instrsel() {
 
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
-    nuke_rule(REGQ, IR_ADD, CST, REGQ);
+    nuke_rule(REGQ, IR_ADD, CSTL, REGQ);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_tac(ir_start,             X_MOV, v(2), c(1), 0   );
@@ -282,7 +339,7 @@ void test_instrsel() {
 
     // arg c with only the reg rule. Forces a load of c into r1
     start_ir();
-    nuke_rule(0, IR_ARG, CST, CST);
+    nuke_rule(0, IR_ARG, CSTL, CSTL);
     i(0, IR_ARG, 0, c(0), c(1));
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, v(1), c(1), 0   );
@@ -293,6 +350,25 @@ void test_instrsel() {
     i(0, IR_ARG, 0, c(0), c(1));
     finish_ir(function);
     assert_tac(ir_start, X_ARG, 0, c(0), c(1));
+
+    // arg big c, which should go via a register
+    start_ir();
+    i(0, IR_ARG, 0, c(0), c(4294967296));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, v(1), c(4294967296), 0);
+    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
+
+    start_ir();
+    i(0, IR_ARG, 0, c(0), c(2147483648));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, v(1), c(2147483648), 0);
+    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
+
+    start_ir();
+    i(0, IR_ARG, 0, c(0), c(-2147483649));
+    finish_ir(function);
+    assert_tac(ir_start,       X_MOV, v(1), c(-2147483649), 0);
+    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
 
     // arg r
     start_ir();
@@ -322,7 +398,7 @@ void test_instrsel() {
 
     // Store c in g with only the reg fule, forcing c into r1
     start_ir();
-    nuke_rule(MEMQ, IR_ASSIGN, CST, 0);
+    nuke_rule(MEMQ, IR_ASSIGN, CSTL, 0);
     i(0, IR_ASSIGN, g(1), c(1), 0);
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, v(1), c(1), 0);
@@ -373,7 +449,7 @@ void test_instrsel() {
 
     // Assign constant to a local. Forces c into a register
     start_ir();
-    nuke_rule(MEMQ, IR_ASSIGN, CST, 0);
+    nuke_rule(MEMQ, IR_ASSIGN, CSTL, 0);
     i(0, IR_ASSIGN, S(1), c(0), 0);
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, v(1), c(0), 0);
@@ -513,17 +589,6 @@ void test_instrsel_types_add_vregs() {
     }
 }
 
-// Test instruction add
-Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, Value *src2) {
-    Tac *tac;
-
-    start_ir();
-    i(label, operation, dst, src1, src2);
-    finish_ir(function);
-
-    return tac;
-}
-
 void test_instrsel_types_add_mem_vreg() {
     Function *function;
 
@@ -628,7 +693,8 @@ void test_instrsel_returns() {
     remove_reserved_physical_registers = 1;
 
     // Return constant & vregs
-    si(function, 0, IR_RETURN, 0, c(1), 0);               assert(0, strcmp(rx86op(ir_start), "mov     $1, %rax"));
+    si(function, 0, IR_RETURN, 0, c(4294967296),      0); assert(0, strcmp(rx86op(ir_start), "mov     $4294967296, %rax"));
+    si(function, 0, IR_RETURN, 0, c(1),               0); assert(0, strcmp(rx86op(ir_start), "mov     $1, %rax"));
     si(function, 0, IR_RETURN, 0, vsz(1, TYPE_CHAR),  0); assert(0, strcmp(rx86op(ir_start), "movsbq  r1b, %rax"));
     si(function, 0, IR_RETURN, 0, vsz(1, TYPE_SHORT), 0); assert(0, strcmp(rx86op(ir_start), "movswq  r1w, %rax"));
     si(function, 0, IR_RETURN, 0, vsz(1, TYPE_INT),   0); assert(0, strcmp(rx86op(ir_start), "movslq  r1l, %rax"));
@@ -850,6 +916,7 @@ int main() {
     init_instruction_selection_rules();
 
     test_instrsel_tree_merging();
+    test_instrsel_constant_loading();
     test_instrsel();
     test_instrsel_types_add_vregs();
     test_instrsel_types_add_mem_vreg();

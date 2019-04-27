@@ -431,10 +431,17 @@ int rules_match(int parent, Rule *child, int allow_downsize) {
     return 0;
 }
 
+int non_terminal_for_constant_value(Value *v) {
+    if (v->value >= -2147483648 && v->value <= 2147483647)
+        return CSTL;
+    else
+        return CSTQ;
+}
+
 int non_terminal_for_value(Value *v) {
     make_value_x86_size(v);
 
-         if (v->is_constant)       return CST;
+         if (v->is_constant)       return non_terminal_for_constant_value(v);
     else if (v->is_string_literal) return STL;
     else if (v->label)             return LAB;
     else if (v->vreg)              return REG + v->x86_size;

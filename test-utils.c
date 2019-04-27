@@ -41,7 +41,7 @@ Value *l(int label) {
     return v;
 }
 
-Value *c(int value) {
+Value *c(long value) {
     return new_constant(TYPE_LONG, value);
 }
 

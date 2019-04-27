@@ -564,6 +564,7 @@ enum {
     STL,                         // String literal
     LAB,                         // Label, i.e. a target for a (conditional) jump
     FUN,                         // Function, used for calls
+    CSTL, CSTQ,                  // Constants
     REG, REGB, REGW, REGL, REGQ, // Registers
     MEM, MEMB, MEMW, MEML, MEMQ, // Memory, in stack or globals
 
@@ -669,7 +670,7 @@ Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
 Value *v(int vreg);
 Value *vsz(int vreg, int type);
 Value *l(int label);
-Value *c(int value);
+Value *c(long value);
 Value *s(int string_literal_index);
 Value *S(int stack_index);
 Value *Ssz(int stack_index, int type);
