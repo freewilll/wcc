@@ -1618,6 +1618,8 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     Set *constrained, *unconstrained;
     VregCost *ordered_nodes;
 
+    if (DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR) print_ir(function, 0);
+
     interference_graph = function->interference_graph;
     vreg_count = function->vreg_count;
     spill_cost = function->spill_cost;

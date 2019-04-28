@@ -858,6 +858,7 @@ void tile_igraphs(Function *function) {
     igraphs = eis_igraphs;
 
     ir_start = 0;
+    vreg_count = function->vreg_count;
 
     for (i = 0; i < eis_instr_count; i++) {
         if (!igraphs[i].node_count) continue;
@@ -905,7 +906,6 @@ void tile_igraphs(Function *function) {
             ir_start->label = tac->label;
         }
 
-        vreg_count = function->vreg_count;
         current_instruction_ir_start = ir;
         make_intermediate_representation(&(igraphs[i]));
         if (DEBUG_INSTSEL_TILING) {
@@ -914,6 +914,8 @@ void tile_igraphs(Function *function) {
             print_ir(f, 0);
         }
     }
+
+    function->vreg_count = vreg_count;
 
     if (DEBUG_INSTSEL_TILING) {
         printf("\nFinal IR for block:\n");
