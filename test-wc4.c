@@ -452,7 +452,21 @@ void test_void_return() {
     assert_int(g, 1, "void return");
 }
 
-void test_pointer_to_int() {
+void test_pointer_to_int1() {
+    // Special case of pi being in a register
+    int i;
+    int *pi;
+
+    g = 0;
+    pi = &g;
+    *pi = 1;
+    assert_int(1, g, "pointer to int 1-1");
+}
+
+void test_pointer_to_int2() {
+    // Special case of pi being on the stack, due to use of &pi
+    // **ppi is only assigned to once
+
     int i;
     int *pi;
     int **ppi;
@@ -461,16 +475,116 @@ void test_pointer_to_int() {
     pi = &g;
     ppi = &pi;
     *pi = 1;
-    assert_int(1, g, "pointer to int 1");
+    assert_int(1, g, "pointer to int 2-1");
+    assert_int(1, *pi, "pointer to int 2-2");
+    assert_int(1, **ppi, "pointer to int 2-3");
+
     **ppi = 2;
-    assert_int(2, g,     "pointer to int 2");
-    assert_int(2, **ppi, "pointer to int 3");
+    assert_int(2, g,     "pointer to int 2-4");
+    assert_int(2, **ppi, "pointer to int 3-5");
+}
+
+void test_pointer_to_int3() {
+    // Special case of pi being on the stack, due to use of &pi
+    // **ppi is assigned to twice, so not tree merged.
+
+    int i;
+    int *pi;
+    int **ppi;
+
+    g = 0;
+    pi = &g;
+    ppi = &pi;
+    *pi = 1;
+    assert_int(1, g, "pointer to int 3-1");
+
+    **ppi = 2;
+    assert_int(2, g,     "pointer to int 3-2");
+    assert_int(2, **ppi, "pointer to int 3-3");
 
     pi = &i;
     *pi = 3;
-    assert_int(3, i, "pointer to int 4");
+    assert_int(3, i, "pointer to int 3-4");
     **ppi = 4;
-    assert_int(4, i, "pointer to int 5");
+    assert_int(4, i, "pointer to int 3-5");
+}
+
+void test_pointer_to_int4() {
+    // Assignment to j without reuse
+
+    int i, j, *pi;
+
+    i = 1;
+    pi = &i;
+    *pi = 2;
+    j = *pi;
+}
+
+void test_pointer_to_int5() {
+    // Sign extend to l
+
+    int i, *pi;
+    long l;
+
+    i = 1;
+    pi = &i;
+    *pi = 2;
+    l = *pi;
+    assert_int(2, l, "pointer to int 4-1");
+}
+
+void test_pointer_to_int6() {
+    // Assignment to j with reuse
+
+    int i, j, *pi;
+
+    i = 1;
+    pi = &i;
+    *pi = 2;
+    j = *pi;
+
+    assert_int(2, i,   "pointer to int 5-1");
+    assert_int(2, *pi, "pointer to int 5-2");
+    assert_int(2, j,   "pointer to int 5-3");
+}
+
+void test_pointer_to_int7() {
+    int i, *pi;
+
+    i = 1;
+    pi = &i;
+
+    *(pi + 0) = 2;  assert_int(2, i, "pointer to int 7 +0");
+    *(pi - 0) = 3;  assert_int(3, i, "pointer to int 7 -0");
+    pi[0] = 3;      assert_int(3, i, "pointer to int 7 []");
+
+    assert_int(3, *&i,       "pointer to int 7 *&");
+    assert_int(3, *&*pi,     "pointer to int 7 *&*pi");
+    assert_int(3, *&*&*pi,   "pointer to int 7 *&*&*pi");
+    assert_int(3, *&*&*&*pi, "pointer to int 7 *&*&*&*pi");
+
+    *&*pi = 4;
+    assert_int(4, i, "pointer to int 7 *&*pi =");
+}
+
+void test_pointer_to_char() {
+    char *pc;
+
+    pc = "foo";
+    assert_int('f', *pc, "pointer to char 1"); *pc++;
+    assert_int('o', *pc, "pointer to char 1"); *pc++;
+    assert_int('o', *pc, "pointer to char 1"); *pc++;
+}
+
+void test_pointers() {
+    test_pointer_to_int1();
+    test_pointer_to_int2();
+    test_pointer_to_int3();
+    test_pointer_to_int4();
+    test_pointer_to_int5();
+    test_pointer_to_int6();
+    test_pointer_to_int7();
+    test_pointer_to_char();
 }
 
 void test_prefix_inc_dec() {
@@ -1446,7 +1560,7 @@ int main(int argc, char **argv) {
     test_function_call_with_global();
     test_split_function_declaration_and_definition();
     test_void_return();
-    test_pointer_to_int();
+    test_pointers();
     test_prefix_inc_dec();
     test_postfix_inc_dec();
     test_inc_dec_sizes();

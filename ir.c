@@ -62,6 +62,7 @@ Value *dup_value(Value *src) {
     dst->vreg                      = src->vreg;
     dst->preg                      = src->preg;
     dst->is_lvalue                 = src->is_lvalue;
+    dst->is_lvalue_in_register     = src->is_lvalue_in_register;
     dst->stack_index               = src->stack_index;
     dst->local_index               = src->local_index;
     dst->is_constant               = src->is_constant;
@@ -298,6 +299,7 @@ void print_instruction(void *f, Tac *tac) {
     }
 
     else if (tac->operation == IR_INDIRECT)      {                               fprintf(f, "*");    print_value(f, tac->src1, 1); }
+    else if (tac->operation == IR_ADDRESS_OF)    {                               fprintf(f, "&");    print_value(f, tac->src1, 1); }
     else if (tac->operation == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");  print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");  print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
@@ -472,6 +474,7 @@ void assign_locals_to_registers(Symbol *function) {
 
     tac = function->function->ir;
     while (tac) {
+        if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
         if (tac->dst  && !tac->dst ->is_lvalue && tac->dst ->local_index < 0) has_address_of[-tac->dst ->local_index] = 1;
         if (tac->src1 && !tac->src1->is_lvalue && tac->src1->local_index < 0) has_address_of[-tac->src1->local_index] = 1;
         if (tac->src2 && !tac->src2->is_lvalue && tac->src2->local_index < 0) has_address_of[-tac->src2->local_index] = 1;

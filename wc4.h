@@ -105,6 +105,7 @@ typedef struct value {
     int vreg;                       // Optional vreg number
     int preg;                       // Allocated physical register
     int is_lvalue;                  // Is the value an lvalue?
+    int is_lvalue_in_register;      // Is the value an lvalue in a register?
     int local_index;                // For locals variables and function arguments
     int stack_index;                // Allocated stack index in case of a spill
     int is_constant;                // Is it a constant? If so, value is the value.
@@ -285,6 +286,7 @@ enum {
     IR_LOAD_CONSTANT=1,       // Load constant
     IR_LOAD_STRING_LITERAL,   // Load string literal
     IR_LOAD_VARIABLE,         // Load global or local
+    IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
     IR_START_CALL,            // Function call
     IR_ARG,                   // Function call argument
@@ -560,13 +562,14 @@ enum {
     MAX_RULE_COUNT = 2000,
 
     // Non terminals
-    CST = 1,                     // Constant
-    STL,                         // String literal
-    LAB,                         // Label, i.e. a target for a (conditional) jump
-    FUN,                         // Function, used for calls
-    CSTL, CSTQ,                  // Constants
-    REG, REGB, REGW, REGL, REGQ, // Registers
-    MEM, MEMB, MEMW, MEML, MEMQ, // Memory, in stack or globals
+    CST = 1,                     // 1    Constant
+    STL,                         // 2    String literal
+    LAB,                         // 3    Label, i.e. a target for a (conditional) jump
+    FUN,                         // 4    Function, used for calls
+    CSTL, CSTQ,                  // 5, 6 Constants
+    REG, REGB, REGW, REGL, REGQ, // 7    Registers
+    MEM, MEMB, MEMW, MEML, MEMQ, // 12   Memory, in stack or globals
+    ADR, ADRB, ADRW, ADRL, ADRQ, // 17   Address of a global or local in register
 
     // Operands
     DST,
@@ -590,6 +593,9 @@ enum {
     X_MOVSWL,
     X_MOVSWQ,
     X_MOVSLQ,
+
+    X_MOV_FROM_IND,
+    X_MOV_TO_IND,
 
     X_LEA,
     X_ADD,
@@ -656,6 +662,7 @@ char size_to_x86_size(int size);
 void print_rule(Rule *r);
 void print_rules();
 void make_value_x86_size(Value *v);
+int value_ptr_target_x86_size(Value *v);
 void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
 void init_instruction_selection_rules();
 
@@ -669,6 +676,7 @@ void output_code(char *input_filename, char *output_filename);
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
 Value *v(int vreg);
 Value *vsz(int vreg, int type);
+Value *asz(int vreg, int type);
 Value *l(int label);
 Value *c(long value);
 Value *s(int string_literal_index);

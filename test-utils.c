@@ -32,6 +32,16 @@ Value *vsz(int vreg, int type) {
     return v;
 }
 
+Value *asz(int vreg, int type) {
+    Value *v;
+
+    v = new_value();
+    v->type = TYPE_PTR + type;
+    v->vreg = vreg;
+
+    return v;
+}
+
 Value *l(int label) {
     Value *v;
 
@@ -64,6 +74,8 @@ Value *S(int stack_index) {
     v = new_value();
     v->type = TYPE_LONG;
     v->stack_index = stack_index;
+    v->local_index = stack_index;
+    v->is_lvalue = 1;
 
     return v;
 }

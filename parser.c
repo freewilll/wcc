@@ -561,8 +561,15 @@ void expression(int level) {
         next();
         expression(TOK_INC);
         if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
-        vtop->is_lvalue = 0;
-        vtop->type += TYPE_PTR;
+
+        if (instruction_selection_wip) {
+            src1 = pop();
+            tac = add_ir_op(IR_ADDRESS_OF, src1->type + TYPE_PTR, new_vreg(), src1, 0);
+        }
+        else {
+            vtop->is_lvalue = 0;
+            vtop->type += TYPE_PTR;
+        }
     }
 
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {

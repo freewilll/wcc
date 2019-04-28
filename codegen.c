@@ -289,7 +289,8 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
     result = buffer;
 
     while (*t && *t != ' ') *buffer++ = *t++;
-    *t++;
+    while (*t && *t == ' ') *t++;
+
     if (*t) {
         mnemonic_length = buffer - result;
         for (i = 0; i < 8 - mnemonic_length; i++) *buffer++ = ' ';
@@ -432,6 +433,8 @@ void output_pop_callee_saved_registers(int *saved_registers) {
 void output_pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
 
+    if (instruction_selection_wip) return;
+
     // Load src1 into r10
     if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->preg == -1 && ir->src1->stack_index < 0) {
         stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src1->stack_index);
@@ -476,6 +479,8 @@ void output_pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
 void output_post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
     int assign;
+
+    if (instruction_selection_wip) return;
 
     assign = 0;
     if (ir->dst && ir->dst->preg != -1 && ir->dst->stack_index < 0) {
@@ -600,6 +605,16 @@ void output_function_body_code(Symbol *symbol) {
             fprintf(f, "), ");
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
+        }
+
+        else if (tac->operation == IR_ADDRESS_OF) {
+            if (tac->src1->vreg && tac->dst->preg != tac->src1->preg) {
+                fprintf(f, "\tmovq\t");
+                output_quad_register_name(tac->src1->preg);
+                fprintf(f, ", ");
+                output_quad_register_name(tac->dst->preg);
+                fprintf(f, "\n");
+            }
         }
 
         else if (tac->operation == IR_START_CALL) {

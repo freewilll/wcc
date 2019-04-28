@@ -38,6 +38,16 @@ void turn_around_jz_jnz_insanity(Function *function) {
     }
 }
 
+void set_assign_to_reg_lvalue_dsts(Function *function) {
+    Tac *tac;
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) tac->dst = tac->src1;
+        tac = tac->next;
+    }
+}
+
 void recursive_dump_igraph(IGraph *ig, int node, int indent) {
     int i, operation;
     Graph *g;
@@ -52,32 +62,35 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
 
     if (ign->tac) {
         operation = ign->tac->operation;
-             if (operation == IR_ASSIGN)        printf("=\n");
-        else if (operation == IR_ADD)           printf("+\n");
-        else if (operation == IR_SUB)           printf("-\n");
-        else if (operation == IR_MUL)           printf("*\n");
-        else if (operation == IR_DIV)           printf("/\n");
-        else if (operation == IR_BNOT)          printf("~\n");
-        else if (operation == IR_BSHL)          printf("<<\n");
-        else if (operation == IR_BSHR)          printf(">>\n");
-        else if (operation == IR_INDIRECT)      printf("indirect\n");
-        else if (operation == IR_LOAD_CONSTANT) printf("load constant\n");
-        else if (operation == IR_LOAD_VARIABLE) printf("load variable\n");
-        else if (operation == IR_NOP)           printf("noop\n");
-        else if (operation == IR_RETURN)        printf("return\n");
-        else if (operation == IR_START_CALL)    printf("start call\n");
-        else if (operation == IR_END_CALL)      printf("end call\n");
-        else if (operation == IR_ARG)           printf("arg\n");
-        else if (operation == IR_CALL)          printf("call\n");
-        else if (operation == IR_JZ)            printf("jz\n");
-        else if (operation == IR_JNZ)           printf("jnz\n");
-        else if (operation == IR_JMP)           printf("jmp\n");
-        else if (operation == IR_EQ)            printf("==\n");
-        else if (operation == IR_NE)            printf("!=\n");
-        else if (operation == IR_LT)            printf("<\n");
-        else if (operation == IR_GT)            printf(">\n");
-        else if (operation == IR_LE)            printf(">=\n");
-        else if (operation == IR_GE)            printf("<=\n");
+             if (operation == IR_ASSIGN)               printf("=\n");
+        else if (operation == IR_LOAD_STRING_LITERAL)  printf("=\n");
+        else if (operation == IR_ADD)                  printf("+\n");
+        else if (operation == IR_SUB)                  printf("-\n");
+        else if (operation == IR_MUL)                  printf("*\n");
+        else if (operation == IR_DIV)                  printf("/\n");
+        else if (operation == IR_BNOT)                 printf("~\n");
+        else if (operation == IR_BSHL)                 printf("<<\n");
+        else if (operation == IR_BSHR)                 printf(">>\n");
+        else if (operation == IR_INDIRECT)             printf("indirect\n");
+        else if (operation == IR_ADDRESS_OF)           printf("&\n");
+        else if (operation == IR_LOAD_CONSTANT)        printf("load constant\n");
+        else if (operation == IR_LOAD_VARIABLE)        printf("load variable\n");
+        else if (operation == IR_ASSIGN_TO_REG_LVALUE) printf("assign to lvalue\n");
+        else if (operation == IR_NOP)                  printf("noop\n");
+        else if (operation == IR_RETURN)               printf("return\n");
+        else if (operation == IR_START_CALL)           printf("start call\n");
+        else if (operation == IR_END_CALL)             printf("end call\n");
+        else if (operation == IR_ARG)                  printf("arg\n");
+        else if (operation == IR_CALL)                 printf("call\n");
+        else if (operation == IR_JZ)                   printf("jz\n");
+        else if (operation == IR_JNZ)                  printf("jnz\n");
+        else if (operation == IR_JMP)                  printf("jmp\n");
+        else if (operation == IR_EQ)                   printf("==\n");
+        else if (operation == IR_NE)                   printf("!=\n");
+        else if (operation == IR_LT)                   printf("<\n");
+        else if (operation == IR_GT)                   printf(">\n");
+        else if (operation == IR_LE)                   printf(">=\n");
+        else if (operation == IR_GE)                   printf("<=\n");
 
         else printf("Operation %d\n", operation);
     }
@@ -353,7 +366,7 @@ void make_igraphs(Function *function, int block_id) {
             vreg_igraphs[src2].igraph_id = i;
         }
 
-        if (dst && (src1 && dst == src1) || (src2 && dst == src2)) {
+        if (tac->operation != IR_ASSIGN_TO_REG_LVALUE && dst && (src1 && dst == src1) || (src2 && dst == src2)) {
             print_instruction(stdout, tac);
             panic("Illegal assignment of src1/src2 to dst");
         }
@@ -366,7 +379,7 @@ void make_igraphs(Function *function, int block_id) {
         // If dst is only used once and it's not in liveout, merge it.
         // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL contraints don't permit
         // rearranging function calls without dire dowmstream side effects.
-        if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 && tac->operation != IR_CALL) {
+        if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 && tac->operation != IR_CALL && tac->operation != IR_ASSIGN_TO_REG_LVALUE) {
             g1_igraph_id = vreg_igraphs[dst].igraph_id;
             if (DEBUG_INSTSEL_TREE_MERGING) {
                 printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
@@ -441,13 +454,16 @@ int non_terminal_for_constant_value(Value *v) {
 int non_terminal_for_value(Value *v) {
     make_value_x86_size(v);
 
-         if (v->is_constant)       return non_terminal_for_constant_value(v);
-    else if (v->is_string_literal) return STL;
-    else if (v->label)             return LAB;
-    else if (v->vreg)              return REG + v->x86_size;
-    else if (v->global_symbol)     return MEM + v->x86_size;
-    else if (v->stack_index)       return MEM + v->x86_size;
-    else if (v->function_symbol)   return FUN;
+         if (v->is_constant)                                        return non_terminal_for_constant_value(v);
+    else if (v->is_string_literal)                                  return STL;
+    else if (v->label)                                              return LAB;
+    else if (v->vreg && v->type >= TYPE_PTR)                        return ADR + value_ptr_target_x86_size(v);
+    else if (v->is_lvalue_in_register)                              return ADR + v->x86_size;
+    else if (v->vreg)                                               return REG + v->x86_size;
+    else if (!v->is_lvalue && (v->global_symbol || v->local_index)) return ADR + v->x86_size;
+    else if (v->global_symbol)                                      return MEM + v->x86_size;
+    else if (v->stack_index)                                        return MEM + v->x86_size;
+    else if (v->function_symbol)                                    return FUN;
 }
 
 int match_value_to_rule_src(Value *v, int src) {
@@ -616,6 +632,9 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         }
     }
 
+    if (DEBUG_INSTSEL_TILING && node_id == 0 && tac->dst)
+        printf("Want dst %d\n", non_terminal_for_value(tac->dst));
+
     // Loop over all rules until a match is found
     matched = 0;
     for (i = 0; i < instr_rule_count; i++) {
@@ -783,8 +802,10 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     dst = 0;
     if (parent_node_id == -1) {
         // Use the root node tac or value as a result
-        if (ign->tac)
+        if (ign->tac) {
+            if (DEBUG_INSTSEL_TILING) printf("using dst from root node %p vreg=%d\n", ign->tac->dst, ign->tac->dst ? ign->tac->dst->vreg : -1);
             dst = ign->tac->dst;
+        }
         else
             dst = ign->value;
     }
@@ -797,10 +818,12 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             dst->vreg = new_vreg();
             dst->ssa_subscript = -1;
 
-            if (DEBUG_INSTSEL_TILING) printf("allocated new vreg %d\n", dst->vreg);
+            if (DEBUG_INSTSEL_TILING) printf("allocated new vreg for dst %d\n", dst->vreg);
         }
-        else
+        else {
+            if (DEBUG_INSTSEL_TILING) printf("using passthrough dst\n");
             dst = src1; // Passthrough for cst or reg
+        }
     }
 
     if (dst) make_value_x86_size(dst);
@@ -935,6 +958,8 @@ void select_instructions(Function *function) {
     blocks = function->blocks;
     cfg = function->cfg;
     block_count = cfg->node_count;
+
+    set_assign_to_reg_lvalue_dsts(function);
 
     // new_ir_start is the start of the new IR
     new_ir_start = new_instruction(IR_NOP);

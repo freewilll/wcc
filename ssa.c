@@ -70,6 +70,7 @@ void rewrite_lvalue_reg_assignments(Function *function) {
             tac->operation = IR_ASSIGN_TO_REG_LVALUE;
             tac->src2 = tac->src1;
             tac->src1 = tac->dst;
+            tac->src1->is_lvalue_in_register = 1;
             tac->dst = 0;
         }
         tac = tac->next;
@@ -1271,7 +1272,7 @@ void make_interference_graph(Function *function) {
                 }
             }
 
-            if (tac->dst && tac->dst->vreg) {
+            if (tac->dst && tac->dst->vreg && !tac->dst->is_lvalue_in_register) {
                 if (DEBUG_SSA_INTERFERENCE_GRAPH)
                     printf("livenow: -= %d -> ", tac->dst->vreg);
                 delete_from_set(livenow, tac->dst->vreg);
