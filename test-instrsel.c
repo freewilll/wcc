@@ -714,10 +714,11 @@ void test_instrsel_function_calls() {
 
     // The legacy backend extends %rax coming from a call to a quad. These
     // tests don't test much, just that the rules will work.
-    si(function, 0, IR_CALL, vsz(1, TYPE_CHAR),  fu(1), 0); assert_tac(ir_start, X_CALL, 0, fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_SHORT), fu(1), 0); assert_tac(ir_start, X_CALL, 0, fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_INT),   fu(1), 0); assert_tac(ir_start, X_CALL, 0, fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_LONG),  fu(1), 0); assert_tac(ir_start, X_CALL, 0, fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_PTR + TYPE_VOID),  fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_CHAR),             fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_SHORT),            fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_INT),              fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    si(function, 0, IR_CALL, vsz(1, TYPE_LONG),             fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
 }
 
 void test_instrsel_function_call_rearranging() {

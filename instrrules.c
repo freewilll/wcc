@@ -212,7 +212,10 @@ void make_value_x86_size(Value *v) {
 
 int value_ptr_target_x86_size(Value *v) {
     if (v->type < TYPE_PTR) panic("Expected pointer type");
-    if (v->type - TYPE_PTR <= TYPE_LONG)
+
+    if (v->type - TYPE_PTR == TYPE_VOID)
+        return 4;
+    else if (v->type - TYPE_PTR <= TYPE_LONG)
         return v->type - TYPE_PTR - TYPE_CHAR + 1;
     else
         return 4;
@@ -516,7 +519,8 @@ void init_instruction_selection_rules() {
     r = add_rule(0, IR_ARG, CSTL, CSTL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r); // Use constant as function arg, must not be a quad
     r = add_rule(0, IR_ARG, CSTL, REGQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); fin_rule(r); // Use register as function arg, must be a quad
 
-    r = add_rule(REG, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, 0, SRC1, 0, 0); fin_rule(r);  // Function call with a return value
+    r = add_rule(REG, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+    r = add_rule(ADR, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
 
     r = add_rule(REG, IR_ASSIGN,        REG,  0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Register to register copy
     r = add_rule(MEM, IR_ASSIGN,        CST,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Store constant in memory
