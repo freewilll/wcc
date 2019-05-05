@@ -121,6 +121,10 @@ void nuke_rule(int non_terminal, int operation, int src1, int src2) {
     }
 }
 
+void n() {
+    ir_start = ir_start->next;
+}
+
 void test_instrsel_tree_merging() {
     int j;
     Function *function;
@@ -150,11 +154,17 @@ void test_instrsel_tree_merging() {
 
     // Ensure a liveout in another block doesn't lead to an attempted
     // merge.
+    remove_reserved_physical_registers = 1;
     start_ir();
     i(0, IR_ASSIGN, v(1), c(1), 0   );
     i(0, IR_ASSIGN, v(2), c(2), 0   );
     i(1, IR_EQ,     v(4), v(1), v(2));
     finish_ir(function);
+    assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q" )); n();
+    assert(0, strcmp(rx86op(ir_start), "movq    $2, r2q" )); n(); n(); // skip extra nop
+    assert(0, strcmp(rx86op(ir_start), "cmpq    r2q, r1q")); n();
+    assert(0, strcmp(rx86op(ir_start), "sete    r3b"     )); n();
+    assert(0, strcmp(rx86op(ir_start), "movzbq  r3b, r3q"));
 }
 
 void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, int x86_jmp_operation) {
