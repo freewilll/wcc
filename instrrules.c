@@ -273,6 +273,12 @@ void add_pointer_rules() {
     r = add_rule(ADRW, IR_ASSIGN_TO_REG_LVALUE, ADRW, REGW, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movw %v2w, (%v1q)");
     r = add_rule(ADRL, IR_ASSIGN_TO_REG_LVALUE, ADRL, REGL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movl %v2l, (%v1q)");
     r = add_rule(ADRQ, IR_ASSIGN_TO_REG_LVALUE, ADRQ, REGQ, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movq %v2q, (%v1q)");
+
+    // Stores of 32 bit constants in a pointer.
+    r = add_rule(ADRB, IR_ASSIGN_TO_REG_LVALUE, ADRB, CSTL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movb $%v2b, (%v1q)");
+    r = add_rule(ADRW, IR_ASSIGN_TO_REG_LVALUE, ADRW, CSTL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movw $%v2w, (%v1q)");
+    r = add_rule(ADRL, IR_ASSIGN_TO_REG_LVALUE, ADRL, CSTL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movl $%v2l, (%v1q)");
+    r = add_rule(ADRQ, IR_ASSIGN_TO_REG_LVALUE, ADRQ, CSTL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movq $%v2q, (%v1q)");
 }
 
 void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *template) {
