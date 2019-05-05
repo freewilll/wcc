@@ -1272,7 +1272,7 @@ void make_interference_graph(Function *function) {
                 }
             }
 
-            if (tac->dst && tac->dst->vreg && !tac->dst->is_lvalue_in_register) {
+            if (tac->dst && tac->dst->vreg) {
                 if (DEBUG_SSA_INTERFERENCE_GRAPH)
                     printf("livenow: -= %d -> ", tac->dst->vreg);
                 delete_from_set(livenow, tac->dst->vreg);
