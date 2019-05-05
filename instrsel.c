@@ -429,6 +429,98 @@ void make_igraphs(Function *function, int block_id) {
     eis_instr_count = instr_count;
 }
 
+// Convert an instruction graph node from an operation that puts the result
+// into a register to an assigment, using a constant value.
+Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
+    int operation;
+    GraphNode *src_node;
+    Value *v;
+
+    v = new_value();
+    v->type = TYPE_LONG;
+    v->is_constant = 1;
+    v->value = constant_value;
+
+    src_node = &(igraph->graph->nodes[node_id]);
+
+    if (node_id == 0) {
+        // Root node, convert it into an assignment, since it has to end up
+        // in a register
+        igraph->nodes[node_id].tac->operation = IR_ASSIGN;
+        igraph->nodes[node_id].tac->src1 = v;
+        igraph->nodes[node_id].tac->src2 = 0;
+        igraph->nodes[src_node->succ->to->id].value->is_constant = 1;
+        igraph->nodes[src_node->succ->to->id].value->value = v->value;
+        src_node->succ->next_succ = 0;
+
+    }
+    else {
+        // Not root-node, convert it from a tac into a value node
+        igraph->nodes[node_id].tac = 0;
+        igraph->nodes[node_id].value = v;
+    }
+
+    return v;
+}
+
+Value *recursive_merge_constants(IGraph *igraph, int node_id) {
+    int i, j, operation, cst1, cst2;
+    GraphNode *src_node;
+    GraphEdge *e;
+    Tac *tac;
+    Value *v, *src1, *src2;
+
+    src_node = &(igraph->graph->nodes[node_id]);
+    tac = igraph->nodes[node_id].tac;
+    if (!tac) return igraph->nodes[node_id].value;
+    operation = tac->operation;
+
+    j = 1;
+    src1 = src2 = 0;
+    e = src_node->succ;
+    while (e) {
+        v = recursive_merge_constants(igraph, e->to->id);
+        if (j == 1) src1 = v; else src2 = v;
+        e = e->next_succ;
+        j++;
+    }
+
+    cst1 = src1 && src1->is_constant;
+    cst2 = cst1 && (src2 && src2->is_constant);
+
+         if (operation == IR_BNOT && cst1) return merge_cst_node(igraph, node_id, ~src1->value);
+    else if (operation == IR_ADD  && cst2) return merge_cst_node(igraph, node_id, src1->value +  src2->value);
+    else if (operation == IR_SUB  && cst2) return merge_cst_node(igraph, node_id, src1->value -  src2->value);
+    else if (operation == IR_MUL  && cst2) return merge_cst_node(igraph, node_id, src1->value *  src2->value);
+    else if (operation == IR_DIV  && cst2) return merge_cst_node(igraph, node_id, src1->value /  src2->value);
+    else if (operation == IR_MOD  && cst2) return merge_cst_node(igraph, node_id, src1->value %  src2->value);
+    else if (operation == IR_BAND && cst2) return merge_cst_node(igraph, node_id, src1->value &  src2->value);
+    else if (operation == IR_BOR  && cst2) return merge_cst_node(igraph, node_id, src1->value |  src2->value);
+    else if (operation == IR_XOR  && cst2) return merge_cst_node(igraph, node_id, src1->value ^  src2->value);
+    else if (operation == IR_EQ   && cst2) return merge_cst_node(igraph, node_id, src1->value == src2->value);
+    else if (operation == IR_NE   && cst2) return merge_cst_node(igraph, node_id, src1->value != src2->value);
+    else if (operation == IR_LT   && cst2) return merge_cst_node(igraph, node_id, src1->value <  src2->value);
+    else if (operation == IR_GT   && cst2) return merge_cst_node(igraph, node_id, src1->value >  src2->value);
+    else if (operation == IR_LE   && cst2) return merge_cst_node(igraph, node_id, src1->value <= src2->value);
+    else if (operation == IR_GE   && cst2) return merge_cst_node(igraph, node_id, src1->value >= src2->value);
+    else if (operation == IR_BSHL && cst2) return merge_cst_node(igraph, node_id, src1->value << src2->value);
+    else if (operation == IR_BSHR && cst2) return merge_cst_node(igraph, node_id, src1->value >> src2->value);
+
+    else
+        return 0;
+
+}
+
+// Walk all instruction trees and merge nodes where there are constant operations
+void merge_constants(Function *function) {
+    int i;
+
+    for (i = 0; i < eis_instr_count; i++) {
+        if (!eis_igraphs[i].node_count) continue;
+        recursive_merge_constants(&(eis_igraphs[i]), 0);
+    }
+}
+
 int rules_match(int parent, Rule *child, int allow_downsize) {
     if (!allow_downsize) return parent == child->non_terminal;
 
@@ -889,9 +981,9 @@ void tile_igraphs(Function *function) {
 
         // Whitelist operations there are no rules for
         if (tac &&
-            tac->operation == IR_NOP ||
-            tac->operation == IR_START_CALL ||
-            tac->operation == IR_END_CALL) {
+            (tac->operation == IR_NOP ||
+             tac->operation == IR_START_CALL ||
+             tac->operation == IR_END_CALL)) {
 
             add_tac_to_ir(tac);
             continue;
@@ -970,6 +1062,7 @@ void select_instructions(Function *function) {
         blocks[i].end->next = 0; // Will be re-entangled later
 
         make_igraphs(function, i);
+        if (!disable_merge_constants) merge_constants(function);
         tile_igraphs(function);
 
         new_ir_pos->next = ir_start;

@@ -651,6 +651,7 @@ typedef struct x86_operation {
 } X86Operation;
 
 int instr_rule_count;
+int disable_merge_constants;
 Rule *instr_rules;
 
 void eis1(Function *function, int flip_jz_jnz);

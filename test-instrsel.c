@@ -262,6 +262,7 @@ void test_instrsel() {
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
     start_ir();
+    disable_merge_constants = 1;
     nuke_rule(REGQ, IR_ADD, CSTL, REGQ); nuke_rule(REGQ, IR_ADD, REGQ, CSTL);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
@@ -272,6 +273,7 @@ void test_instrsel() {
 
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
+    disable_merge_constants = 1;
     nuke_rule(REG, IR_ADD, REGQ, CSTL);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
@@ -281,6 +283,7 @@ void test_instrsel() {
 
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
+    disable_merge_constants = 1;
     nuke_rule(REGQ, IR_ADD, CSTL, REGQ);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
@@ -907,6 +910,38 @@ void test_binary_shift_operations() {
     assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
 }
 
+void test_constant_operations() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    si(function, 0, IR_BNOT, v(1), c(1), 0   ); assert(0, strcmp(rx86op(ir_start), "movq    $-2, r1q"));
+    si(function, 0, IR_ADD,  v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $3, r1q"));
+    si(function, 0, IR_SUB,  v(1), c(3), c(1)); assert(0, strcmp(rx86op(ir_start), "movq    $2, r1q"));
+    si(function, 0, IR_MUL,  v(1), c(3), c(3)); assert(0, strcmp(rx86op(ir_start), "movq    $9, r1q"));
+    si(function, 0, IR_DIV,  v(1), c(7), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $3, r1q"));
+    si(function, 0, IR_MOD,  v(1), c(7), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_BAND, v(1), c(3), c(1)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_BOR,  v(1), c(1), c(5)); assert(0, strcmp(rx86op(ir_start), "movq    $5, r1q"));
+    si(function, 0, IR_XOR,  v(1), c(6), c(3)); assert(0, strcmp(rx86op(ir_start), "movq    $5, r1q"));
+    si(function, 0, IR_EQ,   v(1), c(1), c(1)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_NE,   v(1), c(1), c(1)); assert(0, strcmp(rx86op(ir_start), "movq    $0, r1q"));
+    si(function, 0, IR_LT,   v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_GT,   v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $0, r1q"));
+    si(function, 0, IR_LE,   v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_GE,   v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $0, r1q"));
+    si(function, 0, IR_BSHL, v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $4, r1q"));
+    si(function, 0, IR_BSHR, v(1), c(8), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $2, r1q"));
+
+    // 3 * (1 + 2)
+    start_ir();
+    i(0, IR_ADD, v(1), c(1), c(2));
+    i(0, IR_MUL, v(2), v(1), c(3));
+    finish_ir(function);
+    assert(0, strcmp(rx86op(ir_start), "movq    $9, r2q"));
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -930,4 +965,5 @@ int main() {
     test_div_operations();
     test_bnot_operations();
     test_binary_shift_operations();
+    test_constant_operations();
 }

@@ -447,7 +447,7 @@ void arithmetic_operation(int operation, int type) {
             operation == IR_EQ || operation == IR_NE || operation == IR_LT || operation == IR_GT || operation == IR_LE || operation == IR_GE ||
             operation == IR_BSHL || operation == IR_BSHR) {
 
-        if ((vs[0])->is_constant && (vs[1])->is_constant) {
+        if (!instruction_selection_wip && (vs[0])->is_constant && (vs[1])->is_constant) {
             v2 = pop()->value;
             v1 = pop()->value;
                  if (operation == IR_ADD)  push(new_constant(type, v1 +  v2));

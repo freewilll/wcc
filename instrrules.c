@@ -475,6 +475,7 @@ void init_instruction_selection_rules() {
     char *cmp_rr, *cmp_rc, *cmp_rm, *cmp_mr, *cmp_mc;
 
     instr_rule_count = 0;
+    disable_merge_constants = 0;
 
     instr_rules = malloc(MAX_RULE_COUNT * sizeof(Rule));
     memset(instr_rules, 0, MAX_RULE_COUNT * sizeof(Rule));
