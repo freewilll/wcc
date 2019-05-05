@@ -269,10 +269,10 @@ void add_pointer_rules() {
     r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); fin_rule(r);
 
     // Stores to pointer
-    r = add_rule(ADRB, IR_ASSIGN_TO_REG_LVALUE, ADRB, REGB, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movb %v2b, (%v1q)"); fin_rule(r);
-    r = add_rule(ADRW, IR_ASSIGN_TO_REG_LVALUE, ADRW, REGW, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movw %v2w, (%v1q)"); fin_rule(r);
-    r = add_rule(ADRL, IR_ASSIGN_TO_REG_LVALUE, ADRL, REGL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movl %v2l, (%v1q)"); fin_rule(r);
-    r = add_rule(ADRQ, IR_ASSIGN_TO_REG_LVALUE, ADRQ, REGQ, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movq %v2q, (%v1q)"); fin_rule(r);
+    r = add_rule(ADRB, IR_ASSIGN_TO_REG_LVALUE, ADRB, REGB, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movb %v2b, (%v1q)");
+    r = add_rule(ADRW, IR_ASSIGN_TO_REG_LVALUE, ADRW, REGW, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movw %v2w, (%v1q)");
+    r = add_rule(ADRL, IR_ASSIGN_TO_REG_LVALUE, ADRL, REGL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movl %v2l, (%v1q)");
+    r = add_rule(ADRQ, IR_ASSIGN_TO_REG_LVALUE, ADRQ, REGQ, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movq %v2q, (%v1q)");
 }
 
 void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *template) {

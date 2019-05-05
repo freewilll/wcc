@@ -62,8 +62,8 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
 
     if (ign->tac) {
         operation = ign->tac->operation;
-             if (operation == IR_ASSIGN)               printf("=\n");
-        else if (operation == IR_LOAD_STRING_LITERAL)  printf("=\n");
+             if (operation == IR_ASSIGN)               printf("= (assign)\n");
+        else if (operation == IR_LOAD_STRING_LITERAL)  printf("= (sL)\n");
         else if (operation == IR_ADD)                  printf("+\n");
         else if (operation == IR_SUB)                  printf("-\n");
         else if (operation == IR_MUL)                  printf("*\n");
@@ -73,8 +73,8 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_BSHR)                 printf(">>\n");
         else if (operation == IR_INDIRECT)             printf("indirect\n");
         else if (operation == IR_ADDRESS_OF)           printf("&\n");
-        else if (operation == IR_LOAD_CONSTANT)        printf("load constant\n");
-        else if (operation == IR_LOAD_VARIABLE)        printf("load variable\n");
+        else if (operation == IR_LOAD_CONSTANT)        printf("= (load constant)\n");
+        else if (operation == IR_LOAD_VARIABLE)        printf("= (load variable)\n");
         else if (operation == IR_ASSIGN_TO_REG_LVALUE) printf("assign to lvalue\n");
         else if (operation == IR_NOP)                  printf("noop\n");
         else if (operation == IR_RETURN)               printf("return\n");
@@ -533,6 +533,13 @@ int rules_match(int parent, Rule *child, int allow_downsize) {
     if (parent == REGW && child->non_terminal == REGQ) return 1;
     if (parent == REGL && child->non_terminal == REGQ) return 1;
 
+    if (parent == ADRB && child->non_terminal == ADRW) return 1;
+    if (parent == ADRB && child->non_terminal == ADRL) return 1;
+    if (parent == ADRB && child->non_terminal == ADRQ) return 1;
+    if (parent == ADRW && child->non_terminal == ADRL) return 1;
+    if (parent == ADRW && child->non_terminal == ADRQ) return 1;
+    if (parent == ADRL && child->non_terminal == ADRQ) return 1;
+
     return 0;
 }
 
@@ -894,10 +901,8 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     dst = 0;
     if (parent_node_id == -1) {
         // Use the root node tac or value as a result
-        if (ign->tac) {
-            if (DEBUG_INSTSEL_TILING) printf("using dst from root node %p vreg=%d\n", ign->tac->dst, ign->tac->dst ? ign->tac->dst->vreg : -1);
+        if (ign->tac)
             dst = ign->tac->dst;
-        }
         else
             dst = ign->value;
     }
