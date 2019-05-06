@@ -82,6 +82,8 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_END_CALL)             printf("end call\n");
         else if (operation == IR_ARG)                  printf("arg\n");
         else if (operation == IR_CALL)                 printf("call\n");
+        else if (operation == IR_START_LOOP)           printf("start loop");
+        else if (operation == IR_END_LOOP)             printf("end loop");
         else if (operation == IR_JZ)                   printf("jz\n");
         else if (operation == IR_JNZ)                  printf("jnz\n");
         else if (operation == IR_JMP)                  printf("jmp\n");
@@ -1046,7 +1048,9 @@ void tile_igraphs(Function *function) {
         if (tac &&
             (tac->operation == IR_NOP ||
              tac->operation == IR_START_CALL ||
-             tac->operation == IR_END_CALL)) {
+             tac->operation == IR_END_CALL ||
+             tac->operation == IR_START_LOOP ||
+             tac->operation == IR_END_LOOP)) {
 
             add_tac_to_ir(tac);
             continue;
