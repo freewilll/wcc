@@ -32,6 +32,17 @@ Value *vsz(int vreg, int type) {
     return v;
 }
 
+Value *a(int vreg) {
+    Value *v;
+
+    v = new_value();
+    v->type = TYPE_PTR + TYPE_LONG;
+    v->vreg = vreg;
+
+    return v;
+}
+
+
 Value *asz(int vreg, int type) {
     Value *v;
 

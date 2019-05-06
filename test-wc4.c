@@ -745,6 +745,7 @@ void test_integer_sizes() {
 
 void test_malloc() {
     int *pi;
+
     pi = malloc(32);
     *pi = 1;
     *++pi = 2;

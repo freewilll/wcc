@@ -232,6 +232,14 @@ void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) 
     tac->x86_template = x86op->template;
 }
 
+void add_store_to_pointer(int dst, int src1, int src2, char *template) {
+    Rule *r;
+
+    r = add_rule(dst, IR_ASSIGN_TO_REG_LVALUE, src1, src2, 3);
+    add_op(r, X_MOV,        DST, SRC1, 0,    "movq %v1q, %vdq");
+    add_op(r, X_MOV_TO_IND, 0,   DST,  SRC2, template);
+}
+
 void add_pointer_rules() {
     Rule *r;
 
@@ -269,16 +277,16 @@ void add_pointer_rules() {
     r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); fin_rule(r);
 
     // Stores to pointer
-    r = add_rule(ADRB, IR_ASSIGN_TO_REG_LVALUE, ADRB, REGB, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movb %v2b, (%v1q)");
-    r = add_rule(ADRW, IR_ASSIGN_TO_REG_LVALUE, ADRW, REGW, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movw %v2w, (%v1q)");
-    r = add_rule(ADRL, IR_ASSIGN_TO_REG_LVALUE, ADRL, REGL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movl %v2l, (%v1q)");
-    r = add_rule(ADRQ, IR_ASSIGN_TO_REG_LVALUE, ADRQ, REGQ, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movq %v2q, (%v1q)");
+    add_store_to_pointer(ADRB, ADRB, REGB, "movb %v2b, (%v1q)");
+    add_store_to_pointer(ADRW, ADRW, REGW, "movw %v2w, (%v1q)");
+    add_store_to_pointer(ADRL, ADRL, REGL, "movl %v2l, (%v1q)");
+    add_store_to_pointer(ADRQ, ADRQ, REGQ, "movq %v2q, (%v1q)");
 
     // Stores of 32 bit constants in a pointer.
-    r = add_rule(ADRB, IR_ASSIGN_TO_REG_LVALUE, ADRB, CSTL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movb $%v2b, (%v1q)");
-    r = add_rule(ADRW, IR_ASSIGN_TO_REG_LVALUE, ADRW, CSTL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movw $%v2w, (%v1q)");
-    r = add_rule(ADRL, IR_ASSIGN_TO_REG_LVALUE, ADRL, CSTL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movl $%v2l, (%v1q)");
-    r = add_rule(ADRQ, IR_ASSIGN_TO_REG_LVALUE, ADRQ, CSTL, 2); add_op(r, X_MOV_TO_IND, 0, DST, SRC2, "movq $%v2q, (%v1q)");
+    add_store_to_pointer(ADRB, ADRB, CSTL, "movb $%v2b, (%v1q)");
+    add_store_to_pointer(ADRW, ADRW, CSTL, "movw $%v2w, (%v1q)");
+    add_store_to_pointer(ADRL, ADRL, CSTL, "movl $%v2l, (%v1q)");
+    add_store_to_pointer(ADRQ, ADRQ, CSTL, "movq $%v2q, (%v1q)");
 }
 
 void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *template) {

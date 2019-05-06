@@ -1807,7 +1807,7 @@ void assign_vreg_locations(Function *function) {
     function->local_symbol_count = 0; // This nukes ancient code that assumes local vars are on the stack
 }
 
-void remove_self_moves(Function *function) {
+void remove_preg_self_moves(Function *function) {
     // This removes instructions that copy a physical register to itself by replacing them with noops.
 
     Tac *tac;
@@ -1862,7 +1862,7 @@ void do_oar4(Function *function) {
     sanity_test_ir_linkage(function->ir);
     allocate_registers(function);
     assign_vreg_locations(function);
-    remove_self_moves(function);
+    remove_preg_self_moves(function);
 }
 
 void optimize_and_allocate_registers(Function *function) {

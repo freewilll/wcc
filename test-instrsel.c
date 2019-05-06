@@ -125,6 +125,11 @@ void n() {
     ir_start = ir_start->next;
 }
 
+void nop() {
+    assert(IR_NOP, ir_start->operation);
+    ir_start = ir_start->next;
+}
+
 void test_instrsel_tree_merging() {
     int j;
     Function *function;
@@ -161,10 +166,31 @@ void test_instrsel_tree_merging() {
     i(1, IR_EQ,     v(4), v(1), v(2));
     finish_ir(function);
     assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q" )); n();
-    assert(0, strcmp(rx86op(ir_start), "movq    $2, r2q" )); n(); n(); // skip extra nop
+    assert(0, strcmp(rx86op(ir_start), "movq    $2, r2q" )); n(); nop();
     assert(0, strcmp(rx86op(ir_start), "cmpq    r2q, r1q")); n();
     assert(0, strcmp(rx86op(ir_start), "sete    r3b"     )); n();
     assert(0, strcmp(rx86op(ir_start), "movzbq  r3b, r3q"));
+
+    // Ensure a dst in assign to an lvalue keeps the value alive, so
+    // that a merge is prevented later on.
+    start_ir();
+    i(0, IR_ASSIGN,               v(3),              c(1),              0   ); // r3 = 1   <- r3 is used twice, so no tree merge happens
+    i(0, IR_ASSIGN,               v(2),              v(3),              0   ); // r2 = r3
+    i(0, IR_ASSIGN_TO_REG_LVALUE, asz(3, TYPE_LONG), asz(3, TYPE_LONG), v(4)); // (r3) = r4
+    finish_ir(function);
+    assert(0, strcmp(rx86op(ir_start), "movq    $1, r2q"   )); n();
+    assert(0, strcmp(rx86op(ir_start), "movq    r2q, r1q"  )); n(); nop();
+    assert(0, strcmp(rx86op(ir_start), "movq    r4q, (r2q)")); n();
+
+    // Ensure the assign to pointer instruction copies src1 to dst first
+    remove_reserved_physical_registers = 1;
+    start_ir();
+    i(0, IR_ADDRESS_OF,           a(1), g(1), 0);
+    i(0, IR_ASSIGN_TO_REG_LVALUE, a(1), a(1), c(1));
+    finish_ir(function);
+    assert(0, strcmp(rx86op(ir_start), "leaq    g1(%rip), r3q")); n();
+    assert(0, strcmp(rx86op(ir_start), "movq    r3q, r1q"     )); n();
+    assert(0, strcmp(rx86op(ir_start), "movq    $1, (r1q)"    )); n();
 }
 
 void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, int x86_jmp_operation) {

@@ -677,6 +677,7 @@ void output_code(char *input_filename, char *output_filename);
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
 Value *v(int vreg);
 Value *vsz(int vreg, int type);
+Value *a(int vreg);
 Value *asz(int vreg, int type);
 Value *l(int label);
 Value *c(long value);

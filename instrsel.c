@@ -391,14 +391,14 @@ void make_igraphs(Function *function, int block_id) {
             igraphs[g1_igraph_id].graph = ig->graph;
             igraphs[g1_igraph_id].node_count = ig->node_count;
 
-
             igraphs[i].node_count = 0; // Nuke it, should not be needed, but it triggers a panic in case of a bug
 
             if (src1) vreg_igraphs[src1].igraph_id = g1_igraph_id;
             if (src2) vreg_igraphs[src2].igraph_id = g1_igraph_id;
         }
 
-        if (dst) vreg_igraphs[dst].count = 0;
+        if (dst && tac->operation != IR_ASSIGN_TO_REG_LVALUE)
+            vreg_igraphs[dst].count = 0;
 
         i--;
 
@@ -901,8 +901,10 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     dst = 0;
     if (parent_node_id == -1) {
         // Use the root node tac or value as a result
-        if (ign->tac)
+        if (ign->tac) {
+            if (DEBUG_INSTSEL_TILING) printf("using root vreg for dst %p vreg=%d\n", ign->tac->dst, ign->tac->dst ? ign->tac->dst->vreg : -1);
             dst = ign->tac->dst;
+        }
         else
             dst = ign->value;
     }
@@ -915,7 +917,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             dst->vreg = new_vreg();
             dst->ssa_subscript = -1;
 
-            if (DEBUG_INSTSEL_TILING) printf("allocated new vreg for dst %d\n", dst->vreg);
+            if (DEBUG_INSTSEL_TILING) printf("allocated new vreg for dst vreg=%d\n", dst->vreg);
         }
         else {
             if (DEBUG_INSTSEL_TILING) printf("using passthrough dst\n");
@@ -976,6 +978,20 @@ void tile_igraphs(Function *function) {
     Tac *tac, *current_instruction_ir_start;
 
     igraphs = eis_igraphs;
+
+    if (DEBUG_INSTSEL_TILING) {
+        printf("\nAll trees\n-----------------------------------------------------\n");
+
+        for (i = 0; i < eis_instr_count; i++) {
+            if (!igraphs[i].node_count) continue;
+            tac = igraphs[i].nodes[0].tac;
+            if (tac && tac->dst) {
+                print_value(stdout, tac->dst, 0);
+                printf(" =\n");
+            }
+            if (igraphs[i].node_count) dump_igraph(&(igraphs[i]));
+        }
+    }
 
     ir_start = 0;
     vreg_count = function->vreg_count;
@@ -1085,6 +1101,23 @@ void select_instructions(Function *function) {
 
 }
 
+// This removes instructions that copy a register to itself by replacing them with noops.
+void remove_vreg_self_moves(Function *function) {
+    Tac *tac;
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            tac->operation = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+            tac->x86_template = 0;
+        }
+
+        tac = tac->next;
+    }
+}
+
 void eis1(Function *function, int flip_jz_jnz) {
     if (flip_jz_jnz) turn_around_jz_jnz_insanity(function);
 
@@ -1095,6 +1128,7 @@ void eis1(Function *function, int flip_jz_jnz) {
     select_instructions(function);
     do_oar1b(function);
     coalesce_live_ranges(function);
+    remove_vreg_self_moves(function);
 }
 
 void eis2(Function *function) {
