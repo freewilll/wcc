@@ -340,11 +340,14 @@ void make_igraphs(Function *function, int block_id) {
         tac = tac->next;
     }
 
+    // Mark liveouts as off-limits for merging
+    liveout = function->liveout[block_id];
+
+    if (liveout->max_value > vreg_count) vreg_count = liveout->max_value;
+
     vreg_igraphs = malloc((vreg_count + 1) * sizeof(VregIGraph));
     memset(vreg_igraphs, 0, (vreg_count + 1) * sizeof(VregIGraph));
 
-    // Mark liveouts as off-limits for merging
-    liveout = function->liveout[block_id];
     for (i = 0; i <= liveout->max_value; i++) {
         if (!liveout->elements[i]) continue;
         vreg_igraphs[i].count++;
