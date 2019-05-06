@@ -743,6 +743,8 @@ void test_instrsel_returns() {
     si(function, 0, IR_RETURN, 0, gsz(1, TYPE_SHORT), 0); assert(0, strcmp(rx86op(ir_start), "movswq  g1(%rip), %rax"));
     si(function, 0, IR_RETURN, 0, gsz(1, TYPE_INT),   0); assert(0, strcmp(rx86op(ir_start), "movslq  g1(%rip), %rax"));
     si(function, 0, IR_RETURN, 0, gsz(1, TYPE_LONG),  0); assert(0, strcmp(rx86op(ir_start), "movq    g1(%rip), %rax"));
+
+    si(function, 0, IR_RETURN, 0, 0, 0); assert(X_RET, ir_start->operation);
 }
 
 void test_instrsel_function_calls() {

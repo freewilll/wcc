@@ -629,6 +629,40 @@ int new_cost_graph_node() {
     return cost_graph_node_count++;
 }
 
+int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
+    int i, cost_graph_node_id, choice_node_id;
+    Tac *tac;
+    Rule *r;
+
+    if (DEBUG_INSTSEL_TILING) printf("tile_igraph_operand_less_node on node=%d\n", node_id);
+
+    cost_graph_node_id = new_cost_graph_node();
+    cost_to_igraph_map[cost_graph_node_id] = node_id;
+
+    tac = igraph->nodes[node_id].tac;
+    for (i = 0; i < instr_rule_count; i++) {
+        r = &(instr_rules[i]);
+        if (r->operation == tac->operation) {
+            if (DEBUG_INSTSEL_TILING) {
+                printf("matched rule %d: ", i);
+                print_rule(r);
+            }
+
+            choice_node_id = new_cost_graph_node();
+            cost_to_igraph_map[choice_node_id] = node_id;
+            cost_rules[choice_node_id] = i;
+            accumulated_cost[choice_node_id] = instr_rules[i].cost;
+
+            add_graph_edge(cost_graph, cost_graph_node_id, choice_node_id);
+
+            return cost_graph_node_id;
+        }
+    }
+
+    dump_igraph(igraph);
+    panic("Did not match any rules");
+}
+
 int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     int i,  cost_graph_node_id, choice_node_id, matched, matched_dst;
     Value *v;
@@ -698,9 +732,6 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         dump_igraph(igraph);
     }
 
-    cost_graph_node_id = new_cost_graph_node();
-    cost_to_igraph_map[cost_graph_node_id] = node_id;
-
     src1_id = src2_id = 0;
     src1 = src2 = 0;
 
@@ -715,6 +746,11 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             src2 = inodes[src2_id].value;
         }
     }
+
+    if (!src1_id) return tile_igraph_operand_less_node(igraph, node_id);
+
+    cost_graph_node_id = new_cost_graph_node();
+    cost_to_igraph_map[cost_graph_node_id] = node_id;
 
     src1_cost_graph_node_id = recursive_tile_igraphs(igraph, src1_id);
     if (src2_id) src2_cost_graph_node_id = recursive_tile_igraphs(igraph, src2_id);
@@ -873,6 +909,9 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
 
         choice_edge = choice_edge->next_succ;
     }
+
+    if (least_expensive_choice_node_id == -1)
+        panic("Internal error: No matched choices in recursive_make_intermediate_representation");
 
     igraph_node_id = cost_to_igraph_map[least_expensive_choice_node_id];
     ign = &(igraph->nodes[igraph_node_id]);

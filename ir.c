@@ -319,7 +319,7 @@ void print_instruction(void *f, Tac *tac) {
     else if (tac->operation == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
     else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
 
-    else if (tac->operation == X_RET)    { fprintf(f, "ret "   ); print_value(f, tac->src1, 1); }
+    else if (tac->operation == X_RET)    { fprintf(f, "ret "   ); if (tac->src1) print_value(f, tac->src1, 1); }
     else if (tac->operation == X_CALL)   { fprintf(f, "call "  ); print_value(f, tac->src1, 1); }
     else if (tac->operation == X_LEA)    { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (tac->operation == X_MOV)    { fprintf(f, "mov "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
