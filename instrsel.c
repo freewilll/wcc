@@ -99,6 +99,8 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         printf("\n");
     }
 
+    if (operation == IR_NOP) return;
+
     e = ig->graph->nodes[node].succ;
     while (e) {
         recursive_dump_igraph(ig, e->to->id, indent + 1);
@@ -474,6 +476,7 @@ Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     tac = igraph->nodes[node_id].tac;
     if (!tac) return igraph->nodes[node_id].value;
     operation = tac->operation;
+    if (operation == IR_NOP) return 0;
 
     j = 1;
     src1 = src2 = 0;
