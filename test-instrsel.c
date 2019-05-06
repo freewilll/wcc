@@ -978,6 +978,33 @@ void test_constant_operations() {
     assert(0, strcmp(rx86op(ir_start), "movq    $9, r2q"));
 }
 
+void test_pointer_inc() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // (a1) = a1 + 1, split into a2 = a1 + 1, (a1) = a2
+    start_ir();
+    i(0, IR_ADD,                  a(2), a(1), c(1));
+    i(0, IR_ASSIGN_TO_REG_LVALUE, a(1), a(1), a(2));
+    finish_ir(function);
+    assert(0, strcmp(rx86op(ir_start), "movq    r1q, r4q"  )); n();
+    assert(0, strcmp(rx86op(ir_start), "addq    $1, r4q"   )); n(); nop();
+    assert(0, strcmp(rx86op(ir_start), "movq    r4q, (r1q)")); n();
+
+    // (a1) = (a1) + 1, split into a2 = (a1), a3 = a2 + 1, (a1) = a3
+    start_ir();
+    i(0, IR_INDIRECT,             a(2), a(1), 0   );
+    i(0, IR_ADD,                  a(3), a(2), c(1));
+    i(0, IR_ASSIGN_TO_REG_LVALUE, a(1), a(1), a(3));
+    finish_ir(function);
+    assert(0, strcmp(rx86op(ir_start), "movq    (r1q), r5q")); n();
+    assert(0, strcmp(rx86op(ir_start), "movq    r5q, r6q"  )); n();
+    assert(0, strcmp(rx86op(ir_start), "addq    $1, r6q"   )); n(); nop();
+    assert(0, strcmp(rx86op(ir_start), "movq    r6q, (r1q)")); n();
+}
+
 int main() {
     ssa_physical_register_count = 12;
     ssa_physical_register_count = 0;
@@ -1002,4 +1029,5 @@ int main() {
     test_bnot_operations();
     test_binary_shift_operations();
     test_constant_operations();
+    test_pointer_inc();
 }

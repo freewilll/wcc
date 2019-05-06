@@ -558,8 +558,8 @@ int non_terminal_for_value(Value *v) {
     else if (v->label)                                              return LAB;
     else if (v->vreg && v->type >= TYPE_PTR)                        return ADR + value_ptr_target_x86_size(v);
     else if (v->is_lvalue_in_register)                              return ADR + v->x86_size;
+    else if (v->is_lvalue && !(v->global_symbol || v->local_index)) return ADR + v->x86_size;
     else if (v->vreg)                                               return REG + v->x86_size;
-    else if (!v->is_lvalue && (v->global_symbol || v->local_index)) return ADR + v->x86_size;
     else if (v->global_symbol)                                      return MEM + v->x86_size;
     else if (v->stack_index)                                        return MEM + v->x86_size;
     else if (v->function_symbol)                                    return FUN;
