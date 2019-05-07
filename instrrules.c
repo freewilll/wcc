@@ -85,6 +85,7 @@ char *add_size_to_template(char *template, int size) {
     x86_size = size_to_x86_size(size);
     src = template;
     result = malloc(128);
+    memset(result, 0, 128);
     dst = result;
 
     // Add size to registers, converting e.g. %v1 -> %v1b if size=1
