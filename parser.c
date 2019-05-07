@@ -16,7 +16,7 @@ Value *pop() {
     Value *result;
 
     result = *vs++;
-    vtop = *vs;
+    vtop = (vs == vs_start) ? 0 : *vs;
 
     return result;
 }
