@@ -379,8 +379,8 @@ void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
 
 // Called once at startup to indicate which registers are preserved across function calls
 void init_callee_saved_registers() {
-    callee_saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
-    memset(callee_saved_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    callee_saved_registers = malloc(sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
+    memset(callee_saved_registers, 0, sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
 
     callee_saved_registers[REG_RBX] = 1;
     callee_saved_registers[REG_R12] = 1;
