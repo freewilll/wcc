@@ -200,6 +200,8 @@ void print_rules() {
 
 void make_value_x86_size(Value *v) {
     if (v->x86_size) return;
+    if (v->label || v->function_symbol) return;
+    if (!v->type) panic("make_value_x86_size() got called with a value with no type");
 
     if (v->is_string_literal)
         v->x86_size = 4;
@@ -220,6 +222,18 @@ int value_ptr_target_x86_size(Value *v) {
         return v->type - TYPE_PTR - TYPE_CHAR + 1;
     else
         return 4;
+}
+
+int make_x86_size_from_non_terminal(int nt) {
+         if (nt == CSTL) return 3;
+    else if (nt == CSTQ) return 4;
+    else if (nt == ADRB || nt == ADRW || nt == ADRL || nt == ADRQ) return 4;
+    else if (nt == REGB || nt == MEMB) return 1;
+    else if (nt == REGW || nt == MEMW) return 2;
+    else if (nt == REGL || nt == MEML) return 3;
+    else if (nt == REGQ || nt == MEMQ) return 4;
+    else
+        return -1;
 }
 
 void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {

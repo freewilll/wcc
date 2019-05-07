@@ -972,9 +972,19 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         }
     }
 
-    if (dst) make_value_x86_size(dst);
-    if (src1) make_value_x86_size(src1);
-    if (src2) make_value_x86_size(src2);
+    if (ign->tac) {
+        // In order for the spill code to generate correct size spills,
+        // x86_size has to be set to match what the x86 instructions
+        // are doing. This cannot be done from the type since the type
+        // reflects what the parser has produced, and doesn't necessarily
+        // match what the x86 code is doing. For example, the parser can
+        // produce an int (size=3) value with is_lvalue_in_register=1. However
+        // this must be treated as size 4 in all downstream code.
+
+        if (dst)  dst->x86_size  = make_x86_size_from_non_terminal(rule->non_terminal);
+        if (src1) src1->x86_size = make_x86_size_from_non_terminal(rule->src1);
+        if (src2) src2->x86_size = make_x86_size_from_non_terminal(rule->src2);
+    }
 
     // Add x86 operations to the IR
     x86op = rule->x86_operations;
@@ -997,9 +1007,9 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         else if (x86op->v2 == DST)  x86_v2 = dst;
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v2);
 
-        if (dst) dst = dup_value(dst);
-        if (x86_v1) x86_v1 = dup_value(x86_v1);
-        if (x86_v2) x86_v2 = dup_value(x86_v2);
+        if (x86_dst) x86_dst = dup_value(x86_dst);
+        if (x86_v1)  x86_v1  = dup_value(x86_v1);
+        if (x86_v2)  x86_v2  = dup_value(x86_v2);
         add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
 
         x86op = x86op->next;
@@ -1168,6 +1178,111 @@ void remove_vreg_self_moves(Function *function) {
     }
 }
 
+Tac *make_spill_instruction(Value *v) {
+    Tac *tac;
+    int x86_operation;
+    char *x86_template;
+
+    make_value_x86_size(v);
+
+    if (v->x86_size == 1) {
+        x86_operation = X_MOV;
+        x86_template = "movb %v1b, %vdb";
+    }
+    else if (v->x86_size == 2) {
+        x86_operation = X_MOV;
+        x86_template = "movw %v1w, %vdw";
+    }
+    else if (v->x86_size == 3) {
+        x86_operation = X_MOV;
+        x86_template = "movl %v1l, %vdl";
+    }
+    else if (v->x86_size == 4) {
+        x86_operation = X_MOV;
+        x86_template = "movq %v1q, %vdq";
+    }
+    else
+        panic1d("Unknown x86 size %d", v->x86_size);
+
+    tac = new_instruction(x86_operation);
+    tac->x86_template = x86_template;
+
+    return tac;
+}
+
+void add_spill_load(Tac *ir, int src, int preg) {
+    Tac *tac;
+    Value *v;
+
+    v = src == 1 ? ir->src1 : ir->src2;
+
+    tac = make_spill_instruction(v);
+    tac->src1 = v;
+    tac->dst = new_value();
+    tac->dst->type = TYPE_LONG;
+    tac->dst->x86_size = 4;
+    tac->dst->vreg = -1000;   // Dummy value
+    tac->dst->preg = preg;
+
+    if (src == 1)
+        ir->src1 = dup_value(tac->dst);
+    else
+        ir->src2 = dup_value(tac->dst);
+
+    insert_instruction(ir, tac, 1);
+}
+
+void add_spill_store(Tac *ir, Value *v, int preg) {
+    Tac *tac;
+
+    tac = make_spill_instruction(v);
+    tac->src1 = new_value();
+    tac->src1->type = TYPE_LONG;
+    tac->src1->x86_size = 4;
+    tac->src1->vreg = -1000;   // Dummy value
+    tac->src1->preg = preg;
+
+    tac->dst = v;
+    ir->dst = dup_value(tac->src1);
+
+    if (!ir->next) {
+        ir->next = tac;
+        tac->prev = ir;
+    }
+    else
+        insert_instruction(ir->next, tac, 0);
+}
+
+void add_spill_code(Function *function) {
+    Tac *tac;
+    int dst_eq_src1, store_preg;
+
+    tac = function->ir;
+    while (tac) {
+        dst_eq_src1 =  (tac->dst && tac->src1 && tac->dst->vreg == tac->src1->vreg);
+
+        if (tac->src1 && tac->src1->preg == -1 && tac->src1->spilled)  {
+            add_spill_load(tac, 1, REG_R10);
+            if (dst_eq_src1) {
+                // Special case where src1 is the same as dst, in that case, r10 contains the result.
+                add_spill_store(tac, tac->dst, REG_R10);
+                tac = tac->next;
+            }
+        }
+
+        if (tac->src2 && tac->src2->preg == -1 && tac->src2->spilled) {
+            add_spill_load(tac, 2, REG_R11);
+        }
+
+        if (tac->dst && tac->dst->preg == -1 && tac->dst->spilled) {
+            add_spill_store(tac, tac->dst, REG_R11);
+            tac = tac->next;
+        }
+
+        tac = tac->next;
+    }
+}
+
 void eis1(Function *function, int flip_jz_jnz) {
     if (flip_jz_jnz) turn_around_jz_jnz_insanity(function);
 
@@ -1183,6 +1298,7 @@ void eis1(Function *function, int flip_jz_jnz) {
 
 void eis2(Function *function) {
     do_oar4(function);
+    add_spill_code(function);
     ir_vreg_offset = 0;
 }
 

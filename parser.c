@@ -664,6 +664,7 @@ void expression(int level) {
             src1 = new_value();
             src1->value = function_call;
             src1->is_constant = 1;
+            src1->type = TYPE_LONG;
             add_instruction(IR_START_CALL, 0, src1, 0);
             arg_count = 0;
             while (1) {

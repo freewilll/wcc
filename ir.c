@@ -64,6 +64,7 @@ Value *dup_value(Value *src) {
     dst->is_lvalue                 = src->is_lvalue;
     dst->is_lvalue_in_register     = src->is_lvalue_in_register;
     dst->stack_index               = src->stack_index;
+    dst->spilled                   = src->spilled;
     dst->local_index               = src->local_index;
     dst->is_constant               = src->is_constant;
     dst->is_string_literal         = src->is_string_literal;
@@ -520,7 +521,7 @@ void swap_ir_registers(Tac *ir, int vreg1, int vreg2) {
     renumber_ir_vreg(ir, -2, vreg2);
 }
 
-Tac *insert_instruction(Tac *ir, int ir_index, Tac *tac) {
+Tac *insert_instruction(Tac *ir, Tac *tac, int move_label) {
     int i;
     Tac *prev;
 
@@ -529,6 +530,11 @@ Tac *insert_instruction(Tac *ir, int ir_index, Tac *tac) {
     tac->next = ir;
     ir->prev = tac;
     prev->next = tac;
+
+    if (move_label) {
+        tac->label = ir->label;
+        ir->label = 0;
+    }
 }
 
 void renumber_label(Tac *ir, int l1, int l2) {
@@ -620,7 +626,7 @@ void preload_src1_constant_into_register(Tac *tac, int *i) {
     dst->type = TYPE_LONG;
 
     load_tac->dst = dst;
-    insert_instruction(tac, *i, load_tac);
+    insert_instruction(tac, load_tac, 0);
     tac->src1 = dst;
 
     (*i)++;

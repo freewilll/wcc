@@ -108,6 +108,7 @@ typedef struct value {
     int is_lvalue_in_register;      // Is the value an lvalue in a register?
     int local_index;                // For locals variables and function arguments
     int stack_index;                // Allocated stack index in case of a spill
+    int spilled;                    // 1 if spilled
     int is_constant;                // Is it a constant? If so, value is the value.
     int is_string_literal;          // Is the value a string literal?
     int is_in_cpu_flags;            // Is the result stored in cpu flags?
@@ -381,7 +382,7 @@ int print_ir2;                          // Print IR after x84_64 arch manipulati
 int print_ir3;                          // Print IR after register allocation
 int output_inline_ir;                   // Output IR inline with the assembly
 int instruction_selection_wip;          // Experimental instruction selection
-int ssa_physical_register_count;        // Experimental physical register count
+int spill_all_registers;                // Spill everything to the stack
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible
 int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end
@@ -505,6 +506,7 @@ Value *dup_value(Value *src);
 void add_tac_to_ir(Tac *tac);
 Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
+Tac *insert_instruction(Tac *ir, Tac *tac, int move_label);
 void sanity_test_ir_linkage(Tac *ir);
 int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
@@ -664,6 +666,7 @@ void print_rule(Rule *r);
 void print_rules();
 void make_value_x86_size(Value *v);
 int value_ptr_target_x86_size(Value *v);
+int make_x86_size_from_non_terminal(int non_terminal);
 void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
 void init_instruction_selection_rules();
 

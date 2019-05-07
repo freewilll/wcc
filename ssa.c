@@ -1592,8 +1592,7 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
         }
     }
 
-    if (set_len(neighbor_colors) == physical_register_count) {
-        if (instruction_selection_wip) panic("TODO: Register spilling in new instruction selector");
+    if (spill_all_registers || set_len(neighbor_colors) == physical_register_count) {
         vreg_locations[vreg].stack_index = -*spilled_register_count - 1;
         (*spilled_register_count)++;
     }
@@ -1738,9 +1737,6 @@ void init_allocate_registers() {
 
             preg_map[preg_count++] = i;
         }
-
-    // Reduce the amount of the command line option has used to reduce it
-    if (preg_count > ssa_physical_register_count) preg_count = ssa_physical_register_count;
 }
 
 void allocate_registers(Function *function) {
@@ -1769,24 +1765,30 @@ void assign_vreg_locations(Function *function) {
     while (tac) {
         if (tac->dst && tac->dst->vreg) {
             vl = &function_vl[tac->dst->vreg];
-            if (vl->stack_index)
+            if (vl->stack_index) {
                 tac->dst->stack_index = vl->stack_index;
+                tac->dst->spilled = 1;
+            }
             else
                 tac->dst->preg = vl->preg;
         }
 
         if (tac->src1 && tac->src1->vreg) {
             vl = &function_vl[tac->src1->vreg];
-            if (vl->stack_index)
+            if (vl->stack_index) {
                 tac->src1->stack_index = vl->stack_index;
+                tac->src1->spilled = 1;
+            }
             else
                 tac->src1->preg = vl->preg;
         }
 
         if (tac->src2 && tac->src2->vreg) {
             vl = &function_vl[tac->src2->vreg];
-            if (vl->stack_index)
+            if (vl->stack_index) {
                 tac->src2->stack_index = vl->stack_index;
+                tac->src2->spilled = 1;
+            }
             else
                 tac->src2->preg = vl->preg;
         }

@@ -66,6 +66,16 @@ char *rx86op(Tac *tac) {
     return render_x86_operation(tac, 0, 0, 0);
 }
 
+char *assert_rx86_preg_op(Tac *tac, char *expected) {
+    char *got;
+
+    got = render_x86_operation(tac, 0, 0, 1);
+    if (strcmp(got, expected)) {
+        printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
+        exit(1);
+    }
+}
+
 void remove_reserved_physical_register_count_from_tac(Tac *ir) {
     Tac *tac;
 
@@ -86,17 +96,24 @@ void start_ir() {
     init_instruction_selection_rules();
 }
 
-void finish_ir(Function *function) {
-    Tac *tac;
-
+void _finish_ir(Function *function, int run_eis1) {
     function->ir = ir_start;
     eis1(function, 0);
+    if (run_eis1) eis2(function);
     remove_reserved_physical_register_count_from_tac(function->ir);
 
     // Move ir_start to first non-noop for convenience
     ir_start = function->ir;
     while (ir_start->operation == IR_NOP) ir_start = ir_start->next;
     function->ir = ir_start;
+}
+
+void finish_ir(Function *function) {
+    _finish_ir(function, 0);
+}
+
+void finish_spill_ir(Function *function) {
+    _finish_ir(function, 1);
 }
 
 // Run with a single instruction
@@ -1007,9 +1024,102 @@ void test_pointer_inc() {
     assert(0, strcmp(rx86op(ir_start), "movq    r6q, (r1q)")); n();
 }
 
+void test_spilling() {
+    Function *function;
+    Tac *tac;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+    spill_all_registers = 1;
+
+    // src1c spill
+    start_ir();
+    i(0, IR_ASSIGN, Ssz(1, TYPE_CHAR), vsz(1, TYPE_CHAR), 0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movb    0(%rbp), %r10b" ); n();
+    assert_rx86_preg_op(ir_start, "movb    %r10b, 16(%rbp)"); n();
+
+    // src1s spill
+    start_ir();
+    i(0, IR_ASSIGN, Ssz(1, TYPE_SHORT), vsz(1, TYPE_SHORT), 0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movw    0(%rbp), %r10w" ); n();
+    assert_rx86_preg_op(ir_start, "movw    %r10w, 16(%rbp)"); n();
+
+    // src1i spill
+    start_ir();
+    i(0, IR_ASSIGN, Ssz(1, TYPE_INT), vsz(1, TYPE_INT), 0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movl    0(%rbp), %r10d" ); n();
+    assert_rx86_preg_op(ir_start, "movl    %r10d, 16(%rbp)"); n();
+
+    // src1q spill
+    start_ir();
+    i(0, IR_ASSIGN, S(1), v(1), 0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movq    0(%rbp), %r10" ); n();
+    assert_rx86_preg_op(ir_start, "movq    %r10, 16(%rbp)"); n();
+
+    // src2 spill
+    start_ir();
+    i(0, IR_EQ, v(3), v(1), c(1));
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movq    -8(%rbp), %r10" ); n();
+    assert_rx86_preg_op(ir_start, "cmpq    $1, %r10"       ); n();
+
+    // src1 and src2 spill
+    start_ir();
+    i(0, IR_EQ, v(3), v(1), v(2));
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movq    -8(%rbp), %r10" ); n();
+    assert_rx86_preg_op(ir_start, "movq    -16(%rbp), %r11"); n();
+    assert_rx86_preg_op(ir_start, "cmpq    %r11, %r10"     ); n();
+
+    // dst spill with no instructions after
+    start_ir();
+    i(0, IR_ASSIGN, v(1), c(1), 0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movq    $1, %r11"     ); n();
+    assert_rx86_preg_op(ir_start, "movq    %r11, 0(%rbp)"); n();
+
+    // dst spill with an instruction after
+    start_ir();
+    i(0, IR_ASSIGN, v(1), c(1), 0);
+    i(0, IR_NOP,    0,    0,    0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movq    $1, %r11"     ); n();
+    assert_rx86_preg_op(ir_start, "movq    %r11, 0(%rbp)"); n();
+
+    // v3 = v1 == v2. This primarily tests the special case for movzbq
+    // where src1 == dst
+    start_ir();
+    i(0, IR_EQ, vsz(3, TYPE_SHORT), v(1), v(2));
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movq    -8(%rbp), %r10" ); n();
+    assert_rx86_preg_op(ir_start, "movq    -16(%rbp), %r11"); n();
+    assert_rx86_preg_op(ir_start, "cmpq    %r11, %r10"     ); n();
+    assert_rx86_preg_op(ir_start, "sete    %r11b"          ); n();
+    assert_rx86_preg_op(ir_start, "movw    %r11w, 0(%rbp)" ); n();
+    assert_rx86_preg_op(ir_start, "movw    0(%rbp), %r10w" ); n();
+    assert_rx86_preg_op(ir_start, "movzbw  %r10b, %r10w"   ); n();
+    assert_rx86_preg_op(ir_start, "movw    %r10w, %r11w"   ); n();
+    assert_rx86_preg_op(ir_start, "movw    %r11w, 0(%rbp)" ); n();
+
+    // (r2i) = 1. This tests the special case of is_lvalue_in_register=1 when
+    // (the type is an int.
+    start_ir();
+    tac = i(0, IR_ASSIGN,               asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
+    tac = i(0, IR_ASSIGN_TO_REG_LVALUE, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
+    finish_spill_ir(function);
+    assert_rx86_preg_op(ir_start, "movq    -8(%rbp), %r10"); n();
+    assert_rx86_preg_op(ir_start, "movq    %r10, %r11"    ); n();
+    assert_rx86_preg_op(ir_start, "movq    %r11, 0(%rbp)" ); n();
+    assert_rx86_preg_op(ir_start, "movq    0(%rbp), %r10" ); n();
+    assert_rx86_preg_op(ir_start, "movl    $1, (%r10)"    ); n();
+}
+
 int main() {
-    ssa_physical_register_count = 12;
-    ssa_physical_register_count = 0;
+    spill_all_registers = 0;
     opt_optimize_arithmetic_operations = 1;
     string_literals = malloc(MAX_STRING_LITERALS);
 
@@ -1032,4 +1142,5 @@ int main() {
     test_binary_shift_operations();
     test_constant_operations();
     test_pointer_inc();
+    test_spilling();
 }

@@ -353,8 +353,11 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
                 }
                 else if (v->label)
                     sprintf(buffer, ".l%d", v->label);
-                else
+                else {
+                    print_value(stdout, v, 0);
+                    printf("\n");
                     panic("Don't know how to render template value");
+                }
             }
         }
         else
