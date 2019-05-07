@@ -1074,14 +1074,6 @@ void statement() {
     else {
         expression(TOK_COMMA);
         consume(TOK_SEMI, ";");
-
-        // Discard the destination of a function call to a non-void function
-        // since it's not being assigned to anything and
-        if (ir[-1].operation == IR_CALL && ir[-1].dst) {
-            ir[-1].dst = 0;
-            --vreg_count;
-            pl();
-        }
     }
 }
 
