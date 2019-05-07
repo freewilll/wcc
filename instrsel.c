@@ -1082,6 +1082,7 @@ void tile_igraphs(Function *function) {
         cost_graph_node_count = 0;
 
         cost_to_igraph_map = malloc(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
+        memset(cost_to_igraph_map, 0, MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
 
         recursive_tile_igraphs(&(igraphs[i]), 0);
         if (DEBUG_INSTSEL_TILING) print_cost_graph(cost_graph, cost_rules, accumulated_cost);
