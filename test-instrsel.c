@@ -5,6 +5,7 @@
 #include "wc4.h"
 
 int remove_reserved_physical_registers;
+Function *function;
 
 void assert(long expected, long actual) {
     if (expected != actual) {
@@ -163,10 +164,8 @@ void nuke_rule(int non_terminal, int operation, int src1, int src2) {
 
 void test_instrsel_tree_merging() {
     int j;
-    Function *function;
     Tac *tac;
 
-    function = new_function();
     remove_reserved_physical_registers = 0;
 
     // Test edge case of a split block with variables being live on the way
@@ -268,19 +267,15 @@ void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *
 }
 
 void test_cst_load(int operation, Value *dst, Value *src, char *code) {
-    Function *function;
-    function = new_function();
 
     si(function, 0, operation, dst, src, 0);
     assert_x86_op(code);
 }
 
 void test_instrsel_constant_loading() {
-    Function *function;
     Tac *tac;
     long l;
 
-    function = new_function();
     remove_reserved_physical_registers = 1;
     l = 4294967296;
 
@@ -314,10 +309,8 @@ void test_instrsel_constant_loading() {
 }
 
 void test_instrsel() {
-    Function *function;
     Tac *tac;
 
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // Load constant into register with IR_ASSIGN
@@ -606,10 +599,8 @@ int x86_size_to_int(char s) {
 void test_instrsel_types_add_vregs() {
     int dst, src1, src2, count;
     int extend_src1, extend_src2, type;
-    Function *function;
     Tac *tac;
 
-    function = new_function();
 
     for (dst = 1; dst <= 4; dst++) {
         for (src1 = 1; src1 <= 4; src1++) {
@@ -660,9 +651,6 @@ void test_instrsel_types_add_vregs() {
 }
 
 void test_instrsel_types_add_mem_vreg() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // A non exhaustive set of tests to check global/reg addition with various integer sizes
@@ -726,9 +714,6 @@ void test_instrsel_types_add_mem_vreg() {
 }
 
 void test_instrsel_types_cmp_assignment() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // Test s = l == l
@@ -757,9 +742,6 @@ void test_instrsel_types_cmp_assignment() {
 }
 
 void test_instrsel_returns() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // Return constant & vregs
@@ -779,9 +761,6 @@ void test_instrsel_returns() {
 }
 
 void test_instrsel_function_calls() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // The legacy backend extends %rax coming from a call to a quad. These
@@ -794,9 +773,6 @@ void test_instrsel_function_calls() {
 }
 
 void test_instrsel_function_call_rearranging() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     start_ir();
@@ -813,9 +789,6 @@ void test_instrsel_function_call_rearranging() {
 }
 
 void test_misc_commutative_operations() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_BOR, v(3), v(1), v(2));
@@ -832,9 +805,6 @@ void test_misc_commutative_operations() {
 }
 
 void test_sub_operations() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_SUB, v(3), v(1), v(2));
@@ -867,9 +837,6 @@ void test_sub_operations() {
 }
 
 void test_div_operations() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_DIV, v(3), v(1), v(2));
@@ -885,13 +852,9 @@ void test_div_operations() {
     assert(0, strcmp(rx86op(ir_start->next->next            ), "movq    r2q, r3q"));
     assert(0, strcmp(rx86op(ir_start->next->next->next      ), "idivq   r3q"));
     assert(0, strcmp(rx86op(ir_start->next->next->next->next), "movq    %rdx, r3q"));
-
 }
 
 void test_bnot_operations() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // Test ~v with the 4 types
@@ -923,9 +886,6 @@ void test_bnot_operations() {
 }
 
 void test_binary_shift_operations() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // v << c
@@ -980,9 +940,6 @@ void test_binary_shift_operations() {
 }
 
 void test_constant_operations() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_BNOT, v(1), c(1), 0   ); assert_x86_op("movq    $-2, r1q");
@@ -1012,9 +969,6 @@ void test_constant_operations() {
 }
 
 void test_pointer_inc() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // (a1) = a1 + 1, split into a2 = a1 + 1, (a1) = a2
@@ -1039,9 +993,6 @@ void test_pointer_inc() {
 }
 
 void test_pointer_sub() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // a2 = a1 - 1
@@ -1056,10 +1007,8 @@ void test_pointer_sub() {
 }
 
 void test_pointer_load_constant() {
-    Function *function;
     int t;
 
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     for (t = TYPE_CHAR; t <= TYPE_LONG; t++) {
@@ -1072,9 +1021,6 @@ void test_pointer_load_constant() {
 }
 
 void test_pointer_eq() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     start_ir();
@@ -1084,9 +1030,6 @@ void test_pointer_eq() {
 }
 
 void test_pointer_string_literal() {
-    Function *function;
-
-    function = new_function();
     remove_reserved_physical_registers = 1;
 
     // Test conversion of a string literall to an address
@@ -1099,10 +1042,8 @@ void test_pointer_string_literal() {
 }
 
 void test_spilling() {
-    Function *function;
     Tac *tac;
 
-    function = new_function();
     remove_reserved_physical_registers = 1;
     spill_all_registers = 1;
 
@@ -1193,6 +1134,8 @@ void test_spilling() {
 }
 
 int main() {
+    function = new_function();
+
     spill_all_registers = 0;
     opt_optimize_arithmetic_operations = 1;
     string_literals = malloc(MAX_STRING_LITERALS);
