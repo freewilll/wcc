@@ -1071,6 +1071,19 @@ void test_pointer_load_constant() {
     }
 }
 
+void test_pointer_eq() {
+    Function *function;
+    int t;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    start_ir();
+    i(0, IR_EQ, v(2), a(1), c(1));
+    finish_ir(function);
+    assert_x86_op("cmpq    $1, r1q");
+}
+
 void test_spilling() {
     Function *function;
     Tac *tac;
@@ -1191,5 +1204,6 @@ int main() {
     test_pointer_inc();
     test_pointer_sub();
     test_pointer_load_constant();
+    test_pointer_eq();
     test_spilling();
 }

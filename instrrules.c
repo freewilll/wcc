@@ -568,6 +568,7 @@ void init_instruction_selection_rules() {
     r = add_rule(STL,  0, STL,  0, 0); fin_rule(r);
     r = add_rule(MEM,  0, MEM,  0, 0); fin_rule(r);
     r = add_rule(ADR,  0, ADR,  0, 0); fin_rule(r);
+    r = add_rule(REG,  0, ADR,  0, 0); fin_rule(r);
     r = add_rule(LAB,  0, LAB,  0, 0); fin_rule(r);
     r = add_rule(FUN,  0, FUN,  0, 0); fin_rule(r);
 
