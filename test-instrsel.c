@@ -1040,20 +1040,18 @@ void test_pointer_inc() {
 
 void test_pointer_load_constant() {
     Function *function;
-    long b;
+    int t;
 
     function = new_function();
     remove_reserved_physical_registers = 1;
 
-    b = (long) 1 << 32;
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_CHAR),  c(1), 0); assert_x86_op("movq    $1, r1q");
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_SHORT), c(1), 0); assert_x86_op("movq    $1, r1q");
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_INT),   c(1), 0); assert_x86_op("movq    $1, r1q");
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_LONG),  c(1), 0); assert_x86_op("movq    $1, r1q");
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_CHAR),  c(b), 0); assert_x86_op("movq    $4294967296, r1q");
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_SHORT), c(b), 0); assert_x86_op("movq    $4294967296, r1q");
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_INT),   c(b), 0); assert_x86_op("movq    $4294967296, r1q");
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_LONG),  c(b), 0); assert_x86_op("movq    $4294967296, r1q");
+    for (t = TYPE_CHAR; t <= TYPE_LONG; t++) {
+        // Need separate tests for the two constant sizes
+        si(function, 0, IR_LOAD_CONSTANT, asz(1, t),  c(1), 0);
+        assert_x86_op("movq    $1, r1q");
+        si(function, 0, IR_LOAD_CONSTANT, asz(1, t),  c((long) 1 << 32), 0);
+        assert_x86_op("movq    $4294967296, r1q");
+    }
 }
 
 void test_spilling() {
