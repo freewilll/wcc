@@ -313,6 +313,7 @@ void add_pointer_rules() {
     r = add_rule(ADRQ, 0,                MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
 
     // Address loads
+    r = add_rule(ADRB, 0,                      STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(ADRB, IR_LOAD_STRING_LITERAL, STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(ADRB, IR_ADDRESS_OF,          MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For **ppi = 1
     r = add_rule(ADRW, IR_ADDRESS_OF,          MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");

@@ -1073,7 +1073,6 @@ void test_pointer_load_constant() {
 
 void test_pointer_eq() {
     Function *function;
-    int t;
 
     function = new_function();
     remove_reserved_physical_registers = 1;
@@ -1082,6 +1081,21 @@ void test_pointer_eq() {
     i(0, IR_EQ, v(2), a(1), c(1));
     finish_ir(function);
     assert_x86_op("cmpq    $1, r1q");
+}
+
+void test_pointer_string_literal() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // Test conversion of a string literall to an address
+    start_ir();
+    i(0, IR_ADD, v(1), s(1), c(1));
+    finish_ir(function);
+    assert_x86_op("leaq    .SL1(%rip), r2q");
+    assert_x86_op("movq    r2q, r1q");
+    assert_x86_op("addq    $1, r1q");
 }
 
 void test_spilling() {
@@ -1205,5 +1219,6 @@ int main() {
     test_pointer_sub();
     test_pointer_load_constant();
     test_pointer_eq();
+    test_pointer_string_literal();
     test_spilling();
 }
