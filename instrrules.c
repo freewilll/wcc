@@ -172,21 +172,60 @@ void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     }
 }
 
-void print_rule(Rule *r) {
+char *non_terminal_string(int nt) {
+    char *buf;
+
+    buf = malloc(6);
+
+         if (!nt) return "";
+    else if (nt == CST)  return "cst";
+    else if (nt == STL)  return "stl";
+    else if (nt == LAB)  return "lab";
+    else if (nt == FUN)  return "fun";
+    else if (nt == CSTL) return "cst:l";
+    else if (nt == CSTQ) return "cst:q";
+    else if (nt == REGB) return "reg:b";
+    else if (nt == REGW) return "reg:w";
+    else if (nt == REGL) return "reg:l";
+    else if (nt == REGQ) return "reg:q";
+    else if (nt == MEMB) return "mem:b";
+    else if (nt == MEMW) return "mem:w";
+    else if (nt == MEML) return "mem:l";
+    else if (nt == MEMQ) return "mem:q";
+    else if (nt == ADRB) return "adr:b";
+    else if (nt == ADRW) return "adr:w";
+    else if (nt == ADRL) return "adr:l";
+    else if (nt == ADRQ) return "adr:q";
+    else {
+        asprintf(&buf, "nt%03d", nt);
+        return buf;
+    }
+}
+
+void print_rule(Rule *r, int print_operations) {
     int i, first;
     X86Operation *operation;
 
-    printf("%5d %5d %5d %5d ", r->operation, r->non_terminal, r->src1, r->src2);
-    operation = r->x86_operations;
-    first = 1;
-    while (operation) {
-        if (!first) printf("                           ");
-        first = 0;
-        printf("%s\n", operation->template ? operation->template : "-");
-        operation = operation->next;
-    }
+    printf("%-24s  %-5s  %-5s  %-5s  %2d    ",
+        operation_string(r->operation),
+        non_terminal_string(r->non_terminal),
+        non_terminal_string(r->src1),
+        non_terminal_string(r->src2),
+        r->cost
+    );
 
-    if (!r->x86_operations) printf("\n");
+    if (print_operations && r->x86_operations) {
+        operation = r->x86_operations;
+        first = 1;
+        while (operation) {
+            if (!first) printf("                                                           ");
+            first = 0;
+            printf("%s\n", operation->template ? operation->template : "");
+            operation = operation->next;
+        }
+    }
+    else
+        printf("\n");
 }
 
 void print_rules() {
@@ -194,7 +233,7 @@ void print_rules() {
 
     for (i = 0; i < instr_rule_count; i++) {
         printf("%-5d ", i);
-        print_rule(&(instr_rules[i]));
+        print_rule(&(instr_rules[i]), 1);
     }
 }
 
@@ -236,7 +275,7 @@ int make_x86_size_from_non_terminal(int nt) {
         return -1;
 }
 
-void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
+Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
     Tac *tac;
 
     if (v1) make_value_x86_size(v1);
@@ -245,6 +284,8 @@ void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) 
     if (DEBUG_SIGN_EXTENSION) printf("  adding instruction for operation %d: %s\n", x86op->operation, x86op->template);
     tac = add_instruction(x86op->operation, dst, v1, v2);
     tac->x86_template = x86op->template;
+
+    return tac;
 }
 
 void add_store_to_pointer(int dst, int src1, int src2, char *template) {
@@ -629,7 +670,7 @@ void init_instruction_selection_rules() {
     cmp_mc = "cmp%s $%v2, %v1";
 
     // Comparision + conditional jump
-    ntc = 2000;
+    ntc = 100;
     add_comparison_conditional_jmp_rules(&ntc, REG, REG, cmp_rr);
     add_comparison_conditional_jmp_rules(&ntc, REG, CST, cmp_rc);
     add_comparison_conditional_jmp_rules(&ntc, REG, MEM, cmp_rm);

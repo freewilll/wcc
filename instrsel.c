@@ -652,8 +652,8 @@ int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
         r = &(instr_rules[i]);
         if (r->operation == tac->operation) {
             if (DEBUG_INSTSEL_TILING) {
-                printf("matched rule %d: ", i);
-                print_rule(r);
+                printf("matched rule %-4d: ", i);
+                print_rule(r, 0);
             }
 
             choice_node_id = new_cost_graph_node();
@@ -692,8 +692,8 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
         if (match_value_to_rule_src(v, r->src1)) {
             if (DEBUG_INSTSEL_TILING) {
-                printf("matched rule %d: ", i);
-                print_rule(r);
+                printf("matched rule %-4d: ", i);
+                print_rule(r, 0);
             }
             add_to_set(igraph_labels[node_id], i);
 
@@ -813,8 +813,8 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         matched = 1;
 
         if (DEBUG_INSTSEL_TILING) {
-            printf("matched rule %d: ", i);
-            print_rule(r);
+            printf("matched rule %-4d: ", i);
+            print_rule(r, 0);
         }
         add_to_set(igraph_labels[node_id], i);
 
@@ -987,6 +987,8 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     }
 
     // Add x86 operations to the IR
+    if (DEBUG_INSTSEL_TILING) print_rule(rule, 0);
+
     x86op = rule->x86_operations;
     while (x86op) {
              if (x86op->dst == 0)    x86_dst = 0;
@@ -1010,7 +1012,8 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         if (x86_dst) x86_dst = dup_value(x86_dst);
         if (x86_v1)  x86_v1  = dup_value(x86_v1);
         if (x86_v2)  x86_v2  = dup_value(x86_v2);
-        add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
+        tac = add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
+        if (DEBUG_INSTSEL_TILING) print_instruction(stdout, tac);
 
         x86op = x86op->next;
     }

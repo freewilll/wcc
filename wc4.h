@@ -511,6 +511,7 @@ void sanity_test_ir_linkage(Tac *ir);
 int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
 void print_value(void *f, Value *v, int is_assignment_rhs);
+char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac);
 void print_ir(Function *function, char *name);
 void optimize_ir(Symbol *function);
@@ -662,12 +663,12 @@ void experimental_instruction_selection(Symbol *function_symbol);
 
 // instrrules.c
 char size_to_x86_size(int size);
-void print_rule(Rule *r);
+void print_rule(Rule *r, int print_operations);
 void print_rules();
 void make_value_x86_size(Value *v);
 int value_ptr_target_x86_size(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
-void add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
+Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
 void init_instruction_selection_rules();
 
 // codegen.c

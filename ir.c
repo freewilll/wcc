@@ -212,10 +212,85 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
     }
 }
 
+char *operation_string(int operation) {
+         if (!operation)                            return "";
+    else if (operation == IR_LOAD_CONSTANT)         return "IR_LOAD_CONSTANT";
+    else if (operation == IR_LOAD_STRING_LITERAL)   return "IR_LOAD_STRING_LITERAL";
+    else if (operation == IR_LOAD_VARIABLE)         return "IR_LOAD_VARIABLE";
+    else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
+    else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
+    else if (operation == IR_START_CALL)            return "IR_START_CALL";
+    else if (operation == IR_ARG)                   return "IR_ARG";
+    else if (operation == IR_CALL)                  return "IR_CALL";
+    else if (operation == IR_END_CALL)              return "IR_END_CALL";
+    else if (operation == IR_RETURN)                return "IR_RETURN";
+    else if (operation == IR_START_LOOP)            return "IR_START_LOOP";
+    else if (operation == IR_END_LOOP)              return "IR_END_LOOP";
+    else if (operation == IR_ASSIGN)                return "IR_ASSIGN";
+    else if (operation == IR_ASSIGN_TO_REG_LVALUE)  return "IR_ASSIGN_TO_REG_LVALUE";
+    else if (operation == IR_NOP)                   return "IR_NOP";
+    else if (operation == IR_JMP)                   return "IR_JMP";
+    else if (operation == IR_JZ)                    return "IR_JZ";
+    else if (operation == IR_JNZ)                   return "IR_JNZ";
+    else if (operation == IR_ADD)                   return "IR_ADD";
+    else if (operation == IR_SUB)                   return "IR_SUB";
+    else if (operation == IR_RSUB)                  return "IR_RSUB";
+    else if (operation == IR_MUL)                   return "IR_MUL";
+    else if (operation == IR_DIV)                   return "IR_DIV";
+    else if (operation == IR_MOD)                   return "IR_MOD";
+    else if (operation == IR_EQ)                    return "IR_EQ";
+    else if (operation == IR_NE)                    return "IR_NE";
+    else if (operation == IR_BNOT)                  return "IR_BNOT";
+    else if (operation == IR_BOR)                   return "IR_BOR";
+    else if (operation == IR_BAND)                  return "IR_BAND";
+    else if (operation == IR_XOR)                   return "IR_XOR";
+    else if (operation == IR_BSHL)                  return "IR_BSHL";
+    else if (operation == IR_BSHR)                  return "IR_BSHR";
+    else if (operation == IR_LT)                    return "IR_LT";
+    else if (operation == IR_GT)                    return "IR_GT";
+    else if (operation == IR_LE)                    return "IR_LE";
+    else if (operation == IR_GE)                    return "IR_GE";
+    else if (operation == IR_PHI_FUNCTION)          return "IR_PHI_FUNCTION";
+    else if (operation == X_MOV)                    return "mov";
+    else if (operation == X_ADD)                    return "add";
+    else if (operation == X_MUL)                    return "mul";
+    else if (operation == X_IDIV)                   return "idiv";
+    else if (operation == X_CQTO)                   return "cqto";
+    else if (operation == X_CMP)                    return "cmp";
+    else if (operation == X_CMPZ)                   return "cmpz";
+    else if (operation == X_JMP)                    return "jmp";
+    else if (operation == X_JZ)                     return "jz";
+    else if (operation == X_JNZ)                    return "jnz";
+    else if (operation == X_JE)                     return "je";
+    else if (operation == X_JNE)                    return "jne";
+    else if (operation == X_JLT)                    return "jlt";
+    else if (operation == X_JGT)                    return "jgt";
+    else if (operation == X_JLE)                    return "jle";
+    else if (operation == X_JGE)                    return "jge";
+    else if (operation == X_MOVZBQ)                 return "movzbq";
+    else if (operation == X_SETE)                   return "sete";
+    else if (operation == X_SETNE)                  return "setne";
+    else if (operation == X_SETLT)                  return "setlt";
+    else if (operation == X_SETGT)                  return "setgt";
+    else if (operation == X_SETLE)                  return "setle";
+    else if (operation == X_SETGE)                  return "setge";
+    else if (operation == X_MOVSBW)                 return "movsbw";
+    else if (operation == X_MOVSBL)                 return "movsbl";
+    else if (operation == X_MOVSBQ)                 return "movsbq";
+    else if (operation == X_MOVSWL)                 return "movswl";
+    else if (operation == X_MOVSWQ)                 return "movswq";
+    else if (operation == X_MOVSLQ)                 return "movslq";
+    else panic1d("Unknown x86 operation %d", operation);
+}
+
+
 void print_instruction(void *f, Tac *tac) {
     int first;
     char *buffer;
     Value *v;
+    int o;
+
+    o = tac->operation;
 
     if (tac->label)
         fprintf(f, "l%-5d", tac->label);
@@ -229,28 +304,28 @@ void print_instruction(void *f, Tac *tac) {
         return;
     }
 
-    if (tac->dst && tac->operation < X_START) {
-        print_value(f, tac->dst, tac->operation != IR_ASSIGN);
+    if (tac->dst && o < X_START) {
+        print_value(f, tac->dst, o != IR_ASSIGN);
         fprintf(f, " = ");
     }
 
-    if (tac->operation == IR_LOAD_CONSTANT || tac->operation == IR_LOAD_VARIABLE || tac->operation == IR_LOAD_STRING_LITERAL) {
+    if (o == IR_LOAD_CONSTANT || o == IR_LOAD_VARIABLE || o == IR_LOAD_STRING_LITERAL) {
         print_value(f, tac->src1, 1);
     }
 
-    else if (tac->operation == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->value);
-    else if (tac->operation == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->value);
+    else if (o == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->value);
+    else if (o == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->value);
 
-    else if (tac->operation == IR_ARG || tac->operation == X_ARG) {
+    else if (o == IR_ARG || o == X_ARG) {
         fprintf(f, "arg for call %ld ", tac->src1->value);
         print_value(f, tac->src2, 1);
     }
 
-    else if (tac->operation == IR_CALL) {
+    else if (o == IR_CALL) {
         fprintf(f, "call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_call_arg_count);
     }
 
-    else if (tac->operation == IR_RETURN) {
+    else if (o == IR_RETURN) {
         if (tac->src1) {
             fprintf(f, "return ");
             print_value(f, tac->src1, 1);
@@ -259,34 +334,34 @@ void print_instruction(void *f, Tac *tac) {
             fprintf(f, "return");
     }
 
-    else if (tac->operation == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
-    else if (tac->operation == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
+    else if (o == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
+    else if (o == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
 
-    else if (tac->operation == IR_ASSIGN)
+    else if (o == IR_ASSIGN)
         print_value(f, tac->src1, 1);
 
-    else if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) {
+    else if (o == IR_ASSIGN_TO_REG_LVALUE) {
         print_value(f, tac->src1, 0);
         fprintf(f, " = ");
         print_value(f, tac->src2, 1);
         fprintf(f, " [assign to lvalue]");
     }
 
-    else if (tac->operation == IR_NOP)
+    else if (o == IR_NOP)
         fprintf(f, "nop");
 
-    else if (tac->operation == IR_JZ || tac->operation == IR_JNZ) {
-             if (tac->operation == IR_JZ)  fprintf(f, "jz ");
-        else if (tac->operation == IR_JNZ) fprintf(f, "jnz ");
+    else if (o == IR_JZ || o == IR_JNZ) {
+             if (o == IR_JZ)  fprintf(f, "jz ");
+        else if (o == IR_JNZ) fprintf(f, "jnz ");
         print_value(f, tac->src1, 1);
         fprintf(f, ", ");
         print_value(f, tac->src2, 1);
     }
 
-    else if (tac->operation == IR_JMP)
+    else if (o == IR_JMP)
         fprintf(f, "jmp l%d", tac->src1->label);
 
-    else if (tac->operation == IR_PHI_FUNCTION) {
+    else if (o == IR_PHI_FUNCTION) {
         fprintf(f, "Φ(");
         v = tac->phi_values;
         first = 1;
@@ -299,59 +374,59 @@ void print_instruction(void *f, Tac *tac) {
         fprintf(f, ")");
     }
 
-    else if (tac->operation == IR_INDIRECT)      {                               fprintf(f, "*");    print_value(f, tac->src1, 1); }
-    else if (tac->operation == IR_ADDRESS_OF)    {                               fprintf(f, "&");    print_value(f, tac->src1, 1); }
-    else if (tac->operation == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");  print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
-    else if (tac->operation == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_DIV)           { print_value(f, tac->src1, 1); fprintf(f, " / ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_MOD)           { print_value(f, tac->src1, 1); fprintf(f, " %% "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_BNOT)          {                               fprintf(f, "~");    print_value(f, tac->src1, 1); }
-    else if (tac->operation == IR_EQ)            { print_value(f, tac->src1, 1); fprintf(f, " == "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_NE)            { print_value(f, tac->src1, 1); fprintf(f, " != "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_GT)            { print_value(f, tac->src1, 1); fprintf(f, " > ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_LT)            { print_value(f, tac->src1, 1); fprintf(f, " < ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_GE)            { print_value(f, tac->src1, 1); fprintf(f, " >= "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_LE)            { print_value(f, tac->src1, 1); fprintf(f, " <= "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_BAND)          { print_value(f, tac->src1, 1); fprintf(f, " & ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_BOR)           { print_value(f, tac->src1, 1); fprintf(f, " | ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");  print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == X_RET)            { fprintf(f, "ret "   ); if (tac->src1) print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_LEA)            { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == IR_INDIRECT)      {                               fprintf(f, "*");    print_value(f, tac->src1, 1); }
+    else if (o == IR_ADDRESS_OF)    {                               fprintf(f, "&");    print_value(f, tac->src1, 1); }
+    else if (o == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");  print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
+    else if (o == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_DIV)           { print_value(f, tac->src1, 1); fprintf(f, " / ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_MOD)           { print_value(f, tac->src1, 1); fprintf(f, " %% "); print_value(f, tac->src2, 1); }
+    else if (o == IR_BNOT)          {                               fprintf(f, "~");    print_value(f, tac->src1, 1); }
+    else if (o == IR_EQ)            { print_value(f, tac->src1, 1); fprintf(f, " == "); print_value(f, tac->src2, 1); }
+    else if (o == IR_NE)            { print_value(f, tac->src1, 1); fprintf(f, " != "); print_value(f, tac->src2, 1); }
+    else if (o == IR_GT)            { print_value(f, tac->src1, 1); fprintf(f, " > ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_LT)            { print_value(f, tac->src1, 1); fprintf(f, " < ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_GE)            { print_value(f, tac->src1, 1); fprintf(f, " >= "); print_value(f, tac->src2, 1); }
+    else if (o == IR_LE)            { print_value(f, tac->src1, 1); fprintf(f, " <= "); print_value(f, tac->src2, 1); }
+    else if (o == IR_BAND)          { print_value(f, tac->src1, 1); fprintf(f, " & ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_BOR)           { print_value(f, tac->src1, 1); fprintf(f, " | ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
+    else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
+    else if (o == X_RET)            { fprintf(f, "ret "   ); if (tac->src1) print_value(f, tac->src1, 1); }
+    else if (o == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); }
+    else if (o == X_LEA)            { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
 
-    else if (tac->operation == X_MOV)    { fprintf(f, "mov "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_ADD)    { fprintf(f, "add "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_MUL)    { fprintf(f, "mul "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_IDIV)   { fprintf(f, "idiv "  ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_CQTO)   { fprintf(f, "cqto "  ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (tac->operation == X_CMP)    { fprintf(f, "cmp "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == X_CMPZ)   { fprintf(f, "cmpz "  ); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JMP)    { fprintf(f, "jmp "   ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JZ)     { fprintf(f, "jz "    ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JNZ)    { fprintf(f, "jnz "   ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JE)     { fprintf(f, "je "    ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JNE)    { fprintf(f, "jne "   ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JLT)    { fprintf(f, "jlt "   ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JGT)    { fprintf(f, "jgt "   ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JLE)    { fprintf(f, "jle "   ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_JGE)    { fprintf(f, "jge "   ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_MOVZBQ) { fprintf(f, "movzbq "); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_SETE)   { fprintf(f, "sete "  ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_SETNE)  { fprintf(f, "setne " ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_SETLT)  { fprintf(f, "setlt " ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_SETGT)  { fprintf(f, "setgt " ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_SETLE)  { fprintf(f, "setle " ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_SETGE)  { fprintf(f, "setge " ); print_value(f, tac->src1, 1); }
-    else if (tac->operation == X_MOVSBW) { fprintf(f, "movsbw "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == X_MOVSBL) { fprintf(f, "movsbl "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == X_MOVSBQ) { fprintf(f, "movsbq "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == X_MOVSWL) { fprintf(f, "movswl "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == X_MOVSWQ) { fprintf(f, "movswq "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
-    else if (tac->operation == X_MOVSLQ) { fprintf(f, "movslq "); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (o == X_MOV)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_ADD)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_MUL)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_IDIV)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_CQTO)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_CMP)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (o == X_CMPZ)   { fprintf(f, "%-6s", operation_string(o)); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
+    else if (o == X_JMP)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JZ)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JNZ)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JE)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JNE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JLT)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JGT)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JLE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JGE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_MOVZBQ) { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_SETE)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_SETNE)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_SETLT)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_SETGT)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_SETLE)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_SETGE)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_MOVSBW) { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (o == X_MOVSBL) { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (o == X_MOVSBQ) { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (o == X_MOVSWL) { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (o == X_MOVSWQ) { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (o == X_MOVSLQ) { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
 
     else
         panic1d("print_instruction(): Unknown operation: %d", tac->operation);
