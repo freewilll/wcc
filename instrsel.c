@@ -776,7 +776,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     }
 
     if (DEBUG_INSTSEL_TILING && node_id == 0 && tac->dst)
-        printf("Want dst %d\n", non_terminal_for_value(tac->dst));
+        printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
 
     // Loop over all rules until a match is found
     matched = 0;

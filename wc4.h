@@ -663,6 +663,7 @@ void experimental_instruction_selection(Symbol *function_symbol);
 
 // instrrules.c
 char size_to_x86_size(int size);
+char *non_terminal_string(int nt);
 void print_rule(Rule *r, int print_operations);
 void print_rules();
 void make_value_x86_size(Value *v);
