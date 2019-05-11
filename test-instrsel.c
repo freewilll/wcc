@@ -62,18 +62,41 @@ void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
 
 }
 
+void n() {
+    ir_start = ir_start->next;
+}
+
+void nop() {
+    assert(IR_NOP, ir_start->operation);
+    ir_start = ir_start->next;
+}
+
 char *rx86op(Tac *tac) {
     return render_x86_operation(tac, 0, 0, 0);
 }
 
-char *assert_rx86_preg_op(Tac *tac, char *expected) {
+char *assert_x86_op(char *expected) {
     char *got;
 
-    got = render_x86_operation(tac, 0, 0, 1);
+    got = render_x86_operation(ir_start, 0, 0, 0);;
     if (strcmp(got, expected)) {
         printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
         exit(1);
     }
+
+    n();
+}
+
+char *assert_rx86_preg_op(char *expected) {
+    char *got;
+
+    got = render_x86_operation(ir_start, 0, 0, 1);
+    if (strcmp(got, expected)) {
+        printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
+        exit(1);
+    }
+
+    n();
 }
 
 void remove_reserved_physical_register_count_from_tac(Tac *ir) {
@@ -138,15 +161,6 @@ void nuke_rule(int non_terminal, int operation, int src1, int src2) {
     }
 }
 
-void n() {
-    ir_start = ir_start->next;
-}
-
-void nop() {
-    assert(IR_NOP, ir_start->operation);
-    ir_start = ir_start->next;
-}
-
 void test_instrsel_tree_merging() {
     int j;
     Function *function;
@@ -182,11 +196,11 @@ void test_instrsel_tree_merging() {
     i(0, IR_ASSIGN, v(2), c(2), 0   );
     i(1, IR_EQ,     v(4), v(1), v(2));
     finish_ir(function);
-    assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q" )); n();
-    assert(0, strcmp(rx86op(ir_start), "movq    $2, r2q" )); n(); nop();
-    assert(0, strcmp(rx86op(ir_start), "cmpq    r2q, r1q")); n();
-    assert(0, strcmp(rx86op(ir_start), "sete    r3b"     )); n();
-    assert(0, strcmp(rx86op(ir_start), "movzbq  r3b, r3q"));
+    assert_x86_op("movq    $1, r1q" );
+    assert_x86_op("movq    $2, r2q" ); nop();
+    assert_x86_op("cmpq    r2q, r1q");
+    assert_x86_op("sete    r3b"     );
+    assert_x86_op("movzbq  r3b, r3q");
 
     // Ensure a dst in assign to an lvalue keeps the value alive, so
     // that a merge is prevented later on.
@@ -195,9 +209,9 @@ void test_instrsel_tree_merging() {
     i(0, IR_ASSIGN,               v(2),              v(3),              0   ); // r2 = r3
     i(0, IR_ASSIGN_TO_REG_LVALUE, asz(3, TYPE_LONG), asz(3, TYPE_LONG), v(4)); // (r3) = r4
     finish_ir(function);
-    assert(0, strcmp(rx86op(ir_start), "movq    $1, r2q"   )); n();
-    assert(0, strcmp(rx86op(ir_start), "movq    r2q, r1q"  )); n(); nop();
-    assert(0, strcmp(rx86op(ir_start), "movq    r4q, (r2q)")); n();
+    assert_x86_op("movq    $1, r2q"   );
+    assert_x86_op("movq    r2q, r1q"  ); nop();
+    assert_x86_op("movq    r4q, (r2q)");
 
     // Ensure the assign to pointer instruction copies src1 to dst first
     remove_reserved_physical_registers = 1;
@@ -205,9 +219,9 @@ void test_instrsel_tree_merging() {
     i(0, IR_ADDRESS_OF,           a(1), g(1), 0);
     i(0, IR_ASSIGN_TO_REG_LVALUE, a(1), a(1), c(1));
     finish_ir(function);
-    assert(0, strcmp(rx86op(ir_start), "leaq    g1(%rip), r3q")); n();
-    assert(0, strcmp(rx86op(ir_start), "movq    r3q, r1q"     )); n();
-    assert(0, strcmp(rx86op(ir_start), "movq    $1, (r1q)"    )); n();
+    assert_x86_op("leaq    g1(%rip), r3q");
+    assert_x86_op("movq    r3q, r1q"     );
+    assert_x86_op("movq    $1, (r1q)"    );
 }
 
 void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, int x86_jmp_operation) {
@@ -258,7 +272,7 @@ void test_cst_load(int operation, Value *dst, Value *src, char *code) {
     function = new_function();
 
     si(function, 0, operation, dst, src, 0);
-    assert(0, strcmp(rx86op(ir_start), code));
+    assert_x86_op(code);
 }
 
 void test_instrsel_constant_loading() {
@@ -310,7 +324,7 @@ void test_instrsel() {
     start_ir();
     i(0, IR_ASSIGN, v(1), c(1), 0);
     finish_ir(function);
-    assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    assert_x86_op("movq    $1, r1q");
 
     // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
     // c1 goes into v2 and c2 goes into v3
@@ -749,17 +763,17 @@ void test_instrsel_returns() {
     remove_reserved_physical_registers = 1;
 
     // Return constant & vregs
-    si(function, 0, IR_RETURN, 0, c(4294967296),      0); assert(0, strcmp(rx86op(ir_start), "mov     $4294967296, %rax"));
-    si(function, 0, IR_RETURN, 0, c(1),               0); assert(0, strcmp(rx86op(ir_start), "mov     $1, %rax"));
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_CHAR),  0); assert(0, strcmp(rx86op(ir_start), "movsbq  r1b, %rax"));
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_SHORT), 0); assert(0, strcmp(rx86op(ir_start), "movswq  r1w, %rax"));
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_INT),   0); assert(0, strcmp(rx86op(ir_start), "movslq  r1l, %rax"));
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_LONG),  0); assert(0, strcmp(rx86op(ir_start), "movq    r1q, %rax"));
+    si(function, 0, IR_RETURN, 0, c(4294967296),      0); assert_x86_op("mov     $4294967296, %rax");
+    si(function, 0, IR_RETURN, 0, c(1),               0); assert_x86_op("mov     $1, %rax");
+    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  r1b, %rax");
+    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  r1w, %rax");
+    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_INT),   0); assert_x86_op("movslq  r1l, %rax");
+    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, %rax");
 
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_CHAR),  0); assert(0, strcmp(rx86op(ir_start), "movsbq  g1(%rip), %rax"));
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_SHORT), 0); assert(0, strcmp(rx86op(ir_start), "movswq  g1(%rip), %rax"));
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_INT),   0); assert(0, strcmp(rx86op(ir_start), "movslq  g1(%rip), %rax"));
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_LONG),  0); assert(0, strcmp(rx86op(ir_start), "movq    g1(%rip), %rax"));
+    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  g1(%rip), %rax");
+    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  g1(%rip), %rax");
+    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_INT),   0); assert_x86_op("movslq  g1(%rip), %rax");
+    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_LONG),  0); assert_x86_op("movq    g1(%rip), %rax");
 
     si(function, 0, IR_RETURN, 0, 0, 0); assert(X_RET, ir_start->operation);
 }
@@ -971,30 +985,30 @@ void test_constant_operations() {
     function = new_function();
     remove_reserved_physical_registers = 1;
 
-    si(function, 0, IR_BNOT, v(1), c(1), 0   ); assert(0, strcmp(rx86op(ir_start), "movq    $-2, r1q"));
-    si(function, 0, IR_ADD,  v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $3, r1q"));
-    si(function, 0, IR_SUB,  v(1), c(3), c(1)); assert(0, strcmp(rx86op(ir_start), "movq    $2, r1q"));
-    si(function, 0, IR_MUL,  v(1), c(3), c(3)); assert(0, strcmp(rx86op(ir_start), "movq    $9, r1q"));
-    si(function, 0, IR_DIV,  v(1), c(7), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $3, r1q"));
-    si(function, 0, IR_MOD,  v(1), c(7), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_BAND, v(1), c(3), c(1)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_BOR,  v(1), c(1), c(5)); assert(0, strcmp(rx86op(ir_start), "movq    $5, r1q"));
-    si(function, 0, IR_XOR,  v(1), c(6), c(3)); assert(0, strcmp(rx86op(ir_start), "movq    $5, r1q"));
-    si(function, 0, IR_EQ,   v(1), c(1), c(1)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_NE,   v(1), c(1), c(1)); assert(0, strcmp(rx86op(ir_start), "movq    $0, r1q"));
-    si(function, 0, IR_LT,   v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_GT,   v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $0, r1q"));
-    si(function, 0, IR_LE,   v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_GE,   v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $0, r1q"));
-    si(function, 0, IR_BSHL, v(1), c(1), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $4, r1q"));
-    si(function, 0, IR_BSHR, v(1), c(8), c(2)); assert(0, strcmp(rx86op(ir_start), "movq    $2, r1q"));
+    si(function, 0, IR_BNOT, v(1), c(1), 0   ); assert_x86_op("movq    $-2, r1q");
+    si(function, 0, IR_ADD,  v(1), c(1), c(2)); assert_x86_op("movq    $3, r1q" );
+    si(function, 0, IR_SUB,  v(1), c(3), c(1)); assert_x86_op("movq    $2, r1q" );
+    si(function, 0, IR_MUL,  v(1), c(3), c(3)); assert_x86_op("movq    $9, r1q" );
+    si(function, 0, IR_DIV,  v(1), c(7), c(2)); assert_x86_op("movq    $3, r1q" );
+    si(function, 0, IR_MOD,  v(1), c(7), c(2)); assert_x86_op("movq    $1, r1q" );
+    si(function, 0, IR_BAND, v(1), c(3), c(1)); assert_x86_op("movq    $1, r1q" );
+    si(function, 0, IR_BOR,  v(1), c(1), c(5)); assert_x86_op("movq    $5, r1q" );
+    si(function, 0, IR_XOR,  v(1), c(6), c(3)); assert_x86_op("movq    $5, r1q" );
+    si(function, 0, IR_EQ,   v(1), c(1), c(1)); assert_x86_op("movq    $1, r1q" );
+    si(function, 0, IR_NE,   v(1), c(1), c(1)); assert_x86_op("movq    $0, r1q" );
+    si(function, 0, IR_LT,   v(1), c(1), c(2)); assert_x86_op("movq    $1, r1q" );
+    si(function, 0, IR_GT,   v(1), c(1), c(2)); assert_x86_op("movq    $0, r1q" );
+    si(function, 0, IR_LE,   v(1), c(1), c(2)); assert_x86_op("movq    $1, r1q" );
+    si(function, 0, IR_GE,   v(1), c(1), c(2)); assert_x86_op("movq    $0, r1q" );
+    si(function, 0, IR_BSHL, v(1), c(1), c(2)); assert_x86_op("movq    $4, r1q" );
+    si(function, 0, IR_BSHR, v(1), c(8), c(2)); assert_x86_op("movq    $2, r1q" );
 
     // 3 * (1 + 2)
     start_ir();
     i(0, IR_ADD, v(1), c(1), c(2));
     i(0, IR_MUL, v(2), v(1), c(3));
     finish_ir(function);
-    assert(0, strcmp(rx86op(ir_start), "movq    $9, r2q"));
+    assert_x86_op("movq    $9, r2q");
 }
 
 void test_pointer_inc() {
@@ -1008,9 +1022,9 @@ void test_pointer_inc() {
     i(0, IR_ADD,                  a(2), a(1), c(1));
     i(0, IR_ASSIGN_TO_REG_LVALUE, a(1), a(1), a(2));
     finish_ir(function);
-    assert(0, strcmp(rx86op(ir_start), "movq    r1q, r4q"  )); n();
-    assert(0, strcmp(rx86op(ir_start), "addq    $1, r4q"   )); n(); nop();
-    assert(0, strcmp(rx86op(ir_start), "movq    r4q, (r1q)")); n();
+    assert_x86_op("movq    r1q, r4q"  );
+    assert_x86_op("addq    $1, r4q"   ); nop();
+    assert_x86_op("movq    r4q, (r1q)");
 
     // (a1) = (a1) + 1, split into a2 = (a1), a3 = a2 + 1, (a1) = a3
     start_ir();
@@ -1018,10 +1032,10 @@ void test_pointer_inc() {
     i(0, IR_ADD,                  a(3), a(2), c(1));
     i(0, IR_ASSIGN_TO_REG_LVALUE, a(1), a(1), a(3));
     finish_ir(function);
-    assert(0, strcmp(rx86op(ir_start), "movq    (r1q), r5q")); n();
-    assert(0, strcmp(rx86op(ir_start), "movq    r5q, r6q"  )); n();
-    assert(0, strcmp(rx86op(ir_start), "addq    $1, r6q"   )); n(); nop();
-    assert(0, strcmp(rx86op(ir_start), "movq    r6q, (r1q)")); n();
+    assert_x86_op("movq    (r1q), r5q");
+    assert_x86_op("movq    r5q, r6q"  );
+    assert_x86_op("addq    $1, r6q"   ); nop();
+    assert_x86_op("movq    r6q, (r1q)");
 }
 
 void test_pointer_load_constant() {
@@ -1032,14 +1046,14 @@ void test_pointer_load_constant() {
     remove_reserved_physical_registers = 1;
 
     b = (long) 1 << 32;
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_CHAR),  c(1), 0); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_SHORT), c(1), 0); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_INT),   c(1), 0); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_LONG),  c(1), 0); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_CHAR),  c(b), 0); assert(0, strcmp(rx86op(ir_start), "movq    $4294967296, r1q"));
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_SHORT), c(b), 0); assert(0, strcmp(rx86op(ir_start), "movq    $4294967296, r1q"));
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_INT),   c(b), 0); assert(0, strcmp(rx86op(ir_start), "movq    $4294967296, r1q"));
-    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_LONG),  c(b), 0); assert(0, strcmp(rx86op(ir_start), "movq    $4294967296, r1q"));
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_CHAR),  c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_SHORT), c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_INT),   c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_LONG),  c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_CHAR),  c(b), 0); assert_x86_op("movq    $4294967296, r1q");
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_SHORT), c(b), 0); assert_x86_op("movq    $4294967296, r1q");
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_INT),   c(b), 0); assert_x86_op("movq    $4294967296, r1q");
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_LONG),  c(b), 0); assert_x86_op("movq    $4294967296, r1q");
 }
 
 void test_spilling() {
@@ -1054,74 +1068,74 @@ void test_spilling() {
     start_ir();
     i(0, IR_ASSIGN, Ssz(1, TYPE_CHAR), vsz(1, TYPE_CHAR), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movb    0(%rbp), %r10b" ); n();
-    assert_rx86_preg_op(ir_start, "movb    %r10b, 16(%rbp)"); n();
+    assert_rx86_preg_op("movb    0(%rbp), %r10b" );
+    assert_rx86_preg_op("movb    %r10b, 16(%rbp)");
 
     // src1s spill
     start_ir();
     i(0, IR_ASSIGN, Ssz(1, TYPE_SHORT), vsz(1, TYPE_SHORT), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movw    0(%rbp), %r10w" ); n();
-    assert_rx86_preg_op(ir_start, "movw    %r10w, 16(%rbp)"); n();
+    assert_rx86_preg_op("movw    0(%rbp), %r10w" );
+    assert_rx86_preg_op("movw    %r10w, 16(%rbp)");
 
     // src1i spill
     start_ir();
     i(0, IR_ASSIGN, Ssz(1, TYPE_INT), vsz(1, TYPE_INT), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movl    0(%rbp), %r10d" ); n();
-    assert_rx86_preg_op(ir_start, "movl    %r10d, 16(%rbp)"); n();
+    assert_rx86_preg_op("movl    0(%rbp), %r10d" );
+    assert_rx86_preg_op("movl    %r10d, 16(%rbp)");
 
     // src1q spill
     start_ir();
     i(0, IR_ASSIGN, S(1), v(1), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movq    0(%rbp), %r10" ); n();
-    assert_rx86_preg_op(ir_start, "movq    %r10, 16(%rbp)"); n();
+    assert_rx86_preg_op("movq    0(%rbp), %r10" );
+    assert_rx86_preg_op("movq    %r10, 16(%rbp)");
 
     // src2 spill
     start_ir();
     i(0, IR_EQ, v(3), v(1), c(1));
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movq    -8(%rbp), %r10" ); n();
-    assert_rx86_preg_op(ir_start, "cmpq    $1, %r10"       ); n();
+    assert_rx86_preg_op("movq    -8(%rbp), %r10" );
+    assert_rx86_preg_op("cmpq    $1, %r10"       );
 
     // src1 and src2 spill
     start_ir();
     i(0, IR_EQ, v(3), v(1), v(2));
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movq    -8(%rbp), %r10" ); n();
-    assert_rx86_preg_op(ir_start, "movq    -16(%rbp), %r11"); n();
-    assert_rx86_preg_op(ir_start, "cmpq    %r11, %r10"     ); n();
+    assert_rx86_preg_op("movq    -8(%rbp), %r10" );
+    assert_rx86_preg_op("movq    -16(%rbp), %r11");
+    assert_rx86_preg_op("cmpq    %r11, %r10"     );
 
     // dst spill with no instructions after
     start_ir();
     i(0, IR_ASSIGN, v(1), c(1), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movq    $1, %r11"     ); n();
-    assert_rx86_preg_op(ir_start, "movq    %r11, 0(%rbp)"); n();
+    assert_rx86_preg_op("movq    $1, %r11"     );
+    assert_rx86_preg_op("movq    %r11, 0(%rbp)");
 
     // dst spill with an instruction after
     start_ir();
     i(0, IR_ASSIGN, v(1), c(1), 0);
     i(0, IR_NOP,    0,    0,    0);
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movq    $1, %r11"     ); n();
-    assert_rx86_preg_op(ir_start, "movq    %r11, 0(%rbp)"); n();
+    assert_rx86_preg_op("movq    $1, %r11"     );
+    assert_rx86_preg_op("movq    %r11, 0(%rbp)");
 
     // v3 = v1 == v2. This primarily tests the special case for movzbq
     // where src1 == dst
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_SHORT), v(1), v(2));
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movq    -8(%rbp), %r10" ); n();
-    assert_rx86_preg_op(ir_start, "movq    -16(%rbp), %r11"); n();
-    assert_rx86_preg_op(ir_start, "cmpq    %r11, %r10"     ); n();
-    assert_rx86_preg_op(ir_start, "sete    %r11b"          ); n();
-    assert_rx86_preg_op(ir_start, "movw    %r11w, 0(%rbp)" ); n();
-    assert_rx86_preg_op(ir_start, "movw    0(%rbp), %r10w" ); n();
-    assert_rx86_preg_op(ir_start, "movzbw  %r10b, %r10w"   ); n();
-    assert_rx86_preg_op(ir_start, "movw    %r10w, %r11w"   ); n();
-    assert_rx86_preg_op(ir_start, "movw    %r11w, 0(%rbp)" ); n();
+    assert_rx86_preg_op("movq    -8(%rbp), %r10" );
+    assert_rx86_preg_op("movq    -16(%rbp), %r11");
+    assert_rx86_preg_op("cmpq    %r11, %r10"     );
+    assert_rx86_preg_op("sete    %r11b"          );
+    assert_rx86_preg_op("movw    %r11w, 0(%rbp)" );
+    assert_rx86_preg_op("movw    0(%rbp), %r10w" );
+    assert_rx86_preg_op("movzbw  %r10b, %r10w"   );
+    assert_rx86_preg_op("movw    %r10w, %r11w"   );
+    assert_rx86_preg_op("movw    %r11w, 0(%rbp)" );
 
     // (r2i) = 1. This tests the special case of is_lvalue_in_register=1 when
     // (the type is an int.
@@ -1129,11 +1143,11 @@ void test_spilling() {
     tac = i(0, IR_ASSIGN,               asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
     tac = i(0, IR_ASSIGN_TO_REG_LVALUE, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
     finish_spill_ir(function);
-    assert_rx86_preg_op(ir_start, "movq    -8(%rbp), %r10"); n();
-    assert_rx86_preg_op(ir_start, "movq    %r10, %r11"    ); n();
-    assert_rx86_preg_op(ir_start, "movq    %r11, 0(%rbp)" ); n();
-    assert_rx86_preg_op(ir_start, "movq    0(%rbp), %r10" ); n();
-    assert_rx86_preg_op(ir_start, "movl    $1, (%r10)"    ); n();
+    assert_rx86_preg_op("movq    -8(%rbp), %r10");
+    assert_rx86_preg_op("movq    %r10, %r11"    );
+    assert_rx86_preg_op("movq    %r11, 0(%rbp)" );
+    assert_rx86_preg_op("movq    0(%rbp), %r10" );
+    assert_rx86_preg_op("movl    $1, (%r10)"    );
 }
 
 int main() {
