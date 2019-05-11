@@ -1038,6 +1038,23 @@ void test_pointer_inc() {
     assert_x86_op("movq    r6q, (r1q)");
 }
 
+void test_pointer_sub() {
+    Function *function;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    // a2 = a1 - 1
+    si(function, 0, IR_SUB, a(2), a(1), c(1));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("subq    $1, r2q");
+
+    // a3 = a1 - a2
+    si(function, 0, IR_SUB, a(3), a(1), a(2));
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("subq    r2q, r3q");
+}
+
 void test_pointer_load_constant() {
     Function *function;
     int t;
@@ -1172,6 +1189,7 @@ int main() {
     test_binary_shift_operations();
     test_constant_operations();
     test_pointer_inc();
+    test_pointer_sub();
     test_pointer_load_constant();
     test_spilling();
 }
