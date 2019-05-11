@@ -584,6 +584,15 @@ void init_instruction_selection_rules() {
     r = add_rule(REGQ, IR_LOAD_CONSTANT, CSTL, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
     r = add_rule(REGQ, IR_LOAD_CONSTANT, CSTQ, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
 
+    r = add_rule(ADRB, IR_LOAD_CONSTANT, CSTL, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
+    r = add_rule(ADRB, IR_LOAD_CONSTANT, CSTQ, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
+    r = add_rule(ADRW, IR_LOAD_CONSTANT, CSTL, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
+    r = add_rule(ADRW, IR_LOAD_CONSTANT, CSTQ, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
+    r = add_rule(ADRL, IR_LOAD_CONSTANT, CSTL, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
+    r = add_rule(ADRL, IR_LOAD_CONSTANT, CSTQ, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
+    r = add_rule(ADRQ, IR_LOAD_CONSTANT, CSTL, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
+    r = add_rule(ADRQ, IR_LOAD_CONSTANT, CSTQ, 0,    1); add_op(r, X_MOV,  DST, SRC1, 0,    "movq $%v1q, %vdq");
+
     r = add_rule(REG, IR_ASSIGN,        MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Load standalone memory into register
     r = add_rule(REG, IR_LOAD_VARIABLE, MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Load standalone memory into register
     r = add_rule(REG, 0,                MEM,  0,    2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Load temp memory into register

@@ -1024,6 +1024,24 @@ void test_pointer_inc() {
     assert(0, strcmp(rx86op(ir_start), "movq    r6q, (r1q)")); n();
 }
 
+void test_pointer_load_constant() {
+    Function *function;
+    long b;
+
+    function = new_function();
+    remove_reserved_physical_registers = 1;
+
+    b = (long) 1 << 32;
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_CHAR),  c(1), 0); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_SHORT), c(1), 0); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_INT),   c(1), 0); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_LONG),  c(1), 0); assert(0, strcmp(rx86op(ir_start), "movq    $1, r1q"));
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_CHAR),  c(b), 0); assert(0, strcmp(rx86op(ir_start), "movq    $4294967296, r1q"));
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_SHORT), c(b), 0); assert(0, strcmp(rx86op(ir_start), "movq    $4294967296, r1q"));
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_INT),   c(b), 0); assert(0, strcmp(rx86op(ir_start), "movq    $4294967296, r1q"));
+    si(function, 0, IR_LOAD_CONSTANT, asz(1, TYPE_LONG),  c(b), 0); assert(0, strcmp(rx86op(ir_start), "movq    $4294967296, r1q"));
+}
+
 void test_spilling() {
     Function *function;
     Tac *tac;
@@ -1142,5 +1160,6 @@ int main() {
     test_binary_shift_operations();
     test_constant_operations();
     test_pointer_inc();
+    test_pointer_load_constant();
     test_spilling();
 }
