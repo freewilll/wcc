@@ -838,32 +838,32 @@ void test_sub_operations() {
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_SUB, v(3), v(1), v(2));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r3q"));
-    assert(0, strcmp(rx86op(ir_start->next), "subq    r2q, r3q"));
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("subq    r2q, r3q");
 
     si(function, 0, IR_SUB, v(3), c(1), v(2));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    $1, r2q"));
-    assert(0, strcmp(rx86op(ir_start->next), "subq    r1q, r2q"));
+    assert_x86_op("movq    $1, r2q");
+    assert_x86_op("subq    r1q, r2q");
 
     si(function, 0, IR_SUB, v(3), v(1), c(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
-    assert(0, strcmp(rx86op(ir_start->next), "subq    $1, r2q"));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("subq    $1, r2q");
 
     si(function, 0, IR_SUB, v(3), v(1), g(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
-    assert(0, strcmp(rx86op(ir_start->next), "subq    g1(%rip), r2q"));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("subq    g1(%rip), r2q");
 
     si(function, 0, IR_SUB, v(3), g(1), v(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r2q"));
-    assert(0, strcmp(rx86op(ir_start->next), "subq    r1q, r2q"));
+    assert_x86_op("movq    g1(%rip), r2q");
+    assert_x86_op("subq    r1q, r2q");
 
     si(function, 0, IR_SUB, v(3), c(1), g(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    $1, r1q"));
-    assert(0, strcmp(rx86op(ir_start->next), "subq    g1(%rip), r1q"));
+    assert_x86_op("movq    $1, r1q");
+    assert_x86_op("subq    g1(%rip), r1q");
 
     si(function, 0, IR_SUB, v(3), g(1), c(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r1q"));
-    assert(0, strcmp(rx86op(ir_start->next), "subq    $1, r1q"));
+    assert_x86_op("movq    g1(%rip), r1q");
+    assert_x86_op("subq    $1, r1q");
 }
 
 void test_div_operations() {
@@ -1049,8 +1049,8 @@ void test_pointer_sub() {
     assert_x86_op("movq    r1q, r2q");
     assert_x86_op("subq    $1, r2q");
 
-    // a3 = a1 - a2
-    si(function, 0, IR_SUB, a(3), a(1), a(2));
+    // v3 = a1 - a2
+    si(function, 0, IR_SUB, v(3), a(1), a(2));
     assert_x86_op("movq    r1q, r3q");
     assert_x86_op("subq    r2q, r3q");
 }

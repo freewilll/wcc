@@ -424,15 +424,19 @@ void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_template, cha
 void add_sub_rules() {
     Rule *r;
 
-    add_sub_rule(REG, REG, REG, 10, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(REG, CST, REG, 10, "mov%s $%v1, %vd", "sub%s %v1, %vd");
-    add_sub_rule(REG, REG, CST, 10, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
-    add_sub_rule(ADR, ADR, ADR, 10, "movq %v1q, %vdq", "subq %v1q, %vdq");
-    add_sub_rule(ADR, ADR, CST, 10, "movq %v1q, %vdq", "subq $%v1q, %vdq");
-    add_sub_rule(REG, REG, MEM, 11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(REG, MEM, REG, 11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(REG, CST, MEM, 11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
-    add_sub_rule(REG, MEM, CST, 11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+    add_sub_rule(REG, REG, REG,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
+    add_sub_rule(REG, CST, REG,  11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
+    add_sub_rule(REG, REG, CST,  11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+    add_sub_rule(REG, ADR, ADR,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
+    add_sub_rule(REG, ADRB, REG, 11, "movq %v1q, %vdq", "subq %v1q, %vdq");
+    add_sub_rule(REG, ADRW, REG, 11, "movq %v1q, %vdq", "subq %v1q, %vdq");
+    add_sub_rule(REG, ADRL, REG, 11, "movq %v1q, %vdq", "subq %v1q, %vdq");
+    add_sub_rule(REG, ADRQ, REG, 11, "movq %v1q, %vdq", "subq %v1q, %vdq");
+    add_sub_rule(ADR, ADR, CST,  10, "movq %v1q, %vdq", "subq $%v1q, %vdq");
+    add_sub_rule(REG, REG, MEM,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
+    add_sub_rule(REG, MEM, REG,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
+    add_sub_rule(REG, CST, MEM,  11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
+    add_sub_rule(REG, MEM, CST,  11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
 }
 
 void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *t4, char *tdiv, char *tmod) {
