@@ -993,19 +993,14 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         }
     }
 
-    if (ign->tac) {
-        // In order for the spill code to generate correct size spills,
-        // x86_size has to be set to match what the x86 instructions
-        // are doing. This cannot be done from the type since the type
-        // reflects what the parser has produced, and doesn't necessarily
-        // match what the x86 code is doing. For example, the parser can
-        // produce an int (size=3) value with is_lvalue_in_register=1. However
-        // this must be treated as size 4 in all downstream code.
-
-        if (dst)  dst->x86_size  = make_x86_size_from_non_terminal(rule->non_terminal);
-        if (src1) src1->x86_size = make_x86_size_from_non_terminal(rule->src1);
-        if (src2) src2->x86_size = make_x86_size_from_non_terminal(rule->src2);
-    }
+    // In order for the spill code to generate correct size spills,
+    // x86_size has to be set to match what the x86 instructions
+    // are doing. This cannot be done from the type since the type
+    // reflects what the parser has produced, and doesn't necessarily
+    // match what the x86 code is doing.
+    if (dst)  dst->x86_size  = make_x86_size_from_non_terminal(rule->non_terminal);
+    if (src1) src1->x86_size = make_x86_size_from_non_terminal(rule->src1);
+    if (src2) src2->x86_size = make_x86_size_from_non_terminal(rule->src2);
 
     x86op = rule->x86_operations;
     while (x86op) {
