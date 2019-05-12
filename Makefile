@@ -83,13 +83,13 @@ test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
 	@echo self compilation test passed
 
 test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
-	cd test-include && ../wc4 main.c foo.c -o test-include
+	cd test-include && ../wc4 --instruction-selection-wip main.c foo.c -o test-include
 
 run-test-include: test-include/test-include
 	test-include/test-include
 
 test-set: wc4 set.c utils.c test-set.c
-	./wc4 set.c utils.c test-set.c -o test-set
+	./wc4 --instruction-selection-wip set.c utils.c test-set.c -o test-set
 
 run-test-set: test-set
 	 ./test-set
