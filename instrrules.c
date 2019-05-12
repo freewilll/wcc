@@ -348,9 +348,9 @@ void add_pointer_rules() {
     r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); fin_rule(r);
 
     // Stores to pointer
-    add_store_to_pointer(ADRB, ADRB, ADRB, "movb %v2b, (%v1q)");
-    add_store_to_pointer(ADRW, ADRW, ADRW, "movw %v2w, (%v1q)");
-    add_store_to_pointer(ADRL, ADRL, ADRL, "movl %v2l, (%v1q)");
+    add_store_to_pointer(ADRB, ADRB, ADRB, "movq %v2q, (%v1q)");
+    add_store_to_pointer(ADRW, ADRW, ADRW, "movq %v2q, (%v1q)");
+    add_store_to_pointer(ADRL, ADRL, ADRL, "movq %v2q, (%v1q)");
     add_store_to_pointer(ADRQ, ADRQ, ADRQ, "movq %v2q, (%v1q)");
 
     // Stores to pointer
