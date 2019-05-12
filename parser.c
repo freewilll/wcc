@@ -36,6 +36,9 @@ Value *load(Value *src1) {
 
     if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
+        src1 = dup_value(src1);
+        src1->type += TYPE_PTR;
+        src1->is_lvalue = 0;
         add_instruction(IR_INDIRECT, dst, src1, 0);
     }
     else if (src1->is_in_cpu_flags) {
@@ -800,8 +803,10 @@ void expression(int level) {
             indirect();
 
             if (member->offset > 0) {
-                // Make the lvalue an rvalue for manipulation
+                // Make the struct lvalue into a pointer to struct rvalue for manipulation
                 vtop->is_lvalue = 0;
+                vtop->type += TYPE_PTR;
+
                 push_constant(TYPE_INT, member->offset);
                 arithmetic_operation(IR_ADD, 0);
             }

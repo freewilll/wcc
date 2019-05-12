@@ -4,13 +4,14 @@
 
 #include "wc4.h"
 
+int failures;
 int remove_reserved_physical_registers;
 Function *function;
 
 void assert(long expected, long actual) {
     if (expected != actual) {
+        failures++;
         printf("Expected %ld, got %ld\n", expected, actual);
-        exit(1);
     }
 }
 
@@ -82,7 +83,7 @@ char *assert_x86_op(char *expected) {
     got = render_x86_operation(ir_start, 0, 0, 0);;
     if (strcmp(got, expected)) {
         printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
-        exit(1);
+        failures++;
     }
 
     n();
@@ -94,7 +95,7 @@ char *assert_rx86_preg_op(char *expected) {
     got = render_x86_operation(ir_start, 0, 0, 1);
     if (strcmp(got, expected)) {
         printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
-        exit(1);
+        failures++;
     }
 
     n();
@@ -221,6 +222,15 @@ void test_instrsel_tree_merging() {
     assert_x86_op("leaq    g1(%rip), r3q");
     assert_x86_op("movq    r3q, r1q"     );
     assert_x86_op("movq    $1, (r1q)"    );
+
+    // Ensure type conversions are merged correctly. This tests a void * being converted to a char *
+    remove_reserved_physical_registers = 1;
+    start_ir();
+    i(0, IR_ASSIGN,               asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
+    i(0, IR_ASSIGN_TO_REG_LVALUE, 0,                 asz(2, TYPE_CHAR), c(1));
+    finish_ir(function);
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("movb    $1, (r2q)");
 }
 
 void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, int x86_jmp_operation) {
@@ -1056,13 +1066,45 @@ void test_pointer_eq() {
 void test_pointer_string_literal() {
     remove_reserved_physical_registers = 1;
 
-    // Test conversion of a string literall to an address
+    // Test conversion of a string literal to an address
     start_ir();
     i(0, IR_ADD, v(1), s(1), c(1));
     finish_ir(function);
     assert_x86_op("leaq    .SL1(%rip), r2q");
     assert_x86_op("movq    r2q, r1q");
     assert_x86_op("addq    $1, r1q");
+}
+
+void test_pointer_indirect_from_stack() {
+    remove_reserved_physical_registers = 1;
+
+    // Test a load from the stack followed by an indirect. It handles the
+    // case of i = *pi, where pi has been forced onto the stack due to use of
+    // &pi elsewhere.
+    start_ir();
+    i(0, IR_ASSIGN,   asz(4,  TYPE_INT), Ssz(-3, TYPE_INT + TYPE_PTR),  0);
+    i(0, IR_INDIRECT, vsz(5,  TYPE_INT), asz(4,  TYPE_INT),             0);
+    finish_spill_ir(function);
+    assert_x86_op("movq    -16(%rbp), r3q");
+    assert_x86_op("movq    (r3q), r2q");
+}
+
+void test_pointer_indirect_global_char_in_struct_to_long() {
+    remove_reserved_physical_registers = 1;
+
+    // Test extension of a char in a pointer to a global struct to a long
+    // l = gsc->i;
+    // r5:*struct sc = gsc:*struct sc
+    // r6:char = *r5:*char
+    // r10:long = r6:char
+    // Note: not using TYPE_STRUCT, but the test is still valid.
+    start_ir();
+    i(0, IR_LOAD_VARIABLE, vsz(1, TYPE_CHAR + TYPE_PTR), gsz(1, TYPE_CHAR + TYPE_PTR), 0);
+    i(0, IR_INDIRECT,      vsz(3, TYPE_CHAR),            vsz(1, TYPE_CHAR + TYPE_PTR), 0);
+    i(0, IR_ASSIGN,        vsz(4, TYPE_LONG),            vsz(3, TYPE_CHAR),            0);
+    finish_ir(function);
+    assert_x86_op("movq    g1(%rip), r4q");
+    assert_x86_op("movsbq  (r4q), r3q");
 }
 
 void test_spilling() {
@@ -1145,7 +1187,7 @@ void test_spilling() {
     assert_rx86_preg_op("movw    %r11w, 0(%rbp)" );
 
     // (r2i) = 1. This tests the special case of is_lvalue_in_register=1 when
-    // (the type is an int.
+    // the type is an int.
     start_ir();
     tac = i(0, IR_ASSIGN,               asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
     tac = i(0, IR_ASSIGN_TO_REG_LVALUE, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
@@ -1158,6 +1200,7 @@ void test_spilling() {
 }
 
 int main() {
+    failures = 0;
     function = new_function();
 
     spill_all_registers = 0;
@@ -1188,5 +1231,13 @@ int main() {
     test_pointer_load_constant();
     test_pointer_eq();
     test_pointer_string_literal();
+    test_pointer_indirect_from_stack();
+    test_pointer_indirect_global_char_in_struct_to_long();
     test_spilling();
+
+    if (failures) {
+        printf("%d tests failed\n", failures);
+        exit(1);
+    }
+    printf("All tests succeeded\n");
 }

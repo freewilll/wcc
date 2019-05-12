@@ -25,7 +25,7 @@ Rule *add_rule(int non_terminal, int operation, int src1, int src2, int cost) {
 }
 
 int transform_rule_value(int v, int i) {
-    if (v == REG || v == MEM || v == ADR)
+    if (v == REG || v == MEM || v == ADR || v == MDR)
         return v + i;
     else if (v == CST)
         return CSTL;
@@ -130,7 +130,8 @@ void fin_rule(Rule *r) {
     if (!(
             non_terminal == REG || src1 == REG || src2 == REG ||
             non_terminal == MEM || src1 == MEM || src2 == MEM ||
-            non_terminal == ADR || src1 == ADR || src2 == ADR)) {
+            non_terminal == ADR || src1 == ADR || src2 == ADR ||
+            non_terminal == MDR || src1 == MDR || src2 == MDR)) {
 
         r->x86_operations = dup_x86_operations(r->x86_operations);
         return;
@@ -196,6 +197,10 @@ char *non_terminal_string(int nt) {
     else if (nt == ADRW) return "adr:w";
     else if (nt == ADRL) return "adr:l";
     else if (nt == ADRQ) return "adr:q";
+    else if (nt == MDRB) return "mdr:b";
+    else if (nt == MDRW) return "mdr:w";
+    else if (nt == MDRL) return "mdr:l";
+    else if (nt == MDRQ) return "mdr:q";
     else {
         asprintf(&buf, "nt%03d", nt);
         return buf;
@@ -240,15 +245,22 @@ void print_rules() {
 void make_value_x86_size(Value *v) {
     if (v->x86_size) return;
     if (v->label || v->function_symbol) return;
-    if (!v->type) panic("make_value_x86_size() got called with a value with no type");
+
+    if (!v->type) {
+        print_value(stdout, v, 0);
+        printf("\n");
+        panic("make_value_x86_size() got called with a value with no type");
+    }
 
     if (v->is_string_literal)
         v->x86_size = 4;
     else if (v->vreg || v->global_symbol || v->stack_index) {
         if (v->type >= TYPE_PTR)
             v->x86_size = 4;
-        else
+        else if (v->type <= TYPE_LONG)
             v->x86_size = v->type - TYPE_CHAR + 1;
+        else
+            panic1d("Illegal type in make_value_x86_size() %d", v->type);
     }
 }
 
@@ -281,7 +293,6 @@ Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) 
     if (v1) make_value_x86_size(v1);
     if (v2) make_value_x86_size(v2);
 
-    if (DEBUG_SIGN_EXTENSION) printf("  adding instruction for operation %d: %s\n", x86op->operation, x86op->template);
     tac = add_instruction(x86op->operation, dst, v1, v2);
     tac->x86_template = x86op->template;
 
@@ -299,18 +310,20 @@ void add_store_to_pointer(int dst, int src1, int src2, char *template) {
 void add_pointer_rules() {
     Rule *r;
 
+    // Loads & stores
     r = add_rule(ADR,  IR_ASSIGN,        ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(MEMQ, IR_ASSIGN,        ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(MDR,  IR_ASSIGN,        ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(ADR,  IR_ADDRESS_OF,    ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r); // & for *&*&*pi.
     r = add_rule(REGQ, IR_LOAD_VARIABLE, ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(ADRB, IR_LOAD_VARIABLE, MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRW, IR_LOAD_VARIABLE, MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRL, IR_LOAD_VARIABLE, MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRQ, IR_LOAD_VARIABLE, MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(ADRB, 0,                MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(ADRW, 0,                MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(ADRL, 0,                MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(ADRQ, 0,                MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(ADRB, 0,                MDRB, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(ADRW, 0,                MDRW, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(ADRL, 0,                MDRL, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(ADRQ, 0,                MDRQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
 
     // Address loads
     r = add_rule(ADRB, 0,                      STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
@@ -320,6 +333,7 @@ void add_pointer_rules() {
     r = add_rule(ADRL, IR_ADDRESS_OF,          MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(ADRQ, IR_ADDRESS_OF,          MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(ADR,  IR_ADDRESS_OF,          MEM,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(ADRQ, IR_ADDRESS_OF,          MDR,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
 
     // Loads from pointer
     r = add_rule(REG,  IR_INDIRECT, ADR,  0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); fin_rule(r);
@@ -576,6 +590,7 @@ void init_instruction_selection_rules() {
     r = add_rule(STL,  0, STL,  0, 0); fin_rule(r);
     r = add_rule(MEM,  0, MEM,  0, 0); fin_rule(r);
     r = add_rule(ADR,  0, ADR,  0, 0); fin_rule(r);
+    r = add_rule(MDR,  0, MDR,  0, 0); fin_rule(r);
     r = add_rule(REG,  0, ADR,  0, 0); fin_rule(r);
     r = add_rule(LAB,  0, LAB,  0, 0); fin_rule(r);
     r = add_rule(FUN,  0, FUN,  0, 0); fin_rule(r);

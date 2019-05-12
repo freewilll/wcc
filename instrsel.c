@@ -122,14 +122,25 @@ void copy_inode(IGraphNode *src, IGraphNode *dst) {
 
 IGraph *merge_assignment_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     int i, replacement_vreg;
+    int type, is_lvalue_in_register, is_lvalue;
     IGraphNode *in;
     Value *v;
 
     for (i = 0; i < g1->node_count; i++) {
         in = &(g1->nodes[i]);
         if (in->value && in->value->vreg == vreg) {
-            v = dup_value(in->value); // For no side effects
+            // Copy original value over, but preserve everything related
+            // to the type
+
+            type                  = in->value->type;
+            is_lvalue_in_register = in->value->is_lvalue_in_register;
+            is_lvalue             = in->value->is_lvalue;
+
             in->value = dup_value(g2->nodes[1].value);
+
+            in->value->type                  = type;
+            in->value->is_lvalue_in_register = is_lvalue_in_register;
+            in->value->is_lvalue             = is_lvalue;
 
             if (DEBUG_INSTSEL_TREE_MERGING) {
                 printf("\nreusing tweaked g1 for g:\n");
@@ -192,6 +203,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
         //     r2 = constant
         //     r2 = string literal
         //     r2 = global
+        //     r2 = var on stack
         // turn that into dst |- r1
         //                     - expr
         operation = g2->nodes[0].tac->operation;
@@ -567,10 +579,13 @@ int non_terminal_for_value(Value *v) {
     else if (v->vreg && v->type >= TYPE_PTR)                        return ADR + value_ptr_target_x86_size(v);
     else if (v->is_lvalue_in_register)                              return ADR + v->x86_size;
     else if (v->is_lvalue && !(v->global_symbol || v->local_index)) return ADR + v->x86_size;
+    else if (v->type >= TYPE_PTR)                                   return MDR + value_ptr_target_x86_size(v);
     else if (v->vreg)                                               return REG + v->x86_size;
     else if (v->global_symbol)                                      return MEM + v->x86_size;
     else if (v->stack_index)                                        return MEM + v->x86_size;
     else if (v->function_symbol)                                    return FUN;
+    else
+        panic("Bad value in non_terminal_for_value()");
 }
 
 int match_value_to_rule_src(Value *v, int src) {
@@ -943,13 +958,17 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
 
     rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
 
-    if (DEBUG_INSTSEL_TILING || DEBUG_SIGN_EXTENSION) printf("processing rule %d\n", cost_rules[least_expensive_choice_node_id]);
+    if (DEBUG_INSTSEL_TILING) {
+        printf("Generating instructions for ");
+        print_rule(rule, 0);
+    }
 
     dst = 0;
     if (parent_node_id == -1) {
         // Use the root node tac or value as a result
         if (ign->tac) {
-            if (DEBUG_INSTSEL_TILING) printf("using root vreg for dst %p vreg=%d\n", ign->tac->dst, ign->tac->dst ? ign->tac->dst->vreg : -1);
+            if (DEBUG_INSTSEL_TILING)
+                printf("  using root vreg for dst %p vreg=%d\n", ign->tac->dst, ign->tac->dst ? ign->tac->dst->vreg : -1);
             dst = ign->tac->dst;
         }
         else
@@ -964,10 +983,10 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             dst->vreg = new_vreg();
             dst->ssa_subscript = -1;
 
-            if (DEBUG_INSTSEL_TILING) printf("allocated new vreg for dst vreg=%d\n", dst->vreg);
+            if (DEBUG_INSTSEL_TILING) printf("  allocated new vreg for dst vreg=%d\n", dst->vreg);
         }
         else {
-            if (DEBUG_INSTSEL_TILING) printf("using passthrough dst\n");
+            if (DEBUG_INSTSEL_TILING) printf("  using passthrough dst\n");
             dst = src1; // Passthrough for cst or reg
         }
     }
@@ -985,9 +1004,6 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         if (src1) src1->x86_size = make_x86_size_from_non_terminal(rule->src1);
         if (src2) src2->x86_size = make_x86_size_from_non_terminal(rule->src2);
     }
-
-    // Add x86 operations to the IR
-    if (DEBUG_INSTSEL_TILING) print_rule(rule, 0);
 
     x86op = rule->x86_operations;
     while (x86op) {
@@ -1260,11 +1276,16 @@ void add_spill_code(Function *function) {
     Tac *tac;
     int dst_eq_src1, store_preg;
 
+    if (DEBUG_INSTSEL_SPILLING) printf("\nAdding spill code\n");
+
     tac = function->ir;
     while (tac) {
-        dst_eq_src1 =  (tac->dst && tac->src1 && tac->dst->vreg == tac->src1->vreg);
+        if (DEBUG_INSTSEL_SPILLING) print_instruction(stdout, tac);
+
+        dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->vreg == tac->src1->vreg);
 
         if (tac->src1 && tac->src1->preg == -1 && tac->src1->spilled)  {
+            if (DEBUG_INSTSEL_SPILLING) printf("Adding spill load\n");
             add_spill_load(tac, 1, REG_R10);
             if (dst_eq_src1) {
                 // Special case where src1 is the same as dst, in that case, r10 contains the result.
@@ -1274,10 +1295,12 @@ void add_spill_code(Function *function) {
         }
 
         if (tac->src2 && tac->src2->preg == -1 && tac->src2->spilled) {
+            if (DEBUG_INSTSEL_SPILLING) printf("Adding spill load\n");
             add_spill_load(tac, 2, REG_R11);
         }
 
         if (tac->dst && tac->dst->preg == -1 && tac->dst->spilled) {
+            if (DEBUG_INSTSEL_SPILLING) printf("Adding spill store\n");
             add_spill_store(tac, tac->dst, REG_R11);
             tac = tac->next;
         }

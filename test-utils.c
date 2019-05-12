@@ -62,6 +62,10 @@ Value *l(int label) {
     return v;
 }
 
+Value *csz(long value, int type) {
+    return new_constant(type, value);
+}
+
 Value *c(long value) {
     return new_constant(TYPE_LONG, value);
 }

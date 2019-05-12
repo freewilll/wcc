@@ -201,7 +201,7 @@ enum {
     DEBUG_INSTSEL_TREE_MERGING            = 0,
     DEBUG_INSTSEL_IGRAPHS                 = 0,
     DEBUG_INSTSEL_TILING                  = 0,
-    DEBUG_SIGN_EXTENSION                  = 0,
+    DEBUG_INSTSEL_SPILLING                = 0,
 };
 
 // Tokens in order of precedence
@@ -572,7 +572,8 @@ enum {
     CSTL, CSTQ,                  // 5, 6 Constants
     REG, REGB, REGW, REGL, REGQ, // 7    Registers
     MEM, MEMB, MEMW, MEML, MEMQ, // 12   Memory, in stack or globals
-    ADR, ADRB, ADRW, ADRL, ADRQ, // 17   Address of a global or local in register
+    ADR, ADRB, ADRW, ADRL, ADRQ, // 17   Address (aka pointer) in a register
+    MDR, MDRB, MDRW, MDRL, MDRQ, // 22   Address (aka pointer) in memory
 
     // Operands
     DST,
@@ -686,6 +687,7 @@ Value *a(int vreg);
 Value *asz(int vreg, int type);
 Value *l(int label);
 Value *c(long value);
+Value *csz(long value, int type);
 Value *s(int string_literal_index);
 Value *S(int stack_index);
 Value *Ssz(int stack_index, int type);
