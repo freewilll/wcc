@@ -52,7 +52,7 @@ stack-check.o: stack-check.c
 	gcc stack-check.c -c
 
 test-wc4.s: wc4 test-wc4.c
-	./wc4 -c -S test-wc4.c
+	./wc4 -c -S --instruction-selection-wip test-wc4.c
 
 test-wc4: test-wc4.s stack-check.o
 	gcc test-wc4.s stack-check.o -o test-wc4
