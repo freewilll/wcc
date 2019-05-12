@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
         printf("-d                             Debug output\n");
         printf("-s                             Output symbol table\n");
         printf("--iir                          Output inline intermediate representation\n");
-        printf("--spill-everything             Don't allocate physical registers, spill everything to the stack\n");
+        printf("--spill-all-registers          Don't allocate physical registers, spill everything to the stack\n");
         printf("--prc                          Output spilled register count\n");
         printf("--ir1                          Output intermediate representation after parsing\n");
         printf("--ir2                          Output intermediate representation after x86_64 rearrangements\n");
