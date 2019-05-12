@@ -1027,6 +1027,8 @@ void test_pointer_add() {
 }
 
 void test_pointer_sub() {
+    int i, j;
+
     remove_reserved_physical_registers = 1;
 
     // a2 = a1 - 1
@@ -1034,10 +1036,13 @@ void test_pointer_sub() {
     assert_x86_op("movq    r1q, r2q");
     assert_x86_op("subq    $1, r2q");
 
-    // v3 = a1 - a2
-    si(function, 0, IR_SUB, v(3), a(1), a(2));
-    assert_x86_op("movq    r1q, r3q");
-    assert_x86_op("subq    r2q, r3q");
+    // v3 = a1 - a2 of different types
+    for (i = TYPE_CHAR; i <= TYPE_LONG; i++)
+        for (j = TYPE_CHAR; j <= TYPE_LONG; j++)
+            // v3 = a1b - a2w
+            si(function, 0, IR_SUB, v(3), asz(1, i), asz(2, j));
+            assert_x86_op("movq    r1q, r3q");
+            assert_x86_op("subq    r2q, r3q");
 }
 
 void test_pointer_load_constant() {

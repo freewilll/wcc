@@ -875,9 +875,11 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     }
 
     if (!matched) {
+        printf("\nNo rules matched\n");
+        printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
         print_instruction(stdout, tac);
         dump_igraph(igraph);
-        panic("Did not match any rules");
+        exit(1);
     }
 
     return cost_graph_node_id;
