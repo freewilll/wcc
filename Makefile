@@ -57,6 +57,12 @@ test-wc4.s: wc4 test-wc4.c
 test-wc4: test-wc4.s stack-check.o
 	gcc test-wc4.s stack-check.o -o test-wc4
 
+test-wc4-legacy.s: wc4 test-wc4.c
+	./wc4 -c -S test-wc4.c -o test-wc4-legacy.s
+
+test-wc4-legacy: test-wc4-legacy.s stack-check.o
+	gcc test-wc4-legacy.s stack-check.o -o test-wc4-legacy
+
 benchmark: wc4 wc42 benchmark.c
 	gcc benchmark.c -o benchmark
 

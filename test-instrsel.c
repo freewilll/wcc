@@ -507,6 +507,13 @@ void test_instrsel() {
     finish_ir(function);
     assert_tac(ir_start, X_MOV, v(1), S(1), 0);
 
+    // Load Si into r1l using IR_LOAD_VARIABLE
+    start_ir();
+    i(0, IR_LOAD_VARIABLE, v(1), Ssz(1, TYPE_INT), 0);
+    finish_ir(function);
+    assert_x86_op("movslq  16(%rbp), r2q");
+    assert_x86_op("movq    r2q, r1q");
+
     // Push a local
     start_ir();
     i(0, IR_ARG, 0, c(0), S(1));
