@@ -114,7 +114,7 @@ run-test-instrsel: test-instrsel
 	 ./test-instrsel
 
 test-graph: wc4 test-graph.c graph.c set.c stack.c ir.c utils.c
-	./wc4 test-graph.c graph.c utils.c -o test-graph
+	./wc4 --instruction-selection-wip test-graph.c graph.c utils.c -o test-graph
 
 run-test-graph: test-graph
 	 ./test-graph

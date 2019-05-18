@@ -199,6 +199,7 @@ enum {
     DEBUG_SSA_SPILL_COST                  = 0,
     DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR = 0,
     DEBUG_INSTSEL_TREE_MERGING            = 0,
+    DEBUG_INSTSEL_TREE_MERGING_DEEP       = 0,
     DEBUG_INSTSEL_IGRAPHS                 = 0,
     DEBUG_INSTSEL_TILING                  = 0,
     DEBUG_INSTSEL_SPILLING                = 0,
@@ -298,6 +299,8 @@ enum {
     IR_END_LOOP,              // End of a for or while loop
     IR_ASSIGN,                // Assignment/store. Target is either a global, local, lvalue in register or register
     IR_ASSIGN_TO_REG_LVALUE,  // Assignment to an lvalue in a register
+    IR_TYPE_CHANGE,           // Type change in instruction selection tree merging
+    IR_CAST,                  // Explicit cast
     IR_NOP,                   // No operation. Used for label destinations. No code is generated for this other than the label itself.
     IR_JMP,                   // Unconditional jump
     IR_JZ,                    // Jump if zero
@@ -573,7 +576,9 @@ enum {
     REG, REGB, REGW, REGL, REGQ, // 7    Registers
     MEM, MEMB, MEMW, MEML, MEMQ, // 12   Memory, in stack or globals
     ADR, ADRB, ADRW, ADRL, ADRQ, // 17   Address (aka pointer) in a register
-    MDR, MDRB, MDRW, MDRL, MDRQ, // 22   Address (aka pointer) in memory
+    ADRV,                        // 22   Address (aka pointer) to an unknown sized value (e.g. a struct)
+    MDR, MDRB, MDRW, MDRL, MDRQ, // 23   Address (aka pointer) in memory
+    MDRV,                        // 28   Address (aka pointer) to an unknown sized value (e.g. a struct) in memory
 
     // Operands
     DST,
@@ -644,6 +649,7 @@ typedef struct rule {
     int src1;
     int src2;
     int cost;
+    int match_dst;
     struct x86_operation *x86_operations;
 } Rule;
 

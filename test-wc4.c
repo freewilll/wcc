@@ -548,25 +548,6 @@ void test_pointer_to_int6() {
     assert_int(2, j,   "pointer to int 5-3");
 }
 
-void test_pointer_to_int7() {
-    int i, *pi;
-
-    i = 1;
-    pi = &i;
-
-    *(pi + 0) = 2;  assert_int(2, i, "pointer to int 7 +0");
-    *(pi - 0) = 3;  assert_int(3, i, "pointer to int 7 -0");
-    pi[0] = 3;      assert_int(3, i, "pointer to int 7 []");
-
-    assert_int(3, *&i,       "pointer to int 7 *&");
-    assert_int(3, *&*pi,     "pointer to int 7 *&*pi");
-    assert_int(3, *&*&*pi,   "pointer to int 7 *&*&*pi");
-    assert_int(3, *&*&*&*pi, "pointer to int 7 *&*&*&*pi");
-
-    *&*pi = 4;
-    assert_int(4, i, "pointer to int 7 *&*pi =");
-}
-
 void test_pointer_to_char() {
     char *pc;
 
@@ -574,17 +555,6 @@ void test_pointer_to_char() {
     assert_int('f', *pc, "pointer to char 1"); *pc++;
     assert_int('o', *pc, "pointer to char 1"); *pc++;
     assert_int('o', *pc, "pointer to char 1"); *pc++;
-}
-
-void test_pointers() {
-    test_pointer_to_int1();
-    test_pointer_to_int2();
-    test_pointer_to_int3();
-    test_pointer_to_int4();
-    test_pointer_to_int5();
-    test_pointer_to_int6();
-    test_pointer_to_int7();
-    test_pointer_to_char();
 }
 
 void test_prefix_inc_dec() {
@@ -1112,7 +1082,6 @@ void test_first_arg_to_or_and_and_must_be_rvalue() {
     assert_int(1, a, "first arg to || must be an lvalue");
 }
 
-
 void test_enum() {
     assert_int(0,  A, "enum 1");
     assert_int(1,  B, "enum 2");
@@ -1200,6 +1169,20 @@ void test_struct_member_alignment() {
     assert_int(2, (long) &(vs->s1) - (long) &(vs->c1), "struct member alignment s");
     assert_int(4, (long) &(vi->i1) - (long) &(vi->c1), "struct member alignment i");
     assert_int(8, (long) &(vl->l1) - (long) &(vl->c1), "struct member alignment l");
+}
+
+void test_struct_indirect_sizes() {
+    struct ccc *ccc;
+
+    ccc = malloc(sizeof(struct ccc));
+
+    ccc->c1 = 10;
+    ccc->c2 = 20;
+    ccc->c3 = 30;
+
+    assert_int(10, ccc->c1, "Struct indirect sizes 1");
+    assert_int(20, ccc->c2, "Struct indirect sizes 2");
+    assert_int(30, ccc->c3, "Struct indirect sizes 3");
 }
 
 void test_struct_alignment_bug() {
@@ -1322,6 +1305,26 @@ void test_incomplete_struct() {
     assert_int(3, s21->i,    "incomplete struct 6");
     assert_int(4, s1->s2->i, "incomplete struct 7");
     assert_int(4, s22->i,    "incomplete struct 8");
+}
+
+void test_double_dereference1() {
+    char **ppc;
+    char *pc;
+
+    ppc = malloc(sizeof(char *));
+    *ppc = "foo";
+    assert_string("foo", *ppc, "Stuff");
+}
+
+void test_double_dereference2() {
+    char **ppc;
+    char *pc;
+
+    ppc = malloc(sizeof(char *));
+    pc = "bar";
+    *ppc = pc;
+    assert_string("bar", *ppc, "Stuff");
+    pc = pc;
 }
 
 void test_struct_member_array_lookup() {
@@ -1561,7 +1564,13 @@ int main(int argc, char **argv) {
     test_function_call_with_global();
     test_split_function_declaration_and_definition();
     test_void_return();
-    test_pointers();
+    test_pointer_to_int1();
+    test_pointer_to_int2();
+    test_pointer_to_int3();
+    test_pointer_to_int4();
+    test_pointer_to_int5();
+    test_pointer_to_int6();
+    test_pointer_to_char();
     test_prefix_inc_dec();
     test_postfix_inc_dec();
     test_inc_dec_sizes();
@@ -1600,6 +1609,7 @@ int main(int argc, char **argv) {
     test_enum();
     test_simple_struct();
     test_struct_member_alignment();
+    test_struct_indirect_sizes();
     test_struct_alignment_bug();
     test_nested_struct();
     test_function_returning_a_pointer_to_a_struct();
@@ -1608,6 +1618,8 @@ int main(int argc, char **argv) {
     test_struct_casting();
     test_packed_struct();
     test_incomplete_struct();
+    test_double_dereference1();
+    test_double_dereference2();
     test_struct_member_array_lookup();
     test_typedef1();
     test_typedef2();

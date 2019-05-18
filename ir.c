@@ -158,6 +158,8 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 
     if (!v) panic("print_value got null");
 
+    if (v->is_lvalue) printf("{l}");
+    if (v->is_lvalue_in_register) printf("{lr}");
     if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->local_index)) fprintf(f, "&");
     if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->local_index)) fprintf(f, "L");
 
@@ -217,6 +219,8 @@ char *operation_string(int operation) {
     else if (operation == IR_LOAD_CONSTANT)         return "IR_LOAD_CONSTANT";
     else if (operation == IR_LOAD_STRING_LITERAL)   return "IR_LOAD_STRING_LITERAL";
     else if (operation == IR_LOAD_VARIABLE)         return "IR_LOAD_VARIABLE";
+    else if (operation == IR_TYPE_CHANGE)           return "IR_TYPE_CHANGE";
+    else if (operation == IR_CAST)                  return "IR_CAST";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
     else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
     else if (operation == IR_START_CALL)            return "IR_START_CALL";
@@ -306,10 +310,15 @@ void print_instruction(void *f, Tac *tac) {
 
     if (tac->dst && o < X_START) {
         print_value(f, tac->dst, o != IR_ASSIGN);
-        fprintf(f, " = ");
+        if (o == IR_TYPE_CHANGE)
+            fprintf(f, " = (type change) ");
+        else if (o == IR_CAST)
+            fprintf(f, " = (cast) ");
+        else
+            fprintf(f, " = ");
     }
 
-    if (o == IR_LOAD_CONSTANT || o == IR_LOAD_VARIABLE || o == IR_LOAD_STRING_LITERAL) {
+    if (o == IR_LOAD_CONSTANT || o == IR_LOAD_VARIABLE || o == IR_LOAD_STRING_LITERAL || o == IR_TYPE_CHANGE || o == IR_CAST) {
         print_value(f, tac->src1, 1);
     }
 
@@ -342,9 +351,8 @@ void print_instruction(void *f, Tac *tac) {
 
     else if (o == IR_ASSIGN_TO_REG_LVALUE) {
         print_value(f, tac->src1, 0);
-        fprintf(f, " = ");
+        fprintf(f, " = (assign to reg lvalue) ");
         print_value(f, tac->src2, 1);
-        fprintf(f, " [assign to lvalue]");
     }
 
     else if (o == IR_NOP)

@@ -618,10 +618,30 @@ void expression(int level) {
         next();
         if (cur_token_is_type()) {
             // cast
-            org_type = parse_type();
-            consume(TOK_RPAREN, ")");
-            expression(TOK_INC);
-            vtop->type = org_type;
+            if (instruction_selection_wip) {
+                org_type = parse_type();
+                consume(TOK_RPAREN, ")");
+                expression(TOK_INC);
+
+                v1 = pl();
+                if (v1->type != org_type) {
+                    dst = new_value();
+                    dst->vreg = new_vreg();
+                    dst->type = org_type;
+                    add_instruction(IR_CAST, dst, v1, 0);
+                    push(dst);
+                }
+                else {
+                    v1->type = org_type;
+                    push(v1);
+                }
+            }
+            else {
+                org_type = parse_type();
+                consume(TOK_RPAREN, ")");
+                expression(TOK_INC);
+                vtop->type = org_type;
+            }
         }
         else {
             expression(TOK_COMMA);

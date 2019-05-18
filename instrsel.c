@@ -5,9 +5,9 @@
 #include "wc4.h"
 
 enum {
-    MAX_INSTRUCTION_GRAPH_EDGE_COUNT = 32,
-    MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT = 512,
-    MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT = 512,
+    MAX_INSTRUCTION_GRAPH_EDGE_COUNT = 64,
+    MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT = 1024,
+    MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT = 1024,
     MAX_CHOICE_TRAIL_COUNT = 32,
 };
 
@@ -43,7 +43,23 @@ void set_assign_to_reg_lvalue_dsts(Function *function) {
 
     tac = function->ir;
     while (tac) {
-        if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) tac->dst = tac->src1;
+        if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) {
+            tac->src1 = dup_value(tac->src1);
+            tac->src1->type += TYPE_PTR;
+            tac->src1->is_lvalue = 0;
+            tac->dst = tac->src1;
+        }
+        else {
+            if (tac->src1 && tac->src1->is_lvalue && !(tac->src1->global_symbol || tac->src1->local_index)) {
+                tac->src1->type += TYPE_PTR;
+                tac->src1->is_lvalue = 0;
+            }
+            if (tac->src2 && tac->src2->is_lvalue && !(tac->src2->global_symbol || tac->src2->local_index)) {
+                tac->src2->type += TYPE_PTR;
+                tac->src2->is_lvalue = 0;
+            }
+        }
+
         tac = tac->next;
     }
 }
@@ -63,7 +79,7 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
     if (ign->tac) {
         operation = ign->tac->operation;
              if (operation == IR_ASSIGN)               printf("= (assign)\n");
-        else if (operation == IR_LOAD_STRING_LITERAL)  printf("= (sL)\n");
+        else if (operation == IR_LOAD_STRING_LITERAL)  printf("= (string literal)\n");
         else if (operation == IR_ADD)                  printf("+\n");
         else if (operation == IR_SUB)                  printf("-\n");
         else if (operation == IR_MUL)                  printf("*\n");
@@ -75,6 +91,8 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_ADDRESS_OF)           printf("&\n");
         else if (operation == IR_LOAD_CONSTANT)        printf("= (load constant)\n");
         else if (operation == IR_LOAD_VARIABLE)        printf("= (load variable)\n");
+        else if (operation == IR_TYPE_CHANGE)          printf("= (type change)\n");
+        else if (operation == IR_CAST)                 printf("= (cast)\n");
         else if (operation == IR_ASSIGN_TO_REG_LVALUE) printf("assign to lvalue\n");
         else if (operation == IR_NOP)                  printf("noop\n");
         else if (operation == IR_RETURN)               printf("return\n");
@@ -120,101 +138,29 @@ void copy_inode(IGraphNode *src, IGraphNode *dst) {
     dst->value = src->value;
 }
 
-IGraph *merge_assignment_igraphs(IGraph *g1, IGraph *g2, int vreg) {
-    int i, replacement_vreg;
-    int type, is_lvalue_in_register, is_lvalue;
-    IGraphNode *in;
-    Value *v;
-
-    for (i = 0; i < g1->node_count; i++) {
-        in = &(g1->nodes[i]);
-        if (in->value && in->value->vreg == vreg) {
-            // Copy original value over, but preserve everything related
-            // to the type
-
-            type                  = in->value->type;
-            is_lvalue_in_register = in->value->is_lvalue_in_register;
-            is_lvalue             = in->value->is_lvalue;
-
-            in->value = dup_value(g2->nodes[1].value);
-
-            in->value->type                  = type;
-            in->value->is_lvalue_in_register = is_lvalue_in_register;
-            in->value->is_lvalue             = is_lvalue;
-
-            if (DEBUG_INSTSEL_TREE_MERGING) {
-                printf("\nreusing tweaked g1 for g:\n");
-                dump_igraph(g1);
-            }
-
-            return g1;
-        }
-    }
-
-    panic("Should never get here");
-}
-
 // Merge g2 into g1. The merge point is vreg
 IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
-    int i, j, operation, node_count, d, join_from, join_to, from, to;
+    int i, j, operation, node_count, d, join_from, join_to, from, to, type_change;
+    int type;
     IGraph *g;
-    IGraphNode *inodes, *g1_inodes, *in, *inodes2, *in2;
+    IGraphNode *inodes, *g1_inodes, *inodes2, *in, *in1, *in2;
     GraphNode *n, *n2;
     GraphEdge *e, *e2;
     Value *v;
     Tac *tac;
 
     if (DEBUG_INSTSEL_TREE_MERGING) {
-        printf("g1:\n");
+        printf("g1 dst=%d\n", g1->nodes[0].tac->dst ? g1->nodes[0].tac->dst->vreg : -1);
         dump_igraph(g1);
-        printf("\ng2:\n");
+        printf("g2 dst=%d\n", g2->nodes[0].tac->dst ? g2->nodes[0].tac->dst->vreg : -1);
         dump_igraph(g2);
         printf("\n");
-    }
-
-    if (g1->node_count == 2) {
-        tac = g1->nodes[0].tac;
-        operation = tac->operation;
-        // g1 is one of
-        //     r1 = r2(var)
-        //     r1 = r2(temp)
-        // g2 is r2 = src1 (op) src2
-        // Subsitute r2 with g2
-        if (operation == IR_LOAD_VARIABLE ||
-            (operation == IR_ASSIGN && tac->dst->vreg && tac->src1->vreg)) {
-
-            // For no side effects
-            g2->nodes[0].tac->dst = dup_value(g1->nodes[0].tac->dst);
-
-            if (DEBUG_INSTSEL_TREE_MERGING) {
-                printf("\nreusing g2 for g:\n");
-                dump_igraph(g2);
-            }
-
-            return g2;
-        }
-    }
-
-    if (g2->node_count == 2) {
-        // g1 is a generic dst = r1 (op) r2
-        // g2 is one of
-        //     r2 = r3(var)
-        //     r2 = r3(expr)
-        //     r2 = constant
-        //     r2 = string literal
-        //     r2 = global
-        //     r2 = var on stack
-        // turn that into dst |- r1
-        //                     - expr
-        operation = g2->nodes[0].tac->operation;
-        if (operation == IR_ASSIGN || operation == IR_LOAD_VARIABLE || operation == IR_LOAD_CONSTANT || operation == IR_LOAD_STRING_LITERAL)
-            return merge_assignment_igraphs(g1, g2, vreg);
     }
 
     g = malloc(sizeof(IGraph));
     memset(g, 0, sizeof(IGraph));
 
-    node_count = g1->node_count + g2->node_count - 1;
+    node_count = g1->node_count + g2->node_count;
     inodes = malloc(node_count * sizeof(IGraphNode));
     memset(inodes, 0, node_count * sizeof(IGraphNode));
 
@@ -226,11 +172,11 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     if (g1->node_count == 0) panic("Unexpectedly got 0 g1->node_count");
 
-    if (DEBUG_INSTSEL_TREE_MERGING) printf("g1->node_count=%d\n", g1->node_count);
-    if (DEBUG_INSTSEL_TREE_MERGING) printf("g2->node_count=%d\n", g2->node_count);
+    if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("g1->node_count=%d\n", g1->node_count);
+    if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("g2->node_count=%d\n", g2->node_count);
 
     for (i = 0; i < g1->node_count; i++) {
-        if (DEBUG_INSTSEL_TREE_MERGING) printf("Copying g1 %d to %d\n", i, i);
+        if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Copying g1 %d to %d\n", i, i);
         copy_inode(&(g1->nodes[i]), &(inodes[i]));
 
         g1_inodes = g1->nodes;
@@ -241,13 +187,14 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
         while (e) {
             in = &(g1_inodes[e->to->id]);
             if (in->value && in->value->vreg == vreg) {
+                in1 = in;
                 join_from = e->from->id;
                 join_to = e->to->id;
-                if (DEBUG_INSTSEL_TREE_MERGING) printf("Adding join edge %d -> %d\n", join_from, join_to);
+                if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Adding join edge %d -> %d\n", join_from, join_to);
                 add_graph_edge(g->graph, join_from, join_to);
             }
             else {
-                if (DEBUG_INSTSEL_TREE_MERGING) printf("Adding g1 edge %d -> %d\n", e->from->id, e->to->id);
+                if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Adding g1 edge %d -> %d\n", e->from->id, e->to->id);
                 add_graph_edge(g->graph, e->from->id, e->to->id);
             }
 
@@ -257,29 +204,47 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     if (join_from == -1 || join_to == -1) panic("Attempt to join two trees without a join node");
 
-    if (DEBUG_INSTSEL_TREE_MERGING) printf("\n");
+    // The g2 graph starts at g1->node_count
     for (i = 0; i < g2->node_count; i++) {
-        d = (i == 0) ? join_to : g1->node_count + i - 1;
+        d = g1->node_count + i;
+        if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Copying g2 node from %d to %d\n", i, d);
         copy_inode(&(g2->nodes[i]), &(inodes[d]));
 
         n2 = &(g2->graph->nodes[i]);
         e = n2->succ;
-
         while (e) {
-            from = e->from->id;
-            to = e->to->id;
-
-            if (from == 0)
-                from = join_to;
-            else
-                from += g1->node_count - 1;
-
-            to += g1->node_count - 1;
-
-            if (DEBUG_INSTSEL_TREE_MERGING) printf("Adding g2 edge %d -> %d\n", from, to);
+            from = e->from->id + g1->node_count ;
+            to = e->to->id + g1->node_count;
+            if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Adding g2 edge %d -> %d\n", from, to);
             add_graph_edge(g->graph, from, to);
+
             e = e->next_succ;
         }
+    }
+
+    if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("\n");
+
+    in2 = &(g2->nodes[0]);
+    type_change = in1->value->type != in2->tac->dst->type;
+
+    if (type_change) {
+        if (DEBUG_INSTSEL_TREE_MERGING) printf("Changing type from %d -> %d\n", in2->tac->dst->type, in1->value->type);
+        if (DEBUG_INSTSEL_TREE_MERGING) printf("Replacing %d with IR_TYPE_CHANGE tac\n", join_to);
+        in = &(inodes[join_to]);
+        in->tac = new_instruction(IR_TYPE_CHANGE);
+        in->tac->src1 = in2->tac->dst;
+        in->tac->dst = in1->value;
+
+        if (DEBUG_INSTSEL_TREE_MERGING) print_instruction(stdout, in->tac);
+
+        if (DEBUG_INSTSEL_TREE_MERGING) printf("Adding inter graph join edge %d -> %d\n", join_to, g1->node_count);
+        add_graph_edge(g->graph, join_to, g1->node_count);
+    }
+    else {
+        if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Repointing inter graph join node %d->%d to %d->%d\n", join_from, join_to, join_from, g1->node_count);
+        e = g->graph->nodes[join_from].succ;
+        if (e->to->id != join_to) e = e->next_succ;
+        e->to = &(g->graph->nodes[g1->node_count]);
     }
 
     if (DEBUG_INSTSEL_TREE_MERGING) {
@@ -553,13 +518,6 @@ int rules_match(int parent, Rule *child, int allow_downsize) {
     if (parent == REGW && child->non_terminal == REGQ) return 1;
     if (parent == REGL && child->non_terminal == REGQ) return 1;
 
-    if (parent == ADRB && child->non_terminal == ADRW) return 1;
-    if (parent == ADRB && child->non_terminal == ADRL) return 1;
-    if (parent == ADRB && child->non_terminal == ADRQ) return 1;
-    if (parent == ADRW && child->non_terminal == ADRL) return 1;
-    if (parent == ADRW && child->non_terminal == ADRQ) return 1;
-    if (parent == ADRL && child->non_terminal == ADRQ) return 1;
-
     return 0;
 }
 
@@ -571,21 +529,26 @@ int non_terminal_for_constant_value(Value *v) {
 }
 
 int non_terminal_for_value(Value *v) {
+    int adr_base;
     make_value_x86_size(v);
+
+    adr_base = v->vreg ? ADR : MDR;
 
          if (v->is_constant)                                        return non_terminal_for_constant_value(v);
     else if (v->is_string_literal)                                  return STL;
     else if (v->label)                                              return LAB;
-    else if (v->vreg && v->type >= TYPE_PTR)                        return ADR + value_ptr_target_x86_size(v);
-    else if (v->is_lvalue_in_register)                              return ADR + v->x86_size;
-    else if (v->is_lvalue && !(v->global_symbol || v->local_index)) return ADR + v->x86_size;
-    else if (v->type >= TYPE_PTR)                                   return MDR + value_ptr_target_x86_size(v);
-    else if (v->vreg)                                               return REG + v->x86_size;
-    else if (v->global_symbol)                                      return MEM + v->x86_size;
-    else if (v->stack_index)                                        return MEM + v->x86_size;
     else if (v->function_symbol)                                    return FUN;
-    else
+    else if (v->type == TYPE_PTR + TYPE_VOID)                       return adr_base + 5;
+    else if (v->type >= TYPE_PTR + TYPE_PTR)                        return adr_base + 4;
+    else if (v->type >= TYPE_PTR + TYPE_STRUCT)                     return adr_base + 5;
+    else if (v->type >= TYPE_PTR)                                   return adr_base + value_ptr_target_x86_size(v);
+    else if (v->is_lvalue_in_register)                              return ADR + v->x86_size;
+    else if (v->global_symbol || v->local_index || v->stack_index)  return MEM + v->x86_size;
+    else if (v->vreg)                                               return REG + v->x86_size;
+    else {
+        print_value(stdout, v, 0);
         panic("Bad value in non_terminal_for_value()");
+    }
 }
 
 int match_value_to_rule_src(Value *v, int src) {
@@ -790,7 +753,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         }
     }
 
-    if (DEBUG_INSTSEL_TILING && node_id == 0 && tac->dst)
+    if (DEBUG_INSTSEL_TILING && tac->dst)
         printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
 
     // Loop over all rules until a match is found
@@ -804,6 +767,9 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
         // If this is the top level, ensure the dst matches
         if (node_id == 0 && tac->dst && !match_value_to_rule_dst(tac->dst, r)) continue;
+
+        // If the rule requires dst matching, do it.
+        if (tac->dst && r->match_dst && !match_value_to_rule_dst(tac->dst, r)) continue;
 
         // Check dst of the subtree tile matches what is needed
         matched_src = 0;
@@ -876,7 +842,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
     if (!matched) {
         printf("\nNo rules matched\n");
-        printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
+        if (tac->dst) printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
         print_instruction(stdout, tac);
         dump_igraph(igraph);
         exit(1);
@@ -961,7 +927,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
 
     if (DEBUG_INSTSEL_TILING) {
-        printf("Generating instructions for ");
+        printf("Generating instructions for rule %-4d: ", rule->index);
         print_rule(rule, 0);
     }
 
