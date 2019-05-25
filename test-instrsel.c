@@ -782,6 +782,13 @@ void test_instrsel_returns() {
     si(function, 0, IR_RETURN, 0, gsz(1, TYPE_LONG),  0); assert_x86_op("movq    g1(%rip), %rax");
 
     si(function, 0, IR_RETURN, 0, 0, 0); assert(X_RET, ir_start->operation);
+
+    start_ir();
+    i(0, IR_LOAD_STRING_LITERAL, asz(1, TYPE_CHAR), s(1), 0);
+    i(0, IR_RETURN, 0, asz(1, TYPE_CHAR), 0);
+    finish_ir(function);
+    assert_x86_op("leaq    .SL1(%rip), r2q");
+    assert_x86_op("movq    r2q, %rax");
 }
 
 void test_instrsel_function_calls() {
