@@ -1191,6 +1191,30 @@ void test_assign_to_pointer_to_void() {
     si(function, 0, IR_ASSIGN, asz(2, TYPE_VOID), asz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
 }
 
+void test_pointer_comparisons() {
+    remove_reserved_physical_registers = 1;
+
+    start_ir();
+    i(0, IR_LOAD_VARIABLE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
+    i(0, IR_EQ,            v(3),                         vsz(2, TYPE_PTR + TYPE_VOID), c(1));
+    i(0, IR_JZ,            0,                            v(3),                         l(1));
+    i(1, IR_NOP,           0,                            0,                            0   );
+    finish_ir(function);
+    assert_x86_op("movq    g1(%rip), r3q");
+    assert_x86_op("cmpq    $1, r3q");
+    assert_x86_op("je      .l1");
+
+    start_ir();
+    i(0, IR_LOAD_VARIABLE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
+    i(0, IR_EQ,            v(3),                         c(1),                         vsz(2, TYPE_PTR + TYPE_VOID));
+    i(0, IR_JZ,            0,                            v(3),                         l(1));
+    i(1, IR_NOP,           0,                            0,                            0   );
+    finish_ir(function);
+    assert_x86_op("movq    g1(%rip), r3q");
+    assert_x86_op("cmpq    $1, r3q");
+    assert_x86_op("je      .l1");
+}
+
 void test_spilling() {
     Tac *tac;
 
@@ -1324,6 +1348,7 @@ int main() {
     test_pointer_assignment_precision_decreases();
     test_pointer_type_changes();
     test_assign_to_pointer_to_void();
+    test_pointer_comparisons();
     test_spilling();
 
     if (failures) {
