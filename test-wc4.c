@@ -72,6 +72,19 @@ struct csc { char c1; short c2; char c3; };
 struct cic { char c1; int   c2; char c3; };
 struct clc { char c1; long  c2; char c3; };
 
+struct sddp1 {
+    int i;
+};
+
+struct sddp2 {
+    struct sddp3 *s3;
+};
+
+struct sddp3 {
+    int i;
+    int end;
+};
+
 struct frps {
     int i, j;
 };
@@ -1061,14 +1074,45 @@ void test_bad_or_and_stack_consumption() {
 }
 
 void test_double_deref_assign_with_cast() {
+    // This test is a bit bonkers.
+    // stack contains longs, but they are really pointers to longs.
     long i, a, *sp, *stack;
+
     stack = malloc(32);
     sp = stack;
     i = 10;
     a = 20;
-    *sp = (long) &i;
+
+    // Assign a pointer to a long (i) to sp
+    *sp = &i;
+
+    // With explicit parentheses:
+    // (*((long *) *sp))++ = a;
+    //
+    // 1. Dereference sp (which is a long, but is equal to &i)
+    // 2. Cast it to a pointer to long (long *)
+    // 3. Assign to the long*, which is &i, thus modifying the value of i
+    // 4. Increment sp
     *(long *) *sp++ = a;
+
     assert_int(20, i, "double deref assign with a cast");
+}
+
+void test_double_deref_precision() {
+    struct sddp1 *s1;
+    struct sddp2 *s2;
+    struct sddp3 *s3;
+
+    s1 = malloc(2 * sizeof(struct sddp1 *));
+    s1[0].i = 1;
+    s1[1].i = 2;
+
+    s2 = malloc(sizeof(struct sddp2 *));
+    s3 = malloc(sizeof(struct sddp3 *));
+    s2->s3 = s3;
+    s3->end = -1;
+
+    assert_long(0, s2->s3->i, "Double deref precision");
 }
 
 void test_double_assign() {
@@ -1637,6 +1681,7 @@ int main(int argc, char **argv) {
     test_func_returns_are_lvalues();
     test_bad_or_and_stack_consumption();
     test_double_deref_assign_with_cast();
+    test_double_deref_precision();
     test_double_assign();
     test_int_char_interbreeding();
     test_first_arg_to_or_and_and_must_be_rvalue();
