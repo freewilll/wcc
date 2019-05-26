@@ -19,6 +19,7 @@ OBJECTS := ${SOURCES:c=o}
 
 build:
 	@mkdir -p build/wc42
+	@mkdir -p build/wc42-instruction-selection-wip
 	@mkdir -p build/wc43
 
 %.o: %.c wc4.h
@@ -36,6 +37,16 @@ build/wc42/%.s: %.c wc4
 
 wc42: ${WC42_ASSEMBLIES}
 	gcc ${WC42_ASSEMBLIES} -o wc42
+
+# wc42-instruction-selection-wip
+WC42_INSTRUCTION_SELECTION_WIP_SOURCES := ${SOURCES:%=build/wc42-instruction-selection-wip/%}
+WC42_INSTRUCTION_SELECTION_WIP_ASSEMBLIES := ${WC42_INSTRUCTION_SELECTION_WIP_SOURCES:.c=.s}
+
+build/wc42-instruction-selection-wip/%.s: %.c wc4
+	./wc4 --instruction-selection-wip -c $< -S -o $@
+
+wc42-instruction-selection-wip: ${WC42_INSTRUCTION_SELECTION_WIP_ASSEMBLIES}
+	gcc ${WC42_INSTRUCTION_SELECTION_WIP_ASSEMBLIES} -o wc42-instruction-selection-wip
 
 # wc43
 WC43_SOURCES := ${SOURCES:%=build/wc43/%}
@@ -101,7 +112,7 @@ run-test-set: test-set
 	 ./test-set
 
 test-ssa: wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c parser.c lexer.c codegen.c instrrules.c instrsel.c utils.c
-	./wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c parser.c lexer.c codegen.c instrrules.c instrsel.c utils.c -o test-ssa
+	./wc4 --instruction-selection-wip test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c parser.c lexer.c codegen.c instrrules.c instrsel.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa
@@ -131,6 +142,7 @@ test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-instrsel 
 clean:
 	@rm -f wc4
 	@rm -f wc42
+	@rm -f wc42-instruction-selection-wip
 	@rm -f wc43
 	@rm -f test-wc4
 	@rm -f test-wc4-gcc

@@ -2,6 +2,7 @@
 *.s
 wc4
 wc42
+wc42-instruction-selection-wip
 wc43
 test-wc4
 test-wc4-gcc
