@@ -1068,8 +1068,8 @@ void test_pointer_sub() {
     assert_x86_op("subq    $1, r2q");
 
     // v3 = a1 - a2 of different types
-    for (i = TYPE_CHAR; i <= TYPE_LONG; i++)
-        for (j = TYPE_CHAR; j <= TYPE_LONG; j++)
+    for (i = TYPE_VOID; i <= TYPE_LONG; i++)
+        for (j = TYPE_VOID; j <= TYPE_LONG; j++)
             // v3 = a1b - a2w
             si(function, 0, IR_SUB, v(3), asz(1, i), asz(2, j));
             assert_x86_op("movq    r1q, r3q");

@@ -561,13 +561,16 @@ void add_sub_rules() {
     add_sub_rule(REG, CST, MEM,  11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
     add_sub_rule(REG, MEM, CST,  11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
 
-    for (i = ADRB; i <= ADRQ; i++) {
-        for (j = ADRB; j <= ADRQ; j++) {
+    for (i = ADRB; i <= ADRV; i++) {
+        for (j = ADRB; j <= ADRV; j++) {
             add_sub_rule(REGQ, i, j,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
         }
-
-        add_sub_rule(i, i, CSTL,  11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
     }
+
+    for (i = ADRB; i <= ADRQ; i++)
+        add_sub_rule(i, i, CSTL,  11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+
+    add_sub_rule(ADRV, ADRV, CSTL,  11, "movq %v1q, %vdq",  "subq $%v1q, %vdq");
 }
 
 void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *t4, char *tdiv, char *tmod) {
