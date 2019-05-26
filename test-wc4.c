@@ -31,7 +31,10 @@ typedef struct _s2_ { int i; } S2;
 
 struct ns1 {
     int i, j;
+    struct s1 *s1;
 };
+
+struct s1 *gs1;
 
 struct ns2 {
     struct ns1 *s;
@@ -1205,8 +1208,8 @@ void test_nested_struct() {
     s1->j = 2;
     assert_int(1, s2->s->i, "nested struct 1");
     assert_int(2, s2->s->j, "nested struct 2");
-    assert_int(8, sizeof(struct ns1), "nested struct 3");
-    assert_int(8, sizeof(struct ns2), "nested struct 4");
+    assert_int(16, sizeof(struct ns1), "nested struct 3");
+    assert_int(8,  sizeof(struct ns2), "nested struct 4");
 
     s2->s->i = 3;
     s2->s->j = 4;
@@ -1214,6 +1217,22 @@ void test_nested_struct() {
     assert_int(4, s1->j,    "nested struct 6");
     assert_int(3, s2->s->i, "nested struct 7");
     assert_int(4, s2->s->j, "nested struct 8");
+}
+
+void test_struct_double_indirect_assign_to_global() {
+    struct s1 *s1;
+    struct ns1 *ns1;
+    struct ns2 *ns2;
+
+    s1 = malloc(sizeof(struct s1));
+    ns1 = malloc(sizeof(struct ns1));
+    ns2 = malloc(sizeof(struct ns2));
+    ns2->s = ns1;
+    ns1->s1 = s1;
+
+    s1->i = 1;
+    gs1 = ns2->s->s1;
+    assert_int(1, gs1->i, "nested double struct indirect 3");
 }
 
 struct frps *frps() {
@@ -1612,6 +1631,7 @@ int main(int argc, char **argv) {
     test_struct_indirect_sizes();
     test_struct_alignment_bug();
     test_nested_struct();
+    test_struct_double_indirect_assign_to_global();
     test_function_returning_a_pointer_to_a_struct();
     test_function_with_a_pointer_to_a_struct_argument();
     test_struct_additions();

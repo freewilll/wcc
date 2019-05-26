@@ -1222,6 +1222,24 @@ void test_pointer_comparisons() {
     assert_x86_op("je      .l1");
 }
 
+void test_pointer_double_indirect() {
+    int j;
+
+    remove_reserved_physical_registers = 1;
+
+    for (j = TYPE_VOID; j <= TYPE_LONG; j++) {
+        // Assignment to a global *... after a double indirect r4 = r1->b->c;
+        start_ir();
+        i(0, IR_INDIRECT,      asz(2, TYPE_VOID),     asz(1, TYPE_PTR + TYPE_VOID), 0);
+        i(0, IR_INDIRECT,      asz(3, TYPE_VOID),     asz(2, TYPE_PTR + TYPE_VOID), 0);
+        i(0, IR_ASSIGN,        gsz(4, TYPE_PTR + j),  asz(3, TYPE_VOID),            0);
+        finish_ir(function);
+        assert_x86_op("movq    (r1q), r4q");
+        assert_x86_op("movq    (r4q), r5q");
+        assert_x86_op("movq    r5q, g4(%rip)");
+    }
+}
+
 void test_spilling() {
     Tac *tac;
 
@@ -1356,6 +1374,7 @@ int main() {
     test_pointer_type_changes();
     test_assign_to_pointer_to_void();
     test_pointer_comparisons();
+    test_pointer_double_indirect();
     test_spilling();
 
     if (failures) {
