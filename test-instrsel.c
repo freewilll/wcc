@@ -244,8 +244,9 @@ void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jm
     assert_tac(ir_start->next, x86_jmp_operation, 0, l(1), 0   );
 }
 
-void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2) {
+void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load) {
     start_ir();
+    if (disable_adrq_load) nuke_rule(REGQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_LT,  v(3), src1, src2);
     i(0, IR_JZ,  0,    v(3), l(1));
     i(1, IR_NOP, 0,    0,    0   );
@@ -601,13 +602,17 @@ void test_instrsel() {
     test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ,  X_JGE); test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, X_JLT);
 
     // a < b with a conditional with different src1 and src2 operands
-    test_less_than_with_conditional_jmp(function, v(1), c(1));
-    test_less_than_with_conditional_jmp(function, g(1), c(1));
-    test_less_than_with_conditional_jmp(function, v(1), g(1));
-    test_less_than_with_conditional_jmp(function, g(1), v(1));
-    test_less_than_with_conditional_jmp(function, v(1), S(1));
-    test_less_than_with_conditional_jmp(function, S(1), v(1));
-    test_less_than_with_conditional_jmp(function, S(1), c(1));
+    test_less_than_with_conditional_jmp(function, v(1), c(1), 0);
+    test_less_than_with_conditional_jmp(function, a(1), c(1), 1);
+    test_less_than_with_conditional_jmp(function, g(1), c(1), 0);
+    test_less_than_with_conditional_jmp(function, v(1), g(1), 0);
+    test_less_than_with_conditional_jmp(function, a(1), g(1), 1);
+    test_less_than_with_conditional_jmp(function, g(1), v(1), 0);
+    test_less_than_with_conditional_jmp(function, v(1), S(1), 0);
+    test_less_than_with_conditional_jmp(function, a(1), S(1), 1);
+    test_less_than_with_conditional_jmp(function, S(1), v(1), 0);
+    test_less_than_with_conditional_jmp(function, S(1), a(1), 1);
+    test_less_than_with_conditional_jmp(function, S(1), c(1), 0);
 
     // Conditional assignment with 2 registers
     test_cmp_with_assignment(function, IR_EQ, X_SETE);

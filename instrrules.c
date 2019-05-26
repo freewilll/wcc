@@ -818,10 +818,16 @@ void init_instruction_selection_rules() {
     // Comparision + conditional jump
     ntc = AUTO_NON_TERMINAL_START;
     add_comparison_conditional_jmp_rules(&ntc, REG, REG, cmp_rr);
+    add_comparison_conditional_jmp_rules(&ntc, REG, ADR, cmp_rr);
     add_comparison_conditional_jmp_rules(&ntc, REG, CST, cmp_rc);
     add_comparison_conditional_jmp_rules(&ntc, REG, MEM, cmp_rm);
     add_comparison_conditional_jmp_rules(&ntc, MEM, REG, cmp_mr);
     add_comparison_conditional_jmp_rules(&ntc, MEM, CST, cmp_mc);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, ADR, cmp_rr);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, REG, cmp_rr);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, CST, cmp_rr);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, MEM, cmp_rm);
+    add_comparison_conditional_jmp_rules(&ntc, MEM, ADR, cmp_mr);
 
     add_comparison_conditional_jmp_rules(&ntc, ADRV, CSTL, "cmpq $%v2l, %v1q");
     add_comparison_conditional_jmp_rules(&ntc, CSTL, ADRV, "cmpq $%v1l, %v2q");
