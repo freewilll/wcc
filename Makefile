@@ -112,10 +112,22 @@ run-test-set: test-set
 	 ./test-set
 
 test-ssa: wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c parser.c lexer.c codegen.c instrrules.c instrsel.c utils.c
-	./wc4 --instruction-selection-wip test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c parser.c lexer.c codegen.c instrrules.c instrsel.c utils.c -o test-ssa
+	./wc4 test-ssa.c test-utils.c ssa.c set.c stack.c graph.c ir.c parser.c lexer.c codegen.c instrrules.c instrsel.c utils.c -o test-ssa
 
 run-test-ssa: test-ssa
 	 ./test-ssa
+
+test-ssa-instruction-selection-wip.s: wc4 test-ssa.c
+	./wc4 --instruction-selection-wip -c -S test-ssa.c -o test-ssa-instruction-selection-wip.s
+
+test-utils-instruction-selection-wip.s: wc4 test-utils.c
+	./wc4 --instruction-selection-wip -c -S test-utils.c -o test-utils-instruction-selection-wip.s
+
+test-ssa-instruction-selection-wip: wc4 test-ssa-instruction-selection-wip.s test-utils-instruction-selection-wip.s build/wc42-instruction-selection-wip/lexer.s build/wc42-instruction-selection-wip/parser.s build/wc42-instruction-selection-wip/ir.s build/wc42-instruction-selection-wip/ssa.s build/wc42-instruction-selection-wip/instrsel.s build/wc42-instruction-selection-wip/instrrules.s build/wc42-instruction-selection-wip/codegen.s build/wc42-instruction-selection-wip/utils.s build/wc42-instruction-selection-wip/set.s build/wc42-instruction-selection-wip/stack.s build/wc42-instruction-selection-wip/graph.s
+	gcc -o test-ssa-instruction-selection-wip test-ssa-instruction-selection-wip.s test-utils-instruction-selection-wip.s build/wc42-instruction-selection-wip/lexer.s build/wc42-instruction-selection-wip/parser.s build/wc42-instruction-selection-wip/ir.s build/wc42-instruction-selection-wip/ssa.s build/wc42-instruction-selection-wip/instrsel.s build/wc42-instruction-selection-wip/instrrules.s build/wc42-instruction-selection-wip/codegen.s build/wc42-instruction-selection-wip/utils.s build/wc42-instruction-selection-wip/set.s build/wc42-instruction-selection-wip/stack.s build/wc42-instruction-selection-wip/graph.s
+
+run-test-ssa-instruction-selection-wip: test-ssa-instruction-selection-wip
+	 ./test-ssa-instruction-selection-wip
 
 test-instrsel: wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c codegen.c parser.c lexer.c graph.c set.c ssa.c stack.c utils.c
 	#./wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c codegen.c parser.c lexer.c graph.c set.c ssa.c stack.c utils.c -o test-instrsel
