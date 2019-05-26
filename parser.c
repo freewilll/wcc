@@ -437,7 +437,7 @@ void and_or_expr(int is_and) {
 
 void arithmetic_operation(int operation, int type) {
     // Pull two items from the stack and push the result. Code in the IR
-    // is generated when the operands can't be valuated directly.
+    // is generated when the operands can't be evaluated directly.
 
     Value *src1, *src2, *t;
     Tac *tac;
@@ -529,7 +529,7 @@ void expression(int level) {
     int factor;
     int type;
     int scope;
-    int function_call, arg_count;
+    int function_call, arg_count, is_constant;
     Symbol *symbol;
     Struct *str;
     StructMember *member;
@@ -847,13 +847,19 @@ void expression(int level) {
                 org_token = cur_token;
                 next();
                 expression(TOK_MULTIPLY);
+                is_constant = vtop->is_constant;
 
-                if (factor > 1) {
+                if (is_constant) {
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_MUL, TYPE_INT);
                 }
 
-                arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB , vs_operation_type());
+                arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, vs_operation_type());
+
+                if (!is_constant) {
+                    push_constant(TYPE_INT, factor);
+                    arithmetic_operation(IR_DIV, TYPE_LONG);
+                }
             }
             else
                 parse_arithmetic_operation(TOK_MULTIPLY, cur_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);

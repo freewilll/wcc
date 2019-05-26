@@ -744,6 +744,20 @@ void test_char_pointer_arithmetic() {
     assert_int(0, strcmp(start, "foo"), "char pointer arithmetic");
 }
 
+void test_pointer_pointer_subtraction() {
+    char *c1, *c2;
+    short *s1, *s2;
+    int *i1, *i2;
+    long *l1, *l2;
+    struct sl *t1, *t2;
+
+    c1 = (char *)       16; c2 = (char *)      8; assert_int(8, c1 - c2, "Pointer subtraction 1");
+    s1 = (short *)      16; s2 = (short *)     8; assert_int(4, s1 - s2, "Pointer subtraction 2");
+    i1 = (int *)        16; i2 = (int *)       8; assert_int(2, i1 - i2, "Pointer subtraction 3");
+    l1 = (long *)       16; l2 = (long *)      8; assert_int(1, l1 - l2, "Pointer subtraction 4");
+    t1 = (struct sl *)  56; t2 = (struct sl *) 8; assert_int(2, t1 - t2, "Pointer subtraction 5");
+}
+
 void test_while() {
     int i;
     int c1, c2;
@@ -1599,6 +1613,7 @@ int main(int argc, char **argv) {
     test_integer_sizes();
     test_malloc();
     test_char_pointer_arithmetic();
+    test_pointer_pointer_subtraction();
     test_while();
     test_for();
     test_for_statement_combinations();
