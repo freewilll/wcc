@@ -1291,6 +1291,16 @@ void test_pointer_double_indirect() {
     }
 }
 
+void test_pointer_to_void_from_long_assignment() {
+    remove_reserved_physical_registers = 1;
+
+    si(function, 0, IR_ASSIGN, asz(2, TYPE_VOID), v(1), 0);
+    assert_x86_op("movq    r1q, r2q");
+
+    si(function, 0, IR_ASSIGN, gsz(2, TYPE_PTR + TYPE_VOID), v(1), 0);
+    assert_x86_op("movq    r1q, g2(%rip)");
+}
+
 void test_spilling() {
     Tac *tac;
 
@@ -1426,6 +1436,7 @@ int main() {
     test_assign_to_pointer_to_void();
     test_pointer_comparisons();
     test_pointer_double_indirect();
+    test_pointer_to_void_from_long_assignment();
     test_spilling();
 
     if (failures) {
