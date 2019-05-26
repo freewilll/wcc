@@ -560,6 +560,15 @@ void test_instrsel() {
     assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
     assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
 
+    // jz with a1 *void
+    start_ir();
+    nuke_rule(REGQ, 0, ADRV, 0); // Disable direct ADRQ into register passthrough
+    i(0, IR_JZ,  0,    asz(1, TYPE_VOID), l(1));
+    i(1, IR_NOP, 0,    0,    0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
+
     // jz with global
     start_ir();
     i(0, IR_JZ,  0,    g(1), l(1));
@@ -580,6 +589,15 @@ void test_instrsel() {
     start_ir();
     nuke_rule(REGQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_JNZ,  0,   a(1), l(1));
+    i(1, IR_NOP, 0,    0,    0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
+
+    // jz with a1 *void
+    start_ir();
+    nuke_rule(REGQ, 0, ADRV, 0); // Disable direct ADRQ into register passthrough
+    i(0, IR_JNZ,  0,   asz(1, TYPE_VOID), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
