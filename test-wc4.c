@@ -85,6 +85,15 @@ struct sddp3 {
     int end;
 };
 
+struct sddp4{
+    int i;
+    int j;
+};
+
+struct sddp5 {
+    struct sddp4 *sddp4;
+};
+
 struct frps {
     int i, j;
 };
@@ -1098,7 +1107,7 @@ void test_double_deref_assign_with_cast() {
     assert_int(20, i, "double deref assign with a cast");
 }
 
-void test_double_deref_precision() {
+void test_double_deref_precision1() {
     struct sddp1 *s1;
     struct sddp2 *s2;
     struct sddp3 *s3;
@@ -1112,7 +1121,17 @@ void test_double_deref_precision() {
     s2->s3 = s3;
     s3->end = -1;
 
-    assert_long(0, s2->s3->i, "Double deref precision");
+    assert_long(0, s2->s3->i, "Double deref precision 1-1");
+}
+
+void test_double_deref_precision2() {
+    struct sddp5 *sddp5;
+
+    sddp5 = malloc(sizeof(struct sddp5));
+    sddp5->sddp4 = malloc(sizeof(struct sddp4));
+    memset(sddp5->sddp4, -1, sizeof(struct sddp4));
+    sddp5->sddp4[0].i = 1;
+    assert_long(1, sddp5->sddp4[0].i, "Double deref precision 2-1");
 }
 
 void test_double_assign() {
@@ -1681,7 +1700,8 @@ int main(int argc, char **argv) {
     test_func_returns_are_lvalues();
     test_bad_or_and_stack_consumption();
     test_double_deref_assign_with_cast();
-    test_double_deref_precision();
+    test_double_deref_precision1();
+    test_double_deref_precision2();
     test_double_assign();
     test_int_char_interbreeding();
     test_first_arg_to_or_and_and_must_be_rvalue();

@@ -672,11 +672,6 @@ void init_instruction_selection_rules() {
     r = add_rule(FUN,  0, FUN,  0, 0); fin_rule(r);
 
     r = add_rule(CSTL, IR_ASSIGN,      CSTL, 0, 0);
-    r = add_rule(CSTL, IR_TYPE_CHANGE, CSTL, 0, 0);
-    r = add_rule(CSTQ, IR_TYPE_CHANGE, CSTQ, 0, 0);
-    r = add_rule(MEM,  IR_TYPE_CHANGE, MEM,  0, 0); fin_rule(r);
-    r = add_rule(ADR,  IR_TYPE_CHANGE, ADR,  0, 0); fin_rule(r);
-    r = add_rule(MDR,  IR_TYPE_CHANGE, MDR,  0, 0); fin_rule(r);
     r = add_rule(REG,  IR_TYPE_CHANGE, REG,  0, 0); fin_rule(r);
 
     // Allow explicit conversion from/to any pointer types
