@@ -529,7 +529,7 @@ void expression(int level) {
     int factor;
     int type;
     int scope;
-    int function_call, arg_count, is_constant;
+    int function_call, arg_count, is_pointer;
     Symbol *symbol;
     Struct *str;
     StructMember *member;
@@ -847,18 +847,20 @@ void expression(int level) {
                 org_token = cur_token;
                 next();
                 expression(TOK_MULTIPLY);
-                is_constant = vtop->is_constant;
+                is_pointer = vtop->type >= TYPE_PTR;
 
-                if (is_constant) {
+                if (!is_pointer) {
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_MUL, TYPE_INT);
                 }
 
                 arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, vs_operation_type());
 
-                if (!is_constant) {
+                if (is_pointer) {
+                    type = vtop->type;
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_DIV, TYPE_LONG);
+                    vtop->type = type;
                 }
             }
             else

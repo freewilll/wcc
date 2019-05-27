@@ -780,6 +780,16 @@ void test_pointer_pointer_subtraction() {
     t1 = (struct sl *)  56; t2 = (struct sl *) 8; assert_int(2, t1 - t2, "Pointer subtraction 5");
 }
 
+void test_pointer_with_non_constant_non_pointer_addition() {
+    int *pi;
+    int j;
+
+    pi = malloc(sizeof(int));
+    j = 0;
+    *(pi + j) = 1;
+    assert_int(1, *pi, "Pointer with non-constant non-pointer addition");
+}
+
 void test_while() {
     int i;
     int c1, c2;
@@ -1677,6 +1687,7 @@ int main(int argc, char **argv) {
     test_malloc();
     test_char_pointer_arithmetic();
     test_pointer_pointer_subtraction();
+    test_pointer_with_non_constant_non_pointer_addition();
     test_while();
     test_for();
     test_for_statement_combinations();
