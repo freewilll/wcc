@@ -335,6 +335,13 @@ void add_pointer_rules() {
     r = add_rule(MDRV, IR_ASSIGN, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1; // For memory (* void) v = (long) l;
 
     for (i = ADRB; i <= ADRQ; i++) {
+        for (j = ADRB; j <= ADRQ; j++) {
+            r = add_rule(i,  IR_ASSIGN, j, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+            r->match_dst = 1;
+        }
+    }
+
+    for (i = ADRB; i <= ADRQ; i++) {
         r = add_rule(i,  IR_ASSIGN, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
         r->match_dst = 1;
     }

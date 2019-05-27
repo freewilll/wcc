@@ -81,9 +81,17 @@ char *assert_x86_op(char *expected) {
     char *got;
 
     got = render_x86_operation(ir_start, 0, 0, 0);;
-    if (strcmp(got, expected)) {
-        printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
+
+    if (!got) {
+        printf("Mismatch:\n  expected: %s\n  got:      null\n", expected);
         failures++;
+    }
+    else {
+
+        if (strcmp(got, expected)) {
+            printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
+            failures++;
+        }
     }
 
     n();
@@ -232,6 +240,19 @@ void test_instrsel_tree_merging() {
     assert_x86_op("movq    r1q, r4q");
     assert_x86_op("movq    r4q, r2q");
     assert_x86_op("movb    $1, (r2q)");
+
+    // Test tree merges only happening on adjacent trees.
+    // This is realistic example of a value swap of two values in memory.
+    start_ir();
+    i(0, IR_ASSIGN, v(1), g(1), 0);
+    i(0, IR_ASSIGN, v(2), g(2), 0);
+    i(0, IR_ASSIGN, g(1), v(2), 0);
+    i(0, IR_ASSIGN, g(2), v(1), 0);
+    finish_ir(function);
+    assert_x86_op("movq    g1(%rip), r1q");
+    assert_x86_op("movq    g2(%rip), r3q");
+    assert_x86_op("movq    r3q, g1(%rip)");
+    assert_x86_op("movq    r1q, g2(%rip)");
 }
 
 void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, int x86_jmp_operation) {

@@ -255,6 +255,21 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     return g;
 }
 
+int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
+    VregIGraph *g1, *g2;
+
+    i1++;
+    if (i1 > i2) panic("Internal error: ordering issue in igraphs_are_neighbors()");
+
+    while (i1 <= i2) {
+        if (i1 == i2) return 1;
+        if (igraphs[i1].node_count != 0) return 0;
+        i1++;
+    }
+
+    return 1;
+}
+
 void make_igraphs(Function *function, int block_id) {
     int instr_count, i, j, node_count, vreg_count;
     int dst, src1, src2, g1_igraph_id;
@@ -360,11 +375,15 @@ void make_igraphs(Function *function, int block_id) {
             panic("src1 == src2 not handled");
         }
 
+        g1_igraph_id = vreg_igraphs[dst].igraph_id;
+
         // If dst is only used once and it's not in liveout, merge it.
         // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL contraints don't permit
         // rearranging function calls without dire dowmstream side effects.
-        if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 && tac->operation != IR_CALL && tac->operation != IR_ASSIGN_TO_REG_LVALUE) {
-            g1_igraph_id = vreg_igraphs[dst].igraph_id;
+        if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
+            tac->operation != IR_CALL && tac->operation != IR_ASSIGN_TO_REG_LVALUE &&
+            igraphs_are_neighbors(igraphs, i, g1_igraph_id)) {
+
             if (DEBUG_INSTSEL_TREE_MERGING) {
                 printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
                 printf("in locs %d and %d on vreg=%d\n----------------------------------------------------------\n", g1_igraph_id, i, dst);
@@ -375,7 +394,7 @@ void make_igraphs(Function *function, int block_id) {
             igraphs[g1_igraph_id].graph = ig->graph;
             igraphs[g1_igraph_id].node_count = ig->node_count;
 
-            igraphs[i].node_count = 0; // Nuke it, should not be needed, but it triggers a panic in case of a bug
+            igraphs[i].node_count = 0;
 
             if (src1) vreg_igraphs[src1].igraph_id = g1_igraph_id;
             if (src2) vreg_igraphs[src2].igraph_id = g1_igraph_id;
