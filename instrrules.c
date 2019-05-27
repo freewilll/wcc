@@ -661,6 +661,7 @@ void init_instruction_selection_rules() {
     Rule *r;
     int ntc;  // Non terminal counter
     char *cmp_rr, *cmp_rc, *cmp_rm, *cmp_mr, *cmp_mc;
+    char *cmpq_rr, *cmpq_rc, *cmpq_rm, *cmpq_mr, *cmpq_mc;
 
     instr_rule_count = 0;
     disable_merge_constants = 0;
@@ -829,25 +830,27 @@ void init_instruction_selection_rules() {
                                                          fin_rule(r);
 
     // All pairwise combinations of (CST, REG, MEM) that have associated x86 instructions
-    cmp_rr = "cmp%s %v2, %v1";
-    cmp_rc = "cmp%s $%v2, %v1";
-    cmp_rm = "cmp%s %v2, %v1";
-    cmp_mr = "cmp%s %v2, %v1";
-    cmp_mc = "cmp%s $%v2, %v1";
+    cmp_rr = "cmp%s %v2, %v1";  cmpq_rr = "cmpq %v2q, %v1q";
+    cmp_rc = "cmp%s $%v2, %v1"; cmpq_rc = "cmpq $%v2q, %v1q";
+    cmp_rm = "cmp%s %v2, %v1";  cmpq_rm = "cmpq %v2q, %v1q";
+    cmp_mr = "cmp%s %v2, %v1";  cmpq_mr = "cmpq %v2q, %v1q";
+    cmp_mc = "cmp%s $%v2, %v1"; cmpq_mc = "cmpq $%v2q, %v1q";
 
     // Comparision + conditional jump
     ntc = AUTO_NON_TERMINAL_START;
     add_comparison_conditional_jmp_rules(&ntc, REG, REG, cmp_rr);
-    add_comparison_conditional_jmp_rules(&ntc, REG, ADR, cmp_rr);
     add_comparison_conditional_jmp_rules(&ntc, REG, CST, cmp_rc);
     add_comparison_conditional_jmp_rules(&ntc, REG, MEM, cmp_rm);
     add_comparison_conditional_jmp_rules(&ntc, MEM, REG, cmp_mr);
     add_comparison_conditional_jmp_rules(&ntc, MEM, CST, cmp_mc);
-    add_comparison_conditional_jmp_rules(&ntc, ADR, ADR, cmp_rr);
-    add_comparison_conditional_jmp_rules(&ntc, ADR, REG, cmp_rr);
-    add_comparison_conditional_jmp_rules(&ntc, ADR, CST, cmp_rc);
-    add_comparison_conditional_jmp_rules(&ntc, ADR, MEM, cmp_rm);
-    add_comparison_conditional_jmp_rules(&ntc, MEM, ADR, cmp_mr);
+
+    // Comparision + conditional jump for pointers.
+    add_comparison_conditional_jmp_rules(&ntc, REG, ADR, cmpq_rr);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, ADR, cmpq_rr);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, REG, cmpq_rr);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, CST, cmpq_rc);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, MEM, cmpq_rm);
+    add_comparison_conditional_jmp_rules(&ntc, MEM, ADR, cmpq_mr);
 
     add_comparison_conditional_jmp_rules(&ntc, ADRV, CSTL, "cmpq $%v2l, %v1q");
     add_comparison_conditional_jmp_rules(&ntc, CSTL, ADRV, "cmpq $%v1l, %v2q");
