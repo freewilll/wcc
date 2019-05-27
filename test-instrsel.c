@@ -1071,6 +1071,15 @@ void test_constant_operations() {
     assert_x86_op("movq    $9, r2q");
 }
 
+void test_pointer_indirect() {
+    remove_reserved_physical_registers = 1;
+
+    si(function, 0, IR_INDIRECT, vsz(2, TYPE_CHAR ), asz(1, TYPE_CHAR),  0); assert_x86_op("movb    (r1q), r2b");
+    si(function, 0, IR_INDIRECT, vsz(2, TYPE_SHORT), asz(1, TYPE_SHORT), 0); assert_x86_op("movw    (r1q), r2w");
+    si(function, 0, IR_INDIRECT, vsz(2, TYPE_INT  ), asz(1, TYPE_INT),   0); assert_x86_op("movl    (r1q), r2l");
+    si(function, 0, IR_INDIRECT, vsz(2, TYPE_LONG ), asz(1, TYPE_LONG),  0); assert_x86_op("movq    (r1q), r2q");
+}
+
 void test_pointer_inc() {
     remove_reserved_physical_registers = 1;
 
@@ -1185,7 +1194,7 @@ void test_pointer_indirect_from_stack() {
     finish_spill_ir(function);
     assert_x86_op("movq    -16(%rbp), r3q");
     assert_x86_op("movq    r3q, r4q");
-    assert_x86_op("movq    (r4q), r2q");
+    assert_x86_op("movl    (r4q), r2l");
 }
 
 void test_pointer_indirect_global_char_in_struct_to_long() {
@@ -1443,6 +1452,7 @@ int main() {
     test_bnot_operations();
     test_binary_shift_operations();
     test_constant_operations();
+    test_pointer_indirect();
     test_pointer_inc();
     test_pointer_add();
     test_pointer_sub();

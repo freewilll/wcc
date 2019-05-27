@@ -10,6 +10,7 @@ test-set
 test-graph
 test-ssa
 test-instrsel
+test-instrsel-wip
 test-codegen
 benchmark
 test.c
