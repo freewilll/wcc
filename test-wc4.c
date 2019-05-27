@@ -790,6 +790,25 @@ void test_pointer_with_non_constant_non_pointer_addition() {
     assert_int(1, *pi, "Pointer with non-constant non-pointer addition");
 }
 
+int *aopta() {
+    return malloc(sizeof(int));
+}
+
+void test_assignment_of_pointer_to_array() {
+    int **ppi;
+    int j;
+
+    ppi = malloc(sizeof(int *));
+    j = 0;
+    ppi[j] = aopta();
+
+    *(ppi[j]) = 1;
+    assert_int(1, **ppi, "Pointer with non-constant non-pointer addition 1");
+
+    **(ppi + j) = 2;
+    assert_int(2, **ppi, "Pointer with non-constant non-pointer addition 2");
+}
+
 void test_while() {
     int i;
     int c1, c2;
@@ -1688,6 +1707,7 @@ int main(int argc, char **argv) {
     test_char_pointer_arithmetic();
     test_pointer_pointer_subtraction();
     test_pointer_with_non_constant_non_pointer_addition();
+    test_assignment_of_pointer_to_array();
     test_while();
     test_for();
     test_for_statement_combinations();

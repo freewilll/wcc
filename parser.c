@@ -763,10 +763,6 @@ void expression(int level) {
 
             factor = get_type_inc_dec_size(vtop->type);
 
-            src1 = pl(); // Turn it into an rvalue
-            push(src1);
-
-            org_type = vtop->type;
             expression(TOK_COMMA);
 
             if (factor > 1) {
@@ -776,10 +772,8 @@ void expression(int level) {
 
             type = vs_operation_type();
             arithmetic_operation(IR_ADD, type);
-
             consume(TOK_RBRACKET, "]");
-            vtop->type = org_type - TYPE_PTR;
-            vtop->is_lvalue = 1;
+            indirect();
         }
 
         else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
