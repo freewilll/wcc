@@ -265,7 +265,7 @@ void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jm
     assert_tac(ir_start->next, x86_jmp_operation, 0, l(1), 0   );
 }
 
-void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load) {
+void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load, char *template) {
     start_ir();
     if (disable_adrq_load) nuke_rule(REGQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_LT,  v(3), src1, src2);
@@ -274,8 +274,8 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     src1 = dup_value(src1);
     src2 = dup_value(src2);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMP, 0, src1, src2);
-    assert_tac(ir_start->next, X_JLT, 0, l(1), 0   );
+    assert_x86_op(template);
+    assert_x86_op("jl      .l1");
 }
 
 void test_cmp_with_assignment(Function *function, int cmp_operation, int x86_set_operation) {
@@ -641,17 +641,17 @@ void test_instrsel() {
     test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ,  X_JGE); test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, X_JLT);
 
     // a < b with a conditional with different src1 and src2 operands
-    test_less_than_with_conditional_jmp(function, v(1), c(1), 0);
-    test_less_than_with_conditional_jmp(function, a(1), c(1), 1);
-    test_less_than_with_conditional_jmp(function, g(1), c(1), 0);
-    test_less_than_with_conditional_jmp(function, v(1), g(1), 0);
-    test_less_than_with_conditional_jmp(function, a(1), g(1), 1);
-    test_less_than_with_conditional_jmp(function, g(1), v(1), 0);
-    test_less_than_with_conditional_jmp(function, v(1), S(1), 0);
-    test_less_than_with_conditional_jmp(function, a(1), S(1), 1);
-    test_less_than_with_conditional_jmp(function, S(1), v(1), 0);
-    test_less_than_with_conditional_jmp(function, S(1), a(1), 1);
-    test_less_than_with_conditional_jmp(function, S(1), c(1), 0);
+    test_less_than_with_conditional_jmp(function, v(1), c(1), 0, "cmpq    $1, r1q"      );
+    test_less_than_with_conditional_jmp(function, a(1), c(1), 1, "cmpq    $1, r1q"      );
+    test_less_than_with_conditional_jmp(function, g(1), c(1), 0, "cmpq    $1, g1(%rip)" );
+    test_less_than_with_conditional_jmp(function, v(1), g(1), 0, "cmpq    g1(%rip), r1q");
+    test_less_than_with_conditional_jmp(function, a(1), g(1), 1, "cmpq    g1(%rip), r1q");
+    test_less_than_with_conditional_jmp(function, g(1), v(1), 0, "cmpq    r1q, g1(%rip)");
+    test_less_than_with_conditional_jmp(function, v(1), S(1), 0, "cmpq    16(%rbp), r1q");
+    test_less_than_with_conditional_jmp(function, a(1), S(1), 1, "cmpq    16(%rbp), r1q");
+    test_less_than_with_conditional_jmp(function, S(1), v(1), 0, "cmpq    r1q, 16(%rbp)");
+    test_less_than_with_conditional_jmp(function, S(1), a(1), 1, "cmpq    r1q, 16(%rbp)");
+    test_less_than_with_conditional_jmp(function, S(1), c(1), 0, "cmpq    $1, 16(%rbp)" );
 
     // Conditional assignment with 2 registers
     test_cmp_with_assignment(function, IR_EQ, X_SETE);

@@ -845,7 +845,7 @@ void init_instruction_selection_rules() {
     add_comparison_conditional_jmp_rules(&ntc, MEM, CST, cmp_mc);
     add_comparison_conditional_jmp_rules(&ntc, ADR, ADR, cmp_rr);
     add_comparison_conditional_jmp_rules(&ntc, ADR, REG, cmp_rr);
-    add_comparison_conditional_jmp_rules(&ntc, ADR, CST, cmp_rr);
+    add_comparison_conditional_jmp_rules(&ntc, ADR, CST, cmp_rc);
     add_comparison_conditional_jmp_rules(&ntc, ADR, MEM, cmp_rm);
     add_comparison_conditional_jmp_rules(&ntc, MEM, ADR, cmp_mr);
 
