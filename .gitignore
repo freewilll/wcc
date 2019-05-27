@@ -9,7 +9,6 @@ test-wc4-gcc
 test-set
 test-graph
 test-ssa
-test-ssa-instruction-selection-wip
 test-instrsel
 test-codegen
 benchmark
