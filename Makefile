@@ -85,7 +85,7 @@ run-test-wc4: test-wc4
 	./test-wc4
 	@echo wc4 tests passed
 
-test-wc4-gcc: test-wc4.c
+test-wc4-gcc: test-wc4.c stack-check.o
 	gcc test-wc4.c stack-check.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types
 
 .PHONY: run-test-wc4-gcc
