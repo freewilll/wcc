@@ -47,6 +47,8 @@ X86Operation *dup_x86_operation(X86Operation *operation) {
     result->v2 = operation->v2;
     result->template = operation->template ? strdup(operation->template) : 0;
     result->next = 0;
+
+    return result;
 }
 
 X86Operation *dup_x86_operations(X86Operation *operation) {
