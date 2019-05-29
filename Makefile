@@ -126,15 +126,8 @@ run-test-ssa: test-ssa
 test-instrsel.s: wc4 test-instrsel.c
 	./wc4 --instruction-selection-wip -c -S test-instrsel.c -o test-instrsel.s
 
-test-instrsel-wip: wc4 test-instrsel.s test-utils-instruction-selection-wip.s build/wc42-instruction-selection-wip/lexer.s build/wc42-instruction-selection-wip/parser.s build/wc42-instruction-selection-wip/ir.s build/wc42-instruction-selection-wip/ssa.s build/wc42-instruction-selection-wip/instrsel.s build/wc42-instruction-selection-wip/instrrules.s build/wc42-instruction-selection-wip/codegen.s build/wc42-instruction-selection-wip/utils.s build/wc42-instruction-selection-wip/set.s build/wc42-instruction-selection-wip/stack.s build/wc42-instruction-selection-wip/graph.s
-	gcc -o test-instrsel-wip test-instrsel.s test-utils-instruction-selection-wip.s build/wc42-instruction-selection-wip/lexer.s build/wc42-instruction-selection-wip/parser.s build/wc42-instruction-selection-wip/ir.s build/wc42-instruction-selection-wip/ssa.s build/wc42-instruction-selection-wip/instrsel.s build/wc42-instruction-selection-wip/instrrules.s build/wc42-instruction-selection-wip/codegen.s build/wc42-instruction-selection-wip/utils.s build/wc42-instruction-selection-wip/set.s build/wc42-instruction-selection-wip/stack.s build/wc42-instruction-selection-wip/graph.s
-
-run-test-instrsel-wip: test-instrsel-wip
-	 ./test-instrsel-wip
-
-test-instrsel: wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c codegen.c parser.c lexer.c graph.c set.c ssa.c stack.c utils.c
-	#./wc4 test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c codegen.c parser.c lexer.c graph.c set.c ssa.c stack.c utils.c -o test-instrsel
-	gcc test-instrsel.c test-utils.c instrsel.c instrrules.c ir.c codegen.c parser.c lexer.c graph.c set.c ssa.c stack.c utils.c -D_GNU_SOURCE -o test-instrsel
+test-instrsel: wc4 test-instrsel.s test-utils-instruction-selection-wip.s build/wc42-instruction-selection-wip/lexer.s build/wc42-instruction-selection-wip/parser.s build/wc42-instruction-selection-wip/ir.s build/wc42-instruction-selection-wip/ssa.s build/wc42-instruction-selection-wip/instrsel.s build/wc42-instruction-selection-wip/instrrules.s build/wc42-instruction-selection-wip/codegen.s build/wc42-instruction-selection-wip/utils.s build/wc42-instruction-selection-wip/set.s build/wc42-instruction-selection-wip/stack.s build/wc42-instruction-selection-wip/graph.s
+	gcc -o test-instrsel test-instrsel.s test-utils-instruction-selection-wip.s build/wc42-instruction-selection-wip/lexer.s build/wc42-instruction-selection-wip/parser.s build/wc42-instruction-selection-wip/ir.s build/wc42-instruction-selection-wip/ssa.s build/wc42-instruction-selection-wip/instrsel.s build/wc42-instruction-selection-wip/instrrules.s build/wc42-instruction-selection-wip/codegen.s build/wc42-instruction-selection-wip/utils.s build/wc42-instruction-selection-wip/set.s build/wc42-instruction-selection-wip/stack.s build/wc42-instruction-selection-wip/graph.s
 
 run-test-instrsel: test-instrsel
 	 ./test-instrsel
