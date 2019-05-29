@@ -1,4 +1,4 @@
-all: wc4 wc42 wc43 benchmark
+all: wc4 wc42 wc43 wc43-instruction-selection-wip benchmark
 
 SOURCES = \
   wc4.c \
@@ -21,6 +21,7 @@ build:
 	@mkdir -p build/wc42
 	@mkdir -p build/wc42-instruction-selection-wip
 	@mkdir -p build/wc43
+	@mkdir -p build/wc43-instruction-selection-wip
 
 %.o: %.c wc4.h
 	gcc -c $< -o $@ -g -Wno-return-type -D _GNU_SOURCE
@@ -58,6 +59,16 @@ build/wc43/%.s: %.c wc42
 wc43: ${WC43_ASSEMBLIES}
 	gcc ${WC43_ASSEMBLIES} -o wc43
 
+# wc43-instruction-selection-wip
+WC43_INSTRUCTION_SELECTION_WIP_SOURCES := ${SOURCES:%=build/wc43-instruction-selection-wip/%}
+WC43_INSTRUCTION_SELECTION_WIP_ASSEMBLIES := ${WC43_INSTRUCTION_SELECTION_WIP_SOURCES:.c=.s}
+
+build/wc43-instruction-selection-wip/%.s: %.c wc42-instruction-selection-wip
+	./wc42-instruction-selection-wip --instruction-selection-wip -c $< -S -o $@
+
+wc43-instruction-selection-wip: ${WC43_INSTRUCTION_SELECTION_WIP_ASSEMBLIES}
+	gcc ${WC43_INSTRUCTION_SELECTION_WIP_ASSEMBLIES} -o wc43-instruction-selection-wip
+
 # tests
 stack-check.o: stack-check.c
 	gcc stack-check.c -c
@@ -74,7 +85,7 @@ test-wc4-legacy.s: wc4 test-wc4.c
 test-wc4-legacy: test-wc4-legacy.s stack-check.o
 	gcc test-wc4-legacy.s stack-check.o -o test-wc4-legacy
 
-benchmark: wc4 wc42 benchmark.c
+benchmark: wc4 wc42 wc42-instruction-selection-wip benchmark.c
 	gcc benchmark.c -o benchmark
 
 run-benchmark: benchmark
@@ -98,6 +109,12 @@ test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
 	cat build/wc43/*.s > build/wc43/all-s
 	diff build/wc42/all-s build/wc43/all-s
 	@echo self compilation test passed
+
+test-self-compilation-instruction-selection-wip: ${WC42_INSTRUCTION_SELECTION_WIP_ASSEMBLIES} ${WC43_INSTRUCTION_SELECTION_WIP_ASSEMBLIES}
+	cat build/wc42-instruction-selection-wip/*.s > build/wc42-instruction-selection-wip/all-s
+	cat build/wc43-instruction-selection-wip/*.s > build/wc43-instruction-selection-wip/all-s
+	diff build/wc42-instruction-selection-wip/all-s build/wc43-instruction-selection-wip/all-s
+	@echo self compilation with --instruction-selection-wip test passed
 
 test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
 	cd test-include && ../wc4 --instruction-selection-wip main.c foo.c -o test-include
@@ -148,13 +165,14 @@ run-test-codegen: test-codegen
 	 ./test-codegen
 
 .PHONY: test
-test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-instrsel run-test-graph run-test-codegen run-test-wc4-gcc test-self-compilation
+test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-instrsel run-test-graph run-test-codegen run-test-wc4-gcc test-self-compilation test-self-compilation-instruction-selection-wip
 
 clean:
 	@rm -f wc4
 	@rm -f wc42
 	@rm -f wc42-instruction-selection-wip
 	@rm -f wc43
+	@rm -f wc43-instruction-selection-wip
 	@rm -f test-wc4
 	@rm -f test-wc4-gcc
 	@rm -f test-set
