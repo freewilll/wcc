@@ -852,14 +852,16 @@ void expression(int level) {
                 arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, vs_operation_type());
 
                 if (is_pointer) {
-                    type = vtop->type;
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_DIV, TYPE_LONG);
-                    vtop->type = type;
+                    vtop->type = TYPE_LONG;
                 }
             }
-            else
+            else {
                 parse_arithmetic_operation(TOK_MULTIPLY, cur_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
+                is_pointer = vtop->type >= TYPE_PTR;
+                if (is_pointer) vtop->type = TYPE_LONG;
+            }
         }
 
         else if (cur_token == TOK_BITWISE_LEFT)  parse_arithmetic_operation(TOK_PLUS,         IR_BSHL, 0);
