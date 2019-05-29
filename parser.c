@@ -704,6 +704,7 @@ void expression(int level) {
             function_value = new_value();
             function_value->function_symbol = symbol;
             function_value->function_call_arg_count = arg_count;
+            src1->function_call_arg_count = arg_count;
 
             return_value = 0;
             if (type != TYPE_VOID) {

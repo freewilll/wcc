@@ -1586,14 +1586,37 @@ void test_spilling_locals_to_stack_bug() {
     r10++; // This forces a spill of r10
 }
 
-void test_stack_alignment0() {           assert_int(0, check_stack_alignment(), "Stack alignment 0"); }
-void test_stack_alignment1() { int i;    assert_int(0, check_stack_alignment(), "Stack alignment 1"); }
-void test_stack_alignment2() { int i, j; assert_int(0, check_stack_alignment(), "Stack alignment 2"); }
+int sa0()                                                               { assert_int(0, check_stack_alignment(), "SA 0"); }
+int sa1(int i1)                                                         { assert_int(0, check_stack_alignment(), "SA 1"); }
+int sa2(int i1, int i2)                                                 { assert_int(0, check_stack_alignment(), "SA 2"); }
+int sa3(int i1, int i2, int i3)                                         { assert_int(0, check_stack_alignment(), "SA 3"); }
+int sa4(int i1, int i2, int i3, int i4)                                 { assert_int(0, check_stack_alignment(), "SA 4"); }
+int sa5(int i1, int i2, int i3, int i4, int i5)                         { assert_int(0, check_stack_alignment(), "SA 5"); }
+int sa6(int i1, int i2, int i3, int i4, int i5, int i6)                 { assert_int(0, check_stack_alignment(), "SA 6"); }
+int sa7(int i1, int i2, int i3, int i4, int i5, int i6, int i7)         { assert_int(0, check_stack_alignment(), "SA 7"); }
+int sa8(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8) { assert_int(0, check_stack_alignment(), "SA 8"); }
 
-void test_stack_alignment() {
-    test_stack_alignment0();
-    test_stack_alignment1();
-    test_stack_alignment2();
+int test_function_call_stack_alignment() {
+    sa0();
+    sa1(1);
+    sa2(1, 1);
+    sa3(1, 1, 1);
+    sa4(1, 1, 1, 1);
+    sa4(1, 1, 1, 1);
+    sa5(1, 1, 1, 1, 1);
+    sa6(1, 1, 1, 1, 1, 1);
+    sa7(1, 1, 1, 1, 1, 1, 1);
+    sa8(1, 1, 1, 1, 1, 1, 1, 1);
+}
+
+void test_local_var_stack_alignment0() {           assert_int(0, check_stack_alignment(), "Stack alignment 0"); }
+void test_local_var_stack_alignment1() { int i;    assert_int(0, check_stack_alignment(), "Stack alignment 1"); }
+void test_local_var_stack_alignment2() { int i, j; assert_int(0, check_stack_alignment(), "Stack alignment 2"); }
+
+void test_local_var_stack_alignment() {
+    test_local_var_stack_alignment0();
+    test_local_var_stack_alignment1();
+    test_local_var_stack_alignment2();
 }
 
 void test_ssa_label_merge_bug() {
@@ -1761,7 +1784,8 @@ int main(int argc, char **argv) {
     test_backwards_jumps();
     test_first_declaration_in_if_in_for_liveness();
     test_spilling_locals_to_stack_bug();
-    test_stack_alignment();
+    test_local_var_stack_alignment();
+    test_function_call_stack_alignment();
     test_ssa_label_merge_bug();
     test_ssa_memory_alocation_bug();
     test_ssa_continue_with_statements_afterwards();

@@ -513,15 +513,16 @@ void output_function_body_code(Symbol *symbol) {
     int local_stack_size;               // Size of the stack containing local variables and spilled registers
     int stack_start;                    // Stack start for the local variables
     int *saved_registers;               // Callee saved registers
+    int function_call_pushes;           // How many pushes are necessary for a function call
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
     char *s;
     int type;
 
-    cur_stack_push_count++;
     function_pc = symbol->function->param_count;
 
     fprintf(f, "\tpush\t%%rbp\n");
     fprintf(f, "\tmovq\t%%rsp, %%rbp\n");
+    cur_stack_push_count = 2; // Program counter + rsp
 
     // Push up to the first 6 args onto the stack, so all args are on the stack with leftmost arg first.
     // Arg 7 and onwards are already pushed.
@@ -624,7 +625,8 @@ void output_function_body_code(Symbol *symbol) {
 
         else if (tac->operation == IR_START_CALL) {
             // Align the stack. This is matched with a pop when the function call ends
-            need_aligned_call_push = ((cur_stack_push_count + tac->src1->function_call_arg_count) % 2 == 0);
+            function_call_pushes = tac->src1->function_call_arg_count <= 6 ? 0 : tac->src1->function_call_arg_count - 6;
+            need_aligned_call_push = ((cur_stack_push_count + function_call_pushes) % 2 == 1);
             if (need_aligned_call_push)  {
                 tac->src1->pushed_stack_aligned_quad = 1;
                 cur_stack_push_count++;
@@ -957,8 +959,6 @@ void output_code(char *input_filename, char *output_filename) {
     s = symbol_table;
     while (s->identifier) {
         if (!s->is_function || !s->function->is_defined) { s++; continue; }
-
-        cur_stack_push_count = 0;
 
         fprintf(f, "%s:\n", s->identifier);
 
