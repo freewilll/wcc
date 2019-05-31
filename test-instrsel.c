@@ -827,6 +827,30 @@ void test_instrsel_types_cmp_assignment() {
     assert(0, strcmp(rx86op(ir_start->next->next->next), "movzbw  r3b, r3w"));
 }
 
+void test_instrsel_types_cmp_pointer() {
+    int j;
+
+    remove_reserved_physical_registers = 1;
+
+    for (j = TYPE_VOID; j <= TYPE_LONG; j++) {
+        start_ir();
+        i(0, IR_EQ, v(3), asz(1, j), c(0));
+        i(0, IR_JZ,  0,    v(3), l(1));
+        i(1, IR_NOP, 0,    0,    0   );
+        finish_ir(function);
+        assert_x86_op("cmpq    $0, r1q");
+        assert_x86_op("je      .l1");
+
+        start_ir();
+        i(0, IR_EQ, v(3), asz(1, j), c(0));
+        i(0, IR_JNZ, 0,    v(3), l(1));
+        i(1, IR_NOP, 0,    0,    0   );
+        finish_ir(function);
+        assert_x86_op("cmpq    $0, r1q");
+        assert_x86_op("jne     .l1");
+    }
+}
+
 void test_instrsel_returns() {
     remove_reserved_physical_registers = 1;
 
@@ -1444,6 +1468,7 @@ int main() {
     test_instrsel_types_add_vregs();
     test_instrsel_types_add_mem_vreg();
     test_instrsel_types_cmp_assignment();
+    test_instrsel_types_cmp_pointer();
     test_instrsel_returns();
     test_instrsel_function_calls();
     test_instrsel_function_call_rearranging();

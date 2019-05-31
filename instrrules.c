@@ -807,10 +807,10 @@ void init_instruction_selection_rules() {
     r = add_rule(0,   IR_JZ,            REG,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JZ with register
                                                          add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1"          );
                                                          fin_rule(r);
-    r = add_rule(0,   IR_JZ,            ADR,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JZ with pointer in register
+    r = add_rule(0,   IR_JZ,            ADR,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmpq $0, %v1q"   ); // JZ with pointer in register
                                                          add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1"          );
                                                          fin_rule(r);
-    r = add_rule(0,   IR_JZ,            ADRV, LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1q"    ); // JZ with *void
+    r = add_rule(0,   IR_JZ,            ADRV, LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmpq $0, %v1q"   ); // JZ with *void
                                                          add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1q"         );
 
     r = add_rule(0,   IR_JZ,            MEM,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JZ with memory
@@ -819,12 +819,11 @@ void init_instruction_selection_rules() {
     r = add_rule(0,   IR_JNZ,           REG,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JNZ with register
                                                          add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1"         );
                                                          fin_rule(r);
-    r = add_rule(0,   IR_JNZ,           ADR,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JNZ with pointer in register
+    r = add_rule(0,   IR_JNZ,           ADR,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmpq $0, %v1q"   ); // JNZ with pointer in register
                                                          add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1"         );
                                                          fin_rule(r);
-    r = add_rule(0,   IR_JNZ,           ADRV, LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1q"    ); // JNZ with *void
+    r = add_rule(0,   IR_JNZ,           ADRV, LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmpq $0, %v1q"   ); // JNZ with *void
                                                          add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1q"        );
-
     r = add_rule(0,   IR_JNZ,           MEM,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JNZ with memory
                                                          add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1"         );
                                                          fin_rule(r);

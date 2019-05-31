@@ -1196,6 +1196,17 @@ void test_int_char_interbreeding() {
     assert_int(67174917, i, "int char interbreeding 2");
 }
 
+char *ffrptcicj() { return (char *) 256; }
+
+void test_function_returning_pointer_to_char_in_conditional_jump() {
+    char *c;
+    int r;
+
+    c = ffrptcicj();
+    r = c ? 1 : 0;
+    assert_int(1, r, "Comparison with *char from function call in conditional jump");
+}
+
 void test_first_arg_to_or_and_and_must_be_rvalue() {
     long *sp;
     long a;
@@ -1802,6 +1813,7 @@ int main(int argc, char **argv) {
     test_double_deref_precision2();
     test_double_assign();
     test_int_char_interbreeding();
+    test_function_returning_pointer_to_char_in_conditional_jump();
     test_first_arg_to_or_and_and_must_be_rvalue();
     test_enum();
     test_simple_struct();

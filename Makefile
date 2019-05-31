@@ -111,12 +111,10 @@ test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
 	@echo self compilation test passed
 
 test-self-compilation-instruction-selection-wip: ${WC42_INSTRUCTION_SELECTION_WIP_ASSEMBLIES} ${WC43_INSTRUCTION_SELECTION_WIP_ASSEMBLIES}
-	# TODO
-
-# 	cat build/wc42-instruction-selection-wip/*.s > build/wc42-instruction-selection-wip/all-s
-# 	cat build/wc43-instruction-selection-wip/*.s > build/wc43-instruction-selection-wip/all-s
-# 	diff build/wc42-instruction-selection-wip/all-s build/wc43-instruction-selection-wip/all-s
-# 	@echo self compilation with --instruction-selection-wip test passed
+	cat build/wc42-instruction-selection-wip/*.s > build/wc42-instruction-selection-wip/all-s
+	cat build/wc43-instruction-selection-wip/*.s > build/wc43-instruction-selection-wip/all-s
+	diff build/wc42-instruction-selection-wip/all-s build/wc43-instruction-selection-wip/all-s
+	@echo self compilation with --instruction-selection-wip test passed
 
 test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
 	cd test-include && ../wc4 --instruction-selection-wip main.c foo.c -o test-include
