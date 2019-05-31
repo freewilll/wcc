@@ -88,7 +88,7 @@ void append_quad_register_name(char *buffer, int preg) {
 
 void output_move_quad_register_to_register(int preg1, int preg2) {
     if (preg1 != preg2) {
-        fprintf(f, "\tmovq\t");
+        fprintf(f, "    movq    ");
         output_quad_register_name(preg1);
         fprintf(f, ", ");
         output_quad_register_name(preg2);
@@ -104,7 +104,7 @@ void output_type_specific_register_name(int type, int preg) {
 }
 
 void output_op_instruction(char *instruction, int src, int dst) {
-    fprintf(f, "\t%s\t", instruction);
+    fprintf(f, "    %-8s", instruction);
     output_quad_register_name(src);
     fprintf(f, ", ");
     output_quad_register_name(dst);
@@ -151,7 +151,7 @@ void _output_op(char *instruction, Tac *tac) {
 void output_constant_operation(char *instruction, Tac *tac) {
     if (tac->src1->is_constant) {
         output_move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
-        fprintf(f, "\t%s\t$%ld", instruction, tac->src1->value);
+        fprintf(f, "    %-8s$%ld", instruction, tac->src1->value);
         fprintf(f, ", ");
         output_quad_register_name(tac->dst->preg);
         fprintf(f, "\n");
@@ -173,7 +173,7 @@ void output_op(char *instruction, Tac *tac) {
 // constant. src1 is output first, which is backwards to src1 <op> src2.
 // Therefore, this function is called reverse.
 void output_reverse_cmp(Tac *tac) {
-    fprintf(f, "\tcmpq\t");
+    fprintf(f, "    cmpq    ");
 
     if (tac->src1->is_constant)
         fprintf(f, "$%ld", tac->src1->value);
@@ -186,13 +186,13 @@ void output_reverse_cmp(Tac *tac) {
 }
 
 void output_cmp_result_instruction(Tac *ir, char *instruction) {
-    fprintf(f, "\t%s\t", instruction);
+    fprintf(f, "    %-8s", instruction);
     output_byte_register_name(ir->dst->preg);
     fprintf(f, "\n");
 }
 
 void output_movzbq(Tac *ir) {
-    fprintf(f, "\tmovzbq\t");
+    fprintf(f, "    movzbq  ");
     output_byte_register_name(ir->dst->preg);
     fprintf(f, ", ");
     output_quad_register_name(ir->dst->preg);
@@ -200,24 +200,24 @@ void output_movzbq(Tac *ir) {
 }
 
 void output_type_specific_mov(int type) {
-         if (type == TYPE_CHAR)  fprintf(f, "\tmovb\t");
-    else if (type == TYPE_SHORT) fprintf(f, "\tmovw\t");
-    else if (type == TYPE_INT)   fprintf(f, "\tmovl\t");
-    else                         fprintf(f, "\tmovq\t");
+         if (type == TYPE_CHAR)  fprintf(f, "    movb    ");
+    else if (type == TYPE_SHORT) fprintf(f, "    movw    ");
+    else if (type == TYPE_INT)   fprintf(f, "    movl    ");
+    else                         fprintf(f, "    movq    ");
 }
 
 void output_type_specific_sign_extend_mov(int type) {
-         if (type == TYPE_CHAR)  fprintf(f, "\tmovsbq\t");
-    else if (type == TYPE_SHORT) fprintf(f, "\tmovswq\t");
-    else if (type == TYPE_INT)   fprintf(f, "\tmovslq\t");
-    else                         fprintf(f, "\tmovq\t");
+         if (type == TYPE_CHAR)  fprintf(f, "    movsbq  ");
+    else if (type == TYPE_SHORT) fprintf(f, "    movswq  ");
+    else if (type == TYPE_INT)   fprintf(f, "    movslq  ");
+    else                         fprintf(f, "    movq    ");
 }
 
 void output_type_specific_lea(int type) {
-         if (type == TYPE_CHAR)  fprintf(f, "\tleasbq\t");
-    else if (type == TYPE_SHORT) fprintf(f, "\tleaswq\t");
-    else if (type == TYPE_INT)   fprintf(f, "\tleaslq\t");
-    else                         fprintf(f, "\tleaq\t");
+         if (type == TYPE_CHAR)  fprintf(f, "    leasbq  ");
+    else if (type == TYPE_SHORT) fprintf(f, "    leaswq  ");
+    else if (type == TYPE_INT)   fprintf(f, "    leaslq  ");
+    else                         fprintf(f, "    leaq    ");
 }
 
 void output_reverse_cmp_operation(Tac *tac, char *instruction) {
@@ -410,7 +410,7 @@ int *output_push_callee_saved_registers(Tac *tac) {
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
         if (saved_registers[i]) {
             cur_stack_push_count++;
-            fprintf(f, "\tpushq\t");
+            fprintf(f, "    pushq   ");
             output_quad_register_name(i);
             fprintf(f, "\n");
         }
@@ -428,7 +428,7 @@ void output_pop_callee_saved_registers(int *saved_registers) {
             // Note: cur_stack_push_count isn't adjusted since that would
             // otherwise mess up stack alignments for function calls after
             // return statements.
-            fprintf(f, "\tpopq\t");
+            fprintf(f, "    popq    ");
             output_quad_register_name(i);
             fprintf(f, "\n");
         }
@@ -445,7 +445,7 @@ void output_pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
         stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src1->stack_index);
 
         if (ir->operation == IR_ASSIGN_TO_REG_LVALUE)
-            fprintf(f, "\tmovq\t");
+            fprintf(f, "    movq    ");
         else
             output_type_specific_sign_extend_mov(ir->src1->type);
 
@@ -477,7 +477,7 @@ void output_pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     // The assign code will use that to store the result of the assignment.
     if (ir->operation == IR_ASSIGN && ir->dst->preg == -1 && ir->dst->is_lvalue && ir->dst->stack_index < 0) {
         stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->dst->stack_index);
-        fprintf(f, "\tmovq\t%d(%%rbp), %%r11\n", stack_offset);
+        fprintf(f, "    movq    %d(%%rbp), %%r11\n", stack_offset);
     }
 }
 
@@ -497,7 +497,7 @@ void output_post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
 
         if (assign) {
             stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->dst->stack_index);
-            fprintf(f, "\tmovq\t");
+            fprintf(f, "    movq    ");
             output_quad_register_name(ir->dst->preg);
             fprintf(f, ", %d(%%rbp)\n", stack_offset);
         }
@@ -520,20 +520,20 @@ void output_function_body_code(Symbol *symbol) {
 
     function_pc = symbol->function->param_count;
 
-    fprintf(f, "\tpush\t%%rbp\n");
-    fprintf(f, "\tmovq\t%%rsp, %%rbp\n");
+    fprintf(f, "    push    %%rbp\n");
+    fprintf(f, "    movq    %%rsp, %%rbp\n");
     cur_stack_push_count = 2; // Program counter + rsp
 
     // Push up to the first 6 args onto the stack, so all args are on the stack with leftmost arg first.
     // Arg 7 and onwards are already pushed.
 
     // Push the args in the registers on the stack. The order for all args is right to left.
-    if (function_pc >= 6) { cur_stack_push_count++; fprintf(f, "\tpush\t%%r9\n");  }
-    if (function_pc >= 5) { cur_stack_push_count++; fprintf(f, "\tpush\t%%r8\n");  }
-    if (function_pc >= 4) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rcx\n"); }
-    if (function_pc >= 3) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rdx\n"); }
-    if (function_pc >= 2) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rsi\n"); }
-    if (function_pc >= 1) { cur_stack_push_count++; fprintf(f, "\tpush\t%%rdi\n"); }
+    if (function_pc >= 6) { cur_stack_push_count++; fprintf(f, "    push    %%r9\n");  }
+    if (function_pc >= 5) { cur_stack_push_count++; fprintf(f, "    push    %%r8\n");  }
+    if (function_pc >= 4) { cur_stack_push_count++; fprintf(f, "    push    %%rcx\n"); }
+    if (function_pc >= 3) { cur_stack_push_count++; fprintf(f, "    push    %%rdx\n"); }
+    if (function_pc >= 2) { cur_stack_push_count++; fprintf(f, "    push    %%rsi\n"); }
+    if (function_pc >= 1) { cur_stack_push_count++; fprintf(f, "    push    %%rdi\n"); }
 
     // Calculate stack start for locals. reduce by pushed bsp and above pushed args.
     stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
@@ -543,7 +543,7 @@ void output_function_body_code(Symbol *symbol) {
 
     // Allocate local stack
     if (local_stack_size > 0) {
-        fprintf(f, "\tsubq\t$%d, %%rsp\n", local_stack_size);
+        fprintf(f, "    subq    $%d, %%rsp\n", local_stack_size);
         cur_stack_push_count += local_stack_size / 8;
     }
 
@@ -552,7 +552,7 @@ void output_function_body_code(Symbol *symbol) {
 
     while (tac) {
         if (output_inline_ir) {
-            fprintf(f, "\t// ------------------------------------- ");
+            fprintf(f, "    // ------------------------------------- ");
             print_instruction(f, tac);
         }
 
@@ -566,13 +566,13 @@ void output_function_body_code(Symbol *symbol) {
             output_x86_operation(tac, function_pc, stack_start);
 
         else if (tac->operation == IR_LOAD_CONSTANT) {
-            fprintf(f, "\tmovq\t$%ld, ", tac->src1->value);
+            fprintf(f, "    movq    $%ld, ", tac->src1->value);
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
         }
 
         else if (tac->operation == IR_LOAD_STRING_LITERAL) {
-            fprintf(f, "\tleaq\t.SL%d(%%rip), ", tac->src1->string_literal_index);
+            fprintf(f, "    leaq    .SL%d(%%rip), ", tac->src1->string_literal_index);
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
         }
@@ -615,7 +615,7 @@ void output_function_body_code(Symbol *symbol) {
 
         else if (tac->operation == IR_ADDRESS_OF) {
             if (tac->src1->vreg && tac->dst->preg != tac->src1->preg) {
-                fprintf(f, "\tmovq\t");
+                fprintf(f, "    movq    ");
                 output_quad_register_name(tac->src1->preg);
                 fprintf(f, ", ");
                 output_quad_register_name(tac->dst->preg);
@@ -630,20 +630,20 @@ void output_function_body_code(Symbol *symbol) {
             if (need_aligned_call_push)  {
                 tac->src1->pushed_stack_aligned_quad = 1;
                 cur_stack_push_count++;
-                fprintf(f, "\tsubq\t$8, %%rsp\n");
+                fprintf(f, "    subq    $8, %%rsp\n");
             }
         }
 
         else if (tac->operation == IR_END_CALL) {
             if (tac->src1->pushed_stack_aligned_quad)  {
                 cur_stack_push_count--;
-                fprintf(f, "\taddq\t$8, %%rsp\n");
+                fprintf(f, "    addq    $8, %%rsp\n");
             }
         }
 
         else if (tac->operation == IR_ARG) {
             cur_stack_push_count++;
-            fprintf(f, "\tpushq\t");
+            fprintf(f, "    pushq   ");
             output_quad_register_name(tac->src2->preg);
             fprintf(f, "\n");
         }
@@ -657,38 +657,38 @@ void output_function_body_code(Symbol *symbol) {
             // Read the first 6 args from the stack in right to left order
             ac = tac->src1->function_call_arg_count;
 
-            if (ac >= 1) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%rdi\n"); }
-            if (ac >= 2) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%rsi\n"); }
-            if (ac >= 3) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%rdx\n"); }
-            if (ac >= 4) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%rcx\n"); }
-            if (ac >= 5) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%r8\n");  }
-            if (ac >= 6) { cur_stack_push_count--; fprintf(f, "\tpopq\t%%r9\n");  }
+            if (ac >= 1) { cur_stack_push_count--; fprintf(f, "    popq    %%rdi\n"); }
+            if (ac >= 2) { cur_stack_push_count--; fprintf(f, "    popq    %%rsi\n"); }
+            if (ac >= 3) { cur_stack_push_count--; fprintf(f, "    popq    %%rdx\n"); }
+            if (ac >= 4) { cur_stack_push_count--; fprintf(f, "    popq    %%rcx\n"); }
+            if (ac >= 5) { cur_stack_push_count--; fprintf(f, "    popq    %%r8\n");  }
+            if (ac >= 6) { cur_stack_push_count--; fprintf(f, "    popq    %%r9\n");  }
 
             // Variadic functions have the number of floating point arguments passed in al.
             // Since floating point numbers isn't implemented, this is zero.
             if (tac->src1->function_symbol->function->is_variadic)
-                fprintf(f, "\tmovb\t$0, %%al\n");
+                fprintf(f, "    movb    $0, %%al\n");
 
             if (tac->src1->function_symbol->function->builtin)
-                fprintf(f, "\tcallq\t%s@PLT\n", tac->src1->function_symbol->identifier);
+                fprintf(f, "    callq   %s@PLT\n", tac->src1->function_symbol->identifier);
             else
-                fprintf(f, "\tcallq\t%s\n", tac->src1->function_symbol->identifier);
+                fprintf(f, "    callq   %s\n", tac->src1->function_symbol->identifier);
 
             // For all builtins that return something smaller an int, extend it to a quad
             if (tac->dst) {
                 type = tac->src1->function_symbol->type;
-                if (type <= TYPE_CHAR)  fprintf(f, "\tcbtw\n");
-                if (type <= TYPE_SHORT) fprintf(f, "\tcwtl\n");
-                if (type <= TYPE_INT)   fprintf(f, "\tcltq\n");
+                if (type <= TYPE_CHAR)  fprintf(f, "    cbtw\n");
+                if (type <= TYPE_SHORT) fprintf(f, "    cwtl\n");
+                if (type <= TYPE_INT)   fprintf(f, "    cltq\n");
 
-                fprintf(f, "\tmovq\t%%rax, ");
+                fprintf(f, "    movq    %%rax, ");
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, "\n");
             }
 
             // Adjust the stack for any args that are on in stack
             if (ac > 6) {
-                fprintf(f, "\taddq\t$%d, %%rsp\n", (ac - 6) * 8);
+                fprintf(f, "    addq    $%d, %%rsp\n", (ac - 6) * 8);
                 cur_stack_push_count -= ac - 6;
             }
         }
@@ -696,14 +696,14 @@ void output_function_body_code(Symbol *symbol) {
         else if (tac->operation == X_RET) {
             output_x86_operation(tac, function_pc, stack_start);
             output_pop_callee_saved_registers(saved_registers);
-            fprintf(f, "\tleaveq\n");
-            fprintf(f, "\tretq\n");
+            fprintf(f, "    leaveq\n");
+            fprintf(f, "    retq\n");
         }
 
         else if (tac->operation == IR_RETURN) {
             if (tac->src1) {
                 if (tac->src1->preg != REG_RAX) {
-                    fprintf(f, "\tmovq\t");
+                    fprintf(f, "    movq    ");
                     output_quad_register_name(tac->src1->preg);
                     fprintf(f, ", ");
                     output_quad_register_name(REG_RAX);
@@ -711,8 +711,8 @@ void output_function_body_code(Symbol *symbol) {
                 }
             }
             output_pop_callee_saved_registers(saved_registers);
-            fprintf(f, "\tleaveq\n");
-            fprintf(f, "\tretq\n");
+            fprintf(f, "    leaveq\n");
+            fprintf(f, "    retq\n");
         }
 
         else if (tac->operation == IR_ASSIGN) {
@@ -741,7 +741,7 @@ void output_function_body_code(Symbol *symbol) {
 
             else if (tac->dst->preg != -1) {
                 // Register copy
-                fprintf(f, "\tmovq\t");
+                fprintf(f, "    movq    ");
                 output_quad_register_name(tac->src1->preg);
                 fprintf(f, ", ");
                 output_quad_register_name(tac->dst->preg);
@@ -798,20 +798,20 @@ void output_function_body_code(Symbol *symbol) {
                     exit(1);
                 }
 
-                fprintf(f, "\t%s\t.l%d\n", s, tac->src2->label);
+                fprintf(f, "    %-8s.l%d\n", s, tac->src2->label);
             }
 
             else  {
                 // The condition is in a register. Check if it's zero.
-                fprintf(f, "\tcmpq\t$0x0, ");
+                fprintf(f, "    cmpq    $0x0, ");
                 output_quad_register_name(tac->src1->preg);
                 fprintf(f, "\n");
-                fprintf(f, "\t%s\t.l%d\n", tac->operation == IR_JZ ? "je" : "jne", tac->src2->label);
+                fprintf(f, "    %-8s.l%d\n", tac->operation == IR_JZ ? "je" : "jne", tac->src2->label);
             }
         }
 
         else if (tac->operation == IR_JMP)
-            fprintf(f, "\tjmp\t.l%d\n", tac->src1->label);
+            fprintf(f, "    jmp     .l%d\n", tac->src1->label);
 
         else if (tac->operation == IR_EQ) output_reverse_cmp_operation(tac, "sete");
         else if (tac->operation == IR_NE) output_reverse_cmp_operation(tac, "setne");
@@ -833,12 +833,12 @@ void output_function_body_code(Symbol *symbol) {
             // The quotient is stored in RAX and remainder in RDX, but is then copied
             // to whatever register is allocated for the dst, which might as well have been RAX or RDX for the respective quotient and remainders.
 
-            fprintf(f, "\tmovq\t");
+            fprintf(f, "    movq    ");
             output_quad_register_name(tac->src1->preg);
             fprintf(f, ", %%rax\n");
-            fprintf(f, "\tcqto\n");
+            fprintf(f, "    cqto\n");
             output_move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
-            fprintf(f, "\tidivq\t");
+            fprintf(f, "    idivq   ");
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
 
@@ -850,7 +850,7 @@ void output_function_body_code(Symbol *symbol) {
 
         else if (tac->operation == IR_BNOT)  {
             output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
-            fprintf(f, "\tnot\t");
+            fprintf(f, "    not     ");
             output_quad_register_name(tac->dst->preg);
             fprintf(f, "\n");
         }
@@ -859,18 +859,18 @@ void output_function_body_code(Symbol *symbol) {
             if (tac->src2->is_constant) {
                 // Shift a non-constant by a constant amount
                 output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
-                fprintf(f, "\t%s\t$%ld, ", tac->operation == IR_BSHL ? "shl" : "sar", tac->src2->value);
+                fprintf(f, "    %-8s$%ld, ", tac->operation == IR_BSHL ? "shl" : "sar", tac->src2->value);
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, "\n");
             }
             else {
-                fprintf(f, "\tmovq\t");
+                fprintf(f, "    movq    ");
                 output_quad_register_name(tac->src2->preg);
                 fprintf(f, ", %%rcx\n");
 
                 if (tac->src1->is_constant) {
                     // Shift a constant by a non-constant amount
-                    fprintf(f, "\tmovq\t$%ld, ", tac->src1->value);
+                    fprintf(f, "    movq    $%ld, ", tac->src1->value);
                     output_quad_register_name(tac->dst->preg);
                     fprintf(f, "\n");
                 }
@@ -878,7 +878,7 @@ void output_function_body_code(Symbol *symbol) {
                     // Shift a non-constant by a non-constant amount
                     output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
 
-                fprintf(f, "\t%s\t%%cl, ", tac->operation == IR_BSHL ? "shl" : "sar");
+                fprintf(f, "    %-8s%%cl, ", tac->operation == IR_BSHL ? "shl" : "sar");
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, "\n");
             }
@@ -893,11 +893,11 @@ void output_function_body_code(Symbol *symbol) {
     }
 
     // Special case for main, return 0 if no return statement is present
-    if (!strcmp(symbol->identifier, "main")) fprintf(f, "\tmovq\t$0, %%rax\n");
+    if (!strcmp(symbol->identifier, "main")) fprintf(f, "    movq    $0, %%rax\n");
 
     output_pop_callee_saved_registers(saved_registers);
-    fprintf(f, "\tleaveq\n");
-    fprintf(f, "\tretq\n");
+    fprintf(f, "    leaveq\n");
+    fprintf(f, "    retq\n");
 }
 
 // Output code for the translation unit
@@ -918,24 +918,24 @@ void output_code(char *input_filename, char *output_filename) {
         }
     }
 
-    fprintf(f, "\t.file\t\"%s\"\n", input_filename);
+    fprintf(f, "    .file   \"%s\"\n", input_filename);
 
     // Output symbols
-    fprintf(f, "\t.text\n");
+    fprintf(f, "    .text\n");
     s = symbol_table;
     while (s->identifier) {
         if (s->scope || s->is_function) { s++; continue; };
-        fprintf(f, "\t.comm %s,%d,%d\n", s->identifier, get_type_size(s->type), get_type_alignment(s->type));
+        fprintf(f, "    .comm   %s,%d,%d\n", s->identifier, get_type_size(s->type), get_type_alignment(s->type));
         s++;
     }
 
     // Output string literals
     if (string_literal_count > 0) {
-        fprintf(f, "\n\t.section\t.rodata\n");
+        fprintf(f, "\n    .section .rodata\n");
         for (i = 0; i < string_literal_count; i++) {
             sl = string_literals[i];
             fprintf(f, ".SL%d:\n", i);
-            fprintf(f, "\t.string ");
+            fprintf(f, "    .string ");
             fprintf_escaped_string_literal(f, sl);
             fprintf(f, "\n");
         }
@@ -943,12 +943,12 @@ void output_code(char *input_filename, char *output_filename) {
     }
 
     // Output code
-    fprintf(f, "\t.text\n");
+    fprintf(f, "    .text\n");
 
     // Output symbols for all functions
     s = symbol_table;
     while (s->identifier) {
-        if (s->is_function) fprintf(f, "\t.globl\t%s\n", s->identifier);
+        if (s->is_function) fprintf(f, "    .globl  %s\n", s->identifier);
         s++;
     }
     fprintf(f, "\n");
