@@ -314,13 +314,11 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
                 else if (t[0] == 'd') v = tac->dst;
                 else panic1s("Indecipherable placeholder \"%s\"", tac->x86_template);
 
-                t++;
-
                 x86_size = 0;
-                     if (t[0] == 'b') x86_size = 1;
-                else if (t[0] == 'w') x86_size = 2;
-                else if (t[0] == 'l') x86_size = 3;
-                else if (t[0] == 'q') x86_size = 4;
+                     if (t[1] == 'b') { t++; x86_size = 1; }
+                else if (t[1] == 'w') { t++; x86_size = 2; }
+                else if (t[1] == 'l') { t++; x86_size = 3; }
+                else if (t[1] == 'q') { t++; x86_size = 4; }
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
