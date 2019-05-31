@@ -21,16 +21,16 @@ int main(int argc, char **argv) {
 
     command_count = 3;
     commands = malloc(sizeof(char *) * command_count);
-    commands[0] = "./wc4  wc4.c -c -S -o /dev/null";
-    commands[1] = "./wc42 wc4.c -c -S -o /dev/null";
-    commands[2] = "./wc42-instruction-selection-wip wc4.c -c -S -o /dev/null";
+    commands[0] = "./wc4  wc4.c                           --instruction-selection-wip -c -S -o /dev/null";
+    commands[1] = "./wc42 wc4.c                           --instruction-selection-wip -c -S -o /dev/null";
+    commands[2] = "./wc42-instruction-selection-wip wc4.c --instruction-selection-wip -c -S -o /dev/null";
 
-    run_count = 31; // Must be odd for the median to work correctly
+    run_count = 21; // Must be odd for the median to work correctly
     times = malloc(sizeof(long) * run_count);
 
     for (i = 0; i < command_count; i++) {
         command = commands[i];
-        printf("Executing %-58s ", command);
+        printf("Executing %-70s ", command);
 
         for (j = 0; j < run_count; j++) {
             gettimeofday(&start, NULL);
