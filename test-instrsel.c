@@ -1150,6 +1150,16 @@ void test_pointer_add() {
     si(function, 0, IR_ADD, a(2), c(1), a(1));
     assert_x86_op("movq    r1q, r2q");
     assert_x86_op("addq    $1, r2q");
+
+    // a2 = c1 + a1
+    si(function, 0, IR_ADD, asz(2, TYPE_VOID), c(1), asz(1, TYPE_VOID));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("addq    $1, r2q");
+
+    // a2 = a1 + c1
+    si(function, 0, IR_ADD, asz(2, TYPE_VOID), asz(1, TYPE_VOID), c(1));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("addq    $1, r2q");
 }
 
 void test_pointer_sub() {
