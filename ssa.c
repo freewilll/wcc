@@ -23,32 +23,81 @@ int *physical_registers, *preg_map;
 
 void optimize_arithmetic_operations(Function *function) {
     Tac *tac;
-    long v, l;
+    Value *v, *cv;
+    long c, l;
 
     if (!opt_optimize_arithmetic_operations) return;
 
     tac = function->ir;
     while (tac) {
-        // Optimize multiply operations
-        if (tac->operation == IR_MUL && tac->src1->is_constant) {
-            v = tac->src1->value;
-            if (v == 0) {
+        cv = 0;
+
+        if (tac->src1 && tac->src1->is_constant) {
+            cv = tac->src1;
+            v = tac->src2;
+        }
+        else if (tac->src2 && tac->src2->is_constant) {
+            v = tac->src1;
+            cv = tac->src2;
+        }
+        if (cv) c = cv->value;
+
+        if (tac->operation == IR_MUL && cv) {
+            if (c == 0) {
                 tac->operation = IR_LOAD_CONSTANT;
                 tac->src1 = new_constant(tac->dst->type, 0);
                 tac->src2 = 0;
             }
 
-            else if (v == 1) {
+            else if (c == 1) {
                 tac->operation = IR_ASSIGN;
-                tac->src1 = tac->src2;
+                tac->src1 = v;
                 tac->src2 = 0;
             }
 
-            else if ((v & (v - 1)) == 0) {
+            else if ((c & (c - 1)) == 0) {
                 l = -1;
-                while (v > 0) { v = v >> 1; l++; }
+                while (c > 0) { c = c >> 1; l++; }
                 tac->operation = IR_BSHL;
-                tac->src1 = tac->src2;
+                tac->src1 = v;
+                tac->src2 = new_constant(TYPE_INT, l);
+            }
+        }
+
+        else if (tac->operation == IR_DIV && cv && tac->src2->is_constant) {
+            if (c == 0)
+                panic("Illegal division by zero");
+
+            else if (c == 1) {
+                tac->operation = IR_ASSIGN;
+                tac->src1 = v;
+                tac->src2 = 0;
+            }
+
+            else if ((c & (c - 1)) == 0) {
+                l = -1;
+                while (c > 0) { c = c >> 1; l++; }
+                tac->operation = IR_BSHR;
+                tac->src1 = v;
+                tac->src2 = new_constant(TYPE_INT, l);
+            }
+        }
+
+        else if (tac->operation == IR_MOD && cv && tac->src2->is_constant) {
+            if (c == 0)
+                panic("Illegal modulus by zero");
+
+            else if (c == 1) {
+                tac->operation = IR_LOAD_CONSTANT;
+                tac->src1 = new_constant(tac->dst->type, 0);
+                tac->src2 = 0;
+            }
+
+            else if ((c & (c - 1)) == 0) {
+                l = 0;
+                while (c > 1) { c = c >> 1; l = (l << 1) | 1; }
+                tac->operation = IR_BAND;
+                tac->src1 = v;
                 tac->src2 = new_constant(TYPE_INT, l);
             }
         }

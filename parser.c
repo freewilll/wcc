@@ -442,11 +442,13 @@ void arithmetic_operation(int operation, int type) {
     Value *src1, *src2, *t;
     Tac *tac;
     long v1, v2;
-    int vreg;
+    int is_div_mod, vreg;
 
     if (!type) type = vs_operation_type();
 
-    if (    operation == IR_ADD || operation == IR_SUB || operation == IR_MUL || operation == IR_BAND || operation == IR_BOR || operation == IR_XOR ||
+    is_div_mod = instruction_selection_wip && (operation == IR_DIV || operation == IR_MOD);
+
+    if (    operation == IR_ADD || operation == IR_SUB || operation == IR_MUL || is_div_mod || operation == IR_BAND || operation == IR_BOR || operation == IR_XOR ||
             operation == IR_EQ || operation == IR_NE || operation == IR_LT || operation == IR_GT || operation == IR_LE || operation == IR_GE ||
             operation == IR_BSHL || operation == IR_BSHR) {
 
@@ -456,6 +458,8 @@ void arithmetic_operation(int operation, int type) {
                  if (operation == IR_ADD)  push(new_constant(type, v1 +  v2));
             else if (operation == IR_SUB)  push(new_constant(type, v1 -  v2));
             else if (operation == IR_MUL)  push(new_constant(type, v1 *  v2));
+            else if (operation == IR_DIV)  push(new_constant(type, v1 /  v2));
+            else if (operation == IR_MOD)  push(new_constant(type, v1 %  v2));
             else if (operation == IR_BAND) push(new_constant(type, v1 &  v2));
             else if (operation == IR_BOR)  push(new_constant(type, v1 |  v2));
             else if (operation == IR_XOR)  push(new_constant(type, v1 ^  v2));

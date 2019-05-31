@@ -539,6 +539,7 @@ int disable_live_ranges_coalesce;
 int preg_count;
 int ir_vreg_offset;
 
+void optimize_arithmetic_operations(Function *function);
 int make_vreg_count(Function *function, int starting_count);
 int new_subscript(Stack **stack, int *counters, int n);
 void make_uevar_and_varkill(Function *function);
