@@ -427,7 +427,9 @@ void output_pop_callee_saved_registers(int *saved_registers) {
 
     for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--) {
         if (saved_registers[i]) {
-            cur_stack_push_count--;
+            // Note: cur_stack_push_count isn't adjusted since that would
+            // otherwise mess up stack alignments for function calls after
+            // return statements.
             fprintf(f, "\tpopq\t");
             output_quad_register_name(i);
             fprintf(f, "\n");

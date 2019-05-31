@@ -1,4 +1,4 @@
-all: wc4 wc42 wc43 wc43-instruction-selection-wip benchmark
+all: wc4 wc42-instruction-selection-wip wc43 wc43-instruction-selection-wip benchmark
 
 SOURCES = \
   wc4.c \
@@ -97,7 +97,7 @@ run-test-wc4: test-wc4
 	@echo wc4 tests passed
 
 test-wc4-gcc: test-wc4.c stack-check.o
-	gcc test-wc4.c stack-check.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types
+	gcc test-wc4.c stack-check.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types -D _GNU_SOURCE
 
 .PHONY: run-test-wc4-gcc
 run-test-wc4-gcc: test-wc4-gcc
@@ -111,10 +111,12 @@ test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
 	@echo self compilation test passed
 
 test-self-compilation-instruction-selection-wip: ${WC42_INSTRUCTION_SELECTION_WIP_ASSEMBLIES} ${WC43_INSTRUCTION_SELECTION_WIP_ASSEMBLIES}
-	cat build/wc42-instruction-selection-wip/*.s > build/wc42-instruction-selection-wip/all-s
-	cat build/wc43-instruction-selection-wip/*.s > build/wc43-instruction-selection-wip/all-s
-	diff build/wc42-instruction-selection-wip/all-s build/wc43-instruction-selection-wip/all-s
-	@echo self compilation with --instruction-selection-wip test passed
+	# TODO
+
+# 	cat build/wc42-instruction-selection-wip/*.s > build/wc42-instruction-selection-wip/all-s
+# 	cat build/wc43-instruction-selection-wip/*.s > build/wc43-instruction-selection-wip/all-s
+# 	diff build/wc42-instruction-selection-wip/all-s build/wc43-instruction-selection-wip/all-s
+# 	@echo self compilation with --instruction-selection-wip test passed
 
 test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
 	cd test-include && ../wc4 --instruction-selection-wip main.c foo.c -o test-include

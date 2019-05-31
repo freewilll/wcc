@@ -1634,6 +1634,34 @@ void test_local_var_stack_alignment() {
     test_local_var_stack_alignment2();
 }
 
+void rssa1(int nt) {
+    char *buf;
+
+    buf = malloc(6);
+
+    if (nt == 100) return;
+    asprintf(&buf, "nt%03d", nt);
+    assert_string("nt001", buf, "Return statement stack alignment 1");
+}
+
+void rssa2(int nt) {
+    char *buf;
+
+    buf = malloc(6);
+
+    if (nt == 100) return;
+    if (nt == 101) return;
+
+    asprintf(&buf, "nt%03d", nt);
+    assert_string("nt001", buf, "Return statement stack alignment 1");
+}
+
+void test_return_statement_stack_alignment() {
+    // Test but where return statements would lead to an invalid push count
+    rssa1(1);
+    rssa2(1);
+}
+
 void test_ssa_label_merge_bug() {
     int i;
 
@@ -1802,6 +1830,7 @@ int main(int argc, char **argv) {
     test_spilling_locals_to_stack_bug();
     test_local_var_stack_alignment();
     test_function_call_stack_alignment();
+    test_return_statement_stack_alignment();
     test_ssa_label_merge_bug();
     test_ssa_memory_alocation_bug();
     test_ssa_continue_with_statements_afterwards();
