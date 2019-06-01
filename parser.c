@@ -446,13 +446,13 @@ void arithmetic_operation(int operation, int type) {
 
     if (!type) type = vs_operation_type();
 
-    is_div_mod = instruction_selection_wip && (operation == IR_DIV || operation == IR_MOD);
+    is_div_mod = !legacy_codegen && (operation == IR_DIV || operation == IR_MOD);
 
     if (    operation == IR_ADD || operation == IR_SUB || operation == IR_MUL || is_div_mod || operation == IR_BAND || operation == IR_BOR || operation == IR_XOR ||
             operation == IR_EQ || operation == IR_NE || operation == IR_LT || operation == IR_GT || operation == IR_LE || operation == IR_GE ||
             operation == IR_BSHL || operation == IR_BSHR) {
 
-        if (!instruction_selection_wip && (vs[0])->is_constant && (vs[1])->is_constant) {
+        if (legacy_codegen && (vs[0])->is_constant && (vs[1])->is_constant) {
             v2 = pop()->value;
             v1 = pop()->value;
                  if (operation == IR_ADD)  push(new_constant(type, v1 +  v2));
@@ -481,7 +481,7 @@ void arithmetic_operation(int operation, int type) {
         // If the second arg is a constant, flip it to be the first for commutative operations,
         // unless the new experimental instruction selection has been enabled, which replaces
         // this.
-        if (!instruction_selection_wip && operation != IR_SUB && operation != IR_BSHL && operation != IR_BSHR && src2->is_constant) {
+        if (legacy_codegen && operation != IR_SUB && operation != IR_BSHL && operation != IR_BSHR && src2->is_constant) {
             t = src1;
             src1 = src2;
             src2 = t;
@@ -500,7 +500,7 @@ void arithmetic_operation(int operation, int type) {
 
     // Store the result in the CPU flags for comparison operations
     // It will get loaded into a register in later instructions if needed.
-    if (instruction_selection_wip)
+    if (!legacy_codegen)
         // The instruction selection code takes care of cpu flags for comparisons, so
         // don't do it here.
         vreg = new_vreg();
@@ -512,7 +512,7 @@ void arithmetic_operation(int operation, int type) {
     tac = add_ir_op(operation, type, vreg, src1, src2);
 
     // Set flag to be used by turn_around_jz_jnz_insanity code
-    if (instruction_selection_wip && (operation == IR_GT || operation == IR_LT || operation == IR_GE || operation == IR_LE || operation == IR_EQ || operation == IR_NE))
+    if (!legacy_codegen && (operation == IR_GT || operation == IR_LT || operation == IR_GE || operation == IR_LE || operation == IR_EQ || operation == IR_NE))
         tac->dst->is_in_cpu_flags = 1;
 
     if (!vreg) tac->dst->is_in_cpu_flags = 1;
@@ -569,7 +569,7 @@ void expression(int level) {
         expression(TOK_INC);
         if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
 
-        if (instruction_selection_wip) {
+        if (!legacy_codegen) {
             src1 = pop();
             tac = add_ir_op(IR_ADDRESS_OF, src1->type + TYPE_PTR, new_vreg(), src1, 0);
         }
@@ -622,7 +622,7 @@ void expression(int level) {
         next();
         if (cur_token_is_type()) {
             // cast
-            if (instruction_selection_wip) {
+            if (!legacy_codegen) {
                 org_type = parse_type();
                 consume(TOK_RPAREN, ")");
                 expression(TOK_INC);

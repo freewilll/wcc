@@ -438,7 +438,7 @@ void output_pop_callee_saved_registers(int *saved_registers) {
 void output_pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
 
-    if (instruction_selection_wip) return;
+    if (!legacy_codegen) return;
 
     // Load src1 into r10
     if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->preg == -1 && ir->src1->stack_index < 0) {
@@ -485,7 +485,7 @@ void output_post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
     int stack_offset;
     int assign;
 
-    if (instruction_selection_wip) return;
+    if (!legacy_codegen) return;
 
     assign = 0;
     if (ir->dst && ir->dst->preg != -1 && ir->dst->stack_index < 0) {
@@ -970,7 +970,7 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir2) print_ir(s->function, s->identifier);
 
-        if (instruction_selection_wip)
+        if (!legacy_codegen)
             experimental_instruction_selection(s);
         else
             optimize_and_allocate_registers(s->function);
