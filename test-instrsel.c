@@ -569,7 +569,7 @@ void test_instrsel() {
     i(0, IR_JZ,  0,    v(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
     assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
 
     // jz with a1
@@ -578,7 +578,7 @@ void test_instrsel() {
     i(0, IR_JZ,  0,    a(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
     assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
 
     // jz with a1 *void
@@ -587,7 +587,7 @@ void test_instrsel() {
     i(0, IR_JZ,  0,    asz(1, TYPE_VOID), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
     assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
 
     // jz with global
@@ -595,15 +595,16 @@ void test_instrsel() {
     i(0, IR_JZ,  0,    g(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMPZ, 0, g(1), 0);
-    assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
+    assert_x86_op("movq    g1(%rip), r1q");
+    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("jz      .l1");
 
     // jnz with r1
     start_ir();
     i(0, IR_JNZ, 0,    v(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
     assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
 
     // jz with a1
@@ -612,7 +613,7 @@ void test_instrsel() {
     i(0, IR_JNZ,  0,   a(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
     assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
 
     // jz with a1 *void
@@ -621,7 +622,7 @@ void test_instrsel() {
     i(0, IR_JNZ,  0,   asz(1, TYPE_VOID), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMPZ, 0, v(1), 0);
+    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
     assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
 
     // jnz with global
@@ -629,8 +630,9 @@ void test_instrsel() {
     i(0, IR_JNZ, 0,    g(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_CMPZ, 0, g(1), 0);
-    assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
+    assert_x86_op("movq    g1(%rip), r1q");
+    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("jnz     .l1");
 
     // JZ                                                          JNZ
     test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, X_JE ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, X_JNE);

@@ -625,6 +625,7 @@ enum {
 
     X_CMP,
     X_CMPZ,
+    X_TEST,
     X_JZ,
     X_JNZ,
     X_JMP,

@@ -458,6 +458,18 @@ void add_pointer_rules() {
     add_store_to_pointer(ADRV, CSTL, "movq $%v2q, (%v1q)");
 }
 
+void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {
+    int x86_jmp_operation;
+    Rule *r;
+
+    x86_jmp_operation = operation == IR_JZ ? X_JZ : X_JNZ;
+
+    r = add_rule(0, operation, src1, src2, cost);
+    add_op(r, x86_cmp_operation, 0, SRC1, 0, comparison);
+    add_op(r, x86_jmp_operation, 0, SRC2, 0, conditional_jmp);
+    if (do_fin_rule) fin_rule(r);
+}
+
 void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *template) {
     Rule *r;
 
@@ -835,32 +847,16 @@ void init_instruction_selection_rules() {
 
     add_pointer_rules();
 
-    r = add_rule(0,   IR_JMP,           LAB,  0,    1);  add_op(r, X_JMP,  0,   SRC1, 0,    "jmp %v1"         ); fin_rule(r);  // JMP
+    r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, X_JMP, 0, SRC1, 0, "jmp %v1"); fin_rule(r);  // JMP
 
-    r = add_rule(0,   IR_JZ,            REG,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JZ with register
-                                                         add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1"          );
-                                                         fin_rule(r);
-    r = add_rule(0,   IR_JZ,            ADR,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmpq $0, %v1q"   ); // JZ with pointer in register
-                                                         add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1"          );
-                                                         fin_rule(r);
-    r = add_rule(0,   IR_JZ,            ADRV, LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmpq $0, %v1q"   ); // JZ with *void
-                                                         add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1q"         );
-
-    r = add_rule(0,   IR_JZ,            MEM,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JZ with memory
-                                                         add_op(r, X_JZ,   0,   SRC2, 0,    "jz %v1"          );
-                                                         fin_rule(r);
-    r = add_rule(0,   IR_JNZ,           REG,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JNZ with register
-                                                         add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1"         );
-                                                         fin_rule(r);
-    r = add_rule(0,   IR_JNZ,           ADR,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmpq $0, %v1q"   ); // JNZ with pointer in register
-                                                         add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1"         );
-                                                         fin_rule(r);
-    r = add_rule(0,   IR_JNZ,           ADRV, LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmpq $0, %v1q"   ); // JNZ with *void
-                                                         add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1q"        );
-
-    r = add_rule(0,   IR_JNZ,           MEM,  LAB,  11); add_op(r, X_CMPZ, 0,   SRC1, 0,    "cmp $0, %v1"     ); // JNZ with memory
-                                                         add_op(r, X_JNZ,  0,   SRC2, 0,    "jnz %v1"         );
-                                                         fin_rule(r);
+    add_conditional_zero_jump_rule(IR_JZ,  REG,  LAB,  3,  X_TEST, "test%s %v1, %v1",  "jz %v1",   1);
+    add_conditional_zero_jump_rule(IR_JZ,  ADR,  LAB,  3,  X_TEST, "testq %v1q, %v1q", "jz %v1",   1);
+    add_conditional_zero_jump_rule(IR_JZ,  ADRV, LAB,  3,  X_TEST, "testq %v1q, %v1q", "jz %v1q",  0);
+    add_conditional_zero_jump_rule(IR_JZ,  MEM,  LAB,  11, X_CMPZ, "cmp $0, %v1",      "jz %v1",   1);
+    add_conditional_zero_jump_rule(IR_JNZ, REG,  LAB,  3,  X_TEST, "test%s %v1, %v1",  "jnz %v1",  1);
+    add_conditional_zero_jump_rule(IR_JNZ, ADR,  LAB,  3,  X_TEST, "testq %v1q, %v1q", "jnz %v1",  1);
+    add_conditional_zero_jump_rule(IR_JNZ, ADRV, LAB,  3,  X_TEST, "testq %v1q, %v1q", "jnz %v1q", 0);
+    add_conditional_zero_jump_rule(IR_JNZ, MEM,  LAB,  11, X_CMPZ, "cmp $0, %v1",      "jnz %v1",  1);
 
     // All pairwise combinations of (CST, REG, MEM) that have associated x86 instructions
     cmp_rr = "cmp%s %v2, %v1";  cmpq_rr = "cmpq %v2q, %v1q";
