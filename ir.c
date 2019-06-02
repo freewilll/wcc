@@ -220,7 +220,6 @@ char *operation_string(int operation) {
     else if (operation == IR_LOAD_CONSTANT)         return "IR_LOAD_CONSTANT";
     else if (operation == IR_LOAD_STRING_LITERAL)   return "IR_LOAD_STRING_LITERAL";
     else if (operation == IR_LOAD_VARIABLE)         return "IR_LOAD_VARIABLE";
-    else if (operation == IR_TYPE_CHANGE)           return "IR_TYPE_CHANGE";
     else if (operation == IR_CAST)                  return "IR_CAST";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
     else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
@@ -311,15 +310,13 @@ void print_instruction(void *f, Tac *tac) {
 
     if (tac->dst && o < X_START) {
         print_value(f, tac->dst, o != IR_ASSIGN);
-        if (o == IR_TYPE_CHANGE)
-            fprintf(f, " = (type change) ");
-        else if (o == IR_CAST)
+        if (o == IR_CAST)
             fprintf(f, " = (cast) ");
         else
             fprintf(f, " = ");
     }
 
-    if (o == IR_MOVE ||o == IR_LOAD_CONSTANT || o == IR_LOAD_VARIABLE || o == IR_LOAD_STRING_LITERAL || o == IR_TYPE_CHANGE || o == IR_CAST) {
+    if (o == IR_MOVE ||o == IR_LOAD_CONSTANT || o == IR_LOAD_VARIABLE || o == IR_LOAD_STRING_LITERAL || o == IR_CAST) {
         print_value(f, tac->src1, 1);
     }
 

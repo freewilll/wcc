@@ -301,7 +301,6 @@ enum {
     IR_RETURN,                // Return in function
     IR_START_LOOP,            // Start of a for or while loop
     IR_END_LOOP,              // End of a for or while loop
-    IR_TYPE_CHANGE,           // Type change in instruction selection tree merging
     IR_CAST,                  // Explicit cast
     IR_NOP,                   // No operation. Used for label destinations. No code is generated for this other than the label itself.
     IR_JMP,                   // Unconditional jump

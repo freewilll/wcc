@@ -1286,7 +1286,7 @@ void test_pointer_type_changes() {
 
     // Test a case in which the parser emits code which has a type
     // change in a register. This leads to a join and creation of a
-    // IR_TYPE_CHANGE instruction. The special IR_TYPE_CHANGE rules
+    // IR_CAST instruction. The special IR_CAST rules
     // then ensure the type is changed during the instruction selection
     // process.
     for (t1 = TYPE_CHAR; t1 <= TYPE_LONG; t1++) {

@@ -721,7 +721,7 @@ void init_instruction_selection_rules() {
     r = add_rule(LAB,  0, LAB,  0, 0); fin_rule(r);
     r = add_rule(FUN,  0, FUN,  0, 0); fin_rule(r);
 
-    r = add_rule(REG,  IR_TYPE_CHANGE, REG,  0, 0); fin_rule(r);
+    r = add_rule(REG, IR_CAST, REG, 0, 0); fin_rule(r);
 
     // This rule is needed for memory-memory moves
     r = add_rule(ADRV, 0, MDRV, 0, 2); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
@@ -729,7 +729,7 @@ void init_instruction_selection_rules() {
     // Allow explicit conversion from/to any pointer types
     for (i = ADRB; i <= ADRV; i++) {
         for (j = ADRB; j <= ADRV; j++) {
-            r = add_rule(i, IR_TYPE_CHANGE, j, 0, 0);
+            r = add_rule(i, IR_CAST, j, 0, 0);
             r->match_dst = 1;
         }
     }
