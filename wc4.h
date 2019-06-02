@@ -201,6 +201,7 @@ enum {
     DEBUG_INSTSEL_TREE_MERGING            = 0,
     DEBUG_INSTSEL_TREE_MERGING_DEEP       = 0,
     DEBUG_INSTSEL_IGRAPHS                 = 0,
+    DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION   = 0,
     DEBUG_INSTSEL_TILING                  = 0,
     DEBUG_INSTSEL_SPILLING                = 0,
 };
@@ -288,6 +289,9 @@ enum {
     IR_LOAD_CONSTANT=1,       // Load constant
     IR_LOAD_STRING_LITERAL,   // Load string literal
     IR_LOAD_VARIABLE,         // Load global or local
+    IR_ASSIGN,                // Assignment/store. Target is either a global, local, lvalue in register or register
+    IR_ASSIGN_TO_REG_LVALUE,  // Assignment to an lvalue in a register
+    IR_MOVE,                  // Merger of IR_LOAD_CONSTANT, IR_LOAD_STRING_LITERAL, IR_LOAD_VARIABLE, IR_ASSIGN // TODO MOVE to top
     IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
     IR_START_CALL,            // Function call
@@ -297,8 +301,6 @@ enum {
     IR_RETURN,                // Return in function
     IR_START_LOOP,            // Start of a for or while loop
     IR_END_LOOP,              // End of a for or while loop
-    IR_ASSIGN,                // Assignment/store. Target is either a global, local, lvalue in register or register
-    IR_ASSIGN_TO_REG_LVALUE,  // Assignment to an lvalue in a register
     IR_TYPE_CHANGE,           // Type change in instruction selection tree merging
     IR_CAST,                  // Explicit cast
     IR_NOP,                   // No operation. Used for label destinations. No code is generated for this other than the label itself.
@@ -665,7 +667,7 @@ int instr_rule_count;
 int disable_merge_constants;
 Rule *instr_rules;
 
-void eis1(Function *function, int flip_jz_jnz);
+void eis1(Function *function);
 void eis2(Function *function);
 void experimental_instruction_selection(Symbol *function_symbol);
 

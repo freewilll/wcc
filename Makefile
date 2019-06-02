@@ -17,17 +17,16 @@ SOURCES = \
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
 
-.PHONY: build
 build:
 	@mkdir -p build/wc42
 	@mkdir -p build/wc42-legacy-codegen
 	@mkdir -p build/wc43
 	@mkdir -p build/wc43-legacy-codegen
 
-%.o: %.c wc4.h
+%.o: %.c wc4.h build
 	gcc -c $< -o $@ -g -Wno-return-type -D _GNU_SOURCE
 
-wc4: ${OBJECTS} wc4.h build
+wc4: ${OBJECTS} wc4.h
 	gcc ${OBJECTS} -o wc4 -g -Wno-return-type -D _GNU_SOURCE
 
 # wc42
@@ -132,8 +131,8 @@ run-test-set: test-set
 test-ssa.s: wc4 test-ssa.c
 	./wc4 -c -S test-ssa.c -o test-ssa.s
 
-test-utils-legacy-codegen.s: wc4 test-utils.c
-	./wc4 -c -S test-utils.c -o test-utils-legacy-codegen.s
+test-utils.s: wc4 test-utils.c
+	./wc4 -c -S test-utils.c -o test-utils.s
 
 test-ssa: wc4 test-ssa.s test-utils-legacy-codegen.s build/wc42-legacy-codegen/lexer.s build/wc42-legacy-codegen/parser.s build/wc42-legacy-codegen/ir.s build/wc42-legacy-codegen/ssa.s build/wc42-legacy-codegen/instrsel.s build/wc42-legacy-codegen/instrrules.s build/wc42-legacy-codegen/codegen.s build/wc42-legacy-codegen/utils.s build/wc42-legacy-codegen/set.s build/wc42-legacy-codegen/stack.s build/wc42-legacy-codegen/graph.s
 	gcc -o test-ssa test-ssa.s test-utils-legacy-codegen.s build/wc42-legacy-codegen/lexer.s build/wc42-legacy-codegen/parser.s build/wc42-legacy-codegen/ir.s build/wc42-legacy-codegen/ssa.s build/wc42-legacy-codegen/instrsel.s build/wc42-legacy-codegen/instrrules.s build/wc42-legacy-codegen/codegen.s build/wc42-legacy-codegen/utils.s build/wc42-legacy-codegen/set.s build/wc42-legacy-codegen/stack.s build/wc42-legacy-codegen/graph.s
@@ -144,11 +143,17 @@ run-test-ssa: test-ssa
 test-instrsel.s: wc4 test-instrsel.c
 	./wc4 -c -S test-instrsel.c -o test-instrsel.s
 
-test-instrsel: wc4 test-instrsel.s test-utils-legacy-codegen.s build/wc42-legacy-codegen/lexer.s build/wc42-legacy-codegen/parser.s build/wc42-legacy-codegen/ir.s build/wc42-legacy-codegen/ssa.s build/wc42-legacy-codegen/instrsel.s build/wc42-legacy-codegen/instrrules.s build/wc42-legacy-codegen/codegen.s build/wc42-legacy-codegen/utils.s build/wc42-legacy-codegen/set.s build/wc42-legacy-codegen/stack.s build/wc42-legacy-codegen/graph.s
-	gcc -o test-instrsel test-instrsel.s test-utils-legacy-codegen.s build/wc42-legacy-codegen/lexer.s build/wc42-legacy-codegen/parser.s build/wc42-legacy-codegen/ir.s build/wc42-legacy-codegen/ssa.s build/wc42-legacy-codegen/instrsel.s build/wc42-legacy-codegen/instrrules.s build/wc42-legacy-codegen/codegen.s build/wc42-legacy-codegen/utils.s build/wc42-legacy-codegen/set.s build/wc42-legacy-codegen/stack.s build/wc42-legacy-codegen/graph.s
+test-instrsel: wc4 test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
+	gcc -o test-instrsel test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
 
 run-test-instrsel: test-instrsel
 	 ./test-instrsel
+
+test-instrsel-gcc: wc4.h test-instrsel.c test-utils.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c utils.c set.c stack.c graph.c
+	gcc -o test-instrsel-gcc test-instrsel.c test-utils.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c utils.c set.c stack.c graph.c -D _GNU_SOURCE
+
+run-test-instrsel-gcc: test-instrsel-gcc
+	./test-instrsel-gcc
 
 test-graph: wc4 test-graph.c graph.c set.c stack.c ir.c utils.c
 	./wc4 test-graph.c graph.c utils.c -o test-graph
@@ -178,7 +183,7 @@ clean:
 	@rm -f test-wc4-gcc
 	@rm -f test-set
 	@rm -f test-instrsel
-	@rm -f test-instrsel-wip
+	@rm -f test-instrsel-gcc
 	@rm -f test-graph
 	@rm -f test-ssa
 	@rm -f test-codegen

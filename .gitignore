@@ -11,7 +11,7 @@ test-set
 test-graph
 test-ssa
 test-instrsel
-test-instrsel-wip
+test-instrsel-gcc
 test-codegen
 benchmark
 test.c

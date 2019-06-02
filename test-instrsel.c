@@ -131,7 +131,7 @@ void start_ir() {
 
 void _finish_ir(Function *function, int run_eis1) {
     function->ir = ir_start;
-    eis1(function, 0);
+    eis1(function);
     if (run_eis1) eis2(function);
     remove_reserved_physical_register_count_from_tac(function->ir);
 
@@ -234,7 +234,7 @@ void test_instrsel_tree_merging() {
     // Ensure type conversions are merged correctly. This tests a void * being converted to a char *
     remove_reserved_physical_registers = 1;
     start_ir();
-    i(0, IR_ASSIGN,               asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
+    i(0, IR_MOVE,                 asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
     i(0, IR_ASSIGN_TO_REG_LVALUE, vsz(2, TYPE_CHAR), vsz(2, TYPE_CHAR), c(1));
     finish_ir(function);
     assert_x86_op("movq    r1q, r4q");
@@ -275,7 +275,7 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     src2 = dup_value(src2);
     finish_ir(function);
     assert_x86_op(template);
-    assert_x86_op("jl      .l1");
+    assert_x86_op("jge     .l1");
 }
 
 void test_cmp_with_assignment(Function *function, int cmp_operation, int x86_set_operation) {
@@ -494,7 +494,7 @@ void test_instrsel() {
 
     // Store c in g with only the reg fule, forcing c into r1
     start_ir();
-    nuke_rule(MEMQ, IR_ASSIGN, CSTL, 0);
+    nuke_rule(MEMQ, IR_MOVE, CSTL, 0);
     i(0, IR_ASSIGN, g(1), c(1), 0);
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, v(1), c(1), 0);
@@ -558,7 +558,7 @@ void test_instrsel() {
 
     // Assign constant to a local. Forces c into a register
     start_ir();
-    nuke_rule(MEMQ, IR_ASSIGN, CSTL, 0);
+    nuke_rule(MEMQ, IR_MOVE, CSTL, 0);
     i(0, IR_ASSIGN, S(1), c(0), 0);
     finish_ir(function);
     assert_tac(ir_start,       X_MOV, v(1), c(0), 0);
@@ -633,12 +633,12 @@ void test_instrsel() {
     assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
 
     // JZ                                                          JNZ
-    test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ,  X_JE ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, X_JNE);
-    test_cmp_with_conditional_jmp(function, IR_NE, IR_JZ,  X_JNE); test_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, X_JE );
-    test_cmp_with_conditional_jmp(function, IR_LT, IR_JZ,  X_JLT); test_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, X_JGE);
-    test_cmp_with_conditional_jmp(function, IR_GT, IR_JZ,  X_JGT); test_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, X_JLE);
-    test_cmp_with_conditional_jmp(function, IR_LE, IR_JZ,  X_JLE); test_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, X_JGT);
-    test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ,  X_JGE); test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, X_JLT);
+    test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, X_JE ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, X_JNE);
+    test_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, X_JNE); test_cmp_with_conditional_jmp(function, IR_NE, IR_JZ, X_JE );
+    test_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, X_JLT); test_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, X_JGE);
+    test_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, X_JGT); test_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, X_JLE);
+    test_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, X_JLE); test_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, X_JGT);
+    test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, X_JGE); test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, X_JLT);
 
     // a < b with a conditional with different src1 and src2 operands
     test_less_than_with_conditional_jmp(function, v(1), c(1), 0, "cmpq    $1, r1q"      );
@@ -839,7 +839,7 @@ void test_instrsel_types_cmp_pointer() {
         i(1, IR_NOP, 0,    0,    0   );
         finish_ir(function);
         assert_x86_op("cmpq    $0, r1q");
-        assert_x86_op("je      .l1");
+        assert_x86_op("jne     .l1");
 
         start_ir();
         i(0, IR_EQ, v(3), asz(1, j), c(0));
@@ -847,7 +847,7 @@ void test_instrsel_types_cmp_pointer() {
         i(1, IR_NOP, 0,    0,    0   );
         finish_ir(function);
         assert_x86_op("cmpq    $0, r1q");
-        assert_x86_op("jne     .l1");
+        assert_x86_op("je      .l1");
     }
 }
 
@@ -1189,9 +1189,9 @@ void test_pointer_load_constant() {
 
     for (t = TYPE_CHAR; t <= TYPE_LONG; t++) {
         // Need separate tests for the two constant sizes
-        si(function, 0, IR_LOAD_CONSTANT, asz(1, t),  c(1), 0);
+        si(function, 0, IR_MOVE, asz(1, t),  c(1), 0);
         assert_x86_op("movq    $1, r1q");
-        si(function, 0, IR_LOAD_CONSTANT, asz(1, t),  c((long) 1 << 32), 0);
+        si(function, 0, IR_MOVE, asz(1, t),  c((long) 1 << 32), 0);
         assert_x86_op("movq    $4294967296, r1q");
     }
 }
@@ -1210,7 +1210,7 @@ void test_pointer_string_literal() {
 
     // Test conversion of a string literal to an address
     start_ir();
-    i(0, IR_ADD, v(1), s(1), c(1));
+    i(0, IR_ADD, asz(1, TYPE_CHAR), s(1), c(1));
     finish_ir(function);
     assert_x86_op("leaq    .SL1(%rip), r2q");
     assert_x86_op("movq    r2q, r1q");
@@ -1228,8 +1228,7 @@ void test_pointer_indirect_from_stack() {
     i(0, IR_INDIRECT, vsz(5,  TYPE_INT), asz(4,  TYPE_INT),             0);
     finish_spill_ir(function);
     assert_x86_op("movq    -16(%rbp), r3q");
-    assert_x86_op("movq    r3q, r4q");
-    assert_x86_op("movl    (r4q), r2l");
+    assert_x86_op("movl    (r3q), r2l");
 }
 
 void test_pointer_indirect_global_char_in_struct_to_long() {
@@ -1247,8 +1246,8 @@ void test_pointer_indirect_global_char_in_struct_to_long() {
     i(0, IR_ASSIGN,        vsz(4, TYPE_LONG),            vsz(3, TYPE_CHAR),            0);
     finish_ir(function);
     assert_x86_op("movq    g1(%rip), r4q");
-    assert_x86_op("movq    r4q, r5q");
-    assert_x86_op("movsbq  (r5q), r6q");
+    assert_x86_op("movsbq  (r4q), r5q");
+    assert_x86_op("movq    r5q, r3q");
 }
 
 void test_pointer_to_void_arg() {
@@ -1298,9 +1297,8 @@ void test_pointer_type_changes() {
             i(0, IR_INDIRECT,    vsz(2, t2), asz(2, TYPE_PTR + t2), 0   );
             i(0, IR_ARG,    0, c(1), asz(2, t2));
             finish_ir(function);
-            assert_x86_op("movq    r1q, r4q"  );
-            assert_x86_op("movq    (r4q), r5q");
-            assert_x86_op("pushq   r5q"       );
+            assert_x86_op("movq    (r1q), r4q");
+            assert_x86_op("pushq   r4q"       );
         }
     }
 }
@@ -1325,7 +1323,7 @@ void test_pointer_comparisons() {
     finish_ir(function);
     assert_x86_op("movq    g1(%rip), r3q");
     assert_x86_op("cmpq    $1, r3q");
-    assert_x86_op("je      .l1");
+    assert_x86_op("jne     .l1");
 
     start_ir();
     i(0, IR_LOAD_VARIABLE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
@@ -1335,7 +1333,7 @@ void test_pointer_comparisons() {
     finish_ir(function);
     assert_x86_op("movq    g1(%rip), r3q");
     assert_x86_op("cmpq    $1, r3q");
-    assert_x86_op("je      .l1");
+    assert_x86_op("jne     .l1");
 }
 
 void test_pointer_double_indirect() {
@@ -1364,6 +1362,22 @@ void test_pointer_to_void_from_long_assignment() {
 
     si(function, 0, IR_ASSIGN, gsz(2, TYPE_PTR + TYPE_VOID), v(1), 0);
     assert_x86_op("movq    r1q, g2(%rip)");
+}
+
+void test_ptr_to_void_memory_load_to_ptr() {
+    remove_reserved_physical_registers = 1;
+
+    si(function, 0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), Ssz(1, TYPE_PTR + TYPE_VOID), 0);
+    assert_x86_op("movq    16(%rbp), r1q");
+}
+
+void test_constant_cast_to_ptr() {
+    remove_reserved_physical_registers = 1;
+
+    si(function, 0, IR_CAST, asz(1, TYPE_CHAR),  c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_CAST, asz(1, TYPE_SHORT), c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_CAST, asz(1, TYPE_INT),   c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_CAST, asz(1, TYPE_LONG),  c(1), 0); assert_x86_op("movq    $1, r1q");
 }
 
 void test_spilling() {
@@ -1451,13 +1465,10 @@ void test_spilling() {
     tac = i(0, IR_ASSIGN,               asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
     tac = i(0, IR_ASSIGN_TO_REG_LVALUE, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq    -16(%rbp), %r10");
+    assert_rx86_preg_op("movq    -8(%rbp), %r10");
     assert_rx86_preg_op("movq    %r10, %r11"     );
-    assert_rx86_preg_op("movq    %r11, -8(%rbp)" );
-    assert_rx86_preg_op("movq    -8(%rbp), %r10" );
-    assert_rx86_preg_op("movq    %r10, %r11"     );
-    assert_rx86_preg_op("movq    %r11, 0(%rbp)"  );
-    assert_rx86_preg_op("movq    0(%rbp), %r10"  );
+    assert_rx86_preg_op("movq    %r11, 0(%rbp)" );
+    assert_rx86_preg_op("movq    0(%rbp), %r10" );
     assert_rx86_preg_op("movl    $1, (%r10)"     );
 }
 
@@ -1504,6 +1515,8 @@ int main() {
     test_pointer_comparisons();
     test_pointer_double_indirect();
     test_pointer_to_void_from_long_assignment();
+    test_ptr_to_void_memory_load_to_ptr();
+    test_constant_cast_to_ptr();
     test_spilling();
 
     if (failures) {

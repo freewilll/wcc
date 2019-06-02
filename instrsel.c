@@ -23,21 +23,6 @@ Set **igraph_labels;            // Matched instruction rule ids for a igraph nod
 
 int recursive_tile_igraphs(IGraph *igraph, int node_id);
 
-// Amazingly, the parser produces code with JZ and JNZ the wrong way around
-// Bring this back to normality.
-void turn_around_jz_jnz_insanity(Function *function) {
-    Tac *tac;
-
-    tac = function->ir;
-    while (tac) {
-        if (tac->src1 && tac->src1->is_in_cpu_flags)  {
-                 if (tac->operation == IR_JZ)  tac->operation = IR_JNZ;
-            else if (tac->operation == IR_JNZ) tac->operation = IR_JZ;
-        }
-        tac = tac->next;
-    }
-}
-
 void set_assign_to_reg_lvalue_dsts(Function *function) {
     Tac *tac;
 
@@ -78,7 +63,9 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
 
     if (ign->tac) {
         operation = ign->tac->operation;
-             if (operation == IR_ASSIGN)               printf("= (assign)\n");
+
+             if (operation == IR_MOVE)                 printf("= (move)\n");
+        else if (operation == IR_ASSIGN)               printf("= (assign)\n");
         else if (operation == IR_LOAD_STRING_LITERAL)  printf("= (string literal)\n");
         else if (operation == IR_ADD)                  printf("+\n");
         else if (operation == IR_SUB)                  printf("-\n");
@@ -119,8 +106,6 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         printf("\n");
     }
 
-    if (operation == IR_NOP) return;
-
     e = ig->graph->nodes[node].succ;
     while (e) {
         recursive_dump_igraph(ig, e->to->id, indent + 1);
@@ -133,9 +118,15 @@ void dump_igraph(IGraph *ig) {
     recursive_dump_igraph(ig, 0, 0);
 }
 
-void copy_inode(IGraphNode *src, IGraphNode *dst) {
+void dup_inode(IGraphNode *src, IGraphNode *dst) {
     dst->tac = src->tac;
     dst->value = src->value;
+}
+
+IGraph *shallow_dup_igraph(IGraph *src, IGraph *dst) {
+    dst->nodes = src->nodes;
+    dst->graph = src->graph;
+    dst->node_count = src->node_count;
 }
 
 // Merge g2 into g1. The merge point is vreg
@@ -177,7 +168,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     for (i = 0; i < g1->node_count; i++) {
         if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Copying g1 %d to %d\n", i, i);
-        copy_inode(&(g1->nodes[i]), &(inodes[i]));
+        dup_inode(&(g1->nodes[i]), &(inodes[i]));
 
         g1_inodes = g1->nodes;
         n = &(g1->graph->nodes[i]);
@@ -208,7 +199,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     for (i = 0; i < g2->node_count; i++) {
         d = g1->node_count + i;
         if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Copying g2 node from %d to %d\n", i, d);
-        copy_inode(&(g2->nodes[i]), &(inodes[d]));
+        dup_inode(&(g2->nodes[i]), &(inodes[d]));
 
         n2 = &(g2->graph->nodes[i]);
         e = n2->succ;
@@ -432,6 +423,92 @@ void make_igraphs(Function *function, int block_id) {
     eis_instr_count = instr_count;
 }
 
+void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int dst_parent_node_id, int *dst_node_id, int parent_was_a_move) {
+    int operation;
+    IGraphNode *ign;
+    GraphEdge *e;
+
+    ign = &(src->nodes[src_node_id]);
+
+    if (ign->tac) operation = ign->tac->operation; else operation = 0;
+
+    e = src->graph->nodes[src_node_id].succ;
+
+    if (operation == IR_LOAD_CONSTANT || operation == IR_LOAD_STRING_LITERAL || operation == IR_LOAD_VARIABLE || operation == IR_ASSIGN) {
+        if (src_node_id == 0) {
+            ign->tac->operation = IR_MOVE;
+            operation = IR_MOVE;
+        }
+        else {
+            recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id, 1);
+            return;
+        }
+    }
+
+    dup_inode(&(src->nodes[src_node_id]), &(dst->nodes[*dst_node_id]));
+    if (dst_parent_node_id != -1) add_graph_edge(dst->graph, dst_parent_node_id, *dst_node_id);
+
+    dst_parent_node_id = *dst_node_id;
+    (*dst_node_id)++;
+
+    while (e) {
+        recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id, operation == IR_MOVE);
+        e = e->next_succ;
+    }
+}
+
+IGraph *simplify_igraph(IGraph *src) {
+    int i, j, operation, node_count, d, join_from, join_to, from, to, type_change;
+    int type, dst_node_id;
+    IGraph *dst;
+    IGraphNode *inodes;
+
+    dst = malloc(sizeof(IGraph));
+    memset(dst, 0, sizeof(IGraph));
+
+    node_count = src->node_count;
+    inodes = malloc(node_count * sizeof(IGraphNode));
+    memset(inodes, 0, node_count * sizeof(IGraphNode));
+
+    dst->nodes = inodes;
+    dst->graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
+    dst->node_count = node_count;
+
+    if (DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION) {
+        printf("simplify_igraph() on:\n");
+        dump_igraph(src);
+    }
+
+    dst_node_id = 0;
+    recursive_simplify_igraph(src, dst, 0, -1, &dst_node_id, 0);
+    if (DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION) printf("\n");
+
+    if (DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION) {
+        printf("Result:\n");
+        dump_igraph(dst);
+        printf("\n");
+    }
+
+    dst->node_count = dst_node_id;
+
+    return dst;
+}
+
+void simplify_igraphs() {
+    int i, operation;
+    IGraphNode *ign;
+    IGraph *ig;
+
+    for (i = 0; i < eis_instr_count; i++) {
+        ign = &(eis_igraphs[i].nodes[0]);
+        if (ign->tac) operation = ign->tac->operation; else operation = 0;
+        if (operation != IR_NOP && eis_igraphs[i].node_count) {
+            ig = simplify_igraph(&(eis_igraphs[i]));
+            shallow_dup_igraph(ig, &(eis_igraphs[i]));
+        }
+    }
+}
+
 // Convert an instruction graph node from an operation that puts the result
 // into a register to an assigment, using a constant value.
 Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
@@ -447,9 +524,9 @@ Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
     src_node = &(igraph->graph->nodes[node_id]);
 
     if (node_id == 0) {
-        // Root node, convert it into an assignment, since it has to end up
+        // Root node, convert it into a move, since it has to end up
         // in a register
-        igraph->nodes[node_id].tac->operation = IR_ASSIGN;
+        igraph->nodes[node_id].tac->operation = IR_MOVE;
         igraph->nodes[node_id].tac->src1 = v;
         igraph->nodes[node_id].tac->src2 = 0;
         igraph->nodes[src_node->succ->to->id].value->is_constant = 1;
@@ -1144,6 +1221,7 @@ void select_instructions(Function *function) {
         blocks[i].end->next = 0; // Will be re-entangled later
 
         make_igraphs(function, i);
+        simplify_igraphs(function, i);
         if (!disable_merge_constants) merge_constants(function);
         tile_igraphs(function);
 
@@ -1291,9 +1369,7 @@ void add_spill_code(Function *function) {
     }
 }
 
-void eis1(Function *function, int flip_jz_jnz) {
-    if (flip_jz_jnz) turn_around_jz_jnz_insanity(function);
-
+void eis1(Function *function) {
     do_oar1(function);
     do_oar2(function);
     do_oar3(function);
@@ -1314,6 +1390,6 @@ void experimental_instruction_selection(Symbol *function_symbol) {
     Function *function;
     function = function_symbol->function;
 
-    eis1(function, 1);
+    eis1(function);
     eis2(function);
 }
