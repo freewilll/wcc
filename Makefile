@@ -134,8 +134,8 @@ test-ssa.s: wc4 test-ssa.c
 test-utils.s: wc4 test-utils.c
 	./wc4 -c -S test-utils.c -o test-utils.s
 
-test-ssa: wc4 test-ssa.s test-utils-legacy-codegen.s build/wc42-legacy-codegen/lexer.s build/wc42-legacy-codegen/parser.s build/wc42-legacy-codegen/ir.s build/wc42-legacy-codegen/ssa.s build/wc42-legacy-codegen/instrsel.s build/wc42-legacy-codegen/instrrules.s build/wc42-legacy-codegen/codegen.s build/wc42-legacy-codegen/utils.s build/wc42-legacy-codegen/set.s build/wc42-legacy-codegen/stack.s build/wc42-legacy-codegen/graph.s
-	gcc -o test-ssa test-ssa.s test-utils-legacy-codegen.s build/wc42-legacy-codegen/lexer.s build/wc42-legacy-codegen/parser.s build/wc42-legacy-codegen/ir.s build/wc42-legacy-codegen/ssa.s build/wc42-legacy-codegen/instrsel.s build/wc42-legacy-codegen/instrrules.s build/wc42-legacy-codegen/codegen.s build/wc42-legacy-codegen/utils.s build/wc42-legacy-codegen/set.s build/wc42-legacy-codegen/stack.s build/wc42-legacy-codegen/graph.s
+test-ssa: wc4 test-ssa.s test-utils.s build/wc42-legacy-codegen/lexer.s build/wc42-legacy-codegen/parser.s build/wc42-legacy-codegen/ir.s build/wc42-legacy-codegen/ssa.s build/wc42-legacy-codegen/instrsel.s build/wc42-legacy-codegen/instrrules.s build/wc42-legacy-codegen/codegen.s build/wc42-legacy-codegen/utils.s build/wc42-legacy-codegen/set.s build/wc42-legacy-codegen/stack.s build/wc42-legacy-codegen/graph.s
+	gcc -o test-ssa test-ssa.s test-utils.s build/wc42-legacy-codegen/lexer.s build/wc42-legacy-codegen/parser.s build/wc42-legacy-codegen/ir.s build/wc42-legacy-codegen/ssa.s build/wc42-legacy-codegen/instrsel.s build/wc42-legacy-codegen/instrrules.s build/wc42-legacy-codegen/codegen.s build/wc42-legacy-codegen/utils.s build/wc42-legacy-codegen/set.s build/wc42-legacy-codegen/stack.s build/wc42-legacy-codegen/graph.s
 
 run-test-ssa: test-ssa
 	 ./test-ssa
