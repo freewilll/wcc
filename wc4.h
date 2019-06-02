@@ -647,6 +647,7 @@ enum {
 
 typedef struct rule {
     int index;
+    long hash;
     int non_terminal;
     int operation;
     int src1;
