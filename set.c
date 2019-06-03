@@ -23,30 +23,27 @@ void free_set(Set *s) {
 void empty_set(Set *s) {
     int i;
 
-    for (i = 0; i <= s->max_value; i++) s->elements[i] = 0;
+    memset(s->elements, 0, (s->max_value + 1) * sizeof(char));
 }
 
 Set *copy_set(Set *s) {
     Set *result;
-    int i;
 
     result = new_set(s->max_value);
-    for (i = 0; i <= s->max_value; i++) result->elements[i] = s->elements[i];
+    memcpy(result->elements, s->elements, (s->max_value + 1) * sizeof(char));
 
     return result;
 }
 
 void copy_set_to(Set *dst, Set *src) {
-    int i;
-
-    for (i = 0; i <= src->max_value; i++) dst->elements[i] = src->elements[i];
+    memcpy(dst->elements, src->elements, (src->max_value + 1) * sizeof(char));
 }
 
 int set_len(Set *s) {
     int i, result;
 
     result = 0;
-    for (i = 0; i <= s->max_value; i++) if (s->elements[i]) result++;
+    for (i = 0; i <= s->max_value; i++) result += s->elements[i];
 
     return result;
 }
@@ -87,10 +84,7 @@ int set_eq(Set *s1, Set *s2) {
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_eq");
 
-    for (i = 0; i <= s1->max_value; i++)
-        if (s1->elements[i] != s2->elements[i]) return 0;
-
-    return 1;
+    return memcmp(s1->elements, s2->elements, (s1->max_value + 1) * sizeof(char)) ? 0 : 1;
 }
 
 Set *set_intersection(Set *s1, Set *s2) {
