@@ -78,6 +78,7 @@ Value *dup_value(Value *src) {
     dst->ssa_subscript             = src->ssa_subscript;
     dst->live_range                = src->live_range;
     dst->x86_size                  = src->x86_size;
+    dst->non_terminal              = src->non_terminal;
 
     return dst;
 }

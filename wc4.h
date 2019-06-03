@@ -122,6 +122,7 @@ typedef struct value {
     int ssa_subscript;              // Optional SSA enumeration
     int live_range;                 // Optional SSA live range
     int x86_size;                   // Current size while generating x86 code
+    int non_terminal;               // Use in rule matching
 } Value;
 
 typedef struct three_address_code {
