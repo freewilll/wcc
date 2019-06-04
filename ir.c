@@ -262,6 +262,7 @@ char *operation_string(int operation) {
     else if (operation == X_IDIV)                   return "idiv";
     else if (operation == X_CQTO)                   return "cqto";
     else if (operation == X_CMP)                    return "cmp";
+    else if (operation == X_TEST)                   return "test";
     else if (operation == X_CMPZ)                   return "cmpz";
     else if (operation == X_JMP)                    return "jmp";
     else if (operation == X_JZ)                     return "jz";
