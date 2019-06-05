@@ -63,8 +63,32 @@ void test_set_eq() {
     assert(1, set_eq(s1, s2));
 }
 
+void test_cache_elements() {
+    Set *s;
+
+    s = new_set(3); add_to_set(s, 1); add_to_set(s, 2);
+    cache_set_elements(s);
+    assert(2, s->cached_element_count);
+    assert(1, s->cached_elements[0]);
+    assert(2, s->cached_elements[1]);
+
+    add_to_set(s, 3);
+    cache_set_elements(s);
+    assert(3, s->cached_element_count);
+    assert(1, s->cached_elements[0]);
+    assert(2, s->cached_elements[1]);
+    assert(3, s->cached_elements[2]);
+
+    delete_from_set(s, 2);
+    cache_set_elements(s);
+    assert(2, s->cached_element_count);
+    assert(1, s->cached_elements[0]);
+    assert(3, s->cached_elements[1]);
+}
+
 int main() {
     test_add_delete();
     test_merges();
     test_set_eq();
+    test_cache_elements();
 }

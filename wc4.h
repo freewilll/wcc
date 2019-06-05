@@ -27,6 +27,8 @@ typedef struct graph {
 typedef struct set {
     int max_value;
     char *elements;
+    int cached_element_count;
+    int *cached_elements;
 } Set;
 
 typedef struct stack {
@@ -452,6 +454,7 @@ void free_set(Set *s);
 void empty_set(Set *s);
 Set *copy_set(Set *s);
 void copy_set_to(Set *dst, Set *src);
+void cache_set_elements(Set *s);
 int set_len(Set *s);
 void print_set(Set *s);
 void *add_to_set(Set *s, int value);

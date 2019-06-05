@@ -11,6 +11,8 @@ Set *new_set(int max_value) {
     result->max_value = max_value;
     result->elements = malloc((max_value + 1) * sizeof(char));
     memset(result->elements, 0, (max_value + 1) * sizeof(char));
+    result->cached_element_count = 0;
+    result->cached_elements = 0;
 
     return result;
 }
@@ -37,6 +39,20 @@ Set *copy_set(Set *s) {
 
 void copy_set_to(Set *dst, Set *src) {
     memcpy(dst->elements, src->elements, (src->max_value + 1) * sizeof(char));
+}
+
+void cache_set_elements(Set *s) {
+    int i, count;
+    int *cached_elements;
+
+    if (!s->cached_elements) s->cached_elements = malloc((s->max_value + 1) * sizeof(int));
+    cached_elements = s->cached_elements;
+
+    count = 0;
+    for (i = 0; i <= s->max_value; i++)
+        if (s->elements[i]) cached_elements[count++] = i;
+
+    s->cached_element_count = count;
 }
 
 int set_len(Set *s) {

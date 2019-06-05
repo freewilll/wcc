@@ -797,16 +797,16 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 }
 
 int tile_igraph_operation_node(IGraph *igraph, int node_id) {
-    int i, j, operation, src1_id, src2_id;
+    int i, j, operation, src1_id, src2_id, mv;
     int matched, matched_src;
     int choice_node_id, src1_cost_graph_node_id, src2_cost_graph_node_id;
     int cost_graph_node_id, min_cost, min_cost_src1, min_cost_src2, src, cost;
+    int *cached_elements, rule_src1, rule_src2;
     Tac *tac;
     IGraphNode *inode, *inodes;
     GraphEdge *e;
     Value *src1, *src2, *v;
     Rule *r, *child_rule;
-    Set *l;
 
     if (DEBUG_INSTSEL_TILING) printf("tile_igraph_operation_node on node=%d\n", node_id);
 
@@ -858,6 +858,9 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     if (DEBUG_INSTSEL_TILING && tac->dst)
         printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
 
+    if (src1_id) cache_set_elements(igraph_labels[src1_id]);
+    if (src2_id) cache_set_elements(igraph_labels[src2_id]);
+
     // Loop over all rules until a match is found
     matched = 0;
     for (i = 0; i < instr_rule_count; i++) {
@@ -868,26 +871,36 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (!src2_id && r->src2) continue;
 
         // If this is the top level, ensure the dst matches
-        if (node_id == 0 && tac->dst && !match_value_to_rule_dst(tac->dst, r)) continue;
+        if (tac->dst && node_id == 0 && !match_value_to_rule_dst(tac->dst, r)) continue;
 
         // If the rule requires dst matching, do it.
         if (tac->dst && r->match_dst && !match_value_to_rule_dst(tac->dst, r)) continue;
 
         // Check dst of the subtree tile matches what is needed
+        rule_src1 = r->src1;
+        rule_src2 = r->src2;
+
         matched_src = 0;
-        l = igraph_labels[src1_id];
-        for (j = 0; j <= l->max_value; j++) {
-            if (!l->elements[j]) continue;
-            if (instr_rules[j].non_terminal == r->src1) { matched_src = 1; break; }
+        mv = igraph_labels[src1_id]->cached_element_count;
+        cached_elements = igraph_labels[src1_id]->cached_elements;
+        for (j = 0; j < mv; j++) {
+            if (instr_rules[cached_elements[j]].non_terminal == r->src1) {
+                matched_src = 1;
+                break;
+            }
         }
         if (!matched_src) continue;
 
         matched_src = 0;
         if (src2_id) {
-            l = igraph_labels[src2_id];
-            for (j = 0; j <= l->max_value; j++) {
-                if (!l->elements[j]) continue;
-                if (instr_rules[j].non_terminal == r->src2) { matched_src = 1; break; }
+            matched_src = 0;
+            mv = igraph_labels[src2_id]->cached_element_count;
+            cached_elements = igraph_labels[src2_id]->cached_elements;
+            for (j = 0; j < mv; j++) {
+                if (instr_rules[cached_elements[j]].non_terminal == r->src2) {
+                    matched_src = 1;
+                    break;
+                }
             }
             if (!matched_src) continue;
         }
