@@ -68,7 +68,6 @@ Value *dup_value(Value *src) {
     dst->local_index               = src->local_index;
     dst->is_constant               = src->is_constant;
     dst->is_string_literal         = src->is_string_literal;
-    dst->is_in_cpu_flags           = src->is_in_cpu_flags;
     dst->string_literal_index      = src->string_literal_index;
     dst->value                     = src->value;
     dst->function_symbol           = src->function_symbol;
@@ -166,8 +165,6 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 
     if (v->is_constant)
         fprintf(f, "%ld", v->value);
-    else if (v->is_in_cpu_flags)
-        fprintf(f, "cpu");
     else if (v->preg != -1)
         fprintf(f, "p%d", v->preg);
     else if (v->stack_index)
@@ -219,7 +216,6 @@ char *operation_string(int operation) {
          if (!operation)                            return "";
     else if (operation == IR_MOVE)                  return "IR_MOVE";
     else if (operation == IR_LOAD_CONSTANT)         return "IR_LOAD_CONSTANT";
-    else if (operation == IR_LOAD_STRING_LITERAL)   return "IR_LOAD_STRING_LITERAL";
     else if (operation == IR_LOAD_VARIABLE)         return "IR_LOAD_VARIABLE";
     else if (operation == IR_CAST)                  return "IR_CAST";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
@@ -318,7 +314,7 @@ void print_instruction(void *f, Tac *tac) {
             fprintf(f, " = ");
     }
 
-    if (o == IR_MOVE ||o == IR_LOAD_CONSTANT || o == IR_LOAD_VARIABLE || o == IR_LOAD_STRING_LITERAL || o == IR_CAST) {
+    if (o == IR_MOVE ||o == IR_LOAD_CONSTANT || o == IR_LOAD_VARIABLE || o == IR_CAST) {
         print_value(f, tac->src1, 1);
     }
 
@@ -668,62 +664,6 @@ void renumber_labels(Tac *ir) {
     }
 }
 
-void rearrange_reverse_sub_operation(Tac *ir, Tac *tac) {
-    Value *src1, *src2;
-    int vreg1, vreg2;
-
-    if (tac->operation == IR_SUB) {
-        tac->operation = IR_RSUB;
-
-        if (tac->src2->is_constant) {
-            // Flip the operands
-            src1 = dup_value(tac->src1);
-            src2 = dup_value(tac->src2);
-            tac->src1 = src2;
-            tac->src2 = src1;
-        }
-        else {
-            // Convert sub to reverse sub. Swap registers everywhere except
-            // this tac and convert the operation to RSUB.
-            vreg1 = tac->src1->vreg;
-            vreg2 = tac->src2->vreg;
-            swap_ir_registers(ir, tac->src1->vreg, tac->src2->vreg);
-            tac->src1 = dup_value(tac->src1);
-            tac->src2 = dup_value(tac->src2);
-            tac->src1->vreg = vreg1;
-            tac->src2->vreg = vreg2;
-        }
-    }
-}
-
-void preload_src1_constant_into_register(Tac *tac, int *i) {
-    Value *dst, *src1;
-    Tac *load_tac;
-
-    load_tac = new_instruction(IR_LOAD_CONSTANT);
-
-    load_tac->src1 = tac->src1;
-
-    dst = new_value();
-    dst->vreg = new_vreg();
-    dst->type = TYPE_LONG;
-
-    load_tac->dst = dst;
-    insert_instruction(tac, load_tac, 0);
-    tac->src1 = dst;
-
-    (*i)++;
-}
-
-void allocate_registers_for_constants(Tac *tac, int *i) {
-    // Some instructions can't handle one of the operands being a constant. Allocate a vreg for it
-    // and load the constant into it.
-
-    // 1 - i case can't be done in x86_64 and needs to be done with registers
-    if (tac->operation == IR_SUB && tac->src1->is_constant)
-        preload_src1_constant_into_register(tac, i);
-}
-
 void optimize_ir(Symbol *function) {
     Tac *ir, *tac;
     int i;
@@ -737,8 +677,6 @@ void optimize_ir(Symbol *function) {
     i = 0;
     while (tac) {
         merge_labels(ir, tac, i);
-        allocate_registers_for_constants(tac, &i);
-        if (legacy_codegen) rearrange_reverse_sub_operation(ir, tac);
         tac = tac->next;
         i++;
     }

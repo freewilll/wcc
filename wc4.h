@@ -113,7 +113,6 @@ typedef struct value {
     int spilled;                    // 1 if spilled
     int is_constant;                // Is it a constant? If so, value is the value.
     int is_string_literal;          // Is the value a string literal?
-    int is_in_cpu_flags;            // Is the result stored in cpu flags?
     int string_literal_index;       // Index in the string_literals array in the case of a string literal
     long value;                     // Value in the case of a constant
     Symbol *function_symbol;        // Corresponding symbol in the case of a function call
@@ -289,12 +288,11 @@ enum {
 
 // Intermediate representation operations
 enum {
-    IR_LOAD_CONSTANT=1,       // Load constant
-    IR_LOAD_STRING_LITERAL,   // Load string literal
+    IR_MOVE=1,                // Merger of IR_LOAD_CONSTANT, IR_LOAD_STRING_LITERAL, IR_LOAD_VARIABLE, IR_ASSIGN // TODO MOVE to top
+    IR_LOAD_CONSTANT,         // Load constant
     IR_LOAD_VARIABLE,         // Load global or local
     IR_ASSIGN,                // Assignment/store. Target is either a global, local, lvalue in register or register
     IR_ASSIGN_TO_REG_LVALUE,  // Assignment to an lvalue in a register
-    IR_MOVE,                  // Merger of IR_LOAD_CONSTANT, IR_LOAD_STRING_LITERAL, IR_LOAD_VARIABLE, IR_ASSIGN // TODO MOVE to top
     IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
     IR_START_CALL,            // Function call
@@ -388,7 +386,6 @@ int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after x84_64 arch manipulation
 int print_ir3;                          // Print IR after register allocation
 int output_inline_ir;                   // Output IR inline with the assembly
-int legacy_codegen;                     // Use legacy code generator
 int spill_all_registers;                // Spill everything to the stack
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible

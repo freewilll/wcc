@@ -2,9 +2,7 @@
 *.s
 wc4
 wc42
-wc42-legacy-codegen
 wc43
-wc43-legacy-codegen
 test-wc4
 test-wc4-gcc
 test-set
@@ -12,7 +10,6 @@ test-graph
 test-ssa
 test-instrsel
 test-instrsel-gcc
-test-codegen
 benchmark
 test.c
 test1.c

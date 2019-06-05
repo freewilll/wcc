@@ -220,13 +220,6 @@ void output_type_specific_lea(int type) {
     else                         fprintf(f, "    leaq    ");
 }
 
-void output_reverse_cmp_operation(Tac *tac, char *instruction) {
-    output_reverse_cmp(tac);
-    if (tac->dst->is_in_cpu_flags) return;
-    output_cmp_result_instruction(tac, instruction);
-    output_movzbq(tac);
-}
-
 // Get offset from the stack in bytes, from a stack_index. This is a hairy function
 // since it has to take the amount of params (pc) into account as well as the
 // position where local variables start.
@@ -435,75 +428,6 @@ void output_pop_callee_saved_registers(int *saved_registers) {
     }
 }
 
-void output_pre_instruction_spill(Tac *ir, int function_pc, int stack_start) {
-    int stack_offset;
-
-    if (!legacy_codegen) return;
-
-    // Load src1 into r10
-    if (ir->operation != IR_LOAD_VARIABLE && ir->src1 && ir->src1->preg == -1 && ir->src1->stack_index < 0) {
-        stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src1->stack_index);
-
-        if (ir->operation == IR_ASSIGN_TO_REG_LVALUE)
-            fprintf(f, "    movq    ");
-        else
-            output_type_specific_sign_extend_mov(ir->src1->type);
-
-        fprintf(f, "%d(%%rbp), %%r10\n", stack_offset);
-        ir->src1 = dup_value(ir->src1); // Ensure no side effects
-        ir->src1->preg = REG_R10;
-    }
-
-    // Load src2 into r11
-    if (ir->src2 && ir->src2->preg == -1 && ir->src2->stack_index < 0) {
-        stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->src2->stack_index);
-        output_type_specific_sign_extend_mov(ir->src2->type);
-        fprintf(f, "%d(%%rbp), %%r11\n", stack_offset);
-        ir->src2 = dup_value(ir->src2); // Ensure no side effects
-        ir->src2->preg = REG_R11;
-    }
-
-    if (ir->operation != IR_ASSIGN && ir->dst && ir->dst->preg == -1 && ir->dst->stack_index < 0) {
-        // Set the dst preg to r10 or r11 depending on what the operation type has set
-
-        ir->dst = dup_value(ir->dst); // Ensure no side effects
-        if (ir->operation == IR_BSHR || ir->operation == IR_BSHL)
-            ir->dst->preg = REG_R10;
-        else
-            ir->dst->preg = REG_R11;
-    }
-
-    // If the operation is an assignment and If there is an lvalue on the stack, move it into r11.
-    // The assign code will use that to store the result of the assignment.
-    if (ir->operation == IR_ASSIGN && ir->dst->preg == -1 && ir->dst->is_lvalue && ir->dst->stack_index < 0) {
-        stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->dst->stack_index);
-        fprintf(f, "    movq    %d(%%rbp), %%r11\n", stack_offset);
-    }
-}
-
-void output_post_instruction_spill(Tac *ir, int function_pc, int stack_start) {
-    int stack_offset;
-    int assign;
-
-    if (!legacy_codegen) return;
-
-    assign = 0;
-    if (ir->dst && ir->dst->preg != -1 && ir->dst->stack_index < 0) {
-        // Output a mov for assignments that are a copy from a cpu flag to a local variable on the stack
-        if (ir->operation == IR_ASSIGN && ir->src1->is_in_cpu_flags && ir->dst->stack_index) assign = 1;
-
-        // Output a mov for assignments that are a register copy.
-        if (!(ir->operation == IR_ASSIGN && (ir->dst->stack_index || ir->dst->global_symbol || ir->dst->is_lvalue || ir->dst->is_in_cpu_flags))) assign = 1;
-
-        if (assign) {
-            stack_offset = get_stack_offset_from_index(function_pc, stack_start, ir->dst->stack_index);
-            fprintf(f, "    movq    ");
-            output_quad_register_name(ir->dst->preg);
-            fprintf(f, ", %d(%%rbp)\n", stack_offset);
-        }
-    }
-}
-
 // Output code from the IR of a function
 void output_function_body_code(Symbol *symbol) {
     int i, stack_offset;
@@ -556,72 +480,9 @@ void output_function_body_code(Symbol *symbol) {
             print_instruction(f, tac);
         }
 
-        output_pre_instruction_spill(tac, function_pc, stack_start);
-
         if (tac->label) fprintf(f, ".l%d:\n", tac->label);
 
         if (tac->operation == IR_NOP || tac->operation == IR_START_LOOP || tac->operation == IR_END_LOOP);
-
-        else if (tac->operation > X_START && tac->operation != X_RET && tac->operation != X_ARG && tac->operation != X_CALL)
-            output_x86_operation(tac, function_pc, stack_start);
-
-        else if (tac->operation == IR_LOAD_CONSTANT) {
-            fprintf(f, "    movq    $%ld, ", tac->src1->value);
-            output_quad_register_name(tac->dst->preg);
-            fprintf(f, "\n");
-        }
-
-        else if (tac->operation == IR_LOAD_STRING_LITERAL) {
-            fprintf(f, "    leaq    .SL%d(%%rip), ", tac->src1->string_literal_index);
-            output_quad_register_name(tac->dst->preg);
-            fprintf(f, "\n");
-        }
-
-        else if (tac->operation == IR_LOAD_VARIABLE) {
-            if (tac->src1->global_symbol) {
-                if (!tac->src1->is_lvalue) {
-                    output_type_specific_lea(tac->src1->type);
-                    fprintf(f, "%s(%%rip), ", tac->src1->global_symbol->identifier);
-                }
-                else {
-                    output_type_specific_sign_extend_mov(tac->src1->type);
-                    fprintf(f, "%s(%%rip), ", tac->src1->global_symbol->identifier);
-                }
-            }
-            else {
-                stack_offset = get_stack_offset_from_index(function_pc, stack_start, tac->src1->stack_index);
-                if (!tac->src1->is_lvalue) {
-                    output_type_specific_lea(tac->src1->type);
-                    fprintf(f, "%d(%%rbp), ", stack_offset);
-                }
-                else {
-                    output_type_specific_sign_extend_mov(tac->src1->type);
-                    fprintf(f, "%d(%%rbp), ", stack_offset);
-                }
-            }
-
-            output_quad_register_name(tac->dst->preg);
-            fprintf(f, "\n");
-        }
-
-        else if (tac->operation == IR_INDIRECT) {
-            output_type_specific_sign_extend_mov(tac->dst->type);
-            fprintf(f, "(");
-            output_quad_register_name(tac->src1->preg);
-            fprintf(f, "), ");
-            output_quad_register_name(tac->dst->preg);
-            fprintf(f, "\n");
-        }
-
-        else if (tac->operation == IR_ADDRESS_OF) {
-            if (tac->src1->vreg && tac->dst->preg != tac->src1->preg) {
-                fprintf(f, "    movq    ");
-                output_quad_register_name(tac->src1->preg);
-                fprintf(f, ", ");
-                output_quad_register_name(tac->dst->preg);
-                fprintf(f, "\n");
-            }
-        }
 
         else if (tac->operation == IR_START_CALL) {
             // Align the stack. This is matched with a pop when the function call ends
@@ -641,19 +502,12 @@ void output_function_body_code(Symbol *symbol) {
             }
         }
 
-        else if (tac->operation == IR_ARG) {
-            cur_stack_push_count++;
-            fprintf(f, "    pushq   ");
-            output_quad_register_name(tac->src2->preg);
-            fprintf(f, "\n");
-        }
-
         else if (tac->operation == X_ARG) {
             cur_stack_push_count++;
             output_x86_operation(tac, function_pc, stack_start);
         }
 
-        else if (tac->operation == IR_CALL || tac->operation == X_CALL) {
+        else if (tac->operation == X_CALL) {
             // Read the first 6 args from the stack in right to left order
             ac = tac->src1->function_call_arg_count;
 
@@ -700,194 +554,8 @@ void output_function_body_code(Symbol *symbol) {
             fprintf(f, "    retq\n");
         }
 
-        else if (tac->operation == IR_RETURN) {
-            if (tac->src1) {
-                if (tac->src1->preg != REG_RAX) {
-                    fprintf(f, "    movq    ");
-                    output_quad_register_name(tac->src1->preg);
-                    fprintf(f, ", ");
-                    output_quad_register_name(REG_RAX);
-                    fprintf(f, "\n");
-                }
-            }
-            output_pop_callee_saved_registers(saved_registers);
-            fprintf(f, "    leaveq\n");
-            fprintf(f, "    retq\n");
-        }
-
-        else if (tac->operation == IR_ASSIGN) {
-            if (tac->dst->is_in_cpu_flags); // Do nothing
-
-            else if (tac->src1->is_in_cpu_flags) {
-                     if (tac->prev->operation == IR_EQ) s = "sete";
-                else if (tac->prev->operation == IR_NE) s = "setne";
-                else if (tac->prev->operation == IR_LT) s = "setg";
-                else if (tac->prev->operation == IR_GT) s = "setl";
-                else if (tac->prev->operation == IR_LE) s = "setge";
-                else if (tac->prev->operation == IR_GE) s = "setle";
-                else panic1d("Internal error: unknown comparison operation %d", tac->prev->operation);
-                output_cmp_result_instruction(tac, s);
-                output_movzbq(tac);
-            }
-
-            else if (tac->dst->global_symbol) {
-                // dst a global
-                if (tac->dst->preg != -1) panic("Unexpected preg in assign for global");
-                output_type_specific_mov(tac->dst->type);
-                output_type_specific_register_name(tac->dst->type, tac->src1->preg);
-                fprintf(f, ", ");
-                fprintf(f, "%s(%%rip)\n", tac->dst->global_symbol->identifier);
-            }
-
-            else if (tac->dst->preg != -1) {
-                // Register copy
-                fprintf(f, "    movq    ");
-                output_quad_register_name(tac->src1->preg);
-                fprintf(f, ", ");
-                output_quad_register_name(tac->dst->preg);
-                fprintf(f, "\n");
-            }
-
-            else if (!tac->dst->stack_index && tac->dst->is_lvalue)
-                panic("Internal error: Assign to lvalue in register should have been rewritten to IR_ASSIGN_TO_REG_LVALUE");
-
-            else {
-                // dst is a local variable on the stack
-                output_type_specific_mov(tac->dst->type);
-                output_type_specific_register_name(tac->dst->type, tac->src1->preg);
-                fprintf(f, ", ");
-                stack_offset = get_stack_offset_from_index(function_pc, stack_start, tac->dst->stack_index);
-                fprintf(f, "%d(%%rbp)\n", stack_offset);
-            }
-        }
-
-        else if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) {
-            // dst is an lvalue in a register. The difference with the regular
-            // IS_ASSIGN is that src1 is the destination and src2 is the src.
-            // The reason for that is that it makes the SSA calulation easier
-            // since both dst and src1 are values in registers that are read
-            // but not written to in this instruction.
-
-            output_type_specific_mov(tac->src1->type);
-            output_type_specific_register_name(tac->src1->type, tac->src2->preg);
-            fprintf(f, ", ");
-            fprintf(f, "(");
-            output_quad_register_name(tac->src1->preg);
-            fprintf(f, ")\n");
-        }
-
-        else if (tac->operation == IR_JZ || tac->operation == IR_JNZ) {
-            if (tac->src1->is_in_cpu_flags) {
-                // src1 and src2 is backwards to facilitate constant handling,
-                // hence the flipping of the comparision direction.
-                     if (tac->prev->operation == IR_GT && tac->operation == IR_JNZ) s = "jl";
-                else if (tac->prev->operation == IR_GT && tac->operation == IR_JZ)  s = "jnl";
-                else if (tac->prev->operation == IR_LT && tac->operation == IR_JNZ) s = "jg";
-                else if (tac->prev->operation == IR_LT && tac->operation == IR_JZ)  s = "jng";
-                else if (tac->prev->operation == IR_GE && tac->operation == IR_JNZ) s = "jle";
-                else if (tac->prev->operation == IR_GE && tac->operation == IR_JZ)  s = "jnle";
-                else if (tac->prev->operation == IR_LE && tac->operation == IR_JNZ) s = "jge";
-                else if (tac->prev->operation == IR_LE && tac->operation == IR_JZ)  s = "jnge";
-                else if (tac->prev->operation == IR_EQ && tac->operation == IR_JNZ) s = "je";
-                else if (tac->prev->operation == IR_EQ && tac->operation == IR_JZ)  s = "jne";
-                else if (tac->prev->operation == IR_NE && tac->operation == IR_JNZ) s = "jne";
-                else if (tac->prev->operation == IR_NE && tac->operation == IR_JZ)  s = "je";
-
-                else {
-                    panic1d("Unknown comparison operator %d", tac->prev->operation);
-                    exit(1);
-                }
-
-                fprintf(f, "    %-8s.l%d\n", s, tac->src2->label);
-            }
-
-            else  {
-                // The condition is in a register. Check if it's zero.
-                fprintf(f, "    cmpq    $0x0, ");
-                output_quad_register_name(tac->src1->preg);
-                fprintf(f, "\n");
-                fprintf(f, "    %-8s.l%d\n", tac->operation == IR_JZ ? "je" : "jne", tac->src2->label);
-            }
-        }
-
-        else if (tac->operation == IR_JMP)
-            fprintf(f, "    jmp     .l%d\n", tac->src1->label);
-
-        else if (tac->operation == IR_EQ) output_reverse_cmp_operation(tac, "sete");
-        else if (tac->operation == IR_NE) output_reverse_cmp_operation(tac, "setne");
-        else if (tac->operation == IR_LT) output_reverse_cmp_operation(tac, "setg");
-        else if (tac->operation == IR_GT) output_reverse_cmp_operation(tac, "setl");
-        else if (tac->operation == IR_LE) output_reverse_cmp_operation(tac, "setge");
-        else if (tac->operation == IR_GE) output_reverse_cmp_operation(tac, "setle");
-
-        else if (tac->operation == IR_BOR)  output_op("orq",   tac);
-        else if (tac->operation == IR_BAND) output_op("andq",  tac);
-        else if (tac->operation == IR_XOR)  output_op("xorq",  tac);
-        else if (tac->operation == IR_ADD)  output_op("addq",  tac);
-        else if (tac->operation == IR_RSUB) output_op("subq",  tac);
-        else if (tac->operation == IR_MUL)  output_op("imulq", tac);
-
-        else if (tac->operation == IR_DIV || tac->operation == IR_MOD) {
-            // This is slightly ugly. src1 is the dividend and needs doubling in size and placing in the RDX register.
-            // It could have been put in the RDX register in the first place.
-            // The quotient is stored in RAX and remainder in RDX, but is then copied
-            // to whatever register is allocated for the dst, which might as well have been RAX or RDX for the respective quotient and remainders.
-
-            fprintf(f, "    movq    ");
-            output_quad_register_name(tac->src1->preg);
-            fprintf(f, ", %%rax\n");
-            fprintf(f, "    cqto\n");
-            output_move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
-            fprintf(f, "    idivq   ");
-            output_quad_register_name(tac->dst->preg);
-            fprintf(f, "\n");
-
-            if (tac->operation == IR_DIV)
-                output_move_quad_register_to_register(REG_RAX, tac->dst->preg);
-            else
-                output_move_quad_register_to_register(REG_RDX, tac->dst->preg);
-        }
-
-        else if (tac->operation == IR_BNOT)  {
-            output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
-            fprintf(f, "    not     ");
-            output_quad_register_name(tac->dst->preg);
-            fprintf(f, "\n");
-        }
-
-        else if (tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
-            if (tac->src2->is_constant) {
-                // Shift a non-constant by a constant amount
-                output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
-                fprintf(f, "    %-8s$%ld, ", tac->operation == IR_BSHL ? "shl" : "sar", tac->src2->value);
-                output_quad_register_name(tac->dst->preg);
-                fprintf(f, "\n");
-            }
-            else {
-                fprintf(f, "    movq    ");
-                output_quad_register_name(tac->src2->preg);
-                fprintf(f, ", %%rcx\n");
-
-                if (tac->src1->is_constant) {
-                    // Shift a constant by a non-constant amount
-                    fprintf(f, "    movq    $%ld, ", tac->src1->value);
-                    output_quad_register_name(tac->dst->preg);
-                    fprintf(f, "\n");
-                }
-                else
-                    // Shift a non-constant by a non-constant amount
-                    output_move_quad_register_to_register(tac->src1->preg, tac->dst->preg);
-
-                fprintf(f, "    %-8s%%cl, ", tac->operation == IR_BSHL ? "shl" : "sar");
-                output_quad_register_name(tac->dst->preg);
-                fprintf(f, "\n");
-            }
-        }
-
         else
-            panic1d("output_function_body_code(): Unknown operation: %d", tac->operation);
-
-        output_post_instruction_spill(tac, function_pc, stack_start);
+            output_x86_operation(tac, function_pc, stack_start);
 
         tac = tac->next;
     }
@@ -970,10 +638,7 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir2) print_ir(s->function, s->identifier);
 
-        if (!legacy_codegen)
-            experimental_instruction_selection(s);
-        else
-            optimize_and_allocate_registers(s->function);
+        experimental_instruction_selection(s);
 
         if (print_ir3) print_ir(s->function, s->identifier);
 

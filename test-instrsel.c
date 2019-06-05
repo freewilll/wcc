@@ -873,7 +873,7 @@ void test_instrsel_returns() {
 
     // String literal
     start_ir();
-    i(0, IR_LOAD_STRING_LITERAL, asz(1, TYPE_CHAR), s(1), 0);
+    i(0, IR_MOVE,   asz(1, TYPE_CHAR), s(1), 0);
     i(0, IR_RETURN, 0, asz(1, TYPE_CHAR), 0);
     finish_ir(function);
     assert_x86_op("leaq    .SL1(%rip), r2q");

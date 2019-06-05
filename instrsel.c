@@ -66,7 +66,6 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
 
              if (operation == IR_MOVE)                 printf("= (move)\n");
         else if (operation == IR_ASSIGN)               printf("= (assign)\n");
-        else if (operation == IR_LOAD_STRING_LITERAL)  printf("= (string literal)\n");
         else if (operation == IR_ADD)                  printf("+\n");
         else if (operation == IR_SUB)                  printf("-\n");
         else if (operation == IR_MUL)                  printf("*\n");
@@ -433,7 +432,7 @@ void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int ds
 
     e = src->graph->nodes[src_node_id].succ;
 
-    if (operation == IR_LOAD_CONSTANT || operation == IR_LOAD_STRING_LITERAL || operation == IR_LOAD_VARIABLE || operation == IR_ASSIGN) {
+    if (operation == IR_LOAD_CONSTANT || operation == IR_LOAD_VARIABLE || operation == IR_ASSIGN) {
         if (src_node_id == 0) {
             ign->tac->operation = IR_MOVE;
             operation = IR_MOVE;

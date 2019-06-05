@@ -32,7 +32,6 @@ Value *load(Value *src1) {
     dst = dup_value(src1);
     dst->vreg = new_vreg();
     dst->is_lvalue = 0;
-    dst->is_in_cpu_flags = 0;
 
     if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
@@ -40,11 +39,6 @@ Value *load(Value *src1) {
         src1->type += TYPE_PTR;
         src1->is_lvalue = 0;
         add_instruction(IR_INDIRECT, dst, src1, 0);
-    }
-    else if (src1->is_in_cpu_flags) {
-        dst->local_index = 0;
-        dst->global_symbol = 0;
-        add_instruction(IR_ASSIGN, dst, src1, 0);
     }
     else {
         // Load a value into a register. This could be a global or a local.
@@ -390,12 +384,8 @@ void add_jmp_target_instruction(Value *v) {
 }
 
 void add_conditional_jump(int operation, Value *dst) {
-    if (vtop->is_in_cpu_flags)
-        // Conditional jump instructions can cope with things in cpu flags.
-        add_instruction(operation, 0, pop(), dst);
-    else
         // Load the result into a register
-        add_instruction(operation, 0, pl(), dst);
+    add_instruction(operation, 0, pl(), dst);
 }
 
 // Add instructions for && and || operators
@@ -441,81 +431,12 @@ void arithmetic_operation(int operation, int type) {
 
     Value *src1, *src2, *t;
     Tac *tac;
-    long v1, v2;
-    int is_div_mod, vreg;
 
     if (!type) type = vs_operation_type();
+    if (vtop->is_constant) src2 = pop(); else src2 = pl();
+    if (vtop->is_constant) src1 = pop(); else src1 = pl();
 
-    is_div_mod = !legacy_codegen && (operation == IR_DIV || operation == IR_MOD);
-
-    if (    operation == IR_ADD || operation == IR_SUB || operation == IR_MUL || is_div_mod || operation == IR_BAND || operation == IR_BOR || operation == IR_XOR ||
-            operation == IR_EQ || operation == IR_NE || operation == IR_LT || operation == IR_GT || operation == IR_LE || operation == IR_GE ||
-            operation == IR_BSHL || operation == IR_BSHR) {
-
-        if (legacy_codegen && (vs[0])->is_constant && (vs[1])->is_constant) {
-            v2 = pop()->value;
-            v1 = pop()->value;
-                 if (operation == IR_ADD)  push(new_constant(type, v1 +  v2));
-            else if (operation == IR_SUB)  push(new_constant(type, v1 -  v2));
-            else if (operation == IR_MUL)  push(new_constant(type, v1 *  v2));
-            else if (operation == IR_DIV)  push(new_constant(type, v1 /  v2));
-            else if (operation == IR_MOD)  push(new_constant(type, v1 %  v2));
-            else if (operation == IR_BAND) push(new_constant(type, v1 &  v2));
-            else if (operation == IR_BOR)  push(new_constant(type, v1 |  v2));
-            else if (operation == IR_XOR)  push(new_constant(type, v1 ^  v2));
-            else if (operation == IR_EQ)   push(new_constant(type, v1 == v2));
-            else if (operation == IR_NE)   push(new_constant(type, v1 != v2));
-            else if (operation == IR_LT)   push(new_constant(type, v1 <  v2));
-            else if (operation == IR_GT)   push(new_constant(type, v1 >  v2));
-            else if (operation == IR_LE)   push(new_constant(type, v1 <= v2));
-            else if (operation == IR_GE)   push(new_constant(type, v1 >= v2));
-            else if (operation == IR_BSHL) push(new_constant(type, v1 << v2));
-            else if (operation == IR_BSHR) push(new_constant(type, v1 >> v2));
-            else panic1d("Unknown constant operation: %d", operation);
-            return;
-        }
-
-        if (vtop->is_constant) src2 = pop(); else src2 = pl();
-        if (vtop->is_constant) src1 = pop(); else src1 = pl();
-
-        // If the second arg is a constant, flip it to be the first for commutative operations,
-        // unless the new experimental instruction selection has been enabled, which replaces
-        // this.
-        if (legacy_codegen && operation != IR_SUB && operation != IR_BSHL && operation != IR_BSHR && src2->is_constant) {
-            t = src1;
-            src1 = src2;
-            src2 = t;
-
-            // Flip comparison operation
-                 if (operation == IR_LT) operation = IR_GT;
-            else if (operation == IR_GT) operation = IR_LT;
-            else if (operation == IR_LE) operation = IR_GE;
-            else if (operation == IR_GE) operation = IR_LE;
-        }
-    }
-    else {
-        src2 = pl();
-        src1 = pl();
-    }
-
-    // Store the result in the CPU flags for comparison operations
-    // It will get loaded into a register in later instructions if needed.
-    if (!legacy_codegen)
-        // The instruction selection code takes care of cpu flags for comparisons, so
-        // don't do it here.
-        vreg = new_vreg();
-    else if (operation == IR_GT || operation == IR_LT || operation == IR_GE || operation == IR_LE || operation == IR_EQ || operation == IR_NE)
-        vreg = 0;
-    else
-        vreg = new_vreg();
-
-    tac = add_ir_op(operation, type, vreg, src1, src2);
-
-    // Set flag to be used by turn_around_jz_jnz_insanity code
-    if (!legacy_codegen && (operation == IR_GT || operation == IR_LT || operation == IR_GE || operation == IR_LE || operation == IR_EQ || operation == IR_NE))
-        tac->dst->is_in_cpu_flags = 1;
-
-    if (!vreg) tac->dst->is_in_cpu_flags = 1;
+    tac = add_ir_op(operation, type, new_vreg(), src1, src2);
 }
 
 void parse_arithmetic_operation(int level, int operation, int type) {
@@ -569,14 +490,8 @@ void expression(int level) {
         expression(TOK_INC);
         if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
 
-        if (!legacy_codegen) {
-            src1 = pop();
-            tac = add_ir_op(IR_ADDRESS_OF, src1->type + TYPE_PTR, new_vreg(), src1, 0);
-        }
-        else {
-            vtop->is_lvalue = 0;
-            vtop->type += TYPE_PTR;
-        }
+        src1 = pop();
+        tac = add_ir_op(IR_ADDRESS_OF, src1->type + TYPE_PTR, new_vreg(), src1, 0);
     }
 
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
@@ -622,29 +537,21 @@ void expression(int level) {
         next();
         if (cur_token_is_type()) {
             // cast
-            if (!legacy_codegen) {
-                org_type = parse_type();
-                consume(TOK_RPAREN, ")");
-                expression(TOK_INC);
+            org_type = parse_type();
+            consume(TOK_RPAREN, ")");
+            expression(TOK_INC);
 
-                v1 = pl();
-                if (v1->type != org_type) {
-                    dst = new_value();
-                    dst->vreg = new_vreg();
-                    dst->type = org_type;
-                    add_instruction(IR_CAST, dst, v1, 0);
-                    push(dst);
-                }
-                else {
-                    v1->type = org_type;
-                    push(v1);
-                }
+            v1 = pl();
+            if (v1->type != org_type) {
+                dst = new_value();
+                dst->vreg = new_vreg();
+                dst->type = org_type;
+                add_instruction(IR_CAST, dst, v1, 0);
+                push(dst);
             }
             else {
-                org_type = parse_type();
-                consume(TOK_RPAREN, ")");
-                expression(TOK_INC);
-                vtop->type = org_type;
+                v1->type = org_type;
+                push(v1);
             }
         }
         else {
@@ -671,7 +578,7 @@ void expression(int level) {
         if (string_literal_count >= MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);
 
         push(dst);
-        add_instruction(IR_LOAD_STRING_LITERAL, dst, src1, 0);
+        add_instruction(IR_MOVE, dst, src1, 0);
         next();
     }
 

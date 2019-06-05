@@ -19,11 +19,10 @@ int main(int argc, char **argv) {
     long *times;
     long first_time;
 
-    command_count = 3;
+    command_count = 2;
     commands = malloc(sizeof(char *) * command_count);
     commands[0] = "./wc4  wc4.c                -c -S -o /dev/null";
-    commands[1] = "./wc42-legacy-codegen wc4.c -c -S -o /dev/null";
-    commands[2] = "./wc42 wc4.c                -c -S -o /dev/null";
+    commands[1] = "./wc42 wc4.c                -c -S -o /dev/null";
 
     run_count = 21; // Must be odd for the median to work correctly
     times = malloc(sizeof(long) * run_count);
