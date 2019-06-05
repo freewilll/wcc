@@ -1428,12 +1428,6 @@ void coalesce_live_range(Function *function, int src, int dst) {
         }
     }
 
-    // for (i = 0; i < interference_graph->edge_count; i++) {
-    //     changed = 0;
-    //     if (edges[i].from == src) { edges[i].from = dst; changed = 1; }
-    //     if (edges[i].to   == src) { edges[i].to   = dst; changed = 1; }
-    // }
-
     // Migrate liveouts
     block_count = function->cfg->node_count;
     for (i = 0; i < block_count; i++) {

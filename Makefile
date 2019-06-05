@@ -24,10 +24,10 @@ build:
 	@mkdir -p build/wc43-legacy-codegen
 
 %.o: %.c wc4.h build
-	gcc -c $< -o $@ -g -Wno-return-type -D _GNU_SOURCE
+	gcc -c $< -o $@ -g -Wno-return-type -D _GNU_SOURCE -pg
 
 wc4: ${OBJECTS} wc4.h
-	gcc ${OBJECTS} -o wc4 -g -Wno-return-type -D _GNU_SOURCE
+	gcc ${OBJECTS} -o wc4 -g -Wno-return-type -D _GNU_SOURCE -pg
 
 # wc42
 WC42_SOURCES := ${SOURCES:%=build/wc42/%}
