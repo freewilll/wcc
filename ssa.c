@@ -589,6 +589,7 @@ void make_liveout(Function *function) {
     Tac *tac;
     Graph *cfg;
     GraphEdge *e;
+    char *all_vars_elements, *unions_elements, *successor_block_liveout_elements, *successor_block_varkill_elements, *successor_block_uevar_elements;
 
     blocks = function->blocks;
     cfg = function->cfg;
@@ -605,6 +606,8 @@ void make_liveout(Function *function) {
 
     // Set all_vars to {0, 1, 2, ... n}, i.e. the set of all vars in a block
     all_vars = new_set(vreg_count);
+    all_vars_elements = all_vars->elements;
+
     for (i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
@@ -618,6 +621,7 @@ void make_liveout(Function *function) {
     }
 
     unions = new_set(vreg_count);
+    unions_elements = unions->elements;
     inv_varkill = new_set(vreg_count);
     is1 = new_set(vreg_count);
     is2 = new_set(vreg_count);
@@ -635,14 +639,17 @@ void make_liveout(Function *function) {
             while (e) {
                 // Got a successor edge from i -> successor_block
                 successor_block = e->to->id;
+                successor_block_liveout_elements = function->liveout[successor_block]->elements;
+                successor_block_varkill_elements = function->varkill[successor_block]->elements;
+                successor_block_uevar_elements = function->uevar[successor_block]->elements;
 
                 for (k = 1; k <= vreg_count; k++) {
                     unions->elements[k] =
-                        (function->liveout[successor_block]->elements[k] &&                             // intersection
-                            (all_vars->elements[k] && !function->varkill[successor_block]->elements[k]) // difference
-                        ) ||                                                                            // union
-                        function->uevar[successor_block]->elements[k] ||                                // union
-                        unions->elements[k];
+                        successor_block_uevar_elements[k] ||                               // union
+                        unions_elements[k] ||                                              // union
+                        (successor_block_liveout_elements[k] &&                            // intersection
+                            (all_vars_elements[k] && !successor_block_varkill_elements[k]) // difference
+                        );
                 }
 
                 e = e->next_succ;
