@@ -421,7 +421,7 @@ void make_igraphs(Function *function, int block_id) {
     eis_instr_count = instr_count;
 }
 
-void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int dst_parent_node_id, int *dst_node_id, int parent_was_a_move) {
+void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int dst_parent_node_id, int *dst_node_id) {
     int operation;
     IGraphNode *ign;
     GraphEdge *e;
@@ -438,7 +438,7 @@ void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int ds
             operation = IR_MOVE;
         }
         else {
-            recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id, 1);
+            recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
             return;
         }
     }
@@ -450,7 +450,7 @@ void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int ds
     (*dst_node_id)++;
 
     while (e) {
-        recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id, operation == IR_MOVE);
+        recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
         e = e->next_succ;
     }
 }
@@ -478,7 +478,7 @@ IGraph *simplify_igraph(IGraph *src) {
     }
 
     dst_node_id = 0;
-    recursive_simplify_igraph(src, dst, 0, -1, &dst_node_id, 0);
+    recursive_simplify_igraph(src, dst, 0, -1, &dst_node_id);
     if (DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION) printf("\n");
 
     if (DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION) {
