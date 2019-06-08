@@ -44,7 +44,7 @@ void optimize_arithmetic_operations(Function *function) {
 
         if (tac->operation == IR_MUL && cv) {
             if (c == 0) {
-                tac->operation = IR_LOAD_CONSTANT;
+                tac->operation = IR_MOVE;
                 tac->src1 = new_constant(tac->dst->type, 0);
                 tac->src2 = 0;
             }
@@ -88,7 +88,7 @@ void optimize_arithmetic_operations(Function *function) {
                 panic("Illegal modulus by zero");
 
             else if (c == 1) {
-                tac->operation = IR_LOAD_CONSTANT;
+                tac->operation = IR_MOVE;
                 tac->src1 = new_constant(tac->dst->type, 0);
                 tac->src2 = 0;
             }

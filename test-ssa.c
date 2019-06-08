@@ -104,7 +104,7 @@ void test_arithmetic_optimization_div() {
 void test_arithmetic_optimization_mod() {
     // v2 = v1 % 1
     run_arithmetic_optimization(IR_MOD, v(1), c(1));
-    assert(IR_LOAD_CONSTANT, ir_start->operation);
+    assert(IR_MOVE, ir_start->operation);
     assert(0, ir_start->src1->vreg);
 
     // v2 = v1 % 2

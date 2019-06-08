@@ -215,7 +215,6 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 char *operation_string(int operation) {
          if (!operation)                            return "";
     else if (operation == IR_MOVE)                  return "IR_MOVE";
-    else if (operation == IR_LOAD_CONSTANT)         return "IR_LOAD_CONSTANT";
     else if (operation == IR_LOAD_VARIABLE)         return "IR_LOAD_VARIABLE";
     else if (operation == IR_CAST)                  return "IR_CAST";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
@@ -314,7 +313,7 @@ void print_instruction(void *f, Tac *tac) {
             fprintf(f, " = ");
     }
 
-    if (o == IR_MOVE ||o == IR_LOAD_CONSTANT || o == IR_LOAD_VARIABLE || o == IR_CAST) {
+    if (o == IR_MOVE || o == IR_LOAD_VARIABLE || o == IR_CAST) {
         print_value(f, tac->src1, 1);
     }
 

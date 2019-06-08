@@ -61,7 +61,7 @@ Value *load_constant(Value *cv) {
     v = new_value();
     v->vreg = new_vreg();
     v->type = TYPE_LONG;
-    add_instruction(IR_LOAD_CONSTANT, v, cv, 0);
+    add_instruction(IR_MOVE, v, cv, 0);
     return v;
 }
 

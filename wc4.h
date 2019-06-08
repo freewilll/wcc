@@ -288,8 +288,7 @@ enum {
 
 // Intermediate representation operations
 enum {
-    IR_MOVE=1,                // Merger of IR_LOAD_CONSTANT, IR_LOAD_STRING_LITERAL, IR_LOAD_VARIABLE, IR_ASSIGN // TODO MOVE to top
-    IR_LOAD_CONSTANT,         // Load constant
+    IR_MOVE=1,                // Moving of constants, string literals, variables, or registers
     IR_LOAD_VARIABLE,         // Load global or local
     IR_ASSIGN,                // Assignment/store. Target is either a global, local, lvalue in register or register
     IR_ASSIGN_TO_REG_LVALUE,  // Assignment to an lvalue in a register
