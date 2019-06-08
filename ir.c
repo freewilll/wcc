@@ -215,7 +215,6 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 char *operation_string(int operation) {
          if (!operation)                            return "";
     else if (operation == IR_MOVE)                  return "IR_MOVE";
-    else if (operation == IR_LOAD_VARIABLE)         return "IR_LOAD_VARIABLE";
     else if (operation == IR_CAST)                  return "IR_CAST";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
     else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
@@ -313,7 +312,7 @@ void print_instruction(void *f, Tac *tac) {
             fprintf(f, " = ");
     }
 
-    if (o == IR_MOVE || o == IR_LOAD_VARIABLE || o == IR_CAST) {
+    if (o == IR_MOVE || o == IR_CAST) {
         print_value(f, tac->src1, 1);
     }
 
@@ -569,9 +568,6 @@ void assign_locals_to_registers(Symbol *function) {
             if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
             if (tac->src1 && tac->src1->local_index == -i) assign_local_to_register(tac->src1, vreg);
             if (tac->src2 && tac->src2->local_index == -i) assign_local_to_register(tac->src2, vreg);
-            if (tac->operation == IR_LOAD_VARIABLE && tac->src1->vreg == vreg)
-                tac->operation = IR_ASSIGN;
-
             tac = tac ->next;
         }
     }

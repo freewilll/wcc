@@ -171,6 +171,18 @@ void nuke_rule(int non_terminal, int operation, int src1, int src2) {
     }
 }
 
+void test_instrsel_tree_merging_type_merges() {
+    // Ensure type conversions are merged correctly. This tests a void * being converted to a char *
+    remove_reserved_physical_registers = 1;
+    start_ir();
+    i(0, IR_MOVE,                 asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
+    i(0, IR_ASSIGN_TO_REG_LVALUE, vsz(2, TYPE_CHAR), vsz(2, TYPE_CHAR), c(1));
+    finish_ir(function);
+    assert_x86_op("movq    r1q, r4q");
+    assert_x86_op("movq    r4q, r2q");
+    assert_x86_op("movb    $1, (r2q)");
+}
+
 void test_instrsel_tree_merging() {
     int j;
     Tac *tac;
@@ -230,16 +242,6 @@ void test_instrsel_tree_merging() {
     assert_x86_op("leaq    g1(%rip), r3q");
     assert_x86_op("movq    r3q, r1q"     );
     assert_x86_op("movq    $1, (r1q)"    );
-
-    // Ensure type conversions are merged correctly. This tests a void * being converted to a char *
-    remove_reserved_physical_registers = 1;
-    start_ir();
-    i(0, IR_MOVE,                 asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
-    i(0, IR_ASSIGN_TO_REG_LVALUE, vsz(2, TYPE_CHAR), vsz(2, TYPE_CHAR), c(1));
-    finish_ir(function);
-    assert_x86_op("movq    r1q, r4q");
-    assert_x86_op("movq    r4q, r2q");
-    assert_x86_op("movb    $1, (r2q)");
 
     // Test tree merges only happening on adjacent trees.
     // This is realistic example of a value swap of two values in memory.
@@ -524,21 +526,21 @@ void test_instrsel() {
     finish_ir(function);
     assert_tac(ir_start, X_MOV, v(1), S(1), 0);
 
-    // Load g into r1 using IR_LOAD_VARIABLE
+    // Load g into r1 using IR_MOVE
     start_ir();
-    i(0, IR_LOAD_VARIABLE, v(1), g(1), 0);
+    i(0, IR_MOVE, v(1), g(1), 0);
     finish_ir(function);
     assert_tac(ir_start, X_MOV, v(1), g(1), 0);
 
-    // Load S into r1 using IR_LOAD_VARIABLE
+    // Load S into r1 using IR_MOVE
     start_ir();
-    i(0, IR_LOAD_VARIABLE, v(1), S(1), 0);
+    i(0, IR_MOVE, v(1), S(1), 0);
     finish_ir(function);
     assert_tac(ir_start, X_MOV, v(1), S(1), 0);
 
-    // Load Si into r1l using IR_LOAD_VARIABLE
+    // Load Si into r1l using IR_MOVE
     start_ir();
-    i(0, IR_LOAD_VARIABLE, v(1), Ssz(1, TYPE_INT), 0);
+    i(0, IR_MOVE, v(1), Ssz(1, TYPE_INT), 0);
     finish_ir(function);
     assert_x86_op("movslq  16(%rbp), r2q");
     assert_x86_op("movq    r2q, r1q");
@@ -1243,7 +1245,7 @@ void test_pointer_indirect_global_char_in_struct_to_long() {
     // r10:long = r6:char
     // Note: not using TYPE_STRUCT, but the test is still valid.
     start_ir();
-    i(0, IR_LOAD_VARIABLE, vsz(1, TYPE_CHAR + TYPE_PTR), gsz(1, TYPE_CHAR + TYPE_PTR), 0);
+    i(0, IR_MOVE,          vsz(1, TYPE_CHAR + TYPE_PTR), gsz(1, TYPE_CHAR + TYPE_PTR), 0);
     i(0, IR_INDIRECT,      vsz(3, TYPE_CHAR),            vsz(1, TYPE_CHAR + TYPE_PTR), 0);
     i(0, IR_ASSIGN,        vsz(4, TYPE_LONG),            vsz(3, TYPE_CHAR),            0);
     finish_ir(function);
@@ -1256,7 +1258,7 @@ void test_pointer_to_void_arg() {
     remove_reserved_physical_registers = 1;
 
     start_ir();
-    i(0, IR_LOAD_VARIABLE, v(1), Ssz(1, TYPE_PTR + TYPE_VOID), 0);
+    i(0, IR_MOVE, v(1), Ssz(1, TYPE_PTR + TYPE_VOID), 0);
     i(0, IR_ARG, 0, c(0), v(1));
     finish_ir(function);
     assert_x86_op("movq    16(%rbp), r2q");
@@ -1318,7 +1320,7 @@ void test_pointer_comparisons() {
     remove_reserved_physical_registers = 1;
 
     start_ir();
-    i(0, IR_LOAD_VARIABLE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
+    i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
     i(0, IR_EQ,            v(3),                         vsz(2, TYPE_PTR + TYPE_VOID), c(1));
     i(0, IR_JZ,            0,                            v(3),                         l(1));
     i(1, IR_NOP,           0,                            0,                            0   );
@@ -1328,7 +1330,7 @@ void test_pointer_comparisons() {
     assert_x86_op("jne     .l1");
 
     start_ir();
-    i(0, IR_LOAD_VARIABLE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
+    i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
     i(0, IR_EQ,            v(3),                         c(1),                         vsz(2, TYPE_PTR + TYPE_VOID));
     i(0, IR_JZ,            0,                            v(3),                         l(1));
     i(1, IR_NOP,           0,                            0,                            0   );
@@ -1467,10 +1469,13 @@ void test_spilling() {
     tac = i(0, IR_ASSIGN,               asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
     tac = i(0, IR_ASSIGN_TO_REG_LVALUE, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq    -8(%rbp), %r10");
+    assert_rx86_preg_op("movq    -16(%rbp), %r10");
     assert_rx86_preg_op("movq    %r10, %r11"     );
-    assert_rx86_preg_op("movq    %r11, 0(%rbp)" );
-    assert_rx86_preg_op("movq    0(%rbp), %r10" );
+    assert_rx86_preg_op("movq    %r11, -8(%rbp)" );
+    assert_rx86_preg_op("movq    -8(%rbp), %r10" );
+    assert_rx86_preg_op("movq    %r10, %r11"     );
+    assert_rx86_preg_op("movq    %r11, 0(%rbp)"  );
+    assert_rx86_preg_op("movq    0(%rbp), %r10"  );
     assert_rx86_preg_op("movl    $1, (%r10)"     );
 }
 
@@ -1486,6 +1491,7 @@ int main() {
     init_instruction_selection_rules();
 
     test_instrsel_tree_merging();
+    test_instrsel_tree_merging_type_merges();
     test_instrsel_constant_loading();
     test_instrsel();
     test_instrsel_types_add_vregs();

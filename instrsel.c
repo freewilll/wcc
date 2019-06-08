@@ -75,7 +75,6 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_BSHR)                 printf(">>\n");
         else if (operation == IR_INDIRECT)             printf("indirect\n");
         else if (operation == IR_ADDRESS_OF)           printf("&\n");
-        else if (operation == IR_LOAD_VARIABLE)        printf("= (load variable)\n");
         else if (operation == IR_CAST)                 printf("= (cast)\n");
         else if (operation == IR_ASSIGN_TO_REG_LVALUE) printf("assign to lvalue\n");
         else if (operation == IR_NOP)                  printf("noop\n");
@@ -422,23 +421,26 @@ void make_igraphs(Function *function, int block_id) {
 
 void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int dst_parent_node_id, int *dst_node_id) {
     int operation;
+    Tac *tac;
     IGraphNode *ign;
     GraphEdge *e;
 
     ign = &(src->nodes[src_node_id]);
 
-    if (ign->tac) operation = ign->tac->operation; else operation = 0;
+    tac = ign->tac;
+    if (tac) operation = tac->operation; else operation = 0;
 
     e = src->graph->nodes[src_node_id].succ;
 
-    if (operation == IR_LOAD_VARIABLE || operation == IR_ASSIGN) {
-        if (src_node_id == 0) {
-            ign->tac->operation = IR_MOVE;
-            operation = IR_MOVE;
-        }
-        else {
-            recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
-            return;
+    if (operation == IR_ASSIGN || operation == IR_MOVE) {
+        tac->operation = IR_MOVE;
+        operation = IR_MOVE;
+
+        if (src_node_id != 0) {
+            if (tac->dst->type == tac->src1->type) {
+                recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
+                return;
+            }
         }
     }
 

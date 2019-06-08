@@ -44,7 +44,7 @@ Value *load(Value *src1) {
         // Load a value into a register. This could be a global or a local.
         dst->local_index = 0;
         dst->global_symbol = 0;
-        add_instruction(IR_LOAD_VARIABLE, dst, src1, 0);
+        add_instruction(IR_MOVE, dst, src1, 0);
     }
 
     return dst;
@@ -61,7 +61,7 @@ Value *load_constant(Value *cv) {
     v = new_value();
     v->vreg = new_vreg();
     v->type = TYPE_LONG;
-    add_instruction(IR_MOVE, v, cv, 0);
+    add_instruction(IR_ASSIGN, v, cv, 0);
     return v;
 }
 
