@@ -225,8 +225,7 @@ char *operation_string(int operation) {
     else if (operation == IR_RETURN)                return "IR_RETURN";
     else if (operation == IR_START_LOOP)            return "IR_START_LOOP";
     else if (operation == IR_END_LOOP)              return "IR_END_LOOP";
-    else if (operation == IR_ASSIGN)                return "IR_ASSIGN";
-    else if (operation == IR_ASSIGN_TO_REG_LVALUE)  return "IR_ASSIGN_TO_REG_LVALUE";
+    else if (operation == IR_MOVE_TO_REG_LVALUE)    return "IR_MOVE_TO_REG_LVALUE";
     else if (operation == IR_NOP)                   return "IR_NOP";
     else if (operation == IR_JMP)                   return "IR_JMP";
     else if (operation == IR_JZ)                    return "IR_JZ";
@@ -305,7 +304,7 @@ void print_instruction(void *f, Tac *tac) {
     }
 
     if (tac->dst && o < X_START) {
-        print_value(f, tac->dst, o != IR_ASSIGN);
+        print_value(f, tac->dst, o != IR_MOVE);
         if (o == IR_CAST)
             fprintf(f, " = (cast) ");
         else
@@ -340,12 +339,12 @@ void print_instruction(void *f, Tac *tac) {
     else if (o == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
     else if (o == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
 
-    else if (o == IR_ASSIGN)
+    else if (o == IR_MOVE)
         print_value(f, tac->src1, 1);
 
-    else if (o == IR_ASSIGN_TO_REG_LVALUE) {
+    else if (o == IR_MOVE_TO_REG_LVALUE) {
         print_value(f, tac->src1, 0);
-        fprintf(f, " = (assign to reg lvalue) ");
+        fprintf(f, " = (move to reg lvalue) ");
         print_value(f, tac->src2, 1);
     }
 

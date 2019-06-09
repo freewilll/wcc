@@ -28,7 +28,7 @@ void set_assign_to_reg_lvalue_dsts(Function *function) {
 
     tac = function->ir;
     while (tac) {
-        if (tac->operation == IR_ASSIGN_TO_REG_LVALUE) {
+        if (tac->operation == IR_MOVE_TO_REG_LVALUE) {
             tac->src1 = dup_value(tac->src1);
             tac->src1->type += TYPE_PTR;
             tac->src1->is_lvalue = 0;
@@ -65,7 +65,6 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         operation = ign->tac->operation;
 
              if (operation == IR_MOVE)                 printf("= (move)\n");
-        else if (operation == IR_ASSIGN)               printf("= (assign)\n");
         else if (operation == IR_ADD)                  printf("+\n");
         else if (operation == IR_SUB)                  printf("-\n");
         else if (operation == IR_MUL)                  printf("*\n");
@@ -76,7 +75,7 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_INDIRECT)             printf("indirect\n");
         else if (operation == IR_ADDRESS_OF)           printf("&\n");
         else if (operation == IR_CAST)                 printf("= (cast)\n");
-        else if (operation == IR_ASSIGN_TO_REG_LVALUE) printf("assign to lvalue\n");
+        else if (operation == IR_MOVE_TO_REG_LVALUE) printf("assign to lvalue\n");
         else if (operation == IR_NOP)                  printf("noop\n");
         else if (operation == IR_RETURN)               printf("return\n");
         else if (operation == IR_START_CALL)           printf("start call\n");
@@ -352,7 +351,7 @@ void make_igraphs(Function *function, int block_id) {
             vreg_igraphs[src2].igraph_id = i;
         }
 
-        if (tac->operation != IR_ASSIGN_TO_REG_LVALUE && dst && (src1 && dst == src1) || (src2 && dst == src2)) {
+        if (tac->operation != IR_MOVE_TO_REG_LVALUE && dst && (src1 && dst == src1) || (src2 && dst == src2)) {
             print_instruction(stdout, tac);
             panic("Illegal assignment of src1/src2 to dst");
         }
@@ -368,7 +367,7 @@ void make_igraphs(Function *function, int block_id) {
         // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL contraints don't permit
         // rearranging function calls without dire dowmstream side effects.
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
-            tac->operation != IR_CALL && tac->operation != IR_ASSIGN_TO_REG_LVALUE &&
+            tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_REG_LVALUE &&
             igraphs_are_neighbors(igraphs, i, g1_igraph_id)) {
 
             if (DEBUG_INSTSEL_TREE_MERGING) {
@@ -387,7 +386,7 @@ void make_igraphs(Function *function, int block_id) {
             if (src2) vreg_igraphs[src2].igraph_id = g1_igraph_id;
         }
 
-        if (dst && tac->operation != IR_ASSIGN_TO_REG_LVALUE)
+        if (dst && tac->operation != IR_MOVE_TO_REG_LVALUE)
             vreg_igraphs[dst].count = 0;
 
         i--;
@@ -432,10 +431,7 @@ void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int ds
 
     e = src->graph->nodes[src_node_id].succ;
 
-    if (operation == IR_ASSIGN || operation == IR_MOVE) {
-        tac->operation = IR_MOVE;
-        operation = IR_MOVE;
-
+    if (operation == IR_MOVE) {
         if (src_node_id != 0) {
             if (tac->dst->type == tac->src1->type) {
                 recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);

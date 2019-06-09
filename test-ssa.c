@@ -50,12 +50,12 @@ void test_arithmetic_optimization_mul() {
 
     // v2 = 1 * v1
     run_arithmetic_optimization(IR_MUL, c(1), v(1));
-    assert(IR_ASSIGN, ir_start->operation);
+    assert(IR_MOVE, ir_start->operation);
     assert(1, ir_start->src1->vreg);
 
     // v2 = v1 * 1
     run_arithmetic_optimization(IR_MUL, v(1), c(1));
-    assert(IR_ASSIGN, ir_start->operation);
+    assert(IR_MOVE, ir_start->operation);
     assert(1, ir_start->src1->vreg);
 
     // v2 = 2 * v1
@@ -83,7 +83,7 @@ void test_arithmetic_optimization_mul() {
 void test_arithmetic_optimization_div() {
     // v2 = v1 / 1
     run_arithmetic_optimization(IR_DIV, v(1), c(1));
-    assert(IR_ASSIGN, ir_start->operation);
+    assert(IR_MOVE, ir_start->operation);
     assert(1, ir_start->src1->vreg);
 
     // v2 = v1 / 2
@@ -220,9 +220,9 @@ void test_liveout1() {
 
     ir_start = 0;
     i(0, IR_NOP,    0,    0,    0   );
-    i(0, IR_ASSIGN, v(1), c(1), 0   );
+    i(0, IR_MOVE,   v(1), c(1), 0   );
     i(1, IR_JZ,     0,    v(1), l(2));
-    i(0, IR_ASSIGN, v(2), c(0), 0   );
+    i(0, IR_MOVE,   v(2), c(0), 0   );
     i(2, IR_ADD,    v(2), v(1), v(2));
     i(0, IR_ADD,    v(1), v(1), c(1));
     i(0, IR_JZ,     0,    v(1), l(1));
@@ -278,33 +278,33 @@ Function *make_ir2(int init_four_vars) {
 
     if (init_four_vars) {
         // Initialize a, b, c, d
-        i(0, IR_ASSIGN,  v(2), c(1), 0);
-        i(0, IR_ASSIGN,  v(3), c(1), 0);
-        i(0, IR_ASSIGN,  v(4), c(1), 0);
-        i(0, IR_ASSIGN,  v(5), c(1), 0);
+        i(0, IR_MOVE, v(2), c(1), 0);
+        i(0, IR_MOVE, v(3), c(1), 0);
+        i(0, IR_MOVE, v(4), c(1), 0);
+        i(0, IR_MOVE, v(5), c(1), 0);
     }
 
-    i(0, IR_ASSIGN,  v(1), c(1), 0   );
-    i(1, IR_ASSIGN,  v(2), c(1), 0   );
-    i(0, IR_ASSIGN,  v(4), c(1), 0   );
+    i(0, IR_MOVE,    v(1), c(1), 0   );
+    i(1, IR_MOVE,    v(2), c(1), 0   );
+    i(0, IR_MOVE,    v(4), c(1), 0   );
     i(0, IR_ADD,     0,    v(2), v(4)); // Fake conditional on a and c
     i(0, IR_JZ,      0,    v(2), l(5));
-    i(0, IR_ASSIGN,  v(3), c(0), 0   );
-    i(0, IR_ASSIGN,  v(4), c(0), 0   );
-    i(0, IR_ASSIGN,  v(5), c(0), 0   );
+    i(0, IR_MOVE,    v(3), c(0), 0   );
+    i(0, IR_MOVE,    v(4), c(0), 0   );
+    i(0, IR_MOVE,    v(5), c(0), 0   );
     i(3, IR_ADD,     v(6), v(2), v(3));
     i(0, IR_ADD,     v(7), v(4), v(5));
     i(0, IR_ADD,     v(1), v(1), c(1));
     i(0, IR_JZ,      0,    v(1), l(1));
     i(0, IR_RETURN,  0,    0,    0   );
-    i(5, IR_ASSIGN,  v(2), c(0), 0   );
-    i(0, IR_ASSIGN,  v(5), c(0), 0   );
+    i(5, IR_MOVE,    v(2), c(0), 0   );
+    i(0, IR_MOVE,    v(5), c(0), 0   );
     i(0, IR_ADD,     0,    v(2), v(5)); // Fake conditional on a and d
     i(0, IR_JZ,      0,    v(2), l(8));
-    i(0, IR_ASSIGN,  v(5), c(0), 0   );
-    i(7, IR_ASSIGN,  v(3), c(0), 0   );
+    i(0, IR_MOVE,    v(5), c(0), 0   );
+    i(7, IR_MOVE,    v(3), c(0), 0   );
     i(0, IR_JMP,     0,    l(3), 0   );
-    i(8, IR_ASSIGN,  v(4), c(0), 0   );
+    i(8, IR_MOVE,    v(4), c(0), 0   );
     i(0, IR_JMP,     0,    l(7), 0   );
 
     function->ir = ir_start;
@@ -511,14 +511,14 @@ void test_phi_renumbering2() {
     function = new_function();
     ir_start = 0;
 
-    i(0, IR_NOP,    0,    0,    0  );
-    i(0, IR_ASSIGN, v(1), c(0), 0  );
-    i(0, IR_JZ,     0,    v(1), l(1));
-    i(0, IR_ASSIGN, v(1), c(1), 0  );
-    i(0, IR_JZ,     0,    v(1), l(1));
-    i(0, IR_ASSIGN, v(1), c(2), 0  );
-    i(1, IR_NOP,    0,    0,    0  );
-    i(0, IR_ASSIGN, v(2), v(1), 0  );
+    i(0, IR_NOP,  0,    0,    0  );
+    i(0, IR_MOVE, v(1), c(0), 0  );
+    i(0, IR_JZ,   0,    v(1), l(1));
+    i(0, IR_MOVE, v(1), c(1), 0  );
+    i(0, IR_JZ,   0,    v(1), l(1));
+    i(0, IR_MOVE, v(1), c(2), 0  );
+    i(1, IR_NOP,  0,    0,    0  );
+    i(0, IR_MOVE, v(2), v(1), 0  );
 
     function->ir = ir_start;
 
@@ -541,19 +541,19 @@ Function *make_ir3(int loop_count) {
 
     ir_start = 0;
     i(0, IR_NOP,    0,    0,    0   );
-    i(0, IR_ASSIGN, v(1), c(1), 0   ); // a = 0
+    i(0, IR_MOVE,   v(1), c(1), 0   ); // a = 0
     i(0, IR_JZ,     0,    v(1), l(1)); // jz l1
-    i(0, IR_ASSIGN, v(2), c(0), 0   ); // b   = 0
+    i(0, IR_MOVE,   v(2), c(0), 0   ); // b   = 0
     i(0, IR_ADD,    0,    v(2), v(2)); // ... = b
-    i(0, IR_ASSIGN, v(4), c(0), 0   ); // d   = 0
-    i(0, IR_JMP,     0,   l(2), 0   ); // jmp l2
+    i(0, IR_MOVE,   v(4), c(0), 0   ); // d   = 0
+    i(0, IR_JMP,    0 ,   l(2), 0   ); // jmp l2
     i(1, IR_NOP,    0,    0,    0   );
     if (loop_count > 0) i(0, IR_START_LOOP,  0, c(0), c(1));
     if (loop_count > 1) i(0, IR_START_LOOP,  0, c(1), c(2));
-    i(0, IR_ASSIGN, v(3), c(0), 0   ); // c   = 0
+    i(0, IR_MOVE,   v(3), c(0), 0   ); // c   = 0
     if (loop_count > 1) i(0, IR_END_LOOP,  0, c(1), c(2));
     if (loop_count > 0) i(0, IR_END_LOOP,  0, c(0), c(1));
-    i(0, IR_ASSIGN, v(4), v(3), 0   ); // d   = c
+    i(0, IR_MOVE,   v(4), v(3), 0   ); // d   = c
     i(2, IR_NOP,    0,    0,    0   );
     i(0, IR_ADD,    0,    v(1), v(1)); // ... = a
     i(0, IR_ADD,    0,    v(4), v(4)); // ... = d
@@ -637,12 +637,12 @@ void test_interference_graph3() {
 
     ir_start = 0;
 
-    i(0, IR_NOP,    0,    0,    0   );
-    i(0, IR_ASSIGN, v(1), c(1), 0   ); // a   = 0
-    i(0, IR_ASSIGN, v(2), c(1), 0   ); // b   = 0
-    i(0, IR_ASSIGN, v(3), v(2), 0   ); // c   = b  c interferes with a, but not with b
-    i(0, IR_ADD,    0,    v(3), v(3)); // ... = c
-    i(0, IR_ADD,    0,    v(1), v(1)); // ... = a
+    i(0, IR_NOP,  0,    0,    0   );
+    i(0, IR_MOVE, v(1), c(1), 0   ); // a   = 0
+    i(0, IR_MOVE, v(2), c(1), 0   ); // b   = 0
+    i(0, IR_MOVE, v(3), v(2), 0   ); // c   = b  c interferes with a, but not with b
+    i(0, IR_ADD,  0,    v(3), v(3)); // ... = c
+    i(0, IR_ADD,  0,    v(1), v(1)); // ... = a
 
     function->ir = ir_start;
 

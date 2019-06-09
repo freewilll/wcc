@@ -50,7 +50,7 @@ void optimize_arithmetic_operations(Function *function) {
             }
 
             else if (c == 1) {
-                tac->operation = IR_ASSIGN;
+                tac->operation = IR_MOVE;
                 tac->src1 = v;
                 tac->src2 = 0;
             }
@@ -69,7 +69,7 @@ void optimize_arithmetic_operations(Function *function) {
                 panic("Illegal division by zero");
 
             else if (c == 1) {
-                tac->operation = IR_ASSIGN;
+                tac->operation = IR_MOVE;
                 tac->src1 = v;
                 tac->src2 = 0;
             }
@@ -115,8 +115,8 @@ void rewrite_lvalue_reg_assignments(Function *function) {
 
     tac = function->ir;
     while (tac) {
-        if (tac->operation == IR_ASSIGN && tac->dst->vreg && tac->dst->is_lvalue) {
-            tac->operation = IR_ASSIGN_TO_REG_LVALUE;
+        if (tac->operation == IR_MOVE && tac->dst->vreg && tac->dst->is_lvalue) {
+            tac->operation = IR_MOVE_TO_REG_LVALUE;
             tac->src2 = tac->src1;
             tac->src1 = tac->dst;
             tac->src1->is_lvalue_in_register = 1;
@@ -1312,7 +1312,7 @@ void make_interference_graph(Function *function) {
 
                     // Don't add an edge for register copies
                     if ((
-                        tac->operation == IR_ASSIGN ||
+                        tac->operation == IR_MOVE ||
                         tac->operation == X_MOV ||
                         tac->operation == X_MOVZBW ||
                         tac->operation == X_MOVZBL ||
@@ -1384,7 +1384,7 @@ void coalesce_live_range(Function *function, int src, int dst) {
         if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
         if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
 
-        if (tac->operation == IR_ASSIGN && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+        if (tac->operation == IR_MOVE && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
             tac->operation = IR_NOP;
             tac->dst = 0;
             tac->src1 = 0;
@@ -1469,7 +1469,7 @@ void coalesce_live_ranges(Function *function) {
 
         tac = function->ir;
         while (tac) {
-            if (tac->operation == IR_ASSIGN && tac->dst->vreg && tac->src1->vreg)
+            if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg)
                 merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
             tac = tac->next;
         }
@@ -1867,7 +1867,7 @@ void remove_preg_self_moves(Function *function) {
 
     tac = function->ir;
     while (tac) {
-        if ((tac->operation == IR_ASSIGN || tac->operation == X_MOV) && tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
+        if ((tac->operation == IR_MOVE || tac->operation == X_MOV) && tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
             tac->operation = IR_NOP;
 
         tac = tac->next;

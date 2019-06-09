@@ -61,7 +61,7 @@ Value *load_constant(Value *cv) {
     v = new_value();
     v->vreg = new_vreg();
     v->type = TYPE_LONG;
-    add_instruction(IR_ASSIGN, v, cv, 0);
+    add_instruction(IR_MOVE, v, cv, 0);
     return v;
 }
 
@@ -409,7 +409,7 @@ void and_or_expr(int is_and) {
     // Store zero & end
     add_jmp_target_instruction(ldst1);
     push_constant(TYPE_INT, is_and ? 0 : 1);         // Store 0
-    add_instruction(IR_ASSIGN, dst, pl(), 0);
+    add_instruction(IR_MOVE, dst, pl(), 0);
     push(dst);
     add_instruction(IR_JMP, 0, ldst3, 0);
 
@@ -418,7 +418,7 @@ void and_or_expr(int is_and) {
     expression(TOK_BITWISE_OR);
     add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
     push_constant(TYPE_INT, is_and ? 1 : 0);          // Store 1
-    add_instruction(IR_ASSIGN, dst, pl(), 0);
+    add_instruction(IR_MOVE, dst, pl(), 0);
     push(dst);
 
     // End
@@ -508,7 +508,7 @@ void expression(int level) {
         push(src1);
         push_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
         arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
-        add_instruction(IR_ASSIGN, v1, vtop, 0);
+        add_instruction(IR_MOVE, v1, vtop, 0);
         push(v1); // Push the original lvalue back on the value stack
     }
 
@@ -701,7 +701,7 @@ void expression(int level) {
             push(src1);
             push_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
-            add_instruction(IR_ASSIGN, v1, vtop, 0);
+            add_instruction(IR_MOVE, v1, vtop, 0);
             pop(); // Pop the lvalue of the assignment off the stack
             push(src1); // Push the original rvalue back on the value stack
         }
@@ -801,14 +801,14 @@ void expression(int level) {
             add_conditional_jump(IR_JZ, ldst1);
             expression(TOK_OR);
             src1 = vtop;
-            add_instruction(IR_ASSIGN, dst, pl(), 0);
+            add_instruction(IR_MOVE, dst, pl(), 0);
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_jmp_target_instruction(ldst1);    // Start of false case
             consume(TOK_COLON, ":");
             expression(TOK_OR);
             src2 = vtop;
             dst->type = operation_type(src1, src2);
-            add_instruction(IR_ASSIGN, dst, pl(), 0);
+            add_instruction(IR_MOVE, dst, pl(), 0);
             push(dst);
             add_jmp_target_instruction(ldst2); // End
         }
@@ -820,7 +820,7 @@ void expression(int level) {
             expression(TOK_EQ);
             src1 = pl();
             dst->is_lvalue = 1;
-            add_instruction(IR_ASSIGN, dst, src1, 0);
+            add_instruction(IR_MOVE, dst, src1, 0);
             push(dst);
         }
 
@@ -845,7 +845,7 @@ void expression(int level) {
 
             arithmetic_operation(org_token == TOK_PLUS_EQ ? IR_ADD : IR_SUB, type);
             vtop->type = org_type;
-            add_instruction(IR_ASSIGN, v1, vtop, 0);
+            add_instruction(IR_MOVE, v1, vtop, 0);
         }
         else
             return; // Bail once we hit something unknown
