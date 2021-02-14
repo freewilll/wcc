@@ -1394,6 +1394,28 @@ void coalesce_live_range(Function *function, int src, int dst) {
         tac = tac->next;
     }
 
+    // Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
+    tac = function->ir;
+    while (tac) {
+        if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            print_instruction(stdout, tac);
+            panic1d("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
+        }
+
+        if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
+            print_instruction(stdout, tac);
+            panic1d("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
+        }
+
+        if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
+            print_instruction(stdout, tac);
+            panic1d("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
+        }
+
+        tac = tac->next;
+    }
+
+
     // Move src edges to dst
     ig = function->interference_graph;
 
@@ -1442,12 +1464,13 @@ void coalesce_live_range(Function *function, int src, int dst) {
 // Page 706 of engineering a compiler
 void coalesce_live_ranges(Function *function) {
     int i, j, k, dst, src, edge_count, changed, intersects, vreg_count;
-    char *interference_graph, *merge_candidates;
+    char *interference_graph, *merge_candidates, *instrsel_blockers;
     Tac *tac;
 
     make_vreg_count(function, RESERVED_PHYSICAL_REGISTER_COUNT);
     vreg_count = function->vreg_count;
     merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+    instrsel_blockers = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
 
     make_uevar_and_varkill(function);
     make_liveout(function);
@@ -1459,18 +1482,24 @@ void coalesce_live_ranges(Function *function) {
         make_live_range_spill_cost(function);
         make_interference_graph(function);
 
-        // if (disable_live_ranges_coalesce) return;
-        return; // TODO coalescing
+        if (disable_live_ranges_coalesce) return;
 
         interference_graph = function->interference_graph;
 
-        // A lower triangular matrix of all register copy operations
+        // A lower triangular matrix of all register copy operations and instrsel blockers
         memset(merge_candidates, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+        memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
 
+        // Create merge candidates
         tac = function->ir;
         while (tac) {
             if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg)
                 merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
+            else {
+                if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1;
+                if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1;
+                if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
+            }
             tac = tac->next;
         }
 
@@ -1481,10 +1510,12 @@ void coalesce_live_ranges(Function *function) {
 
         for (dst = 1; dst <= vreg_count; dst++) {
             for (src = 1; src <= vreg_count; src++) {
-                if (merge_candidates[dst * vreg_count + src] == 1) {
+                if (changed) continue; // Only coalesce one at a time
+
+                if (merge_candidates[dst * vreg_count + src] == 1 && instrsel_blockers[dst * vreg_count + src] != 1 && instrsel_blockers[src * vreg_count + dst] != 1) {
                     intersects = 0;
                     if (!((src < dst && interference_graph[src * vreg_count + dst]) || (interference_graph[dst * vreg_count + src]))) {
-                        if (debug_ssa_live_range_coalescing) printf("%d -> %d\n", dst, src);
+                        if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", dst, src);
                         coalesce_live_range(function, dst, src);
                         changed = 1;
                     }
@@ -1494,6 +1525,7 @@ void coalesce_live_ranges(Function *function) {
     }
 
     free(merge_candidates);
+    free(instrsel_blockers);
 
     if (debug_ssa_live_range_coalescing) {
         printf("\n");
