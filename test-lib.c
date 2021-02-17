@@ -62,3 +62,28 @@ void finalize() {
         exit(1);
     }
 }
+
+void parse_args(int argc, char **argv, int *verbose) {
+    int help;
+
+    help = *verbose = 0;
+
+    argc--;
+    argv++;
+    while (argc > 0 && *argv[0] == '-') {
+             if (argc > 0 && !memcmp(argv[0], "-h",   3)) { help = 0;     argc--; argv++; }
+        else if (argc > 0 && !memcmp(argv[0], "-v",   2)) { *verbose = 1; argc--; argv++; }
+        else {
+            printf("Unknown parameter %s\n", argv[0]);
+            exit(1);
+        }
+    }
+
+    if (help) {
+        printf("Usage: test-wc4 [-v]\n\n");
+        printf("Flags\n");
+        printf("-v      Verbose mode; show all tests\n");
+        printf("-h      Help\n");
+        exit(1);
+    }
+}

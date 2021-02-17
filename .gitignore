@@ -4,7 +4,9 @@ wc4
 wc42
 wc43
 test-wc4
+test-wc4-*-wc4
 test-wc4-gcc
+test-wc4-*-gcc
 test-set
 test-graph
 test-ssa

@@ -48,36 +48,63 @@ wc43: ${WC43_ASSEMBLIES}
 	gcc ${WC43_ASSEMBLIES} -o wc43
 
 # tests
+WC4_TESTS=\
+	expr \
+	function-call-args \
+	func-calls \
+	pointers \
+	memory-functions \
+	inc-dec \
+	conditionals \
+	structs \
+	typedef \
+	pointer-arithmetic \
+	loops \
+	enums \
+	regressions
+
+WC4_TESTS_WC4 := ${WC4_TESTS:%=test-wc4-%-wc4}
+WC4_TESTS_GCC := ${WC4_TESTS:%=test-wc4-%-gcc}
+
 stack-check.o: stack-check.c
 	gcc stack-check.c -c
 
 test-lib.o: test-lib.c
 	gcc test-lib.c -c
 
-test-wc4.s: wc4 test-wc4.c
+test-wc4.s: test-wc4.c wc4
 	./wc4 -c -S test-wc4.c
 
-test-wc4: test-wc4.s stack-check.o test-lib.o
-	gcc test-wc4.s stack-check.o test-lib.o -o test-wc4
+test-wc4-%.s: test-wc4-%.c wc4
+	./wc4 -c -S $<
+
+test-wc4-%-wc4: test-wc4-%.s stack-check.o test-lib.o
+	gcc $< stack-check.o test-lib.o -o $@
+
+.PHONY: run-test-wc4
+run-test-wc4: ${WC4_TESTS_WC4}
+	for bin in $(WC4_TESTS_WC4); do \
+		echo $$bin; \
+	    ./$$bin; \
+	done
+	@echo wc4 tests passed
+
+test-wc4-%-gcc: test-wc4-%.c stack-check.o test-lib.o
+	gcc $< stack-check.o test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -D _GNU_SOURCE
+
+.PHONY: run-test-wc4-gcc
+run-test-wc4-gcc: ${WC4_TESTS_GCC}
+	for bin in $(WC4_TESTS_GCC); do \
+		echo $$bin; \
+	    ./$$bin; \
+	done
+	@echo gcc tests passed
 
 benchmark: wc4 wc42 benchmark.c
 	gcc benchmark.c -o benchmark
 
 run-benchmark: benchmark
 	./benchmark
-
-.PHONY: run-test-wc4
-run-test-wc4: test-wc4
-	./test-wc4
-	@echo wc4 tests passed
-
-test-wc4-gcc: test-wc4.c stack-check.o test-lib.o
-	gcc test-wc4.c stack-check.o test-lib.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types -D _GNU_SOURCE
-
-.PHONY: run-test-wc4-gcc
-run-test-wc4-gcc: test-wc4-gcc
-	./test-wc4-gcc
-	@echo gcc tests passed
 
 test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
 	cat build/wc42/*.s > build/wc42/all-s
@@ -138,7 +165,9 @@ clean:
 	@rm -f wc42
 	@rm -f wc43
 	@rm -f test-wc4
+	@rm -f test-wc4-*-wc4
 	@rm -f test-wc4-gcc
+	@rm -f test-wc4-*-gcc
 	@rm -f test-set
 	@rm -f test-instrsel
 	@rm -f test-instrsel-gcc
