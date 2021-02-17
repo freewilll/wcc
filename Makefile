@@ -51,11 +51,14 @@ wc43: ${WC43_ASSEMBLIES}
 stack-check.o: stack-check.c
 	gcc stack-check.c -c
 
+test-lib.o: test-lib.c
+	gcc test-lib.c -c
+
 test-wc4.s: wc4 test-wc4.c
 	./wc4 -c -S test-wc4.c
 
-test-wc4: test-wc4.s stack-check.o
-	gcc test-wc4.s stack-check.o -o test-wc4
+test-wc4: test-wc4.s stack-check.o test-lib.o
+	gcc test-wc4.s stack-check.o test-lib.o -o test-wc4
 
 benchmark: wc4 wc42 benchmark.c
 	gcc benchmark.c -o benchmark
@@ -68,8 +71,8 @@ run-test-wc4: test-wc4
 	./test-wc4
 	@echo wc4 tests passed
 
-test-wc4-gcc: test-wc4.c stack-check.o
-	gcc test-wc4.c stack-check.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types -D _GNU_SOURCE
+test-wc4-gcc: test-wc4.c stack-check.o test-lib.o
+	gcc test-wc4.c stack-check.o test-lib.o -o test-wc4-gcc -Wno-int-conversion -Wno-incompatible-pointer-types -D _GNU_SOURCE
 
 .PHONY: run-test-wc4-gcc
 run-test-wc4-gcc: test-wc4-gcc
