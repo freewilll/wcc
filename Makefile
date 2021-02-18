@@ -63,9 +63,6 @@ WC4_TESTS=\
 	enums \
 	regressions
 
-WC4_TESTS_WC4 := ${WC4_TESTS:%=test-wc4-%-wc4}
-WC4_TESTS_GCC := ${WC4_TESTS:%=test-wc4-%-gcc}
-
 stack-check.o: stack-check.c
 	gcc stack-check.c -c
 
@@ -81,23 +78,23 @@ test-wc4-%.s: test-wc4-%.c wc4
 test-wc4-%-wc4: test-wc4-%.s stack-check.o test-lib.o
 	gcc $< stack-check.o test-lib.o -o $@
 
+run-test-wc4-%-wc4: test-wc4-%-wc4
+	./$<
+	touch run-$<
+
 .PHONY: run-test-wc4
-run-test-wc4: ${WC4_TESTS_WC4}
-	for bin in $(WC4_TESTS_WC4); do \
-		echo $$bin; \
-	    ./$$bin; \
-	done
+run-test-wc4: ${WC4_TESTS:%=run-test-wc4-%-wc4}
 	@echo wc4 tests passed
 
 test-wc4-%-gcc: test-wc4-%.c stack-check.o test-lib.o
 	gcc $< stack-check.o test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -D _GNU_SOURCE
 
+run-test-wc4-%-gcc: test-wc4-%-gcc
+	./$<
+	touch run-$<
+
 .PHONY: run-test-wc4-gcc
-run-test-wc4-gcc: ${WC4_TESTS_GCC}
-	for bin in $(WC4_TESTS_GCC); do \
-		echo $$bin; \
-	    ./$$bin; \
-	done
+run-test-wc4-gcc: ${WC4_TESTS:%=run-test-wc4-%-gcc}
 	@echo gcc tests passed
 
 benchmark: wc4 wc42 benchmark.c
@@ -166,6 +163,7 @@ clean:
 	@rm -f wc43
 	@rm -f test-wc4
 	@rm -f test-wc4-*-wc4
+	@rm -f run-test-wc4-*
 	@rm -f test-wc4-gcc
 	@rm -f test-wc4-*-gcc
 	@rm -f test-set
