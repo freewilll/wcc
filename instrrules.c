@@ -690,6 +690,7 @@ void add_sub_rules() {
     add_sub_rule(REG, ADRQ, REG, 11, "movq %v1q, %vdq", "subq %v1q, %vdq");
     add_sub_rule(ADR, ADR, CST,  10, "movq %v1q, %vdq", "subq $%v1q, %vdq");
     add_sub_rule(ADR, REG, REG,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
+    add_sub_rule(ADR, ADR, REGQ, 11, "movq %v1q, %vdq", "subq %v1q, %vdq");
     add_sub_rule(REG, REG, MEM,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
     add_sub_rule(REG, MEM, REG,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
     add_sub_rule(REG, CST, MEM,  11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
