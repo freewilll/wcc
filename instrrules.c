@@ -138,8 +138,6 @@ void fin_rule(Rule *r) {
             non_terminal == MEM || src1 == MEM || src2 == MEM ||
             non_terminal == ADR || src1 == ADR || src2 == ADR ||
             non_terminal == MDR || src1 == MDR || src2 == MDR)) {
-
-        r->x86_operations = dup_x86_operations(r->x86_operations);
         return;
     }
 
