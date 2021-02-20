@@ -75,7 +75,7 @@ char *make_temp_filename(char *template) {
 }
 
 int main(int argc, char **argv) {
-    int help, debug, print_symbols, print_code;
+    int help, debug, print_symbols, print_code, print_instrrules;
     int input_filename_count;
     char **input_filenames, *input_filename, *output_filename, *local_output_filename;
     char *compiler_input_filename, *compiler_output_filename;
@@ -96,6 +96,7 @@ int main(int argc, char **argv) {
     print_ir1 = 0;
     print_ir2 = 0;
     print_ir3 = 0;
+    print_instrrules = 0;
     print_symbols = 0;
     opt_enable_register_coalescing = 1;
     opt_enable_live_range_coalescing = 1;
@@ -130,6 +131,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;  argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0; argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--print-instrrules"                )) { print_instrrules = 1;                 ; argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-S"                                )) {
                 run_assembler = 0;
                 run_linker = 0;
@@ -176,16 +178,24 @@ int main(int argc, char **argv) {
         printf("--ir1                          Output intermediate representation after parsing\n");
         printf("--ir2                          Output intermediate representation after x86_64 rearrangements\n");
         printf("--ir3                          Output intermediate representation after register allocation\n");
+        printf("--print-instrrules             Output instruction selection rules\n");
         printf("-h                             Help\n");
         printf("\n");
         printf("Optimization options:\n");
         printf("-fno-coalesce-live-range           Disable SSA live range coalescing\n");
-        printf("-fuse-registers-for-locals         Allocate registers for locals instead of using the stack by default\n");
-        printf("-fmerge-redundant-moves            Merge redundant register moves\n");
         printf("-fspill-furthest-liveness-end      Spill liveness intervals that have the greatest end liveness interval\n");
         printf("-fno-dont-spill-short-live-ranges  Disable infinite spill costs for short live ranges\n");
         printf("-fno-optimize-arithmetic           Disable arithmetic optimizations\n ");
         exit(1);
+    }
+
+    init_callee_saved_registers();
+    init_allocate_registers();
+    init_instruction_selection_rules();
+
+    if (print_instrrules) {
+        print_rules();
+        exit(0);
     }
 
     if (!input_filename_count) {
@@ -213,10 +223,6 @@ int main(int argc, char **argv) {
             }
         }
     }
-
-    init_callee_saved_registers();
-    init_allocate_registers();
-    init_instruction_selection_rules();
 
     command = malloc(1024 * 100);
 
