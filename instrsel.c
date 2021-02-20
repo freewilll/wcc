@@ -398,7 +398,7 @@ void make_igraphs(Function *function, int block_id) {
     if (DEBUG_INSTSEL_TREE_MERGING)
         printf("\n=================================\n");
 
-    if (DEBUG_INSTSEL_IGRAPHS) {
+    if (DEBUG_INSTSEL_TREE_MERGING) {
         for (i = 0; i < instr_count; i++) {
             if (!igraphs[i].node_count) continue;
             tac = igraphs[i].nodes[0].tac;
