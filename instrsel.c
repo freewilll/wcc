@@ -1165,14 +1165,8 @@ void tile_igraphs(Function *function) {
         igraph_labels = malloc(igraphs[i].node_count * sizeof(Set *));
         for (j = 0; j < igraphs[i].node_count; j++) igraph_labels[j] = new_set(instr_rule_count);
 
-        if (debug_instsel_tiling) {
+        if (debug_instsel_tiling)
             printf("\nTiling\n-----------------------------------------------------\n");
-
-            if (tac)
-                print_instruction(stdout, tac);
-            else
-                print_value(stdout, igraphs[i].nodes[0].value, 0);
-        }
 
         cost_graph = new_graph(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT, MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT);
 
