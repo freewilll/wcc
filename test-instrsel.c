@@ -16,12 +16,6 @@ void assert(long expected, long actual) {
 }
 
 void assert_value(Value *v1, Value *v2) {
-    // printf("assert_value: ");
-    // print_value(stdout, v1, 0);
-    // printf(", ");
-    // print_value(stdout, v2, 0);
-    // printf("\n");
-
     if (v1->is_constant)
         assert(v1->value, v2->value);
     else if (v1->is_string_literal)
