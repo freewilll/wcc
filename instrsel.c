@@ -75,7 +75,7 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_INDIRECT)             printf("indirect\n");
         else if (operation == IR_ADDRESS_OF)           printf("&\n");
         else if (operation == IR_CAST)                 printf("= (cast)\n");
-        else if (operation == IR_MOVE_TO_REG_LVALUE) printf("assign to lvalue\n");
+        else if (operation == IR_MOVE_TO_REG_LVALUE)   printf("assign to lvalue\n");
         else if (operation == IR_NOP)                  printf("noop\n");
         else if (operation == IR_RETURN)               printf("return\n");
         else if (operation == IR_START_CALL)           printf("start call\n");
