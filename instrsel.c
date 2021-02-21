@@ -364,7 +364,7 @@ void make_igraphs(Function *function, int block_id) {
         g1_igraph_id = vreg_igraphs[dst].igraph_id;
 
         // If dst is only used once and it's not in liveout, merge it.
-        // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL contraints don't permit
+        // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL constraints don't permit
         // rearranging function calls without dire dowmstream side effects.
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
             tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_REG_LVALUE &&
