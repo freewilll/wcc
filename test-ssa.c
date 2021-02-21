@@ -788,6 +788,7 @@ void test_top_down_register_allocation() {
 
 int main() {
     init_allocate_registers();
+    opt_enable_register_allocation = 1;
 
     test_arithmetic_optimization();
     test_cfg_jmp();

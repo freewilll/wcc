@@ -1389,7 +1389,7 @@ void test_spilling() {
     Tac *tac;
 
     remove_reserved_physical_registers = 1;
-    spill_all_registers = 1;
+    opt_enable_register_allocation = 0;
 
     // src1c spill
     start_ir();
@@ -1487,7 +1487,7 @@ int main() {
     failures = 0;
     function = new_function();
 
-    spill_all_registers = 0;
+    opt_enable_register_allocation = 1;
     opt_optimize_arithmetic_operations = 1;
     string_literals = malloc(MAX_STRING_LITERALS);
 

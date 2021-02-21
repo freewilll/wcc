@@ -362,7 +362,7 @@ int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after x84_64 arch manipulation
 int print_ir3;                          // Print IR after register allocation
 int output_inline_ir;                   // Output IR inline with the assembly
-int spill_all_registers;                // Spill everything to the stack
+int opt_enable_register_allocation;     // Allocate physical registers
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible
 int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end

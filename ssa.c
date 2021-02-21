@@ -1675,7 +1675,7 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
         }
     }
 
-    if (spill_all_registers || set_len(neighbor_colors) == physical_register_count) {
+    if (!opt_enable_register_allocation || set_len(neighbor_colors) == physical_register_count) {
         vreg_locations[vreg].stack_index = -*spilled_register_count - 1;
         (*spilled_register_count)++;
     }
