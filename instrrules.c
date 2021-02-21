@@ -94,9 +94,16 @@ char *add_size_to_template(char *template, int size) {
     memset(result, 0, 128);
     dst = result;
 
-    // Add size to registers, converting e.g. %v1 -> %v1b if size=1
-    // Registers that already have the size are untouched, so that
-    // specific things like sign extensions work.
+    // Add size to registers inserting the x86_size char, one of b,w,l,q,
+    // using S=x86_size, it converts
+    // %s   -> %sS
+    // %v1  -> %v1S if size=1
+    // %v1  -> %v1S if size=2
+    // %v1  -> %v1S if size=3
+    // %v1  -> %v1S if size=4
+    // Same for %v2
+    // Registers that already have the size, e.g. %v1b are untouched.
+
     c = template;
     while (*c) {
         if (c[0] == '%' && c[1] == 's') {
@@ -120,6 +127,13 @@ char *add_size_to_template(char *template, int size) {
 }
 
 void fin_rule(Rule *r) {
+    // Expand all uses of REG, MEM, ADR into ADRB, ADRW, ADRL, ADRQ
+    // e.g. REG, REG, CST is transformed into
+    // REGB, REGB, CST
+    // REGW, REGW, CST
+    // REGL, REGL, CST
+    // REGQ, REGQ, CST
+
     int operation, non_terminal, src1, src2, cost, i;
     X86Operation *x86_operations, *x86_operation;
     Rule *new_rule;
@@ -141,7 +155,7 @@ void fin_rule(Rule *r) {
         return;
     }
 
-    instr_rule_count--;
+    instr_rule_count--; // Rewind next pointer so that the last rule is overwritten
 
     for (i = 1; i <= 4; i++) {
         new_rule = add_rule(transform_rule_value(non_terminal, i), operation, transform_rule_value(src1, i), transform_rule_value(src2, i), cost);
@@ -156,6 +170,8 @@ void fin_rule(Rule *r) {
 }
 
 void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
+    // Add an x86 operation template to a rule
+
     X86Operation *x86op, *o;
 
     x86op = malloc(sizeof(X86Operation));
@@ -217,11 +233,13 @@ void check_for_duplicate_rules() {
 }
 
 char *non_terminal_string(int nt) {
+    // Make a textual representation of a non terminal
+
     char *buf;
 
     buf = malloc(6);
 
-         if (!nt) return "";
+         if (!nt)        return "";
     else if (nt == CST)  return "cst";
     else if (nt == STL)  return "stl";
     else if (nt == LAB)  return "lab";
@@ -289,6 +307,9 @@ void print_rules() {
 }
 
 void make_value_x86_size(Value *v) {
+    // Determine how many bytes a value takes up, if not already done, and write it to
+    // v->86_size
+
     if (v->x86_size) return;
     if (v->label || v->function_symbol) return;
 
@@ -311,6 +332,8 @@ void make_value_x86_size(Value *v) {
 }
 
 int value_ptr_target_x86_size(Value *v) {
+    // Return how many bytes a dereferenced pointer takes up
+
     if (v->type < TYPE_PTR) panic("Expected pointer type");
 
     if (v->type - TYPE_PTR == TYPE_VOID)
@@ -322,6 +345,8 @@ int value_ptr_target_x86_size(Value *v) {
 }
 
 int make_x86_size_from_non_terminal(int nt) {
+    // Returns the width in bytes for a non terminal
+
          if (nt == CSTL) return 3;
     else if (nt == CSTQ) return 4;
     else if (nt == ADRB || nt == ADRW || nt == ADRL || nt == ADRQ || nt == ADRV) return 4;
@@ -339,6 +364,8 @@ int make_x86_size_from_non_terminal(int nt) {
 }
 
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
+    // Add an x86 instruction to the IR
+
     Tac *tac;
 
     if (v1) make_value_x86_size(v1);
