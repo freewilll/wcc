@@ -674,6 +674,8 @@ void add_commutative_operation_rules(char *x86_operand, int operation, int x86_o
         r = add_rule(REGQ, operation, ADR, CSTL, cost);   add_op(r, X_MOV,         DST, SRC1, 0,   "movq %v1q, %vdq" );
                                                           add_op(r, x86_operation, DST, SRC2, DST, "addq $%v1q, %v2q");
                                                           fin_rule(r);
+        r = add_rule(REGQ, operation, ADRV, CSTL, cost);  add_op(r, X_MOV,         DST, SRC1, 0,   "movq %v1q, %vdq" );
+                                                          add_op(r, x86_operation, DST, SRC2, DST, "addq $%v1q, %v2q");
 
         for (i = ADRB; i <= ADRQ; i++) {
             r = add_rule(i, operation, ADRV, CSTL, cost);
