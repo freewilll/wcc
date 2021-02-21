@@ -1283,28 +1283,28 @@ void test_pointer_assignment_precision_decreases() {
     }
 }
 
-void test_pointer_type_changes() {
-    int t1, t2;
-
+void test_simple_int_cast() {
     remove_reserved_physical_registers = 1;
 
-    // Test a case in which the parser emits code which has a type
-    // change in a register. This leads to a join and creation of a
-    // IR_CAST instruction. The special IR_CAST rules
-    // then ensure the type is changed during the instruction selection
-    // process.
-    for (t1 = TYPE_CHAR; t1 <= TYPE_LONG; t1++) {
-        for (t2 = TYPE_CHAR; t2 <= TYPE_LONG; t2++) {
-            if (t1 == t2) continue;
-            start_ir();
-            i(0, IR_MOVE,     asz(2, t2), asz(1, t2), 0);
-            i(0, IR_INDIRECT, vsz(2, t2), asz(2, TYPE_PTR + t2), 0   );
-            i(0, IR_ARG,      0, c(1), asz(2, t2));
-            finish_ir(function);
-            assert_x86_op("movq    (r1q), r4q");
-            assert_x86_op("pushq   r4q"       );
-        }
-    }
+    si(function, 0, IR_CAST, vsz(2, TYPE_CHAR ), vsz(1, TYPE_CHAR ), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_CAST, vsz(2, TYPE_CHAR ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_CAST, vsz(2, TYPE_CHAR ), vsz(1, TYPE_INT  ), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_CAST, vsz(2, TYPE_CHAR ), vsz(1, TYPE_LONG ), 0); assert_x86_op("movb    r1b, r2b");
+
+    si(function, 0, IR_CAST, vsz(2, TYPE_SHORT), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbw  r1b, r2w");
+    si(function, 0, IR_CAST, vsz(2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0); assert_x86_op("movw    r1w, r2w");
+    si(function, 0, IR_CAST, vsz(2, TYPE_SHORT), vsz(1, TYPE_INT),   0); assert_x86_op("movw    r1w, r2w");
+    si(function, 0, IR_CAST, vsz(2, TYPE_SHORT), vsz(1, TYPE_LONG),  0); assert_x86_op("movw    r1w, r2w");
+
+    si(function, 0, IR_CAST, vsz(2, TYPE_INT  ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbl  r1b, r2l");
+    si(function, 0, IR_CAST, vsz(2, TYPE_INT  ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswl  r1w, r2l");
+    si(function, 0, IR_CAST, vsz(2, TYPE_INT  ), vsz(1, TYPE_INT),   0); assert_x86_op("movl    r1l, r2l");
+    si(function, 0, IR_CAST, vsz(2, TYPE_INT  ), vsz(1, TYPE_LONG),  0); assert_x86_op("movl    r1l, r2l");
+
+    si(function, 0, IR_CAST, vsz(2, TYPE_LONG ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  r1b, r2q");
+    si(function, 0, IR_CAST, vsz(2, TYPE_LONG ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  r1w, r2q");
+    si(function, 0, IR_CAST, vsz(2, TYPE_LONG ), vsz(1, TYPE_INT),   0); assert_x86_op("movslq  r1l, r2q");
+    si(function, 0, IR_CAST, vsz(2, TYPE_LONG ), vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
 }
 
 void test_assign_to_pointer_to_void() {
@@ -1348,9 +1348,9 @@ void test_pointer_double_indirect() {
     for (j = TYPE_VOID; j <= TYPE_LONG; j++) {
         // Assignment to a global *... after a double indirect r4 = r1->b->c;
         start_ir();
-        i(0, IR_INDIRECT, asz(2, TYPE_VOID),     asz(1, TYPE_PTR + TYPE_VOID), 0);
-        i(0, IR_INDIRECT, asz(3, TYPE_VOID),     asz(2, TYPE_PTR + TYPE_VOID), 0);
-        i(0, IR_MOVE,     gsz(4, TYPE_PTR + j),  asz(3, TYPE_VOID),            0);
+        i(0, IR_INDIRECT, asz(2, TYPE_PTR + TYPE_VOID), asz(1, TYPE_PTR + TYPE_PTR + TYPE_VOID), 0);
+        i(0, IR_INDIRECT, asz(3, TYPE_VOID),            asz(2, TYPE_PTR + TYPE_VOID),            0);
+        i(0, IR_MOVE,     gsz(4, TYPE_PTR + j),         asz(3, TYPE_VOID),                       0);
         finish_ir(function);
         assert_x86_op("movq    (r1q), r4q");
         assert_x86_op("movq    (r4q), r5q");
@@ -1469,10 +1469,13 @@ void test_spilling() {
     tac = i(0, IR_MOVE,               asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
     tac = i(0, IR_MOVE_TO_REG_LVALUE, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq    -16(%rbp), %r10");
+    assert_rx86_preg_op("movq    -24(%rbp), %r10");
     assert_rx86_preg_op("movq    %r10, %r11"     );
     assert_rx86_preg_op("movq    %r11, -8(%rbp)" );
     assert_rx86_preg_op("movq    -8(%rbp), %r10" );
+    assert_rx86_preg_op("movq    %r10, %r11"     );
+    assert_rx86_preg_op("movq    %r11, -16(%rbp)");
+    assert_rx86_preg_op("movq    -16(%rbp), %r10");
     assert_rx86_preg_op("movq    %r10, %r11"     );
     assert_rx86_preg_op("movq    %r11, 0(%rbp)"  );
     assert_rx86_preg_op("movq    0(%rbp), %r10"  );
@@ -1518,7 +1521,7 @@ int main() {
     test_pointer_indirect_global_char_in_struct_to_long();
     test_pointer_to_void_arg();
     test_pointer_assignment_precision_decreases();
-    test_pointer_type_changes();
+    test_simple_int_cast();
     test_assign_to_pointer_to_void();
     test_pointer_comparisons();
     test_pointer_double_indirect();

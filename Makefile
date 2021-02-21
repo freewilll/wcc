@@ -139,7 +139,7 @@ test-instrsel.s: wc4 test-instrsel.c
 	./wc4 ${WC4_OPTS} -c -S test-instrsel.c -o test-instrsel.s
 
 test-instrsel: wc4 test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
-	gcc -o test-instrsel test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
+	gcc -g -o test-instrsel test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
 
 run-test-instrsel: test-instrsel
 	 ./test-instrsel

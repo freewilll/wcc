@@ -1254,7 +1254,6 @@ void select_instructions(Function *function) {
         printf("\nFinal IR for function:\n");
         print_ir(function, 0);
     }
-
 }
 
 // This removes instructions that copy a register to itself by replacing them with noops.
