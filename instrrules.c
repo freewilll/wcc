@@ -497,7 +497,6 @@ void add_pointer_rules() {
     r = add_rule(REGQ, IR_INDIRECT, ADRB, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movsbq (%v1q), %vdq"); fin_rule(r);
     r = add_rule(REGQ, IR_INDIRECT, ADRW, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movswq (%v1q), %vdq"); fin_rule(r);
     r = add_rule(REGQ, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movslq (%v1q), %vdq"); fin_rule(r);
-    r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); fin_rule(r);
 
     // Stores of a pointer to a pointer
     add_store_to_pointer(ADRQ, ADRB, "movq %v2q, (%v1q)");
@@ -507,16 +506,16 @@ void add_pointer_rules() {
     add_store_to_pointer(ADRQ, ADRV, "movq %v2q, (%v1q)");
 
     // Stores to pointer from registers
-    add_store_to_pointer(ADRB, REGB, "movb %v2b, (%v1q)");
-    add_store_to_pointer(ADRB, REGW, "movb %v2b, (%v1q)"); r->match_dst = 1;
-    add_store_to_pointer(ADRB, REGL, "movb %v2b, (%v1q)"); r->match_dst = 1;
-    add_store_to_pointer(ADRB, REGQ, "movb %v2b, (%v1q)"); r->match_dst = 1;
-    add_store_to_pointer(ADRW, REGW, "movw %v2w, (%v1q)");
-    add_store_to_pointer(ADRW, REGL, "movw %v2w, (%v1q)"); r->match_dst = 1;
-    add_store_to_pointer(ADRW, REGQ, "movw %v2w, (%v1q)"); r->match_dst = 1;
-    add_store_to_pointer(ADRL, REGL, "movl %v2l, (%v1q)");
-    add_store_to_pointer(ADRL, REGQ, "movl %v2l, (%v1q)"); r->match_dst = 1;
-    add_store_to_pointer(ADRQ, REGQ, "movq %v2q, (%v1q)");
+    r = add_store_to_pointer(ADRB, REGB, "movb %v2b, (%v1q)");
+    r = add_store_to_pointer(ADRB, REGW, "movb %v2b, (%v1q)"); r->match_dst = 1;
+    r = add_store_to_pointer(ADRB, REGL, "movb %v2b, (%v1q)"); r->match_dst = 1;
+    r = add_store_to_pointer(ADRB, REGQ, "movb %v2b, (%v1q)"); r->match_dst = 1;
+    r = add_store_to_pointer(ADRW, REGW, "movw %v2w, (%v1q)");
+    r = add_store_to_pointer(ADRW, REGL, "movw %v2w, (%v1q)"); r->match_dst = 1;
+    r = add_store_to_pointer(ADRW, REGQ, "movw %v2w, (%v1q)"); r->match_dst = 1;
+    r = add_store_to_pointer(ADRL, REGL, "movl %v2l, (%v1q)");
+    r = add_store_to_pointer(ADRL, REGQ, "movl %v2l, (%v1q)"); r->match_dst = 1;
+    r = add_store_to_pointer(ADRQ, REGQ, "movq %v2q, (%v1q)");
 
     // Stores of 32 bit constants in a pointer.
     add_store_to_pointer(ADRB, CSTL, "movb $%v2b, (%v1q)");
