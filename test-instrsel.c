@@ -74,6 +74,12 @@ char *rx86op(Tac *tac) {
 char *assert_x86_op(char *expected) {
     char *got;
 
+    if (!ir_start) {
+        printf("Expected %s, got nothing\n", expected);
+        failures++;
+        return;
+    }
+
     got = render_x86_operation(ir_start, 0, 0, 0);;
 
     if (!got) {
@@ -131,7 +137,7 @@ void _finish_ir(Function *function, int run_eis1) {
 
     // Move ir_start to first non-noop for convenience
     ir_start = function->ir;
-    while (ir_start->operation == IR_NOP) ir_start = ir_start->next;
+    while (ir_start && ir_start->operation == IR_NOP) ir_start = ir_start->next;
     function->ir = ir_start;
 }
 

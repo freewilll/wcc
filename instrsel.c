@@ -1240,8 +1240,10 @@ void select_instructions(Function *function) {
         if (!disable_merge_constants) merge_constants(function);
         tile_igraphs(function);
 
-        new_ir_pos->next = ir_start;
-        ir_start->prev = new_ir_pos;
+        if (ir_start) {
+            new_ir_pos->next = ir_start;
+            ir_start->prev = new_ir_pos;
+        }
 
         while (new_ir_pos->next) new_ir_pos = new_ir_pos->next;
     }
