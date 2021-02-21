@@ -418,7 +418,7 @@ void add_cast_rules() {
     }
 
     // Cast a constant to a pointer, e.g. pi = (*int) 1;
-    for (i = ADRB; i <= ADRQ; i++) {
+    for (i = ADRB; i <= ADRV; i++) {
         r = add_rule(i, IR_CAST, CSTL, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq $%v1q, %vdq");
         fin_rule(r);
     }

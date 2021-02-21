@@ -1382,6 +1382,7 @@ void test_constant_cast_to_ptr() {
     si(function, 0, IR_CAST, asz(1, TYPE_SHORT), c(1), 0); assert_x86_op("movq    $1, r1q");
     si(function, 0, IR_CAST, asz(1, TYPE_INT),   c(1), 0); assert_x86_op("movq    $1, r1q");
     si(function, 0, IR_CAST, asz(1, TYPE_LONG),  c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_CAST, asz(1, TYPE_VOID),  c(1), 0); assert_x86_op("movq    $1, r1q");
 }
 
 void test_spilling() {
