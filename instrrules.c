@@ -350,6 +350,49 @@ Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) 
     return tac;
 }
 
+void add_cast_rules() {
+    Rule *r;
+    int i, j;
+
+    r = add_rule(REG, IR_CAST, REG, 0, 0); fin_rule(r);
+
+    // Allow explicit conversion from/to any pointer types
+    for (i = ADRB; i <= ADRV; i++) {
+        for (j = ADRB; j <= ADRV; j++) {
+            r = add_rule(i, IR_CAST, j, 0, 0);
+            r->match_dst = 1;
+        }
+    }
+
+    for (i = ADRB; i <= ADRQ; i++) {
+        r = add_rule(i, IR_CAST, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
+        fin_rule(r);
+    }
+
+    for (i = ADRB; i <= ADRV; i++) {
+        r = add_rule(REGQ, IR_CAST, i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
+        fin_rule(r);
+    }
+
+    for (i = ADRB; i <= ADRV; i++) {
+        for (j = ADRB; j <= ADRV; j++) {
+            r = add_rule(i, IR_CAST, j, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
+            r->match_dst = 1;
+        }
+    }
+
+    for (i = ADRB; i <= ADRQ; i++) {
+        r = add_rule(i, IR_CAST, CSTL, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq $%v1q, %vdq");
+        fin_rule(r);
+    }
+
+    // Crazy shit for some code that uses a (long *) to store pointers to longs.
+    // The sane code should have been using (long **)
+    // long *sp; (*((long *) *sp))++ = a;
+    r = add_rule(ADRQ, IR_CAST, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
+    r->match_dst = 1;
+}
+
 Rule *add_store_to_pointer(int src1, int src2, char *template) {
     Rule *r;
 
@@ -731,46 +774,10 @@ void init_instruction_selection_rules() {
     r = add_rule(LAB,  0, LAB,  0, 0); fin_rule(r);
     r = add_rule(FUN,  0, FUN,  0, 0); fin_rule(r);
 
-    r = add_rule(REG, IR_CAST, REG, 0, 0); fin_rule(r);
-
     // This rule is needed for memory-memory moves
     r = add_rule(ADRV, 0, MDRV, 0, 2); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
 
-    // Allow explicit conversion from/to any pointer types
-    for (i = ADRB; i <= ADRV; i++) {
-        for (j = ADRB; j <= ADRV; j++) {
-            r = add_rule(i, IR_CAST, j, 0, 0);
-            r->match_dst = 1;
-        }
-    }
-
-    for (i = ADRB; i <= ADRQ; i++) {
-        r = add_rule(i, IR_CAST, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-        fin_rule(r);
-    }
-
-    for (i = ADRB; i <= ADRV; i++) {
-        r = add_rule(REGQ, IR_CAST, i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-        fin_rule(r);
-    }
-
-    for (i = ADRB; i <= ADRV; i++) {
-        for (j = ADRB; j <= ADRV; j++) {
-            r = add_rule(i, IR_CAST, j, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-            r->match_dst = 1;
-        }
-    }
-
-    for (i = ADRB; i <= ADRQ; i++) {
-        r = add_rule(i, IR_CAST, CSTL, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq $%v1q, %vdq");
-        fin_rule(r);
-    }
-
-    // Crazy shit for some code that uses a (long *) to store pointers to longs.
-    // The sane code should have been using (long **)
-    // long *sp; (*((long *) *sp))++ = a;
-    r = add_rule(ADRQ, IR_CAST, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-    r->match_dst = 1;
+    add_cast_rules();
 
     // Register -> register sign extension
     r = add_rule(REGW, 0, REGB, 0, 1); add_op(r, X_MOVSBW, DST, SRC1, 0 , "movsbw %v1b, %vdw"); fin_rule(r);
