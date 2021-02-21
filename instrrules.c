@@ -99,16 +99,6 @@ char *add_size_to_template(char *template, int size) {
     memset(result, 0, 128);
     dst = result;
 
-    // Add size to registers inserting the x86_size char, one of b,w,l,q,
-    // using S=x86_size, it converts
-    // %s   -> %sS
-    // %v1  -> %v1S if size=1
-    // %v1  -> %v1S if size=2
-    // %v1  -> %v1S if size=3
-    // %v1  -> %v1S if size=4
-    // Same for %v2
-    // Registers that already have the size, e.g. %v1b are untouched.
-
     c = template;
     while (*c) {
         if (c[0] == '%' && c[1] == 's') {
@@ -204,12 +194,11 @@ void make_rule_hash(int i) {
     r = &(instr_rules[i]);
 
     r->hash =
-        (r->non_terminal <<  0)  +
-        (r->src1         <<  5) +
-        (r->src2         << 10) +
-        (r->cost         << 15) +
-        (r->match_dst    << 25) +
-        (r->operation    << 26);
+        (r->non_terminal     <<  0) +
+        (r->src1             <<  8) +
+        (r->src2             << 16) +
+        (r->operation        << 24) +
+        ((long) r->match_dst << 32);
 }
 
 void check_for_duplicate_rules() {
@@ -728,9 +717,6 @@ void add_sub_rules() {
             add_sub_rule(REGQ, i, j,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
         }
     }
-
-    for (i = ADRB; i <= ADRQ; i++)
-        add_sub_rule(i, i, CSTL,  11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
 
     add_sub_rule(ADRV, ADRV, CSTL,  11, "movq %v1q, %vdq",  "subq $%v1q, %vdq");
 }
