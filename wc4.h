@@ -187,26 +187,6 @@ enum {
     MAX_GRAPH_EDGE_COUNT          = 10240,
 };
 
-enum {
-    DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES = 0,
-    DEBUG_SSA                             = 0,
-    DEBUG_SSA_LIVEOUT                     = 0,
-    DEBUG_SSA_CFG                         = 0,
-    DEBUG_SSA_IDOM                        = 0,
-    DEBUG_SSA_PHI_INSERTION               = 0,
-    DEBUG_SSA_PHI_RENUMBERING             = 0,
-    DEBUG_SSA_LIVE_RANGE                  = 0,
-    DEBUG_SSA_INTERFERENCE_GRAPH          = 0,
-    DEBUG_SSA_LIVE_RANGE_COALESCING       = 0,
-    DEBUG_SSA_SPILL_COST                  = 0,
-    DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR = 0,
-    DEBUG_INSTSEL_TREE_MERGING            = 0,
-    DEBUG_INSTSEL_TREE_MERGING_DEEP       = 0,
-    DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION   = 0,
-    DEBUG_INSTSEL_TILING                  = 0,
-    DEBUG_INSTSEL_SPILLING                = 0,
-};
-
 // Tokens in order of precedence
 enum {
     TOK_EOF=1,
@@ -440,6 +420,24 @@ int *callee_saved_registers;      // Constant list of length PHYSICAL_REGISTER_C
 int cur_stack_push_count;         // Used in codegen to keep track of stack position
 
 void *f; // Output file handle
+
+int debug_ssa_mapping_local_stack_indexes;
+int debug_ssa;
+int debug_ssa_liveout;
+int debug_ssa_cfg;
+int debug_ssa_idom;
+int debug_ssa_phi_insertion;
+int debug_ssa_phi_renumbering;
+int debug_ssa_live_range;
+int debug_ssa_interference_graph;
+int debug_ssa_live_range_coalescing;
+int debug_ssa_spill_cost;
+int debug_ssa_top_down_register_allocator;
+int debug_instsel_tree_merging;
+int debug_instsel_tree_merging_deep;
+int debug_instsel_igraph_simplification;
+int debug_instsel_tiling;
+int debug_instsel_spilling;
 
 // set.c
 Set *new_set(int max_value);

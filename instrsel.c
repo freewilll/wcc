@@ -135,7 +135,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     Value *v;
     Tac *tac;
 
-    if (DEBUG_INSTSEL_TREE_MERGING) {
+    if (debug_instsel_tree_merging) {
         printf("g1 dst=%d\n", g1->nodes[0].tac->dst ? g1->nodes[0].tac->dst->vreg : -1);
         dump_igraph(g1);
         printf("g2 dst=%d\n", g2->nodes[0].tac->dst ? g2->nodes[0].tac->dst->vreg : -1);
@@ -158,11 +158,11 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     if (g1->node_count == 0) panic("Unexpectedly got 0 g1->node_count");
 
-    if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("g1->node_count=%d\n", g1->node_count);
-    if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("g2->node_count=%d\n", g2->node_count);
+    if (debug_instsel_tree_merging_deep) printf("g1->node_count=%d\n", g1->node_count);
+    if (debug_instsel_tree_merging_deep) printf("g2->node_count=%d\n", g2->node_count);
 
     for (i = 0; i < g1->node_count; i++) {
-        if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Copying g1 %d to %d\n", i, i);
+        if (debug_instsel_tree_merging_deep) printf("Copying g1 %d to %d\n", i, i);
         dup_inode(&(g1->nodes[i]), &(inodes[i]));
 
         g1_inodes = g1->nodes;
@@ -176,11 +176,11 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
                 in1 = in;
                 join_from = e->from->id;
                 join_to = e->to->id;
-                if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Adding join edge %d -> %d\n", join_from, join_to);
+                if (debug_instsel_tree_merging_deep) printf("Adding join edge %d -> %d\n", join_from, join_to);
                 add_graph_edge(g->graph, join_from, join_to);
             }
             else {
-                if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Adding g1 edge %d -> %d\n", e->from->id, e->to->id);
+                if (debug_instsel_tree_merging_deep) printf("Adding g1 edge %d -> %d\n", e->from->id, e->to->id);
                 add_graph_edge(g->graph, e->from->id, e->to->id);
             }
 
@@ -193,7 +193,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     // The g2 graph starts at g1->node_count
     for (i = 0; i < g2->node_count; i++) {
         d = g1->node_count + i;
-        if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Copying g2 node from %d to %d\n", i, d);
+        if (debug_instsel_tree_merging_deep) printf("Copying g2 node from %d to %d\n", i, d);
         dup_inode(&(g2->nodes[i]), &(inodes[d]));
 
         n2 = &(g2->graph->nodes[i]);
@@ -201,39 +201,39 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
         while (e) {
             from = e->from->id + g1->node_count ;
             to = e->to->id + g1->node_count;
-            if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Adding g2 edge %d -> %d\n", from, to);
+            if (debug_instsel_tree_merging_deep) printf("Adding g2 edge %d -> %d\n", from, to);
             add_graph_edge(g->graph, from, to);
 
             e = e->next_succ;
         }
     }
 
-    if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("\n");
+    if (debug_instsel_tree_merging_deep) printf("\n");
 
     in2 = &(g2->nodes[0]);
     type_change = in1->value->type != in2->tac->dst->type;
 
     if (type_change) {
-        if (DEBUG_INSTSEL_TREE_MERGING) printf("Changing type from %d -> %d\n", in2->tac->dst->type, in1->value->type);
-        if (DEBUG_INSTSEL_TREE_MERGING) printf("Replacing %d with IR_CAST tac\n", join_to);
+        if (debug_instsel_tree_merging) printf("Changing type from %d -> %d\n", in2->tac->dst->type, in1->value->type);
+        if (debug_instsel_tree_merging) printf("Replacing %d with IR_CAST tac\n", join_to);
         in = &(inodes[join_to]);
         in->tac = new_instruction(IR_CAST);
         in->tac->src1 = in2->tac->dst;
         in->tac->dst = in1->value;
 
-        if (DEBUG_INSTSEL_TREE_MERGING) print_instruction(stdout, in->tac);
+        if (debug_instsel_tree_merging) print_instruction(stdout, in->tac);
 
-        if (DEBUG_INSTSEL_TREE_MERGING) printf("Adding inter graph join edge %d -> %d\n", join_to, g1->node_count);
+        if (debug_instsel_tree_merging) printf("Adding inter graph join edge %d -> %d\n", join_to, g1->node_count);
         add_graph_edge(g->graph, join_to, g1->node_count);
     }
     else {
-        if (DEBUG_INSTSEL_TREE_MERGING_DEEP) printf("Repointing inter graph join node %d->%d to %d->%d\n", join_from, join_to, join_from, g1->node_count);
+        if (debug_instsel_tree_merging_deep) printf("Repointing inter graph join node %d->%d to %d->%d\n", join_from, join_to, join_from, g1->node_count);
         e = g->graph->nodes[join_from].succ;
         if (e->to->id != join_to) e = e->next_succ;
         e->to = &(g->graph->nodes[g1->node_count]);
     }
 
-    if (DEBUG_INSTSEL_TREE_MERGING) {
+    if (debug_instsel_tree_merging) {
         printf("\ng:\n");
         dump_igraph(g);
     }
@@ -275,7 +275,7 @@ void make_igraphs(Function *function, int block_id) {
 
     tac = blocks[block_id].start;
     while (1) {
-        if (DEBUG_INSTSEL_TREE_MERGING) print_instruction(stdout, tac);
+        if (debug_instsel_tree_merging) print_instruction(stdout, tac);
 
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
@@ -370,7 +370,7 @@ void make_igraphs(Function *function, int block_id) {
             tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_REG_LVALUE &&
             igraphs_are_neighbors(igraphs, i, g1_igraph_id)) {
 
-            if (DEBUG_INSTSEL_TREE_MERGING) {
+            if (debug_instsel_tree_merging) {
                 printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
                 printf("in locs %d and %d on vreg=%d\n----------------------------------------------------------\n", g1_igraph_id, i, dst);
             }
@@ -395,10 +395,10 @@ void make_igraphs(Function *function, int block_id) {
         tac = tac->prev;
     }
 
-    if (DEBUG_INSTSEL_TREE_MERGING)
+    if (debug_instsel_tree_merging)
         printf("\n=================================\n");
 
-    if (DEBUG_INSTSEL_TREE_MERGING) {
+    if (debug_instsel_tree_merging) {
         for (i = 0; i < instr_count; i++) {
             if (!igraphs[i].node_count) continue;
             tac = igraphs[i].nodes[0].tac;
@@ -469,16 +469,16 @@ IGraph *simplify_igraph(IGraph *src) {
     dst->graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
     dst->node_count = node_count;
 
-    if (DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION) {
+    if (debug_instsel_igraph_simplification) {
         printf("simplify_igraph() on:\n");
         dump_igraph(src);
     }
 
     dst_node_id = 0;
     recursive_simplify_igraph(src, dst, 0, -1, &dst_node_id);
-    if (DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION) printf("\n");
+    if (debug_instsel_igraph_simplification) printf("\n");
 
-    if (DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION) {
+    if (debug_instsel_igraph_simplification) {
         printf("Result:\n");
         dump_igraph(dst);
         printf("\n");
@@ -718,7 +718,7 @@ int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
     Tac *tac;
     Rule *r;
 
-    if (DEBUG_INSTSEL_TILING) printf("tile_igraph_operand_less_node on node=%d\n", node_id);
+    if (debug_instsel_tiling) printf("tile_igraph_operand_less_node on node=%d\n", node_id);
 
     cost_graph_node_id = new_cost_graph_node();
     cost_to_igraph_map[cost_graph_node_id] = node_id;
@@ -727,7 +727,7 @@ int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
     for (i = 0; i < instr_rule_count; i++) {
         r = &(instr_rules[i]);
         if (r->operation == tac->operation) {
-            if (DEBUG_INSTSEL_TILING) {
+            if (debug_instsel_tiling) {
                 printf("matched rule %-4d: ", i);
                 print_rule(r, 0);
             }
@@ -753,7 +753,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     Rule *r;
     Tac *tac;
 
-    if (DEBUG_INSTSEL_TILING) dump_igraph(igraph);
+    if (debug_instsel_tiling) dump_igraph(igraph);
 
     cost_graph_node_id = new_cost_graph_node();
     cost_to_igraph_map[cost_graph_node_id] = node_id;
@@ -767,7 +767,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         if (r->operation) continue;
 
         if (match_value_to_rule_src(v, r->src1)) {
-            if (DEBUG_INSTSEL_TILING) {
+            if (debug_instsel_tiling) {
                 printf("matched rule %-4d: ", i);
                 print_rule(r, 0);
             }
@@ -804,14 +804,14 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     Value *src1, *src2, *v;
     Rule *r, *child_rule;
 
-    if (DEBUG_INSTSEL_TILING) printf("tile_igraph_operation_node on node=%d\n", node_id);
+    if (debug_instsel_tiling) printf("tile_igraph_operation_node on node=%d\n", node_id);
 
     inodes = igraph->nodes;
     inode = &(igraph->nodes[node_id]);
     tac = inode->tac;
     operation = tac->operation;
 
-    if (DEBUG_INSTSEL_TILING) {
+    if (debug_instsel_tiling) {
         print_instruction(stdout, tac);
         dump_igraph(igraph);
     }
@@ -839,7 +839,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     src1_cost_graph_node_id = recursive_tile_igraphs(igraph, src1_id);
     if (src2_id) src2_cost_graph_node_id = recursive_tile_igraphs(igraph, src2_id);
 
-    if (DEBUG_INSTSEL_TILING) {
+    if (debug_instsel_tiling) {
         printf("back from recursing at node=%d\n\n", node_id);
         printf("src1 labels: "); print_set(igraph_labels[src1_id]); printf(" ");
         printf("\n");
@@ -851,7 +851,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         }
     }
 
-    if (DEBUG_INSTSEL_TILING && tac->dst)
+    if (debug_instsel_tiling && tac->dst)
         printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
 
     if (src1_id) cache_set_elements(igraph_labels[src1_id]);
@@ -904,7 +904,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         // We have a match, do some accounting ...
         matched = 1;
 
-        if (DEBUG_INSTSEL_TILING) {
+        if (debug_instsel_tiling) {
             printf("matched rule %-4d: ", i);
             print_rule(r, 0);
         }
@@ -967,7 +967,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 int recursive_tile_igraphs(IGraph *igraph, int node_id) {
     Tac *tac;
 
-    if (DEBUG_INSTSEL_TILING) printf("\nrecursive_tile_igraphs on node=%d\n", node_id);
+    if (debug_instsel_tiling) printf("\nrecursive_tile_igraphs on node=%d\n", node_id);
 
     if (!igraph->nodes[node_id].tac)
         return tile_igraph_leaf_node(igraph, node_id);
@@ -1037,7 +1037,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
 
     rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
 
-    if (DEBUG_INSTSEL_TILING) {
+    if (debug_instsel_tiling) {
         printf("Generating instructions for rule %-4d: ", rule->index);
         print_rule(rule, 0);
     }
@@ -1046,7 +1046,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     if (parent_node_id == -1) {
         // Use the root node tac or value as a result
         if (ign->tac) {
-            if (DEBUG_INSTSEL_TILING)
+            if (debug_instsel_tiling)
                 printf("  using root vreg for dst %p vreg=%d\n", ign->tac->dst, ign->tac->dst ? ign->tac->dst->vreg : -1);
             dst = ign->tac->dst;
         }
@@ -1062,10 +1062,10 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             dst->vreg = new_vreg();
             dst->ssa_subscript = -1;
 
-            if (DEBUG_INSTSEL_TILING) printf("  allocated new vreg for dst vreg=%d\n", dst->vreg);
+            if (debug_instsel_tiling) printf("  allocated new vreg for dst vreg=%d\n", dst->vreg);
         }
         else {
-            if (DEBUG_INSTSEL_TILING) printf("  using passthrough dst\n");
+            if (debug_instsel_tiling) printf("  using passthrough dst\n");
             dst = src1; // Passthrough for cst or reg
         }
     }
@@ -1103,7 +1103,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         if (x86_v1)  x86_v1  = dup_value(x86_v1);
         if (x86_v2)  x86_v2  = dup_value(x86_v2);
         tac = add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
-        if (DEBUG_INSTSEL_TILING) print_instruction(stdout, tac);
+        if (debug_instsel_tiling) print_instruction(stdout, tac);
 
         x86op = x86op->next;
     }
@@ -1112,7 +1112,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
 }
 
 void make_intermediate_representation(IGraph *igraph) {
-    if (DEBUG_INSTSEL_TILING) {
+    if (debug_instsel_tiling) {
         printf("\nMaking IR\n");
         dump_igraph(igraph);
         printf("\n");
@@ -1129,7 +1129,7 @@ void tile_igraphs(Function *function) {
 
     igraphs = eis_igraphs;
 
-    if (DEBUG_INSTSEL_TILING) {
+    if (debug_instsel_tiling) {
         printf("\nAll trees\n-----------------------------------------------------\n");
 
         for (i = 0; i < eis_instr_count; i++) {
@@ -1165,7 +1165,7 @@ void tile_igraphs(Function *function) {
         igraph_labels = malloc(igraphs[i].node_count * sizeof(Set *));
         for (j = 0; j < igraphs[i].node_count; j++) igraph_labels[j] = new_set(instr_rule_count);
 
-        if (DEBUG_INSTSEL_TILING) {
+        if (debug_instsel_tiling) {
             printf("\nTiling\n-----------------------------------------------------\n");
 
             if (tac)
@@ -1188,7 +1188,7 @@ void tile_igraphs(Function *function) {
         memset(cost_to_igraph_map, 0, MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
 
         recursive_tile_igraphs(&(igraphs[i]), 0);
-        if (DEBUG_INSTSEL_TILING) print_cost_graph(cost_graph, cost_rules, accumulated_cost);
+        if (debug_instsel_tiling) print_cost_graph(cost_graph, cost_rules, accumulated_cost);
 
         if (tac && tac->label) {
             add_instruction(IR_NOP, 0, 0, 0);
@@ -1197,7 +1197,7 @@ void tile_igraphs(Function *function) {
 
         current_instruction_ir_start = ir;
         make_intermediate_representation(&(igraphs[i]));
-        if (DEBUG_INSTSEL_TILING) {
+        if (debug_instsel_tiling) {
             f = new_function();
             f->ir = current_instruction_ir_start;
             print_ir(f, 0);
@@ -1206,7 +1206,7 @@ void tile_igraphs(Function *function) {
 
     function->vreg_count = vreg_count;
 
-    if (DEBUG_INSTSEL_TILING) {
+    if (debug_instsel_tiling) {
         printf("\nFinal IR for block:\n");
         f = new_function();
         f->ir = ir_start;
@@ -1248,7 +1248,7 @@ void select_instructions(Function *function) {
 
     function->ir = new_ir_start;
 
-    if (DEBUG_INSTSEL_TILING) {
+    if (debug_instsel_tiling) {
         printf("\nFinal IR for function:\n");
         print_ir(function, 0);
     }
@@ -1351,16 +1351,16 @@ void add_spill_code(Function *function) {
     Tac *tac;
     int dst_eq_src1, store_preg;
 
-    if (DEBUG_INSTSEL_SPILLING) printf("\nAdding spill code\n");
+    if (debug_instsel_spilling) printf("\nAdding spill code\n");
 
     tac = function->ir;
     while (tac) {
-        if (DEBUG_INSTSEL_SPILLING) print_instruction(stdout, tac);
+        if (debug_instsel_spilling) print_instruction(stdout, tac);
 
         dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->vreg == tac->src1->vreg);
 
         if (tac->src1 && tac->src1->preg == -1 && tac->src1->spilled)  {
-            if (DEBUG_INSTSEL_SPILLING) printf("Adding spill load\n");
+            if (debug_instsel_spilling) printf("Adding spill load\n");
             add_spill_load(tac, 1, REG_R10);
             if (dst_eq_src1) {
                 // Special case where src1 is the same as dst, in that case, r10 contains the result.
@@ -1370,12 +1370,12 @@ void add_spill_code(Function *function) {
         }
 
         if (tac->src2 && tac->src2->preg == -1 && tac->src2->spilled) {
-            if (DEBUG_INSTSEL_SPILLING) printf("Adding spill load\n");
+            if (debug_instsel_spilling) printf("Adding spill load\n");
             add_spill_load(tac, 2, REG_R11);
         }
 
         if (tac->dst && tac->dst->preg == -1 && tac->dst->spilled) {
-            if (DEBUG_INSTSEL_SPILLING) printf("Adding spill store\n");
+            if (debug_instsel_spilling) printf("Adding spill store\n");
             add_spill_store(tac, tac->dst, REG_R11);
             tac = tac->next;
         }

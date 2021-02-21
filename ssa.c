@@ -138,7 +138,7 @@ void map_stack_index_to_local_index(Function *function) {
     stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
     memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
 
-    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_ir(function, 0);
+    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
 
     tac = function->ir;
     while (tac) {
@@ -177,10 +177,10 @@ void map_stack_index_to_local_index(Function *function) {
 
     function->spilled_register_count = spilled_register_count;
 
-    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES)
+    if (debug_ssa_mapping_local_stack_indexes)
         printf("Spilled %d registers due to & use\n", spilled_register_count);
 
-    if (DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES) print_ir(function, 0);
+    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
 }
 
 void index_tac(Tac *ir) {
@@ -277,7 +277,7 @@ void make_control_flow_graph(Function *function) {
 
     index_tac(function->ir);
 
-    if (DEBUG_SSA_CFG) {
+    if (debug_ssa_cfg) {
         print_ir(function, 0);
 
         printf("Blocks:\n");
@@ -454,7 +454,7 @@ void make_block_immediate_dominators(Function *function) {
 
     idoms[0] = -1;
 
-    if (DEBUG_SSA) {
+    if (debug_ssa) {
         printf("\nIdoms:\n");
         for (i = 0; i < block_count; i++) printf("%d: %d\n", i, idoms[i]);
     }
@@ -509,7 +509,7 @@ void make_block_dominance_frontiers(Function *function) {
     function->dominance_frontiers = malloc(block_count * sizeof(Set *));
     for (i = 0; i < block_count; i++) function->dominance_frontiers[i] = df[i];
 
-    if (DEBUG_SSA) {
+    if (debug_ssa) {
         printf("\nDominance frontiers:\n");
         for (i = 0; i < block_count; i++) {
             printf("%d: ", i);
@@ -569,7 +569,7 @@ void make_uevar_and_varkill(Function *function) {
         }
     }
 
-    if (DEBUG_SSA) {
+    if (debug_ssa) {
         printf("\nuevar & varkills:\n");
         for (i = 0; i < block_count; i++) {
             printf("%d: uevar=", i);
@@ -626,7 +626,7 @@ void make_liveout(Function *function) {
     is1 = new_set(vreg_count);
     is2 = new_set(vreg_count);
 
-    if (DEBUG_SSA_LIVEOUT) printf("Doing liveout on %d blocks\n", block_count);
+    if (debug_ssa_liveout) printf("Doing liveout on %d blocks\n", block_count);
 
     changed = 1;
     while (changed) {
@@ -667,7 +667,7 @@ void make_liveout(Function *function) {
     free_set(is1);
     free_set(is2);
 
-    if (DEBUG_SSA_LIVEOUT) {
+    if (debug_ssa_liveout) {
         printf("\nLiveouts:\n");
         for (i = 0; i < block_count; i++) {
             printf("%d: ", i);
@@ -718,7 +718,7 @@ void make_globals_and_var_blocks(Function *function) {
 
     function->var_blocks = var_blocks;
 
-    if (DEBUG_SSA) {
+    if (debug_ssa) {
         printf("\nVar write blocks:\n");
         for (i = 1; i <= vreg_count; i++) {
             printf("%d: ", i);
@@ -779,9 +779,9 @@ void insert_phi_functions(Function *function) {
 
     function->phi_functions = phi_functions;
 
-    if (DEBUG_SSA_PHI_INSERTION) printf("phi functions to add:\n");
+    if (debug_ssa_phi_insertion) printf("phi functions to add:\n");
     for (b = 0; b < block_count; b++) {
-        if (DEBUG_SSA_PHI_INSERTION) {
+        if (debug_ssa_phi_insertion) {
             printf("%d: ", b);
             print_set(phi_functions[b]);
             printf("\n");
@@ -823,7 +823,7 @@ void insert_phi_functions(Function *function) {
         blocks[b].start->label = label;
     }
 
-    if (DEBUG_SSA_PHI_INSERTION) {
+    if (debug_ssa_phi_insertion) {
         printf("\nIR with phi functions:\n");
         print_ir(function, 0);
     }
@@ -875,7 +875,7 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
     GraphEdge *e;
     Value *v;
 
-    if (DEBUG_SSA_PHI_RENUMBERING) {
+    if (debug_ssa_phi_renumbering) {
         printf("\n----------------------------------------\nrename_vars\n");
         print_stack_and_counters(stack, counters, vreg_count);
         printf("\n");
@@ -889,36 +889,36 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
     b = &blocks[block_number];
 
     // Rewrite phi function dsts
-    if (DEBUG_SSA_PHI_RENUMBERING) printf("Rewriting phi function dsts\n");
+    if (debug_ssa_phi_renumbering) printf("Rewriting phi function dsts\n");
     tac = b->start;
     while (tac->operation == IR_PHI_FUNCTION) {
         // Rewrite x as new_subscript(x)
-        if (DEBUG_SSA_PHI_RENUMBERING) printf("Renaming %d ", tac->dst->vreg);
+        if (debug_ssa_phi_renumbering) printf("Renaming %d ", tac->dst->vreg);
         tac->dst->ssa_subscript = new_subscript(stack, counters, tac->dst->vreg);
-        if (DEBUG_SSA_PHI_RENUMBERING) printf("to %d in phi function\n", tac->dst->vreg);
+        if (debug_ssa_phi_renumbering) printf("to %d in phi function\n", tac->dst->vreg);
 
         if (tac == b->end) break;
         tac = tac->next;
     }
 
     // Rewrite operations
-    if (DEBUG_SSA_PHI_RENUMBERING) printf("Rewriting operations\n");
+    if (debug_ssa_phi_renumbering) printf("Rewriting operations\n");
     tac = b->start;
     while (1) {
         if (tac->operation != IR_PHI_FUNCTION) {
             if (tac->src1 && tac->src1->vreg) {
                 tac->src1->ssa_subscript = safe_stack_top(stack, counters, tac->src1->vreg);
-                if (DEBUG_SSA_PHI_RENUMBERING) printf("rewrote src1 %d\n", tac->src1->vreg);
+                if (debug_ssa_phi_renumbering) printf("rewrote src1 %d\n", tac->src1->vreg);
             }
 
             if (tac->src2 && tac->src2->vreg) {
                 tac->src2->ssa_subscript = safe_stack_top(stack, counters, tac->src2->vreg);
-                if (DEBUG_SSA_PHI_RENUMBERING) printf("rewrote src2 %d\n", tac->src2->vreg);
+                if (debug_ssa_phi_renumbering) printf("rewrote src2 %d\n", tac->src2->vreg);
             }
 
             if (tac->dst && tac->dst->vreg) {
                 tac->dst->ssa_subscript = new_subscript(stack, counters, tac->dst->vreg);
-                if (DEBUG_SSA_PHI_RENUMBERING) printf("got new name for dst %d\n", tac->dst->vreg);
+                if (debug_ssa_phi_renumbering) printf("got new name for dst %d\n", tac->dst->vreg);
             }
         }
 
@@ -927,10 +927,10 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
     }
 
     // Rewrite phi function parameters in successors
-    if (DEBUG_SSA_PHI_RENUMBERING) printf("Rewriting successor function params\n");
+    if (debug_ssa_phi_renumbering) printf("Rewriting successor function params\n");
     e = cfg->nodes[block_number].succ;
     while (e) {
-        if (DEBUG_SSA_PHI_RENUMBERING) printf("Successor %d\n", e->to->id);
+        if (debug_ssa_phi_renumbering) printf("Successor %d\n", e->to->id);
         tac = function->blocks[e->to->id].start;
         end = function->blocks[e->to->id].end;
         while (1) {
@@ -939,7 +939,7 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
                 while (v->type) {
                     if (v->ssa_subscript == -1) {
                         v->ssa_subscript = safe_stack_top(stack, counters, v->vreg);
-                        if (DEBUG_SSA_PHI_RENUMBERING) printf("  rewrote arg to %d\n", v->vreg);
+                        if (debug_ssa_phi_renumbering) printf("  rewrote arg to %d\n", v->vreg);
                         break;
                     }
                     v++;
@@ -955,13 +955,13 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
     // Recurse down the dominator tree
     for (i = 0; i < block_count; i++) {
         if (idoms[i] == block_number) {
-            if (DEBUG_SSA_PHI_RENUMBERING) printf("going into idom successor %d\n", i);
+            if (debug_ssa_phi_renumbering) printf("going into idom successor %d\n", i);
             rename_vars(function, stack, counters, i, vreg_count);
         }
     }
 
     // Pop contents of current block assignments off of the stack
-    if (DEBUG_SSA_PHI_RENUMBERING) printf("Block done. Cleaning up stack\n");
+    if (debug_ssa_phi_renumbering) printf("Block done. Cleaning up stack\n");
     tac = b->start;
     while (1) {
         if (tac->dst && tac->dst->vreg) {
@@ -995,7 +995,7 @@ void rename_phi_function_variables(Function *function) {
 
     rename_vars(function, stack, counters, 0, vreg_count);
 
-    if (DEBUG_SSA_PHI_RENUMBERING) print_ir(function, 0);
+    if (debug_ssa_phi_renumbering) print_ir(function, 0);
 }
 
 // Page 696 engineering a compiler
@@ -1015,7 +1015,7 @@ void make_live_ranges(Function *function) {
 
     live_range_reserved_pregs_offset = RESERVED_PHYSICAL_REGISTER_COUNT; // See the list at the top of the file
 
-    if (DEBUG_SSA_LIVE_RANGE) print_ir(function, 0);
+    if (debug_ssa_live_range) print_ir(function, 0);
 
     vreg_count = function->vreg_count;
     ssa_subscript_count = 0;
@@ -1122,7 +1122,7 @@ void make_live_ranges(Function *function) {
             live_ranges[live_range_count++] = live_ranges[i];
 
     // From here on, live ranges start at live_range_reserved_pregs_offset + 1
-    if (DEBUG_SSA_LIVE_RANGE) {
+    if (debug_ssa_live_range) {
         printf("Live ranges:\n");
         for (i = 0; i < live_range_count; i++) {
             printf("%d: ", i + live_range_reserved_pregs_offset + 1);
@@ -1185,7 +1185,7 @@ void make_live_ranges(Function *function) {
         blocks[i].start = tac;
     }
 
-    if (DEBUG_SSA_LIVE_RANGE) print_ir(function, 0);
+    if (debug_ssa_live_range) print_ir(function, 0);
 }
 
 // Having vreg & live_range separately isn't particularly useful, since most
@@ -1245,7 +1245,7 @@ void make_interference_graph(Function *function) {
     char *interference_graph; // Triangular matrix of edges
     int function_call_depth;
 
-    if (DEBUG_SSA_INTERFERENCE_GRAPH) print_ir(function, 0);
+    if (debug_ssa_interference_graph) print_ir(function, 0);
 
     vreg_count = function->vreg_count;
 
@@ -1261,7 +1261,7 @@ void make_interference_graph(Function *function) {
 
         tac = blocks[i].end;
         while (tac) {
-            if (DEBUG_SSA_INTERFERENCE_GRAPH) print_instruction(stdout, tac);
+            if (debug_ssa_interference_graph) print_instruction(stdout, tac);
 
             if (tac->operation == IR_END_CALL) function_call_depth++;
             else if (tac->operation == IR_START_CALL) function_call_depth--;
@@ -1294,7 +1294,7 @@ void make_interference_graph(Function *function) {
                     // This allows codegen to generate code with just one operation while
                     // ensuring the other registers preserve their values.
                     add_ig_edge(interference_graph, vreg_count, tac->src1->vreg, tac->dst->vreg);
-                    if (DEBUG_SSA_INTERFERENCE_GRAPH) printf("added src1 <-> dst %d <-> %d\n", tac->src1->vreg, tac->dst->vreg);
+                    if (debug_ssa_interference_graph) printf("added src1 <-> dst %d <-> %d\n", tac->src1->vreg, tac->dst->vreg);
                 }
 
                 if (tac->operation == X_SUB && tac->src2->vreg) {
@@ -1302,7 +1302,7 @@ void make_interference_graph(Function *function) {
                     // This allows codegen to generate code with just one mov and sub while
                     // ensuring the other registers preserve their values.
                     add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, tac->dst->vreg);
-                    if (DEBUG_SSA_INTERFERENCE_GRAPH) printf("added src2 <-> dst %d <-> %d\n", tac->src2->vreg, tac->dst->vreg);
+                    if (debug_ssa_interference_graph) printf("added src2 <-> dst %d <-> %d\n", tac->src2->vreg, tac->dst->vreg);
                 }
 
                 for (j = 0; j <= livenow->max_value; j++) {
@@ -1325,29 +1325,29 @@ void make_interference_graph(Function *function) {
                         tac->operation == X_MOVSLQ
                        ) && tac->src1 && tac->src1->vreg && tac->src1->vreg == j) continue;
                     add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
-                    if (DEBUG_SSA_INTERFERENCE_GRAPH) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, j);
+                    if (debug_ssa_interference_graph) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, j);
                 }
             }
 
             if (tac->dst && tac->dst->vreg) {
-                if (DEBUG_SSA_INTERFERENCE_GRAPH)
+                if (debug_ssa_interference_graph)
                     printf("livenow: -= %d -> ", tac->dst->vreg);
                 delete_from_set(livenow, tac->dst->vreg);
-                if (DEBUG_SSA_INTERFERENCE_GRAPH) { print_set(livenow); printf("\n"); }
+                if (debug_ssa_interference_graph) { print_set(livenow); printf("\n"); }
             }
 
             if (tac->src1 && tac->src1->vreg) {
-                if (DEBUG_SSA_INTERFERENCE_GRAPH)
+                if (debug_ssa_interference_graph)
                     printf("livenow: += (src1) %d -> ", tac->src1->vreg);
                 add_to_set(livenow, tac->src1->vreg);
-                if (DEBUG_SSA_INTERFERENCE_GRAPH) { print_set(livenow); printf("\n"); }
+                if (debug_ssa_interference_graph) { print_set(livenow); printf("\n"); }
             }
 
             if (tac->src2 && tac->src2->vreg) {
-                if (DEBUG_SSA_INTERFERENCE_GRAPH)
+                if (debug_ssa_interference_graph)
                     printf("livenow: += (src2) %d -> ", tac->src2->vreg);
                 add_to_set(livenow, tac->src2->vreg);
-                if (DEBUG_SSA_INTERFERENCE_GRAPH) { print_set(livenow); printf("\n"); }
+                if (debug_ssa_interference_graph) { print_set(livenow); printf("\n"); }
             }
 
             if (tac == blocks[i].start) break;
@@ -1359,7 +1359,7 @@ void make_interference_graph(Function *function) {
 
     function->interference_graph = interference_graph;
 
-    if (DEBUG_SSA_INTERFERENCE_GRAPH) {
+    if (debug_ssa_interference_graph) {
         for (from = 1; from <= vreg_count; from++) {
             from_offset = from * vreg_count;
             for (to = from + 1; to <= vreg_count; to++) {
@@ -1474,7 +1474,7 @@ void coalesce_live_ranges(Function *function) {
             tac = tac->next;
         }
 
-        if (DEBUG_SSA_LIVE_RANGE_COALESCING) {
+        if (debug_ssa_live_range_coalescing) {
             print_ir(function, 0);
             printf("Live range coalesces:\n");
         }
@@ -1484,7 +1484,7 @@ void coalesce_live_ranges(Function *function) {
                 if (merge_candidates[dst * vreg_count + src] == 1) {
                     intersects = 0;
                     if (!((src < dst && interference_graph[src * vreg_count + dst]) || (interference_graph[dst * vreg_count + src]))) {
-                        if (DEBUG_SSA_LIVE_RANGE_COALESCING) printf("%d -> %d\n", dst, src);
+                        if (debug_ssa_live_range_coalescing) printf("%d -> %d\n", dst, src);
                         coalesce_live_range(function, dst, src);
                         changed = 1;
                     }
@@ -1495,7 +1495,7 @@ void coalesce_live_ranges(Function *function) {
 
     free(merge_candidates);
 
-    if (DEBUG_SSA_LIVE_RANGE_COALESCING) {
+    if (debug_ssa_live_range_coalescing) {
         printf("\n");
         print_ir(function, 0);
     }
@@ -1580,7 +1580,7 @@ void make_live_range_spill_cost(Function *function) {
 
     if (opt_short_lr_infinite_spill_costs) add_infinite_spill_costs(function);
 
-    if (DEBUG_SSA_SPILL_COST) {
+    if (debug_ssa_spill_cost) {
         printf("Spill costs:\n");
         for (i = 1; i <= vreg_count; i++)
             printf("%d: %d\n", i, spill_cost[i]);
@@ -1669,7 +1669,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     Set *constrained, *unconstrained;
     VregCost *ordered_nodes;
 
-    if (DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR) print_ir(function, 0);
+    if (debug_ssa_top_down_register_allocator) print_ir(function, 0);
 
     interference_graph = function->interference_graph;
     vreg_count = function->vreg_count;
@@ -1694,7 +1694,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
             add_to_set(constrained, ordered_nodes[i].vreg);
     }
 
-    if (DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR) {
+    if (debug_ssa_top_down_register_allocator) {
         printf("Nodes in order of decreasing cost:\n");
         for (i = 1; i <= vreg_count; i++)
             printf("%d: cost=%d degree=%d\n", ordered_nodes[i].vreg, ordered_nodes[i].cost, graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg));
@@ -1739,7 +1739,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
     }
 
-    if (DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR) {
+    if (debug_ssa_top_down_register_allocator) {
         printf("Assigned physical registers and stack indexes:\n");
 
         for (i = 1; i <= vreg_count; i++) {

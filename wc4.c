@@ -5,6 +5,11 @@
 
 #include "wc4.h"
 
+void get_debug_env_value(char *key, int *val) {
+    char *env_value;
+    if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;
+}
+
 // Add a builtin symbol
 void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
     Symbol *s;
@@ -82,7 +87,7 @@ int main(int argc, char **argv) {
     char *assembler_input_filename, *assembler_output_filename;
     char **linker_input_filenames, *linker_input_filenames_str;
     int filename_len;
-    char *command, *linker_filenames;
+    char *command, *linker_filenames, *env_value;
     int i, j, k, len, result;
 
     verbose = 0;
@@ -131,7 +136,26 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;  argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0; argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--print-instrrules"                )) { print_instrrules = 1;                 ; argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--print-instrrules"                )) { print_instrrules = 1;                   argc--; argv++; }
+
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-mapping-local-stack-indexes" )) { debug_ssa_mapping_local_stack_indexes = 1;  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa"                             )) { debug_ssa = 1;                              argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-liveout"                     )) { debug_ssa_liveout = 1;                      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-cfg"                         )) { debug_ssa_cfg = 1;                          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-idom"                        )) { debug_ssa_idom = 1;                         argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-phi-insertion"               )) { debug_ssa_phi_insertion = 1;                argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-phi-renumbering"             )) { debug_ssa_phi_renumbering = 1;              argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-live-range"                  )) { debug_ssa_live_range = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-interference-graph"          )) { debug_ssa_interference_graph = 1;           argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-live-range-coalescing"       )) { debug_ssa_live_range_coalescing = 1;        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-spill-cost"                  )) { debug_ssa_spill_cost = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-top-down-register-allocator" )) { debug_ssa_top_down_register_allocator = 1;  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-tree-merging"            )) { debug_instsel_tree_merging = 1;             argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-tree-merging-deep"       )) { debug_instsel_tree_merging_deep = 1;        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-igraph-simplification"   )) { debug_instsel_igraph_simplification = 1;    argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-tiling"                  )) { debug_instsel_tiling = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-spilling"                )) { debug_instsel_spilling = 1;                 argc--; argv++; }
+
             else if (argc > 0 && !strcmp(argv[0], "-S"                                )) {
                 run_assembler = 0;
                 run_linker = 0;
@@ -181,13 +205,55 @@ int main(int argc, char **argv) {
         printf("--print-instrrules             Output instruction selection rules\n");
         printf("-h                             Help\n");
         printf("\n");
-        printf("Optimization options:\n");
+        printf("Optimization flags:\n");
         printf("-fno-coalesce-live-range           Disable SSA live range coalescing\n");
         printf("-fspill-furthest-liveness-end      Spill liveness intervals that have the greatest end liveness interval\n");
         printf("-fno-dont-spill-short-live-ranges  Disable infinite spill costs for short live ranges\n");
         printf("-fno-optimize-arithmetic           Disable arithmetic optimizations\n ");
+        printf("\n");
+        printf("Debug flags:\n");
+        printf("--debug-ssa-mapping-local-stack-indexes\n");
+        printf("--debug-ssa\n");
+        printf("--debug-ssa-liveout\n");
+        printf("--debug-ssa-cfg\n");
+        printf("--debug-ssa-idom\n");
+        printf("--debug-ssa-phi-insertion\n");
+        printf("--debug-ssa-phi-renumbering\n");
+        printf("--debug-ssa-live-range\n");
+        printf("--debug-ssa-interference-graph\n");
+        printf("--debug-ssa-live-range-coalescing\n");
+        printf("--debug-ssa-spill-cost\n");
+        printf("--debug-ssa-top-down-register-allocator\n");
+        printf("--debug-instsel-tree-merging\n");
+        printf("--debug-instsel-tree-merging-deep\n");
+        printf("--debug-instsel-igraph-simplification\n");
+        printf("--debug-instsel-tiling\n");
+        printf("--debug-instsel-spilling\n");
+
+
         exit(1);
     }
+
+    // get_debug_env_value("DEBUG_SSA", &debug_ssa);
+
+    get_debug_env_value("DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES", &debug_ssa_mapping_local_stack_indexes);
+    get_debug_env_value("DEBUG_SSA", &debug_ssa);
+    get_debug_env_value("DEBUG_SSA_LIVEOUT", &debug_ssa_liveout);
+    get_debug_env_value("DEBUG_SSA_CFG", &debug_ssa_cfg);
+    get_debug_env_value("DEBUG_SSA_IDOM", &debug_ssa_idom);
+    get_debug_env_value("DEBUG_SSA_PHI_INSERTION", &debug_ssa_phi_insertion);
+    get_debug_env_value("DEBUG_SSA_PHI_RENUMBERING", &debug_ssa_phi_renumbering);
+    get_debug_env_value("DEBUG_SSA_LIVE_RANGE", &debug_ssa_live_range);
+    get_debug_env_value("DEBUG_SSA_INTERFERENCE_GRAPH", &debug_ssa_interference_graph);
+    get_debug_env_value("DEBUG_SSA_LIVE_RANGE_COALESCING", &debug_ssa_live_range_coalescing);
+    get_debug_env_value("DEBUG_SSA_SPILL_COST", &debug_ssa_spill_cost);
+    get_debug_env_value("DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR", &debug_ssa_top_down_register_allocator);
+    get_debug_env_value("DEBUG_INSTSEL_TREE_MERGING", &debug_instsel_tree_merging);
+    get_debug_env_value("DEBUG_INSTSEL_TREE_MERGING_DEEP", &debug_instsel_tree_merging_deep);
+    get_debug_env_value("DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION", &debug_instsel_igraph_simplification);
+    get_debug_env_value("DEBUG_INSTSEL_TILING", &debug_instsel_tiling);
+    get_debug_env_value("DEBUG_INSTSEL_SPILLING", &debug_instsel_spilling);
+
 
     init_callee_saved_registers();
     init_allocate_registers();
@@ -301,6 +367,7 @@ int main(int argc, char **argv) {
             add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT,             0);
             add_builtin("perror",   IR_PERROR,   TYPE_VOID,            0);
             add_builtin("system",   IR_SYSTEM,   TYPE_INT,             0);
+            add_builtin("getenv",   IR_SYSTEM,   TYPE_CHAR + TYPE_PTR, 0);
 
             init_lexer(compiler_input_filename);
 
