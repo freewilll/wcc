@@ -17,8 +17,6 @@ SOURCES = \
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
 
-WC4_OPTS ?= "-fno-coalesce-live-range"
-
 build:
 	@mkdir -p build/wc42
 	@mkdir -p build/wc43

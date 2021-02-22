@@ -1370,97 +1370,6 @@ void make_interference_graph(Function *function) {
     }
 }
 
-// Delete src, merging it into dst
-void coalesce_live_range(Function *function, int src, int dst) {
-    char *ig;
-    int i, j, block_count, changed, vreg_count, from, to, from_offset;
-    Tac *tac;
-    Set *l;
-
-    // Rewrite IR src => dst
-    tac = function->ir;
-    while (tac) {
-        if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
-        if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
-        if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
-
-        if (tac->operation == IR_MOVE && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
-            tac->operation = IR_NOP;
-            tac->dst = 0;
-            tac->src1 = 0;
-            tac->src2 = 0;
-        }
-
-        tac = tac->next;
-    }
-
-    // Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
-    tac = function->ir;
-    while (tac) {
-        if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
-            print_instruction(stdout, tac);
-            panic1d("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
-        }
-
-        if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
-            print_instruction(stdout, tac);
-            panic1d("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
-        }
-
-        if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
-            print_instruction(stdout, tac);
-            panic1d("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
-        }
-
-        tac = tac->next;
-    }
-
-
-    // Move src edges to dst
-    ig = function->interference_graph;
-
-    vreg_count = function->vreg_count;
-
-    for (from = 1; from <= vreg_count; from++) {
-        from_offset = from * vreg_count;
-        for (to = 1; to <= vreg_count; to++) {
-            if (ig[from_offset + src]) {
-                ig[from_offset + src] = 0;
-                add_ig_edge(ig, vreg_count, from, dst);
-                changed = 1;
-            }
-
-            else if (ig[to * vreg_count + src]) {
-                ig[to * vreg_count + src] = 0;
-                add_ig_edge(ig, vreg_count, to, dst);
-                changed = 1;
-            }
-
-            if (ig[from_offset + dst]) {
-                ig[from_offset + dst] = 0;
-                add_ig_edge(ig, vreg_count, from, src);
-                changed = 1;
-            }
-
-            if (ig[to * vreg_count + dst]) {
-                ig[to * vreg_count + dst] = 0;
-                add_ig_edge(ig, vreg_count, to, src);
-                changed = 1;
-            }
-        }
-    }
-
-    // Migrate liveouts
-    block_count = function->cfg->node_count;
-    for (i = 0; i < block_count; i++) {
-        l = function->liveout[i];
-        if (in_set(l, src)) {
-            delete_from_set(l, src);
-            add_to_set(l, dst);
-        }
-    }
-}
-
 void copy_interference_graph_edges(char *interference_graph, int vreg_count, int src, int dst) {
     // Copy all edges in the lower triangular interference graph matrics from src to dst
     int i;
@@ -1485,6 +1394,59 @@ void copy_interference_graph_edges(char *interference_graph, int vreg_count, int
     }
 }
 
+// Delete src, merging it into dst
+void coalesce_live_range(Function *function, int src, int dst) {
+    char *ig;
+    int i, j, block_count, changed, vreg_count, from, to, from_offset;
+    Tac *tac;
+    Set *l;
+
+    vreg_count = function->vreg_count;
+
+    // Rewrite IR src => dst
+    tac = function->ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
+        if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
+        if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
+
+        if (tac->operation == IR_MOVE && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            tac->operation = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+            tac->src2 = 0;
+        }
+
+        // Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
+        if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            print_instruction(stdout, tac);
+            panic1d("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
+        }
+        if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
+            print_instruction(stdout, tac);
+            panic1d("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
+        }
+        if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
+            print_instruction(stdout, tac);
+            panic1d("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
+        }
+
+        tac = tac->next;
+    }
+
+    copy_interference_graph_edges(function->interference_graph, vreg_count, src, dst);
+
+    // Migrate liveouts
+    block_count = function->cfg->node_count;
+    for (i = 0; i < block_count; i++) {
+        l = function->liveout[i];
+        if (in_set(l, src)) {
+            delete_from_set(l, src);
+            add_to_set(l, dst);
+        }
+    }
+}
+
 // Page 706 of engineering a compiler
 //
 // An outer loop (re)calculates the interference graph.
@@ -1493,7 +1455,6 @@ void copy_interference_graph_edges(char *interference_graph, int vreg_count, int
 // false interferences, however they will disappear when the outer loop runs again.
 void coalesce_live_ranges(Function *function) {
     int i, j, k, dst, src, edge_count, outer_changed, inner_changed, intersects, vreg_count;
-    int coalesced_src, coalesced_dst;
     char *interference_graph, *merge_candidates, *instrsel_blockers;
     Tac *tac;
 
@@ -1555,14 +1516,10 @@ void coalesce_live_ranges(Function *function) {
                             coalesce_live_range(function, src, dst);
                             inner_changed = 1;
                             outer_changed = 1;
-                            coalesced_src = src;
-                            coalesced_dst = dst;
                         }
                     }
                 }
             }
-
-            if (inner_changed) copy_interference_graph_edges(interference_graph, vreg_count, coalesced_src, coalesced_dst);
         }  // while inner changed
     } // while outer changed
 
