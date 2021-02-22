@@ -1461,9 +1461,39 @@ void coalesce_live_range(Function *function, int src, int dst) {
     }
 }
 
+void copy_interference_graph_edges(char *interference_graph, int vreg_count, int src, int dst) {
+    // Copy all edges in the lower triangular interference graph matrics from src to dst
+    int i;
+
+    // Fun with lower triangular matrices follows ...
+    for (i = 1; i <= vreg_count; i++) {
+        // src < i case
+        if (interference_graph[src * vreg_count + i] == 1) {
+            if (dst < i)
+                interference_graph[dst * vreg_count + i] = 1;
+            else
+                interference_graph[i * vreg_count + dst] = 1;
+        }
+
+        // i < src case
+        if (interference_graph[i * vreg_count + src] == 1) {
+            if (i < dst)
+                interference_graph[i * vreg_count + dst] = 1;
+            else
+                interference_graph[dst * vreg_count + i] = 1;
+        }
+    }
+}
+
 // Page 706 of engineering a compiler
+//
+// An outer loop (re)calculates the interference graph.
+// An inner loop discovers the live range to be coalesced, coalesces them,
+// and does a conservative update to the interference graph. The update can introduce
+// false interferences, however they will disappear when the outer loop runs again.
 void coalesce_live_ranges(Function *function) {
-    int i, j, k, dst, src, edge_count, changed, intersects, vreg_count;
+    int i, j, k, dst, src, edge_count, outer_changed, inner_changed, intersects, vreg_count;
+    int coalesced_src, coalesced_dst;
     char *interference_graph, *merge_candidates, *instrsel_blockers;
     Tac *tac;
 
@@ -1475,9 +1505,9 @@ void coalesce_live_ranges(Function *function) {
     make_uevar_and_varkill(function);
     make_liveout(function);
 
-    changed = 1;
-    while (changed) {
-        changed = 0;
+    outer_changed = 1;
+    while (outer_changed) {
+        outer_changed = 0;
 
         make_live_range_spill_cost(function);
         make_interference_graph(function);
@@ -1486,44 +1516,55 @@ void coalesce_live_ranges(Function *function) {
 
         interference_graph = function->interference_graph;
 
-        // A lower triangular matrix of all register copy operations and instrsel blockers
-        memset(merge_candidates, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
-        memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+        inner_changed = 1;
+        while (inner_changed) {
+            inner_changed = 0;
 
-        // Create merge candidates
-        tac = function->ir;
-        while (tac) {
-            if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg)
-                merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
-            else {
-                // Don't allow merges which violate instrsel constraints
-                if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1;
-                if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1;
-                if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
+            // A lower triangular matrix of all register copy operations and instrsel blockers
+            memset(merge_candidates, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+            memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+
+            // Create merge candidates
+            tac = function->ir;
+            while (tac) {
+                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg)
+                    merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
+                else {
+                    // Don't allow merges which violate instrsel constraints
+                    if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1;
+                    if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1;
+                    if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
+                }
+                tac = tac->next;
             }
-            tac = tac->next;
-        }
 
-        if (debug_ssa_live_range_coalescing) {
-            print_ir(function, 0);
-            printf("Live range coalesces:\n");
-        }
+            if (debug_ssa_live_range_coalescing) {
+                print_ir(function, 0);
+                printf("Live range coalesces:\n");
+            }
 
-        for (dst = 1; dst <= vreg_count; dst++) {
-            for (src = 1; src <= vreg_count; src++) {
-                if (changed) continue; // Only coalesce one at a time
+            for (dst = 1; dst <= vreg_count; dst++) {
+                if (inner_changed) continue; // Only coalesce one at a time
+                for (src = 1; src <= vreg_count; src++) {
+                    if (inner_changed) continue; // Only coalesce one at a time
 
-                if (merge_candidates[dst * vreg_count + src] == 1 && instrsel_blockers[dst * vreg_count + src] != 1 && instrsel_blockers[src * vreg_count + dst] != 1) {
-                    intersects = 0;
-                    if (!((src < dst && interference_graph[src * vreg_count + dst]) || (interference_graph[dst * vreg_count + src]))) {
-                        if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", src, dst);
-                        coalesce_live_range(function, src, dst);
-                        changed = 1;
+                    if (merge_candidates[dst * vreg_count + src] == 1 && instrsel_blockers[dst * vreg_count + src] != 1 && instrsel_blockers[src * vreg_count + dst] != 1) {
+                        intersects = 0;
+                        if (!((src < dst && interference_graph[src * vreg_count + dst]) || (interference_graph[dst * vreg_count + src]))) {
+                            if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", src, dst);
+                            coalesce_live_range(function, src, dst);
+                            inner_changed = 1;
+                            outer_changed = 1;
+                            coalesced_src = src;
+                            coalesced_dst = dst;
+                        }
                     }
                 }
             }
-        }
-    }
+
+            if (inner_changed) copy_interference_graph_edges(interference_graph, vreg_count, coalesced_src, coalesced_dst);
+        }  // while inner changed
+    } // while outer changed
 
     free(merge_candidates);
     free(instrsel_blockers);
