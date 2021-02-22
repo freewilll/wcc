@@ -1496,6 +1496,7 @@ void coalesce_live_ranges(Function *function) {
             if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg)
                 merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
             else {
+                // Don't allow merges which violate instrsel constraints
                 if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1;
                 if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1;
                 if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
@@ -1515,8 +1516,8 @@ void coalesce_live_ranges(Function *function) {
                 if (merge_candidates[dst * vreg_count + src] == 1 && instrsel_blockers[dst * vreg_count + src] != 1 && instrsel_blockers[src * vreg_count + dst] != 1) {
                     intersects = 0;
                     if (!((src < dst && interference_graph[src * vreg_count + dst]) || (interference_graph[dst * vreg_count + src]))) {
-                        if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", dst, src);
-                        coalesce_live_range(function, dst, src);
+                        if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", src, dst);
+                        coalesce_live_range(function, src, dst);
                         changed = 1;
                     }
                 }
