@@ -25,3 +25,4 @@ core
 a.out
 test-include/test-include
 build
+gmon.out
