@@ -1455,6 +1455,7 @@ void coalesce_live_range(Function *function, int src, int dst) {
 // false interferences, however they will disappear when the outer loop runs again.
 void coalesce_live_ranges(Function *function) {
     int i, j, k, dst, src, edge_count, outer_changed, inner_changed, intersects, vreg_count;
+    int l1, l2;
     char *interference_graph, *merge_candidates, *instrsel_blockers;
     Tac *tac;
 
@@ -1507,11 +1508,13 @@ void coalesce_live_ranges(Function *function) {
             for (dst = 1; dst <= vreg_count; dst++) {
                 if (inner_changed) continue; // Only coalesce one at a time
                 for (src = 1; src <= vreg_count; src++) {
+                    l1 = dst * vreg_count + src;
+                    l2 = src * vreg_count + dst;
                     if (inner_changed) continue; // Only coalesce one at a time
 
-                    if (merge_candidates[dst * vreg_count + src] == 1 && instrsel_blockers[dst * vreg_count + src] != 1 && instrsel_blockers[src * vreg_count + dst] != 1) {
+                    if (merge_candidates[l1] == 1 && instrsel_blockers[l1] != 1 && instrsel_blockers[l2] != 1) {
                         intersects = 0;
-                        if (!((src < dst && interference_graph[src * vreg_count + dst]) || (interference_graph[dst * vreg_count + src]))) {
+                        if (!((src < dst && interference_graph[l2]) || (interference_graph[l1]))) {
                             if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", src, dst);
                             coalesce_live_range(function, src, dst);
                             inner_changed = 1;
