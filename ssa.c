@@ -1456,7 +1456,7 @@ void coalesce_live_range(Function *function, int src, int dst) {
 // Since earlier coalesces can lead to later coalesces not happening, with each inner
 // loop, the registers with the highest spill cost are coalesced.
 void coalesce_live_ranges(Function *function) {
-    int i, j, k, dst, src, edge_count, outer_changed, inner_changed, intersects, vreg_count;
+    int i, j, k, dst, src, edge_count, outer_changed, inner_changed, vreg_count;
     int l1, l2;
     int max_cost, cost, merge_src, merge_dst;
     char *interference_graph, *merge_candidates, *instrsel_blockers;
@@ -1514,7 +1514,6 @@ void coalesce_live_ranges(Function *function) {
                     l2 = src * vreg_count + dst;
 
                     if (merge_candidates[l1] == 1 && instrsel_blockers[l1] != 1 && instrsel_blockers[l2] != 1) {
-                        intersects = 0;
                         if (!((src < dst && interference_graph[l2]) || (interference_graph[l1]))) {
                             cost = function->spill_cost[src] + function->spill_cost[dst];
                             if (cost > max_cost) {
