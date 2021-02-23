@@ -1506,11 +1506,11 @@ void coalesce_live_ranges(Function *function) {
             }
 
             for (dst = 1; dst <= vreg_count; dst++) {
-                if (inner_changed) continue; // Only coalesce one at a time
+                if (inner_changed) break; // Only coalesce one at a time
                 for (src = 1; src <= vreg_count; src++) {
                     l1 = dst * vreg_count + src;
                     l2 = src * vreg_count + dst;
-                    if (inner_changed) continue; // Only coalesce one at a time
+                    if (inner_changed) break; // Only coalesce one at a time
 
                     if (merge_candidates[l1] == 1 && instrsel_blockers[l1] != 1 && instrsel_blockers[l2] != 1) {
                         intersects = 0;
