@@ -1453,9 +1453,12 @@ void coalesce_live_range(Function *function, int src, int dst) {
 // An inner loop discovers the live range to be coalesced, coalesces them,
 // and does a conservative update to the interference graph. The update can introduce
 // false interferences, however they will disappear when the outer loop runs again.
+// Since earlier coalesces can lead to later coalesces not happening, with each inner
+// loop, the registers with the highest spill cost are coalesced.
 void coalesce_live_ranges(Function *function) {
     int i, j, k, dst, src, edge_count, outer_changed, inner_changed, intersects, vreg_count;
     int l1, l2;
+    int max_cost, cost, merge_src, merge_dst;
     char *interference_graph, *merge_candidates, *instrsel_blockers;
     Tac *tac;
 
@@ -1480,7 +1483,7 @@ void coalesce_live_ranges(Function *function) {
 
         inner_changed = 1;
         while (inner_changed) {
-            inner_changed = 0;
+            inner_changed = max_cost = merge_src = merge_dst = 0;
 
             // A lower triangular matrix of all register copy operations and instrsel blockers
             memset(merge_candidates, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
@@ -1506,22 +1509,29 @@ void coalesce_live_ranges(Function *function) {
             }
 
             for (dst = 1; dst <= vreg_count; dst++) {
-                if (inner_changed) break; // Only coalesce one at a time
                 for (src = 1; src <= vreg_count; src++) {
                     l1 = dst * vreg_count + src;
                     l2 = src * vreg_count + dst;
-                    if (inner_changed) break; // Only coalesce one at a time
 
                     if (merge_candidates[l1] == 1 && instrsel_blockers[l1] != 1 && instrsel_blockers[l2] != 1) {
                         intersects = 0;
                         if (!((src < dst && interference_graph[l2]) || (interference_graph[l1]))) {
-                            if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", src, dst);
-                            coalesce_live_range(function, src, dst);
-                            inner_changed = 1;
-                            outer_changed = 1;
+                            cost = function->spill_cost[src] + function->spill_cost[dst];
+                            if (cost > max_cost) {
+                                max_cost = cost;
+                                merge_src = src;
+                                merge_dst = dst;
+                            }
                         }
                     }
                 }
+            }
+
+            if (merge_src) {
+                if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", merge_src, merge_dst);
+                coalesce_live_range(function, merge_src, merge_dst);
+                inner_changed = 1;
+                outer_changed = 1;
             }
         }  // while inner changed
     } // while outer changed
