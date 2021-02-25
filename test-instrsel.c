@@ -71,7 +71,7 @@ char *rx86op(Tac *tac) {
     return render_x86_operation(tac, 0, 0, 0);
 }
 
-char *assert_x86_op(char *expected) {
+void assert_x86_op(char *expected) {
     char *got;
 
     if (!ir_start) {
@@ -181,6 +181,23 @@ void test_instrsel_tree_merging_type_merges() {
     assert_x86_op("movq    r1q, r4q");
     assert_x86_op("movq    r4q, r2q");
     assert_x86_op("movb    $1, (r2q)");
+}
+
+void test_instrsel_tree_merging_register_constraint() {
+    remove_reserved_physical_registers = 1;
+
+    // Ensure the dst != src1 restriction is respected when merging trees
+    start_ir();
+    i(0, IR_NOP,    0,    0,    0   );   // required for the next label to nog segfault ssa
+    i(1, IR_MOVE,   v(2), v(1), 0   );   // 1: v2 = v1
+    i(0, IR_ADD ,   v(1), v(2), v(3));   //    v1 = v2 + v3
+    i(0, IR_JMP, 0, l(1), 0         );   //    jmp 1. Required to ensure v(1) is in liveout
+                                         //           otherwise, it'll get optimized into a new reg
+    finish_ir(function);
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("movq    r3q, r1q");
+    assert_x86_op("addq    r2q, r1q");
+    assert_x86_op("jmp     .l1"     );
 }
 
 void test_instrsel_tree_merging() {
@@ -1116,9 +1133,9 @@ void test_pointer_inc() {
     i(0, IR_ADD,                a(2), a(1), c(1));
     i(0, IR_MOVE_TO_REG_LVALUE, a(1), a(1), a(2));
     finish_ir(function);
-    assert_x86_op("movq    r1q, r4q"  );
-    assert_x86_op("addq    $1, r4q"   ); nop();
-    assert_x86_op("movq    r4q, (r1q)");
+    assert_x86_op("movq    r1q, r3q"  );
+    assert_x86_op("addq    $1, r3q"   ); nop();
+    assert_x86_op("movq    r3q, (r1q)");
 
     // (a1) = (a1) + 1, split into a2 = (a1), a3 = a2 + 1, (a1) = a3
     start_ir();
@@ -1126,10 +1143,10 @@ void test_pointer_inc() {
     i(0, IR_ADD,                a(3), a(2), c(1));
     i(0, IR_MOVE_TO_REG_LVALUE, a(1), a(1), a(3));
     finish_ir(function);
-    assert_x86_op("movq    (r1q), r5q");
-    assert_x86_op("movq    r5q, r6q"  );
-    assert_x86_op("addq    $1, r6q"   ); nop();
-    assert_x86_op("movq    r6q, (r1q)");
+    assert_x86_op("movq    (r1q), r3q");
+    assert_x86_op("movq    r3q, r5q"  );
+    assert_x86_op("addq    $1, r5q"   ); nop();
+    assert_x86_op("movq    r5q, (r1q)");
 }
 
 void test_pointer_add() {
@@ -1496,6 +1513,7 @@ int main() {
 
     test_instrsel_tree_merging();
     test_instrsel_tree_merging_type_merges();
+    test_instrsel_tree_merging_register_constraint();
     test_instrsel_constant_loading();
     test_instrsel();
     test_instrsel_types_add_vregs();

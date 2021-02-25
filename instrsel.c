@@ -63,7 +63,6 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
 
     if (ign->tac) {
         operation = ign->tac->operation;
-
              if (operation == IR_MOVE)                 printf("= (move)\n");
         else if (operation == IR_ADD)                  printf("+\n");
         else if (operation == IR_SUB)                  printf("-\n");
@@ -243,13 +242,15 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
 int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
     VregIGraph *g1, *g2;
+    int is_nop;
 
     i1++;
     if (i1 > i2) panic("Internal error: ordering issue in igraphs_are_neighbors()");
 
     while (i1 <= i2) {
         if (i1 == i2) return 1;
-        if (igraphs[i1].node_count != 0) return 0;
+        is_nop = igraphs[i1].node_count == 1 && igraphs[i1].nodes[0].tac->operation == IR_NOP;
+        if (!is_nop && igraphs[i1].node_count != 0) return 0;
         i1++;
     }
 
@@ -258,11 +259,11 @@ int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
 
 void make_igraphs(Function *function, int block_id) {
     int instr_count, i, j, node_count, vreg_count;
-    int dst, src1, src2, g1_igraph_id;
+    int dst, src1, src2, g1_igraph_id, ign_vreg;
     Block *blocks;
     Tac *tac;
     IGraph *igraphs, *ig;
-    IGraphNode *nodes;
+    IGraphNode *nodes, *ign_g1;
     Set *liveout;
     Graph *graph;
     VregIGraph* vreg_igraphs;
@@ -351,7 +352,7 @@ void make_igraphs(Function *function, int block_id) {
             vreg_igraphs[src2].igraph_id = i;
         }
 
-        if (tac->operation != IR_MOVE_TO_REG_LVALUE && dst && (src1 && dst == src1) || (src2 && dst == src2)) {
+        if (tac->operation != IR_MOVE_TO_REG_LVALUE && dst && ((src1 && dst == src1) || (src2 && dst == src2))) {
             print_instruction(stdout, tac);
             panic("Illegal assignment of src1/src2 to dst");
         }
@@ -368,22 +369,35 @@ void make_igraphs(Function *function, int block_id) {
         // rearranging function calls without dire dowmstream side effects.
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
             tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_REG_LVALUE &&
-            igraphs_are_neighbors(igraphs, i, g1_igraph_id)) {
+            igraphs_are_neighbors(igraphs, i, g1_igraph_id)
+            ) {
 
-            if (debug_instsel_tree_merging) {
-                printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
-                printf("in locs %d and %d on vreg=%d\n----------------------------------------------------------\n", g1_igraph_id, i, dst);
+            // The instruction tiling code assumes dst != src1 and dst != src2..
+            // Ensure that if there is a dst of target graph that it doesn't match src1
+            ign_g1 = &(igraphs[g1_igraph_id].nodes[0]);
+            ign_vreg = ign_g1->tac ? (ign_g1->tac->dst ? ign_g1->tac->dst->vreg : 0) : 0;
+
+            if (ign_vreg && ign_vreg == src1) {
+                if (debug_instsel_tree_merging)
+                    printf("Not merging on vreg=%d since the target dst=%d would match src1=%d", dst, ign_vreg, src1);
             }
-            ig = merge_igraphs(&(igraphs[g1_igraph_id]), &(igraphs[i]), dst);
+            else {
+                if (debug_instsel_tree_merging) {
+                    printf("\nMerging dst=%d src1=%d src2=%d ", dst, src1, src2);
+                    printf("in locs %d and %d on vreg=%d\n----------------------------------------------------------\n", g1_igraph_id, i, dst);
+                }
 
-            igraphs[g1_igraph_id].nodes = ig->nodes;
-            igraphs[g1_igraph_id].graph = ig->graph;
-            igraphs[g1_igraph_id].node_count = ig->node_count;
+                ig = merge_igraphs(&(igraphs[g1_igraph_id]), &(igraphs[i]), dst);
 
-            igraphs[i].node_count = 0;
+                igraphs[g1_igraph_id].nodes = ig->nodes;
+                igraphs[g1_igraph_id].graph = ig->graph;
+                igraphs[g1_igraph_id].node_count = ig->node_count;
 
-            if (src1) vreg_igraphs[src1].igraph_id = g1_igraph_id;
-            if (src2) vreg_igraphs[src2].igraph_id = g1_igraph_id;
+                igraphs[i].node_count = 0;
+
+                if (src1) vreg_igraphs[src1].igraph_id = g1_igraph_id;
+                if (src2) vreg_igraphs[src2].igraph_id = g1_igraph_id;
+            }
         }
 
         if (dst && tac->operation != IR_MOVE_TO_REG_LVALUE)

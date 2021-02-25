@@ -155,7 +155,7 @@ run-test-graph: test-graph
 	 ./test-graph
 
 .PHONY: test
-test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-instrsel run-test-graph run-test-wc4-gcc test-self-compilation test-self-compilation
+test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-graph run-test-wc4-gcc test-self-compilation test-self-compilation
 
 clean:
 	@rm -f wc4
