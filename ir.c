@@ -574,26 +574,6 @@ void assign_locals_to_registers(Symbol *function) {
     function->function->vreg_count = vreg_count;
 }
 
-void renumber_ir_vreg(Tac *ir, int src, int dst) {
-    Tac *tac;
-
-    if (src == 0 || dst == 0) panic("Unexpected zero reg renumber");
-
-    tac = ir;
-    while (tac) {
-        if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
-        if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
-        if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
-        tac = tac->next;
-    }
-}
-
-void swap_ir_registers(Tac *ir, int vreg1, int vreg2) {
-    renumber_ir_vreg(ir, vreg1, -2);
-    renumber_ir_vreg(ir, vreg2, vreg1);
-    renumber_ir_vreg(ir, -2, vreg2);
-}
-
 Tac *insert_instruction(Tac *ir, Tac *tac, int move_label) {
     int i;
     Tac *prev;
