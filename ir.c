@@ -540,6 +540,9 @@ void assign_local_to_register(Value *v, int vreg) {
     v->vreg = vreg;
 }
 
+// The parser allocates temporaries and local variables on the stack. Allocate vregs
+// for them unless any of them is used with an & operator, in which case, they must
+// remain on the stack.
 void assign_locals_to_registers(Function *function) {
     Tac *tac;
     int i, vreg;
@@ -638,6 +641,9 @@ void merge_labels(Tac *ir, Tac *tac, int ir_index) {
     }
 }
 
+// When the parser completes, each jmp target is a nop with its own label. This
+// can lead to consecutive nops with different labels. Merge those nops and labels
+// into one.
 void merge_consecutive_labels(Function *function) {
     int i;
     Tac *tac;
