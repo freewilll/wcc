@@ -470,25 +470,25 @@ void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) {
 // The arguments are pushed onto the stack right to left, but the ABI requries
 // the seventh arg and later to be pushed in reverse order. Easiest is to flip
 // all args backwards, so they are pushed left to right.
-void reverse_function_argument_order(Symbol *symbol) {
+void reverse_function_argument_order(Function *function) {
     Tac *tac, *call_start, *call;
     int i, j, arg_count, function_call_count;
 
     TacInterval *args;
 
-    ir = symbol->function->ir;
+    ir = function->ir;
     args = malloc(sizeof(TacInterval *) * 256);
 
     // Need to count this IR's function_call_count
     function_call_count = 0;
-    tac = symbol->function->ir;
+    tac = function->ir;
     while (tac) {
         if (tac->operation == IR_START_CALL) function_call_count++;
         tac = tac->next;
     }
 
     for (i = 0; i < function_call_count; i++) {
-        tac = symbol->function->ir;
+        tac = function->ir;
         arg_count = 0;
         call_start = 0;
         call = 0;
@@ -540,16 +540,16 @@ void assign_local_to_register(Value *v, int vreg) {
     v->vreg = vreg;
 }
 
-void assign_locals_to_registers(Symbol *symbol) {
+void assign_locals_to_registers(Function *function) {
     Tac *tac;
     int i, vreg;
 
     int *has_address_of;
 
-    has_address_of = malloc(sizeof(int) * (symbol->function->local_symbol_count + 1));
-    memset(has_address_of, 0, sizeof(int) * (symbol->function->local_symbol_count + 1));
+    has_address_of = malloc(sizeof(int) * (function->local_symbol_count + 1));
+    memset(has_address_of, 0, sizeof(int) * (function->local_symbol_count + 1));
 
-    tac = symbol->function->ir;
+    tac = function->ir;
     while (tac) {
         if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
         if (tac->dst  && !tac->dst ->is_lvalue && tac->dst ->local_index < 0) has_address_of[-tac->dst ->local_index] = 1;
@@ -558,11 +558,11 @@ void assign_locals_to_registers(Symbol *symbol) {
         tac = tac ->next;
     }
 
-    for (i = 1; i <= symbol->function->local_symbol_count; i++) {
+    for (i = 1; i <= function->local_symbol_count; i++) {
         if (has_address_of[i]) continue;
-        vreg = ++vreg_count;
+        vreg = ++function->vreg_count;
 
-        tac = symbol->function->ir;
+        tac = function->ir;
         while (tac) {
             if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
             if (tac->src1 && tac->src1->local_index == -i) assign_local_to_register(tac->src1, vreg);
@@ -571,7 +571,7 @@ void assign_locals_to_registers(Symbol *symbol) {
         }
     }
 
-    symbol->function->vreg_count = vreg_count;
+    function->vreg_count = vreg_count;
 }
 
 Tac *insert_instruction(Tac *ir, Tac *tac, int move_label) {
@@ -602,6 +602,29 @@ void renumber_label(Tac *ir, int l1, int l2) {
     }
 }
 
+// Renumber all labels so they are consecutive. Uses label_count global.
+void renumber_labels(Function *function) {
+    Tac *tac;
+    int temp_labels;
+
+    temp_labels = -2;
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->label) {
+            // Rename target label out of the way
+            renumber_label(ir, label_count + 1, temp_labels);
+            temp_labels--;
+
+            // Replace t->label with label_count + 1
+            renumber_label(ir, tac->label, -1);
+            tac->label = ++label_count;
+            renumber_label(ir, -1, tac->label);
+        }
+        tac = tac->next;
+    }
+}
+
 void merge_labels(Tac *ir, Tac *tac, int ir_index) {
     Tac *deleted_tac, *t;
     int l;
@@ -615,45 +638,22 @@ void merge_labels(Tac *ir, Tac *tac, int ir_index) {
     }
 }
 
-// Renumber all labels so they are consecutive. Uses label_count global.
-void renumber_labels(Tac *ir) {
-    Tac *t;
-    int temp_labels;
-
-    temp_labels = -2;
-
-    t = ir;
-    while (t) {
-        if (t->label) {
-            // Rename target label out of the way
-            renumber_label(ir, label_count + 1, temp_labels);
-            temp_labels--;
-
-            // Replace t->label with label_count + 1
-            renumber_label(ir, t->label, -1);
-            t->label = ++label_count;
-            renumber_label(ir, -1, t->label);
-        }
-        t = t->next;
-    }
-}
-
-void optimize_ir(Symbol *symbol) {
-    Tac *ir, *tac;
+void merge_consecutive_labels(Function *function) {
     int i;
+    Tac *tac;
 
-    ir = symbol->function->ir;
-
-    reverse_function_argument_order(symbol);
-    assign_locals_to_registers(symbol);
-
-    tac = ir;
+    tac = function->ir;
     i = 0;
     while (tac) {
         merge_labels(ir, tac, i);
         tac = tac->next;
         i++;
     }
+}
 
-    renumber_labels(ir);
+void optimize_ir(Symbol *symbol) {
+    reverse_function_argument_order(symbol->function);
+    assign_locals_to_registers(symbol->function);
+    merge_consecutive_labels(symbol->function);
+    renumber_labels(symbol->function);
 }

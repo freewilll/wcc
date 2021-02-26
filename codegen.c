@@ -632,9 +632,7 @@ void output_code(char *input_filename, char *output_filename) {
 
         if (print_ir1) print_ir(s->function, s->identifier);
 
-        vreg_count = s->function->vreg_count;
         optimize_ir(s);
-        s->function->vreg_count = vreg_count;
 
         if (print_ir2) print_ir(s->function, s->identifier);
 
