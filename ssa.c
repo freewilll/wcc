@@ -1960,10 +1960,3 @@ void do_oar4(Function *function) {
     assign_vreg_locations(function);
     remove_preg_self_moves(function);
 }
-
-void optimize_and_allocate_registers(Function *function) {
-    do_oar1(function);
-    do_oar2(function);
-    do_oar3(function);
-    do_oar4(function);
-}

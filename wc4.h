@@ -558,7 +558,6 @@ void do_oar1b(Function *function);
 void do_oar2(Function *function);
 void do_oar3(Function *function);
 void do_oar4(Function *function);
-void optimize_and_allocate_registers(Function *function);
 
 // instrsel.c
 enum {
