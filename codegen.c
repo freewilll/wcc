@@ -572,7 +572,7 @@ void output_function_body_code(Symbol *symbol) {
 void output_code(char *input_filename, char *output_filename) {
     int i;
     Tac *tac;
-    Symbol *s;
+    Symbol *symbol;
     char *sl;
 
     if (!strcmp(output_filename, "-"))
@@ -590,11 +590,14 @@ void output_code(char *input_filename, char *output_filename) {
 
     // Output symbols
     fprintf(f, "    .text\n");
-    s = symbol_table;
-    while (s->identifier) {
-        if (s->scope || s->is_function) { s++; continue; };
-        fprintf(f, "    .comm   %s,%d,%d\n", s->identifier, get_type_size(s->type), get_type_alignment(s->type));
-        s++;
+    symbol = symbol_table;
+    while (symbol->identifier) {
+        if (!symbol->scope && !symbol->is_function)
+            fprintf(f, "    .comm   %s,%d,%d\n",
+                symbol->identifier,
+                get_type_size(symbol->type),
+                get_type_alignment(symbol->type));
+        symbol++;
     }
 
     // Output string literals
@@ -614,35 +617,28 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .text\n");
 
     // Output symbols for all functions
-    s = symbol_table;
-    while (s->identifier) {
-        if (s->is_function) fprintf(f, "    .globl  %s\n", s->identifier);
-        s++;
+    symbol = symbol_table;
+    while (symbol->identifier) {
+        if (symbol->is_function) fprintf(f, "    .globl  %s\n", symbol->identifier);
+        symbol++;
     }
     fprintf(f, "\n");
 
     label_count = 0; // Used in label renumbering
 
     // Generate body code for all functions
-    s = symbol_table;
-    while (s->identifier) {
-        if (!s->is_function || !s->function->is_defined) { s++; continue; }
-
-        fprintf(f, "%s:\n", s->identifier);
-
-        if (print_ir1) print_ir(s->function, s->identifier);
-
-        optimize_ir(s);
-
-        if (print_ir2) print_ir(s->function, s->identifier);
-
-        experimental_instruction_selection(s);
-
-        if (print_ir3) print_ir(s->function, s->identifier);
-
-        output_function_body_code(s);
-        fprintf(f, "\n");
-        s++;
+    symbol = symbol_table;
+    while (symbol->identifier) {
+        if (symbol->is_function && symbol->function->is_defined) {
+            fprintf(f, "%s:\n", symbol->identifier);
+            if (print_ir1) print_ir(symbol->function, symbol->identifier);
+            post_process_function_parse(symbol->function);
+            experimental_instruction_selection(symbol);
+            if (print_ir2) print_ir(symbol->function, symbol->identifier);
+            output_function_body_code(symbol);
+            fprintf(f, "\n");
+        }
+        symbol++;
     }
 
     fclose(f);

@@ -359,8 +359,7 @@ int target_is_object_file;
 int target_is_assembly_file;
 int print_spilled_register_count;
 int print_ir1;                          // Print IR after parsing
-int print_ir2;                          // Print IR after x84_64 arch manipulation
-int print_ir3;                          // Print IR after register allocation
+int print_ir2;                          // Print IR after register allocation
 int output_inline_ir;                   // Output IR inline with the assembly
 int opt_enable_register_allocation;     // Allocate physical registers
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
@@ -513,7 +512,7 @@ void print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac);
 void print_ir(Function *function, char *name);
-void optimize_ir(Symbol *function);
+void post_process_function_parse(Function *function);
 
 // ssa.c
 enum {

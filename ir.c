@@ -651,9 +651,9 @@ void merge_consecutive_labels(Function *function) {
     }
 }
 
-void optimize_ir(Symbol *symbol) {
-    reverse_function_argument_order(symbol->function);
-    assign_locals_to_registers(symbol->function);
-    merge_consecutive_labels(symbol->function);
-    renumber_labels(symbol->function);
+void post_process_function_parse(Function *function) {
+    reverse_function_argument_order(function);
+    assign_locals_to_registers(function);
+    merge_consecutive_labels(function);
+    renumber_labels(function);
 }

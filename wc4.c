@@ -100,7 +100,6 @@ int main(int argc, char **argv) {
     print_spilled_register_count = 0;
     print_ir1 = 0;
     print_ir2 = 0;
-    print_ir3 = 0;
     print_instrrules = 0;
     print_symbols = 0;
     opt_enable_register_coalescing = 1;
@@ -129,7 +128,6 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_spilled_register_count = 1;       argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                          argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir3"                             )) { print_ir3 = 1;                          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--iir"                             )) { output_inline_ir = 1;                   argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-register-allocation"          )) { opt_enable_register_allocation = 0;     argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;   argc--; argv++; }
