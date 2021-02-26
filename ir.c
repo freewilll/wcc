@@ -470,25 +470,25 @@ void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) {
 // The arguments are pushed onto the stack right to left, but the ABI requries
 // the seventh arg and later to be pushed in reverse order. Easiest is to flip
 // all args backwards, so they are pushed left to right.
-void reverse_function_argument_order(Symbol *function) {
+void reverse_function_argument_order(Symbol *symbol) {
     Tac *tac, *call_start, *call;
     int i, j, arg_count, function_call_count;
 
     TacInterval *args;
 
-    ir = function->function->ir;
+    ir = symbol->function->ir;
     args = malloc(sizeof(TacInterval *) * 256);
 
     // Need to count this IR's function_call_count
     function_call_count = 0;
-    tac = function->function->ir;
+    tac = symbol->function->ir;
     while (tac) {
         if (tac->operation == IR_START_CALL) function_call_count++;
         tac = tac->next;
     }
 
     for (i = 0; i < function_call_count; i++) {
-        tac = function->function->ir;
+        tac = symbol->function->ir;
         arg_count = 0;
         call_start = 0;
         call = 0;
@@ -540,16 +540,16 @@ void assign_local_to_register(Value *v, int vreg) {
     v->vreg = vreg;
 }
 
-void assign_locals_to_registers(Symbol *function) {
+void assign_locals_to_registers(Symbol *symbol) {
     Tac *tac;
     int i, vreg;
 
     int *has_address_of;
 
-    has_address_of = malloc(sizeof(int) * (function->function->local_symbol_count + 1));
-    memset(has_address_of, 0, sizeof(int) * (function->function->local_symbol_count + 1));
+    has_address_of = malloc(sizeof(int) * (symbol->function->local_symbol_count + 1));
+    memset(has_address_of, 0, sizeof(int) * (symbol->function->local_symbol_count + 1));
 
-    tac = function->function->ir;
+    tac = symbol->function->ir;
     while (tac) {
         if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
         if (tac->dst  && !tac->dst ->is_lvalue && tac->dst ->local_index < 0) has_address_of[-tac->dst ->local_index] = 1;
@@ -558,11 +558,11 @@ void assign_locals_to_registers(Symbol *function) {
         tac = tac ->next;
     }
 
-    for (i = 1; i <= function->function->local_symbol_count; i++) {
+    for (i = 1; i <= symbol->function->local_symbol_count; i++) {
         if (has_address_of[i]) continue;
         vreg = ++vreg_count;
 
-        tac = function->function->ir;
+        tac = symbol->function->ir;
         while (tac) {
             if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
             if (tac->src1 && tac->src1->local_index == -i) assign_local_to_register(tac->src1, vreg);
@@ -571,7 +571,7 @@ void assign_locals_to_registers(Symbol *function) {
         }
     }
 
-    function->function->vreg_count = vreg_count;
+    symbol->function->vreg_count = vreg_count;
 }
 
 Tac *insert_instruction(Tac *ir, Tac *tac, int move_label) {
@@ -638,14 +638,14 @@ void renumber_labels(Tac *ir) {
     }
 }
 
-void optimize_ir(Symbol *function) {
+void optimize_ir(Symbol *symbol) {
     Tac *ir, *tac;
     int i;
 
-    ir = function->function->ir;
+    ir = symbol->function->ir;
 
-    reverse_function_argument_order(function);
-    assign_locals_to_registers(function);
+    reverse_function_argument_order(symbol);
+    assign_locals_to_registers(symbol);
 
     tac = ir;
     i = 0;
