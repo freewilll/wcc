@@ -232,7 +232,7 @@ void test_liveout1() {
 
     if (debug_ssa) print_ir(function, 0);
 
-    do_oar1(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
     make_uevar_and_varkill(function);
     make_liveout(function);
 
@@ -319,7 +319,7 @@ void test_liveout2() {
     Function *function;
 
     function = make_ir2(0);
-    do_oar1(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
     make_uevar_and_varkill(function);
     make_liveout(function);
 
@@ -362,8 +362,7 @@ void test_idom2() {
     Function *function;
 
     function = make_ir2(0);
-    do_oar1(function);
-    // do_oar2(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
 
     assert(-1, function->idom[0]);
     assert( 0, function->idom[1]);
@@ -398,8 +397,7 @@ void test_phi_insertion() {
     Function *function;
 
     function = make_ir2(0);
-    do_oar1(function);
-    do_oar2(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS);
 
     // Page 502 of engineering a compiler
     assert_set(function->globals, 1, 2, 3, 4, 5);
@@ -466,8 +464,7 @@ void test_phi_renumbering1() {
     Tac *tac;
 
     function = make_ir2(1);
-    do_oar1(function);
-    do_oar2(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS);
     rename_phi_function_variables(function);
 
     if (debug_ssa_phi_renumbering) print_ir(function, 0);
@@ -522,8 +519,7 @@ void test_phi_renumbering2() {
 
     function->ir = ir_start;
 
-    do_oar1(function);
-    do_oar2(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS);
     rename_phi_function_variables(function);
 
     if (debug_ssa_phi_renumbering) print_ir(function, 0);
@@ -578,10 +574,8 @@ void test_interference_graph1() {
 
     if (debug_ssa_interference_graph) print_ir(function, 0);
 
-    do_oar1(function);
-    do_oar2(function);
     disable_live_ranges_coalesce = 1;
-    do_oar3(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
 
     ig = function->interference_graph;
     vreg_count = function->vreg_count;
@@ -600,9 +594,7 @@ void test_interference_graph2() {
 
     function = make_ir2(1);
 
-    do_oar1(function);
-    do_oar2(function);
-    do_oar3(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
 
     if (debug_ssa_interference_graph) print_ir(function, 0);
 
@@ -646,10 +638,8 @@ void test_interference_graph3() {
 
     function->ir = ir_start;
 
-    do_oar1(function);
-    do_oar2(function);
     disable_live_ranges_coalesce = 1;
-    do_oar3(function);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
 
     if (debug_ssa_interference_graph) print_ir(function, 0);
 
@@ -669,10 +659,8 @@ void test_spill_cost() {
     for (i = 0; i < 3; i++) {
         function = make_ir3(i);
 
-        do_oar1(function);
-        do_oar2(function);
         disable_live_ranges_coalesce = 1;
-        do_oar3(function);
+        run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
 
         if (debug_ssa_spill_cost) print_ir(function, 0);
 

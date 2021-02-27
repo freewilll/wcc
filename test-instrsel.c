@@ -129,10 +129,14 @@ void start_ir() {
     init_instruction_selection_rules();
 }
 
-void _finish_ir(Function *function, int run_eis1) {
+void _finish_ir(Function *function, int run_eis2) {
     function->ir = ir_start;
-    eis1(function);
-    if (run_eis1) eis2(function);
+
+    if (run_eis2)
+        run_compiler_phases(function, COMPILE_EVERYTHING);
+    else
+        run_compiler_phases(function, COMPILE_STOP_AFTER_INSTRUCTION_SELECTION);
+
     remove_reserved_physical_register_count_from_tac(function->ir);
 
     // Move ir_start to first non-noop for convenience

@@ -524,6 +524,23 @@ enum {
     LIVE_RANGE_PREG_R9_INDEX,
 };
 
+void make_globals_and_var_blocks(Function *function);
+void insert_phi_functions(Function *function);
+void optimize_arithmetic_operations(Function *function);
+void map_stack_index_to_local_index(Function *function);
+void rewrite_lvalue_reg_assignments(Function *function);
+void make_control_flow_graph(Function *function);
+void make_block_dominance(Function *function);
+void make_block_immediate_dominators(Function *function);
+void make_block_dominance_frontiers(Function *function);
+void rename_phi_function_variables(Function *function);
+void make_live_ranges(Function *function);
+void blast_vregs_with_live_ranges(Function *function);
+void coalesce_live_ranges(Function *function);
+void allocate_registers(Function *function);
+void assign_vreg_locations(Function *function);
+void remove_preg_self_moves(Function *function);
+
 // Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
 int live_range_reserved_pregs_offset;
 int disable_live_ranges_coalesce;
@@ -546,12 +563,6 @@ void coalesce_live_ranges(Function *function);
 void init_allocate_registers();
 void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void allocate_registers_top_down(Function *function, int physical_register_count);
-void do_oar1(Function *function);
-void do_oar1a(Function *function);
-void do_oar1b(Function *function);
-void do_oar2(Function *function);
-void do_oar3(Function *function);
-void do_oar4(Function *function);
 
 // instrsel.c
 enum {
@@ -656,9 +667,9 @@ int instr_rule_count;
 int disable_merge_constants;
 Rule *instr_rules;
 
-void eis1(Function *function);
-void eis2(Function *function);
-void experimental_instruction_selection(Function *function);
+void select_instructions(Function *function);
+void remove_vreg_self_moves(Function *function);
+void add_spill_code(Function *function);
 
 // instrrules.c
 char size_to_x86_size(int size);
@@ -677,30 +688,16 @@ void init_callee_saved_registers();
 void output_function_body_code(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
 
-// temp-wc4.c
-void do_oar1a(Function *function);
-void do_oar1b(Function *function);
-void make_globals_and_var_blocks(Function *function);
-void insert_phi_functions(Function *function);
-void optimize_arithmetic_operations(Function *function);
-void map_stack_index_to_local_index(Function *function);
-void rewrite_lvalue_reg_assignments(Function *function);
-void make_control_flow_graph(Function *function);
-void make_block_dominance(Function *function);
-void make_block_immediate_dominators(Function *function);
-void make_block_dominance_frontiers(Function *function);
-void rename_phi_function_variables(Function *function);
-void make_live_ranges(Function *function);
-void blast_vregs_with_live_ranges(Function *function);
-void coalesce_live_ranges(Function *function);
-void allocate_registers(Function *function);
-void assign_vreg_locations(Function *function);
-void remove_preg_self_moves(Function *function);
-void select_instructions(Function *function);
-void do_oar1b(Function *function);
-void remove_vreg_self_moves(Function *function);
-void add_spill_code(Function *function);
+// wc4.c
+enum {
+    COMPILE_EVERYTHING,
+    COMPILE_STOP_AFTER_ANALYZE_DOMINANCE,
+    COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS,
+    COMPILE_STOP_AFTER_REGISTER_ALLOCATION,
+    COMPILE_STOP_AFTER_INSTRUCTION_SELECTION,
+};
 
+void run_compiler_phases(Function *function, int stop_at);
 void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename);
 
 // test-utils.c

@@ -1847,6 +1847,9 @@ void allocate_registers(Function *function) {
     }
 
     total_spilled_register_count += function->spilled_register_count;
+
+    assign_vreg_locations(function);
+    remove_preg_self_moves(function);
 }
 
 void assign_vreg_locations(Function *function) {
