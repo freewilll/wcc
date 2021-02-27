@@ -1,14 +1,5 @@
 #include "wc4.h"
 
-void analyze_dominance(Function *function) {
-    sanity_test_ir_linkage(function);
-    make_vreg_count(function, 0);
-    make_control_flow_graph(function);
-    make_block_dominance(function);
-    make_block_immediate_dominators(function);
-    make_block_dominance_frontiers(function);
-}
-
 void run_compiler_phases(Function *function, int stop_at) {
     // Prepare for SSA phi function insertion
     sanity_test_ir_linkage(function);

@@ -519,6 +519,15 @@ void make_block_dominance_frontiers(Function *function) {
     }
 }
 
+void analyze_dominance(Function *function) {
+    sanity_test_ir_linkage(function);
+    make_vreg_count(function, 0);
+    make_control_flow_graph(function);
+    make_block_dominance(function);
+    make_block_immediate_dominators(function);
+    make_block_dominance_frontiers(function);
+}
+
 int make_vreg_count(Function *function, int starting_count) {
     int vreg_count;
     Tac *tac;

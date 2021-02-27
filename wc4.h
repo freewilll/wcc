@@ -524,26 +524,11 @@ enum {
     LIVE_RANGE_PREG_R9_INDEX,
 };
 
-void make_globals_and_var_blocks(Function *function);
-void insert_phi_functions(Function *function);
-void optimize_arithmetic_operations(Function *function);
-void map_stack_index_to_local_index(Function *function);
-void rewrite_lvalue_reg_assignments(Function *function);
-void make_control_flow_graph(Function *function);
-void make_block_dominance(Function *function);
-void make_block_immediate_dominators(Function *function);
-void make_block_dominance_frontiers(Function *function);
-void rename_phi_function_variables(Function *function);
-void make_live_ranges(Function *function);
-void blast_vregs_with_live_ranges(Function *function);
-void coalesce_live_ranges(Function *function);
-void allocate_registers(Function *function);
-void assign_vreg_locations(Function *function);
-void remove_preg_self_moves(Function *function);
-
 // Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
 int live_range_reserved_pregs_offset;
 int preg_count;
+
+void analyze_dominance(Function *function);
 
 void optimize_arithmetic_operations(Function *function);
 int make_vreg_count(Function *function, int starting_count);
@@ -553,15 +538,22 @@ void make_liveout(Function *function);
 void rename_phi_function_variables(Function *function);
 void make_live_ranges(Function *function);
 void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count);
-void make_live_ranges(Function *function);
 void make_control_flow_graph(Function *function);
 void make_block_dominance(Function *function);
-void make_liveout(Function *function);
 void make_live_range_spill_cost(Function *function);
 void coalesce_live_ranges(Function *function);
 void init_allocate_registers();
 void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void allocate_registers_top_down(Function *function, int physical_register_count);
+void make_globals_and_var_blocks(Function *function);
+void insert_phi_functions(Function *function);
+void map_stack_index_to_local_index(Function *function);
+void rewrite_lvalue_reg_assignments(Function *function);
+void blast_vregs_with_live_ranges(Function *function);
+void allocate_registers(Function *function);
+void assign_vreg_locations(Function *function);
+void remove_preg_self_moves(Function *function);
+
 
 // instrsel.c
 enum {
