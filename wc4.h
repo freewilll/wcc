@@ -638,8 +638,8 @@ enum {
 typedef struct rule {
     int index;
     long hash;
-    int non_terminal;
     int operation;
+    int dst;
     int src1;
     int src2;
     int cost;
@@ -664,13 +664,14 @@ void add_spill_code(Function *function);
 
 // instrrules.c
 char size_to_x86_size(int size);
-char *non_terminal_string(int nt);
 void print_rule(Rule *r, int print_operations);
 void print_rules();
 void make_value_x86_size(Value *v);
-int is_downsize_allowed_for_non_terminal(int parent, int child);
+int rules_match(int parent, int child);
+int match_value_to_rule_src(Value *v, int src);
+int match_value_to_rule_dst(Value *v, int dst);
 int value_ptr_target_x86_size(Value *v);
-int non_terminal_for_value(Value *v);
+char *value_to_non_termanal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
 void init_instruction_selection_rules();

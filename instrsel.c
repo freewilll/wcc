@@ -611,21 +611,6 @@ void merge_constants(Function *function) {
     }
 }
 
-int rules_match(int parent, Rule *child) {
-    if (parent == child->non_terminal)
-        return 1;
-    else
-        return is_downsize_allowed_for_non_terminal(parent, child->non_terminal);
-}
-
-int match_value_to_rule_src(Value *v, int src) {
-    return non_terminal_for_value(v) == src;
-}
-
-int match_value_to_rule_dst(Value *v, Rule *r) {
-    return rules_match(non_terminal_for_value(v), r);
-}
-
 // Print the cost graph, only showing choices where parent src and child dst match
 void recursive_print_cost_graph(Graph *cost_graph, int *cost_rules, int *accumulated_cost, int node_id, int parent_node_id, int parent_src, int indent) {
     int i, j, choice_node_id, src, match;
@@ -642,7 +627,7 @@ void recursive_print_cost_graph(Graph *cost_graph, int *cost_rules, int *accumul
         if (parent_node_id != -1) {
             parent_rule = &(instr_rules[cost_rules[parent_node_id]]);
             src = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
-            match = rules_match(src, &(instr_rules[cost_rules[choice_node_id]]));
+            match = rules_match(src, instr_rules[cost_rules[choice_node_id]].dst);
             if (match) {
                 printf("%-3d ", choice_node_id);
                 for (i = 0; i < indent; i++) printf("  ");
@@ -821,7 +806,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     }
 
     if (debug_instsel_tiling && tac->dst)
-        printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
+        printf("Want dst %s\n", value_to_non_termanal_string(tac->dst));
 
     if (src1_id) cache_set_elements(igraph_labels[src1_id]);
     if (src2_id) cache_set_elements(igraph_labels[src2_id]);
@@ -836,10 +821,10 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (!src2_id && r->src2) continue;
 
         // If this is the top level, ensure the dst matches
-        if (tac->dst && node_id == 0 && !match_value_to_rule_dst(tac->dst, r)) continue;
+        if (tac->dst && node_id == 0 && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
 
         // If the rule requires dst matching, do it.
-        if (tac->dst && r->match_dst && !match_value_to_rule_dst(tac->dst, r)) continue;
+        if (tac->dst && r->match_dst && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
 
         // Check dst of the subtree tile matches what is needed
         rule_src1 = r->src1;
@@ -849,7 +834,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         mv = igraph_labels[src1_id]->cached_element_count;
         cached_elements = igraph_labels[src1_id]->cached_elements;
         for (j = 0; j < mv; j++) {
-            if (instr_rules[cached_elements[j]].non_terminal == r->src1) {
+            if (instr_rules[cached_elements[j]].dst == r->src1) {
                 matched_src = 1;
                 break;
             }
@@ -862,7 +847,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             mv = igraph_labels[src2_id]->cached_element_count;
             cached_elements = igraph_labels[src2_id]->cached_elements;
             for (j = 0; j < mv; j++) {
-                if (instr_rules[cached_elements[j]].non_terminal == r->src2) {
+                if (instr_rules[cached_elements[j]].dst == r->src2) {
                     matched_src = 1;
                     break;
                 }
@@ -901,7 +886,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             while (e) {
                 child_rule = &(instr_rules[cost_rules[e->to->id]]);
 
-                if (rules_match(src, child_rule)) {
+                if (rules_match(src, child_rule->dst)) {
                     cost = accumulated_cost[e->to->id];
                     if (cost < min_cost) min_cost = cost;
                 }
@@ -922,7 +907,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
     if (!matched) {
         printf("\nNo rules matched\n");
-        if (tac->dst) printf("Want dst %s\n", non_terminal_string(non_terminal_for_value(tac->dst)));
+        if (tac->dst) printf("Want dst %s\n", value_to_non_termanal_string(tac->dst));
         print_instruction(stdout, tac);
         dump_igraph(igraph);
         exit(1);
@@ -965,7 +950,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             // Ensure src and dst match for non-root nodes
             parent_rule = &(instr_rules[cost_rules[parent_node_id]]);
             pv = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
-            match = rules_match(pv, &(instr_rules[cost_rules[choice_node_id]]));
+            match = rules_match(pv, instr_rules[cost_rules[choice_node_id]].dst);
         }
         else
             match = 1;
@@ -1044,7 +1029,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     // are doing. This cannot be done from the type since the type
     // reflects what the parser has produced, and doesn't necessarily
     // match what the x86 code is doing.
-    if (dst)  dst->x86_size  = make_x86_size_from_non_terminal(rule->non_terminal);
+    if (dst)  dst->x86_size  = make_x86_size_from_non_terminal(rule->dst);
     if (src1) src1->x86_size = make_x86_size_from_non_terminal(rule->src1);
     if (src2) src2->x86_size = make_x86_size_from_non_terminal(rule->src2);
 

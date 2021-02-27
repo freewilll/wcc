@@ -8,7 +8,9 @@ enum {
     AUTO_NON_TERMINAL_START = 100,
 };
 
-Rule *add_rule(int non_terminal, int operation, int src1, int src2, int cost) {
+int non_terminal_for_value(Value *v);
+
+Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
     int i;
     Rule *r;
 
@@ -18,7 +20,7 @@ Rule *add_rule(int non_terminal, int operation, int src1, int src2, int cost) {
 
     r->index          = instr_rule_count;
     r->operation      = operation;
-    r->non_terminal   = non_terminal;
+    r->dst            = dst;
     r->src1           = src1;
     r->src2           = src2;
     r->cost           = cost;
@@ -129,13 +131,13 @@ void fin_rule(Rule *r) {
     // REGL, REGL, CST
     // REGQ, REGQ, CST
 
-    int operation, non_terminal, src1, src2, cost, i;
+    int operation, dst, src1, src2, cost, i;
     X86Operation *x86_operations, *x86_operation;
     Rule *new_rule;
     char *c;
 
     operation      = r->operation;
-    non_terminal   = r->non_terminal;
+    dst            = r->dst;
     src1           = r->src1;
     src2           = r->src2;
     cost           = r->cost;
@@ -143,17 +145,17 @@ void fin_rule(Rule *r) {
 
     // Only deal with outputs that go into registers, memory or address in register
     if (!(
-            non_terminal == REG || src1 == REG || src2 == REG ||
-            non_terminal == MEM || src1 == MEM || src2 == MEM ||
-            non_terminal == ADR || src1 == ADR || src2 == ADR ||
-            non_terminal == MDR || src1 == MDR || src2 == MDR)) {
+            dst == REG || src1 == REG || src2 == REG ||
+            dst == MEM || src1 == MEM || src2 == MEM ||
+            dst == ADR || src1 == ADR || src2 == ADR ||
+            dst == MDR || src1 == MDR || src2 == MDR)) {
         return;
     }
 
     instr_rule_count--; // Rewind next pointer so that the last rule is overwritten
 
     for (i = 1; i <= 4; i++) {
-        new_rule = add_rule(transform_rule_value(non_terminal, i), operation, transform_rule_value(src1, i), transform_rule_value(src2, i), cost);
+        new_rule = add_rule(transform_rule_value(dst, i), operation, transform_rule_value(src1, i), transform_rule_value(src2, i), cost);
         new_rule->x86_operations = dup_x86_operations(x86_operations);
 
         x86_operation = new_rule->x86_operations;
@@ -194,7 +196,7 @@ void make_rule_hash(int i) {
     r = &(instr_rules[i]);
 
     r->hash =
-        (r->non_terminal     <<  0) +
+        (r->dst              <<  0) +
         (r->src1             <<  8) +
         (r->src2             << 16) +
         (r->operation        << 24) +
@@ -265,13 +267,17 @@ char *non_terminal_string(int nt) {
     }
 }
 
+char *value_to_non_termanal_string(Value *v) {
+    return non_terminal_string(non_terminal_for_value(v));
+}
+
 void print_rule(Rule *r, int print_operations) {
     int i, first;
     X86Operation *operation;
 
     printf("%-24s  %-5s%s  %-5s  %-5s  %2d    ",
         operation_string(r->operation),
-        non_terminal_string(r->non_terminal),
+        non_terminal_string(r->dst),
         r->match_dst ? "(d)" : "   ",
         non_terminal_string(r->src1),
         non_terminal_string(r->src2),
@@ -363,14 +369,32 @@ int non_terminal_for_value(Value *v) {
     return result;
 }
 
-int is_downsize_allowed_for_non_terminal(int parent, int child) {
-         if (parent == REGB && child== REGW) return 1;
+// Can parent (src1, src2) and child (dst) non terminals be joined?
+// If they are an exact match, yes.
+// If the parent wants a REG of a lower precision, that's also allowed,
+// since it's the parent that gets to choose the precision, and the child has to
+// offer anything that satisfies the parent.
+// Upgrades aren't allowed since they require sign extension, which is done
+// by specific rules.
+int rules_match(int parent, int child) {
+         if (parent == child)                return 1;
+    else if (parent == REGB && child== REGW) return 1;
     else if (parent == REGB && child== REGL) return 1;
     else if (parent == REGB && child== REGQ) return 1;
     else if (parent == REGW && child== REGL) return 1;
     else if (parent == REGW && child== REGQ) return 1;
     else if (parent == REGL && child== REGQ) return 1;
-    else return 0;
+    else                                     return 0;
+}
+
+// Used in leaf nodes
+int match_value_to_rule_src(Value *v, int src) {
+    return non_terminal_for_value(v) == src;
+}
+
+// Used to match root node, or of match_dst is true on a non-root node
+int match_value_to_rule_dst(Value *v, int dst) {
+    return rules_match(non_terminal_for_value(v), dst);
 }
 
 int value_ptr_target_x86_size(Value *v) {

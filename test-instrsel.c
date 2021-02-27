@@ -164,13 +164,13 @@ Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, V
     return tac;
 }
 
-void nuke_rule(int non_terminal, int operation, int src1, int src2) {
+void nuke_rule(int dst, int operation, int src1, int src2) {
     int i;
     Rule *r;
 
     for (i = 0; i < instr_rule_count; i++) {
         r = &(instr_rules[i]);
-        if (r->operation == operation && r->non_terminal == non_terminal && r->src1 == src1 && r->src2 == src2)
+        if (r->operation == operation && r->dst == dst && r->src1 == src1 && r->src2 == src2)
             r->operation = -1;
     }
 }
