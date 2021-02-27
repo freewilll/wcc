@@ -1266,3 +1266,66 @@ void parse() {
         else panic("Expected global declaration or function");
     }
 }
+
+// Add a builtin symbol
+void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
+    Symbol *s;
+
+    s = new_symbol();
+    s->type = type;
+    s->identifier = identifier;
+    s->is_function = 1;
+    s->function = malloc(sizeof(Function));
+    memset(s->function, 0, sizeof(Function));
+    s->function->builtin = instruction;
+    s->function->is_variadic = is_variadic;
+}
+
+void add_builtins() {
+    add_builtin("exit",     IR_EXIT,     TYPE_VOID,            0);
+    add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR, 0);
+    add_builtin("fread",    IR_FREAD,    TYPE_INT,             0);
+    add_builtin("fwrite",   IR_FWRITE,   TYPE_INT,             0);
+    add_builtin("fclose",   IR_FCLOSE,   TYPE_INT,             0);
+    add_builtin("close",    IR_CLOSE,    TYPE_INT,             0);
+    add_builtin("stdout",   IR_STDOUT,   TYPE_LONG,            0);
+    add_builtin("printf",   IR_PRINTF,   TYPE_INT,             1);
+    add_builtin("fprintf",  IR_FPRINTF,  TYPE_INT,             1);
+    add_builtin("malloc",   IR_MALLOC,   TYPE_VOID + TYPE_PTR, 0);
+    add_builtin("free",     IR_FREE,     TYPE_INT,             0);
+    add_builtin("memset",   IR_MEMSET,   TYPE_INT,             0);
+    add_builtin("memcmp",   IR_MEMCMP,   TYPE_INT,             0);
+    add_builtin("strcmp",   IR_STRCMP,   TYPE_INT,             0);
+    add_builtin("strlen",   IR_STRLEN,   TYPE_INT,             0);
+    add_builtin("strcpy",   IR_STRCPY,   TYPE_INT,             0);
+    add_builtin("strrchr",  IR_STRRCHR,  TYPE_CHAR + TYPE_PTR, 0);
+    add_builtin("sprintf",  IR_SPRINTF,  TYPE_INT,             1);
+    add_builtin("asprintf", IR_ASPRINTF, TYPE_INT,             1);
+    add_builtin("strdup",   IR_STRDUP,   TYPE_CHAR + TYPE_PTR, 0);
+    add_builtin("memcpy",   IR_MEMCPY,   TYPE_VOID + TYPE_PTR, 0);
+    add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT,             0);
+    add_builtin("perror",   IR_PERROR,   TYPE_VOID,            0);
+    add_builtin("system",   IR_SYSTEM,   TYPE_INT,             0);
+    add_builtin("getenv",   IR_SYSTEM,   TYPE_CHAR + TYPE_PTR, 0);
+}
+
+void init_parser() {
+    symbol_table = malloc(SYMBOL_TABLE_SIZE);
+    memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
+    next_symbol = symbol_table;
+
+    string_literals = malloc(MAX_STRING_LITERALS);
+    string_literal_count = 0;
+
+    all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
+    all_structs_count = 0;
+
+    all_typedefs = malloc(sizeof(struct typedef_desc *) * MAX_TYPEDEFS);
+    all_typedefs_count = 0;
+
+    vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
+    vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
+    label_count = 0;
+
+    add_builtins();
+}

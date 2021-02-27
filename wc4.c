@@ -10,20 +10,6 @@ void get_debug_env_value(char *key, int *val) {
     if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;
 }
 
-// Add a builtin symbol
-void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
-    Symbol *s;
-
-    s = new_symbol();
-    s->type = type;
-    s->identifier = identifier;
-    s->is_function = 1;
-    s->function = malloc(sizeof(Function));
-    memset(s->function, 0, sizeof(Function));
-    s->function->builtin = instruction;
-    s->function->is_variadic = is_variadic;
-}
-
 void do_print_symbols() {
     long type, scope, value, local_index;
     Symbol *s;
@@ -79,8 +65,41 @@ char *make_temp_filename(char *template) {
     return strdup(template);
 }
 
+void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename) {
+    Symbol *symbol;
+    Function *function;
+
+    init_lexer(compiler_input_filename);
+    init_parser();
+    parse();
+    check_incomplete_structs();
+
+    // Compile code for all functions
+    symbol = symbol_table;
+    while (symbol->identifier) {
+        if (symbol->is_function && symbol->function->is_defined) {
+            function = symbol->function;
+            if (print_ir1) print_ir(function, symbol->identifier);
+            post_process_function_parse(function);
+            experimental_instruction_selection(function);
+            if (print_ir2) print_ir(function, symbol->identifier);
+        }
+        symbol++;
+    }
+
+    output_code(compiler_input_filename, compiler_output_filename);
+}
+
 int main(int argc, char **argv) {
-    int help, debug, print_symbols, print_code, print_instrrules;
+
+    int verbose;                    // Print invoked program command lines
+    int run_compiler;               // Compile .c file
+    int run_assembler;              // Assemble .s file
+    int run_linker;                 // Link .o file
+    int target_is_object_file;
+    int target_is_assembly_file;
+    int help, debug, print_symbols, print_instrrules, print_spilled_register_count;
+
     int input_filename_count;
     char **input_filenames, *input_filename, *output_filename, *local_output_filename;
     char *compiler_input_filename, *compiler_output_filename;
@@ -91,7 +110,7 @@ int main(int argc, char **argv) {
     int i, j, k, len, result;
 
     verbose = 0;
-    compile = 1;
+    run_compiler = 1;
     run_assembler = 1;
     run_linker = 1;
     target_is_object_file = 0;
@@ -232,8 +251,6 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    // get_debug_env_value("DEBUG_SSA", &debug_ssa);
-
     get_debug_env_value("DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES", &debug_ssa_mapping_local_stack_indexes);
     get_debug_env_value("DEBUG_SSA", &debug_ssa);
     get_debug_env_value("DEBUG_SSA_LIVEOUT", &debug_ssa_liveout);
@@ -277,12 +294,12 @@ int main(int argc, char **argv) {
 
         if (filename_len > 2 && input_filename[filename_len - 2] == '.') {
             if (input_filename[filename_len - 1] == 'o') {
-                compile = 0;
+                run_compiler = 0;
                 run_assembler = 0;
                 run_linker = 1;
             }
             else if (input_filename[filename_len - 1] == 's') {
-                compile = 0;
+                run_compiler = 0;
                 run_assembler = 1;
             }
         }
@@ -294,7 +311,7 @@ int main(int argc, char **argv) {
         input_filename = input_filenames[i];
         parsing_header = 0;
 
-        if (compile) {
+        if (run_compiler) {
             if (!output_filename) {
                 if (run_linker)
                     output_filename = "a.out";
@@ -306,16 +323,14 @@ int main(int argc, char **argv) {
             else
                 local_output_filename = output_filename;
 
-            if (compile) {
-                compiler_input_filename = input_filename;
-                if (run_assembler)
-                    compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
-                else
-                    compiler_output_filename = strdup(local_output_filename);
-            }
+            compiler_input_filename = input_filename;
+            if (run_assembler)
+                compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
+            else
+                compiler_output_filename = strdup(local_output_filename);
 
             if (run_assembler) {
-                if (compile)
+                if (run_compiler)
                     assembler_input_filename = compiler_output_filename;
                 else
                     assembler_input_filename = input_filename;
@@ -326,61 +341,10 @@ int main(int argc, char **argv) {
                     assembler_output_filename = strdup(local_output_filename);
             }
 
-            symbol_table = malloc(SYMBOL_TABLE_SIZE);
-            memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
-            next_symbol = symbol_table;
-
-            string_literals = malloc(MAX_STRING_LITERALS);
-            string_literal_count = 0;
-
-            all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
-            all_structs_count = 0;
-
-            all_typedefs = malloc(sizeof(struct typedef_desc *) * MAX_TYPEDEFS);
-            all_typedefs_count = 0;
-
-            ir_vreg_offset = 0;
-
-            add_builtin("exit",     IR_EXIT,     TYPE_VOID,            0);
-            add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR, 0);
-            add_builtin("fread",    IR_FREAD,    TYPE_INT,             0);
-            add_builtin("fwrite",   IR_FWRITE,   TYPE_INT,             0);
-            add_builtin("fclose",   IR_FCLOSE,   TYPE_INT,             0);
-            add_builtin("close",    IR_CLOSE,    TYPE_INT,             0);
-            add_builtin("stdout",   IR_STDOUT,   TYPE_LONG,            0);
-            add_builtin("printf",   IR_PRINTF,   TYPE_INT,             1);
-            add_builtin("fprintf",  IR_FPRINTF,  TYPE_INT,             1);
-            add_builtin("malloc",   IR_MALLOC,   TYPE_VOID + TYPE_PTR, 0);
-            add_builtin("free",     IR_FREE,     TYPE_INT,             0);
-            add_builtin("memset",   IR_MEMSET,   TYPE_INT,             0);
-            add_builtin("memcmp",   IR_MEMCMP,   TYPE_INT,             0);
-            add_builtin("strcmp",   IR_STRCMP,   TYPE_INT,             0);
-            add_builtin("strlen",   IR_STRLEN,   TYPE_INT,             0);
-            add_builtin("strcpy",   IR_STRCPY,   TYPE_INT,             0);
-            add_builtin("strrchr",  IR_STRRCHR,  TYPE_CHAR + TYPE_PTR, 0);
-            add_builtin("sprintf",  IR_SPRINTF,  TYPE_INT,             1);
-            add_builtin("asprintf", IR_ASPRINTF, TYPE_INT,             1);
-            add_builtin("strdup",   IR_STRDUP,   TYPE_CHAR + TYPE_PTR, 0);
-            add_builtin("memcpy",   IR_MEMCPY,   TYPE_VOID + TYPE_PTR, 0);
-            add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT,             0);
-            add_builtin("perror",   IR_PERROR,   TYPE_VOID,            0);
-            add_builtin("system",   IR_SYSTEM,   TYPE_INT,             0);
-            add_builtin("getenv",   IR_SYSTEM,   TYPE_CHAR + TYPE_PTR, 0);
-
-            init_lexer(compiler_input_filename);
-
-            vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
-            vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
-            label_count = 0;
-            parse();
-            check_incomplete_structs();
+            compile(print_spilled_register_count, compiler_input_filename, compiler_output_filename);
 
             if (print_symbols) do_print_symbols();
-
-            output_code(compiler_input_filename, compiler_output_filename);
-
             if (print_spilled_register_count) printf("spilled_register_count=%d\n", total_spilled_register_count);
-
         }
 
         if (run_assembler) {

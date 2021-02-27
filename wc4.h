@@ -351,13 +351,6 @@ enum {
 char *cur_filename;             // Current filename being lexed
 int cur_line;                   // Current line number being lexed
 
-int verbose;                    // Print invoked program command lines
-int compile;                    // Compile .c file
-int run_assembler;              // Assemble .s file
-int run_linker;                 // Link .o file
-int target_is_object_file;
-int target_is_assembly_file;
-int print_spilled_register_count;
 int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after register allocation
 int output_inline_ir;                   // Output IR inline with the assembly
@@ -495,6 +488,7 @@ void check_incomplete_structs();
 void expression(int level);
 void finish_parsing_header();
 void parse();
+void init_parser();
 
 // ir.c
 void init_value(Value *v);
@@ -532,7 +526,6 @@ enum {
 int live_range_reserved_pregs_offset;
 int disable_live_ranges_coalesce;
 int preg_count;
-int ir_vreg_offset;
 
 void optimize_arithmetic_operations(Function *function);
 int make_vreg_count(Function *function, int starting_count);
@@ -663,7 +656,7 @@ Rule *instr_rules;
 
 void eis1(Function *function);
 void eis2(Function *function);
-void experimental_instruction_selection(Symbol *function_symbol);
+void experimental_instruction_selection(Function *function);
 
 // instrrules.c
 char size_to_x86_size(int size);

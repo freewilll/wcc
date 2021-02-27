@@ -321,7 +321,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
                     if (v->stack_index) panic("Got stack_index in vreg");
 
                     *buffer++ = 'r';
-                    sprintf(buffer, "%d", v->vreg - ir_vreg_offset);
+                    sprintf(buffer, "%d", v->vreg);
                     while (*buffer) *buffer++;
                     *buffer++ = size_to_x86_size(x86_size);
                 }
@@ -626,15 +626,11 @@ void output_code(char *input_filename, char *output_filename) {
 
     label_count = 0; // Used in label renumbering
 
-    // Generate body code for all functions
+    // Output functions code
     symbol = symbol_table;
     while (symbol->identifier) {
         if (symbol->is_function && symbol->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
-            if (print_ir1) print_ir(symbol->function, symbol->identifier);
-            post_process_function_parse(symbol->function);
-            experimental_instruction_selection(symbol);
-            if (print_ir2) print_ir(symbol->function, symbol->identifier);
             output_function_body_code(symbol);
             fprintf(f, "\n");
         }

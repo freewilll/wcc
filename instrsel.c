@@ -1397,7 +1397,6 @@ void eis1(Function *function) {
     do_oar1(function);
     do_oar2(function);
     do_oar3(function);
-    ir_vreg_offset = 0;
     select_instructions(function);
     do_oar1b(function);
     coalesce_live_ranges(function);
@@ -1407,13 +1406,9 @@ void eis1(Function *function) {
 void eis2(Function *function) {
     do_oar4(function);
     add_spill_code(function);
-    ir_vreg_offset = 0;
 }
 
-void experimental_instruction_selection(Symbol *function_symbol) {
-    Function *function;
-    function = function_symbol->function;
-
+void experimental_instruction_selection(Function *function) {
     eis1(function);
     eis2(function);
 }
