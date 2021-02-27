@@ -45,7 +45,7 @@ void compile(int print_spilled_register_count, char *compiler_input_filename, ch
     parse();
     check_incomplete_structs();
 
-    // Compile code for all functions
+    // Compile all functions
     symbol = symbol_table;
     while (symbol->identifier) {
         if (symbol->is_function && symbol->function->is_defined) {
