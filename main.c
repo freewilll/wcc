@@ -10,25 +10,6 @@ void get_debug_env_value(char *key, int *val) {
     if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;
 }
 
-void do_print_symbols() {
-    long type, scope, value, local_index;
-    Symbol *s;
-    char *identifier;
-
-    printf("Symbols:\n");
-    s = symbol_table;
-    while (s->identifier) {
-        type = s->type;
-        identifier = (char *) s->identifier;
-        scope = s->scope;
-        value = s->value;
-        local_index = s->local_index;
-        printf("%-20ld %-5ld %-3ld %-3ld %-20ld %s\n", (long) s, type, scope, local_index, value, identifier);
-        s++;
-    }
-    printf("\n");
-}
-
 char *replace_extension(char *input, char *ext) {
     char *p;
     char *result;
@@ -317,7 +298,7 @@ int main(int argc, char **argv) {
 
             compile(print_spilled_register_count, compiler_input_filename, compiler_output_filename);
 
-            if (print_symbols) do_print_symbols();
+            if (print_symbols) dump_symbols();
             if (print_spilled_register_count) printf("spilled_register_count=%d\n", total_spilled_register_count);
         }
 

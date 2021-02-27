@@ -488,6 +488,7 @@ void check_incomplete_structs();
 void expression(int level);
 void finish_parsing_header();
 void parse();
+void dump_symbols();
 void init_parser();
 
 // ir.c
@@ -502,6 +503,7 @@ Tac *insert_instruction(Tac *ir, Tac *tac, int move_label);
 void sanity_test_ir_linkage(Function *function);
 int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
+int print_type(void *f, int type);
 void print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac);

@@ -153,6 +153,27 @@ void fprintf_escaped_string_literal(void *f, char* sl) {
     fprintf(f, "\"");
 }
 
+int print_type(void *f, int type) {
+    int len;
+
+    len = 0;
+
+    while (type >= TYPE_PTR) {
+        len += fprintf(f, "*");
+        type -= TYPE_PTR;
+    }
+
+         if (type == TYPE_VOID)   len += fprintf(f, "void");
+    else if (type == TYPE_CHAR)   len += fprintf(f, "char");
+    else if (type == TYPE_INT)    len += fprintf(f, "int");
+    else if (type == TYPE_SHORT)  len += fprintf(f, "short");
+    else if (type == TYPE_LONG)   len += fprintf(f, "long");
+    else if (type >= TYPE_STRUCT) len += fprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->identifier);
+    else len += fprintf(f, "unknown type %d", type);
+
+    return len;
+}
+
 void print_value(void *f, Value *v, int is_assignment_rhs) {
     int type;
 
@@ -194,21 +215,8 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 
         if (v->x86_size)
             fprintf(f, "%d", v->x86_size);
-        else {
-            type = v->type;
-            while (type >= TYPE_PTR) {
-                fprintf(f, "*");
-                type -= TYPE_PTR;
-            }
-
-                 if (type == TYPE_VOID)   fprintf(f, "void");
-            else if (type == TYPE_CHAR)   fprintf(f, "char");
-            else if (type == TYPE_INT)    fprintf(f, "int");
-            else if (type == TYPE_SHORT)  fprintf(f, "short");
-            else if (type == TYPE_LONG)   fprintf(f, "long");
-            else if (type >= TYPE_STRUCT) fprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->identifier);
-            else fprintf(f, "unknown type %d", type);
-        }
+        else
+            print_type(f, v->type);
     }
 }
 

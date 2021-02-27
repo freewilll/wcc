@@ -1267,6 +1267,30 @@ void parse() {
     }
 }
 
+void dump_symbols() {
+    long type, scope, value, local_index;
+    Symbol *s;
+    char *identifier;
+    int i, type_len;
+
+    printf("Symbols:\n");
+    s = symbol_table;
+    while (s->identifier) {
+        type = s->type;
+        identifier = (char *) s->identifier;
+        scope = s->scope;
+        value = s->value;
+        local_index = s->local_index;
+        printf("%-5ld %-3ld %-3ld %-20ld ", type, scope, local_index, value);
+        type_len = print_type(stdout, type);
+        for (i = 0; i < 24 - type_len; i++) printf(" ");
+        printf("%s\n", identifier);
+        s++;
+    }
+    printf("\n");
+}
+
+
 // Add a builtin symbol
 void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
     Symbol *s;
