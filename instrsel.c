@@ -612,55 +612,12 @@ void merge_constants(Function *function) {
 }
 
 int rules_match(int parent, Rule *child, int allow_downsize) {
-    if (!allow_downsize) return parent == child->non_terminal;
-
-    if (parent == child->non_terminal) return 1;
-
-    if (parent == REGB && child->non_terminal == REGW) return 1;
-    if (parent == REGB && child->non_terminal == REGL) return 1;
-    if (parent == REGB && child->non_terminal == REGQ) return 1;
-    if (parent == REGW && child->non_terminal == REGL) return 1;
-    if (parent == REGW && child->non_terminal == REGQ) return 1;
-    if (parent == REGL && child->non_terminal == REGQ) return 1;
-
-    return 0;
-}
-
-int non_terminal_for_constant_value(Value *v) {
-    if (v->value >= -2147483648 && v->value <= 2147483647)
-        return CSTL;
+    if (!allow_downsize)
+        return parent == child->non_terminal;
+    else if (parent == child->non_terminal)
+        return 1;
     else
-        return CSTQ;
-}
-
-int non_terminal_for_value(Value *v) {
-    int adr_base;
-    int result;
-
-    if (!v->x86_size) make_value_x86_size(v);
-    if (v->non_terminal) return v->non_terminal;
-
-    adr_base = v->vreg ? ADR : MDR;
-
-         if (v->is_constant)                                        result =  non_terminal_for_constant_value(v);
-    else if (v->is_string_literal)                                  result =  STL;
-    else if (v->label)                                              result =  LAB;
-    else if (v->function_symbol)                                    result =  FUN;
-    else if (v->type == TYPE_PTR + TYPE_VOID)                       result =  adr_base + 5; // *void
-    else if (v->type >= TYPE_PTR + TYPE_PTR)                        result =  adr_base + 4; // **...
-    else if (v->type >= TYPE_PTR + TYPE_STRUCT)                     result =  adr_base + 5; // *void
-    else if (v->type >= TYPE_PTR)                                   result =  adr_base + value_ptr_target_x86_size(v);
-    else if (v->is_lvalue_in_register)                              result =  ADR + v->x86_size;
-    else if (v->global_symbol || v->local_index || v->stack_index)  result =  MEM + v->x86_size;
-    else if (v->vreg)                                               result =  REG + v->x86_size;
-    else {
-        print_value(stdout, v, 0);
-        panic("Bad value in non_terminal_for_value()");
-    }
-
-    v->non_terminal = result;
-
-    return result;
+        return is_downsize_allowed_for_non_terminal(parent, child->non_terminal);
 }
 
 int match_value_to_rule_src(Value *v, int src) {
