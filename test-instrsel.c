@@ -1379,6 +1379,53 @@ void test_pointer_double_indirect() {
     }
 }
 
+void test_composite_pointer_indirect_reg(int reg_size, int bshl_size) {
+    start_ir();
+    i(0, IR_BSHL,     vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)    ); // r3 = r1 << bshl_size
+    i(0, IR_ADD,      vsz(4, TYPE_LONG), asz(2, reg_size), vsz(3, TYPE_LONG)); // r4 = r2 + r3
+    i(0, IR_INDIRECT, vsz(4, reg_size),  vsz(4, TYPE_LONG), 0               ); // r5 = *r4
+    finish_ir(function);
+}
+
+void test_composite_pointer_indirect() {
+    // Test mov(a,b,c), d instruction
+    remove_reserved_physical_registers = 1;
+
+    test_composite_pointer_indirect_reg(TYPE_SHORT,           1); assert_x86_op("movw    (r2q,r1q,2), r5w");
+    test_composite_pointer_indirect_reg(TYPE_INT,             2); assert_x86_op("movl    (r2q,r1q,4), r5l");
+    test_composite_pointer_indirect_reg(TYPE_LONG,            3); assert_x86_op("movq    (r2q,r1q,8), r5q");
+    test_composite_pointer_indirect_reg(TYPE_PTR + TYPE_VOID, 3); assert_x86_op("movq    (r2q,r1q,8), r5q");
+
+    // Adveserial example: the BSHL doesn't match the type. This could happen
+    // in e.g. p[i << 1]. In this case, the scale mov rule cannot be used.
+    test_composite_pointer_indirect_reg(TYPE_SHORT, 2);
+    assert_x86_op("movq    r1q, r6q"  );
+    assert_x86_op("shlq    $2, r6q"   );
+    assert_x86_op("movq    r2q, r7q"  );
+    assert_x86_op("addq    r6q, r7q"  );
+    assert_x86_op("movw    (r7q), r5w");
+}
+
+void test_composite_pointer_address_of_reg(int bshl_size) {
+    start_ir();
+    i(0, IR_BSHL,       vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)     ); // r3 = r1 << bshl_size
+    i(0, IR_ADD,        vsz(4, TYPE_LONG), asz(2, TYPE_VOID), vsz(3, TYPE_LONG)); // r4 = r2 + r3
+    i(0, IR_ADDRESS_OF, asz(2, TYPE_VOID), vsz(4, TYPE_LONG), 0                ); // r5 = &r4
+    finish_ir(function);
+}
+
+
+void test_composite_pointer_address_of() {
+    int i;
+    // Test lea(a,b,c), d instruction
+    remove_reserved_physical_registers = 1;
+
+    // Lea from a pointer lookup to different sizes stucts
+    test_composite_pointer_address_of_reg(1); assert_x86_op("lea     (r2q,r1q,2), r3q");
+    test_composite_pointer_address_of_reg(2); assert_x86_op("lea     (r2q,r1q,4), r3q");
+    test_composite_pointer_address_of_reg(3); assert_x86_op("lea     (r2q,r1q,8), r3q");
+}
+
 void test_pointer_to_void_from_long_assignment() {
     remove_reserved_physical_registers = 1;
 
@@ -1548,6 +1595,8 @@ int main() {
     test_assign_to_pointer_to_void();
     test_pointer_comparisons();
     test_pointer_double_indirect();
+    test_composite_pointer_indirect();
+    test_composite_pointer_address_of();
     test_pointer_to_void_from_long_assignment();
     test_ptr_to_void_memory_load_to_ptr();
     test_constant_cast_to_ptr();

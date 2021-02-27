@@ -565,12 +565,15 @@ enum {
     LAB,                         // 3    Label, i.e. a target for a (conditional) jump
     FUN,                         // 4    Function, used for calls
     CSTL, CSTQ,                  // 5, 6 Constants
-    REG, REGB, REGW, REGL, REGQ, // 7    Registers
-    MEM, MEMB, MEMW, MEML, MEMQ, // 12   Memory, in stack or globals
-    ADR, ADRB, ADRW, ADRL, ADRQ, // 17   Address (aka pointer) in a register
-    ADRV,                        // 22   Address (aka pointer) to an unknown sized value (e.g. a struct)
-    MDR, MDRB, MDRW, MDRL, MDRQ, // 23   Address (aka pointer) in memory
-    MDRV,                        // 28   Address (aka pointer) to an unknown sized value (e.g. a struct) in memory
+    CST1,                        // 7    Constant with value 1
+    CST2,                        // 8    Constant with value 2
+    CST3,                        // 9    Constant with value 3
+    REG, REGB, REGW, REGL, REGQ, // 10   Registers
+    MEM, MEMB, MEMW, MEML, MEMQ, // 15   Memory, in stack or globals
+    ADR, ADRB, ADRW, ADRL, ADRQ, // 20   Address (aka pointer) in a register
+    ADRV,                        // 25   Address (aka pointer) to an unknown sized value (e.g. a struct)
+    MDR, MDRB, MDRW, MDRL, MDRQ, // 26   Address (aka pointer) in memory
+    MDRV,                        // 31   Address (aka pointer) to an unknown sized value (e.g. a struct) in memory
 
     // Operands
     DST,
@@ -596,9 +599,11 @@ enum {
     X_MOVSLQ,
 
     X_MOV_FROM_IND,
+    X_MOV_FROM_SCALED_IND,
     X_MOV_TO_IND,
 
     X_LEA,
+    X_LEA_FROM_SCALED_IND,
     X_ADD,
     X_SUB,
     X_MUL,
@@ -651,12 +656,16 @@ typedef struct x86_operation {
     int operation;
     int dst, v1, v2;
     char *template;
+    int save_value_in_slot;     // Slot number to save a value in
+    int load_value_from_slot;   // Slot number to load a value from
+    int arg;                    // The argument (src1 or src2) to load/save
     struct x86_operation *next;
 } X86Operation;
 
 int instr_rule_count;
 int disable_merge_constants;
 Rule *instr_rules;
+Value **saved_values;
 
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);

@@ -53,6 +53,9 @@ X86Operation *dup_x86_operation(X86Operation *operation) {
     result->v1 = operation->v1;
     result->v2 = operation->v2;
     result->template = operation->template ? strdup(operation->template) : 0;
+    result->save_value_in_slot = operation->save_value_in_slot;
+    result->load_value_from_slot = operation->load_value_from_slot;
+    result->arg = operation->arg;
     result->next = 0;
 
     return result;
@@ -166,9 +169,21 @@ void fin_rule(Rule *r) {
     }
 }
 
-void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
-    // Add an x86 operation template to a rule
+// Add an X86Operation template to a rule's linked list
+void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
+    X86Operation *o;
 
+    if (!r->x86_operations)
+        r->x86_operations = x86op;
+    else {
+        o = r->x86_operations;
+        while (o->next) o = o->next;
+        o->next = x86op;
+    }
+}
+
+// Add an x86 operation template to a rule
+void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     X86Operation *x86op, *o;
 
     x86op = malloc(sizeof(X86Operation));
@@ -179,15 +194,35 @@ void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     x86op->v2 = v2;
 
     x86op->template = template;
+    x86op->save_value_in_slot = 0;
+    x86op->load_value_from_slot = 0;
+    x86op->arg = 0;
+
     x86op->next = 0;
 
-    if (!r->x86_operations)
-        r->x86_operations = x86op;
-    else {
-        o = r->x86_operations;
-        while (o->next) o = o->next;
-        o->next = x86op;
-    }
+    add_x86_op_to_rule(r, x86op);
+}
+
+// Add a save value operation to a rule
+void add_save_value(Rule *r, int arg, int slot) {
+    X86Operation *x86op, *o;
+
+    x86op = malloc(sizeof(X86Operation));
+    memset(x86op, 0, sizeof(X86Operation));
+    x86op->save_value_in_slot = slot;
+    x86op->arg = arg;
+    add_x86_op_to_rule(r, x86op);
+}
+
+// Add a load value operation to a rule
+void add_load_value(Rule *r, int arg, int slot) {
+    X86Operation *x86op, *o;
+
+    x86op = malloc(sizeof(X86Operation));
+    memset(x86op, 0, sizeof(X86Operation));
+    x86op->load_value_from_slot = slot;
+    x86op->arg = arg;
+    add_x86_op_to_rule(r, x86op);
 }
 
 void make_rule_hash(int i) {
@@ -235,14 +270,17 @@ char *non_terminal_string(int nt) {
 
     buf = malloc(6);
 
-         if (!nt)        return "";
-    else if (nt == CST)  return "cst";
-    else if (nt == STL)  return "stl";
-    else if (nt == LAB)  return "lab";
-    else if (nt == FUN)  return "fun";
+         if (!nt)        return "     ";
+    else if (nt == CST)  return "cst  ";
+    else if (nt == STL)  return "stl  ";
+    else if (nt == LAB)  return "lab  ";
+    else if (nt == FUN)  return "fun  ";
     else if (nt == CSTL) return "cst:l";
     else if (nt == CSTQ) return "cst:q";
-    else if (nt == REG)  return "reg";
+    else if (nt == CST1) return "cst:1";
+    else if (nt == CST2) return "cst:2";
+    else if (nt == CST3) return "cst:3";
+    else if (nt == REG)  return "reg  ";
     else if (nt == REGB) return "reg:b";
     else if (nt == REGW) return "reg:w";
     else if (nt == REGL) return "reg:l";
@@ -290,7 +328,16 @@ void print_rule(Rule *r, int print_operations) {
         while (operation) {
             if (!first) printf("                                                              ");
             first = 0;
-            printf("%s\n", operation->template ? operation->template : "");
+
+            if (operation->save_value_in_slot)
+                printf("special: save arg %d to slot %d\n", operation->arg, operation->save_value_in_slot);
+            else if (operation->load_value_from_slot)
+                printf("special: load arg %d from slot %d\n", operation->arg, operation->load_value_from_slot);
+            else if (operation->template)
+                printf("%s\n", operation->template);
+            else
+                printf("\n");
+
             operation = operation->next;
         }
     }
@@ -332,13 +379,6 @@ void make_value_x86_size(Value *v) {
     }
 }
 
-int non_terminal_for_constant_value(Value *v) {
-    if (v->value >= -2147483648 && v->value <= 2147483647)
-        return CSTL;
-    else
-        return CSTQ;
-}
-
 int non_terminal_for_value(Value *v) {
     int adr_base;
     int result;
@@ -348,8 +388,7 @@ int non_terminal_for_value(Value *v) {
 
     adr_base = v->vreg ? ADR : MDR;
 
-         if (v->is_constant)                                        result =  non_terminal_for_constant_value(v);
-    else if (v->is_string_literal)                                  result =  STL;
+         if (v->is_string_literal)                                  result =  STL;
     else if (v->label)                                              result =  LAB;
     else if (v->function_symbol)                                    result =  FUN;
     else if (v->type == TYPE_PTR + TYPE_VOID)                       result =  adr_base + 5; // *void
@@ -369,6 +408,22 @@ int non_terminal_for_value(Value *v) {
     return result;
 }
 
+// Used to match a value to a leaf node (operation = 0) src rule
+// There are a couple of possible matches for a constant.
+int match_value_to_rule_src(Value *v, int src) {
+    if (v->is_constant) {
+             if (src == CST1 && v->value == 1) return 1;
+        else if (src == CST2 && v->value == 2) return 1;
+        else if (src == CST3 && v->value == 3) return 1;
+        else if (v->value >= -2147483648 && v->value <= 2147483647)
+            return src == CSTL;
+        else
+            return src == CSTQ;
+    }
+    else
+        return non_terminal_for_value(v) == src;
+}
+
 // Can parent (src1, src2) and child (dst) non terminals be joined?
 // If they are an exact match, yes.
 // If the parent wants a REG of a lower precision, that's also allowed,
@@ -385,11 +440,6 @@ int rules_match(int parent, int child) {
     else if (parent == REGW && child== REGQ) return 1;
     else if (parent == REGL && child== REGQ) return 1;
     else                                     return 0;
-}
-
-// Used in leaf nodes
-int match_value_to_rule_src(Value *v, int src) {
-    return non_terminal_for_value(v) == src;
 }
 
 // Used to match root node, or of match_dst is true on a non-root node
@@ -415,6 +465,9 @@ int make_x86_size_from_non_terminal(int nt) {
 
          if (nt == CSTL) return 3;
     else if (nt == CSTQ) return 4;
+    else if (nt == CST1) return 1;
+    else if (nt == CST2) return 1;
+    else if (nt == CST3) return 1;
     else if (nt == ADRB || nt == ADRW || nt == ADRL || nt == ADRQ || nt == ADRV) return 4;
     else if (nt == MDRB || nt == MDRW || nt == MDRL || nt == MDRQ || nt == MDRV) return 4;
     else if (nt == REGB || nt == MEMB) return 1;
@@ -510,7 +563,55 @@ Rule *add_store_to_pointer(int src1, int src2, char *template) {
     return r;
 }
 
-void add_pointer_rules() {
+void add_composite_pointer_rules(int *ntc) {
+    int i, ntc1, ntc2;
+    char *template;
+    Rule *r;
+
+    // Composite loads from pointer for IR_BSHL + IR_ADD
+    for (i = 2; i <= 4; i++) { // short, int and long
+        ntc1 = ++*ntc;
+        r = add_rule(ntc1, IR_BSHL, REGQ, CST1 + i - 2, 1); add_save_value(r, 1, 2); // Save index register to slot 2
+             if (i == 2) template = "movw  (%v1q,%v2q,2), %vdw";
+        else if (i == 3) template = "movl  (%v1q,%v2q,4), %vdl";
+        else if (i == 4) template = "movq  (%v1q,%v2q,8), %vdq";
+
+        ntc2 = ++*ntc;
+        r = add_rule(ntc2, IR_ADD, ADR + i, ntc1, 10); add_save_value(r, 1, 1); // Save address register to slot 1
+        r = add_rule(REG + i, IR_INDIRECT, ntc2, 0, 2);
+        add_load_value(r, 1, 1); // Load address register from slot 1
+        add_load_value(r, 2, 2); // Load index register from slot 2
+        add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, template);
+    }
+
+    // Composite load from pointer for a pointer to a struct
+    ntc1 = ++*ntc;
+    ntc2 = ++*ntc;
+    r = add_rule(ntc1, IR_BSHL, REGQ, CST3, 1); add_save_value(r, 1, 2); // Save index register to slot 2
+    r = add_rule(ntc2, IR_ADD, ADRQ, ntc1, 10); add_save_value(r, 1, 1); // Save address register to slot 1
+    r = add_rule(ADRV, IR_INDIRECT, ntc2, 0, 2); r->match_dst = 1;
+    add_load_value(r, 1, 1); // Load address register from slot 1
+    add_load_value(r, 2, 2); // Load index register from slot 2
+    add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, "movq  (%v1q,%v2q,8), %vdq");
+
+    // Composite lea from pointer for IR_BSHL
+    for (i = 2; i <= 4; i++) {
+        ntc1 = ++*ntc;
+        r = add_rule(ntc1, IR_BSHL, REGQ, CST1 + i - 2, 1); add_save_value(r, 1, 2); // Save index register to slot 2
+             if (i == 2) template = "lea   (%v1q,%v2q,2), %vdq";
+        else if (i == 3) template = "lea   (%v1q,%v2q,4), %vdq";
+        else if (i == 4) template = "lea   (%v1q,%v2q,8), %vdq";
+
+        ntc2 = ++*ntc;
+        r = add_rule(ntc2, IR_ADD, ADRV, ntc1, 10); add_save_value(r, 1, 1); // Save address register to slot 1
+        r = add_rule(ADRV, IR_ADDRESS_OF, ntc2, 0, 2);
+        add_load_value(r, 1, 1); // Load address register from slot 1
+        add_load_value(r, 2, 2); // Load index register from slot 2
+        add_op(r, X_LEA_FROM_SCALED_IND, DST, SRC1, 0, template);
+    }
+}
+
+void add_pointer_rules(int *ntc) {
     int i, j;
     Rule *r;
 
@@ -584,6 +685,8 @@ void add_pointer_rules() {
     r = add_rule(REGL, IR_INDIRECT, ADRB, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movsbl (%v1q), %vdl"); r->match_dst = 1;
     r = add_rule(REGL, IR_INDIRECT, ADRW, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movswl (%v1q), %vdl"); r->match_dst = 1;
     r = add_rule(REGW, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movslw (%v1q), %vdl"); r->match_dst = 1;
+
+    add_composite_pointer_rules(ntc);
 
     // Stores of a pointer to a pointer
     add_store_to_pointer(ADRQ, ADRB, "movq %v2q, (%v1q)");
@@ -867,7 +970,7 @@ void add_binary_shift_rules() {
 void init_instruction_selection_rules() {
     int i, j;
     Rule *r;
-    int ntc;  // Non terminal counter
+    int ntc; // Non terminal counter
     char *cmp_rr, *cmp_rc, *cmp_rm, *cmp_mr, *cmp_mc;
     char *cmpq_rr, *cmpq_rc, *cmpq_rm, *cmpq_mr, *cmpq_mc;
 
@@ -877,10 +980,15 @@ void init_instruction_selection_rules() {
     instr_rules = malloc(MAX_RULE_COUNT * sizeof(Rule));
     memset(instr_rules, 0, MAX_RULE_COUNT * sizeof(Rule));
 
+    ntc = AUTO_NON_TERMINAL_START;
+
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(REG,  0, REG,  0, 0); fin_rule(r);
     r = add_rule(CSTL, 0, CSTL, 0, 0);
     r = add_rule(CSTQ, 0, CSTQ, 0, 0);
+    r = add_rule(CST1, 0, CST1, 0, 0);
+    r = add_rule(CST2, 0, CST2, 0, 0);
+    r = add_rule(CST3, 0, CST3, 0, 0);
     r = add_rule(MEM,  0, MEM,  0, 0); fin_rule(r);
     r = add_rule(ADR,  0, ADR,  0, 0); fin_rule(r);
     r = add_rule(ADRV, 0, ADRV, 0, 0);
@@ -964,7 +1072,7 @@ void init_instruction_selection_rules() {
     r = add_rule(REG,  0,       MEM,  0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"  ); fin_rule(r); // Load temp memory into register
     r = add_rule(REG,  IR_MOVE, MEM,  0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"  ); fin_rule(r); // Load standalone memory into register
 
-    add_pointer_rules();
+    add_pointer_rules(&ntc);
 
     r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, X_JMP, 0, SRC1, 0, "jmp %v1"); fin_rule(r);  // JMP
 
@@ -985,7 +1093,6 @@ void init_instruction_selection_rules() {
     cmp_mc = "cmp%s $%v2, %v1"; cmpq_mc = "cmpq $%v2q, %v1q";
 
     // Comparision + conditional jump
-    ntc = AUTO_NON_TERMINAL_START;
     add_comparison_conditional_jmp_rules(&ntc, REG, REG, cmp_rr);
     add_comparison_conditional_jmp_rules(&ntc, REG, CST, cmp_rc);
     add_comparison_conditional_jmp_rules(&ntc, REG, MEM, cmp_rm);

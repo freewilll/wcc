@@ -9,6 +9,7 @@ enum {
     MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT = 1024,
     MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT = 1024,
     MAX_CHOICE_TRAIL_COUNT = 32,
+    MAX_SAVED_REGISTERS = 9,
 };
 
 IGraph *eis_igraphs;            // The current block's igraphs
@@ -933,10 +934,12 @@ int recursive_tile_igraphs(IGraph *igraph, int node_id) {
 Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
     int i, pv, choice_node_id, match;
     int least_expensive_choice_node_id, min_cost, cost, igraph_node_id, dst_type;
+    Value *slot_value;
     GraphEdge *choice_edge, *e;
     Rule *parent_rule, *rule;
     IGraphNode *ign;
     Value *src, *dst, *src1, *src2, *x86_dst, *x86_v1, *x86_v2;
+    Value *loaded_src1, *loaded_src2;
     X86Operation *x86op;
     Tac *tac;
 
@@ -1033,6 +1036,12 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     if (src1) src1->x86_size = make_x86_size_from_non_terminal(rule->src1);
     if (src2) src2->x86_size = make_x86_size_from_non_terminal(rule->src2);
 
+    // A composite rule may do some saves, which are done in already run x86 save
+    // operations. The final operation(s) then loads the values from the saved slots
+    // and add them to the tac.
+    // These keep track of the values outputted during the loads.
+    loaded_src1 = loaded_src2 = 0;
+
     x86op = rule->x86_operations;
     while (x86op) {
              if (x86op->dst == 0)    x86_dst = 0;
@@ -1056,8 +1065,45 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         if (x86_dst) x86_dst = dup_value(x86_dst);
         if (x86_v1)  x86_v1  = dup_value(x86_v1);
         if (x86_v2)  x86_v2  = dup_value(x86_v2);
-        tac = add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
-        if (debug_instsel_tiling) print_instruction(stdout, tac);
+
+        if (x86op->save_value_in_slot) {
+            if (x86op->save_value_in_slot > MAX_SAVED_REGISTERS)
+                panic2d("Saved register exceeds maximum: %d > %d", x86op->save_value_in_slot, MAX_SAVED_REGISTERS);
+
+            slot_value = x86op->arg == 1 ? src1 : src2;
+            saved_values[x86op->save_value_in_slot] = slot_value;
+            if (debug_instsel_tiling) {
+                printf("  saved arg %d ", x86op->arg);
+                print_value(stdout, slot_value, 0);
+                printf(" to slot %d\n", x86op->save_value_in_slot);
+            }
+        }
+        else if (x86op->load_value_from_slot) {
+            if (x86op->load_value_from_slot > MAX_SAVED_REGISTERS)
+                panic2d("Loaded register exceeds maximum: %d > %d", x86op->load_value_from_slot, MAX_SAVED_REGISTERS);
+
+            slot_value = saved_values[x86op->load_value_from_slot];
+            if (!slot_value) {
+                printf("Got a null value in slot %d for arg %d\n", x86op->load_value_from_slot, x86op->arg);
+                panic("Aborting");
+            }
+
+            if (x86op->arg == 1) loaded_src1 = slot_value;
+            else loaded_src2 = slot_value;
+
+            if (debug_instsel_tiling) {
+                printf("  loaded arg %d ", x86op->arg);
+                print_value(stdout, slot_value, 0);
+                printf(" from slot %d\n", x86op->load_value_from_slot);
+            }
+        }
+        else {
+            // Add a tac to the IR
+            if (loaded_src1) x86_v1 = loaded_src1;
+            if (loaded_src2) x86_v2 = loaded_src2;
+            tac = add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
+            if (debug_instsel_tiling) print_instruction(stdout, tac);
+        }
 
         x86op = x86op->next;
     }
@@ -1072,7 +1118,9 @@ void make_intermediate_representation(IGraph *igraph) {
         printf("\n");
     }
 
+    saved_values = malloc((MAX_SAVED_REGISTERS + 1) * sizeof(Value *));
     recursive_make_intermediate_representation(igraph, 0, -1, -1);
+    free(saved_values);
 }
 
 void tile_igraphs(Function *function) {
