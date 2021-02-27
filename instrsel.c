@@ -1392,23 +1392,3 @@ void add_spill_code(Function *function) {
         tac = tac->next;
     }
 }
-
-void eis1(Function *function) {
-    do_oar1(function);
-    do_oar2(function);
-    do_oar3(function);
-    select_instructions(function);
-    do_oar1b(function);
-    coalesce_live_ranges(function);
-    remove_vreg_self_moves(function);
-}
-
-void eis2(Function *function) {
-    do_oar4(function);
-    add_spill_code(function);
-}
-
-void experimental_instruction_selection(Function *function) {
-    eis1(function);
-    eis2(function);
-}

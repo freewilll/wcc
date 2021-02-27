@@ -124,10 +124,10 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
 }
 
 // Ensure the double linked list in an IR is correct by checking last pointers
-void sanity_test_ir_linkage(Tac *ir) {
+void sanity_test_ir_linkage(Function *function) {
     Tac *tac;
 
-    tac = ir;
+    tac = function->ir;
     while (tac) {
         if (tac->next && tac->next->prev != tac) {
             printf("Linkage broken between:\n");

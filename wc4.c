@@ -65,33 +65,7 @@ char *make_temp_filename(char *template) {
     return strdup(template);
 }
 
-void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename) {
-    Symbol *symbol;
-    Function *function;
-
-    init_lexer(compiler_input_filename);
-    init_parser();
-    parse();
-    check_incomplete_structs();
-
-    // Compile code for all functions
-    symbol = symbol_table;
-    while (symbol->identifier) {
-        if (symbol->is_function && symbol->function->is_defined) {
-            function = symbol->function;
-            if (print_ir1) print_ir(function, symbol->identifier);
-            post_process_function_parse(function);
-            experimental_instruction_selection(function);
-            if (print_ir2) print_ir(function, symbol->identifier);
-        }
-        symbol++;
-    }
-
-    output_code(compiler_input_filename, compiler_output_filename);
-}
-
 int main(int argc, char **argv) {
-
     int verbose;                    // Print invoked program command lines
     int run_compiler;               // Compile .c file
     int run_assembler;              // Assemble .s file

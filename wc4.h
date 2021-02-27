@@ -499,7 +499,7 @@ void add_tac_to_ir(Tac *tac);
 Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 Tac *insert_instruction(Tac *ir, Tac *tac, int move_label);
-void sanity_test_ir_linkage(Tac *ir);
+void sanity_test_ir_linkage(Function *function);
 int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
 void print_value(void *f, Value *v, int is_assignment_rhs);
@@ -674,6 +674,32 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
 void init_callee_saved_registers();
 void output_function_body_code(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
+
+// temp-wc4.c
+void do_oar1a(Function *function);
+void do_oar1b(Function *function);
+void make_globals_and_var_blocks(Function *function);
+void insert_phi_functions(Function *function);
+void optimize_arithmetic_operations(Function *function);
+void map_stack_index_to_local_index(Function *function);
+void rewrite_lvalue_reg_assignments(Function *function);
+void make_control_flow_graph(Function *function);
+void make_block_dominance(Function *function);
+void make_block_immediate_dominators(Function *function);
+void make_block_dominance_frontiers(Function *function);
+void rename_phi_function_variables(Function *function);
+void make_live_ranges(Function *function);
+void blast_vregs_with_live_ranges(Function *function);
+void coalesce_live_ranges(Function *function);
+void allocate_registers(Function *function);
+void assign_vreg_locations(Function *function);
+void remove_preg_self_moves(Function *function);
+void select_instructions(Function *function);
+void do_oar1b(Function *function);
+void remove_vreg_self_moves(Function *function);
+void add_spill_code(Function *function);
+
+void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename);
 
 // test-utils.c
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
