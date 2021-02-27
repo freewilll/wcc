@@ -12,7 +12,6 @@ void analyze_dominance(Function *function) {
 void run_compiler_phases(Function *function, int stop_at) {
     // Prepare for SSA phi function insertion
     sanity_test_ir_linkage(function);
-    disable_live_ranges_coalesce = !opt_enable_live_range_coalescing;
     optimize_arithmetic_operations(function);
     map_stack_index_to_local_index(function);
     rewrite_lvalue_reg_assignments(function);

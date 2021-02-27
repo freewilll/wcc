@@ -1477,7 +1477,7 @@ void coalesce_live_ranges(Function *function) {
         make_live_range_spill_cost(function);
         make_interference_graph(function);
 
-        if (disable_live_ranges_coalesce) return;
+        if (!opt_enable_live_range_coalescing) return;
 
         interference_graph = function->interference_graph;
 

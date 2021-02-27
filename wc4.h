@@ -543,7 +543,6 @@ void remove_preg_self_moves(Function *function);
 
 // Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
 int live_range_reserved_pregs_offset;
-int disable_live_ranges_coalesce;
 int preg_count;
 
 void optimize_arithmetic_operations(Function *function);
