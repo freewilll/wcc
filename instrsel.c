@@ -611,10 +611,8 @@ void merge_constants(Function *function) {
     }
 }
 
-int rules_match(int parent, Rule *child, int allow_downsize) {
-    if (!allow_downsize)
-        return parent == child->non_terminal;
-    else if (parent == child->non_terminal)
+int rules_match(int parent, Rule *child) {
+    if (parent == child->non_terminal)
         return 1;
     else
         return is_downsize_allowed_for_non_terminal(parent, child->non_terminal);
@@ -625,7 +623,7 @@ int match_value_to_rule_src(Value *v, int src) {
 }
 
 int match_value_to_rule_dst(Value *v, Rule *r) {
-    return rules_match(non_terminal_for_value(v), r, 1);
+    return rules_match(non_terminal_for_value(v), r);
 }
 
 // Print the cost graph, only showing choices where parent src and child dst match
@@ -644,7 +642,7 @@ void recursive_print_cost_graph(Graph *cost_graph, int *cost_rules, int *accumul
         if (parent_node_id != -1) {
             parent_rule = &(instr_rules[cost_rules[parent_node_id]]);
             src = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
-            match = rules_match(src, &(instr_rules[cost_rules[choice_node_id]]), 0);
+            match = rules_match(src, &(instr_rules[cost_rules[choice_node_id]]));
             if (match) {
                 printf("%-3d ", choice_node_id);
                 for (i = 0; i < indent; i++) printf("  ");
@@ -903,7 +901,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             while (e) {
                 child_rule = &(instr_rules[cost_rules[e->to->id]]);
 
-                if (rules_match(src, child_rule, 0)) {
+                if (rules_match(src, child_rule)) {
                     cost = accumulated_cost[e->to->id];
                     if (cost < min_cost) min_cost = cost;
                 }
@@ -967,7 +965,7 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
             // Ensure src and dst match for non-root nodes
             parent_rule = &(instr_rules[cost_rules[parent_node_id]]);
             pv = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
-            match = rules_match(pv, &(instr_rules[cost_rules[choice_node_id]]), 0);
+            match = rules_match(pv, &(instr_rules[cost_rules[choice_node_id]]));
         }
         else
             match = 1;
