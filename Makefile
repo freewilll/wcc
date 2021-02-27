@@ -1,7 +1,7 @@
 all: wc4 wc43 benchmark
 
 SOURCES = \
-  wc4.c \
+  main.c \
   tempwc4.c \
   lexer.c \
   parser.c \
@@ -70,8 +70,8 @@ stack-check.o: stack-check.c
 test-lib.o: test-lib.c
 	gcc ${GCC_OPTS} test-lib.c -c
 
-test-wc4.s: test-wc4.c wc4
-	./wc4 ${WC4_OPTS} -c -S test-wc4.c
+test-wc4.s: test-main.c wc4
+	./wc4 ${WC4_OPTS} -c -S test-main.c
 
 test-wc4-%.s: test-wc4-%.c wc4
 	./wc4 ${WC4_OPTS} -c -S $<
