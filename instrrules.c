@@ -391,9 +391,9 @@ int non_terminal_for_value(Value *v) {
          if (v->is_string_literal)                                  result =  STL;
     else if (v->label)                                              result =  LAB;
     else if (v->function_symbol)                                    result =  FUN;
-    else if (v->type == TYPE_PTR + TYPE_VOID)                       result =  adr_base + 5; // *void
-    else if (v->type >= TYPE_PTR + TYPE_PTR)                        result =  adr_base + 4; // **...
-    else if (v->type >= TYPE_PTR + TYPE_STRUCT)                     result =  adr_base + 5; // *void
+    else if (v->type == TYPE_PTR + TYPE_VOID)                       result =  adr_base + 5; // *void ADRV or MDRQ
+    else if (v->type >= TYPE_PTR + TYPE_PTR)                        result =  adr_base + 4; // **... ADRL or MDRL
+    else if (v->type >= TYPE_PTR + TYPE_STRUCT)                     result =  adr_base + 5; // *void ADRV or MDRQ
     else if (v->type >= TYPE_PTR)                                   result =  adr_base + value_ptr_target_x86_size(v);
     else if (v->is_lvalue_in_register)                              result =  ADR + v->x86_size;
     else if (v->global_symbol || v->local_index || v->stack_index)  result =  MEM + v->x86_size;
