@@ -115,6 +115,7 @@ int operation_type(Value *src1, Value *src2) {
     if (src1->type >= TYPE_PTR) return src1->type;
     else if (src2->type >= TYPE_PTR) return src2->type;
     else if (src1->type == TYPE_LONG || src2->type == TYPE_LONG) return TYPE_LONG;
+    else if (src1->type == TYPE_STRUCT || src2->type == TYPE_STRUCT) panic("Operations on structs not implemented");
     else return TYPE_INT;
 }
 
