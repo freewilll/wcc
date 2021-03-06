@@ -550,10 +550,7 @@ void expression(int level) {
                 add_instruction(IR_CAST, dst, v1, 0);
                 push(dst);
             }
-            else {
-                v1->type = org_type;
-                push(v1);
-            }
+            else push(v1);
         }
         else {
             expression(TOK_COMMA);
