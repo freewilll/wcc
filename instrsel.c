@@ -468,8 +468,7 @@ void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int ds
 }
 
 IGraph *simplify_igraph(IGraph *src) {
-    int i, j, operation, node_count, d, join_from, join_to, from, to, type_change;
-    int type, dst_node_id;
+    int node_count, dst_node_id;
     IGraph *dst;
     IGraphNode *inodes;
 
