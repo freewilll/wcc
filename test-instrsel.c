@@ -129,10 +129,10 @@ void start_ir() {
     init_instruction_selection_rules();
 }
 
-void _finish_ir(Function *function, int run_eis2) {
+void _finish_ir(Function *function, int compile_everything) {
     function->ir = ir_start;
 
-    if (run_eis2)
+    if (compile_everything)
         run_compiler_phases(function, COMPILE_EVERYTHING);
     else
         run_compiler_phases(function, COMPILE_STOP_AFTER_INSTRUCTION_SELECTION);
