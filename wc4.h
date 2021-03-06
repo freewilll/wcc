@@ -503,6 +503,7 @@ Tac *insert_instruction(Tac *ir, Tac *tac, int move_label);
 void sanity_test_ir_linkage(Function *function);
 int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
+int is_promotion(int type1, int type2);
 int print_type(void *f, int type);
 void print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
@@ -704,6 +705,11 @@ void run_compiler_phases(Function *function, int stop_at);
 void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename);
 
 // test-utils.c
+int failures;
+int remove_reserved_physical_registers;
+
+void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2);
+
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
 Value *v(int vreg);
 Value *vsz(int vreg, int type);
@@ -718,3 +724,8 @@ Value *Ssz(int stack_index, int type);
 Value *g(int index);
 Value *gsz(int index, int type);
 Value *fu(int index);
+
+void start_ir();
+void finish_register_allocation_ir(Function *function);
+void finish_ir(Function *function);
+void finish_spill_ir(Function *function);

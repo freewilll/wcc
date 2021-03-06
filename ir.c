@@ -153,6 +153,11 @@ void fprintf_escaped_string_literal(void *f, char* sl) {
     fprintf(f, "\"");
 }
 
+int is_promotion(int type1, int type2) {
+    if (type1 > TYPE_LONG || type2 > TYPE_LONG) return 0;
+    else return type1 < type2;
+}
+
 int print_type(void *f, int type) {
     int len;
 

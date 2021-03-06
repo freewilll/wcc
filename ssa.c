@@ -1501,7 +1501,8 @@ void coalesce_live_ranges(Function *function) {
             // Create merge candidates
             tac = function->ir;
             while (tac) {
-                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg)
+                // Don't coalesce a move if it promotes an integer type so that both vregs retain their precision.
+                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && !is_promotion(tac->src1->type, tac->dst->type))
                     merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
                 else {
                     // Don't allow merges which violate instrsel constraints

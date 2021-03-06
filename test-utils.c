@@ -4,6 +4,56 @@
 
 #include "wc4.h"
 
+void assert_long(long expected, long actual) {
+    if (expected != actual) {
+        failures++;
+        printf("Expected %ld, got %ld\n", expected, actual);
+    }
+}
+
+void assert_value(Value *v1, Value *v2) {
+    if (v1->is_constant)
+        assert_long(v1->value, v2->value);
+    else if (v1->is_string_literal)
+        assert_long(v1->vreg, v2->vreg);
+    else if (v1->vreg) {
+        if (v1->vreg == -1)
+            assert_long(1, !!v2->vreg); // Check non-zero
+        else
+            assert_long(v1->vreg, v2->vreg);
+    }
+    else if (v1->global_symbol)
+        assert_long(v1->global_symbol->identifier[1], v2->global_symbol->identifier[1]);
+    else if (v1->label)
+        assert_long(v1->label, v2->label);
+    else if (v1->stack_index)
+        assert_long(v1->stack_index, v2->stack_index);
+    else if (v1->function_symbol)
+        assert_long(v1->function_symbol->identifier[1], v2->function_symbol->identifier[1]);
+    else
+        panic("Don't know how to assert_value");
+}
+
+void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
+    assert_long(operation, tac->operation);
+
+    if (dst)
+        assert_value(dst,  tac->dst);
+    else
+        assert_long(0, !!tac->dst);
+
+    if (src1)
+        assert_value(src1, tac->src1);
+    else
+        assert_long(0, !!tac->src1);
+
+    if (src2)
+        assert_value(src2, tac->src2);
+    else
+        assert_long(0, !!tac->src2);
+
+}
+
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac;
 
@@ -148,4 +198,54 @@ Value *fu(int index) {
 
 
     return v;
+}
+
+void remove_reserved_physical_register_count_from_tac(Tac *ir) {
+    Tac *tac;
+
+    if (!remove_reserved_physical_registers) return;
+
+    tac = ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg >= RESERVED_PHYSICAL_REGISTER_COUNT) tac->dst ->vreg -= RESERVED_PHYSICAL_REGISTER_COUNT;
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg >= RESERVED_PHYSICAL_REGISTER_COUNT) tac->src1->vreg -= RESERVED_PHYSICAL_REGISTER_COUNT;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg >= RESERVED_PHYSICAL_REGISTER_COUNT) tac->src2->vreg -= RESERVED_PHYSICAL_REGISTER_COUNT;
+
+        tac = tac->next;
+    }
+}
+
+void start_ir() {
+    ir_start = 0;
+    init_instruction_selection_rules();
+}
+
+void _finish_ir(Function *function, int stop_after_register_allocation, int stop_after_instruction_selection) {
+    function->ir = ir_start;
+
+    if (stop_after_register_allocation)
+        run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
+    else if (stop_after_instruction_selection)
+        run_compiler_phases(function, COMPILE_STOP_AFTER_INSTRUCTION_SELECTION);
+    else
+        run_compiler_phases(function, COMPILE_EVERYTHING);
+
+    remove_reserved_physical_register_count_from_tac(function->ir);
+
+    // Move ir_start to first non-noop for convenience
+    ir_start = function->ir;
+    while (ir_start && ir_start->operation == IR_NOP) ir_start = ir_start->next;
+    function->ir = ir_start;
+}
+
+void finish_register_allocation_ir(Function *function) {
+    _finish_ir(function, 1, 0);
+}
+
+void finish_ir(Function *function) {
+    _finish_ir(function, 0, 1);
+}
+
+void finish_spill_ir(Function *function) {
+    _finish_ir(function, 0, 0);
 }

@@ -4,6 +4,8 @@
 
 #include "wc4.h"
 
+Function *function;
+
 void assert(long expected, long actual) {
     if (expected != actual) {
         printf("Expected %ld, got %ld\n", expected, actual);
@@ -676,6 +678,48 @@ void test_spill_cost() {
     }
 }
 
+void test_coalesce() {
+    Tac *tac;
+
+    opt_enable_live_range_coalescing = 1;
+    remove_reserved_physical_registers = 1;
+
+    // A single coalesce
+    start_ir();
+    i(0, IR_MOVE, vsz(1, TYPE_LONG), c(1),              0                );
+    i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0                );
+    i(0, IR_ARG,  0,                 c(0),              vsz(2, TYPE_LONG));
+    finish_register_allocation_ir(function);
+    assert_tac(ir_start,       IR_MOVE, vsz(2, TYPE_LONG), c(1), 0);
+    assert_tac(ir_start->next, IR_NOP,  0,                 0,    0);
+
+
+    // Don't coalesce if the registers interfere
+    start_ir();
+    i(0, IR_MOVE, vsz(1, TYPE_LONG), c(1),              0               );
+    i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0               );
+    i(0, IR_ADD, vsz(3, TYPE_LONG),  vsz(1, TYPE_LONG), vsz(2, TYPE_LONG));
+    i(0, IR_ARG,  0,                 c(0),              vsz(2, TYPE_LONG));
+    finish_register_allocation_ir(function);
+
+    assert_tac(ir_start,             IR_MOVE, vsz(1, TYPE_LONG), c(1),              0                );
+    assert_tac(ir_start->next,       IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0                );
+    assert_tac(ir_start->next->next, IR_ADD,  vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), vsz(2, TYPE_LONG));
+}
+
+void test_coalesce_promotion() {
+    // Ensure a move that promotes an integer value in a register doesn't get coalesced
+    Tac *tac;
+
+    start_ir();
+    i(0, IR_MOVE, vsz(1, TYPE_INT),  c(1),             0               );
+    i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), 0               );
+    i(0, IR_ARG,  0,                 c(0),             vsz(2, TYPE_LONG));
+    finish_register_allocation_ir(function);
+    assert_tac(ir_start, IR_MOVE, vsz(1, TYPE_INT), c(1), 0   );
+    assert_tac(ir_start->next, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), 0   );
+}
+
 void test_top_down_register_allocation() {
     int i, l, vreg_count;
     char *ig;
@@ -775,6 +819,11 @@ void test_top_down_register_allocation() {
 }
 
 int main() {
+    function = new_function();
+    opt_enable_register_allocation = 1;
+    opt_optimize_arithmetic_operations = 1;
+    string_literals = malloc(MAX_STRING_LITERALS);
+
     init_allocate_registers();
     opt_enable_register_allocation = 1;
 
@@ -791,5 +840,7 @@ int main() {
     test_interference_graph2();
     test_interference_graph3();
     test_spill_cost();
+    test_coalesce();
+    test_coalesce_promotion();
     test_top_down_register_allocation();
 }
