@@ -452,9 +452,7 @@ int value_ptr_target_x86_size(Value *v) {
 
     if (v->type < TYPE_PTR) panic("Expected pointer type");
 
-    if (v->type - TYPE_PTR == TYPE_VOID)
-        return 4;
-    else if (v->type - TYPE_PTR <= TYPE_LONG)
+    if (v->type - TYPE_PTR <= TYPE_LONG)
         return v->type - TYPE_PTR - TYPE_CHAR + 1;
     else
         return 4;
