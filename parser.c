@@ -191,7 +191,7 @@ int parse_type() {
     return type;
 }
 
-// Allocate a new struct_desc
+// Allocate a new Struct
 Struct *new_struct() {
     Struct *s;
 
