@@ -1218,25 +1218,25 @@ void test_pointer_assignment_precision_decreases() {
 void test_simple_int_cast() {
     remove_reserved_physical_registers = 1;
 
-    si(function, 0, IR_CAST, vsz(2, TYPE_CHAR ), vsz(1, TYPE_CHAR ), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_CAST, vsz(2, TYPE_CHAR ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_CAST, vsz(2, TYPE_CHAR ), vsz(1, TYPE_INT  ), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_CAST, vsz(2, TYPE_CHAR ), vsz(1, TYPE_LONG ), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_CHAR ), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_INT  ), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_LONG ), 0); assert_x86_op("movb    r1b, r2b");
 
-    si(function, 0, IR_CAST, vsz(2, TYPE_SHORT), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbw  r1b, r2w");
-    si(function, 0, IR_CAST, vsz(2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0); assert_x86_op("movw    r1w, r2w");
-    si(function, 0, IR_CAST, vsz(2, TYPE_SHORT), vsz(1, TYPE_INT),   0); assert_x86_op("movw    r1w, r2w");
-    si(function, 0, IR_CAST, vsz(2, TYPE_SHORT), vsz(1, TYPE_LONG),  0); assert_x86_op("movw    r1w, r2w");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbw  r1b, r2w");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0); assert_x86_op("movw    r1w, r2w");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_INT),   0); assert_x86_op("movw    r1w, r2w");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_LONG),  0); assert_x86_op("movw    r1w, r2w");
 
-    si(function, 0, IR_CAST, vsz(2, TYPE_INT  ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbl  r1b, r2l");
-    si(function, 0, IR_CAST, vsz(2, TYPE_INT  ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswl  r1w, r2l");
-    si(function, 0, IR_CAST, vsz(2, TYPE_INT  ), vsz(1, TYPE_INT),   0); assert_x86_op("movl    r1l, r2l");
-    si(function, 0, IR_CAST, vsz(2, TYPE_INT  ), vsz(1, TYPE_LONG),  0); assert_x86_op("movl    r1l, r2l");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbl  r1b, r2l");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswl  r1w, r2l");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_INT),   0); assert_x86_op("movl    r1l, r2l");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_LONG),  0); assert_x86_op("movl    r1l, r2l");
 
-    si(function, 0, IR_CAST, vsz(2, TYPE_LONG ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  r1b, r2q");
-    si(function, 0, IR_CAST, vsz(2, TYPE_LONG ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  r1w, r2q");
-    si(function, 0, IR_CAST, vsz(2, TYPE_LONG ), vsz(1, TYPE_INT),   0); assert_x86_op("movslq  r1l, r2q");
-    si(function, 0, IR_CAST, vsz(2, TYPE_LONG ), vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  r1b, r2q");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  r1w, r2q");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_INT),   0); assert_x86_op("movslq  r1l, r2q");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
 }
 
 void test_assign_to_pointer_to_void() {
@@ -1357,11 +1357,11 @@ void test_ptr_to_void_memory_load_to_ptr() {
 void test_constant_cast_to_ptr() {
     remove_reserved_physical_registers = 1;
 
-    si(function, 0, IR_CAST, asz(1, TYPE_CHAR),  c(1), 0); assert_x86_op("movq    $1, r1q");
-    si(function, 0, IR_CAST, asz(1, TYPE_SHORT), c(1), 0); assert_x86_op("movq    $1, r1q");
-    si(function, 0, IR_CAST, asz(1, TYPE_INT),   c(1), 0); assert_x86_op("movq    $1, r1q");
-    si(function, 0, IR_CAST, asz(1, TYPE_LONG),  c(1), 0); assert_x86_op("movq    $1, r1q");
-    si(function, 0, IR_CAST, asz(1, TYPE_VOID),  c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_MOVE, asz(1, TYPE_CHAR),  c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_MOVE, asz(1, TYPE_SHORT), c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_MOVE, asz(1, TYPE_INT),   c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_MOVE, asz(1, TYPE_LONG),  c(1), 0); assert_x86_op("movq    $1, r1q");
+    si(function, 0, IR_MOVE, asz(1, TYPE_VOID),  c(1), 0); assert_x86_op("movq    $1, r1q");
 }
 
 void test_spilling() {

@@ -547,7 +547,7 @@ void expression(int level) {
                 dst = new_value();
                 dst->vreg = new_vreg();
                 dst->type = org_type;
-                add_instruction(IR_CAST, dst, v1, 0);
+                add_instruction(IR_MOVE, dst, v1, 0);
                 push(dst);
             }
             else push(v1);

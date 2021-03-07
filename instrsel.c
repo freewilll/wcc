@@ -74,7 +74,6 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
         else if (operation == IR_BSHR)                 printf(">>\n");
         else if (operation == IR_INDIRECT)             printf("indirect\n");
         else if (operation == IR_ADDRESS_OF)           printf("&\n");
-        else if (operation == IR_CAST)                 printf("= (cast)\n");
         else if (operation == IR_MOVE_TO_REG_LVALUE)   printf("assign to lvalue\n");
         else if (operation == IR_NOP)                  printf("noop\n");
         else if (operation == IR_RETURN)               printf("return\n");
@@ -215,9 +214,9 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     if (type_change) {
         if (debug_instsel_tree_merging) printf("Changing type from %d -> %d\n", in2->tac->dst->type, in1->value->type);
-        if (debug_instsel_tree_merging) printf("Replacing %d with IR_CAST tac\n", join_to);
+        if (debug_instsel_tree_merging) printf("Replacing %d with IR_MOVE tac\n", join_to);
         in = &(inodes[join_to]);
-        in->tac = new_instruction(IR_CAST);
+        in->tac = new_instruction(IR_MOVE);
         in->tac->src1 = in2->tac->dst;
         in->tac->dst = in1->value;
 

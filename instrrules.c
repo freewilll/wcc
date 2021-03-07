@@ -502,7 +502,7 @@ void add_cast_rules() {
     for (i = REGB; i <= REGQ; i++) {
         for (j = REGB; j <= REGQ; j++) {
             if (i <= j) {
-                r = add_rule(i, IR_CAST, j, 0, 1);
+                r = add_rule(i, IR_MOVE, j, 0, 1);
                 r->match_dst = 1;
                      if (i == REGB) add_op(r, X_MOV, DST, SRC1, 0 , "movb %v1b, %vdb");
                 else if (i == REGW) add_op(r, X_MOV, DST, SRC1, 0 , "movw %v1w, %vdw");
@@ -516,39 +516,17 @@ void add_cast_rules() {
 
     // Casting from/to any integer types with decreasing precision
     // Similar to generic register register sign extend rules
-    r = add_rule(REGW, IR_CAST, REGB, 0, 1); add_op(r, X_MOVSBW, DST, SRC1, 0 , "movsbw %v1b, %vdw"); fin_rule(r);
-    r = add_rule(REGL, IR_CAST, REGB, 0, 1); add_op(r, X_MOVSBL, DST, SRC1, 0 , "movsbl %v1b, %vdl"); fin_rule(r);
-    r = add_rule(REGQ, IR_CAST, REGB, 0, 1); add_op(r, X_MOVSBQ, DST, SRC1, 0 , "movsbq %v1b, %vdq"); fin_rule(r);
-    r = add_rule(REGL, IR_CAST, REGW, 0, 1); add_op(r, X_MOVSWL, DST, SRC1, 0 , "movswl %v1w, %vdl"); fin_rule(r);
-    r = add_rule(REGQ, IR_CAST, REGW, 0, 1); add_op(r, X_MOVSWQ, DST, SRC1, 0 , "movswq %v1w, %vdq"); fin_rule(r);
-    r = add_rule(REGQ, IR_CAST, REGL, 0, 1); add_op(r, X_MOVSLQ, DST, SRC1, 0 , "movslq %v1l, %vdq"); fin_rule(r);
-
-    // Casting from/to any pointer types
-    for (i = ADRB; i <= ADRV; i++) {
-        for (j = ADRB; j <= ADRV; j++) {
-            r = add_rule(i, IR_CAST, j, 0, 1);
-            add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-            r->match_dst = 1;
-        }
-    }
-
-    // Cast any pointer to a long register
-    for (i = ADRB; i <= ADRV; i++) {
-        r = add_rule(REGQ, IR_CAST, i, 0, 1);
-        add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-        fin_rule(r);
-    }
-
-    // Cast a constant to a pointer, e.g. pi = (*int) 1;
-    for (i = ADRB; i <= ADRV; i++) {
-        r = add_rule(i, IR_CAST, CSTL, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq $%v1q, %vdq");
-        fin_rule(r);
-    }
+    r = add_rule(REGW, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBW, DST, SRC1, 0 , "movsbw %v1b, %vdw"); fin_rule(r);
+    r = add_rule(REGL, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBL, DST, SRC1, 0 , "movsbl %v1b, %vdl"); fin_rule(r);
+    r = add_rule(REGQ, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBQ, DST, SRC1, 0 , "movsbq %v1b, %vdq"); fin_rule(r);
+    r = add_rule(REGL, IR_MOVE, REGW, 0, 1); add_op(r, X_MOVSWL, DST, SRC1, 0 , "movswl %v1w, %vdl"); fin_rule(r);
+    r = add_rule(REGQ, IR_MOVE, REGW, 0, 1); add_op(r, X_MOVSWQ, DST, SRC1, 0 , "movswq %v1w, %vdq"); fin_rule(r);
+    r = add_rule(REGQ, IR_MOVE, REGL, 0, 1); add_op(r, X_MOVSLQ, DST, SRC1, 0 , "movslq %v1l, %vdq"); fin_rule(r);
 
     // Crazy shit for some code that uses a (long *) to store pointers to longs.
     // The sane code should have been using (long **)
     // long *sp; (*((long *) *sp))++ = a;
-    r = add_rule(ADRQ, IR_CAST, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
+    r = add_rule(ADRQ, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
     r->match_dst = 1;
 }
 
@@ -643,7 +621,6 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(MDRV, IR_MOVE,       ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADR,  IR_ADDRESS_OF, ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r); // & for *&*&*pi
     r = add_rule(ADRV, IR_ADDRESS_OF, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(ADR,  IR_MOVE,       ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(REGQ, IR_MOVE,       ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(ADRB, IR_MOVE,       MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1;
     r = add_rule(ADRW, IR_MOVE,       MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1;

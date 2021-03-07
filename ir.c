@@ -228,7 +228,6 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 char *operation_string(int operation) {
          if (!operation)                            return "";
     else if (operation == IR_MOVE)                  return "IR_MOVE";
-    else if (operation == IR_CAST)                  return "IR_CAST";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
     else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
     else if (operation == IR_START_CALL)            return "IR_START_CALL";
@@ -318,15 +317,11 @@ void print_instruction(void *f, Tac *tac) {
 
     if (tac->dst && o < X_START) {
         print_value(f, tac->dst, o != IR_MOVE);
-        if (o == IR_CAST)
-            fprintf(f, " = (cast) ");
-        else
-            fprintf(f, " = ");
+        fprintf(f, " = ");
     }
 
-    if (o == IR_MOVE || o == IR_CAST) {
+    if (o == IR_MOVE)
         print_value(f, tac->src1, 1);
-    }
 
     else if (o == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->value);
     else if (o == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->value);
