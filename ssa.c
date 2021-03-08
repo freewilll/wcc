@@ -106,10 +106,11 @@ void optimize_arithmetic_operations(Function *function) {
     }
 }
 
-// dst is an lvalue in a register. The difference with the regular IS_ASSIGN is
-// that src1 is the destination and src2 is the src. The reason for that is
-// that it makes the SSA calulation easier since both dst and src1 are values
-// in registers that are read but not written to in this instruction.
+// Convert an IR_MOVE with an dst is an lvalue in a register into IR_MOVE_TO_REG_LVALUE.
+// The difference with the regular IR_MOVE is that src1 is the destination and src2 is
+// the src. The reason for that is that it makes the SSA calulation easier since both
+// src1 and src2 are values in registers that are read but not written to in this
+// instruction.
 void rewrite_lvalue_reg_assignments(Function *function) {
     Tac *tac;
 
