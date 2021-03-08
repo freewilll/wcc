@@ -64,36 +64,43 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
 
     if (ign->tac) {
         operation = ign->tac->operation;
-             if (operation == IR_MOVE)                 printf("= (move)\n");
-        else if (operation == IR_ADD)                  printf("+\n");
-        else if (operation == IR_SUB)                  printf("-\n");
-        else if (operation == IR_MUL)                  printf("*\n");
-        else if (operation == IR_DIV)                  printf("/\n");
-        else if (operation == IR_BNOT)                 printf("~\n");
-        else if (operation == IR_BSHL)                 printf("<<\n");
-        else if (operation == IR_BSHR)                 printf(">>\n");
-        else if (operation == IR_INDIRECT)             printf("indirect\n");
-        else if (operation == IR_ADDRESS_OF)           printf("&\n");
-        else if (operation == IR_MOVE_TO_REG_LVALUE)   printf("assign to lvalue\n");
-        else if (operation == IR_NOP)                  printf("noop\n");
-        else if (operation == IR_RETURN)               printf("return\n");
-        else if (operation == IR_START_CALL)           printf("start call\n");
-        else if (operation == IR_END_CALL)             printf("end call\n");
-        else if (operation == IR_ARG)                  printf("arg\n");
-        else if (operation == IR_CALL)                 printf("call\n");
+             if (operation == IR_MOVE)                 printf("=");
+        else if (operation == IR_ADD)                  printf("+");
+        else if (operation == IR_SUB)                  printf("-");
+        else if (operation == IR_MUL)                  printf("*");
+        else if (operation == IR_DIV)                  printf("/");
+        else if (operation == IR_BNOT)                 printf("~");
+        else if (operation == IR_BSHL)                 printf("<<");
+        else if (operation == IR_BSHR)                 printf(">>");
+        else if (operation == IR_INDIRECT)             printf("indirect");
+        else if (operation == IR_ADDRESS_OF)           printf("&");
+        else if (operation == IR_MOVE_TO_REG_LVALUE)   printf("assign to lvalue");
+        else if (operation == IR_NOP)                  printf("noop");
+        else if (operation == IR_RETURN)               printf("return");
+        else if (operation == IR_START_CALL)           printf("start call");
+        else if (operation == IR_END_CALL)             printf("end call");
+        else if (operation == IR_ARG)                  printf("arg");
+        else if (operation == IR_CALL)                 printf("call");
         else if (operation == IR_START_LOOP)           printf("start loop");
         else if (operation == IR_END_LOOP)             printf("end loop");
-        else if (operation == IR_JZ)                   printf("jz\n");
-        else if (operation == IR_JNZ)                  printf("jnz\n");
-        else if (operation == IR_JMP)                  printf("jmp\n");
-        else if (operation == IR_EQ)                   printf("==\n");
-        else if (operation == IR_NE)                   printf("!=\n");
-        else if (operation == IR_LT)                   printf("<\n");
-        else if (operation == IR_GT)                   printf(">\n");
-        else if (operation == IR_LE)                   printf(">=\n");
-        else if (operation == IR_GE)                   printf("<=\n");
+        else if (operation == IR_JZ)                   printf("jz");
+        else if (operation == IR_JNZ)                  printf("jnz");
+        else if (operation == IR_JMP)                  printf("jmp");
+        else if (operation == IR_EQ)                   printf("==");
+        else if (operation == IR_NE)                   printf("!=");
+        else if (operation == IR_LT)                   printf("<");
+        else if (operation == IR_GT)                   printf(">");
+        else if (operation == IR_LE)                   printf(">=");
+        else if (operation == IR_GE)                   printf("<=");
 
-        else printf("Operation %d\n", operation);
+        else printf("Operation %d", operation);
+
+        if (ign->tac->dst) {
+            printf(" -> ");
+            print_value(stdout, ign->tac->dst, 0);
+        }
+
+        printf("\n");
     }
     else {
         print_value(stdout, ign->value, 0);
