@@ -557,7 +557,7 @@ void remove_preg_self_moves(Function *function);
 
 // instrsel.c
 enum {
-    MAX_RULE_COUNT = 2000,
+    MAX_RULE_COUNT = 3000,
 
     // Non terminals
     CST = 1,                     // 1    Constant

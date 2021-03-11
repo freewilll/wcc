@@ -555,6 +555,7 @@ void add_composite_pointer_rules(int *ntc) {
         ntc2 = ++*ntc;
         r = add_rule(ntc2, IR_ADD, ADR + i, ntc1, 10); add_save_value(r, 1, 1); // Save address register to slot 1
         r = add_rule(REG + i, IR_INDIRECT, ntc2, 0, 2);
+        r->match_dst = 1;
         add_load_value(r, 1, 1); // Load address register from slot 1
         add_load_value(r, 2, 2); // Load index register from slot 2
         add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, template);
@@ -566,6 +567,7 @@ void add_composite_pointer_rules(int *ntc) {
     r = add_rule(ntc1, IR_BSHL, REGQ, CST3, 1); add_save_value(r, 1, 2); // Save index register to slot 2
     r = add_rule(ntc2, IR_ADD, ADRQ, ntc1, 10); add_save_value(r, 1, 1); // Save address register to slot 1
     r = add_rule(ADRV, IR_INDIRECT, ntc2, 0, 2); r->match_dst = 1;
+    r->match_dst = 1;
     add_load_value(r, 1, 1); // Load address register from slot 1
     add_load_value(r, 2, 2); // Load index register from slot 2
     add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, "movq  (%v1q,%v2q,8), %vdq");
@@ -642,14 +644,14 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(ADRQ, IR_ADDRESS_OF, MDR,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
 
     // Loads from pointer
-    r = add_rule(REGB, IR_INDIRECT, ADRB, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movb   (%v1q), %vdb");
-    r = add_rule(REGW, IR_INDIRECT, ADRW, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movw   (%v1q), %vdw");
-    r = add_rule(REGL, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movl   (%v1q), %vdl");
-    r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
+    r = add_rule(REGB, IR_INDIRECT, ADRB, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movb   (%v1q), %vdb"); r->match_dst = 1;
+    r = add_rule(REGW, IR_INDIRECT, ADRW, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movw   (%v1q), %vdw"); r->match_dst = 1;
+    r = add_rule(REGL, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movl   (%v1q), %vdl"); r->match_dst = 1;
+    r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); r->match_dst = 1;
 
-    r = add_rule(REGQ, IR_INDIRECT, ADRB, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movsbq (%v1q), %vdq");
-    r = add_rule(REGQ, IR_INDIRECT, ADRW, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movswq (%v1q), %vdq");
-    r = add_rule(REGQ, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movslq (%v1q), %vdq");
+    r = add_rule(REGQ, IR_INDIRECT, ADRB, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movsbq (%v1q), %vdq"); r->match_dst = 1;
+    r = add_rule(REGQ, IR_INDIRECT, ADRW, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movswq (%v1q), %vdq"); r->match_dst = 1;
+    r = add_rule(REGQ, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movslq (%v1q), %vdq"); r->match_dst = 1;
 
     r = add_rule(ADRB, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); r->match_dst = 1;
     r = add_rule(ADRW, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); r->match_dst = 1;
@@ -1085,11 +1087,18 @@ void init_instruction_selection_rules() {
     add_comparison_conditional_jmp_rules(&ntc, ADRV, CSTL, "cmpq $%v2l, %v1q");
     add_comparison_conditional_jmp_rules(&ntc, CSTL, ADRV, "cmpq $%v1l, %v2q");
 
+    // Comparision + conditional assignment
     add_comparison_assignment_rules(REG, REG, cmp_rr);
     add_comparison_assignment_rules(REG, CST, cmp_rc);
     add_comparison_assignment_rules(REG, MEM, cmp_rm);
     add_comparison_assignment_rules(MEM, REG, cmp_mr);
     add_comparison_assignment_rules(MEM, CST, cmp_mc);
+
+    add_comparison_assignment_rules(ADR,  CSTL, "cmpq $%v2, %v1q");
+    add_comparison_assignment_rules(ADRV, CSTL, "cmpq $%v2, %v1q");
+    add_comparison_assignment_rules(ADR,  ADRV, "cmpq %v2q, %v1q");
+    add_comparison_assignment_rules(ADRV, ADR,  "cmpq %v2q, %v1q");
+    add_comparison_assignment_rules(ADRV, ADRV, "cmpq %v2q, %v1q");
 
     add_commutative_operation_rules("add%s",  IR_ADD,  X_ADD,  10);
     add_commutative_operation_rules("imul%s", IR_MUL,  X_MUL,  30);

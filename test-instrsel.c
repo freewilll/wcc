@@ -221,9 +221,10 @@ void test_cmp_with_assignment(Function *function, int cmp_operation, int x86_set
     assert_tac(ir_start->next->next, X_MOVZBQ,          v(3), v(3), 0   );
 }
 
-void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, Value *dst, char *t1, char *t2, char *t3) {
+void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, char *t1, char *t2, char *t3) {
     // dst is the renumbered live range that the output goes to. It's basically the first free register after src1 and src2.
     start_ir();
+    nuke_rule(REGQ, 0, ADRV, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_LT, v(3), src1, src2);
     src1 = dup_value(src1);
     src2 = dup_value(src2);
@@ -598,13 +599,19 @@ void test_instrsel() {
     test_cmp_with_assignment(function, IR_GE, X_SETGE);
 
     // Test r1 = a < b with different src1 and src2 operands
-    test_less_than_with_cmp_assignment(function, v(1), c(1), v(2), "cmpq    $1, r1q",       "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, g(1), c(1), v(1), "cmpq    $1, g1(%rip)",  "setl    r1b", "movzbq  r1b, r1q");
-    test_less_than_with_cmp_assignment(function, v(1), g(1), v(2), "cmpq    g1(%rip), r1q", "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, g(1), v(1), v(2), "cmpq    r1q, g1(%rip)", "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, S(1), c(1), v(1), "cmpq    $1, 16(%rbp)",  "setl    r1b", "movzbq  r1b, r1q");
-    test_less_than_with_cmp_assignment(function, v(1), S(1), v(2), "cmpq    16(%rbp), r1q", "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, S(1), v(1), v(2), "cmpq    r1q, 16(%rbp)", "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR), c(1),              "cmpq    $1, r1q",       "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, v(1),              c(1),              "cmpq    $1, r1q",       "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID), c(1),              "cmpq    $1, r1q",       "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID), asz(1, TYPE_VOID), "cmpq    r1q, r2q",      "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR), asz(1, TYPE_VOID), "cmpq    r1q, r2q",      "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, asz(1, TYPE_VOID), asz(2, TYPE_CHAR), "cmpq    r2q, r1q",      "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, asz(1, TYPE_VOID), asz(2, TYPE_CHAR), "cmpq    r2q, r1q",      "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, g(1),              c(1),              "cmpq    $1, g1(%rip)",  "setl    r1b", "movzbq  r1b, r1q");
+    test_less_than_with_cmp_assignment(function, v(1),              g(1),              "cmpq    g1(%rip), r1q", "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, g(1),              v(1),              "cmpq    r1q, g1(%rip)", "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, S(1),              c(1),              "cmpq    $1, 16(%rbp)",  "setl    r1b", "movzbq  r1b, r1q");
+    test_less_than_with_cmp_assignment(function, v(1),              S(1),              "cmpq    16(%rbp), r1q", "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, S(1),              v(1),              "cmpq    r1q, 16(%rbp)", "setl    r2b", "movzbq  r2b, r2q");
 }
 
 // Convert (b, w, l, q) -> (1, 2, 3, 4)
