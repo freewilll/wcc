@@ -505,7 +505,7 @@ int new_vreg();
 void fprintf_escaped_string_literal(void *f, char* sl);
 int is_promotion(int type1, int type2);
 int print_type(void *f, int type);
-void print_value(void *f, Value *v, int is_assignment_rhs);
+int print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac);
 void print_ir(Function *function, char *name);
@@ -674,7 +674,7 @@ void add_spill_code(Function *function);
 
 // instrrules.c
 char size_to_x86_size(int size);
-void print_rule(Rule *r, int print_operations);
+int print_rule(Rule *r, int print_operations);
 void print_rules();
 void make_value_x86_size(Value *v);
 int rules_match(int parent, int child);

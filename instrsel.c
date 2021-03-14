@@ -21,6 +21,7 @@ int *cost_to_igraph_map;        // Mapping of a cost graph node back to the inst
 int *cost_rules;                // Mapping of cost graph node id to x86 instruction rule id
 int *accumulated_cost;          // Total cost of sub tree of a cost graph node
 Set **igraph_labels;            // Matched instruction rule ids for a igraph node id
+Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node id
 
 int recursive_tile_igraphs(IGraph *igraph, int node_id);
 
@@ -50,13 +51,15 @@ void set_assign_to_reg_lvalue_dsts(Function *function) {
     }
 }
 
-void recursive_dump_igraph(IGraph *ig, int node, int indent) {
+void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_rules) {
     int i, operation;
     Graph *g;
     IGraphNode *ign;
     GraphEdge *e;
     Tac *t;
+    int chars_printed;
 
+    chars_printed = indent * 2;
     ign = &(ig->nodes[node]);
 
     printf("%3d ", node);
@@ -64,59 +67,65 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent) {
 
     if (ign->tac) {
         operation = ign->tac->operation;
-             if (operation == IR_MOVE)                 printf("=");
-        else if (operation == IR_ADD)                  printf("+");
-        else if (operation == IR_SUB)                  printf("-");
-        else if (operation == IR_MUL)                  printf("*");
-        else if (operation == IR_DIV)                  printf("/");
-        else if (operation == IR_BNOT)                 printf("~");
-        else if (operation == IR_BSHL)                 printf("<<");
-        else if (operation == IR_BSHR)                 printf(">>");
-        else if (operation == IR_INDIRECT)             printf("indirect");
-        else if (operation == IR_ADDRESS_OF)           printf("&");
-        else if (operation == IR_MOVE_TO_REG_LVALUE)   printf("assign to lvalue");
-        else if (operation == IR_NOP)                  printf("noop");
-        else if (operation == IR_RETURN)               printf("return");
-        else if (operation == IR_START_CALL)           printf("start call");
-        else if (operation == IR_END_CALL)             printf("end call");
-        else if (operation == IR_ARG)                  printf("arg");
-        else if (operation == IR_CALL)                 printf("call");
-        else if (operation == IR_START_LOOP)           printf("start loop");
-        else if (operation == IR_END_LOOP)             printf("end loop");
-        else if (operation == IR_JZ)                   printf("jz");
-        else if (operation == IR_JNZ)                  printf("jnz");
-        else if (operation == IR_JMP)                  printf("jmp");
-        else if (operation == IR_EQ)                   printf("==");
-        else if (operation == IR_NE)                   printf("!=");
-        else if (operation == IR_LT)                   printf("<");
-        else if (operation == IR_GT)                   printf(">");
-        else if (operation == IR_LE)                   printf(">=");
-        else if (operation == IR_GE)                   printf("<=");
+             if (operation == IR_MOVE)                 chars_printed += printf("=");
+        else if (operation == IR_ADD)                  chars_printed += printf("+");
+        else if (operation == IR_SUB)                  chars_printed += printf("-");
+        else if (operation == IR_MUL)                  chars_printed += printf("*");
+        else if (operation == IR_DIV)                  chars_printed += printf("/");
+        else if (operation == IR_BNOT)                 chars_printed += printf("~");
+        else if (operation == IR_BSHL)                 chars_printed += printf("<<");
+        else if (operation == IR_BSHR)                 chars_printed += printf(">>");
+        else if (operation == IR_INDIRECT)             chars_printed += printf("indirect");
+        else if (operation == IR_ADDRESS_OF)           chars_printed += printf("&");
+        else if (operation == IR_MOVE_TO_REG_LVALUE)   chars_printed += printf("assign to lvalue");
+        else if (operation == IR_NOP)                  chars_printed += printf("noop");
+        else if (operation == IR_RETURN)               chars_printed += printf("return");
+        else if (operation == IR_START_CALL)           chars_printed += printf("start call");
+        else if (operation == IR_END_CALL)             chars_printed += printf("end call");
+        else if (operation == IR_ARG)                  chars_printed += printf("arg");
+        else if (operation == IR_CALL)                 chars_printed += printf("call");
+        else if (operation == IR_START_LOOP)           chars_printed += printf("start loop");
+        else if (operation == IR_END_LOOP)             chars_printed += printf("end loop");
+        else if (operation == IR_JZ)                   chars_printed += printf("jz");
+        else if (operation == IR_JNZ)                  chars_printed += printf("jnz");
+        else if (operation == IR_JMP)                  chars_printed += printf("jmp");
+        else if (operation == IR_EQ)                   chars_printed += printf("==");
+        else if (operation == IR_NE)                   chars_printed += printf("!=");
+        else if (operation == IR_LT)                   chars_printed += printf("<");
+        else if (operation == IR_GT)                   chars_printed += printf(">");
+        else if (operation == IR_LE)                   chars_printed += printf(">=");
+        else if (operation == IR_GE)                   chars_printed += printf("<=");
 
-        else printf("Operation %d", operation);
+        else
+            chars_printed += printf("Operation %d", operation);
 
         if (ign->tac->dst) {
-            printf(" -> ");
-            print_value(stdout, ign->tac->dst, 0);
+            chars_printed += printf(" -> ");
+            chars_printed += print_value(stdout, ign->tac->dst, 0);
         }
+    }
+    else
+        chars_printed += print_value(stdout, ign->value, 0);
 
-        printf("\n");
+    if (include_rules && igraph_rules[node]) {
+        if (igraph_rules[node]) {
+            for (i = 0; i < 60 - chars_printed; i++) printf(" ");
+            chars_printed += print_rule(igraph_rules[node], 0);
+        }
     }
-    else {
-        print_value(stdout, ign->value, 0);
+    else
         printf("\n");
-    }
 
     e = ig->graph->nodes[node].succ;
     while (e) {
-        recursive_dump_igraph(ig, e->to->id, indent + 1);
+        recursive_dump_igraph(ig, e->to->id, indent + 1, include_rules);
         e = e->next_succ;
     }
 }
 
-void dump_igraph(IGraph *ig) {
+void dump_igraph(IGraph *ig, int include_rules) {
     if (ig->node_count == 0) printf("Empty igraph\n");
-    recursive_dump_igraph(ig, 0, 0);
+    recursive_dump_igraph(ig, 0, 0, include_rules);
 }
 
 void dup_inode(IGraphNode *src, IGraphNode *dst) {
@@ -143,9 +152,9 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     if (debug_instsel_tree_merging) {
         printf("g1 dst=%d\n", g1->nodes[0].tac->dst ? g1->nodes[0].tac->dst->vreg : -1);
-        dump_igraph(g1);
+        dump_igraph(g1, 0);
         printf("g2 dst=%d\n", g2->nodes[0].tac->dst ? g2->nodes[0].tac->dst->vreg : -1);
-        dump_igraph(g2);
+        dump_igraph(g2, 0);
         printf("\n");
     }
 
@@ -241,7 +250,7 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     if (debug_instsel_tree_merging) {
         printf("\ng:\n");
-        dump_igraph(g);
+        dump_igraph(g, 0);
     }
 
     return g;
@@ -431,7 +440,7 @@ void make_igraphs(Function *function, int block_id) {
                     printf(" = \n");
                 }
             }
-            dump_igraph(&(igraphs[i]));
+            dump_igraph(&(igraphs[i]), 0);
         }
     }
 
@@ -491,7 +500,7 @@ IGraph *simplify_igraph(IGraph *src) {
 
     if (debug_instsel_igraph_simplification) {
         printf("simplify_igraph() on:\n");
-        dump_igraph(src);
+        dump_igraph(src, 0);
     }
 
     dst_node_id = 0;
@@ -500,7 +509,7 @@ IGraph *simplify_igraph(IGraph *src) {
 
     if (debug_instsel_igraph_simplification) {
         printf("Result:\n");
-        dump_igraph(dst);
+        dump_igraph(dst, 0);
         printf("\n");
     }
 
@@ -703,7 +712,7 @@ int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
         }
     }
 
-    dump_igraph(igraph);
+    dump_igraph(igraph, 0);
     panic("Did not match any rules");
 }
 
@@ -713,7 +722,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     Rule *r;
     Tac *tac;
 
-    if (debug_instsel_tiling) dump_igraph(igraph);
+    if (debug_instsel_tiling) dump_igraph(igraph, 0);
 
     cost_graph_node_id = new_cost_graph_node();
     cost_to_igraph_map[cost_graph_node_id] = node_id;
@@ -745,7 +754,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     }
 
     if (!matched) {
-        dump_igraph(igraph);
+        dump_igraph(igraph, 0);
         panic("Did not match any rules");
     }
 
@@ -773,7 +782,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
     if (debug_instsel_tiling) {
         print_instruction(stdout, tac);
-        dump_igraph(igraph);
+        dump_igraph(igraph, 0);
     }
 
     src1_id = src2_id = 0;
@@ -872,6 +881,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
         choice_node_id = new_cost_graph_node();
         cost_rules[choice_node_id] = i;
+        cost_to_igraph_map[choice_node_id] = node_id;
 
         add_graph_edge(cost_graph, cost_graph_node_id, choice_node_id);
         add_graph_edge(cost_graph, choice_node_id, src1_cost_graph_node_id);
@@ -915,7 +925,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         printf("\nNo rules matched\n");
         if (tac->dst) printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
         print_instruction(stdout, tac);
-        dump_igraph(igraph);
+        dump_igraph(igraph, 0);
         exit(1);
     }
 
@@ -1108,8 +1118,9 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     igraph_node_id = cost_to_igraph_map[least_expensive_choice_node_id];
     ign = &(igraph->nodes[igraph_node_id]);
 
-    // Go down potential children, which return the value the result is in
-    // This is either a direct value (e == 0), only a src1 or a src1 and src2.
+    rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
+    igraph_rules[igraph_node_id] = rule;
+
     e = cost_graph->nodes[least_expensive_choice_node_id].succ;
     child_src = 1;
     src1 = ign->value;
@@ -1126,21 +1137,25 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         child_src++;
     }
 
-    rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
-
     return generate_instructions(ign, parent_node_id, rule, src1, src2);
 }
 
 void make_intermediate_representation(IGraph *igraph) {
     if (debug_instsel_tiling) {
         printf("\nMaking IR\n");
-        dump_igraph(igraph);
+        dump_igraph(igraph, 0);
         printf("\n");
     }
 
     saved_values = malloc((MAX_SAVED_REGISTERS + 1) * sizeof(Value *));
     recursive_make_intermediate_representation(igraph, 0, -1, -1);
     free(saved_values);
+
+    if (debug_instsel_tiling) {
+        printf("\nMatched rules\n");
+        dump_igraph(igraph, 1);
+        printf("\n");
+    }
 }
 
 void tile_igraphs(Function *function) {
@@ -1161,7 +1176,7 @@ void tile_igraphs(Function *function) {
                 print_value(stdout, tac->dst, 0);
                 printf(" =\n");
             }
-            if (igraphs[i].node_count) dump_igraph(&(igraphs[i]));
+            if (igraphs[i].node_count) dump_igraph(&(igraphs[i]), 0);
         }
     }
 
@@ -1186,6 +1201,9 @@ void tile_igraphs(Function *function) {
 
         igraph_labels = malloc(igraphs[i].node_count * sizeof(Set *));
         for (j = 0; j < igraphs[i].node_count; j++) igraph_labels[j] = new_set(instr_rule_count);
+
+        igraph_rules = malloc(igraphs[i].node_count * sizeof(Rule *));
+        memset(igraph_rules, 0, igraphs[i].node_count * sizeof(Rule *));
 
         if (debug_instsel_tiling)
             printf("\nTiling\n-----------------------------------------------------\n");
