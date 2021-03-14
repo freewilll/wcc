@@ -305,7 +305,7 @@ char *non_terminal_string(int nt) {
     }
 }
 
-char *value_to_non_termanal_string(Value *v) {
+char *value_to_non_terminal_string(Value *v) {
     return non_terminal_string(non_terminal_for_value(v));
 }
 

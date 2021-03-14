@@ -812,7 +812,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     }
 
     if (debug_instsel_tiling && tac->dst)
-        printf("Want dst %s\n", value_to_non_termanal_string(tac->dst));
+        printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
 
     if (src1_id) cache_set_elements(igraph_labels[src1_id]);
     if (src2_id) cache_set_elements(igraph_labels[src2_id]);
@@ -913,7 +913,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
     if (!matched) {
         printf("\nNo rules matched\n");
-        if (tac->dst) printf("Want dst %s\n", value_to_non_termanal_string(tac->dst));
+        if (tac->dst) printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
         print_instruction(stdout, tac);
         dump_igraph(igraph);
         exit(1);
