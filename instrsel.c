@@ -973,41 +973,11 @@ int get_least_expensive_choice_node_id(int node_id, int parent_node_id, int pare
     return least_expensive_choice_node_id;
 }
 
-// Add instructions to the intermediate representation by doing a post-order walk over the cost tree, picking the matching rules with lowest cost
-Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
-    int i, least_expensive_choice_node_id, igraph_node_id, dst_type;
-    Value *slot_value;
-    GraphEdge *e;
-    Rule *rule;
-    IGraphNode *ign;
-    Value *src, *dst, *src1, *src2, *x86_dst, *x86_v1, *x86_v2;
-    Value *loaded_src1, *loaded_src2;
+Value *generate_instructions(IGraphNode *ign, int parent_node_id, Rule *rule, Value *src1, Value *src2) {
+    Value *dst, *slot_value, *loaded_src1, *loaded_src2;
+    Value *x86_dst, *x86_v1, *x86_v2;
     X86Operation *x86op;
     Tac *tac;
-
-    least_expensive_choice_node_id = get_least_expensive_choice_node_id(node_id, parent_node_id, parent_src);
-    igraph_node_id = cost_to_igraph_map[least_expensive_choice_node_id];
-    ign = &(igraph->nodes[igraph_node_id]);
-
-    // Go down potential children, which return the value the result is in
-    // This is either a direct value (e == 0), only a src1 or a src1 and src2.
-    e = cost_graph->nodes[least_expensive_choice_node_id].succ;
-    i = 1;
-    src1 = ign->value;
-    src2 = 0;
-
-    while (e) {
-        src = recursive_make_intermediate_representation(igraph, e->to->id, least_expensive_choice_node_id, i);
-        if (i == 1)
-            src1 = src;
-        else
-            src2 = src;
-
-        e = e->next_succ;
-        i++;
-    }
-
-    rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
 
     if (debug_instsel_tiling) {
         printf("Generating instructions for rule %-4d: ", rule->index);
@@ -1124,6 +1094,41 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     }
 
     return dst;
+}
+
+// Add instructions to the intermediate representation by doing a post-order walk over the cost tree, picking the matching rules with lowest cost
+Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
+    int child_src, least_expensive_choice_node_id, igraph_node_id;
+    GraphEdge *e;
+    Rule *rule;
+    IGraphNode *ign;
+    Value *src, *dst, *src1, *src2, *x86_dst, *x86_v1, *x86_v2;
+
+    least_expensive_choice_node_id = get_least_expensive_choice_node_id(node_id, parent_node_id, parent_src);
+    igraph_node_id = cost_to_igraph_map[least_expensive_choice_node_id];
+    ign = &(igraph->nodes[igraph_node_id]);
+
+    // Go down potential children, which return the value the result is in
+    // This is either a direct value (e == 0), only a src1 or a src1 and src2.
+    e = cost_graph->nodes[least_expensive_choice_node_id].succ;
+    child_src = 1;
+    src1 = ign->value;
+    src2 = 0;
+
+    while (e) {
+        src = recursive_make_intermediate_representation(igraph, e->to->id, least_expensive_choice_node_id, child_src);
+        if (child_src == 1)
+            src1 = src;
+        else
+            src2 = src;
+
+        e = e->next_succ;
+        child_src++;
+    }
+
+    rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
+
+    return generate_instructions(ign, parent_node_id, rule, src1, src2);
 }
 
 void make_intermediate_representation(IGraph *igraph) {
