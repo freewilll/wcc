@@ -989,7 +989,8 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     igraph_node_id = cost_to_igraph_map[least_expensive_choice_node_id];
     ign = &(igraph->nodes[igraph_node_id]);
 
-    // Go down children, which return the value the result is in
+    // Go down potential children, which return the value the result is in
+    // This is either a direct value (e == 0), only a src1 or a src1 and src2.
     e = cost_graph->nodes[least_expensive_choice_node_id].succ;
     i = 1;
     src1 = ign->value;
