@@ -126,6 +126,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-tree-merging-deep"       )) { debug_instsel_tree_merging_deep = 1;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-igraph-simplification"   )) { debug_instsel_igraph_simplification = 1;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-tiling"                  )) { debug_instsel_tiling = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-cost-graph"              )) { debug_instsel_cost_graph = 1;               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-spilling"                )) { debug_instsel_spilling = 1;                 argc--; argv++; }
 
             else if (argc > 0 && !strcmp(argv[0], "-S"                                )) {
@@ -200,8 +201,8 @@ int main(int argc, char **argv) {
         printf("--debug-instsel-tree-merging-deep\n");
         printf("--debug-instsel-igraph-simplification\n");
         printf("--debug-instsel-tiling\n");
+        printf("--debug-instsel-cost-graph\n");
         printf("--debug-instsel-spilling\n");
-
 
         exit(1);
     }
@@ -222,6 +223,7 @@ int main(int argc, char **argv) {
     get_debug_env_value("DEBUG_INSTSEL_TREE_MERGING_DEEP", &debug_instsel_tree_merging_deep);
     get_debug_env_value("DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION", &debug_instsel_igraph_simplification);
     get_debug_env_value("DEBUG_INSTSEL_TILING", &debug_instsel_tiling);
+    get_debug_env_value("DEBUG_INSTSEL_COST_GRAPH", &debug_instsel_cost_graph);
     get_debug_env_value("DEBUG_INSTSEL_SPILLING", &debug_instsel_spilling);
 
 

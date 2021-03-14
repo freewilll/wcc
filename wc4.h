@@ -428,6 +428,7 @@ int debug_instsel_tree_merging;
 int debug_instsel_tree_merging_deep;
 int debug_instsel_igraph_simplification;
 int debug_instsel_tiling;
+int debug_instsel_cost_graph;
 int debug_instsel_spilling;
 
 // set.c

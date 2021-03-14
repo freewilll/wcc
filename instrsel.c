@@ -1189,7 +1189,7 @@ void tile_igraphs(Function *function) {
         memset(cost_to_igraph_map, 0, MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
 
         recursive_tile_igraphs(&(igraphs[i]), 0);
-        if (debug_instsel_tiling) print_cost_graph(cost_graph, cost_rules, accumulated_cost);
+        if (debug_instsel_cost_graph) print_cost_graph(cost_graph, cost_rules, accumulated_cost);
 
         if (tac && tac->label) {
             add_instruction(IR_NOP, 0, 0, 0);
