@@ -935,18 +935,11 @@ int recursive_tile_igraphs(IGraph *igraph, int node_id) {
         return tile_igraph_operation_node(igraph, node_id);
 }
 
-// Add instructions to the intermediate representation by doing a post-order walk over the cost tree, picking the matching rules with lowest cost
-Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
-    int i, pv, choice_node_id, match;
-    int least_expensive_choice_node_id, min_cost, cost, igraph_node_id, dst_type;
-    Value *slot_value;
-    GraphEdge *choice_edge, *e;
-    Rule *parent_rule, *rule;
-    IGraphNode *ign;
-    Value *src, *dst, *src1, *src2, *x86_dst, *x86_v1, *x86_v2;
-    Value *loaded_src1, *loaded_src2;
-    X86Operation *x86op;
-    Tac *tac;
+// find the lowest cost successor in the cost graph at node_id
+int get_least_expensive_choice_node_id(int node_id, int parent_node_id, int parent_src) {
+    int least_expensive_choice_node_id, min_cost, cost, pv, match, choice_node_id;
+    GraphEdge *choice_edge;
+    Rule *parent_rule;
 
     min_cost = 100000000;
     least_expensive_choice_node_id = -1;
@@ -977,6 +970,22 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
     if (least_expensive_choice_node_id == -1)
         panic("Internal error: No matched choices in recursive_make_intermediate_representation");
 
+    return least_expensive_choice_node_id;
+}
+
+// Add instructions to the intermediate representation by doing a post-order walk over the cost tree, picking the matching rules with lowest cost
+Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
+    int i, least_expensive_choice_node_id, igraph_node_id, dst_type;
+    Value *slot_value;
+    GraphEdge *e;
+    Rule *rule;
+    IGraphNode *ign;
+    Value *src, *dst, *src1, *src2, *x86_dst, *x86_v1, *x86_v2;
+    Value *loaded_src1, *loaded_src2;
+    X86Operation *x86op;
+    Tac *tac;
+
+    least_expensive_choice_node_id = get_least_expensive_choice_node_id(node_id, parent_node_id, parent_src);
     igraph_node_id = cost_to_igraph_map[least_expensive_choice_node_id];
     ign = &(igraph->nodes[igraph_node_id]);
 
