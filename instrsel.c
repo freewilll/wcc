@@ -57,9 +57,9 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_rules) 
     IGraphNode *ign;
     GraphEdge *e;
     Tac *t;
-    int chars_printed;
+    int c; // Chars printed
 
-    chars_printed = indent * 2;
+    c = indent * 2;
     ign = &(ig->nodes[node]);
 
     printf("%3d ", node);
@@ -67,50 +67,50 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_rules) 
 
     if (ign->tac) {
         operation = ign->tac->operation;
-             if (operation == IR_MOVE)                 chars_printed += printf("=");
-        else if (operation == IR_ADD)                  chars_printed += printf("+");
-        else if (operation == IR_SUB)                  chars_printed += printf("-");
-        else if (operation == IR_MUL)                  chars_printed += printf("*");
-        else if (operation == IR_DIV)                  chars_printed += printf("/");
-        else if (operation == IR_BNOT)                 chars_printed += printf("~");
-        else if (operation == IR_BSHL)                 chars_printed += printf("<<");
-        else if (operation == IR_BSHR)                 chars_printed += printf(">>");
-        else if (operation == IR_INDIRECT)             chars_printed += printf("indirect");
-        else if (operation == IR_ADDRESS_OF)           chars_printed += printf("&");
-        else if (operation == IR_MOVE_TO_REG_LVALUE)   chars_printed += printf("assign to lvalue");
-        else if (operation == IR_NOP)                  chars_printed += printf("noop");
-        else if (operation == IR_RETURN)               chars_printed += printf("return");
-        else if (operation == IR_START_CALL)           chars_printed += printf("start call");
-        else if (operation == IR_END_CALL)             chars_printed += printf("end call");
-        else if (operation == IR_ARG)                  chars_printed += printf("arg");
-        else if (operation == IR_CALL)                 chars_printed += printf("call");
-        else if (operation == IR_START_LOOP)           chars_printed += printf("start loop");
-        else if (operation == IR_END_LOOP)             chars_printed += printf("end loop");
-        else if (operation == IR_JZ)                   chars_printed += printf("jz");
-        else if (operation == IR_JNZ)                  chars_printed += printf("jnz");
-        else if (operation == IR_JMP)                  chars_printed += printf("jmp");
-        else if (operation == IR_EQ)                   chars_printed += printf("==");
-        else if (operation == IR_NE)                   chars_printed += printf("!=");
-        else if (operation == IR_LT)                   chars_printed += printf("<");
-        else if (operation == IR_GT)                   chars_printed += printf(">");
-        else if (operation == IR_LE)                   chars_printed += printf(">=");
-        else if (operation == IR_GE)                   chars_printed += printf("<=");
+             if (operation == IR_MOVE)                 c += printf("=");
+        else if (operation == IR_ADD)                  c += printf("+");
+        else if (operation == IR_SUB)                  c += printf("-");
+        else if (operation == IR_MUL)                  c += printf("*");
+        else if (operation == IR_DIV)                  c += printf("/");
+        else if (operation == IR_BNOT)                 c += printf("~");
+        else if (operation == IR_BSHL)                 c += printf("<<");
+        else if (operation == IR_BSHR)                 c += printf(">>");
+        else if (operation == IR_INDIRECT)             c += printf("indirect");
+        else if (operation == IR_ADDRESS_OF)           c += printf("&");
+        else if (operation == IR_MOVE_TO_REG_LVALUE)   c += printf("assign to lvalue");
+        else if (operation == IR_NOP)                  c += printf("noop");
+        else if (operation == IR_RETURN)               c += printf("return");
+        else if (operation == IR_START_CALL)           c += printf("start call");
+        else if (operation == IR_END_CALL)             c += printf("end call");
+        else if (operation == IR_ARG)                  c += printf("arg");
+        else if (operation == IR_CALL)                 c += printf("call");
+        else if (operation == IR_START_LOOP)           c += printf("start loop");
+        else if (operation == IR_END_LOOP)             c += printf("end loop");
+        else if (operation == IR_JZ)                   c += printf("jz");
+        else if (operation == IR_JNZ)                  c += printf("jnz");
+        else if (operation == IR_JMP)                  c += printf("jmp");
+        else if (operation == IR_EQ)                   c += printf("==");
+        else if (operation == IR_NE)                   c += printf("!=");
+        else if (operation == IR_LT)                   c += printf("<");
+        else if (operation == IR_GT)                   c += printf(">");
+        else if (operation == IR_LE)                   c += printf(">=");
+        else if (operation == IR_GE)                   c += printf("<=");
 
         else
-            chars_printed += printf("Operation %d", operation);
+            c += printf("Operation %d", operation);
 
         if (ign->tac->dst) {
-            chars_printed += printf(" -> ");
-            chars_printed += print_value(stdout, ign->tac->dst, 0);
+            c += printf(" -> ");
+            c += print_value(stdout, ign->tac->dst, 0);
         }
     }
     else
-        chars_printed += print_value(stdout, ign->value, 0);
+        c += print_value(stdout, ign->value, 0);
 
     if (include_rules && igraph_rules[node]) {
         if (igraph_rules[node]) {
-            for (i = 0; i < 60 - chars_printed; i++) printf(" ");
-            chars_printed += print_rule(igraph_rules[node], 0);
+            for (i = 0; i < 60 - c; i++) printf(" ");
+            c += print_rule(igraph_rules[node], 0);
         }
     }
     else

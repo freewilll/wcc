@@ -180,49 +180,49 @@ int print_type(void *f, int type) {
 }
 
 int print_value(void *f, Value *v, int is_assignment_rhs) {
-    int type, chars_printed;
+    int type, c;
 
-    chars_printed = 0;
+    c = 0; // Count outputted characters
 
     if (!v) panic("print_value() got null");
 
-    if (v->is_lvalue)chars_printed +=  printf("{l}");
-    if (v->is_lvalue_in_register)chars_printed +=  printf("{lr}");
-    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->local_index)) chars_printed += fprintf(f, "&");
-    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->local_index)) chars_printed += fprintf(f, "L");
+    if (v->is_lvalue) c += printf("{l}");
+    if (v->is_lvalue_in_register) c += printf("{lr}");
+    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->local_index)) c += fprintf(f, "&");
+    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->local_index)) c += fprintf(f, "L");
 
     if (v->is_constant)
-        chars_printed += fprintf(f, "%ld", v->value);
+        c += fprintf(f, "%ld", v->value);
     else if (v->preg != -1)
-        chars_printed += fprintf(f, "p%d", v->preg);
+        c += fprintf(f, "p%d", v->preg);
     else if (v->stack_index)
-        chars_printed += fprintf(f, "S[%d]", v->stack_index);
+        c += fprintf(f, "S[%d]", v->stack_index);
     else if (v->vreg) {
-        chars_printed += fprintf(f, "r%d", v->vreg);
-        if (v->ssa_subscript != -1) chars_printed += fprintf(f, "_%d", v->ssa_subscript);
+        c += fprintf(f, "r%d", v->vreg);
+        if (v->ssa_subscript != -1) c += fprintf(f, "_%d", v->ssa_subscript);
     }
     else if (v->local_index)
-        chars_printed += fprintf(f, "s[%d]", v->local_index);
+        c += fprintf(f, "s[%d]", v->local_index);
     else if (v->global_symbol)
-        chars_printed += fprintf(f, "%s", v->global_symbol->identifier);
+        c += fprintf(f, "%s", v->global_symbol->identifier);
     else if (v->is_string_literal)
         fprintf_escaped_string_literal(f, string_literals[v->string_literal_index]);
     else if (v->label)
-        chars_printed += fprintf(f, "l%d", v->label);
+        c += fprintf(f, "l%d", v->label);
     else if (v->function_symbol) {
-        chars_printed += fprintf(f, "function:%s", v->function_symbol->identifier);
-        return chars_printed;
+        c += fprintf(f, "function:%s", v->function_symbol->identifier);
+        return c;
     }
     else
         // What's this?
-        chars_printed += fprintf(f, "?%ld", v->value);
+        c += fprintf(f, "?%ld", v->value);
 
     if (!v->label) {
-        chars_printed += fprintf(f, ":");
-        chars_printed +=  print_type(f, v->type);
+        c += fprintf(f, ":");
+        c +=  print_type(f, v->type);
     }
 
-    return chars_printed;
+    return c;
 }
 
 char *operation_string(int operation) {
