@@ -11,6 +11,7 @@ test-wc4-*-gcc
 test-set
 test-graph
 test-ssa
+test-ssa-gcc
 test-instrsel
 test-instrsel-gcc
 benchmark

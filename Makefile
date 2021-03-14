@@ -134,6 +134,12 @@ test-ssa: wc4 test-ssa.s test-utils.s build/wc42/lexer.s build/wc42/parser.s bui
 run-test-ssa: test-ssa
 	 ./test-ssa
 
+test-ssa-gcc: wc4 test-ssa.s test-utils.s lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c codegen.c wc4.c utils.c set.c stack.c graph.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c codegen.c wc4.c utils.c set.c stack.c graph.c
+
+run-test-ssa-gcc: test-ssa-gcc
+	 ./test-ssa-gcc
+
 test-instrsel.s: wc4 test-instrsel.c
 	./wc4 ${WC4_OPTS} -c -S test-instrsel.c -o test-instrsel.s
 
@@ -144,7 +150,7 @@ run-test-instrsel: test-instrsel
 	 ./test-instrsel
 
 test-instrsel-gcc: wc4.h test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c utils.c set.c stack.c graph.c
-	gcc ${GCC_OPTS} -g -o test-instrsel-gcc test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c utils.c set.c stack.c graph.c -D _GNU_SOURCE
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-instrsel-gcc test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c utils.c set.c stack.c graph.c
 
 run-test-instrsel-gcc: test-instrsel-gcc
 	./test-instrsel-gcc
@@ -156,7 +162,7 @@ run-test-graph: test-graph
 	 ./test-graph
 
 .PHONY: test
-test: run-test-wc4 run-test-include run-test-set run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-graph run-test-wc4-gcc test-self-compilation test-self-compilation
+test: run-test-wc4 run-test-include run-test-set run-test-ssa-gcc run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-graph run-test-wc4-gcc test-self-compilation test-self-compilation
 
 clean:
 	@rm -f wc4
@@ -168,6 +174,7 @@ clean:
 	@rm -f test-wc4-gcc
 	@rm -f test-wc4-*-gcc
 	@rm -f test-set
+	@rm -f test-ssa-gcc
 	@rm -f test-instrsel
 	@rm -f test-instrsel-gcc
 	@rm -f test-graph
