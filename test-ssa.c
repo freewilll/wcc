@@ -562,7 +562,7 @@ Function *make_ir3(int loop_count) {
 }
 
 void assert_has_ig_edge(char *ig, int vreg_count, int from, int to) {
-    return (to > from && ig[from * vreg_count + to]) || ig[to * vreg_count + from];
+    assert((to > from && ig[from * vreg_count + to]) || ig[to * vreg_count + from], 1);
 }
 
 void test_interference_graph1() {
