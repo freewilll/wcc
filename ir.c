@@ -217,11 +217,7 @@ void print_value(void *f, Value *v, int is_assignment_rhs) {
 
     if (!v->label) {
         fprintf(f, ":");
-
-        if (v->x86_size)
-            fprintf(f, "%d", v->x86_size);
-        else
-            print_type(f, v->type);
+        print_type(f, v->type);
     }
 }
 
