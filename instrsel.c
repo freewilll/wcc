@@ -983,7 +983,7 @@ int get_least_expensive_choice_node_id(int node_id, int parent_node_id, int pare
     return least_expensive_choice_node_id;
 }
 
-Value *generate_instructions(IGraphNode *ign, int parent_node_id, Rule *rule, Value *src1, Value *src2) {
+Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Value *src1, Value *src2) {
     Value *dst, *slot_value, *loaded_src1, *loaded_src2;
     Value *x86_dst, *x86_v1, *x86_v2;
     X86Operation *x86op;
@@ -995,7 +995,7 @@ Value *generate_instructions(IGraphNode *ign, int parent_node_id, Rule *rule, Va
     }
 
     dst = 0;
-    if (parent_node_id == -1) {
+    if (is_root) {
         // Use the root node tac or value as a result
         if (ign->tac) {
             if (debug_instsel_tiling)
@@ -1108,7 +1108,7 @@ Value *generate_instructions(IGraphNode *ign, int parent_node_id, Rule *rule, Va
 
 // Add instructions to the intermediate representation by doing a post-order walk over the cost tree, picking the matching rules with lowest cost
 Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
-    int child_src, least_expensive_choice_node_id, igraph_node_id;
+    int child_src, least_expensive_choice_node_id, igraph_node_id, is_root;
     GraphEdge *e;
     Rule *rule;
     IGraphNode *ign;
@@ -1137,7 +1137,9 @@ Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, i
         child_src++;
     }
 
-    return generate_instructions(ign, parent_node_id, rule, src1, src2);
+    is_root = parent_node_id == -1;
+
+    return generate_instructions(ign, is_root, rule, src1, src2);
 }
 
 void make_intermediate_representation(IGraph *igraph) {
