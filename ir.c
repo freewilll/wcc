@@ -140,17 +140,21 @@ void sanity_test_ir_linkage(Function *function) {
     }
 }
 
-void fprintf_escaped_string_literal(void *f, char* sl) {
-    fprintf(f, "\"");
+int fprintf_escaped_string_literal(void *f, char* sl) {
+    int c;
+
+    c = fprintf(f, "\"");
     while (*sl) {
-             if (*sl == '\n') fprintf(f, "\\n");
-        else if (*sl == '\t') fprintf(f, "\\t");
-        else if (*sl == '\\') fprintf(f, "\\\\");
-        else if (*sl == '"')  fprintf(f, "\\\"");
-        else                  fprintf(f, "%c", *sl);
+             if (*sl == '\n') c += fprintf(f, "\\n");
+        else if (*sl == '\t') c += fprintf(f, "\\t");
+        else if (*sl == '\\') c += fprintf(f, "\\\\");
+        else if (*sl == '"')  c += fprintf(f, "\\\"");
+        else                  c += fprintf(f, "%c", *sl);
         sl++;
     }
-    fprintf(f, "\"");
+    c += fprintf(f, "\"");
+
+    return c;
 }
 
 int is_promotion(int type1, int type2) {
@@ -206,7 +210,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
     else if (v->global_symbol)
         c += fprintf(f, "%s", v->global_symbol->identifier);
     else if (v->is_string_literal)
-        fprintf_escaped_string_literal(f, string_literals[v->string_literal_index]);
+        c += fprintf_escaped_string_literal(f, string_literals[v->string_literal_index]);
     else if (v->label)
         c += fprintf(f, "l%d", v->label);
     else if (v->function_symbol) {

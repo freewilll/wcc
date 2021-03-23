@@ -502,7 +502,7 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 Tac *insert_instruction(Tac *ir, Tac *tac, int move_label);
 void sanity_test_ir_linkage(Function *function);
 int new_vreg();
-void fprintf_escaped_string_literal(void *f, char* sl);
+int fprintf_escaped_string_literal(void *f, char* sl);
 int is_promotion(int type1, int type2);
 int print_type(void *f, int type);
 int print_value(void *f, Value *v, int is_assignment_rhs);
