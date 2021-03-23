@@ -770,11 +770,11 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     int matched, matched_src;
     int choice_node_id, src1_cost_graph_node_id, src2_cost_graph_node_id;
     int cost_graph_node_id, min_cost, min_cost_src1, min_cost_src2, src, cost;
-    int *cached_elements, rule_src1, rule_src2;
+    int *cached_elements;
     Tac *tac;
     IGraphNode *inode, *inodes;
     GraphEdge *e;
-    Value *src1, *src2, *v;
+    Value *v;
     Rule *r, *child_rule;
 
     if (debug_instsel_tiling) printf("tile_igraph_operation_node on node=%d\n", node_id);
@@ -790,18 +790,12 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     }
 
     src1_id = src2_id = 0;
-    src1 = src2 = 0;
 
     e = igraph->graph->nodes[node_id].succ;
     if (e) {
         src1_id = e->to->id;
-        src1 = inodes[src1_id].value;
         e = e->next_succ;
-
-        if (e) {
-            src2_id = e->to->id;
-            src2 = inodes[src2_id].value;
-        }
+        if (e) src2_id = e->to->id;
     }
 
     if (!src1_id) return tile_igraph_operand_less_node(igraph, node_id);
@@ -846,9 +840,6 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (tac->dst && r->match_dst && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
 
         // Check dst of the subtree tile matches what is needed
-        rule_src1 = r->src1;
-        rule_src2 = r->src2;
-
         matched_src = 0;
         mv = igraph_labels[src1_id]->cached_element_count;
         cached_elements = igraph_labels[src1_id]->cached_elements;
