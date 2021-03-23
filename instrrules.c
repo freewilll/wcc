@@ -263,6 +263,34 @@ void check_for_duplicate_rules() {
     }
 }
 
+void check_rules_dont_decrease_precision() {
+    int i, dst_size, bad_rules;
+    Rule *r;
+
+    bad_rules = 0;
+    for (i = 0; i < instr_rule_count; i++) {
+        r = &(instr_rules[i]);
+        if (!r->dst) continue;
+        if (r->match_dst) continue;
+
+        dst_size = make_x86_size_from_non_terminal(r->dst);
+
+        if (r->src1 && make_x86_size_from_non_terminal(r->src1) > dst_size) {
+            print_rule(r, 0);
+            bad_rules++;
+        }
+        if (r->src2 && make_x86_size_from_non_terminal(r->src2) > dst_size) {
+            print_rule(r, 0);
+            bad_rules++;
+        }
+    }
+
+    if (bad_rules) {
+        printf("There are %d rules with match_dst=0 that decrease precision\n", bad_rules);
+        exit(1);
+    }
+}
+
 char *non_terminal_string(int nt) {
     // Make a textual representation of a non terminal
 

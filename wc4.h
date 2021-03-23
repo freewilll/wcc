@@ -684,6 +684,7 @@ int value_ptr_target_x86_size(Value *v);
 char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
+void check_rules_dont_decrease_precision();
 void init_instruction_selection_rules();
 
 // codegen.c

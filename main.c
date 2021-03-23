@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     int run_linker;                 // Link .o file
     int target_is_object_file;
     int target_is_assembly_file;
-    int help, debug, print_symbols, print_instrrules, print_spilled_register_count;
+    int help, debug, print_symbols, print_instr_rules, print_instr_precision_decrease_rules, print_spilled_register_count;
 
     int input_filename_count;
     char **input_filenames, *input_filename, *output_filename, *local_output_filename;
@@ -74,7 +74,8 @@ int main(int argc, char **argv) {
     print_spilled_register_count = 0;
     print_ir1 = 0;
     print_ir2 = 0;
-    print_instrrules = 0;
+    print_instr_rules = 0;
+    print_instr_precision_decrease_rules = 0;
     print_symbols = 0;
     opt_enable_register_coalescing = 1;
     opt_enable_live_range_coalescing = 1;
@@ -95,20 +96,21 @@ int main(int argc, char **argv) {
     argv++;
     while (argc > 0) {
         if (*argv[0] == '-') {
-                 if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                               argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                            argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-d"                                )) { debug = 1;                              argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                      argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_spilled_register_count = 1;       argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                          argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                          argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--iir"                             )) { output_inline_ir = 1;                   argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-register-allocation"          )) { opt_enable_register_allocation = 0;     argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;   argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;    argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;  argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0; argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--print-instrrules"                )) { print_instrrules = 1;                   argc--; argv++; }
+                 if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                                 argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                              argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-d"                                )) { debug = 1;                                argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_spilled_register_count = 1;         argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                            argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--iir"                             )) { output_inline_ir = 1;                     argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-register-allocation"          )) { opt_enable_register_allocation = 0;       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;     argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;    argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0;   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--print-rules"                     )) { print_instr_rules = 1;                    argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--print-precision-decrease-rules"  )) { print_instr_precision_decrease_rules = 1; argc--; argv++; }
 
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-mapping-local-stack-indexes" )) { debug_ssa_mapping_local_stack_indexes = 1;  argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa"                             )) { debug_ssa = 1;                              argc--; argv++; }
@@ -163,26 +165,26 @@ int main(int argc, char **argv) {
     if (help) {
         printf("Usage: wc4 [-S -c -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
         printf("Flags\n");
-        printf("-S                             Compile only; do not assemble or link\n");
-        printf("-c                             Compile and assemble, but do not link\n");
-        printf("-o <file>                      Output file. Use - for stdout. Defaults to the source file with extension .s\n");
-        printf("-v                             Display the programs invoked by the compiler\n");
-        printf("-d                             Debug output\n");
-        printf("-s                             Output symbol table\n");
-        printf("--iir                          Output inline intermediate representation\n");
-        printf("--prc                          Output spilled register count\n");
-        printf("--ir1                          Output intermediate representation after parsing\n");
-        printf("--ir2                          Output intermediate representation after x86_64 rearrangements\n");
-        printf("--ir3                          Output intermediate representation after register allocation\n");
-        printf("--print-instrrules             Output instruction selection rules\n");
-        printf("-h                             Help\n");
+        printf("-S                                  Compile only; do not assemble or link\n");
+        printf("-c                                  Compile and assemble, but do not link\n");
+        printf("-o <file>                           Output file. Use - for stdout. Defaults to the source file with extension .s\n");
+        printf("-v                                  Display the programs invoked by the compiler\n");
+        printf("-d                                  Debug output\n");
+        printf("-s                                  Output symbol table\n");
+        printf("--iir                               Output inline intermediate representation\n");
+        printf("--prc                               Output spilled register count\n");
+        printf("--ir1                               Output intermediate representation after parsing\n");
+        printf("--ir2                               Output intermediate representation after x86_64 rearrangements\n");
+        printf("--print-rules                       Print instruction selection rules\n");
+        printf("--print-precision-decrease-rules    Print instruction selection rules that decrease precision\n");
+        printf("-h                                  Help\n");
         printf("\n");
         printf("Optimization flags:\n");
-        printf("-fno-coalesce-live-range           Disable SSA live range coalescing\n");
-        printf("-fspill-furthest-liveness-end      Spill liveness intervals that have the greatest end liveness interval\n");
-        printf("-fno-dont-spill-short-live-ranges  Disable infinite spill costs for short live ranges\n");
-        printf("-fno-optimize-arithmetic           Disable arithmetic optimizations\n ");
-        printf("-fno-register-allocation           Don't allocate physical registers, spill everything to the stack\n");
+        printf("-fno-coalesce-live-range            Disable SSA live range coalescing\n");
+        printf("-fspill-furthest-liveness-end       Spill liveness intervals that have the greatest end liveness interval\n");
+        printf("-fno-dont-spill-short-live-ranges   Disable infinite spill costs for short live ranges\n");
+        printf("-fno-optimize-arithmetic            Disable arithmetic optimizations\n ");
+        printf("-fno-register-allocation            Don't allocate physical registers, spill everything to the stack\n");
         printf("\n");
         printf("Debug flags:\n");
         printf("--debug-ssa-mapping-local-stack-indexes\n");
@@ -231,8 +233,13 @@ int main(int argc, char **argv) {
     init_allocate_registers();
     init_instruction_selection_rules();
 
-    if (print_instrrules) {
+    if (print_instr_rules) {
         print_rules();
+        exit(0);
+    }
+
+    if (print_instr_precision_decrease_rules) {
+        check_rules_dont_decrease_precision();
         exit(0);
     }
 
