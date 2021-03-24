@@ -1,10 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "wc4.h"
 
-void assert(int expected, int actual, char *message) {
+void assert(int expected, int actual) {
     if (expected != actual) {
-        printf("%s: expected %d, got %d\n", message, expected, actual);
+        printf("expected %d, got %d\n", expected, actual);
         exit(1);
     }
 }

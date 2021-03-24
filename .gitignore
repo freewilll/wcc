@@ -9,6 +9,7 @@ run-test-wc4-*
 test-wc4-gcc
 test-wc4-*-gcc
 test-set
+test-set-gcc
 test-graph
 test-ssa
 test-ssa-gcc
