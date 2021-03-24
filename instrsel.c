@@ -765,12 +765,28 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     return cost_graph_node_id;
 }
 
+int match_tree(int src_id, int rule_src) {
+    int matched_src, count, i;
+    int *cached_elements;
+
+    matched_src = 0;
+    count = igraph_labels[src_id]->cached_element_count;
+    cached_elements = igraph_labels[src_id]->cached_elements;
+    for (i = 0; i < count; i++) {
+        if (instr_rules[cached_elements[i]].dst == rule_src) {
+            matched_src = 1;
+            break;
+        }
+    }
+
+    return matched_src;
+}
+
 int tile_igraph_operation_node(IGraph *igraph, int node_id) {
-    int i, j, operation, src1_id, src2_id, mv;
+    int i, j, operation, src1_id, src2_id;
     int matched, matched_src;
     int choice_node_id, src1_cost_graph_node_id, src2_cost_graph_node_id;
     int cost_graph_node_id, min_cost, min_cost_src1, min_cost_src2, src, cost;
-    int *cached_elements;
     Tac *tac;
     IGraphNode *inode, *inodes;
     GraphEdge *e;
@@ -840,32 +856,14 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (tac->dst && r->match_dst && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
 
         // Check dst of the subtree tile matches what is needed
-        matched_src = 0;
-        mv = igraph_labels[src1_id]->cached_element_count;
-        cached_elements = igraph_labels[src1_id]->cached_elements;
-        for (j = 0; j < mv; j++) {
-            if (instr_rules[cached_elements[j]].dst == r->src1) {
-                matched_src = 1;
-                break;
-            }
-        }
+        matched_src = match_tree(src1_id, r->src1);
         if (!matched_src) continue;
 
-        matched_src = 0;
         if (src2_id) {
-            matched_src = 0;
-            mv = igraph_labels[src2_id]->cached_element_count;
-            cached_elements = igraph_labels[src2_id]->cached_elements;
-            for (j = 0; j < mv; j++) {
-                if (instr_rules[cached_elements[j]].dst == r->src2) {
-                    matched_src = 1;
-                    break;
-                }
-            }
+            matched_src = match_tree(src2_id, r->src2);
             if (!matched_src) continue;
         }
 
-        // We have a match, do some accounting ...
         matched = 1;
 
         if (debug_instsel_tiling) {
