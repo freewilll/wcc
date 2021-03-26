@@ -765,21 +765,17 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     return cost_graph_node_id;
 }
 
-int match_tree(int src_id, int rule_src) {
-    int matched_src, count, i;
+// Check if the dst for any label in the child tree for src_id matches rule_src.
+int match_subtree_labels_to_rule(int src_id, int rule_src) {
+    int i, count;
     int *cached_elements;
 
-    matched_src = 0;
     count = igraph_labels[src_id]->cached_element_count;
     cached_elements = igraph_labels[src_id]->cached_elements;
-    for (i = 0; i < count; i++) {
-        if (instr_rules[cached_elements[i]].dst == rule_src) {
-            matched_src = 1;
-            break;
-        }
-    }
+    for (i = 0; i < count; i++)
+        if (instr_rules[cached_elements[i]].dst == rule_src) return 1;
 
-    return matched_src;
+    return 0;
 }
 
 int tile_igraph_operation_node(IGraph *igraph, int node_id) {
@@ -856,11 +852,11 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (tac->dst && r->match_dst && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
 
         // Check dst of the subtree tile matches what is needed
-        matched_src = match_tree(src1_id, r->src1);
+        matched_src = match_subtree_labels_to_rule(src1_id, r->src1);
         if (!matched_src) continue;
 
         if (src2_id) {
-            matched_src = match_tree(src2_id, r->src2);
+            matched_src = match_subtree_labels_to_rule(src2_id, r->src2);
             if (!matched_src) continue;
         }
 
