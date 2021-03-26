@@ -463,8 +463,8 @@ int match_value_to_rule_src(Value *v, int src) {
 // offer anything that satisfies the parent.
 // Upgrades aren't allowed since they require sign extension, which is done
 // by specific rules.
-int rules_match(int parent, int child) {
-         if (parent == child)                return 1;
+int rules_match_with_downgrade(int parent, int child) {
+    if (parent == child) return 1;
     else if (parent == REGB && child== REGW) return 1;
     else if (parent == REGB && child== REGL) return 1;
     else if (parent == REGB && child== REGQ) return 1;
@@ -476,7 +476,7 @@ int rules_match(int parent, int child) {
 
 // Used to match root node, or of match_dst is true on a non-root node
 int match_value_to_rule_dst(Value *v, int dst) {
-    return rules_match(non_terminal_for_value(v), dst);
+    return rules_match_with_downgrade(non_terminal_for_value(v), dst);
 }
 
 int value_ptr_target_x86_size(Value *v) {

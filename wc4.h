@@ -677,7 +677,6 @@ char size_to_x86_size(int size);
 int print_rule(Rule *r, int print_operations);
 void print_rules();
 void make_value_x86_size(Value *v);
-int rules_match(int parent, int child);
 int match_value_to_rule_src(Value *v, int src);
 int match_value_to_rule_dst(Value *v, int dst);
 int value_ptr_target_x86_size(Value *v);

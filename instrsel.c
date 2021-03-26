@@ -646,7 +646,7 @@ void recursive_print_cost_graph(Graph *cost_graph, int *cost_rules, int *accumul
         if (parent_node_id != -1) {
             parent_rule = &(instr_rules[cost_rules[parent_node_id]]);
             src = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
-            match = rules_match(src, instr_rules[cost_rules[choice_node_id]].dst);
+            match = (src == instr_rules[cost_rules[choice_node_id]].dst);
             if (match) {
                 printf("%-3d ", choice_node_id);
                 for (i = 0; i < indent; i++) printf("  ");
@@ -773,7 +773,7 @@ int match_subtree_labels_to_rule(int src_id, int rule_src) {
     count = igraph_labels[src_id]->cached_element_count;
     cached_elements = igraph_labels[src_id]->cached_elements;
     for (i = 0; i < count; i++)
-        if (instr_rules[cached_elements[i]].dst == rule_src) return 1;
+        if (rule_src == instr_rules[cached_elements[i]].dst) return 1;
 
     return 0;
 }
@@ -891,7 +891,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             while (e) {
                 child_rule = &(instr_rules[cost_rules[e->to->id]]);
 
-                if (rules_match(src, child_rule->dst)) {
+                if (src == child_rule->dst) {
                     cost = accumulated_cost[e->to->id];
                     if (cost < min_cost) min_cost = cost;
                 }
@@ -950,7 +950,7 @@ int get_least_expensive_choice_node_id(int node_id, int parent_node_id, int pare
             // Ensure src and dst match for non-root nodes
             parent_rule = &(instr_rules[cost_rules[parent_node_id]]);
             pv = (parent_src == 1) ? parent_rule->src1 : parent_rule->src2;
-            match = rules_match(pv, instr_rules[cost_rules[choice_node_id]].dst);
+            match = (pv == instr_rules[cost_rules[choice_node_id]].dst);
         }
         else
             match = 1;
