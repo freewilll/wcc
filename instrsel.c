@@ -689,6 +689,47 @@ int new_cost_graph_node() {
     return cost_graph_node_count++;
 }
 
+void calculate_accumulated_cost_for_new_cost_node(Rule *r, int src1_cost_graph_node_id, int src2_cost_graph_node_id, int choice_node_id) {
+    int i, src, cost, min_cost, min_cost_src1, min_cost_src2;
+    GraphEdge *e;
+    Rule *child_rule;
+
+    // Do some on the fly accounting, find the minimal cost sub trees
+    min_cost_src1 = min_cost_src2 = 100000000;
+
+    // Loop over src1 and src2 if there is one
+    for (i = 1; i <= 2; i++) {
+        if (!src2_cost_graph_node_id && i == 2) continue; // Unary operation
+
+        src = i == 1 ? r->src1 : r->src2;
+        e = i == 1
+            ? cost_graph->nodes[src1_cost_graph_node_id].succ
+            : cost_graph->nodes[src2_cost_graph_node_id].succ;
+
+        // Find the lowest cost from all the edges
+        min_cost = 100000000;
+        while (e) {
+            child_rule = &(instr_rules[cost_rules[e->to->id]]);
+
+            if (src == child_rule->dst) {
+                cost = accumulated_cost[e->to->id];
+                if (cost < min_cost) min_cost = cost;
+            }
+
+            e = e->next_succ;
+        }
+
+        if (i == 1)
+            min_cost_src1 = min_cost;
+        else
+            min_cost_src2 = min_cost;
+    }
+
+    if (!src2_cost_graph_node_id) min_cost_src2 = 0;
+
+    accumulated_cost[choice_node_id] = min_cost_src1 + min_cost_src2 + r->cost;
+}
+
 // Tile a graph node that has an operation but no operands.
 // These are used e.g. in a parameterless return statement.
 int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
@@ -826,7 +867,10 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
     // Recurse down the src1 and src2 trees
     src1_cost_graph_node_id = recursive_tile_igraphs(igraph, src1_id);
-    if (src2_id) src2_cost_graph_node_id = recursive_tile_igraphs(igraph, src2_id);
+    if (src2_id)
+        src2_cost_graph_node_id = recursive_tile_igraphs(igraph, src2_id);
+    else
+        src2_cost_graph_node_id = 0;
 
     if (debug_instsel_tiling) {
         printf("back from recursing at node=%d\n\n", node_id);
@@ -888,38 +932,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         add_graph_edge(cost_graph, choice_node_id, src1_cost_graph_node_id);
         if (src2_id) add_graph_edge(cost_graph, choice_node_id, src2_cost_graph_node_id);
 
-        // Do some on the fly accounting, find the minimal cost sub trees
-        min_cost_src1 = min_cost_src2 = 100000000;
-
-        for (j = 1; j <= 2; j++) {
-            if (!src2_id && j == 2) continue; // Unary operation
-
-            src = j == 1 ? r->src1 : r->src2;
-            e = j == 1
-                ? cost_graph->nodes[src1_cost_graph_node_id].succ
-                : cost_graph->nodes[src2_cost_graph_node_id].succ;
-
-            min_cost = 100000000;
-            while (e) {
-                child_rule = &(instr_rules[cost_rules[e->to->id]]);
-
-                if (src == child_rule->dst) {
-                    cost = accumulated_cost[e->to->id];
-                    if (cost < min_cost) min_cost = cost;
-                }
-
-                e = e->next_succ;
-            }
-
-            if (j == 1)
-                min_cost_src1 = min_cost;
-            else
-                min_cost_src2 = min_cost;
-        }
-
-        if (!src2_id) min_cost_src2 = 0;
-
-        accumulated_cost[choice_node_id] = min_cost_src1 + min_cost_src2 + instr_rules[i].cost;
+        calculate_accumulated_cost_for_new_cost_node(r, src1_cost_graph_node_id, src2_cost_graph_node_id, choice_node_id);
     }
 
     // All rules have been visited, if there are no matches, we have a problem, bail
