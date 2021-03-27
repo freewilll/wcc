@@ -456,27 +456,23 @@ int match_value_to_rule_src(Value *v, int src) {
         return non_terminal_for_value(v) == src;
 }
 
-// Can parent (src1, src2) and child (dst) non terminals be joined?
-// If they are an exact match, yes.
-// If the parent wants a REG of a lower precision, that's also allowed,
-// since it's the parent that gets to choose the precision, and the child has to
-// offer anything that satisfies the parent.
-// Upgrades aren't allowed since they require sign extension, which is done
-// by specific rules.
-int rules_match_with_downgrade(int parent, int child) {
-    if (parent == child) return 1;
-    else if (parent == REGB && child== REGW) return 1;
-    else if (parent == REGB && child== REGL) return 1;
-    else if (parent == REGB && child== REGQ) return 1;
-    else if (parent == REGW && child== REGL) return 1;
-    else if (parent == REGW && child== REGQ) return 1;
-    else if (parent == REGL && child== REGQ) return 1;
-    else                                     return 0;
-}
-
-// Used to match root node, or of match_dst is true on a non-root node
+// Used to match root node, or of match_dst is true on a non-root node.
+// This ensures the precision of dst is >= of the value.
+// This is needed for a special case of indirects where there are rules that can
+// indirect and sign extend at the same time.
 int match_value_to_rule_dst(Value *v, int dst) {
-    return rules_match_with_downgrade(non_terminal_for_value(v), dst);
+    int vnt;
+
+    vnt = non_terminal_for_value(v);
+
+    if (vnt == dst) return 1;
+    else if (vnt == REGB && dst== REGW) return 1;
+    else if (vnt == REGB && dst== REGL) return 1;
+    else if (vnt == REGB && dst== REGQ) return 1;
+    else if (vnt == REGW && dst== REGL) return 1;
+    else if (vnt == REGW && dst== REGQ) return 1;
+    else if (vnt == REGL && dst== REGQ) return 1;
+    else                                return 0;
 }
 
 int value_ptr_target_x86_size(Value *v) {
