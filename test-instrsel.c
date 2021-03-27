@@ -1222,6 +1222,17 @@ void test_pointer_assignment_precision_decreases() {
     }
 }
 
+void test_indirect_precision_increase() {
+    remove_reserved_physical_registers = 1;
+
+    start_ir();
+    i(0, IR_INDIRECT, vsz(2, TYPE_INT), asz(1, TYPE_INT), 0               );
+    i(0, IR_ARG,      0,                c(0),             vsz(2, TYPE_INT));
+    finish_ir(function);
+    assert_x86_op("movslq  (r1q), r3q");
+    assert_x86_op("pushq   r3q"       );
+}
+
 void test_simple_int_cast() {
     remove_reserved_physical_registers = 1;
 
@@ -1509,6 +1520,7 @@ int main() {
     test_pointer_indirect_global_char_in_struct_to_long();
     test_pointer_to_void_arg();
     test_pointer_assignment_precision_decreases();
+    test_indirect_precision_increase();
     test_simple_int_cast();
     test_assign_to_pointer_to_void();
     test_pointer_comparisons();
