@@ -689,6 +689,8 @@ int new_cost_graph_node() {
     return cost_graph_node_count++;
 }
 
+// Tile a graph node that has an operation but no operands.
+// These are used e.g. in a parameterless return statement.
 int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
     int i, cost_graph_node_id, choice_node_id;
     Tac *tac;
@@ -723,6 +725,8 @@ int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
     panic("Did not match any rules");
 }
 
+// Tile a leaf node in the instruction tree. Rules for leaf nodes all have a zero
+// operation. This is simply a case of matching the value to the rule src1.
 int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     int i,  cost_graph_node_id, choice_node_id, matched, matched_dst;
     Value *v;
@@ -781,6 +785,7 @@ int match_subtree_labels_to_rule(int src_id, int rule_src) {
     return 0;
 }
 
+// Tile an instruction graph node that has an operation with 0, 1 or 2 operands.
 int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     int i, j, operation, src1_id, src2_id;
     int matched, matched_src;
@@ -792,20 +797,19 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     Value *v;
     Rule *r, *child_rule;
 
-    if (debug_instsel_tiling) printf("tile_igraph_operation_node on node=%d\n", node_id);
-
     inodes = igraph->nodes;
     inode = &(igraph->nodes[node_id]);
     tac = inode->tac;
     operation = tac->operation;
 
     if (debug_instsel_tiling) {
+        printf("tile_igraph_operation_node on node=%d\n", node_id);
         print_instruction(stdout, tac);
         dump_igraph(igraph, 0);
     }
 
+    // Fetch the operands from the graph
     src1_id = src2_id = 0;
-
     e = igraph->graph->nodes[node_id].succ;
     if (e) {
         src1_id = e->to->id;
@@ -813,11 +817,14 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (e) src2_id = e->to->id;
     }
 
+    // Special case: no operands
     if (!src1_id) return tile_igraph_operand_less_node(igraph, node_id);
 
+    // Create the root cost instruction graph node
     cost_graph_node_id = new_cost_graph_node();
     cost_to_igraph_map[cost_graph_node_id] = node_id;
 
+    // Recurse down the src1 and src2 trees
     src1_cost_graph_node_id = recursive_tile_igraphs(igraph, src1_id);
     if (src2_id) src2_cost_graph_node_id = recursive_tile_igraphs(igraph, src2_id);
 
@@ -833,20 +840,19 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         }
     }
 
-    if (debug_instsel_tiling && tac->dst)
-        printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
-
     if (src1_id) cache_set_elements(igraph_labels[src1_id]);
     if (src2_id) cache_set_elements(igraph_labels[src2_id]);
 
-    // Loop over all rules until a match is found
+    if (debug_instsel_tiling && tac->dst)
+        printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
+
+    // Loop over all rules and gather matches in the cost graph
     matched = 0;
     for (i = 0; i < instr_rule_count; i++) {
         r = &(instr_rules[i]);
 
-        if (r->operation != operation) continue;
-        if (src2_id && !r->src2) continue;
-        if (!src2_id && r->src2) continue;
+        if (r->operation != operation) continue; // Only handle operations nodes
+        if (src2_id && !r->src2 || !src2_id && r->src2) continue; // Filter rules requiring src2
 
         // If this is the top level, ensure the dst matches
         if (tac->dst && node_id == 0 && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
@@ -863,14 +869,17 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             if (!matched_src) continue;
         }
 
+        // We have a winner
         matched = 1;
 
         if (debug_instsel_tiling) {
             printf("matched rule %-4d: ", i);
             print_rule(r, 0);
         }
-        add_to_set(igraph_labels[node_id], i);
 
+        add_to_set(igraph_labels[node_id], i); // Add a label
+
+        // Add cost graph nodes for src1 and potentially src2
         choice_node_id = new_cost_graph_node();
         cost_rules[choice_node_id] = i;
         cost_to_igraph_map[choice_node_id] = node_id;
@@ -879,7 +888,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         add_graph_edge(cost_graph, choice_node_id, src1_cost_graph_node_id);
         if (src2_id) add_graph_edge(cost_graph, choice_node_id, src2_cost_graph_node_id);
 
-        // Find the minimal cost sub trees
+        // Do some on the fly accounting, find the minimal cost sub trees
         min_cost_src1 = min_cost_src2 = 100000000;
 
         for (j = 1; j <= 2; j++) {
@@ -913,6 +922,8 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         accumulated_cost[choice_node_id] = min_cost_src1 + min_cost_src2 + instr_rules[i].cost;
     }
 
+    // All rules have been visited, if there are no matches, we have a problem, bail
+    // with an error.
     if (!matched) {
         printf("\nNo rules matched\n");
         if (tac->dst) printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
