@@ -145,7 +145,7 @@ IGraph *shallow_dup_igraph(IGraph *src, IGraph *dst) {
 
 // Merge g2 into g1. The merge point is vreg
 IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
-    int i, j, operation, node_count, d, join_from, join_to, from, to, type_change;
+    int i, j, operation, node_count, d, join_from, join_to, from, to;
     int type;
     IGraph *g;
     IGraphNode *inodes, *g1_inodes, *inodes2, *in, *in1, *in2;
@@ -230,9 +230,12 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     if (debug_instsel_tree_merging_deep) printf("\n");
 
     in2 = &(g2->nodes[0]);
-    type_change = in1->value->type != in2->tac->dst->type;
 
-    if (type_change) {
+    // The coalesce live ranges code already removed any possible IR_MOVE, including
+    // coercions. This means that any type change left must be made explicit with an
+    // IR_MOVE, so that suitable instruction selection rules are matched, leading to
+    // possible code generation.
+    if (in1->value->type != in2->tac->dst->type) {
         if (debug_instsel_tree_merging) printf("Changing type from %d -> %d\n", in2->tac->dst->type, in1->value->type);
         if (debug_instsel_tree_merging) printf("Replacing %d with IR_MOVE tac\n", join_to);
         in = &(inodes[join_to]);

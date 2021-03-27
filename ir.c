@@ -157,6 +157,7 @@ int fprintf_escaped_string_literal(void *f, char* sl) {
     return c;
 }
 
+// Is going from type1 -> type2 a promotion, i.e. an increase of integer precision?
 int is_promotion(int type1, int type2) {
     if (type1 > TYPE_LONG || type2 > TYPE_LONG) return 0;
     else return type1 < type2;
