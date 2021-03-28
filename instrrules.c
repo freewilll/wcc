@@ -567,54 +567,39 @@ Rule *add_store_to_pointer(int src1, int src2, char *template) {
     return r;
 }
 
+// Add rules for loads & address of from IR_BSHL + IR_ADD + IR_INDIRECT/IR_ADDRESS_OF
+void add_composite_addressing_rule(int *ntc, int cst, int add_reg, int indirect_reg, int address_of_reg, int match_dst, int op, char *template) {
+    int ntc1, ntc2;
+    Rule *r;
+
+    ntc1 = ++*ntc;
+    ntc2 = ++*ntc;
+    r = add_rule(ntc1, IR_BSHL, REGQ, cst, 1); add_save_value(r, 1, 2); // Save index register to slot 2
+    r = add_rule(ntc2, IR_ADD, add_reg, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
+
+    if (indirect_reg) r = add_rule(indirect_reg, IR_INDIRECT, ntc2, 0, 1);
+    if (address_of_reg) r = add_rule(address_of_reg, IR_ADDRESS_OF, ntc2, 0, 1);
+    r->match_dst = match_dst;
+    add_load_value(r, 1, 1); // Load address register from slot 1
+    add_load_value(r, 2, 2); // Load index register from slot 2
+    add_op(r, op, DST, SRC1, 0, template);
+}
+
 void add_composite_pointer_rules(int *ntc) {
-    int i, ntc1, ntc2;
+    int i;
     char *template;
     Rule *r;
 
-    // Composite loads from pointer for IR_BSHL + IR_ADD
-    for (i = 2; i <= 4; i++) { // short, int and long
-        ntc1 = ++*ntc;
-        r = add_rule(ntc1, IR_BSHL, REGQ, CST1 + i - 2, 1); add_save_value(r, 1, 2); // Save index register to slot 2
-             if (i == 2) template = "movw  (%v1q,%v2q,2), %vdw";
-        else if (i == 3) template = "movl  (%v1q,%v2q,4), %vdl";
-        else if (i == 4) template = "movq  (%v1q,%v2q,8), %vdq";
+    // Loads
+    add_composite_addressing_rule(ntc, CST1, ADRW, REGW, 0, 1, X_MOV_FROM_SCALED_IND, "movw  (%v1q,%v2q,2), %vdw"); // from *short
+    add_composite_addressing_rule(ntc, CST2, ADRL, REGL, 0, 1, X_MOV_FROM_SCALED_IND, "movl  (%v1q,%v2q,4), %vdl"); // from *int
+    add_composite_addressing_rule(ntc, CST3, ADRQ, REGQ, 0, 1, X_MOV_FROM_SCALED_IND, "movq  (%v1q,%v2q,8), %vdq"); // from *long
+    add_composite_addressing_rule(ntc, CST3, ADRQ, ADRV, 0, 1, X_MOV_FROM_SCALED_IND, "movq  (%v1q,%v2q,8), %vdq"); // from *struct
 
-        ntc2 = ++*ntc;
-        r = add_rule(ntc2, IR_ADD, ADR + i, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
-        r = add_rule(REG + i, IR_INDIRECT, ntc2, 0, 1);
-        r->match_dst = 1;
-        add_load_value(r, 1, 1); // Load address register from slot 1
-        add_load_value(r, 2, 2); // Load index register from slot 2
-        add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, template);
-    }
-
-    // Composite load from pointer for a pointer to a struct
-    ntc1 = ++*ntc;
-    ntc2 = ++*ntc;
-    r = add_rule(ntc1, IR_BSHL, REGQ, CST3, 1); add_save_value(r, 1, 2); // Save index register to slot 2
-    r = add_rule(ntc2, IR_ADD, ADRQ, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
-    r = add_rule(ADRV, IR_INDIRECT, ntc2, 0, 1); r->match_dst = 1;
-    r->match_dst = 1;
-    add_load_value(r, 1, 1); // Load address register from slot 1
-    add_load_value(r, 2, 2); // Load index register from slot 2
-    add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, "movq  (%v1q,%v2q,8), %vdq");
-
-    // Composite lea from pointer for IR_BSHL
-    for (i = 2; i <= 4; i++) {
-        ntc1 = ++*ntc;
-        r = add_rule(ntc1, IR_BSHL, REGQ, CST1 + i - 2, 1); add_save_value(r, 1, 2); // Save index register to slot 2
-             if (i == 2) template = "lea   (%v1q,%v2q,2), %vdq";
-        else if (i == 3) template = "lea   (%v1q,%v2q,4), %vdq";
-        else if (i == 4) template = "lea   (%v1q,%v2q,8), %vdq";
-
-        ntc2 = ++*ntc;
-        r = add_rule(ntc2, IR_ADD, ADRV, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
-        r = add_rule(ADRV, IR_ADDRESS_OF, ntc2, 0, 1);
-        add_load_value(r, 1, 1); // Load address register from slot 1
-        add_load_value(r, 2, 2); // Load index register from slot 2
-        add_op(r, X_LEA_FROM_SCALED_IND, DST, SRC1, 0, template);
-    }
+    // Address of
+    add_composite_addressing_rule(ntc, CST1, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea   (%v1q,%v2q,2), %vdq");
+    add_composite_addressing_rule(ntc, CST2, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea   (%v1q,%v2q,4), %vdq");
+    add_composite_addressing_rule(ntc, CST3, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea   (%v1q,%v2q,8), %vdq");
 }
 
 void add_pointer_rules(int *ntc) {
