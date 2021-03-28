@@ -356,7 +356,7 @@ int print_rule(Rule *r, int print_operations) {
         operation = r->x86_operations;
         first = 1;
         while (operation) {
-            if (!first) printf("                                                              ");
+            if (!first) printf("                                                        ");
             first = 0;
 
             if (operation->save_value_in_slot)

@@ -747,7 +747,7 @@ int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
         r = &(instr_rules[i]);
         if (r->operation == tac->operation) {
             if (debug_instsel_tiling) {
-                printf("matched rule %-4d: ", i);
+                printf("matched rule %d:\n", i);
                 print_rule(r, 0);
             }
 
@@ -789,7 +789,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
         if (match_value_to_rule_src(v, r->src1)) {
             if (debug_instsel_tiling) {
-                printf("matched rule %-4d: ", i);
+                printf("matched rule %d:\n", i);
                 print_rule(r, 0);
             }
             add_to_set(igraph_labels[node_id], i);
@@ -917,8 +917,8 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         matched = 1;
 
         if (debug_instsel_tiling) {
-            printf("matched rule %-4d: ", i);
-            print_rule(r, 0);
+            printf("matched rule %d:\n", i);
+            print_rule(r, 1);
         }
 
         add_to_set(igraph_labels[node_id], i); // Add a label
