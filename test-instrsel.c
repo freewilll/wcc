@@ -1308,11 +1308,11 @@ void test_pointer_double_indirect() {
     }
 }
 
-void test_composite_pointer_indirect_reg(int reg_size, int bshl_size) {
+void test_composite_pointer_indirect_reg(int src_size, int dst_size, int bshl_size) {
     start_ir();
     i(0, IR_BSHL,     vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)    ); // r3 = r1 << bshl_size
-    i(0, IR_ADD,      vsz(4, TYPE_LONG), asz(2, reg_size), vsz(3, TYPE_LONG)); // r4 = r2 + r3
-    i(0, IR_INDIRECT, vsz(4, reg_size),  vsz(4, TYPE_LONG), 0               ); // r5 = *r4
+    i(0, IR_ADD,      vsz(4, TYPE_LONG), asz(2, src_size), vsz(3, TYPE_LONG)); // r4 = r2 + r3
+    i(0, IR_INDIRECT, vsz(4, dst_size),  vsz(4, TYPE_LONG), 0               ); // r5 = *r4
     finish_ir(function);
 }
 
@@ -1320,14 +1320,17 @@ void test_composite_pointer_indirect() {
     // Test mov(a,b,c), d instruction
     remove_reserved_physical_registers = 1;
 
-    test_composite_pointer_indirect_reg(TYPE_SHORT,           1); assert_x86_op("movw    (r2q,r1q,2), r5w");
-    test_composite_pointer_indirect_reg(TYPE_INT,             2); assert_x86_op("movl    (r2q,r1q,4), r5l");
-    test_composite_pointer_indirect_reg(TYPE_LONG,            3); assert_x86_op("movq    (r2q,r1q,8), r5q");
-    test_composite_pointer_indirect_reg(TYPE_PTR + TYPE_VOID, 3); assert_x86_op("movq    (r2q,r1q,8), r5q");
+    test_composite_pointer_indirect_reg(TYPE_SHORT,           TYPE_SHORT,           1); assert_x86_op("movw    (r2q,r1q,2), r5w");
+    test_composite_pointer_indirect_reg(TYPE_SHORT,           TYPE_INT,             1); assert_x86_op("movswl  (r2q,r1q,2), r5l");
+    test_composite_pointer_indirect_reg(TYPE_SHORT,           TYPE_LONG,            1); assert_x86_op("movswq  (r2q,r1q,2), r5q");
+    test_composite_pointer_indirect_reg(TYPE_INT,             TYPE_INT,             2); assert_x86_op("movl    (r2q,r1q,4), r5l");
+    test_composite_pointer_indirect_reg(TYPE_INT,             TYPE_LONG,            2); assert_x86_op("movslq  (r2q,r1q,4), r5q");
+    test_composite_pointer_indirect_reg(TYPE_LONG,            TYPE_LONG,            3); assert_x86_op("movq    (r2q,r1q,8), r5q");
+    test_composite_pointer_indirect_reg(TYPE_PTR + TYPE_VOID, TYPE_PTR + TYPE_VOID, 3); assert_x86_op("movq    (r2q,r1q,8), r5q");
 
     // Adveserial example: the BSHL doesn't match the type. This could happen
     // in e.g. p[i << 1]. In this case, the scale mov rule cannot be used.
-    test_composite_pointer_indirect_reg(TYPE_SHORT, 2);
+    test_composite_pointer_indirect_reg(TYPE_SHORT, TYPE_SHORT, 2);
     assert_x86_op("movq    r1q, r6q"  );
     assert_x86_op("shlq    $2, r6q"   );
     assert_x86_op("movq    r2q, r7q"  );

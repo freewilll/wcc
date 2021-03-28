@@ -568,7 +568,7 @@ Rule *add_store_to_pointer(int src1, int src2, char *template) {
 }
 
 // Add rules for loads & address of from IR_BSHL + IR_ADD + IR_INDIRECT/IR_ADDRESS_OF
-void add_composite_addressing_rule(int *ntc, int cst, int add_reg, int indirect_reg, int address_of_reg, int match_dst, int op, char *template) {
+void add_scaled_rule(int *ntc, int cst, int add_reg, int indirect_reg, int address_of_reg, int match_dst, int op, char *template) {
     int ntc1, ntc2;
     Rule *r;
 
@@ -591,15 +591,18 @@ void add_composite_pointer_rules(int *ntc) {
     Rule *r;
 
     // Loads
-    add_composite_addressing_rule(ntc, CST1, ADRW, REGW, 0, 1, X_MOV_FROM_SCALED_IND, "movw  (%v1q,%v2q,2), %vdw"); // from *short
-    add_composite_addressing_rule(ntc, CST2, ADRL, REGL, 0, 1, X_MOV_FROM_SCALED_IND, "movl  (%v1q,%v2q,4), %vdl"); // from *int
-    add_composite_addressing_rule(ntc, CST3, ADRQ, REGQ, 0, 1, X_MOV_FROM_SCALED_IND, "movq  (%v1q,%v2q,8), %vdq"); // from *long
-    add_composite_addressing_rule(ntc, CST3, ADRQ, ADRV, 0, 1, X_MOV_FROM_SCALED_IND, "movq  (%v1q,%v2q,8), %vdq"); // from *struct
+    add_scaled_rule(ntc, CST1, ADRW, REGW, 0, 1, X_MOV_FROM_SCALED_IND, "movw   (%v1q,%v2q,2), %vdw"); // from *short to short
+    add_scaled_rule(ntc, CST1, ADRW, REGL, 0, 1, X_MOV_FROM_SCALED_IND, "movswl (%v1q,%v2q,2), %vdl"); // from *short to int
+    add_scaled_rule(ntc, CST1, ADRW, REGQ, 0, 1, X_MOV_FROM_SCALED_IND, "movswq (%v1q,%v2q,2), %vdq"); // from *short to long
+    add_scaled_rule(ntc, CST2, ADRL, REGL, 0, 1, X_MOV_FROM_SCALED_IND, "movl   (%v1q,%v2q,4), %vdl"); // from *int to int
+    add_scaled_rule(ntc, CST2, ADRL, REGQ, 0, 1, X_MOV_FROM_SCALED_IND, "movslq (%v1q,%v2q,4), %vdq"); // from *int to long
+    add_scaled_rule(ntc, CST3, ADRQ, REGQ, 0, 1, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *long to long
+    add_scaled_rule(ntc, CST3, ADRQ, ADRV, 0, 1, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *struct
 
     // Address of
-    add_composite_addressing_rule(ntc, CST1, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea   (%v1q,%v2q,2), %vdq");
-    add_composite_addressing_rule(ntc, CST2, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea   (%v1q,%v2q,4), %vdq");
-    add_composite_addressing_rule(ntc, CST3, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea   (%v1q,%v2q,8), %vdq");
+    add_scaled_rule(ntc, CST1, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea    (%v1q,%v2q,2), %vdq");
+    add_scaled_rule(ntc, CST2, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea    (%v1q,%v2q,4), %vdq");
+    add_scaled_rule(ntc, CST3, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea    (%v1q,%v2q,8), %vdq");
 }
 
 void add_pointer_rules(int *ntc) {
