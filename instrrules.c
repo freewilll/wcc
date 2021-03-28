@@ -581,8 +581,8 @@ void add_composite_pointer_rules(int *ntc) {
         else if (i == 4) template = "movq  (%v1q,%v2q,8), %vdq";
 
         ntc2 = ++*ntc;
-        r = add_rule(ntc2, IR_ADD, ADR + i, ntc1, 10); add_save_value(r, 1, 1); // Save address register to slot 1
-        r = add_rule(REG + i, IR_INDIRECT, ntc2, 0, 2);
+        r = add_rule(ntc2, IR_ADD, ADR + i, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
+        r = add_rule(REG + i, IR_INDIRECT, ntc2, 0, 1);
         r->match_dst = 1;
         add_load_value(r, 1, 1); // Load address register from slot 1
         add_load_value(r, 2, 2); // Load index register from slot 2
@@ -593,8 +593,8 @@ void add_composite_pointer_rules(int *ntc) {
     ntc1 = ++*ntc;
     ntc2 = ++*ntc;
     r = add_rule(ntc1, IR_BSHL, REGQ, CST3, 1); add_save_value(r, 1, 2); // Save index register to slot 2
-    r = add_rule(ntc2, IR_ADD, ADRQ, ntc1, 10); add_save_value(r, 1, 1); // Save address register to slot 1
-    r = add_rule(ADRV, IR_INDIRECT, ntc2, 0, 2); r->match_dst = 1;
+    r = add_rule(ntc2, IR_ADD, ADRQ, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
+    r = add_rule(ADRV, IR_INDIRECT, ntc2, 0, 1); r->match_dst = 1;
     r->match_dst = 1;
     add_load_value(r, 1, 1); // Load address register from slot 1
     add_load_value(r, 2, 2); // Load index register from slot 2
@@ -609,8 +609,8 @@ void add_composite_pointer_rules(int *ntc) {
         else if (i == 4) template = "lea   (%v1q,%v2q,8), %vdq";
 
         ntc2 = ++*ntc;
-        r = add_rule(ntc2, IR_ADD, ADRV, ntc1, 10); add_save_value(r, 1, 1); // Save address register to slot 1
-        r = add_rule(ADRV, IR_ADDRESS_OF, ntc2, 0, 2);
+        r = add_rule(ntc2, IR_ADD, ADRV, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
+        r = add_rule(ADRV, IR_ADDRESS_OF, ntc2, 0, 1);
         add_load_value(r, 1, 1); // Load address register from slot 1
         add_load_value(r, 2, 2); // Load index register from slot 2
         add_op(r, X_LEA_FROM_SCALED_IND, DST, SRC1, 0, template);
