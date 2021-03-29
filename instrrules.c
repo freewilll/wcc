@@ -27,7 +27,7 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
     r->x86_operations = 0;
 
     if (cost == 0 && operation != 0) {
-        print_rule(r, 0);
+        print_rule(r, 0, 0);
         printf("A zero cost rule cannot have an operation");
     }
 
@@ -249,9 +249,9 @@ void check_for_duplicate_rules() {
             if (instr_rules[i].hash == instr_rules[j].hash) {
                 printf("Duplicate rules: %d and %d\n", i, j);
                 printf("%-4d ", i);
-                print_rule(&(instr_rules[i]), 1);
+                print_rule(&(instr_rules[i]), 1, 0);
                 printf("%-4d ", j);
-                print_rule(&(instr_rules[j]), 1);
+                print_rule(&(instr_rules[j]), 1, 0);
                 duplicates++;
             }
         }
@@ -276,11 +276,11 @@ void check_rules_dont_decrease_precision() {
         dst_size = make_x86_size_from_non_terminal(r->dst);
 
         if (r->src1 && make_x86_size_from_non_terminal(r->src1) > dst_size) {
-            print_rule(r, 0);
+            print_rule(r, 0, 0);
             bad_rules++;
         }
         if (r->src2 && make_x86_size_from_non_terminal(r->src2) > dst_size) {
-            print_rule(r, 0);
+            print_rule(r, 0, 0);
             bad_rules++;
         }
     }
@@ -337,13 +337,11 @@ char *value_to_non_terminal_string(Value *v) {
     return non_terminal_string(non_terminal_for_value(v));
 }
 
-int print_rule(Rule *r, int print_operations) {
-    int i, first, chars_printed;
+void print_rule(Rule *r, int print_operations, int indent) {
+    int i, first;
     X86Operation *operation;
 
-    chars_printed = 0;
-
-    chars_printed += printf("%-24s  %-5s%s  %-5s  %-5s  %2d    ",
+    printf("%-24s  %-5s%s  %-5s  %-5s  %2d    ",
         operation_string(r->operation),
         non_terminal_string(r->dst),
         r->match_dst ? "(d)" : "   ",
@@ -356,15 +354,18 @@ int print_rule(Rule *r, int print_operations) {
         operation = r->x86_operations;
         first = 1;
         while (operation) {
-            if (!first) printf("                                                        ");
+            if (!first) {
+                for (i = 0;i < indent; i++) printf(" ");
+                printf("                                                        ");
+            }
             first = 0;
 
             if (operation->save_value_in_slot)
-                chars_printed += printf("special: save arg %d to slot %d\n", operation->arg, operation->save_value_in_slot);
+                printf("special: save arg %d to slot %d\n", operation->arg, operation->save_value_in_slot);
             else if (operation->load_value_from_slot)
-                chars_printed += printf("special: load arg %d from slot %d\n", operation->arg, operation->load_value_from_slot);
+                printf("special: load arg %d from slot %d\n", operation->arg, operation->load_value_from_slot);
             else if (operation->template)
-                chars_printed += printf("%s\n", operation->template);
+                printf("%s\n", operation->template);
             else
                 printf("\n");
 
@@ -373,8 +374,6 @@ int print_rule(Rule *r, int print_operations) {
     }
     else
         printf("\n");
-
-    return chars_printed;
 }
 
 void print_rules() {
@@ -382,7 +381,7 @@ void print_rules() {
 
     for (i = 0; i < instr_rule_count; i++) {
         printf("%-5d ", i);
-        print_rule(&(instr_rules[i]), 1);
+        print_rule(&(instr_rules[i]), 1, 6);
     }
 }
 

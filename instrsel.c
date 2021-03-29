@@ -114,7 +114,7 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_rules) 
     if (include_rules && igraph_rules[node]) {
         if (igraph_rules[node]) {
             for (i = 0; i < 60 - c; i++) printf(" ");
-            c += print_rule(igraph_rules[node], 0);
+            print_rule(igraph_rules[node], 0, 0);
         }
     }
     else
@@ -748,7 +748,7 @@ int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
         if (r->operation == tac->operation) {
             if (debug_instsel_tiling) {
                 printf("matched rule %d:\n", i);
-                print_rule(r, 0);
+                print_rule(r, 0, 0);
             }
 
             choice_node_id = new_cost_graph_node();
@@ -790,7 +790,7 @@ int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         if (match_value_to_rule_src(v, r->src1)) {
             if (debug_instsel_tiling) {
                 printf("matched rule %d:\n", i);
-                print_rule(r, 0);
+                print_rule(r, 0, 0);
             }
             add_to_set(igraph_labels[node_id], i);
 
@@ -918,7 +918,7 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
         if (debug_instsel_tiling) {
             printf("matched rule %d:\n", i);
-            print_rule(r, 1);
+            print_rule(r, 1, 0);
         }
 
         add_to_set(igraph_labels[node_id], i); // Add a label
@@ -1007,7 +1007,7 @@ Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Value *sr
 
     if (debug_instsel_tiling) {
         printf("Generating instructions for rule %-4d: ", rule->index);
-        print_rule(rule, 0);
+        print_rule(rule, 0, 0);
     }
 
     dst = 0;

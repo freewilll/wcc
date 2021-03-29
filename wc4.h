@@ -674,7 +674,7 @@ void add_spill_code(Function *function);
 
 // instrrules.c
 char size_to_x86_size(int size);
-int print_rule(Rule *r, int print_operations);
+void print_rule(Rule *r, int print_operations, int indent);
 void print_rules();
 void make_value_x86_size(Value *v);
 int match_value_to_rule_src(Value *v, int src);
