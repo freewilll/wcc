@@ -1025,14 +1025,14 @@ void init_instruction_selection_rules() {
     r = add_rule(0, IR_RETURN, ADR,  0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movq %v1q, %%rax"  ); fin_rule(r); // Return a pointer
     r = add_rule(0, IR_RETURN, ADRV, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movq %v1q, %%rax"  );              // Return a *void
 
-    r = add_rule(0, IR_ARG, CSTL, CSTL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r); // Use constant as function arg, must not be a quad
-    r = add_rule(0, IR_ARG, CSTL, REGQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); fin_rule(r); // Use register as function arg, must be a quad
+    r = add_rule(0, IR_ARG, CSTL, CSTL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); // Use constant as function arg, must not be a quad
+    r = add_rule(0, IR_ARG, CSTL, REGQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use register as function arg, must be a quad
 
-    r = add_rule(0, IR_ARG, CSTL, ADRB, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); fin_rule(r); // Use pointer in register as function arg
-    r = add_rule(0, IR_ARG, CSTL, ADRW, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); fin_rule(r); // Use pointer in register as function arg
-    r = add_rule(0, IR_ARG, CSTL, ADRL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); fin_rule(r); // Use pointer in register as function arg
-    r = add_rule(0, IR_ARG, CSTL, ADRQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); fin_rule(r); // Use pointer in register as function arg
-    r = add_rule(0, IR_ARG, CSTL, ADRV, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); fin_rule(r); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRB, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRW, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRV, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
 
     r = add_rule(REG,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
     r = add_rule(ADR,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
