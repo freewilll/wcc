@@ -8,6 +8,7 @@ SOURCES = \
   ir.c \
   ssa.c \
   instrsel.c \
+  instrutil.c \
   instrrules.c \
   codegen.c \
   utils.c \
@@ -134,14 +135,14 @@ test-ssa.s: wc4 test-ssa.c
 test-utils.s: wc4 test-utils.c
 	./wc4 ${WC4_OPTS} -c -S test-utils.c -o test-utils.s
 
-test-ssa: wc4 test-ssa.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
-	gcc ${GCC_OPTS} -g -o test-ssa test-ssa.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
+test-ssa: wc4 test-ssa.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrutil.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
+	gcc ${GCC_OPTS} -g -o test-ssa test-ssa.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrutil.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
 
 run-test-ssa: test-ssa
 	 ./test-ssa
 
-test-ssa-gcc: test-ssa.c test-utils.s lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c codegen.c wc4.c utils.c set.c stack.c graph.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c codegen.c wc4.c utils.c set.c stack.c graph.c
+test-ssa-gcc: test-ssa.c test-utils.s lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c codegen.c wc4.c utils.c set.c stack.c graph.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c codegen.c wc4.c utils.c set.c stack.c graph.c
 
 run-test-ssa-gcc: test-ssa-gcc
 	 ./test-ssa-gcc
@@ -149,14 +150,14 @@ run-test-ssa-gcc: test-ssa-gcc
 test-instrsel.s: wc4 test-instrsel.c
 	./wc4 ${WC4_OPTS} -c -S test-instrsel.c -o test-instrsel.s
 
-test-instrsel: wc4 test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
-	gcc ${GCC_OPTS} -g -o test-instrsel test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
+test-instrsel: wc4 test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrutil.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
+	gcc ${GCC_OPTS} -g -o test-instrsel test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrutil.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
 
 run-test-instrsel: test-instrsel
 	 ./test-instrsel
 
-test-instrsel-gcc: wc4.h test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c utils.c set.c stack.c graph.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-instrsel-gcc test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrrules.c utils.c set.c stack.c graph.c
+test-instrsel-gcc: wc4.h test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-instrsel-gcc test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c
 
 run-test-instrsel-gcc: test-instrsel-gcc
 	./test-instrsel-gcc

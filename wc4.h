@@ -663,6 +663,10 @@ typedef struct x86_operation {
     struct x86_operation *next;
 } X86Operation;
 
+enum {
+    AUTO_NON_TERMINAL_START = 100,
+};
+
 int instr_rule_count;
 int disable_merge_constants;
 Rule *instr_rules;
@@ -672,7 +676,7 @@ void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
 void add_spill_code(Function *function);
 
-// instrrules.c
+// instrutil.c
 char size_to_x86_size(int size);
 void print_rule(Rule *r, int print_operations, int indent);
 void print_rules();
@@ -684,6 +688,14 @@ char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
 void check_rules_dont_decrease_precision();
+Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
+void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template);
+void add_save_value(Rule *r, int arg, int slot);
+void add_load_value(Rule *r, int arg, int slot);
+void fin_rule(Rule *r);
+void check_for_duplicate_rules();
+
+// instrules.c
 void init_instruction_selection_rules();
 
 // codegen.c
