@@ -552,7 +552,6 @@ void add_cast_rules() {
     // The sane code should have been using (long **)
     // long *sp; (*((long *) *sp))++ = a;
     r = add_rule(ADRQ, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-    r->match_dst = 1;
 }
 
 Rule *add_store_to_pointer(int src1, int src2, char *template) {
