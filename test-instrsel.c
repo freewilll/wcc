@@ -1237,19 +1237,19 @@ void test_simple_int_cast() {
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_CHAR ), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_INT  ), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_LONG ), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movw    r1w, r2w");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_INT  ), 0); assert_x86_op("movl    r1l, r2l");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_LONG ), 0); assert_x86_op("movq    r1q, r2q");
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbw  r1b, r2w");
     si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0); assert_x86_op("movw    r1w, r2w");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_INT),   0); assert_x86_op("movw    r1w, r2w");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_LONG),  0); assert_x86_op("movw    r1w, r2w");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_INT),   0); assert_x86_op("movl    r1l, r2l");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbl  r1b, r2l");
     si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswl  r1w, r2l");
     si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_INT),   0); assert_x86_op("movl    r1l, r2l");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_LONG),  0); assert_x86_op("movl    r1l, r2l");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  r1b, r2q");
     si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  r1w, r2q");

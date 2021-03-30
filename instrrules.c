@@ -525,28 +525,14 @@ void add_cast_rules() {
     Rule *r;
     int i, j;
 
-    // Casting from/to any integer types non increasing precision
-    for (i = REGB; i <= REGQ; i++) {
-        for (j = REGB; j <= REGQ; j++) {
-            if (i <= j) {
-                r = add_rule(i, IR_MOVE, j, 0, 1);
-                r->match_dst = 1;
-                     if (i == REGB) add_op(r, X_MOV, DST, SRC1, 0 , "movb %v1b, %vdb");
-                else if (i == REGW) add_op(r, X_MOV, DST, SRC1, 0 , "movw %v1w, %vdw");
-                else if (i == REGL) add_op(r, X_MOV, DST, SRC1, 0 , "movl %v1l, %vdl");
-                else if (i == REGQ) add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-            }
-        }
-    }
-
     // Casting from/to any integer types with decreasing precision
     // Similar to generic register register sign extend rules
-    r = add_rule(REGW, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBW, DST, SRC1, 0 , "movsbw %v1b, %vdw");
-    r = add_rule(REGL, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBL, DST, SRC1, 0 , "movsbl %v1b, %vdl");
-    r = add_rule(REGQ, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBQ, DST, SRC1, 0 , "movsbq %v1b, %vdq");
-    r = add_rule(REGL, IR_MOVE, REGW, 0, 1); add_op(r, X_MOVSWL, DST, SRC1, 0 , "movswl %v1w, %vdl");
-    r = add_rule(REGQ, IR_MOVE, REGW, 0, 1); add_op(r, X_MOVSWQ, DST, SRC1, 0 , "movswq %v1w, %vdq");
-    r = add_rule(REGQ, IR_MOVE, REGL, 0, 1); add_op(r, X_MOVSLQ, DST, SRC1, 0 , "movslq %v1l, %vdq");
+    r = add_rule(REGW, IR_MOVE, REGB, 0, 2); add_op(r, X_MOVSBW, DST, SRC1, 0 , "movsbw %v1b, %vdw");
+    r = add_rule(REGL, IR_MOVE, REGB, 0, 2); add_op(r, X_MOVSBL, DST, SRC1, 0 , "movsbl %v1b, %vdl");
+    r = add_rule(REGQ, IR_MOVE, REGB, 0, 2); add_op(r, X_MOVSBQ, DST, SRC1, 0 , "movsbq %v1b, %vdq");
+    r = add_rule(REGL, IR_MOVE, REGW, 0, 2); add_op(r, X_MOVSWL, DST, SRC1, 0 , "movswl %v1w, %vdl");
+    r = add_rule(REGQ, IR_MOVE, REGW, 0, 2); add_op(r, X_MOVSWQ, DST, SRC1, 0 , "movswq %v1w, %vdq");
+    r = add_rule(REGQ, IR_MOVE, REGL, 0, 2); add_op(r, X_MOVSLQ, DST, SRC1, 0 , "movslq %v1l, %vdq");
 
     // Crazy shit for some code that uses a (long *) to store pointers to longs.
     // The sane code should have been using (long **)
