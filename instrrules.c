@@ -536,19 +536,17 @@ void add_cast_rules() {
                 else if (i == REGL) add_op(r, X_MOV, DST, SRC1, 0 , "movl %v1l, %vdl");
                 else if (i == REGQ) add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
             }
-
-            fin_rule(r);
         }
     }
 
     // Casting from/to any integer types with decreasing precision
     // Similar to generic register register sign extend rules
-    r = add_rule(REGW, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBW, DST, SRC1, 0 , "movsbw %v1b, %vdw"); fin_rule(r);
-    r = add_rule(REGL, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBL, DST, SRC1, 0 , "movsbl %v1b, %vdl"); fin_rule(r);
-    r = add_rule(REGQ, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBQ, DST, SRC1, 0 , "movsbq %v1b, %vdq"); fin_rule(r);
-    r = add_rule(REGL, IR_MOVE, REGW, 0, 1); add_op(r, X_MOVSWL, DST, SRC1, 0 , "movswl %v1w, %vdl"); fin_rule(r);
-    r = add_rule(REGQ, IR_MOVE, REGW, 0, 1); add_op(r, X_MOVSWQ, DST, SRC1, 0 , "movswq %v1w, %vdq"); fin_rule(r);
-    r = add_rule(REGQ, IR_MOVE, REGL, 0, 1); add_op(r, X_MOVSLQ, DST, SRC1, 0 , "movslq %v1l, %vdq"); fin_rule(r);
+    r = add_rule(REGW, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBW, DST, SRC1, 0 , "movsbw %v1b, %vdw");
+    r = add_rule(REGL, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBL, DST, SRC1, 0 , "movsbl %v1b, %vdl");
+    r = add_rule(REGQ, IR_MOVE, REGB, 0, 1); add_op(r, X_MOVSBQ, DST, SRC1, 0 , "movsbq %v1b, %vdq");
+    r = add_rule(REGL, IR_MOVE, REGW, 0, 1); add_op(r, X_MOVSWL, DST, SRC1, 0 , "movswl %v1w, %vdl");
+    r = add_rule(REGQ, IR_MOVE, REGW, 0, 1); add_op(r, X_MOVSWQ, DST, SRC1, 0 , "movswq %v1w, %vdq");
+    r = add_rule(REGQ, IR_MOVE, REGL, 0, 1); add_op(r, X_MOVSLQ, DST, SRC1, 0 , "movslq %v1l, %vdq");
 
     // Crazy shit for some code that uses a (long *) to store pointers to longs.
     // The sane code should have been using (long **)
