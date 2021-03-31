@@ -530,8 +530,7 @@ void test_instrsel() {
     i(0, IR_JZ,  0,    g(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_x86_op("movq    g1(%rip), r1q");
-    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("cmp     $0, g1(%rip)");
     assert_x86_op("jz      .l1");
 
     // jnz with r1
@@ -565,8 +564,7 @@ void test_instrsel() {
     i(0, IR_JNZ, 0,    g(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_x86_op("movq    g1(%rip), r1q");
-    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("cmp     $0, g1(%rip)");
     assert_x86_op("jnz     .l1");
 
     // JZ                                                          JNZ

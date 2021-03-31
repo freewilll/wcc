@@ -540,11 +540,11 @@ void init_instruction_selection_rules() {
     add_conditional_zero_jump_rule(IR_JZ,  REG,  LAB,  3,  X_TEST, "test%s %v1, %v1",  "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JZ,  ADR,  LAB,  3,  X_TEST, "testq %v1q, %v1q", "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JZ,  ADRV, LAB,  3,  X_TEST, "testq %v1q, %v1q", "jz %v1q",  0);
-    add_conditional_zero_jump_rule(IR_JZ,  MEM,  LAB,  11, X_CMPZ, "cmp $0, %v1",      "jz %v1",   1);
+    add_conditional_zero_jump_rule(IR_JZ,  MEM,  LAB,  3,  X_CMPZ, "cmp $0, %v1",      "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JNZ, REG,  LAB,  3,  X_TEST, "test%s %v1, %v1",  "jnz %v1",  1);
     add_conditional_zero_jump_rule(IR_JNZ, ADR,  LAB,  3,  X_TEST, "testq %v1q, %v1q", "jnz %v1",  1);
     add_conditional_zero_jump_rule(IR_JNZ, ADRV, LAB,  3,  X_TEST, "testq %v1q, %v1q", "jnz %v1q", 0);
-    add_conditional_zero_jump_rule(IR_JNZ, MEM,  LAB,  11, X_CMPZ, "cmp $0, %v1",      "jnz %v1",  1);
+    add_conditional_zero_jump_rule(IR_JNZ, MEM,  LAB,  3,  X_CMPZ, "cmp $0, %v1",      "jnz %v1",  1);
 
     // All pairwise combinations of (CST, REG, MEM) that have associated x86 instructions
     cmp_rr = "cmp%s %v2, %v1";  cmpq_rr = "cmpq %v2q, %v1q";
