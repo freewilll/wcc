@@ -104,10 +104,6 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(ADR,  IR_ADDRESS_OF, ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r); // & for *&*&*pi
     r = add_rule(ADRV, IR_ADDRESS_OF, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(REGQ, IR_MOVE,       ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(ADRB, IR_MOVE,       MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1;
-    r = add_rule(ADRW, IR_MOVE,       MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1;
-    r = add_rule(ADRL, IR_MOVE,       MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1;
-    r = add_rule(ADRQ, IR_MOVE,       MEMQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1;
     r = add_rule(ADRV, IR_MOVE,       MDRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRB, 0,             MDRB, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRW, 0,             MDRW, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
