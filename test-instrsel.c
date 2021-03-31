@@ -1036,13 +1036,28 @@ void test_constant_operations() {
     assert_x86_op("movq    $9, r2q");
 }
 
+void _test_indirect(int src, int dst, char *template) {
+    start_ir();
+    i(0, IR_INDIRECT, vsz(2, dst), asz(1, src), 0);
+    finish_ir(function);
+    assert_x86_op(template);
+}
+
+
 void test_pointer_indirect() {
     remove_reserved_physical_registers = 1;
 
-    si(function, 0, IR_INDIRECT, vsz(2, TYPE_CHAR ), asz(1, TYPE_CHAR),  0); assert_x86_op("movb    (r1q), r2b");
-    si(function, 0, IR_INDIRECT, vsz(2, TYPE_SHORT), asz(1, TYPE_SHORT), 0); assert_x86_op("movw    (r1q), r2w");
-    si(function, 0, IR_INDIRECT, vsz(2, TYPE_INT  ), asz(1, TYPE_INT),   0); assert_x86_op("movl    (r1q), r2l");
-    si(function, 0, IR_INDIRECT, vsz(2, TYPE_LONG ), asz(1, TYPE_LONG),  0); assert_x86_op("movq    (r1q), r2q");
+    // There aren't any rules for coercions, only same-type and promotions
+    _test_indirect(TYPE_CHAR,  TYPE_CHAR,  "movb    (r1q), r2b");
+    _test_indirect(TYPE_CHAR,  TYPE_SHORT, "movsbw  (r1q), r2w");
+    _test_indirect(TYPE_CHAR,  TYPE_INT,   "movsbl  (r1q), r2l");
+    _test_indirect(TYPE_CHAR,  TYPE_LONG,  "movsbq  (r1q), r2q");
+    _test_indirect(TYPE_SHORT, TYPE_SHORT, "movw    (r1q), r2w");
+    _test_indirect(TYPE_SHORT, TYPE_INT,   "movswl  (r1q), r2l");
+    _test_indirect(TYPE_SHORT, TYPE_LONG,  "movswq  (r1q), r2q");
+    _test_indirect(TYPE_INT,   TYPE_INT,   "movl    (r1q), r2l");
+    _test_indirect(TYPE_INT,   TYPE_LONG,  "movslq  (r1q), r2q");
+    _test_indirect(TYPE_LONG,  TYPE_LONG,  "movq    (r1q), r2q");
 }
 
 void test_pointer_inc() {
@@ -1218,17 +1233,6 @@ void test_pointer_assignment_precision_decreases() {
         if (i >= TYPE_INT)   test_pointer_assignment_precision_decrease(TYPE_INT,   i, "movl    r1l, (r2q)");
         if (i >= TYPE_LONG)  test_pointer_assignment_precision_decrease(TYPE_LONG,  i, "movq    r1q, (r2q)");
     }
-}
-
-void test_indirect_precision_increase() {
-    remove_reserved_physical_registers = 1;
-
-    start_ir();
-    i(0, IR_INDIRECT, vsz(2, TYPE_INT), asz(1, TYPE_INT), 0               );
-    i(0, IR_ARG,      0,                c(0),             vsz(2, TYPE_INT));
-    finish_ir(function);
-    assert_x86_op("movslq  (r1q), r3q");
-    assert_x86_op("pushq   r3q"       );
 }
 
 void test_simple_int_cast() {
@@ -1521,7 +1525,6 @@ int main() {
     test_pointer_indirect_global_char_in_struct_to_long();
     test_pointer_to_void_arg();
     test_pointer_assignment_precision_decreases();
-    test_indirect_precision_increase();
     test_simple_int_cast();
     test_assign_to_pointer_to_void();
     test_pointer_comparisons();
