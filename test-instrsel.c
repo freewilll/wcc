@@ -94,8 +94,7 @@ void test_instrsel_tree_merging_type_merges() {
     i(0, IR_MOVE_TO_PTR, vsz(2, TYPE_CHAR), vsz(2, TYPE_CHAR), c(1));
     finish_ir(function);
     assert_x86_op("movq    r1q, r4q");
-    assert_x86_op("movq    r4q, r2q");
-    assert_x86_op("movb    $1, (r2q)");
+    assert_x86_op("movb    $1, (r4q)");
 }
 
 void test_instrsel_tree_merging_register_constraint() {
@@ -162,7 +161,7 @@ void test_instrsel_tree_merging() {
     i(0, IR_MOVE_TO_PTR, vsz(3, TYPE_LONG), vsz(3, TYPE_LONG), v(4)); // (r3) = r4
     finish_ir(function);
     assert_x86_op("movq    $1, r2q"   );
-    assert_x86_op("movq    r2q, r1q"  ); nop();
+    assert_x86_op("movq    r2q, r1q"  );
     assert_x86_op("movq    r4q, (r2q)");
 
     // Ensure the assign to pointer instruction copies src1 to dst first
@@ -172,8 +171,7 @@ void test_instrsel_tree_merging() {
     i(0, IR_MOVE_TO_PTR, v(1), v(1), c(1));
     finish_ir(function);
     assert_x86_op("leaq    g1(%rip), r3q");
-    assert_x86_op("movq    r3q, r1q"     );
-    assert_x86_op("movq    $1, (r1q)"    );
+    assert_x86_op("movq    $1, (r3q)"    );
 
     // Test tree merges only happening on adjacent trees.
     // This is realistic example of a value swap of two values in memory.
@@ -1095,7 +1093,7 @@ void test_pointer_inc() {
     i(0, IR_MOVE_TO_PTR, a(1), a(1), a(2));
     finish_ir(function);
     assert_x86_op("movq    r1q, r3q"  );
-    assert_x86_op("addq    $1, r3q"   ); nop();
+    assert_x86_op("addq    $1, r3q"   );
     assert_x86_op("movq    r3q, (r1q)");
 
     // (a1) = (a1) + 1, split into a2 = (a1), a3 = a2 + 1, (a1) = a3
@@ -1106,7 +1104,7 @@ void test_pointer_inc() {
     finish_ir(function);
     assert_x86_op("movq    (r1q), r3q");
     assert_x86_op("movq    r3q, r5q"  );
-    assert_x86_op("addq    $1, r5q"   ); nop();
+    assert_x86_op("addq    $1, r5q"   );
     assert_x86_op("movq    r5q, (r1q)");
 }
 
@@ -1498,16 +1496,13 @@ void test_spilling() {
     tac = i(0, IR_MOVE,        asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
     tac = i(0, IR_MOVE_TO_PTR, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq    -24(%rbp), %r10");
-    assert_rx86_preg_op("movq    %r10, %r11"     );
-    assert_rx86_preg_op("movq    %r11, -8(%rbp)" );
-    assert_rx86_preg_op("movq    -8(%rbp), %r10" );
-    assert_rx86_preg_op("movq    %r10, %r11"     );
-    assert_rx86_preg_op("movq    %r11, -16(%rbp)");
     assert_rx86_preg_op("movq    -16(%rbp), %r10");
     assert_rx86_preg_op("movq    %r10, %r11"     );
     assert_rx86_preg_op("movq    %r11, 0(%rbp)"  );
     assert_rx86_preg_op("movq    0(%rbp), %r10"  );
+    assert_rx86_preg_op("movq    %r10, %r11"     );
+    assert_rx86_preg_op("movq    %r11, -8(%rbp)" );
+    assert_rx86_preg_op("movq    -8(%rbp), %r10" );
     assert_rx86_preg_op("movl    $1, (%r10)"     );
 }
 

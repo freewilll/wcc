@@ -27,8 +27,7 @@ Rule *add_move_to_ptr(int src1, int src2, char *template) {
     Rule *r;
 
     r = add_rule(src1, IR_MOVE_TO_PTR, src1, src2, 3);
-    add_op(r, X_MOV,        DST, SRC1, 0,    "movq %v1q, %vdq");
-    add_op(r, X_MOV_TO_IND, 0,   DST,  SRC2, template);
+    add_op(r, X_MOV_TO_IND, 0,  SRC1,  SRC2, template);
     return r;
 }
 
