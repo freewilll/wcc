@@ -352,12 +352,8 @@ void print_instruction(void *f, Tac *tac) {
     else if (o == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
     else if (o == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
 
-    else if (o == IR_MOVE)
-        print_value(f, tac->src1, 1);
-
     else if (o == IR_MOVE_TO_PTR) {
-        print_value(f, tac->src1, 0);
-        fprintf(f, " = (move to ptr) ");
+        fprintf(f, "(move to ptr) ");
         print_value(f, tac->src2, 1);
     }
 
