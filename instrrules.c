@@ -70,7 +70,7 @@ void add_composite_pointer_rules(int *ntc) {
 }
 
 void add_pointer_rules(int *ntc) {
-    int i, j;
+    int src, dst;
     Rule *r;
 
     // Loads & stores
@@ -82,18 +82,18 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(ADRV, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); // For register (* void) v = (long) l;
     r = add_rule(MDRV, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); // For memory (* void) v = (long) l;
 
-    for (i = ADRB; i <= ADRQ; i++)
-        for (j = ADRB; j <= ADRQ; j++) {
-            r = add_rule(i,  IR_MOVE, j, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    for (dst = ADRB; dst <= ADRQ; dst++)
+        for (src = ADRB; src <= ADRQ; src++) {
+            r = add_rule(dst,  IR_MOVE, src, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
         }
 
-    for (i = ADRB; i <= ADRQ; i++) {
-        r = add_rule(i,  IR_MOVE, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    for (dst = ADRB; dst <= ADRQ; dst++) {
+        r = add_rule(dst,  IR_MOVE, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
         r->match_dst = 1;
     }
 
-    for (i = MDRB; i <= MDRQ; i++) {
-        r = add_rule(i,  IR_MOVE, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    for (dst = MDRB; dst <= MDRQ; dst++) {
+        r = add_rule(dst,  IR_MOVE, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
         r->match_dst = 1;
     }
 
@@ -129,19 +129,19 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(REGQ, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movslq (%v1q), %vdq");
     r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
 
-    for (i = ADRB; i <= ADRV; i++)
-        for (j = ADRB; j <= ADRV; j++)
-            if (i <= j) {
-                r = add_rule(i, IR_INDIRECT, j, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
+    for (dst = ADRB; dst <= ADRV; dst++)
+        for (src = ADRB; src <= ADRV; src++)
+            if (dst <= src) {
+                r = add_rule(dst, IR_INDIRECT, src, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
                 r->match_dst = 1;
             }
 
     add_composite_pointer_rules(ntc);
 
     // Stores of a pointer to a pointer
-    for (i = ADRB; i <= ADRV; i++)
-        for (j = ADRB; j <= ADRV; j++)
-            add_move_to_ptr(i, j, "movq %v2q, (%v1q)");
+    for (dst = ADRB; dst <= ADRV; dst++)
+        for (src = ADRB; src <= ADRV; src++)
+            add_move_to_ptr(dst, src, "movq %v2q, (%v1q)");
 
     // Stores to pointer from registers
     add_move_to_ptr(ADRB, REGB, "movb %v2b, (%v1q)");
