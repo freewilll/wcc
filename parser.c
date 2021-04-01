@@ -26,7 +26,7 @@ Value *pop() {
 Value *load(Value *src1) {
     Value *dst;
 
-    if (src1->is_constant) return load_constant(src1);
+    if (src1->is_constant) return src1;
     if (src1->vreg && !src1->is_lvalue) return src1;
 
     dst = dup_value(src1);
@@ -53,16 +53,6 @@ Value *load(Value *src1) {
 // Pop and load.
 Value *pl() {
     return load(pop());
-}
-
-Value *load_constant(Value *cv) {
-    Value *v;
-
-    v = new_value();
-    v->vreg = new_vreg();
-    v->type = TYPE_LONG;
-    add_instruction(IR_MOVE, v, cv, 0);
-    return v;
 }
 
 // Create a new typed constant value and push it to the stack
