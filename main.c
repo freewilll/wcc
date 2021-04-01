@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
         printf("-fno-coalesce-live-range            Disable SSA live range coalescing\n");
         printf("-fspill-furthest-liveness-end       Spill liveness intervals that have the greatest end liveness interval\n");
         printf("-fno-dont-spill-short-live-ranges   Disable infinite spill costs for short live ranges\n");
-        printf("-fno-optimize-arithmetic            Disable arithmetic optimizations\n ");
+        printf("-fno-optimize-arithmetic            Disable arithmetic optimizations\n");
         printf("-fno-register-allocation            Don't allocate physical registers, spill everything to the stack\n");
         printf("\n");
         printf("Debug flags:\n");
