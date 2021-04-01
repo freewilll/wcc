@@ -62,7 +62,7 @@ void add_composite_pointer_rules(int *ntc) {
     add_scaled_rule(ntc, CST2, ADRL, REGL, 0, 1, X_MOV_FROM_SCALED_IND, "movl   (%v1q,%v2q,4), %vdl"); // from *int to int
     add_scaled_rule(ntc, CST2, ADRL, REGQ, 0, 1, X_MOV_FROM_SCALED_IND, "movslq (%v1q,%v2q,4), %vdq"); // from *int to long
     add_scaled_rule(ntc, CST3, ADRQ, REGQ, 0, 1, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *long to long
-    add_scaled_rule(ntc, CST3, ADRQ, ADRV, 0, 1, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *struct
+    add_scaled_rule(ntc, CST3, ADRV, ADRV, 0, 1, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *struct
 
     // Address of
     add_scaled_rule(ntc, CST1, ADRV, 0, ADRV, 1, X_MOV_FROM_SCALED_IND, "lea    (%v1q,%v2q,2), %vdq");
@@ -83,11 +83,10 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(ADRV, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1; // For register (* void) v = (long) l;
     r = add_rule(MDRV, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); r->match_dst = 1; // For memory (* void) v = (long) l;
 
-    for (i = ADRB; i <= ADRQ; i++) {
+    for (i = ADRB; i <= ADRQ; i++)
         for (j = ADRB; j <= ADRQ; j++) {
             r = add_rule(i,  IR_MOVE, j, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
         }
-    }
 
     for (i = ADRB; i <= ADRQ; i++) {
         r = add_rule(i,  IR_MOVE, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
@@ -117,7 +116,7 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(ADRW, IR_ADDRESS_OF, MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(ADRL, IR_ADDRESS_OF, MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(ADR,  IR_ADDRESS_OF, MEM,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(ADRQ, IR_ADDRESS_OF, MDR,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(ADRV, IR_ADDRESS_OF, MDR,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
 
     // Loads from pointer
     r = add_rule(REGB, IR_INDIRECT, ADRB, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movb   (%v1q), %vdb");
@@ -131,20 +130,19 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(REGQ, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movslq (%v1q), %vdq");
     r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
 
-    r = add_rule(ADRB, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); r->match_dst = 1;
-    r = add_rule(ADRW, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); r->match_dst = 1;
-    r = add_rule(ADRL, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); r->match_dst = 1;
-    r = add_rule(ADRQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); r->match_dst = 1;
-    r = add_rule(ADRV, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq"); r->match_dst = 1;
+    for (i = ADRB; i <= ADRV; i++)
+        for (j = ADRB; j <= ADRV; j++)
+            if (i <= j) {
+                r = add_rule(i, IR_INDIRECT, j, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
+                r->match_dst = 1;
+            }
 
     add_composite_pointer_rules(ntc);
 
     // Stores of a pointer to a pointer
-    add_store_to_pointer(ADRQ, ADRB, "movq %v2q, (%v1q)");
-    add_store_to_pointer(ADRQ, ADRW, "movq %v2q, (%v1q)");
-    add_store_to_pointer(ADRQ, ADRL, "movq %v2q, (%v1q)");
-    add_store_to_pointer(ADRQ, ADRQ, "movq %v2q, (%v1q)");
-    add_store_to_pointer(ADRQ, ADRV, "movq %v2q, (%v1q)");
+    for (i = ADRB; i <= ADRV; i++)
+        for (j = ADRB; j <= ADRV; j++)
+            add_store_to_pointer(i, j, "movq %v2q, (%v1q)");
 
     // Stores to pointer from registers
     add_store_to_pointer(ADRB, REGB, "movb %v2b, (%v1q)");

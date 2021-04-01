@@ -407,21 +407,19 @@ void make_value_x86_size(Value *v) {
 }
 
 int non_terminal_for_value(Value *v) {
-    int adr_base;
-    int result;
+    int adr_base, ptr_to_int, result;
 
     if (!v->x86_size) make_value_x86_size(v);
     if (v->non_terminal) return v->non_terminal;
 
     adr_base = v->vreg ? ADR : MDR;
+    ptr_to_int = v->type >= TYPE_PTR + TYPE_CHAR && v->type <= TYPE_PTR + TYPE_LONG;
 
          if (v->is_string_literal)                                  result =  STL;
     else if (v->label)                                              result =  LAB;
     else if (v->function_symbol)                                    result =  FUN;
-    else if (v->type == TYPE_PTR + TYPE_VOID)                       result =  adr_base + 5; // *void ADRV or MDRQ
-    else if (v->type >= TYPE_PTR + TYPE_PTR)                        result =  adr_base + 4; // **... ADRL or MDRL
-    else if (v->type >= TYPE_PTR + TYPE_STRUCT)                     result =  adr_base + 5; // *void ADRV or MDRQ
-    else if (v->type >= TYPE_PTR)                                   result =  adr_base + value_ptr_target_x86_size(v);
+    else if (ptr_to_int)                                            result =  adr_base + value_ptr_target_x86_size(v);
+    else if (v->type >= TYPE_PTR)                                   result =  adr_base + 5; // ADRV or MDRV
     else if (v->is_lvalue_in_register)                              result =  ADR + v->x86_size;
     else if (v->global_symbol || v->local_index || v->stack_index)  result =  MEM + v->x86_size;
     else if (v->vreg)                                               result =  REG + v->x86_size;

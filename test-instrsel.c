@@ -1043,8 +1043,7 @@ void _test_indirect(int src, int dst, char *template) {
     assert_x86_op(template);
 }
 
-
-void test_pointer_indirect() {
+void test_pointer_to_int_indirects() {
     remove_reserved_physical_registers = 1;
 
     // There aren't any rules for coercions, only same-type and promotions
@@ -1058,6 +1057,33 @@ void test_pointer_indirect() {
     _test_indirect(TYPE_INT,   TYPE_INT,   "movl    (r1q), r2l");
     _test_indirect(TYPE_INT,   TYPE_LONG,  "movslq  (r1q), r2q");
     _test_indirect(TYPE_LONG,  TYPE_LONG,  "movq    (r1q), r2q");
+}
+
+void test_pointer_to_pointer_to_int_indirects() {
+    int src, dst;
+
+    remove_reserved_physical_registers = 1;
+
+    for (src = TYPE_CHAR; src <= TYPE_VOID; src++)
+        for (dst = TYPE_CHAR; dst <= TYPE_VOID; dst++)
+            _test_indirect(TYPE_PTR + dst,  TYPE_PTR + src,  "movq    (r1q), r2q");
+}
+
+void _test_ir_move_to_reg_lvalue(int src, int dst, char *template) {
+    start_ir();
+    i(0, IR_MOVE_TO_REG_LVALUE, asz(2, dst), asz(2, dst), asz(1, src));
+    finish_ir(function);
+    assert_x86_op(template);
+}
+
+void test_ir_move_to_reg_lvalues() {
+    int src, dst;
+
+    remove_reserved_physical_registers = 1;
+
+    for (src = TYPE_CHAR; src <= TYPE_VOID; src++)
+        for (dst = TYPE_CHAR; dst <= TYPE_VOID; dst++)
+            _test_ir_move_to_reg_lvalue(src, dst,  "movq    r1q, (r2q)");
 }
 
 void test_pointer_inc() {
@@ -1514,7 +1540,10 @@ int main() {
     test_bnot_operations();
     test_binary_shift_operations();
     test_constant_operations();
-    test_pointer_indirect();
+    test_pointer_to_int_indirects();
+    test_pointer_to_int_indirects();
+    test_pointer_to_pointer_to_int_indirects();
+    test_ir_move_to_reg_lvalues();
     test_pointer_inc();
     test_pointer_add();
     test_pointer_sub();
