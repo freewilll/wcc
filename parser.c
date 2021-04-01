@@ -726,6 +726,8 @@ void expression(int level) {
             member = lookup_struct_member(str, cur_identifier);
             indirect();
 
+            vtop->type = member->type;
+
             if (member->offset > 0) {
                 // Make the struct lvalue into a pointer to struct rvalue for manipulation
                 vtop->is_lvalue = 0;
