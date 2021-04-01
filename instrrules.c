@@ -305,7 +305,7 @@ void add_commutative_operation_rules(char *x86_operand, int operation, int x86_o
             add_op(r, X_MOV,         DST, SRC1, 0,   "movq %v1q, %vdq");
             add_op(r, x86_operation, DST, SRC2, DST, "addq $%v1q, %v2q");
             r->match_dst = 1;
-          }
+        }
     }
 }
 
