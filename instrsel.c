@@ -25,7 +25,7 @@ Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node
 
 int recursive_tile_igraphs(IGraph *igraph, int node_id);
 
-void set_move_to_ptr_dsts(Function *function) {
+void transform_lvalues(Function *function) {
     Tac *tac;
 
     tac = function->ir;
@@ -41,10 +41,19 @@ void set_move_to_ptr_dsts(Function *function) {
                 tac->dst->type += TYPE_PTR;
                 tac->dst->is_lvalue = 0;
             }
+
+            // Ensure type of dst and src1 matches in a pointer addition operation
+            if (tac->operation == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
+                tac->dst = dup_value(tac->dst);
+                tac->dst->type += TYPE_PTR;
+                tac->dst->is_lvalue = 0;
+            }
+
             if (tac->src1 && tac->src1->is_lvalue && !(tac->src1->global_symbol || tac->src1->local_index)) {
                 tac->src1->type += TYPE_PTR;
                 tac->src1->is_lvalue = 0;
             }
+
             if (tac->src2 && tac->src2->is_lvalue && !(tac->src2->global_symbol || tac->src2->local_index)) {
                 tac->src2->type += TYPE_PTR;
                 tac->src2->is_lvalue = 0;
@@ -1277,7 +1286,7 @@ void select_instructions(Function *function) {
     cfg = function->cfg;
     block_count = cfg->node_count;
 
-    set_move_to_ptr_dsts(function);
+    transform_lvalues(function);
 
     // new_ir_start is the start of the new IR
     new_ir_start = new_instruction(IR_NOP);
