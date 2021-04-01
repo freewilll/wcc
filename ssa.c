@@ -106,7 +106,7 @@ void optimize_arithmetic_operations(Function *function) {
     }
 }
 
-// Convert an IR_MOVE with an dst is an lvalue in a register into IR_MOVE_TO_REG_LVALUE.
+// Convert an IR_MOVE with an dst is an lvalue in a register into IR_MOVE_TO_PTR.
 // The difference with the regular IR_MOVE is that src1 is the destination and src2 is
 // the src. The reason for that is that it makes the SSA calulation easier since both
 // src1 and src2 are values in registers that are read but not written to in this
@@ -117,7 +117,7 @@ void rewrite_lvalue_reg_assignments(Function *function) {
     tac = function->ir;
     while (tac) {
         if (tac->operation == IR_MOVE && tac->dst->vreg && tac->dst->is_lvalue) {
-            tac->operation = IR_MOVE_TO_REG_LVALUE;
+            tac->operation = IR_MOVE_TO_PTR;
             tac->src2 = tac->src1;
             tac->src1 = tac->dst;
             tac->src1->is_lvalue_in_register = 1;

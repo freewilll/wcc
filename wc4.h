@@ -268,7 +268,7 @@ enum {
 // Intermediate representation operations
 enum {
     IR_MOVE=1,                // Moving of constants, string literals, variables, or registers
-    IR_MOVE_TO_REG_LVALUE,    // Assignment to an lvalue in a register
+    IR_MOVE_TO_PTR,           // Assignment to a pointer target
     IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
     IR_START_CALL,            // Function call

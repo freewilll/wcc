@@ -242,7 +242,7 @@ char *operation_string(int operation) {
     else if (operation == IR_RETURN)                return "IR_RETURN";
     else if (operation == IR_START_LOOP)            return "IR_START_LOOP";
     else if (operation == IR_END_LOOP)              return "IR_END_LOOP";
-    else if (operation == IR_MOVE_TO_REG_LVALUE)    return "IR_MOVE_TO_REG_LVALUE";
+    else if (operation == IR_MOVE_TO_PTR)           return "IR_MOVE_TO_PTR";
     else if (operation == IR_NOP)                   return "IR_NOP";
     else if (operation == IR_JMP)                   return "IR_JMP";
     else if (operation == IR_JZ)                    return "IR_JZ";
@@ -355,9 +355,9 @@ void print_instruction(void *f, Tac *tac) {
     else if (o == IR_MOVE)
         print_value(f, tac->src1, 1);
 
-    else if (o == IR_MOVE_TO_REG_LVALUE) {
+    else if (o == IR_MOVE_TO_PTR) {
         print_value(f, tac->src1, 0);
-        fprintf(f, " = (move to reg lvalue) ");
+        fprintf(f, " = (move to ptr) ");
         print_value(f, tac->src2, 1);
     }
 

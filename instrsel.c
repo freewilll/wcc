@@ -25,12 +25,12 @@ Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node
 
 int recursive_tile_igraphs(IGraph *igraph, int node_id);
 
-void set_assign_to_reg_lvalue_dsts(Function *function) {
+void set_move_to_ptr_dsts(Function *function) {
     Tac *tac;
 
     tac = function->ir;
     while (tac) {
-        if (tac->operation == IR_MOVE_TO_REG_LVALUE) {
+        if (tac->operation == IR_MOVE_TO_PTR) {
             tac->src1 = dup_value(tac->src1);
             tac->src1->type += TYPE_PTR;
             tac->src1->is_lvalue = 0;
@@ -81,7 +81,7 @@ void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_rules) 
         else if (operation == IR_BSHR)                 c += printf(">>");
         else if (operation == IR_INDIRECT)             c += printf("indirect");
         else if (operation == IR_ADDRESS_OF)           c += printf("&");
-        else if (operation == IR_MOVE_TO_REG_LVALUE)   c += printf("assign to lvalue");
+        else if (operation == IR_MOVE_TO_PTR)          c += printf("move to ptr");
         else if (operation == IR_NOP)                  c += printf("noop");
         else if (operation == IR_RETURN)               c += printf("return");
         else if (operation == IR_START_CALL)           c += printf("start call");
@@ -375,7 +375,7 @@ void make_igraphs(Function *function, int block_id) {
             vreg_igraphs[src2].igraph_id = i;
         }
 
-        if (tac->operation != IR_MOVE_TO_REG_LVALUE && dst && ((src1 && dst == src1) || (src2 && dst == src2))) {
+        if (tac->operation != IR_MOVE_TO_PTR && dst && ((src1 && dst == src1) || (src2 && dst == src2))) {
             print_instruction(stdout, tac);
             panic("Illegal assignment of src1/src2 to dst");
         }
@@ -391,7 +391,7 @@ void make_igraphs(Function *function, int block_id) {
         // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL constraints don't permit
         // rearranging function calls without dire dowmstream side effects.
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
-            tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_REG_LVALUE &&
+            tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_PTR &&
             igraphs_are_neighbors(igraphs, i, g1_igraph_id)
             ) {
 
@@ -423,7 +423,7 @@ void make_igraphs(Function *function, int block_id) {
             }
         }
 
-        if (dst && tac->operation != IR_MOVE_TO_REG_LVALUE)
+        if (dst && tac->operation != IR_MOVE_TO_PTR)
             vreg_igraphs[dst].count = 0;
 
         i--;
@@ -1277,7 +1277,7 @@ void select_instructions(Function *function) {
     cfg = function->cfg;
     block_count = cfg->node_count;
 
-    set_assign_to_reg_lvalue_dsts(function);
+    set_move_to_ptr_dsts(function);
 
     // new_ir_start is the start of the new IR
     new_ir_start = new_instruction(IR_NOP);

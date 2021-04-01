@@ -23,10 +23,10 @@ void add_cast_rules() {
     r = add_rule(ADRQ, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
 }
 
-Rule *add_store_to_pointer(int src1, int src2, char *template) {
+Rule *add_move_to_ptr(int src1, int src2, char *template) {
     Rule *r;
 
-    r = add_rule(src1, IR_MOVE_TO_REG_LVALUE, src1, src2, 3);
+    r = add_rule(src1, IR_MOVE_TO_PTR, src1, src2, 3);
     add_op(r, X_MOV,        DST, SRC1, 0,    "movq %v1q, %vdq");
     add_op(r, X_MOV_TO_IND, 0,   DST,  SRC2, template);
     return r;
@@ -142,26 +142,26 @@ void add_pointer_rules(int *ntc) {
     // Stores of a pointer to a pointer
     for (i = ADRB; i <= ADRV; i++)
         for (j = ADRB; j <= ADRV; j++)
-            add_store_to_pointer(i, j, "movq %v2q, (%v1q)");
+            add_move_to_ptr(i, j, "movq %v2q, (%v1q)");
 
     // Stores to pointer from registers
-    add_store_to_pointer(ADRB, REGB, "movb %v2b, (%v1q)");
-    add_store_to_pointer(ADRB, REGW, "movb %v2b, (%v1q)");
-    add_store_to_pointer(ADRB, REGL, "movb %v2b, (%v1q)");
-    add_store_to_pointer(ADRB, REGQ, "movb %v2b, (%v1q)");
-    add_store_to_pointer(ADRW, REGW, "movw %v2w, (%v1q)");
-    add_store_to_pointer(ADRW, REGL, "movw %v2w, (%v1q)");
-    add_store_to_pointer(ADRW, REGQ, "movw %v2w, (%v1q)");
-    add_store_to_pointer(ADRL, REGL, "movl %v2l, (%v1q)");
-    add_store_to_pointer(ADRL, REGQ, "movl %v2l, (%v1q)");
-    add_store_to_pointer(ADRQ, REGQ, "movq %v2q, (%v1q)");
+    add_move_to_ptr(ADRB, REGB, "movb %v2b, (%v1q)");
+    add_move_to_ptr(ADRB, REGW, "movb %v2b, (%v1q)");
+    add_move_to_ptr(ADRB, REGL, "movb %v2b, (%v1q)");
+    add_move_to_ptr(ADRB, REGQ, "movb %v2b, (%v1q)");
+    add_move_to_ptr(ADRW, REGW, "movw %v2w, (%v1q)");
+    add_move_to_ptr(ADRW, REGL, "movw %v2w, (%v1q)");
+    add_move_to_ptr(ADRW, REGQ, "movw %v2w, (%v1q)");
+    add_move_to_ptr(ADRL, REGL, "movl %v2l, (%v1q)");
+    add_move_to_ptr(ADRL, REGQ, "movl %v2l, (%v1q)");
+    add_move_to_ptr(ADRQ, REGQ, "movq %v2q, (%v1q)");
 
     // Stores of 32 bit constants in a pointer.
-    add_store_to_pointer(ADRB, CSTL, "movb $%v2b, (%v1q)");
-    add_store_to_pointer(ADRW, CSTL, "movw $%v2w, (%v1q)");
-    add_store_to_pointer(ADRL, CSTL, "movl $%v2l, (%v1q)");
-    add_store_to_pointer(ADRQ, CSTL, "movq $%v2q, (%v1q)");
-    add_store_to_pointer(ADRV, CSTL, "movq $%v2q, (%v1q)");
+    add_move_to_ptr(ADRB, CSTL, "movb $%v2b, (%v1q)");
+    add_move_to_ptr(ADRW, CSTL, "movw $%v2w, (%v1q)");
+    add_move_to_ptr(ADRL, CSTL, "movl $%v2l, (%v1q)");
+    add_move_to_ptr(ADRQ, CSTL, "movq $%v2q, (%v1q)");
+    add_move_to_ptr(ADRV, CSTL, "movq $%v2q, (%v1q)");
 }
 
 void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {

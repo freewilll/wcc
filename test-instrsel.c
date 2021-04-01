@@ -90,8 +90,8 @@ void test_instrsel_tree_merging_type_merges() {
     // Ensure type conversions are merged correctly. This tests a void * being converted to a char *
     remove_reserved_physical_registers = 1;
     start_ir();
-    i(0, IR_MOVE,               asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
-    i(0, IR_MOVE_TO_REG_LVALUE, vsz(2, TYPE_CHAR), vsz(2, TYPE_CHAR), c(1));
+    i(0, IR_MOVE,        asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
+    i(0, IR_MOVE_TO_PTR, vsz(2, TYPE_CHAR), vsz(2, TYPE_CHAR), c(1));
     finish_ir(function);
     assert_x86_op("movq    r1q, r4q");
     assert_x86_op("movq    r4q, r2q");
@@ -157,9 +157,9 @@ void test_instrsel_tree_merging() {
     // Ensure a dst in assign to an lvalue keeps the value alive, so
     // that a merge is prevented later on.
     start_ir();
-    i(0, IR_MOVE,               v(3),              c(1),              0   ); // r3 = 1   <- r3 is used twice, so no tree merge happens
-    i(0, IR_MOVE,               v(2),              v(3),              0   ); // r2 = r3
-    i(0, IR_MOVE_TO_REG_LVALUE, vsz(3, TYPE_LONG), vsz(3, TYPE_LONG), v(4)); // (r3) = r4
+    i(0, IR_MOVE,        v(3),              c(1),              0   ); // r3 = 1   <- r3 is used twice, so no tree merge happens
+    i(0, IR_MOVE,        v(2),              v(3),              0   ); // r2 = r3
+    i(0, IR_MOVE_TO_PTR, vsz(3, TYPE_LONG), vsz(3, TYPE_LONG), v(4)); // (r3) = r4
     finish_ir(function);
     assert_x86_op("movq    $1, r2q"   );
     assert_x86_op("movq    r2q, r1q"  ); nop();
@@ -168,8 +168,8 @@ void test_instrsel_tree_merging() {
     // Ensure the assign to pointer instruction copies src1 to dst first
     remove_reserved_physical_registers = 1;
     start_ir();
-    i(0, IR_ADDRESS_OF,         a(1), g(1), 0);
-    i(0, IR_MOVE_TO_REG_LVALUE, v(1), v(1), c(1));
+    i(0, IR_ADDRESS_OF,  a(1), g(1), 0);
+    i(0, IR_MOVE_TO_PTR, v(1), v(1), c(1));
     finish_ir(function);
     assert_x86_op("leaq    g1(%rip), r3q");
     assert_x86_op("movq    r3q, r1q"     );
@@ -1071,7 +1071,7 @@ void test_pointer_to_pointer_to_int_indirects() {
 
 void _test_ir_move_to_reg_lvalue(int src, int dst, char *template) {
     start_ir();
-    i(0, IR_MOVE_TO_REG_LVALUE, asz(2, dst), asz(2, dst), asz(1, src));
+    i(0, IR_MOVE_TO_PTR, asz(2, dst), asz(2, dst), asz(1, src));
     finish_ir(function);
     assert_x86_op(template);
 }
@@ -1091,8 +1091,8 @@ void test_pointer_inc() {
 
     // (a1) = a1 + 1, split into a2 = a1 + 1, (a1) = a2
     start_ir();
-    i(0, IR_ADD,                a(2), a(1), c(1));
-    i(0, IR_MOVE_TO_REG_LVALUE, a(1), a(1), a(2));
+    i(0, IR_ADD,         a(2), a(1), c(1));
+    i(0, IR_MOVE_TO_PTR, a(1), a(1), a(2));
     finish_ir(function);
     assert_x86_op("movq    r1q, r3q"  );
     assert_x86_op("addq    $1, r3q"   ); nop();
@@ -1100,9 +1100,9 @@ void test_pointer_inc() {
 
     // (a1) = (a1) + 1, split into a2 = (a1), a3 = a2 + 1, (a1) = a3
     start_ir();
-    i(0, IR_INDIRECT,           a(2), a(1), 0   );
-    i(0, IR_ADD,                a(3), a(2), c(1));
-    i(0, IR_MOVE_TO_REG_LVALUE, a(1), a(1), a(3));
+    i(0, IR_INDIRECT,    a(2), a(1), 0   );
+    i(0, IR_ADD,         a(3), a(2), c(1));
+    i(0, IR_MOVE_TO_PTR, a(1), a(1), a(3));
     finish_ir(function);
     assert_x86_op("movq    (r1q), r3q");
     assert_x86_op("movq    r3q, r5q"  );
@@ -1244,7 +1244,7 @@ void test_pointer_to_void_arg() {
 }
 
 void test_pointer_assignment_precision_decrease(int type1, int type2, char *template) {
-    si(function, 0, IR_MOVE_TO_REG_LVALUE, vsz(2, type1), vsz(2, type1), vsz(1, type2));
+    si(function, 0, IR_MOVE_TO_PTR, vsz(2, type1), vsz(2, type1), vsz(1, type2));
     assert_x86_op(template);
 }
 
@@ -1495,8 +1495,8 @@ void test_spilling() {
     // (r2i) = 1. This tests the special case of is_lvalue_in_register=1 when
     // the type is an int.
     start_ir();
-    tac = i(0, IR_MOVE,               asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
-    tac = i(0, IR_MOVE_TO_REG_LVALUE, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
+    tac = i(0, IR_MOVE,        asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
+    tac = i(0, IR_MOVE_TO_PTR, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
     finish_spill_ir(function);
     assert_rx86_preg_op("movq    -24(%rbp), %r10");
     assert_rx86_preg_op("movq    %r10, %r11"     );
