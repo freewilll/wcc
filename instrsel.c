@@ -470,6 +470,7 @@ void make_igraphs(Function *function, int block_id) {
     eis_instr_count = instr_count;
 }
 
+// Recurse down src igraph, copying nodes to dst igraph and adding edges
 void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int dst_parent_node_id, int *dst_node_id) {
     int operation;
     Tac *tac;
@@ -477,33 +478,33 @@ void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int ds
     GraphEdge *e;
 
     ign = &(src->nodes[src_node_id]);
-
-    tac = ign->tac;
-    if (tac) operation = tac->operation; else operation = 0;
-
     e = src->graph->nodes[src_node_id].succ;
+    tac = ign->tac;
 
-    if (operation == IR_MOVE) {
-        if (src_node_id != 0) {
-            if (tac->dst->type == tac->src1->type) {
-                recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
-                return;
-            }
-        }
+    // If src is not the root node, the operation is a move, and it's not a type change,
+    // recurse, with dst moved further down the tree
+    if (tac) operation = tac->operation; else operation = 0;
+    if (operation == IR_MOVE && src_node_id != 0 && tac->dst->type == tac->src1->type) {
+        recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
+        return;
     }
 
+    // Copy src node and add an edge if it's not the root node
     dup_inode(&(src->nodes[src_node_id]), &(dst->nodes[*dst_node_id]));
     if (dst_parent_node_id != -1) add_graph_edge(dst->graph, dst_parent_node_id, *dst_node_id);
 
     dst_parent_node_id = *dst_node_id;
     (*dst_node_id)++;
 
+    // Recurse down the children
     while (e) {
         recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
         e = e->next_succ;
     }
 }
 
+// Remove sequences of moves that don't change type from the instruction graph.
+// A new graph is created by recursing through the src
 IGraph *simplify_igraph(IGraph *src) {
     int node_count, dst_node_id;
     IGraph *dst;
@@ -525,12 +526,12 @@ IGraph *simplify_igraph(IGraph *src) {
         dump_igraph(src, 0);
     }
 
-    dst_node_id = 0;
+    dst_node_id = 0; // The root of the dst igraph
     recursive_simplify_igraph(src, dst, 0, -1, &dst_node_id);
-    if (debug_instsel_igraph_simplification) printf("\n");
 
     if (debug_instsel_igraph_simplification) {
-        printf("Result:\n");
+        printf("\n");
+        printf("Igraph simplification result:\n");
         dump_igraph(dst, 0);
         printf("\n");
     }
