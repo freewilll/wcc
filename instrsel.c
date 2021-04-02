@@ -578,6 +578,7 @@ Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
         // Not root-node, convert it from a tac into a value node
         igraph->nodes[node_id].tac = 0;
         igraph->nodes[node_id].value = v;
+        src_node->succ = 0;
     }
 
     return v;
