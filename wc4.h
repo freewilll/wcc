@@ -253,7 +253,7 @@ enum {
     TOK_INCLUDE,
 };
 
-// Types. All structs start at TYPE_STRUCT up to TYPE_PTR. Pointers are represented by adding TYPE_PTR to a type.
+// Types. All structs start at TYPE_STRUCT up to TYPE_PTR - 1. Pointers are represented by adding TYPE_PTR to a type.
 // all_structs[i] corresponds to type i - TYPE_STRUCT
 enum {
     TYPE_VOID   = 1,

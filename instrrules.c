@@ -84,6 +84,7 @@ void add_pointer_rules(int *ntc) {
     for (dst = ADRB; dst <= ADRQ; dst++)
         for (src = ADRB; src <= ADRQ; src++) {
             r = add_rule(dst,  IR_MOVE, src, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+            r->match_dst = 1;
         }
 
     for (dst = ADRB; dst <= ADRQ; dst++) {

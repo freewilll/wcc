@@ -471,10 +471,10 @@ void make_igraphs(Function *function, int block_id) {
 }
 
 // Recurse down src igraph, copying nodes to dst igraph and adding edges
-void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int dst_parent_node_id, int *dst_node_id) {
+void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int dst_parent_node_id, int *dst_child_node_id) {
     int operation;
     Tac *tac;
-    IGraphNode *ign;
+    IGraphNode *ign, *ign_parent;
     GraphEdge *e;
 
     ign = &(src->nodes[src_node_id]);
@@ -485,26 +485,50 @@ void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int ds
     // recurse, with dst moved further down the tree
     if (tac) operation = tac->operation; else operation = 0;
     if (operation == IR_MOVE && src_node_id != 0 && tac->dst->type == tac->src1->type) {
-        recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
+        recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_child_node_id);
         return;
     }
 
-    // Copy src node and add an edge if it's not the root node
-    dup_inode(&(src->nodes[src_node_id]), &(dst->nodes[*dst_node_id]));
-    if (dst_parent_node_id != -1) add_graph_edge(dst->graph, dst_parent_node_id, *dst_node_id);
+    // Copy src node to dst
+    dup_inode(&(src->nodes[src_node_id]), &(dst->nodes[*dst_child_node_id]));
+    if (dst_parent_node_id != -1) {
+        // add an edge if it's not the root node
+        add_graph_edge(dst->graph, dst_parent_node_id, *dst_child_node_id);
 
-    dst_parent_node_id = *dst_node_id;
-    (*dst_node_id)++;
+        // Special case for dereferencing the first member of a struct.
+        // If the child is a pointer to a struct, then the parent will have the type
+        // that is needed for the dereference. Change the child to match the parent.
+        // This removes the need to have special rules for moving an ADRV to an ADR*
+        ign_parent = &(dst->nodes[dst_parent_node_id]);
+        tac = ign_parent->tac;
+        if (tac) operation = tac->operation; else operation = 0;
+        if (operation == IR_MOVE && tac->src1->type >= TYPE_PTR + TYPE_STRUCT && tac->src1->type < TYPE_PTR + TYPE_PTR) {
+            ign = &(dst->nodes[*dst_child_node_id]);
+            if (ign->value) {
+                if (debug_instsel_igraph_simplification) {
+                    printf("Transforming child type in IR_MOVE from ");
+                    print_type(stdout, tac->src1->type);
+                    printf(" to ");
+                    print_type(stdout, tac->dst->type);
+                    printf("\n");
+                }
+                ign->value->type = tac->dst->type;
+            }
+        }
+    }
+
+    dst_parent_node_id = *dst_child_node_id;
+    (*dst_child_node_id)++;
 
     // Recurse down the children
     while (e) {
-        recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_node_id);
+        recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_child_node_id);
         e = e->next_succ;
     }
 }
 
-// Remove sequences of moves that don't change type from the instruction graph.
-// A new graph is created by recursing through the src
+// Remove sequences of moves from the instruction graph. A new graph is created by
+// recursing through the src.
 IGraph *simplify_igraph(IGraph *src) {
     int node_count, dst_node_id;
     IGraph *dst;
