@@ -122,13 +122,13 @@ char *add_size_to_template(char *template, int size) {
     return result;
 }
 
+// Expand all uses of REG, MEM, ADR into ADRB, ADRW, ADRL, ADRQ
+// e.g. REG, REG, CST is transformed into
+// REGB, REGB, CST
+// REGW, REGW, CST
+// REGL, REGL, CST
+// REGQ, REGQ, CST
 void fin_rule(Rule *r) {
-    // Expand all uses of REG, MEM, ADR into ADRB, ADRW, ADRL, ADRQ
-    // e.g. REG, REG, CST is transformed into
-    // REGB, REGB, CST
-    // REGW, REGW, CST
-    // REGL, REGL, CST
-    // REGQ, REGQ, CST
 
     int operation, dst, src1, src2, cost, i;
     X86Operation *x86_operations, *x86_operation;
