@@ -245,8 +245,14 @@ IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     // IR_MOVE, so that suitable instruction selection rules are matched, leading to
     // possible code generation.
     if (in1->value->type != in2->tac->dst->type) {
-        if (debug_instsel_tree_merging) printf("Changing type from %d -> %d\n", in2->tac->dst->type, in1->value->type);
-        if (debug_instsel_tree_merging) printf("Replacing %d with IR_MOVE tac\n", join_to);
+        if (debug_instsel_tree_merging) {
+            printf("Replacing %d with IR_MOVE tac for a type change from ", join_to);
+            print_type(stdout, in2->tac->dst->type);
+            printf(" -> ");
+            print_type(stdout, in1->value->type);
+            printf("\n");
+        }
+
         in = &(inodes[join_to]);
         in->tac = new_instruction(IR_MOVE);
         in->tac->src1 = in2->tac->dst;
