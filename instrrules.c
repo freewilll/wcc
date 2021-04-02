@@ -129,12 +129,10 @@ void add_pointer_rules(int *ntc) {
     r = add_rule(REGQ, IR_INDIRECT, ADRL, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movslq (%v1q), %vdq");
     r = add_rule(REGQ, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
 
-    for (dst = ADRB; dst <= ADRV; dst++)
-        for (src = ADRB; src <= ADRV; src++)
-            if (dst <= src) {
-                r = add_rule(dst, IR_INDIRECT, src, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
-                r->match_dst = 1;
-            }
+    for (dst = ADRB; dst <= ADRV; dst++) {
+        r = add_rule(dst, IR_INDIRECT, ADRV, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
+        r->match_dst = 1;
+    }
 
     add_composite_pointer_rules(ntc);
 

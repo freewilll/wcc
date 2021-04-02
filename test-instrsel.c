@@ -1095,17 +1095,6 @@ void test_pointer_inc() {
     assert_x86_op("movq    r1q, r3q"  );
     assert_x86_op("addq    $1, r3q"   );
     assert_x86_op("movq    r3q, (r1q)");
-
-    // (a1) = (a1) + 1, split into a2 = (a1), a3 = a2 + 1, (a1) = a3
-    start_ir();
-    i(0, IR_INDIRECT,    a(2), a(1), 0   );
-    i(0, IR_ADD,         a(3), a(2), c(1));
-    i(0, IR_MOVE_TO_PTR, a(1), a(1), a(3));
-    finish_ir(function);
-    assert_x86_op("movq    (r1q), r3q");
-    assert_x86_op("movq    r3q, r5q"  );
-    assert_x86_op("addq    $1, r5q"   );
-    assert_x86_op("movq    r5q, (r1q)");
 }
 
 void test_pointer_add() {
