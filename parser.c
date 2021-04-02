@@ -35,6 +35,9 @@ Value *load(Value *src1) {
 
     if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
+        if (src1->type == TYPE_VOID)  panic("Cannot dereference a *void");
+        if (src1->type == TYPE_STRUCT)  panic("Cannot dereference a pointer to a struct");
+
         src1 = dup_value(src1);
         src1->type += TYPE_PTR;
         src1->is_lvalue = 0;
