@@ -21,6 +21,7 @@ void add_cast_rules() {
     // The sane code should have been using (long **)
     // long *sp; (*((long *) *sp))++ = a;
     r = add_rule(ADRQ, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
+    r->match_dst = 1;
 }
 
 Rule *add_move_to_ptr(int src1, int src2, char *template) {
@@ -48,6 +49,21 @@ void add_scaled_rule(int *ntc, int cst, int add_reg, int indirect_reg, int addre
     add_op(r, op, DST, SRC1, 0, template);
 }
 
+void add_offset_rule(int *ntc, int add_reg, int indirect_reg, char *template) {
+    int ntc1;
+    Rule *r;
+
+    ntc1 = ++*ntc;
+    r = add_rule(ntc1, IR_ADD, add_reg, CSTL, 1);
+    add_save_value(r, 1, 1); // Save address register to slot 1
+    add_save_value(r, 2, 2); // Save offset register to slot 2
+    r = add_rule(indirect_reg, IR_INDIRECT, ntc1, 0, 1);
+    r->match_dst = 1;
+    add_load_value(r, 1, 1); // Load address register from slot 1
+    add_load_value(r, 2, 2); // Load index register from slot 2
+    add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, template);
+}
+
 void add_composite_pointer_rules(int *ntc) {
     int i;
     char *template;
@@ -61,6 +77,23 @@ void add_composite_pointer_rules(int *ntc) {
     add_scaled_rule(ntc, CST2, ADRL, REGQ, 0, X_MOV_FROM_SCALED_IND, "movslq (%v1q,%v2q,4), %vdq"); // from *int to long
     add_scaled_rule(ntc, CST3, ADRQ, REGQ, 0, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *long to long
     add_scaled_rule(ntc, CST3, ADRV, ADRV, 0, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *struct
+
+    add_offset_rule(ntc, ADRB, REGB, "movb   %v2q(%v1q), %vdb"); // from struct member from *char -> char
+    add_offset_rule(ntc, ADRB, REGW, "movsbw %v2q(%v1q), %vdw"); // from struct member from *char -> short
+    add_offset_rule(ntc, ADRB, REGL, "movsbl %v2q(%v1q), %vdl"); // from struct member from *char -> int
+    add_offset_rule(ntc, ADRB, REGQ, "movsbq %v2q(%v1q), %vdq"); // from struct member from *char -> long
+    add_offset_rule(ntc, ADRW, REGW, "movw   %v2q(%v1q), %vdw"); // from struct member from *short -> short
+    add_offset_rule(ntc, ADRW, REGL, "movswl %v2q(%v1q), %vdl"); // from struct member from *short -> int
+    add_offset_rule(ntc, ADRW, REGQ, "movswq %v2q(%v1q), %vdq"); // from struct member from *short -> long
+    add_offset_rule(ntc, ADRL, REGL, "movl   %v2q(%v1q), %vdl"); // from struct member from *int -> int
+    add_offset_rule(ntc, ADRL, REGQ, "movslq %v2q(%v1q), %vdq"); // from struct member from *int -> long
+    add_offset_rule(ntc, ADRQ, REGQ, "movq   %v2q(%v1q), %vdq"); // from struct member from *long -> long
+
+    add_offset_rule(ntc, ADRV, ADRB, "movq   %v2q(%v1q), %vdq"); // from *struct to *char
+    add_offset_rule(ntc, ADRV, ADRW, "movq   %v2q(%v1q), %vdq"); // from *struct to *short
+    add_offset_rule(ntc, ADRV, ADRL, "movq   %v2q(%v1q), %vdq"); // from *struct to *int
+    add_offset_rule(ntc, ADRV, ADRQ, "movq   %v2q(%v1q), %vdq"); // from *struct to *long
+    add_offset_rule(ntc, ADRV, ADRV, "movq   %v2q(%v1q), %vdq"); // from void* to void*
 
     // Address of
     add_scaled_rule(ntc, CST1, ADRV, 0, ADRV, X_MOV_FROM_SCALED_IND, "lea    (%v1q,%v2q,2), %vdq");

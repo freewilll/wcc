@@ -219,6 +219,17 @@ void test_struct_alignment_bug() {
     assert_int(24, sizeof(struct s2),            "struct alignment bug 4");
 }
 
+
+void test_struct_member_size_lookup_bug() {
+    struct s2 *s;
+
+    s = malloc(sizeof(struct s2) * 2);
+    memset(s, -1, sizeof(struct s2) * 2);
+    s[1].s1 = -1;
+    s[1].i2 = 1;
+    assert_long(1, s[1].i2, "struct member size lookup bug");
+}
+
 void test_nested_struct() {
     struct ns1 *s1;
     struct ns2 *s2;
@@ -386,6 +397,7 @@ int main(int argc, char **argv) {
     test_struct_member_alignment();
     test_struct_indirect_sizes();
     test_struct_alignment_bug();
+    test_struct_member_size_lookup_bug();
     test_nested_struct();
     test_packed_struct();
     test_incomplete_struct();
