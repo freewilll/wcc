@@ -12,8 +12,8 @@ enum {
     MAX_SAVED_REGISTERS = 9,
 };
 
-IGraph *eis_igraphs;            // The current block's igraphs
-int eis_instr_count;            // The current block's instruction count
+IGraph *igraphs;                // The current block's igraphs
+int instr_count;                // The current block's instruction count
 
 Graph *cost_graph;              // Graph of all possible options when tiling
 int cost_graph_node_count;      // Number of nodes in cost graph
@@ -296,11 +296,11 @@ int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
 }
 
 void make_igraphs(Function *function, int block_id) {
-    int instr_count, i, j, node_count, vreg_count;
+    int i, j, node_count, vreg_count;
     int dst, src1, src2, g1_igraph_id, ign_vreg;
     Block *blocks;
     Tac *tac;
-    IGraph *igraphs, *ig;
+    IGraph *ig;
     IGraphNode *nodes, *ign_g1;
     Set *liveout;
     Graph *graph;
@@ -465,9 +465,6 @@ void make_igraphs(Function *function, int block_id) {
             dump_igraph(&(igraphs[i]), 0);
         }
     }
-
-    eis_igraphs = igraphs;
-    eis_instr_count = instr_count;
 }
 
 // Recurse down src igraph, copying nodes to dst igraph and adding edges
@@ -570,12 +567,12 @@ void simplify_igraphs() {
     IGraphNode *ign;
     IGraph *ig;
 
-    for (i = 0; i < eis_instr_count; i++) {
-        ign = &(eis_igraphs[i].nodes[0]);
+    for (i = 0; i < instr_count; i++) {
+        ign = &(igraphs[i].nodes[0]);
         if (ign->tac) operation = ign->tac->operation; else operation = 0;
-        if (operation != IR_NOP && eis_igraphs[i].node_count) {
-            ig = simplify_igraph(&(eis_igraphs[i]));
-            shallow_dup_igraph(ig, &(eis_igraphs[i]));
+        if (operation != IR_NOP && igraphs[i].node_count) {
+            ig = simplify_igraph(&(igraphs[i]));
+            shallow_dup_igraph(ig, &(igraphs[i]));
         }
     }
 }
@@ -668,9 +665,9 @@ Value *recursive_merge_constants(IGraph *igraph, int node_id) {
 void merge_constants(Function *function) {
     int i;
 
-    for (i = 0; i < eis_instr_count; i++) {
-        if (!eis_igraphs[i].node_count) continue;
-        recursive_merge_constants(&(eis_igraphs[i]), 0);
+    for (i = 0; i < instr_count; i++) {
+        if (!igraphs[i].node_count) continue;
+        recursive_merge_constants(&(igraphs[i]), 0);
     }
 }
 
@@ -1219,16 +1216,13 @@ void make_intermediate_representation(IGraph *igraph) {
 
 void tile_igraphs(Function *function) {
     int i, j;
-    IGraph *igraphs;
     Function *f;
     Tac *tac, *current_instruction_ir_start;
-
-    igraphs = eis_igraphs;
 
     if (debug_instsel_tiling) {
         printf("\nAll trees\n-----------------------------------------------------\n");
 
-        for (i = 0; i < eis_instr_count; i++) {
+        for (i = 0; i < instr_count; i++) {
             if (!igraphs[i].node_count) continue;
             tac = igraphs[i].nodes[0].tac;
             if (tac && tac->dst) {
@@ -1242,7 +1236,7 @@ void tile_igraphs(Function *function) {
     ir_start = 0;
     vreg_count = function->vreg_count;
 
-    for (i = 0; i < eis_instr_count; i++) {
+    for (i = 0; i < instr_count; i++) {
         if (!igraphs[i].node_count) continue;
         tac = igraphs[i].nodes[0].tac;
 
