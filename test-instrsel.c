@@ -1092,9 +1092,9 @@ void test_pointer_inc() {
     i(0, IR_ADD,         a(2), a(1), c(1));
     i(0, IR_MOVE_TO_PTR, a(1), a(1), a(2));
     finish_ir(function);
-    assert_x86_op("movq    r1q, r3q"  );
-    assert_x86_op("addq    $1, r3q"   );
-    assert_x86_op("movq    r3q, (r1q)");
+    assert_x86_op("movq    r1q, r4q"  );
+    assert_x86_op("addq    $1, r4q"   );
+    assert_x86_op("movq    r4q, (r1q)");
 }
 
 void test_pointer_add() {

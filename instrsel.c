@@ -34,7 +34,7 @@ void transform_lvalues(Function *function) {
             tac->src1 = dup_value(tac->src1);
             tac->src1->type += TYPE_PTR;
             tac->src1->is_lvalue = 0;
-            tac->dst = tac->src1;
+            // Note: tac ->dst remains zero. src1 is the target of the pointer write, but is itself not modified
         }
         else {
             if (tac->dst && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register && !(tac->dst->global_symbol || tac->dst->local_index)) {
@@ -866,7 +866,7 @@ int match_subtree_labels_to_rule(int src_id, int rule_src) {
 
 // Tile an instruction graph node that has an operation with 0, 1 or 2 operands.
 int tile_igraph_operation_node(IGraph *igraph, int node_id) {
-    int i, j, operation, src1_id, src2_id;
+    int i, j, operation, src1_id, src2_id, match_dst;
     int matched, matched_src;
     int choice_node_id, src1_cost_graph_node_id, src2_cost_graph_node_id;
     int cost_graph_node_id, min_cost, min_cost_src1, min_cost_src2, src, cost;
@@ -936,11 +936,15 @@ int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (r->operation != operation) continue; // Only handle operations nodes
         if (src2_id && !r->src2 || !src2_id && r->src2) continue; // Filter rules requiring src2
 
-        // If this is the top level, ensure the dst matches
-        if (tac->dst && node_id == 0 && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
+        // If this is the top level or a rule requires it, ensure the dst matches.
+        match_dst = tac->dst && (node_id == 0 || r->match_dst);
 
-        // If the rule requires dst matching, do it.
-        if (tac->dst && r->match_dst && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
+        // IR_MOVE_TO_PTR is a special case since it doesn't have a dst. The dst is actually
+        // src1, which isn't modified.
+        if (match_dst) {
+            if (tac->operation != IR_MOVE_TO_PTR && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
+            if (tac->operation == IR_MOVE_TO_PTR && !match_value_to_rule_dst(tac->src1, r->dst)) continue;
+        }
 
         // Check dst of the subtree tile matches what is needed
         matched_src = match_subtree_labels_to_rule(src1_id, r->src1);
