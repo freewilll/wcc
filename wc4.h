@@ -72,7 +72,7 @@ typedef struct symbol {
 
 typedef struct function {
     int param_count;                      // Number of parameters
-    int local_symbol_count;               // Number of local symbols
+    int local_symbol_count;               // Number of local symbols, used by the parser
     int vreg_count;                       // Number of virtual registers used in IR
     int spilled_register_count;           // Amount of stack space needed for registers spills
     int call_count;                       // Number of calls to other functions
