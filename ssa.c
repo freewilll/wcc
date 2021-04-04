@@ -127,12 +127,54 @@ void rewrite_lvalue_reg_assignments(Function *function) {
     }
 }
 
+void assign_local_to_register(Value *v, int vreg) {
+    v->local_index = 0;
+    v->is_lvalue = 0;
+    v->vreg = vreg;
+}
+
+// The parser allocates temporaries and local variables on the stack. Allocate vregs
+// for them unless any of them is used with an & operator, in which case, they must
+// remain on the stack.
+void assign_locals_to_registers(Function *function) {
+    Tac *tac;
+    int i, vreg;
+
+    int *has_address_of;
+
+    has_address_of = malloc(sizeof(int) * (function->local_symbol_count + 1));
+    memset(has_address_of, 0, sizeof(int) * (function->local_symbol_count + 1));
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
+        tac = tac ->next;
+    }
+
+    for (i = 1; i <= function->local_symbol_count; i++) {
+        if (has_address_of[i]) continue;
+        vreg = ++function->vreg_count;
+
+        tac = function->ir;
+        while (tac) {
+            if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
+            if (tac->src1 && tac->src1->local_index == -i) assign_local_to_register(tac->src1, vreg);
+            if (tac->src2 && tac->src2->local_index == -i) assign_local_to_register(tac->src2, vreg);
+            tac = tac ->next;
+        }
+    }
+
+    function->vreg_count = vreg_count;
+}
+
 // If any vregs have &, then they are mapped to a local_index and not mapped to
 // a vreg by the existing code. They need to be mapped to a stack_index.
 void map_stack_index_to_local_index(Function *function) {
     int spilled_register_count;
     Tac *tac;
     int *stack_index_map;
+
+    assign_locals_to_registers(function);
 
     spilled_register_count = 0;
 
