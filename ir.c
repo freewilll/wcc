@@ -676,29 +676,31 @@ void allocate_value_stack_indexes(Function *function) {
 
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
 
+    // Make stack_index_map
     tac = function->ir;
     while (tac) {
         // Map registers forced onto the stack due to use of &
-        if (tac->dst && tac->dst->local_index < 0) {
-            if (stack_index_map[-tac->dst->local_index] == -1)
-                stack_index_map[-tac->dst->local_index] = spilled_register_count++;
+        if (tac->dst && tac->dst->local_index < 0 && stack_index_map[-tac->dst->local_index] == -1)
+            stack_index_map[-tac->dst->local_index] = spilled_register_count++;
 
+        if (tac->src1 && tac->src1->local_index < 0 && stack_index_map[-tac->src1->local_index] == -1)
+            stack_index_map[-tac->src1->local_index] = spilled_register_count++;
+
+        if (tac->src2 && tac->src2->local_index < 0 && stack_index_map[-tac->src2->local_index] == -1)
+            stack_index_map[-tac->src2->local_index] = spilled_register_count++;
+
+        tac = tac ->next;
+    }
+
+    tac = function->ir;
+    while (tac) {
+        // Map registers forced onto the stack
+        if (tac->dst && tac->dst->local_index < 0)
             tac->dst->stack_index = -stack_index_map[-tac->dst->local_index] - 1;
-        }
-
-        if (tac->src1 && tac->src1->local_index < 0) {
-            if (stack_index_map[-tac->src1->local_index] == -1)
-                stack_index_map[-tac->src1->local_index] = spilled_register_count++;
-
+        if (tac->src1 && tac->src1->local_index < 0)
             tac->src1->stack_index = -stack_index_map[-tac->src1->local_index] - 1;
-        }
-
-        if (tac->src2 && tac->src2->local_index < 0) {
-            if (stack_index_map[-tac->src2->local_index] == -1)
-                stack_index_map[-tac->src2->local_index] = spilled_register_count++;
-
+        if (tac->src2 && tac->src2->local_index < 0)
             tac->src2->stack_index = -stack_index_map[-tac->src2->local_index] - 1;
-        }
 
         // Map function call parameters
         if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack_index = tac->dst ->local_index;
