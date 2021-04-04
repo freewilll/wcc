@@ -1282,8 +1282,6 @@ void dump_symbols() {
     }
     printf("\n");
 }
-
-
 // Add a builtin symbol
 void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
     Symbol *s;

@@ -127,105 +127,6 @@ void rewrite_lvalue_reg_assignments(Function *function) {
     }
 }
 
-void assign_local_to_register(Value *v, int vreg) {
-    v->local_index = 0;
-    v->is_lvalue = 0;
-    v->vreg = vreg;
-}
-
-// The parser allocates temporaries and local variables on the stack. Allocate vregs
-// for them unless any of them is used with an & operator, in which case, they must
-// remain on the stack.
-void assign_locals_to_registers(Function *function) {
-    Tac *tac;
-    int i, vreg;
-
-    int *has_address_of;
-
-    has_address_of = malloc(sizeof(int) * (function->local_symbol_count + 1));
-    memset(has_address_of, 0, sizeof(int) * (function->local_symbol_count + 1));
-
-    tac = function->ir;
-    while (tac) {
-        if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
-        tac = tac ->next;
-    }
-
-    for (i = 1; i <= function->local_symbol_count; i++) {
-        if (has_address_of[i]) continue;
-        vreg = ++function->vreg_count;
-
-        tac = function->ir;
-        while (tac) {
-            if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
-            if (tac->src1 && tac->src1->local_index == -i) assign_local_to_register(tac->src1, vreg);
-            if (tac->src2 && tac->src2->local_index == -i) assign_local_to_register(tac->src2, vreg);
-            tac = tac ->next;
-        }
-    }
-
-    function->vreg_count = vreg_count;
-}
-
-// If any vregs have &, then they are mapped to a local_index and not mapped to
-// a vreg by the existing code. They need to be mapped to a stack_index.
-void map_stack_index_to_local_index(Function *function) {
-    int spilled_register_count;
-    Tac *tac;
-    int *stack_index_map;
-
-    assign_locals_to_registers(function);
-
-    spilled_register_count = 0;
-
-    stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
-    memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
-
-    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
-
-    tac = function->ir;
-    while (tac) {
-        // Map registers forced onto the stack due to use of &
-        if (tac->dst && tac->dst->local_index < 0) {
-            if (stack_index_map[-tac->dst->local_index] == -1)
-                stack_index_map[-tac->dst->local_index] = spilled_register_count++;
-
-            tac->dst->stack_index = -stack_index_map[-tac->dst->local_index] - 1;
-            tac->dst->local_index = tac->dst->stack_index;
-        }
-
-        if (tac->src1 && tac->src1->local_index < 0) {
-            if (stack_index_map[-tac->src1->local_index] == -1)
-                stack_index_map[-tac->src1->local_index] = spilled_register_count++;
-
-            tac->src1->stack_index = -stack_index_map[-tac->src1->local_index] - 1;
-            tac->src1->local_index = tac->src1->stack_index;
-        }
-
-        if (tac->src2 && tac->src2->local_index < 0) {
-            if (stack_index_map[-tac->src2->local_index] == -1)
-                stack_index_map[-tac->src2->local_index] = spilled_register_count++;
-
-            tac->src2->stack_index = -stack_index_map[-tac->src2->local_index] - 1;
-            tac->src2->local_index = tac->src2->stack_index;
-        }
-
-        // Map function call parameters
-        if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack_index = tac->dst ->local_index;
-        if (tac->src1 && tac->src1->local_index > 0) tac->src1->stack_index = tac->src1->local_index;
-        if (tac->src2 && tac->src2->local_index > 0) tac->src2->stack_index = tac->src2->local_index;
-
-        tac = tac ->next;
-    }
-
-    function->spilled_register_count = spilled_register_count;
-
-    if (debug_ssa_mapping_local_stack_indexes)
-        printf("Spilled %d registers due to & use\n", spilled_register_count);
-
-    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
-}
-
 void index_tac(Tac *ir) {
     Tac *tac;
     int i;
@@ -1942,16 +1843,6 @@ void assign_vreg_locations(Function *function) {
             else
                 tac->src2->preg = vl->preg;
         }
-
-        tac = tac->next;
-    }
-
-    // All downstream code uses stack_index
-    tac = function->ir;
-    while (tac) {
-        if (tac->dst  && tac->dst ->stack_index) tac->dst ->local_index = tac->dst ->stack_index;
-        if (tac->src1 && tac->src1->stack_index) tac->src1->local_index = tac->src1->stack_index;
-        if (tac->src2 && tac->src2->stack_index) tac->src2->local_index = tac->src2->stack_index;
 
         tac = tac->next;
     }

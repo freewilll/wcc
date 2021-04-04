@@ -64,7 +64,7 @@ typedef struct symbol {
     char *identifier;                     // Identifier
     int scope;                            // Scope
     long value;                           // Value in the case of a constant
-    int local_index;                      // For locals variables and function arguments
+    int local_index;                      // Used by the parser for locals variables and function arguments
     int is_function;                      // Is the symbol a function?
     int is_enum;                          // Enums are symbols with a value
     struct function *function;            // Details specific to symbols that are functions

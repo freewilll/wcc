@@ -4,7 +4,6 @@ void run_compiler_phases(Function *function, int stop_at) {
     // Prepare for SSA phi function insertion
     sanity_test_ir_linkage(function);
     optimize_arithmetic_operations(function);
-    map_stack_index_to_local_index(function);
     rewrite_lvalue_reg_assignments(function);
     analyze_dominance(function);
     if (stop_at == COMPILE_STOP_AFTER_ANALYZE_DOMINANCE) return;

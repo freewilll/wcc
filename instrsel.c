@@ -37,7 +37,7 @@ void transform_lvalues(Function *function) {
             // Note: tac ->dst remains zero. src1 is the target of the pointer write, but is itself not modified
         }
         else {
-            if (tac->dst && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register && !(tac->dst->global_symbol || tac->dst->local_index)) {
+            if (tac->dst && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register && !(tac->dst->global_symbol || tac->dst->stack_index)) {
                 tac->dst->type += TYPE_PTR;
                 tac->dst->is_lvalue = 0;
             }
@@ -49,12 +49,12 @@ void transform_lvalues(Function *function) {
                 tac->dst->is_lvalue = 0;
             }
 
-            if (tac->src1 && tac->src1->is_lvalue && !(tac->src1->global_symbol || tac->src1->local_index)) {
+            if (tac->src1 && tac->src1->is_lvalue && !(tac->src1->global_symbol || tac->src1->stack_index)) {
                 tac->src1->type += TYPE_PTR;
                 tac->src1->is_lvalue = 0;
             }
 
-            if (tac->src2 && tac->src2->is_lvalue && !(tac->src2->global_symbol || tac->src2->local_index)) {
+            if (tac->src2 && tac->src2->is_lvalue && !(tac->src2->global_symbol || tac->src2->stack_index)) {
                 tac->src2->type += TYPE_PTR;
                 tac->src2->is_lvalue = 0;
             }

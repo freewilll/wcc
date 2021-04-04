@@ -415,14 +415,14 @@ int non_terminal_for_value(Value *v) {
     adr_base = v->vreg ? ADR : MDR;
     ptr_to_int = v->type >= TYPE_PTR + TYPE_CHAR && v->type <= TYPE_PTR + TYPE_LONG;
 
-         if (v->is_string_literal)                                  result =  STL;
-    else if (v->label)                                              result =  LAB;
-    else if (v->function_symbol)                                    result =  FUN;
-    else if (ptr_to_int)                                            result =  adr_base + value_ptr_target_x86_size(v);
-    else if (v->type >= TYPE_PTR)                                   result =  adr_base + 5; // ADRV or MDRV
-    else if (v->is_lvalue_in_register)                              result =  ADR + v->x86_size;
-    else if (v->global_symbol || v->local_index || v->stack_index)  result =  MEM + v->x86_size;
-    else if (v->vreg)                                               result =  REG + v->x86_size;
+         if (v->is_string_literal)               result =  STL;
+    else if (v->label)                           result =  LAB;
+    else if (v->function_symbol)                 result =  FUN;
+    else if (ptr_to_int)                         result =  adr_base + value_ptr_target_x86_size(v);
+    else if (v->type >= TYPE_PTR)                result =  adr_base + 5; // ADRV or MDRV
+    else if (v->is_lvalue_in_register)           result =  ADR + v->x86_size;
+    else if (v->global_symbol || v->stack_index) result =  MEM + v->x86_size;
+    else if (v->vreg)                            result =  REG + v->x86_size;
     else {
         print_value(stdout, v, 0);
         panic("Bad value in non_terminal_for_value()");

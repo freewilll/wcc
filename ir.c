@@ -193,8 +193,8 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
 
     if (v->is_lvalue) c += printf("{l}");
     if (v->is_lvalue_in_register) c += printf("{lr}");
-    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->local_index)) c += fprintf(f, "&");
-    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->local_index)) c += fprintf(f, "L");
+    if (is_assignment_rhs && !v->is_lvalue && (v->global_symbol || v->stack_index)) c += fprintf(f, "&");
+    if (!is_assignment_rhs && v->is_lvalue && !(v->global_symbol || v->stack_index)) c += fprintf(f, "L");
 
     if (v->is_constant)
         c += fprintf(f, "%ld", v->value);
@@ -206,8 +206,8 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
         c += fprintf(f, "r%d", v->vreg);
         if (v->ssa_subscript != -1) c += fprintf(f, "_%d", v->ssa_subscript);
     }
-    else if (v->local_index)
-        c += fprintf(f, "s[%d]", v->local_index);
+    else if (v->stack_index)
+        c += fprintf(f, "s[%d]", v->stack_index);
     else if (v->global_symbol)
         c += fprintf(f, "%s", v->global_symbol->identifier);
     else if (v->is_string_literal)
@@ -623,8 +623,113 @@ void merge_consecutive_labels(Function *function) {
     }
 }
 
+void assign_local_to_register(Value *v, int vreg) {
+    v->local_index = 0;
+    v->is_lvalue = 0;
+    v->vreg = vreg;
+}
+
+// The parser allocates a local_index for temporaries and local variables. Allocate vregs
+// for them unless any of them is used with an & operator, in which case, they must
+// be on the stack.
+void allocate_value_vregs(Function *function) {
+    Tac *tac;
+    int i, vreg;
+
+    int *has_address_of;
+
+    has_address_of = malloc(sizeof(int) * (function->local_symbol_count + 1));
+    memset(has_address_of, 0, sizeof(int) * (function->local_symbol_count + 1));
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
+        tac = tac ->next;
+    }
+
+    for (i = 1; i <= function->local_symbol_count; i++) {
+        if (has_address_of[i]) continue;
+        vreg = ++function->vreg_count;
+
+        tac = function->ir;
+        while (tac) {
+            if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
+            if (tac->src1 && tac->src1->local_index == -i) assign_local_to_register(tac->src1, vreg);
+            if (tac->src2 && tac->src2->local_index == -i) assign_local_to_register(tac->src2, vreg);
+            tac = tac ->next;
+        }
+    }
+
+    function->vreg_count = vreg_count;
+}
+
+// For all values without a vreg, allocate a stack_index
+void allocate_value_stack_indexes(Function *function) {
+    int spilled_register_count;
+    Tac *tac;
+    int *stack_index_map;
+
+    spilled_register_count = 0;
+
+    stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
+    memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
+
+    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
+
+    tac = function->ir;
+    while (tac) {
+        // Map registers forced onto the stack due to use of &
+        if (tac->dst && tac->dst->local_index < 0) {
+            if (stack_index_map[-tac->dst->local_index] == -1)
+                stack_index_map[-tac->dst->local_index] = spilled_register_count++;
+
+            tac->dst->stack_index = -stack_index_map[-tac->dst->local_index] - 1;
+        }
+
+        if (tac->src1 && tac->src1->local_index < 0) {
+            if (stack_index_map[-tac->src1->local_index] == -1)
+                stack_index_map[-tac->src1->local_index] = spilled_register_count++;
+
+            tac->src1->stack_index = -stack_index_map[-tac->src1->local_index] - 1;
+        }
+
+        if (tac->src2 && tac->src2->local_index < 0) {
+            if (stack_index_map[-tac->src2->local_index] == -1)
+                stack_index_map[-tac->src2->local_index] = spilled_register_count++;
+
+            tac->src2->stack_index = -stack_index_map[-tac->src2->local_index] - 1;
+        }
+
+        // Map function call parameters
+        if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack_index = tac->dst ->local_index;
+        if (tac->src1 && tac->src1->local_index > 0) tac->src1->stack_index = tac->src1->local_index;
+        if (tac->src2 && tac->src2->local_index > 0) tac->src2->stack_index = tac->src2->local_index;
+
+        tac = tac ->next;
+    }
+
+    // From this point onwards, local_index has no meaning and downstream code must not use it.
+    tac = function->ir;
+    while (tac) {
+        if (tac->dst ) tac->dst ->local_index = 0;
+        if (tac->src1) tac->src1->local_index = 0;
+        if (tac->src2) tac->src2->local_index = 0;
+
+        tac = tac ->next;
+    }
+
+    function->spilled_register_count = spilled_register_count;
+
+    if (debug_ssa_mapping_local_stack_indexes)
+        printf("Spilled %d registers due to & use\n", spilled_register_count);
+
+    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
+}
+
 void post_process_function_parse(Function *function) {
     reverse_function_argument_order(function);
     merge_consecutive_labels(function);
     renumber_labels(function);
+    allocate_value_vregs(function);
+    allocate_value_stack_indexes(function);
 }
