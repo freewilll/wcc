@@ -1059,8 +1059,22 @@ void function_body() {
     consume(TOK_RCURLY, "}");
 }
 
+// String the filename component from a path
+char *base_path(char *path) {
+    int end;
+    char *result;
+
+    end = strlen(path) - 1;
+    result = malloc(strlen(path) + 1);
+    while (end >= 0 && path[end] != '/') end--;
+    if (end >= 0) result = memcpy(result, path, end + 1);
+    result[end + 1] = 0;
+
+    return result;
+}
+
 void parse_directive() {
-    char *filename;
+    char *filename, *cur_path;
 
     if (parsing_header) panic("Nested headers not impemented");
 
@@ -1076,7 +1090,7 @@ void parse_directive() {
 
     if (cur_token != TOK_STRING_LITERAL) panic("Expected string literal in #include");
 
-    filename = cur_string_literal;
+    asprintf(&filename, "%s%s", base_path(cur_filename), cur_string_literal);
 
     c_input        = input;
     c_input_size   = input_size;
