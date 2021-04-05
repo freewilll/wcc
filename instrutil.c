@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 int non_terminal_for_value(Value *v);
 

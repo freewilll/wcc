@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 // Push a value to the stack
 Value *push(Value *v) {

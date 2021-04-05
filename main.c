@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 void get_debug_env_value(char *key, int *val) {
     char *env_value;
@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
     }
 
     if (help) {
-        printf("Usage: wc4 [-S -c -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
+        printf("Usage: wcc [-S -c -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
         printf("Flags\n");
         printf("-S                                  Compile only; do not assemble or link\n");
         printf("-c                                  Compile and assemble, but do not link\n");

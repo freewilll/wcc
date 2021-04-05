@@ -3,7 +3,7 @@
 #include <string.h>
 #include <sys/time.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 // Indexes used to reference the physically reserved registers, starting at 0
 int SSA_PREG_REG_RAX;

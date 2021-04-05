@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 void add_cast_rules() {
     Rule *r;

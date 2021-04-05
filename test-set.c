@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 void assert(int expected, int actual) {
     if (expected != actual) {

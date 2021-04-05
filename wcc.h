@@ -704,7 +704,7 @@ void init_callee_saved_registers();
 void output_function_body_code(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
 
-// wc4.c
+// wcc.c
 enum {
     COMPILE_EVERYTHING,
     COMPILE_STOP_AFTER_ANALYZE_DOMINANCE,

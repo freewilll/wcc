@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 void allocate_graph_storage(Graph *g) {
     g->nodes = malloc(g->node_count * sizeof(GraphNode));

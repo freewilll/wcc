@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 Stack *new_stack() {
     Stack *result;

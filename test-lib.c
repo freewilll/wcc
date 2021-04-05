@@ -80,7 +80,7 @@ void parse_args(int argc, char **argv, int *verbose) {
     }
 
     if (help) {
-        printf("Usage: test-wc4 [-v]\n\n");
+        printf("Usage: test-wcc [-v]\n\n");
         printf("Flags\n");
         printf("-v      Verbose mode; show all tests\n");
         printf("-h      Help\n");

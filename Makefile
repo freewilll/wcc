@@ -1,8 +1,8 @@
-all: wc4 wc43 benchmark
+all: wcc wcc3 benchmark
 
 SOURCES = \
   main.c \
-  wc4.c \
+  wcc.c \
   lexer.c \
   parser.c \
   ir.c \
@@ -20,34 +20,34 @@ ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
 
 build:
-	@mkdir -p build/wc42
-	@mkdir -p build/wc43
+	@mkdir -p build/wcc2
+	@mkdir -p build/wcc3
 
-%.o: %.c wc4.h build
+%.o: %.c wcc.h build
 	gcc ${GCC_OPTS} -c $< -o $@ -g -Wno-return-type -D _GNU_SOURCE
 
-wc4: ${OBJECTS} wc4.h
-	gcc ${GCC_OPTS} ${OBJECTS} -o wc4 -g -Wno-return-type -D _GNU_SOURCE
+wcc: ${OBJECTS} wcc.h
+	gcc ${GCC_OPTS} ${OBJECTS} -o wcc -g -Wno-return-type -D _GNU_SOURCE
 
-# wc42
-WC42_SOURCES := ${SOURCES:%=build/wc42/%}
+# wcc2
+WC42_SOURCES := ${SOURCES:%=build/wcc2/%}
 WC42_ASSEMBLIES := ${WC42_SOURCES:.c=.s}
 
-build/wc42/%.s: %.c wc4
-	./wc4 ${WC4_OPTS} -c $< -S -o $@
+build/wcc2/%.s: %.c wcc
+	./wcc ${WC4_OPTS} -c $< -S -o $@
 
-wc42: ${WC42_ASSEMBLIES}
-	gcc ${GCC_OPTS} ${WC42_ASSEMBLIES} -o wc42
+wcc2: ${WC42_ASSEMBLIES}
+	gcc ${GCC_OPTS} ${WC42_ASSEMBLIES} -o wcc2
 
-# wc43
-WC43_SOURCES := ${SOURCES:%=build/wc43/%}
+# wcc3
+WC43_SOURCES := ${SOURCES:%=build/wcc3/%}
 WC43_ASSEMBLIES := ${WC43_SOURCES:.c=.s}
 
-build/wc43/%.s: %.c wc42
-	./wc42 ${WC4_OPTS} -c $< -S -o $@
+build/wcc3/%.s: %.c wcc2
+	./wcc2 ${WC4_OPTS} -c $< -S -o $@
 
-wc43: ${WC43_ASSEMBLIES}
-	gcc ${GCC_OPTS} ${WC43_ASSEMBLIES} -o wc43
+wcc3: ${WC43_ASSEMBLIES}
+	gcc ${GCC_OPTS} ${WC43_ASSEMBLIES} -o wcc3
 
 # tests
 WC4_TESTS=\
@@ -71,54 +71,54 @@ stack-check.o: stack-check.c
 test-lib.o: test-lib.c
 	gcc ${GCC_OPTS} test-lib.c -c
 
-test-wc4.s: test-main.c wc4
-	./wc4 ${WC4_OPTS} -c -S test-main.c
+test-wcc.s: test-main.c wcc
+	./wcc ${WC4_OPTS} -c -S test-main.c
 
-test-wc4-%.s: test-wc4-%.c wc4
-	./wc4 ${WC4_OPTS} -c -S $<
+test-wcc-%.s: test-wcc-%.c wcc
+	./wcc ${WC4_OPTS} -c -S $<
 
-test-wc4-%-wc4: test-wc4-%.s stack-check.o test-lib.o
+test-wcc-%-wcc: test-wcc-%.s stack-check.o test-lib.o
 	gcc ${GCC_OPTS} $< stack-check.o test-lib.o -o $@
 
-run-test-wc4-%-wc4: test-wc4-%-wc4
+run-test-wcc-%-wcc: test-wcc-%-wcc
 	./$<
 	touch run-$<
 
-.PHONY: run-test-wc4
-run-test-wc4: ${WC4_TESTS:%=run-test-wc4-%-wc4}
-	@echo wc4 tests passed
+.PHONY: run-test-wcc
+run-test-wcc: ${WC4_TESTS:%=run-test-wcc-%-wcc}
+	@echo wcc tests passed
 
-test-wc4-%-gcc: test-wc4-%.c stack-check.o test-lib.o
+test-wcc-%-gcc: test-wcc-%.c stack-check.o test-lib.o
 	gcc ${GCC_OPTS} $< stack-check.o test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -D _GNU_SOURCE
 
-run-test-wc4-%-gcc: test-wc4-%-gcc
+run-test-wcc-%-gcc: test-wcc-%-gcc
 	./$<
 	touch run-$<
 
-.PHONY: run-test-wc4-gcc
-run-test-wc4-gcc: ${WC4_TESTS:%=run-test-wc4-%-gcc}
+.PHONY: run-test-wcc-gcc
+run-test-wcc-gcc: ${WC4_TESTS:%=run-test-wcc-%-gcc}
 	@echo gcc tests passed
 
-benchmark: wc4 wc42 benchmark.c
+benchmark: wcc wcc2 benchmark.c
 	gcc ${GCC_OPTS} benchmark.c -o benchmark
 
 run-benchmark: benchmark
 	./benchmark
 
 test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
-	cat build/wc42/*.s > build/wc42/all-s
-	cat build/wc43/*.s > build/wc43/all-s
-	diff build/wc42/all-s build/wc43/all-s
+	cat build/wcc2/*.s > build/wcc2/all-s
+	cat build/wcc3/*.s > build/wcc3/all-s
+	diff build/wcc2/all-s build/wcc3/all-s
 	@echo self compilation test passed
 
-test-include/test-include: wc4 test-include/include.h test-include/main.c test-include/foo.c
-	cd test-include && ../wc4 ${WC4_OPTS} main.c foo.c -o test-include
+test-include/test-include: wcc test-include/include.h test-include/main.c test-include/foo.c
+	cd test-include && ../wcc ${WC4_OPTS} main.c foo.c -o test-include
 
 run-test-include: test-include/test-include
 	test-include/test-include
 
-test-set: wc4 set.c utils.c test-set.c
-	./wc4 ${WC4_OPTS} set.c utils.c test-set.c -o test-set
+test-set: wcc set.c utils.c test-set.c
+	./wcc ${WC4_OPTS} set.c utils.c test-set.c -o test-set
 
 test-set-gcc: set.c utils.c test-set.c
 	gcc ${GCC_OPTS} -g -o test-set-gcc set.c utils.c test-set.c
@@ -129,57 +129,57 @@ run-test-set: test-set
 run-test-set-gcc: test-set-gcc
 	 ./test-set-gcc
 
-test-ssa.s: wc4 test-ssa.c
-	./wc4 ${WC4_OPTS} -c -S test-ssa.c -o test-ssa.s
+test-ssa.s: wcc test-ssa.c
+	./wcc ${WC4_OPTS} -c -S test-ssa.c -o test-ssa.s
 
-test-utils.s: wc4 test-utils.c
-	./wc4 ${WC4_OPTS} -c -S test-utils.c -o test-utils.s
+test-utils.s: wcc test-utils.c
+	./wcc ${WC4_OPTS} -c -S test-utils.c -o test-utils.s
 
-test-ssa: wc4 test-ssa.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrutil.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
-	gcc ${GCC_OPTS} -g -o test-ssa test-ssa.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrutil.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
+test-ssa: wcc test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s
+	gcc ${GCC_OPTS} -g -o test-ssa test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s
 
 run-test-ssa: test-ssa
 	 ./test-ssa
 
-test-ssa-gcc: test-ssa.c test-utils.s lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c codegen.c wc4.c utils.c set.c stack.c graph.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c codegen.c wc4.c utils.c set.c stack.c graph.c
+test-ssa-gcc: test-ssa.c test-utils.s lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c
 
 run-test-ssa-gcc: test-ssa-gcc
 	 ./test-ssa-gcc
 
-test-instrsel.s: wc4 test-instrsel.c
-	./wc4 ${WC4_OPTS} -c -S test-instrsel.c -o test-instrsel.s
+test-instrsel.s: wcc test-instrsel.c
+	./wcc ${WC4_OPTS} -c -S test-instrsel.c -o test-instrsel.s
 
-test-instrsel: wc4 test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrutil.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
-	gcc ${GCC_OPTS} -g -o test-instrsel test-instrsel.s test-utils.s build/wc42/lexer.s build/wc42/parser.s build/wc42/ir.s build/wc42/ssa.s build/wc42/instrsel.s build/wc42/instrutil.s build/wc42/instrrules.s build/wc42/codegen.s build/wc42/wc4.s build/wc42/utils.s build/wc42/set.s build/wc42/stack.s build/wc42/graph.s
+test-instrsel: wcc test-instrsel.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s
+	gcc ${GCC_OPTS} -g -o test-instrsel test-instrsel.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s
 
 run-test-instrsel: test-instrsel
 	 ./test-instrsel
 
-test-instrsel-gcc: wc4.h test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-instrsel-gcc test-instrsel.c test-utils.c wc4.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c
+test-instrsel-gcc: wcc.h test-instrsel.c test-utils.c wcc.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-instrsel-gcc test-instrsel.c test-utils.c wcc.c codegen.c lexer.c parser.c ir.c ssa.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c
 
 run-test-instrsel-gcc: test-instrsel-gcc
 	./test-instrsel-gcc
 
-test-graph: wc4 test-graph.c graph.c set.c stack.c ir.c utils.c
-	./wc4 ${WC4_OPTS} test-graph.c graph.c utils.c -o test-graph
+test-graph: wcc test-graph.c graph.c set.c stack.c ir.c utils.c
+	./wcc ${WC4_OPTS} test-graph.c graph.c utils.c -o test-graph
 
 run-test-graph: test-graph
 	 ./test-graph
 
 .PHONY: test
-test: run-test-wc4 run-test-include run-test-set-gcc run-test-set run-test-ssa-gcc run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-graph run-test-wc4-gcc test-self-compilation test-self-compilation
+test: run-test-wcc run-test-include run-test-set-gcc run-test-set run-test-ssa-gcc run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-graph run-test-wcc-gcc test-self-compilation test-self-compilation
 
 clean:
-	@rm -f wc4
-	@rm -f wc42
-	@rm -f wc43
-	@rm -f test-wc4
-	@rm -f test-wc4-*-wc4
-	@rm -f run-test-wc4-*
-	@rm -f test-wc4-gcc
-	@rm -f test-wc4-*-gcc
+	@rm -f wcc
+	@rm -f wcc2
+	@rm -f wcc3
+	@rm -f test-wcc
+	@rm -f test-wcc-*-wcc
+	@rm -f run-test-wcc-*
+	@rm -f test-wcc-gcc
+	@rm -f test-wcc-*-gcc
 	@rm -f test-set
 	@rm -f test-set-gcc
 	@rm -f test-ssa-gcc

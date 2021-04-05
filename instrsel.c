@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 enum {
     MAX_INSTRUCTION_GRAPH_EDGE_COUNT = 64,

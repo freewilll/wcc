@@ -3,7 +3,7 @@
 #include <fcntl.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 void check_preg(int preg) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");

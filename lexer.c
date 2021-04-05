@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 void init_lexer(char *filename) {
     void *f;

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 // Allocate a new virtual register
 int new_vreg() {

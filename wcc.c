@@ -1,4 +1,4 @@
-#include "wc4.h"
+#include "wcc.h"
 
 void run_compiler_phases(Function *function, int stop_at) {
     // Prepare for SSA phi function insertion

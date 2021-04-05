@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "wc4.h"
+#include "wcc.h"
 
 void panic(char *message) {
     printf("%s:%d: %s\n", cur_filename, cur_line, message);
