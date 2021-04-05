@@ -792,13 +792,13 @@ void expression(int level) {
             ldst1 = new_label_dst(); // False case
             ldst2 = new_label_dst(); // End
             add_conditional_jump(IR_JZ, ldst1);
-            expression(TOK_OR);
+            expression(TOK_TERNARY);
             src1 = vtop;
             add_instruction(IR_MOVE, dst, pl(), 0);
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_jmp_target_instruction(ldst1);    // Start of false case
             consume(TOK_COLON, ":");
-            expression(TOK_OR);
+            expression(TOK_TERNARY);
             src2 = vtop;
             dst->type = operation_type(src1, src2);
             add_instruction(IR_MOVE, dst, pl(), 0);
