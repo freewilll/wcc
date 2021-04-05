@@ -1001,7 +1001,9 @@ void statement() {
         }
         else {
             expression(TOK_COMMA);
-            add_instruction(IR_RETURN, 0, pl(), 0);
+            src1 = pop();
+            if (src1) src1 = load(src1);
+            add_instruction(IR_RETURN, 0, src1, 0);
         }
         consume(TOK_SEMI, ";");
     }
