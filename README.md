@@ -72,7 +72,7 @@ void main() {
 
 ```
 main:
-    push    %rbp                # Function preamble
+    push    %rbp                # Function prologue
     movq    %rsp, %rbp
     pushq   %rbx
     pushq   %r12
@@ -100,7 +100,7 @@ main:
     cltq
     movq    %rax, %rbx
     movq    $0, %rax            # Exit code zero
-    popq    %r12                # Function postamble
+    popq    %r12                # Function epilogue
     popq    %rbx
     leaveq
     retq
