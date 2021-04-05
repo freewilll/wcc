@@ -32,6 +32,22 @@ The compiler goes through the following phases:
 - Register allocation using top-down graph coloring
 - Code generation using hand rolled functions
 
+# Running the tests
+Run all tests
+```
+$ make test
+```
+
+Test 3 stage self compilation
+```
+$ make test-self-compilation
+```
+
+Run benchmarks
+```
+$ make run-benchmark
+```
+
 # Example compilation
 ```
 #include <stdio.h>
