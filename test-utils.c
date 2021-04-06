@@ -220,12 +220,12 @@ void start_ir() {
     init_instruction_selection_rules();
 }
 
-void _finish_ir(Function *function, int stop_after_register_allocation, int stop_after_instruction_selection) {
+void _finish_ir(Function *function, int stop_after_live_ranges, int stop_after_instruction_selection) {
     function->ir = ir_start;
     function->spilled_register_count = 0;
 
-    if (stop_after_register_allocation)
-        run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
+    if (stop_after_live_ranges)
+        run_compiler_phases(function, COMPILE_STOP_AFTER_LIVE_RANGES);
     else if (stop_after_instruction_selection)
         run_compiler_phases(function, COMPILE_STOP_AFTER_INSTRUCTION_SELECTION);
     else

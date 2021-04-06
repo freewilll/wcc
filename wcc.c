@@ -21,7 +21,7 @@ void run_compiler_phases(Function *function, int stop_at) {
     make_live_ranges(function);
     blast_vregs_with_live_ranges(function);
     coalesce_live_ranges(function);
-    if (stop_at == COMPILE_STOP_AFTER_REGISTER_ALLOCATION) return;
+    if (stop_at == COMPILE_STOP_AFTER_LIVE_RANGES) return;
 
     // Instruction selection
     select_instructions(function);

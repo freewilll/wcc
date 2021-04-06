@@ -577,7 +577,7 @@ void test_interference_graph1() {
     if (debug_ssa_interference_graph) print_ir(function, 0);
 
     opt_enable_live_range_coalescing = 0;
-    run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_LIVE_RANGES);
 
     ig = function->interference_graph;
     vreg_count = function->vreg_count;
@@ -596,7 +596,7 @@ void test_interference_graph2() {
 
     function = make_ir2(1);
 
-    run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_LIVE_RANGES);
 
     if (debug_ssa_interference_graph) print_ir(function, 0);
 
@@ -641,7 +641,7 @@ void test_interference_graph3() {
     function->ir = ir_start;
 
     opt_enable_live_range_coalescing = 0;
-    run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
+    run_compiler_phases(function, COMPILE_STOP_AFTER_LIVE_RANGES);
 
     if (debug_ssa_interference_graph) print_ir(function, 0);
 
@@ -662,7 +662,7 @@ void test_spill_cost() {
         function = make_ir3(i);
 
         opt_enable_live_range_coalescing = 0;
-        run_compiler_phases(function, COMPILE_STOP_AFTER_REGISTER_ALLOCATION);
+        run_compiler_phases(function, COMPILE_STOP_AFTER_LIVE_RANGES);
 
         if (debug_ssa_spill_cost) print_ir(function, 0);
 
