@@ -430,8 +430,9 @@ void output_pop_callee_saved_registers(int *saved_registers) {
 
 // Output code from the IR of a function
 void output_function_body_code(Symbol *symbol) {
-    int i, stack_offset;
+    int i, cac, pfa, stack_offset, function_call_count;
     Tac *tac;
+    char *buffer;
     int function_pc;                    // The Function's param count
     int ac;                             // A function call's arg count
     int local_stack_size;               // Size of the stack containing local variables and spilled registers
@@ -439,8 +440,13 @@ void output_function_body_code(Symbol *symbol) {
     int *saved_registers;               // Callee saved registers
     int function_call_pushes;           // How many pushes are necessary for a function call
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
+    int *processed_function_arguments;  // The amount of function call arguments that have already been processed
+
     char *s;
     int type;
+
+    function_call_count = make_function_call_count(symbol->function);
+    processed_function_arguments = malloc(sizeof(int) * function_call_count);
 
     function_pc = symbol->function->param_count;
 
@@ -485,6 +491,8 @@ void output_function_body_code(Symbol *symbol) {
         if (tac->operation == IR_NOP || tac->operation == IR_START_LOOP || tac->operation == IR_END_LOOP);
 
         else if (tac->operation == IR_START_CALL) {
+            processed_function_arguments[tac->src1->value] = tac->src1->function_call_arg_count - 1;
+
             // Align the stack. This is matched with a pop when the function call ends
             function_call_pushes = tac->src1->function_call_arg_count <= 6 ? 0 : tac->src1->function_call_arg_count - 6;
             need_aligned_call_push = ((cur_stack_push_count + function_call_pushes) % 2 == 1);
@@ -503,20 +511,46 @@ void output_function_body_code(Symbol *symbol) {
         }
 
         else if (tac->operation == X_ARG) {
-            cur_stack_push_count++;
-            output_x86_operation(tac, function_pc, stack_start);
+            cac = tac->src1->function_call_direct_reg_count;
+            pfa = processed_function_arguments[tac->src1->value];
+
+            // Dirty hack to get the register without a mnemonic
+            buffer = render_x86_operation(tac, function_pc, stack_start, 1);
+            buffer += 8;
+
+            if (pfa <= 5 && pfa < cac) {
+                // Copy the value to an argument register
+                fprintf(f, "    movq");
+                fprintf(f, "    %s, ", buffer);
+                     if (pfa == 0) fprintf(f, "%%rdi\n");
+                else if (pfa == 1) fprintf(f, "%%rsi\n");
+                else if (pfa == 2) fprintf(f, "%%rdx\n");
+                else if (pfa == 3) fprintf(f, "%%rcx\n");
+                else if (pfa == 4) fprintf(f, "%%r8\n");
+                else if (pfa == 5) fprintf(f, "%%r9\n");
+                else
+                    panic1d("Unexpectedly fell through in function argument handling: %d", ac);
+            }
+            else {
+                // Push the value to the stack, for popping just before the function call
+                cur_stack_push_count++;
+
+                fprintf(f, "    pushq");
+                fprintf(f, "   %s\n", buffer);
+            }
+            processed_function_arguments[tac->src1->value]--;
         }
 
         else if (tac->operation == X_CALL) {
-            // Read the first 6 args from the stack in right to left order
+            // Read the first args from the stack in right to left order
             ac = tac->src1->function_call_arg_count;
+            cac = tac->src1->function_call_direct_reg_count;
 
-            if (ac >= 1) { cur_stack_push_count--; fprintf(f, "    popq    %%rdi\n"); }
-            if (ac >= 2) { cur_stack_push_count--; fprintf(f, "    popq    %%rsi\n"); }
-            if (ac >= 3) { cur_stack_push_count--; fprintf(f, "    popq    %%rdx\n"); }
-            if (ac >= 4) { cur_stack_push_count--; fprintf(f, "    popq    %%rcx\n"); }
-            if (ac >= 5) { cur_stack_push_count--; fprintf(f, "    popq    %%r8\n");  }
-            if (ac >= 6) { cur_stack_push_count--; fprintf(f, "    popq    %%r9\n");  }
+            if (ac >= 2 && cac < 2) { cur_stack_push_count--; fprintf(f, "    popq    %%rsi\n"); }
+            if (ac >= 3 && cac < 3) { cur_stack_push_count--; fprintf(f, "    popq    %%rdx\n"); }
+            if (ac >= 4 && cac < 4) { cur_stack_push_count--; fprintf(f, "    popq    %%rcx\n"); }
+            if (ac >= 5 && cac < 5) { cur_stack_push_count--; fprintf(f, "    popq    %%r8\n");  }
+            if (ac >= 6 && cac < 6) { cur_stack_push_count--; fprintf(f, "    popq    %%r9\n");  }
 
             // Variadic functions have the number of floating point arguments passed in al.
             // Since floating point numbers isn't implemented, this is zero.

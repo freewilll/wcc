@@ -40,6 +40,22 @@ int fca8(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8) {
     assert_int(12345678, 10000000 * i1 + 1000000 * i2 + 100000 * i3 + 10000 * i4 + 1000 * i5 + 100 * i6 + 10 * i7 + i8, "function call with 8 args");
 }
 
+int f(int i, int j) {
+    return i + 2 * j;
+}
+
+void test_direct_register_use() {
+    int i;
+
+    // Amount of args per call that can use an arg register (rdi, rsi, ...)
+    i = f(1, 1);             assert_int(3,  i, "direct register use 1"); // 2
+    i = f(f(1, 2), 1);       assert_int(7,  i, "direct register use 2"); // 1 2
+    i = f(1, f(1, 2));       assert_int(11, i, "direct register use 3"); // 2 2
+    i = f(1, f(1, f(1, 3))); assert_int(31, i, "direct register use 4"); // 2 2 2
+    i = f(f(1, f(1, 3)), 1); assert_int(17, i, "direct register use 5"); // 1 2 2
+    i = f(f(f(1, 3), 1), 1); assert_int(11, i, "direct register use 6"); // 1 1 2
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -55,6 +71,8 @@ int main(int argc, char **argv) {
     fca6(1, 2, 3, 4, 5, 6);
     fca7(1, 2, 3, 4, 5, 6, 7);
     fca8(1, 2, 3, 4, 5, 6, 7, 8);
+
+    test_direct_register_use();
 
     finalize();
 }

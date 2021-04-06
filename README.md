@@ -76,25 +76,20 @@ main:
     movq    %rsp, %rbp
     pushq   %rbx
     pushq   %r12
-    pushq   $8                  # s2 = malloc(sizeof(S2));
-    popq    %rdi
+    movq    $8, %rdi            # s2 = malloc(sizeof(S2));
     callq   malloc@PLT
     movq    %rax, %rbx          # rbx = s2
-    pushq   $8                  # s2->s1 = malloc(sizeof(S1));
-    popq    %rdi
+    movq    $8, %rdi            # s2->s1 = malloc(sizeof(S1));
     callq   malloc@PLT
     movq    %rax, %r12
     movq    %r12, (%rbx)
     movq    (%rbx), %rax        # s2->s1->j = 1;
-    addq    $4, %rax
     movl    $1, (%rax)
-    movq    (%rbx), %rbx        # printf("%d\n", s2->s1->j);
-    movslq  4(%rbx), %rbx
-    pushq   %rbx
+    movq    (%rbx), %rbx
+    movslq  (%rbx), %rbx        # printf("%d\n", s2->s1->j);
+    movq    %rbx, %rsi
     leaq    .SL0(%rip), %rbx
-    pushq   %rbx
-    popq    %rdi                # Function args are rather primitive, everything is pushed & popped
-    popq    %rsi
+    movq    %rbx, %rdi
     movb    $0, %al
     callq   printf@PLT
     cltq
@@ -113,7 +108,7 @@ This is a short summary of I have in mind to improve
 - More tree tiling rules, e.g. the `inc` instruction and `mov` instructions with better addressing
 - Better spill code generation for specific cases
 - Improve function return value handling
-- Replace function arg pushes/pops in function calls with direct register use where possible
+- Improve function arg register use in function calls by using live ranges, register constraints and coalescing
 - Scalar optimizations
 - Redundancy elimination
 - Common subexpresion elimination

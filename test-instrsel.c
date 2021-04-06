@@ -1227,7 +1227,7 @@ void test_pointer_to_void_arg() {
     i(0, IR_ARG,  0, c(0), v(1));
     finish_ir(function);
     assert_x86_op("movq    16(%rbp), r2q");
-    assert_x86_op("pushq   r2q"          );
+    assert_x86_op("_arg_   r2q"          );
 }
 
 void test_pointer_assignment_precision_decrease(int type1, int type2, char *template) {

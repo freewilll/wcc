@@ -604,6 +604,7 @@ void expression(int level) {
             consume(TOK_RPAREN, ")");
 
             function_value = new_value();
+            function_value->value = function_call;
             function_value->function_symbol = symbol;
             function_value->function_call_arg_count = arg_count;
             src1->function_call_arg_count = arg_count;

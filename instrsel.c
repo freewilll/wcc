@@ -1475,3 +1475,69 @@ void add_spill_code(Function *function) {
         tac = tac->next;
     }
 }
+
+// For each function call, determine how many arguments can be moved to the
+// call registers rdi, rsi, etc. The args are evaluated right to left. If any
+// function call happens while the arguments are being evaluated, then the result
+// must be pushed, since the rdi, rsi etc registers could have been clobbered.
+void make_function_call_direct_reg_counts(Function *function) {
+    int i, block_count;
+    Block *blocks;
+    Tac *tac;
+    int *stack, *s;
+    char *tombstones;
+    int *arg_counts;
+
+    blocks = function->blocks;
+    block_count = function->cfg->node_count;
+
+    function_call_count = make_function_call_count(function);
+
+    arg_counts = malloc(sizeof(int) * function_call_count);
+    memset(arg_counts, 0, sizeof(int) * function_call_count);
+
+    // functions for which args cannot be moved to the rdi, rsi etc registers
+    tombstones = malloc(sizeof(char) * function_call_count);
+    memset(tombstones, 0, sizeof(char) * function_call_count);
+
+    // Maintain a stack of nested functions
+    stack = malloc(sizeof(int) * (function_call_count + 1));
+    memset(stack, -1, sizeof(int) * (function_call_count + 1));
+    stack = stack + function_call_count; // Set stack top
+
+    // Look over all blocks, going backwards, so the args are processed left to right
+    for (i = block_count - 1; i >= 0; i--) {
+        tac = blocks[i].end;
+        while (tac != blocks[i].start) {
+            // There is an arg and it can be in a register
+            if (tac->operation == X_ARG && !tombstones[tac->src1->value])
+                arg_counts[tac->src1->value]++;
+
+            // Tombstone all functions in the stack, since from this point onwards,
+            // registers can no longer be used
+            if (tac->operation == IR_START_CALL) {
+                s = stack + 1;
+                while (*s != -1) {
+                    tombstones[*s] = 1;
+                    s++;
+                }
+
+                stack++; // Pop the stack
+            }
+
+            // Push function to the stack
+            if (tac->operation == IR_END_CALL) *(--stack) = tac->src1->value;
+
+            tac = tac->prev;
+        }
+
+    }
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == X_CALL || tac->operation == X_ARG)
+            tac->src1->function_call_direct_reg_count = arg_counts[tac->src1->value];
+
+        tac = tac->next;
+    }
+}

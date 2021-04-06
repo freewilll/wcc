@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "wcc.h"
 
 void run_compiler_phases(Function *function, int stop_at) {
@@ -33,6 +34,7 @@ void run_compiler_phases(Function *function, int stop_at) {
     sanity_test_ir_linkage(function);
     allocate_registers(function);
     add_spill_code(function);
+    make_function_call_direct_reg_counts(function);
 }
 
 void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename) {

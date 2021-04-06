@@ -179,7 +179,7 @@ void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
 }
 
 // Add an x86 operation template to a rule
-void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
+X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     X86Operation *x86op, *o;
 
     x86op = malloc(sizeof(X86Operation));
@@ -197,6 +197,8 @@ void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     x86op->next = 0;
 
     add_x86_op_to_rule(r, x86op);
+
+    return x86op;
 }
 
 // Add a save value operation to a rule

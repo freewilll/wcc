@@ -58,26 +58,27 @@ Value *dup_value(Value *src) {
     Value *dst;
 
     dst = new_value();
-    dst->type                      = src->type;
-    dst->vreg                      = src->vreg;
-    dst->preg                      = src->preg;
-    dst->is_lvalue                 = src->is_lvalue;
-    dst->is_lvalue_in_register     = src->is_lvalue_in_register;
-    dst->stack_index               = src->stack_index;
-    dst->spilled                   = src->spilled;
-    dst->local_index               = src->local_index;
-    dst->is_constant               = src->is_constant;
-    dst->is_string_literal         = src->is_string_literal;
-    dst->string_literal_index      = src->string_literal_index;
-    dst->value                     = src->value;
-    dst->function_symbol           = src->function_symbol;
-    dst->function_call_arg_count   = src->function_call_arg_count;
-    dst->global_symbol             = src->global_symbol;
-    dst->label                     = src->label;
-    dst->ssa_subscript             = src->ssa_subscript;
-    dst->live_range                = src->live_range;
-    dst->x86_size                  = src->x86_size;
-    dst->non_terminal              = src->non_terminal;
+    dst->type                           = src->type;
+    dst->vreg                           = src->vreg;
+    dst->preg                           = src->preg;
+    dst->is_lvalue                      = src->is_lvalue;
+    dst->is_lvalue_in_register          = src->is_lvalue_in_register;
+    dst->stack_index                    = src->stack_index;
+    dst->spilled                        = src->spilled;
+    dst->local_index                    = src->local_index;
+    dst->is_constant                    = src->is_constant;
+    dst->is_string_literal              = src->is_string_literal;
+    dst->string_literal_index           = src->string_literal_index;
+    dst->value                          = src->value;
+    dst->function_symbol                = src->function_symbol;
+    dst->function_call_arg_count        = src->function_call_arg_count;
+    dst->function_call_direct_reg_count = src->function_call_direct_reg_count;
+    dst->global_symbol                  = src->global_symbol;
+    dst->label                          = src->label;
+    dst->ssa_subscript                  = src->ssa_subscript;
+    dst->live_range                     = src->live_range;
+    dst->x86_size                       = src->x86_size;
+    dst->non_terminal                   = src->non_terminal;
 
     return dst;
 }
@@ -476,6 +477,21 @@ void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) {
     next->next = 0;
 }
 
+int make_function_call_count(Function *function) {
+    int function_call_count;
+    Tac *tac;
+
+    // Need to count this IR's function_call_count
+    function_call_count = 0;
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == IR_START_CALL) function_call_count++;
+        tac = tac->next;
+    }
+
+    return function_call_count;
+}
+
 // The arguments are pushed onto the stack right to left, but the ABI requries
 // the seventh arg and later to be pushed in reverse order. Easiest is to flip
 // all args backwards, so they are pushed left to right.
@@ -489,12 +505,7 @@ void reverse_function_argument_order(Function *function) {
     args = malloc(sizeof(TacInterval *) * 256);
 
     // Need to count this IR's function_call_count
-    function_call_count = 0;
-    tac = function->ir;
-    while (tac) {
-        if (tac->operation == IR_START_CALL) function_call_count++;
-        tac = tac->next;
-    }
+    function_call_count = make_function_call_count(function);
 
     for (i = 0; i < function_call_count; i++) {
         tac = function->ir;

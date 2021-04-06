@@ -438,6 +438,11 @@ void add_binary_shift_rules() {
     add_binary_shift_rule(REGQ, "movq %v1q, %%rcx");
 }
 
+X86Operation *add_function_call_arg_op(Rule *r) {
+    X86Operation *x86_op;
+    x86_op = add_op(r, X_ARG, 0, SRC1, SRC2, "_arg_ %v2q");
+}
+
 void init_instruction_selection_rules() {
     int i, j;
     Rule *r;
@@ -508,17 +513,16 @@ void init_instruction_selection_rules() {
     r = add_rule(0, IR_ARG, CSTL, CSTL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); // Use constant as function arg, must not be a quad
 
     // Add rules for sign extention an arg, but at a high cost, to encourage other rules to take precedence
-    r = add_rule(0, IR_ARG, CSTL, REGB, 10); add_op(r, X_MOVSBQ, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" );
-    r = add_rule(0, IR_ARG, CSTL, REGW, 10); add_op(r, X_MOVSWQ, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" );
-    r = add_rule(0, IR_ARG, CSTL, REGL, 10); add_op(r, X_MOVSLQ, SRC2, SRC2, 0 , "movslq %v1l, %v1q"); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" );
+    r = add_rule(0, IR_ARG, CSTL, REGB, 10); add_op(r, X_MOVSBQ, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTL, REGW, 10); add_op(r, X_MOVSWQ, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTL, REGL, 10); add_op(r, X_MOVSLQ, SRC2, SRC2, 0 , "movslq %v1l, %v1q"); add_function_call_arg_op(r);
 
-    r = add_rule(0, IR_ARG, CSTL, REGQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use register as function arg, must be a quad
-
-    r = add_rule(0, IR_ARG, CSTL, ADRB, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
-    r = add_rule(0, IR_ARG, CSTL, ADRW, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
-    r = add_rule(0, IR_ARG, CSTL, ADRL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
-    r = add_rule(0, IR_ARG, CSTL, ADRQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
-    r = add_rule(0, IR_ARG, CSTL, ADRV, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q" ); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, REGQ, 2); add_function_call_arg_op(r); // Use register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRB, 2); add_function_call_arg_op(r); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRW, 2); add_function_call_arg_op(r); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRL, 2); add_function_call_arg_op(r); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRQ, 2); add_function_call_arg_op(r); // Use pointer in register as function arg
+    r = add_rule(0, IR_ARG, CSTL, ADRV, 2); add_function_call_arg_op(r); // Use pointer in register as function arg
 
     r = add_rule(REG,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
     r = add_rule(ADR,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value

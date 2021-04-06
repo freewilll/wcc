@@ -103,27 +103,28 @@ typedef struct function {
 // - string literal
 // - register
 typedef struct value {
-    int type;                       // Type
-    int vreg;                       // Optional vreg number
-    int preg;                       // Allocated physical register
-    int is_lvalue;                  // Is the value an lvalue?
-    int is_lvalue_in_register;      // Is the value an lvalue in a register?
-    int local_index;                // For locals variables and function arguments
-    int stack_index;                // Allocated stack index in case of a spill
-    int spilled;                    // 1 if spilled
-    int is_constant;                // Is it a constant? If so, value is the value.
-    int is_string_literal;          // Is the value a string literal?
-    int string_literal_index;       // Index in the string_literals array in the case of a string literal
-    long value;                     // Value in the case of a constant
-    Symbol *function_symbol;        // Corresponding symbol in the case of a function call
-    int function_call_arg_count;    // Number of arguments in the case of a function call
-    Symbol *global_symbol;          // Pointer to a global symbol if the value is a global symbol
-    int label;                      // Target label in the case of jump instructions
-    int pushed_stack_aligned_quad;  // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
-    int ssa_subscript;              // Optional SSA enumeration
-    int live_range;                 // Optional SSA live range
-    int x86_size;                   // Current size while generating x86 code
-    int non_terminal;               // Use in rule matching
+    int type;                               // Type
+    int vreg;                               // Optional vreg number
+    int preg;                               // Allocated physical register
+    int is_lvalue;                          // Is the value an lvalue?
+    int is_lvalue_in_register;              // Is the value an lvalue in a register?
+    int local_index;                        // For locals variables and function arguments
+    int stack_index;                        // Allocated stack index in case of a spill
+    int spilled;                            // 1 if spilled
+    int is_constant;                        // Is it a constant? If so, value is the value.
+    int is_string_literal;                  // Is the value a string literal?
+    int string_literal_index;               // Index in the string_literals array in the case of a string literal
+    long value;                             // Value in the case of a constant
+    Symbol *function_symbol;                // Corresponding symbol in the case of a function call
+    int function_call_arg_count;            // Number of arguments in the case of a function call
+    int function_call_direct_reg_count;     // Number of arguments that can go straight into a register in a function call
+    Symbol *global_symbol;                  // Pointer to a global symbol if the value is a global symbol
+    int label;                              // Target label in the case of jump instructions
+    int pushed_stack_aligned_quad;          // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
+    int ssa_subscript;                      // Optional SSA enumeration
+    int live_range;                         // Optional SSA live range
+    int x86_size;                           // Current size while generating x86 code
+    int non_terminal;                       // Use in rule matching
 } Value;
 
 typedef struct three_address_code {
@@ -501,6 +502,7 @@ Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 Tac *insert_instruction(Tac *ir, Tac *tac, int move_label);
 void sanity_test_ir_linkage(Function *function);
+int make_function_call_count(Function *function);
 int new_vreg();
 int fprintf_escaped_string_literal(void *f, char* sl);
 int is_promotion(int type1, int type2);
@@ -675,6 +677,7 @@ Value **saved_values;
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
 void add_spill_code(Function *function);
+void make_function_call_direct_reg_counts(Function *function);
 
 // instrutil.c
 char size_to_x86_size(int size);
@@ -689,7 +692,7 @@ int make_x86_size_from_non_terminal(int non_terminal);
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
 void check_rules_dont_decrease_precision();
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
-void add_op(Rule *r, int operation, int dst, int v1, int v2, char *template);
+X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template);
 void add_save_value(Rule *r, int arg, int slot);
 void add_load_value(Rule *r, int arg, int slot);
 void fin_rule(Rule *r);
