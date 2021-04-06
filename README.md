@@ -2,6 +2,12 @@
 
 This project is an implementation of a subset of C for x86_64 linux as an exercise in how to write an optimizing compiler. The implementation is mostly based on [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). The compiler is self hosting. It's just a hobby, it won't be big and professional like gcc.
 
+# Usage
+```
+$ make wcc
+$ ./wcc test.c -o test
+```
+
 # C Features
 - All variables must fit in a register
 - Pointers
