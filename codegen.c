@@ -564,11 +564,6 @@ void output_function_body_code(Symbol *symbol) {
 
             // For all builtins that return something smaller an int, extend it to a quad
             if (tac->dst) {
-                type = tac->src1->function_symbol->type;
-                if (type <= TYPE_CHAR)  fprintf(f, "    cbtw\n");
-                if (type <= TYPE_SHORT) fprintf(f, "    cwtl\n");
-                if (type <= TYPE_INT)   fprintf(f, "    cltq\n");
-
                 fprintf(f, "    movq    %%rax, ");
                 output_quad_register_name(tac->dst->preg);
                 fprintf(f, "\n");
