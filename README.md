@@ -65,8 +65,8 @@ void main() {
 
     s2 = malloc(sizeof(S2));
     s2->s1 = malloc(sizeof(S1));
-    s2->s1->i = 1;
-    printf("%d\n", s2->s1->i);
+    s2->s1->j = 1;
+    printf("%d\n", s2->s1->j);
 }
 ```
 
@@ -84,17 +84,16 @@ main:
     movq    %rax, %r12
     movq    %r12, (%rbx)
     movq    (%rbx), %rax        # s2->s1->j = 1;
+    addq    $4, %rax
     movl    $1, (%rax)
-    movq    (%rbx), %rbx
-    movslq  (%rbx), %rbx        # printf("%d\n", s2->s1->j);
+    movq    (%rbx), %rbx        # printf("%d\n", s2->s1->j);
+    movslq  4(%rbx), %rbx
     movq    %rbx, %rsi
     leaq    .SL0(%rip), %rbx
     movq    %rbx, %rdi
     movb    $0, %al
     callq   printf@PLT
-    cltq
-    movq    %rax, %rbx
-    movq    $0, %rax            # Exit code zero
+    movq    $0, %rax            # Function exit code zero
     popq    %r12                # Function epilogue
     popq    %rbx
     leaveq

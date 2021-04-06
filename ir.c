@@ -739,10 +739,46 @@ void allocate_value_stack_indexes(Function *function) {
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
 }
 
+// If a function returns a value and it's called, the parser will always allocate a
+// vreg for the result. This function removes the vreg if it's not used anywhere further
+// on.
+void remove_unused_function_call_results(Function *function) {
+    Tac *tac;
+    char *used_vregs;
+    int vreg_count ;
+
+    vreg_count  = 0;
+    tac = function->ir;
+    while (tac) {
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
+        tac = tac->next;
+    }
+
+    used_vregs = malloc(sizeof(char) * (vreg_count + 1));
+
+    tac = function->ir;
+    while (tac->next) tac = tac->next;
+
+    while (tac) {
+        if (tac->src1 && tac->src1->vreg) used_vregs[tac->src1->vreg] = 1;
+        if (tac->src2 && tac->src2->vreg) used_vregs[tac->src2->vreg] = 1;
+        if (tac->operation == IR_MOVE && tac->dst->vreg && tac->dst->is_lvalue) used_vregs[tac->dst->vreg] = 1;
+
+        if (tac->operation == IR_CALL && tac->dst && tac->dst->vreg && !used_vregs[tac->dst->vreg]) tac->dst = 0;
+
+        tac = tac->prev;
+    }
+
+    free(used_vregs);
+}
+
 void post_process_function_parse(Function *function) {
     reverse_function_argument_order(function);
     merge_consecutive_labels(function);
     renumber_labels(function);
     allocate_value_vregs(function);
     allocate_value_stack_indexes(function);
+    remove_unused_function_call_results(function);
 }
