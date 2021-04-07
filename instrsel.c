@@ -1468,6 +1468,7 @@ void add_spill_code(Function *function) {
 
         if (tac->dst && tac->dst->preg == -1 && tac->dst->spilled) {
             if (debug_instsel_spilling) printf("Adding spill store\n");
+            if (tac->operation == X_CALL) panic("Unexpected spill from X_CALL");
             add_spill_store(tac, tac->dst, REG_R11);
             tac = tac->next;
         }

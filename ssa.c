@@ -111,6 +111,34 @@ void rewrite_lvalue_reg_assignments(Function *function) {
     }
 }
 
+// Convert v1 = IR_CALL... to:
+// 1. v2 = IR_CALL...
+// 2. v1 = v2
+// v2 will be constrained by the register allocator to bind to RAX.
+// Live range coalescing prevents the v1-v2 live range from getting merged with
+// a special check for IR_CALL.
+void add_function_call_result_moves(Function *function) {
+    Tac *ir, *tac;
+    Value *value;
+
+    make_vreg_count(function, 0);
+
+    ir = function->ir;
+    while (ir) {
+        if (ir->operation == IR_CALL && ir->dst) {
+            value = dup_value(ir->dst);
+            value->vreg = ++function->vreg_count;
+            tac = new_instruction(IR_MOVE);
+            tac->dst = ir->dst;
+            tac->src1 = value;
+            ir->dst = value;
+            insert_instruction(ir->next, tac, 1);
+        }
+
+        ir = ir->next;
+    }
+}
+
 void index_tac(Tac *ir) {
     Tac *tac;
     int i;
@@ -1173,6 +1201,46 @@ void add_ig_edge_for_reserved_register(char *ig, int vreg_count, Set *livenow, T
     if (tac->src2 && tac->src2->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->src2->vreg);
 }
 
+// Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
+void add_ig_edges_for_forced_register_dst(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index) {
+    int i;
+
+    // Everything that is live other than vreg may not use preg_reg_index
+    for (i = 0; i <= livenow->max_value; i++)
+        if (i != vreg && livenow->elements[i])
+            add_ig_edge(ig, vreg_count, preg_reg_index, i);
+
+    // Add edges to all non reserved physical registers
+    if (preg_reg_index != LIVE_RANGE_PREG_RAX_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RAX_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_RBX_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RBX_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_RCX_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RCX_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_RDX_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RDX_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_RSI_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RSI_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_RDI_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RDI_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_R8_INDEX ) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R8_INDEX );
+    if (preg_reg_index != LIVE_RANGE_PREG_R9_INDEX ) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R9_INDEX );
+    if (preg_reg_index != LIVE_RANGE_PREG_R12_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R12_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_R13_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R13_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_R14_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R14_INDEX);
+    if (preg_reg_index != LIVE_RANGE_PREG_R15_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R15_INDEX);
+}
+
+void print_interference_graph(Function *function) {
+    int vreg_count, from, to, from_offset;
+    char *interference_graph; // Triangular matrix of edges
+
+    interference_graph = function->interference_graph;
+    vreg_count = function->vreg_count;
+
+    for (from = 1; from <= vreg_count; from++) {
+        from_offset = from * vreg_count;
+        for (to = from + 1; to <= vreg_count; to++) {
+            if (interference_graph[from_offset + to])
+                printf("%-4d    %d\n", to, from);
+        }
+    }
+}
+
 // Page 701 of engineering a compiler
 void make_interference_graph(Function *function) {
     int i, j, vreg_count, block_count, edge_count, from, to, index, from_offset;
@@ -1204,7 +1272,6 @@ void make_interference_graph(Function *function) {
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
             if (function_call_depth > 0) {
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
@@ -1212,6 +1279,14 @@ void make_interference_graph(Function *function) {
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
             }
+
+            if (tac->operation == IR_CALL || tac->operation == X_CALL)
+                if (tac->dst && tac->dst->vreg)
+                    // Force dst to get RAX
+                    add_ig_edges_for_forced_register_dst(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX);
+                else
+                    // There is no dst, but RAX gets nuked, so add edges for it
+                    add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
                 add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
@@ -1297,13 +1372,8 @@ void make_interference_graph(Function *function) {
     function->interference_graph = interference_graph;
 
     if (debug_ssa_interference_graph) {
-        for (from = 1; from <= vreg_count; from++) {
-            from_offset = from * vreg_count;
-            for (to = from + 1; to <= vreg_count; to++) {
-                if (interference_graph[from_offset + to])
-                    printf("%d - %d\n", to, from);
-            }
-        }
+        printf("Interference graph:\n");
+        print_interference_graph(function);
     }
 }
 
@@ -1438,6 +1508,12 @@ void coalesce_live_ranges(Function *function) {
                     if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1;
                     if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
                 }
+
+                if (tac->operation == IR_CALL)
+                    if (tac->dst && tac->dst->vreg)
+                        for (src = 1; src <= vreg_count; src++)
+                            instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
+
                 tac = tac->next;
             }
 

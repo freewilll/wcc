@@ -6,19 +6,26 @@
 
 // Indexes used to reference the physically reserved registers, starting at 0
 int SSA_PREG_REG_RAX;
+int SSA_PREG_REG_RBX;
 int SSA_PREG_REG_RCX;
 int SSA_PREG_REG_RDX;
 int SSA_PREG_REG_RSI;
 int SSA_PREG_REG_RDI;
+int SSA_PREG_REG_RBP;
+int SSA_PREG_REG_RSP;
 int SSA_PREG_REG_R8;
 int SSA_PREG_REG_R9;
+int SSA_PREG_REG_R10;
+int SSA_PREG_REG_R11;
+int SSA_PREG_REG_R12;
+int SSA_PREG_REG_R13;
+int SSA_PREG_REG_R14;
+int SSA_PREG_REG_R15;
 
 typedef struct vreg_cost {
     int vreg;
     int cost;
 } VregCost;
-
-int *physical_registers, *preg_map;
 
 void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
     int i, j, pivot;
@@ -67,6 +74,7 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
 
     neighbor_colors = new_set(physical_register_count);
 
+    if (debug_graph_coloring) printf("Allocating register for vreg %d\n", vreg);
     offset = vreg * vreg_count;
     for (i = 1; i <= vreg_count; i++) {
         if ((i < vreg && ig[i * vreg_count + vreg]) || ig[offset + i]) {
@@ -75,15 +83,23 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
         }
     }
 
+    if (debug_graph_coloring) {
+        printf("  Neighbor colors: ");
+        print_set(neighbor_colors);
+        printf("\n");
+    }
+
     if (!opt_enable_register_allocation || set_len(neighbor_colors) == physical_register_count) {
         vreg_locations[vreg].stack_index = -*spilled_register_count - 1;
         (*spilled_register_count)++;
+        if (debug_graph_coloring) printf("  spilled %d\n", vreg);
     }
     else {
         // Find first free physical register
         for (j = 0; j < physical_register_count; j++) {
             if (!in_set(neighbor_colors, j)) {
                 vreg_locations[vreg].preg = j;
+                if (debug_graph_coloring) printf("  allocated %d\n", j);
                 return;
             }
         }
@@ -95,13 +111,13 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
 }
 
 void allocate_registers_top_down(Function *function, int physical_register_count) {
-    int i, vreg_count, *spill_cost, edge_count, degree, spilled_register_count, vreg;
+    int i, vreg_count, *spill_cost, edge_count, degree, spilled_register_count, vreg, vreg_locations_count;
     char *interference_graph;
     VregLocation *vreg_locations;
     Set *constrained, *unconstrained;
     VregCost *ordered_nodes;
 
-    if (debug_ssa_top_down_register_allocator) print_ir(function, 0);
+    if (debug_register_allocation) print_ir(function, 0);
 
     interference_graph = function->interference_graph;
     vreg_count = function->vreg_count;
@@ -126,7 +142,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
             add_to_set(constrained, ordered_nodes[i].vreg);
     }
 
-    if (debug_ssa_top_down_register_allocator) {
+    if (debug_register_allocation) {
         printf("Nodes in order of decreasing cost:\n");
         for (i = 1; i <= vreg_count; i++)
             printf("%d: cost=%d degree=%d\n", ordered_nodes[i].vreg, ordered_nodes[i].cost, graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg));
@@ -136,7 +152,8 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         printf("unconstrained: "); print_set(unconstrained); printf("\n\n");
     }
 
-    vreg_locations = malloc((vreg_count + 1) * sizeof(VregLocation));
+    vreg_locations_count = vreg_count > PHYSICAL_REGISTER_COUNT ? vreg_count : PHYSICAL_REGISTER_COUNT;
+    vreg_locations = malloc((vreg_locations_count + 1) * sizeof(VregLocation));
     for (i = 1; i <= vreg_count; i++) {
         vreg_locations[i].preg = -1;
         vreg_locations[i].stack_index = 0;
@@ -146,13 +163,19 @@ void allocate_registers_top_down(Function *function, int physical_register_count
 
     // Pre-color reserved registers
     if (live_range_reserved_pregs_offset > 0) {
+        // RBP, RSP, R10, R11 are reserved and not in this list
         vreg_locations[LIVE_RANGE_PREG_RAX_INDEX].preg = SSA_PREG_REG_RAX;
+        vreg_locations[LIVE_RANGE_PREG_RBX_INDEX].preg = SSA_PREG_REG_RBX;
         vreg_locations[LIVE_RANGE_PREG_RCX_INDEX].preg = SSA_PREG_REG_RCX;
         vreg_locations[LIVE_RANGE_PREG_RDX_INDEX].preg = SSA_PREG_REG_RDX;
         vreg_locations[LIVE_RANGE_PREG_RSI_INDEX].preg = SSA_PREG_REG_RSI;
         vreg_locations[LIVE_RANGE_PREG_RDI_INDEX].preg = SSA_PREG_REG_RDI;
         vreg_locations[LIVE_RANGE_PREG_R8_INDEX ].preg = SSA_PREG_REG_R8;
         vreg_locations[LIVE_RANGE_PREG_R9_INDEX ].preg = SSA_PREG_REG_R9;
+        vreg_locations[LIVE_RANGE_PREG_R12_INDEX].preg = SSA_PREG_REG_R12;
+        vreg_locations[LIVE_RANGE_PREG_R13_INDEX].preg = SSA_PREG_REG_R13;
+        vreg_locations[LIVE_RANGE_PREG_R14_INDEX].preg = SSA_PREG_REG_R14;
+        vreg_locations[LIVE_RANGE_PREG_R15_INDEX].preg = SSA_PREG_REG_R15;
     }
 
     // Color constrained nodes first
@@ -171,11 +194,11 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
     }
 
-    if (debug_ssa_top_down_register_allocator) {
+    if (debug_register_allocation) {
         printf("Assigned physical registers and stack indexes:\n");
 
         for (i = 1; i <= vreg_count; i++) {
-            printf("%d: ", i);
+            printf("%-3d ", i);
             if (vreg_locations[i].preg == -1) printf("    "); else printf("%3d", vreg_locations[i].preg);
             if (vreg_locations[i].stack_index) printf("    "); else printf("%3d", vreg_locations[i].stack_index);
             printf("\n");
@@ -211,12 +234,17 @@ void init_allocate_registers() {
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
         if (!in_set(reserved_registers, i)) {
             if (i == REG_RAX) SSA_PREG_REG_RAX = preg_count;
+            if (i == REG_RBX) SSA_PREG_REG_RBX = preg_count;
             if (i == REG_RCX) SSA_PREG_REG_RCX = preg_count;
             if (i == REG_RDX) SSA_PREG_REG_RDX = preg_count;
             if (i == REG_RSI) SSA_PREG_REG_RSI = preg_count;
             if (i == REG_RDI) SSA_PREG_REG_RDI = preg_count;
             if (i == REG_R8)  SSA_PREG_REG_R8  = preg_count;
             if (i == REG_R9)  SSA_PREG_REG_R9  = preg_count;
+            if (i == REG_R12) SSA_PREG_REG_R12 = preg_count;
+            if (i == REG_R13) SSA_PREG_REG_R13 = preg_count;
+            if (i == REG_R14) SSA_PREG_REG_R14 = preg_count;
+            if (i == REG_R15) SSA_PREG_REG_R15 = preg_count;
 
             preg_map[preg_count++] = i;
         }

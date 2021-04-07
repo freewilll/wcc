@@ -554,6 +554,7 @@ void reverse_function_argument_order(Function *function) {
     free(args);
 }
 
+// Insert tac instruction before tac
 Tac *insert_instruction(Tac *ir, Tac *tac, int move_label) {
     int i;
     Tac *prev;

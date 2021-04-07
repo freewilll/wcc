@@ -123,7 +123,8 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-interference-graph"          )) { debug_ssa_interference_graph = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-live-range-coalescing"       )) { debug_ssa_live_range_coalescing = 1;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-spill-cost"                  )) { debug_ssa_spill_cost = 1;                   argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-top-down-register-allocator" )) { debug_ssa_top_down_register_allocator = 1;  argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-register-allocation"             )) { debug_register_allocation = 1;              argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-graph-coloring"                  )) { debug_graph_coloring = 1;                   argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-tree-merging"            )) { debug_instsel_tree_merging = 1;             argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-tree-merging-deep"       )) { debug_instsel_tree_merging_deep = 1;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-igraph-simplification"   )) { debug_instsel_igraph_simplification = 1;    argc--; argv++; }
@@ -198,7 +199,8 @@ int main(int argc, char **argv) {
         printf("--debug-ssa-interference-graph\n");
         printf("--debug-ssa-live-range-coalescing\n");
         printf("--debug-ssa-spill-cost\n");
-        printf("--debug-ssa-top-down-register-allocator\n");
+        printf("--debug-register-allocation\n");
+        printf("--debug-graph-coloring\n");
         printf("--debug-instsel-tree-merging\n");
         printf("--debug-instsel-tree-merging-deep\n");
         printf("--debug-instsel-igraph-simplification\n");
@@ -220,7 +222,8 @@ int main(int argc, char **argv) {
     get_debug_env_value("DEBUG_SSA_INTERFERENCE_GRAPH", &debug_ssa_interference_graph);
     get_debug_env_value("DEBUG_SSA_LIVE_RANGE_COALESCING", &debug_ssa_live_range_coalescing);
     get_debug_env_value("DEBUG_SSA_SPILL_COST", &debug_ssa_spill_cost);
-    get_debug_env_value("DEBUG_SSA_TOP_DOWN_REGISTER_ALLOCATOR", &debug_ssa_top_down_register_allocator);
+    get_debug_env_value("DEBUG_REGISTER_ALLOCATION", &debug_register_allocation);
+    get_debug_env_value("DEBUG_GRAPH_COLORING", &debug_graph_coloring);
     get_debug_env_value("DEBUG_INSTSEL_TREE_MERGING", &debug_instsel_tree_merging);
     get_debug_env_value("DEBUG_INSTSEL_TREE_MERGING_DEEP", &debug_instsel_tree_merging_deep);
     get_debug_env_value("DEBUG_INSTSEL_IGRAPH_SIMPLIFICATION", &debug_instsel_igraph_simplification);

@@ -562,12 +562,6 @@ void output_function_body_code(Symbol *symbol) {
             else
                 fprintf(f, "    callq   %s\n", tac->src1->function_symbol->identifier);
 
-            if (tac->dst) {
-                fprintf(f, "    movq    %%rax, ");
-                output_quad_register_name(tac->dst->preg);
-                fprintf(f, "\n");
-            }
-
             // Adjust the stack for any args that are on in stack
             if (ac > 6) {
                 fprintf(f, "    addq    $%d, %%rsp\n", (ac - 6) * 8);

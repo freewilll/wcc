@@ -178,7 +178,7 @@ enum {
     MAX_STRING_LITERALS           = 10240,
     VALUE_STACK_SIZE              = 10240,
     MAX_VREG_COUNT                = 10240,
-    PHYSICAL_REGISTER_COUNT       = 15,
+    PHYSICAL_REGISTER_COUNT       = 16,
     MAX_SPILLED_REGISTER_COUNT    = 1024,
     MAX_INPUT_FILENAMES           = 1024,
     MAX_BLOCKS                    = 1024,
@@ -424,7 +424,8 @@ int debug_ssa_live_range;
 int debug_ssa_interference_graph;
 int debug_ssa_live_range_coalescing;
 int debug_ssa_spill_cost;
-int debug_ssa_top_down_register_allocator;
+int debug_register_allocation;
+int debug_graph_coloring;
 int debug_instsel_tree_merging;
 int debug_instsel_tree_merging_deep;
 int debug_instsel_igraph_simplification;
@@ -515,16 +516,21 @@ void post_process_function_parse(Function *function);
 
 // ssa.c
 enum {
-    RESERVED_PHYSICAL_REGISTER_COUNT = 7,
+    RESERVED_PHYSICAL_REGISTER_COUNT = 12,
 
     // Liveness interval indexes corresponding to reserved physical registers
     LIVE_RANGE_PREG_RAX_INDEX = 1,
+    LIVE_RANGE_PREG_RBX_INDEX,
     LIVE_RANGE_PREG_RCX_INDEX,
     LIVE_RANGE_PREG_RDX_INDEX,
     LIVE_RANGE_PREG_RSI_INDEX,
     LIVE_RANGE_PREG_RDI_INDEX,
     LIVE_RANGE_PREG_R8_INDEX,
     LIVE_RANGE_PREG_R9_INDEX,
+    LIVE_RANGE_PREG_R12_INDEX,
+    LIVE_RANGE_PREG_R13_INDEX,
+    LIVE_RANGE_PREG_R14_INDEX,
+    LIVE_RANGE_PREG_R15_INDEX,
 };
 
 // Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
@@ -544,15 +550,19 @@ void rename_vars(Function *function, Stack **stack, int *counters, int block_num
 void make_control_flow_graph(Function *function);
 void make_block_dominance(Function *function);
 void make_live_range_spill_cost(Function *function);
+void print_interference_graph(Function *function);
 void coalesce_live_ranges(Function *function);
 void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void make_globals_and_var_blocks(Function *function);
 void insert_phi_functions(Function *function);
 void map_stack_index_to_local_index(Function *function);
 void rewrite_lvalue_reg_assignments(Function *function);
+void add_function_call_result_moves(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
 
 // regalloc.c
+int *physical_registers, *preg_map;
+
 void allocate_registers_top_down(Function *function, int physical_register_count);
 void allocate_registers(Function *function);
 void assign_vreg_locations(Function *function);

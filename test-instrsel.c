@@ -826,16 +826,24 @@ void test_instrsel_returns() {
     assert_x86_op("movq    r1q, %rax");
 }
 
+void test_function_call(Value *dst, int mov_op) {
+    // This test don't test much, just that the IR_CALL rules will work.
+    start_ir();
+    i(0, IR_CALL, dst, fu(1), 0);
+    i(0, IR_MOVE, v(2), dst, 0);
+    finish_ir(function);
+    assert_tac(ir_start,       X_CALL, v(3), fu(1), 0);
+    assert_tac(ir_start->next, mov_op, v(2), v(3), 0);
+}
+
 void test_instrsel_function_calls() {
     remove_reserved_physical_registers = 1;
 
-    // The legacy backend extends %rax coming from a call to a quad. These
-    // tests don't test much, just that the rules will work.
-    si(function, 0, IR_CALL, vsz(1, TYPE_PTR + TYPE_VOID),  fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_CHAR),             fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_SHORT),            fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_INT),              fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
-    si(function, 0, IR_CALL, vsz(1, TYPE_LONG),             fu(1), 0); assert_tac(ir_start, X_CALL, v(1), fu(1), 0);
+    test_function_call(vsz(1, TYPE_CHAR),            X_MOVSBQ);
+    test_function_call(vsz(1, TYPE_SHORT),           X_MOVSWQ);
+    test_function_call(vsz(1, TYPE_INT),             X_MOVSLQ);
+    test_function_call(vsz(1, TYPE_LONG),            X_MOV);
+    test_function_call(vsz(1, TYPE_PTR + TYPE_VOID), X_MOV);
 }
 
 void test_instrsel_function_call_rearranging() {

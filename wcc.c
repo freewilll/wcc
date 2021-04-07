@@ -6,6 +6,7 @@ void run_compiler_phases(Function *function, int stop_at) {
     sanity_test_ir_linkage(function);
     optimize_arithmetic_operations(function);
     rewrite_lvalue_reg_assignments(function);
+    add_function_call_result_moves(function);
     analyze_dominance(function);
     if (stop_at == COMPILE_STOP_AFTER_ANALYZE_DOMINANCE) return;
 
