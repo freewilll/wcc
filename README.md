@@ -27,7 +27,7 @@ $ ./wcc test.c -o test
 The compiler goes through the following phases:
 
 - Hand rolled lexer
-- precedence climbing parser
+- Precedence climbing parser
 - `optimize_arithmetic_operations` for simple arithmetic transformations
 - Transformation into [SSA](https://en.wikipedia.org/wiki/Static_single_assignment_form)
 - Data flow analysis and replacement of variables with live ranges
@@ -109,18 +109,16 @@ main:
 # Improvements
 This is a short summary of I have in mind to improve
 
-- More optimizations using the SSA representation
-- More tree tiling rules, e.g. the `inc` instruction and `mov` instructions with better addressing
-- Better spill code generation for specific cases
-- Improve function return value handling
 - Improve function arg register use in function calls by using live ranges, register constraints and coalescing
+- More tree tiling rules, e.g. the `inc` instruction and `mov` instructions with better addressing
+- More optimizations using the SSA representation
 - Scalar optimizations
 - Redundancy elimination
 - Common subexpresion elimination
 - Code layout
+- Better spill code generation for specific cases
 - Consider using peephole optimization, esp useful for spill code
-- Reconsider if SSA interference constraint for rsub `dst == src1` can be avoided
-- IR doesn't allow `dst == src1` nor `dst == src2`, yet x86_64 is a two-operand arch. Both approaches lead to a lot of e.g. mov/add ops. Consider if this can't be improved.
+- Reconsider if SSA interference constraint for rsub `dst == src1` can be avoided. The IR doesn't allow `dst == src1` nor `dst == src2`, yet x86_64 is a two-operand arch. Both approaches lead to a lot of e.g. mov/add ops. Consider if this can't be improved.
 
 So far, I've been ad libbing through [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). I'd like to focus on the areas I have not yet touched.
 
