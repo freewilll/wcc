@@ -194,7 +194,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
 
     if (v->is_lvalue) c += printf("{l}");
     if (v->is_lvalue_in_register) c += printf("{lr}");
-    if (is_assignment_rhs && !v->is_lvalue && !v->vreg) c += fprintf(f, "&");
+    if (is_assignment_rhs && !v->is_lvalue && !v->vreg && !v->is_constant) c += fprintf(f, "&");
     if (!is_assignment_rhs && v->is_lvalue && v->vreg) c += fprintf(f, "L");
 
     if (v->is_constant)
