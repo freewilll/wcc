@@ -71,8 +71,9 @@ Value *dup_value(Value *src) {
     dst->string_literal_index           = src->string_literal_index;
     dst->value                          = src->value;
     dst->function_symbol                = src->function_symbol;
+    dst->is_function_call_arg           = src->is_function_call_arg;
+    dst->function_call_arg_index        = src->function_call_arg_index;
     dst->function_call_arg_count        = src->function_call_arg_count;
-    dst->function_call_direct_reg_count = src->function_call_direct_reg_count;
     dst->global_symbol                  = src->global_symbol;
     dst->label                          = src->label;
     dst->ssa_subscript                  = src->ssa_subscript;

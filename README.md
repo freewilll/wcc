@@ -81,27 +81,30 @@ main:
     push    %rbp                # Function prologue
     movq    %rsp, %rbp
     pushq   %rbx
-    pushq   %r12
+    subq    $8, %rsp
     movq    $8, %rdi            # s2 = malloc(sizeof(S2));
     callq   malloc@PLT
     movq    %rax, %rbx          # rbx = s2
+    addq    $8, %rsp            # FIXME remove identical addq/subq combinations
+    subq    $8, %rsp
     movq    $8, %rdi            # s2->s1 = malloc(sizeof(S1));
     callq   malloc@PLT
-    movq    %rax, %r12
-    movq    %r12, (%rbx)
+    addq    $8, %rsp
+    movq    %rax, (%rbx)
     movq    (%rbx), %rax        # s2->s1->j = 1;
     addq    $4, %rax
     movl    $1, (%rax)
-    movq    (%rbx), %rbx        # printf("%d\n", s2->s1->j);
-    movslq  4(%rbx), %rbx
-    movq    %rbx, %rsi
-    leaq    .SL0(%rip), %rbx
-    movq    %rbx, %rdi
+    subq    $8, %rsp
+    movq    (%rbx), %rax        # printf("%d\n", s2->s1->j);
+    movl    4(%rax), %ebx
+    leaq    .SL0(%rip), %rax
+    movq    %rax, %rdi
+    movslq  %ebx, %rsi
     movb    $0, %al
     callq   printf@PLT
+    addq    $8, %rsp
     movq    $0, %rax            # Function exit code zero
-    popq    %r12                # Function epilogue
-    popq    %rbx
+    popq    %rbx                # Function epilogue
     leaveq
     retq
 ```

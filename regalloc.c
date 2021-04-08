@@ -178,6 +178,12 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg_locations[LIVE_RANGE_PREG_R15_INDEX].preg = SSA_PREG_REG_R15;
     }
 
+    if (debug_ssa_interference_graph) {
+        printf("Live range preg index -> preg map:\n");
+        for (i = 1; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
+            printf("%-2d -> %-2d: %s\n", i, vreg_locations[i].preg, register_name(vreg_locations[i].preg));
+    }
+
     // Color constrained nodes first
     for (i = 1; i <= vreg_count; i++) {
         vreg = ordered_nodes[i].vreg;

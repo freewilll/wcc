@@ -452,7 +452,7 @@ void expression(int level) {
     Symbol *symbol;
     Struct *str;
     StructMember *member;
-    Value *v1, *v2, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value;
+    Value *v1, *v2, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value, *arg;
     Tac *tac;
 
     // Parse any tokens that can be at the start of an expression
@@ -595,7 +595,10 @@ void expression(int level) {
             while (1) {
                 if (cur_token == TOK_RPAREN) break;
                 expression(TOK_COMMA);
-                add_instruction(IR_ARG, 0, src1, pl());
+                arg = dup_value(src1);
+                if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
+                arg->function_call_arg_index = arg_count;
+                add_instruction(IR_ARG, 0, arg, pl());
                 arg_count++;
                 if (cur_token == TOK_RPAREN) break;
                 consume(TOK_COMMA, ",");

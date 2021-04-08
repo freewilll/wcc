@@ -116,8 +116,9 @@ typedef struct value {
     int string_literal_index;               // Index in the string_literals array in the case of a string literal
     long value;                             // Value in the case of a constant
     Symbol *function_symbol;                // Corresponding symbol in the case of a function call
+    int is_function_call_arg;               // Index of the argument going left to right (0=leftmost)
+    int function_call_arg_index;            // Index of the argument going left to right (0=leftmost)
     int function_call_arg_count;            // Number of arguments in the case of a function call
-    int function_call_direct_reg_count;     // Number of arguments that can go straight into a register in a function call
     Symbol *global_symbol;                  // Pointer to a global symbol if the value is a global symbol
     int label;                              // Target label in the case of jump instructions
     int pushed_stack_aligned_quad;          // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
@@ -176,6 +177,7 @@ enum {
     MAX_STRUCT_MEMBERS            = 1024,
     MAX_INPUT_SIZE                = 10485760,
     MAX_STRING_LITERALS           = 10240,
+    MAX_FUNCTION_CALL_ARGS        = 253,
     VALUE_STACK_SIZE              = 10240,
     MAX_VREG_COUNT                = 10240,
     PHYSICAL_REGISTER_COUNT       = 16,
@@ -558,6 +560,7 @@ void insert_phi_functions(Function *function);
 void map_stack_index_to_local_index(Function *function);
 void rewrite_lvalue_reg_assignments(Function *function);
 void add_function_call_result_moves(Function *function);
+void add_function_call_arg_moves(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
 
 // regalloc.c
@@ -688,7 +691,6 @@ Value **saved_values;
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
 void add_spill_code(Function *function);
-void make_function_call_direct_reg_counts(Function *function);
 
 // instrutil.c
 char size_to_x86_size(int size);
@@ -713,6 +715,7 @@ void check_for_duplicate_rules();
 void init_instruction_selection_rules();
 
 // codegen.c
+char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expect_preg);
 void init_callee_saved_registers();
 void output_function_body_code(Symbol *symbol);

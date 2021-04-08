@@ -139,6 +139,56 @@ void add_function_call_result_moves(Function *function) {
     }
 }
 
+void add_function_call_arg_moves(Function *function) {
+    int i, function_call_count;
+    Tac *ir, *tac;
+    Value **arg_values, **call_arg;
+
+    function_call_count = make_function_call_count(function);
+
+    arg_values = malloc(sizeof(Value *) * function_call_count * 6);
+    memset(arg_values, 0, sizeof(Value *) * function_call_count * 6);
+
+    make_vreg_count(function, 0);
+
+    ir = function->ir;
+    while (ir) {
+        if (ir->operation == IR_ARG && ir->src1->function_call_arg_index < 6) {
+            arg_values[ir->src1->value * 6 + ir->src1->function_call_arg_index] = ir->src2;
+            ir->operation = IR_NOP;
+        }
+
+        if (ir->operation == IR_CALL) {
+            call_arg = &(arg_values[ir->src1->value * 6]);
+            // Add the moves backwards so that arg 0 (rsi) is last.
+            i = 0;
+            while (i < 6 && *call_arg) {
+                call_arg++;
+                i++;
+            }
+
+            call_arg--;
+            i--;
+
+            for (; i >= 0; i--) {
+                tac = new_instruction(IR_MOVE);
+                tac->dst = new_value();
+                tac->dst->type = (*call_arg)->type;
+                tac->dst->vreg = ++function->vreg_count;
+                // FIXME function argument conversion needs work
+                if (tac->dst->type >= TYPE_CHAR && tac->dst->type < TYPE_LONG) tac->dst->type = TYPE_LONG;
+                tac->src1 = *call_arg;
+                tac->src1->is_function_call_arg = 1;
+                tac->src1->function_call_arg_index = i;
+                insert_instruction(ir, tac, 1);
+                call_arg--;
+            }
+        }
+
+        ir = ir->next;
+    }
+}
+
 void index_tac(Tac *ir) {
     Tac *tac;
     int i;
@@ -1182,6 +1232,8 @@ void blast_vregs_with_live_ranges(Function *function) {
 void add_ig_edge(char *ig, int vreg_count, int to, int from) {
     int index;
 
+    if (debug_ssa_interference_graph) printf("Adding edge %d <-> %d\n", to, from);
+
     if (from > to)
         index = to * vreg_count + from;
     else
@@ -1190,11 +1242,24 @@ void add_ig_edge(char *ig, int vreg_count, int to, int from) {
     if (!ig[index]) ig[index] = 1;
 }
 
-void add_ig_edge_for_reserved_register(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
+// Add edges to a physical register for all live variables, preventing the physical register from
+// getting used.
+void clobber_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
     int i;
 
-    for (i = 0; i <= livenow->max_value; i++)
-        if (livenow->elements[i]) add_ig_edge(ig, vreg_count, preg_reg_index, i);
+    if (debug_ssa_interference_graph) printf("Clobbering livenow for pri=%d\n", preg_reg_index);
+
+    for (i = 0; i <= livenow->max_value; i++) {
+        if (livenow->elements[i])
+            add_ig_edge(ig, vreg_count, preg_reg_index, i);
+    }
+}
+
+// Add edges to a physical register for all live variables and all values in an instruction
+void clobber_tac_and_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
+    if (debug_ssa_interference_graph) printf("Adding edges for pri=%d\n", preg_reg_index);
+
+    clobber_livenow(ig, vreg_count, livenow, tac, preg_reg_index);
 
     if (tac->dst  && tac->dst ->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->dst->vreg );
     if (tac->src1 && tac->src1->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->src1->vreg);
@@ -1202,10 +1267,10 @@ void add_ig_edge_for_reserved_register(char *ig, int vreg_count, Set *livenow, T
 }
 
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
-void add_ig_edges_for_forced_register_dst(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index) {
+void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index) {
     int i;
 
-    // Everything that is live other than vreg may not use preg_reg_index
+    if (debug_ssa_interference_graph) printf("Adding edges on vreg %d for all registers except pri=%d\n", vreg, preg_reg_index);
     for (i = 0; i <= livenow->max_value; i++)
         if (i != vreg && livenow->elements[i])
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
@@ -1243,14 +1308,18 @@ void print_interference_graph(Function *function) {
 
 // Page 701 of engineering a compiler
 void make_interference_graph(Function *function) {
-    int i, j, vreg_count, block_count, edge_count, from, to, index, from_offset;
+    int i, j, vreg_count, block_count, edge_count, from, to, index, from_offset, arg;
     Block *blocks;
     Set *livenow;
     Tac *tac;
     char *interference_graph; // Triangular matrix of edges
     int function_call_depth;
 
-    if (debug_ssa_interference_graph) print_ir(function, 0);
+    if (debug_ssa_interference_graph) {
+        printf("Make interference graph\n");
+        printf("--------------------------------------------------------\n");
+        print_ir(function, 0);
+    }
 
     vreg_count = function->vreg_count;
 
@@ -1271,34 +1340,52 @@ void make_interference_graph(Function *function) {
             if (tac->operation == IR_END_CALL) function_call_depth++;
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
-            if (function_call_depth > 0) {
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
+            if (tac->src1 && tac->src1->is_function_call_arg &&
+                (tac->operation == IR_MOVE || tac->operation == X_MOV || tac->operation == X_MOVSBQ || tac->operation == X_MOVSWQ || tac->operation == X_MOVSLQ)) {
+                arg = tac->src1->function_call_arg_index;
+                if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
+
+                if (arg == 0) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RDI_INDEX);
+                if (arg == 1) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RSI_INDEX);
+                if (arg == 2) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RDX_INDEX);
+                if (arg == 3) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RCX_INDEX);
+                if (arg == 4) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_R8_INDEX);
+                if (arg == 5) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_R9_INDEX);
             }
 
-            if (tac->operation == IR_CALL || tac->operation == X_CALL)
+            if (tac->operation == IR_CALL || tac->operation == X_CALL) {
+                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
+                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
+                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
+                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
+
                 if (tac->dst && tac->dst->vreg)
                     // Force dst to get RAX
-                    add_ig_edges_for_forced_register_dst(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX);
+                    force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX);
                 else
                     // There is no dst, but RAX gets nuked, so add edges for it
-                    add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                    clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+            }
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
 
                 // Works together with the instruction rules
                 if (tac->operation == X_IDIV)
                     add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, tac->dst->vreg);
             }
 
-            if (tac->operation == IR_BSHL || tac->operation == IR_BSHR)
-                add_ig_edge_for_reserved_register(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+            if (tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
+                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
+            }
+
+            // Works together with the instruction rules. Ensure the shift value cannot be in rcx.
+            if (tac->operation == X_SHL || tac->operation == X_SAR)
+                add_ig_edge(interference_graph, vreg_count, tac->prev->src1->vreg, LIVE_RANGE_PREG_RCX_INDEX);
+
 
             if (tac->dst && tac->dst->vreg) {
                 if (tac->operation == IR_RSUB && tac->src1->vreg) {
@@ -1513,6 +1600,11 @@ void coalesce_live_ranges(Function *function) {
                     if (tac->dst && tac->dst->vreg)
                         for (src = 1; src <= vreg_count; src++)
                             instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
+
+                if (tac->operation == IR_MOVE && tac->src1->is_function_call_arg) {
+                    for (src = 1; src <= vreg_count; src++)
+                        instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
+                }
 
                 tac = tac->next;
             }

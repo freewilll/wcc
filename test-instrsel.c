@@ -52,16 +52,32 @@ void assert_x86_op(char *expected) {
     n();
 }
 
-char *assert_rx86_preg_op(char *expected) {
+void assert_rx86_preg_op(char *expected) {
     char *got;
 
-    got = render_x86_operation(ir_start, 0, 0, 1);
-    if (strcmp(got, expected)) {
+    if (!ir_start && expected) {
+        printf("Expected %s, got nothing\n", expected);
+        failures++;
+        return;
+    }
+    else if (!ir_start && !expected) return;
+
+    got = 0;
+    while (ir_start && !got) {
+        got = render_x86_operation(ir_start, 0, 0, 1);
+        n();
+    }
+
+    if (!expected) {
+        printf("Expected nothing, got %s\n", got);
+        failures++;
+        return;
+    }
+
+    if (got && expected && strcmp(got, expected)) {
         printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
         failures++;
     }
-
-    n();
 }
 
 // Run with a single instruction
@@ -366,59 +382,6 @@ void test_instrsel() {
     assert_tac(ir_start,       X_MOV, v(1), c(1), 0   );
     assert_tac(ir_start->next, X_ADD, v(1), g(1), v(1));
 
-    // arg c with only the reg rule. Forces a load of c into r1
-    start_ir();
-    nuke_rule(0, IR_ARG, CSTL, CSTL);
-    i(0, IR_ARG, 0, c(0), c(1));
-    finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), c(1), 0   );
-    assert_tac(ir_start->next, X_ARG, 0,    c(0), v(1));
-
-    // arg c
-    start_ir();
-    i(0, IR_ARG, 0, c(0), c(1));
-    finish_ir(function);
-    assert_tac(ir_start, X_ARG, 0, c(0), c(1));
-
-    // arg big c, which should go via a register
-    start_ir();
-    i(0, IR_ARG, 0, c(0), c(4294967296));
-    finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), c(4294967296), 0);
-    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
-
-    start_ir();
-    i(0, IR_ARG, 0, c(0), c(2147483648));
-    finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), c(2147483648), 0);
-    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
-
-    start_ir();
-    i(0, IR_ARG, 0, c(0), c(-2147483649));
-    finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), c(-2147483649), 0);
-    assert_tac(ir_start->next, X_ARG, 0, c(0), v(1));
-
-    // arg r
-    start_ir();
-    i(0, IR_ARG, 0, c(0), v(1));
-    finish_ir(function);
-    assert_tac(ir_start, X_ARG, 0, c(0), v(1));
-
-    // arg s
-    start_ir();
-    i(0, IR_ARG, 0, c(0), s(1));
-    finish_ir(function);
-    assert_tac(ir_start,       X_LEA, v(1), s(1), 0   );
-    assert_tac(ir_start->next, X_ARG, 0,    c(0), v(1));
-
-    // arg g
-    start_ir();
-    i(0, IR_ARG, 0, c(0), g(1));
-    finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), g(1), 0   );
-    assert_tac(ir_start->next, X_ARG, 0,    c(0), v(1));
-
     // Store c in g
     start_ir();
     i(0, IR_MOVE, g(1), c(1), 0);
@@ -475,13 +438,6 @@ void test_instrsel() {
     finish_ir(function);
     assert_x86_op("movslq  16(%rbp), r2q");
     assert_x86_op("movq    r2q, r1q");
-
-    // Push a local
-    start_ir();
-    i(0, IR_ARG, 0, c(0), S(1));
-    finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), S(1), 0   );
-    assert_tac(ir_start->next, X_ARG, 0,    c(0), v(1));
 
     // Assign constant to a local
     start_ir();
@@ -608,6 +564,86 @@ void test_instrsel() {
     test_less_than_with_cmp_assignment(function, S(1),              c(1),              "cmpq    $1, 16(%rbp)",  "setl    r1b", "movzbq  r1b, r1q");
     test_less_than_with_cmp_assignment(function, v(1),              S(1),              "cmpq    16(%rbp), r1q", "setl    r2b", "movzbq  r2b, r2q");
     test_less_than_with_cmp_assignment(function, S(1),              v(1),              "cmpq    r1q, 16(%rbp)", "setl    r2b", "movzbq  r2b, r2q");
+}
+
+void run_function_call_single_arg(Value *src) {
+    remove_reserved_physical_registers = 1;
+
+    start_ir();
+    i(0, IR_ARG, 0, c(0), src);
+    i(0, IR_CALL, v(1), fu(1), 0);
+    i(0, IR_MOVE, v(2), v(1), 0);
+    finish_spill_ir(function);
+}
+
+void test_function_args() {
+    remove_reserved_physical_registers = 0;
+
+    // regular constant
+    run_function_call_single_arg(c(1));
+    assert_rx86_preg_op("movq    $1, %rdi" );
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // quad constant
+    run_function_call_single_arg(c(4294967296));
+    assert_rx86_preg_op("movq    $4294967296, %rdi" );
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // long constant
+    run_function_call_single_arg(c(2147483648));
+    assert_rx86_preg_op("movq    $2147483648, %rdi" );
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // negative long constant
+    run_function_call_single_arg(c(-2147483649));
+    assert_rx86_preg_op("movq    $-2147483649, %rdi" );
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // register
+    run_function_call_single_arg(v(1));
+    assert_rx86_preg_op("movq    %rax, %rdi" );
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // global
+    start_ir();
+    run_function_call_single_arg(g(1));
+    assert_rx86_preg_op("movq    g1(%rip), %rdi");
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // local on stack
+    start_ir();
+    run_function_call_single_arg(S(1));
+    assert_rx86_preg_op("movq    16(%rbp), %rdi");
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // pointer to void on stack
+    start_ir();
+    run_function_call_single_arg(Ssz(1, TYPE_PTR + TYPE_VOID));
+    assert_rx86_preg_op("movq    16(%rbp), %rdi");
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // string literal. This is a special case since the parser always loads a string
+    // literal into a register first
+    remove_reserved_physical_registers = 1;
+    start_ir();
+    i(0, IR_MOVE, vsz(1, TYPE_PTR + TYPE_CHAR), s(1), 0);
+    i(0, IR_ARG, 0, c(0), vsz(1, TYPE_PTR + TYPE_CHAR));
+    i(0, IR_CALL, v(2), fu(1), 0);
+    i(0, IR_MOVE, v(3), v(2), 0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op("leaq    .SL1(%rip), %rax");
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op("movq    %rax, %rdi" );
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
 }
 
 // Convert (b, w, l, q) -> (1, 2, 3, 4)
@@ -1227,17 +1263,6 @@ void test_pointer_indirect_global_char_in_struct_to_long() {
     assert_x86_op("movq    r5q, r3q");
 }
 
-void test_pointer_to_void_arg() {
-    remove_reserved_physical_registers = 1;
-
-    start_ir();
-    i(0, IR_MOVE, v(1), Ssz(1, TYPE_PTR + TYPE_VOID), 0);
-    i(0, IR_ARG,  0, c(0), v(1));
-    finish_ir(function);
-    assert_x86_op("movq    16(%rbp), r2q");
-    assert_x86_op("_arg_   r2q"          );
-}
-
 void test_pointer_assignment_precision_decrease(int type1, int type2, char *template) {
     si(function, 0, IR_MOVE_TO_PTR, vsz(2, type1), vsz(2, type1), vsz(1, type2));
     assert_x86_op(template);
@@ -1542,6 +1567,7 @@ int main() {
     test_instrsel_tree_merging_register_constraint();
     test_instrsel_constant_loading();
     test_instrsel();
+    test_function_args();
     test_instrsel_types_add_vregs();
     test_instrsel_types_add_mem_vreg();
     test_instrsel_types_cmp_assignment();
@@ -1567,7 +1593,6 @@ int main() {
     test_pointer_string_literal();
     test_pointer_indirect_from_stack();
     test_pointer_indirect_global_char_in_struct_to_long();
-    test_pointer_to_void_arg();
     test_pointer_assignment_precision_decreases();
     test_simple_int_cast();
     test_assign_to_pointer_to_void();

@@ -35,6 +35,12 @@ void assert_value(Value *v1, Value *v2) {
 }
 
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
+    if (!tac) {
+        failures++;
+        printf("Expected a tac, got nil\n");
+        return;
+    }
+
     assert_long(operation, tac->operation);
 
     if (dst)

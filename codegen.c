@@ -10,6 +10,18 @@ void check_preg(int preg) {
     if (preg < 0 || preg >= PHYSICAL_REGISTER_COUNT) panic1d("Illegal preg %d", preg);
 }
 
+char *register_name(int preg) {
+    char *names;
+    char *buffer;
+
+    check_preg(preg);
+    names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
+    if (preg == 8 || preg == 9) asprintf(&buffer, "%%%.2s", &names[preg * 4]);
+    else                        asprintf(&buffer, "%%%.3s", &names[preg * 4]);
+    return buffer;
+
+}
+
 void output_byte_register_name(int preg) {
     char *names;
 
@@ -430,7 +442,7 @@ void output_pop_callee_saved_registers(int *saved_registers) {
 
 // Output code from the IR of a function
 void output_function_body_code(Symbol *symbol) {
-    int i, cac, pfa, stack_offset, function_call_count;
+    int i, stack_offset, function_call_count;
     Tac *tac;
     char *buffer;
     int function_pc;                    // The Function's param count
@@ -510,49 +522,22 @@ void output_function_body_code(Symbol *symbol) {
             }
         }
 
-        else if (tac->operation == X_ARG) {
-            cac = tac->src1->function_call_direct_reg_count;
-            pfa = processed_function_arguments[tac->src1->value];
-
+        else if (tac->operation == X_ARG && tac->src1->function_call_arg_index > 5) {
             // Dirty hack to get the register without a mnemonic
             buffer = render_x86_operation(tac, function_pc, stack_start, 1);
             buffer += 8;
 
-            if (pfa <= 5 && pfa < cac) {
-                // Copy the value to an argument register
-                fprintf(f, "    movq");
-                fprintf(f, "    %s, ", buffer);
-                     if (pfa == 0) fprintf(f, "%%rdi\n");
-                else if (pfa == 1) fprintf(f, "%%rsi\n");
-                else if (pfa == 2) fprintf(f, "%%rdx\n");
-                else if (pfa == 3) fprintf(f, "%%rcx\n");
-                else if (pfa == 4) fprintf(f, "%%r8\n");
-                else if (pfa == 5) fprintf(f, "%%r9\n");
-                else
-                    panic1d("Unexpectedly fell through in function argument handling: %d", ac);
-            }
-            else {
-                // Push the value to the stack, for popping just before the function call
-                cur_stack_push_count++;
+            // Push the value to the stack, for popping just before the function call
+            cur_stack_push_count++;
 
-                fprintf(f, "    pushq");
-                fprintf(f, "   %s\n", buffer);
-            }
+            fprintf(f, "    pushq");
+            fprintf(f, "   %s\n", buffer);
             processed_function_arguments[tac->src1->value]--;
         }
 
         else if (tac->operation == X_CALL) {
-            // Read the first args from the stack in right to left order
             ac = tac->src1->function_call_arg_count;
-            cac = tac->src1->function_call_direct_reg_count;
 
-            if (ac >= 2 && cac < 2) { cur_stack_push_count--; fprintf(f, "    popq    %%rsi\n"); }
-            if (ac >= 3 && cac < 3) { cur_stack_push_count--; fprintf(f, "    popq    %%rdx\n"); }
-            if (ac >= 4 && cac < 4) { cur_stack_push_count--; fprintf(f, "    popq    %%rcx\n"); }
-            if (ac >= 5 && cac < 5) { cur_stack_push_count--; fprintf(f, "    popq    %%r8\n");  }
-            if (ac >= 6 && cac < 6) { cur_stack_push_count--; fprintf(f, "    popq    %%r9\n");  }
-
-            // Variadic functions have the number of floating point arguments passed in al.
             // Since floating point numbers isn't implemented, this is zero.
             if (tac->src1->function_symbol->function->is_variadic)
                 fprintf(f, "    movb    $0, %%al\n");
