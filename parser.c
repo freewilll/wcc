@@ -742,9 +742,9 @@ void expression(int level) {
 
         else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
             factor = get_type_inc_dec_size(vtop->type);
+            org_token = cur_token;
 
             if (factor > 1) {
-                org_token = cur_token;
                 next();
                 expression(TOK_MULTIPLY);
                 is_pointer = vtop->type >= TYPE_PTR;
@@ -756,16 +756,16 @@ void expression(int level) {
 
                 arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, vs_operation_type());
 
-                if (is_pointer) {
+                if (org_token == TOK_MINUS && is_pointer) {
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_DIV, TYPE_LONG);
                     vtop->type = TYPE_LONG;
                 }
             }
             else {
-                parse_arithmetic_operation(TOK_MULTIPLY, cur_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
+                parse_arithmetic_operation(TOK_MULTIPLY, org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
                 is_pointer = vtop->type >= TYPE_PTR;
-                if (is_pointer) vtop->type = TYPE_LONG;
+                if (org_token == TOK_MINUS && is_pointer) vtop->type = TYPE_LONG;
             }
         }
 
