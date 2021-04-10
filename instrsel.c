@@ -1057,7 +1057,7 @@ Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Value *sr
         // Use the root node tac or value as a result
         if (ign->tac) {
             if (debug_instsel_tiling)
-                printf("  using root vreg for dst %p vreg=%d\n", ign->tac->dst, ign->tac->dst ? ign->tac->dst->vreg : -1);
+                printf("  using root vreg for dst vreg=%d\n", ign->tac->dst ? ign->tac->dst->vreg : -1);
             dst = ign->tac->dst;
         }
         else
