@@ -760,6 +760,7 @@ void remove_unused_function_call_results(Function *function) {
     }
 
     used_vregs = malloc(sizeof(char) * (vreg_count + 1));
+    memset(used_vregs, 0, sizeof(char) * (vreg_count + 1));
 
     tac = function->ir;
     while (tac->next) tac = tac->next;
@@ -768,7 +769,6 @@ void remove_unused_function_call_results(Function *function) {
         if (tac->src1 && tac->src1->vreg) used_vregs[tac->src1->vreg] = 1;
         if (tac->src2 && tac->src2->vreg) used_vregs[tac->src2->vreg] = 1;
         if (tac->operation == IR_MOVE && tac->dst->vreg && tac->dst->is_lvalue) used_vregs[tac->dst->vreg] = 1;
-
         if (tac->operation == IR_CALL && tac->dst && tac->dst->vreg && !used_vregs[tac->dst->vreg]) tac->dst = 0;
 
         tac = tac->prev;
