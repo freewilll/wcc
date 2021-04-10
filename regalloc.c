@@ -254,6 +254,15 @@ void init_allocate_registers() {
 
             preg_map[preg_count++] = i;
         }
+
+    arg_registers = malloc(sizeof(int) * 6);
+    arg_registers[0]  = LIVE_RANGE_PREG_RDI_INDEX;
+    arg_registers[1]  = LIVE_RANGE_PREG_RSI_INDEX;
+    arg_registers[2]  = LIVE_RANGE_PREG_RDX_INDEX;
+    arg_registers[3]  = LIVE_RANGE_PREG_RCX_INDEX;
+    arg_registers[4]  = LIVE_RANGE_PREG_R8_INDEX;
+    arg_registers[5]  = LIVE_RANGE_PREG_R9_INDEX;
+
 }
 
 void assign_vreg_locations(Function *function) {

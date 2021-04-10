@@ -1344,22 +1344,12 @@ void make_interference_graph(Function *function) {
                 (tac->operation == IR_MOVE || tac->operation == X_MOV || tac->operation == X_MOVSBQ || tac->operation == X_MOVSWQ || tac->operation == X_MOVSLQ)) {
                 arg = tac->src1->function_call_arg_index;
                 if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
-
-                if (arg == 0) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RDI_INDEX);
-                if (arg == 1) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RSI_INDEX);
-                if (arg == 2) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RDX_INDEX);
-                if (arg == 3) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RCX_INDEX);
-                if (arg == 4) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_R8_INDEX);
-                if (arg == 5) force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_R9_INDEX);
+                force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, arg_registers[arg]);
             }
 
             if (tac->operation == IR_CALL || tac->operation == X_CALL) {
-                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDI_INDEX);
-                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RSI_INDEX);
-                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
-                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
-                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R8_INDEX);
-                clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_R9_INDEX);
+                for (j = 0; j < 6; j++)
+                    clobber_livenow(interference_graph, vreg_count, livenow, tac, arg_registers[j]);
 
                 if (tac->dst && tac->dst->vreg)
                     // Force dst to get RAX

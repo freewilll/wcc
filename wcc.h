@@ -564,7 +564,7 @@ void add_function_call_arg_moves(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
 
 // regalloc.c
-int *physical_registers, *preg_map;
+int *physical_registers, *arg_registers, *preg_map;
 
 void allocate_registers_top_down(Function *function, int physical_register_count);
 void allocate_registers(Function *function);
