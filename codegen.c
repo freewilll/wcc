@@ -330,7 +330,6 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
                 if (!expect_preg && v->vreg) {
                     if (!x86_size) panic1s("Missing size on register value \"%s\"", tac->x86_template);
                     if (v->global_symbol) panic("Got global symbol in vreg");
-                    if (v->stack_index) panic("Got stack_index in vreg");
 
                     *buffer++ = 'r';
                     sprintf(buffer, "%d", v->vreg);
