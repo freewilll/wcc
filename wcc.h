@@ -71,29 +71,30 @@ typedef struct symbol {
 } Symbol;
 
 typedef struct function {
-    int param_count;                      // Number of parameters
-    int local_symbol_count;               // Number of local symbols, used by the parser
-    int vreg_count;                       // Number of virtual registers used in IR
-    int spilled_register_count;           // Amount of stack space needed for registers spills
-    int call_count;                       // Number of calls to other functions
-    int is_defined;                       // if a definition has been found
-    int builtin;                          // For builtin functions, IR number of the builtin
-    int is_variadic;                      // Set to 1 for builtin variadic functions
-    struct three_address_code *ir;        // Intermediate representation
-    Graph *cfg;                           // Control flow graph
-    Block *blocks;                        // For functions, the blocks
-    Set **dominance;                      // Block dominances
-    Set **uevar;                          // The upward exposed set for each block
-    Set **varkill;                        // The killed var set for each block
-    Set **liveout;                        // The liveout set for each block
-    int *idom;                            // Immediate dominator for each block
-    Set **dominance_frontiers;            // Dominance frontier for each block
-    Set **var_blocks;                     // Var/block associations for vars that are written to
-    Set *globals;                         // All variables that are assigned to
-    Set **phi_functions;                  // All variables that need phi functions for each block
-    char *interference_graph;             // The interference graph of live ranges, in a lower diagonal matrix
-    struct vreg_location *vreg_locations; // Allocated physical registers and spilled stack indexes
-    int *spill_cost;                      // The estimated spill cost for each live range
+    int param_count;                         // Number of parameters
+    int local_symbol_count;                  // Number of local symbols, used by the parser
+    int vreg_count;                          // Number of virtual registers used in IR
+    int spilled_register_count;              // Amount of stack space needed for registers spills
+    int call_count;                          // Number of calls to other functions
+    int is_defined;                          // if a definition has been found
+    int builtin;                             // For builtin functions, IR number of the builtin
+    int is_variadic;                         // Set to 1 for builtin variadic functions
+    struct three_address_code *ir;           // Intermediate representation
+    Graph *cfg;                              // Control flow graph
+    Block *blocks;                           // For functions, the blocks
+    Set **dominance;                         // Block dominances
+    Set **uevar;                             // The upward exposed set for each block
+    Set **varkill;                           // The killed var set for each block
+    Set **liveout;                           // The liveout set for each block
+    int *idom;                               // Immediate dominator for each block
+    Set **dominance_frontiers;               // Dominance frontier for each block
+    Set **var_blocks;                        // Var/block associations for vars that are written to
+    Set *globals;                            // All variables that are assigned to
+    Set **phi_functions;                     // All variables that need phi functions for each block
+    char *interference_graph;                // The interference graph of live ranges, in a lower diagonal matrix
+    struct vreg_location *vreg_locations;    // Allocated physical registers and spilled stack indexes
+    int *spill_cost;                         // The estimated spill cost for each live range
+    char *preferred_live_range_preg_indexes; // Preferred physical register, when possible
 } Function;
 
 // Value is a value on the value stack. A value can be one of
@@ -124,6 +125,7 @@ typedef struct value {
     int pushed_stack_aligned_quad;          // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
     int ssa_subscript;                      // Optional SSA enumeration
     int live_range;                         // Optional SSA live range
+    char preferred_live_range_preg_index;   // Preferred physical register
     int x86_size;                           // Current size while generating x86 code
     int non_terminal;                       // Use in rule matching
 } Value;
@@ -362,6 +364,7 @@ int opt_enable_live_range_coalescing;   // Merge live ranges where possible
 int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end
 int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
 int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
+int opt_enable_preferred_pregs;         // Enable preferred preg selection in register allocator
 
 char *input;                    // Input file data
 int input_size;                 // Size of the input file
@@ -551,7 +554,6 @@ void make_live_ranges(Function *function);
 void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count);
 void make_control_flow_graph(Function *function);
 void make_block_dominance(Function *function);
-void make_live_range_spill_cost(Function *function);
 void print_interference_graph(Function *function);
 void coalesce_live_ranges(Function *function);
 void add_ig_edge(char *ig, int vreg_count, int to, int from);
@@ -562,6 +564,8 @@ void rewrite_lvalue_reg_assignments(Function *function);
 void add_function_call_result_moves(Function *function);
 void add_function_call_arg_moves(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
+void make_live_range_spill_cost(Function *function);
+void make_preferred_live_range_preg_indexes(Function *function);
 
 // regalloc.c
 int *physical_registers, *arg_registers, *preg_map;

@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
     print_instr_precision_decrease_rules = 0;
     print_symbols = 0;
     opt_enable_register_coalescing = 1;
+    opt_enable_preferred_pregs = 1;
     opt_enable_live_range_coalescing = 1;
     opt_spill_furthest_liveness_end = 0;
     opt_short_lr_infinite_spill_costs = 1;

@@ -68,7 +68,9 @@ int graph_node_degree(char *ig, int vreg_count, int node) {
     return result;
 }
 
-void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int physical_register_count, int *spilled_register_count, int vreg) {
+void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
+    int physical_register_count, int *spilled_register_count, int vreg, int preferred_live_range_preg_index) {
+
     int i, j, preg, offset;
     Set *neighbor_colors;
 
@@ -96,11 +98,19 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
     }
     else {
         // Find first free physical register
-        for (j = 0; j < physical_register_count; j++) {
-            if (!in_set(neighbor_colors, j)) {
-                vreg_locations[vreg].preg = j;
-                if (debug_graph_coloring) printf("  allocated %d\n", j);
-                return;
+        if (debug_graph_coloring && preferred_live_range_preg_index) printf("  searching for preferred preg live range index %d\n", preferred_live_range_preg_index);
+        if (preferred_live_range_preg_index && !in_set(neighbor_colors, vreg_locations[preferred_live_range_preg_index].preg)) {
+            vreg_locations[vreg].preg = vreg_locations[preferred_live_range_preg_index].preg;
+            if (debug_graph_coloring) printf("  allocated preferred LR %d preg %d\n", preferred_live_range_preg_index, vreg_locations[preferred_live_range_preg_index].preg);
+            return;
+        }
+        else {
+            for (j = 0; j < physical_register_count; j++) {
+                if (!in_set(neighbor_colors, j)) {
+                    vreg_locations[vreg].preg = j;
+                    if (debug_graph_coloring) printf("  allocated %d\n", j);
+                    return;
+                }
             }
         }
 
@@ -112,9 +122,10 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations, int phys
 
 void allocate_registers_top_down(Function *function, int physical_register_count) {
     int i, vreg_count, *spill_cost, edge_count, degree, spilled_register_count, vreg, vreg_locations_count;
+    char *preferred_live_range_preg_indexes;
     char *interference_graph;
     VregLocation *vreg_locations;
-    Set *constrained, *unconstrained;
+    Set *constrained, *unconstrained, *preferred_pregs;
     VregCost *ordered_nodes;
 
     if (debug_register_allocation) print_ir(function, 0);
@@ -122,6 +133,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     interference_graph = function->interference_graph;
     vreg_count = function->vreg_count;
     spill_cost = function->spill_cost;
+    preferred_live_range_preg_indexes = function->preferred_live_range_preg_indexes;
 
     ordered_nodes = malloc((vreg_count + 1) * sizeof(VregCost));
     for (i = 1; i <= vreg_count; i++) {
@@ -133,11 +145,15 @@ void allocate_registers_top_down(Function *function, int physical_register_count
 
     constrained = new_set(vreg_count);
     unconstrained = new_set(vreg_count);
+    preferred_pregs = new_set(vreg_count);
 
     for (i = 1; i <= vreg_count; i++) {
         degree = graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg);
         if (degree < physical_register_count)
-            add_to_set(unconstrained, ordered_nodes[i].vreg);
+            if (opt_enable_preferred_pregs && preferred_live_range_preg_indexes[ordered_nodes[i].vreg])
+                add_to_set(preferred_pregs, ordered_nodes[i].vreg);
+            else
+                add_to_set(unconstrained, ordered_nodes[i].vreg);
         else
             add_to_set(constrained, ordered_nodes[i].vreg);
     }
@@ -148,8 +164,9 @@ void allocate_registers_top_down(Function *function, int physical_register_count
             printf("%d: cost=%d degree=%d\n", ordered_nodes[i].vreg, ordered_nodes[i].cost, graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg));
 
         printf("\nPriority sets:\n");
-        printf("constrained:   "); print_set(constrained); printf("\n");
-        printf("unconstrained: "); print_set(unconstrained); printf("\n\n");
+        printf("constrained:     "); print_set(constrained); printf("\n");
+        printf("unconstrained:   "); print_set(unconstrained); printf("\n");
+        printf("preferred_pregs: "); print_set(preferred_pregs); printf("\n\n");
     }
 
     vreg_locations_count = vreg_count > PHYSICAL_REGISTER_COUNT ? vreg_count : PHYSICAL_REGISTER_COUNT;
@@ -189,15 +206,23 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg = ordered_nodes[i].vreg;
         if (!constrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, 0);
     }
 
-    // Color unconstrained nodes
+    // Color preferred preg nodes next
+    for (i = 1; i <= vreg_count; i++) {
+        vreg = ordered_nodes[i].vreg;
+        if (!preferred_pregs->elements[vreg]) continue;
+        if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, preferred_live_range_preg_indexes[vreg]);
+    }
+
+    // Color unconstrained nodes lsat
     for (i = 1; i <= vreg_count; i++) {
         vreg = ordered_nodes[i].vreg;
         if (!unconstrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, 0);
     }
 
     if (debug_register_allocation) {

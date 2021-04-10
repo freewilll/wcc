@@ -180,6 +180,7 @@ void add_function_call_arg_moves(Function *function) {
                 tac->src1 = *call_arg;
                 tac->src1->is_function_call_arg = 1;
                 tac->src1->function_call_arg_index = i;
+                tac->src1->preferred_live_range_preg_index = arg_registers[i];
                 insert_instruction(ir, tac, 1);
                 call_arg--;
             }
@@ -1559,6 +1560,7 @@ void coalesce_live_ranges(Function *function) {
         outer_changed = 0;
 
         make_live_range_spill_cost(function);
+        make_preferred_live_range_preg_indexes(function);
         make_interference_graph(function);
 
         if (!opt_enable_live_range_coalescing) return;
@@ -1727,3 +1729,22 @@ void make_live_range_spill_cost(Function *function) {
     }
 }
 
+void make_preferred_live_range_preg_indexes(Function *function) {
+    Tac *tac;
+    char *preferred_live_range_preg_indexes;
+
+    vreg_count = function->vreg_count;
+
+    preferred_live_range_preg_indexes = malloc((vreg_count + 1) * sizeof(char));
+    memset(preferred_live_range_preg_indexes, 0, (vreg_count + 1) * sizeof(char));
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->src1 && tac->src1->preferred_live_range_preg_index)
+            preferred_live_range_preg_indexes[tac->src1->vreg] = tac->src1->preferred_live_range_preg_index;
+
+        tac = tac->next;
+    }
+
+    function->preferred_live_range_preg_indexes = preferred_live_range_preg_indexes;
+}
