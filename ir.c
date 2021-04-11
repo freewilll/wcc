@@ -776,12 +776,3 @@ void remove_unused_function_call_results(Function *function) {
 
     free(used_vregs);
 }
-
-void post_process_function_parse(Function *function) {
-    reverse_function_argument_order(function);
-    merge_consecutive_labels(function);
-    renumber_labels(function);
-    allocate_value_vregs(function);
-    allocate_value_stack_indexes(function);
-    remove_unused_function_call_results(function);
-}

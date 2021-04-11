@@ -517,7 +517,12 @@ int print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac);
 void print_ir(Function *function, char *name);
-void post_process_function_parse(Function *function);
+void reverse_function_argument_order(Function *function);
+void merge_consecutive_labels(Function *function);
+void renumber_labels(Function *function);
+void allocate_value_vregs(Function *function);
+void allocate_value_stack_indexes(Function *function);
+void remove_unused_function_call_results(Function *function);
 
 // ssa.c
 enum {
@@ -727,14 +732,16 @@ void output_code(char *input_filename, char *output_filename);
 
 // wcc.c
 enum {
-    COMPILE_EVERYTHING,
+    COMPILE_START_AT_BEGINNING,
+    COMPILE_START_AT_ARITHMETIC_MANPULATION,
     COMPILE_STOP_AFTER_ANALYZE_DOMINANCE,
     COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS,
     COMPILE_STOP_AFTER_LIVE_RANGES,
     COMPILE_STOP_AFTER_INSTRUCTION_SELECTION,
+    COMPILE_STOP_AT_END,
 };
 
-void run_compiler_phases(Function *function, int stop_at);
+void run_compiler_phases(Function *function, int start_at, int stop_at);
 void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename);
 
 // test-utils.c

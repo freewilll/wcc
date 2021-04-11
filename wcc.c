@@ -1,7 +1,16 @@
 #include <stdlib.h>
 #include "wcc.h"
 
-void run_compiler_phases(Function *function, int stop_at) {
+void run_compiler_phases(Function *function, int start_at, int stop_at) {
+    if (start_at == COMPILE_START_AT_BEGINNING) {
+        reverse_function_argument_order(function);
+        merge_consecutive_labels(function);
+        renumber_labels(function);
+        allocate_value_vregs(function);
+        allocate_value_stack_indexes(function);
+        remove_unused_function_call_results(function);
+    }
+
     // Prepare for SSA phi function insertion
     sanity_test_ir_linkage(function);
     optimize_arithmetic_operations(function);
@@ -53,8 +62,7 @@ void compile(int print_spilled_register_count, char *compiler_input_filename, ch
         if (symbol->is_function && symbol->function->is_defined) {
             function = symbol->function;
             if (print_ir1) print_ir(function, symbol->identifier);
-            post_process_function_parse(function);
-            run_compiler_phases(function, COMPILE_EVERYTHING);
+            run_compiler_phases(function, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
             if (print_ir2) print_ir(function, symbol->identifier);
         }
         symbol++;
