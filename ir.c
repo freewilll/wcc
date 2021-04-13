@@ -203,6 +203,8 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
         c += fprintf(f, "%ld", v->value);
     else if (v->preg != -1)
         c += fprintf(f, "p%d", v->preg);
+    else if (v->local_index)
+        c += fprintf(f, "L[%d]", v->local_index);
     else if (v->stack_index)
         c += fprintf(f, "S[%d]", v->stack_index);
     else if (v->vreg) {
