@@ -96,10 +96,10 @@ main:
     movl    $1, (%rax)
     subq    $8, %rsp
     movq    (%rbx), %rax        # printf("%d\n", s2->s1->j);
-    movl    4(%rax), %ebx
+    movl    4(%rax), %esi
     leaq    .SL0(%rip), %rax
     movq    %rax, %rdi
-    movslq  %ebx, %rsi
+    movslq  %esi, %rsi
     movb    $0, %al
     callq   printf@PLT
     addq    $8, %rsp
@@ -112,7 +112,7 @@ main:
 # Improvements
 This is a short summary of I have in mind to improve
 
-- Improve function arg register use in function calls by using live ranges, register constraints and coalescing
+- Finish improving function arg register use: load args pushed onto stack into registers
 - More tree tiling rules, e.g. the `inc` instruction and `mov` instructions with better addressing
 - More optimizations using the SSA representation
 - Scalar optimizations

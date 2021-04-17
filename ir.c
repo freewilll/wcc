@@ -72,6 +72,8 @@ Value *dup_value(Value *src) {
     dst->value                           = src->value;
     dst->function_symbol                 = src->function_symbol;
     dst->is_function_call_arg            = src->is_function_call_arg;
+    dst->is_function_param               = src->is_function_param;
+    dst->function_param_index            = src->function_param_index;
     dst->function_call_arg_index         = src->function_call_arg_index;
     dst->function_call_arg_count         = src->function_call_arg_count;
     dst->global_symbol                   = src->global_symbol;
@@ -319,7 +321,7 @@ void print_instruction(void *f, Tac *tac) {
         fprintf(f, "      ");
 
     if (tac->x86_template) {
-        buffer = render_x86_operation(tac, 0, 0, 0);
+        buffer = render_x86_operation(tac, 0, 0);
         fprintf(f, "%s\n", buffer);
         free(buffer);
         return;

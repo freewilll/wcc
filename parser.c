@@ -1177,6 +1177,7 @@ void parse() {
                     s->is_function = 1;
                     s->function = malloc(sizeof(Function));
                     memset(s->function, 0, sizeof(Function));
+                    s->function->param_types = malloc(sizeof(int *) * MAX_FUNCTION_CALL_ARGS);
                     s->function->ir = ir_start;
 
                     param_count = 0;
@@ -1195,6 +1196,7 @@ void parse() {
                         param_symbol->type = type;
                         param_symbol->identifier = cur_identifier;
                         param_symbol->scope = cur_scope;
+                        s->function->param_types[param_count] = type;
                         param_symbol->local_index = param_count++;
                         next();
 

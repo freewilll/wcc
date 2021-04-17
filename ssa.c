@@ -190,6 +190,72 @@ void add_function_call_arg_moves(Function *function) {
     }
 }
 
+void assign_register_param_value_to_register(Value *v, int vreg) {
+    v->stack_index = 0;
+    v->is_lvalue = 0;
+    v->vreg = vreg;
+}
+
+// Convert stack_indexes to parameter register
+// stack-index = 1 + param_count - arg  =>
+// arg = param_count - stack-index + 1
+// 0 <= arg < 6                         =>
+// -1 <= param_count - stack-index < 5
+void convert_register_param_stack_index(Function *function, int *register_param_vregs, Value *v) {
+    if (v && v->stack_index > 0 && function->param_count - v->stack_index >= -1 && function->param_count - v->stack_index < 5)
+        assign_register_param_value_to_register(v, register_param_vregs[function->param_count - v->stack_index + 1]);
+}
+
+// Add MOVE instructions for up to the the first 6 parameters of a function.
+// They are passed in as registers (rdi, rsi, ...). Either, the moves will go to
+// a new physical register, or, when possible, will remain in the original registers.
+// Param #7 and onwards are pushed onto the stack; nothing is done with those here.
+void add_function_param_moves(Function *function) {
+    int i, register_param_count, *register_param_vregs;
+    Tac *ir, *tac;
+
+    make_vreg_count(function, 0);
+    register_param_vregs = malloc(sizeof(int) * 6);
+    memset(register_param_vregs, -1, sizeof(int) * 6);
+
+    ir = function->ir;
+    // Add a second nop if nothing is there, which is used to insert instructions
+    if (!ir->next) {
+        ir->next = new_instruction(IR_NOP);
+        ir->next->prev = ir;
+    }
+
+    ir = function->ir->next;
+
+    register_param_count = function->param_count;
+    if (register_param_count > 6) register_param_count = 6;
+
+    for (i = 0; i < register_param_count; i++) {
+        tac = new_instruction(IR_MOVE);
+        tac->dst = new_value();
+        tac->dst->type = function->param_types[i];
+        tac->dst->vreg = ++function->vreg_count;
+        register_param_vregs[i] = tac->dst->vreg;
+
+        tac->src1 = new_value();
+        tac->src1->type = tac->dst->type;
+        tac->src1->vreg = ++function->vreg_count;
+        tac->src1->is_function_param = 1;
+        tac->src1->function_param_index = i;
+        insert_instruction(ir, tac, 1);
+    }
+
+    ir = function->ir;
+    while (ir) {
+        convert_register_param_stack_index(function, register_param_vregs, ir->dst);
+        convert_register_param_stack_index(function, register_param_vregs, ir->src1);
+        convert_register_param_stack_index(function, register_param_vregs, ir->src2);
+        ir = ir->next;
+    }
+
+    free(register_param_vregs);
+}
+
 void index_tac(Tac *ir) {
     Tac *tac;
     int i;
@@ -876,7 +942,6 @@ void print_stack_and_counters(Stack **stack, int *counters, int vreg_count) {
 // If nothing is on the stack, push one. This is to deal with undefined
 // variables being used.
 int safe_stack_top(Stack **stack, int *counters, int n) {
-
     if (stack[n]->pos == MAX_STACK_SIZE) new_subscript(stack, counters, n);
     return stack_top(stack[n]);
 }
@@ -1338,6 +1403,13 @@ void make_interference_graph(Function *function) {
         while (tac) {
             if (debug_ssa_interference_graph) print_instruction(stdout, tac);
 
+            if (tac->dst && tac->dst->is_function_param)
+                force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, arg_registers[tac->dst->function_param_index]);
+            if (tac->src1 && tac->src1->is_function_param)
+                force_physical_register(interference_graph, vreg_count, livenow, tac->src1->vreg, arg_registers[tac->src1->function_param_index]);
+            if (tac->src2 && tac->src2->is_function_param)
+                force_physical_register(interference_graph, vreg_count, livenow, tac->src2->vreg, arg_registers[tac->src2->function_param_index]);
+
             if (tac->operation == IR_END_CALL) function_call_depth++;
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
@@ -1597,6 +1669,10 @@ void coalesce_live_ranges(Function *function) {
                     for (src = 1; src <= vreg_count; src++)
                         instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
                 }
+
+                if (tac->operation == IR_MOVE && tac->src1->is_function_param)
+                    for (src = 1; src <= vreg_count; src++)
+                        instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
 
                 tac = tac->next;
             }

@@ -17,6 +17,7 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     rewrite_lvalue_reg_assignments(function);
     add_function_call_result_moves(function);
     add_function_call_arg_moves(function);
+    add_function_param_moves(function);
     analyze_dominance(function);
     if (stop_at == COMPILE_STOP_AFTER_ANALYZE_DOMINANCE) return;
 

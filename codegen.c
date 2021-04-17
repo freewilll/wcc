@@ -232,56 +232,29 @@ void output_type_specific_lea(int type) {
     else                         fprintf(f, "    leaq    ");
 }
 
-// Get offset from the stack in bytes, from a stack_index. This is a hairy function
-// since it has to take the amount of params (pc) into account as well as the
-// position where local variables start.
-//
-// The stack layout
-// stack index  offset  var
-// 1            +3     first passed arg
-// 0            +2     second passed arg
-//              +1     return address
-//              +0     BP
-//                     saved registers
-// -1           -1     first local
-// -2           -2     second local
-int get_stack_offset_from_index(int function_pc, int stack_start, int stack_index) {
-    int stack_offset;
-
+// Get offset from the stack in bytes, from a stack_index.
+// The stack layout for a function with 8 parameters (function_pc=8)
+// stack index  offset/8  what
+// 2            +3        arg 7 (last arg)
+// 3            +2        arg 6
+//              +1        return address
+//              +0        Pushed BP
+// -1           -1        first local variable / spilled register
+// -2           -2        second local variable / spilled register
+int get_stack_offset_from_index(int function_pc, int stack_index) {
     if (stack_index >= 2) {
-        // Function argument
-        stack_index -= 2; // 0=1st arg, 1=2nd arg, etc
-
-        if (function_pc > 6) {
-            stack_index = function_pc - 7 - stack_index;
-            // Correct for split stack when there are more than 6 args
-            if (stack_index < 0) {
-                // Read pushed arg by the callee. arg 0 is at rsp-0x30, arg 2 at rsp-0x28 etc, ... arg 5 at rsp-0x08
-                stack_offset = 8 * stack_index;
-            }
-            else {
-                // Read pushed arg by the caller, arg 6 is at rsp+0x10, arg 7 at rsp+0x18, etc
-                // The +2 is to bypass the pushed rbp and return address
-                stack_offset = 8 * (stack_index + 2);
-            }
-        }
-        else {
-            // The first arg is at stack_index=0, second at stack_index=1
-            // If there are e.g. 2 args:
-            // arg 0 is at mov -0x10(%rbp), %rax
-            // arg 1 is at mov -0x08(%rbp), %rax
-            stack_offset = -8 * (stack_index + 1);
-        }
+        // Function parameter
+        if (function_pc <= 6) panic1d("Unexpected positive stack_index %d for function with <= 6 parameters", stack_index);
+        return 8 * (function_pc - stack_index - 3);
     }
+    else if (stack_index >= 0) panic1d("Unexpected stack_index %d", stack_index);
     else {
-        // Local variable. v=-1 is the first, v=-2 the second, etc
-        stack_offset = stack_start + 8 * (stack_index + 1);
+        // Local variable. stack_index < 0. -1 is the first,-2 the second, etc
+        return 8 * stack_index;
     }
-
-    return stack_offset;
 }
 
-char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expect_preg) {
+char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
     char *t, *result, *buffer;
     int i, x86_size, stack_offset, mnemonic_length;
     Value *v;
@@ -352,7 +325,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
                 else if (v->global_symbol)
                     sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
                 else if (v->stack_index) {
-                    stack_offset = get_stack_offset_from_index(function_pc, stack_start, v->stack_index);
+                    stack_offset = get_stack_offset_from_index(function_pc, v->stack_index);
                     sprintf(buffer, "%d(%%rbp)", stack_offset);
                 }
                 else if (v->label)
@@ -374,10 +347,10 @@ char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expec
     return result;
 }
 
-void output_x86_operation(Tac *tac, int function_pc, int stack_start) {
+void output_x86_operation(Tac *tac, int function_pc) {
     char *buffer;
 
-    buffer = render_x86_operation(tac, function_pc, stack_start, 1);
+    buffer = render_x86_operation(tac, function_pc, 1);
     if (buffer) {
         fprintf(f, "    %s\n", buffer);
         free(buffer);
@@ -447,7 +420,6 @@ void output_function_body_code(Symbol *symbol) {
     int function_pc;                    // The Function's param count
     int ac;                             // A function call's arg count
     int local_stack_size;               // Size of the stack containing local variables and spilled registers
-    int stack_start;                    // Stack start for the local variables
     int *saved_registers;               // Callee saved registers
     int function_call_pushes;           // How many pushes are necessary for a function call
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
@@ -463,21 +435,7 @@ void output_function_body_code(Symbol *symbol) {
 
     fprintf(f, "    push    %%rbp\n");
     fprintf(f, "    movq    %%rsp, %%rbp\n");
-    cur_stack_push_count = 2; // Program counter + rsp
-
-    // Push up to the first 6 args onto the stack, so all args are on the stack with leftmost arg first.
-    // Arg 7 and onwards are already pushed.
-
-    // Push the args in the registers on the stack. The order for all args is right to left.
-    if (function_pc >= 6) { cur_stack_push_count++; fprintf(f, "    push    %%r9\n");  }
-    if (function_pc >= 5) { cur_stack_push_count++; fprintf(f, "    push    %%r8\n");  }
-    if (function_pc >= 4) { cur_stack_push_count++; fprintf(f, "    push    %%rcx\n"); }
-    if (function_pc >= 3) { cur_stack_push_count++; fprintf(f, "    push    %%rdx\n"); }
-    if (function_pc >= 2) { cur_stack_push_count++; fprintf(f, "    push    %%rsi\n"); }
-    if (function_pc >= 1) { cur_stack_push_count++; fprintf(f, "    push    %%rdi\n"); }
-
-    // Calculate stack start for locals. reduce by pushed bsp and above pushed args.
-    stack_start = -8 - 8 * (function_pc <= 6 ? function_pc : 6);
+    cur_stack_push_count = 2; // Program counter and rbp
 
     // Allocate stack space for local variables and spilled registers
     local_stack_size = 8 * (symbol->function->spilled_register_count);
@@ -523,7 +481,7 @@ void output_function_body_code(Symbol *symbol) {
 
         else if (tac->operation == X_ARG && tac->src1->function_call_arg_index > 5) {
             // Dirty hack to get the register without a mnemonic
-            buffer = render_x86_operation(tac, function_pc, stack_start, 1);
+            buffer = render_x86_operation(tac, function_pc, 1);
             buffer += 8;
 
             // Push the value to the stack, for popping just before the function call
@@ -554,14 +512,14 @@ void output_function_body_code(Symbol *symbol) {
         }
 
         else if (tac->operation == X_RET) {
-            output_x86_operation(tac, function_pc, stack_start);
+            output_x86_operation(tac, function_pc);
             output_pop_callee_saved_registers(saved_registers);
             fprintf(f, "    leaveq\n");
             fprintf(f, "    retq\n");
         }
 
         else
-            output_x86_operation(tac, function_pc, stack_start);
+            output_x86_operation(tac, function_pc);
 
         tac = tac->next;
     }

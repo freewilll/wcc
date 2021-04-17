@@ -72,6 +72,7 @@ typedef struct symbol {
 
 typedef struct function {
     int param_count;                         // Number of parameters
+    int *param_types;                        // Types of parameters
     int local_symbol_count;                  // Number of local symbols, used by the parser
     int vreg_count;                          // Number of virtual registers used in IR
     int spilled_register_count;              // Amount of stack space needed for registers spills
@@ -118,6 +119,8 @@ typedef struct value {
     long value;                             // Value in the case of a constant
     Symbol *function_symbol;                // Corresponding symbol in the case of a function call
     int is_function_call_arg;               // Index of the argument going left to right (0=leftmost)
+    int is_function_param;                  // Is it a function parameter?
+    int function_param_index;               // Index of the parameter
     int function_call_arg_index;            // Index of the argument going left to right (0=leftmost)
     int function_call_arg_count;            // Number of arguments in the case of a function call
     Symbol *global_symbol;                  // Pointer to a global symbol if the value is a global symbol
@@ -568,6 +571,7 @@ void map_stack_index_to_local_index(Function *function);
 void rewrite_lvalue_reg_assignments(Function *function);
 void add_function_call_result_moves(Function *function);
 void add_function_call_arg_moves(Function *function);
+void add_function_param_moves(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
 void make_live_range_spill_cost(Function *function);
 void make_preferred_live_range_preg_indexes(Function *function);
@@ -725,7 +729,7 @@ void init_instruction_selection_rules();
 
 // codegen.c
 char *register_name(int preg);
-char *render_x86_operation(Tac *tac, int function_pc, int stack_start, int expect_preg);
+char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
 void init_callee_saved_registers();
 void output_function_body_code(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
