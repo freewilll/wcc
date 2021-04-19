@@ -214,7 +214,6 @@ void add_function_param_moves(Function *function) {
     int i, register_param_count, *register_param_vregs;
     Tac *ir, *tac;
 
-    make_vreg_count(function, 0);
     register_param_vregs = malloc(sizeof(int) * 6);
     memset(register_param_vregs, -1, sizeof(int) * 6);
 
