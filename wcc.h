@@ -105,32 +105,33 @@ typedef struct function {
 // - string literal
 // - register
 typedef struct value {
-    int type;                               // Type
-    int vreg;                               // Optional vreg number
-    int preg;                               // Allocated physical register
-    int is_lvalue;                          // Is the value an lvalue?
-    int is_lvalue_in_register;              // Is the value an lvalue in a register?
-    int local_index;                        // For locals variables and function arguments
-    int stack_index;                        // Allocated stack index in case of a spill
-    int spilled;                            // 1 if spilled
-    int is_constant;                        // Is it a constant? If so, value is the value.
-    int is_string_literal;                  // Is the value a string literal?
-    int string_literal_index;               // Index in the string_literals array in the case of a string literal
-    long value;                             // Value in the case of a constant
-    Symbol *function_symbol;                // Corresponding symbol in the case of a function call
-    int is_function_call_arg;               // Index of the argument going left to right (0=leftmost)
-    int is_function_param;                  // Is it a function parameter?
-    int function_param_index;               // Index of the parameter
-    int function_call_arg_index;            // Index of the argument going left to right (0=leftmost)
-    int function_call_arg_count;            // Number of arguments in the case of a function call
-    Symbol *global_symbol;                  // Pointer to a global symbol if the value is a global symbol
-    int label;                              // Target label in the case of jump instructions
-    int pushed_stack_aligned_quad;          // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
-    int ssa_subscript;                      // Optional SSA enumeration
-    int live_range;                         // Optional SSA live range
-    char preferred_live_range_preg_index;   // Preferred physical register
-    int x86_size;                           // Current size while generating x86 code
-    int non_terminal;                       // Use in rule matching
+    int type;                                // Type
+    int vreg;                                // Optional vreg number
+    int preg;                                // Allocated physical register
+    int is_lvalue;                           // Is the value an lvalue?
+    int is_lvalue_in_register;               // Is the value an lvalue in a register?
+    int local_index;                         // For locals variables and function arguments
+    int stack_index;                         // Allocated stack index in case of a spill
+    int spilled;                             // 1 if spilled
+    int is_constant;                         // Is it a constant? If so, value is the value.
+    int is_string_literal;                   // Is the value a string literal?
+    int string_literal_index;                // Index in the string_literals array in the case of a string literal
+    long value;                              // Value in the case of a constant
+    Symbol *function_symbol;                 // Corresponding symbol in the case of a function call
+    int is_function_call_arg;                // Index of the argument going left to right (0=leftmost)
+    int is_function_param;                   // Is it a function parameter?
+    int function_param_index;                // Index of the parameter
+    int function_param_original_stack_index; // Original stack index for function parameter pushed onto the stack
+    int function_call_arg_index;             // Index of the argument going left to right (0=leftmost)
+    int function_call_arg_count;             // Number of arguments in the case of a function call
+    Symbol *global_symbol;                   // Pointer to a global symbol if the value is a global symbol
+    int label;                               // Target label in the case of jump instructions
+    int pushed_stack_aligned_quad;           // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
+    int ssa_subscript;                       // Optional SSA enumeration
+    int live_range;                          // Optional SSA live range
+    char preferred_live_range_preg_index;    // Preferred physical register
+    int x86_size;                            // Current size while generating x86 code
+    int non_terminal;                        // Use in rule matching
 } Value;
 
 typedef struct three_address_code {
@@ -703,6 +704,7 @@ Value **saved_values;
 
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
+void remove_stack_self_moves(Function *function);
 void add_spill_code(Function *function);
 
 // instrutil.c

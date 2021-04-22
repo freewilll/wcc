@@ -40,11 +40,13 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     analyze_dominance(function);
     coalesce_live_ranges(function);
     remove_vreg_self_moves(function);
+
     if (stop_at == COMPILE_STOP_AFTER_INSTRUCTION_SELECTION) return;
 
     // Register allocation and spilling
     sanity_test_ir_linkage(function);
     allocate_registers(function);
+    remove_stack_self_moves(function);
     add_spill_code(function);
 }
 

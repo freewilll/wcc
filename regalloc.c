@@ -57,6 +57,24 @@ void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
     quicksort_vreg_cost(vreg_cost, j + 1, right);
 }
 
+int *make_original_stack_indexes(Function *function) {
+    Tac *tac;
+    int *result;
+
+    result = malloc(sizeof(int *) * (function->vreg_count + 1));
+    memset(result, 0, sizeof(int *) * (function->vreg_count + 1));
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->src1 && tac->src1->is_function_param && tac->src1->function_param_original_stack_index)
+            result[tac->dst->vreg] = tac->src1->function_param_original_stack_index;
+
+        tac = tac->next;
+    }
+
+    return result;
+}
+
 int graph_node_degree(char *ig, int vreg_count, int node) {
     int i, result, offset;
 
@@ -69,9 +87,10 @@ int graph_node_degree(char *ig, int vreg_count, int node) {
 }
 
 void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
-    int physical_register_count, int *spilled_register_count, int vreg, int preferred_live_range_preg_index) {
+    int physical_register_count, int *spilled_register_count, int vreg, int *original_stack_indexes,
+    int preferred_live_range_preg_index) {
 
-    int i, j, preg, offset;
+    int i, j, preg, offset, stack_index;
     Set *neighbor_colors;
 
     neighbor_colors = new_set(physical_register_count);
@@ -92,9 +111,15 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
     }
 
     if (!opt_enable_register_allocation || set_len(neighbor_colors) == physical_register_count) {
-        vreg_locations[vreg].stack_index = -*spilled_register_count - 1;
-        (*spilled_register_count)++;
-        if (debug_graph_coloring) printf("  spilled %d\n", vreg);
+        if (original_stack_indexes[vreg])
+            stack_index = original_stack_indexes[vreg];
+        else {
+            stack_index = -*spilled_register_count - 1;
+            (*spilled_register_count)++;
+        }
+        vreg_locations[vreg].stack_index = stack_index;
+
+        if (debug_graph_coloring) printf("  spilled vreg %d to stack index %d\n", vreg, stack_index);
     }
     else {
         // Find first free physical register
@@ -122,6 +147,7 @@ void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
 
 void allocate_registers_top_down(Function *function, int physical_register_count) {
     int i, vreg_count, *spill_cost, edge_count, degree, spilled_register_count, vreg, vreg_locations_count;
+    int *original_stack_indexes;
     char *preferred_live_range_preg_indexes;
     char *interference_graph;
     VregLocation *vreg_locations;
@@ -134,6 +160,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     vreg_count = function->vreg_count;
     spill_cost = function->spill_cost;
     preferred_live_range_preg_indexes = function->preferred_live_range_preg_indexes;
+    original_stack_indexes = make_original_stack_indexes(function);
 
     ordered_nodes = malloc((vreg_count + 1) * sizeof(VregCost));
     for (i = 1; i <= vreg_count; i++) {
@@ -206,7 +233,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg = ordered_nodes[i].vreg;
         if (!constrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, 0);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, 0);
     }
 
     // Color preferred preg nodes next
@@ -214,7 +241,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg = ordered_nodes[i].vreg;
         if (!preferred_pregs->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, preferred_live_range_preg_indexes[vreg]);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, preferred_live_range_preg_indexes[vreg]);
     }
 
     // Color unconstrained nodes lsat
@@ -222,7 +249,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg = ordered_nodes[i].vreg;
         if (!unconstrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, 0);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, 0);
     }
 
     if (debug_register_allocation) {
@@ -254,8 +281,9 @@ void init_allocate_registers() {
     physical_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
 
-    // Blacklist registers if certain operations are happening in this function.
+    // Blacklist registers
     reserved_registers = new_set(PHYSICAL_REGISTER_COUNT);
+
     add_to_set(reserved_registers, REG_RSP); // Stack pointer
     add_to_set(reserved_registers, REG_RBP); // Base pointer
     add_to_set(reserved_registers, REG_R10); // Not preserved in function calls & used as temporary
@@ -280,6 +308,7 @@ void init_allocate_registers() {
             preg_map[preg_count++] = i;
         }
 
+    // Registers used for function calls
     arg_registers = malloc(sizeof(int) * 6);
     arg_registers[0]  = LIVE_RANGE_PREG_RDI_INDEX;
     arg_registers[1]  = LIVE_RANGE_PREG_RSI_INDEX;
@@ -287,7 +316,6 @@ void init_allocate_registers() {
     arg_registers[3]  = LIVE_RANGE_PREG_RCX_INDEX;
     arg_registers[4]  = LIVE_RANGE_PREG_R8_INDEX;
     arg_registers[5]  = LIVE_RANGE_PREG_R9_INDEX;
-
 }
 
 void assign_vreg_locations(Function *function) {

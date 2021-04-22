@@ -244,14 +244,13 @@ void output_type_specific_lea(int type) {
 int get_stack_offset_from_index(int function_pc, int stack_index) {
     if (stack_index >= 2) {
         // Function parameter
-        if (function_pc <= 6) panic1d("Unexpected positive stack_index %d for function with <= 6 parameters", stack_index);
+        if (function_pc <= 6) printf("Unexpected positive stack_index %d for function with <= 6 parameters (%d)\n", stack_index, function_pc);
         return 8 * (function_pc - stack_index - 3);
     }
-    else if (stack_index >= 0) panic1d("Unexpected stack_index %d", stack_index);
-    else {
+    else if (stack_index >= 0) printf("Unexpected stack_index %d\n", stack_index);
+    else
         // Local variable. stack_index < 0. -1 is the first,-2 the second, etc
         return 8 * stack_index;
-    }
 }
 
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {

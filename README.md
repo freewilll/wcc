@@ -112,7 +112,6 @@ main:
 # Improvements
 This is a short summary of I have in mind to improve
 
-- Finish improving function arg register use: load args pushed onto stack into registers
 - More tree tiling rules, e.g. the `inc` instruction and `mov` instructions with better addressing
 - More optimizations using the SSA representation
 - Scalar optimizations

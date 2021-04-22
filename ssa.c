@@ -210,7 +210,7 @@ void convert_register_param_stack_index(Function *function, int *register_param_
 // They are passed in as registers (rdi, rsi, ...). Either, the moves will go to
 // a new physical register, or, when possible, will remain in the original registers.
 // Param #7 and onwards are pushed onto the stack; nothing is done with those here.
-void add_function_param_moves(Function *function) {
+void add_function_param_moves_for_registers(Function *function) {
     int i, register_param_count, *register_param_vregs;
     Tac *ir, *tac;
 
@@ -253,6 +253,63 @@ void add_function_param_moves(Function *function) {
     }
 
     free(register_param_vregs);
+}
+
+// Convert a value that has a stack index >= 2, i.e. it's a pushed parameter into a vreg
+void convert_pushed_param_stack_index(Function *function, int *param_vregs, Value *v) {
+    if (v && !v->function_param_original_stack_index && v->stack_index >= 2 && param_vregs[v->stack_index - 2])
+        assign_register_param_value_to_register(v, param_vregs[v->stack_index - 2]);
+}
+
+// Move function parameters pushed the stack by the caller into registers.
+// They might get spilled, in which case function_param_original_stack_index is used
+// rather than allocating more space.
+void add_function_param_moves_for_stack(Function *function) {
+    Tac *ir, *tac;
+    int i, register_param_count, *param_vregs;
+
+    if (function->param_count <= 6) return;
+
+    param_vregs = malloc(sizeof(int) * (function->param_count - 6));
+    memset(param_vregs, -1, sizeof(int) * (function->param_count - 6));
+
+    ir = function->ir->next;
+    if (!ir) panic("Expected at least two instructions");
+
+    register_param_count = function->param_count;
+    if (register_param_count > 6) register_param_count = 6;
+
+    for (i = 6; i < function->param_count; i++) {
+        tac = new_instruction(IR_MOVE);
+        tac->dst = new_value();
+        tac->dst->type = function->param_types[i];
+        tac->dst->vreg = ++function->vreg_count;
+        param_vregs[i - 6] = tac->dst->vreg;
+
+        tac->src1 = new_value();
+        tac->src1->type = tac->dst->type;
+        tac->src1->stack_index = i - 4;
+        tac->src1->is_lvalue = 1;
+        tac->src1->is_function_param = 1;
+        tac->src1->function_param_index = i;
+        tac->src1->function_param_original_stack_index = i - 4;
+        insert_instruction(ir, tac, 1);
+    }
+
+    ir = function->ir;
+    while (ir) {
+        convert_pushed_param_stack_index(function, param_vregs, ir->dst);
+        convert_pushed_param_stack_index(function, param_vregs, ir->src1);
+        convert_pushed_param_stack_index(function, param_vregs, ir->src2);
+        ir = ir->next;
+    }
+
+    free(param_vregs);
+}
+
+void add_function_param_moves(Function *function) {
+    add_function_param_moves_for_registers(function);
+    add_function_param_moves_for_stack(function);
 }
 
 void index_tac(Tac *ir) {
@@ -1355,6 +1412,14 @@ void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, i
     if (preg_reg_index != LIVE_RANGE_PREG_R15_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R15_INDEX);
 }
 
+// The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
+// other registers at the start of the function. They are themselves vregs and must get the corresponding physical
+// register allocated to them.
+void force_register_param_physical_register(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
+    if (value && value->is_function_param && value->is_function_param && value->function_param_index < 6)
+        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[value->function_param_index]);
+}
+
 void print_interference_graph(Function *function) {
     int vreg_count, from, to, from_offset;
     char *interference_graph; // Triangular matrix of edges
@@ -1402,12 +1467,9 @@ void make_interference_graph(Function *function) {
         while (tac) {
             if (debug_ssa_interference_graph) print_instruction(stdout, tac);
 
-            if (tac->dst && tac->dst->is_function_param)
-                force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, arg_registers[tac->dst->function_param_index]);
-            if (tac->src1 && tac->src1->is_function_param)
-                force_physical_register(interference_graph, vreg_count, livenow, tac->src1->vreg, arg_registers[tac->src1->function_param_index]);
-            if (tac->src2 && tac->src2->is_function_param)
-                force_physical_register(interference_graph, vreg_count, livenow, tac->src2->vreg, arg_registers[tac->src2->function_param_index]);
+            force_register_param_physical_register(interference_graph, vreg_count, livenow, tac->dst);
+            force_register_param_physical_register(interference_graph, vreg_count, livenow, tac->src1);
+            force_register_param_physical_register(interference_graph, vreg_count, livenow, tac->src2);
 
             if (tac->operation == IR_END_CALL) function_call_depth++;
             else if (tac->operation == IR_START_CALL) function_call_depth--;

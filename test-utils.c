@@ -142,11 +142,6 @@ Value *s(int string_literal_index) {
 Value *S(int stack_index) {
     Value *v;
 
-    if (stack_index >= 0) {
-        printf("Illegal stack index %d, it must be < 0\n", stack_index);
-        exit(1);
-    }
-
     v = new_value();
     v->type = TYPE_LONG;
     v->local_index = 0;
@@ -158,11 +153,6 @@ Value *S(int stack_index) {
 
 Value *Ssz(int stack_index, int type) {
     Value *v;
-
-    if (stack_index >= 0) {
-        printf("Illegal stack index %d, it must be < 0\n", stack_index);
-        exit(1);
-    }
 
     v = new_value();
     v->type = type;

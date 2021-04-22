@@ -52,7 +52,7 @@ void assert_x86_op(char *expected) {
     n();
 }
 
-void assert_rx86_preg_op(char *expected) {
+void assert_rx86_preg_op_with_function_pc(int function_param_count, char *expected) {
     char *got;
 
     if (!ir_start && expected) {
@@ -64,7 +64,7 @@ void assert_rx86_preg_op(char *expected) {
 
     got = 0;
     while (ir_start && !got) {
-        got = render_x86_operation(ir_start, 0, 1);
+        got = render_x86_operation(ir_start, function_param_count, 1);
         n();
     }
 
@@ -78,6 +78,10 @@ void assert_rx86_preg_op(char *expected) {
         printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
         failures++;
     }
+}
+
+void assert_rx86_preg_op(char *expected) {
+    return assert_rx86_preg_op_with_function_pc(0, expected);
 }
 
 // Run with a single instruction
@@ -1551,6 +1555,74 @@ void test_spilling() {
     assert_rx86_preg_op("movl    $1, (%r10)"     );
 }
 
+// This is a quite convoluted test that checks code generation for a function with
+// a bunch of args. IR_ADD instructions are added so that all args interfere in the
+// interference graph, forcing one of the pushed args to spill.
+void test_param_vreg_moves() {
+    int j;
+    Tac *tac;
+
+    remove_reserved_physical_registers = 0;
+    opt_enable_register_allocation = 1;
+
+    start_ir();
+
+    function->param_count = 10;
+    function->param_types = malloc(sizeof(int *) * function->param_count);
+    for (j = 0; j < function->param_count; j++)
+        function->param_types[j] = TYPE_CHAR;
+
+    i(0, IR_NOP, 0, 0, 0);
+
+    for (j = 0; j < function->param_count; j++)
+        tac = i(0, IR_ADD, v(j + 3), v(1), S(j + 2));
+
+    finish_spill_ir(function);
+
+    // The last 4 args are pushed backwards by the caller (i.e. last arg first)
+    // arg 0 rdi
+    // arg 1 rsi
+    // arg 2 rdx
+    // arg 3 rcx
+    // arg 4 r8
+    // arg 5 r9
+    // arg 6 stack index 5 16(%rbp)
+    // arg 7 stack index 4 24(%rbp)
+    // arg 8 stack index 3 32(%rbp)
+    // arg 9 stack index 2 40(%rbp)
+
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    40(%rbp), %r13b"); // arg 9    pushed args get loaded into registers
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    32(%rbp), %r14b"); // arg 8
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    16(%rbp), %r15b"); // arg 6
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    %dil, %r12b");     // arg 0    the first 6 args are already in registers
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    %sil, %bl");       // arg 1
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    %dl, %sil");       // arg 2
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    %cl, %dil");       // arg 3
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    %r8b, %dl");       // arg 4
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb    %r9b, %cl");       // arg 5
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %r13, %r8");       // arg 9    addition code starts here
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %r8");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %r14, %r8");       // arg 8
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %r8");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    24(%rbp), %r10");  // arg 7 (spilled)
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %r10, %r8");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %r8");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %r15, %r8");       // arg 6
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %r8");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %rcx, %rcx");      // arg 5
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %rcx");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %rdx, %rcx");      // arg 4
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %rcx");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %rdi, %rcx");      // arg 3
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %rcx");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %rsi, %rcx");      // arg 2
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %rcx");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %rbx, %rbx");      // arg 1
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %r12, %rbx");      // arg 0
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %rbx");
+}
+
 int main() {
     failures = 0;
     function = new_function();
@@ -1604,6 +1676,7 @@ int main() {
     test_ptr_to_void_memory_load_to_ptr();
     test_constant_cast_to_ptr();
     test_spilling();
+    test_param_vreg_moves();
 
     if (failures) {
         printf("%d tests failed\n", failures);

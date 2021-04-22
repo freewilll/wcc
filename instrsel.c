@@ -1347,6 +1347,23 @@ void select_instructions(Function *function) {
     }
 }
 
+// This removes instructions that copy a stack location to itself by replacing them with noops.
+void remove_stack_self_moves(Function *function) {
+    Tac *tac;
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation == X_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->stack_index && tac->dst->stack_index == tac->src1->stack_index) {
+            tac->operation = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+            tac->x86_template = 0;
+        }
+
+        tac = tac->next;
+    }
+}
+
 // This removes instructions that copy a register to itself by replacing them with noops.
 void remove_vreg_self_moves(Function *function) {
     Tac *tac;
