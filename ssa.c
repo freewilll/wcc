@@ -1419,18 +1419,8 @@ void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, i
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
 
     // Add edges to all non reserved physical registers
-    if (preg_reg_index != LIVE_RANGE_PREG_RAX_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RAX_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_RBX_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RBX_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_RCX_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RCX_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_RDX_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RDX_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_RSI_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RSI_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_RDI_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_RDI_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_R8_INDEX ) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R8_INDEX );
-    if (preg_reg_index != LIVE_RANGE_PREG_R9_INDEX ) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R9_INDEX );
-    if (preg_reg_index != LIVE_RANGE_PREG_R12_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R12_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_R13_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R13_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_R14_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R14_INDEX);
-    if (preg_reg_index != LIVE_RANGE_PREG_R15_INDEX) add_ig_edge(ig, vreg_count, vreg, LIVE_RANGE_PREG_R15_INDEX);
+    for (i = 0; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
+        if (preg_reg_index != live_range_preg_indexes[i]) add_ig_edge(ig, vreg_count, vreg, live_range_preg_indexes[i]);
 }
 
 // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into

@@ -550,6 +550,7 @@ enum {
 // Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
 int live_range_reserved_pregs_offset;
 int preg_count;
+int *live_range_preg_indexes;
 
 void analyze_dominance(Function *function);
 

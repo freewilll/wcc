@@ -308,6 +308,20 @@ void init_allocate_registers() {
             preg_map[preg_count++] = i;
         }
 
+    live_range_preg_indexes = malloc(sizeof(int) * RESERVED_PHYSICAL_REGISTER_COUNT);
+    live_range_preg_indexes[0]  = LIVE_RANGE_PREG_RAX_INDEX;
+    live_range_preg_indexes[1]  = LIVE_RANGE_PREG_RBX_INDEX;
+    live_range_preg_indexes[2]  = LIVE_RANGE_PREG_RCX_INDEX;
+    live_range_preg_indexes[3]  = LIVE_RANGE_PREG_RDX_INDEX;
+    live_range_preg_indexes[4]  = LIVE_RANGE_PREG_RSI_INDEX;
+    live_range_preg_indexes[5]  = LIVE_RANGE_PREG_RDI_INDEX;
+    live_range_preg_indexes[6]  = LIVE_RANGE_PREG_R8_INDEX;
+    live_range_preg_indexes[7]  = LIVE_RANGE_PREG_R9_INDEX;
+    live_range_preg_indexes[8]  = LIVE_RANGE_PREG_R12_INDEX;
+    live_range_preg_indexes[9]  = LIVE_RANGE_PREG_R13_INDEX;
+    live_range_preg_indexes[10] = LIVE_RANGE_PREG_R14_INDEX;
+    live_range_preg_indexes[11] = LIVE_RANGE_PREG_R15_INDEX;
+
     // Registers used for function calls
     arg_registers = malloc(sizeof(int) * 6);
     arg_registers[0]  = LIVE_RANGE_PREG_RDI_INDEX;
