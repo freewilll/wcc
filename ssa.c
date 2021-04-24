@@ -1388,11 +1388,32 @@ void clobber_tac_and_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, i
     if (tac->src2 && tac->src2->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->src2->vreg);
 }
 
+void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
+             if (preg_reg_index == LIVE_RANGE_PREG_RAX_INDEX) printf("rax");
+        else if (preg_reg_index == LIVE_RANGE_PREG_RBX_INDEX) printf("rbx");
+        else if (preg_reg_index == LIVE_RANGE_PREG_RCX_INDEX) printf("rcx");
+        else if (preg_reg_index == LIVE_RANGE_PREG_RDX_INDEX) printf("rdx");
+        else if (preg_reg_index == LIVE_RANGE_PREG_RSI_INDEX) printf("rsi");
+        else if (preg_reg_index == LIVE_RANGE_PREG_RDI_INDEX) printf("rdi");
+        else if (preg_reg_index == LIVE_RANGE_PREG_R8_INDEX ) printf("r8");
+        else if (preg_reg_index == LIVE_RANGE_PREG_R9_INDEX ) printf("r9");
+        else if (preg_reg_index == LIVE_RANGE_PREG_R12_INDEX) printf("r12");
+        else if (preg_reg_index == LIVE_RANGE_PREG_R13_INDEX) printf("r13");
+        else if (preg_reg_index == LIVE_RANGE_PREG_R14_INDEX) printf("r14");
+        else if (preg_reg_index == LIVE_RANGE_PREG_R15_INDEX) printf("r15");
+        else printf("Unknown pri %d", preg_reg_index);
+}
+
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
 void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index) {
     int i;
 
-    if (debug_ssa_interference_graph) printf("Adding edges on vreg %d for all registers except pri=%d\n", vreg, preg_reg_index);
+    if (debug_ssa_interference_graph || debug_register_allocation) {
+        printf("Forcing ");
+        print_physical_register_name_for_lr_reg_index(preg_reg_index);
+        printf(" onto vreg %d\n", vreg);
+    }
+
     for (i = 0; i <= livenow->max_value; i++)
         if (i != vreg && livenow->elements[i])
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
