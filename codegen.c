@@ -22,16 +22,6 @@ char *register_name(int preg) {
 
 }
 
-void output_byte_register_name(int preg) {
-    char *names;
-
-    check_preg(preg);
-    names = "al   bl   cl   dl   sil  dil  bpl  spl  r8b  r9b  r10b r11b r12b r13b r14b r15b";
-         if (preg < 4)  fprintf(f, "%%%.2s", &names[preg * 5]);
-    else if (preg < 10) fprintf(f, "%%%.3s", &names[preg * 5]);
-    else                fprintf(f, "%%%.4s", &names[preg * 5]);
-}
-
 void append_byte_register_name(char *buffer, int preg) {
     char *names;
 
@@ -62,15 +52,6 @@ void append_word_register_name(char *buffer, int preg) {
     else                sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
-void output_long_register_name(int preg) {
-    char *names;
-
-    check_preg(preg);
-    names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
-    if (preg < 10) fprintf(f, "%%%.3s", &names[preg * 5]);
-    else           fprintf(f, "%%%.4s", &names[preg * 5]);
-}
-
 void append_long_register_name(char *buffer, int preg) {
     char *names;
 
@@ -96,140 +77,6 @@ void append_quad_register_name(char *buffer, int preg) {
     names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
     if (preg == 8 || preg == 9) sprintf(buffer, "%%%.2s", &names[preg * 4]);
     else                        sprintf(buffer, "%%%.3s", &names[preg * 4]);
-}
-
-void output_move_quad_register_to_register(int preg1, int preg2) {
-    if (preg1 != preg2) {
-        fprintf(f, "    movq    ");
-        output_quad_register_name(preg1);
-        fprintf(f, ", ");
-        output_quad_register_name(preg2);
-        fprintf(f, "\n");
-    }
-}
-
-void output_type_specific_register_name(int type, int preg) {
-         if (type == TYPE_CHAR)  output_byte_register_name(preg);
-    else if (type == TYPE_SHORT) output_word_register_name(preg);
-    else if (type == TYPE_INT)   output_long_register_name(preg);
-    else                         output_quad_register_name(preg);
-}
-
-void output_op_instruction(char *instruction, int src, int dst) {
-    fprintf(f, "    %-8s", instruction);
-    output_quad_register_name(src);
-    fprintf(f, ", ");
-    output_quad_register_name(dst);
-    fprintf(f, "\n");
-}
-
-void _output_op(char *instruction, Tac *tac) {
-    int v, dst, src1, src2;
-
-    dst = tac->dst->preg;
-    src1 = tac->src1->preg;
-    src2 = tac->src2->preg;
-
-    // Special cases for commutative operations
-    if (tac->operation == IR_ADD || tac->operation == IR_MUL || tac->operation == IR_BOR || tac->operation == IR_BAND || tac->operation == IR_XOR) {
-        if (dst == src1) {
-            // pn = pn + pm
-            output_move_quad_register_to_register(src1, dst);
-            output_op_instruction(instruction, src2, dst);
-            return;
-        }
-        else if (dst == src2) {
-            // pn = pm + pn
-            output_op_instruction(instruction, src1, dst);
-            return;
-        }
-    }
-
-    else if (tac->operation == IR_RSUB) {
-        // The register allocator must not allow dst to be the same as src1,
-        // otherwise we get an incorrect result:
-        // mov src2 -> dst
-        // dst = src1 - src1 = 0
-        if (dst == src1) {
-            print_instruction(stdout, tac);
-            panic("Illegal attempt to use the same preg for dst and src1 in subtraction");
-        }
-    }
-
-    output_move_quad_register_to_register(src2, dst);
-    output_op_instruction(instruction, src1, dst);
-}
-
-void output_constant_operation(char *instruction, Tac *tac) {
-    if (tac->src1->is_constant) {
-        output_move_quad_register_to_register(tac->src2->preg, tac->dst->preg);
-        fprintf(f, "    %-8s$%ld", instruction, tac->src1->value);
-        fprintf(f, ", ");
-        output_quad_register_name(tac->dst->preg);
-        fprintf(f, "\n");
-    }
-    else
-        _output_op(instruction, tac);
-}
-
-void output_op(char *instruction, Tac *tac) {
-    if (tac->operation == IR_ADD || tac->operation == IR_RSUB || tac->operation == IR_MUL || tac->operation == IR_BAND || tac->operation == IR_BOR || tac->operation == IR_XOR) {
-        output_constant_operation(instruction, tac);
-        return;
-    }
-    else
-        _output_op(instruction, tac);
-}
-
-// src1 and src2 are swapped, to facilitate treating the first operand as a potential
-// constant. src1 is output first, which is backwards to src1 <op> src2.
-// Therefore, this function is called reverse.
-void output_reverse_cmp(Tac *tac) {
-    fprintf(f, "    cmpq    ");
-
-    if (tac->src1->is_constant)
-        fprintf(f, "$%ld", tac->src1->value);
-    else
-        output_quad_register_name(tac->src1->preg);
-
-    fprintf(f, ", ");
-    output_quad_register_name(tac->src2->preg);
-    fprintf(f, "\n");
-}
-
-void output_cmp_result_instruction(Tac *ir, char *instruction) {
-    fprintf(f, "    %-8s", instruction);
-    output_byte_register_name(ir->dst->preg);
-    fprintf(f, "\n");
-}
-
-void output_movzbq(Tac *ir) {
-    fprintf(f, "    movzbq  ");
-    output_byte_register_name(ir->dst->preg);
-    fprintf(f, ", ");
-    output_quad_register_name(ir->dst->preg);
-    fprintf(f, "\n");
-}
-
-void output_type_specific_mov(int type) {
-         if (type == TYPE_CHAR)  fprintf(f, "    movb    ");
-    else if (type == TYPE_SHORT) fprintf(f, "    movw    ");
-    else if (type == TYPE_INT)   fprintf(f, "    movl    ");
-    else                         fprintf(f, "    movq    ");
-}
-
-void output_type_specific_sign_extend_mov(int type) {
-         if (type == TYPE_CHAR)  fprintf(f, "    movsbq  ");
-    else if (type == TYPE_SHORT) fprintf(f, "    movswq  ");
-    else if (type == TYPE_INT)   fprintf(f, "    movslq  ");
-    else                         fprintf(f, "    movq    ");
-}
-
-void output_type_specific_lea(int type) {
-         if (type == TYPE_CHAR)  fprintf(f, "    leasbq  ");
-    else if (type == TYPE_SHORT) fprintf(f, "    leaswq  ");
-    else if (type == TYPE_INT)   fprintf(f, "    leaslq  ");
-    else                         fprintf(f, "    leaq    ");
 }
 
 // Get offset from the stack in bytes, from a stack_index.

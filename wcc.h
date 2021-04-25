@@ -711,7 +711,6 @@ void init_instruction_selection_rules();
 char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
 void init_callee_saved_registers();
-void output_function_body_code(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
 
 // wcc.c
