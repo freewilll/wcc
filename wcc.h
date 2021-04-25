@@ -562,6 +562,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
 void allocate_registers(Function *function);
 void assign_vreg_locations(Function *function);
 void remove_preg_self_moves(Function *function);
+void init_callee_saved_registers();
 void init_allocate_registers();
 
 // instrsel.c
@@ -710,7 +711,6 @@ void init_instruction_selection_rules();
 // codegen.c
 char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
-void init_callee_saved_registers();
 void output_code(char *input_filename, char *output_filename);
 
 // wcc.c

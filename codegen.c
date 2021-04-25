@@ -203,18 +203,6 @@ void output_x86_operation(Tac *tac, int function_pc) {
     }
 }
 
-// Called once at startup to indicate which registers are preserved across function calls
-void init_callee_saved_registers() {
-    callee_saved_registers = malloc(sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
-    memset(callee_saved_registers, 0, sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
-
-    callee_saved_registers[REG_RBX] = 1;
-    callee_saved_registers[REG_R12] = 1;
-    callee_saved_registers[REG_R13] = 1;
-    callee_saved_registers[REG_R14] = 1;
-    callee_saved_registers[REG_R15] = 1;
-}
-
 // Determine which registers are used in a function, push them onto the stack and return the list
 int *output_push_callee_saved_registers(Tac *tac) {
     int *saved_registers;

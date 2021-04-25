@@ -270,9 +270,23 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     free_set(unconstrained);
 }
 
+// Called once at startup to indicate which registers are preserved across function calls
+void init_callee_saved_registers() {
+    callee_saved_registers = malloc(sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
+    memset(callee_saved_registers, 0, sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
+
+    callee_saved_registers[REG_RBX] = 1;
+    callee_saved_registers[REG_R12] = 1;
+    callee_saved_registers[REG_R13] = 1;
+    callee_saved_registers[REG_R14] = 1;
+    callee_saved_registers[REG_R15] = 1;
+}
+
 void init_allocate_registers() {
     int i;
     Set *reserved_registers;
+
+    init_callee_saved_registers();
 
     preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(preg_map, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
