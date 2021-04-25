@@ -39,27 +39,27 @@ wcc: ${OBJECTS} wcc.h
 	gcc ${GCC_OPTS} ${OBJECTS} -o wcc -g -Wno-return-type -D _GNU_SOURCE
 
 # wcc2
-WC42_SOURCES := ${SOURCES:%=build/wcc2/%}
-WC42_ASSEMBLIES := ${WC42_SOURCES:.c=.s}
+WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
+WCC2_ASSEMBLIES := ${WCC2_SOURCES:.c=.s}
 
 build/wcc2/%.s: %.c wcc
-	./wcc ${WC4_OPTS} -c $< -S -o $@
+	./wcc ${WCC_OPTS} -c $< -S -o $@
 
-wcc2: ${WC42_ASSEMBLIES}
-	gcc ${GCC_OPTS} ${WC42_ASSEMBLIES} -o wcc2
+wcc2: ${WCC2_ASSEMBLIES}
+	gcc ${GCC_OPTS} ${WCC2_ASSEMBLIES} -o wcc2
 
 # wcc3
-WC43_SOURCES := ${SOURCES:%=build/wcc3/%}
-WC43_ASSEMBLIES := ${WC43_SOURCES:.c=.s}
+WCC3_SOURCES := ${SOURCES:%=build/wcc3/%}
+WCC3_ASSEMBLIES := ${WCC3_SOURCES:.c=.s}
 
 build/wcc3/%.s: %.c wcc2
-	./wcc2 ${WC4_OPTS} -c $< -S -o $@
+	./wcc2 ${WCC_OPTS} -c $< -S -o $@
 
-wcc3: ${WC43_ASSEMBLIES}
-	gcc ${GCC_OPTS} ${WC43_ASSEMBLIES} -o wcc3
+wcc3: ${WCC3_ASSEMBLIES}
+	gcc ${GCC_OPTS} ${WCC3_ASSEMBLIES} -o wcc3
 
 # tests
-WC4_TESTS=\
+WCC_TESTS=\
 	expr \
 	function-call-args \
 	func-calls \
@@ -81,10 +81,10 @@ test-lib.o: test-lib.c
 	gcc ${GCC_OPTS} test-lib.c -c
 
 test-wcc.s: test-main.c wcc
-	./wcc ${WC4_OPTS} -c -S test-main.c
+	./wcc ${WCC_OPTS} -c -S test-main.c
 
 test-wcc-%.s: test-wcc-%.c wcc
-	./wcc ${WC4_OPTS} -c -S $<
+	./wcc ${WCC_OPTS} -c -S $<
 
 test-wcc-%-wcc: test-wcc-%.s stack-check.o test-lib.o
 	gcc ${GCC_OPTS} $< stack-check.o test-lib.o -o $@
@@ -94,7 +94,7 @@ run-test-wcc-%-wcc: test-wcc-%-wcc
 	touch run-$<
 
 .PHONY: run-test-wcc
-run-test-wcc: ${WC4_TESTS:%=run-test-wcc-%-wcc}
+run-test-wcc: ${WCC_TESTS:%=run-test-wcc-%-wcc}
 	@echo wcc tests passed
 
 test-wcc-%-gcc: test-wcc-%.c stack-check.o test-lib.o
@@ -105,7 +105,7 @@ run-test-wcc-%-gcc: test-wcc-%-gcc
 	touch run-$<
 
 .PHONY: run-test-wcc-gcc
-run-test-wcc-gcc: ${WC4_TESTS:%=run-test-wcc-%-gcc}
+run-test-wcc-gcc: ${WCC_TESTS:%=run-test-wcc-%-gcc}
 	@echo gcc tests passed
 
 benchmark: wcc wcc2 benchmark.c
@@ -114,20 +114,20 @@ benchmark: wcc wcc2 benchmark.c
 run-benchmark: benchmark
 	./benchmark
 
-test-self-compilation: ${WC42_ASSEMBLIES} ${WC43_ASSEMBLIES}
+test-self-compilation: ${WCC2_ASSEMBLIES} ${WCC3_ASSEMBLIES}
 	cat build/wcc2/*.s > build/wcc2/all-s
 	cat build/wcc3/*.s > build/wcc3/all-s
 	diff build/wcc2/all-s build/wcc3/all-s
 	@echo self compilation test passed
 
 test-include/test-include: wcc test-include/include.h test-include/main.c test-include/foo.c
-	cd test-include && ../wcc ${WC4_OPTS} main.c foo.c -o test-include
+	cd test-include && ../wcc ${WCC_OPTS} main.c foo.c -o test-include
 
 run-test-include: test-include/test-include
 	test-include/test-include
 
 test-set: wcc set.c utils.c test-set.c
-	./wcc ${WC4_OPTS} set.c utils.c test-set.c -o test-set
+	./wcc ${WCC_OPTS} set.c utils.c test-set.c -o test-set
 
 test-set-gcc: set.c utils.c test-set.c
 	gcc ${GCC_OPTS} -g -o test-set-gcc set.c utils.c test-set.c
@@ -139,10 +139,10 @@ run-test-set-gcc: test-set-gcc
 	 ./test-set-gcc
 
 test-ssa.s: wcc test-ssa.c
-	./wcc ${WC4_OPTS} -c -S test-ssa.c -o test-ssa.s
+	./wcc ${WCC_OPTS} -c -S test-ssa.c -o test-ssa.s
 
 test-utils.s: wcc test-utils.c
-	./wcc ${WC4_OPTS} -c -S test-utils.c -o test-utils.s
+	./wcc ${WCC_OPTS} -c -S test-utils.c -o test-utils.s
 
 test-ssa: wcc test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
 	gcc ${GCC_OPTS} -g -o test-ssa test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
@@ -157,7 +157,7 @@ run-test-ssa-gcc: test-ssa-gcc
 	 ./test-ssa-gcc
 
 test-instrsel.s: wcc test-instrsel.c
-	./wcc ${WC4_OPTS} -c -S test-instrsel.c -o test-instrsel.s
+	./wcc ${WCC_OPTS} -c -S test-instrsel.c -o test-instrsel.s
 
 test-instrsel: wcc test-instrsel.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
 	gcc ${GCC_OPTS} -g -o test-instrsel test-instrsel.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
@@ -172,7 +172,7 @@ run-test-instrsel-gcc: test-instrsel-gcc
 	./test-instrsel-gcc
 
 test-graph: wcc test-graph.c graph.c set.c stack.c ir.c utils.c
-	./wcc ${WC4_OPTS} test-graph.c graph.c utils.c -o test-graph
+	./wcc ${WCC_OPTS} test-graph.c graph.c utils.c -o test-graph
 
 run-test-graph: test-graph
 	 ./test-graph
