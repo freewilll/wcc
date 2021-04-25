@@ -175,8 +175,6 @@ typedef struct typedef_desc {
 } Typedef;
 
 enum {
-    DATA_SIZE                     = 10485760,
-    INSTRUCTIONS_SIZE             = 10485760,
     SYMBOL_TABLE_SIZE             = 10485760,
     MAX_STRUCTS                   = 1024,
     MAX_TYPEDEFS                  = 1024,
