@@ -261,6 +261,7 @@ enum {
     TOK_HASH,
     TOK_INCLUDE,
     TOK_EXTERN,
+    TOK_ELLIPSES,
 };
 
 // Types. All structs start at TYPE_STRUCT up to TYPE_PTR - 1. Pointers are represented by adding TYPE_PTR to a type.

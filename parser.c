@@ -1193,18 +1193,22 @@ void parse() {
                         if (cur_token_is_type()) {
                             type = parse_type();
                             if (type >= TYPE_STRUCT && type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
+
+                            expect(TOK_IDENTIFIER, "identifier");
+                            param_symbol = new_symbol();
+                            param_symbol->type = type;
+                            param_symbol->identifier = cur_identifier;
+                            param_symbol->scope = cur_scope;
+                            s->function->param_types[param_count] = type;
+                            param_symbol->local_index = param_count++;
+                            next();
+                        }
+                        else if (cur_token == TOK_ELLIPSES) {
+                            s->function->is_variadic = 1;
+                            next();
                         }
                         else
                             panic("Expected type or )");
-
-                        expect(TOK_IDENTIFIER, "identifier");
-                        param_symbol = new_symbol();
-                        param_symbol->type = type;
-                        param_symbol->identifier = cur_identifier;
-                        param_symbol->scope = cur_scope;
-                        s->function->param_types[param_count] = type;
-                        param_symbol->local_index = param_count++;
-                        next();
 
                         if (cur_token == TOK_RPAREN) break;
                         consume(TOK_COMMA, ",");

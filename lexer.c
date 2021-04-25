@@ -63,7 +63,6 @@ void next() {
         else if (                        c1 == ';'                        )  { ip += 1;  cur_token = TOK_SEMI;                       }
         else if (                        c1 == '?'                        )  { ip += 1;  cur_token = TOK_TERNARY;                    }
         else if (                        c1 == ':'                        )  { ip += 1;  cur_token = TOK_COLON;                      }
-        else if (                        c1 == '.'                        )  { ip += 1;  cur_token = TOK_DOT;                        }
         else if (input_size - ip >= 2 && c1 == '&' && c2 == '&'           )  { ip += 2;  cur_token = TOK_AND;                        }
         else if (input_size - ip >= 2 && c1 == '|' && c2 == '|'           )  { ip += 2;  cur_token = TOK_OR;                         }
         else if (input_size - ip >= 2 && c1 == '=' && c2 == '='           )  { ip += 2;  cur_token = TOK_DBL_EQ;                     }
@@ -93,6 +92,8 @@ void next() {
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\'';    }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\"';    }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\\';    }
+        else if (input_size - ip >= 3 && !memcmp(i+ip, "...",  3          )) { ip += 3;  cur_token = TOK_ELLIPSES;                   }
+        else if (                        c1 == '.'                        )  { ip += 1;  cur_token = TOK_DOT;                        }
 
         else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_long = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
 
