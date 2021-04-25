@@ -88,10 +88,10 @@ void test_struct_additions() {
     s = 0;
     s++;
 
-    assert_int(16, s,     "struct additions 1");
-    assert_int(32, s + 1, "struct additions 2");
-    assert_int(16, s++,   "struct additions 3");
-    assert_int(48, ++s,   "struct additions 4");
+    assert_long(16, (long) s,       "struct additions 1");
+    assert_long(32, (long) (s + 1), "struct additions 2");
+    assert_long(16, (long) s++,     "struct additions 3");
+    assert_long(48, (long) ++s,     "struct additions 4");
 }
 
 int main(int argc, char **argv) {

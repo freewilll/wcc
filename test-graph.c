@@ -36,7 +36,7 @@ int main() {
     // n1  e2   e0
     // n2  e3   e1
 
-    assert(0, g->nodes[0].succ->id); assert(0, g->nodes[0].pred);
+    assert(0, g->nodes[0].succ->id); assert(0, (long) g->nodes[0].pred);
     assert(2, g->nodes[1].succ->id); assert(0, g->nodes[1].pred->id);
     assert(3, g->nodes[2].succ->id); assert(1, g->nodes[2].pred->id);
 
@@ -51,8 +51,8 @@ int main() {
     // e2   n1   n2
     // e3   n2   n1
 
-    assert(1, g->edges[0].next_succ->id); assert(3, g->edges[0].next_pred->id);
-    assert(0, g->edges[1].next_succ);     assert(2, g->edges[1].next_pred->id);
-    assert(0, g->edges[2].next_succ);     assert(0, g->edges[2].next_pred);
-    assert(0, g->edges[3].next_succ);     assert(0, g->edges[3].next_pred);
+    assert(1,        g->edges[0].next_succ->id); assert(3,        g->edges[0].next_pred->id);
+    assert(0, (long) g->edges[1].next_succ);     assert(2, (long) g->edges[1].next_pred->id);
+    assert(0, (long) g->edges[2].next_succ);     assert(0, (long) g->edges[2].next_pred);
+    assert(0, (long) g->edges[3].next_succ);     assert(0, (long) g->edges[3].next_pred);
 }

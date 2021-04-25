@@ -78,7 +78,7 @@ typedef struct function {
     int spilled_register_count;              // Amount of stack space needed for registers spills
     int call_count;                          // Number of calls to other functions
     int is_defined;                          // if a definition has been found
-    int builtin;                             // For builtin functions, IR number of the builtin
+    int is_builtin;                          // True for builtin functions
     int is_variadic;                         // Set to 1 for builtin variadic functions
     struct three_address_code *ir;           // Intermediate representation
     Graph *cfg;                              // Control flow graph
@@ -310,30 +310,6 @@ enum {
     IR_LE,                    // <=
     IR_GE,                    // >=
     IR_PHI_FUNCTION,          // SSA phi function
-    IR_EXIT,                  // Builtin functions
-    IR_FOPEN,
-    IR_FREAD,
-    IR_FWRITE,
-    IR_FCLOSE,
-    IR_CLOSE,
-    IR_STDOUT,
-    IR_PRINTF,
-    IR_FPRINTF,
-    IR_MALLOC,
-    IR_FREE,
-    IR_MEMSET,
-    IR_MEMCMP,
-    IR_STRCMP,
-    IR_STRLEN,
-    IR_STRCPY,
-    IR_STRRCHR,
-    IR_SPRINTF,
-    IR_ASPRINTF,
-    IR_STRDUP,
-    IR_MEMCPY,
-    IR_MKTEMPS,
-    IR_PERROR,
-    IR_SYSTEM,
 };
 
 // Physical registers

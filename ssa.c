@@ -140,8 +140,9 @@ void add_function_call_result_moves(Function *function) {
 }
 
 void add_function_call_arg_moves(Function *function) {
-    int i, function_call_count;
+    int i, function_call_count, type;
     Tac *ir, *tac;
+    Function *called_function;
     Value **arg_values, **call_arg;
 
     function_call_count = make_function_call_count(function);
@@ -160,6 +161,8 @@ void add_function_call_arg_moves(Function *function) {
 
         if (ir->operation == IR_CALL) {
             call_arg = &(arg_values[ir->src1->value * 6]);
+            called_function = ir->src1->function_symbol->function;
+
             // Add the moves backwards so that arg 0 (rsi) is last.
             i = 0;
             while (i < 6 && *call_arg) {
@@ -175,8 +178,8 @@ void add_function_call_arg_moves(Function *function) {
                 tac->dst = new_value();
                 tac->dst->type = (*call_arg)->type;
                 tac->dst->vreg = ++function->vreg_count;
-                // FIXME function argument conversion needs work
-                if (tac->dst->type >= TYPE_CHAR && tac->dst->type < TYPE_LONG) tac->dst->type = TYPE_LONG;
+
+                tac->dst->type = i < called_function->param_count ? called_function->param_types[i] : TYPE_INT;
                 tac->src1 = *call_arg;
                 tac->src1->is_function_call_arg = 1;
                 tac->src1->function_call_arg_index = i;
@@ -1486,7 +1489,14 @@ void make_interference_graph(Function *function) {
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
             if (tac->src1 && tac->src1->is_function_call_arg &&
-                (tac->operation == IR_MOVE || tac->operation == X_MOV || tac->operation == X_MOVSBQ || tac->operation == X_MOVSWQ || tac->operation == X_MOVSLQ)) {
+                (tac->operation == IR_MOVE
+                    || tac->operation == X_MOV
+                    || tac->operation == X_MOVSBW
+                    || tac->operation == X_MOVSBL
+                    || tac->operation == X_MOVSBQ
+                    || tac->operation == X_MOVSWL
+                    || tac->operation == X_MOVSWQ
+                    || tac->operation == X_MOVSLQ)) {
                 arg = tac->src1->function_call_arg_index;
                 if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
                 force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, arg_registers[arg]);

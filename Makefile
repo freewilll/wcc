@@ -143,7 +143,7 @@ run-test-ssa: test-ssa
 	 ./test-ssa
 
 test-ssa-gcc: test-ssa.c test-utils.s lexer.c parser.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c
 
 run-test-ssa-gcc: test-ssa-gcc
 	 ./test-ssa-gcc

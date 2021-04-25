@@ -571,16 +571,23 @@ void test_instrsel() {
 }
 
 void run_function_call_single_arg(Value *src) {
+    Tac *tac;
+
     remove_reserved_physical_registers = 1;
 
     start_ir();
     i(0, IR_ARG, 0, c(0), src);
-    i(0, IR_CALL, v(1), fu(1), 0);
+    tac = i(0, IR_CALL, v(1), fu(1), 0);
+    tac->src1->function_symbol->function->param_count = 1;
+    tac->src1->function_symbol->function->param_types = malloc(sizeof(int));
+    tac->src1->function_symbol->function->param_types[0] = src->type;
     i(0, IR_MOVE, v(2), v(1), 0);
     finish_spill_ir(function);
 }
 
 void test_function_args() {
+    int j;
+
     remove_reserved_physical_registers = 0;
 
     // regular constant

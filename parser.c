@@ -1305,7 +1305,7 @@ void dump_symbols() {
     printf("\n");
 }
 // Add a builtin symbol
-void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
+Function *add_builtin(char *identifier, int type, int is_variadic) {
     Symbol *s;
 
     s = new_symbol();
@@ -1314,36 +1314,55 @@ void add_builtin(char *identifier, int instruction, int type, int is_variadic) {
     s->is_function = 1;
     s->function = malloc(sizeof(Function));
     memset(s->function, 0, sizeof(Function));
-    s->function->builtin = instruction;
+    s->function->is_builtin = 1;
     s->function->is_variadic = is_variadic;
+    s->function->param_types = malloc(sizeof(int *) * MAX_FUNCTION_CALL_ARGS);
+
+    return s->function;
+}
+
+// Add param
+void ap(Function *f, int type) {
+    f->param_types[f->param_count] = type;
+    f->param_count++;
 }
 
 void add_builtins() {
-    add_builtin("exit",     IR_EXIT,     TYPE_VOID,            0);
-    add_builtin("fopen",    IR_FOPEN,    TYPE_VOID + TYPE_PTR, 0);
-    add_builtin("fread",    IR_FREAD,    TYPE_INT,             0);
-    add_builtin("fwrite",   IR_FWRITE,   TYPE_INT,             0);
-    add_builtin("fclose",   IR_FCLOSE,   TYPE_INT,             0);
-    add_builtin("close",    IR_CLOSE,    TYPE_INT,             0);
-    add_builtin("stdout",   IR_STDOUT,   TYPE_LONG,            0);
-    add_builtin("printf",   IR_PRINTF,   TYPE_INT,             1);
-    add_builtin("fprintf",  IR_FPRINTF,  TYPE_INT,             1);
-    add_builtin("malloc",   IR_MALLOC,   TYPE_VOID + TYPE_PTR, 0);
-    add_builtin("free",     IR_FREE,     TYPE_INT,             0);
-    add_builtin("memset",   IR_MEMSET,   TYPE_INT,             0);
-    add_builtin("memcmp",   IR_MEMCMP,   TYPE_INT,             0);
-    add_builtin("strcmp",   IR_STRCMP,   TYPE_INT,             0);
-    add_builtin("strlen",   IR_STRLEN,   TYPE_INT,             0);
-    add_builtin("strcpy",   IR_STRCPY,   TYPE_INT,             0);
-    add_builtin("strrchr",  IR_STRRCHR,  TYPE_CHAR + TYPE_PTR, 0);
-    add_builtin("sprintf",  IR_SPRINTF,  TYPE_INT,             1);
-    add_builtin("asprintf", IR_ASPRINTF, TYPE_INT,             1);
-    add_builtin("strdup",   IR_STRDUP,   TYPE_CHAR + TYPE_PTR, 0);
-    add_builtin("memcpy",   IR_MEMCPY,   TYPE_VOID + TYPE_PTR, 0);
-    add_builtin("mkstemps", IR_MKTEMPS,  TYPE_INT,             0);
-    add_builtin("perror",   IR_PERROR,   TYPE_VOID,            0);
-    add_builtin("system",   IR_SYSTEM,   TYPE_INT,             0);
-    add_builtin("getenv",   IR_SYSTEM,   TYPE_CHAR + TYPE_PTR, 0);
+    Function *f;
+    int v, i, l, pv, pc, ppc;
+
+    v = TYPE_VOID;
+    i = TYPE_INT;
+    l = TYPE_LONG;
+    pv = TYPE_PTR + TYPE_VOID;
+    pc = TYPE_PTR + TYPE_CHAR;
+    ppc = TYPE_PTR + TYPE_CHAR;
+
+    f = add_builtin("exit",     v,  0); ap(f, i);
+    f = add_builtin("fopen",    pv, 0); ap(f, pc); ap(f, pc);
+    f = add_builtin("fread",    i,  0); ap(f, pv); ap(f, i); ap(f, i); ap(f, pv);
+    f = add_builtin("fwrite",   i,  0); ap(f, pv); ap(f, i); ap(f, i); ap(f, pv);
+    f = add_builtin("fclose",   i,  0); ap(f, pv);
+    f = add_builtin("close",    i,  0); ap(f, i);
+    f = add_builtin("stdout",   l,  0);
+    f = add_builtin("printf",   i,  1); ap(f, pc);
+    f = add_builtin("fprintf",  i,  1); ap(f, pv); ap(f, pc);
+    f = add_builtin("malloc",   pv, 0); ap(f, i);
+    f = add_builtin("free",     v,  0); ap(f, pv);
+    f = add_builtin("memset",   i,  0); ap(f, pv); ap(f, i); ap(f, i);
+    f = add_builtin("memcmp",   i,  0); ap(f, pv); ap(f, pv); ap(f, i);
+    f = add_builtin("strcmp",   i,  0); ap(f, pc); ap(f, pc);
+    f = add_builtin("strlen",   i,  0); ap(f, pc);
+    f = add_builtin("strcpy",   i,  0); ap(f, pc); ap(f, pc);
+    f = add_builtin("strrchr",  pc, 0); ap(f, pc); ap(f, i);
+    f = add_builtin("sprintf",  i,  1); ap(f, pc); ap(f, pc);
+    f = add_builtin("asprintf", i,  1); ap(f, ppc); ap(f, pc);
+    f = add_builtin("strdup",   pc, 0); ap(f, pc);
+    f = add_builtin("memcpy",   pv, 0); ap(f, pv); ap(f, pv); ap(f, i);
+    f = add_builtin("mkstemps", i,  0); ap(f, pc); ap(f, i);
+    f = add_builtin("perror",   v,  0); ap(f, pc);
+    f = add_builtin("system",   i,  0); ap(f, pc);
+    f = add_builtin("getenv",   pc, 0); ap(f, pc);
 }
 
 void init_parser() {

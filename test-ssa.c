@@ -42,13 +42,13 @@ void test_arithmetic_optimization_mul() {
     run_arithmetic_optimization(IR_MUL, c(0), v(1));
     assert(1, ir_start->src1->is_constant);
     assert(0, ir_start->src1->value);
-    assert(0, ir_start->src2);
+    assert(0, (int) ir_start->src2);
 
     // v2 = v1 * 0
     run_arithmetic_optimization(IR_MUL, v(1), c(0));
     assert(1, ir_start->src1->is_constant);
     assert(0, ir_start->src1->value);
-    assert(0, ir_start->src2);
+    assert(0, (int) ir_start->src2);
 
     // v2 = 1 * v1
     run_arithmetic_optimization(IR_MUL, c(1), v(1));
@@ -158,8 +158,8 @@ void test_cfg_jmp() {
 
     assert(2, function->cfg->node_count);
     assert(1, function->cfg->edge_count);
-    assert(t1, function->blocks[0].start); assert(t2, function->blocks[0].end);
-    assert(t4, function->blocks[1].start); assert(t4, function->blocks[1].end);
+    assert((long) t1, (long) function->blocks[0].start); assert((long) t2, (long) function->blocks[0].end);
+    assert((long) t4, (long) function->blocks[1].start); assert((long) t4, (long) function->blocks[1].end);
     assert(0, function->cfg->edges[0].from->id); assert(1, function->cfg->edges[0].to->id);
 }
 
