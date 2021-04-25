@@ -448,7 +448,6 @@ void push_onto_stack(Stack *s, int v);
 int pop_from_stack(Stack *s);
 
 // graph.c
-void init_graph(Graph *g, int node_count, int edge_count);
 Graph *new_graph(int node_count, int edge_count);
 void dump_graph(Graph *g);
 GraphEdge *add_graph_edge(Graph *g, int from, int to);
@@ -473,9 +472,7 @@ int get_type_alignment(int type);
 int get_type_size(int type);
 int new_vreg();
 Symbol *new_symbol();
-int parse_struct_base_type(int parse_struct_base_type);
 void check_incomplete_structs();
-void expression(int level);
 void finish_parsing_header();
 void parse();
 void dump_symbols();
@@ -531,30 +528,24 @@ int live_range_reserved_pregs_offset;
 int preg_count;
 int *live_range_preg_indexes;
 
-void analyze_dominance(Function *function);
-
 void optimize_arithmetic_operations(Function *function);
-int make_vreg_count(Function *function, int starting_count);
-int new_subscript(Stack **stack, int *counters, int n);
-void make_uevar_and_varkill(Function *function);
-void make_liveout(Function *function);
-void rename_phi_function_variables(Function *function);
-void make_live_ranges(Function *function);
-void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count);
-void make_control_flow_graph(Function *function);
-void make_block_dominance(Function *function);
-void print_interference_graph(Function *function);
-void coalesce_live_ranges(Function *function);
-void add_ig_edge(char *ig, int vreg_count, int to, int from);
-void make_globals_and_var_blocks(Function *function);
-void insert_phi_functions(Function *function);
-void map_stack_index_to_local_index(Function *function);
 void rewrite_lvalue_reg_assignments(Function *function);
 void add_function_call_result_moves(Function *function);
 void add_function_call_arg_moves(Function *function);
 void add_function_param_moves(Function *function);
+void make_control_flow_graph(Function *function);
+void make_block_dominance(Function *function);
+void analyze_dominance(Function *function);
+int make_vreg_count(Function *function, int starting_count);
+void make_uevar_and_varkill(Function *function);
+void make_liveout(Function *function);
+void make_globals_and_var_blocks(Function *function);
+void insert_phi_functions(Function *function);
+void rename_phi_function_variables(Function *function);
+void make_live_ranges(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
-void make_live_range_spill_cost(Function *function);
+void add_ig_edge(char *ig, int vreg_count, int to, int from);
+void coalesce_live_ranges(Function *function);
 void make_preferred_live_range_preg_indexes(Function *function);
 
 // regalloc.c
@@ -562,8 +553,6 @@ int *physical_registers, *arg_registers, *preg_map;
 
 void allocate_registers_top_down(Function *function, int physical_register_count);
 void allocate_registers(Function *function);
-void assign_vreg_locations(Function *function);
-void remove_preg_self_moves(Function *function);
 void init_callee_saved_registers();
 void init_allocate_registers();
 
@@ -695,7 +684,6 @@ void print_rules();
 void make_value_x86_size(Value *v);
 int match_value_to_rule_src(Value *v, int src);
 int match_value_to_rule_dst(Value *v, int dst);
-int value_ptr_target_x86_size(Value *v);
 char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);

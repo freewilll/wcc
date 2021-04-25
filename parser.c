@@ -4,15 +4,18 @@
 
 #include "wcc.h"
 
+static int parse_struct_base_type(int allow_incomplete_structs);
+static void expression(int level);
+
 // Push a value to the stack
-Value *push(Value *v) {
+static Value *push(Value *v) {
     *--vs = v;
     vtop = *vs;
     return v;
 }
 
 // Pop a value from the stack
-Value *pop() {
+static Value *pop() {
     Value *result;
 
     result = *vs++;
@@ -23,7 +26,7 @@ Value *pop() {
 
 // load a value into a register if not already done. lvalues are converted into
 // rvalues.
-Value *load(Value *src1) {
+static Value *load(Value *src1) {
     Value *dst;
 
     if (src1->is_constant) return src1;
@@ -54,17 +57,17 @@ Value *load(Value *src1) {
 }
 
 // Pop and load.
-Value *pl() {
+static Value *pl() {
     return load(pop());
 }
 
 // Create a new typed constant value and push it to the stack
-void push_constant(int type, long value) {
+static void push_constant(int type, long value) {
     push(new_constant(type, value));
 }
 
 // Add an operation to the IR
-Tac *add_ir_op(int operation, int type, int vreg, Value *src1, Value *src2) {
+static Tac *add_ir_op(int operation, int type, int vreg, Value *src1, Value *src2) {
     Value *v;
     Tac *result;
 
@@ -89,7 +92,7 @@ Symbol *new_symbol() {
 }
 
 // Search for a symbol in a scope. Returns zero if not found
-Symbol *lookup_symbol(char *name, int scope) {
+static Symbol *lookup_symbol(char *name, int scope) {
     Symbol *s;
 
     s = symbol_table;
@@ -104,7 +107,7 @@ Symbol *lookup_symbol(char *name, int scope) {
 }
 
 // Returns destination type of an operation with two operands
-int operation_type(Value *src1, Value *src2) {
+static int operation_type(Value *src1, Value *src2) {
     if (src1->type >= TYPE_PTR) return src1->type;
     else if (src2->type >= TYPE_PTR) return src2->type;
     else if (src1->type == TYPE_LONG || src2->type == TYPE_LONG) return TYPE_LONG;
@@ -113,11 +116,11 @@ int operation_type(Value *src1, Value *src2) {
 }
 
 // Returns destination type of an operation using the top two values in the stack
-int vs_operation_type() {
+static int vs_operation_type() {
     return operation_type(vtop, vs[1]);
 }
 
-int cur_token_is_type() {
+static int cur_token_is_type() {
     return (
         cur_token == TOK_VOID ||
         cur_token == TOK_CHAR ||
@@ -152,12 +155,12 @@ int get_type_size(int type) {
 }
 
 // How much will the ++, --, +=, -= operators increment a type?
-int get_type_inc_dec_size(int type) {
+static int get_type_inc_dec_size(int type) {
     return type < TYPE_PTR ? 1 : get_type_size(type - TYPE_PTR);
 }
 
 // Parse type up to the point where identifiers or * are lexed
-int parse_base_type(int allow_incomplete_structs) {
+static int parse_base_type(int allow_incomplete_structs) {
     int type;
 
          if (cur_token == TOK_VOID)         type = TYPE_VOID;
@@ -175,7 +178,7 @@ int parse_base_type(int allow_incomplete_structs) {
 }
 
 // Parse type, including *
-int parse_type() {
+static int parse_type() {
     int type;
 
     type = parse_base_type(0);
@@ -185,7 +188,7 @@ int parse_type() {
 }
 
 // Allocate a new Struct
-Struct *new_struct() {
+static Struct *new_struct() {
     Struct *s;
 
     s = malloc(sizeof(Struct));
@@ -198,7 +201,7 @@ Struct *new_struct() {
 }
 
 // Search for a struct. Returns 0 if not found.
-Struct *find_struct(char *identifier) {
+static Struct *find_struct(char *identifier) {
     Struct *s;
     int i;
 
@@ -209,7 +212,7 @@ Struct *find_struct(char *identifier) {
 }
 
 // Parse struct definitions and uses. Declarations aren't implemented.
-int parse_struct_base_type(int allow_incomplete_structs) {
+static int parse_struct_base_type(int allow_incomplete_structs) {
     char *identifier;
     Struct *s;
     StructMember *member;
@@ -302,7 +305,7 @@ void check_incomplete_structs() {
 }
 
 // Parse "typedef struct struct_id typedef_id"
-void parse_typedef() {
+static void parse_typedef() {
     Struct *s;
     char *identifier;
     Typedef *t;
@@ -328,7 +331,7 @@ void parse_typedef() {
     next();
 }
 
-void indirect() {
+static void indirect() {
     Value *dst, *src1;
 
     // The stack contains an rvalue which is a pointer. All that needs doing
@@ -346,7 +349,7 @@ void indirect() {
 }
 
 // Search for a struct member. Panics if it doesn't exist
-StructMember *lookup_struct_member(Struct *struct_desc, char *identifier) {
+static StructMember *lookup_struct_member(Struct *struct_desc, char *identifier) {
     StructMember **pmember;
 
     pmember = struct_desc->members;
@@ -360,7 +363,7 @@ StructMember *lookup_struct_member(Struct *struct_desc, char *identifier) {
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
-Value *new_label_dst() {
+static Value *new_label_dst() {
     Value *v;
 
     v = new_value();
@@ -370,20 +373,20 @@ Value *new_label_dst() {
 }
 
 // Add a no-op instruction with a label
-void add_jmp_target_instruction(Value *v) {
+static void add_jmp_target_instruction(Value *v) {
     Tac *tac;
 
     tac = add_instruction(IR_NOP, 0, 0, 0);
     tac->label = v->label;
 }
 
-void add_conditional_jump(int operation, Value *dst) {
+static void add_conditional_jump(int operation, Value *dst) {
         // Load the result into a register
     add_instruction(operation, 0, pl(), dst);
 }
 
 // Add instructions for && and || operators
-void and_or_expr(int is_and) {
+static void and_or_expr(int is_and) {
     Value *dst, *ldst1, *ldst2, *ldst3;
 
     next();
@@ -419,7 +422,7 @@ void and_or_expr(int is_and) {
     add_jmp_target_instruction(ldst3);
 }
 
-void arithmetic_operation(int operation, int type) {
+static void arithmetic_operation(int operation, int type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
 
@@ -433,7 +436,7 @@ void arithmetic_operation(int operation, int type) {
     tac = add_ir_op(operation, type, new_vreg(), src1, src2);
 }
 
-void parse_arithmetic_operation(int level, int operation, int type) {
+static void parse_arithmetic_operation(int level, int operation, int type) {
     next();
     expression(level);
     arithmetic_operation(operation, type);
@@ -442,7 +445,7 @@ void parse_arithmetic_operation(int level, int operation, int type) {
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
-void expression(int level) {
+static void expression(int level) {
     int org_token;
     int org_type;
     int factor;
@@ -851,7 +854,7 @@ void expression(int level) {
 }
 
 // Parse a statement
-void statement() {
+static void statement() {
     Value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
     Tac *tac;
     int loop_token;
@@ -1019,7 +1022,7 @@ void statement() {
 }
 
 // Parse function body
-void function_body() {
+static void function_body() {
     int local_symbol_count;
     int base_type, type;
     Symbol *s;
@@ -1066,7 +1069,7 @@ void function_body() {
 }
 
 // String the filename component from a path
-char *base_path(char *path) {
+static char *base_path(char *path) {
     int end;
     char *result;
 
@@ -1079,7 +1082,7 @@ char *base_path(char *path) {
     return result;
 }
 
-void parse_directive() {
+static void parse_directive() {
     char *filename, *cur_path;
 
     if (parsing_header) panic("Nested headers not impemented");
@@ -1316,28 +1319,6 @@ void dump_symbols() {
         s++;
     }
     printf("\n");
-}
-// Add a builtin symbol
-Function *add_builtin(char *identifier, int type, int is_variadic) {
-    Symbol *s;
-
-    s = new_symbol();
-    s->type = type;
-    s->identifier = identifier;
-    s->is_function = 1;
-    s->function = malloc(sizeof(Function));
-    memset(s->function, 0, sizeof(Function));
-    s->function->is_external = 1;
-    s->function->is_variadic = is_variadic;
-    s->function->param_types = malloc(sizeof(int *) * MAX_FUNCTION_CALL_ARGS);
-
-    return s->function;
-}
-
-// Add param
-void ap(Function *f, int type) {
-    f->param_types[f->param_count] = type;
-    f->param_count++;
 }
 
 void init_parser() {

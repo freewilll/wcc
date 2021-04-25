@@ -12,7 +12,7 @@ int new_vreg() {
 }
 
 // A useful function for debugging
-void print_value_stack() {
+static void print_value_stack() {
     Value **lvs, *v;
 
     printf("%-4s %-4s %-4s %-11s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "local_index", "is_lv");
@@ -468,7 +468,7 @@ void print_ir(Function *function, char *name) {
 }
 
 // Merge tac with the instruction after it. The next instruction is removed from the chain.
-void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) {
+static void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) {
     int i, label;
     Tac *next;
 
@@ -578,7 +578,7 @@ Tac *insert_instruction(Tac *ir, Tac *tac, int move_label) {
     }
 }
 
-void renumber_label(Tac *ir, int l1, int l2) {
+static void renumber_label(Tac *ir, int l1, int l2) {
     Tac *t;
 
     t = ir;
@@ -613,7 +613,7 @@ void renumber_labels(Function *function) {
     }
 }
 
-void merge_labels(Tac *ir, Tac *tac, int ir_index) {
+static void merge_labels(Tac *ir, Tac *tac, int ir_index) {
     Tac *deleted_tac, *t;
     int l;
 
@@ -642,7 +642,7 @@ void merge_consecutive_labels(Function *function) {
     }
 }
 
-void assign_local_to_register(Value *v, int vreg) {
+static void assign_local_to_register(Value *v, int vreg) {
     v->local_index = 0;
     v->is_lvalue = 0;
     v->vreg = vreg;

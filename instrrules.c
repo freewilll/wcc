@@ -4,7 +4,7 @@
 
 #include "wcc.h"
 
-void add_cast_rules() {
+static void add_cast_rules() {
     Rule *r;
     int i, j;
 
@@ -24,7 +24,7 @@ void add_cast_rules() {
     r->match_dst = 1;
 }
 
-Rule *add_move_to_ptr(int src1, int src2, char *template) {
+static Rule *add_move_to_ptr(int src1, int src2, char *template) {
     Rule *r;
 
     r = add_rule(src1, IR_MOVE_TO_PTR, src1, src2, 3);
@@ -33,7 +33,7 @@ Rule *add_move_to_ptr(int src1, int src2, char *template) {
 }
 
 // Add rules for loads & address of from IR_BSHL + IR_ADD + IR_INDIRECT/IR_ADDRESS_OF
-void add_scaled_rule(int *ntc, int cst, int add_reg, int indirect_reg, int address_of_reg, int op, char *template) {
+static void add_scaled_rule(int *ntc, int cst, int add_reg, int indirect_reg, int address_of_reg, int op, char *template) {
     int ntc1, ntc2;
     Rule *r;
 
@@ -49,7 +49,7 @@ void add_scaled_rule(int *ntc, int cst, int add_reg, int indirect_reg, int addre
     add_op(r, op, DST, SRC1, 0, template);
 }
 
-void add_offset_rule(int *ntc, int add_reg, int indirect_reg, char *template) {
+static void add_offset_rule(int *ntc, int add_reg, int indirect_reg, char *template) {
     int ntc1;
     Rule *r;
 
@@ -64,7 +64,7 @@ void add_offset_rule(int *ntc, int add_reg, int indirect_reg, char *template) {
     add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, template);
 }
 
-void add_composite_pointer_rules(int *ntc) {
+static void add_composite_pointer_rules(int *ntc) {
     int i;
     char *template;
     Rule *r;
@@ -101,7 +101,7 @@ void add_composite_pointer_rules(int *ntc) {
     add_scaled_rule(ntc, CST3, ADRV, 0, ADRV, X_MOV_FROM_SCALED_IND, "lea    (%v1q,%v2q,8), %vdq");
 }
 
-void add_pointer_rules(int *ntc) {
+static void add_pointer_rules(int *ntc) {
     int src, dst;
     Rule *r;
 
@@ -194,7 +194,7 @@ void add_pointer_rules(int *ntc) {
     add_move_to_ptr(ADRV, CSTL, "movq $%v2q, (%v1q)");
 }
 
-void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {
+static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {
     int x86_jmp_operation;
     Rule *r;
 
@@ -206,7 +206,7 @@ void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost,
     if (do_fin_rule) fin_rule(r);
 }
 
-void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *template) {
+static void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *template) {
     Rule *r;
 
     (*ntc)++;
@@ -240,7 +240,7 @@ void add_comparison_conditional_jmp_rules(int *ntc, int src1, int src2, char *te
     r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, X_JLT, 0, SRC2, 0,    "jl %v1" ); fin_rule(r);
 }
 
-void add_comparison_assignment_rule(int src1, int src2, char *cmp_template, int operation, int set_operation, char *set_template) {
+static void add_comparison_assignment_rule(int src1, int src2, char *cmp_template, int operation, int set_operation, char *set_template) {
     int i;
     Rule *r;
 
@@ -257,7 +257,7 @@ void add_comparison_assignment_rule(int src1, int src2, char *cmp_template, int 
     }
 }
 
-void add_comparison_assignment_rules(int src1, int src2, char *template) {
+static void add_comparison_assignment_rules(int src1, int src2, char *template) {
     Rule *r;
 
     add_comparison_assignment_rule(src1, src2, template, IR_EQ, X_SETE,  "sete %vdb");
@@ -268,7 +268,7 @@ void add_comparison_assignment_rules(int src1, int src2, char *template) {
     add_comparison_assignment_rule(src1, src2, template, IR_GE, X_SETGE, "setge %vdb");
 }
 
-void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
+static void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
     int i;
     char *op_vv, *op_cv;
     Rule *r;
@@ -332,7 +332,7 @@ void add_commutative_operation_rules(char *x86_operand, int operation, int x86_o
     }
 }
 
-void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_template, char *sub_template) {
+static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_template, char *sub_template) {
     Rule *r;
 
     r = add_rule(dst, IR_SUB, src1, src2, cost);
@@ -341,7 +341,7 @@ void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_template, cha
     fin_rule(r);
 }
 
-void add_sub_rules() {
+static void add_sub_rules() {
     int i, j;
     Rule *r;
 
@@ -368,7 +368,7 @@ void add_sub_rules() {
     add_sub_rule(ADRV, ADRV, CSTL,  11, "movq %v1q, %vdq",  "subq $%v1q, %vdq");
 }
 
-void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *t4, char *tdiv, char *tmod) {
+static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *t4, char *tdiv, char *tmod) {
     Rule *r;
 
     r = add_rule(dst, IR_DIV, src1,  src2,  cost); add_op(r, X_MOV,  0,    SRC1, 0,    t1);
@@ -385,14 +385,14 @@ void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, cha
                                                    fin_rule(r);
 }
 
-void add_div_rules() {
+static void add_div_rules() {
     Rule *r;
 
     add_div_rule(REGL, REGL, REGL, 40, "movl %v1l, %%eax", "cltd", "movl %v1l, %vdl", "idivl %vdl", "movl %%eax, %vdl", "movl %%edx, %vdl");
     add_div_rule(REGQ, REGQ, REGQ, 50, "movq %v1q, %%rax", "cqto", "movq %v1q, %vdq", "idivq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
 }
 
-void add_bnot_rules() {
+static void add_bnot_rules() {
     Rule *r;
 
     r = add_rule(REG, IR_BNOT, REG, 0, 3); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");
@@ -403,7 +403,7 @@ void add_bnot_rules() {
                                            fin_rule(r);
 }
 
-void add_binary_shift_rule(int src2, char *template) {
+static void add_binary_shift_rule(int src2, char *template) {
     Rule *r;
 
     r = add_rule(REG, IR_BSHL, REG, src2, 4); add_op(r, X_MOV, DST, SRC2, 0, template);
@@ -416,7 +416,7 @@ void add_binary_shift_rule(int src2, char *template) {
                                               fin_rule(r);
 }
 
-void add_binary_shift_rules() {
+static void add_binary_shift_rules() {
     Rule *r;
 
     r = add_rule(REG, IR_BSHL, REG, CST, 3); add_op(r, X_MOV, DST, SRC1, 0, "mov%s %v1, %vd");
@@ -438,7 +438,7 @@ void add_binary_shift_rules() {
     add_binary_shift_rule(REGQ, "movq %v1q, %%rcx");
 }
 
-X86Operation *add_function_call_arg_op(Rule *r) {
+static X86Operation *add_function_call_arg_op(Rule *r) {
     X86Operation *x86_op;
     x86_op = add_op(r, X_ARG, 0, SRC1, SRC2, "_arg_ %v2q");
 }

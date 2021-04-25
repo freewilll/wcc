@@ -27,7 +27,7 @@ typedef struct vreg_cost {
     int cost;
 } VregCost;
 
-void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
+static void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
     int i, j, pivot;
     int tmp_vreg, tmp_cost;
 
@@ -57,7 +57,7 @@ void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
     quicksort_vreg_cost(vreg_cost, j + 1, right);
 }
 
-int *make_original_stack_indexes(Function *function) {
+static int *make_original_stack_indexes(Function *function) {
     Tac *tac;
     int *result;
 
@@ -75,7 +75,7 @@ int *make_original_stack_indexes(Function *function) {
     return result;
 }
 
-int graph_node_degree(char *ig, int vreg_count, int node) {
+static int graph_node_degree(char *ig, int vreg_count, int node) {
     int i, result, offset;
 
     result = 0;
@@ -86,7 +86,7 @@ int graph_node_degree(char *ig, int vreg_count, int node) {
     return result;
 }
 
-void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
+static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
     int physical_register_count, int *spilled_register_count, int vreg, int *original_stack_indexes,
     int preferred_live_range_preg_index) {
 
@@ -346,7 +346,7 @@ void init_allocate_registers() {
     arg_registers[5]  = LIVE_RANGE_PREG_R9_INDEX;
 }
 
-void assign_vreg_locations(Function *function) {
+static void assign_vreg_locations(Function *function) {
     Tac *tac;
     VregLocation *function_vl, *vl;
 
@@ -390,7 +390,7 @@ void assign_vreg_locations(Function *function) {
     function->local_symbol_count = 0; // This nukes ancient code that assumes local vars are on the stack
 }
 
-void remove_preg_self_moves(Function *function) {
+static void remove_preg_self_moves(Function *function) {
     // This removes instructions that copy a physical register to itself by replacing them with noops.
 
     Tac *tac;

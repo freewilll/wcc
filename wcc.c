@@ -68,7 +68,7 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     add_spill_code(function);
 }
 
-void compile_externals() {
+static void compile_externals() {
     char *temp_filename;
     void *f;
 

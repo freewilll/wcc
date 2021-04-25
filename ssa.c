@@ -5,6 +5,8 @@
 
 #include "wcc.h"
 
+static void make_live_range_spill_cost(Function *function);
+
 void optimize_arithmetic_operations(Function *function) {
     Tac *tac;
     Value *v, *cv;
@@ -191,7 +193,7 @@ void add_function_call_arg_moves(Function *function) {
     }
 }
 
-void assign_register_param_value_to_register(Value *v, int vreg) {
+static void assign_register_param_value_to_register(Value *v, int vreg) {
     v->stack_index = 0;
     v->is_lvalue = 0;
     v->vreg = vreg;
@@ -202,7 +204,7 @@ void assign_register_param_value_to_register(Value *v, int vreg) {
 // arg = param_count - stack-index + 1
 // 0 <= arg < 6                         =>
 // -1 <= param_count - stack-index < 5
-void convert_register_param_stack_index(Function *function, int *register_param_vregs, Value *v) {
+static void convert_register_param_stack_index(Function *function, int *register_param_vregs, Value *v) {
     if (v && v->stack_index > 0 && function->param_count - v->stack_index >= -1 && function->param_count - v->stack_index < 5)
         assign_register_param_value_to_register(v, register_param_vregs[function->param_count - v->stack_index + 1]);
 }
@@ -211,7 +213,7 @@ void convert_register_param_stack_index(Function *function, int *register_param_
 // They are passed in as registers (rdi, rsi, ...). Either, the moves will go to
 // a new physical register, or, when possible, will remain in the original registers.
 // Param #7 and onwards are pushed onto the stack; nothing is done with those here.
-void add_function_param_moves_for_registers(Function *function) {
+static void add_function_param_moves_for_registers(Function *function) {
     int i, register_param_count, *register_param_vregs;
     Tac *ir, *tac;
 
@@ -257,7 +259,7 @@ void add_function_param_moves_for_registers(Function *function) {
 }
 
 // Convert a value that has a stack index >= 2, i.e. it's a pushed parameter into a vreg
-void convert_pushed_param_stack_index(Function *function, int *param_vregs, Value *v) {
+static void convert_pushed_param_stack_index(Function *function, int *param_vregs, Value *v) {
     if (v && !v->function_param_original_stack_index && v->stack_index >= 2 && param_vregs[v->stack_index - 2])
         assign_register_param_value_to_register(v, param_vregs[v->stack_index - 2]);
 }
@@ -265,7 +267,7 @@ void convert_pushed_param_stack_index(Function *function, int *param_vregs, Valu
 // Move function parameters pushed the stack by the caller into registers.
 // They might get spilled, in which case function_param_original_stack_index is used
 // rather than allocating more space.
-void add_function_param_moves_for_stack(Function *function) {
+static void add_function_param_moves_for_stack(Function *function) {
     Tac *ir, *tac;
     int i, register_param_count, *param_vregs;
 
@@ -313,7 +315,7 @@ void add_function_param_moves(Function *function) {
     add_function_param_moves_for_stack(function);
 }
 
-void index_tac(Tac *ir) {
+static void index_tac(Tac *ir) {
     Tac *tac;
     int i;
 
@@ -488,7 +490,7 @@ void make_block_dominance(Function *function) {
     for (i = 0; i < block_count; i++) function->dominance[i] = dom[i];
 }
 
-void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) {
+static void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) {
     Block *blocks;
     Graph *cfg;
     GraphEdge *e;
@@ -509,7 +511,7 @@ void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) 
     (*pos)--;
 }
 
-int intersect(int *rpos, int *idoms, int i, int j) {
+static int intersect(int *rpos, int *idoms, int i, int j) {
     int f1, f2;
 
     f1 = i;
@@ -524,7 +526,7 @@ int intersect(int *rpos, int *idoms, int i, int j) {
 }
 
 // Algorithm on page 532 of engineering a compiler
-void make_block_immediate_dominators(Function *function) {
+static void make_block_immediate_dominators(Function *function) {
     int block_count, edge_count, i, changed;
     int *rpos, pos, *visited, *idoms, *rpos_order, b, p, new_idom;
     Graph *cfg;
@@ -597,7 +599,7 @@ void make_block_immediate_dominators(Function *function) {
 
 // Algorithm on page 499 of engineering a compiler
 // Walk the dominator tree defined by the idom (immediate dominator)s.
-void make_block_dominance_frontiers(Function *function) {
+static void make_block_dominance_frontiers(Function *function) {
     int block_count, i, j, *predecessors, predecessor_count, p, runner, *idom;
     Block *blocks;
     Graph *cfg;
@@ -968,7 +970,7 @@ void insert_phi_functions(Function *function) {
     }
 }
 
-int new_subscript(Stack **stack, int *counters, int n) {
+static int new_subscript(Stack **stack, int *counters, int n) {
     int i;
 
     i = counters[n]++;
@@ -977,7 +979,7 @@ int new_subscript(Stack **stack, int *counters, int n) {
     return i;
 }
 
-void print_stack_and_counters(Stack **stack, int *counters, int vreg_count) {
+static void print_stack_and_counters(Stack **stack, int *counters, int vreg_count) {
     int i;
 
     printf("         ");
@@ -998,13 +1000,13 @@ void print_stack_and_counters(Stack **stack, int *counters, int vreg_count) {
 
 // If nothing is on the stack, push one. This is to deal with undefined
 // variables being used.
-int safe_stack_top(Stack **stack, int *counters, int n) {
+static int safe_stack_top(Stack **stack, int *counters, int n) {
     if (stack[n]->pos == MAX_STACK_SIZE) new_subscript(stack, counters, n);
     return stack_top(stack[n]);
 }
 
 // Algorithm on page 506 of engineering a compiler
-void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count) {
+static void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count) {
     int i, x, block_count, edge_count, *idoms;;
     Tac *tac, *tac2, *end;
     Block *blocks;
@@ -1367,7 +1369,7 @@ void add_ig_edge(char *ig, int vreg_count, int to, int from) {
 
 // Add edges to a physical register for all live variables, preventing the physical register from
 // getting used.
-void clobber_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
+static void clobber_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
     int i;
 
     if (debug_ssa_interference_graph) printf("Clobbering livenow for pri=%d\n", preg_reg_index);
@@ -1379,7 +1381,7 @@ void clobber_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_
 }
 
 // Add edges to a physical register for all live variables and all values in an instruction
-void clobber_tac_and_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
+static void clobber_tac_and_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
     if (debug_ssa_interference_graph) printf("Adding edges for pri=%d\n", preg_reg_index);
 
     clobber_livenow(ig, vreg_count, livenow, tac, preg_reg_index);
@@ -1389,7 +1391,7 @@ void clobber_tac_and_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, i
     if (tac->src2 && tac->src2->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->src2->vreg);
 }
 
-void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
+static void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
              if (preg_reg_index == LIVE_RANGE_PREG_RAX_INDEX) printf("rax");
         else if (preg_reg_index == LIVE_RANGE_PREG_RBX_INDEX) printf("rbx");
         else if (preg_reg_index == LIVE_RANGE_PREG_RCX_INDEX) printf("rcx");
@@ -1406,7 +1408,7 @@ void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
 }
 
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
-void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index) {
+static void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index) {
     int i;
 
     if (debug_ssa_interference_graph || debug_register_allocation) {
@@ -1427,12 +1429,12 @@ void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, i
 // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
 // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
 // register allocated to them.
-void force_register_param_physical_register(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
+static void force_register_param_physical_register(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
     if (value && value->is_function_param && value->is_function_param && value->function_param_index < 6)
         force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[value->function_param_index]);
 }
 
-void print_interference_graph(Function *function) {
+static void print_interference_graph(Function *function) {
     int vreg_count, from, to, from_offset;
     char *interference_graph; // Triangular matrix of edges
 
@@ -1449,7 +1451,7 @@ void print_interference_graph(Function *function) {
 }
 
 // Page 701 of engineering a compiler
-void make_interference_graph(Function *function) {
+static void make_interference_graph(Function *function) {
     int i, j, vreg_count, block_count, edge_count, from, to, index, from_offset, arg;
     Block *blocks;
     Set *livenow;
@@ -1607,7 +1609,7 @@ void make_interference_graph(Function *function) {
     }
 }
 
-void copy_interference_graph_edges(char *interference_graph, int vreg_count, int src, int dst) {
+static void copy_interference_graph_edges(char *interference_graph, int vreg_count, int src, int dst) {
     // Copy all edges in the lower triangular interference graph matrics from src to dst
     int i;
 
@@ -1632,7 +1634,7 @@ void copy_interference_graph_edges(char *interference_graph, int vreg_count, int
 }
 
 // Delete src, merging it into dst
-void coalesce_live_range(Function *function, int src, int dst) {
+static void coalesce_live_range(Function *function, int src, int dst) {
     char *ig;
     int i, j, block_count, changed, vreg_count, from, to, from_offset;
     Tac *tac;
@@ -1799,7 +1801,7 @@ void coalesce_live_ranges(Function *function) {
 }
 
 // 10^p
-int ten_power(int p) {
+static int ten_power(int p) {
     int i, result;
 
     result = 1;
@@ -1813,7 +1815,7 @@ int ten_power(int p) {
 // That have a store and a load. A more general version should check for
 // any live ranges that have no other live ranges ending between their store
 // and loads.
-void add_infinite_spill_costs(Function *function) {
+static void add_infinite_spill_costs(Function *function) {
     int i, vreg_count, block_count, edge_count, *spill_cost;
     Block *blocks;
     Set *livenow;
@@ -1852,7 +1854,7 @@ void add_infinite_spill_costs(Function *function) {
     }
 }
 
-void make_live_range_spill_cost(Function *function) {
+static void make_live_range_spill_cost(Function *function) {
     Tac *tac;
     int i, vreg_count, for_loop_depth, *spill_cost;
 

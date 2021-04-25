@@ -5,7 +5,7 @@
 
 #include "wcc.h"
 
-void check_preg(int preg) {
+static void check_preg(int preg) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
     if (preg < 0 || preg >= PHYSICAL_REGISTER_COUNT) panic1d("Illegal preg %d", preg);
 }
@@ -22,7 +22,7 @@ char *register_name(int preg) {
 
 }
 
-void append_byte_register_name(char *buffer, int preg) {
+static void append_byte_register_name(char *buffer, int preg) {
     char *names;
 
     check_preg(preg);
@@ -32,7 +32,7 @@ void append_byte_register_name(char *buffer, int preg) {
     else                sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
-void output_word_register_name(int preg) {
+static void output_word_register_name(int preg) {
     char *names;
 
     check_preg(preg);
@@ -42,7 +42,7 @@ void output_word_register_name(int preg) {
     else                fprintf(f, "%%%.4s", &names[preg * 5]);
 }
 
-void append_word_register_name(char *buffer, int preg) {
+static void append_word_register_name(char *buffer, int preg) {
     char *names;
 
     check_preg(preg);
@@ -52,7 +52,7 @@ void append_word_register_name(char *buffer, int preg) {
     else                sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
-void append_long_register_name(char *buffer, int preg) {
+static void append_long_register_name(char *buffer, int preg) {
     char *names;
 
     check_preg(preg);
@@ -61,7 +61,7 @@ void append_long_register_name(char *buffer, int preg) {
     else           sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
-void output_quad_register_name(int preg) {
+static void output_quad_register_name(int preg) {
     char *names;
 
     check_preg(preg);
@@ -70,7 +70,7 @@ void output_quad_register_name(int preg) {
     else                        fprintf(f, "%%%.3s", &names[preg * 4]);
 }
 
-void append_quad_register_name(char *buffer, int preg) {
+static void append_quad_register_name(char *buffer, int preg) {
     char *names;
 
     check_preg(preg);
@@ -88,7 +88,7 @@ void append_quad_register_name(char *buffer, int preg) {
 //              +0        Pushed BP
 // -1           -1        first local variable / spilled register
 // -2           -2        second local variable / spilled register
-int get_stack_offset_from_index(int function_pc, int stack_index) {
+static int get_stack_offset_from_index(int function_pc, int stack_index) {
     if (stack_index >= 2) {
         // Function parameter
         if (function_pc <= 6) printf("Unexpected positive stack_index %d for function with <= 6 parameters (%d)\n", stack_index, function_pc);
@@ -193,7 +193,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
     return result;
 }
 
-void output_x86_operation(Tac *tac, int function_pc) {
+static void output_x86_operation(Tac *tac, int function_pc) {
     char *buffer;
 
     buffer = render_x86_operation(tac, function_pc, 1);
@@ -204,7 +204,7 @@ void output_x86_operation(Tac *tac, int function_pc) {
 }
 
 // Determine which registers are used in a function, push them onto the stack and return the list
-int *output_push_callee_saved_registers(Tac *tac) {
+static int *output_push_callee_saved_registers(Tac *tac) {
     int *saved_registers;
     int i;
 
@@ -231,7 +231,7 @@ int *output_push_callee_saved_registers(Tac *tac) {
 }
 
 // Pop the callee saved registers back
-void output_pop_callee_saved_registers(int *saved_registers) {
+static void output_pop_callee_saved_registers(int *saved_registers) {
     int i;
 
     for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--) {
@@ -247,7 +247,7 @@ void output_pop_callee_saved_registers(int *saved_registers) {
 }
 
 // Output code from the IR of a function
-void output_function_body_code(Symbol *symbol) {
+static void output_function_body_code(Symbol *symbol) {
     int i, stack_offset, function_call_count;
     Tac *tac;
     char *buffer;

@@ -4,7 +4,8 @@
 
 #include "wcc.h"
 
-int non_terminal_for_value(Value *v);
+static int non_terminal_for_value(Value *v);
+static int value_ptr_target_x86_size(Value *v);
 
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
     int i;
@@ -31,7 +32,7 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
     return r;
 }
 
-int transform_rule_value(int v, int i) {
+static int transform_rule_value(int v, int i) {
     if (v == REG || v == MEM || v == ADR || v == MDR)
         return v + i;
     else if (v == CST)
@@ -40,7 +41,7 @@ int transform_rule_value(int v, int i) {
         return v;
 }
 
-X86Operation *dup_x86_operation(X86Operation *operation) {
+static X86Operation *dup_x86_operation(X86Operation *operation) {
     X86Operation *result;
 
     result = malloc(sizeof(X86Operation));
@@ -57,7 +58,7 @@ X86Operation *dup_x86_operation(X86Operation *operation) {
     return result;
 }
 
-X86Operation *dup_x86_operations(X86Operation *operation) {
+static X86Operation *dup_x86_operations(X86Operation *operation) {
     X86Operation *result;
     X86Operation *o, *new_operation;
 
@@ -88,7 +89,7 @@ char size_to_x86_size(int size) {
             else panic1d("Unknown size %d", size);
 }
 
-char *add_size_to_template(char *template, int size) {
+static char *add_size_to_template(char *template, int size) {
     char *src, *dst, *c;
     char *result, x86_size;
 
@@ -166,7 +167,7 @@ void fin_rule(Rule *r) {
 }
 
 // Add an X86Operation template to a rule's linked list
-void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
+static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
     X86Operation *o;
 
     if (!r->x86_operations)
@@ -223,7 +224,7 @@ void add_load_value(Rule *r, int arg, int slot) {
     add_x86_op_to_rule(r, x86op);
 }
 
-void make_rule_hash(int i) {
+static void make_rule_hash(int i) {
     Rule *r;
 
     r = &(instr_rules[i]);
@@ -408,7 +409,7 @@ void make_value_x86_size(Value *v) {
     }
 }
 
-int non_terminal_for_value(Value *v) {
+static int non_terminal_for_value(Value *v) {
     int adr_base, ptr_to_int, result;
 
     if (!v->x86_size) make_value_x86_size(v);
@@ -470,7 +471,7 @@ int match_value_to_rule_dst(Value *v, int dst) {
     else                                return 0;
 }
 
-int value_ptr_target_x86_size(Value *v) {
+static int value_ptr_target_x86_size(Value *v) {
     // Return how many bytes a dereferenced pointer takes up
 
     if (v->type < TYPE_PTR) panic("Expected pointer type");
