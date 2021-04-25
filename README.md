@@ -99,7 +99,6 @@ main:
     movl    4(%rax), %esi
     leaq    .SL0(%rip), %rax
     movq    %rax, %rdi
-    movslq  %esi, %rsi
     movb    $0, %al
     callq   printf@PLT
     addq    $8, %rsp
