@@ -32,20 +32,6 @@ char *replace_extension(char *input, char *ext) {
     }
 }
 
-char *make_temp_filename(char *template) {
-    int fd;
-
-    template = strdup(template);
-    fd = mkstemps(template, 2);
-    if (fd == -1) {
-        perror("in make_temp_filename");
-        exit(1);
-    }
-    close(fd);
-
-    return strdup(template);
-}
-
 int main(int argc, char **argv) {
     int verbose;                    // Print invoked program command lines
     int run_compiler;               // Compile .c file

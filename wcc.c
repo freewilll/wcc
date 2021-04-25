@@ -1,5 +1,23 @@
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
 #include "wcc.h"
+
+char *make_temp_filename(char *template) {
+    int fd;
+
+    template = strdup(template);
+    fd = mkstemps(template, 2);
+    if (fd == -1) {
+        perror("in make_temp_filename");
+        exit(1);
+    }
+    close(fd);
+
+    return strdup(template);
+}
 
 void run_compiler_phases(Function *function, int start_at, int stop_at) {
     if (start_at == COMPILE_START_AT_BEGINNING) {
@@ -50,12 +68,26 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     add_spill_code(function);
 }
 
+void compile_externals() {
+    char *temp_filename;
+    void *f;
+
+    temp_filename = make_temp_filename("/tmp/externals-XXXXXX.c");
+    f = fopen(temp_filename, "w");
+    fprintf(f, "%s", externals());
+    fclose(f);
+
+    init_parser();
+    init_lexer(temp_filename);
+    parse();
+}
+
 void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename) {
     Symbol *symbol;
     Function *function;
 
+    compile_externals();
     init_lexer(compiler_input_filename);
-    init_parser();
     parse();
     check_incomplete_structs();
 

@@ -1337,44 +1337,6 @@ void ap(Function *f, int type) {
     f->param_count++;
 }
 
-void add_builtins() {
-    Function *f;
-    int v, i, l, pv, pc, ppc;
-
-    v = TYPE_VOID;
-    i = TYPE_INT;
-    l = TYPE_LONG;
-    pv = TYPE_PTR + TYPE_VOID;
-    pc = TYPE_PTR + TYPE_CHAR;
-    ppc = TYPE_PTR + TYPE_CHAR;
-
-    f = add_builtin("exit",     v,  0); ap(f, i);
-    f = add_builtin("fopen",    pv, 0); ap(f, pc); ap(f, pc);
-    f = add_builtin("fread",    i,  0); ap(f, pv); ap(f, i); ap(f, i); ap(f, pv);
-    f = add_builtin("fwrite",   i,  0); ap(f, pv); ap(f, i); ap(f, i); ap(f, pv);
-    f = add_builtin("fclose",   i,  0); ap(f, pv);
-    f = add_builtin("close",    i,  0); ap(f, i);
-    f = add_builtin("stdout",   l,  0);
-    f = add_builtin("printf",   i,  1); ap(f, pc);
-    f = add_builtin("fprintf",  i,  1); ap(f, pv); ap(f, pc);
-    f = add_builtin("malloc",   pv, 0); ap(f, i);
-    f = add_builtin("free",     v,  0); ap(f, pv);
-    f = add_builtin("memset",   i,  0); ap(f, pv); ap(f, i); ap(f, i);
-    f = add_builtin("memcmp",   i,  0); ap(f, pv); ap(f, pv); ap(f, i);
-    f = add_builtin("strcmp",   i,  0); ap(f, pc); ap(f, pc);
-    f = add_builtin("strlen",   i,  0); ap(f, pc);
-    f = add_builtin("strcpy",   i,  0); ap(f, pc); ap(f, pc);
-    f = add_builtin("strrchr",  pc, 0); ap(f, pc); ap(f, i);
-    f = add_builtin("sprintf",  i,  1); ap(f, pc); ap(f, pc);
-    f = add_builtin("asprintf", i,  1); ap(f, ppc); ap(f, pc);
-    f = add_builtin("strdup",   pc, 0); ap(f, pc);
-    f = add_builtin("memcpy",   pv, 0); ap(f, pv); ap(f, pv); ap(f, i);
-    f = add_builtin("mkstemps", i,  0); ap(f, pc); ap(f, i);
-    f = add_builtin("perror",   v,  0); ap(f, pc);
-    f = add_builtin("system",   i,  0); ap(f, pc);
-    f = add_builtin("getenv",   pc, 0); ap(f, pc);
-}
-
 void init_parser() {
     symbol_table = malloc(SYMBOL_TABLE_SIZE);
     memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
@@ -1392,6 +1354,4 @@ void init_parser() {
     vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
     vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
     label_count = 0;
-
-    add_builtins();
 }

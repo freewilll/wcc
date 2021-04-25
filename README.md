@@ -9,15 +9,15 @@ $ ./wcc test.c -o test
 ```
 
 # C Features
-- All variables must fit in a register
 - Pointers
 - Structs
 - Simple typedefs, only used for structs
 - Single level nested header includes
 - Most integer arithmetic and pointer operations
-- Some commonly used functions are available, e.g. `malloc`, `memset`, `open`, `close`, ... , see `add_builtins` in [parser.c](parser.c)
+- Some commonly used functions are available, e.g. `malloc`, `memset`, `open`, `close`, ... , see [externals.h](externals.h)
 
 # Limitations
+- All variables must fit in a register
 - System headers aren't supported
 - No nested headers
 - No preprocessor support

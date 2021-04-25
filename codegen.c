@@ -579,10 +579,11 @@ void output_code(char *input_filename, char *output_filename) {
     // Output code
     fprintf(f, "    .text\n");
 
-    // Output symbols for all functions
+    // Output symbols for all non-external functions
     symbol = symbol_table;
     while (symbol->identifier) {
-        if (symbol->is_function) fprintf(f, "    .globl  %s\n", symbol->identifier);
+        if (symbol->is_function && !symbol->function->is_external)
+            fprintf(f, "    .globl  %s\n", symbol->identifier);
         symbol++;
     }
     fprintf(f, "\n");

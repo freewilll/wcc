@@ -166,7 +166,7 @@ void next() {
         // String literal
         else if (i[ip] == '"') {
             cur_token = TOK_STRING_LITERAL;
-            cur_string_literal = malloc(1024);
+            cur_string_literal = malloc(MAX_STRING_LITERAL_SIZE);
             j = 0;
             ip += 1;
             while (input_size - ip >= 1 && i[ip] != '"') {
@@ -182,6 +182,7 @@ void next() {
                 }
             }
             ip++;
+            if (j >= MAX_STRING_LITERAL_SIZE) panic1d("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
             cur_string_literal[j] = 0;
         }
 
