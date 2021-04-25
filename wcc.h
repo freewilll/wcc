@@ -78,7 +78,7 @@ typedef struct function {
     int spilled_register_count;              // Amount of stack space needed for registers spills
     int call_count;                          // Number of calls to other functions
     int is_defined;                          // if a definition has been found
-    int is_builtin;                          // True for builtin functions
+    int is_external;                         // Has external linkage
     int is_variadic;                         // Set to 1 for builtin variadic functions
     struct three_address_code *ir;           // Intermediate representation
     Graph *cfg;                              // Control flow graph
@@ -260,6 +260,7 @@ enum {
     TOK_PACKED,
     TOK_HASH,
     TOK_INCLUDE,
+    TOK_EXTERN,
 };
 
 // Types. All structs start at TYPE_STRUCT up to TYPE_PTR - 1. Pointers are represented by adding TYPE_PTR to a type.

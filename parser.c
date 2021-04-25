@@ -1125,6 +1125,7 @@ void parse() {
     long value;                         // Enum value
     int param_count;                    // Number of parameters to a function
     int seen_function_declaration;      // If a function has been seen, then variable declarations afterwards are forbidden
+    int is_external;                    // For functions and globals with external linkage
     Symbol *param_symbol, *s;
     int i, sign;
 
@@ -1139,8 +1140,12 @@ void parse() {
 
         if (cur_token == TOK_HASH )
             parse_directive();
-        else if (cur_token_is_type() ) {
+        else if (cur_token == TOK_EXTERN || cur_token_is_type() ) {
             // Variable or function definition
+
+            is_external = cur_token == TOK_EXTERN;
+            if (is_external) next();
+
             base_type = parse_base_type(0);
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
@@ -1179,6 +1184,7 @@ void parse() {
                     memset(s->function, 0, sizeof(Function));
                     s->function->param_types = malloc(sizeof(int *) * MAX_FUNCTION_CALL_ARGS);
                     s->function->ir = ir_start;
+                    s->function->is_external = is_external;
 
                     param_count = 0;
                     while (1) {
@@ -1314,7 +1320,7 @@ Function *add_builtin(char *identifier, int type, int is_variadic) {
     s->is_function = 1;
     s->function = malloc(sizeof(Function));
     memset(s->function, 0, sizeof(Function));
-    s->function->is_builtin = 1;
+    s->function->is_external = 1;
     s->function->is_variadic = is_variadic;
     s->function->param_types = malloc(sizeof(int *) * MAX_FUNCTION_CALL_ARGS);
 

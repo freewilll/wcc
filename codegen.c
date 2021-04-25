@@ -498,7 +498,7 @@ void output_function_body_code(Symbol *symbol) {
             if (tac->src1->function_symbol->function->is_variadic)
                 fprintf(f, "    movb    $0, %%al\n");
 
-            if (tac->src1->function_symbol->function->is_builtin)
+            if (tac->src1->function_symbol->function->is_external)
                 fprintf(f, "    callq   %s@PLT\n", tac->src1->function_symbol->identifier);
             else
                 fprintf(f, "    callq   %s\n", tac->src1->function_symbol->identifier);
