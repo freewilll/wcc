@@ -176,10 +176,8 @@ void add_function_call_arg_moves(Function *function) {
             for (; i >= 0; i--) {
                 tac = new_instruction(IR_MOVE);
                 tac->dst = new_value();
-                tac->dst->type = (*call_arg)->type;
-                tac->dst->vreg = ++function->vreg_count;
-
                 tac->dst->type = i < called_function->param_count ? called_function->param_types[i] : TYPE_INT;
+                tac->dst->vreg = ++function->vreg_count;
                 tac->src1 = *call_arg;
                 tac->src1->is_function_call_arg = 1;
                 tac->src1->function_call_arg_index = i;

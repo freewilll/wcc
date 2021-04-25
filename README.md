@@ -116,7 +116,7 @@ This is a short summary of I have in mind to improve
 - More optimizations using the SSA representation
 - Scalar optimizations
 - Redundancy elimination
-- Common subexpresion elimination
+- Common subexpression elimination
 - Code layout
 - Better spill code generation for specific cases
 - Consider using peephole optimization, esp useful for spill code
