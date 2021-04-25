@@ -1126,6 +1126,7 @@ void parse() {
     int param_count;                    // Number of parameters to a function
     int seen_function_declaration;      // If a function has been seen, then variable declarations afterwards are forbidden
     int is_external;                    // For functions and globals with external linkage
+    int is_static;                      // Is a private function in the translation unit
     Symbol *param_symbol, *s;
     int i, sign;
 
@@ -1140,11 +1141,12 @@ void parse() {
 
         if (cur_token == TOK_HASH )
             parse_directive();
-        else if (cur_token == TOK_EXTERN || cur_token_is_type() ) {
+        else if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC || cur_token_is_type() ) {
             // Variable or function definition
 
             is_external = cur_token == TOK_EXTERN;
-            if (is_external) next();
+            is_static = cur_token == TOK_STATIC;
+            if (is_external || is_static) next();
 
             base_type = parse_base_type(0);
 
@@ -1185,6 +1187,7 @@ void parse() {
                     s->function->param_types = malloc(sizeof(int *) * MAX_FUNCTION_CALL_ARGS);
                     s->function->ir = ir_start;
                     s->function->is_external = is_external;
+                    s->function->is_static = is_static;
 
                     param_count = 0;
                     while (1) {

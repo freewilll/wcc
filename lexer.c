@@ -129,6 +129,7 @@ void next() {
             else if (!strcmp(cur_identifier, "packed"       )) { cur_token = TOK_PACKED;    }
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
             else if (!strcmp(cur_identifier, "extern"       )) { cur_token = TOK_EXTERN;    }
+            else if (!strcmp(cur_identifier, "static"       )) { cur_token = TOK_STATIC;    }
 
             for (j = 0; j < all_typedefs_count; j++) {
                 if (!strcmp(all_typedefs[j]->identifier, cur_identifier)) {

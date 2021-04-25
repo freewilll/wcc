@@ -79,6 +79,7 @@ typedef struct function {
     int call_count;                          // Number of calls to other functions
     int is_defined;                          // if a definition has been found
     int is_external;                         // Has external linkage
+    int is_static;                           // Is a private function in the translation unit
     int is_variadic;                         // Set to 1 for builtin variadic functions
     struct three_address_code *ir;           // Intermediate representation
     Graph *cfg;                              // Control flow graph
@@ -260,6 +261,7 @@ enum {
     TOK_HASH,
     TOK_INCLUDE,
     TOK_EXTERN,
+    TOK_STATIC,
     TOK_ELLIPSES,
 };
 
