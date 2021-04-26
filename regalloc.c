@@ -397,8 +397,10 @@ static void remove_preg_self_moves(Function *function) {
 
     tac = function->ir;
     while (tac) {
-        if ((tac->operation == IR_MOVE || tac->operation == X_MOV) && tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
-            tac->operation = IR_NOP;
+        if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg) {
+            if (tac->operation == X_MOV)  tac->operation = IR_NOP;
+            else if (tac->operation == X_RET) tac->x86_template = 0;
+        }
 
         tac = tac->next;
     }
