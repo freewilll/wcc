@@ -496,19 +496,25 @@ void init_instruction_selection_rules() {
     r = add_rule(REGQ, 0, MEMW, 0, 2); add_op(r, X_MOVSWQ, DST, SRC1, 0 , "movswq %v1w, %vdq"); fin_rule(r);
     r = add_rule(REGQ, 0, MEML, 0, 2); add_op(r, X_MOVSLQ, DST, SRC1, 0 , "movslq %v1l, %vdq"); fin_rule(r);
 
-    r = add_rule(0, IR_RETURN, 0,    0, 1); add_op(r, X_RET,  0,   0, 0, 0                      ); fin_rule(r); // Return void
-    r = add_rule(0, IR_RETURN, CSTL, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "mov $%v1q, %%rax"  ); fin_rule(r); // Return constant
-    r = add_rule(0, IR_RETURN, CSTQ, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "mov $%v1q, %%rax"  ); fin_rule(r); // Return constant
-    r = add_rule(0, IR_RETURN, REGB, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movsbq %v1b, %%rax"); fin_rule(r); // Return register byte
-    r = add_rule(0, IR_RETURN, REGW, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movswq %v1w, %%rax"); fin_rule(r); // Return register word
-    r = add_rule(0, IR_RETURN, REGL, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movslq %v1l, %%rax"); fin_rule(r); // Return register long
-    r = add_rule(0, IR_RETURN, REGQ, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movq %v1q, %%rax"  ); fin_rule(r); // Return register quad
-    r = add_rule(0, IR_RETURN, MEMB, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movsbq %v1b, %%rax"); fin_rule(r); // Return memory byte
-    r = add_rule(0, IR_RETURN, MEMW, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movswq %v1w, %%rax"); fin_rule(r); // Return memory word
-    r = add_rule(0, IR_RETURN, MEML, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movslq %v1l, %%rax"); fin_rule(r); // Return memory long
-    r = add_rule(0, IR_RETURN, MEMQ, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movq %v1q, %%rax"  ); fin_rule(r); // Return memory quad
-    r = add_rule(0, IR_RETURN, ADR,  0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movq %v1q, %%rax"  ); fin_rule(r); // Return a pointer
-    r = add_rule(0, IR_RETURN, ADRV, 0, 1); add_op(r, X_RET,  0,   SRC1, 0, "movq %v1q, %%rax"  );              // Return a *void
+    r = add_rule(0,    IR_RETURN, 0,    0, 1); add_op(r, X_RET,  0,     0,    0, 0                 ); fin_rule(r);
+    r = add_rule(REGB, IR_RETURN, CSTL, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movb $%v1b, %vdb"); fin_rule(r);
+    r = add_rule(REGB, IR_RETURN, CSTQ, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movb $%v1b, %vdb"); fin_rule(r);
+    r = add_rule(REGW, IR_RETURN, CSTL, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movw $%v1w, %vdw"); fin_rule(r);
+    r = add_rule(REGW, IR_RETURN, CSTQ, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movw $%v1w, %vdw"); fin_rule(r);
+    r = add_rule(REGL, IR_RETURN, CSTL, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movl $%v1l, %vdl"); fin_rule(r);
+    r = add_rule(REGL, IR_RETURN, CSTQ, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movl $%v1l, %vdl"); fin_rule(r);
+    r = add_rule(REGQ, IR_RETURN, CSTL, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
+    r = add_rule(REGQ, IR_RETURN, CSTQ, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
+    r = add_rule(ADR,  IR_RETURN, CSTL, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "mov $%v1q, %vdq" ); fin_rule(r);
+    r = add_rule(ADRV, IR_RETURN, CSTL, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "mov $%v1q, %vdq" );
+    r = add_rule(ADRV, IR_RETURN, CSTQ, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "mov $%v1q, %vdq" );
+    r = add_rule(REG,  IR_RETURN, REG,  0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "mov%s %v1, %vd"  ); fin_rule(r);
+    r = add_rule(ADR,  IR_RETURN, ADR,  0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq %v1q, %vdq" ); fin_rule(r);
+    r = add_rule(ADRB, IR_RETURN, ADRV, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq %v1q, %vdq" );
+    r = add_rule(ADRW, IR_RETURN, ADRV, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq %v1q, %vdq" );
+    r = add_rule(ADRL, IR_RETURN, ADRV, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq %v1q, %vdq" );
+    r = add_rule(ADRQ, IR_RETURN, ADRV, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq %v1q, %vdq" );
+    r = add_rule(ADRV, IR_RETURN, ADRV, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq %v1q, %vdq" );
 
     r = add_rule(0, IR_ARG, CSTL, CSTL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); // Use constant as function arg, must not be a quad
 

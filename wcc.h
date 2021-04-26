@@ -71,6 +71,7 @@ typedef struct symbol {
 } Symbol;
 
 typedef struct function {
+    int return_type;                         // Type of return value
     int param_count;                         // Number of parameters
     int *param_types;                        // Types of parameters
     int local_symbol_count;                  // Number of local symbols, used by the parser
@@ -531,6 +532,7 @@ int *live_range_preg_indexes;
 void optimize_arithmetic_operations(Function *function);
 void rewrite_lvalue_reg_assignments(Function *function);
 void add_function_call_result_moves(Function *function);
+void add_function_return_moves(Function *function);
 void add_function_call_arg_moves(Function *function);
 void add_function_param_moves(Function *function);
 void make_control_flow_graph(Function *function);

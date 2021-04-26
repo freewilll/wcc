@@ -1187,6 +1187,7 @@ void parse() {
                     s->is_function = 1;
                     s->function = malloc(sizeof(Function));
                     memset(s->function, 0, sizeof(Function));
+                    s->function->return_type = type;
                     s->function->param_types = malloc(sizeof(int *) * MAX_FUNCTION_CALL_ARGS);
                     s->function->ir = ir_start;
                     s->function->is_external = is_external;

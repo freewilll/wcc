@@ -837,40 +837,56 @@ void test_instrsel_types_cmp_pointer() {
     }
 }
 
+void test_return(int return_type, Value *offered_value, char *template) {
+    function->return_type = return_type;
+    si(function, 0, IR_RETURN, 0, offered_value, 0); assert_x86_op(template);
+}
+
 void test_instrsel_returns() {
     remove_reserved_physical_registers = 1;
 
-    // Return constant & vregs
-    si(function, 0, IR_RETURN, 0, c(4294967296),      0); assert_x86_op("mov     $4294967296, %rax");
-    si(function, 0, IR_RETURN, 0, c(1),               0); assert_x86_op("mov     $1, %rax");
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  r1b, %rax");
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  r1w, %rax");
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_INT),   0); assert_x86_op("movslq  r1l, %rax");
-    si(function, 0, IR_RETURN, 0, vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, %rax");
+    // Return constant
+    test_return(TYPE_CHAR,  c(1),          "movb    $1, r1b");
+    test_return(TYPE_SHORT, c(1),          "movw    $1, r1w");
+    test_return(TYPE_INT,   c(1),          "movl    $1, r1l");
+    test_return(TYPE_LONG,  c(1),          "movq    $1, r1q");
+    test_return(TYPE_CHAR,  c(4294967296), "movb    $4294967296, r1b");
+    test_return(TYPE_SHORT, c(4294967296), "movw    $4294967296, r1w");
+    test_return(TYPE_INT,   c(4294967296), "movl    $4294967296, r1l");
+    test_return(TYPE_LONG,  c(4294967296), "movq    $4294967296, r1q");
 
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  g1(%rip), %rax");
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  g1(%rip), %rax");
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_INT),   0); assert_x86_op("movslq  g1(%rip), %rax");
-    si(function, 0, IR_RETURN, 0, gsz(1, TYPE_LONG),  0); assert_x86_op("movq    g1(%rip), %rax");
+    // Return register
+    test_return(TYPE_CHAR,  vsz(1, TYPE_CHAR),  "movb    r1b, r2b");
+    test_return(TYPE_SHORT, vsz(1, TYPE_SHORT), "movw    r1w, r2w");
+    test_return(TYPE_INT,   vsz(1, TYPE_INT),   "movl    r1l, r2l");
+    test_return(TYPE_LONG,  vsz(1, TYPE_LONG),  "movq    r1q, r2q");
+
+    // Return global
+    test_return(TYPE_CHAR,  gsz(1, TYPE_CHAR),  "movb    g1(%rip), r2b");
+    test_return(TYPE_SHORT, gsz(1, TYPE_SHORT), "movw    g1(%rip), r2w");
+    test_return(TYPE_INT,   gsz(1, TYPE_INT),   "movl    g1(%rip), r2l");
+    test_return(TYPE_LONG,  gsz(1, TYPE_LONG),  "movq    g1(%rip), r2q");
 
     si(function, 0, IR_RETURN, 0, 0, 0); assert(X_RET, ir_start->operation);
 
     // String literal
+    function->return_type = TYPE_PTR + TYPE_CHAR;
     start_ir();
-    i(0, IR_MOVE,   asz(1, TYPE_CHAR), s(1), 0);
+    i(0, IR_MOVE, asz(1, TYPE_CHAR), s(1), 0);
     i(0, IR_RETURN, 0, asz(1, TYPE_CHAR), 0);
     finish_ir(function);
-    assert_x86_op("leaq    .SL1(%rip), r2q");
-    assert_x86_op("movq    r2q, %rax");
+    assert_x86_op("leaq    .SL1(%rip), r3q");
+    assert_x86_op("movq    r3q, r2q");
 
     // *void
+    function->return_type = TYPE_PTR + TYPE_VOID;
     start_ir();
     // This rule will load the ADRV into memory if the ADRV is the first use
     // Delete it so the specific rule about returning a *void is tested
     nuke_rule(REGQ, 0, ADRV, 0);
     i(0, IR_RETURN, 0, asz(1, TYPE_VOID), 0);
     finish_ir(function);
-    assert_x86_op("movq    r1q, %rax");
+    assert_x86_op("movq    r1q, r2q");
 }
 
 void test_function_call(Value *dst, int mov_op) {

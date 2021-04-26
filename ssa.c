@@ -141,6 +141,26 @@ void add_function_call_result_moves(Function *function) {
     }
 }
 
+// Add a move for a function return value. The target of the move will be constraint
+// and forced into the RAX register.
+void add_function_return_moves(Function *function) {
+    Tac *ir;
+
+    ir = function->ir;
+    while (ir) {
+        if (ir->operation == IR_RETURN && ir->src1) {
+            ir->dst = new_value();
+            ir->dst->type = function->return_type;
+            ir->dst->vreg = ++function->vreg_count;
+            ir->src1->preferred_live_range_preg_index = LIVE_RANGE_PREG_RAX_INDEX;
+        }
+
+        ir = ir->next;
+    }
+}
+
+// Insert IR_MOVE instructions before IR_ARG instructions for the 6 args. The dst
+// of the move will be constrained so that rdi, rsi etc are allocated to it.
 void add_function_call_arg_moves(Function *function) {
     int i, function_call_count, type;
     Tac *ir, *tac;
@@ -1514,6 +1534,10 @@ static void make_interference_graph(Function *function) {
                     clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
             }
 
+            if (tac->operation == IR_RETURN || tac->operation == X_RET)
+                if (tac->dst && tac->dst->vreg)
+                    force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX);
+
             if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
@@ -1742,10 +1766,9 @@ void coalesce_live_ranges(Function *function) {
                     if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
                 }
 
-                if (tac->operation == IR_CALL)
-                    if (tac->dst && tac->dst->vreg)
-                        for (src = 1; src <= vreg_count; src++)
-                            instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
+                if (tac->operation == IR_CALL && tac->dst && tac->dst->vreg)
+                    for (src = 1; src <= vreg_count; src++)
+                        instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
 
                 if (tac->operation == IR_MOVE && tac->src1->is_function_call_arg) {
                     for (src = 1; src <= vreg_count; src++)
@@ -1753,6 +1776,10 @@ void coalesce_live_ranges(Function *function) {
                 }
 
                 if (tac->operation == IR_MOVE && tac->src1->is_function_param)
+                    for (src = 1; src <= vreg_count; src++)
+                        instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
+
+                if (tac->operation == IR_RETURN && tac->dst && tac->dst->vreg)
                     for (src = 1; src <= vreg_count; src++)
                         instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
 
