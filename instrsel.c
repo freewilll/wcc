@@ -1357,6 +1357,7 @@ void remove_stack_self_moves(Function *function) {
             tac->operation = IR_NOP;
             tac->dst = 0;
             tac->src1 = 0;
+            tac->src2 = 0;
             tac->x86_template = 0;
         }
 
@@ -1374,6 +1375,7 @@ void remove_vreg_self_moves(Function *function) {
             tac->operation = IR_NOP;
             tac->dst = 0;
             tac->src1 = 0;
+            tac->src2 = 0;
             tac->x86_template = 0;
         }
 

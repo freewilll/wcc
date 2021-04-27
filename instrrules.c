@@ -105,14 +105,15 @@ static void add_pointer_rules(int *ntc) {
     int src, dst;
     Rule *r;
 
-    // Loads & stores
+    // Loads
     r = add_rule(ADRV, IR_MOVE, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRV, IR_MOVE, ADRB, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRV, IR_MOVE, ADRW, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRV, IR_MOVE, ADRL, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(ADRV, IR_MOVE, ADRQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(ADRV, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); // For register (* void) v = (long) l;
-    r = add_rule(MDRV, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); // For memory (* void) v = (long) l;
+    r = add_rule(ADRV, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); // For register (void *) v = (long) l;
+    r = add_rule(MDRV, IR_MOVE, REGQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); // For memory (void *) v = (long) l;
+    r = add_rule(REGQ, IR_MOVE, ADRV, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); // For l = (long) (void *) p
 
     for (dst = ADRB; dst <= ADRQ; dst++)
         for (src = ADRB; src <= ADRQ; src++) {

@@ -651,7 +651,6 @@ void test_function_args() {
     i(0, IR_MOVE, v(3), v(2), 0);
     finish_spill_ir(function);
     assert_rx86_preg_op("leaq    .SL1(%rip), %rax");
-    assert_rx86_preg_op("movq    %rax, %rax" );
     assert_rx86_preg_op("movq    %rax, %rdi" );
     assert_rx86_preg_op("movq    %rax, %rax" );
     assert_rx86_preg_op(0);

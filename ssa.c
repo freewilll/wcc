@@ -179,6 +179,9 @@ void add_function_call_arg_moves(Function *function) {
         if (ir->operation == IR_ARG && ir->src1->function_call_arg_index < 6) {
             arg_values[ir->src1->value * 6 + ir->src1->function_call_arg_index] = ir->src2;
             ir->operation = IR_NOP;
+            ir->dst = 0;
+            ir->src1 = 0;
+            ir->src2 = 0;
         }
 
         if (ir->operation == IR_CALL) {

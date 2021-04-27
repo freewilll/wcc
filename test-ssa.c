@@ -221,14 +221,14 @@ void test_liveout1() {
     function = new_function();
 
     ir_start = 0;
-    i(0, IR_NOP,    0,    0,    0   );
-    i(0, IR_MOVE,   v(1), c(1), 0   );
-    i(1, IR_JZ,     0,    v(1), l(2));
-    i(0, IR_MOVE,   v(2), c(0), 0   );
-    i(2, IR_ADD,    v(2), v(1), v(2));
-    i(0, IR_ADD,    v(1), v(1), c(1));
-    i(0, IR_JZ,     0,    v(1), l(1));
-    i(0, IR_ARG,    0,    c(1), v(2));
+    i(0, IR_NOP,         0,    0,    0   );
+    i(0, IR_MOVE,        v(1), c(1), 0   );  // v(1) = i
+    i(1, IR_JZ,          0,    v(1), l(2));
+    i(0, IR_MOVE,        v(2), c(0), 0   );  // v(2) = s
+    i(2, IR_ADD,         v(2), v(1), v(2));
+    i(0, IR_ADD,         v(1), v(1), c(1));
+    i(0, IR_JZ,          0,    v(1), l(1));
+    i(0, IR_MOVE_TO_PTR, 0,    v(2), c(1));
 
     function->ir = ir_start;
 
