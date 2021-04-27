@@ -1468,9 +1468,22 @@ void add_spill_code(Function *function) {
     while (tac) {
         if (debug_instsel_spilling) print_instruction(stdout, tac);
 
+        // Allow all moves where either dst is a register and src is on the stack
+        if (tac->operation == X_MOV
+                || tac->operation == X_MOVSBW
+                || tac->operation == X_MOVSBL
+                || tac->operation == X_MOVSBQ
+                || tac->operation == X_MOVSWL
+                || tac->operation == X_MOVSWQ
+                || tac->operation == X_MOVSLQ)
+            if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->stack_index) { tac = tac->next; continue; }
+
+        // Allow non sign-extends moves if the dst is on the stack and the src is a register
+        if (tac->operation == X_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) { tac = tac->next; continue; }
+
         dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->vreg == tac->src1->vreg);
 
-        if (tac->src1 && tac->src1->preg == -1 && tac->src1->spilled)  {
+        if (tac->src1 && tac->src1->spilled)  {
             if (debug_instsel_spilling) printf("Adding spill load\n");
             add_spill_load(tac, 1, REG_R10);
             if (dst_eq_src1) {
@@ -1480,12 +1493,12 @@ void add_spill_code(Function *function) {
             }
         }
 
-        if (tac->src2 && tac->src2->preg == -1 && tac->src2->spilled) {
+        if (tac->src2 && tac->src2->spilled) {
             if (debug_instsel_spilling) printf("Adding spill load\n");
             add_spill_load(tac, 2, REG_R11);
         }
 
-        if (tac->dst && tac->dst->preg == -1 && tac->dst->spilled) {
+        if (tac->dst && tac->dst->spilled) {
             if (debug_instsel_spilling) printf("Adding spill store\n");
             if (tac->operation == X_CALL) panic("Unexpected spill from X_CALL");
             add_spill_store(tac, tac->dst, REG_R11);

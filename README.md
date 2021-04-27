@@ -116,7 +116,6 @@ This is a short summary of I have in mind to improve
 - Redundancy elimination
 - Common subexpression elimination
 - Code layout
-- Better spill code generation for specific cases
 - Consider using peephole optimization, esp useful for spill code
 - Reconsider if SSA interference constraint for rsub `dst == src1` can be avoided. The IR doesn't allow `dst == src1` nor `dst == src2`, yet x86_64 is a two-operand arch. Both approaches lead to a lot of e.g. mov/add ops. Consider if this can't be improved.
 

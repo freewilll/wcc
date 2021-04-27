@@ -1626,8 +1626,7 @@ void test_param_vreg_moves() {
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %r8");
     assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %r14, %r8");       // arg 8
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %r8");
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    24(%rbp), %r10");  // arg 7 (spilled)
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %r10, %r8");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq    24(%rbp), %r8");  // arg 7 (spilled)
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %r8");
     assert_rx86_preg_op_with_function_pc(function->param_count, "movq    %r15, %r8");       // arg 6
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq    %rax, %r8");
