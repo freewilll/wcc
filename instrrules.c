@@ -473,8 +473,8 @@ void init_instruction_selection_rules() {
     r = add_rule(MDR,  0, MDR,  0, 0); fin_rule(r);
     r = add_rule(REGQ, 0, ADRQ, 0, 0);
     r = add_rule(REGQ, 0, ADRV, 0, 0);
-    r = add_rule(LAB,  0, LAB,  0, 0); fin_rule(r);
-    r = add_rule(FUN,  0, FUN,  0, 0); fin_rule(r);
+    r = add_rule(LAB,  0, LAB,  0, 0);
+    r = add_rule(FUN,  0, FUN,  0, 0);
 
     // This rule is needed for memory-memory moves
     r = add_rule(ADRV, 0, MDRV, 0, 2); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
