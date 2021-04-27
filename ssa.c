@@ -201,9 +201,9 @@ void add_function_call_arg_moves(Function *function) {
                 tac->dst->type = i < called_function->param_count ? called_function->param_types[i] : TYPE_INT;
                 tac->dst->vreg = ++function->vreg_count;
                 tac->src1 = *call_arg;
-                tac->src1->is_function_call_arg = 1;
-                tac->src1->function_call_arg_index = i;
                 tac->src1->preferred_live_range_preg_index = arg_registers[i];
+                tac->dst->is_function_call_arg = 1;
+                tac->dst->function_call_arg_index = i;
                 insert_instruction(ir, tac, 1);
                 call_arg--;
             }
@@ -1508,7 +1508,7 @@ static void make_interference_graph(Function *function) {
             if (tac->operation == IR_END_CALL) function_call_depth++;
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
-            if (tac->src1 && tac->src1->is_function_call_arg &&
+            if (tac->dst && tac->dst->is_function_call_arg &&
                 (tac->operation == IR_MOVE
                     || tac->operation == X_MOV
                     || tac->operation == X_MOVSBW
@@ -1517,7 +1517,7 @@ static void make_interference_graph(Function *function) {
                     || tac->operation == X_MOVSWL
                     || tac->operation == X_MOVSWQ
                     || tac->operation == X_MOVSLQ)) {
-                arg = tac->src1->function_call_arg_index;
+                arg = tac->dst->function_call_arg_index;
                 if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
                 force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, arg_registers[arg]);
             }
@@ -1770,7 +1770,7 @@ void coalesce_live_ranges(Function *function) {
                     for (src = 1; src <= vreg_count; src++)
                         instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
 
-                if (tac->operation == IR_MOVE && tac->src1->is_function_call_arg) {
+                if (tac->operation == IR_MOVE && tac->dst->is_function_call_arg) {
                     for (src = 1; src <= vreg_count; src++)
                         instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
                 }
