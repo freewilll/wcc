@@ -473,6 +473,7 @@ void init_instruction_selection_rules() {
     r = add_rule(MDR,  0, MDR,  0, 0); fin_rule(r);
     r = add_rule(REGQ, 0, ADRQ, 0, 0);
     r = add_rule(REGQ, 0, ADRV, 0, 0);
+    r = add_rule(STL,  0, STL,  0, 0);
     r = add_rule(LAB,  0, LAB,  0, 0);
     r = add_rule(FUN,  0, FUN,  0, 0);
 

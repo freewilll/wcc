@@ -1449,10 +1449,19 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
         if (preg_reg_index != live_range_preg_indexes[i]) add_ig_edge(ig, vreg_count, vreg, live_range_preg_indexes[i]);
 }
 
-// The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
-// other registers at the start of the function. They are themselves vregs and must get the corresponding physical
-// register allocated to them.
-static void force_register_param_physical_register(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
+static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
+    int arg;
+
+    // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
+    // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
+    // register allocated to them.
+    if (value && value->is_function_call_arg) {
+        arg = value->function_call_arg_index;
+        if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
+        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[arg]);
+    }
+
+    // Force caller arguments to a function call into the appropriate registers
     if (value && value->is_function_param && value->is_function_param && value->function_param_index < 6)
         force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[value->function_param_index]);
 }
@@ -1504,26 +1513,12 @@ static void make_interference_graph(Function *function) {
         while (tac) {
             if (debug_ssa_interference_graph) print_instruction(stdout, tac);
 
-            force_register_param_physical_register(interference_graph, vreg_count, livenow, tac->dst);
-            force_register_param_physical_register(interference_graph, vreg_count, livenow, tac->src1);
-            force_register_param_physical_register(interference_graph, vreg_count, livenow, tac->src2);
-
             if (tac->operation == IR_END_CALL) function_call_depth++;
             else if (tac->operation == IR_START_CALL) function_call_depth--;
 
-            if (tac->dst && tac->dst->is_function_call_arg &&
-                (tac->operation == IR_MOVE
-                    || tac->operation == X_MOV
-                    || tac->operation == X_MOVSBW
-                    || tac->operation == X_MOVSBL
-                    || tac->operation == X_MOVSBQ
-                    || tac->operation == X_MOVSWL
-                    || tac->operation == X_MOVSWQ
-                    || tac->operation == X_MOVSLQ)) {
-                arg = tac->dst->function_call_arg_index;
-                if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
-                force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, arg_registers[arg]);
-            }
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->dst);
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src1);
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src2);
 
             if (tac->operation == IR_CALL || tac->operation == X_CALL) {
                 for (j = 0; j < 6; j++)

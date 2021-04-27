@@ -97,9 +97,8 @@ main:
     subq    $8, %rsp
     movq    (%rbx), %rax        # printf("%d\n", s2->s1->j);
     movl    4(%rax), %esi
-    leaq    .SL0(%rip), %rax
-    movq    %rax, %rdi
-    movb    $0, %al
+    leaq    .SL0(%rip), %rdi
+    movb    $0, %al             # printf is variadic, 0 is the number of floating point arguments
     callq   printf@PLT
     addq    $8, %rsp
     movq    $0, %rax            # Function exit code zero
