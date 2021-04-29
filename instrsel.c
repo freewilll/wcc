@@ -258,7 +258,7 @@ static IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
         in->tac->src1 = in2->tac->dst;
         in->tac->dst = in1->value;
 
-        if (debug_instsel_tree_merging) print_instruction(stdout, in->tac);
+        if (debug_instsel_tree_merging) print_instruction(stdout, in->tac, 0);
 
         if (debug_instsel_tree_merging) printf("Adding inter graph join edge %d -> %d\n", join_to, g1->node_count);
         add_graph_edge(g->graph, join_to, g1->node_count);
@@ -314,7 +314,7 @@ static void make_igraphs(Function *function, int block_id) {
 
     tac = blocks[block_id].start;
     while (1) {
-        if (debug_instsel_tree_merging) print_instruction(stdout, tac);
+        if (debug_instsel_tree_merging) print_instruction(stdout, tac, 0);
 
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
@@ -391,12 +391,12 @@ static void make_igraphs(Function *function, int block_id) {
         }
 
         if (tac->operation != IR_MOVE_TO_PTR && dst && ((src1 && dst == src1) || (src2 && dst == src2))) {
-            print_instruction(stdout, tac);
+            print_instruction(stdout, tac, 0);
             panic("Illegal assignment of src1/src2 to dst");
         }
 
         if (src1 && src2 && src1 == src2) {
-            print_instruction(stdout, tac);
+            print_instruction(stdout, tac, 0);
             panic("src1 == src2 not handled");
         }
 
@@ -883,7 +883,7 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
     if (debug_instsel_tiling) {
         printf("tile_igraph_operation_node on node=%d\n", node_id);
-        print_instruction(stdout, tac);
+        print_instruction(stdout, tac, 0);
         dump_igraph(igraph, 0);
     }
 
@@ -982,7 +982,7 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     if (!matched) {
         printf("\nNo rules matched\n");
         if (tac->dst) printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
-        print_instruction(stdout, tac);
+        print_instruction(stdout, tac, 0);
         dump_igraph(igraph, 0);
         exit(1);
     }
@@ -1155,7 +1155,7 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
             if (loaded_src1) x86_v1 = loaded_src1;
             if (loaded_src2) x86_v2 = loaded_src2;
             tac = add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
-            if (debug_instsel_tiling) print_instruction(stdout, tac);
+            if (debug_instsel_tiling) print_instruction(stdout, tac, 0);
         }
 
         x86op = x86op->next;
@@ -1291,7 +1291,7 @@ static void tile_igraphs(Function *function) {
         if (debug_instsel_tiling) {
             f = new_function();
             f->ir = current_instruction_ir_start;
-            print_ir(f, 0);
+            print_ir(f, 0, 0);
         }
     }
 
@@ -1301,7 +1301,7 @@ static void tile_igraphs(Function *function) {
         printf("\nFinal IR for block:\n");
         f = new_function();
         f->ir = ir_start;
-        print_ir(f, 0);
+        print_ir(f, 0, 0);
     }
 }
 
@@ -1343,7 +1343,7 @@ void select_instructions(Function *function) {
 
     if (debug_instsel_tiling) {
         printf("\nFinal IR for function:\n");
-        print_ir(function, 0);
+        print_ir(function, 0, 0);
     }
 }
 
@@ -1466,7 +1466,7 @@ void add_spill_code(Function *function) {
 
     tac = function->ir;
     while (tac) {
-        if (debug_instsel_spilling) print_instruction(stdout, tac);
+        if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
 
         // Allow all moves where either dst is a register and src is on the stack
         if (tac->operation == X_MOV

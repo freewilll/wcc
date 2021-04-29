@@ -203,13 +203,24 @@ static void output_x86_operation(Tac *tac, int function_pc) {
     }
 }
 
-// Determine which registers are used in a function, push them onto the stack and return the list
-static int *output_push_callee_saved_registers(Tac *tac) {
-    int *saved_registers;
-    int i;
+// Add an instruction after ir and return ir of the new instruction
+static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *x86_template) {
+    Tac *tac;
 
-    saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
-    memset(saved_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    tac = malloc(sizeof(Tac));
+    memset(tac, 0, sizeof(Tac));
+    tac->operation = operation;
+    tac->dst = dst;
+    tac->src1 = src1;
+    tac->src2 = src2;
+    tac->x86_template = x86_template;
+
+    return insert_instruction_after(ir, tac);
+}
+
+// Determine which registers are used in a function, push them onto the stack and return the list
+static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
+    int i;
 
     while (tac) {
         if (tac->dst  && tac->dst ->preg != -1 && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
@@ -221,149 +232,169 @@ static int *output_push_callee_saved_registers(Tac *tac) {
     for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
         if (saved_registers[i]) {
             cur_stack_push_count++;
-            fprintf(f, "    pushq   ");
-            output_quad_register_name(i);
-            fprintf(f, "\n");
+            ir = insert_x86_instruction(ir, X_PUSH, new_preg_value(i), 0, 0, "push %vdq");
         }
     }
 
-    return saved_registers;
+    return ir;
 }
 
 // Pop the callee saved registers back
-static void output_pop_callee_saved_registers(int *saved_registers) {
+static Tac *insert_pop_callee_saved_registers(Tac *ir, int *saved_registers) {
     int i;
 
-    for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--) {
-        if (saved_registers[i]) {
-            // Note: cur_stack_push_count isn't adjusted since that would
-            // otherwise mess up stack alignments for function calls after
-            // return statements.
-            fprintf(f, "    popq    ");
-            output_quad_register_name(i);
-            fprintf(f, "\n");
-        }
-    }
+    for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--)
+        if (saved_registers[i])
+            ir = insert_x86_instruction(ir, X_POP, new_preg_value(i), 0, 0, "popq %vdq");
+
+    return ir;
 }
 
-// Output code from the IR of a function
-static void output_function_body_code(Symbol *symbol) {
-    int i, stack_offset, function_call_count;
-    Tac *tac;
-    char *buffer;
+static Tac *insert_end_of_function(Tac *ir) {
+    ir = insert_x86_instruction(ir, X_LEAVE, 0, 0, 0, "leaveq");
+    return insert_x86_instruction(ir, X_RET_FROM_FUNC, 0, 0, 0, "retq");
+}
+
+static Tac *add_sub_rsp(Tac *ir, int amount) {
+    return insert_x86_instruction(ir, X_SUB, new_preg_value(REG_RSP), new_constant(TYPE_LONG, amount), 0, "subq $%v1q, %vdq");
+}
+
+static Tac *add_add_rsp(Tac *ir, int amount) {
+    return insert_x86_instruction(ir, X_SUB, new_preg_value(REG_RSP), new_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
+}
+
+// Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
+void add_final_x86_instructions(Symbol *symbol) {
+    int function_call_count;
+    Tac *tac, *ir, *orig_ir;
     int function_pc;                    // The Function's param count
     int ac;                             // A function call's arg count
     int local_stack_size;               // Size of the stack containing local variables and spilled registers
     int *saved_registers;               // Callee saved registers
     int function_call_pushes;           // How many pushes are necessary for a function call
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
-    int *processed_function_arguments;  // The amount of function call arguments that have already been processed
+    Function *function;
 
-    char *s;
-    int type;
+    function = symbol->function;
+    function_call_count = make_function_call_count(function);
+    function_pc = function->param_count;
 
-    function_call_count = make_function_call_count(symbol->function);
-    processed_function_arguments = malloc(sizeof(int) * function_call_count);
+    ir = function->ir;
 
-    function_pc = symbol->function->param_count;
-
-    fprintf(f, "    push    %%rbp\n");
-    fprintf(f, "    movq    %%rsp, %%rbp\n");
     cur_stack_push_count = 2; // Program counter and rbp
 
-    // Allocate stack space for local variables and spilled registers
-    local_stack_size = 8 * (symbol->function->spilled_register_count);
+    // Add function prologue
+    ir = insert_x86_instruction(ir, X_PUSH, new_preg_value(REG_RBP), 0, 0, "push %vdq");
+    ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RBP), new_preg_value(REG_RSP), 0, "mov %v1q, %vdq");
 
-    // Allocate local stack
+    // Allocate stack space for local variables and spilled registers
+    local_stack_size = 8 * (function->spilled_register_count);
     if (local_stack_size > 0) {
-        fprintf(f, "    subq    $%d, %%rsp\n", local_stack_size);
+        ir = add_sub_rsp(ir, local_stack_size);
         cur_stack_push_count += local_stack_size / 8;
     }
 
+    saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    memset(saved_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+
+    ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
+
+    while (ir) {
+        if (ir->operation == IR_NOP);
+        if (ir->operation == IR_START_LOOP || ir->operation == IR_END_LOOP) ir->operation = IR_NOP;
+
+        else if (ir->operation == IR_START_CALL) {
+            ir->operation = IR_NOP;
+
+            // Align the stack. This is matched with a pop when the function call ends
+            function_call_pushes = ir->src1->function_call_arg_count <= 6 ? 0 : ir->src1->function_call_arg_count - 6;
+            need_aligned_call_push = ((cur_stack_push_count + function_call_pushes) % 2 == 1);
+            if (need_aligned_call_push)  {
+                ir->src1->pushed_stack_aligned_quad = 1;
+                cur_stack_push_count++;
+                ir = add_sub_rsp(ir, 8);
+            }
+        }
+
+        else if (ir->operation == IR_END_CALL) {
+            ir->operation = IR_NOP;
+
+            if (ir->src1->pushed_stack_aligned_quad)  {
+                cur_stack_push_count--;
+                ir = add_add_rsp(ir, 8);
+            }
+        }
+
+        else if (ir->operation == X_ARG && ir->src1->function_call_arg_index > 5)
+            cur_stack_push_count++;
+
+        else if (ir->operation == X_CALL) {
+            ir->operation = IR_NOP;
+
+            orig_ir = ir;
+            ac = ir->src1->function_call_arg_count;
+
+            // Since floating point numbers aren't implemented, this is zero.
+            if (ir->src1->function_symbol->function->is_variadic)
+                ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movb $0, %vdb");
+
+            tac = new_instruction(X_CALL_FROM_FUNC);
+
+            if (orig_ir->src1->function_symbol->function->is_external)
+                 asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->identifier);
+            else
+                 asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->identifier);
+
+            ir = insert_instruction_after(ir, tac);
+
+            // Adjust the stack for any args that are on in stack
+            if (ac > 6) {
+                cur_stack_push_count -= ac - 6;
+                ir = add_add_rsp(ir, (ac - 6) * 8);
+            }
+        }
+
+        else if (ir->operation == X_RET) {
+            ir = insert_pop_callee_saved_registers(ir, saved_registers);
+            ir = insert_end_of_function(ir);
+        }
+
+        ir = ir->next;
+    }
+
+    ir = function->ir;
+    while (ir->next) ir = ir->next;
+
+    // Special case for main, return 0 if no return statement is present
+    if (!strcmp(symbol->identifier, "main"))
+        ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
+
+    ir = insert_pop_callee_saved_registers(ir, saved_registers);
+    insert_end_of_function(ir);
+}
+
+// Output code from the IR of a function
+static void output_function_body_code(Symbol *symbol) {
+    Tac *tac;
+    int function_pc;
+
+    add_final_x86_instructions(symbol);
+
+    function_pc = symbol->function->param_count;
     tac = symbol->function->ir;
-    saved_registers = output_push_callee_saved_registers(tac);
 
     while (tac) {
         if (output_inline_ir) {
             fprintf(f, "    // ------------------------------------- ");
-            print_instruction(f, tac);
+            print_instruction(f, tac, 1);
         }
 
         if (tac->label) fprintf(f, ".l%d:\n", tac->label);
 
-        if (tac->operation == IR_NOP || tac->operation == IR_START_LOOP || tac->operation == IR_END_LOOP);
-
-        else if (tac->operation == IR_START_CALL) {
-            processed_function_arguments[tac->src1->value] = tac->src1->function_call_arg_count - 1;
-
-            // Align the stack. This is matched with a pop when the function call ends
-            function_call_pushes = tac->src1->function_call_arg_count <= 6 ? 0 : tac->src1->function_call_arg_count - 6;
-            need_aligned_call_push = ((cur_stack_push_count + function_call_pushes) % 2 == 1);
-            if (need_aligned_call_push)  {
-                tac->src1->pushed_stack_aligned_quad = 1;
-                cur_stack_push_count++;
-                fprintf(f, "    subq    $8, %%rsp\n");
-            }
-        }
-
-        else if (tac->operation == IR_END_CALL) {
-            if (tac->src1->pushed_stack_aligned_quad)  {
-                cur_stack_push_count--;
-                fprintf(f, "    addq    $8, %%rsp\n");
-            }
-        }
-
-        else if (tac->operation == X_ARG && tac->src1->function_call_arg_index > 5) {
-            // Dirty hack to get the register without a mnemonic
-            buffer = render_x86_operation(tac, function_pc, 1);
-            buffer += 8;
-
-            // Push the value to the stack, for popping just before the function call
-            cur_stack_push_count++;
-
-            fprintf(f, "    pushq");
-            fprintf(f, "   %s\n", buffer);
-            processed_function_arguments[tac->src1->value]--;
-        }
-
-        else if (tac->operation == X_CALL) {
-            ac = tac->src1->function_call_arg_count;
-
-            // Since floating point numbers isn't implemented, this is zero.
-            if (tac->src1->function_symbol->function->is_variadic)
-                fprintf(f, "    movb    $0, %%al\n");
-
-            if (tac->src1->function_symbol->function->is_external)
-                fprintf(f, "    callq   %s@PLT\n", tac->src1->function_symbol->identifier);
-            else
-                fprintf(f, "    callq   %s\n", tac->src1->function_symbol->identifier);
-
-            // Adjust the stack for any args that are on in stack
-            if (ac > 6) {
-                fprintf(f, "    addq    $%d, %%rsp\n", (ac - 6) * 8);
-                cur_stack_push_count -= ac - 6;
-            }
-        }
-
-        else if (tac->operation == X_RET) {
-            output_x86_operation(tac, function_pc);
-            output_pop_callee_saved_registers(saved_registers);
-            fprintf(f, "    leaveq\n");
-            fprintf(f, "    retq\n");
-        }
-
-        else
-            output_x86_operation(tac, function_pc);
+        if (tac->operation != IR_NOP) output_x86_operation(tac, function_pc);
 
         tac = tac->next;
     }
-
-    // Special case for main, return 0 if no return statement is present
-    if (!strcmp(symbol->identifier, "main")) fprintf(f, "    movq    $0, %%rax\n");
-
-    output_pop_callee_saved_registers(saved_registers);
-    fprintf(f, "    leaveq\n");
-    fprintf(f, "    retq\n");
 }
 
 // Output code for the translation unit

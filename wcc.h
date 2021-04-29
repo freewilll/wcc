@@ -483,11 +483,13 @@ void init_parser();
 void init_value(Value *v);
 Value *new_value();
 Value *new_constant(int type, long value);
+Value *new_preg_value(int preg);
 Value *dup_value(Value *src);
 void add_tac_to_ir(Tac *tac);
 Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
-Tac *insert_instruction(Tac *ir, Tac *tac, int move_label);
+void insert_instruction(Tac *ir, Tac *tac, int move_label);
+Tac *insert_instruction_after(Tac *ir, Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
 int new_vreg();
@@ -496,8 +498,8 @@ int is_promotion(int type1, int type2);
 int print_type(void *f, int type);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
-void print_instruction(void *f, Tac *tac);
-void print_ir(Function *function, char *name);
+void print_instruction(void *f, Tac *tac, int expect_preg);
+void print_ir(Function *function, char* name, int expect_preg);
 void reverse_function_argument_order(Function *function);
 void merge_consecutive_labels(Function *function);
 void renumber_labels(Function *function);
@@ -641,6 +643,12 @@ enum {
     X_SETGT,
     X_SETLE,
     X_SETGE,
+
+    X_PUSH,
+    X_POP,
+    X_LEAVE,
+    X_RET_FROM_FUNC,
+    X_CALL_FROM_FUNC,
 };
 
 typedef struct rule {

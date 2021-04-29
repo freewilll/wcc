@@ -441,7 +441,7 @@ static void add_binary_shift_rules() {
 
 static X86Operation *add_function_call_arg_op(Rule *r) {
     X86Operation *x86_op;
-    x86_op = add_op(r, X_ARG, 0, SRC1, SRC2, "_arg_ %v2q");
+    x86_op = add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q");
 }
 
 void init_instruction_selection_rules() {

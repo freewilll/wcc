@@ -154,7 +154,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     Set *constrained, *unconstrained, *preferred_pregs;
     VregCost *ordered_nodes;
 
-    if (debug_register_allocation) print_ir(function, 0);
+    if (debug_register_allocation) print_ir(function, 0, 0);
 
     interference_graph = function->interference_graph;
     vreg_count = function->vreg_count;

@@ -53,6 +53,13 @@ Value *new_constant(int type, long value) {
     return cv;
 }
 
+Value *new_preg_value(int preg) {
+    Value *v;
+    v = new_value();
+    v->preg = preg;
+    return v;
+}
+
 // Duplicate a value
 Value *dup_value(Value *src) {
     Value *dst;
@@ -113,17 +120,14 @@ Tac *new_instruction(int operation) {
 }
 
 // Add instruction to the global intermediate representation ir
+
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac;
 
     tac = new_instruction(operation);
-    tac->label = 0;
     tac->dst = dst;
     tac->src1 = src1;
     tac->src2 = src2;
-    tac->next = 0;
-    tac->prev = 0;
-
     add_tac_to_ir(tac);
 
     return tac;
@@ -137,8 +141,8 @@ void sanity_test_ir_linkage(Function *function) {
     while (tac) {
         if (tac->next && tac->next->prev != tac) {
             printf("Linkage broken between:\n");
-            print_instruction(stdout, tac);
-            print_instruction(stdout, tac->next);
+            print_instruction(stdout, tac, 0);
+            print_instruction(stdout, tac->next, 0);
             panic("Bailing");
         }
 
@@ -308,7 +312,7 @@ char *operation_string(int operation) {
 }
 
 
-void print_instruction(void *f, Tac *tac) {
+void print_instruction(void *f, Tac *tac, int expect_preg) {
     int first;
     char *buffer;
     Value *v;
@@ -322,7 +326,7 @@ void print_instruction(void *f, Tac *tac) {
         fprintf(f, "      ");
 
     if (tac->x86_template) {
-        buffer = render_x86_operation(tac, 0, 0);
+        buffer = render_x86_operation(tac, 0, expect_preg);
         fprintf(f, "%s\n", buffer);
         free(buffer);
         return;
@@ -452,16 +456,17 @@ void print_instruction(void *f, Tac *tac) {
     fprintf(f, "\n");
 }
 
-void print_ir(Function *function, char *name) {
+void print_ir(Function *function, char* name, int expect_preg) {
     Tac *tac;
     int i;
 
     if (name) fprintf(stdout, "%s:\n", name);
+
     i = 0;
     tac = function->ir;
     while (tac) {
         fprintf(stdout, "%-4d > ", i++);
-        print_instruction(stdout, tac);
+        print_instruction(stdout, tac, expect_preg);
         tac = tac->next;
     }
     fprintf(stdout, "\n");
@@ -561,8 +566,8 @@ void reverse_function_argument_order(Function *function) {
     free(args);
 }
 
-// Insert tac instruction before tac
-Tac *insert_instruction(Tac *ir, Tac *tac, int move_label) {
+// Insert tac instruction before ir
+void insert_instruction(Tac *ir, Tac *tac, int move_label) {
     int i;
     Tac *prev;
 
@@ -576,6 +581,20 @@ Tac *insert_instruction(Tac *ir, Tac *tac, int move_label) {
         tac->label = ir->label;
         ir->label = 0;
     }
+}
+
+// Append tac to ir
+Tac *insert_instruction_after(Tac *ir, Tac *tac) {
+    int i;
+    Tac *next;
+
+    next = ir->next;
+    ir->next = tac;
+    tac->prev = ir;
+    tac->next = next;
+    if (next) next->prev = tac;
+
+    return tac;
 }
 
 static void renumber_label(Tac *ir, int l1, int l2) {
@@ -693,7 +712,7 @@ void allocate_value_stack_indexes(Function *function) {
     stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
     memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
 
-    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
+    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
 
     // Make stack_index_map
     tac = function->ir;
@@ -744,7 +763,7 @@ void allocate_value_stack_indexes(Function *function) {
     if (debug_ssa_mapping_local_stack_indexes)
         printf("Spilled %d registers due to & use\n", spilled_register_count);
 
-    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
+    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
 }
 
 // If a function returns a value and it's called, the parser will always allocate a

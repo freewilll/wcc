@@ -433,7 +433,7 @@ void make_control_flow_graph(Function *function) {
     index_tac(function->ir);
 
     if (debug_ssa_cfg) {
-        print_ir(function, 0);
+        print_ir(function, 0, 0);
 
         printf("Blocks:\n");
         for (i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start->index, blocks[i].end->index);
@@ -989,7 +989,7 @@ void insert_phi_functions(Function *function) {
 
     if (debug_ssa_phi_insertion) {
         printf("\nIR with phi functions:\n");
-        print_ir(function, 0);
+        print_ir(function, 0, 0);
     }
 }
 
@@ -1158,7 +1158,7 @@ void rename_phi_function_variables(Function *function) {
 
     rename_vars(function, stack, counters, 0, vreg_count);
 
-    if (debug_ssa_phi_renumbering) print_ir(function, 0);
+    if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
 }
 
 // Page 696 engineering a compiler
@@ -1178,7 +1178,7 @@ void make_live_ranges(Function *function) {
 
     live_range_reserved_pregs_offset = RESERVED_PHYSICAL_REGISTER_COUNT; // See the list at the top of the file
 
-    if (debug_ssa_live_range) print_ir(function, 0);
+    if (debug_ssa_live_range) print_ir(function, 0, 0);
 
     vreg_count = function->vreg_count;
     ssa_subscript_count = 0;
@@ -1348,7 +1348,7 @@ void make_live_ranges(Function *function) {
         blocks[i].start = tac;
     }
 
-    if (debug_ssa_live_range) print_ir(function, 0);
+    if (debug_ssa_live_range) print_ir(function, 0, 0);
 }
 
 // Having vreg & live_range separately isn't particularly useful, since most
@@ -1494,7 +1494,7 @@ static void make_interference_graph(Function *function) {
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
         printf("--------------------------------------------------------\n");
-        print_ir(function, 0);
+        print_ir(function, 0, 0);
     }
 
     vreg_count = function->vreg_count;
@@ -1511,7 +1511,7 @@ static void make_interference_graph(Function *function) {
 
         tac = blocks[i].end;
         while (tac) {
-            if (debug_ssa_interference_graph) print_instruction(stdout, tac);
+            if (debug_ssa_interference_graph) print_instruction(stdout, tac, 0);
 
             if (tac->operation == IR_END_CALL) function_call_depth++;
             else if (tac->operation == IR_START_CALL) function_call_depth--;
@@ -1680,15 +1680,15 @@ static void coalesce_live_range(Function *function, int src, int dst) {
 
         // Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
         if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
-            print_instruction(stdout, tac);
+            print_instruction(stdout, tac, 0);
             panic1d("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
         }
         if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
-            print_instruction(stdout, tac);
+            print_instruction(stdout, tac, 0);
             panic1d("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
         }
         if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
-            print_instruction(stdout, tac);
+            print_instruction(stdout, tac, 0);
             panic1d("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
         }
 
@@ -1785,7 +1785,7 @@ void coalesce_live_ranges(Function *function) {
             }
 
             if (debug_ssa_live_range_coalescing) {
-                print_ir(function, 0);
+                print_ir(function, 0, 0);
                 printf("Live range coalesces:\n");
             }
 
@@ -1821,7 +1821,7 @@ void coalesce_live_ranges(Function *function) {
 
     if (debug_ssa_live_range_coalescing) {
         printf("\n");
-        print_ir(function, 0);
+        print_ir(function, 0, 0);
     }
 }
 

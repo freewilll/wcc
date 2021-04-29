@@ -97,9 +97,9 @@ void compile(int print_spilled_register_count, char *compiler_input_filename, ch
     while (symbol->identifier) {
         if (symbol->is_function && symbol->function->is_defined) {
             function = symbol->function;
-            if (print_ir1) print_ir(function, symbol->identifier);
+            if (print_ir1) print_ir(function, symbol->identifier, 0);
             run_compiler_phases(function, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
-            if (print_ir2) print_ir(function, symbol->identifier);
+            if (print_ir2) print_ir(function, symbol->identifier, 0);
         }
         symbol++;
     }
