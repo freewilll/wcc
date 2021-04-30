@@ -378,21 +378,12 @@ static void output_function_body_code(Symbol *symbol) {
     Tac *tac;
     int function_pc;
 
-    add_final_x86_instructions(symbol);
-
     function_pc = symbol->function->param_count;
     tac = symbol->function->ir;
 
     while (tac) {
-        if (output_inline_ir) {
-            fprintf(f, "    // ------------------------------------- ");
-            print_instruction(f, tac, 1);
-        }
-
         if (tac->label) fprintf(f, ".l%d:\n", tac->label);
-
         if (tac->operation != IR_NOP) output_x86_operation(tac, function_pc);
-
         tac = tac->next;
     }
 }
@@ -461,6 +452,7 @@ void output_code(char *input_filename, char *output_filename) {
     while (symbol->identifier) {
         if (symbol->is_function && symbol->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
+            add_final_x86_instructions(symbol);
             output_function_body_code(symbol);
             fprintf(f, "\n");
         }
