@@ -69,7 +69,6 @@ int main(int argc, char **argv) {
     opt_spill_furthest_liveness_end = 0;
     opt_short_lr_infinite_spill_costs = 1;
     opt_optimize_arithmetic_operations = 1;
-    opt_enable_register_allocation = 1;
 
     output_filename = 0;
     input_filename_count = 0;
@@ -89,7 +88,6 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_spilled_register_count = 1;         argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                            argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-fno-register-allocation"          )) { opt_enable_register_allocation = 0;       argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;     argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;      argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;    argc--; argv++; }
@@ -169,7 +167,6 @@ int main(int argc, char **argv) {
         printf("-fspill-furthest-liveness-end       Spill liveness intervals that have the greatest end liveness interval\n");
         printf("-fno-dont-spill-short-live-ranges   Disable infinite spill costs for short live ranges\n");
         printf("-fno-optimize-arithmetic            Disable arithmetic optimizations\n");
-        printf("-fno-register-allocation            Don't allocate physical registers, spill everything to the stack\n");
         printf("\n");
         printf("Debug flags:\n");
         printf("--debug-ssa-mapping-local-stack-indexes\n");

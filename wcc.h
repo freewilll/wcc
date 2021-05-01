@@ -342,7 +342,6 @@ int cur_line;                   // Current line number being lexed
 
 int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after register allocation
-int opt_enable_register_allocation;     // Allocate physical registers
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible
 int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end

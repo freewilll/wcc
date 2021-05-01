@@ -1462,7 +1462,7 @@ void test_spilling() {
     Tac *tac;
 
     remove_reserved_physical_registers = 1;
-    opt_enable_register_allocation = 0;
+    preg_count = 0; // Disable register allocation
 
     // src1c spill
     start_ir();
@@ -1551,6 +1551,8 @@ void test_spilling() {
     assert_rx86_preg_op("movq    %r11, -16(%rbp)" );
     assert_rx86_preg_op("movq    -16(%rbp), %r10");
     assert_rx86_preg_op("movl    $1, (%r10)"     );
+
+    init_allocate_registers(); // Enable register allocation again
 }
 
 // This is a quite convoluted test that checks code generation for a function with
@@ -1561,7 +1563,6 @@ void test_param_vreg_moves() {
     Tac *tac;
 
     remove_reserved_physical_registers = 0;
-    opt_enable_register_allocation = 1;
 
     start_ir();
 
@@ -1624,7 +1625,6 @@ int main() {
     failures = 0;
     function = new_function();
 
-    opt_enable_register_allocation = 1;
     opt_optimize_arithmetic_operations = 1;
     string_literals = malloc(MAX_STRING_LITERALS);
 

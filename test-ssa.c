@@ -820,12 +820,10 @@ void test_top_down_register_allocation() {
 
 int main() {
     function = new_function();
-    opt_enable_register_allocation = 1;
     opt_optimize_arithmetic_operations = 1;
     string_literals = malloc(MAX_STRING_LITERALS);
 
     init_allocate_registers();
-    opt_enable_register_allocation = 1;
 
     test_arithmetic_optimization();
     test_cfg_jmp();

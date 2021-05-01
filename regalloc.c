@@ -110,7 +110,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
         printf("\n");
     }
 
-    if (!opt_enable_register_allocation || set_len(neighbor_colors) == physical_register_count) {
+    if (set_len(neighbor_colors) >= physical_register_count) {
         if (original_stack_indexes[vreg])
             stack_index = original_stack_indexes[vreg];
         else {
