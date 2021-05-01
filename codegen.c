@@ -260,7 +260,7 @@ static Tac *add_sub_rsp(Tac *ir, int amount) {
 }
 
 static Tac *add_add_rsp(Tac *ir, int amount) {
-    return insert_x86_instruction(ir, X_SUB, new_preg_value(REG_RSP), new_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
+    return insert_x86_instruction(ir, X_ADD, new_preg_value(REG_RSP), new_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
 }
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
@@ -306,7 +306,7 @@ void add_final_x86_instructions(Symbol *symbol) {
         else if (ir->operation == IR_START_CALL) {
             ir->operation = IR_NOP;
 
-            // Align the stack. This is matched with a pop when the function call ends
+            // Align the stack. This is matched with an adjustment when the function call ends
             function_call_pushes = ir->src1->function_call_arg_count <= 6 ? 0 : ir->src1->function_call_arg_count - 6;
             need_aligned_call_push = ((cur_stack_push_count + function_call_pushes) % 2 == 1);
             if (need_aligned_call_push)  {
@@ -371,6 +371,49 @@ void add_final_x86_instructions(Symbol *symbol) {
 
     ir = insert_pop_callee_saved_registers(ir, saved_registers);
     insert_end_of_function(ir);
+}
+
+// Remove all possible IR_NOP instructions
+static void remove_nops(Function *function) {
+    Tac *tac;
+
+    tac = function->ir;
+    while (tac) {
+        if (tac->operation != IR_NOP) { tac = tac->next; continue; }
+        if (!tac->next) panic("Unexpected NOP as last instruction");
+        if (!tac->prev) { tac = tac->next; continue; }
+        if (tac->next->label) { tac = tac->next; continue; }
+
+        delete_instruction(tac);
+
+        tac = tac->next;
+    }
+}
+
+// Due to stack alignment on consecutive function calls, it can happen that
+// an addq $8, %rsp is immediately followed by a subq $8, %rsp. Remove any of these
+// cases, where possible.
+static void merge_rsp_func_call_matching_add_subs(Function *function) {
+    Tac *tac;
+
+    tac = function->ir;
+    while (tac) {
+        if (
+            // First operation is addq n, %rsp
+            tac->operation == X_ADD && tac->dst && tac->dst->preg == REG_RSP &&
+            // Second operation is subq n, %rsp
+            tac->next && tac->next->operation == X_SUB && tac->next->dst && tac->next->dst->preg == REG_RSP &&
+            // The amount is equivalent
+            tac->src1->value == tac->next->src1->value &&
+            // No labels are involved
+            !tac->label && !tac->next->label) {
+
+            tac = delete_instruction(tac);
+            tac = delete_instruction(tac);
+        }
+
+        tac = tac->next;
+    }
 }
 
 // Output code from the IR of a function
@@ -453,6 +496,8 @@ void output_code(char *input_filename, char *output_filename) {
         if (symbol->is_function && symbol->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             add_final_x86_instructions(symbol);
+            remove_nops(symbol->function);
+            merge_rsp_func_call_matching_add_subs(symbol->function);
             output_function_body_code(symbol);
             fprintf(f, "\n");
         }

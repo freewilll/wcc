@@ -597,6 +597,17 @@ Tac *insert_instruction_after(Tac *ir, Tac *tac) {
     return tac;
 }
 
+// Delete an instruction inside a linked list. It cannot be the first instruction.
+Tac *delete_instruction(Tac *tac) {
+    if (!tac->prev) panic("Attemp to delete the first instruction");
+    if (tac->next && tac->next->label) panic("Deleting an instruction would obliterate the next label");
+
+    tac->prev->next = tac->next;
+    if (tac->next) tac->next->prev = tac->prev;
+    tac->next->label = tac->label;
+    return tac->next;
+}
+
 static void renumber_label(Tac *ir, int l1, int l2) {
     Tac *t;
 

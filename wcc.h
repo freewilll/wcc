@@ -489,6 +489,7 @@ Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 void insert_instruction(Tac *ir, Tac *tac, int move_label);
 Tac *insert_instruction_after(Tac *ir, Tac *tac);
+Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
 int new_vreg();

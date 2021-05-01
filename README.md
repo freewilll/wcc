@@ -85,8 +85,6 @@ main:
     movq    $8, %rdi            # s2 = malloc(sizeof(S2));
     callq   malloc@PLT
     movq    %rax, %rbx          # rbx = s2
-    addq    $8, %rsp            # FIXME remove identical addq/subq combinations
-    subq    $8, %rsp
     movq    $8, %rdi            # s2->s1 = malloc(sizeof(S1));
     callq   malloc@PLT
     addq    $8, %rsp
