@@ -737,6 +737,7 @@ void compile(int print_spilled_register_count, char *compiler_input_filename, ch
 int failures;
 int remove_reserved_physical_registers;
 
+void assert_x86_op(char *expected);
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2);
 
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);

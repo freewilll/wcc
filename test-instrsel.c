@@ -22,36 +22,6 @@ void nop() {
     ir_start = ir_start->next;
 }
 
-char *rx86op(Tac *tac) {
-    return render_x86_operation(tac, 0, 0);
-}
-
-void assert_x86_op(char *expected) {
-    char *got;
-
-    if (!ir_start) {
-        printf("Expected %s, got nothing\n", expected);
-        failures++;
-        return;
-    }
-
-    got = render_x86_operation(ir_start, 0, 0);
-
-    if (!got) {
-        printf("Mismatch:\n  expected: %s\n  got:      null\n", expected);
-        failures++;
-    }
-    else {
-
-        if (strcmp(got, expected)) {
-            printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
-            failures++;
-        }
-    }
-
-    n();
-}
-
 void assert_rx86_preg_op_with_function_pc(int function_param_count, char *expected) {
     char *got;
 
@@ -207,14 +177,17 @@ void test_instrsel_tree_merging() {
     assert_x86_op("movq    r1q, g2(%rip)");
 }
 
-void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, int x86_jmp_operation) {
+void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, char *jmp_instruction) {
+    char *template;
+
     start_ir();
     i(0, cmp_operation,  v(3), v(1), v(2));
     i(0, jmp_operation,  0,    v(3), l(1));
     i(1, IR_NOP,         0,    0,    0   );
     finish_ir(function);
-    assert_tac(ir_start,       X_CMP,             0, v(1), v(2));  // v(4) is allocated but not used
-    assert_tac(ir_start->next, x86_jmp_operation, 0, l(1), 0   );
+    asprintf(&template, "%-7s .l1", jmp_instruction);
+    assert_x86_op("cmpq    r2q, r1q");
+    assert_x86_op(template);
 }
 
 void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load, char *template) {
@@ -230,13 +203,16 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     assert_x86_op("jge     .l1");
 }
 
-void test_cmp_with_assignment(Function *function, int cmp_operation, int x86_set_operation) {
+void test_cmp_with_assignment(Function *function, int cmp_operation, char *set_instruction) {
+    char *template;
+
     start_ir();
     i(0, cmp_operation, v(3), v(1), v(2));
     finish_ir(function);
-    assert_tac(ir_start,             X_CMP,             0,    v(1), v(2));
-    assert_tac(ir_start->next,       x86_set_operation, v(3), 0,    0   );
-    assert_tac(ir_start->next->next, X_MOVZBQ,          v(3), v(3), 0   );
+    asprintf(&template, "%-7s r3b", set_instruction);
+    assert_x86_op("cmpq    r2q, r1q");
+    assert_x86_op(template);
+    assert_x86_op("movzbq  r3b, r3q");
 }
 
 void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, char *t1, char *t2, char *t3) {
@@ -312,10 +288,10 @@ void test_instrsel() {
     nuke_rule(REGQ, IR_ADD, CSTL, REGQ); nuke_rule(REGQ, IR_ADD, REGQ, CSTL);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
-    assert_tac(ir_start,                   X_MOV, v(2), c(1), 0   );
-    assert_tac(ir_start->next,             X_MOV, v(3), c(2), 0   );
-    assert_tac(ir_start->next->next,       X_MOV, v(1), v(3), 0   );
-    assert_tac(ir_start->next->next->next, X_ADD, v(1), v(2), v(1));
+    assert_x86_op("movq    $1, r2q");
+    assert_x86_op("movq    $2, r3q");
+    assert_x86_op("movq    r3q, r1q");
+    assert_x86_op("addq    r2q, r1q");
 
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
@@ -323,9 +299,9 @@ void test_instrsel() {
     nuke_rule(REG, IR_ADD, REGQ, CSTL);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
-    assert_tac(ir_start,             X_MOV, v(2), c(2), 0   );
-    assert_tac(ir_start->next,       X_MOV, v(1), v(2), 0   );
-    assert_tac(ir_start->next->next, X_ADD, v(1), c(1), v(1));
+    assert_x86_op("movq    $2, r2q");
+    assert_x86_op("movq    r2q, r1q");
+    assert_x86_op("addq    $1, r1q");
 
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
@@ -333,78 +309,78 @@ void test_instrsel() {
     nuke_rule(REGQ, IR_ADD, CSTL, REGQ);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
-    assert_tac(ir_start,             X_MOV, v(2), c(1), 0   );
-    assert_tac(ir_start->next,       X_MOV, v(1), v(2), 0   );
-    assert_tac(ir_start->next->next, X_ADD, v(1), c(2), v(1));
+    assert_x86_op("movq    $1, r2q");
+    assert_x86_op("movq    r2q, r1q");
+    assert_x86_op("addq    $2, r1q");
 
     // r1 + r2. No loads are necessary, this is the simplest add operation.
     start_ir();
     i(0, IR_ADD, v(3), v(1), v(2));
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(3), v(2), 0   );
-    assert_tac(ir_start->next, X_ADD, v(3), v(1), v(3));
+    assert_x86_op("movq    r2q, r3q");
+    assert_x86_op("addq    r1q, r3q");
 
     // r1 + S1
     start_ir();
     i(0, IR_ADD, v(2), v(1), S(-2));
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(2), v(1), 0   );
-    assert_tac(ir_start->next, X_ADD, v(2), S(-2), v(2));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("addq    -16(%rbp), r2q");
 
     // S1 + r1
     start_ir();
     i(0, IR_ADD, v(2), v(1), S(-2));
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(2), v(1), 0   );
-    assert_tac(ir_start->next, X_ADD, v(2), S(-2), v(2));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("addq    -16(%rbp), r2q");
 
     // r1 + g1
     start_ir();
     i(0, IR_ADD, v(2), v(1), g(1));
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(2), v(1), 0   );
-    assert_tac(ir_start->next, X_ADD, v(2), g(1), v(2));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("addq    g1(%rip), r2q");
 
     // g1 + r1
     start_ir();
     i(0, IR_ADD, v(2), v(1), g(1));
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(2), v(1), 0   );
-    assert_tac(ir_start->next, X_ADD, v(2), g(1), v(2));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("addq    g1(%rip), r2q");
 
     // c1 + g1
     start_ir();
     i(0, IR_ADD, v(2), c(1), g(1));
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), c(1), 0   );
-    assert_tac(ir_start->next, X_ADD, v(1), g(1), v(1));
+    assert_x86_op("movq    $1, r1q");
+    assert_x86_op("addq    g1(%rip), r1q");
 
     // g1 + c1
     start_ir();
     i(0, IR_ADD, v(2), g(1), c(1));
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), c(1), 0   );
-    assert_tac(ir_start->next, X_ADD, v(1), g(1), v(1));
+    assert_x86_op("movq    $1, r1q");
+    assert_x86_op("addq    g1(%rip), r1q");
 
     // Store c in g
     start_ir();
     i(0, IR_MOVE, g(1), c(1), 0);
     finish_ir(function);
-    assert_tac(ir_start, X_MOV, g(1), c(1), 0);
+    assert_x86_op("movq    $1, g1(%rip)");
 
     // Store c in g with only the reg fule, forcing c into r1
     start_ir();
     nuke_rule(MEMQ, IR_MOVE, CSTL, 0);
     i(0, IR_MOVE, g(1), c(1), 0);
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), c(1), 0);
-    assert_tac(ir_start->next, X_MOV, g(1), v(1), 0);
+    assert_x86_op("movq    $1, r1q");
+    assert_x86_op("movq    r1q, g1(%rip)");
 
     // Store v1 in g using IR_MOVE
     start_ir();
     i(0, IR_MOVE, g(1), v(1), 0);
     finish_ir(function);
-    assert_tac(ir_start, X_MOV, g(1), v(1), 0);
+    assert_x86_op("movq    r1q, g1(%rip)");
 
     // Store a1 in g using IR_MOVE
     si(function, 0, IR_MOVE, gsz(1, TYPE_PTR + TYPE_CHAR),  asz(1, TYPE_VOID), 0); assert_x86_op("movq    r1q, g1(%rip)");
@@ -416,25 +392,25 @@ void test_instrsel() {
     start_ir();
     i(0, IR_MOVE, v(1), g(1), 0);
     finish_ir(function);
-    assert_tac(ir_start, X_MOV, v(1), g(1), 0);
+    assert_x86_op("movq    g1(%rip), r1q");
 
     // Load S into r1
     start_ir();
     i(0, IR_MOVE, v(1), S(-2), 0);
     finish_ir(function);
-    assert_tac(ir_start, X_MOV, v(1), S(-2), 0);
+    assert_x86_op("movq    -16(%rbp), r1q");
 
     // Load g into r1 using IR_MOVE
     start_ir();
     i(0, IR_MOVE, v(1), g(1), 0);
     finish_ir(function);
-    assert_tac(ir_start, X_MOV, v(1), g(1), 0);
+    assert_x86_op("movq    g1(%rip), r1q");
 
     // Load S into r1 using IR_MOVE
     start_ir();
     i(0, IR_MOVE, v(1), S(-2), 0);
     finish_ir(function);
-    assert_tac(ir_start, X_MOV, v(1), S(-2), 0);
+    assert_x86_op("movq    -16(%rbp), r1q");
 
     // Load Si into r1l using IR_MOVE
     start_ir();
@@ -447,23 +423,23 @@ void test_instrsel() {
     start_ir();
     i(0, IR_MOVE, S(-2), c(0), 0);
     finish_ir(function);
-    assert_tac(ir_start, X_MOV, S(-2), c(0), 0);
+    assert_x86_op("movq    $0, -16(%rbp)");
 
     // Assign constant to a local. Forces c into a register
     start_ir();
     nuke_rule(MEMQ, IR_MOVE, CSTL, 0);
     i(0, IR_MOVE, S(-2), c(0), 0);
     finish_ir(function);
-    assert_tac(ir_start,       X_MOV, v(1), c(0), 0);
-    assert_tac(ir_start->next, X_MOV, S(-2), v(1), 0);
+    assert_x86_op("movq    $0, r1q");
+    assert_x86_op("movq    r1q, -16(%rbp)");
 
     // jz with r1
     start_ir();
     i(0, IR_JZ,  0,    v(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
-    assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
+    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("jz      .l1");
 
     // jz with a1
     start_ir();
@@ -471,8 +447,8 @@ void test_instrsel() {
     i(0, IR_JZ,  0,    a(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
-    assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
+    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("jz      .l1");
 
     // jz with a1 *void
     start_ir();
@@ -480,8 +456,8 @@ void test_instrsel() {
     i(0, IR_JZ,  0,    asz(1, TYPE_VOID), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
-    assert_tac(ir_start->next, X_JZ,   0, l(1), 0);
+    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("jz      .l1");
 
     // jz with global
     start_ir();
@@ -496,8 +472,8 @@ void test_instrsel() {
     i(0, IR_JNZ, 0,    v(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
-    assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
+    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("jnz     .l1");
 
     // jz with a1
     start_ir();
@@ -505,8 +481,8 @@ void test_instrsel() {
     i(0, IR_JNZ,  0,   a(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
-    assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
+    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("jnz     .l1");
 
     // jz with a1 *void
     start_ir();
@@ -514,8 +490,8 @@ void test_instrsel() {
     i(0, IR_JNZ,  0,   asz(1, TYPE_VOID), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_tac(ir_start,       X_TEST, 0, v(1), 0);
-    assert_tac(ir_start->next, X_JNZ,  0, l(1), 0);
+    assert_x86_op("testq   r1q, r1q");
+    assert_x86_op("jnz     .l1");
 
     // jnz with global
     start_ir();
@@ -526,12 +502,12 @@ void test_instrsel() {
     assert_x86_op("jnz     .l1");
 
     // JZ                                                          JNZ
-    test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, X_JE ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, X_JNE);
-    test_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, X_JNE); test_cmp_with_conditional_jmp(function, IR_NE, IR_JZ, X_JE );
-    test_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, X_JLT); test_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, X_JGE);
-    test_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, X_JGT); test_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, X_JLE);
-    test_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, X_JLE); test_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, X_JGT);
-    test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, X_JGE); test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, X_JLT);
+    test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, "je" ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, "jne");
+    test_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, "jne"); test_cmp_with_conditional_jmp(function, IR_NE, IR_JZ, "je" );
+    test_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, "jl" ); test_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, "jge");
+    test_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, "jg" ); test_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, "jle");
+    test_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, "jle"); test_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, "jg" );
+    test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "jge"); test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "jl" );
 
     // a < b with a conditional with different src1 and src2 operands
     test_less_than_with_conditional_jmp(function, v(1), c(1), 0,  "cmpq    $1, r1q"       );
@@ -547,12 +523,12 @@ void test_instrsel() {
     test_less_than_with_conditional_jmp(function, S(-2), c(1), 0, "cmpq    $1, -16(%rbp)" );
 
     // Conditional assignment with 2 registers
-    test_cmp_with_assignment(function, IR_EQ, X_SETE);
-    test_cmp_with_assignment(function, IR_NE, X_SETNE);
-    test_cmp_with_assignment(function, IR_LT, X_SETLT);
-    test_cmp_with_assignment(function, IR_GT, X_SETGT);
-    test_cmp_with_assignment(function, IR_LE, X_SETLE);
-    test_cmp_with_assignment(function, IR_GE, X_SETGE);
+    test_cmp_with_assignment(function, IR_EQ, "sete");
+    test_cmp_with_assignment(function, IR_NE, "setne");
+    test_cmp_with_assignment(function, IR_LT, "setl");
+    test_cmp_with_assignment(function, IR_GT, "setg");
+    test_cmp_with_assignment(function, IR_LE, "setle");
+    test_cmp_with_assignment(function, IR_GE, "setge");
 
     // Test r1 = a < b with different src1 and src2 operands
     test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR), c(1),              "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
@@ -928,16 +904,16 @@ void test_misc_commutative_operations() {
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_BOR, v(3), v(1), v(2));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    r2q, r3q"));
-    assert(0, strcmp(rx86op(ir_start->next), "orq     r1q, r3q"));
+    assert_x86_op("movq    r2q, r3q");
+    assert_x86_op("orq     r1q, r3q");
 
     si(function, 0, IR_BAND, v(3), v(1), v(2));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    r2q, r3q"));
-    assert(0, strcmp(rx86op(ir_start->next), "andq    r1q, r3q"));
+    assert_x86_op("movq    r2q, r3q");
+    assert_x86_op("andq    r1q, r3q");
 
     si(function, 0, IR_XOR, v(3), v(1), v(2));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    r2q, r3q"));
-    assert(0, strcmp(rx86op(ir_start->next), "xorq    r1q, r3q"));
+    assert_x86_op("movq    r2q, r3q");
+    assert_x86_op("xorq    r1q, r3q");
 }
 
 void test_sub_operations() {
@@ -1026,53 +1002,53 @@ void test_binary_shift_operations() {
 
     // v << c
     si(function, 0, IR_BSHL, v(3), v(1), c(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
-    assert(0, strcmp(rx86op(ir_start->next), "shlq    $1, r2q"));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("shlq    $1, r2q");
 
     // v >> c
     si(function, 0, IR_BSHR, v(3), v(1), c(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    r1q, r2q"));
-    assert(0, strcmp(rx86op(ir_start->next), "sarq    $1, r2q"));
+    assert_x86_op("movq    r1q, r2q");
+    assert_x86_op("sarq    $1, r2q");
 
     // g << c
     si(function, 0, IR_BSHL, v(3), g(1), c(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r1q"));
-    assert(0, strcmp(rx86op(ir_start->next), "shlq    $1, r1q"));
+    assert_x86_op("movq    g1(%rip), r1q");
+    assert_x86_op("shlq    $1, r1q");
 
     // g >> c
     si(function, 0, IR_BSHR, v(3), g(1), c(1));
-    assert(0, strcmp(rx86op(ir_start      ), "movq    g1(%rip), r1q"));
-    assert(0, strcmp(rx86op(ir_start->next), "sarq    $1, r1q"));
+    assert_x86_op("movq    g1(%rip), r1q");
+    assert_x86_op("sarq    $1, r1q");
 
     // vs << cb
     si(function, 0, IR_BSHL, vsz(3, TYPE_SHORT), vsz(1, TYPE_SHORT), vsz(2, TYPE_CHAR));
-    assert(0, strcmp(rx86op(ir_start            ), "movb    r2b, %cl"));
-    assert(0, strcmp(rx86op(ir_start->next      ), "movw    r1w, r3w"));
-    assert(0, strcmp(rx86op(ir_start->next->next), "shlw    %cl, r3w"));
+    assert_x86_op("movb    r2b, %cl");
+    assert_x86_op("movw    r1w, r3w");
+    assert_x86_op("shlw    %cl, r3w");
 
     // vl << cb
     si(function, 0, IR_BSHL, v(3), v(1), vsz(2, TYPE_CHAR));
-    assert(0, strcmp(rx86op(ir_start            ), "movb    r2b, %cl"));
-    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r3q"));
-    assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
+    assert_x86_op("movb    r2b, %cl");
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("shlq    %cl, r3q");
 
     // vl << cs
     si(function, 0, IR_BSHL, v(3), v(1), vsz(2, TYPE_SHORT));
-    assert(0, strcmp(rx86op(ir_start            ), "movw    r2w, %cx"));
-    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r3q"));
-    assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
+    assert_x86_op("movw    r2w, %cx");
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("shlq    %cl, r3q");
 
     // vl << ci
     si(function, 0, IR_BSHL, v(3), v(1), vsz(2, TYPE_INT));
-    assert(0, strcmp(rx86op(ir_start            ), "movl    r2l, %ecx"));
-    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r3q"));
-    assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
+    assert_x86_op("movl    r2l, %ecx");
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("shlq    %cl, r3q");
 
     // vl << cl
     si(function, 0, IR_BSHL, v(3), v(1), vsz(2, TYPE_LONG));
-    assert(0, strcmp(rx86op(ir_start            ), "movq    r2q, %rcx"));
-    assert(0, strcmp(rx86op(ir_start->next      ), "movq    r1q, r3q"));
-    assert(0, strcmp(rx86op(ir_start->next->next), "shlq    %cl, r3q"));
+    assert_x86_op("movq    r2q, %rcx");
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("shlq    %cl, r3q");
 }
 
 void test_constant_operations() {

@@ -34,6 +34,32 @@ void assert_value(Value *v1, Value *v2) {
         panic("Don't know how to assert_value");
 }
 
+void assert_x86_op(char *expected) {
+    char *got;
+
+    if (!ir_start) {
+        printf("Expected %s, got nothing\n", expected);
+        failures++;
+        return;
+    }
+
+    got = render_x86_operation(ir_start, 0, 0);
+
+    if (!got) {
+        printf("Mismatch:\n  expected: %s\n  got:      null\n", expected);
+        failures++;
+    }
+    else {
+
+        if (strcmp(got, expected)) {
+            printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
+            failures++;
+        }
+    }
+
+    ir_start = ir_start->next;
+}
+
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
     if (!tac) {
         failures++;
