@@ -71,6 +71,7 @@ typedef struct symbol {
 } Symbol;
 
 typedef struct function {
+    char* identifier;                        // Name of the function
     int return_type;                         // Type of return value
     int param_count;                         // Number of parameters
     int *param_types;                        // Types of parameters
@@ -711,6 +712,9 @@ void init_instruction_selection_rules();
 // codegen.c
 char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
+void add_final_x86_instructions(Function *function);
+void remove_nops(Function *function);
+void merge_rsp_func_call_matching_add_subs(Function *function);
 void output_code(char *input_filename, char *output_filename);
 
 // wcc.c
@@ -721,6 +725,7 @@ enum {
     COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS,
     COMPILE_STOP_AFTER_LIVE_RANGES,
     COMPILE_STOP_AFTER_INSTRUCTION_SELECTION,
+    COMPILE_STOP_AFTER_ADD_SPILL_CODE,
     COMPILE_STOP_AT_END,
 };
 

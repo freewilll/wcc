@@ -264,7 +264,7 @@ static Tac *add_add_rsp(Tac *ir, int amount) {
 }
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
-void add_final_x86_instructions(Symbol *symbol) {
+void add_final_x86_instructions(Function *function) {
     int function_call_count;
     Tac *tac, *ir, *orig_ir;
     int function_pc;                    // The Function's param count
@@ -273,9 +273,7 @@ void add_final_x86_instructions(Symbol *symbol) {
     int *saved_registers;               // Callee saved registers
     int function_call_pushes;           // How many pushes are necessary for a function call
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
-    Function *function;
 
-    function = symbol->function;
     function_call_count = make_function_call_count(function);
     function_pc = function->param_count;
 
@@ -366,7 +364,7 @@ void add_final_x86_instructions(Symbol *symbol) {
     while (ir->next) ir = ir->next;
 
     // Special case for main, return 0 if no return statement is present
-    if (!strcmp(symbol->identifier, "main"))
+    if (!strcmp(function->identifier, "main"))
         ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
 
     ir = insert_pop_callee_saved_registers(ir, saved_registers);
@@ -374,7 +372,7 @@ void add_final_x86_instructions(Symbol *symbol) {
 }
 
 // Remove all possible IR_NOP instructions
-static void remove_nops(Function *function) {
+void remove_nops(Function *function) {
     Tac *tac;
 
     tac = function->ir;
@@ -393,7 +391,7 @@ static void remove_nops(Function *function) {
 // Due to stack alignment on consecutive function calls, it can happen that
 // an addq $8, %rsp is immediately followed by a subq $8, %rsp. Remove any of these
 // cases, where possible.
-static void merge_rsp_func_call_matching_add_subs(Function *function) {
+void merge_rsp_func_call_matching_add_subs(Function *function) {
     Tac *tac;
 
     tac = function->ir;
@@ -495,9 +493,6 @@ void output_code(char *input_filename, char *output_filename) {
     while (symbol->identifier) {
         if (symbol->is_function && symbol->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
-            add_final_x86_instructions(symbol);
-            remove_nops(symbol->function);
-            merge_rsp_func_call_matching_add_subs(symbol->function);
             output_function_body_code(symbol);
             fprintf(f, "\n");
         }

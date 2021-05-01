@@ -202,7 +202,6 @@ Value *fu(int index) {
 
     asprintf(&(v->function_symbol->identifier), "f%d", index);
 
-
     return v;
 }
 
@@ -235,7 +234,7 @@ void _finish_ir(Function *function, int stop_after_live_ranges, int stop_after_i
     else if (stop_after_instruction_selection)
         run_compiler_phases(function, COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_INSTRUCTION_SELECTION);
     else
-        run_compiler_phases(function, COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AT_END);
+        run_compiler_phases(function, COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ADD_SPILL_CODE);
 
     remove_reserved_physical_register_count_from_tac(function->ir);
 

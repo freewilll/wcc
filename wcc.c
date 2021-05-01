@@ -67,6 +67,13 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     allocate_registers(function);
     remove_stack_self_moves(function);
     add_spill_code(function);
+
+    if (stop_at == COMPILE_STOP_AFTER_ADD_SPILL_CODE) return;
+
+    // Final x86_64 changes
+    add_final_x86_instructions(function);
+    remove_nops(function);
+    merge_rsp_func_call_matching_add_subs(function);
 }
 
 static void compile_externals() {
