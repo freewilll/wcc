@@ -388,26 +388,31 @@ void remove_nops(Function *function) {
     }
 }
 
-// Due to stack alignment on consecutive function calls, it can happen that
-// an addq $8, %rsp is immediately followed by a subq $8, %rsp. Remove any of these
-// cases, where possible.
-void merge_rsp_func_call_matching_add_subs(Function *function) {
+// Merge any consecutive add/sub stack operations that aren't involved in jmp instructions.
+void merge_rsp_func_call_add_subs(Function *function) {
     Tac *tac;
+    int value;
 
     tac = function->ir;
     while (tac) {
         if (
-            // First operation is addq n, %rsp
-            tac->operation == X_ADD && tac->dst && tac->dst->preg == REG_RSP &&
-            // Second operation is subq n, %rsp
-            tac->next && tac->next->operation == X_SUB && tac->next->dst && tac->next->dst->preg == REG_RSP &&
-            // The amount is equivalent
-            tac->src1->value == tac->next->src1->value &&
-            // No labels are involved
-            !tac->label && !tac->next->label) {
+                // First operation is add/sub n, %rsp
+                (tac->operation == X_ADD || tac->operation == X_SUB) && tac->dst && tac->dst->preg == REG_RSP &&
+                // Second operation is add/sub n, %rsp
+                tac->next && (tac->next->operation == X_ADD || tac->next->operation == X_SUB) && tac->next->dst && tac->next->dst->preg == REG_RSP &&
+                // No labels are involved
+                !tac->label && !tac->next->label) {
 
-            tac = delete_instruction(tac);
-            tac = delete_instruction(tac);
+            value = tac->operation == X_ADD ? tac->src1->value : -tac->src1->value;
+            value += tac->next->operation == X_ADD ? tac->next->src1->value : -tac->next->src1->value;
+            if (!value) {
+                tac = delete_instruction(tac);
+                tac = delete_instruction(tac);
+            } else {
+                tac = delete_instruction(tac);
+                tac->operation = value < 0 ? X_SUB : X_ADD;
+                tac->src1->value = value > 0 ? value : -value;
+            }
         }
 
         tac = tac->next;

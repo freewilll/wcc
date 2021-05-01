@@ -73,7 +73,7 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     // Final x86_64 changes
     add_final_x86_instructions(function);
     remove_nops(function);
-    merge_rsp_func_call_matching_add_subs(function);
+    merge_rsp_func_call_add_subs(function);
 }
 
 static void compile_externals() {

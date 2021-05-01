@@ -714,7 +714,7 @@ char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
 void add_final_x86_instructions(Function *function);
 void remove_nops(Function *function);
-void merge_rsp_func_call_matching_add_subs(Function *function);
+void merge_rsp_func_call_add_subs(Function *function);
 void output_code(char *input_filename, char *output_filename);
 
 // wcc.c
