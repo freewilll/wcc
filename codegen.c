@@ -250,7 +250,13 @@ static Tac *insert_pop_callee_saved_registers(Tac *ir, int *saved_registers) {
     return ir;
 }
 
-static Tac *insert_end_of_function(Tac *ir) {
+static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
+    int i;
+
+    for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--)
+        if (saved_registers[i])
+            ir = insert_x86_instruction(ir, X_POP, new_preg_value(i), 0, 0, "popq %vdq");
+
     ir = insert_x86_instruction(ir, X_LEAVE, 0, 0, 0, "leaveq");
     return insert_x86_instruction(ir, X_RET_FROM_FUNC, 0, 0, 0, "retq");
 }
@@ -273,6 +279,7 @@ void add_final_x86_instructions(Function *function) {
     int *saved_registers;               // Callee saved registers
     int function_call_pushes;           // How many pushes are necessary for a function call
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
+    int added_end_of_function;          // To ensure a double epilogue isn't emitted
 
     function_call_count = make_function_call_count(function);
     function_pc = function->param_count;
@@ -298,6 +305,8 @@ void add_final_x86_instructions(Function *function) {
     ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
 
     while (ir) {
+        added_end_of_function = 0;
+
         if (ir->operation == IR_NOP);
         if (ir->operation == IR_START_LOOP || ir->operation == IR_END_LOOP) ir->operation = IR_NOP;
 
@@ -353,8 +362,8 @@ void add_final_x86_instructions(Function *function) {
         }
 
         else if (ir->operation == X_RET) {
-            ir = insert_pop_callee_saved_registers(ir, saved_registers);
-            ir = insert_end_of_function(ir);
+            ir = insert_end_of_function(ir, saved_registers);
+            added_end_of_function = 1;
         }
 
         ir = ir->next;
@@ -367,8 +376,9 @@ void add_final_x86_instructions(Function *function) {
     if (!strcmp(function->identifier, "main"))
         ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
 
-    ir = insert_pop_callee_saved_registers(ir, saved_registers);
-    insert_end_of_function(ir);
+    if (!added_end_of_function) {
+        insert_end_of_function(ir, saved_registers);
+    }
 }
 
 // Remove all possible IR_NOP instructions
