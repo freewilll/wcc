@@ -1489,7 +1489,6 @@ static void make_interference_graph(Function *function) {
     Set *livenow;
     Tac *tac;
     char *interference_graph; // Triangular matrix of edges
-    int function_call_depth;
 
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
@@ -1505,16 +1504,12 @@ static void make_interference_graph(Function *function) {
     blocks = function->blocks;
     block_count = function->cfg->node_count;
 
-    function_call_depth = 0;
     for (i = block_count - 1; i >= 0; i--) {
         livenow = copy_set(function->liveout[i]);
 
         tac = blocks[i].end;
         while (tac) {
             if (debug_ssa_interference_graph) print_instruction(stdout, tac, 0);
-
-            if (tac->operation == IR_END_CALL) function_call_depth++;
-            else if (tac->operation == IR_START_CALL) function_call_depth--;
 
             force_function_call_arg(interference_graph, vreg_count, livenow, tac->dst);
             force_function_call_arg(interference_graph, vreg_count, livenow, tac->src1);
