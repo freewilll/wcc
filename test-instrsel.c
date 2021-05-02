@@ -101,7 +101,7 @@ void test_instrsel_tree_merging_register_constraint() {
     assert_x86_op("movq    r1q, r2q");
     assert_x86_op("movq    r3q, r1q");
     assert_x86_op("addq    r2q, r1q");
-    assert_x86_op("jmp     .l1"     );
+    assert_x86_op("jmp     .L1"     );
 }
 
 void test_instrsel_tree_merging() {
@@ -185,7 +185,7 @@ void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jm
     i(0, jmp_operation,  0,    v(3), l(1));
     i(1, IR_NOP,         0,    0,    0   );
     finish_ir(function);
-    asprintf(&template, "%-7s .l1", jmp_instruction);
+    asprintf(&template, "%-7s .L1", jmp_instruction);
     assert_x86_op("cmpq    r2q, r1q");
     assert_x86_op(template);
 }
@@ -200,7 +200,7 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     src2 = dup_value(src2);
     finish_ir(function);
     assert_x86_op(template);
-    assert_x86_op("jge     .l1");
+    assert_x86_op("jge     .L1");
 }
 
 void test_cmp_with_assignment(Function *function, int cmp_operation, char *set_instruction) {
@@ -439,7 +439,7 @@ void test_instrsel() {
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("testq   r1q, r1q");
-    assert_x86_op("jz      .l1");
+    assert_x86_op("jz      .L1");
 
     // jz with a1
     start_ir();
@@ -448,7 +448,7 @@ void test_instrsel() {
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("testq   r1q, r1q");
-    assert_x86_op("jz      .l1");
+    assert_x86_op("jz      .L1");
 
     // jz with a1 *void
     start_ir();
@@ -457,7 +457,7 @@ void test_instrsel() {
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("testq   r1q, r1q");
-    assert_x86_op("jz      .l1");
+    assert_x86_op("jz      .L1");
 
     // jz with global
     start_ir();
@@ -465,7 +465,7 @@ void test_instrsel() {
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("cmp     $0, g1(%rip)");
-    assert_x86_op("jz      .l1");
+    assert_x86_op("jz      .L1");
 
     // jnz with r1
     start_ir();
@@ -473,7 +473,7 @@ void test_instrsel() {
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("testq   r1q, r1q");
-    assert_x86_op("jnz     .l1");
+    assert_x86_op("jnz     .L1");
 
     // jz with a1
     start_ir();
@@ -482,7 +482,7 @@ void test_instrsel() {
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("testq   r1q, r1q");
-    assert_x86_op("jnz     .l1");
+    assert_x86_op("jnz     .L1");
 
     // jz with a1 *void
     start_ir();
@@ -491,7 +491,7 @@ void test_instrsel() {
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("testq   r1q, r1q");
-    assert_x86_op("jnz     .l1");
+    assert_x86_op("jnz     .L1");
 
     // jnz with global
     start_ir();
@@ -499,7 +499,7 @@ void test_instrsel() {
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("cmp     $0, g1(%rip)");
-    assert_x86_op("jnz     .l1");
+    assert_x86_op("jnz     .L1");
 
     // JZ                                                          JNZ
     test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, "je" ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, "jne");
@@ -800,7 +800,7 @@ void test_instrsel_types_cmp_pointer() {
         i(1, IR_NOP, 0,    0,    0   );
         finish_ir(function);
         assert_x86_op("cmpq    $0, r1q");
-        assert_x86_op("jne     .l1");
+        assert_x86_op("jne     .L1");
 
         start_ir();
         i(0, IR_EQ, v(3), asz(1, j), c(0));
@@ -808,7 +808,7 @@ void test_instrsel_types_cmp_pointer() {
         i(1, IR_NOP, 0,    0,    0   );
         finish_ir(function);
         assert_x86_op("cmpq    $0, r1q");
-        assert_x86_op("je      .l1");
+        assert_x86_op("je      .L1");
     }
 }
 
@@ -1327,7 +1327,7 @@ void test_pointer_comparisons() {
     finish_ir(function);
     assert_x86_op("movq    g1(%rip), r3q");
     assert_x86_op("cmpq    $1, r3q");
-    assert_x86_op("jne     .l1");
+    assert_x86_op("jne     .L1");
 
     start_ir();
     i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
@@ -1337,7 +1337,7 @@ void test_pointer_comparisons() {
     finish_ir(function);
     assert_x86_op("movq    g1(%rip), r3q");
     assert_x86_op("cmpq    $1, r3q");
-    assert_x86_op("jne     .l1");
+    assert_x86_op("jne     .L1");
 }
 
 void test_pointer_double_indirect() {

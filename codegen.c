@@ -175,7 +175,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     sprintf(buffer, "%d(%%rbp)", stack_offset);
                 }
                 else if (v->label)
-                    sprintf(buffer, ".l%d", v->label);
+                    sprintf(buffer, ".L%d", v->label);
                 else {
                     print_value(stdout, v, 0);
                     printf("\n");
@@ -438,7 +438,7 @@ static void output_function_body_code(Symbol *symbol) {
     tac = symbol->function->ir;
 
     while (tac) {
-        if (tac->label) fprintf(f, ".l%d:\n", tac->label);
+        if (tac->label) fprintf(f, ".L%d:\n", tac->label);
         if (tac->operation != IR_NOP) output_x86_operation(tac, function_pc);
         tac = tac->next;
     }
