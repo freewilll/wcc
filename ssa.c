@@ -1656,7 +1656,7 @@ static void copy_interference_graph_edges(char *interference_graph, int vreg_cou
 }
 
 // Delete src, merging it into dst
-static void coalesce_live_range(Function *function, int src, int dst) {
+static void coalesce_live_range(Function *function, int src, int dst, int check_register_constraints) {
     char *ig;
     int i, j, block_count, changed, vreg_count, from, to, from_offset;
     Tac *tac;
@@ -1678,18 +1678,20 @@ static void coalesce_live_range(Function *function, int src, int dst) {
             tac->src2 = 0;
         }
 
-        // Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
-        if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
-            print_instruction(stdout, tac, 0);
-            panic1d("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
-        }
-        if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
-            print_instruction(stdout, tac, 0);
-            panic1d("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
-        }
-        if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
-            print_instruction(stdout, tac, 0);
-            panic1d("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
+        if (check_register_constraints) {
+            // Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
+            if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+                print_instruction(stdout, tac, 0);
+                panic1d("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
+            }
+            if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
+                print_instruction(stdout, tac, 0);
+                panic1d("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
+            }
+            if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
+                print_instruction(stdout, tac, 0);
+                panic1d("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
+            }
         }
 
         tac = tac->next;
@@ -1716,7 +1718,7 @@ static void coalesce_live_range(Function *function, int src, int dst) {
 // false interferences, however they will disappear when the outer loop runs again.
 // Since earlier coalesces can lead to later coalesces not happening, with each inner
 // loop, the registers with the highest spill cost are coalesced.
-void coalesce_live_ranges(Function *function) {
+void coalesce_live_ranges(Function *function, int check_register_constraints) {
     int i, j, k, dst, src, edge_count, outer_changed, inner_changed, vreg_count;
     int l1, l2;
     int max_cost, cost, merge_src, merge_dst;
@@ -1757,8 +1759,15 @@ void coalesce_live_ranges(Function *function) {
                 // Don't coalesce a move if it promotes an integer type so that both vregs retain their precision.
                 if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && !is_promotion(tac->src1->type, tac->dst->type))
                     merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
+
+                else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->next) {
+                    if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
+                        merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
+                    if ((tac->next->operation == X_SHL || tac->next->operation == X_SAR) && tac->next->src1 && tac->next->src1->vreg)
+                        merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
+                }
+
                 else {
-                    // Don't allow merges which violate instrsel constraints
                     if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1;
                     if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1;
                     if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
@@ -1809,7 +1818,7 @@ void coalesce_live_ranges(Function *function) {
 
             if (merge_src) {
                 if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", merge_src, merge_dst);
-                coalesce_live_range(function, merge_src, merge_dst);
+                coalesce_live_range(function, merge_src, merge_dst, check_register_constraints);
                 inner_changed = 1;
                 outer_changed = 1;
             }

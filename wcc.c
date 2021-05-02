@@ -51,13 +51,13 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     rename_phi_function_variables(function);
     make_live_ranges(function);
     blast_vregs_with_live_ranges(function);
-    coalesce_live_ranges(function);
+    coalesce_live_ranges(function, 1);
     if (stop_at == COMPILE_STOP_AFTER_LIVE_RANGES) return;
 
     // Instruction selection
     select_instructions(function);
     analyze_dominance(function);
-    coalesce_live_ranges(function);
+    coalesce_live_ranges(function, 0);
     remove_vreg_self_moves(function);
 
     if (stop_at == COMPILE_STOP_AFTER_INSTRUCTION_SELECTION) return;
