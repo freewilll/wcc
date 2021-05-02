@@ -115,7 +115,7 @@ This is a short summary of I have in mind to improve
 - Common subexpression elimination
 - Code layout
 - Consider using peephole optimization, esp useful for spill code
-- Reconsider if SSA interference constraint for rsub `dst == src1` can be avoided. The IR doesn't allow `dst == src1` nor `dst == src2`, yet x86_64 is a two-operand arch. Both approaches lead to a lot of e.g. mov/add ops. Consider if this can't be improved.
+- Reconsider if SSA interference constraint for rsub `dst == src1` can be avoided.
 
 So far, I've been ad libbing through [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). I'd like to focus on the areas I have not yet touched.
 
