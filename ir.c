@@ -11,21 +11,7 @@ int new_vreg() {
     return vreg_count;
 }
 
-// A useful function for debugging
-static void print_value_stack() {
-    Value **lvs, *v;
-
-    printf("%-4s %-4s %-4s %-11s %-11s %-5s\n", "type", "vreg", "preg", "global_sym", "local_index", "is_lv");
-    lvs = vs;
-    while (lvs != vs_start) {
-        v = *lvs;
-        printf("%-4d %-4d %-4d %-11s %-11d %-5d\n",
-            v->type, v->vreg, v->preg, v->global_symbol ? v->global_symbol->identifier : 0, v->local_index, v->is_lvalue);
-        lvs++;
-    }
-}
-
- void init_value(Value *v) {
+void init_value(Value *v) {
     v->preg = -1;
     v->stack_index = 0;
     v->ssa_subscript = -1;
@@ -195,7 +181,7 @@ int print_type(void *f, int type) {
 }
 
 int print_value(void *f, Value *v, int is_assignment_rhs) {
-    int type, c;
+    int c;
 
     c = 0; // Count outputted characters
 
@@ -474,7 +460,6 @@ void print_ir(Function *function, char* name, int expect_preg) {
 
 // Merge tac with the instruction after it. The next instruction is removed from the chain.
 static void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) {
-    int i, label;
     Tac *next;
 
     if (!tac->next) panic("merge_instructions called on a tac without next\n");
@@ -568,7 +553,6 @@ void reverse_function_argument_order(Function *function) {
 
 // Insert tac instruction before ir
 void insert_instruction(Tac *ir, Tac *tac, int move_label) {
-    int i;
     Tac *prev;
 
     prev = ir->prev;
@@ -585,7 +569,6 @@ void insert_instruction(Tac *ir, Tac *tac, int move_label) {
 
 // Append tac to ir
 Tac *insert_instruction_after(Tac *ir, Tac *tac) {
-    int i;
     Tac *next;
 
     next = ir->next;
@@ -644,8 +627,7 @@ void renumber_labels(Function *function) {
 }
 
 static void merge_labels(Tac *ir, Tac *tac, int ir_index) {
-    Tac *deleted_tac, *t;
-    int l;
+    Tac *deleted_tac;
 
     while(1) {
         if (!tac->label || !tac->next || !tac->next->label) return;

@@ -32,16 +32,6 @@ static void append_byte_register_name(char *buffer, int preg) {
     else                sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
-static void output_word_register_name(int preg) {
-    char *names;
-
-    check_preg(preg);
-    names = "ax   bx   cx   dx   si   di   bp   sp   r8w  r9w  r10w r11w r12w r13w r14w r15w";
-         if (preg < 8)  fprintf(f, "%%%.2s", &names[preg * 5]);
-    else if (preg < 10) fprintf(f, "%%%.3s", &names[preg * 5]);
-    else                fprintf(f, "%%%.4s", &names[preg * 5]);
-}
-
 static void append_word_register_name(char *buffer, int preg) {
     char *names;
 
@@ -59,15 +49,6 @@ static void append_long_register_name(char *buffer, int preg) {
     names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
     if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
     else           sprintf(buffer, "%%%.4s", &names[preg * 5]);
-}
-
-static void output_quad_register_name(int preg) {
-    char *names;
-
-    check_preg(preg);
-    names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
-    if (preg == 8 || preg == 9) fprintf(f, "%%%.2s", &names[preg * 4]);
-    else                        fprintf(f, "%%%.3s", &names[preg * 4]);
 }
 
 static void append_quad_register_name(char *buffer, int preg) {
@@ -113,7 +94,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
     result = buffer;
 
     while (*t && *t != ' ') *buffer++ = *t++;
-    while (*t && *t == ' ') *t++;
+    while (*t && *t == ' ') t++;
 
     if (*t) {
         mnemonic_length = buffer - result;
@@ -152,7 +133,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
                     *buffer++ = 'r';
                     sprintf(buffer, "%d", v->vreg);
-                    while (*buffer) *buffer++;
+                    while (*buffer) buffer++;
                     *buffer++ = size_to_x86_size(x86_size);
                 }
                 else if (expect_preg && v->preg != -1) {
@@ -186,7 +167,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
         else
             *buffer++ = *t;
 
-        while (*buffer) *buffer++;
+        while (*buffer) buffer++;
         t++;
     }
 
@@ -239,17 +220,6 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
     return ir;
 }
 
-// Pop the callee saved registers back
-static Tac *insert_pop_callee_saved_registers(Tac *ir, int *saved_registers) {
-    int i;
-
-    for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--)
-        if (saved_registers[i])
-            ir = insert_x86_instruction(ir, X_POP, new_preg_value(i), 0, 0, "popq %vdq");
-
-    return ir;
-}
-
 static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
     int i;
 
@@ -271,18 +241,13 @@ static Tac *add_add_rsp(Tac *ir, int amount) {
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
 void add_final_x86_instructions(Function *function) {
-    int function_call_count;
     Tac *tac, *ir, *orig_ir;
-    int function_pc;                    // The Function's param count
     int ac;                             // A function call's arg count
     int local_stack_size;               // Size of the stack containing local variables and spilled registers
     int *saved_registers;               // Callee saved registers
     int function_call_pushes;           // How many pushes are necessary for a function call
     int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
     int added_end_of_function;          // To ensure a double epilogue isn't emitted
-
-    function_call_count = make_function_call_count(function);
-    function_pc = function->param_count;
 
     ir = function->ir;
 
@@ -447,7 +412,6 @@ static void output_function_body_code(Symbol *symbol) {
 // Output code for the translation unit
 void output_code(char *input_filename, char *output_filename) {
     int i;
-    Tac *tac;
     Symbol *symbol;
     char *sl;
 

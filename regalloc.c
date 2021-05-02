@@ -146,7 +146,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
 }
 
 void allocate_registers_top_down(Function *function, int physical_register_count) {
-    int i, vreg_count, *spill_cost, edge_count, degree, spilled_register_count, vreg, vreg_locations_count;
+    int i, vreg_count, *spill_cost, degree, spilled_register_count, vreg, vreg_locations_count;
     int *original_stack_indexes;
     char *preferred_live_range_preg_indexes;
     char *interference_graph;

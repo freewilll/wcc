@@ -33,7 +33,7 @@ externals.c: externals.h
 	echo "}" >> externals.c
 
 %.o: %.c wcc.h build
-	gcc ${GCC_OPTS} -c $< -o $@ -g -Wno-return-type -D _GNU_SOURCE
+	gcc ${GCC_OPTS} -c $< -o $@ -g -Wno-return-type -Wunused -D _GNU_SOURCE
 
 wcc: ${OBJECTS} wcc.h
 	gcc ${GCC_OPTS} ${OBJECTS} -o wcc -g -Wno-return-type -D _GNU_SOURCE

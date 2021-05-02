@@ -6,7 +6,6 @@
 
 static void add_cast_rules() {
     Rule *r;
-    int i, j;
 
     // Casting from/to any integer types with decreasing precision
     // Similar to generic register register sign extend rules
@@ -65,10 +64,6 @@ static void add_offset_rule(int *ntc, int add_reg, int indirect_reg, char *templ
 }
 
 static void add_composite_pointer_rules(int *ntc) {
-    int i;
-    char *template;
-    Rule *r;
-
     // Loads
     add_scaled_rule(ntc, CST1, ADRW, REGW, 0, X_MOV_FROM_SCALED_IND, "movw   (%v1q,%v2q,2), %vdw"); // from *short to short
     add_scaled_rule(ntc, CST1, ADRW, REGL, 0, X_MOV_FROM_SCALED_IND, "movswl (%v1q,%v2q,2), %vdl"); // from *short to int
@@ -259,8 +254,6 @@ static void add_comparison_assignment_rule(int src1, int src2, char *cmp_templat
 }
 
 static void add_comparison_assignment_rules(int src1, int src2, char *template) {
-    Rule *r;
-
     add_comparison_assignment_rule(src1, src2, template, IR_EQ, X_SETE,  "sete %vdb");
     add_comparison_assignment_rule(src1, src2, template, IR_NE, X_SETNE, "setne %vdb");
     add_comparison_assignment_rule(src1, src2, template, IR_LT, X_SETLT, "setl %vdb");
@@ -270,7 +263,6 @@ static void add_comparison_assignment_rules(int src1, int src2, char *template) 
 }
 
 static void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
-    int i;
     char *op_vv, *op_cv;
     Rule *r;
 
@@ -344,7 +336,6 @@ static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_templa
 
 static void add_sub_rules() {
     int i, j;
-    Rule *r;
 
     add_sub_rule(REG, REG, REG,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
     add_sub_rule(REG, CST, REG,  11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
@@ -387,8 +378,6 @@ static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *
 }
 
 static void add_div_rules() {
-    Rule *r;
-
     add_div_rule(REGL, REGL, REGL, 40, "movl %v1l, %%eax", "cltd", "movl %v1l, %vdl", "idivl %vdl", "movl %%eax, %vdl", "movl %%edx, %vdl");
     add_div_rule(REGQ, REGQ, REGQ, 50, "movq %v1q, %%rax", "cqto", "movq %v1q, %vdq", "idivq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
 }
@@ -440,16 +429,14 @@ static void add_binary_shift_rules() {
 }
 
 static X86Operation *add_function_call_arg_op(Rule *r) {
-    X86Operation *x86_op;
-    x86_op = add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q");
+    add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q");
 }
 
 void init_instruction_selection_rules() {
-    int i, j;
     Rule *r;
     int ntc; // Non terminal counter
     char *cmp_rr, *cmp_rc, *cmp_rm, *cmp_mr, *cmp_mc;
-    char *cmpq_rr, *cmpq_rc, *cmpq_rm, *cmpq_mr, *cmpq_mc;
+    char *cmpq_rr, *cmpq_rc, *cmpq_rm, *cmpq_mr;
 
     instr_rule_count = 0;
     disable_merge_constants = 0;
@@ -579,7 +566,7 @@ void init_instruction_selection_rules() {
     cmp_rc = "cmp%s $%v2, %v1"; cmpq_rc = "cmpq $%v2q, %v1q";
     cmp_rm = "cmp%s %v2, %v1";  cmpq_rm = "cmpq %v2q, %v1q";
     cmp_mr = "cmp%s %v2, %v1";  cmpq_mr = "cmpq %v2q, %v1q";
-    cmp_mc = "cmp%s $%v2, %v1"; cmpq_mc = "cmpq $%v2q, %v1q";
+    cmp_mc = "cmp%s $%v2, %v1";
 
     // Comparision + conditional jump
     add_comparison_conditional_jmp_rules(&ntc, REG, REG, cmp_rr);

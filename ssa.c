@@ -162,7 +162,7 @@ void add_function_return_moves(Function *function) {
 // Insert IR_MOVE instructions before IR_ARG instructions for the 6 args. The dst
 // of the move will be constrained so that rdi, rsi etc are allocated to it.
 void add_function_call_arg_moves(Function *function) {
-    int i, function_call_count, type;
+    int i, function_call_count;
     Tac *ir, *tac;
     Function *called_function;
     Value **arg_values, **call_arg;
@@ -352,7 +352,7 @@ static void index_tac(Tac *ir) {
 }
 
 void make_control_flow_graph(Function *function) {
-    int i, j, k, block_count, label;
+    int i, j, block_count, label;
     Tac *tac;
     Block *blocks;
     Graph *cfg;
@@ -411,9 +411,9 @@ void make_control_flow_graph(Function *function) {
                 label = tac->operation == IR_JMP ||  tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE
                     ? tac->src1->label
                     : tac->src2->label;
-                for (k = 0; k < block_count; k++)
-                    if (blocks[k].start->label == label)
-                        add_graph_edge(cfg, i, k);
+                for (j = 0; j < block_count; j++)
+                    if (blocks[j].start->label == label)
+                        add_graph_edge(cfg, i, j);
             }
             else if (tac->operation != IR_RETURN && tac->next && tac->next->label)
                 // For normal instructions, check if the next instruction is a label, if so it's an edge
@@ -446,12 +446,10 @@ void make_control_flow_graph(Function *function) {
 // Algorithm from page 503 of Engineering a compiler
 void make_block_dominance(Function *function) {
     int i, j, changed, block_count, got_predecessors;
-    Block *blocks;
     Graph *cfg;
     GraphEdge *e;
     Set **dom, *is1, *is2, *pred_intersections;
 
-    blocks = function->blocks;
     cfg = function->cfg;
     block_count = cfg->node_count;
 
@@ -514,14 +512,12 @@ void make_block_dominance(Function *function) {
 }
 
 static void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) {
-    Block *blocks;
     Graph *cfg;
     GraphEdge *e;
 
     if (visited[block]) return;
     visited[block] = 1;
 
-    blocks = function->blocks;
     cfg = function->cfg;
 
     e = cfg->nodes[block].succ;
@@ -550,7 +546,7 @@ static int intersect(int *rpos, int *idoms, int i, int j) {
 
 // Algorithm on page 532 of engineering a compiler
 static void make_block_immediate_dominators(Function *function) {
-    int block_count, edge_count, i, changed;
+    int block_count, i, changed;
     int *rpos, pos, *visited, *idoms, *rpos_order, b, p, new_idom;
     Graph *cfg;
     GraphEdge *e;
@@ -624,7 +620,6 @@ static void make_block_immediate_dominators(Function *function) {
 // Walk the dominator tree defined by the idom (immediate dominator)s.
 static void make_block_dominance_frontiers(Function *function) {
     int block_count, i, j, *predecessors, predecessor_count, p, runner, *idom;
-    Block *blocks;
     Graph *cfg;
     GraphEdge *e;
     Set **df;
@@ -702,7 +697,7 @@ int make_vreg_count(Function *function, int starting_count) {
 
 void make_uevar_and_varkill(Function *function) {
     Block *blocks;
-    int i, j, block_count, vreg_count;
+    int i, block_count, vreg_count;
     Set *uevar, *varkill;
     Tac *tac;
 
@@ -747,9 +742,9 @@ void make_uevar_and_varkill(Function *function) {
 
 // Page 447 of Engineering a compiler
 void make_liveout(Function *function) {
-    int i, j, k, vreg, block_count, vreg_count, changed, successor_block;
+    int i, j, block_count, vreg_count, changed, successor_block;
     Block *blocks;
-    Set *unions, **liveout, *all_vars, *inv_varkill, *is1, *is2;
+    Set *unions, *all_vars, *inv_varkill, *is1, *is2;
     Tac *tac;
     Graph *cfg;
     GraphEdge *e;
@@ -807,12 +802,12 @@ void make_liveout(Function *function) {
                 successor_block_varkill_elements = function->varkill[successor_block]->elements;
                 successor_block_uevar_elements = function->uevar[successor_block]->elements;
 
-                for (k = 1; k <= vreg_count; k++) {
-                    unions->elements[k] =
-                        successor_block_uevar_elements[k] ||                               // union
-                        unions_elements[k] ||                                              // union
-                        (successor_block_liveout_elements[k] &&                            // intersection
-                            (all_vars_elements[k] && !successor_block_varkill_elements[k]) // difference
+                for (j = 1; j <= vreg_count; j++) {
+                    unions->elements[j] =
+                        successor_block_uevar_elements[j] ||                               // union
+                        unions_elements[j] ||                                              // union
+                        (successor_block_liveout_elements[j] &&                            // intersection
+                            (all_vars_elements[j] && !successor_block_varkill_elements[j]) // difference
                         );
                 }
 
@@ -844,7 +839,7 @@ void make_liveout(Function *function) {
 // Algorithm on page 501 of engineering a compiler
 void make_globals_and_var_blocks(Function *function) {
     Block *blocks;
-    int i, j, block_count, vreg_count;
+    int i, block_count, vreg_count;
     Set *globals, **var_blocks, *varkill;
     Tac *tac;
 
@@ -900,8 +895,8 @@ void make_globals_and_var_blocks(Function *function) {
 
 // Algorithm on page 501 of engineering a compiler
 void insert_phi_functions(Function *function) {
-    Set *globals, *global_blocks, *work_list, *df;
-    int i, v, block_count, edge_count, vreg_count, global, b, d, label, predecessor_count;
+    Set *globals, *work_list, *df;
+    int i, v, block_count, vreg_count, global, b, d, label, predecessor_count;
     Set **phi_functions, *vars;
     Block *blocks;
     Graph *cfg;
@@ -1030,8 +1025,8 @@ static int safe_stack_top(Stack **stack, int *counters, int n) {
 
 // Algorithm on page 506 of engineering a compiler
 static void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count) {
-    int i, x, block_count, edge_count, *idoms;;
-    Tac *tac, *tac2, *end;
+    int i, block_count, *idoms;;
+    Tac *tac, *end;
     Block *blocks;
     Block *b;
     Graph *cfg;
@@ -1165,12 +1160,12 @@ void rename_phi_function_variables(Function *function) {
 // To build live ranges from ssa form, the allocator uses the disjoint-set union- find algorithm.
 void make_live_ranges(Function *function) {
     int i, j, live_range_count, vreg_count, ssa_subscript_count, max_ssa_var, block_count;
-    int dst, src1, src2;
-    Tac *tac, *prev;
+    int dst;
+    Tac *tac;
     int *map, first;
     Set *ssa_vars, **live_ranges;
-    Set *dst_set, *src1_set, *src2_set, *s;
-    int dst_set_index, src1_set_index, src2_set_index;
+    Set *dst_set, *s;
+    int dst_set_index;
     Block *blocks;
     Value *v;
     int *src_ssa_vars, *src_set_indexes;
@@ -1484,7 +1479,7 @@ static void print_interference_graph(Function *function) {
 
 // Page 701 of engineering a compiler
 static void make_interference_graph(Function *function) {
-    int i, j, vreg_count, block_count, edge_count, from, to, index, from_offset, arg;
+    int i, j, vreg_count, block_count;
     Block *blocks;
     Set *livenow;
     Tac *tac;
@@ -1652,8 +1647,7 @@ static void copy_interference_graph_edges(char *interference_graph, int vreg_cou
 
 // Delete src, merging it into dst
 static void coalesce_live_range(Function *function, int src, int dst, int check_register_constraints) {
-    char *ig;
-    int i, j, block_count, changed, vreg_count, from, to, from_offset;
+    int i, block_count, vreg_count;
     Tac *tac;
     Set *l;
 
@@ -1714,7 +1708,7 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
 // Since earlier coalesces can lead to later coalesces not happening, with each inner
 // loop, the registers with the highest spill cost are coalesced.
 void coalesce_live_ranges(Function *function, int check_register_constraints) {
-    int i, j, k, dst, src, edge_count, outer_changed, inner_changed, vreg_count;
+    int dst, src, outer_changed, inner_changed, vreg_count;
     int l1, l2;
     int max_cost, cost, merge_src, merge_dst;
     char *interference_graph, *merge_candidates, *instrsel_blockers;
@@ -1845,7 +1839,7 @@ static int ten_power(int p) {
 // any live ranges that have no other live ranges ending between their store
 // and loads.
 static void add_infinite_spill_costs(Function *function) {
-    int i, vreg_count, block_count, edge_count, *spill_cost;
+    int i, block_count, *spill_cost;
     Block *blocks;
     Set *livenow;
     Tac *tac;

@@ -8,7 +8,6 @@ static int non_terminal_for_value(Value *v);
 static int value_ptr_target_x86_size(Value *v);
 
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
-    int i;
     Rule *r;
 
     if (instr_rule_count == MAX_RULE_COUNT) panic1d("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
@@ -90,13 +89,12 @@ char size_to_x86_size(int size) {
 }
 
 static char *add_size_to_template(char *template, int size) {
-    char *src, *dst, *c;
+    char *dst, *c;
     char *result, x86_size;
 
     if (!template) return 0; // Some magic operations have no templates but are implemented in codegen.
 
     x86_size = size_to_x86_size(size);
-    src = template;
     result = malloc(128);
     memset(result, 0, 128);
     dst = result;
@@ -134,7 +132,6 @@ void fin_rule(Rule *r) {
     int operation, dst, src1, src2, cost, i;
     X86Operation *x86_operations, *x86_operation;
     Rule *new_rule;
-    char *c;
 
     operation      = r->operation;
     dst            = r->dst;
@@ -181,7 +178,7 @@ static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
 
 // Add an x86 operation template to a rule
 X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
-    X86Operation *x86op, *o;
+    X86Operation *x86op;
 
     x86op = malloc(sizeof(X86Operation));
     x86op->operation = operation;
@@ -204,7 +201,7 @@ X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *temp
 
 // Add a save value operation to a rule
 void add_save_value(Rule *r, int arg, int slot) {
-    X86Operation *x86op, *o;
+    X86Operation *x86op;
 
     x86op = malloc(sizeof(X86Operation));
     memset(x86op, 0, sizeof(X86Operation));
@@ -215,7 +212,7 @@ void add_save_value(Rule *r, int arg, int slot) {
 
 // Add a load value operation to a rule
 void add_load_value(Rule *r, int arg, int slot) {
-    X86Operation *x86op, *o;
+    X86Operation *x86op;
 
     x86op = malloc(sizeof(X86Operation));
     memset(x86op, 0, sizeof(X86Operation));

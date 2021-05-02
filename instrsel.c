@@ -66,10 +66,8 @@ static void transform_lvalues(Function *function) {
 
 static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_rules) {
     int i, operation;
-    Graph *g;
     IGraphNode *ign;
     GraphEdge *e;
-    Tac *t;
     int c; // Chars printed
 
     c = indent * 2;
@@ -154,14 +152,11 @@ static IGraph *shallow_dup_igraph(IGraph *src, IGraph *dst) {
 
 // Merge g2 into g1. The merge point is vreg
 static IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
-    int i, j, operation, node_count, d, join_from, join_to, from, to;
-    int type;
+    int i, node_count, d, join_from, join_to, from, to;
     IGraph *g;
-    IGraphNode *inodes, *g1_inodes, *inodes2, *in, *in1, *in2;
+    IGraphNode *inodes, *g1_inodes, *in, *in1, *in2;
     GraphNode *n, *n2;
-    GraphEdge *e, *e2;
-    Value *v;
-    Tac *tac;
+    GraphEdge *e;
 
     if (debug_instsel_tree_merging) {
         printf("g1 dst=%d\n", g1->nodes[0].tac->dst ? g1->nodes[0].tac->dst->vreg : -1);
@@ -279,7 +274,6 @@ static IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 }
 
 static int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
-    VregIGraph *g1, *g2;
     int is_nop;
 
     i1++;
@@ -296,7 +290,7 @@ static int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
 }
 
 static void make_igraphs(Function *function, int block_id) {
-    int i, j, node_count, vreg_count;
+    int i, node_count, vreg_count;
     int dst, src1, src2, g1_igraph_id, ign_vreg;
     Block *blocks;
     Tac *tac;
@@ -580,7 +574,6 @@ static void simplify_igraphs() {
 // Convert an instruction graph node from an operation that puts the result
 // into a register to an assigment, using a constant value.
 static Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
-    int operation;
     GraphNode *src_node;
     Value *v;
 
@@ -613,7 +606,7 @@ static Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
 }
 
 static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
-    int i, j, operation, cst1, cst2;
+    int i, operation, cst1, cst2;
     GraphNode *src_node;
     GraphEdge *e;
     Tac *tac;
@@ -625,14 +618,14 @@ static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     operation = tac->operation;
     if (operation == IR_NOP) return 0;
 
-    j = 1;
+    i = 1;
     src1 = src2 = 0;
     e = src_node->succ;
     while (e) {
         v = recursive_merge_constants(igraph, e->to->id);
-        if (j == 1) src1 = v; else src2 = v;
+        if (i == 1) src1 = v; else src2 = v;
         e = e->next_succ;
-        j++;
+        i++;
     }
 
     cst1 = src1 && src1->is_constant;
@@ -807,10 +800,9 @@ static int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
 // Tile a leaf node in the instruction tree. Rules for leaf nodes all have a zero
 // operation. This is simply a case of matching the value to the rule src1.
 static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
-    int i,  cost_graph_node_id, choice_node_id, matched, matched_dst;
+    int i,  cost_graph_node_id, choice_node_id, matched;
     Value *v;
     Rule *r;
-    Tac *tac;
 
     if (debug_instsel_tiling) dump_igraph(igraph, 0);
 
@@ -866,17 +858,15 @@ static int match_subtree_labels_to_rule(int src_id, int rule_src) {
 
 // Tile an instruction graph node that has an operation with 0, 1 or 2 operands.
 static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
-    int i, j, operation, src1_id, src2_id, match_dst;
+    int i, operation, src1_id, src2_id, match_dst;
     int matched, matched_src;
     int choice_node_id, src1_cost_graph_node_id, src2_cost_graph_node_id;
-    int cost_graph_node_id, min_cost, min_cost_src1, min_cost_src2, src, cost;
+    int cost_graph_node_id;
     Tac *tac;
-    IGraphNode *inode, *inodes;
+    IGraphNode *inode;
     GraphEdge *e;
-    Value *v;
-    Rule *r, *child_rule;
+    Rule *r;
 
-    inodes = igraph->nodes;
     inode = &(igraph->nodes[node_id]);
     tac = inode->tac;
     operation = tac->operation;
@@ -993,8 +983,6 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 // Algorithm from page 618 of Engineering a compiler
 // with additional minimal cost tiling determination as suggested on page 619.
 static int recursive_tile_igraphs(IGraph *igraph, int node_id) {
-    Tac *tac;
-
     if (debug_instsel_tiling) printf("\nrecursive_tile_igraphs on node=%d\n", node_id);
 
     if (!igraph->nodes[node_id].tac)
@@ -1170,7 +1158,7 @@ static Value *recursive_make_intermediate_representation(IGraph *igraph, int nod
     GraphEdge *e;
     Rule *rule;
     IGraphNode *ign;
-    Value *src, *dst, *src1, *src2, *x86_dst, *x86_v1, *x86_v2;
+    Value *src, *src1, *src2;
 
     least_expensive_choice_node_id = get_least_expensive_choice_node_id(node_id, parent_node_id, parent_src);
     igraph_node_id = cost_to_igraph_map[least_expensive_choice_node_id];
@@ -1309,7 +1297,6 @@ void select_instructions(Function *function) {
     int i, block_count;
     Block *blocks;
     Graph *cfg;
-    Tac *tac;
     Tac *new_ir_start, *new_ir_pos;
 
     blocks = function->blocks;
@@ -1460,7 +1447,7 @@ static void add_spill_store(Tac *ir, Value *v, int preg) {
 
 void add_spill_code(Function *function) {
     Tac *tac;
-    int dst_eq_src1, store_preg;
+    int dst_eq_src1;
 
     if (debug_instsel_spilling) printf("\nAdding spill code\n");
 

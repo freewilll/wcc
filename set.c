@@ -23,8 +23,6 @@ void free_set(Set *s) {
 }
 
 void empty_set(Set *s) {
-    int i;
-
     memset(s->elements, 0, (s->max_value + 1) * sizeof(char));
 }
 
@@ -96,8 +94,6 @@ int in_set(Set *s, int value) {
 }
 
 int set_eq(Set *s1, Set *s2) {
-    int i;
-
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_eq");
 
     return memcmp(s1->elements, s2->elements, (s1->max_value + 1) * sizeof(char)) ? 0 : 1;
@@ -117,7 +113,6 @@ Set *set_intersection(Set *s1, Set *s2) {
 }
 
 void set_intersection_to(Set *dst, Set *s1, Set *s2) {
-    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_intersection_to");
@@ -142,7 +137,6 @@ Set *set_union(Set *s1, Set *s2) {
 
 
 void set_union_to(Set *dst, Set *s1, Set *s2) {
-    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_union_to");
@@ -166,7 +160,6 @@ Set *set_difference(Set *s1, Set *s2) {
 }
 
 void set_difference_to(Set *dst, Set *s1, Set *s2) {
-    Set *result;
     int i;
 
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_difference_to");

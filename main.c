@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
     int run_linker;                 // Link .o file
     int target_is_object_file;
     int target_is_assembly_file;
-    int help, debug, print_symbols, print_instr_rules, print_instr_precision_decrease_rules, print_spilled_register_count;
+    int help, print_symbols, print_instr_rules, print_instr_precision_decrease_rules, print_spilled_register_count;
 
     int input_filename_count;
     char **input_filenames, *input_filename, *output_filename, *local_output_filename;
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
     char *assembler_input_filename, *assembler_output_filename;
     char **linker_input_filenames, *linker_input_filenames_str;
     int filename_len;
-    char *command, *linker_filenames, *env_value;
+    char *command;
     int i, j, k, len, result;
 
     verbose = 0;
@@ -83,7 +83,6 @@ int main(int argc, char **argv) {
         if (*argv[0] == '-') {
                  if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                              argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-d"                                )) { debug = 1;                                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_spilled_register_count = 1;         argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }

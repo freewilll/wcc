@@ -202,7 +202,6 @@ static Struct *new_struct() {
 
 // Search for a struct. Returns 0 if not found.
 static Struct *find_struct(char *identifier) {
-    Struct *s;
     int i;
 
     for (i = 0; i < all_structs_count; i++)
@@ -217,7 +216,7 @@ static int parse_struct_base_type(int allow_incomplete_structs) {
     Struct *s;
     StructMember *member;
     int member_count;
-    int i, base_type, type, offset, is_packed, alignment, biggest_alignment;
+    int base_type, type, offset, is_packed, alignment, biggest_alignment;
 
     // Check for packed attribute
     is_packed = 0;
@@ -307,7 +306,6 @@ void check_incomplete_structs() {
 // Parse "typedef struct struct_id typedef_id"
 static void parse_typedef() {
     Struct *s;
-    char *identifier;
     Typedef *t;
 
     next();
@@ -426,14 +424,13 @@ static void arithmetic_operation(int operation, int type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
 
-    Value *src1, *src2, *t;
-    Tac *tac;
+    Value *src1, *src2;
 
     if (!type) type = vs_operation_type();
     if (vtop->is_constant) src2 = pop(); else src2 = pl();
     if (vtop->is_constant) src1 = pop(); else src1 = pl();
 
-    tac = add_ir_op(operation, type, new_vreg(), src1, src2);
+    add_ir_op(operation, type, new_vreg(), src1, src2);
 }
 
 static void parse_arithmetic_operation(int level, int operation, int type) {
@@ -455,8 +452,7 @@ static void expression(int level) {
     Symbol *symbol;
     Struct *str;
     StructMember *member;
-    Value *v1, *v2, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value, *arg;
-    Tac *tac;
+    Value *v1, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value, *arg;
 
     // Parse any tokens that can be at the start of an expression
     if (cur_token == TOK_LOGICAL_NOT) {
@@ -478,7 +474,7 @@ static void expression(int level) {
             push_constant(TYPE_LONG, ~pop()->value);
         else {
             type = vtop->type;
-            tac = add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
+            add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
         }
     }
 
@@ -488,7 +484,7 @@ static void expression(int level) {
         if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
 
         src1 = pop();
-        tac = add_ir_op(IR_ADDRESS_OF, src1->type + TYPE_PTR, new_vreg(), src1, 0);
+        add_ir_op(IR_ADDRESS_OF, src1->type + TYPE_PTR, new_vreg(), src1, 0);
     }
 
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
@@ -856,7 +852,6 @@ static void expression(int level) {
 // Parse a statement
 static void statement() {
     Value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
-    Tac *tac;
     int loop_token;
     int prev_loop;
 
@@ -1083,7 +1078,7 @@ static char *base_path(char *path) {
 }
 
 static void parse_directive() {
-    char *filename, *cur_path;
+    char *filename;
 
     if (parsing_header) panic("Nested headers not impemented");
 
@@ -1131,7 +1126,7 @@ void parse() {
     int is_external;                    // For functions and globals with external linkage
     int is_static;                      // Is a private function in the translation unit
     Symbol *param_symbol, *s;
-    int i, sign;
+    int sign;
 
     cur_scope = 0;
     seen_function_declaration = 0;
