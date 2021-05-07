@@ -107,6 +107,7 @@ static Symbol *lookup_symbol(char *name, int scope) {
 }
 
 // Returns destination type of an operation with two operands
+// https://en.cppreference.com/w/c/language/conversion
 static int operation_type(Value *src1, Value *src2) {
     if (src1->type >= TYPE_PTR) return src1->type;
     else if (src2->type >= TYPE_PTR) return src2->type;
@@ -396,7 +397,7 @@ static void and_or_expr(int is_and) {
     // Destination register
     dst = new_value();
     dst->vreg = new_vreg();
-    dst->type = TYPE_LONG;
+    dst->type = TYPE_INT;
 
     // Test first operand
     add_conditional_jump(is_and ? IR_JNZ : IR_JZ, ldst2);
@@ -460,9 +461,9 @@ static void expression(int level) {
         expression(TOK_INC);
 
         if (vtop->is_constant)
-            push_constant(TYPE_LONG, !pop()->value);
+            push_constant(TYPE_INT, !pop()->value);
         else {
-            push_constant(TYPE_LONG, 0);
+            push_constant(TYPE_INT, 0);
             arithmetic_operation(IR_EQ, TYPE_INT);
         }
     }
@@ -516,13 +517,13 @@ static void expression(int level) {
         next();
 
         if (cur_token == TOK_NUMBER) {
-            push_constant(TYPE_LONG, -cur_long);
+            push_constant(cur_type, -cur_long);
             next();
         }
         else {
-            push_constant(TYPE_LONG, -1);
+            push_constant(TYPE_INT, -1);
             expression(TOK_INC);
-            arithmetic_operation(IR_MUL, TYPE_LONG);
+            arithmetic_operation(IR_MUL, 0);
         }
     }
 
@@ -551,7 +552,10 @@ static void expression(int level) {
     }
 
     else if (cur_token == TOK_NUMBER) {
-        push_constant(TYPE_LONG, cur_long);
+        if (cur_long >= -2147483648 && cur_long <= 2147483647)
+            push_constant(TYPE_INT, cur_long);
+        else
+            push_constant(TYPE_LONG, cur_long);
         next();
     }
 
