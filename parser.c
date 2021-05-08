@@ -123,6 +123,8 @@ static int vs_operation_type() {
 
 static int cur_token_is_type() {
     return (
+        cur_token == TOK_SIGNED ||
+        cur_token == TOK_UNSIGNED ||
         cur_token == TOK_VOID ||
         cur_token == TOK_CHAR ||
         cur_token == TOK_SHORT ||
@@ -163,6 +165,16 @@ static int get_type_inc_dec_size(int type) {
 // Parse type up to the point where identifiers or * are lexed
 static int parse_base_type(int allow_incomplete_structs) {
     int type;
+    int is_signed;
+
+    is_signed = 1;
+    if (cur_token == TOK_SIGNED) next();
+    else if (cur_token == TOK_UNSIGNED) {
+        is_signed = 0;
+        next();
+    }
+
+    if (!is_signed) panic("Unsigned integer types are not implemented");
 
          if (cur_token == TOK_VOID)         type = TYPE_VOID;
     else if (cur_token == TOK_CHAR)         type = TYPE_CHAR;

@@ -206,10 +206,12 @@ enum {
     TOK_STRING_LITERAL,
     TOK_IF,
     TOK_ELSE,
+    TOK_SIGNED,
+    TOK_UNSIGNED,
     TOK_VOID,
     TOK_CHAR,
     TOK_INT,
-    TOK_SHORT,          // 10
+    TOK_SHORT,
     TOK_LONG,
     TOK_STRUCT,
     TOK_TYPEDEF,
@@ -219,7 +221,7 @@ enum {
     TOK_CONTINUE,
     TOK_BREAK,
     TOK_RETURN,
-    TOK_ENUM,           // 20
+    TOK_ENUM,
     TOK_SIZEOF,
     TOK_RPAREN,
     TOK_LPAREN,
@@ -228,7 +230,7 @@ enum {
     TOK_SEMI,
     TOK_COMMA,
     TOK_EQ,
-    TOK_PLUS_EQ,        // 30
+    TOK_PLUS_EQ,
     TOK_MINUS_EQ,
     TOK_TERNARY,
     TOK_COLON,
@@ -238,7 +240,7 @@ enum {
     TOK_XOR,
     TOK_ADDRESS_OF,
     TOK_DBL_EQ,
-    TOK_NOT_EQ,         // 40
+    TOK_NOT_EQ,
     TOK_LT,
     TOK_GT,
     TOK_LE,
@@ -248,7 +250,7 @@ enum {
     TOK_PLUS,
     TOK_MINUS,
     TOK_MULTIPLY,
-    TOK_DIVIDE,         // 50
+    TOK_DIVIDE,
     TOK_MOD,
     TOK_LOGICAL_NOT,
     TOK_BITWISE_NOT,
@@ -257,7 +259,7 @@ enum {
     TOK_DOT,
     TOK_ARROW,
     TOK_RBRACKET,
-    TOK_LBRACKET,       // 60
+    TOK_LBRACKET,
     TOK_ATTRIBUTE,
     TOK_PACKED,
     TOK_HASH,
