@@ -555,8 +555,8 @@ void run_function_call_single_arg(Value *src) {
     i(0, IR_ARG, 0, c(0), src);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
     tac->src1->function_symbol->function->param_count = 1;
-    tac->src1->function_symbol->function->param_types = malloc(sizeof(int));
-    tac->src1->function_symbol->function->param_types[0] = src->type;
+    tac->src1->function_symbol->function->param_types = malloc(sizeof(Type));
+    tac->src1->function_symbol->function->param_types[0] = dup_type(src->type);
     i(0, IR_MOVE, v(2), v(1), 0);
     finish_spill_ir(function);
 }
@@ -654,9 +654,9 @@ void test_instrsel_types_add_vregs() {
             for (src2 = 1; src2 <= 4; src2++) {
                 start_ir();
                 tac = i(0, IR_ADD, v(3), v(1), v(2));
-                tac->dst ->type = TYPE_CHAR + dst  - 1;
-                tac->src1->type = TYPE_CHAR + src1 - 1;
-                tac->src2->type = TYPE_CHAR + src2 - 1;
+                tac->dst ->type = new_type(TYPE_CHAR + dst  - 1);
+                tac->src1->type = new_type(TYPE_CHAR + src1 - 1);
+                tac->src2->type = new_type(TYPE_CHAR + src2 - 1);
                 finish_ir(function);
 
                 // Count the number of intructions
@@ -813,7 +813,7 @@ void test_instrsel_types_cmp_pointer() {
 }
 
 void test_return(int return_type, Value *offered_value, char *template) {
-    function->return_type = return_type;
+    function->return_type = new_type(return_type);
     si(function, 0, IR_RETURN, 0, offered_value, 0); assert_x86_op(template);
 }
 
@@ -845,7 +845,7 @@ void test_instrsel_returns() {
     si(function, 0, IR_RETURN, 0, 0, 0); assert(X_RET, ir_start->operation);
 
     // String literal
-    function->return_type = TYPE_PTR + TYPE_CHAR;
+    function->return_type = new_type(TYPE_PTR + TYPE_CHAR);
     start_ir();
     i(0, IR_MOVE, asz(1, TYPE_CHAR), s(1), 0);
     i(0, IR_RETURN, 0, asz(1, TYPE_CHAR), 0);
@@ -854,7 +854,7 @@ void test_instrsel_returns() {
     assert_x86_op("movq    r3q, r2q");
 
     // *void
-    function->return_type = TYPE_PTR + TYPE_VOID;
+    function->return_type = new_type(TYPE_PTR + TYPE_VOID);
     start_ir();
     // This rule will load the ADRV into memory if the ADRV is the first use
     // Delete it so the specific rule about returning a *void is tested
@@ -1540,8 +1540,8 @@ void test_spilling() {
     // (r2i) = 1. This tests the special case of is_lvalue_in_register=1 when
     // the type is an int.
     start_ir();
-    tac = i(0, IR_MOVE,        asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = TYPE_INT; tac ->dst->is_lvalue_in_register = 1;
-    tac = i(0, IR_MOVE_TO_PTR, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = TYPE_INT; tac->src1->is_lvalue_in_register = 1;
+    tac = i(0, IR_MOVE,        asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = new_type(TYPE_INT); tac ->dst->is_lvalue_in_register = 1;
+    tac = i(0, IR_MOVE_TO_PTR, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = new_type(TYPE_INT); tac->src1->is_lvalue_in_register = 1;
     finish_spill_ir(function);
     assert_rx86_preg_op("movq    -24(%rbp), %r10");
     assert_rx86_preg_op("movq    %r10, %r11"     );
@@ -1567,9 +1567,9 @@ void test_param_vreg_moves() {
     start_ir();
 
     function->param_count = 10;
-    function->param_types = malloc(sizeof(int *) * function->param_count);
+    function->param_types = malloc(sizeof(Type) * function->param_count);
     for (j = 0; j < function->param_count; j++)
-        function->param_types[j] = TYPE_CHAR;
+        function->param_types[j] = new_type(TYPE_CHAR);
 
     i(0, IR_NOP, 0, 0, 0);
 

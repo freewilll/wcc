@@ -397,12 +397,12 @@ void make_value_x86_size(Value *v) {
     if (v->is_string_literal)
         v->x86_size = 4;
     else if (v->vreg || v->global_symbol || v->stack_index) {
-        if (v->type >= TYPE_PTR)
+        if (v->type->type >= TYPE_PTR)
             v->x86_size = 4;
-        else if (v->type <= TYPE_LONG)
-            v->x86_size = v->type - TYPE_CHAR + 1;
+        else if (v->type->type <= TYPE_LONG)
+            v->x86_size = v->type->type - TYPE_CHAR + 1;
         else
-            panic1d("Illegal type in make_value_x86_size() %d", v->type);
+            panic1d("Illegal type in make_value_x86_size() %d", v->type->type);
     }
 }
 
@@ -413,13 +413,13 @@ static int non_terminal_for_value(Value *v) {
     if (v->non_terminal) return v->non_terminal;
 
     adr_base = v->vreg ? ADR : MDR;
-    ptr_to_int = v->type >= TYPE_PTR + TYPE_CHAR && v->type <= TYPE_PTR + TYPE_LONG;
+    ptr_to_int = v->type && v->type->type >= TYPE_PTR + TYPE_CHAR && v->type->type <= TYPE_PTR + TYPE_LONG;
 
          if (v->is_string_literal)               result =  STL;
     else if (v->label)                           result =  LAB;
     else if (v->function_symbol)                 result =  FUN;
     else if (ptr_to_int)                         result =  adr_base + value_ptr_target_x86_size(v);
-    else if (v->type >= TYPE_PTR)                result =  adr_base + 5; // ADRV or MDRV
+    else if (v->type->type >= TYPE_PTR)          result =  adr_base + 5; // ADRV or MDRV
     else if (v->is_lvalue_in_register)           result =  ADR + v->x86_size;
     else if (v->global_symbol || v->stack_index) result =  MEM + v->x86_size;
     else if (v->vreg)                            result =  REG + v->x86_size;
@@ -471,10 +471,10 @@ int match_value_to_rule_dst(Value *v, int dst) {
 static int value_ptr_target_x86_size(Value *v) {
     // Return how many bytes a dereferenced pointer takes up
 
-    if (v->type < TYPE_PTR) panic("Expected pointer type");
+    if (v->type->type < TYPE_PTR) panic("Expected pointer type");
 
-    if (v->type - TYPE_PTR <= TYPE_LONG)
-        return v->type - TYPE_PTR - TYPE_CHAR + 1;
+    if (v->type->type - TYPE_PTR <= TYPE_LONG)
+        return v->type->type - TYPE_PTR - TYPE_CHAR + 1;
     else
         return 4;
 }

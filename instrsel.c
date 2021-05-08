@@ -32,30 +32,30 @@ static void transform_lvalues(Function *function) {
     while (tac) {
         if (tac->operation == IR_MOVE_TO_PTR) {
             tac->src1 = dup_value(tac->src1);
-            tac->src1->type += TYPE_PTR;
+            tac->src1->type = make_ptr(tac->src1->type);
             tac->src1->is_lvalue = 0;
             // Note: tac ->dst remains zero. src1 is the target of the pointer write, but is itself not modified
         }
         else {
             if (tac->dst && tac->dst->vreg && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register) {
-                tac->dst->type += TYPE_PTR;
+                tac->dst->type = make_ptr(tac->dst->type);
                 tac->dst->is_lvalue = 0;
             }
 
             // Ensure type of dst and src1 matches in a pointer addition operation
             if (tac->operation == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
                 tac->dst = dup_value(tac->dst);
-                tac->dst->type += TYPE_PTR;
+                tac->dst->type = make_ptr(tac->dst->type);
                 tac->dst->is_lvalue = 0;
             }
 
             if (tac->src1 && tac->src1->vreg && tac->src1->is_lvalue) {
-                tac->src1->type += TYPE_PTR;
+                tac->src1->type = make_ptr(tac->src1->type);
                 tac->src1->is_lvalue = 0;
             }
 
             if (tac->src2 && tac->src2->vreg && tac->src2->is_lvalue) {
-                tac->src2->type += TYPE_PTR;
+                tac->src2->type = make_ptr(tac->src2->type);
                 tac->src2->is_lvalue = 0;
             }
         }
@@ -239,7 +239,7 @@ static IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     // coercions. This means that any type change left must be made explicit with an
     // IR_MOVE, so that suitable instruction selection rules are matched, leading to
     // possible code generation.
-    if (in1->value->type != in2->tac->dst->type) {
+    if (in1->value->type->type != in2->tac->dst->type->type) {
         if (debug_instsel_tree_merging) {
             printf("Replacing %d with IR_MOVE tac for a type change from ", join_to);
             print_type(stdout, in2->tac->dst->type);
@@ -475,7 +475,7 @@ static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id,
     // If src is not the root node, the operation is a move, and it's not a type change,
     // recurse, with dst moved further down the tree
     if (tac) operation = tac->operation; else operation = 0;
-    if (operation == IR_MOVE && src_node_id != 0 && tac->dst->type == tac->src1->type) {
+    if (operation == IR_MOVE && src_node_id != 0 && tac->dst->type->type == tac->src1->type->type) {
         recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_child_node_id);
         return;
     }
@@ -493,7 +493,7 @@ static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id,
         ign_parent = &(dst->nodes[dst_parent_node_id]);
         tac = ign_parent->tac;
         if (tac) operation = tac->operation; else operation = 0;
-        if (operation == IR_MOVE && tac->src1->type >= TYPE_PTR + TYPE_STRUCT && tac->src1->type < TYPE_PTR + TYPE_PTR) {
+        if (operation == IR_MOVE && tac->src1->type->type >= TYPE_PTR + TYPE_STRUCT && tac->src1->type->type < TYPE_PTR + TYPE_PTR) {
             ign = &(dst->nodes[*dst_child_node_id]);
             if (ign->value) {
                 if (debug_instsel_igraph_simplification) {
@@ -503,7 +503,7 @@ static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id,
                     print_type(stdout, tac->dst->type);
                     printf("\n");
                 }
-                ign->value->type = tac->dst->type;
+                ign->value->type = dup_type(tac->dst->type);
             }
         }
     }
@@ -578,7 +578,7 @@ static Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
     Value *v;
 
     v = new_value();
-    v->type = TYPE_LONG;
+    v->type = new_type(TYPE_LONG);
     v->is_constant = 1;
     v->value = constant_value;
 
@@ -1411,7 +1411,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
     tac = make_spill_instruction(v);
     tac->src1 = v;
     tac->dst = new_value();
-    tac->dst->type = TYPE_LONG;
+    tac->dst->type = new_type(TYPE_LONG);
     tac->dst->x86_size = 4;
     tac->dst->vreg = -1000;   // Dummy value
     tac->dst->preg = preg;
@@ -1429,7 +1429,7 @@ static void add_spill_store(Tac *ir, Value *v, int preg) {
 
     tac = make_spill_instruction(v);
     tac->src1 = new_value();
-    tac->src1->type = TYPE_LONG;
+    tac->src1->type = new_type(TYPE_LONG);
     tac->src1->x86_size = 4;
     tac->src1->vreg = -1000;   // Dummy value
     tac->src1->preg = preg;

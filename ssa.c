@@ -30,7 +30,7 @@ void optimize_arithmetic_operations(Function *function) {
         if (tac->operation == IR_MUL && cv) {
             if (c == 0) {
                 tac->operation = IR_MOVE;
-                tac->src1 = new_constant(tac->dst->type, 0);
+                tac->src1 = new_constant(tac->dst->type->type, 0);
                 tac->src2 = 0;
             }
 
@@ -74,7 +74,7 @@ void optimize_arithmetic_operations(Function *function) {
 
             else if (c == 1) {
                 tac->operation = IR_MOVE;
-                tac->src1 = new_constant(tac->dst->type, 0);
+                tac->src1 = new_constant(tac->dst->type->type, 0);
                 tac->src2 = 0;
             }
 
@@ -149,7 +149,7 @@ void add_function_return_moves(Function *function) {
     while (ir) {
         if (ir->operation == IR_RETURN && ir->src1) {
             ir->dst = new_value();
-            ir->dst->type = function->return_type;
+            ir->dst->type = dup_type(function->return_type);
             ir->dst->vreg = ++function->vreg_count;
             ir->src1->preferred_live_range_preg_index = LIVE_RANGE_PREG_RAX_INDEX;
         }
@@ -200,7 +200,7 @@ void add_function_call_arg_moves(Function *function) {
             for (; i >= 0; i--) {
                 tac = new_instruction(IR_MOVE);
                 tac->dst = new_value();
-                tac->dst->type = i < called_function->param_count ? called_function->param_types[i] : TYPE_INT;
+                tac->dst->type = i < called_function->param_count ? dup_type(called_function->param_types[i]) : new_type(TYPE_INT);
                 tac->dst->vreg = ++function->vreg_count;
                 tac->src1 = *call_arg;
                 tac->src1->preferred_live_range_preg_index = arg_registers[i];
@@ -257,12 +257,12 @@ static void add_function_param_moves_for_registers(Function *function) {
     for (i = 0; i < register_param_count; i++) {
         tac = new_instruction(IR_MOVE);
         tac->dst = new_value();
-        tac->dst->type = function->param_types[i];
+        tac->dst->type = dup_type(function->param_types[i]);
         tac->dst->vreg = ++function->vreg_count;
         register_param_vregs[i] = tac->dst->vreg;
 
         tac->src1 = new_value();
-        tac->src1->type = tac->dst->type;
+        tac->src1->type = dup_type(tac->dst->type);
         tac->src1->vreg = ++function->vreg_count;
         tac->src1->is_function_param = 1;
         tac->src1->function_param_index = i;
@@ -307,12 +307,12 @@ static void add_function_param_moves_for_stack(Function *function) {
     for (i = 6; i < function->param_count; i++) {
         tac = new_instruction(IR_MOVE);
         tac->dst = new_value();
-        tac->dst->type = function->param_types[i];
+        tac->dst->type = dup_type(function->param_types[i]);
         tac->dst->vreg = ++function->vreg_count;
         param_vregs[i - 6] = tac->dst->vreg;
 
         tac->src1 = new_value();
-        tac->src1->type = tac->dst->type;
+        tac->src1->type = dup_type(tac->dst->type);
         tac->src1->stack_index = i - 4;
         tac->src1->is_lvalue = 1;
         tac->src1->is_function_param = 1;
@@ -954,7 +954,7 @@ void insert_phi_functions(Function *function) {
 
             tac = new_instruction(IR_PHI_FUNCTION);
             tac->dst  = new_value();
-            tac->dst ->type = TYPE_LONG;
+            tac->dst ->type = new_type(TYPE_LONG);
             tac->dst-> vreg = v;
 
             predecessor_count = 0;
@@ -965,7 +965,7 @@ void insert_phi_functions(Function *function) {
             memset(phi_values, 0, (predecessor_count + 1) * sizeof(Value));
             for (i = 0; i < predecessor_count; i++) {
                 init_value(&phi_values[i]);
-                phi_values[i].type = TYPE_LONG;
+                phi_values[i].type = new_type(TYPE_LONG);
                 phi_values[i].vreg = v;
             }
             tac->phi_values = phi_values;

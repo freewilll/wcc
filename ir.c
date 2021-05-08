@@ -28,13 +28,13 @@ Value *new_value() {
     return v;
 }
 
-// Create a new typed constant value
-Value *new_constant(int type, long value) {
+// Create a new typed constant value.
+Value *new_constant(int type_type, long value) {
     Value *cv;
 
     cv = new_value();
     cv->value = value;
-    cv->type = type;
+    cv->type = new_type(type_type);
     cv->is_constant = 1;
     return cv;
 }
@@ -51,7 +51,7 @@ Value *dup_value(Value *src) {
     Value *dst;
 
     dst = new_value();
-    dst->type                                = src->type;
+    dst->type                                = dup_type(src->type);
     dst->vreg                                = src->vreg;
     dst->preg                                = src->preg;
     dst->is_lvalue                           = src->is_lvalue;
@@ -154,28 +154,29 @@ int fprintf_escaped_string_literal(void *f, char* sl) {
 }
 
 // Is going from type1 -> type2 a promotion, i.e. an increase of integer precision?
-int is_promotion(int type1, int type2) {
-    if (type1 > TYPE_LONG || type2 > TYPE_LONG) return 0;
-    else return type1 < type2;
+int is_promotion(Type *type1, Type *type2) {
+    if (type1->type > TYPE_LONG || type2->type > TYPE_LONG) return 0;
+    else return type1->type < type2->type;
 }
 
-int print_type(void *f, int type) {
-    int len;
+int print_type(void *f, Type *type) {
+    int len, tt;
 
     len = 0;
 
-    while (type >= TYPE_PTR) {
+    tt = type->type;
+    while (tt >= TYPE_PTR) {
         len += fprintf(f, "*");
-        type -= TYPE_PTR;
+        tt -= TYPE_PTR;
     }
 
-         if (type == TYPE_VOID)   len += fprintf(f, "void");
-    else if (type == TYPE_CHAR)   len += fprintf(f, "char");
-    else if (type == TYPE_INT)    len += fprintf(f, "int");
-    else if (type == TYPE_SHORT)  len += fprintf(f, "short");
-    else if (type == TYPE_LONG)   len += fprintf(f, "long");
-    else if (type >= TYPE_STRUCT) len += fprintf(f, "struct %s", all_structs[type - TYPE_STRUCT]->identifier);
-    else len += fprintf(f, "unknown type %d", type);
+         if (tt == TYPE_VOID)   len += fprintf(f, "void");
+    else if (tt == TYPE_CHAR)   len += fprintf(f, "char");
+    else if (tt == TYPE_INT)    len += fprintf(f, "int");
+    else if (tt == TYPE_SHORT)  len += fprintf(f, "short");
+    else if (tt == TYPE_LONG)   len += fprintf(f, "long");
+    else if (tt >= TYPE_STRUCT) len += fprintf(f, "struct %s", all_structs[tt - TYPE_STRUCT]->identifier);
+    else len += fprintf(f, "unknown tt %d", tt);
 
     return len;
 }

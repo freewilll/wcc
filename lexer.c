@@ -136,7 +136,7 @@ void next() {
             for (j = 0; j < all_typedefs_count; j++) {
                 if (!strcmp(all_typedefs[j]->identifier, cur_identifier)) {
                     cur_token = TOK_TYPEDEF_TYPE;
-                    cur_type = all_typedefs[j]->struct_type;
+                    cur_type = dup_type(all_typedefs[j]->struct_type);
                 }
             }
         }

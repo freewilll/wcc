@@ -58,8 +58,12 @@ typedef struct i_graph {
     int node_count;
 } IGraph;
 
+typedef struct type {
+    int type;                             // One of TYPE_*
+} Type;
+
 typedef struct symbol {
-    int type;                             // Type
+    Type *type;                           // Type
     int size;                             // Size
     char *identifier;                     // Identifier
     int scope;                            // Scope
@@ -72,9 +76,9 @@ typedef struct symbol {
 
 typedef struct function {
     char* identifier;                        // Name of the function
-    int return_type;                         // Type of return value
+    Type *return_type;                       // Type of return value
     int param_count;                         // Number of parameters
-    int *param_types;                        // Types of parameters
+    Type **param_types;                      // Types of parameters
     int local_symbol_count;                  // Number of local symbols, used by the parser
     int vreg_count;                          // Number of virtual registers used in IR
     int spilled_register_count;              // Amount of stack space needed for registers spills
@@ -108,7 +112,7 @@ typedef struct function {
 // - string literal
 // - register
 typedef struct value {
-    int type;                                // Type
+    Type *type;                              // Type
     int vreg;                                // Optional vreg number
     int preg;                                // Allocated physical register
     int is_lvalue;                           // Is the value an lvalue?
@@ -159,13 +163,13 @@ typedef struct tac_interval {
 // Struct member
 typedef struct struct_member {
     char *identifier;
-    int type;
+    Type *type;
     int offset;
 } StructMember;
 
 // Struct description
 typedef struct struct_desc {
-    int type;
+    Type *type;
     char *identifier;
     struct struct_member **members;
     int size;
@@ -174,7 +178,7 @@ typedef struct struct_desc {
 
 typedef struct typedef_desc {
     char *identifier;
-    int struct_type;
+    Type *struct_type;
 } Typedef;
 
 enum {
@@ -366,7 +370,7 @@ int parsing_header;             // I a header being parsed?
 
 int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
-int cur_type;                   // Associated type if the current token is a typedef
+Type *cur_type;                 // Associated type if the current token is a typedef
 long cur_long;                  // Current long if the token is a number
 char *cur_string_literal;       // Current string literal if the token is a string literal
 int cur_scope;                  // Current scope. 0 is global. non-zero is function. Nested scopes isn't implemented.
@@ -470,8 +474,6 @@ void consume(int token, char *what);
 
 // parser.c
 Value *load_constant(Value *cv);
-int get_type_alignment(int type);
-int get_type_size(int type);
 int new_vreg();
 Symbol *new_symbol();
 void check_incomplete_structs();
@@ -480,10 +482,18 @@ void parse();
 void dump_symbols();
 void init_parser();
 
+// types.c
+Type *new_type(int type);
+Type *dup_type(Type *src);
+Type *make_ptr(Type *src);
+Type *deref_ptr(Type *type);
+int get_type_size(Type *type);
+int get_type_alignment(Type *type);
+
 // ir.c
 void init_value(Value *v);
 Value *new_value();
-Value *new_constant(int type, long value);
+Value *new_constant(int type_type, long value);
 Value *new_preg_value(int preg);
 Value *dup_value(Value *src);
 void add_tac_to_ir(Tac *tac);
@@ -496,8 +506,8 @@ void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
 int new_vreg();
 int fprintf_escaped_string_literal(void *f, char* sl);
-int is_promotion(int type1, int type2);
-int print_type(void *f, int type);
+int is_promotion(Type *type1, Type *type2);
+int print_type(void *f, Type *type);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac, int expect_preg);

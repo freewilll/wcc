@@ -5,6 +5,7 @@ SOURCES = \
   wcc.c \
   lexer.c \
   parser.c \
+  types.c \
   ir.c \
   ssa.c \
   regalloc.c \
@@ -144,14 +145,14 @@ test-ssa.s: wcc test-ssa.c
 test-utils.s: wcc test-utils.c
 	./wcc ${WCC_OPTS} -c -S test-utils.c -o test-utils.s
 
-test-ssa: wcc test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
-	gcc ${GCC_OPTS} -g -o test-ssa test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
+test-ssa: wcc test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/types.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
+	gcc ${GCC_OPTS} -g -o test-ssa test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/types.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
 
 run-test-ssa: test-ssa
 	 ./test-ssa
 
-test-ssa-gcc: test-ssa.c test-utils.s lexer.c parser.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c externals.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c externals.c
+test-ssa-gcc: test-ssa.c test-utils.s lexer.c parser.c types.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c externals.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-ssa-gcc test-ssa.c test-utils.c lexer.c parser.c types.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c codegen.c wcc.c utils.c set.c stack.c graph.c externals.c
 
 run-test-ssa-gcc: test-ssa-gcc
 	 ./test-ssa-gcc
@@ -159,14 +160,14 @@ run-test-ssa-gcc: test-ssa-gcc
 test-instrsel.s: wcc test-instrsel.c
 	./wcc ${WCC_OPTS} -c -S test-instrsel.c -o test-instrsel.s
 
-test-instrsel: wcc test-instrsel.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
-	gcc ${GCC_OPTS} -g -o test-instrsel test-instrsel.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
+test-instrsel: wcc test-instrsel.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/types.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
+	gcc ${GCC_OPTS} -g -o test-instrsel test-instrsel.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/types.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
 
 run-test-instrsel: test-instrsel
 	 ./test-instrsel
 
-test-instrsel-gcc: wcc.h test-instrsel.c test-utils.c wcc.c codegen.c lexer.c parser.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c externals.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-instrsel-gcc test-instrsel.c test-utils.c wcc.c codegen.c lexer.c parser.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c externals.c
+test-instrsel-gcc: wcc.h test-instrsel.c test-utils.c wcc.c codegen.c lexer.c parser.c types.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c externals.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-instrsel-gcc test-instrsel.c test-utils.c wcc.c codegen.c lexer.c parser.c types.c ir.c ssa.c regalloc.c instrsel.c instrutil.c instrrules.c utils.c set.c stack.c graph.c externals.c
 
 run-test-instrsel-gcc: test-instrsel-gcc
 	./test-instrsel-gcc

@@ -98,7 +98,7 @@ Value *v(int vreg) {
     Value *v;
 
     v = new_value();
-    v->type = TYPE_LONG;
+    v->type = new_type(TYPE_LONG);
     v->vreg = vreg;
 
     return v;
@@ -108,7 +108,7 @@ Value *vsz(int vreg, int type) {
     Value *v;
 
     v = new_value();
-    v->type = type;
+    v->type = new_type(type);
     v->vreg = vreg;
 
     return v;
@@ -118,7 +118,7 @@ Value *a(int vreg) {
     Value *v;
 
     v = new_value();
-    v->type = TYPE_PTR + TYPE_LONG;
+    v->type = new_type(TYPE_PTR + TYPE_LONG);
     v->vreg = vreg;
 
     return v;
@@ -129,7 +129,7 @@ Value *asz(int vreg, int type) {
     Value *v;
 
     v = new_value();
-    v->type = TYPE_PTR + type;
+    v->type = new_type(TYPE_PTR + type);
     v->vreg = vreg;
 
     return v;
@@ -144,8 +144,8 @@ Value *l(int label) {
     return v;
 }
 
-Value *csz(long value, int type) {
-    return new_constant(type, value);
+Value *csz(long value, int type_type) {
+    return new_constant(type_type, value);
 }
 
 Value *c(long value) {
@@ -156,7 +156,7 @@ Value *s(int string_literal_index) {
     Value *v;
 
     v = new_value();
-    v->type = TYPE_CHAR + TYPE_PTR;
+    v->type = new_type(TYPE_CHAR + TYPE_PTR);
     v->string_literal_index = string_literal_index;
     v->is_string_literal = 1;
     asprintf(&(string_literals[string_literal_index]), "Test SL %d", string_literal_index);
@@ -169,7 +169,7 @@ Value *S(int stack_index) {
     Value *v;
 
     v = new_value();
-    v->type = TYPE_LONG;
+    v->type = new_type(TYPE_LONG);
     v->local_index = 0;
     v->stack_index = stack_index;
     v->is_lvalue = 1;
@@ -181,7 +181,7 @@ Value *Ssz(int stack_index, int type) {
     Value *v;
 
     v = new_value();
-    v->type = type;
+    v->type = new_type(type);
     v->stack_index = stack_index;
 
     return v;
@@ -196,7 +196,7 @@ Value *g(int index) {
     asprintf(&(s->identifier), "g%d", index);
 
     v = new_value();
-    v->type = TYPE_LONG;
+    v->type = new_type(TYPE_LONG);
     v->global_symbol = s;
     v->is_lvalue = 1;
 
@@ -207,7 +207,7 @@ Value *gsz(int index, int type) {
     Value *v;
 
     v = g(index);
-    v->type = type;
+    v->type = new_type(type);
 
     return v;
 }
