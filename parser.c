@@ -531,7 +531,7 @@ static void expression(int level) {
         next();
 
         if (cur_token == TOK_NUMBER) {
-            push_constant(cur_type, -cur_long);
+            push_constant(TYPE_LONG, -cur_long);
             next();
         }
         else {
