@@ -174,6 +174,8 @@ static int parse_base_type(int allow_incomplete_structs) {
     else panic1d("Unable to determine type from token %d", cur_token);
 
     next();
+    if (cur_token == TOK_LONG && type == TYPE_LONG) next(); // On 64 bit, long longs are equivalent to longs
+    if (cur_token == TOK_INT && (type == TYPE_SHORT || type == TYPE_INT || type == TYPE_LONG)) next();
 
     return type;
 }

@@ -31,21 +31,25 @@ void test_integer_sizes() {
 
     data = malloc(8);
 
-    assert_int(1, sizeof(void),    "sizeof void");
-    assert_int(1, sizeof(char),    "sizeof char");
-    assert_int(2, sizeof(short),   "sizeof short");
-    assert_int(4, sizeof(int),     "sizeof int");
-    assert_int(8, sizeof(long),    "sizeof long");
-    assert_int(8, sizeof(void *),  "sizeof void *");
-    assert_int(8, sizeof(char *),  "sizeof char *");
-    assert_int(8, sizeof(short *), "sizeof short *");
-    assert_int(8, sizeof(int *),   "sizeof int *");
-    assert_int(8, sizeof(long *),  "sizeof long *");
-    assert_int(8, sizeof(int **),  "sizeof int **");
-    assert_int(8, sizeof(char **), "sizeof char **");
-    assert_int(8, sizeof(short **),"sizeof short **");
-    assert_int(8, sizeof(int **),  "sizeof int **");
-    assert_int(8, sizeof(long **), "sizeof long **");
+    assert_int(1, sizeof(void),         "sizeof void");
+    assert_int(1, sizeof(char),         "sizeof char");
+    assert_int(2, sizeof(short),        "sizeof short");
+    assert_int(2, sizeof(short int),    "sizeof short int");
+    assert_int(4, sizeof(int),          "sizeof int");
+    assert_int(8, sizeof(long),         "sizeof long");
+    assert_int(8, sizeof(long int),     "sizeof long int");
+    assert_int(8, sizeof(long long),    "sizeof long long");
+    assert_int(8, sizeof(long long int),"sizeof long long int");
+    assert_int(8, sizeof(void *),       "sizeof void *");
+    assert_int(8, sizeof(char *),       "sizeof char *");
+    assert_int(8, sizeof(short *),      "sizeof short *");
+    assert_int(8, sizeof(int *),        "sizeof int *");
+    assert_int(8, sizeof(long *),       "sizeof long *");
+    assert_int(8, sizeof(int **),       "sizeof int **");
+    assert_int(8, sizeof(char **),      "sizeof char **");
+    assert_int(8, sizeof(short **),     "sizeof short **");
+    assert_int(8, sizeof(int **),       "sizeof int **");
+    assert_int(8, sizeof(long **),      "sizeof long **");
 
     memset(data, -1, 8); *((char  *) data) = 1; assert_long(0xffffffffffffff01, *((long *) data), "char assignment");
     memset(data, -1, 8); *((short *) data) = 1; assert_long(0xffffffffffff0001, *((long *) data), "short assignment");
