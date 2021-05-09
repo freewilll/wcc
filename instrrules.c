@@ -531,9 +531,8 @@ void init_instruction_selection_rules() {
     add_comparison_assignment_rules(REG, MEM, cmp_rm);
     add_comparison_assignment_rules(MEM, REG, cmp_mr);
     add_comparison_assignment_rules(MEM, CST, cmp_mc);
-
-    add_comparison_assignment_rules(ADR, CST, "cmpq $%v2, %v1q");
-    add_comparison_assignment_rules(ADR, ADR, "cmpq %v2q, %v1q");
+    add_comparison_assignment_rules(ADR, CST, cmpq_rc);
+    add_comparison_assignment_rules(ADR, ADR, cmpq_rr);
 
     add_commutative_operation_rules("add%s",  IR_ADD,  X_ADD,  10);
     add_commutative_operation_rules("imul%s", IR_MUL,  X_MUL,  30);
