@@ -581,16 +581,15 @@ enum {
     STL,                         // 2    String literal
     LAB,                         // 3    Label, i.e. a target for a (conditional) jump
     FUN,                         // 4    Function, used for calls
-    CSTL, CSTQ,                  // 5, 6 Constants
-    CST1,                        // 7    Constant with value 1
-    CST2,                        // 8    Constant with value 2
-    CST3,                        // 9    Constant with value 3
-    REG, REGB, REGW, REGL, REGQ, // 10   Registers
-    MEM, MEMB, MEMW, MEML, MEMQ, // 15   Memory, in stack or globals
-    ADR, ADRB, ADRW, ADRL, ADRQ, // 20   Address (aka pointer) in a register
-    ADRV,                        // 25   Address (aka pointer) to an unknown sized value (e.g. a struct)
-    MDR, MDRB, MDRW, MDRL, MDRQ, // 26   Address (aka pointer) in memory
-    MDRV,                        // 31   Address (aka pointer) to an unknown sized value (e.g. a struct) in memory
+    CST1,                        // 6    Constant with value 1
+    CST2,                        // 7    Constant with value 2
+    CST3,                        // 8    Constant with value 3
+    REG, REGB, REGW, REGL, REGQ, // 9    Registers
+    MEM, MEMB, MEMW, MEML, MEMQ, // 14   Memory, in stack or globals
+    ADR, ADRB, ADRW, ADRL, ADRQ, // 19   Address (aka pointer) in a register
+    ADRV,                        // 24   Address (aka pointer) to an unknown sized value (e.g. a struct)
+    MDR, MDRB, MDRW, MDRL, MDRQ, // 25   Address (aka pointer) in memory
+    MDRV,                        // 30   Address (aka pointer) to an unknown sized value (e.g. a struct) in memory
 
     // Operands
     DST,

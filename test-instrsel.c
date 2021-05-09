@@ -245,9 +245,9 @@ void test_instrsel_constant_loading() {
 
     // IR_MOVE
     // with a 32 bit int
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movl    $1, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movl    $1, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movl    $1, r1l");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movq    $1, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movq    $1, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movq    $1, r1q");
     test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
 
     // with a 64 bit long. The first 3 are overflows, so a programmer error.
@@ -258,9 +258,9 @@ void test_instrsel_constant_loading() {
 
     // IR_MOVE
     // with a 32 bit int
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movl    $1, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movl    $1, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movl    $1, r1l");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movq    $1, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movq    $1, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movq    $1, r1q");
     test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
 
     // with a 64 bit long. The first 3 are overflows, so a programmer error.
@@ -285,7 +285,7 @@ void test_instrsel() {
     // c1 goes into v2 and c2 goes into v3
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(REGQ, IR_ADD, CSTL, REGQ); nuke_rule(REGQ, IR_ADD, REGQ, CSTL);
+    nuke_rule(REGQ, IR_ADD, CST, REGQ); nuke_rule(REGQ, IR_ADD, REGQ, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movq    $1, r2q");
@@ -296,7 +296,7 @@ void test_instrsel() {
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(REG, IR_ADD, REGQ, CSTL);
+    nuke_rule(REG, IR_ADD, REGQ, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movq    $2, r2q");
@@ -306,7 +306,7 @@ void test_instrsel() {
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(REGQ, IR_ADD, CSTL, REGQ);
+    nuke_rule(REGQ, IR_ADD, CST, REGQ);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movq    $1, r2q");
@@ -370,7 +370,7 @@ void test_instrsel() {
 
     // Store c in g with only the reg fule, forcing c into r1
     start_ir();
-    nuke_rule(MEMQ, IR_MOVE, CSTL, 0);
+    nuke_rule(MEMQ, IR_MOVE, CST, 0);
     i(0, IR_MOVE, g(1), c(1), 0);
     finish_ir(function);
     assert_x86_op("movq    $1, r1q");
@@ -427,7 +427,7 @@ void test_instrsel() {
 
     // Assign constant to a local. Forces c into a register
     start_ir();
-    nuke_rule(MEMQ, IR_MOVE, CSTL, 0);
+    nuke_rule(MEMQ, IR_MOVE, CST, 0);
     i(0, IR_MOVE, S(-2), c(0), 0);
     finish_ir(function);
     assert_x86_op("movq    $0, r1q");

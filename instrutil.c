@@ -34,8 +34,6 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
 static int transform_rule_value(int v, int i) {
     if (v == REG || v == MEM || v == ADR || v == MDR)
         return v + i;
-    else if (v == CST)
-        return CSTL;
     else
         return v;
 }
@@ -299,8 +297,6 @@ char *non_terminal_string(int nt) {
     else if (nt == STL)  return "stl  ";
     else if (nt == LAB)  return "lab  ";
     else if (nt == FUN)  return "fun  ";
-    else if (nt == CSTL) return "cst:l";
-    else if (nt == CSTQ) return "cst:q";
     else if (nt == CST1) return "cst:1";
     else if (nt == CST2) return "cst:2";
     else if (nt == CST3) return "cst:3";
@@ -440,10 +436,7 @@ int match_value_to_rule_src(Value *v, int src) {
              if (src == CST1 && v->value == 1) return 1;
         else if (src == CST2 && v->value == 2) return 1;
         else if (src == CST3 && v->value == 3) return 1;
-        else if (v->value >= -2147483648 && v->value <= 2147483647)
-            return src == CSTL;
-        else
-            return src == CSTQ;
+        else return src == CST;
     }
     else
         return non_terminal_for_value(v) == src;
@@ -482,8 +475,7 @@ static int value_ptr_target_x86_size(Value *v) {
 int make_x86_size_from_non_terminal(int nt) {
     // Returns the width in bytes for a non terminal
 
-         if (nt == CSTL) return 3;
-    else if (nt == CSTQ) return 4;
+         if (nt == CST)  return 4;
     else if (nt == CST1) return 1;
     else if (nt == CST2) return 1;
     else if (nt == CST3) return 1;
