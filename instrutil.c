@@ -313,12 +313,10 @@ char *non_terminal_string(int nt) {
     else if (nt == ADRW) return "adr:w";
     else if (nt == ADRL) return "adr:l";
     else if (nt == ADRQ) return "adr:q";
-    else if (nt == ADRV) return "adr:v";
     else if (nt == MDRB) return "mdr:b";
     else if (nt == MDRW) return "mdr:w";
     else if (nt == MDRL) return "mdr:l";
     else if (nt == MDRQ) return "mdr:q";
-    else if (nt == MDRV) return "mdr:v";
     else {
         asprintf(&buf, "nt%03d", nt);
         return buf;
@@ -415,7 +413,7 @@ static int non_terminal_for_value(Value *v) {
     else if (v->label)                           result =  LAB;
     else if (v->function_symbol)                 result =  FUN;
     else if (ptr_to_int)                         result =  adr_base + value_ptr_target_x86_size(v);
-    else if (v->type->type >= TYPE_PTR)          result =  adr_base + 5; // ADRV or MDRV
+    else if (v->type->type >= TYPE_PTR)          result =  adr_base + 4; // ptr to ptr: ADRQ or MDRQ
     else if (v->is_lvalue_in_register)           result =  ADR + v->x86_size;
     else if (v->global_symbol || v->stack_index) result =  MEM + v->x86_size;
     else if (v->vreg)                            result =  REG + v->x86_size;
@@ -479,8 +477,8 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == CST1) return 1;
     else if (nt == CST2) return 1;
     else if (nt == CST3) return 1;
-    else if (nt == ADRB || nt == ADRW || nt == ADRL || nt == ADRQ || nt == ADRV) return 4;
-    else if (nt == MDRB || nt == MDRW || nt == MDRL || nt == MDRQ || nt == MDRV) return 4;
+    else if (nt == ADRB || nt == ADRW || nt == ADRL || nt == ADRQ) return 4;
+    else if (nt == MDRB || nt == MDRW || nt == MDRL || nt == MDRQ) return 4;
     else if (nt == REGB || nt == MEMB) return 1;
     else if (nt == REGW || nt == MEMW) return 2;
     else if (nt == REGL || nt == MEML) return 3;

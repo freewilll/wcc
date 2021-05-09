@@ -218,7 +218,6 @@ void test_cmp_with_assignment(Function *function, int cmp_operation, char *set_i
 void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, char *t1, char *t2, char *t3) {
     // dst is the renumbered live range that the output goes to. It's basically the first free register after src1 and src2.
     start_ir();
-    nuke_rule(REGQ, 0, ADRV, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_LT, v(3), src1, src2);
     src1 = dup_value(src1);
     src2 = dup_value(src2);
@@ -452,7 +451,6 @@ void test_instrsel() {
 
     // jz with a1 *void
     start_ir();
-    nuke_rule(REGQ, 0, ADRV, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_JZ,  0,    asz(1, TYPE_VOID), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
@@ -486,7 +484,6 @@ void test_instrsel() {
 
     // jz with a1 *void
     start_ir();
-    nuke_rule(REGQ, 0, ADRV, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_JNZ,  0,   asz(1, TYPE_VOID), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
@@ -531,19 +528,20 @@ void test_instrsel() {
     test_cmp_with_assignment(function, IR_GE, "setge");
 
     // Test r1 = a < b with different src1 and src2 operands
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR), c(1),              "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, v(1),              c(1),              "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID), c(1),              "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID), asz(1, TYPE_VOID), "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR), asz(1, TYPE_VOID), "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, asz(1, TYPE_VOID), asz(2, TYPE_CHAR), "cmpq    r2q, r1q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, asz(1, TYPE_VOID), asz(2, TYPE_CHAR), "cmpq    r2q, r1q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, g(1),              c(1),              "cmpq    $1, g1(%rip)",   "setl    r1b", "movzbq  r1b, r1q");
-    test_less_than_with_cmp_assignment(function, v(1),              g(1),              "cmpq    g1(%rip), r1q",  "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, g(1),              v(1),              "cmpq    r1q, g1(%rip)",  "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, S(-2),             c(1),              "cmpq    $1, -16(%rbp)",  "setl    r1b", "movzbq  r1b, r1q");
-    test_less_than_with_cmp_assignment(function, v(1),              S(-2),             "cmpq    -16(%rbp), r1q", "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, S(-2),             v(1),              "cmpq    r1q, -16(%rbp)", "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, v(1),               c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  asz(1, TYPE_VOID),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  asz(1, TYPE_CHAR),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_SHORT), asz(1, TYPE_SHORT), "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_INT),   asz(1, TYPE_INT),   "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_LONG),  asz(1, TYPE_LONG),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
+    test_less_than_with_cmp_assignment(function, g(1),               c(1),               "cmpq    $1, g1(%rip)",   "setl    r1b", "movzbq  r1b, r1q");
+    test_less_than_with_cmp_assignment(function, v(1),               g(1),               "cmpq    g1(%rip), r1q",  "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, g(1),               v(1),               "cmpq    r1q, g1(%rip)",  "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, S(-2),              c(1),               "cmpq    $1, -16(%rbp)",  "setl    r1b", "movzbq  r1b, r1q");
+    test_less_than_with_cmp_assignment(function, v(1),               S(-2),              "cmpq    -16(%rbp), r1q", "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, S(-2),              v(1),               "cmpq    r1q, -16(%rbp)", "setl    r2b", "movzbq  r2b, r2q");
 }
 
 void run_function_call_single_arg(Value *src) {
@@ -856,9 +854,6 @@ void test_instrsel_returns() {
     // *void
     function->return_type = new_type(TYPE_PTR + TYPE_VOID);
     start_ir();
-    // This rule will load the ADRV into memory if the ADRV is the first use
-    // Delete it so the specific rule about returning a *void is tested
-    nuke_rule(REGQ, 0, ADRV, 0);
     i(0, IR_RETURN, 0, asz(1, TYPE_VOID), 0);
     finish_ir(function);
     assert_x86_op("movq    r1q, r2q");
@@ -1335,8 +1330,9 @@ void test_pointer_comparisons() {
     i(0, IR_JZ,   0,                            v(3),                         l(1));
     i(1, IR_NOP,  0,                            0,                            0   );
     finish_ir(function);
-    assert_x86_op("movq    g1(%rip), r3q");
-    assert_x86_op("cmpq    $1, r3q");
+    assert_x86_op("movq    $1, r3q");
+    assert_x86_op("movq    g1(%rip), r4q");
+    assert_x86_op("cmpq    r4q, r3q");
     assert_x86_op("jne     .L1");
 }
 
