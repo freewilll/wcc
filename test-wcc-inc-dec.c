@@ -25,44 +25,6 @@ void test_postfix_inc_dec() {
     assert_int(1, i--, "postfix inc dec 4");
 }
 
-void test_integer_sizes() {
-    int i;
-    char *data;
-
-    data = malloc(8);
-
-    assert_int(1, sizeof(void),         "sizeof void");
-    assert_int(1, sizeof(char),         "sizeof char");
-    assert_int(2, sizeof(short),        "sizeof short");
-    assert_int(2, sizeof(short int),    "sizeof short int");
-    assert_int(4, sizeof(int),          "sizeof int");
-    assert_int(8, sizeof(long),         "sizeof long");
-    assert_int(8, sizeof(long int),     "sizeof long int");
-    assert_int(8, sizeof(long long),    "sizeof long long");
-    assert_int(8, sizeof(long long int),"sizeof long long int");
-    assert_int(8, sizeof(void *),       "sizeof void *");
-    assert_int(8, sizeof(char *),       "sizeof char *");
-    assert_int(8, sizeof(short *),      "sizeof short *");
-    assert_int(8, sizeof(int *),        "sizeof int *");
-    assert_int(8, sizeof(long *),       "sizeof long *");
-    assert_int(8, sizeof(int **),       "sizeof int **");
-    assert_int(8, sizeof(char **),      "sizeof char **");
-    assert_int(8, sizeof(short **),     "sizeof short **");
-    assert_int(8, sizeof(int **),       "sizeof int **");
-    assert_int(8, sizeof(long **),      "sizeof long **");
-
-    memset(data, -1, 8); *((char  *) data) = 1; assert_long(0xffffffffffffff01, *((long *) data), "char assignment");
-    memset(data, -1, 8); *((short *) data) = 1; assert_long(0xffffffffffff0001, *((long *) data), "short assignment");
-    memset(data, -1, 8); *((int   *) data) = 1; assert_long(0xffffffff00000001, *((long *) data), "int assignment");
-    memset(data, -1, 8); *((long  *) data) = 1; assert_long(0x0000000000000001, *((long *) data), "long assignment");
-
-    memset(data, 1, 8);
-    assert_long(0x0000000000000001, *((char  *) data), "char read 2");
-    assert_long(0x0000000000000101, *((short *) data), "short read 2");
-    assert_long(0x0000000001010101, *((int   *) data), "int read 2");
-    assert_long(0x0101010101010101, *((long  *) data), "long read 2");
-}
-
 void test_inc_dec_sizes() {
     char c;
     char *pc;
@@ -112,7 +74,6 @@ int main(int argc, char **argv) {
 
     test_prefix_inc_dec();
     test_postfix_inc_dec();
-    test_integer_sizes();
     test_inc_dec_sizes();
 
     finalize();

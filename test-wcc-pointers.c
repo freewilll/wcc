@@ -265,6 +265,24 @@ void test_cast_in_function_call() {
     assert_int(0, strcmp((char *) pi, "foo"), "cast in function call");
 }
 
+void test_pointer_casting_reads() {
+    int i;
+    char *data;
+
+    data = malloc(8);
+
+    memset(data, -1, 8); *((char  *) data) = 1; assert_long(0xffffffffffffff01, *((long *) data), "char assignment");
+    memset(data, -1, 8); *((short *) data) = 1; assert_long(0xffffffffffff0001, *((long *) data), "short assignment");
+    memset(data, -1, 8); *((int   *) data) = 1; assert_long(0xffffffff00000001, *((long *) data), "int assignment");
+    memset(data, -1, 8); *((long  *) data) = 1; assert_long(0x0000000000000001, *((long *) data), "long assignment");
+
+    memset(data, 1, 8);
+    assert_long(0x0000000000000001, *((char  *) data), "char read 2");
+    assert_long(0x0000000000000101, *((short *) data), "short read 2");
+    assert_long(0x0000000001010101, *((int   *) data), "int read 2");
+    assert_long(0x0101010101010101, *((long  *) data), "long read 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -288,6 +306,7 @@ int main(int argc, char **argv) {
     test_casting();
     test_int_char_interbreeding();
     test_cast_in_function_call();
+    test_pointer_casting_reads();
 
     finalize();
 }

@@ -258,6 +258,107 @@ void test_assign_operations() {
     assert_int(-8,  pl, "*long -= 2");
 }
 
+static void test_add_operation_sign() {
+    int si1, si2;
+    unsigned int ui1, ui2;
+
+    si1 = -1;
+    si2 = -2;
+    // ui1 = -1; // unsigned TODO
+    // ui2 = -2;
+
+    // The add operation should return a signed value
+    assert_int(1, (si1 + si2) < 0,          "adding two signed ints 1");
+    assert_int(0, (si1 + si2) > 2147483647, "adding two signed ints 2");
+
+    // // The add operation should return an unsigned value
+    // assert_int(0, (ui1 + ui2) < 0,          "adding two unsigned ints 1");
+    // assert_int(1, (ui1 + ui2) > 2147483647, "adding two unsigned ints 2");
+
+    // // The add operation should return an unsigned value
+    // assert_int(0, (ui1 + si2) < 0,          "adding a signed and unsigned int 1");
+    // assert_int(1, (ui1 + si2) > 2147483647, "adding a signed and unsigned int 2");
+}
+
+static void test_logical_or_operation_sign() {
+    int si1, si2;
+    unsigned int ui1, ui2;
+
+    si1 = -1;
+    si2 = -2;
+    // ui1 = -1; // unsigned TODO
+    // ui2 = -2;
+
+    // The logical or operation should return a signed value
+    assert_int(1, (si1 | si2) < 0,          "logical orring signed ints 1");
+    assert_int(0, (si1 | si2) > 2147483647, "logical orring signed ints 2");
+
+    // // The logical or operation should return an unsigned value
+    // assert_int(0, (ui1 | ui2) < 0,          "logical orring unsigned ints 1");
+    // assert_int(1, (ui1 | ui2) > 2147483647, "logical orring unsigned ints 2");
+
+    // // The logical or operation should return an unsigned value
+    // assert_int(0, (ui1 | si2) < 0,          "logical orring a signed and unsigned int 1");
+    // assert_int(1, (ui1 | si2) > 2147483647, "logical orring a signed and unsigned int 2");
+}
+
+void test_integer_sizes() {
+    assert_int(1, sizeof(void),         "sizeof void");
+    assert_int(1, sizeof(char),         "sizeof char");
+    assert_int(2, sizeof(short),        "sizeof short");
+    assert_int(2, sizeof(short int),    "sizeof short int");
+    assert_int(4, sizeof(int),          "sizeof int");
+    assert_int(8, sizeof(long),         "sizeof long");
+    assert_int(8, sizeof(long int),     "sizeof long int");
+    assert_int(8, sizeof(long long),    "sizeof long long");
+    assert_int(8, sizeof(long long int),"sizeof long long int");
+    assert_int(8, sizeof(void *),       "sizeof void *");
+    assert_int(8, sizeof(char *),       "sizeof char *");
+    assert_int(8, sizeof(short *),      "sizeof short *");
+    assert_int(8, sizeof(int *),        "sizeof int *");
+    assert_int(8, sizeof(long *),       "sizeof long *");
+    assert_int(8, sizeof(int **),       "sizeof int **");
+    assert_int(8, sizeof(char **),      "sizeof char **");
+    assert_int(8, sizeof(short **),     "sizeof short **");
+    assert_int(8, sizeof(int **),       "sizeof int **");
+    assert_int(8, sizeof(long **),      "sizeof long **");
+
+    assert_int(1, sizeof(signed char),         "sizeof signed char");          assert_int(1, sizeof(unsigned char),         "sizeof unsigned char");
+    assert_int(2, sizeof(signed short),        "sizeof signed short");         assert_int(2, sizeof(unsigned short),        "sizeof unsigned short");
+    assert_int(2, sizeof(signed short int),    "sizeof signed short int");     assert_int(2, sizeof(unsigned short int),    "sizeof unsigned short int");
+    assert_int(4, sizeof(signed int),          "sizeof signed int");           assert_int(4, sizeof(unsigned int),          "sizeof unsigned int");
+    assert_int(8, sizeof(signed long),         "sizeof signed long");          assert_int(8, sizeof(unsigned long),         "sizeof unsigned long");
+    assert_int(8, sizeof(signed long int),     "sizeof signed long int");      assert_int(8, sizeof(unsigned long int),     "sizeof unsigned long int");
+    assert_int(8, sizeof(signed long long),    "sizeof signed long long");     assert_int(8, sizeof(unsigned long long),    "sizeof unsigned long long");
+    assert_int(8, sizeof(signed long long int),"sizeof signed long long int"); assert_int(8, sizeof(unsigned long long int),"sizeof unsigned long long int");
+    assert_int(8, sizeof(signed char *),       "sizeof signed char *");        assert_int(8, sizeof(unsigned char *),       "sizeof unsigned char *");
+    assert_int(8, sizeof(signed short *),      "sizeof signed short *");       assert_int(8, sizeof(unsigned short *),      "sizeof unsigned short *");
+    assert_int(8, sizeof(signed int *),        "sizeof signed int *");         assert_int(8, sizeof(unsigned int *),        "sizeof unsigned int *");
+    assert_int(8, sizeof(signed long *),       "sizeof signed long *");        assert_int(8, sizeof(unsigned long *),       "sizeof unsigned long *");
+    assert_int(8, sizeof(signed int **),       "sizeof signed int **");        assert_int(8, sizeof(unsigned int **),       "sizeof unsigned int **");
+    assert_int(8, sizeof(signed char **),      "sizeof signed char **");       assert_int(8, sizeof(unsigned char **),      "sizeof unsigned char **");
+    assert_int(8, sizeof(signed short **),     "sizeof signed short **");      assert_int(8, sizeof(unsigned short **),     "sizeof unsigned short **");
+    assert_int(8, sizeof(signed int **),       "sizeof signed int **");        assert_int(8, sizeof(unsigned int **),       "sizeof unsigned int **");
+    assert_int(8, sizeof(signed long **),      "sizeof signed long **");       assert_int(8, sizeof(unsigned long **),      "sizeof unsigned long **");
+}
+
+void test_sizeof_expr() {
+    char c1, c2;
+    short s1, s2;
+    int i1, i2;
+    long l1, l2;
+
+    assert_int(4, sizeof(c1 + c2), "sizeof c+c");
+    assert_int(4, sizeof(c1 + s2), "sizeof c+s");
+    assert_int(4, sizeof(c1 + i2), "sizeof c+i");
+    assert_int(8, sizeof(c1 + l2), "sizeof c+l");
+    assert_int(4, sizeof(s1 + s2), "sizeof s+s");
+    assert_int(4, sizeof(s1 + i2), "sizeof s+i");
+    assert_int(8, sizeof(s1 + l2), "sizeof s+l");
+    assert_int(4, sizeof(i1 + i2), "sizeof i+i");
+    assert_int(8, sizeof(l1 + l2), "sizeof l+l");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -270,6 +371,10 @@ int main(int argc, char **argv) {
     test_global_comma_var_declarations();
     test_double_assign();
     test_assign_operations();
+    test_integer_sizes();
+    test_add_operation_sign();
+    test_logical_or_operation_sign();
+    test_sizeof_expr();
 
     finalize();
 }

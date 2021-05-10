@@ -657,8 +657,13 @@ static void expression(int level) {
     else if (cur_token == TOK_SIZEOF) {
         next();
         consume(TOK_LPAREN, "(");
-        type = parse_type();
-        push_constant(TYPE_INT, get_type_size(type));
+        if (cur_token_is_type())
+            type = parse_type();
+        else {
+            expression(TOK_COMMA);
+            type = pop()->type;
+        }
+        push_constant(TYPE_LONG, get_type_size(type));
         consume(TOK_RPAREN, ")");
     }
 
