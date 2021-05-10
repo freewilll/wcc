@@ -170,6 +170,8 @@ int print_type(void *f, Type *type) {
         tt -= TYPE_PTR;
     }
 
+    if (type->is_unsigned) len += fprintf(f, "unsigned ");
+
          if (tt == TYPE_VOID)   len += fprintf(f, "void");
     else if (tt == TYPE_CHAR)   len += fprintf(f, "char");
     else if (tt == TYPE_INT)    len += fprintf(f, "int");

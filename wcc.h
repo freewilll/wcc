@@ -59,7 +59,8 @@ typedef struct i_graph {
 } IGraph;
 
 typedef struct type {
-    int type;                             // One of TYPE_*
+    int type;       // One of TYPE_*
+    int is_unsigned;
 } Type;
 
 typedef struct symbol {
@@ -487,6 +488,7 @@ Type *new_type(int type);
 Type *dup_type(Type *src);
 Type *make_ptr(Type *src);
 Type *deref_ptr(Type *type);
+int is_integer_type(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
 
@@ -577,17 +579,18 @@ enum {
     MAX_RULE_COUNT = 3000,
 
     // Non terminals
-    CST = 1,                     // 1    Constant
-    STL,                         // 2    String literal
-    LAB,                         // 3    Label, i.e. a target for a (conditional) jump
-    FUN,                         // 4    Function, used for calls
-    CST1,                        // 5    Constant with value 1
-    CST2,                        // 6    Constant with value 2
-    CST3,                        // 7    Constant with value 3
-    REG, REGB, REGW, REGL, REGQ, // 8    Registers
-    MEM, MEMB, MEMW, MEML, MEMQ, // 13   Memory, in stack or globals
-    ADR, ADRB, ADRW, ADRL, ADRQ, // 18   Address (aka pointer) in a register
-    MDR, MDRB, MDRW, MDRL, MDRQ, // 23   Address (aka pointer) in memory
+    CST = 1,                     // Constant
+    STL,                         // String literal
+    LAB,                         // Label, i.e. a target for a (conditional) jump
+    FUN,                         // Function, used for calls
+    CST1,                        // Constant with value 1
+    CST2,                        // Constant with value 2
+    CST3,                        // Constant with value 3
+    IRE, IREB, IREW, IREL, IREQ, // Signed registers
+    URE, UREB, UREW, UREL, UREQ, // Unsigned registers
+    MEM, MEMB, MEMW, MEML, MEMQ, // Memory, in stack or globals
+    ADR, ADRB, ADRW, ADRL, ADRQ, // Address (aka pointer) in a register
+    MDR, MDRB, MDRW, MDRL, MDRQ, // Address (aka pointer) in memory
 
     // Operands
     DST,

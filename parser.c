@@ -143,16 +143,19 @@ static int get_type_inc_dec_size(Type *type) {
 // Parse type up to the point where identifiers or * are lexed
 static Type *parse_base_type(int allow_incomplete_structs) {
     Type *type;
-    int is_signed;
+    int seen_signed;
+    int seen_unsigned;
 
-    is_signed = 1;
-    if (cur_token == TOK_SIGNED) next();
-    else if (cur_token == TOK_UNSIGNED) {
-        is_signed = 0;
+    seen_signed = 0;
+    seen_unsigned = 0;
+    if (cur_token == TOK_SIGNED) {
+        seen_signed = 1;
         next();
     }
-
-    if (!is_signed) panic("Unsigned integer types are not implemented");
+    else if (cur_token == TOK_UNSIGNED) {
+        seen_unsigned = 1;
+        next();
+    }
 
          if (cur_token == TOK_VOID)         type = new_type(TYPE_VOID);
     else if (cur_token == TOK_CHAR)         type = new_type(TYPE_CHAR);
@@ -160,8 +163,12 @@ static Type *parse_base_type(int allow_incomplete_structs) {
     else if (cur_token == TOK_INT)          type = new_type(TYPE_INT);
     else if (cur_token == TOK_LONG)         type = new_type(TYPE_LONG);
     else if (cur_token == TOK_STRUCT)       { next(); return parse_struct_base_type(allow_incomplete_structs); }
-    else if (cur_token == TOK_TYPEDEF_TYPE) type = cur_type;
+    else if (cur_token == TOK_TYPEDEF_TYPE) type = dup_type(cur_type);
     else panic1d("Unable to determine type from token %d", cur_token);
+
+    if ((seen_unsigned || seen_signed) && !is_integer_type(type)) panic("Signed/unsigned can only apply to integer types");
+    if (seen_unsigned && seen_signed && !is_integer_type(type)) panic("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
+    type->is_unsigned = seen_unsigned;
 
     next();
     if (cur_token == TOK_LONG && type->type == TYPE_LONG) next(); // On 64 bit, long longs are equivalent to longs

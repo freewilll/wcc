@@ -192,7 +192,7 @@ void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jm
 
 void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load, char *template) {
     start_ir();
-    if (disable_adrq_load) nuke_rule(REGQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
+    if (disable_adrq_load) nuke_rule(IREQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_LT,  v(3), src1, src2);
     i(0, IR_JZ,  0,    v(3), l(1));
     i(1, IR_NOP, 0,    0,    0   );
@@ -284,7 +284,7 @@ void test_instrsel() {
     // c1 goes into v2 and c2 goes into v3
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(REGQ, IR_ADD, CST, REGQ); nuke_rule(REGQ, IR_ADD, REGQ, CST);
+    nuke_rule(IREQ, IR_ADD, CST, IREQ); nuke_rule(IREQ, IR_ADD, IREQ, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movq    $1, r2q");
@@ -295,7 +295,7 @@ void test_instrsel() {
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(REG, IR_ADD, REGQ, CST);
+    nuke_rule(IRE, IR_ADD, IREQ, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movq    $2, r2q");
@@ -305,7 +305,7 @@ void test_instrsel() {
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(REGQ, IR_ADD, CST, REGQ);
+    nuke_rule(IREQ, IR_ADD, CST, IREQ);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movq    $1, r2q");
@@ -442,7 +442,7 @@ void test_instrsel() {
 
     // jz with a1
     start_ir();
-    nuke_rule(REGQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
+    nuke_rule(IREQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_JZ,  0,    a(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
@@ -475,7 +475,7 @@ void test_instrsel() {
 
     // jz with a1
     start_ir();
-    nuke_rule(REGQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
+    nuke_rule(IREQ, 0, ADRQ, 0); // Disable direct ADRQ into register passthrough
     i(0, IR_JNZ,  0,   a(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);

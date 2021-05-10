@@ -199,9 +199,17 @@ void add_function_call_arg_moves(Function *function) {
 
             for (; i >= 0; i--) {
                 tac = new_instruction(IR_MOVE);
+
                 tac->dst = new_value();
-                tac->dst->type = i < called_function->param_count ? dup_type(called_function->param_types[i]) : new_type(TYPE_INT);
+                if (i < called_function->param_count) {
+                    tac->dst->type = dup_type(called_function->param_types[i]);
+                }
+                else {
+                    tac->dst->type = new_type(TYPE_INT);
+                    if ((*call_arg)->type->is_unsigned) tac->dst->type->is_unsigned = 1;
+                }
                 tac->dst->vreg = ++function->vreg_count;
+
                 tac->src1 = *call_arg;
                 tac->src1->preferred_live_range_preg_index = arg_registers[i];
                 tac->dst->is_function_call_arg = 1;

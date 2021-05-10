@@ -7,22 +7,44 @@ Type *new_type(int type) {
 
     result = malloc(sizeof(Type));
     result->type = type;
+    result->is_unsigned = 0;
 
     return result;
 }
 
-Type *dup_type(Type *type) {
-    if (!type) return 0;
-    return new_type(type->type);
+Type *dup_type(Type *src) {
+    Type *dst;
+
+    if (!src) return 0;
+
+    dst = new_type(src->type);
+    dst->is_unsigned = src->is_unsigned;
+
+    return dst;
 }
 
-Type *make_ptr(Type *type) {
-    return new_type(type->type + TYPE_PTR);
+Type *make_ptr(Type *src) {
+    Type *dst;
+
+    dst = dup_type(src);
+    dst->type += TYPE_PTR;
+
+    return dst;
 }
 
-Type *deref_ptr(Type *type) {
-    if (type->type < TYPE_PTR) panic("Cannot dereference a non pointer");
-    return new_type(type->type - TYPE_PTR);
+Type *deref_ptr(Type *src) {
+    Type *dst;
+
+    if (src->type < TYPE_PTR) panic("Cannot dereference a non pointer");
+
+    dst = dup_type(src);
+    dst->type -= TYPE_PTR;
+
+    return dst;
+}
+
+int is_integer_type(Type *type) {
+    return (type->type >= TYPE_CHAR && type->type <= TYPE_LONG);
 }
 
 int get_type_size(Type *type) {

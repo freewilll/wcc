@@ -32,7 +32,7 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
 }
 
 static int transform_rule_value(int v, int i) {
-    if (v == REG || v == MEM || v == ADR || v == MDR)
+    if (v == IRE || v == URE || v == MEM || v == ADR || v == MDR)
         return v + i;
     else
         return v;
@@ -119,12 +119,12 @@ static char *add_size_to_template(char *template, int size) {
     return result;
 }
 
-// Expand all uses of REG, MEM, ADR into ADRB, ADRW, ADRL, ADRQ
-// e.g. REG, REG, CST is transformed into
-// REGB, REGB, CST
-// REGW, REGW, CST
-// REGL, REGL, CST
-// REGQ, REGQ, CST
+// Expand all uses of IRE, MEM, ADR into ADRB, ADRW, ADRL, ADRQ
+// e.g. IRE, IRE, CST is transformed into
+// IREB, IREB, CST
+// IREW, IREW, CST
+// IREL, IREL, CST
+// IREQ, IREQ, CST
 void fin_rule(Rule *r) {
 
     int operation, dst, src1, src2, cost, i;
@@ -140,7 +140,8 @@ void fin_rule(Rule *r) {
 
     // Only deal with outputs that go into registers, memory or address in register
     if (!(
-            dst == REG || src1 == REG || src2 == REG ||
+            dst == IRE || src1 == IRE || src2 == IRE ||
+            dst == URE || src1 == URE || src2 == URE ||
             dst == MEM || src1 == MEM || src2 == MEM ||
             dst == ADR || src1 == ADR || src2 == ADR ||
             dst == MDR || src1 == MDR || src2 == MDR)) {
@@ -300,11 +301,16 @@ char *non_terminal_string(int nt) {
     else if (nt == CST1) return "cst:1";
     else if (nt == CST2) return "cst:2";
     else if (nt == CST3) return "cst:3";
-    else if (nt == REG)  return "reg  ";
-    else if (nt == REGB) return "reg:b";
-    else if (nt == REGW) return "reg:w";
-    else if (nt == REGL) return "reg:l";
-    else if (nt == REGQ) return "reg:q";
+    else if (nt == IRE)  return "ire  ";
+    else if (nt == IREB) return "ire:b";
+    else if (nt == IREW) return "ire:w";
+    else if (nt == IREL) return "ire:l";
+    else if (nt == IREQ) return "ire:q";
+    else if (nt == URE)  return "ure  ";
+    else if (nt == UREB) return "ure:b";
+    else if (nt == UREW) return "ure:w";
+    else if (nt == UREL) return "ure:l";
+    else if (nt == UREQ) return "ure:q";
     else if (nt == MEMB) return "mem:b";
     else if (nt == MEMW) return "mem:w";
     else if (nt == MEML) return "mem:l";
@@ -416,7 +422,8 @@ static int non_terminal_for_value(Value *v) {
     else if (v->type->type >= TYPE_PTR)          result =  adr_base + 4; // ptr to ptr: ADRQ or MDRQ
     else if (v->is_lvalue_in_register)           result =  ADR + v->x86_size;
     else if (v->global_symbol || v->stack_index) result =  MEM + v->x86_size;
-    else if (v->vreg)                            result =  REG + v->x86_size;
+    else if (v->vreg && v->type->is_unsigned)    result =  URE + v->x86_size;
+    else if (v->vreg                        )    result =  IRE + v->x86_size;
     else {
         print_value(stdout, v, 0);
         panic("Bad value in non_terminal_for_value()");
@@ -450,12 +457,12 @@ int match_value_to_rule_dst(Value *v, int dst) {
     vnt = non_terminal_for_value(v);
 
     if (vnt == dst) return 1;
-    else if (vnt == REGB && dst== REGW) return 1;
-    else if (vnt == REGB && dst== REGL) return 1;
-    else if (vnt == REGB && dst== REGQ) return 1;
-    else if (vnt == REGW && dst== REGL) return 1;
-    else if (vnt == REGW && dst== REGQ) return 1;
-    else if (vnt == REGL && dst== REGQ) return 1;
+    else if (vnt == IREB && dst== IREW) return 1;
+    else if (vnt == IREB && dst== IREL) return 1;
+    else if (vnt == IREB && dst== IREQ) return 1;
+    else if (vnt == IREW && dst== IREL) return 1;
+    else if (vnt == IREW && dst== IREQ) return 1;
+    else if (vnt == IREL && dst== IREQ) return 1;
     else                                return 0;
 }
 
@@ -479,10 +486,10 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == CST3) return 1;
     else if (nt == ADRB || nt == ADRW || nt == ADRL || nt == ADRQ) return 4;
     else if (nt == MDRB || nt == MDRW || nt == MDRL || nt == MDRQ) return 4;
-    else if (nt == REGB || nt == MEMB) return 1;
-    else if (nt == REGW || nt == MEMW) return 2;
-    else if (nt == REGL || nt == MEML) return 3;
-    else if (nt == REGQ || nt == MEMQ) return 4;
+    else if (nt == IREB || nt == UREB || nt == MEMB) return 1;
+    else if (nt == IREW || nt == UREW || nt == MEMW) return 2;
+    else if (nt == IREL || nt == UREL || nt == MEML) return 3;
+    else if (nt == IREQ || nt == UREQ || nt == MEMQ) return 4;
     else if (nt == LAB) return -1;
     else if (nt == FUN) return -1;
     else if (nt == STL) return 4;
