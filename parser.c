@@ -110,11 +110,22 @@ static Symbol *lookup_symbol(char *name, int scope) {
 // Returns destination type of an operation with two operands
 // https://en.cppreference.com/w/c/language/conversion
 static Type *operation_type(Value *src1, Value *src2) {
+    Type *result;
+
+    if (src1->type->type == TYPE_STRUCT || src2->type->type == TYPE_STRUCT) panic("Operations on structs not implemented");
+
     if (src1->type->type >= TYPE_PTR) return src1->type;
     else if (src2->type->type >= TYPE_PTR) return src2->type;
-    else if (src1->type->type == TYPE_LONG || src2->type->type == TYPE_LONG) return new_type(TYPE_LONG);
-    else if (src1->type->type == TYPE_STRUCT || src2->type->type == TYPE_STRUCT) panic("Operations on structs not implemented");
-    else return new_type(TYPE_INT);
+
+    // They are two integer types
+    if (src1->type->type == TYPE_LONG || src2->type->type == TYPE_LONG)
+        result = new_type(TYPE_LONG);
+    else
+        result = new_type(TYPE_INT);
+
+    result->is_unsigned = src1->type->is_unsigned || src2->type->is_unsigned;
+
+    return result;
 }
 
 // Returns destination type of an operation using the top two values in the stack
@@ -424,6 +435,17 @@ static void and_or_expr(int is_and) {
     add_jmp_target_instruction(ldst3);
 }
 
+static Value *add_promotion_move(Value *src, Type *type) {
+    Value *dst;
+
+    dst = dup_value(src);
+    dst->vreg = new_vreg();
+    dst->type = type;
+    add_instruction(IR_MOVE, dst, src, 0);
+
+    return dst;
+}
+
 static void arithmetic_operation(int operation, Type *type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
@@ -433,6 +455,11 @@ static void arithmetic_operation(int operation, Type *type) {
     if (!type) type = vs_operation_type();
     if (vtop->is_constant) src2 = pop(); else src2 = pl();
     if (vtop->is_constant) src1 = pop(); else src1 = pl();
+
+    if (is_integer_type(type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
+        if (!type_eq(type, src1->type) && src1->type->type <= type->type) src1 = add_promotion_move(src1, type);
+        if (!type_eq(type, src2->type) && src2->type->type <= type->type) src2 = add_promotion_move(src2, type);
+    }
 
     add_ir_op(operation, type, new_vreg(), src1, src2);
 }
@@ -688,8 +715,7 @@ static void expression(int level) {
                 arithmetic_operation(IR_MUL, new_type(TYPE_INT));
             }
 
-            type = vs_operation_type();
-            arithmetic_operation(IR_ADD, type);
+            arithmetic_operation(IR_ADD, 0);
             consume(TOK_RBRACKET, "]");
             indirect();
         }
@@ -768,7 +794,7 @@ static void expression(int level) {
                     arithmetic_operation(IR_MUL, new_type(TYPE_INT));
                 }
 
-                arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, vs_operation_type());
+                arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
 
                 if (org_token == TOK_MINUS && is_pointer) {
                     push_constant(TYPE_INT, factor);

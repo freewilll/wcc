@@ -484,6 +484,7 @@ void dump_symbols();
 void init_parser();
 
 // types.c
+int print_type(void *f, Type *type);
 Type *new_type(int type);
 Type *dup_type(Type *src);
 Type *make_ptr(Type *src);
@@ -491,6 +492,8 @@ Type *deref_ptr(Type *type);
 int is_integer_type(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
+int type_can_be_coalesced(Type *type1, Type *type2);
+int type_eq(Type *type1, Type *type2);
 
 // ir.c
 void init_value(Value *v);
@@ -508,8 +511,6 @@ void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
 int new_vreg();
 int fprintf_escaped_string_literal(void *f, char* sl);
-int is_promotion(Type *type1, Type *type2);
-int print_type(void *f, Type *type);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac, int expect_preg);

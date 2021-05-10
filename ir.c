@@ -153,36 +153,6 @@ int fprintf_escaped_string_literal(void *f, char* sl) {
     return c;
 }
 
-// Is going from type1 -> type2 a promotion, i.e. an increase of integer precision?
-int is_promotion(Type *type1, Type *type2) {
-    if (type1->type > TYPE_LONG || type2->type > TYPE_LONG) return 0;
-    else return type1->type < type2->type;
-}
-
-int print_type(void *f, Type *type) {
-    int len, tt;
-
-    len = 0;
-
-    tt = type->type;
-    while (tt >= TYPE_PTR) {
-        len += fprintf(f, "*");
-        tt -= TYPE_PTR;
-    }
-
-    if (type->is_unsigned) len += fprintf(f, "unsigned ");
-
-         if (tt == TYPE_VOID)   len += fprintf(f, "void");
-    else if (tt == TYPE_CHAR)   len += fprintf(f, "char");
-    else if (tt == TYPE_INT)    len += fprintf(f, "int");
-    else if (tt == TYPE_SHORT)  len += fprintf(f, "short");
-    else if (tt == TYPE_LONG)   len += fprintf(f, "long");
-    else if (tt >= TYPE_STRUCT) len += fprintf(f, "struct %s", all_structs[tt - TYPE_STRUCT]->identifier);
-    else len += fprintf(f, "unknown tt %d", tt);
-
-    return len;
-}
-
 int print_value(void *f, Value *v, int is_assignment_rhs) {
     int c;
 
