@@ -872,9 +872,9 @@ void test_function_call(Value *dst, int mov_op) {
 void test_instrsel_function_calls() {
     remove_reserved_physical_registers = 1;
 
-    test_function_call(vsz(1, TYPE_CHAR),            X_MOVSBQ);
-    test_function_call(vsz(1, TYPE_SHORT),           X_MOVSWQ);
-    test_function_call(vsz(1, TYPE_INT),             X_MOVSLQ);
+    test_function_call(vsz(1, TYPE_CHAR),            X_MOVS);
+    test_function_call(vsz(1, TYPE_SHORT),           X_MOVS);
+    test_function_call(vsz(1, TYPE_INT),             X_MOVS);
     test_function_call(vsz(1, TYPE_LONG),            X_MOV);
     test_function_call(vsz(1, TYPE_PTR + TYPE_VOID), X_MOV);
 }

@@ -1456,13 +1456,7 @@ void add_spill_code(Function *function) {
         if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
 
         // Allow all moves where either dst is a register and src is on the stack
-        if (tac->operation == X_MOV
-                || tac->operation == X_MOVSBW
-                || tac->operation == X_MOVSBL
-                || tac->operation == X_MOVSBQ
-                || tac->operation == X_MOVSWL
-                || tac->operation == X_MOVSWQ
-                || tac->operation == X_MOVSLQ)
+        if (tac->operation == X_MOV || tac->operation == X_MOVS || tac->operation == X_MOVZ)
             if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->stack_index) { tac = tac->next; continue; }
 
         // Allow non sign-extends moves if the dst is on the stack and the src is a register

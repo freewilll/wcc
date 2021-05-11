@@ -1578,15 +1578,8 @@ static void make_interference_graph(Function *function) {
                     if ((
                         tac->operation == IR_MOVE ||
                         tac->operation == X_MOV ||
-                        tac->operation == X_MOVZBW ||
-                        tac->operation == X_MOVZBL ||
-                        tac->operation == X_MOVZBQ ||
-                        tac->operation == X_MOVSBW ||
-                        tac->operation == X_MOVSBL ||
-                        tac->operation == X_MOVSBQ ||
-                        tac->operation == X_MOVSWL ||
-                        tac->operation == X_MOVSWQ ||
-                        tac->operation == X_MOVSLQ
+                        tac->operation == X_MOVZ ||
+                        tac->operation == X_MOVS
                        ) && tac->src1 && tac->src1->vreg && tac->src1->vreg == j) continue;
                     add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
                     if (debug_ssa_interference_graph) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, j);

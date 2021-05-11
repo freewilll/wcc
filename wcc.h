@@ -605,16 +605,8 @@ enum {
     X_CALL,
 
     X_MOV,
-    X_MOVZBW,
-    X_MOVZBL,
-    X_MOVZBQ,
-
-    X_MOVSBW,
-    X_MOVSBL,
-    X_MOVSBQ,
-    X_MOVSWL,
-    X_MOVSWQ,
-    X_MOVSLQ,
+    X_MOVZ, // Zero extend
+    X_MOVS, // Sign extend
 
     X_MOV_FROM_IND,
     X_MOV_FROM_SCALED_IND,
