@@ -16,6 +16,7 @@ test-ssa
 test-ssa-gcc
 test-instrsel
 test-instrsel-gcc
+test-parser-gcc
 benchmark
 test.c
 test1.c

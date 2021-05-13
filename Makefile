@@ -139,11 +139,11 @@ run-test-set: test-set
 run-test-set-gcc: test-set-gcc
 	 ./test-set-gcc
 
-test-ssa.s: wcc test-ssa.c
-	./wcc ${WCC_OPTS} -c -S test-ssa.c -o test-ssa.s
-
 test-utils.s: wcc test-utils.c
 	./wcc ${WCC_OPTS} -c -S test-utils.c -o test-utils.s
+
+test-ssa.s: wcc test-ssa.c
+	./wcc ${WCC_OPTS} -c -S test-ssa.c -o test-ssa.s
 
 test-ssa: wcc test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/types.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
 	gcc ${GCC_OPTS} -g -o test-ssa test-ssa.s test-utils.s build/wcc2/lexer.s build/wcc2/parser.s build/wcc2/types.s build/wcc2/ir.s build/wcc2/ssa.s build/wcc2/regalloc.s build/wcc2/instrsel.s build/wcc2/instrutil.s build/wcc2/instrrules.s build/wcc2/codegen.s build/wcc2/wcc.s build/wcc2/utils.s build/wcc2/set.s build/wcc2/stack.s build/wcc2/graph.s build/wcc2/externals.s
@@ -178,8 +178,14 @@ test-graph: wcc test-graph.c graph.c set.c stack.c ir.c utils.c
 run-test-graph: test-graph
 	 ./test-graph
 
+test-parser-gcc: test-parser.c lexer.c parser.c types.c ir.c instrutil.c codegen.c utils.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-parser-gcc test-parser.c lexer.c parser.c types.c ir.c instrutil.c codegen.c utils.c
+
+run-test-parser-gcc: test-parser-gcc
+	 ./test-parser-gcc
+
 .PHONY: test
-test: run-test-wcc run-test-include run-test-set-gcc run-test-set run-test-ssa-gcc run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-graph run-test-wcc-gcc test-self-compilation test-self-compilation
+test: run-test-wcc run-test-include run-test-set-gcc run-test-set run-test-ssa-gcc run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-parser-gcc run-test-graph run-test-wcc-gcc test-self-compilation test-self-compilation
 
 clean:
 	@rm -f externals.c
@@ -198,6 +204,7 @@ clean:
 	@rm -f test-instrsel-gcc
 	@rm -f test-graph
 	@rm -f test-ssa
+	@rm -f test-parser-gcc
 	@rm -f benchmark
 	@rm -f *.s
 	@rm -f *.o

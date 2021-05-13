@@ -109,28 +109,39 @@ static Symbol *lookup_symbol(char *name, int scope) {
 
 // Returns destination type of an operation with two operands
 // https://en.cppreference.com/w/c/language/conversion
-static Type *operation_type(Value *src1, Value *src2) {
+Type *operation_type(Type *src1, Type *src2) {
     Type *result;
 
-    if (src1->type->type == TYPE_STRUCT || src2->type->type == TYPE_STRUCT) panic("Operations on structs not implemented");
+    if (src1->type == TYPE_STRUCT || src2->type == TYPE_STRUCT) panic("Operations on structs not implemented");
 
-    if (src1->type->type >= TYPE_PTR) return src1->type;
-    else if (src2->type->type >= TYPE_PTR) return src2->type;
+    if (src1->type >= TYPE_PTR) return src1;
+    else if (src2->type >= TYPE_PTR) return src2;
 
     // They are two integer types
-    if (src1->type->type == TYPE_LONG || src2->type->type == TYPE_LONG)
+
+    if (src1->type == TYPE_LONG || src2->type == TYPE_LONG)
         result = new_type(TYPE_LONG);
     else
         result = new_type(TYPE_INT);
 
-    result->is_unsigned = src1->type->is_unsigned || src2->type->is_unsigned;
+    if (src1->type == src2->type)
+        // If either is unsigned, the result is also unsigned
+        result->is_unsigned = src1->is_unsigned || src2->is_unsigned;
+    else {
+        // types are different
+        if (src1->is_unsigned == src2->is_unsigned)
+            result->is_unsigned = src1->is_unsigned;
+        else
+            // The sign is different
+            result->is_unsigned = (src1->type > src2->type && src1->is_unsigned) || (src1->type < src2->type && src2->is_unsigned) ? 1 : 0;
+    }
 
     return result;
 }
 
 // Returns destination type of an operation using the top two values in the stack
 static Type *vs_operation_type() {
-    return operation_type(vtop, vs[1]);
+    return operation_type(vtop->type, vs[1]->type);
 }
 
 static int cur_token_is_type() {
@@ -841,7 +852,7 @@ static void expression(int level) {
             consume(TOK_COLON, ":");
             expression(TOK_TERNARY);
             src2 = vtop;
-            dst->type = operation_type(src1, src2);
+            dst->type = operation_type(src1->type, src2->type);
             add_instruction(IR_MOVE, dst, pl(), 0);
             push(dst);
             add_jmp_target_instruction(ldst2); // End

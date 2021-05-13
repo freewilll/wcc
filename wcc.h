@@ -474,6 +474,7 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
+Type *operation_type(Type *src1, Type *src2);
 Value *load_constant(Value *cv);
 int new_vreg();
 Symbol *new_symbol();
