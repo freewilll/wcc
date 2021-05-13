@@ -475,7 +475,7 @@ static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id,
     // If src is not the root node, the operation is a move, and it's not a type change,
     // recurse, with dst moved further down the tree
     if (tac) operation = tac->operation; else operation = 0;
-    if (operation == IR_MOVE && src_node_id != 0 && tac->dst->type->type == tac->src1->type->type) {
+    if (operation == IR_MOVE && src_node_id != 0 && type_eq(tac->dst->type, tac->src1->type)) {
         recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_child_node_id);
         return;
     }
