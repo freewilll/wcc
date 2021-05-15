@@ -407,23 +407,21 @@ void make_value_x86_size(Value *v) {
 }
 
 static int non_terminal_for_value(Value *v) {
-    int adr_base, ptr_to_int, result;
+    int adr_base, result;
 
     if (!v->x86_size) make_value_x86_size(v);
     if (v->non_terminal) return v->non_terminal;
 
     adr_base = v->vreg ? ADR : MDR;
-    ptr_to_int = v->type && v->type->type >= TYPE_PTR + TYPE_CHAR && v->type->type <= TYPE_PTR + TYPE_LONG;
 
          if (v->is_string_literal)               result =  STL;
     else if (v->label)                           result =  LAB;
     else if (v->function_symbol)                 result =  FUN;
-    else if (ptr_to_int)                         result =  adr_base + value_ptr_target_x86_size(v);
-    else if (v->type->type >= TYPE_PTR)          result =  adr_base + 4; // ptr to ptr: ADRQ or MDRQ
+    else if (v->type->type >= TYPE_PTR)          result =  adr_base + value_ptr_target_x86_size(v);
     else if (v->is_lvalue_in_register)           result =  ADR + v->x86_size;
     else if (v->global_symbol || v->stack_index) result =  MEM + v->x86_size;
     else if (v->vreg && v->type->is_unsigned)    result =  URE + v->x86_size;
-    else if (v->vreg                        )    result =  IRE + v->x86_size;
+    else if (v->vreg)                            result =  IRE + v->x86_size;
     else {
         print_value(stdout, v, 0);
         panic("Bad value in non_terminal_for_value()");
@@ -471,7 +469,7 @@ static int value_ptr_target_x86_size(Value *v) {
 
     if (v->type->type < TYPE_PTR) panic("Expected pointer type");
 
-    if (v->type->type - TYPE_PTR <= TYPE_LONG)
+    if (v->type->type >= TYPE_PTR + TYPE_CHAR && v->type->type <= TYPE_PTR + TYPE_LONG)
         return v->type->type - TYPE_PTR - TYPE_CHAR + 1;
     else
         return 4;
