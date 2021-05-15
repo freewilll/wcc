@@ -936,6 +936,11 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             if (tac->operation == IR_MOVE_TO_PTR && !match_value_to_rule_dst(tac->src1, r->dst)) continue;
         }
 
+        if (tac->dst) {
+            if (tac->operation != IR_MOVE_TO_PTR && !match_value_type_to_rule_dst(tac->dst, r->dst)) continue;
+            if (tac->operation == IR_MOVE_TO_PTR && !match_value_type_to_rule_dst(tac->src1, r->dst)) continue;
+        }
+
         // Check dst of the subtree tile matches what is needed
         matched_src = match_subtree_labels_to_rule(src1_id, r->src1);
         if (!matched_src) continue;

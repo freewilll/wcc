@@ -464,6 +464,36 @@ int match_value_to_rule_dst(Value *v, int dst) {
     else                                return 0;
 }
 
+// Match a value type to a non terminal rule type. This is necessary to ensure that
+// non-root and non-leaf nodes have matching types while tree matching.
+int match_value_type_to_rule_dst(Value *v, int dst) {
+    int vnt;
+    int is_ptr, ptr_size;
+
+    vnt = non_terminal_for_value(v);
+    is_ptr = v->type->type >= TYPE_PTR;
+    if (is_ptr) ptr_size = value_ptr_target_x86_size(v);
+
+    if (vnt == dst) return 1;
+    else if (vnt == IREB && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
+    else if (vnt == IREW && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
+    else if (vnt == IREL && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
+    else if (vnt == IREQ && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if (vnt == UREB && v->type->type == TYPE_CHAR  &&  v->type->is_unsigned) return 1;
+    else if (vnt == UREW && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
+    else if (vnt == UREL && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
+    else if (vnt == UREQ && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
+    else if (vnt == MEMB && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
+    else if (vnt == MEMW && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
+    else if (vnt == MEML && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
+    else if (vnt == MEMQ && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if ((vnt == ADRB || vnt == MDRB) && is_ptr && ptr_size == 1            ) return 1;
+    else if ((vnt == ADRW || vnt == MDRW) && is_ptr && ptr_size == 2            ) return 1;
+    else if ((vnt == ADRL || vnt == MDRL) && is_ptr && ptr_size == 3            ) return 1;
+    else if ((vnt == ADRQ || vnt == MDRQ) && is_ptr && ptr_size == 4            ) return 1;
+    else return 0;
+}
+
 static int value_ptr_target_x86_size(Value *v) {
     // Return how many bytes a dereferenced pointer takes up
 

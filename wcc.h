@@ -700,6 +700,7 @@ void print_rules();
 void make_value_x86_size(Value *v);
 int match_value_to_rule_src(Value *v, int src);
 int match_value_to_rule_dst(Value *v, int dst);
+int match_value_type_to_rule_dst(Value *v, int dst);
 char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
