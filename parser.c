@@ -446,7 +446,7 @@ static void and_or_expr(int is_and) {
     add_jmp_target_instruction(ldst3);
 }
 
-static Value *add_promotion_move(Value *src, Type *type) {
+static Value *add_type_change_move(Value *src, Type *type) {
     Value *dst;
 
     dst = dup_value(src);
@@ -458,18 +458,22 @@ static Value *add_promotion_move(Value *src, Type *type) {
 }
 
 static void arithmetic_operation(int operation, Type *type) {
+    Type *common_type;
+
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
 
     Value *src1, *src2;
 
-    if (!type) type = vs_operation_type();
+    common_type = vs_operation_type();
+    if (!type) type = common_type;
+
     if (vtop->is_constant) src2 = pop(); else src2 = pl();
     if (vtop->is_constant) src1 = pop(); else src1 = pl();
 
-    if (is_integer_type(type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
-        if (!type_eq(type, src1->type) && src1->type->type <= type->type) src1 = add_promotion_move(src1, type);
-        if (!type_eq(type, src2->type) && src2->type->type <= type->type) src2 = add_promotion_move(src2, type);
+    if (is_integer_type(common_type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
+        if (!type_eq(common_type, src1->type) && src1->type->type <= type->type) src1 = add_type_change_move(src1, common_type);
+        if (!type_eq(common_type, src2->type) && src2->type->type <= type->type) src2 = add_type_change_move(src2, common_type);
     }
 
     add_ir_op(operation, type, new_vreg(), src1, src2);
