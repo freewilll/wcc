@@ -734,7 +734,7 @@ static void expression(int level) {
 
             if (factor > 1) {
                 push_constant(TYPE_INT, factor);
-                arithmetic_operation(IR_MUL, new_type(TYPE_INT));
+                arithmetic_operation(IR_MUL, 0);
             }
 
             arithmetic_operation(IR_ADD, 0);
