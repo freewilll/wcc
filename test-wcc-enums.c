@@ -9,6 +9,8 @@ enum {C=2, D};
 enum {E=-2, F};
 
 void test_enum() {
+    assert_int(4, sizeof(A), "sizeof");
+
     assert_int(0,  A, "enum 1");
     assert_int(1,  B, "enum 2");
     assert_int(2,  C, "enum 3");

@@ -636,7 +636,7 @@ static void expression(int level) {
         type = dup_type(symbol->type);
         scope = symbol->scope;
         if (symbol->is_enum)
-            push_constant(TYPE_LONG, symbol->value);
+            push_constant(TYPE_INT, symbol->value);
         else if (cur_token == TOK_LPAREN) {
             // Function call
             function_call = function_call_count++;
@@ -1337,7 +1337,7 @@ void parse() {
 
                 s = new_symbol();
                 s->is_enum = 1;
-                s->type = new_type(TYPE_LONG);
+                s->type = new_type(TYPE_INT);
                 s->identifier = cur_identifier;
                 s->scope = 0;
                 s->value = value++;
