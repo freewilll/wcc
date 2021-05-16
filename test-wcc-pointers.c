@@ -9,6 +9,11 @@ int failures;
 
 int g;
 
+char *gpc, gc;
+short *gps, gs;
+int *gpi, gi;
+long *gpl, gl;
+
 void test_pointer_to_int1() {
     // Special case of pi being in a register
     int i;
@@ -283,6 +288,42 @@ void test_pointer_casting_reads() {
     assert_long(0x0101010101010101, *((long  *) data), "long read 2");
 }
 
+void test_pointer_deref_assign_to_deref() {
+    char *pc;
+    short *ps;
+    int *pi;
+    long *pl;
+
+    pc = malloc(sizeof(char));
+    ps = malloc(sizeof(short));
+    pi = malloc(sizeof(int));
+    pl = malloc(sizeof(long));
+
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pc, *pc, "*char = *char");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pc, *pi, "*char = *short");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pc, *pi, "*char = *int");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pc, *pl, "*char = *long");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*ps, *pc, "*short = *char");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*ps, *pi, "*short = *short");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*ps, *pi, "*short = *int");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*ps, *pl, "*short = *long");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pi, *pc, "*int = *char");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pi, *pi, "*int = *short");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pi, *pi, "*int = *int");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pi, *pl, "*int = *long");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pl, *pc, "*long = *char");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pl, *pi, "*long = *short");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pl, *pi, "*long = *int");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pl, *pl, "*long = *long");
+}
+
+void test_global_pointer_address_of() {
+    gc = 1; gpc = &gc; assert_int(1, *gpc, "Global address of char");
+    gs = 2; gps = &gs; assert_int(2, *gps, "Global address of short");
+    gi = 3; gpi = &gi; assert_int(3, *gpi, "Global address of int");
+    gl = 4; gpl = &gl; assert_int(4, *gpl, "Global address of long");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -307,6 +348,8 @@ int main(int argc, char **argv) {
     test_int_char_interbreeding();
     test_cast_in_function_call();
     test_pointer_casting_reads();
+    test_pointer_deref_assign_to_deref();
+    test_global_pointer_address_of();
 
     finalize();
 }

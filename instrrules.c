@@ -4,30 +4,54 @@
 
 #include "wcc.h"
 
-static void add_cast_rules() {
+static void add_move_rules_ire_ire() {
     Rule *r;
 
-    // Casting from/to any integer types with decreasing precision
-    // Similar to generic register register sign extend rules
-    r = add_rule(IREW, IR_MOVE, IREB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbw %v1b, %vdw");
-    r = add_rule(IREL, IR_MOVE, IREB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbl %v1b, %vdl");
-    r = add_rule(IREQ, IR_MOVE, IREB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbq %v1b, %vdq");
-    r = add_rule(IREL, IR_MOVE, IREW, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswl %v1w, %vdl");
-    r = add_rule(IREQ, IR_MOVE, IREW, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswq %v1w, %vdq");
-    r = add_rule(IREQ, IR_MOVE, IREL, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %vdq");
-
-    // Crazy shit for some code that uses a (long *) to store pointers to longs.
-    // The sane code should have been using (long **)
-    // long *sp; (*((long *) *sp))++ = a;
-    r = add_rule(ADRQ, IR_MOVE, IREQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
-    r->match_dst = 1;
+    r = add_rule(IREB, IR_MOVE, IREB, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movb   %v1b, %vdb");
+    r = add_rule(IREW, IR_MOVE, IREB, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbw %v1b, %vdw");
+    r = add_rule(IREL, IR_MOVE, IREB, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbl %v1b, %vdl");
+    r = add_rule(IREQ, IR_MOVE, IREB, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbq %v1b, %vdq");
+    r = add_rule(IREB, IR_MOVE, IREW, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movb   %v1b, %vdb");
+    r = add_rule(IREW, IR_MOVE, IREW, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movw   %v1w, %vdw");
+    r = add_rule(IREL, IR_MOVE, IREW, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movswl %v1w, %vdl");
+    r = add_rule(IREQ, IR_MOVE, IREW, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movswq %v1w, %vdq");
+    r = add_rule(IREB, IR_MOVE, IREL, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movb   %v1b, %vdb");
+    r = add_rule(IREW, IR_MOVE, IREL, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movw   %v1w, %vdw");
+    r = add_rule(IREL, IR_MOVE, IREL, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movl   %v1l, %vdl");
+    r = add_rule(IREQ, IR_MOVE, IREL, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %vdq");
+    r = add_rule(IREB, IR_MOVE, IREQ, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movb   %v1b, %vdb");
+    r = add_rule(IREW, IR_MOVE, IREQ, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movw   %v1w, %vdw");
+    r = add_rule(IREL, IR_MOVE, IREQ, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movl   %v1l, %vdl");
+    r = add_rule(IREQ, IR_MOVE, IREQ, 0, 1); add_op(r, X_MOV , DST, SRC1, 0 , "movq   %v1q, %vdq");
 }
 
-static Rule *add_move_to_ptr(int src1, int src2, char *template) {
+static void add_move_rules_ire_mem() {
+    Rule *r;
+
+    r = add_rule(MEMB, IR_MOVE, IREB, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movb   %v1b, %vdb");
+    r = add_rule(MEMW, IR_MOVE, IREB, 0, 2); add_op(r, X_MOV , DST, SRC1, 0 , "movsbw %v1b, %v1w"); add_op(r, X_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
+    r = add_rule(MEML, IR_MOVE, IREB, 0, 2); add_op(r, X_MOV , DST, SRC1, 0 , "movsbl %v1b, %v1l"); add_op(r, X_MOV, DST, SRC1, 0 , "movl   %v1l, %vdl");
+    r = add_rule(MEMQ, IR_MOVE, IREB, 0, 2); add_op(r, X_MOV , DST, SRC1, 0 , "movsbq %v1b, %v1q"); add_op(r, X_MOV, DST, SRC1, 0 , "movq   %v1q, %vdq");
+    r = add_rule(MEMB, IR_MOVE, IREW, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movb   %v1b, %vdb");
+    r = add_rule(MEMW, IR_MOVE, IREW, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
+    r = add_rule(MEML, IR_MOVE, IREW, 0, 2); add_op(r, X_MOV , DST, SRC1, 0 , "movswl %v1w, %v1l"); add_op(r, X_MOV, DST, SRC1, 0 , "movl   %v1l, %vdl");
+    r = add_rule(MEMQ, IR_MOVE, IREW, 0, 2); add_op(r, X_MOV , DST, SRC1, 0 , "movswq %v1w, %v1q"); add_op(r, X_MOV, DST, SRC1, 0 , "movq   %v1q, %vdq");
+    r = add_rule(MEMB, IR_MOVE, IREL, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movb   %v1b, %vdb");
+    r = add_rule(MEMW, IR_MOVE, IREL, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
+    r = add_rule(MEML, IR_MOVE, IREL, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movl   %v1l, %vdl");
+    r = add_rule(MEMQ, IR_MOVE, IREL, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %v1q"); add_op(r, X_MOV, DST, SRC1, 0 , "movq   %v1q, %vdq");
+    r = add_rule(MEMB, IR_MOVE, IREQ, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movb   %v1b, %vdb");
+    r = add_rule(MEMW, IR_MOVE, IREQ, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
+    r = add_rule(MEML, IR_MOVE, IREQ, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movl   %v1l, %vdl");
+    r = add_rule(MEMQ, IR_MOVE, IREQ, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movq   %v1q, %vdq");
+}
+
+static Rule *add_move_to_ptr(int src1, int src2, char *sign_extend_template, char *op_template) {
     Rule *r;
 
     r = add_rule(src1, IR_MOVE_TO_PTR, src1, src2, 3);
-    add_op(r, X_MOV_TO_IND, 0,  SRC1,  SRC2, template);
+    if (sign_extend_template) add_op(r, X_MOVS, SRC2, SRC2, 0, sign_extend_template);
+    add_op(r, X_MOV_TO_IND, 0,  SRC1,  SRC2, op_template);
     return r;
 }
 
@@ -53,11 +77,10 @@ static void add_offset_rule(int *ntc, int add_reg, int indirect_reg, char *templ
     Rule *r;
 
     ntc1 = ++*ntc;
-    r = add_rule(ntc1, IR_ADD, add_reg, CST, 1);
+    r = add_rule(ntc1, IR_ADD, add_reg, CSTL, 1);
     add_save_value(r, 1, 1); // Save address register to slot 1
     add_save_value(r, 2, 2); // Save offset register to slot 2
     r = add_rule(indirect_reg, IR_INDIRECT, ntc1, 0, 1);
-    r->match_dst = 1;
     add_load_value(r, 1, 1); // Load address register from slot 1
     add_load_value(r, 2, 2); // Load index register from slot 2
     add_op(r, X_MOV_FROM_SCALED_IND, DST, SRC1, 0, template);
@@ -100,34 +123,25 @@ static void add_pointer_rules(int *ntc) {
     int src, dst;
     Rule *r;
 
-    // Loads
-    r = add_rule(MDRQ, IR_MOVE, IREQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); // For memory (void *) v = (long) l;
-
     for (dst = ADRB; dst <= ADRQ; dst++)
         for (src = ADRB; src <= ADRQ; src++) {
             r = add_rule(dst,  IR_MOVE, src, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-            r->match_dst = 1;
         }
 
-    for (dst = MDRB; dst <= MDRQ; dst++) {
-        r = add_rule(dst,  IR_MOVE, ADRQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-        r->match_dst = 1;
-    }
-
-    r = add_rule(MDR,  IR_MOVE,       ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(MEMQ, IR_MOVE,       ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(ADR,  IR_ADDRESS_OF, ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r); // & for *&*&*pi
-    r = add_rule(IREQ, IR_MOVE,       ADR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(ADRQ, IR_MOVE,       MDRQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(ADR,  0,             MDR,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(ADRQ, IR_MOVE,       MEMQ, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(ADR,  0,             MEMQ, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
 
     // Address loads
     r = add_rule(ADRB, 0,             STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(ADRB, IR_MOVE,       STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(ADRB, IR_ADDRESS_OF, MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For **ppi = 1
-    r = add_rule(ADRW, IR_ADDRESS_OF, MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(ADRL, IR_ADDRESS_OF, MEMQ, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(ADR,  IR_ADDRESS_OF, MEM,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(ADRQ, IR_ADDRESS_OF, MDR,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(ADR,  IR_ADDRESS_OF, MEM,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+
+    // Crazy shit for some code that uses a (long *) to store pointers to longs.
+    // The sane code should have been using (long **)
+    // long *sp; (*((long *) *sp))++ = a;
+    r = add_rule(ADRQ, IR_MOVE, IREQ, 0, 1); add_op(r, X_MOV, DST, SRC1, 0 , "movq %v1q, %vdq");
 
     // Loads from pointer
     r = add_rule(IREB, IR_INDIRECT, ADRB, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movb   (%v1q), %vdb");
@@ -143,7 +157,6 @@ static void add_pointer_rules(int *ntc) {
 
     for (dst = ADRB; dst <= ADRQ; dst++) {
         r = add_rule(dst, IR_INDIRECT, ADRQ, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movq   (%v1q), %vdq");
-        r->match_dst = 1;
     }
 
     add_composite_pointer_rules(ntc);
@@ -151,25 +164,30 @@ static void add_pointer_rules(int *ntc) {
     // Stores of a pointer to a pointer
     for (dst = ADRB; dst <= ADRQ; dst++)
         for (src = ADRB; src <= ADRQ; src++)
-            add_move_to_ptr(dst, src, "movq %v2q, (%v1q)");
+            add_move_to_ptr(dst, src, 0, "movq %v2q, (%v1q)");
 
-    // Stores to pointer from registers
-    add_move_to_ptr(ADRB, IREB, "movb %v2b, (%v1q)");
-    add_move_to_ptr(ADRB, IREW, "movb %v2b, (%v1q)");
-    add_move_to_ptr(ADRB, IREL, "movb %v2b, (%v1q)");
-    add_move_to_ptr(ADRB, IREQ, "movb %v2b, (%v1q)");
-    add_move_to_ptr(ADRW, IREW, "movw %v2w, (%v1q)");
-    add_move_to_ptr(ADRW, IREL, "movw %v2w, (%v1q)");
-    add_move_to_ptr(ADRW, IREQ, "movw %v2w, (%v1q)");
-    add_move_to_ptr(ADRL, IREL, "movl %v2l, (%v1q)");
-    add_move_to_ptr(ADRL, IREQ, "movl %v2l, (%v1q)");
-    add_move_to_ptr(ADRQ, IREQ, "movq %v2q, (%v1q)");
+    // Stores to a pointer of differing size
+    add_move_to_ptr(ADRB, IREB, 0,                   "movb %v2b, (%v1q)");
+    add_move_to_ptr(ADRW, IREB, "movsbw %v1b, %vdw", "movw %v2w, (%v1q)");
+    add_move_to_ptr(ADRL, IREB, "movsbl %v1b, %vdl", "movl %v2l, (%v1q)");
+    add_move_to_ptr(ADRQ, IREB, "movsbq %v1b, %vdq", "movq %v2q, (%v1q)");
+    add_move_to_ptr(ADRB, IREW, 0,                   "movb %v2b, (%v1q)");
+    add_move_to_ptr(ADRW, IREW, 0,                   "movw %v2w, (%v1q)");
+    add_move_to_ptr(ADRL, IREW, "movswl %v1w, %vdl", "movl %v2l, (%v1q)");
+    add_move_to_ptr(ADRQ, IREW, "movswq %v1w, %vdq", "movq %v2q, (%v1q)");
+    add_move_to_ptr(ADRB, IREL, 0,                   "movb %v2b, (%v1q)");
+    add_move_to_ptr(ADRW, IREL, 0,                   "movw %v2w, (%v1q)");
+    add_move_to_ptr(ADRL, IREL, 0,                   "movl %v2l, (%v1q)");
+    add_move_to_ptr(ADRQ, IREL, "movslq %v1l, %vdq", "movq %v2q, (%v1q)");
+    add_move_to_ptr(ADRB, IREQ, 0,                   "movb %v2b, (%v1q)");
+    add_move_to_ptr(ADRW, IREQ, 0,                   "movw %v2w, (%v1q)");
+    add_move_to_ptr(ADRL, IREQ, 0,                   "movl %v2l, (%v1q)");
+    add_move_to_ptr(ADRQ, IREQ, 0,                   "movq %v2q, (%v1q)");
 
-    // Stores of 32 bit constants in a pointer.
-    add_move_to_ptr(ADRB, CST, "movb $%v2b, (%v1q)");
-    add_move_to_ptr(ADRW, CST, "movw $%v2w, (%v1q)");
-    add_move_to_ptr(ADRL, CST, "movl $%v2l, (%v1q)");
-    add_move_to_ptr(ADRQ, CST, "movq $%v2q, (%v1q)");
+    add_move_to_ptr(ADRB, CSTB, 0, "movb $%v2b, (%v1q)");
+    add_move_to_ptr(ADRW, CSTW, 0, "movw $%v2w, (%v1q)");
+    add_move_to_ptr(ADRL, CSTL, 0, "movl $%v2l, (%v1q)");
+    add_move_to_ptr(ADRQ, CSTQ, 0, "movq $%v2q, (%v1q)");
 }
 
 static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {
@@ -244,54 +262,58 @@ static void add_comparison_assignment_rules(int src1, int src2, char *template) 
     add_comparison_assignment_rule(src1, src2, template, IR_GE, X_SETGE, "setge %vdb");
 }
 
+static void add_commutative_operation_rule(int operation, int x86_mov_operation, int x86_operation, int dst, int src1, int src2, int cost, char *mov_template, char *op_template) {
+    Rule *r;
+
+    r = add_rule(dst, operation, src1, src2, cost);
+    add_op(r, x86_mov_operation, DST, SRC2, 0,   mov_template);
+    add_op(r, x86_operation,     DST, SRC1, DST, op_template);
+    fin_rule(r);
+}
+
+static void add_bi_directional_commutative_operation_rules(int operation, int x86_mov_operation, int x86_operation, int dst, int src1, int src2, int cost, char *mov_template, char *op_template) {
+    Rule *r;
+
+    r = add_rule(dst, operation, src1, src2, cost); add_op(r, x86_mov_operation, DST, SRC2, 0,   mov_template);
+                                                    add_op(r, x86_operation,     DST, SRC1, DST, op_template);
+                                                    fin_rule(r);
+    r = add_rule(dst, operation, src2, src1, cost); add_op(r, x86_mov_operation, DST, SRC1, 0,   mov_template);
+                                                    add_op(r, x86_operation,     DST, SRC2, DST, op_template);
+                                                    fin_rule(r);
+}
+
+static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operation, char *sign_extend_template) {
+    Rule *r;
+
+    r = add_rule(dst, IR_ADD, dst, src, cost);
+    add_op(r, X_MOV,         DST,  SRC1, 0,   "movq %v1q, %vdq");
+    if (sign_extend_template) add_op(r, X_MOVS,        SRC2, SRC2, 0,   sign_extend_template);
+    add_op(r, x86_operation, DST,  SRC2, DST, "addq %v1q, %v2q");
+}
+
 static void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
     char *op_vv, *op_cv;
-    Rule *r;
+    int i;
 
     asprintf(&op_vv, "%s %%v1, %%v2",  x86_operand); // Perform operation on two registers or memory
     asprintf(&op_cv, "%s $%%v1, %%v2", x86_operand); // Perform operation on a constant and a register
 
-    r = add_rule(IRE, operation, IRE, IRE, cost);     add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd" );
-                                                      add_op(r, x86_operation, DST, SRC1, DST, op_vv            );
-                                                      fin_rule(r);
-    r = add_rule(IRE, operation, CST, IRE, cost);     add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd" );
-                                                      add_op(r, x86_operation, DST, SRC1, DST, op_cv            );
-                                                      fin_rule(r);
-    r = add_rule(IRE, operation, IRE, CST, cost);     add_op(r, X_MOV,         DST, SRC1, 0,   "mov%s %v1, %vd" );
-                                                      add_op(r, x86_operation, DST, SRC2, DST, op_cv            );
-                                                      fin_rule(r);
-    r = add_rule(IRE, operation, IRE, MEM, cost + 1); add_op(r, X_MOV,         DST, SRC1, 0,   "mov%s %v1, %vd" );
-                                                      add_op(r, x86_operation, DST, SRC2, DST, op_vv            );
-                                                      fin_rule(r);
-    r = add_rule(IRE, operation, MEM, IRE, cost + 1); add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s %v1, %vd" );
-                                                      add_op(r, x86_operation, DST, SRC1, DST, op_vv            );
-                                                      fin_rule(r);
-    r = add_rule(IRE, operation, CST, MEM, cost + 1); add_op(r, X_MOV,         DST, SRC1, 0,   "mov%s $%v1, %vd");
-                                                      add_op(r, x86_operation, DST, SRC2, DST, op_vv            );
-                                                      fin_rule(r);
-    r = add_rule(IRE, operation, MEM, CST, cost + 1); add_op(r, X_MOV,         DST, SRC2, 0,   "mov%s $%v1, %vd");
-                                                      add_op(r, x86_operation, DST, SRC1, DST, op_vv            );
-                                                      fin_rule(r);
-
+    for (i = IREB; i <= IREQ; i++) {
+        add_commutative_operation_rule(operation, X_MOV, x86_operation, i, IRE, IRE, cost, "mov%s %v1, %vd", op_vv);
+        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, i, CST, IRE, cost, "mov%s %v1, %vd", op_cv);
+        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, i, IRE, MEM, cost + 1, "mov%s %v1, %vd", op_vv);
+        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, i, MEM, CST, cost + 1, "mov%s $%v1, %vd", op_vv);
+    }
 
     if (operation == IR_ADD) {
-        r = add_rule(ADR, operation, IREQ, ADR, cost);    add_op(r, X_MOV,         DST, SRC2, 0,   "movq %v1q, %vdq");
-                                                          add_op(r, x86_operation, DST, SRC1, DST, "addq %v1q, %v2q");
-                                                          fin_rule(r);
-        r = add_rule(ADR, operation, ADR, IREQ, cost);    add_op(r, X_MOV,         DST, SRC1, 0,   "movq %v1q, %vdq");
-                                                          add_op(r, x86_operation, DST, SRC2, DST, "addq %v1q, %v2q");
-                                                          fin_rule(r);
+        for (i = ADRB; i <= ADRQ; i++)
+            // Integer promotions have already been done, so no rules are needed for IREB and IREL
+            add_pointer_plus_int_rule(i, IREL, cost, x86_operation, "movslq %v1l, %vdq");
 
-        r = add_rule(ADR, operation, CST, ADR, cost);     add_op(r, X_MOV,         DST, SRC2, 0,   "movq %v1q, %vdq");
-                                                          add_op(r, x86_operation, DST, SRC1, DST, "addq $%v1q, %v2q");
-                                                          fin_rule(r);
-        r = add_rule(ADR, operation, ADR, CST, cost);     add_op(r, X_MOV,         DST, SRC1, 0,   "movq %v1q, %vdq");
-                                                          add_op(r, x86_operation, DST, SRC2, DST, "addq $%v1q, %v2q");
-                                                          fin_rule(r);
+        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, ADR, IREQ, ADR, cost, "movq %v1q, %vdq", "addq %v1q, %v2q");
 
-        r = add_rule(IREQ, operation, ADR, CST, cost);    add_op(r, X_MOV,         DST, SRC1, 0,   "movq %v1q, %vdq" );
-                                                          add_op(r, x86_operation, DST, SRC2, DST, "addq $%v1q, %v2q");
-                                                          fin_rule(r);
+        for (i = CSTB; i <= CSTQ; i++)
+            add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, ADR, i, ADR, cost, "movq %v1q, %vdq", "addq $%v1q, %v2q");
     }
 }
 
@@ -307,25 +329,25 @@ static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_templa
 static void add_sub_rules() {
     int i, j;
 
+    for (i = CSTB; i <= CSTQ; i++) {
+        add_sub_rule(IRE, i,   IRE, 11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
+        add_sub_rule(IRE, IRE, i,   11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+        add_sub_rule(ADR, ADR, i,   10, "movq %v1q, %vdq", "subq $%v1q, %vdq");
+        add_sub_rule(IRE, i,   MEM, 11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
+        add_sub_rule(IRE, MEM, i,   11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+    }
+
     add_sub_rule(IRE, IRE,  IRE,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(IRE, CST,  IRE,  11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
-    add_sub_rule(IRE, IRE,  CST,  11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+    add_sub_rule(IRE, IRE,  MEM,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
+    add_sub_rule(IRE, MEM,  IRE,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
     add_sub_rule(IRE, ADRB, IRE,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
     add_sub_rule(IRE, ADRW, IRE,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
     add_sub_rule(IRE, ADRL, IRE,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
     add_sub_rule(IRE, ADRQ, IRE,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
-    add_sub_rule(ADR, ADR,  CST,  10, "movq %v1q, %vdq", "subq $%v1q, %vdq");
-    add_sub_rule(ADR, ADR,  IREQ, 11, "movq %v1q, %vdq", "subq %v1q, %vdq");
-    add_sub_rule(IRE, IRE,  MEM,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(IRE, MEM,  IRE,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(IRE, CST,  MEM,  11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
-    add_sub_rule(IRE, MEM,  CST,  11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
 
-    for (i = ADRB; i <= ADRQ; i++) {
-        for (j = ADRB; j <= ADRQ; j++) {
+    for (i = ADRB; i <= ADRQ; i++)
+        for (j = ADRB; j <= ADRQ; j++)
             add_sub_rule(IREQ, i, j,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
-        }
-    }
 }
 
 static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *t4, char *tdiv, char *tmod) {
@@ -416,19 +438,18 @@ void init_instruction_selection_rules() {
 
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(IRE,  0, IRE,  0, 0); fin_rule(r);
-    r = add_rule(CST,  0, CST,  0, 0);
+    r = add_rule(CST,  0, CST,  0, 0); fin_rule(r);
     r = add_rule(CST1, 0, CST1, 0, 0);
     r = add_rule(CST2, 0, CST2, 0, 0);
     r = add_rule(CST3, 0, CST3, 0, 0);
     r = add_rule(MEM,  0, MEM,  0, 0); fin_rule(r);
     r = add_rule(ADR,  0, ADR,  0, 0); fin_rule(r);
-    r = add_rule(MDR,  0, MDR,  0, 0); fin_rule(r);
     r = add_rule(IREQ, 0, ADRQ, 0, 0);
     r = add_rule(STL,  0, STL,  0, 0);
     r = add_rule(LAB,  0, LAB,  0, 0);
     r = add_rule(FUN,  0, FUN,  0, 0);
 
-    add_cast_rules();
+    add_move_rules_ire_ire();
 
     // Register -> register sign extension for precision increases
     r = add_rule(IREW, 0, IREB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbw %v1b, %vdw");
@@ -439,12 +460,50 @@ void init_instruction_selection_rules() {
     r = add_rule(IREQ, 0, IREL, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %vdq");
 
     // Memory -> register sign extension
-    r = add_rule(IREW, 0, MEMB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbw %v1b, %vdw"); fin_rule(r);
-    r = add_rule(IREL, 0, MEMB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbl %v1b, %vdl"); fin_rule(r);
-    r = add_rule(IREQ, 0, MEMB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbq %v1b, %vdq"); fin_rule(r);
-    r = add_rule(IREL, 0, MEMW, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswl %v1w, %vdl"); fin_rule(r);
-    r = add_rule(IREQ, 0, MEMW, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswq %v1w, %vdq"); fin_rule(r);
-    r = add_rule(IREQ, 0, MEML, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %vdq"); fin_rule(r);
+    r = add_rule(IREW, 0, MEMB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbw %v1b, %vdw");
+    r = add_rule(IREL, 0, MEMB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbl %v1b, %vdl");
+    r = add_rule(IREQ, 0, MEMB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbq %v1b, %vdq");
+    r = add_rule(IREL, 0, MEMW, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswl %v1w, %vdl");
+    r = add_rule(IREQ, 0, MEMW, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswq %v1w, %vdq");
+    r = add_rule(IREQ, 0, MEML, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %vdq");
+
+    r = add_rule(MEM, IR_MOVE, CSTQ, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r); // Store constant in memory
+    r = add_rule(IRE, IR_MOVE, CSTQ, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
+    r = add_rule(ADR, IR_MOVE, CSTQ, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
+
+    add_move_rules_ire_mem();
+    add_pointer_rules(&ntc);
+
+    r = add_rule(IREB, 0, CSTB, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movb $%v1b, %vdb"); fin_rule(r);
+    r = add_rule(IREW, 0, CSTW, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movw $%v1w, %vdw"); fin_rule(r);
+    r = add_rule(IREL, 0, CSTL, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movl $%v1l, %vdl"); fin_rule(r);
+    r = add_rule(IREQ, 0, CSTQ, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
+
+    r = add_rule(IREB , IR_MOVE, ADR, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(IREW , IR_MOVE, ADR, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(IREL , IR_MOVE, ADR, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(IREQ , IR_MOVE, ADR, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+
+    r = add_rule(IRE,  0,       MEM,  0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"  ); fin_rule(r); // Load temp memory into register
+    r = add_rule(IRE,  IR_MOVE, MEM,  0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"  ); fin_rule(r); // Load standalone memory into register
+
+    r = add_rule(IRE,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+    r = add_rule(ADR,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+
+    r = add_rule(0, IR_ARG, CSTQ, CSTB, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q");
+    r = add_rule(0, IR_ARG, CSTQ, CSTW, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q");
+    r = add_rule(0, IR_ARG, CSTQ, CSTL, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q");
+    r = add_rule(0, IR_ARG, CSTQ, CSTQ, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q");
+
+    // Add rules for sign extention an arg, but at a high cost, to encourage other rules to take precedence
+    r = add_rule(0, IR_ARG, CSTQ, IREB, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTQ, IREW, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTQ, IREL, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movslq %v1l, %v1q"); add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTQ, IREQ, 2);                                                          add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTQ, ADRB, 2);                                                          add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTQ, ADRW, 2);                                                          add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTQ, ADRL, 2);                                                          add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CSTQ, ADRQ, 2);                                                          add_function_call_arg_op(r);
 
     r = add_rule(0,    IR_RETURN, 0,    0, 1); add_op(r, X_RET,  0,     0,    0, 0                 ); fin_rule(r);
     r = add_rule(IREB, IR_RETURN, CST,  0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movb $%v1b, %vdb"); fin_rule(r);
@@ -458,39 +517,8 @@ void init_instruction_selection_rules() {
     r = add_rule(ADRW, IR_RETURN, ADRQ, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq %v1q, %vdq" );
     r = add_rule(ADRL, IR_RETURN, ADRQ, 0, 1); add_op(r, X_RET,  DST,   SRC1, 0, "movq %v1q, %vdq" );
 
-    r = add_rule(0, IR_ARG, CST, CST, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); // Use constant as function arg, must not be a quad
-
-    // Add rules for sign extention an arg, but at a high cost, to encourage other rules to take precedence
-    r = add_rule(0, IR_ARG, CST, IREB, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CST, IREW, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CST, IREL, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movslq %v1l, %v1q"); add_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CST, IREQ, 2);                                                          add_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CST, ADRB, 2);                                                          add_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CST, ADRW, 2);                                                          add_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CST, ADRL, 2);                                                          add_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CST, ADRQ, 2);                                                          add_function_call_arg_op(r);
-
-    r = add_rule(IRE,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
-    r = add_rule(ADR,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
-
-    r = add_rule(IRE, IR_MOVE, IRE, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Register to register copy
-    r = add_rule(MEM, IR_MOVE, CST, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s $%v1, %vd" ); fin_rule(r); // Store constant in memory
-    r = add_rule(MEM, IR_MOVE, IRE, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0,    "mov%s %v1, %vd"  ); fin_rule(r); // Store register in memory
-
-    // Constant loads into a register
-    r = add_rule(IREQ, 0,       CST, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq");
-    r = add_rule(IREQ, IR_MOVE, CST, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq");
-    r = add_rule(ADRB, IR_MOVE, CST, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq");
-    r = add_rule(ADRW, IR_MOVE, CST, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq");
-    r = add_rule(ADRL, IR_MOVE, CST, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq");
-    r = add_rule(ADRQ, IR_MOVE, CST, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq");
-
-    r = add_rule(IRE,  0,       MEM,  0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"  ); fin_rule(r); // Load temp memory into register
-    r = add_rule(IRE,  IR_MOVE, MEM,  0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"  ); fin_rule(r); // Load standalone memory into register
-
-    add_pointer_rules(&ntc);
-
-    r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, X_JMP, 0, SRC1, 0, "jmp %v1"); fin_rule(r);  // JMP
+    // Jump rules
+    r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, X_JMP, 0, SRC1, 0, "jmp %v1"); fin_rule(r);
 
     add_conditional_zero_jump_rule(IR_JZ,  IRE,  LAB,  3,  X_TEST, "test%s %v1, %v1",  "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JZ,  ADR,  LAB,  3,  X_TEST, "testq %v1q, %v1q", "jz %v1",   1);

@@ -817,22 +817,23 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         r = &(instr_rules[i]);
         if (r->operation) continue;
 
-        if (match_value_to_rule_src(v, r->src1)) {
-            if (debug_instsel_tiling) {
-                printf("matched rule %d:\n", i);
-                print_rule(r, 0, 0);
-            }
-            add_to_set(igraph_labels[node_id], i);
+        if (!match_value_to_rule_src(v, r->src1)) continue;
+        if (!v->is_constant && !v->label && !v->function_symbol && !match_value_type_to_rule_dst(v, r->dst)) continue;
 
-            choice_node_id = new_cost_graph_node();
-            cost_to_igraph_map[choice_node_id] = node_id;
-            cost_rules[choice_node_id] = i;
-            accumulated_cost[choice_node_id] = instr_rules[i].cost;
-
-            add_graph_edge(cost_graph, cost_graph_node_id, choice_node_id);
-
-            matched = 1;
+        if (debug_instsel_tiling) {
+            printf("matched rule %d:\n", i);
+            print_rule(r, 0, 0);
         }
+        add_to_set(igraph_labels[node_id], i);
+
+        choice_node_id = new_cost_graph_node();
+        cost_to_igraph_map[choice_node_id] = node_id;
+        cost_rules[choice_node_id] = i;
+        accumulated_cost[choice_node_id] = instr_rules[i].cost;
+
+        add_graph_edge(cost_graph, cost_graph_node_id, choice_node_id);
+
+        matched = 1;
     }
 
     if (!matched) {
@@ -927,7 +928,7 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         if (src2_id && !r->src2 || !src2_id && r->src2) continue; // Filter rules requiring src2
 
         // If this is the top level or a rule requires it, ensure the dst matches.
-        match_dst = tac->dst && (node_id == 0 || r->match_dst);
+        match_dst = tac->dst && node_id == 0;
 
         // IR_MOVE_TO_PTR is a special case since it doesn't have a dst. The dst is actually
         // src1, which isn't modified.
@@ -936,10 +937,8 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             if (tac->operation == IR_MOVE_TO_PTR && !match_value_to_rule_dst(tac->src1, r->dst)) continue;
         }
 
-        if (tac->dst) {
-            if (tac->operation != IR_MOVE_TO_PTR && !match_value_type_to_rule_dst(tac->dst, r->dst)) continue;
-            if (tac->operation == IR_MOVE_TO_PTR && !match_value_type_to_rule_dst(tac->src1, r->dst)) continue;
-        }
+        if (tac->operation == IR_MOVE_TO_PTR && !match_value_type_to_rule_dst(tac->src1, r->dst)) continue;
+        else if (tac->dst && !match_value_type_to_rule_dst(tac->dst, r->dst)) continue;
 
         // Check dst of the subtree tile matches what is needed
         matched_src = match_subtree_labels_to_rule(src1_id, r->src1);
@@ -1065,6 +1064,9 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
             dst->vreg = new_vreg();
             dst->ssa_subscript = -1;
 
+            if (ign->tac)
+                dst->type = dup_type(ign->tac->dst->type);
+
             if (debug_instsel_tiling) printf("  allocated new vreg for dst vreg=%d\n", dst->vreg);
         }
         else {
@@ -1121,7 +1123,7 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
             if (debug_instsel_tiling) {
                 printf("  saved arg %d ", x86op->arg);
                 print_value(stdout, slot_value, 0);
-                printf(" to slot %d\n", x86op->save_value_in_slot);
+                printf("to slot %d\n", x86op->save_value_in_slot);
             }
         }
         else if (x86op->load_value_from_slot) {
@@ -1140,7 +1142,7 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
             if (debug_instsel_tiling) {
                 printf("  loaded arg %d ", x86op->arg);
                 print_value(stdout, slot_value, 0);
-                printf(" from slot %d\n", x86op->load_value_from_slot);
+                printf("from slot %d\n", x86op->load_value_from_slot);
             }
         }
         else {

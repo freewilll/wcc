@@ -8,7 +8,6 @@ int failures;
 
 int gcvi, gcvj;
 
-
 // Test 64 bit constants are assigned properly
 void test_long_constant() {
     long l;

@@ -77,14 +77,17 @@ void nuke_rule(int dst, int operation, int src1, int src2) {
 }
 
 void test_instrsel_tree_merging_type_merges() {
+    Tac *tac;
+
     // Ensure type conversions are merged correctly. This tests a void * being converted to a char *
     remove_reserved_physical_registers = 1;
     start_ir();
     i(0, IR_MOVE,        asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
-    i(0, IR_MOVE_TO_PTR, vsz(2, TYPE_CHAR), vsz(2, TYPE_CHAR), c(1));
+    tac = i(0, IR_MOVE_TO_PTR, 0,                 vsz(2, TYPE_CHAR), c(1));
+    tac->src1->is_lvalue_in_register = 1;
     finish_ir(function);
-    assert_x86_op("movq    r1q, r4q");
-    assert_x86_op("movb    $1, (r4q)");
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("movb    $1, (r3q)");
 }
 
 void test_instrsel_tree_merging_register_constraint() {
@@ -148,20 +151,21 @@ void test_instrsel_tree_merging() {
     start_ir();
     i(0, IR_MOVE,        v(3),              c(1),              0   ); // r3 = 1   <- r3 is used twice, so no tree merge happens
     i(0, IR_MOVE,        v(2),              v(3),              0   ); // r2 = r3
-    i(0, IR_MOVE_TO_PTR, vsz(3, TYPE_LONG), vsz(3, TYPE_LONG), v(4)); // (r3) = r4
+    i(0, IR_MOVE_TO_PTR, 0,                 vsz(3, TYPE_LONG), v(4)); // (r3) = r4
+    tac->src1->is_lvalue_in_register = 1;
     finish_ir(function);
     assert_x86_op("movq    $1, r2q"   );
     assert_x86_op("movq    r2q, r1q"  );
-    assert_x86_op("movq    r4q, (r2q)");
+    assert_x86_op("movq    r3q, (r2q)");
 
     // Ensure the assign to pointer instruction copies src1 to dst first
     remove_reserved_physical_registers = 1;
     start_ir();
     i(0, IR_ADDRESS_OF,  a(1), g(1), 0);
-    i(0, IR_MOVE_TO_PTR, v(1), v(1), c(1));
+    i(0, IR_MOVE_TO_PTR, 0,    v(1), c(1)); tac->src1->is_lvalue_in_register = 1;
     finish_ir(function);
-    assert_x86_op("leaq    g1(%rip), r3q");
-    assert_x86_op("movq    $1, (r3q)"    );
+    assert_x86_op("leaq    g1(%rip), r2q");
+    assert_x86_op("movq    $1, (r2q)"    );
 
     // Test tree merges only happening on adjacent trees.
     // This is realistic example of a value swap of two values in memory.
@@ -287,10 +291,9 @@ void test_instrsel() {
     nuke_rule(IREQ, IR_ADD, CST, IREQ); nuke_rule(IREQ, IR_ADD, IREQ, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
-    assert_x86_op("movq    $1, r2q");
-    assert_x86_op("movq    $2, r3q");
-    assert_x86_op("movq    r3q, r1q");
-    assert_x86_op("addq    r2q, r1q");
+    assert_x86_op("movb    $2, r2b");
+    assert_x86_op("movb    r2b, r1b");
+    assert_x86_op("addb    $1, r1b");
 
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
@@ -298,9 +301,9 @@ void test_instrsel() {
     nuke_rule(IRE, IR_ADD, IREQ, CST);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
-    assert_x86_op("movq    $2, r2q");
-    assert_x86_op("movq    r2q, r1q");
-    assert_x86_op("addq    $1, r1q");
+    assert_x86_op("movb    $2, r2b");
+    assert_x86_op("movb    r2b, r1b");
+    assert_x86_op("addb    $1, r1b");
 
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
@@ -308,9 +311,9 @@ void test_instrsel() {
     nuke_rule(IREQ, IR_ADD, CST, IREQ);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
-    assert_x86_op("movq    $1, r2q");
-    assert_x86_op("movq    r2q, r1q");
-    assert_x86_op("addq    $2, r1q");
+    assert_x86_op("movb    $2, r2b");
+    assert_x86_op("movb    r2b, r1b");
+    assert_x86_op("addb    $1, r1b");
 
     // r1 + r2. No loads are necessary, this is the simplest add operation.
     start_ir();
@@ -323,29 +326,29 @@ void test_instrsel() {
     start_ir();
     i(0, IR_ADD, v(2), v(1), S(-2));
     finish_ir(function);
-    assert_x86_op("movq    r1q, r2q");
-    assert_x86_op("addq    -16(%rbp), r2q");
+    assert_x86_op("movq    -16(%rbp), r2q");
+    assert_x86_op("addq    r1q, r2q");
 
     // S1 + r1
     start_ir();
     i(0, IR_ADD, v(2), v(1), S(-2));
     finish_ir(function);
-    assert_x86_op("movq    r1q, r2q");
-    assert_x86_op("addq    -16(%rbp), r2q");
+    assert_x86_op("movq    -16(%rbp), r2q");
+    assert_x86_op("addq    r1q, r2q");
 
     // r1 + g1
     start_ir();
     i(0, IR_ADD, v(2), v(1), g(1));
     finish_ir(function);
-    assert_x86_op("movq    r1q, r2q");
-    assert_x86_op("addq    g1(%rip), r2q");
+    assert_x86_op("movq    g1(%rip), r2q");
+    assert_x86_op("addq    r1q, r2q");
 
     // g1 + r1
     start_ir();
     i(0, IR_ADD, v(2), v(1), g(1));
     finish_ir(function);
-    assert_x86_op("movq    r1q, r2q");
-    assert_x86_op("addq    g1(%rip), r2q");
+    assert_x86_op("movq    g1(%rip), r2q");
+    assert_x86_op("addq    r1q, r2q");
 
     // c1 + g1
     start_ir();
@@ -372,8 +375,7 @@ void test_instrsel() {
     nuke_rule(MEMQ, IR_MOVE, CST, 0);
     i(0, IR_MOVE, g(1), c(1), 0);
     finish_ir(function);
-    assert_x86_op("movq    $1, r1q");
-    assert_x86_op("movq    r1q, g1(%rip)");
+    assert_x86_op("movq    $1, g1(%rip)");
 
     // Store v1 in g using IR_MOVE
     start_ir();
@@ -415,8 +417,8 @@ void test_instrsel() {
     start_ir();
     i(0, IR_MOVE, v(1), Ssz(-1, TYPE_INT), 0);
     finish_ir(function);
-    assert_x86_op("movslq  -8(%rbp), r2q");
-    assert_x86_op("movq    r2q, r1q");
+    assert_x86_op("movl    -8(%rbp), r2l");
+    assert_x86_op("movslq  r2l, r1q");
 
     // Assign constant to a local
     start_ir();
@@ -429,8 +431,7 @@ void test_instrsel() {
     nuke_rule(MEMQ, IR_MOVE, CST, 0);
     i(0, IR_MOVE, S(-2), c(0), 0);
     finish_ir(function);
-    assert_x86_op("movq    $0, r1q");
-    assert_x86_op("movq    r1q, -16(%rbp)");
+    assert_x86_op("movq    $0, -16(%rbp)");
 
     // jz with r1
     start_ir();
@@ -630,132 +631,28 @@ void test_function_args() {
     assert_rx86_preg_op(0);
 }
 
-// Convert (b, w, l, q) -> (1, 2, 3, 4)
-int x86_size_to_int(char s) {
-         if (s == 'b') return 1;
-    else if (s == 'w') return 2;
-    else if (s == 'l') return 3;
-    else if (s == 'q') return 4;
-    else panic1d("Unknown x86 size %d", s);
+void assert_instrsel_types_add_vregs(int dst, int src, char *mov, char *add) {
+    si(function, 0, IR_ADD, vsz(3, dst), vsz(1, src), vsz(2, src));
+    assert_x86_op(mov);
+    assert_x86_op(add);
 }
 
-// Test addition with integer type combinations for (dst, src1, src2)
-// The number of tests = 4 * 4 * 4 = 64.
 void test_instrsel_types_add_vregs() {
     int dst, src1, src2, count;
     int extend_src1, extend_src2, type;
     Tac *tac;
 
-
-    for (dst = 1; dst <= 4; dst++) {
-        for (src1 = 1; src1 <= 4; src1++) {
-            for (src2 = 1; src2 <= 4; src2++) {
-                start_ir();
-                tac = i(0, IR_ADD, v(3), v(1), v(2));
-                tac->dst ->type = new_type(TYPE_CHAR + dst  - 1);
-                tac->src1->type = new_type(TYPE_CHAR + src1 - 1);
-                tac->src2->type = new_type(TYPE_CHAR + src2 - 1);
-                finish_ir(function);
-
-                // Count the number of intructions
-                tac = ir_start;
-                count = 0;
-                while (tac) { count++; tac = tac->next; }
-
-                // The type is the max of (dst, src1, src2)
-                type = src1;
-                if (src2 > type) type = src2;
-                if (dst > type) type = dst;
-
-                // Determine which src operands should be extended
-                extend_src1 = extend_src2 = 0;
-                if (src1 < src2) extend_src1 = 1;
-                if (src1 > src2) extend_src2 = 1;
-                if (src1 < dst) extend_src1 = 1;
-                if (src2 < dst) extend_src2 = 1;
-
-                // Check instruction counts match
-                assert(extend_src1 + extend_src2 + 3, count);
-
-                // The first instruction sign extends src1 if necessary
-                if (extend_src1) {
-                    assert(src1, x86_size_to_int(ir_start->x86_template[4]));
-                    assert(type, x86_size_to_int(ir_start->x86_template[5]));
-                    ir_start = ir_start->next;
-                }
-
-                // The first instruction sign extends src2 if necessary
-                if (extend_src2) {
-                    assert(src2, x86_size_to_int(ir_start->x86_template[4]));
-                    assert(type, x86_size_to_int(ir_start->x86_template[5]));
-                    ir_start = ir_start->next;
-                }
-            }
-        }
-    }
-}
-
-void test_instrsel_types_add_mem_vreg() {
-    remove_reserved_physical_registers = 1;
-
-    // A non exhaustive set of tests to check global/reg addition with various integer sizes
-
-    // Test sign extension of globals
-    // ------------------------------
-
-    // c = vs + gc
-    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_SHORT), gsz(1, TYPE_CHAR));
-    assert_x86_op("movsbw  g1(%rip), r3w");
-    assert_x86_op("movw    r3w, r2w"     );
-    assert_x86_op("addw    r1w, r2w"     );
-
-    // c = vi + gc
-    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_INT), gsz(1, TYPE_CHAR));
-    assert_x86_op("movsbl  g1(%rip), r3l");
-    assert_x86_op("movl    r3l, r2l"     );
-    assert_x86_op("addl    r1l, r2l"     );
-
-    // c = vl + gc
-    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_LONG), gsz(1, TYPE_CHAR));
-    assert_x86_op("movsbq  g1(%rip), r3q");
-    assert_x86_op("movq    r3q, r2q"     );
-    assert_x86_op("addq    r1q, r2q"     );
-
-    // l = vi + gc
-    si(function, 0, IR_ADD, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), gsz(1, TYPE_CHAR));
-    assert_x86_op("movslq  r1l, r3q"     );
-    assert_x86_op("movsbq  g1(%rip), r4q");
-    assert_x86_op("movq    r4q, r2q"     );
-    assert_x86_op("addq    r3q, r2q"     );
-
-    // l = vl + gc
-    si(function, 0, IR_ADD, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), gsz(1, TYPE_CHAR));
-    assert_x86_op("movsbq  g1(%rip), r3q");
-    assert_x86_op("movq    r3q, r2q"     );
-    assert_x86_op("addq    r1q, r2q"     );
-
-    // l = gc + vl
-    si(function, 0, IR_ADD, vsz(2, TYPE_LONG), gsz(1, TYPE_CHAR), vsz(1, TYPE_LONG));
-    assert_x86_op("movsbq  g1(%rip), r3q");
-    assert_x86_op("movq    r1q, r2q"     );
-    assert_x86_op("addq    r3q, r2q"     );
-
-    // Test sign extension of locals
-    // ------------------------------
-
-    // c = vs + gc
-    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_SHORT), Ssz(-2, TYPE_CHAR));
-    assert_x86_op("movsbw  -16(%rbp), r3w");
-    assert_x86_op("movw    r3w, r2w"      );
-    assert_x86_op("addw    r1w, r2w"      );
-
-    // Test sign extension of registers
-    // --------------------------------
-    // c = vc + gs
-    si(function, 0, IR_ADD, vsz(2, TYPE_CHAR), vsz(1, TYPE_CHAR), gsz(1, TYPE_SHORT));
-    assert_x86_op("movsbw  r1b, r3w"     );
-    assert_x86_op("movw    r3w, r2w"     );
-    assert_x86_op("addw    g1(%rip), r2w");
+    // assert_instrsel_types_add_vregs(TYPE_CHAR,  TYPE_CHAR,  "movb    r2b, r3b", "addb    r1b, r3b");
+    assert_instrsel_types_add_vregs(TYPE_CHAR,  TYPE_CHAR,  "movb    r2b, r3b", "addb    r1b, r3b");
+    assert_instrsel_types_add_vregs(TYPE_SHORT, TYPE_CHAR,  "movb    r2b, r3b", "addb    r1b, r3b");
+    assert_instrsel_types_add_vregs(TYPE_INT,   TYPE_CHAR,  "movb    r2b, r3b", "addb    r1b, r3b");
+    assert_instrsel_types_add_vregs(TYPE_LONG,  TYPE_CHAR,  "movb    r2b, r3b", "addb    r1b, r3b");
+    assert_instrsel_types_add_vregs(TYPE_SHORT, TYPE_SHORT, "movw    r2w, r3w", "addw    r1w, r3w");
+    assert_instrsel_types_add_vregs(TYPE_INT,   TYPE_SHORT, "movw    r2w, r3w", "addw    r1w, r3w");
+    assert_instrsel_types_add_vregs(TYPE_LONG,  TYPE_SHORT, "movw    r2w, r3w", "addw    r1w, r3w");
+    assert_instrsel_types_add_vregs(TYPE_INT,   TYPE_INT,   "movl    r2l, r3l", "addl    r1l, r3l");
+    assert_instrsel_types_add_vregs(TYPE_LONG,  TYPE_INT,   "movl    r2l, r3l", "addl    r1l, r3l");
+    assert_instrsel_types_add_vregs(TYPE_LONG,  TYPE_LONG,  "movq    r2q, r3q", "addq    r1q, r3q");
 }
 
 void test_instrsel_types_cmp_assignment() {
@@ -775,15 +672,6 @@ void test_instrsel_types_cmp_assignment() {
     finish_ir(function);
     assert_x86_op("cmpw    r2w, r1w");
     assert_x86_op("sete    r3b"     );
-
-    // Test s = c == l
-    start_ir();
-    i(0, IR_EQ, vsz(3, TYPE_SHORT), vsz(1, TYPE_CHAR), vsz(2, TYPE_LONG));
-    finish_ir(function);
-    assert_x86_op("movsbq  r1b, r4q");
-    assert_x86_op("cmpq    r2q, r4q");
-    assert_x86_op("sete    r3b"     );
-    assert_x86_op("movzbw  r3b, r3w");
 }
 
 void test_instrsel_types_cmp_pointer() {
@@ -1256,12 +1144,14 @@ void test_pointer_indirect_global_char_in_struct_to_long() {
     i(0, IR_MOVE,     vsz(4, TYPE_LONG),            vsz(3, TYPE_CHAR),            0);
     finish_ir(function);
     assert_x86_op("movq    g1(%rip), r4q");
-    assert_x86_op("movsbq  (r4q), r5q");
-    assert_x86_op("movq    r5q, r3q");
+    assert_x86_op("movb    (r4q), r5b");
+    assert_x86_op("movsbq  r5b, r3q");
 }
 
 void test_pointer_assignment_precision_decrease(int type1, int type2, char *template) {
-    si(function, 0, IR_MOVE_TO_PTR, vsz(2, type1), vsz(2, type1), vsz(1, type2));
+    Tac *tac;
+
+    tac = si(function, 0, IR_MOVE_TO_PTR, 0, vsz(2, type1), vsz(1, type2));
     assert_x86_op(template);
 }
 
@@ -1282,19 +1172,19 @@ void test_simple_int_cast() {
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_CHAR ), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movw    r1w, r2w");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_INT  ), 0); assert_x86_op("movl    r1l, r2l");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_LONG ), 0); assert_x86_op("movq    r1q, r2q");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_INT  ), 0); assert_x86_op("movb    r1b, r2b");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_LONG ), 0); assert_x86_op("movb    r1b, r2b");
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbw  r1b, r2w");
     si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0); assert_x86_op("movw    r1w, r2w");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_INT),   0); assert_x86_op("movl    r1l, r2l");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_INT),   0); assert_x86_op("movw    r1w, r2w");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_LONG),  0); assert_x86_op("movw    r1w, r2w");
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbl  r1b, r2l");
     si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswl  r1w, r2l");
     si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_INT),   0); assert_x86_op("movl    r1l, r2l");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
+    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_LONG),  0); assert_x86_op("movl    r1l, r2l");
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  r1b, r2q");
     si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  r1w, r2q");
@@ -1320,8 +1210,7 @@ void test_pointer_comparisons() {
     i(0, IR_JZ,   0,                            v(3),                         l(1));
     i(1, IR_NOP,  0,                            0,                            0   );
     finish_ir(function);
-    assert_x86_op("movq    g1(%rip), r3q");
-    assert_x86_op("cmpq    $1, r3q");
+    assert_x86_op("cmpq    $1, g1(%rip)");
     assert_x86_op("jne     .L1");
 
     start_ir();
@@ -1331,8 +1220,7 @@ void test_pointer_comparisons() {
     i(1, IR_NOP,  0,                            0,                            0   );
     finish_ir(function);
     assert_x86_op("movq    $1, r3q");
-    assert_x86_op("movq    g1(%rip), r4q");
-    assert_x86_op("cmpq    r4q, r3q");
+    assert_x86_op("cmpq    g1(%rip), r3q");
     assert_x86_op("jne     .L1");
 }
 
@@ -1380,15 +1268,6 @@ void test_composite_pointer_indirect() {
     test_composite_scaled_pointer_indirect_reg(TYPE_INT,             TYPE_LONG,            2); assert_x86_op("movslq  (r2q,r1q,4), r5q");
     test_composite_scaled_pointer_indirect_reg(TYPE_LONG,            TYPE_LONG,            3); assert_x86_op("movq    (r2q,r1q,8), r5q");
     test_composite_scaled_pointer_indirect_reg(TYPE_PTR + TYPE_VOID, TYPE_PTR + TYPE_VOID, 3); assert_x86_op("movq    (r2q,r1q,8), r5q");
-
-    // Adveserial example: the BSHL doesn't match the type. This could happen
-    // in e.g. p[i << 1]. In this case, the scale mov rule cannot be used.
-    test_composite_scaled_pointer_indirect_reg(TYPE_SHORT, TYPE_SHORT, 2);
-    assert_x86_op("movq    r1q, r6q"  );
-    assert_x86_op("shlq    $2, r6q"   );
-    assert_x86_op("movq    r2q, r7q"  );
-    assert_x86_op("addq    r6q, r7q"  );
-    assert_x86_op("movw    (r7q), r5w");
 
     test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_CHAR,  TYPE_CHAR);             assert_x86_op("movb    1(r1q), r3b");
     test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_CHAR,  TYPE_SHORT);            assert_x86_op("movsbw  1(r1q), r3w");
@@ -1634,7 +1513,6 @@ int main() {
     test_instrsel();
     test_function_args();
     test_instrsel_types_add_vregs();
-    test_instrsel_types_add_mem_vreg();
     test_instrsel_types_cmp_assignment();
     test_instrsel_types_cmp_pointer();
     test_instrsel_returns();

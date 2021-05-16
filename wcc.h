@@ -581,18 +581,17 @@ enum {
     MAX_RULE_COUNT = 3000,
 
     // Non terminals
-    CST = 1,                     // Constant
-    STL,                         // String literal
+    STL = 1,                     // String literal
     LAB,                         // Label, i.e. a target for a (conditional) jump
     FUN,                         // Function, used for calls
     CST1,                        // Constant with value 1
     CST2,                        // Constant with value 2
     CST3,                        // Constant with value 3
+    CST, CSTB, CSTW, CSTL, CSTQ, // Constants
     IRE, IREB, IREW, IREL, IREQ, // Signed registers
     URE, UREB, UREW, UREL, UREQ, // Unsigned registers
     MEM, MEMB, MEMW, MEML, MEMQ, // Memory, in stack or globals
     ADR, ADRB, ADRW, ADRL, ADRQ, // Address (aka pointer) in a register
-    MDR, MDRB, MDRW, MDRL, MDRQ, // Address (aka pointer) in memory
 
     // Operands
     DST,
@@ -665,7 +664,6 @@ typedef struct rule {
     int src1;
     int src2;
     int cost;
-    int match_dst;
     struct x86_operation *x86_operations;
 } Rule;
 

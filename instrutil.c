@@ -32,7 +32,7 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
 }
 
 static int transform_rule_value(int v, int i) {
-    if (v == IRE || v == URE || v == MEM || v == ADR || v == MDR)
+    if (v == CST || v == IRE || v == URE || v == MEM || v == ADR)
         return v + i;
     else
         return v;
@@ -119,12 +119,12 @@ static char *add_size_to_template(char *template, int size) {
     return result;
 }
 
-// Expand all uses of IRE, MEM, ADR into ADRB, ADRW, ADRL, ADRQ
-// e.g. IRE, IRE, CST is transformed into
-// IREB, IREB, CST
-// IREW, IREW, CST
-// IREL, IREL, CST
-// IREQ, IREQ, CST
+// Expand all uses of IRE, MEM, ADR, CST into IREB, IREW, ... ADRB, ADRW, ... etc
+// e.g. IRE, IREQ, CST is transformed into
+// IREB, IREQ, CSTB
+// IREW, IREQ, CSTW
+// IREL, IREQ, CSTL
+// IREQ, IREQ, CSTQ
 void fin_rule(Rule *r) {
 
     int operation, dst, src1, src2, cost, i;
@@ -140,11 +140,11 @@ void fin_rule(Rule *r) {
 
     // Only deal with outputs that go into registers, memory or address in register
     if (!(
+            dst == CST || src1 == CST || src2 == CST ||
             dst == IRE || src1 == IRE || src2 == IRE ||
             dst == URE || src1 == URE || src2 == URE ||
             dst == MEM || src1 == MEM || src2 == MEM ||
-            dst == ADR || src1 == ADR || src2 == ADR ||
-            dst == MDR || src1 == MDR || src2 == MDR)) {
+            dst == ADR || src1 == ADR || src2 == ADR)) {
         return;
     }
 
@@ -226,11 +226,10 @@ static void make_rule_hash(int i) {
     r = &(instr_rules[i]);
 
     r->hash =
-        (r->dst              <<  0) +
-        (r->src1             <<  8) +
-        (r->src2             << 16) +
-        (r->operation        << 24) +
-        ((long) r->match_dst << 32);
+        (r->dst       <<  0) +
+        (r->src1      <<  8) +
+        (r->src2      << 16) +
+        (r->operation << 24);
 }
 
 void check_for_duplicate_rules() {
@@ -266,7 +265,6 @@ void check_rules_dont_decrease_precision() {
     for (i = 0; i < instr_rule_count; i++) {
         r = &(instr_rules[i]);
         if (!r->dst) continue;
-        if (r->match_dst) continue;
 
         dst_size = make_x86_size_from_non_terminal(r->dst);
 
@@ -281,7 +279,7 @@ void check_rules_dont_decrease_precision() {
     }
 
     if (bad_rules) {
-        printf("There are %d rules with match_dst=0 that decrease precision\n", bad_rules);
+        printf("There are %d rules that decrease precision\n", bad_rules);
         exit(1);
     }
 }
@@ -301,6 +299,10 @@ char *non_terminal_string(int nt) {
     else if (nt == CST1) return "cst:1";
     else if (nt == CST2) return "cst:2";
     else if (nt == CST3) return "cst:3";
+    else if (nt == CSTB) return "cst:b";
+    else if (nt == CSTW) return "cst:w";
+    else if (nt == CSTL) return "cst:l";
+    else if (nt == CSTQ) return "cst:q";
     else if (nt == IRE)  return "ire  ";
     else if (nt == IREB) return "ire:b";
     else if (nt == IREW) return "ire:w";
@@ -319,10 +321,6 @@ char *non_terminal_string(int nt) {
     else if (nt == ADRW) return "adr:w";
     else if (nt == ADRL) return "adr:l";
     else if (nt == ADRQ) return "adr:q";
-    else if (nt == MDRB) return "mdr:b";
-    else if (nt == MDRW) return "mdr:w";
-    else if (nt == MDRL) return "mdr:l";
-    else if (nt == MDRQ) return "mdr:q";
     else {
         asprintf(&buf, "nt%03d", nt);
         return buf;
@@ -337,10 +335,9 @@ void print_rule(Rule *r, int print_operations, int indent) {
     int i, first;
     X86Operation *operation;
 
-    printf("%-24s  %-5s%s  %-5s  %-5s  %2d    ",
+    printf("%-24s  %-5s  %-5s  %-5s  %2d    ",
         operation_string(r->operation),
         non_terminal_string(r->dst),
-        r->match_dst ? "(d)" : "   ",
         non_terminal_string(r->src1),
         non_terminal_string(r->src2),
         r->cost
@@ -352,7 +349,7 @@ void print_rule(Rule *r, int print_operations, int indent) {
         while (operation) {
             if (!first) {
                 for (i = 0;i < indent; i++) printf(" ");
-                printf("                                                        ");
+                printf("                                                     ");
             }
             first = 0;
 
@@ -407,21 +404,20 @@ void make_value_x86_size(Value *v) {
 }
 
 static int non_terminal_for_value(Value *v) {
-    int adr_base, result;
+    int result;
 
     if (!v->x86_size) make_value_x86_size(v);
     if (v->non_terminal) return v->non_terminal;
 
-    adr_base = v->vreg ? ADR : MDR;
-
-         if (v->is_string_literal)               result =  STL;
-    else if (v->label)                           result =  LAB;
-    else if (v->function_symbol)                 result =  FUN;
-    else if (v->type->type >= TYPE_PTR)          result =  adr_base + value_ptr_target_x86_size(v);
-    else if (v->is_lvalue_in_register)           result =  ADR + v->x86_size;
-    else if (v->global_symbol || v->stack_index) result =  MEM + v->x86_size;
-    else if (v->vreg && v->type->is_unsigned)    result =  URE + v->x86_size;
-    else if (v->vreg)                            result =  IRE + v->x86_size;
+         if (v->is_string_literal)                  result =  STL;
+    else if (v->label)                              result =  LAB;
+    else if (v->function_symbol)                    result =  FUN;
+    else if (v->type->type >= TYPE_PTR && !v->vreg) result =  MEMQ;
+    else if (v->type->type >= TYPE_PTR)             result =  ADR + value_ptr_target_x86_size(v);
+    else if (v->is_lvalue_in_register)              result =  ADR + v->x86_size;
+    else if (v->global_symbol || v->stack_index)    result =  MEM + v->x86_size;
+    else if (v->vreg && v->type->is_unsigned)       result =  URE + v->x86_size;
+    else if (v->vreg)                               result =  IRE + v->x86_size;
     else {
         print_value(stdout, v, 0);
         panic("Bad value in non_terminal_for_value()");
@@ -439,29 +435,19 @@ int match_value_to_rule_src(Value *v, int src) {
              if (src == CST1 && v->value == 1) return 1;
         else if (src == CST2 && v->value == 2) return 1;
         else if (src == CST3 && v->value == 3) return 1;
-        else return src == CST;
+        else if (src >= CSTB && src <= CSTQ && v->value >= -128 && v->value <= 127) return 1;
+        else if (src >= CSTW && src <= CSTQ && v->value >= -32768 && v->value <= 32767) return 1;
+        else if (src >= CSTL && src <= CSTQ && v->value >= -2147483648 && v->value <= 2147483647) return 1;
+        else if (src == CSTQ) return 1;
+        else return 0;
     }
     else
         return non_terminal_for_value(v) == src;
 }
 
-// Used to match root node, or of match_dst is true on a non-root node.
-// This ensures the precision of dst is >= of the value.
-// This is needed for a special case of indirects where there are rules that can
-// indirect and sign extend at the same time.
+// Used to match the root node. It must be an exact match.
 int match_value_to_rule_dst(Value *v, int dst) {
-    int vnt;
-
-    vnt = non_terminal_for_value(v);
-
-    if (vnt == dst) return 1;
-    else if (vnt == IREB && dst== IREW) return 1;
-    else if (vnt == IREB && dst== IREL) return 1;
-    else if (vnt == IREB && dst== IREQ) return 1;
-    else if (vnt == IREW && dst== IREL) return 1;
-    else if (vnt == IREW && dst== IREQ) return 1;
-    else if (vnt == IREL && dst== IREQ) return 1;
-    else                                return 0;
+    return non_terminal_for_value(v) == dst;
 }
 
 // Match a value type to a non terminal rule type. This is necessary to ensure that
@@ -474,23 +460,24 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     is_ptr = v->type->type >= TYPE_PTR;
     if (is_ptr) ptr_size = value_ptr_target_x86_size(v);
 
-    if (vnt == dst) return 1;
-    else if (vnt == IREB && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
-    else if (vnt == IREW && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
-    else if (vnt == IREL && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
-    else if (vnt == IREQ && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
-    else if (vnt == UREB && v->type->type == TYPE_CHAR  &&  v->type->is_unsigned) return 1;
-    else if (vnt == UREW && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
-    else if (vnt == UREL && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
-    else if (vnt == UREQ && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
-    else if (vnt == MEMB && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
-    else if (vnt == MEMW && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
-    else if (vnt == MEML && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
-    else if (vnt == MEMQ && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
-    else if ((vnt == ADRB || vnt == MDRB) && is_ptr && ptr_size == 1            ) return 1;
-    else if ((vnt == ADRW || vnt == MDRW) && is_ptr && ptr_size == 2            ) return 1;
-    else if ((vnt == ADRL || vnt == MDRL) && is_ptr && ptr_size == 3            ) return 1;
-    else if ((vnt == ADRQ || vnt == MDRQ) && is_ptr && ptr_size == 4            ) return 1;
+    if (dst == vnt) return 1;
+    else if (dst >= AUTO_NON_TERMINAL_START) return 1;
+    else if (dst == IREB && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
+    else if (dst == IREW && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
+    else if (dst == IREL && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
+    else if (dst == IREQ && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if (dst == UREB && v->type->type == TYPE_CHAR  &&  v->type->is_unsigned) return 1;
+    else if (dst == UREW && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
+    else if (dst == UREL && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
+    else if (dst == UREQ && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
+    else if (dst == MEMB && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
+    else if (dst == MEMW && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
+    else if (dst == MEML && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
+    else if (dst == MEMQ && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if (dst == ADRB && is_ptr && ptr_size == 1)                              return 1;
+    else if (dst == ADRW && is_ptr && ptr_size == 2)                              return 1;
+    else if (dst == ADRL && is_ptr && ptr_size == 3)                              return 1;
+    else if (dst == ADRQ && is_ptr && ptr_size == 4)                              return 1;
     else return 0;
 }
 
@@ -512,8 +499,11 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == CST1) return 1;
     else if (nt == CST2) return 1;
     else if (nt == CST3) return 1;
+    else if (nt == CSTB) return 1;
+    else if (nt == CSTW) return 2;
+    else if (nt == CSTL) return 3;
+    else if (nt == CSTQ) return 4;
     else if (nt == ADRB || nt == ADRW || nt == ADRL || nt == ADRQ) return 4;
-    else if (nt == MDRB || nt == MDRW || nt == MDRL || nt == MDRQ) return 4;
     else if (nt == IREB || nt == UREB || nt == MEMB) return 1;
     else if (nt == IREW || nt == UREW || nt == MEMW) return 2;
     else if (nt == IREL || nt == UREL || nt == MEML) return 3;
