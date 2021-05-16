@@ -357,6 +357,14 @@ void test_sizeof_expr() {
     assert_int(8, sizeof(s1 + l2), "sizeof s+l");
     assert_int(4, sizeof(i1 + i2), "sizeof i+i");
     assert_int(8, sizeof(l1 + l2), "sizeof l+l");
+
+    assert_int(4, sizeof(c1 << c2), "sizeof c << c");
+    assert_int(4, sizeof(c1 << s1), "sizeof c << s");
+    assert_int(4, sizeof(c1 << i1), "sizeof c << i");
+    assert_int(4, sizeof(c1 << l1), "sizeof c << l");
+    assert_int(4, sizeof(s1 << c1), "sizeof s << c");
+    assert_int(4, sizeof(i1 << c1), "sizeof i << c");
+    assert_int(8, sizeof(l1 << c1), "sizeof l << c");
 }
 
 int main(int argc, char **argv) {

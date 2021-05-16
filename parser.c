@@ -457,6 +457,13 @@ static Value *add_type_change_move(Value *src, Type *type) {
     return dst;
 }
 
+static Value *integer_promote(Value *v) {
+    if (v->type->type >= TYPE_PTR) panic("Invalid operand, expected integer type");
+
+    if (v->type->type >= TYPE_INT && v->type->type <= TYPE_LONG) return v;
+    else return add_type_change_move(v, new_type(TYPE_INT));
+}
+
 static void arithmetic_operation(int operation, Type *type) {
     Type *common_type;
 
@@ -468,8 +475,8 @@ static void arithmetic_operation(int operation, Type *type) {
     common_type = vs_operation_type();
     if (!type) type = common_type;
 
-    if (vtop->is_constant) src2 = pop(); else src2 = pl();
-    if (vtop->is_constant) src1 = pop(); else src1 = pl();
+    src2 = pl();
+    src1 = pl();
 
     if (is_integer_type(common_type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
         if (!type_eq(common_type, src1->type) && src1->type->type <= type->type) src1 = add_type_change_move(src1, common_type);
@@ -825,8 +832,15 @@ static void expression(int level) {
             }
         }
 
-        else if (cur_token == TOK_BITWISE_LEFT)  parse_arithmetic_operation(TOK_PLUS,         IR_BSHL, 0);
-        else if (cur_token == TOK_BITWISE_RIGHT) parse_arithmetic_operation(TOK_PLUS,         IR_BSHR, 0);
+        else if (cur_token == TOK_BITWISE_LEFT || cur_token == TOK_BITWISE_RIGHT)  {
+            org_token = cur_token;
+            next();
+            src1 = integer_promote(pl());
+            expression(level);
+            src2 = integer_promote(pl());
+            add_ir_op(org_token == TOK_BITWISE_LEFT ? IR_BSHL : IR_BSHR, src1->type, new_vreg(), src1, src2);
+        }
+
         else if (cur_token == TOK_LT)            parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LT,   new_type(TYPE_INT));
         else if (cur_token == TOK_GT)            parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GT,   new_type(TYPE_INT));
         else if (cur_token == TOK_LE)            parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LE,   new_type(TYPE_INT));
