@@ -806,30 +806,27 @@ static void expression(int level) {
             factor = get_type_inc_dec_size(vtop->type);
             org_token = cur_token;
 
-            if (factor > 1) {
-                next();
-                expression(TOK_MULTIPLY);
-                is_pointer = vtop->type->type >= TYPE_PTR;
+            next();
+            expression(TOK_MULTIPLY);
+            is_pointer = vtop->type->type >= TYPE_PTR;
 
+            if (factor > 1) {
                 if (!is_pointer) {
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_MUL, new_type(TYPE_INT));
                 }
 
                 arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
-                if (org_token == TOK_MINUS && is_pointer) vtop->type = new_type(TYPE_LONG);
 
                 if (org_token == TOK_MINUS && is_pointer) {
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_DIV, new_type(TYPE_LONG));
-                    vtop->type = new_type(TYPE_LONG);
                 }
             }
-            else {
-                parse_arithmetic_operation(TOK_MULTIPLY, org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
-                is_pointer = vtop->type->type >= TYPE_PTR;
-                if (org_token == TOK_MINUS && is_pointer) vtop->type = new_type(TYPE_LONG);
-            }
+            else
+                arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
+
+            if (org_token == TOK_MINUS && is_pointer) vtop->type = new_type(TYPE_LONG);
         }
 
         else if (cur_token == TOK_BITWISE_LEFT || cur_token == TOK_BITWISE_RIGHT)  {
