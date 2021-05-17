@@ -817,6 +817,7 @@ static void expression(int level) {
                 }
 
                 arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
+                if (org_token == TOK_MINUS && is_pointer) vtop->type = new_type(TYPE_LONG);
 
                 if (org_token == TOK_MINUS && is_pointer) {
                     push_constant(TYPE_INT, factor);
