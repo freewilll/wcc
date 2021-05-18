@@ -315,7 +315,7 @@ static void add_function_param_moves_for_stack(Function *function) {
     for (i = 6; i < function->param_count; i++) {
         tac = new_instruction(IR_MOVE);
         tac->dst = new_value();
-        tac->dst->type = dup_type(function->param_types[i]);
+        tac->dst->type = dup_type(function->param_types[function->param_count - i + 5]);
         tac->dst->vreg = ++function->vreg_count;
         param_vregs[i - 6] = tac->dst->vreg;
 
