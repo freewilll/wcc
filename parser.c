@@ -813,7 +813,7 @@ static void expression(int level) {
             if (factor > 1) {
                 if (!is_pointer) {
                     push_constant(TYPE_INT, factor);
-                    arithmetic_operation(IR_MUL, new_type(TYPE_INT));
+                    arithmetic_operation(IR_MUL, 0);
                 }
 
                 arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
@@ -821,7 +821,7 @@ static void expression(int level) {
 
                 if (org_token == TOK_MINUS && is_pointer) {
                     push_constant(TYPE_INT, factor);
-                    arithmetic_operation(IR_DIV, new_type(TYPE_LONG));
+                    arithmetic_operation(IR_DIV, 0);
                 }
             }
             else

@@ -7,6 +7,26 @@ int verbose;
 int passes;
 int failures;
 
+void test_pointer_addition() {
+    int *pi1, *pi2;
+    int i;
+    char c;
+    short s;
+    long l;
+
+    c = 1;
+    s = 1;
+    i = 1;
+    l = 1;
+    pi1 = 0;
+    pi2 = 0;
+
+    assert_long(4, pi1 + c, "Pointer addition char");
+    assert_long(4, pi1 + s, "Pointer addition short");
+    assert_long(4, pi1 + i, "Pointer addition int");
+    assert_long(4, pi1 + l, "Pointer addition long");
+}
+
 void test_prefix_inc_dec() {
     int i;
     i = 0;
@@ -72,6 +92,7 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv, &verbose);
 
+    test_pointer_addition();
     test_prefix_inc_dec();
     test_postfix_inc_dec();
     test_inc_dec_sizes();
