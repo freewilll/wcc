@@ -432,7 +432,7 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .text\n");
     symbol = symbol_table;
     while (symbol->identifier) {
-        if (!symbol->scope && !symbol->is_function)
+        if (!symbol->scope && !symbol->is_function && !symbol->is_enum)
             fprintf(f, "    .comm   %s,%d,%d\n",
                 symbol->identifier,
                 get_type_size(symbol->type),
