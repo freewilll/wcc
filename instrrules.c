@@ -452,12 +452,12 @@ void init_instruction_selection_rules() {
     add_move_rules_ire_ire();
 
     // Register -> register sign extension for precision increases
-    r = add_rule(IREW, 0, IREB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbw %v1b, %vdw");
-    r = add_rule(IREL, 0, IREB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbl %v1b, %vdl");
-    r = add_rule(IREQ, 0, IREB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbq %v1b, %vdq");
-    r = add_rule(IREL, 0, IREW, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswl %v1w, %vdl");
-    r = add_rule(IREQ, 0, IREW, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswq %v1w, %vdq");
-    r = add_rule(IREQ, 0, IREL, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %vdq");
+    r = add_rule(IREW, 0, IREB, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbw %v1b, %vdw");
+    r = add_rule(IREL, 0, IREB, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbl %v1b, %vdl");
+    r = add_rule(IREQ, 0, IREB, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbq %v1b, %vdq");
+    r = add_rule(IREL, 0, IREW, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movswl %v1w, %vdl");
+    r = add_rule(IREQ, 0, IREW, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movswq %v1w, %vdq");
+    r = add_rule(IREQ, 0, IREL, 0, 1); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %vdq");
 
     // Memory -> register sign extension
     r = add_rule(IREW, 0, MEMB, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movsbw %v1b, %vdw");
