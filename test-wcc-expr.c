@@ -8,6 +8,11 @@ int failures;
 
 int gcvi, gcvj;
 
+char gc, *gpc;
+short gs, *gps;
+int gi, *gpi;
+long gl, *gpl;
+
 // Test 64 bit constants are assigned properly
 void test_long_constant() {
     long l;
@@ -257,6 +262,57 @@ void test_assign_operations() {
     assert_int(-8,  pl, "*long -= 2");
 }
 
+static void test_assign_to_globals() {
+    char c, *pc;
+    short s, *ps;
+    int i, *pi;
+    long l, *pl;
+
+    c = s = i = l = 1;
+
+    c++; gc = c; assert_long(gc, c, "gc = c");
+    c++; gs = c; assert_long(gs, c, "gs = c");
+    c++; gi = c; assert_long(gi, c, "gi = c");
+    c++; gl = c; assert_long(gl, c, "gl = c");
+
+    s++; gc = s; assert_long(gc, s, "gc = s");
+    s++; gs = s; assert_long(gs, s, "gs = s");
+    s++; gi = s; assert_long(gi, s, "gi = s");
+    s++; gl = s; assert_long(gl, s, "gl = s");
+
+    i++; gc = i; assert_long(gc, i, "gc = i");
+    i++; gs = i; assert_long(gs, i, "gs = i");
+    i++; gi = i; assert_long(gi, i, "gi = i");
+    i++; gl = i; assert_long(gl, i, "gl = i");
+
+    l++; gc = l; assert_long(gc, l, "gc = l");
+    l++; gs = l; assert_long(gs, l, "gs = l");
+    l++; gi = l; assert_long(gi, l, "gi = l");
+    l++; gl = l; assert_long(gl, l, "gl = l");
+
+    pc = ps = pi = pl = 1;
+
+    pc++; gpc = pc; assert_long(gpc, pc, "pgc = pc");
+    pc++; gps = pc; assert_long(gps, pc, "pgs = pc");
+    pc++; gpi = pc; assert_long(gpi, pc, "pgi = pc");
+    pc++; gpl = pc; assert_long(gpl, pc, "pgl = pc");
+
+    ps++; gpc = ps; assert_long(gpc, ps, "pgc = ps");
+    ps++; gps = ps; assert_long(gps, ps, "pgs = ps");
+    ps++; gpi = ps; assert_long(gpi, ps, "pgi = ps");
+    ps++; gpl = ps; assert_long(gpl, ps, "pgl = ps");
+
+    pi++; gpc = pi; assert_long(gpc, pi, "pgc = pi");
+    pi++; gps = pi; assert_long(gps, pi, "pgs = pi");
+    pi++; gpi = pi; assert_long(gpi, pi, "pgi = pi");
+    pi++; gpl = pi; assert_long(gpl, pi, "pgl = pi");
+
+    pl++; gpc = pl; assert_long(gpc, pl, "pgc = pl");
+    pl++; gps = pl; assert_long(gps, pl, "pgs = pl");
+    pl++; gpi = pl; assert_long(gpi, pl, "pgi = pl");
+    pl++; gpl = pl; assert_long(gpl, pl, "pgl = pl");
+}
+
 static void test_add_operation_sign() {
     int si1, si2;
     unsigned int ui1, ui2;
@@ -378,6 +434,7 @@ int main(int argc, char **argv) {
     test_global_comma_var_declarations();
     test_double_assign();
     test_assign_operations();
+    test_assign_to_globals();
     test_integer_sizes();
     test_add_operation_sign();
     test_logical_or_operation_sign();
