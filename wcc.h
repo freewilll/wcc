@@ -685,6 +685,8 @@ int instr_rule_count;
 int disable_merge_constants;
 Rule *instr_rules;
 Value **saved_values;
+char *rule_coverage_file;
+Set *rule_coverage;
 
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
@@ -693,6 +695,7 @@ void add_spill_code(Function *function);
 
 // instrutil.c
 char size_to_x86_size(int size);
+char *non_terminal_string(int nt);
 void print_rule(Rule *r, int print_operations, int indent);
 void print_rules();
 void make_value_x86_size(Value *v);
@@ -709,6 +712,7 @@ void add_save_value(Rule *r, int arg, int slot);
 void add_load_value(Rule *r, int arg, int slot);
 void fin_rule(Rule *r);
 void check_for_duplicate_rules();
+void write_rule_coverage_file();
 
 // instrules.c
 void init_instruction_selection_rules();

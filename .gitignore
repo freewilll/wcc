@@ -30,3 +30,8 @@ a.out
 test-include/test-include
 build
 gmon.out
+wcc-tests.rulecov
+instrsel-tests.rulecov
+wcc2.rulecov
+print-rule-coverage-report
+rulecov.html

@@ -249,6 +249,7 @@ void remove_reserved_physical_register_count_from_tac(Tac *ir) {
 void start_ir() {
     ir_start = 0;
     init_instruction_selection_rules();
+    rule_coverage_file = "instrsel-tests.rulecov";
 }
 
 void _finish_ir(Function *function, int stop_after_live_ranges, int stop_after_instruction_selection) {

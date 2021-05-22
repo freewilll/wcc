@@ -1173,6 +1173,7 @@ static Value *recursive_make_intermediate_representation(IGraph *igraph, int nod
 
     rule = &(instr_rules[cost_rules[least_expensive_choice_node_id]]);
     igraph_rules[igraph_node_id] = rule;
+    add_to_set(rule_coverage, rule->index);
 
     e = cost_graph->nodes[least_expensive_choice_node_id].succ;
     child_src = 1;

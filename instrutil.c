@@ -530,3 +530,14 @@ Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) 
     return tac;
 }
 
+void write_rule_coverage_file() {
+    void *f;
+    int i;
+
+    f = fopen(rule_coverage_file, "a");
+
+    for (i = 0; i <= rule_coverage->max_value; i++)
+        if (rule_coverage->elements[i] == 1) fprintf(f, "%d\n", i);
+
+    fclose(f);
+}

@@ -59,6 +59,7 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     analyze_dominance(function);
     coalesce_live_ranges(function, 0);
     remove_vreg_self_moves(function);
+    if (rule_coverage_file) write_rule_coverage_file();
 
     if (stop_at == COMPILE_STOP_AFTER_INSTRUCTION_SELECTION) return;
 

@@ -77,6 +77,10 @@ int main(int argc, char **argv) {
     linker_input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
     memset(linker_input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
 
+    init_callee_saved_registers();
+    init_allocate_registers();
+    init_instruction_selection_rules();
+
     argc--;
     argv++;
     while (argc > 0) {
@@ -114,7 +118,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-cost-graph"              )) { debug_instsel_cost_graph = 1;               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-spilling"                )) { debug_instsel_spilling = 1;                 argc--; argv++; }
 
-            else if (argc > 0 && !strcmp(argv[0], "-S"                                )) {
+            else if (argc > 0 && !strcmp(argv[0], "-S")) {
                 run_assembler = 0;
                 run_linker = 0;
                 target_is_assembly_file = 1;
@@ -129,6 +133,11 @@ int main(int argc, char **argv) {
             }
             else if (argc > 1 && !memcmp(argv[0], "-o", 2)) {
                 output_filename = argv[1];
+                argc -= 2;
+                argv += 2;
+            }
+            else if (argc > 1 && !strcmp(argv[0], "--rule-coverage-file")) {
+                rule_coverage_file = argv[1];
                 argc -= 2;
                 argv += 2;
             }
@@ -148,6 +157,7 @@ int main(int argc, char **argv) {
     if (help) {
         printf("Usage: wcc [-S -c -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
         printf("Flags\n");
+        printf("-h                                  Help\n");
         printf("-S                                  Compile only; do not assemble or link\n");
         printf("-c                                  Compile and assemble, but do not link\n");
         printf("-o <file>                           Output file. Use - for stdout. Defaults to the source file with extension .s\n");
@@ -159,7 +169,7 @@ int main(int argc, char **argv) {
         printf("--ir2                               Output intermediate representation after x86_64 rearrangements\n");
         printf("--print-rules                       Print instruction selection rules\n");
         printf("--print-precision-decrease-rules    Print instruction selection rules that decrease precision\n");
-        printf("-h                                  Help\n");
+        printf("--rule-coverage-file <file>         Append matched rules to file\n");
         printf("\n");
         printf("Optimization flags:\n");
         printf("-fno-coalesce-live-range            Disable SSA live range coalescing\n");
@@ -210,11 +220,6 @@ int main(int argc, char **argv) {
     get_debug_env_value("DEBUG_INSTSEL_TILING", &debug_instsel_tiling);
     get_debug_env_value("DEBUG_INSTSEL_COST_GRAPH", &debug_instsel_cost_graph);
     get_debug_env_value("DEBUG_INSTSEL_SPILLING", &debug_instsel_spilling);
-
-
-    init_callee_saved_registers();
-    init_allocate_registers();
-    init_instruction_selection_rules();
 
     if (print_instr_rules) {
         print_rules();

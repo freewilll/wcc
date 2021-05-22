@@ -44,7 +44,7 @@ WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
 WCC2_ASSEMBLIES := ${WCC2_SOURCES:.c=.s}
 
 build/wcc2/%.s: %.c wcc
-	./wcc ${WCC_OPTS} -c $< -S -o $@
+	./wcc ${WCC_OPTS} --rule-coverage-file wcc2.rulecov -c $< -S -o $@
 
 wcc2: ${WCC2_ASSEMBLIES}
 	gcc ${GCC_OPTS} ${WCC2_ASSEMBLIES} -o wcc2
@@ -85,7 +85,7 @@ test-wcc.s: test-main.c wcc
 	./wcc ${WCC_OPTS} -c -S test-main.c
 
 test-wcc-%.s: test-wcc-%.c wcc
-	./wcc ${WCC_OPTS} -c -S $<
+	./wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -S $<
 
 test-wcc-%-wcc: test-wcc-%.s stack-check.o test-lib.o
 	gcc ${GCC_OPTS} $< stack-check.o test-lib.o -o $@
@@ -178,14 +178,23 @@ test-graph: wcc test-graph.c graph.c set.c stack.c ir.c utils.c
 run-test-graph: test-graph
 	 ./test-graph
 
-test-parser-gcc: test-parser.c lexer.c parser.c types.c ir.c instrutil.c codegen.c utils.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-parser-gcc test-parser.c lexer.c parser.c types.c ir.c instrutil.c codegen.c utils.c
+test-parser-gcc: test-parser.c lexer.c parser.c types.c ir.c instrutil.c codegen.c utils.c set.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-parser-gcc test-parser.c lexer.c parser.c types.c ir.c instrutil.c codegen.c utils.c set.c
 
 run-test-parser-gcc: test-parser-gcc
 	 ./test-parser-gcc
 
 .PHONY: test
 test: run-test-wcc run-test-include run-test-set-gcc run-test-set run-test-ssa-gcc run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-parser-gcc run-test-graph run-test-wcc-gcc test-self-compilation test-self-compilation
+
+print-rule-coverage-report.s: wcc print-rule-coverage-report.c
+	./wcc ${WCC_OPTS} -c -S print-rule-coverage-report.c -c -S -o print-rule-coverage-report.s
+
+print-rule-coverage-report: print-rule-coverage-report.s
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o print-rule-coverage-report print-rule-coverage-report.s lexer.c parser.c types.c ir.c instrrules.c instrutil.c codegen.c utils.c set.c
+
+make-rule-coverage-report: print-rule-coverage-report
+	./print-rule-coverage-report
 
 clean:
 	@rm -f externals.c
@@ -212,3 +221,8 @@ clean:
 	@rm -f a.out
 	@rm -f test-include/test-include
 	@rm -Rf build
+	@rm -f wcc-tests.rulecov
+	@rm -f instrsel-tests.rulecov
+	@rm -f wcc2.rulecov
+	@rm -f print-rule-coverage-report
+	@rm -f rulecov.html

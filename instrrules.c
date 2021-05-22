@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "wcc.h"
 
@@ -438,6 +439,7 @@ void init_instruction_selection_rules() {
 
     instr_rule_count = 0;
     disable_merge_constants = 0;
+    rule_coverage_file = 0;
 
     instr_rules = malloc(MAX_RULE_COUNT * sizeof(Rule));
     memset(instr_rules, 0, MAX_RULE_COUNT * sizeof(Rule));
@@ -579,4 +581,6 @@ void init_instruction_selection_rules() {
     add_binary_shift_rules();
 
     check_for_duplicate_rules();
+
+    rule_coverage = new_set(instr_rule_count - 1);
 }
