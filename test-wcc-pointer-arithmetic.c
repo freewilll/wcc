@@ -62,6 +62,7 @@ void test_brutal_pointer_arithmetic() {
 void test_char_pointer_arithmetic() {
     char *pc;
     int *start;
+
     pc = malloc(4);
     start = pc;
     *pc++ = 'f';
@@ -98,6 +99,21 @@ void test_pointer_pointer_subtraction2() {
     int i;
 
     t(3, 1);
+}
+
+void test_pointer_int_subtraction() {
+    char c, *c1;
+    short s, *s1;
+    int i, *i1;
+    long l, *l1;
+
+    c1 = s1 =  i1 = l1 = 8;
+    c = s = i = l = 1;
+
+    assert_long(7, c1 - c, "pc - c"); assert_long(7, c1 - s, "pc - s"); assert_long(7, c1 - i, "pc - i"); assert_long(7, c1 - l, "pc - l");
+    assert_long(6, s1 - c, "ps - c"); assert_long(6, s1 - s, "ps - s"); assert_long(6, s1 - i, "ps - i"); assert_long(6, s1 - l, "ps - l");
+    assert_long(4, i1 - c, "pi - c"); assert_long(4, i1 - s, "pi - s"); assert_long(4, i1 - i, "pi - i"); assert_long(4, i1 - l, "pi - l");
+    assert_long(0, l1 - c, "pl - c"); assert_long(0, l1 - s, "pl - s"); assert_long(0, l1 - i, "pl - i"); assert_long(0, l1 - l, "pl - l");
 }
 
 void test_dereferenced_pointer_inc_dec() {
@@ -180,6 +196,7 @@ int main(int argc, char **argv) {
     test_char_pointer_arithmetic();
     test_pointer_pointer_subtraction1();
     test_pointer_pointer_subtraction2();
+    test_pointer_int_subtraction();
     test_dereferenced_pointer_inc_dec();
     test_pointer_with_non_constant_non_pointer_addition();
     test_pointer_arithmetic_addition();

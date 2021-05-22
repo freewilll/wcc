@@ -320,11 +320,12 @@ static void add_pointer_add_rules() {
         add_bi_directional_commutative_operation_rules(IR_ADD, X_MOV, X_ADD, ADR, i, ADR, 10, "movq %v1q, %vdq", "addq $%v1q, %v2q");
 }
 
-static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_template, char *sub_template) {
+static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_template, char *sign_extend_template, char *sub_template) {
     Rule *r;
 
     r = add_rule(dst, IR_SUB, src1, src2, cost);
     add_op(r, X_MOV, DST, SRC1, 0,   mov_template);
+    if (sign_extend_template) add_op(r, X_MOVS,        SRC2, SRC2, 0,   sign_extend_template);
     add_op(r, X_SUB, DST, SRC2, DST, sub_template);
     fin_rule(r);
 }
@@ -333,24 +334,28 @@ static void add_sub_rules() {
     int i, j;
 
     for (i = CSTB; i <= CSTQ; i++) {
-        add_sub_rule(IRE, i,   IRE, 11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
-        add_sub_rule(IRE, IRE, i,   11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
-        add_sub_rule(ADR, ADR, i,   10, "movq %v1q, %vdq", "subq $%v1q, %vdq");
-        add_sub_rule(IRE, i,   MEM, 11, "mov%s $%v1, %vd", "sub%s %v1, %vd");
-        add_sub_rule(IRE, MEM, i,   11, "mov%s %v1, %vd",  "sub%s $%v1, %vd");
+        add_sub_rule(IRE, i,   IRE, 10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
+        add_sub_rule(IRE, IRE, i,   10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
+        add_sub_rule(ADR, ADR, i,   10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
+        add_sub_rule(IRE, i,   MEM, 11, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
+        add_sub_rule(IRE, MEM, i,   11, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
     }
 
-    add_sub_rule(IRE, IRE,  IRE,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(IRE, IRE,  MEM,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(IRE, MEM,  IRE,  11, "mov%s %v1, %vd",  "sub%s %v1, %vd");
-    add_sub_rule(IRE, ADRB, IRE,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
-    add_sub_rule(IRE, ADRW, IRE,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
-    add_sub_rule(IRE, ADRL, IRE,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
-    add_sub_rule(IRE, ADRQ, IRE,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
+    add_sub_rule(IRE,  IRE,  IRE,  10, "mov%s %v1, %vd",  0, "sub%s %v1, %vd");
+    add_sub_rule(IRE,  IRE,  MEM,  11, "mov%s %v1, %vd",  0, "sub%s %v1, %vd");
+    add_sub_rule(IRE,  MEM,  IRE,  11, "mov%s %v1, %vd",  0, "sub%s %v1, %vd");
+
+    // Pointer - int subtraction
+    for (i = ADRB; i <= ADRQ; i++) {
+        add_sub_rule(i, i, IREB,  11, "movq %v1q, %vdq", "movsbq %v1b, %v1q", "subq %v1q, %vdq");
+        add_sub_rule(i, i, IREW,  11, "movq %v1q, %vdq", "movswq %v1w, %v1q", "subq %v1q, %vdq");
+        add_sub_rule(i, i, IREL,  11, "movq %v1q, %vdq", "movslq %v1l, %v1q", "subq %v1q, %vdq");
+        add_sub_rule(i, i, IREQ,  10, "movq %v1q, %vdq", 0,                   "subq %v1q, %vdq");
+    }
 
     for (i = ADRB; i <= ADRQ; i++)
         for (j = ADRB; j <= ADRQ; j++)
-            add_sub_rule(IREQ, i, j,  11, "movq %v1q, %vdq", "subq %v1q, %vdq");
+            add_sub_rule(IREQ, i, j,  10, "movq %v1q, %vdq", 0, "subq %v1q, %vdq");
 }
 
 static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *t4, char *tdiv, char *tmod) {
