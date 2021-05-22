@@ -282,15 +282,6 @@ static void add_bi_directional_commutative_operation_rules(int operation, int x8
                                                     fin_rule(r);
 }
 
-static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operation, char *sign_extend_template) {
-    Rule *r;
-
-    r = add_rule(dst, IR_ADD, dst, src, cost);
-    add_op(r, X_MOV,         DST,  SRC1, 0,   "movq %v1q, %vdq");
-    if (sign_extend_template) add_op(r, X_MOVS,        SRC2, SRC2, 0,   sign_extend_template);
-    add_op(r, x86_operation, DST,  SRC2, DST, "addq %v1q, %v2q");
-}
-
 static void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
     char *op_vv, *op_cv;
     int i;
@@ -304,17 +295,29 @@ static void add_commutative_operation_rules(char *x86_operand, int operation, in
         add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, i, IRE, MEM, cost + 1, "mov%s %v1, %vd", op_vv);
         add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, i, MEM, CST, cost + 1, "mov%s $%v1, %vd", op_vv);
     }
+}
 
-    if (operation == IR_ADD) {
-        for (i = ADRB; i <= ADRQ; i++)
-            // Integer promotions have already been done, so no rules are needed for IREB and IREL
-            add_pointer_plus_int_rule(i, IREL, cost, x86_operation, "movslq %v1l, %vdq");
+static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operation, char *sign_extend_template) {
+    Rule *r;
 
-        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, ADR, IREQ, ADR, cost, "movq %v1q, %vdq", "addq %v1q, %v2q");
+    r = add_rule(dst, IR_ADD, dst, src, cost);
+    add_op(r, X_MOV,         DST,  SRC1, 0,   "movq %v1q, %vdq");
+    if (sign_extend_template) add_op(r, X_MOVS,        SRC2, SRC2, 0,   sign_extend_template);
+    add_op(r, x86_operation, DST,  SRC2, DST, "addq %v1q, %v2q");
+}
 
-        for (i = CSTB; i <= CSTQ; i++)
-            add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, ADR, i, ADR, cost, "movq %v1q, %vdq", "addq $%v1q, %v2q");
+static void add_pointer_add_rules() {
+    int i;
+
+    for (i = ADRB; i <= ADRQ; i++) {
+        add_pointer_plus_int_rule(i, IREB, 11, X_ADD, "movsbq %v1b, %vdq");
+        add_pointer_plus_int_rule(i, IREW, 11, X_ADD, "movswq %v1w, %vdq");
+        add_pointer_plus_int_rule(i, IREL, 11, X_ADD, "movslq %v1l, %vdq");
+        add_pointer_plus_int_rule(i, IREQ, 10, X_ADD, 0);
     }
+
+    for (i = CSTB; i <= CSTQ; i++)
+        add_bi_directional_commutative_operation_rules(IR_ADD, X_MOV, X_ADD, ADR, i, ADR, 10, "movq %v1q, %vdq", "addq $%v1q, %v2q");
 }
 
 static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_template, char *sub_template) {
@@ -564,6 +567,7 @@ void init_instruction_selection_rules() {
     add_commutative_operation_rules("and%s",  IR_BAND, X_BAND, 3);
     add_commutative_operation_rules("xor%s",  IR_XOR,  X_XOR,  3);
 
+    add_pointer_add_rules();
     add_sub_rules();
     add_div_rules();
     add_bnot_rules();

@@ -501,7 +501,7 @@ static void expression(int level) {
     int factor;
     Type *type;
     int scope;
-    int function_call, arg_count, is_pointer;
+    int function_call, arg_count, src1_is_pointer, src2_is_pointer;
     Symbol *symbol;
     Struct *str;
     StructMember *member;
@@ -802,32 +802,62 @@ static void expression(int level) {
         else if (cur_token == TOK_DIVIDE)   parse_arithmetic_operation(TOK_INC, IR_DIV, 0);
         else if (cur_token == TOK_MOD)      parse_arithmetic_operation(TOK_INC, IR_MOD, 0);
 
-        else if (cur_token == TOK_PLUS || cur_token == TOK_MINUS) {
-            factor = get_type_inc_dec_size(vtop->type);
-            org_token = cur_token;
+        else if (cur_token == TOK_PLUS) {
+            src1_is_pointer = vtop->type->type >= TYPE_PTR;
 
             next();
             expression(TOK_MULTIPLY);
-            is_pointer = vtop->type->type >= TYPE_PTR;
+            src2_is_pointer = vtop->type->type >= TYPE_PTR;
+
+            if (src1_is_pointer && src2_is_pointer) panic("Cannot add two pointers");
+
+            // Swap the operands so that the pointer comes first, for convenience
+            if (!src1_is_pointer && src2_is_pointer) {
+                src1 = vs[0];
+                vs[0] = vs[1];
+                vs[1] = src1;
+
+                src1_is_pointer = 1;
+                src2_is_pointer = 0;
+            }
+
+            factor = get_type_inc_dec_size(vs[1]->type);
 
             if (factor > 1) {
-                if (!is_pointer) {
+                if (!src2_is_pointer) {
+                    push_constant(TYPE_INT, factor);
+                    arithmetic_operation(IR_MUL, 0);
+                }
+            }
+
+            arithmetic_operation(IR_ADD, 0);
+        }
+
+        else if (cur_token == TOK_MINUS) {
+            factor = get_type_inc_dec_size(vtop->type);
+
+            next();
+            expression(TOK_MULTIPLY);
+            src2_is_pointer = vtop->type->type >= TYPE_PTR;
+
+            if (factor > 1) {
+                if (!src2_is_pointer) {
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_MUL, 0);
                 }
 
-                arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
-                if (org_token == TOK_MINUS && is_pointer) vtop->type = new_type(TYPE_LONG);
+                arithmetic_operation(IR_SUB, 0);
 
-                if (org_token == TOK_MINUS && is_pointer) {
+                if (src2_is_pointer) {
+                    vtop->type = new_type(TYPE_LONG);
                     push_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_DIV, 0);
                 }
             }
             else
-                arithmetic_operation(org_token == TOK_PLUS ? IR_ADD : IR_SUB, 0);
+                arithmetic_operation(IR_SUB, 0);
 
-            if (org_token == TOK_MINUS && is_pointer) vtop->type = new_type(TYPE_LONG);
+            if (src2_is_pointer) vtop->type = new_type(TYPE_LONG);
         }
 
         else if (cur_token == TOK_BITWISE_LEFT || cur_token == TOK_BITWISE_RIGHT)  {

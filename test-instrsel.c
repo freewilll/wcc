@@ -1029,23 +1029,33 @@ void test_pointer_inc() {
 void test_pointer_add() {
     remove_reserved_physical_registers = 1;
 
-    // a3 = a1 + a2
+    // a3 = a1 + v2
     si(function, 0, IR_ADD, a(3), a(1), v(2));
     assert_x86_op("movq    r1q, r3q");
     assert_x86_op("addq    r2q, r3q");
 
-    // a3 = a1 + a2
-    si(function, 0, IR_ADD, a(3), a(1), v(2));
+    si(function, 0, IR_ADD, a(3), a(1), vsz(2, TYPE_CHAR));
     assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("movsbq  r2b, r2q");
     assert_x86_op("addq    r2q, r3q");
 
-    // a2 = c1 + a1
-    si(function, 0, IR_ADD, a(2), c(1), a(1));
-    assert_x86_op("movq    r1q, r2q");
-    assert_x86_op("addq    $1, r2q");
+    si(function, 0, IR_ADD, a(3), a(1), vsz(2, TYPE_SHORT));
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("movswq  r2w, r2q");
+    assert_x86_op("addq    r2q, r3q");
+
+    si(function, 0, IR_ADD, a(3), a(1), vsz(2, TYPE_INT));
+    assert_x86_op("movq    r1q, r3q");
+    assert_x86_op("movslq  r2l, r2q");
+    assert_x86_op("addq    r2q, r3q");
+
+    // // a2 = c1 + a1
+    // si(function, 0, IR_ADD, a(2), c(1), a(1));
+    // assert_x86_op("movq    r1q, r2q");
+    // assert_x86_op("addq    $1, r2q");
 
     // a2 = a1 + c1
-    si(function, 0, IR_ADD, a(2), c(1), a(1));
+    si(function, 0, IR_ADD, a(2), a(1), c(1));
     assert_x86_op("movq    r1q, r2q");
     assert_x86_op("addq    $1, r2q");
 
