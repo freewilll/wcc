@@ -1122,7 +1122,7 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
             saved_values[x86op->save_value_in_slot] = slot_value;
             if (debug_instsel_tiling) {
                 printf("  saved arg %d ", x86op->arg);
-                print_value(stdout, slot_value, 0);
+                if (slot_value->type) print_value(stdout, slot_value, 0);
                 printf("to slot %d\n", x86op->save_value_in_slot);
             }
         }
@@ -1141,7 +1141,7 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
 
             if (debug_instsel_tiling) {
                 printf("  loaded arg %d ", x86op->arg);
-                print_value(stdout, slot_value, 0);
+                if (slot_value->type) print_value(stdout, slot_value, 0);
                 printf("from slot %d\n", x86op->load_value_from_slot);
             }
         }
