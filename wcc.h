@@ -584,14 +584,14 @@ enum {
     STL = 1,                     // String literal
     LAB,                         // Label, i.e. a target for a (conditional) jump
     FUN,                         // Function, used for calls
-    CST1,                        // Constant with value 1
-    CST2,                        // Constant with value 2
-    CST3,                        // Constant with value 3
-    CST, CSTB, CSTW, CSTL, CSTQ, // Constants
-    IRE, IREB, IREW, IREL, IREQ, // Signed registers
-    URE, UREB, UREW, UREL, UREQ, // Unsigned registers
-    MEM, MEMB, MEMW, MEML, MEMQ, // Memory, in stack or globals
-    ADR, ADRB, ADRW, ADRL, ADRQ, // Address (aka pointer) in a register
+    CSTV1,                       // Constant with value 1
+    CSTV2,                       // Constant with value 2
+    CSTV3,                       // Constant with value 3
+    CI, CI1, CI2, CI3, CI4,      // Constants
+    RI, RI1, RI2, RI3, RI4,      // Signed registers
+    RU, RU1, RU2, RU3, RU4,      // Unsigned registers
+    MI, MI1, MI2, MI3, MI4,      // Memory, in stack or globals
+    RP, RP1, RP2, RP3, RP4,      // Address (aka pointer) in a register
 
     // Operands
     DST,

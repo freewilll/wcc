@@ -32,7 +32,7 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
 }
 
 static int transform_rule_value(int v, int i) {
-    if (v == CST || v == IRE || v == URE || v == MEM || v == ADR)
+    if (v == CI || v == RI || v == RU || v == MI || v == RP)
         return v + i;
     else
         return v;
@@ -119,12 +119,12 @@ static char *add_size_to_template(char *template, int size) {
     return result;
 }
 
-// Expand all uses of IRE, MEM, ADR, CST into IREB, IREW, ... ADRB, ADRW, ... etc
-// e.g. IRE, IREQ, CST is transformed into
-// IREB, IREQ, CSTB
-// IREW, IREQ, CSTW
-// IREL, IREQ, CSTL
-// IREQ, IREQ, CSTQ
+// Expand all uses of RI, MI, RP, CI into RI1, RI2, ... RP1, RP2, ... etc
+// e.g. RI, RI4, CI is transformed into
+// RI1, RI4, CI1
+// RI2, RI4, CI2
+// RI3, RI4, CI3
+// RI4, RI4, CI4
 void fin_rule(Rule *r) {
 
     int operation, dst, src1, src2, cost, i;
@@ -140,11 +140,11 @@ void fin_rule(Rule *r) {
 
     // Only deal with outputs that go into registers, memory or address in register
     if (!(
-            dst == CST || src1 == CST || src2 == CST ||
-            dst == IRE || src1 == IRE || src2 == IRE ||
-            dst == URE || src1 == URE || src2 == URE ||
-            dst == MEM || src1 == MEM || src2 == MEM ||
-            dst == ADR || src1 == ADR || src2 == ADR)) {
+            dst == CI || src1 == CI || src2 == CI ||
+            dst == RI || src1 == RI || src2 == RI ||
+            dst == RU || src1 == RU || src2 == RU ||
+            dst == MI || src1 == MI || src2 == MI ||
+            dst == RP || src1 == RP || src2 == RP)) {
         return;
     }
 
@@ -291,36 +291,36 @@ char *non_terminal_string(int nt) {
 
     buf = malloc(6);
 
-         if (!nt)        return "     ";
-    else if (nt == CST)  return "cst  ";
-    else if (nt == STL)  return "stl  ";
-    else if (nt == LAB)  return "lab  ";
-    else if (nt == FUN)  return "fun  ";
-    else if (nt == CST1) return "cst:1";
-    else if (nt == CST2) return "cst:2";
-    else if (nt == CST3) return "cst:3";
-    else if (nt == CSTB) return "cst:b";
-    else if (nt == CSTW) return "cst:w";
-    else if (nt == CSTL) return "cst:l";
-    else if (nt == CSTQ) return "cst:q";
-    else if (nt == IRE)  return "ire  ";
-    else if (nt == IREB) return "ire:b";
-    else if (nt == IREW) return "ire:w";
-    else if (nt == IREL) return "ire:l";
-    else if (nt == IREQ) return "ire:q";
-    else if (nt == URE)  return "ure  ";
-    else if (nt == UREB) return "ure:b";
-    else if (nt == UREW) return "ure:w";
-    else if (nt == UREL) return "ure:l";
-    else if (nt == UREQ) return "ure:q";
-    else if (nt == MEMB) return "mem:b";
-    else if (nt == MEMW) return "mem:w";
-    else if (nt == MEML) return "mem:l";
-    else if (nt == MEMQ) return "mem:q";
-    else if (nt == ADRB) return "adr:b";
-    else if (nt == ADRW) return "adr:w";
-    else if (nt == ADRL) return "adr:l";
-    else if (nt == ADRQ) return "adr:q";
+         if (!nt)         return "";
+    else if (nt == CI)    return "ci";
+    else if (nt == STL)   return "stl";
+    else if (nt == LAB)   return "lab";
+    else if (nt == FUN)   return "fun";
+    else if (nt == CSTV1) return "cstv1";
+    else if (nt == CSTV2) return "cstv2";
+    else if (nt == CSTV3) return "cstv3";
+    else if (nt == CI1)   return "ci1";
+    else if (nt == CI2)   return "ci2";
+    else if (nt == CI3)   return "ci3";
+    else if (nt == CI4)   return "ci4";
+    else if (nt == RI)    return "ri";
+    else if (nt == RI1)   return "ri1";
+    else if (nt == RI2)   return "ri2";
+    else if (nt == RI3)   return "ri3";
+    else if (nt == RI4)   return "ri4";
+    else if (nt == RU)    return "ru";
+    else if (nt == RU1)   return "ru1";
+    else if (nt == RU2)   return "ru2";
+    else if (nt == RU3)   return "ru3";
+    else if (nt == RU4)   return "ru4";
+    else if (nt == MI1)   return "mi1";
+    else if (nt == MI2)   return "mi2";
+    else if (nt == MI3)   return "mi3";
+    else if (nt == MI4)   return "mi4";
+    else if (nt == RP1)   return "rp1";
+    else if (nt == RP2)   return "rp2";
+    else if (nt == RP3)   return "rp3";
+    else if (nt == RP4)   return "rp4";
     else {
         asprintf(&buf, "nt%03d", nt);
         return buf;
@@ -412,12 +412,12 @@ static int non_terminal_for_value(Value *v) {
          if (v->is_string_literal)                  result =  STL;
     else if (v->label)                              result =  LAB;
     else if (v->function_symbol)                    result =  FUN;
-    else if (v->type->type >= TYPE_PTR && !v->vreg) result =  MEMQ;
-    else if (v->type->type >= TYPE_PTR)             result =  ADR + value_ptr_target_x86_size(v);
-    else if (v->is_lvalue_in_register)              result =  ADR + v->x86_size;
-    else if (v->global_symbol || v->stack_index)    result =  MEM + v->x86_size;
-    else if (v->vreg && v->type->is_unsigned)       result =  URE + v->x86_size;
-    else if (v->vreg)                               result =  IRE + v->x86_size;
+    else if (v->type->type >= TYPE_PTR && !v->vreg) result =  MI4;
+    else if (v->type->type >= TYPE_PTR)             result =  RP + value_ptr_target_x86_size(v);
+    else if (v->is_lvalue_in_register)              result =  RP + v->x86_size;
+    else if (v->global_symbol || v->stack_index)    result =  MI + v->x86_size;
+    else if (v->vreg && v->type->is_unsigned)       result =  RU + v->x86_size;
+    else if (v->vreg)                               result =  RI + v->x86_size;
     else {
         print_value(stdout, v, 0);
         panic("Bad value in non_terminal_for_value()");
@@ -432,13 +432,13 @@ static int non_terminal_for_value(Value *v) {
 // There are a couple of possible matches for a constant.
 int match_value_to_rule_src(Value *v, int src) {
     if (v->is_constant) {
-             if (src == CST1 && v->value == 1) return 1;
-        else if (src == CST2 && v->value == 2) return 1;
-        else if (src == CST3 && v->value == 3) return 1;
-        else if (src >= CSTB && src <= CSTQ && v->value >= -128 && v->value <= 127) return 1;
-        else if (src >= CSTW && src <= CSTQ && v->value >= -32768 && v->value <= 32767) return 1;
-        else if (src >= CSTL && src <= CSTQ && v->value >= -2147483648 && v->value <= 2147483647) return 1;
-        else if (src == CSTQ) return 1;
+             if (src == CSTV1 && v->value == 1) return 1;
+        else if (src == CSTV2 && v->value == 2) return 1;
+        else if (src == CSTV3 && v->value == 3) return 1;
+        else if (src >= CI1 && src <= CI4 && v->value >= -128 && v->value <= 127) return 1;
+        else if (src >= CI2 && src <= CI4 && v->value >= -32768 && v->value <= 32767) return 1;
+        else if (src >= CI3 && src <= CI4 && v->value >= -2147483648 && v->value <= 2147483647) return 1;
+        else if (src == CI4) return 1;
         else return 0;
     }
     else
@@ -462,22 +462,22 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
 
     if (dst == vnt) return 1;
     else if (dst >= AUTO_NON_TERMINAL_START) return 1;
-    else if (dst == IREB && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
-    else if (dst == IREW && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
-    else if (dst == IREL && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
-    else if (dst == IREQ && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
-    else if (dst == UREB && v->type->type == TYPE_CHAR  &&  v->type->is_unsigned) return 1;
-    else if (dst == UREW && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
-    else if (dst == UREL && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
-    else if (dst == UREQ && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
-    else if (dst == MEMB && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
-    else if (dst == MEMW && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
-    else if (dst == MEML && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
-    else if (dst == MEMQ && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
-    else if (dst == ADRB && is_ptr && ptr_size == 1)                              return 1;
-    else if (dst == ADRW && is_ptr && ptr_size == 2)                              return 1;
-    else if (dst == ADRL && is_ptr && ptr_size == 3)                              return 1;
-    else if (dst == ADRQ && is_ptr && ptr_size == 4)                              return 1;
+    else if (dst == RI1 && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
+    else if (dst == RI2 && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
+    else if (dst == RI3 && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
+    else if (dst == RI4 && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if (dst == RU1 && v->type->type == TYPE_CHAR  &&  v->type->is_unsigned) return 1;
+    else if (dst == RU2 && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
+    else if (dst == RU3 && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
+    else if (dst == RU4 && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
+    else if (dst == MI1 && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
+    else if (dst == MI2 && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
+    else if (dst == MI3 && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
+    else if (dst == MI4 && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if (dst == RP1 && is_ptr && ptr_size == 1)                              return 1;
+    else if (dst == RP2 && is_ptr && ptr_size == 2)                              return 1;
+    else if (dst == RP3 && is_ptr && ptr_size == 3)                              return 1;
+    else if (dst == RP4 && is_ptr && ptr_size == 4)                              return 1;
     else return 0;
 }
 
@@ -495,19 +495,19 @@ static int value_ptr_target_x86_size(Value *v) {
 int make_x86_size_from_non_terminal(int nt) {
     // Returns the width in bytes for a non terminal
 
-         if (nt == CST)  return 4;
-    else if (nt == CST1) return 1;
-    else if (nt == CST2) return 1;
-    else if (nt == CST3) return 1;
-    else if (nt == CSTB) return 1;
-    else if (nt == CSTW) return 2;
-    else if (nt == CSTL) return 3;
-    else if (nt == CSTQ) return 4;
-    else if (nt == ADRB || nt == ADRW || nt == ADRL || nt == ADRQ) return 4;
-    else if (nt == IREB || nt == UREB || nt == MEMB) return 1;
-    else if (nt == IREW || nt == UREW || nt == MEMW) return 2;
-    else if (nt == IREL || nt == UREL || nt == MEML) return 3;
-    else if (nt == IREQ || nt == UREQ || nt == MEMQ) return 4;
+         if (nt == CI)    return 4;
+    else if (nt == CSTV1) return 1;
+    else if (nt == CSTV2) return 1;
+    else if (nt == CSTV3) return 1;
+    else if (nt == CI1)   return 1;
+    else if (nt == CI2)   return 2;
+    else if (nt == CI3)   return 3;
+    else if (nt == CI4)   return 4;
+    else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4) return 4;
+    else if (nt == RI1 || nt == RU1 || nt == MI1) return 1;
+    else if (nt == RI2 || nt == RU2 || nt == MI2) return 2;
+    else if (nt == RI3 || nt == RU3 || nt == MI3) return 3;
+    else if (nt == RI4 || nt == RU4 || nt == MI4) return 4;
     else if (nt == LAB) return -1;
     else if (nt == FUN) return -1;
     else if (nt == STL) return 4;
