@@ -197,6 +197,7 @@ void test_expr() {
     assert_long(                  32, 1 + 1 << 4,        "1 + 1 << 4"  ); // + binds more strongly than <<
     assert_long(                   2, 1 + 16 >> 3,       "1 + 16 >> 3" ); // + binds more strongly than >>
     assert_long(                   0, 0x0,               "0x0"         );
+    assert_long(                   0, 0X0,               "0X0"         ); // Capital x
     assert_long(                   1, 0x1,               "0x1"         );
     assert_long(                   9, 0x9,               "0x9"         );
     assert_long(                  10, 0xa,               "0xa"         );
@@ -204,6 +205,7 @@ void test_expr() {
     assert_long(                  16, 0x10,              "0x10"        );
     assert_long(                  64, 0x40,              "0x40"        );
     assert_long(                 255, 0xff,              "0xff"        );
+    assert_long(                 256, 0x100,             "0x100"       );
     assert_long(                 256, 0x100,             "0x100"       );
 }
 

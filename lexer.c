@@ -142,7 +142,7 @@ void next() {
         }
 
         // Hex numeric literal
-        else if (c1 == '0' && input_size - ip >= 2 && i[ip+1] == 'x') {
+        else if (c1 == '0' && input_size - ip >= 2 && (i[ip+1] == 'x' || i[ip+1] == 'X')) {
             ip += 2;
             cur_token = TOK_NUMBER;
             cur_long = 0;
