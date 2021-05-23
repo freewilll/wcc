@@ -477,8 +477,8 @@ void init_instruction_selection_rules() {
     r = add_rule(RI4, 0, MI2, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movswq %v1w, %vdq");
     r = add_rule(RI4, 0, MI3, 0, 2); add_op(r, X_MOVS, DST, SRC1, 0 , "movslq %v1l, %vdq");
 
-    r = add_rule(MI, IR_MOVE, CI4, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r); // Store constant in memory
-    r = add_rule(RI, IR_MOVE, CI4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
+    r = add_rule(MI, IR_MOVE, CI4, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r);
+    r = add_rule(RI, IR_MOVE, CI4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
     r = add_rule(RP, IR_MOVE, CI4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
 
     add_move_rules_ire_mem();

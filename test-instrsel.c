@@ -248,28 +248,28 @@ void test_instrsel_constant_loading() {
 
     // IR_MOVE
     // with a 32 bit int
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movq    $1, r1q");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movq    $1, r1q");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movq    $1, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movb    $1, r1b");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movw    $1, r1w");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movl    $1, r1l");
     test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
 
     // with a 64 bit long. The first 3 are overflows, so a programmer error.
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(l), "movq    $4294967296, r1q");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(l), "movq    $4294967296, r1q");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(l), "movq    $4294967296, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(l), "movb    $4294967296, r1b");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(l), "movw    $4294967296, r1w");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(l), "movl    $4294967296, r1l");
     test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(l), "movq    $4294967296, r1q");
 
     // IR_MOVE
     // with a 32 bit int
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movq    $1, r1q");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movq    $1, r1q");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movq    $1, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movb    $1, r1b");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movw    $1, r1w");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movl    $1, r1l");
     test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
 
     // with a 64 bit long. The first 3 are overflows, so a programmer error.
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(l), "movq    $4294967296, r1q");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(l), "movq    $4294967296, r1q");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(l), "movq    $4294967296, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(l), "movb    $4294967296, r1b");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(l), "movw    $4294967296, r1w");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(l), "movl    $4294967296, r1l");
     test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(l), "movq    $4294967296, r1q");
 }
 
