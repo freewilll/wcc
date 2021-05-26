@@ -95,6 +95,7 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
         else if (operation == IR_END_CALL)             c += printf("end call");
         else if (operation == IR_ARG)                  c += printf("arg");
         else if (operation == IR_CALL)                 c += printf("call");
+        else if (operation == IR_CALL_ARG_REG)         c += printf("call arg reg");
         else if (operation == IR_START_LOOP)           c += printf("start loop");
         else if (operation == IR_END_LOOP)             c += printf("end loop");
         else if (operation == IR_JZ)                   c += printf("jz");
@@ -399,8 +400,11 @@ static void make_igraphs(Function *function, int block_id) {
         // If dst is only used once and it's not in liveout, merge it.
         // Also, don't merge IR_CALLs. The IR_START_CALL and IR_END_CALL constraints don't permit
         // rearranging function calls without dire dowmstream side effects.
+        // IR_CALL_ARG_REG is also off limits, since it's a placeholder for function
+        // arg registers and no code is actually emitted.
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
             tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_PTR &&
+            igraphs[g1_igraph_id].nodes[0].tac->operation != IR_CALL_ARG_REG &&
             igraphs_are_neighbors(igraphs, i, g1_igraph_id)
             ) {
 
@@ -1246,7 +1250,8 @@ static void tile_igraphs(Function *function) {
              tac->operation == IR_START_CALL ||
              tac->operation == IR_END_CALL ||
              tac->operation == IR_START_LOOP ||
-             tac->operation == IR_END_LOOP)) {
+             tac->operation == IR_END_LOOP ||
+             tac->operation == IR_CALL_ARG_REG)) {
 
             add_tac_to_ir(tac);
             continue;

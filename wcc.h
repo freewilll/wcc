@@ -294,6 +294,7 @@ enum {
     IR_INDIRECT,              // Pointer or lvalue dereference
     IR_START_CALL,            // Function call
     IR_ARG,                   // Function call argument
+    IR_CALL_ARG_REG,          // Placeholder for fake read of a register used in function calls
     IR_CALL,                  // Start of function call
     IR_END_CALL,              // End of function call
     IR_RETURN,                // Return in function

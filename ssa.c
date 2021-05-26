@@ -165,6 +165,8 @@ void add_function_call_arg_moves(Function *function) {
     Tac *ir, *tac;
     Function *called_function;
     Value **arg_values, **call_arg;
+    int *function_call_arg_registers;
+    Type **function_call_arg_types;
 
     function_call_count = make_function_call_count(function);
 
@@ -186,6 +188,9 @@ void add_function_call_arg_moves(Function *function) {
         if (ir->operation == IR_CALL) {
             call_arg = &(arg_values[ir->src1->value * 6]);
             called_function = ir->src1->function_symbol->function;
+            function_call_arg_registers = malloc(sizeof(int) * 6);
+            memset(function_call_arg_registers, 0, sizeof(int) * 6);
+            function_call_arg_types =  malloc(sizeof(Type *) * 6);
 
             // Add the moves backwards so that arg 0 (rsi) is last.
             i = 0;
@@ -215,8 +220,30 @@ void add_function_call_arg_moves(Function *function) {
                 tac->dst->is_function_call_arg = 1;
                 tac->dst->function_call_arg_index = i;
                 insert_instruction(ir, tac, 1);
+
+                function_call_arg_registers[i] = tac->dst->vreg;
+                function_call_arg_types[i] = tac->src1->type;
+
                 call_arg--;
             }
+
+            // Add IR_CALL_ARG_REG instructions that don't do anything, but ensure
+            // that the interference graph and register selection code create
+            // a live range for the interval between the function register assignment and
+            // the function call. Without this, there is a chance that function call
+            // registers are used as temporaries during the code instructions
+            // emitted above.
+            for (i = 0; i < 6; i++) {
+                if (function_call_arg_registers[i]) {
+                    tac = new_instruction(IR_CALL_ARG_REG);
+                    tac->src1 = new_value();
+                    tac->src1->type = function_call_arg_types[i];
+                    tac->src1->vreg = function_call_arg_registers[i];
+                    insert_instruction(ir, tac, 1);
+                }
+            }
+
+            free(function_call_arg_registers);
         }
 
         ir = ir->next;

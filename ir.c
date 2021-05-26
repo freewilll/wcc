@@ -209,6 +209,7 @@ char *operation_string(int operation) {
     else if (operation == IR_START_CALL)            return "IR_START_CALL";
     else if (operation == IR_ARG)                   return "IR_ARG";
     else if (operation == IR_CALL)                  return "IR_CALL";
+    else if (operation == IR_CALL_ARG_REG)          return "IR_CALL_ARG_REG";
     else if (operation == IR_END_CALL)              return "IR_END_CALL";
     else if (operation == IR_RETURN)                return "IR_RETURN";
     else if (operation == IR_START_LOOP)            return "IR_START_LOOP";
@@ -371,7 +372,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
     else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
     else if (o == X_RET)            { fprintf(f, "ret "   ); if (tac->src1) print_value(f, tac->src1, 1); }
-    else if (o == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); }
+    else if (o == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); if (tac->dst) { printf(" -> "); print_value(f, tac->dst, 1); } }
+    else if (o == IR_CALL_ARG_REG)  { fprintf(f, "call reg arg "); print_value(f, tac->src1, 1); }
     else if (o == X_LEA)            { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
 
     else if (o == X_MOV)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
