@@ -28,6 +28,40 @@ void init_lexer(char *filename) {
     next();
 }
 
+// Lex U, L, LL integer constant suffixes and determine type
+// See http://port70.net/~nsz/c/c99/n1256.html#6.4.4.1p5
+static void finish_integer_constant(int is_decimal) {
+    char *i;
+    int may_not_be_unsigned, is_unsigned, is_long;
+
+    i = input;
+    may_not_be_unsigned = 0;
+    is_unsigned = 0;
+    is_long = 0;
+
+    while (1) {
+        if (ip < input_size && (i[ip] == 'U' || i[ip] == 'u')) { is_unsigned = 1; ip++; }
+        else if (ip < input_size && (i[ip] == 'L' || i[ip] == 'l')) { is_long = 1; ip++; }
+        else break;
+    }
+
+    may_not_be_unsigned = is_decimal && !is_unsigned;
+
+    if (!is_unsigned && !is_long && cur_long >= 0 && cur_long < 0x80000000); // int
+    else if (!may_not_be_unsigned && !is_long && cur_long >= 0 && cur_long <= 0xffffffff) is_unsigned = 1; // unsigned int
+    else if (!is_unsigned && cur_long >= 0) is_long = 1; // long int
+    else {
+        // unsigned long
+        if (warn_integer_constant_too_large && may_not_be_unsigned && cur_long < 0)
+            printf("Warning: Integer literal doesn't fit in a signed long %lu\n", cur_long);
+        is_unsigned = 1;
+        is_long = 1;
+    }
+
+    cur_lexer_type = new_type(is_long ? TYPE_LONG : TYPE_INT);
+    cur_lexer_type->is_unsigned = is_unsigned;
+}
+
 // Lexer. Lex a next token or TOK_EOF if the file is ended
 void next() {
     char *i;        // Assigned to input for brevity
@@ -136,7 +170,7 @@ void next() {
             for (j = 0; j < all_typedefs_count; j++) {
                 if (!strcmp(all_typedefs[j]->identifier, cur_identifier)) {
                     cur_token = TOK_TYPEDEF_TYPE;
-                    cur_type = dup_type(all_typedefs[j]->struct_type);
+                    cur_lexer_type = dup_type(all_typedefs[j]->struct_type);
                 }
             }
         }
@@ -146,17 +180,33 @@ void next() {
             ip += 2;
             cur_token = TOK_NUMBER;
             cur_long = 0;
-            while (((i[ip] >= '0' && i[ip] <= '9')  || (i[ip] >= 'a' && i[ip] <= 'f')) && ip < input_size) {
-                cur_long = cur_long * 16 + (i[ip] >= 'a' ? i[ip] - 'a' + 10 : i[ip] - '0');
+            while (((i[ip] >= '0' && i[ip] <= '9')  || (i[ip] >= 'A' && i[ip] <= 'F') || (i[ip] >= 'a' && i[ip] <= 'f')) && ip < input_size) {
+                cur_long = cur_long * 16 + (
+                    i[ip] >= 'a'
+                    ? i[ip] - 'a' + 10
+                    : i[ip] >= 'A'
+                        ? i[ip] - 'A' + 10
+                        : i[ip] - '0');
                 ip++;
             }
+            finish_integer_constant(0);
+        }
+
+        // Octal numeric literal
+        else if (c1 == '0' && input_size - ip >= 2 && (i[ip+1] >= '1' || i[ip+1] <= '9')) {
+            ip ++;
+            cur_token = TOK_NUMBER;
+            cur_long = 0;
+            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { cur_long = cur_long * 8 + (i[ip] - '0'); ip++; }
+            finish_integer_constant(0);
         }
 
         // Decimal numeric literal
-        else if ((c1 >= '0' && c1 <= '9')) {
+        else if ((c1 >= '1' && c1 <= '9')) {
             cur_token = TOK_NUMBER;
             cur_long = 0;
             while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { cur_long = cur_long * 10 + (i[ip] - '0'); ip++; }
+            finish_integer_constant(1);
         }
 
         // Ignore CPP directives

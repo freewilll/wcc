@@ -17,8 +17,8 @@ long gl, *gpl;
 void test_long_constant() {
     long l;
 
-    l = 0x1000000001010101;
-    assert_int(1, l && 0x1000000000000000, "64 bit constants");
+    l = 0x1000000001010101ul;
+    assert_int(1, l && 0x1000000000000000ul, "64 bit constants");
 }
 
 void test_expr() {
@@ -383,6 +383,7 @@ void test_integer_sizes() {
     assert_int(1, sizeof(signed char),         "sizeof signed char");          assert_int(1, sizeof(unsigned char),         "sizeof unsigned char");
     assert_int(2, sizeof(signed short),        "sizeof signed short");         assert_int(2, sizeof(unsigned short),        "sizeof unsigned short");
     assert_int(2, sizeof(signed short int),    "sizeof signed short int");     assert_int(2, sizeof(unsigned short int),    "sizeof unsigned short int");
+    assert_int(4, sizeof(signed),              "sizeof signed");               assert_int(4, sizeof(unsigned),              "sizeof unsigned");
     assert_int(4, sizeof(signed int),          "sizeof signed int");           assert_int(4, sizeof(unsigned int),          "sizeof unsigned int");
     assert_int(8, sizeof(signed long),         "sizeof signed long");          assert_int(8, sizeof(unsigned long),         "sizeof unsigned long");
     assert_int(8, sizeof(signed long int),     "sizeof signed long int");      assert_int(8, sizeof(unsigned long int),     "sizeof unsigned long int");
@@ -424,6 +425,64 @@ void test_sizeof_expr() {
     assert_int(8, sizeof(l1 << c1), "sizeof l << c");
 }
 
+void test_conditional_jumps() {
+    int i1, i2;
+    unsigned int ui1, ui2;
+    int r;
+
+    // signed
+    i1 = 1; i2 = 1; if (i1 == i2) r = 1; else r = 0; assert_int(1, r, "i1 == i2");
+    i1 = 1; i2 = 2; if (i1 == i2) r = 1; else r = 0; assert_int(0, r, "i1 == i2");
+    i1 = 1; i2 = 1; if (i1 != i2) r = 1; else r = 0; assert_int(0, r, "i1 != i2");
+    i1 = 1; i2 = 2; if (i1 != i2) r = 1; else r = 0; assert_int(1, r, "i1 != i2");
+
+    i1 = -1; i2 = 0; if (i1 <  i2) r = 1; else r = 0; assert_int(1, r, "i1 < i2");
+    i1 =  1; i2 = 0; if (i1 <  i2) r = 1; else r = 0; assert_int(0, r, "i1 < i2");
+    i1 =  1; i2 = 1; if (i1 <  i2) r = 1; else r = 0; assert_int(0, r, "i1 < i2");
+    i1 =  1; i2 = 2; if (i1 <  i2) r = 1; else r = 0; assert_int(1, r, "i1 < i2");
+
+    i1 = 0; i2 = -1; if (i1 >  i2) r = 1; else r = 0; assert_int(1, r, "i1 > i2");
+    i1 = 0; i2 =  1; if (i1 >  i2) r = 1; else r = 0; assert_int(0, r, "i1 > i2");
+    i1 = 1; i2 =  1; if (i1 >  i2) r = 1; else r = 0; assert_int(0, r, "i1 > i2");
+    i1 = 2; i2 =  1; if (i1 >  i2) r = 1; else r = 0; assert_int(1, r, "i1 > i2");
+
+    i1 = -1; i2 = 0; if (i1 <= i2) r = 1; else r = 0; assert_int(1, r, "i1 <= i2");
+    i1 =  1; i2 = 0; if (i1 <= i2) r = 1; else r = 0; assert_int(0, r, "i1 <= i2");
+    i1 =  1; i2 = 1; if (i1 <= i2) r = 1; else r = 0; assert_int(1, r, "i1 <= i2");
+    i1 =  1; i2 = 2; if (i1 <= i2) r = 1; else r = 0; assert_int(1, r, "i1 <= i2");
+
+    i1 = 0; i2 = -1; if (i1 >= i2) r = 1; else r = 0; assert_int(1, r, "i1 >= i2");
+    i1 = 0; i2 =  1; if (i1 >= i2) r = 1; else r = 0; assert_int(0, r, "i1 >= i2");
+    i1 = 1; i2 =  1; if (i1 >= i2) r = 1; else r = 0; assert_int(1, r, "i1 >= i2");
+    i1 = 2; i2 =  1; if (i1 >= i2) r = 1; else r = 0; assert_int(1, r, "i1 >= i2");
+
+    /// unsigned
+    ui1 = 1; ui2 = 1; if (ui1 == ui2) r = 1; else r = 0; assert_int(1, r, "ui1 == ui2");
+    ui1 = 1; ui2 = 2; if (ui1 == ui2) r = 1; else r = 0; assert_int(0, r, "ui1 == ui2");
+    ui1 = 1; ui2 = 1; if (ui1 != ui2) r = 1; else r = 0; assert_int(0, r, "ui1 != ui2");
+    ui1 = 1; ui2 = 2; if (ui1 != ui2) r = 1; else r = 0; assert_int(1, r, "ui1 != ui2");
+
+    ui1 = -1; ui2 = 0; if (ui1 <  ui2) r = 1; else r = 0; assert_int(0, r, "ui1 < ui2");
+    ui1 =  1; ui2 = 0; if (ui1 <  ui2) r = 1; else r = 0; assert_int(0, r, "ui1 < ui2");
+    ui1 =  1; ui2 = 1; if (ui1 <  ui2) r = 1; else r = 0; assert_int(0, r, "ui1 < ui2");
+    ui1 =  1; ui2 = 2; if (ui1 <  ui2) r = 1; else r = 0; assert_int(1, r, "ui1 < ui2");
+
+    ui1 = 0; ui2 = -1; if (ui1 >  ui2) r = 1; else r = 0; assert_int(0, r, "ui1 > ui2");
+    ui1 = 0; ui2 =  1; if (ui1 >  ui2) r = 1; else r = 0; assert_int(0, r, "ui1 > ui2");
+    ui1 = 1; ui2 =  1; if (ui1 >  ui2) r = 1; else r = 0; assert_int(0, r, "ui1 > ui2");
+    ui1 = 2; ui2 =  1; if (ui1 >  ui2) r = 1; else r = 0; assert_int(1, r, "ui1 > ui2");
+
+    ui1 = -1; ui2 = 0; if (ui1 <= ui2) r = 1; else r = 0; assert_int(0, r, "ui1 <= ui2");
+    ui1 =  1; ui2 = 0; if (ui1 <= ui2) r = 1; else r = 0; assert_int(0, r, "ui1 <= ui2");
+    ui1 =  1; ui2 = 1; if (ui1 <= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 <= ui2");
+    ui1 =  1; ui2 = 2; if (ui1 <= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 <= ui2");
+
+    ui1 = 0; ui2 = -1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(0, r, "ui1 >= ui2");
+    ui1 = 0; ui2 =  1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(0, r, "ui1 >= ui2");
+    ui1 = 1; ui2 =  1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 >= ui2");
+    ui1 = 2; ui2 =  1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 >= ui2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -441,6 +500,7 @@ int main(int argc, char **argv) {
     test_add_operation_sign();
     test_logical_or_operation_sign();
     test_sizeof_expr();
+    test_conditional_jumps();
 
     finalize();
 }

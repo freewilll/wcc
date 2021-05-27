@@ -114,6 +114,18 @@ Value *vsz(int vreg, int type) {
     return v;
 }
 
+Value *vusz(int vreg, int type) {
+    Value *v;
+
+    v = new_value();
+    v->type = new_type(type);
+    v->type->is_unsigned = 1;
+    v->vreg = vreg;
+
+    return v;
+}
+
+
 Value *a(int vreg) {
     Value *v;
 
@@ -148,8 +160,19 @@ Value *csz(long value, int type_type) {
     return new_constant(type_type, value);
 }
 
+Value *ci(int value) {
+    return new_constant(TYPE_INT, value);
+}
+
 Value *c(long value) {
     return new_constant(TYPE_LONG, value);
+}
+
+Value *uc(long value) {
+    Value *v;
+    v = new_constant(TYPE_LONG, value);
+    v->type->is_unsigned = 1;
+    return v;
 }
 
 Value *s(int string_literal_index) {
@@ -248,7 +271,6 @@ void remove_reserved_physical_register_count_from_tac(Tac *ir) {
 
 void start_ir() {
     ir_start = 0;
-    init_instruction_selection_rules();
     rule_coverage_file = "instrsel-tests.rulecov";
 }
 

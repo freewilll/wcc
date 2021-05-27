@@ -8,6 +8,11 @@ int print_type(void *f, Type *type) {
 
     len = 0;
 
+    if (!type) {
+        len += printf(f, "(no type!)");
+        return len;
+    }
+
     tt = type->type;
     while (tt >= TYPE_PTR) {
         len += fprintf(f, "*");

@@ -255,6 +255,10 @@ char *operation_string(int operation) {
     else if (operation == X_JGT)                    return "jgt";
     else if (operation == X_JLE)                    return "jle";
     else if (operation == X_JGE)                    return "jge";
+    else if (operation == X_JB)                     return "jb";
+    else if (operation == X_JA)                     return "ja";
+    else if (operation == X_JBE)                    return "jbe";
+    else if (operation == X_JAE)                    return "jae";
     else if (operation == X_SETE)                   return "sete";
     else if (operation == X_SETNE)                  return "setne";
     else if (operation == X_SETLT)                  return "setlt";
@@ -394,6 +398,10 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == X_JGT)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
     else if (o == X_JLE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
     else if (o == X_JGE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JB)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JA)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JBE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X_JAE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
     else if (o == X_SETE)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
     else if (o == X_SETNE)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
     else if (o == X_SETLT)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }

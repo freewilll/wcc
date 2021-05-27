@@ -9,6 +9,8 @@ test-wcc-*-wcc
 run-test-wcc-*
 test-wcc-gcc
 test-wcc-*-gcc
+test-lexer
+test-lexer-gcc
 test-set
 test-set-gcc
 test-graph

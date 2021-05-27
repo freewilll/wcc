@@ -31,11 +31,39 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
     return r;
 }
 
-static int transform_rule_value(int v, int i) {
-    if (v == CI || v == RI || v == RU || v == MI || v == RP)
-        return v + i;
-    else
-        return v;
+static int transform_rule_value(int extend_size, int extend_sign, int v, int size, int is_unsigned) {
+    int result;
+
+    result = v;
+
+    if (extend_size) {
+             if (v == XCI) result = CI1 + size - 1;
+        else if (v == XCU) result = CU1 + size - 1;
+        else if (v == XRI) result = RI1 + size - 1;
+        else if (v == XRU) result = RU1 + size - 1;
+        else if (v == XMI) result = MI1 + size - 1;
+        else if (v == XMU) result = MU1 + size - 1;
+        else if (v == XRP) result = RP1 + size - 1;
+        else if (v == XC) result = (is_unsigned ? CU1 : CI1) + size - 1;
+        else if (v == XR) result = (is_unsigned ? RU1 : RI1) + size - 1;
+        else if (v == XM) result = (is_unsigned ? MU1 : MI1) + size - 1;
+    }
+    else if (extend_sign) {
+             if (v == XC1) result = (is_unsigned ? CU1 : CI1);
+        else if (v == XC2) result = (is_unsigned ? CU2 : CI2);
+        else if (v == XC3) result = (is_unsigned ? CU3 : CI3);
+        else if (v == XC4) result = (is_unsigned ? CU4 : CI4);
+        else if (v == XR1) result = (is_unsigned ? RU1 : RI1);
+        else if (v == XR2) result = (is_unsigned ? RU2 : RI2);
+        else if (v == XR3) result = (is_unsigned ? RU3 : RI3);
+        else if (v == XR4) result = (is_unsigned ? RU4 : RI4);
+        else if (v == XM1) result = (is_unsigned ? MU1 : MI1);
+        else if (v == XM2) result = (is_unsigned ? MU2 : MI2);
+        else if (v == XM3) result = (is_unsigned ? MU3 : MI3);
+        else if (v == XM4) result = (is_unsigned ? MU4 : MI4);
+    }
+
+    return result;
 }
 
 static X86Operation *dup_x86_operation(X86Operation *operation) {
@@ -119,15 +147,23 @@ static char *add_size_to_template(char *template, int size) {
     return result;
 }
 
-// Expand all uses of RI, MI, RP, CI into RI1, RI2, ... RP1, RP2, ... etc
-// e.g. RI, RI4, CI is transformed into
-// RI1, RI4, CI1
-// RI2, RI4, CI2
-// RI3, RI4, CI3
-// RI4, RI4, CI4
+// Create new rules by expanding type and/or sign in non terminals
+// e.g.
+// (RP, RI) => (RP1, RI1), (RP2, RI2), (RP3, RI3), (RP4, RI4)
+//
+// XC  => CI1, CI2, CI3, CI4, CU1, CU2, CU3, CU4
+// XR  => RI1, RI2, RI3, RI4, RU1, RU2, RU3, RU4
+// XM  => MI1, MI2, MI3, MI4, MU1, MU2, MU3, MU4
+// XCI => CI1, CI2, CI3, CI4
+// XRI => RI1, RI2, RI3, RI4
+// XRU => RU1, RU2, RU3, RU4
+// XRP => RP1, RP2, RP3, RP4
+// XC1 => CI1, CU1, also XC2 => ... etc
+// XR1 => RI1, RU1, also XR2 => ... etc
+// XM1 => MI1, MU1, also XM2 => ... etc
 void fin_rule(Rule *r) {
 
-    int operation, dst, src1, src2, cost, i;
+    int operation, dst, src1, src2, cost, size, is_unsigned, expand_sign, expand_size;
     X86Operation *x86_operations, *x86_operation;
     Rule *new_rule;
 
@@ -138,26 +174,32 @@ void fin_rule(Rule *r) {
     cost           = r->cost;
     x86_operations = r->x86_operations;
 
-    // Only deal with outputs that go into registers, memory or address in register
-    if (!(
-            dst == CI || src1 == CI || src2 == CI ||
-            dst == RI || src1 == RI || src2 == RI ||
-            dst == RU || src1 == RU || src2 == RU ||
-            dst == MI || src1 == MI || src2 == MI ||
-            dst == RP || src1 == RP || src2 == RP)) {
-        return;
-    }
+    expand_size = 0;
+    expand_sign = 0;
+
+    expand_size = dst & EXP_SIZE || src1 & EXP_SIZE || src2 & EXP_SIZE;
+    expand_sign = dst & EXP_SIGN || src1 & EXP_SIGN || src2 & EXP_SIGN;
+
+    if (!expand_size && !expand_sign) return;
 
     instr_rule_count--; // Rewind next pointer so that the last rule is overwritten
 
-    for (i = 1; i <= 4; i++) {
-        new_rule = add_rule(transform_rule_value(dst, i), operation, transform_rule_value(src1, i), transform_rule_value(src2, i), cost);
-        new_rule->x86_operations = dup_x86_operations(x86_operations);
+    for (size = 1; size <= (expand_size ? 4 : 1); size++) {
+        for (is_unsigned = 0; is_unsigned < (expand_sign ? 2 : 1); is_unsigned++) {
+            new_rule = add_rule(
+                transform_rule_value(expand_size, expand_sign, dst, size, is_unsigned),
+                operation,
+                transform_rule_value(expand_size, expand_sign, src1, size, is_unsigned),
+                transform_rule_value(expand_size, expand_sign, src2, size, is_unsigned),
+                cost
+            );
+            new_rule->x86_operations = dup_x86_operations(x86_operations);
 
-        x86_operation = new_rule->x86_operations;
-        while (x86_operation) {
-            x86_operation->template = add_size_to_template(x86_operation->template, i);
-            x86_operation = x86_operation->next;
+            x86_operation = new_rule->x86_operations;
+            while (x86_operation) {
+                x86_operation->template = add_size_to_template(x86_operation->template, size);
+                x86_operation = x86_operation->next;
+            }
         }
     }
 }
@@ -292,31 +334,55 @@ char *non_terminal_string(int nt) {
     buf = malloc(6);
 
          if (!nt)         return "";
-    else if (nt == CI)    return "ci";
-    else if (nt == STL)   return "stl";
-    else if (nt == LAB)   return "lab";
-    else if (nt == FUN)   return "fun";
     else if (nt == CSTV1) return "cstv1";
     else if (nt == CSTV2) return "cstv2";
     else if (nt == CSTV3) return "cstv3";
+    else if (nt == XC)    return "xc";
+    else if (nt == XC1)   return "xc1";
+    else if (nt == XC2)   return "xc2";
+    else if (nt == XC3)   return "xc3";
+    else if (nt == XC4)   return "xc4";
+    else if (nt == XCI)   return "xci";
     else if (nt == CI1)   return "ci1";
     else if (nt == CI2)   return "ci2";
     else if (nt == CI3)   return "ci3";
     else if (nt == CI4)   return "ci4";
-    else if (nt == RI)    return "ri";
+    else if (nt == XCU)   return "xcu";
+    else if (nt == CU1)   return "cu1";
+    else if (nt == CU2)   return "cu2";
+    else if (nt == CU3)   return "cu3";
+    else if (nt == CU4)   return "cu4";
+    else if (nt == STL)   return "stl";
+    else if (nt == LAB)   return "lab";
+    else if (nt == FUN)   return "fun";
+    else if (nt == XR)    return "xr";
+    else if (nt == XR1)   return "xr1";
+    else if (nt == XR2)   return "xr2";
+    else if (nt == XR3)   return "xr3";
+    else if (nt == XR4)   return "xr4";
+    else if (nt == XRI)   return "xri";
     else if (nt == RI1)   return "ri1";
     else if (nt == RI2)   return "ri2";
     else if (nt == RI3)   return "ri3";
     else if (nt == RI4)   return "ri4";
-    else if (nt == RU)    return "ru";
+    else if (nt == XRU)   return "xru";
     else if (nt == RU1)   return "ru1";
     else if (nt == RU2)   return "ru2";
     else if (nt == RU3)   return "ru3";
     else if (nt == RU4)   return "ru4";
+    else if (nt == XM)    return "xm";
+    else if (nt == XM1)   return "xm1";
+    else if (nt == XM2)   return "xm2";
+    else if (nt == XM3)   return "xm3";
+    else if (nt == XM4)   return "xm4";
     else if (nt == MI1)   return "mi1";
     else if (nt == MI2)   return "mi2";
     else if (nt == MI3)   return "mi3";
     else if (nt == MI4)   return "mi4";
+    else if (nt == MU1)   return "mu1";
+    else if (nt == MU2)   return "mu2";
+    else if (nt == MU3)   return "mu3";
+    else if (nt == MU4)   return "mu4";
     else if (nt == RP1)   return "rp1";
     else if (nt == RP2)   return "rp2";
     else if (nt == RP3)   return "rp3";
@@ -409,15 +475,17 @@ static int non_terminal_for_value(Value *v) {
     if (!v->x86_size) make_value_x86_size(v);
     if (v->non_terminal) return v->non_terminal;
 
-         if (v->is_string_literal)                  result =  STL;
-    else if (v->label)                              result =  LAB;
-    else if (v->function_symbol)                    result =  FUN;
-    else if (v->type->type >= TYPE_PTR && !v->vreg) result =  MI4;
-    else if (v->type->type >= TYPE_PTR)             result =  RP + value_ptr_target_x86_size(v);
-    else if (v->is_lvalue_in_register)              result =  RP + v->x86_size;
-    else if (v->global_symbol || v->stack_index)    result =  MI + v->x86_size;
-    else if (v->vreg && v->type->is_unsigned)       result =  RU + v->x86_size;
-    else if (v->vreg)                               result =  RI + v->x86_size;
+         if (v->is_string_literal)                                           result =  STL;
+    else if (v->label)                                                       result =  LAB;
+    else if (v->function_symbol)                                             result =  FUN;
+    else if (v->type->type >= TYPE_PTR && !v->type->is_unsigned && !v->vreg) result =  MI4;
+    else if (v->type->type >= TYPE_PTR &&  v->type->is_unsigned && !v->vreg) result =  MU4;
+    else if (v->type->type >= TYPE_PTR)                                      result =  RP1 + value_ptr_target_x86_size(v) -1;
+    else if (v->is_lvalue_in_register)                                       result =  RP1 + v->x86_size - 1;
+    else if ((v->global_symbol || v->stack_index) & !v->type->is_unsigned)   result =  MI1 + v->x86_size - 1;
+    else if ((v->global_symbol || v->stack_index) &  v->type->is_unsigned)   result =  MU1 + v->x86_size - 1;
+    else if (v->vreg && !v->type->is_unsigned)                               result =  RI1 + v->x86_size - 1;
+    else if (v->vreg &&  v->type->is_unsigned)                               result =  RU1 + v->x86_size - 1;
     else {
         print_value(stdout, v, 0);
         panic("Bad value in non_terminal_for_value()");
@@ -435,10 +503,17 @@ int match_value_to_rule_src(Value *v, int src) {
              if (src == CSTV1 && v->value == 1) return 1;
         else if (src == CSTV2 && v->value == 2) return 1;
         else if (src == CSTV3 && v->value == 3) return 1;
-        else if (src >= CI1 && src <= CI4 && v->value >= -128 && v->value <= 127) return 1;
-        else if (src >= CI2 && src <= CI4 && v->value >= -32768 && v->value <= 32767) return 1;
-        else if (src >= CI3 && src <= CI4 && v->value >= -2147483648 && v->value <= 2147483647) return 1;
-        else if (src == CI4) return 1;
+
+        else if (src >= CI1 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x80        && v->value < 0x80       ) return 1;
+        else if (src >= CI2 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x8000      && v->value < 0x8000     ) return 1;
+        else if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x80000000l && v->value < 0x80000000l) return 1;
+        else if (              src == CI4 && !v->type->is_unsigned)                                                       return 1;
+
+        else if (src >= CU1 && src <= CU4 &&  v->type->is_unsigned && v->value >= 0 && v->value < 0x100      ) return 1;
+        else if (src >= CU2 && src <= CU4 &&  v->type->is_unsigned && v->value >= 0 && v->value < 0x100000   ) return 1;
+        else if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->value >= 0 && v->value < 0x100000000) return 1;
+        else if (              src == CU4 &&  v->type->is_unsigned)                                            return 1;
+
         else return 0;
     }
     else
@@ -474,6 +549,10 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     else if (dst == MI2 && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
     else if (dst == MI3 && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
     else if (dst == MI4 && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if (dst == MU1 && v->type->type == TYPE_CHAR  &&  v->type->is_unsigned) return 1;
+    else if (dst == MU2 && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
+    else if (dst == MU3 && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
+    else if (dst == MU4 && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
     else if (dst == RP1 && is_ptr && ptr_size == 1)                              return 1;
     else if (dst == RP2 && is_ptr && ptr_size == 2)                              return 1;
     else if (dst == RP3 && is_ptr && ptr_size == 3)                              return 1;
@@ -495,19 +574,22 @@ static int value_ptr_target_x86_size(Value *v) {
 int make_x86_size_from_non_terminal(int nt) {
     // Returns the width in bytes for a non terminal
 
-         if (nt == CI)    return 4;
-    else if (nt == CSTV1) return 1;
+         if (nt == CSTV1) return 1;
     else if (nt == CSTV2) return 1;
     else if (nt == CSTV3) return 1;
     else if (nt == CI1)   return 1;
     else if (nt == CI2)   return 2;
     else if (nt == CI3)   return 3;
     else if (nt == CI4)   return 4;
+    else if (nt == CU1)   return 1;
+    else if (nt == CU2)   return 2;
+    else if (nt == CU3)   return 3;
+    else if (nt == CU4)   return 4;
     else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4) return 4;
-    else if (nt == RI1 || nt == RU1 || nt == MI1) return 1;
-    else if (nt == RI2 || nt == RU2 || nt == MI2) return 2;
-    else if (nt == RI3 || nt == RU3 || nt == MI3) return 3;
-    else if (nt == RI4 || nt == RU4 || nt == MI4) return 4;
+    else if (nt == RI1 || nt == RU1 || nt == MI1 || nt == MU1) return 1;
+    else if (nt == RI2 || nt == RU2 || nt == MI2 || nt == MU2) return 2;
+    else if (nt == RI3 || nt == RU3 || nt == MI3 || nt == MU3) return 3;
+    else if (nt == RI4 || nt == RU4 || nt == MI4 || nt == MU4) return 4;
     else if (nt == LAB) return -1;
     else if (nt == FUN) return -1;
     else if (nt == STL) return 4;

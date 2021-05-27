@@ -67,6 +67,15 @@ static void push_constant(int type_type, long value) {
     push(new_constant(type_type, value));
 }
 
+// Push cur_long, using the lexer determined type cur_lexer_type
+static void push_cur_long() {
+    Value *v;
+
+    v = new_constant(cur_lexer_type->type, cur_long);
+    v->type->is_unsigned = cur_lexer_type->is_unsigned;
+    push(v);
+}
+
 // Add an operation to the IR
 static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *src2) {
     Value *v;
@@ -179,20 +188,20 @@ static Type *parse_base_type(int allow_incomplete_structs) {
         next();
     }
 
-         if (cur_token == TOK_VOID)         type = new_type(TYPE_VOID);
-    else if (cur_token == TOK_CHAR)         type = new_type(TYPE_CHAR);
-    else if (cur_token == TOK_SHORT)        type = new_type(TYPE_SHORT);
-    else if (cur_token == TOK_INT)          type = new_type(TYPE_INT);
-    else if (cur_token == TOK_LONG)         type = new_type(TYPE_LONG);
+         if (cur_token == TOK_VOID)         { type = new_type(TYPE_VOID); next(); }
+    else if (cur_token == TOK_CHAR)         { type = new_type(TYPE_CHAR); next(); }
+    else if (cur_token == TOK_SHORT)        { type = new_type(TYPE_SHORT); next(); }
+    else if (cur_token == TOK_INT)          { type = new_type(TYPE_INT); next(); }
+    else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG); next(); }
     else if (cur_token == TOK_STRUCT)       { next(); return parse_struct_base_type(allow_incomplete_structs); }
-    else if (cur_token == TOK_TYPEDEF_TYPE) type = dup_type(cur_type);
+    else if (cur_token == TOK_TYPEDEF_TYPE) { type = dup_type(cur_lexer_type); next(); }
+    else if (seen_signed || seen_unsigned)  type = new_type(TYPE_INT);
     else panic1d("Unable to determine type from token %d", cur_token);
 
     if ((seen_unsigned || seen_signed) && !is_integer_type(type)) panic("Signed/unsigned can only apply to integer types");
     if (seen_unsigned && seen_signed && !is_integer_type(type)) panic("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
     type->is_unsigned = seen_unsigned;
 
-    next();
     if (cur_token == TOK_LONG && type->type == TYPE_LONG) next(); // On 64 bit, long longs are equivalent to longs
     if (cur_token == TOK_INT && (type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG)) next();
 
@@ -447,8 +456,15 @@ static void and_or_expr(int is_and) {
     add_jmp_target_instruction(ldst3);
 }
 
-static Value *add_type_change_move(Value *src, Type *type) {
+static Value *integer_type_change(Value *src, Type *type) {
     Value *dst;
+
+    // Make an signed type a unsigned without a move, if possible
+    if (src->is_constant && src->type->type == type->type && !src->type->is_unsigned && type->is_unsigned && src->value >= 0) {
+        dst = dup_value(src);
+        dst->type->is_unsigned = 1;
+        return dst;
+    }
 
     dst = dup_value(src);
     dst->vreg = new_vreg();
@@ -462,7 +478,7 @@ static Value *integer_promote(Value *v) {
     if (v->type->type >= TYPE_PTR) panic("Invalid operand, expected integer type");
 
     if (v->type->type >= TYPE_INT && v->type->type <= TYPE_LONG) return v;
-    else return add_type_change_move(v, new_type(TYPE_INT));
+    else return integer_type_change(v, new_type(TYPE_INT));
 }
 
 static void arithmetic_operation(int operation, Type *type) {
@@ -480,8 +496,8 @@ static void arithmetic_operation(int operation, Type *type) {
     src1 = pl();
 
     if (is_integer_type(common_type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
-        if (!type_eq(common_type, src1->type) && src1->type->type <= type->type) src1 = add_type_change_move(src1, common_type);
-        if (!type_eq(common_type, src2->type) && src2->type->type <= type->type) src2 = add_type_change_move(src2, common_type);
+        if (!type_eq(common_type, src1->type) && src1->type->type <= type->type) src1 = integer_type_change(src1, common_type);
+        if (!type_eq(common_type, src2->type) && src2->type->type <= type->type) src2 = integer_type_change(src2, common_type);
     }
 
     add_ir_op(operation, type, new_vreg(), src1, src2);
@@ -570,7 +586,8 @@ static void expression(int level) {
         next();
 
         if (cur_token == TOK_NUMBER) {
-            push_constant(TYPE_LONG, -cur_long);
+            cur_long = -cur_long;
+            push_cur_long();
             next();
         }
         else {
@@ -605,10 +622,7 @@ static void expression(int level) {
     }
 
     else if (cur_token == TOK_NUMBER) {
-        if (cur_long >= -2147483648 && cur_long <= 2147483647)
-            push_constant(TYPE_INT, cur_long);
-        else
-            push_constant(TYPE_LONG, cur_long);
+        push_cur_long();
         next();
     }
 

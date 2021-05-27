@@ -62,6 +62,7 @@ wcc3: ${WCC3_ASSEMBLIES}
 # tests
 WCC_TESTS=\
 	expr \
+	unsigned-integers \
 	function-call-args \
 	func-calls \
 	pointers \
@@ -85,7 +86,7 @@ test-wcc.s: test-main.c wcc
 	./wcc ${WCC_OPTS} -c -S test-main.c
 
 test-wcc-%.s: test-wcc-%.c wcc
-	./wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -S $<
+	./wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov --Wno-integer-constant-too-large -c -S $<
 
 test-wcc-%-wcc: test-wcc-%.s stack-check.o test-lib.o
 	gcc ${GCC_OPTS} $< stack-check.o test-lib.o -o $@
@@ -126,6 +127,18 @@ test-include/test-include: wcc test-include/include.h test-include/main.c test-i
 
 run-test-include: test-include/test-include
 	test-include/test-include
+
+test-lexer: wcc lexer.c parser.c ir.c codegen.c instrutil.c types.c utils.c test-lexer.c
+	./wcc ${WCC_OPTS} lexer.c parser.c ir.c codegen.c instrutil.c types.c utils.c test-lexer.c -o test-lexer
+
+test-lexer-gcc: lexer.c parser.c ir.c codegen.c instrutil.c types.c utils.c test-lexer.c
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-lexer-gcc lexer.c parser.c ir.c codegen.c instrutil.c types.c utils.c test-lexer.c
+
+run-test-lexer: test-lexer
+	 ./test-lexer
+
+run-test-lexer-gcc: test-lexer-gcc
+	 ./test-lexer-gcc
 
 test-set: wcc set.c utils.c test-set.c
 	./wcc ${WCC_OPTS} set.c utils.c test-set.c -o test-set
@@ -185,7 +198,7 @@ run-test-parser-gcc: test-parser-gcc
 	 ./test-parser-gcc
 
 .PHONY: test
-test: run-test-wcc run-test-include run-test-set-gcc run-test-set run-test-ssa-gcc run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-parser-gcc run-test-graph run-test-wcc-gcc test-self-compilation test-self-compilation
+test: run-test-wcc run-test-include run-test-lexer-gcc run-test-lexer run-test-set-gcc run-test-set run-test-ssa-gcc run-test-ssa run-test-instrsel-gcc run-test-instrsel run-test-parser-gcc run-test-graph run-test-wcc-gcc test-self-compilation test-self-compilation
 
 print-rule-coverage-report.s: wcc print-rule-coverage-report.c
 	./wcc ${WCC_OPTS} -c -S print-rule-coverage-report.c -c -S -o print-rule-coverage-report.s
@@ -206,6 +219,8 @@ clean:
 	@rm -f run-test-wcc-*
 	@rm -f test-wcc-gcc
 	@rm -f test-wcc-*-gcc
+	@rm -f test-lexer
+	@rm -f test-lexer-gcc
 	@rm -f test-set
 	@rm -f test-set-gcc
 	@rm -f test-ssa-gcc

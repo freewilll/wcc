@@ -82,7 +82,7 @@ void test_instrsel_tree_merging_type_merges() {
     // Ensure type conversions are merged correctly. This tests a void * being converted to a char *
     remove_reserved_physical_registers = 1;
     start_ir();
-    i(0, IR_MOVE,        asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
+    i(0, IR_MOVE,              asz(2, TYPE_CHAR), asz(1, TYPE_VOID), 0);
     tac = i(0, IR_MOVE_TO_PTR, 0,                 vsz(2, TYPE_CHAR), c(1));
     tac->src1->is_lvalue_in_register = 1;
     finish_ir(function);
@@ -205,6 +205,7 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     finish_ir(function);
     assert_x86_op(template);
     assert_x86_op("jge     .L1");
+    init_instruction_selection_rules();
 }
 
 void test_cmp_with_assignment(Function *function, int cmp_operation, char *set_instruction) {
@@ -219,7 +220,7 @@ void test_cmp_with_assignment(Function *function, int cmp_operation, char *set_i
     assert_x86_op("movzbq  r3b, r3q");
 }
 
-void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, char *t1, char *t2, char *t3) {
+void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, char *t1, char *t2, char *t3, char *t4) {
     // dst is the renumbered live range that the output goes to. It's basically the first free register after src1 and src2.
     start_ir();
     i(0, IR_LT, v(3), src1, src2);
@@ -229,6 +230,7 @@ void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *
     assert_x86_op(t1);
     assert_x86_op(t2);
     assert_x86_op(t3);
+    if (t4) assert_x86_op(t4);
 }
 
 void test_cst_load(int operation, Value *dst, Value *src, char *code) {
@@ -246,34 +248,56 @@ void test_instrsel_constant_loading() {
 
     // Note: the arg push tests cover the rules that load constant into temporary registers
 
-    // IR_MOVE
-    // with a 32 bit int
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movb    $1, r1b");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movw    $1, r1w");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movl    $1, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
+    // with a 32 bit signed int
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),   c(1), "movb    $1, r1b");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT),  c(1), "movw    $1, r1w");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),    c(1), "movl    $1, r1l");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),   c(1), "movq    $1, r1q");
 
-    // with a 64 bit long. The first 3 are overflows, so a programmer error.
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(l), "movb    $4294967296, r1b");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(l), "movw    $4294967296, r1w");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(l), "movl    $4294967296, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(l), "movq    $4294967296, r1q");
+    // with a 64 bit signed long. The first 3 are overflows, so a programmer error.
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),   c(l), "movb    $4294967296, r1b");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT),  c(l), "movw    $4294967296, r1w");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),    c(l), "movl    $4294967296, r1l");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),   c(l), "movq    $4294967296, r1q");
 
-    // IR_MOVE
-    // with a 32 bit int
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(1), "movb    $1, r1b");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(1), "movw    $1, r1w");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(1), "movl    $1, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
+    // with a 32 bit unsigned int
+    test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  uc(1), "movb    $1, r1b");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_SHORT), uc(1), "movw    $1, r1w");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_INT),   uc(1), "movl    $1, r1l");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  uc(1), "movq    $1, r1q");
 
-    // with a 64 bit long. The first 3 are overflows, so a programmer error.
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  c(l), "movb    $4294967296, r1b");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), c(l), "movw    $4294967296, r1w");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   c(l), "movl    $4294967296, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  c(l), "movq    $4294967296, r1q");
+    // with a 64 bit unsigned long. The first 3 are overflows, so a programmer error.
+    test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  uc(l), "movb    $4294967296, r1b");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_SHORT), uc(l), "movw    $4294967296, r1w");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_INT),   uc(l), "movl    $4294967296, r1l");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  uc(l), "movq    $4294967296, r1q");
+
+    // with a 32 bit signed int -> unsigned
+    test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  c(1), "movb    $1, r1b");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_SHORT), c(1), "movw    $1, r1w");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_INT),   c(1), "movl    $1, r1l");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  c(1), "movq    $1, r1q");
+
+    // with a 64 bit signed long -> unsigned. The first 3 are overflows, so a programmer error.
+    test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  c(l), "movb    $4294967296, r1b");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_SHORT), c(l), "movw    $4294967296, r1w");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_INT),   c(l), "movl    $4294967296, r1l");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  c(l), "movq    $4294967296, r1q");
+
+    // with a 32 bit unsigned int -> signed
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  uc(1), "movb    $1, r1b");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), uc(1), "movw    $1, r1w");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   uc(1), "movl    $1, r1l");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  uc(1), "movq    $1, r1q");
+
+    // with a 64 bit unsigned long -> signed. The first 3 are overflows, so a programmer error.
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  uc(l), "movb    $4294967296, r1b");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), uc(l), "movw    $4294967296, r1w");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   uc(l), "movl    $4294967296, r1l");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  uc(l), "movq    $4294967296, r1q");
 }
 
-void test_instrsel() {
+void test_instrsel_expr() {
     Tac *tac;
 
     remove_reserved_physical_registers = 1;
@@ -288,7 +312,7 @@ void test_instrsel() {
     // c1 goes into v2 and c2 goes into v3
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(RI4, IR_ADD, CI, RI4); nuke_rule(RI4, IR_ADD, RI4, CI);
+    nuke_rule(RI4, IR_ADD, XCI, RI4); nuke_rule(RI4, IR_ADD, RI4, XCI);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movb    $2, r2b");
@@ -298,7 +322,7 @@ void test_instrsel() {
     // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(RI, IR_ADD, RI4, CI);
+    nuke_rule(XRI, IR_ADD, RI4, XCI);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movb    $2, r2b");
@@ -308,12 +332,13 @@ void test_instrsel() {
     // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
     start_ir();
     disable_merge_constants = 1;
-    nuke_rule(RI4, IR_ADD, CI, RI4);
+    nuke_rule(RI4, IR_ADD, XCI, RI4);
     i(0, IR_ADD, v(1), c(1), c(2));
     finish_ir(function);
     assert_x86_op("movb    $2, r2b");
     assert_x86_op("movb    r2b, r1b");
     assert_x86_op("addb    $1, r1b");
+    init_instruction_selection_rules();
 
     // r1 + r2. No loads are necessary, this is the simplest add operation.
     start_ir();
@@ -372,10 +397,11 @@ void test_instrsel() {
 
     // Store c in g with only the reg fule, forcing c into r1
     start_ir();
-    nuke_rule(MI4, IR_MOVE, CI, 0);
+    nuke_rule(MI4, IR_MOVE, XCI, 0);
     i(0, IR_MOVE, g(1), c(1), 0);
     finish_ir(function);
     assert_x86_op("movq    $1, g1(%rip)");
+    init_instruction_selection_rules();
 
     // Store v1 in g using IR_MOVE
     start_ir();
@@ -428,10 +454,11 @@ void test_instrsel() {
 
     // Assign constant to a local. Forces c into a register
     start_ir();
-    nuke_rule(MI4, IR_MOVE, CI, 0);
+    nuke_rule(MI4, IR_MOVE, XCI, 0);
     i(0, IR_MOVE, S(-2), c(0), 0);
     finish_ir(function);
     assert_x86_op("movq    $0, -16(%rbp)");
+    init_instruction_selection_rules();
 
     // jz with r1
     start_ir();
@@ -449,6 +476,7 @@ void test_instrsel() {
     finish_ir(function);
     assert_x86_op("testq   r1q, r1q");
     assert_x86_op("jz      .L1");
+    init_instruction_selection_rules();
 
     // jz with a1 *void
     start_ir();
@@ -482,6 +510,7 @@ void test_instrsel() {
     finish_ir(function);
     assert_x86_op("testq   r1q, r1q");
     assert_x86_op("jnz     .L1");
+    init_instruction_selection_rules();
 
     // jz with a1 *void
     start_ir();
@@ -498,7 +527,12 @@ void test_instrsel() {
     finish_ir(function);
     assert_x86_op("cmp     $0, g1(%rip)");
     assert_x86_op("jnz     .L1");
+}
 
+void test_instrsel_conditionals() {
+    long l;
+
+    l = 4294967296;
     // JZ                                                          JNZ
     test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, "je" ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, "jne");
     test_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, "jne"); test_cmp_with_conditional_jmp(function, IR_NE, IR_JZ, "je" );
@@ -529,20 +563,29 @@ void test_instrsel() {
     test_cmp_with_assignment(function, IR_GE, "setge");
 
     // Test r1 = a < b with different src1 and src2 operands
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, v(1),               c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  asz(1, TYPE_VOID),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  asz(1, TYPE_CHAR),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_SHORT), asz(1, TYPE_SHORT), "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_INT),   asz(1, TYPE_INT),   "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_LONG),  asz(1, TYPE_LONG),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q");
-    test_less_than_with_cmp_assignment(function, g(1),               c(1),               "cmpq    $1, g1(%rip)",   "setl    r1b", "movzbq  r1b, r1q");
-    test_less_than_with_cmp_assignment(function, v(1),               g(1),               "cmpq    g1(%rip), r1q",  "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, g(1),               v(1),               "cmpq    r1q, g1(%rip)",  "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, S(-2),              c(1),               "cmpq    $1, -16(%rbp)",  "setl    r1b", "movzbq  r1b, r1q");
-    test_less_than_with_cmp_assignment(function, v(1),               S(-2),              "cmpq    -16(%rbp), r1q", "setl    r2b", "movzbq  r2b, r2q");
-    test_less_than_with_cmp_assignment(function, S(-2),              v(1),               "cmpq    r1q, -16(%rbp)", "setl    r2b", "movzbq  r2b, r2q");
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q", 0);
+    test_less_than_with_cmp_assignment(function, v(1),               c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  asz(1, TYPE_VOID),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  asz(1, TYPE_CHAR),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_SHORT), asz(1, TYPE_SHORT), "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_INT),   asz(1, TYPE_INT),   "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_LONG),  asz(1, TYPE_LONG),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
+    test_less_than_with_cmp_assignment(function, g(1),               c(1),               "cmpq    $1, g1(%rip)",   "setl    r1b", "movzbq  r1b, r1q", 0);
+    test_less_than_with_cmp_assignment(function, v(1),               g(1),               "cmpq    g1(%rip), r1q",  "setl    r2b", "movzbq  r2b, r2q", 0);
+    test_less_than_with_cmp_assignment(function, g(1),               v(1),               "cmpq    r1q, g1(%rip)",  "setl    r2b", "movzbq  r2b, r2q", 0);
+    test_less_than_with_cmp_assignment(function, S(-2),              c(1),               "cmpq    $1, -16(%rbp)",  "setl    r1b", "movzbq  r1b, r1q", 0);
+    test_less_than_with_cmp_assignment(function, v(1),               S(-2),              "cmpq    -16(%rbp), r1q", "setl    r2b", "movzbq  r2b, r2q", 0);
+    test_less_than_with_cmp_assignment(function, S(-2),              v(1),               "cmpq    r1q, -16(%rbp)", "setl    r2b", "movzbq  r2b, r2q", 0);
+
+    // A 64 bit long cannot be used in a comparison directly and must be moved into
+    // a register first
+    test_less_than_with_cmp_assignment(function, v(1), c(l),
+        "movq    $4294967296, r3q",
+        "cmpq    r3q, r1q",
+        "setl    r2b",
+        "movzbq  r2b, r2q"
+    );
 }
 
 void run_function_call_single_arg(Value *src) {
@@ -571,8 +614,20 @@ void test_function_args() {
     assert_rx86_preg_op("movq    %rax, %rax" );
     assert_rx86_preg_op(0);
 
+    // regular unsigned constant
+    run_function_call_single_arg(uc(1));
+    assert_rx86_preg_op("movq    $1, %rdi" );
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
     // quad constant
     run_function_call_single_arg(c(4294967296));
+    assert_rx86_preg_op("movq    $4294967296, %rdi" );
+    assert_rx86_preg_op("movq    %rax, %rax" );
+    assert_rx86_preg_op(0);
+
+    // quad unsigned constant
+    run_function_call_single_arg(uc(4294967296));
     assert_rx86_preg_op("movq    $4294967296, %rdi" );
     assert_rx86_preg_op("movq    %rax, %rax" );
     assert_rx86_preg_op(0);
@@ -1516,11 +1571,15 @@ int main() {
     init_allocate_registers();
     init_instruction_selection_rules();
 
+    // Disable inefficient rules check that only needs running once
+    disable_check_for_duplicate_rules = 1;
+
     test_instrsel_tree_merging();
     test_instrsel_tree_merging_type_merges();
     test_instrsel_tree_merging_register_constraint();
     test_instrsel_constant_loading();
-    test_instrsel();
+    test_instrsel_expr();
+    test_instrsel_conditionals();
     test_function_args();
     test_instrsel_types_add_vregs();
     test_instrsel_types_cmp_assignment();

@@ -372,7 +372,7 @@ int parsing_header;             // I a header being parsed?
 
 int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
-Type *cur_type;                 // Associated type if the current token is a typedef
+Type *cur_lexer_type;           // A type determined by the lexer
 long cur_long;                  // Current long if the token is a number
 char *cur_string_literal;       // Current string literal if the token is a string literal
 int cur_scope;                  // Current scope. 0 is global. non-zero is function. Nested scopes isn't implemented.
@@ -409,6 +409,7 @@ int cur_stack_push_count;         // Used in codegen to keep track of stack posi
 
 void *f; // Output file handle
 
+int warn_integer_constant_too_large;
 int debug_ssa_mapping_local_stack_indexes;
 int debug_ssa;
 int debug_ssa_liveout;
@@ -579,7 +580,7 @@ void init_allocate_registers();
 
 // instrsel.c
 enum {
-    MAX_RULE_COUNT = 3000,
+    MAX_RULE_COUNT = 5000,
 
     // Non terminals
     STL = 1,                     // String literal
@@ -588,14 +589,55 @@ enum {
     CSTV1,                       // Constant with value 1
     CSTV2,                       // Constant with value 2
     CSTV3,                       // Constant with value 3
-    CI, CI1, CI2, CI3, CI4,      // Constants
-    RI, RI1, RI2, RI3, RI4,      // Signed registers
-    RU, RU1, RU2, RU3, RU4,      // Unsigned registers
-    MI, MI1, MI2, MI3, MI4,      // Memory, in stack or globals
-    RP, RP1, RP2, RP3, RP4,      // Address (aka pointer) in a register
+    CI1, CI2, CI3, CI4,          // Constants
+    CU1, CU2, CU3, CU4,          // Constants
+    RI1, RI2, RI3, RI4,          // Signed registers
+    RU1, RU2, RU3, RU4,          // Unsigned registers
+    MI1, MI2, MI3, MI4,          // Memory, in stack or globals
+    MU1, MU2, MU3, MU4,          // Memory, in stack or globals
+    RP1, RP2, RP3, RP4,          // Address (aka pointer) in a register
+
+    AUTO_NON_TERMINAL_START,
+    AUTO_NON_TERMINAL_END = 0x200, // Must match next line
+
+    EXP_SIZE     = 0x00200,
+    EXP_SIGN     = 0x00400,
+    EXP_SIZE_1   = 0x00800,
+    EXP_SIZE_2   = 0x01000,
+    EXP_SIZE_3   = 0x01800,
+    EXP_SIZE_4   = 0x02000,
+    EXP_C        = 0x04000,
+    EXP_R        = 0x08000,
+    EXP_M        = 0x0c000,
+    EXP_RP       = 0x10000,
+    EXP_SIGNED   = 0x20000,
+    EXP_UNSIGNED = 0x40000,
+
+    XC           = 0x04600, // EXP_C  + EXP_SIZE + EXP_SIGN
+    XR           = 0x08600, // EXP_R  + EXP_SIZE + EXP_SIGN
+    XM           = 0x0c600, // EXP_M  + EXP_SIZE + EXP_SIGN
+    XCI          = 0x24200, // EXP_C  + EXP_SIGNED   + EXP_SIZE
+    XCU          = 0x44200, // EXP_C  + EXP_UNSIGNED + EXP_SIZE
+    XRI          = 0x28200, // EXP_R  + EXP_SIGNED   + EXP_SIZE
+    XRU          = 0x48200, // EXP_R  + EXP_UNSIGNED + EXP_SIZE
+    XMI          = 0x2c200, // EXP_M  + EXP_SIGNED   + EXP_SIZE
+    XMU          = 0x4c200, // EXP_M  + EXP_UNSIGNED + EXP_SIZE
+    XRP          = 0x10200, // EXP_RP + EXP_SIZE
+    XC1          = 0x04c00, // EXP_C  + EXP_SIZE_1 + EXP_SIGN
+    XC2          = 0x05400, // EXP_C  + EXP_SIZE_2 + EXP_SIGN
+    XC3          = 0x05c00, // EXP_C  + EXP_SIZE_3 + EXP_SIGN
+    XC4          = 0x06400, // EXP_C  + EXP_SIZE_4 + EXP_SIGN
+    XR1          = 0x08c00, // EXP_R  + EXP_SIZE_1 + EXP_SIGN
+    XR2          = 0x09400, // EXP_R  + EXP_SIZE_2 + EXP_SIGN
+    XR3          = 0x09c00, // EXP_R  + EXP_SIZE_3 + EXP_SIGN
+    XR4          = 0x0a400, // EXP_R  + EXP_SIZE_4 + EXP_SIGN
+    XM1          = 0x0cc00, // EXP_M  + EXP_SIZE_1 + EXP_SIGN
+    XM2          = 0x0d400, // EXP_M  + EXP_SIZE_2 + EXP_SIGN
+    XM3          = 0x0dc00, // EXP_M  + EXP_SIZE_3 + EXP_SIGN
+    XM4          = 0x0e400, // EXP_M  + EXP_SIZE_4 + EXP_SIGN
 
     // Operands
-    DST,
+    DST = 1,
     SRC1,
     SRC2,
 
@@ -638,17 +680,29 @@ enum {
 
     X_JE,
     X_JNE,
+
     X_JLT,
     X_JGT,
     X_JLE,
     X_JGE,
 
+    X_JB,
+    X_JA,
+    X_JBE,
+    X_JAE,
+
     X_SETE,
     X_SETNE,
+
     X_SETLT,
     X_SETGT,
     X_SETLE,
     X_SETGE,
+
+    X_SETB,
+    X_SETA,
+    X_SETBE,
+    X_SETAE,
 
     X_PUSH,
     X_POP,
@@ -678,9 +732,6 @@ typedef struct x86_operation {
     struct x86_operation *next;
 } X86Operation;
 
-enum {
-    AUTO_NON_TERMINAL_START = 100,
-};
 
 int instr_rule_count;
 int disable_merge_constants;
@@ -716,6 +767,8 @@ void check_for_duplicate_rules();
 void write_rule_coverage_file();
 
 // instrules.c
+int disable_check_for_duplicate_rules;
+
 void init_instruction_selection_rules();
 
 // codegen.c
@@ -752,10 +805,13 @@ void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2);
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
 Value *v(int vreg);
 Value *vsz(int vreg, int type);
+Value *vusz(int vreg, int type);
 Value *a(int vreg);
 Value *asz(int vreg, int type);
 Value *l(int label);
+Value *ci(int value);
 Value *c(long value);
+Value *uc(long value);
 Value *csz(long value, int type);
 Value *s(int string_literal_index);
 Value *S(int stack_index);
