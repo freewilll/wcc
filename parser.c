@@ -333,14 +333,15 @@ void check_incomplete_structs() {
 static void parse_typedef() {
     Struct *s;
     Typedef *t;
+    Type *type;
 
     next();
 
     if (cur_token != TOK_STRUCT) panic("Typedefs are only implemented for structs");
     next();
 
-    cur_type = parse_struct_base_type(0);
-    s = all_structs[cur_type->type - TYPE_STRUCT];
+    type = parse_struct_base_type(0);
+    s = all_structs[type->type - TYPE_STRUCT];
 
     if (cur_token != TOK_IDENTIFIER) panic("Typedefs are only implemented for previously defined structs");
 
