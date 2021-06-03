@@ -1233,28 +1233,60 @@ void test_pointer_assignment_precision_decreases() {
     }
 }
 
-void test_simple_int_cast() {
-    remove_reserved_physical_registers = 1;
+void _test_integer_move(Value *dst, Value *src, int dst_type, int src_type, char *template) {
+    dst->type->type = dst_type ;
+    src->type->type = src_type;
+    si(function, 0, IR_MOVE, dup_value(dst), dup_value(src), 0);
+    assert_x86_op(template);
+}
 
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_CHAR ), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_INT  ), 0); assert_x86_op("movb    r1b, r2b");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_CHAR ), vsz(1, TYPE_LONG ), 0); assert_x86_op("movb    r1b, r2b");
+void test_integer_moves() {
+    Value *dst, *src;
+    int i;
 
-    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbw  r1b, r2w");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0); assert_x86_op("movw    r1w, r2w");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_INT),   0); assert_x86_op("movw    r1w, r2w");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_SHORT), vsz(1, TYPE_LONG),  0); assert_x86_op("movw    r1w, r2w");
+    // Test signed -> signed and signed -> unsigned moves
+    src = vsz(1, TYPE_CHAR);
+    for (i = 0; i < 2; i++) {
+        dst = i ? vusz(2, TYPE_CHAR) : vsz(2, TYPE_CHAR);
+        _test_integer_move(dst, src, TYPE_CHAR,  TYPE_CHAR,  "movb    r1b, r2b");
+        _test_integer_move(dst, src, TYPE_CHAR,  TYPE_SHORT, "movb    r1b, r2b");
+        _test_integer_move(dst, src, TYPE_CHAR,  TYPE_INT,   "movb    r1b, r2b");
+        _test_integer_move(dst, src, TYPE_CHAR,  TYPE_LONG,  "movb    r1b, r2b");
+        _test_integer_move(dst, src, TYPE_SHORT, TYPE_CHAR,  "movsbw  r1b, r2w");
+        _test_integer_move(dst, src, TYPE_SHORT, TYPE_SHORT, "movw    r1w, r2w");
+        _test_integer_move(dst, src, TYPE_SHORT, TYPE_INT,   "movw    r1w, r2w");
+        _test_integer_move(dst, src, TYPE_SHORT, TYPE_LONG,  "movw    r1w, r2w");
+        _test_integer_move(dst, src, TYPE_INT,   TYPE_CHAR,  "movsbl  r1b, r2l");
+        _test_integer_move(dst, src, TYPE_INT,   TYPE_SHORT, "movswl  r1w, r2l");
+        _test_integer_move(dst, src, TYPE_INT,   TYPE_INT,   "movl    r1l, r2l");
+        _test_integer_move(dst, src, TYPE_INT,   TYPE_LONG,  "movl    r1l, r2l");
+        _test_integer_move(dst, src, TYPE_LONG,  TYPE_CHAR,  "movsbq  r1b, r2q");
+        _test_integer_move(dst, src, TYPE_LONG,  TYPE_SHORT, "movswq  r1w, r2q");
+        _test_integer_move(dst, src, TYPE_LONG,  TYPE_INT,   "movslq  r1l, r2q");
+        _test_integer_move(dst, src, TYPE_LONG,  TYPE_LONG,  "movq    r1q, r2q");
+    }
 
-    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbl  r1b, r2l");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswl  r1w, r2l");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_INT),   0); assert_x86_op("movl    r1l, r2l");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_INT  ), vsz(1, TYPE_LONG),  0); assert_x86_op("movl    r1l, r2l");
-
-    si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_CHAR),  0); assert_x86_op("movsbq  r1b, r2q");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_SHORT), 0); assert_x86_op("movswq  r1w, r2q");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_INT),   0); assert_x86_op("movslq  r1l, r2q");
-    si(function, 0, IR_MOVE, vsz(2, TYPE_LONG ), vsz(1, TYPE_LONG),  0); assert_x86_op("movq    r1q, r2q");
+    // Test unsigned -> signed and unsigned -> unsigned moves
+    src = vusz(1, TYPE_CHAR);
+    for (i = 0; i < 2; i++) {
+        dst = i ? vusz(2, TYPE_CHAR) : vsz(2, TYPE_CHAR);
+        _test_integer_move(dst, src, TYPE_CHAR,  TYPE_CHAR,  "movb    r1b, r2b");
+        _test_integer_move(dst, src, TYPE_CHAR,  TYPE_SHORT, "movb    r1b, r2b");
+        _test_integer_move(dst, src, TYPE_CHAR,  TYPE_INT,   "movb    r1b, r2b");
+        _test_integer_move(dst, src, TYPE_CHAR,  TYPE_LONG,  "movb    r1b, r2b");
+        _test_integer_move(dst, src, TYPE_SHORT, TYPE_CHAR,  "movzbw  r1b, r2w");
+        _test_integer_move(dst, src, TYPE_SHORT, TYPE_SHORT, "movw    r1w, r2w");
+        _test_integer_move(dst, src, TYPE_SHORT, TYPE_INT,   "movw    r1w, r2w");
+        _test_integer_move(dst, src, TYPE_SHORT, TYPE_LONG,  "movw    r1w, r2w");
+        _test_integer_move(dst, src, TYPE_INT,   TYPE_CHAR,  "movzbl  r1b, r2l");
+        _test_integer_move(dst, src, TYPE_INT,   TYPE_SHORT, "movzwl  r1w, r2l");
+        _test_integer_move(dst, src, TYPE_INT,   TYPE_INT,   "movl    r1l, r2l");
+        _test_integer_move(dst, src, TYPE_INT,   TYPE_LONG,  "movl    r1l, r2l");
+        _test_integer_move(dst, src, TYPE_LONG,  TYPE_CHAR,  "movzbq  r1b, r2q");
+        _test_integer_move(dst, src, TYPE_LONG,  TYPE_SHORT, "movzwq  r1w, r2q");
+        _test_integer_move(dst, src, TYPE_LONG,  TYPE_INT,   "movl    r1l, r2l"); // movzbl doesn't exist
+        _test_integer_move(dst, src, TYPE_LONG,  TYPE_LONG,  "movq    r1q, r2q");
+    }
 }
 
 void test_assign_to_pointer_to_void() {
@@ -1562,6 +1594,9 @@ void test_param_vreg_moves() {
 }
 
 int main() {
+    int verbose;
+
+    verbose = 0;
     failures = 0;
     function = new_function();
 
@@ -1574,49 +1609,49 @@ int main() {
     // Disable inefficient rules check that only needs running once
     disable_check_for_duplicate_rules = 1;
 
-    test_instrsel_tree_merging();
-    test_instrsel_tree_merging_type_merges();
-    test_instrsel_tree_merging_register_constraint();
-    test_instrsel_constant_loading();
-    test_instrsel_expr();
-    test_instrsel_conditionals();
-    test_function_args();
-    test_instrsel_types_add_vregs();
-    test_instrsel_types_cmp_assignment();
-    test_instrsel_types_cmp_pointer();
-    test_instrsel_returns();
-    test_instrsel_function_calls();
-    test_instrsel_function_call_rearranging();
-    test_misc_commutative_operations();
-    test_sub_operations();
-    test_div_operations();
-    test_bnot_operations();
-    test_binary_shift_operations();
-    test_constant_operations();
-    test_pointer_to_int_indirects();
-    test_pointer_to_int_indirects();
-    test_pointer_to_pointer_to_int_indirects();
-    test_ir_move_to_reg_lvalues();
-    test_pointer_inc();
-    test_pointer_add();
-    test_pointer_sub();
-    test_pointer_load_constant();
-    test_pointer_eq();
-    test_pointer_string_literal();
-    test_pointer_indirect_from_stack();
-    test_pointer_indirect_global_char_in_struct_to_long();
-    test_pointer_assignment_precision_decreases();
-    test_simple_int_cast();
-    test_assign_to_pointer_to_void();
-    test_pointer_comparisons();
-    test_pointer_double_indirect();
-    test_composite_pointer_indirect();
-    test_composite_pointer_address_of();
-    test_pointer_to_void_from_long_assignment();
-    test_ptr_to_void_memory_load_to_ptr();
-    test_constant_cast_to_ptr();
-    test_spilling();
-    test_param_vreg_moves();
+    if (verbose) printf("Running instrsel instrsel_tree_merging\n");                          test_instrsel_tree_merging();
+    if (verbose) printf("Running instrsel instrsel_tree_merging_type_merges\n");              test_instrsel_tree_merging_type_merges();
+    if (verbose) printf("Running instrsel instrsel_tree_merging_register_constraint\n");      test_instrsel_tree_merging_register_constraint();
+    if (verbose) printf("Running instrsel instrsel_constant_loading\n");                      test_instrsel_constant_loading();
+    if (verbose) printf("Running instrsel instrsel_expr\n");                                  test_instrsel_expr();
+    if (verbose) printf("Running instrsel instrsel_conditionals\n");                          test_instrsel_conditionals();
+    if (verbose) printf("Running instrsel function_args\n");                                  test_function_args();
+    if (verbose) printf("Running instrsel instrsel_types_add_vregs\n");                       test_instrsel_types_add_vregs();
+    if (verbose) printf("Running instrsel instrsel_types_cmp_assignment\n");                  test_instrsel_types_cmp_assignment();
+    if (verbose) printf("Running instrsel instrsel_types_cmp_pointer\n");                     test_instrsel_types_cmp_pointer();
+    if (verbose) printf("Running instrsel instrsel_returns\n");                               test_instrsel_returns();
+    if (verbose) printf("Running instrsel instrsel_function_calls\n");                        test_instrsel_function_calls();
+    if (verbose) printf("Running instrsel instrsel_function_call_rearranging\n");             test_instrsel_function_call_rearranging();
+    if (verbose) printf("Running instrsel misc_commutative_operations\n");                    test_misc_commutative_operations();
+    if (verbose) printf("Running instrsel sub_operations\n");                                 test_sub_operations();
+    if (verbose) printf("Running instrsel div_operations\n");                                 test_div_operations();
+    if (verbose) printf("Running instrsel bnot_operations\n");                                test_bnot_operations();
+    if (verbose) printf("Running instrsel binary_shift_operations\n");                        test_binary_shift_operations();
+    if (verbose) printf("Running instrsel constant_operations\n");                            test_constant_operations();
+    if (verbose) printf("Running instrsel pointer_to_int_indirects\n");                       test_pointer_to_int_indirects();
+    if (verbose) printf("Running instrsel pointer_to_int_indirects\n");                       test_pointer_to_int_indirects();
+    if (verbose) printf("Running instrsel pointer_to_pointer_to_int_indirects\n");            test_pointer_to_pointer_to_int_indirects();
+    if (verbose) printf("Running instrsel ir_move_to_reg_lvalues\n");                         test_ir_move_to_reg_lvalues();
+    if (verbose) printf("Running instrsel pointer_inc\n");                                    test_pointer_inc();
+    if (verbose) printf("Running instrsel pointer_add\n");                                    test_pointer_add();
+    if (verbose) printf("Running instrsel pointer_sub\n");                                    test_pointer_sub();
+    if (verbose) printf("Running instrsel pointer_load_constant\n");                          test_pointer_load_constant();
+    if (verbose) printf("Running instrsel pointer_eq\n");                                     test_pointer_eq();
+    if (verbose) printf("Running instrsel pointer_string_literal\n");                         test_pointer_string_literal();
+    if (verbose) printf("Running instrsel pointer_indirect_from_stack\n");                    test_pointer_indirect_from_stack();
+    if (verbose) printf("Running instrsel pointer_indirect_global_char_in_struct_to_long\n"); test_pointer_indirect_global_char_in_struct_to_long();
+    if (verbose) printf("Running instrsel pointer_assignment_precision_decreases\n");         test_pointer_assignment_precision_decreases();
+    if (verbose) printf("Running instrsel integer_moves\n");                                  test_integer_moves();
+    if (verbose) printf("Running instrsel assign_to_pointer_to_void\n");                      test_assign_to_pointer_to_void();
+    if (verbose) printf("Running instrsel pointer_comparisons\n");                            test_pointer_comparisons();
+    if (verbose) printf("Running instrsel pointer_double_indirect\n");                        test_pointer_double_indirect();
+    if (verbose) printf("Running instrsel composite_pointer_indirect\n");                     test_composite_pointer_indirect();
+    if (verbose) printf("Running instrsel composite_pointer_address_of\n");                   test_composite_pointer_address_of();
+    if (verbose) printf("Running instrsel pointer_to_void_from_long_assignment\n");           test_pointer_to_void_from_long_assignment();
+    if (verbose) printf("Running instrsel ptr_to_void_memory_load_to_ptr\n");                 test_ptr_to_void_memory_load_to_ptr();
+    if (verbose) printf("Running instrsel constant_cast_to_ptr\n");                           test_constant_cast_to_ptr();
+    if (verbose) printf("Running instrsel spilling\n");                                       test_spilling();
+    if (verbose) printf("Running instrsel param_vreg_moves\n");                               test_param_vreg_moves();
 
     if (failures) {
         printf("%d tests failed\n", failures);

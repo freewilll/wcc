@@ -496,8 +496,10 @@ static void arithmetic_operation(int operation, Type *type) {
     src1 = pl();
 
     if (is_integer_type(common_type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
-        if (!type_eq(common_type, src1->type) && src1->type->type <= type->type) src1 = integer_type_change(src1, common_type);
-        if (!type_eq(common_type, src2->type) && src2->type->type <= type->type) src2 = integer_type_change(src2, common_type);
+        if (!type_eq(common_type, src1->type) && (src1->type->type <= type->type || src1->type->is_unsigned != common_type->is_unsigned))
+            src1 = integer_type_change(src1, common_type);
+        if (!type_eq(common_type, src2->type) && (src2->type->type <= type->type || src2->type->is_unsigned != common_type->is_unsigned))
+            src2 = integer_type_change(src2, common_type);
     }
 
     add_ir_op(operation, type, new_vreg(), src1, src2);
@@ -586,7 +588,11 @@ static void expression(int level) {
         next();
 
         if (cur_token == TOK_NUMBER) {
-            cur_long = -cur_long;
+            if (cur_lexer_type->type == TYPE_INT  && !cur_lexer_type->is_unsigned) cur_long = - (int) cur_long;
+            if (cur_lexer_type->type == TYPE_INT  &&  cur_lexer_type->is_unsigned) cur_long = - (unsigned int) cur_long;
+            if (cur_lexer_type->type == TYPE_LONG && !cur_lexer_type->is_unsigned) cur_long = - (long) cur_long;
+            if (cur_lexer_type->type == TYPE_LONG &&  cur_lexer_type->is_unsigned) cur_long = - (unsigned long) cur_long;
+
             push_cur_long();
             next();
         }
@@ -927,6 +933,16 @@ static void expression(int level) {
             expression(TOK_EQ);
             src1 = pl();
             dst->is_lvalue = 1;
+
+            // Add type change move if necessary
+            if (!src1->is_constant && !type_eq(dst->type, src1->type)) {
+                src2 = new_value();
+                src2->vreg = new_vreg();
+                src2->type = dup_type(dst->type);
+                add_instruction(IR_MOVE, src2, src1, 0);
+                src1 = src2;
+            }
+
             add_instruction(IR_MOVE, dst, src1, 0);
             push(dst);
         }

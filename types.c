@@ -111,7 +111,7 @@ int get_type_alignment(Type *type) {
 // Can they be coalesced?
 int type_can_be_coalesced(Type *type1, Type *type2) {
     if (type1->type > TYPE_LONG || type2->type > TYPE_LONG) return 1;
-    else if (type1->is_unsigned != type2->is_unsigned) return 1;
+    else if (type1->is_unsigned != type2->is_unsigned) return 0;
     else return type1->type >= type2->type;
 }
 
