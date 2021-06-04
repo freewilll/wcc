@@ -469,7 +469,7 @@ static void make_igraphs(Function *function, int block_id) {
 static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id, int dst_parent_node_id, int *dst_child_node_id) {
     int operation;
     Tac *tac;
-    IGraphNode *ign, *ign_parent;
+    IGraphNode *ign;
     GraphEdge *e;
 
     ign = &(src->nodes[src_node_id]);
@@ -489,27 +489,6 @@ static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id,
     if (dst_parent_node_id != -1) {
         // add an edge if it's not the root node
         add_graph_edge(dst->graph, dst_parent_node_id, *dst_child_node_id);
-
-        // Special case for dereferencing the first member of a struct.
-        // If the child is a pointer to a struct, then the parent will have the type
-        // that is needed for the dereference. Change the child to match the parent.
-        // This removes the need to have special rules for moving an ADRV to an ADR*
-        ign_parent = &(dst->nodes[dst_parent_node_id]);
-        tac = ign_parent->tac;
-        if (tac) operation = tac->operation; else operation = 0;
-        if (operation == IR_MOVE && tac->src1->type->type >= TYPE_PTR + TYPE_STRUCT && tac->src1->type->type < TYPE_PTR + TYPE_PTR) {
-            ign = &(dst->nodes[*dst_child_node_id]);
-            if (ign->value) {
-                if (debug_instsel_igraph_simplification) {
-                    printf("Transforming child type in IR_MOVE from ");
-                    print_type(stdout, tac->src1->type);
-                    printf(" to ");
-                    print_type(stdout, tac->dst->type);
-                    printf("\n");
-                }
-                ign->value->type = dup_type(tac->dst->type);
-            }
-        }
     }
 
     dst_parent_node_id = *dst_child_node_id;
