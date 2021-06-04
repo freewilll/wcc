@@ -290,6 +290,17 @@ void test_unary_precedence() {
     assert_int( 4, (long) &s[0].j - (long) &s[0], "unary precedence");
 }
 
+void trr(int i) {
+    i--;
+
+    assert_int(1, i, "Register reuse in inc + function calls");
+    assert_int(1, i, "Register reuse in inc + function calls");
+}
+
+void test_register_reuse_in_function_calls() {
+    trr(2);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -314,6 +325,7 @@ int main(int argc, char **argv) {
     test_double_deref_assign_with_cast();
     test_function_returning_pointer_to_char_in_conditional_jump();
     test_unary_precedence();
+    test_register_reuse_in_function_calls();
 
     finalize();
 }

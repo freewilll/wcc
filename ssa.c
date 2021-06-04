@@ -1800,7 +1800,7 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
                         instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
                 }
 
-                if (tac->operation == IR_MOVE && tac->src1->is_function_param)
+                if (tac->src1 && tac->src1->is_function_param)
                     for (src = 1; src <= vreg_count; src++)
                         instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
 
