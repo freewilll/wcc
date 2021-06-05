@@ -459,13 +459,16 @@ static void and_or_expr(int is_and) {
 static Value *integer_type_change(Value *src, Type *type) {
     Value *dst;
 
-    // Make an signed type a unsigned without a move, if possible
-    if (src->is_constant && src->type->type == type->type && !src->type->is_unsigned && type->is_unsigned && src->value >= 0) {
+    if (src->is_constant) {
+        // The target type is always a long and the constant is already represented
+        // as a long in cur_long, so nothing needs doing other than changing the
+        // type.
         dst = dup_value(src);
-        dst->type->is_unsigned = 1;
+        dst->type = dup_type(type);
         return dst;
     }
 
+    // Add a move for the type change
     dst = dup_value(src);
     dst->vreg = new_vreg();
     dst->type = type;

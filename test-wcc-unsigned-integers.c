@@ -58,12 +58,10 @@ void test_operations() {
     assert_long(0xf,  0xffffffffffffffffu % 0xfffffffffffffffu, "unsigned long constant modulo");
 
     // Comparisons
-    // Note: the ul is needed since otherwise the parser will add a move to go from (int) 0 -> (unsigned int) 0.
-    // This move will be removed in the future, and when done, the ul can be removed.
-    assert_int(0, 0xffffffffffffffff < 0ul,  "-1 < 0");
-    assert_int(0, 0xffffffffffffffff <= 0ul, "-1 <= 0");
-    assert_int(0, 0ul >  0xffffffffffffffff, "0 > -1");
-    assert_int(0, 0ul >= 0xffffffffffffffff, "0 >= -1");
+    assert_int(0, 0xffffffffffffffff < 0,  "-1 < 0");
+    assert_int(0, 0xffffffffffffffff <= 0, "-1 <= 0");
+    assert_int(0, 0 >  0xffffffffffffffff, "0 > -1");
+    assert_int(0, 0 >= 0xffffffffffffffff, "0 >= -1");
 }
 
 int main(int argc, char **argv) {

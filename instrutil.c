@@ -500,10 +500,21 @@ static int non_terminal_for_value(Value *v) {
 // There are a couple of possible matches for a constant.
 int match_value_to_rule_src(Value *v, int src) {
     if (v->is_constant) {
+        if (v->type->type < TYPE_INT) panic1d("Unexpected constant type %d", v->type->type);
+
+        // Match 1, 2 and 3
              if (src == CSTV1 && v->value == 1) return 1;
         else if (src == CSTV2 && v->value == 2) return 1;
         else if (src == CSTV3 && v->value == 3) return 1;
 
+        // Check match with type from the parser. This is necessary for evil casts, e.g.
+        // (unsigned int) -1, which would otherwise become a CU4 and not match rules for CU3.
+             if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->type->type == TYPE_INT)   return 1;
+        else if (              src == CI4 && !v->type->is_unsigned)                                return 1;
+             if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->type->type == TYPE_INT)   return 1;
+        else if (              src == CU4 &&  v->type->is_unsigned)                                return 1;
+
+        // Determine constant non termimal by looking at the signdness and value
         else if (src >= CI1 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x80        && v->value < 0x80       ) return 1;
         else if (src >= CI2 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x8000      && v->value < 0x8000     ) return 1;
         else if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x80000000l && v->value < 0x80000000l) return 1;
