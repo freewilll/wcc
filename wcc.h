@@ -804,6 +804,7 @@ void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2);
 
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
 Value *v(int vreg);
+Value *uv(int vreg);
 Value *vsz(int vreg, int type);
 Value *vusz(int vreg, int type);
 Value *a(int vreg);

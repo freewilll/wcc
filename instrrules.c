@@ -432,6 +432,9 @@ static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *
 static void add_div_rules() {
     add_div_rule(RI3, RI3, RI3, 40, "movl %v1l, %%eax", "cltd", "movl %v1l, %vdl", "idivl %vdl", "movl %%eax, %vdl", "movl %%edx, %vdl");
     add_div_rule(RI4, RI4, RI4, 50, "movq %v1q, %%rax", "cqto", "movq %v1q, %vdq", "idivq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
+
+    add_div_rule(RU3, RU3, RU3, 40, "movl %v1l, %%eax", "movl $0, %%edx", "movl %v1l, %vdl", "divl %vdl", "movl %%eax, %vdl", "movl %%edx, %vdl");
+    add_div_rule(RU4, RU4, RU4, 50, "movq %v1q, %%rax", "movq $0, %%rdx", "movq %v1q, %vdq", "divq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
 }
 
 static void add_bnot_rules() {

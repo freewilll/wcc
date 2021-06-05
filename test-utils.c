@@ -104,6 +104,17 @@ Value *v(int vreg) {
     return v;
 }
 
+Value *uv(int vreg) {
+    Value *v;
+
+    v = new_value();
+    v->type = new_type(TYPE_LONG);
+    v->type->is_unsigned = 1;
+    v->vreg = vreg;
+
+    return v;
+}
+
 Value *vsz(int vreg, int type) {
     Value *v;
 
