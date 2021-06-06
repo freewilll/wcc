@@ -106,13 +106,6 @@ int main() {
         fprintf(f, "<td class='%s'>%s</td>", covered ? "inset" : "", non_terminal_string(r->src2));
         fprintf(f, "<td class='%s'>%d</td>", covered ? "inset" : "", r->cost);
 
-        // fprintf(f, "%-24s  %-5s  %-5s  %-5s  %2d    ",
-        //     operation_string(r->operation),
-        //     non_terminal_string(r->dst),
-        //     non_terminal_string(r->src1),
-        //     non_terminal_string(r->src2),
-        //     r->cost
-        // );
         fprintf(f, "</td>");
 
         fprintf(f, "</tr>");
@@ -124,5 +117,5 @@ int main() {
 
     fclose(f);
 
-    printf("%d / %d rules are covered\n", covered_count, instr_rule_count);
+    printf("%d%% (%d / %d) of the rules are covered \n", covered_count * 100 / instr_rule_count, covered_count, instr_rule_count);
 }
