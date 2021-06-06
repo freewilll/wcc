@@ -49,40 +49,40 @@ void vrf() {
     g = 2;
 }
 
-static char  return_char_from_char()  { char  v; v = 1; return v; }
-static char  return_char_from_short() { short v; v = 1; return v; }
-static char  return_char_from_int()   { int   v; v = 1; return v; }
-static char  return_char_from_long()  { long  v; v = 1; return v; }
-static short return_short_from_char()  { char  v; v = 1; return v; }
-static short return_short_from_short() { short v; v = 1; return v; }
-static short return_short_from_int()   { int   v; v = 1; return v; }
-static short return_short_from_long()  { long  v; v = 1; return v; }
-static int   return_int_from_char()  { char  v; v = 1; return v; }
-static int   return_int_from_short() { short v; v = 1; return v; }
-static int   return_int_from_int()   { int   v; v = 1; return v; }
-static int   return_int_from_long()  { long  v; v = 1; return v; }
-static long  return_long_from_char()  { char  v; v = 1; return v; }
-static long  return_long_from_short() { short v; v = 1; return v; }
-static long  return_long_from_int()   { int   v; v = 1; return v; }
-static long  return_long_from_long()  { long  v; v = 1; return v; }
+static char  return_char_from_char()   { char  v; v = -1; return v; }
+static char  return_char_from_short()  { short v; v = -1; return v; }
+static char  return_char_from_int()    { int   v; v = -1; return v; }
+static char  return_char_from_long()   { long  v; v = -1; return v; }
+static short return_short_from_char()  { char  v; v = -1; return v; }
+static short return_short_from_short() { short v; v = -1; return v; }
+static short return_short_from_int()   { int   v; v = -1; return v; }
+static short return_short_from_long()  { long  v; v = -1; return v; }
+static int   return_int_from_char()    { char  v; v = -1; return v; }
+static int   return_int_from_short()   { short v; v = -1; return v; }
+static int   return_int_from_int()     { int   v; v = -1; return v; }
+static int   return_int_from_long()    { long  v; v = -1; return v; }
+static long  return_long_from_char()   { char  v; v = -1; return v; }
+static long  return_long_from_short()  { short v; v = -1; return v; }
+static long  return_long_from_int()    { int   v; v = -1; return v; }
+static long  return_long_from_long()   { long  v; v = -1; return v; }
 
 static void test_return_mixed_ints() {
-    assert_int(1, return_char_from_char(),   "return char from char");
-    assert_int(1, return_char_from_short(),  "return char from short");
-    assert_int(1, return_char_from_int(),    "return char from int");
-    assert_int(1, return_char_from_long(),   "return char from long");
-    assert_int(1, return_short_from_char(),  "return short from char");
-    assert_int(1, return_short_from_short(), "return short from short");
-    assert_int(1, return_short_from_int(),   "return short from int");
-    assert_int(1, return_short_from_long(),  "return short from long");
-    assert_int(1, return_int_from_char(),    "return int from char");
-    assert_int(1, return_int_from_short(),   "return int from short");
-    assert_int(1, return_int_from_int(),     "return int from int");
-    assert_int(1, return_int_from_long(),    "return int from long");
-    assert_long(1, return_long_from_char(),  "return long from char");
-    assert_long(1, return_long_from_short(), "return long from short");
-    assert_long(1, return_long_from_int(),   "return long from int");
-    assert_long(1, return_long_from_long(),  "return long from long");
+    assert_int (-1, return_char_from_char(),   "return char from char");
+    assert_int (-1, return_char_from_short(),  "return char from short");
+    assert_int (-1, return_char_from_int(),    "return char from int");
+    assert_int (-1, return_char_from_long(),   "return char from long");
+    assert_int (-1, return_short_from_char(),  "return short from char");
+    assert_int (-1, return_short_from_short(), "return short from short");
+    assert_int (-1, return_short_from_int(),   "return short from int");
+    assert_int (-1, return_short_from_long(),  "return short from long");
+    assert_int (-1, return_int_from_char(),    "return int from char");
+    assert_int (-1, return_int_from_short(),   "return int from short");
+    assert_int (-1, return_int_from_int(),     "return int from int");
+    assert_int (-1, return_int_from_long(),    "return int from long");
+    assert_long(-1, return_long_from_char(),   "return long from char");
+    assert_long(-1, return_long_from_short(),  "return long from short");
+    assert_long(-1, return_long_from_int(),    "return long from int");
+    assert_long(-1, return_long_from_long(),   "return long from long");
 }
 
 void test_void_return() {
