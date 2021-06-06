@@ -808,6 +808,7 @@ Value *vsz(int vreg, int type);
 Value *vusz(int vreg, int type);
 Value *a(int vreg);
 Value *asz(int vreg, int type);
+Value *ausz(int vreg, int type);
 Value *l(int label);
 Value *ci(int value);
 Value *c(long value);

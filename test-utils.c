@@ -158,6 +158,17 @@ Value *asz(int vreg, int type) {
     return v;
 }
 
+Value *ausz(int vreg, int type) {
+    Value *v;
+
+    v = new_value();
+    v->type = new_type(TYPE_PTR + type);
+    v->type->is_unsigned = 1;
+    v->vreg = vreg;
+
+    return v;
+}
+
 Value *l(int label) {
     Value *v;
 

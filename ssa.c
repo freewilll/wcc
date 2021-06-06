@@ -206,13 +206,21 @@ void add_function_call_arg_moves(Function *function) {
                 tac = new_instruction(IR_MOVE);
 
                 tac->dst = new_value();
+
                 if (i < called_function->param_count) {
                     tac->dst->type = dup_type(called_function->param_types[i]);
                 }
                 else {
-                    tac->dst->type = new_type(TYPE_INT);
-                    if ((*call_arg)->type->is_unsigned) tac->dst->type->is_unsigned = 1;
+                    // Apply default argument promotions
+                    // It would probably be better if this was done in the parser
+                    if ((*call_arg)->type->type < TYPE_INT) {
+                        tac->dst->type = new_type(TYPE_INT);
+                        if ((*call_arg)->type->is_unsigned) tac->dst->type->is_unsigned = 1;
+                    }
+                    else
+                        tac->dst->type = dup_type((*call_arg)->type);
                 }
+
                 tac->dst->vreg = ++function->vreg_count;
 
                 tac->src1 = *call_arg;

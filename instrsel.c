@@ -86,6 +86,10 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
         else if (operation == IR_BNOT)                 c += printf("~");
         else if (operation == IR_BSHL)                 c += printf("<<");
         else if (operation == IR_BSHR)                 c += printf(">>");
+        else if (operation == IR_BNOT)                 c += printf("!");
+        else if (operation == IR_BOR)                  c += printf("|");
+        else if (operation == IR_BAND)                 c += printf("&");
+        else if (operation == IR_XOR)                  c += printf("~");
         else if (operation == IR_INDIRECT)             c += printf("indirect");
         else if (operation == IR_ADDRESS_OF)           c += printf("&");
         else if (operation == IR_MOVE_TO_PTR)          c += printf("move to ptr");

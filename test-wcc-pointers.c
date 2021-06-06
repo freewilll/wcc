@@ -283,6 +283,16 @@ void test_global_pointer_address_of() {
     gl = 4; gpl = &gl; assert_int(4, *gpl, "Global address of long");
 }
 
+void test_deref_promotion() {
+    int i, *pi;
+    long l, *pl;
+
+    pi = malloc(sizeof(int));
+    *pi = 1;
+    l = *pi;
+    assert_int(1, l, "deref l -> i");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -308,6 +318,7 @@ int main(int argc, char **argv) {
     test_pointer_casting_reads();
     test_pointer_deref_assign_to_deref();
     test_global_pointer_address_of();
+    test_deref_promotion();
 
     finalize();
 }

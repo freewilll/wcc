@@ -680,8 +680,7 @@ void test_function_args() {
     i(0, IR_CALL, v(2), fu(1), 0);
     i(0, IR_MOVE, v(3), v(2), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("leaq    .SL1(%rip), %rax");
-    assert_rx86_preg_op("movq    %rax, %rdi" );
+    assert_rx86_preg_op("leaq    .SL1(%rip), %rdi");
     assert_rx86_preg_op("movq    %rax, %rax" );
     assert_rx86_preg_op(0);
 }
@@ -1026,9 +1025,9 @@ void test_constant_operations() {
     assert_x86_op("movq    $9, r2q");
 }
 
-void _test_indirect(int src, int dst, char *template) {
+void _test_int_indirect(int type, char *template) {
     start_ir();
-    i(0, IR_INDIRECT, vsz(2, dst), asz(1, src), 0);
+    i(0, IR_INDIRECT, vsz(2, type), asz(1, type), 0);
     finish_ir(function);
     assert_x86_op(template);
 }
@@ -1036,27 +1035,35 @@ void _test_indirect(int src, int dst, char *template) {
 void test_pointer_to_int_indirects() {
     remove_reserved_physical_registers = 1;
 
-    // There aren't any rules for coercions, only same-type and promotions
-    _test_indirect(TYPE_CHAR,  TYPE_CHAR,  "movb    (r1q), r2b");
-    _test_indirect(TYPE_CHAR,  TYPE_SHORT, "movsbw  (r1q), r2w");
-    _test_indirect(TYPE_CHAR,  TYPE_INT,   "movsbl  (r1q), r2l");
-    _test_indirect(TYPE_CHAR,  TYPE_LONG,  "movsbq  (r1q), r2q");
-    _test_indirect(TYPE_SHORT, TYPE_SHORT, "movw    (r1q), r2w");
-    _test_indirect(TYPE_SHORT, TYPE_INT,   "movswl  (r1q), r2l");
-    _test_indirect(TYPE_SHORT, TYPE_LONG,  "movswq  (r1q), r2q");
-    _test_indirect(TYPE_INT,   TYPE_INT,   "movl    (r1q), r2l");
-    _test_indirect(TYPE_INT,   TYPE_LONG,  "movslq  (r1q), r2q");
-    _test_indirect(TYPE_LONG,  TYPE_LONG,  "movq    (r1q), r2q");
+    _test_int_indirect(TYPE_CHAR,  "movb    (r1q), r2b");
+    _test_int_indirect(TYPE_SHORT, "movw    (r1q), r2w");
+    _test_int_indirect(TYPE_INT,   "movl    (r1q), r2l");
+    _test_int_indirect(TYPE_LONG,  "movq    (r1q), r2q");
+}
+
+void _test_uint_indirect(int type, char *template) {
+    start_ir();
+    i(0, IR_INDIRECT, vusz(2, type), ausz(1, type), 0);
+    finish_ir(function);
+    assert_x86_op(template);
+}
+
+void test_pointer_to_uint_indirects() {
+    remove_reserved_physical_registers = 1;
+
+    _test_uint_indirect(TYPE_CHAR,  "movb    (r1q), r2b");
+    _test_uint_indirect(TYPE_SHORT, "movw    (r1q), r2w");
+    _test_uint_indirect(TYPE_INT,   "movl    (r1q), r2l");
+    _test_uint_indirect(TYPE_LONG,  "movq    (r1q), r2q");
 }
 
 void test_pointer_to_pointer_to_int_indirects() {
-    int src, dst;
+    int type;
 
     remove_reserved_physical_registers = 1;
 
-    for (src = TYPE_CHAR; src <= TYPE_VOID; src++)
-        for (dst = TYPE_CHAR; dst <= TYPE_VOID; dst++)
-            _test_indirect(TYPE_PTR + dst,  TYPE_PTR + src,  "movq    (r1q), r2q");
+    for (type = TYPE_CHAR; type <= TYPE_VOID; type++)
+        _test_int_indirect(TYPE_PTR + type,  "movq    (r1q), r2q");
 }
 
 void _test_ir_move_to_reg_lvalue(int src, int dst, char *template) {
@@ -1637,7 +1644,7 @@ int main() {
     if (verbose) printf("Running instrsel binary_shift_operations\n");                        test_binary_shift_operations();
     if (verbose) printf("Running instrsel constant_operations\n");                            test_constant_operations();
     if (verbose) printf("Running instrsel pointer_to_int_indirects\n");                       test_pointer_to_int_indirects();
-    if (verbose) printf("Running instrsel pointer_to_int_indirects\n");                       test_pointer_to_int_indirects();
+    if (verbose) printf("Running instrsel pointer_to_uint_indirects\n");                      test_pointer_to_uint_indirects();
     if (verbose) printf("Running instrsel pointer_to_pointer_to_int_indirects\n");            test_pointer_to_pointer_to_int_indirects();
     if (verbose) printf("Running instrsel ir_move_to_reg_lvalues\n");                         test_ir_move_to_reg_lvalues();
     if (verbose) printf("Running instrsel pointer_inc\n");                                    test_pointer_inc();

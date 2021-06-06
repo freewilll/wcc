@@ -19,6 +19,9 @@ test-ssa-gcc
 test-instrsel
 test-instrsel-gcc
 test-parser-gcc
+gen-test-wcc-reg-move-torture
+test-wcc-reg-move-torture.c
+test-wcc-reg-move-torture
 benchmark
 test.c
 test1.c

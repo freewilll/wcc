@@ -74,7 +74,8 @@ WCC_TESTS=\
 	pointer-arithmetic \
 	loops \
 	enums \
-	regressions
+	regressions \
+	reg-move-torture
 
 stack-check.o: stack-check.c
 	gcc ${GCC_OPTS} stack-check.c -c
@@ -95,12 +96,18 @@ run-test-wcc-%-wcc: test-wcc-%-wcc
 	./$<
 	touch run-$<
 
+gen-test-wcc-reg-move-torture: gen-test-wcc-reg-move-torture.c
+	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-wcc-reg-move-torture.c -o gen-test-wcc-reg-move-torture
+
+test-wcc-reg-move-torture.c: gen-test-wcc-reg-move-torture
+	./gen-test-wcc-reg-move-torture
+
 .PHONY: run-test-wcc
 run-test-wcc: ${WCC_TESTS:%=run-test-wcc-%-wcc}
 	@echo wcc tests passed
 
 test-wcc-%-gcc: test-wcc-%.c stack-check.o test-lib.o
-	gcc ${GCC_OPTS} $< stack-check.o test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -D _GNU_SOURCE
+	gcc ${GCC_OPTS} $< stack-check.o test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-overflow -Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -D _GNU_SOURCE
 
 run-test-wcc-%-gcc: test-wcc-%-gcc
 	./$<
@@ -216,6 +223,8 @@ clean:
 	@rm -f wcc3
 	@rm -f test-wcc
 	@rm -f test-wcc-*-wcc
+	@rm -f test-wcc-reg-move-torture.c
+	@rm -f gen-test-wcc-reg-move-torture
 	@rm -f run-test-wcc-*
 	@rm -f test-wcc-gcc
 	@rm -f test-wcc-*-gcc

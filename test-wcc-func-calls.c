@@ -49,40 +49,144 @@ void vrf() {
     g = 2;
 }
 
-static char  return_char_from_char()   { char  v; v = -1; return v; }
-static char  return_char_from_short()  { short v; v = -1; return v; }
-static char  return_char_from_int()    { int   v; v = -1; return v; }
-static char  return_char_from_long()   { long  v; v = -1; return v; }
-static short return_short_from_char()  { char  v; v = -1; return v; }
-static short return_short_from_short() { short v; v = -1; return v; }
-static short return_short_from_int()   { int   v; v = -1; return v; }
-static short return_short_from_long()  { long  v; v = -1; return v; }
-static int   return_int_from_char()    { char  v; v = -1; return v; }
-static int   return_int_from_short()   { short v; v = -1; return v; }
-static int   return_int_from_int()     { int   v; v = -1; return v; }
-static int   return_int_from_long()    { long  v; v = -1; return v; }
-static long  return_long_from_char()   { char  v; v = -1; return v; }
-static long  return_long_from_short()  { short v; v = -1; return v; }
-static long  return_long_from_int()    { int   v; v = -1; return v; }
-static long  return_long_from_long()   { long  v; v = -1; return v; }
+static char  return_c_from_c() { return (char)  -1; }
+static char  return_c_from_s() { return (short) -1; }
+static char  return_c_from_i() { return (int)   -1; }
+static char  return_c_from_l() { return (long)  -1; }
+static short return_s_from_c() { return (char)  -1; }
+static short return_s_from_s() { return (short) -1; }
+static short return_s_from_i() { return (int)   -1; }
+static short return_s_from_l() { return (long)  -1; }
+static int   return_i_from_c() { return (char)  -1; }
+static int   return_i_from_s() { return (short) -1; }
+static int   return_i_from_i() { return (int)   -1; }
+static int   return_i_from_l() { return (long)  -1; }
+static long  return_l_from_c() { return (char)  -1; }
+static long  return_l_from_s() { return (short) -1; }
+static long  return_l_from_i() { return (int)   -1; }
+static long  return_l_from_l() { return (long)  -1; }
 
-static void test_return_mixed_ints() {
-    assert_int (-1, return_char_from_char(),   "return char from char");
-    assert_int (-1, return_char_from_short(),  "return char from short");
-    assert_int (-1, return_char_from_int(),    "return char from int");
-    assert_int (-1, return_char_from_long(),   "return char from long");
-    assert_int (-1, return_short_from_char(),  "return short from char");
-    assert_int (-1, return_short_from_short(), "return short from short");
-    assert_int (-1, return_short_from_int(),   "return short from int");
-    assert_int (-1, return_short_from_long(),  "return short from long");
-    assert_int (-1, return_int_from_char(),    "return int from char");
-    assert_int (-1, return_int_from_short(),   "return int from short");
-    assert_int (-1, return_int_from_int(),     "return int from int");
-    assert_int (-1, return_int_from_long(),    "return int from long");
-    assert_long(-1, return_long_from_char(),   "return long from char");
-    assert_long(-1, return_long_from_short(),  "return long from short");
-    assert_long(-1, return_long_from_int(),    "return long from int");
-    assert_long(-1, return_long_from_long(),   "return long from long");
+static unsigned char  return_uc_from_c() { return (char)  -1; }
+static unsigned char  return_uc_from_s() { return (short) -1; }
+static unsigned char  return_uc_from_i() { return (int)   -1; }
+static unsigned char  return_uc_from_l() { return (long)  -1; }
+static unsigned short return_us_from_c() { return (char)  -1; }
+static unsigned short return_us_from_s() { return (short) -1; }
+static unsigned short return_us_from_i() { return (int)   -1; }
+static unsigned short return_us_from_l() { return (long)  -1; }
+static unsigned int   return_ui_from_c() { return (char)  -1; }
+static unsigned int   return_ui_from_s() { return (short) -1; }
+static unsigned int   return_ui_from_i() { return (int)   -1; }
+static unsigned int   return_ui_from_l() { return (long)  -1; }
+static unsigned long  return_ul_from_c() { return (char)  -1; }
+static unsigned long  return_ul_from_s() { return (short) -1; }
+static unsigned long  return_ul_from_i() { return (int)   -1; }
+static unsigned long  return_ul_from_l() { return (long)  -1; }
+
+static unsigned char  return_uc_from_uc() { return (unsigned char)  -1; }
+static unsigned char  return_uc_from_us() { return (unsigned short) -1; }
+static unsigned char  return_uc_from_ui() { return (unsigned int)   -1; }
+static unsigned char  return_uc_from_ul() { return (unsigned long)  -1; }
+static unsigned short return_us_from_uc() { return (unsigned char)  -1; }
+static unsigned short return_us_from_us() { return (unsigned short) -1; }
+static unsigned short return_us_from_ui() { return (unsigned int)   -1; }
+static unsigned short return_us_from_ul() { return (unsigned long)  -1; }
+static unsigned int   return_ui_from_uc() { return (unsigned char)  -1; }
+static unsigned int   return_ui_from_us() { return (unsigned short) -1; }
+static unsigned int   return_ui_from_ui() { return (unsigned int)   -1; }
+static unsigned int   return_ui_from_ul() { return (unsigned long)  -1; }
+static unsigned long  return_ul_from_uc() { return (unsigned char)  -1; }
+static unsigned long  return_ul_from_us() { return (unsigned short) -1; }
+static unsigned long  return_ul_from_ui() { return (unsigned int)   -1; }
+static unsigned long  return_ul_from_ul() { return (unsigned long)  -1; }
+
+static char  return_c_from_uc() { return (unsigned char)  -1; }
+static char  return_c_from_us() { return (unsigned short) -1; }
+static char  return_c_from_ui() { return (unsigned int)   -1; }
+static char  return_c_from_ul() { return (unsigned long)  -1; }
+static short return_s_from_uc() { return (unsigned char)  -1; }
+static short return_s_from_us() { return (unsigned short) -1; }
+static short return_s_from_ui() { return (unsigned int)   -1; }
+static short return_s_from_ul() { return (unsigned long)  -1; }
+static int   return_i_from_uc() { return (unsigned char)  -1; }
+static int   return_i_from_us() { return (unsigned short) -1; }
+static int   return_i_from_ui() { return (unsigned int)   -1; }
+static int   return_i_from_ul() { return (unsigned long)  -1; }
+static long  return_l_from_uc() { return (unsigned char)  -1; }
+static long  return_l_from_us() { return (unsigned short) -1; }
+static long  return_l_from_ui() { return (unsigned int)   -1; }
+static long  return_l_from_ul() { return (unsigned long)  -1; }
+
+static void test_return_mixed_integers() {
+    // Test conversions when returning integers
+
+    assert_int (-1, return_c_from_c(), "return c from c");
+    assert_int (-1, return_c_from_s(), "return c from s");
+    assert_int (-1, return_c_from_i(), "return c from i");
+    assert_int (-1, return_c_from_l(), "return c from l");
+    assert_int (-1, return_s_from_c(), "return s from c");
+    assert_int (-1, return_s_from_s(), "return s from s");
+    assert_int (-1, return_s_from_i(), "return s from i");
+    assert_int (-1, return_s_from_l(), "return s from l");
+    assert_int (-1, return_i_from_c(), "return i from c");
+    assert_int (-1, return_i_from_s(), "return i from s");
+    assert_int (-1, return_i_from_i(), "return i from i");
+    assert_int (-1, return_i_from_l(), "return i from l");
+    assert_long(-1, return_l_from_c(), "return l from c");
+    assert_long(-1, return_l_from_s(), "return l from s");
+    assert_long(-1, return_l_from_i(), "return l from i");
+    assert_long(-1, return_l_from_l(), "return l from l");
+
+    assert_int (0xff,       return_uc_from_c(), "return uc from c");
+    assert_int (0xff,       return_uc_from_s(), "return uc from s");
+    assert_int (0xff,       return_uc_from_i(), "return uc from i");
+    assert_int (0xff,       return_uc_from_l(), "return uc from l");
+    assert_int (0xffff,     return_us_from_c(), "return us from c");
+    assert_int (0xffff,     return_us_from_s(), "return us from s");
+    assert_int (0xffff,     return_us_from_i(), "return us from i");
+    assert_int (0xffff,     return_us_from_l(), "return us from l");
+    assert_int (-1,         return_ui_from_c(), "return ui from c");
+    assert_int (-1,         return_ui_from_s(), "return ui from s");
+    assert_int (-1,         return_ui_from_i(), "return ui from i");
+    assert_int (-1,         return_ui_from_l(), "return ui from l");
+    assert_long(-1,         return_ul_from_c(), "return ul from c");
+    assert_long(-1,         return_ul_from_s(), "return ul from s");
+    assert_long(-1,         return_ul_from_i(), "return ul from i");
+    assert_long(-1,         return_ul_from_l(), "return ul from l");
+
+    assert_int (0xff,       return_uc_from_uc(), "return uc from uc");
+    assert_int (0xff,       return_uc_from_us(), "return uc from us");
+    assert_int (0xff,       return_uc_from_ui(), "return uc from ui");
+    assert_int (0xff,       return_uc_from_ul(), "return uc from ul");
+    assert_int (0xff,       return_us_from_uc(), "return us from uc");
+    assert_int (0xffff,     return_us_from_us(), "return us from us");
+    assert_int (0xffff,     return_us_from_ui(), "return us from ui");
+    assert_int (0xffff,     return_us_from_ul(), "return us from ul");
+    assert_int (0xff,       return_ui_from_uc(), "return ui from uc");
+    assert_int (0xffff,     return_ui_from_us(), "return ui from us");
+    assert_int (-1,         return_ui_from_ui(), "return ui from ui");
+    assert_int (-1,         return_ui_from_ul(), "return ui from ul");
+    assert_long(0xff,       return_ul_from_uc(), "return ul from uc");
+    assert_long(0xffff,     return_ul_from_us(), "return ul from us");
+    assert_long(0xffffffff, return_ul_from_ui(), "return ul from ui");
+    assert_long(-1,         return_ul_from_ul(), "return ul from ul");
+
+    assert_int (-1,         return_c_from_uc(), "return c from uc");
+    assert_int (-1,         return_c_from_us(), "return c from us");
+    assert_int (-1,         return_c_from_ui(), "return c from ui");
+    assert_int (-1,         return_c_from_ul(), "return c from ul");
+    assert_int (0xff,       return_s_from_uc(), "return s from uc");
+    assert_int (-1,         return_s_from_us(), "return s from us");
+    assert_int (-1,         return_s_from_ui(), "return s from ui");
+    assert_int (-1,         return_s_from_ul(), "return s from ul");
+    assert_int (0xff,       return_i_from_uc(), "return i from uc");
+    assert_int (0xffff,     return_i_from_us(), "return i from us");
+    assert_int (-1,         return_i_from_ui(), "return i from ui");
+    assert_int (-1,         return_i_from_ul(), "return i from ul");
+    assert_long(0xff,       return_l_from_uc(), "return l from uc");
+    assert_long(0xffff,     return_l_from_us(), "return l from us");
+    assert_long(0xffffffff, return_l_from_ui(), "return l from ui");
+    assert_long(-1,         return_l_from_ul(), "return l from ul");
 }
 
 void test_void_return() {
@@ -138,7 +242,7 @@ int main(int argc, char **argv) {
     assert_int(6, nfc(nfc(1) + nfc(1))+nfc(0), "nested function calls 6");
 
     test_function_call_with_global();
-    test_return_mixed_ints();
+    test_return_mixed_integers();
     test_split_function_declaration_and_definition();
     test_void_return();
     test_func_returns_are_lvalues();

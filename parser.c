@@ -969,8 +969,7 @@ static void expression(int level) {
                 arithmetic_operation(IR_MUL, new_type(TYPE_INT));
             }
 
-            arithmetic_operation(org_token == TOK_PLUS_EQ ? IR_ADD : IR_SUB, type);
-            vtop->type = dup_type(org_type);
+            arithmetic_operation(org_token == TOK_PLUS_EQ ? IR_ADD : IR_SUB, 0);
             add_instruction(IR_MOVE, v1, vtop, 0);
         }
         else
