@@ -14,6 +14,11 @@ short *gps, gs;
 int *gpi, gi;
 long *gpl, gl;
 
+unsigned char *gupc, guc;
+unsigned short *gups, gus;
+unsigned int *gupi, gui;
+unsigned long *gupl, gul;
+
 void test_pointer_to_int1() {
     // Special case of pi being in a register
     int i;
@@ -247,6 +252,52 @@ void test_pointer_casting_reads() {
     assert_long(0x0101010101010101, *((long  *) data), "long read 2");
 }
 
+void test_pointer_deref_all_types() {
+    char *pc;
+    short *ps;
+    int *pi;
+    long *pl;
+    unsigned char *upc;
+    unsigned short *ups;
+    unsigned int *upi;
+    unsigned long *upl;
+
+    pc  = malloc(sizeof(char));  upc  = malloc(sizeof(unsigned char));
+    ps  = malloc(sizeof(short)); ups  = malloc(sizeof(unsigned short));
+    pi  = malloc(sizeof(int));   upi  = malloc(sizeof(unsigned int));
+    pl  = malloc(sizeof(long));  upl  = malloc(sizeof(unsigned long));
+    gpc = malloc(sizeof(char));  gupc = malloc(sizeof(unsigned char));
+    gps = malloc(sizeof(short)); gups = malloc(sizeof(unsigned short));
+    gpi = malloc(sizeof(int));   gupi = malloc(sizeof(unsigned int));
+    gpl = malloc(sizeof(long));  gupl = malloc(sizeof(unsigned long));
+
+    memset(pc,  -1, sizeof(char));  memset(upc,  -1, sizeof(unsigned char));
+    memset(ps,  -1, sizeof(short)); memset(ups,  -1, sizeof(unsigned short));
+    memset(pi,  -1, sizeof(int));   memset(upi,  -1, sizeof(unsigned int));
+    memset(pl,  -1, sizeof(long));  memset(upl,  -1, sizeof(unsigned long));
+    memset(gpc, -1, sizeof(char));  memset(gupc, -1, sizeof(unsigned char));
+    memset(gps, -1, sizeof(short)); memset(gups, -1, sizeof(unsigned short));
+    memset(gpi, -1, sizeof(int));   memset(gupi, -1, sizeof(unsigned int));
+    memset(gpl, -1, sizeof(long));  memset(gupl, -1, sizeof(unsigned long));
+
+    assert_long(-1, *pc,  "*pc");  assert_long(0xff,       *upc,  "*upc");
+    assert_long(-1, *ps,  "*ps");  assert_long(0xffff,     *ups,  "*ups");
+    assert_long(-1, *pi,  "*pi");  assert_long(0xffffffff, *upi,  "*upi");
+    assert_long(-1, *pl,  "*pl");  assert_long(-1,         *upl,  "*upl");
+    assert_long(-1, *pc,  "*pc");  assert_long(0xff,       *upc,  "*upc");
+    assert_long(-1, *ps,  "*ps");  assert_long(0xffff,     *ups,  "*ups");
+    assert_long(-1, *pi,  "*pi");  assert_long(0xffffffff, *upi,  "*upi");
+    assert_long(-1, *pl,  "*pl");  assert_long(-1,         *upl,  "*upl");
+    assert_long(-1, *gpc, "*gpc"); assert_long(0xff,       *gupc, "*gupc");
+    assert_long(-1, *gps, "*gps"); assert_long(0xffff,     *gups, "*gups");
+    assert_long(-1, *gpi, "*gpi"); assert_long(0xffffffff, *gupi, "*gupi");
+    assert_long(-1, *gpl, "*gpl"); assert_long(-1,         *gupl, "*gupl");
+    assert_long(-1, *gpc, "*gpc"); assert_long(0xff,       *gupc, "*gupc");
+    assert_long(-1, *gps, "*gps"); assert_long(0xffff,     *gups, "*gups");
+    assert_long(-1, *gpi, "*gpi"); assert_long(0xffffffff, *gupi, "*gupi");
+    assert_long(-1, *gpl, "*gpl"); assert_long(-1,         *gupl, "*gupl");
+}
+
 void test_pointer_deref_assign_to_deref() {
     char *pc;
     short *ps;
@@ -258,22 +309,22 @@ void test_pointer_deref_assign_to_deref() {
     pi = malloc(sizeof(int));
     pl = malloc(sizeof(long));
 
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pc, *pc, "*char = *char");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pc, *pi, "*char = *short");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pc, *pi, "*char = *int");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pc, *pl, "*char = *long");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*ps, *pc, "*short = *char");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*ps, *pi, "*short = *short");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*ps, *pi, "*short = *int");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*ps, *pl, "*short = *long");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pi, *pc, "*int = *char");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pi, *pi, "*int = *short");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pi, *pi, "*int = *int");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pi, *pl, "*int = *long");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pl, *pc, "*long = *char");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *ps; assert_long(*pl, *pi, "*long = *short");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pl, *pi, "*long = *int");
-    *pc = 0; *ps = 0; *pi = 0; *pl = 0;  *pl = *pi; assert_long(*pl, *pl, "*long = *long");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pc = 1; *pc = *pc; assert_long(*pc, *pc, "*char = *char");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *ps = 1; *pc = *ps; assert_long(*pc, *ps, "*char = *short");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pi = 1; *pc = *pi; assert_long(*pc, *pi, "*char = *int");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pl = 1; *pc = *pl; assert_long(*pc, *pl, "*char = *long");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pc = 1; *ps = *pc; assert_long(*ps, *pc, "*short = *char");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *ps = 1; *ps = *ps; assert_long(*ps, *ps, "*short = *short");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pi = 1; *ps = *pi; assert_long(*ps, *pi, "*short = *int");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pl = 1; *ps = *pl; assert_long(*ps, *pl, "*short = *long");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pc = 1; *pi = *pc; assert_long(*pi, *pc, "*int = *char");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *ps = 1; *pi = *ps; assert_long(*pi, *ps, "*int = *short");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pi = 1; *pi = *pi; assert_long(*pi, *pi, "*int = *int");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pl = 1; *pi = *pl; assert_long(*pi, *pl, "*int = *long");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pc = 1; *pl = *pc; assert_long(*pl, *pc, "*long = *char");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *ps = 1; *pl = *ps; assert_long(*pl, *ps, "*long = *short");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pi = 1; *pl = *pi; assert_long(*pl, *pi, "*long = *int");
+    *pc = 0; *ps = 0; *pi = 0; *pl = 0; *pl = 1; *pl = *pl; assert_long(*pl, *pl, "*long = *long");
 }
 
 void test_global_pointer_address_of() {
@@ -316,6 +367,7 @@ int main(int argc, char **argv) {
     test_int_char_interbreeding();
     test_cast_in_function_call();
     test_pointer_casting_reads();
+    test_pointer_deref_all_types();
     test_pointer_deref_assign_to_deref();
     test_global_pointer_address_of();
     test_deref_promotion();
