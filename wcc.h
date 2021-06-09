@@ -495,7 +495,6 @@ Type *deref_ptr(Type *type);
 int is_integer_type(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
-int type_can_be_coalesced(Type *type1, Type *type2);
 int type_eq(Type *type1, Type *type2);
 
 // ir.c

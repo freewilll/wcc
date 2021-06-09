@@ -1775,7 +1775,7 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
             tac = function->ir;
             while (tac) {
                 // Don't coalesce a move if it promotes an integer type so that both vregs retain their precision.
-                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && type_can_be_coalesced(tac->src1->type, tac->dst->type))
+                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && type_eq(tac->src1->type, tac->dst->type))
                     merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
 
                 else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->next) {

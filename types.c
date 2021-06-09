@@ -107,14 +107,6 @@ int get_type_alignment(Type *type) {
     panic1d("align of unknown type %d", t);
 }
 
-// A move is present in two live ranges from type1 -> type2 with no other interaction.
-// Can they be coalesced?
-int type_can_be_coalesced(Type *type1, Type *type2) {
-    if (type1->type > TYPE_LONG || type2->type > TYPE_LONG) return 1;
-    else if (type1->is_unsigned != type2->is_unsigned) return 0;
-    else return type1->type >= type2->type;
-}
-
 int type_eq(Type *type1, Type *type2) {
     return (type1->type == type2->type && type1->is_unsigned == type2->is_unsigned);
 }
