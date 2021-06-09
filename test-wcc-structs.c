@@ -116,6 +116,17 @@ struct scs {
     int i;
 };
 
+struct cfs {
+    char           c;
+    short          s;
+    int            i;
+    long           l;
+    unsigned char  uc;
+    unsigned short us;
+    unsigned int   ui;
+    unsigned long  ul;
+};
+
 void test_simple_struct() {
     struct sc *lsc1, *lsc2;
     struct ss *lss1, *lss2;
@@ -387,6 +398,22 @@ void test_struct_casting() {
     assert_int(1, s->i, "struct casting");
 }
 
+void test_chocolate_factory_struct() {
+    struct cfs *cfs;
+
+    cfs = malloc(sizeof(struct cfs));
+    memset(cfs, -1, sizeof(struct cfs));
+
+    assert_long(-1,         cfs->c,  "cfgs c");
+    assert_long(-1,         cfs->s,  "cfgs s");
+    assert_long(-1,         cfs->i,  "cfgs i");
+    assert_long(-1,         cfs->l,  "cfgs l");
+    assert_long(0xff,       cfs->uc, "ucfgs c");
+    assert_long(0xffff,     cfs->us, "ucfgs s");
+    assert_long(0xffffffff, cfs->ui, "ucfgs i");
+    assert_long(-1,         cfs->ul, "ucfgs l");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -408,6 +435,7 @@ int main(int argc, char **argv) {
     test_function_returning_a_pointer_to_a_struct();
     test_function_with_a_pointer_to_a_struct_argument();
     test_struct_casting();
+    test_chocolate_factory_struct();
 
     finalize();
 }
