@@ -22,19 +22,15 @@ void test_brutal_pointer_arithmetic() {
     short s, *ps, **pps;
     int i, *pi, **ppi;
     long l, *pl, **ppl;
+    unsigned char uc, *upc, **uppc;
+    unsigned short us, *ups, **upps;
+    unsigned int ui, *upi, **uppi;
+    unsigned long ul, *upl, **uppl;
 
-    c = 0;
-    pc = 0;
-    ppc = 0;
-    s = 0;
-    ps = 0;
-    pps = 0;
-    i = 0;
-    pi = 0;
-    ppi = 0;
-    l = 0;
-    pl = 0;
-    ppl = 0;
+    c = pc = ppc = uc = upc = uppc = 0;;
+    s = ps = pps = us = ups = upps = 0;;
+    i = pi = ppi = ui = upi = uppi = 0;;
+    l = pl = ppl = ul = upl = uppl = 0;;
 
     c   = c   + 1; assert_int(1, c,   "ptr arith 1a"); c   = c   + 2; assert_int(3,  c,   "ptr arith 1b"); c   = c   - 3; assert_int(0, c,   "ptr arith 1c"); c   = c   - 1;
     pc  = pc  + 1; assert_int(1, pc,  "ptr arith 2a"); pc  = pc  + 2; assert_int(3,  pc,  "ptr arith 2b"); pc  = pc  - 3; assert_int(0, pc,  "ptr arith 2c"); pc  = pc  - 1;
@@ -48,6 +44,19 @@ void test_brutal_pointer_arithmetic() {
     l   = l   + 1; assert_int(1, l,   "ptr arith aa"); l   = l   + 2; assert_int(3,  l,   "ptr arith ab"); l   = l   - 3; assert_int(0, l,   "ptr arith ac"); l   = l   - 1;
     pl  = pl  + 1; assert_int(8, pl,  "ptr arith ba"); pl  = pl  + 2; assert_int(24, pl,  "ptr arith bb"); pl  = pl  - 3; assert_int(0, pl,  "ptr arith bc"); pl  = pl  - 1;
     ppl = ppl + 1; assert_int(8, ppl, "ptr arith ca"); ppl = ppl + 2; assert_int(24, ppl, "ptr arith cb"); ppl = ppl - 3; assert_int(0, ppl, "ptr arith cc"); ppl = ppl - 1;
+
+    uc   = uc   + 1; assert_int(1, uc,   "ptr arith u1a"); uc   = uc   + 2; assert_int(3,  uc,   "ptr arith u1b"); uc   = uc   - 3; assert_int(0, uc,   "ptr arith u1c"); uc   = uc   - 1;
+    upc  = upc  + 1; assert_int(1, upc,  "ptr arith u2a"); upc  = upc  + 2; assert_int(3,  upc,  "ptr arith u2b"); upc  = upc  - 3; assert_int(0, upc,  "ptr arith u2c"); upc  = upc  - 1;
+    uppc = uppc + 1; assert_int(8, uppc, "ptr arith u3a"); uppc = uppc + 2; assert_int(24, uppc, "ptr arith u3b"); uppc = uppc - 3; assert_int(0, uppc, "ptr arith u3c"); uppc = uppc - 1;
+    us   = us   + 1; assert_int(1, us,   "ptr arith u4a"); us   = us   + 2; assert_int(3,  us,   "ptr arith u4b"); us   = us   - 3; assert_int(0, us,   "ptr arith u4c"); us   = us   - 1;
+    ups  = ups  + 1; assert_int(2, ups,  "ptr arith u5a"); ups  = ups  + 2; assert_int(6,  ups,  "ptr arith u5b"); ups  = ups  - 3; assert_int(0, ups,  "ptr arith u5c"); ups  = ups  - 1;
+    upps = upps + 1; assert_int(8, upps, "ptr arith u6a"); upps = upps + 2; assert_int(24, upps, "ptr arith u6b"); upps = upps - 3; assert_int(0, upps, "ptr arith u6c"); upps = upps - 1;
+    ui   = ui   + 1; assert_int(1, ui,   "ptr arith u7a"); ui   = ui   + 2; assert_int(3,  ui,   "ptr arith u7b"); ui   = ui   - 3; assert_int(0, ui,   "ptr arith u7c"); ui   = ui   - 1;
+    upi  = upi  + 1; assert_int(4, upi,  "ptr arith u8a"); upi  = upi  + 2; assert_int(12, upi,  "ptr arith u8b"); upi  = upi  - 3; assert_int(0, upi,  "ptr arith u8c"); upi  = upi  - 1;
+    uppi = uppi + 1; assert_int(8, uppi, "ptr arith u9a"); uppi = uppi + 2; assert_int(24, uppi, "ptr arith u9b"); uppi = uppi - 3; assert_int(0, uppi, "ptr arith u9c"); uppi = uppi - 1;
+    ul   = ul   + 1; assert_int(1, ul,   "ptr arith uaa"); ul   = ul   + 2; assert_int(3,  ul,   "ptr arith uab"); ul   = ul   - 3; assert_int(0, ul,   "ptr arith uac"); ul   = ul   - 1;
+    upl  = upl  + 1; assert_int(8, upl,  "ptr arith uba"); upl  = upl  + 2; assert_int(24, upl,  "ptr arith ubb"); upl  = upl  - 3; assert_int(0, upl,  "ptr arith ubc"); upl  = upl  - 1;
+    uppl = uppl + 1; assert_int(8, uppl, "ptr arith uca"); uppl = uppl + 2; assert_int(24, uppl, "ptr arith ucb"); uppl = uppl - 3; assert_int(0, uppl, "ptr arith ucc"); uppl = uppl - 1;
 }
 
 
