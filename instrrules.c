@@ -624,6 +624,8 @@ void init_instruction_selection_rules() {
     // Comparision + conditional jump
     add_comparison_conditional_jmp_rules(&ntc, 0, XRP, XRP, cmpq_vv);
 
+    // Note the RU4, CI3 oddball. cmpq can only be done on imm32, which has to be signed. If CU4 were allowed, then 0x80000000 and higher would
+    // be produced, which is illegal, since that would become an imm64 in the assembler.
     add_comparison_conditional_jmp_rules(&ntc, 0, XRI, XRI, cmp_vv);            add_comparison_conditional_jmp_rules(&ntc, 1, XRU, XRU, cmp_vv);
     add_comparison_conditional_jmp_rules(&ntc, 0, XRI, XMI, cmp_vv);            add_comparison_conditional_jmp_rules(&ntc, 1, XRU, XMU, cmp_vv);
     add_comparison_conditional_jmp_rules(&ntc, 0, XMI, XRI, cmp_vv);            add_comparison_conditional_jmp_rules(&ntc, 1, XMU, XRU, cmp_vv);
@@ -635,7 +637,7 @@ void init_instruction_selection_rules() {
     add_comparison_conditional_jmp_rules(&ntc, 0, RI1, CI1, "cmpb $%v2, %v1b"); add_comparison_conditional_jmp_rules(&ntc, 1, RU1, CU1, "cmpb $%v2, %v1b");
     add_comparison_conditional_jmp_rules(&ntc, 0, RI2, CI2, "cmpw $%v2, %v1w"); add_comparison_conditional_jmp_rules(&ntc, 1, RU2, CU2, "cmpw $%v2, %v1w");
     add_comparison_conditional_jmp_rules(&ntc, 0, RI3, CI3, "cmpl $%v2, %v1l"); add_comparison_conditional_jmp_rules(&ntc, 1, RU3, CU3, "cmpl $%v2, %v1l");
-    add_comparison_conditional_jmp_rules(&ntc, 0, RI4, CI3, "cmpq $%v2, %v1q"); add_comparison_conditional_jmp_rules(&ntc, 1, RU4, CU3, "cmpq $%v2, %v1q");
+    add_comparison_conditional_jmp_rules(&ntc, 0, RI4, CI3, "cmpq $%v2, %v1q"); add_comparison_conditional_jmp_rules(&ntc, 1, RU4, CI3, "cmpq $%v2, %v1q");
     add_comparison_conditional_jmp_rules(&ntc, 0, MI1, CI1, "cmpb $%v2, %v1b"); add_comparison_conditional_jmp_rules(&ntc, 1, MU1, CU1, "cmpb $%v2, %v1b");
     add_comparison_conditional_jmp_rules(&ntc, 0, MI2, CI2, "cmpw $%v2, %v1w"); add_comparison_conditional_jmp_rules(&ntc, 1, MU2, CU2, "cmpw $%v2, %v1w");
     add_comparison_conditional_jmp_rules(&ntc, 0, MI3, CI3, "cmpl $%v2, %v1l"); add_comparison_conditional_jmp_rules(&ntc, 1, MU3, CU3, "cmpl $%v2, %v1l");
@@ -651,7 +653,7 @@ void init_instruction_selection_rules() {
     add_comparison_assignment_rules(0, RI1, CI1, "cmpb $%v2, %v1b"); add_comparison_assignment_rules(1, RU1, CU1, "cmpb $%v2, %v1b");
     add_comparison_assignment_rules(0, RI2, CI2, "cmpw $%v2, %v1w"); add_comparison_assignment_rules(1, RU2, CU2, "cmpw $%v2, %v1w");
     add_comparison_assignment_rules(0, RI3, CI3, "cmpl $%v2, %v1l"); add_comparison_assignment_rules(1, RU3, CU3, "cmpl $%v2, %v1l");
-    add_comparison_assignment_rules(0, RI4, CI3, "cmpq $%v2, %v1q"); add_comparison_assignment_rules(1, RU4, CU3, "cmpq $%v2, %v1q");
+    add_comparison_assignment_rules(0, RI4, CI3, "cmpq $%v2, %v1q"); add_comparison_assignment_rules(1, RU4, CI3, "cmpq $%v2, %v1q");
     add_comparison_assignment_rules(0, MI1, CI1, "cmpb $%v2, %v1b"); add_comparison_assignment_rules(1, MU1, CU1, "cmpb $%v2, %v1b");
     add_comparison_assignment_rules(0, MI2, CI2, "cmpw $%v2, %v1w"); add_comparison_assignment_rules(1, MU2, CU2, "cmpw $%v2, %v1w");
     add_comparison_assignment_rules(0, MI3, CI3, "cmpl $%v2, %v1l"); add_comparison_assignment_rules(1, MU3, CU3, "cmpl $%v2, %v1l");

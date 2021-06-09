@@ -605,7 +605,7 @@ void test_constant_suffixes() {
     assert_int(8, sizeof(1llu), "Constant suffix lowercase llu");
 }
 
-void test_800000000_bug() {
+void test_80000000_unary_minus() {
     int i;
     long l;
 
@@ -619,6 +619,15 @@ void test_800000000_bug() {
     l = 0x7fffffff; if (l >= -0x80000000)  i = 1; else i = 0; assert_int(0, i, "0x7fffffff >= -0x80000000\n");
     l = 0x80000000; if (l >= -0x80000000l) i = 1; else i = 0; assert_int(1, i, "0x80000000 >= -0x80000000l\n");
     l = 0x7fffffff; if (l >= -0x80000000l) i = 1; else i = 0; assert_int(1, i, "0x7fffffff >= -0x80000000l\n");
+}
+
+void test_80000000_cmp() {
+    unsigned long l;
+
+    // cmpq cannot only handle signed 32 bit integers
+    l = 0x7fffffff; assert_int(1, l == 0x7fffffff, "cmpq imm32 0x7fffffff");
+    l = 0x80000000; assert_int(1, l == 0x80000000, "cmpq imm32 0x80000000");
+    l = 0xffffffff; assert_int(1, l == 0xffffffff, "cmpq imm32 0xffffffff");
 }
 
 void test_pointer_casting_reads() {
@@ -910,7 +919,8 @@ int main(int argc, char **argv) {
     test_integer_constant_sizes();
     test_hex_and_octal_constants();
     test_constant_suffixes();
-    test_800000000_bug();
+    test_80000000_unary_minus();
+    test_80000000_cmp();
     test_pointer_casting_reads();
     test_int_int_assignment();
     test_int_uint_assignment();
