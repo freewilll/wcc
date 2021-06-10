@@ -420,8 +420,8 @@ static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operat
     Rule *r;
 
     r = add_rule(dst, IR_ADD, dst, src, cost);
-    add_op(r, X_MOV,         DST,  SRC1, 0,   "movq %v1q, %vdq");
-    if (sign_extend_template) add_op(r, X_MOVS,        SRC2, SRC2, 0,   sign_extend_template);
+    add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    if (sign_extend_template) add_op(r, X_MOVS, SRC2, SRC2, 0, sign_extend_template);
     add_op(r, x86_operation, DST,  SRC2, DST, "addq %v1q, %v2q");
 }
 
@@ -430,9 +430,13 @@ static void add_pointer_add_rules() {
 
     for (i = RP1; i <= RP4; i++) {
         add_pointer_plus_int_rule(i, RI1, 11, X_ADD, "movsbq %v1b, %vdq");
+        add_pointer_plus_int_rule(i, RU1, 11, X_ADD, "movzbq %v1b, %vdq");
         add_pointer_plus_int_rule(i, RI2, 11, X_ADD, "movswq %v1w, %vdq");
+        add_pointer_plus_int_rule(i, RU2, 11, X_ADD, "movzwq %v1w, %vdq");
         add_pointer_plus_int_rule(i, RI3, 11, X_ADD, "movslq %v1l, %vdq");
+        add_pointer_plus_int_rule(i, RU3, 11, X_ADD, "movl %v1l, %vdl");
         add_pointer_plus_int_rule(i, RI4, 10, X_ADD, 0);
+        add_pointer_plus_int_rule(i, RU4, 10, X_ADD, 0);
     }
 
     for (i = CI1; i <= CI4; i++)
