@@ -665,7 +665,7 @@ void init_instruction_selection_rules() {
 
     r = add_rule(0, IR_ARG, CI4, XC, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
 
-    // Add rules for sign extention an arg, but at a high cost, to encourage other rules to take precedence
+    // Add rules for sign/zero extention of an arg, but at a high cost, to encourage other rules to take precedence
     r = add_rule(0, IR_ARG, CI4, RI1, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RI2, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RI3, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movslq %v1l, %v1q"); add_function_call_arg_op(r);
@@ -689,7 +689,7 @@ void init_instruction_selection_rules() {
     add_conditional_zero_jump_rule(IR_JZ,  XR,  LAB, 3, X_TEST, "test%s %v1, %v1",  "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JZ,  XRP, LAB, 3, X_TEST, "testq %v1q, %v1q", "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JZ,  XMI, LAB, 3, X_CMPZ, "cmp $0, %v1",      "jz %v1",   1);
-    add_conditional_zero_jump_rule(IR_JNZ, XRI, LAB, 3, X_TEST, "test%s %v1, %v1",  "jnz %v1",  1);
+    add_conditional_zero_jump_rule(IR_JNZ, XR,  LAB, 3, X_TEST, "test%s %v1, %v1",  "jnz %v1",  1);
     add_conditional_zero_jump_rule(IR_JNZ, XRP, LAB, 3, X_TEST, "testq %v1q, %v1q", "jnz %v1",  1);
     add_conditional_zero_jump_rule(IR_JNZ, XMI, LAB, 3, X_CMPZ, "cmp $0, %v1",      "jnz %v1",  1);
 

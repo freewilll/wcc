@@ -7,6 +7,16 @@ int verbose;
 int passes;
 int failures;
 
+char gc;
+short gs;
+int gi;
+long gl;
+
+unsigned char guc;
+unsigned short gus;
+unsigned int gui;
+unsigned long gul;
+
 void test_if_else() {
     int i, t1, t2, t3, t4;
 
@@ -24,7 +34,7 @@ void test_if_else() {
     assert_int(1, t4, "if/else 4");
 }
 
-void test_and_or_shortcutting() {
+void test_constant_and_or_shortcutting() {
     int i, t1, t2, t3, t4;
 
     i = t1 = t2 = t3 = t4 = 0;
@@ -37,6 +47,64 @@ void test_and_or_shortcutting() {
     assert_int(1, t2, "test && || shortcutting 2");
     assert_int(1, t3, "test && || shortcutting 3");
     assert_int(0, t4, "test && || shortcutting 4");
+}
+
+void test_register_memory_and_or_shortcutting() {
+    char c, *pc;
+    short s, *ps;
+    int i, *pi;
+    long l, *pl;
+
+    unsigned char uc;
+    unsigned short us;
+    unsigned int ui;
+    unsigned long ul;
+
+    c = s = i = l = uc = us = ui = ul = pc = ps = pi = pl = 1;
+    gc = gs = gi = gl = guc = gus = gui = gul = 1;
+    assert_int(1, c   && 1, "c   && 1");
+    assert_int(1, s   && 1, "s   && 1");
+    assert_int(1, i   && 1, "i   && 1");
+    assert_int(1, l   && 1, "l   && 1");
+    assert_int(1, uc  && 1, "uc  && 1");
+    assert_int(1, us  && 1, "us  && 1");
+    assert_int(1, ui  && 1, "ui  && 1");
+    assert_int(1, ul  && 1, "ul  && 1");
+    assert_int(1, gc  && 1, "gc  && 1");
+    assert_int(1, gs  && 1, "gs  && 1");
+    assert_int(1, gi  && 1, "gi  && 1");
+    assert_int(1, gl  && 1, "gl  && 1");
+    assert_int(1, guc && 1, "guc && 1");
+    assert_int(1, gus && 1, "gus && 1");
+    assert_int(1, gui && 1, "gui && 1");
+    assert_int(1, gul && 1, "gul && 1");
+    assert_int(1, pc  && 1, "pc  && 1");
+    assert_int(1, ps  && 1, "ps  && 1");
+    assert_int(1, pi  && 1, "pi  && 1");
+    assert_int(1, pl  && 1, "pl  && 1");
+
+    c = s = i = l = uc = us = ui = ul = pc = ps = pi = pl = 0;
+    gc = gs = gi = gl = guc = gus = gui = gul = 0;
+    assert_int(1, c   || 1, "c   || 1");
+    assert_int(1, s   || 1, "s   || 1");
+    assert_int(1, i   || 1, "i   || 1");
+    assert_int(1, l   || 1, "l   || 1");
+    assert_int(1, uc  || 1, "uc  || 1");
+    assert_int(1, us  || 1, "us  || 1");
+    assert_int(1, ui  || 1, "ui  || 1");
+    assert_int(1, ul  || 1, "ul  || 1");
+    assert_int(1, gc  || 1, "gc  || 1");
+    assert_int(1, gs  || 1, "gs  || 1");
+    assert_int(1, gi  || 1, "gi  || 1");
+    assert_int(1, gl  || 1, "gl  || 1");
+    assert_int(1, guc || 1, "guc || 1");
+    assert_int(1, gus || 1, "gus || 1");
+    assert_int(1, gui || 1, "gui || 1");
+    assert_int(1, gul || 1, "gul || 1");
+    assert_int(1, pc  || 1, "pc  || 1");
+    assert_int(1, ps  || 1, "ps  || 1");
+    assert_int(1, pi  || 1, "pi  || 1");
+    assert_int(1, pl  || 1, "pl  || 1");
 }
 
 void test_first_arg_to_or_and_and_must_be_rvalue() {
@@ -79,7 +147,8 @@ int main(int argc, char **argv) {
     parse_args(argc, argv, &verbose);
 
     test_if_else();
-    test_and_or_shortcutting();
+    test_constant_and_or_shortcutting();
+    test_register_memory_and_or_shortcutting();
     test_first_arg_to_or_and_and_must_be_rvalue();
     test_ternary();
     test_ternary_cast();
