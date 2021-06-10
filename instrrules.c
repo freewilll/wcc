@@ -342,20 +342,14 @@ static void add_comparison_conditional_jmp_rules(int *ntc, int is_unsigned, int 
 }
 
 static void add_comparison_assignment_rule(int src1, int src2, char *cmp_template, int operation, int set_operation, char *set_template) {
-    int i;
     Rule *r;
 
-    for (i = 1; i <= 4; i++) {
-        r = add_rule(RI1 + i - 1, operation, src1, src2, 12 + (i > 1));
-
-        add_op(r, X_CMP,         0,   SRC1, SRC2, cmp_template);
-        add_op(r, set_operation, DST, 0,    0,    set_template);
-
-             if (i == 2) add_op(r, X_MOVZ, DST, DST, 0, "movzbw %v1b, %v1w");
-        else if (i == 3) add_op(r, X_MOVZ, DST, DST, 0, "movzbl %v1b, %v1l");
-        else if (i == 4) add_op(r, X_MOVZ, DST, DST, 0, "movzbq %v1b, %v1q");
-        fin_rule(r);
-    }
+    // Comparison operators always return an int
+    r = add_rule(RI3, operation, src1, src2, 12);
+    add_op(r, X_CMP,         0,   SRC1, SRC2, cmp_template);
+    add_op(r, set_operation, DST, 0,    0,    set_template);
+    add_op(r, X_MOVZ, DST, DST, 0, "movzbl %v1b, %v1l");
+    fin_rule(r);
 }
 
 static void add_comparison_assignment_rules(int is_unsigned, int src1, int src2, char *template) {

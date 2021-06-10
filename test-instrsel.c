@@ -117,10 +117,10 @@ void test_instrsel_tree_merging() {
     // out. This should pervent tree merging of the assigns with the first equals.
     // The label splits the block and causes v(1) and v(2) to be in block[0] liveout
     start_ir();
-    i(0, IR_MOVE, v(1), c(1), 0   );
-    i(0, IR_MOVE, v(2), c(2), 0   );
-    i(0, IR_EQ,   v(3), v(1), v(2));
-    i(1, IR_EQ,   v(4), v(1), v(2));
+    i(0, IR_MOVE, v(1),             c(1), 0   );
+    i(0, IR_MOVE, v(2),             c(2), 0   );
+    i(0, IR_EQ,   vsz(3, TYPE_INT), v(1), v(2));
+    i(1, IR_EQ,   vsz(4, TYPE_INT), v(1), v(2));
     finish_ir(function);
 
     // Ensure both CMP instructions operate on registers
@@ -136,15 +136,15 @@ void test_instrsel_tree_merging() {
     // merge.
     remove_reserved_physical_registers = 1;
     start_ir();
-    i(0, IR_MOVE, v(1), c(1), 0   );
-    i(0, IR_MOVE, v(2), c(2), 0   );
-    i(1, IR_EQ,   v(4), v(1), v(2));
+    i(0, IR_MOVE, v(1),             c(1), 0   );
+    i(0, IR_MOVE, v(2),             c(2), 0   );
+    i(1, IR_EQ,   vsz(4, TYPE_INT), v(1), v(2));
     finish_ir(function);
     assert_x86_op("movq    $1, r1q" );
     assert_x86_op("movq    $2, r2q" ); nop();
     assert_x86_op("cmpq    r2q, r1q");
     assert_x86_op("sete    r3b"     );
-    assert_x86_op("movzbq  r3b, r3q");
+    assert_x86_op("movzbl  r3b, r3l");
 
     // Ensure a dst in assign to an lvalue keeps the value alive, so
     // that a merge is prevented later on.
@@ -212,18 +212,18 @@ void test_cmp_with_assignment(Function *function, int cmp_operation, char *set_i
     char *template;
 
     start_ir();
-    i(0, cmp_operation, v(3), v(1), v(2));
+    i(0, cmp_operation, vsz(3, TYPE_INT), v(1), v(2));
     finish_ir(function);
     asprintf(&template, "%-7s r3b", set_instruction);
     assert_x86_op("cmpq    r2q, r1q");
     assert_x86_op(template);
-    assert_x86_op("movzbq  r3b, r3q");
+    assert_x86_op("movzbl  r3b, r3l");
 }
 
 void test_less_than_with_cmp_assignment(Function *function, Value *src1, Value *src2, char *t1, char *t2, char *t3, char *t4) {
     // dst is the renumbered live range that the output goes to. It's basically the first free register after src1 and src2.
     start_ir();
-    i(0, IR_LT, v(3), src1, src2);
+    i(0, IR_LT, vsz(3, TYPE_INT), src1, src2);
     src1 = dup_value(src1);
     src2 = dup_value(src2);
     finish_ir(function);
@@ -563,20 +563,20 @@ void test_instrsel_conditionals() {
     test_cmp_with_assignment(function, IR_GE, "setge");
 
     // Test r1 = a < b with different src1 and src2 operands
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q", 0);
-    test_less_than_with_cmp_assignment(function, v(1),               c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbq  r2b, r2q", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  asz(1, TYPE_VOID),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  asz(1, TYPE_CHAR),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_SHORT), asz(1, TYPE_SHORT), "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_INT),   asz(1, TYPE_INT),   "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_LONG),  asz(1, TYPE_LONG),  "cmpq    r1q, r2q",       "setl    r3b", "movzbq  r3b, r3q", 0);
-    test_less_than_with_cmp_assignment(function, g(1),               c(1),               "cmpq    $1, g1(%rip)",   "setl    r1b", "movzbq  r1b, r1q", 0);
-    test_less_than_with_cmp_assignment(function, v(1),               g(1),               "cmpq    g1(%rip), r1q",  "setl    r2b", "movzbq  r2b, r2q", 0);
-    test_less_than_with_cmp_assignment(function, g(1),               v(1),               "cmpq    r1q, g1(%rip)",  "setl    r2b", "movzbq  r2b, r2q", 0);
-    test_less_than_with_cmp_assignment(function, S(-2),              c(1),               "cmpq    $1, -16(%rbp)",  "setl    r1b", "movzbq  r1b, r1q", 0);
-    test_less_than_with_cmp_assignment(function, v(1),               S(-2),              "cmpq    -16(%rbp), r1q", "setl    r2b", "movzbq  r2b, r2q", 0);
-    test_less_than_with_cmp_assignment(function, S(-2),              v(1),               "cmpq    r1q, -16(%rbp)", "setl    r2b", "movzbq  r2b, r2q", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbl  r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, v(1),               c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbl  r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  c(1),               "cmpq    $1, r1q",        "setl    r2b", "movzbl  r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  asz(1, TYPE_VOID),  "cmpq    r1q, r2q",       "setl    r3b", "movzbl  r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  asz(1, TYPE_CHAR),  "cmpq    r1q, r2q",       "setl    r3b", "movzbl  r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_SHORT), asz(1, TYPE_SHORT), "cmpq    r1q, r2q",       "setl    r3b", "movzbl  r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_INT),   asz(1, TYPE_INT),   "cmpq    r1q, r2q",       "setl    r3b", "movzbl  r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_LONG),  asz(1, TYPE_LONG),  "cmpq    r1q, r2q",       "setl    r3b", "movzbl  r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, g(1),               c(1),               "cmpq    $1, g1(%rip)",   "setl    r1b", "movzbl  r1b, r1l", 0);
+    test_less_than_with_cmp_assignment(function, v(1),               g(1),               "cmpq    g1(%rip), r1q",  "setl    r2b", "movzbl  r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, g(1),               v(1),               "cmpq    r1q, g1(%rip)",  "setl    r2b", "movzbl  r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, S(-2),              c(1),               "cmpq    $1, -16(%rbp)",  "setl    r1b", "movzbl  r1b, r1l", 0);
+    test_less_than_with_cmp_assignment(function, v(1),               S(-2),              "cmpq    -16(%rbp), r1q", "setl    r2b", "movzbl  r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, S(-2),              v(1),               "cmpq    r1q, -16(%rbp)", "setl    r2b", "movzbl  r2b, r2l", 0);
 
     // A 64 bit long cannot be used in a comparison directly and must be moved into
     // a register first
@@ -584,7 +584,7 @@ void test_instrsel_conditionals() {
         "movq    $4294967296, r3q",
         "cmpq    r3q, r1q",
         "setl    r2b",
-        "movzbq  r2b, r2q"
+        "movzbl  r2b, r2l"
     );
 }
 
@@ -707,25 +707,6 @@ void test_instrsel_types_add_vregs() {
     assert_instrsel_types_add_vregs(TYPE_INT,   TYPE_INT,   "movl    r2l, r3l", "addl    r1l, r3l");
     assert_instrsel_types_add_vregs(TYPE_LONG,  TYPE_INT,   "movl    r2l, r3l", "addl    r1l, r3l");
     assert_instrsel_types_add_vregs(TYPE_LONG,  TYPE_LONG,  "movq    r2q, r3q", "addq    r1q, r3q");
-}
-
-void test_instrsel_types_cmp_assignment() {
-    remove_reserved_physical_registers = 1;
-
-    // Test s = l == l
-    start_ir();
-    i(0, IR_EQ, vsz(3, TYPE_SHORT), v(1), v(2));
-    finish_ir(function);
-    assert_x86_op("cmpq    r2q, r1q");
-    assert_x86_op("sete    r3b"     );
-    assert_x86_op("movzbw  r3b, r3w");
-
-    // Test c = s == s
-    start_ir();
-    i(0, IR_EQ, vsz(3, TYPE_CHAR), vsz(1, TYPE_SHORT), vsz(2, TYPE_SHORT));
-    finish_ir(function);
-    assert_x86_op("cmpw    r2w, r1w");
-    assert_x86_op("sete    r3b"     );
 }
 
 void test_instrsel_types_cmp_pointer() {
@@ -1178,7 +1159,7 @@ void test_pointer_eq() {
     remove_reserved_physical_registers = 1;
 
     start_ir();
-    i(0, IR_EQ, v(2), a(1), c(1));
+    i(0, IR_EQ, vsz(2, TYPE_INT), a(1), c(1));
     finish_ir(function);
     assert_x86_op("cmpq    $1, r1q");
 }
@@ -1487,14 +1468,14 @@ void test_spilling() {
 
     // src2 spill
     start_ir();
-    i(0, IR_EQ, v(3), v(1), c(1));
+    i(0, IR_EQ, vsz(3, TYPE_INT), v(1), c(1));
     finish_spill_ir(function);
     assert_rx86_preg_op("movq    -16(%rbp), %r10");
     assert_rx86_preg_op("cmpq    $1, %r10"       );
 
     // src1 and src2 spill
     start_ir();
-    i(0, IR_EQ, v(3), v(1), v(2));
+    i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));
     finish_spill_ir(function);
     assert_rx86_preg_op("movq    -16(%rbp), %r10");
     assert_rx86_preg_op("movq    -24(%rbp), %r11");
@@ -1518,17 +1499,17 @@ void test_spilling() {
     // v3 = v1 == v2. This primarily tests the special case for movzbq
     // where src1 == dst
     start_ir();
-    i(0, IR_EQ, vsz(3, TYPE_SHORT), v(1), v(2));
+    i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));
     finish_spill_ir(function);
     assert_rx86_preg_op("movq    -16(%rbp), %r10");
     assert_rx86_preg_op("movq    -24(%rbp), %r11");
     assert_rx86_preg_op("cmpq    %r11, %r10"     );
     assert_rx86_preg_op("sete    %r11b"          );
-    assert_rx86_preg_op("movw    %r11w, -8(%rbp)");
-    assert_rx86_preg_op("movw    -8(%rbp), %r10w");
-    assert_rx86_preg_op("movzbw  %r10b, %r10w"   );
-    assert_rx86_preg_op("movw    %r10w, %r11w"   );
-    assert_rx86_preg_op("movw    %r11w, -8(%rbp)");
+    assert_rx86_preg_op("movl    %r11d, -8(%rbp)");
+    assert_rx86_preg_op("movl    -8(%rbp), %r10d");
+    assert_rx86_preg_op("movzbl  %r10b, %r10d"   );
+    assert_rx86_preg_op("movl    %r10d, %r11d"   );
+    assert_rx86_preg_op("movl    %r11d, -8(%rbp)");
 
     // (r2i) = 1. This tests the special case of is_lvalue_in_register=1 when
     // the type is an int.
@@ -1638,7 +1619,6 @@ int main() {
     if (verbose) printf("Running instrsel instrsel_conditionals\n");                          test_instrsel_conditionals();
     if (verbose) printf("Running instrsel function_args\n");                                  test_function_args();
     if (verbose) printf("Running instrsel instrsel_types_add_vregs\n");                       test_instrsel_types_add_vregs();
-    if (verbose) printf("Running instrsel instrsel_types_cmp_assignment\n");                  test_instrsel_types_cmp_assignment();
     if (verbose) printf("Running instrsel instrsel_types_cmp_pointer\n");                     test_instrsel_types_cmp_pointer();
     if (verbose) printf("Running instrsel instrsel_returns\n");                               test_instrsel_returns();
     if (verbose) printf("Running instrsel instrsel_function_calls\n");                        test_instrsel_function_calls();
