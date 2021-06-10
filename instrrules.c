@@ -600,7 +600,6 @@ void init_instruction_selection_rules() {
     r = add_rule(CSTV3, 0, CSTV3, 0, 0);
     r = add_rule(XM,    0, XM,    0, 0); fin_rule(r);
     r = add_rule(XRP,   0, XRP,   0, 0); fin_rule(r);
-    r = add_rule(RI4,   0, RP4,   0, 0);
     r = add_rule(STL,   0, STL,   0, 0);
     r = add_rule(LAB,   0, LAB,   0, 0);
     r = add_rule(FUN,   0, FUN,   0, 0);
