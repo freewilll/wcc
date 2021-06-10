@@ -1745,16 +1745,17 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
 // Since earlier coalesces can lead to later coalesces not happening, with each inner
 // loop, the registers with the highest spill cost are coalesced.
 void coalesce_live_ranges(Function *function, int check_register_constraints) {
-    int dst, src, outer_changed, inner_changed, vreg_count;
+    int dst, src, src_component, dst_component, outer_changed, inner_changed, vreg_count;
     int l1, l2;
     int max_cost, cost, merge_src, merge_dst;
-    char *interference_graph, *merge_candidates, *instrsel_blockers;
+    char *interference_graph, *merge_candidates, *instrsel_blockers, *clobbers;
     Tac *tac;
 
     make_vreg_count(function, RESERVED_PHYSICAL_REGISTER_COUNT);
     vreg_count = function->vreg_count;
     merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
     instrsel_blockers = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+    clobbers = malloc((vreg_count + 1) * sizeof(char));
 
     make_uevar_and_varkill(function);
     make_liveout(function);
@@ -1778,6 +1779,7 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
             // A lower triangular matrix of all register copy operations and instrsel blockers
             memset(merge_candidates, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
             memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+            memset(clobbers, 0, (vreg_count + 1) * sizeof(char));
 
             // Create merge candidates
             tac = function->ir;
@@ -1799,22 +1801,11 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
                     if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
                 }
 
-                if (tac->operation == IR_CALL && tac->dst && tac->dst->vreg)
-                    for (src = 1; src <= vreg_count; src++)
-                        instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
-
-                if (tac->operation == IR_MOVE && tac->dst->is_function_call_arg) {
-                    for (src = 1; src <= vreg_count; src++)
-                        instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
+                if (tac->dst && tac->dst->vreg) {
+                    if (tac->operation == IR_CALL || tac->operation == IR_RETURN) clobbers[tac->dst->vreg] = 1;
+                    else if (tac->operation == IR_MOVE && tac->dst->is_function_call_arg) clobbers[tac->dst->vreg] = 1;
+                    else if (tac->src1 && tac->src1->is_function_param) clobbers[tac->dst->vreg] = 1;
                 }
-
-                if (tac->src1 && tac->src1->is_function_param)
-                    for (src = 1; src <= vreg_count; src++)
-                        instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
-
-                if (tac->operation == IR_RETURN && tac->dst && tac->dst->vreg)
-                    for (src = 1; src <= vreg_count; src++)
-                        instrsel_blockers[tac->dst->vreg * vreg_count + src] = 1;
 
                 tac = tac->next;
             }
@@ -1825,18 +1816,24 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
             }
 
             for (dst = 1; dst <= vreg_count; dst++) {
-                for (src = 1; src <= vreg_count; src++) {
-                    l1 = dst * vreg_count + src;
-                    l2 = src * vreg_count + dst;
+                if (clobbers[dst]) continue;
 
-                    if (merge_candidates[l1] == 1 && instrsel_blockers[l1] != 1 && instrsel_blockers[l2] != 1) {
-                        if (!((src < dst && interference_graph[l2]) || (interference_graph[l1]))) {
-                            cost = function->spill_cost[src] + function->spill_cost[dst];
-                            if (cost > max_cost) {
-                                max_cost = cost;
-                                merge_src = src;
-                                merge_dst = dst;
-                            }
+                src_component = 0;
+                dst_component = dst * vreg_count;
+                for (src = 1; src <= dst; src++) {
+                    src_component += vreg_count;
+
+                    if (clobbers[src]) continue;
+
+                    l1 = dst_component + src;
+                    l2 = src_component + dst;
+
+                    if (merge_candidates[l1] && !instrsel_blockers[l1] && !instrsel_blockers[l2] && !interference_graph[l2]) {
+                        cost = function->spill_cost[src] + function->spill_cost[dst];
+                        if (cost > max_cost) {
+                            max_cost = cost;
+                            merge_src = src;
+                            merge_dst = dst;
                         }
                     }
                 }
@@ -1853,6 +1850,7 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
 
     free(merge_candidates);
     free(instrsel_blockers);
+    free(clobbers);
 
     if (debug_ssa_live_range_coalescing) {
         printf("\n");
