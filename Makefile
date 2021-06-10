@@ -62,7 +62,6 @@ wcc3: ${WCC3_ASSEMBLIES}
 # tests
 WCC_TESTS=\
 	expr \
-	unsigned-integers \
 	function-call-args \
 	func-calls \
 	pointers \
