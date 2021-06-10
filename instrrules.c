@@ -487,6 +487,7 @@ static void add_sub_rules() {
         add_sub_rule(i, i, RU4, 10, "movq %v1q, %vdq", 0,                   "subq %v1q, %vdq");
     }
 
+    // The result of a pointer-pointer subtraction is always a signed long: RI4.
     for (i = RP1; i <= RP4; i++)
         for (j = RP1; j <= RP4; j++)
             add_sub_rule(RI4, i, j,  10, "movq %v1q, %vdq", 0, "subq %v1q, %vdq");
