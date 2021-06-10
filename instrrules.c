@@ -670,6 +670,12 @@ void init_instruction_selection_rules() {
     r = add_rule(0, IR_ARG, CI4, RI2, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RI3, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movslq %v1l, %v1q"); add_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RI4, 2);                                                          add_function_call_arg_op(r);
+
+    r = add_rule(0, IR_ARG, CI4, RU1, 10); add_op(r, X_MOVZ, SRC2, SRC2, 0 , "movzbq %v1b, %v1q"); add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CI4, RU2, 10); add_op(r, X_MOVZ, SRC2, SRC2, 0 , "movzwq %v1w, %v1q"); add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CI4, RU3, 10); add_op(r, X_MOVZ, SRC2, SRC2, 0 , "movl   %v1l, %v1l"); add_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CI4, RU4, 2);                                                          add_function_call_arg_op(r);
+
     r = add_rule(0, IR_ARG, CI4, RP1, 2);                                                          add_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RP2, 2);                                                          add_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RP3, 2);                                                          add_function_call_arg_op(r);
