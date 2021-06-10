@@ -217,7 +217,7 @@ static void add_indirect_rules() {
 }
 
 static void add_pointer_rules(int *ntc) {
-    int src, dst;
+    int src, dst, is_unsigned;
     Rule *r;
 
     add_indirect_rules();
@@ -232,23 +232,19 @@ static void add_pointer_rules(int *ntc) {
         for (src = RP1; src <= RP4; src++)
             add_move_to_ptr(dst, src, 0, "movq %v2q, (%v1q)");
 
-    // Stores to a pointer of differing size
-    add_move_to_ptr(RP1, RI1, 0,                   "movb %v2b, (%v1q)");
-    add_move_to_ptr(RP2, RI1, "movsbw %v1b, %vdw", "movw %v2w, (%v1q)");
-    add_move_to_ptr(RP3, RI1, "movsbl %v1b, %vdl", "movl %v2l, (%v1q)");
-    add_move_to_ptr(RP4, RI1, "movsbq %v1b, %vdq", "movq %v2q, (%v1q)");
-    add_move_to_ptr(RP1, RI2, 0,                   "movb %v2b, (%v1q)");
-    add_move_to_ptr(RP2, RI2, 0,                   "movw %v2w, (%v1q)");
-    add_move_to_ptr(RP3, RI2, "movswl %v1w, %vdl", "movl %v2l, (%v1q)");
-    add_move_to_ptr(RP4, RI2, "movswq %v1w, %vdq", "movq %v2q, (%v1q)");
-    add_move_to_ptr(RP1, RI3, 0,                   "movb %v2b, (%v1q)");
-    add_move_to_ptr(RP2, RI3, 0,                   "movw %v2w, (%v1q)");
-    add_move_to_ptr(RP3, RI3, 0,                   "movl %v2l, (%v1q)");
-    add_move_to_ptr(RP4, RI3, "movslq %v1l, %vdq", "movq %v2q, (%v1q)");
-    add_move_to_ptr(RP1, RI4, 0,                   "movb %v2b, (%v1q)");
-    add_move_to_ptr(RP2, RI4, 0,                   "movw %v2w, (%v1q)");
-    add_move_to_ptr(RP3, RI4, 0,                   "movl %v2l, (%v1q)");
-    add_move_to_ptr(RP4, RI4, 0,                   "movq %v2q, (%v1q)");
+    // Stores to a pointer
+    for (is_unsigned = 0; is_unsigned < 2; is_unsigned++) {
+        add_move_to_ptr(RP1, is_unsigned ? RU1 : RI1, 0, "movb %v2b, (%v1q)");
+        add_move_to_ptr(RP1, is_unsigned ? RU2 : RI2, 0, "movb %v2b, (%v1q)");
+        add_move_to_ptr(RP2, is_unsigned ? RU2 : RI2, 0, "movw %v2w, (%v1q)");
+        add_move_to_ptr(RP1, is_unsigned ? RU3 : RI3, 0, "movb %v2b, (%v1q)");
+        add_move_to_ptr(RP2, is_unsigned ? RU3 : RI3, 0, "movw %v2w, (%v1q)");
+        add_move_to_ptr(RP3, is_unsigned ? RU3 : RI3, 0, "movl %v2l, (%v1q)");
+        add_move_to_ptr(RP1, is_unsigned ? RU4 : RI4, 0, "movb %v2b, (%v1q)");
+        add_move_to_ptr(RP2, is_unsigned ? RU4 : RI4, 0, "movw %v2w, (%v1q)");
+        add_move_to_ptr(RP3, is_unsigned ? RU4 : RI4, 0, "movl %v2l, (%v1q)");
+        add_move_to_ptr(RP4, is_unsigned ? RU4 : RI4, 0, "movq %v2q, (%v1q)");
+    }
 
     add_move_to_ptr(RP1, CI1, 0, "movb $%v2b, (%v1q)");
     add_move_to_ptr(RP2, CI2, 0, "movw $%v2w, (%v1q)");
