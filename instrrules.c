@@ -168,23 +168,21 @@ static void add_offset_rule(int *ntc, int add_reg, int indirect_reg, char *templ
 static void add_composite_pointer_rules(int *ntc) {
     // Loads
     add_scaled_rule(ntc, CSTV1, RP2, RI2, 0, X_MOV_FROM_SCALED_IND, "movw   (%v1q,%v2q,2), %vdw"); // from *short to short
-    add_scaled_rule(ntc, CSTV1, RP2, RI3, 0, X_MOV_FROM_SCALED_IND, "movswl (%v1q,%v2q,2), %vdl"); // from *short to int
-    add_scaled_rule(ntc, CSTV1, RP2, RI4, 0, X_MOV_FROM_SCALED_IND, "movswq (%v1q,%v2q,2), %vdq"); // from *short to long
+    add_scaled_rule(ntc, CSTV1, RP2, RU2, 0, X_MOV_FROM_SCALED_IND, "movw   (%v1q,%v2q,2), %vdw"); // from *ushort to ushort
     add_scaled_rule(ntc, CSTV2, RP3, RI3, 0, X_MOV_FROM_SCALED_IND, "movl   (%v1q,%v2q,4), %vdl"); // from *int to int
-    add_scaled_rule(ntc, CSTV2, RP3, RI4, 0, X_MOV_FROM_SCALED_IND, "movslq (%v1q,%v2q,4), %vdq"); // from *int to long
+    add_scaled_rule(ntc, CSTV2, RP3, RU3, 0, X_MOV_FROM_SCALED_IND, "movl   (%v1q,%v2q,4), %vdl"); // from *uint to uint
     add_scaled_rule(ntc, CSTV3, RP4, RI4, 0, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *long to long
+    add_scaled_rule(ntc, CSTV3, RP4, RU4, 0, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from *ulong to ulong
     add_scaled_rule(ntc, CSTV3, RP4, RP4, 0, X_MOV_FROM_SCALED_IND, "movq   (%v1q,%v2q,8), %vdq"); // from **
 
     add_offset_rule(ntc, RP1, RI1, "movb   %v2q(%v1q), %vdb"); // from struct member from *char -> char
-    add_offset_rule(ntc, RP1, RI2, "movsbw %v2q(%v1q), %vdw"); // from struct member from *char -> short
-    add_offset_rule(ntc, RP1, RI3, "movsbl %v2q(%v1q), %vdl"); // from struct member from *char -> int
-    add_offset_rule(ntc, RP1, RI4, "movsbq %v2q(%v1q), %vdq"); // from struct member from *char -> long
+    add_offset_rule(ntc, RP1, RU1, "movb   %v2q(%v1q), %vdb"); // from struct member from *uchar -> uchar
+    add_offset_rule(ntc, RP2, RU2, "movw   %v2q(%v1q), %vdw"); // from struct member from *ushort -> ushort
     add_offset_rule(ntc, RP2, RI2, "movw   %v2q(%v1q), %vdw"); // from struct member from *short -> short
-    add_offset_rule(ntc, RP2, RI3, "movswl %v2q(%v1q), %vdl"); // from struct member from *short -> int
-    add_offset_rule(ntc, RP2, RI4, "movswq %v2q(%v1q), %vdq"); // from struct member from *short -> long
     add_offset_rule(ntc, RP3, RI3, "movl   %v2q(%v1q), %vdl"); // from struct member from *int -> int
-    add_offset_rule(ntc, RP3, RI4, "movslq %v2q(%v1q), %vdq"); // from struct member from *int -> long
+    add_offset_rule(ntc, RP3, RU3, "movl   %v2q(%v1q), %vdl"); // from struct member from *uint -> uint
     add_offset_rule(ntc, RP4, RI4, "movq   %v2q(%v1q), %vdq"); // from struct member from *long -> long
+    add_offset_rule(ntc, RP4, RU4, "movq   %v2q(%v1q), %vdq"); // from struct member from *ulong -> ulong
 
     add_offset_rule(ntc, RP4, RP1, "movq   %v2q(%v1q), %vdq"); // from ** to *char
     add_offset_rule(ntc, RP4, RP2, "movq   %v2q(%v1q), %vdq"); // from ** to *short
@@ -226,8 +224,8 @@ static void add_pointer_rules(int *ntc) {
     add_composite_pointer_rules(ntc);
 
     // Address loads
-    r = add_rule(XRP, IR_ADDRESS_OF, XRP, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r); // & for *&*&*pi
-    r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, XRP, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, XMI, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
 
     // Stores of a pointer to a pointer
     for (dst = RP1; dst <= RP4; dst++)

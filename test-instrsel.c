@@ -1355,17 +1355,32 @@ void test_pointer_double_indirect() {
 }
 
 void test_composite_scaled_pointer_indirect_reg(int src_size, int dst_size, int bshl_size) {
+    // signed
     start_ir();
     i(0, IR_BSHL,     vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)    ); // r3 = r1 << bshl_size
     i(0, IR_ADD,      vsz(4, TYPE_LONG), asz(2, src_size), vsz(3, TYPE_LONG)); // r4 = r2 + r3
     i(0, IR_INDIRECT, vsz(4, dst_size),  vsz(4, TYPE_LONG), 0               ); // r5 = *r4
     finish_ir(function);
+
+    // unsigned
+    start_ir();
+    i(0, IR_BSHL,     vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)    ); // r3 = r1 << bshl_size
+    i(0, IR_ADD,      vsz(4, TYPE_LONG), asz(2, src_size), vsz(3, TYPE_LONG)); // r4 = r2 + r3
+    i(0, IR_INDIRECT, vusz(4, dst_size), vsz(4, TYPE_LONG), 0               ); // r5 = *r4
+    finish_ir(function);
 }
 
 void test_composite_offset_pointer_indirect_reg(int src_size, int dst_size) {
+    // signed
     start_ir();
-    i(0, IR_ADD,      vsz(2, src_size), vsz(1, src_size), c(1));
-    i(0, IR_INDIRECT, vsz(3, dst_size), vsz(2, src_size), 0);
+    i(0, IR_ADD,      asz(2, src_size), asz(1, src_size), c(1));
+    i(0, IR_INDIRECT, vsz(3, dst_size), asz(2, src_size), 0);
+    finish_ir(function);
+
+    // unsigned
+    start_ir();
+    i(0, IR_ADD,      ausz(2, src_size), ausz(1, src_size), c(1));
+    i(0, IR_INDIRECT, vusz(3, dst_size), ausz(2, src_size), 0);
     finish_ir(function);
 }
 
@@ -1374,28 +1389,19 @@ void test_composite_pointer_indirect() {
     remove_reserved_physical_registers = 1;
 
     test_composite_scaled_pointer_indirect_reg(TYPE_SHORT,           TYPE_SHORT,           1); assert_x86_op("movw    (r2q,r1q,2), r5w");
-    test_composite_scaled_pointer_indirect_reg(TYPE_SHORT,           TYPE_INT,             1); assert_x86_op("movswl  (r2q,r1q,2), r5l");
-    test_composite_scaled_pointer_indirect_reg(TYPE_SHORT,           TYPE_LONG,            1); assert_x86_op("movswq  (r2q,r1q,2), r5q");
     test_composite_scaled_pointer_indirect_reg(TYPE_INT,             TYPE_INT,             2); assert_x86_op("movl    (r2q,r1q,4), r5l");
-    test_composite_scaled_pointer_indirect_reg(TYPE_INT,             TYPE_LONG,            2); assert_x86_op("movslq  (r2q,r1q,4), r5q");
     test_composite_scaled_pointer_indirect_reg(TYPE_LONG,            TYPE_LONG,            3); assert_x86_op("movq    (r2q,r1q,8), r5q");
     test_composite_scaled_pointer_indirect_reg(TYPE_PTR + TYPE_VOID, TYPE_PTR + TYPE_VOID, 3); assert_x86_op("movq    (r2q,r1q,8), r5q");
 
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_CHAR,  TYPE_CHAR);             assert_x86_op("movb    1(r1q), r3b");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_CHAR,  TYPE_SHORT);            assert_x86_op("movsbw  1(r1q), r3w");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_CHAR,  TYPE_INT);              assert_x86_op("movsbl  1(r1q), r3l");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_CHAR,  TYPE_LONG);             assert_x86_op("movsbq  1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_SHORT, TYPE_SHORT);            assert_x86_op("movw    1(r1q), r3w");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_SHORT, TYPE_INT);              assert_x86_op("movswl  1(r1q), r3l");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_SHORT, TYPE_LONG);             assert_x86_op("movswq  1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_INT,   TYPE_INT);              assert_x86_op("movl    1(r1q), r3l");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_INT,   TYPE_LONG);             assert_x86_op("movslq  1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_LONG,  TYPE_LONG);             assert_x86_op("movq    1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_VOID,  TYPE_PTR + TYPE_CHAR);  assert_x86_op("movq    1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_VOID,  TYPE_PTR + TYPE_SHORT); assert_x86_op("movq    1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_VOID,  TYPE_PTR + TYPE_INT);   assert_x86_op("movq    1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_VOID,  TYPE_PTR + TYPE_LONG);  assert_x86_op("movq    1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_PTR + TYPE_VOID,  TYPE_PTR + TYPE_VOID);  assert_x86_op("movq    1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_CHAR,  TYPE_CHAR);             assert_x86_op("movb    1(r1q), r3b");
+    test_composite_offset_pointer_indirect_reg(TYPE_SHORT, TYPE_SHORT);            assert_x86_op("movw    1(r1q), r3w");
+    test_composite_offset_pointer_indirect_reg(TYPE_INT,   TYPE_INT);              assert_x86_op("movl    1(r1q), r3l");
+    test_composite_offset_pointer_indirect_reg(TYPE_LONG,  TYPE_LONG);             assert_x86_op("movq    1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,  TYPE_PTR + TYPE_CHAR);  assert_x86_op("movq    1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,  TYPE_PTR + TYPE_SHORT); assert_x86_op("movq    1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,  TYPE_PTR + TYPE_INT);   assert_x86_op("movq    1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,  TYPE_PTR + TYPE_LONG);  assert_x86_op("movq    1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,  TYPE_PTR + TYPE_VOID);  assert_x86_op("movq    1(r1q), r3q");
 }
 
 void test_composite_pointer_address_of_reg(int bshl_size) {

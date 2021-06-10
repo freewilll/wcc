@@ -344,6 +344,57 @@ void test_deref_promotion() {
     assert_int(1, l, "deref l -> i");
 }
 
+void test_scaled_short_pointer_indirects() {
+    long i;
+    short *ps;
+    unsigned short *pus;
+
+    ps = malloc(sizeof(short) * 2);
+    pus = malloc(sizeof(unsigned short) * 2);
+    memset(ps, -1, sizeof(short) * 2);
+    memset(pus, -1, sizeof(unsigned short) * 2);
+
+    i = 1;
+    assert_long(-1,     ps[i],  "short pointer indirect");
+    assert_long(0xffff, pus[i], "ushort pointer indirect");
+}
+
+void test_scaled_int_pointer_indirects() {
+    long i;
+    int *pi;
+    unsigned int *pui;
+
+    pi = malloc(sizeof(int) * 2);
+    pui = malloc(sizeof(unsigned int) * 2);
+    memset(pi, -1, sizeof(int) * 2);
+    memset(pui, -1, sizeof(unsigned int) * 2);
+
+    i = 1;
+    assert_long(-1,         pi[i],  "int pointer indirect");
+    assert_long(0xffffffff, pui[i], "uint pointer indirect");
+}
+
+void test_scaled_long_pointer_indirects() {
+    long i;
+    long *pl;
+    unsigned long *pul;
+
+    pl = malloc(sizeof(long) * 2);
+    pul = malloc(sizeof(unsigned long) * 2);
+    memset(pl, -1, sizeof(long) * 2);
+    memset(pul, -1, sizeof(unsigned long) * 2);
+
+    i = 1;
+    assert_long(-1, pl[i],  "long pointer indirect");
+    assert_long(-1, pul[i], "ulong pointer indirect");
+}
+
+void test_scaled_indirects() {
+    test_scaled_short_pointer_indirects();
+    test_scaled_int_pointer_indirects();
+    test_scaled_long_pointer_indirects();
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -371,6 +422,7 @@ int main(int argc, char **argv) {
     test_pointer_deref_assign_to_deref();
     test_global_pointer_address_of();
     test_deref_promotion();
+    test_scaled_indirects();
 
     finalize();
 }

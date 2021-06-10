@@ -127,6 +127,18 @@ struct cfs {
     unsigned long  ul;
 };
 
+struct opi {
+    char c, *pc;
+    short s, *ps;
+    int i, *pi;
+    long l, *pl;
+
+    unsigned char uc, *puc;
+    unsigned short us, *pus;
+    unsigned int ui ,*pui;
+    unsigned long ul, *pul;
+};
+
 void test_simple_struct() {
     struct sc *lsc1, *lsc2;
     struct ss *lss1, *lss2;
@@ -229,7 +241,6 @@ void test_struct_alignment_bug() {
     assert_int(20, (long) &(eh->s1) - (long) eh, "struct alignment bug 3");
     assert_int(24, sizeof(struct s2),            "struct alignment bug 4");
 }
-
 
 void test_struct_member_size_lookup_bug() {
     struct s2 *s;
@@ -414,6 +425,55 @@ void test_chocolate_factory_struct() {
     assert_long(-1,         cfs->ul, "ucfgs l");
 }
 
+void test_struct_offset_pointer_indirects() {
+    // The generated code should have things like movw 16(%rbx), %ax
+
+    char c, *pc;
+    short s, *ps;
+    int i, *pi;
+    long l, *pl;
+
+    unsigned char uc, *puc;
+    unsigned short us, *pus;
+    unsigned int ui ,*pui;
+    unsigned long ul, *pul;
+
+    struct opi *opi;
+
+    opi = malloc(sizeof(struct opi));
+    memset(opi, -1, sizeof(struct opi));
+
+    c = opi->c;
+    s = opi->s;
+    i = opi->i;
+    l = opi->l;
+
+    uc = opi->uc;
+    us = opi->us;
+    ui = opi->ui;
+    ul = opi->ul;
+
+    pc = opi->pc;
+    ps = opi->ps;
+    pi = opi->pi;
+    pl = opi->pl;
+
+    puc = opi->puc;
+    pus = opi->pus;
+    pui = opi->pui;
+    pul = opi->pul;
+
+    assert_long(-1,         c,  "opi c");  assert_long(-1, pc,  "opi pc");
+    assert_long(-1,         s,  "opi s");  assert_long(-1, ps,  "opi ps");
+    assert_long(-1,         i,  "opi i");  assert_long(-1, pi,  "opi pi");
+    assert_long(-1,         l,  "opi l");  assert_long(-1, pl,  "opi pl");
+    assert_long(0xff,       uc, "opi uc"); assert_long(-1, puc, "opi puc");
+    assert_long(0xffff,     us, "opi us"); assert_long(-1, pus, "opi pus");
+    assert_long(0xffffffff, ui, "opi ui"); assert_long(-1, pui, "opi pui");
+    assert_long(-1,         ul, "opi ul"); assert_long(-1, pul, "opi pul");
+
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -436,6 +496,7 @@ int main(int argc, char **argv) {
     test_function_with_a_pointer_to_a_struct_argument();
     test_struct_casting();
     test_chocolate_factory_struct();
+    test_struct_offset_pointer_indirects();
 
     finalize();
 }
