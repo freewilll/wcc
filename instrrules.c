@@ -430,12 +430,13 @@ static void add_pointer_add_rules() {
 
     for (i = RP1; i <= RP4; i++) {
         add_pointer_plus_int_rule(i, RI1, 11, X_ADD, "movsbq %v1b, %vdq");
-        add_pointer_plus_int_rule(i, RU1, 11, X_ADD, "movzbq %v1b, %vdq");
         add_pointer_plus_int_rule(i, RI2, 11, X_ADD, "movswq %v1w, %vdq");
-        add_pointer_plus_int_rule(i, RU2, 11, X_ADD, "movzwq %v1w, %vdq");
         add_pointer_plus_int_rule(i, RI3, 11, X_ADD, "movslq %v1l, %vdq");
-        add_pointer_plus_int_rule(i, RU3, 11, X_ADD, "movl %v1l, %vdl");
         add_pointer_plus_int_rule(i, RI4, 10, X_ADD, 0);
+
+        add_pointer_plus_int_rule(i, RU1, 11, X_ADD, "movzbq %v1b, %vdq");
+        add_pointer_plus_int_rule(i, RU2, 11, X_ADD, "movzwq %v1w, %vdq");
+        add_pointer_plus_int_rule(i, RU3, 11, X_ADD, "movl %v1l, %vdl");
         add_pointer_plus_int_rule(i, RU4, 10, X_ADD, 0);
     }
 
@@ -479,6 +480,11 @@ static void add_sub_rules() {
         add_sub_rule(i, i, RI2, 11, "movq %v1q, %vdq", "movswq %v1w, %v1q", "subq %v1q, %vdq");
         add_sub_rule(i, i, RI3, 11, "movq %v1q, %vdq", "movslq %v1l, %v1q", "subq %v1q, %vdq");
         add_sub_rule(i, i, RI4, 10, "movq %v1q, %vdq", 0,                   "subq %v1q, %vdq");
+
+        add_sub_rule(i, i, RU1, 11, "movq %v1q, %vdq", "movzbq %v1b, %v1q", "subq %v1q, %vdq");
+        add_sub_rule(i, i, RU2, 11, "movq %v1q, %vdq", "movzwq %v1w, %v1q", "subq %v1q, %vdq");
+        add_sub_rule(i, i, RU3, 11, "movq %v1q, %vdq", "movl   %v1l, %v1l", "subq %v1q, %vdq");
+        add_sub_rule(i, i, RU4, 10, "movq %v1q, %vdq", 0,                   "subq %v1q, %vdq");
     }
 
     for (i = RP1; i <= RP4; i++)

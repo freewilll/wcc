@@ -17,6 +17,51 @@ struct sas {
     long i, j;
 };
 
+void test_pointer_addition_with_constant() {
+    int *pi1, *pi2;
+    int i;
+    char c;
+    short s;
+    long l;
+
+    c = 1;
+    s = 1;
+    i = 1;
+    l = 1;
+    pi1 = 0;
+    pi2 = 0;
+
+    assert_long(4, pi1 + c, "Pointer addition char");
+    assert_long(4, pi1 + s, "Pointer addition short");
+    assert_long(4, pi1 + i, "Pointer addition int");
+    assert_long(4, pi1 + l, "Pointer addition long");
+}
+
+void test_pointer_addition_with_register() {
+    unsigned char *puc;
+
+    char c;
+    short s;
+    int i;
+    long l;
+    unsigned char uc;
+    unsigned short us;
+    unsigned int ui;
+    unsigned long ul;
+
+    c = s = i = l = uc = us = ui = ul = 1;
+    puc = 0;
+
+    puc = puc +  c; assert_long(puc, 1, "Pointer addition with register c");
+    puc = puc +  s; assert_long(puc, 2, "Pointer addition with register s");
+    puc = puc +  i; assert_long(puc, 3, "Pointer addition with register i");
+    puc = puc +  l; assert_long(puc, 4, "Pointer addition with register l");
+    puc = puc + uc; assert_long(puc, 5, "Pointer addition with register uc");
+    puc = puc + us; assert_long(puc, 6, "Pointer addition with register us");
+    puc = puc + ui; assert_long(puc, 7, "Pointer addition with register ui");
+    puc = puc + ul; assert_long(puc, 8, "Pointer addition with register ul");
+}
+
 void test_brutal_pointer_arithmetic() {
     char c, *pc, **ppc;
     short s, *ps, **pps;
@@ -107,14 +152,23 @@ void test_pointer_int_subtraction() {
     short s, *s1;
     int i, *i1;
     long l, *l1;
+    unsigned char uc;
+    unsigned short us;
+    unsigned int ui;
+    unsigned long ul;
 
     c1 = s1 =  i1 = l1 = 8;
-    c = s = i = l = 1;
+    c = s = i = l = uc = us = ui = ul = 1;
 
     assert_long(7, c1 - c, "pc - c"); assert_long(7, c1 - s, "pc - s"); assert_long(7, c1 - i, "pc - i"); assert_long(7, c1 - l, "pc - l");
     assert_long(6, s1 - c, "ps - c"); assert_long(6, s1 - s, "ps - s"); assert_long(6, s1 - i, "ps - i"); assert_long(6, s1 - l, "ps - l");
     assert_long(4, i1 - c, "pi - c"); assert_long(4, i1 - s, "pi - s"); assert_long(4, i1 - i, "pi - i"); assert_long(4, i1 - l, "pi - l");
     assert_long(0, l1 - c, "pl - c"); assert_long(0, l1 - s, "pl - s"); assert_long(0, l1 - i, "pl - i"); assert_long(0, l1 - l, "pl - l");
+
+    assert_long(7, c1 - uc, "pc - uc"); assert_long(7, c1 - us, "pc - us"); assert_long(7, c1 - ui, "pc - ui"); assert_long(7, c1 - ul, "pc - ul");
+    assert_long(6, s1 - uc, "ps - uc"); assert_long(6, s1 - us, "ps - us"); assert_long(6, s1 - ui, "ps - ui"); assert_long(6, s1 - ul, "ps - ul");
+    assert_long(4, i1 - uc, "pi - uc"); assert_long(4, i1 - us, "pi - us"); assert_long(4, i1 - ui, "pi - ui"); assert_long(4, i1 - ul, "pi - ul");
+    assert_long(0, l1 - uc, "pl - uc"); assert_long(0, l1 - us, "pl - us"); assert_long(0, l1 - ui, "pl - ui"); assert_long(0, l1 - ul, "pl - ul");
 }
 
 void test_dereferenced_pointer_inc_dec() {
@@ -193,6 +247,8 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv, &verbose);
 
+    test_pointer_addition_with_constant();
+    test_pointer_addition_with_register();
     test_brutal_pointer_arithmetic();
     test_char_pointer_arithmetic();
     test_pointer_pointer_subtraction1();

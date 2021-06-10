@@ -144,31 +144,6 @@ void test_assignment_of_pointer_to_array() {
     assert_int(2, **ppi, "Pointer with non-constant non-pointer addition 2");
 }
 
-void test_pointer_addition_with_register() {
-    unsigned char *puc;
-
-    char c;
-    short s;
-    int i;
-    long l;
-    unsigned char uc;
-    unsigned short us;
-    unsigned int ui;
-    unsigned long ul;
-
-    c = s = i = l = uc = us = ui = ul = 1;
-    puc = 0;
-
-    puc = puc +  c; assert_long(puc, 1, "Pointer addition with register c");
-    puc = puc +  s; assert_long(puc, 2, "Pointer addition with register s");
-    puc = puc +  i; assert_long(puc, 3, "Pointer addition with register i");
-    puc = puc +  l; assert_long(puc, 4, "Pointer addition with register l");
-    puc = puc + uc; assert_long(puc, 5, "Pointer addition with register uc");
-    puc = puc + us; assert_long(puc, 6, "Pointer addition with register us");
-    puc = puc + ui; assert_long(puc, 7, "Pointer addition with register ui");
-    puc = puc + ul; assert_long(puc, 8, "Pointer addition with register ul");
-}
-
 void test_double_dereference1() {
     char **ppc;
     char *pc;
@@ -455,7 +430,6 @@ int main(int argc, char **argv) {
     test_pointer_to_int6();
     test_pointer_to_char();
     test_assignment_of_pointer_to_array();
-    test_pointer_addition_with_register();
     test_double_dereference1();
     test_double_dereference2();
     test_string_copy();
