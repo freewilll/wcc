@@ -9,6 +9,11 @@ static void read_coverage_file(char *path, Set* coverage) {
     int rule;
 
     f = fopen(path, "r");
+    if (!f) {
+        perror(path);
+        exit(1);
+    }
+
     input = malloc(10 * 1024 * 1024);
     input_size = fread(input, 1, 10 * 1024 * 1024, f);
     if (input_size < 0) {

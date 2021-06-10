@@ -212,7 +212,7 @@ print-rule-coverage-report.s: wcc print-rule-coverage-report.c
 print-rule-coverage-report: print-rule-coverage-report.s
 	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o print-rule-coverage-report print-rule-coverage-report.s lexer.c parser.c types.c ir.c instrrules.c instrutil.c codegen.c utils.c set.c
 
-make-rule-coverage-report: print-rule-coverage-report
+rule-coverage-report: print-rule-coverage-report
 	./print-rule-coverage-report
 
 clean:
