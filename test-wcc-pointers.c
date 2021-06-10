@@ -367,6 +367,7 @@ void test_deref_promotion() {
 
 void test_scaled_short_pointer_indirects() {
     long i;
+    unsigned long ui;
     short *ps;
     unsigned short *pus;
 
@@ -375,13 +376,16 @@ void test_scaled_short_pointer_indirects() {
     memset(ps, -1, sizeof(short) * 2);
     memset(pus, -1, sizeof(unsigned short) * 2);
 
-    i = 1;
-    assert_long(-1,     ps[i],  "short pointer indirect");
-    assert_long(0xffff, pus[i], "ushort pointer indirect");
+    i = ui = 1;
+    assert_long(-1,     ps[i],   "short pointer indirect from i");
+    assert_long(0xffff, pus[i],  "ushort pointer indirect from i");
+    assert_long(-1,     ps[ui],  "short pointer indirect from ui");
+    assert_long(0xffff, pus[ui], "ushort pointer indirect from ui");
 }
 
 void test_scaled_int_pointer_indirects() {
     long i;
+    unsigned long ui;
     int *pi;
     unsigned int *pui;
 
@@ -390,13 +394,16 @@ void test_scaled_int_pointer_indirects() {
     memset(pi, -1, sizeof(int) * 2);
     memset(pui, -1, sizeof(unsigned int) * 2);
 
-    i = 1;
-    assert_long(-1,         pi[i],  "int pointer indirect");
-    assert_long(0xffffffff, pui[i], "uint pointer indirect");
+    i = ui = 1;
+    assert_long(-1,         pi[i],   "int pointer indirect from i");
+    assert_long(0xffffffff, pui[i],  "uint pointer indirect from i");
+    assert_long(-1,         pi[ui],  "int pointer indirect from ui");
+    assert_long(0xffffffff, pui[ui], "uint pointer indirect from ui");
 }
 
 void test_scaled_long_pointer_indirects() {
     long i;
+    unsigned long ui;
     long *pl;
     unsigned long *pul;
 
@@ -405,12 +412,16 @@ void test_scaled_long_pointer_indirects() {
     memset(pl, -1, sizeof(long) * 2);
     memset(pul, -1, sizeof(unsigned long) * 2);
 
-    i = 1;
-    assert_long(-1, pl[i],  "long pointer indirect");
-    assert_long(-1, pul[i], "ulong pointer indirect");
+    i = ui = 1;
+    assert_long(-1, pl[i],   "long pointer indirect from i");
+    assert_long(-1, pul[i],  "ulong pointer indirect from i");
+    assert_long(-1, pl[ui],  "long pointer indirect from ui");
+    assert_long(-1, pul[ui], "ulong pointer indirect from ui");
 }
 
 void test_scaled_indirects() {
+    // These tests don't look special at a glance, but the generated instructions
+    // are complex.
     test_scaled_short_pointer_indirects();
     test_scaled_int_pointer_indirects();
     test_scaled_long_pointer_indirects();

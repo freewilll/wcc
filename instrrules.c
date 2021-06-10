@@ -142,6 +142,7 @@ static void add_scaled_rule(int *ntc, int cst, int add_reg, int indirect_reg, in
     ntc1 = ++*ntc;
     ntc2 = ++*ntc;
     r = add_rule(ntc1, IR_BSHL, RI4, cst, 1); add_save_value(r, 1, 2); // Save index register to slot 2
+    r = add_rule(ntc1, IR_BSHL, RU4, cst, 1); add_save_value(r, 1, 2); // Save index register to slot 2
     r = add_rule(ntc2, IR_ADD, add_reg, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
 
     if (indirect_reg) r = add_rule(indirect_reg, IR_INDIRECT, ntc2, 0, 1);
