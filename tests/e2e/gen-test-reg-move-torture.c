@@ -80,7 +80,7 @@ int main() {
     sized_outcomes[2] = 0xffffffff;
     sized_outcomes[3] = 0xffffffffffffffff;
 
-    f = fopen("test-wcc-reg-move-torture.c", "w");
+    f = fopen("test-reg-move-torture.c", "w");
 
     fprintf(f, "#include <stdio.h>\n");
     fprintf(f, "#include <stdlib.h>\n");

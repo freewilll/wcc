@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include <string.h>
 
-#include "test-lib.h"
+#include "../test-lib.h"
 
 int check_stack_alignment();
 

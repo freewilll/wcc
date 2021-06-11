@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "wcc.h"
+#include "../../wcc.h"
 
 Function *function;
 

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-#include "wcc.h"
+#include "../wcc.h"
 
 static void read_coverage_file(char *path, Set* coverage) {
     void *f;
@@ -50,9 +50,9 @@ int main() {
     instrsel_tests_cov = new_set(instr_rule_count);
     wcc_tests_cov = new_set(instr_rule_count);
 
-    read_coverage_file("wcc-tests.rulecov", wcc2_cov);
-    read_coverage_file("instrsel-tests.rulecov", instrsel_tests_cov);
-    read_coverage_file("wcc2.rulecov", wcc_tests_cov);
+    read_coverage_file("../tests/e2e/wcc-tests.rulecov", wcc2_cov);
+    read_coverage_file("../tests/integration/instrsel-tests.rulecov", instrsel_tests_cov);
+    read_coverage_file("../wcc2.rulecov", wcc_tests_cov);
 
     f = fopen("rulecov.html", "w");
 

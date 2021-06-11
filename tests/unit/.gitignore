@@ -1,0 +1,6 @@
+test-lexer
+test-set
+test-graph
+test-ssa
+test-instrsel
+test-parser

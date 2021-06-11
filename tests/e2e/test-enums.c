@@ -1,4 +1,4 @@
-#include "test-lib.h"
+#include "../test-lib.h"
 
 int verbose;
 int passes;

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "wcc.h"
+#include "../../wcc.h"
 
 void assert(int expected, int actual) {
     if (expected != actual) {
