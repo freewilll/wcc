@@ -140,6 +140,7 @@ typedef struct value {
     char preferred_live_range_preg_index;    // Preferred physical register
     int x86_size;                            // Current size while generating x86 code
     int non_terminal;                        // Use in rule matching
+    char has_been_renamed;                   // Used in renaming code
 } Value;
 
 typedef struct three_address_code {
@@ -350,6 +351,7 @@ int cur_line;                   // Current line number being lexed
 
 int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after register allocation
+int opt_enable_vreg_renumbering;        // Renumber vregs so the numbers are consecutive
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible
 int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end
@@ -418,6 +420,7 @@ int debug_ssa_idom;
 int debug_ssa_phi_insertion;
 int debug_ssa_phi_renumbering;
 int debug_ssa_live_range;
+int debug_ssa_vreg_renumbering;
 int debug_ssa_interference_graph;
 int debug_ssa_live_range_coalescing;
 int debug_ssa_spill_cost;
@@ -572,6 +575,7 @@ void make_preferred_live_range_preg_indexes(Function *function);
 // regalloc.c
 int *physical_registers, *arg_registers, *preg_map;
 
+void compress_vregs(Function *function);
 void allocate_registers_top_down(Function *function, int physical_register_count);
 void allocate_registers(Function *function);
 void init_callee_saved_registers();

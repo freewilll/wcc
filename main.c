@@ -63,6 +63,7 @@ int main(int argc, char **argv) {
     print_instr_rules = 0;
     print_instr_precision_decrease_rules = 0;
     print_symbols = 0;
+    opt_enable_vreg_renumbering = 1;
     opt_enable_register_coalescing = 1;
     opt_enable_preferred_pregs = 1;
     opt_enable_live_range_coalescing = 1;
@@ -96,6 +97,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;      argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0;   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fno-vreg-renumbering"             )) { opt_enable_vreg_renumbering = 0;          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-rules"                     )) { print_instr_rules = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-precision-decrease-rules"  )) { print_instr_precision_decrease_rules = 1; argc--; argv++; }
 
@@ -107,6 +109,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-phi-insertion"               )) { debug_ssa_phi_insertion = 1;                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-phi-renumbering"             )) { debug_ssa_phi_renumbering = 1;              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-live-range"                  )) { debug_ssa_live_range = 1;                   argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-vreg-renumbering"            )) { debug_ssa_vreg_renumbering = 1;             argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-interference-graph"          )) { debug_ssa_interference_graph = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-live-range-coalescing"       )) { debug_ssa_live_range_coalescing = 1;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-spill-cost"                  )) { debug_ssa_spill_cost = 1;                   argc--; argv++; }
@@ -179,6 +182,7 @@ int main(int argc, char **argv) {
         printf("-fspill-furthest-liveness-end       Spill liveness intervals that have the greatest end liveness interval\n");
         printf("-fno-dont-spill-short-live-ranges   Disable infinite spill costs for short live ranges\n");
         printf("-fno-optimize-arithmetic            Disable arithmetic optimizations\n");
+        printf("-fno-vreg-renumbering               Disable renumbering of vregs before live range coalesces\n");
         printf("\n");
         printf("Warning flags:\n");
         printf("--Wno-integer-constant-too-large    Disable too large integer constant warnings\n");
@@ -192,6 +196,7 @@ int main(int argc, char **argv) {
         printf("--debug-ssa-phi-insertion\n");
         printf("--debug-ssa-phi-renumbering\n");
         printf("--debug-ssa-live-range\n");
+        printf("--debug-ssa-vreg-renumbering\n");
         printf("--debug-ssa-interference-graph\n");
         printf("--debug-ssa-live-range-coalescing\n");
         printf("--debug-ssa-spill-cost\n");
@@ -215,6 +220,7 @@ int main(int argc, char **argv) {
     get_debug_env_value("DEBUG_SSA_PHI_INSERTION", &debug_ssa_phi_insertion);
     get_debug_env_value("DEBUG_SSA_PHI_RENUMBERING", &debug_ssa_phi_renumbering);
     get_debug_env_value("DEBUG_SSA_LIVE_RANGE", &debug_ssa_live_range);
+    get_debug_env_value("DEBUG_SSA_VREG_RENUMBERING", &debug_ssa_vreg_renumbering);
     get_debug_env_value("DEBUG_SSA_INTERFERENCE_GRAPH", &debug_ssa_interference_graph);
     get_debug_env_value("DEBUG_SSA_LIVE_RANGE_COALESCING", &debug_ssa_live_range_coalescing);
     get_debug_env_value("DEBUG_SSA_SPILL_COST", &debug_ssa_spill_cost);

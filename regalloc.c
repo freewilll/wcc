@@ -27,6 +27,64 @@ typedef struct vreg_cost {
     int cost;
 } VregCost;
 
+// Renumber all vregs so that they are consecutive
+void compress_vregs(Function *function) {
+    int i, old_vreg_count, new_vreg_count, *vreg_map;
+    Tac *tac;
+
+    if (!opt_enable_vreg_renumbering) return;
+
+    make_vreg_count(function, 0);
+    old_vreg_count = function->vreg_count;
+    vreg_map = malloc((old_vreg_count + 1) * sizeof(int));
+    memset(vreg_map, 0, (old_vreg_count + 1) * sizeof(int));
+    new_vreg_count = RESERVED_PHYSICAL_REGISTER_COUNT;
+
+    if (debug_ssa_vreg_renumbering) {
+        printf("Before vreg renumbering:\n");
+        print_ir(function, 0, 0);
+    }
+
+    tac = function->ir;
+    while(tac) {
+        if (tac->dst && tac->dst->vreg) if (!vreg_map[tac->dst->vreg]) vreg_map[tac->dst->vreg] = ++new_vreg_count;
+        if (tac->src1 && tac->src1->vreg) if (!vreg_map[tac->src1->vreg]) vreg_map[tac->src1->vreg] = ++new_vreg_count;
+        if (tac->src2 && tac->src2->vreg) if (!vreg_map[tac->src2->vreg]) vreg_map[tac->src2->vreg] = ++new_vreg_count;
+
+        if (tac->dst ) tac->dst ->has_been_renamed = 0;
+        if (tac->src1) tac->src1->has_been_renamed = 0;
+        if (tac->src2) tac->src2->has_been_renamed = 0;
+
+        tac = tac->next;
+    }
+
+    if (debug_ssa_vreg_renumbering) {
+        printf("\nVreg renames:\n");
+        for (i = 1; i <= old_vreg_count; i++) {
+            if (vreg_map[i]) printf("%6d -> %6d\n", i, vreg_map[i]);
+        }
+    }
+
+    tac = function->ir;
+    while(tac) {
+        if (tac->dst  && !tac->dst ->has_been_renamed && tac->dst ->vreg) { tac->dst ->vreg = vreg_map[tac ->dst->vreg]; tac->dst ->has_been_renamed = 1; }
+        if (tac->src1 && !tac->src1->has_been_renamed && tac->src1->vreg) { tac->src1->vreg = vreg_map[tac->src1->vreg]; tac->src1->has_been_renamed = 1; }
+        if (tac->src2 && !tac->src2->has_been_renamed && tac->src2->vreg) { tac->src2->vreg = vreg_map[tac->src2->vreg]; tac->src2->has_been_renamed = 1; }
+
+        tac = tac->next;
+    }
+
+    function->vreg_count = new_vreg_count;
+
+    if (debug_ssa_vreg_renumbering) {
+        printf("\nAfter vreg renumbering:\n");
+        print_ir(function, 0, 0);
+    }
+
+    free(vreg_map);
+}
+
+
 static void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
     int i, j, pivot;
     int tmp_vreg, tmp_cost;

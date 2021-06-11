@@ -56,6 +56,7 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
 
     // Instruction selection
     select_instructions(function);
+    compress_vregs(function);
     analyze_dominance(function);
     coalesce_live_ranges(function, 0);
     remove_vreg_self_moves(function);
