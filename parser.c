@@ -4,6 +4,7 @@
 
 #include "wcc.h"
 
+static Type *integer_promote_type(Type *type);
 static Type *parse_struct_base_type(int allow_incomplete_structs);
 static void expression(int level);
 
@@ -125,6 +126,9 @@ Type *operation_type(Type *src1, Type *src2) {
 
     if (src1->type >= TYPE_PTR) return src1;
     else if (src2->type >= TYPE_PTR) return src2;
+
+    src1 = integer_promote_type(src1);
+    src2 = integer_promote_type(src2);
 
     // They are two integer types
 
@@ -477,11 +481,25 @@ static Value *integer_type_change(Value *src, Type *type) {
     return dst;
 }
 
+static Type *integer_promote_type(Type *type) {
+    if (type->type >= TYPE_PTR) panic("Invalid operand, expected integer type");
+
+    if (type->type >= TYPE_INT && type->type <= TYPE_LONG)
+        return type;
+    else
+        return new_type(TYPE_INT); // An int can hold all the values
+}
+
 static Value *integer_promote(Value *v) {
+    Type *type;
+
     if (v->type->type >= TYPE_PTR) panic("Invalid operand, expected integer type");
 
-    if (v->type->type >= TYPE_INT && v->type->type <= TYPE_LONG) return v;
-    else return integer_type_change(v, new_type(TYPE_INT));
+    type = integer_promote_type(v->type);
+    if (type_eq(v->type, type))
+        return v;
+    else
+        return integer_type_change(v, new_type(TYPE_INT));
 }
 
 static void arithmetic_operation(int operation, Type *type) {
