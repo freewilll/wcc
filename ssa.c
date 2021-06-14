@@ -1430,12 +1430,16 @@ void add_ig_edge(char *ig, int vreg_count, int to, int from) {
 // Add edges to a physical register for all live variables, preventing the physical register from
 // getting used.
 static void clobber_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
-    int i;
+    int i, max_value;
+    char *elements;
 
     if (debug_ssa_interference_graph) printf("Clobbering livenow for pri=%d\n", preg_reg_index);
 
-    for (i = 0; i <= livenow->max_value; i++) {
-        if (livenow->elements[i])
+    max_value = livenow->max_value;
+    elements = livenow->elements;
+
+    for (i = 0; i <= max_value; i++) {
+        if (elements[i])
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
     }
 }
@@ -1521,11 +1525,12 @@ static void print_interference_graph(Function *function) {
 
 // Page 701 of engineering a compiler
 static void make_interference_graph(Function *function) {
-    int i, j, vreg_count, block_count;
+    int i, j, vreg_count, block_count, livenow_max_value;
     Block *blocks;
     Set *livenow;
     Tac *tac;
     char *interference_graph; // Triangular matrix of edges
+    char *livenow_elements;
 
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
@@ -1543,6 +1548,8 @@ static void make_interference_graph(Function *function) {
 
     for (i = block_count - 1; i >= 0; i--) {
         livenow = copy_set(function->liveout[i]);
+        livenow_max_value = livenow->max_value;
+        livenow_elements = livenow->elements;
 
         tac = blocks[i].end;
         while (tac) {
@@ -1605,8 +1612,8 @@ static void make_interference_graph(Function *function) {
                     if (debug_ssa_interference_graph) printf("added src2 <-> dst %d <-> %d\n", tac->src2->vreg, tac->dst->vreg);
                 }
 
-                for (j = 0; j <= livenow->max_value; j++) {
-                    if (!livenow->elements[j]) continue;
+                for (j = 0; j <= livenow_max_value; j++) {
+                    if (!livenow_elements[j]) continue;
 
                     if (j == tac->dst->vreg) continue; // Ignore self assignment
 
