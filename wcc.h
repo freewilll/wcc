@@ -193,7 +193,7 @@ enum {
     MAX_STRING_LITERALS           = 10240,
     MAX_FUNCTION_CALL_ARGS        = 253,
     VALUE_STACK_SIZE              = 10240,
-    MAX_VREG_COUNT                = 10240,
+    MAX_VREG_COUNT                = 20480,
     PHYSICAL_REGISTER_COUNT       = 16,
     MAX_SPILLED_REGISTER_COUNT    = 1024,
     MAX_INPUT_FILENAMES           = 1024,
