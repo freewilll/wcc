@@ -61,6 +61,7 @@ build/wcc3/%.s: %.c wcc2
 wcc3: ${WCC3_ASSEMBLIES} build/wcc3/main.s
 	gcc ${GCC_OPTS} ${WCC3_ASSEMBLIES} build/wcc3/main.s -o wcc3
 
+.PHONY: test-self-compilation
 test-self-compilation: ${WCC2_ASSEMBLIES} build/wcc2/main.s ${WCC3_ASSEMBLIES} build/wcc3/main.s
 	cat build/wcc2/*.s > build/wcc2/all-s
 	cat build/wcc3/*.s > build/wcc3/all-s
@@ -71,20 +72,26 @@ test-self-compilation: ${WCC2_ASSEMBLIES} build/wcc2/main.s ${WCC3_ASSEMBLIES} b
 test-all: wcc externals.c
 	cd tests && ${MAKE} all
 
+.PHONY: test
 test: test-self-compilation test-all
 
+.PHONY: test-unit
 test-unit: libwcc.a
 	cd tests && ${MAKE} test-unit
 
+.PHONY: test-integration
 test-integration: libwcc.a
 	cd tests && ${MAKE} test-integration
 
+.PHONY: test-2e2
 test-e2e: wcc
 	cd tests && ${MAKE} test-e2e
 
+.PHONY: run-benchmark
 run-benchmark: wcc wcc2
 	cd tools && ${MAKE} run-benchmark
 
+.PHONY: rule-coverage-report
 rule-coverage-report: wcc wcc2 test
 	cd tools && ${MAKE} rule-coverage-report
 
