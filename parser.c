@@ -6,6 +6,7 @@
 
 static Type *integer_promote_type(Type *type);
 static Type *parse_struct_base_type(int allow_incomplete_structs);
+static void declaration();
 static void expression(int level);
 
 // Push a value to the stack
@@ -91,28 +92,32 @@ static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *s
     return result;
 }
 
-Symbol *new_symbol() {
-    Symbol *result;
+static Symbol *new_symbol() {
+    Symbol *symbol;
 
-    result = next_symbol;
-    next_symbol++;
+    if (cur_scope->symbol_count == cur_scope->max_symbol_count)
+        panic1d("Exceeded max symbol table size of %d symbols", cur_scope->max_symbol_count);
 
-    if (next_symbol - symbol_table >= SYMBOL_TABLE_SIZE) panic("Exceeded symbol table size");
+    symbol = malloc(sizeof(Symbol));
+    memset(symbol, 0, sizeof(Symbol));
+    cur_scope->symbols[cur_scope->symbol_count++] = symbol;
+    symbol->scope = cur_scope;
 
-    return result;
+    return symbol;
 }
 
-// Search for a symbol in a scope. Returns zero if not found
-static Symbol *lookup_symbol(char *name, int scope) {
-    Symbol *s;
+// Search for a symbol in a scope and recurse to parents if not found.
+// Returns zero if not found in any parents
+static Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
+    int i;
+    Symbol *symbol;
 
-    s = symbol_table;
-    while (s->identifier) {
-        if (s->scope == scope && !strcmp((char *) s->identifier, name)) return s;
-        s++;
+    for (i = 0; i < scope->symbol_count; i++) {
+        symbol = scope->symbols[i];
+        if (!strcmp(symbol->identifier, name)) return symbol;
     }
 
-    if (scope != 0) return lookup_symbol(name, 0);
+    if (recurse && scope->parent) return lookup_symbol(name, scope->parent, recurse);
 
     return 0;
 }
@@ -532,6 +537,49 @@ static void parse_arithmetic_operation(int level, int operation, Type *type) {
     arithmetic_operation(operation, type);
 }
 
+static void push_local_symbol(Symbol *symbol) {
+    Type *type;
+    Value *v;
+
+    type = dup_type(symbol->type);
+
+    // Local symbol
+    v = new_value();
+    v->type = dup_type(type);
+    v->is_lvalue = 1;
+
+    if (symbol->local_index >= 0)
+        // Step over pushed PC and BP
+        v->local_index = cur_function_symbol->function->param_count - symbol->local_index + 1;
+    else
+        v->local_index = symbol->local_index;
+
+    push(v);
+}
+
+static void parse_assignment() {
+    Value *dst, *src1, *src2;
+
+    next();
+    if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
+    dst = pop();
+    expression(TOK_EQ);
+    src1 = pl();
+    dst->is_lvalue = 1;
+
+    // Add type change move if necessary
+    if (!src1->is_constant && !type_eq(dst->type, src1->type)) {
+        src2 = new_value();
+        src2->vreg = new_vreg();
+        src2->type = dup_type(dst->type);
+        add_instruction(IR_MOVE, src2, src1, 0);
+        src1 = src2;
+    }
+
+    add_instruction(IR_MOVE, dst, src1, 0);
+    push(dst);
+}
+
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
@@ -540,7 +588,7 @@ static void expression(int level) {
     Type *org_type;
     int factor;
     Type *type;
-    int scope;
+    Scope *scope;
     int function_call, arg_count, src1_is_pointer, src2_is_pointer;
     Symbol *symbol;
     Struct *str;
@@ -548,7 +596,10 @@ static void expression(int level) {
     Value *v1, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value, *arg;
 
     // Parse any tokens that can be at the start of an expression
-    if (cur_token == TOK_LOGICAL_NOT) {
+    if (cur_token_is_type())
+        declaration();
+
+    else if (cur_token == TOK_LOGICAL_NOT) {
         next();
         expression(TOK_INC);
 
@@ -671,7 +722,7 @@ static void expression(int level) {
     }
 
     else if (cur_token == TOK_IDENTIFIER) {
-        symbol = lookup_symbol(cur_identifier, cur_scope);
+        symbol = lookup_symbol(cur_identifier, cur_scope, 1);
         if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
 
         next();
@@ -720,7 +771,7 @@ static void expression(int level) {
             if (return_value) push(return_value);
         }
 
-        else if (scope == 0) {
+        else if (scope->parent == 0) {
             // Global symbol
             src1 = new_value();
             src1->type = dup_type(type);
@@ -729,20 +780,8 @@ static void expression(int level) {
             push(src1);
         }
 
-        else {
-            // Local symbol
-            src1 = new_value();
-            src1->type = dup_type(type);
-            src1->is_lvalue = 1;
-
-            if (symbol->local_index >= 0)
-                // Step over pushed PC and BP
-                src1->local_index = cur_function_symbol->function->param_count - symbol->local_index + 1;
-            else
-                src1->local_index = symbol->local_index;
-
-            push(src1);
-        }
+        else
+            push_local_symbol(symbol);
     }
 
     else if (cur_token == TOK_SIZEOF) {
@@ -947,26 +986,7 @@ static void expression(int level) {
             add_jmp_target_instruction(ldst2); // End
         }
 
-        else if (cur_token == TOK_EQ) {
-            next();
-            if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
-            dst = pop();
-            expression(TOK_EQ);
-            src1 = pl();
-            dst->is_lvalue = 1;
-
-            // Add type change move if necessary
-            if (!src1->is_constant && !type_eq(dst->type, src1->type)) {
-                src2 = new_value();
-                src2->vreg = new_vreg();
-                src2->type = dup_type(dst->type);
-                add_instruction(IR_MOVE, src2, src1, 0);
-                src1 = src2;
-            }
-
-            add_instruction(IR_MOVE, dst, src1, 0);
-            push(dst);
-        }
+        else if (cur_token == TOK_EQ) parse_assignment();
 
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
             org_type = vtop->type;
@@ -996,6 +1016,39 @@ static void expression(int level) {
     }
 }
 
+// Parse a declaration
+static void declaration() {
+    Type *base_type, *type;
+    Symbol *symbol;
+
+    base_type = parse_base_type(0);
+
+    while (cur_token != TOK_SEMI && cur_token != TOK_EQ) {
+        type = dup_type(base_type);
+        while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
+
+        if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
+        if (cur_token == TOK_EQ) panic("Declarations with assignments aren't implemented");
+
+        expect(TOK_IDENTIFIER, "identifier");
+
+        if (lookup_symbol(cur_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_identifier);
+
+        symbol = new_symbol();
+        symbol->type = dup_type(type);
+        symbol->identifier = cur_identifier;
+        symbol->local_index = -1 - cur_function_symbol->function->local_symbol_count++;
+        next();
+        if (cur_token != TOK_SEMI && cur_token != TOK_EQ && cur_token != TOK_COMMA) panic("Expected =, ; or ,");
+        if (cur_token == TOK_COMMA) next();
+    }
+
+    if (cur_token == TOK_EQ) {
+        push_local_symbol(symbol);
+        parse_assignment();
+    }
+}
+
 // Parse a statement
 static void statement() {
     Value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
@@ -1004,7 +1057,12 @@ static void statement() {
 
     vs = vs_start; // Reset value stack
 
-    if (cur_token_is_type()) panic("Declarations must be at the top of a function");
+    if (cur_token_is_type()) {
+        declaration();
+        expect(TOK_SEMI, ";");
+        while (cur_token == TOK_SEMI) next();
+        return;
+    }
 
     if (cur_token == TOK_SEMI) {
         // Empty statement
@@ -1013,13 +1071,17 @@ static void statement() {
     }
 
     else if (cur_token == TOK_LCURLY) {
+        enter_scope();
         next();
         while (cur_token != TOK_RCURLY) statement();
         consume(TOK_RCURLY, "}");
+        exit_scope();
         return;
     }
 
     else if (cur_token == TOK_WHILE || cur_token == TOK_FOR) {
+        enter_scope();
+
         prev_loop = cur_loop;
         cur_loop = ++loop_count;
         src1 = new_value();
@@ -1103,6 +1165,8 @@ static void statement() {
         cur_loop = prev_loop;
 
         add_instruction(IR_END_LOOP, 0, src1, src2);
+
+        exit_scope();
     }
 
     else if (cur_token == TOK_CONTINUE) {
@@ -1161,53 +1225,6 @@ static void statement() {
         expression(TOK_COMMA);
         consume(TOK_SEMI, ";");
     }
-}
-
-// Parse function body
-static void function_body() {
-    int local_symbol_count;
-    Type *base_type, *type;
-    Symbol *s;
-
-    vreg_count = 0; // Reset global vreg_count
-    local_symbol_count = 0;
-    function_call_count = 0;
-    cur_loop = 0;
-    loop_count = 0;
-
-    consume(TOK_LCURLY, "{");
-
-    // Parse symbols first
-    while (cur_token_is_type()) {
-        base_type = parse_base_type(0);
-
-        while (cur_token != TOK_SEMI) {
-            type = dup_type(base_type);
-            while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
-
-            if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
-            if (cur_token == TOK_EQ) panic("Declarations with assignments aren't implemented");
-
-            expect(TOK_IDENTIFIER, "identifier");
-            s = new_symbol();
-            s->type = dup_type(type);
-            s->identifier = cur_identifier;
-            s->scope = cur_scope;
-            s->local_index = -1 - local_symbol_count++;
-            next();
-            if (cur_token != TOK_SEMI && cur_token != TOK_COMMA) panic("Expected ; or ,");
-            if (cur_token == TOK_COMMA) next();
-        }
-        expect(TOK_SEMI, ";");
-        while (cur_token == TOK_SEMI) next();
-    }
-
-    cur_function_symbol->function->local_symbol_count = local_symbol_count;
-    cur_function_symbol->function->call_count = function_call_count;
-
-    while (cur_token != TOK_RCURLY) statement();
-
-    consume(TOK_RCURLY, "}");
 }
 
 // String the filename component from a path
@@ -1275,7 +1292,6 @@ void parse() {
     Symbol *param_symbol, *s;
     int sign;
 
-    cur_scope = 0;
     seen_function_declaration = 0;
 
     while (cur_token != TOK_EOF) {
@@ -1303,7 +1319,7 @@ void parse() {
 
                 expect(TOK_IDENTIFIER, "identifier");
 
-                s = lookup_symbol(cur_identifier, 0);
+                s = lookup_symbol(cur_identifier, global_scope, 1);
                 if (!s) {
                     // Create a new symbol if it wasn't already declared. The
                     // previous declaration is left unchanged.
@@ -1311,7 +1327,6 @@ void parse() {
                     s = new_symbol();
                     s->type = dup_type(type);
                     s->identifier = cur_identifier;
-                    s->scope = 0;
                 }
 
                 next();
@@ -1320,7 +1335,7 @@ void parse() {
                     cur_function_symbol = s;
                     // Function declaration or definition
 
-                    cur_scope++;
+                    enter_scope();
                     next();
 
                     // Setup the intermediate representation with a dummy no operation instruction.
@@ -1335,6 +1350,7 @@ void parse() {
                     s->function->ir = ir_start;
                     s->function->is_external = is_external;
                     s->function->is_static = is_static;
+                    s->function->local_symbol_count = 0;
 
                     param_count = 0;
                     while (1) {
@@ -1348,7 +1364,6 @@ void parse() {
                             param_symbol = new_symbol();
                             param_symbol->type = dup_type(type);
                             param_symbol->identifier = cur_identifier;
-                            param_symbol->scope = cur_scope;
                             s->function->param_types[param_count] = dup_type(type);
                             param_symbol->local_index = param_count++;
                             next();
@@ -1373,7 +1388,16 @@ void parse() {
                         seen_function_declaration = 1;
                         cur_function_symbol->function->is_defined = 1;
                         cur_function_symbol->function->param_count = param_count;
-                        function_body();
+
+                        vreg_count = 0; // Reset global vreg_count
+                        function_call_count = 0;
+                        cur_loop = 0;
+                        loop_count = 0;
+
+                        consume(TOK_LCURLY, "{");
+                        while (cur_token != TOK_RCURLY) statement();
+                        consume(TOK_RCURLY, "}");
+
                         cur_function_symbol->function->vreg_count = vreg_count;
                     }
                     else
@@ -1381,7 +1405,9 @@ void parse() {
                         // before the definition has been processed.
                         cur_function_symbol->value = 0;
 
-                    break;
+                    cur_scope = global_scope;
+
+                    break; // Break out of function parameters loop
                 }
                 else {
                     // Global symbol
@@ -1418,7 +1444,6 @@ void parse() {
                 s->is_enum = 1;
                 s->type = new_type(TYPE_INT);
                 s->identifier = cur_identifier;
-                s->scope = 0;
                 s->value = value++;
                 s++;
 
@@ -1443,34 +1468,31 @@ void parse() {
 }
 
 void dump_symbols() {
-    long scope, value, local_index;
+    long value, local_index;
     Type *type;
-    Symbol *s;
+    Symbol *symbol;
     char *identifier;
-    int i, type_len;
+    int i, j, type_len, is_global;
 
     printf("Symbols:\n");
-    s = symbol_table;
-    while (s->identifier) {
-        type = s->type;
-        identifier = (char *) s->identifier;
-        scope = s->scope;
-        value = s->value;
-        local_index = s->local_index;
-        printf("%-5d %-3ld %-3ld %-20ld ", type->type, scope, local_index, value);
+
+    for (i = 0; i < global_scope->symbol_count; i++) {
+        symbol = global_scope->symbols[i];
+        type = symbol->type;
+        identifier = symbol->identifier;
+        value = symbol->value;
+        local_index = symbol->local_index;
+        is_global = symbol->scope == global_scope;
+        printf("%d %-3ld %-20ld ", is_global, local_index, value);
         type_len = print_type(stdout, type);
-        for (i = 0; i < 24 - type_len; i++) printf(" ");
+        for (j = 0; j < 24 - type_len; j++) printf(" ");
         printf("%s\n", identifier);
-        s++;
     }
+
     printf("\n");
 }
 
 void init_parser() {
-    symbol_table = malloc(SYMBOL_TABLE_SIZE);
-    memset(symbol_table, 0, SYMBOL_TABLE_SIZE);
-    next_symbol = symbol_table;
-
     string_literals = malloc(MAX_STRING_LITERALS);
     string_literal_count = 0;
 

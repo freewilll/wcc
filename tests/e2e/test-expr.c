@@ -1158,6 +1158,29 @@ void test_sign_extend_globals() {
     ul = gui + 1; assert_int(-2,     ul ,"global sign extension gui -> ul");
 }
 
+static int test_scopes() {
+    // Test nested local scopes
+    int i = 1;
+    {
+        assert_int(1, i, "var local scopes 1");
+        int i = 2;
+        assert_int(2, i, "var local scopes 2");
+
+        {
+            assert_int(2, i, "var local scopes 3");
+            int i = 3;
+            assert_int(3, i, "var local scopes 4");
+        }
+
+        assert_int(2, i, "var local scopes 5");
+
+    }
+
+    assert_int(1, i, "var local scopes 6");
+
+    return 1;
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1190,6 +1213,7 @@ int main(int argc, char **argv) {
     test_uint_int_assignment();
     test_uint_uint_assignment();
     test_sign_extend_globals();
+    test_scopes();
 
     finalize();
 }

@@ -430,14 +430,13 @@ void output_code(char *input_filename, char *output_filename) {
 
     // Output symbols
     fprintf(f, "    .text\n");
-    symbol = symbol_table;
-    while (symbol->identifier) {
-        if (!symbol->scope && !symbol->is_function && !symbol->is_enum)
+    for (i = 0; i < global_scope->symbol_count; i++) {
+        symbol = global_scope->symbols[i];
+        if (!symbol->scope->parent && !symbol->is_function && !symbol->is_enum)
             fprintf(f, "    .comm   %s,%d,%d\n",
                 symbol->identifier,
                 get_type_size(symbol->type),
                 get_type_alignment(symbol->type));
-        symbol++;
     }
 
     // Output string literals
@@ -457,19 +456,19 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .text\n");
 
     // Output symbols for all non-external functions
-    symbol = symbol_table;
-    while (symbol->identifier) {
+    for (i = 0; i < global_scope->symbol_count; i++) {
+        symbol = global_scope->symbols[i];
         if (symbol->is_function && !symbol->function->is_external && !symbol->function->is_static)
             fprintf(f, "    .globl  %s\n", symbol->identifier);
-        symbol++;
     }
+
     fprintf(f, "\n");
 
     label_count = 0; // Used in label renumbering
 
     // Output functions code
-    symbol = symbol_table;
-    while (symbol->identifier) {
+    for (i = 0; i < global_scope->symbol_count; i++) {
+        symbol = global_scope->symbols[i];
         if (symbol->is_function && symbol->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             output_function_body_code(symbol);

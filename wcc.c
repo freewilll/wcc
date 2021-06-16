@@ -87,12 +87,14 @@ static void compile_externals() {
     fprintf(f, "%s", externals());
     fclose(f);
 
+    init_scopes();
     init_parser();
     init_lexer(temp_filename);
     parse();
 }
 
 void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename) {
+    int i;
     Symbol *symbol;
     Function *function;
 
@@ -102,15 +104,14 @@ void compile(int print_spilled_register_count, char *compiler_input_filename, ch
     check_incomplete_structs();
 
     // Compile all functions
-    symbol = symbol_table;
-    while (symbol->identifier) {
+    for (i = 0; i < global_scope->symbol_count; i++) {
+        symbol = global_scope->symbols[i];
         if (symbol->is_function && symbol->function->is_defined) {
             function = symbol->function;
             if (print_ir1) print_ir(function, symbol->identifier, 0);
             run_compiler_phases(function, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
             if (print_ir2) print_ir(function, symbol->identifier, 0);
         }
-        symbol++;
     }
 
     output_code(compiler_input_filename, compiler_output_filename);

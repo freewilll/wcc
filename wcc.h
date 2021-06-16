@@ -63,17 +63,25 @@ typedef struct type {
     int is_unsigned;
 } Type;
 
+
 typedef struct symbol {
-    Type *type;                           // Type
-    int size;                             // Size
-    char *identifier;                     // Identifier
-    int scope;                            // Scope
-    long value;                           // Value in the case of a constant
-    int local_index;                      // Used by the parser for locals variables and function arguments
-    int is_function;                      // Is the symbol a function?
-    int is_enum;                          // Enums are symbols with a value
-    struct function *function;            // Details specific to symbols that are functions
+    Type *type;                 // Type
+    int size;                   // Size
+    char *identifier;           // Identifier
+    struct scope* scope;        // Scope
+    long value;                 // Value in the case of a constant
+    int local_index;            // Used by the parser for locals variables and function arguments
+    int is_function;            // Is the symbol a function?
+    int is_enum;                // Enums are symbols with a value
+    struct function *function;  // Details specific to symbols that are functions
 } Symbol;
+
+typedef struct scope {
+    Symbol **symbols;           // Symbol list
+    int symbol_count;           // Count of symbols
+    int max_symbol_count;       // Maximum amount of symbols memory is acllocated for
+    struct scope *parent;       // Parent scope, zero if it's the global scope
+} Scope;
 
 typedef struct function {
     char* identifier;                        // Name of the function
@@ -83,7 +91,6 @@ typedef struct function {
     int local_symbol_count;                  // Number of local symbols, used by the parser
     int vreg_count;                          // Number of virtual registers used in IR
     int spilled_register_count;              // Amount of stack space needed for registers spills
-    int call_count;                          // Number of calls to other functions
     int is_defined;                          // if a definition has been found
     int is_external;                         // Has external linkage
     int is_static;                           // Is a private function in the translation unit
@@ -184,7 +191,6 @@ typedef struct typedef_desc {
 } Typedef;
 
 enum {
-    SYMBOL_TABLE_SIZE             = 10485760,
     MAX_STRUCTS                   = 1024,
     MAX_TYPEDEFS                  = 1024,
     MAX_STRUCT_MEMBERS            = 1024,
@@ -202,6 +208,8 @@ enum {
     MAX_STACK_SIZE                = 10240,
     MAX_BLOCK_PREDECESSOR_COUNT   = 128,
     MAX_GRAPH_EDGE_COUNT          = 10240,
+    MAX_GLOBAL_SCOPE_IDENTIFIERS  = 4095,
+    MAX_LOCAL_SCOPE_IDENTIFIERS   = 511,
 };
 
 // Tokens in order of precedence
@@ -377,16 +385,13 @@ char *cur_identifier;           // Current identifier if the token is an identif
 Type *cur_lexer_type;           // A type determined by the lexer
 long cur_long;                  // Current long if the token is a number
 char *cur_string_literal;       // Current string literal if the token is a string literal
-int cur_scope;                  // Current scope. 0 is global. non-zero is function. Nested scopes isn't implemented.
+Scope *cur_scope;               // Current scope.
 char **string_literals;         // Each string literal has an index in this array, with a pointer to the string literal
 int string_literal_count;       // Amount of string literals
 
 Symbol *cur_function_symbol;     // Currently parsed function
 Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
 Value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
-
-Symbol *symbol_table;    // Symbol table, terminated by a null symbol
-Symbol *next_symbol;     // Next free symbol in the symbol table
 
 Value **vs_start;        // Value stack start
 Value **vs;              // Value stack current position
@@ -482,12 +487,18 @@ void consume(int token, char *what);
 Type *operation_type(Type *src1, Type *src2);
 Value *load_constant(Value *cv);
 int new_vreg();
-Symbol *new_symbol();
 void check_incomplete_structs();
 void finish_parsing_header();
 void parse();
 void dump_symbols();
 void init_parser();
+
+// scopes.c
+Scope *global_scope;
+
+void init_scopes();
+void enter_scope();
+void exit_scope();
 
 // types.c
 int print_type(void *f, Type *type);

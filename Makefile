@@ -4,6 +4,7 @@ SOURCES = \
   wcc.c \
   lexer.c \
   parser.c \
+  scopes.c \
   types.c \
   ir.c \
   ssa.c \
