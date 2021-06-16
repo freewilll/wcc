@@ -6,8 +6,7 @@
 
 static Type *integer_promote_type(Type *type);
 static Type *parse_struct_base_type(int allow_incomplete_structs);
-static void declaration();
-static void expression(int level);
+static void parse_expression(int level);
 
 // Push a value to the stack
 static Value *push(Value *v) {
@@ -455,7 +454,7 @@ static void and_or_expr(int is_and) {
 
     // Test second operand
     add_jmp_target_instruction(ldst2);
-    expression(TOK_BITWISE_OR);
+    parse_expression(TOK_BITWISE_OR);
     add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
     push_constant(TYPE_INT, is_and ? 1 : 0);              // Store 1
     add_instruction(IR_MOVE, dst, pl(), 0);
@@ -533,7 +532,7 @@ static void arithmetic_operation(int operation, Type *type) {
 
 static void parse_arithmetic_operation(int level, int operation, Type *type) {
     next();
-    expression(level);
+    parse_expression(level);
     arithmetic_operation(operation, type);
 }
 
@@ -563,7 +562,7 @@ static void parse_assignment() {
     next();
     if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
     dst = pop();
-    expression(TOK_EQ);
+    parse_expression(TOK_EQ);
     src1 = pl();
     dst->is_lvalue = 1;
 
@@ -580,10 +579,43 @@ static void parse_assignment() {
     push(dst);
 }
 
+// Parse a declaration
+static void parse_declaration() {
+    Type *base_type, *type;
+    Symbol *symbol;
+
+    base_type = parse_base_type(0);
+
+    while (cur_token != TOK_SEMI && cur_token != TOK_EQ) {
+        type = dup_type(base_type);
+        while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
+
+        if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
+        if (cur_token == TOK_EQ) panic("Declarations with assignments aren't implemented");
+
+        expect(TOK_IDENTIFIER, "identifier");
+
+        if (lookup_symbol(cur_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_identifier);
+
+        symbol = new_symbol();
+        symbol->type = dup_type(type);
+        symbol->identifier = cur_identifier;
+        symbol->local_index = -1 - cur_function_symbol->function->local_symbol_count++;
+        next();
+        if (cur_token != TOK_SEMI && cur_token != TOK_EQ && cur_token != TOK_COMMA) panic("Expected =, ; or ,");
+        if (cur_token == TOK_COMMA) next();
+    }
+
+    if (cur_token == TOK_EQ) {
+        push_local_symbol(symbol);
+        parse_assignment();
+    }
+}
+
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
-static void expression(int level) {
+static void parse_expression(int level) {
     int org_token;
     Type *org_type;
     int factor;
@@ -597,11 +629,11 @@ static void expression(int level) {
 
     // Parse any tokens that can be at the start of an expression
     if (cur_token_is_type())
-        declaration();
+        parse_declaration();
 
     else if (cur_token == TOK_LOGICAL_NOT) {
         next();
-        expression(TOK_INC);
+        parse_expression(TOK_INC);
 
         if (vtop->is_constant)
             push_constant(TYPE_INT, !pop()->value);
@@ -613,7 +645,7 @@ static void expression(int level) {
 
     else if (cur_token == TOK_BITWISE_NOT) {
         next();
-        expression(TOK_INC);
+        parse_expression(TOK_INC);
         if (vtop->is_constant)
             push_constant(TYPE_LONG, ~pop()->value);
         else {
@@ -624,7 +656,7 @@ static void expression(int level) {
 
     else if (cur_token == TOK_ADDRESS_OF) {
         next();
-        expression(TOK_INC);
+        parse_expression(TOK_INC);
         if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
 
         src1 = pop();
@@ -636,7 +668,7 @@ static void expression(int level) {
 
         org_token = cur_token;
         next();
-        expression(TOK_DOT);
+        parse_expression(TOK_DOT);
 
         if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
 
@@ -651,7 +683,7 @@ static void expression(int level) {
 
     else if (cur_token == TOK_MULTIPLY) {
         next();
-        expression(TOK_INC);
+        parse_expression(TOK_INC);
         if (vtop->type->type <= TYPE_PTR) panic1d("Cannot dereference a non-pointer %d", vtop->type->type);
         indirect();
     }
@@ -670,7 +702,7 @@ static void expression(int level) {
         }
         else {
             push_constant(TYPE_INT, -1);
-            expression(TOK_INC);
+            parse_expression(TOK_INC);
             arithmetic_operation(IR_MUL, 0);
         }
     }
@@ -681,7 +713,7 @@ static void expression(int level) {
             // cast
             org_type = parse_type();
             consume(TOK_RPAREN, ")");
-            expression(TOK_INC);
+            parse_expression(TOK_INC);
 
             v1 = pl();
             if (v1->type != org_type) {
@@ -694,7 +726,7 @@ static void expression(int level) {
             else push(v1);
         }
         else {
-            expression(TOK_COMMA);
+            parse_expression(TOK_COMMA);
             consume(TOK_RPAREN, ")");
         }
     }
@@ -742,7 +774,7 @@ static void expression(int level) {
             arg_count = 0;
             while (1) {
                 if (cur_token == TOK_RPAREN) break;
-                expression(TOK_COMMA);
+                parse_expression(TOK_COMMA);
                 arg = dup_value(src1);
                 if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
                 arg->function_call_arg_index = arg_count;
@@ -790,7 +822,7 @@ static void expression(int level) {
         if (cur_token_is_type())
             type = parse_type();
         else {
-            expression(TOK_COMMA);
+            parse_expression(TOK_COMMA);
             type = pop()->type;
         }
         push_constant(TYPE_LONG, get_type_size(type));
@@ -811,7 +843,7 @@ static void expression(int level) {
 
             factor = get_type_inc_dec_size(vtop->type);
 
-            expression(TOK_COMMA);
+            parse_expression(TOK_COMMA);
 
             if (factor > 1) {
                 push_constant(TYPE_INT, factor);
@@ -887,7 +919,7 @@ static void expression(int level) {
             src1_is_pointer = vtop->type->type >= TYPE_PTR;
 
             next();
-            expression(TOK_MULTIPLY);
+            parse_expression(TOK_MULTIPLY);
             src2_is_pointer = vtop->type->type >= TYPE_PTR;
 
             if (src1_is_pointer && src2_is_pointer) panic("Cannot add two pointers");
@@ -918,7 +950,7 @@ static void expression(int level) {
             factor = get_type_inc_dec_size(vtop->type);
 
             next();
-            expression(TOK_MULTIPLY);
+            parse_expression(TOK_MULTIPLY);
             src2_is_pointer = vtop->type->type >= TYPE_PTR;
 
             if (factor > 1) {
@@ -945,7 +977,7 @@ static void expression(int level) {
             org_token = cur_token;
             next();
             src1 = integer_promote(pl());
-            expression(level);
+            parse_expression(level);
             src2 = integer_promote(pl());
             add_ir_op(org_token == TOK_BITWISE_LEFT ? IR_BSHL : IR_BSHR, src1->type, new_vreg(), src1, src2);
         }
@@ -972,13 +1004,13 @@ static void expression(int level) {
             ldst1 = new_label_dst(); // False case
             ldst2 = new_label_dst(); // End
             add_conditional_jump(IR_JZ, ldst1);
-            expression(TOK_TERNARY);
+            parse_expression(TOK_TERNARY);
             src1 = vtop;
             add_instruction(IR_MOVE, dst, pl(), 0);
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_jmp_target_instruction(ldst1);    // Start of false case
             consume(TOK_COLON, ":");
-            expression(TOK_TERNARY);
+            parse_expression(TOK_TERNARY);
             src2 = vtop;
             dst->type = operation_type(src1->type, src2->type);
             add_instruction(IR_MOVE, dst, pl(), 0);
@@ -1000,7 +1032,7 @@ static void expression(int level) {
             push(load(dup_value(v1)));  // rvalue
 
             factor = get_type_inc_dec_size(org_type);
-            expression(TOK_EQ);
+            parse_expression(TOK_EQ);
 
             if (factor > 1) {
                 push_constant(TYPE_INT, factor);
@@ -1016,41 +1048,8 @@ static void expression(int level) {
     }
 }
 
-// Parse a declaration
-static void declaration() {
-    Type *base_type, *type;
-    Symbol *symbol;
-
-    base_type = parse_base_type(0);
-
-    while (cur_token != TOK_SEMI && cur_token != TOK_EQ) {
-        type = dup_type(base_type);
-        while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
-
-        if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
-        if (cur_token == TOK_EQ) panic("Declarations with assignments aren't implemented");
-
-        expect(TOK_IDENTIFIER, "identifier");
-
-        if (lookup_symbol(cur_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_identifier);
-
-        symbol = new_symbol();
-        symbol->type = dup_type(type);
-        symbol->identifier = cur_identifier;
-        symbol->local_index = -1 - cur_function_symbol->function->local_symbol_count++;
-        next();
-        if (cur_token != TOK_SEMI && cur_token != TOK_EQ && cur_token != TOK_COMMA) panic("Expected =, ; or ,");
-        if (cur_token == TOK_COMMA) next();
-    }
-
-    if (cur_token == TOK_EQ) {
-        push_local_symbol(symbol);
-        parse_assignment();
-    }
-}
-
 // Parse a statement
-static void statement() {
+static void parse_statement() {
     Value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
     int loop_token;
     int prev_loop;
@@ -1058,7 +1057,7 @@ static void statement() {
     vs = vs_start; // Reset value stack
 
     if (cur_token_is_type()) {
-        declaration();
+        parse_declaration();
         expect(TOK_SEMI, ";");
         while (cur_token == TOK_SEMI) next();
         return;
@@ -1073,7 +1072,7 @@ static void statement() {
     else if (cur_token == TOK_LCURLY) {
         enter_scope();
         next();
-        while (cur_token != TOK_RCURLY) statement();
+        while (cur_token != TOK_RCURLY) parse_statement();
         consume(TOK_RCURLY, "}");
         exit_scope();
         return;
@@ -1108,7 +1107,7 @@ static void statement() {
             if (cur_token != TOK_SEMI) {
                 linit  = new_label_dst();
                 add_jmp_target_instruction(linit);
-                expression(TOK_COMMA);
+                parse_expression(TOK_COMMA);
             }
             consume(TOK_SEMI, ";");
 
@@ -1116,7 +1115,7 @@ static void statement() {
                 lcond  = new_label_dst();
                 cur_loop_continue_dst = lcond;
                 add_jmp_target_instruction(lcond);
-                expression(TOK_COMMA);
+                parse_expression(TOK_COMMA);
                 add_conditional_jump(IR_JZ, lend);
                 add_instruction(IR_JMP, 0, lbody, 0);
             }
@@ -1126,7 +1125,7 @@ static void statement() {
                 lafter  = new_label_dst();
                 cur_loop_continue_dst = lafter;
                 add_jmp_target_instruction(lafter);
-                expression(TOK_COMMA);
+                parse_expression(TOK_COMMA);
                 if (lcond) add_instruction(IR_JMP, 0, lcond, 0);
             }
         }
@@ -1135,14 +1134,14 @@ static void statement() {
             lcond  = new_label_dst();
             cur_loop_continue_dst = lcond;
             add_jmp_target_instruction(lcond);
-            expression(TOK_COMMA);
+            parse_expression(TOK_COMMA);
             add_conditional_jump(IR_JZ, lend);
         }
         consume(TOK_RPAREN, ")");
 
         if (!cur_loop_continue_dst) cur_loop_continue_dst = lbody;
         add_jmp_target_instruction(lbody);
-        statement();
+        parse_statement();
 
         if (lafter)
             add_instruction(IR_JMP, 0, lafter, 0);
@@ -1185,19 +1184,19 @@ static void statement() {
         next();
 
         consume(TOK_LPAREN, "(");
-        expression(TOK_COMMA);
+        parse_expression(TOK_COMMA);
         consume(TOK_RPAREN, ")");
 
         ldst1 = new_label_dst(); // False case
         ldst2 = new_label_dst(); // End
         add_conditional_jump(IR_JZ, ldst1);
-        statement();
+        parse_statement();
 
         if (cur_token == TOK_ELSE) {
             next();
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_jmp_target_instruction(ldst1);    // Start of else case
-            statement();
+            parse_statement();
         }
         else {
             add_jmp_target_instruction(ldst1); // End of true case
@@ -1213,7 +1212,7 @@ static void statement() {
             add_instruction(IR_RETURN, 0, 0, 0);
         }
         else {
-            expression(TOK_COMMA);
+            parse_expression(TOK_COMMA);
             src1 = pop();
             if (src1) src1 = load(src1);
             add_instruction(IR_RETURN, 0, src1, 0);
@@ -1222,7 +1221,7 @@ static void statement() {
     }
 
     else {
-        expression(TOK_COMMA);
+        parse_expression(TOK_COMMA);
         consume(TOK_SEMI, ";");
     }
 }
@@ -1395,7 +1394,7 @@ void parse() {
                         loop_count = 0;
 
                         consume(TOK_LCURLY, "{");
-                        while (cur_token != TOK_RCURLY) statement();
+                        while (cur_token != TOK_RCURLY) parse_statement();
                         consume(TOK_RCURLY, "}");
 
                         cur_function_symbol->function->vreg_count = vreg_count;
