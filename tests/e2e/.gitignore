@@ -4,3 +4,4 @@ gen-test-reg-move-torture
 test-reg-move-torture.c
 test-include/test-include
 wcc-tests.rulecov
+gen-test-wcc-reg-move-torture
