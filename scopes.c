@@ -20,9 +20,7 @@ void init_scopes() {
 
 // Initialize a local scope and set cur_scope as the parent
 void enter_scope() {
-    Scope *scope;
-
-    scope = malloc(sizeof(Scope));
+    Scope *scope = malloc(sizeof(Scope));
     memset(scope, 0, sizeof(Scope));
     scope->symbols = malloc(sizeof(Symbol) * MAX_LOCAL_SCOPE_IDENTIFIERS);
     scope->max_symbol_count = MAX_LOCAL_SCOPE_IDENTIFIERS;

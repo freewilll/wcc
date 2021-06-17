@@ -17,9 +17,7 @@ static Value *push(Value *v) {
 
 // Pop a value from the stack
 static Value *pop() {
-    Value *result;
-
-    result = *vs++;
+    Value *result = *vs++;
     vtop = (vs == vs_start) ? 0 : *vs;
 
     return result;
@@ -28,12 +26,10 @@ static Value *pop() {
 // load a value into a register if not already done. lvalues are converted into
 // rvalues.
 static Value *load(Value *src1) {
-    Value *dst;
-
     if (src1->is_constant) return src1;
     if (src1->vreg && !src1->is_lvalue) return src1;
 
-    dst = dup_value(src1);
+    Value *dst = dup_value(src1);
     dst->vreg = new_vreg();
     dst->is_lvalue = 0;
 
@@ -70,34 +66,27 @@ static void push_constant(int type_type, long value) {
 
 // Push cur_long, using the lexer determined type cur_lexer_type
 static void push_cur_long() {
-    Value *v;
-
-    v = new_constant(cur_lexer_type->type, cur_long);
+    Value *v = new_constant(cur_lexer_type->type, cur_long);
     v->type->is_unsigned = cur_lexer_type->is_unsigned;
     push(v);
 }
 
 // Add an operation to the IR
 static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *src2) {
-    Value *v;
-    Tac *result;
-
-    v = new_value();
+    Value *v = new_value();
     v->vreg = vreg;
     v->type = dup_type(type);
-    result = add_instruction(operation, v, src1, src2);
+    Tac *result = add_instruction(operation, v, src1, src2);
     push(v);
 
     return result;
 }
 
 static Symbol *new_symbol() {
-    Symbol *symbol;
-
     if (cur_scope->symbol_count == cur_scope->max_symbol_count)
         panic1d("Exceeded max symbol table size of %d symbols", cur_scope->max_symbol_count);
 
-    symbol = malloc(sizeof(Symbol));
+    Symbol *symbol = malloc(sizeof(Symbol));
     memset(symbol, 0, sizeof(Symbol));
     cur_scope->symbols[cur_scope->symbol_count++] = symbol;
     symbol->scope = cur_scope;
@@ -108,11 +97,8 @@ static Symbol *new_symbol() {
 // Search for a symbol in a scope and recurse to parents if not found.
 // Returns zero if not found in any parents
 static Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
-    int i;
-    Symbol *symbol;
-
-    for (i = 0; i < scope->symbol_count; i++) {
-        symbol = scope->symbols[i];
+    for (int i = 0; i < scope->symbol_count; i++) {
+        Symbol *symbol = scope->symbols[i];
         if (!strcmp(symbol->identifier, name)) return symbol;
     }
 
@@ -182,11 +168,9 @@ static int get_type_inc_dec_size(Type *type) {
 // Parse type up to the point where identifiers or * are lexed
 static Type *parse_base_type(int allow_incomplete_structs) {
     Type *type;
-    int seen_signed;
-    int seen_unsigned;
 
-    seen_signed = 0;
-    seen_unsigned = 0;
+    int seen_signed = 0;
+    int seen_unsigned = 0;
     if (cur_token == TOK_SIGNED) {
         seen_signed = 1;
         next();
@@ -218,9 +202,7 @@ static Type *parse_base_type(int allow_incomplete_structs) {
 
 // Parse type, including *
 static Type *parse_type() {
-    Type *type;
-
-    type = parse_base_type(0);
+    Type *type = parse_base_type(0);
     while (cur_token == TOK_MULTIPLY) {
         type = make_ptr(type);
         next();
@@ -231,9 +213,7 @@ static Type *parse_type() {
 
 // Allocate a new Struct
 static Struct *new_struct() {
-    Struct *s;
-
-    s = malloc(sizeof(Struct));
+    Struct *s = malloc(sizeof(Struct));
     all_structs[all_structs_count] = s;
     s->type = new_type(TYPE_STRUCT + all_structs_count++);
     s->members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
@@ -244,9 +224,7 @@ static Struct *new_struct() {
 
 // Search for a struct. Returns 0 if not found.
 static Struct *find_struct(char *identifier) {
-    int i;
-
-    for (i = 0; i < all_structs_count; i++)
+    for (int i = 0; i < all_structs_count; i++)
         if (!strcmp(all_structs[i]->identifier, identifier))
             return all_structs[i];
     return 0;
@@ -254,15 +232,8 @@ static Struct *find_struct(char *identifier) {
 
 // Parse struct definitions and uses. Declarations aren't implemented.
 static Type *parse_struct_base_type(int allow_incomplete_structs) {
-    char *identifier;
-    Struct *s;
-    StructMember *member;
-    int member_count;
-    int offset, is_packed, alignment, biggest_alignment;
-    Type *base_type, *type;
-
     // Check for packed attribute
-    is_packed = 0;
+    int is_packed = 0;
     if (cur_token == TOK_ATTRIBUTE) {
         consume(TOK_ATTRIBUTE, "attribute");
         consume(TOK_LPAREN, "(");
@@ -273,33 +244,33 @@ static Type *parse_struct_base_type(int allow_incomplete_structs) {
         is_packed = 1;
     }
 
-    identifier = cur_identifier;
+    char *identifier = cur_identifier;
     consume(TOK_IDENTIFIER, "identifier");
     if (cur_token == TOK_LCURLY) {
         // Struct definition
 
         consume(TOK_LCURLY, "{");
 
-        s = find_struct(identifier);
+        Struct *s = find_struct(identifier);
         if (!s) s = new_struct();
 
         s->identifier = identifier;
 
         // Loop over members
-        offset = 0;
-        member_count = 0;
-        biggest_alignment = 0;
+        int offset = 0;
+        int member_count = 0;
+        int biggest_alignment = 0;
         while (cur_token != TOK_RCURLY) {
-            base_type = parse_base_type(1);
+            Type *base_type = parse_base_type(1);
             while (cur_token != TOK_SEMI) {
-                type = dup_type(base_type);
+                Type *type = dup_type(base_type);
                 while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
 
-                alignment = is_packed ? 1 : get_type_alignment(type);
+                int alignment = is_packed ? 1 : get_type_alignment(type);
                 if (alignment > biggest_alignment) biggest_alignment = alignment;
                 offset = ((offset + alignment  - 1) & (~(alignment - 1)));
 
-                member = malloc(sizeof(StructMember));
+                StructMember *member = malloc(sizeof(StructMember));
                 memset(member, 0, sizeof(StructMember));
                 member->identifier = cur_identifier;
                 member->type = dup_type(type);
@@ -321,7 +292,7 @@ static Type *parse_struct_base_type(int allow_incomplete_structs) {
     else {
         // Struct use
 
-        s = find_struct(identifier);
+        Struct *s = find_struct(identifier);
         if (s) return s->type; // Found a complete or incomplete struct
 
         if (allow_incomplete_structs) {
@@ -339,32 +310,26 @@ static Type *parse_struct_base_type(int allow_incomplete_structs) {
 
 // Ensure there are no incomplete structs
 void check_incomplete_structs() {
-    int i;
-
-    for (i = 0; i < all_structs_count; i++)
+    for (int i = 0; i < all_structs_count; i++)
         if (all_structs[i]->is_incomplete)
             panic("There are incomplete structs");
 }
 
 // Parse "typedef struct struct_id typedef_id"
 static void parse_typedef() {
-    Struct *s;
-    Typedef *t;
-    Type *type;
-
     next();
 
     if (cur_token != TOK_STRUCT) panic("Typedefs are only implemented for structs");
     next();
 
-    type = parse_struct_base_type(0);
-    s = all_structs[type->type - TYPE_STRUCT];
+    Type *type = parse_struct_base_type(0);
+    Struct *s = all_structs[type->type - TYPE_STRUCT];
 
     if (cur_token != TOK_IDENTIFIER) panic("Typedefs are only implemented for previously defined structs");
 
     if (all_typedefs_count == MAX_TYPEDEFS) panic("Exceeded max typedefs");
 
-    t = malloc(sizeof(Typedef));
+    Typedef *t = malloc(sizeof(Typedef));
     memset(t, 0, sizeof(Typedef));
     t->identifier = cur_identifier;
     t->struct_type = dup_type(s->type);
@@ -374,16 +339,14 @@ static void parse_typedef() {
 }
 
 static void indirect() {
-    Value *dst, *src1;
-
     // The stack contains an rvalue which is a pointer. All that needs doing
     // is conversion of the rvalue into an lvalue on the stack and a type
     // change.
-    src1 = pl();
+    Value *src1 = pl();
     if (src1->is_lvalue) panic("Internal error: expected rvalue");
     if (!src1->vreg) panic("Internal error: expected a vreg");
 
-    dst = new_value();
+    Value *dst = new_value();
     dst->vreg = src1->vreg;
     dst->type = deref_ptr(src1->type);
     dst->is_lvalue = 1;
@@ -392,9 +355,7 @@ static void indirect() {
 
 // Search for a struct member. Panics if it doesn't exist
 static StructMember *lookup_struct_member(Struct *struct_desc, char *identifier) {
-    StructMember **pmember;
-
-    pmember = struct_desc->members;
+    StructMember **pmember = struct_desc->members;
 
     while (*pmember) {
         if (!strcmp((*pmember)->identifier, identifier)) return *pmember;
@@ -406,9 +367,7 @@ static StructMember *lookup_struct_member(Struct *struct_desc, char *identifier)
 
 // Allocate a new label and create a value for it, for use in a jmp
 static Value *new_label_dst() {
-    Value *v;
-
-    v = new_value();
+    Value *v = new_value();
     v->label = ++label_count;
 
     return v;
@@ -416,29 +375,25 @@ static Value *new_label_dst() {
 
 // Add a no-op instruction with a label
 static void add_jmp_target_instruction(Value *v) {
-    Tac *tac;
-
-    tac = add_instruction(IR_NOP, 0, 0, 0);
+    Tac *tac = add_instruction(IR_NOP, 0, 0, 0);
     tac->label = v->label;
 }
 
 static void add_conditional_jump(int operation, Value *dst) {
-        // Load the result into a register
+    // Load the result into a register
     add_instruction(operation, 0, pl(), dst);
 }
 
 // Add instructions for && and || operators
 static void and_or_expr(int is_and) {
-    Value *dst, *ldst1, *ldst2, *ldst3;
-
     next();
 
-    ldst1 = new_label_dst(); // Store zero
-    ldst2 = new_label_dst(); // Second operand test
-    ldst3 = new_label_dst(); // End
+    Value *ldst1 = new_label_dst(); // Store zero
+    Value *ldst2 = new_label_dst(); // Second operand test
+    Value *ldst3 = new_label_dst(); // End
 
     // Destination register
-    dst = new_value();
+    Value *dst = new_value();
     dst->vreg = new_vreg();
     dst->type = new_type(TYPE_INT);
 
@@ -495,11 +450,9 @@ static Type *integer_promote_type(Type *type) {
 }
 
 static Value *integer_promote(Value *v) {
-    Type *type;
-
     if (v->type->type >= TYPE_PTR) panic("Invalid operand, expected integer type");
 
-    type = integer_promote_type(v->type);
+    Type *type = integer_promote_type(v->type);
     if (type_eq(v->type, type))
         return v;
     else
@@ -507,18 +460,13 @@ static Value *integer_promote(Value *v) {
 }
 
 static void arithmetic_operation(int operation, Type *type) {
-    Type *common_type;
-
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
-
-    Value *src1, *src2;
-
-    common_type = vs_operation_type();
+    Type *common_type = vs_operation_type();
     if (!type) type = common_type;
 
-    src2 = pl();
-    src1 = pl();
+    Value *src2 = pl();
+    Value *src1 = pl();
 
     if (is_integer_type(common_type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
         if (!type_eq(common_type, src1->type) && (src1->type->type <= type->type || src1->type->is_unsigned != common_type->is_unsigned))
@@ -537,13 +485,10 @@ static void parse_arithmetic_operation(int level, int operation, Type *type) {
 }
 
 static void push_local_symbol(Symbol *symbol) {
-    Type *type;
-    Value *v;
-
-    type = dup_type(symbol->type);
+    Type *type = dup_type(symbol->type);
 
     // Local symbol
-    v = new_value();
+    Value *v = new_value();
     v->type = dup_type(type);
     v->is_lvalue = 1;
 
@@ -557,18 +502,16 @@ static void push_local_symbol(Symbol *symbol) {
 }
 
 static void parse_assignment() {
-    Value *dst, *src1, *src2;
-
     next();
     if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
-    dst = pop();
+    Value *dst = pop();
     parse_expression(TOK_EQ);
-    src1 = pl();
+    Value *src1 = pl();
     dst->is_lvalue = 1;
 
     // Add type change move if necessary
     if (!src1->is_constant && !type_eq(dst->type, src1->type)) {
-        src2 = new_value();
+        Value *src2 = new_value();
         src2->vreg = new_vreg();
         src2->type = dup_type(dst->type);
         add_instruction(IR_MOVE, src2, src1, 0);
@@ -581,13 +524,12 @@ static void parse_assignment() {
 
 // Parse a declaration
 static void parse_declaration() {
-    Type *base_type, *type;
     Symbol *symbol;
 
-    base_type = parse_base_type(0);
+    Type *base_type = parse_base_type(0);
 
     while (cur_token != TOK_SEMI && cur_token != TOK_EQ) {
-        type = dup_type(base_type);
+        Type *type = dup_type(base_type);
         while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
 
         if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
@@ -616,17 +558,6 @@ static void parse_declaration() {
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 static void parse_expression(int level) {
-    int org_token;
-    Type *org_type;
-    int factor;
-    Type *type;
-    Scope *scope;
-    int function_call, arg_count, src1_is_pointer, src2_is_pointer;
-    Symbol *symbol;
-    Struct *str;
-    StructMember *member;
-    Value *v1, *dst, *src1, *src2, *ldst1, *ldst2, *function_value, *return_value, *arg;
-
     // Parse any tokens that can be at the start of an expression
     if (cur_token_is_type())
         parse_declaration();
@@ -649,7 +580,7 @@ static void parse_expression(int level) {
         if (vtop->is_constant)
             push_constant(TYPE_LONG, ~pop()->value);
         else {
-            type = vtop->type;
+            Type *type = vtop->type;
             add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
         }
     }
@@ -659,21 +590,21 @@ static void parse_expression(int level) {
         parse_expression(TOK_INC);
         if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
 
-        src1 = pop();
+        Value *src1 = pop();
         add_ir_op(IR_ADDRESS_OF, make_ptr(src1->type), new_vreg(), src1, 0);
     }
 
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
         // Prefix increment & decrement
 
-        org_token = cur_token;
+        int org_token = cur_token;
         next();
         parse_expression(TOK_DOT);
 
         if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
 
-        v1 = pop();                 // lvalue
-        src1 = load(dup_value(v1)); // rvalue
+        Value *v1 = pop();                 // lvalue
+        Value *src1 = load(dup_value(v1)); // rvalue
         push(src1);
         push_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
         arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
@@ -711,13 +642,13 @@ static void parse_expression(int level) {
         next();
         if (cur_token_is_type()) {
             // cast
-            org_type = parse_type();
+            Type *org_type = parse_type();
             consume(TOK_RPAREN, ")");
             parse_expression(TOK_INC);
 
-            v1 = pl();
+            Value *v1 = pl();
             if (v1->type != org_type) {
-                dst = new_value();
+                Value *dst = new_value();
                 dst->vreg = new_vreg();
                 dst->type = dup_type(org_type);
                 add_instruction(IR_MOVE, dst, v1, 0);
@@ -737,11 +668,11 @@ static void parse_expression(int level) {
     }
 
     else if (cur_token == TOK_STRING_LITERAL) {
-        dst = new_value();
+        Value *dst = new_value();
         dst->vreg = new_vreg();
         dst->type = new_type(TYPE_CHAR + TYPE_PTR);
 
-        src1 = new_value();
+        Value *src1 = new_value();
         src1->type = new_type(TYPE_CHAR + TYPE_PTR);
         src1->string_literal_index = string_literal_count;
         src1->is_string_literal = 1;
@@ -754,28 +685,28 @@ static void parse_expression(int level) {
     }
 
     else if (cur_token == TOK_IDENTIFIER) {
-        symbol = lookup_symbol(cur_identifier, cur_scope, 1);
+        Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
         if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
 
         next();
-        type = dup_type(symbol->type);
-        scope = symbol->scope;
+        Type *type = dup_type(symbol->type);
+        Scope *scope = symbol->scope;
         if (symbol->is_enum)
             push_constant(TYPE_INT, symbol->value);
         else if (cur_token == TOK_LPAREN) {
             // Function call
-            function_call = function_call_count++;
+            int function_call = function_call_count++;
             next();
-            src1 = new_value();
+            Value *src1 = new_value();
             src1->value = function_call;
             src1->is_constant = 1;
             src1->type = new_type(TYPE_LONG);
             add_instruction(IR_START_CALL, 0, src1, 0);
-            arg_count = 0;
+            int arg_count = 0;
             while (1) {
                 if (cur_token == TOK_RPAREN) break;
                 parse_expression(TOK_COMMA);
-                arg = dup_value(src1);
+                Value *arg = dup_value(src1);
                 if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
                 arg->function_call_arg_index = arg_count;
                 add_instruction(IR_ARG, 0, arg, pl());
@@ -786,13 +717,13 @@ static void parse_expression(int level) {
             }
             consume(TOK_RPAREN, ")");
 
-            function_value = new_value();
+            Value *function_value = new_value();
             function_value->value = function_call;
             function_value->function_symbol = symbol;
             function_value->function_call_arg_count = arg_count;
             src1->function_call_arg_count = arg_count;
 
-            return_value = 0;
+            Value *return_value = 0;
             if (type->type != TYPE_VOID) {
                 return_value = new_value();
                 return_value->vreg = new_vreg();
@@ -805,7 +736,7 @@ static void parse_expression(int level) {
 
         else if (scope->parent == 0) {
             // Global symbol
-            src1 = new_value();
+            Value *src1 = new_value();
             src1->type = dup_type(type);
             src1->is_lvalue = 1;
             src1->global_symbol = symbol;
@@ -819,6 +750,7 @@ static void parse_expression(int level) {
     else if (cur_token == TOK_SIZEOF) {
         next();
         consume(TOK_LPAREN, "(");
+        Type *type;
         if (cur_token_is_type())
             type = parse_type();
         else {
@@ -841,7 +773,7 @@ static void parse_expression(int level) {
             if (vtop->type->type < TYPE_PTR)
                 panic1d("Cannot do [] on a non-pointer for type %d", vtop->type->type);
 
-            factor = get_type_inc_dec_size(vtop->type);
+            int factor = get_type_inc_dec_size(vtop->type);
 
             parse_expression(TOK_COMMA);
 
@@ -858,13 +790,13 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
             // Postfix increment & decrement
 
-            org_token = cur_token;
+            int org_token = cur_token;
             next();
 
             if (!vtop->is_lvalue) panic(" Cannot ++ or -- an rvalue");
 
-            v1 = pop();                 // lvalue
-            src1 = load(dup_value(v1)); // rvalue
+            Value *v1 = pop();                 // lvalue
+            Value *src1 = load(dup_value(v1)); // rvalue
             push(src1);
             push_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
@@ -891,8 +823,8 @@ static void parse_expression(int level) {
             next();
             if (cur_token != TOK_IDENTIFIER) panic("Expected identifier\n");
 
-            str = all_structs[vtop->type->type - TYPE_PTR - TYPE_STRUCT];
-            member = lookup_struct_member(str, cur_identifier);
+            Struct *str = all_structs[vtop->type->type - TYPE_PTR - TYPE_STRUCT];
+            StructMember *member = lookup_struct_member(str, cur_identifier);
             indirect();
 
             vtop->type = dup_type(member->type);
@@ -916,17 +848,17 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_MOD)      parse_arithmetic_operation(TOK_INC, IR_MOD, 0);
 
         else if (cur_token == TOK_PLUS) {
-            src1_is_pointer = vtop->type->type >= TYPE_PTR;
+            int src1_is_pointer = vtop->type->type >= TYPE_PTR;
 
             next();
             parse_expression(TOK_MULTIPLY);
-            src2_is_pointer = vtop->type->type >= TYPE_PTR;
+            int src2_is_pointer = vtop->type->type >= TYPE_PTR;
 
             if (src1_is_pointer && src2_is_pointer) panic("Cannot add two pointers");
 
             // Swap the operands so that the pointer comes first, for convenience
             if (!src1_is_pointer && src2_is_pointer) {
-                src1 = vs[0];
+                Value *src1 = vs[0];
                 vs[0] = vs[1];
                 vs[1] = src1;
 
@@ -934,7 +866,7 @@ static void parse_expression(int level) {
                 src2_is_pointer = 0;
             }
 
-            factor = get_type_inc_dec_size(vs[1]->type);
+            int factor = get_type_inc_dec_size(vs[1]->type);
 
             if (factor > 1) {
                 if (!src2_is_pointer) {
@@ -947,11 +879,11 @@ static void parse_expression(int level) {
         }
 
         else if (cur_token == TOK_MINUS) {
-            factor = get_type_inc_dec_size(vtop->type);
+            int factor = get_type_inc_dec_size(vtop->type);
 
             next();
             parse_expression(TOK_MULTIPLY);
-            src2_is_pointer = vtop->type->type >= TYPE_PTR;
+            int src2_is_pointer = vtop->type->type >= TYPE_PTR;
 
             if (factor > 1) {
                 if (!src2_is_pointer) {
@@ -974,11 +906,11 @@ static void parse_expression(int level) {
         }
 
         else if (cur_token == TOK_BITWISE_LEFT || cur_token == TOK_BITWISE_RIGHT)  {
-            org_token = cur_token;
+            int org_token = cur_token;
             next();
-            src1 = integer_promote(pl());
+            Value *src1 = integer_promote(pl());
             parse_expression(level);
-            src2 = integer_promote(pl());
+            Value *src2 = integer_promote(pl());
             add_ir_op(org_token == TOK_BITWISE_LEFT ? IR_BSHL : IR_BSHR, src1->type, new_vreg(), src1, src2);
         }
 
@@ -998,20 +930,20 @@ static void parse_expression(int level) {
             next();
 
             // Destination register
-            dst = new_value();
+            Value *dst = new_value();
             dst->vreg = new_vreg();
 
-            ldst1 = new_label_dst(); // False case
-            ldst2 = new_label_dst(); // End
+            Value *ldst1 = new_label_dst(); // False case
+            Value *ldst2 = new_label_dst(); // End
             add_conditional_jump(IR_JZ, ldst1);
             parse_expression(TOK_TERNARY);
-            src1 = vtop;
+            Value *src1 = vtop;
             add_instruction(IR_MOVE, dst, pl(), 0);
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_jmp_target_instruction(ldst1);    // Start of false case
             consume(TOK_COLON, ":");
             parse_expression(TOK_TERNARY);
-            src2 = vtop;
+            Value *src2 = vtop;
             dst->type = operation_type(src1->type, src2->type);
             add_instruction(IR_MOVE, dst, pl(), 0);
             push(dst);
@@ -1021,17 +953,17 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_EQ) parse_assignment();
 
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
-            org_type = vtop->type;
-            org_token = cur_token;
+            Type *org_type = vtop->type;
+            int org_token = cur_token;
 
             next();
 
             if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
 
-            v1 = vtop;                  // lvalue
+            Value *v1 = vtop;           // lvalue
             push(load(dup_value(v1)));  // rvalue
 
-            factor = get_type_inc_dec_size(org_type);
+            int factor = get_type_inc_dec_size(org_type);
             parse_expression(TOK_EQ);
 
             if (factor > 1) {
@@ -1050,10 +982,6 @@ static void parse_expression(int level) {
 
 // Parse a statement
 static void parse_statement() {
-    Value *ldst1, *ldst2, *linit, *lcond, *lafter, *lbody, *lend, *old_loop_continue_dst, *old_loop_break_dst, *src1, *src2;
-    int loop_token;
-    int prev_loop;
-
     vs = vs_start; // Reset value stack
 
     if (cur_token_is_type()) {
@@ -1081,25 +1009,27 @@ static void parse_statement() {
     else if (cur_token == TOK_WHILE || cur_token == TOK_FOR) {
         enter_scope();
 
-        prev_loop = cur_loop;
+        int prev_loop = cur_loop;
         cur_loop = ++loop_count;
-        src1 = new_value();
+        Value *src1 = new_value();
         src1->value = prev_loop;
-        src2 = new_value();
+        Value *src2 = new_value();
         src2->value = cur_loop;
         add_instruction(IR_START_LOOP, 0, src1, src2);
 
-        loop_token = cur_token;
+        int loop_token = cur_token;
         next();
         consume(TOK_LPAREN, "(");
 
         // Preserve previous loop addresses so that we can have nested whiles/fors
-        old_loop_continue_dst = cur_loop_continue_dst;
-        old_loop_break_dst = cur_loop_break_dst;
+        Value *old_loop_continue_dst = cur_loop_continue_dst;
+        Value *old_loop_break_dst = cur_loop_break_dst;
 
-        linit = lcond = lafter = 0;
-        lbody  = new_label_dst();
-        lend  = new_label_dst();
+        Value *linit = 0;
+        Value *lcond = 0;
+        Value *lafter = 0;
+        Value *lbody  = new_label_dst();
+        Value *lend  = new_label_dst();
         cur_loop_continue_dst = 0;
         cur_loop_break_dst = lend;
 
@@ -1187,8 +1117,8 @@ static void parse_statement() {
         parse_expression(TOK_COMMA);
         consume(TOK_RPAREN, ")");
 
-        ldst1 = new_label_dst(); // False case
-        ldst2 = new_label_dst(); // End
+        Value *ldst1 = new_label_dst(); // False case
+        Value *ldst2 = new_label_dst(); // End
         add_conditional_jump(IR_JZ, ldst1);
         parse_statement();
 
@@ -1213,7 +1143,7 @@ static void parse_statement() {
         }
         else {
             parse_expression(TOK_COMMA);
-            src1 = pop();
+            Value *src1 = pop();
             if (src1) src1 = load(src1);
             add_instruction(IR_RETURN, 0, src1, 0);
         }
@@ -1228,11 +1158,8 @@ static void parse_statement() {
 
 // String the filename component from a path
 static char *base_path(char *path) {
-    int end;
-    char *result;
-
-    end = strlen(path) - 1;
-    result = malloc(strlen(path) + 1);
+    int end = strlen(path) - 1;
+    char *result = malloc(strlen(path) + 1);
     while (end >= 0 && path[end] != '/') end--;
     if (end >= 0) result = memcpy(result, path, end + 1);
     result[end + 1] = 0;
@@ -1241,8 +1168,6 @@ static char *base_path(char *path) {
 }
 
 static void parse_directive() {
-    char *filename;
-
     if (parsing_header) panic("Nested headers not impemented");
 
     consume(TOK_HASH, "#");
@@ -1257,6 +1182,7 @@ static void parse_directive() {
 
     if (cur_token != TOK_STRING_LITERAL) panic("Expected string literal in #include");
 
+    char *filename;
     asprintf(&filename, "%s%s", base_path(cur_filename), cur_string_literal);
 
     c_input        = input;
@@ -1282,16 +1208,7 @@ void finish_parsing_header() {
 
 // Parse a translation unit
 void parse() {
-    Type *base_type, *type;
-    long value;                         // Enum value
-    int param_count;                    // Number of parameters to a function
-    int seen_function_declaration;      // If a function has been seen, then variable declarations afterwards are forbidden
-    int is_external;                    // For functions and globals with external linkage
-    int is_static;                      // Is a private function in the translation unit
-    Symbol *param_symbol, *s;
-    int sign;
-
-    seen_function_declaration = 0;
+    int seen_function_declaration = 0;
 
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)  {
@@ -1304,21 +1221,21 @@ void parse() {
         else if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC || cur_token_is_type() ) {
             // Variable or function definition
 
-            is_external = cur_token == TOK_EXTERN;
-            is_static = cur_token == TOK_STATIC;
+            int is_external = cur_token == TOK_EXTERN;
+            int is_static = cur_token == TOK_STATIC;
             if (is_external || is_static) next();
 
-            base_type = parse_base_type(0);
+            Type *base_type = parse_base_type(0);
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
-                type = base_type;
+                Type *type = base_type;
                 while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
 
                 if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
 
                 expect(TOK_IDENTIFIER, "identifier");
 
-                s = lookup_symbol(cur_identifier, global_scope, 1);
+                Symbol *s = lookup_symbol(cur_identifier, global_scope, 1);
                 if (!s) {
                     // Create a new symbol if it wasn't already declared. The
                     // previous declaration is left unchanged.
@@ -1351,16 +1268,16 @@ void parse() {
                     s->function->is_static = is_static;
                     s->function->local_symbol_count = 0;
 
-                    param_count = 0;
+                    int param_count = 0;
                     while (1) {
                         if (cur_token == TOK_RPAREN) break;
 
                         if (cur_token_is_type()) {
-                            type = parse_type();
+                            Type *type = parse_type();
                             if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
 
                             expect(TOK_IDENTIFIER, "identifier");
-                            param_symbol = new_symbol();
+                            Symbol *param_symbol = new_symbol();
                             param_symbol->type = dup_type(type);
                             param_symbol->identifier = cur_identifier;
                             s->function->param_types[param_count] = dup_type(type);
@@ -1423,13 +1340,13 @@ void parse() {
             consume(TOK_ENUM, "enum");
             consume(TOK_LCURLY, "{");
 
-            value = 0;
+            int value = 0;
             while (cur_token != TOK_RCURLY) {
                 expect(TOK_IDENTIFIER, "identifier");
                 next();
                 if (cur_token == TOK_EQ) {
                     next();
-                    sign = 1;
+                    int sign = 1;
                     if (cur_token == TOK_MINUS) {
                         sign = -1;
                         next();
@@ -1439,7 +1356,7 @@ void parse() {
                     next();
                 }
 
-                s = new_symbol();
+                Symbol *s = new_symbol();
                 s->is_enum = 1;
                 s->type = new_type(TYPE_INT);
                 s->identifier = cur_identifier;
@@ -1467,24 +1384,18 @@ void parse() {
 }
 
 void dump_symbols() {
-    long value, local_index;
-    Type *type;
-    Symbol *symbol;
-    char *identifier;
-    int i, j, type_len, is_global;
-
     printf("Symbols:\n");
 
-    for (i = 0; i < global_scope->symbol_count; i++) {
-        symbol = global_scope->symbols[i];
-        type = symbol->type;
-        identifier = symbol->identifier;
-        value = symbol->value;
-        local_index = symbol->local_index;
-        is_global = symbol->scope == global_scope;
+    for (int i = 0; i < global_scope->symbol_count; i++) {
+        Symbol *symbol = global_scope->symbols[i];
+        Type *type = symbol->type;
+        char *identifier = symbol->identifier;
+        long value = symbol->value;
+        long local_index = symbol->local_index;
+        int is_global = symbol->scope == global_scope;
         printf("%d %-3ld %-20ld ", is_global, local_index, value);
-        type_len = print_type(stdout, type);
-        for (j = 0; j < 24 - type_len; j++) printf(" ");
+        int type_len = print_type(stdout, type);
+        for (int j = 0; j < 24 - type_len; j++) printf(" ");
         printf("%s\n", identifier);
     }
 

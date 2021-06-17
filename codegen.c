@@ -11,11 +11,10 @@ static void check_preg(int preg) {
 }
 
 char *register_name(int preg) {
-    char *names;
     char *buffer;
 
     check_preg(preg);
-    names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
+    char *names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
     if (preg == 8 || preg == 9) asprintf(&buffer, "%%%.2s", &names[preg * 4]);
     else                        asprintf(&buffer, "%%%.3s", &names[preg * 4]);
     return buffer;
@@ -23,39 +22,31 @@ char *register_name(int preg) {
 }
 
 static void append_byte_register_name(char *buffer, int preg) {
-    char *names;
-
     check_preg(preg);
-    names = "al   bl   cl   dl   sil  dil  bpl  spl  r8b  r9b  r10b r11b r12b r13b r14b r15b";
+    char *names = "al   bl   cl   dl   sil  dil  bpl  spl  r8b  r9b  r10b r11b r12b r13b r14b r15b";
          if (preg < 4)  sprintf(buffer, "%%%.2s", &names[preg * 5]);
     else if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
     else                sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
 static void append_word_register_name(char *buffer, int preg) {
-    char *names;
-
     check_preg(preg);
-    names = "ax   bx   cx   dx   si   di   bp   sp   r8w  r9w  r10w r11w r12w r13w r14w r15w";
+    char *names = "ax   bx   cx   dx   si   di   bp   sp   r8w  r9w  r10w r11w r12w r13w r14w r15w";
          if (preg < 8)  sprintf(buffer, "%%%.2s", &names[preg * 5]);
     else if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
     else                sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
 static void append_long_register_name(char *buffer, int preg) {
-    char *names;
-
     check_preg(preg);
-    names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
+    char *names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
     if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
     else           sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
 static void append_quad_register_name(char *buffer, int preg) {
-    char *names;
-
     check_preg(preg);
-    names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
+    char *names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
     if (preg == 8 || preg == 9) sprintf(buffer, "%%%.2s", &names[preg * 4]);
     else                        sprintf(buffer, "%%%.3s", &names[preg * 4]);
 }
@@ -82,23 +73,20 @@ static int get_stack_offset_from_index(int function_pc, int stack_index) {
 }
 
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
-    char *t, *result, *buffer;
-    int i, x86_size, stack_offset, mnemonic_length;
-    Value *v;
+    char *t = tac->x86_template;
 
-    t = tac->x86_template;
     if (!t) return 0;
 
-    buffer = malloc(128);
+    char *buffer = malloc(128);
     memset(buffer, 0, 128);
-    result = buffer;
+    char *result = buffer;
 
     while (*t && *t != ' ') *buffer++ = *t++;
     while (*t && *t == ' ') t++;
 
     if (*t) {
-        mnemonic_length = buffer - result;
-        for (i = 0; i < 8 - mnemonic_length; i++) *buffer++ = ' ';
+        int mnemonic_length = buffer - result;
+        for (int i = 0; i < 8 - mnemonic_length; i++) *buffer++ = ' ';
     }
 
     while (*t) {
@@ -108,6 +96,8 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 t += 1;
             }
             else {
+                Value *v;
+
                 t++;
 
                 if (t[0] != 'v') panic1s("Unknown placeholder in %s", tac->x86_template);
@@ -119,7 +109,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 else if (t[0] == 'd') v = tac->dst;
                 else panic1s("Indecipherable placeholder \"%s\"", tac->x86_template);
 
-                x86_size = 0;
+                int x86_size = 0;
                      if (t[1] == 'b') { t++; x86_size = 1; }
                 else if (t[1] == 'w') { t++; x86_size = 2; }
                 else if (t[1] == 'l') { t++; x86_size = 3; }
@@ -152,7 +142,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 else if (v->global_symbol)
                     sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
                 else if (v->stack_index) {
-                    stack_offset = get_stack_offset_from_index(function_pc, v->stack_index);
+                    int stack_offset = get_stack_offset_from_index(function_pc, v->stack_index);
                     sprintf(buffer, "%d(%%rbp)", stack_offset);
                 }
                 else if (v->label)
@@ -175,9 +165,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 }
 
 static void output_x86_operation(Tac *tac, int function_pc) {
-    char *buffer;
-
-    buffer = render_x86_operation(tac, function_pc, 1);
+    char *buffer = render_x86_operation(tac, function_pc, 1);
     if (buffer) {
         fprintf(f, "    %s\n", buffer);
         free(buffer);
@@ -186,9 +174,7 @@ static void output_x86_operation(Tac *tac, int function_pc) {
 
 // Add an instruction after ir and return ir of the new instruction
 static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *x86_template) {
-    Tac *tac;
-
-    tac = malloc(sizeof(Tac));
+    Tac *tac = malloc(sizeof(Tac));
     memset(tac, 0, sizeof(Tac));
     tac->operation = operation;
     tac->dst = dst;
@@ -201,8 +187,6 @@ static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *sr
 
 // Determine which registers are used in a function, push them onto the stack and return the list
 static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
-    int i;
-
     while (tac) {
         if (tac->dst  && tac->dst ->preg != -1 && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
         if (tac->src1 && tac->src1->preg != -1 && callee_saved_registers[tac->src1->preg]) saved_registers[tac->src1->preg] = 1;
@@ -210,7 +194,7 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
         tac = tac->next;
     }
 
-    for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
+    for (int i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
         if (saved_registers[i]) {
             cur_stack_push_count++;
             ir = insert_x86_instruction(ir, X_PUSH, new_preg_value(i), 0, 0, "push %vdq");
@@ -221,9 +205,7 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
 }
 
 static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
-    int i;
-
-    for (i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--)
+    for (int i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--)
         if (saved_registers[i])
             ir = insert_x86_instruction(ir, X_POP, new_preg_value(i), 0, 0, "popq %vdq");
 
@@ -241,15 +223,11 @@ static Tac *add_add_rsp(Tac *ir, int amount) {
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
 void add_final_x86_instructions(Function *function) {
-    Tac *tac, *ir, *orig_ir;
-    int ac;                             // A function call's arg count
-    int local_stack_size;               // Size of the stack containing local variables and spilled registers
-    int *saved_registers;               // Callee saved registers
-    int function_call_pushes;           // How many pushes are necessary for a function call
-    int need_aligned_call_push;         // If an extra push has been done before function call args to align the stack
-    int added_end_of_function;          // To ensure a double epilogue isn't emitted
+    int local_stack_size;       // Size of the stack containing local variables and spilled registers
+    int *saved_registers;       // Callee saved registers
+    int added_end_of_function;  // To ensure a double epilogue isn't emitted
 
-    ir = function->ir;
+    Tac *ir = function->ir;
 
     cur_stack_push_count = 2; // Program counter and rbp
 
@@ -279,8 +257,8 @@ void add_final_x86_instructions(Function *function) {
             ir->operation = IR_NOP;
 
             // Align the stack. This is matched with an adjustment when the function call ends
-            function_call_pushes = ir->src1->function_call_arg_count <= 6 ? 0 : ir->src1->function_call_arg_count - 6;
-            need_aligned_call_push = ((cur_stack_push_count + function_call_pushes) % 2 == 1);
+            int function_call_pushes = ir->src1->function_call_arg_count <= 6 ? 0 : ir->src1->function_call_arg_count - 6;
+            int need_aligned_call_push = ((cur_stack_push_count + function_call_pushes) % 2 == 1);
             if (need_aligned_call_push)  {
                 ir->src1->pushed_stack_aligned_quad = 1;
                 cur_stack_push_count++;
@@ -303,14 +281,14 @@ void add_final_x86_instructions(Function *function) {
         else if (ir->operation == X_CALL) {
             ir->operation = IR_NOP;
 
-            orig_ir = ir;
-            ac = ir->src1->function_call_arg_count;
+            Tac *orig_ir = ir;
+            int ac = ir->src1->function_call_arg_count;
 
             // Since floating point numbers aren't implemented, this is zero.
             if (ir->src1->function_symbol->function->is_variadic)
                 ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movb $0, %vdb");
 
-            tac = new_instruction(X_CALL_FROM_FUNC);
+            Tac *tac = new_instruction(X_CALL_FROM_FUNC);
 
             if (orig_ir->src1->function_symbol->function->is_external)
                  asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->identifier);
@@ -348,9 +326,7 @@ void add_final_x86_instructions(Function *function) {
 
 // Remove all possible IR_NOP instructions
 void remove_nops(Function *function) {
-    Tac *tac;
-
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->operation != IR_NOP) { tac = tac->next; continue; }
         if (!tac->next) panic("Unexpected NOP as last instruction");
@@ -365,10 +341,7 @@ void remove_nops(Function *function) {
 
 // Merge any consecutive add/sub stack operations that aren't involved in jmp instructions.
 void merge_rsp_func_call_add_subs(Function *function) {
-    Tac *tac;
-    int value;
-
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (
                 // First operation is add/sub n, %rsp
@@ -378,7 +351,7 @@ void merge_rsp_func_call_add_subs(Function *function) {
                 // No labels are involved
                 !tac->label && !tac->next->label) {
 
-            value = tac->operation == X_ADD ? tac->src1->value : -tac->src1->value;
+            int value = tac->operation == X_ADD ? tac->src1->value : -tac->src1->value;
             value += tac->next->operation == X_ADD ? tac->next->src1->value : -tac->next->src1->value;
             if (!value) {
                 tac = delete_instruction(tac);
@@ -396,11 +369,8 @@ void merge_rsp_func_call_add_subs(Function *function) {
 
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
-    Tac *tac;
-    int function_pc;
-
-    function_pc = symbol->function->param_count;
-    tac = symbol->function->ir;
+    int function_pc = symbol->function->param_count;
+    Tac *tac = symbol->function->ir;
 
     while (tac) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);
@@ -411,10 +381,6 @@ static void output_function_body_code(Symbol *symbol) {
 
 // Output code for the translation unit
 void output_code(char *input_filename, char *output_filename) {
-    int i;
-    Symbol *symbol;
-    char *sl;
-
     if (!strcmp(output_filename, "-"))
         f = stdout;
     else {
@@ -430,8 +396,8 @@ void output_code(char *input_filename, char *output_filename) {
 
     // Output symbols
     fprintf(f, "    .text\n");
-    for (i = 0; i < global_scope->symbol_count; i++) {
-        symbol = global_scope->symbols[i];
+    for (int i = 0; i < global_scope->symbol_count; i++) {
+        Symbol *symbol = global_scope->symbols[i];
         if (!symbol->scope->parent && !symbol->is_function && !symbol->is_enum)
             fprintf(f, "    .comm   %s,%d,%d\n",
                 symbol->identifier,
@@ -442,8 +408,8 @@ void output_code(char *input_filename, char *output_filename) {
     // Output string literals
     if (string_literal_count > 0) {
         fprintf(f, "\n    .section .rodata\n");
-        for (i = 0; i < string_literal_count; i++) {
-            sl = string_literals[i];
+        for (int i = 0; i < string_literal_count; i++) {
+            char *sl = string_literals[i];
             fprintf(f, ".SL%d:\n", i);
             fprintf(f, "    .string ");
             fprintf_escaped_string_literal(f, sl);
@@ -456,8 +422,8 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .text\n");
 
     // Output symbols for all non-external functions
-    for (i = 0; i < global_scope->symbol_count; i++) {
-        symbol = global_scope->symbols[i];
+    for (int i = 0; i < global_scope->symbol_count; i++) {
+        Symbol *symbol = global_scope->symbols[i];
         if (symbol->is_function && !symbol->function->is_external && !symbol->function->is_static)
             fprintf(f, "    .globl  %s\n", symbol->identifier);
     }
@@ -467,8 +433,8 @@ void output_code(char *input_filename, char *output_filename) {
     label_count = 0; // Used in label renumbering
 
     // Output functions code
-    for (i = 0; i < global_scope->symbol_count; i++) {
-        symbol = global_scope->symbols[i];
+    for (int i = 0; i < global_scope->symbol_count; i++) {
+        Symbol *symbol = global_scope->symbols[i];
         if (symbol->is_function && symbol->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             output_function_body_code(symbol);

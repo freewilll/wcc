@@ -5,9 +5,7 @@
 #include "wcc.h"
 
 Set *new_set(int max_value) {
-    Set *result;
-
-    result = malloc(sizeof(Set));
+    Set *result = malloc(sizeof(Set));
     result->max_value = max_value;
     result->elements = malloc((max_value + 1) * sizeof(char));
     memset(result->elements, 0, (max_value + 1) * sizeof(char));
@@ -27,9 +25,7 @@ void empty_set(Set *s) {
 }
 
 Set *copy_set(Set *s) {
-    Set *result;
-
-    result = new_set(s->max_value);
+    Set *result = new_set(s->max_value);
     memcpy(result->elements, s->elements, (s->max_value + 1) * sizeof(char));
 
     return result;
@@ -40,35 +36,27 @@ void copy_set_to(Set *dst, Set *src) {
 }
 
 void cache_set_elements(Set *s) {
-    int i, count;
-    int *cached_elements;
-
     if (!s->cached_elements) s->cached_elements = malloc((s->max_value + 1) * sizeof(int));
-    cached_elements = s->cached_elements;
+    int *cached_elements = s->cached_elements;
 
-    count = 0;
-    for (i = 0; i <= s->max_value; i++)
+    int count = 0;
+    for (int i = 0; i <= s->max_value; i++)
         if (s->elements[i]) cached_elements[count++] = i;
 
     s->cached_element_count = count;
 }
 
 int set_len(Set *s) {
-    int i, result;
-
-    result = 0;
-    for (i = 0; i <= s->max_value; i++) result += s->elements[i];
+    int result = 0;
+    for (int i = 0; i <= s->max_value; i++) result += s->elements[i];
 
     return result;
 }
 
 void print_set(Set *s) {
-    int i;
-    int first;
-
-    first = 1;
+    int first = 1;
     printf("{");
-    for (i = 0; i <= s->max_value; i++) {
+    for (int i = 0; i <= s->max_value; i++) {
         if (s->elements[i]) {
             if (!first) { printf(", "); }
             printf("%d", i);
@@ -100,36 +88,28 @@ int set_eq(Set *s1, Set *s2) {
 }
 
 Set *set_intersection(Set *s1, Set *s2) {
-    Set *result;
-    int i;
-
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_intersection");
 
-    result = new_set(s1->max_value);
-    for (i = 0; i <= s1->max_value; i++)
+    Set *result = new_set(s1->max_value);
+    for (int i = 0; i <= s1->max_value; i++)
         result->elements[i] = s1->elements[i] && s2->elements[i];
 
     return result;
 }
 
 void set_intersection_to(Set *dst, Set *s1, Set *s2) {
-    int i;
-
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_intersection_to");
     if (s1->max_value != dst->max_value) panic("Unequal set sizes in set_intersection_to");
 
-    for (i = 0; i <= s1->max_value; i++)
+    for (int i = 0; i <= s1->max_value; i++)
         dst->elements[i] = s1->elements[i] && s2->elements[i];
 }
 
 Set *set_union(Set *s1, Set *s2) {
-    Set *result;
-    int i;
-
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_union");
 
-    result = new_set(s1->max_value);
-    for (i = 0; i <= s1->max_value; i++)
+    Set *result = new_set(s1->max_value);
+    for (int i = 0; i <= s1->max_value; i++)
         result->elements[i] = s1->elements[i] || s2->elements[i];
 
     return result;
@@ -137,34 +117,27 @@ Set *set_union(Set *s1, Set *s2) {
 
 
 void set_union_to(Set *dst, Set *s1, Set *s2) {
-    int i;
-
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_union_to");
     if (s1->max_value != dst->max_value) panic("Unequal set sizes in set_union_to");
 
-    for (i = 0; i <= s1->max_value; i++)
+    for (int i = 0; i <= s1->max_value; i++)
         dst->elements[i] = s1->elements[i] || s2->elements[i];
 }
 
 Set *set_difference(Set *s1, Set *s2) {
-    Set *result;
-    int i;
-
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_difference");
 
-    result = new_set(s1->max_value);
-    for (i = 0; i <= s1->max_value; i++)
+    Set *result = new_set(s1->max_value);
+    for (int i = 0; i <= s1->max_value; i++)
         result->elements[i] = s1->elements[i] && !s2->elements[i];
 
     return result;
 }
 
 void set_difference_to(Set *dst, Set *s1, Set *s2) {
-    int i;
-
     if (s1->max_value != s2->max_value) panic("Unequal set sizes in set_difference_to");
     if (s1->max_value != dst->max_value) panic("Unequal set sizes in set_difference_to");
 
-    for (i = 0; i <= s1->max_value; i++)
+    for (int i = 0; i <= s1->max_value; i++)
         dst->elements[i] = s1->elements[i] && !s2->elements[i];
 }

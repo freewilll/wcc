@@ -19,9 +19,7 @@ void init_value(Value *v) {
 }
 
 Value *new_value() {
-    Value *v;
-
-    v = malloc(sizeof(Value));
+    Value *v = malloc(sizeof(Value));
     memset(v, 0, sizeof(Value));
     init_value(v);
 
@@ -30,9 +28,7 @@ Value *new_value() {
 
 // Create a new typed constant value.
 Value *new_constant(int type_type, long value) {
-    Value *cv;
-
-    cv = new_value();
+    Value *cv = new_value();
     cv->value = value;
     cv->type = new_type(type_type);
     cv->is_constant = 1;
@@ -40,17 +36,14 @@ Value *new_constant(int type_type, long value) {
 }
 
 Value *new_preg_value(int preg) {
-    Value *v;
-    v = new_value();
+    Value *v = new_value();
     v->preg = preg;
     return v;
 }
 
 // Duplicate a value
 Value *dup_value(Value *src) {
-    Value *dst;
-
-    dst = new_value();
+    Value *dst = new_value();
     dst->type                                = dup_type(src->type);
     dst->vreg                                = src->vreg;
     dst->preg                                = src->preg;
@@ -96,9 +89,7 @@ void add_tac_to_ir(Tac *tac) {
 }
 
 Tac *new_instruction(int operation) {
-    Tac *tac;
-
-    tac = malloc(sizeof(Tac));
+    Tac *tac = malloc(sizeof(Tac));
     memset(tac, 0, sizeof(Tac));
     tac->operation = operation;
 
@@ -108,9 +99,7 @@ Tac *new_instruction(int operation) {
 // Add instruction to the global intermediate representation ir
 
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
-    Tac *tac;
-
-    tac = new_instruction(operation);
+    Tac *tac = new_instruction(operation);
     tac->dst = dst;
     tac->src1 = src1;
     tac->src2 = src2;
@@ -121,9 +110,7 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
 
 // Ensure the double linked list in an IR is correct by checking last pointers
 void sanity_test_ir_linkage(Function *function) {
-    Tac *tac;
-
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->next && tac->next->prev != tac) {
             printf("Linkage broken between:\n");
@@ -137,9 +124,7 @@ void sanity_test_ir_linkage(Function *function) {
 }
 
 int fprintf_escaped_string_literal(void *f, char* sl) {
-    int c;
-
-    c = fprintf(f, "\"");
+    int c = fprintf(f, "\"");
     while (*sl) {
              if (*sl == '\n') c += fprintf(f, "\\n");
         else if (*sl == '\t') c += fprintf(f, "\\t");
@@ -154,9 +139,7 @@ int fprintf_escaped_string_literal(void *f, char* sl) {
 }
 
 int print_value(void *f, Value *v, int is_assignment_rhs) {
-    int c;
-
-    c = 0; // Count outputted characters
+    int c = 0; // Count outputted characters
 
     if (!v) panic("print_value() got null");
 
@@ -272,12 +255,7 @@ char *operation_string(int operation) {
 
 
 void print_instruction(void *f, Tac *tac, int expect_preg) {
-    int first;
-    char *buffer;
-    Value *v;
-    int o;
-
-    o = tac->operation;
+    int o = tac->operation;
 
     if (tac->label)
         fprintf(f, "l%-5d", tac->label);
@@ -285,7 +263,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, "      ");
 
     if (tac->x86_template) {
-        buffer = render_x86_operation(tac, 0, expect_preg);
+        char *buffer = render_x86_operation(tac, 0, expect_preg);
         fprintf(f, "%s\n", buffer);
         free(buffer);
         return;
@@ -344,8 +322,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
 
     else if (o == IR_PHI_FUNCTION) {
         fprintf(f, "Φ(");
-        v = tac->phi_values;
-        first = 1;
+        Value *v = tac->phi_values;
+        int first = 1;
         while (v->type) {
             if (!first) fprintf(f, ", ");
             print_value(f, v, 1);
@@ -416,13 +394,10 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
 }
 
 void print_ir(Function *function, char* name, int expect_preg) {
-    Tac *tac;
-    int i;
-
     if (name) fprintf(stdout, "%s:\n", name);
 
-    i = 0;
-    tac = function->ir;
+    int i = 0;
+    Tac *tac = function->ir;
     while (tac) {
         fprintf(stdout, "%-4d > ", i++);
         print_instruction(stdout, tac, expect_preg);
@@ -433,12 +408,10 @@ void print_ir(Function *function, char* name, int expect_preg) {
 
 // Merge tac with the instruction after it. The next instruction is removed from the chain.
 static void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) {
-    Tac *next;
-
     if (!tac->next) panic("merge_instructions called on a tac without next\n");
     if (tac->next->label && !allow_labelled_next) panic("merge_instructions called on a tac with a label");
 
-    next = tac->next;
+    Tac *next = tac->next;
     tac->next = next->next;
     if (tac->next) tac->next->prev = tac;
 
@@ -448,12 +421,9 @@ static void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) 
 }
 
 int make_function_call_count(Function *function) {
-    int function_call_count;
-    Tac *tac;
-
     // Need to count this IR's function_call_count
-    function_call_count = 0;
-    tac = function->ir;
+    int function_call_count = 0;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->operation == IR_START_CALL) function_call_count++;
         tac = tac->next;
@@ -466,22 +436,19 @@ int make_function_call_count(Function *function) {
 // the seventh arg and later to be pushed in reverse order. Easiest is to flip
 // all args backwards, so they are pushed left to right.
 void reverse_function_argument_order(Function *function) {
-    Tac *tac, *call_start, *call;
-    int i, j, arg_count, function_call_count;
-
     TacInterval *args;
-
-    ir = function->ir;
     args = malloc(sizeof(TacInterval *) * 256);
 
-    // Need to count this IR's function_call_count
-    function_call_count = make_function_call_count(function);
+    ir = function->ir;
 
-    for (i = 0; i < function_call_count; i++) {
-        tac = function->ir;
-        arg_count = 0;
-        call_start = 0;
-        call = 0;
+    // Need to count this IR's function_call_count
+    int function_call_count = make_function_call_count(function);
+
+    for (int i = 0; i < function_call_count; i++) {
+        Tac *tac = function->ir;
+        int arg_count = 0;
+        Tac *call_start = 0;
+        Tac *call = 0;
         while (tac) {
             if (tac->operation == IR_START_CALL && tac->src1->value == i) {
                 call_start = tac;
@@ -508,7 +475,7 @@ void reverse_function_argument_order(Function *function) {
             args[0].end->next = call;
             call->prev = args[0].end;
 
-            for (j = 0; j < arg_count; j++) {
+            for (int j = 0; j < arg_count; j++) {
                 // Rearrange args backwards from this IR
                 // cs -> p0.start -> p0.end -> p1.start -> p1.end -> cs.end
                 // cs -> p0.start -> p0.end -> p1.start -> p1.end -> p2.start -> p2.end -> cs.end

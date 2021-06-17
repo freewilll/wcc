@@ -8,11 +8,9 @@ static int non_terminal_for_value(Value *v);
 static int value_ptr_target_x86_size(Value *v);
 
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
-    Rule *r;
-
     if (instr_rule_count == MAX_RULE_COUNT) panic1d("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
 
-    r = &(instr_rules[instr_rule_count]);
+    Rule *r = &(instr_rules[instr_rule_count]);
 
     r->index          = instr_rule_count;
     r->operation      = operation;
@@ -32,9 +30,7 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
 }
 
 static int transform_rule_value(int extend_size, int extend_sign, int v, int size, int is_unsigned) {
-    int result;
-
-    result = v;
+    int result = v;
 
     if (extend_size) {
              if (v == XCI) result = CI1 + size - 1;
@@ -67,9 +63,7 @@ static int transform_rule_value(int extend_size, int extend_sign, int v, int siz
 }
 
 static X86Operation *dup_x86_operation(X86Operation *operation) {
-    X86Operation *result;
-
-    result = malloc(sizeof(X86Operation));
+    X86Operation *result = malloc(sizeof(X86Operation));
     result->operation = operation->operation;
     result->dst = operation->dst;
     result->v1 = operation->v1;
@@ -84,14 +78,12 @@ static X86Operation *dup_x86_operation(X86Operation *operation) {
 }
 
 static X86Operation *dup_x86_operations(X86Operation *operation) {
-    X86Operation *result;
-    X86Operation *o, *new_operation;
-
-    result = 0;
+    X86Operation *o;
+    X86Operation *result = 0;
 
     // Create new linked list with duplicates of the x86 operations
     while (operation) {
-        new_operation = dup_x86_operation(operation);
+        X86Operation *new_operation = dup_x86_operation(operation);
         if (!result) {
             result = new_operation;
             o = result;
@@ -115,17 +107,14 @@ char size_to_x86_size(int size) {
 }
 
 static char *add_size_to_template(char *template, int size) {
-    char *dst, *c;
-    char *result, x86_size;
-
     if (!template) return 0; // Some magic operations have no templates but are implemented in codegen.
 
-    x86_size = size_to_x86_size(size);
-    result = malloc(128);
+    char x86_size = size_to_x86_size(size);
+    char *result = malloc(128);
     memset(result, 0, 128);
-    dst = result;
+    char *dst = result;
 
-    c = template;
+    char *c = template;
     while (*c) {
         if (c[0] == '%' && c[1] == 's') {
             *dst++ = x86_size;
@@ -162,31 +151,23 @@ static char *add_size_to_template(char *template, int size) {
 // XR1 => RI1, RU1, also XR2 => ... etc
 // XM1 => MI1, MU1, also XM2 => ... etc
 void fin_rule(Rule *r) {
+    int operation                = r->operation;
+    int dst                      = r->dst;
+    int src1                     = r->src1;
+    int src2                     = r->src2;
+    int cost                     = r->cost;
+    X86Operation *x86_operations = r->x86_operations;
 
-    int operation, dst, src1, src2, cost, size, is_unsigned, expand_sign, expand_size;
-    X86Operation *x86_operations, *x86_operation;
-    Rule *new_rule;
-
-    operation      = r->operation;
-    dst            = r->dst;
-    src1           = r->src1;
-    src2           = r->src2;
-    cost           = r->cost;
-    x86_operations = r->x86_operations;
-
-    expand_size = 0;
-    expand_sign = 0;
-
-    expand_size = dst & EXP_SIZE || src1 & EXP_SIZE || src2 & EXP_SIZE;
-    expand_sign = dst & EXP_SIGN || src1 & EXP_SIGN || src2 & EXP_SIGN;
+    int expand_size = dst & EXP_SIZE || src1 & EXP_SIZE || src2 & EXP_SIZE;
+    int expand_sign = dst & EXP_SIGN || src1 & EXP_SIGN || src2 & EXP_SIGN;
 
     if (!expand_size && !expand_sign) return;
 
     instr_rule_count--; // Rewind next pointer so that the last rule is overwritten
 
-    for (size = 1; size <= (expand_size ? 4 : 1); size++) {
-        for (is_unsigned = 0; is_unsigned < (expand_sign ? 2 : 1); is_unsigned++) {
-            new_rule = add_rule(
+    for (int size = 1; size <= (expand_size ? 4 : 1); size++) {
+        for (int is_unsigned = 0; is_unsigned < (expand_sign ? 2 : 1); is_unsigned++) {
+            Rule *new_rule = add_rule(
                 transform_rule_value(expand_size, expand_sign, dst, size, is_unsigned),
                 operation,
                 transform_rule_value(expand_size, expand_sign, src1, size, is_unsigned),
@@ -195,7 +176,7 @@ void fin_rule(Rule *r) {
             );
             new_rule->x86_operations = dup_x86_operations(x86_operations);
 
-            x86_operation = new_rule->x86_operations;
+            X86Operation *x86_operation = new_rule->x86_operations;
             while (x86_operation) {
                 x86_operation->template = add_size_to_template(x86_operation->template, size);
                 x86_operation = x86_operation->next;
@@ -206,12 +187,10 @@ void fin_rule(Rule *r) {
 
 // Add an X86Operation template to a rule's linked list
 static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
-    X86Operation *o;
-
     if (!r->x86_operations)
         r->x86_operations = x86op;
     else {
-        o = r->x86_operations;
+        X86Operation *o = r->x86_operations;
         while (o->next) o = o->next;
         o->next = x86op;
     }
@@ -219,9 +198,7 @@ static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
 
 // Add an x86 operation template to a rule
 X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
-    X86Operation *x86op;
-
-    x86op = malloc(sizeof(X86Operation));
+    X86Operation *x86op = malloc(sizeof(X86Operation));
     x86op->operation = operation;
 
     x86op->dst = dst;
@@ -242,9 +219,7 @@ X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *temp
 
 // Add a save value operation to a rule
 void add_save_value(Rule *r, int arg, int slot) {
-    X86Operation *x86op;
-
-    x86op = malloc(sizeof(X86Operation));
+    X86Operation *x86op = malloc(sizeof(X86Operation));
     memset(x86op, 0, sizeof(X86Operation));
     x86op->save_value_in_slot = slot;
     x86op->arg = arg;
@@ -253,9 +228,7 @@ void add_save_value(Rule *r, int arg, int slot) {
 
 // Add a load value operation to a rule
 void add_load_value(Rule *r, int arg, int slot) {
-    X86Operation *x86op;
-
-    x86op = malloc(sizeof(X86Operation));
+    X86Operation *x86op = malloc(sizeof(X86Operation));
     memset(x86op, 0, sizeof(X86Operation));
     x86op->load_value_from_slot = slot;
     x86op->arg = arg;
@@ -263,9 +236,7 @@ void add_load_value(Rule *r, int arg, int slot) {
 }
 
 static void make_rule_hash(int i) {
-    Rule *r;
-
-    r = &(instr_rules[i]);
+    Rule *r = &(instr_rules[i]);
 
     r->hash =
         (r->dst       <<  0) +
@@ -275,13 +246,11 @@ static void make_rule_hash(int i) {
 }
 
 void check_for_duplicate_rules() {
-    int i, j, duplicates;
+    for (int i = 0; i < instr_rule_count; i++) make_rule_hash(i);
 
-    for (i = 0; i < instr_rule_count; i++) make_rule_hash(i);
-
-    duplicates = 0;
-    for (i = 0; i < instr_rule_count; i++) {
-        for (j = i + 1; j < instr_rule_count; j++) {
+    int duplicates = 0;
+    for (int i = 0; i < instr_rule_count; i++) {
+        for (int j = i + 1; j < instr_rule_count; j++) {
             if (instr_rules[i].hash == instr_rules[j].hash) {
                 printf("Duplicate rules: %d and %d\n", i, j);
                 printf("%-4d ", i);
@@ -300,15 +269,12 @@ void check_for_duplicate_rules() {
 }
 
 void check_rules_dont_decrease_precision() {
-    int i, dst_size, bad_rules;
-    Rule *r;
-
-    bad_rules = 0;
-    for (i = 0; i < instr_rule_count; i++) {
-        r = &(instr_rules[i]);
+    int bad_rules = 0;
+    for (int i = 0; i < instr_rule_count; i++) {
+        Rule *r = &(instr_rules[i]);
         if (!r->dst) continue;
 
-        dst_size = make_x86_size_from_non_terminal(r->dst);
+        int dst_size = make_x86_size_from_non_terminal(r->dst);
 
         if (r->src1 && make_x86_size_from_non_terminal(r->src1) > dst_size) {
             print_rule(r, 0, 0);
@@ -326,12 +292,9 @@ void check_rules_dont_decrease_precision() {
     }
 }
 
+// Make a textual representation of a non terminal
 char *non_terminal_string(int nt) {
-    // Make a textual representation of a non terminal
-
-    char *buf;
-
-    buf = malloc(6);
+    char *buf = malloc(6);
 
          if (!nt)         return "";
     else if (nt == CSTV1) return "cstv1";
@@ -398,9 +361,6 @@ char *value_to_non_terminal_string(Value *v) {
 }
 
 void print_rule(Rule *r, int print_operations, int indent) {
-    int i, first;
-    X86Operation *operation;
-
     printf("%-24s  %-5s  %-5s  %-5s  %2d    ",
         operation_string(r->operation),
         non_terminal_string(r->dst),
@@ -410,11 +370,11 @@ void print_rule(Rule *r, int print_operations, int indent) {
     );
 
     if (print_operations && r->x86_operations) {
-        operation = r->x86_operations;
-        first = 1;
+        X86Operation *operation = r->x86_operations;
+        int first = 1;
         while (operation) {
             if (!first) {
-                for (i = 0;i < indent; i++) printf(" ");
+                for (int i = 0;i < indent; i++) printf(" ");
                 printf("                                                     ");
             }
             first = 0;
@@ -436,9 +396,7 @@ void print_rule(Rule *r, int print_operations, int indent) {
 }
 
 void print_rules() {
-    int i;
-
-    for (i = 0; i < instr_rule_count; i++) {
+    for (int i = 0; i < instr_rule_count; i++) {
         printf("%-5d ", i);
         print_rule(&(instr_rules[i]), 1, 6);
     }
@@ -539,11 +497,11 @@ int match_value_to_rule_dst(Value *v, int dst) {
 // Match a value type to a non terminal rule type. This is necessary to ensure that
 // non-root and non-leaf nodes have matching types while tree matching.
 int match_value_type_to_rule_dst(Value *v, int dst) {
-    int vnt;
-    int is_ptr, ptr_size;
 
-    vnt = non_terminal_for_value(v);
-    is_ptr = v->type->type >= TYPE_PTR;
+    int vnt = non_terminal_for_value(v);
+    int is_ptr = v->type->type >= TYPE_PTR;
+
+    int ptr_size;
     if (is_ptr) ptr_size = value_ptr_target_x86_size(v);
 
     if (dst == vnt) return 1;
@@ -571,9 +529,8 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     else return 0;
 }
 
+// Return how many bytes a dereferenced pointer takes up
 static int value_ptr_target_x86_size(Value *v) {
-    // Return how many bytes a dereferenced pointer takes up
-
     if (v->type->type < TYPE_PTR) panic("Expected pointer type");
 
     if (v->type->type >= TYPE_PTR + TYPE_CHAR && v->type->type <= TYPE_PTR + TYPE_LONG)
@@ -582,9 +539,8 @@ static int value_ptr_target_x86_size(Value *v) {
         return 4;
 }
 
+// Returns the width in bytes for a non terminal
 int make_x86_size_from_non_terminal(int nt) {
-    // Returns the width in bytes for a non terminal
-
          if (nt == CSTV1) return 1;
     else if (nt == CSTV2) return 1;
     else if (nt == CSTV3) return 1;
@@ -609,27 +565,21 @@ int make_x86_size_from_non_terminal(int nt) {
         panic1s("Unable to determine size for %s", non_terminal_string(nt));
 }
 
+// Add an x86 instruction to the IR
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
-    // Add an x86 instruction to the IR
-
-    Tac *tac;
-
     if (v1) make_value_x86_size(v1);
     if (v2) make_value_x86_size(v2);
 
-    tac = add_instruction(x86op->operation, dst, v1, v2);
+    Tac *tac = add_instruction(x86op->operation, dst, v1, v2);
     tac->x86_template = x86op->template;
 
     return tac;
 }
 
 void write_rule_coverage_file() {
-    void *f;
-    int i;
+    void *f = fopen(rule_coverage_file, "a");
 
-    f = fopen(rule_coverage_file, "a");
-
-    for (i = 0; i <= rule_coverage->max_value; i++)
+    for (int i = 0; i <= rule_coverage->max_value; i++)
         if (rule_coverage->elements[i] == 1) fprintf(f, "%d\n", i);
 
     fclose(f);

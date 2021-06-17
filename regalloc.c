@@ -29,24 +29,21 @@ typedef struct vreg_cost {
 
 // Renumber all vregs so that they are consecutive
 void compress_vregs(Function *function) {
-    int i, old_vreg_count, new_vreg_count, *vreg_map;
-    Tac *tac;
-
     if (!opt_enable_vreg_renumbering) return;
 
     make_vreg_count(function, 0);
-    old_vreg_count = function->vreg_count;
-    vreg_map = malloc((old_vreg_count + 1) * sizeof(int));
+    int old_vreg_count = function->vreg_count;
+    int *vreg_map = malloc((old_vreg_count + 1) * sizeof(int));
     memset(vreg_map, 0, (old_vreg_count + 1) * sizeof(int));
-    new_vreg_count = RESERVED_PHYSICAL_REGISTER_COUNT;
+    int new_vreg_count = RESERVED_PHYSICAL_REGISTER_COUNT;
 
     if (debug_ssa_vreg_renumbering) {
         printf("Before vreg renumbering:\n");
         print_ir(function, 0, 0);
     }
 
-    tac = function->ir;
-    while(tac) {
+    Tac *tac = function->ir;
+    while (tac) {
         if (tac->dst && tac->dst->vreg) if (!vreg_map[tac->dst->vreg]) vreg_map[tac->dst->vreg] = ++new_vreg_count;
         if (tac->src1 && tac->src1->vreg) if (!vreg_map[tac->src1->vreg]) vreg_map[tac->src1->vreg] = ++new_vreg_count;
         if (tac->src2 && tac->src2->vreg) if (!vreg_map[tac->src2->vreg]) vreg_map[tac->src2->vreg] = ++new_vreg_count;
@@ -60,13 +57,13 @@ void compress_vregs(Function *function) {
 
     if (debug_ssa_vreg_renumbering) {
         printf("\nVreg renames:\n");
-        for (i = 1; i <= old_vreg_count; i++) {
+        for (int i = 1; i <= old_vreg_count; i++) {
             if (vreg_map[i]) printf("%6d -> %6d\n", i, vreg_map[i]);
         }
     }
 
     tac = function->ir;
-    while(tac) {
+    while (tac) {
         if (tac->dst  && !tac->dst ->has_been_renamed && tac->dst ->vreg) { tac->dst ->vreg = vreg_map[tac ->dst->vreg]; tac->dst ->has_been_renamed = 1; }
         if (tac->src1 && !tac->src1->has_been_renamed && tac->src1->vreg) { tac->src1->vreg = vreg_map[tac->src1->vreg]; tac->src1->has_been_renamed = 1; }
         if (tac->src2 && !tac->src2->has_been_renamed && tac->src2->vreg) { tac->src2->vreg = vreg_map[tac->src2->vreg]; tac->src2->has_been_renamed = 1; }
@@ -86,22 +83,19 @@ void compress_vregs(Function *function) {
 
 
 static void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
-    int i, j, pivot;
-    int tmp_vreg, tmp_cost;
-
     if (left >= right) return;
 
-    i = left;
-    j = right;
-    pivot = vreg_cost[i].cost;
+    int i = left;
+    int j = right;
+    int pivot = vreg_cost[i].cost;
 
     while (1) {
         while (vreg_cost[i].cost > pivot) i++;
         while (pivot > vreg_cost[j].cost) j--;
         if (i >= j) break;
 
-        tmp_vreg = vreg_cost[i].vreg;
-        tmp_cost = vreg_cost[i].cost;
+        int tmp_vreg = vreg_cost[i].vreg;
+        int tmp_cost = vreg_cost[i].cost;
         vreg_cost[i].vreg = vreg_cost[j].vreg;
         vreg_cost[i].cost = vreg_cost[j].cost;
         vreg_cost[j].vreg = tmp_vreg;
@@ -116,13 +110,10 @@ static void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
 }
 
 static int *make_original_stack_indexes(Function *function) {
-    Tac *tac;
-    int *result;
-
-    result = malloc(sizeof(int *) * (function->vreg_count + 1));
+    int *result = malloc(sizeof(int *) * (function->vreg_count + 1));
     memset(result, 0, sizeof(int *) * (function->vreg_count + 1));
 
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->src1 && tac->src1->is_function_param && tac->src1->function_param_original_stack_index)
             result[tac->dst->vreg] = tac->src1->function_param_original_stack_index;
@@ -134,11 +125,9 @@ static int *make_original_stack_indexes(Function *function) {
 }
 
 static int graph_node_degree(char *ig, int vreg_count, int node) {
-    int i, result, offset;
-
-    result = 0;
-    offset = node * vreg_count;
-    for (i = 1; i <= vreg_count; i++)
+    int result = 0;
+    int offset = node * vreg_count;
+    for (int i = 1; i <= vreg_count; i++)
         if ((i < node && ig[i * vreg_count + node]) || ig[offset + i]) result++;
 
     return result;
@@ -148,16 +137,13 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
     int physical_register_count, int *spilled_register_count, int vreg, int *original_stack_indexes,
     int preferred_live_range_preg_index) {
 
-    int i, j, preg, offset, stack_index;
-    Set *neighbor_colors;
-
-    neighbor_colors = new_set(physical_register_count);
+    Set *neighbor_colors = new_set(physical_register_count);
 
     if (debug_graph_coloring) printf("Allocating register for vreg %d\n", vreg);
-    offset = vreg * vreg_count;
-    for (i = 1; i <= vreg_count; i++) {
+    int offset = vreg * vreg_count;
+    for (int i = 1; i <= vreg_count; i++) {
         if ((i < vreg && ig[i * vreg_count + vreg]) || ig[offset + i]) {
-            preg = vreg_locations[i].preg;
+            int preg = vreg_locations[i].preg;
             if (preg != -1) add_to_set(neighbor_colors, preg);
         }
     }
@@ -169,6 +155,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
     }
 
     if (set_len(neighbor_colors) >= physical_register_count) {
+        int stack_index;
         if (original_stack_indexes[vreg])
             stack_index = original_stack_indexes[vreg];
         else {
@@ -188,7 +175,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
             return;
         }
         else {
-            for (j = 0; j < physical_register_count; j++) {
+            for (int j = 0; j < physical_register_count; j++) {
                 if (!in_set(neighbor_colors, j)) {
                     vreg_locations[vreg].preg = j;
                     if (debug_graph_coloring) printf("  allocated %d\n", j);
@@ -204,36 +191,28 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
 }
 
 void allocate_registers_top_down(Function *function, int physical_register_count) {
-    int i, vreg_count, *spill_cost, degree, spilled_register_count, vreg, vreg_locations_count;
-    int *original_stack_indexes;
-    char *preferred_live_range_preg_indexes;
-    char *interference_graph;
-    VregLocation *vreg_locations;
-    Set *constrained, *unconstrained, *preferred_pregs;
-    VregCost *ordered_nodes;
-
     if (debug_register_allocation) print_ir(function, 0, 0);
 
-    interference_graph = function->interference_graph;
-    vreg_count = function->vreg_count;
-    spill_cost = function->spill_cost;
-    preferred_live_range_preg_indexes = function->preferred_live_range_preg_indexes;
-    original_stack_indexes = make_original_stack_indexes(function);
+    char *interference_graph = function->interference_graph;
+    int vreg_count = function->vreg_count;
+    int *spill_cost = function->spill_cost;
+    char *preferred_live_range_preg_indexes = function->preferred_live_range_preg_indexes;
+    int *original_stack_indexes = make_original_stack_indexes(function);
 
-    ordered_nodes = malloc((vreg_count + 1) * sizeof(VregCost));
-    for (i = 1; i <= vreg_count; i++) {
+    VregCost *ordered_nodes = malloc((vreg_count + 1) * sizeof(VregCost));
+    for (int i = 1; i <= vreg_count; i++) {
         ordered_nodes[i].vreg = i;
         ordered_nodes[i].cost = spill_cost[i];
     }
 
     quicksort_vreg_cost(ordered_nodes, 1, vreg_count);
 
-    constrained = new_set(vreg_count);
-    unconstrained = new_set(vreg_count);
-    preferred_pregs = new_set(vreg_count);
+    Set *constrained = new_set(vreg_count);
+    Set *unconstrained = new_set(vreg_count);
+    Set *preferred_pregs = new_set(vreg_count);
 
-    for (i = 1; i <= vreg_count; i++) {
-        degree = graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg);
+    for (int i = 1; i <= vreg_count; i++) {
+        int degree = graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg);
         if (degree < physical_register_count)
             if (opt_enable_preferred_pregs && preferred_live_range_preg_indexes[ordered_nodes[i].vreg])
                 add_to_set(preferred_pregs, ordered_nodes[i].vreg);
@@ -245,7 +224,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
 
     if (debug_register_allocation) {
         printf("Nodes in order of decreasing cost:\n");
-        for (i = 1; i <= vreg_count; i++)
+        for (int i = 1; i <= vreg_count; i++)
             printf("%d: cost=%d degree=%d\n", ordered_nodes[i].vreg, ordered_nodes[i].cost, graph_node_degree(interference_graph, vreg_count, ordered_nodes[i].vreg));
 
         printf("\nPriority sets:\n");
@@ -254,14 +233,14 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         printf("preferred_pregs: "); print_set(preferred_pregs); printf("\n\n");
     }
 
-    vreg_locations_count = vreg_count > PHYSICAL_REGISTER_COUNT ? vreg_count : PHYSICAL_REGISTER_COUNT;
-    vreg_locations = malloc((vreg_locations_count + 1) * sizeof(VregLocation));
-    for (i = 1; i <= vreg_count; i++) {
+    int vreg_locations_count = vreg_count > PHYSICAL_REGISTER_COUNT ? vreg_count : PHYSICAL_REGISTER_COUNT;
+    VregLocation *vreg_locations = malloc((vreg_locations_count + 1) * sizeof(VregLocation));
+    for (int i = 1; i <= vreg_count; i++) {
         vreg_locations[i].preg = -1;
         vreg_locations[i].stack_index = 0;
     }
 
-    spilled_register_count = function->spilled_register_count;
+    int spilled_register_count = function->spilled_register_count;
 
     // Pre-color reserved registers
     if (live_range_reserved_pregs_offset > 0) {
@@ -282,29 +261,29 @@ void allocate_registers_top_down(Function *function, int physical_register_count
 
     if (debug_ssa_interference_graph) {
         printf("Live range preg index -> preg map:\n");
-        for (i = 1; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
+        for (int i = 1; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
             printf("%-2d -> %-2d: %s\n", i, vreg_locations[i].preg, register_name(vreg_locations[i].preg));
     }
 
     // Color constrained nodes first
-    for (i = 1; i <= vreg_count; i++) {
-        vreg = ordered_nodes[i].vreg;
+    for (int i = 1; i <= vreg_count; i++) {
+        int vreg = ordered_nodes[i].vreg;
         if (!constrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
         color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, 0);
     }
 
     // Color preferred preg nodes next
-    for (i = 1; i <= vreg_count; i++) {
-        vreg = ordered_nodes[i].vreg;
+    for (int i = 1; i <= vreg_count; i++) {
+        int vreg = ordered_nodes[i].vreg;
         if (!preferred_pregs->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
         color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, preferred_live_range_preg_indexes[vreg]);
     }
 
     // Color unconstrained nodes lsat
-    for (i = 1; i <= vreg_count; i++) {
-        vreg = ordered_nodes[i].vreg;
+    for (int i = 1; i <= vreg_count; i++) {
+        int vreg = ordered_nodes[i].vreg;
         if (!unconstrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
         color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, 0);
@@ -313,7 +292,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     if (debug_register_allocation) {
         printf("Assigned physical registers and stack indexes:\n");
 
-        for (i = 1; i <= vreg_count; i++) {
+        for (int i = 1; i <= vreg_count; i++) {
             printf("%-3d ", i);
             if (vreg_locations[i].preg == -1) printf("    "); else printf("%3d", vreg_locations[i].preg);
             if (vreg_locations[i].stack_index) printf("    "); else printf("%3d", vreg_locations[i].stack_index);
@@ -341,9 +320,6 @@ void init_callee_saved_registers() {
 }
 
 void init_allocate_registers() {
-    int i;
-    Set *reserved_registers;
-
     init_callee_saved_registers();
 
     preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
@@ -354,7 +330,7 @@ void init_allocate_registers() {
     memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
 
     // Blacklist registers
-    reserved_registers = new_set(PHYSICAL_REGISTER_COUNT);
+    Set *reserved_registers = new_set(PHYSICAL_REGISTER_COUNT);
 
     add_to_set(reserved_registers, REG_RSP); // Stack pointer
     add_to_set(reserved_registers, REG_RBP); // Base pointer
@@ -362,7 +338,7 @@ void init_allocate_registers() {
     add_to_set(reserved_registers, REG_R11); // Not preserved in function calls & used as temporary
 
     preg_count = 0;
-    for (i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
+    for (int i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
         if (!in_set(reserved_registers, i)) {
             if (i == REG_RAX) SSA_PREG_REG_RAX = preg_count;
             if (i == REG_RBX) SSA_PREG_REG_RBX = preg_count;
@@ -405,12 +381,10 @@ void init_allocate_registers() {
 }
 
 static void assign_vreg_locations(Function *function) {
-    Tac *tac;
-    VregLocation *function_vl, *vl;
+    VregLocation *vl;
+    VregLocation *function_vl = function->vreg_locations;
 
-    function_vl = function->vreg_locations;
-
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->dst && tac->dst->vreg) {
             vl = &function_vl[tac->dst->vreg];
@@ -448,12 +422,9 @@ static void assign_vreg_locations(Function *function) {
     function->local_symbol_count = 0; // This nukes ancient code that assumes local vars are on the stack
 }
 
+// This removes instructions that copy a physical register to itself by replacing them with noops.
 static void remove_preg_self_moves(Function *function) {
-    // This removes instructions that copy a physical register to itself by replacing them with noops.
-
-    Tac *tac;
-
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg) {
             if (tac->operation == X_MOV) tac->operation = IR_NOP;
@@ -464,14 +435,12 @@ static void remove_preg_self_moves(Function *function) {
 }
 
 void allocate_registers(Function *function) {
-    int i, vreg_count;
-
     allocate_registers_top_down(function, preg_count);
 
     // Remap SSA pregs which run from 0 to preg_count -1 to the actual
     // x86_64 physical register numbers.
-    vreg_count = function->vreg_count;
-    for (i = 1; i <= vreg_count; i++) {
+    int vreg_count = function->vreg_count;
+    for (int i = 1; i <= vreg_count; i++) {
         if (function->vreg_locations[i].preg != -1)
             function->vreg_locations[i].preg = preg_map[function->vreg_locations[i].preg];
     }

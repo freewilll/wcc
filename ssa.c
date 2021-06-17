@@ -7,15 +7,13 @@
 static void make_live_range_spill_cost(Function *function);
 
 void optimize_arithmetic_operations(Function *function) {
-    Tac *tac;
-    Value *v, *cv;
-    long c, l;
-
     if (!opt_optimize_arithmetic_operations) return;
 
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
-        cv = 0;
+        Value *v;
+        Value *cv = 0;
+        long c, l;
 
         if (tac->src1 && tac->src1->is_constant) {
             cv = tac->src1;
@@ -97,9 +95,7 @@ void optimize_arithmetic_operations(Function *function) {
 // src1 and src2 are values in registers that are read but not written to in this
 // instruction.
 void rewrite_lvalue_reg_assignments(Function *function) {
-    Tac *tac;
-
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->operation == IR_MOVE && tac->dst->vreg && tac->dst->is_lvalue) {
             tac->operation = IR_MOVE_TO_PTR;
@@ -119,17 +115,14 @@ void rewrite_lvalue_reg_assignments(Function *function) {
 // Live range coalescing prevents the v1-v2 live range from getting merged with
 // a special check for IR_CALL.
 void add_function_call_result_moves(Function *function) {
-    Tac *ir, *tac;
-    Value *value;
-
     make_vreg_count(function, 0);
 
-    ir = function->ir;
+    Tac *ir = function->ir;
     while (ir) {
         if (ir->operation == IR_CALL && ir->dst) {
-            value = dup_value(ir->dst);
+            Value *value = dup_value(ir->dst);
             value->vreg = ++function->vreg_count;
-            tac = new_instruction(IR_MOVE);
+            Tac *tac = new_instruction(IR_MOVE);
             tac->dst = ir->dst;
             tac->src1 = value;
             ir->dst = value;
@@ -143,9 +136,7 @@ void add_function_call_result_moves(Function *function) {
 // Add a move for a function return value. The target of the move will be constraint
 // and forced into the RAX register.
 void add_function_return_moves(Function *function) {
-    Tac *ir;
-
-    ir = function->ir;
+    Tac *ir = function->ir;
     while (ir) {
         if (ir->operation == IR_RETURN && ir->src1) {
             ir->dst = new_value();
@@ -161,21 +152,14 @@ void add_function_return_moves(Function *function) {
 // Insert IR_MOVE instructions before IR_ARG instructions for the 6 args. The dst
 // of the move will be constrained so that rdi, rsi etc are allocated to it.
 void add_function_call_arg_moves(Function *function) {
-    int i, function_call_count;
-    Tac *ir, *tac;
-    Function *called_function;
-    Value **arg_values, **call_arg;
-    int *function_call_arg_registers;
-    Type **function_call_arg_types;
+    int function_call_count = make_function_call_count(function);
 
-    function_call_count = make_function_call_count(function);
-
-    arg_values = malloc(sizeof(Value *) * function_call_count * 6);
+    Value **arg_values = malloc(sizeof(Value *) * function_call_count * 6);
     memset(arg_values, 0, sizeof(Value *) * function_call_count * 6);
 
     make_vreg_count(function, 0);
 
-    ir = function->ir;
+    Tac *ir = function->ir;
     while (ir) {
         if (ir->operation == IR_ARG && ir->src1->function_call_arg_index < 6) {
             arg_values[ir->src1->value * 6 + ir->src1->function_call_arg_index] = ir->src2;
@@ -186,14 +170,14 @@ void add_function_call_arg_moves(Function *function) {
         }
 
         if (ir->operation == IR_CALL) {
-            call_arg = &(arg_values[ir->src1->value * 6]);
-            called_function = ir->src1->function_symbol->function;
-            function_call_arg_registers = malloc(sizeof(int) * 6);
+            Value **call_arg = &(arg_values[ir->src1->value * 6]);
+            Function *called_function = ir->src1->function_symbol->function;
+            int *function_call_arg_registers = malloc(sizeof(int) * 6);
             memset(function_call_arg_registers, 0, sizeof(int) * 6);
-            function_call_arg_types =  malloc(sizeof(Type *) * 6);
+            Type **function_call_arg_types =  malloc(sizeof(Type *) * 6);
 
             // Add the moves backwards so that arg 0 (rsi) is last.
-            i = 0;
+            int i = 0;
             while (i < 6 && *call_arg) {
                 call_arg++;
                 i++;
@@ -203,7 +187,7 @@ void add_function_call_arg_moves(Function *function) {
             i--;
 
             for (; i >= 0; i--) {
-                tac = new_instruction(IR_MOVE);
+                Tac *tac = new_instruction(IR_MOVE);
 
                 tac->dst = new_value();
 
@@ -241,9 +225,9 @@ void add_function_call_arg_moves(Function *function) {
             // the function call. Without this, there is a chance that function call
             // registers are used as temporaries during the code instructions
             // emitted above.
-            for (i = 0; i < 6; i++) {
+            for (int i = 0; i < 6; i++) {
                 if (function_call_arg_registers[i]) {
-                    tac = new_instruction(IR_CALL_ARG_REG);
+                    Tac *tac = new_instruction(IR_CALL_ARG_REG);
                     tac->src1 = new_value();
                     tac->src1->type = function_call_arg_types[i];
                     tac->src1->vreg = function_call_arg_registers[i];
@@ -279,10 +263,7 @@ static void convert_register_param_stack_index(Function *function, int *register
 // a new physical register, or, when possible, will remain in the original registers.
 // Param #7 and onwards are pushed onto the stack; nothing is done with those here.
 static void add_function_param_moves_for_registers(Function *function) {
-    int i, register_param_count, *register_param_vregs;
-    Tac *ir, *tac;
-
-    register_param_vregs = malloc(sizeof(int) * 6);
+    int *register_param_vregs = malloc(sizeof(int) * 6);
     memset(register_param_vregs, -1, sizeof(int) * 6);
 
     ir = function->ir;
@@ -294,11 +275,11 @@ static void add_function_param_moves_for_registers(Function *function) {
 
     ir = function->ir->next;
 
-    register_param_count = function->param_count;
+    int register_param_count = function->param_count;
     if (register_param_count > 6) register_param_count = 6;
 
-    for (i = 0; i < register_param_count; i++) {
-        tac = new_instruction(IR_MOVE);
+    for (int i = 0; i < register_param_count; i++) {
+        Tac *tac = new_instruction(IR_MOVE);
         tac->dst = new_value();
         tac->dst->type = dup_type(function->param_types[i]);
         tac->dst->vreg = ++function->vreg_count;
@@ -312,7 +293,7 @@ static void add_function_param_moves_for_registers(Function *function) {
         insert_instruction(ir, tac, 1);
     }
 
-    ir = function->ir;
+    Tac *ir = function->ir;
     while (ir) {
         convert_register_param_stack_index(function, register_param_vregs, ir->dst);
         convert_register_param_stack_index(function, register_param_vregs, ir->src1);
@@ -333,22 +314,19 @@ static void convert_pushed_param_stack_index(Function *function, int *param_vreg
 // They might get spilled, in which case function_param_original_stack_index is used
 // rather than allocating more space.
 static void add_function_param_moves_for_stack(Function *function) {
-    Tac *ir, *tac;
-    int i, register_param_count, *param_vregs;
-
     if (function->param_count <= 6) return;
 
-    param_vregs = malloc(sizeof(int) * (function->param_count - 6));
+    int *param_vregs = malloc(sizeof(int) * (function->param_count - 6));
     memset(param_vregs, -1, sizeof(int) * (function->param_count - 6));
 
     ir = function->ir->next;
     if (!ir) panic("Expected at least two instructions");
 
-    register_param_count = function->param_count;
+    int register_param_count = function->param_count;
     if (register_param_count > 6) register_param_count = 6;
 
-    for (i = 6; i < function->param_count; i++) {
-        tac = new_instruction(IR_MOVE);
+    for (int i = 6; i < function->param_count; i++) {
+        Tac *tac = new_instruction(IR_MOVE);
         tac->dst = new_value();
         tac->dst->type = dup_type(function->param_types[function->param_count - i + 5]);
         tac->dst->vreg = ++function->vreg_count;
@@ -364,7 +342,7 @@ static void add_function_param_moves_for_stack(Function *function) {
         insert_instruction(ir, tac, 1);
     }
 
-    ir = function->ir;
+    Tac *ir = function->ir;
     while (ir) {
         convert_pushed_param_stack_index(function, param_vregs, ir->dst);
         convert_pushed_param_stack_index(function, param_vregs, ir->src1);
@@ -381,11 +359,8 @@ void add_function_param_moves(Function *function) {
 }
 
 static void index_tac(Tac *ir) {
-    Tac *tac;
-    int i;
-
-    tac = ir;
-    i = 0;
+    Tac *tac = ir;
+    int i = 0;
     while (tac) {
         tac->index = i;
         tac = tac->next;
@@ -394,19 +369,12 @@ static void index_tac(Tac *ir) {
 }
 
 void make_control_flow_graph(Function *function) {
-    int i, j, block_count, label;
-    Tac *tac;
-    Block *blocks;
-    Graph *cfg;
-
-    block_count = 0;
-
-    blocks = malloc(MAX_BLOCKS * sizeof(Block));
+    Block *blocks = malloc(MAX_BLOCKS * sizeof(Block));
     memset(blocks, 0, MAX_BLOCKS * sizeof(Block));
     blocks[0].start = function->ir;
-    block_count = 1;
+    int block_count = 1;
 
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->label) {
             blocks[block_count - 1].end = tac->prev;
@@ -431,7 +399,7 @@ void make_control_flow_graph(Function *function) {
     // afterwards will never get executed. Furthermore, the instructions later
     // on will mess with the liveness analysis, leading to incorrect live
     // ranges for the code that _is_ executed, so they need to get excluded.
-    for (i = 0; i < block_count; i++) {
+    for (int i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
             if (tac->operation == IR_JMP || tac->operation == X_JMP) {
@@ -444,16 +412,16 @@ void make_control_flow_graph(Function *function) {
         }
     }
 
-    cfg = new_graph(block_count, 0);
+    Graph *cfg = new_graph(block_count, 0);
 
-    for (i = 0; i < block_count; i++) {
+    for (int i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
             if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE || tac->operation == X_JB || tac->operation == X_JA || tac->operation == X_JBE || tac->operation == X_JAE) {
-                label = tac->operation == IR_JMP ||  tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE || tac->operation == X_JB || tac->operation == X_JA || tac->operation == X_JBE || tac->operation == X_JAE
+                int label = tac->operation == IR_JMP ||  tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE || tac->operation == X_JB || tac->operation == X_JA || tac->operation == X_JBE || tac->operation == X_JAE
                     ? tac->src1->label
                     : tac->src2->label;
-                for (j = 0; j < block_count; j++)
+                for (int j = 0; j < block_count; j++)
                     if (blocks[j].start->label == label)
                         add_graph_edge(cfg, i, j);
             }
@@ -478,24 +446,19 @@ void make_control_flow_graph(Function *function) {
         print_ir(function, 0, 0);
 
         printf("Blocks:\n");
-        for (i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start->index, blocks[i].end->index);
+        for (int i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start->index, blocks[i].end->index);
 
         printf("\nEdges:\n");
-        for (i = 0; i < cfg->edge_count; i++) printf("%d: %d -> %d\n", i, cfg->edges[i].from->id, cfg->edges[i].to->id);
+        for (int i = 0; i < cfg->edge_count; i++) printf("%d: %d -> %d\n", i, cfg->edges[i].from->id, cfg->edges[i].to->id);
     }
 }
 
 // Algorithm from page 503 of Engineering a compiler
 void make_block_dominance(Function *function) {
-    int i, j, changed, block_count, got_predecessors;
-    Graph *cfg;
-    GraphEdge *e;
-    Set **dom, *is1, *is2, *pred_intersections;
+    Graph *cfg = function->cfg;
+    int block_count = cfg->node_count;
 
-    cfg = function->cfg;
-    block_count = cfg->node_count;
-
-    dom = malloc(block_count * sizeof(Set));
+    Set **dom = malloc(block_count * sizeof(Set));
     memset(dom, 0, block_count * sizeof(Set));
 
     // dom[0] = {0}
@@ -503,26 +466,26 @@ void make_block_dominance(Function *function) {
     add_to_set(dom[0], 0);
 
     // dom[1 to n] = {0,1,2,..., n}, i.e. the set of all blocks
-    for (i = 1; i < block_count; i++) {
+    for (int i = 1; i < block_count; i++) {
         dom[i] = new_set(block_count);
-        for (j = 0; j < block_count; j++) add_to_set(dom[i], j);
+        for (int j = 0; j < block_count; j++) add_to_set(dom[i], j);
     }
 
-    is1 = new_set(block_count);
-    is2 = new_set(block_count);
+    Set *is1 = new_set(block_count);
+    Set *is2 = new_set(block_count);
 
     // Recalculate dom by looking at each node's predecessors until nothing changes
     // Dom(n) = {n} union (intersection of all predecessor's doms)
-    changed = 1;
+    int changed = 1;
     while (changed) {
         changed = 0;
 
-        for (i = 0; i < block_count; i++) {
-            pred_intersections = new_set(block_count);
-            for (j = 0; j < block_count; j++) add_to_set(pred_intersections, j);
-            got_predecessors = 0;
+        for (int i = 0; i < block_count; i++) {
+            Set *pred_intersections = new_set(block_count);
+            for (int j = 0; j < block_count; j++) add_to_set(pred_intersections, j);
+            int got_predecessors = 0;
 
-            e = cfg->nodes[i].pred;
+            GraphEdge *e = cfg->nodes[i].pred;
             while (e) {
                 pred_intersections = set_intersection(pred_intersections, dom[e->from->id]);
                 got_predecessors = 1;
@@ -550,19 +513,16 @@ void make_block_dominance(Function *function) {
     function->dominance = malloc(block_count * sizeof(Set));
     memset(function->dominance, 0, block_count * sizeof(Set));
 
-    for (i = 0; i < block_count; i++) function->dominance[i] = dom[i];
+    for (int i = 0; i < block_count; i++) function->dominance[i] = dom[i];
 }
 
 static void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) {
-    Graph *cfg;
-    GraphEdge *e;
-
     if (visited[block]) return;
     visited[block] = 1;
 
-    cfg = function->cfg;
+    Graph *cfg = function->cfg;
 
-    e = cfg->nodes[block].succ;
+    GraphEdge *e = cfg->nodes[block].succ;
     while (e) {
         make_rpo(function, rpos, pos, visited, e->to->id);
         e = e->next_succ;
@@ -573,10 +533,8 @@ static void make_rpo(Function *function, int *rpos, int *pos, int *visited, int 
 }
 
 static int intersect(int *rpos, int *idoms, int i, int j) {
-    int f1, f2;
-
-    f1 = i;
-    f2 = j;
+    int f1 = i;
+    int f2 = j;
 
     while (f1 != f2) {
         while (rpos[f1] > rpos[f2]) f1 = idoms[f1];
@@ -588,45 +546,40 @@ static int intersect(int *rpos, int *idoms, int i, int j) {
 
 // Algorithm on page 532 of engineering a compiler
 static void make_block_immediate_dominators(Function *function) {
-    int block_count, i, changed;
-    int *rpos, pos, *visited, *idoms, *rpos_order, b, p, new_idom;
-    Graph *cfg;
-    GraphEdge *e;
+    Graph *cfg = function->cfg;
+    int block_count = function->cfg->node_count;
 
-    cfg = function->cfg;
-    block_count = function->cfg->node_count;
-
-    rpos = malloc(block_count * sizeof(int));
+    int *rpos = malloc(block_count * sizeof(int));
     memset(rpos, 0, block_count * sizeof(int));
 
-    visited = malloc(block_count * sizeof(int));
+    int *visited = malloc(block_count * sizeof(int));
     memset(visited, 0, block_count * sizeof(int));
 
-    pos = block_count - 1;
+    int pos = block_count - 1;
     make_rpo(function, rpos, &pos, visited, 0);
 
-    rpos_order = malloc(block_count * sizeof(int));
+    int *rpos_order = malloc(block_count * sizeof(int));
     memset(rpos_order, 0, block_count * sizeof(int));
-    for (i = 0; i < block_count; i++) rpos_order[rpos[i]] = i;
+    for (int i = 0; i < block_count; i++) rpos_order[rpos[i]] = i;
 
-    idoms = malloc(block_count * sizeof(int));
+    int *idoms = malloc(block_count * sizeof(int));
     memset(idoms, 0, block_count * sizeof(int));
 
-    for (i = 0; i < block_count; i++) idoms[i] = -1;
+    for (int i = 0; i < block_count; i++) idoms[i] = -1;
     idoms[0] = 0;
 
-    changed = 1;
+    int changed = 1;
     while (changed) {
         changed = 0;
 
-        for (i = 0; i < block_count; i++) {
-            b = rpos_order[i];
+        for (int i = 0; i < block_count; i++) {
+            int b = rpos_order[i];
             if (b == 0) continue;
 
-            new_idom = -1;
-            e = cfg->nodes[b].pred;
+            int new_idom = -1;
+            GraphEdge *e = cfg->nodes[b].pred;
             while (e) {
-                p = e->from->id;
+                int p = e->from->id;
 
                 if (idoms[p] != -1) {
                     if (new_idom == -1)
@@ -649,47 +602,42 @@ static void make_block_immediate_dominators(Function *function) {
 
     if (debug_ssa) {
         printf("\nIdoms:\n");
-        for (i = 0; i < block_count; i++) printf("%d: %d\n", i, idoms[i]);
+        for (int i = 0; i < block_count; i++) printf("%d: %d\n", i, idoms[i]);
     }
 
     function->idom = malloc(block_count * sizeof(int));
     memset(function->idom, 0, block_count * sizeof(int));
 
-    for (i = 0; i < block_count; i++) function->idom[i] = idoms[i];
+    for (int i = 0; i < block_count; i++) function->idom[i] = idoms[i];
 }
 
 // Algorithm on page 499 of engineering a compiler
 // Walk the dominator tree defined by the idom (immediate dominator)s.
 static void make_block_dominance_frontiers(Function *function) {
-    int block_count, i, j, *predecessors, predecessor_count, p, runner, *idom;
-    Graph *cfg;
-    GraphEdge *e;
-    Set **df;
+    Graph *cfg = function->cfg;
+    int block_count = function->cfg->node_count;
 
-    cfg = function->cfg;
-    block_count = function->cfg->node_count;
-
-    df = malloc(block_count * sizeof(Set));
+    Set **df = malloc(block_count * sizeof(Set));
     memset(df, 0, block_count * sizeof(Set));
 
-    for (i = 0; i < block_count; i++) df[i] = new_set(block_count);
+    for (int i = 0; i < block_count; i++) df[i] = new_set(block_count);
 
-    predecessors = malloc(block_count * sizeof(int));
+    int *predecessors = malloc(block_count * sizeof(int));
 
-    idom = function->idom;
+    int *idom = function->idom;
 
-    for (i = 0; i < block_count; i++) {
-        predecessor_count = 0;
-        e = cfg->nodes[i].pred;
+    for (int i = 0; i < block_count; i++) {
+        int predecessor_count = 0;
+        GraphEdge *e = cfg->nodes[i].pred;
         while (e) {
             predecessors[predecessor_count++] = e->from->id;
             e = e ->next_pred;
         }
 
         if (predecessor_count > 1) {
-            for (j = 0; j < predecessor_count; j++) {
-                p = predecessors[j];
-                runner = p;
+            for (int j = 0; j < predecessor_count; j++) {
+                int p = predecessors[j];
+                int runner = p;
                 while (runner != idom[i]) {
                     add_to_set(df[runner], i);
                     runner = idom[runner];
@@ -699,11 +647,11 @@ static void make_block_dominance_frontiers(Function *function) {
     }
 
     function->dominance_frontiers = malloc(block_count * sizeof(Set *));
-    for (i = 0; i < block_count; i++) function->dominance_frontiers[i] = df[i];
+    for (int i = 0; i < block_count; i++) function->dominance_frontiers[i] = df[i];
 
     if (debug_ssa) {
         printf("\nDominance frontiers:\n");
-        for (i = 0; i < block_count; i++) {
+        for (int i = 0; i < block_count; i++) {
             printf("%d: ", i);
             print_set(df[i]);
             printf("\n");
@@ -721,11 +669,8 @@ void analyze_dominance(Function *function) {
 }
 
 int make_vreg_count(Function *function, int starting_count) {
-    int vreg_count;
-    Tac *tac;
-
-    vreg_count = starting_count;
-    tac = function->ir;
+    int vreg_count = starting_count;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
@@ -738,28 +683,23 @@ int make_vreg_count(Function *function, int starting_count) {
 }
 
 void make_uevar_and_varkill(Function *function) {
-    Block *blocks;
-    int i, block_count, vreg_count;
-    Set *uevar, *varkill;
-    Tac *tac;
-
-    blocks = function->blocks;
-    block_count = function->cfg->node_count;
+    Block *blocks = function->blocks;
+    int block_count = function->cfg->node_count;
 
     function->uevar = malloc(block_count * sizeof(Set *));
     memset(function->uevar, 0, block_count * sizeof(Set *));
     function->varkill = malloc(block_count * sizeof(Set *));
     memset(function->varkill, 0, block_count * sizeof(Set *));
 
-    vreg_count = function->vreg_count;
+    int vreg_count = function->vreg_count;
 
-    for (i = 0; i < block_count; i++) {
-        uevar = new_set(vreg_count);
-        varkill = new_set(vreg_count);
+    for (int i = 0; i < block_count; i++) {
+        Set *uevar = new_set(vreg_count);
+        Set *varkill = new_set(vreg_count);
         function->uevar[i] = uevar;
         function->varkill[i] = varkill;
 
-        tac = blocks[i].start;
+        Tac *tac = blocks[i].start;
         while (1) {
             if (tac->src1 && tac->src1->vreg && !in_set(varkill, tac->src1->vreg)) add_to_set(uevar, tac->src1->vreg);
             if (tac->src2 && tac->src2->vreg && !in_set(varkill, tac->src2->vreg)) add_to_set(uevar, tac->src2->vreg);
@@ -772,7 +712,7 @@ void make_uevar_and_varkill(Function *function) {
 
     if (debug_ssa) {
         printf("\nuevar & varkills:\n");
-        for (i = 0; i < block_count; i++) {
+        for (int i = 0; i < block_count; i++) {
             printf("%d: uevar=", i);
             print_set(function->uevar[i]);
             printf(" varkill=");
@@ -784,33 +724,25 @@ void make_uevar_and_varkill(Function *function) {
 
 // Page 447 of Engineering a compiler
 void make_liveout(Function *function) {
-    int i, j, block_count, vreg_count, changed, successor_block;
-    Block *blocks;
-    Set *unions, *all_vars, *inv_varkill, *is1, *is2;
-    Tac *tac;
-    Graph *cfg;
-    GraphEdge *e;
-    char *all_vars_elements, *unions_elements, *successor_block_liveout_elements, *successor_block_varkill_elements, *successor_block_uevar_elements;
-
-    blocks = function->blocks;
-    cfg = function->cfg;
-    block_count = cfg->node_count;
+    Block *blocks = function->blocks;
+    Graph *cfg = function->cfg;
+    int block_count = cfg->node_count;
 
     function->liveout = malloc(block_count * sizeof(Set *));
     memset(function->liveout, 0, block_count * sizeof(Set *));
 
-    vreg_count = function->vreg_count;
+    int vreg_count = function->vreg_count;
 
     // Set all liveouts to {0}
-    for (i = 0; i < block_count; i++)
+    for (int i = 0; i < block_count; i++)
         function->liveout[i] = new_set(vreg_count);
 
     // Set all_vars to {0, 1, 2, ... n}, i.e. the set of all vars in a block
-    all_vars = new_set(vreg_count);
-    all_vars_elements = all_vars->elements;
+    Set *all_vars = new_set(vreg_count);
+    char *all_vars_elements = all_vars->elements;
 
-    for (i = 0; i < block_count; i++) {
-        tac = blocks[i].start;
+    for (int i = 0; i < block_count; i++) {
+        Tac *tac = blocks[i].start;
         while (1) {
             if (tac->src1 && tac->src1->vreg) add_to_set(all_vars, tac->src1->vreg);
             if (tac->src2 && tac->src2->vreg) add_to_set(all_vars, tac->src2->vreg);
@@ -821,30 +753,30 @@ void make_liveout(Function *function) {
         }
     }
 
-    unions = new_set(vreg_count);
-    unions_elements = unions->elements;
-    inv_varkill = new_set(vreg_count);
-    is1 = new_set(vreg_count);
-    is2 = new_set(vreg_count);
+    Set *unions = new_set(vreg_count);
+    char *unions_elements = unions->elements;
+    Set *inv_varkill = new_set(vreg_count);
+    Set *is1 = new_set(vreg_count);
+    Set *is2 = new_set(vreg_count);
 
     if (debug_ssa_liveout) printf("Doing liveout on %d blocks\n", block_count);
 
-    changed = 1;
+    int changed = 1;
     while (changed) {
         changed = 0;
 
-        for (i = 0; i < block_count; i++) {
+        for (int i = 0; i < block_count; i++) {
             empty_set(unions);
 
-            e = cfg->nodes[i].succ;
+            GraphEdge *e = cfg->nodes[i].succ;
             while (e) {
                 // Got a successor edge from i -> successor_block
-                successor_block = e->to->id;
-                successor_block_liveout_elements = function->liveout[successor_block]->elements;
-                successor_block_varkill_elements = function->varkill[successor_block]->elements;
-                successor_block_uevar_elements = function->uevar[successor_block]->elements;
+                int successor_block = e->to->id;
+                char *successor_block_liveout_elements = function->liveout[successor_block]->elements;
+                char *successor_block_varkill_elements = function->varkill[successor_block]->elements;
+                char *successor_block_uevar_elements = function->uevar[successor_block]->elements;
 
-                for (j = 1; j <= vreg_count; j++) {
+                for (int j = 1; j <= vreg_count; j++) {
                     unions->elements[j] =
                         successor_block_uevar_elements[j] ||                               // union
                         unions_elements[j] ||                                              // union
@@ -870,7 +802,7 @@ void make_liveout(Function *function) {
 
     if (debug_ssa_liveout) {
         printf("\nLiveouts:\n");
-        for (i = 0; i < block_count; i++) {
+        for (int i = 0; i < block_count; i++) {
             printf("%d: ", i);
             print_set(function->liveout[i]);
             printf("\n");
@@ -880,27 +812,22 @@ void make_liveout(Function *function) {
 
 // Algorithm on page 501 of engineering a compiler
 void make_globals_and_var_blocks(Function *function) {
-    Block *blocks;
-    int i, block_count, vreg_count;
-    Set *globals, **var_blocks, *varkill;
-    Tac *tac;
+    Block *blocks = function->blocks;
+    int block_count = function->cfg->node_count;
 
-    blocks = function->blocks;
-    block_count = function->cfg->node_count;
+    int vreg_count = function->vreg_count;
 
-    vreg_count = function->vreg_count;
-
-    var_blocks = malloc((vreg_count + 1) * sizeof(Set *));
+    Set **var_blocks = malloc((vreg_count + 1) * sizeof(Set *));
     memset(var_blocks, 0, (vreg_count + 1) * sizeof(Set *));
-    for (i = 1; i <= vreg_count; i++) var_blocks[i] = new_set(block_count);
+    for (int i = 1; i <= vreg_count; i++) var_blocks[i] = new_set(block_count);
 
     make_vreg_count(function, 0);
-    globals = new_set(vreg_count);
+    Set *globals = new_set(vreg_count);
 
-    for (i = 0; i < block_count; i++) {
-        varkill = new_set(vreg_count);
+    for (int i = 0; i < block_count; i++) {
+        Set *varkill = new_set(vreg_count);
 
-        tac = blocks[i].start;
+        Tac *tac = blocks[i].start;
         while (1) {
             if (tac->src1 && tac->src1->vreg && !in_set(varkill, tac->src1->vreg)) add_to_set(globals, tac->src1->vreg);
             if (tac->src2 && tac->src2->vreg && !in_set(varkill, tac->src2->vreg)) add_to_set(globals, tac->src2->vreg);
@@ -921,7 +848,7 @@ void make_globals_and_var_blocks(Function *function) {
 
     if (debug_ssa) {
         printf("\nVar write blocks:\n");
-        for (i = 1; i <= vreg_count; i++) {
+        for (int i = 1; i <= vreg_count; i++) {
             printf("%d: ", i);
             print_set(var_blocks[i]);
             printf("\n");
@@ -937,36 +864,27 @@ void make_globals_and_var_blocks(Function *function) {
 
 // Algorithm on page 501 of engineering a compiler
 void insert_phi_functions(Function *function) {
-    Set *globals, *work_list, *df;
-    int i, v, block_count, vreg_count, global, b, d, label, predecessor_count;
-    Set **phi_functions, *vars;
-    Block *blocks;
-    Graph *cfg;
-    GraphEdge *e;
-    Tac *tac, *prev;
-    Value *phi_values;
+    Block *blocks = function->blocks;
+    Graph *cfg = function->cfg;
+    int block_count = cfg->node_count;
+    Set *globals = function->globals;
+    int vreg_count = function->vreg_count;
 
-    blocks = function->blocks;
-    cfg = function->cfg;
-    block_count = cfg->node_count;
-    globals = function->globals;
-    vreg_count = function->vreg_count;
+    Set **phi_functions = malloc(block_count * sizeof(Set *));
+    for (int i = 0; i < block_count; i++) phi_functions[i] = new_set(vreg_count);
 
-    phi_functions = malloc(block_count * sizeof(Set *));
-    for (i = 0; i < block_count; i++) phi_functions[i] = new_set(vreg_count);
-
-    for (global = 0; global <= globals->max_value; global++) {
+    for (int global = 0; global <= globals->max_value; global++) {
         if (!globals->elements[global]) continue;
 
-        work_list = copy_set(function->var_blocks[global]);
+        Set *work_list = copy_set(function->var_blocks[global]);
 
         while (set_len(work_list)) {
-            for (b = 0; b <= work_list->max_value; b++) {
+            for (int b = 0; b <= work_list->max_value; b++) {
                 if (!work_list->elements[b]) continue;
                 delete_from_set(work_list, b);
 
-                df = function->dominance_frontiers[b];
-                for (d = 0; d <= df->max_value; d++) {
+                Set *df = function->dominance_frontiers[b];
+                for (int d = 0; d <= df->max_value; d++) {
                     if (!df->elements[d]) continue;
 
                     if (!in_set(phi_functions[d], global)) {
@@ -981,39 +899,39 @@ void insert_phi_functions(Function *function) {
     function->phi_functions = phi_functions;
 
     if (debug_ssa_phi_insertion) printf("phi functions to add:\n");
-    for (b = 0; b < block_count; b++) {
+    for (int b = 0; b < block_count; b++) {
         if (debug_ssa_phi_insertion) {
             printf("%d: ", b);
             print_set(phi_functions[b]);
             printf("\n");
         }
 
-        label = blocks[b].start->label;
+        int label = blocks[b].start->label;
         blocks[b].start->label = 0;
 
-        vars = phi_functions[b];
-        for (v = vreg_count; v >= 0; v--) {
+        Set *vars = phi_functions[b];
+        for (int v = vreg_count; v >= 0; v--) {
             if (!vars->elements[v]) continue;
 
-            tac = new_instruction(IR_PHI_FUNCTION);
+            Tac *tac = new_instruction(IR_PHI_FUNCTION);
             tac->dst  = new_value();
             tac->dst ->type = new_type(TYPE_LONG);
             tac->dst-> vreg = v;
 
-            predecessor_count = 0;
-            e = cfg->nodes[b].pred;
+            int predecessor_count = 0;
+            GraphEdge *e = cfg->nodes[b].pred;
             while (e) { predecessor_count++; e = e->next_pred; }
 
-            phi_values = malloc((predecessor_count + 1) * sizeof(Value));
+            Value *phi_values = malloc((predecessor_count + 1) * sizeof(Value));
             memset(phi_values, 0, (predecessor_count + 1) * sizeof(Value));
-            for (i = 0; i < predecessor_count; i++) {
+            for (int i = 0; i < predecessor_count; i++) {
                 init_value(&phi_values[i]);
                 phi_values[i].type = new_type(TYPE_LONG);
                 phi_values[i].vreg = v;
             }
             tac->phi_values = phi_values;
 
-            prev = blocks[b].start->prev;
+            Tac *prev = blocks[b].start->prev;
             tac->prev = prev;
             tac->next = blocks[b].start;
             prev->next = tac;
@@ -1031,25 +949,21 @@ void insert_phi_functions(Function *function) {
 }
 
 static int new_subscript(Stack **stack, int *counters, int n) {
-    int i;
-
-    i = counters[n]++;
+    int i = counters[n]++;
     push_onto_stack(stack[n], i);
 
     return i;
 }
 
 static void print_stack_and_counters(Stack **stack, int *counters, int vreg_count) {
-    int i;
-
     printf("         ");
-    for (i = 1; i <= vreg_count; i++) printf("%-2d ", i);
+    for (int i = 1; i <= vreg_count; i++) printf("%-2d ", i);
     printf("\n");
     printf("counters ");
-    for (i = 1; i <= vreg_count; i++) printf("%-2d ", counters[i]);
+    for (int i = 1; i <= vreg_count; i++) printf("%-2d ", counters[i]);
     printf("\n");
     printf("stack    ");
-    for (i = 1; i <= vreg_count; i++) {
+    for (int i = 1; i <= vreg_count; i++) {
         if (stack[i]->pos == MAX_STACK_SIZE)
             printf("   ");
         else
@@ -1067,30 +981,22 @@ static int safe_stack_top(Stack **stack, int *counters, int n) {
 
 // Algorithm on page 506 of engineering a compiler
 static void rename_vars(Function *function, Stack **stack, int *counters, int block_number, int vreg_count) {
-    int i, block_count, *idoms;;
-    Tac *tac, *end;
-    Block *blocks;
-    Block *b;
-    Graph *cfg;
-    GraphEdge *e;
-    Value *v;
-
     if (debug_ssa_phi_renumbering) {
         printf("\n----------------------------------------\nrename_vars\n");
         print_stack_and_counters(stack, counters, vreg_count);
         printf("\n");
     }
 
-    blocks = function->blocks;
-    cfg = function->cfg;
-    block_count = cfg->node_count;
-    idoms = function->idom;
+    Block *blocks = function->blocks;
+    Graph *cfg = function->cfg;
+    int block_count = cfg->node_count;
+    int *idoms = function->idom;
 
-    b = &blocks[block_number];
+    Block *b = &blocks[block_number];
 
     // Rewrite phi function dsts
     if (debug_ssa_phi_renumbering) printf("Rewriting phi function dsts\n");
-    tac = b->start;
+    Tac *tac = b->start;
     while (tac->operation == IR_PHI_FUNCTION) {
         // Rewrite x as new_subscript(x)
         if (debug_ssa_phi_renumbering) printf("Renaming %d ", tac->dst->vreg);
@@ -1128,14 +1034,14 @@ static void rename_vars(Function *function, Stack **stack, int *counters, int bl
 
     // Rewrite phi function parameters in successors
     if (debug_ssa_phi_renumbering) printf("Rewriting successor function params\n");
-    e = cfg->nodes[block_number].succ;
+    GraphEdge *e = cfg->nodes[block_number].succ;
     while (e) {
         if (debug_ssa_phi_renumbering) printf("Successor %d\n", e->to->id);
-        tac = function->blocks[e->to->id].start;
-        end = function->blocks[e->to->id].end;
+        Tac *tac = function->blocks[e->to->id].start;
+        Tac *end = function->blocks[e->to->id].end;
         while (1) {
             if (tac->operation == IR_PHI_FUNCTION) {
-                v = tac->phi_values;
+                Value *v = tac->phi_values;
                 while (v->type) {
                     if (v->ssa_subscript == -1) {
                         v->ssa_subscript = safe_stack_top(stack, counters, v->vreg);
@@ -1153,7 +1059,7 @@ static void rename_vars(Function *function, Stack **stack, int *counters, int bl
     }
 
     // Recurse down the dominator tree
-    for (i = 0; i < block_count; i++) {
+    for (int i = 0; i < block_count; i++) {
         if (idoms[i] == block_number) {
             if (debug_ssa_phi_renumbering) printf("going into idom successor %d\n", i);
             rename_vars(function, stack, counters, i, vreg_count);
@@ -1174,12 +1080,8 @@ static void rename_vars(Function *function, Stack **stack, int *counters, int bl
 
 // Algorithm on page 506 of engineering a compiler
 void rename_phi_function_variables(Function *function) {
-    int i, vreg_count, *counters;
-    Stack **stack;
-    Tac *tac;
-
-    vreg_count = 0;
-    tac = function->ir;
+    int vreg_count = 0;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
@@ -1187,11 +1089,11 @@ void rename_phi_function_variables(Function *function) {
         tac = tac->next;
     }
 
-    counters = malloc((vreg_count + 1) * sizeof(int));
+    int *counters = malloc((vreg_count + 1) * sizeof(int));
     memset(counters, 0, (vreg_count + 1) * sizeof(int));
 
-    stack = malloc((vreg_count + 1) * sizeof(Stack *));
-    for (i = 1; i <= vreg_count; i++) stack[i] = new_stack();
+    Stack **stack = malloc((vreg_count + 1) * sizeof(Stack *));
+    for (int i = 1; i <= vreg_count; i++) stack[i] = new_stack();
 
     rename_vars(function, stack, counters, 0, vreg_count);
 
@@ -1201,32 +1103,20 @@ void rename_phi_function_variables(Function *function) {
 // Page 696 engineering a compiler
 // To build live ranges from ssa form, the allocator uses the disjoint-set union- find algorithm.
 void make_live_ranges(Function *function) {
-    int i, j, live_range_count, vreg_count, ssa_subscript_count, max_ssa_var, block_count;
-    int dst;
-    Tac *tac;
-    int *map, first;
-    Set *ssa_vars, **live_ranges;
-    Set *dst_set, *s;
-    int dst_set_index;
-    Block *blocks;
-    Value *v;
-    int *src_ssa_vars, *src_set_indexes;
-    int value_count, set_index;
-
     live_range_reserved_pregs_offset = RESERVED_PHYSICAL_REGISTER_COUNT; // See the list at the top of the file
 
     if (debug_ssa_live_range) print_ir(function, 0, 0);
 
-    vreg_count = function->vreg_count;
-    ssa_subscript_count = 0;
-    tac = function->ir;
+    int vreg_count = function->vreg_count;
+    int ssa_subscript_count = 0;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->dst  && tac->dst ->vreg && tac->dst ->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->dst ->ssa_subscript;
         if (tac->src1 && tac->src1->vreg && tac->src1->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src1->ssa_subscript;
         if (tac->src2 && tac->src2->vreg && tac->src2->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src2->ssa_subscript;
 
         if (tac->operation == IR_PHI_FUNCTION) {
-            v = tac->phi_values;
+            Value *v = tac->phi_values;
             while (v->type) {
                 if (v->ssa_subscript > ssa_subscript_count) ssa_subscript_count = v->ssa_subscript;
                 v++;
@@ -1238,8 +1128,8 @@ void make_live_ranges(Function *function) {
 
     ssa_subscript_count += 1; // Starts at zero, so the count is one more
 
-    max_ssa_var = (vreg_count + 1) * ssa_subscript_count;
-    ssa_vars = new_set(max_ssa_var);
+    int max_ssa_var = (vreg_count + 1) * ssa_subscript_count;
+    Set *ssa_vars = new_set(max_ssa_var);
 
     // Poor mans 2D array. 2d[vreg][subscript] => 1d[vreg * ssa_subscript_count + ssa_subscript]
     tac = function->ir;
@@ -1249,7 +1139,7 @@ void make_live_ranges(Function *function) {
         if (tac->src2 && tac->src2->vreg) add_to_set(ssa_vars, tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript);
 
         if (tac->operation == IR_PHI_FUNCTION) {
-            v = tac->phi_values;
+            Value *v = tac->phi_values;
             while (v->type) {
                 add_to_set(ssa_vars, v->vreg * ssa_subscript_count + v->ssa_subscript);
                 v++;
@@ -1261,52 +1151,53 @@ void make_live_ranges(Function *function) {
 
     // Create live ranges sets for all variables, each set with the variable itself in it.
     // Allocate all the memory we need. live_range_count
-    live_ranges = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(Set *));
-    for (i = 0; i <= max_ssa_var; i++) {
+    Set **live_ranges = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(Set *));
+    for (int i = 0; i <= max_ssa_var; i++) {
         if (!ssa_vars->elements[i]) continue;
         live_ranges[i] = new_set(max_ssa_var);
         add_to_set(live_ranges[i], i);
     }
 
-    s = new_set(max_ssa_var);
+    Set *s = new_set(max_ssa_var);
 
-    src_ssa_vars = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
-    src_set_indexes = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
+    int *src_ssa_vars = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
+    int *src_set_indexes = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
 
     // Make live ranges out of SSA variables in phi functions
     tac = function->ir;
     while (tac) {
         if (tac->operation == IR_PHI_FUNCTION) {
-            value_count = 0;
-            v = tac->phi_values;
+            int value_count = 0;
+            Value *v = tac->phi_values;
             while (v->type) {
                 if (value_count == MAX_BLOCK_PREDECESSOR_COUNT) panic("Exceeded MAX_BLOCK_PREDECESSOR_COUNT");
                 src_ssa_vars[value_count++] = v->vreg * ssa_subscript_count + v->ssa_subscript;
                 v++;
             }
 
-            dst = tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript;
+            int dst = tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript;
+            int dst_set_index;
 
-            for (i = 0; i <= max_ssa_var; i++) {
+            for (int i = 0; i <= max_ssa_var; i++) {
                 if (!ssa_vars->elements[i]) continue;
 
                 if (in_set(live_ranges[i], dst)) dst_set_index = i;
 
-                for (j = 0; j < value_count; j++)
+                for (int j = 0; j < value_count; j++)
                     if (in_set(live_ranges[i], src_ssa_vars[j])) src_set_indexes[j] = i;
             }
 
-            dst_set = live_ranges[dst_set_index];
+            Set *dst_set = live_ranges[dst_set_index];
 
             copy_set_to(s, dst_set);
-            for (j = 0; j < value_count; j++) {
-                set_index = src_set_indexes[j];
+            for (int j = 0; j < value_count; j++) {
+                int set_index = src_set_indexes[j];
                 set_union_to(s, s, live_ranges[set_index]);
             }
             copy_set_to(live_ranges[dst_set_index], s);
 
-            for (j = 0; j < value_count; j++) {
-                set_index = src_set_indexes[j];
+            for (int j = 0; j < value_count; j++) {
+                int set_index = src_set_indexes[j];
                 if (set_index != dst_set_index) empty_set(live_ranges[set_index]);
             }
         }
@@ -1316,19 +1207,19 @@ void make_live_ranges(Function *function) {
     free_set(s);
 
     // Remove empty live ranges
-    live_range_count = 0;
-    for (i = 0; i <= max_ssa_var; i++)
+    int live_range_count = 0;
+    for (int i = 0; i <= max_ssa_var; i++)
         if (ssa_vars->elements[i] && set_len(live_ranges[i]))
             live_ranges[live_range_count++] = live_ranges[i];
 
     // From here on, live ranges start at live_range_reserved_pregs_offset + 1
     if (debug_ssa_live_range) {
         printf("Live ranges:\n");
-        for (i = 0; i < live_range_count; i++) {
+        for (int i = 0; i < live_range_count; i++) {
             printf("%d: ", i + live_range_reserved_pregs_offset + 1);
             printf("{");
-            first = 1;
-            for (j = 0; j <= live_ranges[i]->max_value; j++) {
+            int first = 1;
+            for (int j = 0; j <= live_ranges[i]->max_value; j++) {
                 if (!live_ranges[i]->elements[j]) continue;
                 if (!first)
                     printf(", ");
@@ -1344,12 +1235,12 @@ void make_live_ranges(Function *function) {
     }
 
     // Make a map of variable names to live range
-    map = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(int));
+    int *map = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(int));
     memset(map, -1, (vreg_count + 1) * ssa_subscript_count * sizeof(int));
 
-    for (i = 0; i < live_range_count; i++) {
-        s = live_ranges[i];
-        for (j = 0; j <= s->max_value; j++) {
+    for (int i = 0; i < live_range_count; i++) {
+        Set *s = live_ranges[i];
+        for (int j = 0; j <= s->max_value; j++) {
             if (!s->elements[j]) continue;
             map[j] = i;
         }
@@ -1371,10 +1262,10 @@ void make_live_ranges(Function *function) {
     }
 
     // Remove phi functions
-    blocks = function->blocks;
-    block_count = function->cfg->node_count;
+    Block *blocks = function->blocks;
+    int block_count = function->cfg->node_count;
 
-    for (i = 0; i < block_count; i++) {
+    for (int i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (tac->operation == IR_PHI_FUNCTION) {
             tac->next->label = tac->label;
@@ -1392,9 +1283,7 @@ void make_live_ranges(Function *function) {
 // downstream code traditionally deals with vregs. So do a vreg=live_range
 // for all values
 void blast_vregs_with_live_ranges(Function *function) {
-    Tac *tac;
-
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->src1 && tac->src1->vreg) tac->src1->vreg = tac->src1->live_range;
         if (tac->src2 && tac->src2->vreg) tac->src2->vreg = tac->src2->live_range;
@@ -1430,15 +1319,12 @@ void add_ig_edge(char *ig, int vreg_count, int to, int from) {
 // Add edges to a physical register for all live variables, preventing the physical register from
 // getting used.
 static void clobber_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
-    int i, max_value;
-    char *elements;
-
     if (debug_ssa_interference_graph) printf("Clobbering livenow for pri=%d\n", preg_reg_index);
 
-    max_value = livenow->max_value;
-    elements = livenow->elements;
+    int max_value = livenow->max_value;
+    char *elements = livenow->elements;
 
-    for (i = 0; i <= max_value; i++) {
+    for (int i = 0; i <= max_value; i++) {
         if (elements[i])
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
     }
@@ -1473,31 +1359,27 @@ static void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
 
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
 static void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index) {
-    int i;
-
     if (debug_ssa_interference_graph || debug_register_allocation) {
         printf("Forcing ");
         print_physical_register_name_for_lr_reg_index(preg_reg_index);
         printf(" onto vreg %d\n", vreg);
     }
 
-    for (i = 0; i <= livenow->max_value; i++)
+    for (int i = 0; i <= livenow->max_value; i++)
         if (i != vreg && livenow->elements[i])
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
 
     // Add edges to all non reserved physical registers
-    for (i = 0; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
+    for (int i = 0; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
         if (preg_reg_index != live_range_preg_indexes[i]) add_ig_edge(ig, vreg_count, vreg, live_range_preg_indexes[i]);
 }
 
 static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
-    int arg;
-
     // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
     // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
     // register allocated to them.
     if (value && value->is_function_call_arg) {
-        arg = value->function_call_arg_index;
+        int arg = value->function_call_arg_index;
         if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
         force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[arg]);
     }
@@ -1508,15 +1390,12 @@ static void force_function_call_arg(char *interference_graph, int vreg_count, Se
 }
 
 static void print_interference_graph(Function *function) {
-    int vreg_count, from, to, from_offset;
-    char *interference_graph; // Triangular matrix of edges
+    char *interference_graph = function->interference_graph;
+    int vreg_count = function->vreg_count;
 
-    interference_graph = function->interference_graph;
-    vreg_count = function->vreg_count;
-
-    for (from = 1; from <= vreg_count; from++) {
-        from_offset = from * vreg_count;
-        for (to = from + 1; to <= vreg_count; to++) {
+    for (int from = 1; from <= vreg_count; from++) {
+        int from_offset = from * vreg_count;
+        for (int to = from + 1; to <= vreg_count; to++) {
             if (interference_graph[from_offset + to])
                 printf("%-4d    %d\n", to, from);
         }
@@ -1525,33 +1404,26 @@ static void print_interference_graph(Function *function) {
 
 // Page 701 of engineering a compiler
 static void make_interference_graph(Function *function) {
-    int i, j, vreg_count, block_count, livenow_max_value;
-    Block *blocks;
-    Set *livenow;
-    Tac *tac;
-    char *interference_graph; // Triangular matrix of edges
-    char *livenow_elements;
-
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
         printf("--------------------------------------------------------\n");
         print_ir(function, 0, 0);
     }
 
-    vreg_count = function->vreg_count;
+    int vreg_count = function->vreg_count;
 
-    interference_graph = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
+    char *interference_graph = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
     memset(interference_graph, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(int));
 
-    blocks = function->blocks;
-    block_count = function->cfg->node_count;
+    Block *blocks = function->blocks;
+    int block_count = function->cfg->node_count;
 
-    for (i = block_count - 1; i >= 0; i--) {
-        livenow = copy_set(function->liveout[i]);
-        livenow_max_value = livenow->max_value;
-        livenow_elements = livenow->elements;
+    for (int i = block_count - 1; i >= 0; i--) {
+        Set *livenow = copy_set(function->liveout[i]);
+        int livenow_max_value = livenow->max_value;
+        char *livenow_elements = livenow->elements;
 
-        tac = blocks[i].end;
+        Tac *tac = blocks[i].end;
         while (tac) {
             if (debug_ssa_interference_graph) print_instruction(stdout, tac, 0);
 
@@ -1560,7 +1432,7 @@ static void make_interference_graph(Function *function) {
             force_function_call_arg(interference_graph, vreg_count, livenow, tac->src2);
 
             if (tac->operation == IR_CALL || tac->operation == X_CALL) {
-                for (j = 0; j < 6; j++)
+                for (int j = 0; j < 6; j++)
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, arg_registers[j]);
 
                 if (tac->dst && tac->dst->vreg)
@@ -1612,7 +1484,7 @@ static void make_interference_graph(Function *function) {
                     if (debug_ssa_interference_graph) printf("added src2 <-> dst %d <-> %d\n", tac->src2->vreg, tac->dst->vreg);
                 }
 
-                for (j = 0; j <= livenow_max_value; j++) {
+                for (int j = 0; j <= livenow_max_value; j++) {
                     if (!livenow_elements[j]) continue;
 
                     if (j == tac->dst->vreg) continue; // Ignore self assignment
@@ -1667,10 +1539,8 @@ static void make_interference_graph(Function *function) {
 
 static void copy_interference_graph_edges(char *interference_graph, int vreg_count, int src, int dst) {
     // Copy all edges in the lower triangular interference graph matrics from src to dst
-    int i;
-
     // Fun with lower triangular matrices follows ...
-    for (i = 1; i <= vreg_count; i++) {
+    for (int i = 1; i <= vreg_count; i++) {
         // src < i case
         if (interference_graph[src * vreg_count + i] == 1) {
             if (dst < i)
@@ -1691,14 +1561,10 @@ static void copy_interference_graph_edges(char *interference_graph, int vreg_cou
 
 // Delete src, merging it into dst
 static void coalesce_live_range(Function *function, int src, int dst, int check_register_constraints) {
-    int i, block_count, vreg_count;
-    Tac *tac;
-    Set *l;
-
-    vreg_count = function->vreg_count;
+    int vreg_count = function->vreg_count;
 
     // Rewrite IR src => dst
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
         if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
@@ -1733,9 +1599,9 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
     copy_interference_graph_edges(function->interference_graph, vreg_count, src, dst);
 
     // Migrate liveouts
-    block_count = function->cfg->node_count;
-    for (i = 0; i < block_count; i++) {
-        l = function->liveout[i];
+    int block_count = function->cfg->node_count;
+    for (int i = 0; i < block_count; i++) {
+        Set *l = function->liveout[i];
         if (in_set(l, src)) {
             delete_from_set(l, src);
             add_to_set(l, dst);
@@ -1752,22 +1618,16 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
 // Since earlier coalesces can lead to later coalesces not happening, with each inner
 // loop, the registers with the highest spill cost are coalesced.
 void coalesce_live_ranges(Function *function, int check_register_constraints) {
-    int dst, src, src_component, dst_component, outer_changed, inner_changed, vreg_count;
-    int l1, l2;
-    int max_cost, cost, merge_src, merge_dst;
-    char *interference_graph, *merge_candidates, *instrsel_blockers, *clobbers;
-    Tac *tac;
-
     make_vreg_count(function, RESERVED_PHYSICAL_REGISTER_COUNT);
-    vreg_count = function->vreg_count;
-    merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
-    instrsel_blockers = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
-    clobbers = malloc((vreg_count + 1) * sizeof(char));
+    int vreg_count = function->vreg_count;
+    char *merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+    char *instrsel_blockers = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+    char *clobbers = malloc((vreg_count + 1) * sizeof(char));
 
     make_uevar_and_varkill(function);
     make_liveout(function);
 
-    outer_changed = 1;
+    int outer_changed = 1;
     while (outer_changed) {
         outer_changed = 0;
 
@@ -1777,9 +1637,11 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
 
         if (!opt_enable_live_range_coalescing) return;
 
-        interference_graph = function->interference_graph;
+        char *interference_graph = function->interference_graph;
 
-        inner_changed = 1;
+        int inner_changed = 1;
+        int max_cost;
+        int merge_src, merge_dst;
         while (inner_changed) {
             inner_changed = max_cost = merge_src = merge_dst = 0;
 
@@ -1789,7 +1651,7 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
             memset(clobbers, 0, (vreg_count + 1) * sizeof(char));
 
             // Create merge candidates
-            tac = function->ir;
+            Tac *tac = function->ir;
             while (tac) {
                 // Don't coalesce a move if it promotes an integer type so that both vregs retain their precision.
                 if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && type_eq(tac->src1->type, tac->dst->type))
@@ -1822,21 +1684,21 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
                 printf("Live range coalesces:\n");
             }
 
-            for (dst = 1; dst <= vreg_count; dst++) {
+            for (int dst = 1; dst <= vreg_count; dst++) {
                 if (clobbers[dst]) continue;
 
-                src_component = 0;
-                dst_component = dst * vreg_count;
-                for (src = 1; src <= dst; src++) {
+                int src_component = 0;
+                int dst_component = dst * vreg_count;
+                for (int src = 1; src <= dst; src++) {
                     src_component += vreg_count;
 
                     if (clobbers[src]) continue;
 
-                    l1 = dst_component + src;
-                    l2 = src_component + dst;
+                    int l1 = dst_component + src;
+                    int l2 = src_component + dst;
 
                     if (merge_candidates[l1] && !instrsel_blockers[l1] && !instrsel_blockers[l2] && !interference_graph[l2]) {
-                        cost = function->spill_cost[src] + function->spill_cost[dst];
+                        int cost = function->spill_cost[src] + function->spill_cost[dst];
                         if (cost > max_cost) {
                             max_cost = cost;
                             merge_src = src;
@@ -1867,10 +1729,8 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
 
 // 10^p
 static int ten_power(int p) {
-    int i, result;
-
-    result = 1;
-    for (i = 0; i < p; i++) result = result * 10;
+    int result = 1;
+    for (int i = 0; i < p; i++) result = result * 10;
 
     return result;
 }
@@ -1881,23 +1741,17 @@ static int ten_power(int p) {
 // any live ranges that have no other live ranges ending between their store
 // and loads.
 static void add_infinite_spill_costs(Function *function) {
-    int i, block_count, *spill_cost;
-    Block *blocks;
-    Set *livenow;
-    Tac *tac;
-
-    spill_cost = function->spill_cost;
+    int *spill_cost = function->spill_cost;
     vreg_count = function->vreg_count;
 
-    blocks = function->blocks;
-    block_count = function->cfg->node_count;
+    Block *blocks = function->blocks;
+    int block_count = function->cfg->node_count;
 
-    for (i = block_count - 1; i >= 0; i--) {
-        livenow = copy_set(function->liveout[i]);
+    for (int i = block_count - 1; i >= 0; i--) {
+        Set *livenow = copy_set(function->liveout[i]);
 
-        tac = blocks[i].end;
+        Tac *tac = blocks[i].end;
         while (tac) {
-
             if (tac->prev && tac->prev->dst && tac->prev->dst->vreg) {
                 if ((tac->src1 && tac->src1->vreg && tac->src1->vreg == tac->prev->dst->vreg) ||
                     (tac->src2 && tac->src2->vreg && tac->src2->vreg == tac->prev->dst->vreg)) {
@@ -1920,15 +1774,12 @@ static void add_infinite_spill_costs(Function *function) {
 }
 
 static void make_live_range_spill_cost(Function *function) {
-    Tac *tac;
-    int i, vreg_count, for_loop_depth, *spill_cost;
-
-    vreg_count = function->vreg_count;
-    spill_cost = malloc((vreg_count + 1) * sizeof(int));
+    int vreg_count = function->vreg_count;
+    int *spill_cost = malloc((vreg_count + 1) * sizeof(int));
     memset(spill_cost, 0, (vreg_count + 1) * sizeof(int));
 
-    for_loop_depth = 0;
-    tac = function->ir;
+    int for_loop_depth = 0;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->operation == IR_START_LOOP) for_loop_depth++;
         if (tac->operation == IR_END_LOOP) for_loop_depth--;
@@ -1946,22 +1797,19 @@ static void make_live_range_spill_cost(Function *function) {
 
     if (debug_ssa_spill_cost) {
         printf("Spill costs:\n");
-        for (i = 1; i <= vreg_count; i++)
+        for (int i = 1; i <= vreg_count; i++)
             printf("%d: %d\n", i, spill_cost[i]);
 
     }
 }
 
 void make_preferred_live_range_preg_indexes(Function *function) {
-    Tac *tac;
-    char *preferred_live_range_preg_indexes;
+    int vreg_count = function->vreg_count;
 
-    vreg_count = function->vreg_count;
-
-    preferred_live_range_preg_indexes = malloc((vreg_count + 1) * sizeof(char));
+    char *preferred_live_range_preg_indexes = malloc((vreg_count + 1) * sizeof(char));
     memset(preferred_live_range_preg_indexes, 0, (vreg_count + 1) * sizeof(char));
 
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac) {
         if (tac->src1 && tac->src1->preferred_live_range_preg_index)
             preferred_live_range_preg_indexes[tac->src1->vreg] = tac->src1->preferred_live_range_preg_index;

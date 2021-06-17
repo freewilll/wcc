@@ -11,19 +11,15 @@ void get_debug_env_value(char *key, int *val) {
 }
 
 char *replace_extension(char *input, char *ext) {
-    char *p;
-    char *result;
-    int len;
-
-    p  = strrchr(input,'.');
+    char *p  = strrchr(input,'.');
     if (!p) {
-        result = malloc(strlen(input) + strlen(ext) + 2);
+        char *result = malloc(strlen(input) + strlen(ext) + 2);
         sprintf(result, "%s.%s", input, ext);
         return result;
     }
     else {
-        len = p - input + strlen(ext) + 1;
-        result = malloc(len + 1);
+        int len = p - input + strlen(ext) + 1;
+        char *result = malloc(len + 1);
         memcpy(result, input, p - input);
         result[p  - input] = '.';
         memcpy(result + (p - input + 1), ext, strlen(ext));
@@ -33,36 +29,9 @@ char *replace_extension(char *input, char *ext) {
 }
 
 int main(int argc, char **argv) {
-    int verbose;                    // Print invoked program command lines
-    int run_compiler;               // Compile .c file
-    int run_assembler;              // Assemble .s file
-    int run_linker;                 // Link .o file
-    int target_is_object_file;
-    int target_is_assembly_file;
-    int help, print_symbols, print_instr_rules, print_instr_precision_decrease_rules, print_spilled_register_count;
-
-    int input_filename_count;
-    char **input_filenames, *input_filename, *output_filename, *local_output_filename;
-    char *compiler_input_filename, *compiler_output_filename;
-    char *assembler_input_filename, *assembler_output_filename;
-    char **linker_input_filenames, *linker_input_filenames_str;
-    int filename_len;
-    char *command;
-    int i, j, k, len, result;
-
-    verbose = 0;
-    run_compiler = 1;
-    run_assembler = 1;
-    run_linker = 1;
-    target_is_object_file = 0;
-    target_is_assembly_file = 0;
-    help = 0;
-    print_spilled_register_count = 0;
     print_ir1 = 0;
     print_ir2 = 0;
-    print_instr_rules = 0;
-    print_instr_precision_decrease_rules = 0;
-    print_symbols = 0;
+
     opt_enable_vreg_renumbering = 1;
     opt_enable_register_coalescing = 1;
     opt_enable_preferred_pregs = 1;
@@ -72,11 +41,23 @@ int main(int argc, char **argv) {
     opt_optimize_arithmetic_operations = 1;
     warn_integer_constant_too_large = 1;
 
-    output_filename = 0;
-    input_filename_count = 0;
-    input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
+    int verbose = 0;        // Print invoked program command lines
+    int run_compiler = 1;   // Compile .c file
+    int run_assembler = 1;  // Assemble .s file
+    int run_linker = 1;     // Link .o file
+    int target_is_object_file = 0;
+    int target_is_assembly_file = 0;
+    int help = 0;
+    int print_spilled_register_count = 0;
+    int print_instr_rules = 0;
+    int print_instr_precision_decrease_rules = 0;
+    int print_symbols = 0;
+
+    char *output_filename = 0;
+    int input_filename_count = 0;
+    char **input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
     memset(input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
-    linker_input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
+    char **linker_input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
     memset(linker_input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
 
     init_callee_saved_registers();
@@ -252,9 +233,9 @@ int main(int argc, char **argv) {
         panic("cannot specify -o with -c or -S with multiple files");
     }
 
-    for (i = 0; i < input_filename_count; i++) {
-        input_filename = input_filenames[i];
-        filename_len = strlen(input_filename);
+    for (int i = 0; i < input_filename_count; i++) {
+        char *input_filename = input_filenames[i];
+        int filename_len = strlen(input_filename);
 
         if (filename_len > 2 && input_filename[filename_len - 2] == '.') {
             if (input_filename[filename_len - 1] == 'o') {
@@ -269,13 +250,16 @@ int main(int argc, char **argv) {
         }
     }
 
-    command = malloc(1024 * 100);
+    char *command = malloc(1024 * 100);
 
-    for (i = 0; i < input_filename_count; i++) {
-        input_filename = input_filenames[i];
+    for (int i = 0; i < input_filename_count; i++) {
+        char *input_filename = input_filenames[i];
         parsing_header = 0;
 
+        char *assembler_input_filename, *assembler_output_filename;
+        char *compiler_output_filename;
         if (run_compiler) {
+            char *local_output_filename;
             if (!output_filename) {
                 if (run_linker)
                     output_filename = "a.out";
@@ -287,7 +271,7 @@ int main(int argc, char **argv) {
             else
                 local_output_filename = output_filename;
 
-            compiler_input_filename = input_filename;
+            char *compiler_input_filename = input_filename;
             if (run_assembler)
                 compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
             else
@@ -317,7 +301,7 @@ int main(int argc, char **argv) {
                 sprintf(command, "%s %s", command, "-v");
                 printf("%s\n", command);
             }
-            result = system(command);
+            int result = system(command);
             if (result != 0) exit(result);
             linker_input_filenames[i] = assembler_output_filename;
         }
@@ -326,18 +310,18 @@ int main(int argc, char **argv) {
     }
 
     if (run_linker) {
-        len = 0;
-        for (i = 0; i < input_filename_count; i++) len += strlen(linker_input_filenames[i]);
+        int len = 0;
+        for (int i = 0; i < input_filename_count; i++) len += strlen(linker_input_filenames[i]);
         len += input_filename_count - 1; // For the spaces
-        linker_input_filenames_str = malloc(len + 1);
+        char *linker_input_filenames_str = malloc(len + 1);
         memset(linker_input_filenames_str, ' ', len + 1);
         linker_input_filenames_str[len] = 0;
 
-        k = 0;
-        for (i = 0; i < input_filename_count; i++) {
-            input_filename = linker_input_filenames[i];
+        int k = 0;
+        for (int i = 0; i < input_filename_count; i++) {
+            char *input_filename = linker_input_filenames[i];
             len = strlen(linker_input_filenames[i]);
-            for (j = 0; j < len; j++) linker_input_filenames_str[k++] = input_filename[j];
+            for (int j = 0; j < len; j++) linker_input_filenames_str[k++] = input_filename[j];
             k++;
         }
 
@@ -346,7 +330,7 @@ int main(int argc, char **argv) {
             sprintf(command, "%s %s", command, "-v");
             printf("%s\n", command);
         }
-        result = system(command);
+        int result = system(command);
         if (result != 0) exit(result);
     }
 

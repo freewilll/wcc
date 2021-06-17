@@ -38,9 +38,7 @@ void panic2s(char *fmt, char *s1, char *s2) {
 }
 
 Function *new_function() {
-    Function *function;
-
-    function = malloc(sizeof(Function));
+    Function *function = malloc(sizeof(Function));
     memset(function, 0, sizeof(Function));
 
     return function;

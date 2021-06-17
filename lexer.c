@@ -6,11 +6,9 @@
 #include "wcc.h"
 
 void init_lexer(char *filename) {
-    void *f;
-
     ip = 0;
     input = malloc(10 * 1024 * 1024);
-    f  = fopen(filename, "r");
+    void *f  = fopen(filename, "r");
     if (f == 0) {
         perror(filename);
         exit(1);
@@ -31,13 +29,9 @@ void init_lexer(char *filename) {
 // Lex U, L, LL integer constant suffixes and determine type
 // See http://port70.net/~nsz/c/c99/n1256.html#6.4.4.1p5
 static void finish_integer_constant(int is_decimal) {
-    char *i;
-    int may_not_be_unsigned, is_unsigned, is_long;
-
-    i = input;
-    may_not_be_unsigned = 0;
-    is_unsigned = 0;
-    is_long = 0;
+    char *i = input;
+    int is_long = 0;
+    int is_unsigned = 0;
 
     while (1) {
         if (ip < input_size && (i[ip] == 'U' || i[ip] == 'u')) { is_unsigned = 1; ip++; }
@@ -45,7 +39,7 @@ static void finish_integer_constant(int is_decimal) {
         else break;
     }
 
-    may_not_be_unsigned = is_decimal && !is_unsigned;
+    int may_not_be_unsigned = is_decimal && !is_unsigned;
 
     if (!is_unsigned && !is_long && cur_long >= 0 && cur_long < 0x80000000); // int
     else if (!may_not_be_unsigned && !is_long && cur_long >= 0 && cur_long <= 0xffffffff) is_unsigned = 1; // unsigned int
@@ -64,15 +58,11 @@ static void finish_integer_constant(int is_decimal) {
 
 // Lexer. Lex a next token or TOK_EOF if the file is ended
 void next() {
-    char *i;        // Assigned to input for brevity
-    int j;          // Counter
-    char c1, c2;    // Next two characters in input
-
-    i = input;
+    char *i = input;
 
     while (ip < input_size) {
-        c1 = i[ip];
-        c2 = i[ip + 1];
+        char c1 = i[ip];
+        char c2 = i[ip + 1];
 
         if (c1 == ' ' || c1 == '\t') { ip++; continue; }
         else if (c1 == '\n') { ip++; cur_line++; continue; }
@@ -135,7 +125,7 @@ void next() {
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             cur_token = TOK_IDENTIFIER;
             cur_identifier = malloc(1024);
-            j = 0;
+            int j = 0;
             while (((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z') || (i[ip] >= '0' && i[ip] <= '9') || (i[ip] == '_')) && ip < input_size) {
                 cur_identifier[j] = i[ip];
                 j++; ip++;
@@ -220,7 +210,7 @@ void next() {
         else if (i[ip] == '"') {
             cur_token = TOK_STRING_LITERAL;
             cur_string_literal = malloc(MAX_STRING_LITERAL_SIZE);
-            j = 0;
+            int j = 0;
             ip += 1;
             while (input_size - ip >= 1 && i[ip] != '"') {
                      if (i[ip] != '\\') { cur_string_literal[j] = i[ip]; j++; ip++; }

@@ -4,16 +4,14 @@
 #include "wcc.h"
 
 int print_type(void *f, Type *type) {
-    int len, tt;
-
-    len = 0;
+    int len = 0;
 
     if (!type) {
         len += printf(f, "(no type!)");
         return len;
     }
 
-    tt = type->type;
+    int tt = type->type;
     while (tt >= TYPE_PTR) {
         len += fprintf(f, "*");
         tt -= TYPE_PTR;

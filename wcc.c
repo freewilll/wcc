@@ -6,10 +6,8 @@
 #include "wcc.h"
 
 char *make_temp_filename(char *template) {
-    int fd;
-
     template = strdup(template);
-    fd = mkstemps(template, 2);
+    int fd = mkstemps(template, 2);
     if (fd == -1) {
         perror("in make_temp_filename");
         exit(1);
@@ -79,11 +77,8 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
 }
 
 static void compile_externals() {
-    char *temp_filename;
-    void *f;
-
-    temp_filename = make_temp_filename("/tmp/externals-XXXXXX.c");
-    f = fopen(temp_filename, "w");
+    char *temp_filename = make_temp_filename("/tmp/externals-XXXXXX.c");
+    void *f = fopen(temp_filename, "w");
     fprintf(f, "%s", externals());
     fclose(f);
 
@@ -94,20 +89,16 @@ static void compile_externals() {
 }
 
 void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename) {
-    int i;
-    Symbol *symbol;
-    Function *function;
-
     compile_externals();
     init_lexer(compiler_input_filename);
     parse();
     check_incomplete_structs();
 
     // Compile all functions
-    for (i = 0; i < global_scope->symbol_count; i++) {
-        symbol = global_scope->symbols[i];
+    for (int i = 0; i < global_scope->symbol_count; i++) {
+        Symbol *symbol = global_scope->symbols[i];
         if (symbol->is_function && symbol->function->is_defined) {
-            function = symbol->function;
+            Function *function = symbol->function;
             if (print_ir1) print_ir(function, symbol->identifier, 0);
             run_compiler_phases(function, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
             if (print_ir2) print_ir(function, symbol->identifier, 0);

@@ -10,27 +10,20 @@ char **signed_moves_templates, **unsigned_moves_templates;
 int *signed_moves_operations, *unsigned_moves_operations;
 
 static void add_mov_rule(int dst, int src, int operation, char *template) {
-    int src_size, dst_size;
-    Rule *r;
-    char **moves_templates;
-    int *moves_operations;
+    int src_size = make_x86_size_from_non_terminal(src) - 1;
+    int dst_size = make_x86_size_from_non_terminal(dst) - 1;
 
-    src_size = make_x86_size_from_non_terminal(src) - 1;
-    dst_size = make_x86_size_from_non_terminal(dst) - 1;
-
-    moves_templates = (src == RI1 || src == RI2 || src == RI3 || src == RI4) ? signed_moves_templates : unsigned_moves_templates;
-    moves_operations = (src == RI1 || src == RI2 || src == RI3 || src == RI4) ? signed_moves_operations : unsigned_moves_operations;
+    char **moves_templates = (src == RI1 || src == RI2 || src == RI3 || src == RI4) ? signed_moves_templates : unsigned_moves_templates;
+    int *moves_operations = (src == RI1 || src == RI2 || src == RI3 || src == RI4) ? signed_moves_operations : unsigned_moves_operations;
 
     if (!template) template = moves_templates[src_size * 4 + dst_size];
     if (!operation) operation = moves_operations[src_size * 4 + dst_size];
 
-    r = add_rule(dst,  IR_MOVE, src, 0, 1);
+    Rule *r = add_rule(dst,  IR_MOVE, src, 0, 1);
     add_op(r, operation, DST, SRC1, 0, template);
 }
 
 static void init_moves_templates() {
-    int i;
-
     signed_moves_templates = malloc(sizeof(char *) * 16);
     unsigned_moves_templates = malloc(sizeof(char *) * 16);
 
@@ -72,7 +65,7 @@ static void init_moves_templates() {
     unsigned_moves_templates[14] = "movl   %v1l, %vdl"; // 4 -> 3
     unsigned_moves_templates[15] = "movq   %v1q, %vdq"; // 4 -> 4
 
-    for (i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) {
         signed_moves_operations[i] = signed_moves_templates[i][3] == 's' ? X_MOVS : X_MOV;
         unsigned_moves_operations[i] = unsigned_moves_templates[i][3] == 'z' ? X_MOVZ : X_MOV;
     }
@@ -126,9 +119,7 @@ static void add_move_rules_ru_to_mu() {
 }
 
 static Rule *add_move_to_ptr(int src1, int src2, char *sign_extend_template, char *op_template) {
-    Rule *r;
-
-    r = add_rule(src1, IR_MOVE_TO_PTR, src1, src2, 3);
+    Rule *r = add_rule(src1, IR_MOVE_TO_PTR, src1, src2, 3);
     if (sign_extend_template) add_op(r, X_MOVS, SRC2, SRC2, 0, sign_extend_template);
     add_op(r, X_MOV_TO_IND, 0,  SRC1,  SRC2, op_template);
     return r;
@@ -136,11 +127,10 @@ static Rule *add_move_to_ptr(int src1, int src2, char *sign_extend_template, cha
 
 // Add rules for loads & address of from IR_BSHL + IR_ADD + IR_INDIRECT/IR_ADDRESS_OF
 static void add_scaled_rule(int *ntc, int cst, int add_reg, int indirect_reg, int address_of_reg, int op, char *template) {
-    int ntc1, ntc2;
     Rule *r;
 
-    ntc1 = ++*ntc;
-    ntc2 = ++*ntc;
+    int ntc1 = ++*ntc;
+    int ntc2 = ++*ntc;
     r = add_rule(ntc1, IR_BSHL, RI4, cst, 1); add_save_value(r, 1, 2); // Save index register to slot 2
     r = add_rule(ntc1, IR_BSHL, RU4, cst, 1); add_save_value(r, 1, 2); // Save index register to slot 2
     r = add_rule(ntc2, IR_ADD, add_reg, ntc1, 1); add_save_value(r, 1, 1); // Save address register to slot 1
@@ -153,10 +143,9 @@ static void add_scaled_rule(int *ntc, int cst, int add_reg, int indirect_reg, in
 }
 
 static void add_offset_rule(int *ntc, int add_reg, int indirect_reg, char *template) {
-    int ntc1;
     Rule *r;
 
-    ntc1 = ++*ntc;
+    int ntc1 = ++*ntc;
     r = add_rule(ntc1, IR_ADD, add_reg, CI4, 1);
     add_save_value(r, 1, 1); // Save address register to slot 1
     add_save_value(r, 2, 2); // Save offset register to slot 2
@@ -197,7 +186,6 @@ static void add_composite_pointer_rules(int *ntc) {
 }
 
 static void add_indirect_rule(int dst, int src) {
-    Rule *r;
     char *template;
 
          if (src == RP1 || src == RP1) template = "movb (%v1q), %vdb";
@@ -205,20 +193,17 @@ static void add_indirect_rule(int dst, int src) {
     else if (src == RP3 || src == RP3) template = "movl (%v1q), %vdl";
     else                               template = "movq (%v1q), %vdq";
 
-    r = add_rule(dst, IR_INDIRECT, src, 0, 2);
+    Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
     add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, template);
 }
 
 static void add_indirect_rules() {
-    int dst;
-
-    for (dst = 0; dst < 4; dst++) add_indirect_rule(RI1 + dst, RP1 + dst);
-    for (dst = 0; dst < 4; dst++) add_indirect_rule(RU1 + dst, RP1 + dst);
-    for (dst = 0; dst < 4; dst++) add_indirect_rule(RP1 + dst, RP4);
+    for (int dst = 0; dst < 4; dst++) add_indirect_rule(RI1 + dst, RP1 + dst);
+    for (int dst = 0; dst < 4; dst++) add_indirect_rule(RU1 + dst, RP1 + dst);
+    for (int dst = 0; dst < 4; dst++) add_indirect_rule(RP1 + dst, RP4);
 }
 
 static void add_pointer_rules(int *ntc) {
-    int src, dst, is_unsigned;
     Rule *r;
 
     add_indirect_rules();
@@ -229,12 +214,12 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(XRP, IR_ADDRESS_OF, XMI, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
 
     // Stores of a pointer to a pointer
-    for (dst = RP1; dst <= RP4; dst++)
-        for (src = RP1; src <= RP4; src++)
+    for (int dst = RP1; dst <= RP4; dst++)
+        for (int src = RP1; src <= RP4; src++)
             add_move_to_ptr(dst, src, 0, "movq %v2q, (%v1q)");
 
     // Stores to a pointer
-    for (is_unsigned = 0; is_unsigned < 2; is_unsigned++) {
+    for (int is_unsigned = 0; is_unsigned < 2; is_unsigned++) {
         add_move_to_ptr(RP1, is_unsigned ? RU1 : RI1, 0, "movb %v2b, (%v1q)");
         add_move_to_ptr(RP1, is_unsigned ? RU2 : RI2, 0, "movb %v2b, (%v1q)");
         add_move_to_ptr(RP2, is_unsigned ? RU2 : RI2, 0, "movw %v2w, (%v1q)");
@@ -259,12 +244,9 @@ static void add_ret(Rule *r) {
 }
 
 static void add_return_move_rules(int dst_base, int src_base, int *operations, char **templates) {
-    int src, dst;
-    Rule *r;
-
-    for (src = 0; src < 4; src++)
-        for (dst = 0; dst < 4; dst++) {
-            r = add_rule(dst_base + dst, IR_RETURN, src_base + src, 0, 1);
+    for (int src = 0; src < 4; src++)
+        for (int dst = 0; dst < 4; dst++) {
+            Rule *r = add_rule(dst_base + dst, IR_RETURN, src_base + src, 0, 1);
             add_op(r, operations[dst + src * 4], DST, SRC1, 0, templates[dst + src * 4]);
             add_ret(r);
         }
@@ -272,14 +254,13 @@ static void add_return_move_rules(int dst_base, int src_base, int *operations, c
 
 // Rules here must be the same as any IR_MOVE rules that have a register as a destination
 static void add_return_rules() {
-    int i;
     Rule *r;
 
     // void
     r = add_rule(0, IR_RETURN, 0, 0, 1); add_op(r, X_RET,DST, SRC1, 0, 0); fin_rule(r);
 
     // constants
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         r = add_rule(XRI, IR_RETURN, CI1 + i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "mov%s $%v1, %vd"); add_ret(r); fin_rule(r);
         r = add_rule(XRI, IR_RETURN, CU1 + i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "mov%s $%v1, %vd"); add_ret(r); fin_rule(r);
         r = add_rule(XRU, IR_RETURN, CI1 + i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "mov%s $%v1, %vd"); add_ret(r); fin_rule(r);
@@ -303,12 +284,9 @@ static void add_return_rules() {
 }
 
 static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {
-    int x86_jmp_operation;
-    Rule *r;
+    int x86_jmp_operation = operation == IR_JZ ? X_JZ : X_JNZ;
 
-    x86_jmp_operation = operation == IR_JZ ? X_JZ : X_JNZ;
-
-    r = add_rule(0, operation, src1, src2, cost);
+    Rule *r = add_rule(0, operation, src1, src2, cost);
     add_op(r, x86_cmp_operation, 0, SRC1, 0, comparison);
     add_op(r, x86_jmp_operation, 0, SRC2, 0, conditional_jmp);
     if (do_fin_rule) fin_rule(r);
@@ -342,10 +320,8 @@ static void add_comparison_conditional_jmp_rules(int *ntc, int is_unsigned, int 
 }
 
 static void add_comparison_assignment_rule(int src1, int src2, char *cmp_template, int operation, int set_operation, char *set_template) {
-    Rule *r;
-
     // Comparison operators always return an int
-    r = add_rule(RI3, operation, src1, src2, 12);
+    Rule *r = add_rule(RI3, operation, src1, src2, 12);
     add_op(r, X_CMP,         0,   SRC1, SRC2, cmp_template);
     add_op(r, set_operation, DST, 0,    0,    set_template);
     add_op(r, X_MOVZ, DST, DST, 0, "movzbl %v1b, %v1l");
@@ -371,9 +347,7 @@ static void add_comparison_assignment_rules(int is_unsigned, int src1, int src2,
 }
 
 static void add_commutative_operation_rule(int operation, int x86_mov_operation, int x86_operation, int dst, int src1, int src2, int cost, char *mov_template, char *op_template) {
-    Rule *r;
-
-    r = add_rule(dst, operation, src1, src2, cost);
+    Rule *r = add_rule(dst, operation, src1, src2, cost);
     add_op(r, x86_mov_operation, DST, SRC2, 0,   mov_template);
     add_op(r, x86_operation,     DST, SRC1, DST, op_template);
     fin_rule(r);
@@ -392,12 +366,11 @@ static void add_bi_directional_commutative_operation_rules(int operation, int x8
 
 static void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
     char *op_vv, *op_cv;
-    int i;
 
     asprintf(&op_vv, "%s %%v1, %%v2",  x86_operand); // Perform operation on two registers or memory
     asprintf(&op_cv, "%s $%%v1, %%v2", x86_operand); // Perform operation on a constant and a register
 
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         add_commutative_operation_rule(                operation, X_MOV, x86_operation, RI1 + i, XRI, XRI, cost,     "mov%s %v1, %vd",  op_vv);
         add_commutative_operation_rule(                operation, X_MOV, x86_operation, RU1 + i, XRU, XRU, cost,     "mov%s %v1, %vd",  op_vv);
         add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, XCI, XRI, cost,     "mov%s %v1, %vd",  op_cv);
@@ -412,18 +385,14 @@ static void add_commutative_operation_rules(char *x86_operand, int operation, in
 }
 
 static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operation, char *sign_extend_template) {
-    Rule *r;
-
-    r = add_rule(dst, IR_ADD, dst, src, cost);
+    Rule *r = add_rule(dst, IR_ADD, dst, src, cost);
     add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     if (sign_extend_template) add_op(r, X_MOVS, SRC2, SRC2, 0, sign_extend_template);
     add_op(r, x86_operation, DST,  SRC2, DST, "addq %v1q, %v2q");
 }
 
 static void add_pointer_add_rules() {
-    int i;
-
-    for (i = RP1; i <= RP4; i++) {
+    for (int i = RP1; i <= RP4; i++) {
         add_pointer_plus_int_rule(i, RI1, 11, X_ADD, "movsbq %v1b, %vdq");
         add_pointer_plus_int_rule(i, RI2, 11, X_ADD, "movswq %v1w, %vdq");
         add_pointer_plus_int_rule(i, RI3, 11, X_ADD, "movslq %v1l, %vdq");
@@ -435,14 +404,12 @@ static void add_pointer_add_rules() {
         add_pointer_plus_int_rule(i, RU4, 10, X_ADD, 0);
     }
 
-    for (i = CI1; i <= CI4; i++)
+    for (int i = CI1; i <= CI4; i++)
         add_bi_directional_commutative_operation_rules(IR_ADD, X_MOV, X_ADD, XRP, i, XRP, 10, "movq %v1q, %vdq", "addq $%v1q, %v2q");
 }
 
 static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_template, char *sign_extend_template, char *sub_template) {
-    Rule *r;
-
-    r = add_rule(dst, IR_SUB, src1, src2, cost);
+    Rule *r = add_rule(dst, IR_SUB, src1, src2, cost);
     add_op(r, X_MOV, DST, SRC1, 0,   mov_template);
     if (sign_extend_template) add_op(r, X_MOVS,        SRC2, SRC2, 0,   sign_extend_template);
     add_op(r, X_SUB, DST, SRC2, DST, sub_template);
@@ -450,9 +417,7 @@ static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_templa
 }
 
 static void add_sub_rules() {
-    int i, j;
-
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         add_sub_rule(XRI, CI1 + i, XRI,     10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
         add_sub_rule(XRU, CU1 + i, XRU,     10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
         add_sub_rule(XRI, XRI,     CI1 + i, 10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
@@ -470,7 +435,7 @@ static void add_sub_rules() {
     add_sub_rule(XR, XM, XR,  11, "mov%s %v1, %vd",  0, "sub%s %v1, %vd");
 
     // Pointer - int subtraction
-    for (i = RP1; i <= RP4; i++) {
+    for (int i = RP1; i <= RP4; i++) {
         add_sub_rule(i, i, RI1, 11, "movq %v1q, %vdq", "movsbq %v1b, %v1q", "subq %v1q, %vdq");
         add_sub_rule(i, i, RI2, 11, "movq %v1q, %vdq", "movswq %v1w, %v1q", "subq %v1q, %vdq");
         add_sub_rule(i, i, RI3, 11, "movq %v1q, %vdq", "movslq %v1l, %v1q", "subq %v1q, %vdq");
@@ -483,8 +448,8 @@ static void add_sub_rules() {
     }
 
     // The result of a pointer-pointer subtraction is always a signed long: RI4.
-    for (i = RP1; i <= RP4; i++)
-        for (j = RP1; j <= RP4; j++)
+    for (int i = RP1; i <= RP4; i++)
+        for (int j = RP1; j <= RP4; j++)
             add_sub_rule(RI4, i, j,  10, "movq %v1q, %vdq", 0, "subq %v1q, %vdq");
 }
 
@@ -514,11 +479,9 @@ static void add_div_rules() {
 }
 
 static void add_bnot_rule(int dst, int src) {
-    Rule *r;
-
-    r = add_rule(dst, IR_BNOT, src, 0, 3); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");
-                                           add_op(r, X_BNOT, DST, DST,  0, "not%s %vd");
-                                           fin_rule(r);
+    Rule *r = add_rule(dst, IR_BNOT, src, 0, 3); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");
+                                                 add_op(r, X_BNOT, DST, DST,  0, "not%s %vd");
+                                                 fin_rule(r);
 }
 
 static void add_bnot_rules() {
@@ -551,13 +514,11 @@ static void add_binary_register_shift_rule(int src1, int src2, char *template) {
 }
 
 static void add_binary_shift_rules() {
-    int dst, src, dstx, srcx;
-
     // All combinations of src/dst signed/unsigned
-    for (dst = 0; dst < 2; dst++) {
-        dstx = dst ? EXP_SIGNED : EXP_UNSIGNED;
-        for (src = 0; src < 2; src++) {
-            srcx = src ? EXP_SIGNED : EXP_UNSIGNED;
+    for (int dst = 0; dst < 2; dst++) {
+        int dstx = dst ? EXP_SIGNED : EXP_UNSIGNED;
+        for (int src = 0; src < 2; src++) {
+            int srcx = src ? EXP_SIGNED : EXP_UNSIGNED;
 
             add_binary_constant_shift_rule(EXP_R + EXP_SIZE + dstx, EXP_R + EXP_SIZE + dstx, EXP_C + EXP_SIZE + srcx, "shl%s $%v1, %vd");
             add_binary_constant_shift_rule(EXP_R + EXP_SIZE + dstx, EXP_M + EXP_SIZE + dstx, EXP_C + EXP_SIZE + srcx, "shl%s $%v1, %vd");
@@ -576,10 +537,6 @@ static X86Operation *add_function_call_arg_op(Rule *r) {
 
 void init_instruction_selection_rules() {
     Rule *r;
-    int ntc; // Non terminal counter
-    int i, dst, src;
-    char *cmp_vv;
-    char *cmpq_vv, *cmpq_vc;
 
     instr_rule_count = 0;
     disable_merge_constants = 0;
@@ -590,7 +547,7 @@ void init_instruction_selection_rules() {
 
     init_moves_templates();
 
-    ntc = AUTO_NON_TERMINAL_START;
+    int ntc = AUTO_NON_TERMINAL_START;
 
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(XC,    0, XC,    0, 0); fin_rule(r);
@@ -616,12 +573,12 @@ void init_instruction_selection_rules() {
     r = add_rule(RP1, 0,  STL, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
 
     // Register-register move rules
-    for (dst = RI1; dst <= RI4; dst++) for (src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
-    for (dst = RU1; dst <= RU4; dst++) for (src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
-    for (dst = RI1; dst <= RI4; dst++) for (src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
-    for (dst = RU1; dst <= RU4; dst++) for (src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RI1; dst <= RI4; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RU1; dst <= RU4; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RI1; dst <= RI4; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RU1; dst <= RU4; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
 
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         r = add_rule(XRI, IR_MOVE, CI1 + i, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
         r = add_rule(XRI, IR_MOVE, CU1 + i, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
         r = add_rule(XRU, IR_MOVE, CI1 + i, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
@@ -646,11 +603,11 @@ void init_instruction_selection_rules() {
     r = add_rule(XRP, IR_MOVE, CI4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_MOVE, CU4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
 
-    for (dst = RP1; dst <= RP4; dst++) for (src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
-    for (dst = RI1; dst <= RI4; dst++) for (src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
-    for (dst = RU1; dst <= RU4; dst++) for (src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
-    for (dst = RP1; dst <= RP4; dst++) for (src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
-    for (dst = RP1; dst <= RP4; dst++) for (src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RP1; dst <= RP4; dst++) for (int src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RI1; dst <= RI4; dst++) for (int src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RU1; dst <= RU4; dst++) for (int src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RP1; dst <= RP4; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RP1; dst <= RP4; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
 
     r = add_rule(RP4, IR_MOVE, MI4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(MI4, IR_MOVE, XRP, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
@@ -693,9 +650,9 @@ void init_instruction_selection_rules() {
     add_conditional_zero_jump_rule(IR_JNZ, XRP, LAB, 3, X_TEST, "testq %v1q, %v1q", "jnz %v1",  1);
     add_conditional_zero_jump_rule(IR_JNZ, XMI, LAB, 3, X_CMPZ, "cmp $0, %v1",      "jnz %v1",  1);
 
-    cmp_vv = "cmp%s %v2, %v1";
-    cmpq_vv = "cmpq %v2q, %v1q";
-    cmpq_vc = "cmpq $%v2q, %v1q";
+    char *cmp_vv = "cmp%s %v2, %v1";
+    char *cmpq_vv = "cmpq %v2q, %v1q";
+    char *cmpq_vc = "cmpq $%v2q, %v1q";
 
     // immediate comparisons can only be done on 32 bit integers
     // https://www.felixcloutier.com/x86/cmp
