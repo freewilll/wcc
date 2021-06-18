@@ -326,23 +326,19 @@ void add_final_x86_instructions(Function *function) {
 
 // Remove all possible IR_NOP instructions
 void remove_nops(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
-        if (tac->operation != IR_NOP) { tac = tac->next; continue; }
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation != IR_NOP) continue;
         if (!tac->next) panic("Unexpected NOP as last instruction");
-        if (!tac->prev) { tac = tac->next; continue; }
-        if (tac->next->label) { tac = tac->next; continue; }
+        if (!tac->prev) continue;
+        if (tac->next->label) continue;
 
         delete_instruction(tac);
-
-        tac = tac->next;
     }
 }
 
 // Merge any consecutive add/sub stack operations that aren't involved in jmp instructions.
 void merge_rsp_func_call_add_subs(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (
                 // First operation is add/sub n, %rsp
                 (tac->operation == X_ADD || tac->operation == X_SUB) && tac->dst && tac->dst->preg == REG_RSP &&
@@ -362,20 +358,16 @@ void merge_rsp_func_call_add_subs(Function *function) {
                 tac->src1->value = value > 0 ? value : -value;
             }
         }
-
-        tac = tac->next;
     }
 }
 
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
     int function_pc = symbol->function->param_count;
-    Tac *tac = symbol->function->ir;
 
-    while (tac) {
+    for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);
         if (tac->operation != IR_NOP) output_x86_operation(tac, function_pc);
-        tac = tac->next;
     }
 }
 

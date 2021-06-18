@@ -9,8 +9,7 @@ static void make_live_range_spill_cost(Function *function);
 void optimize_arithmetic_operations(Function *function) {
     if (!opt_optimize_arithmetic_operations) return;
 
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         Value *v;
         Value *cv = 0;
         long c, l;
@@ -84,8 +83,6 @@ void optimize_arithmetic_operations(Function *function) {
                 tac->src2 = new_constant(TYPE_INT, l);
             }
         }
-
-        tac = tac->next;
     }
 }
 
@@ -95,8 +92,7 @@ void optimize_arithmetic_operations(Function *function) {
 // src1 and src2 are values in registers that are read but not written to in this
 // instruction.
 void rewrite_lvalue_reg_assignments(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_MOVE && tac->dst->vreg && tac->dst->is_lvalue) {
             tac->operation = IR_MOVE_TO_PTR;
             tac->src2 = tac->src1;
@@ -104,7 +100,6 @@ void rewrite_lvalue_reg_assignments(Function *function) {
             tac->src1->is_lvalue_in_register = 1;
             tac->dst = 0;
         }
-        tac = tac->next;
     }
 }
 
@@ -117,8 +112,7 @@ void rewrite_lvalue_reg_assignments(Function *function) {
 void add_function_call_result_moves(Function *function) {
     make_vreg_count(function, 0);
 
-    Tac *ir = function->ir;
-    while (ir) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_CALL && ir->dst) {
             Value *value = dup_value(ir->dst);
             value->vreg = ++function->vreg_count;
@@ -128,24 +122,19 @@ void add_function_call_result_moves(Function *function) {
             ir->dst = value;
             insert_instruction(ir->next, tac, 1);
         }
-
-        ir = ir->next;
     }
 }
 
 // Add a move for a function return value. The target of the move will be constraint
 // and forced into the RAX register.
 void add_function_return_moves(Function *function) {
-    Tac *ir = function->ir;
-    while (ir) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_RETURN && ir->src1) {
             ir->dst = new_value();
             ir->dst->type = dup_type(function->return_type);
             ir->dst->vreg = ++function->vreg_count;
             ir->src1->preferred_live_range_preg_index = LIVE_RANGE_PREG_RAX_INDEX;
         }
-
-        ir = ir->next;
     }
 }
 
@@ -159,8 +148,7 @@ void add_function_call_arg_moves(Function *function) {
 
     make_vreg_count(function, 0);
 
-    Tac *ir = function->ir;
-    while (ir) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG && ir->src1->function_call_arg_index < 6) {
             arg_values[ir->src1->value * 6 + ir->src1->function_call_arg_index] = ir->src2;
             ir->operation = IR_NOP;
@@ -237,8 +225,6 @@ void add_function_call_arg_moves(Function *function) {
 
             free(function_call_arg_registers);
         }
-
-        ir = ir->next;
     }
 }
 
@@ -293,12 +279,10 @@ static void add_function_param_moves_for_registers(Function *function) {
         insert_instruction(ir, tac, 1);
     }
 
-    Tac *ir = function->ir;
-    while (ir) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
         convert_register_param_stack_index(function, register_param_vregs, ir->dst);
         convert_register_param_stack_index(function, register_param_vregs, ir->src1);
         convert_register_param_stack_index(function, register_param_vregs, ir->src2);
-        ir = ir->next;
     }
 
     free(register_param_vregs);
@@ -342,12 +326,10 @@ static void add_function_param_moves_for_stack(Function *function) {
         insert_instruction(ir, tac, 1);
     }
 
-    Tac *ir = function->ir;
-    while (ir) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
         convert_pushed_param_stack_index(function, param_vregs, ir->dst);
         convert_pushed_param_stack_index(function, param_vregs, ir->src1);
         convert_pushed_param_stack_index(function, param_vregs, ir->src2);
-        ir = ir->next;
     }
 
     free(param_vregs);
@@ -359,11 +341,9 @@ void add_function_param_moves(Function *function) {
 }
 
 static void index_tac(Tac *ir) {
-    Tac *tac = ir;
     int i = 0;
-    while (tac) {
+    for (Tac *tac = ir; tac; tac = tac->next) {
         tac->index = i;
-        tac = tac->next;
         i++;
     }
 }
@@ -374,8 +354,7 @@ void make_control_flow_graph(Function *function) {
     blocks[0].start = function->ir;
     int block_count = 1;
 
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->label) {
             blocks[block_count - 1].end = tac->prev;
             blocks[block_count++].start = tac;
@@ -387,11 +366,9 @@ void make_control_flow_graph(Function *function) {
             blocks[block_count - 1].end = tac;
             blocks[block_count++].start = tac->next;
         }
-
-        tac = tac->next;
     }
 
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac->next) tac = tac->next;
     blocks[block_count - 1].end = tac;
 
@@ -670,12 +647,10 @@ void analyze_dominance(Function *function) {
 
 int make_vreg_count(Function *function, int starting_count) {
     int vreg_count = starting_count;
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
         if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
-        tac = tac->next;
     }
     function->vreg_count = vreg_count;
 
@@ -1081,12 +1056,10 @@ static void rename_vars(Function *function, Stack **stack, int *counters, int bl
 // Algorithm on page 506 of engineering a compiler
 void rename_phi_function_variables(Function *function) {
     int vreg_count = 0;
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
-        tac = tac->next;
     }
 
     int *counters = malloc((vreg_count + 1) * sizeof(int));
@@ -1109,8 +1082,7 @@ void make_live_ranges(Function *function) {
 
     int vreg_count = function->vreg_count;
     int ssa_subscript_count = 0;
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && tac->dst ->vreg && tac->dst ->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->dst ->ssa_subscript;
         if (tac->src1 && tac->src1->vreg && tac->src1->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src1->ssa_subscript;
         if (tac->src2 && tac->src2->vreg && tac->src2->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src2->ssa_subscript;
@@ -1122,8 +1094,6 @@ void make_live_ranges(Function *function) {
                 v++;
             }
         }
-
-        tac = tac->next;
     }
 
     ssa_subscript_count += 1; // Starts at zero, so the count is one more
@@ -1132,8 +1102,7 @@ void make_live_ranges(Function *function) {
     Set *ssa_vars = new_set(max_ssa_var);
 
     // Poor mans 2D array. 2d[vreg][subscript] => 1d[vreg * ssa_subscript_count + ssa_subscript]
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && tac->dst ->vreg) add_to_set(ssa_vars, tac->dst ->vreg * ssa_subscript_count + tac->dst ->ssa_subscript);
         if (tac->src1 && tac->src1->vreg) add_to_set(ssa_vars, tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript);
         if (tac->src2 && tac->src2->vreg) add_to_set(ssa_vars, tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript);
@@ -1145,8 +1114,6 @@ void make_live_ranges(Function *function) {
                 v++;
             }
         }
-
-        tac = tac->next;
     }
 
     // Create live ranges sets for all variables, each set with the variable itself in it.
@@ -1164,8 +1131,7 @@ void make_live_ranges(Function *function) {
     int *src_set_indexes = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
 
     // Make live ranges out of SSA variables in phi functions
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_PHI_FUNCTION) {
             int value_count = 0;
             Value *v = tac->phi_values;
@@ -1201,7 +1167,6 @@ void make_live_ranges(Function *function) {
                 if (set_index != dst_set_index) empty_set(live_ranges[set_index]);
             }
         }
-        tac = tac->next;
     }
 
     free_set(s);
@@ -1247,8 +1212,7 @@ void make_live_ranges(Function *function) {
     }
 
     // Assign live ranges to TAC & build live_ranges set
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst && tac->dst->vreg)
             tac->dst->live_range = map[tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript] + live_range_reserved_pregs_offset + 1;
 
@@ -1257,8 +1221,6 @@ void make_live_ranges(Function *function) {
 
         if (tac->src2 && tac->src2->vreg)
             tac->src2->live_range = map[tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript] + live_range_reserved_pregs_offset + 1;
-
-        tac = tac->next;
     }
 
     // Remove phi functions
@@ -1266,7 +1228,7 @@ void make_live_ranges(Function *function) {
     int block_count = function->cfg->node_count;
 
     for (int i = 0; i < block_count; i++) {
-        tac = blocks[i].start;
+        Tac *tac = blocks[i].start;
         while (tac->operation == IR_PHI_FUNCTION) {
             tac->next->label = tac->label;
             tac->next->prev = tac->prev;
@@ -1283,23 +1245,19 @@ void make_live_ranges(Function *function) {
 // downstream code traditionally deals with vregs. So do a vreg=live_range
 // for all values
 void blast_vregs_with_live_ranges(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->src1 && tac->src1->vreg) tac->src1->vreg = tac->src1->live_range;
         if (tac->src2 && tac->src2->vreg) tac->src2->vreg = tac->src2->live_range;
         if (tac->dst  && tac->dst-> vreg) tac->dst-> vreg = tac->dst-> live_range;
-        tac = tac->next;
     }
 
     // Nuke the live ranges, they should not be used downstream and this guarantees a horrible failure if they are.
     // Also, remove ssa_subscript, since this is no longer used. Mostly so that print_ir
     // doesn't show them.
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->src1 && tac->src1->vreg) { tac->src1->live_range = -100000; tac->src1->ssa_subscript = -1; }
         if (tac->src2 && tac->src2->vreg) { tac->src2->live_range = -100000; tac->src2->ssa_subscript = -1; }
         if (tac->dst  && tac->dst-> vreg) { tac->dst-> live_range = -100000; tac->dst-> ssa_subscript = -1; }
-        tac = tac->next;
     }
 }
 
@@ -1564,8 +1522,7 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
     int vreg_count = function->vreg_count;
 
     // Rewrite IR src => dst
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
         if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
         if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
@@ -1592,8 +1549,6 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
                 panic1d("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
             }
         }
-
-        tac = tac->next;
     }
 
     copy_interference_graph_edges(function->interference_graph, vreg_count, src, dst);
@@ -1651,8 +1606,7 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
             memset(clobbers, 0, (vreg_count + 1) * sizeof(char));
 
             // Create merge candidates
-            Tac *tac = function->ir;
-            while (tac) {
+            for (Tac *tac = function->ir; tac; tac = tac->next) {
                 // Don't coalesce a move if it promotes an integer type so that both vregs retain their precision.
                 if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && type_eq(tac->src1->type, tac->dst->type))
                     merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
@@ -1675,8 +1629,6 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
                     else if (tac->operation == IR_MOVE && tac->dst->is_function_call_arg) clobbers[tac->dst->vreg] = 1;
                     else if (tac->src1 && tac->src1->is_function_param) clobbers[tac->dst->vreg] = 1;
                 }
-
-                tac = tac->next;
             }
 
             if (debug_ssa_live_range_coalescing) {
@@ -1779,16 +1731,13 @@ static void make_live_range_spill_cost(Function *function) {
     memset(spill_cost, 0, (vreg_count + 1) * sizeof(int));
 
     int for_loop_depth = 0;
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_START_LOOP) for_loop_depth++;
         if (tac->operation == IR_END_LOOP) for_loop_depth--;
 
         if (tac->dst  && tac->dst ->vreg) spill_cost[tac->dst ->vreg] += ten_power(for_loop_depth);
         if (tac->src1 && tac->src1->vreg) spill_cost[tac->src1->vreg] += ten_power(for_loop_depth);
         if (tac->src2 && tac->src2->vreg) spill_cost[tac->src2->vreg] += ten_power(for_loop_depth);
-
-        tac = tac->next;
     }
 
     function->spill_cost = spill_cost;
@@ -1809,12 +1758,9 @@ void make_preferred_live_range_preg_indexes(Function *function) {
     char *preferred_live_range_preg_indexes = malloc((vreg_count + 1) * sizeof(char));
     memset(preferred_live_range_preg_indexes, 0, (vreg_count + 1) * sizeof(char));
 
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->src1 && tac->src1->preferred_live_range_preg_index)
             preferred_live_range_preg_indexes[tac->src1->vreg] = tac->src1->preferred_live_range_preg_index;
-
-        tac = tac->next;
     }
 
     function->preferred_live_range_preg_indexes = preferred_live_range_preg_indexes;

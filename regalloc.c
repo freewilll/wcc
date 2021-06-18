@@ -42,8 +42,7 @@ void compress_vregs(Function *function) {
         print_ir(function, 0, 0);
     }
 
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst && tac->dst->vreg) if (!vreg_map[tac->dst->vreg]) vreg_map[tac->dst->vreg] = ++new_vreg_count;
         if (tac->src1 && tac->src1->vreg) if (!vreg_map[tac->src1->vreg]) vreg_map[tac->src1->vreg] = ++new_vreg_count;
         if (tac->src2 && tac->src2->vreg) if (!vreg_map[tac->src2->vreg]) vreg_map[tac->src2->vreg] = ++new_vreg_count;
@@ -51,8 +50,6 @@ void compress_vregs(Function *function) {
         if (tac->dst ) tac->dst ->has_been_renamed = 0;
         if (tac->src1) tac->src1->has_been_renamed = 0;
         if (tac->src2) tac->src2->has_been_renamed = 0;
-
-        tac = tac->next;
     }
 
     if (debug_ssa_vreg_renumbering) {
@@ -62,13 +59,10 @@ void compress_vregs(Function *function) {
         }
     }
 
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && !tac->dst ->has_been_renamed && tac->dst ->vreg) { tac->dst ->vreg = vreg_map[tac ->dst->vreg]; tac->dst ->has_been_renamed = 1; }
         if (tac->src1 && !tac->src1->has_been_renamed && tac->src1->vreg) { tac->src1->vreg = vreg_map[tac->src1->vreg]; tac->src1->has_been_renamed = 1; }
         if (tac->src2 && !tac->src2->has_been_renamed && tac->src2->vreg) { tac->src2->vreg = vreg_map[tac->src2->vreg]; tac->src2->has_been_renamed = 1; }
-
-        tac = tac->next;
     }
 
     function->vreg_count = new_vreg_count;
@@ -113,13 +107,9 @@ static int *make_original_stack_indexes(Function *function) {
     int *result = malloc(sizeof(int *) * (function->vreg_count + 1));
     memset(result, 0, sizeof(int *) * (function->vreg_count + 1));
 
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->src1 && tac->src1->is_function_param && tac->src1->function_param_original_stack_index)
             result[tac->dst->vreg] = tac->src1->function_param_original_stack_index;
-
-        tac = tac->next;
-    }
 
     return result;
 }
@@ -384,8 +374,7 @@ static void assign_vreg_locations(Function *function) {
     VregLocation *vl;
     VregLocation *function_vl = function->vreg_locations;
 
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst && tac->dst->vreg) {
             vl = &function_vl[tac->dst->vreg];
             if (vl->stack_index) {
@@ -415,8 +404,6 @@ static void assign_vreg_locations(Function *function) {
             else
                 tac->src2->preg = vl->preg;
         }
-
-        tac = tac->next;
     }
 
     function->local_symbol_count = 0; // This nukes ancient code that assumes local vars are on the stack
@@ -424,14 +411,9 @@ static void assign_vreg_locations(Function *function) {
 
 // This removes instructions that copy a physical register to itself by replacing them with noops.
 static void remove_preg_self_moves(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
-        if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg) {
+    for (Tac *tac = function->ir; tac; tac = tac->next)
+        if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
             if (tac->operation == X_MOV) tac->operation = IR_NOP;
-        }
-
-        tac = tac->next;
-    }
 }
 
 void allocate_registers(Function *function) {

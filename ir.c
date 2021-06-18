@@ -110,16 +110,13 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
 
 // Ensure the double linked list in an IR is correct by checking last pointers
 void sanity_test_ir_linkage(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->next && tac->next->prev != tac) {
             printf("Linkage broken between:\n");
             print_instruction(stdout, tac, 0);
             print_instruction(stdout, tac->next, 0);
             panic("Bailing");
         }
-
-        tac = tac->next;
     }
 }
 
@@ -397,11 +394,9 @@ void print_ir(Function *function, char* name, int expect_preg) {
     if (name) fprintf(stdout, "%s:\n", name);
 
     int i = 0;
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         fprintf(stdout, "%-4d > ", i++);
         print_instruction(stdout, tac, expect_preg);
-        tac = tac->next;
     }
     fprintf(stdout, "\n");
 }
@@ -423,11 +418,8 @@ static void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) 
 int make_function_call_count(Function *function) {
     // Need to count this IR's function_call_count
     int function_call_count = 0;
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->operation == IR_START_CALL) function_call_count++;
-        tac = tac->next;
-    }
 
     return function_call_count;
 }
@@ -545,13 +537,9 @@ static void renumber_label(Tac *ir, int l1, int l2) {
 
 // Renumber all labels so they are consecutive. Uses label_count global.
 void renumber_labels(Function *function) {
-    Tac *tac;
-    int temp_labels;
+    int temp_labels = -2;
 
-    temp_labels = -2;
-
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->label) {
             // Rename target label out of the way
             renumber_label(ir, label_count + 1, temp_labels);
@@ -562,7 +550,6 @@ void renumber_labels(Function *function) {
             tac->label = ++label_count;
             renumber_label(ir, -1, tac->label);
         }
-        tac = tac->next;
     }
 }
 
@@ -582,14 +569,9 @@ static void merge_labels(Tac *ir, Tac *tac, int ir_index) {
 // can lead to consecutive nops with different labels. Merge those nops and labels
 // into one.
 void merge_consecutive_labels(Function *function) {
-    int i;
-    Tac *tac;
-
-    tac = function->ir;
-    i = 0;
-    while (tac) {
+    int i = 0;
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         merge_labels(ir, tac, i);
-        tac = tac->next;
         i++;
     }
 }
@@ -604,7 +586,6 @@ static void assign_local_to_register(Value *v, int vreg) {
 // for them unless any of them is used with an & operator, in which case, they must
 // be on the stack.
 void allocate_value_vregs(Function *function) {
-    Tac *tac;
     int i, vreg;
 
     int *has_address_of;
@@ -612,22 +593,17 @@ void allocate_value_vregs(Function *function) {
     has_address_of = malloc(sizeof(int) * (function->local_symbol_count + 1));
     memset(has_address_of, 0, sizeof(int) * (function->local_symbol_count + 1));
 
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
-        tac = tac ->next;
-    }
 
     for (i = 1; i <= function->local_symbol_count; i++) {
         if (has_address_of[i]) continue;
         vreg = ++function->vreg_count;
 
-        tac = function->ir;
-        while (tac) {
+        for (Tac *tac = function->ir; tac; tac = tac->next) {
             if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
             if (tac->src1 && tac->src1->local_index == -i) assign_local_to_register(tac->src1, vreg);
             if (tac->src2 && tac->src2->local_index == -i) assign_local_to_register(tac->src2, vreg);
-            tac = tac ->next;
         }
     }
 
@@ -637,7 +613,6 @@ void allocate_value_vregs(Function *function) {
 // For all values without a vreg, allocate a stack_index
 void allocate_value_stack_indexes(Function *function) {
     int spilled_register_count;
-    Tac *tac;
     int *stack_index_map;
 
     spilled_register_count = 0;
@@ -648,8 +623,7 @@ void allocate_value_stack_indexes(Function *function) {
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
 
     // Make stack_index_map
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Map registers forced onto the stack due to use of &
         if (tac->dst && tac->dst->local_index < 0 && stack_index_map[-tac->dst->local_index] == -1)
             stack_index_map[-tac->dst->local_index] = spilled_register_count++;
@@ -659,12 +633,9 @@ void allocate_value_stack_indexes(Function *function) {
 
         if (tac->src2 && tac->src2->local_index < 0 && stack_index_map[-tac->src2->local_index] == -1)
             stack_index_map[-tac->src2->local_index] = spilled_register_count++;
-
-        tac = tac ->next;
     }
 
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Map registers forced onto the stack
         if (tac->dst && tac->dst->local_index < 0)
             tac->dst->stack_index = -stack_index_map[-tac->dst->local_index] - 1;
@@ -677,18 +648,13 @@ void allocate_value_stack_indexes(Function *function) {
         if (tac->dst  && tac->dst ->local_index > 0) tac->dst ->stack_index = tac->dst ->local_index;
         if (tac->src1 && tac->src1->local_index > 0) tac->src1->stack_index = tac->src1->local_index;
         if (tac->src2 && tac->src2->local_index > 0) tac->src2->stack_index = tac->src2->local_index;
-
-        tac = tac ->next;
     }
 
     // From this point onwards, local_index has no meaning and downstream code must not use it.
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst ) tac->dst ->local_index = 0;
         if (tac->src1) tac->src1->local_index = 0;
         if (tac->src2) tac->src2->local_index = 0;
-
-        tac = tac ->next;
     }
 
     function->spilled_register_count = spilled_register_count;
@@ -708,12 +674,10 @@ void remove_unused_function_call_results(Function *function) {
     int vreg_count ;
 
     vreg_count  = 0;
-    tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
-        tac = tac->next;
     }
 
     used_vregs = malloc(sizeof(char) * (vreg_count + 1));

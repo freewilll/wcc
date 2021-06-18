@@ -26,8 +26,7 @@ Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node
 static int recursive_tile_igraphs(IGraph *igraph, int node_id);
 
 static void transform_lvalues(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_MOVE_TO_PTR) {
             tac->src1 = dup_value(tac->src1);
             tac->src1->type = make_ptr(tac->src1->type);
@@ -57,8 +56,6 @@ static void transform_lvalues(Function *function) {
                 tac->src2->is_lvalue = 0;
             }
         }
-
-        tac = tac->next;
     }
 }
 
@@ -1276,8 +1273,7 @@ void select_instructions(Function *function) {
 
 // This removes instructions that copy a stack location to itself by replacing them with noops.
 void remove_stack_self_moves(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == X_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->stack_index && tac->dst->stack_index == tac->src1->stack_index) {
             tac->operation = IR_NOP;
             tac->dst = 0;
@@ -1285,15 +1281,12 @@ void remove_stack_self_moves(Function *function) {
             tac->src2 = 0;
             tac->x86_template = 0;
         }
-
-        tac = tac->next;
     }
 }
 
 // This removes instructions that copy a register to itself by replacing them with noops.
 void remove_vreg_self_moves(Function *function) {
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
             tac->operation = IR_NOP;
             tac->dst = 0;
@@ -1301,8 +1294,6 @@ void remove_vreg_self_moves(Function *function) {
             tac->src2 = 0;
             tac->x86_template = 0;
         }
-
-        tac = tac->next;
     }
 }
 
@@ -1378,16 +1369,15 @@ static void add_spill_store(Tac *ir, Value *v, int preg) {
 void add_spill_code(Function *function) {
     if (debug_instsel_spilling) printf("\nAdding spill code\n");
 
-    Tac *tac = function->ir;
-    while (tac) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
 
         // Allow all moves where either dst is a register and src is on the stack
         if (tac->operation == X_MOV || tac->operation == X_MOVS || tac->operation == X_MOVZ)
-            if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->stack_index) { tac = tac->next; continue; }
+            if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->stack_index) continue;
 
         // Allow non sign-extends moves if the dst is on the stack and the src is a register
-        if (tac->operation == X_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) { tac = tac->next; continue; }
+        if (tac->operation == X_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) continue;
 
         int dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->vreg == tac->src1->vreg);
 
@@ -1412,7 +1402,5 @@ void add_spill_code(Function *function) {
             add_spill_store(tac, tac->dst, REG_R11);
             tac = tac->next;
         }
-
-        tac = tac->next;
     }
 }
