@@ -485,9 +485,7 @@ void reverse_function_argument_order(Function *function) {
 
 // Insert tac instruction before ir
 void insert_instruction(Tac *ir, Tac *tac, int move_label) {
-    Tac *prev;
-
-    prev = ir->prev;
+    Tac *prev = ir->prev;
     tac->prev = prev;
     tac->next = ir;
     ir->prev = tac;
@@ -501,9 +499,7 @@ void insert_instruction(Tac *ir, Tac *tac, int move_label) {
 
 // Append tac to ir
 Tac *insert_instruction_after(Tac *ir, Tac *tac) {
-    Tac *next;
-
-    next = ir->next;
+    Tac *next = ir->next;
     ir->next = tac;
     tac->prev = ir;
     tac->next = next;
@@ -524,14 +520,10 @@ Tac *delete_instruction(Tac *tac) {
 }
 
 static void renumber_label(Tac *ir, int l1, int l2) {
-    Tac *t;
-
-    t = ir;
-    while (t) {
+    for (Tac *t = ir; t; t = t->next) {
         if (t->src1 && t->src1->label == l1) t->src1->label = l2;
         if (t->src2 && t->src2->label == l1) t->src2->label = l2;
         if (t->label == l1) t->label = l2;
-        t = t->next;
     }
 }
 
@@ -554,12 +546,10 @@ void renumber_labels(Function *function) {
 }
 
 static void merge_labels(Tac *ir, Tac *tac, int ir_index) {
-    Tac *deleted_tac;
-
     while(1) {
         if (!tac->label || !tac->next || !tac->next->label) return;
 
-        deleted_tac = tac->next;
+        Tac *deleted_tac = tac->next;
         merge_instructions(tac, ir_index, 1);
         renumber_label(ir, deleted_tac->label, tac->label);
     }
@@ -586,19 +576,15 @@ static void assign_local_to_register(Value *v, int vreg) {
 // for them unless any of them is used with an & operator, in which case, they must
 // be on the stack.
 void allocate_value_vregs(Function *function) {
-    int i, vreg;
-
-    int *has_address_of;
-
-    has_address_of = malloc(sizeof(int) * (function->local_symbol_count + 1));
+    int *has_address_of = malloc(sizeof(int) * (function->local_symbol_count + 1));
     memset(has_address_of, 0, sizeof(int) * (function->local_symbol_count + 1));
 
     for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
 
-    for (i = 1; i <= function->local_symbol_count; i++) {
+    for (int i = 1; i <= function->local_symbol_count; i++) {
         if (has_address_of[i]) continue;
-        vreg = ++function->vreg_count;
+        int vreg = ++function->vreg_count;
 
         for (Tac *tac = function->ir; tac; tac = tac->next) {
             if (tac->dst  && tac->dst ->local_index == -i) assign_local_to_register(tac->dst , vreg);
@@ -612,12 +598,9 @@ void allocate_value_vregs(Function *function) {
 
 // For all values without a vreg, allocate a stack_index
 void allocate_value_stack_indexes(Function *function) {
-    int spilled_register_count;
-    int *stack_index_map;
+    int spilled_register_count = 0;
 
-    spilled_register_count = 0;
-
-    stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
+    int *stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
     memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
 
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
@@ -669,21 +652,17 @@ void allocate_value_stack_indexes(Function *function) {
 // vreg for the result. This function removes the vreg if it's not used anywhere further
 // on.
 void remove_unused_function_call_results(Function *function) {
-    Tac *tac;
-    char *used_vregs;
-    int vreg_count ;
-
-    vreg_count  = 0;
+    int vreg_count  = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg > vreg_count) vreg_count = tac->dst ->vreg;
         if (tac->src1 && tac->src1->vreg && tac->src1->vreg > vreg_count) vreg_count = tac->src1->vreg;
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
     }
 
-    used_vregs = malloc(sizeof(char) * (vreg_count + 1));
+    char *used_vregs = malloc(sizeof(char) * (vreg_count + 1));
     memset(used_vregs, 0, sizeof(char) * (vreg_count + 1));
 
-    tac = function->ir;
+    Tac *tac = function->ir;
     while (tac->next) tac = tac->next;
 
     while (tac) {
