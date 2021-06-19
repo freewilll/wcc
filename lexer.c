@@ -143,6 +143,7 @@ void next() {
             else if (!strcmp(cur_identifier, "void"         )) { cur_token = TOK_VOID;      }
             else if (!strcmp(cur_identifier, "struct"       )) { cur_token = TOK_STRUCT;    }
             else if (!strcmp(cur_identifier, "typedef"      )) { cur_token = TOK_TYPEDEF;   }
+            else if (!strcmp(cur_identifier, "do"           )) { cur_token = TOK_DO;        }
             else if (!strcmp(cur_identifier, "while"        )) { cur_token = TOK_WHILE;     }
             else if (!strcmp(cur_identifier, "for"          )) { cur_token = TOK_FOR;       }
             else if (!strcmp(cur_identifier, "continue"     )) { cur_token = TOK_CONTINUE;  }

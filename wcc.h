@@ -230,10 +230,11 @@ enum {
     TOK_STRUCT,
     TOK_TYPEDEF,
     TOK_TYPEDEF_TYPE,
+    TOK_DO,
     TOK_WHILE,
     TOK_FOR,
-    TOK_CONTINUE,
-    TOK_BREAK,              // 20
+    TOK_CONTINUE,           // 20
+    TOK_BREAK,
     TOK_RETURN,
     TOK_ENUM,
     TOK_SIZEOF,
@@ -242,8 +243,8 @@ enum {
     TOK_RCURLY,
     TOK_LCURLY,
     TOK_SEMI,
-    TOK_COMMA,
-    TOK_EQ,                 // 30
+    TOK_COMMA,              // 30
+    TOK_EQ,
     TOK_PLUS_EQ,
     TOK_MINUS_EQ,
     TOK_TERNARY,
@@ -252,8 +253,8 @@ enum {
     TOK_AND,
     TOK_BITWISE_OR,
     TOK_XOR,
-    TOK_ADDRESS_OF,
-    TOK_DBL_EQ,             // 40
+    TOK_ADDRESS_OF,         // 40
+    TOK_DBL_EQ,
     TOK_NOT_EQ,
     TOK_LT,
     TOK_GT,
@@ -262,8 +263,8 @@ enum {
     TOK_BITWISE_LEFT,
     TOK_BITWISE_RIGHT,
     TOK_PLUS,
-    TOK_MINUS,
-    TOK_MULTIPLY,           // 50
+    TOK_MINUS,              // 50
+    TOK_MULTIPLY,
     TOK_DIVIDE,
     TOK_MOD,
     TOK_LOGICAL_NOT,
@@ -507,6 +508,7 @@ Type *dup_type(Type *src);
 Type *make_ptr(Type *src);
 Type *deref_ptr(Type *type);
 int is_integer_type(Type *type);
+int is_scalar_type(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
 int type_eq(Type *type1, Type *type2);

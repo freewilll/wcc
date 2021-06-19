@@ -71,8 +71,15 @@ Type *deref_ptr(Type *src) {
     return dst;
 }
 
+// Integral and floating types are collectively called arithmetic types.
+// Arithmetic types and pointer types are collectively called scalar types.
+// Array and structure types are collectively called aggregate types.
 int is_integer_type(Type *type) {
     return (type->type >= TYPE_CHAR && type->type <= TYPE_LONG);
+}
+
+int is_scalar_type(Type *type) {
+    return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type >= TYPE_PTR));
 }
 
 int get_type_size(Type *type) {

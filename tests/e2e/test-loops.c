@@ -75,6 +75,33 @@ void test_nested_while_continue() {
     assert_int(123, c1, "nested while/continue");
 }
 
+void test_do_while() {
+    int i = 1;
+    int c1 = 0;
+    int c2 = 0;
+
+    do {
+        c1++;
+        i++;
+        if (i == 5) continue;
+        c2++;
+    } while (i != 10);
+
+    assert_int(9, c1, "do_while 1");
+    assert_int(8, c2, "do_while 2");
+
+    i = c1 = c2 = 0;
+    do {
+        c1++;
+        i++;
+        if (i == 5) break;
+        c2++;
+    } while (i != 10);
+
+    assert_int(5, c1, "do_while 3");
+    assert_int(4, c2, "do_while 4");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -86,6 +113,7 @@ int main(int argc, char **argv) {
     test_for_statement_combinations();
     test_while_continue();
     test_nested_while_continue();
+    test_do_while();
 
     finalize();
 }

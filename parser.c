@@ -6,6 +6,7 @@
 
 static Type *integer_promote_type(Type *type);
 static Type *parse_struct_base_type(int allow_incomplete_structs);
+static void parse_statement();
 static void parse_expression(int level);
 
 // Push a value to the stack
@@ -980,6 +981,124 @@ static void parse_expression(int level) {
     }
 }
 
+static void parse_iteration_conditional_expression(Value **lcond, Value **cur_loop_continue_dst, Value *lend) {
+    *lcond  = new_label_dst();
+    *cur_loop_continue_dst = *lcond;
+    add_jmp_target_instruction(*lcond);
+
+    parse_expression(TOK_COMMA);
+    if (!is_scalar_type(vtop->type))
+        panic("Expected scalar type for loop controlling expression");
+
+    add_conditional_jump(IR_JZ, lend);
+}
+
+static void parse_iteration_statement() {
+    enter_scope();
+
+    int prev_loop = cur_loop;
+    cur_loop = ++loop_count;
+    Value *src1 = new_value();
+    src1->value = prev_loop;
+    Value *src2 = new_value();
+    src2->value = cur_loop;
+    add_instruction(IR_START_LOOP, 0, src1, src2);
+
+    int loop_token = cur_token;
+    next();
+
+    // Preserve previous loop addresses so that we can have nested whiles/fors
+    Value *old_loop_continue_dst = cur_loop_continue_dst;
+    Value *old_loop_break_dst = cur_loop_break_dst;
+
+    Value *linit = 0;
+    Value *lcond = 0;
+    Value *lincrement = 0;
+    Value *lbody  = new_label_dst();
+    Value *lend  = new_label_dst();
+    cur_loop_continue_dst = 0;
+    cur_loop_break_dst = lend;
+
+    // Parse for
+    if (loop_token == TOK_FOR) {
+        consume(TOK_LPAREN, "(");
+
+        // Init
+        if (cur_token != TOK_SEMI) {
+            linit  = new_label_dst();
+            add_jmp_target_instruction(linit);
+            parse_expression(TOK_COMMA);
+        }
+        consume(TOK_SEMI, ";");
+
+        // Condition
+        if (cur_token != TOK_SEMI) {
+            parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
+            add_instruction(IR_JMP, 0, lbody, 0);
+        }
+        consume(TOK_SEMI, ";");
+
+        // Increment
+        if (cur_token != TOK_RPAREN) {
+            lincrement  = new_label_dst();
+            cur_loop_continue_dst = lincrement;
+            add_jmp_target_instruction(lincrement);
+            parse_expression(TOK_COMMA);
+            if (lcond) add_instruction(IR_JMP, 0, lcond, 0);
+        }
+
+        consume(TOK_RPAREN, ")");
+    }
+
+    // Parse while
+    else if (loop_token == TOK_WHILE) {
+        consume(TOK_LPAREN, "(");
+        parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
+        add_instruction(IR_JMP, 0, lbody, 0);
+        consume(TOK_RPAREN, ")");
+    }
+
+    if (!cur_loop_continue_dst) cur_loop_continue_dst = lbody;
+    add_jmp_target_instruction(lbody);
+    parse_statement();
+
+    // Parse do/while
+    if (loop_token == TOK_DO) {
+        consume(TOK_WHILE, "while");
+        consume(TOK_LPAREN, "(");
+        parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
+        consume(TOK_RPAREN, ")");
+        expect(TOK_SEMI, ";");
+        while (cur_token == TOK_SEMI) next();
+    }
+
+    if (lincrement)
+        add_instruction(IR_JMP, 0, lincrement, 0);
+    else if (lcond && loop_token != TOK_DO)
+        add_instruction(IR_JMP, 0, lcond, 0);
+    else if (lcond && loop_token == TOK_DO)
+        add_instruction(IR_JMP, 0, lbody, 0);
+    else
+        add_instruction(IR_JMP, 0, lbody, 0);
+
+    // Jump to the start of the body in a for loop like (;;i++)
+    if (loop_token == TOK_FOR && !linit && !lcond && lincrement)
+        add_instruction(IR_JMP, 0, lbody, 0);
+
+    add_jmp_target_instruction(lend);
+
+    // Restore previous loop addresses
+    cur_loop_continue_dst = old_loop_continue_dst;
+    cur_loop_break_dst = old_loop_break_dst;
+
+    // Restore outer loop counter
+    cur_loop = prev_loop;
+
+    add_instruction(IR_END_LOOP, 0, src1, src2);
+
+    exit_scope();
+}
+
 // Parse a statement
 static void parse_statement() {
     vs = vs_start; // Reset value stack
@@ -1006,97 +1125,8 @@ static void parse_statement() {
         return;
     }
 
-    else if (cur_token == TOK_WHILE || cur_token == TOK_FOR) {
-        enter_scope();
-
-        int prev_loop = cur_loop;
-        cur_loop = ++loop_count;
-        Value *src1 = new_value();
-        src1->value = prev_loop;
-        Value *src2 = new_value();
-        src2->value = cur_loop;
-        add_instruction(IR_START_LOOP, 0, src1, src2);
-
-        int loop_token = cur_token;
-        next();
-        consume(TOK_LPAREN, "(");
-
-        // Preserve previous loop addresses so that we can have nested whiles/fors
-        Value *old_loop_continue_dst = cur_loop_continue_dst;
-        Value *old_loop_break_dst = cur_loop_break_dst;
-
-        Value *linit = 0;
-        Value *lcond = 0;
-        Value *lafter = 0;
-        Value *lbody  = new_label_dst();
-        Value *lend  = new_label_dst();
-        cur_loop_continue_dst = 0;
-        cur_loop_break_dst = lend;
-
-        if (loop_token == TOK_FOR) {
-            if (cur_token != TOK_SEMI) {
-                linit  = new_label_dst();
-                add_jmp_target_instruction(linit);
-                parse_expression(TOK_COMMA);
-            }
-            consume(TOK_SEMI, ";");
-
-            if (cur_token != TOK_SEMI) {
-                lcond  = new_label_dst();
-                cur_loop_continue_dst = lcond;
-                add_jmp_target_instruction(lcond);
-                parse_expression(TOK_COMMA);
-                add_conditional_jump(IR_JZ, lend);
-                add_instruction(IR_JMP, 0, lbody, 0);
-            }
-            consume(TOK_SEMI, ";");
-
-            if (cur_token != TOK_RPAREN) {
-                lafter  = new_label_dst();
-                cur_loop_continue_dst = lafter;
-                add_jmp_target_instruction(lafter);
-                parse_expression(TOK_COMMA);
-                if (lcond) add_instruction(IR_JMP, 0, lcond, 0);
-            }
-        }
-
-        else {
-            lcond  = new_label_dst();
-            cur_loop_continue_dst = lcond;
-            add_jmp_target_instruction(lcond);
-            parse_expression(TOK_COMMA);
-            add_conditional_jump(IR_JZ, lend);
-        }
-        consume(TOK_RPAREN, ")");
-
-        if (!cur_loop_continue_dst) cur_loop_continue_dst = lbody;
-        add_jmp_target_instruction(lbody);
-        parse_statement();
-
-        if (lafter)
-            add_instruction(IR_JMP, 0, lafter, 0);
-        else if (lcond)
-            add_instruction(IR_JMP, 0, lcond, 0);
-        else
-            add_instruction(IR_JMP, 0, lbody, 0);
-
-        // Jump to the start of the body in a for loop like (;;i++)
-        if (loop_token == TOK_FOR && !linit && !lcond && lafter)
-            add_instruction(IR_JMP, 0, lbody, 0);
-
-        add_jmp_target_instruction(lend);
-
-        // Restore previous loop addresses
-        cur_loop_continue_dst = old_loop_continue_dst;
-        cur_loop_break_dst = old_loop_break_dst;
-
-        // Restore outer loop counter
-        cur_loop = prev_loop;
-
-        add_instruction(IR_END_LOOP, 0, src1, src2);
-
-        exit_scope();
-    }
+    else if (cur_token == TOK_DO || cur_token == TOK_WHILE || cur_token == TOK_FOR)
+        parse_iteration_statement();
 
     else if (cur_token == TOK_CONTINUE) {
         next();
