@@ -111,15 +111,14 @@ void next() {
         else if (                        c1 == '|'                        )  { ip += 1;  cur_token = TOK_BITWISE_OR;                 }
         else if (                        c1 == '^'                        )  { ip += 1;  cur_token = TOK_XOR;                        }
         else if (                        c1 == '#'                        )  { ip += 1;  cur_token = TOK_HASH;                       }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\t';    }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\n';    }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\'';    }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\"';    }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4        )) { ip += 4;  cur_token = TOK_NUMBER; cur_long = '\\';    }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'",  4        )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\t';   }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'",  4        )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\n';   }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4        )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\'';   }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4        )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\"';   }
+        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4        )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\\';   }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "...",  3          )) { ip += 3;  cur_token = TOK_ELLIPSES;                   }
-        else if (                        c1 == '.'                        )  { ip += 1;  cur_token = TOK_DOT;                        }
 
-        else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_long = i[ip+1]; ip += 3; cur_token = TOK_NUMBER; }
+        else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_long = i[ip+1]; ip += 3; cur_token = TOK_INTEGER; }
 
         // Identifier or keyword
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
@@ -175,7 +174,7 @@ void next() {
         // Hex numeric literal
         else if (c1 == '0' && input_size - ip >= 2 && (i[ip+1] == 'x' || i[ip+1] == 'X')) {
             ip += 2;
-            cur_token = TOK_NUMBER;
+            cur_token = TOK_INTEGER;
             cur_long = 0;
             while (((i[ip] >= '0' && i[ip] <= '9')  || (i[ip] >= 'A' && i[ip] <= 'F') || (i[ip] >= 'a' && i[ip] <= 'f')) && ip < input_size) {
                 cur_long = cur_long * 16 + (
@@ -189,21 +188,80 @@ void next() {
             finish_integer_constant(0);
         }
 
-        // Octal numeric literal
-        else if (c1 == '0' && input_size - ip >= 2 && (i[ip+1] >= '1' || i[ip+1] <= '9')) {
-            ip ++;
-            cur_token = TOK_NUMBER;
-            cur_long = 0;
-            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { cur_long = cur_long * 8 + (i[ip] - '0'); ip++; }
-            finish_integer_constant(0);
+        // Integer, octal and floating point literal
+        else if ((c1 >= '0' && c1 <= '9') || (input_size - ip >= 2 && c1 == '.' && c2 >= '0' && c2 <= '9')) {
+            int has_leading_zero = c1 == '0';
+            long octal_integer = 0;
+            long decimal_integer = 0;
+            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) {
+                octal_integer = octal_integer * 8  + (i[ip] - '0');
+                decimal_integer = decimal_integer * 10 + (i[ip] - '0');
+                ip++;
+            }
+
+            int is_floating_point = i[ip] == '.' || i[ip] == 'e' || i[ip] == 'E';
+
+            if (!is_floating_point && has_leading_zero) {
+                // It's an octal number
+                cur_token = TOK_INTEGER;
+                cur_long = octal_integer;
+                finish_integer_constant(0);
+            }
+            else if (!is_floating_point) {
+                // It's a decimal number
+                cur_token = TOK_INTEGER;
+                cur_long = decimal_integer;
+                finish_integer_constant(1);
+            }
+            else {
+                #ifdef FLOATS
+                // Continue lexing a floating point number
+                long decimal_long = 0;
+                long decimal_digit_count = 0;
+                if (i[ip] == '.') {
+                    ip++;
+                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { decimal_long = decimal_long * 10 + (i[ip] - '0'); decimal_digit_count++; ip++; }
+                }
+
+                long double divisor = 1;
+                for (int j = 0; j < decimal_digit_count; j++) divisor *= 10;
+                long double decimal_part = (long double) decimal_long / divisor;
+
+                long double exponent_factor = 1;
+                if (i[ip] == 'e' || i[ip] == 'E') {
+                    ip++;
+
+                    int is_negative = 0;
+                    if (i[ip] == '+') ip++;
+                    else {
+                        is_negative = i[ip] == '-';
+                        if (is_negative) ip++;
+                    }
+
+                    int exponent = 0;
+                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { exponent = exponent * 10 + (i[ip] - '0'); ip++; }
+                    for (int j = 0; j < exponent; j++) exponent_factor *= 10;
+                    if (is_negative) exponent_factor = 1 / exponent_factor;
+
+                }
+
+                cur_token = TOK_FLOATING_POINT_NUMBER;
+                cur_long_double = exponent_factor * (decimal_integer + decimal_part);
+
+                int type = TYPE_DOUBLE;
+                if (i[ip] == 'f' || i[ip] == 'F') { type = TYPE_FLOAT; ip++; }
+                if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++;  }
+
+                cur_lexer_type = new_type(type);
+                #else
+                panic("Floating point support must be activated with -D FLOATS");
+                #endif
+            }
         }
 
-        // Decimal numeric literal
-        else if ((c1 >= '1' && c1 <= '9')) {
-            cur_token = TOK_NUMBER;
-            cur_long = 0;
-            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { cur_long = cur_long * 10 + (i[ip] - '0'); ip++; }
-            finish_integer_constant(1);
+        else if (c1 == '.') {
+            ip += 1;
+            cur_token = TOK_DOT;
         }
 
         // Ignore other CPP directives

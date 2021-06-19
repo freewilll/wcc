@@ -224,14 +224,15 @@ enum {
 enum {
     TOK_EOF=1,
     TOK_IDENTIFIER,
-    TOK_NUMBER,
+    TOK_INTEGER,
+    TOK_FLOATING_POINT_NUMBER,
     TOK_STRING_LITERAL,
     TOK_IF,
     TOK_ELSE,
     TOK_SIGNED,
     TOK_UNSIGNED,
-    TOK_VOID,
-    TOK_CHAR,               // 10
+    TOK_VOID,               // 10
+    TOK_CHAR,
     TOK_INT,
     TOK_SHORT,
     TOK_LONG,
@@ -240,8 +241,8 @@ enum {
     TOK_TYPEDEF_TYPE,
     TOK_DO,
     TOK_WHILE,
-    TOK_FOR,
-    TOK_CONTINUE,           // 20
+    TOK_FOR,                // 20
+    TOK_CONTINUE,
     TOK_BREAK,
     TOK_RETURN,
     TOK_ENUM,
@@ -250,8 +251,8 @@ enum {
     TOK_LPAREN,
     TOK_RCURLY,
     TOK_LCURLY,
-    TOK_SEMI,
-    TOK_COMMA,              // 30
+    TOK_SEMI,               // 30
+    TOK_COMMA,
     TOK_EQ,
     TOK_PLUS_EQ,
     TOK_MINUS_EQ,
@@ -260,8 +261,8 @@ enum {
     TOK_OR,
     TOK_AND,
     TOK_BITWISE_OR,
-    TOK_XOR,
-    TOK_ADDRESS_OF,         // 40
+    TOK_XOR,                // 40
+    TOK_ADDRESS_OF,
     TOK_DBL_EQ,
     TOK_NOT_EQ,
     TOK_LT,
@@ -270,8 +271,8 @@ enum {
     TOK_GE,
     TOK_BITWISE_LEFT,
     TOK_BITWISE_RIGHT,
-    TOK_PLUS,
-    TOK_MINUS,              // 50
+    TOK_PLUS,               // 50
+    TOK_MINUS,
     TOK_MULTIPLY,
     TOK_DIVIDE,
     TOK_MOD,
@@ -280,8 +281,8 @@ enum {
     TOK_INC,
     TOK_DEC,
     TOK_DOT,
-    TOK_ARROW,
-    TOK_RBRACKET,           // 60
+    TOK_ARROW,              // 60
+    TOK_RBRACKET,
     TOK_LBRACKET,
     TOK_ATTRIBUTE,
     TOK_PACKED,
@@ -299,13 +300,16 @@ enum {
 // Types. All structs start at TYPE_STRUCT up to TYPE_PTR - 1. Pointers are represented by adding TYPE_PTR to a type.
 // all_structs[i] corresponds to type i - TYPE_STRUCT
 enum {
-    TYPE_VOID   = 1,
-    TYPE_CHAR   = 2,
-    TYPE_SHORT  = 3,
-    TYPE_INT    = 4,
-    TYPE_LONG   = 5,
-    TYPE_STRUCT = 16,
-    TYPE_PTR    = 1024,
+    TYPE_VOID         = 1,
+    TYPE_CHAR         = 2,
+    TYPE_SHORT        = 3,
+    TYPE_INT          = 4,
+    TYPE_LONG         = 5,
+    TYPE_FLOAT        = 6,
+    TYPE_DOUBLE       = 7,
+    TYPE_LONG_DOUBLE  = 8,
+    TYPE_STRUCT       = 16,
+    TYPE_PTR          = 1024,
 };
 
 // Intermediate representation operations
@@ -396,7 +400,10 @@ Map *directives;                // Map of CPP directives
 int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
 Type *cur_lexer_type;           // A type determined by the lexer
-long cur_long;                  // Current long if the token is a number
+long cur_long;                  // Current long if the token is an integral type
+#ifdef FLOATS
+long double cur_long_double;    // Current long double if the token is a floating point type
+#endif
 char *cur_string_literal;       // Current string literal if the token is a string literal
 int in_ifdef;                   // In ifdef inclusion
 int in_ifdef_else;              // In ifdef exclusion

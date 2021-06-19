@@ -624,7 +624,7 @@ static void parse_expression(int level) {
     else if (cur_token == TOK_MINUS) {
         next();
 
-        if (cur_token == TOK_NUMBER) {
+        if (cur_token == TOK_INTEGER) {
             if (cur_lexer_type->type == TYPE_INT  && !cur_lexer_type->is_unsigned) cur_long = - (int) cur_long;
             if (cur_lexer_type->type == TYPE_INT  &&  cur_lexer_type->is_unsigned) cur_long = - (unsigned int) cur_long;
             if (cur_lexer_type->type == TYPE_LONG && !cur_lexer_type->is_unsigned) cur_long = - (long) cur_long;
@@ -664,7 +664,7 @@ static void parse_expression(int level) {
         }
     }
 
-    else if (cur_token == TOK_NUMBER) {
+    else if (cur_token == TOK_INTEGER) {
         push_cur_long();
         next();
     }
@@ -1461,7 +1461,7 @@ void parse() {
                         sign = -1;
                         next();
                     }
-                    expect(TOK_NUMBER, "number");
+                    expect(TOK_INTEGER, "integer");
                     value = sign * cur_long;
                     next();
                 }
