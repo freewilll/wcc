@@ -1236,7 +1236,7 @@ static void parse_ifdefs() {
     else if (cur_token == TOK_ELSE) {
         // The true case has been parsed, skip else case
         next();
-        if (!in_ifdef) panic("Got ELSE directive when not in an IFDEF");
+        if (!in_ifdef) panic("Got ELSE directive when not in an ifdef");
         while (cur_token != TOK_ENDIF) next();
         next();
         in_ifdef = 0;
@@ -1246,13 +1246,13 @@ static void parse_ifdefs() {
     else if (cur_token == TOK_ENDIF) {
         // Clean up
         next();
-        if (!in_ifdef && !in_ifdef_else) panic("Got ENDIF without IFDEF");
+        if (!in_ifdef && !in_ifdef_else) panic("Got ENDIF without ifdef");
         in_ifdef = 0;
         in_ifdef_else = 0;
         return;
     }
 
-    // Process an IFDEF
+    // Process an ifdef
     next();
     expect(TOK_IDENTIFIER, "identifier");
     int directive_set = !!map_get(directives, cur_identifier);
@@ -1264,8 +1264,16 @@ static void parse_ifdefs() {
         return;
     }
     else {
-        // Skip true case
-        while (cur_token != TOK_ELSE && cur_token != TOK_ENDIF) next();
+        // Skip true case & look for #else or #endif
+        while (1) {
+
+            while (cur_token != TOK_HASH) {
+                if (cur_token == TOK_EOF) panic("Got ifdef without else of endif");
+                next();
+            }
+            next();
+            if (cur_token == TOK_ELSE || cur_token == TOK_ENDIF) break;
+        }
         if (cur_token == TOK_ELSE) {
             // Let else case be parsed
             next();
