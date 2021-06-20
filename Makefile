@@ -16,6 +16,7 @@ SOURCES = \
   utils.c \
   set.c \
   stack.c \
+  map.c \
   graph.c \
   externals.c
 

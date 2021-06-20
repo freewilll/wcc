@@ -1,5 +1,6 @@
 test-lexer
 test-set
+test-map
 test-graph
 test-ssa
 test-instrsel

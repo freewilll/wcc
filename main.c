@@ -64,6 +64,8 @@ int main(int argc, char **argv) {
     init_allocate_registers();
     init_instruction_selection_rules();
 
+    directives = new_map();
+
     argc--;
     argv++;
     while (argc > 0) {
@@ -123,6 +125,11 @@ int main(int argc, char **argv) {
                 argc -= 2;
                 argv += 2;
             }
+            else if (argc > 1 && !memcmp(argv[0], "-D", 2)) {
+                map_put(directives, argv[1], "");
+                argc -= 2;
+                argv += 2;
+            }
             else if (argc > 1 && !strcmp(argv[0], "--rule-coverage-file")) {
                 rule_coverage_file = argv[1];
                 argc -= 2;
@@ -148,6 +155,7 @@ int main(int argc, char **argv) {
         printf("-S                                  Compile only; do not assemble or link\n");
         printf("-c                                  Compile and assemble, but do not link\n");
         printf("-o <file>                           Output file. Use - for stdout. Defaults to the source file with extension .s\n");
+        printf("-D <directive>                      Set a directive\n");
         printf("-v                                  Display the programs invoked by the compiler\n");
         printf("-d                                  Debug output\n");
         printf("-s                                  Output symbol table\n");

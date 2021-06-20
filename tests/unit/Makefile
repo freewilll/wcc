@@ -1,4 +1,4 @@
-all: run-test-lexer run-test-set run-test-ssa run-test-parser run-test-graph
+all: run-test-lexer run-test-set run-test-map run-test-ssa run-test-parser run-test-graph
 
 test-lexer: ../../libwcc.a test-lexer.c
 	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-lexer test-lexer.c ../../libwcc.a
@@ -11,6 +11,12 @@ test-set: ../../libwcc.a test-set.c
 
 run-test-set: test-set
 	 ./test-set
+
+test-map: test-map.c ../../map.c
+	gcc ${GCC_OPTS} -g -o test-map test-map.c ../../libwcc.a
+
+run-test-map: test-map
+	 ./test-map
 
 test-ssa: ../../libwcc.a ../test-utils.c test-ssa.c
 	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-ssa test-ssa.c ../test-utils.c ../../libwcc.a
@@ -36,6 +42,7 @@ clean:
 	@rm -f core
 	@rm -f test-lexer
 	@rm -f test-set
+	@rm -f test-map
 	@rm -f test-ssa
 	@rm -f test-graph
 	@rm -f test-parser

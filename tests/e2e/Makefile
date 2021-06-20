@@ -12,7 +12,8 @@ WCC_TESTS=\
 	loops \
 	enums \
 	regressions \
-	reg-move-torture
+	reg-move-torture \
+	ifdef
 
 all: run-test-gcc run-test-wcc run-test-include
 

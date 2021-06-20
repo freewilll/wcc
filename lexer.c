@@ -157,6 +157,12 @@ void next() {
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
             else if (!strcmp(cur_identifier, "extern"       )) { cur_token = TOK_EXTERN;    }
             else if (!strcmp(cur_identifier, "static"       )) { cur_token = TOK_STATIC;    }
+            else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
+            else if (!strcmp(cur_identifier, "define"       )) { cur_token = TOK_DEFINE;    }
+            else if (!strcmp(cur_identifier, "undef"        )) { cur_token = TOK_UNDEF;     }
+            else if (!strcmp(cur_identifier, "ifdef"        )) { cur_token = TOK_IFDEF;     }
+            else if (!strcmp(cur_identifier, "endif"        )) { cur_token = TOK_ENDIF;     }
+
 
             for (j = 0; j < all_typedefs_count; j++) {
                 if (!strcmp(all_typedefs[j]->identifier, cur_identifier)) {
@@ -200,7 +206,7 @@ void next() {
             finish_integer_constant(1);
         }
 
-        // Ignore CPP directives
+        // Ignore other CPP directives
         else if (c1 == '#') {
             while (i[ip++] != '\n');
             cur_line++;

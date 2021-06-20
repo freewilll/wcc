@@ -36,6 +36,14 @@ typedef struct stack {
     int pos;
 } Stack;
 
+typedef struct map {
+    char **keys;
+    void **values;
+    int size;
+    int used_count;
+    int element_count;
+} Map;
+
 // One of preg or stack_index must have a value. (preg != 0) != (stack_index < 0)
 typedef struct vreg_location {
     int preg;         // Physical register starting at 0. -1 is unused.
@@ -273,15 +281,19 @@ enum {
     TOK_DEC,
     TOK_DOT,
     TOK_ARROW,
-    TOK_RBRACKET,
+    TOK_RBRACKET,           // 60
     TOK_LBRACKET,
     TOK_ATTRIBUTE,
     TOK_PACKED,
     TOK_HASH,
     TOK_INCLUDE,
+    TOK_DEFINE,
+    TOK_UNDEF,
+    TOK_IFDEF,
+    TOK_ENDIF,
     TOK_EXTERN,
     TOK_STATIC,
-    TOK_ELLIPSES,
+    TOK_ELLIPSES
 };
 
 // Types. All structs start at TYPE_STRUCT up to TYPE_PTR - 1. Pointers are represented by adding TYPE_PTR to a type.
@@ -380,12 +392,14 @@ char *c_cur_filename;           // Current filename being lexed
 int c_cur_line;                 // Current line number being lexed
 
 int parsing_header;             // I a header being parsed?
-
+Map *directives;                // Map of CPP directives
 int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
 Type *cur_lexer_type;           // A type determined by the lexer
 long cur_long;                  // Current long if the token is a number
 char *cur_string_literal;       // Current string literal if the token is a string literal
+int in_ifdef;                   // In ifdef inclusion
+int in_ifdef_else;              // In ifdef exclusion
 Scope *cur_scope;               // Current scope.
 char **string_literals;         // Each string literal has an index in this array, with a pointer to the string literal
 int string_literal_count;       // Amount of string literals
@@ -464,6 +478,12 @@ Stack *new_stack();
 int stack_top(Stack *s);
 void push_onto_stack(Stack *s, int v);
 int pop_from_stack(Stack *s);
+
+// map.c
+Map *new_map();
+void *map_get(Map *map, char *key);
+void map_put(Map *map, char *key, void *value);
+void map_delete(Map *map, char *key);
 
 // graph.c
 Graph *new_graph(int node_count, int edge_count);

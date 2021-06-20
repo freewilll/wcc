@@ -6,6 +6,7 @@
 
 static Type *integer_promote_type(Type *type);
 static Type *parse_struct_base_type(int allow_incomplete_structs);
+static void parse_directive();
 static void parse_statement();
 static void parse_expression(int level);
 
@@ -1103,6 +1104,11 @@ static void parse_iteration_statement() {
 static void parse_statement() {
     vs = vs_start; // Reset value stack
 
+    if (cur_token == TOK_HASH) {
+        parse_directive();
+        return;
+    }
+
     if (cur_token_is_type()) {
         parse_declaration();
         expect(TOK_SEMI, ";");
@@ -1197,10 +1203,9 @@ static char *base_path(char *path) {
     return result;
 }
 
-static void parse_directive() {
-    if (parsing_header) panic("Nested headers not impemented");
+static void parse_include() {
+    if (parsing_header) panic("Nested header includes not impemented");
 
-    consume(TOK_HASH, "#");
     consume(TOK_INCLUDE, "include");
     if (cur_token == TOK_LT) {
         // Ignore #include <...>
@@ -1225,6 +1230,73 @@ static void parse_directive() {
     init_lexer(filename);
 }
 
+static void parse_ifdefs() {
+    if (cur_token == TOK_IFDEF && (in_ifdef || in_ifdef_else))
+        panic("Nested ifdefs not implemented");
+    else if (cur_token == TOK_ELSE) {
+        // The true case has been parsed, skip else case
+        next();
+        if (!in_ifdef) panic("Got ELSE directive when not in an IFDEF");
+        while (cur_token != TOK_ENDIF) next();
+        next();
+        in_ifdef = 0;
+        in_ifdef_else = 0;
+        return;
+    }
+    else if (cur_token == TOK_ENDIF) {
+        // Clean up
+        next();
+        if (!in_ifdef && !in_ifdef_else) panic("Got ENDIF without IFDEF");
+        in_ifdef = 0;
+        in_ifdef_else = 0;
+        return;
+    }
+
+    // Process an IFDEF
+    next();
+    expect(TOK_IDENTIFIER, "identifier");
+    int directive_set = !!map_get(directives, cur_identifier);
+    next();
+
+    if (directive_set) {
+        // Parse true case
+        in_ifdef = 1;
+        return;
+    }
+    else {
+        // Skip true case
+        while (cur_token != TOK_ELSE && cur_token != TOK_ENDIF) next();
+        if (cur_token == TOK_ELSE) {
+            // Let else case be parsed
+            next();
+            in_ifdef_else = 1;
+            return;
+        }
+        next(); // TOK_ENDIF, there's nothing more to do
+    }
+}
+
+static void parse_directive() {
+    consume(TOK_HASH, "#");
+    if (cur_token == TOK_INCLUDE) parse_include();
+    else if (cur_token == TOK_IFDEF || cur_token == TOK_ELSE || cur_token == TOK_ENDIF) parse_ifdefs();
+    else if (cur_token == TOK_DEFINE) {
+        next();
+        expect(TOK_IDENTIFIER, "identifier");
+        map_put(directives, cur_identifier, "");
+        next();
+    }
+    else if (cur_token == TOK_UNDEF) {
+        next();
+        expect(TOK_IDENTIFIER, "identifier");
+        map_delete(directives, cur_identifier);
+        next();
+    }
+    else {
+        panic1d("Unimplemented directive with token %d", cur_token);
+    }
+}
+
 void finish_parsing_header() {
     input        = c_input;
     input_size   = c_input_size;
@@ -1246,7 +1318,7 @@ void parse() {
             continue;
         }
 
-        if (cur_token == TOK_HASH )
+        if (cur_token == TOK_HASH)
             parse_directive();
         else if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC || cur_token_is_type() ) {
             // Variable or function definition
@@ -1445,4 +1517,7 @@ void init_parser() {
     vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
     vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
     label_count = 0;
+
+    in_ifdef = 0;
+    in_ifdef_else = 0;
 }
