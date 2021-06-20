@@ -34,7 +34,7 @@ run-test-%-wcc: test-%-wcc
 	touch run-$<
 
 gen-test-reg-move-torture: gen-test-reg-move-torture.c
-	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-reg-move-torture.c -o gen-test-wcc-reg-move-torture
+	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-reg-move-torture.c -o gen-test-reg-move-torture
 
 test-reg-move-torture.c: gen-test-reg-move-torture
 	./gen-test-reg-move-torture
@@ -64,8 +64,8 @@ clean:
 	@rm -f test-wcc
 	@rm -f test-wcc-*-wcc
 	@rm -f test-wcc-reg-move-torture.c
-	@rm -f gen-test-wcc-reg-move-torture
-	@rm -f run-test-wcc-*
+	@rm -f gen-test-reg-move-torture
+	@rm -f run-test-*
 	@rm -f test-wcc-gcc
 	@rm -f test-wcc-*-gcc
 	@rm -f *.s

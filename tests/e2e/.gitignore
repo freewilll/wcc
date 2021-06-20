@@ -1,5 +1,7 @@
 run-test-*-wcc
 run-test-*-gcc
+test-*-wcc
+test-*-gcc
 gen-test-reg-move-torture
 test-reg-move-torture.c
 test-include/test-include
