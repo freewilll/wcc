@@ -596,7 +596,8 @@ void allocate_value_vregs(Function *function) {
     function->vreg_count = vreg_count;
 }
 
-// For all values without a vreg, allocate a stack_index
+// For all values without a vreg, and all values used in a & expression,
+// allocate a stack_index.
 void allocate_value_stack_indexes(Function *function) {
     int spilled_register_count = 0;
 
