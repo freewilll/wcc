@@ -308,6 +308,8 @@ void _finish_ir(Function *function, int stop_after_live_ranges, int stop_after_i
         run_compiler_phases(function, COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ADD_SPILL_CODE);
 
     remove_reserved_physical_register_count_from_tac(function->ir);
+    make_spilled_register_count(function);
+    make_stack_offsets(function);
 
     // Move ir_start to first non-noop for convenience
     ir_start = function->ir;

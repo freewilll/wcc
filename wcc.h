@@ -99,6 +99,7 @@ typedef struct function {
     int local_symbol_count;                  // Number of local symbols, used by the parser
     int vreg_count;                          // Number of virtual registers used in IR
     int spilled_register_count;              // Amount of stack space needed for registers spills
+    int stack_size;                          // Size of the stack
     int is_defined;                          // if a definition has been found
     int is_external;                         // Has external linkage
     int is_static;                           // Is a private function in the translation unit
@@ -135,6 +136,7 @@ typedef struct value {
     int is_lvalue_in_register;               // Is the value an lvalue in a register?
     int local_index;                         // For locals variables and function arguments
     int stack_index;                         // Allocated stack index in case of a spill
+    int stack_offset;                        // Position on the stack
     int spilled;                             // 1 if spilled
     int is_constant;                         // Is it a constant? If so, value is the value.
     int is_string_literal;                   // Is the value a string literal?
@@ -564,6 +566,7 @@ void reverse_function_argument_order(Function *function);
 void merge_consecutive_labels(Function *function);
 void renumber_labels(Function *function);
 void allocate_value_vregs(Function *function);
+void make_spilled_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);
 void remove_unused_function_call_results(Function *function);
 
@@ -817,6 +820,7 @@ void init_instruction_selection_rules();
 // codegen.c
 char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
+void make_stack_offsets(Function *function);
 void add_final_x86_instructions(Function *function);
 void remove_nops(Function *function);
 void merge_rsp_func_call_add_subs(Function *function);

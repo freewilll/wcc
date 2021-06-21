@@ -71,6 +71,7 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     if (stop_at == COMPILE_STOP_AFTER_ADD_SPILL_CODE) return;
 
     // Final x86_64 changes
+    make_stack_offsets(function);
     add_final_x86_instructions(function);
     remove_nops(function);
     merge_rsp_func_call_add_subs(function);

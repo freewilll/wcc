@@ -51,16 +51,77 @@ static void append_quad_register_name(char *buffer, int preg) {
     else                        sprintf(buffer, "%%%.3s", &names[preg * 4]);
 }
 
-// Get offset from the stack in bytes, from a stack_index.
+// Allocate stack offsets for variables on the stack (stack_index < 0). Go backwards
+// in alignment, allocating the ones with the largest alignment first, in order of
+// stack_index.
+void make_stack_offsets(Function *function) {
+    int count = function->spilled_register_count;
+
+    if (!count) return; // Nothing is on the stack
+
+    // Determine alignments for all variables on the stack & assert they don't mismatch.
+    int *stack_alignments = malloc((count+ 1) * sizeof(int));
+    memset(stack_alignments, 0, (count+ 1) * sizeof(int));
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->dst && tac->dst->stack_index < 0) {
+            if (stack_alignments[-tac->dst->stack_index] && stack_alignments[-tac->dst->stack_index] != get_type_alignment(tac->dst->type))
+                panic1s("Mismatched alignment on stack in different vregs in %s\n", function->identifier);
+            stack_alignments[-tac->dst->stack_index] = get_type_alignment(tac->dst->type);
+        }
+        if (tac->src1 && tac->src1->stack_index < 0) {
+            if (stack_alignments[-tac->src1->stack_index] && stack_alignments[-tac->src1->stack_index] != get_type_alignment(tac->src1->type))
+                panic1s("Mismatched alignment on stack in different vregs in %s\n", function->identifier);
+            stack_alignments[-tac->src1->stack_index] = get_type_alignment(tac->src1->type);
+        }
+        if (tac->src2 && tac->src2->stack_index < 0) {
+            if (stack_alignments[-tac->src2->stack_index] && stack_alignments[-tac->src2->stack_index] != get_type_alignment(tac->src2->type))
+                panic1s("Mismatched alignment on stack in different vregs in %s\n", function->identifier);
+            stack_alignments[-tac->src2->stack_index] = get_type_alignment(tac->src2->type);
+        }
+    }
+
+    // Determine stack offsets
+    int *stack_offsets = malloc((count+ 1) * sizeof(int));
+    int offset = 0;
+    int total_size = 0;
+    for (int size = 4; size >= 0; size--) {
+        int wanted_alignment = 1 << size;
+        for (int i = 1; i <= count; i++) {
+            int alignment = stack_alignments[i];
+            if (wanted_alignment != alignment) continue;
+            offset += alignment;
+            stack_offsets[i] = offset;
+            total_size += alignment;
+        }
+    }
+
+    // Align on 8 bytes, this is required by the function call stack alignment code.
+    total_size = (total_size + 7) & ~0x7;
+    function->stack_size = total_size;
+
+    // Assign stack_offsets
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac ->dst && tac ->dst->stack_index < 0) tac ->dst->stack_offset = stack_offsets[-tac ->dst->stack_index];
+        if (tac->src1 && tac->src1->stack_index < 0) tac->src1->stack_offset = stack_offsets[-tac->src1->stack_index];
+        if (tac->src2 && tac->src2->stack_index < 0) tac->src2->stack_offset = stack_offsets[-tac->src2->stack_index];
+    }
+}
+
+// Get offset from the stack in bytes, from a stack_index for function args
+// or stack offset for local params.
 // The stack layout for a function with 8 parameters (function_pc=8)
-// stack index  offset/8  what
-// 2            +3        arg 7 (last arg)
-// 3            +2        arg 6
-//              +1        return address
+// stack index  offset    what
+// 2            +24       arg 7 (last arg)
+// 3            +16       arg 6
+//              +8        return address
 //              +0        Pushed BP
-// -1           -1        first local variable / spilled register
-// -2           -2        second local variable / spilled register
-static int get_stack_offset_from_index(int function_pc, int stack_index) {
+// -1           -8        first local variable / spilled register e.g. long
+// -2           -12       second local variable / spilled register e.g. int
+// -3           -16       second local variable / spilled register e.g. int
+static int get_stack_offset(int function_pc, Value *v) {
+    int stack_index = v->stack_index;
+
     if (stack_index >= 2) {
         // Function parameter
         if (function_pc <= 6) printf("Unexpected positive stack_index %d for function with <= 6 parameters (%d)\n", stack_index, function_pc);
@@ -68,8 +129,7 @@ static int get_stack_offset_from_index(int function_pc, int stack_index) {
     }
     else if (stack_index >= 0) printf("Unexpected stack_index %d\n", stack_index);
     else
-        // Local variable. stack_index < 0. -1 is the first,-2 the second, etc
-        return 8 * stack_index;
+        return - v->stack_offset;
 }
 
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
@@ -142,7 +202,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 else if (v->global_symbol)
                     sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
                 else if (v->stack_index) {
-                    int stack_offset = get_stack_offset_from_index(function_pc, v->stack_index);
+                    int stack_offset = get_stack_offset(function_pc, v);
                     sprintf(buffer, "%d(%%rbp)", stack_offset);
                 }
                 else if (v->label)
@@ -223,7 +283,7 @@ static Tac *add_add_rsp(Tac *ir, int amount) {
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
 void add_final_x86_instructions(Function *function) {
-    int local_stack_size;       // Size of the stack containing local variables and spilled registers
+    int stack_size;       // Size of the stack containing local variables and spilled registers
     int *saved_registers;       // Callee saved registers
     int added_end_of_function;  // To ensure a double epilogue isn't emitted
 
@@ -236,10 +296,10 @@ void add_final_x86_instructions(Function *function) {
     ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RBP), new_preg_value(REG_RSP), 0, "mov %v1q, %vdq");
 
     // Allocate stack space for local variables and spilled registers
-    local_stack_size = 8 * (function->spilled_register_count);
-    if (local_stack_size > 0) {
-        ir = add_sub_rsp(ir, local_stack_size);
-        cur_stack_push_count += local_stack_size / 8;
+    stack_size = function->stack_size;
+    if (stack_size > 0) {
+        ir = add_sub_rsp(ir, stack_size);
+        cur_stack_push_count += stack_size / 8;
     }
 
     saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);

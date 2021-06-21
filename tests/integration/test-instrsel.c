@@ -351,14 +351,14 @@ void test_instrsel_expr() {
     start_ir();
     i(0, IR_ADD, v(2), v(1), S(-2));
     finish_ir(function);
-    assert_x86_op("movq    -16(%rbp), r2q");
+    assert_x86_op("movq    -8(%rbp), r2q");
     assert_x86_op("addq    r1q, r2q");
 
     // S1 + r1
     start_ir();
     i(0, IR_ADD, v(2), v(1), S(-2));
     finish_ir(function);
-    assert_x86_op("movq    -16(%rbp), r2q");
+    assert_x86_op("movq    -8(%rbp), r2q");
     assert_x86_op("addq    r1q, r2q");
 
     // r1 + g1
@@ -425,7 +425,7 @@ void test_instrsel_expr() {
     start_ir();
     i(0, IR_MOVE, v(1), S(-2), 0);
     finish_ir(function);
-    assert_x86_op("movq    -16(%rbp), r1q");
+    assert_x86_op("movq    -8(%rbp), r1q");
 
     // Load g into r1 using IR_MOVE
     start_ir();
@@ -437,27 +437,27 @@ void test_instrsel_expr() {
     start_ir();
     i(0, IR_MOVE, v(1), S(-2), 0);
     finish_ir(function);
-    assert_x86_op("movq    -16(%rbp), r1q");
+    assert_x86_op("movq    -8(%rbp), r1q");
 
     // Load Si into r1l using IR_MOVE
     start_ir();
     i(0, IR_MOVE, v(1), Ssz(-1, TYPE_INT), 0);
     finish_ir(function);
-    assert_x86_op("movl    -8(%rbp), r2l");
+    assert_x86_op("movl    -4(%rbp), r2l");
     assert_x86_op("movslq  r2l, r1q");
 
     // Assign constant to a local
     start_ir();
     i(0, IR_MOVE, S(-2), c(0), 0);
     finish_ir(function);
-    assert_x86_op("movq    $0, -16(%rbp)");
+    assert_x86_op("movq    $0, -8(%rbp)");
 
     // Assign constant to a local. Forces c into a register
     start_ir();
     nuke_rule(MI4, IR_MOVE, XCI, 0);
     i(0, IR_MOVE, S(-2), c(0), 0);
     finish_ir(function);
-    assert_x86_op("movq    $0, -16(%rbp)");
+    assert_x86_op("movq    $0, -8(%rbp)");
     init_instruction_selection_rules();
 
     // jz with r1
@@ -548,11 +548,11 @@ void test_instrsel_conditionals() {
     test_less_than_with_conditional_jmp(function, v(1), g(1), 0,  "cmpq    g1(%rip), r1q" );
     test_less_than_with_conditional_jmp(function, a(1), g(1), 1,  "cmpq    g1(%rip), r1q" );
     test_less_than_with_conditional_jmp(function, g(1), v(1), 0,  "cmpq    r1q, g1(%rip)" );
-    test_less_than_with_conditional_jmp(function, v(1), S(-2), 0, "cmpq    -16(%rbp), r1q");
-    test_less_than_with_conditional_jmp(function, a(1), S(-2), 1, "cmpq    -16(%rbp), r1q");
-    test_less_than_with_conditional_jmp(function, S(-2), v(1), 0, "cmpq    r1q, -16(%rbp)");
-    test_less_than_with_conditional_jmp(function, S(-2), a(1), 1, "cmpq    r1q, -16(%rbp)");
-    test_less_than_with_conditional_jmp(function, S(-2), c(1), 0, "cmpq    $1, -16(%rbp)" );
+    test_less_than_with_conditional_jmp(function, v(1), S(-2), 0, "cmpq    -8(%rbp), r1q");
+    test_less_than_with_conditional_jmp(function, a(1), S(-2), 1, "cmpq    -8(%rbp), r1q");
+    test_less_than_with_conditional_jmp(function, S(-2), v(1), 0, "cmpq    r1q, -8(%rbp)");
+    test_less_than_with_conditional_jmp(function, S(-2), a(1), 1, "cmpq    r1q, -8(%rbp)");
+    test_less_than_with_conditional_jmp(function, S(-2), c(1), 0, "cmpq    $1, -8(%rbp)" );
 
     // Conditional assignment with 2 registers
     test_cmp_with_assignment(function, IR_EQ, "sete");
@@ -574,9 +574,9 @@ void test_instrsel_conditionals() {
     test_less_than_with_cmp_assignment(function, g(1),               c(1),               "cmpq    $1, g1(%rip)",   "setl    r1b", "movzbl  r1b, r1l", 0);
     test_less_than_with_cmp_assignment(function, v(1),               g(1),               "cmpq    g1(%rip), r1q",  "setl    r2b", "movzbl  r2b, r2l", 0);
     test_less_than_with_cmp_assignment(function, g(1),               v(1),               "cmpq    r1q, g1(%rip)",  "setl    r2b", "movzbl  r2b, r2l", 0);
-    test_less_than_with_cmp_assignment(function, S(-2),              c(1),               "cmpq    $1, -16(%rbp)",  "setl    r1b", "movzbl  r1b, r1l", 0);
-    test_less_than_with_cmp_assignment(function, v(1),               S(-2),              "cmpq    -16(%rbp), r1q", "setl    r2b", "movzbl  r2b, r2l", 0);
-    test_less_than_with_cmp_assignment(function, S(-2),              v(1),               "cmpq    r1q, -16(%rbp)", "setl    r2b", "movzbl  r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, S(-2),              c(1),               "cmpq    $1, -8(%rbp)",   "setl    r1b", "movzbl  r1b, r1l", 0);
+    test_less_than_with_cmp_assignment(function, v(1),               S(-2),              "cmpq    -8(%rbp), r1q",  "setl    r2b", "movzbl  r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, S(-2),              v(1),               "cmpq    r1q, -8(%rbp)",  "setl    r2b", "movzbl  r2b, r2l", 0);
 
     // A 64 bit long cannot be used in a comparison directly and must be moved into
     // a register first
@@ -919,7 +919,7 @@ void test_bnot_operations() {
 
     // ~s
     si(function, 0, IR_BNOT, v(3), S(-2), 0);
-    assert_x86_op("movq    -16(%rbp), r1q");
+    assert_x86_op("movq    -8(%rbp), r1q");
     assert_x86_op("notq    r1q");
 }
 
@@ -1186,7 +1186,7 @@ void test_pointer_indirect_from_stack() {
     i(0, IR_MOVE,     asz(4,  TYPE_INT), Ssz(-3, TYPE_INT + TYPE_PTR),  0);
     i(0, IR_INDIRECT, vsz(5,  TYPE_INT), asz(4,  TYPE_INT),             0);
     finish_spill_ir(function);
-    assert_x86_op("movq    -24(%rbp), r3q");
+    assert_x86_op("movq    -8(%rbp), r3q");
     assert_x86_op("movl    (r3q), r2l");
 }
 
@@ -1419,7 +1419,7 @@ void test_ptr_to_void_memory_load_to_ptr() {
     remove_reserved_physical_registers = 1;
 
     si(function, 0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), Ssz(-2, TYPE_PTR + TYPE_VOID), 0);
-    assert_x86_op("movq    -16(%rbp), r1q");
+    assert_x86_op("movq    -8(%rbp), r1q");
 }
 
 void test_constant_cast_to_ptr() {
@@ -1442,22 +1442,22 @@ void test_spilling() {
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_CHAR), vsz(1, TYPE_CHAR), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("movb    -8(%rbp), %r10b");
-    assert_rx86_preg_op("movb    %r10b, -16(%rbp)");
+    assert_rx86_preg_op("movb    -1(%rbp), %r10b");
+    assert_rx86_preg_op("movb    %r10b, -2(%rbp)");
 
     // src1s spill
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("movw    -8(%rbp), %r10w");
-    assert_rx86_preg_op("movw    %r10w, -16(%rbp)");
+    assert_rx86_preg_op("movw    -2(%rbp), %r10w");
+    assert_rx86_preg_op("movw    %r10w, -4(%rbp)");
 
     // src1i spill
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_INT), vsz(1, TYPE_INT), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("movl    -8(%rbp), %r10d");
-    assert_rx86_preg_op("movl    %r10d, -16(%rbp)");
+    assert_rx86_preg_op("movl    -4(%rbp), %r10d");
+    assert_rx86_preg_op("movl    %r10d, -8(%rbp)");
 
     // src1q spill
     start_ir();
@@ -1470,15 +1470,15 @@ void test_spilling() {
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_INT), v(1), c(1));
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq    -16(%rbp), %r10");
+    assert_rx86_preg_op("movq    -8(%rbp), %r10");
     assert_rx86_preg_op("cmpq    $1, %r10"       );
 
     // src1 and src2 spill
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq    -16(%rbp), %r10");
-    assert_rx86_preg_op("movq    -24(%rbp), %r11");
+    assert_rx86_preg_op("movq    -8(%rbp), %r10");
+    assert_rx86_preg_op("movq    -16(%rbp), %r11");
     assert_rx86_preg_op("cmpq    %r11, %r10"     );
 
     // dst spill with no instructions after
@@ -1501,15 +1501,15 @@ void test_spilling() {
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq    -16(%rbp), %r10");
-    assert_rx86_preg_op("movq    -24(%rbp), %r11");
-    assert_rx86_preg_op("cmpq    %r11, %r10"     );
-    assert_rx86_preg_op("sete    %r11b"          );
-    assert_rx86_preg_op("movl    %r11d, -8(%rbp)");
-    assert_rx86_preg_op("movl    -8(%rbp), %r10d");
-    assert_rx86_preg_op("movzbl  %r10b, %r10d"   );
-    assert_rx86_preg_op("movl    %r10d, %r11d"   );
-    assert_rx86_preg_op("movl    %r11d, -8(%rbp)");
+    assert_rx86_preg_op("movq    -8(%rbp), %r10"  );
+    assert_rx86_preg_op("movq    -16(%rbp), %r11" );
+    assert_rx86_preg_op("cmpq    %r11, %r10"      );
+    assert_rx86_preg_op("sete    %r11b"           );
+    assert_rx86_preg_op("movl    %r11d, -20(%rbp)");
+    assert_rx86_preg_op("movl    -20(%rbp), %r10d");
+    assert_rx86_preg_op("movzbl  %r10b, %r10d"    );
+    assert_rx86_preg_op("movl    %r10d, %r11d"    );
+    assert_rx86_preg_op("movl    %r11d, -20(%rbp)");
 
     // (r2i) = 1. This tests the special case of is_lvalue_in_register=1 when
     // the type is an int.
@@ -1517,13 +1517,13 @@ void test_spilling() {
     tac = i(0, IR_MOVE,        asz(2, TYPE_INT), asz(1, TYPE_INT), 0);    tac->dst ->type = new_type(TYPE_INT); tac ->dst->is_lvalue_in_register = 1;
     tac = i(0, IR_MOVE_TO_PTR, 0,                asz(2, TYPE_INT), c(1)); tac->src1->type = new_type(TYPE_INT); tac->src1->is_lvalue_in_register = 1;
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq    -24(%rbp), %r10");
+    assert_rx86_preg_op("movq    -16(%rbp), %r10");
+    assert_rx86_preg_op("movq    %r10, %r11"     );
+    assert_rx86_preg_op("movq    %r11, -20(%rbp)");
+    assert_rx86_preg_op("movq    -20(%rbp), %r10");
     assert_rx86_preg_op("movq    %r10, %r11"     );
     assert_rx86_preg_op("movq    %r11, -8(%rbp)" );
     assert_rx86_preg_op("movq    -8(%rbp), %r10" );
-    assert_rx86_preg_op("movq    %r10, %r11"     );
-    assert_rx86_preg_op("movq    %r11, -16(%rbp)" );
-    assert_rx86_preg_op("movq    -16(%rbp), %r10");
     assert_rx86_preg_op("movl    $1, (%r10)"     );
 
     init_allocate_registers(); // Enable register allocation again

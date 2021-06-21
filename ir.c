@@ -50,6 +50,7 @@ Value *dup_value(Value *src) {
     dst->is_lvalue                           = src->is_lvalue;
     dst->is_lvalue_in_register               = src->is_lvalue_in_register;
     dst->stack_index                         = src->stack_index;
+    dst->stack_offset                        = src->stack_offset;
     dst->spilled                             = src->spilled;
     dst->local_index                         = src->local_index;
     dst->is_constant                         = src->is_constant;
@@ -271,6 +272,12 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, " = ");
     }
 
+    if (o == IR_MOVE_TO_PTR) {
+        printf("(");
+        print_value(f, tac->src1, 0);
+        fprintf(f, ") = ");
+    }
+
     if (o == IR_MOVE)
         print_value(f, tac->src1, 1);
 
@@ -298,10 +305,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
     else if (o == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
 
-    else if (o == IR_MOVE_TO_PTR) {
-        fprintf(f, "(move to ptr) ");
+    else if (o == IR_MOVE_TO_PTR)
         print_value(f, tac->src2, 1);
-    }
 
     else if (o == IR_NOP)
         fprintf(f, "nop");
@@ -594,6 +599,17 @@ void allocate_value_vregs(Function *function) {
     }
 
     function->vreg_count = vreg_count;
+}
+
+void make_spilled_register_count(Function *function) {
+    int min = 0;
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        // Map registers forced onto the stack due to use of &
+        if (tac-> dst && tac-> dst->stack_index < 0 && tac-> dst->stack_index < min) min = tac-> dst->stack_index;
+        if (tac->src1 && tac->src1->stack_index < 0 && tac->src1->stack_index < min) min = tac->src1->stack_index;
+        if (tac->src2 && tac->src2->stack_index < 0 && tac->src2->stack_index < min) min = tac->src2->stack_index;
+    }
+    function->spilled_register_count = -min;
 }
 
 // For all values without a vreg, and all values used in a & expression,
