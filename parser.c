@@ -1164,6 +1164,8 @@ static void parse_statement() {
         add_conditional_jump(IR_JZ, ldst1);
         parse_statement();
 
+        if (cur_token == TOK_HASH) parse_directive();
+
         if (cur_token == TOK_ELSE) {
             next();
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
@@ -1272,7 +1274,6 @@ static void parse_ifdefs() {
     else {
         // Skip true case & look for #else or #endif
         while (1) {
-
             while (cur_token != TOK_HASH) {
                 if (cur_token == TOK_EOF) panic("Got ifdef without else of endif");
                 next();

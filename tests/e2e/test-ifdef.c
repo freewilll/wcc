@@ -39,14 +39,23 @@ void test_ifdef() {
     #endif
     assert_int(1, i, "ifdef/else/endif with directive defined");
 
-    #undef TEST
-    #ifdef TEST
+    #define TEST
     i = 1;
+    #ifdef TEST
     if (1) i = 4; else i = 5;
     #else
     i += 2;
     #endif
-    assert_int(3, i, "ifdef/else/endif with antagonistic non-CPP else");
+    assert_int(4, i, "ifdef/else/endif with antagonistic non-CPP else 1");
+
+    #undef TEST
+    i = 1;
+    #ifdef TEST
+    if (1) i = 4; else i = 5;
+    #else
+    i += 2;
+    #endif
+    assert_int(3, i, "ifdef/else/endif with antagonistic non-CPP else 2");
 }
 
 int main(int argc, char **argv) {
