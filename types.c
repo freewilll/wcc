@@ -19,12 +19,13 @@ int print_type(void *f, Type *type) {
 
     if (type->is_unsigned) len += fprintf(f, "unsigned ");
 
-         if (tt == TYPE_VOID)   len += fprintf(f, "void");
-    else if (tt == TYPE_CHAR)   len += fprintf(f, "char");
-    else if (tt == TYPE_INT)    len += fprintf(f, "int");
-    else if (tt == TYPE_SHORT)  len += fprintf(f, "short");
-    else if (tt == TYPE_LONG)   len += fprintf(f, "long");
-    else if (tt >= TYPE_STRUCT) len += fprintf(f, "struct %s", all_structs[tt - TYPE_STRUCT]->identifier);
+         if (tt == TYPE_VOID)        len += fprintf(f, "void");
+    else if (tt == TYPE_CHAR)        len += fprintf(f, "char");
+    else if (tt == TYPE_INT)         len += fprintf(f, "int");
+    else if (tt == TYPE_SHORT)       len += fprintf(f, "short");
+    else if (tt == TYPE_LONG)        len += fprintf(f, "long");
+    else if (tt == TYPE_LONG_DOUBLE) len += fprintf(f, "long double");
+    else if (tt >= TYPE_STRUCT)      len += fprintf(f, "struct %s", all_structs[tt - TYPE_STRUCT]->identifier);
     else len += fprintf(f, "unknown tt %d", tt);
 
     return len;
@@ -86,13 +87,14 @@ int get_type_size(Type *type) {
     int t;
 
     t = type->type;
-         if (t == TYPE_VOID)   return sizeof(void);
-    else if (t == TYPE_CHAR)   return sizeof(char);
-    else if (t == TYPE_SHORT)  return sizeof(short);
-    else if (t == TYPE_INT)    return sizeof(int);
-    else if (t == TYPE_LONG)   return sizeof(long);
-    else if (t >  TYPE_PTR)    return sizeof(void *);
-    else if (t >= TYPE_STRUCT) return all_structs[t - TYPE_STRUCT]->size;
+         if (t == TYPE_VOID)        return sizeof(void);
+    else if (t == TYPE_CHAR)        return sizeof(char);
+    else if (t == TYPE_SHORT)       return sizeof(short);
+    else if (t == TYPE_INT)         return sizeof(int);
+    else if (t == TYPE_LONG)        return sizeof(long);
+    else if (t == TYPE_LONG_DOUBLE) return sizeof(long double);
+    else if (t >  TYPE_PTR)         return sizeof(void *);
+    else if (t >= TYPE_STRUCT)      return all_structs[t - TYPE_STRUCT]->size;
 
     panic1d("sizeof unknown type %d", t);
 }
@@ -102,11 +104,12 @@ int get_type_alignment(Type *type) {
 
     t = type->type;
 
-         if (t  > TYPE_PTR)    return 8;
-    else if (t == TYPE_CHAR)   return 1;
-    else if (t == TYPE_SHORT)  return 2;
-    else if (t == TYPE_INT)    return 4;
-    else if (t == TYPE_LONG)   return 8;
+         if (t  > TYPE_PTR)          return 8;
+    else if (t == TYPE_CHAR)         return 1;
+    else if (t == TYPE_SHORT)        return 2;
+    else if (t == TYPE_INT)          return 4;
+    else if (t == TYPE_LONG)         return 8;
+    else if (t == TYPE_LONG_DOUBLE)  return 16;
     else if (t >= TYPE_STRUCT) panic("Alignment of structs not implemented");
 
     panic1d("align of unknown type %d", t);

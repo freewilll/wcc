@@ -199,6 +199,12 @@ static Type *parse_base_type(int allow_incomplete_structs) {
     if (cur_token == TOK_LONG && type->type == TYPE_LONG) next(); // On 64 bit, long longs are equivalent to longs
     if (cur_token == TOK_INT && (type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG)) next();
 
+    if (cur_token == TOK_DOUBLE) {
+        if (seen_signed || seen_unsigned) panic("Cannot have signed or unsigned in a long double");
+        type->type = TYPE_LONG_DOUBLE;
+        next();
+    }
+
     return type;
 }
 

@@ -420,7 +420,7 @@ void make_value_x86_size(Value *v) {
     else if (v->vreg || v->global_symbol || v->stack_index) {
         if (v->type->type >= TYPE_PTR)
             v->x86_size = 4;
-        else if (v->type->type <= TYPE_LONG)
+        else if (v->type->type <= TYPE_LONG_DOUBLE)
             v->x86_size = v->type->type - TYPE_CHAR + 1;
         else
             panic1d("Illegal type in make_value_x86_size() %d", v->type->type);

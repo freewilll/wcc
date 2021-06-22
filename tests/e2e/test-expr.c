@@ -635,6 +635,12 @@ void test_integer_sizes() {
     assert_int(8, sizeof(signed long **),      "sizeof signed long **");       assert_int(8, sizeof(unsigned long **),      "sizeof unsigned long **");
 }
 
+void test_float_sizes() {
+    assert_int(16, sizeof(long double),    "sizeof signed long double");
+    assert_int(8,  sizeof(long double *),  "sizeof signed long double *");
+    assert_int(8,  sizeof(long double **), "sizeof signed long double **");
+}
+
 void test_sizeof_expr() {
     char c1, c2;
     short s1, s2;
@@ -1198,6 +1204,7 @@ int main(int argc, char **argv) {
     test_assign_operations();
     test_assign_to_globals();
     test_integer_sizes();
+    test_float_sizes();
     test_add_operation_sign();
     test_logical_or_operation_sign();
     test_sizeof_expr();
