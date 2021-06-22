@@ -551,6 +551,7 @@ void init_instruction_selection_rules() {
 
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(XC,    0, XC,    0, 0); fin_rule(r);
+    r = add_rule(CLD,   0, CLD,   0, 0);
     r = add_rule(XR,    0, XR,    0, 0); fin_rule(r);
     r = add_rule(CSTV1, 0, CSTV1, 0, 0);
     r = add_rule(CSTV2, 0, CSTV2, 0, 0);
@@ -596,6 +597,11 @@ void init_instruction_selection_rules() {
     // Register -> memory move rules
     add_move_rules_ri_to_mi();
     add_move_rules_ru_to_mu();
+
+    // Long double constant -> memory
+    r = add_rule(MLD5, IR_MOVE, CLD,  0, 3);
+    add_op(r, X_MOV,  DST, SRC1, 0, "movabsq %v1L, %%r10"); add_op(r, X_MOV,  DST, SRC1, 0, "movq %%r10, %vdL");
+    add_op(r, X_MOV,  DST, SRC1, 0, "movabsq %v1H, %%r10"); add_op(r, X_MOV,  DST, SRC1, 0, "movq %%r10, %vdH");
 
     // Pointer move rules
     r = add_rule(RP1, IR_MOVE, STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");

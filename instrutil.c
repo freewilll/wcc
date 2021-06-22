@@ -315,6 +315,7 @@ char *non_terminal_string(int nt) {
     else if (nt == CU2)   return "cu2";
     else if (nt == CU3)   return "cu3";
     else if (nt == CU4)   return "cu4";
+    else if (nt == CLD)   return "cld";
     else if (nt == STL)   return "stl";
     else if (nt == LAB)   return "lab";
     else if (nt == FUN)   return "fun";
@@ -350,6 +351,7 @@ char *non_terminal_string(int nt) {
     else if (nt == RP2)   return "rp2";
     else if (nt == RP3)   return "rp3";
     else if (nt == RP4)   return "rp4";
+    else if (nt == MLD5)  return "mld5";
     else {
         asprintf(&buf, "nt%03d", nt);
         return buf;
@@ -420,8 +422,10 @@ void make_value_x86_size(Value *v) {
     else if (v->vreg || v->global_symbol || v->stack_index) {
         if (v->type->type >= TYPE_PTR)
             v->x86_size = 4;
-        else if (v->type->type <= TYPE_LONG_DOUBLE)
+        else if (v->type->type <= TYPE_LONG)
             v->x86_size = v->type->type - TYPE_CHAR + 1;
+        else if (v->type->type == TYPE_LONG_DOUBLE)
+            v->x86_size = 5;
         else
             panic1d("Illegal type in make_value_x86_size() %d", v->type->type);
     }
@@ -433,17 +437,18 @@ static int non_terminal_for_value(Value *v) {
     if (!v->x86_size) make_value_x86_size(v);
     if (v->non_terminal) return v->non_terminal;
 
-         if (v->is_string_literal)                                           result =  STL;
-    else if (v->label)                                                       result =  LAB;
-    else if (v->function_symbol)                                             result =  FUN;
-    else if (v->type->type >= TYPE_PTR && !v->type->is_unsigned && !v->vreg) result =  MI4;
-    else if (v->type->type >= TYPE_PTR &&  v->type->is_unsigned && !v->vreg) result =  MU4;
-    else if (v->type->type >= TYPE_PTR)                                      result =  RP1 + value_ptr_target_x86_size(v) -1;
-    else if (v->is_lvalue_in_register)                                       result =  RP1 + v->x86_size - 1;
-    else if ((v->global_symbol || v->stack_index) & !v->type->is_unsigned)   result =  MI1 + v->x86_size - 1;
-    else if ((v->global_symbol || v->stack_index) &  v->type->is_unsigned)   result =  MU1 + v->x86_size - 1;
-    else if (v->vreg && !v->type->is_unsigned)                               result =  RI1 + v->x86_size - 1;
-    else if (v->vreg &&  v->type->is_unsigned)                               result =  RU1 + v->x86_size - 1;
+         if (v->is_string_literal)                                                     result =  STL;
+    else if (v->label)                                                                 result =  LAB;
+    else if (v->function_symbol)                                                       result =  FUN;
+    else if (v->type->type >= TYPE_PTR && !v->type->is_unsigned && !v->vreg)           result =  MI4;
+    else if (v->type->type >= TYPE_PTR &&  v->type->is_unsigned && !v->vreg)           result =  MU4;
+    else if (v->type->type >= TYPE_PTR)                                                result =  RP1 + value_ptr_target_x86_size(v) -1;
+    else if (v->is_lvalue_in_register)                                                 result =  RP1 + v->x86_size - 1;
+    else if ((v->global_symbol || v->stack_index) & v->type->type == TYPE_LONG_DOUBLE) result =  MLD5;
+    else if ((v->global_symbol || v->stack_index) & !v->type->is_unsigned)             result =  MI1 + v->x86_size - 1;
+    else if ((v->global_symbol || v->stack_index) &  v->type->is_unsigned)             result =  MU1 + v->x86_size - 1;
+    else if (v->vreg && !v->type->is_unsigned)                                         result =  RI1 + v->x86_size - 1;
+    else if (v->vreg &&  v->type->is_unsigned)                                         result =  RU1 + v->x86_size - 1;
     else {
         print_value(stdout, v, 0);
         panic("Bad value in non_terminal_for_value()");
@@ -458,32 +463,37 @@ static int non_terminal_for_value(Value *v) {
 // There are a couple of possible matches for a constant.
 int match_value_to_rule_src(Value *v, int src) {
     if (v->is_constant) {
-        if (v->type->type < TYPE_INT) panic1d("Unexpected constant type %d", v->type->type);
+        if (v->type->type == TYPE_LONG_DOUBLE)
+            return src == CLD;
+        else {
+            // Integer constant
+            if (v->type->type < TYPE_INT) panic1d("Unexpected constant type %d", v->type->type);
 
-        // Match 1, 2 and 3
-             if (src == CSTV1 && v->int_value == 1) return 1;
-        else if (src == CSTV2 && v->int_value == 2) return 1;
-        else if (src == CSTV3 && v->int_value == 3) return 1;
+            // Match 1, 2 and 3
+                 if (src == CSTV1 && v->int_value == 1) return 1;
+            else if (src == CSTV2 && v->int_value == 2) return 1;
+            else if (src == CSTV3 && v->int_value == 3) return 1;
 
-        // Check match with type from the parser. This is necessary for evil casts, e.g.
-        // (unsigned int) -1, which would otherwise become a CU4 and not match rules for CU3.
-             if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->type->type == TYPE_INT)   return 1;
-        else if (              src == CI4 && !v->type->is_unsigned)                                return 1;
-             if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->type->type == TYPE_INT)   return 1;
-        else if (              src == CU4 &&  v->type->is_unsigned)                                return 1;
+            // Check match with type from the parser. This is necessary for evil casts, e.g.
+            // (unsigned int) -1, which would otherwise become a CU4 and not match rules for CU3.
+                 if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->type->type == TYPE_INT)   return 1;
+            else if (              src == CI4 && !v->type->is_unsigned)                                return 1;
+                 if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->type->type == TYPE_INT)   return 1;
+            else if (              src == CU4 &&  v->type->is_unsigned)                                return 1;
 
-        // Determine constant non termimal by looking at the signdness and value
-        else if (src >= CI1 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80        && v->int_value < 0x80       ) return 1;
-        else if (src >= CI2 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x8000      && v->int_value < 0x8000     ) return 1;
-        else if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80000000l && v->int_value < 0x80000000l) return 1;
-        else if (              src == CI4 && !v->type->is_unsigned)                                                               return 1;
+            // Determine constant non termimal by looking at the signdness and value
+            else if (src >= CI1 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80        && v->int_value < 0x80       ) return 1;
+            else if (src >= CI2 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x8000      && v->int_value < 0x8000     ) return 1;
+            else if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80000000l && v->int_value < 0x80000000l) return 1;
+            else if (              src == CI4 && !v->type->is_unsigned)                                                               return 1;
 
-        else if (src >= CU1 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100      ) return 1;
-        else if (src >= CU2 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100000   ) return 1;
-        else if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100000000) return 1;
-        else if (              src == CU4 &&  v->type->is_unsigned)                                                    return 1;
+            else if (src >= CU1 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100      ) return 1;
+            else if (src >= CU2 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100000   ) return 1;
+            else if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100000000) return 1;
+            else if (              src == CU4 &&  v->type->is_unsigned)                                                    return 1;
 
-        else return 0;
+            else return 0;
+        }
     }
     else
         return non_terminal_for_value(v) == src;
@@ -497,7 +507,6 @@ int match_value_to_rule_dst(Value *v, int dst) {
 // Match a value type to a non terminal rule type. This is necessary to ensure that
 // non-root and non-leaf nodes have matching types while tree matching.
 int match_value_type_to_rule_dst(Value *v, int dst) {
-
     int vnt = non_terminal_for_value(v);
     int is_ptr = v->type->type >= TYPE_PTR;
 
@@ -535,6 +544,8 @@ static int value_ptr_target_x86_size(Value *v) {
 
     if (v->type->type >= TYPE_PTR + TYPE_CHAR && v->type->type <= TYPE_PTR + TYPE_LONG)
         return v->type->type - TYPE_PTR - TYPE_CHAR + 1;
+    else if (v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)
+        return 8;
     else
         return 4;
 }
@@ -552,11 +563,13 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == CU2)   return 2;
     else if (nt == CU3)   return 3;
     else if (nt == CU4)   return 4;
+    else if (nt == CLD)   return 8;
     else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4) return 4;
     else if (nt == RI1 || nt == RU1 || nt == MI1 || nt == MU1) return 1;
     else if (nt == RI2 || nt == RU2 || nt == MI2 || nt == MU2) return 2;
     else if (nt == RI3 || nt == RU3 || nt == MI3 || nt == MU3) return 3;
     else if (nt == RI4 || nt == RU4 || nt == MI4 || nt == MU4) return 4;
+    else if (nt == MLD5) return 8;
     else if (nt == LAB) return -1;
     else if (nt == FUN) return -1;
     else if (nt == STL) return 4;

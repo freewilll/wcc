@@ -175,6 +175,13 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 else if (t[1] == 'l') { t++; x86_size = 3; }
                 else if (t[1] == 'q') { t++; x86_size = 4; }
 
+                #ifdef FLOATS
+                int low = 0;
+                int high = 0;
+                     if (t[1] == 'L') { t++; low  = 1; }
+                else if (t[1] == 'H') { t++; high = 1; }
+                #endif
+
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
                 if (!expect_preg && v->vreg) {
@@ -195,15 +202,56 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     else if (x86_size == 4) append_quad_register_name(buffer, v->preg);
                     else panic1d("Unknown register size %d", x86_size);
                 }
-                else if (v->is_constant)
-                    sprintf(buffer, "%ld", v->int_value);
+                else if (v->is_constant) {
+                    if (v->type->type == TYPE_LONG_DOUBLE) {
+                        #ifdef FLOATS
+                        if (low)
+                            sprintf(buffer, "$%ld", *((long *) &v->fp_value));
+                        else if (high)
+                            sprintf(buffer, "$%ld", *((long *) &v->fp_value + 1));
+                        else
+                            panic("Did not get l/h specifier for double long constant");
+                        #else
+                        panic("Floating point support must be activated with -D FLOATS");
+                        #endif
+                    }
+                    else
+                        sprintf(buffer, "%ld", v->int_value);
+                }
                 else if (v->is_string_literal)
                     sprintf(buffer, ".SL%d(%%rip)", v->string_literal_index);
-                else if (v->global_symbol)
-                    sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                else if (v->global_symbol) {
+                    if (v->type->type == TYPE_LONG_DOUBLE) {
+                        #ifdef FLOATS
+                        if (low)
+                            sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                        else if (high)
+                            sprintf(buffer, "8+%s(%%rip)", v->global_symbol->identifier);
+                        else
+                            panic("Did not get l/h specifier for double long constant");
+                        #else
+                        panic("Floating point support must be activated with -D FLOATS");
+                        #endif
+                    }
+                    else
+                        sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                }
                 else if (v->stack_index) {
                     int stack_offset = get_stack_offset(function_pc, v);
-                    sprintf(buffer, "%d(%%rbp)", stack_offset);
+                    if (v->type->type == TYPE_LONG_DOUBLE) {
+                        #ifdef FLOATS
+                        if (low)
+                            sprintf(buffer, "%d(%%rbp)", stack_offset);
+                        else if (high)
+                            sprintf(buffer, "%d(%%rbp)", stack_offset + 8);
+                        else
+                            panic("Did not get l/h specifier for double long stack index");
+                        #else
+                        panic("Floating point support must be activated with -D FLOATS");
+                        #endif
+                    }
+                    else
+                        sprintf(buffer, "%d(%%rbp)", stack_offset);
                 }
                 else if (v->label)
                     sprintf(buffer, ".L%d", v->label);

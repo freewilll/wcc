@@ -68,6 +68,9 @@ Value *dup_value(Value *src) {
     dst->is_string_literal                   = src->is_string_literal;
     dst->string_literal_index                = src->string_literal_index;
     dst->int_value                           = src->int_value;
+    #ifdef FLOATS
+    dst->fp_value                            = src->fp_value;
+    #endif
     dst->function_symbol                     = src->function_symbol;
     dst->is_function_call_arg                = src->is_function_call_arg;
     dst->is_function_param                   = src->is_function_param;
@@ -596,18 +599,25 @@ static void assign_local_to_register(Value *v, int vreg) {
     v->vreg = vreg;
 }
 
-// The parser allocates a local_index for temporaries and local variables. Allocate vregs
-// for them unless any of them is used with an & operator, in which case, they must
-// be on the stack.
+// The parser allocates a local_index for temporaries and local variables. Allocate
+// vregs for them unless any of them is used with an & operator, or are long doubles, in
+// which case, they must be on the stack.
 void allocate_value_vregs(Function *function) {
-    int *has_address_of = malloc(sizeof(int) * (function->local_symbol_count + 1));
-    memset(has_address_of, 0, sizeof(int) * (function->local_symbol_count + 1));
+    int *on_stack = malloc(sizeof(int) * (function->local_symbol_count + 1));
+    memset(on_stack, 0, sizeof(int) * (function->local_symbol_count + 1));
 
-    for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->operation == IR_ADDRESS_OF) has_address_of[-tac->src1->local_index] = 1;
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        // Variables that are used with the & operator
+        if (tac->operation == IR_ADDRESS_OF) on_stack[-tac->src1->local_index] = 1;
+
+        // Long doubles are forced onto the stack.
+        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE) on_stack[-tac->dst ->local_index] = 1;
+        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE) on_stack[-tac->src1->local_index] = 1;
+        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE) on_stack[-tac->src2->local_index] = 1;
+    }
 
     for (int i = 1; i <= function->local_symbol_count; i++) {
-        if (has_address_of[i]) continue;
+        if (on_stack[i]) continue;
         int vreg = ++function->vreg_count;
 
         for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -631,8 +641,10 @@ void make_stack_register_count(Function *function) {
     function->stack_register_count = -min;
 }
 
-// For all values without a vreg, and all values used in a & expression,
-// allocate a stack_index.
+// allocate a stack_index values:
+// - without a vreg,
+// - used in a & expression,
+// - are long double
 void allocate_value_stack_indexes(Function *function) {
     int stack_register_count = 0;
 
@@ -643,7 +655,7 @@ void allocate_value_stack_indexes(Function *function) {
 
     // Make stack_index_map
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        // Map registers forced onto the stack due to use of &
+        // Map registers forced onto the stack
         if (tac->dst && tac->dst->local_index < 0 && stack_index_map[-tac->dst->local_index] == -1)
             stack_index_map[-tac->dst->local_index] = stack_register_count++;
 
@@ -679,7 +691,7 @@ void allocate_value_stack_indexes(Function *function) {
     function->stack_register_count = stack_register_count;
 
     if (debug_ssa_mapping_local_stack_indexes)
-        printf("Spilled %d registers due to & use\n", stack_register_count);
+        printf("Moved %d registers to stack\n", stack_register_count);
 
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
 }
