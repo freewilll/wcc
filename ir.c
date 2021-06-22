@@ -601,7 +601,7 @@ void allocate_value_vregs(Function *function) {
     function->vreg_count = vreg_count;
 }
 
-void make_spilled_register_count(Function *function) {
+void make_stack_register_count(Function *function) {
     int min = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Map registers forced onto the stack due to use of &
@@ -609,13 +609,13 @@ void make_spilled_register_count(Function *function) {
         if (tac->src1 && tac->src1->stack_index < 0 && tac->src1->stack_index < min) min = tac->src1->stack_index;
         if (tac->src2 && tac->src2->stack_index < 0 && tac->src2->stack_index < min) min = tac->src2->stack_index;
     }
-    function->spilled_register_count = -min;
+    function->stack_register_count = -min;
 }
 
 // For all values without a vreg, and all values used in a & expression,
 // allocate a stack_index.
 void allocate_value_stack_indexes(Function *function) {
-    int spilled_register_count = 0;
+    int stack_register_count = 0;
 
     int *stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
     memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
@@ -626,13 +626,13 @@ void allocate_value_stack_indexes(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Map registers forced onto the stack due to use of &
         if (tac->dst && tac->dst->local_index < 0 && stack_index_map[-tac->dst->local_index] == -1)
-            stack_index_map[-tac->dst->local_index] = spilled_register_count++;
+            stack_index_map[-tac->dst->local_index] = stack_register_count++;
 
         if (tac->src1 && tac->src1->local_index < 0 && stack_index_map[-tac->src1->local_index] == -1)
-            stack_index_map[-tac->src1->local_index] = spilled_register_count++;
+            stack_index_map[-tac->src1->local_index] = stack_register_count++;
 
         if (tac->src2 && tac->src2->local_index < 0 && stack_index_map[-tac->src2->local_index] == -1)
-            stack_index_map[-tac->src2->local_index] = spilled_register_count++;
+            stack_index_map[-tac->src2->local_index] = stack_register_count++;
     }
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -657,10 +657,10 @@ void allocate_value_stack_indexes(Function *function) {
         if (tac->src2) tac->src2->local_index = 0;
     }
 
-    function->spilled_register_count = spilled_register_count;
+    function->stack_register_count = stack_register_count;
 
     if (debug_ssa_mapping_local_stack_indexes)
-        printf("Spilled %d registers due to & use\n", spilled_register_count);
+        printf("Spilled %d registers due to & use\n", stack_register_count);
 
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
 }

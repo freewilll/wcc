@@ -98,7 +98,7 @@ typedef struct function {
     Type **param_types;                      // Types of parameters
     int local_symbol_count;                  // Number of local symbols, used by the parser
     int vreg_count;                          // Number of virtual registers used in IR
-    int spilled_register_count;              // Amount of stack space needed for registers spills
+    int stack_register_count;                // Amount of stack space needed for registers spills
     int stack_size;                          // Size of the stack
     int is_defined;                          // if a definition has been found
     int is_external;                         // Has external linkage
@@ -433,8 +433,8 @@ int label_count;                  // Global label count, always growing
 int function_call_count;          // Uniquely identify a function call, always growing
 int cur_loop;                     // Current loop being parsed
 int loop_count;                   // Loop counter
-int spilled_register_count;       // Spilled register count for current function that's undergoing register allocation
-int total_spilled_register_count; // Spilled register count for all functions
+int stack_register_count;         // Spilled register count for current function that's undergoing register allocation
+int total_stack_register_count;   // Spilled register count for all functions
 int *callee_saved_registers;      // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
 int cur_stack_push_count;         // Used in codegen to keep track of stack position
 
@@ -566,7 +566,7 @@ void reverse_function_argument_order(Function *function);
 void merge_consecutive_labels(Function *function);
 void renumber_labels(Function *function);
 void allocate_value_vregs(Function *function);
-void make_spilled_register_count(Function *function);
+void make_stack_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);
 void remove_unused_function_call_results(Function *function);
 
@@ -840,7 +840,7 @@ enum {
 
 char *make_temp_filename(char *template);
 void run_compiler_phases(Function *function, int start_at, int stop_at);
-void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename);
+void compile(char *compiler_input_filename, char *compiler_output_filename);
 
 // test-utils.c
 int failures;

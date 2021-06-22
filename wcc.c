@@ -89,7 +89,7 @@ static void compile_externals() {
     parse();
 }
 
-void compile(int print_spilled_register_count, char *compiler_input_filename, char *compiler_output_filename) {
+void compile(char *compiler_input_filename, char *compiler_output_filename) {
     compile_externals();
     init_lexer(compiler_input_filename);
     parse();

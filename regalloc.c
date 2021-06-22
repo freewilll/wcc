@@ -124,7 +124,7 @@ static int graph_node_degree(char *ig, int vreg_count, int node) {
 }
 
 static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
-    int physical_register_count, int *spilled_register_count, int vreg, int *original_stack_indexes,
+    int physical_register_count, int *stack_register_count, int vreg, int *original_stack_indexes,
     int preferred_live_range_preg_index) {
 
     Set *neighbor_colors = new_set(physical_register_count);
@@ -149,8 +149,8 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
         if (original_stack_indexes[vreg])
             stack_index = original_stack_indexes[vreg];
         else {
-            stack_index = -*spilled_register_count - 1;
-            (*spilled_register_count)++;
+            stack_index = -*stack_register_count - 1;
+            (*stack_register_count)++;
         }
         vreg_locations[vreg].stack_index = stack_index;
 
@@ -230,7 +230,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg_locations[i].stack_index = 0;
     }
 
-    int spilled_register_count = function->spilled_register_count;
+    int stack_register_count = function->stack_register_count;
 
     // Pre-color reserved registers
     if (live_range_reserved_pregs_offset > 0) {
@@ -260,7 +260,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         int vreg = ordered_nodes[i].vreg;
         if (!constrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, 0);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &stack_register_count, vreg, original_stack_indexes, 0);
     }
 
     // Color preferred preg nodes next
@@ -268,7 +268,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         int vreg = ordered_nodes[i].vreg;
         if (!preferred_pregs->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, preferred_live_range_preg_indexes[vreg]);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &stack_register_count, vreg, original_stack_indexes, preferred_live_range_preg_indexes[vreg]);
     }
 
     // Color unconstrained nodes lsat
@@ -276,7 +276,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         int vreg = ordered_nodes[i].vreg;
         if (!unconstrained->elements[vreg]) continue;
         if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
-        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &spilled_register_count, vreg, original_stack_indexes, 0);
+        color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &stack_register_count, vreg, original_stack_indexes, 0);
     }
 
     if (debug_register_allocation) {
@@ -291,7 +291,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     }
 
     function->vreg_locations = vreg_locations;
-    function->spilled_register_count = spilled_register_count;
+    function->stack_register_count = stack_register_count;
 
     free_set(constrained);
     free_set(unconstrained);
@@ -427,7 +427,7 @@ void allocate_registers(Function *function) {
             function->vreg_locations[i].preg = preg_map[function->vreg_locations[i].preg];
     }
 
-    total_spilled_register_count += function->spilled_register_count;
+    total_stack_register_count += function->stack_register_count;
 
     assign_vreg_locations(function);
     remove_preg_self_moves(function);

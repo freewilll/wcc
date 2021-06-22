@@ -55,7 +55,7 @@ static void append_quad_register_name(char *buffer, int preg) {
 // in alignment, allocating the ones with the largest alignment first, in order of
 // stack_index.
 void make_stack_offsets(Function *function) {
-    int count = function->spilled_register_count;
+    int count = function->stack_register_count;
 
     if (!count) return; // Nothing is on the stack
 

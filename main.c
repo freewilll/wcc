@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     int target_is_object_file = 0;
     int target_is_assembly_file = 0;
     int help = 0;
-    int print_spilled_register_count = 0;
+    int print_stack_register_count = 0;
     int print_instr_rules = 0;
     int print_instr_precision_decrease_rules = 0;
     int print_symbols = 0;
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
                  if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_spilled_register_count = 1;         argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_stack_register_count = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-coalesce-live-range"          )) { opt_enable_live_range_coalescing = 0;     argc--; argv++; }
@@ -297,10 +297,10 @@ int main(int argc, char **argv) {
                     assembler_output_filename = strdup(local_output_filename);
             }
 
-            compile(print_spilled_register_count, compiler_input_filename, compiler_output_filename);
+            compile(compiler_input_filename, compiler_output_filename);
 
             if (print_symbols) dump_symbols();
-            if (print_spilled_register_count) printf("spilled_register_count=%d\n", total_spilled_register_count);
+            if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
         }
 
         if (run_assembler) {
