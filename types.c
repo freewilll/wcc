@@ -83,6 +83,10 @@ int is_scalar_type(Type *type) {
     return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type >= TYPE_PTR));
 }
 
+int is_floating_point_type(Type *type) {
+    return (type->type >= TYPE_FLOAT && type->type <= TYPE_LONG_DOUBLE);
+}
+
 int get_type_size(Type *type) {
     int t;
 

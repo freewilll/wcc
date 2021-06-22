@@ -22,12 +22,12 @@ void optimize_arithmetic_operations(Function *function) {
             v = tac->src1;
             cv = tac->src2;
         }
-        if (cv) c = cv->value;
+        if (cv) c = cv->int_value;
 
         if (tac->operation == IR_MUL && cv) {
             if (c == 0) {
                 tac->operation = IR_MOVE;
-                tac->src1 = new_constant(tac->dst->type->type, 0);
+                tac->src1 = new_integral_constant(tac->dst->type->type, 0);
                 tac->src2 = 0;
             }
 
@@ -42,7 +42,7 @@ void optimize_arithmetic_operations(Function *function) {
                 while (c > 0) { c = c >> 1; l++; }
                 tac->operation = IR_BSHL;
                 tac->src1 = v;
-                tac->src2 = new_constant(TYPE_INT, l);
+                tac->src2 = new_integral_constant(TYPE_INT, l);
             }
         }
 
@@ -61,7 +61,7 @@ void optimize_arithmetic_operations(Function *function) {
                 while (c > 0) { c = c >> 1; l++; }
                 tac->operation = IR_BSHR;
                 tac->src1 = v;
-                tac->src2 = new_constant(TYPE_INT, l);
+                tac->src2 = new_integral_constant(TYPE_INT, l);
             }
         }
 
@@ -71,7 +71,7 @@ void optimize_arithmetic_operations(Function *function) {
 
             else if (c == 1) {
                 tac->operation = IR_MOVE;
-                tac->src1 = new_constant(tac->dst->type->type, 0);
+                tac->src1 = new_integral_constant(tac->dst->type->type, 0);
                 tac->src2 = 0;
             }
 
@@ -80,7 +80,7 @@ void optimize_arithmetic_operations(Function *function) {
                 while (c > 1) { c = c >> 1; l = (l << 1) | 1; }
                 tac->operation = IR_BAND;
                 tac->src1 = v;
-                tac->src2 = new_constant(TYPE_INT, l);
+                tac->src2 = new_integral_constant(TYPE_INT, l);
             }
         }
     }
@@ -150,7 +150,7 @@ void add_function_call_arg_moves(Function *function) {
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG && ir->src1->function_call_arg_index < 6) {
-            arg_values[ir->src1->value * 6 + ir->src1->function_call_arg_index] = ir->src2;
+            arg_values[ir->src1->int_value * 6 + ir->src1->function_call_arg_index] = ir->src2;
             ir->operation = IR_NOP;
             ir->dst = 0;
             ir->src1 = 0;
@@ -158,7 +158,7 @@ void add_function_call_arg_moves(Function *function) {
         }
 
         if (ir->operation == IR_CALL) {
-            Value **call_arg = &(arg_values[ir->src1->value * 6]);
+            Value **call_arg = &(arg_values[ir->src1->int_value * 6]);
             Function *called_function = ir->src1->function_symbol->function;
             int *function_call_arg_registers = malloc(sizeof(int) * 6);
             memset(function_call_arg_registers, 0, sizeof(int) * 6);

@@ -461,9 +461,9 @@ int match_value_to_rule_src(Value *v, int src) {
         if (v->type->type < TYPE_INT) panic1d("Unexpected constant type %d", v->type->type);
 
         // Match 1, 2 and 3
-             if (src == CSTV1 && v->value == 1) return 1;
-        else if (src == CSTV2 && v->value == 2) return 1;
-        else if (src == CSTV3 && v->value == 3) return 1;
+             if (src == CSTV1 && v->int_value == 1) return 1;
+        else if (src == CSTV2 && v->int_value == 2) return 1;
+        else if (src == CSTV3 && v->int_value == 3) return 1;
 
         // Check match with type from the parser. This is necessary for evil casts, e.g.
         // (unsigned int) -1, which would otherwise become a CU4 and not match rules for CU3.
@@ -473,15 +473,15 @@ int match_value_to_rule_src(Value *v, int src) {
         else if (              src == CU4 &&  v->type->is_unsigned)                                return 1;
 
         // Determine constant non termimal by looking at the signdness and value
-        else if (src >= CI1 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x80        && v->value < 0x80       ) return 1;
-        else if (src >= CI2 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x8000      && v->value < 0x8000     ) return 1;
-        else if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->value >= -0x80000000l && v->value < 0x80000000l) return 1;
-        else if (              src == CI4 && !v->type->is_unsigned)                                                       return 1;
+        else if (src >= CI1 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80        && v->int_value < 0x80       ) return 1;
+        else if (src >= CI2 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x8000      && v->int_value < 0x8000     ) return 1;
+        else if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80000000l && v->int_value < 0x80000000l) return 1;
+        else if (              src == CI4 && !v->type->is_unsigned)                                                               return 1;
 
-        else if (src >= CU1 && src <= CU4 &&  v->type->is_unsigned && v->value >= 0 && v->value < 0x100      ) return 1;
-        else if (src >= CU2 && src <= CU4 &&  v->type->is_unsigned && v->value >= 0 && v->value < 0x100000   ) return 1;
-        else if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->value >= 0 && v->value < 0x100000000) return 1;
-        else if (              src == CU4 &&  v->type->is_unsigned)                                            return 1;
+        else if (src >= CU1 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100      ) return 1;
+        else if (src >= CU2 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100000   ) return 1;
+        else if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100000000) return 1;
+        else if (              src == CU4 &&  v->type->is_unsigned)                                                    return 1;
 
         else return 0;
     }

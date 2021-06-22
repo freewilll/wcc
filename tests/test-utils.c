@@ -13,7 +13,7 @@ void assert_long(long expected, long actual) {
 
 void assert_value(Value *v1, Value *v2) {
     if (v1->is_constant)
-        assert_long(v1->value, v2->value);
+        assert_long(v1->int_value, v2->int_value);
     else if (v1->is_string_literal)
         assert_long(v1->vreg, v2->vreg);
     else if (v1->vreg) {
@@ -179,20 +179,20 @@ Value *l(int label) {
 }
 
 Value *csz(long value, int type_type) {
-    return new_constant(type_type, value);
+    return new_integral_constant(type_type, value);
 }
 
 Value *ci(int value) {
-    return new_constant(TYPE_INT, value);
+    return new_integral_constant(TYPE_INT, value);
 }
 
 Value *c(long value) {
-    return new_constant(TYPE_LONG, value);
+    return new_integral_constant(TYPE_LONG, value);
 }
 
 Value *uc(long value) {
     Value *v;
-    v = new_constant(TYPE_LONG, value);
+    v = new_integral_constant(TYPE_LONG, value);
     v->type->is_unsigned = 1;
     return v;
 }

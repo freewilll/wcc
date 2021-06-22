@@ -62,16 +62,24 @@ static Value *pl() {
 
 // Create a new typed constant value and push it to the stack.
 // type doesn't have to be dupped
-static void push_constant(int type_type, long value) {
-    push(new_constant(type_type, value));
+static void push_integral_constant(int type_type, long value) {
+    push(new_integral_constant(type_type, value));
 }
 
 // Push cur_long, using the lexer determined type cur_lexer_type
 static void push_cur_long() {
-    Value *v = new_constant(cur_lexer_type->type, cur_long);
+    Value *v = new_integral_constant(cur_lexer_type->type, cur_long);
     v->type->is_unsigned = cur_lexer_type->is_unsigned;
     push(v);
 }
+
+#ifdef FLOATS
+// Push push_cur_long_double
+static void push_cur_long_double() {
+    Value *v = new_floating_point_constant(TYPE_LONG_DOUBLE, cur_long_double);
+    push(v);
+}
+#endif
 
 // Add an operation to the IR
 static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *src2) {
@@ -415,7 +423,7 @@ static void and_or_expr(int is_and) {
 
     // Store zero & end
     add_jmp_target_instruction(ldst1);
-    push_constant(TYPE_INT, is_and ? 0 : 1); // Store 0
+    push_integral_constant(TYPE_INT, is_and ? 0 : 1); // Store 0
     add_instruction(IR_MOVE, dst, pl(), 0);
     push(dst);
     add_instruction(IR_JMP, 0, ldst3, 0);
@@ -424,7 +432,7 @@ static void and_or_expr(int is_and) {
     add_jmp_target_instruction(ldst2);
     parse_expression(TOK_BITWISE_OR);
     add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
-    push_constant(TYPE_INT, is_and ? 1 : 0);              // Store 1
+    push_integral_constant(TYPE_INT, is_and ? 1 : 0);     // Store 1
     add_instruction(IR_MOVE, dst, pl(), 0);
     push(dst);
 
@@ -580,9 +588,9 @@ static void parse_expression(int level) {
         parse_expression(TOK_INC);
 
         if (vtop->is_constant)
-            push_constant(TYPE_INT, !pop()->value);
+            push_integral_constant(TYPE_INT, !pop()->int_value);
         else {
-            push_constant(TYPE_INT, 0);
+            push_integral_constant(TYPE_INT, 0);
             arithmetic_operation(IR_EQ, new_type(TYPE_INT));
         }
     }
@@ -591,7 +599,7 @@ static void parse_expression(int level) {
         next();
         parse_expression(TOK_INC);
         if (vtop->is_constant)
-            push_constant(TYPE_LONG, ~pop()->value);
+            push_integral_constant(TYPE_LONG, ~pop()->int_value);
         else {
             Type *type = vtop->type;
             add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
@@ -619,7 +627,7 @@ static void parse_expression(int level) {
         Value *v1 = pop();                 // lvalue
         Value *src1 = load(dup_value(v1)); // rvalue
         push(src1);
-        push_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
+        push_integral_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
         arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
         add_instruction(IR_MOVE, v1, vtop, 0);
         push(v1); // Push the original lvalue back on the value stack
@@ -645,7 +653,7 @@ static void parse_expression(int level) {
             next();
         }
         else {
-            push_constant(TYPE_INT, -1);
+            push_integral_constant(TYPE_INT, -1);
             parse_expression(TOK_INC);
             arithmetic_operation(IR_MUL, 0);
         }
@@ -680,6 +688,13 @@ static void parse_expression(int level) {
         next();
     }
 
+    #ifdef FLOATS
+    else if (cur_token == TOK_FLOATING_POINT_NUMBER) {
+        push_cur_long_double();
+        next();
+    }
+    #endif
+
     else if (cur_token == TOK_STRING_LITERAL) {
         Value *dst = new_value();
         dst->vreg = new_vreg();
@@ -705,13 +720,13 @@ static void parse_expression(int level) {
         Type *type = dup_type(symbol->type);
         Scope *scope = symbol->scope;
         if (symbol->is_enum)
-            push_constant(TYPE_INT, symbol->value);
+            push_integral_constant(TYPE_INT, symbol->value);
         else if (cur_token == TOK_LPAREN) {
             // Function call
             int function_call = function_call_count++;
             next();
             Value *src1 = new_value();
-            src1->value = function_call;
+            src1->int_value = function_call;
             src1->is_constant = 1;
             src1->type = new_type(TYPE_LONG);
             add_instruction(IR_START_CALL, 0, src1, 0);
@@ -731,7 +746,7 @@ static void parse_expression(int level) {
             consume(TOK_RPAREN, ")");
 
             Value *function_value = new_value();
-            function_value->value = function_call;
+            function_value->int_value = function_call;
             function_value->function_symbol = symbol;
             function_value->function_call_arg_count = arg_count;
             src1->function_call_arg_count = arg_count;
@@ -770,7 +785,7 @@ static void parse_expression(int level) {
             parse_expression(TOK_COMMA);
             type = pop()->type;
         }
-        push_constant(TYPE_LONG, get_type_size(type));
+        push_integral_constant(TYPE_LONG, get_type_size(type));
         consume(TOK_RPAREN, ")");
     }
 
@@ -791,7 +806,7 @@ static void parse_expression(int level) {
             parse_expression(TOK_COMMA);
 
             if (factor > 1) {
-                push_constant(TYPE_INT, factor);
+                push_integral_constant(TYPE_INT, factor);
                 arithmetic_operation(IR_MUL, 0);
             }
 
@@ -811,7 +826,7 @@ static void parse_expression(int level) {
             Value *v1 = pop();                 // lvalue
             Value *src1 = load(dup_value(v1)); // rvalue
             push(src1);
-            push_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
+            push_integral_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
             add_instruction(IR_MOVE, v1, vtop, 0);
             pop(); // Pop the lvalue of the assignment off the stack
@@ -847,7 +862,7 @@ static void parse_expression(int level) {
                 vtop->is_lvalue = 0;
                 vtop->type = make_ptr(vtop->type);
 
-                push_constant(TYPE_INT, member->offset);
+                push_integral_constant(TYPE_INT, member->offset);
                 arithmetic_operation(IR_ADD, 0);
             }
 
@@ -883,7 +898,7 @@ static void parse_expression(int level) {
 
             if (factor > 1) {
                 if (!src2_is_pointer) {
-                    push_constant(TYPE_INT, factor);
+                    push_integral_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_MUL, 0);
                 }
             }
@@ -900,7 +915,7 @@ static void parse_expression(int level) {
 
             if (factor > 1) {
                 if (!src2_is_pointer) {
-                    push_constant(TYPE_INT, factor);
+                    push_integral_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_MUL, 0);
                 }
 
@@ -908,7 +923,7 @@ static void parse_expression(int level) {
 
                 if (src2_is_pointer) {
                     vtop->type = new_type(TYPE_LONG);
-                    push_constant(TYPE_INT, factor);
+                    push_integral_constant(TYPE_INT, factor);
                     arithmetic_operation(IR_DIV, 0);
                 }
             }
@@ -980,7 +995,7 @@ static void parse_expression(int level) {
             parse_expression(TOK_EQ);
 
             if (factor > 1) {
-                push_constant(TYPE_INT, factor);
+                push_integral_constant(TYPE_INT, factor);
                 arithmetic_operation(IR_MUL, new_type(TYPE_INT));
             }
 
@@ -1011,9 +1026,9 @@ static void parse_iteration_statement() {
     int prev_loop = cur_loop;
     cur_loop = ++loop_count;
     Value *src1 = new_value();
-    src1->value = prev_loop;
+    src1->int_value = prev_loop;
     Value *src2 = new_value();
-    src2->value = cur_loop;
+    src2->int_value = cur_loop;
     add_instruction(IR_START_LOOP, 0, src1, src2);
 
     int loop_token = cur_token;

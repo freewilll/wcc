@@ -26,14 +26,25 @@ Value *new_value() {
     return v;
 }
 
-// Create a new typed constant value.
-Value *new_constant(int type_type, long value) {
+// Create a new typed integral constant value.
+Value *new_integral_constant(int type_type, long value) {
     Value *cv = new_value();
-    cv->value = value;
+    cv->int_value = value;
     cv->type = new_type(type_type);
     cv->is_constant = 1;
     return cv;
 }
+
+#ifdef FLOATS
+// Create a new typed floating point constant value.
+Value *new_floating_point_constant(int type_type, long double value) {
+    Value *cv = new_value();
+    cv->fp_value = value;
+    cv->type = new_type(type_type);
+    cv->is_constant = 1;
+    return cv;
+}
+#endif
 
 Value *new_preg_value(int preg) {
     Value *v = new_value();
@@ -56,7 +67,7 @@ Value *dup_value(Value *src) {
     dst->is_constant                         = src->is_constant;
     dst->is_string_literal                   = src->is_string_literal;
     dst->string_literal_index                = src->string_literal_index;
-    dst->value                               = src->value;
+    dst->int_value                           = src->int_value;
     dst->function_symbol                     = src->function_symbol;
     dst->is_function_call_arg                = src->is_function_call_arg;
     dst->is_function_param                   = src->is_function_param;
@@ -146,8 +157,16 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
     if (is_assignment_rhs && !v->is_lvalue && !v->vreg && !v->is_constant) c += fprintf(f, "&");
     if (!is_assignment_rhs && v->is_lvalue && v->vreg) c += fprintf(f, "L");
 
-    if (v->is_constant)
-        c += fprintf(f, "%ld", v->value);
+    if (v->is_constant) {
+        if (is_integer_type(v->type))
+            c += fprintf(f, "%ld", v->int_value);
+        else
+            #ifdef FLOATS
+            c += fprintf(f, "%Lf", v->fp_value);
+            #else
+            panic("Floating point support must be activated with -D FLOATS");
+            #endif
+    }
     else if (v->preg != -1)
         c += fprintf(f, "p%d", v->preg);
     else if (v->local_index)
@@ -172,7 +191,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
     }
     else
         // What's this?
-        c += fprintf(f, "?%ld", v->value);
+        c += fprintf(f, "?%ld", v->int_value);
 
     if (!v->label) {
         c += fprintf(f, ":");
@@ -281,11 +300,11 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     if (o == IR_MOVE)
         print_value(f, tac->src1, 1);
 
-    else if (o == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->value);
-    else if (o == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->value);
+    else if (o == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->int_value);
+    else if (o == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->int_value);
 
     else if (o == IR_ARG || o == X_ARG) {
-        fprintf(f, "arg for call %ld ", tac->src1->value);
+        fprintf(f, "arg for call %ld ", tac->src1->int_value);
         print_value(f, tac->src2, 1);
     }
 
@@ -302,8 +321,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
             fprintf(f, "return");
     }
 
-    else if (o == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->value, tac->src2->value);
-    else if (o == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->value, tac->src2->value);
+    else if (o == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->int_value, tac->src2->int_value);
+    else if (o == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->int_value, tac->src2->int_value);
 
     else if (o == IR_MOVE_TO_PTR)
         print_value(f, tac->src2, 1);
@@ -447,16 +466,16 @@ void reverse_function_argument_order(Function *function) {
         Tac *call_start = 0;
         Tac *call = 0;
         while (tac) {
-            if (tac->operation == IR_START_CALL && tac->src1->value == i) {
+            if (tac->operation == IR_START_CALL && tac->src1->int_value == i) {
                 call_start = tac;
                 tac = tac->next;
                 args[arg_count].start = tac;
             }
-            else if (tac->operation == IR_END_CALL && tac->src1->value == i) {
+            else if (tac->operation == IR_END_CALL && tac->src1->int_value == i) {
                 call = tac->prev;
                 tac = tac->next;
             }
-            else if (tac->operation == IR_ARG && tac->src1->value == i) {
+            else if (tac->operation == IR_ARG && tac->src1->int_value == i) {
                 args[arg_count].end = tac;
                 arg_count++;
                 tac = tac->next;

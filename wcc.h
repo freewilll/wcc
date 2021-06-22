@@ -141,7 +141,10 @@ typedef struct value {
     int is_constant;                         // Is it a constant? If so, value is the value.
     int is_string_literal;                   // Is the value a string literal?
     int string_literal_index;                // Index in the string_literals array in the case of a string literal
-    long value;                              // Value in the case of a constant
+    long int_value;                          // Value in the case of an integer constant
+    #ifdef FLOATS
+    long double fp_value;                    // Value in the case of a floating point constant
+    #endif
     Symbol *function_symbol;                 // Corresponding symbol in the case of a function call
     int is_function_call_arg;                // Index of the argument going left to right (0=leftmost)
     int is_function_param;                   // Is it a function parameter?
@@ -538,6 +541,7 @@ Type *dup_type(Type *src);
 Type *make_ptr(Type *src);
 Type *deref_ptr(Type *type);
 int is_integer_type(Type *type);
+int is_floating_point_type(Type *type);
 int is_scalar_type(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
@@ -546,7 +550,10 @@ int type_eq(Type *type1, Type *type2);
 // ir.c
 void init_value(Value *v);
 Value *new_value();
-Value *new_constant(int type_type, long value);
+Value *new_integral_constant(int type_type, long value);
+#ifdef FLOATS
+Value *new_floating_point_constant(int type_type, long double value);
+#endif
 Value *new_preg_value(int preg);
 Value *dup_value(Value *src);
 void add_tac_to_ir(Tac *tac);

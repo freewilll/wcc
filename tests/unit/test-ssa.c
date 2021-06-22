@@ -41,13 +41,13 @@ void test_arithmetic_optimization_mul() {
     // v2 = 0 * v1
     run_arithmetic_optimization(IR_MUL, c(0), v(1));
     assert(1, ir_start->src1->is_constant);
-    assert(0, ir_start->src1->value);
+    assert(0, ir_start->src1->int_value);
     assert(0, (int) ir_start->src2);
 
     // v2 = v1 * 0
     run_arithmetic_optimization(IR_MUL, v(1), c(0));
     assert(1, ir_start->src1->is_constant);
-    assert(0, ir_start->src1->value);
+    assert(0, ir_start->src1->int_value);
     assert(0, (int) ir_start->src2);
 
     // v2 = 1 * v1
@@ -65,21 +65,21 @@ void test_arithmetic_optimization_mul() {
     assert(IR_BSHL, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
-    assert(1, ir_start->src2->value);
+    assert(1, ir_start->src2->int_value);
 
     // v2 = v1 * 2
     run_arithmetic_optimization(IR_MUL, v(1), c(2));
     assert(IR_BSHL, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
-    assert(1, ir_start->src2->value);
+    assert(1, ir_start->src2->int_value);
 
     // v2 = v1 * 4
     run_arithmetic_optimization(IR_MUL, v(1), c(4));
     assert(IR_BSHL, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
-    assert(2, ir_start->src2->value);
+    assert(2, ir_start->src2->int_value);
 }
 
 void test_arithmetic_optimization_div() {
@@ -93,14 +93,14 @@ void test_arithmetic_optimization_div() {
     assert(IR_BSHR, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
-    assert(1, ir_start->src2->value);
+    assert(1, ir_start->src2->int_value);
 
     // v2 = v1 / 4
     run_arithmetic_optimization(IR_DIV, v(1), c(4));
     assert(IR_BSHR, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
-    assert(2, ir_start->src2->value);
+    assert(2, ir_start->src2->int_value);
 }
 
 void test_arithmetic_optimization_mod() {
@@ -114,21 +114,21 @@ void test_arithmetic_optimization_mod() {
     assert(IR_BAND, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
-    assert(1, ir_start->src2->value);
+    assert(1, ir_start->src2->int_value);
 
     // v2 = v1 % 4
     run_arithmetic_optimization(IR_MOD, v(1), c(4));
     assert(IR_BAND, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
-    assert(3, ir_start->src2->value);
+    assert(3, ir_start->src2->int_value);
 
     // v2 = v1 % 8
     run_arithmetic_optimization(IR_MOD, v(1), c(8));
     assert(IR_BAND, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
-    assert(7, ir_start->src2->value);
+    assert(7, ir_start->src2->int_value);
 }
 
 void test_arithmetic_optimization() {

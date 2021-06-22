@@ -196,7 +196,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     else panic1d("Unknown register size %d", x86_size);
                 }
                 else if (v->is_constant)
-                    sprintf(buffer, "%ld", v->value);
+                    sprintf(buffer, "%ld", v->int_value);
                 else if (v->is_string_literal)
                     sprintf(buffer, ".SL%d(%%rip)", v->string_literal_index);
                 else if (v->global_symbol)
@@ -274,11 +274,11 @@ static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
 }
 
 static Tac *add_sub_rsp(Tac *ir, int amount) {
-    return insert_x86_instruction(ir, X_SUB, new_preg_value(REG_RSP), new_constant(TYPE_LONG, amount), 0, "subq $%v1q, %vdq");
+    return insert_x86_instruction(ir, X_SUB, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "subq $%v1q, %vdq");
 }
 
 static Tac *add_add_rsp(Tac *ir, int amount) {
-    return insert_x86_instruction(ir, X_ADD, new_preg_value(REG_RSP), new_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
+    return insert_x86_instruction(ir, X_ADD, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
 }
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
@@ -407,15 +407,15 @@ void merge_rsp_func_call_add_subs(Function *function) {
                 // No labels are involved
                 !tac->label && !tac->next->label) {
 
-            int value = tac->operation == X_ADD ? tac->src1->value : -tac->src1->value;
-            value += tac->next->operation == X_ADD ? tac->next->src1->value : -tac->next->src1->value;
+            int value = tac->operation == X_ADD ? tac->src1->int_value : -tac->src1->int_value;
+            value += tac->next->operation == X_ADD ? tac->next->src1->int_value : -tac->next->src1->int_value;
             if (!value) {
                 tac = delete_instruction(tac);
                 tac = delete_instruction(tac);
             } else {
                 tac = delete_instruction(tac);
                 tac->operation = value < 0 ? X_SUB : X_ADD;
-                tac->src1->value = value > 0 ? value : -value;
+                tac->src1->int_value = value > 0 ? value : -value;
             }
         }
     }
