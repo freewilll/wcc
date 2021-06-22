@@ -269,6 +269,11 @@ static Type *parse_struct_base_type(int allow_incomplete_structs) {
         int member_count = 0;
         int biggest_alignment = 0;
         while (cur_token != TOK_RCURLY) {
+            if (cur_token == TOK_HASH) {
+                parse_directive();
+                continue;
+            }
+
             Type *base_type = parse_base_type(1);
             while (cur_token != TOK_SEMI) {
                 Type *type = dup_type(base_type);
