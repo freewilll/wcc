@@ -149,8 +149,8 @@ void add_function_call_arg_moves(Function *function) {
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_ARG && ir->src1->function_call_arg_index < 6) {
-            arg_values[ir->src1->int_value * 6 + ir->src1->function_call_arg_index] = ir->src2;
+        if (ir->operation == IR_ARG && ir->src1->function_call_register_arg_index >= 0) {
+            arg_values[ir->src1->int_value * 6 + ir->src1->function_call_register_arg_index] = ir->src2;
             ir->operation = IR_NOP;
             ir->dst = 0;
             ir->src1 = 0;
@@ -198,7 +198,7 @@ void add_function_call_arg_moves(Function *function) {
                 tac->src1 = *call_arg;
                 tac->src1->preferred_live_range_preg_index = arg_registers[i];
                 tac->dst->is_function_call_arg = 1;
-                tac->dst->function_call_arg_index = i;
+                tac->dst->function_call_register_arg_index = i;
                 insert_instruction(ir, tac, 1);
 
                 function_call_arg_registers[i] = tac->dst->vreg;
@@ -1337,7 +1337,7 @@ static void force_function_call_arg(char *interference_graph, int vreg_count, Se
     // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
     // register allocated to them.
     if (value && value->is_function_call_arg) {
-        int arg = value->function_call_arg_index;
+        int arg = value->function_call_register_arg_index;
         if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
         force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[arg]);
     }

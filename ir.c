@@ -76,8 +76,9 @@ Value *dup_value(Value *src) {
     dst->is_function_param                   = src->is_function_param;
     dst->function_param_index                = src->function_param_index;
     dst->function_param_original_stack_index = src->function_param_original_stack_index;
-    dst->function_call_arg_index             = src->function_call_arg_index;
-    dst->function_call_arg_count             = src->function_call_arg_count;
+    dst->function_call_register_arg_index    = src->function_call_register_arg_index;
+    dst->function_call_arg_stack_padding     = src->function_call_arg_stack_padding;
+    dst->function_call_arg_push_count        = src->function_call_arg_push_count;
     dst->global_symbol                       = src->global_symbol;
     dst->label                               = src->label;
     dst->ssa_subscript                       = src->ssa_subscript;
@@ -310,9 +311,13 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, "arg for call %ld ", tac->src1->int_value);
         print_value(f, tac->src2, 1);
     }
+    else if (o == X_EXTRA_ARG) {
+        fprintf(f, "arg extra push for call %ld ", tac->src1->int_value);
+        print_value(f, tac->src2, 1);
+    }
 
     else if (o == IR_CALL) {
-        fprintf(f, "call \"%s\" with %d params", tac->src1->function_symbol->identifier, tac->src1->function_call_arg_count);
+        fprintf(f, "call \"%s\"", tac->src1->function_symbol->identifier);
     }
 
     else if (o == IR_RETURN) {

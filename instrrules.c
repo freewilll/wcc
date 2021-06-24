@@ -557,6 +557,7 @@ void init_instruction_selection_rules() {
     r = add_rule(CSTV2, 0, CSTV2, 0, 0);
     r = add_rule(CSTV3, 0, CSTV3, 0, 0);
     r = add_rule(XM,    0, XM,    0, 0); fin_rule(r);
+    r = add_rule(MLD5,  0, MLD5,  0, 0);
     r = add_rule(XRP,   0, XRP,   0, 0); fin_rule(r);
     r = add_rule(STL,   0, STL,   0, 0);
     r = add_rule(LAB,   0, LAB,   0, 0);
@@ -627,6 +628,18 @@ void init_instruction_selection_rules() {
     r = add_rule(XRP,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
 
     r = add_rule(0, IR_ARG, CI4, XC, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
+
+    // Long double constant arg
+    r = add_rule(0, IR_ARG, CI4, CLD, 2);
+    add_op(r, X_MOV,       SRC2,  SRC2, 0,    "movabsq %v1H, %%r10");
+    add_op(r, X_ARG,       0,     SRC1, SRC1, "pushq %%r10");
+    add_op(r, X_MOV,       SRC2,  SRC2, 0,    "movabsq %v1L, %%r10");
+    add_op(r, X_EXTRA_ARG, 0,     SRC1, SRC1, "pushq %%r10");
+
+    // Long double memory arg
+    r = add_rule(0, IR_ARG, CI4, MLD5, 2);
+    add_op(r, X_ARG, SRC2, SRC2, 0,    "pushq %v1H");
+    add_op(r, X_EXTRA_ARG, SRC2, SRC2, 0,    "pushq %v1L");
 
     // Add rules for sign/zero extention of an arg, but at a high cost, to encourage other rules to take precedence
     r = add_rule(0, IR_ARG, CI4, RI1, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_function_call_arg_op(r);

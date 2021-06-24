@@ -150,11 +150,11 @@ typedef struct value {
     int is_function_param;                   // Is it a function parameter?
     int function_param_index;                // Index of the parameter
     int function_param_original_stack_index; // Original stack index for function parameter pushed onto the stack
-    int function_call_arg_index;             // Index of the argument going left to right (0=leftmost)
-    int function_call_arg_count;             // Number of arguments in the case of a function call
+    int function_call_register_arg_index;    // Index of the argument  in registers going left to right (0=leftmost). Set to -1 if it's on the stack/
+    int function_call_arg_stack_padding;     // Extra initial padding needed to align the function call argument pushed arguments
+    int function_call_arg_push_count;        // Number of arguments pushed on the stack
     Symbol *global_symbol;                   // Pointer to a global symbol if the value is a global symbol
     int label;                               // Target label in the case of jump instructions
-    int pushed_stack_aligned_quad;           // Used in code generation to remember if an additional quad was pushed to align the stack for a function call
     int ssa_subscript;                       // Optional SSA enumeration
     int live_range;                          // Optional SSA live range
     char preferred_live_range_preg_index;    // Preferred physical register
@@ -700,7 +700,8 @@ enum {
     // x86 instructions
     X_START = 1000,
     X_RET,
-    X_ARG,
+    X_ARG,             // Function arg, first push
+    X_EXTRA_ARG,       // Function arg, extra pushes (if needed)
     X_CALL,
 
     X_MOV,

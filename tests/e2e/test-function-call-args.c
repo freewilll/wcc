@@ -1,8 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "../test-lib.h"
 
 int verbose;
 int passes;
 int failures;
+
+#ifdef FLOATS
+long double gld;
+#endif
 
 int fca0() {
     assert_int(1, 1, "function call with 0 args");
@@ -110,6 +118,68 @@ void test_sign_extension_pushed_params() {
     test_pushed_param_ul(0, 0, 0, 0, 0, 0, ul);
 }
 
+#ifdef FLOATS
+// These tests stack layout is correct from an ABI point of view by checking
+// convoluted combinations of ints and double longs beyond the 6 scalar-arg limit
+void test_long_double_stack_zero_offset() {
+    char *buffer;
+    long double ld = 1.3;
+    gld = 1.4;
+
+    buffer = malloc(100);
+
+    sprintf(buffer, "%5.5Lf %5.5Lf", 1.1l, 1.2l);
+    assert_int(0, strcmp(buffer, "1.10000 1.20000"), "Long double zero sprintf cst");
+
+    sprintf(buffer, "%5.5Lf %5.5Lf", ld, gld);
+    assert_int(0, strcmp(buffer, "1.30000 1.40000"), "Long double zero sprintf ld & gld");
+
+    sprintf(buffer, "%5.5Lf %d %d %d %d %d %d", 1.1l, 1, 2, 3, 4, 5, 6);
+    assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6"), "Long double zero sprintf 1");
+
+    sprintf(buffer, "%5.5Lf %d %d %d %d %d %d %Lf", 1.1l, 1, 2, 3, 4, 5, 6, 1.2l);
+    assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6 1.200000"), "Long double zero sprintf 2");
+
+    sprintf(buffer, "%5.5Lf %d %d %d %d %d %d %d %Lf", 1.1l, 1, 2, 3, 4, 5, 6, 7, 1.2l);
+    assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6 7 1.200000"), "Long double zero sprintf 3");
+
+    sprintf(buffer, "%5.5Lf %d %d %d %d %d %d %d %Lf %d", 1.1l, 1, 2, 3, 4, 5, 6, 7, 1.2l, 1);
+    assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6 7 1.200000 1"), "Long double zero sprintf 4");
+}
+
+void test_long_double_stack_eight_offset() {
+    char *buffer;
+    long double ld = 1.3;
+
+    // Add something to the stack to ensure the tests pass on a stack with an extra
+    // offset of 8 bytes.
+    int i, *j;
+    j = &i; // This forces i onto the stack, allocating 8 bytes.
+
+    gld = 1.4;
+
+    buffer = malloc(100);
+
+    sprintf(buffer, "%5.5Lf %5.5Lf", 1.1l, 1.2l);
+    assert_int(0, strcmp(buffer, "1.10000 1.20000"), "Long double eight sprintf cst");
+
+    sprintf(buffer, "%5.5Lf %5.5Lf", ld, gld);
+    assert_int(0, strcmp(buffer, "1.30000 1.40000"), "Long double eight sprintf ld & gld");
+
+    sprintf(buffer, "%5.5Lf %d %d %d %d %d %d", 1.1l, 1, 2, 3, 4, 5, 6);
+    assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6"), "Long double eight sprintf 1");
+
+    sprintf(buffer, "%5.5Lf %d %d %d %d %d %d %Lf", 1.1l, 1, 2, 3, 4, 5, 6, 1.2l);
+    assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6 1.200000"), "Long double eight sprintf 2");
+
+    sprintf(buffer, "%5.5Lf %d %d %d %d %d %d %d %Lf", 1.1l, 1, 2, 3, 4, 5, 6, 7, 1.2l);
+    assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6 7 1.200000"), "Long double eight sprintf 3");
+
+    sprintf(buffer, "%5.5Lf %d %d %d %d %d %d %d %Lf %d", 1.1l, 1, 2, 3, 4, 5, 6, 7, 1.2l, 1);
+    assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6 7 1.200000 1"), "Long double eight sprintf 4");
+}
+#endif
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -128,6 +198,10 @@ int main(int argc, char **argv) {
 
     test_direct_register_use();
     test_sign_extension_pushed_params();
+    #ifdef FLOATS
+    test_long_double_stack_zero_offset();
+    test_long_double_stack_eight_offset();
+    #endif
 
     finalize();
 }

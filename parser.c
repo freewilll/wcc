@@ -29,6 +29,7 @@ static Value *pop() {
 // rvalues.
 static Value *load(Value *src1) {
     if (src1->is_constant) return src1;
+    if (src1->type->type == TYPE_LONG_DOUBLE) return src1;
     if (src1->vreg && !src1->is_lvalue) return src1;
 
     Value *dst = dup_value(src1);
@@ -731,13 +732,39 @@ static void parse_expression(int level) {
             src1->type = new_type(TYPE_LONG);
             add_instruction(IR_START_CALL, 0, src1, 0);
             int arg_count = 0;
+            int scalar_arg_count = 0;
+
+            int offset = 0;
+            int biggest_alignment = 0;
+
             while (1) {
                 if (cur_token == TOK_RPAREN) break;
                 parse_expression(TOK_COMMA);
                 Value *arg = dup_value(src1);
                 if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
-                arg->function_call_arg_index = arg_count;
+
+                int is_scalar = is_scalar_type(vtop->type);
+                if (is_scalar)
+                    arg->function_call_register_arg_index = scalar_arg_count < 6 ? scalar_arg_count : -1;
+                else
+                    arg->function_call_register_arg_index = -1;
+
+                int is_push = !is_scalar || scalar_arg_count >= 6;
+                if (is_push) {
+                    int alignment = get_type_alignment(vtop->type);
+                    if (alignment < 8) alignment = 8;
+                    if (alignment > biggest_alignment) biggest_alignment = alignment;
+                    int padding = ((offset + alignment  - 1) & (~(alignment - 1))) - offset;
+                    offset += padding;
+                    arg->function_call_arg_stack_padding = padding;
+
+                    int type_size = get_type_size(vtop->type);
+                    if (type_size < 8) type_size = 8;
+                    offset += type_size;
+                }
+
                 add_instruction(IR_ARG, 0, arg, pl());
+                scalar_arg_count += is_scalar;
                 arg_count++;
                 if (cur_token == TOK_RPAREN) break;
                 consume(TOK_COMMA, ",");
@@ -745,11 +772,15 @@ static void parse_expression(int level) {
             }
             consume(TOK_RPAREN, ")");
 
+            int padding = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1))) - offset;
+            int size = offset + padding;
+            src1->function_call_arg_stack_padding = padding;
+
             Value *function_value = new_value();
             function_value->int_value = function_call;
             function_value->function_symbol = symbol;
-            function_value->function_call_arg_count = arg_count;
-            src1->function_call_arg_count = arg_count;
+            function_value->function_call_arg_push_count = size / 8;
+            src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
 
             Value *return_value = 0;
             if (type->type != TYPE_VOID) {

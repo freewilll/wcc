@@ -215,24 +215,29 @@ void next() {
                 finish_integer_constant(1);
             }
             else {
-                #ifdef FLOATS
                 // Continue lexing a floating point number
                 long decimal_digit_count = 0;
+                #ifdef FLOATS
                 long double decimal_part = 0;
                 long double divisor = 10;
+                #endif
                 if (i[ip] == '.') {
                     ip++;
                     while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) {
                         if (decimal_digit_count < 20) {
+                            #ifdef FLOATS
                             decimal_part = decimal_part + (i[ip] - '0') / divisor;
                             decimal_digit_count++;
                             divisor *= 10;
+                            #endif
                         }
                         ip++;
                     }
                 }
 
+                #ifdef FLOATS
                 long double exponent_factor = 1;
+                #endif
                 if (i[ip] == 'e' || i[ip] == 'E') {
                     ip++;
 
@@ -245,21 +250,25 @@ void next() {
 
                     int exponent = 0;
                     while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { exponent = exponent * 10 + (i[ip] - '0'); ip++; }
+                    #ifdef FLOATS
                     for (int j = 0; j < exponent; j++) exponent_factor *= 10;
                     if (is_negative) exponent_factor = 1 / exponent_factor;
-
+                    #endif
                 }
 
                 cur_token = TOK_FLOATING_POINT_NUMBER;
+                #ifdef FLOATS
                 cur_long_double = exponent_factor * (decimal_integer + decimal_part);
+                #endif
 
                 int type = TYPE_DOUBLE;
                 if (i[ip] == 'f' || i[ip] == 'F') { type = TYPE_FLOAT; ip++; }
                 if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++;  }
 
                 cur_lexer_type = new_type(type);
+                #ifdef FLOATS
                 #else
-                panic("Floating point support must be activated with -D FLOATS");
+                printf("Warning: floating point support must be activated with -D FLOATS, lexing a floating point literal to zero\n");
                 #endif
             }
         }
