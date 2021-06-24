@@ -217,16 +217,20 @@ void next() {
             else {
                 #ifdef FLOATS
                 // Continue lexing a floating point number
-                long decimal_long = 0;
                 long decimal_digit_count = 0;
+                long double decimal_part = 0;
+                long double divisor = 10;
                 if (i[ip] == '.') {
                     ip++;
-                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { decimal_long = decimal_long * 10 + (i[ip] - '0'); decimal_digit_count++; ip++; }
+                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) {
+                        if (decimal_digit_count < 20) {
+                            decimal_part = decimal_part + (i[ip] - '0') / divisor;
+                            decimal_digit_count++;
+                            divisor *= 10;
+                        }
+                        ip++;
+                    }
                 }
-
-                long double divisor = 1;
-                for (int j = 0; j < decimal_digit_count; j++) divisor *= 10;
-                long double decimal_part = (long double) decimal_long / divisor;
 
                 long double exponent_factor = 1;
                 if (i[ip] == 'e' || i[ip] == 'E') {
