@@ -638,8 +638,8 @@ void init_instruction_selection_rules() {
 
     // Long double memory arg
     r = add_rule(0, IR_ARG, CI4, MLD5, 2);
-    add_op(r, X_ARG, SRC2, SRC2, 0,    "pushq %v1H");
-    add_op(r, X_EXTRA_ARG, SRC2, SRC2, 0,    "pushq %v1L");
+    add_op(r, X_ARG,       0,    SRC1, SRC2, "pushq %v2H");
+    add_op(r, X_EXTRA_ARG, 0,    SRC1, SRC2, "pushq %v2L");
 
     // Add rules for sign/zero extention of an arg, but at a high cost, to encourage other rules to take precedence
     r = add_rule(0, IR_ARG, CI4, RI1, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_function_call_arg_op(r);
