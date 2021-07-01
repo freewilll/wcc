@@ -145,13 +145,26 @@ static void convert_register_param_stack_index(Function *function, int *register
         assign_register_param_value_to_register(v, register_param_vregs[function->param_count - v->stack_index + 1]);
 }
 
+// Convert a value that has a stack index >= 2, i.e. it's a pushed parameter into a vreg
+static void convert_pushed_param_stack_index(Function *function, int *stack_param_vregs, Value *v) {
+    if (v && !v->function_param_original_stack_index && v->stack_index >= 2 && stack_param_vregs[v->stack_index - 2])
+        assign_register_param_value_to_register(v, stack_param_vregs[v->stack_index - 2]);
+}
+
 // Add MOVE instructions for up to the the first 6 parameters of a function.
 // They are passed in as registers (rdi, rsi, ...). Either, the moves will go to
 // a new physical register, or, when possible, will remain in the original registers.
 // Param #7 and onwards are pushed onto the stack; nothing is done with those here.
-static void add_function_param_moves_for_registers(Function *function) {
+//
+// Move function parameters pushed the stack by the caller into registers.
+// They might get spilled, in which case function_param_original_stack_index is used
+// rather than allocating more space.
+void add_function_param_moves(Function *function) {
     int *register_param_vregs = malloc(sizeof(int) * 6);
     memset(register_param_vregs, -1, sizeof(int) * 6);
+
+    int *stack_param_vregs = malloc(sizeof(int) * (function->param_count));
+    memset(stack_param_vregs, -1, sizeof(int) * (function->param_count));
 
     ir = function->ir;
     // Add a second nop if nothing is there, which is used to insert instructions
@@ -165,78 +178,52 @@ static void add_function_param_moves_for_registers(Function *function) {
     int register_param_count = function->param_count;
     if (register_param_count > 6) register_param_count = 6;
 
-    for (int i = 0; i < register_param_count; i++) {
-        Tac *tac = new_instruction(IR_MOVE);
-        tac->dst = new_value();
-        tac->dst->type = dup_type(function->param_types[i]);
-        tac->dst->vreg = ++function->vreg_count;
-        register_param_vregs[i] = tac->dst->vreg;
+    for (int i = 0; i < function->param_count; i++) {
+        if (i < register_param_count) {
+            Tac *tac = new_instruction(IR_MOVE);
+            tac->dst = new_value();
+            tac->dst->type = dup_type(function->param_types[i]);
+            tac->dst->vreg = ++function->vreg_count;
+            register_param_vregs[i] = tac->dst->vreg;
 
-        tac->src1 = new_value();
-        tac->src1->type = dup_type(tac->dst->type);
-        tac->src1->vreg = ++function->vreg_count;
-        tac->src1->is_function_param = 1;
-        tac->src1->function_param_index = i;
-        insert_instruction(ir, tac, 1);
+            tac->src1 = new_value();
+            tac->src1->type = dup_type(tac->dst->type);
+            tac->src1->vreg = ++function->vreg_count;
+            tac->src1->is_function_param = 1;
+            tac->src1->function_param_index = i;
+            insert_instruction(ir, tac, 1);
+        }
+        else if (i >= 6) {
+            Tac *tac = new_instruction(IR_MOVE);
+            tac->dst = new_value();
+            tac->dst->type = dup_type(function->param_types[function->param_count - i + 5]);
+            tac->dst->vreg = ++function->vreg_count;
+            stack_param_vregs[i - 6] = tac->dst->vreg;
+
+            tac->src1 = new_value();
+            tac->src1->type = dup_type(tac->dst->type);
+            // Add an offset to distinghuish them from parameters in registers
+            tac->src1->stack_index = 1000000 + i - 4;
+            tac->src1->is_lvalue = 1;
+            tac->src1->is_function_param = 1;
+            tac->src1->function_param_index = i;
+            tac->src1->function_param_original_stack_index = i - 4;
+            insert_instruction(ir, tac, 1);
+        }
     }
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         convert_register_param_stack_index(function, register_param_vregs, ir->dst);
         convert_register_param_stack_index(function, register_param_vregs, ir->src1);
         convert_register_param_stack_index(function, register_param_vregs, ir->src2);
+
+        if (ir->src1 && ir->src1->stack_index >= 1000000) ir->src1->stack_index -= 1000000;
+
+        convert_pushed_param_stack_index(function, stack_param_vregs, ir->dst);
+        convert_pushed_param_stack_index(function, stack_param_vregs, ir->src1);
+        convert_pushed_param_stack_index(function, stack_param_vregs, ir->src2);
     }
 
     free(register_param_vregs);
-}
-
-// Convert a value that has a stack index >= 2, i.e. it's a pushed parameter into a vreg
-static void convert_pushed_param_stack_index(Function *function, int *param_vregs, Value *v) {
-    if (v && !v->function_param_original_stack_index && v->stack_index >= 2 && param_vregs[v->stack_index - 2])
-        assign_register_param_value_to_register(v, param_vregs[v->stack_index - 2]);
-}
-
-// Move function parameters pushed the stack by the caller into registers.
-// They might get spilled, in which case function_param_original_stack_index is used
-// rather than allocating more space.
-static void add_function_param_moves_for_stack(Function *function) {
-    if (function->param_count <= 6) return;
-
-    int *param_vregs = malloc(sizeof(int) * (function->param_count - 6));
-    memset(param_vregs, -1, sizeof(int) * (function->param_count - 6));
-
-    ir = function->ir->next;
-    if (!ir) panic("Expected at least two instructions");
-
-    int register_param_count = function->param_count;
-    if (register_param_count > 6) register_param_count = 6;
-
-    for (int i = 6; i < function->param_count; i++) {
-        Tac *tac = new_instruction(IR_MOVE);
-        tac->dst = new_value();
-        tac->dst->type = dup_type(function->param_types[function->param_count - i + 5]);
-        tac->dst->vreg = ++function->vreg_count;
-        param_vregs[i - 6] = tac->dst->vreg;
-
-        tac->src1 = new_value();
-        tac->src1->type = dup_type(tac->dst->type);
-        tac->src1->stack_index = i - 4;
-        tac->src1->is_lvalue = 1;
-        tac->src1->is_function_param = 1;
-        tac->src1->function_param_index = i;
-        tac->src1->function_param_original_stack_index = i - 4;
-        insert_instruction(ir, tac, 1);
-    }
-
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        convert_pushed_param_stack_index(function, param_vregs, ir->dst);
-        convert_pushed_param_stack_index(function, param_vregs, ir->src1);
-        convert_pushed_param_stack_index(function, param_vregs, ir->src2);
-    }
-
-    free(param_vregs);
-}
-
-void add_function_param_moves(Function *function) {
-    add_function_param_moves_for_registers(function);
-    add_function_param_moves_for_stack(function);
+    free(stack_param_vregs);
 }
