@@ -605,10 +605,6 @@ int *live_range_preg_indexes;
 
 void optimize_arithmetic_operations(Function *function);
 void rewrite_lvalue_reg_assignments(Function *function);
-void add_function_call_result_moves(Function *function);
-void add_function_return_moves(Function *function);
-void add_function_call_arg_moves(Function *function);
-void add_function_param_moves(Function *function);
 void make_control_flow_graph(Function *function);
 void make_block_dominance(Function *function);
 void analyze_dominance(Function *function);
@@ -623,6 +619,12 @@ void blast_vregs_with_live_ranges(Function *function);
 void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void coalesce_live_ranges(Function *function, int check_register_constraints);
 void make_preferred_live_range_preg_indexes(Function *function);
+
+// functions.c
+void add_function_call_result_moves(Function *function);
+void add_function_return_moves(Function *function);
+void add_function_call_arg_moves(Function *function);
+void add_function_param_moves(Function *function);
 
 // regalloc.c
 int *physical_registers, *arg_registers, *preg_map;

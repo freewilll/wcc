@@ -7,6 +7,7 @@ SOURCES = \
   scopes.c \
   types.c \
   ir.c \
+  functions.c \
   ssa.c \
   regalloc.c \
   instrsel.c \
