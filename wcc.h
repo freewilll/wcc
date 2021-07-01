@@ -79,6 +79,7 @@ typedef struct symbol {
     struct scope* scope;        // Scope
     long value;                 // Value in the case of a constant
     int local_index;            // Used by the parser for locals variables and function arguments
+                                // < 0 is a local variable or tempoary, >= 2 is a function parameter
     int is_function;            // Is the symbol a function?
     int is_enum;                // Enums are symbols with a value
     struct function *function;  // Details specific to symbols that are functions
@@ -134,8 +135,8 @@ typedef struct value {
     int preg;                                // Allocated physical register
     int is_lvalue;                           // Is the value an lvalue?
     int is_lvalue_in_register;               // Is the value an lvalue in a register?
-    int local_index;                         // For locals variables and function arguments
-    int stack_index;                         // Allocated stack index in case of a spill
+    int local_index;                         // Used by parser for local variables, temporaries and function arguments
+    int stack_index;                         // stack index in case of a pushed function argument, & usage or register spill
     int stack_offset;                        // Position on the stack
     int spilled;                             // 1 if spilled
     int is_constant;                         // Is it a constant? If so, value is the value.
@@ -150,7 +151,7 @@ typedef struct value {
     int is_function_param;                   // Is it a function parameter?
     int function_param_index;                // Index of the parameter
     int function_param_original_stack_index; // Original stack index for function parameter pushed onto the stack
-    int function_call_register_arg_index;    // Index of the argument  in registers going left to right (0=leftmost). Set to -1 if it's on the stack/
+    int function_call_register_arg_index;    // Index of the argument  in registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_arg_stack_padding;     // Extra initial padding needed to align the function call argument pushed arguments
     int function_call_arg_push_count;        // Number of arguments pushed on the stack
     Symbol *global_symbol;                   // Pointer to a global symbol if the value is a global symbol

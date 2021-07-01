@@ -607,6 +607,7 @@ static void assign_local_to_register(Value *v, int vreg) {
 // The parser allocates a local_index for temporaries and local variables. Allocate
 // vregs for them unless any of them is used with an & operator, or are long doubles, in
 // which case, they must be on the stack.
+// Function parameters aren't touched in this function
 void allocate_value_vregs(Function *function) {
     int *on_stack = malloc(sizeof(int) * (function->local_symbol_count + 1));
     memset(on_stack, 0, sizeof(int) * (function->local_symbol_count + 1));
@@ -650,6 +651,8 @@ void make_stack_register_count(Function *function) {
 // - without a vreg,
 // - used in a & expression,
 // - are long double
+//
+// Pushed variables by the caller have local_index >= 2 and are mapped through.
 void allocate_value_stack_indexes(Function *function) {
     int stack_register_count = 0;
 

@@ -515,9 +515,11 @@ static void push_local_symbol(Symbol *symbol) {
     v->is_lvalue = 1;
 
     if (symbol->local_index >= 0)
-        // Step over pushed PC and BP
+        // Function parameter, step over pushed PC and BP to get the stack index
+        // local_index starts at 2 for the last arg
         v->local_index = cur_function_symbol->function->param_count - symbol->local_index + 1;
     else
+        // Local variable
         v->local_index = symbol->local_index;
 
     push(v);
