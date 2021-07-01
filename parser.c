@@ -735,7 +735,6 @@ static void parse_expression(int level) {
             add_instruction(IR_START_CALL, 0, src1, 0);
             int arg_count = 0;
             int scalar_arg_count = 0;
-
             int offset = 0;
             int biggest_alignment = 0;
 

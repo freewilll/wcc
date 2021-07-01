@@ -179,37 +179,32 @@ void add_function_param_moves(Function *function) {
     if (register_param_count > 6) register_param_count = 6;
 
     for (int i = 0; i < function->param_count; i++) {
-        if (i < register_param_count) {
-            Tac *tac = new_instruction(IR_MOVE);
-            tac->dst = new_value();
-            tac->dst->type = dup_type(function->param_types[i]);
-            tac->dst->vreg = ++function->vreg_count;
-            register_param_vregs[i] = tac->dst->vreg;
+        Type *type = function->param_types[i];
 
-            tac->src1 = new_value();
-            tac->src1->type = dup_type(tac->dst->type);
+        Tac *tac = new_instruction(IR_MOVE);
+        tac->dst = new_value();
+        tac->dst->type = dup_type(type);
+        tac->dst->vreg = ++function->vreg_count;
+
+        tac->src1 = new_value();
+        tac->src1->type = dup_type(tac->dst->type);
+        tac->src1->is_function_param = 1;
+        tac->src1->function_param_index = i;
+
+        if (i < register_param_count) {
+            register_param_vregs[i] = tac->dst->vreg;
             tac->src1->vreg = ++function->vreg_count;
-            tac->src1->is_function_param = 1;
-            tac->src1->function_param_index = i;
-            insert_instruction(ir, tac, 1);
         }
         else if (i >= 6) {
-            Tac *tac = new_instruction(IR_MOVE);
-            tac->dst = new_value();
-            tac->dst->type = dup_type(function->param_types[function->param_count - i + 5]);
-            tac->dst->vreg = ++function->vreg_count;
-            stack_param_vregs[i - 6] = tac->dst->vreg;
-
-            tac->src1 = new_value();
-            tac->src1->type = dup_type(tac->dst->type);
+            // The rightmost arg has stack index 2
+            int stack_index = function->param_count - i + 1;
+            stack_param_vregs[stack_index - 2] = tac->dst->vreg;
+            tac->src1->function_param_original_stack_index = stack_index;
             // Add an offset to distinghuish them from parameters in registers
-            tac->src1->stack_index = 1000000 + i - 4;
-            tac->src1->is_lvalue = 1;
-            tac->src1->is_function_param = 1;
-            tac->src1->function_param_index = i;
-            tac->src1->function_param_original_stack_index = i - 4;
-            insert_instruction(ir, tac, 1);
+            tac->src1->stack_index = 1000000 + stack_index;
         }
+
+        insert_instruction(ir, tac, 1);
     }
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
