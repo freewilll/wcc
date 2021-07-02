@@ -14,7 +14,7 @@ void add_function_call_result_moves(Function *function) {
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_CALL && ir->dst) {
+        if (ir->operation == IR_CALL && ir->dst && ir->dst->type->type != TYPE_LONG_DOUBLE) {
             Value *value = dup_value(ir->dst);
             value->vreg = ++function->vreg_count;
             Tac *tac = new_instruction(IR_MOVE);

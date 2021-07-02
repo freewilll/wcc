@@ -785,7 +785,12 @@ static void parse_expression(int level) {
             src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
 
             Value *return_value = 0;
-            if (type->type != TYPE_VOID) {
+            if (type->type == TYPE_LONG_DOUBLE) {
+                return_value = new_value();
+                return_value->local_index = -1 - cur_function_symbol->function->local_symbol_count++;
+                return_value->type = dup_type(type);
+            }
+            else if (type->type != TYPE_VOID) {
                 return_value = new_value();
                 return_value->vreg = new_vreg();
                 return_value->type = dup_type(type);

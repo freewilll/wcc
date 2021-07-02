@@ -266,6 +266,22 @@ long double global() {
     gld = 1.4;
     return gld;
 }
+
+void test_long_double_function_call_return_value() {
+    long double ld1;
+    char *buffer;
+
+    ld1 = cst1();
+    buffer = malloc(100);
+    sprintf(buffer, "%5.5Lf", ld1);
+    assert_int(0, strcmp(buffer, "1.10000"), "Long double assignment from function call");
+
+    gld = cst1();
+    buffer = malloc(100);
+    sprintf(buffer, "%5.5Lf", gld);
+    assert_int(0, strcmp(buffer, "1.10000"), "Long double assignment from function call");
+}
+
 #endif
 
 int main(int argc, char **argv) {
@@ -290,6 +306,7 @@ int main(int argc, char **argv) {
     test_long_double_stack_zero_offset();
     test_long_double_stack_eight_offset();
     test_long_double_pushed_params();
+    test_long_double_function_call_return_value();
     #endif
 
     finalize();

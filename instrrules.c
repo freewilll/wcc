@@ -635,9 +635,14 @@ void init_instruction_selection_rules() {
     add_pointer_rules(&ntc);
 
     // Function calls
-    r = add_rule(XRI,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
-    r = add_rule(XRU,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
-    r = add_rule(XRP,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+    r = add_rule(XRI, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+    r = add_rule(XRU, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+    r = add_rule(XRP, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+
+    // Function call with long double return value
+    r = add_rule(MLD5, IR_CALL, FUN, 0, 5);
+    add_op(r, X_CALL, DST, SRC1, 0, 0);
+    add_op(r, X_MOVC, DST, DST, 0, "fstpt %v1L");
 
     r = add_rule(0, IR_ARG, CI4, XC, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
 
