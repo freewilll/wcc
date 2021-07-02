@@ -134,6 +134,14 @@ static int get_stack_offset(int function_pc, Value *v) {
         printf("Unexpected stack_index %d\n", stack_index);
 }
 
+#ifdef FLOATS
+static int add_long_double_literal(long double value) {
+    long_double_literals[long_double_literal_count] = value;
+    if (long_double_literal_count >= MAX_LONG_DOUBLE_LITERALS) panic1d("Exceeded max long double literals %d", MAX_LONG_DOUBLE_LITERALS);
+    return long_double_literal_count++;
+}
+#endif
+
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
     char *t = tac->x86_template;
 
@@ -180,8 +188,10 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 #ifdef FLOATS
                 int low = 0;
                 int high = 0;
+                int long_double_literal = 0;
                      if (t[1] == 'L') { t++; low  = 1; }
                 else if (t[1] == 'H') { t++; high = 1; }
+                else if (t[1] == 'C') { t++; long_double_literal = 1; }
                 #endif
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
@@ -211,8 +221,10 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                             sprintf(buffer, "$%ld", *((long *) &v->fp_value));
                         else if (high)
                             sprintf(buffer, "$%ld", *((long *) &v->fp_value + 1));
+                        else if (long_double_literal)
+                            sprintf(buffer, ".LDL%d(%%rip)", add_long_double_literal(v->fp_value));
                         else
-                            panic("Did not get l/h specifier for double long constant");
+                            panic("Did not get L/H/C specifier for double long constant");
                         #else
                         panic("Floating point support must be activated with -D FLOATS");
                         #endif
@@ -230,7 +242,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         else if (high)
                             sprintf(buffer, "8+%s(%%rip)", v->global_symbol->identifier);
                         else
-                            panic("Did not get l/h specifier for double long constant");
+                            panic("Did not get L/H/C specifier for double long constant");
                         #else
                         panic("Floating point support must be activated with -D FLOATS");
                         #endif
@@ -247,7 +259,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         else if (high)
                             sprintf(buffer, "%d(%%rbp)", stack_offset + 8);
                         else
-                            panic("Did not get l/h specifier for double long stack index");
+                            panic("Did not get L/H specifier for double long stack index");
                         #else
                         panic("Floating point support must be activated with -D FLOATS");
                         #endif
@@ -553,6 +565,14 @@ void output_code(char *input_filename, char *output_filename) {
 
     label_count = 0; // Used in label renumbering
 
+    // Some long doubles need to be loaded from a .LDL section, allocate storage to
+    // hold the values.
+    string_literal_count = 0;
+    #ifdef FLOATS
+    long_double_literals = malloc(sizeof(long double) * MAX_LONG_DOUBLE_LITERALS);
+    #endif
+    long_double_literal_count = 0;
+
     // Output functions code
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
@@ -563,6 +583,21 @@ void output_code(char *input_filename, char *output_filename) {
         }
         symbol++;
     }
+
+    #ifdef FLOATS
+    // Output long double literals
+    if (long_double_literal_count > 0) {
+        for (int i = 0; i < long_double_literal_count; i++) {
+            long double ld = long_double_literals[i];
+            fprintf(f, ".LDL%d:\n", i);
+            fprintf(f, "    .long   %d\n", *((int *) &ld));
+            fprintf(f, "    .long   %d\n", *((int *) &ld + 1));
+            fprintf(f, "    .long   %d\n", *((int *) &ld + 2));
+            fprintf(f, "    .long   %d\n", *((int *) &ld + 3));
+        }
+        fprintf(f, "\n");
+    }
+    #endif
 
     fclose(f);
 }

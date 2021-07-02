@@ -257,7 +257,7 @@ static void add_return_rules() {
     Rule *r;
 
     // void
-    r = add_rule(0, IR_RETURN, 0, 0, 1); add_op(r, X_RET,DST, SRC1, 0, 0); fin_rule(r);
+    r = add_rule(0, IR_RETURN, 0, 0, 1); add_op(r, X_RET, DST, SRC1, 0, 0); fin_rule(r);
 
     // constants
     for (int i = 0; i < 4; i++) {
@@ -281,6 +281,10 @@ static void add_return_rules() {
 
     r = add_rule(XRP, IR_RETURN, CI4,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); add_ret(r);
     r = add_rule(XRP, IR_RETURN, CU4,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); add_ret(r);
+
+    // Long doubles
+    r = add_rule(0, IR_RETURN, CLDL, 0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1C");
+    r = add_rule(0, IR_RETURN, MLD5, 0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1L");
 }
 
 static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {
@@ -552,6 +556,7 @@ void init_instruction_selection_rules() {
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(XC,    0, XC,    0, 0); fin_rule(r);
     r = add_rule(CLD,   0, CLD,   0, 0);
+    r = add_rule(CLDL,  0, CLDL,  0, 0);
     r = add_rule(XR,    0, XR,    0, 0); fin_rule(r);
     r = add_rule(CSTV1, 0, CSTV1, 0, 0);
     r = add_rule(CSTV2, 0, CSTV2, 0, 0);

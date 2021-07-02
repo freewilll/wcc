@@ -30,7 +30,7 @@ void add_function_call_result_moves(Function *function) {
 // and forced into the RAX register.
 void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_RETURN && ir->src1) {
+        if (ir->operation == IR_RETURN && ir->src1 && ir->src1->type->type != TYPE_LONG_DOUBLE) {
             ir->dst = new_value();
             ir->dst->type = dup_type(function->return_type);
             ir->dst->vreg = ++function->vreg_count;

@@ -248,6 +248,24 @@ void test_long_double_pushed_params() {
     buffer = long_double_pushed_args_6ld_6i(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 1, 2, 3, 4, 5, 6);
     assert_int(0, strcmp(buffer, "1.10000 2.10000 3.10000 4.10000 5.10000 6.10000 1 2 3 4 5 6"), "Long double call args 6ld 6i");
 }
+
+long double cst1() {
+    return 1.1L;
+}
+
+long double cst2() {
+    return 1.2L;
+}
+
+long double local() {
+    long double ld = 1.3;
+    return ld;
+}
+
+long double global() {
+    gld = 1.4;
+    return gld;
+}
 #endif
 
 int main(int argc, char **argv) {

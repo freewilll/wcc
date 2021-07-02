@@ -213,6 +213,7 @@ enum {
     MAX_INPUT_SIZE                = 10485760,
     MAX_STRING_LITERAL_SIZE       = 4095,
     MAX_STRING_LITERALS           = 10240,
+    MAX_LONG_DOUBLE_LITERALS      = 10240,
     MAX_FUNCTION_CALL_ARGS        = 253,
     VALUE_STACK_SIZE              = 10240,
     MAX_VREG_COUNT                = 20480,
@@ -418,7 +419,9 @@ int in_ifdef;                   // In ifdef inclusion
 int in_ifdef_else;              // In ifdef exclusion
 Scope *cur_scope;               // Current scope.
 char **string_literals;         // Each string literal has an index in this array, with a pointer to the string literal
+long double *long_double_literals; // Each long double literal has an index in this array, with a pointer to the long double
 int string_literal_count;       // Amount of string literals
+int long_double_literal_count;  // Amount of long double literals
 
 Symbol *cur_function_symbol;     // Currently parsed function
 Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
@@ -651,6 +654,7 @@ enum {
     CI1, CI2, CI3, CI4,          // Constants
     CU1, CU2, CU3, CU4,          // Constants
     CLD,                         // Long double constant
+    CLDL,                        // Long double constant literal, in its own section, like string literals
     RI1, RI2, RI3, RI4,          // Signed registers
     RU1, RU2, RU3, RU4,          // Unsigned registers
     MI1, MI2, MI3, MI4,          // Memory, in stack or globals

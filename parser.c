@@ -1573,7 +1573,7 @@ void dump_symbols() {
 }
 
 void init_parser() {
-    string_literals = malloc(MAX_STRING_LITERALS);
+    string_literals = malloc(sizeof(char *) * MAX_STRING_LITERALS);
     string_literal_count = 0;
 
     all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
