@@ -716,6 +716,7 @@ enum {
     X_MOV,
     X_MOVZ, // Zero extend
     X_MOVS, // Sign extend
+    X_MOVC, // Move, but not allowed to be coalesced
 
     X_MOV_FROM_IND,
     X_MOV_FROM_SCALED_IND,

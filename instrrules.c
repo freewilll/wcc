@@ -609,6 +609,13 @@ void init_instruction_selection_rules() {
     add_op(r, X_MOV,  DST, SRC1, 0, "movabsq %v1L, %%r10"); add_op(r, X_MOV,  DST, SRC1, 0, "movq %%r10, %vdL");
     add_op(r, X_MOV,  DST, SRC1, 0, "movabsq %v1H, %%r10"); add_op(r, X_MOV,  DST, SRC1, 0, "movq %%r10, %vdH");
 
+    // Long double memory -> memory
+    r = add_rule(MLD5, IR_MOVE, MLD5,  0, 5);
+    add_op(r, X_MOVC,  SRC1, SRC1, 0, "movq %v1L, %%r10");
+    add_op(r, X_MOVC,  DST,  DST,  0, "movq %%r10, %vdL");
+    add_op(r, X_MOVC,  SRC1, SRC1, 0, "movq %v1H, %%r10");
+    add_op(r, X_MOVC,  DST,  DST,  0, "movq %%r10, %vdH");
+
     // Pointer move rules
     r = add_rule(RP1, IR_MOVE, STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
 

@@ -272,9 +272,9 @@ char *operation_string(int operation) {
     else if (operation == X_SETGE)                  return "setge";
     else if (operation == X_MOVS)                   return "movs";
     else if (operation == X_MOVZ)                   return "movz";
+    else if (operation == X_MOVC)                   return "movc";
     else panic1d("Unknown x86 operation %d", operation);
 }
-
 
 void print_instruction(void *f, Tac *tac, int expect_preg) {
     int o = tac->operation;
@@ -391,6 +391,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == X_MOV)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_MOVS)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_MOVZ)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_MOVC)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_ADD)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_MUL)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_IDIV)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
