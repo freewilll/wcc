@@ -515,9 +515,9 @@ static void push_local_symbol(Symbol *symbol) {
     v->is_lvalue = 1;
 
     if (symbol->local_index >= 0)
-        // Function parameter, step over pushed PC and BP to get the stack index
-        // local_index starts at 2 for the last arg
-        v->local_index = cur_function_symbol->function->param_count - symbol->local_index + 1;
+        // For historical and irrational sentimental reasons, pushed parameters start at
+        // stack_index 2.
+        v->local_index = symbol->local_index + 2;
     else
         // Local variable
         v->local_index = symbol->local_index;
@@ -744,6 +744,8 @@ static void parse_expression(int level) {
                 Value *arg = dup_value(src1);
                 if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
 
+                arg->function_call_arg_index = arg_count;
+
                 int is_scalar = is_scalar_type(vtop->type);
                 if (is_scalar)
                     arg->function_call_register_arg_index = scalar_arg_count < 6 ? scalar_arg_count : -1;
@@ -758,7 +760,6 @@ static void parse_expression(int level) {
                     int padding = ((offset + alignment  - 1) & (~(alignment - 1))) - offset;
                     offset += padding;
                     arg->function_call_arg_stack_padding = padding;
-
                     int type_size = get_type_size(vtop->type);
                     if (type_size < 8) type_size = 8;
                     offset += type_size;

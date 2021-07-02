@@ -77,6 +77,7 @@ Value *dup_value(Value *src) {
     dst->function_param_index                = src->function_param_index;
     dst->function_param_original_stack_index = src->function_param_original_stack_index;
     dst->function_call_register_arg_index    = src->function_call_register_arg_index;
+    dst->function_call_arg_index             = src->function_call_arg_index;
     dst->function_call_arg_stack_padding     = src->function_call_arg_stack_padding;
     dst->function_call_arg_push_count        = src->function_call_arg_push_count;
     dst->global_symbol                       = src->global_symbol;
@@ -617,9 +618,9 @@ void allocate_value_vregs(Function *function) {
         if (tac->operation == IR_ADDRESS_OF) on_stack[-tac->src1->local_index] = 1;
 
         // Long doubles are forced onto the stack.
-        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE) on_stack[-tac->dst ->local_index] = 1;
-        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE) on_stack[-tac->src1->local_index] = 1;
-        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE) on_stack[-tac->src2->local_index] = 1;
+        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
+        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
+        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
     }
 
     for (int i = 1; i <= function->local_symbol_count; i++) {

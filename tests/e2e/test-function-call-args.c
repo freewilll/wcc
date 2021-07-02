@@ -178,6 +178,76 @@ void test_long_double_stack_eight_offset() {
     sprintf(buffer, "%5.5Lf %d %d %d %d %d %d %d %Lf %d", 1.1l, 1, 2, 3, 4, 5, 6, 7, 1.2l, 1);
     assert_int(0, strcmp(buffer, "1.10000 1 2 3 4 5 6 7 1.200000 1"), "Long double eight sprintf 4");
 }
+
+char *long_double_pushed_args_i_ld(int i, long double ld) {
+    char *buffer = malloc(100);
+    sprintf(buffer, "%d %5.5Lf", i, ld);
+    return buffer;
+}
+
+char *long_double_pushed_args_i_ld_rep4(int i1, long double ld1, int i2, long double ld2, int i3, long double ld3, int i4, long double ld4) {
+    char *buffer = malloc(100);
+    sprintf(buffer, "%d %5.5Lf %d %5.5Lf %d %5.5Lf %d %5.5Lf", i1, ld1, i2, ld2, i3, ld3, i4, ld4);
+    return buffer;
+}
+
+char *long_double_pushed_args_ld_i_rep4(long double ld1, int i1, long double ld2, int i2, long double ld3, int i3, long double ld4, int i4) {
+    char *buffer = malloc(100);
+    sprintf(buffer, "%5.5Lf %d %5.5Lf %d %5.5Lf %d %5.5Lf %d", ld1, i1, ld2, i2, ld3, i3, ld4, i4);
+    return buffer;
+}
+
+char *long_double_pushed_args_6i_ld(int i1, int i2, int i3, int i4, int i5, int i6, long double ld) {
+    char *buffer = malloc(100);
+    sprintf(buffer, "%d %d %d %d %d %d %5.5Lf", i1, i2, i3, i4, i5, i6, ld);
+    return buffer;
+}
+
+char *long_double_pushed_args_7i_ld(int i1, int i2, int i3, int i4, int i5, int i6, int i7, long double ld) {
+    char *buffer = malloc(100);
+    sprintf(buffer, "%d %d %d %d %d %d %d %5.5Lf", i1, i2, i3, i4, i5, i6, i7, ld);
+    return buffer;
+}
+
+char *long_double_pushed_args_6i_2pc_1i(int i1, int i2, int i3, int i4, int i5, char *pc1, char *pc2, int i6) {
+    char *buffer = malloc(100);
+    sprintf(buffer, "%d %d %d %d %d %s %s %d", i1, i2, i3, i4, i5, pc1, pc2, i6);
+    return buffer;
+}
+
+char *long_double_pushed_args_6ld_6i(
+        long double ld1, long double ld2, long double ld3, long double ld4, long double ld5, long double ld6,
+        int i1, int i2, int i3, int i4, int i5, int i6) {
+
+    char *buffer = malloc(100);
+    sprintf(buffer, "%5.5Lf %5.5Lf %5.5Lf %5.5Lf %5.5Lf %5.5Lf %d %d %d %d %d %d", ld1, ld2, ld3, ld4, ld5, ld6, i1, i2, i3, i4, i5, i6);
+    return buffer;
+}
+
+void test_long_double_pushed_params() {
+    char *buffer;
+
+    buffer = long_double_pushed_args_i_ld(1, 1.1L);
+    assert_int(0, strcmp(buffer, "1 1.10000"), "Long double call args i, ld");
+
+    buffer = long_double_pushed_args_i_ld_rep4(1, 1.1L, 2, 2.1L, 3, 3.1L, 4, 4.1L);
+    assert_int(0, strcmp(buffer, "1 1.10000 2 2.10000 3 3.10000 4 4.10000"), "Long double call args i, ld rep4");
+
+    buffer = long_double_pushed_args_ld_i_rep4(1.1L, 1, 2.1L, 2, 3.1L, 3, 4.1L, 4);
+    assert_int(0, strcmp(buffer, "1.10000 1 2.10000 2 3.10000 3 4.10000 4"), "Long double call args ld, i rep4");
+
+    buffer = long_double_pushed_args_6i_ld(1, 2, 3, 4, 5, 6, 1.1L);
+    assert_int(0, strcmp(buffer, "1 2 3 4 5 6 1.10000"), "Long double call args 6i, ld");
+
+    buffer = long_double_pushed_args_7i_ld(1, 2, 3, 4, 5, 6, 7, 1.1L);
+    assert_int(0, strcmp(buffer, "1 2 3 4 5 6 7 1.10000"), "Long double call args 7i, ld");
+
+    buffer = long_double_pushed_args_6i_2pc_1i(1, 2, 3, 4, 5, "foo", "bar", 6);
+    assert_int(0, strcmp(buffer, "1 2 3 4 5 foo bar 6"), "Long double call args 6i 2pc 1i");
+
+    buffer = long_double_pushed_args_6ld_6i(1.1L, 2.1L, 3.1L, 4.1L, 5.1L, 6.1L, 1, 2, 3, 4, 5, 6);
+    assert_int(0, strcmp(buffer, "1.10000 2.10000 3.10000 4.10000 5.10000 6.10000 1 2 3 4 5 6"), "Long double call args 6ld 6i");
+}
 #endif
 
 int main(int argc, char **argv) {
@@ -201,6 +271,7 @@ int main(int argc, char **argv) {
     #ifdef FLOATS
     test_long_double_stack_zero_offset();
     test_long_double_stack_eight_offset();
+    test_long_double_pushed_params();
     #endif
 
     finalize();

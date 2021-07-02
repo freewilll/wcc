@@ -112,8 +112,11 @@ void make_stack_offsets(Function *function) {
 // or stack offset for local params.
 // The stack layout for a function with 8 parameters (function_pc=8)
 // stack index  offset    what
-// 2            +24       arg 7 (last arg)
-// 3            +16       arg 6
+// 7            +56       arg 9, e.g. an int
+// 6            +48       arg 8, e.g. an int
+// 4            +32       arg 7, e.g. a long double, aligned on 16 bytes
+//                        alignment gap
+// 2            +16       arg 6, e.g. an int
 //              +8        return address
 //              +0        Pushed BP
 // -1           -8        first local variable / spilled register e.g. long
@@ -122,14 +125,13 @@ void make_stack_offsets(Function *function) {
 static int get_stack_offset(int function_pc, Value *v) {
     int stack_index = v->stack_index;
 
-    if (stack_index >= 2) {
+    if (stack_index >= 2)
         // Function parameter
-        if (function_pc <= 6) printf("Unexpected positive stack_index %d for function with <= 6 parameters (%d)\n", stack_index, function_pc);
-        return 8 * (function_pc - stack_index - 3);
-    }
-    else if (stack_index >= 0) printf("Unexpected stack_index %d\n", stack_index);
+        return 8 * stack_index;
+    else if (stack_index < 0)
+        return -v->stack_offset;
     else
-        return - v->stack_offset;
+        printf("Unexpected stack_index %d\n", stack_index);
 }
 
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
