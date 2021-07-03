@@ -96,6 +96,13 @@ void compile(char *compiler_input_filename, char *compiler_output_filename) {
     parse();
     check_incomplete_structs();
 
+    // Some long doubles need to be loaded from a .LDL section, allocate storage to
+    // hold the values.
+    #ifdef FLOATS
+    long_double_literals = malloc(sizeof(long double) * MAX_LONG_DOUBLE_LITERALS);
+    #endif
+    long_double_literal_count = 0;
+
     // Compile all functions
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];

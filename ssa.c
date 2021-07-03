@@ -6,6 +6,7 @@
 
 static void make_live_range_spill_cost(Function *function);
 
+// Optimize arithmetic operations for integer values
 void optimize_arithmetic_operations(Function *function) {
     if (!opt_optimize_arithmetic_operations) return;
 
@@ -14,11 +15,11 @@ void optimize_arithmetic_operations(Function *function) {
         Value *cv = 0;
         long c, l;
 
-        if (tac->src1 && tac->src1->is_constant) {
+        if (tac->src1 && tac->src1->is_constant && tac->src1->type->type != TYPE_LONG_DOUBLE) {
             cv = tac->src1;
             v = tac->src2;
         }
-        else if (tac->src2 && tac->src2->is_constant) {
+        else if (tac->src2 && tac->src2->is_constant && tac->src2->type->type != TYPE_LONG_DOUBLE) {
             v = tac->src1;
             cv = tac->src2;
         }

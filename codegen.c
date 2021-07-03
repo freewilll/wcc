@@ -565,13 +565,7 @@ void output_code(char *input_filename, char *output_filename) {
 
     label_count = 0; // Used in label renumbering
 
-    // Some long doubles need to be loaded from a .LDL section, allocate storage to
-    // hold the values.
     string_literal_count = 0;
-    #ifdef FLOATS
-    long_double_literals = malloc(sizeof(long double) * MAX_LONG_DOUBLE_LITERALS);
-    #endif
-    long_double_literal_count = 0;
 
     // Output functions code
     for (int i = 0; i < global_scope->symbol_count; i++) {

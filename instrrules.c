@@ -535,6 +535,47 @@ static void add_binary_shift_rules() {
     }
 }
 
+#ifdef FLOATS
+static void add_long_double_operation_rule(int operation, int x86_operation, int cost, int dst, int src1, int src2, char *src1_template, char *src2_template, char *op_template, char *dst_template) {
+    Rule *r;
+
+    r = add_rule(dst, operation, src1, src2, cost);
+    add_op(r, X_MOVC, 0,    SRC2, 0, src2_template);
+    add_op(r, X_MOVC, 0,    SRC1, 0, src1_template);
+    add_op(r, X_FADD, 0,    0,    0, op_template);
+    add_op(r, X_MOVC, DST,  0,    0, dst_template);
+}
+
+static void add_long_double_commutative_operation_rule(int operation, int x86_operation, int cost, int dst, int src1, int src2, char *src1_template, char *src2_template, char *op_template, char *dst_template) {
+    add_long_double_operation_rule(operation, x86_operation, cost, dst, src1, src2, src1_template, src2_template, op_template, dst_template);
+    add_long_double_operation_rule(operation, x86_operation, cost, dst, src2, src1, src2_template, src1_template, op_template, dst_template);
+}
+
+static void add_long_double_operation_rules() {
+    char *ll = "fldt %v1L";
+    char *lc = "fldt %v1C";
+    char *fadd = "faddp %%st, %%st(1)";
+    char *fsub = "fsubp %%st, %%st(1)";
+    char *fmul = "fmulp %%st, %%st(1)";
+    char *fdiv = "fdivp %%st, %%st(1)";
+    char *fstore = "fstpt %vdL";
+
+    add_long_double_operation_rule(            IR_ADD, X_FADD, 15, MLD5, MLD5, MLD5, ll, ll, fadd, fstore); // Add
+    add_long_double_commutative_operation_rule(IR_ADD, X_FADD, 15, MLD5, MLD5, CLDL, ll, lc, fadd, fstore);
+
+    add_long_double_operation_rule(            IR_SUB, X_FSUB, 15, MLD5, MLD5, MLD5, ll, ll, fsub, fstore); // Subtract
+    add_long_double_operation_rule(            IR_SUB, X_FSUB, 15, MLD5, MLD5, CLDL, ll, lc, fsub, fstore);
+    add_long_double_operation_rule(            IR_SUB, X_FSUB, 15, MLD5, CLDL, MLD5, lc, ll, fsub, fstore);
+
+    add_long_double_operation_rule(            IR_MUL, X_FMUL, 15, MLD5, MLD5, MLD5, ll, ll, fmul, fstore); // Multiply
+    add_long_double_commutative_operation_rule(IR_MUL, X_FMUL, 15, MLD5, MLD5, CLDL, ll, lc, fmul, fstore);
+
+    add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, MLD5, MLD5, ll, ll, fdiv, fstore); // Divide
+    add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, MLD5, CLDL, ll, lc, fdiv, fstore);
+    add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, CLDL, MLD5, lc, ll, fdiv, fstore);
+}
+#endif
+
 static X86Operation *add_function_call_arg_op(Rule *r) {
     add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q");
 }
@@ -743,6 +784,11 @@ void init_instruction_selection_rules() {
     add_div_rules();
     add_bnot_rules();
     add_binary_shift_rules();
+
+    // Long doubles
+    #ifdef FLOATS
+    add_long_double_operation_rules();
+    #endif
 
     if (ntc >= AUTO_NON_TERMINAL_END)
         panic2d("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);

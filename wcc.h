@@ -739,6 +739,11 @@ enum {
     X_XOR,
     X_BNOT,
 
+    X_FADD,
+    X_FSUB,
+    X_FMUL,
+    X_FDIV,
+
     X_CMP,
     X_CMPZ,
     X_TEST,

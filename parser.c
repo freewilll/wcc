@@ -128,11 +128,15 @@ Type *operation_type(Type *src1, Type *src2) {
     if (src1->type >= TYPE_PTR) return src1;
     else if (src2->type >= TYPE_PTR) return src2;
 
+    // If either is a long double, promote both to long double
+    if (src1->type == TYPE_LONG_DOUBLE || src2->type == TYPE_LONG_DOUBLE)
+        return new_type(TYPE_LONG_DOUBLE);
+
+    // Otherwise, apply integral promotions
     src1 = integer_promote_type(src1);
     src2 = integer_promote_type(src2);
 
     // They are two integer types
-
     if (src1->type == TYPE_LONG || src2->type == TYPE_LONG)
         result = new_type(TYPE_LONG);
     else
@@ -644,6 +648,7 @@ static void parse_expression(int level) {
     }
 
     else if (cur_token == TOK_MINUS) {
+        // Unary minus
         next();
 
         if (cur_token == TOK_INTEGER) {
