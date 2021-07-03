@@ -75,7 +75,13 @@ static void push_cur_long() {
 }
 
 #ifdef FLOATS
-// Push push_cur_long_double
+// Create a new typed floating point constant value and push it to the stack.
+// type doesn't have to be dupped
+static void push_floating_point_constant(int type_type, long double value) {
+    push(new_floating_point_constant(type_type, value));
+}
+
+// Push the currently lexed long double floating point number, cur_long_double
 static void push_cur_long_double() {
     Value *v = new_floating_point_constant(TYPE_LONG_DOUBLE, cur_long_double);
     push(v);
@@ -660,9 +666,23 @@ static void parse_expression(int level) {
             push_cur_long();
             next();
         }
+        #ifdef FLOATS
+        else if (cur_token == TOK_FLOATING_POINT_NUMBER) {
+            cur_long_double = -cur_long_double;
+            push_cur_long_double();
+            next();
+        }
+        #endif
         else {
-            push_integral_constant(TYPE_INT, -1);
             parse_expression(TOK_INC);
+
+            #ifdef FLOATS
+            if (vtop->type->type == TYPE_LONG_DOUBLE)
+                push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
+            else
+            #endif
+                push_integral_constant(TYPE_INT, -1);
+
             arithmetic_operation(IR_MUL, 0);
         }
     }

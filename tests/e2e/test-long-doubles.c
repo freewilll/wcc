@@ -45,6 +45,10 @@ void test_arithmetic() {
     ld2 = 3.2;
     gld = 2.1;
 
+    // Unary -
+    sprintf(buffer, "%5.5Lf", -1.2L); assert_int(0, strcmp(buffer, "-1.20000"), "Long double unary minus constant");
+    sprintf(buffer, "%5.5Lf", -ld1);  assert_int(0, strcmp(buffer, "-1.10000"), "Long double unary minus local");
+
     // Some elaborate combinations for addition
     sprintf(buffer, "%5.5Lf", ld1 + 1.2); assert_int(0, strcmp(buffer, "2.30000"), "Long double addition local-constant");
     sprintf(buffer, "%5.5Lf", 1.2 + ld1); assert_int(0, strcmp(buffer, "2.30000"), "Long double addition constant-local");
