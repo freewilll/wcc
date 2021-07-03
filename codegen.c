@@ -496,6 +496,7 @@ void merge_rsp_func_call_add_subs(Function *function) {
             } else {
                 tac = delete_instruction(tac);
                 tac->operation = value < 0 ? X_SUB : X_ADD;
+                tac->x86_template = value < 0 ? "subq $%v1q, %vdq" : "addq $%v1q, %vdq";
                 tac->src1->int_value = value > 0 ? value : -value;
             }
         }

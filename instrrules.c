@@ -535,7 +535,6 @@ static void add_binary_shift_rules() {
     }
 }
 
-#ifdef FLOATS
 static void add_long_double_operation_rule(int operation, int x86_operation, int cost, int dst, int src1, int src2, char *src1_template, char *src2_template, char *op_template, char *dst_template) {
     Rule *r;
 
@@ -574,7 +573,6 @@ static void add_long_double_operation_rules() {
     add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, MLD5, CLDL, ll, lc, fdiv, fstore);
     add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, CLDL, MLD5, lc, ll, fdiv, fstore);
 }
-#endif
 
 static X86Operation *add_function_call_arg_op(Rule *r) {
     add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q");
@@ -786,9 +784,7 @@ void init_instruction_selection_rules() {
     add_binary_shift_rules();
 
     // Long doubles
-    #ifdef FLOATS
     add_long_double_operation_rules();
-    #endif
 
     if (ntc >= AUTO_NON_TERMINAL_END)
         panic2d("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
