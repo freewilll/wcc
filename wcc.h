@@ -580,6 +580,7 @@ void reverse_function_argument_order(Function *function);
 void merge_consecutive_labels(Function *function);
 void renumber_labels(Function *function);
 void allocate_value_vregs(Function *function);
+void move_long_doubles_to_the_stack(Function *function);
 void make_stack_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);
 void remove_unused_function_call_results(Function *function);

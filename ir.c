@@ -618,7 +618,7 @@ void allocate_value_vregs(Function *function) {
         // Variables that are used with the & operator
         if (tac->operation == IR_ADDRESS_OF) on_stack[-tac->src1->local_index] = 1;
 
-        // Long doubles are forced onto the stack.
+        // Long doubles already on the stack are left on the stack
         if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
         if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
         if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
@@ -636,6 +636,29 @@ void allocate_value_vregs(Function *function) {
     }
 
     function->vreg_count = vreg_count;
+}
+
+// Long doubles never live in registers, ensure all of them are on the stack
+void move_long_doubles_to_the_stack(Function *function) {
+    make_vreg_count(function, 0);
+    int *local_indexes = malloc(sizeof(int) * (function->vreg_count + 1));
+    memset(local_indexes, 0, sizeof(int) * (function->vreg_count + 1));
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        // Long doubles in vregs are moved to the stack
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->dst ->vreg])
+            local_indexes[tac->dst ->vreg] = -1 - function->local_symbol_count++;
+        if (tac->src1 && tac->src1->vreg && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->src1->vreg])
+            local_indexes[tac->src1->vreg] = -1 - function->local_symbol_count++;
+        if (tac->src2 && tac->src2->vreg && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->src2->vreg])
+            local_indexes[tac->src2->vreg] = -1 - function->local_symbol_count++;
+    }
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac-> dst && tac-> dst->vreg && local_indexes[tac-> dst->vreg]) { tac-> dst->local_index = local_indexes[tac-> dst->vreg]; tac-> dst->vreg = 0; }
+        if (tac->src1 && tac->src1->vreg && local_indexes[tac->src1->vreg]) { tac->src1->local_index = local_indexes[tac->src1->vreg]; tac->src1->vreg = 0; }
+        if (tac->src2 && tac->src2->vreg && local_indexes[tac->src2->vreg]) { tac->src2->local_index = local_indexes[tac->src2->vreg]; tac->src2->vreg = 0; }
+    }
 }
 
 void make_stack_register_count(Function *function) {

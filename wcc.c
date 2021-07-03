@@ -23,6 +23,7 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
         merge_consecutive_labels(function);
         renumber_labels(function);
         allocate_value_vregs(function);
+        move_long_doubles_to_the_stack(function);
         allocate_value_stack_indexes(function);
         remove_unused_function_call_results(function);
     }
