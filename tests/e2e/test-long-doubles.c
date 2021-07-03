@@ -37,7 +37,7 @@ void test_assignment() {
 }
 
 void test_arithmetic() {
-    long double ld1, ld2;
+    long double ld1, ld2, ld3;
 
     char *buffer = malloc(100);
 
@@ -77,6 +77,13 @@ void test_arithmetic() {
     sprintf(buffer, "%5.5Lf", ld1 / 5.0); assert_int(0, strcmp(buffer, "2.00000"), "Long double division local-constant");
     sprintf(buffer, "%5.5Lf", 5.0 / ld1); assert_int(0, strcmp(buffer, "0.50000"),  "Long double division constant-local");
     sprintf(buffer, "%5.5Lf", ld1 / ld2); assert_int(0, strcmp(buffer, "0.50000"), "Long double division local-local");
+
+    // Combinations
+    ld1 = 10.1L;
+    ld2 = 0.50L;
+    ld3 = 3.0L;
+    sprintf(buffer, "%Lf", -ld1 * (ld2 + ld3) * (ld1 + ld2) * (ld2 - ld1) / ld3);
+    assert_int(0, strcmp(buffer, "1199.072000"),  "Long double combination");
 }
 
 #endif
