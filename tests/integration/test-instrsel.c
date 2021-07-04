@@ -181,7 +181,7 @@ void test_instrsel_tree_merging() {
     assert_x86_op("movq    r1q, g2(%rip)");
 }
 
-void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, char *jmp_instruction) {
+void test_int_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, char *jmp_instruction) {
     char *template;
 
     start_ir();
@@ -193,6 +193,24 @@ void test_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jm
     assert_x86_op("cmpq    r2q, r1q");
     assert_x86_op(template);
 }
+
+#ifdef FLOATS
+void test_fp_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, char *jmp_instruction) {
+    char *template;
+
+    start_ir();
+    i(0, cmp_operation,  v(3), Ssz(-1, TYPE_LONG_DOUBLE), Ssz(-2, TYPE_LONG_DOUBLE));
+    i(0, jmp_operation,  0,    v(3), l(1));
+    i(1, IR_NOP,         0,    0,    0   );
+    finish_ir(function);
+    assert_x86_op("fldt    -32(%rbp)");
+    assert_x86_op("fldt    -16(%rbp)");
+    assert_x86_op("fcomip  %st(1), %st");
+    assert_x86_op("fstp    %st(0)");
+    asprintf(&template, "%-7s .L1", jmp_instruction);
+    assert_x86_op(template);
+}
+#endif
 
 void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load, char *template) {
     start_ir();
@@ -533,13 +551,20 @@ void test_instrsel_conditionals() {
     long l;
 
     l = 4294967296;
-    // JZ                                                          JNZ
-    test_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, "je" ); test_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, "jne");
-    test_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, "jne"); test_cmp_with_conditional_jmp(function, IR_NE, IR_JZ, "je" );
-    test_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, "jl" ); test_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, "jge");
-    test_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, "jg" ); test_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, "jle");
-    test_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, "jle"); test_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, "jg" );
-    test_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "jge"); test_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "jl" );
+    // JZ                                                              JNZ
+    test_int_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, "je" ); test_int_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, "jne");
+    test_int_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, "jne"); test_int_cmp_with_conditional_jmp(function, IR_NE, IR_JZ, "je" );
+    test_int_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, "jl" ); test_int_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, "jge");
+    test_int_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, "jg" ); test_int_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, "jle");
+    test_int_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, "jle"); test_int_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, "jg" );
+    test_int_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "jge"); test_int_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "jl" );
+
+    #ifdef FLOATS
+    test_fp_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, "jb" ); test_fp_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, "jae");
+    test_fp_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, "ja" ); test_fp_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, "jbe");
+    test_fp_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, "jbe"); test_fp_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, "ja" );
+    test_fp_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "jae"); test_fp_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "jb" );
+    #endif
 
     // a < b with a conditional with different src1 and src2 operands
     test_less_than_with_conditional_jmp(function, v(1), c(1), 0,  "cmpq    $1, r1q"       );

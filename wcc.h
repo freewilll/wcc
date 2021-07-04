@@ -743,6 +743,7 @@ enum {
     X_FSUB,
     X_FMUL,
     X_FDIV,
+    X_LD_EQ_CMP, // Long double == and != comparisons
 
     X_CMP,
     X_CMPZ,

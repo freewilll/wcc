@@ -86,6 +86,60 @@ void test_arithmetic() {
     assert_int(0, strcmp(buffer, "1199.072000"),  "Long double combination");
 }
 
+void test_comparison_assignment() {
+    long double ld1, ld2;
+
+    ld1 = 1.0;
+    ld2 = 2.0;
+    assert_int(1, ld1 < ld2, "1.0 < 2.0");
+    assert_int(0, ld1 > ld2, "1.0 > 2.0");
+    assert_int(1, ld1 <= ld2, "1.0 <= 2.0");
+    assert_int(0, ld1 >= ld2, "1.0 >= 2.0");
+
+    assert_int(1, ld1 < 3.0, "1.0 < 3.0 cst");
+    assert_int(1, 0.5 < ld1, "0.0 cst < 1.0");
+    assert_int(2, ld1 < ld2 ? 2 : 3, "1.0 < 2.0 ternary true");
+    assert_int(3, ld2 < ld1 ? 2 : 3, "1.0 < 2.0 ternary false");
+
+    ld2 = 1.0;
+    assert_int(1, ld1 == ld2, "1.0 == 1.0");
+    assert_int(0, ld1 != ld2, "1.0 != 1.0");
+
+    assert_int(1, ld1 <= ld2, "1.0 <= 2.0");
+    assert_int(1, ld1 >= ld2, "1.0 >= 2.0");
+    assert_int(1, ld2 <= ld1, "1.0 <= 1.0");
+    assert_int(1, ld2 >= ld1, "1.0 >= 1.0");
+
+    ld2 = 2.0;
+    assert_int(0, ld1 == ld2, "1.0 == 2.0");
+    assert_int(1, ld1 != ld2, "1.0 != 2.0");
+
+    assert_int(1, ld1 <= ld2, "1.0 <= 2.0");
+    assert_int(0, ld1 >= ld2, "1.0 >= 2.0");
+    assert_int(0, ld2 <= ld1, "2.0 <= 1.0");
+    assert_int(1, ld2 >= ld1, "2.0 >= 1.0");
+}
+
+void test_comparison_conditional_jump() {
+    long double ld1, ld2;
+
+    ld1 = 1.0;
+    ld2 = 2.0;
+    if (ld1 < ld2)  assert_int(1, 1, "1.0 < 2.0 true case");  else assert_int(1, 0, "1.0 < 2.0 false case");
+    if (ld1 > ld2)  assert_int(1, 0, "1.0 < 2.0 true case");  else assert_int(1, 1, "1.0 < 2.0 false case");
+    if (ld1 <= ld2) assert_int(1, 1, "1.0 <= 2.0 true case"); else assert_int(1, 0, "1.0 <= 2.0 false case");
+    if (ld1 >= ld2) assert_int(1, 0, "1.0 <= 2.0 true case"); else assert_int(1, 1, "1.0 <= 2.0 false case");
+
+    ld2 = 1.0;
+    if (ld1 <= ld2) assert_int(1, 1, "1.0 <= 1.0 true case"); else assert_int(1, 0, "1.0 <= 1.0 false case");
+    if (ld1 >= ld2) assert_int(1, 1, "1.0 <= 1.0 true case"); else assert_int(1, 0, "1.0 <= 1.0 false case");
+
+    ld2 = 2.0;
+    if (ld1 >= ld2) assert_int(1, 0, "1.0 >= 2.0 true case"); else assert_int(1, 1, "1.0 >= 2.0 false case");
+    if (ld1 <= ld2) assert_int(1, 1, "1.0 <= 2.0 true case"); else assert_int(1, 0, "1.0 <= 2.0 false case");
+    if (ld1 <= ld2) assert_int(1, 1, "1.0 <= 2.0 true case"); else assert_int(1, 0, "1.0 <= 2.0 false case");
+    if (ld1 >= ld2) assert_int(1, 0, "1.0 >= 2.0 true case"); else assert_int(1, 1, "1.0 >= 2.0 false case");
+}
 #endif
 
 int main(int argc, char **argv) {
@@ -97,6 +151,8 @@ int main(int argc, char **argv) {
     #ifdef FLOATS
     test_assignment();
     test_arithmetic();
+    test_comparison_assignment();
+    test_comparison_conditional_jump();
     #endif
 
     finalize();
