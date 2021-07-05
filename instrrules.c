@@ -212,7 +212,7 @@ static void add_pointer_rules(int *ntc) {
     // Address loads
     r = add_rule(XRP, IR_ADDRESS_OF, XRP,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(RP4, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
+    r = add_rule(RP5, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)
@@ -716,7 +716,7 @@ void init_instruction_selection_rules() {
     r = add_rule(XRP, IR_MOVE, CI4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_MOVE, CU4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
 
-    for (int dst = RP1; dst <= RP4; dst++) for (int src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RP1; dst <= RP5; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RI1; dst <= RI4; dst++) for (int src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RU1; dst <= RU4; dst++) for (int src = RP1; src <= RP4; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RP1; dst <= RP4; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);

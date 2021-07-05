@@ -660,7 +660,7 @@ enum {
     RU1, RU2, RU3, RU4,          // Unsigned registers
     MI1, MI2, MI3, MI4,          // Memory, in stack or globals
     MU1, MU2, MU3, MU4,          // Memory, in stack or globals
-    RP1, RP2, RP3, RP4,          // Address (aka pointer) in a register
+    RP1, RP2, RP3, RP4, RP5,     // Address (aka pointer) in a register
     MLD5,                        // 16-byte memory, for long double
 
     AUTO_NON_TERMINAL_START,

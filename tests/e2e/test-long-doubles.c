@@ -140,6 +140,20 @@ void test_comparison_conditional_jump() {
     if (ld1 <= ld2) assert_int(1, 1, "1.0 <= 2.0 true case"); else assert_int(1, 0, "1.0 <= 2.0 false case");
     if (ld1 >= ld2) assert_int(1, 0, "1.0 >= 2.0 true case"); else assert_int(1, 1, "1.0 >= 2.0 false case");
 }
+
+// Some unfinished pointer work on long doubles
+void test_pointers() {
+    long double ld, *pld;
+    char *buffer = malloc(100);
+
+    ld = 1.0;
+    pld = &ld;
+
+    // Make a nan, for the hell of it
+    *((long *) &ld) = -1;
+    *((long *) &ld + 1) = -1;
+}
+
 #endif
 
 int main(int argc, char **argv) {
@@ -153,6 +167,7 @@ int main(int argc, char **argv) {
     test_arithmetic();
     test_comparison_assignment();
     test_comparison_conditional_jump();
+    test_pointers();
     #endif
 
     finalize();
