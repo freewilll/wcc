@@ -118,6 +118,30 @@ void test_comparison_assignment() {
     assert_int(0, ld1 >= ld2, "1.0 >= 2.0");
     assert_int(0, ld2 <= ld1, "2.0 <= 1.0");
     assert_int(1, ld2 >= ld1, "2.0 >= 1.0");
+
+    // Some crazy nan tests
+    long double nan1, nan2;
+    *((long *) &nan1) = -1;
+    *((long *) &nan1 + 1) = -1;
+    *((long *) &nan2) = -1;
+    *((long *) &nan2 + 1) = -1;
+
+    assert_int(0, nan1 == nan2, "nan-nan equality");
+    assert_int(1, nan1 != nan2, "nan-nan inequality");
+
+    // If one of the operands is a nan, then the comparison must return false
+    assert_int(0, nan1 <  nan2, "nan1 < nan2");
+    assert_int(0, nan1 >  nan2, "nan1 > nan2");
+    assert_int(0, nan1 <= nan2, "nan1 <= nan2");
+    assert_int(0, nan1 >= nan2, "nan1 >= nan2");
+    assert_int(0, 0.0  <  nan1, "0.0 < nan1");
+    assert_int(0, 0.0  >  nan1, "0.0 > nan1");
+    assert_int(0, 0.0  >= nan1, "0.0 >= nan1");
+    assert_int(0, 0.0  <= nan1, "0.0 <= nan1");
+    assert_int(0, nan1 <  0.0,  "nan1 < 0.0");
+    assert_int(0, nan1 >  0.0,  "nan1 > 0.0");
+    assert_int(0, nan1 >= 0.0,  "nan1 >=0.0");
+    assert_int(0, nan1 <= 0.0,  "nan1 <=0.0");
 }
 
 void test_comparison_conditional_jump() {
@@ -142,14 +166,27 @@ void test_comparison_conditional_jump() {
 
     // Some crazy nan tests
     long double nan1, nan2;
-
     *((long *) &nan1) = -1;
     *((long *) &nan1 + 1) = -1;
     *((long *) &nan2) = -1;
     *((long *) &nan2 + 1) = -1;
 
-    assert_int(0, nan1 < nan2, "nan < nan");
-    assert_int(0, 0.0 < nan2, "0.0 < nan");
+    if (nan1 ==  nan2) assert_int(0, 1, "nan comparison nan1 == nan2 true case"); else assert_int(1, 1, "nan comparison nan1 == nan2 false case");
+    if (nan1 !=  nan2) assert_int(1, 1, "nan comparison nan1 != nan2 true case"); else assert_int(0, 1, "nan comparison nan1 != nan2 false case");
+
+    // If one of the operands is a nan, then the comparison must return false
+    if (nan1 <  nan2) assert_int(0, 1, "nan comparison nan1 <  nan2 true case"); else assert_int(1, 1, "nan comparison nan1 <  nan2 false case");
+    if (nan1 >  nan2) assert_int(0, 1, "nan comparison nan1 >  nan2 true case"); else assert_int(1, 1, "nan comparison nan1 >  nan2 false case");
+    if (nan1 <= nan2) assert_int(0, 1, "nan comparison nan1 <= nan2 true case"); else assert_int(1, 1, "nan comparison nan1 <= nan2 false case");
+    if (nan1 >= nan2) assert_int(0, 1, "nan comparison nan1 >= nan2 true case"); else assert_int(1, 1, "nan comparison nan1 >= nan2 false case");
+    if (0.0  <  nan1) assert_int(0, 1, "nan comparison 0.0  <  nan1 true case"); else assert_int(1, 1, "nan comparison 0.0  <  nan1 false case");
+    if (0.0  >  nan1) assert_int(0, 1, "nan comparison 0.0  >  nan1 true case"); else assert_int(1, 1, "nan comparison 0.0  >  nan1 false case");
+    if (0.0  >= nan1) assert_int(0, 1, "nan comparison 0.0  >= nan1 true case"); else assert_int(1, 1, "nan comparison 0.0  >= nan1 false case");
+    if (0.0  <= nan1) assert_int(0, 1, "nan comparison 0.0  <= nan1 true case"); else assert_int(1, 1, "nan comparison 0.0  <= nan1 false case");
+    if (nan1 <  0.0 ) assert_int(0, 1, "nan comparison nan1 <  0.0  true case"); else assert_int(1, 1, "nan comparison nan1 <  0.0  false case");
+    if (nan1 >  0.0 ) assert_int(0, 1, "nan comparison nan1 >  0.0  true case"); else assert_int(1, 1, "nan comparison nan1 >  0.0  false case");
+    if (nan1 >= 0.0 ) assert_int(0, 1, "nan comparison nan1 >= 0.0  true case"); else assert_int(1, 1, "nan comparison nan1 >= 0.0  false case");
+    if (nan1 <= 0.0 ) assert_int(0, 1, "nan comparison nan1 <= 0.0  true case"); else assert_int(1, 1, "nan comparison nan1 <= 0.0  false case");
 }
 
 // Some unfinished pointer work on long doubles

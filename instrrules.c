@@ -354,55 +354,62 @@ static void add_int_comp_assignment_rules(int is_unsigned, int src1, int src2, c
     }
 }
 
-static void add_fp_comparison_instructions(Rule *r, int src1, int src2, char *src1_template, char *src2_template, char *template) {
-    add_op(r, X_MOVC,        0,   SRC1, 0, src1_template);
-    add_op(r, X_MOVC,        0,   SRC2, 0, src2_template);
-    add_op(r, X_CMP,         0,   0,    0, template);
-    add_op(r, X_MOVC ,       0,   0,    0, "fstp %%st(0)");
+static void add_fp_comparison_instructions(Rule *r, int src1, int src2, char *src1_template, char *src2_template, char *template, int src1_first) {
+    if (src1_first) {
+        add_op(r, X_MOVC, 0, SRC1, 0, src1_template);
+        add_op(r, X_MOVC, 0, SRC2, 0, src2_template);
+    }
+    else {
+        add_op(r, X_MOVC, 0, SRC2, 0, src2_template);
+        add_op(r, X_MOVC, 0, SRC1, 0, src1_template);
+    }
+
+    add_op(r, X_CMP,  0, 0, 0, template);
+    add_op(r, X_MOVC, 0, 0, 0, "fstp %%st(0)");
 }
 
-static void add_fp_comp_assignment_rule(int src1, int src2, char *src1_template, char *src2_template, int operation, int set_operation, char *set_template) {
+static void add_fp_comp_assignment_rule(int src1, int src2, char *src1_template, char *src2_template, int operation, int set_operation, char *set_template, int src1_first) {
     // Comparison operators always return an int
     Rule *r = add_rule(RI3, operation, src1, src2, 15);
-    add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st");
+    add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st", src1_first);
     add_op(r, set_operation, DST, 0,    0, set_template);
     add_op(r, X_MOVZ,        DST, DST,  0, "movzbl %v1b, %v1l");
 }
 
-static void add_fp_comp_cond_jmp_rule(int *ntc, int src1, int src2, char *src1_template, char *src2_template, int operation, int x86op1, char *t1, int x86op2, char *t2) {
+static void add_fp_comp_cond_jmp_rule(int *ntc, int src1, int src2, char *src1_template, char *src2_template, int operation, int x86op1, char *t1, int x86op2, char *t2, int src1_first) {
     Rule *r;
 
     (*ntc)++;
     r = add_rule(*ntc, operation, src1, src2, 15);
-    add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st");
+    add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st", src1_first);
     r = add_rule(0, IR_JNZ, *ntc, LAB, 1); add_op(r, x86op1, 0, SRC2, 0, t1); fin_rule(r);
     r = add_rule(0, IR_JZ,  *ntc, LAB, 1); add_op(r, x86op2, 0, SRC2, 0, t2); fin_rule(r);
 }
 
 // Comparison and assignment/jump rules for floating point numbers
 static void add_fp_comp_rules(int *ntc, int src1, int src2, char *src1_template, char *src2_template) {
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LT, X_SETB,  "seta %vdb");
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GT, X_SETA,  "setb %vdb");
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LE, X_SETBE, "setae %vdb");
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GE, X_SETAE, "setbe %vdb");
+    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LT, X_SETA,  "seta %vdb", 1);
+    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GT, X_SETA,  "seta %vdb", 0);
+    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LE, X_SETAE, "setae %vdb", 1);
+    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GE, X_SETAE, "setae %vdb", 0);
 
     // == and != comparison assignments
     // No rules are added for conditional jumps, for simplicty.
     for (int i = 0; i < 2; i++) {
         // Inspired by the code that gcc generates
         Rule *r = add_rule(RI3, i == 0 ? IR_EQ : IR_NE, src1, src2, 15);
-        add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st");
+        add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
         add_op(r, X_CMP, DST, 0, 0, i == 0 ? "setnp %vdb" : "setp %vdb");
         add_op(r, X_LD_EQ_CMP, 0, 0, 0,  i == 0 ? "movl $0, %%edx" : "movl $1, %%edx");
-        add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st");
+        add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
         add_op(r, X_MOVC, DST, 0, 0, "cmovne %%edx, %vdl");
         add_op(r, X_MOVZ, DST, 0, 0, "movzbl %vdb, %vdl");
     }
 
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LT, X_JB,  "ja %v1" , X_JAE, "jbe %v1" );
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GT, X_JA,  "jb %v1",  X_JBE, "jae %v1");
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LE, X_JBE, "jae %v1", X_JA,  "jb %v1");
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GE, X_JAE, "jbe %v1", X_JB,  "ja %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LT, X_JA,  "ja %v1" , X_JAE, "jbe %v1", 1);
+    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GT, X_JA,  "ja %v1",  X_JBE, "jbe %v1", 0);
+    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LE, X_JAE, "jae %v1", X_JA,  "jb %v1", 1);
+    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GE, X_JAE, "jae %v1", X_JB,  "jb %v1", 0);
 }
 
 static void add_commutative_operation_rule(int operation, int x86_mov_operation, int x86_operation, int dst, int src1, int src2, int cost, char *mov_template, char *op_template) {
