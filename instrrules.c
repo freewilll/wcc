@@ -355,8 +355,8 @@ static void add_int_comp_assignment_rules(int is_unsigned, int src1, int src2, c
 }
 
 static void add_fp_comparison_instructions(Rule *r, int src1, int src2, char *src1_template, char *src2_template, char *template) {
-    add_op(r, X_MOVC,        0,   SRC2, 0, src2_template);
     add_op(r, X_MOVC,        0,   SRC1, 0, src1_template);
+    add_op(r, X_MOVC,        0,   SRC2, 0, src2_template);
     add_op(r, X_CMP,         0,   0,    0, template);
     add_op(r, X_MOVC ,       0,   0,    0, "fstp %%st(0)");
 }
@@ -381,10 +381,10 @@ static void add_fp_comp_cond_jmp_rule(int *ntc, int src1, int src2, char *src1_t
 
 // Comparison and assignment/jump rules for floating point numbers
 static void add_fp_comp_rules(int *ntc, int src1, int src2, char *src1_template, char *src2_template) {
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LT, X_SETB,  "setb %vdb");
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GT, X_SETA,  "seta %vdb");
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LE, X_SETBE, "setbe %vdb");
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GE, X_SETAE, "setae %vdb");
+    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LT, X_SETB,  "seta %vdb");
+    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GT, X_SETA,  "setb %vdb");
+    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LE, X_SETBE, "setae %vdb");
+    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GE, X_SETAE, "setbe %vdb");
 
     // == and != comparison assignments
     // No rules are added for conditional jumps, for simplicty.
@@ -399,10 +399,10 @@ static void add_fp_comp_rules(int *ntc, int src1, int src2, char *src1_template,
         add_op(r, X_MOVZ, DST, 0, 0, "movzbl %vdb, %vdl");
     }
 
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LT, X_JB,  "jb %v1" , X_JAE, "jae %v1" );
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GT, X_JA,  "ja %v1",  X_JBE, "jbe %v1");
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LE, X_JBE, "jbe %v1", X_JA,  "ja %v1");
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GE, X_JAE, "jae %v1", X_JB,  "jb %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LT, X_JB,  "ja %v1" , X_JAE, "jbe %v1" );
+    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GT, X_JA,  "jb %v1",  X_JBE, "jae %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LE, X_JBE, "jae %v1", X_JA,  "jb %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GE, X_JAE, "jbe %v1", X_JB,  "ja %v1");
 }
 
 static void add_commutative_operation_rule(int operation, int x86_mov_operation, int x86_operation, int dst, int src1, int src2, int cost, char *mov_template, char *op_template) {

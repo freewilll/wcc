@@ -139,6 +139,17 @@ void test_comparison_conditional_jump() {
     if (ld1 <= ld2) assert_int(1, 1, "1.0 <= 2.0 true case"); else assert_int(1, 0, "1.0 <= 2.0 false case");
     if (ld1 <= ld2) assert_int(1, 1, "1.0 <= 2.0 true case"); else assert_int(1, 0, "1.0 <= 2.0 false case");
     if (ld1 >= ld2) assert_int(1, 0, "1.0 >= 2.0 true case"); else assert_int(1, 1, "1.0 >= 2.0 false case");
+
+    // Some crazy nan tests
+    long double nan1, nan2;
+
+    *((long *) &nan1) = -1;
+    *((long *) &nan1 + 1) = -1;
+    *((long *) &nan2) = -1;
+    *((long *) &nan2 + 1) = -1;
+
+    assert_int(0, nan1 < nan2, "nan < nan");
+    assert_int(0, 0.0 < nan2, "0.0 < nan");
 }
 
 // Some unfinished pointer work on long doubles
