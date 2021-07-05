@@ -638,6 +638,30 @@ void allocate_value_vregs(Function *function) {
     function->vreg_count = vreg_count;
 }
 
+// IR_JZ and IR_JNZ aren't implemented in the backend for long doubles.
+// Convert:
+// - IR_JZ  => IR_EQ with 0.0 & IR_JNZ
+// - IR_JNZ => IR_NE with 0.0 & IR_JNZ
+void convert_long_doubles_jz_and_jnz(Function *function) {
+    #ifdef FLOATS
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && ir->src1->type->type == TYPE_LONG_DOUBLE) {
+            ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
+            Tac *tac = malloc(sizeof(Tac));
+            memset(tac, 0, sizeof(Tac));
+            tac->operation = IR_JNZ;
+            ir->dst = new_value();
+            ir->dst->type = new_type(TYPE_INT);
+            ir->dst->vreg = new_vreg();
+            tac->src1 = ir->dst;
+            tac->src2 = ir->src2;
+            ir->src2 = new_floating_point_constant(TYPE_LONG_DOUBLE, 0.0L);
+            ir = insert_instruction_after(ir, tac);
+        }
+    }
+    #endif
+}
+
 // Long doubles never live in registers, ensure all of them are on the stack
 void move_long_doubles_to_the_stack(Function *function) {
     make_vreg_count(function, 0);

@@ -189,6 +189,23 @@ void test_comparison_conditional_jump() {
     if (nan1 <= 0.0 ) assert_int(0, 1, "nan comparison nan1 <= 0.0  true case"); else assert_int(1, 1, "nan comparison nan1 <= 0.0  false case");
 }
 
+void test_jz_jnz() {
+    long double zero = 0.0L;
+    long double one = 1.0L;
+
+    long double nan;
+    *((long *) &nan) = -1;
+    *((long *) &nan + 1) = -1;
+
+    int i;
+    i = 1; assert_int(0, zero && i++, "long double zero && 1 result"); assert_int(1, i, "long double zero && 1 i");
+    i = 1; assert_int(1, zero || i++, "long double zero || 0 result"); assert_int(2, i, "long double zero || 0 i");
+    i = 1; assert_int(1, one  && i++, "long double one  && 1 result"); assert_int(2, i, "long double one  && 1 i");
+    i = 1; assert_int(1, one  || i++, "long double one  || 0 result"); assert_int(1, i, "long double one  || 0 i");
+    i = 1; assert_int(1, nan  && i++, "long double nan  && 1 result"); assert_int(2, i, "long double nan  && 1 i");
+    i = 1; assert_int(1, nan  || i++, "long double nan  || 0 result"); assert_int(1, i, "long double nan  || 0 i");
+}
+
 // Some unfinished pointer work on long doubles
 void test_pointers() {
     long double ld, *pld;
@@ -215,6 +232,7 @@ int main(int argc, char **argv) {
     test_arithmetic();
     test_comparison_assignment();
     test_comparison_conditional_jump();
+    test_jz_jnz();
     test_pointers();
     #endif
 
