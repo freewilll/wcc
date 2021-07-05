@@ -210,8 +210,9 @@ static void add_pointer_rules(int *ntc) {
     add_composite_pointer_rules(ntc);
 
     // Address loads
-    r = add_rule(XRP, IR_ADDRESS_OF, XRP, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_ADDRESS_OF, XMI, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, XRP,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP4, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)

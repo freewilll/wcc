@@ -536,6 +536,7 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     else if (dst == RP2 && is_ptr && ptr_size == 2)                              return 1;
     else if (dst == RP3 && is_ptr && ptr_size == 3)                              return 1;
     else if (dst == RP4 && is_ptr && ptr_size == 4)                              return 1;
+    else if (dst == RP4 && is_ptr && ptr_size == 8)                              return 1;
     else return 0;
 }
 
