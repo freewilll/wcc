@@ -523,12 +523,7 @@ static void simplify_igraphs() {
 
 // Convert an instruction graph node from an operation that puts the result
 // into a register to an assigment, using a constant value.
-static Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
-    Value *v = new_value();
-    v->type = new_type(TYPE_LONG);
-    v->is_constant = 1;
-    v->int_value = constant_value;
-
+static Value *merge_cst_node(IGraph *igraph, int node_id, Value *v) {
     GraphNode *src_node = &(igraph->graph->nodes[node_id]);
 
     if (node_id == 0) {
@@ -537,8 +532,7 @@ static Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
         igraph->nodes[node_id].tac->operation = IR_MOVE;
         igraph->nodes[node_id].tac->src1 = v;
         igraph->nodes[node_id].tac->src2 = 0;
-        igraph->nodes[src_node->succ->to->id].value->is_constant = 1;
-        igraph->nodes[src_node->succ->to->id].value->int_value = v->int_value;
+        igraph->nodes[src_node->succ->to->id].value = v;
         src_node->succ->next_succ = 0;
 
     }
@@ -551,6 +545,83 @@ static Value *merge_cst_node(IGraph *igraph, int node_id, long constant_value) {
 
     return v;
 }
+
+static Value *merge_cst_int_node(IGraph *igraph, int node_id, long constant_value) {
+    Value *v = new_value();
+    v->type = new_type(TYPE_LONG);
+    v->is_constant = 1;
+    v->int_value = constant_value;
+    return merge_cst_node(igraph, node_id, v);
+}
+
+#ifdef FLOATS
+static Value *merge_cst_fp_node(IGraph *igraph, int node_id, long double constant_value) {
+    Value *v = new_value();
+    v->type = new_type(TYPE_LONG_DOUBLE);
+    v->is_constant = 1;
+    v->fp_value = constant_value;
+    return merge_cst_node(igraph, node_id, v);
+}
+#endif
+
+static Value* merge_integer_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2) {
+    int is_unsigned = src1 && src1->type && src1->type->is_unsigned;
+
+         if (operation == IR_ADD ) return merge_cst_int_node(igraph, node_id, src1->int_value +  src2->int_value);
+    else if (operation == IR_SUB ) return merge_cst_int_node(igraph, node_id, src1->int_value -  src2->int_value);
+    else if (operation == IR_MUL ) return merge_cst_int_node(igraph, node_id, src1->int_value *  src2->int_value);
+    else if (operation == IR_BAND) return merge_cst_int_node(igraph, node_id, src1->int_value &  src2->int_value);
+    else if (operation == IR_BOR ) return merge_cst_int_node(igraph, node_id, src1->int_value |  src2->int_value);
+    else if (operation == IR_XOR ) return merge_cst_int_node(igraph, node_id, src1->int_value ^  src2->int_value);
+    else if (operation == IR_EQ  ) return merge_cst_int_node(igraph, node_id, src1->int_value == src2->int_value);
+    else if (operation == IR_NE  ) return merge_cst_int_node(igraph, node_id, src1->int_value != src2->int_value);
+    else if (operation == IR_BSHL) return merge_cst_int_node(igraph, node_id, src1->int_value << src2->int_value);
+    else if (operation == IR_BSHR) return merge_cst_int_node(igraph, node_id, src1->int_value >> src2->int_value);
+
+    else if (operation == IR_DIV) {
+        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value / (unsigned long) src2->int_value);
+        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value /                 src2->int_value);
+    }
+    else if (operation == IR_MOD) {
+        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value % (unsigned long) src2->int_value);
+        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value %                 src2->int_value);
+    }
+    else if (operation == IR_LT) {
+        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value < (unsigned long)  src2->int_value);
+        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value <                  src2->int_value);
+    }
+    else if (operation == IR_GT) {
+        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value > (unsigned long)  src2->int_value);
+        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value >                  src2->int_value);
+    }
+    else if (operation == IR_LE) {
+        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value <= (unsigned long) src2->int_value);
+        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value <=                 src2->int_value);
+    }
+    else if (operation == IR_GE) {
+        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value >= (unsigned long) src2->int_value);
+        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value >=                 src2->int_value);
+    }
+
+    else
+        return 0;
+}
+
+#ifdef FLOATS
+static Value* merge_long_double_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2) {
+         if (operation == IR_ADD) return merge_cst_fp_node( igraph, node_id, src1->fp_value +  src2->fp_value);
+    else if (operation == IR_SUB) return merge_cst_fp_node( igraph, node_id, src1->fp_value -  src2->fp_value);
+    else if (operation == IR_MUL) return merge_cst_fp_node( igraph, node_id, src1->fp_value *  src2->fp_value);
+    else if (operation == IR_DIV) return merge_cst_fp_node( igraph, node_id, src1->fp_value /  src2->fp_value);
+    else if (operation == IR_EQ ) return merge_cst_int_node(igraph, node_id, src1->fp_value == src2->fp_value);
+    else if (operation == IR_NE ) return merge_cst_int_node(igraph, node_id, src1->fp_value != src2->fp_value);
+    else if (operation == IR_LT ) return merge_cst_int_node(igraph, node_id, src1->fp_value <  src2->fp_value);
+    else if (operation == IR_GT ) return merge_cst_int_node(igraph, node_id, src1->fp_value >  src2->fp_value);
+    else if (operation == IR_LE ) return merge_cst_int_node(igraph, node_id, src1->fp_value <= src2->fp_value);
+    else if (operation == IR_GE ) return merge_cst_int_node(igraph, node_id, src1->fp_value >= src2->fp_value);
+    else return 0;
+}
+#endif
 
 static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     GraphNode *src_node = &(igraph->graph->nodes[node_id]);
@@ -572,59 +643,21 @@ static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
 
     int cst1 = src1 && src1->is_constant;
 
-    if (!cst1) return 0;
+    if (!src1 || !cst1) return 0;
 
     // Unary operations
-    if (operation == IR_BNOT) return merge_cst_node(igraph, node_id, ~src1->int_value);
+    if (operation == IR_BNOT) return merge_cst_int_node(igraph, node_id, ~src1->int_value);
 
     // Binary operations
     int cst2 = cst1 && (src2 && src2->is_constant);
-    if (!cst2) return 0;
+    if (!src2 || !cst2) return 0;
 
-    if (src1 && src1->type && src2 && src2->type && src1->type->is_unsigned != src2->type->is_unsigned)
-        panic("Unexpected sign difference in src1/src2 operands");
-
-    int is_unsigned = src1 && src1->type && src1->type->is_unsigned;
-
-         if (operation == IR_ADD ) return merge_cst_node(igraph, node_id, src1->int_value +  src2->int_value);
-    else if (operation == IR_SUB ) return merge_cst_node(igraph, node_id, src1->int_value -  src2->int_value);
-    else if (operation == IR_MUL ) return merge_cst_node(igraph, node_id, src1->int_value *  src2->int_value);
-    else if (operation == IR_BAND) return merge_cst_node(igraph, node_id, src1->int_value &  src2->int_value);
-    else if (operation == IR_BOR ) return merge_cst_node(igraph, node_id, src1->int_value |  src2->int_value);
-    else if (operation == IR_XOR ) return merge_cst_node(igraph, node_id, src1->int_value ^  src2->int_value);
-    else if (operation == IR_EQ  ) return merge_cst_node(igraph, node_id, src1->int_value == src2->int_value);
-    else if (operation == IR_NE  ) return merge_cst_node(igraph, node_id, src1->int_value != src2->int_value);
-    else if (operation == IR_BSHL) return merge_cst_node(igraph, node_id, src1->int_value << src2->int_value);
-    else if (operation == IR_BSHR) return merge_cst_node(igraph, node_id, src1->int_value >> src2->int_value);
-
-    else if (operation == IR_DIV) {
-        if (is_unsigned) return merge_cst_node(igraph, node_id, (unsigned long) src1->int_value / (unsigned long) src2->int_value);
-        else             return merge_cst_node(igraph, node_id,                 src1->int_value /                 src2->int_value);
-    }
-    else if (operation == IR_MOD) {
-        if (is_unsigned) return merge_cst_node(igraph, node_id, (unsigned long) src1->int_value % (unsigned long) src2->int_value);
-        else             return merge_cst_node(igraph, node_id,                 src1->int_value %                 src2->int_value);
-    }
-    else if (operation == IR_LT) {
-        if (is_unsigned) return merge_cst_node(igraph, node_id, (unsigned long) src1->int_value < (unsigned long)  src2->int_value);
-        else             return merge_cst_node(igraph, node_id,                 src1->int_value <                  src2->int_value);
-    }
-    else if (operation == IR_GT) {
-        if (is_unsigned) return merge_cst_node(igraph, node_id, (unsigned long) src1->int_value > (unsigned long)  src2->int_value);
-        else             return merge_cst_node(igraph, node_id,                 src1->int_value >                  src2->int_value);
-    }
-    else if (operation == IR_LE) {
-        if (is_unsigned) return merge_cst_node(igraph, node_id, (unsigned long) src1->int_value <= (unsigned long) src2->int_value);
-        else             return merge_cst_node(igraph, node_id,                 src1->int_value <=                 src2->int_value);
-    }
-    else if (operation == IR_GE) {
-        if (is_unsigned) return merge_cst_node(igraph, node_id, (unsigned long) src1->int_value >= (unsigned long) src2->int_value);
-        else             return merge_cst_node(igraph, node_id,                 src1->int_value >=                 src2->int_value);
-    }
-
+    #ifdef FLOATS
+    if (src1->type->type == TYPE_LONG_DOUBLE || src2->type->type == TYPE_LONG_DOUBLE)
+        return merge_long_double_constants(igraph, node_id, operation, src1, src2);
     else
-        return 0;
-
+    #endif
+        return merge_integer_constants(igraph, node_id, operation, src1, src2);
 }
 
 // Walk all instruction trees and merge nodes where there are constant operations

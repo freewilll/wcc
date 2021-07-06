@@ -219,6 +219,30 @@ void test_pointers() {
     *((long *) &ld + 1) = -1;
 }
 
+void test_constant_operations() {
+    char *buffer = malloc(100);
+
+    sprintf(buffer, "%5.5Lf", 1.1L + 1.2L); assert_int(0, strcmp(buffer, "2.30000"), "Long double constant +");
+    sprintf(buffer, "%5.5Lf", 1.2L - 1.1L); assert_int(0, strcmp(buffer, "0.10000"), "Long double constant -");
+    sprintf(buffer, "%5.5Lf", 1.2L * 1.1L); assert_int(0, strcmp(buffer, "1.32000"), "Long double constant *");
+    sprintf(buffer, "%5.5Lf", 1.0L / 2.0L); assert_int(0, strcmp(buffer, "0.50000"), "Long double constant /"); // Tests a bug in the / 1.0 optimization
+    sprintf(buffer, "%5.5Lf", 1.2L / 2.0L); assert_int(0, strcmp(buffer, "0.60000"), "Long double constant /");
+
+    assert_int(1, 1.0L == 1.0L, "1.0L == 1.0L");
+    assert_int(0, 1.0L != 1.0L, "1.0L != 1.0L");
+    assert_int(1, 1.0L <  2.0L, "1.0L <  2.0L");
+    assert_int(0, 2.0L <  1.0L, "2.0L <  1.0L");
+    assert_int(0, 1.0L >  2.0L, "1.0L >  2.0L");
+    assert_int(1, 2.0L >  1.0L, "2.0L >  1.0L");
+    assert_int(1, 1.0L <= 2.0L, "1.0L <= 2.0L");
+    assert_int(0, 2.0L <= 1.0L, "2.0L <= 1.0L");
+    assert_int(0, 1.0L >= 2.0L, "1.0L >= 2.0L");
+    assert_int(1, 2.0L >= 1.0L, "2.0L >= 1.0L");
+    assert_int(1, 1.0L <= 1.0L, "1.0L <= 1.0L");
+    assert_int(1, 1.0L <= 1.0L, "1.0L <= 1.0L");
+    assert_int(1, 1.0L >= 1.0L, "1.0L >= 1.0L");
+    assert_int(1, 1.0L >= 1.0L, "1.0L >= 1.0L");
+}
 #endif
 
 int main(int argc, char **argv) {
@@ -234,6 +258,7 @@ int main(int argc, char **argv) {
     test_comparison_conditional_jump();
     test_jz_jnz();
     test_pointers();
+    test_constant_operations();
     #endif
 
     finalize();

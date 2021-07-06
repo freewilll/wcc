@@ -114,6 +114,8 @@ void optimize_long_double_arithmetic_operation(Tac *tac) {
     }
 
     else if (tac->operation == IR_DIV && cv && tac->src2->is_constant) {
+        c = tac->src2->fp_value;
+
         if (c == 0.0L)
             panic("Illegal division by zero");
 
