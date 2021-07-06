@@ -588,6 +588,19 @@ static void parse_declaration() {
     }
 }
 
+// Push either an int or long double constant with value the size of v
+static void push_value_size_constant(Value *v) {
+    int size = get_type_inc_dec_size(v->type);
+    #ifdef FLOATS
+    if (v->type->type == TYPE_LONG_DOUBLE)
+        push_floating_point_constant(TYPE_LONG_DOUBLE, size);
+    else
+        push_integral_constant(TYPE_INT, size);
+    #else
+    push_integral_constant(TYPE_INT, size);
+    #endif
+}
+
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
@@ -640,7 +653,7 @@ static void parse_expression(int level) {
         Value *v1 = pop();                 // lvalue
         Value *src1 = load(dup_value(v1)); // rvalue
         push(src1);
-        push_integral_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
+        push_value_size_constant(src1);
         arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
         add_instruction(IR_MOVE, v1, vtop, 0);
         push(v1); // Push the original lvalue back on the value stack
@@ -884,7 +897,7 @@ static void parse_expression(int level) {
             Value *v1 = pop();                 // lvalue
             Value *src1 = load(dup_value(v1)); // rvalue
             push(src1);
-            push_integral_constant(TYPE_INT, get_type_inc_dec_size(src1->type));
+            push_value_size_constant(src1);
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
             add_instruction(IR_MOVE, v1, vtop, 0);
             pop(); // Pop the lvalue of the assignment off the stack

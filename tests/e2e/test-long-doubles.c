@@ -243,6 +243,17 @@ void test_constant_operations() {
     assert_int(1, 1.0L >= 1.0L, "1.0L >= 1.0L");
     assert_int(1, 1.0L >= 1.0L, "1.0L >= 1.0L");
 }
+
+void test_inc_dec() {
+    long double ld = 1.0;
+    char *buffer = malloc(100);
+
+    ++ld; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "2.00000"), "Long double prefix ++");
+    --ld; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "1.00000"), "Long double prefix --");
+    ld++; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "2.00000"), "Long double postfix ++");
+    ld--; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "1.00000"), "Long double postfix --");
+}
+
 #endif
 
 int main(int argc, char **argv) {
@@ -259,6 +270,7 @@ int main(int argc, char **argv) {
     test_jz_jnz();
     test_pointers();
     test_constant_operations();
+    test_inc_dec();
     #endif
 
     finalize();
