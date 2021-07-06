@@ -254,6 +254,20 @@ void test_inc_dec() {
     ld--; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "1.00000"), "Long double postfix --");
 }
 
+void test_type_changes() {
+    long double ld;
+    char *buffer = malloc(100);
+
+    sprintf(buffer, "%5.5Lf", (1.1L + 1   )); assert_int(0, strcmp(buffer, "2.10000"), "1.1 + 1");
+    sprintf(buffer, "%5.5Lf", (1    + 1.1L)); assert_int(0, strcmp(buffer, "2.10000"), "1 + 1.1");
+    sprintf(buffer, "%5.5Lf", (1.1L - 1   )); assert_int(0, strcmp(buffer, "0.10000"), "1.1 - 1");
+    sprintf(buffer, "%5.5Lf", (2    - 1.1L)); assert_int(0, strcmp(buffer, "0.90000"), "1 - 1.1");
+    sprintf(buffer, "%5.5Lf", (1.1L * 2   )); assert_int(0, strcmp(buffer, "2.20000"), "1.1 * 2");
+    sprintf(buffer, "%5.5Lf", (2    * 1.1L)); assert_int(0, strcmp(buffer, "2.20000"), "2 * 1.1");
+    sprintf(buffer, "%5.5Lf", (1.1L / 2   )); assert_int(0, strcmp(buffer, "0.55000"), "1.1 / 2");
+    sprintf(buffer, "%5.5Lf", (3    / 1.5L)); assert_int(0, strcmp(buffer, "2.00000"), "3 / 1.5");
+}
+
 #endif
 
 int main(int argc, char **argv) {
@@ -271,6 +285,7 @@ int main(int argc, char **argv) {
     test_pointers();
     test_constant_operations();
     test_inc_dec();
+    test_type_changes();
     #endif
 
     finalize();

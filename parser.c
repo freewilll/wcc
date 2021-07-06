@@ -61,6 +61,10 @@ static Value *pl() {
     return load(pop());
 }
 
+static int new_local_index() {
+    return -1 - cur_function_symbol->function->local_symbol_count++;
+}
+
 // Create a new typed constant value and push it to the stack.
 // type doesn't have to be dupped
 static void push_integral_constant(int type_type, long value) {
@@ -491,6 +495,32 @@ static Value *integer_promote(Value *v) {
         return integer_type_change(v, new_type(TYPE_INT));
 }
 
+// Convert a value to a long double. This can be a constant, integer, or long double value
+static Value *long_double_type_change(Value *src) {
+    Value *dst;
+
+    if (src->type->type >= TYPE_PTR) panic("Unable to convert a pointer to a long double");
+
+    if (src->type->type == TYPE_LONG_DOUBLE) return src;
+    if (src->is_constant) {
+        dst = dup_value(src);
+        dst->type = new_type(TYPE_LONG_DOUBLE);
+        #ifdef FLOATS
+        dst->fp_value = src->int_value;
+        #endif
+        return dst;
+    }
+
+    // Add a move for the type change
+    dst = dup_value(src);
+    dst->vreg = 0;
+    dst->local_index = new_local_index();
+    dst->type = new_type(TYPE_LONG_DOUBLE);
+    add_instruction(IR_MOVE, dst, src, 0);
+
+    return dst;
+}
+
 static void arithmetic_operation(int operation, Type *type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
@@ -505,6 +535,11 @@ static void arithmetic_operation(int operation, Type *type) {
             src1 = integer_type_change(src1, common_type);
         if (!type_eq(common_type, src2->type) && (src2->type->type <= type->type || src2->type->is_unsigned != common_type->is_unsigned))
             src2 = integer_type_change(src2, common_type);
+    }
+
+    else if (common_type->type == TYPE_LONG_DOUBLE) {
+        src1 = long_double_type_change(src1);
+        src2 = long_double_type_change(src2);
     }
 
     add_ir_op(operation, type, new_vreg(), src1, src2);
@@ -576,7 +611,7 @@ static void parse_declaration() {
         symbol = new_symbol();
         symbol->type = dup_type(type);
         symbol->identifier = cur_identifier;
-        symbol->local_index = -1 - cur_function_symbol->function->local_symbol_count++;
+        symbol->local_index = new_local_index();
         next();
         if (cur_token != TOK_SEMI && cur_token != TOK_EQ && cur_token != TOK_COMMA) panic("Expected =, ; or ,");
         if (cur_token == TOK_COMMA) next();

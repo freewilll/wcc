@@ -608,17 +608,25 @@ static Value* merge_integer_constants(IGraph *igraph, int node_id, int operation
 }
 
 #ifdef FLOATS
+// Assert that both src1 and src2 are long doubles
+static void check_fp_src1_src2(Value *src1, Value *src2) {
+    if (src1->type->type != TYPE_LONG_DOUBLE || src2->type->type != TYPE_LONG_DOUBLE)
+        panic("Attempt to merge two long double constants when one of them is not a long double");
+}
+#endif
+
+#ifdef FLOATS
 static Value* merge_long_double_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2) {
-         if (operation == IR_ADD) return merge_cst_fp_node( igraph, node_id, src1->fp_value +  src2->fp_value);
-    else if (operation == IR_SUB) return merge_cst_fp_node( igraph, node_id, src1->fp_value -  src2->fp_value);
-    else if (operation == IR_MUL) return merge_cst_fp_node( igraph, node_id, src1->fp_value *  src2->fp_value);
-    else if (operation == IR_DIV) return merge_cst_fp_node( igraph, node_id, src1->fp_value /  src2->fp_value);
-    else if (operation == IR_EQ ) return merge_cst_int_node(igraph, node_id, src1->fp_value == src2->fp_value);
-    else if (operation == IR_NE ) return merge_cst_int_node(igraph, node_id, src1->fp_value != src2->fp_value);
-    else if (operation == IR_LT ) return merge_cst_int_node(igraph, node_id, src1->fp_value <  src2->fp_value);
-    else if (operation == IR_GT ) return merge_cst_int_node(igraph, node_id, src1->fp_value >  src2->fp_value);
-    else if (operation == IR_LE ) return merge_cst_int_node(igraph, node_id, src1->fp_value <= src2->fp_value);
-    else if (operation == IR_GE ) return merge_cst_int_node(igraph, node_id, src1->fp_value >= src2->fp_value);
+         if (operation == IR_ADD) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value +  src2->fp_value); }
+    else if (operation == IR_SUB) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value -  src2->fp_value); }
+    else if (operation == IR_MUL) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value *  src2->fp_value); }
+    else if (operation == IR_DIV) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value /  src2->fp_value); }
+    else if (operation == IR_EQ ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value == src2->fp_value); }
+    else if (operation == IR_NE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value != src2->fp_value); }
+    else if (operation == IR_LT ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value <  src2->fp_value); }
+    else if (operation == IR_GT ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value >  src2->fp_value); }
+    else if (operation == IR_LE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value <= src2->fp_value); }
+    else if (operation == IR_GE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value >= src2->fp_value); }
     else return 0;
 }
 #endif

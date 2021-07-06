@@ -4,6 +4,11 @@
 
 #include "wcc.h"
 
+// Allocate a new local variable or tempoary
+static int new_local_index(Function *function) {
+    return -1 - function->local_symbol_count++;
+}
+
 // Allocate a new virtual register
 int new_vreg() {
     vreg_count++;
@@ -671,11 +676,11 @@ void move_long_doubles_to_the_stack(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Long doubles in vregs are moved to the stack
         if (tac->dst  && tac->dst ->vreg && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->dst ->vreg])
-            local_indexes[tac->dst ->vreg] = -1 - function->local_symbol_count++;
+            local_indexes[tac->dst ->vreg] = new_local_index(function);
         if (tac->src1 && tac->src1->vreg && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->src1->vreg])
-            local_indexes[tac->src1->vreg] = -1 - function->local_symbol_count++;
+            local_indexes[tac->src1->vreg] = new_local_index(function);
         if (tac->src2 && tac->src2->vreg && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->src2->vreg])
-            local_indexes[tac->src2->vreg] = -1 - function->local_symbol_count++;
+            local_indexes[tac->src2->vreg] = new_local_index(function);
     }
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
