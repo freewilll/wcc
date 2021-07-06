@@ -25,116 +25,158 @@ void assert_set(Set *set, int v1, int v2, int v3, int v4, int v5) {
     assert(1, set_eq(set, is));
 }
 
-void run_arithmetic_optimization(int operation, Value *src1, Value *src2) {
+void run_arithmetic_optimization(int operation, Value *dst, Value *src1, Value *src2) {
     Function *function;
     Tac *tac;
 
     opt_optimize_arithmetic_operations = 1;
     function = new_function();
     ir_start = 0;
-    i(0, operation, v(3), src1, src2);
+    i(0, operation, dst, src1, src2);
     function->ir = ir_start;
     optimize_arithmetic_operations(function);
 }
 
-void test_arithmetic_optimization_mul() {
+void run_int_arithmetic_optimization(int operation, Value *src1, Value *src2) {
+    run_arithmetic_optimization(operation, v(3), src1, src2);
+}
+
+void run_long_double_arithmetic_optimization(int operation, Value *src1, Value *src2) {
+    run_arithmetic_optimization(operation, vsz(TYPE_LONG_DOUBLE, 3), src1, src2);
+}
+
+void test_int_arithmetic_optimization_mul() {
     // v2 = 0 * v1
-    run_arithmetic_optimization(IR_MUL, c(0), v(1));
+    run_int_arithmetic_optimization(IR_MUL, c(0), v(1));
     assert(1, ir_start->src1->is_constant);
     assert(0, ir_start->src1->int_value);
     assert(0, (int) ir_start->src2);
 
     // v2 = v1 * 0
-    run_arithmetic_optimization(IR_MUL, v(1), c(0));
+    run_int_arithmetic_optimization(IR_MUL, v(1), c(0));
     assert(1, ir_start->src1->is_constant);
     assert(0, ir_start->src1->int_value);
     assert(0, (int) ir_start->src2);
 
     // v2 = 1 * v1
-    run_arithmetic_optimization(IR_MUL, c(1), v(1));
+    run_int_arithmetic_optimization(IR_MUL, c(1), v(1));
     assert(IR_MOVE, ir_start->operation);
     assert(1, ir_start->src1->vreg);
 
     // v2 = v1 * 1
-    run_arithmetic_optimization(IR_MUL, v(1), c(1));
+    run_int_arithmetic_optimization(IR_MUL, v(1), c(1));
     assert(IR_MOVE, ir_start->operation);
     assert(1, ir_start->src1->vreg);
 
     // v2 = 2 * v1
-    run_arithmetic_optimization(IR_MUL, c(2), v(1));
+    run_int_arithmetic_optimization(IR_MUL, c(2), v(1));
     assert(IR_BSHL, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(1, ir_start->src2->int_value);
 
     // v2 = v1 * 2
-    run_arithmetic_optimization(IR_MUL, v(1), c(2));
+    run_int_arithmetic_optimization(IR_MUL, v(1), c(2));
     assert(IR_BSHL, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(1, ir_start->src2->int_value);
 
     // v2 = v1 * 4
-    run_arithmetic_optimization(IR_MUL, v(1), c(4));
+    run_int_arithmetic_optimization(IR_MUL, v(1), c(4));
     assert(IR_BSHL, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(2, ir_start->src2->int_value);
 }
 
-void test_arithmetic_optimization_div() {
+void test_int_arithmetic_optimization_div() {
     // v2 = v1 / 1
-    run_arithmetic_optimization(IR_DIV, v(1), c(1));
+    run_int_arithmetic_optimization(IR_DIV, v(1), c(1));
     assert(IR_MOVE, ir_start->operation);
     assert(1, ir_start->src1->vreg);
 
     // v2 = v1 / 2
-    run_arithmetic_optimization(IR_DIV, v(1), c(2));
+    run_int_arithmetic_optimization(IR_DIV, v(1), c(2));
     assert(IR_BSHR, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(1, ir_start->src2->int_value);
 
     // v2 = v1 / 4
-    run_arithmetic_optimization(IR_DIV, v(1), c(4));
+    run_int_arithmetic_optimization(IR_DIV, v(1), c(4));
     assert(IR_BSHR, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(2, ir_start->src2->int_value);
 }
 
-void test_arithmetic_optimization_mod() {
+void test_int_arithmetic_optimization_mod() {
     // v2 = v1 % 1
-    run_arithmetic_optimization(IR_MOD, v(1), c(1));
+    run_int_arithmetic_optimization(IR_MOD, v(1), c(1));
     assert(IR_MOVE, ir_start->operation);
     assert(0, ir_start->src1->vreg);
 
     // v2 = v1 % 2
-    run_arithmetic_optimization(IR_MOD, v(1), c(2));
+    run_int_arithmetic_optimization(IR_MOD, v(1), c(2));
     assert(IR_BAND, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(1, ir_start->src2->int_value);
 
     // v2 = v1 % 4
-    run_arithmetic_optimization(IR_MOD, v(1), c(4));
+    run_int_arithmetic_optimization(IR_MOD, v(1), c(4));
     assert(IR_BAND, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(3, ir_start->src2->int_value);
 
     // v2 = v1 % 8
-    run_arithmetic_optimization(IR_MOD, v(1), c(8));
+    run_int_arithmetic_optimization(IR_MOD, v(1), c(8));
     assert(IR_BAND, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(7, ir_start->src2->int_value);
 }
 
+#ifdef FLOATS
+void test_long_double_arithmetic_optimization() {
+    // v2 = 0 * v1
+    run_long_double_arithmetic_optimization(IR_MUL, cld(0.0L), vsz(TYPE_LONG_DOUBLE, 1));
+    assert(1, ir_start->src1->is_constant);
+    assert(0, ir_start->src1->int_value);
+    assert(0, (int) ir_start->src2);
+
+    // v2 = v1 * 0
+    run_long_double_arithmetic_optimization(IR_MUL, vsz(TYPE_LONG_DOUBLE, 1), cld(0.0L));
+    assert(1, ir_start->src1->is_constant);
+    assert(0, ir_start->src1->int_value);
+    assert(0, (int) ir_start->src2);
+
+    // v2 = 1 * v1
+    run_long_double_arithmetic_optimization(IR_MUL, cld(1.0L), vsz(TYPE_LONG_DOUBLE, 1));
+    assert(IR_MOVE, ir_start->operation);
+    assert(0, (int) ir_start->src2);
+
+    // v2 = v1 * 1
+    run_long_double_arithmetic_optimization(IR_MUL, vsz(TYPE_LONG_DOUBLE, 1), cld(1.0L));
+    assert(IR_MOVE, ir_start->operation);
+    assert(0, (int) ir_start->src2);
+
+    // v2 = v1 / 1
+    run_long_double_arithmetic_optimization(IR_DIV, vsz(TYPE_LONG_DOUBLE, 1), cld(1.0L));
+    assert(IR_MOVE, ir_start->operation);
+    assert(0, (int) ir_start->src2);
+}
+#endif
+
 void test_arithmetic_optimization() {
-    test_arithmetic_optimization_mul();
-    test_arithmetic_optimization_div();
-    test_arithmetic_optimization_mod();
+    test_int_arithmetic_optimization_mul();
+    test_int_arithmetic_optimization_div();
+    test_int_arithmetic_optimization_mod();
+    #ifdef FLOATS
+    test_long_double_arithmetic_optimization();
+    #endif
 }
 
 // Ensure a JMP statement in the middle of a block ends the block

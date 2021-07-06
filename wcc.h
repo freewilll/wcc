@@ -889,6 +889,9 @@ Value *ausz(int vreg, int type);
 Value *l(int label);
 Value *ci(int value);
 Value *c(long value);
+#ifdef FLOATS
+Value *cld(long double value);
+#endif
 Value *uc(long value);
 Value *csz(long value, int type);
 Value *s(int string_literal_index);

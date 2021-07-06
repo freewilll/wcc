@@ -7,83 +7,137 @@
 static void make_live_range_spill_cost(Function *function);
 
 // Optimize arithmetic operations for integer values
+void optimize_integer_arithmetic_operation(Tac *tac) {
+    Value *v;
+    Value *cv = 0;
+    long c, l;
+
+    if (tac->src1 && tac->src1->is_constant) {
+        cv = tac->src1;
+        v = tac->src2;
+    }
+    else if (tac->src2 && tac->src2->is_constant) {
+        v = tac->src1;
+        cv = tac->src2;
+    }
+    if (cv) c = cv->int_value;
+
+    if (tac->operation == IR_MUL && cv) {
+        if (c == 0) {
+            tac->operation = IR_MOVE;
+            tac->src1 = new_integral_constant(tac->dst->type->type, 0);
+            tac->src2 = 0;
+        }
+
+        else if (c == 1) {
+            tac->operation = IR_MOVE;
+            tac->src1 = v;
+            tac->src2 = 0;
+        }
+
+        else if ((c & (c - 1)) == 0) {
+            l = -1;
+            while (c > 0) { c = c >> 1; l++; }
+            tac->operation = IR_BSHL;
+            tac->src1 = v;
+            tac->src2 = new_integral_constant(TYPE_INT, l);
+        }
+    }
+
+    else if (tac->operation == IR_DIV && cv && tac->src2->is_constant) {
+        if (c == 0)
+            panic("Illegal division by zero");
+
+        else if (c == 1) {
+            tac->operation = IR_MOVE;
+            tac->src1 = v;
+            tac->src2 = 0;
+        }
+
+        else if ((c & (c - 1)) == 0) {
+            l = -1;
+            while (c > 0) { c = c >> 1; l++; }
+            tac->operation = IR_BSHR;
+            tac->src1 = v;
+            tac->src2 = new_integral_constant(TYPE_INT, l);
+        }
+    }
+
+    else if (tac->operation == IR_MOD && cv && tac->src2->is_constant) {
+        if (c == 0)
+            panic("Illegal modulus by zero");
+
+        else if (c == 1) {
+            tac->operation = IR_MOVE;
+            tac->src1 = new_integral_constant(tac->dst->type->type, 0);
+            tac->src2 = 0;
+        }
+
+        else if ((c & (c - 1)) == 0) {
+            l = 0;
+            while (c > 1) { c = c >> 1; l = (l << 1) | 1; }
+            tac->operation = IR_BAND;
+            tac->src1 = v;
+            tac->src2 = new_integral_constant(TYPE_INT, l);
+        }
+    }
+}
+
+void optimize_long_double_arithmetic_operation(Tac *tac) {
+    #ifdef FLOATS
+
+    Value *v;
+    Value *cv = 0;
+    long double c;
+
+    if (tac->src1 && tac->src1->is_constant) {
+        cv = tac->src1;
+        v = tac->src2;
+    }
+    else if (tac->src2 && tac->src2->is_constant) {
+        v = tac->src1;
+        cv = tac->src2;
+    }
+    if (cv) c = cv->fp_value;
+
+    if (tac->operation == IR_MUL && cv) {
+        if (c == 0.0L) {
+            tac->operation = IR_MOVE;
+            tac->src1 = new_floating_point_constant(tac->dst->type->type, 0.0L);
+            tac->src2 = 0;
+        }
+        else if (c == 1.0L) {
+            tac->operation = IR_MOVE;
+            tac->src1 = v;
+            tac->src2 = 0;
+        }
+    }
+
+    else if (tac->operation == IR_DIV && cv && tac->src2->is_constant) {
+        if (c == 0.0L)
+            panic("Illegal division by zero");
+
+        else if (c == 1.0L) {
+            tac->operation = IR_MOVE;
+            tac->src1 = v;
+            tac->src2 = 0;
+        }
+    }
+
+    #endif
+}
+
 void optimize_arithmetic_operations(Function *function) {
     if (!opt_optimize_arithmetic_operations) return;
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        Value *v;
-        Value *cv = 0;
-        long c, l;
+        int src1_type = tac->src1 && tac->src1->is_constant ? tac->src1->type->type : 0;
+        int src2_type = tac->src2 && tac->src2->is_constant ? tac->src2->type->type : 0;
 
-        if (tac->src1 && tac->src1->is_constant && tac->src1->type->type != TYPE_LONG_DOUBLE) {
-            cv = tac->src1;
-            v = tac->src2;
-        }
-        else if (tac->src2 && tac->src2->is_constant && tac->src2->type->type != TYPE_LONG_DOUBLE) {
-            v = tac->src1;
-            cv = tac->src2;
-        }
-        if (cv) c = cv->int_value;
-
-        if (tac->operation == IR_MUL && cv) {
-            if (c == 0) {
-                tac->operation = IR_MOVE;
-                tac->src1 = new_integral_constant(tac->dst->type->type, 0);
-                tac->src2 = 0;
-            }
-
-            else if (c == 1) {
-                tac->operation = IR_MOVE;
-                tac->src1 = v;
-                tac->src2 = 0;
-            }
-
-            else if ((c & (c - 1)) == 0) {
-                l = -1;
-                while (c > 0) { c = c >> 1; l++; }
-                tac->operation = IR_BSHL;
-                tac->src1 = v;
-                tac->src2 = new_integral_constant(TYPE_INT, l);
-            }
-        }
-
-        else if (tac->operation == IR_DIV && cv && tac->src2->is_constant) {
-            if (c == 0)
-                panic("Illegal division by zero");
-
-            else if (c == 1) {
-                tac->operation = IR_MOVE;
-                tac->src1 = v;
-                tac->src2 = 0;
-            }
-
-            else if ((c & (c - 1)) == 0) {
-                l = -1;
-                while (c > 0) { c = c >> 1; l++; }
-                tac->operation = IR_BSHR;
-                tac->src1 = v;
-                tac->src2 = new_integral_constant(TYPE_INT, l);
-            }
-        }
-
-        else if (tac->operation == IR_MOD && cv && tac->src2->is_constant) {
-            if (c == 0)
-                panic("Illegal modulus by zero");
-
-            else if (c == 1) {
-                tac->operation = IR_MOVE;
-                tac->src1 = new_integral_constant(tac->dst->type->type, 0);
-                tac->src2 = 0;
-            }
-
-            else if ((c & (c - 1)) == 0) {
-                l = 0;
-                while (c > 1) { c = c >> 1; l = (l << 1) | 1; }
-                tac->operation = IR_BAND;
-                tac->src1 = v;
-                tac->src2 = new_integral_constant(TYPE_INT, l);
-            }
-        }
+        if (src1_type == TYPE_LONG_DOUBLE || src2_type == TYPE_LONG_DOUBLE)
+            optimize_long_double_arithmetic_operation(tac);
+        else
+            optimize_integer_arithmetic_operation(tac);
     }
 }
 
