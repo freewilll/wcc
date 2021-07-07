@@ -1017,7 +1017,7 @@ static int get_least_expensive_choice_node_id(int node_id, int parent_node_id, i
     return least_expensive_choice_node_id;
 }
 
-static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Value *src1, Value *src2) {
+static Value *generate_instructions(Function *function, IGraphNode *ign, int is_root, Rule *rule, Value *src1, Value *src2) {
     if (debug_instsel_tiling) {
         printf("Generating instructions for rule %-4d: ", rule->index);
         print_rule(rule, 0, 0);
@@ -1107,7 +1107,7 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
             if (debug_instsel_tiling) {
                 printf("  saved arg %d ", x86op->arg);
                 if (slot_value->type) print_value(stdout, slot_value, 0);
-                printf("to slot %d\n", x86op->save_value_in_slot);
+                printf(" to slot %d\n", x86op->save_value_in_slot);
             }
         }
         else if (x86op->load_value_from_slot) {
@@ -1126,8 +1126,18 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
             if (debug_instsel_tiling) {
                 printf("  loaded arg %d ", x86op->arg);
                 if (slot_value->type) print_value(stdout, slot_value, 0);
-                printf("from slot %d\n", x86op->load_value_from_slot);
+                printf(" from slot %d\n", x86op->load_value_from_slot);
             }
+        }
+        else if (x86op->allocate_stack_index_in_slot) {
+            int stack_index = -(++function->stack_register_count);
+            Value *slot_value = new_value();
+            slot_value->type = new_type(x86op->allocated_type);
+            slot_value->stack_index = stack_index;
+
+            saved_values[x86op->allocate_stack_index_in_slot] = slot_value;
+            if (debug_instsel_tiling)
+                printf("  allocated stack index %d, type %d in slot %d\n", stack_index, x86op->allocated_type, x86op->allocate_stack_index_in_slot);
         }
         else {
             // Add a tac to the IR
@@ -1144,7 +1154,7 @@ static Value *generate_instructions(IGraphNode *ign, int is_root, Rule *rule, Va
 }
 
 // Add instructions to the intermediate representation by doing a post-order walk over the cost tree, picking the matching rules with lowest cost
-static Value *recursive_make_intermediate_representation(IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
+static Value *recursive_make_intermediate_representation(Function *function, IGraph *igraph, int node_id, int parent_node_id, int parent_src) {
     int least_expensive_choice_node_id = get_least_expensive_choice_node_id(node_id, parent_node_id, parent_src);
     int igraph_node_id = cost_to_igraph_map[least_expensive_choice_node_id];
     IGraphNode *ign = &(igraph->nodes[igraph_node_id]);
@@ -1159,7 +1169,7 @@ static Value *recursive_make_intermediate_representation(IGraph *igraph, int nod
     Value *src2 = 0;
 
     while (e) {
-        Value *src = recursive_make_intermediate_representation(igraph, e->to->id, least_expensive_choice_node_id, child_src);
+        Value *src = recursive_make_intermediate_representation(function, igraph, e->to->id, least_expensive_choice_node_id, child_src);
         if (child_src == 1)
             src1 = src;
         else
@@ -1171,10 +1181,10 @@ static Value *recursive_make_intermediate_representation(IGraph *igraph, int nod
 
     int is_root = parent_node_id == -1;
 
-    return generate_instructions(ign, is_root, rule, src1, src2);
+    return generate_instructions(function, ign, is_root, rule, src1, src2);
 }
 
-static void make_intermediate_representation(IGraph *igraph) {
+static void make_intermediate_representation(Function *function, IGraph *igraph) {
     if (debug_instsel_tiling) {
         printf("\nMaking IR\n");
         dump_igraph(igraph, 0);
@@ -1182,7 +1192,7 @@ static void make_intermediate_representation(IGraph *igraph) {
     }
 
     saved_values = malloc((MAX_SAVED_REGISTERS + 1) * sizeof(Value *));
-    recursive_make_intermediate_representation(igraph, 0, -1, -1);
+    recursive_make_intermediate_representation(function, igraph, 0, -1, -1);
     free(saved_values);
 
     if (debug_instsel_tiling) {
@@ -1258,7 +1268,7 @@ static void tile_igraphs(Function *function) {
         }
 
         Tac *current_instruction_ir_start = ir;
-        make_intermediate_representation(&(igraphs[i]));
+        make_intermediate_representation(function, &(igraphs[i]));
         if (debug_instsel_tiling) {
             Function *f = new_function();
             f->ir = current_instruction_ir_start;

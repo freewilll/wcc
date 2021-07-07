@@ -8,6 +8,8 @@ int verbose;
 int passes;
 int failures;
 
+int gi;
+
 #ifdef FLOATS
 long double gld;
 
@@ -256,6 +258,16 @@ void test_inc_dec() {
 
 void test_type_changes() {
     long double ld;
+    char c;
+    short s;
+    int i;
+    long l;
+
+    unsigned char uc;
+    unsigned short us;
+    unsigned int ui;
+    unsigned long ul;
+
     char *buffer = malloc(100);
 
     sprintf(buffer, "%5.5Lf", (1.1L + 1   )); assert_int(0, strcmp(buffer, "2.10000"), "1.1 + 1");
@@ -266,6 +278,72 @@ void test_type_changes() {
     sprintf(buffer, "%5.5Lf", (2    * 1.1L)); assert_int(0, strcmp(buffer, "2.20000"), "2 * 1.1");
     sprintf(buffer, "%5.5Lf", (1.1L / 2   )); assert_int(0, strcmp(buffer, "0.55000"), "1.1 / 2");
     sprintf(buffer, "%5.5Lf", (3    / 1.5L)); assert_int(0, strcmp(buffer, "2.00000"), "3 / 1.5");
+
+    i = 1; sprintf(buffer, "%5.5Lf", (1.1L + i   )); assert_int(0, strcmp(buffer, "2.10000"), "1.1 + i   ");
+    i = 1; sprintf(buffer, "%5.5Lf", (i    + 1.1L)); assert_int(0, strcmp(buffer, "2.10000"), "i    + 1.1");
+    i = 1; sprintf(buffer, "%5.5Lf", (1.1L - i   )); assert_int(0, strcmp(buffer, "0.10000"), "1.1 - i   ");
+    i = 2; sprintf(buffer, "%5.5Lf", (i    - 1.1L)); assert_int(0, strcmp(buffer, "0.90000"), "i    - 1.1");
+    i = 2; sprintf(buffer, "%5.5Lf", (1.1L * i   )); assert_int(0, strcmp(buffer, "2.20000"), "1.1 * i   ");
+    i = 2; sprintf(buffer, "%5.5Lf", (i    * 1.1L)); assert_int(0, strcmp(buffer, "2.20000"), "i    * 1.1");
+    i = 2; sprintf(buffer, "%5.5Lf", (1.1L / i   )); assert_int(0, strcmp(buffer, "0.55000"), "1.1 / i   ");
+    i = 3; sprintf(buffer, "%5.5Lf", (i    / 1.5L)); assert_int(0, strcmp(buffer, "2.00000"), "i    / 1.5");
+
+    ld = 1.1L; sprintf(buffer, "%5.5Lf", (ld + 1   )); assert_int(0, strcmp(buffer, "2.10000"), "ld + 1   ");
+    ld = 1.1L; sprintf(buffer, "%5.5Lf", (1    + ld)); assert_int(0, strcmp(buffer, "2.10000"), "1    + ld");
+    ld = 1.1L; sprintf(buffer, "%5.5Lf", (ld - 1   )); assert_int(0, strcmp(buffer, "0.10000"), "ld - 1   ");
+    ld = 1.1L; sprintf(buffer, "%5.5Lf", (2    - ld)); assert_int(0, strcmp(buffer, "0.90000"), "2    - ld");
+    ld = 1.1L; sprintf(buffer, "%5.5Lf", (ld * 2   )); assert_int(0, strcmp(buffer, "2.20000"), "ld * 2   ");
+    ld = 1.1L; sprintf(buffer, "%5.5Lf", (2    * ld)); assert_int(0, strcmp(buffer, "2.20000"), "2    * ld");
+    ld = 1.1L; sprintf(buffer, "%5.5Lf", (ld / 2   )); assert_int(0, strcmp(buffer, "0.55000"), "ld / 2   ");
+    ld = 1.5L; sprintf(buffer, "%5.5Lf", (3    / ld)); assert_int(0, strcmp(buffer, "2.00000"), "3    / ld");
+
+    ld = 1.1L; i = 1; sprintf(buffer, "%5.5Lf", (ld + i   )); assert_int(0, strcmp(buffer, "2.10000"), "ld + i   ");
+    ld = 1.1L; i = 1; sprintf(buffer, "%5.5Lf", (i    + ld)); assert_int(0, strcmp(buffer, "2.10000"), "i    + ld");
+    ld = 1.1L; i = 1; sprintf(buffer, "%5.5Lf", (ld - i   )); assert_int(0, strcmp(buffer, "0.10000"), "ld - i   ");
+    ld = 1.1L; i = 2; sprintf(buffer, "%5.5Lf", (i    - ld)); assert_int(0, strcmp(buffer, "0.90000"), "i    - ld");
+    ld = 1.1L; i = 2; sprintf(buffer, "%5.5Lf", (ld * i   )); assert_int(0, strcmp(buffer, "2.20000"), "ld * i   ");
+    ld = 1.1L; i = 2; sprintf(buffer, "%5.5Lf", (i    * ld)); assert_int(0, strcmp(buffer, "2.20000"), "i    * ld");
+    ld = 1.1L; i = 2; sprintf(buffer, "%5.5Lf", (ld / i   )); assert_int(0, strcmp(buffer, "0.55000"), "ld / i   ");
+    ld = 1.5L; i = 3; sprintf(buffer, "%5.5Lf", (i    / ld)); assert_int(0, strcmp(buffer, "2.00000"), "i    / ld");
+
+    // Signed int conversions
+    ld = 1.1L; c = 1; sprintf(buffer, "%5.5Lf", (ld + c)); assert_int(0, strcmp(buffer, "2.10000"), "ld + c");
+    ld = 1.1L; s = 1; sprintf(buffer, "%5.5Lf", (ld + s)); assert_int(0, strcmp(buffer, "2.10000"), "ld + s");
+    ld = 1.1L; i = 1; sprintf(buffer, "%5.5Lf", (ld + i)); assert_int(0, strcmp(buffer, "2.10000"), "ld + i");
+    ld = 1.1L; l = 1; sprintf(buffer, "%5.5Lf", (ld + l)); assert_int(0, strcmp(buffer, "2.10000"), "ld + l");
+
+    ld = 1.1L; c = -1; sprintf(buffer, "%5.5Lf", (ld + c)); assert_int(0, strcmp(buffer, "0.10000"), "ld + c");
+    ld = 1.1L; s = -1; sprintf(buffer, "%5.5Lf", (ld + s)); assert_int(0, strcmp(buffer, "0.10000"), "ld + s");
+    ld = 1.1L; i = -1; sprintf(buffer, "%5.5Lf", (ld + i)); assert_int(0, strcmp(buffer, "0.10000"), "ld + i");
+    ld = 1.1L; l = -1; sprintf(buffer, "%5.5Lf", (ld + l)); assert_int(0, strcmp(buffer, "0.10000"), "ld + l");
+
+    // Unsigned int conversions
+    ld = 1.1L; uc = -1; sprintf(buffer, "%5.5Lf", (ld + uc)); assert_int(0, strcmp(buffer, "256.10000"),                  "ld + uc");
+    ld = 1.1L; us = -1; sprintf(buffer, "%5.5Lf", (ld + us)); assert_int(0, strcmp(buffer, "65536.10000"),                "ld + us");
+    ld = 1.1L; ui = -1; sprintf(buffer, "%5.5Lf", (ld + ui)); assert_int(0, strcmp(buffer, "4294967296.10000"),           "ld + ui");
+    ld = 1.1L; ul = -1; sprintf(buffer, "%5.5Lf", (ld + ul)); assert_int(0, strcmp(buffer, "18446744073709551616.00000"), "ld + ul");
+
+    // Local signed int conversion
+    int lsi, *plsi;
+    plsi = &lsi; // Force lsi onto the stack
+    lsi = 1;
+    sprintf(buffer, "%5.5Lf", (ld + lsi)); assert_int(0, strcmp(buffer, "2.10000"), "ld + ul");
+
+    // Global signed int conversion
+    gi = 1;
+    sprintf(buffer, "%5.5Lf", (ld + gi)); assert_int(0, strcmp(buffer, "2.10000"), "ld + gi");
+
+    // Relational operator conversion
+    ld =  1.1; assert_int(0, ld < 0, " 1.1 < 0");
+    ld = -1.1; assert_int(1, ld < 0, "-1.1 < 0)");
+
+    i = 0;
+    ld =  1.1; assert_int(0, ld < i, " 1.1 < i");
+    ld = -1.1; assert_int(1, ld < i, "-1.1 < i)");
+
+    gi = 0;
+    ld =  1.1; assert_int(0, ld < gi, " 1.1 < gi");
+    ld = -1.1; assert_int(1, ld < gi, "-1.1 < gi)");
 }
 
 #endif

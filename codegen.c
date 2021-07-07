@@ -5,6 +5,8 @@
 
 #include "wcc.h"
 
+int need_ru4_to_od_symbol;
+
 static void check_preg(int preg) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
     if (preg < 0 || preg >= PHYSICAL_REGISTER_COUNT) panic1d("Illegal preg %d", preg);
@@ -157,6 +159,8 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
     if (*t) {
         int mnemonic_length = buffer - result;
         for (int i = 0; i < 8 - mnemonic_length; i++) *buffer++ = ' ';
+
+        if (strlen(t) >= 8 && !memcmp(t, ".RU4TOLD", 8)) need_ru4_to_od_symbol = 1;
     }
 
     while (*t) {
@@ -552,6 +556,9 @@ void output_code(char *input_filename, char *output_filename) {
         fprintf(f, "\n");
     }
 
+    // fprintf(f, "    .section    .rodata.cst16,"aM",@progbits,16");
+    // fprintf(f, "    .p2align    4    ");
+
     // Output code
     fprintf(f, "    .text\n");
 
@@ -569,6 +576,7 @@ void output_code(char *input_filename, char *output_filename) {
     string_literal_count = 0;
 
     // Output functions code
+    need_ru4_to_od_symbol = 0;
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
         if (symbol->is_function && symbol->function->is_defined) {
@@ -590,8 +598,15 @@ void output_code(char *input_filename, char *output_filename) {
             fprintf(f, "    .long   %d\n", *((int *) &ld + 2));
             fprintf(f, "    .long   %d\n", *((int *) &ld + 3));
         }
+    }
+
+    if (need_ru4_to_od_symbol) {
+        fprintf(f, ".RU4TOLD:\n");
+        fprintf(f, "    .long   0\n");
+        fprintf(f, "    .long   1602224128 # 0x5f800000\n");
         fprintf(f, "\n");
     }
+
     #endif
 
     fclose(f);

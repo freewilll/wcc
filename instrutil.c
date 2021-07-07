@@ -71,6 +71,8 @@ static X86Operation *dup_x86_operation(X86Operation *operation) {
     result->template = operation->template ? strdup(operation->template) : 0;
     result->save_value_in_slot = operation->save_value_in_slot;
     result->load_value_from_slot = operation->load_value_from_slot;
+    result->allocate_stack_index_in_slot = operation->allocate_stack_index_in_slot;
+    result->allocated_type = operation->allocated_type;
     result->arg = operation->arg;
     result->next = 0;
 
@@ -208,6 +210,8 @@ X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *temp
     x86op->template = template;
     x86op->save_value_in_slot = 0;
     x86op->load_value_from_slot = 0;
+    x86op->allocate_stack_index_in_slot = 0;
+    x86op->allocated_type = 0;
     x86op->arg = 0;
 
     x86op->next = 0;
@@ -232,6 +236,14 @@ void add_load_value(Rule *r, int arg, int slot) {
     memset(x86op, 0, sizeof(X86Operation));
     x86op->load_value_from_slot = slot;
     x86op->arg = arg;
+    add_x86_op_to_rule(r, x86op);
+}
+
+void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
+    X86Operation *x86op = malloc(sizeof(X86Operation));
+    memset(x86op, 0, sizeof(X86Operation));
+    x86op->allocate_stack_index_in_slot = slot;
+    x86op->allocated_type = type;
     add_x86_op_to_rule(r, x86op);
 }
 
@@ -387,6 +399,8 @@ void print_rule(Rule *r, int print_operations, int indent) {
                 printf("special: save arg %d to slot %d\n", operation->arg, operation->save_value_in_slot);
             else if (operation->load_value_from_slot)
                 printf("special: load arg %d from slot %d\n", operation->arg, operation->load_value_from_slot);
+            else if (operation->allocate_stack_index_in_slot)
+                printf("special: allocate stack index of type %d to slot %d\n", operation->allocated_type, operation->allocate_stack_index_in_slot);
             else if (operation->template)
                 printf("%s\n", operation->template);
             else

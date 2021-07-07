@@ -801,9 +801,11 @@ typedef struct x86_operation {
     int operation;
     int dst, v1, v2;
     char *template;
-    int save_value_in_slot;     // Slot number to save a value in
-    int load_value_from_slot;   // Slot number to load a value from
-    int arg;                    // The argument (src1 or src2) to load/save
+    int save_value_in_slot;           // Slot number to save a value in
+    int load_value_from_slot;         // Slot number to load a value from
+    int allocate_stack_index_in_slot; // Allocate a stack index and put in slot
+    int allocated_type;               // Type to use to determine the allocated stack size
+    int arg;                          // The argument (src1 or src2) to load/save
     struct x86_operation *next;
 } X86Operation;
 
@@ -837,6 +839,7 @@ Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
 X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template);
 void add_save_value(Rule *r, int arg, int slot);
 void add_load_value(Rule *r, int arg, int slot);
+void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
 void fin_rule(Rule *r);
 void check_for_duplicate_rules();
 void write_rule_coverage_file();

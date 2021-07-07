@@ -118,6 +118,60 @@ static void add_move_rules_ru_to_mu() {
     r = add_rule(MU4, IR_MOVE, RU4, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movq   %v1q, %vdq");
 }
 
+static void add_integer_long_double_move_rule(int src, int type, char *extend_template, char *mov_template, char *load_template) {
+    Rule *r = add_rule(MLD5, IR_MOVE, src, 0, 6);
+    add_allocate_stack_index_in_slot(r, 1, type);                     // Allocate stack entry and put it in slot 1
+    add_load_value(r, 2, 1);                                    // Load stack index from slot 1 and put in SRC2
+    if (extend_template)
+        add_op(r, X_MOVC, 0,   SRC1, SRC1, extend_template);    // Sign extend register if needed
+    add_op(r, X_MOVC, 0,   SRC1, SRC2, mov_template);           // Move register to stack
+    add_op(r, X_MOVC, 0,   SRC2, 0,    load_template);          // Load floating point from stack
+    add_op(r, X_MOVC, DST, 0,    0,    "fstpt %vdL");           // Store in dst
+}
+
+static void add_long_double_move_rules()  {
+    Rule *r;
+
+    // Long double constant -> memory
+    r = add_rule(MLD5, IR_MOVE, CLD,  0, 3);
+    add_op(r, X_MOV,  DST, SRC1, 0, "movabsq %v1L, %%r10"); add_op(r, X_MOV,  DST, SRC1, 0, "movq %%r10, %vdL");
+    add_op(r, X_MOV,  DST, SRC1, 0, "movabsq %v1H, %%r10"); add_op(r, X_MOV,  DST, SRC1, 0, "movq %%r10, %vdH");
+
+    // Long double memory -> memory
+    r = add_rule(MLD5, IR_MOVE, MLD5,  0, 5);
+    add_op(r, X_MOVC,  SRC1, SRC1, 0, "movq %v1L, %%r10");
+    add_op(r, X_MOVC,  DST,  DST,  0, "movq %%r10, %vdL");
+    add_op(r, X_MOVC,  SRC1, SRC1, 0, "movq %v1H, %%r10");
+    add_op(r, X_MOVC,  DST,  DST,  0, "movq %%r10, %vdH");
+
+    // Integer in memory-> long double in memory
+    // Signed integers
+    add_integer_long_double_move_rule(RI1, TYPE_CHAR , "movsbw %v1b, %v1w", "movw %v1w, %v2", "filds %v2L");
+    add_integer_long_double_move_rule(RI2, TYPE_SHORT, 0,                   "movw %v1w, %v2", "filds %v2L");
+    add_integer_long_double_move_rule(RI3, TYPE_INT  , 0,                   "movl %v1l, %v2", "fildl %v2L");
+    add_integer_long_double_move_rule(RI4, TYPE_LONG , 0,                   "movq %v1q, %v2", "fildq %v2L");
+
+    // Unsigned integers
+    add_integer_long_double_move_rule(RU1, TYPE_CHAR , "movzbw %v1b, %v1w", "movw %v1w, %v2", "filds %v2L");
+    add_integer_long_double_move_rule(RU2, TYPE_SHORT, "movzwl %v1w, %v1l", "movl %v1l, %v2", "fildl %v2L");
+    add_integer_long_double_move_rule(RU3, TYPE_INT  , "movl   %v1l, %v1l", "movq %v1q, %v2", "fildq %v2L");
+
+    // RU4 is a special case
+    // Inspired by clang, when run with -fPIE
+    // Signed constants <0 are converted and then need a huge constant added to them
+    r = add_rule(MLD5, IR_MOVE, RU4, 0, 10);
+    add_allocate_stack_index_in_slot(r, 1, TYPE_LONG);      // Allocate stack entry and put it in slot 1
+    add_load_value(r, 2, 1);                                // Load stack index from slot 1 and put in SRC2
+    add_op(r, X_MOVC, 0,   SRC1, SRC2, "movq    %v1q, %v2");              // Move register to stack
+    add_op(r, X_MOVC, 0,   0, 0,       "movq    $0, %%r10");              // Zero r10
+    add_op(r, X_MOVC, 0,   SRC1, SRC1, "testq   %v1q, %v1q");             // Test & set flags
+    add_op(r, X_MOVC, DST, 0,    0,    "sets    %%r10b");                 // Store sign in r10 (0=unsigned, 1=signed)
+    add_op(r, X_MOVC, 0,   SRC2, 0,    "fildq   %v2L");                   // Load floating point from stack
+    add_op(r, X_MOVC, 0,   0, 0,       "leaq    .RU4TOLD(%%rip), %%r11"); // Add constant, 0 for unsigned, something huge for signed
+    add_op(r, X_MOVC, 0,   0, 0,       "fadds   (%%r11,%%r10,4)");
+    add_op(r, X_MOVC, DST, 0,    0,    "fstpt  %vdL");                    // Store in dst
+}
+
 static Rule *add_move_to_ptr(int src1, int src2, char *sign_extend_template, char *op_template) {
     Rule *r = add_rule(src1, IR_MOVE_TO_PTR, src1, src2, 3);
     if (sign_extend_template) add_op(r, X_MOVS, SRC2, SRC2, 0, sign_extend_template);
@@ -705,17 +759,7 @@ void init_instruction_selection_rules() {
     add_move_rules_ri_to_mi();
     add_move_rules_ru_to_mu();
 
-    // Long double constant -> memory
-    r = add_rule(MLD5, IR_MOVE, CLD,  0, 3);
-    add_op(r, X_MOV,  DST, SRC1, 0, "movabsq %v1L, %%r10"); add_op(r, X_MOV,  DST, SRC1, 0, "movq %%r10, %vdL");
-    add_op(r, X_MOV,  DST, SRC1, 0, "movabsq %v1H, %%r10"); add_op(r, X_MOV,  DST, SRC1, 0, "movq %%r10, %vdH");
-
-    // Long double memory -> memory
-    r = add_rule(MLD5, IR_MOVE, MLD5,  0, 5);
-    add_op(r, X_MOVC,  SRC1, SRC1, 0, "movq %v1L, %%r10");
-    add_op(r, X_MOVC,  DST,  DST,  0, "movq %%r10, %vdL");
-    add_op(r, X_MOVC,  SRC1, SRC1, 0, "movq %v1H, %%r10");
-    add_op(r, X_MOVC,  DST,  DST,  0, "movq %%r10, %vdH");
+    add_long_double_move_rules();
 
     // Pointer move rules
     r = add_rule(RP1, IR_MOVE, STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
