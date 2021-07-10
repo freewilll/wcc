@@ -228,7 +228,7 @@ void next() {
                             #ifdef FLOATS
                             decimal_part = decimal_part + (i[ip] - '0') / divisor;
                             decimal_digit_count++;
-                            divisor *= 10;
+                            divisor = divisor * 10;
                             #endif
                         }
                         ip++;
@@ -251,7 +251,7 @@ void next() {
                     int exponent = 0;
                     while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { exponent = exponent * 10 + (i[ip] - '0'); ip++; }
                     #ifdef FLOATS
-                    for (int j = 0; j < exponent; j++) exponent_factor *= 10;
+                    for (int j = 0; j < exponent; j++) exponent_factor = exponent_factor * 10;
                     if (is_negative) exponent_factor = 1 / exponent_factor;
                     #endif
                 }
