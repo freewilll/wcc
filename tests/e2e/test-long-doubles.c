@@ -256,6 +256,10 @@ void test_inc_dec() {
     ld--; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "1.00000"), "Long double postfix --");
 }
 
+long double return_ld_from_int_constant () {
+    return 1;
+}
+
 void test_type_changes() {
     long double ld;
     char c;
@@ -354,6 +358,8 @@ void test_type_changes() {
 
     gld = 1;  ld = gld; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "1.00000" ), "assigment of gld=1");
     gld = -1; ld = gld; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "-1.00000"), "assigment of gld=-1");
+
+    sprintf(buffer, "%5.5Lf", return_ld_from_int_constant()); assert_int(0, strcmp(buffer, "1.00000"), "return (long double) 1");
 }
 
 #endif

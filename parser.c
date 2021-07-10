@@ -1336,7 +1336,8 @@ static void parse_statement() {
         else {
             parse_expression(TOK_COMMA);
             Value *src1 = pop();
-            if (src1) src1 = load(src1);
+            src1 = load(src1);
+            src1 = add_convert_type_if_needed(src1, cur_function_symbol->function->return_type);
             add_instruction(IR_RETURN, 0, src1, 0);
         }
         consume(TOK_SEMI, ";");
