@@ -344,6 +344,16 @@ void test_type_changes() {
     gi = 0;
     ld =  1.1; assert_int(0, ld < gi, " 1.1 < gi");
     ld = -1.1; assert_int(1, ld < gi, "-1.1 < gi)");
+
+    // Conversion of int -> ld in assignment
+    ld = 1;  sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "1.00000" ), "assigment of 1");
+    ld = -1; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "-1.00000"), "assigment of -1");
+
+    i = 1;  ld = i; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "1.00000" ), "assigment of i=1");
+    i = -1; ld = i; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "-1.00000"), "assigment of i=-1");
+
+    gld = 1;  ld = gld; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "1.00000" ), "assigment of gld=1");
+    gld = -1; ld = gld; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "-1.00000"), "assigment of gld=-1");
 }
 
 #endif

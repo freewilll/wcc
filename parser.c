@@ -570,6 +570,36 @@ static void push_local_symbol(Symbol *symbol) {
     push(v);
 }
 
+// Add type change move if necessary and return the dst value
+Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
+    if (!type_eq(dst_type, src->type)) {
+        if (src->is_constant) {
+            #ifdef FLOATS
+            if (src->type->type != TYPE_LONG_DOUBLE && dst_type->type == TYPE_LONG_DOUBLE) {
+                // Convert long double -> int
+                Value *src2 = new_value();
+                src2->type = new_type(TYPE_LONG_DOUBLE);
+                src2->is_constant = 1;
+                src2->fp_value = src->int_value;
+                return src2;
+            }
+            #endif
+
+            // No change
+            return src;
+        }
+
+        // Convert int -> int
+        Value *src2 = new_value();
+        src2->vreg = new_vreg();
+        src2->type = dup_type(dst_type);
+        add_instruction(IR_MOVE, src2, src, 0);
+        return src2;
+    }
+
+    return src;
+}
+
 static void parse_assignment() {
     next();
     if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
@@ -578,15 +608,7 @@ static void parse_assignment() {
     Value *src1 = pl();
     dst->is_lvalue = 1;
 
-    // Add type change move if necessary
-    if (!src1->is_constant && !type_eq(dst->type, src1->type)) {
-        Value *src2 = new_value();
-        src2->vreg = new_vreg();
-        src2->type = dup_type(dst->type);
-        add_instruction(IR_MOVE, src2, src1, 0);
-        src1 = src2;
-    }
-
+    src1 = add_convert_type_if_needed(src1, dst->type);
     add_instruction(IR_MOVE, dst, src1, 0);
     push(dst);
 }
