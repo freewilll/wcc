@@ -360,6 +360,12 @@ void test_type_changes() {
     gld = -1; ld = gld; sprintf(buffer, "%5.5Lf", ld); assert_int(0, strcmp(buffer, "-1.00000"), "assigment of gld=-1");
 
     sprintf(buffer, "%5.5Lf", return_ld_from_int_constant()); assert_int(0, strcmp(buffer, "1.00000"), "return (long double) 1");
+
+    // Casting from int -> long double
+    i = gi = -1;
+    sprintf(buffer, "%5.5Lf", (long double) i);  assert_int(0, strcmp(buffer, "-1.00000"), "(long double) -1");
+    sprintf(buffer, "%5.5Lf", (long double) i);  assert_int(0, strcmp(buffer, "-1.00000"), "(long double) i");
+    sprintf(buffer, "%5.5Lf", (long double) gi); assert_int(0, strcmp(buffer, "-1.00000"), "(long double) gi");
 }
 
 #endif
