@@ -11,7 +11,7 @@ int failures;
 int gi;
 
 #ifdef FLOATS
-long double gld;
+long double gld, *gpld;
 
 void test_assignment() {
     long double ld1, ld2;
@@ -219,6 +219,9 @@ void test_pointers() {
     // Make a nan, for the hell of it
     *((long *) &ld) = -1;
     *((long *) &ld + 1) = -1;
+
+    // Can't do much yet, pointers are not fully implemented
+    gpld = malloc(sizeof(long double));
 }
 
 void test_constant_operations() {

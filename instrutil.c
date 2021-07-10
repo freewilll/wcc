@@ -456,9 +456,9 @@ static int non_terminal_for_value(Value *v) {
          if (v->is_string_literal)                                                     result =  STL;
     else if (v->label)                                                                 result =  LAB;
     else if (v->function_symbol)                                                       result =  FUN;
+    else if (v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)                             result =  RP5;
     else if (v->type->type >= TYPE_PTR && !v->type->is_unsigned && !v->vreg)           result =  MI4;
     else if (v->type->type >= TYPE_PTR &&  v->type->is_unsigned && !v->vreg)           result =  MU4;
-    else if (v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)                             result =  RP5;
     else if (v->type->type >= TYPE_PTR)                                                result =  RP1 + value_ptr_target_x86_size(v) -1;
     else if (v->is_lvalue_in_register)                                                 result =  RP1 + v->x86_size - 1;
     else if ((v->global_symbol || v->stack_index) & v->type->type == TYPE_LONG_DOUBLE) result =  MLD5;
