@@ -263,7 +263,7 @@ long double return_ld_from_int_constant () {
     return 1;
 }
 
-void test_type_changes() {
+void test_int_long_double_type_changes() {
     long double ld;
     char c;
     short s;
@@ -371,6 +371,37 @@ void test_type_changes() {
     sprintf(buffer, "%5.5Lf", (long double) gi); assert_int(0, strcmp(buffer, "-1.00000"), "(long double) gi");
 }
 
+// FIXME make this work
+// void assert_long_double_int_conversion(long double ld, char c, short s, int i, long l, unsigned char uc, unsigned short us, unsigned int ui, unsigned long ul, char *message) {
+//     char *buffer = malloc(100);
+
+//     asprintf(&buffer, "%s c",  message); assert_int(1, (char)           ld == c,  buffer);
+//     asprintf(&buffer, "%s s",  message); assert_int(1, (short)          ld == s,  buffer);
+//     asprintf(&buffer, "%s i",  message); assert_int(1, (int)            ld == i,  buffer);
+//     asprintf(&buffer, "%s l",  message); assert_int(1, (long)           ld == l,  buffer);
+//     asprintf(&buffer, "%s uc", message); assert_int(1, (unsigned char)  ld == uc, buffer);
+//     asprintf(&buffer, "%s us", message); assert_int(1, (unsigned short) ld == us, buffer);
+//     asprintf(&buffer, "%s ui", message); assert_int(1, (unsigned int)   ld == ui, buffer);
+//     asprintf(&buffer, "%s ul", message); assert_int(1, (unsigned long)  ld == ul, buffer);
+// }
+
+// void test_long_double_type_int_changes() {
+//     assert_long_double_int_conversion(-100.1L,                        -100,         -100,         -100,                 -100,          156,        65436,         -100, 18446744073709551516UL, "-100.1L                ");
+//     assert_long_double_int_conversion(100.1L,                          100,          100,          100,                  100,          100,          100,          100,                  100UL, "100.1L                 ");
+//     assert_long_double_int_conversion(-1000.1L,                         24,        -1000,        -1000,                -1000,           24,        64536,        -1000, 18446744073709550616UL, "-1000.1L               ");
+//     assert_long_double_int_conversion(1000.1L,                         -24,         1000,         1000,                 1000,          232,         1000,         1000,                 1000UL, "1000.1L                ");
+//     assert_long_double_int_conversion(-10000.1L,                       -16,       -10000,       -10000,               -10000,          240,        55536,       -10000, 18446744073709541616UL, "-10000.1L              ");
+//     assert_long_double_int_conversion(10000.1L,                         16,        10000,        10000,                10000,           16,        10000,        10000,                10000UL, "10000.1L               ");
+//     assert_long_double_int_conversion(-100000.1L,                        0,       -32768,      -100000,              -100000,            0,        31072,      -100000, 18446744073709451616UL, "-100000.1L             ");
+//     assert_long_double_int_conversion(100000.1L,                         0,       -32768,       100000,               100000,            0,        34464,       100000,               100000UL, "100000.1L              ");
+//     assert_long_double_int_conversion(-1000000000.1L,                    0,       -32768,  -1000000000,          -1000000000,            0,        13824,  -1000000000, 18446744072709551616UL, "-1000000000.1L         ");
+//     assert_long_double_int_conversion(1000000000.1L,                     0,       -32768,   1000000000,           1000000000,            0,        51712,   1000000000,           1000000000UL, "1000000000.1L          ");
+//     assert_long_double_int_conversion(-10000000000.1L,                   0,       -32768,  -2147483648,         -10000000000,            0,            0,  -1410065408, 18446744063709551616UL, "-10000000000.1L        ");
+//     assert_long_double_int_conversion(10000000000.1L,                    0,       -32768,  -2147483648,          10000000000,            0,            0,   1410065408,          10000000000UL, "10000000000.1L         ");
+//     assert_long_double_int_conversion(9223372036854775807.1L,            0,       -32768,  -2147483648,  9223372036854775807,            0,            0,           -1,  9223372036854775807UL, "9223372036854775807.1L ");
+//     assert_long_double_int_conversion(9223372036854775808.1L,            0,       -32768,  -2147483648, -9223372036854775808UL,          0,            0,            0,  9223372036854775808UL, "9223372036854775808.1L ");
+//     assert_long_double_int_conversion(9900000000000000000.1L,            0,       -32768,  -2147483648, -9223372036854775808UL,          0,            0,            0,  9900000000000000000UL, "9900000000000000000.1L ");
+// }
 #endif
 
 int main(int argc, char **argv) {
@@ -388,7 +419,8 @@ int main(int argc, char **argv) {
     test_pointers();
     test_constant_operations();
     test_inc_dec();
-    test_type_changes();
+    test_int_long_double_type_changes();
+    // test_long_double_type_int_changes();
     #endif
 
     finalize();

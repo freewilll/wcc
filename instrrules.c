@@ -120,17 +120,84 @@ static void add_move_rules_ru_to_mu() {
 
 static void add_integer_long_double_move_rule(int src, int type, char *extend_template, char *mov_template, char *load_template) {
     Rule *r = add_rule(MLD5, IR_MOVE, src, 0, 6);
-    add_allocate_stack_index_in_slot(r, 1, type);                     // Allocate stack entry and put it in slot 1
-    add_load_value(r, 2, 1);                                    // Load stack index from slot 1 and put in SRC2
+    add_allocate_stack_index_in_slot(r, 1, type);               // Allocate stack entry and put it in slot 1
+    add_load_value(r, 2, 1);                                    // Load stack index from slot 1 and put in v2
     if (extend_template)
         add_op(r, X_MOVC, 0,   SRC1, SRC1, extend_template);    // Sign extend register if needed
-    add_op(r, X_MOVC, 0,   SRC1, SRC2, mov_template);           // Move register to stack
-    add_op(r, X_MOVC, 0,   SRC2, 0,    load_template);          // Load floating point from stack
+    add_op(r, X_MOVC, 0,   SRC1, 0,    mov_template);           // Move register to stack
+    add_op(r, X_MOVC, 0,   0,    0,    load_template);          // Load floating point from stack
     add_op(r, X_MOVC, DST, 0,    0,    "fstpt %vdL");           // Store in dst
+}
+
+static void add_long_double_integer_move_rule(int dst, int type, char *conv_template, char *mov_template, char *ext_template) {
+    Rule *r = add_rule(dst, IR_MOVE, MLD5, 0, 6);
+
+    // Slot 1: stack index of backup control word
+    // Slot 2: register for manipulating control word
+    // Slot 3: stack index of temporary control word
+    // Slot 4: result of conversion
+    int x87_dst_type = type;
+    int ru4 = dst == RU4;
+
+    add_allocate_stack_index_in_slot(r, 1, TYPE_SHORT);   // Slot 1: stack index of backup control word
+    add_allocate_register_in_slot   (r, 2, TYPE_SHORT);   // Slot 2: register for manipulating control word
+    add_allocate_stack_index_in_slot(r, 3, TYPE_SHORT);   // Slot 3: stack index of temporary control word
+    add_allocate_stack_index_in_slot(r, 4, x87_dst_type); // Slot 4: result of conversion
+    add_allocate_register_in_slot   (r, 5, TYPE_LONG);    // Slot 5: Sign of unsigned long
+    add_op(r, IR_NOP, DST, 0, 0, "nop %vdq");             //
+    add_save_value(r, 3, 6);                              // Slot 6: dst register
+
+    add_op(r, X_MOVC, 0, SRC1, 0, "fldt %v1L");         // Load input long double
+
+    if (ru4) {
+        // Special case for unsigned longs. If the value is > 2^63, subtract it
+        // then xor the high bit of the integer at the end
+
+        add_op(r, X_MOVC, 0, 0, 0, "flds .LDTORU4(%%rip)"); // Load 2^63                                        stack = (2^63, v)
+        add_op(r, X_MOVC, 0, 0, 0, "fucomi %%st(1), %%st"); // Compare with 2^63                                stack = (2^63, v)
+        add_load_value(r, 3, 5);                            // vd = slot index 5
+        add_op(r, X_SETA, 0, 0, 0, "setbe %vdb");           // Store 1 if the value > 2^63
+
+        add_op(r, X_MOVC, 0, 0, 0,  "fldz");                    // Load zero                                    stack = (0, 2^63, v)
+        add_op(r, X_MOVC, 0, 0, 0,  "fxch %%st(1)");            // Exchange top two stack entries               stack = (2^63, 0, v)
+        add_op(r, X_MOVC, 0, 0, 0,  "fcmovnbe %%st(1), %%st");  // Move st1 to st0 if the value > 2^63          stack = (2^63, 0, v) or stack = (0, 0, v)
+        add_op(r, X_MOVC, 0, 0, 0,  "fstp %%st(1)");            // Delete 2nc stack entry                       stack = (2^63, v)    or stack = (0, v)
+        add_op(r, X_MOVC, 0, 0, 0,  "fsubrp %%st, %%st(1)");    // Reverse subtract                             stack = (v - 2^63)   or stack = (v)
+    }
+
+    add_load_value(r, 2, 1);                            // v2 = slot index 1
+    add_op(r, X_MOVC, 0, 0, 0, "fnstcw %v2");           // Backup control word into allocated stack entry
+    add_load_value(r, 1, 2);                            // v1 = slot index 2
+    add_op(r, X_MOVZ, 0, 0, 0, "movzwl %v2w, %v1l");    // Move control word into register
+    add_op(r, X_BOR,  0, 0, 0, "orl $3072, %v1l");      // Set rounding and precision control bits
+    add_load_value(r, 2, 3);                            // v2 = slot index 3
+    add_op(r, X_MOVC, 0, 0, 0, "movw %v1w, %v2w");      // Move control word into allocated stack
+    add_op(r, X_MOVC, 0, 0, 0, "fldcw %v2w");           // Load control word from allocated stack
+    add_load_value(r, 2, 4);                            // v2 = slot index 4
+    add_op(r, X_MOVC, 0, 0, 0, conv_template);          // Do conversion and store it on the stack
+    add_load_value(r, 2, 1);                            // v2 = slot index 1
+    add_op(r, X_MOVC, 0, 0, 0, "fldcw %v2w");           // Restore control register from backup
+    add_load_value(r, 2, 4);                            // v2 = slot index 4
+    add_load_value(r, 3, 6);                            // dst = slot index 6
+    add_op(r, X_MOVC, 0, 0, 0, mov_template);         // Move converted value into the dst register
+    if (ext_template)
+        add_op(r, X_MOVC, 0, 0, 0, ext_template);     // Move converted value into the dst register
+
+    if (ru4) {
+        // xor the high bit if the value was > 2^53
+        add_load_value(r, 2, 5);                          // v2 = slot index 5
+        add_load_value(r, 3, 6);                          // dst = slot index 6
+        add_op(r, X_MOVC, 0,  0, 0, "movzbq %v2b, %v2q"); // Zero all bits except the first
+        add_op(r, X_SHL,  0,  0, 0, "shlq $63, %v2q");    // Move the first bit to the last bit
+        add_op(r, X_XOR, DST, 0, 0, "xorq  %v2q, %vdq");  // set the sign bit if the original value was >= 2^63 - 1
+    }
 }
 
 static void add_long_double_move_rules()  {
     Rule *r;
+
+    // Long double -> integer rules
+    // ----------------------------------------------------------------------------------
 
     // Long double constant -> memory
     r = add_rule(MLD5, IR_MOVE, CLD,  0, 3);
@@ -144,7 +211,8 @@ static void add_long_double_move_rules()  {
     add_op(r, X_MOVC,  SRC1, SRC1, 0, "movq %v1H, %%r10");
     add_op(r, X_MOVC,  DST,  DST,  0, "movq %%r10, %vdH");
 
-    // Integer in memory-> long double in memory
+    // Integer in register -> long double in memory
+
     // Signed integers
     add_integer_long_double_move_rule(RI1, TYPE_CHAR , "movsbw %v1b, %v1w", "movw %v1w, %v2", "filds %v2L");
     add_integer_long_double_move_rule(RI2, TYPE_SHORT, 0,                   "movw %v1w, %v2", "filds %v2L");
@@ -170,6 +238,17 @@ static void add_long_double_move_rules()  {
     add_op(r, X_MOVC, 0,   0, 0,       "leaq    .RU4TOLD(%%rip), %%r11"); // Add constant, 0 for unsigned, something huge for signed
     add_op(r, X_MOVC, 0,   0, 0,       "fadds   (%%r11,%%r10,4)");
     add_op(r, X_MOVC, DST, 0,    0,    "fstpt  %vdL");                    // Store in dst
+
+    // Integer -> long double rules
+    // ----------------------------------------------------------------------------------
+    add_long_double_integer_move_rule(RI1, TYPE_SHORT, "fistps %v2w", "movzbl %v2b, %vdl", "movsbl %vdb, %vdl");
+    add_long_double_integer_move_rule(RU1, TYPE_SHORT, "fistps %v2w", "movzbl %v2b, %vdl", "movzbl %vdb, %vdl");
+    add_long_double_integer_move_rule(RI2, TYPE_SHORT, "fistps %v2w", "movzwl %v2w, %vdl", "movswl %vdw, %vdl");
+    add_long_double_integer_move_rule(RU2, TYPE_INT,   "fistpl %v2w", "movl   %v2w, %vdl", "movzwl %vdw, %vdl");
+    add_long_double_integer_move_rule(RI3, TYPE_INT  , "fistpl %v2l", "movl   %v2l, %vdl", 0);
+    add_long_double_integer_move_rule(RU3, TYPE_LONG , "fistpq %v2l", "movq   %v2q, %vdq", "movl   %vdl, %vdl");
+    add_long_double_integer_move_rule(RI4, TYPE_LONG , "fistpq %v2l", "movq   %v2q, %vdq", 0);
+    add_long_double_integer_move_rule(RU4, TYPE_LONG , "fistpq %v2l", "movq   %v2q, %vdq", 0);
 }
 
 static Rule *add_move_to_ptr(int src1, int src2, char *sign_extend_template, char *op_template) {

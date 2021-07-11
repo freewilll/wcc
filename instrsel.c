@@ -1067,6 +1067,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
     // operations. The final operation(s) then loads the values from the saved slots
     // and add them to the tac.
     // These keep track of the values outputted during the loads.
+    Value *loaded_dst = 0;
     Value *loaded_src1 = 0;
     Value *loaded_src2 = 0;
 
@@ -1102,7 +1103,11 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             if (x86op->save_value_in_slot > MAX_SAVED_REGISTERS)
                 panic2d("Saved register exceeds maximum: %d > %d", x86op->save_value_in_slot, MAX_SAVED_REGISTERS);
 
-            slot_value = x86op->arg == 1 ? src1 : src2;
+                 if (x86op->arg == 1) slot_value = src1;
+            else if (x86op->arg == 2) slot_value = src2;
+            else if (x86op->arg == 3) slot_value = dst;
+            else panic1d ("Unknown load arg target", x86op->arg);
+
             saved_values[x86op->save_value_in_slot] = slot_value;
             if (debug_instsel_tiling) {
                 printf("  saved arg %d ", x86op->arg);
@@ -1120,8 +1125,10 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
                 panic("Aborting");
             }
 
-            if (x86op->arg == 1) loaded_src1 = slot_value;
-            else loaded_src2 = slot_value;
+                 if (x86op->arg == 1) loaded_src1 = slot_value;
+            else if (x86op->arg == 2) loaded_src2 = slot_value;
+            else if (x86op->arg == 3) loaded_dst = slot_value;
+            else panic1d ("Unknown load arg target", x86op->arg);
 
             if (debug_instsel_tiling) {
                 printf("  loaded arg %d ", x86op->arg);
@@ -1139,10 +1146,21 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             if (debug_instsel_tiling)
                 printf("  allocated stack index %d, type %d in slot %d\n", stack_index, x86op->allocated_type, x86op->allocate_stack_index_in_slot);
         }
+        else if (x86op->allocate_register_in_slot) {
+            int vreg =++function->vreg_count;
+            Value *slot_value = new_value();
+            slot_value->type = new_type(x86op->allocated_type);
+            slot_value->vreg = vreg;
+
+            saved_values[x86op->allocate_register_in_slot] = slot_value;
+            if (debug_instsel_tiling)
+                printf("  allocated vreg %d, type %d in slot %d\n", vreg, x86op->allocated_type, x86op->allocate_register_in_slot);
+        }
         else {
             // Add a tac to the IR
             if (loaded_src1) x86_v1 = loaded_src1;
             if (loaded_src2) x86_v2 = loaded_src2;
+            if (loaded_dst)  x86_dst = loaded_dst;
             Tac *tac = add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
             if (debug_instsel_tiling) print_instruction(stdout, tac, 0);
         }
