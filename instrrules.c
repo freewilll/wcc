@@ -868,7 +868,18 @@ void init_instruction_selection_rules() {
     add_op(r, X_CALL, DST, SRC1, 0, 0);
     add_op(r, X_MOVC, DST, DST, 0, "fstpt %v1L");
 
-    r = add_rule(0, IR_ARG, CI4, XC, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
+    // Constants in pushed argument. pushq immediate can only be 32 bit
+    r = add_rule(0, IR_ARG, CI4, XC1, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
+    r = add_rule(0, IR_ARG, CI4, XC2, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
+    r = add_rule(0, IR_ARG, CI4, XC3, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
+
+    // imm64 needs to be loaded into a register first
+    r = add_rule(0, IR_ARG, CI4, XC4, 2);
+    add_allocate_register_in_slot (r, 1, TYPE_LONG);   // Allocate quad register in slot 1
+    add_load_value(r, 3, 1);                           // vd = slot index 1
+    add_op(r, X_MOVC, 0, SRC2, 0, "movabsq $%v1q, %vdq");
+    add_op(r, X_ARG,  0, 0,    0, "pushq %vdq");
+    fin_rule(r);
 
     // Long double constant arg
     r = add_rule(0, IR_ARG, CI4, CLD, 2);
