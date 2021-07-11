@@ -191,6 +191,12 @@ void next() {
 
         // Integer, octal and floating point literal
         else if ((c1 >= '0' && c1 <= '9') || (input_size - ip >= 2 && c1 == '.' && c2 >= '0' && c2 <= '9')) {
+            #ifdef FLOATS
+            // Note the current i and ip in case a floating point is lexed later on
+            char *start = i;
+            int start_ip = ip;
+            #endif
+
             int has_leading_zero = c1 == '0';
             long octal_integer = 0;
             long decimal_integer = 0;
@@ -215,55 +221,28 @@ void next() {
                 finish_integer_constant(1);
             }
             else {
-                // Continue lexing a floating point number
-                long decimal_digit_count = 0;
                 #ifdef FLOATS
-                long double decimal_part = 0;
-                long double divisor = 10;
-                #endif
+                char *new_i;
+                cur_long_double = strtold(start + start_ip, &new_i);
+                ip = start_ip + new_i - start - start_ip;
+                #else
                 if (i[ip] == '.') {
                     ip++;
-                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) {
-                        if (decimal_digit_count < 20) {
-                            #ifdef FLOATS
-                            decimal_part = decimal_part + (i[ip] - '0') / divisor;
-                            decimal_digit_count++;
-                            divisor = divisor * 10;
-                            #endif
-                        }
-                        ip++;
-                    }
+                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) ip++;
                 }
 
-                #ifdef FLOATS
-                long double exponent_factor = 1;
-                #endif
                 if (i[ip] == 'e' || i[ip] == 'E') {
                     ip++;
-
-                    int is_negative = 0;
                     if (i[ip] == '+') ip++;
-                    else {
-                        is_negative = i[ip] == '-';
-                        if (is_negative) ip++;
-                    }
-
-                    int exponent = 0;
-                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) { exponent = exponent * 10 + (i[ip] - '0'); ip++; }
-                    #ifdef FLOATS
-                    for (int j = 0; j < exponent; j++) exponent_factor = exponent_factor * 10;
-                    if (is_negative) exponent_factor = 1 / exponent_factor;
-                    #endif
+                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) ip++;
                 }
+                #endif
 
                 cur_token = TOK_FLOATING_POINT_NUMBER;
-                #ifdef FLOATS
-                cur_long_double = exponent_factor * (decimal_integer + decimal_part);
-                #endif
 
                 int type = TYPE_DOUBLE;
                 if (i[ip] == 'f' || i[ip] == 'F') { type = TYPE_FLOAT; ip++; }
-                if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++;  }
+                if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++; }
 
                 cur_lexer_type = new_type(type);
                 #ifdef FLOATS

@@ -4,6 +4,7 @@
 
 #include "../../wcc.h"
 
+
 int failures;
 
 void assert_int(int expected, int got, char *message) {
@@ -157,6 +158,13 @@ void test_floating_point_constants() {
     test_numeric_floating_point_literal("1.0L", 1.0, TYPE_LONG_DOUBLE);
     test_numeric_floating_point_literal("1e4l", 1e4, TYPE_LONG_DOUBLE);
     test_numeric_floating_point_literal("1.e4l", 1e4, TYPE_LONG_DOUBLE);
+
+    test_numeric_floating_point_literal("9223372036854775808.1L", 9223372036854775808.1L, TYPE_LONG_DOUBLE);
+    test_numeric_floating_point_literal("10000000000000000000.1L", 10000000000000000000.1L, TYPE_LONG_DOUBLE);
+    test_numeric_floating_point_literal("18446744073709551615.1L", 18446744073709551615.1L, TYPE_LONG_DOUBLE);
+    test_numeric_floating_point_literal("18446744073709551616.1L", 18446744073709551616.1L, TYPE_LONG_DOUBLE);
+    test_numeric_floating_point_literal("100000000000000000000.1L", 100000000000000000000.1L, TYPE_LONG_DOUBLE);
+
     #endif
 }
 
