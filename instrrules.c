@@ -331,9 +331,44 @@ static void add_indirect_rule(int dst, int src) {
 }
 
 static void add_indirect_rules() {
+    Rule *r ;
+
     for (int dst = 0; dst < 4; dst++) add_indirect_rule(RI1 + dst, RP1 + dst);
     for (int dst = 0; dst < 4; dst++) add_indirect_rule(RU1 + dst, RP1 + dst);
     for (int dst = 0; dst < 4; dst++) add_indirect_rule(RP1 + dst, RP4);
+
+    // Pointer to long double in register to pointer to long double in memory
+    r = add_rule(MRP5, IR_MOVE, RP5, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+
+    // Long double indirect from pointer in register
+    r = add_rule(MLD5, IR_INDIRECT, RP5, 0, 5);
+    add_allocate_register_in_slot(r, 1, TYPE_LONG); // allocate register for value and put in v2
+    add_load_value(r, 2, 1);
+    add_op(r, X_MOV_FROM_IND, 0,   SRC1, 0, "movq (%v1q), %v2q");
+    add_op(r, X_MOV,          DST, SRC1, 0, "movq %v2q, %vdL");
+    add_op(r, X_MOV_FROM_IND, 0,   SRC1, 0, "movq 8(%v1q), %v2q");
+    add_op(r, X_MOV,          DST, SRC1, 0, "movq %v2q, %vdH");
+
+    // Long double indirect from pointer in memory
+    r = add_rule(MLD5, IR_INDIRECT, MRP5, 0, 5);
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);           // Slot 1: register for pointer
+    add_allocate_register_in_slot(r, 2, TYPE_LONG);           // Slot 2: register for value
+    add_save_value(r, 3, 3);                                  // Slot 3: dst register
+
+    add_load_value(r, 3, 1);                                  // vd = is the pointer register
+    add_op(r, X_MOV, 0,  SRC1, 0,      "movq %v1q, %vdq");    // Load pointer in memory into pointer in register
+    add_load_value(r, 2, 1);                                  // v2 is pointer value
+
+    add_load_value(r, 3, 2);                                  // vd = is the temp value
+    add_op(r, X_MOV_FROM_IND, 0, 0, 0, "movq (%v2q), %vdq");  // Move low byte
+    add_load_value(r, 1, 2);                                  // v1 = is value
+    add_load_value(r, 3, 3);                                  // vd = dst
+    add_op(r, X_MOV, 0, 0, 0,          "movq %v1q, %vdL");
+
+    add_load_value(r, 3, 2);                                  // vd = is the temp value
+    add_op(r, X_MOV_FROM_IND, 0, 0, 0, "movq 8(%v2q), %vdq"); // Move high byte
+    add_load_value(r, 3, 3);                                  // vd = dst
+    add_op(r, X_MOV, 0, 0, 0,          "movq %v1q, %vdH");
 }
 
 static void add_pointer_rules(int *ntc) {
@@ -343,9 +378,9 @@ static void add_pointer_rules(int *ntc) {
     add_composite_pointer_rules(ntc);
 
     // Address loads
-    r = add_rule(XRP, IR_ADDRESS_OF, XRP,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(RP5, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
+    r = add_rule(XRP,  IR_ADDRESS_OF, XRP,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP,  IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP5,  IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)
@@ -798,6 +833,8 @@ void init_instruction_selection_rules() {
     r = add_rule(XM,    0, XM,    0, 0); fin_rule(r);
     r = add_rule(MLD5,  0, MLD5,  0, 0);
     r = add_rule(XRP,   0, XRP,   0, 0); fin_rule(r);
+    r = add_rule(RP5,   0, RP5,   0, 0); fin_rule(r);
+    r = add_rule(MRP5,  0, MRP5,  0, 0); fin_rule(r);
     r = add_rule(STL,   0, STL,   0, 0);
     r = add_rule(LAB,   0, LAB,   0, 0);
     r = add_rule(FUN,   0, FUN,   0, 0);

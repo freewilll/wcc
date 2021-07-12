@@ -208,17 +208,37 @@ void test_jz_jnz() {
     i = 1; assert_int(1, nan  || i++, "long double nan  || 0 result"); assert_int(1, i, "long double nan  || 0 i");
 }
 
-// Some unfinished pointer work on long doubles
 void test_pointers() {
     long double ld, *pld;
     char *buffer = malloc(100);
 
-    ld = 1.0;
-    pld = &ld;
+    ld = 1.1;
 
     // Make a nan, for the hell of it
     *((long *) &ld) = -1;
     *((long *) &ld + 1) = -1;
+
+    sprintf(buffer, "%Lf", ld); assert_int(0, strcmp(buffer, "-nan"), "-nan");
+
+    ld = 1.1;
+    gld = 2.1;
+
+    // Local pointer to local
+    pld = &ld;
+    sprintf(buffer, "%Lf", *pld);     assert_int(0, strcmp(buffer, "1.100000"), "Local -> local long double deref");
+    sprintf(buffer, "%Lf", *pld + 1); assert_int(0, strcmp(buffer, "2.100000"), "Local -> local long double deref + 1");
+
+    // Local pointer to global
+    pld = &gld;
+    sprintf(buffer, "%Lf", *pld);     assert_int(0, strcmp(buffer, "2.100000"), "Local -> global long double deref");
+
+    // Global pointer to local
+    gpld = &ld;
+    sprintf(buffer, "%Lf", *gpld);     assert_int(0, strcmp(buffer, "1.100000"), "Global -> local long double deref");
+
+    // Global pointer to global
+    gpld = &gld;
+    sprintf(buffer, "%Lf", *gpld);     assert_int(0, strcmp(buffer, "2.100000"), "Global -> global long double deref");
 
     // Can't do much yet, pointers are not fully implemented
     gpld = malloc(sizeof(long double));
