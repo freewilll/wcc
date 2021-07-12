@@ -384,7 +384,24 @@ void assert_long_double_int_conversion(long double ld, char c, short s, int i, l
     asprintf(&buffer, "%s ul", message); assert_int(1, (unsigned long)  ld == ul, buffer);
 }
 
+int return_int_from_ld_constant() {
+    return -42.1L;
+}
+
 void test_long_double_type_int_changes() {
+    long double ld;
+
+    char c;
+    short s;
+    int i;
+    long l;
+
+    unsigned char uc;
+    unsigned short us;
+    unsigned int ui;
+    unsigned long ul;
+
+    // Moves/casts
     assert_long_double_int_conversion(-100.1L,                        -100,         -100,         -100,                 -100,          156,        65436,         -100, 18446744073709551516UL, "-100.1L                ");
     assert_long_double_int_conversion(100.1L,                          100,          100,          100,                  100,          100,          100,          100,                  100UL, "100.1L                 ");
     assert_long_double_int_conversion(-1000.1L,                         24,        -1000,        -1000,                -1000,           24,        64536,        -1000, 18446744073709550616UL, "-1000.1L               ");
@@ -400,6 +417,29 @@ void test_long_double_type_int_changes() {
     assert_long_double_int_conversion(9223372036854775807.1L,            0,       -32768,  -2147483648,  9223372036854775807,            0,            0,           -1,  9223372036854775807UL, "9223372036854775807.1L ");
     assert_long_double_int_conversion(9223372036854775808.1L,            0,       -32768,  -2147483648, -9223372036854775808UL,          0,            0,            0,  9223372036854775808UL, "9223372036854775808.1L ");
     assert_long_double_int_conversion(9900000000000000000.1L,            0,       -32768,  -2147483648, -9223372036854775808UL,          0,            0,            0,  9900000000000000000UL, "9900000000000000000.1L ");
+
+    // Assignment of a constant
+    c  = -1.1L;  assert_int(-1, c, "c = -1.1L");
+    s  = -2.1L;  assert_int(-2, s, "s = -2.1L");
+    i  = -3.1L;  assert_int(-3, i, "i = -3.1L");
+    l  = -4.1L;  assert_int(-4, l, "l = -4.1L");
+    uc = 100.1L; assert_int(100, uc, "uc = 100.1L");
+    us = 200.1L; assert_int(200, us, "us = 200.1L");
+    ui = 300.1L; assert_int(300, ui, "ui = 300.1L");
+    ul = 400.1L; assert_int(400, ul, "ul = 400.1L");
+
+    // Assignment of a variable
+    ld = -1.1L;  c  = ld; assert_int(-1, c, "c = -1.1L via variable");
+    ld = -2.1L;  s  = ld; assert_int(-2, s, "s = -2.1L via variable");
+    ld = -3.1L;  i  = ld; assert_int(-3, i, "i = -3.1L via variable");
+    ld = -4.1L;  l  = ld; assert_int(-4, l, "l = -4.1L via variable");
+    ld = 100.1L; uc = ld; assert_int(100, uc, "uc = 100.1L via variable");
+    ld = 200.1L; us = ld; assert_int(200, us, "us = 200.1L via variable");
+    ld = 300.1L; ui = ld; assert_int(300, ui, "ui = 300.1L via variable");
+    ld = 400.1L; ul = ld; assert_int(400, ul, "ul = 400.1L via variable");
+
+    // Function return
+    assert_int(-42, return_int_from_ld_constant(), "Return int from long double constant");
 }
 #endif
 

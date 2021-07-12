@@ -576,13 +576,23 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
         if (src->is_constant) {
             #ifdef FLOATS
             if (src->type->type != TYPE_LONG_DOUBLE && dst_type->type == TYPE_LONG_DOUBLE) {
-                // Convert long double -> int
+                // Convert int -> long double
                 Value *src2 = new_value();
                 src2->type = new_type(TYPE_LONG_DOUBLE);
                 src2->is_constant = 1;
                 src2->fp_value = src->int_value;
                 return src2;
             }
+
+            else if (src->type->type == TYPE_LONG_DOUBLE && dst_type->type != TYPE_LONG_DOUBLE) {
+                // Convert long double -> int
+                Value *src2 = new_value();
+                src2->type = new_type(dst_type->type <= TYPE_INT ? TYPE_INT : TYPE_LONG);
+                src2->is_constant = 1;
+                src2->int_value = src->fp_value;
+                return src2;
+            }
+
             #endif
 
             // No change
