@@ -667,7 +667,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
     #endif
 }
 
-// Long doubles never live in registers, ensure all of them are on the stack
+// Long double rvalues never live in registers, ensure all of them are on the stack
 void move_long_doubles_to_the_stack(Function *function) {
     make_vreg_count(function, 0);
     int *local_indexes = malloc(sizeof(int) * (function->vreg_count + 1));
@@ -675,11 +675,11 @@ void move_long_doubles_to_the_stack(Function *function) {
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Long doubles in vregs are moved to the stack
-        if (tac->dst  && tac->dst ->vreg && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->dst ->vreg])
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && !tac->dst ->is_lvalue && !local_indexes[tac->dst ->vreg])
             local_indexes[tac->dst ->vreg] = new_local_index(function);
-        if (tac->src1 && tac->src1->vreg && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->src1->vreg])
+        if (tac->src1 && tac->src1->vreg && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE && !tac->src1->is_lvalue && !local_indexes[tac->src1->vreg])
             local_indexes[tac->src1->vreg] = new_local_index(function);
-        if (tac->src2 && tac->src2->vreg && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && !local_indexes[tac->src2->vreg])
+        if (tac->src2 && tac->src2->vreg && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && !tac->src2->is_lvalue && !local_indexes[tac->src2->vreg])
             local_indexes[tac->src2->vreg] = new_local_index(function);
     }
 

@@ -1147,7 +1147,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
                 printf("  allocated stack index %d, type %d in slot %d\n", stack_index, x86op->allocated_type, x86op->allocate_stack_index_in_slot);
         }
         else if (x86op->allocate_register_in_slot) {
-            int vreg =++function->vreg_count;
+            int vreg = new_vreg();
             Value *slot_value = new_value();
             slot_value->type = new_type(x86op->allocated_type);
             slot_value->vreg = vreg;

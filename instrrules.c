@@ -356,19 +356,38 @@ static void add_indirect_rules() {
     add_save_value(r, 3, 3);                                  // Slot 3: dst register
 
     add_load_value(r, 3, 1);                                  // vd = is the pointer register
-    add_op(r, X_MOV, 0,  SRC1, 0,      "movq %v1q, %vdq");    // Load pointer in memory into pointer in register
+    add_op(r, X_MOVC, 0, SRC1, 0,      "movq %v1q, %vdq");    // Load pointer in memory into pointer in register
     add_load_value(r, 2, 1);                                  // v2 is pointer value
 
     add_load_value(r, 3, 2);                                  // vd = is the temp value
     add_op(r, X_MOV_FROM_IND, 0, 0, 0, "movq (%v2q), %vdq");  // Move low byte
     add_load_value(r, 1, 2);                                  // v1 = is value
     add_load_value(r, 3, 3);                                  // vd = dst
-    add_op(r, X_MOV, 0, 0, 0,          "movq %v1q, %vdL");
+    add_op(r, X_MOVC, 0, 0, 0,         "movq %v1q, %vdL");
 
     add_load_value(r, 3, 2);                                  // vd = is the temp value
     add_op(r, X_MOV_FROM_IND, 0, 0, 0, "movq 8(%v2q), %vdq"); // Move high byte
     add_load_value(r, 3, 3);                                  // vd = dst
-    add_op(r, X_MOV, 0, 0, 0,          "movq %v1q, %vdH");
+    add_op(r, X_MOVC, 0, 0, 0,         "movq %v1q, %vdH");
+
+    // Move of a constant to a pointer in a register
+    r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, CLDL, 5);
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);           // Slot 1: register for value
+    add_save_value(r, 1, 2);                                  // Slot 2: src1/dst register
+    add_save_value(r, 2, 3);                                  // Slot 3: src2 constant
+
+    add_load_value(r, 3, 1);                                  // vd = is the temp value
+    add_op(r, X_MOVC,        0,   0,  SRC2, "movq %v2L, %vdq");
+    add_load_value(r, 1, 2);                                  // v1 = is the dst register
+    add_load_value(r, 2, 1);                                  // v2 = is the temp value
+    add_op(r, X_MOV_TO_IND, 0,   0, 0, "movq %v2q, (%v1q)");  // Move low byte
+
+    add_load_value(r, 3, 1);                                  // vd = is the temp value
+    add_load_value(r, 2, 3);                                  // v2 is src constant
+    add_op(r, X_MOVC,        0,   0,  0, "movq %v2H, %vdq");
+    add_load_value(r, 1, 2);                                  // v1 = is the dst register
+    add_load_value(r, 2, 1);                                  // v2 = is the temp value
+    add_op(r, X_MOV_TO_IND, 0,   0, 0, "movq %v2q, 8(%v1q)"); // Move high byte
 }
 
 static void add_pointer_rules(int *ntc) {
@@ -846,9 +865,10 @@ void init_instruction_selection_rules() {
     r = add_rule(XRI,  0, XMI, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"); fin_rule(r);
     r = add_rule(XRU,  0, XMU, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"); fin_rule(r);
 
-    r = add_rule(XRP, 0,  MI4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, 0,  MU4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(RP1, 0,  STL, 0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
+    r = add_rule(XRP, 0,  MI4,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, 0,  MU4,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP5, 0,  MRP5, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP1, 0,  STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
 
     // Register-register move rules
     for (int dst = RI1; dst <= RI4; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
