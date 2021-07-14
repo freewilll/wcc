@@ -709,6 +709,15 @@ enum {
     SRC1,
     SRC2,
 
+    SV1, // Slot values
+    SV2,
+    SV3,
+    SV4,
+    SV5,
+    SV6,
+    SV7,
+    SV8,
+
     // x86 instructions
     X_START = 1000,
     X_RET,
@@ -803,7 +812,6 @@ typedef struct x86_operation {
     int dst, v1, v2;
     char *template;
     int save_value_in_slot;           // Slot number to save a value in
-    int load_value_from_slot;         // Slot number to load a value from
     int allocate_stack_index_in_slot; // Allocate a stack index and put in slot
     int allocate_register_in_slot;    // Allocate a register and put in slot
     int allocated_type;               // Type to use to determine the allocated stack size
@@ -840,7 +848,6 @@ void check_rules_dont_decrease_precision();
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
 X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template);
 void add_save_value(Rule *r, int arg, int slot);
-void add_load_value(Rule *r, int arg, int slot);
 void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
 void add_allocate_register_in_slot(Rule *r, int slot, int type);
 void fin_rule(Rule *r);

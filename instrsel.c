@@ -9,7 +9,7 @@ enum {
     MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT = 1024,
     MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT = 1024,
     MAX_CHOICE_TRAIL_COUNT = 32,
-    MAX_SAVED_REGISTERS = 9,
+    MAX_SAVED_REGISTERS = 8,
 };
 
 IGraph *igraphs;                // The current block's igraphs
@@ -1017,6 +1017,27 @@ static int get_least_expensive_choice_node_id(int node_id, int parent_node_id, i
     return least_expensive_choice_node_id;
 }
 
+static Value *load_value_from_slot(int slot, char *arg) {
+    slot = slot - SV1 + 1;
+
+    if (slot > MAX_SAVED_REGISTERS)
+        panic2d("Loaded register exceeds maximum: %d > %d", slot, MAX_SAVED_REGISTERS);
+
+    Value *slot_value = saved_values[slot];
+    if (!slot_value) {
+        printf("Got a null value in slot %d for arg %s\n", slot, arg);
+        panic("Aborting");
+    }
+
+    if (debug_instsel_tiling) {
+        printf("  using value from slot %d ", slot);
+        if (slot_value->type) print_value(stdout, slot_value, 0);
+        printf(" for arg %s\n", arg);
+    }
+
+    return slot_value;
+}
+
 static Value *generate_instructions(Function *function, IGraphNode *ign, int is_root, Rule *rule, Value *src1, Value *src2) {
     if (debug_instsel_tiling) {
         printf("Generating instructions for rule %-4d: ", rule->index);
@@ -1067,10 +1088,6 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
     // operations. The final operation(s) then loads the values from the saved slots
     // and add them to the tac.
     // These keep track of the values outputted during the loads.
-    Value *loaded_dst = 0;
-    Value *loaded_src1 = 0;
-    Value *loaded_src2 = 0;
-
     X86Operation *x86op = rule->x86_operations;
     Value *x86_dst, *x86_v1, *x86_v2;
 
@@ -1079,18 +1096,21 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
         else if (x86op->dst == SRC1) x86_dst = src1;
         else if (x86op->dst == SRC2) x86_dst = src2;
         else if (x86op->dst == DST)  x86_dst = dst;
+        else if (x86op->dst >= SV1 && x86op->dst <= SV8) x86_dst = load_value_from_slot(x86op->dst, "dst");
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v1);
 
              if (x86op->v1 == 0)    x86_v1 = 0;
         else if (x86op->v1 == SRC1) x86_v1 = src1;
         else if (x86op->v1 == SRC2) x86_v1 = src2;
         else if (x86op->v1 == DST)  x86_v1 = dst;
+        else if (x86op->v1 >= SV1 && x86op->v1 <= SV8) x86_v1 = load_value_from_slot(x86op->v1, "v1");
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v1);
 
              if (x86op->v2 == 0)    x86_v2 = 0;
         else if (x86op->v2 == SRC1) x86_v2 = src1;
         else if (x86op->v2 == SRC2) x86_v2 = src2;
         else if (x86op->v2 == DST)  x86_v2 = dst;
+        else if (x86op->v2 >= SV1 && x86op->v2 <= SV8) x86_v2 = load_value_from_slot(x86op->v2, "v2");
         else panic1d("Unknown operand to x86 instruction: %d", x86op->v2);
 
         if (x86_dst) x86_dst = dup_value(x86_dst);
@@ -1115,27 +1135,6 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
                 printf(" to slot %d\n", x86op->save_value_in_slot);
             }
         }
-        else if (x86op->load_value_from_slot) {
-            if (x86op->load_value_from_slot > MAX_SAVED_REGISTERS)
-                panic2d("Loaded register exceeds maximum: %d > %d", x86op->load_value_from_slot, MAX_SAVED_REGISTERS);
-
-            slot_value = saved_values[x86op->load_value_from_slot];
-            if (!slot_value) {
-                printf("Got a null value in slot %d for arg %d\n", x86op->load_value_from_slot, x86op->arg);
-                panic("Aborting");
-            }
-
-                 if (x86op->arg == 1) loaded_src1 = slot_value;
-            else if (x86op->arg == 2) loaded_src2 = slot_value;
-            else if (x86op->arg == 3) loaded_dst = slot_value;
-            else panic1d ("Unknown load arg target", x86op->arg);
-
-            if (debug_instsel_tiling) {
-                printf("  loaded arg %d ", x86op->arg);
-                if (slot_value->type) print_value(stdout, slot_value, 0);
-                printf(" from slot %d\n", x86op->load_value_from_slot);
-            }
-        }
         else if (x86op->allocate_stack_index_in_slot) {
             int stack_index = -(++function->stack_register_count);
             Value *slot_value = new_value();
@@ -1158,9 +1157,6 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
         }
         else {
             // Add a tac to the IR
-            if (loaded_src1) x86_v1 = loaded_src1;
-            if (loaded_src2) x86_v2 = loaded_src2;
-            if (loaded_dst)  x86_dst = loaded_dst;
             Tac *tac = add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
             if (debug_instsel_tiling) print_instruction(stdout, tac, 0);
         }
