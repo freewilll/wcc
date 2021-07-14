@@ -263,6 +263,19 @@ void test_pointers() {
     // Malloc tests
     pld  = malloc(sizeof(long double)); *pld  = 5.1L; sprintf(buffer, "%Lf", *pld);  assert_int(0, strcmp(buffer, "5.100000"), "*pld from malloc");
     gpld = malloc(sizeof(long double)); *gpld = 6.1L; sprintf(buffer, "%Lf", *gpld); assert_int(0, strcmp(buffer, "6.100000"), "*gpld from malloc");
+
+    // Increment/decrement
+    ld = 1.1; gld = 1.1;
+    sprintf(buffer, "%Lf", ld++);  assert_int(0, strcmp(buffer, "1.100000"), "ld++ 1");
+    sprintf(buffer, "%Lf", gld++); assert_int(0, strcmp(buffer, "1.100000"), "gld++ 1");
+    sprintf(buffer, "%Lf", ld);    assert_int(0, strcmp(buffer, "2.100000"), "ld++ 2");
+    sprintf(buffer, "%Lf", gld);   assert_int(0, strcmp(buffer, "2.100000"), "gld++ 2");
+
+    ld = 1.1; gld = 1.1;
+    sprintf(buffer, "%Lf", ++ld);  assert_int(0, strcmp(buffer, "2.100000"), "ld++ 1");
+    sprintf(buffer, "%Lf", ++gld); assert_int(0, strcmp(buffer, "2.100000"), "gld++ 1");
+    sprintf(buffer, "%Lf", ld);    assert_int(0, strcmp(buffer, "2.100000"), "ld++ 2");
+    sprintf(buffer, "%Lf", gld);   assert_int(0, strcmp(buffer, "2.100000"), "gld++ 2");
 }
 
 void test_constant_operations() {
