@@ -348,6 +348,14 @@ static void add_indirect_rules() {
     add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, (%v1q)");   // Move high byte
     add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1H, %vdq");
     add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, 8(%v1q)");
+
+    // Move of a long double to a pointer in a register
+    r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, MLD5, 5);
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);                 // SV1: register for value
+    add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1L, %vdq");     // Move low byte
+    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, (%v1q)");   // Move high byte
+    add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1H, %vdq");
+    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, 8(%v1q)");
 }
 
 static void add_pointer_rules(int *ntc) {

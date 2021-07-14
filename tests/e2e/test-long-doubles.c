@@ -240,10 +240,25 @@ void test_pointers() {
     gpld = &gld;
     sprintf(buffer, "%Lf", *gpld); assert_int(0, strcmp(buffer, "2.100000"), "Global -> global long double deref");
 
-    // Assignments to dereferenced pointers
+    // Assignments to dereferenced pointers from a constant
     pld  = &ld; *pld  = 3.1; sprintf(buffer, "%Lf", *pld);     assert_int(0, strcmp(buffer, "3.100000"), "*pld");
                 *pld  = 6.1; sprintf(buffer, "%Lf", *pld + 1); assert_int(0, strcmp(buffer, "7.100000"), "*pld + 1");
     gpld = &ld; *gpld = 4.1; sprintf(buffer, "%Lf", *gpld);    assert_int(0, strcmp(buffer, "4.100000"), "*gpld");
+
+
+    // Assignments to dereferenced pointers from a local/global
+    pld = &ld;
+    gpld = &gld;
+    *pld  = ld;  sprintf(buffer, "%Lf", *pld);  assert_int(0, strcmp(buffer, "4.100000"), "*pld = pld; *pld");
+    *gpld = gld; sprintf(buffer, "%Lf", *gpld); assert_int(0, strcmp(buffer, "2.100000"), "*gpld = gld; *gpld");
+
+    sprintf(buffer, "%Lf", *pld + 1);  assert_int(0, strcmp(buffer, "5.100000"), "*pld = pld; *pld + 1");
+    sprintf(buffer, "%Lf", *gpld + 1); assert_int(0, strcmp(buffer, "3.100000"), "*gpld = gld; *gpld + 1");
+
+    long double ld2, *pld2;
+    pld2 = &ld2;
+    *pld2 = *pld;  sprintf(buffer, "%Lf", *pld2); assert_int(0, strcmp(buffer, "4.100000"), "*pld2 = *pld");
+    *pld2 = *gpld; sprintf(buffer, "%Lf", *pld2); assert_int(0, strcmp(buffer, "2.100000"), "*pld2 = *gpld");
 
     // Malloc tests
     pld  = malloc(sizeof(long double)); *pld  = 5.1L; sprintf(buffer, "%Lf", *pld);  assert_int(0, strcmp(buffer, "5.100000"), "*pld from malloc");
