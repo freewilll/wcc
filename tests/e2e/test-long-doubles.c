@@ -281,6 +281,12 @@ void test_pointers() {
     assert_ld_string(++gld, "2.10000", "gld++ 1");
     assert_ld_string(ld,    "2.10000", "ld++ 2");
     assert_ld_string(gld,   "2.10000", "gld++ 2");
+
+    long double *pld3 = malloc(sizeof(long double));
+    *pld = 1.1;
+    *pld2 = 1.2;
+    *pld3 = *pld + *pld2; assert_ld_string(*pld3,  "2.30000", "*ld3 = *pld + *pld2");
+    *pld3 = *pld - *pld2; assert_ld_string(*pld3, "-0.10000", "*ld3 = *pld - *pld2");
 }
 
 void test_constant_operations() {
