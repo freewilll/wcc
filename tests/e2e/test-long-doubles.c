@@ -309,6 +309,15 @@ void test_pointer_arithmetic() {
     assert_int(1, pld1 - pld, "pld1 - pld");
 }
 
+void test_pointer_casting() {
+    struct s1* s1 = malloc(sizeof(struct s1));
+    s1->ld = 1.1;
+
+    // Assertions can't be done since the wcc lexer produces other results than gcc.
+    // However, this test suffices to ensure that the code can be compiled.
+    *((long *) &s1->ld);
+    *((long *) &s1->ld + 1);
+}
 
 void test_structs() {
     struct s1 *s1 = malloc(sizeof(struct s1));
@@ -551,6 +560,7 @@ int main(int argc, char **argv) {
     test_jz_jnz();
     test_pointers();
     test_pointer_arithmetic();
+    test_pointer_casting();
     test_structs();
     test_constant_operations();
     test_inc_dec();
