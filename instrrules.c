@@ -365,9 +365,9 @@ static void add_pointer_rules(int *ntc) {
     add_composite_pointer_rules(ntc);
 
     // Address loads
-    r = add_rule(XRP,  IR_ADDRESS_OF, XRP,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP,  IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(RP5,  IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
+    r = add_rule(XRP, IR_ADDRESS_OF, XRP,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP5, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)
@@ -613,7 +613,7 @@ static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operat
 }
 
 static void add_pointer_add_rules() {
-    for (int i = RP1; i <= RP4; i++) {
+    for (int i = RP1; i <= RP5; i++) {
         add_pointer_plus_int_rule(i, RI1, 11, X_ADD, "movsbq %v1b, %vdq");
         add_pointer_plus_int_rule(i, RI2, 11, X_ADD, "movswq %v1w, %vdq");
         add_pointer_plus_int_rule(i, RI3, 11, X_ADD, "movslq %v1l, %vdq");
@@ -645,6 +645,8 @@ static void add_sub_rules() {
         add_sub_rule(XRU, XRU,     CU1 + i, 10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
         add_sub_rule(XRP, XRP,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
         add_sub_rule(XRP, XRP,     CU1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
+        add_sub_rule(RP5, RP5,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
+        add_sub_rule(RP5, RP5,     CU1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
         add_sub_rule(XRI, CI1 + i, XMI,     11, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
         add_sub_rule(XRU, CU1 + i, XMU,     11, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
         add_sub_rule(XRI, XMI,     CI1 + i, 11, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
@@ -656,7 +658,7 @@ static void add_sub_rules() {
     add_sub_rule(XR, XM, XR,  11, "mov%s %v1, %vd",  0, "sub%s %v1, %vd");
 
     // Pointer - int subtraction
-    for (int i = RP1; i <= RP4; i++) {
+    for (int i = RP1; i <= RP5; i++) {
         add_sub_rule(i, i, RI1, 11, "movq %v1q, %vdq", "movsbq %v1b, %v1q", "subq %v1q, %vdq");
         add_sub_rule(i, i, RI2, 11, "movq %v1q, %vdq", "movswq %v1w, %v1q", "subq %v1q, %vdq");
         add_sub_rule(i, i, RI3, 11, "movq %v1q, %vdq", "movslq %v1l, %v1q", "subq %v1q, %vdq");
@@ -669,8 +671,8 @@ static void add_sub_rules() {
     }
 
     // The result of a pointer-pointer subtraction is always a signed long: RI4.
-    for (int i = RP1; i <= RP4; i++)
-        for (int j = RP1; j <= RP4; j++)
+    for (int i = RP1; i <= RP5; i++)
+        for (int j = RP1; j <= RP5; j++)
             add_sub_rule(RI4, i, j,  10, "movq %v1q, %vdq", 0, "subq %v1q, %vdq");
 }
 

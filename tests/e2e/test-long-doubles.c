@@ -289,6 +289,23 @@ void test_pointers() {
     *pld3 = *pld - *pld2; assert_ld_string(*pld3, "-0.10000", "*ld3 = *pld - *pld2");
 }
 
+void test_pointer_arithmetic() {
+    long double *pld = malloc(2 * sizeof(long double));
+    long double *pld1 = pld + 1;
+
+    pld[0] = 1.1;
+    pld[1] = 2.1;
+    int i = 1;
+    assert_ld_string(pld[0],      "1.10000", "pld[0]");
+    assert_ld_string(pld[1],      "2.10000", "pld[1]");
+    assert_ld_string(pld[i],      "2.10000", "pld[i]");
+    assert_ld_string(*(pld + 1),  "2.10000", "*(pld + 1)");
+    assert_ld_string(*(1 + pld),  "2.10000", "*(1 + pld)");
+    assert_ld_string(*(pld1 - 1), "1.10000", "*(pld1 - 1)");
+
+    assert_int(1, pld1 - pld, "pld1 - pld");
+}
+
 void test_constant_operations() {
     char *buffer = malloc(100);
 
@@ -521,6 +538,7 @@ int main(int argc, char **argv) {
     test_comparison_conditional_jump();
     test_jz_jnz();
     test_pointers();
+    test_pointer_arithmetic();
     test_constant_operations();
     test_inc_dec();
     test_int_long_double_type_changes();
