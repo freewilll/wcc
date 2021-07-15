@@ -13,6 +13,9 @@ int gi;
 #ifdef FLOATS
 long double gld, *gpld;
 
+struct s1 { int i; long double ld; };
+struct s2 { long double ld; int i; };
+
 void assert_ld_string(long double ld, char *expected, char *message) {
     char *buffer = malloc(100);
 
@@ -306,6 +309,15 @@ void test_pointer_arithmetic() {
     assert_int(1, pld1 - pld, "pld1 - pld");
 }
 
+
+void test_structs() {
+    struct s1 *s1 = malloc(sizeof(struct s1));
+    struct s2 *s2 = malloc(sizeof(struct s2));
+
+    s1->ld = 1.1; s2->ld = s1->ld; assert_ld_string(s2->ld, "1.10000", "s2->ld");
+    s2->ld = 2.1; s1->ld = s2->ld; assert_ld_string(s1->ld, "2.10000", "s1->ld");
+}
+
 void test_constant_operations() {
     char *buffer = malloc(100);
 
@@ -539,6 +551,7 @@ int main(int argc, char **argv) {
     test_jz_jnz();
     test_pointers();
     test_pointer_arithmetic();
+    test_structs();
     test_constant_operations();
     test_inc_dec();
     test_int_long_double_type_changes();
