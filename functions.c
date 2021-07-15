@@ -283,7 +283,7 @@ void add_function_param_moves(Function *function) {
             tac->src1->function_param_original_stack_index = stack_index;
             // Add an offset to distinghuish them from parameters in registers
             tac->src1->stack_index = stack_index;
-            tac->src1->has_been_renamed = 1;
+            ir->src1->has_been_renamed = 1;
             insert_instruction(ir, tac, 1);
         }
 
