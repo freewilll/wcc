@@ -289,6 +289,14 @@ void test_pointers() {
     *pld2 = 1.2;
     *pld3 = *pld + *pld2; assert_ld_string(*pld3,  "2.30000", "*ld3 = *pld + *pld2");
     *pld3 = *pld - *pld2; assert_ld_string(*pld3, "-0.10000", "*ld3 = *pld - *pld2");
+
+    // Double dereference
+    long double **ppld;
+    ld = 1.1L;
+    pld = &ld;
+    ppld = &pld;
+    assert_ld_string(*pld  , "1.10000", "*pld");
+    assert_ld_string(**ppld, "1.10000", "**ppld");
 }
 
 void test_pointer_arithmetic() {
