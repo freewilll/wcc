@@ -762,8 +762,10 @@ static void parse_expression(int level) {
             if (vtop->type->type == TYPE_LONG_DOUBLE)
                 push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
             else
-            #endif
                 push_integral_constant(TYPE_INT, -1);
+            #else
+                push_integral_constant(TYPE_INT, -1);
+            #endif
 
             arithmetic_operation(IR_MUL, 0);
         }
