@@ -77,6 +77,7 @@ test-all: wcc externals.c
 
 .PHONY: test
 test: test-self-compilation test-all
+	@echo All tests passed
 
 .PHONY: test-unit
 test-unit: libwcc.a
