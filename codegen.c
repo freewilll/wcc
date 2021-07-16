@@ -226,7 +226,8 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         if (low)
                             sprintf(buffer, "$%ld", *((long *) &v->fp_value));
                         else if (high)
-                            sprintf(buffer, "$%ld", *((long *) &v->fp_value + 1));
+                            // The & is to be compatible with gcc
+                            sprintf(buffer, "$%ld", (*((long *) &v->fp_value + 1) & 0xffff));
                         else if (long_double_literal)
                             sprintf(buffer, ".LDL%d(%%rip)", add_long_double_literal(v->fp_value));
                         else
@@ -594,12 +595,13 @@ void output_code(char *input_filename, char *output_filename) {
     // Output long double literals
     if (long_double_literal_count > 0) {
         for (int i = 0; i < long_double_literal_count; i++) {
+            // The zero and & is to be compatible with gcc
             long double ld = long_double_literals[i];
             fprintf(f, ".LDL%d:\n", i);
             fprintf(f, "    .long   %d\n", *((int *) &ld));
             fprintf(f, "    .long   %d\n", *((int *) &ld + 1));
-            fprintf(f, "    .long   %d\n", *((int *) &ld + 2));
-            fprintf(f, "    .long   %d\n", *((int *) &ld + 3));
+            fprintf(f, "    .long   %d\n", (*((int *) &ld + 2) & 0xffff));
+            fprintf(f, "    .long   0\n");
         }
     }
 
