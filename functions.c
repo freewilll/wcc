@@ -183,7 +183,7 @@ static Tac *make_param_move_tac(Function *function, Type *type, int function_par
 
 // Convert a stack_index if stack_index_map isn't -1
 void remap_stack_index(int *stack_index_remap, Value *v) {
-    if (v  && v->stack_index >= 2 && !v->has_been_renamed && stack_index_remap[v->stack_index] != -1) {
+    if (v && v->stack_index >= 2 && !v->has_been_renamed && stack_index_remap[v->stack_index] != -1) {
         v->stack_index = stack_index_remap[v ->stack_index];
         v->has_been_renamed = 1;
     }
@@ -281,9 +281,8 @@ void add_function_param_moves(Function *function) {
             Tac *tac = make_param_move_tac(function, type, i);
             stack_param_vregs[stack_index - 2] = tac->dst->vreg;
             tac->src1->function_param_original_stack_index = stack_index;
-            // Add an offset to distinghuish them from parameters in registers
             tac->src1->stack_index = stack_index;
-            ir->src1->has_been_renamed = 1;
+            tac->src1->has_been_renamed = 1;
             insert_instruction(ir, tac, 1);
         }
 
@@ -291,7 +290,6 @@ void add_function_param_moves(Function *function) {
         if (type_size < 8) type_size = 8;
         offset += type_size;
     }
-
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         remap_stack_index(stack_index_remap, ir->dst);

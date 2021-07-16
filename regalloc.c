@@ -108,7 +108,7 @@ static int *make_original_stack_indexes(Function *function) {
     memset(result, 0, sizeof(int *) * (function->vreg_count + 1));
 
     for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->src1 && tac->src1->is_function_param && tac->src1->function_param_original_stack_index)
+        if (tac->operation == X_MOV && tac->src1 && tac->src1->is_function_param && tac->src1->function_param_original_stack_index)
             result[tac->dst->vreg] = tac->src1->function_param_original_stack_index;
 
     return result;
