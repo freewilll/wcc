@@ -39,7 +39,7 @@ void add_function_return_moves(Function *function) {
     }
 }
 
-// Insert IR_MOVE instructions before IR_ARG instructions for the first 6 scalar args.
+// Insert IR_MOVE instructions before IR_ARG instructions for the first 6 single-register args.
 // The dst of the move will be constrained so that rdi, rsi etc are allocated to it.
 void add_function_call_arg_moves(Function *function) {
     int function_call_count = make_function_call_count(function);
@@ -218,29 +218,29 @@ void add_function_param_moves(Function *function) {
     int register_param_count = function->param_count;
     if (register_param_count > 6) register_param_count = 6;
 
-    int scalar_arg_count = 0;
+    int single_register_arg_count = 0;
 
     // Determine which parameters on the stack
     for (int i = 0; i < function->param_count; i++) {
         Type *type = function->param_types[i];
-        int is_scalar = is_scalar_type(type);
-        int is_push = !is_scalar || scalar_arg_count >= 6;
-        scalar_arg_count += is_scalar;
+        int is_single_register = type_fits_in_single_register(type);
+        int is_push = !is_single_register || single_register_arg_count >= 6;
+        single_register_arg_count += is_single_register;
         pushes[i] = is_push;
     }
 
     // Add moves for registers
-    scalar_arg_count = 0;
+    single_register_arg_count = 0;
     for (int i = 0; i < function->param_count; i++) {
         if (pushes[i]) continue;
 
         Type *type = function->param_types[i];
-        Tac *tac = make_param_move_tac(function, type, scalar_arg_count);
+        Tac *tac = make_param_move_tac(function, type, single_register_arg_count);
         register_param_vregs[i] = tac->dst->vreg;
         tac->src1->vreg = ++function->vreg_count;
         insert_instruction(ir, tac, 1);
 
-        scalar_arg_count++;
+        single_register_arg_count++;
     }
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {

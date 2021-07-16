@@ -117,7 +117,7 @@ void test_sign_extension_pushed_params() {
 }
 
 // These tests stack layout is correct from an ABI point of view by checking
-// convoluted combinations of ints and double longs beyond the 6 scalar-arg limit
+// convoluted combinations of ints and double longs beyond the 6 single-register-arg limit
 void test_long_double_stack_zero_offset() {
     char *buffer;
     long double ld = 1.3;

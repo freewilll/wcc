@@ -824,7 +824,7 @@ static void parse_expression(int level) {
             src1->type = new_type(TYPE_LONG);
             add_instruction(IR_START_CALL, 0, src1, 0);
             int arg_count = 0;
-            int scalar_arg_count = 0;
+            int single_register_arg_count = 0;
             int offset = 0;
             int biggest_alignment = 0;
 
@@ -836,13 +836,13 @@ static void parse_expression(int level) {
 
                 arg->function_call_arg_index = arg_count;
 
-                int is_scalar = is_scalar_type(vtop->type);
-                if (is_scalar)
-                    arg->function_call_register_arg_index = scalar_arg_count < 6 ? scalar_arg_count : -1;
+                int is_single_register = type_fits_in_single_register(vtop->type);
+                if (is_single_register)
+                    arg->function_call_register_arg_index = single_register_arg_count < 6 ? single_register_arg_count : -1;
                 else
                     arg->function_call_register_arg_index = -1;
 
-                int is_push = !is_scalar || scalar_arg_count >= 6;
+                int is_push = !is_single_register || single_register_arg_count >= 6;
                 if (is_push) {
                     int alignment = get_type_alignment(vtop->type);
                     if (alignment < 8) alignment = 8;
@@ -856,7 +856,7 @@ static void parse_expression(int level) {
                 }
 
                 add_instruction(IR_ARG, 0, arg, pl());
-                scalar_arg_count += is_scalar;
+                single_register_arg_count += is_single_register;
                 arg_count++;
                 if (cur_token == TOK_RPAREN) break;
                 consume(TOK_COMMA, ",");

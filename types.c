@@ -79,12 +79,16 @@ int is_integer_type(Type *type) {
     return (type->type >= TYPE_CHAR && type->type <= TYPE_LONG);
 }
 
-int is_scalar_type(Type *type) {
-    return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type >= TYPE_PTR));
-}
-
 int is_floating_point_type(Type *type) {
     return (type->type >= TYPE_FLOAT && type->type <= TYPE_LONG_DOUBLE);
+}
+
+int is_scalar_type(Type *type) {
+    return 1;
+}
+
+int type_fits_in_single_register(Type *type) {
+    return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type >= TYPE_PTR));
 }
 
 int get_type_size(Type *type) {
