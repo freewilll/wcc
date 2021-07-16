@@ -139,7 +139,6 @@ void test_int_arithmetic_optimization_mod() {
     assert(7, ir_start->src2->int_value);
 }
 
-#ifdef FLOATS
 void test_long_double_arithmetic_optimization() {
     // v2 = 0 * v1
     run_long_double_arithmetic_optimization(IR_MUL, cld(0.0L), vsz(TYPE_LONG_DOUBLE, 1));
@@ -168,15 +167,12 @@ void test_long_double_arithmetic_optimization() {
     assert(IR_MOVE, ir_start->operation);
     assert(0, (int) ir_start->src2);
 }
-#endif
 
 void test_arithmetic_optimization() {
     test_int_arithmetic_optimization_mul();
     test_int_arithmetic_optimization_div();
     test_int_arithmetic_optimization_mod();
-    #ifdef FLOATS
     test_long_double_arithmetic_optimization();
-    #endif
 }
 
 // Ensure a JMP statement in the middle of a block ends the block

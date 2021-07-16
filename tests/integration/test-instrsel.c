@@ -194,7 +194,6 @@ void test_int_cmp_with_conditional_jmp(Function *function, int cmp_operation, in
     assert_x86_op(template);
 }
 
-#ifdef FLOATS
 void test_fp_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, char *jmp_instruction) {
     char *template;
 
@@ -220,7 +219,6 @@ void test_fp_cmp_with_conditional_jmp(Function *function, int cmp_operation, int
     asprintf(&template, "%-8s .L1", jmp_instruction);
     assert_x86_op(template);
 }
-#endif
 
 void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load, char *template) {
     start_ir();
@@ -569,12 +567,10 @@ void test_instrsel_conditionals() {
     test_int_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, "jle"); test_int_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, "jg" );
     test_int_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "jge"); test_int_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "jl" );
 
-    #ifdef FLOATS
     test_fp_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, "ja" ); test_fp_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, "jbe");
     test_fp_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, "ja" ); test_fp_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, "jbe");
     test_fp_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, "jae"); test_fp_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, "jb" );
     test_fp_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "jae"); test_fp_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "jb" );
-    #endif
 
     // a < b with a conditional with different src1 and src2 operands
     test_less_than_with_conditional_jmp(function, v(1), c(1), 0,  "cmpq     $1, r1q"       );

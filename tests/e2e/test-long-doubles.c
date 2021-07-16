@@ -10,7 +10,6 @@ int failures;
 
 int gi;
 
-#ifdef FLOATS
 long double gld, *gpld;
 
 struct s1 { int i; long double ld; };
@@ -544,7 +543,6 @@ void test_long_double_type_int_changes() {
     // Function return
     assert_int(-42, return_int_from_ld_constant(), "Return int from long double constant");
 }
-#endif
 
 int main(int argc, char **argv) {
     passes = 0;
@@ -552,7 +550,6 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv, &verbose);
 
-    #ifdef FLOATS
     test_assignment();
     test_arithmetic();
     test_comparison_assignment();
@@ -566,7 +563,6 @@ int main(int argc, char **argv) {
     test_inc_dec();
     test_int_long_double_type_changes();
     test_long_double_type_int_changes();
-    #endif
 
     finalize();
 }

@@ -40,7 +40,6 @@ Value *new_integral_constant(int type_type, long value) {
     return cv;
 }
 
-#ifdef FLOATS
 // Create a new typed floating point constant value.
 Value *new_floating_point_constant(int type_type, long double value) {
     Value *cv = new_value();
@@ -49,7 +48,6 @@ Value *new_floating_point_constant(int type_type, long double value) {
     cv->is_constant = 1;
     return cv;
 }
-#endif
 
 Value *new_preg_value(int preg) {
     Value *v = new_value();
@@ -73,9 +71,7 @@ Value *dup_value(Value *src) {
     dst->is_string_literal                   = src->is_string_literal;
     dst->string_literal_index                = src->string_literal_index;
     dst->int_value                           = src->int_value;
-    #ifdef FLOATS
     dst->fp_value                            = src->fp_value;
-    #endif
     dst->function_symbol                     = src->function_symbol;
     dst->is_function_call_arg                = src->is_function_call_arg;
     dst->is_function_param                   = src->is_function_param;
@@ -171,11 +167,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
         if (is_integer_type(v->type))
             c += fprintf(f, "%ld", v->int_value);
         else
-            #ifdef FLOATS
             c += fprintf(f, "%Lf", v->fp_value);
-            #else
-            panic("Floating point support must be activated with -D FLOATS");
-            #endif
     }
     else if (v->preg != -1)
         c += fprintf(f, "p%d", v->preg);
@@ -648,7 +640,6 @@ void allocate_value_vregs(Function *function) {
 // - IR_JZ  => IR_EQ with 0.0 & IR_JNZ
 // - IR_JNZ => IR_NE with 0.0 & IR_JNZ
 void convert_long_doubles_jz_and_jnz(Function *function) {
-    #ifdef FLOATS
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && ir->src1->type->type == TYPE_LONG_DOUBLE) {
             ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
@@ -664,7 +655,6 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
             ir = insert_instruction_after(ir, tac);
         }
     }
-    #endif
 }
 
 // Long double rvalues never live in registers, ensure all of them are on the stack

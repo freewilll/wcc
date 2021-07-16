@@ -554,7 +554,6 @@ static Value *merge_cst_int_node(IGraph *igraph, int node_id, long constant_valu
     return merge_cst_node(igraph, node_id, v);
 }
 
-#ifdef FLOATS
 static Value *merge_cst_fp_node(IGraph *igraph, int node_id, long double constant_value) {
     Value *v = new_value();
     v->type = new_type(TYPE_LONG_DOUBLE);
@@ -562,7 +561,6 @@ static Value *merge_cst_fp_node(IGraph *igraph, int node_id, long double constan
     v->fp_value = constant_value;
     return merge_cst_node(igraph, node_id, v);
 }
-#endif
 
 static Value* merge_integer_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2) {
     int is_unsigned = src1 && src1->type && src1->type->is_unsigned;
@@ -607,15 +605,12 @@ static Value* merge_integer_constants(IGraph *igraph, int node_id, int operation
         return 0;
 }
 
-#ifdef FLOATS
 // Assert that both src1 and src2 are long doubles
 static void check_fp_src1_src2(Value *src1, Value *src2) {
     if (src1->type->type != TYPE_LONG_DOUBLE || src2->type->type != TYPE_LONG_DOUBLE)
         panic("Attempt to merge two long double constants when one of them is not a long double");
 }
-#endif
 
-#ifdef FLOATS
 static Value* merge_long_double_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2) {
          if (operation == IR_ADD) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value +  src2->fp_value); }
     else if (operation == IR_SUB) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value -  src2->fp_value); }
@@ -629,7 +624,6 @@ static Value* merge_long_double_constants(IGraph *igraph, int node_id, int opera
     else if (operation == IR_GE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value >= src2->fp_value); }
     else return 0;
 }
-#endif
 
 static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     GraphNode *src_node = &(igraph->graph->nodes[node_id]);
@@ -660,11 +654,9 @@ static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     int cst2 = cst1 && (src2 && src2->is_constant);
     if (!src2 || !cst2) return 0;
 
-    #ifdef FLOATS
     if (src1->type->type == TYPE_LONG_DOUBLE || src2->type->type == TYPE_LONG_DOUBLE)
         return merge_long_double_constants(igraph, node_id, operation, src1, src2);
     else
-    #endif
         return merge_integer_constants(igraph, node_id, operation, src1, src2);
 }
 

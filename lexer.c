@@ -191,11 +191,9 @@ void next() {
 
         // Integer, octal and floating point literal
         else if ((c1 >= '0' && c1 <= '9') || (input_size - ip >= 2 && c1 == '.' && c2 >= '0' && c2 <= '9')) {
-            #ifdef FLOATS
             // Note the current i and ip in case a floating point is lexed later on
             char *start = i;
             int start_ip = ip;
-            #endif
 
             int has_leading_zero = c1 == '0';
             long octal_integer = 0;
@@ -221,22 +219,9 @@ void next() {
                 finish_integer_constant(1);
             }
             else {
-                #ifdef FLOATS
                 char *new_i;
                 cur_long_double = strtold(start + start_ip, &new_i);
                 ip = start_ip + new_i - start - start_ip;
-                #else
-                if (i[ip] == '.') {
-                    ip++;
-                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) ip++;
-                }
-
-                if (i[ip] == 'e' || i[ip] == 'E') {
-                    ip++;
-                    if (i[ip] == '+') ip++;
-                    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) ip++;
-                }
-                #endif
 
                 cur_token = TOK_FLOATING_POINT_NUMBER;
 
@@ -245,10 +230,6 @@ void next() {
                 if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++; }
 
                 cur_lexer_type = new_type(type);
-                #ifdef FLOATS
-                #else
-                printf("Warning: floating point support must be activated with -D FLOATS, lexing a floating point literal to zero\n");
-                #endif
             }
         }
 

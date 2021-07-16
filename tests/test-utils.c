@@ -190,11 +190,9 @@ Value *c(long value) {
     return new_integral_constant(TYPE_LONG, value);
 }
 
-#ifdef FLOATS
 Value *cld(long double value) {
     return new_floating_point_constant(TYPE_LONG_DOUBLE, value);
 }
-#endif
 
 Value *uc(long value) {
     Value *v;

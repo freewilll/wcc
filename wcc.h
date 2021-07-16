@@ -144,9 +144,7 @@ typedef struct value {
     int is_string_literal;                   // Is the value a string literal?
     int string_literal_index;                // Index in the string_literals array in the case of a string literal
     long int_value;                          // Value in the case of an integer constant
-    #ifdef FLOATS
     long double fp_value;                    // Value in the case of a floating point constant
-    #endif
     Symbol *function_symbol;                 // Corresponding symbol in the case of a function call
     int is_function_call_arg;                // Index of the argument going left to right (0=leftmost)
     int is_function_param;                   // Is it a function parameter?
@@ -411,9 +409,7 @@ int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
 Type *cur_lexer_type;           // A type determined by the lexer
 long cur_long;                  // Current long if the token is an integral type
-#ifdef FLOATS
 long double cur_long_double;    // Current long double if the token is a floating point type
-#endif
 char *cur_string_literal;       // Current string literal if the token is a string literal
 int in_ifdef;                   // In ifdef inclusion
 int in_ifdef_else;              // In ifdef exclusion
@@ -557,9 +553,7 @@ int type_eq(Type *type1, Type *type2);
 void init_value(Value *v);
 Value *new_value();
 Value *new_integral_constant(int type_type, long value);
-#ifdef FLOATS
 Value *new_floating_point_constant(int type_type, long double value);
-#endif
 Value *new_preg_value(int preg);
 Value *dup_value(Value *src);
 void add_tac_to_ir(Tac *tac);
@@ -902,9 +896,7 @@ Value *ausz(int vreg, int type);
 Value *l(int label);
 Value *ci(int value);
 Value *c(long value);
-#ifdef FLOATS
 Value *cld(long double value);
-#endif
 Value *uc(long value);
 Value *csz(long value, int type);
 Value *s(int string_literal_index);

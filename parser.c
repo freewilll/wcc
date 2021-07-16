@@ -80,7 +80,6 @@ static void push_cur_long() {
     push(v);
 }
 
-#ifdef FLOATS
 // Create a new typed floating point constant value and push it to the stack.
 // type doesn't have to be dupped
 static void push_floating_point_constant(int type_type, long double value) {
@@ -92,7 +91,6 @@ static void push_cur_long_double() {
     Value *v = new_floating_point_constant(TYPE_LONG_DOUBLE, cur_long_double);
     push(v);
 }
-#endif
 
 // Add an operation to the IR
 static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *src2) {
@@ -507,9 +505,7 @@ static Value *long_double_type_change(Value *src) {
     if (src->is_constant) {
         dst = dup_value(src);
         dst->type = new_type(TYPE_LONG_DOUBLE);
-        #ifdef FLOATS
         dst->fp_value = src->int_value;
-        #endif
         return dst;
     }
 
@@ -576,7 +572,6 @@ static void push_local_symbol(Symbol *symbol) {
 Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     if (!type_eq(dst_type, src->type)) {
         if (src->is_constant) {
-            #ifdef FLOATS
             if (src->type->type != TYPE_LONG_DOUBLE && dst_type->type == TYPE_LONG_DOUBLE) {
                 // Convert int -> long double
                 Value *src2 = new_value();
@@ -594,8 +589,6 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
                 src2->int_value = src->fp_value;
                 return src2;
             }
-
-            #endif
 
             // No change
             return src;
@@ -660,14 +653,10 @@ static void parse_declaration() {
 // Push either an int or long double constant with value the size of v
 static void push_value_size_constant(Value *v) {
     int size = get_type_inc_dec_size(v->type);
-    #ifdef FLOATS
     if (v->type->type == TYPE_LONG_DOUBLE)
         push_floating_point_constant(TYPE_LONG_DOUBLE, size);
     else
         push_integral_constant(TYPE_INT, size);
-    #else
-    push_integral_constant(TYPE_INT, size);
-    #endif
 }
 
 // Parse an expression using top-down precedence climbing parsing
@@ -748,24 +737,18 @@ static void parse_expression(int level) {
             push_cur_long();
             next();
         }
-        #ifdef FLOATS
         else if (cur_token == TOK_FLOATING_POINT_NUMBER) {
             cur_long_double = -cur_long_double;
             push_cur_long_double();
             next();
         }
-        #endif
         else {
             parse_expression(TOK_INC);
 
-            #ifdef FLOATS
             if (vtop->type->type == TYPE_LONG_DOUBLE)
                 push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
             else
                 push_integral_constant(TYPE_INT, -1);
-            #else
-                push_integral_constant(TYPE_INT, -1);
-            #endif
 
             arithmetic_operation(IR_MUL, 0);
         }
@@ -800,12 +783,10 @@ static void parse_expression(int level) {
         next();
     }
 
-    #ifdef FLOATS
     else if (cur_token == TOK_FLOATING_POINT_NUMBER) {
         push_cur_long_double();
         next();
     }
-    #endif
 
     else if (cur_token == TOK_STRING_LITERAL) {
         Value *dst = new_value();

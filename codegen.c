@@ -137,13 +137,11 @@ static int get_stack_offset(int function_pc, Value *v) {
         printf("Unexpected stack_index %d\n", stack_index);
 }
 
-#ifdef FLOATS
 static int add_long_double_literal(long double value) {
     long_double_literals[long_double_literal_count] = value;
     if (long_double_literal_count >= MAX_LONG_DOUBLE_LITERALS) panic1d("Exceeded max long double literals %d", MAX_LONG_DOUBLE_LITERALS);
     return long_double_literal_count++;
 }
-#endif
 
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
     char *t = tac->x86_template;
@@ -191,14 +189,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 else if (t[1] == 'l') { t++; x86_size = 3; }
                 else if (t[1] == 'q') { t++; x86_size = 4; }
 
-                #ifdef FLOATS
                 int low = 0;
                 int high = 0;
                 int long_double_literal = 0;
                      if (t[1] == 'L') { t++; low  = 1; }
                 else if (t[1] == 'H') { t++; high = 1; }
                 else if (t[1] == 'C') { t++; long_double_literal = 1; }
-                #endif
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
@@ -222,7 +218,6 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 }
                 else if (v->is_constant) {
                     if (v->type->type == TYPE_LONG_DOUBLE) {
-                        #ifdef FLOATS
                         if (low)
                             sprintf(buffer, "$%ld", *((long *) &v->fp_value));
                         else if (high)
@@ -232,9 +227,6 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                             sprintf(buffer, ".LDL%d(%%rip)", add_long_double_literal(v->fp_value));
                         else
                             panic("Did not get L/H/C specifier for double long constant");
-                        #else
-                        panic("Floating point support must be activated with -D FLOATS");
-                        #endif
                     }
                     else
                         sprintf(buffer, "%ld", v->int_value);
@@ -243,16 +235,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     sprintf(buffer, ".SL%d(%%rip)", v->string_literal_index);
                 else if (v->global_symbol) {
                     if (v->type->type == TYPE_LONG_DOUBLE) {
-                        #ifdef FLOATS
                         if (low)
                             sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
                         else if (high)
                             sprintf(buffer, "8+%s(%%rip)", v->global_symbol->identifier);
                         else
                             panic("Did not get L/H/C specifier for double long constant");
-                        #else
-                        panic("Floating point support must be activated with -D FLOATS");
-                        #endif
                     }
                     else
                         sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
@@ -260,16 +248,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 else if (v->stack_index) {
                     int stack_offset = get_stack_offset(function_pc, v);
                     if (v->type->type == TYPE_LONG_DOUBLE) {
-                        #ifdef FLOATS
                         if (low)
                             sprintf(buffer, "%d(%%rbp)", stack_offset);
                         else if (high)
                             sprintf(buffer, "%d(%%rbp)", stack_offset + 8);
                         else
                             panic("Did not get L/H specifier for double long stack index");
-                        #else
-                        panic("Floating point support must be activated with -D FLOATS");
-                        #endif
                     }
                     else
                         sprintf(buffer, "%d(%%rbp)", stack_offset);
@@ -591,7 +575,6 @@ void output_code(char *input_filename, char *output_filename) {
         symbol++;
     }
 
-    #ifdef FLOATS
     // Output long double literals
     if (long_double_literal_count > 0) {
         for (int i = 0; i < long_double_literal_count; i++) {
@@ -616,8 +599,6 @@ void output_code(char *input_filename, char *output_filename) {
         fprintf(f, ".LDTORU4:\n");
         fprintf(f, "     .long   1593835520 # 9223372036854775808\n");
     }
-
-    #endif
 
     fclose(f);
 }

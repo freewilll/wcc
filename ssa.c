@@ -84,8 +84,6 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
 }
 
 void optimize_long_double_arithmetic_operation(Tac *tac) {
-    #ifdef FLOATS
-
     Value *v;
     Value *cv = 0;
     long double c;
@@ -125,8 +123,6 @@ void optimize_long_double_arithmetic_operation(Tac *tac) {
             tac->src2 = 0;
         }
     }
-
-    #endif
 }
 
 void optimize_arithmetic_operations(Function *function) {

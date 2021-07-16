@@ -8,9 +8,7 @@ int verbose;
 int passes;
 int failures;
 
-#ifdef FLOATS
 long double gld;
-#endif
 
 int fca0() {
     assert_int(1, 1, "function call with 0 args");
@@ -118,7 +116,6 @@ void test_sign_extension_pushed_params() {
     test_pushed_param_ul(0, 0, 0, 0, 0, 0, ul);
 }
 
-#ifdef FLOATS
 // These tests stack layout is correct from an ABI point of view by checking
 // convoluted combinations of ints and double longs beyond the 6 scalar-arg limit
 void test_long_double_stack_zero_offset() {
@@ -282,8 +279,6 @@ void test_long_double_function_call_return_value() {
     assert_int(0, strcmp(buffer, "1.10000"), "Long double assignment from function call");
 }
 
-#endif
-
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -302,12 +297,10 @@ int main(int argc, char **argv) {
 
     test_direct_register_use();
     test_sign_extension_pushed_params();
-    #ifdef FLOATS
     test_long_double_stack_zero_offset();
     test_long_double_stack_eight_offset();
     test_long_double_pushed_params();
     test_long_double_function_call_return_value();
-    #endif
 
     finalize();
 }

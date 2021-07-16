@@ -117,7 +117,6 @@ void test_hex_constants() {
     test_numeric_integer_literal("0xfffffffffffffffful", TYPE_LONG, 1);
 }
 
-#ifdef FLOATS
 void test_numeric_floating_point_literal(char *string, long double expected, int type) {
     cur_filename = "test";
     cur_line = 0;
@@ -132,10 +131,8 @@ void test_numeric_floating_point_literal(char *string, long double expected, int
     assert_int(TOK_FLOATING_POINT_NUMBER, cur_token, "Token is TOK_FLOATING_POINT_NUMBER");
     assert_int(cur_lexer_type->type, type, "Type matches");
 }
-#endif
 
 void test_floating_point_constants() {
-    #ifdef FLOATS
     test_numeric_floating_point_literal("3.14159265359", 3.14159265359, TYPE_DOUBLE);
     test_numeric_floating_point_literal("1.", 1.0, TYPE_DOUBLE);
     test_numeric_floating_point_literal("1.0", 1.0, TYPE_DOUBLE);
@@ -164,8 +161,6 @@ void test_floating_point_constants() {
     test_numeric_floating_point_literal("18446744073709551615.1L", 18446744073709551615.1L, TYPE_LONG_DOUBLE);
     test_numeric_floating_point_literal("18446744073709551616.1L", 18446744073709551616.1L, TYPE_LONG_DOUBLE);
     test_numeric_floating_point_literal("100000000000000000000.1L", 100000000000000000000.1L, TYPE_LONG_DOUBLE);
-
-    #endif
 }
 
 int main() {
