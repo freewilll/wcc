@@ -345,7 +345,7 @@ static void add_indirect_rules() {
     add_op(r, X_MOVC,         DST, SV2,  0, "movq %v1q, %vdH");
 
     // Move of a constant to a pointer in a register
-    r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, CLDL, 5);
+    r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, CLD, 5);
     add_allocate_register_in_slot(r, 1, TYPE_LONG);                 // SV1: register for value
     add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1L, %vdq");     // Move low byte
     add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, (%v1q)");   // Move high byte
@@ -444,7 +444,7 @@ static void add_return_rules() {
     r = add_rule(XRP, IR_RETURN, CU4,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); add_ret(r);
 
     // Long doubles
-    r = add_rule(0, IR_RETURN, CLDL, 0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1C");
+    r = add_rule(0, IR_RETURN, CLD,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1C");
     r = add_rule(0, IR_RETURN, MLD5, 0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1L");
 }
 
@@ -784,18 +784,18 @@ static void add_long_double_operation_rules() {
     char *fstore = "fstpt %vdL";
 
     add_long_double_operation_rule(            IR_ADD, X_FADD, 15, MLD5, MLD5, MLD5, ll, ll, fadd, fstore); // Add
-    add_long_double_commutative_operation_rule(IR_ADD, X_FADD, 15, MLD5, MLD5, CLDL, ll, lc, fadd, fstore);
+    add_long_double_commutative_operation_rule(IR_ADD, X_FADD, 15, MLD5, MLD5, CLD,  ll, lc, fadd, fstore);
 
     add_long_double_operation_rule(            IR_SUB, X_FSUB, 15, MLD5, MLD5, MLD5, ll, ll, fsub, fstore); // Subtract
-    add_long_double_operation_rule(            IR_SUB, X_FSUB, 15, MLD5, MLD5, CLDL, ll, lc, fsub, fstore);
-    add_long_double_operation_rule(            IR_SUB, X_FSUB, 15, MLD5, CLDL, MLD5, lc, ll, fsub, fstore);
+    add_long_double_operation_rule(            IR_SUB, X_FSUB, 15, MLD5, MLD5, CLD, ll, lc, fsub, fstore);
+    add_long_double_operation_rule(            IR_SUB, X_FSUB, 15, MLD5, CLD,  MLD5, lc, ll, fsub, fstore);
 
     add_long_double_operation_rule(            IR_MUL, X_FMUL, 15, MLD5, MLD5, MLD5, ll, ll, fmul, fstore); // Multiply
-    add_long_double_commutative_operation_rule(IR_MUL, X_FMUL, 15, MLD5, MLD5, CLDL, ll, lc, fmul, fstore);
+    add_long_double_commutative_operation_rule(IR_MUL, X_FMUL, 15, MLD5, MLD5, CLD,  ll, lc, fmul, fstore);
 
     add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, MLD5, MLD5, ll, ll, fdiv, fstore); // Divide
-    add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, MLD5, CLDL, ll, lc, fdiv, fstore);
-    add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, CLDL, MLD5, lc, ll, fdiv, fstore);
+    add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, MLD5, CLD,  ll, lc, fdiv, fstore);
+    add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, CLD,  MLD5, lc, ll, fdiv, fstore);
 }
 
 static X86Operation *add_function_call_arg_op(Rule *r) {
@@ -819,7 +819,6 @@ void init_instruction_selection_rules() {
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(XC,    0, XC,    0, 0); fin_rule(r);
     r = add_rule(CLD,   0, CLD,   0, 0);
-    r = add_rule(CLDL,  0, CLDL,  0, 0);
     r = add_rule(XR,    0, XR,    0, 0); fin_rule(r);
     r = add_rule(CSTV1, 0, CSTV1, 0, 0);
     r = add_rule(CSTV2, 0, CSTV2, 0, 0);

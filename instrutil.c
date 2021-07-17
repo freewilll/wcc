@@ -327,7 +327,6 @@ char *non_terminal_string(int nt) {
     else if (nt == CU3)   return "cu3";
     else if (nt == CU4)   return "cu4";
     else if (nt == CLD)   return "cld";
-    else if (nt == CLDL)  return "cldl";
     else if (nt == STL)   return "stl";
     else if (nt == LAB)   return "lab";
     else if (nt == FUN)   return "fun";
@@ -484,7 +483,7 @@ static int non_terminal_for_value(Value *v) {
 int match_value_to_rule_src(Value *v, int src) {
     if (v->is_constant) {
         if (v->type->type == TYPE_LONG_DOUBLE)
-            return src == CLD || src == CLDL;
+            return src == CLD;
         else {
             // Integer constant
             if (v->type->type < TYPE_INT) panic1d("Unexpected constant type %d", v->type->type);
@@ -585,7 +584,6 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == CU3)   return 3;
     else if (nt == CU4)   return 4;
     else if (nt == CLD)   return 8;
-    else if (nt == CLDL)  return 8;
     else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4 || nt == RP5 || nt == MRP5) return 4;
     else if (nt == RI1 || nt == RU1 || nt == MI1 || nt == MU1                           ) return 1;
     else if (nt == RI2 || nt == RU2 || nt == MI2 || nt == MU2                           ) return 2;

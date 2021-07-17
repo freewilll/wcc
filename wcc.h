@@ -651,7 +651,6 @@ enum {
     CI1, CI2, CI3, CI4,          // Constants
     CU1, CU2, CU3, CU4,          // Constants
     CLD,                         // Long double constant
-    CLDL,                        // Long double constant literal, in its own section, like string literals
     RI1, RI2, RI3, RI4,          // Signed registers
     RU1, RU2, RU3, RU4,          // Unsigned registers
     MI1, MI2, MI3, MI4,          // Memory, in stack or globals
