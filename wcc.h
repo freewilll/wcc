@@ -243,12 +243,13 @@ enum {
     TOK_INT,
     TOK_SHORT,
     TOK_LONG,
+    TOK_FLOAT,
     TOK_DOUBLE,
     TOK_STRUCT,
     TOK_TYPEDEF,
     TOK_TYPEDEF_TYPE,
-    TOK_DO,
-    TOK_WHILE,              // 20
+    TOK_DO,                 // 20
+    TOK_WHILE,
     TOK_FOR,
     TOK_CONTINUE,
     TOK_BREAK,
@@ -257,8 +258,8 @@ enum {
     TOK_SIZEOF,
     TOK_RPAREN,
     TOK_LPAREN,
-    TOK_RCURLY,
-    TOK_LCURLY,             // 30
+    TOK_RCURLY,             // 30
+    TOK_LCURLY,
     TOK_SEMI,
     TOK_COMMA,
     TOK_EQ,
@@ -267,8 +268,8 @@ enum {
     TOK_TERNARY,
     TOK_COLON,
     TOK_OR,
-    TOK_AND,
-    TOK_BITWISE_OR,         // 40
+    TOK_AND,                // 40
+    TOK_BITWISE_OR,
     TOK_XOR,
     TOK_ADDRESS_OF,
     TOK_DBL_EQ,
@@ -277,8 +278,8 @@ enum {
     TOK_GT,
     TOK_LE,
     TOK_GE,
-    TOK_BITWISE_LEFT,
-    TOK_BITWISE_RIGHT,      // 50
+    TOK_BITWISE_LEFT,       // 50
+    TOK_BITWISE_RIGHT,
     TOK_PLUS,
     TOK_MINUS,
     TOK_MULTIPLY,
@@ -287,8 +288,8 @@ enum {
     TOK_LOGICAL_NOT,
     TOK_BITWISE_NOT,
     TOK_INC,
-    TOK_DEC,
-    TOK_DOT,                // 60
+    TOK_DEC,                // 60
+    TOK_DOT,
     TOK_ARROW,
     TOK_RBRACKET,
     TOK_LBRACKET,

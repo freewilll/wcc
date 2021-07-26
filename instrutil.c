@@ -439,6 +439,10 @@ void make_value_x86_size(Value *v) {
             v->x86_size = 4;
         else if (v->type->type <= TYPE_LONG)
             v->x86_size = v->type->type - TYPE_CHAR + 1;
+        else if (v->type->type == TYPE_FLOAT)
+            v->x86_size = 3;
+        else if (v->type->type == TYPE_DOUBLE)
+            v->x86_size = 4;
         else if (v->type->type == TYPE_LONG_DOUBLE)
             v->x86_size = 5;
         else

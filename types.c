@@ -100,6 +100,8 @@ int get_type_size(Type *type) {
     else if (t == TYPE_SHORT)       return sizeof(short);
     else if (t == TYPE_INT)         return sizeof(int);
     else if (t == TYPE_LONG)        return sizeof(long);
+    else if (t == TYPE_FLOAT)       return sizeof(float);
+    else if (t == TYPE_DOUBLE)      return sizeof(double);
     else if (t == TYPE_LONG_DOUBLE) return sizeof(long double);
     else if (t >  TYPE_PTR)         return sizeof(void *);
     else if (t >= TYPE_STRUCT)      return all_structs[t - TYPE_STRUCT]->size;

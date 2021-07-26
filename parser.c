@@ -180,6 +180,8 @@ static int cur_token_is_type() {
         cur_token == TOK_CHAR ||
         cur_token == TOK_SHORT ||
         cur_token == TOK_INT ||
+        cur_token == TOK_FLOAT ||
+        cur_token == TOK_DOUBLE ||
         cur_token == TOK_LONG ||
         cur_token == TOK_STRUCT ||
         cur_token == TOK_TYPEDEF_TYPE);
@@ -196,6 +198,8 @@ static Type *parse_base_type(int allow_incomplete_structs) {
 
     int seen_signed = 0;
     int seen_unsigned = 0;
+    int seen_long = 0;
+
     if (cur_token == TOK_SIGNED) {
         seen_signed = 1;
         next();
@@ -205,11 +209,13 @@ static Type *parse_base_type(int allow_incomplete_structs) {
         next();
     }
 
-         if (cur_token == TOK_VOID)         { type = new_type(TYPE_VOID); next(); }
-    else if (cur_token == TOK_CHAR)         { type = new_type(TYPE_CHAR); next(); }
-    else if (cur_token == TOK_SHORT)        { type = new_type(TYPE_SHORT); next(); }
-    else if (cur_token == TOK_INT)          { type = new_type(TYPE_INT); next(); }
-    else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG); next(); }
+         if (cur_token == TOK_VOID)         { type = new_type(TYPE_VOID);   next(); }
+    else if (cur_token == TOK_CHAR)         { type = new_type(TYPE_CHAR);   next(); }
+    else if (cur_token == TOK_SHORT)        { type = new_type(TYPE_SHORT);  next(); }
+    else if (cur_token == TOK_INT)          { type = new_type(TYPE_INT);    next(); }
+    else if (cur_token == TOK_FLOAT)        { type = new_type(TYPE_FLOAT);  next(); }
+    else if (cur_token == TOK_DOUBLE)       { type = new_type(TYPE_DOUBLE); next(); }
+    else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG);   next(); seen_long = 1; }
     else if (cur_token == TOK_STRUCT)       { next(); return parse_struct_base_type(allow_incomplete_structs); }
     else if (cur_token == TOK_TYPEDEF_TYPE) { type = dup_type(cur_lexer_type); next(); }
     else if (seen_signed || seen_unsigned)  type = new_type(TYPE_INT);
@@ -222,9 +228,14 @@ static Type *parse_base_type(int allow_incomplete_structs) {
     if (cur_token == TOK_LONG && type->type == TYPE_LONG) next(); // On 64 bit, long longs are equivalent to longs
     if (cur_token == TOK_INT && (type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG)) next();
 
+    if (cur_token == TOK_FLOAT) {
+        type->type = TYPE_FLOAT;
+        next();
+    }
+
     if (cur_token == TOK_DOUBLE) {
         if (seen_signed || seen_unsigned) panic("Cannot have signed or unsigned in a long double");
-        type->type = TYPE_LONG_DOUBLE;
+        type->type = seen_long ? TYPE_LONG_DOUBLE : TYPE_DOUBLE;
         next();
     }
 
