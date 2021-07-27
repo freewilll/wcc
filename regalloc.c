@@ -4,24 +4,6 @@
 
 #include "wcc.h"
 
-// Indexes used to reference the physically reserved registers, starting at 0
-int SSA_PREG_REG_RAX;
-int SSA_PREG_REG_RBX;
-int SSA_PREG_REG_RCX;
-int SSA_PREG_REG_RDX;
-int SSA_PREG_REG_RSI;
-int SSA_PREG_REG_RDI;
-int SSA_PREG_REG_RBP;
-int SSA_PREG_REG_RSP;
-int SSA_PREG_REG_R8;
-int SSA_PREG_REG_R9;
-int SSA_PREG_REG_R10;
-int SSA_PREG_REG_R11;
-int SSA_PREG_REG_R12;
-int SSA_PREG_REG_R13;
-int SSA_PREG_REG_R14;
-int SSA_PREG_REG_R15;
-
 typedef struct vreg_cost {
     int vreg;
     int cost;
@@ -223,6 +205,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         printf("preferred_pregs: "); print_set(preferred_pregs); printf("\n\n");
     }
 
+    // Initialize vreg_locations, which maps vregs to either a preg or a stack index
     int vreg_locations_count = vreg_count > PHYSICAL_REGISTER_COUNT ? vreg_count : PHYSICAL_REGISTER_COUNT;
     VregLocation *vreg_locations = malloc((vreg_locations_count + 1) * sizeof(VregLocation));
     for (int i = 1; i <= vreg_count; i++) {
@@ -230,24 +213,11 @@ void allocate_registers_top_down(Function *function, int physical_register_count
         vreg_locations[i].stack_index = 0;
     }
 
-    int stack_register_count = function->stack_register_count;
+    // Pre-color reserved registers. Vregs start at one, pregs start at 0.
+    if (live_range_reserved_pregs_offset > 0)
+        for (int i = 0; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++) vreg_locations[i + 1].preg = i;
 
-    // Pre-color reserved registers
-    if (live_range_reserved_pregs_offset > 0) {
-        // RBP, RSP, R10, R11 are reserved and not in this list
-        vreg_locations[LIVE_RANGE_PREG_RAX_INDEX].preg = SSA_PREG_REG_RAX;
-        vreg_locations[LIVE_RANGE_PREG_RBX_INDEX].preg = SSA_PREG_REG_RBX;
-        vreg_locations[LIVE_RANGE_PREG_RCX_INDEX].preg = SSA_PREG_REG_RCX;
-        vreg_locations[LIVE_RANGE_PREG_RDX_INDEX].preg = SSA_PREG_REG_RDX;
-        vreg_locations[LIVE_RANGE_PREG_RSI_INDEX].preg = SSA_PREG_REG_RSI;
-        vreg_locations[LIVE_RANGE_PREG_RDI_INDEX].preg = SSA_PREG_REG_RDI;
-        vreg_locations[LIVE_RANGE_PREG_R8_INDEX ].preg = SSA_PREG_REG_R8;
-        vreg_locations[LIVE_RANGE_PREG_R9_INDEX ].preg = SSA_PREG_REG_R9;
-        vreg_locations[LIVE_RANGE_PREG_R12_INDEX].preg = SSA_PREG_REG_R12;
-        vreg_locations[LIVE_RANGE_PREG_R13_INDEX].preg = SSA_PREG_REG_R13;
-        vreg_locations[LIVE_RANGE_PREG_R14_INDEX].preg = SSA_PREG_REG_R14;
-        vreg_locations[LIVE_RANGE_PREG_R15_INDEX].preg = SSA_PREG_REG_R15;
-    }
+    int stack_register_count = function->stack_register_count;
 
     if (debug_ssa_interference_graph) {
         printf("Live range preg index -> preg map:\n");
@@ -330,19 +300,6 @@ void init_allocate_registers() {
     preg_count = 0;
     for (int i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
         if (!in_set(reserved_registers, i)) {
-            if (i == REG_RAX) SSA_PREG_REG_RAX = preg_count;
-            if (i == REG_RBX) SSA_PREG_REG_RBX = preg_count;
-            if (i == REG_RCX) SSA_PREG_REG_RCX = preg_count;
-            if (i == REG_RDX) SSA_PREG_REG_RDX = preg_count;
-            if (i == REG_RSI) SSA_PREG_REG_RSI = preg_count;
-            if (i == REG_RDI) SSA_PREG_REG_RDI = preg_count;
-            if (i == REG_R8)  SSA_PREG_REG_R8  = preg_count;
-            if (i == REG_R9)  SSA_PREG_REG_R9  = preg_count;
-            if (i == REG_R12) SSA_PREG_REG_R12 = preg_count;
-            if (i == REG_R13) SSA_PREG_REG_R13 = preg_count;
-            if (i == REG_R14) SSA_PREG_REG_R14 = preg_count;
-            if (i == REG_R15) SSA_PREG_REG_R15 = preg_count;
-
             preg_map[preg_count++] = i;
         }
 
