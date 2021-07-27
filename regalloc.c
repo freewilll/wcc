@@ -282,12 +282,9 @@ void init_callee_saved_registers() {
 void init_allocate_registers() {
     init_callee_saved_registers();
 
+    // Map from reserved register 0-11 to physical register 0-15
     preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(preg_map, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
-
-    // Determine amount of free physical registers
-    physical_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
-    memset(physical_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
 
     // Blacklist registers
     Set *reserved_registers = new_set(PHYSICAL_REGISTER_COUNT);
