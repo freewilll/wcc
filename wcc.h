@@ -604,7 +604,6 @@ enum {
 // Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
 int live_range_reserved_pregs_offset;
 int preg_count;
-int *live_range_preg_indexes;
 
 void optimize_arithmetic_operations(Function *function);
 void rewrite_lvalue_reg_assignments(Function *function);

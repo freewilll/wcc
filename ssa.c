@@ -1145,7 +1145,7 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
 
     // Add edges to all non reserved physical registers
     for (int i = 0; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
-        if (preg_reg_index != live_range_preg_indexes[i]) add_ig_edge(ig, vreg_count, vreg, live_range_preg_indexes[i]);
+        if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
 static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
