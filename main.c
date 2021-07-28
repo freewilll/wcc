@@ -60,7 +60,6 @@ int main(int argc, char **argv) {
     char **linker_input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
     memset(linker_input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
 
-    init_callee_saved_registers();
     init_allocate_registers();
     init_instruction_selection_rules();
 

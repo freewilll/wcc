@@ -370,8 +370,8 @@ enum {
     REG_RDI,
     REG_RBP,
     REG_RSP,
-    REG_R8,
-    REG_R9,
+    REG_R08,
+    REG_R09,
     REG_R10,
     REG_R11,
     REG_R12,
@@ -630,7 +630,6 @@ int *arg_registers;
 void compress_vregs(Function *function);
 void allocate_registers_top_down(Function *function, int physical_register_count);
 void allocate_registers(Function *function);
-void init_callee_saved_registers();
 void init_allocate_registers();
 
 // instrsel.c

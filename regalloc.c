@@ -269,8 +269,9 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     free_set(unconstrained);
 }
 
-// Called once at startup to indicate which registers are preserved across function calls
-void init_callee_saved_registers() {
+// Called once at startup
+void init_allocate_registers() {
+    // Which registers are preserved across function calls
     callee_saved_registers = malloc(sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
     memset(callee_saved_registers, 0, sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
 
@@ -279,28 +280,6 @@ void init_callee_saved_registers() {
     callee_saved_registers[REG_R13] = 1;
     callee_saved_registers[REG_R14] = 1;
     callee_saved_registers[REG_R15] = 1;
-}
-
-void init_allocate_registers() {
-    init_callee_saved_registers();
-
-    // Map from reserved register 0-11 to physical register 0-15
-    preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
-    memset(preg_map, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
-
-    // Blacklist registers
-    Set *reserved_registers = new_set(PHYSICAL_REGISTER_COUNT);
-
-    add_to_set(reserved_registers, REG_RSP); // Stack pointer
-    add_to_set(reserved_registers, REG_RBP); // Base pointer
-    add_to_set(reserved_registers, REG_R10); // Not preserved in function calls & used as temporary
-    add_to_set(reserved_registers, REG_R11); // Not preserved in function calls & used as temporary
-
-    live_range_reserved_pregs_offset = 0;
-    for (int i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
-        if (!in_set(reserved_registers, i)) {
-            preg_map[live_range_reserved_pregs_offset++] = i;
-        }
 
     // Registers used for function calls
     arg_registers = malloc(sizeof(int) * 6);
@@ -310,6 +289,26 @@ void init_allocate_registers() {
     arg_registers[3]  = LIVE_RANGE_PREG_RCX_INDEX;
     arg_registers[4]  = LIVE_RANGE_PREG_R08_INDEX;
     arg_registers[5]  = LIVE_RANGE_PREG_R09_INDEX;
+
+    // Map from reserved register 0-11 to physical register 0-15
+    preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    memset(preg_map, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+
+    // All registers except RSP, RBP, R10 and R11
+    preg_map[LIVE_RANGE_PREG_RAX_INDEX - 1] = REG_RAX;
+    preg_map[LIVE_RANGE_PREG_RBX_INDEX - 1] = REG_RBX;
+    preg_map[LIVE_RANGE_PREG_RCX_INDEX - 1] = REG_RCX;
+    preg_map[LIVE_RANGE_PREG_RDX_INDEX - 1] = REG_RDX;
+    preg_map[LIVE_RANGE_PREG_RSI_INDEX - 1] = REG_RSI;
+    preg_map[LIVE_RANGE_PREG_RDI_INDEX - 1] = REG_RDI;
+    preg_map[LIVE_RANGE_PREG_R08_INDEX - 1] = REG_R08;
+    preg_map[LIVE_RANGE_PREG_R09_INDEX - 1] = REG_R09;
+    preg_map[LIVE_RANGE_PREG_R12_INDEX - 1] = REG_R12;
+    preg_map[LIVE_RANGE_PREG_R13_INDEX - 1] = REG_R13;
+    preg_map[LIVE_RANGE_PREG_R14_INDEX - 1] = REG_R14;
+    preg_map[LIVE_RANGE_PREG_R15_INDEX - 1] = REG_R15;
+
+    live_range_reserved_pregs_offset = 12;
 }
 
 static void assign_vreg_locations(Function *function) {
