@@ -892,8 +892,6 @@ void rename_phi_function_variables(Function *function) {
 // Page 696 engineering a compiler
 // To build live ranges from ssa form, the allocator uses the disjoint-set union- find algorithm.
 void make_live_ranges(Function *function) {
-    live_range_reserved_pregs_offset = RESERVED_PHYSICAL_REGISTER_COUNT; // See the list at the top of the file
-
     if (debug_ssa_live_range) print_ir(function, 0, 0);
 
     int vreg_count = function->vreg_count;

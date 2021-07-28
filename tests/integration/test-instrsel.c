@@ -1467,7 +1467,7 @@ void test_spilling() {
     Tac *tac;
 
     remove_reserved_physical_registers = 1;
-    preg_count = 0; // Disable register allocation
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
 
     // src1c spill
     start_ir();
@@ -1508,8 +1508,8 @@ void test_spilling() {
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq     -8(%rbp), %r10");
-    assert_rx86_preg_op("movq     -16(%rbp), %r11");
+    assert_rx86_preg_op("movq     -16(%rbp), %r10");
+    assert_rx86_preg_op("movq     -8(%rbp), %r11");
     assert_rx86_preg_op("cmpq     %r11, %r10"     );
 
     // dst spill with no instructions after
@@ -1532,8 +1532,8 @@ void test_spilling() {
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq     -8(%rbp), %r10"  );
-    assert_rx86_preg_op("movq     -16(%rbp), %r11" );
+    assert_rx86_preg_op("movq     -16(%rbp), %r10" );
+    assert_rx86_preg_op("movq     -8(%rbp), %r11"  );
     assert_rx86_preg_op("cmpq     %r11, %r10"      );
     assert_rx86_preg_op("sete     %r11b"           );
     assert_rx86_preg_op("movl     %r11d, -20(%rbp)");

@@ -294,10 +294,10 @@ void init_allocate_registers() {
     add_to_set(reserved_registers, REG_R10); // Not preserved in function calls & used as temporary
     add_to_set(reserved_registers, REG_R11); // Not preserved in function calls & used as temporary
 
-    preg_count = 0;
+    live_range_reserved_pregs_offset = 0;
     for (int i = 0; i < PHYSICAL_REGISTER_COUNT; i++)
         if (!in_set(reserved_registers, i)) {
-            preg_map[preg_count++] = i;
+            preg_map[live_range_reserved_pregs_offset++] = i;
         }
 
     // Registers used for function calls
@@ -357,9 +357,9 @@ static void remove_preg_self_moves(Function *function) {
 }
 
 void allocate_registers(Function *function) {
-    allocate_registers_top_down(function, preg_count);
+    allocate_registers_top_down(function, live_range_reserved_pregs_offset);
 
-    // Remap SSA pregs which run from 0 to preg_count -1 to the actual
+    // Remap SSA pregs which run from 0 to live_range_reserved_pregs_offset -1 to the actual
     // x86_64 physical register numbers.
     int vreg_count = function->vreg_count;
     for (int i = 1; i <= vreg_count; i++) {
