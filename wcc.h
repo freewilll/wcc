@@ -591,8 +591,8 @@ enum {
     LIVE_RANGE_PREG_RDX_INDEX,
     LIVE_RANGE_PREG_RSI_INDEX,
     LIVE_RANGE_PREG_RDI_INDEX,
-    LIVE_RANGE_PREG_R8_INDEX,
-    LIVE_RANGE_PREG_R9_INDEX,
+    LIVE_RANGE_PREG_R08_INDEX,
+    LIVE_RANGE_PREG_R09_INDEX,
     LIVE_RANGE_PREG_R12_INDEX,
     LIVE_RANGE_PREG_R13_INDEX,
     LIVE_RANGE_PREG_R14_INDEX,
@@ -626,7 +626,6 @@ void add_function_param_moves(Function *function);
 
 // regalloc.c
 int *arg_registers;
-int *preg_map;              // Map from reserved register 0-11 to physical register 0-15
 
 void compress_vregs(Function *function);
 void allocate_registers_top_down(Function *function, int physical_register_count);

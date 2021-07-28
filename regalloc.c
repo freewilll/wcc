@@ -9,6 +9,8 @@ typedef struct vreg_cost {
     int cost;
 } VregCost;
 
+int *preg_map;              // Map from reserved register 0-11 to physical register 0-15
+
 // Renumber all vregs so that they are consecutive
 void compress_vregs(Function *function) {
     if (!opt_enable_vreg_renumbering) return;
@@ -306,8 +308,8 @@ void init_allocate_registers() {
     arg_registers[1]  = LIVE_RANGE_PREG_RSI_INDEX;
     arg_registers[2]  = LIVE_RANGE_PREG_RDX_INDEX;
     arg_registers[3]  = LIVE_RANGE_PREG_RCX_INDEX;
-    arg_registers[4]  = LIVE_RANGE_PREG_R8_INDEX;
-    arg_registers[5]  = LIVE_RANGE_PREG_R9_INDEX;
+    arg_registers[4]  = LIVE_RANGE_PREG_R08_INDEX;
+    arg_registers[5]  = LIVE_RANGE_PREG_R09_INDEX;
 }
 
 static void assign_vreg_locations(Function *function) {

@@ -1120,8 +1120,8 @@ static void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
         else if (preg_reg_index == LIVE_RANGE_PREG_RDX_INDEX) printf("rdx");
         else if (preg_reg_index == LIVE_RANGE_PREG_RSI_INDEX) printf("rsi");
         else if (preg_reg_index == LIVE_RANGE_PREG_RDI_INDEX) printf("rdi");
-        else if (preg_reg_index == LIVE_RANGE_PREG_R8_INDEX ) printf("r8");
-        else if (preg_reg_index == LIVE_RANGE_PREG_R9_INDEX ) printf("r9");
+        else if (preg_reg_index == LIVE_RANGE_PREG_R08_INDEX) printf("r8");
+        else if (preg_reg_index == LIVE_RANGE_PREG_R09_INDEX) printf("r9");
         else if (preg_reg_index == LIVE_RANGE_PREG_R12_INDEX) printf("r12");
         else if (preg_reg_index == LIVE_RANGE_PREG_R13_INDEX) printf("r13");
         else if (preg_reg_index == LIVE_RANGE_PREG_R14_INDEX) printf("r14");
