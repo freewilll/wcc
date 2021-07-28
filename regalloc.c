@@ -17,7 +17,7 @@ void compress_vregs(Function *function) {
     int old_vreg_count = function->vreg_count;
     int *vreg_map = malloc((old_vreg_count + 1) * sizeof(int));
     memset(vreg_map, 0, (old_vreg_count + 1) * sizeof(int));
-    int new_vreg_count = RESERVED_PHYSICAL_REGISTER_COUNT;
+    int new_vreg_count = live_range_reserved_pregs_offset;
 
     if (debug_ssa_vreg_renumbering) {
         printf("Before vreg renumbering:\n");
@@ -215,13 +215,13 @@ void allocate_registers_top_down(Function *function, int physical_register_count
 
     // Pre-color reserved registers. Vregs start at one, pregs start at 0.
     if (live_range_reserved_pregs_offset > 0)
-        for (int i = 0; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++) vreg_locations[i + 1].preg = i;
+        for (int i = 0; i < live_range_reserved_pregs_offset; i++) vreg_locations[i + 1].preg = i;
 
     int stack_register_count = function->stack_register_count;
 
     if (debug_ssa_interference_graph) {
         printf("Live range preg index -> preg map:\n");
-        for (int i = 1; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
+        for (int i = 1; i < live_range_reserved_pregs_offset; i++)
             printf("%-2d -> %-2d: %s\n", i, vreg_locations[i].preg, register_name(vreg_locations[i].preg));
     }
 
@@ -229,7 +229,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     for (int i = 1; i <= vreg_count; i++) {
         int vreg = ordered_nodes[i].vreg;
         if (!constrained->elements[vreg]) continue;
-        if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
+        if (live_range_reserved_pregs_offset > 0 && vreg <= live_range_reserved_pregs_offset) continue;
         color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &stack_register_count, vreg, original_stack_indexes, 0);
     }
 
@@ -237,7 +237,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     for (int i = 1; i <= vreg_count; i++) {
         int vreg = ordered_nodes[i].vreg;
         if (!preferred_pregs->elements[vreg]) continue;
-        if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
+        if (live_range_reserved_pregs_offset > 0 && vreg <= live_range_reserved_pregs_offset) continue;
         color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &stack_register_count, vreg, original_stack_indexes, preferred_live_range_preg_indexes[vreg]);
     }
 
@@ -245,7 +245,7 @@ void allocate_registers_top_down(Function *function, int physical_register_count
     for (int i = 1; i <= vreg_count; i++) {
         int vreg = ordered_nodes[i].vreg;
         if (!unconstrained->elements[vreg]) continue;
-        if (live_range_reserved_pregs_offset > 0 && vreg <= RESERVED_PHYSICAL_REGISTER_COUNT) continue;
+        if (live_range_reserved_pregs_offset > 0 && vreg <= live_range_reserved_pregs_offset) continue;
         color_vreg(interference_graph, vreg_count, vreg_locations, physical_register_count, &stack_register_count, vreg, original_stack_indexes, 0);
     }
 

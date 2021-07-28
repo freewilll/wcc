@@ -287,9 +287,9 @@ void remove_reserved_physical_register_count_from_tac(Tac *ir) {
 
     tac = ir;
     while (tac) {
-        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg >= RESERVED_PHYSICAL_REGISTER_COUNT) tac->dst ->vreg -= RESERVED_PHYSICAL_REGISTER_COUNT;
-        if (tac->src1 && tac->src1->vreg && tac->src1->vreg >= RESERVED_PHYSICAL_REGISTER_COUNT) tac->src1->vreg -= RESERVED_PHYSICAL_REGISTER_COUNT;
-        if (tac->src2 && tac->src2->vreg && tac->src2->vreg >= RESERVED_PHYSICAL_REGISTER_COUNT) tac->src2->vreg -= RESERVED_PHYSICAL_REGISTER_COUNT;
+        if (tac->dst  && tac->dst ->vreg && tac->dst ->vreg >= live_range_reserved_pregs_offset) tac->dst ->vreg -= live_range_reserved_pregs_offset;
+        if (tac->src1 && tac->src1->vreg && tac->src1->vreg >= live_range_reserved_pregs_offset) tac->src1->vreg -= live_range_reserved_pregs_offset;
+        if (tac->src2 && tac->src2->vreg && tac->src2->vreg >= live_range_reserved_pregs_offset) tac->src2->vreg -= live_range_reserved_pregs_offset;
 
         tac = tac->next;
     }

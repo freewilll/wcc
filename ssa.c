@@ -1142,7 +1142,7 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
 
     // Add edges to all non reserved physical registers
-    for (int i = 0; i < RESERVED_PHYSICAL_REGISTER_COUNT; i++)
+    for (int i = 0; i < live_range_reserved_pregs_offset; i++)
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
@@ -1391,7 +1391,7 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
 // Since earlier coalesces can lead to later coalesces not happening, with each inner
 // loop, the registers with the highest spill cost are coalesced.
 void coalesce_live_ranges(Function *function, int check_register_constraints) {
-    make_vreg_count(function, RESERVED_PHYSICAL_REGISTER_COUNT);
+    make_vreg_count(function, live_range_reserved_pregs_offset);
     int vreg_count = function->vreg_count;
     char *merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
     char *instrsel_blockers = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));

@@ -584,8 +584,6 @@ void remove_unused_function_call_results(Function *function);
 
 // ssa.c
 enum {
-    RESERVED_PHYSICAL_REGISTER_COUNT = 12,
-
     // Liveness interval indexes corresponding to reserved physical registers
     LIVE_RANGE_PREG_RAX_INDEX = 1,
     LIVE_RANGE_PREG_RBX_INDEX,
@@ -601,7 +599,6 @@ enum {
     LIVE_RANGE_PREG_R15_INDEX,
 };
 
-// Equal to RESERVED_PHYSICAL_REGISTER_COUNT in normal usage. Set to zero in unit test for convenience
 int live_range_reserved_pregs_offset;
 
 void optimize_arithmetic_operations(Function *function);
