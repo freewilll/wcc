@@ -71,7 +71,6 @@ typedef struct type {
     int is_unsigned;
 } Type;
 
-
 typedef struct symbol {
     Type *type;                 // Type
     int size;                   // Size
@@ -121,7 +120,14 @@ typedef struct function {
     struct vreg_location *vreg_locations;    // Allocated physical registers and spilled stack indexes
     int *spill_cost;                         // The estimated spill cost for each live range
     char *preferred_live_range_preg_indexes; // Preferred physical register, when possible
+    char *vreg_preg_classes;                 // Preg classes for all vregs
 } Function;
+
+// Physical register class
+enum {
+    PC_INT = 1,
+    PC_SSE = 2,
+};
 
 // Value is a value on the value stack. A value can be one of
 // - global
@@ -133,6 +139,7 @@ typedef struct value {
     Type *type;                              // Type
     int vreg;                                // Optional vreg number
     int preg;                                // Allocated physical register
+    char preg_class;                         // Class of physical register, PC_INT or PC_SSE
     int is_lvalue;                           // Is the value an lvalue?
     int is_lvalue_in_register;               // Is the value an lvalue in a register?
     int local_index;                         // Used by parser for local variable and temporaries and function arguments
@@ -215,7 +222,9 @@ enum {
     MAX_FUNCTION_CALL_ARGS        = 253,
     VALUE_STACK_SIZE              = 10240,
     MAX_VREG_COUNT                = 20480,
-    PHYSICAL_REGISTER_COUNT       = 16,
+    PHYSICAL_REGISTER_COUNT       = 32, // integer + xmm
+    INT_REGISTER_COUNT            = 12, // Available registers for integers
+    SSE_REGISTER_COUNT            = 16, // Available registers for floating points
     MAX_SPILLED_REGISTER_COUNT    = 1024,
     MAX_INPUT_FILENAMES           = 1024,
     MAX_BLOCKS                    = 1024,
@@ -362,6 +371,7 @@ enum {
 
 // Physical registers
 enum {
+    // Integers
     REG_RAX,
     REG_RBX,
     REG_RCX,
@@ -378,6 +388,9 @@ enum {
     REG_R13,
     REG_R14,
     REG_R15,
+
+    // SSE
+    REG_XMM00,
 };
 
 char *cur_filename;             // Current filename being lexed
@@ -545,6 +558,7 @@ Type *make_ptr(Type *src);
 Type *deref_ptr(Type *type);
 int is_integer_type(Type *type);
 int is_floating_point_type(Type *type);
+int is_sse_floating_point_type(Type *type);
 int is_scalar_type(Type *type);
 int type_fits_in_single_register(Type *type);
 int get_type_size(Type *type);
@@ -596,7 +610,9 @@ enum {
     LIVE_RANGE_PREG_R12_INDEX,
     LIVE_RANGE_PREG_R13_INDEX,
     LIVE_RANGE_PREG_R14_INDEX,
-    LIVE_RANGE_PREG_R15_INDEX,
+    LIVE_RANGE_PREG_R15_INDEX,      // 12
+
+    LIVE_RANGE_PREG_XMM00_INDEX,    // 13
 };
 
 int live_range_reserved_pregs_offset;
@@ -625,10 +641,12 @@ void add_function_call_arg_moves(Function *function);
 void add_function_param_moves(Function *function);
 
 // regalloc.c
-int *arg_registers;
+int *int_arg_registers;
+int *sse_arg_registers;
 
 void compress_vregs(Function *function);
-void allocate_registers_top_down(Function *function, int physical_register_count);
+void init_vreg_locations(Function *function);
+void allocate_registers_top_down(Function *function, int live_range_start, int physical_register_count, int preg_class);
 void allocate_registers(Function *function);
 void init_allocate_registers();
 

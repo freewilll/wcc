@@ -24,6 +24,8 @@ int print_type(void *f, Type *type) {
     else if (tt == TYPE_INT)         len += fprintf(f, "int");
     else if (tt == TYPE_SHORT)       len += fprintf(f, "short");
     else if (tt == TYPE_LONG)        len += fprintf(f, "long");
+    else if (tt == TYPE_FLOAT)       len += fprintf(f, "float");
+    else if (tt == TYPE_DOUBLE)      len += fprintf(f, "double");
     else if (tt == TYPE_LONG_DOUBLE) len += fprintf(f, "long double");
     else if (tt >= TYPE_STRUCT)      len += fprintf(f, "struct %s", all_structs[tt - TYPE_STRUCT]->identifier);
     else len += fprintf(f, "unknown tt %d", tt);
@@ -81,6 +83,11 @@ int is_integer_type(Type *type) {
 
 int is_floating_point_type(Type *type) {
     return (type->type >= TYPE_FLOAT && type->type <= TYPE_LONG_DOUBLE);
+}
+
+// Can tye type be stored in one of the XMM* registers?
+int is_sse_floating_point_type(Type *type) {
+    return (type->type >= TYPE_FLOAT && type->type <= TYPE_DOUBLE);
 }
 
 int is_scalar_type(Type *type) {

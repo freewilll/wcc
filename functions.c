@@ -112,7 +112,7 @@ void add_function_call_arg_moves(Function *function) {
                 tac->dst->vreg = ++function->vreg_count;
 
                 tac->src1 = *call_arg;
-                tac->src1->preferred_live_range_preg_index = arg_registers[i];
+                tac->src1->preferred_live_range_preg_index = int_arg_registers[i];
                 tac->dst->is_function_call_arg = 1;
                 tac->dst->function_call_register_arg_index = i;
                 insert_instruction(ir, tac, 1);

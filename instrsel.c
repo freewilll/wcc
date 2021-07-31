@@ -1058,6 +1058,8 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
 
             if (ign->tac)
                 dst->type = dup_type(ign->tac->dst->type);
+            else
+                dst->type = dup_type(ign->value->type);
 
             if (debug_instsel_tiling) printf("  allocated new vreg for dst vreg=%d\n", dst->vreg);
         }

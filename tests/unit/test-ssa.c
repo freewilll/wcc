@@ -758,6 +758,11 @@ void test_coalesce_promotion() {
     assert_tac(ir_start->next, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), 0   );
 }
 
+void run_allocate_registers_top_down(Function *function, int physical_register_count) {
+    init_vreg_locations(function);
+    allocate_registers_top_down(function, 1, physical_register_count, PC_INT);
+}
+
 void test_top_down_register_allocation() {
     int i, l, vreg_count;
     char *ig;
@@ -776,6 +781,8 @@ void test_top_down_register_allocation() {
 
     vreg_count =  4;
     function->vreg_count = vreg_count;
+    function->vreg_preg_classes = malloc(sizeof(char) * 5);
+    memset(function->vreg_preg_classes, PC_INT, 5);
 
     // For some determinism, assign costs equal to the vreg number
     function->spill_cost = malloc((vreg_count + 1) * sizeof(int));
@@ -792,7 +799,7 @@ void test_top_down_register_allocation() {
     // Everything is spilled. All nodes are constrained.
     // The vregs with the lowest cost get spilled first
     function->stack_register_count = 0;
-    allocate_registers_top_down(function, 0);
+    run_allocate_registers_top_down(function, 0);
     vl = function->vreg_locations;
     assert(-4, vl[1].stack_index);
     assert(-3, vl[2].stack_index);
@@ -802,7 +809,7 @@ void test_top_down_register_allocation() {
     // Only one register is available. All nodes are constrained.
     // The most expensive non interfering nodes get the register
     function->stack_register_count = 0;
-    allocate_registers_top_down(function, 1);
+    run_allocate_registers_top_down(function, 1);
     vl = function->vreg_locations;
     assert(-1, vl[1].stack_index);
     assert(0,  vl[2].preg);
@@ -813,7 +820,7 @@ void test_top_down_register_allocation() {
     // first register. The rest don't interfere and all get the second
     // register.
     function->stack_register_count = 0;
-    allocate_registers_top_down(function, 2);
+    run_allocate_registers_top_down(function, 2);
     vl = function->vreg_locations;
     assert(0, vl[1].preg);
     assert(1, vl[2].preg);
@@ -835,7 +842,7 @@ void test_top_down_register_allocation() {
     add_ig_edge(ig, vreg_count, 2, 4);
 
     function->stack_register_count = 0;
-    allocate_registers_top_down(function, 2);
+    run_allocate_registers_top_down(function, 2);
     vl = function->vreg_locations;
     assert(-1, vl[1].stack_index);
     assert(1,  vl[2].preg);
@@ -848,7 +855,7 @@ void test_top_down_register_allocation() {
     // 3 gets 1 since 0 is used by node 1
     // 2 gets 2 since 0 and 1 are in use by 1 and 4
     function->stack_register_count = 0;
-    allocate_registers_top_down(function, 3);
+    run_allocate_registers_top_down(function, 3);
     vl = function->vreg_locations;
     assert(0, vl[1].preg);
     assert(2, vl[2].preg);

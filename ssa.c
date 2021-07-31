@@ -1075,6 +1075,41 @@ void blast_vregs_with_live_ranges(Function *function) {
     }
 }
 
+// Set preg_class (PC_INT or PC_SSE) for all vregs in the IR by looking at the type
+// The first 28 values are for the available physical registers,
+// 1-12 is for integers, 13-28 for floating point values.
+static void set_preg_classes(Function *function) {
+    char *vreg_preg_classes = malloc(sizeof(char) * (function->vreg_count + 1));
+    memset(vreg_preg_classes, 0, sizeof(char) * (function->vreg_count + 1));
+
+    if (live_range_reserved_pregs_offset > 0) {
+        for (int i = 1; i <= SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_INT;
+        for (int i = SSE_REGISTER_COUNT + 1; i <= INT_REGISTER_COUNT + SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_SSE;
+    }
+
+    function->vreg_preg_classes = vreg_preg_classes;
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        // Ensure nothing in the TAC that has a vreg has a type. If so, it's a bug.
+        if (tac->dst  && tac->dst ->vreg && !tac->dst ->type) { print_instruction(stdout, tac, 0); panic("Type is unexpectedly zero on dst "); }
+        if (tac->src1 && tac->src1->vreg && !tac->src1->type) { print_instruction(stdout, tac, 0); panic("Type is unexpectedly zero on src1"); }
+        if (tac->src2 && tac->src2->vreg && !tac->src2->type) { print_instruction(stdout, tac, 0); panic("Type is unexpectedly zero on src2"); }
+
+        if (tac->dst  && tac->dst->vreg) {
+            tac->dst->preg_class = is_sse_floating_point_type(tac->dst->type) ? PC_SSE : PC_INT;
+            vreg_preg_classes[tac->dst->vreg] = tac->dst->preg_class;
+        }
+        if (tac->src1 && tac->src1->vreg) {
+            tac->src1->preg_class = is_sse_floating_point_type(tac->src1->type) ? PC_SSE : PC_INT;
+            vreg_preg_classes[tac->src1->vreg] = tac->src1->preg_class;
+        }
+        if (tac->src2 && tac->src2->vreg) {
+            tac->src2->preg_class = is_sse_floating_point_type(tac->src2->type) ? PC_SSE : PC_INT;
+            vreg_preg_classes[tac->src2->vreg] = tac->src2->preg_class;
+        }
+    }
+}
+
 void add_ig_edge(char *ig, int vreg_count, int to, int from) {
     int index;
 
@@ -1130,7 +1165,7 @@ static void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
 }
 
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
-static void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index) {
+static void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index, int preg_class) {
     if (debug_ssa_interference_graph || debug_register_allocation) {
         printf("Forcing ");
         print_physical_register_name_for_lr_reg_index(preg_reg_index);
@@ -1142,23 +1177,25 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
 
     // Add edges to all non reserved physical registers
-    for (int i = 0; i < live_range_reserved_pregs_offset; i++)
+    int start = preg_class == PC_INT ? 0 : INT_REGISTER_COUNT;
+    int size = preg_class == PC_INT ? INT_REGISTER_COUNT : SSE_REGISTER_COUNT;
+    for (int i = start; i < start + size; i++)
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
-static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
+static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class) {
     // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
     // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
     // register allocated to them.
     if (value && value->is_function_call_arg) {
         int arg = value->function_call_register_arg_index;
         if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
-        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[arg]);
+        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, int_arg_registers[arg], preg_class);
     }
 
     // Force caller arguments to a function call into the appropriate registers
     if (value && value->is_function_param && value->is_function_param && value->function_param_index < 6)
-        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[value->function_param_index]);
+        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, int_arg_registers[value->function_param_index], preg_class);
 }
 
 static void print_interference_graph(Function *function) {
@@ -1183,6 +1220,7 @@ static void make_interference_graph(Function *function) {
     }
 
     int vreg_count = function->vreg_count;
+    char *vreg_preg_classes = function->vreg_preg_classes;
 
     char *interference_graph = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
     memset(interference_graph, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(int));
@@ -1199,17 +1237,22 @@ static void make_interference_graph(Function *function) {
         while (tac) {
             if (debug_ssa_interference_graph) print_instruction(stdout, tac, 0);
 
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->dst);
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src1);
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src2);
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->dst, PC_INT);
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src1, PC_INT);
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src2, PC_INT);
 
             if (tac->operation == IR_CALL || tac->operation == X_CALL) {
+                // Integer arguments are clobbered
                 for (int j = 0; j < 6; j++)
-                    clobber_livenow(interference_graph, vreg_count, livenow, tac, arg_registers[j]);
+                    clobber_livenow(interference_graph, vreg_count, livenow, tac, int_arg_registers[j]);
+
+                // All SSE registers are clobbered
+                for (int j = 0; j < SSE_REGISTER_COUNT; j++)
+                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
 
                 if (tac->dst && tac->dst->vreg)
                     // Force dst to get RAX
-                    force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX);
+                    force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX, PC_INT);
                 else
                     // There is no dst, but RAX gets nuked, so add edges for it
                     clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
@@ -1217,7 +1260,7 @@ static void make_interference_graph(Function *function) {
 
             if (tac->operation == IR_RETURN || tac->operation == X_RET)
                 if (tac->dst && tac->dst->vreg)
-                    force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX);
+                    force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX, PC_INT);
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
@@ -1263,6 +1306,7 @@ static void make_interference_graph(Function *function) {
                     if (!livenow_elements[j]) continue;
 
                     if (j == tac->dst->vreg) continue; // Ignore self assignment
+                    if (tac->dst->preg_class != vreg_preg_classes[j]) continue;
 
                     // Don't add an edge for register copies
                     if ((
@@ -1390,22 +1434,17 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
 // false interferences, however they will disappear when the outer loop runs again.
 // Since earlier coalesces can lead to later coalesces not happening, with each inner
 // loop, the registers with the highest spill cost are coalesced.
-void coalesce_live_ranges(Function *function, int check_register_constraints) {
-    make_vreg_count(function, live_range_reserved_pregs_offset);
+static void coalesce_live_ranges_for_preg(Function *function, int check_register_constraints, int preg_class) {
     int vreg_count = function->vreg_count;
     char *merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
     char *instrsel_blockers = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
     char *clobbers = malloc((vreg_count + 1) * sizeof(char));
-
-    make_uevar_and_varkill(function);
-    make_liveout(function);
 
     int outer_changed = 1;
     while (outer_changed) {
         outer_changed = 0;
 
         make_live_range_spill_cost(function);
-        make_preferred_live_range_preg_indexes(function);
         make_interference_graph(function);
 
         if (!opt_enable_live_range_coalescing) return;
@@ -1425,11 +1464,11 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
 
             // Create merge candidates
             for (Tac *tac = function->ir; tac; tac = tac->next) {
-                // Don't coalesce a move if it promotes an integer type so that both vregs retain their precision.
-                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && type_eq(tac->src1->type, tac->dst->type))
+                // Don't coalesce a move if the type doesn't match
+                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type))
                     merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
 
-                else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->next) {
+                else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
                     if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
                         merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
                     if ((tac->next->operation == X_SHL || tac->next->operation == X_SAR) && tac->next->src1 && tac->next->src1->vreg)
@@ -1492,9 +1531,20 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
     free(clobbers);
 
     if (debug_ssa_live_range_coalescing) {
-        printf("\n");
+        printf("\nLive range coalesce results for preg_class=%d:\n", preg_class);
         print_ir(function, 0, 0);
     }
+}
+
+void coalesce_live_ranges(Function *function, int check_register_constraints) {
+    make_vreg_count(function, live_range_reserved_pregs_offset);
+    make_uevar_and_varkill(function);
+    make_liveout(function);
+    make_preferred_live_range_preg_indexes(function);
+    set_preg_classes(function);
+
+    coalesce_live_ranges_for_preg(function, check_register_constraints, PC_INT);
+    coalesce_live_ranges_for_preg(function, check_register_constraints, PC_SSE);
 }
 
 // 10^p
