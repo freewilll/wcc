@@ -218,7 +218,7 @@ enum {
     MAX_INPUT_SIZE                = 10485760,
     MAX_STRING_LITERAL_SIZE       = 4095,
     MAX_STRING_LITERALS           = 10240,
-    MAX_LONG_DOUBLE_LITERALS      = 10240,
+    MAX_FLOATING_POINT_LITERALS   = 10240,
     MAX_FUNCTION_CALL_ARGS        = 253,
     VALUE_STACK_SIZE              = 10240,
     MAX_VREG_COUNT                = 20480,
@@ -393,6 +393,13 @@ enum {
     REG_XMM00,
 };
 
+typedef struct floating_point_literal {
+    int type;
+    float f;
+    double d;
+    long double ld;
+} FloatingPointLiteral;
+
 char *cur_filename;             // Current filename being lexed
 int cur_line;                   // Current line number being lexed
 
@@ -429,9 +436,10 @@ int in_ifdef;                   // In ifdef inclusion
 int in_ifdef_else;              // In ifdef exclusion
 Scope *cur_scope;               // Current scope.
 char **string_literals;         // Each string literal has an index in this array, with a pointer to the string literal
-long double *long_double_literals; // Each long double literal has an index in this array, with a pointer to the long double
 int string_literal_count;       // Amount of string literals
-int long_double_literal_count;  // Amount of long double literals
+
+FloatingPointLiteral *floating_point_literals; // Each floating point literal has an index in this array
+int floating_point_literal_count;              // Amount of floating point literals
 
 Symbol *cur_function_symbol;     // Currently parsed function
 Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop

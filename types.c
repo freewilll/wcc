@@ -126,6 +126,8 @@ int get_type_alignment(Type *type) {
     else if (t == TYPE_SHORT)        return 2;
     else if (t == TYPE_INT)          return 4;
     else if (t == TYPE_LONG)         return 8;
+    else if (t == TYPE_FLOAT)        return 4;
+    else if (t == TYPE_DOUBLE)       return 8;
     else if (t == TYPE_LONG_DOUBLE)  return 16;
     else if (t >= TYPE_STRUCT) panic("Alignment of structs not implemented");
 

@@ -97,10 +97,9 @@ void compile(char *compiler_input_filename, char *compiler_output_filename) {
     parse();
     check_incomplete_structs();
 
-    // Some long doubles need to be loaded from a .LDL section, allocate storage to
-    // hold the values.
-    long_double_literals = malloc(sizeof(long double) * MAX_LONG_DOUBLE_LITERALS);
-    long_double_literal_count = 0;
+    // Keep track of floating point constant values.
+    floating_point_literals = malloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
+    floating_point_literal_count = 0;
 
     // Compile all functions
     for (int i = 0; i < global_scope->symbol_count; i++) {

@@ -142,9 +142,10 @@ static int get_stack_offset(int function_pc, Value *v) {
 }
 
 static int add_long_double_literal(long double value) {
-    long_double_literals[long_double_literal_count] = value;
-    if (long_double_literal_count >= MAX_LONG_DOUBLE_LITERALS) panic1d("Exceeded max long double literals %d", MAX_LONG_DOUBLE_LITERALS);
-    return long_double_literal_count++;
+    floating_point_literals[floating_point_literal_count].ld = value;
+    floating_point_literals[floating_point_literal_count].type = TYPE_LONG_DOUBLE;
+    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic1d("Exceeded max floaing point literals %d", MAX_FLOATING_POINT_LITERALS);
+    return floating_point_literal_count++;
 }
 
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
@@ -228,7 +229,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                             // The & is to be compatible with gcc
                             sprintf(buffer, "$%ld", (*((long *) &v->fp_value + 1) & 0xffff));
                         else if (long_double_literal)
-                            sprintf(buffer, ".LDL%d(%%rip)", add_long_double_literal(v->fp_value));
+                            sprintf(buffer, ".FPL%d(%%rip)", add_long_double_literal(v->fp_value));
                         else
                             panic("Did not get L/H/C specifier for double long constant");
                     }
@@ -579,12 +580,12 @@ void output_code(char *input_filename, char *output_filename) {
         symbol++;
     }
 
-    // Output long double literals
-    if (long_double_literal_count > 0) {
-        for (int i = 0; i < long_double_literal_count; i++) {
+    // Output floating point literals
+    if (floating_point_literal_count > 0) {
+        for (int i = 0; i < floating_point_literal_count; i++) {
             // The zero and & is to be compatible with gcc
-            long double ld = long_double_literals[i];
-            fprintf(f, ".LDL%d:\n", i);
+            long double ld = floating_point_literals[i].ld;
+            fprintf(f, ".FPL%d:\n", i);
             fprintf(f, "    .long   %d\n", *((int *) &ld));
             fprintf(f, "    .long   %d\n", *((int *) &ld + 1));
             fprintf(f, "    .long   %d\n", (*((int *) &ld + 2) & 0xffff));
