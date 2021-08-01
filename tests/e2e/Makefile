@@ -14,7 +14,8 @@ WCC_TESTS=\
 	regressions \
 	reg-move-torture \
 	ifdef \
-	long-doubles
+	long-doubles \
+	floats-and-doubles
 
 all: run-test-gcc run-test-wcc run-test-include
 

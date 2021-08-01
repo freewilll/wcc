@@ -8,15 +8,19 @@
 int need_ru4_to_ld_symbol;
 int need_ld_to_ru4_symbol;
 
-static void check_preg(int preg) {
+static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
-    if (preg < 0 || preg >= PHYSICAL_REGISTER_COUNT) panic1d("Illegal preg %d", preg);
+    if (preg < 0) panic1d("Illegal preg %d", preg);
+    if (preg_class & PC_INT && preg >= 16)
+        panic1d("Illegal int preg %d", preg);
+    if (preg_class & PC_SSE && (preg < 16 || preg >= 32))
+        panic1d("Illegal sse preg %d", preg);
 }
 
 char *register_name(int preg) {
     char *buffer;
 
-    check_preg(preg);
+    check_preg(preg, PC_INT | PC_SSE);
     char *names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
     if (preg == 8 || preg == 9) asprintf(&buffer, "%%%.2s", &names[preg * 4]);
     else                        asprintf(&buffer, "%%%.3s", &names[preg * 4]);
@@ -25,7 +29,7 @@ char *register_name(int preg) {
 }
 
 static void append_byte_register_name(char *buffer, int preg) {
-    check_preg(preg);
+    check_preg(preg, PC_INT);
     char *names = "al   bl   cl   dl   sil  dil  bpl  spl  r8b  r9b  r10b r11b r12b r13b r14b r15b";
          if (preg < 4)  sprintf(buffer, "%%%.2s", &names[preg * 5]);
     else if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
@@ -33,7 +37,7 @@ static void append_byte_register_name(char *buffer, int preg) {
 }
 
 static void append_word_register_name(char *buffer, int preg) {
-    check_preg(preg);
+    check_preg(preg, PC_INT);
     char *names = "ax   bx   cx   dx   si   di   bp   sp   r8w  r9w  r10w r11w r12w r13w r14w r15w";
          if (preg < 8)  sprintf(buffer, "%%%.2s", &names[preg * 5]);
     else if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
@@ -41,14 +45,14 @@ static void append_word_register_name(char *buffer, int preg) {
 }
 
 static void append_long_register_name(char *buffer, int preg) {
-    check_preg(preg);
+    check_preg(preg, PC_INT);
     char *names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
     if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
     else           sprintf(buffer, "%%%.4s", &names[preg * 5]);
 }
 
 static void append_quad_register_name(char *buffer, int preg) {
-    check_preg(preg);
+    check_preg(preg, PC_INT);
     char *names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
     if (preg == 8 || preg == 9) sprintf(buffer, "%%%.2s", &names[preg * 4]);
     else                        sprintf(buffer, "%%%.3s", &names[preg * 4]);

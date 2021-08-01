@@ -327,6 +327,8 @@ char *non_terminal_string(int nt) {
     else if (nt == CU3)   return "cu3";
     else if (nt == CU4)   return "cu4";
     else if (nt == CLD)   return "cld";
+    else if (nt == CS3)   return "cs3";
+    else if (nt == CS4)   return "cs4";
     else if (nt == STL)   return "stl";
     else if (nt == LAB)   return "lab";
     else if (nt == FUN)   return "fun";
@@ -363,8 +365,12 @@ char *non_terminal_string(int nt) {
     else if (nt == RP3)   return "rp3";
     else if (nt == RP4)   return "rp4";
     else if (nt == RP5)   return "rp5";
+    else if (nt == RS3)   return "rs3";
+    else if (nt == RS4)   return "rs4";
     else if (nt == MLD5)  return "mld5";
     else if (nt == MRP5)  return "mrp5";
+    else if (nt == MS3)   return "ms3";
+    else if (nt == MS4)   return "ms4";
     else {
         asprintf(&buf, "nt%03d", nt);
         return buf;
@@ -463,6 +469,10 @@ static int non_terminal_for_value(Value *v) {
     else if (v->function_symbol)                                             result =  FUN;
     else if (!is_local && v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)      result =  MRP5;
     else if (is_local && v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)       result =  RP5;
+    else if (!is_local && v->type->type == TYPE_FLOAT)                       result =  MS3;
+    else if (is_local &&  v->type->type == TYPE_FLOAT)                       result =  RS3;
+    else if (!is_local && v->type->type == TYPE_DOUBLE)                      result =  MS4;
+    else if (is_local &&  v->type->type == TYPE_DOUBLE)                      result =  RS4;
     else if (v->type->type >= TYPE_PTR && !v->type->is_unsigned && !v->vreg) result =  MI4;
     else if (v->type->type >= TYPE_PTR &&  v->type->is_unsigned && !v->vreg) result =  MU4;
     else if (v->type->type >= TYPE_PTR)                                      result =  RP1 + value_ptr_target_x86_size(v) -1;
@@ -488,6 +498,10 @@ int match_value_to_rule_src(Value *v, int src) {
     if (v->is_constant) {
         if (v->type->type == TYPE_LONG_DOUBLE)
             return src == CLD;
+        else if (v->type->type == TYPE_FLOAT)
+            return src == CS3;
+        else if (v->type->type == TYPE_DOUBLE)
+            return src == CS4;
         else {
             // Integer constant
             if (v->type->type < TYPE_INT) panic1d("Unexpected constant type %d", v->type->type);
@@ -554,6 +568,10 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     else if (dst == MU2  && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
     else if (dst == MU3  && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
     else if (dst == MU4  && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
+    else if (dst == RS3  && v->type->type == TYPE_FLOAT)                          return 1;
+    else if (dst == RS4  && v->type->type == TYPE_DOUBLE)                         return 1;
+    else if (dst == MS3  && v->type->type == TYPE_FLOAT)                          return 1;
+    else if (dst == MS4  && v->type->type == TYPE_DOUBLE)                         return 1;
     else if (dst == RP1  && is_ptr && ptr_size == 1)                              return 1;
     else if (dst == RP2  && is_ptr && ptr_size == 2)                              return 1;
     else if (dst == RP3  && is_ptr && ptr_size == 3)                              return 1;
@@ -588,11 +606,13 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == CU3)   return 3;
     else if (nt == CU4)   return 4;
     else if (nt == CLD)   return 8;
+    else if (nt == CS3)   return 3;
+    else if (nt == CS4)   return 4;
     else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4 || nt == RP5 || nt == MRP5) return 4;
     else if (nt == RI1 || nt == RU1 || nt == MI1 || nt == MU1                           ) return 1;
     else if (nt == RI2 || nt == RU2 || nt == MI2 || nt == MU2                           ) return 2;
-    else if (nt == RI3 || nt == RU3 || nt == MI3 || nt == MU3                           ) return 3;
-    else if (nt == RI4 || nt == RU4 || nt == MI4 || nt == MU4                           ) return 4;
+    else if (nt == RI3 || nt == RU3 || nt == RS3 || nt == MI3 || nt == MU3 || nt == MS3 ) return 3;
+    else if (nt == RI4 || nt == RU4 || nt == RS4 || nt == MI4 || nt == MU4 || nt == MS4 ) return 4;
     else if (nt == MLD5) return 8;
     else if (nt == LAB) return -1;
     else if (nt == FUN) return -1;

@@ -88,7 +88,7 @@ static void push_floating_point_constant(int type_type, long double value) {
 
 // Push the currently lexed long double floating point number, cur_long_double
 static void push_cur_long_double() {
-    Value *v = new_floating_point_constant(TYPE_LONG_DOUBLE, cur_long_double);
+    Value *v = new_floating_point_constant(cur_lexer_type->type, cur_long_double);
     push(v);
 }
 
@@ -141,6 +141,14 @@ Type *operation_type(Type *src1, Type *src2) {
     // If either is a long double, promote both to long double
     if (src1->type == TYPE_LONG_DOUBLE || src2->type == TYPE_LONG_DOUBLE)
         return new_type(TYPE_LONG_DOUBLE);
+
+    // If either is a double, promote both to double
+    if (src1->type == TYPE_DOUBLE || src2->type == TYPE_DOUBLE)
+        return new_type(TYPE_DOUBLE);
+
+    // If either is a float, promote both to float
+    if (src1->type == TYPE_FLOAT || src2->type == TYPE_FLOAT)
+        return new_type(TYPE_FLOAT);
 
     // Otherwise, apply integral promotions
     src1 = integer_promote_type(src1);
@@ -513,7 +521,17 @@ static Value *long_double_type_change(Value *src) {
     if (src->type->type >= TYPE_PTR) panic("Unable to convert a pointer to a long double");
 
     if (src->type->type == TYPE_LONG_DOUBLE) return src;
+
     if (src->is_constant) {
+        if (src->type->type == TYPE_FLOAT || src->type->type == TYPE_DOUBLE) {
+            // Convert a float/double constant to long double
+            dst = dup_value(src);
+            dst->type = new_type(TYPE_LONG_DOUBLE);
+            dst->fp_value = src->fp_value;
+            return dst;
+        }
+
+        // Implicit else, src is an integer, convert to floating point value
         dst = dup_value(src);
         dst->type = new_type(TYPE_LONG_DOUBLE);
         dst->fp_value = src->int_value;
@@ -583,7 +601,15 @@ static void push_local_symbol(Symbol *symbol) {
 Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     if (!type_eq(dst_type, src->type)) {
         if (src->is_constant) {
-            if (src->type->type != TYPE_LONG_DOUBLE && dst_type->type == TYPE_LONG_DOUBLE) {
+
+            if ((src->type->type == TYPE_FLOAT || src->type->type == TYPE_DOUBLE) && dst_type->type == TYPE_LONG_DOUBLE) {
+                // Convert float/double to long double
+                Value *src2 = dup_value(src);
+                src2->type = dup_type(dst_type);
+                return src2;
+            }
+
+            else if (src->type->type != TYPE_LONG_DOUBLE && dst_type->type == TYPE_LONG_DOUBLE) {
                 // Convert int -> long double
                 Value *src2 = new_value();
                 src2->type = new_type(TYPE_LONG_DOUBLE);
@@ -591,7 +617,6 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
                 src2->fp_value = src->int_value;
                 return src2;
             }
-
             else if (src->type->type == TYPE_LONG_DOUBLE && dst_type->type != TYPE_LONG_DOUBLE) {
                 // Convert long double -> int
                 Value *src2 = new_value();

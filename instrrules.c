@@ -181,6 +181,12 @@ static void add_long_double_integer_move_rule(int dst, int type, char *conv_temp
     }
 }
 
+static void add_float_and_double_move_rules() {
+    Rule *r ;
+
+    r = add_rule(RS3, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1F, %vq"); // Work in progress
+}
+
 static void add_long_double_move_rules()  {
     Rule *r;
 
@@ -819,6 +825,8 @@ void init_instruction_selection_rules() {
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(XC,    0, XC,    0, 0); fin_rule(r);
     r = add_rule(CLD,   0, CLD,   0, 0);
+    r = add_rule(CS3,   0, CS3,   0, 0); fin_rule(r);
+    r = add_rule(CS4,   0, CS4,   0, 0); fin_rule(r);
     r = add_rule(XR,    0, XR,    0, 0); fin_rule(r);
     r = add_rule(CSTV1, 0, CSTV1, 0, 0);
     r = add_rule(CSTV2, 0, CSTV2, 0, 0);
@@ -828,6 +836,10 @@ void init_instruction_selection_rules() {
     r = add_rule(XRP,   0, XRP,   0, 0); fin_rule(r);
     r = add_rule(RP5,   0, RP5,   0, 0); fin_rule(r);
     r = add_rule(MRP5,  0, MRP5,  0, 0); fin_rule(r);
+    r = add_rule(RS3,   0, RS3,   0, 0); fin_rule(r);
+    r = add_rule(RS4,   0, RS4,   0, 0); fin_rule(r);
+    r = add_rule(MS3,   0, MS3,   0, 0); fin_rule(r);
+    r = add_rule(MS4,   0, MS4,   0, 0); fin_rule(r);
     r = add_rule(STL,   0, STL,   0, 0);
     r = add_rule(LAB,   0, LAB,   0, 0);
     r = add_rule(FUN,   0, FUN,   0, 0);
@@ -869,6 +881,7 @@ void init_instruction_selection_rules() {
     add_move_rules_ri_to_mi();
     add_move_rules_ru_to_mu();
 
+    add_float_and_double_move_rules();
     add_long_double_move_rules();
 
     // Pointer move rules

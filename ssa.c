@@ -1083,8 +1083,8 @@ static void set_preg_classes(Function *function) {
     memset(vreg_preg_classes, 0, sizeof(char) * (function->vreg_count + 1));
 
     if (live_range_reserved_pregs_offset > 0) {
-        for (int i = 1; i <= SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_INT;
-        for (int i = SSE_REGISTER_COUNT + 1; i <= INT_REGISTER_COUNT + SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_SSE;
+        for (int i = 1; i <= PHYSICAL_SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_INT;
+        for (int i = PHYSICAL_SSE_REGISTER_COUNT + 1; i <= PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_SSE;
     }
 
     function->vreg_preg_classes = vreg_preg_classes;
@@ -1177,8 +1177,8 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
 
     // Add edges to all non reserved physical registers
-    int start = preg_class == PC_INT ? 0 : INT_REGISTER_COUNT;
-    int size = preg_class == PC_INT ? INT_REGISTER_COUNT : SSE_REGISTER_COUNT;
+    int start = preg_class == PC_INT ? 0 : PHYSICAL_INT_REGISTER_COUNT;
+    int size = preg_class == PC_INT ? PHYSICAL_INT_REGISTER_COUNT : PHYSICAL_SSE_REGISTER_COUNT;
     for (int i = start; i < start + size; i++)
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
@@ -1247,7 +1247,7 @@ static void make_interference_graph(Function *function) {
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, int_arg_registers[j]);
 
                 // All SSE registers are clobbered
-                for (int j = 0; j < SSE_REGISTER_COUNT; j++)
+                for (int j = 0; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
 
                 if (tac->dst && tac->dst->vreg)

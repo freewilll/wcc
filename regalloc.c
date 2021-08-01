@@ -320,10 +320,10 @@ void init_allocate_registers() {
     preg_map[LIVE_RANGE_PREG_R15_INDEX - 1] = REG_R15;
 
     // Map all 16 SSE xmm* registers
-    for (int i = 0; i < SSE_REGISTER_COUNT; i++)
+    for (int i = 0; i < PHYSICAL_SSE_REGISTER_COUNT; i++)
         preg_map[LIVE_RANGE_PREG_XMM00_INDEX + i - 1] = REG_XMM00 + i;
 
-    live_range_reserved_pregs_offset = INT_REGISTER_COUNT + SSE_REGISTER_COUNT;
+    live_range_reserved_pregs_offset = PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT;
 }
 
 static void assign_vreg_locations(Function *function) {
@@ -389,11 +389,11 @@ void allocate_registers(Function *function) {
     init_vreg_locations(function);
 
     // Allocate integer registers
-    int physical_int_register_count = live_range_reserved_pregs_offset == 0 ? 0 : INT_REGISTER_COUNT;
+    int physical_int_register_count = live_range_reserved_pregs_offset == 0 ? 0 : PHYSICAL_INT_REGISTER_COUNT;
     allocate_registers_top_down(function, 1, physical_int_register_count, PC_INT);
 
     // Allocate floating point xmm* registers
-    int physical_sse_register_count = live_range_reserved_pregs_offset == 0 ? 0 : SSE_REGISTER_COUNT;
+    int physical_sse_register_count = live_range_reserved_pregs_offset == 0 ? 0 : PHYSICAL_SSE_REGISTER_COUNT;
     allocate_registers_top_down(function, 13, physical_sse_register_count, PC_SSE);
 
     // Remap SSA pregs which run from 0 to live_range_reserved_pregs_offset -1 to the actual

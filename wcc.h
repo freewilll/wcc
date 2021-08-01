@@ -223,8 +223,8 @@ enum {
     VALUE_STACK_SIZE              = 10240,
     MAX_VREG_COUNT                = 20480,
     PHYSICAL_REGISTER_COUNT       = 32, // integer + xmm
-    INT_REGISTER_COUNT            = 12, // Available registers for integers
-    SSE_REGISTER_COUNT            = 16, // Available registers for floating points
+    PHYSICAL_INT_REGISTER_COUNT   = 12, // Available registers for integers
+    PHYSICAL_SSE_REGISTER_COUNT   = 16, // Available registers for floating points
     MAX_SPILLED_REGISTER_COUNT    = 1024,
     MAX_INPUT_FILENAMES           = 1024,
     MAX_BLOCKS                    = 1024,
@@ -664,10 +664,13 @@ enum {
     CI1, CI2, CI3, CI4,          // Constants
     CU1, CU2, CU3, CU4,          // Constants
     CLD,                         // Long double constant
+    CS3, CS4,                    // SSE floating point constants
     RI1, RI2, RI3, RI4,          // Signed registers
     RU1, RU2, RU3, RU4,          // Unsigned registers
+    RS3, RS4,                    // SSE (xmm) registers
     MI1, MI2, MI3, MI4,          // Memory, in stack or globals
     MU1, MU2, MU3, MU4,          // Memory, in stack or globals
+    MS3, MS4,                    // SSE (xmm) in stack or globals
     RP1, RP2, RP3, RP4, RP5,     // Address (aka pointer) in a register
     MLD5,                        // 16-byte memory, for long double
     MRP5,                        // Pointer to long double in memory
