@@ -279,6 +279,44 @@ void test_long_double_function_call_return_value() {
     assert_int(0, strcmp(buffer, "1.10000"), "Long double assignment from function call");
 }
 
+// Test combinations of integers, floats/doubles and long doubles as function arguments
+void test_float_double_params() {
+    char *buffer;
+    buffer = malloc(300);
+
+    #ifdef FLOATS
+    // Float constants as arguments
+    sprintf(buffer, "%f %f %f %f %f %f", 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000"), "float in function call 1");
+    sprintf(buffer, "%f %f %f %f %f %f %f", 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000"), "float in function call 2");
+    sprintf(buffer, "%f %f %f %f %f %f %f %f", 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 8.000000"), "float in function call 3");
+    sprintf(buffer, "%f %f %f %f %f %f %f %f %f", 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 8.000000 9.000000"), "float in function call 4");
+    sprintf(buffer, "%d %f %d %f %d %f %d %f %d %f %d %f %d %f %d %f %d %f", 1, 1.0f, 2, 2.0f, 3, 3.0f, 4, 4.0f, 5, 5.0f, 6, 6.0f, 7, 7.0f, 8, 8.0f, 9, 9.0f);
+    assert_int(0, strcmp(buffer, "1 1.000000 2 2.000000 3 3.000000 4 4.000000 5 5.000000 6 6.000000 7 7.000000 8 8.000000 9 9.000000"), "float in function call 5");
+    sprintf(buffer, "%d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf", 1, 1.0, 1.0l, 2, 2.0, 2.0l, 3, 3.0, 3.0l, 4, 4.0, 4.0l, 5, 5.0, 5.0l, 6, 6.0, 6.0l, 7, 7.0, 7.0l, 8, 8.0, 8.0l);
+    assert_int(0, strcmp(buffer, "1 1.000000 1.000000 2 2.000000 2.000000 3 3.000000 3.000000 4 4.000000 4.000000 5 5.000000 5.000000 6 6.000000 6.000000 7 7.000000 7.000000 8 8.000000 8.000000"), "float in function call 6");
+
+    // Double constants as arguments
+    sprintf(buffer, "%f %f %f %f %f %f", 1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000"), "double in function call 1");
+    sprintf(buffer, "%f %f %f %f %f %f %f", 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000"), "double in function call 2");
+    sprintf(buffer, "%f %f %f %f %f %f %f %f", 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 8.000000"), "double in function call 3");
+    sprintf(buffer, "%f %f %f %f %f %f %f %f %f", 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 8.000000 9.000000"), "double in function call 4");
+    sprintf(buffer, "%d %f %d %f %d %f %d %f %d %f %d %f %d %f %d %f %d %f", 1, 1.0, 2, 2.0, 3, 3.0, 4, 4.0, 5, 5.0, 6, 6.0, 7, 7.0, 8, 8.0, 9, 9.0);
+    assert_int(0, strcmp(buffer, "1 1.000000 2 2.000000 3 3.000000 4 4.000000 5 5.000000 6 6.000000 7 7.000000 8 8.000000 9 9.000000"), "double in function call 5");
+    sprintf(buffer, "%d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf", 1, 1.0, 1.0l, 2, 2.0, 2.0l, 3, 3.0, 3.0l, 4, 4.0, 4.0l, 5, 5.0, 5.0l, 6, 6.0, 6.0l, 7, 7.0, 7.0l, 8, 8.0, 8.0l);
+    assert_int(0, strcmp(buffer, "1 1.000000 1.000000 2 2.000000 2.000000 3 3.000000 3.000000 4 4.000000 4.000000 5 5.000000 5.000000 6 6.000000 6.000000 7 7.000000 7.000000 8 8.000000 8.000000"), "double in function call 6");
+    sprintf(buffer, "%d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf", 1, 1.0f, 1.0l, 2, 2.0f, 2.0l, 3, 3.0f, 3.0l, 4, 4.0f, 4.0l, 5, 5.0f, 5.0l, 6, 6.0f, 6.0l, 7, 7.0f, 7.0l, 8, 8.0f, 8.0l);
+    assert_int(0, strcmp(buffer, "1 1.000000 1.000000 2 2.000000 2.000000 3 3.000000 3.000000 4 4.000000 4.000000 5 5.000000 5.000000 6 6.000000 6.000000 7 7.000000 7.000000 8 8.000000 8.000000"), "float in function call 6");
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -301,6 +339,7 @@ int main(int argc, char **argv) {
     test_long_double_stack_eight_offset();
     test_long_double_pushed_params();
     test_long_double_function_call_return_value();
+    test_float_double_params();
 
     finalize();
 }

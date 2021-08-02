@@ -40,7 +40,7 @@ static void append_long_register_name(char *buffer, int preg) {
 
 static void append_quad_register_name(char *buffer, int preg) {
     check_preg(preg, PC_INT | PC_SSE);
-    char *names = "rax   rbx   rcx   rdx   rsi   rdi   rbp   rsp   r8    r9    r10   r11   r12   r13   r14   r15   xmm0  xmm1  xmm2  xmm3  xmm4  xmm6  xmm6  xmm7  xmm8  xmm9  xmm10 xmm11 xmm12 xmm13 xmm14 xmm15";
+    char *names = "rax   rbx   rcx   rdx   rsi   rdi   rbp   rsp   r8    r9    r10   r11   r12   r13   r14   r15   xmm0  xmm1  xmm2  xmm3  xmm4  xmm5  xmm6  xmm7  xmm8  xmm9  xmm10 xmm11 xmm12 xmm13 xmm14 xmm15";
          if (preg == 8 || preg == 9) sprintf(buffer, "%%%.2s", &names[preg * 6]);
     else if (preg < 16)              sprintf(buffer, "%%%.3s", &names[preg * 6]);
     else if (preg < 26)              sprintf(buffer, "%%%.4s", &names[preg * 6]);
@@ -214,12 +214,14 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
                 int low = 0;
                 int high = 0;
+                int double_arg = 0;
                 int float_literal = 0;
                 int double_literal = 0;
                 int long_double_literal = 0;
 
                      if (t[1] == 'L') { t++; low  = 1; }
                 else if (t[1] == 'H') { t++; high = 1; }
+                else if (t[1] == 'A') { t++; double_arg = 1; }
                 else if (t[1] == 'C') { t++; long_double_literal = 1; }
                 else if (t[1] == 'F') { t++; float_literal = 1; }
                 else if (t[1] == 'D') { t++; double_literal = 1; }
@@ -251,6 +253,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         else if (high)
                             // The & is to be compatible with gcc
                             sprintf(buffer, "$%ld", (*((long *) &v->fp_value + 1) & 0xffff));
+                        else if (double_arg) {
+                            #ifdef FLOATS
+                            double d = v->fp_value;
+                            sprintf(buffer, "$%ld", *((long *) &d));
+                            #endif
+                        }
                         else if (float_literal)
                             sprintf(buffer, ".FPL%d(%%rip)", add_float_literal(v->fp_value));
                         else if (double_literal)
@@ -455,8 +463,11 @@ void add_final_x86_instructions(Function *function) {
             Tac *orig_ir = ir;
 
             // Since floating point numbers aren't implemented, this is zero.
-            if (ir->src1->function_symbol->function->is_variadic)
-                ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movb $0, %vdb");
+            if (ir->src1->function_symbol->function->is_variadic) {
+                char *buffer;
+                asprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
+                ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
+            }
 
             Tac *tac = new_instruction(X_CALL_FROM_FUNC);
 

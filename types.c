@@ -94,7 +94,7 @@ int is_scalar_type(Type *type) {
     return 1;
 }
 
-int type_fits_in_single_register(Type *type) {
+int type_fits_in_single_int_register(Type *type) {
     return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type >= TYPE_PTR));
 }
 

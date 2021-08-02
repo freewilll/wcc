@@ -1183,19 +1183,32 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
-static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class) {
+static void force_function_call_arg_for_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class, int max, int *arg_registers) {
     // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
     // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
     // register allocated to them.
     if (value && value->is_function_call_arg) {
-        int arg = value->function_call_register_arg_index;
-        if (arg < 0 || arg > 5) panic1d("Invalid arg %d", arg);
-        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, int_arg_registers[arg], preg_class);
+        int arg = preg_class == PC_INT
+            ? value->function_call_int_register_arg_index
+            : value->function_call_sse_register_arg_index;
+
+        if (arg < 0 || arg >= max) panic1d("Invalid register arg %d", arg);
+        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[arg], preg_class);
     }
 
     // Force caller arguments to a function call into the appropriate registers
-    if (value && value->is_function_param && value->function_param_index < 6)
-        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, int_arg_registers[value->function_param_index], preg_class);
+    if (value && value->is_function_param && value->function_param_index < max)
+        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[value->function_param_index], preg_class);
+}
+
+static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
+    // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
+    // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
+    // register allocated to them.
+    // Same story for the floating point registers xmm0...xmm7
+
+    force_function_call_arg_for_preg(interference_graph, vreg_count, livenow, value, PC_INT, 6, int_arg_registers);
+    force_function_call_arg_for_preg(interference_graph, vreg_count, livenow, value, PC_SSE, 8, sse_arg_registers);
 }
 
 static void print_interference_graph(Function *function) {
@@ -1237,9 +1250,9 @@ static void make_interference_graph(Function *function) {
         while (tac) {
             if (debug_ssa_interference_graph) print_instruction(stdout, tac, 0);
 
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->dst, PC_INT);
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src1, PC_INT);
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src2, PC_INT);
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->dst);
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src1);
+            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src2);
 
             if (tac->operation == IR_CALL || tac->operation == X_CALL) {
                 // Integer arguments are clobbered

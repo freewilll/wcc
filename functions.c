@@ -39,48 +39,59 @@ void add_function_return_moves(Function *function) {
     }
 }
 
-// Insert IR_MOVE instructions before IR_ARG instructions for the first 6 single-register args.
-// The dst of the move will be constrained so that rdi, rsi etc are allocated to it.
-void add_function_call_arg_moves(Function *function) {
+// Insert IR_MOVE instructions before IR_ARG instructions for
+// - the first 6 single-register args.
+// - the first 8 floating point args.
+// The dst of the move will be constrained so that rdi, rsi, xmm0, xmm1 etc are allocated to it.
+void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
     int function_call_count = make_function_call_count(function);
 
+    int register_count = preg_class == PC_INT ? 6 : 8;
+
     // Values of the passed argument, i.e. by the caller
-    Value **arg_values = malloc(sizeof(Value *) * function_call_count * 6);
-    memset(arg_values, 0, sizeof(Value *) * function_call_count * 6);
+    Value **arg_values = malloc(sizeof(Value *) * function_call_count * register_count);
+    memset(arg_values, 0, sizeof(Value *) * function_call_count * register_count);
 
     // param_indexes maps the register indexes to a parameter index, e.g.
     // foo(int i, long double ld, int j) will produce
     // param_indexes[0] = 0
     // param_indexes[1] = 2
-    int *param_indexes = malloc(sizeof(int) * function_call_count * 6);
-    memset(param_indexes, -1, sizeof(int) * function_call_count * 6);
+    int *param_indexes = malloc(sizeof(int) * function_call_count * register_count);
+    memset(param_indexes, -1, sizeof(int) * function_call_count * register_count);
 
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_ARG && ir->src1->function_call_register_arg_index >= 0) {
-            arg_values[ir->src1->int_value * 6 + ir->src1->function_call_register_arg_index] = ir->src2;
-            param_indexes[ir->src1->int_value * 6 + ir->src1->function_call_register_arg_index] = ir->src1->function_call_arg_index;
+        if (ir->operation == IR_ARG) {
+            int function_call_register_arg_index = preg_class == PC_INT
+                ? ir->src1->function_call_int_register_arg_index
+                : ir->src1->function_call_sse_register_arg_index;
 
-            ir->operation = IR_NOP;
-            ir->dst = 0;
-            ir->src1 = 0;
-            ir->src2 = 0;
+            if (function_call_register_arg_index >= 0) {
+                int i = ir->src1->int_value * register_count + function_call_register_arg_index;
+                arg_values[i] = ir->src2;
+                param_indexes[i] = ir->src1->function_call_arg_index;
+
+                ir->operation = IR_NOP;
+                ir->dst = 0;
+                ir->src1 = 0;
+                ir->src2 = 0;
+            }
         }
 
         if (ir->operation == IR_CALL) {
-            Value **call_arg = &(arg_values[ir->src1->int_value * 6]);
-            int *param_index = &(param_indexes[ir->src1->int_value * 6]);
+            Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
+            int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
             Function *called_function = ir->src1->function_symbol->function;
 
             // Allocated registers
-            int *function_call_arg_registers = malloc(sizeof(int) * 6);
-            memset(function_call_arg_registers, 0, sizeof(int) * 6);
-            Type **function_call_arg_types =  malloc(sizeof(Type *) * 6);
+            int *function_call_arg_registers = malloc(sizeof(int) * register_count);
+            memset(function_call_arg_registers, 0, sizeof(int) * register_count);
+            Type **function_call_arg_types =  malloc(sizeof(Type *) * register_count);
 
             // Add the moves backwards so that arg 0 (rsi) is last.
             int i = 0;
-            while (i < 6 && *call_arg) {
+            while (i < register_count && *call_arg) {
                 call_arg++;
                 param_index++;
                 i++;
@@ -89,6 +100,8 @@ void add_function_call_arg_moves(Function *function) {
             call_arg--;
             param_index--;
             i--;
+
+            int *arg_registers = preg_class == PC_INT ? int_arg_registers : sse_arg_registers;
 
             for (; i >= 0; i--) {
                 Tac *tac = new_instruction(IR_MOVE);
@@ -105,6 +118,8 @@ void add_function_call_arg_moves(Function *function) {
                         tac->dst->type = new_type(TYPE_INT);
                         if ((*call_arg)->type->is_unsigned) tac->dst->type->is_unsigned = 1;
                     }
+                    else if ((*call_arg)->type->type == TYPE_FLOAT)
+                        tac->dst->type = new_type(TYPE_DOUBLE);
                     else
                         tac->dst->type = dup_type((*call_arg)->type);
                 }
@@ -112,9 +127,14 @@ void add_function_call_arg_moves(Function *function) {
                 tac->dst->vreg = ++function->vreg_count;
 
                 tac->src1 = *call_arg;
-                tac->src1->preferred_live_range_preg_index = int_arg_registers[i];
+                tac->src1->preferred_live_range_preg_index = arg_registers[i];
                 tac->dst->is_function_call_arg = 1;
-                tac->dst->function_call_register_arg_index = i;
+
+                if (preg_class == PC_INT)
+                    tac->dst->function_call_int_register_arg_index = i;
+                else
+                    tac->dst->function_call_sse_register_arg_index = i;
+
                 insert_instruction(ir, tac, 1);
 
                 function_call_arg_registers[i] = tac->dst->vreg;
@@ -130,7 +150,7 @@ void add_function_call_arg_moves(Function *function) {
             // the function call. Without this, there is a chance that function call
             // registers are used as temporaries during the code instructions
             // emitted above.
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < register_count; i++) {
                 if (function_call_arg_registers[i]) {
                     Tac *tac = new_instruction(IR_CALL_ARG_REG);
                     tac->src1 = new_value();
@@ -143,6 +163,11 @@ void add_function_call_arg_moves(Function *function) {
             free(function_call_arg_registers);
         }
     }
+}
+
+void add_function_call_arg_moves(Function *function) {
+    add_function_call_arg_moves_for_preg_class(function, PC_INT);
+    add_function_call_arg_moves_for_preg_class(function, PC_SSE);
 }
 
 static void assign_register_param_value_to_register(Value *v, int vreg) {
@@ -215,32 +240,33 @@ void add_function_param_moves(Function *function) {
 
     ir = function->ir->next;
 
-    int register_param_count = function->param_count;
-    if (register_param_count > 6) register_param_count = 6;
-
-    int single_register_arg_count = 0;
+    int single_int_register_arg_count = 0;
+    int single_sse_register_arg_count = 0;
 
     // Determine which parameters on the stack
     for (int i = 0; i < function->param_count; i++) {
         Type *type = function->param_types[i];
-        int is_single_register = type_fits_in_single_register(type);
-        int is_push = !is_single_register || single_register_arg_count >= 6;
-        single_register_arg_count += is_single_register;
+        int is_single_int_register = type_fits_in_single_int_register(type);
+        int is_single_sse_register = is_sse_floating_point_type(type);
+        int is_long_double = type->type == TYPE_LONG_DOUBLE;
+        int is_push = is_long_double || (is_single_int_register && single_int_register_arg_count >= 6) || (is_single_sse_register && single_sse_register_arg_count >= 8);
+        single_int_register_arg_count += is_single_int_register;
+        single_sse_register_arg_count += is_single_sse_register;
         pushes[i] = is_push;
     }
 
     // Add moves for registers
-    single_register_arg_count = 0;
+    single_int_register_arg_count = 0;
     for (int i = 0; i < function->param_count; i++) {
         if (pushes[i]) continue;
 
         Type *type = function->param_types[i];
-        Tac *tac = make_param_move_tac(function, type, single_register_arg_count);
+        Tac *tac = make_param_move_tac(function, type, single_int_register_arg_count);
         register_param_vregs[i] = tac->dst->vreg;
         tac->src1->vreg = ++function->vreg_count;
         insert_instruction(ir, tac, 1);
 
-        single_register_arg_count++;
+        single_int_register_arg_count++;
     }
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
