@@ -1194,7 +1194,7 @@ static void force_function_call_arg(char *interference_graph, int vreg_count, Se
     }
 
     // Force caller arguments to a function call into the appropriate registers
-    if (value && value->is_function_param && value->is_function_param && value->function_param_index < 6)
+    if (value && value->is_function_param && value->function_param_index < 6)
         force_physical_register(interference_graph, vreg_count, livenow, value->vreg, int_arg_registers[value->function_param_index], preg_class);
 }
 
