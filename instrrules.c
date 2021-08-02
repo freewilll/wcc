@@ -184,7 +184,10 @@ static void add_long_double_integer_move_rule(int dst, int type, char *conv_temp
 static void add_float_and_double_move_rules() {
     Rule *r ;
 
-    r = add_rule(RS3, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1F, %vq"); // Work in progress
+    r = add_rule(RS3, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1F, %vdq"); // Load float constant into float
+    r = add_rule(RS3, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load double constant into float
+    r = add_rule(RS4, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1F, %vdq"); // Load float constant into double
+    r = add_rule(RS4, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load double constant into double
 }
 
 static void add_long_double_move_rules()  {

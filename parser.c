@@ -602,27 +602,33 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     if (!type_eq(dst_type, src->type)) {
         if (src->is_constant) {
 
-            if ((src->type->type == TYPE_FLOAT || src->type->type == TYPE_DOUBLE) && dst_type->type == TYPE_LONG_DOUBLE) {
-                // Convert float/double to long double
+            int src_is_int = is_integer_type(src->type);
+            int dst_is_int = is_integer_type(dst_type);
+            int src_is_sse = is_sse_floating_point_type(src->type);
+            int dst_is_sse = is_sse_floating_point_type(dst_type);
+            int src_is_ld = src->type->type == TYPE_LONG_DOUBLE;
+            int dst_is_ld = dst_type->type == TYPE_LONG_DOUBLE;
+
+            if ((src_is_sse && dst_is_ld) || (dst_is_sse && src_is_ld)) {
+                // Type change for float/double <-> long double
                 Value *src2 = dup_value(src);
                 src2->type = dup_type(dst_type);
                 return src2;
             }
-
-            else if (src->type->type != TYPE_LONG_DOUBLE && dst_type->type == TYPE_LONG_DOUBLE) {
-                // Convert int -> long double
-                Value *src2 = new_value();
-                src2->type = new_type(TYPE_LONG_DOUBLE);
-                src2->is_constant = 1;
-                src2->fp_value = src->int_value;
-                return src2;
-            }
-            else if (src->type->type == TYPE_LONG_DOUBLE && dst_type->type != TYPE_LONG_DOUBLE) {
-                // Convert long double -> int
+            else if ((src_is_sse || src_is_ld) && dst_is_int) {
+                // Convert floating point -> int
                 Value *src2 = new_value();
                 src2->type = new_type(dst_type->type <= TYPE_INT ? TYPE_INT : TYPE_LONG);
                 src2->is_constant = 1;
                 src2->int_value = src->fp_value;
+                return src2;
+            }
+            else if (src_is_int && (dst_is_sse || dst_is_ld)) {
+                // Convert int -> floating point
+                Value *src2 = new_value();
+                src2->type = dup_type(dst_type);
+                src2->is_constant = 1;
+                src2->fp_value = src->int_value;
                 return src2;
             }
 

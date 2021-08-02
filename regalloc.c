@@ -231,8 +231,8 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 
     if (debug_ssa_interference_graph) {
         printf("Live range preg index -> preg map:\n");
-        for (int i = 1; i < live_range_reserved_pregs_offset; i++)
-            printf("%-2d -> %-2d: %s\n", i, vreg_locations[i].preg, register_name(vreg_locations[i].preg));
+        for (int i = 1; i <= live_range_reserved_pregs_offset; i++)
+            printf("%-2d -> %-2d: %s\n", i, vreg_locations[i].preg, register_name(preg_map[vreg_locations[i].preg]));
     }
 
     // Color constrained nodes first

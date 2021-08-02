@@ -10,22 +10,9 @@ int need_ld_to_ru4_symbol;
 
 static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
-    if (preg < 0) panic1d("Illegal preg %d", preg);
-    if (preg_class & PC_INT && preg >= 16)
+    if (preg < 0 || preg >= 32) panic1d("Illegal preg %d", preg);
+    if (preg_class == PC_INT && preg >= 16)
         panic1d("Illegal int preg %d", preg);
-    if (preg_class & PC_SSE && (preg < 16 || preg >= 32))
-        panic1d("Illegal sse preg %d", preg);
-}
-
-char *register_name(int preg) {
-    char *buffer;
-
-    check_preg(preg, PC_INT | PC_SSE);
-    char *names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
-    if (preg == 8 || preg == 9) asprintf(&buffer, "%%%.2s", &names[preg * 4]);
-    else                        asprintf(&buffer, "%%%.3s", &names[preg * 4]);
-    return buffer;
-
 }
 
 static void append_byte_register_name(char *buffer, int preg) {
@@ -52,10 +39,19 @@ static void append_long_register_name(char *buffer, int preg) {
 }
 
 static void append_quad_register_name(char *buffer, int preg) {
-    check_preg(preg, PC_INT);
-    char *names = "rax rbx rcx rdx rsi rdi rbp rsp r8  r9  r10 r11 r12 r13 r14 r15";
-    if (preg == 8 || preg == 9) sprintf(buffer, "%%%.2s", &names[preg * 4]);
-    else                        sprintf(buffer, "%%%.3s", &names[preg * 4]);
+    check_preg(preg, PC_INT | PC_SSE);
+    char *names = "rax   rbx   rcx   rdx   rsi   rdi   rbp   rsp   r8    r9    r10   r11   r12   r13   r14   r15   xmm0  xmm1  xmm2  xmm3  xmm4  xmm6  xmm6  xmm7  xmm8  xmm9  xmm10 xmm11 xmm12 xmm13 xmm14 xmm15";
+         if (preg == 8 || preg == 9) sprintf(buffer, "%%%.2s", &names[preg * 6]);
+    else if (preg < 16)              sprintf(buffer, "%%%.3s", &names[preg * 6]);
+    else if (preg < 26)              sprintf(buffer, "%%%.4s", &names[preg * 6]);
+    else                             sprintf(buffer, "%%%.5s", &names[preg * 6]);
+}
+
+char *register_name(int preg) {
+    char *buffer = malloc(16);
+    buffer[0] = 0;
+    append_quad_register_name(buffer, preg);
+    return buffer;
 }
 
 // Allocate stack offsets for variables on the stack (stack_index < 0). Go backwards
@@ -141,10 +137,32 @@ static int get_stack_offset(int function_pc, Value *v) {
         printf("Unexpected stack_index %d\n", stack_index);
 }
 
+static void check_floating_point_literal_max() {
+    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic1d("Exceeded max floaing point literals %d", MAX_FLOATING_POINT_LITERALS);
+}
+
+static int add_float_literal(long double value) {
+    check_floating_point_literal_max();
+    #ifdef FLOATS
+    floating_point_literals[floating_point_literal_count].f = value;
+    #endif
+    floating_point_literals[floating_point_literal_count].type = TYPE_FLOAT;
+    return floating_point_literal_count++;
+}
+
+static int add_double_literal(long double value) {
+    check_floating_point_literal_max();
+    #ifdef FLOATS
+    floating_point_literals[floating_point_literal_count].d = value;
+    #endif
+    floating_point_literals[floating_point_literal_count].type = TYPE_DOUBLE;
+    return floating_point_literal_count++;
+}
+
 static int add_long_double_literal(long double value) {
+    check_floating_point_literal_max();
     floating_point_literals[floating_point_literal_count].ld = value;
     floating_point_literals[floating_point_literal_count].type = TYPE_LONG_DOUBLE;
-    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic1d("Exceeded max floaing point literals %d", MAX_FLOATING_POINT_LITERALS);
     return floating_point_literal_count++;
 }
 
@@ -196,10 +214,15 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
                 int low = 0;
                 int high = 0;
+                int float_literal = 0;
+                int double_literal = 0;
                 int long_double_literal = 0;
+
                      if (t[1] == 'L') { t++; low  = 1; }
                 else if (t[1] == 'H') { t++; high = 1; }
                 else if (t[1] == 'C') { t++; long_double_literal = 1; }
+                else if (t[1] == 'F') { t++; float_literal = 1; }
+                else if (t[1] == 'D') { t++; double_literal = 1; }
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
@@ -222,16 +245,20 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     else panic1d("Unknown register size %d", x86_size);
                 }
                 else if (v->is_constant) {
-                    if (v->type->type == TYPE_LONG_DOUBLE) {
+                    if (is_floating_point_type(v->type)) {
                         if (low)
                             sprintf(buffer, "$%ld", *((long *) &v->fp_value));
                         else if (high)
                             // The & is to be compatible with gcc
                             sprintf(buffer, "$%ld", (*((long *) &v->fp_value + 1) & 0xffff));
+                        else if (float_literal)
+                            sprintf(buffer, ".FPL%d(%%rip)", add_float_literal(v->fp_value));
+                        else if (double_literal)
+                            sprintf(buffer, ".FPL%d(%%rip)", add_double_literal(v->fp_value));
                         else if (long_double_literal)
                             sprintf(buffer, ".FPL%d(%%rip)", add_long_double_literal(v->fp_value));
                         else
-                            panic("Did not get L/H/C specifier for double long constant");
+                            panic("Did not get L/H/C/F/D specifier for floating point constant");
                     }
                     else
                         sprintf(buffer, "%ld", v->int_value);
@@ -584,12 +611,28 @@ void output_code(char *input_filename, char *output_filename) {
     if (floating_point_literal_count > 0) {
         for (int i = 0; i < floating_point_literal_count; i++) {
             // The zero and & is to be compatible with gcc
-            long double ld = floating_point_literals[i].ld;
             fprintf(f, ".FPL%d:\n", i);
-            fprintf(f, "    .long   %d\n", *((int *) &ld));
-            fprintf(f, "    .long   %d\n", *((int *) &ld + 1));
-            fprintf(f, "    .long   %d\n", (*((int *) &ld + 2) & 0xffff));
-            fprintf(f, "    .long   0\n");
+
+            if (floating_point_literals[i].type == TYPE_FLOAT) {
+                #ifdef FLOATS
+                float fl = floating_point_literals[i].f;
+                fprintf(f, "    .long   %d\n", *((int *) &fl));
+                #endif
+            }
+            else if (floating_point_literals[i].type == TYPE_DOUBLE) {
+                #ifdef FLOATS
+                double d = floating_point_literals[i].d;
+                fprintf(f, "    .long   %d\n", *((int *) &d));
+                fprintf(f, "    .long   %d\n", *((int *) &d + 1));
+                #endif
+            }
+            else {
+                long double ld = floating_point_literals[i].ld;
+                fprintf(f, "    .long   %d\n", *((int *) &ld));
+                fprintf(f, "    .long   %d\n", *((int *) &ld + 1));
+                fprintf(f, "    .long   %d\n", (*((int *) &ld + 2) & 0xffff));
+                fprintf(f, "    .long   0\n");
+            }
         }
     }
 
