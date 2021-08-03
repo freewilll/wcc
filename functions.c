@@ -108,7 +108,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
                 tac->dst = new_value();
 
                 int pi = *param_index;
-                if (pi >=0 && pi < called_function->param_count) {
+                if (pi >= 0 && pi < called_function->param_count) {
                     Type *type = called_function->param_types[pi];
                     tac->dst->type = dup_type(type);
                 }

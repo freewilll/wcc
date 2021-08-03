@@ -184,10 +184,17 @@ static void add_long_double_integer_move_rule(int dst, int type, char *conv_temp
 static void add_float_and_double_move_rules() {
     Rule *r ;
 
+    // Constant -> float/double
     r = add_rule(RS3, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1F, %vdq"); // Load float constant into float
-    r = add_rule(RS3, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load double constant into float
+    r = add_rule(RS3, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1F, %vdq"); // Load double constant into float
     r = add_rule(RS4, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load float constant into double
     r = add_rule(RS4, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load double constant into double
+
+    // float/double -> float/double
+    r = add_rule(RS3, IR_MOVE, RS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1q, %vdq");
+    // r = add_rule(RS3, IR_MOVE, RS4, 0, 1); add_op(r, X_MOVC, DST, SRC1, 0, "cvtsd2ss %v1q, %vdq"); // fwip float/double conversions
+    r = add_rule(RS4, IR_MOVE, RS3, 0, 1); add_op(r, X_MOVC, DST, SRC1, 0, "cvtss2sd %v1q, %vdq");
+    r = add_rule(RS4, IR_MOVE, RS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
 }
 
 static void add_long_double_move_rules()  {
