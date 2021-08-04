@@ -38,6 +38,57 @@ void assert_long(long expected, long actual, char *message) {
     }
 }
 
+void assert_float(float expected, float actual, char *message) {
+    float diff = expected - actual;
+    if (diff < 0) diff = -diff;
+    if (diff > 0.000001) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %f got %f\n", expected, actual);
+    }
+    else {
+        passes++;
+        if (verbose) {
+            printf("%-60s ", message);
+            printf("ok\n");
+        }
+    }
+}
+
+void assert_double(double expected, double actual, char *message) {
+    double diff = expected - actual;
+    if (diff < 0) diff = -diff;
+    if (diff > 0.000001) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %f got %f\n", expected, actual);
+    }
+    else {
+        passes++;
+        if (verbose) {
+            printf("%-60s ", message);
+            printf("ok\n");
+        }
+    }
+}
+
+void assert_long_double(long double expected, long double actual, char *message) {
+    long double diff = expected - actual;
+    if (diff < 0) diff = -diff;
+    if (diff > 0.000001) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %Lf got %Lf\n", expected, actual);
+    }
+    else {
+        passes++;
+        if (verbose) {
+            printf("%-60s ", message);
+            printf("ok\n");
+        }
+    }
+}
+
 void assert_string(char *expected, char *actual, char *message) {
     if (strcmp(expected, actual)) {
         failures++;
