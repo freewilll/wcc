@@ -552,6 +552,20 @@ void test_long_double_type_int_changes() {
     assert_int(-42, return_int_from_ld_constant(), "Return int from long double constant");
 }
 
+
+void function_with_int_parameter(int i) {
+    assert_int(1, i, "Long double to int conversion in function call");
+}
+
+void function_with_long_double_parameter(long double ld) {
+    assert_ld_string(ld, "1.00000", "Int to Long double conversion in function call");
+}
+
+void test_function_call_argument_conversions() {
+    function_with_int_parameter(1.0l);
+    function_with_long_double_parameter(1);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -571,6 +585,7 @@ int main(int argc, char **argv) {
     test_inc_dec();
     test_int_long_double_type_changes();
     test_long_double_type_int_changes();
+    test_function_call_argument_conversions();
 
     finalize();
 }

@@ -112,17 +112,8 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
                     Type *type = called_function->param_types[pi];
                     tac->dst->type = dup_type(type);
                 }
-                else {
-                    // Apply default argument promotions
-                    if ((*call_arg)->type->type < TYPE_INT) {
-                        tac->dst->type = new_type(TYPE_INT);
-                        if ((*call_arg)->type->is_unsigned) tac->dst->type->is_unsigned = 1;
-                    }
-                    else if ((*call_arg)->type->type == TYPE_FLOAT)
-                        tac->dst->type = new_type(TYPE_DOUBLE);
-                    else
-                        tac->dst->type = dup_type((*call_arg)->type);
-                }
+                else
+                    tac->dst->type = dup_type((*call_arg)->type);
 
                 tac->dst->vreg = ++function->vreg_count;
 

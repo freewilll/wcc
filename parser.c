@@ -601,7 +601,6 @@ static void push_local_symbol(Symbol *symbol) {
 Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     if (!type_eq(dst_type, src->type)) {
         if (src->is_constant) {
-
             int src_is_int = is_integer_type(src->type);
             int dst_is_int = is_integer_type(dst_type);
             int src_is_sse = is_sse_floating_point_type(src->type);
@@ -636,7 +635,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
             return src;
         }
 
-        // Convert int -> int
+        // Convert non constant
         Value *src2 = new_value();
         src2->vreg = new_vreg();
         src2->type = dup_type(dst_type);
@@ -857,6 +856,10 @@ static void parse_expression(int level) {
         if (symbol->is_enum)
             push_integral_constant(TYPE_INT, symbol->value);
         else if (cur_token == TOK_LPAREN) {
+            if (!symbol->function) panic1s("Illegal attempt to call a non-function %s", symbol->identifier);
+
+            Function *function = symbol->function;
+
             // Function call
             int function_call = function_call_count++;
             next();
@@ -878,6 +881,10 @@ static void parse_expression(int level) {
                 if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
 
                 arg->function_call_arg_index = arg_count;
+
+                if (arg_count < function->param_count)
+                    if (!type_eq(vtop->type, function->param_types[arg_count]))
+                        push(add_convert_type_if_needed(pl(), function->param_types[arg_count]));
 
                 int is_single_int_register = type_fits_in_single_int_register(vtop->type);
                 int is_single_sse_register = is_sse_floating_point_type(vtop->type);
