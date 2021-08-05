@@ -42,6 +42,15 @@ void test_constant_assignment() {
     long double ld4 = 4.0l;     assert_ld_string(ld4, "4.00000", "constant assignment ld     -> ld");
 }
 
+void test_assignment() {
+    // In registers. Variables cannot be reused, otherwise they would get spilled onto the stack
+    // due to function calls.
+    float f1  = 1.0f; float  f2 = f1; assert_float (1.0f, f2, "float -> float assignment");
+    float f3  = 2.0f; double d1 = f3; assert_double(2.0,  d1, "float -> double assignment");
+    double d2 = 3.0;  float  f4 = d2; assert_float (3.0f, f4, "double -> float assignment");
+    double d3 = 4.0;  double d4 = d3; assert_double(4.0,  d4, "double -> double assignment");
+}
+
 void test_long_double_constant_promotion_in_arithmetic() {
     long double ld;
 
@@ -79,6 +88,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv, &verbose);
 
     test_constant_assignment();
+    test_assignment();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();
 
