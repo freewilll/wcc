@@ -630,6 +630,12 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
                 src2->fp_value = src->int_value;
                 return src2;
             }
+            else if (src_is_sse && dst_is_sse && src->type->type != dst_type->type) {
+                // Convert float -> double or double -> float
+                Value *src2 = dup_value(src);
+                src2->type = dup_type(dst_type);
+                return src2;
+            }
 
             // No change
             return src;
@@ -882,9 +888,28 @@ static void parse_expression(int level) {
 
                 arg->function_call_arg_index = arg_count;
 
-                if (arg_count < function->param_count)
-                    if (!type_eq(vtop->type, function->param_types[arg_count]))
+                if (arg_count < function->param_count) {
+                    if (!type_eq(src1->type, function->param_types[arg_count]))
                         push(add_convert_type_if_needed(pl(), function->param_types[arg_count]));
+                }
+                else {
+                    // Apply default argument promotions
+                    Value *src1 = pl();
+                    Type *type;
+                    if (src1->type->type < TYPE_INT) {
+                        type = new_type(TYPE_INT);
+                        if (src1->type->is_unsigned) type->is_unsigned = 1;
+                    }
+                    else if (src1->type->type == TYPE_FLOAT)
+                        type = new_type(TYPE_DOUBLE);
+                    else
+                        type = src1->type;
+
+                    if (!type_eq(src1->type, type))
+                        push(add_convert_type_if_needed(src1, type));
+                    else
+                        push(src1);
+                }
 
                 int is_single_int_register = type_fits_in_single_int_register(vtop->type);
                 int is_single_sse_register = is_sse_floating_point_type(vtop->type);
