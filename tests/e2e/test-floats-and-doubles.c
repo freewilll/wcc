@@ -53,6 +53,25 @@ void test_assignment() {
     #endif
 }
 
+void test_spilling() {
+    // All four types are spilled, due to the double function call
+
+    #ifdef FLOATS
+    char *buffer;
+    buffer = malloc(128);
+
+    float sf1 = 1.0;
+    float sf2 = 2.0;
+    double sd1 = 3.0;
+    double sd2 = 4.0;
+
+    sprintf(buffer, "%f %f %f %f", sf1, sf2, sd1, sd2);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000"), "Spilling 1");
+    sprintf(buffer, "%f %f %f %f", sf1, sf2, sd1, sd2);
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000"), "Spilling 1");
+    #endif
+}
+
 void test_long_double_constant_promotion_in_arithmetic() {
     long double ld;
 
@@ -91,6 +110,7 @@ int main(int argc, char **argv) {
 
     test_constant_assignment();
     test_assignment();
+    test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();
 

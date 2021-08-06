@@ -226,7 +226,7 @@ enum {
     MAX_VREG_COUNT                = 20480,
     PHYSICAL_REGISTER_COUNT       = 32, // integer + xmm
     PHYSICAL_INT_REGISTER_COUNT   = 12, // Available registers for integers
-    PHYSICAL_SSE_REGISTER_COUNT   = 16, // Available registers for floating points
+    PHYSICAL_SSE_REGISTER_COUNT   = 14, // Available registers for floating points
     MAX_SPILLED_REGISTER_COUNT    = 1024,
     MAX_INPUT_FILENAMES           = 1024,
     MAX_BLOCKS                    = 1024,
@@ -393,6 +393,8 @@ enum {
 
     // SSE
     REG_XMM00,
+    REG_XMM14 = 30,
+    REG_XMM15,
 };
 
 typedef struct floating_point_literal {

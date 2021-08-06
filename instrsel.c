@@ -1362,7 +1362,15 @@ static Tac *make_spill_instruction(Value *v) {
 
     make_value_x86_size(v);
 
-    if (v->x86_size == 1) {
+    if (v->type->type == TYPE_FLOAT) {
+        x86_operation = X_MOV;
+        x86_template = "movss %v1F, %vdF";
+    }
+    else if (v->type->type == TYPE_FLOAT) {
+        x86_operation = X_MOV;
+        x86_template = "movsd %v1D, %vdD";
+    }
+    else if (v->x86_size == 1) {
         x86_operation = X_MOV;
         x86_template = "movb %v1b, %vdb";
     }
@@ -1425,6 +1433,14 @@ static void add_spill_store(Tac *ir, Value *v, int preg) {
         insert_instruction(ir->next, tac, 0);
 }
 
+// Return one of the int or sse registers used as temporary in spill code
+static int get_spill_register(Value *v, int spill_register) {
+    if (is_sse_floating_point_type(v->type))
+        return spill_register == 1 ? REG_XMM14 : REG_XMM15;
+    else
+        return spill_register == 1 ? REG_R10 : REG_R11;
+}
+
 void add_spill_code(Function *function) {
     if (debug_instsel_spilling) printf("\nAdding spill code\n");
 
@@ -1442,23 +1458,24 @@ void add_spill_code(Function *function) {
 
         if (tac->src1 && tac->src1->spilled)  {
             if (debug_instsel_spilling) printf("Adding spill load\n");
-            add_spill_load(tac, 1, REG_R10);
+            add_spill_load(tac, 1, get_spill_register(tac->src1, 1));
             if (dst_eq_src1) {
-                // Special case where src1 is the same as dst, in that case, r10 contains the result.
-                add_spill_store(tac, tac->dst, REG_R10);
+                // Special case where src1 is the same as dst, in that case, r10/xmm14 contains the result.
+                int spill_register = get_spill_register(tac->dst, 1);
+                add_spill_store(tac, tac->dst, spill_register);
                 tac = tac->next;
             }
         }
 
         if (tac->src2 && tac->src2->spilled) {
             if (debug_instsel_spilling) printf("Adding spill load\n");
-            add_spill_load(tac, 2, REG_R11);
+            add_spill_load(tac, 2, get_spill_register(tac->src2, 2));
         }
 
         if (tac->dst && tac->dst->spilled) {
             if (debug_instsel_spilling) printf("Adding spill store\n");
             if (tac->operation == X_CALL) panic("Unexpected spill from X_CALL");
-            add_spill_store(tac, tac->dst, REG_R11);
+            add_spill_store(tac, tac->dst, get_spill_register(tac->dst, 2));
             tac = tac->next;
         }
     }

@@ -32,10 +32,11 @@ static void append_word_register_name(char *buffer, int preg) {
 }
 
 static void append_long_register_name(char *buffer, int preg) {
-    check_preg(preg, PC_INT);
-    char *names = "eax  ebx  ecx  edx  esi  edi  ebp  esp  r8d  r9d  r10d r11d r12d r13d r14d r15d";
-    if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 5]);
-    else           sprintf(buffer, "%%%.4s", &names[preg * 5]);
+    check_preg(preg, PC_INT | PC_SSE);
+    char *names = "eax   ebx   ecx   edx   esi   edi   ebp   esp   r8d   r9d   r10d  r11d  r12d  r13d  r14d  r15d  xmm0  xmm1  xmm2  xmm3  xmm4  xmm5  xmm6  xmm7  xmm8  xmm9  xmm10 xmm11 xmm12 xmm13 xmm14 xmm15";
+         if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 6]);
+    else if (preg < 26) sprintf(buffer, "%%%.4s", &names[preg * 6]);
+    else                sprintf(buffer, "%%%.5s", &names[preg * 6]);
 }
 
 static void append_quad_register_name(char *buffer, int preg) {
@@ -223,8 +224,8 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 else if (t[1] == 'H') { t++; high = 1; }
                 else if (t[1] == 'A') { t++; double_arg = 1; }
                 else if (t[1] == 'C') { t++; long_double_literal = 1; }
-                else if (t[1] == 'F') { t++; float_literal = 1; }
-                else if (t[1] == 'D') { t++; double_literal = 1; }
+                else if (t[1] == 'F') { t++; float_literal = 1; x86_size = 3; }
+                else if (t[1] == 'D') { t++; double_literal = 1; x86_size = 4; }
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
