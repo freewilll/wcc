@@ -1511,15 +1511,18 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
                 int src_component = 0;
                 int dst_component = dst * vreg_count;
-                for (int src = 1; src <= dst; src++) {
+                for (int src = 1; src <= vreg_count; src++) {
                     src_component += vreg_count;
 
                     if (clobbers[src]) continue;
 
                     int l1 = dst_component + src;
+                    if (!merge_candidates[l1] || instrsel_blockers[l1]) continue;
+                    if (src > dst) continue;
+
                     int l2 = src_component + dst;
 
-                    if (merge_candidates[l1] && !instrsel_blockers[l1] && !instrsel_blockers[l2] && !interference_graph[l2]) {
+                    if (!instrsel_blockers[l2] && !interference_graph[l2]) {
                         int cost = function->spill_cost[src] + function->spill_cost[dst];
                         if (cost > max_cost) {
                             max_cost = cost;
