@@ -628,6 +628,8 @@ void output_code(char *input_filename, char *output_filename) {
                 #ifdef FLOATS
                 float fl = floating_point_literals[i].f;
                 fprintf(f, "    .long   %d\n", *((int *) &fl));
+                #else
+                panic("wcc has not been compiled with -D FLOATS");
                 #endif
             }
             else if (floating_point_literals[i].type == TYPE_DOUBLE) {
@@ -635,6 +637,8 @@ void output_code(char *input_filename, char *output_filename) {
                 double d = floating_point_literals[i].d;
                 fprintf(f, "    .long   %d\n", *((int *) &d));
                 fprintf(f, "    .long   %d\n", *((int *) &d + 1));
+                #else
+                panic("wcc has not been compiled with -D FLOATS");
                 #endif
             }
             else {
