@@ -34,7 +34,7 @@ void test_constant_assignment() {
     double d1 = 3;              assert_double(3.0, d1, "double constant assignment from int");
     double d2 = 3.0f;           assert_double(3.0, d2, "double constant assignment from float");
     double d3 = 3.0;            assert_double(3.0, d3, "double constant assignment from double");
-    double d4 = 3.0l;           assert_double(3.0, d4, "double constant assignment from ");
+    double d4 = 3.0l;           assert_double(3.0, d4, "double constant assignment from LD");
     #endif
     long double ld1 = 4;        assert_ld_string(ld1, "4.00000", "constant assignment int    -> ld");
     long double ld2 = 4.0f;     assert_ld_string(ld2, "4.00000", "constant assignment float  -> ld");
