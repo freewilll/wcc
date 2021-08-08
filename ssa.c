@@ -1260,15 +1260,22 @@ static void make_interference_graph(Function *function) {
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, int_arg_registers[j]);
 
                 // All SSE registers are clobbered
-                for (int j = 0; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
+                for (int j = 1; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
 
-                if (tac->dst && tac->dst->vreg)
-                    // Force dst to get RAX
-                    force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX, PC_INT);
-                else
-                    // There is no dst, but RAX gets nuked, so add edges for it
+                if (tac->dst && tac->dst->vreg) {
+                    if (tac->dst->preg_class == PC_INT)
+                        // Force dst to get RAX
+                        force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX, PC_INT);
+                    else
+                        // Force dst to get XMM0
+                        force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_XMM00_INDEX, PC_SSE);
+                }
+                else {
+                    // There is no dst, but RAX & XMM0 get nuked, so add edges for it
                     clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                    clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX);
+                }
             }
 
             if (tac->operation == IR_RETURN || tac->operation == X_RET)

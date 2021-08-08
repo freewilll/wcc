@@ -8,6 +8,8 @@ int verbose;
 int passes;
 int failures;
 
+float gf1;
+double gd1;
 long double gld;
 
 int fca0() {
@@ -361,6 +363,28 @@ void test_float_double_params() {
     #endif
 }
 
+#ifdef FLOATS
+float return_float_constant() { return 1.0; }
+float return_float_register(float f) { return f; }
+float return_float_global() { return gf1; }
+
+float return_double_constant() { return 4.0; }
+double return_double_register(double d) { return d; }
+double return_double_global() { return gd1; }
+#endif
+
+void test_float_double_call_return_value() {
+    #ifdef FLOATS
+               assert_float(1.0, return_float_constant(),    "Float constant return value");
+               assert_float(2.0, return_float_register(2.0), "Float register return value");
+    gf1 = 3.0; assert_float(3.0, return_float_global(),      "Float global return value");
+
+               assert_double(4.0, return_double_constant(),    "Double constant return value");
+               assert_double(5.0, return_double_register(5.0), "Double register return value");
+    gd1 = 6.0; assert_double(6.0, return_double_global(),      "Double global return value");
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -384,6 +408,7 @@ int main(int argc, char **argv) {
     test_long_double_pushed_params();
     test_long_double_function_call_return_value();
     test_float_double_params();
+    test_float_double_call_return_value();
 
     finalize();
 }

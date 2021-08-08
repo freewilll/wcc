@@ -474,6 +474,14 @@ static void add_return_rules() {
     // Long doubles
     r = add_rule(0, IR_RETURN, CLD,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1C");
     r = add_rule(0, IR_RETURN, MLD5, 0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1L");
+
+    // Floats & doubles
+    r = add_rule(RS3, IR_RETURN, CS3,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movss %v1F, %vdq");
+    r = add_rule(RS3, IR_RETURN, RS3,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movss %v1F, %vdq");
+    r = add_rule(RS3, IR_RETURN, MS3,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movss %v1F, %vdq");
+    r = add_rule(RS4, IR_RETURN, CS4,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movsd %v1D, %vdq");
+    r = add_rule(RS4, IR_RETURN, RS4,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movsd %v1D, %vdq");
+    r = add_rule(RS4, IR_RETURN, MS4,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movsd %v1D, %vdq");
 }
 
 static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {
@@ -934,6 +942,8 @@ void init_instruction_selection_rules() {
     r = add_rule(XRI, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
     r = add_rule(XRU, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
     r = add_rule(XRP, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+    r = add_rule(RS3, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
+    r = add_rule(RS4, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r); // Function call with a return value
 
     // Function call with long double return value
     r = add_rule(MLD5, IR_CALL, FUN, 0, 5);
