@@ -8,6 +8,9 @@ int verbose;
 int passes;
 int failures;
 
+float gf1;
+double gd1;
+
 void assert_ld_string(long double ld, char *expected, char *message) {
     char *buffer = malloc(100);
 
@@ -44,12 +47,28 @@ void test_constant_assignment() {
 
 void test_assignment() {
     #ifdef FLOATS
-    // In registers. Variables cannot be reused, otherwise they would get spilled onto the stack
-    // due to function calls.
+    // In registers. Variables are not reused in this test, otherwise they would get
+    // spilled onto the stack due to function calls. Not that there is a problem with
+    // that, but this test is meant to test assignment only, not spilling.
     float f1  = 1.0f; float  f2 = f1; assert_float (1.0f, f2, "float -> float assignment");
     float f3  = 2.0f; double d1 = f3; assert_double(2.0,  d1, "float -> double assignment");
     double d2 = 3.0;  float  f4 = d2; assert_float (3.0f, f4, "double -> float assignment");
     double d3 = 4.0;  double d4 = d3; assert_double(4.0,  d4, "double -> double assignment");
+
+    // Arguments on the stack
+    float  sf2 = 1.0; &sf2; assert_float( 1.0, sf2, "constant -> memory float  -> float");
+    double sd1 = 2.0; &sd1; assert_double(2.0, sd1, "constant -> memory double -> double");
+
+    // Memory -> register
+    float  sf5 = 5.0; &sf5; float  sf6 = sf5; assert_double(5.0, sf6, "memory -> register float  -> float");
+    float  sf3 = 3.0; &sf3; double sd2 = sf3; assert_double(3.0, sd2, "memory -> register float  -> double");
+    double sd3 = 4.0; &sd3; float  sf4 = sd3; assert_float( 4.0, sf4, "memory -> register double -> float");
+    double sd4 = 6.0; &sd4; double sd5 = sd4; assert_float( 6.0, sd5, "memory -> register double -> double");
+
+    // Globals
+    gf1 = 7.0; assert_float( 7.0, gf1, "global float assignment");
+    gd1 = 8.0; assert_double(8.0, gd1, "global double assignment");
+
     #endif
 }
 

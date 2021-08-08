@@ -184,17 +184,27 @@ static void add_long_double_integer_move_rule(int dst, int type, char *conv_temp
 static void add_float_and_double_move_rules() {
     Rule *r ;
 
-    // Constant -> float/double
+    // Constant -> register
     r = add_rule(RS3, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1F, %vdq"); // Load float constant into float
     r = add_rule(RS3, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1F, %vdq"); // Load double constant into float
     r = add_rule(RS4, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load float constant into double
     r = add_rule(RS4, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load double constant into double
 
-    // float/double -> float/double
+    // Constant -> memory
+    r = add_rule(MS3, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "movss %%xmm14, %vdq");
+    r = add_rule(MS4, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movsd %v1D, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "movsd %%xmm14, %vdq");
+
+    // Register -> register
     r = add_rule(RS3, IR_MOVE, RS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1q, %vdq");
     r = add_rule(RS3, IR_MOVE, RS4, 0, 1); add_op(r, X_MOVC, DST, SRC1, 0, "cvtsd2ss %v1q, %vdq");
     r = add_rule(RS4, IR_MOVE, RS3, 0, 1); add_op(r, X_MOVC, DST, SRC1, 0, "cvtss2sd %v1q, %vdq");
     r = add_rule(RS4, IR_MOVE, RS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
+
+    // Memory -> register
+    r = add_rule(RS3, IR_MOVE, MS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1q, %vdq");
+    r = add_rule(RS3, IR_MOVE, MS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq"); add_op(r, X_MOVC, DST, DST, 0, "cvtsd2ss %v1q, %vdq");
+    r = add_rule(RS4, IR_MOVE, MS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1q, %vdq"); add_op(r, X_MOVC, DST, DST, 0, "cvtss2sd %v1q, %vdq");
+    r = add_rule(RS4, IR_MOVE, MS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
 }
 
 static void add_long_double_move_rules()  {
@@ -388,6 +398,8 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(RP5, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, MS3,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, MS4,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RP5, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
 
     // Stores of a pointer to a pointer
