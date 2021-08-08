@@ -22,9 +22,6 @@ all: run-test-gcc run-test-wcc run-test-include
 stack-check.o: stack-check.c
 	gcc ${GCC_OPTS} stack-check.c -c
 
-test-wcc.s: ../../wcc test-main.c
-	../../wcc ${WCC_OPTS} -c -S test-main.c
-
 test-%.s: test-%.c ../../wcc
 	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov --Wno-integer-constant-too-large -c -S $<
 
