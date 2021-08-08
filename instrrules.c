@@ -956,6 +956,10 @@ void init_instruction_selection_rules() {
     r = add_rule(0, IR_ARG, CI4, CS3, 2); add_sse_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, CS4, 2); add_sse_function_call_arg_op(r);
 
+    // SSE register arg
+    r = add_rule(0, IR_ARG, CI4, RS3, 2); add_op(r, X_ARG, 0, 0, 0, "subq    $8, %%rsp"); add_op(r, X_ARG, 0, SRC1, SRC2, "movq %v2F, (%%rsp)");
+    r = add_rule(0, IR_ARG, CI4, RS4, 2); add_op(r, X_MOV, 0, 0, 0, "subq    $8, %%rsp"); add_op(r, X_ARG, 0, SRC1, SRC2, "movq %v2D, (%%rsp)");
+
     // Add rules for sign/zero extention of an arg, but at a high cost, to encourage other rules to take precedence
     r = add_rule(0, IR_ARG, CI4, RI1, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movsbq %v1b, %v1q"); add_int_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RI2, 10); add_op(r, X_MOVS, SRC2, SRC2, 0 , "movswq %v1w, %v1q"); add_int_function_call_arg_op(r);

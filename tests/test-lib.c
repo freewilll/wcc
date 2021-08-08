@@ -138,3 +138,30 @@ void parse_args(int argc, char **argv, int *verbose) {
         exit(1);
     }
 }
+
+// fwip move to main test code when float/double params are implemented
+void test_floats_function_call(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9) {
+    #ifdef FLOAT
+    assert_float(1.0, f1, "test_floats_function_call 1");
+    assert_float(2.0, f2, "test_floats_function_call 2");
+    assert_float(3.0, f3, "test_floats_function_call 3");
+    assert_float(4.0, f4, "test_floats_function_call 4");
+    assert_float(5.0, f5, "test_floats_function_call 5");
+    assert_float(6.0, f6, "test_floats_function_call 6");
+    assert_float(7.0, f7, "test_floats_function_call 7");
+    assert_float(8.0, f8, "test_floats_function_call 8");
+    assert_float(9.0, f9, "test_floats_function_call 9");
+    #endif
+}
+
+void test_doubles_function_call(double d1, double d2, double d3, double d4, double d5, double d6, double d7, double d8, double d9) {
+    assert_double(1.0, d1, "test_doubles_function_call 1");
+    assert_double(2.0, d2, "test_doubles_function_call 2");
+    assert_double(3.0, d3, "test_doubles_function_call 3");
+    assert_double(4.0, d4, "test_doubles_function_call 4");
+    assert_double(5.0, d5, "test_doubles_function_call 5");
+    assert_double(6.0, d6, "test_doubles_function_call 6");
+    assert_double(7.0, d7, "test_doubles_function_call 7");
+    assert_double(8.0, d8, "test_doubles_function_call 8");
+    assert_double(9.0, d9, "test_doubles_function_call 9");
+}

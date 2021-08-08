@@ -314,6 +314,50 @@ void test_float_double_params() {
     assert_int(0, strcmp(buffer, "1 1.000000 1.000000 2 2.000000 2.000000 3 3.000000 3.000000 4 4.000000 4.000000 5 5.000000 5.000000 6 6.000000 6.000000 7 7.000000 7.000000 8 8.000000 8.000000"), "double in function call 6");
     sprintf(buffer, "%d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf %d %f %Lf", 1, 1.0f, 1.0l, 2, 2.0f, 2.0l, 3, 3.0f, 3.0l, 4, 4.0f, 4.0l, 5, 5.0f, 5.0l, 6, 6.0f, 6.0l, 7, 7.0f, 7.0l, 8, 8.0f, 8.0l);
     assert_int(0, strcmp(buffer, "1 1.000000 1.000000 2 2.000000 2.000000 3 3.000000 3.000000 4 4.000000 4.000000 5 5.000000 5.000000 6 6.000000 6.000000 7 7.000000 7.000000 8 8.000000 8.000000"), "float in function call 6");
+
+    // Floating point values in registers as arguments, in registers & as push args
+    // This also tests promotion to doubles, due to the printf varargs
+    float f1 = 1.0;
+    float f2 = 1.1;
+    sprintf(buffer, "%f %f %f %f %f %f %f",       1.0, 1.0, 1.0, 1.0, 1.0,           f1, f2);
+    assert_int(0, strcmp(buffer, "1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.100000"), "FP registers as args 1");
+    sprintf(buffer, "%f %f %f %f %f %f %f %f",    1.0, 1.0, 1.0, 1.0, 1.0, 1.0,      f1, f2);
+    assert_int(0, strcmp(buffer, "1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.100000"), "FP registers as args 2");
+    sprintf(buffer, "%f %f %f %f %f %f %f %f %f", 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, f1, f2);
+    assert_int(0, strcmp(buffer, "1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.100000"), "FP registers as args 3");
+
+    double d1 = 2.0;
+    double d2 = 2.1;
+    sprintf(buffer, "%f %f %f %f %f %f %f",       1.0, 1.0, 1.0, 1.0, 1.0,           d1, d2);
+    assert_int(0, strcmp(buffer, "1.000000 1.000000 1.000000 1.000000 1.000000 2.000000 2.100000"), "FP registers as args 4");
+    sprintf(buffer, "%f %f %f %f %f %f %f %f",    1.0, 1.0, 1.0, 1.0, 1.0, 1.0,      d1, d2);
+    assert_int(0, strcmp(buffer, "1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 2.000000 2.100000"), "FP registers as args 5");
+    sprintf(buffer, "%f %f %f %f %f %f %f %f %f", 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, d1, d2);
+    assert_int(0, strcmp(buffer, "1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 2.000000 2.100000"), "FP registers as args 6");
+
+    // Floating points in registers as non-varargs arguments
+    float df1 = 1.0;
+    float df2 = 2.0;
+    float df3 = 3.0;
+    float df4 = 4.0;
+    float df5 = 5.0;
+    float df6 = 6.0;
+    float df7 = 7.0;
+    float df8 = 8.0;
+    float df9 = 9.0;
+    test_floats_function_call(df1, df2, df3, df4, df5, df6, df7, df8, df9);
+
+    double dd1 = 1.0;
+    double dd2 = 2.0;
+    double dd3 = 3.0;
+    double dd4 = 4.0;
+    double dd5 = 5.0;
+    double dd6 = 6.0;
+    double dd7 = 7.0;
+    double dd8 = 8.0;
+    double dd9 = 9.0;
+    test_doubles_function_call(dd1, dd2, dd3, dd4, dd5, dd6, dd7, dd8, dd9);
+
     #endif
 }
 

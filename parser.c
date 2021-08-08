@@ -940,7 +940,7 @@ static void parse_expression(int level) {
 
                 add_instruction(IR_ARG, 0, arg, pl());
                 single_int_register_arg_count += is_single_int_register;
-                single_sse_register_arg_count += is_single_sse_register;
+                if (!is_push && is_single_sse_register) single_sse_register_arg_count++;
                 arg_count++;
                 if (cur_token == TOK_RPAREN) break;
                 consume(TOK_COMMA, ",");
