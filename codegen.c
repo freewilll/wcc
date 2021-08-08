@@ -215,6 +215,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
                 int low = 0;
                 int high = 0;
+                int float_arg = 0;
                 int double_arg = 0;
                 int float_literal = 0;
                 int double_literal = 0;
@@ -222,7 +223,8 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
                      if (t[1] == 'L') { t++; low  = 1; }
                 else if (t[1] == 'H') { t++; high = 1; }
-                else if (t[1] == 'A') { t++; double_arg = 1; }
+                else if (t[1] == 'f') { t++; float_arg = 1; }
+                else if (t[1] == 'd') { t++; double_arg = 1; }
                 else if (t[1] == 'C') { t++; long_double_literal = 1; }
                 else if (t[1] == 'F') { t++; float_literal = 1; x86_size = 3; }
                 else if (t[1] == 'D') { t++; double_literal = 1; x86_size = 4; }
@@ -254,6 +256,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         else if (high)
                             // The & is to be compatible with gcc
                             sprintf(buffer, "$%ld", (*((long *) &v->fp_value + 1) & 0xffff));
+                        else if (float_arg) {
+                            #ifdef FLOATS
+                            float f = v->fp_value;
+                            sprintf(buffer, "$%d", *((int *) &f));
+                            #endif
+                        }
                         else if (double_arg) {
                             #ifdef FLOATS
                             double d = v->fp_value;

@@ -838,9 +838,9 @@ static X86Operation *add_int_function_call_arg_op(Rule *r) {
     add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q");
 }
 
-static X86Operation *add_sse_function_call_arg_op(Rule *r) {
+static X86Operation *add_sse_function_call_arg_op(Rule *r, char *template) {
     add_allocate_register_in_slot(r, 1, TYPE_LONG);
-    add_op(r, X_MOVC, SV1, SRC2, 0, "movabsq %v1A, %vdq");
+    add_op(r, X_MOVC, SV1, SRC2, 0, template);
     add_op(r, X_ARG, 0, SRC1, SV1, "pushq %v2q");
 }
 
@@ -975,8 +975,8 @@ void init_instruction_selection_rules() {
     add_op(r, X_EXTRA_ARG, 0,    SRC1, SRC2, "pushq %v2L");
 
     // SSE constant arg
-    r = add_rule(0, IR_ARG, CI4, CS3, 2); add_sse_function_call_arg_op(r);
-    r = add_rule(0, IR_ARG, CI4, CS4, 2); add_sse_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CI4, CS3, 2); add_sse_function_call_arg_op(r, "movabsq %v1f, %vdq");
+    r = add_rule(0, IR_ARG, CI4, CS4, 2); add_sse_function_call_arg_op(r, "movabsq %v1d, %vdq");
 
     // SSE register arg
     r = add_rule(0, IR_ARG, CI4, RS3, 2); add_op(r, X_ARG, 0, 0, 0, "subq    $8, %%rsp"); add_op(r, X_ARG, 0, SRC1, SRC2, "movq %v2F, (%%rsp)");

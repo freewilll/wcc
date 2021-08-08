@@ -281,6 +281,36 @@ void test_long_double_function_call_return_value() {
     assert_int(0, strcmp(buffer, "1.10000"), "Long double assignment from function call");
 }
 
+void test_floats_function_call(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10) {
+    #ifdef FLOATS
+    assert_float(1.0,  f1,  "test_floats_function_call 1");
+    assert_float(2.0,  f2,  "test_floats_function_call 2");
+    assert_float(3.0,  f3,  "test_floats_function_call 3");
+    assert_float(4.0,  f4,  "test_floats_function_call 4");
+    assert_float(5.0,  f5,  "test_floats_function_call 5");
+    assert_float(6.0,  f6,  "test_floats_function_call 6");
+    assert_float(7.0,  f7,  "test_floats_function_call 7");
+    assert_float(8.0,  f8,  "test_floats_function_call 8");
+    assert_float(9.0,  f9,  "test_floats_function_call 9");
+    assert_float(10.0, f10, "test_floats_function_call 10");
+    #endif
+}
+
+void test_doubles_function_call(double d1, double d2, double d3, double d4, double d5, double d6, double d7, double d8, double d9, double d10) {
+    #ifdef FLOATS
+    assert_double(1.0,  d1,  "test_doubles_function_call 1");
+    assert_double(2.0,  d2,  "test_doubles_function_call 2");
+    assert_double(3.0,  d3,  "test_doubles_function_call 3");
+    assert_double(4.0,  d4,  "test_doubles_function_call 4");
+    assert_double(5.0,  d5,  "test_doubles_function_call 5");
+    assert_double(6.0,  d6,  "test_doubles_function_call 6");
+    assert_double(7.0,  d7,  "test_doubles_function_call 7");
+    assert_double(8.0,  d8,  "test_doubles_function_call 8");
+    assert_double(9.0,  d9,  "test_doubles_function_call 9");
+    assert_double(10.0, d10, "test_doubles_function_call 10");
+    #endif
+}
+
 // Test combinations of integers, floats/doubles and long doubles as function arguments
 void test_float_double_params() {
     char *buffer;
@@ -338,27 +368,33 @@ void test_float_double_params() {
     assert_int(0, strcmp(buffer, "1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 2.000000 2.100000"), "FP registers as args 6");
 
     // Floating points in registers as non-varargs arguments
-    float df1 = 1.0;
-    float df2 = 2.0;
-    float df3 = 3.0;
-    float df4 = 4.0;
-    float df5 = 5.0;
-    float df6 = 6.0;
-    float df7 = 7.0;
-    float df8 = 8.0;
-    float df9 = 9.0;
-    test_floats_function_call(df1, df2, df3, df4, df5, df6, df7, df8, df9);
+    float df1  = 1.0;
+    float df2  = 2.0;
+    float df3  = 3.0;
+    float df4  = 4.0;
+    float df5  = 5.0;
+    float df6  = 6.0;
+    float df7  = 7.0;
+    float df8  = 8.0;
+    float df9  = 9.0;
+    float df10 = 10.0;
+    test_floats_function_call(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10);
 
-    double dd1 = 1.0;
-    double dd2 = 2.0;
-    double dd3 = 3.0;
-    double dd4 = 4.0;
-    double dd5 = 5.0;
-    double dd6 = 6.0;
-    double dd7 = 7.0;
-    double dd8 = 8.0;
-    double dd9 = 9.0;
-    test_doubles_function_call(dd1, dd2, dd3, dd4, dd5, dd6, dd7, dd8, dd9);
+    double dd1  = 1.0;
+    double dd2  = 2.0;
+    double dd3  = 3.0;
+    double dd4  = 4.0;
+    double dd5  = 5.0;
+    double dd6  = 6.0;
+    double dd7  = 7.0;
+    double dd8  = 8.0;
+    double dd9  = 9.0;
+    double dd10 = 10.0;
+    test_doubles_function_call(dd1, dd2, dd3, dd4, dd5, dd6, dd7, dd8, dd9, dd10);
+
+    // Constant pushed args
+    test_floats_function_call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    test_doubles_function_call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
     #endif
 }
