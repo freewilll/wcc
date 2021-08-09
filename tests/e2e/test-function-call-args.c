@@ -281,6 +281,18 @@ void test_long_double_function_call_return_value() {
     assert_int(0, strcmp(buffer, "1.10000"), "Long double assignment from function call");
 }
 
+void tldsiprrb(long double i, long double j, long double k) {
+    char *buffer = malloc(100);
+
+    sprintf(buffer, "%5.5Lf", i); assert_int(0, strcmp(buffer, "1.00000"), "Long double stack index pushed register rename bug 1");
+    sprintf(buffer, "%5.5Lf", j); assert_int(0, strcmp(buffer, "2.00000"), "Long double stack index pushed register rename bug 2");
+    sprintf(buffer, "%5.5Lf", k); assert_int(0, strcmp(buffer, "3.00000"), "Long double stack index pushed register rename bug 3");
+}
+
+int test_long_double_stack_index_pushed_register_rename_bug() {
+    tldsiprrb(1, 2, 3);
+}
+
 void test_floats_function_call(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10) {
     #ifdef FLOATS
     assert_float(1.0,  f1,  "test_floats_function_call 1");
@@ -443,6 +455,7 @@ int main(int argc, char **argv) {
     test_long_double_stack_eight_offset();
     test_long_double_pushed_params();
     test_long_double_function_call_return_value();
+    test_long_double_stack_index_pushed_register_rename_bug();
     test_float_double_params();
     test_float_double_call_return_value();
 

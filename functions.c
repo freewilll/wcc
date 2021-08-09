@@ -219,8 +219,9 @@ void add_function_param_moves(Function *function) {
     int *register_param_vregs = malloc(sizeof(int) * function->param_count);
     memset(register_param_vregs, -1, sizeof(int) * function->param_count);
 
-    int *stack_param_vregs = malloc(sizeof(int) * function->param_count);
-    memset(stack_param_vregs, -1, sizeof(int) * function->param_count);
+    // The stack is never bigger than function->param_count * 2 & starts at 2
+    int *stack_param_vregs = malloc(sizeof(int) * (function->param_count * 2 + 2));
+    memset(stack_param_vregs, -1, sizeof(int) * (function->param_count * 2 + 2));
 
     ir = function->ir;
     // Add a second nop if nothing is there, which is used to insert instructions

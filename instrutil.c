@@ -484,7 +484,7 @@ static int non_terminal_for_value(Value *v) {
     else if (v->vreg &&  v->type->is_unsigned)                               result =  RU1 + v->x86_size - 1;
     else {
         print_value(stdout, v, 0);
-        panic("Bad value in non_terminal_for_value()");
+        panic("\n^ Bad value in non_terminal_for_value()");
     }
 
     v->non_terminal = result;
