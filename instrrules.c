@@ -181,6 +181,15 @@ static void add_long_double_integer_move_rule(int dst, int type, char *conv_temp
     }
 }
 
+static void add_sse_constant_to_ld_move_rule(int src, int src_type, char *t1, char *t2, char *t3) {
+    Rule *r = add_rule(MLD5, IR_MOVE, src, 0, 1);
+    add_allocate_stack_index_in_slot(r, 1, src_type);
+    add_op(r, X_MOV,  0,   SRC1, 0, t1);
+    add_op(r, X_MOV,  SV1, 0,    0, t2);
+    add_op(r, X_MOV,  0,   SV1,  0, t3);
+    add_op(r, X_MOV,  DST, 0,    0, "fstpt %vdL");
+}
+
 static void add_float_and_double_move_rules() {
     Rule *r ;
 
@@ -206,7 +215,7 @@ static void add_float_and_double_move_rules() {
     r = add_rule(RS4, IR_MOVE, MS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1q, %vdq"); add_op(r, X_MOVC, DST, DST, 0, "cvtss2sd %v1q, %vdq");
     r = add_rule(RS4, IR_MOVE, MS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
 
-    // FP Constant -> integer register
+    // FP Constant -> integer in register
     r = add_rule(XR1, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttss2sil %%xmm14, %vdl"); fin_rule(r);
     r = add_rule(XR2, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttss2sil %%xmm14, %vdl"); fin_rule(r);
     r = add_rule(XR3, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttss2sil %%xmm14, %vdl"); fin_rule(r);
@@ -216,6 +225,10 @@ static void add_float_and_double_move_rules() {
     r = add_rule(XR2, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movsd %v1D, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttsd2sil %%xmm14, %vdl"); fin_rule(r);
     r = add_rule(XR3, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movsd %v1D, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttsd2sil %%xmm14, %vdl"); fin_rule(r);
     r = add_rule(XR4, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movsd %v1D, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttsd2siq %%xmm14, %vdq"); fin_rule(r);
+
+    // FP Constant -> LD
+    add_sse_constant_to_ld_move_rule(CS3, TYPE_FLOAT,  "movss %v1F, %%xmm0", "movss %%xmm0, %vd", "flds %v1");
+    add_sse_constant_to_ld_move_rule(CS4, TYPE_DOUBLE, "movsd %v1D, %%xmm0", "movsd %%xmm0, %vd", "fldl %v1");
 }
 
 static void add_long_double_move_rules()  {

@@ -134,6 +134,16 @@ void test_conversion_sse_to_int() {
     #endif
 }
 
+void test_conversion_sse_to_long_double() {
+    #ifdef FLOATS
+    float f;
+    double d;
+    long double ld;
+
+    f = 1.1f; ld = f; assert_long_double(1.1, ld, "sse float constant  -> ld");
+    d = 2.1f; ld = d; assert_long_double(2.1, ld, "sse double constant -> ld");
+    #endif
+}
 
 void test_spilling() {
     // All four types are spilled, due to the double function call
@@ -193,6 +203,7 @@ int main(int argc, char **argv) {
     test_constant_assignment();
     test_assignment();
     test_conversion_sse_to_int();
+    test_conversion_sse_to_long_double();
     test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();
