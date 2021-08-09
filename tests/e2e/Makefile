@@ -13,6 +13,7 @@ WCC_TESTS=\
 	enums \
 	regressions \
 	reg-move-torture \
+	arithmetic-types-move-torture \
 	ifdef \
 	long-doubles \
 	floats-and-doubles
@@ -37,6 +38,12 @@ gen-test-reg-move-torture: gen-test-reg-move-torture.c
 
 test-reg-move-torture.c: gen-test-reg-move-torture
 	./gen-test-reg-move-torture
+
+gen-test-arithmetic-types-move-torture: gen-test-arithmetic-types-move-torture.c
+	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-arithmetic-types-move-torture.c -o gen-test-arithmetic-types-move-torture
+
+test-arithmetic-types-move-torture.c: gen-test-arithmetic-types-move-torture
+	./gen-test-arithmetic-types-move-torture
 
 .PHONY: run-test-wcc
 run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
@@ -64,6 +71,8 @@ clean:
 	@rm -f test-wcc-*-wcc
 	@rm -f test-wcc-reg-move-torture.c
 	@rm -f gen-test-reg-move-torture
+	@rm -f test-wcc-arithmetic-types-move-torture.c
+	@rm -f gen-test-arithmetic-types-move-torture
 	@rm -f run-test-*
 	@rm -f test-wcc-gcc
 	@rm -f test-wcc-*-gcc
