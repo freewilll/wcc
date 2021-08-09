@@ -11,6 +11,15 @@ int failures;
 float gf1;
 double gd1;
 
+char  gc;
+short gs;
+int   gi;
+long  gl;
+unsigned char  guc;
+unsigned short gus;
+unsigned int   gui;
+unsigned long  gul;
+
 void assert_ld_string(long double ld, char *expected, char *message) {
     char *buffer = malloc(100);
 
@@ -72,6 +81,60 @@ void test_assignment() {
     #endif
 }
 
+void test_conversion_sse_to_int() {
+    #ifdef FLOATS
+    float f;
+    double d;
+
+    char  c;
+    short s;
+    int   i;
+    long  l;
+    unsigned char  uc;
+    unsigned short us;
+    unsigned int   ui;
+    unsigned long  ul;
+
+    // This tests constant SSE assignment, since all operations are tree-collapsed
+    f = 11.0f; c = f; assert_long(11, c, "c = f");
+    f = 12.0f; s = f; assert_long(12, s, "s = f");
+    f = 13.0f; i = f; assert_long(13, i, "i = f");
+    f = 14.0f; l = f; assert_long(14, l, "l = d");
+    d = 15.0f; c = d; assert_long(15, c, "c = d");
+    d = 16.0f; s = d; assert_long(16, s, "s = d");
+    d = 17.0f; i = d; assert_long(17, i, "i = d");
+    d = 18.0f; l = d; assert_long(18, l, "l = d");
+
+    f = 21.1f; uc = f; assert_long(21, uc, "uc = f");
+    f = 22.1f; us = f; assert_long(22, us, "us = f");
+    f = 23.1f; ui = f; assert_long(23, ui, "ui = f");
+    f = 24.1f; ul = f; assert_long(24, ul, "ul = d");
+    d = 25.1f; uc = d; assert_long(25, uc, "uc = d");
+    d = 26.1f; us = d; assert_long(26, us, "us = d");
+    d = 27.1f; ui = d; assert_long(27, ui, "ui = d");
+    d = 28.1f; ul = d; assert_long(28, ul, "ul = d");
+
+    f = 31.0f; gc = f; assert_long(31, gc, "guc = f");
+    f = 32.0f; gs = f; assert_long(32, gs, "gus = f");
+    f = 33.0f; gi = f; assert_long(33, gi, "gui = f");
+    f = 34.0f; gl = f; assert_long(34, gl, "gul = d");
+    d = 35.0f; gc = d; assert_long(35, gc, "guc = d");
+    d = 36.0f; gs = d; assert_long(36, gs, "gus = d");
+    d = 37.0f; gi = d; assert_long(37, gi, "gui = d");
+    d = 38.0f; gl = d; assert_long(38, gl, "gul = d");
+
+    f = 41.1f; guc = f; assert_long(41, guc, "guc = f");
+    f = 42.1f; gus = f; assert_long(42, gus, "gus = f");
+    f = 43.1f; gui = f; assert_long(43, gui, "gui = f");
+    f = 44.1f; gul = f; assert_long(44, gul, "gul = d");
+    d = 45.1f; guc = d; assert_long(45, guc, "guc = d");
+    d = 46.1f; gus = d; assert_long(46, gus, "gus = d");
+    d = 47.1f; gui = d; assert_long(47, gui, "gui = d");
+    d = 48.1f; gul = d; assert_long(48, gul, "gul = d");
+    #endif
+}
+
+
 void test_spilling() {
     // All four types are spilled, due to the double function call
 
@@ -129,6 +192,7 @@ int main(int argc, char **argv) {
 
     test_constant_assignment();
     test_assignment();
+    test_conversion_sse_to_int();
     test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();

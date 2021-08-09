@@ -181,7 +181,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
     if (*t) {
         int mnemonic_length = buffer - result;
-        for (int i = 0; i < 9 - mnemonic_length; i++) *buffer++ = ' ';
+        for (int i = 0; i < 12 - mnemonic_length; i++) *buffer++ = ' ';
 
              if (strlen(t) >= 8 && !memcmp(t, ".RU4TOLD", 8)) need_ru4_to_ld_symbol = 1;
         else if (strlen(t) >= 8 && !memcmp(t, ".LDTORU4", 8)) need_ld_to_ru4_symbol = 1;
