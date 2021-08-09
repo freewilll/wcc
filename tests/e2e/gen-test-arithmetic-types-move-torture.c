@@ -124,10 +124,6 @@ int main() {
     for (int src = 0; src < COUNT * 2; src++) // src
         for (int dst = 0; dst < COUNT * 2; dst++)  { // dst
             if (is_sse[src] || is_sse[dst]) continue; // fwip
-            if (src == 7         && dst == 10        ) continue; // fwip LD bug
-            if (src == 7 + COUNT && dst == 10        ) continue; // fwip LD bug
-            if (src == 7         && dst == 10 + COUNT) continue; // fwip LD bug
-            if (src == 7 + COUNT && dst == 10 + COUNT) continue; // fwip LD bug
             fprintf(f, "    func_%s_to_%s();\n", vars[src], vars[dst]);
         }
     fprintf(f, "    #endif\n");

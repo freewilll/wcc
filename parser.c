@@ -627,7 +627,12 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
                 Value *src2 = new_value();
                 src2->type = dup_type(dst_type);
                 src2->is_constant = 1;
-                src2->fp_value = src->int_value;
+
+                if (src->type->is_unsigned)
+                    src2->fp_value = (unsigned long) src->int_value;
+                else
+                    src2->fp_value = src->int_value;
+
                 return src2;
             }
             else if (src_is_sse && dst_is_sse && src->type->type != dst_type->type) {

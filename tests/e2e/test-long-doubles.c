@@ -479,6 +479,9 @@ void test_int_long_double_type_changes() {
     assert_ld_string((long double) i,  "-1.00000", "(long double) -1");
     assert_ld_string((long double) i,  "-1.00000", "(long double) i");
     assert_ld_string((long double) gi, "-1.00000", "(long double) gi");
+
+    ul = -1;
+    assert_ld_string((long double) ul, "18446744073709551615.00000", "(long double) (unsigned long) -1");
 }
 
 void assert_long_double_int_conversion(long double ld, char c, short s, int i, long l, unsigned char uc, unsigned short us, unsigned int ui, unsigned long ul, char *message) {
