@@ -81,7 +81,7 @@ void test_assignment() {
     #endif
 }
 
-void test_conversion_sse_to_int() {
+void test_conversion_sse_in_cst_to_int_in_reg() {
     #ifdef FLOATS
     float f;
     double d;
@@ -131,6 +131,138 @@ void test_conversion_sse_to_int() {
     d = 46.1f; gus = d; assert_long(46, gus, "gus = d");
     d = 47.1f; gui = d; assert_long(47, gui, "gui = d");
     d = 48.1f; gul = d; assert_long(48, gul, "gul = d");
+
+    #endif
+}
+
+void test_conversion_sse_in_reg_to_int_in_reg() {
+    #ifdef FLOATS
+    float f;
+    double d;
+
+    f = 1.1; assert_long(1, (char)  f, "float  in register to char  in register");
+    f = 2.1; assert_long(2, (short) f, "float  in register to short in register");
+    f = 3.1; assert_long(3, (int)   f, "float  in register to int   in register");
+    f = 4.1; assert_long(4, (long)  f, "float  in register to long  in register");
+    d = 5.1; assert_long(5, (char)  d, "double in register to char  in register");
+    d = 6.1; assert_long(6, (short) d, "double in register to short in register");
+    d = 7.1; assert_long(7, (int)   d, "double in register to int   in register");
+    d = 8.1; assert_long(8, (long)  d, "double in register to long  in register");
+
+    f = 1.1; assert_long(1, (unsigned char)  f, "float  in register to unsigned char  in register");
+    f = 2.1; assert_long(2, (unsigned short) f, "float  in register to unsigned short in register");
+    f = 3.1; assert_long(3, (unsigned int)   f, "float  in register to unsigned int   in register");
+    f = 4.1; assert_long(4, (unsigned long)  f, "float  in register to unsigned long  in register");
+    d = 5.1; assert_long(5, (unsigned char)  d, "double in register to unsigned char  in register");
+    d = 6.1; assert_long(6, (unsigned short) d, "double in register to unsigned short in register");
+    d = 7.1; assert_long(7, (unsigned int)   d, "double in register to unsigned int   in register");
+    d = 8.1; assert_long(8, (unsigned long)  d, "double in register to unsigned long  in register");
+
+    #endif
+}
+
+void test_conversion_sse_in_reg_to_int_in_stk() {
+    #ifdef FLOATS
+    float f;
+    double d;
+
+    char  c;
+    short s;
+    int   i;
+    long  l;
+    unsigned char  uc;
+    unsigned short us;
+    unsigned int   ui;
+    unsigned long  ul;
+
+    &c; &s; &i; &l;
+
+    f = 1.1; c = f; assert_long(1, c, "float  in register to char  in memory");
+    f = 2.1; s = f; assert_long(2, s, "float  in register to short in memory");
+    f = 3.1; i = f; assert_long(3, i, "float  in register to int   in memory");
+    f = 4.1; l = f; assert_long(4, l, "float  in register to long  in memory");
+    d = 5.1; c = d; assert_long(5, c, "double in register to char  in memory");
+    d = 6.1; s = d; assert_long(6, s, "double in register to short in memory");
+    d = 7.1; i = d; assert_long(7, i, "double in register to int   in memory");
+    d = 8.1; l = d; assert_long(8, l, "double in register to long  in memory");
+
+    f = 1.1; uc = f; assert_long(1, uc, "float  in register to unsigned char  in memory");
+    f = 2.1; us = f; assert_long(2, us, "float  in register to unsigned short in memory");
+    f = 3.1; ui = f; assert_long(3, ui, "float  in register to unsigned int   in memory");
+    f = 4.1; ul = f; assert_long(4, ul, "float  in register to unsigned long  in memory");
+    d = 5.1; uc = d; assert_long(5, uc, "double in register to unsigned char  in memory");
+    d = 6.1; us = d; assert_long(6, us, "double in register to unsigned short in memory");
+    d = 7.1; ui = d; assert_long(7, ui, "double in register to unsigned int   in memory");
+    d = 8.1; ul = d; assert_long(8, ul, "double in register to unsigned long  in memory");
+
+    #endif
+}
+
+void test_conversion_sse_in_stk_to_int_in_stk() {
+    #ifdef FLOATS
+    float f;
+    double d;
+
+    char  c;
+    short s;
+    int   i;
+    long  l;
+    unsigned char  uc;
+    unsigned short us;
+    unsigned int   ui;
+    unsigned long  ul;
+
+    &f; &d;
+    &c; &s; &i; &l;
+
+    f = 1.1; c = f; assert_long(1, c, "float  in register to char  in memory");
+    f = 2.1; s = f; assert_long(2, s, "float  in register to short in memory");
+    f = 3.1; i = f; assert_long(3, i, "float  in register to int   in memory");
+    f = 4.1; l = f; assert_long(4, l, "float  in register to long  in memory");
+    d = 5.1; c = d; assert_long(5, c, "double in register to char  in memory");
+    d = 6.1; s = d; assert_long(6, s, "double in register to short in memory");
+    d = 7.1; i = d; assert_long(7, i, "double in register to int   in memory");
+    d = 8.1; l = d; assert_long(8, l, "double in register to long  in memory");
+
+    f = 1.1; uc = f; assert_long(1, uc, "float  in register to unsigned char  in memory");
+    f = 2.1; us = f; assert_long(2, us, "float  in register to unsigned short in memory");
+    f = 3.1; ui = f; assert_long(3, ui, "float  in register to unsigned int   in memory");
+    f = 4.1; ul = f; assert_long(4, ul, "float  in register to unsigned long  in memory");
+    d = 5.1; uc = d; assert_long(5, uc, "double in register to unsigned char  in memory");
+    d = 6.1; us = d; assert_long(6, us, "double in register to unsigned short in memory");
+    d = 7.1; ui = d; assert_long(7, ui, "double in register to unsigned int   in memory");
+    d = 8.1; ul = d; assert_long(8, ul, "double in register to unsigned long  in memory");
+
+    #endif
+}
+
+void test_conversion_sse_in_stk_to_int_in_reg() {
+    #ifdef FLOATS
+    float f;
+    double d;
+
+    &f; // Force them into the stack
+    &d; // Force them into the stack
+
+    // SSE on stack -> int in register
+    f = 1.1; assert_long(1, (char)  f, "float  on stack to char  in register");
+    f = 2.1; assert_long(2, (short) f, "float  on stack to short in register");
+    f = 3.1; assert_long(3, (int)   f, "float  on stack to int   in register");
+    f = 4.1; assert_long(4, (long)  f, "float  on stack to long  in register");
+    d = 5.1; assert_long(5, (char)  d, "double on stack to char  in register");
+    d = 6.1; assert_long(6, (short) d, "double on stack to short in register");
+    d = 7.1; assert_long(7, (int)   d, "double on stack to int   in register");
+    d = 8.1; assert_long(8, (long)  d, "double on stack to long  in register");
+
+    f = 1.1; assert_long(1, (unsigned char)  f, "float  on stack to unsigned char  in register");
+    f = 2.1; assert_long(2, (unsigned short) f, "float  on stack to unsigned short in register");
+    f = 3.1; assert_long(3, (unsigned int)   f, "float  on stack to unsigned int   in register");
+    f = 4.1; assert_long(4, (unsigned long)  f, "float  on stack to unsigned long  in register");
+    d = 5.1; assert_long(5, (unsigned char)  d, "double on stack to unsigned char  in register");
+    d = 6.1; assert_long(6, (unsigned short) d, "double on stack to unsigned short in register");
+    d = 7.1; assert_long(7, (unsigned int)   d, "double on stack to unsigned int   in register");
+    d = 8.1; assert_long(8, (unsigned long)  d, "double on stack to unsigned long  in register");
+
     #endif
 }
 
@@ -202,7 +334,11 @@ int main(int argc, char **argv) {
 
     test_constant_assignment();
     test_assignment();
-    test_conversion_sse_to_int();
+    test_conversion_sse_in_cst_to_int_in_reg();
+    test_conversion_sse_in_reg_to_int_in_reg();
+    test_conversion_sse_in_stk_to_int_in_reg();
+    test_conversion_sse_in_reg_to_int_in_stk();
+    test_conversion_sse_in_stk_to_int_in_stk();
     test_conversion_sse_to_long_double();
     test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
