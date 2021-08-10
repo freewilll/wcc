@@ -266,7 +266,7 @@ void test_conversion_sse_in_stk_to_int_in_reg() {
     #endif
 }
 
-void test_conversion_sse_to_long_double() {
+void test_conversion_sse_in_cst_to_long_double() {
     #ifdef FLOATS
     float f;
     double d;
@@ -274,6 +274,56 @@ void test_conversion_sse_to_long_double() {
 
     f = 1.1f; ld = f; assert_long_double(1.1, ld, "sse float constant  -> ld");
     d = 2.1f; ld = d; assert_long_double(2.1, ld, "sse double constant -> ld");
+
+    #endif
+}
+
+int test_conversion_sse_in_reg_to_long_double() {
+    #ifdef FLOATS
+    float f;
+    double d;
+
+    f = 1.1; assert_long_double(1.1, (long double) f,"float  in register to long double");
+    d = 2.1; assert_long_double(2.1, (long double) d,"double in register to long double");
+
+    #endif
+}
+
+int test_conversion_sse_in_stk_to_long_double() {
+    #ifdef FLOATS
+    float f;
+    double d;
+
+    &f; &d;
+    f = 1.1; assert_long_double(1.1, (long double) f,"float  in register to long double");
+    d = 2.1; assert_long_double(2.1, (long double) d,"double in register to long double");
+
+    #endif
+}
+
+int test_conversion_int_in_reg_to_sse_in_reg() {
+    #ifdef FLOATS
+    float f;
+    double d;
+
+    f = (char)  -1; assert_float(-1.0, f, "char  in register to float in register");
+    f = (short) -2; assert_float(-2.0, f, "short in register to float in register");
+    f = (int)   -3; assert_float(-3.0, f, "int   in register to float in register");
+    f = (long)  -4; assert_float(-4.0, f, "long  in register to float in register");
+    d = (char)  -5; assert_float(-5.0, d, "char  in register to double in register");
+    d = (short) -6; assert_float(-6.0, d, "short in register to double in register");
+    d = (int)   -7; assert_float(-7.0, d, "int   in register to double in register");
+    d = (long)  -8; assert_float(-8.0, d, "long  in register to double in register");
+
+    f = (unsigned char)  -1; assert_float(255.0, f, "unsigned char  in register to float in register");
+    f = (unsigned short) -1; assert_float(65535.0, f, "unsigned short in register to float in register");
+    f = (unsigned int)   -1; assert_float(4294967296.0, f, "unsigned int   in register to float in register");
+    // f = (unsigned long)  -1; assert_float(-1.0, f, "unsigned long  in register to float in register"); // fwip todo
+    d = (unsigned char)  -1; assert_float(255.0, d, "unsigned char  in register to double in register");
+    d = (unsigned short) -1; assert_float(65535.0, d, "unsigned short in register to double in register");
+    d = (unsigned int)   -1; assert_float(4294967296.0, d, "unsigned int   in register to double in register");
+    // d = (unsigned long)  -1; assert_float(-1.0, d, "unsigned long  in register to double in register"); // fwip todo
+
     #endif
 }
 
@@ -339,7 +389,10 @@ int main(int argc, char **argv) {
     test_conversion_sse_in_stk_to_int_in_reg();
     test_conversion_sse_in_reg_to_int_in_stk();
     test_conversion_sse_in_stk_to_int_in_stk();
-    test_conversion_sse_to_long_double();
+    test_conversion_sse_in_cst_to_long_double();
+    test_conversion_sse_in_reg_to_long_double();
+    test_conversion_sse_in_stk_to_long_double();
+    test_conversion_int_in_reg_to_sse_in_reg();
     test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();

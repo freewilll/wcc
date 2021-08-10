@@ -38,15 +38,8 @@ char *get_outcome(int dst, int src) {
 
 int skip(int dst, int src) {
     if (!is_sse[src] && !is_sse[dst]) return 0;
-    if (is_sse[src] && dst < 8) return 0; // sse -> int
+    if (is_sse[src]) return 0;
     return 1;
-
-    // if (!is_sse[src]) return 1;
-
-    // // Implicit else, src is sse
-    // if (dst == 10) return 1; // float -> LD
-
-    // return 0;
 }
 
 int main() {

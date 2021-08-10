@@ -190,12 +190,32 @@ static void add_sse_constant_to_ld_move_rule(int src, int src_type, char *t1, ch
     add_op(r, X_MOV,  DST, 0,    0, "fstpt %vdL");
 }
 
-static void add_sse_on_stack_to_int_int_in_register_move_rule(int dst, int src, char *t1, char *t2) {
+static void add_sse_on_stack_to_int_in_register_move_rule(int dst, int src, char *t1, char *t2) {
     Rule *r = add_rule(dst, IR_MOVE, src, 0, 1);
     add_allocate_register_in_slot(r, 1, TYPE_FLOAT);
     add_op(r, X_MOVC,  SV1, SRC1, 0, t1);
     add_op(r, X_MOVC,  DST, SV1, 0, t2);
     fin_rule(r);
+}
+
+static void add_sse_in_register_to_long_double_move_rule(int src, char *t1, char *t2) {
+    Rule *r = add_rule(MLD5, IR_MOVE, src, 0, 1);
+    add_allocate_stack_index_in_slot(r, 1, TYPE_FLOAT);
+    add_op(r, X_MOVC,  SV1, SRC1, 0, t1);
+    add_op(r, X_MOVC,  0,   SV1,  0, t2);
+    add_op(r, X_MOVC,  DST, 0,    0, "fstpt %vdL");
+}
+
+static void add_sse_in_stack_to_long_double_move_rule(int src, char *t1) {
+    Rule *r = add_rule(MLD5, IR_MOVE, src, 0, 1);
+    add_op(r, X_MOVC,  0,   SRC1, 0, t1);
+    add_op(r, X_MOVC,  DST, 0,    0, "fstpt %vdL");
+}
+
+static void add_int_in_register_to_sse_in_register_move_rule(int dst, int src, char *t1, char *t2) {
+    Rule *r = add_rule(dst, IR_MOVE, src, 0, 1);
+    if (t1) add_op(r, X_MOVC,  SRC1, SRC1, 0, t1);
+            add_op(r, X_MOVC,  DST,  SRC1, 0, t2);
 }
 
 static void add_float_and_double_move_rules() {
@@ -223,7 +243,7 @@ static void add_float_and_double_move_rules() {
     r = add_rule(RS4, IR_MOVE, MS3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movss %v1q, %vdq"); add_op(r, X_MOVC, DST, DST, 0, "cvtss2sd %v1q, %vdq");
     r = add_rule(RS4, IR_MOVE, MS4, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
 
-    // FP Constant -> integer in register
+    // SSE Constant -> integer in register
     r = add_rule(XR1, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttss2sil %%xmm14, %vdl"); fin_rule(r);
     r = add_rule(XR2, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttss2sil %%xmm14, %vdl"); fin_rule(r);
     r = add_rule(XR3, IR_MOVE, CS3, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttss2sil %%xmm14, %vdl"); fin_rule(r);
@@ -234,11 +254,11 @@ static void add_float_and_double_move_rules() {
     r = add_rule(XR3, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movsd %v1D, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttsd2sil %%xmm14, %vdl"); fin_rule(r);
     r = add_rule(XR4, IR_MOVE, CS4, 0, 1); add_op(r, X_MOV,  0, SRC1, 0, "movsd %v1D, %%xmm14"); add_op(r, X_MOV,  DST, 0, 0, "cvttsd2siq %%xmm14, %vdq"); fin_rule(r);
 
-    // FP Constant -> LD
+    // SSE Constant -> LD
     add_sse_constant_to_ld_move_rule(CS3, TYPE_FLOAT,  "movss %v1F, %%xmm0", "movss %%xmm0, %vd", "flds %v1");
     add_sse_constant_to_ld_move_rule(CS4, TYPE_DOUBLE, "movsd %v1D, %%xmm0", "movsd %%xmm0, %vd", "fldl %v1");
 
-    // FP in register -> integer in register
+    // SSE in register -> integer in register
     r = add_rule(XR1, IR_MOVE, RS3, 0, 1); add_op(r, X_MOVC,  DST, SRC1, 0, "cvttss2sil %v1F, %vdl"); fin_rule(r);
     r = add_rule(XR2, IR_MOVE, RS3, 0, 1); add_op(r, X_MOVC,  DST, SRC1, 0, "cvttss2sil %v1F, %vdl"); fin_rule(r);
     r = add_rule(XR3, IR_MOVE, RS3, 0, 1); add_op(r, X_MOVC,  DST, SRC1, 0, "cvttss2sil %v1F, %vdl"); fin_rule(r);
@@ -249,16 +269,43 @@ static void add_float_and_double_move_rules() {
     r = add_rule(XR3, IR_MOVE, RS4, 0, 1); add_op(r, X_MOVC,  DST, SRC1, 0, "cvttsd2sil %v1F, %vdl"); fin_rule(r);
     r = add_rule(XR4, IR_MOVE, RS4, 0, 1); add_op(r, X_MOVC,  DST, SRC1, 0, "cvttsd2siq %v1F, %vdq"); fin_rule(r);
 
-    // FP on stack -> integer in register
-    add_sse_on_stack_to_int_int_in_register_move_rule(XR1, MS3, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
-    add_sse_on_stack_to_int_int_in_register_move_rule(XR2, MS3, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
-    add_sse_on_stack_to_int_int_in_register_move_rule(XR3, MS3, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
-    add_sse_on_stack_to_int_int_in_register_move_rule(XR4, MS3, "movss %v1F, %vdF", "cvttss2siq %v1F, %vdq");
+    // SSE on stack -> integer in register
+    add_sse_on_stack_to_int_in_register_move_rule(XR1, MS3, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR2, MS3, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR3, MS3, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR4, MS3, "movss %v1F, %vdF", "cvttss2siq %v1F, %vdq");
 
-    add_sse_on_stack_to_int_int_in_register_move_rule(XR1, MS4, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
-    add_sse_on_stack_to_int_int_in_register_move_rule(XR2, MS4, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
-    add_sse_on_stack_to_int_int_in_register_move_rule(XR3, MS4, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
-    add_sse_on_stack_to_int_int_in_register_move_rule(XR4, MS4, "movsd %v1D, %vdD", "cvttsd2siq %v1D, %vdq");
+    add_sse_on_stack_to_int_in_register_move_rule(XR1, MS4, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR2, MS4, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR3, MS4, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR4, MS4, "movsd %v1D, %vdD", "cvttsd2siq %v1D, %vdq");
+
+    // SSE in register -> long double
+    add_sse_in_register_to_long_double_move_rule(RS3, "movss %v1F, %vdl", "flds %v1F");
+    add_sse_in_register_to_long_double_move_rule(RS4, "movsd %v1D, %vdq", "fldl %v1D");
+
+    // SSE in stack -> long double
+    add_sse_in_stack_to_long_double_move_rule(MS3, "flds %v1F");
+    add_sse_in_stack_to_long_double_move_rule(MS4, "fldl %v1D");
+
+    // Integer in register -> SSE in register
+    add_int_in_register_to_sse_in_register_move_rule(RS3, RI1, "movsbl %v1b, %vdl", "cvtsi2ssl %v1l, %vdF");
+    add_int_in_register_to_sse_in_register_move_rule(RS3, RI2, "movswl %v1w, %vdl", "cvtsi2ssl %v1l, %vdF");
+    add_int_in_register_to_sse_in_register_move_rule(RS3, RI3, 0,                   "cvtsi2ssl %v1l, %vdF");
+    add_int_in_register_to_sse_in_register_move_rule(RS3, RI4, 0,                   "cvtsi2ssq %v1q, %vdF");
+    add_int_in_register_to_sse_in_register_move_rule(RS4, RI1, "movsbl %v1b, %vdl", "cvtsi2sdl %v1l, %vdD");
+    add_int_in_register_to_sse_in_register_move_rule(RS4, RI2, "movswl %v1w, %vdl", "cvtsi2sdl %v1l, %vdD");
+    add_int_in_register_to_sse_in_register_move_rule(RS4, RI3, 0,                   "cvtsi2sdl %v1l, %vdD");
+    add_int_in_register_to_sse_in_register_move_rule(RS4, RI4, 0,                   "cvtsi2sdq %v1q, %vdD");
+
+    add_int_in_register_to_sse_in_register_move_rule(RS3, RU1, "movzbl %v1b, %vdl", "cvtsi2ssl %v1l, %vdF");
+    add_int_in_register_to_sse_in_register_move_rule(RS3, RU2, "movzwl %v1w, %vdl", "cvtsi2ssl %v1l, %vdF");
+    add_int_in_register_to_sse_in_register_move_rule(RS3, RU3, "movl   %v1l, %vdl", "cvtsi2ssq %v1q, %vdF");
+    // add_int_in_register_to_sse_in_register_move_rule(RS3, RU4, 0,                   "cvtsi2ssq %v1q, %vdF"); // fwip TODO
+    add_int_in_register_to_sse_in_register_move_rule(RS4, RU1, "movzbl %v1b, %vdl", "cvtsi2sdl %v1l, %vdD");
+    add_int_in_register_to_sse_in_register_move_rule(RS4, RU2, "movzwl %v1w, %vdl", "cvtsi2sdl %v1l, %vdD");
+    add_int_in_register_to_sse_in_register_move_rule(RS4, RU3, "movl   %v1l, %vdl", "cvtsi2sdq %v1q, %vdD");
+    // add_int_in_register_to_sse_in_register_move_rule(RS4, RU4, 0,                   "cvtsi2sdq %v1q, %vdD"); // fwip TODO
 }
 
 static void add_long_double_move_rules()  {
