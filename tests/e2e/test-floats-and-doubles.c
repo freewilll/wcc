@@ -301,11 +301,12 @@ int test_conversion_sse_in_stk_to_long_double() {
     #endif
 }
 
-int test_conversion_int_in_reg_to_sse_in_reg() {
+int test_conversion_int_to_sse() {
     #ifdef FLOATS
     float f;
     double d;
 
+    // Int in register to SSE in register
     f = (char)  -1; assert_float(-1.0, f, "char  in register to float in register");
     f = (short) -2; assert_float(-2.0, f, "short in register to float in register");
     f = (int)   -3; assert_float(-3.0, f, "int   in register to float in register");
@@ -315,14 +316,25 @@ int test_conversion_int_in_reg_to_sse_in_reg() {
     d = (int)   -7; assert_float(-7.0, d, "int   in register to double in register");
     d = (long)  -8; assert_float(-8.0, d, "long  in register to double in register");
 
-    f = (unsigned char)  -1; assert_float(255.0, f, "unsigned char  in register to float in register");
-    f = (unsigned short) -1; assert_float(65535.0, f, "unsigned short in register to float in register");
-    f = (unsigned int)   -1; assert_float(4294967296.0, f, "unsigned int   in register to float in register");
-    // f = (unsigned long)  -1; assert_float(-1.0, f, "unsigned long  in register to float in register"); // fwip todo
-    d = (unsigned char)  -1; assert_float(255.0, d, "unsigned char  in register to double in register");
-    d = (unsigned short) -1; assert_float(65535.0, d, "unsigned short in register to double in register");
-    d = (unsigned int)   -1; assert_float(4294967296.0, d, "unsigned int   in register to double in register");
-    // d = (unsigned long)  -1; assert_float(-1.0, d, "unsigned long  in register to double in register"); // fwip todo
+    // Without high bit set
+    f = (unsigned char)  1; assert_float(1.0, f, "unsigned char  in register to float in register");
+    f = (unsigned short) 2; assert_float(2.0, f, "unsigned short in register to float in register");
+    f = (unsigned int)   3; assert_float(3.0, f, "unsigned int   in register to float in register");
+    f = (unsigned long)  4; assert_float(4.0, f, "unsigned long  in register to float in register");
+    d = (unsigned char)  5; assert_float(5.0, d, "unsigned char  in register to double in register");
+    d = (unsigned short) 6; assert_float(6.0, d, "unsigned short in register to double in register");
+    d = (unsigned int)   7; assert_float(7.0, d, "unsigned int   in register to double in register");
+    d = (unsigned long)  8; assert_float(8.0, d, "unsigned long  in register to double in register");
+
+    // With high bit set
+    f = (unsigned char)  -1; assert_float(255.0,                  f, "unsigned char  in register to float  in register");
+    f = (unsigned short) -1; assert_float(65535.0,                f, "unsigned short in register to float  in register");
+    f = (unsigned int)   -1; assert_float(4294967296.0,           f, "unsigned int   in register to float  in register");
+    f = (unsigned long)  -1; assert_float(18446744073709551616.0, f, "unsigned long  in register to float  in register");
+    d = (unsigned char)  -1; assert_float(255.0,                  d, "unsigned char  in register to double in register");
+    d = (unsigned short) -1; assert_float(65535.0,                d, "unsigned short in register to double in register");
+    d = (unsigned int)   -1; assert_float(4294967296.0,           d, "unsigned int   in register to double in register");
+    d = (unsigned long)  -1; assert_float(18446744073709551616.0, d, "unsigned long  in register to double in register");
 
     #endif
 }
@@ -384,6 +396,9 @@ int main(int argc, char **argv) {
 
     test_constant_assignment();
     test_assignment();
+
+    // There's no good reason why all these tests operate on locals in the stack
+    // when they could have also been done on globals instead.
     test_conversion_sse_in_cst_to_int_in_reg();
     test_conversion_sse_in_reg_to_int_in_reg();
     test_conversion_sse_in_stk_to_int_in_reg();
@@ -392,7 +407,9 @@ int main(int argc, char **argv) {
     test_conversion_sse_in_cst_to_long_double();
     test_conversion_sse_in_reg_to_long_double();
     test_conversion_sse_in_stk_to_long_double();
-    test_conversion_int_in_reg_to_sse_in_reg();
+
+    test_conversion_int_to_sse();
+
     test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();

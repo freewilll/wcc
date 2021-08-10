@@ -218,6 +218,28 @@ static void add_int_in_register_to_sse_in_register_move_rule(int dst, int src, c
             add_op(r, X_MOVC,  DST,  SRC1, 0, t2);
 }
 
+static void add_unsigned_long_to_sse_in_register_move_rule(int dst, char *convert_template, char *add_template) {
+    // The conversion happens by dividing by two, then converting to SSE, then multiplying by two.
+    // The or and and stuff is to ensure the intermediate number is rounded up to the nearest odd.
+    // This prevents an double rounding error.
+
+    Rule *r = add_rule(dst, IR_MOVE, RU4, 0, 1);
+    add_allocate_label_in_slot(r, 1);                               // Completion label
+    add_allocate_label_in_slot(r, 2);                               // Signed case
+    add_allocate_register_in_slot(r, 3, TYPE_LONG);                 // Temporary for unsigned case
+    add_op(r, X_TEST,  SRC1, SRC1,  0,    "testq %v1q, %v1q");
+    add_op(r, X_JZ,    0,    SV2,   0,    "js %v1");                // Jump if unsigned
+    add_op(r, X_MOVC,  DST,  SRC1,  0,    convert_template);        // Signed case
+    add_op(r, X_JMP,   0,    SV1,   0,    "jmp %v1");
+    add_op(r, X_MOVC,  SV3,  SRC1,  0,    ".L2:movq %v1q, %vdq");   // Unsigned case
+    add_op(r, X_SAR,   SV3,  SV3,   0,    "shrq %v1q");
+    add_op(r, X_BAND,  SRC1, SRC1,  0,    "andl $1, %v1l");
+    add_op(r, X_BOR,   SV3,  SV3,   SRC1, "orq %v1q, %v2q");
+    add_op(r, X_MOVC,  DST,  SRC1,  0,    convert_template);
+    add_op(r, X_ADD,   DST,  DST,   DST,  add_template);
+    add_op(r, X_MOVC,  DST,  DST,   0,    ".L1:");                  // Done
+}
+
 static void add_float_and_double_move_rules() {
     Rule *r ;
 
@@ -301,11 +323,13 @@ static void add_float_and_double_move_rules() {
     add_int_in_register_to_sse_in_register_move_rule(RS3, RU1, "movzbl %v1b, %vdl", "cvtsi2ssl %v1l, %vdF");
     add_int_in_register_to_sse_in_register_move_rule(RS3, RU2, "movzwl %v1w, %vdl", "cvtsi2ssl %v1l, %vdF");
     add_int_in_register_to_sse_in_register_move_rule(RS3, RU3, "movl   %v1l, %vdl", "cvtsi2ssq %v1q, %vdF");
-    // add_int_in_register_to_sse_in_register_move_rule(RS3, RU4, 0,                   "cvtsi2ssq %v1q, %vdF"); // fwip TODO
     add_int_in_register_to_sse_in_register_move_rule(RS4, RU1, "movzbl %v1b, %vdl", "cvtsi2sdl %v1l, %vdD");
     add_int_in_register_to_sse_in_register_move_rule(RS4, RU2, "movzwl %v1w, %vdl", "cvtsi2sdl %v1l, %vdD");
     add_int_in_register_to_sse_in_register_move_rule(RS4, RU3, "movl   %v1l, %vdl", "cvtsi2sdq %v1q, %vdD");
-    // add_int_in_register_to_sse_in_register_move_rule(RS4, RU4, 0,                   "cvtsi2sdq %v1q, %vdD"); // fwip TODO
+
+    // Unsigned long in register -> SSE in register
+    add_unsigned_long_to_sse_in_register_move_rule(RS3, "cvtsi2ssq %v1q, %vdF", "addss %vdF, %vdF");
+    add_unsigned_long_to_sse_in_register_move_rule(RS4, "cvtsi2sdq %v1q, %vdD", "addsd %vdD, %vdD");
 }
 
 static void add_long_double_move_rules()  {

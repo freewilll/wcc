@@ -1149,9 +1149,36 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             if (debug_instsel_tiling)
                 printf("  allocated vreg %d, type %d in slot %d\n", vreg, x86op->allocated_type, x86op->allocate_register_in_slot);
         }
+        else if (x86op->allocate_label_in_slot) {
+            Value *slot_value = new_value();
+            slot_value->label = ++label_count;
+
+            saved_values[x86op->allocate_label_in_slot] = slot_value;
+            if (debug_instsel_tiling)
+                printf("  allocated label %d, in slot %d\n", slot_value->label, x86op->allocate_label_in_slot);
+        }
         else {
             // Add a tac to the IR
-            Tac *tac = add_x86_instruction(x86op, x86_dst, x86_v1, x86_v2);
+
+            int label = 0;
+            X86Operation *x86op2 = x86op;
+            if (x86op->template && x86op->template[0] == '.' && x86op->template[1] == 'L') {
+                x86op2 = dup_x86_operation(x86op);
+                // If the template starts with ".Ln:", where n is a digit, load a label
+                // from slot n, use it in the instruction and rewrite the mnemonic
+                int slot = x86op2->template[2] - '0';
+                Value *v = load_value_from_slot(SV1 + slot - 1, "label");
+                label = v->label;
+
+                // Strip off the label
+                x86op2->template = &x86op2->template[4];
+
+                // Set the instruction to zero if there is only a label
+                if (x86op2->template[0] == 0) x86op2->template = 0;
+            }
+
+            Tac *tac = add_x86_instruction(x86op2, x86_dst, x86_v1, x86_v2);
+            tac->label = label;
             if (debug_instsel_tiling) print_instruction(stdout, tac, 0);
         }
 

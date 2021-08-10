@@ -836,6 +836,7 @@ typedef struct x86_operation {
     int save_value_in_slot;           // Slot number to save a value in
     int allocate_stack_index_in_slot; // Allocate a stack index and put in slot
     int allocate_register_in_slot;    // Allocate a register and put in slot
+    int allocate_label_in_slot;       // Allocate a label and put in slot
     int allocated_type;               // Type to use to determine the allocated stack size
     int arg;                          // The argument (src1 or src2) to load/save
     struct x86_operation *next;
@@ -855,6 +856,7 @@ void remove_stack_self_moves(Function *function);
 void add_spill_code(Function *function);
 
 // instrutil.c
+X86Operation *dup_x86_operation(X86Operation *operation);
 char size_to_x86_size(int size);
 char *non_terminal_string(int nt);
 void print_rule(Rule *r, int print_operations, int indent);
@@ -872,6 +874,7 @@ X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *temp
 void add_save_value(Rule *r, int arg, int slot);
 void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
 void add_allocate_register_in_slot(Rule *r, int slot, int type);
+void add_allocate_label_in_slot(Rule *r, int slot);
 void fin_rule(Rule *r);
 void check_for_duplicate_rules();
 void write_rule_coverage_file();
