@@ -78,6 +78,12 @@ void test_assignment() {
     gf1 = 7.0; assert_float( 7.0, gf1, "global float assignment");
     gd1 = 8.0; assert_double(8.0, gd1, "global double assignment");
 
+    // Register -> global
+    float f5  = 10.0; gf = f5; assert_float (gf, 10.0, "register -> memory float  -> float");
+    float f6  = 11.0; gd = f6; assert_double(gd, 11.0, "register -> memory float  -> double");
+    double d5 = 12.0; gf = d5; assert_float (gf, 12.0, "register -> memory double -> float");
+    double d6 = 13.0; gd = d6; assert_double(gd, 13.0, "register -> memory double -> double");
+
     #endif
 }
 
@@ -268,10 +274,10 @@ int test_conversion_int_to_sse() {
     d = (long)  -8; assert_float(-8.0, d, "long  in register to double in register");
 
     // Without high bit set
-    f = (unsigned char)  1; assert_float(1.0, f, "unsigned char  in register to float in register");
-    f = (unsigned short) 2; assert_float(2.0, f, "unsigned short in register to float in register");
-    f = (unsigned int)   3; assert_float(3.0, f, "unsigned int   in register to float in register");
-    f = (unsigned long)  4; assert_float(4.0, f, "unsigned long  in register to float in register");
+    f = (unsigned char)  1; assert_float(1.0, f, "unsigned char  in register to float  in register");
+    f = (unsigned short) 2; assert_float(2.0, f, "unsigned short in register to float  in register");
+    f = (unsigned int)   3; assert_float(3.0, f, "unsigned int   in register to float  in register");
+    f = (unsigned long)  4; assert_float(4.0, f, "unsigned long  in register to float  in register");
     d = (unsigned char)  5; assert_float(5.0, d, "unsigned char  in register to double in register");
     d = (unsigned short) 6; assert_float(6.0, d, "unsigned short in register to double in register");
     d = (unsigned int)   7; assert_float(7.0, d, "unsigned int   in register to double in register");
@@ -286,6 +292,36 @@ int test_conversion_int_to_sse() {
     d = (unsigned short) -1; assert_float(65535.0,                d, "unsigned short in register to double in register");
     d = (unsigned int)   -1; assert_float(4294967296.0,           d, "unsigned int   in register to double in register");
     d = (unsigned long)  -1; assert_float(18446744073709551616.0, d, "unsigned long  in register to double in register");
+
+    // Int in register to SSE in memory
+    gf = (char)  -1; assert_float(-1.0, gf, "char  in register to float  in memory");
+    gf = (short) -2; assert_float(-2.0, gf, "short in register to float  in memory");
+    gf = (int)   -3; assert_float(-3.0, gf, "int   in register to float  in memory");
+    gf = (long)  -4; assert_float(-4.0, gf, "long  in register to float  in memory");
+    gd = (char)  -5; assert_float(-5.0, gd, "char  in register to double in memory");
+    gd = (short) -6; assert_float(-6.0, gd, "short in register to double in memory");
+    gd = (int)   -7; assert_float(-7.0, gd, "int   in register to double in memory");
+    gd = (long)  -8; assert_float(-8.0, gd, "long  in register to double in memory");
+
+    // Int in memory to SSE in register
+    gc = -1; f = gc; assert_float(-1.0, f, "char  in memory to float  in memory");
+    gs = -2; f = gs; assert_float(-2.0, f, "short in memory to float  in memory");
+    gi = -3; f = gi; assert_float(-3.0, f, "int   in memory to float  in memory");
+    gl = -4; f = gl; assert_float(-4.0, f, "long  in memory to float  in memory");
+    gc = -5; d = gc; assert_float(-5.0, d, "char  in memory to double in memory");
+    gs = -6; d = gs; assert_float(-6.0, d, "short in memory to double in memory");
+    gi = -7; d = gi; assert_float(-7.0, d, "int   in memory to double in memory");
+    gl = -8; d = gl; assert_float(-8.0, d, "long  in memory to double in memory");
+
+    // Int in memory to SSE in memory
+    gc = -1; gf = gc; assert_float(-1.0, gf, "char  in memory to float  in memory");
+    gs = -2; gf = gs; assert_float(-2.0, gf, "short in memory to float  in memory");
+    gi = -3; gf = gi; assert_float(-3.0, gf, "int   in memory to float  in memory");
+    gl = -4; gf = gl; assert_float(-4.0, gf, "long  in memory to float  in memory");
+    gc = -5; gd = gc; assert_float(-5.0, gd, "char  in memory to double in memory");
+    gs = -6; gd = gs; assert_float(-6.0, gd, "short in memory to double in memory");
+    gi = -7; gd = gi; assert_float(-7.0, gd, "int   in memory to double in memory");
+    gl = -8; gd = gl; assert_float(-8.0, gd, "long  in memory to double in memory");
 
     #endif
 }
