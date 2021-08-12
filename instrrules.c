@@ -271,6 +271,14 @@ static void add_int_to_sse_operations(Rule *r, int dst, int src) {
 
 }
 
+static void add_long_double_to_sse_move_rule(int dst, char *t1, char *t2) {
+    Rule *r = add_rule(dst, IR_MOVE, MLD5, 0, 10);
+    add_allocate_stack_index_in_slot(r, 1, TYPE_FLOAT); // TYPE_FLOAT also works for double
+    add_op(r, X_MOV,  0, SRC1, 0, "fldt %v1L");
+    add_op(r, X_MOV,  SV1,  0, 0, t1);
+    add_op(r, X_MOV,  DST, SV1, 0, t2);
+}
+
 static void add_float_and_double_move_rules() {
     Rule *r ;
 
@@ -351,6 +359,10 @@ static void add_float_and_double_move_rules() {
             r = add_int_to_sse_move_rule(dst, src);
             add_int_to_sse_operations(r, dst, src);
         }
+
+    // Long double -> SSE
+    add_long_double_to_sse_move_rule(RS3, "fstps %vdL", "movss %v1F, %vdF");
+    add_long_double_to_sse_move_rule(RS4, "fstpl %vdL", "movsd %v1D, %vdD");
 }
 
 static void add_long_double_move_rules()  {

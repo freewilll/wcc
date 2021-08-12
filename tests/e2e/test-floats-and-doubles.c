@@ -257,7 +257,7 @@ int test_conversion_sse_to_long_double() {
     #endif
 }
 
-int test_conversion_int_to_sse() {
+void test_conversion_int_to_sse() {
     #ifdef FLOATS
 
     float f;
@@ -322,6 +322,24 @@ int test_conversion_int_to_sse() {
     gs = -6; gd = gs; assert_float(-6.0, gd, "short in memory to double in memory");
     gi = -7; gd = gi; assert_float(-7.0, gd, "int   in memory to double in memory");
     gl = -8; gd = gl; assert_float(-8.0, gd, "long  in memory to double in memory");
+
+    #endif
+}
+
+void test_conversion_long_double_to_sse() {
+    #ifdef FLOATS
+
+    long double ld;
+    float f;
+    double d;
+
+    // To register
+    ld = 1.1; f = ld; assert_float( 1.1, f, "long double to float  in register");
+    ld = 2.1; d = ld; assert_double(2.1, d, "long double to double in register");
+
+    // To memory
+    ld = 1.1; gf = ld; assert_float( 1.1, gf, "long double to float  in memory");
+    ld = 2.1; gd = ld; assert_double(2.1, gd, "long double to double in memory");
 
     #endif
 }
@@ -391,6 +409,7 @@ int main(int argc, char **argv) {
     test_conversion_sse_cst_to_long_double();
     test_conversion_sse_to_long_double();
     test_conversion_int_to_sse();
+    test_conversion_long_double_to_sse();
     test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();
