@@ -36,12 +36,6 @@ char *get_outcome(int dst, int src) {
     else return sized_outcomes[src_size - 1];
 }
 
-int skip(int dst, int src) {
-    if (!is_sse[src] && !is_sse[dst]) return 0;
-    if (is_sse[src]) return 0;
-    return 1;
-}
-
 int main() {
     void *f;
 
@@ -104,7 +98,6 @@ int main() {
 
     for (int src = 0; src < COUNT * 2; src++) // src
         for (int dst = 0; dst < COUNT * 2; dst++) { // dst
-            if (skip(dst, src)) continue; // fwip
             fprintf(f, "static void func_%s_to_%s() {\n", vars[src], vars[dst]);
             if (is_float[src])
                 fprintf(f, "    %s %s = -1.1;\n", types[src], vars[src]);
@@ -128,10 +121,8 @@ int main() {
 
     fprintf(f, "    #ifdef FLOATS\n");
     for (int src = 0; src < COUNT * 2; src++) // src
-        for (int dst = 0; dst < COUNT * 2; dst++)  { // dst
-            if (skip(dst, src)) continue; // fwip
+        for (int dst = 0; dst < COUNT * 2; dst++)   // dst
             fprintf(f, "    func_%s_to_%s();\n", vars[src], vars[dst]);
-        }
     fprintf(f, "    #endif\n");
 
     fprintf(f, "\n");
