@@ -10,13 +10,14 @@ int *sizes;
 int *is_signed;
 int *is_float;
 int *is_sse;
+int *is_ptr;
 char **format_str;
 char **asserts;
 char **sized_outcomes;
 
 enum {
     INTS = 8,
-    COUNT = 11,
+    COUNT = 22,
 };
 
 // What is the result of casting src -> dst -> unsigned long
@@ -36,6 +37,12 @@ char *get_outcome(int dst, int src) {
     else return sized_outcomes[src_size - 1];
 }
 
+int skip(int dst, int src) {
+    if (is_ptr[dst] && is_float[src]) return 1;
+    if (is_ptr[src] && is_float[dst]) return 1;
+    return 0;
+}
+
 int main() {
     void *f;
 
@@ -45,6 +52,7 @@ int main() {
     is_signed = malloc(sizeof(int) * COUNT * 2);
     is_float = malloc(sizeof(int) * COUNT * 2);
     is_sse = malloc(sizeof(int) * COUNT * 2);
+    is_ptr = malloc(sizeof(int) * COUNT * 2);
     format_str = malloc(sizeof(char *) * COUNT * 2);
     asserts = malloc(sizeof(char *) * COUNT * 2);
 
@@ -60,12 +68,27 @@ int main() {
     types[9]  = "double";         vars[9]  = "d";  is_float[9]  = 1; is_sse[9]  = 1;  format_str[9]  = "%f";  is_signed[9]  = 1; sizes[9]  = -1;  asserts[9]  = "assert_double";
     types[10] = "long double";    vars[10] = "ld"; is_float[10] = 1; is_sse[10] = 0;  format_str[10] = "%Lf"; is_signed[10] = 1; sizes[10] = -1;  asserts[10] = "assert_long_double";
 
+    types[11] = "char *";           vars[11] = "pc";  is_float[11]  = 0; is_sse[11]  = 0;  format_str[11]  = "%p"; is_signed[11]  = 0; sizes[11]  = 4;  asserts[11]  = "assert_long";
+    types[12] = "short *";          vars[12] = "ps";  is_float[12]  = 0; is_sse[12]  = 0;  format_str[12]  = "%p"; is_signed[12]  = 0; sizes[12]  = 4;  asserts[12]  = "assert_long";
+    types[13] = "int *";            vars[13] = "pi";  is_float[13]  = 0; is_sse[13]  = 0;  format_str[13]  = "%p"; is_signed[13]  = 0; sizes[13]  = 4;  asserts[13]  = "assert_long";
+    types[14] = "long *";           vars[14] = "pl";  is_float[14]  = 0; is_sse[14]  = 0;  format_str[14]  = "%p"; is_signed[14]  = 0; sizes[14]  = 4;  asserts[14]  = "assert_long";
+    types[15] = "unsigned char *";  vars[15] = "puc"; is_float[15]  = 0; is_sse[15]  = 0;  format_str[15]  = "%p"; is_signed[15]  = 0; sizes[15]  = 4;  asserts[15]  = "assert_long";
+    types[16] = "unsigned short *"; vars[16] = "pus"; is_float[16]  = 0; is_sse[16]  = 0;  format_str[16]  = "%p"; is_signed[16]  = 0; sizes[16]  = 4;  asserts[16]  = "assert_long";
+    types[17] = "unsigned int *";   vars[17] = "pui"; is_float[17]  = 0; is_sse[17]  = 0;  format_str[17]  = "%p"; is_signed[17]  = 0; sizes[17]  = 4;  asserts[17]  = "assert_long";
+    types[18] = "unsigned long *";  vars[18] = "pul"; is_float[18]  = 0; is_sse[18]  = 0;  format_str[18]  = "%p"; is_signed[18]  = 0; sizes[18]  = 4;  asserts[18]  = "assert_long";
+    types[19] = "float *";          vars[19] = "pf";  is_float[19]  = 0; is_sse[19]  = 0;  format_str[19]  = "%p"; is_signed[19]  = 0; sizes[19]  = 4;  asserts[19]  = "assert_long";
+    types[20] = "double *";         vars[20] = "pd";  is_float[20]  = 0; is_sse[20]  = 0;  format_str[20]  = "%p"; is_signed[20]  = 0; sizes[20]  = 4;  asserts[20]  = "assert_long";
+    types[21] = "long double *";    vars[21] = "pld"; is_float[21]  = 0; is_sse[21]  = 0;  format_str[21]  = "%p"; is_signed[21]  = 0; sizes[21]  = 4;  asserts[21]  = "assert_long";
+
+    for (int i = 0; i < COUNT; i++) is_ptr[i] = i >= 11;
+
     for (int i = 0; i < COUNT; i++) {
         types[i + COUNT] = types[i];
         sizes[i + COUNT] = sizes[i];
         is_signed[i + COUNT] = is_signed[i];
         is_float[i + COUNT] = is_float[i];
         is_sse[i + COUNT] = is_sse[i];
+        is_ptr[i + COUNT] = is_ptr[i];
         format_str[i + COUNT] = format_str[i];
         asserts[i + COUNT] = asserts[i];
         asprintf(&vars[i + COUNT], "g%s", vars[i]);
@@ -98,6 +121,7 @@ int main() {
 
     for (int src = 0; src < COUNT * 2; src++) // src
         for (int dst = 0; dst < COUNT * 2; dst++) { // dst
+            if (skip(dst, src)) continue;
             fprintf(f, "static void func_%s_to_%s() {\n", vars[src], vars[dst]);
             if (is_float[src])
                 fprintf(f, "    %s %s = -1.1;\n", types[src], vars[src]);
@@ -121,8 +145,10 @@ int main() {
 
     fprintf(f, "    #ifdef FLOATS\n");
     for (int src = 0; src < COUNT * 2; src++) // src
-        for (int dst = 0; dst < COUNT * 2; dst++)   // dst
+        for (int dst = 0; dst < COUNT * 2; dst++) { // dst
+            if (skip(dst, src)) continue;
             fprintf(f, "    func_%s_to_%s();\n", vars[src], vars[dst]);
+        }
     fprintf(f, "    #endif\n");
 
     fprintf(f, "\n");
