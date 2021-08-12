@@ -27,3 +27,4 @@ extern void perror(char *__s);
 extern int system(char *__command);
 extern char *getenv(char *__name);
 extern long double strtold(char* str, char** endptr);
+extern int atoi(char *str);
