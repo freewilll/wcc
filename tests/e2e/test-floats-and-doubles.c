@@ -395,6 +395,89 @@ void test_constants_in_function_calls() {
     assert_long_double(4.0l, 4.0l, "ld     -> long double");
 }
 
+void test_constant_arithmetic_combinations() {
+    #ifdef FLOATS
+
+    // Test all combinations of int, float, double and long double constant addition
+    assert_int        (2,   1    + 1,    "1    + 1,  ");
+    assert_float      (2.1, 1    + 1.1f, "1    + 1.1f");
+    assert_float      (2.1, 1    + 1.1,  "1    + 1.1,");
+    assert_long_double(2.1, 1    + 1.1l, "1    + 1.1l");
+    assert_float      (2.1, 1.1f + 1,    "1.1f + 1   ");
+    assert_float      (2.2, 1.1f + 1.1f, "1.1f + 1.1f");
+    assert_float      (2.2, 1.1f + 1.1,  "1.1f + 1.1,");
+    assert_long_double(2.2, 1.1f + 1.1l, "1.1f + 1.1l");
+    assert_float      (2.1, 1.1  + 1,    "1.1  + 1   ");
+    assert_float      (2.2, 1.1  + 1.1f, "1.1  + 1.1f");
+    assert_float      (2.2, 1.1  + 1.1,  "1.1  + 1.1,");
+    assert_long_double(2.2, 1.1  + 1.1l, "1.1  + 1.1l");
+    assert_long_double(2.1, 1.1l + 1,    "1.1l + 1   ");
+    assert_long_double(2.2, 1.1l + 1.1f, "1.1l + 1.1f");
+    assert_long_double(2.2, 1.1l + 1.1,  "1.1l + 1.1,");
+    assert_long_double(2.2, 1.1l + 1.1l, "1.1l + 1.1l");
+
+    #endif
+}
+
+void test_arithmetic() {
+    // These tests are complimented by the arithmetic torture tests
+
+    #ifdef FLOATS
+
+    int i;
+    float f1, f2, f3;
+    double d1, d2;
+    long double ld;
+
+    f1 = 1.1; d1 = 1.1;
+    f2 = 3.2; d2 = 1.1;
+    gf = 2.1; gd = 2.1;
+
+    // Unary -
+    assert_float(-1.2, -1.2L, "Float unary minus constant");
+    assert_float(-1.1, -f1,   "Float unary minus local");
+
+    // Some elaborate combinations for addition
+    assert_float(2.3, f1   + 1.2f, "Float addition local-constant");
+    assert_float(2.3, 1.2f + f1,   "Float addition constant-local");
+    assert_float(3.3, gf   + 1.2f, "Float addition global-constant");
+    assert_float(3.3, 1.2f + gf,   "Float addition constant-global");
+    assert_float(4.3, f1   + f2,   "Float addition local-local");
+    assert_float(3.2, f1   + gf,   "Float addition local-global");
+    assert_float(3.2, gf   + f1,   "Float addition global-local");
+    assert_float(4.2, gf   + gf,   "Float addition global-global");
+
+    // A local and global are equivalent in terms of backend so it suffices to only test with locals
+
+    // Subtraction
+    assert_float(-0.1, f1   - 1.2f, "Float subtraction local-constant");
+    assert_float(0.1,  1.2f - f1,   "Float subtraction constant-local");
+    assert_float(-2.1, f1   - f2,   "Float subtraction local-local");
+
+    // Multiplication
+    assert_float(1.32, f1   * 1.2f, "Float multiplication local-constant");
+    assert_float(1.32, 1.2f * f1,   "Float multiplication constant-local");
+    assert_float(3.52, f1   * f2,   "Float multiplication local-local");
+
+    // Division
+    f1 = 10.0L;
+    f2 = 20.0L;
+    assert_float(2.0, f1   / 5.0f, "Float division local-constant");
+    assert_float(0.5, 5.0f / f1,   "Float division constant-local");
+    assert_float(0.5, f1   / f2,   "Float division local-local");
+
+    // Combinations
+    f1 = 10.1L;
+    f2 = 0.50L;
+    f3 = 3.0L;
+    assert_float(1199.072144, -f1 * (f2 + f3) * (f1 + f2) * (f2 - f1) / f3, "Float combination");
+
+    assert_long_double(4.6l, 1 + 1.1f + 1.2 + 1.3l, "constant int + float + double + long double");
+    assert_double     (3.3,  1 + 1.1f + 1.2,        "constant int + float + double");
+
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -413,6 +496,8 @@ int main(int argc, char **argv) {
     test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();
+    test_constant_arithmetic_combinations();
+    test_arithmetic();
 
     finalize();
 }

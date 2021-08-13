@@ -83,7 +83,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
     }
 }
 
-void optimize_long_double_arithmetic_operation(Tac *tac) {
+void optimize_floating_point_arithmetic_operation(Tac *tac) {
     Value *v;
     Value *cv = 0;
     long double c;
@@ -129,11 +129,11 @@ void optimize_arithmetic_operations(Function *function) {
     if (!opt_optimize_arithmetic_operations) return;
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        int src1_type = tac->src1 && tac->src1->is_constant ? tac->src1->type->type : 0;
-        int src2_type = tac->src2 && tac->src2->is_constant ? tac->src2->type->type : 0;
+        Type *src1_type = tac->src1 && tac->src1->is_constant ? tac->src1->type : 0;
+        Type *src2_type = tac->src2 && tac->src2->is_constant ? tac->src2->type : 0;
 
-        if (src1_type == TYPE_LONG_DOUBLE || src2_type == TYPE_LONG_DOUBLE)
-            optimize_long_double_arithmetic_operation(tac);
+        if ((src1_type && is_floating_point_type(src1_type)) || (src2_type && is_floating_point_type(src2_type)))
+            optimize_floating_point_arithmetic_operation(tac);
         else
             optimize_integer_arithmetic_operation(tac);
     }

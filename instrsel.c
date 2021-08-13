@@ -554,9 +554,9 @@ static Value *merge_cst_int_node(IGraph *igraph, int node_id, long constant_valu
     return merge_cst_node(igraph, node_id, v);
 }
 
-static Value *merge_cst_fp_node(IGraph *igraph, int node_id, long double constant_value) {
+static Value *merge_cst_fp_node(IGraph *igraph, int node_id, Type *type, long double constant_value) {
     Value *v = new_value();
-    v->type = new_type(TYPE_LONG_DOUBLE);
+    v->type = dup_type(type);
     v->is_constant = 1;
     v->fp_value = constant_value;
     return merge_cst_node(igraph, node_id, v);
@@ -607,15 +607,15 @@ static Value* merge_integer_constants(IGraph *igraph, int node_id, int operation
 
 // Assert that both src1 and src2 are long doubles
 static void check_fp_src1_src2(Value *src1, Value *src2) {
-    if (src1->type->type != TYPE_LONG_DOUBLE || src2->type->type != TYPE_LONG_DOUBLE)
-        panic("Attempt to merge two long double constants when one of them is not a long double");
+    if (is_floating_point_type(src1->type) != is_floating_point_type(src2->type))
+        panic("Attempt to merge two floating point constants when one of them is not a floating point");
 }
 
-static Value* merge_long_double_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2) {
-         if (operation == IR_ADD) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value +  src2->fp_value); }
-    else if (operation == IR_SUB) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value -  src2->fp_value); }
-    else if (operation == IR_MUL) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value *  src2->fp_value); }
-    else if (operation == IR_DIV) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, src1->fp_value /  src2->fp_value); }
+static Value* merge_fp_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2, Type *type) {
+         if (operation == IR_ADD) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, type, src1->fp_value +  src2->fp_value); }
+    else if (operation == IR_SUB) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, type, src1->fp_value -  src2->fp_value); }
+    else if (operation == IR_MUL) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, type, src1->fp_value *  src2->fp_value); }
+    else if (operation == IR_DIV) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, type, src1->fp_value /  src2->fp_value); }
     else if (operation == IR_EQ ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value == src2->fp_value); }
     else if (operation == IR_NE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value != src2->fp_value); }
     else if (operation == IR_LT ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value <  src2->fp_value); }
@@ -654,8 +654,19 @@ static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     int cst2 = cst1 && (src2 && src2->is_constant);
     if (!src2 || !cst2) return 0;
 
+    Type *common_type;
     if (src1->type->type == TYPE_LONG_DOUBLE || src2->type->type == TYPE_LONG_DOUBLE)
-        return merge_long_double_constants(igraph, node_id, operation, src1, src2);
+        common_type = new_type(TYPE_LONG_DOUBLE);
+    else if (src1->type->type == TYPE_DOUBLE || src2->type->type == TYPE_DOUBLE)
+        common_type = new_type(TYPE_DOUBLE);
+    else if (src1->type->type == TYPE_FLOAT || src2->type->type == TYPE_FLOAT)
+        common_type = new_type(TYPE_FLOAT);
+    else
+        common_type = new_type(TYPE_LONG);
+
+    if (is_floating_point_type(src1->type) && is_floating_point_type(src2->type)) {
+        return merge_fp_constants(igraph, node_id, operation, src1, src2, common_type);
+    }
     else
         return merge_integer_constants(igraph, node_id, operation, src1, src2);
 }

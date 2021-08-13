@@ -992,6 +992,37 @@ static void add_long_double_operation_rules() {
     add_long_double_operation_rule(            IR_DIV, X_FDIV, 40, MLD5, CLD,  MLD5, lc, ll, fdiv, fstore);
 }
 
+static void add_sse_operation_rule(int operation, int x86_operation, int cost, int dst, int src1, int src2, char *mov_template, char *op_template) {
+    Rule *r;
+
+    r = add_rule(dst, operation, src1, src2, cost);
+    add_op(r, X_MOV,         DST, SRC1, 0,   mov_template);
+    add_op(r, x86_operation, DST, SRC2, DST, op_template);
+}
+
+// Add combinations for different storages (constant, register, memory) of SSE operands
+static void add_sse_operation_combination_rules(int operation, int x86_operation, int cost, int type, char *mov_template, char *op_template) {
+    add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, RS3 + type, RS3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, RS3 + type, CS3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, CS3 + type, RS3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, MS3 + type, MS3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, MS3 + type, CS3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, CS3 + type, MS3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, MS3 + type, RS3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, RS3 + type, MS3 + type, mov_template, op_template);
+}
+
+static void add_sse_operation_rules() {
+    add_sse_operation_combination_rules(IR_ADD, X_FADD, 15, 0, "movss %v1F, %vdF", "addss %v1F, %vdF");
+    add_sse_operation_combination_rules(IR_ADD, X_FADD, 15, 1, "movsd %v1D, %vdD", "addsd %v1D, %vdD");
+    add_sse_operation_combination_rules(IR_SUB, X_FSUB, 15, 0, "movss %v1F, %vdF", "subss %v1F, %vdF");
+    add_sse_operation_combination_rules(IR_SUB, X_FSUB, 15, 1, "movsd %v1D, %vdD", "subsd %v1D, %vdD");
+    add_sse_operation_combination_rules(IR_MUL, X_FMUL, 15, 0, "movss %v1F, %vdF", "mulss %v1F, %vdF");
+    add_sse_operation_combination_rules(IR_MUL, X_FMUL, 15, 1, "movsd %v1D, %vdD", "mulsd %v1D, %vdD");
+    add_sse_operation_combination_rules(IR_DIV, X_FDIV, 40, 0, "movss %v1F, %vdF", "divss %v1F, %vdF");
+    add_sse_operation_combination_rules(IR_DIV, X_FDIV, 40, 1, "movsd %v1D, %vdD", "divsd %v1D, %vdD");
+}
+
 static X86Operation *add_int_function_call_arg_op(Rule *r) {
     add_op(r, X_ARG, 0, SRC1, SRC2, "pushq %v2q");
 }
@@ -1235,8 +1266,8 @@ void init_instruction_selection_rules() {
     add_bnot_rules();
     add_binary_shift_rules();
 
-    // Long doubles
     add_long_double_operation_rules();
+    add_sse_operation_rules();
 
     if (ntc >= AUTO_NON_TERMINAL_END)
         panic2d("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);

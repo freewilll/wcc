@@ -13,6 +13,7 @@ WCC_TESTS=\
 	enums \
 	regressions \
 	arithmetic-types-move-torture \
+	arithmetic-torture \
 	ifdef \
 	long-doubles \
 	floats-and-doubles
@@ -31,6 +32,13 @@ test-%-wcc: test-%.s stack-check.o ../test-lib.o
 run-test-%-wcc: test-%-wcc
 	./$<
 	touch run-$<
+
+gen-test-arithmetic-torture: gen-test-arithmetic-torture.c
+	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-arithmetic-torture.c -o gen-test-arithmetic-torture
+
+test-arithmetic-torture.c: gen-test-arithmetic-torture
+	./gen-test-arithmetic-torture
+
 
 gen-test-arithmetic-types-move-torture: gen-test-arithmetic-types-move-torture.c
 	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-arithmetic-types-move-torture.c -o gen-test-arithmetic-types-move-torture
@@ -62,6 +70,8 @@ run-test-gcc: ${WCC_TESTS:%=run-test-%-gcc}
 clean:
 	@rm -f test-wcc
 	@rm -f test-wcc-*-wcc
+	@rm -f test-wcc-arithmetic-torture.c
+	@rm -f gen-test-arithmetic-torture
 	@rm -f test-wcc-arithmetic-types-move-torture.c
 	@rm -f gen-test-arithmetic-types-move-torture
 	@rm -f run-test-*

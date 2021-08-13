@@ -4,6 +4,8 @@ test-*-wcc
 test-*-gcc
 gen-test-arithmetic-types-move-torture
 test-arithmetic-types-move-torture.c
+gen-test-arithmetic-torture
+test-arithmetic-torture.c
 test-include/test-include
 wcc-tests.rulecov
 test-reg-move-torture.c

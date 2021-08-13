@@ -514,12 +514,24 @@ static Value *integer_promote(Value *v) {
         return integer_type_change(v, new_type(TYPE_INT));
 }
 
-// Convert a value to a long double. This can be a constant, integer, or long double value
+Value *convert_int_constant_to_floating_point(Value *v, Type *dst_type) {
+    Value *result = new_value();
+    result->type = dup_type(dst_type);
+    result->is_constant = 1;
+
+    if (v->type->is_unsigned)
+        result->fp_value = (unsigned long) v->int_value;
+    else
+        result->fp_value = v->int_value;
+
+    return result;
+}
+
+// Convert a value to a long double. This can be a constant, integer, SSE, or long double value
 static Value *long_double_type_change(Value *src) {
     Value *dst;
 
     if (src->type->type >= TYPE_PTR) panic("Unable to convert a pointer to a long double");
-
     if (src->type->type == TYPE_LONG_DOUBLE) return src;
 
     if (src->is_constant) {
@@ -532,10 +544,7 @@ static Value *long_double_type_change(Value *src) {
         }
 
         // Implicit else, src is an integer, convert to floating point value
-        dst = dup_value(src);
-        dst->type = new_type(TYPE_LONG_DOUBLE);
-        dst->fp_value = src->int_value;
-        return dst;
+        return convert_int_constant_to_floating_point(src, new_type(TYPE_LONG_DOUBLE));
     }
 
     // Add a move for the type change
@@ -543,6 +552,59 @@ static Value *long_double_type_change(Value *src) {
     dst->vreg = 0;
     dst->local_index = new_local_index();
     dst->type = new_type(TYPE_LONG_DOUBLE);
+    add_instruction(IR_MOVE, dst, src, 0);
+
+    return dst;
+}
+
+// Convert a value to a double. This can be a constant, integer or SSE value
+static Value *double_type_change(Value *src) {
+    Value *dst;
+
+    if (src->type->type >= TYPE_PTR) panic("Unable to convert a pointer to a double");
+    if (src->type->type == TYPE_LONG_DOUBLE) panic("Unexpectedly got a long double -> double conversion");
+    if (src->type->type == TYPE_DOUBLE) return src;
+
+    if (src->is_constant) {
+        if (src->type->type == TYPE_FLOAT) {
+            // Convert a float constant to long double
+            dst = dup_value(src);
+            dst->type = new_type(TYPE_DOUBLE);
+            return dst;
+        }
+
+        // Implicit else, src is an integer, convert to floating point value
+        return convert_int_constant_to_floating_point(src, new_type(TYPE_DOUBLE));
+    }
+
+    // Add a move for the type change
+    dst = dup_value(src);
+    dst->vreg = 0;
+    dst->local_index = new_local_index();
+    dst->type = new_type(TYPE_DOUBLE);
+    add_instruction(IR_MOVE, dst, src, 0);
+
+    return dst;
+}
+
+// Convert a value to a float. This can be a constant, integer or float
+static Value *float_type_change(Value *src) {
+    Value *dst;
+
+    if (src->type->type >= TYPE_PTR) panic("Unable to convert a pointer to a double");
+    if (src->type->type == TYPE_LONG_DOUBLE) panic("Unexpectedly got a long double -> float conversion");
+    if (src->type->type == TYPE_DOUBLE) panic("Unexpectedly got a double -> float conversion");
+    if (src->type->type == TYPE_FLOAT) return src;
+
+    if (src->is_constant)
+        // src is an integer, convert to floating point value
+        return convert_int_constant_to_floating_point(src, new_type(TYPE_FLOAT));
+
+    // Add a move for the type change
+    dst = dup_value(src);
+    dst->vreg = 0;
+    dst->local_index = new_local_index();
+    dst->type = new_type(TYPE_FLOAT);
     add_instruction(IR_MOVE, dst, src, 0);
 
     return dst;
@@ -567,6 +629,14 @@ static void arithmetic_operation(int operation, Type *type) {
     else if (common_type->type == TYPE_LONG_DOUBLE) {
         src1 = long_double_type_change(src1);
         src2 = long_double_type_change(src2);
+    }
+    else if (common_type->type == TYPE_DOUBLE) {
+        src1 = double_type_change(src1);
+        src2 = double_type_change(src2);
+    }
+    else if (common_type->type == TYPE_FLOAT) {
+        src1 = float_type_change(src1);
+        src2 = float_type_change(src2);
     }
 
     add_ir_op(operation, type, new_vreg(), src1, src2);
@@ -622,19 +692,8 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
                 src2->int_value = src->fp_value;
                 return src2;
             }
-            else if (src_is_int && (dst_is_sse || dst_is_ld)) {
-                // Convert int -> floating point
-                Value *src2 = new_value();
-                src2->type = dup_type(dst_type);
-                src2->is_constant = 1;
-
-                if (src->type->is_unsigned)
-                    src2->fp_value = (unsigned long) src->int_value;
-                else
-                    src2->fp_value = src->int_value;
-
-                return src2;
-            }
+            else if (src_is_int && (dst_is_sse || dst_is_ld))
+                return convert_int_constant_to_floating_point(src, dst_type);
             else if (src_is_sse && dst_is_sse && src->type->type != dst_type->type) {
                 // Convert float -> double or double -> float
                 Value *src2 = dup_value(src);
@@ -799,6 +858,10 @@ static void parse_expression(int level) {
 
             if (vtop->type->type == TYPE_LONG_DOUBLE)
                 push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
+            else if (vtop->type->type == TYPE_DOUBLE)
+                push_floating_point_constant(TYPE_DOUBLE, -1.0L);
+            else if (vtop->type->type == TYPE_FLOAT)
+                push_floating_point_constant(TYPE_FLOAT, -1.0L);
             else
                 push_integral_constant(TYPE_INT, -1);
 
