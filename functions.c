@@ -249,16 +249,22 @@ void add_function_param_moves(Function *function) {
 
     // Add moves for registers
     single_int_register_arg_count = 0;
+    single_sse_register_arg_count = 0;
     for (int i = 0; i < function->param_count; i++) {
         if (pushes[i]) continue;
 
         Type *type = function->param_types[i];
-        Tac *tac = make_param_move_tac(function, type, single_int_register_arg_count);
+        int is_sse = is_sse_floating_point_type(type);
+        int single_register_arg_count = is_sse ? single_sse_register_arg_count : single_int_register_arg_count;
+        Tac *tac = make_param_move_tac(function, type, single_register_arg_count);
         register_param_vregs[i] = tac->dst->vreg;
         tac->src1->vreg = ++function->vreg_count;
         insert_instruction(ir, tac, 1);
 
-        single_int_register_arg_count++;
+        if (is_sse)
+            single_sse_register_arg_count++;
+        else
+            single_int_register_arg_count++;
     }
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {

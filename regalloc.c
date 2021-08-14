@@ -123,7 +123,8 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
 
         if ((i < vreg && ig[i * vreg_count + vreg]) || ig[offset + i]) {
             int preg = vreg_locations[i].preg;
-            if (preg != -1) add_to_set(neighbor_colors, preg);
+            if (preg != -1)
+                add_to_set(neighbor_colors, preg);
         }
     }
 
@@ -158,7 +159,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
             for (int j = preg_live_range_start - 1; j < preg_live_range_end; j++) {
                 if (!in_set(neighbor_colors, j)) {
                     vreg_locations[vreg].preg = j;
-                    if (debug_graph_coloring) printf("  allocated %d to vreg %d\n", j, vreg);
+                    if (debug_graph_coloring) printf("  allocated preg %d to vreg %d\n", j, vreg);
                     return;
                 }
             }
@@ -299,7 +300,7 @@ void init_allocate_registers() {
 
     // Map SSE xmm0-xmm7 argument registers
     sse_arg_registers = malloc(sizeof(int) * 8);
-    for (int i = 0; i < 8; i++) sse_arg_registers[i]  = LIVE_RANGE_PREG_XMM00_INDEX + i;
+    for (int i = 0; i < 8; i++) sse_arg_registers[i] = LIVE_RANGE_PREG_XMM00_INDEX + i;
 
     // Map from reserved register 0-11 to physical register 0-15
     preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);

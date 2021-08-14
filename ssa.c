@@ -1161,7 +1161,22 @@ static void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
         else if (preg_reg_index == LIVE_RANGE_PREG_R13_INDEX) printf("r13");
         else if (preg_reg_index == LIVE_RANGE_PREG_R14_INDEX) printf("r14");
         else if (preg_reg_index == LIVE_RANGE_PREG_R15_INDEX) printf("r15");
-        else printf("Unknown pri %d", preg_reg_index);
+
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX     ) printf("xmm0");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 1 ) printf("xmm1");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 2 ) printf("xmm2");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 3 ) printf("xmm3");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 4 ) printf("xmm4");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 5 ) printf("xmm5");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 6 ) printf("xmm6");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 7 ) printf("xmm7");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 8 ) printf("xmm8");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 9 ) printf("xmm9");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 10) printf("xmm10");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 11) printf("xmm11");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 12) printf("xmm12");
+        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 13) printf("xmm13");
+        else printf("Unknown LR preg index %d", preg_reg_index);
 }
 
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
@@ -1177,16 +1192,20 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
             add_ig_edge(ig, vreg_count, preg_reg_index, i);
 
     // Add edges to all non reserved physical registers
-    int start = preg_class == PC_INT ? 0 : PHYSICAL_INT_REGISTER_COUNT;
+    int start = preg_class == PC_INT ? 1 : PHYSICAL_INT_REGISTER_COUNT + 1;
     int size = preg_class == PC_INT ? PHYSICAL_INT_REGISTER_COUNT : PHYSICAL_SSE_REGISTER_COUNT;
     for (int i = start; i < start + size; i++)
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
 static void force_function_call_arg_for_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class, int max, int *arg_registers) {
-    // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
-    // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
-    // register allocated to them.
+    // The first six integer parameters and first eight sse parameters in function calls
+    // are passed in reserved registers rsi, rdi, ... and xmm0, xmm1, ... They
+    // are moved into other registers at the start of the function. They are themselves
+    // vregs and must get the corresponding physical register allocated to them.
+
+    if (value && value->preg_class != preg_class) return;
+
     if (value && value->is_function_call_arg) {
         int arg = preg_class == PC_INT
             ? value->function_call_int_register_arg_index

@@ -323,6 +323,24 @@ void test_doubles_function_call(double d1, double d2, double d3, double d4, doub
     #endif
 }
 
+void test_cocktail_function_call1(int i, float f, double d, long double ld) {
+    #ifdef FLOATS
+    assert_int        (1, i,  "test_cocktail_function_call1 i");
+    assert_int        (2, f,  "test_cocktail_function_call1 f");
+    assert_int        (3, d,  "test_cocktail_function_call1 d");
+    assert_long_double(4, ld, "test_cocktail_function_call1 ld");
+    #endif
+}
+
+void test_cocktail_function_call2(long double ld, double d, float f, int i) {
+    #ifdef FLOATS
+    assert_long_double(1, ld, "test_cocktail_function_call1 ld");
+    assert_int        (2, d,  "test_cocktail_function_call1 d");
+    assert_int        (3, f,  "test_cocktail_function_call1 f");
+    assert_int        (4, i,  "test_cocktail_function_call1 i");
+    #endif
+}
+
 // Test combinations of integers, floats/doubles and long doubles as function arguments
 void test_float_double_params() {
     char *buffer;
@@ -407,6 +425,9 @@ void test_float_double_params() {
     // Constant pushed args
     test_floats_function_call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
     test_doubles_function_call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+    test_cocktail_function_call1(1, 2, 3, 4);
+    test_cocktail_function_call2(1, 2, 3, 4);
 
     #endif
 }

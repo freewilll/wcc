@@ -155,7 +155,7 @@ typedef struct value {
     Symbol *function_symbol;                  // Corresponding symbol in the case of a function call
     int is_function_call_arg;                 // Index of the argument going left to right (0=leftmost)
     int is_function_param;                    // Is it a function parameter?
-    int function_param_index;                 // Index of the parameter
+    int function_param_index;                 // Index of the int or sse parameter, 0=rdi, 1=rsi,... and 0=xmm0, 1=xmm1, ....
     int function_param_original_stack_index;  // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;              // Index of the argument (0=leftmost)
     int function_call_int_register_arg_index; // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.

@@ -419,15 +419,25 @@ void test_constant_arithmetic_combinations() {
     #endif
 }
 
+long double test_arithmetic_cocktail1(int i, float f, double d, long double ld) {
+    #ifdef FLOATS
+    return i * 1000 + f * 100 + d * 10 + ld;
+    #endif
+}
+
+long double test_arithmetic_cocktail2(int i, float f, double d, long double ld) {
+    #ifdef FLOATS
+    return i + f * 10 + d * 100 + ld * 1000;
+    #endif
+}
+
 void test_arithmetic() {
     // These tests are complimented by the arithmetic torture tests
 
     #ifdef FLOATS
 
-    int i;
     float f1, f2, f3;
     double d1, d2;
-    long double ld;
 
     f1 = 1.1; d1 = 1.1;
     f2 = 3.2; d2 = 1.1;
@@ -474,6 +484,9 @@ void test_arithmetic() {
 
     assert_long_double(4.6l, 1 + 1.1f + 1.2 + 1.3l, "constant int + float + double + long double");
     assert_double     (3.3,  1 + 1.1f + 1.2,        "constant int + float + double");
+
+    assert_long_double(1234.0, test_arithmetic_cocktail1(1, 2, 3, 4), "Arithmetic cocktail 1");
+    assert_long_double(4321.0, test_arithmetic_cocktail2(1, 2, 3, 4), "Arithmetic cocktail 2");
 
     #endif
 }
