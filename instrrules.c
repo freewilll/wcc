@@ -957,10 +957,10 @@ static void add_long_double_operation_rule(int operation, int x86_operation, int
     Rule *r;
 
     r = add_rule(dst, operation, src1, src2, cost);
-    add_op(r, X_MOVC, 0,    SRC2, 0, src2_template);
-    add_op(r, X_MOVC, 0,    SRC1, 0, src1_template);
-    add_op(r, X_FADD, 0,    0,    0, op_template);
-    add_op(r, X_MOVC, DST,  0,    0, dst_template);
+    add_op(r, X_MOVC,        0,    SRC2, 0, src2_template);
+    add_op(r, X_MOVC,        0,    SRC1, 0, src1_template);
+    add_op(r, x86_operation, 0,    0,    0, op_template);
+    add_op(r, X_MOVC,        DST,  0,    0, dst_template);
 }
 
 static void add_long_double_commutative_operation_rule(int operation, int x86_operation, int cost, int dst, int src1, int src2, char *src1_template, char *src2_template, char *op_template, char *dst_template) {
