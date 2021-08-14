@@ -419,6 +419,93 @@ void test_constant_arithmetic_combinations() {
     #endif
 }
 
+void test_constant_relops() {
+    #ifdef FLOATS
+
+    // Float vs int
+    assert_int(1, 1.0f == 1, "1.0f == 1");
+    assert_int(0, 1.0f != 1, "1.0f != 1");
+    assert_int(1, 1.0f <  2, "1.0f <  2");
+    assert_int(0, 2.0f <  1, "2.0f <  1");
+    assert_int(0, 1.0f >  2, "1.0f >  2");
+    assert_int(1, 2.0f >  1, "2.0f >  1");
+    assert_int(1, 1.0f <= 2, "1.0f <= 2");
+    assert_int(0, 2.0f <= 1, "2.0f <= 1");
+    assert_int(0, 1.0f >= 2, "1.0f >= 2");
+    assert_int(1, 2.0f >= 1, "2.0f >= 1");
+    assert_int(1, 1.0f <= 1, "1.0f <= 1");
+    assert_int(1, 1.0f <= 1, "1.0f <= 1");
+    assert_int(1, 1.0f >= 1, "1.0f >= 1");
+    assert_int(1, 1.0f >= 1, "1.0f >= 1");
+
+
+    // Floats vs float
+    assert_int(1, 1.0f == 1.0f, "1.0f == 1.0f");
+    assert_int(0, 1.0f != 1.0f, "1.0f != 1.0f");
+    assert_int(1, 1.0f <  2.0f, "1.0f <  2.0f");
+    assert_int(0, 2.0f <  1.0f, "2.0f <  1.0f");
+    assert_int(0, 1.0f >  2.0f, "1.0f >  2.0f");
+    assert_int(1, 2.0f >  1.0f, "2.0f >  1.0f");
+    assert_int(1, 1.0f <= 2.0f, "1.0f <= 2.0f");
+    assert_int(0, 2.0f <= 1.0f, "2.0f <= 1.0f");
+    assert_int(0, 1.0f >= 2.0f, "1.0f >= 2.0f");
+    assert_int(1, 2.0f >= 1.0f, "2.0f >= 1.0f");
+    assert_int(1, 1.0f <= 1.0f, "1.0f <= 1.0f");
+    assert_int(1, 1.0f <= 1.0f, "1.0f <= 1.0f");
+    assert_int(1, 1.0f >= 1.0f, "1.0f >= 1.0f");
+    assert_int(1, 1.0f >= 1.0f, "1.0f >= 1.0f");
+
+    // Double vs double
+    assert_int(1, 1.0 == 1.0, "1.0 == 1.0");
+    assert_int(0, 1.0 != 1.0, "1.0 != 1.0");
+    assert_int(1, 1.0 <  2.0, "1.0 <  2.0");
+    assert_int(0, 2.0 <  1.0, "2.0 <  1.0");
+    assert_int(0, 1.0 >  2.0, "1.0 >  2.0");
+    assert_int(1, 2.0 >  1.0, "2.0 >  1.0");
+    assert_int(1, 1.0 <= 2.0, "1.0 <= 2.0");
+    assert_int(0, 2.0 <= 1.0, "2.0 <= 1.0");
+    assert_int(0, 1.0 >= 2.0, "1.0 >= 2.0");
+    assert_int(1, 2.0 >= 1.0, "2.0 >= 1.0");
+    assert_int(1, 1.0 <= 1.0, "1.0 <= 1.0");
+    assert_int(1, 1.0 <= 1.0, "1.0 <= 1.0");
+    assert_int(1, 1.0 >= 1.0, "1.0 >= 1.0");
+    assert_int(1, 1.0 >= 1.0, "1.0 >= 1.0");
+
+    // Float vs double
+    assert_int(1, 1.0f == 1.0, "1.0f == 1.0");
+    assert_int(0, 1.0f != 1.0, "1.0f != 1.0");
+    assert_int(1, 1.0f <  2.0, "1.0f <  2.0");
+    assert_int(0, 2.0f <  1.0, "2.0f <  1.0");
+    assert_int(0, 1.0f >  2.0, "1.0f >  2.0");
+    assert_int(1, 2.0f >  1.0, "2.0f >  1.0");
+    assert_int(1, 1.0f <= 2.0, "1.0f <= 2.0");
+    assert_int(0, 2.0f <= 1.0, "2.0f <= 1.0");
+    assert_int(0, 1.0f >= 2.0, "1.0f >= 2.0");
+    assert_int(1, 2.0f >= 1.0, "2.0f >= 1.0");
+    assert_int(1, 1.0f <= 1.0, "1.0f <= 1.0");
+    assert_int(1, 1.0f <= 1.0, "1.0f <= 1.0");
+    assert_int(1, 1.0f >= 1.0, "1.0f >= 1.0");
+    assert_int(1, 1.0f >= 1.0, "1.0f >= 1.0");
+
+    // Float vs long double
+    assert_int(1, 1.0f == 1.0L, "1.0f == 1.0L");
+    assert_int(0, 1.0f != 1.0L, "1.0f != 1.0L");
+    assert_int(1, 1.0f <  2.0L, "1.0f <  2.0L");
+    assert_int(0, 2.0f <  1.0L, "2.0f <  1.0L");
+    assert_int(0, 1.0f >  2.0L, "1.0f >  2.0L");
+    assert_int(1, 2.0f >  1.0L, "2.0f >  1.0L");
+    assert_int(1, 1.0f <= 2.0L, "1.0f <= 2.0L");
+    assert_int(0, 2.0f <= 1.0L, "2.0f <= 1.0L");
+    assert_int(0, 1.0f >= 2.0L, "1.0f >= 2.0L");
+    assert_int(1, 2.0f >= 1.0L, "2.0f >= 1.0L");
+    assert_int(1, 1.0f <= 1.0L, "1.0f <= 1.0L");
+    assert_int(1, 1.0f <= 1.0L, "1.0f <= 1.0L");
+    assert_int(1, 1.0f >= 1.0L, "1.0f >= 1.0L");
+    assert_int(1, 1.0f >= 1.0L, "1.0f >= 1.0L");
+
+    #endif
+}
+
 long double test_arithmetic_cocktail1(int i, float f, double d, long double ld) {
     #ifdef FLOATS
     return i * 1000 + f * 100 + d * 10 + ld;
@@ -510,6 +597,7 @@ int main(int argc, char **argv) {
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();
     test_constant_arithmetic_combinations();
+    test_constant_relops();
     test_arithmetic();
 
     finalize();
