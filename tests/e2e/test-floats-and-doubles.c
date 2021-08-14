@@ -8,8 +8,8 @@ int verbose;
 int passes;
 int failures;
 
-float gf, gf1;
-double gd, gd1;
+float gf, gf1, gf2;
+double gd, gd1, gd2;
 
 char  gc;
 short gs;
@@ -578,6 +578,212 @@ void test_arithmetic() {
     #endif
 }
 
+void test_comparison_assignment() {
+    #ifdef FLOATS
+
+    int i;
+    float f1, f2;
+    double d1, d2;
+    long double ld;
+
+    // Register - register
+    f1 = 1.0; f2 = 1.0; assert_int(1, f1 == f2, "f1 1.0 == f2 1.0");
+    f1 = 1.0; f2 = 2.0; assert_int(0, f1 == f2, "f1 1.0 == f2 2.0");
+    f1 = 1.0; f2 = 1.0; assert_int(0, f1 != f2, "f1 1.0 != f2 1.0");
+    f1 = 1.0; f2 = 2.0; assert_int(1, f1 != f2, "f1 1.0 != f2 2.0");
+    f1 = 1.0; f2 = 1.0; assert_int(0, f1  < f2, "f1 1.0  < f2 1.0");
+    f1 = 1.0; f2 = 2.0; assert_int(1, f1  < f2, "f1 1.0  < f2 2.0");
+    f1 = 1.0; f2 = 1.0; assert_int(0, f1  > f2, "f1 1.0  > f2 1.0");
+    f1 = 1.0; f2 = 2.0; assert_int(0, f1  > f2, "f1 1.0  > f2 2.0");
+    f1 = 1.0; f2 = 1.0; assert_int(1, f1 <= f2, "f1 1.0 <= f2 1.0");
+    f1 = 1.0; f2 = 2.0; assert_int(1, f1 <= f2, "f1 1.0 <= f2 2.0");
+    f1 = 1.0; f2 = 1.0; assert_int(1, f1 >= f2, "f1 1.0 >= f2 1.0");
+    f1 = 1.0; f2 = 2.0; assert_int(0, f1 >= f2, "f1 1.0 >= f2 2.0");
+
+    d1 = 1.0; d2 = 1.0; assert_int(1, d1 == d2, "d1 1.0 == d2 1.0");
+    d1 = 1.0; d2 = 2.0; assert_int(0, d1 == d2, "d1 1.0 == d2 2.0");
+    d1 = 1.0; d2 = 1.0; assert_int(0, d1 != d2, "d1 1.0 != d2 1.0");
+    d1 = 1.0; d2 = 2.0; assert_int(1, d1 != d2, "d1 1.0 != d2 2.0");
+    d1 = 1.0; d2 = 1.0; assert_int(0, d1  < d2, "d1 1.0  < d2 1.0");
+    d1 = 1.0; d2 = 2.0; assert_int(1, d1  < d2, "d1 1.0  < d2 2.0");
+    d1 = 1.0; d2 = 1.0; assert_int(0, d1  > d2, "d1 1.0  > d2 1.0");
+    d1 = 1.0; d2 = 2.0; assert_int(0, d1  > d2, "d1 1.0  > d2 2.0");
+    d1 = 1.0; d2 = 1.0; assert_int(1, d1 <= d2, "d1 1.0 <= d2 1.0");
+    d1 = 1.0; d2 = 2.0; assert_int(1, d1 <= d2, "d1 1.0 <= d2 2.0");
+    d1 = 1.0; d2 = 1.0; assert_int(1, d1 >= d2, "d1 1.0 >= d2 1.0");
+    d1 = 1.0; d2 = 2.0; assert_int(0, d1 >= d2, "d1 1.0 >= d2 2.0");
+
+    // Constant - register
+    f2 = 1.0; assert_int(1, 1.0f == f2, "cst 1.0 == f2 1.0");
+    f2 = 2.0; assert_int(0, 1.0f == f2, "cst 1.0 == f2 2.0");
+    f2 = 1.0; assert_int(0, 1.0f != f2, "cst 1.0 != f2 1.0");
+    f2 = 2.0; assert_int(1, 1.0f != f2, "cst 1.0 != f2 2.0");
+    f2 = 1.0; assert_int(0, 1.0f  < f2, "cst 1.0  < f2 1.0");
+    f2 = 2.0; assert_int(1, 1.0f  < f2, "cst 1.0  < f2 2.0");
+    f2 = 1.0; assert_int(0, 1.0f  > f2, "cst 1.0  > f2 1.0");
+    f2 = 2.0; assert_int(0, 1.0f  > f2, "cst 1.0  > f2 2.0");
+    f2 = 1.0; assert_int(1, 1.0f <= f2, "cst 1.0 <= f2 1.0");
+    f2 = 2.0; assert_int(1, 1.0f <= f2, "cst 1.0 <= f2 2.0");
+    f2 = 1.0; assert_int(1, 1.0f >= f2, "cst 1.0 >= f2 1.0");
+    f2 = 2.0; assert_int(0, 1.0f >= f2, "cst 1.0 >= f2 2.0");
+
+    d2 = 1.0; assert_int(1, 1.0  == d2, "cst 1.0 == d2 1.0");
+    d2 = 2.0; assert_int(0, 1.0  == d2, "cst 1.0 == d2 2.0");
+    d2 = 1.0; assert_int(0, 1.0  != d2, "cst 1.0 != d2 1.0");
+    d2 = 2.0; assert_int(1, 1.0  != d2, "cst 1.0 != d2 2.0");
+    d2 = 1.0; assert_int(0, 1.0   < d2, "cst 1.0  < d2 1.0");
+    d2 = 2.0; assert_int(1, 1.0   < d2, "cst 1.0  < d2 2.0");
+    d2 = 1.0; assert_int(0, 1.0   > d2, "cst 1.0  > d2 1.0");
+    d2 = 2.0; assert_int(0, 1.0   > d2, "cst 1.0  > d2 2.0");
+    d2 = 1.0; assert_int(1, 1.0  <= d2, "cst 1.0 <= d2 1.0");
+    d2 = 2.0; assert_int(1, 1.0  <= d2, "cst 1.0 <= d2 2.0");
+    d2 = 1.0; assert_int(1, 1.0  >= d2, "cst 1.0 >= d2 1.0");
+    d2 = 2.0; assert_int(0, 1.0  >= d2, "cst 1.0 >= d2 2.0");
+
+    // Register - constant
+    f1 = 1.0; assert_int(1, f1 == 1.0f, "f1 1.0 == cst 1.0");
+    f1 = 1.0; assert_int(0, f1 == 2.0f, "f1 1.0 == cst 2.0");
+    f1 = 1.0; assert_int(0, f1 != 1.0f, "f1 1.0 != cst 1.0");
+    f1 = 1.0; assert_int(1, f1 != 2.0f, "f1 1.0 != cst 2.0");
+    f1 = 1.0; assert_int(0, f1  < 1.0f, "f1 1.0  < cst 1.0");
+    f1 = 1.0; assert_int(1, f1  < 2.0f, "f1 1.0  < cst 2.0");
+    f1 = 1.0; assert_int(0, f1  > 1.0f, "f1 1.0  > cst 1.0");
+    f1 = 1.0; assert_int(0, f1  > 2.0f, "f1 1.0  > cst 2.0");
+    f1 = 1.0; assert_int(1, f1 <= 1.0f, "f1 1.0 <= cst 1.0");
+    f1 = 1.0; assert_int(1, f1 <= 2.0f, "f1 1.0 <= cst 2.0");
+    f1 = 1.0; assert_int(1, f1 >= 1.0f, "f1 1.0 >= cst 1.0");
+    f1 = 1.0; assert_int(0, f1 >= 2.0f, "f1 1.0 >= cst 2.0");
+
+    d1 = 1.0; assert_int(1, d1 == 1.0, "d1 1.0 == cst 1.0");
+    d1 = 1.0; assert_int(0, d1 == 2.0, "d1 1.0 == cst 2.0");
+    d1 = 1.0; assert_int(0, d1 != 1.0, "d1 1.0 != cst 1.0");
+    d1 = 1.0; assert_int(1, d1 != 2.0, "d1 1.0 != cst 2.0");
+    d1 = 1.0; assert_int(0, d1  < 1.0, "d1 1.0  < cst 1.0");
+    d1 = 1.0; assert_int(1, d1  < 2.0, "d1 1.0  < cst 2.0");
+    d1 = 1.0; assert_int(0, d1  > 1.0, "d1 1.0  > cst 1.0");
+    d1 = 1.0; assert_int(0, d1  > 2.0, "d1 1.0  > cst 2.0");
+    d1 = 1.0; assert_int(1, d1 <= 1.0, "d1 1.0 <= cst 1.0");
+    d1 = 1.0; assert_int(1, d1 <= 2.0, "d1 1.0 <= cst 2.0");
+    d1 = 1.0; assert_int(1, d1 >= 1.0, "d1 1.0 >= cst 1.0");
+    d1 = 1.0; assert_int(0, d1 >= 2.0, "d1 1.0 >= cst 2.0");
+
+    // Constant - global
+    gf2 = 1.0; assert_int(1, 1.0f == gf2, "cst 1.0 == gf2 1.0");
+    gf2 = 2.0; assert_int(0, 1.0f == gf2, "cst 1.0 == gf2 2.0");
+    gf2 = 1.0; assert_int(0, 1.0f != gf2, "cst 1.0 != gf2 1.0");
+    gf2 = 2.0; assert_int(1, 1.0f != gf2, "cst 1.0 != gf2 2.0");
+    gf2 = 1.0; assert_int(0, 1.0f  < gf2, "cst 1.0  < gf2 1.0");
+    gf2 = 2.0; assert_int(1, 1.0f  < gf2, "cst 1.0  < gf2 2.0");
+    gf2 = 1.0; assert_int(0, 1.0f  > gf2, "cst 1.0  > gf2 1.0");
+    gf2 = 2.0; assert_int(0, 1.0f  > gf2, "cst 1.0  > gf2 2.0");
+    gf2 = 1.0; assert_int(1, 1.0f <= gf2, "cst 1.0 <= gf2 1.0");
+    gf2 = 2.0; assert_int(1, 1.0f <= gf2, "cst 1.0 <= gf2 2.0");
+    gf2 = 1.0; assert_int(1, 1.0f >= gf2, "cst 1.0 >= gf2 1.0");
+    gf2 = 2.0; assert_int(0, 1.0f >= gf2, "cst 1.0 >= gf2 2.0");
+
+    gd2 = 1.0; assert_int(1, 1.0  == gd2, "cst 1.0 == gd2 1.0");
+    gd2 = 2.0; assert_int(0, 1.0  == gd2, "cst 1.0 == gd2 2.0");
+    gd2 = 1.0; assert_int(0, 1.0  != gd2, "cst 1.0 != gd2 1.0");
+    gd2 = 2.0; assert_int(1, 1.0  != gd2, "cst 1.0 != gd2 2.0");
+    gd2 = 1.0; assert_int(0, 1.0   < gd2, "cst 1.0  < gd2 1.0");
+    gd2 = 2.0; assert_int(1, 1.0   < gd2, "cst 1.0  < gd2 2.0");
+    gd2 = 1.0; assert_int(0, 1.0   > gd2, "cst 1.0  > gd2 1.0");
+    gd2 = 2.0; assert_int(0, 1.0   > gd2, "cst 1.0  > gd2 2.0");
+    gd2 = 1.0; assert_int(1, 1.0  <= gd2, "cst 1.0 <= gd2 1.0");
+    gd2 = 2.0; assert_int(1, 1.0  <= gd2, "cst 1.0 <= gd2 2.0");
+    gd2 = 1.0; assert_int(1, 1.0  >= gd2, "cst 1.0 >= gd2 1.0");
+    gd2 = 2.0; assert_int(0, 1.0  >= gd2, "cst 1.0 >= gd2 2.0");
+
+    // Global - constant
+    gf1 = 1.0; assert_int(1, gf1 == 1.0f, "gf1 1.0 == cst 1.0");
+    gf1 = 1.0; assert_int(0, gf1 == 2.0f, "gf1 1.0 == cst 2.0");
+    gf1 = 1.0; assert_int(0, gf1 != 1.0f, "gf1 1.0 != cst 1.0");
+    gf1 = 1.0; assert_int(1, gf1 != 2.0f, "gf1 1.0 != cst 2.0");
+    gf1 = 1.0; assert_int(0, gf1  < 1.0f, "gf1 1.0  < cst 1.0");
+    gf1 = 1.0; assert_int(1, gf1  < 2.0f, "gf1 1.0  < cst 2.0");
+    gf1 = 1.0; assert_int(0, gf1  > 1.0f, "gf1 1.0  > cst 1.0");
+    gf1 = 1.0; assert_int(0, gf1  > 2.0f, "gf1 1.0  > cst 2.0");
+    gf1 = 1.0; assert_int(1, gf1 <= 1.0f, "gf1 1.0 <= cst 1.0");
+    gf1 = 1.0; assert_int(1, gf1 <= 2.0f, "gf1 1.0 <= cst 2.0");
+    gf1 = 1.0; assert_int(1, gf1 >= 1.0f, "gf1 1.0 >= cst 1.0");
+    gf1 = 1.0; assert_int(0, gf1 >= 2.0f, "gf1 1.0 >= cst 2.0");
+
+    gd1 = 1.0; assert_int(1, gd1 == 1.0, "gd1 1.0 == cst 1.0");
+    gd1 = 1.0; assert_int(0, gd1 == 2.0, "gd1 1.0 == cst 2.0");
+    gd1 = 1.0; assert_int(0, gd1 != 1.0, "gd1 1.0 != cst 1.0");
+    gd1 = 1.0; assert_int(1, gd1 != 2.0, "gd1 1.0 != cst 2.0");
+    gd1 = 1.0; assert_int(0, gd1  < 1.0, "gd1 1.0  < cst 1.0");
+    gd1 = 1.0; assert_int(1, gd1  < 2.0, "gd1 1.0  < cst 2.0");
+    gd1 = 1.0; assert_int(0, gd1  > 1.0, "gd1 1.0  > cst 1.0");
+    gd1 = 1.0; assert_int(0, gd1  > 2.0, "gd1 1.0  > cst 2.0");
+    gd1 = 1.0; assert_int(1, gd1 <= 1.0, "gd1 1.0 <= cst 1.0");
+    gd1 = 1.0; assert_int(1, gd1 <= 2.0, "gd1 1.0 <= cst 2.0");
+    gd1 = 1.0; assert_int(1, gd1 >= 1.0, "gd1 1.0 >= cst 1.0");
+    gd1 = 1.0; assert_int(0, gd1 >= 2.0, "gd1 1.0 >= cst 2.0");
+
+    // Global - global
+    gf1 = 1.0; gf2 = 1.0; assert_int(1, gf1 == gf2, "gf1 1.0 == gf2 1.0");
+    gf1 = 1.0; gf2 = 2.0; assert_int(0, gf1 == gf2, "gf1 1.0 == gf2 2.0");
+    gf1 = 1.0; gf2 = 1.0; assert_int(0, gf1 != gf2, "gf1 1.0 != gf2 1.0");
+    gf1 = 1.0; gf2 = 2.0; assert_int(1, gf1 != gf2, "gf1 1.0 != gf2 2.0");
+    gf1 = 1.0; gf2 = 1.0; assert_int(0, gf1  < gf2, "gf1 1.0  < gf2 1.0");
+    gf1 = 1.0; gf2 = 2.0; assert_int(1, gf1  < gf2, "gf1 1.0  < gf2 2.0");
+    gf1 = 1.0; gf2 = 1.0; assert_int(0, gf1  > gf2, "gf1 1.0  > gf2 1.0");
+    gf1 = 1.0; gf2 = 2.0; assert_int(0, gf1  > gf2, "gf1 1.0  > gf2 2.0");
+    gf1 = 1.0; gf2 = 1.0; assert_int(1, gf1 <= gf2, "gf1 1.0 <= gf2 1.0");
+    gf1 = 1.0; gf2 = 2.0; assert_int(1, gf1 <= gf2, "gf1 1.0 <= gf2 2.0");
+    gf1 = 1.0; gf2 = 1.0; assert_int(1, gf1 >= gf2, "gf1 1.0 >= gf2 1.0");
+    gf1 = 1.0; gf2 = 2.0; assert_int(0, gf1 >= gf2, "gf1 1.0 >= gf2 2.0");
+
+    gd1 = 1.0; gd2 = 1.0; assert_int(1, gd1 == gd2, "gd1 1.0 == gd2 1.0");
+    gd1 = 1.0; gd2 = 2.0; assert_int(0, gd1 == gd2, "gd1 1.0 == gd2 2.0");
+    gd1 = 1.0; gd2 = 1.0; assert_int(0, gd1 != gd2, "gd1 1.0 != gd2 1.0");
+    gd1 = 1.0; gd2 = 2.0; assert_int(1, gd1 != gd2, "gd1 1.0 != gd2 2.0");
+    gd1 = 1.0; gd2 = 1.0; assert_int(0, gd1  < gd2, "gd1 1.0  < gd2 1.0");
+    gd1 = 1.0; gd2 = 2.0; assert_int(1, gd1  < gd2, "gd1 1.0  < gd2 2.0");
+    gd1 = 1.0; gd2 = 1.0; assert_int(0, gd1  > gd2, "gd1 1.0  > gd2 1.0");
+    gd1 = 1.0; gd2 = 2.0; assert_int(0, gd1  > gd2, "gd1 1.0  > gd2 2.0");
+    gd1 = 1.0; gd2 = 1.0; assert_int(1, gd1 <= gd2, "gd1 1.0 <= gd2 1.0");
+    gd1 = 1.0; gd2 = 2.0; assert_int(1, gd1 <= gd2, "gd1 1.0 <= gd2 2.0");
+    gd1 = 1.0; gd2 = 1.0; assert_int(1, gd1 >= gd2, "gd1 1.0 >= gd2 1.0");
+    gd1 = 1.0; gd2 = 2.0; assert_int(0, gd1 >= gd2, "gd1 1.0 >= gd2 2.0");
+
+    // Ternary
+    f1 = 1.0;
+    f2 = 2.0;
+    assert_int(2, f1 < f2 ? 2 : 3, "1.0 < 2.0 ternary true");
+    assert_int(3, f2 < f1 ? 2 : 3, "1.0 < 2.0 ternary false");
+
+    // Some crazy nan tests
+    float nan1, nan2;
+    *((int *) &nan1) = -1;
+    *((int *) &nan2) = -1;
+
+    assert_int(0, nan1 == nan2, "nan-nan equality");
+    assert_int(1, nan1 != nan2, "nan-nan inequality");
+
+    // If one of the operands is a nan, then the comparison must return false
+    assert_int(0, nan1 <  nan2, "nan1 < nan2");
+    assert_int(0, nan1 >  nan2, "nan1 > nan2");
+    assert_int(0, nan1 <= nan2, "nan1 <= nan2");
+    assert_int(0, nan1 >= nan2, "nan1 >= nan2");
+    assert_int(0, 0.0  <  nan1, "0.0 < nan1");
+    assert_int(0, 0.0  >  nan1, "0.0 > nan1");
+    assert_int(0, 0.0  >= nan1, "0.0 >= nan1");
+    assert_int(0, 0.0  <= nan1, "0.0 <= nan1");
+    assert_int(0, nan1 <  0.0,  "nan1 < 0.0");
+    assert_int(0, nan1 >  0.0,  "nan1 > 0.0");
+    assert_int(0, nan1 >= 0.0,  "nan1 >=0.0");
+    assert_int(0, nan1 <= 0.0,  "nan1 <=0.0");
+
+    // Combinations of types
+    i = 1; f1 = 2.0; assert_int(1, i < f1, "i < f1");
+    f1 = 1; d1 = 2.0; assert_int(1, f1 < d1, "f1 < d1");
+    d1 = 1; ld = 2.0; assert_int(1, d1 < ld, "d1 < ld");
+
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -599,6 +805,7 @@ int main(int argc, char **argv) {
     test_constant_arithmetic_combinations();
     test_constant_relops();
     test_arithmetic();
+    test_comparison_assignment();
 
     finalize();
 }

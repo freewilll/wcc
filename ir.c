@@ -248,6 +248,7 @@ char *operation_string(int operation) {
     else if (operation == X_IDIV)                   return "idiv";
     else if (operation == X_CQTO)                   return "cqto";
     else if (operation == X_CMP)                    return "cmp";
+    else if (operation == X_COMIS)                  return "comis";
     else if (operation == X_TEST)                   return "test";
     else if (operation == X_CMPZ)                   return "cmpz";
     else if (operation == X_JMP)                    return "jmp";
@@ -265,6 +266,8 @@ char *operation_string(int operation) {
     else if (operation == X_JAE)                    return "jae";
     else if (operation == X_SETE)                   return "sete";
     else if (operation == X_SETNE)                  return "setne";
+    else if (operation == X_SETP)                   return "setp";
+    else if (operation == X_SETNP)                  return "setnp";
     else if (operation == X_SETLT)                  return "setlt";
     else if (operation == X_SETGT)                  return "setgt";
     else if (operation == X_SETLE)                  return "setle";

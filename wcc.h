@@ -780,6 +780,7 @@ enum {
 
     X_CMP,
     X_CMPZ,
+    X_COMIS,
     X_TEST,
     X_JZ,
     X_JNZ,
@@ -800,6 +801,9 @@ enum {
 
     X_SETE,
     X_SETNE,
+
+    X_SETP,
+    X_SETNP,
 
     X_SETLT,
     X_SETGT,

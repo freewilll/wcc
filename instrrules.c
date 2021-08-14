@@ -708,7 +708,7 @@ static void add_int_comp_assignment_rules(int is_unsigned, int src1, int src2, c
     }
 }
 
-static void add_fp_comparison_instructions(Rule *r, int src1, int src2, char *src1_template, char *src2_template, char *template, int src1_first) {
+static void add_long_double_comparison_instructions(Rule *r, int src1, int src2, char *src1_template, char *src2_template, char *template, int src1_first) {
     if (src1_first) {
         add_op(r, X_MOVC, 0, SRC1, 0, src1_template);
         add_op(r, X_MOVC, 0, SRC2, 0, src2_template);
@@ -722,48 +722,163 @@ static void add_fp_comparison_instructions(Rule *r, int src1, int src2, char *sr
     add_op(r, X_MOVC, 0, 0, 0, "fstp %%st(0)");
 }
 
-static void add_fp_comp_assignment_rule(int src1, int src2, char *src1_template, char *src2_template, int operation, int set_operation, char *set_template, int src1_first) {
+static void add_long_double_comp_assignment_rule(int src1, int src2, char *src1_template, char *src2_template, int operation, int set_operation, char *set_template, int src1_first) {
     // Comparison operators always return an int
     Rule *r = add_rule(RI3, operation, src1, src2, 15);
-    add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st", src1_first);
+    add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st", src1_first);
     add_op(r, set_operation, DST, 0,    0, set_template);
     add_op(r, X_MOVZ,        DST, DST,  0, "movzbl %v1b, %v1l");
 }
 
-static void add_fp_comp_cond_jmp_rule(int *ntc, int src1, int src2, char *src1_template, char *src2_template, int operation, int x86op1, char *t1, int x86op2, char *t2, int src1_first) {
+static void add_long_double_comp_cond_jmp_rule(int *ntc, int src1, int src2, char *src1_template, char *src2_template, int operation, int x86op1, char *t1, int x86op2, char *t2, int src1_first) {
     Rule *r;
 
     (*ntc)++;
     r = add_rule(*ntc, operation, src1, src2, 15);
-    add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st", src1_first);
+    add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st", src1_first);
     r = add_rule(0, IR_JNZ, *ntc, LAB, 1); add_op(r, x86op1, 0, SRC2, 0, t1); fin_rule(r);
     r = add_rule(0, IR_JZ,  *ntc, LAB, 1); add_op(r, x86op2, 0, SRC2, 0, t2); fin_rule(r);
 }
 
 // Comparison and assignment/jump rules for floating point numbers
-static void add_fp_comp_rules(int *ntc, int src1, int src2, char *src1_template, char *src2_template) {
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LT, X_SETA,  "seta %vdb", 1);
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GT, X_SETA,  "seta %vdb", 0);
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LE, X_SETAE, "setae %vdb", 1);
-    add_fp_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GE, X_SETAE, "setae %vdb", 0);
+static void add_long_double_comp_rules(int *ntc, int src1, int src2, char *src1_template, char *src2_template) {
+    add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LT, X_SETA,  "seta %vdb", 1);
+    add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GT, X_SETA,  "seta %vdb", 0);
+    add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LE, X_SETAE, "setae %vdb", 1);
+    add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GE, X_SETAE, "setae %vdb", 0);
 
     // == and != comparison assignments
     // No rules are added for conditional jumps, for simplicty.
     for (int i = 0; i < 2; i++) {
         // Inspired by the code that gcc generates
         Rule *r = add_rule(RI3, i == 0 ? IR_EQ : IR_NE, src1, src2, 15);
-        add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
+        add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
         add_op(r, X_CMP, DST, 0, 0, i == 0 ? "setnp %vdb" : "setp %vdb");
         add_op(r, X_LD_EQ_CMP, 0, 0, 0,  i == 0 ? "movl $0, %%edx" : "movl $1, %%edx");
-        add_fp_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
+        add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
         add_op(r, X_MOVC, DST, 0, 0, "cmovne %%edx, %vdl");
         add_op(r, X_MOVZ, DST, 0, 0, "movzbl %vdb, %vdl");
     }
 
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LT, X_JA,  "ja %v1" , X_JAE, "jbe %v1", 1);
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GT, X_JA,  "ja %v1",  X_JBE, "jbe %v1", 0);
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LE, X_JAE, "jae %v1", X_JA,  "jb %v1", 1);
-    add_fp_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GE, X_JAE, "jae %v1", X_JB,  "jb %v1", 0);
+    add_long_double_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LT, X_JA,  "ja %v1" , X_JAE, "jbe %v1", 1);
+    add_long_double_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GT, X_JA,  "ja %v1",  X_JBE, "jbe %v1", 0);
+    add_long_double_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_LE, X_JAE, "jae %v1", X_JA,  "jb %v1", 1);
+    add_long_double_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GE, X_JAE, "jae %v1", X_JB,  "jb %v1", 0);
+}
+
+static void add_sse_comp_assignment_operations(Rule *r, int src1, int src2, int operation, char *cmp_template, char *set_template) {
+    add_op(r, X_COMIS, 0,   src1, src2, cmp_template);
+    add_op(r, X_SETA,  DST, 0,    0,    set_template);
+    add_op(r, X_MOVZ,  DST, DST,  0,    "movzbl %v1b, %vdl");
+}
+
+static void add_sse_comp_assignment_rule(int src1, int src2, int operation, char *cmp_template, char *set_template) {
+    Rule *r = add_rule(RI3, operation, src1, src2, 15);
+    add_sse_comp_assignment_operations(r, SRC1, SRC2, operation, cmp_template, set_template);
+}
+
+static void add_sse_comp_assignment_memory_rule(int src1, int src2, int operation, char *mov_template, char *cmp_template, char *set_template) {
+    Rule *r = add_rule(RI3, operation, src1, src2, 20);
+
+    // Load the second operand into a register in slot 2
+    add_allocate_register_in_slot(r, 2, TYPE_FLOAT);
+    add_op(r, X_MOVC,  SV2, SRC2, 0, mov_template);
+    add_sse_comp_assignment_operations(r, SRC1, SV2, operation, cmp_template, set_template);
+}
+
+static void add_sse_eq_ne_assignment_operations(Rule *eq_rule, Rule *ne_rule, int src1, int src2, char *cmp_template) {
+    add_allocate_register_in_slot(eq_rule, 1, TYPE_CHAR);
+    add_op(eq_rule, X_COMIS, 0,   src1, src2, cmp_template);
+    add_op(eq_rule, X_SETE,  DST, 0,    0,    "sete %vdb");
+    add_op(eq_rule, X_SETNP, SV1, 0,    0,    "setnp %vdb");
+    add_op(eq_rule, X_BAND,  DST, SV1,  DST,  "andb %v1b, %vdb");
+    add_op(eq_rule, X_BAND,  DST, 0,    DST,  "andb $1, %vdb");
+    add_op(eq_rule, X_MOVZ,  DST, DST,  0,    "movzbl %v1b, %vdl");
+
+    add_allocate_register_in_slot(ne_rule, 1, TYPE_CHAR);
+    add_op(ne_rule, X_COMIS, 0,   src1, src2, cmp_template);
+    add_op(ne_rule, X_SETNE, DST, 0,    0,    "setne %vdb");
+    add_op(ne_rule, X_SETP,  SV1, 0,    0,    "setp %vdb");
+    add_op(ne_rule, X_BOR,   DST, SV1,  DST,  "orb %v1b, %vdb");
+    add_op(ne_rule, X_BAND,  DST, 0,    DST,  "andb $1, %vdb");
+    add_op(ne_rule, X_MOVZ,  DST, DST,  0,    "movzbl %v1b, %vdl");
+}
+
+static void add_sse_eq_ne_assignment_rule(int src1, int src2, char *cmp_template) {
+    Rule *eq_rule = add_rule(RI3, IR_EQ, src1, src2, 20);
+    Rule *ne_rule = add_rule(RI3, IR_NE, src1, src2, 20);
+    add_sse_eq_ne_assignment_operations(eq_rule, ne_rule, SRC1, SRC2, cmp_template);
+}
+
+static void add_sse_eq_ne_assignment_memory_rule(int src1, int src2, char *mov_template, char *cmp_template) {
+    Rule *eq_rule = add_rule(RI3, IR_EQ, src1, src2, 20);
+    Rule *ne_rule = add_rule(RI3, IR_NE, src1, src2, 20);
+
+    // Load the second operand into a register in slot 2
+    add_allocate_register_in_slot(eq_rule, 2, TYPE_FLOAT);
+    add_op(eq_rule, X_MOVC, SV2, SRC2, 0, mov_template);
+
+    add_allocate_register_in_slot(ne_rule, 2, TYPE_DOUBLE);
+    add_op(ne_rule, X_MOVC, SV2, SRC2, 0, mov_template);
+
+    add_sse_eq_ne_assignment_operations(eq_rule, ne_rule, SRC1, SV2, cmp_template);
+}
+
+static void add_sse_eq_ne_assignment_memory_rules(int dst, int src, char size1, char size2) {
+    char *ucomiss, *comiss, *mov;
+    asprintf(&ucomiss, "ucomis%c %%v1%c, %%v2%c", size2, size1, size1);
+    asprintf(&comiss, "comis%c %%v1%c, %%v2%c", size2, size1, size1);
+    asprintf(&mov, "movs%c %%v1%c, %%vd%c", size2, size1, size1);
+
+    // Note: G[TE] rules are missing & covered by leaf register loads
+    add_sse_eq_ne_assignment_memory_rule(dst, src,        mov, ucomiss);
+    add_sse_comp_assignment_memory_rule (dst, src, IR_LT, mov, comiss, "seta %vdb");
+    add_sse_comp_assignment_memory_rule (dst, src, IR_LE, mov, comiss, "setnb %vdb");
+}
+
+static void add_sse_comp_assignment_rules() {
+    // To be compatible with gcc, only setnb and seta are allowed. This is necessary
+    // for nan handling to work correctly. Some of the memory/memory rules are missing
+    // since they require both operands to be loaded into a register. They are
+    // loaded at the leaves and covered by the register/register rules.
+
+    // Register - register
+    add_sse_eq_ne_assignment_rule(RS3, RS3,        "ucomiss %v1F, %v2F");
+    add_sse_eq_ne_assignment_rule(RS4, RS4,        "ucomisd %v1D, %v2D");
+    add_sse_comp_assignment_rule (RS3, RS3, IR_LT, "comiss %v1F, %v2F", "seta %vdb");
+    add_sse_comp_assignment_rule (RS3, RS3, IR_GT, "comiss %v2F, %v1F", "seta %vdb");
+    add_sse_comp_assignment_rule (RS3, RS3, IR_LE, "comiss %v1F, %v2F", "setnb %vdb");
+    add_sse_comp_assignment_rule (RS3, RS3, IR_GE, "comiss %v2F, %v1F", "setnb %vdb");
+    add_sse_comp_assignment_rule (RS4, RS4, IR_LT, "comisd %v1D, %v2D", "seta %vdb");
+    add_sse_comp_assignment_rule (RS4, RS4, IR_GT, "comisd %v2D, %v1D", "seta %vdb");
+    add_sse_comp_assignment_rule (RS4, RS4, IR_LE, "comisd %v1D, %v2D", "setnb %vdb");
+    add_sse_comp_assignment_rule (RS4, RS4, IR_GE, "comisd %v2D, %v1D", "setnb %vdb");
+
+    // Constant - register
+    // Note: G[TE] rules are missing & covered by leaf register loads
+    add_sse_eq_ne_assignment_rule(CS3, RS3,        "ucomiss %v1F, %v2F");
+    add_sse_eq_ne_assignment_rule(CS4, RS4,        "ucomisd %v1D, %v2D");
+    add_sse_comp_assignment_rule (CS3, RS3, IR_LT, "comiss %v1F, %v2F", "seta %vdb");
+    add_sse_comp_assignment_rule (CS3, RS3, IR_LE, "comiss %v1F, %v2F", "setnb %vdb");
+    add_sse_comp_assignment_rule (CS4, RS4, IR_LT, "comisd %v1D, %v2D", "seta %vdb");
+    add_sse_comp_assignment_rule (CS4, RS4, IR_LE, "comisd %v1D, %v2D", "setnb %vdb");
+
+    // Register - constant
+    // Note: L[TE] rules are missing & covered by leaf register loads
+    add_sse_eq_ne_assignment_rule(RS3, CS3,        "ucomiss %v2F, %v1F");
+    add_sse_eq_ne_assignment_rule(RS4, CS4,        "ucomisd %v2D, %v1D");
+    add_sse_comp_assignment_rule (RS3, CS3, IR_GT, "comiss %v2F, %v1F", "seta %vdb");
+    add_sse_comp_assignment_rule (RS3, CS3, IR_GE, "comiss %v2F, %v1F", "setnb %vdb");
+    add_sse_comp_assignment_rule (RS4, CS4, IR_GT, "comisd %v2D, %v1D", "seta %vdb");
+    add_sse_comp_assignment_rule (RS4, CS4, IR_GE, "comisd %v2D, %v1D", "setnb %vdb");
+
+    // Memory - memory
+    add_sse_eq_ne_assignment_memory_rules(CS3, MS3, 'F', 's');
+    add_sse_eq_ne_assignment_memory_rules(CS4, MS4, 'D', 'd');
+    add_sse_eq_ne_assignment_memory_rules(MS3, CS3, 'F', 's');
+    add_sse_eq_ne_assignment_memory_rules(MS4, CS4, 'D', 'd');
+    add_sse_eq_ne_assignment_memory_rules(MS3, MS3, 'F', 's');
+    add_sse_eq_ne_assignment_memory_rules(MS4, MS4, 'D', 'd');
 }
 
 static void add_commutative_operation_rule(int operation, int x86_mov_operation, int x86_operation, int dst, int src1, int src2, int cost, char *mov_template, char *op_template) {
@@ -1078,6 +1193,12 @@ void init_instruction_selection_rules() {
 
     r = add_rule(XRP, 0,  MI4,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, 0,  MU4,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+
+    r = add_rule(RS3, 0,  CS3,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movss %v1F, %vdF");
+    r = add_rule(RS4, 0,  CS4,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movsd %v1D, %vdD");
+    r = add_rule(RS3, 0,  MS3,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movss %v1F, %vdF");
+    r = add_rule(RS4, 0,  MS4,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movsd %v1D, %vdD");
+
     r = add_rule(RP5, 0,  MRP5, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RP1, 0,  STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
 
@@ -1249,9 +1370,9 @@ void init_instruction_selection_rules() {
     add_int_comp_assignment_rules(0, MI3, CI3, "cmpl $%v2, %v1l"); add_int_comp_assignment_rules(1, MU3, CU3, "cmpl $%v2, %v1l");
     add_int_comp_assignment_rules(0, MI4, CI3, "cmpq $%v2, %v1q"); add_int_comp_assignment_rules(1, MU4, CU3, "cmpq $%v2, %v1q");
 
-    add_fp_comp_rules(&ntc, MLD5, MLD5, ll, ll);
-    add_fp_comp_rules(&ntc, MLD5, CLD,  ll, lc);
-    add_fp_comp_rules(&ntc, CLD,  MLD5, lc, ll);
+    add_long_double_comp_rules(&ntc, MLD5, MLD5, ll, ll);
+    add_long_double_comp_rules(&ntc, MLD5, CLD,  ll, lc);
+    add_long_double_comp_rules(&ntc, CLD,  MLD5, lc, ll);
 
     // Operations
     add_commutative_operation_rules("add%s",  IR_ADD,  X_ADD,  10);
@@ -1268,6 +1389,7 @@ void init_instruction_selection_rules() {
 
     add_long_double_operation_rules();
     add_sse_operation_rules();
+    add_sse_comp_assignment_rules();
 
     if (ntc >= AUTO_NON_TERMINAL_END)
         panic2d("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
