@@ -640,13 +640,13 @@ void allocate_value_vregs(Function *function) {
     function->vreg_count = vreg_count;
 }
 
-// IR_JZ and IR_JNZ aren't implemented in the backend for long doubles.
+// IR_JZ and IR_JNZ aren't implemented in the backend for SSE & long doubles.
 // Convert:
 // - IR_JZ  => IR_EQ with 0.0 & IR_JNZ
 // - IR_JNZ => IR_NE with 0.0 & IR_JNZ
 void convert_long_doubles_jz_and_jnz(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && ir->src1->type->type == TYPE_LONG_DOUBLE) {
+        if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
             ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
             Tac *tac = malloc(sizeof(Tac));
             memset(tac, 0, sizeof(Tac));
@@ -656,7 +656,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
             ir->dst->vreg = new_vreg();
             tac->src1 = ir->dst;
             tac->src2 = ir->src2;
-            ir->src2 = new_floating_point_constant(TYPE_LONG_DOUBLE, 0.0L);
+            ir->src2 = new_floating_point_constant(ir->src1->type->type, 0.0L);
             ir = insert_instruction_after(ir, tac);
         }
     }

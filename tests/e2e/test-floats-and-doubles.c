@@ -852,6 +852,40 @@ void test_comparison_conditional_jump() {
     #endif
 }
 
+void test_jz_jnz() {
+    #ifdef FLOATS
+
+    int i;
+
+    float fzero = 0.0f;
+    float fone = 1.0f;
+
+    float fnan;
+    *((int *) &fnan) = -1;
+
+    i = 1; assert_int(0, fzero && i++, "float zero && 1 result"); assert_int(1, i, "float zero && 1 i");
+    i = 1; assert_int(1, fzero || i++, "float zero || 0 result"); assert_int(2, i, "float zero || 0 i");
+    i = 1; assert_int(1, fone  && i++, "float one  && 1 result"); assert_int(2, i, "float one  && 1 i");
+    i = 1; assert_int(1, fone  || i++, "float one  || 0 result"); assert_int(1, i, "float one  || 0 i");
+    i = 1; assert_int(1, fnan  && i++, "float nan  && 1 result"); assert_int(2, i, "float nan  && 1 i");
+    i = 1; assert_int(1, fnan  || i++, "float nan  || 0 result"); assert_int(1, i, "float nan  || 0 i");
+
+    double dzero = 0.0;
+    double done = 1.0;
+
+    double dnan;
+    *((long *) &dnan) = -1;
+
+    i = 1; assert_int(0, dzero && i++, "double zero && 1 result"); assert_int(1, i, "double zero && 1 i");
+    i = 1; assert_int(1, dzero || i++, "double zero || 0 result"); assert_int(2, i, "double zero || 0 i");
+    i = 1; assert_int(1, done  && i++, "double one  && 1 result"); assert_int(2, i, "double one  && 1 i");
+    i = 1; assert_int(1, done  || i++, "double one  || 0 result"); assert_int(1, i, "double one  || 0 i");
+    i = 1; assert_int(1, dnan  && i++, "double nan  && 1 result"); assert_int(2, i, "double nan  && 1 i");
+    i = 1; assert_int(1, dnan  || i++, "double nan  || 0 result"); assert_int(1, i, "double nan  || 0 i");
+
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -875,6 +909,7 @@ int main(int argc, char **argv) {
     test_arithmetic();
     test_comparison_assignment();
     test_comparison_conditional_jump();
+    test_jz_jnz();
 
     finalize();
 }
