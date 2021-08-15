@@ -271,19 +271,6 @@ void test_pointers() {
     pld  = malloc(sizeof(long double)); *pld  = 5.1L; assert_ld_string(*pld,  "5.10000", "*pld from malloc");
     gpld = malloc(sizeof(long double)); *gpld = 6.1L; assert_ld_string(*gpld, "6.10000", "*gpld from malloc");
 
-    // Increment/decrement
-    ld = 1.1; gld = 1.1;
-    assert_ld_string(ld++,  "1.10000", "ld++ 1");
-    assert_ld_string(gld++, "1.10000", "gld++ 1");
-    assert_ld_string(ld,    "2.10000", "ld++ 2");
-    assert_ld_string(gld,   "2.10000", "gld++ 2");
-
-    ld = 1.1; gld = 1.1;
-    assert_ld_string(++ld,  "2.10000", "ld++ 1");
-    assert_ld_string(++gld, "2.10000", "gld++ 1");
-    assert_ld_string(ld,    "2.10000", "ld++ 2");
-    assert_ld_string(gld,   "2.10000", "gld++ 2");
-
     long double *pld3 = malloc(sizeof(long double));
     *pld = 1.1;
     *pld2 = 1.2;
@@ -367,6 +354,12 @@ void test_inc_dec() {
     --ld; assert_ld_string(ld, "1.00000", "Long double prefix --");
     ld++; assert_ld_string(ld, "2.00000", "Long double postfix ++");
     ld--; assert_ld_string(ld, "1.00000", "Long double postfix --");
+
+    gld = 1.0;
+    ++gld; assert_ld_string(gld, "2.00000", "Global long double prefix ++");
+    --gld; assert_ld_string(gld, "1.00000", "Global long double prefix --");
+    gld++; assert_ld_string(gld, "2.00000", "Global long double postfix ++");
+    gld--; assert_ld_string(gld, "1.00000", "Global long double postfix --");
 }
 
 long double return_ld_from_int_constant () {
