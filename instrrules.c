@@ -766,15 +766,23 @@ static void add_long_double_comp_rules(int *ntc, int src1, int src2, char *src1_
     add_long_double_comp_cond_jmp_rule(ntc, src1, src2, src1_template, src2_template, IR_GE, X_JAE, "jae %v1", X_JB,  "jb %v1", 0);
 }
 
-static void add_sse_comp_assignment_operations(Rule *r, int src1, int src2, int operation, char *cmp_template, char *set_template) {
-    add_op(r, X_COMIS, 0,   src1, src2, cmp_template);
-    add_op(r, X_SETA,  DST, 0,    0,    set_template);
-    add_op(r, X_MOVZ,  DST, DST,  0,    "movzbl %v1b, %vdl");
+static void add_sse_comp_assignment_operations(Rule *r, int src1, int src2, int operation, char *set_template) {
+    add_op(r, X_SETA, DST, 0,   0, set_template);
+    add_op(r, X_MOVZ, DST, DST, 0, "movzbl %v1b, %vdl");
 }
 
-static void add_sse_comp_assignment_rule(int src1, int src2, int operation, char *cmp_template, char *set_template) {
+static void add_sse_comp_rule(int *ntc, int src1, int src2, int operation, char *cmp_template, char *set_template, int x86op1, char *t1, int x86op2, char *t2) {
+    // Add assignment rule
     Rule *r = add_rule(RI3, operation, src1, src2, 15);
-    add_sse_comp_assignment_operations(r, SRC1, SRC2, operation, cmp_template, set_template);
+    add_op(r, X_COMIS, 0, SRC1, SRC2, cmp_template);
+    add_sse_comp_assignment_operations(r, SRC1, SRC2, operation, set_template);
+
+    // Add conditional jump rule
+    (*ntc)++;
+    r = add_rule(*ntc, operation, src1, src2, 14);
+    add_op(r, X_COMIS, 0, SRC1, SRC2, cmp_template);
+    r = add_rule(0, IR_JNZ, *ntc, LAB, 1); add_op(r, x86op1, 0, SRC2, 0, t1);
+    r = add_rule(0, IR_JZ,  *ntc, LAB, 1); add_op(r, x86op2, 0, SRC2, 0, t2);
 }
 
 static void add_sse_comp_assignment_memory_rule(int src1, int src2, int operation, char *mov_template, char *cmp_template, char *set_template) {
@@ -783,7 +791,8 @@ static void add_sse_comp_assignment_memory_rule(int src1, int src2, int operatio
     // Load the second operand into a register in slot 2
     add_allocate_register_in_slot(r, 2, TYPE_FLOAT);
     add_op(r, X_MOVC,  SV2, SRC2, 0, mov_template);
-    add_sse_comp_assignment_operations(r, SRC1, SV2, operation, cmp_template, set_template);
+    add_op(r, X_COMIS, 0, SV2, SRC2, cmp_template);
+    add_sse_comp_assignment_operations(r, SRC1, SV2, operation, set_template);
 }
 
 static void add_sse_eq_ne_assignment_operations(Rule *eq_rule, Rule *ne_rule, int src1, int src2, char *cmp_template) {
@@ -836,41 +845,41 @@ static void add_sse_eq_ne_assignment_memory_rules(int dst, int src, char size1, 
     add_sse_comp_assignment_memory_rule (dst, src, IR_LE, mov, comiss, "setnb %vdb");
 }
 
-static void add_sse_comp_assignment_rules() {
+static void add_sse_comp_assignment_rules(int *ntc) {
     // To be compatible with gcc, only setnb and seta are allowed. This is necessary
     // for nan handling to work correctly. Some of the memory/memory rules are missing
     // since they require both operands to be loaded into a register. They are
     // loaded at the leaves and covered by the register/register rules.
 
     // Register - register
-    add_sse_eq_ne_assignment_rule(RS3, RS3,        "ucomiss %v1F, %v2F");
-    add_sse_eq_ne_assignment_rule(RS4, RS4,        "ucomisd %v1D, %v2D");
-    add_sse_comp_assignment_rule (RS3, RS3, IR_LT, "comiss %v1F, %v2F", "seta %vdb");
-    add_sse_comp_assignment_rule (RS3, RS3, IR_GT, "comiss %v2F, %v1F", "seta %vdb");
-    add_sse_comp_assignment_rule (RS3, RS3, IR_LE, "comiss %v1F, %v2F", "setnb %vdb");
-    add_sse_comp_assignment_rule (RS3, RS3, IR_GE, "comiss %v2F, %v1F", "setnb %vdb");
-    add_sse_comp_assignment_rule (RS4, RS4, IR_LT, "comisd %v1D, %v2D", "seta %vdb");
-    add_sse_comp_assignment_rule (RS4, RS4, IR_GT, "comisd %v2D, %v1D", "seta %vdb");
-    add_sse_comp_assignment_rule (RS4, RS4, IR_LE, "comisd %v1D, %v2D", "setnb %vdb");
-    add_sse_comp_assignment_rule (RS4, RS4, IR_GE, "comisd %v2D, %v1D", "setnb %vdb");
+    add_sse_eq_ne_assignment_rule(RS3, RS3, "ucomiss %v1F, %v2F");
+    add_sse_eq_ne_assignment_rule(RS4, RS4, "ucomisd %v1D, %v2D");
+    add_sse_comp_rule(ntc, RS3, RS3, IR_LT, "comiss %v1F, %v2F", "seta %vdb",  X_JA,  "ja %v1" , X_JAE, "jna %v1");
+    add_sse_comp_rule(ntc, RS3, RS3, IR_GT, "comiss %v2F, %v1F", "seta %vdb",  X_JA,  "ja %v1",  X_JBE, "jna %v1");
+    add_sse_comp_rule(ntc, RS3, RS3, IR_LE, "comiss %v1F, %v2F", "setnb %vdb", X_JAE, "jnb %v1", X_JA,  "jb %v1");
+    add_sse_comp_rule(ntc, RS3, RS3, IR_GE, "comiss %v2F, %v1F", "setnb %vdb", X_JAE, "jnb %v1", X_JA,  "jb %v1");
+    add_sse_comp_rule(ntc, RS4, RS4, IR_LT, "comisd %v1D, %v2D", "seta %vdb",  X_JA,  "ja %v1" , X_JAE, "jna %v1");
+    add_sse_comp_rule(ntc, RS4, RS4, IR_GT, "comisd %v2D, %v1D", "seta %vdb",  X_JA,  "ja %v1",  X_JBE, "jna %v1");
+    add_sse_comp_rule(ntc, RS4, RS4, IR_LE, "comisd %v1D, %v2D", "setnb %vdb", X_JAE, "jnb %v1", X_JA,  "jb %v1");
+    add_sse_comp_rule(ntc, RS4, RS4, IR_GE, "comisd %v2D, %v1D", "setnb %vdb", X_JAE, "jnb %v1", X_JA,  "jb %v1");
 
     // Constant - register
     // Note: G[TE] rules are missing & covered by leaf register loads
-    add_sse_eq_ne_assignment_rule(CS3, RS3,        "ucomiss %v1F, %v2F");
-    add_sse_eq_ne_assignment_rule(CS4, RS4,        "ucomisd %v1D, %v2D");
-    add_sse_comp_assignment_rule (CS3, RS3, IR_LT, "comiss %v1F, %v2F", "seta %vdb");
-    add_sse_comp_assignment_rule (CS3, RS3, IR_LE, "comiss %v1F, %v2F", "setnb %vdb");
-    add_sse_comp_assignment_rule (CS4, RS4, IR_LT, "comisd %v1D, %v2D", "seta %vdb");
-    add_sse_comp_assignment_rule (CS4, RS4, IR_LE, "comisd %v1D, %v2D", "setnb %vdb");
+    add_sse_eq_ne_assignment_rule(CS3, RS3, "ucomiss %v1F, %v2F");
+    add_sse_eq_ne_assignment_rule(CS4, RS4, "ucomisd %v1D, %v2D");
+    add_sse_comp_rule(ntc, CS3, RS3, IR_LT, "comiss %v1F, %v2F", "seta %vdb",  X_JA,  "ja %v1" , X_JAE, "jna %v1");
+    add_sse_comp_rule(ntc, CS3, RS3, IR_LE, "comiss %v1F, %v2F", "setnb %vdb", X_JAE, "jnb %v1", X_JA,  "jb %v1");
+    add_sse_comp_rule(ntc, CS4, RS4, IR_LT, "comisd %v1D, %v2D", "seta %vdb",  X_JA,  "ja %v1" , X_JAE, "jna %v1");
+    add_sse_comp_rule(ntc, CS4, RS4, IR_LE, "comisd %v1D, %v2D", "setnb %vdb", X_JAE, "jnb %v1", X_JA,  "jb %v1");
 
     // Register - constant
     // Note: L[TE] rules are missing & covered by leaf register loads
-    add_sse_eq_ne_assignment_rule(RS3, CS3,        "ucomiss %v2F, %v1F");
-    add_sse_eq_ne_assignment_rule(RS4, CS4,        "ucomisd %v2D, %v1D");
-    add_sse_comp_assignment_rule (RS3, CS3, IR_GT, "comiss %v2F, %v1F", "seta %vdb");
-    add_sse_comp_assignment_rule (RS3, CS3, IR_GE, "comiss %v2F, %v1F", "setnb %vdb");
-    add_sse_comp_assignment_rule (RS4, CS4, IR_GT, "comisd %v2D, %v1D", "seta %vdb");
-    add_sse_comp_assignment_rule (RS4, CS4, IR_GE, "comisd %v2D, %v1D", "setnb %vdb");
+    add_sse_eq_ne_assignment_rule(RS3, CS3, "ucomiss %v2F, %v1F");
+    add_sse_eq_ne_assignment_rule(RS4, CS4, "ucomisd %v2D, %v1D");
+    add_sse_comp_rule(ntc, RS3, CS3, IR_GT, "comiss %v2F, %v1F", "seta %vdb",  X_JA,  "ja %v1" , X_JAE, "jna %v1");
+    add_sse_comp_rule(ntc, RS3, CS3, IR_GE, "comiss %v2F, %v1F", "setnb %vdb", X_JAE, "jnb %v1", X_JA,  "jb %v1");
+    add_sse_comp_rule(ntc, RS4, CS4, IR_GT, "comisd %v2D, %v1D", "seta %vdb",  X_JA,  "ja %v1" , X_JAE, "jna %v1");
+    add_sse_comp_rule(ntc, RS4, CS4, IR_GE, "comisd %v2D, %v1D", "setnb %vdb", X_JAE, "jnb %v1", X_JA,  "jb %v1");
 
     // Memory - memory
     add_sse_eq_ne_assignment_memory_rules(CS3, MS3, 'F', 's');
@@ -1389,7 +1398,7 @@ void init_instruction_selection_rules() {
 
     add_long_double_operation_rules();
     add_sse_operation_rules();
-    add_sse_comp_assignment_rules();
+    add_sse_comp_assignment_rules(&ntc);
 
     if (ntc >= AUTO_NON_TERMINAL_END)
         panic2d("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
