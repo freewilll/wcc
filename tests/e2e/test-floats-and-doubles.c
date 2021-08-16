@@ -8,8 +8,8 @@ int verbose;
 int passes;
 int failures;
 
-float gf, gf1, gf2;
-double gd, gd1, gd2;
+float gf, gf1, gf2, *gpf;
+double gd, gd1, gd2, *gpd;
 
 char  gc;
 short gs;
@@ -886,6 +886,115 @@ void test_jz_jnz() {
     #endif
 }
 
+void test_pointers() {
+    #ifdef FLOATS
+
+    float f, *pf;
+    double d, *pd;
+    char *buffer = malloc(100);
+
+    f = 1.1;
+    d = 2.1;
+
+    // Make a nan, for the hell of it
+    *((int *) &f) = -1;
+    sprintf(buffer, "%f", f);
+    assert_int(0, strcmp(buffer, "-nan"), "-nan");
+
+    f = 1.1;
+    gf = 2.1;
+    d = 3.1;
+    gd = 4.1;
+
+    // Local pointer to local
+    pf = &f; pd = &d;
+    assert_float (1.1f, *pf,     "Local -> local float deref");
+    assert_float (2.1f, *pf + 1, "Local -> local float deref + 1");
+    assert_double(3.1f, *pd,     "Local -> local double deref");
+    assert_double(4.1f, *pd + 1, "Local -> local double deref + 1");
+
+    // Local pointer to global
+    pf = &gf; pd = &gd;
+    assert_float (2.1, *pf, "Local -> global float deref");
+    assert_double(4.1, *pd, "Local -> global double deref");
+
+    // Global pointer to local
+    gpf = &f; gpd = &d;
+    assert_float (1.1, *gpf, "Global -> local float deref");
+    assert_double(3.1, *gpd, "Global -> local double deref");
+
+    // Global pointer to global
+    gpf = &gf; gpd = &gd;
+    assert_float (2.1, *gpf, "Global -> global float deref");
+    assert_double(4.1, *gpd, "Global -> global double deref");
+
+    // Assignments to dereferenced pointers from a constant
+    pf  = &f; *pf  = 1.1; assert_float(1.1, *pf,      "*pf");
+              *pf  = 2.1; assert_float(3.1, *pf + 1," *pf + 1");
+    gpf = &f; *gpf = 3.1; assert_float(3.1, *gpf,     "*gpf");
+
+    pd  = &d; *pd  = 7.1; assert_float(7.1, *pd,      "*pd");
+              *pd  = 8.1; assert_float(9.1, *pd + 1," *pd + 1");
+    gpd = &d; *gpd = 9.1; assert_float(9.1, *gpd,     "*gpd");
+
+    // Assignments to dereferenced pointers from a local/global
+    pf = &f; gpf = &gf;
+    *pf  = gf; assert_float(2.1, *pf,  "*pf = gf");
+    *gpf = d;  assert_float(9.1, *gpf, "*gpf = d");
+
+    pd = &d; gpd = &gd;
+    *pd  = gd; assert_double(4.1, *pd,  "*pd = gd");
+    *gpd = f;  assert_double(2.1, *gpd, "*gpd = f");
+
+    assert_float(3.1,  *pf  + 1, "*pf  + 1");
+    assert_float(10.1, *gpf + 1, "*gpf + 1");
+
+    assert_double(5.1, *pd  + 1, "*pd  + 1");
+    assert_double(3.1, *gpd + 1, "*gpd + 1");
+
+    float f2, *pf2;
+    pf2 = &f2;
+    *pf2 = *pf;  assert_float(2.1, *pf2, "*pf2 = *pf");
+    *pf2 = *gpf; assert_float(9.1, *pf2, "*pf2 = *gpf");
+
+    double d2, *pd2;
+    pd2 = &d2;
+    *pd2 = *pf;  assert_double(2.1, *pd2, "*pd2 = *pf");
+    *pd2 = *gpd; assert_double(2.1, *pd2, "*pd2 = *gpd");
+
+    // Mixed dereference
+    pd2 = &d2; pf2 = &f2;
+    d2 = 12.1; f = *pd2; assert_float(12.1, f, "*f = pd2");
+    f2 = 13.1; d = *pf2; assert_float(13.1, d, "*d = pf2");
+
+    // Malloc tests
+    pf  = malloc(sizeof(float)); *pf  = 5.1L; assert_float(5.1, *pf,  "*pf from malloc");
+    gpf = malloc(sizeof(float)); *gpf = 6.1L; assert_float(6.1, *gpf, "*gpf from malloc");
+
+    float *pf3 = malloc(sizeof(float));
+    *pf = 1.1;
+    *pf2 = 1.2;
+    *pf3 = *pf + *pf2; assert_float(2.3,  *pf3, "*f3 = *pf + *pf2");
+    *pf3 = *pf - *pf2; assert_float(-0.1, *pf3, "*f3 = *pf - *pf2");
+
+    // Double dereference
+    float **ppf;
+    f = 1.1L;
+    pf = &f;
+    ppf = &pf;
+    assert_float(1.1, *pf  , "*pf");
+    assert_float(1.1, **ppf, "**ppld");
+
+    double **ppd;
+    d = 2.1L;
+    pd = &d;
+    ppd = &pd;
+    assert_float(2.1, *pd  , "*pd");
+    assert_float(2.1, **ppd, "**ppd");
+
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -910,6 +1019,7 @@ int main(int argc, char **argv) {
     test_comparison_assignment();
     test_comparison_conditional_jump();
     test_jz_jnz();
+    test_pointers();
 
     finalize();
 }

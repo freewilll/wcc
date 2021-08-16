@@ -485,13 +485,24 @@ static void add_composite_pointer_rules(int *ntc) {
     add_scaled_rule(ntc, CSTV3, RP4, 0, RP4, X_MOV_FROM_SCALED_IND, "lea    (%v1q,%v2q,8), %vdq");
 }
 
-static void add_indirect_rule(int dst, int src) {
+static void add_int_indirect_rule(int dst, int src) {
     char *template;
 
-         if (src == RP1 || src == RP1) template = "movb (%v1q), %vdb";
-    else if (src == RP2 || src == RP2) template = "movw (%v1q), %vdw";
-    else if (src == RP3 || src == RP3) template = "movl (%v1q), %vdl";
-    else                               template = "movq (%v1q), %vdq";
+         if (src == RP1) template = "movb (%v1q), %vdb";
+    else if (src == RP2) template = "movw (%v1q), %vdw";
+    else if (src == RP3) template = "movl (%v1q), %vdl";
+    else                 template = "movq (%v1q), %vdq";
+
+    Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
+    add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, template);
+}
+
+static void add_sse_indirect_rule(int dst, int src) {
+    char *template;
+
+    if      (src == RP3) template = "movss (%v1q), %vdF";
+    else if (src == RP4) template = "movsd (%v1q), %vdD";
+    else panic1d("Unknown src in add_sse_indirect_rule %d", src);
 
     Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
     add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, template);
@@ -500,14 +511,22 @@ static void add_indirect_rule(int dst, int src) {
 static void add_indirect_rules() {
     Rule *r ;
 
-    for (int dst = 0; dst < 4; dst++) add_indirect_rule(RI1 + dst, RP1 + dst);
-    for (int dst = 0; dst < 4; dst++) add_indirect_rule(RU1 + dst, RP1 + dst);
-    for (int dst = 0; dst < 4; dst++) add_indirect_rule(RP1 + dst, RP4);
+    // Integers
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RI1 + dst, RP1 + dst);
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RU1 + dst, RP1 + dst);
+
+    // SSE
+    for (int dst = 0; dst < 2; dst++) add_sse_indirect_rule(RS3 + dst, RP3 + dst);
+
+    // Pointer to pointer
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RP1 + dst, RP4);
 
     // Pointer to pointer to long double to pointer to long double
     r = add_rule(RP5, IR_INDIRECT, RP4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
 
-    // Pointer to long double in register to pointer to long double in memory
+    // Pointer to float/double/long double in register to pointer to float/double/long double in memory
+    r = add_rule(MRP3, IR_MOVE, RP3, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(MRP4, IR_MOVE, RP4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(MRP5, IR_MOVE, RP5, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
 
     // Long double indirect from pointer in register
@@ -559,6 +578,8 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(XRP, IR_ADDRESS_OF, MS3,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, MS4,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RP5, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
+    r = add_rule(RP4, IR_ADDRESS_OF, MRP3, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
+    r = add_rule(RP4, IR_ADDRESS_OF, MRP4, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)
@@ -583,6 +604,9 @@ static void add_pointer_rules(int *ntc) {
     add_move_to_ptr(RP2, CI2, 0, "movw $%v2w, (%v1q)");
     add_move_to_ptr(RP3, CI3, 0, "movl $%v2l, (%v1q)");
     add_move_to_ptr(RP4, CI4, 0, "movq $%v2q, (%v1q)");
+
+    add_move_to_ptr(RP3, RS3, 0, "movss %v2F, (%v1q)");
+    add_move_to_ptr(RP4, RS4, 0, "movsd %v2D, (%v1q)");
 }
 
 static void add_ret(Rule *r) {
@@ -1184,7 +1208,9 @@ void init_instruction_selection_rules() {
     r = add_rule(MLD5,  0, MLD5,  0, 0);
     r = add_rule(XRP,   0, XRP,   0, 0); fin_rule(r);
     r = add_rule(RP5,   0, RP5,   0, 0); fin_rule(r);
-    r = add_rule(MRP5,  0, MRP5,  0, 0); fin_rule(r);
+    r = add_rule(MRP3,  0, MRP3,  0, 0);
+    r = add_rule(MRP4,  0, MRP4,  0, 0);
+    r = add_rule(MRP5,  0, MRP5,  0, 0);
     r = add_rule(RS3,   0, RS3,   0, 0); fin_rule(r);
     r = add_rule(RS4,   0, RS4,   0, 0); fin_rule(r);
     r = add_rule(MS3,   0, MS3,   0, 0); fin_rule(r);
@@ -1208,7 +1234,9 @@ void init_instruction_selection_rules() {
     r = add_rule(RS3, 0,  MS3,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movss %v1F, %vdF");
     r = add_rule(RS4, 0,  MS4,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movsd %v1D, %vdD");
 
-    r = add_rule(RP5, 0,  MRP5, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP3, 0,  MRP3, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(RP4, 0,  MRP4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(RP5, 0,  MRP5, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(RP1, 0,  STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
 
     // Register-register move rules
