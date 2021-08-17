@@ -1006,6 +1006,34 @@ void test_structs() {
     sd->d = 2.1; s1->d = sd->d; assert_double(2.1, s1->d, "s1->d");
 }
 
+void test_inc_dec() {
+    float f = 1.0;
+
+    ++f; assert_float(2.0, f, "Float prefix ++");
+    --f; assert_float(1.0, f, "Float prefix --");
+    f++; assert_float(2.0, f, "Float postfix ++");
+    f--; assert_float(1.0, f, "Float postfix --");
+
+    gf = 1.0;
+    ++gf; assert_float(2.0, gf, "Global float prefix ++");
+    --gf; assert_float(1.0, gf, "Global float prefix --");
+    gf++; assert_float(2.0, gf, "Global float postfix ++");
+    gf--; assert_float(1.0, gf, "Global float postfix --");
+
+    double d = 1.0;
+
+    ++d; assert_double(2.0, d, "Double prefix ++");
+    --d; assert_double(1.0, d, "Double prefix --");
+    d++; assert_double(2.0, d, "Double postfix ++");
+    d--; assert_double(1.0, d, "Double postfix --");
+
+    gd = 2.0;
+    ++gd; assert_double(3.0, gd, "Global double prefix ++");
+    --gd; assert_double(2.0, gd, "Global double prefix --");
+    gd++; assert_double(3.0, gd, "Global double postfix ++");
+    gd--; assert_double(2.0, gd, "Global double postfix --");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1035,6 +1063,7 @@ int main(int argc, char **argv) {
     test_pointer_arithmetic();
     test_pointer_casting();
     test_structs();
+    test_inc_dec();
 
     finalize();
 }
