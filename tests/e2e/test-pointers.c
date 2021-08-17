@@ -349,10 +349,14 @@ void test_pointer_deref_assign_to_deref() {
 }
 
 void test_global_pointer_address_of() {
-    gc = 1; gpc = &gc; assert_int(1, *gpc, "Global address of char");
-    gs = 2; gps = &gs; assert_int(2, *gps, "Global address of short");
-    gi = 3; gpi = &gi; assert_int(3, *gpi, "Global address of int");
-    gl = 4; gpl = &gl; assert_int(4, *gpl, "Global address of long");
+    gc  = 1; gpc  = &gc;  assert_int(1, *gpc,  "Global address of char");
+    gs  = 2; gps  = &gs;  assert_int(2, *gps,  "Global address of short");
+    gi  = 3; gpi  = &gi;  assert_int(3, *gpi,  "Global address of int");
+    gl  = 4; gpl  = &gl;  assert_int(4, *gpl,  "Global address of long");
+    guc = 5; gupc = &guc; assert_int(5, *gupc, "Global address of unsigned char");
+    gus = 6; gups = &gus; assert_int(6, *gups, "Global address of unsigned short");
+    gui = 7; gupi = &gui; assert_int(7, *gupi, "Global address of unsigned int");
+    gul = 8; gupl = &gul; assert_int(8, *gupl, "Global address of unsigned long");
 }
 
 void test_deref_promotion() {
