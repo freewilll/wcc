@@ -473,6 +473,9 @@ static void add_composite_pointer_rules(int *ntc) {
     add_offset_rule(ntc, RP3, RU3, "movl   %v2q(%v1q), %vdl"); // from struct member from *uint -> uint
     add_offset_rule(ntc, RP4, RI4, "movq   %v2q(%v1q), %vdq"); // from struct member from *long -> long
     add_offset_rule(ntc, RP4, RU4, "movq   %v2q(%v1q), %vdq"); // from struct member from *ulong -> ulong
+    add_offset_rule(ntc, RP3, RS3, "movss  %v2q(%v1q), %vdF"); // from struct member from *float -> float
+    add_offset_rule(ntc, RP4, RS4, "movsd  %v2q(%v1q), %vdF"); // from struct member from *double -> double
+
 
     add_offset_rule(ntc, RP4, RP1, "movq   %v2q(%v1q), %vdq"); // from ** to *char
     add_offset_rule(ntc, RP4, RP2, "movq   %v2q(%v1q), %vdq"); // from ** to *short
