@@ -40,7 +40,6 @@ void test_constant_assignment() {
     int i2 = 1.0f;              assert_int(i2, 1, "constant assignment float  -> int");
     int i3 = 1.0;               assert_int(i3, 1, "constant assignment double -> int");
     int i4 = 1.0l;              assert_int(i4, 1, "constant assignment ld     -> int");
-    #ifdef FLOATS
     float f1 = 2;               assert_float(2.0f, f1, "float constant assignment from int");
     float f2 = 2.0f;            assert_float(2.0f, f2, "float constant assignment from float");
     float f3 = 2.0;             assert_float(2.0f, f3, "float constant assignment from double");
@@ -49,7 +48,6 @@ void test_constant_assignment() {
     double d2 = 3.0f;           assert_double(3.0, d2, "double constant assignment from float");
     double d3 = 3.0;            assert_double(3.0, d3, "double constant assignment from double");
     double d4 = 3.0l;           assert_double(3.0, d4, "double constant assignment from LD");
-    #endif
     long double ld1 = 4;        assert_ld_string(ld1, "4.00000", "constant assignment int    -> ld");
     long double ld2 = 4.0f;     assert_ld_string(ld2, "4.00000", "constant assignment float  -> ld");
     long double ld3 = 4.0;      assert_ld_string(ld3, "4.00000", "constant assignment double -> ld");
@@ -57,7 +55,6 @@ void test_constant_assignment() {
 }
 
 void test_assignment() {
-    #ifdef FLOATS
     // In registers. Variables are not reused in this test, otherwise they would get
     // spilled onto the stack due to function calls. Not that there is a problem with
     // that, but this test is meant to test assignment only, not spilling.
@@ -85,13 +82,9 @@ void test_assignment() {
     float f6  = 11.0; gd = f6; assert_double(gd, 11.0, "register -> memory float  -> double");
     double d5 = 12.0; gf = d5; assert_float (gf, 12.0, "register -> memory double -> float");
     double d6 = 13.0; gd = d6; assert_double(gd, 13.0, "register -> memory double -> double");
-
-    #endif
 }
 
 void test_conversion_sse_cst_to_int() {
-    #ifdef FLOATS
-
     float f;
     double d;
 
@@ -140,13 +133,9 @@ void test_conversion_sse_cst_to_int() {
     d = 46.1f; gus = d; assert_long(46, gus, "gus = d");
     d = 47.1f; gui = d; assert_long(47, gui, "gui = d");
     d = 48.1f; gul = d; assert_long(48, gul, "gul = d");
-
-    #endif
 }
 
 void test_conversion_sse_to_int() {
-    #ifdef FLOATS
-
     float f;
     double d;
 
@@ -225,26 +214,18 @@ void test_conversion_sse_to_int() {
     gd = 6.1; assert_long(6, (unsigned short) gd, "double on stack to unsigned short in register");
     gd = 7.1; assert_long(7, (unsigned int)   gd, "double on stack to unsigned int   in register");
     gd = 8.1; assert_long(8, (unsigned long)  gd, "double on stack to unsigned long  in register");
-
-    #endif
 }
 
 void test_conversion_sse_cst_to_long_double() {
-    #ifdef FLOATS
-
     float f;
     double d;
     long double ld;
 
     f = 1.1f; ld = f; assert_long_double(1.1, ld, "sse float constant  -> ld");
     d = 2.1f; ld = d; assert_long_double(2.1, ld, "sse double constant -> ld");
-
-    #endif
 }
 
 int test_conversion_sse_to_long_double() {
-    #ifdef FLOATS
-
     float f;
     double d;
 
@@ -255,13 +236,9 @@ int test_conversion_sse_to_long_double() {
     // SSE in memory to long double
     gf = 1.1; assert_long_double(1.1, (long double) gf,"float  in register to long double");
     gd = 2.1; assert_long_double(2.1, (long double) gd,"double in register to long double");
-
-    #endif
 }
 
 void test_conversion_int_to_sse() {
-    #ifdef FLOATS
-
     float f;
     double d;
 
@@ -324,13 +301,9 @@ void test_conversion_int_to_sse() {
     gs = -6; gd = gs; assert_float(-6.0, gd, "short in memory to double in memory");
     gi = -7; gd = gi; assert_float(-7.0, gd, "int   in memory to double in memory");
     gl = -8; gd = gl; assert_float(-8.0, gd, "long  in memory to double in memory");
-
-    #endif
 }
 
 void test_conversion_long_double_to_sse() {
-    #ifdef FLOATS
-
     long double ld;
     float f;
     double d;
@@ -342,14 +315,10 @@ void test_conversion_long_double_to_sse() {
     // To memory
     ld = 1.1; gf = ld; assert_float( 1.1, gf, "long double to float  in memory");
     ld = 2.1; gd = ld; assert_double(2.1, gd, "long double to double in memory");
-
-    #endif
 }
 
 void test_spilling() {
     // All four types are spilled, due to the double function call
-
-    #ifdef FLOATS
 
     char *buffer;
     buffer = malloc(128);
@@ -363,8 +332,6 @@ void test_spilling() {
     assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000"), "Spilling 1");
     sprintf(buffer, "%f %f %f %f", sf1, sf2, sd1, sd2);
     assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000"), "Spilling 1");
-
-    #endif
 }
 
 void test_long_double_constant_promotion_in_arithmetic() {
@@ -381,7 +348,6 @@ void test_constants_in_function_calls() {
     assert_int        (2,    2.0f, "float  -> int");
     assert_int        (3,    3.0,  "double -> int");
     assert_int        (4,    4.0l, "ld     -> int");
-    #ifdef FLOATS
     assert_float      (1.0f, 1,    "int    -> float");
     assert_float      (2.0f, 2.0f, "float  -> float");
     assert_float      (3.0f, 3.0,  "double -> float");
@@ -390,7 +356,6 @@ void test_constants_in_function_calls() {
     assert_double     (2.0,  2.0f, "float  -> double");
     assert_double     (3.0,  3.0,  "double -> double");
     assert_double     (4.0,  4.0l, "ld     -> double");
-    #endif
     assert_long_double(1.0l, 1,    "int    -> long double");
     assert_long_double(2.0l, 2.0f, "float  -> long double");
     assert_long_double(3.0l, 3.0,  "double -> long double");
@@ -398,8 +363,6 @@ void test_constants_in_function_calls() {
 }
 
 void test_constant_arithmetic_combinations() {
-    #ifdef FLOATS
-
     // Test all combinations of int, float, double and long double constant addition
     assert_int        (2,   1    + 1,    "1    + 1,  ");
     assert_float      (2.1, 1    + 1.1f, "1    + 1.1f");
@@ -417,13 +380,9 @@ void test_constant_arithmetic_combinations() {
     assert_long_double(2.2, 1.1l + 1.1f, "1.1l + 1.1f");
     assert_long_double(2.2, 1.1l + 1.1,  "1.1l + 1.1,");
     assert_long_double(2.2, 1.1l + 1.1l, "1.1l + 1.1l");
-
-    #endif
 }
 
 void test_constant_relops() {
-    #ifdef FLOATS
-
     // Float vs int
     assert_int(1, 1.0f == 1, "1.0f == 1");
     assert_int(0, 1.0f != 1, "1.0f != 1");
@@ -504,26 +463,18 @@ void test_constant_relops() {
     assert_int(1, 1.0f <= 1.0L, "1.0f <= 1.0L");
     assert_int(1, 1.0f >= 1.0L, "1.0f >= 1.0L");
     assert_int(1, 1.0f >= 1.0L, "1.0f >= 1.0L");
-
-    #endif
 }
 
 long double test_arithmetic_cocktail1(int i, float f, double d, long double ld) {
-    #ifdef FLOATS
     return i * 1000 + f * 100 + d * 10 + ld;
-    #endif
 }
 
 long double test_arithmetic_cocktail2(int i, float f, double d, long double ld) {
-    #ifdef FLOATS
     return i + f * 10 + d * 100 + ld * 1000;
-    #endif
 }
 
 void test_arithmetic() {
     // These tests are complimented by the arithmetic torture tests
-
-    #ifdef FLOATS
 
     float f1, f2, f3;
     double d1, d2;
@@ -576,13 +527,9 @@ void test_arithmetic() {
 
     assert_long_double(1234.0, test_arithmetic_cocktail1(1, 2, 3, 4), "Arithmetic cocktail 1");
     assert_long_double(4321.0, test_arithmetic_cocktail2(1, 2, 3, 4), "Arithmetic cocktail 2");
-
-    #endif
 }
 
 void test_comparison_assignment() {
-    #ifdef FLOATS
-
     int i;
     float f1, f2;
     double d1, d2;
@@ -782,13 +729,9 @@ void test_comparison_assignment() {
     i = 1; f1 = 2.0; assert_int(1, i < f1, "i < f1");
     f1 = 1; d1 = 2.0; assert_int(1, f1 < d1, "f1 < d1");
     d1 = 1; ld = 2.0; assert_int(1, d1 < ld, "d1 < ld");
-
-    #endif
 }
 
 void test_comparison_conditional_jump() {
-    #ifdef FLOATS
-
     float f1, f2;
     double d1, d2;
 
@@ -850,13 +793,9 @@ void test_comparison_conditional_jump() {
     if (nan1 >  0.0 ) assert_int(0, 1, "nan comparison nan1 >  0.0  true case"); else assert_int(1, 1, "nan comparison nan1 >  0.0  false case");
     if (nan1 >= 0.0 ) assert_int(0, 1, "nan comparison nan1 >= 0.0  true case"); else assert_int(1, 1, "nan comparison nan1 >= 0.0  false case");
     if (nan1 <= 0.0 ) assert_int(0, 1, "nan comparison nan1 <= 0.0  true case"); else assert_int(1, 1, "nan comparison nan1 <= 0.0  false case");
-
-    #endif
 }
 
 void test_jz_jnz() {
-    #ifdef FLOATS
-
     int i;
 
     float fzero = 0.0f;
@@ -884,13 +823,9 @@ void test_jz_jnz() {
     i = 1; assert_int(1, done  || i++, "double one  || 0 result"); assert_int(1, i, "double one  || 0 i");
     i = 1; assert_int(1, dnan  && i++, "double nan  && 1 result"); assert_int(2, i, "double nan  && 1 i");
     i = 1; assert_int(1, dnan  || i++, "double nan  || 0 result"); assert_int(1, i, "double nan  || 0 i");
-
-    #endif
 }
 
 void test_pointers() {
-    #ifdef FLOATS
-
     float f, *pf;
     double d, *pd;
     char *buffer = malloc(100);
@@ -993,8 +928,6 @@ void test_pointers() {
     ppd = &pd;
     assert_float(2.1, *pd  , "*pd");
     assert_float(2.1, **ppd, "**ppd");
-
-    #endif
 }
 
 // The following code is the fast inverse square root implementation from Quake III Arena,
@@ -1002,7 +935,6 @@ void test_pointers() {
 // See https://en.wikipedia.org/wiki/Fast_inverse_square_root
 float Q_rsqrt( float number )
 {
-    #ifdef FLOATS
     long i;
     float x2, y;
     float threehalfs = 1.5F;
@@ -1016,18 +948,13 @@ float Q_rsqrt( float number )
 //  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
 
     return y;
-    #endif
 }
 
 void test_test_carmacks_inverse_square_root() {
-    #ifdef FLOATS
     assert_float(0.332953, Q_rsqrt(9), "Carmack's inverse square root");
-    #endif
 }
 
 void test_pointer_arithmetic() {
-    #ifdef FLOATS
-
     float *pf = malloc(2 * sizeof(float));
     float *pf1 = pf + 1;
 
@@ -1056,19 +983,13 @@ void test_pointer_arithmetic() {
     assert_double(1.1, *(pd1 - 1), "*(pd1 - 1)");
 
     assert_int(1, pd1 - pd, "pd1 - pd");
-
-    #endif
 }
 
 void test_pointer_casting() {
-    #ifdef FLOATS
-
     struct s1* s1 = malloc(sizeof(struct s1));
 
     s1->f = 1.1; assert_int(1066192077, *((int *) &s1->f), "float to int cast");
     s1->d = 1.1; assert_int(-1717986918, *((int *) &s1->d), "double to long cast");
-
-    #endif
 }
 
 int main(int argc, char **argv) {

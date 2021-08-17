@@ -85,20 +85,17 @@ int main() {
     fprintf(f, "int passes;\n");
     fprintf(f, "int verbose;\n");
     fprintf(f, "\n");
-    fprintf(f, "#ifdef FLOATS\n");
 
     // Global declarations
     for (int i = 0; i < COUNT; i++)
         if (storage[i] == GLOBAL)
             fprintf(f, "%s %s;\n", str_types[i], vars[i]);
 
-    fprintf(f, "#endif\n");
     fprintf(f, "\n");
 
     fprintf(f, "int main() {\n");
 
     // Local declarations & assignments
-    fprintf(f, "#ifdef FLOATS\n");
     for (int i = 0; i < COUNT; i++)
         if (storage[i] == LOCAL)
             fprintf(f, "    %s %s = %s;\n", str_types[i], vars[i], str_values[i]);
@@ -106,13 +103,11 @@ int main() {
     // Global assignments
     for (int i = 0; i < COUNT; i++)
         if (storage[i] == GLOBAL) fprintf(f, "    %s = %s;\n", vars[i], str_values[i]);
-    fprintf(f, "#endif\n");
 
     fprintf(f, "\n");
     fprintf(f, "    failures = 0;\n");
     fprintf(f, "\n");
 
-    fprintf(f, "    #ifdef FLOATS\n");
     for (int src = 0; src < COUNT; src++) // src
         for (int dst = 0; dst < COUNT; dst++) { // dst
             if (storage[dst] == CONSTANT) continue;
@@ -126,7 +121,6 @@ int main() {
             output_value(f, dst);
             fprintf(f, ", \"%s %s + %s %s\");\n",str_storage[storage[src]], str_types[src], str_storage[storage[dst]], str_types[dst]);
         }
-    fprintf(f, "    #endif\n");
 
     fprintf(f, "\n");
     fprintf(f, "    if (failures) {\n");

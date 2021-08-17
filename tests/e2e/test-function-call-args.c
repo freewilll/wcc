@@ -294,7 +294,6 @@ int test_long_double_stack_index_pushed_register_rename_bug() {
 }
 
 void test_floats_function_call(float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, float f10) {
-    #ifdef FLOATS
     assert_float(1.0,  f1,  "test_floats_function_call 1");
     assert_float(2.0,  f2,  "test_floats_function_call 2");
     assert_float(3.0,  f3,  "test_floats_function_call 3");
@@ -305,11 +304,9 @@ void test_floats_function_call(float f1, float f2, float f3, float f4, float f5,
     assert_float(8.0,  f8,  "test_floats_function_call 8");
     assert_float(9.0,  f9,  "test_floats_function_call 9");
     assert_float(10.0, f10, "test_floats_function_call 10");
-    #endif
 }
 
 void test_doubles_function_call(double d1, double d2, double d3, double d4, double d5, double d6, double d7, double d8, double d9, double d10) {
-    #ifdef FLOATS
     assert_double(1.0,  d1,  "test_doubles_function_call 1");
     assert_double(2.0,  d2,  "test_doubles_function_call 2");
     assert_double(3.0,  d3,  "test_doubles_function_call 3");
@@ -320,25 +317,20 @@ void test_doubles_function_call(double d1, double d2, double d3, double d4, doub
     assert_double(8.0,  d8,  "test_doubles_function_call 8");
     assert_double(9.0,  d9,  "test_doubles_function_call 9");
     assert_double(10.0, d10, "test_doubles_function_call 10");
-    #endif
 }
 
 void test_cocktail_function_call1(int i, float f, double d, long double ld) {
-    #ifdef FLOATS
     assert_int        (1, i,  "test_cocktail_function_call1 i");
     assert_int        (2, f,  "test_cocktail_function_call1 f");
     assert_int        (3, d,  "test_cocktail_function_call1 d");
     assert_long_double(4, ld, "test_cocktail_function_call1 ld");
-    #endif
 }
 
 void test_cocktail_function_call2(long double ld, double d, float f, int i) {
-    #ifdef FLOATS
     assert_long_double(1, ld, "test_cocktail_function_call1 ld");
     assert_int        (2, d,  "test_cocktail_function_call1 d");
     assert_int        (3, f,  "test_cocktail_function_call1 f");
     assert_int        (4, i,  "test_cocktail_function_call1 i");
-    #endif
 }
 
 // Test combinations of integers, floats/doubles and long doubles as function arguments
@@ -346,7 +338,6 @@ void test_float_double_params() {
     char *buffer;
     buffer = malloc(300);
 
-    #ifdef FLOATS
     // Float constants as arguments
     sprintf(buffer, "%f %f %f %f %f %f", 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f);
     assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000"), "float in function call 1");
@@ -428,11 +419,8 @@ void test_float_double_params() {
 
     test_cocktail_function_call1(1, 2, 3, 4);
     test_cocktail_function_call2(1, 2, 3, 4);
-
-    #endif
 }
 
-#ifdef FLOATS
 float return_float_constant() { return 1.0; }
 float return_float_register(float f) { return f; }
 float return_float_global() { return gf1; }
@@ -440,10 +428,8 @@ float return_float_global() { return gf1; }
 float return_double_constant() { return 4.0; }
 double return_double_register(double d) { return d; }
 double return_double_global() { return gd1; }
-#endif
 
 void test_float_double_call_return_value() {
-    #ifdef FLOATS
                assert_float(1.0, return_float_constant(),    "Float constant return value");
                assert_float(2.0, return_float_register(2.0), "Float register return value");
     gf1 = 3.0; assert_float(3.0, return_float_global(),      "Float global return value");
@@ -451,7 +437,6 @@ void test_float_double_call_return_value() {
                assert_double(4.0, return_double_constant(),    "Double constant return value");
                assert_double(5.0, return_double_register(5.0), "Double register return value");
     gd1 = 6.0; assert_double(6.0, return_double_global(),      "Double global return value");
-    #endif
 }
 
 int main(int argc, char **argv) {

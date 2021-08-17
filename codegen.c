@@ -144,18 +144,14 @@ static void check_floating_point_literal_max() {
 
 static int add_float_literal(long double value) {
     check_floating_point_literal_max();
-    #ifdef FLOATS
     floating_point_literals[floating_point_literal_count].f = value;
-    #endif
     floating_point_literals[floating_point_literal_count].type = TYPE_FLOAT;
     return floating_point_literal_count++;
 }
 
 static int add_double_literal(long double value) {
     check_floating_point_literal_max();
-    #ifdef FLOATS
     floating_point_literals[floating_point_literal_count].d = value;
-    #endif
     floating_point_literals[floating_point_literal_count].type = TYPE_DOUBLE;
     return floating_point_literal_count++;
 }
@@ -257,16 +253,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                             // The & is to be compatible with gcc
                             sprintf(buffer, "$%ld", (*((long *) &v->fp_value + 1) & 0xffff));
                         else if (float_arg) {
-                            #ifdef FLOATS
                             float f = v->fp_value;
                             sprintf(buffer, "$%d", *((int *) &f));
-                            #endif
                         }
                         else if (double_arg) {
-                            #ifdef FLOATS
                             double d = v->fp_value;
                             sprintf(buffer, "$%ld", *((long *) &d));
-                            #endif
                         }
                         else if (float_literal)
                             sprintf(buffer, ".FPL%d(%%rip)", add_float_literal(v->fp_value));
@@ -634,21 +626,13 @@ void output_code(char *input_filename, char *output_filename) {
             fprintf(f, ".FPL%d:\n", i);
 
             if (floating_point_literals[i].type == TYPE_FLOAT) {
-                #ifdef FLOATS
                 float fl = floating_point_literals[i].f;
                 fprintf(f, "    .long   %d\n", *((int *) &fl));
-                #else
-                panic("wcc has not been compiled with -D FLOATS");
-                #endif
             }
             else if (floating_point_literals[i].type == TYPE_DOUBLE) {
-                #ifdef FLOATS
                 double d = floating_point_literals[i].d;
                 fprintf(f, "    .long   %d\n", *((int *) &d));
                 fprintf(f, "    .long   %d\n", *((int *) &d + 1));
-                #else
-                panic("wcc has not been compiled with -D FLOATS");
-                #endif
             }
             else {
                 long double ld = floating_point_literals[i].ld;

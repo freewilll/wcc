@@ -111,7 +111,6 @@ int main() {
     fprintf(f, "int passes;\n");
     fprintf(f, "int verbose;\n");
     fprintf(f, "\n");
-    fprintf(f, "#ifdef FLOATS\n");
     fprintf(f, "\n");
 
     // Global declarations
@@ -133,7 +132,6 @@ int main() {
             fprintf(f, "}\n\n");
         }
 
-    fprintf(f, "#endif\n");
     fprintf(f, "\n");
     fprintf(f, "int main() {\n");
     fprintf(f, "    unsigned long result;\n");
@@ -143,13 +141,11 @@ int main() {
     fprintf(f, "\n");
     fprintf(f, "\n");
 
-    fprintf(f, "    #ifdef FLOATS\n");
     for (int src = 0; src < COUNT * 2; src++) // src
         for (int dst = 0; dst < COUNT * 2; dst++) { // dst
             if (skip(dst, src)) continue;
             fprintf(f, "    func_%s_to_%s();\n", vars[src], vars[dst]);
         }
-    fprintf(f, "    #endif\n");
 
     fprintf(f, "\n");
     fprintf(f, "    if (failures) {\n");
