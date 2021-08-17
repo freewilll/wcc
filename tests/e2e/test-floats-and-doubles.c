@@ -20,6 +20,8 @@ unsigned short gus;
 unsigned int   gui;
 unsigned long  gul;
 
+struct s1 { int i; float f; double d; };
+
 void assert_ld_string(long double ld, char *expected, char *message) {
     char *buffer = malloc(100);
 
@@ -1058,6 +1060,17 @@ void test_pointer_arithmetic() {
     #endif
 }
 
+void test_pointer_casting() {
+    #ifdef FLOATS
+
+    struct s1* s1 = malloc(sizeof(struct s1));
+
+    s1->f = 1.1; assert_int(1066192077, *((int *) &s1->f), "float to int cast");
+    s1->d = 1.1; assert_int(-1717986918, *((int *) &s1->d), "double to long cast");
+
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1085,6 +1098,7 @@ int main(int argc, char **argv) {
     test_pointers();
     test_test_carmacks_inverse_square_root();
     test_pointer_arithmetic();
+    test_pointer_casting();
 
     finalize();
 }
