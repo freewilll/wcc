@@ -1023,6 +1023,41 @@ void test_test_carmacks_inverse_square_root() {
     #endif
 }
 
+void test_pointer_arithmetic() {
+    #ifdef FLOATS
+
+    float *pf = malloc(2 * sizeof(float));
+    float *pf1 = pf + 1;
+
+    pf[0] = 1.1;
+    pf[1] = 2.1;
+    int i = 1;
+    assert_float(1.1, pf[0],      "pf[0]");
+    assert_float(2.1, pf[1],      "pf[1]");
+    assert_float(2.1, pf[i],      "pf[i]");
+    assert_float(2.1, *(pf + 1),  "*(pf + 1)");
+    assert_float(2.1, *(1 + pf),  "*(1 + pf)");
+    assert_float(1.1, *(pf1 - 1), "*(pf1 - 1)");
+
+    assert_int(1, pf1 - pf, "pf1 - pf");
+
+    double *pd = malloc(2 * sizeof(double));
+    double *pd1 = pd + 1;
+
+    pd[0] = 1.1;
+    pd[1] = 2.1;
+    assert_double(1.1, pd[0],      "pd[0]");
+    assert_double(2.1, pd[1],      "pd[1]");
+    assert_double(2.1, pd[i],      "pd[i]");
+    assert_double(2.1, *(pd + 1),  "*(pd + 1)");
+    assert_double(2.1, *(1 + pd),  "*(1 + pd)");
+    assert_double(1.1, *(pd1 - 1), "*(pd1 - 1)");
+
+    assert_int(1, pd1 - pd, "pd1 - pd");
+
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1049,6 +1084,7 @@ int main(int argc, char **argv) {
     test_jz_jnz();
     test_pointers();
     test_test_carmacks_inverse_square_root();
+    test_pointer_arithmetic();
 
     finalize();
 }
