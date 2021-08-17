@@ -995,6 +995,34 @@ void test_pointers() {
     #endif
 }
 
+// The following code is the fast inverse square root implementation from Quake III Arena,
+// stripped of C preprocessor directives, but including the exact original comment text:[9]
+// See https://en.wikipedia.org/wiki/Fast_inverse_square_root
+float Q_rsqrt( float number )
+{
+    #ifdef FLOATS
+    long i;
+    float x2, y;
+    float threehalfs = 1.5F;
+
+    x2 = number * 0.5F;
+    y  = number;
+    i  = * ( long * ) &y;                       // evil floating point bit level hacking
+    i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
+    y  = * ( float * ) &i;
+    y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+//  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+    return y;
+    #endif
+}
+
+void test_test_carmacks_inverse_square_root() {
+    #ifdef FLOATS
+    assert_float(0.332953, Q_rsqrt(9), "Carmack's inverse square root");
+    #endif
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1020,6 +1048,7 @@ int main(int argc, char **argv) {
     test_comparison_conditional_jump();
     test_jz_jnz();
     test_pointers();
+    test_test_carmacks_inverse_square_root();
 
     finalize();
 }
