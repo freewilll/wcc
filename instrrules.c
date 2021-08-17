@@ -761,7 +761,7 @@ static void add_long_double_comp_cond_jmp_rule(int *ntc, int src1, int src2, cha
     Rule *r;
 
     (*ntc)++;
-    r = add_rule(*ntc, operation, src1, src2, 15);
+    r = add_rule(*ntc, operation, src1, src2, 14);
     add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fcomip %%st(1), %%st", src1_first);
     r = add_rule(0, IR_JNZ, *ntc, LAB, 1); add_op(r, x86op1, 0, SRC2, 0, t1); fin_rule(r);
     r = add_rule(0, IR_JZ,  *ntc, LAB, 1); add_op(r, x86op2, 0, SRC2, 0, t2); fin_rule(r);
