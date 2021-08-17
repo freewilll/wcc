@@ -42,24 +42,36 @@ struct ss* gss;
 struct si* gsi;
 struct sl* gsl;
 
-struct sc1 { char  c1;           };
-struct sc2 { char  c1; char c2;  };
-struct ss1 { short c1;           };
-struct ss2 { short c1; short s1; };
-struct si1 { int   c1;           };
-struct si2 { int   c1; int i1;   };
-struct sl1 { long  c1;           };
-struct sl2 { long  c1; long l1;  };
+struct sc1  { char        c1;                 };
+struct sc2  { char        c1; char c2;        };
+struct ss1  { short       c1;                 };
+struct ss2  { short       c1; short s1;       };
+struct si1  { int         c1;                 };
+struct si2  { int         c1; int i1;         };
+struct sl1  { long        c1;                 };
+struct sl2  { long        c1; long l1;        };
+struct sf1  { float       c1;                 };
+struct sf2  { float       c1; float f1;       };
+struct sd1  { double      c1;                 };
+struct sd2  { double      c1; double d1;      };
+struct sld1 { long double c1;                 };
+struct sld2 { long double c1; long double l1; };
 
-struct cc { char c1; char  c2; };
-struct cs { char c1; short s1; };
-struct ci { char c1; int   i1; };
-struct cl { char c1; long  l1; };
+struct cc  { char c1; char         c2; };
+struct cs  { char c1; short        s1; };
+struct ci  { char c1; int          i1; };
+struct cl  { char c1; long         l1; };
+struct cf  { char c1; float        f1; };
+struct cd  { char c1; double       d1; };
+struct cld { char c1; long double ld1; };
 
-struct ccc { char c1; char  c2; char c3; };
-struct csc { char c1; short c2; char c3; };
-struct cic { char c1; int   c2; char c3; };
-struct clc { char c1; long  c2; char c3; };
+struct ccc  { char c1; char         c2; char c3; };
+struct csc  { char c1; short        c2; char c3; };
+struct cic  { char c1; int          c2; char c3; };
+struct clc  { char c1; long         c2; char c3; };
+struct cfc  { char c1; float        c2; char c3; };
+struct cdc  { char c1; double       c2; char c3; };
+struct cldc { char c1; long double  c2; char c3; };
 
 struct                              pss1 { int i; char c; int j; };
 struct __attribute__ ((__packed__)) pss2 { int i; char c; int j; };
@@ -185,38 +197,60 @@ void test_simple_struct() {
 }
 
 void test_struct_member_alignment() {
-    struct cc *vc;
-    struct cs *vs;
-    struct ci *vi;
-    struct cl *vl;
+    struct cc  *vc;
+    struct cs  *vs;
+    struct ci  *vi;
+    struct cl  *vl;
+    struct cf  *vf;
+    struct cd  *vd;
+    struct cld *vld;
 
-    assert_int( 1, sizeof(struct sc1), "struct member alignment c1");
-    assert_int( 2, sizeof(struct sc2), "struct member alignment c2");
-    assert_int( 2, sizeof(struct ss1), "struct member alignment s1");
-    assert_int( 4, sizeof(struct ss2), "struct member alignment s2");
-    assert_int( 4, sizeof(struct si1), "struct member alignment i1");
-    assert_int( 8, sizeof(struct si2), "struct member alignment i2");
-    assert_int( 8, sizeof(struct sl1), "struct member alignment l1");
-    assert_int(16, sizeof(struct sl2), "struct member alignment l2");
+    assert_int( 1, sizeof(struct sc1),  "struct member alignment c1");
+    assert_int( 2, sizeof(struct sc2),  "struct member alignment c2");
+    assert_int( 2, sizeof(struct ss1),  "struct member alignment s1");
+    assert_int( 4, sizeof(struct ss2),  "struct member alignment s2");
+    assert_int( 4, sizeof(struct si1),  "struct member alignment i1");
+    assert_int( 8, sizeof(struct si2),  "struct member alignment i2");
+    assert_int( 8, sizeof(struct sl1),  "struct member alignment l1");
+    assert_int(16, sizeof(struct sl2),  "struct member alignment l2");
+    assert_int( 4, sizeof(struct sf1),  "struct member alignment f1");
+    assert_int( 8, sizeof(struct sf2),  "struct member alignment f2");
+    assert_int( 8, sizeof(struct sd1),  "struct member alignment d1");
+    assert_int(16, sizeof(struct sd2),  "struct member alignment d2");
+    assert_int(16, sizeof(struct sld1), "struct member alignment ld1");
+    assert_int(32, sizeof(struct sld2), "struct member alignment ld2");
 
     assert_int( 2, sizeof(struct cc),  "struct member alignment c1");
     assert_int( 4, sizeof(struct cs),  "struct member alignment s1");
     assert_int( 8, sizeof(struct ci),  "struct member alignment i1");
     assert_int(16, sizeof(struct cl),  "struct member alignment l1");
-    assert_int( 3, sizeof(struct ccc), "struct member alignment c2");
-    assert_int( 6, sizeof(struct csc), "struct member alignment s2");
-    assert_int(12, sizeof(struct cic), "struct member alignment i2");
-    assert_int(24, sizeof(struct clc), "struct member alignment l2");
+    assert_int( 8, sizeof(struct cf),  "struct member alignment f1");
+    assert_int(16, sizeof(struct cd),  "struct member alignment d1");
+    assert_int(32, sizeof(struct cld), "struct member alignment ld1");
 
-    vc = 0;
-    vs = 0;
-    vi = 0;
-    vl = 0;
+    assert_int( 3, sizeof(struct ccc),  "struct member alignment c2");
+    assert_int( 6, sizeof(struct csc),  "struct member alignment s2");
+    assert_int(12, sizeof(struct cic),  "struct member alignment i2");
+    assert_int(24, sizeof(struct clc),  "struct member alignment l2");
+    assert_int(12, sizeof(struct cfc ), "struct member alignment f2");
+    assert_int(24, sizeof(struct cdc ), "struct member alignment d2");
+    assert_int(48, sizeof(struct cldc), "struct member alignment ld2");
 
-    assert_int(1, (long) &(vc->c2) - (long) &(vc->c1), "struct member alignment c");
-    assert_int(2, (long) &(vs->s1) - (long) &(vs->c1), "struct member alignment s");
-    assert_int(4, (long) &(vi->i1) - (long) &(vi->c1), "struct member alignment i");
-    assert_int(8, (long) &(vl->l1) - (long) &(vl->c1), "struct member alignment l");
+    vc  = 0;
+    vs  = 0;
+    vi  = 0;
+    vl  = 0;
+    vf  = 0;
+    vd  = 0;
+    vld = 0;
+
+    assert_int(1,  (long) &(vc ->c2)  - (long) &(vc ->c1), "struct member alignment c");
+    assert_int(2,  (long) &(vs ->s1)  - (long) &(vs ->c1), "struct member alignment s");
+    assert_int(4,  (long) &(vi ->i1)  - (long) &(vi ->c1), "struct member alignment i");
+    assert_int(8,  (long) &(vl ->l1)  - (long) &(vl ->c1), "struct member alignment l");
+    assert_int(4,  (long) &(vf ->f1)  - (long) &(vf ->c1), "struct member alignment f");
+    assert_int(8,  (long) &(vd ->d1)  - (long) &(vd ->c1), "struct member alignment d");
+    assert_int(16, (long) &(vld->ld1) - (long) &(vld->c1), "struct member alignment ld");
 }
 
 void test_struct_indirect_sizes() {
