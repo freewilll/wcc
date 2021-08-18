@@ -523,9 +523,7 @@ static void add_indirect_rules() {
 
     // Pointer to pointer
     for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RP1 + dst, RP4);
-
-    // Pointer to pointer to long double to pointer to long double
-    r = add_rule(RP5, IR_INDIRECT, RP4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    add_int_indirect_rule(RP5, RP4);
 
     // Pointer to float/double/long double in register to pointer to float/double/long double in memory
     r = add_rule(MP3, IR_MOVE, RP3, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
@@ -577,6 +575,7 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(XRP, IR_ADDRESS_OF, XRP,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RP5, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP4, IR_ADDRESS_OF, MP5,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(XRP, IR_ADDRESS_OF, XMU,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, MS3,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
