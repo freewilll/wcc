@@ -260,9 +260,9 @@ static void make_rule_hash(int i) {
 
     r->hash =
         (r->dst       <<  0) +
-        (r->src1      <<  8) +
-        (r->src2      << 16) +
-        (r->operation << 24);
+        (r->src1      <<  9) +
+        (r->src2      << 18) +
+        (r->operation << 27);
 }
 
 void check_for_duplicate_rules() {
@@ -379,6 +379,7 @@ char *non_terminal_string(int nt) {
     else if (nt == MLD5)  return "mld5";
     else if (nt == MS3)   return "ms3";
     else if (nt == MS4)   return "ms4";
+    else if (nt == MPV)   return "mpv";
     else {
         asprintf(&buf, "nt%03d", nt);
         return buf;
@@ -483,7 +484,7 @@ static int non_terminal_for_value(Value *v) {
     else if (is_local  && v->type->type == TYPE_PTR + TYPE_DOUBLE)            result =  RP4;
     else if (is_local  && v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)       result =  RP5;
 
-    else if (!is_local && v->type->type >= TYPE_PTR)                          result =  MI4;
+    else if (!is_local && v->type->type >= TYPE_PTR)                          result =  MPV;
     else if (is_local  && v->type->type >= TYPE_PTR)                          result =  RP1 + value_ptr_target_x86_size(v) - 1;
 
     // Lvalue in register
@@ -632,7 +633,7 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == CLD)   return 8;
     else if (nt == CS3)   return 3;
     else if (nt == CS4)   return 4;
-    else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4 || nt == RP5) return 4;
+    else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4 || nt == RP5 || nt == MPV ) return 4;
     else if (nt == RI1 || nt == RU1 || nt == MI1 || nt == MU1                           ) return 1;
     else if (nt == RI2 || nt == RU2 || nt == MI2 || nt == MU2                           ) return 2;
     else if (nt == RI3 || nt == RU3 || nt == RS3 || nt == MI3 || nt == MU3 || nt == MS3 ) return 3;

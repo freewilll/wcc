@@ -284,6 +284,10 @@ void test_pointers() {
     ppld = &pld;
     assert_ld_string(*pld  , "1.10000", "*pld");
     assert_ld_string(**ppld, "1.10000", "**ppld");
+
+    // Assignment of constant to memory
+    gpld = 0;
+    gpld = 0ul;
 }
 
 void test_pointer_arithmetic() {

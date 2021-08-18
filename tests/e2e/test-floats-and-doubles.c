@@ -930,6 +930,13 @@ void test_pointers() {
     ppd = &pd;
     assert_float(2.1, *pd  , "*pd");
     assert_float(2.1, **ppd, "**ppd");
+
+    // Assignment of constant to memory
+    gpf = 0;
+    gpf = 0ul;
+    gpd = 0;
+    gpd = 0ul;
+
 }
 
 // The following code is the fast inverse square root implementation from Quake III Arena,

@@ -1338,8 +1338,27 @@ void test_pointer_comparisons() {
     assert_x86_op("jne         .L1");
 
     start_ir();
+    i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0    );
+    i(0, IR_EQ,   v(3),                         vsz(2, TYPE_PTR + TYPE_VOID), uc(1));
+    i(0, IR_JZ,   0,                            v(3),                         l(1) );
+    i(1, IR_NOP,  0,                            0,                            0    );
+    finish_ir(function);
+    assert_x86_op("cmpq        $1, g1(%rip)");
+    assert_x86_op("jne         .L1");
+
+    start_ir();
     i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
     i(0, IR_EQ,   v(3),                         c(1),                         vsz(2, TYPE_PTR + TYPE_VOID));
+    i(0, IR_JZ,   0,                            v(3),                         l(1));
+    i(1, IR_NOP,  0,                            0,                            0   );
+    finish_ir(function);
+    assert_x86_op("movq        $1, r3q");
+    assert_x86_op("cmpq        g1(%rip), r3q");
+    assert_x86_op("jne         .L1");
+
+    start_ir();
+    i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
+    i(0, IR_EQ,   v(3),                         uc(1),                        vsz(2, TYPE_PTR + TYPE_VOID));
     i(0, IR_JZ,   0,                            v(3),                         l(1));
     i(1, IR_NOP,  0,                            0,                            0   );
     finish_ir(function);
@@ -1446,6 +1465,9 @@ void test_pointer_to_void_from_long_assignment() {
     assert_x86_op("movq        r1q, r2q");
 
     si(function, 0, IR_MOVE, gsz(2, TYPE_PTR + TYPE_VOID), v(1), 0);
+    assert_x86_op("movq        r1q, g2(%rip)");
+
+    si(function, 0, IR_MOVE, gsz(2, TYPE_PTR + TYPE_VOID), vusz(1, TYPE_LONG), 0);
     assert_x86_op("movq        r1q, g2(%rip)");
 }
 
