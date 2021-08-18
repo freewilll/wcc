@@ -377,9 +377,6 @@ char *non_terminal_string(int nt) {
     else if (nt == RS3)   return "rs3";
     else if (nt == RS4)   return "rs4";
     else if (nt == MLD5)  return "mld5";
-    else if (nt == MP3)   return "mp3";
-    else if (nt == MP4)   return "mp4";
-    else if (nt == MP5)   return "mp5";
     else if (nt == MS3)   return "ms3";
     else if (nt == MS4)   return "ms4";
     else {
@@ -481,26 +478,25 @@ static int non_terminal_for_value(Value *v) {
     else if (v->label)                                                        result =  LAB;
     else if (v->function_symbol)                                              result =  FUN;
 
-    else if (!is_local && v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)       result =  MP5;
-    else if (is_local  && v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)       result =  RP5;
-    else if (!is_local && v->type->type == TYPE_PTR + TYPE_FLOAT)             result =  MP3;
+    // Pointers
     else if (is_local  && v->type->type == TYPE_PTR + TYPE_FLOAT)             result =  RP3;
-    else if (!is_local && v->type->type == TYPE_PTR + TYPE_DOUBLE)            result =  MP4;
     else if (is_local  && v->type->type == TYPE_PTR + TYPE_DOUBLE)            result =  RP4;
-
-    else if (!is_local && v->type->type == TYPE_FLOAT)                        result =  MS3;
-    else if (is_local  && v->type->type == TYPE_FLOAT)                        result =  RS3;
-    else if (!is_local && v->type->type == TYPE_DOUBLE)                       result =  MS4;
-    else if (is_local  && v->type->type == TYPE_DOUBLE)                       result =  RS4;
+    else if (is_local  && v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)       result =  RP5;
 
     else if (!is_local && v->type->type >= TYPE_PTR)                          result =  MI4;
     else if (is_local  && v->type->type >= TYPE_PTR)                          result =  RP1 + value_ptr_target_x86_size(v) - 1;
 
-    // It's not a pointer
+    // Lvalue in register
     else if (v->is_lvalue_in_register)                                        result =  RP1 + v->x86_size - 1;
+
+    // Floats, doubles & long doubles
+    else if (!is_local && v->type->type == TYPE_FLOAT)                        result =  MS3;
+    else if (is_local  && v->type->type == TYPE_FLOAT)                        result =  RS3;
+    else if (!is_local && v->type->type == TYPE_DOUBLE)                       result =  MS4;
+    else if (is_local  && v->type->type == TYPE_DOUBLE)                       result =  RS4;
     else if (!is_local && v->type->type == TYPE_LONG_DOUBLE)                  result =  MLD5;
 
-    // it's an integer type
+    // Integers
     else if (!is_local && !v->type->is_unsigned)                              result =  MI1 + v->x86_size - 1;
     else if (is_local  && !v->type->is_unsigned)                              result =  RI1 + v->x86_size - 1;
     else if (!is_local && v->type->is_unsigned)                               result =  MU1 + v->x86_size - 1;
@@ -636,7 +632,7 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == CLD)   return 8;
     else if (nt == CS3)   return 3;
     else if (nt == CS4)   return 4;
-    else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4 || nt == RP5 || nt == MP3 || nt == MP4 || nt == MP5) return 4;
+    else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4 || nt == RP5) return 4;
     else if (nt == RI1 || nt == RU1 || nt == MI1 || nt == MU1                           ) return 1;
     else if (nt == RI2 || nt == RU2 || nt == MI2 || nt == MU2                           ) return 2;
     else if (nt == RI3 || nt == RU3 || nt == RS3 || nt == MI3 || nt == MU3 || nt == MS3 ) return 3;

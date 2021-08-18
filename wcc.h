@@ -685,7 +685,6 @@ enum {
     MS3, MS4,                    // SSE (xmm) in stack or globals
     RP1, RP2, RP3, RP4, RP5,     // Address (aka pointer) in a register
     MLD5,                        // 16-byte memory, for long double
-    MP3, MP4, MP5,               // Pointer in memory to to float and double and long double
 
     AUTO_NON_TERMINAL_START,
     AUTO_NON_TERMINAL_END = 0x200, // Must match next line
