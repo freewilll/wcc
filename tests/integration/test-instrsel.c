@@ -281,10 +281,10 @@ void test_instrsel_constant_loading() {
     test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),   c(1), "movq        $1, r1q");
 
     // with a 64 bit signed long. The first 3 are overflows, so a programmer error.
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),   c(l), "movb        $4294967296, r1b");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT),  c(l), "movw        $4294967296, r1w");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),    c(l), "movl        $4294967296, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),   c(l), "movq        $4294967296, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),   c(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT),  c(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),    c(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),   c(l), "movq        $4294967296, r2q");
 
     // with a 32 bit unsigned int
     test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  uc(1), "movb        $1, r1b");
@@ -293,10 +293,10 @@ void test_instrsel_constant_loading() {
     test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  uc(1), "movq        $1, r1q");
 
     // with a 64 bit unsigned long. The first 3 are overflows, so a programmer error.
-    test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  uc(l), "movb        $4294967296, r1b");
-    test_cst_load(IR_MOVE, vusz(3, TYPE_SHORT), uc(l), "movw        $4294967296, r1w");
-    test_cst_load(IR_MOVE, vusz(3, TYPE_INT),   uc(l), "movl        $4294967296, r1l");
-    test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  uc(l), "movq        $4294967296, r1q");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  uc(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_SHORT), uc(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_INT),   uc(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  uc(l), "movq        $4294967296, r2q");
 
     // with a 32 bit signed int -> unsigned
     test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  c(1), "movb        $1, r1b");
@@ -305,10 +305,10 @@ void test_instrsel_constant_loading() {
     test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  c(1), "movq        $1, r1q");
 
     // with a 64 bit signed long -> unsigned. The first 3 are overflows, so a programmer error.
-    test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  c(l), "movb        $4294967296, r1b");
-    test_cst_load(IR_MOVE, vusz(3, TYPE_SHORT), c(l), "movw        $4294967296, r1w");
-    test_cst_load(IR_MOVE, vusz(3, TYPE_INT),   c(l), "movl        $4294967296, r1l");
-    test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  c(l), "movq        $4294967296, r1q");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_CHAR),  c(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_SHORT), c(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_INT),   c(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vusz(3, TYPE_LONG),  c(l), "movq        $4294967296, r2q");
 
     // with a 32 bit unsigned int -> signed
     test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  uc(1), "movb        $1, r1b");
@@ -317,10 +317,10 @@ void test_instrsel_constant_loading() {
     test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  uc(1), "movq        $1, r1q");
 
     // with a 64 bit unsigned long -> signed. The first 3 are overflows, so a programmer error.
-    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  uc(l), "movb        $4294967296, r1b");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), uc(l), "movw        $4294967296, r1w");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   uc(l), "movl        $4294967296, r1l");
-    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  uc(l), "movq        $4294967296, r1q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_CHAR),  uc(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_SHORT), uc(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_INT),   uc(l), "movq        $4294967296, r2q");
+    test_cst_load(IR_MOVE, vsz(3, TYPE_LONG),  uc(l), "movq        $4294967296, r2q");
 }
 
 void test_instrsel_expr() {
@@ -653,25 +653,29 @@ void test_function_args() {
 
     // quad constant
     run_function_call_single_arg(c(4294967296));
-    assert_rx86_preg_op("movq        $4294967296, %rdi" );
+    assert_rx86_preg_op("movq        $4294967296, %rax" );
+    assert_rx86_preg_op("movq        %rax, %rdi" );
     assert_rx86_preg_op("movq        %rax, %rax" );
     assert_rx86_preg_op(0);
 
     // quad unsigned constant
     run_function_call_single_arg(uc(4294967296));
-    assert_rx86_preg_op("movq        $4294967296, %rdi" );
+    assert_rx86_preg_op("movq        $4294967296, %rax" );
+    assert_rx86_preg_op("movq        %rax, %rdi" );
     assert_rx86_preg_op("movq        %rax, %rax" );
     assert_rx86_preg_op(0);
 
     // long constant
     run_function_call_single_arg(c(2147483648));
-    assert_rx86_preg_op("movq        $2147483648, %rdi" );
+    assert_rx86_preg_op("movq        $2147483648, %rax" );
+    assert_rx86_preg_op("movq        %rax, %rdi" );
     assert_rx86_preg_op("movq        %rax, %rax" );
     assert_rx86_preg_op(0);
 
     // negative long constant
     run_function_call_single_arg(c(-2147483649));
-    assert_rx86_preg_op("movq        $-2147483649, %rdi" );
+    assert_rx86_preg_op("movq        $-2147483649, %rax" );
+    assert_rx86_preg_op("movq        %rax, %rdi" );
     assert_rx86_preg_op("movq        %rax, %rax" );
     assert_rx86_preg_op(0);
 

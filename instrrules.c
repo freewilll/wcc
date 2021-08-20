@@ -1242,18 +1242,32 @@ void init_instruction_selection_rules() {
     for (int dst = RI1; dst <= RI4; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RU1; dst <= RU4; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) {
         r = add_rule(XRI, IR_MOVE, CI1 + i, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
         r = add_rule(XRI, IR_MOVE, CU1 + i, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
         r = add_rule(XRU, IR_MOVE, CI1 + i, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
         r = add_rule(XRU, IR_MOVE, CU1 + i, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
         r = add_rule(XMI, IR_MOVE, CI1 + i, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r);
-        r = add_rule(MPV, IR_MOVE, CI1 + i, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1, %vd" );  fin_rule(r);
         r = add_rule(XMI, IR_MOVE, CU1 + i, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r);
+        r = add_rule(MPV, IR_MOVE, CI1 + i, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1, %vd" );  fin_rule(r);
         r = add_rule(MPV, IR_MOVE, CU1 + i, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1, %vd" );  fin_rule(r);
         r = add_rule(XMU, IR_MOVE, CI1 + i, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r);
         r = add_rule(XMU, IR_MOVE, CU1 + i, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r);
     }
+
+    // CI3 constants are ok, but CU3 constants can overflow, so must be loaded into
+    // memory through a register, since there is no instruction to load an imm64 into
+    // memory.
+    r = add_rule(XRI, IR_MOVE, CI3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
+    r = add_rule(XRU, IR_MOVE, CI3, 0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd");  fin_rule(r);
+    r = add_rule(XMI, IR_MOVE, CI3, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r);
+    r = add_rule(MPV, IR_MOVE, CI3, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1, %vd" );  fin_rule(r);
+    r = add_rule(XMU, IR_MOVE, CI3, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s $%v1, %vd" ); fin_rule(r);
+
+    // CI4 and CU4 constants must be loaded into memory through a register, since there is no instruction to
+    // load an imm64 into memory
+    r = add_rule(XMI, IR_MOVE, RU4, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"); fin_rule(r);
+    r = add_rule(XMU, IR_MOVE, RI4, 0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"); fin_rule(r);
 
     // Memory -> register move rules
     r = add_rule(XRI, IR_MOVE, XMI,  0, 2); add_op(r, X_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"); fin_rule(r);

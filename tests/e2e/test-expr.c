@@ -1170,6 +1170,14 @@ void test_sign_extend_globals() {
     ul = gui + 1; assert_int(-2,     ul ,"global sign extension gui -> ul");
 }
 
+static void test_constant_assignment_to_global() {
+    gl = 0x1000000000000000; assert_long(0x1000000000000000, gl, "gl = 0x1000000000000000;");
+    gl = 0x0fffffffffffffff; assert_long(0x0fffffffffffffff, gl, "gl = 0x0fffffffffffffff;");
+    gl = 0x7fffffffffffffff; assert_long(0x7fffffffffffffff, gl, "gl = 0x7fffffffffffffff;");
+    gl = 0x80000000;         assert_long(0x80000000,         gl, "gl = 0x7fffffff;        ");
+    gl = 0x7fffffff;         assert_long(0x7fffffff,         gl, "gl = 0x7fffffff;        ");
+}
+
 static int test_scopes() {
     // Test nested local scopes
     int i = 1;
@@ -1225,6 +1233,7 @@ int main(int argc, char **argv) {
     test_int_uint_assignment();
     test_uint_int_assignment();
     test_uint_uint_assignment();
+    test_constant_assignment_to_global();
     test_sign_extend_globals();
     test_scopes();
 
