@@ -17,10 +17,17 @@ static Value *push(Value *v) {
     return v;
 }
 
+static void check_stack_has_value() {
+    if (vs == vs_start) panic("Internal error: Empty parser stack");
+    if (vtop->type->type == TYPE_VOID) panic("Illegal attempt to use a void value");
+}
+
 // Pop a value from the stack
 static Value *pop() {
+    check_stack_has_value();
+
     Value *result = *vs++;
-    vtop = (vs == vs_start) ? 0 : *vs;
+    vtop = *vs;
 
     return result;
 }
@@ -1033,6 +1040,12 @@ static void parse_expression(int level) {
                 return_value->vreg = new_vreg();
                 return_value->type = dup_type(type);
             }
+            else {
+                Value *v = new_value();
+                v->type = new_type(TYPE_VOID);
+                push(v);
+            }
+
             add_instruction(IR_CALL, return_value, function_value, 0);
             add_instruction(IR_END_CALL, 0, src1, 0);
             if (return_value) push(return_value);
@@ -1483,9 +1496,17 @@ static void parse_statement() {
         }
         else {
             parse_expression(TOK_COMMA);
-            Value *src1 = pop();
-            src1 = load(src1);
-            src1 = add_convert_type_if_needed(src1, cur_function_symbol->function->return_type);
+
+            Value *src1;
+            if (vtop && vtop->type->type == TYPE_VOID && cur_function_symbol->function->return_type->type == TYPE_VOID) {
+                // Deal with case of returning the result of a void function in a void function
+                // e.g. foo(); void bar() { return foo(); }
+                vs++; // Remove from value stack
+                src1 = 0;
+            }
+            else
+                src1 = add_convert_type_if_needed(pl(), cur_function_symbol->function->return_type);
+
             add_instruction(IR_RETURN, 0, src1, 0);
         }
         consume(TOK_SEMI, ";");
