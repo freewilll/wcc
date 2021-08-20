@@ -1110,7 +1110,8 @@ static void parse_expression(int level) {
             int org_token = cur_token;
             next();
 
-            if (!vtop->is_lvalue) panic(" Cannot ++ or -- an rvalue");
+            if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
+            if (!is_scalar_type(vtop->type)) panic("Cannot postfix ++ or -- on a non scalar");
 
             Value *v1 = pop();                 // lvalue
             Value *src1 = load(dup_value(v1)); // rvalue
