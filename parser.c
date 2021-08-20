@@ -862,6 +862,7 @@ static void parse_expression(int level) {
         }
         else {
             parse_expression(TOK_INC);
+            if (!is_arithmetic_type(vtop->type)) panic("Can only use unary - on an arithmetic type");
 
             if (vtop->type->type == TYPE_LONG_DOUBLE)
                 push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);

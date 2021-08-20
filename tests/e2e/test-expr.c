@@ -843,6 +843,44 @@ void test_constant_suffixes() {
     assert_int(8, sizeof(1llu), "Constant suffix lowercase llu");
 }
 
+void test_unary_minus() {
+    char c;
+    short s;
+    int i;
+    long l;
+    unsigned char uc;
+    unsigned short us;
+    unsigned int ui;
+    unsigned long ul;
+    float f;
+    double d;
+    long double ld;
+
+    assert_int(4,  sizeof(-c),  "Sizeof unary minus c");
+    assert_int(4,  sizeof(-s),  "Sizeof unary minus s");
+    assert_int(4,  sizeof(-i),  "Sizeof unary minus i");
+    assert_int(8,  sizeof(-l),  "Sizeof unary minus l");
+    assert_int(4,  sizeof(-uc), "Sizeof unary minus uc");
+    assert_int(4,  sizeof(-us), "Sizeof unary minus us");
+    assert_int(4,  sizeof(-ui), "Sizeof unary minus ui");
+    assert_int(8,  sizeof(-ul), "Sizeof unary minus ul");
+    assert_int(4,  sizeof(-f),  "Sizeof unary minus f");
+    assert_int(8,  sizeof(-d),  "Sizeof unary minus d");
+    assert_int(16, sizeof(-ld), "Sizeof unary minus ld");
+
+    c  = 1; assert_long(       -1,         -c,  "c = 1; -c");
+    s  = 1; assert_long(       -1,         -s,  "s = 1; -s");
+    i  = 1; assert_long(       -1,         -i,  "i = 1; -i");
+    l  = 1; assert_long(       -1,         -l,  "l = 1; -l");
+    uc = 1; assert_long(       -1,         -uc, "uc = 1; -uc");
+    us = 1; assert_long(       -1,         -us, "us = 1; -us");
+    ui = 1; assert_long(       4294967295, -ui, "ui = 1; -ui");
+    ul = 1; assert_long(       -1,         -ul, "ul = 1; -ul");
+    f  = 1; assert_float(      -1.0,       -f,  "f = 1; -f");
+    d  = 1; assert_double(     -1.0,       -d,  "d = 1; -d");
+    ld = 1; assert_long_double(-1.0,       -ld, "ld = 1; -ld");
+}
+
 void test_80000000_unary_minus() {
     int i;
     long l;
@@ -1226,6 +1264,7 @@ int main(int argc, char **argv) {
     test_integer_constant_sizes();
     test_hex_and_octal_constants();
     test_constant_suffixes();
+    test_unary_minus();
     test_80000000_unary_minus();
     test_80000000_cmp();
     test_pointer_casting_reads();

@@ -571,6 +571,7 @@ Type *deref_ptr(Type *type);
 int is_integer_type(Type *type);
 int is_floating_point_type(Type *type);
 int is_sse_floating_point_type(Type *type);
+int is_arithmetic_type(Type *type);
 int is_scalar_type(Type *type);
 int type_fits_in_single_int_register(Type *type);
 int get_type_size(Type *type);
