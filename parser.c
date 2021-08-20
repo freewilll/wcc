@@ -877,6 +877,26 @@ static void parse_expression(int level) {
         }
     }
 
+    else if (cur_token == TOK_PLUS) {
+        // Unary plus
+        next();
+
+        if (cur_token == TOK_INTEGER) {
+            push_cur_long();
+            next();
+        }
+        else if (cur_token == TOK_FLOATING_POINT_NUMBER) {
+            push_cur_long_double();
+            next();
+        }
+        else {
+            parse_expression(TOK_INC);
+            if (!is_arithmetic_type(vtop->type)) panic("Can only use unary + on an arithmetic type");
+
+            if (is_integer_type(vtop->type)) push(integer_promote(pl()));
+        }
+    }
+
     else if (cur_token == TOK_LPAREN) {
         next();
         if (cur_token_is_type()) {
