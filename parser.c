@@ -1450,6 +1450,7 @@ static void parse_statement() {
 
         consume(TOK_LPAREN, "(");
         parse_expression(TOK_COMMA);
+        if (!is_scalar_type(vtop->type)) panic("The controlling statement of an if statement must be a scalar");
         consume(TOK_RPAREN, ")");
 
         Value *ldst1 = new_label_dst(); // False case
