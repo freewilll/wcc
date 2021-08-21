@@ -1266,6 +1266,32 @@ static void test_constant_assignment_to_global() {
     gl = 0x7fffffff;         assert_long(0x7fffffff,         gl, "gl = 0x7fffffff;        ");
 }
 
+static int test_logical_not() {
+    char c;
+    short s;
+    int i;
+    long l;
+    unsigned char uc;
+    unsigned short us;
+    unsigned int ui;
+    unsigned long ul;
+    float f;
+    double d;
+    long double ld;
+
+    c  = 0; assert_int(1, !c,  "!c" ); c  = 1; assert_int(0, !c,  "!c");
+    s  = 0; assert_int(1, !s,  "!s" ); s  = 1; assert_int(0, !s,  "!s");
+    i  = 0; assert_int(1, !i,  "!i" ); i  = 1; assert_int(0, !i,  "!i");
+    l  = 0; assert_int(1, !l,  "!l" ); l  = 1; assert_int(0, !l,  "!l");
+    uc = 0; assert_int(1, !uc, "!uc"); uc = 1; assert_int(0, !uc, "!uc");
+    us = 0; assert_int(1, !us, "!us"); us = 1; assert_int(0, !us, "!us");
+    ui = 0; assert_int(1, !ui, "!ui"); ui = 1; assert_int(0, !ui, "!ui");
+    ul = 0; assert_int(1, !ul, "!ul"); ul = 1; assert_int(0, !ul, "!ul");
+    f  = 0; assert_int(1, !f,  "!f"); f  = 1; assert_int(0, !f,  "!f");
+    d  = 0; assert_int(1, !d,  "!d"); d  = 1; assert_int(0, !d,  "!d");
+    ld = 0; assert_int(1, !ld, "!ld"); ld = 1; assert_int(0, !ld, "!ld");
+}
+
 static int test_scopes() {
     // Test nested local scopes
     int i = 1;
@@ -1325,6 +1351,7 @@ int main(int argc, char **argv) {
     test_uint_uint_assignment();
     test_constant_assignment_to_global();
     test_sign_extend_globals();
+    test_logical_not();
     test_scopes();
 
     finalize();

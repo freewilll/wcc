@@ -778,6 +778,7 @@ static void parse_expression(int level) {
     else if (cur_token == TOK_LOGICAL_NOT) {
         next();
         parse_expression(TOK_INC);
+        if (!is_scalar_type(vtop->type)) panic("Cannot use ! on a non scalar");
 
         if (vtop->is_constant)
             push_integral_constant(TYPE_INT, !pop()->int_value);
