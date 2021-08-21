@@ -141,3 +141,20 @@ int get_type_alignment(Type *type) {
 int type_eq(Type *type1, Type *type2) {
     return (type1->type == type2->type && type1->is_unsigned == type2->is_unsigned);
 }
+
+int is_integer_operation_result_unsigned(Type *src1, Type *src2) {
+    int is_insigned;
+
+    if (src1->type == src2->type)
+        // If either is unsigned, the result is also unsigned
+        is_insigned = src1->is_unsigned || src2->is_unsigned;
+    else {
+        // types are different
+        if (src1->is_unsigned == src2->is_unsigned)
+            is_insigned = src1->is_unsigned;
+        else
+            is_insigned = (src1->type > src2->type && src1->is_unsigned) || (src1->type < src2->type && src2->is_unsigned) ? 1 : 0;
+    }
+
+    return is_insigned;
+}

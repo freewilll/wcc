@@ -167,17 +167,7 @@ Type *operation_type(Type *src1, Type *src2) {
     else
         result = new_type(TYPE_INT);
 
-    if (src1->type == src2->type)
-        // If either is unsigned, the result is also unsigned
-        result->is_unsigned = src1->is_unsigned || src2->is_unsigned;
-    else {
-        // types are different
-        if (src1->is_unsigned == src2->is_unsigned)
-            result->is_unsigned = src1->is_unsigned;
-        else
-            // The sign is different
-            result->is_unsigned = (src1->type > src2->type && src1->is_unsigned) || (src1->type < src2->type && src2->is_unsigned) ? 1 : 0;
-    }
+    result->is_unsigned = is_integer_operation_result_unsigned(src1, src2);
 
     return result;
 }
@@ -846,55 +836,28 @@ static void parse_expression(int level) {
         // Unary minus
         next();
 
-        if (cur_token == TOK_INTEGER) {
-            if (cur_lexer_type->type == TYPE_INT  && !cur_lexer_type->is_unsigned) cur_long = - (int) cur_long;
-            if (cur_lexer_type->type == TYPE_INT  &&  cur_lexer_type->is_unsigned) cur_long = - (unsigned int) cur_long;
-            if (cur_lexer_type->type == TYPE_LONG && !cur_lexer_type->is_unsigned) cur_long = - (long) cur_long;
-            if (cur_lexer_type->type == TYPE_LONG &&  cur_lexer_type->is_unsigned) cur_long = - (unsigned long) cur_long;
+        parse_expression(TOK_INC);
+        if (!is_arithmetic_type(vtop->type)) panic("Can only use unary - on an arithmetic type");
 
-            push_cur_long();
-            next();
-        }
-        else if (cur_token == TOK_FLOATING_POINT_NUMBER) {
-            cur_long_double = -cur_long_double;
-            push_cur_long_double();
-            next();
-        }
-        else {
-            parse_expression(TOK_INC);
-            if (!is_arithmetic_type(vtop->type)) panic("Can only use unary - on an arithmetic type");
+        if (vtop->type->type == TYPE_LONG_DOUBLE)
+            push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
+        else if (vtop->type->type == TYPE_DOUBLE)
+            push_floating_point_constant(TYPE_DOUBLE, -1.0L);
+        else if (vtop->type->type == TYPE_FLOAT)
+            push_floating_point_constant(TYPE_FLOAT, -1.0L);
+        else
+            push_integral_constant(TYPE_INT, -1);
 
-            if (vtop->type->type == TYPE_LONG_DOUBLE)
-                push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
-            else if (vtop->type->type == TYPE_DOUBLE)
-                push_floating_point_constant(TYPE_DOUBLE, -1.0L);
-            else if (vtop->type->type == TYPE_FLOAT)
-                push_floating_point_constant(TYPE_FLOAT, -1.0L);
-            else
-                push_integral_constant(TYPE_INT, -1);
-
-            arithmetic_operation(IR_MUL, 0);
-        }
+        arithmetic_operation(IR_MUL, 0);
     }
 
     else if (cur_token == TOK_PLUS) {
         // Unary plus
+
         next();
-
-        if (cur_token == TOK_INTEGER) {
-            push_cur_long();
-            next();
-        }
-        else if (cur_token == TOK_FLOATING_POINT_NUMBER) {
-            push_cur_long_double();
-            next();
-        }
-        else {
-            parse_expression(TOK_INC);
-            if (!is_arithmetic_type(vtop->type)) panic("Can only use unary + on an arithmetic type");
-
-            if (is_integer_type(vtop->type)) push(integer_promote(pl()));
-        }
+        parse_expression(TOK_INC);
+        if (!is_arithmetic_type(vtop->type)) panic("Can only use unary + on an arithmetic type");
+        if (is_integer_type(vtop->type)) push(integer_promote(pl()));
     }
 
     else if (cur_token == TOK_LPAREN) {

@@ -546,9 +546,10 @@ static Value *merge_cst_node(IGraph *igraph, int node_id, Value *v) {
     return v;
 }
 
-static Value *merge_cst_int_node(IGraph *igraph, int node_id, long constant_value) {
+static Value *merge_cst_int_node(IGraph *igraph, int node_id, long constant_value, int is_unsigned) {
     Value *v = new_value();
     v->type = new_type(TYPE_LONG);
+    v->type->is_unsigned = is_unsigned;
     v->is_constant = 1;
     v->int_value = constant_value;
     return merge_cst_node(igraph, node_id, v);
@@ -563,46 +564,46 @@ static Value *merge_cst_fp_node(IGraph *igraph, int node_id, Type *type, long do
 }
 
 static Value* merge_integer_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2) {
-    int is_unsigned = src1 && src1->type && src1->type->is_unsigned;
+    int is_unsigned = src1->type->is_unsigned;
+    int is_long = src1->type->type == TYPE_LONG || src2->type->type == TYPE_LONG;
 
-         if (operation == IR_ADD ) return merge_cst_int_node(igraph, node_id, src1->int_value +  src2->int_value);
-    else if (operation == IR_SUB ) return merge_cst_int_node(igraph, node_id, src1->int_value -  src2->int_value);
-    else if (operation == IR_MUL ) return merge_cst_int_node(igraph, node_id, src1->int_value *  src2->int_value);
-    else if (operation == IR_BAND) return merge_cst_int_node(igraph, node_id, src1->int_value &  src2->int_value);
-    else if (operation == IR_BOR ) return merge_cst_int_node(igraph, node_id, src1->int_value |  src2->int_value);
-    else if (operation == IR_XOR ) return merge_cst_int_node(igraph, node_id, src1->int_value ^  src2->int_value);
-    else if (operation == IR_EQ  ) return merge_cst_int_node(igraph, node_id, src1->int_value == src2->int_value);
-    else if (operation == IR_NE  ) return merge_cst_int_node(igraph, node_id, src1->int_value != src2->int_value);
-    else if (operation == IR_BSHL) return merge_cst_int_node(igraph, node_id, src1->int_value << src2->int_value);
-    else if (operation == IR_BSHR) return merge_cst_int_node(igraph, node_id, src1->int_value >> src2->int_value);
+    int ui =  is_unsigned && !is_long;
+    int ul =  is_unsigned &&  is_long;
+    int si = !is_unsigned && !is_long;
+    int sl = !is_unsigned &&  is_long;
 
-    else if (operation == IR_DIV) {
-        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value / (unsigned long) src2->int_value);
-        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value /                 src2->int_value);
-    }
-    else if (operation == IR_MOD) {
-        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value % (unsigned long) src2->int_value);
-        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value %                 src2->int_value);
-    }
-    else if (operation == IR_LT) {
-        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value < (unsigned long)  src2->int_value);
-        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value <                  src2->int_value);
-    }
-    else if (operation == IR_GT) {
-        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value > (unsigned long)  src2->int_value);
-        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value >                  src2->int_value);
-    }
-    else if (operation == IR_LE) {
-        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value <= (unsigned long) src2->int_value);
-        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value <=                 src2->int_value);
-    }
-    else if (operation == IR_GE) {
-        if (is_unsigned) return merge_cst_int_node(igraph, node_id, (unsigned long) src1->int_value >= (unsigned long) src2->int_value);
-        else             return merge_cst_int_node(igraph, node_id,                 src1->int_value >=                 src2->int_value);
-    }
+    unsigned int  s1ui = (unsigned int)  src1->int_value;
+    unsigned long s1ul = (unsigned long) src1->int_value;
+    int           s1si = (int)           src1->int_value;
+    long          s1sl = (long)          src1->int_value;
 
-    else
-        return 0;
+    unsigned int  s2ui = (unsigned int)  src2->int_value;
+    unsigned long s2ul = (unsigned long) src2->int_value;
+    int           s2si = (int)           src2->int_value;
+    long          s2sl = (long)          src2->int_value;
+
+    unsigned long r = 0;
+
+         if (operation == IR_ADD ) { if (ui) r = s1ui +  s2ui; else if (ul) r = s1ul +  s2ul; else if (si) r = s1si +  s2si; else if (sl) r = s1sl +  s2sl; }
+    else if (operation == IR_SUB ) { if (ui) r = s1ui -  s2ui; else if (ul) r = s1ul -  s2ul; else if (si) r = s1si -  s2si; else if (sl) r = s1sl -  s2sl; }
+    else if (operation == IR_MUL ) { if (ui) r = s1ui *  s2ui; else if (ul) r = s1ul *  s2ul; else if (si) r = s1si *  s2si; else if (sl) r = s1sl *  s2sl; }
+    else if (operation == IR_DIV ) { if (ui) r = s1ui /  s2ui; else if (ul) r = s1ul /  s2ul; else if (si) r = s1si /  s2si; else if (sl) r = s1sl /  s2sl; }
+    else if (operation == IR_MOD ) { if (ui) r = s1ui %  s2ui; else if (ul) r = s1ul %  s2ul; else if (si) r = s1si %  s2si; else if (sl) r = s1sl %  s2sl; }
+    else if (operation == IR_BAND) { if (ui) r = s1ui &  s2ui; else if (ul) r = s1ul &  s2ul; else if (si) r = s1si &  s2si; else if (sl) r = s1sl &  s2sl; }
+    else if (operation == IR_BOR ) { if (ui) r = s1ui |  s2ui; else if (ul) r = s1ul |  s2ul; else if (si) r = s1si |  s2si; else if (sl) r = s1sl |  s2sl; }
+    else if (operation == IR_XOR ) { if (ui) r = s1ui ^  s2ui; else if (ul) r = s1ul ^  s2ul; else if (si) r = s1si ^  s2si; else if (sl) r = s1sl ^  s2sl; }
+    else if (operation == IR_BSHL) { if (ui) r = s1ui << s2ui; else if (ul) r = s1ul << s2ul; else if (si) r = s1si << s2si; else if (sl) r = s1sl << s2sl; }
+    else if (operation == IR_BSHR) { if (ui) r = s1ui >> s2ui; else if (ul) r = s1ul >> s2ul; else if (si) r = s1si >> s2si; else if (sl) r = s1sl >> s2sl; }
+    else if (operation == IR_EQ  ) { if (ui) r = s1ui == s2ui; else if (ul) r = s1ul == s2ul; else if (si) r = s1si == s2si; else if (sl) r = s1sl == s2sl; }
+    else if (operation == IR_NE  ) { if (ui) r = s1ui != s2ui; else if (ul) r = s1ul != s2ul; else if (si) r = s1si != s2si; else if (sl) r = s1sl != s2sl; }
+    else if (operation == IR_LT  ) { if (ui) r = s1ui <  s2ui; else if (ul) r = s1ul <  s2ul; else if (si) r = s1si <  s2si; else if (sl) r = s1sl <  s2sl; }
+    else if (operation == IR_GT  ) { if (ui) r = s1ui >  s2ui; else if (ul) r = s1ul >  s2ul; else if (si) r = s1si >  s2si; else if (sl) r = s1sl >  s2sl; }
+    else if (operation == IR_LE  ) { if (ui) r = s1ui <= s2ui; else if (ul) r = s1ul <= s2ul; else if (si) r = s1si <= s2si; else if (sl) r = s1sl <= s2sl; }
+    else if (operation == IR_GE  ) { if (ui) r = s1ui >= s2ui; else if (ul) r = s1ul >= s2ul; else if (si) r = s1si >= s2si; else if (sl) r = s1sl >= s2sl; }
+    else return 0;
+
+    return merge_cst_int_node(igraph, node_id, r, is_unsigned);
+
 }
 
 // Assert that both src1 and src2 are long doubles
@@ -616,12 +617,12 @@ static Value* merge_fp_constants(IGraph *igraph, int node_id, int operation, Val
     else if (operation == IR_SUB) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, type, src1->fp_value -  src2->fp_value); }
     else if (operation == IR_MUL) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, type, src1->fp_value *  src2->fp_value); }
     else if (operation == IR_DIV) { check_fp_src1_src2(src1, src2); return merge_cst_fp_node( igraph, node_id, type, src1->fp_value /  src2->fp_value); }
-    else if (operation == IR_EQ ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value == src2->fp_value); }
-    else if (operation == IR_NE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value != src2->fp_value); }
-    else if (operation == IR_LT ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value <  src2->fp_value); }
-    else if (operation == IR_GT ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value >  src2->fp_value); }
-    else if (operation == IR_LE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value <= src2->fp_value); }
-    else if (operation == IR_GE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value >= src2->fp_value); }
+    else if (operation == IR_EQ ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value == src2->fp_value, 0 ); }
+    else if (operation == IR_NE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value != src2->fp_value, 0 ); }
+    else if (operation == IR_LT ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value <  src2->fp_value, 0 ); }
+    else if (operation == IR_GT ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value >  src2->fp_value, 0 ); }
+    else if (operation == IR_LE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value <= src2->fp_value, 0 ); }
+    else if (operation == IR_GE ) { check_fp_src1_src2(src1, src2); return merge_cst_int_node(igraph, node_id, src1->fp_value >= src2->fp_value, 0 ); }
     else return 0;
 }
 
@@ -648,7 +649,7 @@ static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     if (!src1 || !cst1) return 0;
 
     // Unary operations
-    if (operation == IR_BNOT) return merge_cst_int_node(igraph, node_id, ~src1->int_value);
+    if (operation == IR_BNOT) return merge_cst_int_node(igraph, node_id, ~src1->int_value, src1->type->is_unsigned);
 
     // Binary operations
     int cst2 = cst1 && (src2 && src2->is_constant);
