@@ -1287,9 +1287,29 @@ static int test_logical_not() {
     us = 0; assert_int(1, !us, "!us"); us = 1; assert_int(0, !us, "!us");
     ui = 0; assert_int(1, !ui, "!ui"); ui = 1; assert_int(0, !ui, "!ui");
     ul = 0; assert_int(1, !ul, "!ul"); ul = 1; assert_int(0, !ul, "!ul");
-    f  = 0; assert_int(1, !f,  "!f"); f  = 1; assert_int(0, !f,  "!f");
-    d  = 0; assert_int(1, !d,  "!d"); d  = 1; assert_int(0, !d,  "!d");
+    f  = 0; assert_int(1, !f,  "!f" ); f  = 1; assert_int(0, !f,  "!f");
+    d  = 0; assert_int(1, !d,  "!d" ); d  = 1; assert_int(0, !d,  "!d");
     ld = 0; assert_int(1, !ld, "!ld"); ld = 1; assert_int(0, !ld, "!ld");
+}
+
+static int test_bitwise_not() {
+    char c;
+    short s;
+    int i;
+    long l;
+    unsigned char uc;
+    unsigned short us;
+    unsigned int ui;
+    unsigned long ul;
+
+    c  = 0; assert_int(-1, ~c,  "~c" ); c  = 1; assert_int(-2, ~c,  "~c");
+    s  = 0; assert_int(-1, ~s,  "~s" ); s  = 1; assert_int(-2, ~s,  "~s");
+    i  = 0; assert_int(-1, ~i,  "~i" ); i  = 1; assert_int(-2, ~i,  "~i");
+    l  = 0; assert_int(-1, ~l,  "~l" ); l  = 1; assert_int(-2, ~l,  "~l");
+    uc = 0; assert_int(-1, ~uc, "~uc"); uc = 1; assert_int(-2, ~uc, "~uc");
+    us = 0; assert_int(-1, ~us, "~us"); us = 1; assert_int(-2, ~us, "~us");
+    ui = 0; assert_int(-1, ~ui, "~ui"); ui = 1; assert_int(-2, ~ui, "~ui");
+    ul = 0; assert_int(-1, ~ul, "~ul"); ul = 1; assert_int(-2, ~ul, "~ul");
 }
 
 static int test_scopes() {
@@ -1352,6 +1372,7 @@ int main(int argc, char **argv) {
     test_constant_assignment_to_global();
     test_sign_extend_globals();
     test_logical_not();
+    test_bitwise_not();
     test_scopes();
 
     finalize();

@@ -791,12 +791,10 @@ static void parse_expression(int level) {
     else if (cur_token == TOK_BITWISE_NOT) {
         next();
         parse_expression(TOK_INC);
-        if (vtop->is_constant)
-            push_integral_constant(TYPE_LONG, ~pop()->int_value);
-        else {
-            Type *type = vtop->type;
-            add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
-        }
+        if (!is_integer_type(vtop->type)) panic("Cannot use ~ on a non integer");
+        push(integer_promote(pl()));
+        Type *type = vtop->type;
+        add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
     }
 
     else if (cur_token == TOK_ADDRESS_OF) {
