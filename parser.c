@@ -1240,8 +1240,10 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_BITWISE_LEFT || cur_token == TOK_BITWISE_RIGHT)  {
             int org_token = cur_token;
             next();
+            if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
             Value *src1 = integer_promote(pl());
             parse_expression(level);
+            if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
             Value *src2 = integer_promote(pl());
             add_ir_op(org_token == TOK_BITWISE_LEFT ? IR_BSHL : IR_BSHR, src1->type, new_vreg(), src1, src2);
         }
