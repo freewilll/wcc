@@ -137,44 +137,49 @@ static Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
 
 // Returns destination type of an operation with two operands
 // https://en.cppreference.com/w/c/language/conversion
-Type *operation_type(Type *src1, Type *src2) {
+Type *operation_type(Value *src1, Value *src2) {
+    Type *src1_type = src1->type;
+    Type *src2_type = src2->type;
+
     Type *result;
 
-    if (src1->type == TYPE_STRUCT || src2->type == TYPE_STRUCT) panic("Operations on structs not implemented");
+    if (src1_type->type == TYPE_STRUCT || src2_type->type == TYPE_STRUCT) panic("Operations on structs not implemented");
 
-    if (src1->type >= TYPE_PTR) return src1;
-    else if (src2->type >= TYPE_PTR) return src2;
+    else if (src1_type->type >= TYPE_PTR && is_pointer_to_void(src2)) return src1->type;
+    else if (src2_type->type >= TYPE_PTR && is_pointer_to_void(src1)) return src2->type;
+    else if (src1_type->type >= TYPE_PTR) return src1_type;
+    else if (src2_type->type >= TYPE_PTR) return src2_type;
 
     // If either is a long double, promote both to long double
-    if (src1->type == TYPE_LONG_DOUBLE || src2->type == TYPE_LONG_DOUBLE)
+    if (src1_type->type == TYPE_LONG_DOUBLE || src2_type->type == TYPE_LONG_DOUBLE)
         return new_type(TYPE_LONG_DOUBLE);
 
     // If either is a double, promote both to double
-    if (src1->type == TYPE_DOUBLE || src2->type == TYPE_DOUBLE)
+    if (src1_type->type == TYPE_DOUBLE || src2_type->type == TYPE_DOUBLE)
         return new_type(TYPE_DOUBLE);
 
     // If either is a float, promote both to float
-    if (src1->type == TYPE_FLOAT || src2->type == TYPE_FLOAT)
+    if (src1_type->type == TYPE_FLOAT || src2_type->type == TYPE_FLOAT)
         return new_type(TYPE_FLOAT);
 
     // Otherwise, apply integral promotions
-    src1 = integer_promote_type(src1);
-    src2 = integer_promote_type(src2);
+    src1_type = integer_promote_type(src1_type);
+    src2_type = integer_promote_type(src2_type);
 
     // They are two integer types
-    if (src1->type == TYPE_LONG || src2->type == TYPE_LONG)
+    if (src1_type->type == TYPE_LONG || src2_type->type == TYPE_LONG)
         result = new_type(TYPE_LONG);
     else
         result = new_type(TYPE_INT);
 
-    result->is_unsigned = is_integer_operation_result_unsigned(src1, src2);
+    result->is_unsigned = is_integer_operation_result_unsigned(src1_type, src2_type);
 
     return result;
 }
 
 // Returns destination type of an operation using the top two values in the stack
 static Type *vs_operation_type() {
-    return operation_type(vtop->type, vs[1]->type);
+    return operation_type(vtop, vs[1]);
 }
 
 static int cur_token_is_type() {
@@ -616,6 +621,16 @@ static void arithmetic_operation(int operation, Type *type) {
     Value *src2 = pl();
     Value *src1 = pl();
 
+    // In an equality compariosn, swap operands so that the constant is second.
+    // Instruction selection doesn't have rules that deal with a constant first operand.
+    if (operation == IR_EQ || operation == IR_NE) {
+        if (src1->is_constant && !src2->is_constant) {
+            Value *t = src1;
+            src1 = src2;
+            src2 = t;
+        }
+    }
+
     if (is_integer_type(common_type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
         if (!type_eq(common_type, src1->type) && (src1->type->type <= type->type || src1->type->is_unsigned != common_type->is_unsigned))
             src1 = integer_type_change(src1, common_type);
@@ -971,7 +986,16 @@ static void parse_expression(int level) {
             parse_expression(TOK_INC);
 
             Value *v1 = pl();
-            if (v1->type != org_type) {
+            // Special case for (void *) int-constant
+
+            if (org_type->type == TYPE_PTR + TYPE_VOID && (is_integer_type(v1->type) || v1->type->type == TYPE_PTR + TYPE_VOID) && v1->is_constant) {
+                Value *dst = new_value();
+                dst->is_constant =1;
+                dst->int_value = v1->int_value;
+                dst->type = new_type(TYPE_PTR + TYPE_VOID);
+                push(dst);
+            }
+            else if (v1->type != org_type) {
                 Value *dst = new_value();
                 dst->vreg = new_vreg();
                 dst->type = dup_type(org_type);
@@ -1334,7 +1358,7 @@ static void parse_expression(int level) {
             consume(TOK_COLON, ":");
             parse_expression(TOK_TERNARY);
             Value *src2 = vtop;
-            dst->type = operation_type(src1->type, src2->type);
+            dst->type = operation_type(src1, src2);
             add_instruction(IR_MOVE, dst, pl(), 0);
             push(dst);
             add_jmp_target_instruction(ldst2); // End

@@ -115,8 +115,12 @@ int is_pointer_to_object_type(Type *type) {
 }
 
 int is_null_pointer(Value *v) {
-    if (!is_integer_type(v->type) && v->type->type < TYPE_PTR) return 0;
+    if (!is_integer_type(v->type) && v->type->type != TYPE_PTR + TYPE_VOID) return 0;
     return (v->is_constant && v->int_value == 0);
+}
+
+int is_pointer_to_void(Value *v) {
+    return v->type->type == TYPE_PTR + TYPE_VOID;
 }
 
 int type_fits_in_single_int_register(Type *type) {

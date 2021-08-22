@@ -546,7 +546,7 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
-Type *operation_type(Type *src1, Type *src2);
+Type *operation_type(Value *src1, Value *src2);
 Value *load_constant(Value *cv);
 int new_vreg();
 void check_incomplete_structs();
@@ -578,6 +578,7 @@ int is_incomplete_type(Type *type);
 int is_pointer_type(Type *type);
 int is_pointer_to_object_type(Type *type);
 int is_null_pointer(Value *v);
+int is_pointer_to_void(Value *v);
 int type_fits_in_single_int_register(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);

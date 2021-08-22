@@ -31,8 +31,14 @@ static Type *t(int type_type, int is_unsigned) {
 }
 
 void test_integer_operation_type(Type *dst, Type *src1, Type *src2) {
-    assert_type_eq(dst, operation_type(src1, src2), src1, src2);
-    assert_type_eq(dst, operation_type(src2, src1), src2, src1);
+    Value *src1_value, *src2_value;
+    src1_value = new_value();
+    src1_value->type = src1;
+    src2_value = new_value();
+    src2_value->type = src2;
+
+    assert_type_eq(dst, operation_type(src1_value, src2_value), src1, src2);
+    assert_type_eq(dst, operation_type(src2_value, src1_value), src2, src1);
 }
 
 void test_integer_types_operations() {

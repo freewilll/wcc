@@ -431,6 +431,30 @@ void test_scaled_indirects() {
     test_scaled_long_pointer_indirects();
 }
 
+int test_null_pointer() {
+    int *pi;
+
+    pi = 0; assert_int(1, pi == 0,          "*pi == 0");         assert_int(1, 0          == pi, "0 == pi");
+    pi = 0; assert_int(1, pi == 0L,         "pi == 0L");         assert_int(1, 0L         == pi, "0L == pi");
+    pi = 0; assert_int(1, pi == (void *) 0, "pi == (void *) 0"); assert_int(1, (void *) 0 == pi, "(void *) 0 == pi");
+    pi = 0; assert_int(0, pi == (void *) 1, "pi == (void *) 1"); assert_int(0, (void *) 1 == pi, "(void *) 1 == pi");
+
+    pi = 1; assert_int(0, pi == 0,          "*pi == 0");         assert_int(0, 0          == pi, "0 == pi");
+    pi = 1; assert_int(0, pi == 0L,         "pi == 0L");         assert_int(0, 0L         == pi, "0L == pi");
+    pi = 1; assert_int(0, pi == (void *) 0, "pi == (void *) 0"); assert_int(0, (void *) 0 == pi, "(void *) 0 == pi");
+    pi = 1; assert_int(1, pi == (void *) 1, "pi == (void *) 1"); assert_int(1, (void *) 1 == pi, "(void *) 1 == pi");
+
+    pi = 0; assert_int(0, pi != 0,          "*pi == 0");         assert_int(0, 0          != pi, "0 == pi");
+    pi = 0; assert_int(0, pi != 0L,         "pi == 0L");         assert_int(0, 0L         != pi, "0L == pi");
+    pi = 0; assert_int(0, pi != (void *) 0, "pi == (void *) 0"); assert_int(0, (void *) 0 != pi, "(void *) 0 == pi");
+    pi = 0; assert_int(1, pi != (void *) 1, "pi == (void *) 1"); assert_int(1, (void *) 1 != pi, "(void *) 1 == pi");
+
+    pi = 1; assert_int(1, pi != 0,          "*pi == 0");         assert_int(1, 0          != pi, "0 == pi");
+    pi = 1; assert_int(1, pi != 0L,         "pi == 0L");         assert_int(1, 0L         != pi, "0L == pi");
+    pi = 1; assert_int(1, pi != (void *) 0, "pi == (void *) 0"); assert_int(1, (void *) 0 != pi, "(void *) 0 == pi");
+    pi = 1; assert_int(0, pi != (void *) 1, "pi == (void *) 1"); assert_int(0, (void *) 1 != pi, "(void *) 1 == pi");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -459,6 +483,7 @@ int main(int argc, char **argv) {
     test_global_pointer_address_of();
     test_deref_promotion();
     test_scaled_indirects();
+    test_null_pointer();
 
     finalize();
 }
