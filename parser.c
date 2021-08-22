@@ -669,8 +669,34 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
             (!(src1_is_pointer && src2_is_pointer && is_object_type(src1_type_deref) && is_object_type(src2_type_deref) && types_are_compabible(src1_type_deref, src2_type_deref))) &&
             (!(src1_is_pointer && src2_is_pointer && is_incomplete_type(src1_type_deref) && is_incomplete_type(src2_type_deref) && types_are_compabible(src1_type_deref, src2_type_deref)))
         )
-        panic("Invalid operands to relational operator");
+            panic("Invalid operands to relational operator");
     }
+
+    if (operation == IR_EQ || operation == IR_NE) {
+        Type *src1_type_deref = 0;
+        Type *src2_type_deref = 0;
+
+        if (src1_is_pointer) src1_type_deref = deref_ptr(src1->type);
+        if (src2_is_pointer) src2_type_deref = deref_ptr(src2->type);
+
+        // One of the following shall hold:
+        // * both operands have arithmetic type;
+        // * both operands are pointers to qualified or unqualified versions of compatible types;
+        // * one operand is a pointer to an object or incomplete type and the other is a qualified or unqualified version of void ; or
+        // * one operand is a pointer and the other is a null pointer constant.
+        //
+        // Deviation from the spec: comparisons between arithmetic and pointers types are allowed
+        if (
+            (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
+            (!(src1_is_pointer && src2_is_pointer && types_are_compabible(src1_type_deref, src2_type_deref))) &&
+            (!(src1_is_pointer && src2_is_pointer && src2->type->type == TYPE_PTR + TYPE_VOID)) &&
+            (!(src2_is_pointer && src1_is_pointer && src1->type->type == TYPE_PTR + TYPE_VOID)) &&
+            (!(src1_is_pointer && is_null_pointer(src2))) &&
+            (!(src2_is_pointer && is_null_pointer(src1)))
+        )
+            panic("Invalid operands to relational operator");
+    }
+
 }
 
 static void parse_arithmetic_operation(int level, int operation, Type *type) {

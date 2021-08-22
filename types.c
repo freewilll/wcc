@@ -114,6 +114,11 @@ int is_pointer_to_object_type(Type *type) {
     return type->type >= TYPE_PTR;
 }
 
+int is_null_pointer(Value *v) {
+    if (!is_integer_type(v->type) && v->type->type < TYPE_PTR) return 0;
+    return (v->is_constant && v->int_value == 0);
+}
+
 int type_fits_in_single_int_register(Type *type) {
     return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type >= TYPE_PTR));
 }

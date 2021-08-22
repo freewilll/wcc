@@ -577,6 +577,7 @@ int is_object_type(Type *type);
 int is_incomplete_type(Type *type);
 int is_pointer_type(Type *type);
 int is_pointer_to_object_type(Type *type);
+int is_null_pointer(Value *v);
 int type_fits_in_single_int_register(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
