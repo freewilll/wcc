@@ -662,9 +662,12 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
     int src1_is_pointer = is_pointer_type(src1->type);
     int src2_is_pointer = is_pointer_type(src2->type);
 
-    if (operation == IR_MUL && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary *");
-    if (operation == IR_DIV && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary /");
-    if (operation == IR_MOD && (!src1_is_integer || !src2_is_integer)) panic("Invalid operands to binary %");
+    if (operation == IR_MUL  && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary *");
+    if (operation == IR_DIV  && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary /");
+    if (operation == IR_MOD  && (!src1_is_integer    || !src2_is_integer))    panic("Invalid operands to binary %");
+    if (operation == IR_BAND && (!src1_is_integer    || !src2_is_integer))    panic("Invalid operands to binary &");
+    if (operation == IR_BOR  && (!src1_is_integer    || !src2_is_integer))    panic("Invalid operands to binary |");
+    if (operation == IR_XOR  && (!src1_is_integer    || !src2_is_integer))    panic("Invalid operands to binary ^");
 
     if (operation == IR_LT || operation == IR_GT || operation == IR_LE || operation == IR_GE) {
         Type *src1_type_deref = 0;
