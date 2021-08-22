@@ -639,9 +639,18 @@ static void arithmetic_operation(int operation, Type *type) {
     add_ir_op(operation, type, new_vreg(), src1, src2);
 }
 
+static void check_arithmetic_operation_type(int operation, Value *v) {
+    if (operation == IR_MUL && !is_arithmetic_type(v->type)) panic("Can only multiply arithmetic types");
+    if (operation == IR_DIV && !is_arithmetic_type(v->type)) panic("Can only divide arithmetic types");
+    if (operation == IR_MOD && !is_integer_type(v->type)) panic("Can only use % on integer types");
+}
+
 static void parse_arithmetic_operation(int level, int operation, Type *type) {
+    check_arithmetic_operation_type(operation, vtop);
     next();
     parse_expression(level);
+    check_arithmetic_operation_type(operation, vtop);
+
     arithmetic_operation(operation, type);
 }
 
