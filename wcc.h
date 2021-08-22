@@ -578,6 +578,7 @@ int type_fits_in_single_int_register(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
 int type_eq(Type *type1, Type *type2);
+int types_are_compabible(Type *type1, Type *type2);
 int is_integer_operation_result_unsigned(Type *src1, Type *src2);
 
 // ir.c

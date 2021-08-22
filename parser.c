@@ -1193,11 +1193,29 @@ static void parse_expression(int level) {
         }
 
         else if (cur_token == TOK_MINUS) {
+            Value *src1 = vtop;
+            int src1_is_pointer = is_pointer_to_object_type(vtop->type);
+            int src1_is_arithmetic = is_arithmetic_type(vtop->type);
+
             int factor = get_type_inc_dec_size(vtop->type);
 
             next();
             parse_expression(TOK_MULTIPLY);
-            int src2_is_pointer = vtop->type->type >= TYPE_PTR;
+            Value *src2 = vtop;
+
+            int src2_is_pointer = is_pointer_to_object_type(vtop->type);
+            int src2_is_integer = is_integer_type(vtop->type);
+            int src2_is_arithmetic = is_arithmetic_type(vtop->type);
+
+            // * both operands have arithmetic type;
+            // * both operands are pointers to qualified or unqualified versions of compatible object types; or
+            // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
+            if (
+                (!(src1_is_arithmetic && src2_is_arithmetic)) &&
+                (!(src1_is_pointer && src2_is_pointer && types_are_compabible(deref_ptr(src1->type), deref_ptr(src2->type)))) &&
+                (!(src1_is_pointer && src2_is_integer))
+            )
+            panic("Invalid operands to binary minus");
 
             if (factor > 1) {
                 if (!src2_is_pointer) {

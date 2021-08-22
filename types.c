@@ -146,6 +146,10 @@ int type_eq(Type *type1, Type *type2) {
     return (type1->type == type2->type && type1->is_unsigned == type2->is_unsigned);
 }
 
+int types_are_compabible(Type *type1, Type *type2) {
+    return type_eq(type1, type2);
+}
+
 int is_integer_operation_result_unsigned(Type *src1, Type *src2) {
     int is_insigned;
 
