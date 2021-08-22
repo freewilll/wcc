@@ -735,6 +735,36 @@ static void parse_assignment() {
     push(dst);
 }
 
+static void parse_pointer_integer_addition(int level) {
+    int src1_is_pointer = vtop->type->type >= TYPE_PTR;
+
+    parse_expression(level);
+    int src2_is_pointer = vtop->type->type >= TYPE_PTR;
+
+    if (src1_is_pointer && src2_is_pointer) panic("Cannot add two pointers");
+
+    // Swap the operands so that the pointer comes first, for convenience
+    if (!src1_is_pointer && src2_is_pointer) {
+        Value *src1 = vs[0];
+        vs[0] = vs[1];
+        vs[1] = src1;
+
+        src1_is_pointer = 1;
+        src2_is_pointer = 0;
+    }
+
+    int factor = get_type_inc_dec_size(vs[1]->type);
+
+    if (factor > 1) {
+        if (!src2_is_pointer) {
+            push_integral_constant(TYPE_INT, factor);
+            arithmetic_operation(IR_MUL, 0);
+        }
+    }
+
+    arithmetic_operation(IR_ADD, 0);
+}
+
 // Parse a declaration
 static void parse_declaration() {
     Symbol *symbol;
@@ -1082,16 +1112,7 @@ static void parse_expression(int level) {
             if (vtop->type->type < TYPE_PTR)
                 panic1d("Cannot do [] on a non-pointer for type %d", vtop->type->type);
 
-            int factor = get_type_inc_dec_size(vtop->type);
-
-            parse_expression(TOK_COMMA);
-
-            if (factor > 1) {
-                push_integral_constant(TYPE_INT, factor);
-                arithmetic_operation(IR_MUL, 0);
-            }
-
-            arithmetic_operation(IR_ADD, 0);
+            parse_pointer_integer_addition(TOK_COMMA);
             consume(TOK_RBRACKET, "]");
             indirect();
         }
@@ -1158,34 +1179,8 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_MOD)      parse_arithmetic_operation(TOK_INC, IR_MOD, 0);
 
         else if (cur_token == TOK_PLUS) {
-            int src1_is_pointer = vtop->type->type >= TYPE_PTR;
-
             next();
-            parse_expression(TOK_MULTIPLY);
-            int src2_is_pointer = vtop->type->type >= TYPE_PTR;
-
-            if (src1_is_pointer && src2_is_pointer) panic("Cannot add two pointers");
-
-            // Swap the operands so that the pointer comes first, for convenience
-            if (!src1_is_pointer && src2_is_pointer) {
-                Value *src1 = vs[0];
-                vs[0] = vs[1];
-                vs[1] = src1;
-
-                src1_is_pointer = 1;
-                src2_is_pointer = 0;
-            }
-
-            int factor = get_type_inc_dec_size(vs[1]->type);
-
-            if (factor > 1) {
-                if (!src2_is_pointer) {
-                    push_integral_constant(TYPE_INT, factor);
-                    arithmetic_operation(IR_MUL, 0);
-                }
-            }
-
-            arithmetic_operation(IR_ADD, 0);
+            parse_pointer_integer_addition(TOK_MULTIPLY);
         }
 
         else if (cur_token == TOK_MINUS) {
