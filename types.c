@@ -98,6 +98,18 @@ int is_scalar_type(Type *type) {
     return 1;
 }
 
+int is_object_type(Type *type) {
+    return 1;
+}
+
+int is_incomplete_type(Type *type) {
+    return 0;
+}
+
+int is_pointer_type(Type *type) {
+    return type->type >= TYPE_PTR;
+}
+
 int is_pointer_to_object_type(Type *type) {
     return type->type >= TYPE_PTR;
 }

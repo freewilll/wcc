@@ -639,17 +639,46 @@ static void arithmetic_operation(int operation, Type *type) {
     add_ir_op(operation, type, new_vreg(), src1, src2);
 }
 
-static void check_arithmetic_operation_type(int operation, Value *v) {
-    if (operation == IR_MUL && !is_arithmetic_type(v->type)) panic("Can only multiply arithmetic types");
-    if (operation == IR_DIV && !is_arithmetic_type(v->type)) panic("Can only divide arithmetic types");
-    if (operation == IR_MOD && !is_integer_type(v->type)) panic("Can only use % on integer types");
+static void check_arithmetic_operation_type(int operation, Value *src1, Value *src2) {
+    int src1_is_arithmetic = is_arithmetic_type(src1->type);
+    int src2_is_arithmetic = is_arithmetic_type(src2->type);
+    int src1_is_integer = is_integer_type(src1->type);
+    int src2_is_integer = is_integer_type(src2->type);
+    int src1_is_pointer = is_pointer_type(src1->type);
+    int src2_is_pointer = is_pointer_type(src2->type);
+
+    if (operation == IR_MUL && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary *");
+    if (operation == IR_DIV && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary /");
+    if (operation == IR_MOD && (!src1_is_integer || !src2_is_integer)) panic("Invalid operands to binary %");
+
+    if (operation == IR_LT || operation == IR_GT || operation == IR_LE || operation == IR_GE) {
+        Type *src1_type_deref = 0;
+        Type *src2_type_deref = 0;
+
+        if (src1_is_pointer) src1_type_deref = deref_ptr(src1->type);
+        if (src2_is_pointer) src2_type_deref = deref_ptr(src2->type);
+
+        // One of the following shall hold:
+        // * both operands have arithmetic type;
+        // * both operands are pointers to qualified or unqualified versions of compatible object types; or
+        // * both operands are pointers to qualified or unqualified versions of compatible incomplete types.
+        //
+        // Deviation from the spec: comparisons between arithmetic and pointers types are allowed
+        if (
+            (!((src1_is_arithmetic || src1_is_pointer) && (src2_is_arithmetic || src2_is_pointer))) &&
+            (!(src1_is_pointer && src2_is_pointer && is_object_type(src1_type_deref) && is_object_type(src2_type_deref) && types_are_compabible(src1_type_deref, src2_type_deref))) &&
+            (!(src1_is_pointer && src2_is_pointer && is_incomplete_type(src1_type_deref) && is_incomplete_type(src2_type_deref) && types_are_compabible(src1_type_deref, src2_type_deref)))
+        )
+        panic("Invalid operands to relational operator");
+    }
 }
 
 static void parse_arithmetic_operation(int level, int operation, Type *type) {
-    check_arithmetic_operation_type(operation, vtop);
+    Value *src1 = vtop;
     next();
     parse_expression(level);
-    check_arithmetic_operation_type(operation, vtop);
+    Value *src2 = vtop;
+    check_arithmetic_operation_type(operation, src1, src2);
 
     arithmetic_operation(operation, type);
 }
@@ -1207,6 +1236,7 @@ static void parse_expression(int level) {
             int src2_is_integer = is_integer_type(vtop->type);
             int src2_is_arithmetic = is_arithmetic_type(vtop->type);
 
+            // One of the following shall hold:
             // * both operands have arithmetic type;
             // * both operands are pointers to qualified or unqualified versions of compatible object types; or
             // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
