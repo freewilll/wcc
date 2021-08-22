@@ -443,6 +443,7 @@ static void add_conditional_jump(int operation, Value *dst) {
 
 // Add instructions for && and || operators
 static void and_or_expr(int is_and) {
+    if (!is_scalar_type(vtop->type)) panic("Invalid operands to &&/||");
     next();
 
     Value *ldst1 = new_label_dst(); // Store zero
@@ -467,6 +468,7 @@ static void and_or_expr(int is_and) {
     // Test second operand
     add_jmp_target_instruction(ldst2);
     parse_expression(TOK_BITWISE_OR);
+    if (!is_scalar_type(vtop->type)) panic("Invalid operands to &&/||");
     add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
     push_integral_constant(TYPE_INT, is_and ? 1 : 0);     // Store 1
     add_instruction(IR_MOVE, dst, pl(), 0);
