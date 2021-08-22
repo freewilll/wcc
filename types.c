@@ -98,6 +98,10 @@ int is_scalar_type(Type *type) {
     return 1;
 }
 
+int is_pointer_to_object_type(Type *type) {
+    return type->type >= TYPE_PTR;
+}
+
 int type_fits_in_single_int_register(Type *type) {
     return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type >= TYPE_PTR));
 }

@@ -735,13 +735,23 @@ static void parse_assignment() {
     push(dst);
 }
 
-static void parse_pointer_integer_addition(int level) {
-    int src1_is_pointer = vtop->type->type >= TYPE_PTR;
-
+static void parse_addition(int level, int require_pointer_arithmetic_operands) {
+    int src1_is_pointer = is_pointer_to_object_type(vtop->type);
+    int src1_is_integer = is_integer_type(vtop->type);
+    int src1_is_arithmetic = is_arithmetic_type(vtop->type);
     parse_expression(level);
-    int src2_is_pointer = vtop->type->type >= TYPE_PTR;
+    int src2_is_pointer = is_pointer_to_object_type(vtop->type);
+    int src2_is_integer = is_integer_type(vtop->type);
+    int src2_is_arithmetic = is_arithmetic_type(vtop->type);
 
-    if (src1_is_pointer && src2_is_pointer) panic("Cannot add two pointers");
+    // Either both operands shall have arithmetic type, or one operand shall be a
+    // pointer to an object type and the other shall have integral type.
+    if (
+        (!src1_is_arithmetic || !src2_is_arithmetic) &&
+        (!src1_is_pointer || !src2_is_integer) &&
+        (!src2_is_pointer || !src1_is_integer)
+    )
+    panic("Invalid operands to binary plus");
 
     // Swap the operands so that the pointer comes first, for convenience
     if (!src1_is_pointer && src2_is_pointer) {
@@ -749,7 +759,6 @@ static void parse_pointer_integer_addition(int level) {
         vs[0] = vs[1];
         vs[1] = src1;
 
-        src1_is_pointer = 1;
         src2_is_pointer = 0;
     }
 
@@ -1112,7 +1121,7 @@ static void parse_expression(int level) {
             if (vtop->type->type < TYPE_PTR)
                 panic1d("Cannot do [] on a non-pointer for type %d", vtop->type->type);
 
-            parse_pointer_integer_addition(TOK_COMMA);
+            parse_addition(TOK_COMMA, 1);
             consume(TOK_RBRACKET, "]");
             indirect();
         }
@@ -1180,7 +1189,7 @@ static void parse_expression(int level) {
 
         else if (cur_token == TOK_PLUS) {
             next();
-            parse_pointer_integer_addition(TOK_MULTIPLY);
+            parse_addition(TOK_MULTIPLY, 0);
         }
 
         else if (cur_token == TOK_MINUS) {
