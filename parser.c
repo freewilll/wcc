@@ -853,6 +853,51 @@ static void parse_addition(int level) {
     arithmetic_operation(IR_ADD, 0);
 }
 
+static void parse_subtraction(int level) {
+    Value *src1 = vtop;
+    int src1_is_pointer = is_pointer_to_object_type(vtop->type);
+    int src1_is_arithmetic = is_arithmetic_type(vtop->type);
+
+    int factor = get_type_inc_dec_size(vtop->type);
+
+    parse_expression(level);
+    Value *src2 = vtop;
+
+    int src2_is_pointer = is_pointer_to_object_type(vtop->type);
+    int src2_is_integer = is_integer_type(vtop->type);
+    int src2_is_arithmetic = is_arithmetic_type(vtop->type);
+
+    // One of the following shall hold:
+    // * both operands have arithmetic type;
+    // * both operands are pointers to qualified or unqualified versions of compatible object types; or
+    // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
+    if (
+        (!(src1_is_arithmetic && src2_is_arithmetic)) &&
+        (!(src1_is_pointer && src2_is_pointer && types_are_compabible(deref_ptr(src1->type), deref_ptr(src2->type)))) &&
+        (!(src1_is_pointer && src2_is_integer))
+    )
+    panic("Invalid operands to binary minus");
+
+    if (factor > 1) {
+        if (!src2_is_pointer) {
+            push_integral_constant(TYPE_INT, factor);
+            arithmetic_operation(IR_MUL, 0);
+        }
+
+        arithmetic_operation(IR_SUB, 0);
+
+        if (src2_is_pointer) {
+            vtop->type = new_type(TYPE_LONG);
+            push_integral_constant(TYPE_INT, factor);
+            arithmetic_operation(IR_DIV, 0);
+        }
+    }
+    else
+        arithmetic_operation(IR_SUB, 0);
+
+    if (src2_is_pointer) vtop->type = new_type(TYPE_LONG);
+}
+
 // Parse a declaration
 static void parse_declaration() {
     Symbol *symbol;
@@ -1281,49 +1326,8 @@ static void parse_expression(int level) {
         }
 
         else if (cur_token == TOK_MINUS) {
-            Value *src1 = vtop;
-            int src1_is_pointer = is_pointer_to_object_type(vtop->type);
-            int src1_is_arithmetic = is_arithmetic_type(vtop->type);
-
-            int factor = get_type_inc_dec_size(vtop->type);
-
             next();
-            parse_expression(TOK_MULTIPLY);
-            Value *src2 = vtop;
-
-            int src2_is_pointer = is_pointer_to_object_type(vtop->type);
-            int src2_is_integer = is_integer_type(vtop->type);
-            int src2_is_arithmetic = is_arithmetic_type(vtop->type);
-
-            // One of the following shall hold:
-            // * both operands have arithmetic type;
-            // * both operands are pointers to qualified or unqualified versions of compatible object types; or
-            // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
-            if (
-                (!(src1_is_arithmetic && src2_is_arithmetic)) &&
-                (!(src1_is_pointer && src2_is_pointer && types_are_compabible(deref_ptr(src1->type), deref_ptr(src2->type)))) &&
-                (!(src1_is_pointer && src2_is_integer))
-            )
-            panic("Invalid operands to binary minus");
-
-            if (factor > 1) {
-                if (!src2_is_pointer) {
-                    push_integral_constant(TYPE_INT, factor);
-                    arithmetic_operation(IR_MUL, 0);
-                }
-
-                arithmetic_operation(IR_SUB, 0);
-
-                if (src2_is_pointer) {
-                    vtop->type = new_type(TYPE_LONG);
-                    push_integral_constant(TYPE_INT, factor);
-                    arithmetic_operation(IR_DIV, 0);
-                }
-            }
-            else
-                arithmetic_operation(IR_SUB, 0);
-
-            if (src2_is_pointer) vtop->type = new_type(TYPE_LONG);
+            parse_subtraction(TOK_MULTIPLY);
         }
 
         else if (cur_token == TOK_BITWISE_LEFT || cur_token == TOK_BITWISE_RIGHT)  {
@@ -1409,7 +1413,6 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_EQ) parse_assignment();
 
         else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
-            Type *org_type = vtop->type;
             int org_token = cur_token;
 
             next();
@@ -1419,15 +1422,11 @@ static void parse_expression(int level) {
             Value *v1 = vtop;           // lvalue
             push(load(dup_value(v1)));  // rvalue
 
-            int factor = get_type_inc_dec_size(org_type);
-            parse_expression(TOK_EQ);
+            if (org_token == TOK_PLUS_EQ)
+                parse_addition(TOK_EQ);
+            else
+                parse_subtraction(TOK_EQ);
 
-            if (factor > 1) {
-                push_integral_constant(TYPE_INT, factor);
-                arithmetic_operation(IR_MUL, new_type(TYPE_INT));
-            }
-
-            arithmetic_operation(org_token == TOK_PLUS_EQ ? IR_ADD : IR_SUB, 0);
             add_instruction(IR_MOVE, v1, vtop, 0);
         }
         else
