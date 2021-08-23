@@ -137,7 +137,7 @@ static Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
 
 // Returns destination type of an operation with two operands
 // https://en.cppreference.com/w/c/language/conversion
-Type *operation_type(Value *src1, Value *src2) {
+Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     Type *src1_type = src1->type;
     Type *src2_type = src2->type;
 
@@ -145,8 +145,9 @@ Type *operation_type(Value *src1, Value *src2) {
 
     if (src1_type->type == TYPE_STRUCT || src2_type->type == TYPE_STRUCT) panic("Operations on structs not implemented");
 
-    else if (src1_type->type >= TYPE_PTR && is_pointer_to_void(src2)) return src1->type;
-    else if (src2_type->type >= TYPE_PTR && is_pointer_to_void(src1)) return src2->type;
+    // If it's a ternary and one is a pointer and the other a pointer to void, then the result is a pointer to void.
+    else if (src1_type->type >= TYPE_PTR && is_pointer_to_void(src2)) return for_ternary ? src2->type : src1->type;
+    else if (src2_type->type >= TYPE_PTR && is_pointer_to_void(src1)) return for_ternary ? src1->type : src2->type;
     else if (src1_type->type >= TYPE_PTR) return src1_type;
     else if (src2_type->type >= TYPE_PTR) return src2_type;
 
@@ -161,6 +162,9 @@ Type *operation_type(Value *src1, Value *src2) {
     // If either is a float, promote both to float
     if (src1_type->type == TYPE_FLOAT || src2_type->type == TYPE_FLOAT)
         return new_type(TYPE_FLOAT);
+
+    if (src1_type->type == TYPE_VOID || src2_type->type == TYPE_VOID)
+        return new_type(TYPE_VOID);
 
     // Otherwise, apply integral promotions
     src1_type = integer_promote_type(src1_type);
@@ -179,7 +183,7 @@ Type *operation_type(Value *src1, Value *src2) {
 
 // Returns destination type of an operation using the top two values in the stack
 static Type *vs_operation_type() {
-    return operation_type(vtop, vs[1]);
+    return operation_type(vtop, vs[1], 0);
 }
 
 static int cur_token_is_type() {
@@ -617,7 +621,7 @@ static Value *float_type_change(Value *src) {
 static void arithmetic_operation(int operation, Type *type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
-    Type *common_type = vs_operation_type();
+    Type *common_type = vs_operation_type(0);
     if (!type) type = common_type;
 
     Value *src2 = pl();
@@ -1348,6 +1352,8 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_TERNARY) {
             next();
 
+            if (!is_scalar_type(vtop->type)) panic("Expected scalar type for first operand of ternary operator");
+
             // Destination register
             Value *dst = new_value();
             dst->vreg = new_vreg();
@@ -1357,14 +1363,45 @@ static void parse_expression(int level) {
             add_conditional_jump(IR_JZ, ldst1);
             parse_expression(TOK_TERNARY);
             Value *src1 = vtop;
-            add_instruction(IR_MOVE, dst, pl(), 0);
+            if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
             add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
             add_jmp_target_instruction(ldst1);    // Start of false case
             consume(TOK_COLON, ":");
             parse_expression(TOK_TERNARY);
             Value *src2 = vtop;
-            dst->type = operation_type(src1, src2);
-            add_instruction(IR_MOVE, dst, pl(), 0);
+
+            int src1_is_arithmetic = is_arithmetic_type(src1->type);
+            int src2_is_arithmetic = is_arithmetic_type(src2->type);
+            int src1_is_pointer = is_pointer_type(src1->type);
+            int src2_is_pointer = is_pointer_type(src2->type);
+
+            Type *src1_type_deref = 0;
+            Type *src2_type_deref = 0;
+
+            if (src1_is_pointer) src1_type_deref = deref_ptr(src1->type);
+            if (src2_is_pointer) src2_type_deref = deref_ptr(src2->type);
+
+            // One of the following shall hold for the second and third operands:
+            // * both operands have arithmetic type;
+            // * both operands have compatible structure or union types; TODO
+            // * both operands have void type;
+            // * both operands are pointers to qualified or unqualified versions of compatible types;
+            // * one operand is a pointer and the other is a null pointer constant; or
+            // * one operand is a pointer to an object or incomplete type and the other is a pointer to a qualified or unqualified version of void .
+
+            if (
+                (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
+                (!(src1->type->type == TYPE_VOID && src2->type->type == TYPE_VOID)) &&
+                (!(src1_is_pointer && src2_is_pointer && types_are_compabible(src1_type_deref, src2_type_deref))) &&
+                (!(src1_is_pointer && is_null_pointer(src2))) &&
+                (!(src2_is_pointer && is_null_pointer(src1))) &&
+                (!((is_pointer_to_object_type(src1->type) && src2->type->type == TYPE_PTR + TYPE_VOID) ||
+                   (is_pointer_to_object_type(src2->type) && src1->type->type == TYPE_PTR + TYPE_VOID)))
+            )
+                panic("Invalid operands to ternary operator");
+
+            dst->type = operation_type(src1, src2, 1);
+            if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
             push(dst);
             add_jmp_target_instruction(ldst2); // End
         }

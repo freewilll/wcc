@@ -117,6 +117,13 @@ void test_first_arg_to_or_and_and_must_be_rvalue() {
     assert_int(1, a, "first arg to || must be an lvalue");
 }
 
+void foo() { gi = 1; }
+void bar() { gi = 2; }
+
+void foobar(int i) {
+    return i ? foo() : bar();
+}
+
 void test_ternary() {
     int i;
 
@@ -126,6 +133,34 @@ void test_ternary() {
     assert_int(0, strcmp("foo", 1 ? "foo" : "bar"), "ternary 4");
     assert_int(0, strcmp("bar", 0 ? "foo" : "bar"), "ternary 5");
 
+    // Arithmetic promotion
+    float f;
+    double d;
+
+    i = 0; f = i ? 1.1 : 1; assert_float(1.0, f, "ternary promotion int/float false");
+    i = 1; f = i ? 1.1 : 1; assert_float(1.1, f, "ternary promotion int/float true");
+
+    i = 0; d = i ? 1.1 : 1.2f; assert_double(1.2, d, "ternary promotion float/double false");
+    i = 1; d = i ? 1.1 : 1.2f; assert_double(1.1, d, "ternary promotion float/double true");
+
+    gi = -1; foobar(0); assert_int(2, gi, "ternary void false");
+    gi = -1; foobar(1); assert_int(1, gi, "ternary void true");
+
+    int *pi1, *pi2, *pi3;
+    pi1 = 1;
+    pi2 = 2;
+    i = 0; pi3 = i ? pi1 : pi2; assert_long(pi2, pi3, "ternary *pi false");
+    i = 1; pi3 = i ? pi1 : pi2; assert_long(pi1, pi3, "ternary *pi true");
+
+    i = 0; pi2 = i ? pi1 : (void *) 0; assert_long(0,   pi2, "ternary *pi/0 false");
+    i = 1; pi2 = i ? pi1 : (void *) 0; assert_long(pi1, pi2, "ternary *pi/0 true");
+
+    int i2 = 42;
+    int i3 = 43;
+    void *pv = &i2;
+    pi1 = &i3;
+    i = 0; pi2 = i ? pi1 : pv; assert_long(pv,  pi2, "pi/pv false");
+    i = 1; pi2 = i ? pi1 : pv; assert_long(pi1, pi2, "pi/pv true");
 }
 
 int ternary_cast() {

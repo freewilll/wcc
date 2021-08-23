@@ -546,7 +546,7 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
-Type *operation_type(Value *src1, Value *src2);
+Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
 int new_vreg();
 void check_incomplete_structs();
