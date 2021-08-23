@@ -814,7 +814,7 @@ static void parse_assignment() {
     push(dst);
 }
 
-static void parse_addition(int level, int require_pointer_arithmetic_operands) {
+static void parse_addition(int level) {
     int src1_is_pointer = is_pointer_to_object_type(vtop->type);
     int src1_is_integer = is_integer_type(vtop->type);
     int src1_is_arithmetic = is_arithmetic_type(vtop->type);
@@ -1209,7 +1209,7 @@ static void parse_expression(int level) {
             if (vtop->type->type < TYPE_PTR)
                 panic1d("Cannot do [] on a non-pointer for type %d", vtop->type->type);
 
-            parse_addition(TOK_COMMA, 1);
+            parse_addition(TOK_COMMA);
             consume(TOK_RBRACKET, "]");
             indirect();
         }
@@ -1277,7 +1277,7 @@ static void parse_expression(int level) {
 
         else if (cur_token == TOK_PLUS) {
             next();
-            parse_addition(TOK_MULTIPLY, 0);
+            parse_addition(TOK_MULTIPLY);
         }
 
         else if (cur_token == TOK_MINUS) {
