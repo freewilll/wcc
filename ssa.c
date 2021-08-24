@@ -37,7 +37,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
 
         else if ((c & (c - 1)) == 0) {
             l = -1;
-            while (c > 0) { c = c >> 1; l++; }
+            while (c > 0) { c >>= 1; l++; }
             tac->operation = IR_BSHL;
             tac->src1 = v;
             tac->src2 = new_integral_constant(TYPE_INT, l);
@@ -56,7 +56,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
 
         else if ((c & (c - 1)) == 0) {
             l = -1;
-            while (c > 0) { c = c >> 1; l++; }
+            while (c > 0) { c >>= 1; l++; }
             tac->operation = IR_BSHR;
             tac->src1 = v;
             tac->src2 = new_integral_constant(TYPE_INT, l);

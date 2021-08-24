@@ -276,12 +276,20 @@ enum {
     TOK_EQ,
     TOK_PLUS_EQ,
     TOK_MINUS_EQ,
+    TOK_MULTIPLY_EQ,
+    TOK_DIVIDE_EQ,
+    TOK_MOD_EQ,
+    TOK_BITWISE_AND_EQ,     // 40
+    TOK_BITWISE_OR_EQ,
+    TOK_BITWISE_XOR_EQ,
+    TOK_BITWISE_RIGHT_EQ,
+    TOK_BITWISE_LEFT_EQ,
     TOK_TERNARY,
     TOK_COLON,
     TOK_OR,
-    TOK_AND,                // 40
+    TOK_AND,
     TOK_BITWISE_OR,
-    TOK_XOR,
+    TOK_XOR,                // 50
     TOK_ADDRESS_OF,
     TOK_DBL_EQ,
     TOK_NOT_EQ,
@@ -289,9 +297,9 @@ enum {
     TOK_GT,
     TOK_LE,
     TOK_GE,
-    TOK_BITWISE_LEFT,       // 50
+    TOK_BITWISE_LEFT,
     TOK_BITWISE_RIGHT,
-    TOK_PLUS,
+    TOK_PLUS,               // 60
     TOK_MINUS,
     TOK_MULTIPLY,
     TOK_DIVIDE,
@@ -299,9 +307,9 @@ enum {
     TOK_LOGICAL_NOT,
     TOK_BITWISE_NOT,
     TOK_INC,
-    TOK_DEC,                // 60
+    TOK_DEC,
     TOK_DOT,
-    TOK_ARROW,
+    TOK_ARROW,              // 70
     TOK_RBRACKET,
     TOK_LBRACKET,
     TOK_ATTRIBUTE,

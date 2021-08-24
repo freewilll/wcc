@@ -618,11 +618,11 @@ static Value *float_type_change(Value *src) {
     return dst;
 }
 
-static void arithmetic_operation(int operation, Type *type) {
+static void arithmetic_operation(int operation, Type *dst_type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
     Type *common_type = vs_operation_type(0);
-    if (!type) type = common_type;
+    if (!dst_type) dst_type = common_type;
 
     Value *src2 = pl();
     Value *src1 = pl();
@@ -638,9 +638,9 @@ static void arithmetic_operation(int operation, Type *type) {
     }
 
     if (is_integer_type(common_type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
-        if (!type_eq(common_type, src1->type) && (src1->type->type <= type->type || src1->type->is_unsigned != common_type->is_unsigned))
+        if (!type_eq(common_type, src1->type) && (src1->type->type <= common_type->type || src1->type->is_unsigned != common_type->is_unsigned))
             src1 = integer_type_change(src1, common_type);
-        if (!type_eq(common_type, src2->type) && (src2->type->type <= type->type || src2->type->is_unsigned != common_type->is_unsigned))
+        if (!type_eq(common_type, src2->type) && (src2->type->type <= common_type->type || src2->type->is_unsigned != common_type->is_unsigned))
             src2 = integer_type_change(src2, common_type);
     }
 
@@ -657,7 +657,7 @@ static void arithmetic_operation(int operation, Type *type) {
         src2 = float_type_change(src2);
     }
 
-    add_ir_op(operation, type, new_vreg(), src1, src2);
+    add_ir_op(operation, dst_type, new_vreg(), src1, src2);
 }
 
 static void check_arithmetic_operation_type(int operation, Value *src1, Value *src2) {
@@ -725,7 +725,6 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
 
 static void parse_arithmetic_operation(int level, int operation, Type *type) {
     Value *src1 = vtop;
-    next();
     parse_expression(level);
     Value *src2 = vtop;
     check_arithmetic_operation_type(operation, src1, src2);
@@ -814,6 +813,21 @@ static void parse_assignment() {
     push(dst);
 }
 
+// Prepare compound assignment
+Value *prep_comp_assign() {
+    next();
+
+    if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
+    Value *v1 = vtop;           // lvalue
+    push(load(dup_value(v1)));  // rvalue
+    return v1;
+}
+
+// Finish compound assignment
+static void finish_comp_assign(Value *v1) {
+    add_instruction(IR_MOVE, v1, vtop, 0);
+}
+
 static void parse_addition(int level) {
     int src1_is_pointer = is_pointer_to_object_type(vtop->type);
     int src1_is_integer = is_integer_type(vtop->type);
@@ -896,6 +910,15 @@ static void parse_subtraction(int level) {
         arithmetic_operation(IR_SUB, 0);
 
     if (src2_is_pointer) vtop->type = new_type(TYPE_LONG);
+}
+
+static void parse_bitwise_shift(int level, int operation) {
+    if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
+    Value *src1 = integer_promote(pl());
+    parse_expression(level);
+    if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
+    Value *src2 = integer_promote(pl());
+    add_ir_op(operation, src1->type, new_vreg(), src1, src2);
 }
 
 // Parse a declaration
@@ -1316,9 +1339,9 @@ static void parse_expression(int level) {
             consume(TOK_IDENTIFIER, "identifier");
         }
 
-        else if (cur_token == TOK_MULTIPLY) parse_arithmetic_operation(TOK_DOT, IR_MUL, 0);
-        else if (cur_token == TOK_DIVIDE)   parse_arithmetic_operation(TOK_INC, IR_DIV, 0);
-        else if (cur_token == TOK_MOD)      parse_arithmetic_operation(TOK_INC, IR_MOD, 0);
+        else if (cur_token == TOK_MULTIPLY) { next(); parse_arithmetic_operation(TOK_DOT, IR_MUL, 0); }
+        else if (cur_token == TOK_DIVIDE)   { next(); parse_arithmetic_operation(TOK_INC, IR_DIV, 0); }
+        else if (cur_token == TOK_MOD)      { next(); parse_arithmetic_operation(TOK_INC, IR_MOD, 0); }
 
         else if (cur_token == TOK_PLUS) {
             next();
@@ -1330,26 +1353,26 @@ static void parse_expression(int level) {
             parse_subtraction(TOK_MULTIPLY);
         }
 
-        else if (cur_token == TOK_BITWISE_LEFT || cur_token == TOK_BITWISE_RIGHT)  {
-            int org_token = cur_token;
+        else if (cur_token == TOK_BITWISE_RIGHT) {
             next();
-            if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
-            Value *src1 = integer_promote(pl());
-            parse_expression(level);
-            if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
-            Value *src2 = integer_promote(pl());
-            add_ir_op(org_token == TOK_BITWISE_LEFT ? IR_BSHL : IR_BSHR, src1->type, new_vreg(), src1, src2);
+            parse_bitwise_shift(level, IR_BSHR);
         }
 
-        else if (cur_token == TOK_LT)            parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LT,   new_type(TYPE_INT));
-        else if (cur_token == TOK_GT)            parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GT,   new_type(TYPE_INT));
-        else if (cur_token == TOK_LE)            parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LE,   new_type(TYPE_INT));
-        else if (cur_token == TOK_GE)            parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GE,   new_type(TYPE_INT));
-        else if (cur_token == TOK_DBL_EQ)        parse_arithmetic_operation(TOK_LT,           IR_EQ,   new_type(TYPE_INT));
-        else if (cur_token == TOK_NOT_EQ)        parse_arithmetic_operation(TOK_LT,           IR_NE,   new_type(TYPE_INT));
-        else if (cur_token == TOK_ADDRESS_OF)    parse_arithmetic_operation(TOK_DBL_EQ,       IR_BAND, 0);
-        else if (cur_token == TOK_XOR)           parse_arithmetic_operation(TOK_ADDRESS_OF,   IR_XOR,  0);
-        else if (cur_token == TOK_BITWISE_OR)    parse_arithmetic_operation(TOK_XOR,          IR_BOR,  0);
+        else if (cur_token == TOK_BITWISE_LEFT) {
+            next();
+            parse_bitwise_shift(level, IR_BSHL);
+        }
+
+        else if (cur_token == TOK_LT)            { next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LT,   new_type(TYPE_INT)); }
+        else if (cur_token == TOK_GT)            { next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GT,   new_type(TYPE_INT)); }
+        else if (cur_token == TOK_LE)            { next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LE,   new_type(TYPE_INT)); }
+        else if (cur_token == TOK_GE)            { next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GE,   new_type(TYPE_INT)); }
+        else if (cur_token == TOK_DBL_EQ)        { next(); parse_arithmetic_operation(TOK_LT,           IR_EQ,   new_type(TYPE_INT)); }
+        else if (cur_token == TOK_NOT_EQ)        { next(); parse_arithmetic_operation(TOK_LT,           IR_NE,   new_type(TYPE_INT)); }
+        else if (cur_token == TOK_ADDRESS_OF)    { next(); parse_arithmetic_operation(TOK_DBL_EQ,       IR_BAND, 0); }
+        else if (cur_token == TOK_XOR)           { next(); parse_arithmetic_operation(TOK_ADDRESS_OF,   IR_XOR,  0); }
+        else if (cur_token == TOK_BITWISE_OR)    { next(); parse_arithmetic_operation(TOK_XOR,          IR_BOR,  0); }
+
         else if (cur_token == TOK_AND)           and_or_expr(1);
         else if (cur_token == TOK_OR)            and_or_expr(0);
 
@@ -1412,23 +1435,18 @@ static void parse_expression(int level) {
 
         else if (cur_token == TOK_EQ) parse_assignment();
 
-        else if (cur_token == TOK_PLUS_EQ || cur_token == TOK_MINUS_EQ) {
-            int org_token = cur_token;
+        // Composite assignments
+        else if (cur_token == TOK_PLUS_EQ)          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ);                         finish_comp_assign(v); }
+        else if (cur_token == TOK_MINUS_EQ)         { Value *v = prep_comp_assign(); parse_subtraction(TOK_EQ);                      finish_comp_assign(v); }
+        else if (cur_token == TOK_MULTIPLY_EQ)      { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_MUL,  0); finish_comp_assign(v); }
+        else if (cur_token == TOK_DIVIDE_EQ)        { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_DIV,  0); finish_comp_assign(v); }
+        else if (cur_token == TOK_MOD_EQ)           { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_MOD,  0); finish_comp_assign(v); }
+        else if (cur_token == TOK_BITWISE_AND_EQ)   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_BAND, 0); finish_comp_assign(v); }
+        else if (cur_token == TOK_BITWISE_OR_EQ)    { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_BOR,  0); finish_comp_assign(v); }
+        else if (cur_token == TOK_BITWISE_XOR_EQ)   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_XOR,  0); finish_comp_assign(v); }
+        else if (cur_token == TOK_BITWISE_RIGHT_EQ) { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHR);           finish_comp_assign(v); }
+        else if (cur_token == TOK_BITWISE_LEFT_EQ)  { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHL);           finish_comp_assign(v); }
 
-            next();
-
-            if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
-
-            Value *v1 = vtop;           // lvalue
-            push(load(dup_value(v1)));  // rvalue
-
-            if (org_token == TOK_PLUS_EQ)
-                parse_addition(TOK_EQ);
-            else
-                parse_subtraction(TOK_EQ);
-
-            add_instruction(IR_MOVE, v1, vtop, 0);
-        }
         else
             return; // Bail once we hit something unknown
 

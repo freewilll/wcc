@@ -448,7 +448,7 @@ void test_double_assign() {
     assert_int(1, c, "double assign 3");
 }
 
-void test_assign_operations() {
+void test_composite_assign() {
     char c, *pc;
     short s, *ps;
     int i, *pi;
@@ -486,6 +486,18 @@ void test_assign_operations() {
     assert_int(-4,  pi, "*int -= 2");   assert_int(-4,  pui, "*uint -= 2");
     assert_int( 2,  l,  "long -= 2");   assert_int( 2,  ul,  "ulong -= 2");
     assert_int(-8,  pl, "*long -= 2");  assert_int(-8,  pul, "*ulong -= 2");
+
+    // Less complicated composite assignments
+    i = 1;  i *=  3; assert_int(3,  i, "*=");
+    i = 12; i /=  3; assert_int(4,  i, "/=");
+    i = 1;  i %=  3; assert_int(1,  i, "%=");
+    i = 1;  i +=  3; assert_int(4,  i, "+=");
+    i = 1;  i -=  3; assert_int(-2, i, "-=");
+    i = 5;  i <<= 2; assert_int(20, i, "<<");
+    i = 5;  i >>= 2; assert_int(1,  i, ">>");
+    i = 1;  i &=  3; assert_int(1,  i, "&=");
+    i = 1;  i ^=  3; assert_int(2,  i, "^=");
+    i = 1;  i |=  3; assert_int(3,  i, "|=");
 }
 
 static void test_assign_to_globals() {
@@ -1349,7 +1361,7 @@ int main(int argc, char **argv) {
     test_local_comma_var_declarations();
     test_global_comma_var_declarations();
     test_double_assign();
-    test_assign_operations();
+    test_composite_assign();
     test_assign_to_globals();
     test_integer_sizes();
     test_floating_point_sizes();
