@@ -1144,7 +1144,7 @@ static void parse_expression(int level) {
 
             while (1) {
                 if (cur_token == TOK_RPAREN) break;
-                parse_expression(TOK_COMMA);
+                parse_expression(TOK_EQ);
                 Value *arg = dup_value(src1);
                 if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
 
@@ -1446,6 +1446,18 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_BITWISE_XOR_EQ)   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_XOR,  0); finish_comp_assign(v); }
         else if (cur_token == TOK_BITWISE_RIGHT_EQ) { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHR);           finish_comp_assign(v); }
         else if (cur_token == TOK_BITWISE_LEFT_EQ)  { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHL);           finish_comp_assign(v); }
+
+        else if (cur_token == TOK_COMMA) {
+            // Replace the outcome from the previous expression on the stack with
+            // void and process the next expression.
+            pop();
+            Value *v = new_value();
+            v->type = new_type(TYPE_VOID);
+            v->vreg = new_vreg();
+            push(v);
+            next();
+            parse_expression(TOK_COMMA);
+        }
 
         else
             return; // Bail once we hit something unknown
