@@ -10,6 +10,8 @@ static void parse_directive();
 static void parse_statement();
 static void parse_expression(int level);
 
+static Type *base_type;
+
 // Push a value to the stack
 static Value *push(Value *v) {
     *--vs = v;
@@ -30,6 +32,14 @@ static Value *pop() {
     vtop = *vs;
 
     return result;
+}
+
+// Pop a void value from the stack, or nothing if the stack is empty
+static void *pop_void() {
+    if (vs == vs_start) return;
+
+    vs++;
+    vtop = *vs;
 }
 
 // load a value into a register if not already done. lvalues are converted into
@@ -925,31 +935,27 @@ static void parse_bitwise_shift(int level, int operation) {
 static void parse_declaration() {
     Symbol *symbol;
 
-    Type *base_type = parse_base_type(0);
+    Type *type = dup_type(base_type);
+    while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
 
-    while (cur_token != TOK_SEMI && cur_token != TOK_EQ) {
-        Type *type = dup_type(base_type);
-        while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
+    if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
 
-        if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
-        if (cur_token == TOK_EQ) panic("Declarations with assignments aren't implemented");
+    expect(TOK_IDENTIFIER, "identifier");
 
-        expect(TOK_IDENTIFIER, "identifier");
+    if (lookup_symbol(cur_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_identifier);
 
-        if (lookup_symbol(cur_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_identifier);
-
-        symbol = new_symbol();
-        symbol->type = dup_type(type);
-        symbol->identifier = cur_identifier;
-        symbol->local_index = new_local_index();
-        next();
-        if (cur_token != TOK_SEMI && cur_token != TOK_EQ && cur_token != TOK_COMMA) panic("Expected =, ; or ,");
-        if (cur_token == TOK_COMMA) next();
-    }
+    symbol = new_symbol();
+    symbol->type = dup_type(type);
+    symbol->identifier = cur_identifier;
+    symbol->local_index = new_local_index();
+    next();
 
     if (cur_token == TOK_EQ) {
         push_local_symbol(symbol);
+        Type *old_base_type = base_type;
+        base_type = 0;
         parse_assignment();
+        base_type = old_base_type;
     }
 }
 
@@ -967,8 +973,11 @@ static void push_value_size_constant(Value *v) {
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 static void parse_expression(int level) {
     // Parse any tokens that can be at the start of an expression
-    if (cur_token_is_type())
-        parse_declaration();
+    if (cur_token_is_type()) {
+        base_type = parse_base_type(0);
+        parse_expression(TOK_COMMA);
+        base_type = 0;
+    }
 
     else if (cur_token == TOK_LOGICAL_NOT) {
         next();
@@ -1020,10 +1029,14 @@ static void parse_expression(int level) {
     }
 
     else if (cur_token == TOK_MULTIPLY) {
-        next();
-        parse_expression(TOK_INC);
-        if (vtop->type->type <= TYPE_PTR) panic1d("Cannot dereference a non-pointer %d", vtop->type->type);
-        indirect();
+        if (base_type)
+            parse_declaration(0);
+        else {
+            next();
+            parse_expression(TOK_INC);
+            if (vtop->type->type <= TYPE_PTR) panic1d("Cannot dereference a non-pointer %d", vtop->type->type);
+            indirect();
+        }
     }
 
     else if (cur_token == TOK_MINUS) {
@@ -1115,140 +1128,146 @@ static void parse_expression(int level) {
     }
 
     else if (cur_token == TOK_IDENTIFIER) {
-        Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
-        if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
+        if (base_type)
+            parse_declaration(0);
 
-        next();
-        Type *type = dup_type(symbol->type);
-        Scope *scope = symbol->scope;
-        if (symbol->is_enum)
-            push_integral_constant(TYPE_INT, symbol->value);
-        else if (cur_token == TOK_LPAREN) {
-            if (!symbol->function) panic1s("Illegal attempt to call a non-function %s", symbol->identifier);
+        else {
+            // It's an existing symbol
+            Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
+            if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
 
-            Function *function = symbol->function;
-
-            // Function call
-            int function_call = function_call_count++;
             next();
-            Value *src1 = new_value();
-            src1->int_value = function_call;
-            src1->is_constant = 1;
-            src1->type = new_type(TYPE_LONG);
-            add_instruction(IR_START_CALL, 0, src1, 0);
-            int arg_count = 0;
-            int single_int_register_arg_count = 0;
-            int single_sse_register_arg_count = 0;
-            int offset = 0;
-            int biggest_alignment = 0;
+            Type *type = dup_type(symbol->type);
+            Scope *scope = symbol->scope;
+            if (symbol->is_enum)
+                push_integral_constant(TYPE_INT, symbol->value);
+            else if (cur_token == TOK_LPAREN) {
+                if (!symbol->function) panic1s("Illegal attempt to call a non-function %s", symbol->identifier);
 
-            while (1) {
-                if (cur_token == TOK_RPAREN) break;
-                parse_expression(TOK_EQ);
-                Value *arg = dup_value(src1);
-                if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
+                Function *function = symbol->function;
 
-                arg->function_call_arg_index = arg_count;
+                // Function call
+                int function_call = function_call_count++;
+                next();
+                Value *src1 = new_value();
+                src1->int_value = function_call;
+                src1->is_constant = 1;
+                src1->type = new_type(TYPE_LONG);
+                add_instruction(IR_START_CALL, 0, src1, 0);
+                int arg_count = 0;
+                int single_int_register_arg_count = 0;
+                int single_sse_register_arg_count = 0;
+                int offset = 0;
+                int biggest_alignment = 0;
 
-                if (arg_count < function->param_count) {
-                    if (!type_eq(src1->type, function->param_types[arg_count]))
-                        push(add_convert_type_if_needed(pl(), function->param_types[arg_count]));
+                while (1) {
+                    if (cur_token == TOK_RPAREN) break;
+                    parse_expression(TOK_EQ);
+                    Value *arg = dup_value(src1);
+                    if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
+
+                    arg->function_call_arg_index = arg_count;
+
+                    if (arg_count < function->param_count) {
+                        if (!type_eq(src1->type, function->param_types[arg_count]))
+                            push(add_convert_type_if_needed(pl(), function->param_types[arg_count]));
+                    }
+                    else {
+                        // Apply default argument promotions
+                        Value *src1 = pl();
+                        Type *type;
+                        if (src1->type->type < TYPE_INT) {
+                            type = new_type(TYPE_INT);
+                            if (src1->type->is_unsigned) type->is_unsigned = 1;
+                        }
+                        else if (src1->type->type == TYPE_FLOAT)
+                            type = new_type(TYPE_DOUBLE);
+                        else
+                            type = src1->type;
+
+                        if (!type_eq(src1->type, type))
+                            push(add_convert_type_if_needed(src1, type));
+                        else
+                            push(src1);
+                    }
+
+                    int is_single_int_register = type_fits_in_single_int_register(vtop->type);
+                    int is_single_sse_register = is_sse_floating_point_type(vtop->type);
+                    int is_long_double = vtop->type->type == TYPE_LONG_DOUBLE;
+                    int is_push = is_long_double || (is_single_int_register && single_int_register_arg_count >= 6) || (is_single_sse_register && single_sse_register_arg_count >= 8);
+
+                    if (is_single_int_register)
+                        arg->function_call_int_register_arg_index = single_int_register_arg_count < 6 ? single_int_register_arg_count : -1;
+                    else
+                        arg->function_call_int_register_arg_index = -1;
+
+                    if (is_single_sse_register)
+                        arg->function_call_sse_register_arg_index = single_sse_register_arg_count < 8 ? single_sse_register_arg_count : -1;
+                    else
+                        arg->function_call_sse_register_arg_index = -1;
+
+                    if (is_push) {
+                        int alignment = get_type_alignment(vtop->type);
+                        if (alignment < 8) alignment = 8;
+                        if (alignment > biggest_alignment) biggest_alignment = alignment;
+                        int padding = ((offset + alignment  - 1) & (~(alignment - 1))) - offset;
+                        offset += padding;
+                        arg->function_call_arg_stack_padding = padding;
+                        int type_size = get_type_size(vtop->type);
+                        if (type_size < 8) type_size = 8;
+                        offset += type_size;
+                    }
+
+                    add_instruction(IR_ARG, 0, arg, pl());
+                    single_int_register_arg_count += is_single_int_register;
+                    if (!is_push && is_single_sse_register) single_sse_register_arg_count++;
+                    arg_count++;
+                    if (cur_token == TOK_RPAREN) break;
+                    consume(TOK_COMMA, ",");
+                    if (cur_token == TOK_RPAREN) panic("Expected expression");
+                }
+                consume(TOK_RPAREN, ")");
+
+                int padding = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1))) - offset;
+                int size = offset + padding;
+                src1->function_call_arg_stack_padding = padding;
+
+                Value *function_value = new_value();
+                function_value->int_value = function_call;
+                function_value->function_symbol = symbol;
+                function_value->function_call_arg_push_count = size / 8;
+                function_value->function_call_sse_register_arg_count = single_sse_register_arg_count;
+                src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
+
+                Value *return_value = 0;
+                if (type->type != TYPE_VOID) {
+                    return_value = new_value();
+                    return_value->vreg = new_vreg();
+                    return_value->type = dup_type(type);
                 }
                 else {
-                    // Apply default argument promotions
-                    Value *src1 = pl();
-                    Type *type;
-                    if (src1->type->type < TYPE_INT) {
-                        type = new_type(TYPE_INT);
-                        if (src1->type->is_unsigned) type->is_unsigned = 1;
-                    }
-                    else if (src1->type->type == TYPE_FLOAT)
-                        type = new_type(TYPE_DOUBLE);
-                    else
-                        type = src1->type;
-
-                    if (!type_eq(src1->type, type))
-                        push(add_convert_type_if_needed(src1, type));
-                    else
-                        push(src1);
+                    Value *v = new_value();
+                    v->type = new_type(TYPE_VOID);
+                    push(v);
                 }
 
-                int is_single_int_register = type_fits_in_single_int_register(vtop->type);
-                int is_single_sse_register = is_sse_floating_point_type(vtop->type);
-                int is_long_double = vtop->type->type == TYPE_LONG_DOUBLE;
-                int is_push = is_long_double || (is_single_int_register && single_int_register_arg_count >= 6) || (is_single_sse_register && single_sse_register_arg_count >= 8);
-
-                if (is_single_int_register)
-                    arg->function_call_int_register_arg_index = single_int_register_arg_count < 6 ? single_int_register_arg_count : -1;
-                else
-                    arg->function_call_int_register_arg_index = -1;
-
-                if (is_single_sse_register)
-                    arg->function_call_sse_register_arg_index = single_sse_register_arg_count < 8 ? single_sse_register_arg_count : -1;
-                else
-                    arg->function_call_sse_register_arg_index = -1;
-
-                if (is_push) {
-                    int alignment = get_type_alignment(vtop->type);
-                    if (alignment < 8) alignment = 8;
-                    if (alignment > biggest_alignment) biggest_alignment = alignment;
-                    int padding = ((offset + alignment  - 1) & (~(alignment - 1))) - offset;
-                    offset += padding;
-                    arg->function_call_arg_stack_padding = padding;
-                    int type_size = get_type_size(vtop->type);
-                    if (type_size < 8) type_size = 8;
-                    offset += type_size;
-                }
-
-                add_instruction(IR_ARG, 0, arg, pl());
-                single_int_register_arg_count += is_single_int_register;
-                if (!is_push && is_single_sse_register) single_sse_register_arg_count++;
-                arg_count++;
-                if (cur_token == TOK_RPAREN) break;
-                consume(TOK_COMMA, ",");
-                if (cur_token == TOK_RPAREN) panic("Expected expression");
-            }
-            consume(TOK_RPAREN, ")");
-
-            int padding = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1))) - offset;
-            int size = offset + padding;
-            src1->function_call_arg_stack_padding = padding;
-
-            Value *function_value = new_value();
-            function_value->int_value = function_call;
-            function_value->function_symbol = symbol;
-            function_value->function_call_arg_push_count = size / 8;
-            function_value->function_call_sse_register_arg_count = single_sse_register_arg_count;
-            src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
-
-            Value *return_value = 0;
-            if (type->type != TYPE_VOID) {
-                return_value = new_value();
-                return_value->vreg = new_vreg();
-                return_value->type = dup_type(type);
-            }
-            else {
-                Value *v = new_value();
-                v->type = new_type(TYPE_VOID);
-                push(v);
+                add_instruction(IR_CALL, return_value, function_value, 0);
+                add_instruction(IR_END_CALL, 0, src1, 0);
+                if (return_value) push(return_value);
             }
 
-            add_instruction(IR_CALL, return_value, function_value, 0);
-            add_instruction(IR_END_CALL, 0, src1, 0);
-            if (return_value) push(return_value);
+            else if (scope->parent == 0) {
+                // Global symbol
+                Value *src1 = new_value();
+                src1->type = dup_type(type);
+                src1->is_lvalue = 1;
+                src1->global_symbol = symbol;
+                push(src1);
+            }
+
+            else
+                push_local_symbol(symbol);
         }
-
-        else if (scope->parent == 0) {
-            // Global symbol
-            Value *src1 = new_value();
-            src1->type = dup_type(type);
-            src1->is_lvalue = 1;
-            src1->global_symbol = symbol;
-            push(src1);
-        }
-
-        else
-            push_local_symbol(symbol);
     }
 
     else if (cur_token == TOK_SIZEOF) {
@@ -1450,7 +1469,8 @@ static void parse_expression(int level) {
         else if (cur_token == TOK_COMMA) {
             // Replace the outcome from the previous expression on the stack with
             // void and process the next expression.
-            pop();
+
+            pop_void();
             Value *v = new_value();
             v->type = new_type(TYPE_VOID);
             v->vreg = new_vreg();
@@ -1586,6 +1606,7 @@ static void parse_iteration_statement() {
 // Parse a statement
 static void parse_statement() {
     vs = vs_start; // Reset value stack
+    base_type = 0; // Reset base type
 
     if (cur_token == TOK_HASH) {
         parse_directive();
@@ -1593,13 +1614,11 @@ static void parse_statement() {
     }
 
     if (cur_token_is_type()) {
-        parse_declaration();
-        expect(TOK_SEMI, ";");
-        while (cur_token == TOK_SEMI) next();
-        return;
+        base_type = parse_base_type(0);
+        parse_expression(TOK_COMMA);
     }
 
-    if (cur_token == TOK_SEMI) {
+    else if (cur_token == TOK_SEMI) {
         // Empty statement
         next();
         return;

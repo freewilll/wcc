@@ -1347,34 +1347,6 @@ static int test_scopes() {
     return 1;
 }
 
-static void test_comma_in_function(int i, int j, int k) {
-    assert_int(2, i, "test_comma_in_function from C89 spec i");
-    assert_int(5, j, "test_comma_in_function from C89 spec j");
-    assert_int(4, k, "test_comma_in_function from C89 spec k");
-}
-
-static void test_comma_operator() {
-    int i = 1;
-    int j = 2;
-    int k;
-
-    assert_int(k, (j, k), "(j, k) as function call argument");
-
-    i++, j--;
-    assert_int(2, i, "i++, j-- for i");
-    assert_int(1, j, "i++, j-- for j");
-
-    j = 10; k = 1;
-    for (i = 1; i < 10; i++, j--) k++;
-
-    assert_int(10, i, "i++, j-- in for loop i");
-    assert_int(1,  j, "i++, j-- in for loop j");
-    assert_int(10, k, "i++, j-- in for loop k");
-
-    // From C89 spec
-    int t; int a = 2; int c = 4; test_comma_in_function(a, (t=3, t+2), c);
-}
-
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1414,7 +1386,6 @@ int main(int argc, char **argv) {
     test_logical_not();
     test_bitwise_not();
     test_scopes();
-    test_comma_operator();
 
     finalize();
 }

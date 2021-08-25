@@ -1,5 +1,6 @@
 WCC_TESTS=\
 	expr \
+	comma \
 	function-call-args \
 	func-calls \
 	pointers \
