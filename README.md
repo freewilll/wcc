@@ -21,7 +21,6 @@ $ ./wcc test.c -o test
 - System headers aren't supported
 - No nested headers
 - No preprocessor support
-- All variable declarations must be on top
 
 # Implementation
 The compiler goes through the following phases:
