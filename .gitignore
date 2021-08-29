@@ -19,3 +19,7 @@ build
 gmon.out
 print-rule-coverage-report
 wcc2.rulecov
+*.gcda
+*.gcno
+*.gcov
+main_coverage.info

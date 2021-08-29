@@ -116,3 +116,7 @@ clean:
 	@rm -f wcc-tests.rulecov
 	@rm -f wcc2.rulecov
 	@rm -f gmon.out
+	@rm -f *.gcda
+	@rm -f *.gcno
+	@rm -f *.gcov
+	@rm -f main_coverage.info
