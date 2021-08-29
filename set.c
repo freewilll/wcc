@@ -47,8 +47,10 @@ void cache_set_elements(Set *s) {
 }
 
 int set_len(Set *s) {
+    int max_value = s->max_value;
+    char *elements = s->elements;
     int result = 0;
-    for (int i = 0; i <= s->max_value; i++) result += s->elements[i];
+    for (int i = 0; i <= max_value; i++) result += elements[i];
 
     return result;
 }
