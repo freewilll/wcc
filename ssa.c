@@ -1019,10 +1019,9 @@ void make_live_ranges(Function *function) {
 
     for (int i = 0; i < live_range_count; i++) {
         Set *s = live_ranges[i];
-        for (int j = 0; j <= s->max_value; j++) {
-            if (!s->elements[j]) continue;
-            map[j] = i;
-        }
+        char *elements = s->elements;
+        for (int j = 0; j <= s->max_value; j++)
+            if (elements[j]) map[j] = i;
     }
 
     // Assign live ranges to TAC & build live_ranges set
