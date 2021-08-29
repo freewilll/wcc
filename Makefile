@@ -120,3 +120,4 @@ clean:
 	@rm -f *.gcno
 	@rm -f *.gcov
 	@rm -f main_coverage.info
+	@rm -f prof_output
