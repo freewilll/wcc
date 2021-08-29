@@ -69,6 +69,7 @@ typedef struct i_graph {
 typedef struct type {
     int type;       // One of TYPE_*
     int is_unsigned;
+    struct type *target;
 } Type;
 
 typedef struct symbol {
@@ -325,7 +326,7 @@ enum {
     TOK_ELLIPSES
 };
 
-// Types. All structs start at TYPE_STRUCT up to TYPE_PTR - 1. Pointers are represented by adding TYPE_PTR to a type.
+// Types. All structs start at TYPE_STRUCT.
 // all_structs[i] corresponds to type i - TYPE_STRUCT
 enum {
     TYPE_VOID         = 1,
@@ -336,8 +337,8 @@ enum {
     TYPE_FLOAT        = 6,
     TYPE_DOUBLE       = 7,
     TYPE_LONG_DOUBLE  = 8,
+    TYPE_PTR          = 9,
     TYPE_STRUCT       = 16,
-    TYPE_PTR          = 1024,
 };
 
 // Intermediate representation operations
@@ -574,8 +575,9 @@ void exit_scope();
 int print_type(void *f, Type *type);
 Type *new_type(int type);
 Type *dup_type(Type *src);
-Type *make_ptr(Type *src);
-Type *deref_ptr(Type *type);
+Type *make_pointer(Type *src);
+Type *make_pointer_to_void();
+Type *deref_pointer(Type *type);
 int is_integer_type(Type *type);
 int is_floating_point_type(Type *type);
 int is_sse_floating_point_type(Type *type);
@@ -586,7 +588,7 @@ int is_incomplete_type(Type *type);
 int is_pointer_type(Type *type);
 int is_pointer_to_object_type(Type *type);
 int is_null_pointer(Value *v);
-int is_pointer_to_void(Value *v);
+int is_pointer_to_void(Type *type);
 int type_fits_in_single_int_register(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
@@ -938,6 +940,7 @@ void assert_x86_op(char *expected);
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2);
 
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);
+Value *p(Value *v);
 Value *v(int vreg);
 Value *uv(int vreg);
 Value *vsz(int vreg, int type);

@@ -29,30 +29,30 @@ static void transform_lvalues(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_MOVE_TO_PTR) {
             tac->src1 = dup_value(tac->src1);
-            tac->src1->type = make_ptr(tac->src1->type);
+            tac->src1->type = make_pointer(tac->src1->type);
             tac->src1->is_lvalue = 0;
             // Note: tac ->dst remains zero. src1 is the target of the pointer write, but is itself not modified
         }
         else {
             if (tac->dst && tac->dst->vreg && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register) {
-                tac->dst->type = make_ptr(tac->dst->type);
+                tac->dst->type = make_pointer(tac->dst->type);
                 tac->dst->is_lvalue = 0;
             }
 
             // Ensure type of dst and src1 matches in a pointer addition operation
             if (tac->operation == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
                 tac->dst = dup_value(tac->dst);
-                tac->dst->type = make_ptr(tac->dst->type);
+                tac->dst->type = make_pointer(tac->dst->type);
                 tac->dst->is_lvalue = 0;
             }
 
             if (tac->src1 && tac->src1->vreg && tac->src1->is_lvalue) {
-                tac->src1->type = make_ptr(tac->src1->type);
+                tac->src1->type = make_pointer(tac->src1->type);
                 tac->src1->is_lvalue = 0;
             }
 
             if (tac->src2 && tac->src2->vreg && tac->src2->is_lvalue) {
-                tac->src2->type = make_ptr(tac->src2->type);
+                tac->src2->type = make_pointer(tac->src2->type);
                 tac->src2->is_lvalue = 0;
             }
         }
@@ -229,7 +229,7 @@ static IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     // coercions. This means that any type change left must be made explicit with an
     // IR_MOVE, so that suitable instruction selection rules are matched, leading to
     // possible code generation.
-    if (in1->value->type->type != in2->tac->dst->type->type) {
+    if (!type_eq(in1->value->type, in2->tac->dst->type)) {
         if (debug_instsel_tree_merging) {
             printf("Replacing %d with IR_MOVE tac for a type change from ", join_to);
             print_type(stdout, in2->tac->dst->type);

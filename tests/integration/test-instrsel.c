@@ -435,11 +435,11 @@ void test_instrsel_expr() {
     finish_ir(function);
     assert_x86_op("movq        r1q, g1(%rip)");
 
-    // Store a1 in g using IR_MOVE
-    si(function, 0, IR_MOVE, gsz(1, TYPE_PTR + TYPE_CHAR),  asz(1, TYPE_VOID), 0); assert_x86_op("movq        r1q, g1(%rip)");
-    si(function, 0, IR_MOVE, gsz(1, TYPE_PTR + TYPE_SHORT), asz(1, TYPE_VOID), 0); assert_x86_op("movq        r1q, g1(%rip)");
-    si(function, 0, IR_MOVE, gsz(1, TYPE_PTR + TYPE_INT),   asz(1, TYPE_VOID), 0); assert_x86_op("movq        r1q, g1(%rip)");
-    si(function, 0, IR_MOVE, gsz(1, TYPE_PTR + TYPE_LONG),  asz(1, TYPE_VOID), 0); assert_x86_op("movq        r1q, g1(%rip)");
+    // // Store a1 in g using IR_MOVE
+    // si(function, 0, IR_MOVE, p(gsz(1, TYPE_CHAR)),  asz(1, TYPE_VOID), 0); assert_x86_op("movq        r1q, g1(%rip)");
+    // si(function, 0, IR_MOVE, p(gsz(1, TYPE_SHORT)), asz(1, TYPE_VOID), 0); assert_x86_op("movq        r1q, g1(%rip)");
+    // si(function, 0, IR_MOVE, p(gsz(1, TYPE_INT)),   asz(1, TYPE_VOID), 0); assert_x86_op("movq        r1q, g1(%rip)");
+    // si(function, 0, IR_MOVE, p(gsz(1, TYPE_LONG)),  asz(1, TYPE_VOID), 0); assert_x86_op("movq        r1q, g1(%rip)");
 
     // Load g into r1 using IR_MOVE
     start_ir();
@@ -701,7 +701,7 @@ void test_function_args() {
 
     // pointer to void on stack
     start_ir();
-    run_function_call_single_arg(Ssz(-1, TYPE_PTR + TYPE_VOID));
+    run_function_call_single_arg(p(Ssz(-1, TYPE_VOID)));
     assert_rx86_preg_op("movq        -8(%rbp), %rdi");
     assert_rx86_preg_op("movq        %rax, %rax" );
     assert_rx86_preg_op(0);
@@ -710,8 +710,8 @@ void test_function_args() {
     // literal into a register first
     remove_reserved_physical_registers = 1;
     start_ir();
-    i(0, IR_MOVE, vsz(1, TYPE_PTR + TYPE_CHAR), s(1), 0);
-    i(0, IR_ARG, 0, c(0), vsz(1, TYPE_PTR + TYPE_CHAR));
+    i(0, IR_MOVE, asz(1, TYPE_CHAR), s(1), 0);
+    i(0, IR_ARG, 0, c(0), asz(1, TYPE_CHAR));
     i(0, IR_CALL, v(2), fu(1), 0);
     i(0, IR_MOVE, v(3), v(2), 0);
     finish_spill_ir(function);
@@ -801,7 +801,7 @@ void test_instrsel_returns() {
     si(function, 0, IR_RETURN, 0, 0, 0); assert(X_RET, ir_start->operation);
 
     // String literal
-    function->return_type = new_type(TYPE_PTR + TYPE_CHAR);
+    function->return_type = make_pointer(new_type(TYPE_CHAR));
     start_ir();
     i(0, IR_MOVE, asz(1, TYPE_CHAR), s(1), 0);
     i(0, IR_RETURN, 0, asz(1, TYPE_CHAR), 0);
@@ -810,7 +810,7 @@ void test_instrsel_returns() {
     assert_x86_op("movq        r3q, r2q");
 
     // *void
-    function->return_type = new_type(TYPE_PTR + TYPE_VOID);
+    function->return_type = make_pointer(new_type(TYPE_VOID));
     start_ir();
     i(0, IR_RETURN, 0, asz(1, TYPE_VOID), 0);
     finish_ir(function);
@@ -830,11 +830,11 @@ void test_function_call(Value *dst, int mov_op) {
 void test_instrsel_function_calls() {
     remove_reserved_physical_registers = 1;
 
-    test_function_call(vsz(1, TYPE_CHAR),            X_MOVS);
-    test_function_call(vsz(1, TYPE_SHORT),           X_MOVS);
-    test_function_call(vsz(1, TYPE_INT),             X_MOVS);
-    test_function_call(vsz(1, TYPE_LONG),            X_MOV);
-    test_function_call(vsz(1, TYPE_PTR + TYPE_VOID), X_MOV);
+    test_function_call(vsz(1, TYPE_CHAR),  X_MOVS);
+    test_function_call(vsz(1, TYPE_SHORT), X_MOVS);
+    test_function_call(vsz(1, TYPE_INT),   X_MOVS);
+    test_function_call(vsz(1, TYPE_LONG),  X_MOV);
+    test_function_call(asz(1, TYPE_VOID),  X_MOV);
 }
 
 void test_instrsel_function_call_rearranging() {
@@ -1041,9 +1041,17 @@ void test_constant_operations() {
     assert_x86_op("movq        $9, r2q");
 }
 
-void _test_int_indirect(int type, char *template) {
+void _test_int_indirect(int type, int is_ptr, char *template) {
+    Value *src = vsz(2, type);
+    Value *dst = asz(1, type);
+
+    if (is_ptr) {
+        src = p(src);
+        dst = p(dst);
+    }
+
     start_ir();
-    i(0, IR_INDIRECT, vsz(2, type), asz(1, type), 0);
+    i(0, IR_INDIRECT, src, dst, 0);
     finish_ir(function);
     assert_x86_op(template);
 }
@@ -1051,15 +1059,23 @@ void _test_int_indirect(int type, char *template) {
 void test_pointer_to_int_indirects() {
     remove_reserved_physical_registers = 1;
 
-    _test_int_indirect(TYPE_CHAR,  "movb        (r1q), r2b");
-    _test_int_indirect(TYPE_SHORT, "movw        (r1q), r2w");
-    _test_int_indirect(TYPE_INT,   "movl        (r1q), r2l");
-    _test_int_indirect(TYPE_LONG,  "movq        (r1q), r2q");
+    _test_int_indirect(TYPE_CHAR,  0, "movb        (r1q), r2b");
+    _test_int_indirect(TYPE_SHORT, 0, "movw        (r1q), r2w");
+    _test_int_indirect(TYPE_INT,   0, "movl        (r1q), r2l");
+    _test_int_indirect(TYPE_LONG,  0, "movq        (r1q), r2q");
 }
 
-void _test_uint_indirect(int type, char *template) {
+void _test_uint_indirect(int type, int is_ptr, char *template) {
+    Value *src = vusz(2, type);
+    Value *dst = ausz(1, type);
+
+    if (is_ptr) {
+        src = p(src);
+        dst = p(dst);
+    }
+
     start_ir();
-    i(0, IR_INDIRECT, vusz(2, type), ausz(1, type), 0);
+    i(0, IR_INDIRECT, src, dst, 0);
     finish_ir(function);
     assert_x86_op(template);
 }
@@ -1067,10 +1083,10 @@ void _test_uint_indirect(int type, char *template) {
 void test_pointer_to_uint_indirects() {
     remove_reserved_physical_registers = 1;
 
-    _test_uint_indirect(TYPE_CHAR,  "movb        (r1q), r2b");
-    _test_uint_indirect(TYPE_SHORT, "movw        (r1q), r2w");
-    _test_uint_indirect(TYPE_INT,   "movl        (r1q), r2l");
-    _test_uint_indirect(TYPE_LONG,  "movq        (r1q), r2q");
+    _test_uint_indirect(TYPE_CHAR,  0, "movb        (r1q), r2b");
+    _test_uint_indirect(TYPE_SHORT, 0, "movw        (r1q), r2w");
+    _test_uint_indirect(TYPE_INT,   0, "movl        (r1q), r2l");
+    _test_uint_indirect(TYPE_LONG,  0, "movq        (r1q), r2q");
 }
 
 void test_pointer_to_pointer_to_int_indirects() {
@@ -1079,7 +1095,7 @@ void test_pointer_to_pointer_to_int_indirects() {
     remove_reserved_physical_registers = 1;
 
     for (type = TYPE_CHAR; type <= TYPE_VOID; type++)
-        _test_int_indirect(TYPE_PTR + type,  "movq        (r1q), r2q");
+        _test_int_indirect(type, 1, "movq        (r1q), r2q");
 }
 
 void _test_ir_move_to_reg_lvalue(int src, int dst, char *template) {
@@ -1218,8 +1234,8 @@ void test_pointer_indirect_from_stack() {
     // case of i = *pi, where pi has been forced onto the stack due to use of
     // &pi elsewhere.
     start_ir();
-    i(0, IR_MOVE,     asz(4,  TYPE_INT), Ssz(-3, TYPE_INT + TYPE_PTR),  0);
-    i(0, IR_INDIRECT, vsz(5,  TYPE_INT), asz(4,  TYPE_INT),             0);
+    i(0, IR_MOVE,     asz(4,  TYPE_INT), p(Ssz(-3, TYPE_INT)), 0);
+    i(0, IR_INDIRECT, vsz(5,  TYPE_INT),   asz(4,  TYPE_INT),  0);
     finish_spill_ir(function);
     assert_x86_op("movq        -8(%rbp), r3q");
     assert_x86_op("movl        (r3q), r2l");
@@ -1235,9 +1251,9 @@ void test_pointer_indirect_global_char_in_struct_to_long() {
     // r10:long = r6:char
     // Note: not using TYPE_STRUCT, but the test is still valid.
     start_ir();
-    i(0, IR_MOVE,     vsz(1, TYPE_CHAR + TYPE_PTR), gsz(1, TYPE_CHAR + TYPE_PTR), 0);
-    i(0, IR_INDIRECT, vsz(3, TYPE_CHAR),            vsz(1, TYPE_CHAR + TYPE_PTR), 0);
-    i(0, IR_MOVE,     vsz(4, TYPE_LONG),            vsz(3, TYPE_CHAR),            0);
+    i(0, IR_MOVE,     asz(1, TYPE_CHAR), p(gsz(1, TYPE_CHAR)), 0);
+    i(0, IR_INDIRECT, vsz(3, TYPE_CHAR),   asz(1, TYPE_CHAR),  0);
+    i(0, IR_MOVE,     vsz(4, TYPE_LONG),   vsz(3, TYPE_CHAR),  0);
     finish_ir(function);
     assert_x86_op("movq        g1(%rip), r4q");
     assert_x86_op("movb        (r4q), r5b");
@@ -1333,38 +1349,38 @@ void test_pointer_comparisons() {
     remove_reserved_physical_registers = 1;
 
     start_ir();
-    i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
-    i(0, IR_EQ,   v(3),                         vsz(2, TYPE_PTR + TYPE_VOID), c(1));
-    i(0, IR_JZ,   0,                            v(3),                         l(1));
-    i(1, IR_NOP,  0,                            0,                            0   );
+    i(0, IR_MOVE, asz(2, TYPE_VOID), p(gsz(1, TYPE_VOID)), 0   );
+    i(0, IR_EQ,   v(3),                asz(2, TYPE_VOID),  c(1));
+    i(0, IR_JZ,   0,                 v(3),                 l(1));
+    i(1, IR_NOP,  0,                 0,                    0   );
     finish_ir(function);
     assert_x86_op("cmpq        $1, g1(%rip)");
     assert_x86_op("jne         .L1");
 
     start_ir();
-    i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0    );
-    i(0, IR_EQ,   v(3),                         vsz(2, TYPE_PTR + TYPE_VOID), uc(1));
-    i(0, IR_JZ,   0,                            v(3),                         l(1) );
-    i(1, IR_NOP,  0,                            0,                            0    );
+    i(0, IR_MOVE, asz(2, TYPE_VOID), p(gsz(1, TYPE_VOID)), 0    );
+    i(0, IR_EQ,   v(3),                asz(2, TYPE_VOID),  uc(1));
+    i(0, IR_JZ,   0,                 v(3),                 l(1) );
+    i(1, IR_NOP,  0,                 0,                    0    );
     finish_ir(function);
     assert_x86_op("cmpq        $1, g1(%rip)");
     assert_x86_op("jne         .L1");
 
     start_ir();
-    i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
-    i(0, IR_EQ,   v(3),                         c(1),                         vsz(2, TYPE_PTR + TYPE_VOID));
-    i(0, IR_JZ,   0,                            v(3),                         l(1));
-    i(1, IR_NOP,  0,                            0,                            0   );
+    i(0, IR_MOVE, asz(2, TYPE_VOID), p(gsz(1, TYPE_VOID)), 0   );
+    i(0, IR_EQ,   v(3),              c(1),                 asz(2, TYPE_VOID));
+    i(0, IR_JZ,   0,                 v(3),                 l(1));
+    i(1, IR_NOP,  0,                 0,                    0   );
     finish_ir(function);
     assert_x86_op("movq        $1, r3q");
     assert_x86_op("cmpq        g1(%rip), r3q");
     assert_x86_op("jne         .L1");
 
     start_ir();
-    i(0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), gsz(1, TYPE_PTR + TYPE_VOID), 0   );
-    i(0, IR_EQ,   v(3),                         uc(1),                        vsz(2, TYPE_PTR + TYPE_VOID));
-    i(0, IR_JZ,   0,                            v(3),                         l(1));
-    i(1, IR_NOP,  0,                            0,                            0   );
+    i(0, IR_MOVE, asz(2, TYPE_VOID), p(gsz(1, TYPE_VOID)), 0   );
+    i(0, IR_EQ,   v(3),              uc(1),                asz(2, TYPE_VOID));
+    i(0, IR_JZ,   0,                 v(3),                 l(1));
+    i(1, IR_NOP,  0,                 0,                    0   );
     finish_ir(function);
     assert_x86_op("movq        $1, r3q");
     assert_x86_op("cmpq        g1(%rip), r3q");
@@ -1379,9 +1395,9 @@ void test_pointer_double_indirect() {
     for (j = TYPE_VOID; j <= TYPE_LONG; j++) {
         // Assignment to a global *... after a double indirect r4 = r1->b->c;
         start_ir();
-        i(0, IR_INDIRECT, asz(2, TYPE_PTR + TYPE_VOID), asz(1, TYPE_PTR + TYPE_PTR + TYPE_VOID), 0);
-        i(0, IR_INDIRECT, asz(3, TYPE_VOID),            asz(2, TYPE_PTR + TYPE_VOID),            0);
-        i(0, IR_MOVE,     gsz(4, TYPE_PTR + j),         asz(3, TYPE_VOID),                       0);
+        i(0, IR_INDIRECT, p(asz(2, TYPE_VOID)), p(p(asz(1, TYPE_VOID))), 0);
+        i(0, IR_INDIRECT,   asz(3, TYPE_VOID),  p(  asz(2, TYPE_VOID)),  0);
+        i(0, IR_MOVE,     p(gsz(4, j)),             asz(3, TYPE_VOID),   0);
         finish_ir(function);
         assert_x86_op("movq        (r1q), r4q");
         assert_x86_op("movq        (r4q), r5q");
@@ -1389,33 +1405,48 @@ void test_pointer_double_indirect() {
     }
 }
 
-void test_composite_scaled_pointer_indirect_reg(int src_size, int dst_size, int bshl_size) {
+void test_composite_scaled_pointer_indirect_reg(int src_size, int src_ptr, int dst_size, int dst_ptr, int bshl_size) {
+    Value *src  = asz( 2, src_size);
+    Value *dsti = vsz( 4, dst_size);
+    Value *dstu = vusz(4, dst_size);
+
+    if (src_ptr) src = p(src);
+    if (dst_ptr) dsti = p(dsti);
+    if (dst_ptr) dstu = p(dstu);
+
     // signed
     start_ir();
-    i(0, IR_BSHL,     vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)    ); // r3 = r1 << bshl_size
-    i(0, IR_ADD,      vsz(4, TYPE_LONG), asz(2, src_size), vsz(3, TYPE_LONG)); // r4 = r2 + r3
-    i(0, IR_INDIRECT, vsz(4, dst_size),  vsz(4, TYPE_LONG), 0               ); // r5 = *r4
+    i(0, IR_BSHL,     vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)    );  // r3 = r1 << bshl_size
+    i(0, IR_ADD,      vsz(4, TYPE_LONG), dup_value(src),    vsz(3, TYPE_LONG)); // r4 = r2 + r3
+    i(0, IR_INDIRECT, dsti,              vsz(4, TYPE_LONG), 0               );  // r5 = *r4
     finish_ir(function);
 
     // unsigned
     start_ir();
-    i(0, IR_BSHL,     vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)    ); // r3 = r1 << bshl_size
-    i(0, IR_ADD,      vsz(4, TYPE_LONG), asz(2, src_size), vsz(3, TYPE_LONG)); // r4 = r2 + r3
-    i(0, IR_INDIRECT, vusz(4, dst_size), vsz(4, TYPE_LONG), 0               ); // r5 = *r4
+    i(0, IR_BSHL,     vsz(3, TYPE_LONG), vsz(1, TYPE_LONG), c(bshl_size)    );  // r3 = r1 << bshl_size
+    i(0, IR_ADD,      vsz(4, TYPE_LONG), dup_value(src),    vsz(3, TYPE_LONG)); // r4 = r2 + r3
+    i(0, IR_INDIRECT, dstu,              vsz(4, TYPE_LONG), 0               );  // r5 = *r4
     finish_ir(function);
 }
 
-void test_composite_offset_pointer_indirect_reg(int src_size, int dst_size) {
+void test_composite_offset_pointer_indirect_reg(int src_size, int dst_size, int dst_ptr) {
+    Value *dsti = vsz( 3, dst_size);
+    Value *dstu = vusz(3, dst_size);
+
+    if (dst_ptr) dsti = p(dsti);
+    if (dst_ptr) dstu = p(dstu);
+
     // signed
+
     start_ir();
     i(0, IR_ADD,      asz(2, src_size), asz(1, src_size), c(1));
-    i(0, IR_INDIRECT, vsz(3, dst_size), asz(2, src_size), 0);
+    i(0, IR_INDIRECT, dsti            , asz(2, src_size), 0);
     finish_ir(function);
 
     // unsigned
     start_ir();
     i(0, IR_ADD,      ausz(2, src_size), ausz(1, src_size), c(1));
-    i(0, IR_INDIRECT, vusz(3, dst_size), ausz(2, src_size), 0);
+    i(0, IR_INDIRECT, dstu             , ausz(2, src_size), 0);
     finish_ir(function);
 }
 
@@ -1423,23 +1454,23 @@ void test_composite_pointer_indirect() {
     // Test mov(a,b,c), d instruction
     remove_reserved_physical_registers = 1;
 
-    test_composite_scaled_pointer_indirect_reg(TYPE_SHORT,           TYPE_SHORT,           1); assert_x86_op("movw        (r2q,r1q,2), r5w");
-    test_composite_scaled_pointer_indirect_reg(TYPE_INT,             TYPE_INT,             2); assert_x86_op("movl        (r2q,r1q,4), r5l");
-    test_composite_scaled_pointer_indirect_reg(TYPE_LONG,            TYPE_LONG,            3); assert_x86_op("movq        (r2q,r1q,8), r5q");
-    test_composite_scaled_pointer_indirect_reg(TYPE_PTR + TYPE_VOID, TYPE_PTR + TYPE_VOID, 3); assert_x86_op("movq        (r2q,r1q,8), r5q");
+    test_composite_scaled_pointer_indirect_reg(TYPE_SHORT, 0, TYPE_SHORT, 0, 1); assert_x86_op("movw        (r2q,r1q,2), r5w");
+    test_composite_scaled_pointer_indirect_reg(TYPE_INT,   0, TYPE_INT,   0, 2); assert_x86_op("movl        (r2q,r1q,4), r5l");
+    test_composite_scaled_pointer_indirect_reg(TYPE_LONG,  0, TYPE_LONG,  0, 3); assert_x86_op("movq        (r2q,r1q,8), r5q");
+    test_composite_scaled_pointer_indirect_reg(TYPE_VOID,  1, TYPE_VOID,  1, 3); assert_x86_op("movq        (r2q,r1q,8), r5q");
 
     // Test mov a(b), c instruction
-    test_composite_offset_pointer_indirect_reg(TYPE_CHAR,   TYPE_CHAR);             assert_x86_op("movb        1(r1q), r3b");
-    test_composite_offset_pointer_indirect_reg(TYPE_SHORT,  TYPE_SHORT);            assert_x86_op("movw        1(r1q), r3w");
-    test_composite_offset_pointer_indirect_reg(TYPE_INT,    TYPE_INT);              assert_x86_op("movl        1(r1q), r3l");
-    test_composite_offset_pointer_indirect_reg(TYPE_LONG,   TYPE_LONG);             assert_x86_op("movq        1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_FLOAT,  TYPE_FLOAT);            assert_x86_op("movss       1(r1q), r3l");
-    test_composite_offset_pointer_indirect_reg(TYPE_DOUBLE, TYPE_DOUBLE);           assert_x86_op("movsd       1(r1q), r3l");
-    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_PTR + TYPE_CHAR);  assert_x86_op("movq        1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_PTR + TYPE_SHORT); assert_x86_op("movq        1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_PTR + TYPE_INT);   assert_x86_op("movq        1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_PTR + TYPE_LONG);  assert_x86_op("movq        1(r1q), r3q");
-    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_PTR + TYPE_VOID);  assert_x86_op("movq        1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_CHAR,   TYPE_CHAR,   0); assert_x86_op("movb        1(r1q), r3b");
+    test_composite_offset_pointer_indirect_reg(TYPE_SHORT,  TYPE_SHORT,  0); assert_x86_op("movw        1(r1q), r3w");
+    test_composite_offset_pointer_indirect_reg(TYPE_INT,    TYPE_INT,    0); assert_x86_op("movl        1(r1q), r3l");
+    test_composite_offset_pointer_indirect_reg(TYPE_LONG,   TYPE_LONG,   0); assert_x86_op("movq        1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_FLOAT,  TYPE_FLOAT,  0); assert_x86_op("movss       1(r1q), r3l");
+    test_composite_offset_pointer_indirect_reg(TYPE_DOUBLE, TYPE_DOUBLE, 0); assert_x86_op("movsd       1(r1q), r3l");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_CHAR,   1); assert_x86_op("movq        1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_SHORT,  1); assert_x86_op("movq        1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_INT,    1); assert_x86_op("movq        1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_LONG,   1); assert_x86_op("movq        1(r1q), r3q");
+    test_composite_offset_pointer_indirect_reg(TYPE_VOID,   TYPE_VOID,   1); assert_x86_op("movq        1(r1q), r3q");
 }
 
 void test_composite_pointer_address_of_reg(int bshl_size) {
@@ -1449,7 +1480,6 @@ void test_composite_pointer_address_of_reg(int bshl_size) {
     i(0, IR_ADDRESS_OF, asz(2, TYPE_VOID), vsz(4, TYPE_LONG), 0                ); // r5 = &r4
     finish_ir(function);
 }
-
 
 void test_composite_pointer_address_of() {
     int i;
@@ -1468,17 +1498,17 @@ void test_pointer_to_void_from_long_assignment() {
     si(function, 0, IR_MOVE, asz(2, TYPE_VOID), v(1), 0);
     assert_x86_op("movq        r1q, r2q");
 
-    si(function, 0, IR_MOVE, gsz(2, TYPE_PTR + TYPE_VOID), v(1), 0);
+    si(function, 0, IR_MOVE, p(gsz(2, TYPE_VOID)), v(1), 0);
     assert_x86_op("movq        r1q, g2(%rip)");
 
-    si(function, 0, IR_MOVE, gsz(2, TYPE_PTR + TYPE_VOID), vusz(1, TYPE_LONG), 0);
+    si(function, 0, IR_MOVE, p(gsz(2, TYPE_VOID)), vusz(1, TYPE_LONG), 0);
     assert_x86_op("movq        r1q, g2(%rip)");
 }
 
 void test_ptr_to_void_memory_load_to_ptr() {
     remove_reserved_physical_registers = 1;
 
-    si(function, 0, IR_MOVE, vsz(2, TYPE_PTR + TYPE_VOID), Ssz(-2, TYPE_PTR + TYPE_VOID), 0);
+    si(function, 0, IR_MOVE, asz(2, TYPE_VOID), p(Ssz(-2, TYPE_VOID)), 0);
     assert_x86_op("movq        -8(%rbp), r1q");
 }
 

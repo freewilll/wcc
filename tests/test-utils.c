@@ -94,6 +94,11 @@ Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2) {
     return tac;
 }
 
+Value *p(Value *v) {
+    v->type = make_pointer(v->type);
+    return v;
+}
+
 Value *v(int vreg) {
     Value *v;
 
@@ -141,7 +146,7 @@ Value *a(int vreg) {
     Value *v;
 
     v = new_value();
-    v->type = new_type(TYPE_PTR + TYPE_LONG);
+    v->type = make_pointer(new_type(TYPE_LONG));
     v->vreg = vreg;
 
     return v;
@@ -152,7 +157,7 @@ Value *asz(int vreg, int type) {
     Value *v;
 
     v = new_value();
-    v->type = new_type(TYPE_PTR + type);
+    v->type = make_pointer(new_type(type));
     v->vreg = vreg;
 
     return v;
@@ -162,7 +167,7 @@ Value *ausz(int vreg, int type) {
     Value *v;
 
     v = new_value();
-    v->type = new_type(TYPE_PTR + type);
+    v->type = make_pointer(new_type(type));
     v->type->is_unsigned = 1;
     v->vreg = vreg;
 
@@ -205,14 +210,13 @@ Value *s(int string_literal_index) {
     Value *v;
 
     v = new_value();
-    v->type = new_type(TYPE_CHAR + TYPE_PTR);
+    v->type = make_pointer(new_type(TYPE_CHAR));
     v->string_literal_index = string_literal_index;
     v->is_string_literal = 1;
     asprintf(&(string_literals[string_literal_index]), "Test SL %d", string_literal_index);
 
     return v;
 }
-
 
 Value *S(int stack_index) {
     Value *v;

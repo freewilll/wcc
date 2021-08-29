@@ -452,7 +452,7 @@ void make_value_x86_size(Value *v) {
     if (v->is_string_literal)
         v->x86_size = 4;
     else if (v->vreg || v->global_symbol || v->stack_index) {
-        if (v->type->type >= TYPE_PTR)
+        if (v->type->type == TYPE_PTR)
             v->x86_size = 4;
         else if (v->type->type <= TYPE_LONG)
             v->x86_size = v->type->type - TYPE_CHAR + 1;
@@ -474,18 +474,19 @@ static int non_terminal_for_value(Value *v) {
     if (v->non_terminal) return v->non_terminal;
 
     int is_local = !v->global_symbol && !v->stack_index;
+    int is_pointer = v->type && v->type->type == TYPE_PTR;
 
          if (v->is_string_literal)                                            result =  STL;
     else if (v->label)                                                        result =  LAB;
     else if (v->function_symbol)                                              result =  FUN;
 
     // Pointers
-    else if (is_local  && v->type->type == TYPE_PTR + TYPE_FLOAT)             result =  RP3;
-    else if (is_local  && v->type->type == TYPE_PTR + TYPE_DOUBLE)            result =  RP4;
-    else if (is_local  && v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)       result =  RP5;
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_FLOAT)       result =  RP3;
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_DOUBLE)      result =  RP4;
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_LONG_DOUBLE) result =  RP5;
 
-    else if (!is_local && v->type->type >= TYPE_PTR)                          result =  MPV;
-    else if (is_local  && v->type->type >= TYPE_PTR)                          result =  RP1 + value_ptr_target_x86_size(v) - 1;
+    else if (!is_local && is_pointer)                                         result =  MPV;
+    else if (is_local  && is_pointer)                                         result =  RP1 + value_ptr_target_x86_size(v) - 1;
 
     // Lvalue in register
     else if (v->is_lvalue_in_register)                                        result =  RP1 + v->x86_size - 1;
@@ -566,7 +567,7 @@ int match_value_to_rule_dst(Value *v, int dst) {
 // non-root and non-leaf nodes have matching types while tree matching.
 int match_value_type_to_rule_dst(Value *v, int dst) {
     int vnt = non_terminal_for_value(v);
-    int is_ptr = v->type->type >= TYPE_PTR;
+    int is_ptr = v->type->type == TYPE_PTR;
 
     int ptr_size;
     if (is_ptr) ptr_size = value_ptr_target_x86_size(v);
@@ -603,15 +604,17 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
 
 // Return how many bytes a dereferenced pointer takes up
 static int value_ptr_target_x86_size(Value *v) {
-    if (v->type->type < TYPE_PTR) panic("Expected pointer type");
+    if (v->type->type != TYPE_PTR) panic("Expected pointer type");
 
-    if (v->type->type >= TYPE_PTR + TYPE_CHAR && v->type->type <= TYPE_PTR + TYPE_LONG)
-        return v->type->type - TYPE_PTR - TYPE_CHAR + 1;
-    else if (v->type->type == TYPE_PTR + TYPE_FLOAT)
+    int target_type = v->type->target->type;
+
+    if (target_type >= TYPE_CHAR && target_type <= TYPE_LONG)
+        return target_type - TYPE_CHAR + 1;
+    else if (target_type == TYPE_FLOAT)
         return 3;
-    else if (v->type->type == TYPE_PTR + TYPE_DOUBLE)
+    else if (target_type == TYPE_DOUBLE)
         return 4;
-    else if (v->type->type == TYPE_PTR + TYPE_LONG_DOUBLE)
+    else if (target_type == TYPE_LONG_DOUBLE)
         return 8;
     else
         return 4;

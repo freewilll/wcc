@@ -58,7 +58,7 @@ static Value *load(Value *src1) {
         if (src1->type->type == TYPE_STRUCT) panic("Cannot dereference a pointer to a struct");
 
         src1 = dup_value(src1);
-        src1->type = make_ptr(src1->type);
+        src1->type = make_pointer(src1->type);
         src1->is_lvalue = 0;
         if (src1->type->type == TYPE_LONG_DOUBLE)
             add_instruction(IR_MOVE, dst, src1, 0);
@@ -156,10 +156,10 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     if (src1_type->type == TYPE_STRUCT || src2_type->type == TYPE_STRUCT) panic("Operations on structs not implemented");
 
     // If it's a ternary and one is a pointer and the other a pointer to void, then the result is a pointer to void.
-    else if (src1_type->type >= TYPE_PTR && is_pointer_to_void(src2)) return for_ternary ? src2->type : src1->type;
-    else if (src2_type->type >= TYPE_PTR && is_pointer_to_void(src1)) return for_ternary ? src1->type : src2->type;
-    else if (src1_type->type >= TYPE_PTR) return src1_type;
-    else if (src2_type->type >= TYPE_PTR) return src2_type;
+    else if (src1_type->type == TYPE_PTR && is_pointer_to_void(src2->type)) return for_ternary ? src2->type : src1->type;
+    else if (src2_type->type == TYPE_PTR && is_pointer_to_void(src1->type)) return for_ternary ? src1->type : src2->type;
+    else if (src1_type->type == TYPE_PTR) return src1_type;
+    else if (src2_type->type == TYPE_PTR) return src2_type;
 
     // If either is a long double, promote both to long double
     if (src1_type->type == TYPE_LONG_DOUBLE || src2_type->type == TYPE_LONG_DOUBLE)
@@ -213,7 +213,7 @@ static int cur_token_is_type() {
 
 // How much will the ++, --, +=, -= operators increment a type?
 static int get_type_inc_dec_size(Type *type) {
-    return type->type < TYPE_PTR ? 1 : get_type_size(deref_ptr(type));
+    return type->type == TYPE_PTR ? get_type_size(type->target) : 1;
 }
 
 // Parse type up to the point where identifiers or * are lexed
@@ -270,7 +270,7 @@ static Type *parse_base_type(int allow_incomplete_structs) {
 static Type *parse_type() {
     Type *type = parse_base_type(0);
     while (cur_token == TOK_MULTIPLY) {
-        type = make_ptr(type);
+        type = make_pointer(type);
         next();
     }
 
@@ -335,7 +335,7 @@ static Type *parse_struct_base_type(int allow_incomplete_structs) {
             Type *base_type = parse_base_type(1);
             while (cur_token != TOK_SEMI) {
                 Type *type = dup_type(base_type);
-                while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
+                while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
 
                 int alignment = is_packed ? 1 : get_type_alignment(type);
                 if (alignment > biggest_alignment) biggest_alignment = alignment;
@@ -419,7 +419,7 @@ static void indirect() {
 
     Value *dst = new_value();
     dst->vreg = src1->vreg;
-    dst->type = deref_ptr(src1->type);
+    dst->type = deref_pointer(src1->type);
     dst->is_lvalue = 1;
     push(dst);
 }
@@ -514,7 +514,7 @@ static Value *integer_type_change(Value *src, Type *type) {
 }
 
 static Type *integer_promote_type(Type *type) {
-    if (type->type >= TYPE_PTR) panic("Invalid operand, expected integer type");
+    if (!is_integer_type(type)) panic("Invalid operand, expected integer type");
 
     if (type->type >= TYPE_INT && type->type <= TYPE_LONG)
         return type;
@@ -523,7 +523,7 @@ static Type *integer_promote_type(Type *type) {
 }
 
 static Value *integer_promote(Value *v) {
-    if (v->type->type >= TYPE_PTR) panic("Invalid operand, expected integer type");
+    if (!is_integer_type(v->type)) panic("Invalid operand, expected integer type");
 
     Type *type = integer_promote_type(v->type);
     if (type_eq(v->type, type))
@@ -549,7 +549,7 @@ Value *convert_int_constant_to_floating_point(Value *v, Type *dst_type) {
 static Value *long_double_type_change(Value *src) {
     Value *dst;
 
-    if (src->type->type >= TYPE_PTR) panic("Unable to convert a pointer to a long double");
+    if (src->type->type == TYPE_PTR) panic("Unable to convert a pointer to a long double");
     if (src->type->type == TYPE_LONG_DOUBLE) return src;
 
     if (src->is_constant) {
@@ -579,7 +579,7 @@ static Value *long_double_type_change(Value *src) {
 static Value *double_type_change(Value *src) {
     Value *dst;
 
-    if (src->type->type >= TYPE_PTR) panic("Unable to convert a pointer to a double");
+    if (src->type->type == TYPE_PTR) panic("Unable to convert a pointer to a double");
     if (src->type->type == TYPE_LONG_DOUBLE) panic("Unexpectedly got a long double -> double conversion");
     if (src->type->type == TYPE_DOUBLE) return src;
 
@@ -609,7 +609,7 @@ static Value *double_type_change(Value *src) {
 static Value *float_type_change(Value *src) {
     Value *dst;
 
-    if (src->type->type >= TYPE_PTR) panic("Unable to convert a pointer to a double");
+    if (src->type->type == TYPE_PTR) panic("Unable to convert a pointer to a double");
     if (src->type->type == TYPE_LONG_DOUBLE) panic("Unexpectedly got a long double -> float conversion");
     if (src->type->type == TYPE_DOUBLE) panic("Unexpectedly got a double -> float conversion");
     if (src->type->type == TYPE_FLOAT) return src;
@@ -689,8 +689,8 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
         Type *src1_type_deref = 0;
         Type *src2_type_deref = 0;
 
-        if (src1_is_pointer) src1_type_deref = deref_ptr(src1->type);
-        if (src2_is_pointer) src2_type_deref = deref_ptr(src2->type);
+        if (src1_is_pointer) src1_type_deref = deref_pointer(src1->type);
+        if (src2_is_pointer) src2_type_deref = deref_pointer(src2->type);
 
         // One of the following shall hold:
         // * both operands have arithmetic type;
@@ -710,8 +710,8 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
         Type *src1_type_deref = 0;
         Type *src2_type_deref = 0;
 
-        if (src1_is_pointer) src1_type_deref = deref_ptr(src1->type);
-        if (src2_is_pointer) src2_type_deref = deref_ptr(src2->type);
+        if (src1_is_pointer) src1_type_deref = deref_pointer(src1->type);
+        if (src2_is_pointer) src2_type_deref = deref_pointer(src2->type);
 
         // One of the following shall hold:
         // * both operands have arithmetic type;
@@ -723,8 +723,8 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
         if (
             (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
             (!(src1_is_pointer && src2_is_pointer && types_are_compabible(src1_type_deref, src2_type_deref))) &&
-            (!(src1_is_pointer && src2_is_pointer && src2->type->type == TYPE_PTR + TYPE_VOID)) &&
-            (!(src2_is_pointer && src1_is_pointer && src1->type->type == TYPE_PTR + TYPE_VOID)) &&
+            (!(src1_is_pointer && src2_is_pointer && is_pointer_to_void(src2->type))) &&
+            (!(src2_is_pointer && src1_is_pointer && is_pointer_to_void(src1->type))) &&
             (!(src1_is_pointer && is_null_pointer(src2))) &&
             (!(src2_is_pointer && is_null_pointer(src1)))
         )
@@ -897,7 +897,7 @@ static void parse_subtraction(int level) {
     // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
     if (
         (!(src1_is_arithmetic && src2_is_arithmetic)) &&
-        (!(src1_is_pointer && src2_is_pointer && types_are_compabible(deref_ptr(src1->type), deref_ptr(src2->type)))) &&
+        (!(src1_is_pointer && src2_is_pointer && types_are_compabible(deref_pointer(src1->type), deref_pointer(src2->type)))) &&
         (!(src1_is_pointer && src2_is_integer))
     )
     panic("Invalid operands to binary minus");
@@ -936,9 +936,9 @@ static void parse_declaration() {
     Symbol *symbol;
 
     Type *type = dup_type(base_type);
-    while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
+    while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
 
-    if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
+    if (type->type >= TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
     expect(TOK_IDENTIFIER, "identifier");
 
@@ -1007,7 +1007,7 @@ static void parse_expression(int level) {
         if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
 
         Value *src1 = pop();
-        add_ir_op(IR_ADDRESS_OF, make_ptr(src1->type), new_vreg(), src1, 0);
+        add_ir_op(IR_ADDRESS_OF, make_pointer(src1->type), new_vreg(), src1, 0);
     }
 
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
@@ -1034,7 +1034,7 @@ static void parse_expression(int level) {
         else {
             next();
             parse_expression(TOK_INC);
-            if (vtop->type->type <= TYPE_PTR) panic1d("Cannot dereference a non-pointer %d", vtop->type->type);
+            if (vtop->type->type != TYPE_PTR) panic1d("Cannot dereference a non-pointer %d", vtop->type->type);
             indirect();
         }
     }
@@ -1078,11 +1078,11 @@ static void parse_expression(int level) {
             Value *v1 = pl();
             // Special case for (void *) int-constant
 
-            if (org_type->type == TYPE_PTR + TYPE_VOID && (is_integer_type(v1->type) || v1->type->type == TYPE_PTR + TYPE_VOID) && v1->is_constant) {
+            if (is_pointer_to_void(org_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
                 Value *dst = new_value();
                 dst->is_constant =1;
                 dst->int_value = v1->int_value;
-                dst->type = new_type(TYPE_PTR + TYPE_VOID);
+                dst->type = make_pointer_to_void();
                 push(dst);
             }
             else if (v1->type != org_type) {
@@ -1113,10 +1113,10 @@ static void parse_expression(int level) {
     else if (cur_token == TOK_STRING_LITERAL) {
         Value *dst = new_value();
         dst->vreg = new_vreg();
-        dst->type = new_type(TYPE_CHAR + TYPE_PTR);
+        dst->type = make_pointer(new_type(TYPE_CHAR));
 
         Value *src1 = new_value();
-        src1->type = new_type(TYPE_CHAR + TYPE_PTR);
+        src1->type = make_pointer(new_type(TYPE_CHAR));
         src1->string_literal_index = string_literal_count;
         src1->is_string_literal = 1;
         string_literals[string_literal_count++] = cur_string_literal;
@@ -1293,7 +1293,7 @@ static void parse_expression(int level) {
         if (cur_token == TOK_LBRACKET) {
             next();
 
-            if (vtop->type->type < TYPE_PTR)
+            if (vtop->type->type != TYPE_PTR)
                 panic1d("Cannot do [] on a non-pointer for type %d", vtop->type->type);
 
             parse_addition(TOK_COMMA);
@@ -1324,21 +1324,21 @@ static void parse_expression(int level) {
             if (cur_token == TOK_DOT) {
                 // Struct member lookup
 
-                if (vtop->type->type < TYPE_STRUCT || vtop->type->type >= TYPE_PTR) panic("Cannot use . on a non-struct");
+                if (vtop->type->type < TYPE_STRUCT) panic("Cannot use . on a non-struct");
                 if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
 
                 // Pretend the lvalue is a pointer to a struct
                 vtop->is_lvalue = 0;
-                vtop->type = make_ptr(vtop->type);
+                vtop->type = make_pointer(vtop->type);
             }
 
-            if (vtop->type->type < TYPE_PTR) panic("Cannot use -> on a non-pointer");
-            if (vtop->type->type < TYPE_STRUCT + TYPE_PTR) panic("Cannot use -> on a pointer to a non-struct");
+            if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
+            if (vtop->type->target->type < TYPE_STRUCT) panic("Cannot use -> on a pointer to a non-struct");
 
             next();
             if (cur_token != TOK_IDENTIFIER) panic("Expected identifier\n");
 
-            Struct *str = all_structs[vtop->type->type - TYPE_PTR - TYPE_STRUCT];
+            Struct *str = all_structs[vtop->type->target->type - TYPE_STRUCT];
             StructMember *member = lookup_struct_member(str, cur_identifier);
             indirect();
 
@@ -1347,7 +1347,7 @@ static void parse_expression(int level) {
             if (member->offset > 0) {
                 // Make the struct lvalue into a pointer to struct rvalue for manipulation
                 vtop->is_lvalue = 0;
-                vtop->type = make_ptr(vtop->type);
+                vtop->type = make_pointer(vtop->type);
 
                 push_integral_constant(TYPE_INT, member->offset);
                 arithmetic_operation(IR_ADD, 0);
@@ -1424,8 +1424,8 @@ static void parse_expression(int level) {
             Type *src1_type_deref = 0;
             Type *src2_type_deref = 0;
 
-            if (src1_is_pointer) src1_type_deref = deref_ptr(src1->type);
-            if (src2_is_pointer) src2_type_deref = deref_ptr(src2->type);
+            if (src1_is_pointer) src1_type_deref = deref_pointer(src1->type);
+            if (src2_is_pointer) src2_type_deref = deref_pointer(src2->type);
 
             // One of the following shall hold for the second and third operands:
             // * both operands have arithmetic type;
@@ -1441,8 +1441,8 @@ static void parse_expression(int level) {
                 (!(src1_is_pointer && src2_is_pointer && types_are_compabible(src1_type_deref, src2_type_deref))) &&
                 (!(src1_is_pointer && is_null_pointer(src2))) &&
                 (!(src2_is_pointer && is_null_pointer(src1))) &&
-                (!((is_pointer_to_object_type(src1->type) && src2->type->type == TYPE_PTR + TYPE_VOID) ||
-                   (is_pointer_to_object_type(src2->type) && src1->type->type == TYPE_PTR + TYPE_VOID)))
+                (!((is_pointer_to_object_type(src1->type) && is_pointer_to_void(src2->type)) ||
+                   (is_pointer_to_object_type(src2->type) && is_pointer_to_void(src1->type))))
             )
                 panic("Invalid operands to ternary operator");
 
@@ -1852,9 +1852,9 @@ void parse() {
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 Type *type = base_type;
-                while (cur_token == TOK_MULTIPLY) { type = make_ptr(type); next(); }
+                while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
 
-                if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
+                if (type->type >= TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
                 expect(TOK_IDENTIFIER, "identifier");
 
@@ -1897,7 +1897,7 @@ void parse() {
 
                         if (cur_token_is_type()) {
                             Type *type = parse_type();
-                            if (type->type >= TYPE_STRUCT && type->type < TYPE_PTR) panic("Direct usage of struct variables not implemented");
+                            if (type->type >= TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
                             expect(TOK_IDENTIFIER, "identifier");
                             Symbol *param_symbol = new_symbol();

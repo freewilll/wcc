@@ -11,11 +11,13 @@ int print_type(void *f, Type *type) {
         return len;
     }
 
-    int tt = type->type;
-    while (tt >= TYPE_PTR) {
+    Type *t = type;
+    while (t->type == TYPE_PTR) {
         len += fprintf(f, "*");
-        tt -= TYPE_PTR;
+        t = t->target;
     }
+
+    int tt = t->type;
 
     if (type->is_unsigned) len += fprintf(f, "unsigned ");
 
@@ -34,44 +36,40 @@ int print_type(void *f, Type *type) {
 }
 
 Type *new_type(int type) {
-    Type *result;
-
-    result = malloc(sizeof(Type));
+    Type *result = malloc(sizeof(Type));
     result->type = type;
     result->is_unsigned = 0;
+    result->target = 0;
 
     return result;
 }
 
 Type *dup_type(Type *src) {
-    Type *dst;
-
     if (!src) return 0;
 
-    dst = new_type(src->type);
-    dst->is_unsigned = src->is_unsigned;
+    Type *dst = malloc(sizeof(Type));
+    dst->type           = src->type;
+    dst->is_unsigned    = src->is_unsigned;
+    dst->target         = src->target ? dup_type(src->target) : 0;
 
     return dst;
 }
 
-Type *make_ptr(Type *src) {
-    Type *dst;
-
-    dst = dup_type(src);
-    dst->type += TYPE_PTR;
+Type *make_pointer(Type *src) {
+    Type *dst = new_type(TYPE_PTR);
+    dst->target = dup_type(src);
 
     return dst;
 }
 
-Type *deref_ptr(Type *src) {
-    Type *dst;
+Type *make_pointer_to_void() {
+    return make_pointer(new_type(TYPE_VOID));
+}
 
-    if (src->type < TYPE_PTR) panic("Cannot dereference a non pointer");
+Type *deref_pointer(Type *src) {
+    if (src->type != TYPE_PTR) panic("Cannot dereference a non pointer");
 
-    dst = dup_type(src);
-    dst->type -= TYPE_PTR;
-
-    return dst;
+    return dup_type(src->target);
 }
 
 // Integral and floating types are collectively called arithmetic types.
@@ -107,24 +105,28 @@ int is_incomplete_type(Type *type) {
 }
 
 int is_pointer_type(Type *type) {
-    return type->type >= TYPE_PTR;
+    return type->type == TYPE_PTR;
 }
 
 int is_pointer_to_object_type(Type *type) {
-    return type->type >= TYPE_PTR;
+    return type->type == TYPE_PTR;
 }
 
 int is_null_pointer(Value *v) {
-    if (!is_integer_type(v->type) && v->type->type != TYPE_PTR + TYPE_VOID) return 0;
-    return (v->is_constant && v->int_value == 0);
+    Type *type = v->type;
+
+    if (is_integer_type(type) && v->is_constant && v->int_value == 0) return 1;
+    else if (type->type == TYPE_PTR && type->target->type == TYPE_VOID &&
+             v->is_constant && v->int_value == 0) return 1;
+    else return 0;
 }
 
-int is_pointer_to_void(Value *v) {
-    return v->type->type == TYPE_PTR + TYPE_VOID;
+int is_pointer_to_void(Type *type) {
+    return type->type == TYPE_PTR && type->target->type == TYPE_VOID;
 }
 
 int type_fits_in_single_int_register(Type *type) {
-    return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type >= TYPE_PTR));
+    return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || (type->type == TYPE_PTR));
 }
 
 int get_type_size(Type *type) {
@@ -139,7 +141,7 @@ int get_type_size(Type *type) {
     else if (t == TYPE_FLOAT)       return sizeof(float);
     else if (t == TYPE_DOUBLE)      return sizeof(double);
     else if (t == TYPE_LONG_DOUBLE) return sizeof(long double);
-    else if (t >  TYPE_PTR)         return sizeof(void *);
+    else if (t == TYPE_PTR)         return sizeof(void *);
     else if (t >= TYPE_STRUCT)      return all_structs[t - TYPE_STRUCT]->size;
 
     panic1d("sizeof unknown type %d", t);
@@ -150,7 +152,7 @@ int get_type_alignment(Type *type) {
 
     t = type->type;
 
-         if (t  > TYPE_PTR)          return 8;
+         if (t == TYPE_PTR)          return 8;
     else if (t == TYPE_CHAR)         return 1;
     else if (t == TYPE_SHORT)        return 2;
     else if (t == TYPE_INT)          return 4;
@@ -164,7 +166,9 @@ int get_type_alignment(Type *type) {
 }
 
 int type_eq(Type *type1, Type *type2) {
-    return (type1->type == type2->type && type1->is_unsigned == type2->is_unsigned);
+    if (type1->type != type2->type) return 0;
+    if (type1->type == TYPE_PTR) return type_eq(type1->target, type2->target);
+    return (type1->is_unsigned == type2->is_unsigned);
 }
 
 int types_are_compabible(Type *type1, Type *type2) {
