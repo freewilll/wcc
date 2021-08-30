@@ -70,6 +70,7 @@ typedef struct type {
     int type;       // One of TYPE_*
     int is_unsigned;
     struct type *target;
+    struct struct_desc *struct_desc;
 } Type;
 
 typedef struct symbol {
@@ -202,7 +203,6 @@ typedef struct struct_member {
 
 // Struct description
 typedef struct struct_desc {
-    Type *type;
     char *identifier;
     struct struct_member **members;
     int size;
@@ -326,8 +326,6 @@ enum {
     TOK_ELLIPSES
 };
 
-// Types. All structs start at TYPE_STRUCT.
-// all_structs[i] corresponds to type i - TYPE_STRUCT
 enum {
     TYPE_VOID         = 1,
     TYPE_CHAR         = 2,
@@ -338,7 +336,7 @@ enum {
     TYPE_DOUBLE       = 7,
     TYPE_LONG_DOUBLE  = 8,
     TYPE_PTR          = 9,
-    TYPE_STRUCT       = 16,
+    TYPE_STRUCT       = 10
 };
 
 // Intermediate representation operations
@@ -577,6 +575,7 @@ Type *new_type(int type);
 Type *dup_type(Type *src);
 Type *make_pointer(Type *src);
 Type *make_pointer_to_void();
+Type *make_struct_type(Struct *s);
 Type *deref_pointer(Type *type);
 int is_integer_type(Type *type);
 int is_floating_point_type(Type *type);

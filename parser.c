@@ -280,8 +280,7 @@ static Type *parse_type() {
 // Allocate a new Struct
 static Struct *new_struct() {
     Struct *s = malloc(sizeof(Struct));
-    all_structs[all_structs_count] = s;
-    s->type = new_type(TYPE_STRUCT + all_structs_count++);
+    all_structs[all_structs_count++] = s;
     s->members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
     memset(s->members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
 
@@ -358,13 +357,13 @@ static Type *parse_struct_base_type(int allow_incomplete_structs) {
         s->size = offset;
         s->is_incomplete = 0;
         consume(TOK_RCURLY, "}");
-        return s->type;
+        return make_struct_type(s);
     }
     else {
         // Struct use
 
         Struct *s = find_struct(identifier);
-        if (s) return s->type; // Found a complete or incomplete struct
+        if (s) return make_struct_type(s); // Found a complete or incomplete struct
 
         if (allow_incomplete_structs) {
             // Didn't find a struct, but that's ok, create a incomplete one
@@ -372,7 +371,7 @@ static Type *parse_struct_base_type(int allow_incomplete_structs) {
             s = new_struct();
             s->identifier = identifier;
             s->is_incomplete = 1;
-            return s->type;
+            return make_struct_type(s);
         }
         else
             panic1s("Unknown struct %s", identifier);
@@ -394,7 +393,7 @@ static void parse_typedef() {
     next();
 
     Type *type = parse_struct_base_type(0);
-    Struct *s = all_structs[type->type - TYPE_STRUCT];
+    Struct *s = type->struct_desc;
 
     if (cur_token != TOK_IDENTIFIER) panic("Typedefs are only implemented for previously defined structs");
 
@@ -403,7 +402,7 @@ static void parse_typedef() {
     Typedef *t = malloc(sizeof(Typedef));
     memset(t, 0, sizeof(Typedef));
     t->identifier = cur_identifier;
-    t->struct_type = dup_type(s->type);
+    t->struct_type = make_struct_type(s);
     all_typedefs[all_typedefs_count++] = t;
 
     next();
@@ -938,7 +937,7 @@ static void parse_declaration() {
     Type *type = dup_type(base_type);
     while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
 
-    if (type->type >= TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
+    if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
     expect(TOK_IDENTIFIER, "identifier");
 
@@ -1324,7 +1323,7 @@ static void parse_expression(int level) {
             if (cur_token == TOK_DOT) {
                 // Struct member lookup
 
-                if (vtop->type->type < TYPE_STRUCT) panic("Cannot use . on a non-struct");
+                if (vtop->type->type != TYPE_STRUCT) panic("Cannot use . on a non-struct");
                 if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
 
                 // Pretend the lvalue is a pointer to a struct
@@ -1333,12 +1332,12 @@ static void parse_expression(int level) {
             }
 
             if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
-            if (vtop->type->target->type < TYPE_STRUCT) panic("Cannot use -> on a pointer to a non-struct");
+            if (vtop->type->target->type != TYPE_STRUCT) panic("Cannot use -> on a pointer to a non-struct");
 
             next();
             if (cur_token != TOK_IDENTIFIER) panic("Expected identifier\n");
 
-            Struct *str = all_structs[vtop->type->target->type - TYPE_STRUCT];
+            Struct *str = vtop->type->target->struct_desc;
             StructMember *member = lookup_struct_member(str, cur_identifier);
             indirect();
 
@@ -1854,7 +1853,7 @@ void parse() {
                 Type *type = base_type;
                 while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
 
-                if (type->type >= TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
+                if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
                 expect(TOK_IDENTIFIER, "identifier");
 
@@ -1897,7 +1896,7 @@ void parse() {
 
                         if (cur_token_is_type()) {
                             Type *type = parse_type();
-                            if (type->type >= TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
+                            if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
                             expect(TOK_IDENTIFIER, "identifier");
                             Symbol *param_symbol = new_symbol();

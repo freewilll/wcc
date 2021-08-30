@@ -29,7 +29,7 @@ int print_type(void *f, Type *type) {
     else if (tt == TYPE_FLOAT)       len += fprintf(f, "float");
     else if (tt == TYPE_DOUBLE)      len += fprintf(f, "double");
     else if (tt == TYPE_LONG_DOUBLE) len += fprintf(f, "long double");
-    else if (tt >= TYPE_STRUCT)      len += fprintf(f, "struct %s", all_structs[tt - TYPE_STRUCT]->identifier);
+    else if (tt == TYPE_STRUCT)      len += fprintf(f, "struct %s", t->struct_desc->identifier);
     else len += fprintf(f, "unknown tt %d", tt);
 
     return len;
@@ -40,6 +40,7 @@ Type *new_type(int type) {
     result->type = type;
     result->is_unsigned = 0;
     result->target = 0;
+    result->struct_desc = 0;
 
     return result;
 }
@@ -51,6 +52,7 @@ Type *dup_type(Type *src) {
     dst->type           = src->type;
     dst->is_unsigned    = src->is_unsigned;
     dst->target         = src->target ? dup_type(src->target) : 0;
+    dst->struct_desc    = src->struct_desc; // Note: not making a copy
 
     return dst;
 }
@@ -64,6 +66,13 @@ Type *make_pointer(Type *src) {
 
 Type *make_pointer_to_void() {
     return make_pointer(new_type(TYPE_VOID));
+}
+
+Type *make_struct_type(Struct *s) {
+    Type *type = new_type(TYPE_STRUCT);
+    type->struct_desc = s;
+
+    return type;
 }
 
 Type *deref_pointer(Type *src) {
@@ -142,7 +151,7 @@ int get_type_size(Type *type) {
     else if (t == TYPE_DOUBLE)      return sizeof(double);
     else if (t == TYPE_LONG_DOUBLE) return sizeof(long double);
     else if (t == TYPE_PTR)         return sizeof(void *);
-    else if (t >= TYPE_STRUCT)      return all_structs[t - TYPE_STRUCT]->size;
+    else if (t == TYPE_STRUCT)      return type->struct_desc->size;
 
     panic1d("sizeof unknown type %d", t);
 }
@@ -160,7 +169,7 @@ int get_type_alignment(Type *type) {
     else if (t == TYPE_FLOAT)        return 4;
     else if (t == TYPE_DOUBLE)       return 8;
     else if (t == TYPE_LONG_DOUBLE)  return 16;
-    else if (t >= TYPE_STRUCT) panic("Alignment of structs not implemented");
+    else if (t == TYPE_STRUCT) panic("Alignment of structs not implemented");
 
     panic1d("align of unknown type %d", t);
 }
