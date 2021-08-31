@@ -83,6 +83,10 @@ test: test-self-compilation test-all
 test-unit: libwcc.a
 	cd tests && ${MAKE} test-unit
 
+.PHONY: test-unit-parser
+test-unit-parser: libwcc.a
+	cd tests && ${MAKE} test-unit-parser
+
 .PHONY: test-integration
 test-integration: libwcc.a
 	cd tests && ${MAKE} test-integration

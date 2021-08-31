@@ -35,6 +35,37 @@ int print_type(void *f, Type *type) {
     return len;
 }
 
+char *sprint_type_in_english(Type *type) {
+    char *buffer = malloc(256);
+    char *start = buffer;
+
+    int tt;
+    while (type) {
+        tt = type->type;
+
+             if (tt == TYPE_VOID)        buffer += sprintf(buffer, "void");
+        else if (tt == TYPE_CHAR)        buffer += sprintf(buffer, "char");
+        else if (tt == TYPE_INT)         buffer += sprintf(buffer, "int");
+        else if (tt == TYPE_SHORT)       buffer += sprintf(buffer, "short");
+        else if (tt == TYPE_LONG)        buffer += sprintf(buffer, "long");
+        else if (tt == TYPE_FLOAT)       buffer += sprintf(buffer, "float");
+        else if (tt == TYPE_DOUBLE)      buffer += sprintf(buffer, "double");
+        else if (tt == TYPE_LONG_DOUBLE) buffer += sprintf(buffer, "long double");
+        else if (tt == TYPE_STRUCT)      buffer += sprintf(buffer, "struct %s", type->struct_desc->identifier);
+        else if (tt == TYPE_PTR)         buffer += sprintf(buffer, "pointer to ");
+        else if (tt == TYPE_FUNCTION)    buffer += sprintf(buffer, "function returning ");
+        else if (tt == TYPE_ARRAY) {
+            if (type->array_size == 0) buffer += sprintf(buffer, "array of ");
+            else buffer += sprintf(buffer, "array[%d] of ", type->array_size);
+        }
+        else panic1d("Unknown type->type=%d", tt);
+
+        type = type->target;
+    }
+
+    return start;
+}
+
 Type *new_type(int type) {
     Type *result = malloc(sizeof(Type));
     result->type = type;
@@ -42,6 +73,7 @@ Type *new_type(int type) {
     result->target = 0;
     result->struct_desc = 0;
     result->function = 0;
+    result->array_size = 0;
 
     return result;
 }
@@ -55,6 +87,7 @@ Type *dup_type(Type *src) {
     dst->target         = src->target ? dup_type(src->target) : 0;
     dst->struct_desc    = src->struct_desc; // Note: not making a copy
     dst->function       = src->function; // Note: not making a copy
+    dst->array_size     = src->array_size;
 
     return dst;
 }

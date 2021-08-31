@@ -31,7 +31,7 @@ run-test-graph: test-graph
 	 ./test-graph
 
 test-parser: ../../libwcc.a test-parser.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-parser test-parser.c ../../libwcc.a
+	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-parser test-parser.c ../../libwcc.a ../test-lib.o
 
 run-test-parser: test-parser
 	 ./test-parser

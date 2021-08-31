@@ -1,9 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <string.h>
 
 #include "../../wcc.h"
+#include "../test-lib.h"
 
+int verbose;
+int passes;
 int failures;
+
+static void assert_english_type(char *type_str, char *expected, char *actual) {
+    if (strcmp(expected, actual)) {
+        printf("%-24s ", type_str);
+        failures++;
+        printf("failed, expected %s got %s\n", expected, actual);
+    }
+    else {
+        passes++;
+        if (verbose) printf("%-24s ok\n", type_str);
+    }
+}
 
 static void assert_type_eq(Type *expected, Type *got, Type *src1, Type *src2) {
     if (expected->type != got->type || expected->is_unsigned != got->is_unsigned) {
@@ -73,14 +90,63 @@ void test_integer_types_operations() {
     test_integer_operation_type(t(TYPE_LONG, 1), t(TYPE_INT,   0), t(TYPE_LONG, 1));
 }
 
-int main() {
+Type *run_lexer(char *type_str, char *expected_english) {
+    // printf("%-24s ", type_str);
+    char *filename =  make_temp_filename("/tmp/XXXXXX.c");
+    f = fopen(filename, "w");
+    fprintf(f, "%s\n", type_str);
+    fprintf(f, "\n");
+    fclose(f);
+    init_lexer(filename);
+
+    Type *type = new_parse_type();
+
+    char *english = sprint_type_in_english(type);
+    // printf("%s\n", english);
+
+    assert_english_type(type_str, expected_english, english);
+
+    return type;
+}
+
+int test_type_parsing() {
+    run_lexer("int *x",                 "pointer to int");
+    run_lexer("int x[]",                "array of int");
+    run_lexer("int x[1]",               "array[1] of int");
+    run_lexer("int x()",                "function returning int");
+    run_lexer("int **x",                "pointer to pointer to int");
+    run_lexer("int (*x)[]",             "pointer to array of int");
+    run_lexer("int (*x)[1]",            "pointer to array[1] of int");
+    run_lexer("int (*x)()",             "pointer to function returning int");
+    run_lexer("int *x[1]",              "array[1] of pointer to int");
+    run_lexer("int x[1][2]",            "array[1] of array[2] of int");
+    run_lexer("int *x()",               "function returning pointer to int");
+    run_lexer("int ***x",               "pointer to pointer to pointer to int");
+    run_lexer("int (**x)[1]",           "pointer to pointer to array[1] of int");
+    run_lexer("int (**x)()",            "pointer to pointer to function returning int");
+    run_lexer("int *(*x)[1]",           "pointer to array[1] of pointer to int");
+    run_lexer("int (*x)[1][2]",         "pointer to array[1] of array[2] of int");
+    run_lexer("int *(*x)()",            "pointer to function returning pointer to int");
+    run_lexer("int **x[1]",             "array[1] of pointer to pointer to int");
+    run_lexer("int (*x[1])[2]",         "array[1] of pointer to array[2] of int");
+    run_lexer("int (*x[1])()",          "array[1] of pointer to function returning int");
+    run_lexer("int *x[1][2]",           "array[1] of array[2] of pointer to int");
+    run_lexer("int x[1][2][3]",         "array[1] of array[2] of array[3] of int");
+    run_lexer("int **x()",              "function returning pointer to pointer to int");
+    run_lexer("int (*x())[1]",          "function returning pointer to array[1] of int");
+    run_lexer("int (*x())()",           "function returning pointer to function returning int");
+    run_lexer("int *(*(**x[][8])())[]", "array of array[8] of pointer to pointer to function returning pointer to array of pointer to int");
+    run_lexer("int (*(*x[])())()",      "array of pointer to function returning pointer to function returning int");
+}
+
+int main(int argc, char **argv) {
+    passes = 0;
     failures = 0;
 
-    test_integer_types_operations();
+    parse_args(argc, argv, &verbose);
 
-    if (failures) {
-        printf("There were %d failure(s)\n", failures);
-        exit(1);
-    }
-    printf("Parser tests passed\n");
+    test_integer_types_operations();
+    test_type_parsing();
+
+    finalize();
 }

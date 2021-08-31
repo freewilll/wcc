@@ -266,6 +266,83 @@ static Type *parse_base_type(int allow_incomplete_structs) {
     return type;
 }
 
+static Type *concat_types(Type *type1, Type *type2) {
+    if (type1 == 0) return type2;
+    else if (type2 == 0) return type1;
+    else if (type1 ==0 && type2 == 0) panic("concat type got two null types");
+
+    Type *type1_tail = type1;
+    while (type1_tail->target) type1_tail = type1_tail->target;
+    type1_tail->target = type2;
+
+    return type1;
+}
+
+// Parse a type abstract declarator using a precedence climbing parser
+// There are two levels of precedence:
+// level 1: *
+// level 2: [...], (... function call params ...) and (subtype)
+//
+// Types always start with an optional *, so they get parsed first at level 1
+// The rest gets parsed at level 2
+Type *recursive_parse_type(int level) {
+    Type *type = 0;
+
+    while (1) {
+        int token_level = cur_token == TOK_MULTIPLY ? 1 : 2;
+
+        if (token_level > level) {
+            // Go up a level and return
+            return concat_types(recursive_parse_type(2), type);
+        }
+        else if (cur_token == TOK_IDENTIFIER) {
+            // TODO Identifier
+            next();
+        }
+        else if (cur_token == TOK_MULTIPLY) {
+            // Pointer
+            next();
+            type = make_pointer(type);
+        }
+        else if (cur_token == TOK_LPAREN) {
+            next();
+            if (cur_token == TOK_RPAREN) {
+                // Function
+                consume(TOK_RPAREN, ")");
+                Type *function_type = new_type(TYPE_FUNCTION);
+                type = concat_types(type, function_type);
+            }
+            else {
+                // (subtype)
+                type = concat_types(type, recursive_parse_type(1));
+                consume(TOK_RPAREN, ")");
+            }
+        }
+        else if (cur_token == TOK_LBRACKET) {
+            // Array [] or [<num>]
+            next();
+            int size = 0;
+            if (cur_token == TOK_INTEGER) {
+                size = cur_long;
+                next();
+            }
+
+            Type *array_type = new_type(TYPE_ARRAY);
+            array_type->array_size = size;
+            type = concat_types(type, array_type);
+            consume(TOK_RBRACKET, "]");
+        }
+        else
+            return type;
+    }
+
+    panic("Should not get here");
+}
+
+Type *new_parse_type() {
+    return concat_types(recursive_parse_type(1), parse_base_type(1));
+}
+
 // Parse type, including *
 static Type *parse_type() {
     Type *type = parse_base_type(0);

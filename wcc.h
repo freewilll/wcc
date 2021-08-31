@@ -69,6 +69,7 @@ typedef struct i_graph {
 typedef struct type {
     int type;       // One of TYPE_*
     int is_unsigned;
+    int array_size;
     struct type *target;
     struct struct_desc *struct_desc;
     struct function *function;
@@ -334,8 +335,9 @@ enum {
     TYPE_DOUBLE       = 7,
     TYPE_LONG_DOUBLE  = 8,
     TYPE_PTR          = 9,
-    TYPE_STRUCT       = 10,
-    TYPE_FUNCTION     = 11
+    TYPE_ARRAY        = 10,
+    TYPE_STRUCT       = 11,
+    TYPE_FUNCTION     = 12
 };
 
 // Intermediate representation operations
@@ -555,6 +557,7 @@ void consume(int token, char *what);
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
 int new_vreg();
+Type *new_parse_type();
 void check_incomplete_structs();
 void finish_parsing_header();
 void parse();
@@ -570,6 +573,7 @@ void exit_scope();
 
 // types.c
 int print_type(void *f, Type *type);
+char *sprint_type_in_english(Type *type);
 Type *new_type(int type);
 Type *dup_type(Type *src);
 Type *make_pointer(Type *src);

@@ -1,8 +1,12 @@
 all: test-unit test-integration test-e2e
 
 .PHONY:
-test-unit: test-utils.s
+test-unit: test-utils.s test-lib.o
 	cd unit && ${MAKE} all
+
+.PHONY:
+test-unit-parser: test-utils.s test-lib.o
+	cd unit && ${MAKE} run-test-parser
 
 .PHONY:
 test-integration: test-utils.s
