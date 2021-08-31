@@ -17,7 +17,7 @@ char *make_temp_filename(char *template) {
     return strdup(template);
 }
 
-void run_compiler_phases(Function *function, int start_at, int stop_at) {
+void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at) {
     if (start_at == COMPILE_START_AT_BEGINNING) {
         reverse_function_argument_order(function);
         merge_consecutive_labels(function);
@@ -73,8 +73,8 @@ void run_compiler_phases(Function *function, int start_at, int stop_at) {
     if (stop_at == COMPILE_STOP_AFTER_ADD_SPILL_CODE) return;
 
     // Final x86_64 changes
-    make_stack_offsets(function);
-    add_final_x86_instructions(function);
+    make_stack_offsets(function, function_name);
+    add_final_x86_instructions(function, function_name);
     remove_nops(function);
     merge_rsp_func_call_add_subs(function);
 }
@@ -107,7 +107,7 @@ void compile(char *compiler_input_filename, char *compiler_output_filename) {
         if (symbol->is_function && symbol->function->is_defined) {
             Function *function = symbol->function;
             if (print_ir1) print_ir(function, symbol->identifier, 0);
-            run_compiler_phases(function, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
+            run_compiler_phases(function, symbol->identifier, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
             if (print_ir2) print_ir(function, symbol->identifier, 0);
         }
     }

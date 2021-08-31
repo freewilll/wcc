@@ -58,7 +58,7 @@ char *register_name(int preg) {
 // Allocate stack offsets for variables on the stack (stack_index < 0). Go backwards
 // in alignment, allocating the ones with the largest alignment first, in order of
 // stack_index.
-void make_stack_offsets(Function *function) {
+void make_stack_offsets(Function *function, char *function_name) {
     int count = function->stack_register_count;
 
     if (!count) return; // Nothing is on the stack
@@ -70,17 +70,17 @@ void make_stack_offsets(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst && tac->dst->stack_index < 0) {
             if (stack_alignments[-tac->dst->stack_index] && stack_alignments[-tac->dst->stack_index] != get_type_alignment(tac->dst->type))
-                panic1s("Mismatched alignment on stack in different vregs in %s\n", function->identifier);
+                panic1s("Mismatched alignment on stack in different vregs in %s\n", function_name);
             stack_alignments[-tac->dst->stack_index] = get_type_alignment(tac->dst->type);
         }
         if (tac->src1 && tac->src1->stack_index < 0) {
             if (stack_alignments[-tac->src1->stack_index] && stack_alignments[-tac->src1->stack_index] != get_type_alignment(tac->src1->type))
-                panic1s("Mismatched alignment on stack in different vregs in %s\n", function->identifier);
+                panic1s("Mismatched alignment on stack in different vregs in %s\n", function_name);
             stack_alignments[-tac->src1->stack_index] = get_type_alignment(tac->src1->type);
         }
         if (tac->src2 && tac->src2->stack_index < 0) {
             if (stack_alignments[-tac->src2->stack_index] && stack_alignments[-tac->src2->stack_index] != get_type_alignment(tac->src2->type))
-                panic1s("Mismatched alignment on stack in different vregs in %s\n", function->identifier);
+                panic1s("Mismatched alignment on stack in different vregs in %s\n", function_name);
             stack_alignments[-tac->src2->stack_index] = get_type_alignment(tac->src2->type);
         }
     }
@@ -376,7 +376,7 @@ static Tac *add_add_rsp(Tac *ir, int amount) {
 }
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
-void add_final_x86_instructions(Function *function) {
+void add_final_x86_instructions(Function *function, char *function_name) {
     int stack_size;       // Size of the stack containing local variables and spilled registers
     int *saved_registers;       // Callee saved registers
     int added_end_of_function;  // To ensure a double epilogue isn't emitted
@@ -492,7 +492,7 @@ void add_final_x86_instructions(Function *function) {
     while (ir->next) ir = ir->next;
 
     // Special case for main, return 0 if no return statement is present
-    if (!strcmp(function->identifier, "main"))
+    if (!strcmp(function_name, "main"))
         ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
 
     if (!added_end_of_function) {

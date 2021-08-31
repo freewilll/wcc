@@ -94,7 +94,6 @@ typedef struct scope {
 } Scope;
 
 typedef struct function {
-    char* identifier;                        // Name of the function
     Type *return_type;                       // Type of return value
     int param_count;                         // Number of parameters
     Type **param_types;                      // Types of parameters
@@ -909,8 +908,8 @@ void init_instruction_selection_rules();
 // codegen.c
 char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
-void make_stack_offsets(Function *function);
-void add_final_x86_instructions(Function *function);
+void make_stack_offsets(Function *function, char *function_name);
+void add_final_x86_instructions(Function *function, char *function_name);
 void remove_nops(Function *function);
 void merge_rsp_func_call_add_subs(Function *function);
 void output_code(char *input_filename, char *output_filename);
@@ -928,7 +927,7 @@ enum {
 };
 
 char *make_temp_filename(char *template);
-void run_compiler_phases(Function *function, int start_at, int stop_at);
+void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at);
 void compile(char *compiler_input_filename, char *compiler_output_filename);
 
 // test-utils.c

@@ -1882,7 +1882,6 @@ void parse() {
                     s->is_function = 1;
                     s->function = malloc(sizeof(Function));
                     memset(s->function, 0, sizeof(Function));
-                    s->function->identifier = s->identifier;
                     s->function->return_type = dup_type(type);
                     s->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
                     s->function->ir = ir_start;
