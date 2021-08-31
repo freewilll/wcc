@@ -137,15 +137,15 @@ int is_arithmetic_type(Type *type) {
 }
 
 int is_scalar_type(Type *type) {
-    return 1;
+    return (type->type >= TYPE_CHAR && type->type <= TYPE_PTR);
 }
 
 int is_object_type(Type *type) {
-    return 1;
+    return (type->type != TYPE_FUNCTION);
 }
 
 int is_incomplete_type(Type *type) {
-    return 0;
+    return 0; // TODO
 }
 
 int is_pointer_type(Type *type) {
