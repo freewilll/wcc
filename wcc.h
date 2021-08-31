@@ -71,6 +71,7 @@ typedef struct type {
     int is_unsigned;
     struct type *target;
     struct struct_desc *struct_desc;
+    struct function *function;
 } Type;
 
 typedef struct symbol {
@@ -81,9 +82,7 @@ typedef struct symbol {
     long value;                 // Value in the case of a constant
     int local_index;            // Used by the parser for locals variables and function arguments
                                 // < 0 is a local variable or tempoary, >= 2 is a function parameter
-    int is_function;            // Is the symbol a function?
     int is_enum;                // Enums are symbols with a value
-    struct function *function;  // Details specific to symbols that are functions
 } Symbol;
 
 typedef struct scope {
@@ -335,7 +334,8 @@ enum {
     TYPE_DOUBLE       = 7,
     TYPE_LONG_DOUBLE  = 8,
     TYPE_PTR          = 9,
-    TYPE_STRUCT       = 10
+    TYPE_STRUCT       = 10,
+    TYPE_FUNCTION     = 11
 };
 
 // Intermediate representation operations

@@ -627,9 +627,9 @@ void run_function_call_single_arg(Value *src) {
     start_ir();
     i(0, IR_ARG, 0, c(0), src);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
-    tac->src1->function_symbol->function->param_count = 1;
-    tac->src1->function_symbol->function->param_types = malloc(sizeof(Type));
-    tac->src1->function_symbol->function->param_types[0] = dup_type(src->type);
+    tac->src1->function_symbol->type->function->param_count = 1;
+    tac->src1->function_symbol->type->function->param_types = malloc(sizeof(Type));
+    tac->src1->function_symbol->type->function->param_types[0] = dup_type(src->type);
     i(0, IR_MOVE, v(2), v(1), 0);
     finish_spill_ir(function);
 }

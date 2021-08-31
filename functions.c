@@ -82,7 +82,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
         if (ir->operation == IR_CALL) {
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
             int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
-            Function *called_function = ir->src1->function_symbol->function;
+            Function *called_function = ir->src1->function_symbol->type->function;
 
             // Allocated registers
             int *function_call_arg_registers = malloc(sizeof(int) * register_count);

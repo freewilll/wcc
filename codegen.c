@@ -464,7 +464,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
             Tac *orig_ir = ir;
 
             // Since floating point numbers aren't implemented, this is zero.
-            if (ir->src1->function_symbol->function->is_variadic) {
+            if (ir->src1->function_symbol->type->function->is_variadic) {
                 char *buffer;
                 asprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
                 ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
@@ -472,7 +472,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
 
             Tac *tac = new_instruction(X_CALL_FROM_FUNC);
 
-            if (orig_ir->src1->function_symbol->function->is_external)
+            if (orig_ir->src1->function_symbol->type->function->is_external)
                  asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->identifier);
             else
                  asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->identifier);
@@ -540,9 +540,9 @@ void merge_rsp_func_call_add_subs(Function *function) {
 
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
-    int function_pc = symbol->function->param_count;
+    int function_pc = symbol->type->function->param_count;
 
-    for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
+    for (Tac *tac = symbol->type->function->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);
         if (tac->operation != IR_NOP) output_x86_operation(tac, function_pc);
     }
@@ -567,7 +567,7 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .text\n");
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
-        if (!symbol->scope->parent && !symbol->is_function && !symbol->is_enum)
+        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && !symbol->is_enum)
             fprintf(f, "    .comm   %s,%d,%d\n",
                 symbol->identifier,
                 get_type_size(symbol->type),
@@ -596,7 +596,7 @@ void output_code(char *input_filename, char *output_filename) {
     // Output symbols for all non-external functions
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
-        if (symbol->is_function && !symbol->function->is_external && !symbol->function->is_static)
+        if (symbol->type->type == TYPE_FUNCTION && !symbol->type->function->is_external && !symbol->type->function->is_static)
             fprintf(f, "    .globl  %s\n", symbol->identifier);
     }
 
@@ -611,7 +611,7 @@ void output_code(char *input_filename, char *output_filename) {
     need_ld_to_ru4_symbol = 0;
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
-        if (symbol->is_function && symbol->function->is_defined) {
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             output_function_body_code(symbol);
             fprintf(f, "\n");

@@ -104,8 +104,8 @@ void compile(char *compiler_input_filename, char *compiler_output_filename) {
     // Compile all functions
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
-        if (symbol->is_function && symbol->function->is_defined) {
-            Function *function = symbol->function;
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
+            Function *function = symbol->type->function;
             if (print_ir1) print_ir(function, symbol->identifier, 0);
             run_compiler_phases(function, symbol->identifier, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
             if (print_ir2) print_ir(function, symbol->identifier, 0);

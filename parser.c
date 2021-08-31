@@ -81,7 +81,7 @@ static Value *pl() {
 }
 
 static int new_local_index() {
-    return -1 - cur_function_symbol->function->local_symbol_count++;
+    return -1 - cur_function_symbol->type->function->local_symbol_count++;
 }
 
 // Create a new typed constant value and push it to the stack.
@@ -1136,14 +1136,15 @@ static void parse_expression(int level) {
             if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
 
             next();
-            Type *type = dup_type(symbol->type);
+            Type *type = dup_type(symbol->type);;
             Scope *scope = symbol->scope;
             if (symbol->is_enum)
                 push_integral_constant(TYPE_INT, symbol->value);
             else if (cur_token == TOK_LPAREN) {
-                if (!symbol->function) panic1s("Illegal attempt to call a non-function %s", symbol->identifier);
+                if (symbol->type->type != TYPE_FUNCTION) panic1s("Illegal attempt to call a non-function %s", symbol->identifier);
 
-                Function *function = symbol->function;
+                Function *function = symbol->type->function;
+                type = dup_type(symbol->type->function->return_type);
 
                 // Function call
                 int function_call = function_call_count++;
@@ -1685,14 +1686,14 @@ static void parse_statement() {
             parse_expression(TOK_COMMA);
 
             Value *src1;
-            if (vtop && vtop->type->type == TYPE_VOID && cur_function_symbol->function->return_type->type == TYPE_VOID) {
+            if (vtop && vtop->type->type == TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID) {
                 // Deal with case of returning the result of a void function in a void function
                 // e.g. foo(); void bar() { return foo(); }
                 vs++; // Remove from value stack
                 src1 = 0;
             }
             else
-                src1 = add_convert_type_if_needed(pl(), cur_function_symbol->function->return_type);
+                src1 = add_convert_type_if_needed(pl(), cur_function_symbol->type->function->return_type);
 
             add_instruction(IR_RETURN, 0, src1, 0);
         }
@@ -1879,15 +1880,14 @@ void parse() {
                     // Setup the intermediate representation with a dummy no operation instruction.
                     ir_start = 0;
                     ir_start = add_instruction(IR_NOP, 0, 0, 0);
-                    s->is_function = 1;
-                    s->function = malloc(sizeof(Function));
-                    memset(s->function, 0, sizeof(Function));
-                    s->function->return_type = dup_type(type);
-                    s->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
-                    s->function->ir = ir_start;
-                    s->function->is_external = is_external;
-                    s->function->is_static = is_static;
-                    s->function->local_symbol_count = 0;
+                    s->type = new_type(TYPE_FUNCTION);
+                    s->type->function = new_function();
+                    s->type->function->return_type = dup_type(type);
+                    s->type->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
+                    s->type->function->ir = ir_start;
+                    s->type->function->is_external = is_external;
+                    s->type->function->is_static = is_static;
+                    s->type->function->local_symbol_count = 0;
 
                     int param_count = 0;
                     while (1) {
@@ -1901,12 +1901,12 @@ void parse() {
                             Symbol *param_symbol = new_symbol();
                             param_symbol->type = dup_type(type);
                             param_symbol->identifier = cur_identifier;
-                            s->function->param_types[param_count] = dup_type(type);
+                            s->type->function->param_types[param_count] = dup_type(type);
                             param_symbol->local_index = param_count++;
                             next();
                         }
                         else if (cur_token == TOK_ELLIPSES) {
-                            s->function->is_variadic = 1;
+                            s->type->function->is_variadic = 1;
                             next();
                         }
                         else
@@ -1917,14 +1917,14 @@ void parse() {
                         if (cur_token == TOK_RPAREN) panic("Expected expression");
                     }
 
-                    s->function->param_count = param_count;
+                    s->type->function->param_count = param_count;
                     cur_function_symbol = s;
                     consume(TOK_RPAREN, ")");
 
                     if (cur_token == TOK_LCURLY) {
                         seen_function_declaration = 1;
-                        cur_function_symbol->function->is_defined = 1;
-                        cur_function_symbol->function->param_count = param_count;
+                        cur_function_symbol->type->function->is_defined = 1;
+                        cur_function_symbol->type->function->param_count = param_count;
 
                         vreg_count = 0; // Reset global vreg_count
                         function_call_count = 0;
@@ -1935,7 +1935,7 @@ void parse() {
                         while (cur_token != TOK_RCURLY) parse_statement();
                         consume(TOK_RCURLY, "}");
 
-                        cur_function_symbol->function->vreg_count = vreg_count;
+                        cur_function_symbol->type->function->vreg_count = vreg_count;
                     }
                     else
                         // Make it clear that this symbol will need to be backpatched if used

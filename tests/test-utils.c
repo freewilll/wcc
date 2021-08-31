@@ -276,9 +276,8 @@ Value *fu(int index) {
     v->function_symbol = malloc(sizeof(Symbol));
     memset(v->function_symbol, 0, sizeof(Symbol));
 
-    v->function_symbol->function = malloc(sizeof(Function));
-    memset(v->function_symbol->function, 0, sizeof(Function));
-
+    v->function_symbol->type = new_type(TYPE_FUNCTION);
+    v->function_symbol->type->function = new_function();
     asprintf(&(v->function_symbol->identifier), "f%d", index);
 
     return v;

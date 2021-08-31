@@ -41,6 +41,7 @@ Type *new_type(int type) {
     result->is_unsigned = 0;
     result->target = 0;
     result->struct_desc = 0;
+    result->function = 0;
 
     return result;
 }
@@ -53,6 +54,7 @@ Type *dup_type(Type *src) {
     dst->is_unsigned    = src->is_unsigned;
     dst->target         = src->target ? dup_type(src->target) : 0;
     dst->struct_desc    = src->struct_desc; // Note: not making a copy
+    dst->function       = src->function; // Note: not making a copy
 
     return dst;
 }
