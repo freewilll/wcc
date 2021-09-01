@@ -1379,7 +1379,7 @@ static void parse_expression(int level) {
         consume(TOK_LPAREN, "(");
         Type *type;
         if (cur_token_is_type())
-            type = soon_to_be_deleted_parse_type();
+            type = new_parse_type();
         else {
             parse_expression(TOK_COMMA);
             type = pop()->type;
