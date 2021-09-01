@@ -278,14 +278,9 @@ static Type *concat_types(Type *type1, Type *type2) {
     return type1;
 }
 
-// Parse a type abstract declarator using a precedence climbing parser
-// There are two levels of precedence:
-// level 1: *
-// level 2: [...], (... function call params ...) and (subtype)
-//
-// Types always start with an optional *, so they get parsed first at level 1
-// The rest gets parsed at level 2
-Type *recursive_parse_type(int level) {
+Type *parse_direct_declarator();
+
+Type *parse_declarator(int level) {
     Type *type = 0;
 
     while (1) {
@@ -293,18 +288,28 @@ Type *recursive_parse_type(int level) {
 
         if (token_level > level) {
             // Go up a level and return
-            return concat_types(recursive_parse_type(2), type);
-        }
-        else if (cur_token == TOK_IDENTIFIER) {
-            // TODO Identifier
-            next();
+            return concat_types(parse_direct_declarator(), type);
         }
         else if (cur_token == TOK_MULTIPLY) {
             // Pointer
             next();
             type = make_pointer(type);
         }
-        else if (cur_token == TOK_LPAREN) {
+        else
+            return type;
+    }
+}
+
+Type *parse_direct_declarator() {
+    Type *type = 0;
+
+    if (cur_token == TOK_IDENTIFIER) {
+        // TODO Identifier
+        next();
+    }
+
+    for (int i = 0; ; i++) {
+        if (cur_token == TOK_LPAREN) {
             next();
             if (cur_token == TOK_RPAREN) {
                 // Function
@@ -312,11 +317,13 @@ Type *recursive_parse_type(int level) {
                 Type *function_type = new_type(TYPE_FUNCTION);
                 type = concat_types(type, function_type);
             }
-            else {
+            else if (i == 0) {
                 // (subtype)
-                type = concat_types(type, recursive_parse_type(1));
+                type = concat_types(type, parse_declarator(1));
                 consume(TOK_RPAREN, ")");
             }
+            else
+                panic("Expected )");
         }
         else if (cur_token == TOK_LBRACKET) {
             // Array [] or [<num>]
@@ -335,12 +342,10 @@ Type *recursive_parse_type(int level) {
         else
             return type;
     }
-
-    panic("Should not get here");
 }
 
 Type *new_parse_type() {
-    return concat_types(recursive_parse_type(1), parse_base_type(1));
+    return concat_types(parse_declarator(1), parse_base_type(1));
 }
 
 // Parse type, including *

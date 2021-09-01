@@ -101,10 +101,12 @@ Type *run_lexer(char *type_str, char *expected_english) {
 
     Type *type = new_parse_type();
 
-    char *english = sprint_type_in_english(type);
-    // printf("%s\n", english);
-
-    assert_english_type(type_str, expected_english, english);
+    if (cur_token != TOK_EOF)
+        printf("%-24s Did not get EOF\n", type_str);
+    else {
+        char *english = sprint_type_in_english(type);
+        assert_english_type(type_str, expected_english, english);
+    }
 
     return type;
 }
