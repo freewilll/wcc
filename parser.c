@@ -1173,8 +1173,8 @@ static void parse_expression(int level) {
     else if (cur_token == TOK_LPAREN) {
         next();
         if (cur_token_is_type()) {
-            // cast
-            Type *org_type = soon_to_be_deleted_parse_type();
+            // Cast
+            Type *org_type = new_parse_type();
             consume(TOK_RPAREN, ")");
             parse_expression(TOK_INC);
 
