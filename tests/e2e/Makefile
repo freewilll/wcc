@@ -52,7 +52,7 @@ run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
 	@echo wcc tests passed
 
 test-%-gcc: test-%.c stack-check.o ../test-lib.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-overflow -Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -D _GNU_SOURCE
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-overflow -Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-implicit-int -D _GNU_SOURCE
 
 run-test-%-gcc: test-%-gcc
 	./$<

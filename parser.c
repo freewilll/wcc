@@ -254,7 +254,7 @@ static Type *parse_type_specifier(int allow_incomplete_structs) {
     else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG);   next(); seen_long = 1; }
     else if (cur_token == TOK_STRUCT)       { next(); type = parse_struct_type_specifier(allow_incomplete_structs); }
     else if (cur_token == TOK_TYPEDEF_TYPE) { type = dup_type(cur_lexer_type); next(); }
-    else if (seen_signed || seen_unsigned)  type = new_type(TYPE_INT);
+    else if (seen_signed || seen_unsigned || seen_const || seen_volatile)  type = new_type(TYPE_INT);
     else panic1d("Unable to determine type from token %d", cur_token);
 
     if ((seen_unsigned || seen_signed) && !is_integer_type(type)) panic("Signed/unsigned can only apply to integer types");
