@@ -97,6 +97,7 @@ Type *run_lexer(char *type_str, char *expected_english) {
     fprintf(f, "\n");
     fclose(f);
     init_lexer(filename);
+    init_parser();
 
     Type *type = new_parse_type();
 
@@ -163,6 +164,16 @@ int test_type_parsing() {
     run_lexer("int (*x())()",              "function returning pointer to function returning int");
     run_lexer("int *(*(**x[][8])())[]",    "array of array[8] of pointer to pointer to function returning pointer to array of pointer to int");
     run_lexer("int (*(*x[])())()",         "array of pointer to function returning pointer to function returning int");
+
+    run_lexer("struct x",                        "struct x {}");
+    run_lexer("struct x {}",                     "struct x {}");
+    run_lexer("struct x {int y;}",               "struct x {y as int}");
+    run_lexer("struct x {int y; const int z;}",  "struct x {y as int, z as const int}");
+    run_lexer("struct x {int *y;}",              "struct x {y as pointer to int}");
+    run_lexer("struct x {int x[1];}",            "struct x {x as array[1] of int}");
+    run_lexer("struct x {int *x[1];}",           "struct x {x as array[1] of pointer to int}");
+    run_lexer("struct x {int (*x)[1];}",         "struct x {x as pointer to array[1] of int}");
+    run_lexer("struct x {int (*x)();}",          "struct x {x as pointer to function returning int}");
 }
 
 int main(int argc, char **argv) {

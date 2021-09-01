@@ -57,14 +57,30 @@ char *sprint_type_in_english(Type *type) {
         else if (tt == TYPE_FLOAT)       buffer += sprintf(buffer, "float");
         else if (tt == TYPE_DOUBLE)      buffer += sprintf(buffer, "double");
         else if (tt == TYPE_LONG_DOUBLE) buffer += sprintf(buffer, "long double");
-        else if (tt == TYPE_STRUCT)      buffer += sprintf(buffer, "struct %s", type->struct_desc->identifier);
         else if (tt == TYPE_PTR)         buffer += sprintf(buffer, "pointer to ");
         else if (tt == TYPE_FUNCTION)    buffer += sprintf(buffer, "function returning ");
+
         else if (tt == TYPE_ARRAY) {
             if (type->array_size == 0) buffer += sprintf(buffer, "array of ");
             else buffer += sprintf(buffer, "array[%d] of ", type->array_size);
         }
-        else panic1d("Unknown type->type=%d", tt);
+        else if (tt == TYPE_STRUCT) {
+            buffer += sprintf(buffer, "struct %s {", type->struct_desc->identifier);
+            int first = 1;
+            for (StructMember **pmember = type->struct_desc->members; *pmember; pmember++) {
+                if (!first)
+                    buffer += sprintf(buffer, ", ");
+                else
+                    first = 0;
+
+                char *member_english = sprint_type_in_english((*pmember)->type);
+                buffer += sprintf(buffer, "%s as %s", (*pmember)->identifier, member_english);
+            }
+
+            buffer += sprintf(buffer, "}");
+        }
+        else
+            panic1d("Unknown type->type=%d", tt);
 
         type = type->target;
     }
@@ -197,6 +213,7 @@ int get_type_size(Type *type) {
     else if (t == TYPE_LONG_DOUBLE) return sizeof(long double);
     else if (t == TYPE_PTR)         return sizeof(void *);
     else if (t == TYPE_STRUCT)      return type->struct_desc->size;
+    else if (t == TYPE_ARRAY)       return type->array_size * get_type_size(type->target);
 
     panic1d("sizeof unknown type %d", t);
 }
@@ -214,6 +231,7 @@ int get_type_alignment(Type *type) {
     else if (t == TYPE_FLOAT)        return 4;
     else if (t == TYPE_DOUBLE)       return 8;
     else if (t == TYPE_LONG_DOUBLE)  return 16;
+    else if (t == TYPE_ARRAY)        return get_type_alignment(type->target);
     else if (t == TYPE_STRUCT) panic("Alignment of structs not implemented");
 
     panic1d("align of unknown type %d", t);

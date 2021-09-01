@@ -329,7 +329,7 @@ Type *parse_direct_declarator() {
     Type *type = 0;
 
     if (cur_token == TOK_IDENTIFIER) {
-        // TODO Identifier
+        // Leave the identifier in cur_identifier
         next();
     }
 
@@ -374,7 +374,7 @@ Type *new_parse_type() {
 }
 
 // Parse type, including *
-static Type *parse_type() {
+static Type *soon_to_be_deleted_parse_type() {
     Type *type = parse_type_specifier(0);
     while (cur_token == TOK_MULTIPLY) {
         type = make_pointer(type);
@@ -440,9 +440,7 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
 
             Type *base_type = parse_type_specifier(1);
             while (cur_token != TOK_SEMI) {
-                Type *type = dup_type(base_type);
-                while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
-
+                Type *type = concat_types(parse_declarator(1), base_type);
                 int alignment = is_packed ? 1 : get_type_alignment(type);
                 if (alignment > biggest_alignment) biggest_alignment = alignment;
                 offset = ((offset + alignment  - 1) & (~(alignment - 1)));
@@ -455,7 +453,6 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
                 s->members[member_count++] = member;
 
                 offset += get_type_size(type);
-                consume(TOK_IDENTIFIER, "identifier");
                 if (cur_token == TOK_COMMA) next();
             }
             while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
@@ -1177,7 +1174,7 @@ static void parse_expression(int level) {
         next();
         if (cur_token_is_type()) {
             // cast
-            Type *org_type = parse_type();
+            Type *org_type = soon_to_be_deleted_parse_type();
             consume(TOK_RPAREN, ")");
             parse_expression(TOK_INC);
 
@@ -1382,7 +1379,7 @@ static void parse_expression(int level) {
         consume(TOK_LPAREN, "(");
         Type *type;
         if (cur_token_is_type())
-            type = parse_type();
+            type = soon_to_be_deleted_parse_type();
         else {
             parse_expression(TOK_COMMA);
             type = pop()->type;
@@ -2001,7 +1998,7 @@ void parse() {
                         if (cur_token == TOK_RPAREN) break;
 
                         if (cur_token_is_type()) {
-                            Type *type = parse_type();
+                            Type *type = soon_to_be_deleted_parse_type();
                             if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
                             expect(TOK_IDENTIFIER, "identifier");
