@@ -99,7 +99,7 @@ Type *run_lexer(char *type_str, char *expected_english) {
     init_lexer(filename);
     init_parser();
 
-    Type *type = new_parse_type();
+    Type *type = parse_type_name();
 
     if (cur_token != TOK_EOF)
         printf("%-32s Did not get EOF\n", type_str);

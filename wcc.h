@@ -561,7 +561,7 @@ void consume(int token, char *what);
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
 int new_vreg();
-Type *new_parse_type();
+Type *parse_type_name();
 void check_incomplete_structs();
 void finish_parsing_header();
 void parse();

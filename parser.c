@@ -300,6 +300,7 @@ Type *parse_direct_declarator();
 
 Type *parse_declarator(int level) {
     Type *type = 0;
+    if (cur_token != TOK_IDENTIFIER) cur_identifier = 0;
 
     while (1) {
         int token_level = cur_token == TOK_MULTIPLY ? 1 : 2;
@@ -369,19 +370,8 @@ Type *parse_direct_declarator() {
     }
 }
 
-Type *new_parse_type() {
+Type *parse_type_name() {
     return concat_types(parse_declarator(1), parse_type_specifier(1));
-}
-
-// Parse type, including *
-static Type *soon_to_be_deleted_parse_type() {
-    Type *type = parse_type_specifier(0);
-    while (cur_token == TOK_MULTIPLY) {
-        type = make_pointer(type);
-        next();
-    }
-
-    return type;
 }
 
 // Allocate a new Struct
@@ -1174,7 +1164,7 @@ static void parse_expression(int level) {
         next();
         if (cur_token_is_type()) {
             // Cast
-            Type *org_type = new_parse_type();
+            Type *org_type = parse_type_name();
             consume(TOK_RPAREN, ")");
             parse_expression(TOK_INC);
 
@@ -1379,7 +1369,7 @@ static void parse_expression(int level) {
         consume(TOK_LPAREN, "(");
         Type *type;
         if (cur_token_is_type())
-            type = new_parse_type();
+            type = parse_type_name();
         else {
             parse_expression(TOK_COMMA);
             type = pop()->type;
@@ -1998,16 +1988,14 @@ void parse() {
                         if (cur_token == TOK_RPAREN) break;
 
                         if (cur_token_is_type()) {
-                            Type *type = soon_to_be_deleted_parse_type();
+                            Type *type = parse_type_name();
                             if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
-                            expect(TOK_IDENTIFIER, "identifier");
                             Symbol *param_symbol = new_symbol();
                             param_symbol->type = dup_type(type);
                             param_symbol->identifier = cur_identifier;
                             s->type->function->param_types[param_count] = dup_type(type);
                             param_symbol->local_index = param_count++;
-                            next();
                         }
                         else if (cur_token == TOK_ELLIPSES) {
                             s->type->function->is_variadic = 1;
