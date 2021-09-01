@@ -659,6 +659,20 @@ void test_floating_point_sizes() {
     assert_int(8,  sizeof(long double **), "sizeof long double **");
 }
 
+void test_array_sizes() {
+    assert_int(0,   sizeof(int[0]),        "sizeof int[0]");
+    assert_int(40,  sizeof(int[10]),       "sizeof int[10]");
+    assert_int(24,  sizeof(int[2][3]),     "sizeof int[2][3]");
+    assert_int(192, sizeof(long[2][3][4]), "sizeof long[2][3][4]");
+}
+
+void test_combination_sizes() {
+    assert_int(16, sizeof(struct {int i;}[4]),    "sizeof struct {int i;}[4]");
+    assert_int(64, sizeof(struct {int i[4];}[4]), "sizeof struct {int i[4];}[4]");
+    assert_int(32, sizeof(struct {int i;}*[4]),   "sizeof struct {int i;}*[4]");
+    assert_int(8,  sizeof(struct {int i;}(*)[4]), "sizeof struct {int i;}(*)[4]");
+
+}
 void test_sizeof_expr() {
     char c1, c2;
     short s1, s2;
@@ -1365,6 +1379,8 @@ int main(int argc, char **argv) {
     test_assign_to_globals();
     test_integer_sizes();
     test_floating_point_sizes();
+    test_array_sizes();
+    test_combination_sizes();
     test_add_operation_sign();
     test_logical_or_operation_sign();
     test_sizeof_expr();

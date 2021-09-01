@@ -167,6 +167,7 @@ int test_type_parsing() {
 
     run_lexer("struct x",                        "struct x {}");
     run_lexer("struct x {}",                     "struct x {}");
+    run_lexer("struct {int x;}",                 "struct {x as int}");
     run_lexer("struct x {int y;}",               "struct x {y as int}");
     run_lexer("struct x {int y; const int z;}",  "struct x {y as int, z as const int}");
     run_lexer("struct x {int *y;}",              "struct x {y as pointer to int}");

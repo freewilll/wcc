@@ -65,7 +65,11 @@ char *sprint_type_in_english(Type *type) {
             else buffer += sprintf(buffer, "array[%d] of ", type->array_size);
         }
         else if (tt == TYPE_STRUCT) {
-            buffer += sprintf(buffer, "struct %s {", type->struct_desc->identifier);
+            if (type->struct_desc->identifier)
+                buffer += sprintf(buffer, "struct %s {", type->struct_desc->identifier);
+            else
+                buffer += sprintf(buffer, "struct {");
+
             int first = 1;
             for (StructMember **pmember = type->struct_desc->members; *pmember; pmember++) {
                 if (!first)

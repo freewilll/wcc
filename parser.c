@@ -375,9 +375,9 @@ Type *parse_type_name() {
 }
 
 // Allocate a new Struct
-static Struct *new_struct() {
+static Struct *new_struct(int add_to_all_structs) {
     Struct *s = malloc(sizeof(Struct));
-    all_structs[all_structs_count++] = s;
+    if (add_to_all_structs) all_structs[all_structs_count++] = s;
     s->members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
     memset(s->members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
 
@@ -406,15 +406,20 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
         is_packed = 1;
     }
 
-    char *identifier = cur_identifier;
-    consume(TOK_IDENTIFIER, "identifier");
+    char *identifier = 0;
+    if (cur_token == TOK_IDENTIFIER) {
+        identifier = cur_identifier;
+        next();
+    }
+
     if (cur_token == TOK_LCURLY) {
         // Struct definition
 
         consume(TOK_LCURLY, "{");
 
-        Struct *s = find_struct(identifier);
-        if (!s) s = new_struct();
+        Struct *s = 0;
+        if (identifier) s = find_struct(identifier);
+        if (!s) s = new_struct(identifier != 0);
 
         s->identifier = identifier;
 
@@ -462,7 +467,7 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
         if (allow_incomplete_structs) {
             // Didn't find a struct, but that's ok, create a incomplete one
             // to be populated later when it's defined.
-            s = new_struct();
+            s = new_struct(1);
             s->identifier = identifier;
             s->is_incomplete = 1;
             return make_struct_type(s);
