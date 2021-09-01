@@ -200,6 +200,8 @@ static int cur_token_is_type() {
     return (
         cur_token == TOK_SIGNED ||
         cur_token == TOK_UNSIGNED ||
+        cur_token == TOK_CONST ||
+        cur_token == TOK_VOLATILE ||
         cur_token == TOK_VOID ||
         cur_token == TOK_CHAR ||
         cur_token == TOK_SHORT ||
@@ -208,7 +210,8 @@ static int cur_token_is_type() {
         cur_token == TOK_DOUBLE ||
         cur_token == TOK_LONG ||
         cur_token == TOK_STRUCT ||
-        cur_token == TOK_TYPEDEF_TYPE);
+        cur_token == TOK_TYPEDEF_TYPE
+    );
 }
 
 // How much will the ++, --, +=, -= operators increment a type?
@@ -223,6 +226,8 @@ static Type *parse_type_specifier(int allow_incomplete_structs) {
     int seen_signed = 0;
     int seen_unsigned = 0;
     int seen_long = 0;
+    int seen_const = 0;
+    int seen_volatile = 0;
 
     if (cur_token == TOK_SIGNED) {
         seen_signed = 1;
@@ -233,6 +238,13 @@ static Type *parse_type_specifier(int allow_incomplete_structs) {
         next();
     }
 
+    // Parse type qualifiers. They are allowed to be duplicated, e.g. const const
+    while (cur_token == TOK_CONST || cur_token == TOK_VOLATILE) {
+        if (cur_token == TOK_CONST) seen_const = 1;
+        else  seen_volatile = 1;
+        next();
+    }
+
          if (cur_token == TOK_VOID)         { type = new_type(TYPE_VOID);   next(); }
     else if (cur_token == TOK_CHAR)         { type = new_type(TYPE_CHAR);   next(); }
     else if (cur_token == TOK_SHORT)        { type = new_type(TYPE_SHORT);  next(); }
@@ -240,17 +252,23 @@ static Type *parse_type_specifier(int allow_incomplete_structs) {
     else if (cur_token == TOK_FLOAT)        { type = new_type(TYPE_FLOAT);  next(); }
     else if (cur_token == TOK_DOUBLE)       { type = new_type(TYPE_DOUBLE); next(); }
     else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG);   next(); seen_long = 1; }
-    else if (cur_token == TOK_STRUCT)       { next(); return parse_struct_type_specifier(allow_incomplete_structs); }
+    else if (cur_token == TOK_STRUCT)       { next(); type = parse_struct_type_specifier(allow_incomplete_structs); }
     else if (cur_token == TOK_TYPEDEF_TYPE) { type = dup_type(cur_lexer_type); next(); }
     else if (seen_signed || seen_unsigned)  type = new_type(TYPE_INT);
     else panic1d("Unable to determine type from token %d", cur_token);
 
     if ((seen_unsigned || seen_signed) && !is_integer_type(type)) panic("Signed/unsigned can only apply to integer types");
     if (seen_unsigned && seen_signed && !is_integer_type(type)) panic("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
-    type->is_unsigned = seen_unsigned;
 
-    if (cur_token == TOK_LONG && type->type == TYPE_LONG) next(); // On 64 bit, long longs are equivalent to longs
-    if (cur_token == TOK_INT && (type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG)) next();
+    if (seen_const) type->is_const = 1;
+    if (seen_volatile) type->is_volatile = 1;
+
+    if (is_integer_type(type)) {
+        type->is_unsigned = seen_unsigned;
+
+        if (cur_token == TOK_LONG && type->type == TYPE_LONG) next(); // On 64 bit, long longs are equivalent to longs
+        if (cur_token == TOK_INT && (type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG)) next();
+    }
 
     if (cur_token == TOK_FLOAT) {
         type->type = TYPE_FLOAT;
@@ -294,6 +312,13 @@ Type *parse_declarator(int level) {
             // Pointer
             next();
             type = make_pointer(type);
+
+            // Parse type qualifiers. They are allowed to be duplicated, e.g. const const
+            while (cur_token == TOK_CONST || cur_token == TOK_VOLATILE) {
+                if (cur_token == TOK_CONST) type->is_const = 1;
+                else type->is_volatile = 1;
+                next();
+            }
         }
         else
             return type;

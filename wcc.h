@@ -70,6 +70,8 @@ typedef struct type {
     int type;       // One of TYPE_*
     int is_unsigned;
     int array_size;
+    int is_const;
+    int is_volatile;
     struct type *target;
     struct struct_desc *struct_desc;
     struct function *function;
@@ -319,9 +321,11 @@ enum {
     TOK_DEFINE,
     TOK_UNDEF,
     TOK_IFDEF,
-    TOK_ENDIF,
+    TOK_ENDIF,              // 80
     TOK_EXTERN,
     TOK_STATIC,
+    TOK_CONST,
+    TOK_VOLATILE,
     TOK_ELLIPSES
 };
 

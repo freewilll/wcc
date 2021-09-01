@@ -167,6 +167,8 @@ void next() {
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
             else if (!strcmp(cur_identifier, "extern"       )) { cur_token = TOK_EXTERN;    }
             else if (!strcmp(cur_identifier, "static"       )) { cur_token = TOK_STATIC;    }
+            else if (!strcmp(cur_identifier, "const"        )) { cur_token = TOK_CONST;     }
+            else if (!strcmp(cur_identifier, "volatile"     )) { cur_token = TOK_VOLATILE;  }
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
             else if (!strcmp(cur_identifier, "define"       )) { cur_token = TOK_DEFINE;    }
             else if (!strcmp(cur_identifier, "undef"        )) { cur_token = TOK_UNDEF;     }

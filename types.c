@@ -19,6 +19,8 @@ int print_type(void *f, Type *type) {
 
     int tt = t->type;
 
+    if (type->is_const)    len += fprintf(f, "const ");
+    if (type->is_volatile) len += fprintf(f, "volatile ");
     if (type->is_unsigned) len += fprintf(f, "unsigned ");
 
          if (tt == TYPE_VOID)        len += fprintf(f, "void");
@@ -42,6 +44,10 @@ char *sprint_type_in_english(Type *type) {
     int tt;
     while (type) {
         tt = type->type;
+
+        if (type->is_const)    buffer += sprintf(buffer, "const ");
+        if (type->is_volatile) buffer += sprintf(buffer, "volatile ");
+        if (type->is_unsigned) buffer += sprintf(buffer, "unsigned ");
 
              if (tt == TYPE_VOID)        buffer += sprintf(buffer, "void");
         else if (tt == TYPE_CHAR)        buffer += sprintf(buffer, "char");
@@ -74,6 +80,8 @@ Type *new_type(int type) {
     result->struct_desc = 0;
     result->function = 0;
     result->array_size = 0;
+    result->is_const = 0;
+    result->is_volatile = 0;
 
     return result;
 }
@@ -88,6 +96,8 @@ Type *dup_type(Type *src) {
     dst->struct_desc    = src->struct_desc; // Note: not making a copy
     dst->function       = src->function; // Note: not making a copy
     dst->array_size     = src->array_size;
+    dst->is_const       = src->is_const;
+    dst->is_volatile    = src->is_volatile;
 
     return dst;
 }
