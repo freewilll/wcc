@@ -5,7 +5,7 @@
 #include "wcc.h"
 
 static Type *integer_promote_type(Type *type);
-static Type *parse_struct_base_type(int allow_incomplete_structs);
+static Type *parse_struct_type_specifier(int allow_incomplete_structs);
 static void parse_directive();
 static void parse_statement();
 static void parse_expression(int level);
@@ -216,8 +216,8 @@ static int get_type_inc_dec_size(Type *type) {
     return type->type == TYPE_PTR ? get_type_size(type->target) : 1;
 }
 
-// Parse type up to the point where identifiers or * are lexed
-static Type *parse_base_type(int allow_incomplete_structs) {
+// Parse void, int, signed, unsigned, ... long, double, struct and typedef type names
+static Type *parse_type_specifier(int allow_incomplete_structs) {
     Type *type;
 
     int seen_signed = 0;
@@ -240,7 +240,7 @@ static Type *parse_base_type(int allow_incomplete_structs) {
     else if (cur_token == TOK_FLOAT)        { type = new_type(TYPE_FLOAT);  next(); }
     else if (cur_token == TOK_DOUBLE)       { type = new_type(TYPE_DOUBLE); next(); }
     else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG);   next(); seen_long = 1; }
-    else if (cur_token == TOK_STRUCT)       { next(); return parse_struct_base_type(allow_incomplete_structs); }
+    else if (cur_token == TOK_STRUCT)       { next(); return parse_struct_type_specifier(allow_incomplete_structs); }
     else if (cur_token == TOK_TYPEDEF_TYPE) { type = dup_type(cur_lexer_type); next(); }
     else if (seen_signed || seen_unsigned)  type = new_type(TYPE_INT);
     else panic1d("Unable to determine type from token %d", cur_token);
@@ -345,12 +345,12 @@ Type *parse_direct_declarator() {
 }
 
 Type *new_parse_type() {
-    return concat_types(parse_declarator(1), parse_base_type(1));
+    return concat_types(parse_declarator(1), parse_type_specifier(1));
 }
 
 // Parse type, including *
 static Type *parse_type() {
-    Type *type = parse_base_type(0);
+    Type *type = parse_type_specifier(0);
     while (cur_token == TOK_MULTIPLY) {
         type = make_pointer(type);
         next();
@@ -378,7 +378,7 @@ static Struct *find_struct(char *identifier) {
 }
 
 // Parse struct definitions and uses. Declarations aren't implemented.
-static Type *parse_struct_base_type(int allow_incomplete_structs) {
+static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
     // Check for packed attribute
     int is_packed = 0;
     if (cur_token == TOK_ATTRIBUTE) {
@@ -413,7 +413,7 @@ static Type *parse_struct_base_type(int allow_incomplete_structs) {
                 continue;
             }
 
-            Type *base_type = parse_base_type(1);
+            Type *base_type = parse_type_specifier(1);
             while (cur_token != TOK_SEMI) {
                 Type *type = dup_type(base_type);
                 while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
@@ -474,7 +474,7 @@ static void parse_typedef() {
     if (cur_token != TOK_STRUCT) panic("Typedefs are only implemented for structs");
     next();
 
-    Type *type = parse_struct_base_type(0);
+    Type *type = parse_struct_type_specifier(0);
     Struct *s = type->struct_desc;
 
     if (cur_token != TOK_IDENTIFIER) panic("Typedefs are only implemented for previously defined structs");
@@ -1055,7 +1055,7 @@ static void push_value_size_constant(Value *v) {
 static void parse_expression(int level) {
     // Parse any tokens that can be at the start of an expression
     if (cur_token_is_type()) {
-        base_type = parse_base_type(0);
+        base_type = parse_type_specifier(0);
         parse_expression(TOK_COMMA);
         base_type = 0;
     }
@@ -1696,7 +1696,7 @@ static void parse_statement() {
     }
 
     if (cur_token_is_type()) {
-        base_type = parse_base_type(0);
+        base_type = parse_type_specifier(0);
         parse_expression(TOK_COMMA);
     }
 
@@ -1930,7 +1930,7 @@ void parse() {
             int is_static = cur_token == TOK_STATIC;
             if (is_external || is_static) next();
 
-            Type *base_type = parse_base_type(0);
+            Type *base_type = parse_type_specifier(0);
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 Type *type = base_type;
@@ -2073,7 +2073,7 @@ void parse() {
         }
 
         else if (cur_token == TOK_STRUCT) {
-            parse_base_type(0); // It's a struct declaration
+            parse_type_specifier(0); // It's a struct declaration
             consume(TOK_SEMI, ";");
         }
 
