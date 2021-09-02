@@ -1931,12 +1931,9 @@ void finish_parsing_header() {
 // Parse a translation unit
 void parse() {
     while (cur_token != TOK_EOF) {
-        if (cur_token == TOK_SEMI)  {
+        if (cur_token == TOK_SEMI)
             next();
-            continue;
-        }
-
-        if (cur_token == TOK_HASH)
+        else if (cur_token == TOK_HASH)
             parse_directive();
         else if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC || cur_token_is_type() ) {
             // Variable or function definition
