@@ -58,12 +58,12 @@ char *sprint_type_in_english(Type *type) {
         else if (tt == TYPE_DOUBLE)      buffer += sprintf(buffer, "double");
         else if (tt == TYPE_LONG_DOUBLE) buffer += sprintf(buffer, "long double");
         else if (tt == TYPE_PTR)         buffer += sprintf(buffer, "pointer to ");
-        else if (tt == TYPE_FUNCTION)    buffer += sprintf(buffer, "function returning ");
 
         else if (tt == TYPE_ARRAY) {
             if (type->array_size == 0) buffer += sprintf(buffer, "array of ");
             else buffer += sprintf(buffer, "array[%d] of ", type->array_size);
         }
+
         else if (tt == TYPE_STRUCT) {
             if (type->struct_desc->identifier)
                 buffer += sprintf(buffer, "struct %s {", type->struct_desc->identifier);
@@ -72,17 +72,27 @@ char *sprint_type_in_english(Type *type) {
 
             int first = 1;
             for (StructMember **pmember = type->struct_desc->members; *pmember; pmember++) {
-                if (!first)
-                    buffer += sprintf(buffer, ", ");
-                else
-                    first = 0;
-
+                if (!first) buffer += sprintf(buffer, ", "); else first = 0;
                 char *member_english = sprint_type_in_english((*pmember)->type);
                 buffer += sprintf(buffer, "%s as %s", (*pmember)->identifier, member_english);
             }
 
             buffer += sprintf(buffer, "}");
         }
+
+        else if (tt == TYPE_FUNCTION) {
+            buffer += sprintf(buffer, "function(");
+            int first = 1;
+            for (int i = 0; i < type->function->param_count; i++) {
+                if (!first) buffer += sprintf(buffer, ", "); else first = 0;
+                buffer += sprintf(buffer, "%s", sprint_type_in_english(type->function->param_types[i]));
+            }
+
+            if (type->function->is_variadic)buffer += sprintf(buffer, ", ...");
+
+            buffer += sprintf(buffer, ") returning ");
+        }
+
         else
             panic1d("Unknown type->type=%d", tt);
 

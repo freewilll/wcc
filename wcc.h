@@ -107,6 +107,7 @@ typedef struct function {
     int is_external;                         // Has external linkage
     int is_static;                           // Is a private function in the translation unit
     int is_variadic;                         // Set to 1 for builtin variadic functions
+    Scope *scope;                            // Scope, starting with the parameters
     struct three_address_code *ir;           // Intermediate representation
     Graph *cfg;                              // Control flow graph
     Block *blocks;                           // For functions, the blocks

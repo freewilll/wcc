@@ -98,6 +98,7 @@ Type *run_lexer(char *type_str, char *expected_english) {
     fclose(f);
     init_lexer(filename);
     init_parser();
+    init_scopes();
 
     Type *type = parse_type_name();
 
@@ -112,6 +113,7 @@ Type *run_lexer(char *type_str, char *expected_english) {
 }
 
 int test_type_parsing() {
+    // Basic types
     run_lexer("char x",                    "char");
     run_lexer("short x",                   "short");
     run_lexer("int x",                     "int");
@@ -123,6 +125,7 @@ int test_type_parsing() {
     run_lexer("unsigned int x",            "unsigned int");
     run_lexer("signed int x",              "int");
 
+    // Qualifiers
     run_lexer("const int x",               "const int");
     run_lexer("const int x",               "const int");
     run_lexer("const const int x",         "const int");
@@ -137,34 +140,36 @@ int test_type_parsing() {
     run_lexer("int * const * volatile x",  "volatile pointer to const pointer to int");
     run_lexer("const int * const x",       "const pointer to const int");
 
+    // Combinations of pointers, arrays and function calls
     run_lexer("int *x",                    "pointer to int");
     run_lexer("int x[]",                   "array of int");
     run_lexer("int x[1]",                  "array[1] of int");
-    run_lexer("int x()",                   "function returning int");
+    run_lexer("int x()",                   "function() returning int");
     run_lexer("int **x",                   "pointer to pointer to int");
     run_lexer("int (*x)[]",                "pointer to array of int");
     run_lexer("int (*x)[1]",               "pointer to array[1] of int");
-    run_lexer("int (*x)()",                "pointer to function returning int");
+    run_lexer("int (*x)()",                "pointer to function() returning int");
     run_lexer("int *x[1]",                 "array[1] of pointer to int");
     run_lexer("int x[1][2]",               "array[1] of array[2] of int");
-    run_lexer("int *x()",                  "function returning pointer to int");
+    run_lexer("int *x()",                  "function() returning pointer to int");
     run_lexer("int ***x",                  "pointer to pointer to pointer to int");
     run_lexer("int (**x)[1]",              "pointer to pointer to array[1] of int");
-    run_lexer("int (**x)()",               "pointer to pointer to function returning int");
+    run_lexer("int (**x)()",               "pointer to pointer to function() returning int");
     run_lexer("int *(*x)[1]",              "pointer to array[1] of pointer to int");
     run_lexer("int (*x)[1][2]",            "pointer to array[1] of array[2] of int");
-    run_lexer("int *(*x)()",               "pointer to function returning pointer to int");
+    run_lexer("int *(*x)()",               "pointer to function() returning pointer to int");
     run_lexer("int **x[1]",                "array[1] of pointer to pointer to int");
     run_lexer("int (*x[1])[2]",            "array[1] of pointer to array[2] of int");
-    run_lexer("int (*x[1])()",             "array[1] of pointer to function returning int");
+    run_lexer("int (*x[1])()",             "array[1] of pointer to function() returning int");
     run_lexer("int *x[1][2]",              "array[1] of array[2] of pointer to int");
     run_lexer("int x[1][2][3]",            "array[1] of array[2] of array[3] of int");
-    run_lexer("int **x()",                 "function returning pointer to pointer to int");
-    run_lexer("int (*x())[1]",             "function returning pointer to array[1] of int");
-    run_lexer("int (*x())()",              "function returning pointer to function returning int");
-    run_lexer("int *(*(**x[][8])())[]",    "array of array[8] of pointer to pointer to function returning pointer to array of pointer to int");
-    run_lexer("int (*(*x[])())()",         "array of pointer to function returning pointer to function returning int");
+    run_lexer("int **x()",                 "function() returning pointer to pointer to int");
+    run_lexer("int (*x())[1]",             "function() returning pointer to array[1] of int");
+    run_lexer("int (*x())()",              "function() returning pointer to function() returning int");
+    run_lexer("int *(*(**x[][8])())[]",    "array of array[8] of pointer to pointer to function() returning pointer to array of pointer to int");
+    run_lexer("int (*(*x[])())()",         "array of pointer to function() returning pointer to function() returning int");
 
+    // Structs
     run_lexer("struct x",                        "struct x {}");
     run_lexer("struct x {}",                     "struct x {}");
     run_lexer("struct {int x;}",                 "struct {x as int}");
@@ -174,7 +179,14 @@ int test_type_parsing() {
     run_lexer("struct x {int x[1];}",            "struct x {x as array[1] of int}");
     run_lexer("struct x {int *x[1];}",           "struct x {x as array[1] of pointer to int}");
     run_lexer("struct x {int (*x)[1];}",         "struct x {x as pointer to array[1] of int}");
-    run_lexer("struct x {int (*x)();}",          "struct x {x as pointer to function returning int}");
+    run_lexer("struct x {int (*x)();}",          "struct x {x as pointer to function() returning int}");
+
+    // Function parameters
+    run_lexer("void x(void)",                   "function(void) returning void");
+    run_lexer("void x(int)",                    "function(int) returning void");
+    run_lexer("void x(int i)",                  "function(int) returning void");
+    run_lexer("void x(int i, ...)",             "function(int, ...) returning void");
+    run_lexer("void x(int i, int *i, int i[])", "function(int, pointer to int, array of int) returning void");
 }
 
 int main(int argc, char **argv) {

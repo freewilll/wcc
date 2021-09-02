@@ -324,6 +324,52 @@ Type *parse_declarator() {
     }
 }
 
+static Type *parse_function(Type *return_type) {
+    // The caller is expected to call exit_scope()
+
+    Type *function_type = new_type(TYPE_FUNCTION);
+    function_type->function = new_function();
+    function_type->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
+
+    enter_scope();
+    function_type->function->scope = cur_scope;
+
+    int param_count = 0;
+
+    while (1) {
+        if (cur_token == TOK_RPAREN) break;
+
+        if (cur_token_is_type()) {
+            Type *type = parse_type_name();
+            if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
+
+            Symbol *param_symbol = new_symbol();
+            param_symbol->type = dup_type(type);
+            param_symbol->identifier = cur_identifier;
+            function_type->function->param_types[param_count] = dup_type(type);
+            param_symbol->local_index = param_count++;
+        }
+        else if (cur_token == TOK_ELLIPSES) {
+            function_type->function->is_variadic = 1;
+            next();
+        }
+        else
+            panic("Expected type or )");
+
+        if (cur_token == TOK_RPAREN) break;
+        consume(TOK_COMMA, ",");
+        if (cur_token == TOK_RPAREN) panic("Expected expression");
+    }
+
+    function_type->function->param_count = param_count;
+
+    exit_scope();
+
+    consume(TOK_RPAREN, ")");
+
+    return function_type;
+}
+
 Type *parse_direct_declarator() {
     Type *type = 0;
 
@@ -335,11 +381,9 @@ Type *parse_direct_declarator() {
     for (int i = 0; ; i++) {
         if (cur_token == TOK_LPAREN) {
             next();
-            if (cur_token == TOK_RPAREN) {
+            if (cur_token == TOK_RPAREN || cur_token_is_type()) {
                 // Function
-                consume(TOK_RPAREN, ")");
-                Type *function_type = new_type(TYPE_FUNCTION);
-                type = concat_types(type, function_type);
+                type = concat_types(type, parse_function(type));
             }
             else if (i == 0) {
                 // (subtype)
@@ -1966,7 +2010,6 @@ void parse() {
                     cur_function_symbol = s;
                     // Function declaration or definition
 
-                    enter_scope();
                     next();
 
                     // Setup the intermediate representation with a dummy no operation instruction.
@@ -1981,6 +2024,7 @@ void parse() {
                     s->type->function->is_static = is_static;
                     s->type->function->local_symbol_count = 0;
 
+                    enter_scope();
                     int param_count = 0;
                     while (1) {
                         if (cur_token == TOK_RPAREN) break;
@@ -2013,7 +2057,6 @@ void parse() {
 
                     if (cur_token == TOK_LCURLY) {
                         cur_function_symbol->type->function->is_defined = 1;
-                        cur_function_symbol->type->function->param_count = param_count;
 
                         vreg_count = 0; // Reset global vreg_count
                         function_call_count = 0;
@@ -2031,7 +2074,7 @@ void parse() {
                         // before the definition has been processed.
                         cur_function_symbol->value = 0;
 
-                    cur_scope = global_scope;
+                    exit_scope();
 
                     break; // Break out of function parameters loop
                 }
