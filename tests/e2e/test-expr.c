@@ -1365,6 +1365,15 @@ static int test_scopes() {
     return 1;
 }
 
+// Test another variable declaration in the middle, after functions
+int gi1;
+
+int test_global_var_in_the_middle() {
+    gi = 1;
+
+    assert_int(1, gi, "Test global var declaration in the middle of a file");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1406,6 +1415,7 @@ int main(int argc, char **argv) {
     test_logical_not();
     test_bitwise_not();
     test_scopes();
+    test_global_var_in_the_middle();
 
     finalize();
 }

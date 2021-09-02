@@ -1930,8 +1930,6 @@ void finish_parsing_header() {
 
 // Parse a translation unit
 void parse() {
-    int seen_function_declaration = 0;
-
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)  {
             next();
@@ -2019,7 +2017,6 @@ void parse() {
                     consume(TOK_RPAREN, ")");
 
                     if (cur_token == TOK_LCURLY) {
-                        seen_function_declaration = 1;
                         cur_function_symbol->type->function->is_defined = 1;
                         cur_function_symbol->type->function->param_count = param_count;
 
@@ -2042,10 +2039,6 @@ void parse() {
                     cur_scope = global_scope;
 
                     break; // Break out of function parameters loop
-                }
-                else {
-                    // Global symbol
-                    if (seen_function_declaration) panic("Global variables must precede all functions");
                 }
 
                 if (cur_token == TOK_COMMA) next();
