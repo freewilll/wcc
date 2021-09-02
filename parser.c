@@ -298,14 +298,12 @@ static Type *concat_types(Type *type1, Type *type2) {
 
 Type *parse_direct_declarator();
 
-Type *parse_declarator(int level) {
+Type *parse_declarator() {
     Type *type = 0;
     if (cur_token != TOK_IDENTIFIER) cur_identifier = 0;
 
     while (1) {
-        int token_level = cur_token == TOK_MULTIPLY ? 1 : 2;
-
-        if (token_level > level) {
+        if (cur_token != TOK_MULTIPLY) {
             // Go up a level and return
             return concat_types(parse_direct_declarator(), type);
         }
@@ -345,7 +343,7 @@ Type *parse_direct_declarator() {
             }
             else if (i == 0) {
                 // (subtype)
-                type = concat_types(type, parse_declarator(1));
+                type = concat_types(type, parse_declarator());
                 consume(TOK_RPAREN, ")");
             }
             else
@@ -371,7 +369,7 @@ Type *parse_direct_declarator() {
 }
 
 Type *parse_type_name() {
-    return concat_types(parse_declarator(1), parse_type_specifier(1));
+    return concat_types(parse_declarator(), parse_type_specifier(1));
 }
 
 // Allocate a new Struct
@@ -435,7 +433,7 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
 
             Type *base_type = parse_type_specifier(1);
             while (cur_token != TOK_SEMI) {
-                Type *type = concat_types(parse_declarator(1), base_type);
+                Type *type = concat_types(parse_declarator(), base_type);
                 int alignment = is_packed ? 1 : get_type_alignment(type);
                 if (alignment > biggest_alignment) biggest_alignment = alignment;
                 offset = ((offset + alignment  - 1) & (~(alignment - 1)));
