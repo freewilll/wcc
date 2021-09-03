@@ -445,6 +445,7 @@ int parsing_header;             // I a header being parsed?
 Map *directives;                // Map of CPP directives
 int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
+char *cur_type_identifier;      // Identifier of the last parsed declarator
 Type *cur_lexer_type;           // A type determined by the lexer
 long cur_long;                  // Current long if the token is an integral type
 long double cur_long_double;    // Current long double if the token is a floating point type

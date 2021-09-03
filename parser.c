@@ -300,7 +300,6 @@ Type *parse_direct_declarator();
 
 Type *parse_declarator() {
     Type *type = 0;
-    if (cur_token != TOK_IDENTIFIER) cur_identifier = 0;
 
     while (1) {
         if (cur_token != TOK_MULTIPLY) {
@@ -325,8 +324,6 @@ Type *parse_declarator() {
 }
 
 static Type *parse_function(Type *return_type) {
-    // The caller is expected to call exit_scope()
-
     Type *function_type = new_type(TYPE_FUNCTION);
     function_type->function = new_function();
     function_type->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
@@ -374,7 +371,10 @@ Type *parse_direct_declarator() {
     Type *type = 0;
 
     if (cur_token == TOK_IDENTIFIER) {
-        // Leave the identifier in cur_identifier
+        // Set cur_type_identifier only once. The caller is expected to set
+        // cur_type_identifier to zero. This way, the first parsed identifier
+        // is kept.
+        if (!cur_type_identifier) cur_type_identifier = cur_identifier;
         next();
     }
 
@@ -1987,74 +1987,41 @@ void parse() {
             Type *base_type = parse_type_specifier(0);
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
-                Type *type = base_type;
-                while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
+                cur_type_identifier = 0;
+                Type *type = concat_types(parse_declarator(), base_type);
 
                 if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
-                expect(TOK_IDENTIFIER, "identifier");
+                if (!cur_type_identifier) panic("Expected an identifier");
 
-                Symbol *s = lookup_symbol(cur_identifier, global_scope, 1);
+                Symbol *s = lookup_symbol(cur_type_identifier, global_scope, 1);
                 if (!s) {
                     // Create a new symbol if it wasn't already declared. The
                     // previous declaration is left unchanged.
 
                     s = new_symbol();
                     s->type = dup_type(type);
-                    s->identifier = cur_identifier;
+                    s->identifier = cur_type_identifier;
                 }
 
-                next();
-
-                if (cur_token == TOK_LPAREN) {
-                    cur_function_symbol = s;
+                if (type->type == TYPE_FUNCTION) {
                     // Function declaration or definition
-
-                    next();
 
                     // Setup the intermediate representation with a dummy no operation instruction.
                     ir_start = 0;
                     ir_start = add_instruction(IR_NOP, 0, 0, 0);
-                    s->type = new_type(TYPE_FUNCTION);
-                    s->type->function = new_function();
-                    s->type->function->return_type = dup_type(type);
-                    s->type->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
+
+                    s->type->function->return_type = type->target;
                     s->type->function->ir = ir_start;
                     s->type->function->is_external = is_external;
                     s->type->function->is_static = is_static;
                     s->type->function->local_symbol_count = 0;
 
-                    enter_scope();
-                    int param_count = 0;
-                    while (1) {
-                        if (cur_token == TOK_RPAREN) break;
-
-                        if (cur_token_is_type()) {
-                            Type *type = parse_type_name();
-                            if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
-
-                            Symbol *param_symbol = new_symbol();
-                            param_symbol->type = dup_type(type);
-                            param_symbol->identifier = cur_identifier;
-                            s->type->function->param_types[param_count] = dup_type(type);
-                            param_symbol->local_index = param_count++;
-                        }
-                        else if (cur_token == TOK_ELLIPSES) {
-                            s->type->function->is_variadic = 1;
-                            next();
-                        }
-                        else
-                            panic("Expected type or )");
-
-                        if (cur_token == TOK_RPAREN) break;
-                        consume(TOK_COMMA, ",");
-                        if (cur_token == TOK_RPAREN) panic("Expected expression");
-                    }
-
-                    s->type->function->param_count = param_count;
+                    // type->function->scope is left entered by the type parser
+                    cur_scope = type->function->scope;
                     cur_function_symbol = s;
-                    consume(TOK_RPAREN, ")");
 
+                    // Parse function declaration
                     if (cur_token == TOK_LCURLY) {
                         cur_function_symbol->type->function->is_defined = 1;
 
