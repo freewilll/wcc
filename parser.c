@@ -1743,6 +1743,12 @@ static void parse_iteration_statement() {
     exit_scope();
 }
 
+static void parse_compound_statement() {
+    consume(TOK_LCURLY, "{");
+    while (cur_token != TOK_RCURLY) parse_statement();
+    consume(TOK_RCURLY, "}");
+}
+
 // Parse a statement
 static void parse_statement() {
     vs = vs_start; // Reset value stack
@@ -1766,9 +1772,7 @@ static void parse_statement() {
 
     else if (cur_token == TOK_LCURLY) {
         enter_scope();
-        next();
-        while (cur_token != TOK_RCURLY) parse_statement();
-        consume(TOK_RCURLY, "}");
+        parse_compound_statement();
         exit_scope();
         return;
     }
@@ -2022,17 +2026,15 @@ void parse() {
 
                     // Parse function declaration
                     if (cur_token == TOK_LCURLY) {
-                        cur_function_symbol->type->function->is_defined = 1;
-
-                        vreg_count = 0; // Reset global vreg_count
+                        // Reset globals for a new function
+                        vreg_count = 0;
                         function_call_count = 0;
                         cur_loop = 0;
                         loop_count = 0;
 
-                        consume(TOK_LCURLY, "{");
-                        while (cur_token != TOK_RCURLY) parse_statement();
-                        consume(TOK_RCURLY, "}");
+                        parse_compound_statement();
 
+                        cur_function_symbol->type->function->is_defined = 1;
                         cur_function_symbol->type->function->vreg_count = vreg_count;
                     }
                     else
