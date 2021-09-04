@@ -1075,20 +1075,19 @@ static void parse_bitwise_shift(int level, int operation) {
 static void parse_declaration() {
     Symbol *symbol;
 
-    Type *type = dup_type(base_type);
-    while (cur_token == TOK_MULTIPLY) { type = make_pointer(type); next(); }
+    cur_type_identifier = 0;
+    Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
     if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
-    expect(TOK_IDENTIFIER, "identifier");
+    if (!cur_type_identifier) panic("Expected an identifier");
 
-    if (lookup_symbol(cur_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_identifier);
+    if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_type_identifier);
 
     symbol = new_symbol();
     symbol->type = dup_type(type);
-    symbol->identifier = cur_identifier;
+    symbol->identifier = cur_type_identifier;
     symbol->local_index = new_local_index();
-    next();
 
     if (cur_token == TOK_EQ) {
         push_local_symbol(symbol);
@@ -1988,7 +1987,7 @@ void parse() {
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
-                Type *type = concat_types(parse_declarator(), base_type);
+                Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
                 if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
 
