@@ -203,12 +203,13 @@ typedef struct struct_member {
     int offset;
 } StructMember;
 
-// Struct description
+// Struct & union description
 typedef struct struct_desc {
     char *identifier;
     int size;
     int is_incomplete;          // Set to 1 if the struct has been used in a member but not yet declared
     int is_packed;
+    int is_union;
     struct struct_member **members;
     struct struct_member **flattened_members;
 } Struct;
@@ -262,6 +263,7 @@ enum {
     TOK_FLOAT,
     TOK_DOUBLE,
     TOK_STRUCT,
+    TOK_UNION,
     TOK_TYPEDEF,
     TOK_TYPEDEF_TYPE,
     TOK_DO,                 // 20

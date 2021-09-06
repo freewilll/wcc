@@ -174,6 +174,8 @@ struct nss4 {
     struct nss2 nss2;
 };
 
+union u {int a; int b; char c0, c1, c2, c3;};
+
 void test_simple_struct() {
     struct sc *lsc1, *lsc2;
     struct ss *lss1, *lss2;
@@ -572,6 +574,31 @@ int test_sub_struct() {
     assert_int(24, (long) &nss4->nss2.c2     - (long) &nss4->s, "nested sub struct nss4 nss2.c2");
 }
 
+int test_unions() {
+    assert_int(1,   sizeof(union {char c1; char c2;}), "sizeof union with char");
+    assert_int(2,   sizeof(union {char c; short s;}), "sizeof union with short");
+    assert_int(4,   sizeof(union {char c; int i;}), "sizeof union with int");
+    assert_int(8,   sizeof(union {char c; long l;}), "sizeof union with long");
+    assert_int(16,  sizeof(union {char c; long double ld;}), "sizeof union with long double");
+    assert_int(32,  sizeof(union {char c; struct s {long double ld1; long double ld2;} s;}), "sizeof union with struct with 2x long double");
+
+    union u *v = malloc(sizeof(union u));
+
+    assert_int(4, sizeof(union u), "Simple union 1");
+    assert_int(1, (long) &v->a == (long) &v->b && (long) &v->a == (long) &v->c0, "Simple union 2");
+
+    v->a = -1;
+    assert_int(-1, v->a,  "Simple union 3");
+    assert_int(-1, v->b,  "Simple union 4");
+    assert_int(-1, v->c0, "Simple union 5");
+    assert_int(-1, v->c1, "Simple union 6");
+    assert_int(-1, v->c2, "Simple union 7");
+    assert_int(-1, v->c3, "Simple union 8");
+
+    int va = v->a;
+    assert_int(-1, va, "Simple union 9");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -597,6 +624,7 @@ int main(int argc, char **argv) {
     test_chocolate_factory_struct();
     test_struct_offset_pointer_indirects();
     test_sub_struct();
+    test_unions();
 
     finalize();
 }

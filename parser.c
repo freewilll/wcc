@@ -210,6 +210,7 @@ static int cur_token_is_type() {
         cur_token == TOK_DOUBLE ||
         cur_token == TOK_LONG ||
         cur_token == TOK_STRUCT ||
+        cur_token == TOK_UNION ||
         cur_token == TOK_TYPEDEF_TYPE
     );
 }
@@ -252,10 +253,20 @@ static Type *parse_type_specifier(int allow_incomplete_structs) {
     else if (cur_token == TOK_FLOAT)        { type = new_type(TYPE_FLOAT);  next(); }
     else if (cur_token == TOK_DOUBLE)       { type = new_type(TYPE_DOUBLE); next(); }
     else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG);   next(); seen_long = 1; }
-    else if (cur_token == TOK_STRUCT)       { next(); type = parse_struct_type_specifier(allow_incomplete_structs); }
-    else if (cur_token == TOK_TYPEDEF_TYPE) { type = dup_type(cur_lexer_type); next(); }
-    else if (seen_signed || seen_unsigned || seen_const || seen_volatile)  type = new_type(TYPE_INT);
-    else panic1d("Unable to determine type from token %d", cur_token);
+
+    else if (cur_token == TOK_STRUCT || cur_token == TOK_UNION)
+        type = parse_struct_type_specifier(allow_incomplete_structs);
+
+    else if (cur_token == TOK_TYPEDEF_TYPE) {
+        type = dup_type(cur_lexer_type);
+        next();
+    }
+
+    else if (seen_signed || seen_unsigned || seen_const || seen_volatile)
+        type = new_type(TYPE_INT);
+
+    else
+        panic1d("Unable to determine type from token %d", cur_token);
 
     if ((seen_unsigned || seen_signed) && !is_integer_type(type)) panic("Signed/unsigned can only apply to integer types");
     if (seen_unsigned && seen_signed && !is_integer_type(type)) panic("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
@@ -338,7 +349,7 @@ static Type *parse_function(Type *return_type) {
 
         if (cur_token_is_type()) {
             Type *type = parse_type_name();
-            if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
+            if (type->type == TYPE_STRUCT) panic("Direct usage of struct & union variables not implemented");
 
             Symbol *param_symbol = new_symbol();
             param_symbol->type = dup_type(type);
@@ -437,6 +448,11 @@ static Struct *find_struct(char *identifier) {
 
 // Parse struct definitions and uses. Declarations aren't implemented.
 static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
+    // Parse a struct or union
+
+    int is_union = cur_token == TOK_UNION;
+    next();
+
     // Check for packed attribute
     int is_packed = 0;
     if (cur_token == TOK_ATTRIBUTE) {
@@ -466,6 +482,7 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
 
         s->identifier = identifier;
         s->is_packed = is_packed;
+        s->is_union = is_union;
 
         // Loop over members
         int member_count = 0;
@@ -510,6 +527,8 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
             s = new_struct(1);
             s->identifier = identifier;
             s->is_incomplete = 1;
+            s->is_packed = is_packed;
+            s->is_union = is_union;
             return make_struct_type(s);
         }
         else
@@ -528,7 +547,6 @@ static void parse_typedef() {
     next();
 
     if (cur_token != TOK_STRUCT) panic("Typedefs are only implemented for structs");
-    next();
 
     Type *type = parse_struct_type_specifier(0);
     Struct *s = type->struct_desc;
@@ -1075,7 +1093,7 @@ static void parse_declaration() {
     cur_type_identifier = 0;
     Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
-    if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
+    if (type->type == TYPE_STRUCT) panic("Direct usage of struct & union variables not implemented");
 
     if (!cur_type_identifier) panic("Expected an identifier");
 
@@ -1990,7 +2008,7 @@ void parse() {
                 cur_type_identifier = 0;
                 Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
-                if (type->type == TYPE_STRUCT) panic("Direct usage of struct variables not implemented");
+                if (type->type == TYPE_STRUCT) panic("Direct usage of struct & union variables not implemented");
 
                 if (!cur_type_identifier) panic("Expected an identifier");
 

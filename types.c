@@ -132,6 +132,7 @@ Struct *dup_struct(Struct *src) {
     dst->size          = src->size;
     dst->is_incomplete = src->is_incomplete;
     dst->is_packed     = src->is_packed;
+    dst->is_union      = src->is_union;
 
     int len;
     for (len = 0; src->members[len]; len++);
@@ -351,10 +352,23 @@ void complete_struct(Struct *s) {
         offset = ((offset + alignment  - 1) & (~(alignment - 1)));
         member->offset = offset;
 
-        offset += get_type_size(member->type);
+        if (!s->is_union) offset += get_type_size(member->type);
     }
 
-    offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
-    s->size = offset;
+    if (s->is_union) {
+        int biggest_size = 0;
+        for (StructMember **pmember = s->members; *pmember; pmember++) {
+            StructMember *member = *pmember;
+
+            int size = get_type_size(member->type);
+            if (size > biggest_size) biggest_size = size;
+        }
+        s->size = biggest_size;
+    }
+    else {
+        offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
+        s->size = offset;
+    }
+
     s->is_incomplete = 0;
 }
