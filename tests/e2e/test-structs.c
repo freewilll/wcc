@@ -153,6 +153,27 @@ struct opi {
     unsigned long ul, *pul;
 };
 
+struct nss1 {
+    int i, j;
+};
+
+struct nss2 {
+    char c1;
+    struct nss1 nss1;
+    char c2;
+};
+
+struct nss3 {
+    long l;
+    struct nss1 nss1;
+};
+
+struct nss4 {
+    short s;
+    struct nss1 nss1;
+    struct nss2 nss2;
+};
+
 void test_simple_struct() {
     struct sc *lsc1, *lsc2;
     struct ss *lss1, *lss2;
@@ -526,6 +547,31 @@ void test_struct_offset_pointer_indirects() {
 
 }
 
+int test_sub_struct() {
+    struct nss1 * nss1;
+    struct nss2 * nss2;
+    struct nss3 * nss3;
+    struct nss4 * nss4;
+
+    assert_int(16, sizeof(*nss2), "sizeof *nss2");
+    assert_int(16, sizeof(*nss3), "sizeof *nss3");
+    assert_int(28, sizeof(*nss4), "sizeof *nss4");
+
+    assert_int(4,  (long) &nss1->j      - (long) &nss1->i,  "nested sub struct nss1 j");
+    assert_int(4,  (long) &nss2->nss1.i - (long) &nss2->c1, "nested sub struct nss2 i");
+    assert_int(12, (long) &nss2->c2     - (long) &nss2->c1, "nested sub struct nss2 c2");
+    assert_int(8,  (long) &nss2->nss1.j - (long) &nss2->c1, "nested sub struct nss2 j");
+    assert_int(8,  (long) &nss3->nss1.i - (long) &nss3->l,  "nested sub struct nss3 i");
+    assert_int(12, (long) &nss3->nss1.j - (long) &nss3->l,  "nested sub struct nss3 j");
+
+    assert_int(4,  (long) &nss4->nss1.i      - (long) &nss4->s, "nested sub struct nss4 nss1.i");
+    assert_int(8,  (long) &nss4->nss1.j      - (long) &nss4->s, "nested sub struct nss4 nss1.j");
+    assert_int(12, (long) &nss4->nss2.c1     - (long) &nss4->s, "nested sub struct nss4 nss2.c1");
+    assert_int(16, (long) &nss4->nss2.nss1.i - (long) &nss4->s, "nested sub struct nss4 nss2.nss1.1");
+    assert_int(20, (long) &nss4->nss2.nss1.j - (long) &nss4->s, "nested sub struct nss4 nss2.nss1.j");
+    assert_int(24, (long) &nss4->nss2.c2     - (long) &nss4->s, "nested sub struct nss4 nss2.c2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -550,6 +596,7 @@ int main(int argc, char **argv) {
     test_struct_casting();
     test_chocolate_factory_struct();
     test_struct_offset_pointer_indirects();
+    test_sub_struct();
 
     finalize();
 }

@@ -422,6 +422,7 @@ static Struct *new_struct(int add_to_all_structs) {
     if (add_to_all_structs) all_structs[all_structs_count++] = s;
     s->members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
     memset(s->members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
+    s->flattened_members = 0;
 
     return s;
 }
@@ -464,11 +465,10 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
         if (!s) s = new_struct(identifier != 0);
 
         s->identifier = identifier;
+        s->is_packed = is_packed;
 
         // Loop over members
-        int offset = 0;
         int member_count = 0;
-        int biggest_alignment = 0;
         while (cur_token != TOK_RCURLY) {
             if (cur_token == TOK_HASH) {
                 parse_directive();
@@ -478,27 +478,22 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
             Type *base_type = parse_type_specifier(1);
             while (cur_token != TOK_SEMI) {
                 Type *type = concat_types(parse_declarator(), base_type);
-                int alignment = is_packed ? 1 : get_type_alignment(type);
-                if (alignment > biggest_alignment) biggest_alignment = alignment;
-                offset = ((offset + alignment  - 1) & (~(alignment - 1)));
 
                 StructMember *member = malloc(sizeof(StructMember));
                 memset(member, 0, sizeof(StructMember));
                 member->identifier = cur_identifier;
                 member->type = dup_type(type);
-                member->offset = offset;
                 s->members[member_count++] = member;
 
-                offset += get_type_size(type);
                 if (cur_token == TOK_COMMA) next();
             }
             while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
         }
-        offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
-        s->size = offset;
-        s->is_incomplete = 0;
         consume(TOK_RCURLY, "}");
-        return make_struct_type(s);
+
+        Type *type = make_struct_type(s);
+        complete_struct(s);
+        return type;
     }
     else {
         // Struct use
@@ -519,11 +514,10 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
     }
 }
 
-// Ensure there are no incomplete structs
-void check_incomplete_structs() {
+void complete_structs() {
+    // Ensure there are no incomplete structs
     for (int i = 0; i < all_structs_count; i++)
-        if (all_structs[i]->is_incomplete)
-            panic("There are incomplete structs");
+        if (all_structs[i]->is_incomplete) panic("There are incomplete structs");
 }
 
 // Parse "typedef struct struct_id typedef_id"

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "wcc.h"
 
@@ -116,15 +117,43 @@ Type *new_type(int type) {
     return result;
 }
 
+static StructMember *dup_struct_member(StructMember *src) {
+    StructMember *dst = malloc(sizeof(StructMember));
+    dst->identifier = strdup(src->identifier);
+    dst->type = dup_type(src->type);
+    dst->offset = src->offset;
+    return dst;
+}
+
+Struct *dup_struct(Struct *src) {
+    Struct *dst = malloc(sizeof(Struct));
+
+    dst->identifier    = strdup(src->identifier);
+    dst->size          = src->size;
+    dst->is_incomplete = src->is_incomplete;
+    dst->is_packed     = src->is_packed;
+
+    int len;
+    for (len = 0; src->members[len]; len++);
+
+    dst->members = malloc(sizeof(StructMember *) * (len + 1));
+    memset(dst->members, 0, sizeof(StructMember *) * (len + 1));
+
+    for (int i = 0; src->members[i]; i++)
+        dst->members[i] = dup_struct_member(src->members[i]);
+
+    return dst;
+}
+
 Type *dup_type(Type *src) {
     if (!src) return 0;
 
     Type *dst = malloc(sizeof(Type));
     dst->type           = src->type;
     dst->is_unsigned    = src->is_unsigned;
-    dst->target         = src->target ? dup_type(src->target) : 0;
+    dst->target         = dup_type(src->target);
     dst->struct_desc    = src->struct_desc; // Note: not making a copy
-    dst->function       = src->function; // Note: not making a copy
+    dst->function       = src->function;    // Note: not making a copy
     dst->array_size     = src->array_size;
     dst->is_const       = src->is_const;
     dst->is_volatile    = src->is_volatile;
@@ -141,13 +170,6 @@ Type *make_pointer(Type *src) {
 
 Type *make_pointer_to_void() {
     return make_pointer(new_type(TYPE_VOID));
-}
-
-Type *make_struct_type(Struct *s) {
-    Type *type = new_type(TYPE_STRUCT);
-    type->struct_desc = s;
-
-    return type;
 }
 
 Type *deref_pointer(Type *src) {
@@ -246,7 +268,15 @@ int get_type_alignment(Type *type) {
     else if (t == TYPE_DOUBLE)       return 8;
     else if (t == TYPE_LONG_DOUBLE)  return 16;
     else if (t == TYPE_ARRAY)        return get_type_alignment(type->target);
-    else if (t == TYPE_STRUCT) panic("Alignment of structs not implemented");
+    else if (t == TYPE_STRUCT) {
+        // The alignment of a struct is the max alignment of all members
+        int max = 0;
+        for (StructMember **pmember = type->struct_desc->members; *pmember; pmember++) {
+            int alignment = get_type_alignment((*pmember)->type);
+            if (alignment > max) max = alignment;
+        }
+        return max;
+    }
 
     panic1d("align of unknown type %d", t);
 }
@@ -276,4 +306,55 @@ int is_integer_operation_result_unsigned(Type *src1, Type *src2) {
     }
 
     return is_insigned;
+}
+
+Type *make_struct_type(Struct *s) {
+    Type *type = new_type(TYPE_STRUCT);
+    type->struct_desc = s;
+
+    return type;
+}
+
+// Recurse through nested structure and set flattened_members
+static int flatten_struct_members(Struct *root, Struct *s, int index) {
+    for (StructMember **pmember = s->members; *pmember; pmember++) {
+        StructMember *member = *pmember;
+
+        if (member->type->type == TYPE_STRUCT) {
+            // Duplicate the structs, since the offset will be set and otherwise
+            // would end up to a reused struct having invalid offsets
+            member->type->struct_desc = dup_struct(member->type->struct_desc);
+            index = flatten_struct_members(root, member->type->struct_desc, index);
+        }
+        else
+            root->flattened_members[index++] = member;
+    }
+
+    return index;
+}
+
+void complete_struct(Struct *s) {
+    // Determine member offsets and total size
+
+    s->flattened_members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
+    memset(s->flattened_members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
+    flatten_struct_members(s, s, 0);
+
+    int offset = 0;
+    int biggest_alignment = 0;
+
+    for (StructMember **pmember = s->flattened_members; *pmember; pmember++) {
+        StructMember *member = *pmember;
+
+        int alignment = s->is_packed ? 1 : get_type_alignment(member->type);
+        if (alignment > biggest_alignment) biggest_alignment = alignment;
+        offset = ((offset + alignment  - 1) & (~(alignment - 1)));
+        member->offset = offset;
+
+        offset += get_type_size(member->type);
+    }
+
+    offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
+    s->size = offset;
+    s->is_incomplete = 0;
 }
