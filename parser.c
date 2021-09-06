@@ -485,6 +485,9 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
                 member->type = dup_type(type);
                 s->members[member_count++] = member;
 
+                if (cur_token != TOK_COMMA && cur_token != TOK_SEMI)
+                    panic("Expected a ; or ,");
+
                 if (cur_token == TOK_COMMA) next();
             }
             while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
