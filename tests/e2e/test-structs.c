@@ -174,6 +174,12 @@ struct nss4 {
     struct nss2 nss2;
 };
 
+struct st {
+    char c1;
+    struct { int i; } s1; // A struct without a tag
+    char c2;
+};
+
 union u {int a; int b; char c0, c1, c2, c3;};
 
 void test_simple_struct() {
@@ -546,7 +552,6 @@ void test_struct_offset_pointer_indirects() {
     assert_long(0xffff,     us, "opi us"); assert_long(-1, pus, "opi pus");
     assert_long(0xffffffff, ui, "opi ui"); assert_long(-1, pui, "opi pui");
     assert_long(-1,         ul, "opi ul"); assert_long(-1, pul, "opi pul");
-
 }
 
 int test_sub_struct() {
@@ -572,6 +577,12 @@ int test_sub_struct() {
     assert_int(16, (long) &nss4->nss2.nss1.i - (long) &nss4->s, "nested sub struct nss4 nss2.nss1.1");
     assert_int(20, (long) &nss4->nss2.nss1.j - (long) &nss4->s, "nested sub struct nss4 nss2.nss1.j");
     assert_int(24, (long) &nss4->nss2.c2     - (long) &nss4->s, "nested sub struct nss4 nss2.c2");
+
+    struct st *st;
+    assert_int(12, sizeof(struct st), "sizeof st");
+
+    assert_int(4,  (long) &st->s1.i - (long) &st->c1, "nested sub struct st s1.i");
+    assert_int(8,  (long) &st->c2   - (long) &st->c1, "nested sub struct st c2");
 }
 
 int test_unions() {

@@ -128,7 +128,7 @@ static StructMember *dup_struct_member(StructMember *src) {
 Struct *dup_struct(Struct *src) {
     Struct *dst = malloc(sizeof(Struct));
 
-    dst->identifier    = strdup(src->identifier);
+    dst->identifier    = src->identifier ? strdup(src->identifier) : 0;
     dst->size          = src->size;
     dst->is_incomplete = src->is_incomplete;
     dst->is_packed     = src->is_packed;
