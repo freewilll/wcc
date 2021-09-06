@@ -60,10 +60,7 @@ static Value *load(Value *src1) {
         src1 = dup_value(src1);
         src1->type = make_pointer(src1->type);
         src1->is_lvalue = 0;
-        if (src1->type->type == TYPE_LONG_DOUBLE)
-            add_instruction(IR_MOVE, dst, src1, 0);
-        else
-            add_instruction(IR_INDIRECT, dst, src1, 0);
+        add_instruction(IR_INDIRECT, dst, src1, 0);
     }
     else {
         // Load a value into a register. This could be a global or a local.
