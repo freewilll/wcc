@@ -182,6 +182,20 @@ struct st {
 
 union u {int a; int b; char c0, c1, c2, c3;};
 
+struct ds {
+    char c;
+    short s;
+    int i;
+    long l;
+    float f;
+    double d;
+    long double ld;
+    struct { int i, j; } st;
+    union { int i, j; } un;
+};
+
+struct ds gds;
+
 void test_simple_struct() {
     struct sc *lsc1, *lsc2;
     struct ss *lss1, *lss2;
@@ -610,6 +624,34 @@ int test_unions() {
     assert_int(-1, va, "Simple union 9");
 }
 
+void assert_ds(struct ds *ds) {
+    assert_int(   1,   ds->c,    "ds c");
+    assert_int(   2,   ds->s,    "ds s");
+    assert_int(   3,   ds->i,    "ds i");
+    assert_long(  4,   ds->l,    "ds l");
+    assert_float( 5.1, ds->f,    "ds f");
+    assert_double(6.1, ds->d,    "ds d");
+    // assert_long_double(7.1, ds->ld,    "ds ld"); // swip
+    assert_int(   8,   ds->st.i, "ds st.i");
+    assert_int(   9,   ds->st.j, "ds st.j");
+    assert_int(   10,  ds->un.i, "ds un.i");
+    // assert_int(   10,  ds->un.j, "ds un.j"); // swip
+}
+
+int test_direct_structs() {
+    gds.c = 1;
+    gds.s = 2;
+    gds.i = 3;
+    gds.l = 4;
+    gds.f = 5.1;
+    gds.d = 6.1;
+    // gds.ld = 7.1; // swip
+    gds.st.i = 8;
+    gds.st.j = 9;
+    gds.un.i = 10;
+    assert_ds(&gds);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -636,6 +678,7 @@ int main(int argc, char **argv) {
     test_struct_offset_pointer_indirects();
     test_sub_struct();
     test_unions();
+    test_direct_structs();
 
     finalize();
 }

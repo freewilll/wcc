@@ -72,6 +72,7 @@ Value *dup_value(Value *src) {
     dst->string_literal_index                 = src->string_literal_index;
     dst->int_value                            = src->int_value;
     dst->fp_value                             = src->fp_value;
+    dst->offset                               = src->offset;
     dst->function_symbol                      = src->function_symbol;
     dst->is_function_call_arg                 = src->is_function_call_arg;
     dst->is_function_param                    = src->is_function_param;
@@ -210,6 +211,7 @@ char *operation_string(int operation) {
     else if (operation == IR_MOVE)                  return "IR_MOVE";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
     else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
+    else if (operation == IR_DECL_LOCAL_COMP_OBJ)   return "IR_DECL_LOCAL_COMP_OBJ";
     else if (operation == IR_START_CALL)            return "IR_START_CALL";
     else if (operation == IR_ARG)                   return "IR_ARG";
     else if (operation == IR_CALL)                  return "IR_CALL";
@@ -295,17 +297,23 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
 
     if (tac->dst && o < X_START) {
         print_value(f, tac->dst, o != IR_MOVE);
+        if (tac->dst->offset) fprintf(f, "[%d]", tac->dst->offset);
         fprintf(f, " = ");
     }
 
     if (o == IR_MOVE_TO_PTR) {
-        printf("(");
+        fprintf(f, "(");
         print_value(f, tac->src1, 0);
         fprintf(f, ") = ");
     }
 
     if (o == IR_MOVE)
         print_value(f, tac->src1, 1);
+
+    else if (o == IR_DECL_LOCAL_COMP_OBJ)  {
+        fprintf(f, "declare ");
+        print_value(f, tac->src1, 1);
+    }
 
     else if (o == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->int_value);
     else if (o == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->int_value);
@@ -624,6 +632,11 @@ void allocate_value_vregs(Function *function) {
         if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
         if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
         if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
+
+        // Structs and unions already on the stack are left on the stack
+        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_STRUCT && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
+        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_STRUCT && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
+        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_STRUCT && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
     }
 
     for (int i = 1; i <= function->local_symbol_count; i++) {

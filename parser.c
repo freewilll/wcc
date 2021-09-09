@@ -972,6 +972,7 @@ static void parse_assignment() {
 
     src1 = add_convert_type_if_needed(src1, dst->type);
     add_instruction(IR_MOVE, dst, src1, 0);
+
     push(dst);
 }
 
@@ -1090,8 +1091,6 @@ static void parse_declaration() {
     cur_type_identifier = 0;
     Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
-    if (type->type == TYPE_STRUCT) panic("Direct usage of struct & union variables not implemented");
-
     if (!cur_type_identifier) panic("Expected an identifier");
 
     if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_type_identifier);
@@ -1100,6 +1099,12 @@ static void parse_declaration() {
     symbol->type = dup_type(type);
     symbol->identifier = cur_type_identifier;
     symbol->local_index = new_local_index();
+
+    if (symbol->type->type == TYPE_STRUCT) {
+        push_local_symbol(symbol);
+        Value *src1 = pop();
+        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, src1, 0);
+    }
 
     if (cur_token == TOK_EQ) {
         push_local_symbol(symbol);
@@ -1479,35 +1484,50 @@ static void parse_expression(int level) {
                 if (vtop->type->type != TYPE_STRUCT) panic("Cannot use . on a non-struct");
                 if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
 
-                // Pretend the lvalue is a pointer to a struct
-                vtop->is_lvalue = 0;
-                vtop->type = make_pointer(vtop->type);
+                if (vtop->vreg) {
+                    // It's an lvalue in a register.
+                    // Pretend the lvalue is a pointer to a struct
+                    vtop->is_lvalue = 0;
+                    vtop->type = make_pointer(vtop->type);
+                }
             }
 
-            if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
-            if (vtop->type->target->type != TYPE_STRUCT) panic("Cannot use -> on a pointer to a non-struct");
+            if (cur_token == TOK_DOT && !vtop->vreg) {
+                next();
+                consume(TOK_IDENTIFIER, "identifier");
 
-            next();
-            if (cur_token != TOK_IDENTIFIER) panic("Expected identifier\n");
+                Struct *str = vtop->type->struct_desc;
+                StructMember *member = lookup_struct_member(str, cur_identifier);
 
-            Struct *str = vtop->type->target->struct_desc;
-            StructMember *member = lookup_struct_member(str, cur_identifier);
-            indirect();
-
-            vtop->type = dup_type(member->type);
-
-            if (member->offset > 0) {
-                // Make the struct lvalue into a pointer to struct rvalue for manipulation
-                vtop->is_lvalue = 0;
-                vtop->type = make_pointer(vtop->type);
-
-                push_integral_constant(TYPE_INT, member->offset);
-                arithmetic_operation(IR_ADD, 0);
+                vtop->type = dup_type(member->type);
+                vtop->offset = member->offset;
+                vtop->is_lvalue = 1;
             }
+            else {
+                if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
+                if (vtop->type->target->type != TYPE_STRUCT) panic("Cannot use -> on a pointer to a non-struct");
 
-            vtop->type = dup_type(member->type);
-            vtop->is_lvalue = 1;
-            consume(TOK_IDENTIFIER, "identifier");
+                next();
+                consume(TOK_IDENTIFIER, "identifier");
+
+                Struct *str = vtop->type->target->struct_desc;
+                StructMember *member = lookup_struct_member(str, cur_identifier);
+                indirect();
+
+                vtop->type = dup_type(member->type);
+
+                if (member->offset > 0) {
+                    // Make the struct lvalue into a pointer to struct rvalue for manipulation
+                    vtop->is_lvalue = 0;
+                    vtop->type = make_pointer(vtop->type);
+
+                    push_integral_constant(TYPE_INT, member->offset);
+                    arithmetic_operation(IR_ADD, 0);
+                }
+
+                vtop->type = dup_type(member->type);
+                vtop->is_lvalue = 1;
+            }
         }
 
         else if (cur_token == TOK_MULTIPLY) { next(); parse_arithmetic_operation(TOK_DOT, IR_MUL, 0); }
@@ -2004,8 +2024,6 @@ void parse() {
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
                 Type *type = concat_types(parse_declarator(), dup_type(base_type));
-
-                if (type->type == TYPE_STRUCT) panic("Direct usage of struct & union variables not implemented");
 
                 if (!cur_type_identifier) panic("Expected an identifier");
 

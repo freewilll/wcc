@@ -63,25 +63,31 @@ void make_stack_offsets(Function *function, char *function_name) {
 
     if (!count) return; // Nothing is on the stack
 
-    // Determine alignments for all variables on the stack & assert they don't mismatch.
+    // Determine size & alignments for all variables on the stack
     int *stack_alignments = malloc((count+ 1) * sizeof(int));
     memset(stack_alignments, 0, (count+ 1) * sizeof(int));
 
+    int *stack_sizes = malloc((count+ 1) * sizeof(int));
+    memset(stack_sizes, 0, (count+ 1) * sizeof(int));
+
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst && tac->dst->stack_index < 0) {
-            if (stack_alignments[-tac->dst->stack_index] && stack_alignments[-tac->dst->stack_index] != get_type_alignment(tac->dst->type))
-                panic1s("Mismatched alignment on stack in different vregs in %s\n", function_name);
-            stack_alignments[-tac->dst->stack_index] = get_type_alignment(tac->dst->type);
+            if (!stack_alignments[-tac->dst->stack_index]) {
+                stack_alignments[-tac->dst->stack_index] = get_type_alignment(tac->dst->type);
+                stack_sizes[-tac->dst->stack_index] = get_type_size(tac->dst->type);
+            }
         }
         if (tac->src1 && tac->src1->stack_index < 0) {
-            if (stack_alignments[-tac->src1->stack_index] && stack_alignments[-tac->src1->stack_index] != get_type_alignment(tac->src1->type))
-                panic1s("Mismatched alignment on stack in different vregs in %s\n", function_name);
-            stack_alignments[-tac->src1->stack_index] = get_type_alignment(tac->src1->type);
+            if (!stack_alignments[-tac->src1->stack_index]) {
+                stack_alignments[-tac->src1->stack_index] = get_type_alignment(tac->src1->type);
+                stack_sizes[-tac->src1->stack_index] = get_type_size(tac->src1->type);
+            }
         }
         if (tac->src2 && tac->src2->stack_index < 0) {
-            if (stack_alignments[-tac->src2->stack_index] && stack_alignments[-tac->src2->stack_index] != get_type_alignment(tac->src2->type))
-                panic1s("Mismatched alignment on stack in different vregs in %s\n", function_name);
-            stack_alignments[-tac->src2->stack_index] = get_type_alignment(tac->src2->type);
+            if (!stack_alignments[-tac->src2->stack_index]) {
+                stack_alignments[-tac->src2->stack_index] = get_type_alignment(tac->src2->type);
+                stack_sizes[-tac->src2->stack_index] = get_type_size(tac->src2->type);
+            }
         }
     }
 
@@ -93,10 +99,11 @@ void make_stack_offsets(Function *function, char *function_name) {
         int wanted_alignment = 1 << size;
         for (int i = 1; i <= count; i++) {
             int alignment = stack_alignments[i];
+            int object_size = stack_sizes[i];
             if (wanted_alignment != alignment) continue;
-            offset += alignment;
+            offset += object_size;
             stack_offsets[i] = offset;
-            total_size += alignment;
+            total_size += object_size;
         }
     }
 
@@ -283,8 +290,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         else
                             panic("Did not get L/H/C specifier for double long constant");
                     }
-                    else
-                        sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                    else {
+                        if (v->offset)
+                            sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->identifier, v->offset);
+                        else
+                            sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                    }
                 }
                 else if (v->stack_index) {
                     int stack_offset = get_stack_offset(function_pc, v);
@@ -296,8 +307,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         else
                             panic("Did not get L/H specifier for double long stack index");
                     }
-                    else
-                        sprintf(buffer, "%d(%%rbp)", stack_offset);
+                    else {
+                        if (v->offset)
+                            sprintf(buffer, "%d(%%rbp)", stack_offset + v->offset);
+                        else
+                            sprintf(buffer, "%d(%%rbp)", stack_offset);
+                    }
                 }
                 else if (v->label)
                     sprintf(buffer, ".L%d", v->label);

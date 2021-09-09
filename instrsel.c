@@ -69,6 +69,7 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
     if (ign->tac) {
         int operation = ign->tac->operation;
              if (operation == IR_MOVE)                 c += printf("=");
+        else if (operation == IR_DECL_LOCAL_COMP_OBJ)  c += printf("declare");
         else if (operation == IR_ADD)                  c += printf("+");
         else if (operation == IR_SUB)                  c += printf("-");
         else if (operation == IR_MUL)                  c += printf("*");
@@ -1274,6 +1275,7 @@ static void tile_igraphs(Function *function) {
         // Whitelist operations there are no rules for
         if (tac &&
             (tac->operation == IR_NOP ||
+             tac->operation == IR_DECL_LOCAL_COMP_OBJ ||
              tac->operation == IR_START_CALL ||
              tac->operation == IR_END_CALL ||
              tac->operation == IR_START_LOOP ||

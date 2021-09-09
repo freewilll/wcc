@@ -156,6 +156,7 @@ typedef struct value {
     int string_literal_index;                 // Index in the string_literals array in the case of a string literal
     long int_value;                           // Value in the case of an integer constant
     long double fp_value;                     // Value in the case of a floating point constant
+    int offset;                               // For composite objects, offset from the start of the object's memory
     Symbol *function_symbol;                  // Corresponding symbol in the case of a function call
     int is_function_call_arg;                 // Index of the argument going left to right (0=leftmost)
     int is_function_param;                    // Is it a function parameter?
@@ -355,6 +356,7 @@ enum {
     IR_MOVE_TO_PTR,           // Assignment to a pointer target
     IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
+    IR_DECL_LOCAL_COMP_OBJ,   // Declare a local compound object
     IR_START_CALL,            // Function call
     IR_ARG,                   // Function call argument
     IR_CALL_ARG_REG,          // Placeholder for fake read of a register used in function calls
@@ -719,6 +721,7 @@ enum {
     RP1, RP2, RP3, RP4, RP5,     // Address (aka pointer) in a register
     MLD5,                        // 16-byte memory, for long double
     MPV,                         // Pointer in memory
+    STR,                         // Struct
 
     AUTO_NON_TERMINAL_START,
     AUTO_NON_TERMINAL_END = 0x200, // Must match next line

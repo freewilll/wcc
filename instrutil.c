@@ -380,6 +380,7 @@ char *non_terminal_string(int nt) {
     else if (nt == MS3)   return "ms3";
     else if (nt == MS4)   return "ms4";
     else if (nt == MPV)   return "mpv";
+    else if (nt == STR)   return "str";
     else {
         asprintf(&buf, "nt%03d", nt);
         return buf;
@@ -442,6 +443,7 @@ void make_value_x86_size(Value *v) {
 
     if (v->x86_size) return;
     if (v->label || v->function_symbol) return;
+    if (v->type->type == TYPE_STRUCT) return;
 
     if (!v->type) {
         print_value(stdout, v, 0);
@@ -479,6 +481,7 @@ static int non_terminal_for_value(Value *v) {
          if (v->is_string_literal)                                            result =  STL;
     else if (v->label)                                                        result =  LAB;
     else if (v->function_symbol)                                              result =  FUN;
+    else if (v->type->type == TYPE_STRUCT)                                    result =  STR;
 
     // Pointers
     else if (is_local  && is_pointer && v->type->target->type == TYPE_FLOAT)       result =  RP3;
@@ -644,6 +647,7 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == MLD5) return 8;
     else if (nt == LAB) return -1;
     else if (nt == FUN) return -1;
+    else if (nt == STR) return -1;
     else if (nt == STL) return 4;
     else if (nt >= AUTO_NON_TERMINAL_START) return -1;
     else
