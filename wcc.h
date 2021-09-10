@@ -212,7 +212,6 @@ typedef struct struct_desc {
     int is_packed;
     int is_union;
     struct struct_member **members;
-    struct struct_member **flattened_members;
 } Struct;
 
 typedef struct typedef_desc {

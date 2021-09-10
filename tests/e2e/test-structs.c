@@ -579,6 +579,7 @@ int test_sub_struct() {
     assert_int(28, sizeof(*nss4), "sizeof *nss4");
 
     assert_int(4,  (long) &nss1->j      - (long) &nss1->i,  "nested sub struct nss1 j");
+    assert_int(4,  (long) &nss2->nss1   - (long) &nss2->c1, "nested sub struct nss1");
     assert_int(4,  (long) &nss2->nss1.i - (long) &nss2->c1, "nested sub struct nss2 i");
     assert_int(12, (long) &nss2->c2     - (long) &nss2->c1, "nested sub struct nss2 c2");
     assert_int(8,  (long) &nss2->nss1.j - (long) &nss2->c1, "nested sub struct nss2 j");
@@ -588,6 +589,7 @@ int test_sub_struct() {
     assert_int(4,  (long) &nss4->nss1.i      - (long) &nss4->s, "nested sub struct nss4 nss1.i");
     assert_int(8,  (long) &nss4->nss1.j      - (long) &nss4->s, "nested sub struct nss4 nss1.j");
     assert_int(12, (long) &nss4->nss2.c1     - (long) &nss4->s, "nested sub struct nss4 nss2.c1");
+    assert_int(16, (long) &nss4->nss2.nss1   - (long) &nss4->s, "nested sub struct nss4 nss2.nss1");
     assert_int(16, (long) &nss4->nss2.nss1.i - (long) &nss4->s, "nested sub struct nss4 nss2.nss1.1");
     assert_int(20, (long) &nss4->nss2.nss1.j - (long) &nss4->s, "nested sub struct nss4 nss2.nss1.j");
     assert_int(24, (long) &nss4->nss2.c2     - (long) &nss4->s, "nested sub struct nss4 nss2.c2");
@@ -624,6 +626,68 @@ int test_unions() {
     assert_int(-1, va, "Simple union 9");
 }
 
+// A struct of structs
+struct nss {
+    struct {int a; int b; } s1;
+    struct {int c; int d; } s2;
+} v1;
+
+// A union of structs
+union nus {
+    struct {int a; int b; } s1;
+    struct {int c; int d; } s2;
+} v2;
+
+// A struct of unions
+struct nsu {
+    union {int a; int b; } u1;
+    union {int c; int d; } u2;
+} v3;
+
+// A union of unions
+union nuu {
+    union {int a; int b; } u1;
+    union {int c; int d; } u2;
+} v4;
+
+int test_nested_structs_and_unions() {
+    assert_int(16, sizeof(struct nss),           "Anonymous s/s 1");
+    assert_int(16, sizeof(v1),                   "Anonymous s/s 2");
+    assert_int(0,  (int) &v1.s1   -  (int) &v1,  "Anonymous s/s 3");
+    assert_int(0,  (int) &v1.s1.a -  (int) &v1,  "Anonymous s/s 4");
+    assert_int(4,  (int) &v1.s1.b -  (int) &v1,  "Anonymous s/s 5");
+    assert_int(8,  (int) &v1.s2   -  (int) &v1,  "Anonymous s/s 6");
+    assert_int(8,  (int) &v1.s2.c -  (int) &v1,  "Anonymous s/s 7");
+    assert_int(12, (int) &v1.s2.d -  (int) &v1,  "Anonymous s/s 8");
+
+    assert_int(8, sizeof(union nus),             "Anonymous u/s 1");
+    assert_int(8, sizeof(v2),                    "Anonymous u/s 2");
+    assert_int(0, (int) &v2.s1   -   (int) &v2,  "Anonymous u/s 3");
+    assert_int(0, (int) &v2.s1.a -   (int) &v2,  "Anonymous u/s 4");
+    assert_int(4, (int) &v2.s1.b -   (int) &v2,  "Anonymous u/s 5");
+    assert_int(0, (int) &v2.s2   -   (int) &v2,  "Anonymous u/s 6");
+    assert_int(0, (int) &v2.s2.c -   (int) &v2,  "Anonymous u/s 7");
+    assert_int(4, (int) &v2.s2.d -   (int) &v2,  "Anonymous u/s 8");
+
+    assert_int(8, sizeof(struct nsu),            "Anonymous s/u 1");
+    assert_int(8, sizeof(v3),                    "Anonymous s/u 2");
+    assert_int(0, (int) &v3.u1   -   (int) &v3,  "Anonymous s/u 3");
+    assert_int(0, (int) &v3.u1.a -   (int) &v3,  "Anonymous s/u 4");
+    assert_int(0, (int) &v3.u1.b -   (int) &v3,  "Anonymous s/u 5");
+    assert_int(4, (int) &v3.u2   -   (int) &v3,  "Anonymous s/u 6");
+    assert_int(4, (int) &v3.u2.c -   (int) &v3,  "Anonymous s/u 7");
+    assert_int(4, (int) &v3.u2.d -   (int) &v3,  "Anonymous s/u 8");
+
+    assert_int(4, sizeof(union nuu),             "Anonymous u/u 1");
+    assert_int(4, sizeof(v4),                    "Anonymous u/u 2");
+    assert_int(0, (int) &v4.u1   -   (int) &v4,  "Anonymous u/u 3");
+    assert_int(0, (int) &v4.u1.a -   (int) &v4,  "Anonymous u/u 4");
+    assert_int(0, (int) &v4.u1.b -   (int) &v4,  "Anonymous u/u 5");
+    assert_int(0, (int) &v4.u2   -   (int) &v4,  "Anonymous u/u 6");
+    assert_int(0, (int) &v4.u2.c -   (int) &v4,  "Anonymous u/u 7");
+    assert_int(0, (int) &v4.u2.d -   (int) &v4,  "Anonymous u/u 8");
+}
+
 void assert_ds(struct ds *ds) {
     assert_int(   1,   ds->c,    "ds c");
     assert_int(   2,   ds->s,    "ds s");
@@ -635,7 +699,7 @@ void assert_ds(struct ds *ds) {
     assert_int(   8,   ds->st.i, "ds st.i");
     assert_int(   9,   ds->st.j, "ds st.j");
     assert_int(   10,  ds->un.i, "ds un.i");
-    // assert_int(   10,  ds->un.j, "ds un.j"); // swip
+    assert_int(   10,  ds->un.j, "ds un.j");
 }
 
 int test_direct_structs() {
@@ -678,6 +742,7 @@ int main(int argc, char **argv) {
     test_struct_offset_pointer_indirects();
     test_sub_struct();
     test_unions();
+    test_nested_structs_and_unions();
     test_direct_structs();
 
     finalize();

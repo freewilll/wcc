@@ -316,59 +316,56 @@ Type *make_struct_type(Struct *s) {
     return type;
 }
 
-// Recurse through nested structure and set flattened_members
-static int flatten_struct_members(Struct *root, Struct *s, int index) {
+int recursive_complete_struct(Struct *s, int offset, int is_root) {
+    offset = 0;
+
+    int initial_offset = offset;
+    int max_size = 0;
+    int max_alignment = 0;
+
     for (StructMember **pmember = s->members; *pmember; pmember++) {
         StructMember *member = *pmember;
+        int size;
+
+        int alignment = s->is_packed ? 1 : get_type_alignment(member->type);
+        if (alignment > max_alignment) max_alignment = alignment;
+        offset = ((offset + alignment  - 1) & (~(alignment - 1)));
 
         if (member->type->type == TYPE_STRUCT) {
             // Duplicate the structs, since the offset will be set and otherwise
             // would end up to a reused struct having invalid offsets
             member->type->struct_desc = dup_struct(member->type->struct_desc);
-            index = flatten_struct_members(root, member->type->struct_desc, index);
+            size = recursive_complete_struct(member->type->struct_desc, offset, 0);
         }
-        else
-            root->flattened_members[index++] = member;
-    }
+        else {
+            size = get_type_size(member->type);
+        }
 
-    return index;
-}
-
-void complete_struct(Struct *s) {
-    // Determine member offsets and total size
-
-    s->flattened_members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
-    memset(s->flattened_members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
-    flatten_struct_members(s, s, 0);
-
-    int offset = 0;
-    int biggest_alignment = 0;
-
-    for (StructMember **pmember = s->flattened_members; *pmember; pmember++) {
-        StructMember *member = *pmember;
-
-        int alignment = s->is_packed ? 1 : get_type_alignment(member->type);
-        if (alignment > biggest_alignment) biggest_alignment = alignment;
-        offset = ((offset + alignment  - 1) & (~(alignment - 1)));
         member->offset = offset;
 
-        if (!s->is_union) offset += get_type_size(member->type);
-    }
+        if (size > max_size) max_size = size;
 
-    if (s->is_union) {
-        int biggest_size = 0;
-        for (StructMember **pmember = s->members; *pmember; pmember++) {
-            StructMember *member = *pmember;
-
-            int size = get_type_size(member->type);
-            if (size > biggest_size) biggest_size = size;
-        }
-        s->size = biggest_size;
-    }
-    else {
-        offset = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1)));
-        s->size = offset;
+        if (!s->is_union) offset += size;
     }
 
     s->is_incomplete = 0;
+
+    int size;
+    if (s->is_union)
+        size = max_size;
+    else {
+        if (is_root)
+            // Add padding to the root, but not sub struct/unions
+            offset = ((offset + max_alignment  - 1) & (~(max_alignment - 1)));
+
+        size = offset - initial_offset;
+    }
+
+    s->size = size;
+
+    return size;
+}
+
+void complete_struct(Struct *s) {
+    recursive_complete_struct(s, 0, 1);
 }

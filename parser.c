@@ -430,7 +430,6 @@ static Struct *new_struct(int add_to_all_structs) {
     if (add_to_all_structs) all_structs[all_structs_count++] = s;
     s->members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
     memset(s->members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
-    s->flattened_members = 0;
 
     return s;
 }
@@ -1500,7 +1499,7 @@ static void parse_expression(int level) {
                 StructMember *member = lookup_struct_member(str, cur_identifier);
 
                 vtop->type = dup_type(member->type);
-                vtop->offset = member->offset;
+                vtop->offset += member->offset;
                 vtop->is_lvalue = 1;
             }
             else {
