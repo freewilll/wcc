@@ -283,10 +283,14 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     sprintf(buffer, ".SL%d(%%rip)", v->string_literal_index);
                 else if (v->global_symbol) {
                     if (v->type->type == TYPE_LONG_DOUBLE) {
-                        if (low)
-                            sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                        if (low) {
+                            if (v->offset)
+                                sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->identifier, v->offset);
+                            else
+                                sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                        }
                         else if (high)
-                            sprintf(buffer, "8+%s(%%rip)", v->global_symbol->identifier);
+                            sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->identifier, v->offset + 8);
                         else
                             panic("Did not get L/H/C specifier for double long constant");
                     }
@@ -301,18 +305,14 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     int stack_offset = get_stack_offset(function_pc, v);
                     if (v->type->type == TYPE_LONG_DOUBLE) {
                         if (low)
-                            sprintf(buffer, "%d(%%rbp)", stack_offset);
+                            sprintf(buffer, "%d(%%rbp)", stack_offset + v->offset);
                         else if (high)
-                            sprintf(buffer, "%d(%%rbp)", stack_offset + 8);
+                            sprintf(buffer, "%d(%%rbp)", stack_offset + v->offset + 8);
                         else
                             panic("Did not get L/H specifier for double long stack index");
                     }
-                    else {
-                        if (v->offset)
-                            sprintf(buffer, "%d(%%rbp)", stack_offset + v->offset);
-                        else
-                            sprintf(buffer, "%d(%%rbp)", stack_offset);
-                    }
+                    else
+                        sprintf(buffer, "%d(%%rbp)", stack_offset + v->offset);
                 }
                 else if (v->label)
                     sprintf(buffer, ".L%d", v->label);

@@ -198,6 +198,8 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
         // What's this?
         c += fprintf(f, "?%ld", v->int_value);
 
+    if (v->offset) c += fprintf(f, "[%d]", v->offset);
+
     if (!v->label) {
         c += fprintf(f, ":");
         c +=  print_type(f, v->type);
@@ -297,7 +299,6 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
 
     if (tac->dst && o < X_START) {
         print_value(f, tac->dst, o != IR_MOVE);
-        if (tac->dst->offset) fprintf(f, "[%d]", tac->dst->offset);
         fprintf(f, " = ");
     }
 

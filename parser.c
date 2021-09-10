@@ -52,6 +52,10 @@ static Value *load(Value *src1) {
     dst->vreg = new_vreg();
     dst->is_lvalue = 0;
 
+    // Ensure an offset read from a struct isn't persisted into a register which might
+    // get moved back onto a stack, e.g. for long doubles
+    dst->offset = 0;
+
     if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
         if (src1->type->type == TYPE_VOID) panic("Cannot dereference a *void");
