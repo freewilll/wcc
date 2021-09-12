@@ -1616,6 +1616,58 @@ void test_spilling() {
     assert_rx86_preg_op("movq        -8(%rbp), %r10" );
     assert_rx86_preg_op("movl        $1, (%r10)"     );
 
+    // BSHL with dst and src2 in registers
+    start_ir();
+    i(0, IR_BSHL, v(1), c(1), v(2));
+    finish_spill_ir(function);
+    assert_rx86_preg_op("movq        $1, %r11"       );
+    assert_rx86_preg_op("movq        %r11, -16(%rbp)");
+    assert_rx86_preg_op("movq        -24(%rbp), %r10");
+    assert_rx86_preg_op("movq        %r10, %rcx"     );
+    assert_rx86_preg_op("movq        -16(%rbp), %r10");
+    assert_rx86_preg_op("movq        %r10, %r11"     );
+    assert_rx86_preg_op("movq        %r11, -8(%rbp)" );
+    assert_rx86_preg_op("movq        -8(%rbp), %r11" );
+    assert_rx86_preg_op("shlq        %cl, %r11"      );
+    assert_rx86_preg_op("movq        %r11, -8(%rbp)" );
+
+    // BSHR with dst and src2 in registers
+    start_ir();
+    i(0, IR_BSHR, v(1), c(1), v(2));
+    finish_spill_ir(function);
+    assert_rx86_preg_op("movq        $1, %r11"       );
+    assert_rx86_preg_op("movq        %r11, -16(%rbp)");
+    assert_rx86_preg_op("movq        -24(%rbp), %r10");
+    assert_rx86_preg_op("movq        %r10, %rcx"     );
+    assert_rx86_preg_op("movq        -16(%rbp), %r10");
+    assert_rx86_preg_op("movq        %r10, %r11"     );
+    assert_rx86_preg_op("movq        %r11, -8(%rbp)" );
+    assert_rx86_preg_op("movq        -8(%rbp), %r11" );
+    assert_rx86_preg_op("shrq        %cl, %r11"      );
+    assert_rx86_preg_op("movq        %r11, -8(%rbp)" );
+
+    // BSHL with dst and src1 in registers
+    start_ir();
+    i(0, IR_BSHL, v(1), v(2), c(1));
+    finish_spill_ir(function);
+    assert_rx86_preg_op("movq        -16(%rbp), %r10");
+    assert_rx86_preg_op("movq        %r10, %r11"     );
+    assert_rx86_preg_op("movq        %r11, -8(%rbp)" );
+    assert_rx86_preg_op("movq        -8(%rbp), %r11" );
+    assert_rx86_preg_op("shlq        $1, %r11"       );
+    assert_rx86_preg_op("movq        %r11, -8(%rbp)" );
+
+    // BSHR with dst and src1 in registers
+    start_ir();
+    i(0, IR_BSHR, v(1), v(2), c(1));
+    finish_spill_ir(function);
+    assert_rx86_preg_op("movq        -16(%rbp), %r10");
+    assert_rx86_preg_op("movq        %r10, %r11"     );
+    assert_rx86_preg_op("movq        %r11, -8(%rbp)" );
+    assert_rx86_preg_op("movq        -8(%rbp), %r11" );
+    assert_rx86_preg_op("sarq        $1, %r11"       );
+    assert_rx86_preg_op("movq        %r11, -8(%rbp)" );
+
     init_allocate_registers(); // Enable register allocation again
 }
 
