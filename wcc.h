@@ -573,7 +573,6 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
 int new_vreg();
 Type *parse_type_name();
-void complete_structs();
 void finish_parsing_header();
 void parse();
 void dump_symbols();

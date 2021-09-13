@@ -95,7 +95,6 @@ void compile(char *compiler_input_filename, char *compiler_output_filename) {
     compile_externals();
     init_lexer(compiler_input_filename);
     parse();
-    complete_structs();
 
     // Keep track of floating point constant values.
     floating_point_literals = malloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);

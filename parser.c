@@ -5,7 +5,7 @@
 #include "wcc.h"
 
 static Type *integer_promote_type(Type *type);
-static Type *parse_struct_type_specifier(int allow_incomplete_structs);
+static Type *parse_struct_type_specifier();
 static void parse_directive();
 static void parse_statement();
 static void parse_expression(int level);
@@ -200,7 +200,7 @@ static int get_type_inc_dec_size(Type *type) {
 }
 
 // Parse void, int, signed, unsigned, ... long, double, struct and typedef type names
-static Type *parse_type_specifier(int allow_incomplete_structs) {
+static Type *parse_type_specifier() {
     Type *type;
 
     int seen_signed = 0;
@@ -234,7 +234,7 @@ static Type *parse_type_specifier(int allow_incomplete_structs) {
     else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG);   next(); seen_long = 1; }
 
     else if (cur_token == TOK_STRUCT || cur_token == TOK_UNION)
-        type = parse_struct_type_specifier(allow_incomplete_structs);
+        type = parse_struct_type_specifier();
 
     else if (cur_token == TOK_TYPEDEF_TYPE) {
         type = dup_type(cur_lexer_type);
@@ -403,7 +403,7 @@ Type *parse_direct_declarator() {
 }
 
 Type *parse_type_name() {
-    return concat_types(parse_declarator(), parse_type_specifier(1));
+    return concat_types(parse_declarator(), parse_type_specifier());
 }
 
 // Allocate a new Struct
@@ -440,7 +440,7 @@ static Type *find_struct_or_union(char *identifier, int is_union) {
 }
 
 // Parse struct definitions and uses. Declarations aren't implemented.
-static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
+static Type *parse_struct_type_specifier() {
     // Parse a struct or union
 
     int is_union = cur_token == TOK_UNION;
@@ -486,7 +486,7 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
                 continue;
             }
 
-            Type *base_type = parse_type_specifier(1);
+            Type *base_type = parse_type_specifier();
             while (cur_token != TOK_SEMI) {
                 Type *type = concat_types(parse_declarator(), base_type);
 
@@ -514,26 +514,16 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
         Type *type = find_struct_or_union(identifier, is_union);
         if (type) return type; // Found a complete or incomplete struct
 
-        if (allow_incomplete_structs) {
-            // Didn't find a struct, but that's ok, create a incomplete one
-            // to be populated later when it's defined.
-            Type *type = new_struct(identifier);
-            Struct *s = type->struct_desc;
-            s->identifier = identifier;
-            s->is_incomplete = 1;
-            s->is_packed = is_packed;
-            s->is_union = is_union;
-            return type;
-        }
-        else
-            panic1s("Unknown struct %s", identifier);
+        // Didn't find a struct, but that's ok, create a incomplete one
+        // to be populated later when it's defined.
+        type = new_struct(identifier);
+        Struct *s = type->struct_desc;
+        s->identifier = identifier;
+        s->is_incomplete = 1;
+        s->is_packed = is_packed;
+        s->is_union = is_union;
+        return type;
     }
-}
-
-void complete_structs() {
-    // Ensure there are no incomplete structs
-    for (int i = 0; i < all_structs_count; i++)
-        if (all_structs[i]->is_incomplete) panic("There are incomplete structs");
 }
 
 // Parse "typedef struct struct_id typedef_id"
@@ -542,7 +532,7 @@ static void parse_typedef() {
 
     if (cur_token != TOK_STRUCT) panic("Typedefs are only implemented for structs");
 
-    Type *type = parse_struct_type_specifier(0);
+    Type *type = parse_struct_type_specifier();
     Struct *s = type->struct_desc;
 
     if (cur_token != TOK_IDENTIFIER) panic("Typedefs are only implemented for previously defined structs");
@@ -1098,6 +1088,9 @@ static void parse_declaration() {
     symbol->local_index = new_local_index();
 
     if (symbol->type->type == TYPE_STRUCT) {
+        if (symbol->type->struct_desc->is_incomplete)
+            panic("Attempt to use an incomplete struct");
+
         push_local_symbol(symbol);
         Value *src1 = pop();
         add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, src1, 0);
@@ -1127,7 +1120,7 @@ static void push_value_size_constant(Value *v) {
 static void parse_expression(int level) {
     // Parse any tokens that can be at the start of an expression
     if (cur_token_is_type()) {
-        base_type = parse_type_specifier(0);
+        base_type = parse_type_specifier();
         parse_expression(TOK_COMMA);
         base_type = 0;
     }
@@ -1789,7 +1782,7 @@ static void parse_statement() {
     }
 
     if (cur_token_is_type()) {
-        base_type = parse_type_specifier(0);
+        base_type = parse_type_specifier();
         if (cur_token == TOK_SEMI && base_type->type == TYPE_STRUCT)
             next();
         else
@@ -2019,10 +2012,14 @@ void parse() {
             int is_static = cur_token == TOK_STATIC;
             if (is_external || is_static) next();
 
-            Type *base_type = parse_type_specifier(0);
+            Type *base_type = parse_type_specifier();
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
+
+                if (base_type->type == TYPE_STRUCT && base_type->struct_desc->is_incomplete)
+                    panic("Attempt to use an incomplete struct");
+
                 Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
                 if (!cur_type_identifier) panic("Expected an identifier");
@@ -2117,7 +2114,7 @@ void parse() {
         }
 
         else if (cur_token == TOK_STRUCT) {
-            parse_type_specifier(0); // It's a struct declaration
+            parse_type_specifier();
             consume(TOK_SEMI, ";");
         }
 

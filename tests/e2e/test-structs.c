@@ -7,6 +7,8 @@ int verbose;
 int passes;
 int failures;
 
+struct s1; // Test declaration without definition
+
 struct s1 {
     int i;
 };
@@ -772,6 +774,14 @@ int test_scoped_struct_tags() {
     assert_int(3, s2.j, "Scoped struct tags s2");
 }
 
+int test_declaration_without_definition() {
+    struct s1; // Test declaration without definition
+
+    struct s1 {
+        int i;
+    };
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -802,6 +812,7 @@ int main(int argc, char **argv) {
     test_direct_structs();
     test_struct_long_double_temporary_bug();
     test_scoped_struct_tags();
+    test_declaration_without_definition();
 
     finalize();
 }
