@@ -88,11 +88,18 @@ typedef struct symbol {
     int is_enum;                // Enums are symbols with a value
 } Symbol;
 
+typedef struct tag {
+    Type *type;                 // Type
+    char *identifier;           // Identifier
+} Tag;
+
 typedef struct scope {
+    struct scope *parent;       // Parent scope, zero if it's the global scope
+    int max_count;              // Maximum amount of symbols or tags memory is allocated for
     Symbol **symbols;           // Symbol list
     int symbol_count;           // Count of symbols
-    int max_symbol_count;       // Maximum amount of symbols memory is acllocated for
-    struct scope *parent;       // Parent scope, zero if it's the global scope
+    Tag **tags;                 // Struct, union or enum tags
+    int tag_count;              // Count of tags
 } Scope;
 
 typedef struct function {
@@ -472,9 +479,6 @@ Value **vs_start;        // Value stack start
 Value **vs;              // Value stack current position
 Value *vtop;             // Value at the top of the stack
 
-Struct **all_structs;     // All structs defined globally. Local struct definitions isn't implemented.
-int all_structs_count;    // Number of structs, complete and incomplete
-
 Typedef **all_typedefs;   // All typedefs defined globally. Local typedef definitions isn't implemented.
 int all_typedefs_count;   // Number of typedefs
 
@@ -581,6 +585,10 @@ Scope *global_scope;
 void init_scopes();
 void enter_scope();
 void exit_scope();
+Symbol *new_symbol();
+Symbol *lookup_symbol(char *name, Scope *scope, int recurse);
+Tag *new_tag();
+Tag *lookup_tag(char *name, Scope *scope, int recurse);
 
 // types.c
 int print_type(void *f, Type *type);

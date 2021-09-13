@@ -12,6 +12,9 @@ static void parse_expression(int level);
 
 static Type *base_type;
 
+Struct **all_structs;     // All structs defined globally. Local struct definitions isn't implemented.
+int all_structs_count;    // Number of structs, complete and incomplete
+
 // Push a value to the stack
 static Value *push(Value *v) {
     *--vs = v;
@@ -119,31 +122,6 @@ static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *s
     push(v);
 
     return result;
-}
-
-static Symbol *new_symbol() {
-    if (cur_scope->symbol_count == cur_scope->max_symbol_count)
-        panic1d("Exceeded max symbol table size of %d symbols", cur_scope->max_symbol_count);
-
-    Symbol *symbol = malloc(sizeof(Symbol));
-    memset(symbol, 0, sizeof(Symbol));
-    cur_scope->symbols[cur_scope->symbol_count++] = symbol;
-    symbol->scope = cur_scope;
-
-    return symbol;
-}
-
-// Search for a symbol in a scope and recurse to parents if not found.
-// Returns zero if not found in any parents
-static Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
-    for (int i = 0; i < scope->symbol_count; i++) {
-        Symbol *symbol = scope->symbols[i];
-        if (!strcmp(symbol->identifier, name)) return symbol;
-    }
-
-    if (recurse && scope->parent) return lookup_symbol(name, scope->parent, recurse);
-
-    return 0;
 }
 
 // Returns destination type of an operation with two operands
@@ -429,21 +407,36 @@ Type *parse_type_name() {
 }
 
 // Allocate a new Struct
-static Struct *new_struct(int add_to_all_structs) {
+static Type *new_struct(char *tag_identifier) {
     Struct *s = malloc(sizeof(Struct));
-    if (add_to_all_structs) all_structs[all_structs_count++] = s;
+    if (tag_identifier != 0) all_structs[all_structs_count++] = s;
     s->members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
     memset(s->members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
 
-    return s;
+    Type *type = make_struct_type(s);
+
+    if (tag_identifier) {
+        Tag *tag = new_tag();
+        tag->identifier = tag_identifier;
+        tag->type = type;
+    }
+
+    return type;
 }
 
-// Search for a struct. Returns 0 if not found.
-static Struct *find_struct(char *identifier) {
-    for (int i = 0; i < all_structs_count; i++)
-        if (!strcmp(all_structs[i]->identifier, identifier))
-            return all_structs[i];
-    return 0;
+// Search for a struct tag. Returns 0 if not found.
+static Type *find_struct_or_union(char *identifier, int is_union) {
+    Tag *tag = lookup_tag(identifier, cur_scope, 1);
+
+    if (!tag) return 0;
+
+    if (tag->type->type == TYPE_STRUCT) {
+        if (tag->type->struct_desc->is_union != is_union)
+            panic("Tag %s is the wrong kind of tag");
+        return tag->type;
+    }
+    else
+        panic("Tag %s is the wrong kind of tag");
 }
 
 // Parse struct definitions and uses. Declarations aren't implemented.
@@ -476,10 +469,11 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
 
         consume(TOK_LCURLY, "{");
 
-        Struct *s = 0;
-        if (identifier) s = find_struct(identifier);
-        if (!s) s = new_struct(identifier != 0);
+        Type *type = 0;
+        if (identifier) type = find_struct_or_union(identifier, is_union);
+        if (!type) type = new_struct(identifier);
 
+        Struct *s = type->struct_desc;
         s->identifier = identifier;
         s->is_packed = is_packed;
         s->is_union = is_union;
@@ -511,25 +505,25 @@ static Type *parse_struct_type_specifier(int allow_incomplete_structs) {
         }
         consume(TOK_RCURLY, "}");
 
-        Type *type = make_struct_type(s);
         complete_struct(s);
         return type;
     }
     else {
         // Struct use
 
-        Struct *s = find_struct(identifier);
-        if (s) return make_struct_type(s); // Found a complete or incomplete struct
+        Type *type = find_struct_or_union(identifier, is_union);
+        if (type) return type; // Found a complete or incomplete struct
 
         if (allow_incomplete_structs) {
             // Didn't find a struct, but that's ok, create a incomplete one
             // to be populated later when it's defined.
-            s = new_struct(1);
+            Type *type = new_struct(identifier);
+            Struct *s = type->struct_desc;
             s->identifier = identifier;
             s->is_incomplete = 1;
             s->is_packed = is_packed;
             s->is_union = is_union;
-            return make_struct_type(s);
+            return type;
         }
         else
             panic1s("Unknown struct %s", identifier);
@@ -1796,7 +1790,10 @@ static void parse_statement() {
 
     if (cur_token_is_type()) {
         base_type = parse_type_specifier(0);
-        parse_expression(TOK_COMMA);
+        if (cur_token == TOK_SEMI && base_type->type == TYPE_STRUCT)
+            next();
+        else
+            parse_expression(TOK_COMMA);
     }
 
     else if (cur_token == TOK_SEMI) {

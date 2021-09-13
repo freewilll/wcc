@@ -744,6 +744,34 @@ int test_struct_long_double_temporary_bug() {
     assert_int(6, sld.s, "Long double/temporary bug 2");
 }
 
+struct gs { int i; };
+
+int test_scoped_struct_tags() {
+    struct gs s1;
+
+    s1.i = 1;
+    assert_int(1, s1.i, "Scoped struct tags gs");
+
+    struct s { int i; int j; };
+
+    struct s s2;
+
+    s2.i = 2; s2.j = 3;
+    assert_int(2, s2.i, "Scoped struct tags s2");
+    assert_int(3, s2.j, "Scoped struct tags s2");
+
+    {
+        struct s { int i; int j; int k; } s2;
+        s2.i = 4; s2.j = 5; s2.k = 6;
+        assert_int(4, s2.i, "Scoped struct tags s3");
+        assert_int(5, s2.j, "Scoped struct tags s3");
+        assert_int(6, s2.k, "Scoped struct tags s3");
+    }
+
+    assert_int(2, s2.i, "Scoped struct tags s2");
+    assert_int(3, s2.j, "Scoped struct tags s2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -773,6 +801,7 @@ int main(int argc, char **argv) {
     test_nested_structs_and_unions();
     test_direct_structs();
     test_struct_long_double_temporary_bug();
+    test_scoped_struct_tags();
 
     finalize();
 }
