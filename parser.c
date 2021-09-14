@@ -12,8 +12,10 @@ static void parse_expression(int level);
 
 static Type *base_type;
 
-StructOrUnion **all_structs_and_unions;     // All structs/unions defined globally.
-int all_structs_and_unions_count;    // Number of structs/unions, complete and incomplete
+int function_call_count; // Uniquely identify a function call within a function
+
+StructOrUnion **all_structs_and_unions;  // All structs/unions defined globally.
+int all_structs_and_unions_count;        // Number of structs/unions, complete and incomplete
 
 // Push a value to the stack
 static Value *push(Value *v) {
@@ -50,6 +52,7 @@ static void *pop_void() {
 static Value *load(Value *src1) {
     if (src1->is_constant) return src1;
     if (src1->vreg && !src1->is_lvalue) return src1;
+    if (src1->type->type == TYPE_STRUCT_OR_UNION) return src1;
 
     Value *dst = dup_value(src1);
     dst->vreg = new_vreg();
@@ -1296,12 +1299,10 @@ static void parse_expression(int level) {
                 type = dup_type(symbol->type->function->return_type);
 
                 // Function call
-                int function_call = function_call_count++;
                 next();
-                Value *src1 = new_value();
-                src1->int_value = function_call;
-                src1->is_constant = 1;
-                src1->type = new_type(TYPE_LONG);
+
+                int function_call = function_call_count++;
+                Value *src1 = make_function_call_value(function_call);
                 add_instruction(IR_START_CALL, 0, src1, 0);
                 int arg_count = 0;
                 int single_int_register_arg_count = 0;

@@ -19,6 +19,7 @@ char *make_temp_filename(char *template) {
 
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at) {
     if (start_at == COMPILE_START_AT_BEGINNING) {
+        process_struct_and_union_copies(function);
         reverse_function_argument_order(function);
         merge_consecutive_labels(function);
         renumber_labels(function);
@@ -93,6 +94,7 @@ static void compile_externals() {
 
 void compile(char *compiler_input_filename, char *compiler_output_filename) {
     compile_externals();
+    memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
     init_lexer(compiler_input_filename);
     parse();
 

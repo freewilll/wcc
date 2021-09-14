@@ -782,6 +782,43 @@ int test_declaration_without_definition() {
     };
 }
 
+int test_copy() {
+    struct { char  i;         } s011, s012; s011.i = 1;                         s012 = s011; assert_int(0, memcmp(&s011, &s012, sizeof(s011)), "Struct copy 1");
+    struct { short i;         } s021, s022; s021.i = 1;                         s022 = s021; assert_int(0, memcmp(&s021, &s022, sizeof(s021)), "Struct copy 2");
+    struct { char  i, j, k;   } s031, s032; s031.i = 1; s031.j = 2; s031.k = 3; s032 = s031; assert_int(0, memcmp(&s031, &s032, sizeof(s031)), "Struct copy 3");
+    struct { int   i;         } s041, s042; s041.i = 1;                         s042 = s041; assert_int(0, memcmp(&s041, &s042, sizeof(s041)), "Struct copy 4");
+    struct { short i, j, k;   } s061, s062; s061.i = 1; s061.j = 2; s061.k = 3; s062 = s061; assert_int(0, memcmp(&s061, &s062, sizeof(s061)), "Struct copy 6");
+    struct { long  i;         } s081, s082; s081.i = 1;                         s082 = s081; assert_int(0, memcmp(&s081, &s082, sizeof(s081)), "Struct copy 8");
+    struct { int   i, j, k;   } s121, s122; s121.i = 1; s121.j = 2; s121.k = 3; s122 = s121; assert_int(0, memcmp(&s121, &s122, sizeof(s061)), "Struct copy 12");
+    struct { long  i, j;      } s161, s162; s161.i = 1; s161.j = 2;             s162 = s161; assert_int(0, memcmp(&s161, &s162, sizeof(s161)), "Struct copy 16");
+    struct { long  i, j, k;   } s241, s242; s241.i = 1; s241.j = 2; s241.k = 3; s242 = s241; assert_int(0, memcmp(&s241, &s242, sizeof(s241)), "Struct copy 24");
+
+    // Size 15
+    struct { char i, j, k, l, m, n, o, p, q, r, s, t, u, v, w; } s151, s152;
+    s151.i = s151.k = s151.m = s151.o = s151.q = s151.s = s151.u = s151.w = 1;
+    s151.j = s151.l = s151.n = s151.p = s151.r = s151.t = s151.v          = 2;
+    s152 = s151;
+    assert_int(0, memcmp(&s151, &s152, sizeof(s151)), "Struct copy 15");
+
+    // Size 40, this tests the memcpy version
+    struct { long l1, l2, l3, l4, l5; } s401, s402;
+    s401.l1 = 1; s401.l2 = 2; s401.l3 = 3; s401.l4 = 4; s401.l5 = 5;
+    s402 = s401;
+    assert_int(0, memcmp(&s401, &s402, sizeof(s401)), "Struct copy 40");
+
+    // Copying of nested struct members
+    struct { int i; struct { int j, k; } s; } ns1, ns2;
+    ns1.i = -1;
+    ns1.s.j = 1;
+    ns1.s.k = 2;
+
+    ns2.i = -2;
+    ns2.s = ns1.s;
+    assert_int(0, memcmp(&ns1.s, &ns2.s, 8), "Struct member copy 1");
+    assert_int(-1, ns1.i, "Struct member copy 2");
+    assert_int(-2, ns2.i, "Struct member copy 3");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -813,6 +850,7 @@ int main(int argc, char **argv) {
     test_struct_long_double_temporary_bug();
     test_scoped_struct_tags();
     test_declaration_without_definition();
+    test_copy();
 
     finalize();
 }

@@ -329,3 +329,13 @@ void add_function_param_moves(Function *function) {
     free(stack_param_vregs);
     free(stack_index_remap);
 }
+
+Value *make_function_call_value(int function_call) {
+    Value *src1 = new_value();
+
+    src1->int_value = function_call;
+    src1->is_constant = 1;
+    src1->type = new_type(TYPE_LONG);
+
+    return src1;
+}

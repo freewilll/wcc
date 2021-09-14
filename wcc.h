@@ -485,7 +485,6 @@ int all_typedefs_count;   // Number of typedefs
 Tac *ir_start, *ir;               // intermediate representation for currently parsed function
 int vreg_count;                   // Virtual register count for currently parsed function
 int label_count;                  // Global label count, always growing
-int function_call_count;          // Uniquely identify a function call, always growing
 int cur_loop;                     // Current loop being parsed
 int loop_count;                   // Loop counter
 int stack_register_count;         // Spilled register count for current function that's undergoing register allocation
@@ -569,6 +568,7 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
+Symbol *memcpy_symbol;
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
 int new_vreg();
@@ -630,6 +630,7 @@ Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 void insert_instruction(Tac *ir, Tac *tac, int move_label);
 Tac *insert_instruction_after(Tac *ir, Tac *tac);
+Tac *insert_instruction_after_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2);
 Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
@@ -648,6 +649,7 @@ void move_long_doubles_to_the_stack(Function *function);
 void make_stack_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);
 void remove_unused_function_call_results(Function *function);
+void process_struct_and_union_copies(Function *function);
 
 // ssa.c
 enum {
@@ -692,6 +694,7 @@ void add_function_call_result_moves(Function *function);
 void add_function_return_moves(Function *function);
 void add_function_call_arg_moves(Function *function);
 void add_function_param_moves(Function *function);
+Value *make_function_call_value(int function_call);
 
 // regalloc.c
 int *int_arg_registers;

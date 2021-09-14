@@ -553,6 +553,21 @@ Tac *insert_instruction_after(Tac *ir, Tac *tac) {
     return tac;
 }
 
+Tac *insert_instruction_after_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2) {
+    Tac *tac = new_instruction(operation);
+    tac->dst = dst;
+    tac->src1 = src1;
+    tac->src2 = src2;
+
+    Tac *next = ir->next;
+    ir->next = tac;
+    tac->prev = ir;
+    tac->next = next;
+    if (next) next->prev = tac;
+
+    return tac;
+}
+
 // Delete an instruction inside a linked list. It cannot be the first instruction.
 Tac *delete_instruction(Tac *tac) {
     if (!tac->prev) panic("Attemp to delete the first instruction");
@@ -794,4 +809,119 @@ void remove_unused_function_call_results(Function *function) {
     }
 
     free(used_vregs);
+}
+
+static Value *void_insert_address_of_instruction(Tac **ir, Value *src) {
+    Value *v = new_value();
+
+    v->vreg = new_vreg();
+    v->type = make_pointer_to_void();
+    *ir = insert_instruction_after_from_operation(*ir, IR_ADDRESS_OF, v, src, 0);
+
+    return v;
+}
+
+static void *insert_arg_instruction(Tac **ir, Value *function_call_value, Value *v, int int_arg_index) {
+    Value *arg_value = dup_value(function_call_value);
+    arg_value->function_call_arg_index = int_arg_index;
+    arg_value->function_call_int_register_arg_index = int_arg_index;
+    arg_value->function_call_sse_register_arg_index = -1;
+    *ir = insert_instruction_after_from_operation(*ir, IR_ARG, 0, arg_value, v);
+}
+
+// Add memcpy calls for struct/union -> struct/union copies
+Tac *add_struct_or_union_memcpy(Tac *ir, int *function_call_count) {
+    Value *dst = ir->dst;
+    Value *src1 = ir->src1;
+
+    ir->operation = IR_NOP;
+    ir->dst = 0;
+    ir->src1 = 0;
+
+    // Add start call instruction
+    Value *call_value = make_function_call_value((*function_call_count)++);
+    ir = insert_instruction_after_from_operation(ir, IR_START_CALL, 0, call_value, 0);
+
+    // Load of addresses of src1, dst & make size value
+    Value *src1_value = void_insert_address_of_instruction(&ir, src1);
+    Value *dst_value = void_insert_address_of_instruction(&ir, dst);
+    Value *size_value = new_integral_constant(TYPE_LONG, get_type_size(dst->type));
+
+    // Add arg instructions
+    insert_arg_instruction(&ir, call_value, dst_value, 0);
+    insert_arg_instruction(&ir, call_value, src1_value, 1);
+    insert_arg_instruction(&ir, call_value, size_value, 2);
+
+    // Add call instruction
+    Value *function_value = new_value();
+    function_value->int_value = call_value->int_value;
+    function_value->function_symbol = memcpy_symbol;
+    function_value->function_call_arg_push_count = 0;
+    function_value->function_call_sse_register_arg_count = 0;
+    call_value->function_call_arg_push_count = 0;
+    call_value->function_call_arg_stack_padding = 0;
+    ir = insert_instruction_after_from_operation(ir, IR_CALL, 0, function_value, 0);
+
+    // Add end call instruction
+    ir = insert_instruction_after_from_operation(ir, IR_END_CALL, 0, call_value, 0);
+
+    return ir;
+}
+
+// Copy struct/unions using registers
+static Tac *add_struct_or_union_register_copy(Tac *ir) {
+    Value *dst = ir->dst;
+    Value *src1 = ir->src1;
+
+    ir->operation = IR_NOP;
+    ir->dst = 0;
+    ir->src1 = 0;
+
+    int size = get_type_size(dst->type);
+    int dst_offset = dst->offset;
+    int src1_offset = src1->offset;
+
+    // Do moves of size 8, 4, 2, 1 in order until there are no moves left
+    for (int i = 3; i >= 0; i -= 1) {
+        int step = 1 << i;
+
+        while (size >= step) {
+            Value *temp_value = new_value();
+            temp_value->type = new_type(TYPE_CHAR + i);
+            temp_value->vreg = new_vreg();
+
+            Value *offsetted_dst = dup_value(dst);
+            offsetted_dst->offset = dst_offset;
+            offsetted_dst->type = temp_value->type;
+            Value *offsetted_src1 = dup_value(src1);
+            offsetted_src1->offset = src1_offset;
+            offsetted_src1->type = temp_value->type;
+            ir = insert_instruction_after_from_operation(ir, IR_MOVE, temp_value, offsetted_src1, 0);
+            ir = insert_instruction_after_from_operation(ir, IR_MOVE, offsetted_dst, temp_value, 0);
+
+            size -= step;
+            dst_offset += step;
+            src1_offset += step;
+        }
+    }
+
+    return ir;
+}
+
+// Add memcpy calls for struct/union -> struct/union copies
+void process_struct_and_union_copies(Function *function) {
+    int function_call_count = make_function_call_count(function);
+
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation != IR_MOVE) continue;
+        if (ir->src1->type->type != TYPE_STRUCT_OR_UNION) continue;
+        if (ir->dst->type->type != ir->src1->type->type) panic("Mismatched struct/union copy type");
+
+        // For structs/unions of size < 32, use register copies to shift the data,
+        // otherwise, memcpy
+        if (get_type_size(ir->dst->type) > 32)
+            ir = add_struct_or_union_memcpy(ir, &function_call_count);
+        else
+            ir = add_struct_or_union_register_copy(ir);
+    }
 }
