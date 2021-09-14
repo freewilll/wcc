@@ -136,7 +136,7 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     Type *result;
 
     if (src1_type->type == TYPE_STRUCT_OR_UNION || src2_type->type == TYPE_STRUCT_OR_UNION)
-        panic("Operations on structs and unions not implemented");
+        panic("Unexpected call to operation_type() on a structs/union");
 
     // If it's a ternary and one is a pointer and the other a pointer to void, then the result is a pointer to void.
     else if (src1_type->type == TYPE_PTR && is_pointer_to_void(src2->type)) return for_ternary ? src2->type : src1->type;
