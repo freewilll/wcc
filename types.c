@@ -24,15 +24,20 @@ int print_type(void *f, Type *type) {
     if (type->is_volatile) len += fprintf(f, "volatile ");
     if (type->is_unsigned) len += fprintf(f, "unsigned ");
 
-         if (tt == TYPE_VOID)        len += fprintf(f, "void");
-    else if (tt == TYPE_CHAR)        len += fprintf(f, "char");
-    else if (tt == TYPE_INT)         len += fprintf(f, "int");
-    else if (tt == TYPE_SHORT)       len += fprintf(f, "short");
-    else if (tt == TYPE_LONG)        len += fprintf(f, "long");
-    else if (tt == TYPE_FLOAT)       len += fprintf(f, "float");
-    else if (tt == TYPE_DOUBLE)      len += fprintf(f, "double");
-    else if (tt == TYPE_LONG_DOUBLE) len += fprintf(f, "long double");
-    else if (tt == TYPE_STRUCT)      len += fprintf(f, "struct %s", t->struct_desc->identifier);
+         if (tt == TYPE_VOID)             len += fprintf(f, "void");
+    else if (tt == TYPE_CHAR)             len += fprintf(f, "char");
+    else if (tt == TYPE_INT)              len += fprintf(f, "int");
+    else if (tt == TYPE_SHORT)            len += fprintf(f, "short");
+    else if (tt == TYPE_LONG)             len += fprintf(f, "long");
+    else if (tt == TYPE_FLOAT)            len += fprintf(f, "float");
+    else if (tt == TYPE_DOUBLE)           len += fprintf(f, "double");
+    else if (tt == TYPE_LONG_DOUBLE)      len += fprintf(f, "long double");
+    else if (tt == TYPE_STRUCT_OR_UNION)  {
+        if (type->struct_or_union_desc->is_union)
+            len += fprintf(f, "union %s", t->struct_or_union_desc->identifier);
+        else
+            len += fprintf(f, "struct %s", t->struct_or_union_desc->identifier);
+    }
     else len += fprintf(f, "unknown tt %d", tt);
 
     return len;
@@ -65,14 +70,22 @@ char *sprint_type_in_english(Type *type) {
             else buffer += sprintf(buffer, "array[%d] of ", type->array_size);
         }
 
-        else if (tt == TYPE_STRUCT) {
-            if (type->struct_desc->identifier)
-                buffer += sprintf(buffer, "struct %s {", type->struct_desc->identifier);
-            else
-                buffer += sprintf(buffer, "struct {");
+        else if (tt == TYPE_STRUCT_OR_UNION) {
+            if (type->struct_or_union_desc->identifier) {
+                if (type->struct_or_union_desc->is_union)
+                    buffer += sprintf(buffer, "union %s {", type->struct_or_union_desc->identifier);
+                else
+                    buffer += sprintf(buffer, "struct %s {", type->struct_or_union_desc->identifier);
+            }
+            else {
+                if (type->struct_or_union_desc->is_union)
+                    buffer += sprintf(buffer, "union {");
+                else
+                    buffer += sprintf(buffer, "struct {");
+            }
 
             int first = 1;
-            for (StructMember **pmember = type->struct_desc->members; *pmember; pmember++) {
+            for (StructOrUnionMember **pmember = type->struct_or_union_desc->members; *pmember; pmember++) {
                 if (!first) buffer += sprintf(buffer, ", "); else first = 0;
                 char *member_english = sprint_type_in_english((*pmember)->type);
                 buffer += sprintf(buffer, "%s as %s", (*pmember)->identifier, member_english);
@@ -108,7 +121,7 @@ Type *new_type(int type) {
     result->type = type;
     result->is_unsigned = 0;
     result->target = 0;
-    result->struct_desc = 0;
+    result->struct_or_union_desc = 0;
     result->function = 0;
     result->array_size = 0;
     result->is_const = 0;
@@ -117,16 +130,16 @@ Type *new_type(int type) {
     return result;
 }
 
-static StructMember *dup_struct_member(StructMember *src) {
-    StructMember *dst = malloc(sizeof(StructMember));
+static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src) {
+    StructOrUnionMember *dst = malloc(sizeof(StructOrUnionMember));
     dst->identifier = strdup(src->identifier);
     dst->type = dup_type(src->type);
     dst->offset = src->offset;
     return dst;
 }
 
-Struct *dup_struct(Struct *src) {
-    Struct *dst = malloc(sizeof(Struct));
+StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
+    StructOrUnion *dst = malloc(sizeof(StructOrUnion));
 
     dst->identifier    = src->identifier ? strdup(src->identifier) : 0;
     dst->size          = src->size;
@@ -137,11 +150,11 @@ Struct *dup_struct(Struct *src) {
     int len;
     for (len = 0; src->members[len]; len++);
 
-    dst->members = malloc(sizeof(StructMember *) * (len + 1));
-    memset(dst->members, 0, sizeof(StructMember *) * (len + 1));
+    dst->members = malloc(sizeof(StructOrUnionMember *) * (len + 1));
+    memset(dst->members, 0, sizeof(StructOrUnionMember *) * (len + 1));
 
     for (int i = 0; src->members[i]; i++)
-        dst->members[i] = dup_struct_member(src->members[i]);
+        dst->members[i] = dup_struct_or_union_member(src->members[i]);
 
     return dst;
 }
@@ -150,14 +163,14 @@ Type *dup_type(Type *src) {
     if (!src) return 0;
 
     Type *dst = malloc(sizeof(Type));
-    dst->type           = src->type;
-    dst->is_unsigned    = src->is_unsigned;
-    dst->target         = dup_type(src->target);
-    dst->struct_desc    = src->struct_desc; // Note: not making a copy
-    dst->function       = src->function;    // Note: not making a copy
-    dst->array_size     = src->array_size;
-    dst->is_const       = src->is_const;
-    dst->is_volatile    = src->is_volatile;
+    dst->type                    = src->type;
+    dst->is_unsigned             = src->is_unsigned;
+    dst->target                  = dup_type(src->target);
+    dst->struct_or_union_desc    = src->struct_or_union_desc; // Note: not making a copy
+    dst->function                = src->function;    // Note: not making a copy
+    dst->array_size              = src->array_size;
+    dst->is_const                = src->is_const;
+    dst->is_volatile             = src->is_volatile;
 
     return dst;
 }
@@ -240,17 +253,17 @@ int get_type_size(Type *type) {
     int t;
 
     t = type->type;
-         if (t == TYPE_VOID)        return sizeof(void);
-    else if (t == TYPE_CHAR)        return sizeof(char);
-    else if (t == TYPE_SHORT)       return sizeof(short);
-    else if (t == TYPE_INT)         return sizeof(int);
-    else if (t == TYPE_LONG)        return sizeof(long);
-    else if (t == TYPE_FLOAT)       return sizeof(float);
-    else if (t == TYPE_DOUBLE)      return sizeof(double);
-    else if (t == TYPE_LONG_DOUBLE) return sizeof(long double);
-    else if (t == TYPE_PTR)         return sizeof(void *);
-    else if (t == TYPE_STRUCT)      return type->struct_desc->size;
-    else if (t == TYPE_ARRAY)       return type->array_size * get_type_size(type->target);
+         if (t == TYPE_VOID)            return sizeof(void);
+    else if (t == TYPE_CHAR)            return sizeof(char);
+    else if (t == TYPE_SHORT)           return sizeof(short);
+    else if (t == TYPE_INT)             return sizeof(int);
+    else if (t == TYPE_LONG)            return sizeof(long);
+    else if (t == TYPE_FLOAT)           return sizeof(float);
+    else if (t == TYPE_DOUBLE)          return sizeof(double);
+    else if (t == TYPE_LONG_DOUBLE)     return sizeof(long double);
+    else if (t == TYPE_PTR)             return sizeof(void *);
+    else if (t == TYPE_STRUCT_OR_UNION) return type->struct_or_union_desc->size;
+    else if (t == TYPE_ARRAY)           return type->array_size * get_type_size(type->target);
 
     panic1d("sizeof unknown type %d", t);
 }
@@ -269,10 +282,10 @@ int get_type_alignment(Type *type) {
     else if (t == TYPE_DOUBLE)       return 8;
     else if (t == TYPE_LONG_DOUBLE)  return 16;
     else if (t == TYPE_ARRAY)        return get_type_alignment(type->target);
-    else if (t == TYPE_STRUCT) {
+    else if (t == TYPE_STRUCT_OR_UNION) {
         // The alignment of a struct is the max alignment of all members
         int max = 0;
-        for (StructMember **pmember = type->struct_desc->members; *pmember; pmember++) {
+        for (StructOrUnionMember **pmember = type->struct_or_union_desc->members; *pmember; pmember++) {
             int alignment = get_type_alignment((*pmember)->type);
             if (alignment > max) max = alignment;
         }
@@ -309,33 +322,33 @@ int is_integer_operation_result_unsigned(Type *src1, Type *src2) {
     return is_insigned;
 }
 
-Type *make_struct_type(Struct *s) {
-    Type *type = new_type(TYPE_STRUCT);
-    type->struct_desc = s;
+Type *make_struct_or_union_type(StructOrUnion *s) {
+    Type *type = new_type(TYPE_STRUCT_OR_UNION);
+    type->struct_or_union_desc = s;
 
     return type;
 }
 
-int recursive_complete_struct(Struct *s, int offset, int is_root) {
+int recursive_complete_struct_or_union(StructOrUnion *s, int offset, int is_root) {
     offset = 0;
 
     int initial_offset = offset;
     int max_size = 0;
     int max_alignment = 0;
 
-    for (StructMember **pmember = s->members; *pmember; pmember++) {
-        StructMember *member = *pmember;
+    for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) {
+        StructOrUnionMember *member = *pmember;
         int size;
 
         int alignment = s->is_packed ? 1 : get_type_alignment(member->type);
         if (alignment > max_alignment) max_alignment = alignment;
         offset = ((offset + alignment  - 1) & (~(alignment - 1)));
 
-        if (member->type->type == TYPE_STRUCT) {
+        if (member->type->type == TYPE_STRUCT_OR_UNION) {
             // Duplicate the structs, since the offset will be set and otherwise
             // would end up to a reused struct having invalid offsets
-            member->type->struct_desc = dup_struct(member->type->struct_desc);
-            size = recursive_complete_struct(member->type->struct_desc, offset, 0);
+            member->type->struct_or_union_desc = dup_struct_or_union(member->type->struct_or_union_desc);
+            size = recursive_complete_struct_or_union(member->type->struct_or_union_desc, offset, 0);
         }
         else {
             size = get_type_size(member->type);
@@ -366,6 +379,6 @@ int recursive_complete_struct(Struct *s, int offset, int is_root) {
     return size;
 }
 
-void complete_struct(Struct *s) {
-    recursive_complete_struct(s, 0, 1);
+void complete_struct_or_union(StructOrUnion *s) {
+    recursive_complete_struct_or_union(s, 0, 1);
 }

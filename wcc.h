@@ -73,7 +73,7 @@ typedef struct type {
     int is_const;
     int is_volatile;
     struct type *target;
-    struct struct_desc *struct_desc;
+    struct struct_or_union_desc *struct_or_union_desc;
     struct function *function;
 } Type;
 
@@ -204,22 +204,22 @@ typedef struct tac_interval {
     Tac *end;
 } TacInterval;
 
-// Struct member
-typedef struct struct_member {
+// Struct/union member
+typedef struct struct_or_union_member {
     char *identifier;
     Type *type;
     int offset;
-} StructMember;
+} StructOrUnionMember;
 
 // Struct & union description
-typedef struct struct_desc {
+typedef struct struct_or_union_desc {
     char *identifier;
     int size;
     int is_incomplete;          // Set to 1 if the struct has been used in a member but not yet declared
     int is_packed;
     int is_union;
-    struct struct_member **members;
-} Struct;
+    struct struct_or_union_member **members;
+} StructOrUnion;
 
 typedef struct typedef_desc {
     char *identifier;
@@ -227,7 +227,7 @@ typedef struct typedef_desc {
 } Typedef;
 
 enum {
-    MAX_STRUCTS                   = 1024,
+    MAX_STRUCTS_AND_UNIONS        = 1024,
     MAX_TYPEDEFS                  = 1024,
     MAX_STRUCT_MEMBERS            = 1024,
     MAX_INPUT_SIZE                = 10485760,
@@ -342,18 +342,18 @@ enum {
 };
 
 enum {
-    TYPE_VOID         = 1,
-    TYPE_CHAR         = 2,
-    TYPE_SHORT        = 3,
-    TYPE_INT          = 4,
-    TYPE_LONG         = 5,
-    TYPE_FLOAT        = 6,
-    TYPE_DOUBLE       = 7,
-    TYPE_LONG_DOUBLE  = 8,
-    TYPE_PTR          = 9,
-    TYPE_ARRAY        = 10,
-    TYPE_STRUCT       = 11,
-    TYPE_FUNCTION     = 12
+    TYPE_VOID            = 1,
+    TYPE_CHAR            = 2,
+    TYPE_SHORT           = 3,
+    TYPE_INT             = 4,
+    TYPE_LONG            = 5,
+    TYPE_FLOAT           = 6,
+    TYPE_DOUBLE          = 7,
+    TYPE_LONG_DOUBLE     = 8,
+    TYPE_PTR             = 9,
+    TYPE_ARRAY           = 10,
+    TYPE_STRUCT_OR_UNION = 11,
+    TYPE_FUNCTION        = 12
 };
 
 // Intermediate representation operations
@@ -593,7 +593,7 @@ Tag *lookup_tag(char *name, Scope *scope, int recurse);
 int print_type(void *f, Type *type);
 char *sprint_type_in_english(Type *type);
 Type *new_type(int type);
-Struct *dup_struct(Struct *src);
+StructOrUnion *dup_struct_or_union(StructOrUnion *src);
 Type *dup_type(Type *src);
 Type *make_pointer(Type *src);
 Type *make_pointer_to_void();
@@ -615,8 +615,8 @@ int get_type_alignment(Type *type);
 int type_eq(Type *type1, Type *type2);
 int types_are_compabible(Type *type1, Type *type2);
 int is_integer_operation_result_unsigned(Type *src1, Type *src2);
-Type *make_struct_type(Struct *s);
-void complete_struct(Struct *s);
+Type *make_struct_or_union_type(StructOrUnion *s);
+void complete_struct_or_union(StructOrUnion *s);
 
 // ir.c
 void init_value(Value *v);

@@ -635,9 +635,9 @@ void allocate_value_vregs(Function *function) {
         if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
 
         // Structs and unions already on the stack are left on the stack
-        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_STRUCT && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
-        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_STRUCT && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
-        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_STRUCT && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
+        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_STRUCT_OR_UNION && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
+        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_STRUCT_OR_UNION && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
+        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_STRUCT_OR_UNION && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
     }
 
     for (int i = 1; i <= function->local_symbol_count; i++) {

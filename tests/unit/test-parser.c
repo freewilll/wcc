@@ -181,6 +181,10 @@ int test_type_parsing() {
     run_lexer("struct x {int (*x)[1];}",         "struct x {x as pointer to array[1] of int}");
     run_lexer("struct x {int (*x)();}",          "struct x {x as pointer to function() returning int}");
 
+    // Unions
+    run_lexer("union x",                        "union x {}");
+    run_lexer("union {int x;}",                 "union {x as int}");
+
     // Function parameters
     run_lexer("void x(void)",                   "function(void) returning void");
     run_lexer("void x(int)",                    "function(int) returning void");

@@ -5,15 +5,15 @@
 #include "wcc.h"
 
 static Type *integer_promote_type(Type *type);
-static Type *parse_struct_type_specifier();
+static Type *parse_struct_or_union_type_specifier();
 static void parse_directive();
 static void parse_statement();
 static void parse_expression(int level);
 
 static Type *base_type;
 
-Struct **all_structs;     // All structs defined globally. Local struct definitions isn't implemented.
-int all_structs_count;    // Number of structs, complete and incomplete
+StructOrUnion **all_structs_and_unions;     // All structs/unions defined globally.
+int all_structs_and_unions_count;    // Number of structs/unions, complete and incomplete
 
 // Push a value to the stack
 static Value *push(Value *v) {
@@ -55,14 +55,14 @@ static Value *load(Value *src1) {
     dst->vreg = new_vreg();
     dst->is_lvalue = 0;
 
-    // Ensure an offset read from a struct isn't persisted into a register which might
+    // Ensure an offset read from a struct/union isn't persisted into a register which might
     // get moved back onto a stack, e.g. for long doubles
     dst->offset = 0;
 
     if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
         if (src1->type->type == TYPE_VOID) panic("Cannot dereference a *void");
-        if (src1->type->type == TYPE_STRUCT) panic("Cannot dereference a pointer to a struct");
+        if (src1->type->type == TYPE_STRUCT_OR_UNION) panic("Cannot dereference a pointer to a struct/union");
 
         src1 = dup_value(src1);
         src1->type = make_pointer(src1->type);
@@ -132,7 +132,8 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
 
     Type *result;
 
-    if (src1_type->type == TYPE_STRUCT || src2_type->type == TYPE_STRUCT) panic("Operations on structs not implemented");
+    if (src1_type->type == TYPE_STRUCT_OR_UNION || src2_type->type == TYPE_STRUCT_OR_UNION)
+        panic("Operations on structs and unions not implemented");
 
     // If it's a ternary and one is a pointer and the other a pointer to void, then the result is a pointer to void.
     else if (src1_type->type == TYPE_PTR && is_pointer_to_void(src2->type)) return for_ternary ? src2->type : src1->type;
@@ -234,7 +235,7 @@ static Type *parse_type_specifier() {
     else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG);   next(); seen_long = 1; }
 
     else if (cur_token == TOK_STRUCT || cur_token == TOK_UNION)
-        type = parse_struct_type_specifier();
+        type = parse_struct_or_union_type_specifier();
 
     else if (cur_token == TOK_TYPEDEF_TYPE) {
         type = dup_type(cur_lexer_type);
@@ -328,7 +329,8 @@ static Type *parse_function(Type *return_type) {
 
         if (cur_token_is_type()) {
             Type *type = parse_type_name();
-            if (type->type == TYPE_STRUCT) panic("Direct usage of struct & union variables not implemented");
+            if (type->type == TYPE_STRUCT_OR_UNION)
+                panic("Direct usage of struct and union variables not implemented");
 
             Symbol *param_symbol = new_symbol();
             param_symbol->type = dup_type(type);
@@ -406,14 +408,14 @@ Type *parse_type_name() {
     return concat_types(parse_declarator(), parse_type_specifier());
 }
 
-// Allocate a new Struct
-static Type *new_struct(char *tag_identifier) {
-    Struct *s = malloc(sizeof(Struct));
-    if (tag_identifier != 0) all_structs[all_structs_count++] = s;
-    s->members = malloc(sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
-    memset(s->members, 0, sizeof(StructMember *) * MAX_STRUCT_MEMBERS);
+// Allocate a new StructOrUnion
+static Type *new_struct_or_union(char *tag_identifier) {
+    StructOrUnion *s = malloc(sizeof(StructOrUnion));
+    if (tag_identifier != 0) all_structs_and_unions[all_structs_and_unions_count++] = s;
+    s->members = malloc(sizeof(StructOrUnionMember *) * MAX_STRUCT_MEMBERS);
+    memset(s->members, 0, sizeof(StructOrUnionMember *) * MAX_STRUCT_MEMBERS);
 
-    Type *type = make_struct_type(s);
+    Type *type = make_struct_or_union_type(s);
 
     if (tag_identifier) {
         Tag *tag = new_tag();
@@ -430,8 +432,8 @@ static Type *find_struct_or_union(char *identifier, int is_union) {
 
     if (!tag) return 0;
 
-    if (tag->type->type == TYPE_STRUCT) {
-        if (tag->type->struct_desc->is_union != is_union)
+    if (tag->type->type == TYPE_STRUCT_OR_UNION) {
+        if (tag->type->struct_or_union_desc->is_union != is_union)
             panic("Tag %s is the wrong kind of tag");
         return tag->type;
     }
@@ -440,7 +442,7 @@ static Type *find_struct_or_union(char *identifier, int is_union) {
 }
 
 // Parse struct definitions and uses. Declarations aren't implemented.
-static Type *parse_struct_type_specifier() {
+static Type *parse_struct_or_union_type_specifier() {
     // Parse a struct or union
 
     int is_union = cur_token == TOK_UNION;
@@ -465,15 +467,15 @@ static Type *parse_struct_type_specifier() {
     }
 
     if (cur_token == TOK_LCURLY) {
-        // Struct definition
+        // Struct/union definition
 
         consume(TOK_LCURLY, "{");
 
         Type *type = 0;
         if (identifier) type = find_struct_or_union(identifier, is_union);
-        if (!type) type = new_struct(identifier);
+        if (!type) type = new_struct_or_union(identifier);
 
-        Struct *s = type->struct_desc;
+        StructOrUnion *s = type->struct_or_union_desc;
         s->identifier = identifier;
         s->is_packed = is_packed;
         s->is_union = is_union;
@@ -490,8 +492,8 @@ static Type *parse_struct_type_specifier() {
             while (cur_token != TOK_SEMI) {
                 Type *type = concat_types(parse_declarator(), base_type);
 
-                StructMember *member = malloc(sizeof(StructMember));
-                memset(member, 0, sizeof(StructMember));
+                StructOrUnionMember *member = malloc(sizeof(StructOrUnionMember));
+                memset(member, 0, sizeof(StructOrUnionMember));
                 member->identifier = cur_identifier;
                 member->type = dup_type(type);
                 s->members[member_count++] = member;
@@ -505,19 +507,19 @@ static Type *parse_struct_type_specifier() {
         }
         consume(TOK_RCURLY, "}");
 
-        complete_struct(s);
+        complete_struct_or_union(s);
         return type;
     }
     else {
-        // Struct use
+        // Struct/union use
 
         Type *type = find_struct_or_union(identifier, is_union);
         if (type) return type; // Found a complete or incomplete struct
 
         // Didn't find a struct, but that's ok, create a incomplete one
         // to be populated later when it's defined.
-        type = new_struct(identifier);
-        Struct *s = type->struct_desc;
+        type = new_struct_or_union(identifier);
+        StructOrUnion *s = type->struct_or_union_desc;
         s->identifier = identifier;
         s->is_incomplete = 1;
         s->is_packed = is_packed;
@@ -532,8 +534,8 @@ static void parse_typedef() {
 
     if (cur_token != TOK_STRUCT) panic("Typedefs are only implemented for structs");
 
-    Type *type = parse_struct_type_specifier();
-    Struct *s = type->struct_desc;
+    Type *type = parse_struct_or_union_type_specifier();
+    StructOrUnion *s = type->struct_or_union_desc;
 
     if (cur_token != TOK_IDENTIFIER) panic("Typedefs are only implemented for previously defined structs");
 
@@ -542,7 +544,7 @@ static void parse_typedef() {
     Typedef *t = malloc(sizeof(Typedef));
     memset(t, 0, sizeof(Typedef));
     t->identifier = cur_identifier;
-    t->struct_type = make_struct_type(s);
+    t->struct_type = make_struct_or_union_type(s);
     all_typedefs[all_typedefs_count++] = t;
 
     next();
@@ -564,15 +566,15 @@ static void indirect() {
 }
 
 // Search for a struct member. Panics if it doesn't exist
-static StructMember *lookup_struct_member(Struct *struct_desc, char *identifier) {
-    StructMember **pmember = struct_desc->members;
+static StructOrUnionMember *lookup_struct_or_union_member(StructOrUnion *struct_or_union_desc, char *identifier) {
+    StructOrUnionMember **pmember = struct_or_union_desc->members;
 
     while (*pmember) {
         if (!strcmp((*pmember)->identifier, identifier)) return *pmember;
         pmember++;
     }
 
-    panic2s("Unknown member %s in struct %s\n", identifier, struct_desc->identifier);
+    panic2s("Unknown member %s in struct %s\n", identifier, struct_or_union_desc->identifier);
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
@@ -1087,9 +1089,9 @@ static void parse_declaration() {
     symbol->identifier = cur_type_identifier;
     symbol->local_index = new_local_index();
 
-    if (symbol->type->type == TYPE_STRUCT) {
-        if (symbol->type->struct_desc->is_incomplete)
-            panic("Attempt to use an incomplete struct");
+    if (symbol->type->type == TYPE_STRUCT_OR_UNION) {
+        if (symbol->type->struct_or_union_desc->is_incomplete)
+            panic("Attempt to use an incomplete struct or union");
 
         push_local_symbol(symbol);
         Value *src1 = pop();
@@ -1469,9 +1471,9 @@ static void parse_expression(int level) {
 
         else if (cur_token == TOK_DOT || cur_token == TOK_ARROW) {
             if (cur_token == TOK_DOT) {
-                // Struct member lookup
+                // Struct/union member lookup
 
-                if (vtop->type->type != TYPE_STRUCT) panic("Cannot use . on a non-struct");
+                if (vtop->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
                 if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
 
                 if (vtop->vreg) {
@@ -1486,8 +1488,8 @@ static void parse_expression(int level) {
                 next();
                 consume(TOK_IDENTIFIER, "identifier");
 
-                Struct *str = vtop->type->struct_desc;
-                StructMember *member = lookup_struct_member(str, cur_identifier);
+                StructOrUnion *str = vtop->type->struct_or_union_desc;
+                StructOrUnionMember *member = lookup_struct_or_union_member(str, cur_identifier);
 
                 vtop->type = dup_type(member->type);
                 vtop->offset += member->offset;
@@ -1495,13 +1497,13 @@ static void parse_expression(int level) {
             }
             else {
                 if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
-                if (vtop->type->target->type != TYPE_STRUCT) panic("Cannot use -> on a pointer to a non-struct");
+                if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) panic("Can only use -> on a pointer to a struct or union");
 
                 next();
                 consume(TOK_IDENTIFIER, "identifier");
 
-                Struct *str = vtop->type->target->struct_desc;
-                StructMember *member = lookup_struct_member(str, cur_identifier);
+                StructOrUnion *str = vtop->type->target->struct_or_union_desc;
+                StructOrUnionMember *member = lookup_struct_or_union_member(str, cur_identifier);
                 indirect();
 
                 vtop->type = dup_type(member->type);
@@ -1783,7 +1785,7 @@ static void parse_statement() {
 
     if (cur_token_is_type()) {
         base_type = parse_type_specifier();
-        if (cur_token == TOK_SEMI && base_type->type == TYPE_STRUCT)
+        if (cur_token == TOK_SEMI && base_type->type == TYPE_STRUCT_OR_UNION)
             next();
         else
             parse_expression(TOK_COMMA);
@@ -2017,8 +2019,8 @@ void parse() {
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
 
-                if (base_type->type == TYPE_STRUCT && base_type->struct_desc->is_incomplete)
-                    panic("Attempt to use an incomplete struct");
+                if (base_type->type == TYPE_STRUCT_OR_UNION && base_type->struct_or_union_desc->is_incomplete)
+                    panic("Attempt to use an incomplete struct or union");
 
                 Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
@@ -2150,8 +2152,8 @@ void init_parser() {
     string_literals = malloc(sizeof(char *) * MAX_STRING_LITERALS);
     string_literal_count = 0;
 
-    all_structs = malloc(sizeof(struct struct_desc *) * MAX_STRUCTS);
-    all_structs_count = 0;
+    all_structs_and_unions = malloc(sizeof(struct struct_or_union_desc *) * MAX_STRUCTS_AND_UNIONS);
+    all_structs_and_unions_count = 0;
 
     all_typedefs = malloc(sizeof(struct typedef_desc *) * MAX_TYPEDEFS);
     all_typedefs_count = 0;
