@@ -33,7 +33,7 @@ int print_type(void *f, Type *type) {
     else if (tt == TYPE_DOUBLE)           len += fprintf(f, "double");
     else if (tt == TYPE_LONG_DOUBLE)      len += fprintf(f, "long double");
     else if (tt == TYPE_STRUCT_OR_UNION)  {
-        if (type->struct_or_union_desc->is_union)
+        if (t->struct_or_union_desc->is_union)
             len += fprintf(f, "union %s", t->struct_or_union_desc->identifier);
         else
             len += fprintf(f, "struct %s", t->struct_or_union_desc->identifier);
