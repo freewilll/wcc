@@ -13,6 +13,8 @@ struct s1 {
     int i;
 };
 
+struct s1 *pgs1;
+
 struct s2 {
     int    i1;
     long   l1;
@@ -24,8 +26,6 @@ struct ns1 {
     int i, j;
     struct s1 *s1;
 };
-
-struct s1 *gs1;
 
 struct ns2 {
     struct ns1 *s;
@@ -142,6 +142,8 @@ struct cfs {
     unsigned int   ui;
     unsigned long  ul;
 };
+
+struct cfs gcfs;
 
 struct opi {
     char c, *pc;
@@ -468,8 +470,8 @@ void test_struct_double_indirect_assign_to_global() {
     ns1->s1 = s1;
 
     s1->i = 1;
-    gs1 = ns2->s->s1;
-    assert_int(1, gs1->i, "nested double struct indirect 3");
+    pgs1 = ns2->s->s1;
+    assert_int(1, pgs1->i, "nested double struct indirect 3");
 }
 
 struct frps *frps() {
@@ -819,6 +821,63 @@ int test_copy() {
     assert_int(-2, ns2.i, "Struct member copy 3");
 }
 
+int test_pointers() {
+    // Pointer to global struct
+    struct cfs *pcfs1, *pcfs2;
+
+    gcfs.c = 1;
+    gcfs.s = 2;
+
+    pcfs1 = &gcfs;
+    assert_int(1, pcfs1->c, "Pointer to global struct 1");
+    assert_int(2, pcfs1->s, "Pointer to global struct 2");
+
+    // Pointer to local struct
+    struct cfs cfs;
+    cfs.c = 3;
+    cfs.s = 4;
+
+    pcfs1 = &cfs;
+    assert_int(3, pcfs1->c, "Pointer to local struct 1");
+    assert_int(4, pcfs1->s, "Pointer to local struct 2");
+
+    pcfs1->c = 5;
+    pcfs1->s = 6;
+    assert_int(5, cfs.c, "Pointer to local struct 3");
+    assert_int(6, cfs.s, "Pointer to local struct 4");
+
+    pcfs1 = malloc(sizeof(struct cfs));
+    pcfs1->c = 7;
+    pcfs1->s = 8;
+
+    gcfs = *pcfs1;
+    assert_int(7, gcfs.c, "Struct copy g = *p 1");
+    assert_int(8, gcfs.s, "Struct copy g = *p 2");
+
+    pcfs1->c = 9;
+    pcfs1->s = 10;
+    cfs = *pcfs1;
+    assert_int(9,  cfs.c, "Struct copy l = *p 1");
+    assert_int(10, cfs.s, "Struct copy l = *p 2");
+
+    gcfs.c = 11;
+    gcfs.s = 12;
+    *pcfs1 = gcfs;
+    assert_int(11, pcfs1->c, "Struct copy *p = g 1");
+    assert_int(12, pcfs1->s, "Struct copy *p = g 2");
+
+    cfs.c = 13;
+    cfs.s = 14;
+    *pcfs1 = cfs;
+    assert_int(13, pcfs1->c, "Struct copy *p = g 1");
+    assert_int(14, pcfs1->s, "Struct copy *p = g 2");
+
+    pcfs2 = malloc(sizeof(struct cfs));
+    *pcfs2 = *pcfs1;
+    assert_int(13, pcfs2->c, "Struct copy *p = *p 1");
+    assert_int(14, pcfs2->s, "Struct copy *p = *p 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -851,6 +910,7 @@ int main(int argc, char **argv) {
     test_scoped_struct_tags();
     test_declaration_without_definition();
     test_copy();
+    test_pointers();
 
     finalize();
 }

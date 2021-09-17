@@ -843,8 +843,18 @@ Tac *add_struct_or_union_memcpy(Tac *ir, int *function_call_count) {
     ir = insert_instruction_after_from_operation(ir, IR_START_CALL, 0, call_value, 0);
 
     // Load of addresses of src1, dst & make size value
-    Value *src1_value = void_insert_address_of_instruction(&ir, src1);
-    Value *dst_value = void_insert_address_of_instruction(&ir, dst);
+    Value *src1_value;
+    if (src1->is_lvalue && src1->vreg)
+        src1_value = src1;
+    else
+        src1_value = void_insert_address_of_instruction(&ir, src1);
+
+    Value *dst_value;
+    if (dst->is_lvalue && dst->vreg)
+        dst_value = dst;
+    else
+        dst_value = void_insert_address_of_instruction(&ir, dst);
+
     Value *size_value = new_integral_constant(TYPE_LONG, get_type_size(dst->type));
 
     // Add arg instructions
@@ -917,9 +927,14 @@ void process_struct_and_union_copies(Function *function) {
         if (ir->src1->type->type != TYPE_STRUCT_OR_UNION) continue;
         if (ir->dst->type->type != ir->src1->type->type) panic("Mismatched struct/union copy type");
 
-        // For structs/unions of size < 32, use register copies to shift the data,
-        // otherwise, memcpy
-        if (get_type_size(ir->dst->type) > 32)
+        // If either src or dst is an lvalue in a register, or the struct size > 32,
+        // use a memory copy. Otherwise use temporary registers to do the copy.
+        int use_memcpy = (
+            (ir->dst->is_lvalue && ir->dst->vreg) ||
+            (ir->src1->is_lvalue && ir->src1->vreg) ||
+            get_type_size(ir->dst->type) > 32);
+
+        if (use_memcpy)
             ir = add_struct_or_union_memcpy(ir, &function_call_count);
         else
             ir = add_struct_or_union_register_copy(ir);
