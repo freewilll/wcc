@@ -642,7 +642,7 @@ void allocate_value_vregs(Function *function) {
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Variables that are used with the & operator
-        if (tac->operation == IR_ADDRESS_OF) on_stack[-tac->src1->local_index] = 1;
+        if (tac->operation == IR_ADDRESS_OF && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
 
         // Long doubles already on the stack are left on the stack
         if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
