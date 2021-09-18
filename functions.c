@@ -161,33 +161,62 @@ void add_function_call_arg_moves(Function *function) {
     add_function_call_arg_moves_for_preg_class(function, PC_SSE);
 }
 
-static void assign_register_param_value_to_register(Value *v, int vreg) {
+// Set has_address_of to 1 if a value is a parameter in a register and it's used in a & instruction
+void check_param_value_has_used_in_an_address_of(int *pushes, int *has_address_of, Tac *tac, Value *v) {
+    if (!v) return;
+    if (tac->operation != IR_ADDRESS_OF) return;
+    if (v->stack_index < 2) return;
+    has_address_of[v->stack_index - 2] = 1;
+    return;
+}
+
+static void assign_register_to_value(Value *v, int vreg) {
     v->stack_index = 0;
     v->is_lvalue = 0;
     v->vreg = vreg;
 }
 
-// Convert stack_indexes to parameter register
-// stack-index = 1 + param_count - arg  =>
-// arg = param_count - stack-index + 1
-// 0 <= arg < 6                         =>
-// -1 <= param_count - stack-index < 5
-static void convert_register_param_stack_index(Function *function, int *register_param_vregs, Value *v) {
+// Convert stack_index in value v to a parameter register
+static void convert_register_param_stack_index_to_register(Function *function, int *register_param_vregs, Value *v) {
     if (v && v->stack_index >= 2 && register_param_vregs[v->stack_index  - 2] != -1)
-        assign_register_param_value_to_register(v, register_param_vregs[v->stack_index  - 2]);
+        assign_register_to_value(v, register_param_vregs[v->stack_index  - 2]);
+}
+
+// Convert stack_index in value v to a parameter in the stack
+static void convert_register_param_stack_index_to_stack(Function *function, int *register_param_stack_indexes, Value *v) {
+    if (v && v->stack_index >= 2 && register_param_stack_indexes[v->stack_index  - 2]) {
+        v->stack_index = register_param_stack_indexes[v->stack_index  - 2];
+        v->is_lvalue = 0;
+    }
 }
 
 // Convert a value that has a stack index >= 2, i.e. it's a pushed parameter into a vreg
-static void convert_pushed_param_stack_index(Function *function, int *stack_param_vregs, Value *v) {
+static void convert_pushed_param_stack_index_to_register(Function *function, int *stack_param_vregs, Value *v) {
     if (v && !v->function_param_original_stack_index && v->stack_index >= 2 && stack_param_vregs[v->stack_index - 2] != -1)
-        assign_register_param_value_to_register(v, stack_param_vregs[v->stack_index - 2]);
+        assign_register_to_value(v, stack_param_vregs[v->stack_index - 2]);
 }
 
-static Tac *make_param_move_tac(Function *function, Type *type, int function_param_index) {
+// Add an instruction to move a parameter in a register to another register
+static Tac *make_param_move_to_register_tac(Function *function, Type *type, int function_param_index) {
     Tac *tac = new_instruction(IR_MOVE);
     tac->dst = new_value();
     tac->dst->type = dup_type(type);
     tac->dst->vreg = ++function->vreg_count;
+
+    tac->src1 = new_value();
+    tac->src1->type = dup_type(tac->dst->type);
+    tac->src1->is_function_param = 1;
+    tac->src1->function_param_index = function_param_index;
+
+    return tac;
+}
+
+// Add an instruction to move a parameter in a register to a new stack entry
+static Tac *make_param_move_to_stack_tac(Function *function, Type *type, int function_param_index) {
+    Tac *tac = new_instruction(IR_MOVE);
+    tac->dst = new_value();
+    tac->dst->type = dup_type(type);
+    tac->dst->stack_index = -(++function->stack_register_count);
 
     tac->src1 = new_value();
     tac->src1->type = dup_type(tac->dst->type);
@@ -219,6 +248,12 @@ void add_function_param_moves(Function *function) {
     int *register_param_vregs = malloc(sizeof(int) * function->param_count);
     memset(register_param_vregs, -1, sizeof(int) * function->param_count);
 
+    int *register_param_stack_indexes = malloc(sizeof(int) * function->param_count);
+    memset(register_param_stack_indexes, 0, sizeof(int) * function->param_count);
+
+    int *has_address_of = malloc(sizeof(int) * (function->param_count));
+    memset(has_address_of, 0, sizeof(int) * (function->param_count));
+
     // The stack is never bigger than function->param_count * 2 & starts at 2
     int *stack_param_vregs = malloc(sizeof(int) * (function->param_count * 2 + 2));
     memset(stack_param_vregs, -1, sizeof(int) * (function->param_count * 2 + 2));
@@ -245,6 +280,14 @@ void add_function_param_moves(Function *function) {
         single_int_register_arg_count += is_single_int_register;
         single_sse_register_arg_count += is_single_sse_register;
         pushes[i] = is_push;
+        if (debug_function_param_mapping) printf("Param %d is_push=%d\n", i, is_push);
+    }
+
+    // Determine which parameters in registers are used in IR_ADDRESS_OF instructions
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        check_param_value_has_used_in_an_address_of(pushes, has_address_of, ir, ir->dst);
+        check_param_value_has_used_in_an_address_of(pushes, has_address_of, ir, ir->src1);
+        check_param_value_has_used_in_an_address_of(pushes, has_address_of, ir, ir->src2);
     }
 
     // Add moves for registers
@@ -256,10 +299,23 @@ void add_function_param_moves(Function *function) {
         Type *type = function->param_types[i];
         int is_sse = is_sse_floating_point_type(type);
         int single_register_arg_count = is_sse ? single_sse_register_arg_count : single_int_register_arg_count;
-        Tac *tac = make_param_move_tac(function, type, single_register_arg_count);
-        register_param_vregs[i] = tac->dst->vreg;
-        tac->src1->vreg = ++function->vreg_count;
-        insert_instruction(ir, tac, 1);
+
+        if (has_address_of[i]) {
+            // Add a move instruction to save the register to the stack
+            Tac *tac = make_param_move_to_stack_tac(function, type, single_register_arg_count);
+            register_param_stack_indexes[i] = tac->dst->stack_index;
+            tac->src1->vreg = ++function->vreg_count;
+            insert_instruction(ir, tac, 1);
+            if (debug_function_param_mapping) printf("Param %d reg %d -> SI %d\n", i, tac->src1->vreg, tac->dst->stack_index);
+        }
+        else {
+            // Add a move instruction to copy register to another register
+            Tac *tac = make_param_move_to_register_tac(function, type, single_register_arg_count);
+            register_param_vregs[i] = tac->dst->vreg;
+            tac->src1->vreg = ++function->vreg_count;
+            insert_instruction(ir, tac, 1);
+            if (debug_function_param_mapping) printf("Param %d reg %d -> reg %d\n", i, tac->src1->vreg, tac->dst->vreg);
+        }
 
         if (is_sse)
             single_sse_register_arg_count++;
@@ -267,12 +323,18 @@ void add_function_param_moves(Function *function) {
             single_int_register_arg_count++;
     }
 
+    // Adapt the function's IR to use the values in registers/stack
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        convert_register_param_stack_index(function, register_param_vregs, ir->dst);
-        convert_register_param_stack_index(function, register_param_vregs, ir->src1);
-        convert_register_param_stack_index(function, register_param_vregs, ir->src2);
+        convert_register_param_stack_index_to_register(function, register_param_vregs, ir->dst);
+        convert_register_param_stack_index_to_register(function, register_param_vregs, ir->src1);
+        convert_register_param_stack_index_to_register(function, register_param_vregs, ir->src2);
+
+        convert_register_param_stack_index_to_stack(function, register_param_stack_indexes, ir->dst);
+        convert_register_param_stack_index_to_stack(function, register_param_stack_indexes, ir->src1);
+        convert_register_param_stack_index_to_stack(function, register_param_stack_indexes, ir->src2);
     }
 
+    // Process parameters in the stack
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->dst ) ir->dst ->has_been_renamed = 0;
         if (ir->src1) ir->src1->has_been_renamed = 0;
@@ -301,8 +363,10 @@ void add_function_param_moves(Function *function) {
         // The rightmost arg has stack index 2
         if (i + 2 != stack_index) stack_index_remap[i + 2] = stack_index;
 
-        if (type->type != TYPE_LONG_DOUBLE) {
-            Tac *tac = make_param_move_tac(function, type, i);
+        if (debug_function_param_mapping) printf("Param %d SI %d -> SI %d\n", i, i + 2, stack_index);
+
+        if (!has_address_of[i] && type->type != TYPE_LONG_DOUBLE) {
+            Tac *tac = make_param_move_to_register_tac(function, type, i);
             stack_param_vregs[stack_index - 2] = tac->dst->vreg;
             tac->src1->function_param_original_stack_index = stack_index;
             tac->src1->stack_index = stack_index;
@@ -320,14 +384,19 @@ void add_function_param_moves(Function *function) {
         remap_stack_index(stack_index_remap, ir->src1);
         remap_stack_index(stack_index_remap, ir->src2);
 
-        convert_pushed_param_stack_index(function, stack_param_vregs, ir->dst);
-        convert_pushed_param_stack_index(function, stack_param_vregs, ir->src1);
-        convert_pushed_param_stack_index(function, stack_param_vregs, ir->src2);
+        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, ir->dst);
+        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, ir->src1);
+        convert_pushed_param_stack_index_to_register(function, stack_param_vregs, ir->src2);
     }
 
     free(register_param_vregs);
     free(stack_param_vregs);
     free(stack_index_remap);
+
+    if (debug_function_param_mapping) {
+        printf("After function param mapping\n");
+        print_ir(function, 0, 0);
+    }
 }
 
 Value *make_function_call_value(int function_call) {

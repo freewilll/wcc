@@ -455,6 +455,84 @@ int test_null_pointer() {
     pi = 1; assert_int(0, pi != (void *) 1, "pi == (void *) 1"); assert_int(0, (void *) 1 != pi, "(void *) 1 == pi");
 }
 
+void assert_pi(int expected, int *pi, char *message) {
+    assert_int(expected, *pi, message);
+}
+
+void taofp_int(int pi1, int pi2, int pi3, int pi4, int pi5, int pi6, int pi7) {
+    assert_int(1, pi1, "taofp_int pi1 == 1"); assert_pi(1, &pi1, "pi1 == 1 in call");
+    assert_int(2, pi2, "taofp_int pi2 == 2"); assert_pi(2, &pi2, "pi2 == 2 in call");
+    assert_int(3, pi3, "taofp_int pi3 == 3"); assert_pi(3, &pi3, "pi3 == 3 in call");
+    assert_int(4, pi4, "taofp_int pi4 == 4"); assert_pi(4, &pi4, "pi4 == 4 in call");
+    assert_int(5, pi5, "taofp_int pi5 == 5"); assert_pi(5, &pi5, "pi5 == 5 in call");
+    assert_int(6, pi6, "taofp_int pi6 == 6"); assert_pi(6, &pi6, "pi6 == 6 in call");
+    assert_int(7, pi7, "taofp_int pi7 == 7"); assert_pi(7, &pi7, "pi7 == 7 in call"); // & of a pushed param
+}
+
+void assert_pld(long double expected, long double *pld, char *message) {
+    assert_int(expected, *pld, message);
+}
+
+void taofp_long_double(long double pld1, long double pld2, long double pld3, long double pld4, long double pld5, long double pld6, long double pld7) {
+    assert_long_double(1.1, pld1, "taofp_int pld1 == 1"); assert_pld(1, &pld1, "pld1 == 1 in call");
+    assert_long_double(2.1, pld2, "taofp_int pld2 == 2"); assert_pld(2, &pld2, "pld2 == 2 in call");
+    assert_long_double(3.1, pld3, "taofp_int pld3 == 3"); assert_pld(3, &pld3, "pld3 == 3 in call");
+    assert_long_double(4.1, pld4, "taofp_int pld4 == 4"); assert_pld(4, &pld4, "pld4 == 4 in call");
+    assert_long_double(5.1, pld5, "taofp_int pld5 == 5"); assert_pld(5, &pld5, "pld5 == 5 in call");
+    assert_long_double(6.1, pld6, "taofp_int pld6 == 6"); assert_pld(6, &pld6, "pld6 == 6 in call");
+    assert_long_double(7.1, pld7, "taofp_int pld7 == 7"); assert_pld(7, &pld7, "pld7 == 7 in call"); // & of a pushed param
+}
+
+struct s { int i; };
+
+void taofp_cocktail_in_registers(char c, short s, int i, long l, float f, double d, struct s *st) {
+    // Test function parameters in registers that are forced in the stack due to &
+    &c; &s; &i; &l; &f; &d; &s;
+
+    assert_int(1, c, "&c c");
+    assert_int(2, s, "&s s");
+    assert_int(3, i, "&i i");
+    assert_int(4, l, "&l l");
+    assert_float(5.1, f, "&f f");
+    assert_float(6.1, d, "&d d");
+    assert_int(7, st->i, "&st st");
+}
+
+void taofp_cocktail_in_stack(
+    int i1, int i2, int i3, int i4, int i5, int i6, // int regs
+    float f1, float f2, float f3, float f4, float f5, float f6, float f7, float f8,  // sse regs
+    char c, short s, int i, long l, float f, double d, struct s *st) {
+    // Test function parameters in the stack that are kept in the stack due to &
+    &c; &s; &i; &l; &f; &d; &s;
+
+    assert_int(1, c, "&c c");
+    assert_int(2, s, "&s s");
+    assert_int(3, i, "&i i");
+    assert_int(4, l, "&l l");
+    assert_float(5.1, f, "&f f");
+    assert_float(6.1, d, "&d d");
+    assert_int(7, st->i, "&st st");
+}
+
+int test_address_of_function_parameters() {
+    taofp_int(1, 2, 3, 4, 5, 6, 7);
+    taofp_long_double(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1);
+
+    char c = 1;
+    short s = 2;
+    int i = 3;
+    long l = 4;
+    float f = 5.1;
+    double d = 6.1;
+    struct s *st = malloc(sizeof(struct s)); st->i = 7;
+
+    taofp_cocktail_in_registers(c, s, i, l, f, d, st);
+    taofp_cocktail_in_stack(
+        0, 0, 0, 0, 0, 0, // int regs
+        0, 0, 0, 0, 0, 0, 0, 0, // sse regs
+        c, s, i, l, f, d, st);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -484,6 +562,7 @@ int main(int argc, char **argv) {
     test_deref_promotion();
     test_scaled_indirects();
     test_null_pointer();
+    test_address_of_function_parameters();
 
     finalize();
 }

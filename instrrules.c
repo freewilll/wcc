@@ -570,7 +570,12 @@ static void add_pointer_rules(int *ntc) {
     add_composite_pointer_rules(ntc);
 
     // Address loads
-    r = add_rule(XRP, IR_ADDRESS_OF, XRP,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    // Any ADDRESS_OF a pointer in a register must be lvalues. Therefore, a mov converts them from an lvalue into an rvalue
+    r = add_rule(XRP, IR_ADDRESS_OF, RP1,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, RP2,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, RP3,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, RP4,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+
     r = add_rule(RP5, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);

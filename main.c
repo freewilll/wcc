@@ -83,6 +83,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--print-rules"                     )) { print_instr_rules = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-precision-decrease-rules"  )) { print_instr_precision_decrease_rules = 1; argc--; argv++; }
 
+            else if (argc > 0 && !strcmp(argv[0], "--debug-function-param-mapping"          )) { debug_function_param_mapping = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-mapping-local-stack-indexes" )) { debug_ssa_mapping_local_stack_indexes = 1;  argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa"                             )) { debug_ssa = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-liveout"                     )) { debug_ssa_liveout = 1;                      argc--; argv++; }
@@ -176,6 +177,7 @@ int main(int argc, char **argv) {
         printf("--Wno-integer-constant-too-large    Disable too large integer constant warnings\n");
         printf("\n");
         printf("Debug flags:\n");
+        printf("--debug-function-param-mapping\n");
         printf("--debug-ssa-mapping-local-stack-indexes\n");
         printf("--debug-ssa\n");
         printf("--debug-ssa-liveout\n");
@@ -200,6 +202,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    get_debug_env_value("DEBUG_FUNCTION_PARAM_MAPPING", &debug_function_param_mapping);
     get_debug_env_value("DEBUG_SSA_MAPPING_LOCAL_STACK_INDEXES", &debug_ssa_mapping_local_stack_indexes);
     get_debug_env_value("DEBUG_SSA", &debug_ssa);
     get_debug_env_value("DEBUG_SSA_LIVEOUT", &debug_ssa_liveout);

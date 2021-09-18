@@ -495,6 +495,7 @@ int cur_stack_push_count;         // Used in codegen to keep track of stack posi
 void *f; // Output file handle
 
 int warn_integer_constant_too_large;
+int debug_function_param_mapping;
 int debug_ssa_mapping_local_stack_indexes;
 int debug_ssa;
 int debug_ssa_liveout;
