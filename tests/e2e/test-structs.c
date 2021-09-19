@@ -826,6 +826,16 @@ int test_copy() {
     ds2.st = ds1.st;
     assert_int(1, ds2.st.i, "Struct member copy that is a struct 1");
     assert_int(2, ds2.st.j, "Struct member copy that is a struct 2");
+
+    // Dereferened member copy that is a pointer to struct
+    struct st {int i; int j;};
+    struct s { int i; struct st *st; } s;
+    s.st = malloc(sizeof(struct st));
+    s.st->i = 1; s.st->j = 2;
+    struct st st = *s.st;
+    assert_int(1, st.i, "Dereferened member copy that is a pointer to struct 1");
+    assert_int(2, st.j, "Dereferened member copy that is a pointer to struct 2");
+
 }
 
 int test_pointers() {
