@@ -835,7 +835,6 @@ int test_copy() {
     struct st st = *s.st;
     assert_int(1, st.i, "Dereferened member copy that is a pointer to struct 1");
     assert_int(2, st.j, "Dereferened member copy that is a pointer to struct 2");
-
 }
 
 int test_pointers() {
@@ -901,6 +900,23 @@ int test_pointers() {
     (**ppcfs).c = 16; assert_int(16, (**ppcfs).c, "Struct ** dereference 2");
 }
 
+int test_arithmetic_with_local_struct_members() {
+    // Some miscellaneous sanity tests
+
+    int i = 1;
+    struct s {int i; int j;} st1, *pst1;
+    st1.i = 1; st1.j = 2;
+    assert_int(4, i + st1.i + st1.j, "Local struct member arithmetic 1");
+
+    pst1 = malloc(sizeof(struct s));
+    pst1->i = 3; pst1->j = 4;
+    assert_int(8, i + pst1->i + pst1->j, "Local struct member arithmetic 2");
+    assert_int(11, i + st1.i + st1.j + pst1->i + pst1->j, "Local struct member arithmetic 3");
+
+    st1.i++;
+    assert_int(2, st1.i, "Local struct member compound assignment");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -934,6 +950,7 @@ int main(int argc, char **argv) {
     test_declaration_without_definition();
     test_copy();
     test_pointers();
+    test_arithmetic_with_local_struct_members();
 
     finalize();
 }
