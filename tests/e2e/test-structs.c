@@ -823,7 +823,7 @@ int test_copy() {
 
 int test_pointers() {
     // Pointer to global struct
-    struct cfs *pcfs1, *pcfs2;
+    struct cfs *pcfs1, *pcfs2, **ppcfs;
 
     gcfs.c = 1;
     gcfs.s = 2;
@@ -876,6 +876,12 @@ int test_pointers() {
     *pcfs2 = *pcfs1;
     assert_int(13, pcfs2->c, "Struct copy *p = *p 1");
     assert_int(14, pcfs2->s, "Struct copy *p = *p 2");
+
+    // Double dereference
+    ppcfs = &pcfs1;
+
+    (*ppcfs)->c = 15; assert_int(15, (*ppcfs)->c, "Struct ** dereference 1");
+    (**ppcfs).c = 16; assert_int(16, (**ppcfs).c, "Struct ** dereference 2");
 }
 
 int main(int argc, char **argv) {
