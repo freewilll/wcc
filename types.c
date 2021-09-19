@@ -163,14 +163,8 @@ Type *dup_type(Type *src) {
     if (!src) return 0;
 
     Type *dst = malloc(sizeof(Type));
-    dst->type                    = src->type;
-    dst->is_unsigned             = src->is_unsigned;
+    *dst = *src;
     dst->target                  = dup_type(src->target);
-    dst->struct_or_union_desc    = src->struct_or_union_desc; // Note: not making a copy
-    dst->function                = src->function;    // Note: not making a copy
-    dst->array_size              = src->array_size;
-    dst->is_const                = src->is_const;
-    dst->is_volatile             = src->is_volatile;
 
     return dst;
 }

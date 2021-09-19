@@ -58,39 +58,8 @@ Value *new_preg_value(int preg) {
 // Duplicate a value
 Value *dup_value(Value *src) {
     Value *dst = new_value();
-    dst->type                                 = dup_type(src->type);
-    dst->vreg                                 = src->vreg;
-    dst->preg                                 = src->preg;
-    dst->is_lvalue                            = src->is_lvalue;
-    dst->is_lvalue_in_register                = src->is_lvalue_in_register;
-    dst->stack_index                          = src->stack_index;
-    dst->stack_offset                         = src->stack_offset;
-    dst->spilled                              = src->spilled;
-    dst->local_index                          = src->local_index;
-    dst->is_constant                          = src->is_constant;
-    dst->is_string_literal                    = src->is_string_literal;
-    dst->string_literal_index                 = src->string_literal_index;
-    dst->int_value                            = src->int_value;
-    dst->fp_value                             = src->fp_value;
-    dst->offset                               = src->offset;
-    dst->function_symbol                      = src->function_symbol;
-    dst->is_function_call_arg                 = src->is_function_call_arg;
-    dst->is_function_param                    = src->is_function_param;
-    dst->function_param_index                 = src->function_param_index;
-    dst->function_param_original_stack_index  = src->function_param_original_stack_index;
-    dst->function_call_int_register_arg_index = src->function_call_int_register_arg_index;
-    dst->function_call_sse_register_arg_index = src->function_call_sse_register_arg_index;
-    dst->function_call_arg_index              = src->function_call_arg_index;
-    dst->function_call_arg_stack_padding      = src->function_call_arg_stack_padding;
-    dst->function_call_arg_push_count         = src->function_call_arg_push_count;
-    dst->function_call_sse_register_arg_count = src->function_call_sse_register_arg_count;
-    dst->global_symbol                        = src->global_symbol;
-    dst->label                                = src->label;
-    dst->ssa_subscript                        = src->ssa_subscript;
-    dst->live_range                           = src->live_range;
-    dst->preferred_live_range_preg_index      = src->preferred_live_range_preg_index;
-    dst->x86_size                             = src->x86_size;
-    dst->non_terminal                         = src->non_terminal;
+    *dst = *src;
+    dst->type = dup_type(src->type);
 
     return dst;
 }

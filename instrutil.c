@@ -64,17 +64,8 @@ static int transform_rule_value(int extend_size, int extend_sign, int v, int siz
 
 X86Operation *dup_x86_operation(X86Operation *operation) {
     X86Operation *result = malloc(sizeof(X86Operation));
-    result->operation = operation->operation;
-    result->dst = operation->dst;
-    result->v1 = operation->v1;
-    result->v2 = operation->v2;
+    *result = *operation;
     result->template = operation->template ? strdup(operation->template) : 0;
-    result->save_value_in_slot = operation->save_value_in_slot;
-    result->allocate_stack_index_in_slot = operation->allocate_stack_index_in_slot;
-    result->allocate_register_in_slot = operation->allocate_register_in_slot;
-    result->allocate_label_in_slot = operation->allocate_label_in_slot;
-    result->allocated_type = operation->allocated_type;
-    result->arg = operation->arg;
     result->next = 0;
 
     return result;
