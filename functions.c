@@ -162,7 +162,7 @@ void add_function_call_arg_moves(Function *function) {
 }
 
 // Set has_address_of to 1 if a value is a parameter in a register and it's used in a & instruction
-void check_param_value_has_used_in_an_address_of(int *pushes, int *has_address_of, Tac *tac, Value *v) {
+static void check_param_value_has_used_in_an_address_of(int *has_address_of, Tac *tac, Value *v) {
     if (!v) return;
     if (tac->operation != IR_ADDRESS_OF) return;
     if (v->stack_index < 2) return;
@@ -241,9 +241,11 @@ void remap_stack_index(int *stack_index_remap, Value *v) {
 // Move function parameters pushed the stack by the caller into registers.
 // They might get spilled, in which case function_param_original_stack_index is used
 // rather than allocating more space.
-void add_function_param_moves(Function *function) {
-    int *pushes = malloc(sizeof(int) * (function->param_count));
-    memset(pushes, -1, sizeof(int) * (function->param_count));
+void add_function_param_moves(Function *function, char *identifier) {
+    FunctionParamAllocation *fpa = init_function_param_allocaton(identifier);
+
+    for (int i = 0; i < function->param_count; i++)
+        add_function_param_to_allocation(fpa, function->param_types[i]);
 
     int *register_param_vregs = malloc(sizeof(int) * function->param_count);
     memset(register_param_vregs, -1, sizeof(int) * function->param_count);
@@ -259,6 +261,7 @@ void add_function_param_moves(Function *function) {
     memset(stack_param_vregs, -1, sizeof(int) * (function->param_count * 2 + 2));
 
     ir = function->ir;
+
     // Add a second nop if nothing is there, which is used to insert instructions
     if (!ir->next) {
         ir->next = new_instruction(IR_NOP);
@@ -267,38 +270,19 @@ void add_function_param_moves(Function *function) {
 
     ir = function->ir->next;
 
-    int single_int_register_arg_count = 0;
-    int single_sse_register_arg_count = 0;
-
-    // Determine which parameters on the stack
-    for (int i = 0; i < function->param_count; i++) {
-        Type *type = function->param_types[i];
-        int is_single_int_register = type_fits_in_single_int_register(type);
-        int is_single_sse_register = is_sse_floating_point_type(type);
-        int is_long_double = type->type == TYPE_LONG_DOUBLE;
-        int is_push = is_long_double || (is_single_int_register && single_int_register_arg_count >= 6) || (is_single_sse_register && single_sse_register_arg_count >= 8);
-        single_int_register_arg_count += is_single_int_register;
-        single_sse_register_arg_count += is_single_sse_register;
-        pushes[i] = is_push;
-        if (debug_function_param_mapping) printf("Param %d is_push=%d\n", i, is_push);
-    }
-
     // Determine which parameters in registers are used in IR_ADDRESS_OF instructions
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        check_param_value_has_used_in_an_address_of(pushes, has_address_of, ir, ir->dst);
-        check_param_value_has_used_in_an_address_of(pushes, has_address_of, ir, ir->src1);
-        check_param_value_has_used_in_an_address_of(pushes, has_address_of, ir, ir->src2);
+        check_param_value_has_used_in_an_address_of(has_address_of, ir, ir->dst);
+        check_param_value_has_used_in_an_address_of(has_address_of, ir, ir->src1);
+        check_param_value_has_used_in_an_address_of(has_address_of, ir, ir->src2);
     }
 
     // Add moves for registers
-    single_int_register_arg_count = 0;
-    single_sse_register_arg_count = 0;
     for (int i = 0; i < function->param_count; i++) {
-        if (pushes[i]) continue;
+        if (fpa->locations[i].stack_offset != -1) continue;
 
         Type *type = function->param_types[i];
-        int is_sse = is_sse_floating_point_type(type);
-        int single_register_arg_count = is_sse ? single_sse_register_arg_count : single_int_register_arg_count;
+        int single_register_arg_count = fpa->locations[i].int_register == -1 ? fpa->locations[i].sse_register : fpa->locations[i].int_register;
 
         if (has_address_of[i]) {
             // Add a move instruction to save the register to the stack
@@ -316,11 +300,6 @@ void add_function_param_moves(Function *function) {
             insert_instruction(ir, tac, 1);
             if (debug_function_param_mapping) printf("Param %d reg %d -> reg %d\n", i, tac->src1->vreg, tac->dst->vreg);
         }
-
-        if (is_sse)
-            single_sse_register_arg_count++;
-        else
-            single_int_register_arg_count++;
     }
 
     // Adapt the function's IR to use the values in registers/stack
@@ -349,16 +328,12 @@ void add_function_param_moves(Function *function) {
 
     // Determine stack offsets for parameters on the stack and add moves
 
-    int offset = 16; // Includes pushed instruction and stack pointers
     for (int i = 0; i < function->param_count; i++) {
-        if (!pushes[i]) continue;
+        if (fpa->locations[i].stack_offset == -1) continue;
 
         Type *type = function->param_types[i];
 
-        int alignment = get_type_alignment(type);
-        if (alignment < 8) alignment = 8;
-        offset = ((offset + alignment  - 1) & (~(alignment - 1)));
-        int stack_index = offset >> 3;
+        int stack_index = (fpa->locations[i].stack_offset + 16) >> 3;
 
         // The rightmost arg has stack index 2
         if (i + 2 != stack_index) stack_index_remap[i + 2] = stack_index;
@@ -373,10 +348,6 @@ void add_function_param_moves(Function *function) {
             tac->src1->has_been_renamed = 1;
             insert_instruction(ir, tac, 1);
         }
-
-        int type_size = get_type_size(type);
-        if (type_size < 8) type_size = 8;
-        offset += type_size;
     }
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
@@ -407,4 +378,82 @@ Value *make_function_call_value(int function_call) {
     src1->type = new_type(TYPE_LONG);
 
     return src1;
+}
+
+// Initialize data structures for the function param & arg allocation processor
+FunctionParamAllocation *init_function_param_allocaton(char *function_identifier) {
+    if (debug_function_param_allocation) printf("\nInitializing param allocation for function %s\n", function_identifier);
+
+    FunctionParamAllocation *fpa = malloc(sizeof(FunctionParamAllocation));
+    memset(fpa, 0, sizeof(FunctionParamAllocation));
+    fpa->locations = malloc(sizeof(FunctionParamLocation) * MAX_FUNCTION_CALL_ARGS);
+    memset(fpa->locations, 0, sizeof(FunctionParamLocation) * MAX_FUNCTION_CALL_ARGS);
+    return fpa;
+}
+
+// Add a param/arg to a function and allocate registers & stack entries
+void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
+    if (fpa->arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
+
+    FunctionParamLocation *fpl = &(fpa->locations[fpa->arg_count]);
+
+    int is_single_int_register = type_fits_in_single_int_register(type);
+    int is_single_sse_register = is_sse_floating_point_type(type);
+    int is_long_double = type->type == TYPE_LONG_DOUBLE;
+    int is_push = is_long_double || (is_single_int_register && fpa->single_int_register_arg_count >= 6) || (is_single_sse_register && fpa->single_sse_register_arg_count >= 8);
+
+    fpl->int_register = -1;
+    fpl->sse_register = -1;
+    fpl->stack_offset = -1;
+    fpl->stack_padding = -1;
+
+    int alignment = get_type_alignment(type);
+    if (alignment < 8) alignment = 8;
+
+    if (!is_push && is_single_int_register)
+        fpl->int_register = fpa->single_int_register_arg_count < 6 ? fpa->single_int_register_arg_count : -1;
+
+    else if (!is_push && is_single_sse_register)
+        fpl->sse_register = fpa->single_sse_register_arg_count < 8 ? fpa->single_sse_register_arg_count : -1;
+
+    else {
+        fpl->int_register = -1;
+        fpl->sse_register = -1;
+
+        if (alignment > fpa->biggest_alignment) fpa->biggest_alignment = alignment;
+        int padding = ((fpa->offset + alignment  - 1) & (~(alignment - 1))) - fpa->offset;
+        fpa->offset += padding;
+
+        fpl->stack_offset = fpa->offset;
+        fpl->stack_padding = padding;
+
+        if (debug_function_param_allocation)
+            printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", fpa->arg_count, alignment, fpl->stack_offset, fpl->stack_padding);
+
+        int type_size = get_type_size(type);
+        if (type_size < 8) type_size = 8;
+        fpa->offset += type_size;
+    }
+
+    if (debug_function_param_allocation && !is_push) {
+        if (fpl->int_register != -1)
+            printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->arg_count, alignment, fpl->int_register);
+        else
+            printf("  arg %2d with alignment %2d     sse reg %5d\n", fpa->arg_count, alignment, fpl->sse_register);
+    }
+
+    fpa->single_int_register_arg_count += is_single_int_register;
+    if (!is_push && is_single_sse_register) fpa->single_sse_register_arg_count++;
+    fpa->arg_count++;
+}
+
+// Calculate the final size and padding of the stack
+void finalize_function_param_allocation(FunctionParamAllocation *fpa) {
+    fpa->padding = ((fpa->offset + fpa->biggest_alignment  - 1) & (~(fpa->biggest_alignment - 1))) - fpa->offset;
+    fpa->size = fpa->offset + fpa->padding;
+
+    if (debug_function_param_allocation) {
+        printf("  --------------------------------------------------------------\n");
+        printf("  total                        size   0x%04x with padding 0x%04x\n", fpa->size, fpa->padding);
+    }
 }

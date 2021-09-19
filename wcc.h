@@ -134,6 +134,25 @@ typedef struct function {
     char *vreg_preg_classes;                 // Preg classes for all vregs
 } Function;
 
+typedef struct function_param_location {
+    // One of int_register/sse_register/stack_offset is not -1.
+    int int_register;       // If not -1, an int register
+    int sse_register;       // If not -1, an sse register
+    int stack_offset;       // If not -1 the stack offset
+    int stack_padding;      // If not -1 the stack padding
+} FunctionParamLocation;
+
+typedef struct function_param_allocation {
+    int arg_count;
+    int single_int_register_arg_count;
+    int single_sse_register_arg_count;
+    int biggest_alignment;
+    int offset;
+    int padding;
+    int size;
+    FunctionParamLocation *locations;
+} FunctionParamAllocation;
+
 // Physical register class
 enum {
     PC_INT = 1,
@@ -495,6 +514,7 @@ int cur_stack_push_count;         // Used in codegen to keep track of stack posi
 void *f; // Output file handle
 
 int warn_integer_constant_too_large;
+int debug_function_param_allocation;
 int debug_function_param_mapping;
 int debug_ssa_mapping_local_stack_indexes;
 int debug_ssa;
@@ -694,8 +714,11 @@ void make_preferred_live_range_preg_indexes(Function *function);
 void add_function_call_result_moves(Function *function);
 void add_function_return_moves(Function *function);
 void add_function_call_arg_moves(Function *function);
-void add_function_param_moves(Function *function);
+void add_function_param_moves(Function *function, char *identifier);
 Value *make_function_call_value(int function_call);
+FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
+void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
+void finalize_function_param_allocation(FunctionParamAllocation *fpa);
 
 // regalloc.c
 int *int_arg_registers;

@@ -1293,31 +1293,28 @@ static void parse_expression(int level) {
             if (symbol->is_enum)
                 push_integral_constant(TYPE_INT, symbol->value);
             else if (cur_token == TOK_LPAREN) {
+                // Function call
+
                 if (symbol->type->type != TYPE_FUNCTION) panic1s("Illegal attempt to call a non-function %s", symbol->identifier);
 
                 Function *function = symbol->type->function;
                 type = dup_type(symbol->type->function->return_type);
 
-                // Function call
                 next();
 
                 int function_call = function_call_count++;
                 Value *src1 = make_function_call_value(function_call);
                 add_instruction(IR_START_CALL, 0, src1, 0);
-                int arg_count = 0;
-                int single_int_register_arg_count = 0;
-                int single_sse_register_arg_count = 0;
-                int offset = 0;
-                int biggest_alignment = 0;
+                FunctionParamAllocation *fpa = init_function_param_allocaton(symbol->identifier);
 
                 while (1) {
                     if (cur_token == TOK_RPAREN) break;
                     parse_expression(TOK_EQ);
                     Value *arg = dup_value(src1);
-                    if (arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
-
+                    int arg_count = fpa->arg_count;
                     arg->function_call_arg_index = arg_count;
 
+                    // Convert type if needed
                     if (arg_count < function->param_count) {
                         if (!type_eq(src1->type, function->param_types[arg_count]))
                             push(add_convert_type_if_needed(pl(), function->param_types[arg_count]));
@@ -1341,52 +1338,27 @@ static void parse_expression(int level) {
                             push(src1);
                     }
 
-                    int is_single_int_register = type_fits_in_single_int_register(vtop->type);
-                    int is_single_sse_register = is_sse_floating_point_type(vtop->type);
-                    int is_long_double = vtop->type->type == TYPE_LONG_DOUBLE;
-                    int is_push = is_long_double || (is_single_int_register && single_int_register_arg_count >= 6) || (is_single_sse_register && single_sse_register_arg_count >= 8);
-
-                    if (is_single_int_register)
-                        arg->function_call_int_register_arg_index = single_int_register_arg_count < 6 ? single_int_register_arg_count : -1;
-                    else
-                        arg->function_call_int_register_arg_index = -1;
-
-                    if (is_single_sse_register)
-                        arg->function_call_sse_register_arg_index = single_sse_register_arg_count < 8 ? single_sse_register_arg_count : -1;
-                    else
-                        arg->function_call_sse_register_arg_index = -1;
-
-                    if (is_push) {
-                        int alignment = get_type_alignment(vtop->type);
-                        if (alignment < 8) alignment = 8;
-                        if (alignment > biggest_alignment) biggest_alignment = alignment;
-                        int padding = ((offset + alignment  - 1) & (~(alignment - 1))) - offset;
-                        offset += padding;
-                        arg->function_call_arg_stack_padding = padding;
-                        int type_size = get_type_size(vtop->type);
-                        if (type_size < 8) type_size = 8;
-                        offset += type_size;
-                    }
-
+                    add_function_param_to_allocation(fpa, vtop->type);
+                    FunctionParamLocation *fpl = &(fpa->locations[arg_count]);
+                    arg->function_call_int_register_arg_index = fpl->int_register;
+                    arg->function_call_sse_register_arg_index = fpl->sse_register;
+                    arg->function_call_arg_stack_padding = fpl->stack_padding;
                     add_instruction(IR_ARG, 0, arg, pl());
-                    single_int_register_arg_count += is_single_int_register;
-                    if (!is_push && is_single_sse_register) single_sse_register_arg_count++;
-                    arg_count++;
+
                     if (cur_token == TOK_RPAREN) break;
                     consume(TOK_COMMA, ",");
                     if (cur_token == TOK_RPAREN) panic("Expected expression");
                 }
                 consume(TOK_RPAREN, ")");
 
-                int padding = ((offset + biggest_alignment  - 1) & (~(biggest_alignment - 1))) - offset;
-                int size = offset + padding;
-                src1->function_call_arg_stack_padding = padding;
+                finalize_function_param_allocation(fpa);
+                src1->function_call_arg_stack_padding = fpa->padding;
 
                 Value *function_value = new_value();
                 function_value->int_value = function_call;
                 function_value->function_symbol = symbol;
-                function_value->function_call_arg_push_count = size / 8;
-                function_value->function_call_sse_register_arg_count = single_sse_register_arg_count;
+                function_value->function_call_arg_push_count = fpa->size / 8;
+                function_value->function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
                 src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
 
                 Value *return_value = 0;
