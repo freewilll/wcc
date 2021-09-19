@@ -819,6 +819,13 @@ int test_copy() {
     assert_int(0, memcmp(&ns1.s, &ns2.s, 8), "Struct member copy 1");
     assert_int(-1, ns1.i, "Struct member copy 2");
     assert_int(-2, ns2.i, "Struct member copy 3");
+
+    // Copying of a struct member that is a struct
+    struct ds ds1, ds2;
+    ds1.st.i = 1; ds1.st.j = 2;
+    ds2.st = ds1.st;
+    assert_int(1, ds2.st.i, "Struct member copy that is a struct 1");
+    assert_int(2, ds2.st.j, "Struct member copy that is a struct 2");
 }
 
 int test_pointers() {
