@@ -4,7 +4,20 @@
 
 #include "wcc.h"
 
+// Details about a single scalar in a struct/union
+typedef struct struct_or_union_scalar {
+    Type *type;
+    int offset;
+} StructOrUnionScalar;
+
+// A list of StructOrUnionScalar
+typedef struct struct_or_union_scalars {
+    StructOrUnionScalar **scalars;
+    int count;
+} StructOrUnionScalars;
+
 // Convert v1 = IR_CALL... to:
+
 // 1. v2 = IR_CALL...
 // 2. v1 = v2
 // v2 will be constrained by the register allocator to bind to RAX.
@@ -279,10 +292,10 @@ void add_function_param_moves(Function *function, char *identifier) {
 
     // Add moves for registers
     for (int i = 0; i < function->param_count; i++) {
-        if (fpa->locations[i].stack_offset != -1) continue;
+        if (fpa->locations[i][0].stack_offset != -1) continue;
 
         Type *type = function->param_types[i];
-        int single_register_arg_count = fpa->locations[i].int_register == -1 ? fpa->locations[i].sse_register : fpa->locations[i].int_register;
+        int single_register_arg_count = fpa->locations[i][0].int_register == -1 ? fpa->locations[i][0].sse_register : fpa->locations[i][0].int_register;
 
         if (has_address_of[i]) {
             // Add a move instruction to save the register to the stack
@@ -329,11 +342,11 @@ void add_function_param_moves(Function *function, char *identifier) {
     // Determine stack offsets for parameters on the stack and add moves
 
     for (int i = 0; i < function->param_count; i++) {
-        if (fpa->locations[i].stack_offset == -1) continue;
+        if (fpa->locations[i][0].stack_offset == -1) continue;
 
         Type *type = function->param_types[i];
 
-        int stack_index = (fpa->locations[i].stack_offset + 16) >> 3;
+        int stack_index = (fpa->locations[i][0].stack_offset + 16) >> 3;
 
         // The rightmost arg has stack index 2
         if (i + 2 != stack_index) stack_index_remap[i + 2] = stack_index;
@@ -386,39 +399,38 @@ FunctionParamAllocation *init_function_param_allocaton(char *function_identifier
 
     FunctionParamAllocation *fpa = malloc(sizeof(FunctionParamAllocation));
     memset(fpa, 0, sizeof(FunctionParamAllocation));
-    fpa->locations = malloc(sizeof(FunctionParamLocation) * MAX_FUNCTION_CALL_ARGS);
-    memset(fpa->locations, 0, sizeof(FunctionParamLocation) * MAX_FUNCTION_CALL_ARGS);
+    fpa->locations = malloc(sizeof(FunctionParamLocation *) * MAX_FUNCTION_CALL_ARGS);
+    fpa->location_counts = malloc(sizeof(int) * MAX_FUNCTION_CALL_ARGS);
+
     return fpa;
 }
 
-// Add a param/arg to a function and allocate registers & stack entries
-void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
-    if (fpa->arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
-
-    FunctionParamLocation *fpl = &(fpa->locations[fpa->arg_count]);
-
-    int is_single_int_register = type_fits_in_single_int_register(type);
-    int is_single_sse_register = is_sse_floating_point_type(type);
-    int is_long_double = type->type == TYPE_LONG_DOUBLE;
-    int is_push = is_long_double || (is_single_int_register && fpa->single_int_register_arg_count >= 6) || (is_single_sse_register && fpa->single_sse_register_arg_count >= 8);
-
+// Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
+static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
     fpl->int_register = -1;
     fpl->sse_register = -1;
     fpl->stack_offset = -1;
     fpl->stack_padding = -1;
 
+    int is_single_int_register = type_fits_in_single_int_register(type);
+    int is_single_sse_register = is_sse_floating_point_type(type);
+    int is_long_double = type->type == TYPE_LONG_DOUBLE;
+    int in_stack =
+        is_long_double ||
+        force_stack ||
+        (is_single_int_register && fpa->single_int_register_arg_count >= 6) || (is_single_sse_register && fpa->single_sse_register_arg_count >= 8);
+
     int alignment = get_type_alignment(type);
     if (alignment < 8) alignment = 8;
 
-    if (!is_push && is_single_int_register)
+    if (!in_stack && is_single_int_register)
         fpl->int_register = fpa->single_int_register_arg_count < 6 ? fpa->single_int_register_arg_count : -1;
 
-    else if (!is_push && is_single_sse_register)
+    else if (!in_stack && is_single_sse_register)
         fpl->sse_register = fpa->single_sse_register_arg_count < 8 ? fpa->single_sse_register_arg_count : -1;
 
     else {
-        fpl->int_register = -1;
-        fpl->sse_register = -1;
+        // It's on the stack
 
         if (alignment > fpa->biggest_alignment) fpa->biggest_alignment = alignment;
         int padding = ((fpa->offset + alignment  - 1) & (~(alignment - 1))) - fpa->offset;
@@ -427,15 +439,15 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
         fpl->stack_offset = fpa->offset;
         fpl->stack_padding = padding;
 
-        if (debug_function_param_allocation)
-            printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", fpa->arg_count, alignment, fpl->stack_offset, fpl->stack_padding);
-
         int type_size = get_type_size(type);
         if (type_size < 8) type_size = 8;
         fpa->offset += type_size;
+
+        if (debug_function_param_allocation)
+            printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", fpa->arg_count, alignment, fpl->stack_offset, fpl->stack_padding);
     }
 
-    if (debug_function_param_allocation && !is_push) {
+    if (debug_function_param_allocation && !in_stack) {
         if (fpl->int_register != -1)
             printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->arg_count, alignment, fpl->int_register);
         else
@@ -443,7 +455,108 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
     }
 
     fpa->single_int_register_arg_count += is_single_int_register;
-    if (!is_push && is_single_sse_register) fpa->single_sse_register_arg_count++;
+    if (!in_stack && is_single_sse_register) fpa->single_sse_register_arg_count++;
+}
+
+// Recurse through struct/union and make list of all members + their offsets
+static void flatten_struct_or_union(StructOrUnion *s, StructOrUnionScalars *scalars, int offset) {
+    for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) {
+        StructOrUnionMember *member = *pmember;
+
+        if (member->type->type == TYPE_STRUCT_OR_UNION)
+            flatten_struct_or_union(member->type->struct_or_union_desc, scalars, offset + member->offset);
+        else {
+            StructOrUnionScalar *scalar = malloc(sizeof(StructOrUnionScalar));
+            scalars->scalars[scalars->count++] = scalar;
+            scalar->type = member->type;
+            scalar->offset = offset + member->offset;
+        }
+    }
+}
+
+static void add_single_stack_function_param_location(FunctionParamAllocation *fpa, Type *type) {
+    FunctionParamLocation **fpl = &(fpa->locations[fpa->arg_count]);
+    fpl[0] = malloc(sizeof(FunctionParamLocation));
+    fpa->location_counts[fpa->arg_count] = 1;
+    add_type_to_allocation(fpa, fpl[0], type, 0);
+
+}
+// Add a param/arg to a function and allocate registers & stack entries
+// Structs are decomposed.
+void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
+    if (fpa->arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
+
+    if (type->type != TYPE_STRUCT_OR_UNION) {
+        // Create a single location for the arg
+        add_single_stack_function_param_location(fpa, type);
+    }
+
+    else {
+        // TODO also force struct params with unaligned members into memory
+        // In practice, if a struct is larger than 16 bytes, it's on the stack
+        int size = get_type_size(type);
+        if (size > 16) {
+            // The entire thing is on the stack
+            add_single_stack_function_param_location(fpa, type);
+        }
+
+        else {
+            // Decompose a struct or union into up to 8 8-bytes
+
+            StructOrUnionScalars *scalars = malloc(sizeof(StructOrUnionScalars));
+            scalars->scalars = malloc(sizeof(StructOrUnionScalar) * 16);
+            scalars->count = 0;
+            flatten_struct_or_union(type->struct_or_union_desc, scalars, 0);
+
+            // Classify the eight bytes
+            char *seen_integer = malloc(sizeof(char) * 8);
+            memset(seen_integer, 0, sizeof(char) * 8);
+            char *seen_sse = malloc(sizeof(char) * 8);
+            memset(seen_sse, 0, sizeof(char) * 8);
+            char *seen_memory = malloc(sizeof(char) * 8);
+            memset(seen_memory, 0, sizeof(char) * 8);
+
+            for (int i = 0; i < scalars->count; i++) {
+                StructOrUnionScalar *scalar = scalars->scalars[i];
+                int eight_byte = scalar->offset >> 3;
+
+                if (type_fits_in_single_int_register(scalar->type))
+                    seen_integer[eight_byte] = 1;
+                else if (is_sse_floating_point_type(scalar->type))
+                    seen_sse[eight_byte] = 1;
+                else {
+                    seen_memory[eight_byte] = 1;
+                    seen_memory[eight_byte + 1] = 1;
+                }
+            }
+
+            // Determine number of 8-bytes & allocate memory
+            int eight_bytes_count = size / 8;
+            FunctionParamLocation *fpl = malloc(sizeof(FunctionParamLocation) * eight_bytes_count);
+            fpa->locations[fpa->arg_count] = fpl;
+            fpa->location_counts[fpa->arg_count] = eight_bytes_count;
+
+            // If one of the classes is MEMORY, the whole argument is passed in memory.
+            int in_memory = 0;
+            for (int i = 0; i < eight_bytes_count; i++) in_memory |= seen_memory[i];
+            if  (in_memory) {
+                // The entire thing is on the stack
+                add_single_stack_function_param_location(fpa, type);
+            }
+
+            else {
+                // Create a location for each eight byte
+                for (int i = 0; i < eight_bytes_count; i++) {
+                    if (seen_integer[i])
+                        add_type_to_allocation(fpa, &(fpl[i]), new_type(TYPE_INT), 0);
+                    else
+                        add_type_to_allocation(fpa, &(fpl[i]), new_type(TYPE_FLOAT), 0);
+                }
+            }
+        }
+
+    }
+
     fpa->arg_count++;
 }
 

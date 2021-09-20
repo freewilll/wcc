@@ -30,6 +30,58 @@ char shortcut_to_char(int s) {
     else panic1d("Unknown type shortcut", s);
 }
 
+char *fpa_result_str(FunctionParamAllocation *fpa) {
+    // Construct string representation of int, sse and stack allocation
+    // The hex values are the parameter index
+    char *result = malloc(256);
+    char *b = result;
+
+    for (int i = 0; i < 6; i++) {
+        int allocated = 0;
+        for (int j = 0; j < fpa->arg_count; j++) {
+            int location_counts = fpa->location_counts[j];
+            for (int k = 0; k < location_counts; k++) {
+                if (fpa->locations[j][k].int_register == i) {
+                    b += sprintf(b, "%x", j);
+                    allocated = 1;
+                }
+            }
+        }
+        if (!allocated) b += sprintf(b, " ");
+    }
+
+    b += sprintf(b, " | ");
+    for (int i = 0; i < 8; i++) {
+        int allocated = 0;
+        for (int j = 0; j < fpa->arg_count; j++) {
+            int location_counts = fpa->location_counts[j];
+            for (int k = 0; k < location_counts; k++) {
+                if (fpa->locations[j][k].sse_register == i) {
+                    b += sprintf(b, "%0x", j);
+                    allocated = 1;
+                }
+            }
+        }
+        if (!allocated) b += sprintf(b, " ");
+    }
+
+    b += sprintf(b, " | %03x %03x | ", fpa->size, fpa->padding);
+    b[0] = 0;
+    int first = 1;
+    int stack_offset = 0;
+    for (int i = 0; i < fpa->arg_count; i++)
+        if (fpa->locations[i][0].stack_offset != -1) {
+            while (stack_offset < fpa->locations[i][0].stack_offset) {
+                b += sprintf(b, " ");
+                stack_offset += 8;
+            }
+            b += sprintf(b, "%x", i);
+            stack_offset += 8;
+        }
+
+    return result;
+}
+
 // Process 16 parameters and assert that string representation of the register & stack layout matches
 void test_param_allocation(
         int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
@@ -77,49 +129,26 @@ void test_param_allocation(
     if (a14) b[14] = shortcut_to_char(a14);
     if (a15) b[15] = shortcut_to_char(a15);
 
-    // Construct string representation of int, sse and stack allocation
-    // The hex values are the parameter index
-    char *got = malloc(256);
-    b = got;
-
-    for (int i = 0; i < 6; i++) {
-        int allocated = 0;
-        for (int j = 0; j < fpa->arg_count; j++) {
-            if (fpa->locations[j].int_register == i) {
-                b += sprintf(b, "%x", j);
-                allocated = 1;
-            }
-        }
-        if (!allocated) b += sprintf(b, " ");
-    }
-
-    b += sprintf(b, " | ");
-    for (int i = 0; i < 8; i++) {
-        int allocated = 0;
-        for (int j = 0; j < fpa->arg_count; j++) {
-            if (fpa->locations[j].sse_register == i) {
-                b += sprintf(b, "%0x", j);
-                allocated = 1;
-            }
-        }
-        if (!allocated) b += sprintf(b, " ");
-    }
-
-    b += sprintf(b, " | %03x %03x | ", fpa->size, fpa->padding);
-    b[0] = 0;
-    int first = 1;
-    int stack_offset = 0;
-    for (int i = 0; i < fpa->arg_count; i++)
-        if (fpa->locations[i].stack_offset != -1) {
-            while (stack_offset < fpa->locations[i].stack_offset) {
-                b += sprintf(b, " ");
-                stack_offset += 8;
-            }
-            b += sprintf(b, "%x", i);
-            stack_offset += 8;
-        }
+    char *got = fpa_result_str(fpa);
 
     assert_string(expected, got, description);
+}
+
+// Convert list of FunctionParamLocation into string representation
+// {argm}:[In|So|STp]
+char *fpl_result_str(FunctionParamLocation *fpl, int count) {
+    char *result = malloc(256);
+    char *b = result;
+
+    for (int i = 0; i < count; i++) {
+        if (i != 0) b += sprintf(b, " ");
+        b += sprintf(b, "%d:", i);
+        if (fpl[i].int_register != -1) b += sprintf(b, "I%d", fpl[i].int_register);
+        else if (fpl[i].sse_register != -1) b += sprintf(b, "S%d", fpl[i].sse_register);
+        else b += sprintf(b, "ST%d", fpl[i].stack_offset);
+    }
+
+    return result;
 }
 
 void test_scalar_params() {
@@ -145,6 +174,85 @@ void test_scalar_params() {
     test_param_allocation(PI, PS, PL, PI, PS, PL, PI, PS, PL, PI, PS, PL, PI, PS, PL, PI, "0369cf | 147ad    | 050 000 | 2 5 8 b e");
 }
 
+Type *parse_type_str(char *type_str) {
+    char *filename =  make_temp_filename("/tmp/XXXXXX.c");
+
+    f = fopen(filename, "w");
+    fprintf(f, "%s\n", type_str);
+    fprintf(f, "\n");
+    fclose(f);
+
+    init_lexer(filename);
+    init_parser();
+    init_scopes();
+
+    return parse_type_name();
+}
+
+void test_struct_params() {
+    Type *type;
+
+    FunctionParamAllocation *fpa;
+
+    fpa = init_function_param_allocaton("");
+    type = parse_type_str("struct { int a, b; double d; }");
+    add_function_param_to_allocation(fpa, type);
+    finalize_function_param_allocation(fpa);
+    assert_string(fpa_result_str(fpa), "0      | 0        | 000 000 | ", sprint_type_in_english(type));
+
+    fpa = init_function_param_allocaton("");
+    type = parse_type_str("struct { int a; float d; }");
+    add_function_param_to_allocation(fpa, type);
+    finalize_function_param_allocation(fpa);
+    assert_string(fpa_result_str(fpa), "0      |          | 000 000 | ", sprint_type_in_english(type));
+
+    fpa = init_function_param_allocaton("");
+    type = parse_type_str("struct { int a, b; struct {int c; int d; } s; }");
+    add_function_param_to_allocation(fpa, type);
+    finalize_function_param_allocation(fpa);
+    assert_string(fpa_result_str(fpa), "00     |          | 000 000 | ", sprint_type_in_english(type));
+
+    fpa = init_function_param_allocaton("");
+    type = parse_type_str("struct { long double ld; }");
+    add_function_param_to_allocation(fpa, type);
+    finalize_function_param_allocation(fpa);
+    assert_string(fpa_result_str(fpa), "       |          | 010 000 | 0", sprint_type_in_english(type));
+    assert_int(1, fpa->location_counts[0], "Location counts are 1");
+
+     // Example from ABI doc
+    fpa = init_function_param_allocaton("");
+    add_function_param_to_allocation(fpa, new_type(TYPE_INT));
+    add_function_param_to_allocation(fpa, new_type(TYPE_INT));
+    add_function_param_to_allocation(fpa, parse_type_str("struct { int a, b; double d; }"));
+    add_function_param_to_allocation(fpa, new_type(TYPE_INT));
+    add_function_param_to_allocation(fpa, new_type(TYPE_INT));
+    add_function_param_to_allocation(fpa, new_type(TYPE_LONG_DOUBLE));
+    add_function_param_to_allocation(fpa, new_type(TYPE_DOUBLE));
+    add_function_param_to_allocation(fpa, new_type(TYPE_DOUBLE));
+    add_function_param_to_allocation(fpa, new_type(TYPE_INT));
+    add_function_param_to_allocation(fpa, new_type(TYPE_INT));
+    add_function_param_to_allocation(fpa, new_type(TYPE_INT));
+    finalize_function_param_allocation(fpa);
+    assert_string(fpa_result_str(fpa), "012348 | 267      | 020 000 | 5 9a", "Example from ABI doc v0.98");
+    assert_string("0:I2 1:S0", fpl_result_str(fpa->locations[2], fpa->location_counts[2]), "Example from ABI doc v0.98 arg 2");
+
+    // Test defaulting to memory
+    fpa = init_function_param_allocaton("");
+    type = parse_type_str("struct { int i; long double ld; }");
+    add_function_param_to_allocation(fpa, type);
+    finalize_function_param_allocation(fpa);
+    assert_string(fpa_result_str(fpa), "       |          | 020 000 | 0", sprint_type_in_english(type));
+    assert_int(1, fpa->location_counts[0], "Location counts are 1");
+
+    // Test defaulting to memory
+    fpa = init_function_param_allocaton("");
+    type = parse_type_str("struct { long i, j, k; }");
+    add_function_param_to_allocation(fpa, type);
+    finalize_function_param_allocation(fpa);
+    assert_string(fpa_result_str(fpa), "       |          | 018 000 | 0", sprint_type_in_english(type));
+    assert_int(1, fpa->location_counts[0], "Location counts are 1");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -152,6 +260,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv, &verbose);
 
     test_scalar_params();
+    test_struct_params();
 
     finalize();
 }
