@@ -1556,6 +1556,16 @@ void test_spilling() {
     assert_rx86_preg_op("movq        -8(%rbp), %r10");
     assert_rx86_preg_op("movq        %r10, -16(%rbp)");
 
+    // src1c spill with offset
+    Value *offsetted_value = asz(1, TYPE_INT);
+    offsetted_value->offset = 64;
+    start_ir();
+    i(0, IR_MOVE, Ssz(-2, TYPE_LONG), offsetted_value, 0);
+    finish_spill_ir(function);
+    assert_rx86_preg_op("movq        -8(%rbp), %r10");
+    assert_rx86_preg_op("addq        $64, %r10");
+    assert_rx86_preg_op("movq        %r10, -16(%rbp)");
+
     // src2 spill
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_INT), v(1), c(1));

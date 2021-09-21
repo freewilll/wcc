@@ -491,10 +491,10 @@ static void add_composite_pointer_rules(int *ntc) {
 static void add_int_indirect_rule(int dst, int src) {
     char *template;
 
-         if (src == RP1) template = "movb (%v1q), %vdb";
-    else if (src == RP2) template = "movw (%v1q), %vdw";
-    else if (src == RP3) template = "movl (%v1q), %vdl";
-    else                 template = "movq (%v1q), %vdq";
+         if (src == RP1) template = "movb %v1o(%v1q), %vdb";
+    else if (src == RP2) template = "movw %v1o(%v1q), %vdw";
+    else if (src == RP3) template = "movl %v1o(%v1q), %vdl";
+    else                 template = "movq %v1o(%v1q), %vdq";
 
     Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
     add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, template);
@@ -503,8 +503,8 @@ static void add_int_indirect_rule(int dst, int src) {
 static void add_sse_indirect_rule(int dst, int src) {
     char *template;
 
-    if      (src == RP3) template = "movss (%v1q), %vdF";
-    else if (src == RP4) template = "movsd (%v1q), %vdD";
+    if      (src == RP3) template = "movss %v1o(%v1q), %vdF";
+    else if (src == RP4) template = "movsd %v1o(%v1q), %vdD";
     else panic1d("Unknown src in add_sse_indirect_rule %d", src);
 
     Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
@@ -530,37 +530,37 @@ static void add_indirect_rules() {
 
     // Long double indirect from pointer in register
     r = add_rule(MLD5, IR_INDIRECT, RP5, 0, 5);
-    add_allocate_register_in_slot(r, 1, TYPE_LONG);                     // SV1: allocate register for value
-    add_op(r, X_MOV_FROM_IND, SV1, SRC1, 0,   "movq (%v1q), %vdq");     // Move low byte
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);                       // SV1: allocate register for value
+    add_op(r, X_MOV_FROM_IND, SV1, SRC1, 0,   "movq %v1o(%v1q), %vdq");   // Move low byte
     add_op(r, X_MOV,          DST, SRC1, SV1, "movq %v2q, %vdL");
-    add_op(r, X_MOV_FROM_IND, SV1, SRC1, 0,   "movq 8(%v1q), %vdq");    // Move high byte
+    add_op(r, X_MOV_FROM_IND, SV1, SRC1, 0,   "movq %v1or+8(%v1q), %vdq"); // Move high byte
     add_op(r, X_MOV,          DST, SRC1, SV1, "movq %v2q, %vdH");
 
     // Long double indirect from pointer in memory
     r = add_rule(MLD5, IR_INDIRECT, MPV, 0, 5);
-    add_allocate_register_in_slot(r, 1, TYPE_LONG);                 // SV1: register for pointer
-    add_allocate_register_in_slot(r, 2, TYPE_LONG);                 // SV2: register for value
-    add_op(r, X_MOVC,         SV1, SRC1, 0, "movq %v1q, %vdq");     // Load pointer in memory into pointer in register
-    add_op(r, X_MOV_FROM_IND, SV2, SV1,  0, "movq (%v1q), %vdq");   // Move low byte
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);                     // SV1: register for pointer
+    add_allocate_register_in_slot(r, 2, TYPE_LONG);                     // SV2: register for value
+    add_op(r, X_MOVC,         SV1, SRC1, 0, "movq %v1q, %vdq");         // Load pointer in memory into pointer in register
+    add_op(r, X_MOV_FROM_IND, SV2, SV1,  0, "movq %v1o(%v1q), %vdq");   // Move low byte
     add_op(r, X_MOVC,         DST, SV2,  0, "movq %v1q, %vdL");
-    add_op(r, X_MOV_FROM_IND, SV2, SV1,  0, "movq 8(%v1q), %vdq");  // Move high byte
+    add_op(r, X_MOV_FROM_IND, SV2, SV1,  0, "movq %v1or+8(%v1q), %vdq"); // Move high byte
     add_op(r, X_MOVC,         DST, SV2,  0, "movq %v1q, %vdH");
 
     // Move of a constant to a pointer in a register
     r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, CLD, 5);
-    add_allocate_register_in_slot(r, 1, TYPE_LONG);                 // SV1: register for value
-    add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1L, %vdq");     // Move low byte
-    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, (%v1q)");   // Move high byte
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);                   // SV1: register for value
+    add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1L, %vdq");       // Move low byte
+    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, %v1o(%v1q)"); // Move high byte
     add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1H, %vdq");
-    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, 8(%v1q)");
+    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, %v1or+8(%v1q)");
 
     // Move of a long double to a pointer in a register
     r = add_rule(RP5, IR_MOVE_TO_PTR, RP5, MLD5, 5);
-    add_allocate_register_in_slot(r, 1, TYPE_LONG);                 // SV1: register for value
-    add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1L, %vdq");     // Move low byte
-    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, (%v1q)");   // Move high byte
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);                   // SV1: register for value
+    add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1L, %vdq");       // Move low byte
+    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, %v1o(%v1q)"); // Move high byte
     add_op(r, X_MOVC,       SV1, SRC2, 0,   "movq %v1H, %vdq");
-    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, 8(%v1q)");
+    add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, %v1or+8(%v1q)");
 }
 
 static void add_pointer_rules(int *ntc) {
@@ -589,29 +589,29 @@ static void add_pointer_rules(int *ntc) {
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)
         for (int src = RP1; src <= RP4; src++)
-            add_move_to_ptr(dst, src, 0, "movq %v2q, (%v1q)");
+            add_move_to_ptr(dst, src, 0, "movq %v2q, %v1o(%v1q)");
 
     // Stores to a pointer
     for (int is_unsigned = 0; is_unsigned < 2; is_unsigned++) {
-        add_move_to_ptr(RP1, is_unsigned ? RU1 : RI1, 0, "movb %v2b, (%v1q)");
-        add_move_to_ptr(RP1, is_unsigned ? RU2 : RI2, 0, "movb %v2b, (%v1q)");
-        add_move_to_ptr(RP2, is_unsigned ? RU2 : RI2, 0, "movw %v2w, (%v1q)");
-        add_move_to_ptr(RP1, is_unsigned ? RU3 : RI3, 0, "movb %v2b, (%v1q)");
-        add_move_to_ptr(RP2, is_unsigned ? RU3 : RI3, 0, "movw %v2w, (%v1q)");
-        add_move_to_ptr(RP3, is_unsigned ? RU3 : RI3, 0, "movl %v2l, (%v1q)");
-        add_move_to_ptr(RP1, is_unsigned ? RU4 : RI4, 0, "movb %v2b, (%v1q)");
-        add_move_to_ptr(RP2, is_unsigned ? RU4 : RI4, 0, "movw %v2w, (%v1q)");
-        add_move_to_ptr(RP3, is_unsigned ? RU4 : RI4, 0, "movl %v2l, (%v1q)");
-        add_move_to_ptr(RP4, is_unsigned ? RU4 : RI4, 0, "movq %v2q, (%v1q)");
+        add_move_to_ptr(RP1, is_unsigned ? RU1 : RI1, 0, "movb %v2b, %v1o(%v1q)");
+        add_move_to_ptr(RP1, is_unsigned ? RU2 : RI2, 0, "movb %v2b, %v1o(%v1q)");
+        add_move_to_ptr(RP2, is_unsigned ? RU2 : RI2, 0, "movw %v2w, %v1o(%v1q)");
+        add_move_to_ptr(RP1, is_unsigned ? RU3 : RI3, 0, "movb %v2b, %v1o(%v1q)");
+        add_move_to_ptr(RP2, is_unsigned ? RU3 : RI3, 0, "movw %v2w, %v1o(%v1q)");
+        add_move_to_ptr(RP3, is_unsigned ? RU3 : RI3, 0, "movl %v2l, %v1o(%v1q)");
+        add_move_to_ptr(RP1, is_unsigned ? RU4 : RI4, 0, "movb %v2b, %v1o(%v1q)");
+        add_move_to_ptr(RP2, is_unsigned ? RU4 : RI4, 0, "movw %v2w, %v1o(%v1q)");
+        add_move_to_ptr(RP3, is_unsigned ? RU4 : RI4, 0, "movl %v2l, %v1o(%v1q)");
+        add_move_to_ptr(RP4, is_unsigned ? RU4 : RI4, 0, "movq %v2q, %v1o(%v1q)");
     }
 
-    add_move_to_ptr(RP1, CI1, 0, "movb $%v2b, (%v1q)");
-    add_move_to_ptr(RP2, CI2, 0, "movw $%v2w, (%v1q)");
-    add_move_to_ptr(RP3, CI3, 0, "movl $%v2l, (%v1q)");
-    add_move_to_ptr(RP4, CI4, 0, "movq $%v2q, (%v1q)");
+    add_move_to_ptr(RP1, CI1, 0, "movb $%v2b, %v1o(%v1q)");
+    add_move_to_ptr(RP2, CI2, 0, "movw $%v2w, %v1o(%v1q)");
+    add_move_to_ptr(RP3, CI3, 0, "movl $%v2l, %v1o(%v1q)");
+    add_move_to_ptr(RP4, CI4, 0, "movq $%v2q, %v1o(%v1q)");
 
-    add_move_to_ptr(RP3, RS3, 0, "movss %v2F, (%v1q)");
-    add_move_to_ptr(RP4, RS4, 0, "movsd %v2D, (%v1q)");
+    add_move_to_ptr(RP3, RS3, 0, "movss %v2F, %v1o(%v1q)");
+    add_move_to_ptr(RP4, RS4, 0, "movsd %v2D, %v1o(%v1q)");
 }
 
 static void add_ret(Rule *r) {

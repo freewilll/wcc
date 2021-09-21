@@ -1069,8 +1069,10 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             dst->vreg = new_vreg();
             dst->ssa_subscript = -1;
 
-            if (ign->tac)
+            if (ign->tac) {
                 dst->type = dup_type(ign->tac->dst->type);
+                dst->offset = ign->tac->dst->offset;
+            }
             else
                 dst->type = dup_type(ign->value->type);
 
@@ -1453,6 +1455,30 @@ static void add_spill_load(Tac *ir, int src, int preg) {
         ir->src2 = dup_value(tac->dst);
 
     insert_instruction(ir, tac, 1);
+
+    // If a register has an offset, it's used in an indirect operation, such
+    // as 4(rax). This means, take the value in rax and add four to it. However, by
+    // moving it to the stack, without any manipulation the meaning changes from
+    // 4(rax) to 4 + allocated_stack_offset(rbp), which would be incorrect. To fix this,
+    // the offset is removed and converted to an add instruction, so that we get
+    // movq allocated_stack_offset(rbp), spill_reg
+    // addq spill_reg, 4.
+    if (v->offset) {
+        Tac *tac = new_instruction(X_MOV);
+        tac->x86_template = "addq $%v1q, %vdq";
+
+        tac->src1 = new_integral_constant(TYPE_LONG, v->offset);
+
+        tac->dst = new_value();
+        tac->dst->type = new_type(TYPE_LONG);
+        tac->dst->x86_size = 4;
+        tac->dst->vreg = -1000;   // Dummy value
+        tac->dst->preg = preg;
+
+        insert_instruction(ir, tac, 1);
+
+        v->offset = 0;
+    }
 }
 
 static void add_spill_store(Tac *ir, Value *v, int preg) {

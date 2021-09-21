@@ -1159,6 +1159,13 @@ static void parse_expression(int level) {
 
         Value *src1 = pop();
         add_ir_op(IR_ADDRESS_OF, make_pointer(src1->type), new_vreg(), src1, 0);
+        if (src1->offset && src1->vreg) {
+            // Non-vreg offsets are outputted by codegen. For addresses in registers, it
+            // needs to be calculated.
+            push_integral_constant(TYPE_INT, src1->offset);
+            arithmetic_operation(IR_ADD, 0);
+            src1->offset = 0;
+        }
     }
 
     else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
@@ -1443,56 +1450,30 @@ static void parse_expression(int level) {
         }
 
         else if (cur_token == TOK_DOT || cur_token == TOK_ARROW) {
-            if (cur_token == TOK_DOT) {
-                // Struct/union member lookup
+            // Struct/union member lookup
 
+            if (cur_token == TOK_DOT) {
                 if (vtop->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
                 if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
-
-                if (vtop->vreg) {
-                    // It's an lvalue in a register.
-                    // Pretend the lvalue is a pointer to a struct
-                    vtop->is_lvalue = 0;
-                    vtop->type = make_pointer(vtop->type);
-                }
-            }
-
-            if (cur_token == TOK_DOT && !vtop->vreg) {
-                next();
-                consume(TOK_IDENTIFIER, "identifier");
-
-                StructOrUnion *str = vtop->type->struct_or_union_desc;
-                StructOrUnionMember *member = lookup_struct_or_union_member(str, cur_identifier);
-
-                vtop->type = dup_type(member->type);
-                vtop->offset += member->offset;
-                vtop->is_lvalue = 1;
             }
             else {
                 if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
                 if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) panic("Can only use -> on a pointer to a struct or union");
-
-                next();
-                consume(TOK_IDENTIFIER, "identifier");
-
-                StructOrUnion *str = vtop->type->target->struct_or_union_desc;
-                StructOrUnionMember *member = lookup_struct_or_union_member(str, cur_identifier);
-                indirect();
-
-                vtop->type = dup_type(member->type);
-
-                if (member->offset > 0) {
-                    // Make the struct lvalue into a pointer to struct rvalue for manipulation
-                    vtop->is_lvalue = 0;
-                    vtop->type = make_pointer(vtop->type);
-
-                    push_integral_constant(TYPE_INT, member->offset);
-                    arithmetic_operation(IR_ADD, 0);
-                }
-
-                vtop->type = dup_type(member->type);
-                vtop->is_lvalue = 1;
             }
+
+            int is_dot = cur_token == TOK_DOT;
+
+            next();
+            consume(TOK_IDENTIFIER, "identifier");
+
+            StructOrUnion *str = is_dot ? vtop->type->struct_or_union_desc : vtop->type->target->struct_or_union_desc;
+            StructOrUnionMember *member = lookup_struct_or_union_member(str, cur_identifier);
+
+            if (!is_dot) indirect();
+
+            vtop->offset = vtop->offset + member->offset;
+            vtop->type = dup_type(member->type);
+            vtop->is_lvalue = 1;
         }
 
         else if (cur_token == TOK_MULTIPLY) { next(); parse_arithmetic_operation(TOK_DOT, IR_MUL, 0); }

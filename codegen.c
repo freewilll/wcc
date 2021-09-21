@@ -211,10 +211,22 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 else panic1s("Indecipherable placeholder \"%s\"", tac->x86_template);
 
                 int x86_size = 0;
+                int is_offset = 0;
+                int offset_is_required = 0;
+
                      if (t[1] == 'b') { t++; x86_size = 1; }
                 else if (t[1] == 'w') { t++; x86_size = 2; }
                 else if (t[1] == 'l') { t++; x86_size = 3; }
                 else if (t[1] == 'q') { t++; x86_size = 4; }
+
+                else if (t[1] == 'o') {
+                    t++; x86_size = 4;
+                    is_offset = 1;
+                    if (t[1] == 'r') {
+                        offset_is_required = 1;
+                        t++;
+                    }
+                }
 
                 int low = 0;
                 int high = 0;
@@ -234,7 +246,10 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
-                if (!expect_preg && v->vreg) {
+                if (is_offset) {
+                    if (v->offset || offset_is_required) sprintf(buffer, "%d", v->offset);
+                }
+                else if (!expect_preg && v->vreg) {
                     if (!x86_size) panic1s("Missing size on register value \"%s\"", tac->x86_template);
                     if (v->global_symbol) panic("Got global symbol in vreg");
 
