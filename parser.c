@@ -775,7 +775,7 @@ static Value *float_type_change(Value *src) {
 static void arithmetic_operation(int operation, Type *dst_type) {
     // Pull two items from the stack and push the result. Code in the IR
     // is generated when the operands can't be evaluated directly.
-    Type *common_type = vs_operation_type(0);
+    Type *common_type = vs_operation_type();
     if (!dst_type) dst_type = common_type;
 
     Value *src2 = pl();
@@ -1181,7 +1181,7 @@ static void parse_expression(int level) {
 
     else if (cur_token == TOK_MULTIPLY) {
         if (base_type)
-            parse_declaration(0);
+            parse_declaration();
         else {
             next();
             parse_expression(TOK_INC);
@@ -1280,7 +1280,7 @@ static void parse_expression(int level) {
 
     else if (cur_token == TOK_IDENTIFIER) {
         if (base_type)
-            parse_declaration(0);
+            parse_declaration();
 
         else {
             // It's an existing symbol
