@@ -848,7 +848,7 @@ Tac *add_struct_or_union_memcpy(Tac *ir, int *function_call_count) {
 }
 
 // Copy struct/unions using registers
-static Tac *add_struct_or_union_register_copy(Tac *ir) {
+static Tac *add_struct_or_union_register_copy(Function *function, Tac *ir) {
     Value *dst = ir->dst;
     Value *src1 = ir->src1;
 
@@ -867,7 +867,7 @@ static Tac *add_struct_or_union_register_copy(Tac *ir) {
         while (size >= step) {
             Value *temp_value = new_value();
             temp_value->type = new_type(TYPE_CHAR + i);
-            temp_value->vreg = new_vreg();
+            temp_value->vreg = ++function->vreg_count;
 
             Value *offsetted_dst = dup_value(dst);
             offsetted_dst->offset = dst_offset;
@@ -906,6 +906,6 @@ void process_struct_and_union_copies(Function *function) {
         if (use_memcpy)
             ir = add_struct_or_union_memcpy(ir, &function_call_count);
         else
-            ir = add_struct_or_union_register_copy(ir);
+            ir = add_struct_or_union_register_copy(function, ir);
     }
 }

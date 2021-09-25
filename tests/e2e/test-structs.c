@@ -835,6 +835,15 @@ int test_copy() {
     struct st st = *s.st;
     assert_int(1, st.i, "Dereferened member copy that is a pointer to struct 1");
     assert_int(2, st.j, "Dereferened member copy that is a pointer to struct 2");
+
+    // Test bug where the same vreg was allocated for a temporary in the struct
+    // copy generated code.
+    struct { int i, j, k; } *ps1, *ps2, s1, s2;
+    s1.i = 1; s1.j = 2;
+    ps2 = &s2;
+    s2 = s1;
+    assert_int(1, ps2->i, "Struct copy bad vreg bug 1");
+    assert_int(2, ps2->j, "Struct copy bad vreg bug 2");
 }
 
 int test_pointers() {
