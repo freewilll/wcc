@@ -875,7 +875,16 @@ static Tac *add_struct_or_union_register_copy(Function *function, Tac *ir) {
             Value *offsetted_src1 = dup_value(src1);
             offsetted_src1->offset = src1_offset;
             offsetted_src1->type = temp_value->type;
-            ir = insert_instruction_after_from_operation(ir, IR_MOVE, temp_value, offsetted_src1, 0);
+
+            if (src1->is_lvalue && src1->vreg) {
+                // Make it a pointer and add an indirect instruction
+                Value *indirect_src1 = dup_value(offsetted_src1);
+                indirect_src1->type = make_pointer(temp_value->type);
+                indirect_src1->is_lvalue = 0;
+                ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, temp_value, indirect_src1, 0);
+            } else
+                ir = insert_instruction_after_from_operation(ir, IR_MOVE, temp_value, offsetted_src1, 0);
+
             ir = insert_instruction_after_from_operation(ir, IR_MOVE, offsetted_dst, temp_value, 0);
 
             size -= step;
@@ -898,12 +907,7 @@ void process_struct_and_union_copies(Function *function) {
 
         // If either src or dst is an lvalue in a register, or the struct size > 32,
         // use a memory copy. Otherwise use temporary registers to do the copy.
-        int use_memcpy = (
-            (ir->dst->is_lvalue && ir->dst->vreg) ||
-            (ir->src1->is_lvalue && ir->src1->vreg) ||
-            get_type_size(ir->dst->type) > 32);
-
-        if (use_memcpy)
+        if (get_type_size(ir->dst->type) > 32)
             ir = add_struct_or_union_memcpy(ir, &function_call_count);
         else
             ir = add_struct_or_union_register_copy(function, ir);
