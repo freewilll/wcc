@@ -625,7 +625,7 @@ void run_function_call_single_arg(Value *src) {
     remove_reserved_physical_registers = 1;
 
     start_ir();
-    i(0, IR_ARG, 0, c(0), src);
+    i(0, IR_ARG, 0, make_arg_src1(), src);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
     tac->src1->function_symbol->type->function->param_count = 1;
     tac->src1->function_symbol->type->function->param_types = malloc(sizeof(Type));
@@ -711,7 +711,7 @@ void test_function_args() {
     remove_reserved_physical_registers = 1;
     start_ir();
     i(0, IR_MOVE, asz(1, TYPE_CHAR), s(1), 0);
-    i(0, IR_ARG, 0, c(0), asz(1, TYPE_CHAR));
+    i(0, IR_ARG, 0, make_arg_src1(), asz(1, TYPE_CHAR));
     i(0, IR_CALL, v(2), fu(1), 0);
     i(0, IR_MOVE, v(3), v(2), 0);
     finish_spill_ir(function);

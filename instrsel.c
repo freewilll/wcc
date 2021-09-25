@@ -69,6 +69,7 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
     if (ign->tac) {
         int operation = ign->tac->operation;
              if (operation == IR_MOVE)                 c += printf("=");
+        else if (operation == IR_MOVE_PREG_CLASS)      c += printf("move to preg class");
         else if (operation == IR_DECL_LOCAL_COMP_OBJ)  c += printf("declare");
         else if (operation == IR_ADD)                  c += printf("+");
         else if (operation == IR_SUB)                  c += printf("-");

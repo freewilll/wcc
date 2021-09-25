@@ -1288,6 +1288,9 @@ void init_instruction_selection_rules() {
     add_float_and_double_move_rules();
     add_long_double_move_rules();
 
+    // Physical register class moves
+    r = add_rule(MS4, IR_MOVE_PREG_CLASS, RI4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+
     // Pointer move rules
     r = add_rule(RP1, IR_MOVE, STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
 

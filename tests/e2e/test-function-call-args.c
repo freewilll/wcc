@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "../test-lib.h"
+#include "struct-params.h"
 
 int verbose;
 int passes;
@@ -439,6 +440,23 @@ void test_float_double_call_return_value() {
     gd1 = 6.0; assert_double(6.0, return_double_global(),      "Double global return value");
 }
 
+struct sffff gsffff;
+
+void test_struct_params() {
+    // Struct with only floats and doubles
+    struct spf spf; spf.f1 = 1.1; accept_spf(spf);
+    struct spd spd; spd.d1 = 2.1; accept_spd(spd);
+    struct spdf spdf; spdf.d1 = 3.1; spdf.f1 = 4.1; accept_spdf(spdf);
+    struct sff sff; sff.f1 = 5.1; sff.f2 = 6.1; accept_sff(sff);
+    struct sdd sdd; sdd.d1 = 7.1; sdd.d2 = 8.1; accept_sdd(sdd);
+    struct sffff sffff; sffff.f1 = 1.1; sffff.f2 = 2.1;  sffff.f3 = 3.1; sffff.f4 = 4.1; accept_sffff(sffff);
+
+    // From lvalue in register
+    accept_sffff(*&sffff);
+    // From global
+    gsffff.f1 = 1.1; gsffff.f2 = 2.1;  gsffff.f3 = 3.1; gsffff.f4 = 4.1; accept_sffff(gsffff);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -464,6 +482,7 @@ int main(int argc, char **argv) {
     test_long_double_stack_index_pushed_register_rename_bug();
     test_float_double_params();
     test_float_double_call_return_value();
+    test_struct_params();
 
     finalize();
 }

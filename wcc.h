@@ -134,7 +134,14 @@ typedef struct function {
     char *vreg_preg_classes;                 // Preg classes for all vregs
 } Function;
 
+// Data of the a single eight byte that's part of a struct or union function parameter or arg
 typedef struct function_param_location {
+    // Details of the struct/union
+    int stru_offset;             // Starting offset in the case of a struct/union
+    int stru_size;               // Number of bytes in the 8-byte in the case of a struct/union
+    int stru_member_count;       // Amount of members in the 8-byte in the case of a struct/union
+
+    // Details of where the function param/arg goes, either in a register or the stack
     // One of int_register/sse_register/stack_offset is not -1.
     int int_register;       // If not -1, an int register
     int sse_register;       // If not -1, an sse register
@@ -171,42 +178,43 @@ enum {
 // - string literal
 // - register
 typedef struct value {
-    Type *type;                               // Type
-    int vreg;                                 // Optional vreg number
-    int preg;                                 // Allocated physical register
-    char preg_class;                          // Class of physical register, PC_INT or PC_SSE
-    int is_lvalue;                            // Is the value an lvalue?
-    int is_lvalue_in_register;                // Is the value an lvalue in a register?
-    int local_index;                          // Used by parser for local variable and temporaries and function arguments
-    int stack_index;                          // stack index in case of a pushed function argument, & usage or register spill
-                                              // < 0 is for locals, temporaries and spills. >= 2 is for pushed arguments, that start at 2.
-    int stack_offset;                         // Position on the stack
-    int spilled;                              // 1 if spilled
-    int is_constant;                          // Is it a constant? If so, value is the value.
-    int is_string_literal;                    // Is the value a string literal?
-    int string_literal_index;                 // Index in the string_literals array in the case of a string literal
-    long int_value;                           // Value in the case of an integer constant
-    long double fp_value;                     // Value in the case of a floating point constant
-    int offset;                               // For composite objects, offset from the start of the object's memory
-    Symbol *function_symbol;                  // Corresponding symbol in the case of a function call
-    int is_function_call_arg;                 // Index of the argument going left to right (0=leftmost)
-    int is_function_param;                    // Is it a function parameter?
-    int function_param_index;                 // Index of the int or sse parameter, 0=rdi, 1=rsi,... and 0=xmm0, 1=xmm1, ....
-    int function_param_original_stack_index;  // Original stack index for function parameter pushed onto the stack
-    int function_call_arg_index;              // Index of the argument (0=leftmost)
-    int function_call_int_register_arg_index; // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
-    int function_call_sse_register_arg_index; // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
-    int function_call_arg_stack_padding;      // Extra initial padding needed to align the function call argument pushed arguments
-    int function_call_arg_push_count;         // Number of arguments pushed on the stack
-    int function_call_sse_register_arg_count; // Number of SSE (xmm) arguments in registers
-    Symbol *global_symbol;                    // Pointer to a global symbol if the value is a global symbol
-    int label;                                // Target label in the case of jump instructions
-    int ssa_subscript;                        // Optional SSA enumeration
-    int live_range;                           // Optional SSA live range
-    char preferred_live_range_preg_index;     // Preferred physical register
-    int x86_size;                             // Current size while generating x86 code
-    int non_terminal;                         // Use in rule matching
-    char has_been_renamed;                    // Used in renaming and stack renumbering code
+    Type *type;                                          // Type
+    int vreg;                                            // Optional vreg number
+    int preg;                                            // Allocated physical register
+    char preg_class;                                     // Class of physical register, PC_INT or PC_SSE
+    int is_lvalue;                                       // Is the value an lvalue?
+    int is_lvalue_in_register;                           // Is the value an lvalue in a register?
+    int local_index;                                     // Used by parser for local variable and temporaries and function arguments
+    int stack_index;                                     // stack index in case of a pushed function argument, & usage or register spill
+                                                         // < 0 is for locals, temporaries and spills. >= 2 is for pushed arguments, that start at 2.
+    int stack_offset;                                    // Position on the stack
+    int spilled;                                         // 1 if spilled
+    int is_constant;                                     // Is it a constant? If so, value is the value.
+    int is_string_literal;                               // Is the value a string literal?
+    int string_literal_index;                            // Index in the string_literals array in the case of a string literal
+    long int_value;                                      // Value in the case of an integer constant
+    long double fp_value;                                // Value in the case of a floating point constant
+    int offset;                                          // For composite objects, offset from the start of the object's memory
+    Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
+    int is_function_call_arg;                            // Index of the argument going left to right (0=leftmost)
+    int is_function_param;                               // Is it a function parameter?
+    int function_param_index;                            // Index of the int or sse parameter, 0=rdi, 1=rsi,... and 0=xmm0, 1=xmm1, ....
+    int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
+    int function_call_arg_index;                         // Index of the argument (0=leftmost)
+    FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or sse register, or in the case of a struct, a list of locations
+    int function_call_int_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
+    int function_call_sse_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
+    int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
+    int function_call_arg_push_count;                    // Number of arguments pushed on the stack
+    int function_call_sse_register_arg_count;            // Number of SSE (xmm) arguments in registers
+    Symbol *global_symbol;                               // Pointer to a global symbol if the value is a global symbol
+    int label;                                           // Target label in the case of jump instructions
+    int ssa_subscript;                                   // Optional SSA enumeration
+    int live_range;                                      // Optional SSA live range
+    char preferred_live_range_preg_index;                // Preferred physical register
+    int x86_size;                                        // Current size while generating x86 code
+    int non_terminal;                                    // Use in rule matching
+    char has_been_renamed;                               // Used in renaming and stack renumbering code
 } Value;
 
 typedef struct three_address_code {
@@ -384,6 +392,7 @@ enum {
 enum {
     IR_MOVE=1,                // Moving of constants, string literals, variables, or registers
     IR_MOVE_TO_PTR,           // Assignment to a pointer target
+    IR_MOVE_PREG_CLASS,       // Move int <-> sse without conversion
     IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
     IR_DECL_LOCAL_COMP_OBJ,   // Declare a local compound object
@@ -654,6 +663,7 @@ void add_tac_to_ir(Tac *tac);
 Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 void insert_instruction(Tac *ir, Tac *tac, int move_label);
+void insert_instruction_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, int move_label);
 Tac *insert_instruction_after(Tac *ir, Tac *tac);
 Tac *insert_instruction_after_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2);
 Tac *delete_instruction(Tac *tac);
@@ -1014,6 +1024,7 @@ Value *Ssz(int stack_index, int type);
 Value *g(int index);
 Value *gsz(int index, int type);
 Value *fu(int index);
+Value *make_arg_src1();
 
 void start_ir();
 void finish_register_allocation_ir(Function *function);

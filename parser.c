@@ -340,8 +340,6 @@ static Type *parse_function(Type *return_type) {
 
         if (cur_token_is_type()) {
             Type *type = parse_type_name();
-            if (type->type == TYPE_STRUCT_OR_UNION)
-                panic("Direct usage of struct and union variables not implemented");
 
             Symbol *param_symbol = new_symbol();
             param_symbol->type = dup_type(type);
@@ -1355,8 +1353,7 @@ static void parse_expression(int level) {
 
                     add_function_param_to_allocation(fpa, vtop->type);
                     FunctionParamLocations *fpl = &(fpa->params[arg_count]);
-                    arg->function_call_int_register_arg_index = fpl->locations[0].int_register;
-                    arg->function_call_sse_register_arg_index = fpl->locations[0].sse_register;
+                    arg->function_call_arg_locations = fpl;
                     arg->function_call_arg_stack_padding = fpl->locations[0].stack_padding;
                     add_instruction(IR_ARG, 0, arg, pl());
 

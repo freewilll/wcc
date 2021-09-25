@@ -21,14 +21,17 @@ WCC_TESTS=\
 
 all: run-test-gcc run-test-wcc run-test-include
 
-stack-check.o: stack-check.c
+stack-check.o: stack-check.c struct-params.h
 	gcc ${GCC_OPTS} stack-check.c -c
+
+struct-params.o: struct-params.c
+	gcc ${GCC_OPTS} struct-params.c -c
 
 test-%.s: test-%.c ../../wcc
 	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov --Wno-integer-constant-too-large -c -S $<
 
-test-%-wcc: test-%.s stack-check.o ../test-lib.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@
+test-%-wcc: test-%.s stack-check.o struct-params.o ../test-lib.o
+	gcc ${GCC_OPTS} $< stack-check.o struct-params.o ../test-lib.o -o $@
 
 run-test-%-wcc: test-%-wcc
 	./$<
@@ -51,8 +54,8 @@ test-arithmetic-types-move-torture.c: gen-test-arithmetic-types-move-torture
 run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
 	@echo wcc tests passed
 
-test-%-gcc: test-%.c stack-check.o ../test-lib.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-overflow -Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-implicit-int -D _GNU_SOURCE
+test-%-gcc: test-%.c stack-check.o struct-params.o ../test-lib.o
+	gcc ${GCC_OPTS} $< stack-check.o struct-params.o ../test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-overflow -Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-implicit-int -D _GNU_SOURCE
 
 run-test-%-gcc: test-%-gcc
 	./$<

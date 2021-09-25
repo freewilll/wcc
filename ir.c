@@ -80,7 +80,6 @@ Tac *new_instruction(int operation) {
 }
 
 // Add instruction to the global intermediate representation ir
-
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac = new_instruction(operation);
     tac->dst = dst;
@@ -173,6 +172,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
 char *operation_string(int operation) {
          if (!operation)                            return "";
     else if (operation == IR_MOVE)                  return "IR_MOVE";
+    else if (operation == IR_MOVE_PREG_CLASS)       return "IR_MOVE_PREG_CLASS";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
     else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
     else if (operation == IR_DECL_LOCAL_COMP_OBJ)   return "IR_DECL_LOCAL_COMP_OBJ";
@@ -270,7 +270,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, ") = ");
     }
 
-    if (o == IR_MOVE)
+    if (o == IR_MOVE || o == IR_MOVE_PREG_CLASS)
         print_value(f, tac->src1, 1);
 
     else if (o == IR_DECL_LOCAL_COMP_OBJ)  {
@@ -502,6 +502,14 @@ void insert_instruction(Tac *ir, Tac *tac, int move_label) {
         tac->label = ir->label;
         ir->label = 0;
     }
+}
+
+void insert_instruction_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, int move_label) {
+    Tac *tac = new_instruction(operation);
+    tac->dst = dst;
+    tac->src1 = src1;
+    tac->src2 = src2;
+    insert_instruction(ir, tac, move_label);
 }
 
 // Append tac to ir
@@ -784,8 +792,15 @@ static Value *void_insert_address_of_instruction(Tac **ir, Value *src) {
 static void *insert_arg_instruction(Tac **ir, Value *function_call_value, Value *v, int int_arg_index) {
     Value *arg_value = dup_value(function_call_value);
     arg_value->function_call_arg_index = int_arg_index;
-    arg_value->function_call_int_register_arg_index = int_arg_index;
-    arg_value->function_call_sse_register_arg_index = -1;
+
+    FunctionParamLocations *fpl = malloc(sizeof(FunctionParamLocations));
+    arg_value->function_call_arg_locations = fpl;
+    fpl->locations = malloc(sizeof(FunctionParamLocation));
+    memset(fpl->locations, -1, sizeof(FunctionParamLocation));
+    fpl->count = 1;
+    fpl->locations[0].int_register = int_arg_index;
+    fpl->locations[0].sse_register = -1;
+
     *ir = insert_instruction_after_from_operation(*ir, IR_ARG, 0, arg_value, v);
 }
 

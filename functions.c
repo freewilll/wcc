@@ -52,6 +52,103 @@ void add_function_return_moves(Function *function) {
     }
 }
 
+// Add a IR_MOVE instruction from a value to a function call register
+// function_call_*_register_arg_index ensures that dst will become the actual
+// x86_64 physical register rdi, rsi, etc
+static void add_param_move_to_register(
+        Function *function, Tac *ir, Type *type, Value *param, int preg_class,
+        int register_index, int **function_call_arg_registers, Type ***function_call_arg_types) {
+
+    int *arg_registers = preg_class == PC_INT ? int_arg_registers : sse_arg_registers;
+
+    Tac *tac = new_instruction(IR_MOVE);
+
+    // dst
+    tac->dst = new_value();
+    tac->dst->type = dup_type(type);
+    tac->dst->vreg = ++function->vreg_count;
+    tac->dst->is_function_call_arg = 1;
+
+    if (preg_class == PC_INT)
+        tac->dst->function_call_int_register_arg_index = register_index;
+    else
+        tac->dst->function_call_sse_register_arg_index = register_index;
+
+    // src
+    tac->src1 = param;
+    tac->src1->preferred_live_range_preg_index = arg_registers[register_index];
+
+    insert_instruction(ir, tac, 1);
+    (*function_call_arg_registers)[register_index] = tac->dst->vreg;
+    (*function_call_arg_types)[register_index] = tac->src1->type;
+}
+
+// Load a scalar in a struct into a register. The scalar can be either a local, global, or lvalue in register
+// If it's an lvalue in a register, it is indirected, otherwise moved.
+Value *load_struct_scalar(Function *function, Tac *ir, Value *param, FunctionParamLocation *pl, Type *type) {
+    // dst
+    Value *temp = new_value();
+    temp->type = type;
+    temp->vreg = ++function->vreg_count;
+
+    int lvalue_in_register = param->is_lvalue && param->vreg;
+    Value *src1 = dup_value(param);
+    src1->type = temp->type;
+    src1->offset += pl->stru_offset;
+
+    insert_instruction_from_operation(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, temp, src1, 0, 1);
+
+    return temp;
+}
+
+// Load an 8-byte of a struct/union that exclusively have floats and doubles in it into a register.
+// The struct/union already has an alignment of either 4 or 8, so it can be loaded with simple instructions.
+static void make_sse_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Type *type, Value *param, int preg_class,
+        int register_index, int **function_call_arg_registers, Type ***function_call_arg_types, FunctionParamLocation *pl) {
+
+    if (pl->stru_size == 4) {
+        // Move a single float
+        Value *temp = load_struct_scalar(function, ir, param, pl, new_type(TYPE_FLOAT));
+        add_param_move_to_register(function, ir, new_type(TYPE_FLOAT), temp, preg_class, register_index, function_call_arg_registers, function_call_arg_types);
+    }
+    else if (pl->stru_size == 8 && pl->stru_member_count == 1) {
+        // Move a single double
+        Value *temp = load_struct_scalar(function, ir, param, pl, new_type(TYPE_DOUBLE));
+        add_param_move_to_register(function, ir, new_type(TYPE_DOUBLE), temp, preg_class, register_index, function_call_arg_registers, function_call_arg_types);
+    }
+    else {
+        // Move two floats. It must first be loaded into an integer register and then
+        // copied to an SSE register.
+        Value *temp_int = load_struct_scalar(function, ir, param, pl, new_type(TYPE_LONG));
+        Value *temp_sse = new_value(temp_int);
+        temp_sse->type = new_type(TYPE_DOUBLE);
+        temp_sse->vreg = ++function->vreg_count;
+        insert_instruction_from_operation(ir, IR_MOVE_PREG_CLASS, temp_sse, temp_int, 0, 1);
+        add_param_move_to_register(function, ir, new_type(TYPE_DOUBLE), temp_sse, preg_class, register_index, function_call_arg_registers, function_call_arg_types);
+    }
+}
+
+// Load a function parameter register from an struct or union 8-byte
+static void make_struct_or_union_arg_move_instructions(
+        Function *function, Tac *ir, Type *type, Value *param, int preg_class,
+        int register_index, int **function_call_arg_registers, Type ***function_call_arg_types, FunctionParamLocations *pl) {
+
+    // For the location that matches register_index, add instructions to load the register
+    for (int loc = 0; loc < pl->count; loc++) {
+        FunctionParamLocation *location = &(pl->locations[loc]);
+        int function_call_register_arg_index = preg_class == PC_INT
+            ? location->int_register
+            : location->sse_register;
+
+        if (function_call_register_arg_index != register_index) continue;
+
+        if (preg_class == PC_SSE)
+            make_sse_struct_or_union_arg_move_instructions(function, ir, type, param, preg_class, register_index, function_call_arg_registers, function_call_arg_types, &(pl->locations[loc]));
+        else
+            printf("TODO struct in int registers\n");
+    }
+}
+
 // Insert IR_MOVE instructions before IR_ARG instructions for
 // - the first 6 single-register args.
 // - the first 8 floating point args.
@@ -72,19 +169,31 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
     int *param_indexes = malloc(sizeof(int) * function_call_count * register_count);
     memset(param_indexes, -1, sizeof(int) * function_call_count * register_count);
 
+    FunctionParamLocations **param_locations = malloc(sizeof(FunctionParamLocations *) * function_call_count * register_count);
+    memset(param_locations, -1, sizeof(FunctionParamLocations *) * function_call_count * register_count);
+
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG) {
-            int function_call_register_arg_index = preg_class == PC_INT
-                ? ir->src1->function_call_int_register_arg_index
-                : ir->src1->function_call_sse_register_arg_index;
+            int make_nop = 0;
+            FunctionParamLocations *pl = ir->src1->function_call_arg_locations;
 
-            if (function_call_register_arg_index >= 0) {
-                int i = ir->src1->int_value * register_count + function_call_register_arg_index;
-                arg_values[i] = ir->src2;
-                param_indexes[i] = ir->src1->function_call_arg_index;
+            for (int loc = 0; loc < pl->count; loc++) {
+                int function_call_register_arg_index = preg_class == PC_INT
+                    ? pl->locations[loc].int_register
+                    : pl->locations[loc].sse_register;
 
+                if (function_call_register_arg_index >= 0) {
+                    int i = ir->src1->int_value * register_count + function_call_register_arg_index;
+                    arg_values[i] = ir->src2;
+                    param_indexes[i] = ir->src1->function_call_arg_index;
+                    param_locations[i] = pl;
+                    make_nop = 1;
+                }
+            }
+
+            if (make_nop) {
                 ir->operation = IR_NOP;
                 ir->dst = 0;
                 ir->src1 = 0;
@@ -95,6 +204,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
         if (ir->operation == IR_CALL) {
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
             int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
+            FunctionParamLocations **pls = &(param_locations[ir->src1->int_value * register_count]);
             Function *called_function = ir->src1->function_symbol->type->function;
 
             // Allocated registers
@@ -107,42 +217,28 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
             while (i < register_count && *call_arg) {
                 call_arg++;
                 param_index++;
+                pls++;
                 i++;
             }
 
             call_arg--;
             param_index--;
+            pls--;
             i--;
 
-            int *arg_registers = preg_class == PC_INT ? int_arg_registers : sse_arg_registers;
-
             for (; i >= 0; i--) {
-                Tac *tac = new_instruction(IR_MOVE);
-                tac->dst = new_value();
-
+                Type *type;
                 int pi = *param_index;
                 if (pi >= 0 && pi < called_function->param_count) {
-                    Type *type = called_function->param_types[pi];
-                    tac->dst->type = dup_type(type);
+                    type = called_function->param_types[pi];
                 }
                 else
-                    tac->dst->type = dup_type((*call_arg)->type);
+                    type = (*call_arg)->type;
 
-                tac->dst->vreg = ++function->vreg_count;
-
-                tac->src1 = *call_arg;
-                tac->src1->preferred_live_range_preg_index = arg_registers[i];
-                tac->dst->is_function_call_arg = 1;
-
-                if (preg_class == PC_INT)
-                    tac->dst->function_call_int_register_arg_index = i;
+                if (type->type == TYPE_STRUCT_OR_UNION)
+                    make_struct_or_union_arg_move_instructions(function, ir, type, *call_arg, preg_class, i, &function_call_arg_registers, &function_call_arg_types, *pls);
                 else
-                    tac->dst->function_call_sse_register_arg_index = i;
-
-                insert_instruction(ir, tac, 1);
-
-                function_call_arg_registers[i] = tac->dst->vreg;
-                function_call_arg_types[i] = tac->src1->type;
+                    add_param_move_to_register(function, ir, type, *call_arg, preg_class, i, &function_call_arg_registers, &function_call_arg_types);
 
                 call_arg--;
                 param_index--;
@@ -514,10 +610,13 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             memset(seen_sse, 0, sizeof(char) * 8);
             char *seen_memory = malloc(sizeof(char) * 8);
             memset(seen_memory, 0, sizeof(char) * 8);
+            char *member_counts = malloc(sizeof(char) * 8);
+            memset(member_counts, 0, sizeof(char) * 8);
 
             for (int i = 0; i < scalars->count; i++) {
                 StructOrUnionScalar *scalar = scalars->scalars[i];
                 int eight_byte = scalar->offset >> 3;
+                member_counts[eight_byte]++;
 
                 if (type_fits_in_single_int_register(scalar->type))
                     seen_integer[eight_byte] = 1;
@@ -546,6 +645,12 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             else {
                 // Create a location for each eight byte
                 for (int i = 0; i < eight_bytes_count; i++) {
+                    fpl->locations[i].stru_size = size > 8 ? 8 : size;
+                    size -= 8;
+
+                    fpl->locations[i].stru_member_count = member_counts[i];
+                    fpl->locations[i].stru_offset = i * 8;
+
                     if (seen_integer[i])
                         add_type_to_allocation(fpa, &(fpl->locations[i]), new_type(TYPE_INT), 0);
                     else
@@ -553,7 +658,6 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                 }
             }
         }
-
     }
 
     fpa->arg_count++;
