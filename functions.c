@@ -530,7 +530,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             }
 
             // Determine number of 8-bytes & allocate memory
-            int eight_bytes_count = size / 8;
+            int eight_bytes_count = (size + 7) / 8;
             FunctionParamLocations *fpl = &(fpa->params[fpa->arg_count]);
             fpl->locations = malloc(sizeof(FunctionParamLocation) * eight_bytes_count);
             fpl->count = eight_bytes_count;

@@ -195,6 +195,12 @@ void test_struct_params() {
     FunctionParamAllocation *fpa;
 
     fpa = init_function_param_allocaton("");
+    type = parse_type_str("struct { int a, b, c; }");
+    add_function_param_to_allocation(fpa, type);
+    finalize_function_param_allocation(fpa);
+    assert_string(fpa_result_str(fpa), "00     |          | 000 000 | ", sprint_type_in_english(type));
+
+    fpa = init_function_param_allocaton("");
     type = parse_type_str("struct { int a, b; double d; }");
     add_function_param_to_allocation(fpa, type);
     finalize_function_param_allocation(fpa);
