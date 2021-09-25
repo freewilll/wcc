@@ -9,13 +9,6 @@ static int new_local_index(Function *function) {
     return -1 - function->local_symbol_count++;
 }
 
-// Allocate a new virtual register
-int new_vreg() {
-    vreg_count++;
-    if (vreg_count >= MAX_VREG_COUNT) panic1d("Exceeded max vreg count %d", MAX_VREG_COUNT);
-    return vreg_count;
-}
-
 void init_value(Value *v) {
     v->preg = -1;
     v->stack_index = 0;
@@ -634,8 +627,6 @@ void allocate_value_vregs(Function *function) {
             if (tac->src2 && tac->src2->local_index == -i) assign_local_to_register(tac->src2, vreg);
         }
     }
-
-    function->vreg_count = vreg_count;
 }
 
 // IR_JZ and IR_JNZ aren't implemented in the backend for SSE & long doubles.

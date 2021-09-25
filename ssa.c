@@ -1603,8 +1603,6 @@ static int ten_power(int p) {
 // and loads.
 static void add_infinite_spill_costs(Function *function) {
     int *spill_cost = function->spill_cost;
-    vreg_count = function->vreg_count;
-
     Block *blocks = function->blocks;
     int block_count = function->cfg->node_count;
 

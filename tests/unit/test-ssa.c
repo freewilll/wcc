@@ -618,7 +618,7 @@ void test_interference_graph1() {
     run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
 
     ig = function->interference_graph;
-    vreg_count = function->vreg_count;
+    int vreg_count = function->vreg_count;
 
     assert_has_ig_edge(ig, vreg_count, l + 1, l + 2);
     assert_has_ig_edge(ig, vreg_count, l + 1, l + 3);
@@ -639,7 +639,7 @@ void test_interference_graph2() {
     if (debug_ssa_interference_graph) print_ir(function, 0, 0);
 
     ig = function->interference_graph;
-    vreg_count = function->vreg_count;
+    int vreg_count = function->vreg_count;
 
     assert_has_ig_edge(ig, vreg_count, l + 1, l + 2);
     assert_has_ig_edge(ig, vreg_count, l + 1, l + 3);
@@ -684,7 +684,7 @@ void test_interference_graph3() {
     if (debug_ssa_interference_graph) print_ir(function, 0, 0);
 
     ig = function->interference_graph;
-    vreg_count = function->vreg_count;
+    int vreg_count = function->vreg_count;
 
     assert_has_ig_edge(ig, vreg_count, l + 1, l + 2);
     assert_has_ig_edge(ig, vreg_count, l + 1, l + 3);

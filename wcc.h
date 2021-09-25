@@ -503,7 +503,6 @@ Typedef **all_typedefs;   // All typedefs defined globally. Local typedef defini
 int all_typedefs_count;   // Number of typedefs
 
 Tac *ir_start, *ir;               // intermediate representation for currently parsed function
-int vreg_count;                   // Virtual register count for currently parsed function
 int label_count;                  // Global label count, always growing
 int cur_loop;                     // Current loop being parsed
 int loop_count;                   // Loop counter

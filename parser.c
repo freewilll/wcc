@@ -16,6 +16,14 @@ int function_call_count; // Uniquely identify a function call within a function
 
 StructOrUnion **all_structs_and_unions;  // All structs/unions defined globally.
 int all_structs_and_unions_count;        // Number of structs/unions, complete and incomplete
+int vreg_count;                          // Virtual register count for currently parsed function
+
+// Allocate a new virtual register
+int new_vreg() {
+    vreg_count++;
+    if (vreg_count >= MAX_VREG_COUNT) panic1d("Exceeded max vreg count %d", MAX_VREG_COUNT);
+    return vreg_count;
+}
 
 // Push a value to the stack
 static Value *push(Value *v) {

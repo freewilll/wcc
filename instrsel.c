@@ -1066,7 +1066,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             // It's an operation on a non-root node. Allocate a vreg.
 
             dst = new_value();
-            dst->vreg = new_vreg();
+            dst->vreg = ++function->vreg_count;
             dst->ssa_subscript = -1;
 
             if (ign->tac) {
@@ -1155,7 +1155,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
                 printf("  allocated stack index %d, type %d in slot %d\n", stack_index, x86op->allocated_type, x86op->allocate_stack_index_in_slot);
         }
         else if (x86op->allocate_register_in_slot) {
-            int vreg = new_vreg();
+            int vreg = ++function->vreg_count;
             Value *slot_value = new_value();
             slot_value->type = new_type(x86op->allocated_type);
             slot_value->vreg = vreg;
@@ -1268,7 +1268,6 @@ static void tile_igraphs(Function *function) {
     }
 
     ir_start = 0;
-    vreg_count = function->vreg_count;
 
     for (int i = 0; i < instr_count; i++) {
         if (!igraphs[i].node_count) continue;
@@ -1326,8 +1325,6 @@ static void tile_igraphs(Function *function) {
             print_ir(f, 0, 0);
         }
     }
-
-    function->vreg_count = vreg_count;
 
     if (debug_instsel_tiling) {
         printf("\nFinal IR for block:\n");
