@@ -142,6 +142,11 @@ typedef struct function_param_location {
     int stack_padding;      // If not -1 the stack padding
 } FunctionParamLocation;
 
+typedef struct function_param_locations {
+    int count;
+    FunctionParamLocation *locations;
+} FunctionParamLocations;
+
 typedef struct function_param_allocation {
     int arg_count;
     int single_int_register_arg_count;
@@ -150,8 +155,7 @@ typedef struct function_param_allocation {
     int offset;
     int padding;
     int size;
-    int *location_counts;              // Amount of locations for each argument
-    FunctionParamLocation **locations; // A 2d-array indexed by [arg][location]
+    FunctionParamLocations *params;
 } FunctionParamAllocation;
 
 // Physical register class

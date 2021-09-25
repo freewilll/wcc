@@ -292,10 +292,10 @@ void add_function_param_moves(Function *function, char *identifier) {
 
     // Add moves for registers
     for (int i = 0; i < function->param_count; i++) {
-        if (fpa->locations[i][0].stack_offset != -1) continue;
+        if (fpa->params[i].locations[0].stack_offset != -1) continue;
 
         Type *type = function->param_types[i];
-        int single_register_arg_count = fpa->locations[i][0].int_register == -1 ? fpa->locations[i][0].sse_register : fpa->locations[i][0].int_register;
+        int single_register_arg_count = fpa->params[i].locations[0].int_register == -1 ? fpa->params[i].locations[0].sse_register : fpa->params[i].locations[0].int_register;
 
         if (has_address_of[i]) {
             // Add a move instruction to save the register to the stack
@@ -342,11 +342,11 @@ void add_function_param_moves(Function *function, char *identifier) {
     // Determine stack offsets for parameters on the stack and add moves
 
     for (int i = 0; i < function->param_count; i++) {
-        if (fpa->locations[i][0].stack_offset == -1) continue;
+        if (fpa->params[i].locations[0].stack_offset == -1) continue;
 
         Type *type = function->param_types[i];
 
-        int stack_index = (fpa->locations[i][0].stack_offset + 16) >> 3;
+        int stack_index = (fpa->params[i].locations[0].stack_offset + 16) >> 3;
 
         // The rightmost arg has stack index 2
         if (i + 2 != stack_index) stack_index_remap[i + 2] = stack_index;
@@ -399,8 +399,7 @@ FunctionParamAllocation *init_function_param_allocaton(char *function_identifier
 
     FunctionParamAllocation *fpa = malloc(sizeof(FunctionParamAllocation));
     memset(fpa, 0, sizeof(FunctionParamAllocation));
-    fpa->locations = malloc(sizeof(FunctionParamLocation *) * MAX_FUNCTION_CALL_ARGS);
-    fpa->location_counts = malloc(sizeof(int) * MAX_FUNCTION_CALL_ARGS);
+    fpa->params = malloc(sizeof(FunctionParamLocations) * MAX_FUNCTION_CALL_ARGS);
 
     return fpa;
 }
@@ -475,10 +474,10 @@ static void flatten_struct_or_union(StructOrUnion *s, StructOrUnionScalars *scal
 }
 
 static void add_single_stack_function_param_location(FunctionParamAllocation *fpa, Type *type) {
-    FunctionParamLocation **fpl = &(fpa->locations[fpa->arg_count]);
-    fpl[0] = malloc(sizeof(FunctionParamLocation));
-    fpa->location_counts[fpa->arg_count] = 1;
-    add_type_to_allocation(fpa, fpl[0], type, 0);
+    FunctionParamLocations *fpl = &(fpa->params[fpa->arg_count]);
+    fpl->locations = malloc(sizeof(FunctionParamLocation));
+    fpl->count = 1;
+    add_type_to_allocation(fpa, &(fpl->locations[0]), type, 0);
 
 }
 // Add a param/arg to a function and allocate registers & stack entries
@@ -532,9 +531,9 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
 
             // Determine number of 8-bytes & allocate memory
             int eight_bytes_count = size / 8;
-            FunctionParamLocation *fpl = malloc(sizeof(FunctionParamLocation) * eight_bytes_count);
-            fpa->locations[fpa->arg_count] = fpl;
-            fpa->location_counts[fpa->arg_count] = eight_bytes_count;
+            FunctionParamLocations *fpl = &(fpa->params[fpa->arg_count]);
+            fpl->locations = malloc(sizeof(FunctionParamLocation) * eight_bytes_count);
+            fpl->count = eight_bytes_count;
 
             // If one of the classes is MEMORY, the whole argument is passed in memory.
             int in_memory = 0;
@@ -548,9 +547,9 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                 // Create a location for each eight byte
                 for (int i = 0; i < eight_bytes_count; i++) {
                     if (seen_integer[i])
-                        add_type_to_allocation(fpa, &(fpl[i]), new_type(TYPE_INT), 0);
+                        add_type_to_allocation(fpa, &(fpl->locations[i]), new_type(TYPE_INT), 0);
                     else
-                        add_type_to_allocation(fpa, &(fpl[i]), new_type(TYPE_FLOAT), 0);
+                        add_type_to_allocation(fpa, &(fpl->locations[i]), new_type(TYPE_FLOAT), 0);
                 }
             }
         }

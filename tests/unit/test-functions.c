@@ -39,9 +39,9 @@ char *fpa_result_str(FunctionParamAllocation *fpa) {
     for (int i = 0; i < 6; i++) {
         int allocated = 0;
         for (int j = 0; j < fpa->arg_count; j++) {
-            int location_counts = fpa->location_counts[j];
+            int location_counts = fpa->params[j].count;
             for (int k = 0; k < location_counts; k++) {
-                if (fpa->locations[j][k].int_register == i) {
+                if (fpa->params[j].locations[k].int_register == i) {
                     b += sprintf(b, "%x", j);
                     allocated = 1;
                 }
@@ -54,9 +54,9 @@ char *fpa_result_str(FunctionParamAllocation *fpa) {
     for (int i = 0; i < 8; i++) {
         int allocated = 0;
         for (int j = 0; j < fpa->arg_count; j++) {
-            int location_counts = fpa->location_counts[j];
+            int location_counts = fpa->params[j].count;
             for (int k = 0; k < location_counts; k++) {
-                if (fpa->locations[j][k].sse_register == i) {
+                if (fpa->params[j].locations[k].sse_register == i) {
                     b += sprintf(b, "%0x", j);
                     allocated = 1;
                 }
@@ -70,8 +70,8 @@ char *fpa_result_str(FunctionParamAllocation *fpa) {
     int first = 1;
     int stack_offset = 0;
     for (int i = 0; i < fpa->arg_count; i++)
-        if (fpa->locations[i][0].stack_offset != -1) {
-            while (stack_offset < fpa->locations[i][0].stack_offset) {
+        if (fpa->params[i].locations[0].stack_offset != -1) {
+            while (stack_offset < fpa->params[i].locations[0].stack_offset) {
                 b += sprintf(b, " ");
                 stack_offset += 8;
             }
@@ -217,7 +217,7 @@ void test_struct_params() {
     add_function_param_to_allocation(fpa, type);
     finalize_function_param_allocation(fpa);
     assert_string(fpa_result_str(fpa), "       |          | 010 000 | 0", sprint_type_in_english(type));
-    assert_int(1, fpa->location_counts[0], "Location counts are 1");
+    assert_int(1, fpa->params[0].count, "Location counts are 1");
 
      // Example from ABI doc
     fpa = init_function_param_allocaton("");
@@ -234,7 +234,7 @@ void test_struct_params() {
     add_function_param_to_allocation(fpa, new_type(TYPE_INT));
     finalize_function_param_allocation(fpa);
     assert_string(fpa_result_str(fpa), "012348 | 267      | 020 000 | 5 9a", "Example from ABI doc v0.98");
-    assert_string("0:I2 1:S0", fpl_result_str(fpa->locations[2], fpa->location_counts[2]), "Example from ABI doc v0.98 arg 2");
+    assert_string("0:I2 1:S0", fpl_result_str(&(fpa->params[2].locations[0]), fpa->params[2].count), "Example from ABI doc v0.98 arg 2");
 
     // Test defaulting to memory
     fpa = init_function_param_allocaton("");
@@ -242,7 +242,7 @@ void test_struct_params() {
     add_function_param_to_allocation(fpa, type);
     finalize_function_param_allocation(fpa);
     assert_string(fpa_result_str(fpa), "       |          | 020 000 | 0", sprint_type_in_english(type));
-    assert_int(1, fpa->location_counts[0], "Location counts are 1");
+    assert_int(1, fpa->params[0].count, "Location counts are 1");
 
     // Test defaulting to memory
     fpa = init_function_param_allocaton("");
@@ -250,7 +250,7 @@ void test_struct_params() {
     add_function_param_to_allocation(fpa, type);
     finalize_function_param_allocation(fpa);
     assert_string(fpa_result_str(fpa), "       |          | 018 000 | 0", sprint_type_in_english(type));
-    assert_int(1, fpa->location_counts[0], "Location counts are 1");
+    assert_int(1, fpa->params[0].count, "Location counts are 1");
 }
 
 int main(int argc, char **argv) {

@@ -1354,10 +1354,10 @@ static void parse_expression(int level) {
                     }
 
                     add_function_param_to_allocation(fpa, vtop->type);
-                    FunctionParamLocation **fpl = &(fpa->locations[arg_count]);
-                    arg->function_call_int_register_arg_index = fpl[0]->int_register;
-                    arg->function_call_sse_register_arg_index = fpl[0]->sse_register;
-                    arg->function_call_arg_stack_padding = fpl[0]->stack_padding;
+                    FunctionParamLocations *fpl = &(fpa->params[arg_count]);
+                    arg->function_call_int_register_arg_index = fpl->locations[0].int_register;
+                    arg->function_call_sse_register_arg_index = fpl->locations[0].sse_register;
+                    arg->function_call_arg_stack_padding = fpl->locations[0].stack_padding;
                     add_instruction(IR_ARG, 0, arg, pl());
 
                     if (cur_token == TOK_RPAREN) break;
