@@ -71,6 +71,7 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
         int operation = ign->tac->operation;
              if (operation == IR_MOVE)                 c += printf("=");
         else if (operation == IR_MOVE_PREG_CLASS)      c += printf("move to preg class");
+        else if (operation == IR_MOVE_STACK_PTR)       c += printf("stack ptr to");
         else if (operation == IR_DECL_LOCAL_COMP_OBJ)  c += printf("declare");
         else if (operation == IR_ADD)                  c += printf("+");
         else if (operation == IR_SUB)                  c += printf("-");
@@ -91,10 +92,12 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
         else if (operation == IR_START_CALL)           c += printf("start call");
         else if (operation == IR_END_CALL)             c += printf("end call");
         else if (operation == IR_ARG)                  c += printf("arg");
+        else if (operation == IR_ARG_STACK_PADDING)    c += printf("arg stack padding");
         else if (operation == IR_CALL)                 c += printf("call");
         else if (operation == IR_CALL_ARG_REG)         c += printf("call arg reg");
         else if (operation == IR_START_LOOP)           c += printf("start loop");
         else if (operation == IR_END_LOOP)             c += printf("end loop");
+        else if (operation == IR_ALLOCATE_STACK)       c += printf("allocate stack");
         else if (operation == IR_JZ)                   c += printf("jz");
         else if (operation == IR_JNZ)                  c += printf("jnz");
         else if (operation == IR_JMP)                  c += printf("jmp");
@@ -1283,7 +1286,8 @@ static void tile_igraphs(Function *function) {
              tac->operation == IR_END_CALL ||
              tac->operation == IR_START_LOOP ||
              tac->operation == IR_END_LOOP ||
-             tac->operation == IR_CALL_ARG_REG)) {
+             tac->operation == IR_CALL_ARG_REG ||
+             tac->operation == IR_ARG_STACK_PADDING)) {
 
             add_tac_to_ir(tac);
             continue;

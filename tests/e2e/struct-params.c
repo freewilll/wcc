@@ -4,6 +4,7 @@
 #include "struct-params.h"
 
 // Test ABI for functions accepting structs
+
 void accept_spf(struct spf spf) { assert_float(1.1, spf.f1, "accept_spf"); }
 void accept_spd(struct spd spd) { assert_double(2.1, spd.d1, "accept_spd"); }
 void accept_spdf(struct spdf spdf) { assert_float(3.1, spdf.d1, "accept_spf"); assert_double(4.1, spdf.f1, "accept_spdf"); }
@@ -24,11 +25,27 @@ void accept_sffii(struct sffii sffii) {
     assert_int(4, sffii.i2, "accept_sffii");
 }
 
+void accept_sffiii(struct sffiii sffiii) {
+    assert_float(1.1, sffiii.f1, "accept_sffiii");
+    assert_float(2.1, sffiii.f2, "accept_sffiii");
+    assert_int(3, sffiii.i1, "accept_sffiii");
+    assert_int(4, sffiii.i2, "accept_sffiii");
+    assert_int(5, sffiii.i3, "accept_sffiii");
+}
+
 void accept_siiff(struct siiff siiff) {
     assert_int(1, siiff.i1, "accept_siiff");
     assert_int(2, siiff.i2, "accept_siiff");
     assert_float(3.1, siiff.f1, "accept_siiff");
     assert_float(4.1, siiff.f2, "accept_siiff");
+}
+
+void accept_siifff(struct siifff siifff) {
+    assert_int(1, siifff.i1, "accept_siifff");
+    assert_int(2, siifff.i2, "accept_siifff");
+    assert_float(3.1, siifff.f1, "accept_siifff");
+    assert_float(4.1, siifff.f2, "accept_siifff");
+    assert_float(5.1, siifff.f3, "accept_siifff");
 }
 
 void accept_sifif(struct sifif sifif) {
@@ -108,4 +125,83 @@ void accept_sc9(struct sc9 sc9) {
     assert_int(7, sc9.c7, "accept_sc9 7");
     assert_int(8, sc9.c8, "accept_sc9 8");
     assert_int(9, sc9.c9, "accept_sc9 9");
+}
+
+void accept_si5(struct si5 si5) {
+    assert_int(1, si5.i1, "accept_si5 1");
+    assert_int(2, si5.i2, "accept_si5 2");
+    assert_int(3, si5.i3, "accept_si5 3");
+    assert_int(4, si5.i4, "accept_si5 4");
+    assert_int(5, si5.i5, "accept_si5 5");
+}
+
+void accept_si6(struct si6 si6) {
+    assert_int(1, si6.i1, "accept_si6 1");
+    assert_int(2, si6.i2, "accept_si6 2");
+    assert_int(3, si6.i3, "accept_si6 3");
+    assert_int(4, si6.i4, "accept_si6 4");
+    assert_int(5, si6.i5, "accept_si6 5");
+    assert_int(6, si6.i6, "accept_si6 6");
+}
+
+void accept_si7(struct si7 si7) {
+    assert_int(1, si7.i1, "accept_si7 1");
+    assert_int(2, si7.i2, "accept_si7 2");
+    assert_int(3, si7.i3, "accept_si7 3");
+    assert_int(4, si7.i4, "accept_si7 4");
+    assert_int(5, si7.i5, "accept_si7 5");
+    assert_int(6, si7.i6, "accept_si7 6");
+    assert_int(7, si7.i7, "accept_si7 7");
+}
+
+void accept_si8(struct si8 si8) {
+    assert_int(1, si8.i1, "accept_si8 1");
+    assert_int(2, si8.i2, "accept_si8 2");
+    assert_int(3, si8.i3, "accept_si8 3");
+    assert_int(4, si8.i4, "accept_si8 4");
+    assert_int(5, si8.i5, "accept_si8 5");
+    assert_int(6, si8.i6, "accept_si8 6");
+    assert_int(7, si8.i7, "accept_si8 7");
+    assert_int(8, si8.i8, "accept_si8 8");
+}
+
+void accept_si9(struct si9 si9) {
+    assert_int(1, si9.i1, "accept_si9 1");
+    assert_int(2, si9.i2, "accept_si9 2");
+    assert_int(3, si9.i3, "accept_si9 3");
+    assert_int(4, si9.i4, "accept_si9 4");
+    assert_int(5, si9.i5, "accept_si9 5");
+    assert_int(6, si9.i6, "accept_si9 6");
+    assert_int(7, si9.i7, "accept_si9 7");
+    assert_int(8, si9.i8, "accept_si9 8");
+    assert_int(9, si9.i9, "accept_si9 9");
+}
+
+void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2) {
+    assert_int(1, i1, "accept_i7sld2 1");
+    assert_int(2, i2, "accept_i7sld2 2");
+    assert_int(3, i3, "accept_i7sld2 3");
+    assert_int(4, i4, "accept_i7sld2 4");
+    assert_int(5, i5, "accept_i7sld2 5");
+    assert_int(6, i6, "accept_i7sld2 6");
+    assert_int(7, i7, "accept_i7sld2 7");
+    assert_long_double(8.1, sld2.ld1, "accept_i7sld2 8");
+    assert_long_double(9.1, sld2.ld2, "accept_i7sld2 9");
+}
+
+// Example from ABI doc v0.98
+void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld, double m, double n, int i, int j, int k) {
+    assert_int(1, e, "abi_example e");
+    assert_int(2, f, "abi_example f");
+    assert_int(3, g, "abi_example g");
+    assert_int(4, h, "abi_example h");
+    assert_int(5, i, "abi_example i");
+    assert_int(6, j, "abi_example j");
+    assert_int(7, k, "abi_example k");
+    assert_long_double(8.1, ld, "abi_example ld");
+    assert_double(9.1, m, "abi_example m");
+    assert_double(10.1, n, "abi_example n");
+    assert_int(11, s.a, "abi_example s.a");
+    assert_int(12, s.b, "abi_example s.b");
+    assert_double(13.1, s.d, "abi_example s.d");
 }

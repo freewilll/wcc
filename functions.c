@@ -78,6 +78,8 @@ static void add_param_move_to_register(
     tac->src1 = param;
     tac->src1->preferred_live_range_preg_index = arg_registers[register_index];
 
+    if (debug_function_arg_mapping) printf("Adding arg move from register for preg-class=%d register_index=%d\n", preg_class, register_index);
+
     insert_instruction(ir, tac, 1);
     (*function_call_arg_registers)[register_index] = tac->dst->vreg;
     (*function_call_arg_types)[register_index] = tac->src1->type;
@@ -138,6 +140,8 @@ static void make_int_struct_or_union_arg_move_instructions(Function *function, T
     result_register->type->is_unsigned = 1;
     result_register->vreg = ++function->vreg_count;
 
+    if (debug_function_arg_mapping) printf("Adding arg move from struct to integer register_index=%d register size=%d\n", register_index, pl->stru_size);
+
     int lvalue_in_register = param->is_lvalue && param->vreg;
     int temp_loaded = 0;
     int size = pl->stru_size;
@@ -190,6 +194,8 @@ static void make_int_struct_or_union_arg_move_instructions(Function *function, T
 static void make_sse_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Type *type, Value *param, int preg_class,
         int register_index, int **function_call_arg_registers, Type ***function_call_arg_types, FunctionParamLocation *pl) {
 
+    if (debug_function_arg_mapping) printf("Adding arg move from struct to SSE register_index=%d register size=%d\n", register_index, pl->stru_size);
+
     if (pl->stru_size == 4) {
         // Move a single float
         Value *temp = load_struct_scalar(function, ir, param, pl, new_type(TYPE_FLOAT));
@@ -218,6 +224,7 @@ static void make_struct_or_union_arg_move_instructions(
         int register_index, int **function_call_arg_registers, Type ***function_call_arg_types, FunctionParamLocations *pl) {
 
     // For the location that matches register_index, add instructions to load the register
+    int handled = 0;
     for (int loc = 0; loc < pl->count; loc++) {
         FunctionParamLocation *location = &(pl->locations[loc]);
         int function_call_register_arg_index = preg_class == PC_INT
@@ -226,11 +233,14 @@ static void make_struct_or_union_arg_move_instructions(
 
         if (function_call_register_arg_index != register_index) continue;
 
+        handled = 1;
         if (preg_class == PC_SSE)
             make_sse_struct_or_union_arg_move_instructions(function, ir, type, param, preg_class, register_index, function_call_arg_registers, function_call_arg_types, &(pl->locations[loc]));
         else
             make_int_struct_or_union_arg_move_instructions(function, ir, type, param, preg_class, register_index, function_call_arg_registers, function_call_arg_types, &(pl->locations[loc]));
     }
+
+    if (!handled) panic("Unhandled struct/union arg move into a register");
 }
 
 // Insert IR_MOVE instructions before IR_ARG instructions for
@@ -317,6 +327,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
                 call_arg--;
                 param_index--;
+                pls--;
             }
 
             // Add IR_CALL_ARG_REG instructions that don't do anything, but ensure
@@ -340,11 +351,35 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
     }
 }
 
-void add_function_call_arg_moves(Function *function) {
-    add_function_call_arg_moves_for_preg_class(function, PC_INT);
-    add_function_call_arg_moves_for_preg_class(function, PC_SSE);
+// Add instructions to copy a struct to the stack
+static void add_function_call_arg_move_for_struct_or_union_on_stack(Function *function, Tac *ir) {
+    int size = get_type_size(ir->src2->type);
+    int rounded_up_size = (size + 7) & ~7;
 
-    // Nuke all IR_ARG instructions that have gone into a register
+    // Allocate stack space with a sub $n, %rsp instruction
+    insert_instruction_from_operation(ir, IR_ALLOCATE_STACK, 0, new_integral_constant(TYPE_LONG, rounded_up_size), 0, 1);
+
+    // Add an instruction to move the stack pointer %rsp to a temporary register
+    Value *stack_pointer_temp = make_long_temp(function);
+    insert_instruction_from_operation(ir, IR_MOVE_STACK_PTR, stack_pointer_temp, 0, 0, 1);
+
+    // Prepare destination, which must be a * void
+    Value *dst = dup_value(stack_pointer_temp);
+    dst->type = make_pointer_to_void();
+    dst->is_lvalue = 1;
+
+    // Convert src to be a pointer to void
+    Value *src = dup_value(ir->src2);
+    src->type = make_pointer_to_void();
+
+    if (debug_function_arg_mapping)
+        printf("Adding memory copy for struct/union SI=%d rounded-up-size=%d\n", src->stack_index, rounded_up_size);
+
+    add_memory_copy(function, ir, dst, src, size);
+}
+
+// Nuke all IR_ARG instructions that have had code added that moves the value into a register
+static void remove_IR_ARG_instructions_that_have_been_handled(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG) {
             FunctionParamLocations *pl = ir->src1->function_call_arg_locations;
@@ -355,11 +390,45 @@ void add_function_call_arg_moves(Function *function) {
                     ir->dst = 0;
                     ir->src1 = 0;
                     ir->src2 = 0;
-
                     break;
                 }
             }
         }
+    }
+}
+
+// Process IR_ARG insructions. They are either loaded into a register, push onto the
+// stack with an IR_ARG, or, in the case of a struct/union pushed onto the stack with
+// generated code.
+void add_function_call_arg_moves(Function *function) {
+    add_function_call_arg_moves_for_preg_class(function, PC_INT);
+    add_function_call_arg_moves_for_preg_class(function, PC_SSE);
+
+    remove_IR_ARG_instructions_that_have_been_handled(function);
+
+    // Add memory copies for struct and unions
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation == IR_ARG) {
+            if (ir->src2->type->type == TYPE_STRUCT_OR_UNION) {
+                FunctionParamLocations *pls = ir->src1->function_call_arg_locations;
+                if (pls->count != 1) panic("Unexpected struct/union to stack move with locations->count != 1");
+                add_function_call_arg_move_for_struct_or_union_on_stack(function, ir);
+
+                ir->operation = IR_NOP;
+                ir->dst = 0;
+                ir->src1 = 0;
+                ir->src2 = 0;
+            }
+        }
+    }
+
+    // Process any added memcpy calls due to struct and union copies
+    add_function_call_arg_moves_for_preg_class(function, PC_INT);
+    remove_IR_ARG_instructions_that_have_been_handled(function);
+
+    if (debug_function_arg_mapping) {
+        printf("After function call arg mapping\n");
+        print_ir(function, 0, 0);
     }
 }
 

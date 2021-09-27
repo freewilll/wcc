@@ -441,7 +441,8 @@ void add_final_x86_instructions(Function *function, char *function_name) {
             ir->operation = IR_NOP;
 
             int alignment_pushes = 0;
-            if (ir->src1->function_call_arg_stack_padding) alignment_pushes++;
+            if (ir->src1->function_call_arg_stack_padding >= 8)
+                alignment_pushes++;
 
             // Align the stack. This is matched with an adjustment when the function call ends
             int need_aligned_call_push = ((cur_stack_push_count + ir->src1->function_call_arg_push_count) % 2 == 1);
@@ -478,15 +479,16 @@ void add_final_x86_instructions(Function *function, char *function_name) {
         else if (ir->operation == X_ARG)
             cur_stack_push_count++;
 
-        else if (ir->operation == X_EXTRA_ARG) {
-            // This alignment push is only needed after structures that are aligned
-            // on 16-bytes
+        else if (ir->operation == IR_ARG_STACK_PADDING) {
+            // This alignment push is needed for structures that are aligned
+            // on 16-bytes and are preceded in memory by something that left the stack
+            // aligned on 8-bytes.
             cur_stack_push_count++;
-            if (ir->src1->function_call_arg_stack_padding) {
-                cur_stack_push_count++;
-                ir = add_sub_rsp(ir, 8);
-            }
+            ir = add_sub_rsp(ir, 8);
         }
+
+        else if (ir->operation == X_ALLOCATE_STACK)
+            cur_stack_push_count += ir->src1->int_value / 8;
 
         else if (ir->operation == X_CALL) {
             ir->operation = IR_NOP;

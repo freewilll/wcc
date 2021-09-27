@@ -1335,6 +1335,10 @@ void init_instruction_selection_rules() {
     r = add_rule(0, IR_ARG, CI4, XC2, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
     r = add_rule(0, IR_ARG, CI4, XC3, 2); add_op(r, X_ARG, 0, SRC1, SRC2, "pushq $%v2q"); fin_rule(r);
 
+    // Stack management
+    r = add_rule(0, IR_ALLOCATE_STACK, CI4, 0, 2); add_op(r, X_ALLOCATE_STACK, 0, SRC1, SRC2, "subq $%v1q, %%rsp"); fin_rule(r);
+    r = add_rule(RI4, IR_MOVE_STACK_PTR, 0, 0, 2); add_op(r, X_MOVE_STACK_PTR, DST, 0, 0, "movq %%rsp, %vdq"); fin_rule(r);
+
     // imm64 needs to be loaded into a register first
     r = add_rule(0, IR_ARG, CI4, XC4, 2);
     add_allocate_register_in_slot (r, 1, TYPE_LONG);   // Allocate quad register in slot 1
@@ -1344,15 +1348,15 @@ void init_instruction_selection_rules() {
 
     // Long double constant arg
     r = add_rule(0, IR_ARG, CI4, CLD, 2);
-    add_op(r, X_MOV,       SRC2,  SRC2, 0,    "movabsq %v1H, %%r10");
-    add_op(r, X_ARG,       0,     SRC1, SRC1, "pushq %%r10");
-    add_op(r, X_MOV,       SRC2,  SRC2, 0,    "movabsq %v1L, %%r10");
-    add_op(r, X_EXTRA_ARG, 0,     SRC1, SRC1, "pushq %%r10");
+    add_op(r, X_MOV, SRC2,  SRC2, 0,    "movabsq %v1H, %%r10");
+    add_op(r, X_ARG, 0,     SRC1, SRC1, "pushq %%r10");
+    add_op(r, X_MOV, SRC2,  SRC2, 0,    "movabsq %v1L, %%r10");
+    add_op(r, X_ARG, 0,     SRC1, SRC1, "pushq %%r10");
 
     // Long double memory arg
     r = add_rule(0, IR_ARG, CI4, MLD5, 2);
-    add_op(r, X_ARG,       0,    SRC1, SRC2, "pushq %v2H");
-    add_op(r, X_EXTRA_ARG, 0,    SRC1, SRC2, "pushq %v2L");
+    add_op(r, X_ARG, 0,    SRC1, SRC2, "pushq %v2H");
+    add_op(r, X_ARG, 0,    SRC1, SRC2, "pushq %v2L");
 
     // SSE constant arg
     r = add_rule(0, IR_ARG, CI4, CS3, 2); add_sse_function_call_arg_op(r, "movabsq %v1f, %vdq");

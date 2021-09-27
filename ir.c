@@ -173,17 +173,20 @@ char *operation_string(int operation) {
          if (!operation)                            return "";
     else if (operation == IR_MOVE)                  return "IR_MOVE";
     else if (operation == IR_MOVE_PREG_CLASS)       return "IR_MOVE_PREG_CLASS";
+    else if (operation == IR_MOVE_STACK_PTR)        return "IR_MOVE_STACK_PTR";
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
     else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
     else if (operation == IR_DECL_LOCAL_COMP_OBJ)   return "IR_DECL_LOCAL_COMP_OBJ";
     else if (operation == IR_START_CALL)            return "IR_START_CALL";
     else if (operation == IR_ARG)                   return "IR_ARG";
+    else if (operation == IR_ARG_STACK_PADDING)     return "IR_ARG_STACK_PADDING";
     else if (operation == IR_CALL)                  return "IR_CALL";
     else if (operation == IR_CALL_ARG_REG)          return "IR_CALL_ARG_REG";
     else if (operation == IR_END_CALL)              return "IR_END_CALL";
     else if (operation == IR_RETURN)                return "IR_RETURN";
     else if (operation == IR_START_LOOP)            return "IR_START_LOOP";
     else if (operation == IR_END_LOOP)              return "IR_END_LOOP";
+    else if (operation == IR_ALLOCATE_STACK)        return "IR_ALLOCATE_STACK";
     else if (operation == IR_MOVE_TO_PTR)           return "IR_MOVE_TO_PTR";
     else if (operation == IR_NOP)                   return "IR_NOP";
     else if (operation == IR_JMP)                   return "IR_JMP";
@@ -273,6 +276,9 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     if (o == IR_MOVE || o == IR_MOVE_PREG_CLASS)
         print_value(f, tac->src1, 1);
 
+    else if (o == IR_MOVE_STACK_PTR)
+        fprintf(f, "rsp");
+
     else if (o == IR_DECL_LOCAL_COMP_OBJ)  {
         fprintf(f, "declare ");
         print_value(f, tac->src1, 1);
@@ -285,9 +291,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, "arg for call %ld ", tac->src1->int_value);
         print_value(f, tac->src2, 1);
     }
-    else if (o == X_EXTRA_ARG) {
-        fprintf(f, "arg extra push for call %ld ", tac->src1->int_value);
-        print_value(f, tac->src2, 1);
+    else if (o == IR_ARG_STACK_PADDING) {
+        fprintf(f, "arg extra push");
     }
 
     else if (o == IR_CALL) {
@@ -359,6 +364,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == X_RET)            { fprintf(f, "ret "   ); if (tac->src1) print_value(f, tac->src1, 1); }
     else if (o == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); if (tac->dst) { printf(" -> "); print_value(f, tac->dst, 1); } }
     else if (o == IR_CALL_ARG_REG)  { fprintf(f, "call reg arg "); print_value(f, tac->src1, 1); }
+    else if (o == IR_ALLOCATE_STACK){ fprintf(f, "allocate stack "); print_value(f, tac->src1, 1); }
     else if (o == X_LEA)            { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
 
     else if (o == X_MOV)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
@@ -460,8 +466,14 @@ void reverse_function_argument_order(Function *function) {
             }
             else if (tac->operation == IR_ARG && tac->src1->int_value == i) {
                 args[arg_count].end = tac;
-                arg_count++;
                 tac = tac->next;
+
+                if (tac->operation == IR_ARG_STACK_PADDING) {
+                    args[arg_count].end = tac;
+                    tac = tac->next;
+                }
+
+                arg_count++;
                 if (tac->operation != IR_END_CALL) args[arg_count].start = tac;
             }
             else
@@ -779,10 +791,11 @@ void remove_unused_function_call_results(Function *function) {
     free(used_vregs);
 }
 
-static Value *insert_address_of_instruction(Tac **ir, Value *src) {
+static Value *insert_address_of_instruction(Function *function, Tac **ir, Value *src) {
     Value *v = new_value();
 
     v->vreg = new_vreg();
+    v->vreg = ++function->vreg_count;
     v->type = make_pointer_to_void();
     *ir = insert_instruction_after_from_operation(*ir, IR_ADDRESS_OF, v, src, 0);
 
@@ -805,16 +818,12 @@ static void *insert_arg_instruction(Tac **ir, Value *function_call_value, Value 
 }
 
 // Add memcpy calls for struct/union -> struct/union copies
-Tac *add_struct_or_union_memcpy(Tac *ir, int *function_call_count) {
-    Value *dst = ir->dst;
-    Value *src1 = ir->src1;
+Tac *copy_memory_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
 
-    ir->operation = IR_NOP;
-    ir->dst = 0;
-    ir->src1 = 0;
+    int function_call_count = make_function_call_count(function);
 
     // Add start call instruction
-    Value *call_value = make_function_call_value((*function_call_count)++);
+    Value *call_value = make_function_call_value(function_call_count++);
     ir = insert_instruction_after_from_operation(ir, IR_START_CALL, 0, call_value, 0);
 
     // Load of addresses of src1, dst & make size value
@@ -822,15 +831,15 @@ Tac *add_struct_or_union_memcpy(Tac *ir, int *function_call_count) {
     if (src1->is_lvalue && src1->vreg)
         src1_value = src1;
     else
-        src1_value = insert_address_of_instruction(&ir, src1);
+        src1_value = insert_address_of_instruction(function, &ir, src1);
 
     Value *dst_value;
     if (dst->is_lvalue && dst->vreg)
         dst_value = dst;
     else
-        dst_value = insert_address_of_instruction(&ir, dst);
+        dst_value = insert_address_of_instruction(function, &ir, dst);
 
-    Value *size_value = new_integral_constant(TYPE_LONG, get_type_size(dst->type));
+    Value *size_value = new_integral_constant(TYPE_LONG, size);
 
     // Add arg instructions
     insert_arg_instruction(&ir, call_value, dst_value, 0);
@@ -854,15 +863,7 @@ Tac *add_struct_or_union_memcpy(Tac *ir, int *function_call_count) {
 }
 
 // Copy struct/unions using registers
-static Tac *add_struct_or_union_register_copy(Function *function, Tac *ir) {
-    Value *dst = ir->dst;
-    Value *src1 = ir->src1;
-
-    ir->operation = IR_NOP;
-    ir->dst = 0;
-    ir->src1 = 0;
-
-    int size = get_type_size(dst->type);
+static Tac *copy_memory_with_registers(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
     int dst_offset = dst->offset;
     int src1_offset = src1->offset;
 
@@ -902,20 +903,30 @@ static Tac *add_struct_or_union_register_copy(Function *function, Tac *ir) {
     return ir;
 }
 
+void add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
+    // If either src or dst is an lvalue in a register, or the struct size > 32,
+    // use a memory copy. Otherwise use temporary registers to do the copy.
+    if (size > 32)
+        ir = copy_memory_with_memcpy(function, ir, dst, src1, size);
+    else
+        ir = copy_memory_with_registers(function, ir, dst, src1, size);
+}
+
 // Add memcpy calls for struct/union -> struct/union copies
 void process_struct_and_union_copies(Function *function) {
-    int function_call_count = make_function_call_count(function);
-
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation != IR_MOVE) continue;
         if (ir->src1->type->type != TYPE_STRUCT_OR_UNION) continue;
         if (ir->dst->type->type != ir->src1->type->type) panic("Mismatched struct/union copy type");
 
-        // If either src or dst is an lvalue in a register, or the struct size > 32,
-        // use a memory copy. Otherwise use temporary registers to do the copy.
-        if (get_type_size(ir->dst->type) > 32)
-            ir = add_struct_or_union_memcpy(ir, &function_call_count);
-        else
-            ir = add_struct_or_union_register_copy(function, ir);
+        int size = get_type_size(ir->dst->type);
+        Value *dst = ir->dst;
+        Value *src1 = ir->src1;
+
+        ir->operation = IR_NOP;
+        ir->dst = 0;
+        ir->src1 = 0;
+
+        add_memory_copy(function, ir, dst, src1, size);
     }
 }

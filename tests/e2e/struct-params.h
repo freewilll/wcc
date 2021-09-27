@@ -5,7 +5,9 @@ struct sff { float f1, f2; };
 struct sdd { double d1, d2; };
 struct sffff { float f1, f2, f3, f4; };
 struct sffii { float f1, f2; int i1, i2; };
+struct sffiii { float f1, f2; int i1, i2, i3; };
 struct siiff { int i1, i2; float f1, f2; };
+struct siifff { int i1, i2; float f1, f2, f3; };
 struct sifif { int i1; float f1; int i2; float f2; };
 
 struct sc1 { char c1; };
@@ -18,6 +20,17 @@ struct sc7 { char c1, c2, c3, c4, c5, c6, c7; };
 struct sc8 { char c1, c2, c3, c4, c5, c6, c7, c8; };
 struct sc9 { char c1, c2, c3, c4, c5, c6, c7, c8, c9; };
 
+struct si5 { int i1, i2, i3, i4, i5; };
+struct si6 { int i1, i2, i3, i4, i5, i6; };
+struct si7 { int i1, i2, i3, i4, i5, i6, i7; };
+struct si8 { int i1, i2, i3, i4, i5, i6, i7, i8; };
+struct si9 { int i1, i2, i3, i4, i5, i6, i7, i8, i9; };
+
+struct sld2 { long double ld1, ld2; };
+
+// Example from ABI doc v0.98
+typedef struct { int a, b; double d; } structparm;
+
 void accept_spf(struct spf spf);
 void accept_spd(struct spd spd);
 void accept_spdf(struct spdf spdf);
@@ -25,7 +38,9 @@ void accept_sff(struct sff sff);
 void accept_sdd(struct sdd sdd);
 void accept_sffff(struct sffff sffff);
 void accept_sffii(struct sffii sffii);
+void accept_sffiii(struct sffiii sffiii);
 void accept_siiff(struct siiff siiff);
+void accept_siifff(struct siifff siifff);
 void accept_sifif(struct sifif sifif);
 
 void accept_sc1(struct sc1 sc1);
@@ -37,3 +52,13 @@ void accept_sc6(struct sc6 sc6);
 void accept_sc7(struct sc7 sc7);
 void accept_sc8(struct sc8 sc8);
 void accept_sc9(struct sc9 sc9);
+
+void accept_si5(struct si5 si5);
+void accept_si6(struct si6 si6);
+void accept_si7(struct si7 si7);
+void accept_si8(struct si8 si8);
+void accept_si9(struct si9 si9);
+
+void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2);
+
+void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld, double m, double n, int i, int j, int k);

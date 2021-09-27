@@ -1354,8 +1354,12 @@ static void parse_expression(int level) {
                     add_function_param_to_allocation(fpa, vtop->type);
                     FunctionParamLocations *fpl = &(fpa->params[arg_count]);
                     arg->function_call_arg_locations = fpl;
-                    arg->function_call_arg_stack_padding = fpl->locations[0].stack_padding;
                     add_instruction(IR_ARG, 0, arg, pl());
+
+                    // If a stack adjustment needs to take place to align 16-byte data
+                    // such as long doubles and structs with long doubles, an
+                    // IR_ARG_STACK_PADDING is inserted.
+                    if (fpl->locations[0].stack_padding >= 8) add_instruction(IR_ARG_STACK_PADDING, 0, 0, 0);
 
                     if (cur_token == TOK_RPAREN) break;
                     consume(TOK_COMMA, ",");
@@ -1369,7 +1373,7 @@ static void parse_expression(int level) {
                 Value *function_value = new_value();
                 function_value->int_value = function_call;
                 function_value->function_symbol = symbol;
-                function_value->function_call_arg_push_count = fpa->size / 8;
+                function_value->function_call_arg_push_count = (fpa->size + 7) / 8;
                 function_value->function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
                 src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
 

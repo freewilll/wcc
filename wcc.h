@@ -393,14 +393,17 @@ enum {
     IR_MOVE=1,                // Moving of constants, string literals, variables, or registers
     IR_MOVE_TO_PTR,           // Assignment to a pointer target
     IR_MOVE_PREG_CLASS,       // Move int <-> sse without conversion
+    IR_MOVE_STACK_PTR,        // Move RSP -> register
     IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
     IR_DECL_LOCAL_COMP_OBJ,   // Declare a local compound object
     IR_START_CALL,            // Function call
     IR_ARG,                   // Function call argument
+    IR_ARG_STACK_PADDING,     // Extra padding push to align arguments pushed onto the stack
     IR_CALL_ARG_REG,          // Placeholder for fake read of a register used in function calls
     IR_CALL,                  // Start of function call
     IR_END_CALL,              // End of function call
+    IR_ALLOCATE_STACK,        // Allocate stack space for a function call argument on the stack
     IR_RETURN,                // Return in function
     IR_START_LOOP,            // Start of a for or while loop
     IR_END_LOOP,              // End of a for or while loop
@@ -528,6 +531,7 @@ void *f; // Output file handle
 
 int warn_integer_constant_too_large;
 int debug_function_param_allocation;
+int debug_function_arg_mapping;
 int debug_function_param_mapping;
 int debug_ssa_mapping_local_stack_indexes;
 int debug_ssa;
@@ -685,6 +689,7 @@ void make_stack_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);
 void remove_unused_function_call_results(Function *function);
 void process_struct_and_union_copies(Function *function);
+void add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
 
 // ssa.c
 enum {
@@ -826,8 +831,9 @@ enum {
     // x86 instructions
     X_START = 1000,
     X_RET,
-    X_ARG,             // Function arg, first push
-    X_EXTRA_ARG,       // Function arg, extra pushes (if needed)
+    X_ARG,             // A function call argument, pushed into the stack
+    X_ALLOCATE_STACK,
+    X_MOVE_STACK_PTR,
     X_CALL,
 
     X_MOV,
