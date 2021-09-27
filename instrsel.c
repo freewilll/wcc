@@ -34,14 +34,15 @@ static void transform_lvalues(Function *function) {
             // Note: tac ->dst remains zero. src1 is the target of the pointer write, but is itself not modified
         }
         else {
-            if (tac->dst && tac->dst->vreg && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register) {
+            // Ensure type of dst and src1 matches in a pointer addition operation
+            if (tac->operation == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
+                tac->dst = dup_value(tac->dst);
                 tac->dst->type = make_pointer(tac->dst->type);
                 tac->dst->is_lvalue = 0;
             }
 
-            // Ensure type of dst and src1 matches in a pointer addition operation
-            if (tac->operation == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
-                tac->dst = dup_value(tac->dst);
+
+            if (tac->dst && tac->dst->vreg && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register) {
                 tac->dst->type = make_pointer(tac->dst->type);
                 tac->dst->is_lvalue = 0;
             }
