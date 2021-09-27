@@ -779,7 +779,7 @@ void remove_unused_function_call_results(Function *function) {
     free(used_vregs);
 }
 
-static Value *void_insert_address_of_instruction(Tac **ir, Value *src) {
+static Value *insert_address_of_instruction(Tac **ir, Value *src) {
     Value *v = new_value();
 
     v->vreg = new_vreg();
@@ -822,13 +822,13 @@ Tac *add_struct_or_union_memcpy(Tac *ir, int *function_call_count) {
     if (src1->is_lvalue && src1->vreg)
         src1_value = src1;
     else
-        src1_value = void_insert_address_of_instruction(&ir, src1);
+        src1_value = insert_address_of_instruction(&ir, src1);
 
     Value *dst_value;
     if (dst->is_lvalue && dst->vreg)
         dst_value = dst;
     else
-        dst_value = void_insert_address_of_instruction(&ir, dst);
+        dst_value = insert_address_of_instruction(&ir, dst);
 
     Value *size_value = new_integral_constant(TYPE_LONG, get_type_size(dst->type));
 
