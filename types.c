@@ -20,9 +20,9 @@ int print_type(void *f, Type *type) {
 
     int tt = t->type;
 
-    if (type->is_const)    len += fprintf(f, "const ");
-    if (type->is_volatile) len += fprintf(f, "volatile ");
-    if (type->is_unsigned) len += fprintf(f, "unsigned ");
+    if (t->is_const)    len += fprintf(f, "const ");
+    if (t->is_volatile) len += fprintf(f, "volatile ");
+    if (t->is_unsigned) len += fprintf(f, "unsigned ");
 
          if (tt == TYPE_VOID)             len += fprintf(f, "void");
     else if (tt == TYPE_CHAR)             len += fprintf(f, "char");
@@ -164,7 +164,7 @@ Type *dup_type(Type *src) {
 
     Type *dst = malloc(sizeof(Type));
     *dst = *src;
-    dst->target                  = dup_type(src->target);
+    dst->target = dup_type(src->target);
 
     return dst;
 }
