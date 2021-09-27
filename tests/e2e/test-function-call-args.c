@@ -449,12 +449,29 @@ void test_struct_params() {
     struct spdf spdf; spdf.d1 = 3.1; spdf.f1 = 4.1; accept_spdf(spdf);
     struct sff sff; sff.f1 = 5.1; sff.f2 = 6.1; accept_sff(sff);
     struct sdd sdd; sdd.d1 = 7.1; sdd.d2 = 8.1; accept_sdd(sdd);
-    struct sffff sffff; sffff.f1 = 1.1; sffff.f2 = 2.1;  sffff.f3 = 3.1; sffff.f4 = 4.1; accept_sffff(sffff);
+    struct sffff sffff; sffff.f1 = 1.1; sffff.f2 = 2.1; sffff.f3 = 3.1; sffff.f4 = 4.1; accept_sffff(sffff);
+    struct sffii sffii; sffii.f1 = 1.1; sffii.f2 = 2.1; sffii.i1 = 3; sffii.i2 = 4; accept_sffii(sffii);
+    struct siiff siiff; siiff.i1 = 1; siiff.i2 = 2; siiff.f1 = 3.1; siiff.f2 = 4.1;  accept_siiff(siiff);
+    struct sifif sifif; sifif.i1 = 1; sifif.f1 = 2.1; sifif.i2 = 3; sifif.f2 = 4.1;  accept_sifif(sifif);
 
     // From lvalue in register
     accept_sffff(*&sffff);
     // From global
     gsffff.f1 = 1.1; gsffff.f2 = 2.1;  gsffff.f3 = 3.1; gsffff.f4 = 4.1; accept_sffff(gsffff);
+
+    // Structs with chars of different sizes
+    struct sc1 sc1; sc1.c1 = 1;                                                                                                 accept_sc1(sc1);
+    struct sc2 sc2; sc2.c1 = 1; sc2.c2 = 2;                                                                                     accept_sc2(sc2);
+    struct sc3 sc3; sc3.c1 = 1; sc3.c2 = 2; sc3.c3 = 3;                                                                         accept_sc3(sc3);
+    struct sc4 sc4; sc4.c1 = 1; sc4.c2 = 2; sc4.c3 = 3; sc4.c4 = 4;                                                             accept_sc4(sc4);
+    struct sc5 sc5; sc5.c1 = 1; sc5.c2 = 2; sc5.c3 = 3; sc5.c4 = 4; sc5.c5 = 5;                                                 accept_sc5(sc5);
+    struct sc6 sc6; sc6.c1 = 1; sc6.c2 = 2; sc6.c3 = 3; sc6.c4 = 4; sc6.c5 = 5; sc6.c6 = 6;                                     accept_sc6(sc6);
+    struct sc7 sc7; sc7.c1 = 1; sc7.c2 = 2; sc7.c3 = 3; sc7.c4 = 4; sc7.c5 = 5; sc7.c6 = 6; sc7.c7 = 7;                         accept_sc7(sc7);
+    struct sc8 sc8; sc8.c1 = 1; sc8.c2 = 2; sc8.c3 = 3; sc8.c4 = 4; sc8.c5 = 5; sc8.c6 = 6; sc8.c7 = 7; sc8.c8 = 8;             accept_sc8(sc8);
+    struct sc9 sc9; sc9.c1 = 1; sc9.c2 = 2; sc9.c3 = 3; sc9.c4 = 4; sc9.c5 = 5; sc9.c6 = 6; sc9.c7 = 7; sc9.c8 = 8; sc9.c9 = 9; accept_sc9(sc9);
+
+    // From lvalue in register
+    accept_sc9(*&sc9);
 }
 
 int main(int argc, char **argv) {

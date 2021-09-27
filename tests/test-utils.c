@@ -343,6 +343,7 @@ Value *make_arg_src1() {
     fpl->locations = malloc(sizeof(FunctionParamLocation));
     fpl->count = 1;
     fpl->locations[0].int_register = 0;
+    fpl->locations[0].sse_register = -1;
     arg_src1->function_call_arg_locations = fpl;
 
     return arg_src1;

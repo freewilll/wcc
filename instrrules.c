@@ -518,6 +518,11 @@ static void add_indirect_rules() {
     for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RI1 + dst, RP1 + dst);
     for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RU1 + dst, RP1 + dst);
 
+    // Rules used when loading a struct into a register
+    r = add_rule(RU4, IR_INDIRECT, RP1, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movzbq %v1o(%v1q), %vdq");
+    r = add_rule(RU4, IR_INDIRECT, RP2, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movzwq %v1o(%v1q), %vdq");
+    r = add_rule(RU4, IR_INDIRECT, RP3, 0, 2); add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, "movl %v1o(%v1q), %vdl");
+
     // SSE
     for (int dst = 0; dst < 2; dst++) add_sse_indirect_rule(RS3 + dst, RP3 + dst);
 

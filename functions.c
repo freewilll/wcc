@@ -83,22 +83,106 @@ static void add_param_move_to_register(
     (*function_call_arg_types)[register_index] = tac->src1->type;
 }
 
+
 // Load a scalar in a struct into a register. The scalar can be either a local, global, or lvalue in register
 // If it's an lvalue in a register, it is indirected, otherwise moved.
-Value *load_struct_scalar(Function *function, Tac *ir, Value *param, FunctionParamLocation *pl, Type *type) {
-    // dst
+static void load_struct_scalar_into_temp(Function *function, Tac *ir, Value *param, FunctionParamLocation *pl, Type *type, Value *temp, int offset) {
+    int lvalue_in_register = param->is_lvalue && param->vreg;
+    Value *src1 = dup_value(param);
+    src1->type = type;
+    src1->offset += pl->stru_offset + offset;
+
+    insert_instruction_from_operation(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, temp, src1, 0, 1);
+}
+
+// Load a scalar in a struct into a register. The scalar can be either a local, global, or lvalue in register
+// If it's an lvalue in a register, it is indirected, otherwise moved.
+static Value *load_struct_scalar(Function *function, Tac *ir, Value *param, FunctionParamLocation *pl, Type *type) {
     Value *temp = new_value();
     temp->type = type;
     temp->vreg = ++function->vreg_count;
 
-    int lvalue_in_register = param->is_lvalue && param->vreg;
-    Value *src1 = dup_value(param);
-    src1->type = temp->type;
-    src1->offset += pl->stru_offset;
-
-    insert_instruction_from_operation(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, temp, src1, 0, 1);
+    load_struct_scalar_into_temp(function, ir, param, pl, temp->type, temp, 0);
 
     return temp;
+}
+
+static Value *make_long_temp(Function *function) {
+    Value *result = new_value();
+
+    result->type = new_type(TYPE_LONG);
+    result->type->is_unsigned = 1;
+    result->vreg = ++function->vreg_count;
+
+    return result;
+}
+
+// Load an 8-byte into an integer register. In the best case, a single move instruction
+// is produced. In the worst case, 3 load instructions with 3 bit shifts & 3 bitwise ors.
+// Try sizes in order of 8, 4, 2, 1.
+// The code produced:
+// size = 1     load char
+// size = 2     load short
+// size = 3     load short, load char, shift char, or char
+// size = 4     load int
+// size = 5     load int, load char, shift char, or char
+// size = 6     load int, load short, shift short, or short
+// size = 7     load int, load short, shift short, or short, load char, shift char, or char
+// size = 8     load long
+static void make_int_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Type *type, Value *param, int preg_class,
+        int register_index, int **function_call_arg_registers, Type ***function_call_arg_types, FunctionParamLocation *pl) {
+
+    // Make the shift register
+    Value *result_register = new_value();
+    result_register->type = new_type(TYPE_LONG);
+    result_register->type->is_unsigned = 1;
+    result_register->vreg = ++function->vreg_count;
+
+    int lvalue_in_register = param->is_lvalue && param->vreg;
+    int temp_loaded = 0;
+    int size = pl->stru_size;
+    int offset = 0;
+
+    for (int i = 3; i >= 0; i--) {
+        int size_unit = 1 << i;
+        if (size_unit > size) continue;
+
+        if (!temp_loaded) {
+            Type *type = new_type(TYPE_CHAR + i);
+            type->is_unsigned = 1;
+            load_struct_scalar_into_temp(function, ir, param, pl, type, result_register, offset);
+            temp_loaded = 1;
+        }
+        else {
+            // Load value
+            Value *loaded_value = make_long_temp(function);
+            Value *temp2 = dup_value(param);
+            temp2->type = new_type(TYPE_CHAR + i);
+            temp2->type->is_unsigned = 1;
+            temp2->offset += pl->stru_offset + offset;
+            insert_instruction_from_operation(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, loaded_value, temp2, 0, 1);
+
+            // Shift loaded value
+            Value *shifted_value;
+            if (offset) {
+                shifted_value = make_long_temp(function);
+                insert_instruction_from_operation(ir, IR_BSHL, shifted_value, loaded_value, new_integral_constant(TYPE_LONG, offset * 8), 1);
+            }
+            else
+                shifted_value = loaded_value;
+
+            // Bitwise or shifted_value and put result in result_register
+            Value *orred_value = make_long_temp(function);
+            insert_instruction_from_operation(ir, IR_BOR, orred_value, shifted_value, result_register, 1);
+            result_register = orred_value;
+        }
+
+        size -= size_unit;
+        offset += size_unit;
+        if (size == 0) break;
+    }
+
+    add_param_move_to_register(function, ir, new_type(TYPE_LONG), result_register, preg_class, register_index, function_call_arg_registers, function_call_arg_types);
 }
 
 // Load an 8-byte of a struct/union that exclusively have floats and doubles in it into a register.
@@ -145,7 +229,7 @@ static void make_struct_or_union_arg_move_instructions(
         if (preg_class == PC_SSE)
             make_sse_struct_or_union_arg_move_instructions(function, ir, type, param, preg_class, register_index, function_call_arg_registers, function_call_arg_types, &(pl->locations[loc]));
         else
-            printf("TODO struct in int registers\n");
+            make_int_struct_or_union_arg_move_instructions(function, ir, type, param, preg_class, register_index, function_call_arg_registers, function_call_arg_types, &(pl->locations[loc]));
     }
 }
 
@@ -176,7 +260,6 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG) {
-            int make_nop = 0;
             FunctionParamLocations *pl = ir->src1->function_call_arg_locations;
 
             for (int loc = 0; loc < pl->count; loc++) {
@@ -189,15 +272,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
                     arg_values[i] = ir->src2;
                     param_indexes[i] = ir->src1->function_call_arg_index;
                     param_locations[i] = pl;
-                    make_nop = 1;
                 }
-            }
-
-            if (make_nop) {
-                ir->operation = IR_NOP;
-                ir->dst = 0;
-                ir->src1 = 0;
-                ir->src2 = 0;
             }
         }
 
@@ -268,6 +343,24 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 void add_function_call_arg_moves(Function *function) {
     add_function_call_arg_moves_for_preg_class(function, PC_INT);
     add_function_call_arg_moves_for_preg_class(function, PC_SSE);
+
+    // Nuke all IR_ARG instructions that have gone into a register
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation == IR_ARG) {
+            FunctionParamLocations *pl = ir->src1->function_call_arg_locations;
+
+            for (int loc = 0; loc < pl->count; loc++) {
+                if (pl->locations[loc].int_register != -1 || pl->locations[loc].sse_register != -1) {
+                    ir->operation = IR_NOP;
+                    ir->dst = 0;
+                    ir->src1 = 0;
+                    ir->src2 = 0;
+
+                    break;
+                }
+            }
+        }
+    }
 }
 
 // Set has_address_of to 1 if a value is a parameter in a register and it's used in a & instruction
