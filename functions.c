@@ -635,7 +635,7 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
             printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", fpa->arg_count, alignment, fpl->stack_offset, fpl->stack_padding);
     }
 
-    if (debug_function_param_allocation && !in_stack) {
+    if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_sse_register)) {
         if (fpl->int_register != -1)
             printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->arg_count, alignment, fpl->int_register);
         else
