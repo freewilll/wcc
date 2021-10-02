@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <math.h>
 
 extern int verbose;
 extern int passes;
@@ -39,6 +40,13 @@ void assert_long(long expected, long actual, char *message) {
 }
 
 void assert_float(float expected, float actual, char *message) {
+    if (isnan(expected) != isnan(actual)) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %f got %f\n", expected, actual);
+        return;
+    }
+
     float diff = expected - actual;
     if (diff < 0) diff = -diff;
     if (diff > 0.000001) {
@@ -56,6 +64,13 @@ void assert_float(float expected, float actual, char *message) {
 }
 
 void assert_double(double expected, double actual, char *message) {
+    if (isnan(expected) != isnan(actual)) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %f got %f\n", expected, actual);
+        return;
+    }
+
     double diff = expected - actual;
     if (diff < 0) diff = -diff;
     if (diff > 0.000001) {
@@ -73,6 +88,13 @@ void assert_double(double expected, double actual, char *message) {
 }
 
 void assert_long_double(long double expected, long double actual, char *message) {
+    if (isnan(expected) != isnan(actual)) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %Lf got %Lf\n", expected, actual);
+        return;
+    }
+
     long double diff = expected - actual;
     if (diff < 0) diff = -diff;
     if (diff > 0.000001) {
