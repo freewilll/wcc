@@ -1295,6 +1295,7 @@ void init_instruction_selection_rules() {
 
     // Physical register class moves
     r = add_rule(MS4, IR_MOVE_PREG_CLASS, RI4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RI4, IR_MOVE_PREG_CLASS, RS4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
 
     // Pointer move rules
     r = add_rule(RP1, IR_MOVE, STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");

@@ -1,5 +1,6 @@
 run-test-*-wcc
 run-test-*-gcc
+run-test-abi
 test-*-wcc
 test-*-gcc
 gen-test-arithmetic-types-move-torture
@@ -9,3 +10,7 @@ test-arithmetic-torture.c
 test-include/test-include
 wcc-tests.rulecov
 test-reg-move-torture.c
+test-abi-gcc-gcc
+test-abi-wcc-gcc
+test-abi-gcc-wcc
+test-abi-wcc-wcc

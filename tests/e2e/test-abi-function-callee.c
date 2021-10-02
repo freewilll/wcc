@@ -1,9 +1,9 @@
 #include <stdio.h>
 
 #include "../test-lib.h"
-#include "struct-params.h"
+#include "test-abi.h"
 
-// Test ABI for functions accepting structs
+// These functions are called from test-abi-function-caller.c
 
 void accept_spf(struct spf spf) { assert_float(1.1, spf.f1, "accept_spf"); }
 void accept_spd(struct spd spd) { assert_double(2.1, spd.d1, "accept_spd"); }

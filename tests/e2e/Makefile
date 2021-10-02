@@ -19,19 +19,16 @@ WCC_TESTS=\
 	long-doubles \
 	floats-and-doubles
 
-all: run-test-gcc run-test-wcc run-test-include
+all: run-test-gcc run-test-wcc run-test-abi run-test-include
 
-stack-check.o: stack-check.c struct-params.h
+stack-check.o: stack-check.c
 	gcc ${GCC_OPTS} stack-check.c -c
-
-struct-params.o: struct-params.c
-	gcc ${GCC_OPTS} struct-params.c -c
 
 test-%.s: test-%.c ../../wcc
 	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov --Wno-integer-constant-too-large -c -S $<
 
-test-%-wcc: test-%.s stack-check.o struct-params.o ../test-lib.o
-	gcc ${GCC_OPTS} $< stack-check.o struct-params.o ../test-lib.o -o $@
+test-%-wcc: test-%.s stack-check.o ../test-lib.o
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@
 
 run-test-%-wcc: test-%-wcc
 	./$<
@@ -43,7 +40,6 @@ gen-test-arithmetic-torture: gen-test-arithmetic-torture.c
 test-arithmetic-torture.c: gen-test-arithmetic-torture
 	./gen-test-arithmetic-torture
 
-
 gen-test-arithmetic-types-move-torture: gen-test-arithmetic-types-move-torture.c
 	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-arithmetic-types-move-torture.c -o gen-test-arithmetic-types-move-torture
 
@@ -54,22 +50,55 @@ test-arithmetic-types-move-torture.c: gen-test-arithmetic-types-move-torture
 run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
 	@echo wcc tests passed
 
-test-%-gcc: test-%.c stack-check.o struct-params.o ../test-lib.o
-	gcc ${GCC_OPTS} $< stack-check.o struct-params.o ../test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-overflow -Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-implicit-int -D _GNU_SOURCE
+test-%-gcc: test-%.c stack-check.o ../test-lib.o
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@ -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-overflow -Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast -Wno-implicit-int -D _GNU_SOURCE
 
 run-test-%-gcc: test-%-gcc
 	./$<
 	touch run-$<
 
+.PHONY: run-test-gcc
+run-test-gcc: ${WCC_TESTS:%=run-test-%-gcc}
+	@echo gcc tests passed
+
+# ABI tests
+test-abi-function-caller-gcc.o: test-abi-function-caller.c test-abi.h
+	gcc ${GCC_OPTS} -c -o test-abi-function-caller-gcc.o test-abi-function-caller.c
+
+test-abi-function-callee-gcc.o: test-abi-function-callee.c test-abi.h
+	gcc ${GCC_OPTS} -c -o test-abi-function-callee-gcc.o test-abi-function-callee.c
+
+test-abi-function-caller-wcc.o: test-abi-function-caller.c test-abi.h
+	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-caller-wcc.o test-abi-function-caller.c
+
+test-abi-function-callee-wcc.o: test-abi-function-callee.c test-abi.h
+	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-callee-wcc.o test-abi-function-callee.c
+
+test-abi-gcc-gcc: stack-check.o ../test-lib.o test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
+	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-gcc-gcc test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
+
+test-abi-wcc-gcc: stack-check.o ../test-lib.o test-abi-function-caller-wcc.o test-abi-function-callee-gcc.o
+	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-wcc-gcc test-abi-function-caller-wcc.o test-abi-function-callee-gcc.o
+
+test-abi-gcc-wcc: stack-check.o ../test-lib.o test-abi-function-caller-gcc.o test-abi-function-callee-wcc.o
+	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-gcc-wcc test-abi-function-caller-gcc.o test-abi-function-callee-wcc.o
+
+test-abi-wcc-wcc: stack-check.o ../test-lib.o test-abi-function-caller-wcc.o test-abi-function-callee-wcc.o
+	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-wcc-wcc test-abi-function-caller-wcc.o test-abi-function-callee-wcc.o
+
+run-test-abi: test-abi-gcc-gcc test-abi-wcc-gcc test-abi-gcc-wcc test-abi-wcc-wcc
+	./test-abi-gcc-gcc
+	./test-abi-wcc-gcc
+	./test-abi-gcc-wcc
+	./test-abi-wcc-wcc
+	touch run-test-abi
+
+# Includes
 test-include/test-include: ../../wcc test-include/include.h test-include/main.c test-include/foo.c
 	cd test-include && ../../../wcc ${WCC_OPTS} main.c foo.c -o test-include
 
 run-test-include: test-include/test-include
 	test-include/test-include
-
-.PHONY: run-test-gcc
-run-test-gcc: ${WCC_TESTS:%=run-test-%-gcc}
-	@echo gcc tests passed
 
 clean:
 	@rm -f test-wcc
@@ -86,3 +115,8 @@ clean:
 	@rm -f core
 	@rm -f test-include/test-include
 	@rm -f wcc-tests.rulecov
+	@ rm -f test-abi-gcc-gcc
+	@ rm -f test-abi-wcc-gcc
+	@ rm -f test-abi-gcc-wcc
+	@ rm -f test-abi-wcc-wcc
+
