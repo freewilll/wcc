@@ -196,8 +196,9 @@ typedef struct value {
     long double fp_value;                                // Value in the case of a floating point constant
     int offset;                                          // For composite objects, offset from the start of the object's memory
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
-    int is_function_call_arg;                            // Index of the argument going left to right (0=leftmost)
+    int is_function_call_arg;                            // Is it a function call argument?
     int is_function_param;                               // Is it a function parameter?
+    int is_function_return_value;                         // Is it a function return value?
     int function_param_index;                            // Index of the int or sse parameter, 0=rdi, 1=rsi,... and 0=xmm0, 1=xmm1, ....
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)

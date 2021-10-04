@@ -1296,9 +1296,10 @@ static void make_interference_graph(Function *function) {
                 }
             }
 
-            if (tac->operation == IR_RETURN || tac->operation == X_RET)
-                if (tac->dst && tac->dst->vreg)
-                    force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX, PC_INT);
+            if (tac->dst && tac->dst->vreg && tac->dst->is_function_return_value) {
+                int live_range_preg = tac->dst->preg_class == PC_INT ? LIVE_RANGE_PREG_RAX_INDEX : LIVE_RANGE_PREG_XMM00_INDEX;
+                force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, live_range_preg, PC_INT);
+            }
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
@@ -1520,7 +1521,8 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
                 }
 
                 if (tac->dst && tac->dst->vreg) {
-                    if (tac->operation == IR_CALL || tac->operation == IR_RETURN) clobbers[tac->dst->vreg] = 1;
+                    if (tac->operation == IR_CALL) clobbers[tac->dst->vreg] = 1;
+                    else if (tac->dst && tac->dst->vreg && tac->dst->is_function_return_value) clobbers[tac->dst->vreg] = 1;
                     else if (tac->operation == IR_MOVE && tac->dst->is_function_call_arg) clobbers[tac->dst->vreg] = 1;
                     else if (tac->src1 && tac->src1->is_function_param) clobbers[tac->dst->vreg] = 1;
                 }

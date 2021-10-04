@@ -47,8 +47,12 @@ void add_function_return_moves(Function *function) {
             ir->dst = new_value();
             ir->dst->type = dup_type(function->return_type);
             ir->dst->vreg = ++function->vreg_count;
-            ir->src1->preferred_live_range_preg_index = LIVE_RANGE_PREG_RAX_INDEX;
+            int is_sse = is_sse_floating_point_type(function->return_type);
+            int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
+            ir->src1->preferred_live_range_preg_index = live_range_preg;
         }
+
+        if (ir->operation == IR_RETURN && ir->dst && ir->dst->vreg) ir->dst->is_function_return_value = 1;
     }
 }
 
