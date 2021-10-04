@@ -661,7 +661,6 @@ void init_value(Value *v);
 Value *new_value();
 Value *new_integral_constant(int type_type, long value);
 Value *new_floating_point_constant(int type_type, long double value);
-Value *new_preg_value(int preg);
 Value *dup_value(Value *src);
 void add_tac_to_ir(Tac *tac);
 Tac *new_instruction(int operation);

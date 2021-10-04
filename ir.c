@@ -42,12 +42,6 @@ Value *new_floating_point_constant(int type_type, long double value) {
     return cv;
 }
 
-Value *new_preg_value(int preg) {
-    Value *v = new_value();
-    v->preg = preg;
-    return v;
-}
-
 // Duplicate a value
 Value *dup_value(Value *src) {
     Value *dst = new_value();

@@ -369,6 +369,12 @@ static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *sr
     return insert_instruction_after(ir, tac);
 }
 
+static Value *new_preg_value(int preg) {
+    Value *v = new_value();
+    v->preg = preg;
+    return v;
+}
+
 // Determine which registers are used in a function, push them onto the stack and return the list
 static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
     while (tac) {
