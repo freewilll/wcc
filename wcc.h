@@ -198,7 +198,6 @@ typedef struct value {
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
     int is_function_call_arg;                            // Is it a function call argument?
     int is_function_param;                               // Is it a function parameter?
-    int is_function_return_value;                        // Is it a function return value?
     int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)

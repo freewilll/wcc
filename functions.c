@@ -52,7 +52,8 @@ void add_function_return_moves(Function *function) {
             ir->src1->preferred_live_range_preg_index = live_range_preg;
         }
 
-        if (ir->operation == IR_RETURN && ir->dst && ir->dst->vreg) ir->dst->is_function_return_value = 1;
+        if (ir->operation == IR_RETURN && ir->dst && ir->dst->vreg)
+            ir->dst->live_range_preg = is_sse_floating_point_type(ir->dst->type) ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
     }
 }
 
