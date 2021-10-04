@@ -1205,18 +1205,12 @@ static void force_function_call_arg_for_preg(char *interference_graph, int vreg_
 
     if (value && value->preg_class != preg_class) return;
 
-    if (value && value->is_function_call_arg) {
-        int arg = preg_class == PC_INT
-            ? value->function_call_int_register_arg_index
-            : value->function_call_sse_register_arg_index;
-
-        if (arg < 0 || arg >= max) panic1d("Invalid register arg %d", arg);
-        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[arg], preg_class);
-    }
+    if (value && value->is_function_call_arg)
+        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, value->live_range_preg, preg_class);
 
     // Force caller arguments to a function call into the appropriate registers
-    if (value && value->is_function_param && value->function_param_index < max)
-        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, arg_registers[value->function_param_index], preg_class);
+    if (value && value->is_function_param)
+        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, value->live_range_preg, preg_class);
 }
 
 static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {

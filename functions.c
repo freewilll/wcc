@@ -73,10 +73,7 @@ static void add_param_move_to_register(
     tac->dst->vreg = ++function->vreg_count;
     tac->dst->is_function_call_arg = 1;
 
-    if (preg_class == PC_INT)
-        tac->dst->function_call_int_register_arg_index = register_index;
-    else
-        tac->dst->function_call_sse_register_arg_index = register_index;
+    tac->dst->live_range_preg = preg_class == PC_INT ? int_arg_registers[register_index] : sse_arg_registers[register_index];
 
     // src
     tac->src1 = param;
@@ -481,7 +478,7 @@ static Tac *make_param_move_to_register_tac(Function *function, Type *type, int 
     tac->src1 = new_value();
     tac->src1->type = dup_type(tac->dst->type);
     tac->src1->is_function_param = 1;
-    tac->src1->function_param_index = function_param_index;
+    tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
 
     return tac;
 }
@@ -496,7 +493,7 @@ static Tac *make_param_move_to_stack_tac(Function *function, Type *type, int fun
     tac->src1 = new_value();
     tac->src1->type = dup_type(tac->dst->type);
     tac->src1->is_function_param = 1;
-    tac->src1->function_param_index = function_param_index;
+    tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
 
     return tac;
 }
@@ -523,7 +520,7 @@ static void make_int_struct_or_union_param_move_instructions(Function *function,
     Value *shift_register = new_value();
     shift_register->vreg = param_register_vreg;
     shift_register->is_function_param = 1;
-    shift_register->function_param_index = register_index;
+    shift_register->live_range_preg = int_arg_registers[register_index];
 
     int size = pl->stru_size;
     int offset = 0;
@@ -556,7 +553,7 @@ static void make_int_struct_or_union_param_move_instructions(Function *function,
 
         Value *new_shift_register = dup_value(shift_register);
         new_shift_register->is_function_param = 0;
-        new_shift_register->function_param_index = 0;
+        new_shift_register->live_range_preg = 0;
 
         insert_instruction_from_operation(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 1);
 
@@ -575,7 +572,7 @@ static void make_sse_struct_or_union_param_move_instructions(Function *function,
     Value *param_register = new_value();
     param_register->vreg = param_register_vreg;
     param_register->is_function_param = 1;
-    param_register->function_param_index = register_index;
+    param_register->live_range_preg = sse_arg_registers[register_index];
 
     if (pl->stru_size == 4) {
         // Move a single float

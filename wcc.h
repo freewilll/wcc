@@ -198,12 +198,11 @@ typedef struct value {
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
     int is_function_call_arg;                            // Is it a function call argument?
     int is_function_param;                               // Is it a function parameter?
-    int is_function_return_value;                         // Is it a function return value?
-    int function_param_index;                            // Index of the int or sse parameter, 0=rdi, 1=rsi,... and 0=xmm0, 1=xmm1, ....
+    int is_function_return_value;                        // Is it a function return value?
+    int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
     FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or sse register, or in the case of a struct, a list of locations
-    int function_call_int_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_sse_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
     int function_call_arg_push_count;                    // Number of arguments pushed on the stack
