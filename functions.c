@@ -43,17 +43,20 @@ void add_function_call_result_moves(Function *function) {
 // and forced into the RAX register.
 void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_RETURN && ir->src1 && ir->src1->type->type != TYPE_LONG_DOUBLE) {
+        if (ir->operation != IR_RETURN || !ir->src1) continue;
+
+        if (ir->src1->type->type != TYPE_LONG_DOUBLE) {
+            int is_sse = is_sse_floating_point_type(function->return_type);
+            int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
+
+            ir->src1->preferred_live_range_preg_index = live_range_preg;
+
             ir->dst = new_value();
             ir->dst->type = dup_type(function->return_type);
             ir->dst->vreg = ++function->vreg_count;
-            int is_sse = is_sse_floating_point_type(function->return_type);
-            int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
+            ir->dst->live_range_preg = live_range_preg;
             ir->src1->preferred_live_range_preg_index = live_range_preg;
         }
-
-        if (ir->operation == IR_RETURN && ir->dst && ir->dst->vreg)
-            ir->dst->live_range_preg = is_sse_floating_point_type(ir->dst->type) ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
     }
 }
 
