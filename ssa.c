@@ -1197,7 +1197,7 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
-static void force_function_call_arg_for_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class, int max, int *arg_registers) {
+static void force_function_call_arg_for_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class, int *arg_registers) {
     // The first six integer parameters and first eight sse parameters in function calls
     // are passed in reserved registers rsi, rdi, ... and xmm0, xmm1, ... They
     // are moved into other registers at the start of the function. They are themselves
@@ -1219,8 +1219,8 @@ static void force_function_call_arg(char *interference_graph, int vreg_count, Se
     // register allocated to them.
     // Same story for the floating point registers xmm0...xmm7
 
-    force_function_call_arg_for_preg(interference_graph, vreg_count, livenow, value, PC_INT, 6, int_arg_registers);
-    force_function_call_arg_for_preg(interference_graph, vreg_count, livenow, value, PC_SSE, 8, sse_arg_registers);
+    force_function_call_arg_for_preg(interference_graph, vreg_count, livenow, value, PC_INT, int_arg_registers);
+    force_function_call_arg_for_preg(interference_graph, vreg_count, livenow, value, PC_SSE, sse_arg_registers);
 }
 
 static void print_interference_graph(Function *function) {
