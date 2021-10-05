@@ -404,6 +404,7 @@ enum {
     IR_END_CALL,              // End of function call
     IR_ALLOCATE_STACK,        // Allocate stack space for a function call argument on the stack
     IR_RETURN,                // Return in function
+    IR_LOAD_LONG_DOUBLE,      // Load a long double into the top of the x87 stack
     IR_START_LOOP,            // Start of a for or while loop
     IR_END_LOOP,              // End of a for or while loop
     IR_NOP,                   // No operation. Used for label destinations. No code is generated for this other than the label itself.
@@ -828,7 +829,6 @@ enum {
 
     // x86 instructions
     X_START = 1000,
-    X_RET,
     X_ARG,             // A function call argument, pushed into the stack
     X_ALLOCATE_STACK,
     X_MOVE_STACK_PTR,

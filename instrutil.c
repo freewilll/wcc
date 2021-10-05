@@ -250,10 +250,10 @@ static void make_rule_hash(int i) {
     Rule *r = &(instr_rules[i]);
 
     r->hash =
-        (r->dst       <<  0) +
-        (r->src1      <<  9) +
-        (r->src2      << 18) +
-        (r->operation << 27);
+        ((long) r->dst       <<  0) +
+        ((long) r->src1      <<  9) +
+        ((long) r->src2      << 18) +
+        ((long) r->operation << 27);
 }
 
 void check_for_duplicate_rules() {

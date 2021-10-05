@@ -619,63 +619,6 @@ static void add_pointer_rules(int *ntc) {
     add_move_to_ptr(RP4, RS4, 0, "movsd %v2D, %v1o(%v1q)");
 }
 
-static void add_ret(Rule *r) {
-    add_op(r, X_RET, DST, SRC1, 0, 0);
-    fin_rule(r);
-}
-
-static void add_return_move_rules(int dst_base, int src_base, int *operations, char **templates) {
-    for (int src = 0; src < 4; src++)
-        for (int dst = 0; dst < 4; dst++) {
-            Rule *r = add_rule(dst_base + dst, IR_RETURN, src_base + src, 0, 1);
-            add_op(r, operations[dst + src * 4], DST, SRC1, 0, templates[dst + src * 4]);
-            add_ret(r);
-        }
-}
-
-// Rules here must be the same as any IR_MOVE rules that have a register as a destination
-static void add_return_rules() {
-    Rule *r;
-
-    // void
-    r = add_rule(0, IR_RETURN, 0, 0, 1); add_op(r, X_RET, DST, SRC1, 0, 0); fin_rule(r);
-
-    // constants
-    for (int i = 0; i < 4; i++) {
-        r = add_rule(XRI, IR_RETURN, CI1 + i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "mov%s $%v1, %vd"); add_ret(r); fin_rule(r);
-        r = add_rule(XRI, IR_RETURN, CU1 + i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "mov%s $%v1, %vd"); add_ret(r); fin_rule(r);
-        r = add_rule(XRU, IR_RETURN, CI1 + i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "mov%s $%v1, %vd"); add_ret(r); fin_rule(r);
-        r = add_rule(XRU, IR_RETURN, CU1 + i, 0, 1); add_op(r, X_MOV, DST, SRC1, 0, "mov%s $%v1, %vd"); add_ret(r); fin_rule(r);
-    }
-
-    // registers
-    add_return_move_rules(RI1, RI1, signed_moves_operations, signed_moves_templates);
-    add_return_move_rules(RU1, RI1, signed_moves_operations, signed_moves_templates);
-    add_return_move_rules(RI1, RU1, unsigned_moves_operations, unsigned_moves_templates);
-    add_return_move_rules(RU1, RU1, unsigned_moves_operations, unsigned_moves_templates);
-
-    // pointers
-    r = add_rule(RP1, IR_RETURN, XRP,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq %v1q, %vdq" ); add_ret(r);
-    r = add_rule(RP2, IR_RETURN, XRP,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq %v1q, %vdq" ); add_ret(r);
-    r = add_rule(RP3, IR_RETURN, XRP,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq %v1q, %vdq" ); add_ret(r);
-    r = add_rule(RP4, IR_RETURN, XRP,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq %v1q, %vdq" ); add_ret(r);
-
-    r = add_rule(XRP, IR_RETURN, CI4,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); add_ret(r);
-    r = add_rule(XRP, IR_RETURN, CU4,  0, 1); add_op(r, X_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); add_ret(r);
-
-    // Long doubles
-    r = add_rule(0, IR_RETURN, CLD,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1C");
-    r = add_rule(0, IR_RETURN, MLD5, 0, 1); add_op(r, X_RET, DST, SRC1, 0, "fldt %v1L");
-
-    // Floats & doubles
-    r = add_rule(RS3, IR_RETURN, CS3,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movss %v1F, %vdq");
-    r = add_rule(RS3, IR_RETURN, RS3,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movss %v1F, %vdq");
-    r = add_rule(RS3, IR_RETURN, MS3,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movss %v1F, %vdq");
-    r = add_rule(RS4, IR_RETURN, CS4,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movsd %v1D, %vdq");
-    r = add_rule(RS4, IR_RETURN, RS4,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movsd %v1D, %vdq");
-    r = add_rule(RS4, IR_RETURN, MS4,  0, 1); add_op(r, X_RET, DST, SRC1, 0, "movsd %v1D, %vdq");
-}
-
 static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int x86_cmp_operation, char *comparison, char *conditional_jmp, int do_fin_rule) {
     int x86_jmp_operation = operation == IR_JZ ? X_JZ : X_JNZ;
 
@@ -1383,7 +1326,9 @@ void init_instruction_selection_rules() {
     r = add_rule(0, IR_ARG, CI4, RP3, 2);                                                          add_int_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RP4, 2);                                                          add_int_function_call_arg_op(r);
 
-    add_return_rules();
+    // Long double return rules
+    r = add_rule(0, IR_LOAD_LONG_DOUBLE, CLD,  0, 1); add_op(r, X_MOVC, DST, SRC1, 0, "fldt %v1C");
+    r = add_rule(0, IR_LOAD_LONG_DOUBLE, MLD5, 0, 1); add_op(r, X_MOVC, DST, SRC1, 0, "fldt %v1L");
 
     // Jump rules
     r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, X_JMP, 0, SRC1, 0, "jmp %v1"); fin_rule(r);

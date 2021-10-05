@@ -39,13 +39,17 @@ void add_function_call_result_moves(Function *function) {
     }
 }
 
-// Add a move for a function return value. The target of the move will be constraint
-// and forced into the RAX register.
+// Add a move for a function return value. If it's a long double, a load can be done,
+// otherwise, either rax or xmm0 must hold the result.
 void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation != IR_RETURN || !ir->src1) continue;
+        if ((ir->operation == IR_RETURN && !ir->src1) || ir->operation != IR_RETURN) continue;
 
-        if (ir->src1->type->type != TYPE_LONG_DOUBLE) {
+        // Implicit else, operation == IR_RETURN & ir-src1 has a value
+        if (ir->src1->type->type == TYPE_LONG_DOUBLE)
+            insert_instruction_from_operation(ir, IR_LOAD_LONG_DOUBLE, 0, ir->src1, 0, 1);
+
+        else {
             int is_sse = is_sse_floating_point_type(function->return_type);
             int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
 
@@ -56,7 +60,14 @@ void add_function_return_moves(Function *function) {
             ir->dst->vreg = ++function->vreg_count;
             ir->dst->live_range_preg = live_range_preg;
             ir->src1->preferred_live_range_preg_index = live_range_preg;
+
+            insert_instruction_from_operation(ir, IR_MOVE, ir->dst, ir->src1, 0, 1);
         }
+
+        ir->operation = IR_RETURN;
+        ir->dst = 0;
+        ir->src1 = 0;
+        ir->src2 = 0;
     }
 }
 

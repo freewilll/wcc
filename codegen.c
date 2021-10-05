@@ -518,7 +518,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
             ir = insert_instruction_after(ir, tac);
         }
 
-        else if (ir->operation == X_RET) {
+        else if (ir->operation == IR_RETURN) {
             ir = insert_end_of_function(ir, saved_registers);
             added_end_of_function = 1;
         }

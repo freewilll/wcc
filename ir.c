@@ -178,6 +178,7 @@ char *operation_string(int operation) {
     else if (operation == IR_CALL_ARG_REG)          return "IR_CALL_ARG_REG";
     else if (operation == IR_END_CALL)              return "IR_END_CALL";
     else if (operation == IR_RETURN)                return "IR_RETURN";
+    else if (operation == IR_LOAD_LONG_DOUBLE)      return "IR_LOAD_LONG_DOUBLE";
     else if (operation == IR_START_LOOP)            return "IR_START_LOOP";
     else if (operation == IR_END_LOOP)              return "IR_END_LOOP";
     else if (operation == IR_ALLOCATE_STACK)        return "IR_ALLOCATE_STACK";
@@ -293,14 +294,13 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, "call \"%s\"", tac->src1->function_symbol->identifier);
     }
 
-    else if (o == IR_RETURN) {
-        if (tac->src1) {
-            fprintf(f, "return ");
-            print_value(f, tac->src1, 1);
-        }
-        else
-            fprintf(f, "return");
+    else if (o == IR_LOAD_LONG_DOUBLE) {
+        fprintf(f, "load long double ");
+        print_value(f, tac->src1, 1);
     }
+
+    else if (o == IR_RETURN)
+        fprintf(f, "return");
 
     else if (o == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->int_value, tac->src2->int_value);
     else if (o == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->int_value, tac->src2->int_value);
@@ -355,7 +355,6 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");  print_value(f, tac->src2, 1); }
     else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
     else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
-    else if (o == X_RET)            { fprintf(f, "ret "   ); if (tac->src1) print_value(f, tac->src1, 1); }
     else if (o == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); if (tac->dst) { printf(" -> "); print_value(f, tac->dst, 1); } }
     else if (o == IR_CALL_ARG_REG)  { fprintf(f, "call reg arg "); print_value(f, tac->src1, 1); }
     else if (o == IR_ALLOCATE_STACK){ fprintf(f, "allocate stack "); print_value(f, tac->src1, 1); }
