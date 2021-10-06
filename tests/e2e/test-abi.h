@@ -62,3 +62,34 @@ void accept_si9(struct si9 si9);
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2);
 
 void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld, double m, double n, int i, int j, int k);
+
+struct spf return_spf();
+struct spf return_spf_from_global();
+struct spf return_spf_from_temp();
+struct spf return_spf_with_params(int i);
+struct spd return_spd();
+struct spdf return_spdf();
+struct sff return_sff();
+struct sdd return_sdd();
+struct sffff return_sffff();
+struct sffii return_sffii();
+struct sffiii return_sffiii();
+struct siiff return_siiff();
+struct siifff return_siifff();
+struct sifif return_sifif();
+
+struct sc1 return_sc1();
+struct sc2 return_sc2();
+struct sc3 return_sc3();
+struct sc4 return_sc4();
+struct sc5 return_sc5();
+struct sc6 return_sc6();
+struct sc7 return_sc7();
+struct sc8 return_sc8();
+struct sc9 return_sc9();
+
+struct si5 return_si5();
+struct si6 return_si6();
+struct si7 return_si7();
+struct si8 return_si8();
+struct si9 return_si9();

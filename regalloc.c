@@ -306,6 +306,22 @@ void init_allocate_registers() {
     preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
     memset(preg_map, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
 
+    arg_register_set.int_registers = int_arg_registers;
+    arg_register_set.sse_registers = sse_arg_registers;
+
+    // Make function return value register sets
+    int *int_rv_registers = malloc(sizeof(int) * 2);
+    int *sse_rv_registers = malloc(sizeof(int) * 2);
+
+    int_rv_registers[0] = LIVE_RANGE_PREG_RAX_INDEX;
+    int_rv_registers[1] = LIVE_RANGE_PREG_RDX_INDEX;
+
+    sse_rv_registers[0] = LIVE_RANGE_PREG_XMM00_INDEX;
+    sse_rv_registers[1] = LIVE_RANGE_PREG_XMM01_INDEX;
+
+    function_return_value_register_set.int_registers = int_rv_registers;
+    function_return_value_register_set.sse_registers = sse_rv_registers;
+
     // All registers except RSP, RBP, R10 and R11
     preg_map[LIVE_RANGE_PREG_RAX_INDEX - 1] = REG_RAX;
     preg_map[LIVE_RANGE_PREG_RBX_INDEX - 1] = REG_RBX;

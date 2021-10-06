@@ -114,6 +114,7 @@ typedef struct function {
     int is_external;                         // Has external linkage
     int is_static;                           // Is a private function in the translation unit
     int is_variadic;                         // Set to 1 for builtin variadic functions
+    struct value *return_value_pointer;      // Set to the register holding the memory return address if the function returns something in memory
     Scope *scope;                            // Scope, starting with the parameters
     struct three_address_code *ir;           // Intermediate representation
     Graph *cfg;                              // Control flow graph
@@ -256,6 +257,11 @@ typedef struct typedef_desc {
     char *identifier;
     Type *struct_type;
 } Typedef;
+
+typedef struct register_set {
+    int *int_registers;
+    int *sse_registers;
+} RegisterSet;
 
 enum {
     MAX_STRUCTS_AND_UNIONS        = 1024,
@@ -688,7 +694,7 @@ void make_stack_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);
 void remove_unused_function_call_results(Function *function);
 void process_struct_and_union_copies(Function *function);
-void add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
+Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
 
 // ssa.c
 enum {
@@ -707,6 +713,7 @@ enum {
     LIVE_RANGE_PREG_R15_INDEX,      // 12
 
     LIVE_RANGE_PREG_XMM00_INDEX,    // 13
+    LIVE_RANGE_PREG_XMM01_INDEX,
 };
 
 int live_range_reserved_pregs_offset;
@@ -730,7 +737,7 @@ void make_preferred_live_range_preg_indexes(Function *function);
 
 // functions.c
 void add_function_call_result_moves(Function *function);
-void add_function_return_moves(Function *function);
+void add_function_return_moves(Function *function, char *identifier);
 void add_function_call_arg_moves(Function *function);
 void add_function_param_moves(Function *function, char *identifier);
 Value *make_function_call_value(int function_call);
@@ -741,6 +748,9 @@ void finalize_function_param_allocation(FunctionParamAllocation *fpa);
 // regalloc.c
 int *int_arg_registers;
 int *sse_arg_registers;
+
+RegisterSet arg_register_set;
+RegisterSet function_return_value_register_set;
 
 void compress_vregs(Function *function);
 void init_vreg_locations(Function *function);

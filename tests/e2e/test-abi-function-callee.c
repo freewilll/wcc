@@ -205,3 +205,20 @@ void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld
     assert_int(12, s.b, "abi_example s.b");
     assert_double(13.1, s.d, "abi_example s.d");
 }
+
+struct spf gspf;
+
+struct spf return_spf() { struct spf spf; spf.f1 = 1.1; return spf; }
+struct spf return_spf_from_global() { gspf.f1 = 1.1; return gspf; }
+struct spf return_spf_from_temp() { struct spf spf; spf.f1 = 1.1; return *&spf; }
+struct spf return_spf_with_params(int i) { assert_int(1, i, "return_spf_with_params i"); struct spf spf; spf.f1 = 1.1; return *&spf; }
+struct spd return_spd() { struct spd spd; spd.d1 = 2.1; return spd; }
+struct spdf return_spdf() { struct spdf spdf; spdf.d1 = 3.1; spdf.f1 = 4.1; return spdf; }
+struct sff return_sff() { struct sff sff; sff.f1 = 5.1; sff.f2 = 6.1; return sff; }
+struct sdd return_sdd() { struct sdd sdd; sdd.d1 = 7.1; sdd.d2 = 8.1; return sdd; }
+struct sffff return_sffff() { struct sffff sffff; sffff.f1 = 1.1; sffff.f2 = 2.1; sffff.f3 = 3.1; sffff.f4 = 4.1; return  sffff; }
+struct sffii return_sffii() { struct sffii sffii; sffii.f1 = 1.1; sffii.f2 = 2.1; sffii.i1 = 3; sffii.i2 = 4; return  sffii; }
+struct sffiii return_sffiii() { struct sffiii sffiii; sffiii.f1 = 1.1; sffiii.f2 = 2.1; sffiii.i1 = 3; sffiii.i2 = 4; sffiii.i3 = 5; return  sffiii; }
+struct siiff return_siiff() { struct siiff siiff; siiff.i1 = 1; siiff.i2 = 2; siiff.f1 = 3.1; siiff.f2 = 4.1; return  siiff; }
+struct siifff return_siifff() { struct siifff siifff; siifff.i1 = 1; siifff.i2 = 2; siifff.f1 = 3.1; siifff.f2 = 4.1; siifff.f3 = 5.1; return  siifff; }
+struct sifif return_sifif() { struct sifif sifif; sifif.i1 = 1; sifif.f1 = 2.1; sifif.i2 = 3; sifif.f2 = 4.1; return  sifif; }

@@ -896,13 +896,15 @@ static Tac *copy_memory_with_registers(Function *function, Tac *ir, Value *dst, 
     return ir;
 }
 
-void add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
+Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
     // If either src or dst is an lvalue in a register, or the struct size > 32,
     // use a memory copy. Otherwise use temporary registers to do the copy.
     if (size > 32)
         ir = copy_memory_with_memcpy(function, ir, dst, src1, size);
     else
         ir = copy_memory_with_registers(function, ir, dst, src1, size);
+
+    return ir;
 }
 
 // Add memcpy calls for struct/union -> struct/union copies

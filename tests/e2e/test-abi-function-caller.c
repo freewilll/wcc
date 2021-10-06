@@ -94,11 +94,64 @@ void test_struct_params() {
     accept_abi_example(e, f, s, g, h, ld, m, n, i, j, k);
 }
 
+void test_struct_return_values() {
+    // TODO enable once receiving from a function returning a struct/union has been implemented
+
+    // // Struct with only floats and doubles
+    // struct spf spf   = return_spf();              assert_float(1.1,  spf.f1,  "return_spf");
+    //            spf   = return_spf_from_global();  assert_float(1.1,  spf.f1, "return_spf_from_global");
+    //            spf   = return_spf_from_temp();    assert_float(1.1,  spf.f1, "return_spf_from_temp");
+    //            spf   = return_spf_with_params(1); assert_float(1.1,  spf.f1, "return_spf_with_params");
+    // struct spd spd   = return_spd();              assert_double(2.1, spd.d1,  "accept_spd");
+    // struct spdf spdf = return_spdf();             assert_float(3.1,  spdf.d1, "accept_spf");  assert_double(4.1, spdf.f1, "accept_spdf");
+    // struct sff sff   = return_sff();              assert_float(5.1,  sff.f1,  "accept_spf");  assert_float(6.1,  sff.f2,  "accept_sff");
+    // struct sdd sdd   = return_sdd();              assert_float(7.1,  sdd.d1,  "accept_spf");  assert_float(8.1,  sdd.d2,  "accept_sdd");
+
+    // struct sffff sffff = return_sffff();
+    // assert_float(1.1, sffff.f1, "return_sffff");
+    // assert_float(2.1, sffff.f2, "return_sffff");
+    // assert_float(3.1, sffff.f3, "return_sffff");
+    // assert_float(4.1, sffff.f4, "return_sffff");
+
+    // struct sffii sffii = return_sffii();
+    // assert_float(1.1, sffii.f1, "return_sffii");
+    // assert_float(2.1, sffii.f2, "return_sffii");
+    // assert_int(3, sffii.i1, "return_sffii");
+    // assert_int(4, sffii.i2, "return_sffii");
+
+    // struct sffiii sffiii = return_sffiii();
+    // assert_float(1.1, sffiii.f1, "return_sffiii");
+    // assert_float(2.1, sffiii.f2, "return_sffiii");
+    // assert_int(3, sffiii.i1, "return_sffiii");
+    // assert_int(4, sffiii.i2, "return_sffiii");
+    // assert_int(5, sffiii.i3, "return_sffiii");
+
+    // struct siiff siiff = return_siiff();
+    // assert_int(1, siiff.i1, "return_siiff");
+    // assert_int(2, siiff.i2, "return_siiff");
+    // assert_float(3.1, siiff.f1, "return_siiff");
+    // assert_float(4.1, siiff.f2, "return_siiff");
+
+    // struct siifff siifff = return_siifff();
+    // assert_int(1, siifff.i1, "return_siifff");
+    // assert_int(2, siifff.i2, "return_siifff");
+    // assert_float(3.1, siifff.f1, "return_siifff");
+    // assert_float(4.1, siifff.f2, "return_siifff");
+    // assert_float(5.1, siifff.f3, "return_siifff");
+
+    // struct sifif sifif = return_sifif();
+    // assert_int(1, sifif.i1, "return_sifif");
+    // assert_float(2.1, sifif.f1, "return_sifif");
+    // assert_int(3, sifif.i2, "return_sifif");
+    // assert_float(4.1, sifif.f2, "return_sifif");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
     parse_args(argc, argv, &verbose);
     test_struct_params();
+    test_struct_return_values();
     finalize();
 }
