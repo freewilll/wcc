@@ -62,16 +62,16 @@ run-test-gcc: ${WCC_TESTS:%=run-test-%-gcc}
 	@echo gcc tests passed
 
 # ABI tests
-test-abi-function-caller-gcc.o: test-abi-function-caller.c test-abi.h
+test-abi-function-caller-gcc.o: test-abi-function-caller.c test-abi.h ../../wcc
 	gcc ${GCC_OPTS} -c -o test-abi-function-caller-gcc.o test-abi-function-caller.c
 
-test-abi-function-callee-gcc.o: test-abi-function-callee.c test-abi.h
+test-abi-function-callee-gcc.o: test-abi-function-callee.c test-abi.h ../../wcc
 	gcc ${GCC_OPTS} -c -o test-abi-function-callee-gcc.o test-abi-function-callee.c
 
-test-abi-function-caller-wcc.o: test-abi-function-caller.c test-abi.h
+test-abi-function-caller-wcc.o: test-abi-function-caller.c test-abi.h ../../wcc
 	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-caller-wcc.o test-abi-function-caller.c
 
-test-abi-function-callee-wcc.o: test-abi-function-callee.c test-abi.h
+test-abi-function-callee-wcc.o: test-abi-function-callee.c test-abi.h ../../wcc
 	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-callee-wcc.o test-abi-function-callee.c
 
 test-abi-gcc-gcc: stack-check.o ../test-lib.o test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
@@ -108,6 +108,7 @@ clean:
 	@rm -f test-wcc-arithmetic-types-move-torture.c
 	@rm -f gen-test-arithmetic-types-move-torture
 	@rm -f run-test-*
+	@rm -f run-test-abi
 	@rm -f test-wcc-gcc
 	@rm -f test-wcc-*-gcc
 	@rm -f *.s
