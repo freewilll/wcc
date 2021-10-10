@@ -103,36 +103,37 @@ typedef struct scope {
 } Scope;
 
 typedef struct function {
-    Type *return_type;                       // Type of return value
-    int param_count;                         // Number of parameters
-    Type **param_types;                      // Types of parameters
-    int local_symbol_count;                  // Number of local symbols, used by the parser
-    int vreg_count;                          // Number of virtual registers used in IR
-    int stack_register_count;                // Amount of stack space needed for registers spills
-    int stack_size;                          // Size of the stack
-    int is_defined;                          // if a definition has been found
-    int is_external;                         // Has external linkage
-    int is_static;                           // Is a private function in the translation unit
-    int is_variadic;                         // Set to 1 for builtin variadic functions
-    struct value *return_value_pointer;      // Set to the register holding the memory return address if the function returns something in memory
-    Scope *scope;                            // Scope, starting with the parameters
-    struct three_address_code *ir;           // Intermediate representation
-    Graph *cfg;                              // Control flow graph
-    Block *blocks;                           // For functions, the blocks
-    Set **dominance;                         // Block dominances
-    Set **uevar;                             // The upward exposed set for each block
-    Set **varkill;                           // The killed var set for each block
-    Set **liveout;                           // The liveout set for each block
-    int *idom;                               // Immediate dominator for each block
-    Set **dominance_frontiers;               // Dominance frontier for each block
-    Set **var_blocks;                        // Var/block associations for vars that are written to
-    Set *globals;                            // All variables that are assigned to
-    Set **phi_functions;                     // All variables that need phi functions for each block
-    char *interference_graph;                // The interference graph of live ranges, in a lower diagonal matrix
-    struct vreg_location *vreg_locations;    // Allocated physical registers and spilled stack indexes
-    int *spill_cost;                         // The estimated spill cost for each live range
-    char *preferred_live_range_preg_indexes; // Preferred physical register, when possible
-    char *vreg_preg_classes;                 // Preg classes for all vregs
+    Type *return_type;                                  // Type of return value
+    int param_count;                                    // Number of parameters
+    Type **param_types;                                 // Types of parameters
+    int local_symbol_count;                             // Number of local symbols, used by the parser
+    int vreg_count;                                     // Number of virtual registers used in IR
+    int stack_register_count;                           // Amount of stack space needed for registers spills
+    int stack_size;                                     // Size of the stack
+    int is_defined;                                     // if a definition has been found
+    int is_external;                                    // Has external linkage
+    int is_static;                                      // Is a private function in the translation unit
+    int is_variadic;                                    // Set to 1 for builtin variadic functions
+    struct value *return_value_pointer;                 // Set to the register holding the memory return address if the function returns something in memory
+    struct function_param_allocation *return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
+    Scope *scope;                                       // Scope, starting with the parameters
+    struct three_address_code *ir;                      // Intermediate representation
+    Graph *cfg;                                         // Control flow graph
+    Block *blocks;                                      // For functions, the blocks
+    Set **dominance;                                    // Block dominances
+    Set **uevar;                                        // The upward exposed set for each block
+    Set **varkill;                                      // The killed var set for each block
+    Set **liveout;                                      // The liveout set for each block
+    int *idom;                                          // Immediate dominator for each block
+    Set **dominance_frontiers;                          // Dominance frontier for each block
+    Set **var_blocks;                                   // Var/block associations for vars that are written to
+    Set *globals;                                       // All variables that are assigned to
+    Set **phi_functions;                                // All variables that need phi functions for each block
+    char *interference_graph;                           // The interference graph of live ranges, in a lower diagonal matrix
+    struct vreg_location *vreg_locations;               // Allocated physical registers and spilled stack indexes
+    int *spill_cost;                                    // The estimated spill cost for each live range
+    char *preferred_live_range_preg_indexes;            // Preferred physical register, when possible
+    char *vreg_preg_classes;                            // Preg classes for all vregs
 } Function;
 
 // Data of the a single eight byte that's part of a struct or union function parameter or arg
@@ -205,6 +206,7 @@ typedef struct value {
     int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
     int function_call_arg_push_count;                    // Number of arguments pushed on the stack
     int function_call_sse_register_arg_count;            // Number of SSE (xmm) arguments in registers
+    Set *return_value_live_ranges;                       // Live ranges for registers that are part of the function return values
     Symbol *global_symbol;                               // Pointer to a global symbol if the value is a global symbol
     int label;                                           // Target label in the case of jump instructions
     int ssa_subscript;                                   // Optional SSA enumeration
@@ -403,7 +405,7 @@ enum {
     IR_START_CALL,            // Function call
     IR_ARG,                   // Function call argument
     IR_ARG_STACK_PADDING,     // Extra padding push to align arguments pushed onto the stack
-    IR_CALL_ARG_REG,          // Placeholder for fake read of a register used in function calls
+    IR_CALL_ARG_REG,          // Placeholder for fake read/write of a physical register to keep a live range alive
     IR_CALL,                  // Start of function call
     IR_END_CALL,              // End of function call
     IR_ALLOCATE_STACK,        // Allocate stack space for a function call argument on the stack
@@ -557,6 +559,7 @@ int debug_instsel_igraph_simplification;
 int debug_instsel_tiling;
 int debug_instsel_cost_graph;
 int debug_instsel_spilling;
+int debug_stack_frame_layout;
 
 // set.c
 Set *new_set(int max_value);
@@ -601,6 +604,7 @@ void panic1d(char *fmt, int i);
 void panic1s(char *fmt, char *s);
 void panic2d(char *fmt, int i1, int i2);
 void panic2s(char *fmt, char *s1, char *s2);
+void panic1s1d(char *fmt, char *s, int i);
 Function *new_function();
 
 // lexer.c

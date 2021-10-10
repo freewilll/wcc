@@ -390,6 +390,7 @@ static void make_igraphs(Function *function, int block_id) {
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
             tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_PTR &&
             igraphs[g1_igraph_id].nodes[0].tac->operation != IR_CALL_ARG_REG &&
+            tac->operation != IR_CALL_ARG_REG &&
             igraphs_are_neighbors(igraphs, i, g1_igraph_id)
             ) {
 

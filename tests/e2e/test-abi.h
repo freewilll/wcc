@@ -20,6 +20,10 @@ struct sc7 { char c1, c2, c3, c4, c5, c6, c7; };
 struct sc8 { char c1, c2, c3, c4, c5, c6, c7, c8; };
 struct sc9 { char c1, c2, c3, c4, c5, c6, c7, c8, c9; };
 
+struct si1 { int i1; };
+struct si2 { int i1, i2; };
+struct si3 { int i1, i2, i3; };
+struct si4 { int i1, i2, i3, i4; };
 struct si5 { int i1, i2, i3, i4, i5; };
 struct si6 { int i1, i2, i3, i4, i5, i6; };
 struct si7 { int i1, i2, i3, i4, i5, i6, i7; };
@@ -78,18 +82,8 @@ struct siiff return_siiff();
 struct siifff return_siifff();
 struct sifif return_sifif();
 
-struct sc1 return_sc1();
-struct sc2 return_sc2();
-struct sc3 return_sc3();
-struct sc4 return_sc4();
-struct sc5 return_sc5();
-struct sc6 return_sc6();
-struct sc7 return_sc7();
-struct sc8 return_sc8();
-struct sc9 return_sc9();
-
+struct si1 return_si1();
+struct si2 return_si2();
+struct si3 return_si3();
+struct si4 return_si4();
 struct si5 return_si5();
-struct si6 return_si6();
-struct si7 return_si7();
-struct si8 return_si8();
-struct si9 return_si9();

@@ -20,23 +20,232 @@ static int make_struct_or_union_arg_move_instructions(
         Function *function, Tac *ir, Value *param, int preg_class, int register_index,
         FunctionParamLocation *location, RegisterSet *register_set);
 
-// Convert v1 = IR_CALL... to:
+static Value *make_param_dst_on_stack(int type, int stack_index, int offset) {
+    Value *dst = new_value();
 
+    dst->type = new_type(type);
+    dst->is_lvalue = 1;
+    dst->stack_index = stack_index;
+    dst->offset = offset;
+    return dst;
+}
+
+// This implements the reverse of make_int_struct_or_union_arg_move_instructions
+// This is also used for moving struct/unions into function return value registers
+static int make_int_struct_or_union_move_from_register_to_stack_instructions(
+        Function *function, Tac *ir, Type *type, FunctionParamLocation* pl,
+        int register_index, int stack_index, RegisterSet *register_set, int param_register_vreg) {
+
+    if (debug_function_param_mapping)
+        printf("Adding param move from int register %d size %d to stack_index %d, offset %d\n", register_index, pl->stru_size, stack_index, pl->stru_offset);
+
+    if (!param_register_vreg) param_register_vreg = ++function->vreg_count;
+
+    // Make shift register
+    Value *shift_register = new_value();
+    shift_register->vreg = param_register_vreg;
+    int live_range_preg = register_set->int_registers[register_index];
+    shift_register->live_range_preg = live_range_preg;
+
+    int size = pl->stru_size;
+    int offset = 0;
+
+    for (int i = 3; i >= 0; i--) {
+        int size_unit = 1 << i;
+        if (size_unit > size) continue;
+
+        // Make dst on stack
+        Value *dst = new_value();
+        dst->type = new_type(TYPE_CHAR + i);
+        dst->type->is_unsigned = 1;
+        dst->is_lvalue = 1;
+        dst->stack_index = stack_index;
+        dst->offset = pl->stru_offset + offset;
+
+        shift_register = dup_value(shift_register);
+        shift_register->type = new_type(TYPE_CHAR + i);
+        shift_register->type->is_unsigned = 1;
+
+        insert_instruction_from_operation(ir, IR_MOVE, dst, shift_register, 0, 1);
+
+        size -= size_unit;
+        offset += size_unit;
+        if (size == 0) break;
+
+        // Shift the register over size_unit * 8 bytes
+        shift_register = dup_value(shift_register);
+        shift_register->type = new_type(TYPE_LONG);
+
+        Value *new_shift_register = dup_value(shift_register);
+        new_shift_register->live_range_preg = 0;
+
+        insert_instruction_from_operation(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 1);
+
+        shift_register = new_shift_register;
+    }
+
+    return live_range_preg;
+}
+
+// This implements the reverse of make_sse_struct_or_union_arg_move_instructions
+static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
+        Function *function, Tac *ir, Type *type, FunctionParamLocation* pl,
+        int register_index, int stack_index, RegisterSet *register_set, int param_register_vreg) {
+
+    if (debug_function_param_mapping)
+        printf("Adding param move from sse register %d size %d to stack_index %d, offset %d\n", register_index, pl->stru_size, stack_index, pl->stru_offset);
+
+    if (!param_register_vreg) param_register_vreg = ++function->vreg_count;
+
+    // Make param register value
+    Value *param_register = new_value();
+    param_register->vreg = param_register_vreg;
+    int live_range_preg = register_set->sse_registers[register_index];
+    param_register->live_range_preg = live_range_preg;
+
+    if (pl->stru_size == 4) {
+        // Move a single float
+        param_register->type = new_type(TYPE_FLOAT);
+        Value *dst = make_param_dst_on_stack(TYPE_FLOAT, stack_index, pl->stru_offset);
+        insert_instruction_from_operation(ir, IR_MOVE, dst, param_register, 0, 1);
+    }
+
+    else if (pl->stru_size == 8 && pl->stru_member_count == 1) {
+        // Move a single double
+        param_register->type = new_type(TYPE_DOUBLE);
+        Value *dst = make_param_dst_on_stack(TYPE_DOUBLE, stack_index, pl->stru_offset);
+        insert_instruction_from_operation(ir, IR_MOVE, dst, param_register, 0, 1);
+    }
+
+    else {
+        // Move two floats. It must first be copied into an integer register and then
+        // copied to the stack.
+        param_register->type = new_type(TYPE_DOUBLE);
+        Value *temp_int = new_value();
+        temp_int->type = new_type(TYPE_LONG);
+        temp_int->vreg = ++function->vreg_count;
+        insert_instruction_from_operation(ir, IR_MOVE_PREG_CLASS, temp_int, param_register, 0, 1);
+
+        Value *dst = make_param_dst_on_stack(TYPE_LONG, stack_index, pl->stru_offset);
+        insert_instruction_from_operation(ir, IR_MOVE, dst, temp_int, 0, 1);
+    }
+
+    return live_range_preg;
+}
+
+// Move struct/union data from registers or memory to the destination of a function call
+static void add_function_call_result_moves_for_struct_or_union(Function *function, Tac *ir) {
+    if (ir->dst->stack_index == 0) panic("Expected a stack index for a function call returning a struct/union");
+
+    int stack_index = ir->dst->stack_index;
+    Type *type = ir->dst->type;
+
+    Type *function_type = ir->src1->function_symbol->type;
+
+    FunctionParamAllocation *fpa = function_type->function->return_value_fpa;
+    FunctionParamLocations *fpl = &(fpa->params[0]);
+
+    Value *function_value = ir->src1;
+
+    if (fpl->locations[0].stack_offset == -1) {
+        // Move registers to a struct/union on the stack
+
+        ir->dst = 0;
+        ir = ir->next;
+
+        // Allocate result vregs and create a live range or them
+        int *live_range_pregs = malloc(sizeof(int) * 8);
+        for (int loc = 0; loc < fpl->count; loc++) {
+            FunctionParamLocation *location = &(fpl->locations[loc]);
+            live_range_pregs[loc] = ++function->vreg_count;
+            Value *dst = new_value();
+            dst->vreg = live_range_pregs[loc];
+            dst->type = location->int_register != -1 ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
+            insert_instruction_from_operation(ir, IR_CALL_ARG_REG, dst, 0, 0, 1);
+        }
+
+        for (int loc = 0; loc < fpl->count; loc++) {
+            FunctionParamLocation *location = &(fpl->locations[loc]);
+
+            int live_range_preg;
+            int param_register_vreg = live_range_pregs[loc];
+            if (location->int_register != -1)
+                live_range_preg = make_int_struct_or_union_move_from_register_to_stack_instructions(
+                    function, ir, type, location, location->int_register, stack_index,
+                    &function_return_value_register_set, param_register_vreg);
+            else if (location->sse_register != -1)
+                live_range_preg = make_sse_struct_or_union_move_from_register_to_stack_instructions(
+                    function, ir, type, location, location->sse_register, stack_index,
+                    &function_return_value_register_set, param_register_vreg);
+            else
+                panic("Got unexpected stack offset in add_struct_or_union_param_move");
+
+            add_to_set(function_value->return_value_live_ranges, live_range_preg);
+        }
+    }
+    else {
+        // Move registers to a struct/union in memory. rax contains the address
+
+        // Ensure RAX doesn't get clobbered by the function call
+        add_to_set(function_value->return_value_live_ranges, LIVE_RANGE_PREG_RAX_INDEX);
+
+        // Take address of dst struct/union on the stack
+        Value *address_value = new_value();
+        address_value->vreg = ++function->vreg_count;
+        address_value->type = make_pointer_to_void();
+        insert_instruction_from_operation(ir, IR_ADDRESS_OF, address_value, ir->dst, 0, 1);
+
+        // Move struct/union target address into rdi
+        Value *rdi_value = new_value();
+        rdi_value->vreg = ++function->vreg_count;
+        rdi_value->type = make_pointer_to_void();
+        rdi_value->live_range_preg = LIVE_RANGE_PREG_RDI_INDEX;
+        insert_instruction_from_operation(ir, IR_MOVE, rdi_value, address_value, 0, 1);
+
+        // Setup dst for rax
+        Value *struct_dst = ir->dst;
+
+        ir->dst = new_value();
+        ir->dst->vreg = ++function->vreg_count;
+        ir->dst->type = make_pointer_to_void();
+        ir->dst->live_range_preg = LIVE_RANGE_PREG_RAX_INDEX;
+
+        // Prepare src1 to also be rax, but as an lvalue
+        Value *src1 = dup_value(ir->dst);
+        src1->is_lvalue = 1;
+
+        // Add the memory copy
+        int size = get_type_size(type);
+        ir = add_memory_copy(function, ir, struct_dst, src1, size);
+    }
+}
+
+// Convert v1 = IR_CALL... to:
 // 1. v2 = IR_CALL...
 // 2. v1 = v2
-// v2 will be constrained by the register allocator to bind to RAX.
 // Live range coalescing prevents the v1-v2 live range from getting merged with
 // a special check for IR_CALL.
 void add_function_call_result_moves(Function *function) {
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_CALL && ir->dst && ir->dst->type->type != TYPE_LONG_DOUBLE) {
+        if (ir->operation != IR_CALL || !ir->dst) continue;
+
+        if (ir->dst->type->type == TYPE_STRUCT_OR_UNION)
+            add_function_call_result_moves_for_struct_or_union(function, ir);
+
+        else if (ir->dst->type->type != TYPE_LONG_DOUBLE) {
+            // Add move for integer, pointer, or SSE
             Value *value = dup_value(ir->dst);
             value->vreg = ++function->vreg_count;
             Tac *tac = new_instruction(IR_MOVE);
             tac->dst = ir->dst;
+
+            int is_sse = is_sse_floating_point_type(ir->dst->type);
             tac->src1 = value;
+            tac->src1->live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
+            add_to_set(ir->src1->return_value_live_ranges, tac->src1->live_range_preg);
+
             ir->dst = value;
             insert_instruction(ir->next, tac, 1);
         }
@@ -580,109 +789,8 @@ static Tac *make_param_move_to_stack_tac(Function *function, Type *type, int fun
     return tac;
 }
 
-static Value *make_param_dst_on_stack(int type, int stack_index, int offset) {
-    Value *dst = new_value();
-
-    dst->type = new_type(type);
-    dst->is_lvalue = 1;
-    dst->stack_index = stack_index;
-    dst->offset = offset;
-    return dst;
-
-}
-
-// This implements the reverse of make_int_struct_or_union_arg_move_instructions
-static void make_int_struct_or_union_param_move_instructions(Function *function, Tac *ir, Type *type, FunctionParamLocation* pl, int register_index, int stack_index) {
-    if (debug_function_param_mapping)
-        printf("Adding param move from int register %d size %d to stack_index %d, offset %d\n", register_index, pl->stru_size, stack_index, pl->stru_offset);
-
-    int param_register_vreg = ++function->vreg_count;
-
-    // Make shift register
-    Value *shift_register = new_value();
-    shift_register->vreg = param_register_vreg;
-    shift_register->live_range_preg = int_arg_registers[register_index];
-
-    int size = pl->stru_size;
-    int offset = 0;
-
-    for (int i = 3; i >= 0; i--) {
-        int size_unit = 1 << i;
-        if (size_unit > size) continue;
-
-        // Make dst on stack
-        Value *dst = new_value();
-        dst->type = new_type(TYPE_CHAR + i);
-        dst->type->is_unsigned = 1;
-        dst->is_lvalue = 1;
-        dst->stack_index = stack_index;
-        dst->offset = pl->stru_offset + offset;
-
-        shift_register = dup_value(shift_register);
-        shift_register->type = new_type(TYPE_CHAR + i);
-        shift_register->type->is_unsigned = 1;
-
-        insert_instruction_from_operation(ir, IR_MOVE, dst, shift_register, 0, 1);
-
-        size -= size_unit;
-        offset += size_unit;
-        if (size == 0) break;
-
-        // Shift the register over size_unit * 8 bytes
-        shift_register = dup_value(shift_register);
-        shift_register->type = new_type(TYPE_LONG);
-
-        Value *new_shift_register = dup_value(shift_register);
-        new_shift_register->live_range_preg = 0;
-
-        insert_instruction_from_operation(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 1);
-
-        shift_register = new_shift_register;
-    }
-}
-
-// This implements the reverse of make_sse_struct_or_union_arg_move_instructions
-static void make_sse_struct_or_union_param_move_instructions(Function *function, Tac *ir, Type *type, FunctionParamLocation* pl, int register_index, int stack_index) {
-    if (debug_function_param_mapping)
-        printf("Adding param move from sse register %d size %d to stack_index %d, offset %d\n", register_index, pl->stru_size, stack_index, pl->stru_offset);
-
-    int param_register_vreg = ++function->vreg_count;
-
-    // Make param register value
-    Value *param_register = new_value();
-    param_register->vreg = param_register_vreg;
-    param_register->live_range_preg = sse_arg_registers[register_index];
-
-    if (pl->stru_size == 4) {
-        // Move a single float
-        param_register->type = new_type(TYPE_FLOAT);
-        Value *dst = make_param_dst_on_stack(TYPE_FLOAT, stack_index, pl->stru_offset);
-        insert_instruction_from_operation(ir, IR_MOVE, dst, param_register, 0, 1);
-    }
-
-    else if (pl->stru_size == 8 && pl->stru_member_count == 1) {
-        // Move a single double
-        param_register->type = new_type(TYPE_DOUBLE);
-        Value *dst = make_param_dst_on_stack(TYPE_DOUBLE, stack_index, pl->stru_offset);
-        insert_instruction_from_operation(ir, IR_MOVE, dst, param_register, 0, 1);
-    }
-
-    else {
-        // Move two floats. It must first be copied into an integer register and then
-        // copied to the stack.
-        param_register->type = new_type(TYPE_DOUBLE);
-        Value *temp_int = new_value();
-        temp_int->type = new_type(TYPE_LONG);
-        temp_int->vreg = ++function->vreg_count;
-        insert_instruction_from_operation(ir, IR_MOVE_PREG_CLASS, temp_int, param_register, 0, 1);
-
-        Value *dst = make_param_dst_on_stack(TYPE_LONG, stack_index, pl->stru_offset);
-        insert_instruction_from_operation(ir, IR_MOVE, dst, temp_int, 0, 1);
-    }
-}
-
 // Add instructions to move struct/union data from a param register to a struct on the stack
-static int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl) {
+static int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl, RegisterSet *register_set) {
     // Allocate space on the stack for the struct
     Value *v = new_value();
     v->type = dup_type(type);
@@ -694,9 +802,9 @@ static int add_struct_or_union_param_move(Function *function, Tac *ir, Type *typ
         FunctionParamLocation *location = &(pl->locations[loc]);
 
         if (location->int_register != -1)
-            make_int_struct_or_union_param_move_instructions(function, ir, type, location, location->int_register, v->stack_index);
+            make_int_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->int_register, v->stack_index, register_set, 0);
         else if (location->sse_register != -1)
-            make_sse_struct_or_union_param_move_instructions(function, ir, type, location, location->sse_register, v->stack_index);
+            make_sse_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->sse_register, v->stack_index, register_set, 0);
         else
             panic("Got unexpected stack offset in add_struct_or_union_param_move");
     }
@@ -716,8 +824,7 @@ void remap_stack_index(int *stack_index_remap, Value *v) {
 // the target in rdi. Make a copy of rdi in return_value_pointer for use in the
 // return value code. The function returns 1 if rdi has been used in this way.
 static int setup_return_for_struct_or_union(Function *function) {
-    FunctionParamAllocation *fpa = init_function_param_allocaton("dummy");
-    add_function_param_to_allocation(fpa, function->return_type);
+    FunctionParamAllocation *fpa = function->return_value_fpa;
 
     if (fpa->params[0].locations[0].stack_offset == -1) return 0;
 
@@ -810,7 +917,7 @@ void add_function_param_moves(Function *function, char *identifier) {
             : fpa->params[fpa_start + i].locations[0].int_register;
 
         if (type->type == TYPE_STRUCT_OR_UNION)  {
-            int stack_index = add_struct_or_union_param_move(function, ir, type, &(fpa->params[fpa_start + i]));
+            int stack_index = add_struct_or_union_param_move(function, ir, type, &(fpa->params[fpa_start + i]), &arg_register_set);
             register_param_stack_indexes[i] = stack_index;
         }
 
@@ -1038,8 +1145,10 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             char *member_counts = malloc(sizeof(char) * 8);
             memset(member_counts, 0, sizeof(char) * 8);
 
+            size = 0; // Needs recalculating to remove any paddding at the end
             for (int i = 0; i < scalars->count; i++) {
                 StructOrUnionScalar *scalar = scalars->scalars[i];
+                size +=  get_type_size(scalar->type);
                 int eight_byte = scalar->offset >> 3;
                 member_counts[eight_byte]++;
 

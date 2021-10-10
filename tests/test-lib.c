@@ -49,7 +49,7 @@ void assert_float(float expected, float actual, char *message) {
 
     float diff = expected - actual;
     if (diff < 0) diff = -diff;
-    if (diff > 0.000001) {
+    if (diff > 0.0001) {
         failures++;
         printf("%-60s ", message);
         printf("failed, expected %f got %f\n", expected, actual);
@@ -73,7 +73,7 @@ void assert_double(double expected, double actual, char *message) {
 
     double diff = expected - actual;
     if (diff < 0) diff = -diff;
-    if (diff > 0.000001) {
+    if (diff > 0.0001) {
         failures++;
         printf("%-60s ", message);
         printf("failed, expected %f got %f\n", expected, actual);
@@ -97,7 +97,7 @@ void assert_long_double(long double expected, long double actual, char *message)
 
     long double diff = expected - actual;
     if (diff < 0) diff = -diff;
-    if (diff > 0.000001) {
+    if (diff > 0.0001) {
         failures++;
         printf("%-60s ", message);
         printf("failed, expected %Lf got %Lf\n", expected, actual);

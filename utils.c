@@ -37,6 +37,13 @@ void panic2s(char *fmt, char *s1, char *s2) {
     exit(1);
 }
 
+void panic1s1d(char *fmt, char *s, int i) {
+    printf("%s:%d: ", cur_filename, cur_line);
+    printf(fmt, s, i);
+    printf("\n");
+    exit(1);
+}
+
 Function *new_function() {
     Function *function = malloc(sizeof(Function));
     memset(function, 0, sizeof(Function));

@@ -1375,10 +1375,24 @@ static void parse_expression(int level) {
                 function_value->function_symbol = symbol;
                 function_value->function_call_arg_push_count = (fpa->size + 7) / 8;
                 function_value->function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
+
+                // LIVE_RANGE_PREG_XMM01_INDEX is the max set value
+                function_value->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
+
                 src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
 
                 Value *return_value = 0;
-                if (type->type != TYPE_VOID) {
+                if (type->type == TYPE_STRUCT_OR_UNION) {
+                    return_value = new_value();
+                    return_value->local_index = new_local_index();
+                    return_value->is_lvalue = 1;
+                    return_value->type = dup_type(type);
+
+                    // Declare the temp so that the stack allocation code knows the
+                    // size of the struct
+                    add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, return_value, 0);
+                }
+                else if (type->type != TYPE_VOID) {
                     return_value = new_value();
                     return_value->vreg = new_vreg();
                     return_value->type = dup_type(type);
@@ -2011,6 +2025,12 @@ void parse() {
                     s->type->function->is_external = is_external;
                     s->type->function->is_static = is_static;
                     s->type->function->local_symbol_count = 0;
+
+                    if (type->target->type == TYPE_STRUCT_OR_UNION) {
+                        FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
+                        add_function_param_to_allocation(fpa, type->target);
+                        s->type->function->return_value_fpa = fpa;
+                    }
 
                     // type->function->scope is left entered by the type parser
                     cur_scope = type->function->scope;

@@ -630,6 +630,7 @@ void run_function_call_single_arg(Value *src) {
     tac->src1->function_symbol->type->function->param_count = 1;
     tac->src1->function_symbol->type->function->param_types = malloc(sizeof(Type));
     tac->src1->function_symbol->type->function->param_types[0] = dup_type(src->type);
+    tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(2), v(1), 0);
     finish_spill_ir(function);
 }
@@ -712,7 +713,8 @@ void test_function_args() {
     start_ir();
     i(0, IR_MOVE, asz(1, TYPE_CHAR), s(1), 0);
     i(0, IR_ARG, 0, make_arg_src1(), asz(1, TYPE_CHAR));
-    i(0, IR_CALL, v(2), fu(1), 0);
+    Tac *tac = i(0, IR_CALL, v(2), fu(1), 0);
+    tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(3), v(2), 0);
     finish_spill_ir(function);
     assert_rx86_preg_op("leaq        .SL1(%rip), %rdi");
@@ -771,7 +773,8 @@ void test_instrsel_types_cmp_pointer() {
 void test_function_call(Value *dst, int mov_op) {
     // This test don't test much, just that the IR_CALL rules will work.
     start_ir();
-    i(0, IR_CALL, dst, fu(1), 0);
+    Tac *tac = i(0, IR_CALL, dst, fu(1), 0);
+    tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(2), dst, 0);
     finish_ir(function);
     assert_tac(ir_start,       X_CALL, v(3), fu(1), 0);

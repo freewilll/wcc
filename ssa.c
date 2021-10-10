@@ -1253,30 +1253,30 @@ static void make_interference_graph(Function *function) {
 
             if (tac->operation == IR_CALL || tac->operation == X_CALL) {
                 // Integer arguments are clobbered
-                for (int j = 0; j < 6; j++)
+                for (int j = 0; j < 6; j++) {
+                    if (j == 2) continue; // RDX is a special case, see below
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, int_arg_registers[j]);
+                }
 
-                // All SSE registers are clobbered
-                for (int j = 1; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
+                // Unless the function returns something in rax, clobber rax
+                if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RAX_INDEX))
+                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+
+                // Unless the function returns something in rdx, clobber rdx
+                if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RDX_INDEX))
+                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+
+                // All SSE registers xmm2, xmm3, ... are clobbered
+                for (int j = 3; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
 
-                if (tac->dst && tac->dst->vreg) {
-                    if (tac->dst->preg_class == PC_INT)
-                        // Force dst to get RAX
-                        force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_RAX_INDEX, PC_INT);
-                    else
-                        // Force dst to get XMM0
-                        force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, LIVE_RANGE_PREG_XMM00_INDEX, PC_SSE);
-                }
-                else {
-                    // There is no dst, but RAX & XMM0 get nuked, so add edges for it
-                    clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                    clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX);
-                }
+                // Unless the function returns something in xmm0, clobber xmm0
+                if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM00_INDEX))
+                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX);
+                // Unless the function returns something in xmm1, clobber xmm1
+                if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM01_INDEX))
+                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM01_INDEX);
             }
-
-            if (tac->dst && tac->dst->vreg && tac->dst->live_range_preg)
-                force_physical_register(interference_graph, vreg_count, livenow, tac->dst->vreg, tac->dst->live_range_preg, tac->dst->preg_class);
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);

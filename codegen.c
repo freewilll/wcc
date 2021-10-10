@@ -55,6 +55,21 @@ char *register_name(int preg) {
     return buffer;
 }
 
+void process_stack_offset(Value *value, int *stack_alignments, int *stack_sizes) {
+    if (value && value->stack_index < 0) {
+        if (!stack_alignments[-value->stack_index]) {
+            // When in doubt, pick the biggest of size & alignment. There can be
+            // mismatches during struct/union manipulation, where a bit of the stack
+            // is loaded/saved into up 8 bytes.
+
+            int value_alignment = get_type_alignment(value->type);
+            if (value_alignment > stack_alignments[-value->stack_index]) stack_alignments[-value->stack_index] = value_alignment;
+            int value_size = get_type_size(value->type);
+            if (value_size > stack_sizes[-value->stack_index]) stack_sizes[-value->stack_index] = value_size;
+        }
+    }
+}
+
 // Allocate stack offsets for variables on the stack (stack_index < 0). Go backwards
 // in alignment, allocating the ones with the largest alignment first, in order of
 // stack_index.
@@ -71,24 +86,9 @@ void make_stack_offsets(Function *function, char *function_name) {
     memset(stack_sizes, 0, (count+ 1) * sizeof(int));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->dst && tac->dst->stack_index < 0) {
-            if (!stack_alignments[-tac->dst->stack_index]) {
-                stack_alignments[-tac->dst->stack_index] = get_type_alignment(tac->dst->type);
-                stack_sizes[-tac->dst->stack_index] = get_type_size(tac->dst->type);
-            }
-        }
-        if (tac->src1 && tac->src1->stack_index < 0) {
-            if (!stack_alignments[-tac->src1->stack_index]) {
-                stack_alignments[-tac->src1->stack_index] = get_type_alignment(tac->src1->type);
-                stack_sizes[-tac->src1->stack_index] = get_type_size(tac->src1->type);
-            }
-        }
-        if (tac->src2 && tac->src2->stack_index < 0) {
-            if (!stack_alignments[-tac->src2->stack_index]) {
-                stack_alignments[-tac->src2->stack_index] = get_type_alignment(tac->src2->type);
-                stack_sizes[-tac->src2->stack_index] = get_type_size(tac->src2->type);
-            }
-        }
+        if (tac->dst)  process_stack_offset(tac->dst,  stack_alignments, stack_sizes);
+        if (tac->src1) process_stack_offset(tac->src1, stack_alignments, stack_sizes);
+        if (tac->src2) process_stack_offset(tac->src2, stack_alignments, stack_sizes);
     }
 
     // Determine stack offsets
@@ -105,6 +105,14 @@ void make_stack_offsets(Function *function, char *function_name) {
             stack_offsets[i] = offset;
             total_size += object_size;
         }
+    }
+
+    if (debug_stack_frame_layout) {
+        printf("Stack frame for %s:\n", function_name);
+        for (int i = 1; i <= count; i++) {
+            printf("Slot %d offset=%4d size=%4d alignment=%4d\n", i, stack_offsets[i], stack_sizes[i], stack_alignments[i]);
+        }
+        printf("\n");
     }
 
     // Align on 8 bytes, this is required by the function call stack alignment code.
