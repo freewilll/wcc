@@ -83,7 +83,6 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
         dst = new_value();
 
         dst->type = make_pointer_to_void();
-        dst->is_function_param = 1;
         dst->live_range_preg = LIVE_RANGE_PREG_RAX_INDEX;
         dst->type = make_pointer_to_void();
         dst->vreg = ++function->vreg_count;
@@ -162,7 +161,6 @@ static int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Val
     tac->dst = new_value();
     tac->dst->type = dup_type(type);
     tac->dst->vreg = ++function->vreg_count;
-    tac->dst->is_function_call_arg = 1;
     tac->dst->live_range_preg = preg_class == PC_INT ? register_set->int_registers[register_index] : register_set->sse_registers[register_index];
 
     // src
@@ -563,7 +561,6 @@ static Tac *make_param_move_to_register_tac(Function *function, Type *type, int 
 
     tac->src1 = new_value();
     tac->src1->type = dup_type(tac->dst->type);
-    tac->src1->is_function_param = 1;
     tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
 
     return tac;
@@ -578,7 +575,6 @@ static Tac *make_param_move_to_stack_tac(Function *function, Type *type, int fun
 
     tac->src1 = new_value();
     tac->src1->type = dup_type(tac->dst->type);
-    tac->src1->is_function_param = 1;
     tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
 
     return tac;
@@ -605,7 +601,6 @@ static void make_int_struct_or_union_param_move_instructions(Function *function,
     // Make shift register
     Value *shift_register = new_value();
     shift_register->vreg = param_register_vreg;
-    shift_register->is_function_param = 1;
     shift_register->live_range_preg = int_arg_registers[register_index];
 
     int size = pl->stru_size;
@@ -638,7 +633,6 @@ static void make_int_struct_or_union_param_move_instructions(Function *function,
         shift_register->type = new_type(TYPE_LONG);
 
         Value *new_shift_register = dup_value(shift_register);
-        new_shift_register->is_function_param = 0;
         new_shift_register->live_range_preg = 0;
 
         insert_instruction_from_operation(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 1);
@@ -657,7 +651,6 @@ static void make_sse_struct_or_union_param_move_instructions(Function *function,
     // Make param register value
     Value *param_register = new_value();
     param_register->vreg = param_register_vreg;
-    param_register->is_function_param = 1;
     param_register->live_range_preg = sse_arg_registers[register_index];
 
     if (pl->stru_size == 4) {
@@ -735,7 +728,6 @@ static int setup_return_for_struct_or_union(Function *function) {
     // Make value for rdi register
     Value *src1 = new_value();
     src1->type = make_pointer_to_void();
-    src1->is_function_param = 1;
     src1->live_range_preg = LIVE_RANGE_PREG_RDI_INDEX;
     src1->type = make_pointer_to_void();
     src1->vreg = ++function->vreg_count;
@@ -799,7 +791,6 @@ void add_function_param_moves(Function *function, char *identifier) {
     // The stack is never bigger than function->param_count * 2 & starts at 2
     int *stack_param_vregs = malloc(sizeof(int) * (function->param_count * 2 + 2));
     memset(stack_param_vregs, -1, sizeof(int) * (function->param_count * 2 + 2));
-
 
     // Determine which parameters in registers are used in IR_ADDRESS_OF instructions
     for (Tac *ir = function->ir; ir; ir = ir->next) {

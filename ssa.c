@@ -1197,30 +1197,15 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
-static void force_function_call_arg_for_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class, int *arg_registers) {
-    // The first six integer parameters and first eight sse parameters in function calls
-    // are passed in reserved registers rsi, rdi, ... and xmm0, xmm1, ... They
-    // are moved into other registers at the start of the function. They are themselves
-    // vregs and must get the corresponding physical register allocated to them.
-
-    if (value && value->preg_class != preg_class) return;
-
-    if (value && value->is_function_call_arg)
-        force_physical_register(interference_graph, vreg_count, livenow, value->vreg, value->live_range_preg, preg_class);
-
-    // Force caller arguments to a function call into the appropriate registers
-    if (value && value->is_function_param)
+static void enforce_live_range_preg_for_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class, int *arg_registers) {
+    if (value && value && value->preg_class == preg_class && value->live_range_preg)
         force_physical_register(interference_graph, vreg_count, livenow, value->vreg, value->live_range_preg, preg_class);
 }
 
-static void force_function_call_arg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
-    // The first six parameters in function calls are passed in reserved registers rsi, rdi, ... They are moved into
-    // other registers at the start of the function. They are themselves vregs and must get the corresponding physical
-    // register allocated to them.
-    // Same story for the floating point registers xmm0...xmm7
-
-    force_function_call_arg_for_preg(interference_graph, vreg_count, livenow, value, PC_INT, int_arg_registers);
-    force_function_call_arg_for_preg(interference_graph, vreg_count, livenow, value, PC_SSE, sse_arg_registers);
+// For values that have live_range_preg set, add interference graph edges for all live ranges except live_range_preg
+static void enforce_live_range_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
+    enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_INT, int_arg_registers);
+    enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_SSE, sse_arg_registers);
 }
 
 static void print_interference_graph(Function *function) {
@@ -1262,9 +1247,9 @@ static void make_interference_graph(Function *function) {
         while (tac) {
             if (debug_ssa_interference_graph) print_instruction(stdout, tac, 0);
 
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->dst);
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src1);
-            force_function_call_arg(interference_graph, vreg_count, livenow, tac->src2);
+            enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->dst);
+            enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src1);
+            enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src2);
 
             if (tac->operation == IR_CALL || tac->operation == X_CALL) {
                 // Integer arguments are clobbered
@@ -1515,8 +1500,6 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
                 if (tac->dst && tac->dst->vreg) {
                     if (tac->operation == IR_CALL) clobbers[tac->dst->vreg] = 1;
                     else if (tac->dst && tac->dst->vreg && tac->dst->live_range_preg) clobbers[tac->dst->vreg] = 1;
-                    else if (tac->operation == IR_MOVE && tac->dst->is_function_call_arg) clobbers[tac->dst->vreg] = 1;
-                    else if (tac->src1 && tac->src1->is_function_param) clobbers[tac->dst->vreg] = 1;
                 }
             }
 
