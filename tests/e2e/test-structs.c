@@ -926,6 +926,190 @@ int test_arithmetic_with_local_struct_members() {
     assert_int(2, st1.i, "Local struct member compound assignment");
 }
 
+void test_bit_field_sizes() {
+    // A single bit field
+    assert_int(4,  sizeof(struct {int a:1;}),                                   "Bit fields size 1");
+    assert_int(4,  sizeof(struct {int a:31;}),                                  "Bit fields size 2");
+    assert_int(4,  sizeof(struct {int a:32;}),                                  "Bit fields size 3");
+    assert_int(8,  sizeof(struct {int a:32, b:1;}),                             "Bit fields size 4");
+    assert_int(8,  sizeof(struct {int a:32, b:32;}),                            "Bit fields size 5");
+    assert_int(12, sizeof(struct {int a:32, b:32, c:1;}),                       "Bit fields size 6");
+    assert_int(12, sizeof(struct {int a:32, b:32, c:32;}),                      "Bit fields size 7");
+    assert_int(4,  sizeof(struct {int i:16, j:16;}),                            "Bit fields size 8");
+    assert_int(12, sizeof(struct {int i:1, j, k:1;}),                           "Bit fields size 9");
+    assert_int(12, sizeof(struct {int a:31, b:32, c:32;}),                      "Bit fields size 10");
+    assert_int(12, sizeof(struct {int a:32, b:32, c:32;}),                      "Bit fields size 11");
+    assert_int(16, sizeof(struct {int a:32, b:32, c:32, d:1;}),                 "Bit fields size 12");
+    assert_int(16, sizeof(struct {int a:32, b:32, c:32, d:32;}),                "Bit fields size 13");
+    assert_int(20, sizeof(struct {int a:32, b:32, c:32, d:32, e:1;}),           "Bit fields size 14");
+    assert_int(8,  sizeof(struct {int a:31, b:32;}),                            "Bit fields size 15");
+    assert_int(8,  sizeof(struct {int a:32, b:32;}),                            "Bit fields size 16");
+    assert_int(8,  sizeof(struct {int a:31, b:31, c:1;}),                       "Bit fields size 17");
+    assert_int(12, sizeof(struct {int a:31, b:31, c:2;}),                       "Bit fields size 18");
+    assert_int(16, sizeof(struct {int a:31, b:2, c:31, d:2;}),                  "Bit fields size 19");
+    assert_int(16, sizeof(struct {int a:31, b:2, c:31, d:2,e:30;}),             "Bit fields size 20");
+    assert_int(20, sizeof(struct {int a:31, b:2, c:31, d:2,e:31;}),             "Bit fields size 21");
+    assert_int(20, sizeof(struct {int a:31,  :2, c:31, d:2,e:31;}),             "Bit fields size 22"); // unnamed bit-field
+    assert_int(4,  sizeof(struct {int a:3, b:5, c:16, d:4, e:4;}),              "Bit fields size 23"); // Some misc combinations
+    assert_int(8,  sizeof(struct {int a:3, b:5, c:16, d:4, e:4, f:1;}),         "Bit fields size 24");
+    assert_int(4,  sizeof(struct {int a:3, b:5, c:16, d:4, e:4;}),              "Bit fields size 25");
+    assert_int(8,  sizeof(struct {int a:3, b:5, c:16, d:4, e:4, f:1;}),         "Bit fields size 26");
+    assert_int(12, sizeof(struct {int a:3, b, c:1;}),                           "Bit fields size 27");
+    assert_int(12, sizeof(struct {int a, b:1, c;}),                             "Bit fields size 28");
+    assert_int(4,  sizeof(struct {char a; int b:1;}),                           "Bit fields size 29");
+    assert_int(4,  sizeof(struct {char a; int b:24;}),                          "Bit fields size 30");
+    assert_int(8,  sizeof(struct {char a; int b:25;}),                          "Bit fields size 31");
+    assert_int(8,  sizeof(struct {int a:1, :0, b:1;}),                          "Bit fields size 32"); // Usage of :0
+    assert_int(8,  sizeof(struct {int a,   :0, b:1;}),                          "Bit fields size 33");
+    assert_int(8,  sizeof(struct {int a,   :0, b;}),                            "Bit fields size 34");
+    assert_int(8,  sizeof(struct {int a:1, :0, b;}),                            "Bit fields size 35");
+    assert_int(12, sizeof(struct {int a:1, :0, b:1, :0, c:32;}),                "Bit fields size 36");
+    assert_int(12, sizeof(struct {int a:1; int :0, b:1, :0, c:32;}),            "Bit fields size 37");
+    assert_int(12, sizeof(struct {int a:1; int :0; int b:1, :0, c:32;}),        "Bit fields size 38");
+    assert_int(12, sizeof(struct {int a:1; int :0; int b:1, :0, :0, c:32;}),    "Bit fields size 39");
+}
+
+static void test_bit_field_loading() {
+    struct { unsigned int i:5, j:5, k:5, l:5, m:5, :0, n:3, o:11; } s1;
+
+    // 0101... pattern test with unsigned integers
+    unsigned long *pl = (unsigned long *) &s1;
+    *pl = 0x5a5a5a5aa5a5a5a5UL;
+    assert_int(5,   s1.i, "5a5a5a5aa5a5a5a5 s.i");
+    assert_int(13,  s1.j, "5a5a5a5aa5a5a5a5 s.j");
+    assert_int(9,   s1.k, "5a5a5a5aa5a5a5a5 s.k");
+    assert_int(11,  s1.l, "5a5a5a5aa5a5a5a5 s.l");
+    assert_int(26,  s1.m, "5a5a5a5aa5a5a5a5 s.m");
+    assert_int(2,   s1.n, "5a5a5a5aa5a5a5a5 s.n");
+    assert_int(843, s1.o, "5a5a5a5aa5a5a5a5 s.o");
+
+    // Unsigned integers
+    struct { unsigned int i:3, j:4, k:5, l:6, m:7, :0, n:3, o:11, p:18; } s2;
+    pl = (long *) &s2;
+
+    // -1 1, -1, 1, -1, 1 pattern
+    *pl = 0x7ff941fc1f8fUL;
+    assert_int(7,    s2.i, "7ff941fc1f8f unsigned s.i");
+    assert_int(1,    s2.j, "7ff941fc1f8f unsigned s.j");
+    assert_int(31,   s2.k, "7ff941fc1f8f unsigned s.k");
+    assert_int(1,    s2.l, "7ff941fc1f8f unsigned s.l");
+    assert_int(127,  s2.m, "7ff941fc1f8f unsigned s.m");
+    assert_int(1,    s2.n, "7ff941fc1f8f unsigned s.n");
+    assert_int(2047, s2.o, "7ff941fc1f8f unsigned s.o");
+    assert_int(1,    s2.p, "7ff941fc1f8f unsigned s.p");
+
+    // 1, -1, 1, -1, 1, -1 pattern
+    *pl = 0xffffc00f4007f0f9UL;
+    assert_int(1,      s2.i, "ffffc00f4007f0f9 unsigned s.i");
+    assert_int(15,     s2.j, "ffffc00f4007f0f9 unsigned s.j");
+    assert_int(1,      s2.k, "ffffc00f4007f0f9 unsigned s.k");
+    assert_int(63,     s2.l, "ffffc00f4007f0f9 unsigned s.l");
+    assert_int(1,      s2.m, "ffffc00f4007f0f9 unsigned s.m");
+    assert_int(7,      s2.n, "ffffc00f4007f0f9 unsigned s.n");
+    assert_int(1,      s2.o, "ffffc00f4007f0f9 unsigned s.o");
+    assert_int(262143, s2.p, "ffffc00f4007f0f9 unsigned s.p");
+
+    // Signed integers
+    struct { signed int i:3, j:4, k:5, l:6, m:7, :0, n:3, o:11, p:18; } s3;
+    pl = (long *) &s3;
+
+    // -1 1, -1, 1, -1, 1 pattern
+    *pl = 0x7ff941fc1f8fUL;
+    assert_int(-1,    s3.i, "7ff941fc1f8f signed s.i");
+    assert_int(1,     s3.j, "7ff941fc1f8f signed s.j");
+    assert_int(-1,    s3.k, "7ff941fc1f8f signed s.k");
+    assert_int(1,     s3.l, "7ff941fc1f8f signed s.l");
+    assert_int(-1,    s3.m, "7ff941fc1f8f signed s.m");
+    assert_int(1,     s3.n, "7ff941fc1f8f signed s.n");
+    assert_int(-1,    s3.o, "7ff941fc1f8f signed s.o");
+    assert_int(1,     s3.p, "7ff941fc1f8f signed s.p");
+
+    // 1, -1, 1, -1, 1, -1 pattern
+    *pl = 0xffffc00f4007f0f9UL;
+    assert_int(1,     s3.i, "ffffc00f4007f0f9 signed s.i");
+    assert_int(-1,    s3.j, "ffffc00f4007f0f9 signed s.j");
+    assert_int(1,     s3.k, "ffffc00f4007f0f9 signed s.k");
+    assert_int(-1,    s3.l, "ffffc00f4007f0f9 signed s.l");
+    assert_int(1,     s3.m, "ffffc00f4007f0f9 signed s.m");
+    assert_int(-1,    s3.n, "ffffc00f4007f0f9 signed s.n");
+    assert_int(1,     s3.o, "ffffc00f4007f0f9 signed s.o");
+    assert_int(-1,    s3.p, "ffffc00f4007f0f9 signed s.p");
+
+    // In a nested struct
+    struct { int i; struct { int i:5, j:18; } s; } s4;
+    pl = (long *) &s4;
+    *pl = 0x7fffa200000001UL;
+    assert_int(1,     s4.i,   "7fffa200000001 nested s.i");
+    assert_int(2,     s4.s.i, "7fffa200000001 nested s.j");
+    assert_int(-3,    s4.s.j, "7fffa200000001 nested s.k");
+}
+
+static void test_bit_field_saving() {
+    // Signed integer
+    struct { int i:3, j:4, k:5, l:6, m:7, :0, n:3, o:11, p:18; } s1;
+    unsigned long *pl = (unsigned long *) &s1;
+
+    *pl = 0;
+
+    s1.i = 1;      assert_long(0x0000000000000001UL, *pl, "bit field saving si1.i");
+    s1.j = 3;      assert_long(0x0000000000000019UL, *pl, "bit field saving si1.j");
+    s1.k = 7;      assert_long(0x0000000000000399UL, *pl, "bit field saving si1.k");
+    s1.l = 15;     assert_long(0x000000000000f399UL, *pl, "bit field saving si1.l");
+    s1.m = 31;     assert_long(0x00000000007cf399UL, *pl, "bit field saving si1.m");
+    s1.n = 1;      assert_long(0x00000001007cf399UL, *pl, "bit field saving si1.n");
+    s1.o = 3;      assert_long(0x00000019007cf399UL, *pl, "bit field saving si1.o");
+    s1.p = 7;      assert_long(0x0001c019007cf399UL, *pl, "bit field saving si1.p");
+    s1.i = 0;      assert_long(0x0001c019007cf398UL, *pl, "bit field saving si1.i 2");
+    s1.p = 123456; assert_long(0x78900019007cf398UL, *pl, "bit field saving si1.p 2");
+    s1.p = -1;     assert_long(0xffffc019007cf398UL, *pl, "bit field saving si1.p 3");
+
+    // Unsigned integer.
+    // This test is a bit paranoid, since there the sign of the dst isn't relevant
+    struct { unsigned int i:3, j:4, k:5, l:6, m:7, :0, n:3, o:11, p:18; } s2;
+    pl = (unsigned long *) &s2;
+
+    *pl = 0;
+    s2.i = 1;      assert_long(0x0000000000000001UL, *pl, "bit field saving si1.i");
+    s2.j = 3;      assert_long(0x0000000000000019UL, *pl, "bit field saving si1.j");
+    s2.k = 7;      assert_long(0x0000000000000399UL, *pl, "bit field saving si1.k");
+    s2.l = 15;     assert_long(0x000000000000f399UL, *pl, "bit field saving si1.l");
+    s2.m = 31;     assert_long(0x00000000007cf399UL, *pl, "bit field saving si1.m");
+    s2.n = 1;      assert_long(0x00000001007cf399UL, *pl, "bit field saving si1.n");
+    s2.o = 3;      assert_long(0x00000019007cf399UL, *pl, "bit field saving si1.o");
+    s2.p = 7;      assert_long(0x0001c019007cf399UL, *pl, "bit field saving si1.p");
+    s2.i = 0;      assert_long(0x0001c019007cf398UL, *pl, "bit field saving si1.i 2");
+    s2.p = 123456; assert_long(0x78900019007cf398UL, *pl, "bit field saving si1.p 2");
+    s2.p = -1;     assert_long(0xffffc019007cf398UL, *pl, "bit field saving si1.p 3");
+
+    // From non-ints
+    *pl = 0;
+    s2.i = 1.1; assert_long(0x0000000000000001UL, *pl, "bit field saving si1.i from double");
+    s2.i = 1.1L; assert_long(0x0000000000000001UL, *pl, "bit field saving si1.i from long double");
+
+    // From another bit field
+    s2.k = s1.j; assert_long(0x0000000000000181UL, *pl, "bit field saving si1.i from long double");
+
+    struct { unsigned int i:1, j:31, k:31, l:1; } s3;
+    pl = (unsigned long *) &s3;
+    *pl = 0;
+
+    // Size 31
+    s3.i = 1;   assert_long(0x0000000000000001UL, *pl, "31 sized bit field write 1");
+    s3.j = -1;  assert_long(0x00000000ffffffffUL, *pl, "31 sized bit field write 2");
+    s3.k =  1;  assert_long(0x00000001ffffffffUL, *pl, "31 sized bit field write 3");
+    s3.l =  -1; assert_long(0x80000001ffffffffUL, *pl, "31 sized bit field write 4");
+
+    // Size 32 + 16 + 16
+    struct { unsigned int i:32, j:16, k:16; } s4;
+    pl = (unsigned long *) &s4;
+    *pl = 0;
+    s4.i = -1;   assert_long(0x00000000ffffffffUL, *pl, "32 sized bit field write 1");
+    s4.j = -1;   assert_long(0x0000ffffffffffffUL, *pl, "32 sized bit field write 2");
+    s4.k = -1;   assert_long(0xffffffffffffffffUL, *pl, "32 sized bit field write 3");
+    s4.i = 0;    assert_long(0xffffffff00000000UL, *pl, "32 sized bit field write 4");
+    s4.k = 8192; assert_long(0x2000ffff00000000UL, *pl, "32 sized bit field write 5");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -960,6 +1144,9 @@ int main(int argc, char **argv) {
     test_copy();
     test_pointers();
     test_arithmetic_with_local_struct_members();
+    test_bit_field_sizes();
+    test_bit_field_loading();
+    test_bit_field_saving();
 
     finalize();
 }

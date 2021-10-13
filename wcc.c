@@ -27,6 +27,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
         convert_long_doubles_jz_and_jnz(function);
         move_long_doubles_to_the_stack(function);
         allocate_value_stack_indexes(function);
+        process_bit_fields(function);
         remove_unused_function_call_results(function);
     }
 

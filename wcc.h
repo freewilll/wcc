@@ -197,6 +197,8 @@ typedef struct value {
     long int_value;                                      // Value in the case of an integer constant
     long double fp_value;                                // Value in the case of a floating point constant
     int offset;                                          // For composite objects, offset from the start of the object's memory
+    int bit_field_offset;                                // Offset in bits for bit fields
+    int bit_field_size;                                  // Size in bits for bit fields
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
     int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
@@ -241,6 +243,9 @@ typedef struct struct_or_union_member {
     char *identifier;
     Type *type;
     int offset;
+    int is_bit_field;
+    int bit_field_size;
+    int bit_field_offset;
 } StructOrUnionMember;
 
 // Struct & union description
@@ -402,6 +407,8 @@ enum {
     IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
     IR_DECL_LOCAL_COMP_OBJ,   // Declare a local compound object
+    IR_LOAD_BIT_FIELD,        // Load a bit field into a register
+    IR_SAVE_BIT_FIELD,        // Save a bit field into a register
     IR_START_CALL,            // Function call
     IR_ARG,                   // Function call argument
     IR_ARG_STACK_PADDING,     // Extra padding push to align arguments pushed onto the stack
@@ -694,6 +701,7 @@ void convert_long_doubles_jz_and_jnz(Function *function);
 void move_long_doubles_to_the_stack(Function *function);
 void make_stack_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);
+void process_bit_fields(Function *function);
 void remove_unused_function_call_results(Function *function);
 void process_struct_and_union_copies(Function *function);
 Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);

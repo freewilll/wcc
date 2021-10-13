@@ -135,6 +135,9 @@ static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src)
     dst->identifier = strdup(src->identifier);
     dst->type = dup_type(src->type);
     dst->offset = src->offset;
+    dst->is_bit_field = src->is_bit_field;
+    dst->bit_field_size = src->bit_field_size;
+    dst->bit_field_offset = src->bit_field_offset;
     return dst;
 }
 
@@ -323,10 +326,12 @@ Type *make_struct_or_union_type(StructOrUnion *s) {
     return type;
 }
 
-int recursive_complete_struct_or_union(StructOrUnion *s, int offset, int is_root) {
-    offset = 0;
+// Recurse through all struct members and determine offsets
+// Bit fields are only implemented for integers (32 bits size) according to the C89 spec.
+int recursive_complete_struct_or_union(StructOrUnion *s, int bit_offset, int is_root) {
+    bit_offset = 0;
 
-    int initial_offset = offset;
+    int initial_bit_offset = bit_offset;
     int max_size = 0;
     int max_alignment = 0;
 
@@ -334,25 +339,43 @@ int recursive_complete_struct_or_union(StructOrUnion *s, int offset, int is_root
         StructOrUnionMember *member = *pmember;
         int size;
 
-        int alignment = s->is_packed ? 1 : get_type_alignment(member->type);
-        if (alignment > max_alignment) max_alignment = alignment;
-        offset = ((offset + alignment  - 1) & (~(alignment - 1)));
+        if (member->is_bit_field) {
+            size = member->bit_field_size;
 
-        if (member->type->type == TYPE_STRUCT_OR_UNION) {
-            // Duplicate the structs, since the offset will be set and otherwise
-            // would end up to a reused struct having invalid offsets
-            member->type->struct_or_union_desc = dup_struct_or_union(member->type->struct_or_union_desc);
-            size = recursive_complete_struct_or_union(member->type->struct_or_union_desc, offset, 0);
+            // Align to the next integer boundary if
+            // - It's a size zero unnamed member
+            // - If the member would protrude past the next integer boundary
+            if (!member->bit_field_size) bit_offset = ((bit_offset + 31) & ~31);
+            else {
+                int new_bit_offset = (bit_offset + member->bit_field_size - 1) & ~31;
+                if (new_bit_offset != (bit_offset & ~31)) bit_offset = ((bit_offset + 31) & ~31);
+            }
+
+            // Ensure the alignment is at least 4 bytes
+            if (max_alignment < 32) max_alignment = 32;
         }
         else {
-            size = get_type_size(member->type);
+            int alignment = s->is_packed ? 8 : get_type_alignment(member->type) * 8;
+            if (alignment > max_alignment) max_alignment = alignment;
+            bit_offset = ((bit_offset + alignment - 1) & (~(alignment - 1)));
+
+            if (member->type->type == TYPE_STRUCT_OR_UNION) {
+                // Duplicate the structs, since the bit_offset will be set and otherwise
+                // would end up to a reused struct having invalid bit_offsets
+                member->type->struct_or_union_desc = dup_struct_or_union(member->type->struct_or_union_desc);
+                size = recursive_complete_struct_or_union(member->type->struct_or_union_desc, bit_offset, 0);
+            }
+            else {
+                size = get_type_size(member->type) * 8;
+            }
         }
 
-        member->offset = offset;
+        member->offset = bit_offset >> 3;
+        member->bit_field_offset = bit_offset;
 
         if (size > max_size) max_size = size;
 
-        if (!s->is_union) offset += size;
+        if (!s->is_union) bit_offset += size;
     }
 
     s->is_incomplete = 0;
@@ -363,12 +386,12 @@ int recursive_complete_struct_or_union(StructOrUnion *s, int offset, int is_root
     else {
         if (is_root)
             // Add padding to the root, but not sub struct/unions
-            offset = ((offset + max_alignment  - 1) & (~(max_alignment - 1)));
+            bit_offset = ((bit_offset + max_alignment  - 1) & (~(max_alignment - 1)));
 
-        size = offset - initial_offset;
+        size = bit_offset - initial_bit_offset;
     }
 
-    s->size = size;
+    s->size = size >> 3;
 
     return size;
 }

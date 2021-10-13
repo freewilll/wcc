@@ -153,7 +153,8 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
         // What's this?
         c += fprintf(f, "?%ld", v->int_value);
 
-    if (v->offset) c += fprintf(f, "[%d]", v->offset);
+    if (v->bit_field_size) c += fprintf(f, "[bf %d:%d]", v->bit_field_offset, v->bit_field_size);
+    else if (v->offset) c += fprintf(f, "[%d]", v->offset);
 
     if (!v->label) {
         c += fprintf(f, ":");
@@ -171,6 +172,8 @@ char *operation_string(int operation) {
     else if (operation == IR_ADDRESS_OF)            return "IR_ADDRESS_OF";
     else if (operation == IR_INDIRECT)              return "IR_INDIRECT";
     else if (operation == IR_DECL_LOCAL_COMP_OBJ)   return "IR_DECL_LOCAL_COMP_OBJ";
+    else if (operation == IR_LOAD_BIT_FIELD)        return "IR_LOAD_BIT_FIELD";
+    else if (operation == IR_SAVE_BIT_FIELD)        return "IR_SAVE_BIT_FIELD";
     else if (operation == IR_START_CALL)            return "IR_START_CALL";
     else if (operation == IR_ARG)                   return "IR_ARG";
     else if (operation == IR_ARG_STACK_PADDING)     return "IR_ARG_STACK_PADDING";
@@ -268,7 +271,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, ") = ");
     }
 
-    if (o == IR_MOVE || o == IR_MOVE_PREG_CLASS)
+    if (o == IR_MOVE || o == IR_MOVE_PREG_CLASS || o == IR_LOAD_BIT_FIELD || o == IR_SAVE_BIT_FIELD)
         print_value(f, tac->src1, 1);
 
     else if (o == IR_MOVE_STACK_PTR)
@@ -923,5 +926,145 @@ void process_struct_and_union_copies(Function *function) {
         ir->src1 = 0;
 
         add_memory_copy(function, ir, dst, src1, size);
+    }
+}
+
+// Determine offset (in bytes), which has integer alignment.
+// Within the alignment, determine the offset (in bits) and size (in bits)
+static void determine_bit_field_params(Value *v, int *offset, int *bit_offset, int *bit_size) {
+    *offset = v->offset & (~3); // Align to the nearest integer boundary
+    *bit_offset = v->bit_field_offset - (*offset << 3);
+    *bit_size = v->bit_field_size;
+}
+
+// Load a bit field by loading the entire integer from a struct and bit shifting
+static void add_load_bit_field(Function *function, Tac *ir) {
+    int offset, bit_offset, bit_size;
+    determine_bit_field_params(ir->src1, &offset, &bit_offset, &bit_size);
+
+    Value *src1 = dup_value(ir->src1);
+    src1->offset = offset;
+    src1->bit_field_offset = 0;
+    src1->bit_field_size = 0;
+
+    Value *dst = ir->dst;
+    Value *loaded_value = dup_value(ir->dst);
+    loaded_value->vreg = ++function->vreg_count;
+
+    ir->operation = IR_NOP;
+    ir->dst = 0;
+    ir->src1 = 0;
+    ir->src2 = 0;
+
+    ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_value, src1, 0);
+
+    if (src1->type->is_unsigned) {
+        // Shift right
+        Value *shifted_value;
+        if (bit_offset) {
+            shifted_value = dup_value(loaded_value);
+            shifted_value->vreg = ++function->vreg_count;
+            ir = insert_instruction_after_from_operation(ir, IR_BSHR, shifted_value, loaded_value, new_integral_constant(TYPE_INT, bit_offset));
+        }
+        else
+            shifted_value = loaded_value;
+
+        // Apply mask
+        unsigned int mask = (1 << bit_size) - 1;
+        ir = insert_instruction_after_from_operation(ir, IR_BAND, dst, shifted_value, new_integral_constant(TYPE_INT, mask));
+    }
+    else {
+        // Shift left so that the value is at the end of the integer boundary
+        Value *shifted_value;
+        int left_shift_offset = 32 - bit_size - bit_offset;
+        if (left_shift_offset) {
+            shifted_value = dup_value(loaded_value);
+            shifted_value->vreg = ++function->vreg_count;
+            ir = insert_instruction_after_from_operation(ir, IR_BSHL, shifted_value, loaded_value, new_integral_constant(TYPE_INT, left_shift_offset));
+        }
+        else
+            shifted_value = loaded_value;
+
+        // Sign extend by shifting right
+        if (32 - bit_size)
+            ir = insert_instruction_after_from_operation(ir, IR_BSHR, dst, shifted_value, new_integral_constant(TYPE_INT, 32 - bit_size));
+        else
+            dst = shifted_value;
+    }
+}
+
+// Save an integer to a bit field
+static void add_save_bit_field(Function *function, Tac *ir) {
+    int offset, bit_offset, bit_size;
+    determine_bit_field_params(ir->dst, &offset, &bit_offset, &bit_size);
+
+    Value *dst = dup_value(ir->dst);
+    Value *src1 = dup_value(ir->src1);
+
+    ir->operation = IR_NOP;
+    ir->dst = 0;
+    ir->src1 = 0;
+    ir->src2 = 0;
+
+    // Load the src into an unsigned integer
+    src1->type->is_unsigned = 1;
+    Value *loaded_src1 = new_value();
+    loaded_src1->type = new_type(TYPE_INT);
+    loaded_src1->type->is_unsigned = 1;
+    loaded_src1->vreg = ++function->vreg_count;
+    ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_src1, src1, 0);
+
+    // Set bits outside of the src value to zero
+    Value *masked_src1 = dup_value(loaded_src1);
+    masked_src1->vreg = ++function->vreg_count;
+    unsigned int mask = bit_size == 32 ? -1 : (1 << bit_size) - 1;
+    Value *mask_value = new_integral_constant(TYPE_INT, mask);
+    mask_value->type->is_unsigned = 1;
+    ir = insert_instruction_after_from_operation(ir, IR_BAND, masked_src1, loaded_src1, mask_value);
+
+    // Shift the src over to the right spot
+    Value *shifted_src1;
+    if (bit_offset) {
+        shifted_src1 = dup_value(masked_src1);
+        shifted_src1->vreg = ++function->vreg_count;
+        ir = insert_instruction_after_from_operation(ir, IR_BSHL, shifted_src1, masked_src1, new_integral_constant(TYPE_INT, bit_offset));
+    }
+    else
+        shifted_src1 = masked_src1;
+
+    // Load the dst
+    Value *loaded_dst = new_value();
+    loaded_dst->type = new_type(TYPE_INT);
+    loaded_dst->type->is_unsigned = 1;
+    loaded_dst->vreg = ++function->vreg_count;
+
+    dst->type->is_unsigned = 1;
+    dst->offset = offset;
+    dst->bit_field_offset = 0;
+    dst->bit_field_size = 0;
+    ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_dst, dst, 0);
+
+    // Set the destination bits to zero on the loaded dst
+    unsigned int inverted_shifted_mask = ~(mask << bit_offset);
+    Value *masked_dst = dup_value(loaded_dst);
+    masked_dst->vreg = ++function->vreg_count;
+    Value *inverted_shifted_mask_value = new_integral_constant(TYPE_INT, inverted_shifted_mask);
+    inverted_shifted_mask_value->type->is_unsigned = 1;
+    ir = insert_instruction_after_from_operation(ir, IR_BAND, masked_dst, loaded_dst, inverted_shifted_mask_value);
+
+    // Or two values
+    Value *orred_dst = dup_value(loaded_dst);
+    orred_dst->vreg = ++function->vreg_count;
+    ir = insert_instruction_after_from_operation(ir, IR_BOR, orred_dst, masked_dst, shifted_src1);
+
+    // Store the result in dst
+    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, orred_dst, 0);
+}
+
+// Add instructions for loading and saving bit fields
+void process_bit_fields(Function *function) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation == IR_LOAD_BIT_FIELD) add_load_bit_field(function, ir);
+        else if (ir->operation == IR_SAVE_BIT_FIELD) add_save_bit_field(function, ir);
     }
 }

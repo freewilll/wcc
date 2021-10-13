@@ -73,6 +73,8 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
         else if (operation == IR_MOVE_PREG_CLASS)      c += printf("move to preg class");
         else if (operation == IR_MOVE_STACK_PTR)       c += printf("stack ptr to");
         else if (operation == IR_DECL_LOCAL_COMP_OBJ)  c += printf("declare");
+        else if (operation == IR_LOAD_BIT_FIELD)       c += printf("load bit field");
+        else if (operation == IR_SAVE_BIT_FIELD)       c += printf("save bit field");
         else if (operation == IR_ADD)                  c += printf("+");
         else if (operation == IR_SUB)                  c += printf("-");
         else if (operation == IR_MUL)                  c += printf("*");

@@ -55,12 +55,23 @@ static void *pop_void() {
     vtop = *vs;
 }
 
+static Value *load_bit_field(Value *src1) {
+    Value *dst = new_value();
+    dst->type = new_type(TYPE_INT);
+    dst->type->is_unsigned = src1->type->is_unsigned;
+    dst->vreg = new_vreg();
+    add_instruction(IR_LOAD_BIT_FIELD, dst, src1, 0);
+
+    return dst;
+}
+
 // load a value into a register if not already done. lvalues are converted into
 // rvalues.
 static Value *load(Value *src1) {
     if (src1->is_constant) return src1;
     if (src1->vreg && !src1->is_lvalue) return src1;
     if (src1->type->type == TYPE_STRUCT_OR_UNION) return src1;
+    if (src1->bit_field_size) return load_bit_field(src1);
 
     Value *dst = dup_value(src1);
     dst->vreg = new_vreg();
@@ -499,7 +510,19 @@ static Type *parse_struct_or_union_type_specifier() {
 
             Type *base_type = parse_type_specifier();
             while (cur_token != TOK_SEMI) {
-                Type *type = concat_types(parse_declarator(), base_type);
+                Type *type;
+
+                int unnamed_bit_field = 0;
+                if (cur_token != TOK_COLON)
+                    type = concat_types(parse_declarator(), base_type);
+
+                else {
+                    // Unnamed bit field
+                    next();
+                    cur_identifier = 0;
+                    type = new_type(TYPE_INT);
+                    unnamed_bit_field = 1;
+                }
 
                 StructOrUnionMember *member = malloc(sizeof(StructOrUnionMember));
                 memset(member, 0, sizeof(StructOrUnionMember));
@@ -507,8 +530,22 @@ static Type *parse_struct_or_union_type_specifier() {
                 member->type = dup_type(type);
                 s->members[member_count++] = member;
 
-                if (cur_token != TOK_COMMA && cur_token != TOK_SEMI)
-                    panic("Expected a ; or ,");
+                if (unnamed_bit_field || cur_token == TOK_COLON) {
+                    // Bit field
+                    if (!unnamed_bit_field) next(); // consume TOK_COLON
+
+                    if (type->type != TYPE_INT) panic("Bit fields must be integers");
+                    if (cur_token != TOK_INTEGER) panic("Expected an integer value for a bit field");
+                    if (cur_identifier && cur_long == 0) panic("Invalid bit field size 0 for named member");
+                    if (cur_long < 0 || cur_long > 32) panic1d("Invalid bit field size %d", cur_long);
+
+                    member->is_bit_field = 1;
+                    member->bit_field_size = cur_long;
+
+                    next();
+                }
+
+                if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) panic("Expected a ; or ,");
 
                 if (cur_token == TOK_COMMA) next();
             }
@@ -579,7 +616,8 @@ static StructOrUnionMember *lookup_struct_or_union_member(StructOrUnion *struct_
     StructOrUnionMember **pmember = struct_or_union_desc->members;
 
     while (*pmember) {
-        if (!strcmp((*pmember)->identifier, identifier)) return *pmember;
+        char *member_identifier = (*pmember)->identifier;
+        if (member_identifier && !strcmp(member_identifier, identifier)) return *pmember;
         pmember++;
     }
 
@@ -969,7 +1007,11 @@ static void parse_assignment() {
     dst->is_lvalue = 1;
 
     src1 = add_convert_type_if_needed(src1, dst->type);
-    add_instruction(IR_MOVE, dst, src1, 0);
+
+    if (dst->bit_field_size)
+        add_instruction(IR_SAVE_BIT_FIELD, dst, src1, 0);
+    else
+        add_instruction(IR_MOVE, dst, src1, 0);
 
     push(dst);
 }
@@ -1162,6 +1204,7 @@ static void parse_expression(int level) {
         next();
         parse_expression(TOK_INC);
         if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
+        if (vtop->bit_field_size) panic("Cannot take an address of a bit-field");
 
         Value *src1 = pop();
         add_ir_op(IR_ADDRESS_OF, make_pointer(src1->type), new_vreg(), src1, 0);
@@ -1495,6 +1538,8 @@ static void parse_expression(int level) {
             if (!is_dot) indirect();
 
             vtop->offset = vtop->offset + member->offset;
+            vtop->bit_field_offset = vtop->offset * 8 + (member->bit_field_offset & 7);
+            vtop->bit_field_size = member->bit_field_size;
             vtop->type = dup_type(member->type);
             vtop->is_lvalue = 1;
         }
