@@ -25,6 +25,13 @@ static int new_vreg() {
     return vreg_count;
 }
 
+static Value *decay_array_value(Value *v) {
+    Value *result = dup_value(v);
+    result->type = decay_array_to_pointer(v->type);
+
+    return result;
+}
+
 // Push a value to the stack
 static Value *push(Value *v) {
     *--vs = v;
@@ -72,6 +79,7 @@ static Value *load(Value *src1) {
     if (src1->vreg && !src1->is_lvalue) return src1;
     if (src1->type->type == TYPE_STRUCT_OR_UNION) return src1;
     if (src1->bit_field_size) return load_bit_field(src1);
+    if (src1->type->type == TYPE_ARRAY && !src1->is_string_literal) return src1;
 
     Value *dst = dup_value(src1);
     dst->vreg = new_vreg();
@@ -81,7 +89,15 @@ static Value *load(Value *src1) {
     // get moved back onto a stack, e.g. for long doubles
     dst->offset = 0;
 
-    if (src1->vreg && src1->is_lvalue) {
+    if (src1->type->type == TYPE_ARRAY) {
+        // Load a string literal
+        dst->type = decay_array_to_pointer(dst->type);
+        dst->is_string_literal = 0;
+        dst->string_literal_index = 0;
+        add_instruction(IR_MOVE, dst, src1, 0);
+    }
+
+    else if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
         if (src1->type->type == TYPE_VOID) panic("Cannot dereference a *void");
         if (src1->type->type == TYPE_STRUCT_OR_UNION) panic("Cannot dereference a pointer to a struct/union");
@@ -91,6 +107,7 @@ static Value *load(Value *src1) {
         src1->is_lvalue = 0;
         add_instruction(IR_INDIRECT, dst, src1, 0);
     }
+
     else {
         // Load a value into a register. This could be a global or a local.
         dst->local_index = 0;
@@ -151,6 +168,10 @@ static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *s
 Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     Type *src1_type = src1->type;
     Type *src2_type = src2->type;
+
+    // Decay arrays to pointers
+    if (src1_type->type == TYPE_ARRAY) src1_type = decay_array_to_pointer(src1_type);
+    if (src2_type->type == TYPE_ARRAY) src2_type = decay_array_to_pointer(src2_type);
 
     Type *result;
 
@@ -1323,19 +1344,16 @@ static void parse_expression(int level) {
     }
 
     else if (cur_token == TOK_STRING_LITERAL) {
-        Value *dst = new_value();
-        dst->vreg = new_vreg();
-        dst->type = make_pointer(new_type(TYPE_CHAR));
+        int size = strlen(cur_string_literal) + 1;
 
-        Value *src1 = new_value();
-        src1->type = make_pointer(new_type(TYPE_CHAR));
-        src1->string_literal_index = string_literal_count;
-        src1->is_string_literal = 1;
+        Value *dst = new_value();
+        dst->type = make_array(new_type(TYPE_CHAR), size);
+        dst->string_literal_index = string_literal_count;
+        dst->is_string_literal = 1;
+        if (string_literal_count > MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);
         string_literals[string_literal_count++] = cur_string_literal;
-        if (string_literal_count >= MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);
 
         push(dst);
-        add_instruction(IR_MOVE, dst, src1, 0);
         next();
     }
 
@@ -1375,13 +1393,15 @@ static void parse_expression(int level) {
                     int arg_count = fpa->arg_count;
                     arg->function_call_arg_index = arg_count;
 
+                    if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
+
                     // Convert type if needed
                     if (arg_count < function->param_count) {
                         if (!type_eq(vtop->type, function->param_types[arg_count]))
                             push(add_convert_type_if_needed(pl(), function->param_types[arg_count]));
                     }
                     else {
-                        // Apply default argument promotions
+                        // Apply default argument promotions & decay arrays
                         Value *src1 = pl();
                         Type *type;
                         if (src1->type->type < TYPE_INT) {
@@ -1390,6 +1410,8 @@ static void parse_expression(int level) {
                         }
                         else if (src1->type->type == TYPE_FLOAT)
                             type = new_type(TYPE_DOUBLE);
+                        else if (src1->type->type == TYPE_ARRAY)
+                            type = decay_array_to_pointer(src1->type);
                         else
                             type = src1->type;
 
@@ -1493,8 +1515,8 @@ static void parse_expression(int level) {
         if (cur_token == TOK_LBRACKET) {
             next();
 
-            if (vtop->type->type != TYPE_PTR)
-                panic1d("Cannot do [] on a non-pointer for type %d", vtop->type->type);
+            if (vtop->type->type != TYPE_PTR && vtop->type->type != TYPE_ARRAY)
+                panic("Invalid operator [] on a non-pointer and non-array");
 
             parse_addition(TOK_COMMA);
             consume(TOK_RBRACKET, "]");
@@ -1606,6 +1628,10 @@ static void parse_expression(int level) {
             consume(TOK_COLON, ":");
             parse_expression(TOK_TERNARY);
             Value *src2 = vtop;
+
+            // Decay arrays to pointers
+            if (src1->type->type == TYPE_ARRAY) src1 = decay_array_value(src1);
+            if (src2->type->type == TYPE_ARRAY) src2 = decay_array_value(src2);
 
             int src1_is_arithmetic = is_arithmetic_type(src1->type);
             int src2_is_arithmetic = is_arithmetic_type(src2->type);

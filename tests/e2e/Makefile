@@ -4,6 +4,7 @@ WCC_TESTS=\
 	function-call-args \
 	func-calls \
 	pointers \
+	arrays \
 	memory-functions \
 	inc-dec \
 	conditionals \

@@ -38,6 +38,11 @@ int print_type(void *f, Type *type) {
         else
             len += fprintf(f, "struct %s", t->struct_or_union_desc->identifier);
     }
+    else if (tt == TYPE_ARRAY) {
+        len += print_type(f, t->target);
+        if (t->array_size) len += fprintf(f, "[%d]", t->array_size);
+        else len += fprintf(f, "[]");
+    }
     else len += fprintf(f, "unknown tt %d", tt);
 
     return len;
@@ -189,6 +194,18 @@ Type *deref_pointer(Type *src) {
     return dup_type(src->target);
 }
 
+Type *make_array(Type *src, int size) {
+    Type *dst = new_type(TYPE_ARRAY);
+    dst->target = dup_type(src);
+    dst->array_size = size;
+
+    return dst;
+}
+
+Type *decay_array_to_pointer(Type *src) {
+    return make_pointer(src->target);
+}
+
 // Integral and floating types are collectively called arithmetic types.
 // Arithmetic types and pointer types are collectively called scalar types.
 // Array and structure types are collectively called aggregate types.
@@ -226,7 +243,7 @@ int is_pointer_type(Type *type) {
 }
 
 int is_pointer_to_object_type(Type *type) {
-    return type->type == TYPE_PTR;
+    return type->type == TYPE_PTR || type->type == TYPE_ARRAY;
 }
 
 int is_null_pointer(Value *v) {
@@ -240,6 +257,10 @@ int is_null_pointer(Value *v) {
 
 int is_pointer_to_void(Type *type) {
     return type->type == TYPE_PTR && type->target->type == TYPE_VOID;
+}
+
+int is_pointer_or_array_type(Type *type) {
+    return type->type == TYPE_PTR || type->type == TYPE_ARRAY;
 }
 
 int type_fits_in_single_int_register(Type *type) {
