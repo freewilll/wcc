@@ -322,7 +322,7 @@ int main(int argc, char **argv) {
                 printf("%s\n", command);
             }
             int result = system(command);
-            if (result != 0) exit(result);
+            if (result != 0) exit(result >> 8);
             linker_input_filenames[i] = assembler_output_filename;
         }
         else
@@ -351,7 +351,7 @@ int main(int argc, char **argv) {
             printf("%s\n", command);
         }
         int result = system(command);
-        if (result != 0) exit(result);
+        if (result != 0) exit(result >> 8);
     }
 
     exit(0);
