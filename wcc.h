@@ -438,6 +438,7 @@ enum {
     IR_XOR,                   // Binary xor ^
     IR_BSHL,                  // Binary shift left <<
     IR_BSHR,                  // Binary shift right >>
+    IR_ASHR,                  // Arithmetic shift right >>
     IR_LT,                    // <
     IR_GT,                    // >
     IR_LE,                    // <=

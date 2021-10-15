@@ -212,12 +212,13 @@ void test_int_expr() {
     assert_long(4611686018427387904, (long) 1 << 62,    "1 << 62" );
 
     i = 256; j = 2;
-    assert_int(                  64, 256 >> 2,          "256 >> 2 a"    );
-    assert_int(                  64, i   >> 2,          "256 >> 2 b"    );
-    assert_int(                  64, 256 >> j,          "256 >> 2 c"    );
-    assert_int(                  64, i   >> j,          "256 >> 2 d"    );
-    assert_int(                  32, 256 >> 3,          "256 >> 3"    );
-    assert_int(                  32, 8192 >> 8,         "8192 >> 8"   );
+    assert_int(           64, 256 >> 2,               "256 >> 2 a"  );
+    assert_int(           64, i   >> 2,               "256 >> 2 b"  );
+    assert_int(           64, 256 >> j,               "256 >> 2 c"  );
+    assert_int(           64, i   >> j,               "256 >> 2 d"  );
+    assert_int(           32, 256 >> 3,               "256 >> 3"    );
+    assert_int(           32, 8192 >> 8,              "8192 >> 8"   );
+    assert_int(536870911, ((unsigned int) (-1)) >> 3, "(unsigned int) (-1)) >> 3");
 }
 
 void test_uint_expr() {

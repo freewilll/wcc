@@ -1018,7 +1018,10 @@ static void add_binary_constant_shift_rule(int dst, int src1, int src2, char *te
    r = add_rule(dst, IR_BSHL, src1, src2, 3); add_op(r, X_MOV, DST, SRC1, 0,   "mov%s %v1, %vd");
                                               add_op(r, X_SHL, DST, SRC2, DST, "shl%s $%v1, %vd");
                                               fin_rule(r);
-   r = add_rule(dst, IR_BSHR, src1, src2, 3); add_op(r, X_MOV, DST, SRC1, 0,   "mov%s %v1, %vd");
+   r = add_rule(dst, IR_BSHR, src1, src2, 3); add_op(r, X_MOV, DST, SRC1, 0,   "mov%s %v1, %vd");   // Binary
+                                              add_op(r, X_SHL, DST, SRC2, DST, "shr%s $%v1, %vd");
+                                              fin_rule(r);
+   r = add_rule(dst, IR_ASHR, src1, src2, 3); add_op(r, X_MOV, DST, SRC1, 0,   "mov%s %v1, %vd");   // Arithmetic
                                               add_op(r, X_SHL, DST, SRC2, DST, "sar%s $%v1, %vd");
                                               fin_rule(r);
 }
@@ -1032,8 +1035,12 @@ static void add_binary_register_shift_rule(int src1, int src2, char *template) {
                                                 fin_rule(r);
 
     r = add_rule(src1, IR_BSHR, src1, src2, 4); add_op(r, X_MOVC, 0,   SRC2, 0,   template);
-                                                add_op(r, X_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");
+                                                add_op(r, X_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");    // Binary
                                                 add_op(r, X_SHL,  DST, 0,    DST, "shr%s %%cl, %vd");
+                                                fin_rule(r);
+    r = add_rule(src1, IR_ASHR, src1, src2, 4); add_op(r, X_MOVC, 0,   SRC2, 0,   template);
+                                                add_op(r, X_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");    // Arithmetic
+                                                add_op(r, X_SHL,  DST, 0,    DST, "sar%s %%cl, %vd");
                                                 fin_rule(r);
 }
 

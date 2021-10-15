@@ -204,6 +204,7 @@ char *operation_string(int operation) {
     else if (operation == IR_XOR)                   return "IR_XOR";
     else if (operation == IR_BSHL)                  return "IR_BSHL";
     else if (operation == IR_BSHR)                  return "IR_BSHR";
+    else if (operation == IR_ASHR)                  return "IR_ASHR";
     else if (operation == IR_LT)                    return "IR_LT";
     else if (operation == IR_GT)                    return "IR_GT";
     else if (operation == IR_LE)                    return "IR_LE";
@@ -338,26 +339,27 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, ")");
     }
 
-    else if (o == IR_INDIRECT)      {                               fprintf(f, "*");    print_value(f, tac->src1, 1); }
-    else if (o == IR_ADDRESS_OF)    {                               fprintf(f, "&");    print_value(f, tac->src1, 1); }
-    else if (o == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");  print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
-    else if (o == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_DIV)           { print_value(f, tac->src1, 1); fprintf(f, " / ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_MOD)           { print_value(f, tac->src1, 1); fprintf(f, " %% "); print_value(f, tac->src2, 1); }
-    else if (o == IR_BNOT)          {                               fprintf(f, "~");    print_value(f, tac->src1, 1); }
-    else if (o == IR_EQ)            { print_value(f, tac->src1, 1); fprintf(f, " == "); print_value(f, tac->src2, 1); }
-    else if (o == IR_NE)            { print_value(f, tac->src1, 1); fprintf(f, " != "); print_value(f, tac->src2, 1); }
-    else if (o == IR_GT)            { print_value(f, tac->src1, 1); fprintf(f, " > ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_LT)            { print_value(f, tac->src1, 1); fprintf(f, " < ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_GE)            { print_value(f, tac->src1, 1); fprintf(f, " >= "); print_value(f, tac->src2, 1); }
-    else if (o == IR_LE)            { print_value(f, tac->src1, 1); fprintf(f, " <= "); print_value(f, tac->src2, 1); }
-    else if (o == IR_BAND)          { print_value(f, tac->src1, 1); fprintf(f, " & ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_BOR)           { print_value(f, tac->src1, 1); fprintf(f, " | ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << "); print_value(f, tac->src2, 1); }
-    else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> "); print_value(f, tac->src2, 1); }
+    else if (o == IR_INDIRECT)      {                               fprintf(f, "*");     print_value(f, tac->src1, 1); }
+    else if (o == IR_ADDRESS_OF)    {                               fprintf(f, "&");     print_value(f, tac->src1, 1); }
+    else if (o == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");   print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
+    else if (o == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_DIV)           { print_value(f, tac->src1, 1); fprintf(f, " / ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_MOD)           { print_value(f, tac->src1, 1); fprintf(f, " %% ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_BNOT)          {                               fprintf(f, "~");     print_value(f, tac->src1, 1); }
+    else if (o == IR_EQ)            { print_value(f, tac->src1, 1); fprintf(f, " == ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_NE)            { print_value(f, tac->src1, 1); fprintf(f, " != ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_GT)            { print_value(f, tac->src1, 1); fprintf(f, " > ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_LT)            { print_value(f, tac->src1, 1); fprintf(f, " < ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_GE)            { print_value(f, tac->src1, 1); fprintf(f, " >= ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_LE)            { print_value(f, tac->src1, 1); fprintf(f, " <= ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_BAND)          { print_value(f, tac->src1, 1); fprintf(f, " & ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_BOR)           { print_value(f, tac->src1, 1); fprintf(f, " | ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");   print_value(f, tac->src2, 1); }
+    else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> ");  print_value(f, tac->src2, 1); }
+    else if (o == IR_ASHR)          { print_value(f, tac->src1, 1); fprintf(f, " a>> "); print_value(f, tac->src2, 1); }
     else if (o == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); if (tac->dst) { printf(" -> "); print_value(f, tac->dst, 1); } }
     else if (o == IR_CALL_ARG_REG)  { fprintf(f, "call reg arg "); print_value(f, tac->dst ? tac->dst : tac->src1 , 1); }
     else if (o == IR_ALLOCATE_STACK){ fprintf(f, "allocate stack "); print_value(f, tac->src1, 1); }
@@ -988,7 +990,7 @@ static void add_load_bit_field(Function *function, Tac *ir) {
 
         // Sign extend by shifting right
         if (32 - bit_size)
-            ir = insert_instruction_after_from_operation(ir, IR_BSHR, dst, shifted_value, new_integral_constant(TYPE_INT, 32 - bit_size));
+            ir = insert_instruction_after_from_operation(ir, IR_ASHR, dst, shifted_value, new_integral_constant(TYPE_INT, 32 - bit_size));
         else
             dst = shifted_value;
     }
