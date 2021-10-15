@@ -624,7 +624,6 @@ void consume(int token, char *what);
 Symbol *memcpy_symbol;
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
-int new_vreg();
 Type *parse_type_name();
 void finish_parsing_header();
 void parse();
@@ -687,7 +686,6 @@ Tac *insert_instruction_after_from_operation(Tac *ir, int operation, Value *dst,
 Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
-int new_vreg();
 int fprintf_escaped_string_literal(void *f, char* sl);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);

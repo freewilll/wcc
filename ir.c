@@ -650,6 +650,8 @@ void allocate_value_vregs(Function *function) {
 // - IR_JZ  => IR_EQ with 0.0 & IR_JNZ
 // - IR_JNZ => IR_NE with 0.0 & IR_JNZ
 void convert_long_doubles_jz_and_jnz(Function *function) {
+    make_vreg_count(function, 0);
+
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
             ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
@@ -658,7 +660,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
             tac->operation = IR_JNZ;
             ir->dst = new_value();
             ir->dst->type = new_type(TYPE_INT);
-            ir->dst->vreg = new_vreg();
+            ir->dst->vreg = ++function->vreg_count;
             tac->src1 = ir->dst;
             tac->src2 = ir->src2;
             ir->src2 = new_floating_point_constant(ir->src1->type->type, 0.0L);
@@ -790,7 +792,6 @@ void remove_unused_function_call_results(Function *function) {
 static Value *insert_address_of_instruction(Function *function, Tac **ir, Value *src) {
     Value *v = new_value();
 
-    v->vreg = new_vreg();
     v->vreg = ++function->vreg_count;
     v->type = make_pointer_to_void();
     *ir = insert_instruction_after_from_operation(*ir, IR_ADDRESS_OF, v, src, 0);
