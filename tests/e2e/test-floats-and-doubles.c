@@ -940,7 +940,7 @@ void test_pointers() {
 }
 
 // The following code is the fast inverse square root implementation from Quake III Arena,
-// stripped of C preprocessor directives, but including the exact original comment text:[9]
+// stripped of C preprocessor directives, but including the exact original comment text
 // See https://en.wikipedia.org/wiki/Fast_inverse_square_root
 float Q_rsqrt( float number )
 {
