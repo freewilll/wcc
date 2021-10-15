@@ -1377,7 +1377,7 @@ static void parse_expression(int level) {
 
                     // Convert type if needed
                     if (arg_count < function->param_count) {
-                        if (!type_eq(src1->type, function->param_types[arg_count]))
+                        if (!type_eq(vtop->type, function->param_types[arg_count]))
                             push(add_convert_type_if_needed(pl(), function->param_types[arg_count]));
                     }
                     else {
