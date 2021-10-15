@@ -167,6 +167,16 @@ void test_instrsel_tree_merging() {
     assert_x86_op("leaq        g1(%rip), r2q");
     assert_x86_op("movq        $1, (r2q)"    );
 
+    // Ensure the assign to pointer instruction copies src1 to dst first
+    remove_reserved_physical_registers = 1;
+    start_ir();
+    i(0, IR_ADDRESS_OF,  a(1), g(1), 0);
+    i(0, IR_MOVE_TO_PTR, 0,    v(1), c(0x7fffffffffffffff)); tac->src1->is_lvalue_in_register = 1;
+    finish_ir(function);
+    assert_x86_op("leaq        g1(%rip), r2q");
+    assert_x86_op("movq        $9223372036854775807, r3q");
+    assert_x86_op("movq        r3q, (r2q)"    );
+
     // Test tree merges only happening on adjacent trees.
     // This is realistic example of a value swap of two values in memory.
     start_ir();

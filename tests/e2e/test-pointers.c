@@ -369,6 +369,12 @@ void test_deref_promotion() {
     assert_int(1, l, "deref l -> i");
 }
 
+void test_write_constant_to_pointer() {
+    unsigned long *pl = malloc(sizeof(long));
+    *pl = 0x7fffffffffffffff;
+    assert_long(0x7fffffffffffffff, *pl, "0x7fffffffffffffff assignment to pointer");
+}
+
 void test_scaled_short_pointer_indirects() {
     long i;
     unsigned long ui;
@@ -560,6 +566,7 @@ int main(int argc, char **argv) {
     test_pointer_deref_assign_to_deref();
     test_global_pointer_address_of();
     test_deref_promotion();
+    test_write_constant_to_pointer();
     test_scaled_indirects();
     test_null_pointer();
     test_address_of_function_parameters();
