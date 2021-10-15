@@ -509,6 +509,11 @@ static Type *parse_struct_or_union_type_specifier() {
             }
 
             Type *base_type = parse_type_specifier();
+
+            // Catch e.g. struct { struct s { int i; }; } s; which isn't in the C90 spec
+            if (base_type->type == TYPE_STRUCT_OR_UNION && cur_token == TOK_SEMI)
+                panic("Structs/unions members must have a name");
+
             while (cur_token != TOK_SEMI) {
                 Type *type;
 
