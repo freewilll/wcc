@@ -627,6 +627,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
                     function_call_vreg_type = preg_class == PC_INT ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
                 }
                 else {
+                    if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
                     function_call_vreg = add_arg_move_to_register(function, ir, type, *call_arg, preg_class, i, &arg_register_set);
                     function_call_vreg_type = (*call_arg)->type;
                 }
@@ -924,6 +925,8 @@ void add_function_param_moves(Function *function, char *identifier) {
         else {
             // Scalar value
 
+            if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+
             if (has_address_of[i]) {
                 // Add a move instruction to save the register to the stack
                 Tac *tac = make_param_move_to_stack_tac(function, type, single_register_arg_count);
@@ -1039,6 +1042,8 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     fpl->stack_offset = -1;
     fpl->stack_padding = -1;
 
+    if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+
     int is_single_int_register = type_fits_in_single_int_register(type);
     int is_single_sse_register = is_sse_floating_point_type(type);
     int is_long_double = type->type == TYPE_LONG_DOUBLE;
@@ -1121,6 +1126,9 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
     else {
         // TODO also force struct params with unaligned members into memory
         // In practice, if a struct is larger than 16 bytes, it's on the stack
+
+        if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+
         int size = get_type_size(type);
         if (size > 16) {
             // The entire thing is on the stack

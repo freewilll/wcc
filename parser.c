@@ -79,7 +79,6 @@ static Value *load(Value *src1) {
     if (src1->vreg && !src1->is_lvalue) return src1;
     if (src1->type->type == TYPE_STRUCT_OR_UNION) return src1;
     if (src1->bit_field_size) return load_bit_field(src1);
-    if (src1->type->type == TYPE_ARRAY && !src1->is_string_literal) return src1;
 
     Value *dst = dup_value(src1);
     dst->vreg = new_vreg();
@@ -90,17 +89,27 @@ static Value *load(Value *src1) {
     dst->offset = 0;
 
     if (src1->type->type == TYPE_ARRAY) {
-        // Load a string literal
-        dst->type = decay_array_to_pointer(dst->type);
-        dst->is_string_literal = 0;
-        dst->string_literal_index = 0;
-        add_instruction(IR_MOVE, dst, src1, 0);
+        if (src1->is_string_literal) {
+            // Load the address of a string literal into a register
+            dst->type = decay_array_to_pointer(dst->type);
+            dst->is_string_literal = 0;
+            dst->string_literal_index = 0;
+            add_instruction(IR_MOVE, dst, src1, 0);
+        }
+        else {
+            // Take the address of an array
+            dst->local_index = 0;
+            dst->global_symbol = 0;
+            dst->type = decay_array_to_pointer(dst->type);
+            add_instruction(IR_ADDRESS_OF, dst, src1, 0);
+        }
     }
 
     else if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
         if (src1->type->type == TYPE_VOID) panic("Cannot dereference a *void");
         if (src1->type->type == TYPE_STRUCT_OR_UNION) panic("Cannot dereference a pointer to a struct/union");
+        if (src1->type->type == TYPE_ARRAY) panic("Cannot dereference a pointer to an array");
 
         src1 = dup_value(src1);
         src1->type = make_pointer(src1->type);
@@ -374,7 +383,16 @@ static Type *parse_function(Type *return_type) {
             Type *type = parse_type_name();
 
             Symbol *param_symbol = new_symbol();
-            param_symbol->type = dup_type(type);
+            Type *symbol_type;
+
+            // Array parameters decay to a pointer
+            if (type->type == TYPE_ARRAY)
+                symbol_type = decay_array_to_pointer(type);
+            else
+                symbol_type = type;
+
+            param_symbol->type = dup_type(symbol_type);
+
             param_symbol->identifier = cur_identifier;
             function_type->function->param_types[param_count] = dup_type(type);
             param_symbol->local_index = param_count++;
@@ -962,7 +980,9 @@ static void push_local_symbol(Symbol *symbol) {
     // Local symbol
     Value *v = new_value();
     v->type = dup_type(type);
-    v->is_lvalue = 1;
+
+    // Arrays are rvalues, everything else are lvalues
+    v->is_lvalue = v->type->type != TYPE_ARRAY;
 
     if (symbol->local_index >= 0)
         // For historical and irrational sentimental reasons, pushed parameters start at
@@ -1058,10 +1078,12 @@ static void finish_comp_assign(Value *v1) {
 }
 
 static void parse_addition(int level) {
+    if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
     int src1_is_pointer = is_pointer_to_object_type(vtop->type);
     int src1_is_integer = is_integer_type(vtop->type);
     int src1_is_arithmetic = is_arithmetic_type(vtop->type);
     parse_expression(level);
+    if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
     int src2_is_pointer = is_pointer_to_object_type(vtop->type);
     int src2_is_integer = is_integer_type(vtop->type);
     int src2_is_arithmetic = is_arithmetic_type(vtop->type);
@@ -1171,8 +1193,13 @@ static void parse_declaration() {
             panic("Attempt to use an incomplete struct or union");
 
         push_local_symbol(symbol);
-        Value *src1 = pop();
-        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, src1, 0);
+        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
+    }
+
+
+    if (symbol->type->type == TYPE_ARRAY) {
+        push_local_symbol(symbol);
+        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
     }
 
     if (cur_token == TOK_EQ) {
@@ -1229,7 +1256,11 @@ static void parse_expression(int level) {
     else if (cur_token == TOK_ADDRESS_OF) {
         next();
         parse_expression(TOK_INC);
-        if (!vtop->is_lvalue) panic("Cannot take an address of an rvalue");
+
+        // Arrays are rvalues as well as lvalues. Otherwise, an lvalue is required
+        if ((vtop->type->type == TYPE_ARRAY && vtop->is_lvalue) && !vtop->is_lvalue)
+            panic("Cannot take an address of an rvalue");
+
         if (vtop->bit_field_size) panic("Cannot take an address of a bit-field");
 
         Value *src1 = pop();
@@ -1267,7 +1298,7 @@ static void parse_expression(int level) {
         else {
             next();
             parse_expression(TOK_INC);
-            if (vtop->type->type != TYPE_PTR) panic1d("Cannot dereference a non-pointer %d", vtop->type->type);
+            if (!(is_pointer_or_array_type(vtop->type))) panic("Cannot dereference a non-pointer %d");
             indirect();
         }
     }
@@ -1397,8 +1428,14 @@ static void parse_expression(int level) {
 
                     // Convert type if needed
                     if (arg_count < function->param_count) {
-                        if (!type_eq(vtop->type, function->param_types[arg_count]))
-                            push(add_convert_type_if_needed(pl(), function->param_types[arg_count]));
+                        if (!type_eq(vtop->type, function->param_types[arg_count])) {
+                            Type *param_type = function->param_types[arg_count];
+
+                            if (param_type->type == TYPE_ARRAY)
+                                param_type = decay_array_to_pointer(param_type);
+
+                            push(add_convert_type_if_needed(pl(), param_type));
+                        }
                     }
                     else {
                         // Apply default argument promotions & decay arrays

@@ -87,3 +87,5 @@ struct si2 return_si2();
 struct si3 return_si3();
 struct si4 return_si4();
 struct si5 return_si5();
+
+void accept_array(int a[4]);

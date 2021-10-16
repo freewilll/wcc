@@ -612,27 +612,30 @@ static void assign_local_to_register(Value *v, int vreg) {
     v->vreg = vreg;
 }
 
+// Set on_stack to one if the value is a long double, struct/union or array
+static void set_on_stack(Value *v, char *on_stack) {
+    int type = v->type->type;
+
+    if (type == TYPE_LONG_DOUBLE || type == TYPE_STRUCT_OR_UNION || type == TYPE_ARRAY)
+        on_stack[-v->local_index] = 1;
+}
+
 // The parser allocates a local_index for temporaries and local variables. Allocate
 // vregs for them unless any of them is used with an & operator, or are long doubles, in
 // which case, they must be on the stack.
 // Function parameters aren't touched in this function
 void allocate_value_vregs(Function *function) {
-    int *on_stack = malloc(sizeof(int) * (function->local_symbol_count + 1));
-    memset(on_stack, 0, sizeof(int) * (function->local_symbol_count + 1));
+    char *on_stack = malloc(sizeof(char) * (function->local_symbol_count + 1));
+    memset(on_stack, 0, sizeof(char) * (function->local_symbol_count + 1));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        // Variables that are used with the & operator
+        // Keep variables that are used with the & operator on the stack
         if (tac->operation == IR_ADDRESS_OF && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
 
-        // Long doubles already on the stack are left on the stack
-        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_LONG_DOUBLE && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
-        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_LONG_DOUBLE && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
-        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_LONG_DOUBLE && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
-
-        // Structs and unions already on the stack are left on the stack
-        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_STRUCT_OR_UNION && tac->dst ->local_index < 0) on_stack[-tac->dst ->local_index] = 1;
-        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_STRUCT_OR_UNION && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
-        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_STRUCT_OR_UNION && tac->src2->local_index < 0) on_stack[-tac->src2->local_index] = 1;
+        // Keep long doubles, struct/unions and arrays on the stack
+        if (tac->dst  && tac->dst ->type && tac->dst ->local_index < 0) set_on_stack(tac->dst,  on_stack);
+        if (tac->src1 && tac->src1->type && tac->src1->local_index < 0) set_on_stack(tac->src1, on_stack);
+        if (tac->src2 && tac->src2->type && tac->src2->local_index < 0) set_on_stack(tac->src2, on_stack);
     }
 
     for (int i = 1; i <= function->local_symbol_count; i++) {
@@ -645,6 +648,8 @@ void allocate_value_vregs(Function *function) {
             if (tac->src2 && tac->src2->local_index == -i) assign_local_to_register(tac->src2, vreg);
         }
     }
+
+    free(on_stack);
 }
 
 // IR_JZ and IR_JNZ aren't implemented in the backend for SSE & long doubles.

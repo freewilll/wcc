@@ -794,7 +794,7 @@ enum {
     RP1, RP2, RP3, RP4, RP5,     // Address (aka pointer) in a register
     MLD5,                        // 16-byte memory, for long double
     MPV,                         // Pointer in memory
-    STR,                         // Struct
+    MSA,                         // Struct or array in memory
 
     AUTO_NON_TERMINAL_START,
     AUTO_NON_TERMINAL_END = 0x200, // Must match next line

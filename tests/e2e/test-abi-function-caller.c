@@ -177,6 +177,13 @@ void test_struct_return_values() {
     assert_float(4.1, sifif.f2, "return_sifif");
 }
 
+void test_arrays() {
+    int a[4];
+    for (int i = 0; i < 4; i++) a[i] = i + 1;
+
+    accept_array(a);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -184,5 +191,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv, &verbose);
     test_struct_params();
     test_struct_return_values();
+    test_arrays();
+
     finalize();
 }

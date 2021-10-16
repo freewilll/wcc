@@ -39,17 +39,18 @@ void assert_long(long expected, long actual, char *message) {
     }
 }
 
-void assert_float(float expected, float actual, char *message) {
-    if (isnan(expected) != isnan(actual)) {
-        failures++;
-        printf("%-60s ", message);
-        printf("failed, expected %f got %f\n", expected, actual);
-        return;
-    }
+int float_eq(float expected, float actual) {
+    if (isnan(expected) != isnan(actual)) return 0;
 
     float diff = expected - actual;
     if (diff < 0) diff = -diff;
-    if (diff > 0.0001) {
+    return diff <= 0.0001;
+}
+
+void assert_float(float expected, float actual, char *message) {
+    int eq = float_eq(expected, actual);
+
+    if (!float_eq(expected, actual)) {
         failures++;
         printf("%-60s ", message);
         printf("failed, expected %f got %f\n", expected, actual);

@@ -189,7 +189,7 @@ Type *make_pointer_to_void() {
 }
 
 Type *deref_pointer(Type *src) {
-    if (src->type != TYPE_PTR) panic("Cannot dereference a non pointer");
+    if (src->type != TYPE_PTR && src->type != TYPE_ARRAY) panic("Cannot dereference a non-pointer");
 
     return dup_type(src->target);
 }

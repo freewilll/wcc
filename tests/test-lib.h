@@ -1,5 +1,6 @@
 void assert_int(int expected, int actual, char *message);
 void assert_long(long expected, long actual, char *message);
+int float_eq(float expected, float got);
 void assert_float(float expected, float got, char *message);
 void assert_double(double expected, double got, char *message);
 void assert_long_double(long double expected, long double got, char *message);
