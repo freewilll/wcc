@@ -2126,6 +2126,10 @@ void parse() {
                     s->identifier = cur_type_identifier;
                 }
 
+                if ((s->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
+                    panic1s("%s redeclared as different kind of symbol", cur_type_identifier);
+
+
                 if (type->type == TYPE_FUNCTION) {
                     // Function declaration or definition
 
