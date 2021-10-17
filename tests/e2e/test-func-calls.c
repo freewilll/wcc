@@ -228,6 +228,188 @@ void test_open_read_write_close() {
     assert_int(0, memcmp(data, "foo", 3), "read/write bytes match");
 }
 
+int (*null_global_func_ptr)(int);
+
+int plus(int);
+int (*global_func_ptr)(int); //= plus; // TODO func ptr when there is global assignment
+int (*global_func_ptr2)(int); //= &plus; // TODO func ptr when there is global assignment
+
+int          plus(int x)  { return x + 1; }
+unsigned int uplus(int x)  { return x + 1; }
+int          minus(int x) { return x - 1; }
+float        fplus(int i) { return i + 1.1; }
+double       dplus(int i) { return i + 1.1; }
+long double  ldplus(int i) { return i + 1.1; }
+
+void vplus(int *i) { (*i)++; }
+void *pvplus(int *i) { (*i)++; }
+
+int do_operation(int (*callback)(int), int value) {
+    if (callback)
+        return callback(value);
+    else
+        return 0;
+}
+
+void test_function_pointers() {
+    global_func_ptr = plus; // TODO func ptr when there is global assignment
+    global_func_ptr2 = &plus; // TODO func ptr when there is global assignment
+
+    assert_int(2, global_func_ptr(1),  "Global function pointer init 1");
+    assert_int(2, global_func_ptr2(1), "Global function pointer init 2");
+    global_func_ptr = minus;
+    assert_int(1, global_func_ptr(2), "Global function pointer assign 1");
+    global_func_ptr = &plus;
+    assert_int(2, global_func_ptr(1), "Global function pointer assign 2");
+
+    int (*func_ptr)(int) = plus;
+    assert_int(2, func_ptr(1), "Function pointer init");
+    func_ptr = minus;
+    assert_int(1, func_ptr(2), "Function pointer assign 1");
+    func_ptr = &plus;
+    assert_int(2, func_ptr(1), "Function pointer assign 2");
+
+    assert_int(2, (*func_ptr)(1), "Function pointer call through pointer");
+    assert_int(2, (func_ptr)(1), "Function pointer call through (ptr)");
+    assert_int(2, (plus)(1), "Function pointer call through (func)");
+
+    assert_int(2, do_operation(plus,       1), "Passing function to a function 1");
+    assert_int(1, do_operation(minus,      2), "Passing function to a function 2");
+    assert_int(1, do_operation(&minus,     2), "Passing function to a function 3");
+    assert_int(0, do_operation(0,          0), "Passing function to a function 4");
+    assert_int(0, do_operation((void *) 0, 0), "Passing function to a function 4");
+
+    assert_int(1, null_global_func_ptr == 0, "Null global pointer 1");
+    assert_int(1, global_func_ptr != 0,      "Null global pointer 2");
+    global_func_ptr = 0;
+    assert_int(1, global_func_ptr == 0,      "Null global pointer 3");
+
+    int (*func_ptr2)(int) = 0;
+    assert_int(1, func_ptr2 == 0, "Null pointer 1");
+    func_ptr2 = plus;
+    assert_int(1, func_ptr2 != 0, "Null pointer 2");
+    func_ptr2 = 0;
+    assert_int(1, func_ptr2 == 0, "Null pointer 3");
+
+    // Copies
+    func_ptr2 = func_ptr;
+    assert_int(2, (func_ptr)(1), "Function pointer copy 1");
+
+    func_ptr2 = global_func_ptr;
+    assert_int(2, (func_ptr)(1), "Function pointer copy 2");
+
+    global_func_ptr = func_ptr;
+    assert_int(2, (global_func_ptr)(1), "Function pointer copy 3");
+
+    global_func_ptr2 = global_func_ptr;
+    assert_int(2, (global_func_ptr2)(1), "Function pointer copy 4");
+
+    // Function call through a struct member
+    struct s {
+        int (*func_ptr)(int);
+    };
+
+    struct s sv;
+    sv.func_ptr = plus;
+    assert_int(2, sv.func_ptr(1), "Func pointer in a struct 1");
+
+    struct s *ps = &sv;
+
+    func_ptr2 = ps->func_ptr;
+    assert_int(2, func_ptr2(1), "Func pointer in a struct 2");
+
+    assert_int(2, ps->func_ptr(1), "Func pointer in a struct 3");
+
+    // Test declaration with multiple types
+    int (*func_ptr3)(int), another_int;
+
+    // Some bizarre assignments for completeness
+    char  c = func_ptr; unsigned char  uc = func_ptr;
+    int   i = func_ptr; unsigned int   ui = func_ptr;
+    short s = func_ptr; unsigned short us = func_ptr;
+    long  l = func_ptr; unsigned long  ul = func_ptr;
+    char *pc = func_ptr;
+    short *psh = func_ptr;
+    int *pi = func_ptr;
+    long *pl = func_ptr;
+    void *pv = func_ptr;
+
+    // With different return values
+    unsigned int (*pfu)(int) = uplus;
+    assert_int(2, pfu(1), "Func pointer returning unsigned int");
+
+    i = 1;
+    void (*pfv)(int *) = vplus;
+    pfv(&i);
+    assert_int(2, i, "Func pointer returning void that increments int *");
+
+    i = 1;
+    void (*pfpv)(int *) = pvplus;
+    pfpv(&i);
+    assert_int(2, i, "Func pointer returning void * that increments int *");
+
+    float (*pff)(int) = fplus;
+    assert_float(2.1, pff(1), "Func pointer returning float");
+
+    double (*pfd)(int) = dplus;
+    assert_double(2.1, pfd(1), "Func pointer returning double");
+
+    long double (*pfld)(int) = ldplus;
+    assert_long_double(2.1, pfld(1), "Func pointer returning long double");
+}
+
+void test_sizeof_function_pointer() {
+    int (*func_ptr)(int) = plus;
+
+    assert_int(1, sizeof(*func_ptr), "sizeof(*func_ptr)");
+    assert_int(8, sizeof(func_ptr),  "sizeof(func_ptr)");
+    assert_int(1, sizeof(plus),      "sizeof(plus)");
+    assert_int(8, sizeof(&plus),     "sizeof(&plus)");
+    assert_int(1, sizeof(*&plus),    "sizeof(*&plus)");
+    assert_int(1, sizeof(**&plus),   "sizeof(**&plus)");
+    assert_int(1, sizeof(***&plus),  "sizeof(***&plus)");
+}
+
+void *vpplus(int *i) { (*i)++; }
+void *cpplus(int *i) { (*i)++; }
+
+int (*gfp)(int);
+
+int test_function_pointer_comparisons() {
+    int (*fp1)(int);
+    int (*fp2)(int);
+
+    // glob-glob
+    assert_int(0, vpplus == cpplus, "glob-glob == 1");
+    assert_int(1, vpplus == vpplus, "glob-glob == 2");
+
+    // reg-reg
+    fp1 = vpplus;
+    fp2 = vpplus; assert_int(1, fp1 == fp2, "reg-reg == 1");
+    fp2 = cpplus; assert_int(0, fp1 == fp2, "reg-reg == 2");
+
+    // reg-ptr in glob
+    fp1 = vpplus;
+    gfp = vpplus; assert_int(1, fp1 == gfp, "reg-ptr in glob 1");
+    gfp = cpplus; assert_int(0, fp1 == gfp, "reg-ptr in glob 1");
+
+    // reg-&glob
+    fp1 = vpplus;
+    if (fp1 == &vpplus) printf("equal\n"); else printf("not equal\n");
+    assert_int(1, fp1 == &vpplus, "reg-&glob");
+    assert_int(0, fp1 == &cpplus, "reg-&glob");
+
+    // reg-glob
+    fp1 = vpplus;
+    assert_int(1, fp1 == vpplus, "reg-glob");
+    assert_int(0, fp1 == cpplus, "reg-glob");
+
+    // glob-reg
+    fp1 = vpplus;
+    assert_int(1, vpplus == fp1, "glob-reg");
+    assert_int(0, cpplus == fp1, "glob-reg");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -247,6 +429,9 @@ int main(int argc, char **argv) {
     test_void_return();
     test_func_returns_are_lvalues();
     test_open_read_write_close();
+    test_function_pointers();
+    test_sizeof_function_pointer();
+    test_function_pointer_comparisons();
 
     finalize();
 }

@@ -323,10 +323,8 @@ enum {
     TOK_RETURN,
     TOK_ENUM,
     TOK_SIZEOF,
-    TOK_RPAREN,
-    TOK_LPAREN,             // 30
     TOK_RCURLY,
-    TOK_LCURLY,
+    TOK_LCURLY,             // 30
     TOK_SEMI,
     TOK_COMMA,
     TOK_EQ,
@@ -334,9 +332,9 @@ enum {
     TOK_MINUS_EQ,
     TOK_MULTIPLY_EQ,
     TOK_DIVIDE_EQ,
-    TOK_MOD_EQ,             // 40
+    TOK_MOD_EQ,
     TOK_BITWISE_AND_EQ,
-    TOK_BITWISE_OR_EQ,
+    TOK_BITWISE_OR_EQ,      // 40
     TOK_BITWISE_XOR_EQ,
     TOK_BITWISE_RIGHT_EQ,
     TOK_BITWISE_LEFT_EQ,
@@ -344,9 +342,9 @@ enum {
     TOK_COLON,
     TOK_OR,
     TOK_AND,
-    TOK_BITWISE_OR,         // 50
+    TOK_BITWISE_OR,
     TOK_XOR,
-    TOK_ADDRESS_OF,
+    TOK_ADDRESS_OF,         // 50
     TOK_DBL_EQ,
     TOK_NOT_EQ,
     TOK_LT,
@@ -354,9 +352,9 @@ enum {
     TOK_LE,
     TOK_GE,
     TOK_BITWISE_LEFT,
-    TOK_BITWISE_RIGHT,      // 60
+    TOK_BITWISE_RIGHT,
     TOK_PLUS,
-    TOK_MINUS,
+    TOK_MINUS,              // 60
     TOK_MULTIPLY,
     TOK_DIVIDE,
     TOK_MOD,
@@ -364,10 +362,12 @@ enum {
     TOK_BITWISE_NOT,
     TOK_INC,
     TOK_DEC,
-    TOK_DOT,                // 70
+    TOK_DOT,
     TOK_ARROW,
-    TOK_RBRACKET,
+    TOK_RBRACKET,           // 70
     TOK_LBRACKET,
+    TOK_RPAREN,
+    TOK_LPAREN,
     TOK_ATTRIBUTE,
     TOK_PACKED,
     TOK_HASH,
@@ -664,6 +664,7 @@ int is_incomplete_type(Type *type);
 int is_pointer_type(Type *type);
 int is_pointer_or_array_type(Type *type);
 int is_pointer_to_object_type(Type *type);
+int is_pointer_to_function_type(Type *type);
 int is_null_pointer(Value *v);
 int is_pointer_to_void(Type *type);
 int type_fits_in_single_int_register(Type *type);
@@ -794,6 +795,8 @@ enum {
     MU1, MU2, MU3, MU4,          // Memory, in stack or globals
     MS3, MS4,                    // SSE (xmm) in stack or globals
     RP1, RP2, RP3, RP4, RP5,     // Address (aka pointer) in a register
+    RPF,                         // Pointer to a function in a register
+    MPF,                         // Pointer to a function in memory
     MLD5,                        // 16-byte memory, for long double
     MPV,                         // Pointer in memory
     MSA,                         // Struct or array in memory
@@ -1052,6 +1055,7 @@ Value *Ssz(int stack_index, int type);
 Value *g(int index);
 Value *gsz(int index, int type);
 Value *fu(int index);
+Value *pfu(int index);
 Value *make_arg_src1();
 
 void start_ir();

@@ -270,7 +270,6 @@ Value *fu(int index) {
     Symbol *s;
 
     v = new_value();
-    v->type = 0;
     v->function_symbol = s;
 
     v->function_symbol = malloc(sizeof(Symbol));
@@ -279,6 +278,17 @@ Value *fu(int index) {
     v->function_symbol->type = new_type(TYPE_FUNCTION);
     v->function_symbol->type->function = new_function();
     asprintf(&(v->function_symbol->identifier), "f%d", index);
+
+    v->type = v->function_symbol->type;
+
+    return v;
+}
+
+Value *pfu(int vreg) {
+    Value *v = new_value();
+    v->vreg = vreg;
+
+    v->type = make_pointer(new_type(TYPE_FUNCTION));
 
     return v;
 }

@@ -79,6 +79,7 @@ static Value *load(Value *src1) {
     if (src1->is_constant) return src1;
     if (src1->vreg && !src1->is_lvalue) return src1;
     if (src1->type->type == TYPE_STRUCT_OR_UNION) return src1;
+    if (src1->type->type == TYPE_FUNCTION) return src1;
     if (src1->bit_field_size) return load_bit_field(src1);
 
     Value *dst = dup_value(src1);
@@ -182,6 +183,9 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     // Decay arrays to pointers
     if (src1_type->type == TYPE_ARRAY) src1_type = decay_array_to_pointer(src1_type);
     if (src2_type->type == TYPE_ARRAY) src2_type = decay_array_to_pointer(src2_type);
+
+    if (src1_type->type == TYPE_FUNCTION && src2_type->type == TYPE_FUNCTION)
+        return new_type(TYPE_FUNCTION);
 
     Type *result;
 
@@ -380,11 +384,12 @@ static Type *parse_function(Type *return_type) {
     function_type->function->scope = cur_scope;
 
     int param_count = 0;
-
     while (1) {
         if (cur_token == TOK_RPAREN) break;
 
         if (cur_token_is_type()) {
+            char *old_cur_type_identifier = cur_type_identifier;
+            cur_type_identifier = 0;
             Type *type = parse_type_name();
 
             Symbol *param_symbol = new_symbol();
@@ -398,9 +403,11 @@ static Type *parse_function(Type *return_type) {
 
             param_symbol->type = dup_type(symbol_type);
 
-            param_symbol->identifier = cur_identifier;
+            param_symbol->identifier = cur_type_identifier;
             function_type->function->param_types[param_count] = dup_type(type);
             param_symbol->local_index = param_count++;
+
+            cur_type_identifier = old_cur_type_identifier;
         }
         else if (cur_token == TOK_ELLIPSES) {
             function_type->function->is_variadic = 1;
@@ -573,20 +580,22 @@ static Type *parse_struct_or_union_type_specifier() {
                 Type *type;
 
                 int unnamed_bit_field = 0;
-                if (cur_token != TOK_COLON)
+                if (cur_token != TOK_COLON) {
+                    cur_type_identifier = 0;
                     type = concat_types(parse_declarator(), base_type);
+                }
 
                 else {
                     // Unnamed bit field
                     next();
-                    cur_identifier = 0;
+                    cur_type_identifier = 0;
                     type = new_type(TYPE_INT);
                     unnamed_bit_field = 1;
                 }
 
                 StructOrUnionMember *member = malloc(sizeof(StructOrUnionMember));
                 memset(member, 0, sizeof(StructOrUnionMember));
-                member->identifier = cur_identifier;
+                member->identifier = cur_type_identifier;
                 member->type = dup_type(type);
                 s->members[member_count++] = member;
 
@@ -596,7 +605,7 @@ static Type *parse_struct_or_union_type_specifier() {
 
                     if (type->type != TYPE_INT) panic("Bit fields must be integers");
                     if (cur_token != TOK_INTEGER) panic("Expected an integer value for a bit field");
-                    if (cur_identifier && cur_long == 0) panic("Invalid bit field size 0 for named member");
+                    if (cur_type_identifier && cur_long == 0) panic("Invalid bit field size 0 for named member");
                     if (cur_long < 0 || cur_long > 32) panic1d("Invalid bit field size %d", cur_long);
 
                     member->is_bit_field = 1;
@@ -961,6 +970,30 @@ static void arithmetic_operation(int operation, Type *dst_type) {
             src1 = src2;
             src2 = t;
         }
+
+        if (common_type->type == TYPE_FUNCTION && src1->global_symbol && src2->global_symbol)  {
+            // Compare two global functions with each other
+            push_integral_constant(TYPE_INT, src1->global_symbol == src2->global_symbol);
+            return;
+        }
+
+        else if (src1->type->type == TYPE_FUNCTION && src1->global_symbol && is_pointer_to_function_type(src2->type))  {
+            // src1 is a global function, load the address into a register
+            Value *new_src1 = new_value();
+            new_src1->vreg = new_vreg();
+            new_src1->type = make_pointer(dup_type(src1->type));
+            add_instruction(IR_ADDRESS_OF, new_src1, src1, 0);
+            src1 = new_src1;
+        }
+
+        else if (src2->type->type == TYPE_FUNCTION && src2->global_symbol && is_pointer_to_function_type(src1->type))  {
+            // src2 is a global function, load the address into a register
+            Value *new_src2 = new_value();
+            new_src2->vreg = new_vreg();
+            new_src2->type = make_pointer(dup_type(src2->type));
+            add_instruction(IR_ADDRESS_OF, new_src2, src2, 0);
+            src2 = new_src2;
+        }
     }
 
     if (is_integer_type(common_type) && is_integer_type(src1->type) && is_integer_type(src2->type)) {
@@ -993,6 +1026,9 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
     int src2_is_integer = is_integer_type(src2->type);
     int src1_is_pointer = is_pointer_type(src1->type);
     int src2_is_pointer = is_pointer_type(src2->type);
+
+    int src1_is_function = src1->type->type == TYPE_FUNCTION || is_pointer_to_function_type(src1->type);
+    int src2_is_function = src2->type->type == TYPE_FUNCTION || is_pointer_to_function_type(src2->type);
 
     if (operation == IR_MUL  && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary *");
     if (operation == IR_DIV  && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary /");
@@ -1038,6 +1074,7 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
         // Deviation from the spec: comparisons between arithmetic and pointers types are allowed
         if (
             (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
+            (!((src1_is_function) && (src2_is_function))) &&
             (!(src1_is_pointer && src2_is_pointer && types_are_compabible(src1_type_deref, src2_type_deref))) &&
             (!(src1_is_pointer && src2_is_pointer && is_pointer_to_void(src2->type))) &&
             (!(src2_is_pointer && src1_is_pointer && is_pointer_to_void(src1->type))) &&
@@ -1046,7 +1083,6 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
         )
             panic("Invalid operands to relational operator");
     }
-
 }
 
 static void parse_arithmetic_operation(int level, int operation, Type *type) {
@@ -1081,8 +1117,28 @@ static void push_local_symbol(Symbol *symbol) {
 
 // Add type change move if necessary and return the dst value
 Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
+    if (dst_type->type == TYPE_FUNCTION) panic("Function type mismatch");
+
+    int dst_is_function = is_pointer_to_function_type(dst_type);
+    int src_is_function = is_pointer_to_function_type(src->type) || src->type->type == TYPE_FUNCTION;
+
+    if (dst_is_function && src_is_function) {
+        if (src->type->type == TYPE_FUNCTION && src->global_symbol) {
+            // Add instruction to load a global function into a register
+            Value *src2 = new_value();
+            src2->vreg = new_vreg();
+            src2->type = make_pointer(dup_type(src->type));
+            add_instruction(IR_ADDRESS_OF, src2, src, 0);
+
+            return src2;
+        }
+
+        return src;
+    }
+
     if (!type_eq(dst_type, src->type)) {
         if (src->is_constant) {
+            if (dst_is_function && !is_null_pointer(src)) panic("Function type mismatch");
             int src_is_int = is_integer_type(src->type);
             int dst_is_int = is_integer_type(dst_type);
             int src_is_sse = is_sse_floating_point_type(src->type);
@@ -1117,6 +1173,10 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
             return src;
         }
 
+        // Implicit else: src is not a constant
+        else if (dst_is_function && !src_is_function)
+            panic("Function type mismatch");
+
         // Convert non constant
         Value *src2 = new_value();
         src2->vreg = new_vreg();
@@ -1134,6 +1194,7 @@ static void parse_assignment() {
     Value *dst = pop();
     parse_expression(TOK_EQ);
     Value *src1 = pl();
+
     dst->is_lvalue = 1;
 
     src1 = add_convert_type_if_needed(src1, dst->type);
@@ -1304,6 +1365,126 @@ static void push_value_size_constant(Value *v) {
         push_integral_constant(TYPE_INT, size);
 }
 
+static void parse_function_call() {
+    Value *popped_function = pl();
+    if (popped_function->type->type != TYPE_FUNCTION && !is_pointer_to_function_type(popped_function->type))
+        panic("Illegal attempt to call a non-function");
+
+    Symbol *symbol = popped_function->global_symbol;
+    Type *function_type = popped_function->type->function ? popped_function->type : popped_function->type->target;
+    Function *function = function_type->function;
+
+    next();
+
+    int function_call = function_call_count++;
+    Value *src1 = make_function_call_value(function_call);
+    add_instruction(IR_START_CALL, 0, src1, 0);
+    FunctionParamAllocation *fpa = init_function_param_allocaton(symbol ? symbol->identifier : "(anonymous)");
+
+    while (1) {
+        if (cur_token == TOK_RPAREN) break;
+        parse_expression(TOK_EQ);
+        Value *arg = dup_value(src1);
+        int arg_count = fpa->arg_count;
+        arg->function_call_arg_index = arg_count;
+
+        if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
+
+        // Convert type if needed
+        if (arg_count < function->param_count) {
+            if (!type_eq(vtop->type, function->param_types[arg_count])) {
+                Type *param_type = function->param_types[arg_count];
+
+                if (param_type->type == TYPE_ARRAY)
+                    param_type = decay_array_to_pointer(param_type);
+
+                push(add_convert_type_if_needed(pl(), param_type));
+            }
+        }
+        else {
+            // Apply default argument promotions & decay arrays
+            Value *src1 = pl();
+            Type *type;
+            if (src1->type->type < TYPE_INT) {
+                type = new_type(TYPE_INT);
+                if (src1->type->is_unsigned) type->is_unsigned = 1;
+            }
+            else if (src1->type->type == TYPE_FLOAT)
+                type = new_type(TYPE_DOUBLE);
+            else if (src1->type->type == TYPE_ARRAY)
+                type = decay_array_to_pointer(src1->type);
+            else
+                type = src1->type;
+
+            if (!type_eq(src1->type, type))
+                push(add_convert_type_if_needed(src1, type));
+            else
+                push(src1);
+        }
+
+        add_function_param_to_allocation(fpa, vtop->type);
+        FunctionParamLocations *fpl = &(fpa->params[arg_count]);
+        arg->function_call_arg_locations = fpl;
+        add_instruction(IR_ARG, 0, arg, pl());
+
+        // If a stack adjustment needs to take place to align 16-byte data
+        // such as long doubles and structs with long doubles, an
+        // IR_ARG_STACK_PADDING is inserted.
+        if (fpl->locations[0].stack_padding >= 8) add_instruction(IR_ARG_STACK_PADDING, 0, 0, 0);
+
+        if (cur_token == TOK_RPAREN) break;
+        consume(TOK_COMMA, ",");
+        if (cur_token == TOK_RPAREN) panic("Expected expression");
+    }
+    consume(TOK_RPAREN, ")");
+
+    finalize_function_param_allocation(fpa);
+    src1->function_call_arg_stack_padding = fpa->padding;
+
+    Value *function_value = new_value();
+    function_value->int_value = function_call;
+    function_value->function_symbol = symbol;
+    function_value->global_symbol = symbol;
+    function_value->type = function_type;
+    function_value->local_index = popped_function->local_index;
+    function_value->vreg = popped_function->vreg;
+    function_value->function_call_arg_push_count = (fpa->size + 7) / 8;
+    function_value->function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
+
+    // LIVE_RANGE_PREG_XMM01_INDEX is the max set value
+    function_value->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
+
+    src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
+
+    Type *return_type = function_type->target;
+    Value *return_value = 0;
+    if (return_type->type == TYPE_STRUCT_OR_UNION) {
+        return_value = new_value();
+        return_value->local_index = new_local_index();
+        return_value->is_lvalue = 1;
+        return_value->type = dup_type(return_type);
+
+        // Declare the temp so that the stack allocation code knows the
+        // size of the struct
+        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, return_value, 0);
+    }
+    else if (return_type->type != TYPE_VOID) {
+        return_value = new_value();
+        return_value->vreg = new_vreg();
+        return_value->type = dup_type(return_type);
+    }
+    else {
+        Value *v = new_value();
+        v->type = new_type(TYPE_VOID);
+        push(v);
+    }
+
+    add_instruction(IR_CALL, return_value, function_value, 0);
+    add_instruction(IR_END_CALL, 0, src1, 0);
+
+    if (return_value) push(return_value);
+}
+
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
@@ -1382,8 +1563,12 @@ static void parse_expression(int level) {
         else {
             next();
             parse_expression(TOK_INC);
-            if (!(is_pointer_or_array_type(vtop->type))) panic("Cannot dereference a non-pointer %d");
-            indirect();
+
+            // Special case: indirects on function types are no-ops.
+            if (vtop->type->type != TYPE_FUNCTION)  {
+                if (!is_pointer_or_array_type(vtop->type)) panic("Cannot dereference a non-pointer");
+                indirect();
+            }
         }
     }
 
@@ -1416,35 +1601,40 @@ static void parse_expression(int level) {
     }
 
     else if (cur_token == TOK_LPAREN) {
-        next();
-        if (cur_token_is_type()) {
-            // Cast
-            Type *org_type = parse_type_name();
-            consume(TOK_RPAREN, ")");
-            parse_expression(TOK_INC);
+        if (base_type)
+            parse_declaration();
 
-            Value *v1 = pl();
-            // Special case for (void *) int-constant
-
-            if (is_pointer_to_void(org_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
-                Value *dst = new_value();
-                dst->is_constant =1;
-                dst->int_value = v1->int_value;
-                dst->type = make_pointer_to_void();
-                push(dst);
-            }
-            else if (v1->type != org_type) {
-                Value *dst = new_value();
-                dst->vreg = new_vreg();
-                dst->type = dup_type(org_type);
-                add_instruction(IR_MOVE, dst, v1, 0);
-                push(dst);
-            }
-            else push(v1);
-        }
         else {
-            parse_expression(TOK_COMMA);
-            consume(TOK_RPAREN, ")");
+            next();
+            if (cur_token_is_type()) {
+                // Cast
+                Type *org_type = parse_type_name();
+                consume(TOK_RPAREN, ")");
+                parse_expression(TOK_INC);
+
+                Value *v1 = pl();
+                // Special case for (void *) int-constant
+
+                if (is_pointer_to_void(org_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
+                    Value *dst = new_value();
+                    dst->is_constant =1;
+                    dst->int_value = v1->int_value;
+                    dst->type = make_pointer_to_void();
+                    push(dst);
+                }
+                else if (v1->type != org_type) {
+                    Value *dst = new_value();
+                    dst->vreg = new_vreg();
+                    dst->type = dup_type(org_type);
+                    add_instruction(IR_MOVE, dst, v1, 0);
+                    push(dst);
+                }
+                else push(v1);
+            }
+            else {
+                parse_expression(TOK_COMMA);
+                consume(TOK_RPAREN, ")");
+            }
         }
     }
 
@@ -1484,126 +1674,18 @@ static void parse_expression(int level) {
             next();
             Type *type = dup_type(symbol->type);;
             Scope *scope = symbol->scope;
+
             if (symbol->is_enum_value)
                 push_integral_constant(TYPE_INT, symbol->value);
-            else if (cur_token == TOK_LPAREN) {
-                // Function call
-
-                if (symbol->type->type != TYPE_FUNCTION) panic1s("Illegal attempt to call a non-function %s", symbol->identifier);
-
-                Function *function = symbol->type->function;
-                type = dup_type(symbol->type->function->return_type);
-
-                next();
-
-                int function_call = function_call_count++;
-                Value *src1 = make_function_call_value(function_call);
-                add_instruction(IR_START_CALL, 0, src1, 0);
-                FunctionParamAllocation *fpa = init_function_param_allocaton(symbol->identifier);
-
-                while (1) {
-                    if (cur_token == TOK_RPAREN) break;
-                    parse_expression(TOK_EQ);
-                    Value *arg = dup_value(src1);
-                    int arg_count = fpa->arg_count;
-                    arg->function_call_arg_index = arg_count;
-
-                    if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
-
-                    // Convert type if needed
-                    if (arg_count < function->param_count) {
-                        if (!type_eq(vtop->type, function->param_types[arg_count])) {
-                            Type *param_type = function->param_types[arg_count];
-
-                            if (param_type->type == TYPE_ARRAY)
-                                param_type = decay_array_to_pointer(param_type);
-
-                            push(add_convert_type_if_needed(pl(), param_type));
-                        }
-                    }
-                    else {
-                        // Apply default argument promotions & decay arrays
-                        Value *src1 = pl();
-                        Type *type;
-                        if (src1->type->type < TYPE_INT) {
-                            type = new_type(TYPE_INT);
-                            if (src1->type->is_unsigned) type->is_unsigned = 1;
-                        }
-                        else if (src1->type->type == TYPE_FLOAT)
-                            type = new_type(TYPE_DOUBLE);
-                        else if (src1->type->type == TYPE_ARRAY)
-                            type = decay_array_to_pointer(src1->type);
-                        else
-                            type = src1->type;
-
-                        if (!type_eq(src1->type, type))
-                            push(add_convert_type_if_needed(src1, type));
-                        else
-                            push(src1);
-                    }
-
-                    add_function_param_to_allocation(fpa, vtop->type);
-                    FunctionParamLocations *fpl = &(fpa->params[arg_count]);
-                    arg->function_call_arg_locations = fpl;
-                    add_instruction(IR_ARG, 0, arg, pl());
-
-                    // If a stack adjustment needs to take place to align 16-byte data
-                    // such as long doubles and structs with long doubles, an
-                    // IR_ARG_STACK_PADDING is inserted.
-                    if (fpl->locations[0].stack_padding >= 8) add_instruction(IR_ARG_STACK_PADDING, 0, 0, 0);
-
-                    if (cur_token == TOK_RPAREN) break;
-                    consume(TOK_COMMA, ",");
-                    if (cur_token == TOK_RPAREN) panic("Expected expression");
-                }
-                consume(TOK_RPAREN, ")");
-
-                finalize_function_param_allocation(fpa);
-                src1->function_call_arg_stack_padding = fpa->padding;
-
-                Value *function_value = new_value();
-                function_value->int_value = function_call;
-                function_value->function_symbol = symbol;
-                function_value->function_call_arg_push_count = (fpa->size + 7) / 8;
-                function_value->function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
-
-                // LIVE_RANGE_PREG_XMM01_INDEX is the max set value
-                function_value->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
-
-                src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
-
-                Value *return_value = 0;
-                if (type->type == TYPE_STRUCT_OR_UNION) {
-                    return_value = new_value();
-                    return_value->local_index = new_local_index();
-                    return_value->is_lvalue = 1;
-                    return_value->type = dup_type(type);
-
-                    // Declare the temp so that the stack allocation code knows the
-                    // size of the struct
-                    add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, return_value, 0);
-                }
-                else if (type->type != TYPE_VOID) {
-                    return_value = new_value();
-                    return_value->vreg = new_vreg();
-                    return_value->type = dup_type(type);
-                }
-                else {
-                    Value *v = new_value();
-                    v->type = new_type(TYPE_VOID);
-                    push(v);
-                }
-
-                add_instruction(IR_CALL, return_value, function_value, 0);
-                add_instruction(IR_END_CALL, 0, src1, 0);
-                if (return_value) push(return_value);
-            }
 
             else if (scope->parent == 0) {
                 // Global symbol
                 Value *src1 = new_value();
                 src1->type = dup_type(type);
-                src1->is_lvalue = 1;
+
+                // Functions are rvalues, everything else is an lvalue
+                src1->is_lvalue = (type->type != TYPE_FUNCTION);
+
                 src1->global_symbol = symbol;
                 push(src1);
             }
@@ -1643,6 +1725,10 @@ static void parse_expression(int level) {
             consume(TOK_RBRACKET, "]");
             indirect();
         }
+
+        else if (cur_token == TOK_LPAREN)
+            // Function call
+            parse_function_call();
 
         else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
             // Postfix increment & decrement
@@ -1819,7 +1905,6 @@ static void parse_expression(int level) {
 
         else
             return; // Bail once we hit something unknown
-
     }
 }
 

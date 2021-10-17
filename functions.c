@@ -140,7 +140,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
     int stack_index = ir->dst->stack_index;
     Type *type = ir->dst->type;
 
-    Type *function_type = ir->src1->function_symbol->type;
+    Type *function_type = ir->src1->type;
 
     FunctionParamAllocation *fpa = function_type->function->return_value_fpa;
     FunctionParamLocations *fpl = &(fpa->params[0]);
@@ -590,7 +590,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
             int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
             FunctionParamLocations **pls = &(param_locations[ir->src1->int_value * register_count]);
-            Function *called_function = ir->src1->function_symbol->type->function;
+            Function *called_function = ir->src1->type->function;
 
             // Allocated registers that hold the argument value
             Value **function_call_values = malloc(sizeof(Value *) * register_count);

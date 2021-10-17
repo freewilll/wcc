@@ -365,6 +365,8 @@ char *non_terminal_string(int nt) {
     else if (nt == RP3)   return "rp3";
     else if (nt == RP4)   return "rp4";
     else if (nt == RP5)   return "rp5";
+    else if (nt == RPF)   return "rpf";
+    else if (nt == MPF)   return "mpf";
     else if (nt == RS3)   return "rs3";
     else if (nt == RS4)   return "rs4";
     else if (nt == MLD5)  return "mld5";
@@ -433,9 +435,10 @@ void make_value_x86_size(Value *v) {
     // v->86_size
 
     if (v->x86_size) return;
-    if (v->label || v->function_symbol) return;
+    if (v->label) return;
     if (v->type->type == TYPE_STRUCT_OR_UNION) return;
     if (v->type->type == TYPE_ARRAY) return;
+    if (v->type->type == TYPE_FUNCTION || v->function_symbol) return;
 
     if (!v->type) {
         print_value(stdout, v, 0);
@@ -472,7 +475,9 @@ static int non_terminal_for_value(Value *v) {
 
          if (v->is_string_literal)                                            result =  STL;
     else if (v->label)                                                        result =  LAB;
-    else if (v->function_symbol)                                              result =  FUN;
+    else if (v->type->type == TYPE_FUNCTION)                                  result =  FUN;
+    else if (is_local  && is_pointer_to_function_type(v->type))               result =  RPF;
+    else if (!is_local && is_pointer_to_function_type(v->type))               result =  MPF;
     else if (v->type->type == TYPE_STRUCT_OR_UNION)                           result =  MSA;
     else if (v->type->type == TYPE_ARRAY)                                     result =  MSA;
 
@@ -560,13 +565,14 @@ int match_value_to_rule_dst(Value *v, int dst) {
 }
 
 // Match a value type to a non terminal rule type. This is necessary to ensure that
-// non-root and non-leaf nodes have matching types while tree matching.
+// non-root nodes have matching types while tree matching.
 int match_value_type_to_rule_dst(Value *v, int dst) {
     int vnt = non_terminal_for_value(v);
     int is_ptr = v->type->type == TYPE_PTR;
 
     int ptr_size;
     if (is_ptr) ptr_size = value_ptr_target_x86_size(v);
+    int is_ptr_to_function = is_pointer_to_function_type(v->type);
 
     if (dst == vnt) return 1;
     else if (dst >= AUTO_NON_TERMINAL_START) return 1;
@@ -595,6 +601,7 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     else if (dst == RP3  && is_ptr && ptr_size == 3)                              return 1;
     else if (dst == RP4  && is_ptr && ptr_size == 4)                              return 1;
     else if (dst == RP5  && is_ptr && ptr_size == 8)                              return 1;
+    else if (dst == RPF  && is_ptr_to_function)                                   return 1;
     else return 0;
 }
 
@@ -637,6 +644,8 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == RI2 || nt == RU2 || nt == MI2 || nt == MU2                           ) return 2;
     else if (nt == RI3 || nt == RU3 || nt == RS3 || nt == MI3 || nt == MU3 || nt == MS3 ) return 3;
     else if (nt == RI4 || nt == RU4 || nt == RS4 || nt == MI4 || nt == MU4 || nt == MS4 ) return 4;
+    else if (nt == RPF) return 4;
+    else if (nt == MPF) return 4;
     else if (nt == MLD5) return 8;
     else if (nt == LAB) return -1;
     else if (nt == FUN) return -1;

@@ -509,8 +509,9 @@ void add_final_x86_instructions(Function *function, char *function_name) {
 
             Tac *orig_ir = ir;
 
-            // Since floating point numbers aren't implemented, this is zero.
-            if (ir->src1->function_symbol->type->function->is_variadic) {
+            // A function can be either a direct function or a function pointer
+            Function *function = ir->src1->type->function ? ir->src1->type->function : ir->src1->type->target->function;
+            if (function->is_variadic) {
                 char *buffer;
                 asprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
                 ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
@@ -518,10 +519,16 @@ void add_final_x86_instructions(Function *function, char *function_name) {
 
             Tac *tac = new_instruction(X_CALL_FROM_FUNC);
 
-            if (orig_ir->src1->function_symbol->type->function->is_external)
-                 asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->identifier);
-            else
-                 asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->identifier);
+            if (!orig_ir->src1->function_symbol) {
+                asprintf(&(tac->x86_template), "callq *%%v1q");
+                tac->src1 = orig_ir->src1;
+            }
+            else {
+                if (orig_ir->src1->type->function->is_external)
+                     asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->identifier);
+                else
+                     asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->identifier);
+             }
 
             ir = insert_instruction_after(ir, tac);
         }

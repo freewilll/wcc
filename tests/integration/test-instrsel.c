@@ -522,6 +522,14 @@ void test_instrsel_expr() {
     assert_x86_op("testq       r1q, r1q");
     assert_x86_op("jz          .L1");
 
+    // jz with function pointer in register
+    start_ir();
+    i(0, IR_JZ,  0,    pfu(1), l(1));
+    i(1, IR_NOP, 0,    0,    0);
+    finish_ir(function);
+    assert_x86_op("testq       r1q, r1q");
+    assert_x86_op("jz          .L1");
+
     // jz with global
     start_ir();
     i(0, IR_JZ,  0,    g(1), l(1));
@@ -548,9 +556,17 @@ void test_instrsel_expr() {
     assert_x86_op("jnz         .L1");
     init_instruction_selection_rules();
 
-    // jz with a1 *void
+    // jnz with a1 *void
     start_ir();
     i(0, IR_JNZ,  0,   asz(1, TYPE_VOID), l(1));
+    i(1, IR_NOP, 0,    0,    0);
+    finish_ir(function);
+    assert_x86_op("testq       r1q, r1q");
+    assert_x86_op("jnz         .L1");
+
+    // jnz with function pointer in register
+    start_ir();
+    i(0, IR_JNZ, 0,    pfu(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
     assert_x86_op("testq       r1q, r1q");
@@ -637,9 +653,9 @@ void run_function_call_single_arg(Value *src) {
     start_ir();
     i(0, IR_ARG, 0, make_arg_src1(), src);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
-    tac->src1->function_symbol->type->function->param_count = 1;
-    tac->src1->function_symbol->type->function->param_types = malloc(sizeof(Type));
-    tac->src1->function_symbol->type->function->param_types[0] = dup_type(src->type);
+    tac->src1->type->function->param_count = 1;
+    tac->src1->type->function->param_types = malloc(sizeof(Type));
+    tac->src1->type->function->param_types[0] = dup_type(src->type);
     tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(2), v(1), 0);
     finish_spill_ir(function);

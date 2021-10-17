@@ -295,7 +295,12 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     }
 
     else if (o == IR_CALL) {
-        fprintf(f, "call \"%s\"", tac->src1->function_symbol->identifier);
+        if (tac->src1->function_symbol)
+            fprintf(f, "call \"%s\"", tac->src1->function_symbol->identifier);
+        else {
+            fprintf(f, "call ");
+            print_value(f, tac->src1, 1);
+        }
     }
 
     else if (o == IR_LOAD_LONG_DOUBLE) {
@@ -854,6 +859,7 @@ Tac *copy_memory_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src
     Value *function_value = new_value();
     function_value->int_value = call_value->int_value;
     function_value->function_symbol = memcpy_symbol;
+    function_value->type = memcpy_symbol->type;
     function_value->function_call_arg_push_count = 0;
     function_value->function_call_sse_register_arg_count = 0;
     call_value->function_call_arg_push_count = 0;

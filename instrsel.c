@@ -829,7 +829,7 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         if (r->operation) continue;
 
         if (!match_value_to_rule_src(v, r->src1)) continue;
-        if (!v->is_constant && !v->label && !v->function_symbol && !match_value_type_to_rule_dst(v, r->dst)) continue;
+        if (!v->is_constant && !v->label && v->type->type != TYPE_FUNCTION && !match_value_type_to_rule_dst(v, r->dst)) continue;
 
         if (debug_instsel_tiling) {
             printf("matched rule %d:\n", i);

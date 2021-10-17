@@ -45,7 +45,10 @@ int print_type(void *f, Type *type) {
     }
     else if (tt == TYPE_ENUM)
         len += fprintf(f, "enum %s", t->tag ? t->tag->identifier : "(anonymous");
-    else len += fprintf(f, "unknown tt %d", tt);
+    else if (tt == TYPE_FUNCTION)
+        len += fprintf(f, "function");
+    else
+        len += fprintf(f, "unknown tt %d", tt);
 
     return len;
 }
@@ -254,6 +257,9 @@ int is_pointer_to_object_type(Type *type) {
     return type->type == TYPE_PTR || type->type == TYPE_ARRAY;
 }
 
+int is_pointer_to_function_type(Type *type) {
+    return type->type == TYPE_PTR && type->target->type == TYPE_FUNCTION;
+}
 int is_null_pointer(Value *v) {
     Type *type = v->type;
 
@@ -291,6 +297,7 @@ int get_type_size(Type *type) {
     else if (t == TYPE_PTR)             return sizeof(void *);
     else if (t == TYPE_STRUCT_OR_UNION) return type->struct_or_union_desc->size;
     else if (t == TYPE_ARRAY)           return type->array_size * get_type_size(type->target);
+    else if (t == TYPE_FUNCTION)        return 1;
 
     panic1d("sizeof unknown type %d", t);
 }
