@@ -35,6 +35,9 @@ struct sld2 { long double ld1, ld2; };
 // Example from ABI doc v0.98
 typedef struct { int a, b; double d; } structparm;
 
+// An unaligned struct
+struct __attribute__ ((__packed__)) us { int i; char c; int j; };
+
 void accept_spf(struct spf spf);
 void accept_spd(struct spd spd);
 void accept_spdf(struct spdf spdf);
@@ -67,6 +70,8 @@ void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struc
 
 void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld, double m, double n, int i, int j, int k);
 
+void accept_us(struct us us);
+
 struct spf return_spf();
 struct spf return_spf_from_global();
 struct spf return_spf_from_temp();
@@ -89,3 +94,4 @@ struct si4 return_si4();
 struct si5 return_si5();
 
 void accept_array(int a[4]);
+

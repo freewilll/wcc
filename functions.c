@@ -1124,9 +1124,6 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
     }
 
     else {
-        // TODO also force struct params with unaligned members into memory
-        // In practice, if a struct is larger than 16 bytes, it's on the stack
-
         if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
 
         int size = get_type_size(type);
@@ -1153,6 +1150,8 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             char *member_counts = malloc(sizeof(char) * 8);
             memset(member_counts, 0, sizeof(char) * 8);
 
+            int unaligned = 0;
+
             size = 0; // Needs recalculating to remove any paddding at the end
             for (int i = 0; i < scalars->count; i++) {
                 StructOrUnionScalar *scalar = scalars->scalars[i];
@@ -1168,6 +1167,9 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                     seen_memory[eight_byte] = 1;
                     seen_memory[eight_byte + 1] = 1;
                 }
+
+                if (scalar->offset & (get_type_alignment(scalar->type) - 1))
+                    unaligned = 1;
             }
 
             // Determine number of 8-bytes & allocate memory
@@ -1179,7 +1181,8 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             // If one of the classes is MEMORY, the whole argument is passed in memory.
             int in_memory = 0;
             for (int i = 0; i < eight_bytes_count; i++) in_memory |= seen_memory[i];
-            if  (in_memory) {
+
+            if  (in_memory || unaligned) {
                 // The entire thing is on the stack
                 add_single_stack_function_param_location(fpa, type);
             }
