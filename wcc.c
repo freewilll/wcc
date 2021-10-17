@@ -29,6 +29,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
         allocate_value_stack_indexes(function);
         process_bit_fields(function);
         remove_unused_function_call_results(function);
+        convert_enums(function);
     }
 
     // Prepare for SSA phi function insertion

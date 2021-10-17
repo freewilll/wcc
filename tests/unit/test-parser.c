@@ -191,6 +191,9 @@ int test_type_parsing() {
     run_lexer("void x(int i)",                  "function(int) returning void");
     run_lexer("void x(int i, ...)",             "function(int, ...) returning void");
     run_lexer("void x(int i, int *i, int i[])", "function(int, pointer to int, array of int) returning void");
+
+    // Enums
+    run_lexer("enum {I}", "enum {}");
 }
 
 int main(int argc, char **argv) {

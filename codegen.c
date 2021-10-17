@@ -613,7 +613,7 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .text\n");
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
-        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && !symbol->is_enum)
+        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && !symbol->is_enum_value)
             fprintf(f, "    .comm   %s,%d,%d\n",
                 symbol->identifier,
                 get_type_size(symbol->type),

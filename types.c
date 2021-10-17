@@ -34,15 +34,17 @@ int print_type(void *f, Type *type) {
     else if (tt == TYPE_LONG_DOUBLE)      len += fprintf(f, "long double");
     else if (tt == TYPE_STRUCT_OR_UNION)  {
         if (t->struct_or_union_desc->is_union)
-            len += fprintf(f, "union %s", t->struct_or_union_desc->identifier);
+            len += fprintf(f, "union %s", t->tag ? t->tag->identifier : "(anonymous)");
         else
-            len += fprintf(f, "struct %s", t->struct_or_union_desc->identifier);
+            len += fprintf(f, "struct %s", t->tag ? t->tag->identifier : "(anonymous)");
     }
     else if (tt == TYPE_ARRAY) {
         len += print_type(f, t->target);
         if (t->array_size) len += fprintf(f, "[%d]", t->array_size);
         else len += fprintf(f, "[]");
     }
+    else if (tt == TYPE_ENUM)
+        len += fprintf(f, "enum %s", t->tag ? t->tag->identifier : "(anonymous");
     else len += fprintf(f, "unknown tt %d", tt);
 
     return len;
@@ -76,11 +78,11 @@ char *sprint_type_in_english(Type *type) {
         }
 
         else if (tt == TYPE_STRUCT_OR_UNION) {
-            if (type->struct_or_union_desc->identifier) {
+            if (type->tag) {
                 if (type->struct_or_union_desc->is_union)
-                    buffer += sprintf(buffer, "union %s {", type->struct_or_union_desc->identifier);
+                    buffer += sprintf(buffer, "union %s {", type->tag->identifier);
                 else
-                    buffer += sprintf(buffer, "struct %s {", type->struct_or_union_desc->identifier);
+                    buffer += sprintf(buffer, "struct %s {", type->tag->identifier);
             }
             else {
                 if (type->struct_or_union_desc->is_union)
@@ -97,6 +99,13 @@ char *sprint_type_in_english(Type *type) {
             }
 
             buffer += sprintf(buffer, "}");
+        }
+
+        else if (tt == TYPE_ENUM) {
+            if (type->tag)
+                buffer += sprintf(buffer, "enum %s {}", type->tag->identifier);
+            else
+                buffer += sprintf(buffer, "enum {}");
         }
 
         else if (tt == TYPE_FUNCTION) {
@@ -149,7 +158,6 @@ static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src)
 StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
     StructOrUnion *dst = malloc(sizeof(StructOrUnion));
 
-    dst->identifier    = src->identifier ? strdup(src->identifier) : 0;
     dst->size          = src->size;
     dst->is_incomplete = src->is_incomplete;
     dst->is_packed     = src->is_packed;
@@ -276,6 +284,7 @@ int get_type_size(Type *type) {
     else if (t == TYPE_SHORT)           return sizeof(short);
     else if (t == TYPE_INT)             return sizeof(int);
     else if (t == TYPE_LONG)            return sizeof(long);
+    else if (t == TYPE_ENUM)            return sizeof(int);
     else if (t == TYPE_FLOAT)           return sizeof(float);
     else if (t == TYPE_DOUBLE)          return sizeof(double);
     else if (t == TYPE_LONG_DOUBLE)     return sizeof(long double);
@@ -295,6 +304,7 @@ int get_type_alignment(Type *type) {
     else if (t == TYPE_CHAR)         return 1;
     else if (t == TYPE_SHORT)        return 2;
     else if (t == TYPE_INT)          return 4;
+    else if (t == TYPE_ENUM)         return 4;
     else if (t == TYPE_LONG)         return 8;
     else if (t == TYPE_FLOAT)        return 4;
     else if (t == TYPE_DOUBLE)       return 8;

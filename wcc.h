@@ -75,6 +75,7 @@ typedef struct type {
     struct type *target;
     struct struct_or_union_desc *struct_or_union_desc;
     struct function *function;
+    struct tag *tag; // For structs, unions and enums
 } Type;
 
 typedef struct symbol {
@@ -85,7 +86,7 @@ typedef struct symbol {
     long value;                 // Value in the case of a constant
     int local_index;            // Used by the parser for locals variables and function arguments
                                 // < 0 is a local variable or tempoary, >= 2 is a function parameter
-    int is_enum;                // Enums are symbols with a value
+    int is_enum_value;          // Enums are symbols with a value
 } Symbol;
 
 typedef struct tag {
@@ -250,7 +251,6 @@ typedef struct struct_or_union_member {
 
 // Struct & union description
 typedef struct struct_or_union_desc {
-    char *identifier;
     int size;
     int is_incomplete;          // Set to 1 if the struct has been used in a member but not yet declared
     int is_packed;
@@ -314,8 +314,8 @@ enum {
     TOK_STRUCT,
     TOK_UNION,
     TOK_TYPEDEF,
-    TOK_TYPEDEF_TYPE,
-    TOK_DO,                 // 20
+    TOK_TYPEDEF_TYPE,       // 20
+    TOK_DO,
     TOK_WHILE,
     TOK_FOR,
     TOK_CONTINUE,
@@ -324,8 +324,8 @@ enum {
     TOK_ENUM,
     TOK_SIZEOF,
     TOK_RPAREN,
-    TOK_LPAREN,
-    TOK_RCURLY,             // 30
+    TOK_LPAREN,             // 30
+    TOK_RCURLY,
     TOK_LCURLY,
     TOK_SEMI,
     TOK_COMMA,
@@ -334,8 +334,8 @@ enum {
     TOK_MINUS_EQ,
     TOK_MULTIPLY_EQ,
     TOK_DIVIDE_EQ,
-    TOK_MOD_EQ,
-    TOK_BITWISE_AND_EQ,     // 40
+    TOK_MOD_EQ,             // 40
+    TOK_BITWISE_AND_EQ,
     TOK_BITWISE_OR_EQ,
     TOK_BITWISE_XOR_EQ,
     TOK_BITWISE_RIGHT_EQ,
@@ -344,8 +344,8 @@ enum {
     TOK_COLON,
     TOK_OR,
     TOK_AND,
-    TOK_BITWISE_OR,
-    TOK_XOR,                // 50
+    TOK_BITWISE_OR,         // 50
+    TOK_XOR,
     TOK_ADDRESS_OF,
     TOK_DBL_EQ,
     TOK_NOT_EQ,
@@ -354,8 +354,8 @@ enum {
     TOK_LE,
     TOK_GE,
     TOK_BITWISE_LEFT,
-    TOK_BITWISE_RIGHT,
-    TOK_PLUS,               // 60
+    TOK_BITWISE_RIGHT,      // 60
+    TOK_PLUS,
     TOK_MINUS,
     TOK_MULTIPLY,
     TOK_DIVIDE,
@@ -364,8 +364,8 @@ enum {
     TOK_BITWISE_NOT,
     TOK_INC,
     TOK_DEC,
-    TOK_DOT,
-    TOK_ARROW,              // 70
+    TOK_DOT,                // 70
+    TOK_ARROW,
     TOK_RBRACKET,
     TOK_LBRACKET,
     TOK_ATTRIBUTE,
@@ -374,8 +374,8 @@ enum {
     TOK_INCLUDE,
     TOK_DEFINE,
     TOK_UNDEF,
-    TOK_IFDEF,
-    TOK_ENDIF,              // 80
+    TOK_IFDEF,              // 80
+    TOK_ENDIF,
     TOK_EXTERN,
     TOK_STATIC,
     TOK_CONST,
@@ -395,7 +395,8 @@ enum {
     TYPE_PTR             = 9,
     TYPE_ARRAY           = 10,
     TYPE_STRUCT_OR_UNION = 11,
-    TYPE_FUNCTION        = 12
+    TYPE_ENUM            = 12,
+    TYPE_FUNCTION        = 13
 };
 
 // Intermediate representation operations
@@ -707,6 +708,7 @@ void process_bit_fields(Function *function);
 void remove_unused_function_call_results(Function *function);
 void process_struct_and_union_copies(Function *function);
 Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
+void convert_enums(Function *function);
 
 // ssa.c
 enum {

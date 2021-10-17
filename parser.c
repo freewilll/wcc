@@ -6,6 +6,7 @@
 
 static Type *integer_promote_type(Type *type);
 static Type *parse_struct_or_union_type_specifier();
+static Type *parse_enum_type_specifier();
 static void parse_directive();
 static void parse_statement();
 static void parse_expression(int level);
@@ -243,6 +244,7 @@ static int cur_token_is_type() {
         cur_token == TOK_LONG ||
         cur_token == TOK_STRUCT ||
         cur_token == TOK_UNION ||
+        cur_token == TOK_ENUM ||
         cur_token == TOK_TYPEDEF_TYPE
     );
 }
@@ -288,6 +290,9 @@ static Type *parse_type_specifier() {
 
     else if (cur_token == TOK_STRUCT || cur_token == TOK_UNION)
         type = parse_struct_or_union_type_specifier();
+
+    else if (cur_token == TOK_ENUM)
+        type = parse_enum_type_specifier();
 
     else if (cur_token == TOK_TYPEDEF_TYPE) {
         type = dup_type(cur_lexer_type);
@@ -480,7 +485,10 @@ static Type *new_struct_or_union(char *tag_identifier) {
         Tag *tag = new_tag();
         tag->identifier = tag_identifier;
         tag->type = type;
+        type->tag = tag;
     }
+    else
+        type->tag = 0;
 
     return type;
 }
@@ -493,11 +501,20 @@ static Type *find_struct_or_union(char *identifier, int is_union) {
 
     if (tag->type->type == TYPE_STRUCT_OR_UNION) {
         if (tag->type->struct_or_union_desc->is_union != is_union)
-            panic("Tag %s is the wrong kind of tag");
+            panic1s("Tag %s is the wrong kind of tag", identifier);
         return tag->type;
     }
     else
-        panic("Tag %s is the wrong kind of tag");
+        panic1s("Tag %s is the wrong kind of tag", identifier);
+}
+
+static Type *find_enum(char *identifier) {
+    Tag *tag = lookup_tag(identifier, cur_scope, 1);
+
+    if (!tag) return 0;
+    if (tag->type->type != TYPE_ENUM) panic1s("Tag %s is the wrong kind of tag", identifier);
+
+    return tag->type;
 }
 
 // Parse struct definitions and uses. Declarations aren't implemented.
@@ -535,7 +552,6 @@ static Type *parse_struct_or_union_type_specifier() {
         if (!type) type = new_struct_or_union(identifier);
 
         StructOrUnion *s = type->struct_or_union_desc;
-        s->identifier = identifier;
         s->is_packed = is_packed;
         s->is_union = is_union;
 
@@ -610,12 +626,80 @@ static Type *parse_struct_or_union_type_specifier() {
         // to be populated later when it's defined.
         type = new_struct_or_union(identifier);
         StructOrUnion *s = type->struct_or_union_desc;
-        s->identifier = identifier;
         s->is_incomplete = 1;
         s->is_packed = is_packed;
         s->is_union = is_union;
         return type;
     }
+}
+
+static Type *parse_enum_type_specifier() {
+    next();
+
+    Type *type = new_type(TYPE_ENUM);
+
+    char *identifier = 0;
+    if (cur_token == TOK_IDENTIFIER) {
+        identifier = cur_identifier;
+
+        Tag *tag = new_tag();
+        tag->identifier = cur_identifier;
+        tag->type = type;
+        type->tag = tag;
+
+        next();
+    }
+    else
+        type->tag = 0;
+
+    if (cur_token == TOK_LCURLY) {
+        // Enum definition
+
+        consume(TOK_LCURLY, "{");
+
+        int member_count = 0;
+        int value = 0;
+
+        while (cur_token != TOK_RCURLY) {
+            expect(TOK_IDENTIFIER, "identifier");
+            next();
+            if (cur_token == TOK_EQ) {
+                next();
+                int sign = 1;
+                if (cur_token == TOK_MINUS) {
+                    sign = -1;
+                    next();
+                }
+                expect(TOK_INTEGER, "integer");
+                value = sign * cur_long;
+                next();
+            }
+
+            Symbol *s = new_symbol();
+            s->is_enum_value = 1;
+            s->type = new_type(TYPE_INT);
+            s->identifier = cur_identifier;
+            s->value = value++;
+            s++;
+
+            member_count++;
+
+            if (cur_token == TOK_COMMA) next();
+        }
+        consume(TOK_RCURLY, "}");
+
+        if (!member_count) panic("An enum must have at least one member");
+    }
+
+    else {
+        // Enum use
+
+        Type *type = find_enum(identifier);
+        if (!type) panic1s("Unknown enum %s", identifier);
+        return type;
+    }
+
+    return type;
 }
 
 // Parse "typedef struct struct_id typedef_id"
@@ -656,8 +740,8 @@ static void indirect() {
 }
 
 // Search for a struct member. Panics if it doesn't exist
-static StructOrUnionMember *lookup_struct_or_union_member(StructOrUnion *struct_or_union_desc, char *identifier) {
-    StructOrUnionMember **pmember = struct_or_union_desc->members;
+static StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *identifier) {
+    StructOrUnionMember **pmember = type->struct_or_union_desc->members;
 
     while (*pmember) {
         char *member_identifier = (*pmember)->identifier;
@@ -665,7 +749,7 @@ static StructOrUnionMember *lookup_struct_or_union_member(StructOrUnion *struct_
         pmember++;
     }
 
-    panic2s("Unknown member %s in struct %s\n", identifier, struct_or_union_desc->identifier);
+    panic2s("Unknown member %s in struct %s\n", identifier, type->tag ? type->tag->identifier : "(anonymous)");
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
@@ -1400,7 +1484,7 @@ static void parse_expression(int level) {
             next();
             Type *type = dup_type(symbol->type);;
             Scope *scope = symbol->scope;
-            if (symbol->is_enum)
+            if (symbol->is_enum_value)
                 push_integral_constant(TYPE_INT, symbol->value);
             else if (cur_token == TOK_LPAREN) {
                 // Function call
@@ -1596,8 +1680,8 @@ static void parse_expression(int level) {
             next();
             consume(TOK_IDENTIFIER, "identifier");
 
-            StructOrUnion *str = is_dot ? vtop->type->struct_or_union_desc : vtop->type->target->struct_or_union_desc;
-            StructOrUnionMember *member = lookup_struct_or_union_member(str, cur_identifier);
+            Type *str_type = is_dot ? vtop->type : vtop->type->target;
+            StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
 
             if (!is_dot) indirect();
 
@@ -1875,7 +1959,7 @@ static void parse_statement() {
 
     if (cur_token_is_type()) {
         base_type = parse_type_specifier();
-        if (cur_token == TOK_SEMI && base_type->type == TYPE_STRUCT_OR_UNION)
+        if (cur_token == TOK_SEMI && (base_type->type == TYPE_STRUCT_OR_UNION || base_type->type == TYPE_ENUM))
             next();
         else
             parse_expression(TOK_COMMA);
@@ -2182,40 +2266,7 @@ void parse() {
             if (cur_token == TOK_SEMI) next();
         }
 
-        else if (cur_token == TOK_ENUM) {
-            consume(TOK_ENUM, "enum");
-            consume(TOK_LCURLY, "{");
-
-            int value = 0;
-            while (cur_token != TOK_RCURLY) {
-                expect(TOK_IDENTIFIER, "identifier");
-                next();
-                if (cur_token == TOK_EQ) {
-                    next();
-                    int sign = 1;
-                    if (cur_token == TOK_MINUS) {
-                        sign = -1;
-                        next();
-                    }
-                    expect(TOK_INTEGER, "integer");
-                    value = sign * cur_long;
-                    next();
-                }
-
-                Symbol *s = new_symbol();
-                s->is_enum = 1;
-                s->type = new_type(TYPE_INT);
-                s->identifier = cur_identifier;
-                s->value = value++;
-                s++;
-
-                if (cur_token == TOK_COMMA) next();
-            }
-            consume(TOK_RCURLY, "}");
-            consume(TOK_SEMI, ";");
-        }
-
-        else if (cur_token == TOK_STRUCT) {
+        else if (cur_token == TOK_STRUCT || cur_token == TOK_UNION || cur_token == TOK_ENUM) {
             parse_type_specifier();
             consume(TOK_SEMI, ";");
         }
