@@ -1375,6 +1375,10 @@ int test_global_var_in_the_middle() {
     assert_int(1, gi, "Test global var declaration in the middle of a file");
 }
 
+int test_const_assignment() {
+    const int i = 1;
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1417,6 +1421,7 @@ int main(int argc, char **argv) {
     test_bitwise_not();
     test_scopes();
     test_global_var_in_the_middle();
+    test_const_assignment();
 
     finalize();
 }

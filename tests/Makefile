@@ -9,7 +9,7 @@ test-unit-parser: test-utils.s test-lib.o
 	cd unit && ${MAKE} run-test-parser
 
 .PHONY:
-test-integration: test-utils.s
+test-integration: test-utils.s test-lib.o
 	cd integration && ${MAKE} all
 
 .PHONY:

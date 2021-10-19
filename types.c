@@ -437,3 +437,26 @@ int recursive_complete_struct_or_union(StructOrUnion *s, int bit_offset, int is_
 void complete_struct_or_union(StructOrUnion *s) {
     recursive_complete_struct_or_union(s, 0, 1);
 }
+
+int type_is_modifiable(Type *type) {
+    if (type->is_const) return 0;
+
+    if (type->type == TYPE_STRUCT_OR_UNION) {
+        int is_modifiable = 1;
+        StructOrUnion *s = type->struct_or_union_desc;
+        for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) {
+            StructOrUnionMember *member = *pmember;
+
+            if (member->type->is_const) { is_modifiable = 0; break; }
+
+            if (member->type->type == TYPE_STRUCT_OR_UNION) {
+                is_modifiable = type_is_modifiable(member->type);
+                if (is_modifiable) break;
+            }
+        }
+
+        return is_modifiable;
+    }
+
+    return 1;
+}

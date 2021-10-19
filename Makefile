@@ -88,7 +88,7 @@ test-unit-parser: libwcc.a
 	cd tests && ${MAKE} test-unit-parser
 
 .PHONY: test-integration
-test-integration: libwcc.a
+test-integration: libwcc.a wcc
 	cd tests && ${MAKE} test-integration
 
 .PHONY: test-2e2

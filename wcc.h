@@ -675,6 +675,7 @@ int types_are_compabible(Type *type1, Type *type2);
 int is_integer_operation_result_unsigned(Type *src1, Type *src2);
 Type *make_struct_or_union_type(StructOrUnion *s);
 void complete_struct_or_union(StructOrUnion *s);
+int type_is_modifiable(Type *type);
 
 // ir.c
 void init_value(Value *v);

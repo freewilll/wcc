@@ -85,6 +85,7 @@ static Value *load(Value *src1) {
     Value *dst = dup_value(src1);
     dst->vreg = new_vreg();
     dst->is_lvalue = 0;
+    dst->type->is_const = 0;
 
     // Ensure an offset read from a struct/union isn't persisted into a register which might
     // get moved back onto a stack, e.g. for long doubles
@@ -116,6 +117,7 @@ static Value *load(Value *src1) {
         src1 = dup_value(src1);
         src1->type = make_pointer(src1->type);
         src1->is_lvalue = 0;
+        src1->type->is_const = 0;
         add_instruction(IR_INDIRECT, dst, src1, 0);
     }
 
@@ -1188,9 +1190,11 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     return src;
 }
 
-static void parse_assignment() {
+static void parse_assignment(int enforce_const) {
     next();
     if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
+    if (enforce_const && !type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
+
     Value *dst = pop();
     parse_expression(TOK_EQ);
     Value *src1 = pl();
@@ -1212,6 +1216,8 @@ Value *prep_comp_assign() {
     next();
 
     if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
+    if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
+
     Value *v1 = vtop;           // lvalue
     push(load(dup_value(v1)));  // rvalue
     return v1;
@@ -1351,7 +1357,7 @@ static void parse_declaration() {
         push_local_symbol(symbol);
         Type *old_base_type = base_type;
         base_type = 0;
-        parse_assignment();
+        parse_assignment(0);
         base_type = old_base_type;
     }
 }
@@ -1547,6 +1553,7 @@ static void parse_expression(int level) {
         parse_expression(TOK_DOT);
 
         if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
+        if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
 
         Value *v1 = pop();                 // lvalue
         Value *src1 = load(dup_value(v1)); // rvalue
@@ -1738,6 +1745,7 @@ static void parse_expression(int level) {
 
             if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
             if (!is_scalar_type(vtop->type)) panic("Cannot postfix ++ or -- on a non scalar");
+            if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
 
             Value *v1 = pop();                 // lvalue
             Value *src1 = load(dup_value(v1)); // rvalue
@@ -1768,6 +1776,11 @@ static void parse_expression(int level) {
 
             Type *str_type = is_dot ? vtop->type : vtop->type->target;
             StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
+
+            if (!type_is_modifiable(str_type)) {
+                member->type = dup_type(member->type);
+                member->type->is_const = 1;
+            }
 
             if (!is_dot) indirect();
 
@@ -1876,7 +1889,7 @@ static void parse_expression(int level) {
             add_jmp_target_instruction(ldst2); // End
         }
 
-        else if (cur_token == TOK_EQ) parse_assignment();
+        else if (cur_token == TOK_EQ) parse_assignment(1);
 
         // Composite assignments
         else if (cur_token == TOK_PLUS_EQ)          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ);                         finish_comp_assign(v); }
