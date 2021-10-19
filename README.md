@@ -2,25 +2,24 @@
 
 This project is an implementation of a subset of C for x86_64 linux as an exercise in how to write an optimizing compiler. The implementation is mostly based on [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). The compiler is self hosting. It's just a hobby, it won't be big and professional like gcc.
 
+The objective is to implement the full C89/C90 specification.
+
 # Usage
 ```
 $ make wcc
 $ ./wcc test.c -o test
 ```
 
-# C Features
+# Currently implemented C Features
 - Pointers
-- Structs
+- Structs, unions
+- Arrays
 - Simple typedefs, only used for structs
 - Single level nested header includes
-- Most integer arithmetic and pointer operations
+- SSE floating points & long doubles
+- Function pointers
+- Const
 - Some commonly used functions are available, e.g. `malloc`, `memset`, `open`, `close`, ... , see [externals.h](externals.h)
-
-# Limitations
-- All variables must fit in a register
-- System headers aren't supported
-- No nested headers
-- No preprocessor support
 
 # Implementation
 The compiler goes through the following phases:
@@ -77,29 +76,32 @@ void main() {
 
 ```
 main:
-    push    %rbp                # Function prologue
-    movq    %rsp, %rbp
-    pushq   %rbx
-    subq    $8, %rsp
-    movq    $8, %rdi            # s2 = malloc(sizeof(S2));
-    callq   malloc@PLT
-    movq    %rax, %rbx          # rbx = s2
-    movq    $8, %rdi            # s2->s1 = malloc(sizeof(S1));
-    callq   malloc@PLT
-    addq    $8, %rsp
-    movq    %rax, (%rbx)
-    movq    (%rbx), %rax        # s2->s1->j = 1;
-    addq    $4, %rax
-    movl    $1, (%rax)
-    subq    $8, %rsp
-    movq    (%rbx), %rax        # printf("%d\n", s2->s1->j);
-    movl    4(%rax), %esi
-    leaq    .SL0(%rip), %rdi
-    movb    $0, %al             # printf is variadic, 0 is the number of floating point arguments
-    callq   printf@PLT
-    addq    $8, %rsp
-    movq    $0, %rax            # Function exit code zero
-    popq    %rbx                # Function epilogue
+    push        %rbp            # Function prologue
+    mov         %rsp, %rbp
+    push        %rbx
+    subq        $8, %rsp
+    movq        $8, %rdi        # s2 = malloc(sizeof(S2));
+    callq       malloc@PLT
+    movq        %rax, %rbx      # rbx = s2
+    movq        $8, %rdi        # s2->s1 = malloc(sizeof(S1));
+    callq       malloc@PLT
+    movq        %rax, %rcx
+    addq        $8, %rsp
+    movq        %rcx, %rax
+    movq        %rax, (%rbx)
+    movq        %rbx, %rax      # s2->s1->j = 1;
+    movq        (%rax), %rax
+    movl        $1, 4(%rax)
+    subq        $8, %rsp        # printf("%d\n", s2->s1->j);
+    movq        %rbx, %rax
+    movq        (%rax), %rax
+    movl        4(%rax), %esi
+    leaq        .SL0(%rip), %rdi
+    movb        $0, %al         # printf is variadic, 0 is the number of floating point arguments
+    callq       printf@PLT
+    addq        $8, %rsp
+    movq        $0, %rax        # Function exit code zero
+    popq        %rbx            # Function epilogue
     leaveq
     retq
 ```
@@ -120,3 +122,5 @@ So far, I've been ad libbing through [Engineering a Compiler 2nd Edition](https:
 
 # History
 The project started out as a clone of [c4](https://github.com/rswier/c4) to teach myself to write it from scratch. I then went down a route based on [TCC](https://bellard.org/tcc/) where I wrote a code generator that outputted an object (`.o`) file. It then quickly became clear that generating object code without using an assembler is a waste of time, so I adapted it to produce `.s` files and compiled them with gcc. I then proceeded implemeting [Sebastian Falbesoner's](https://www.complang.tuwien.ac.at/Diplomarbeiten/falbesoner14.pdf) approach to register allocation. At this point I went academic and started reading [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). First SSA transformation, then graph coloring register allocation, then finally instruction selection using tree pattern matching.
+
+After a hiatus I resumed work and fixed a ton of bugs in the instruction selection. I then proceeded with floating point types, a proper type system, better structs with bit fields, unions, local & global structs, arrays and function pointers.
