@@ -27,7 +27,7 @@ stack-check.o: stack-check.c
 	gcc ${GCC_OPTS} stack-check.c -c
 
 test-%.s: test-%.c ../../wcc
-	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov --Wno-integer-constant-too-large -c -S $<
+	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
 
 test-%-wcc: test-%.s stack-check.o ../test-lib.o
 	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@

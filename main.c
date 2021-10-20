@@ -40,6 +40,7 @@ int main(int argc, char **argv) {
     opt_short_lr_infinite_spill_costs = 1;
     opt_optimize_arithmetic_operations = 1;
     warn_integer_constant_too_large = 1;
+    warn_assignment_types_incompatible = 1;
 
     int verbose = 0;        // Print invoked program command lines
     int run_compiler = 1;   // Compile .c file
@@ -107,9 +108,8 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-cost-graph"              )) { debug_instsel_cost_graph = 1;               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-spilling"                )) { debug_instsel_spilling = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-stack-frame-layout"              )) { debug_stack_frame_layout = 1;               argc--; argv++; }
-
-
-            else if (argc > 0 && !strcmp(argv[0], "--Wno-integer-constant-too-large"        )) { warn_integer_constant_too_large = 0;        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-Wno-integer-constant-too-large"         )) { warn_integer_constant_too_large = 0;        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-Wno-warn-assignment-types-incompatible" )) { warn_assignment_types_incompatible = 0;     argc--; argv++; }
 
             else if (argc > 0 && !strcmp(argv[0], "-S")) {
                 run_assembler = 0;
@@ -155,30 +155,31 @@ int main(int argc, char **argv) {
     if (help) {
         printf("Usage: wcc [-S -c -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
         printf("Flags\n");
-        printf("-h                                  Help\n");
-        printf("-S                                  Compile only; do not assemble or link\n");
-        printf("-c                                  Compile and assemble, but do not link\n");
-        printf("-o <file>                           Output file. Use - for stdout. Defaults to the source file with extension .s\n");
-        printf("-D <directive>                      Set a directive\n");
-        printf("-v                                  Display the programs invoked by the compiler\n");
-        printf("-d                                  Debug output\n");
-        printf("-s                                  Output symbol table\n");
-        printf("--prc                               Output spilled register count\n");
-        printf("--ir1                               Output intermediate representation after parsing\n");
-        printf("--ir2                               Output intermediate representation after x86_64 rearrangements\n");
-        printf("--print-rules                       Print instruction selection rules\n");
-        printf("--print-precision-decrease-rules    Print instruction selection rules that decrease precision\n");
-        printf("--rule-coverage-file <file>         Append matched rules to file\n");
+        printf("-h                                          Help\n");
+        printf("-S                                          Compile only; do not assemble or link\n");
+        printf("-c                                          Compile and assemble, but do not link\n");
+        printf("-o <file>                                   Output file. Use - for stdout. Defaults to the source file with extension .s\n");
+        printf("-D <directive>                              Set a directive\n");
+        printf("-v                                          Display the programs invoked by the compiler\n");
+        printf("-d                                          Debug output\n");
+        printf("-s                                          Output symbol table\n");
+        printf("--prc                                       Output spilled register count\n");
+        printf("--ir1                                       Output intermediate representation after parsing\n");
+        printf("--ir2                                       Output intermediate representation after x86_64 rearrangements\n");
+        printf("--print-rules                               Print instruction selection rules\n");
+        printf("--print-precision-decrease-rules            Print instruction selection rules that decrease precision\n");
+        printf("--rule-coverage-file <file>                 Append matched rules to file\n");
         printf("\n");
         printf("Optimization flags:\n");
-        printf("-fno-coalesce-live-range            Disable SSA live range coalescing\n");
-        printf("-fspill-furthest-liveness-end       Spill liveness intervals that have the greatest end liveness interval\n");
-        printf("-fno-dont-spill-short-live-ranges   Disable infinite spill costs for short live ranges\n");
-        printf("-fno-optimize-arithmetic            Disable arithmetic optimizations\n");
-        printf("-fno-vreg-renumbering               Disable renumbering of vregs before live range coalesces\n");
+        printf("-fno-coalesce-live-range                    Disable SSA live range coalescing\n");
+        printf("-fspill-furthest-liveness-end               Spill liveness intervals that have the greatest end liveness interval\n");
+        printf("-fno-dont-spill-short-live-ranges           Disable infinite spill costs for short live ranges\n");
+        printf("-fno-optimize-arithmetic                    Disable arithmetic optimizations\n");
+        printf("-fno-vreg-renumbering                       Disable renumbering of vregs before live range coalesces\n");
         printf("\n");
         printf("Warning flags:\n");
-        printf("--Wno-integer-constant-too-large    Disable too large integer constant warnings\n");
+        printf("-Wno-integer-constant-too-large             Disable too large integer constant warnings\n");
+        printf("-Wno-warn-assignment-types-incompatible     Disable warnings about incopmatible type assignments\n");
         printf("\n");
         printf("Debug flags:\n");
         printf("--debug-function-param-allocation\n");

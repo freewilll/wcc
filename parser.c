@@ -1215,7 +1215,40 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     return src;
 }
 
-static void parse_assignment(int enforce_const) {
+static void warn_of_incompatible_types_in_assignment(Type *dst, Type *src) {
+    if (warn_assignment_types_incompatible)
+        printf("Incompatible types in assignment\n");
+}
+
+static void check_simple_assignment_types(Value *dst, Value *src) {
+    int dst_is_arithmetic = is_arithmetic_type(dst->type);
+    int src_is_arithmetic = is_arithmetic_type(src->type);
+
+    // Both are arithmetic types
+    if (dst_is_arithmetic && src_is_arithmetic) return;
+
+    // Both are compatible struct/union types
+    if (dst->type->type == TYPE_STRUCT_OR_UNION && types_are_compabible(dst->type, src->type)) return;
+
+    // Both are pointers with identical qualifiers, with the targets compatible
+    if (dst->type->type == TYPE_PTR && src->type->type == TYPE_PTR) {
+        if (dst->type->is_const != src->type->is_const)
+            warn_of_incompatible_types_in_assignment(dst->type, src->type);
+
+        if (types_are_compabible(dst->type->target, src->type->target)) return;
+
+        if (is_pointer_to_void(dst->type) || is_pointer_to_void(src->type)) return;
+
+        warn_of_incompatible_types_in_assignment(dst->type, src->type);
+        return;
+    }
+
+    if (dst->type->type == TYPE_PTR && is_null_pointer(src)) return;
+
+    warn_of_incompatible_types_in_assignment(dst->type, src->type);
+}
+
+static void parse_simple_assignment(int enforce_const) {
     next();
     if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
     if (enforce_const && !type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
@@ -1225,6 +1258,8 @@ static void parse_assignment(int enforce_const) {
     Value *src1 = pl();
 
     dst->is_lvalue = 1;
+
+    check_simple_assignment_types(dst, src1);
 
     src1 = add_convert_type_if_needed(src1, dst->type);
 
@@ -1381,7 +1416,7 @@ static void parse_declaration() {
         push_local_symbol(symbol);
         Type *old_base_type = base_type;
         base_type = 0;
-        parse_assignment(0);
+        parse_simple_assignment(0);
         base_type = old_base_type;
     }
 }
@@ -1924,7 +1959,7 @@ static void parse_expression(int level) {
             add_jmp_target_instruction(ldst2); // End
         }
 
-        else if (cur_token == TOK_EQ) parse_assignment(1);
+        else if (cur_token == TOK_EQ) parse_simple_assignment(1);
 
         // Composite assignments
         else if (cur_token == TOK_PLUS_EQ)          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ);                         finish_comp_assign(v); }

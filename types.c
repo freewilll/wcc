@@ -221,7 +221,7 @@ Type *decay_array_to_pointer(Type *src) {
 // Arithmetic types and pointer types are collectively called scalar types.
 // Array and structure types are collectively called aggregate types.
 int is_integer_type(Type *type) {
-    return (type->type >= TYPE_CHAR && type->type <= TYPE_LONG);
+    return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || type->type == TYPE_ENUM);
 }
 
 int is_floating_point_type(Type *type) {
@@ -346,6 +346,9 @@ int types_are_compabible(Type *type1, Type *type2) {
     // Furthermore, gcc doesn't behave according to the spec and in some cases produces
     // warnings and in others errors.
 
+    if (type1->type == TYPE_ENUM && type2->type == TYPE_INT) return 1;
+    if (type2->type == TYPE_ENUM && type1->type == TYPE_INT) return 1;
+
     return type_eq(type1, type2);
 }
 
@@ -370,8 +373,6 @@ Type *composite_type(Type *type1, Type *type2) {
         else {
             if (type1->function->param_count != type2->function->param_count)
                 panic("Incompatible types");
-            // if (types_are_compabible(type1->target, type2->target))
-            //     panic("Incompatible types");
 
             Type *result = new_type(TYPE_FUNCTION);
             result->target = type1->target;
