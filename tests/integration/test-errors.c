@@ -171,5 +171,11 @@ int main(int argc, char **argv) {
         "Struct/union members cannot have an incomplete type",
         "Struct/union members cannot have an incomplete type");
 
+    check_output(
+        "void foo() { return 1; }\n"
+        "int main() {}",
+        "Return with a value in a function returning void",
+        "Return with a value in a function returning void");
+
     finalize();
 }

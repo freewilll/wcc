@@ -2162,6 +2162,9 @@ static void parse_statement() {
         else {
             parse_expression(TOK_COMMA);
 
+            if (vtop && vtop->type->type != TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID)
+                panic("Return with a value in a function returning void");
+
             Value *src1;
             if (vtop && vtop->type->type == TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID) {
                 // Deal with case of returning the result of a void function in a void function
