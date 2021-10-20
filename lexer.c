@@ -176,11 +176,18 @@ void next() {
             else if (!strcmp(cur_identifier, "ifdef"        )) { cur_token = TOK_IFDEF;     }
             else if (!strcmp(cur_identifier, "endif"        )) { cur_token = TOK_ENDIF;     }
 
-
-            for (j = 0; j < all_typedefs_count; j++) {
-                if (!strcmp(all_typedefs[j]->identifier, cur_identifier)) {
-                    cur_token = TOK_TYPEDEF_TYPE;
-                    cur_lexer_type = dup_type(all_typedefs[j]->struct_type);
+            else {
+                // Lookup typedef by first going through the short list of known typedefs
+                // and if found, searching through the symbol table for it
+                for (j = 0; j < all_typedefs_count; j++) {
+                    if (!strcmp(all_typedefs[j]->identifier, cur_identifier)) {
+                        Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
+                        if (symbol && symbol->type->type == TYPE_TYPEDEF) {
+                            cur_token = TOK_TYPEDEF_TYPE;
+                            cur_lexer_type = dup_type(symbol->type->target);
+                            break;
+                        }
+                    }
                 }
             }
         }

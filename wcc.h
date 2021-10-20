@@ -260,7 +260,7 @@ typedef struct struct_or_union_desc {
 
 typedef struct typedef_desc {
     char *identifier;
-    Type *struct_type;
+    Type *type;
 } Typedef;
 
 typedef struct register_set {
@@ -396,7 +396,8 @@ enum {
     TYPE_ARRAY           = 10,
     TYPE_STRUCT_OR_UNION = 11,
     TYPE_ENUM            = 12,
-    TYPE_FUNCTION        = 13
+    TYPE_FUNCTION        = 13,
+    TYPE_TYPEDEF         = 14
 };
 
 // Intermediate representation operations
@@ -530,7 +531,7 @@ Value **vs_start;        // Value stack start
 Value **vs;              // Value stack current position
 Value *vtop;             // Value at the top of the stack
 
-Typedef **all_typedefs;   // All typedefs defined globally. Local typedef definitions isn't implemented.
+Typedef **all_typedefs;   // All typedefs
 int all_typedefs_count;   // Number of typedefs
 
 Tac *ir_start, *ir;               // intermediate representation for currently parsed function

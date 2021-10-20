@@ -18,7 +18,8 @@ WCC_TESTS=\
 	arithmetic-torture \
 	ifdef \
 	long-doubles \
-	floats-and-doubles
+	floats-and-doubles \
+	typedefs
 
 all: run-test-gcc run-test-wcc run-test-abi run-test-include
 

@@ -435,6 +435,12 @@ static Type *parse_function(Type *return_type) {
 Type *parse_direct_declarator() {
     Type *type = 0;
 
+    if (cur_token == TOK_TYPEDEF_TYPE) {
+        // Special case of redefining a typedef. The lexer identifies it as a typedef,
+        // but in this context, it's an identifier;
+        cur_token = TOK_IDENTIFIER;
+    }
+
     if (cur_token == TOK_IDENTIFIER) {
         // Set cur_type_identifier only once. The caller is expected to set
         // cur_type_identifier to zero. This way, the first parsed identifier
@@ -526,7 +532,7 @@ static Type *find_enum(char *identifier) {
     return tag->type;
 }
 
-// Parse struct definitions and uses. Declarations aren't implemented.
+// Parse struct definitions and uses.
 static Type *parse_struct_or_union_type_specifier() {
     // Parse a struct or union
 
@@ -546,7 +552,9 @@ static Type *parse_struct_or_union_type_specifier() {
     }
 
     char *identifier = 0;
-    if (cur_token == TOK_IDENTIFIER) {
+    // A typedef identifier be the same as a struct tag, in this context, the lexer
+    // sees a typedef tag, but really it's a struct tag.
+    if (cur_token == TOK_IDENTIFIER || cur_token == TOK_TYPEDEF_TYPE) {
         identifier = cur_identifier;
         next();
     }
@@ -650,7 +658,10 @@ static Type *parse_enum_type_specifier() {
     Type *type = new_type(TYPE_ENUM);
 
     char *identifier = 0;
-    if (cur_token == TOK_IDENTIFIER) {
+
+    // A typedef identifier be the same as a struct tag, in this context, the lexer
+    // sees a typedef tag, but really it's a struct tag.
+    if (cur_token == TOK_IDENTIFIER || cur_token == TOK_TYPEDEF_TYPE) {
         identifier = cur_identifier;
 
         Tag *tag = new_tag();
@@ -713,26 +724,31 @@ static Type *parse_enum_type_specifier() {
     return type;
 }
 
-// Parse "typedef struct struct_id typedef_id"
 static void parse_typedef() {
     next();
 
-    if (cur_token != TOK_STRUCT) panic("Typedefs are only implemented for structs");
+    Type *base_type = parse_type_specifier();
 
-    Type *type = parse_struct_or_union_type_specifier();
-    StructOrUnion *s = type->struct_or_union_desc;
+    while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
+        cur_type_identifier = 0;
 
-    if (cur_token != TOK_IDENTIFIER) panic("Typedefs are only implemented for previously defined structs");
+        Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
-    if (all_typedefs_count == MAX_TYPEDEFS) panic("Exceeded max typedefs");
+        if (all_typedefs_count == MAX_TYPEDEFS) panic("Exceeded max typedefs");
+        Typedef *td = malloc(sizeof(Typedef));
+        memset(td, 0, sizeof(Typedef));
+        td->identifier = cur_type_identifier;
+        td->type = type;
+        all_typedefs[all_typedefs_count++] = td;
 
-    Typedef *t = malloc(sizeof(Typedef));
-    memset(t, 0, sizeof(Typedef));
-    t->identifier = cur_identifier;
-    t->struct_type = make_struct_or_union_type(s);
-    all_typedefs[all_typedefs_count++] = t;
+        Symbol *symbol = new_symbol();
+        symbol->type = new_type(TYPE_TYPEDEF);
+        symbol->type->target = type;
+        symbol->identifier = cur_type_identifier;
 
-    next();
+        if (cur_token == TOK_COMMA) next();
+        if (cur_token == TOK_SEMI) break;
+    }
 }
 
 static void indirect() {
@@ -1501,6 +1517,9 @@ static void parse_expression(int level) {
         parse_expression(TOK_COMMA);
         base_type = 0;
     }
+
+    else if (cur_token == TOK_TYPEDEF)
+        parse_typedef();
 
     else if (cur_token == TOK_LOGICAL_NOT) {
         next();
