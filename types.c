@@ -339,7 +339,57 @@ int type_eq(Type *type1, Type *type2) {
 }
 
 int types_are_compabible(Type *type1, Type *type2) {
+    // Not implemented according to the C89 spec
+    // https://stackoverflow.com/questions/23486949/c-allowed-to-assign-any-array-to-pointer-to-array-of-incomplete-type
+    // C99 and C11 fixed many big flaws and insanities in the C language. For that reason alone, C89 is obsolete.
+    //
+    // Furthermore, gcc doesn't behave according to the spec and in some cases produces
+    // warnings and in others errors.
+
     return type_eq(type1, type2);
+}
+
+Type *composite_type(Type *type1, Type *type2) {
+    if (!types_are_compabible(type1, type2)) panic("Incompatible types");
+
+    // Implicit else, the type->type matches
+    if (type1->type == TYPE_ARRAY) {
+        if (type1->array_size) return type1;
+        else if (type2->array_size) return type2;
+        else return type1;
+    }
+
+    if (type1->type == TYPE_PTR)
+        return make_pointer(composite_type(type1->target, type2->target));
+
+    if (type1->type == TYPE_FUNCTION) {
+        if (type1->function->param_count == 0 && type2->function->param_count != 0)
+            return type2;
+        else if (type2->function->param_count == 0 && type1->function->param_count != 0)
+            return type1;
+        else {
+            if (type1->function->param_count != type2->function->param_count)
+                panic("Incompatible types");
+            // if (types_are_compabible(type1->target, type2->target))
+            //     panic("Incompatible types");
+
+            Type *result = new_type(TYPE_FUNCTION);
+            result->target = type1->target;
+            Function *function = malloc(sizeof(Function));
+            *function = *type1->function;
+            function->return_type = type1->function->return_type;
+            result->function = function;
+
+            for (int i = 0; i < function->param_count; i++) {
+                Type *type = composite_type(type1->function->param_types[i], type2->function->param_types[i]);
+                function->param_types[i] = type;
+            }
+
+            return result;
+        }
+    }
+
+    return type1;
 }
 
 int is_integer_operation_result_unsigned(Type *src1, Type *src2) {

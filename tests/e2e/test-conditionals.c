@@ -175,6 +175,21 @@ void test_ternary_cast() {
     b = 1; l = b ? 1 : ternary_cast(); assert_int(1, l, "ternary cast 2");
 }
 
+int test_ternary_composite_type() {
+    int (*i)[3]; // A pointer to an array with 3 elements
+
+    i = malloc(sizeof((*i)[3]));
+    (*i)[0] = 1;
+    (*i)[1] = 2;
+    (*i)[2] = 3;
+
+    int (*j)[]; // A pointer to an array
+    j = malloc(10);
+
+    assert_int(12, sizeof(*(1 ? i : j)), "Composite ternary ptr to array 1");
+    assert_int(12, sizeof(*(1 ? j : i)), "Composite ternary ptr to array 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -187,6 +202,7 @@ int main(int argc, char **argv) {
     test_first_arg_to_or_and_and_must_be_rvalue();
     test_ternary();
     test_ternary_cast();
+    test_ternary_composite_type();
 
     finalize();
 }
