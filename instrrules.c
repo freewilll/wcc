@@ -23,7 +23,7 @@ static void add_mov_rule(int dst, int src, int operation, char *template) {
     add_op(r, operation, DST, SRC1, 0, template);
 }
 
-static void init_moves_templates() {
+static void init_moves_templates(void) {
     signed_moves_templates = malloc(sizeof(char *) * 16);
     unsigned_moves_templates = malloc(sizeof(char *) * 16);
 
@@ -76,7 +76,7 @@ static void init_moves_templates() {
     unsigned_moves_operations[11] = X_MOVZ;
 }
 
-static void add_move_rules_ri_to_mi() {
+static void add_move_rules_ri_to_mi(void) {
     Rule *r;
 
     r = add_rule(MI1, IR_MOVE, RI1, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movb   %v1b, %vdb");
@@ -97,7 +97,7 @@ static void add_move_rules_ri_to_mi() {
     r = add_rule(MI4, IR_MOVE, RI4, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movq   %v1q, %vdq");
 }
 
-static void add_move_rules_ru_to_mu() {
+static void add_move_rules_ru_to_mu(void) {
     Rule *r;
 
     r = add_rule(MU1, IR_MOVE, RU1, 0, 2);                                                        add_op(r, X_MOV, DST, SRC1, 0 , "movb   %v1b, %vdb");
@@ -279,7 +279,7 @@ static void add_long_double_to_sse_move_rule(int dst, char *t1, char *t2) {
     add_op(r, X_MOV,  DST, SV1, 0, t2);
 }
 
-static void add_float_and_double_move_rules() {
+static void add_float_and_double_move_rules(void) {
     Rule *r ;
 
     // Constant -> register
@@ -365,7 +365,7 @@ static void add_float_and_double_move_rules() {
     add_long_double_to_sse_move_rule(RS4, "fstpl %vdL", "movsd %v1D, %vdD");
 }
 
-static void add_long_double_move_rules()  {
+static void add_long_double_move_rules(void)  {
     Rule *r;
 
     // Long double -> integer rules
@@ -511,7 +511,7 @@ static void add_sse_indirect_rule(int dst, int src) {
     add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, template);
 }
 
-static void add_indirect_rules() {
+static void add_indirect_rules(void) {
     Rule *r ;
 
     // Integers
@@ -918,7 +918,7 @@ static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operat
     add_op(r, x86_operation, DST,  SRC2, DST, "addq %v1q, %v2q");
 }
 
-static void add_pointer_add_rules() {
+static void add_pointer_add_rules(void) {
     for (int i = RP1; i <= RP5; i++) {
         add_pointer_plus_int_rule(i, RI1, 11, X_ADD, "movsbq %v1b, %vdq");
         add_pointer_plus_int_rule(i, RI2, 11, X_ADD, "movswq %v1w, %vdq");
@@ -943,7 +943,7 @@ static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_templa
     fin_rule(r);
 }
 
-static void add_sub_rules() {
+static void add_sub_rules(void) {
     for (int i = 0; i < 4; i++) {
         add_sub_rule(XRI, CI1 + i, XRI,     10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
         add_sub_rule(XRU, CU1 + i, XRU,     10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
@@ -999,7 +999,7 @@ static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *
                                                    fin_rule(r);
 }
 
-static void add_div_rules() {
+static void add_div_rules(void) {
     add_div_rule(RI3, RI3, RI3, 40, "movl %v1l, %%eax", "cltd", "movl %v1l, %vdl", "idivl %vdl", "movl %%eax, %vdl", "movl %%edx, %vdl");
     add_div_rule(RI4, RI4, RI4, 50, "movq %v1q, %%rax", "cqto", "movq %v1q, %vdq", "idivq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
 
@@ -1013,7 +1013,7 @@ static void add_bnot_rule(int dst, int src) {
                                                  fin_rule(r);
 }
 
-static void add_bnot_rules() {
+static void add_bnot_rules(void) {
     add_bnot_rule(XR, XR);
     add_bnot_rule(XR, XM);
 }
@@ -1050,7 +1050,7 @@ static void add_binary_register_shift_rule(int src1, int src2, char *template) {
                                                 fin_rule(r);
 }
 
-static void add_binary_shift_rules() {
+static void add_binary_shift_rules(void) {
     // All combinations of src/dst signed/unsigned
     for (int dst = 0; dst < 2; dst++) {
         int dstx = dst ? EXP_SIGNED : EXP_UNSIGNED;
@@ -1083,7 +1083,7 @@ static void add_long_double_commutative_operation_rule(int operation, int x86_op
     add_long_double_operation_rule(operation, x86_operation, cost, dst, src2, src1, src2_template, src1_template, op_template, dst_template);
 }
 
-static void add_long_double_operation_rules() {
+static void add_long_double_operation_rules(void) {
     char *ll = "fldt %v1L";
     char *lc = "fldt %v1C";
     char *fadd = "faddp %%st, %%st(1)";
@@ -1127,7 +1127,7 @@ static void add_sse_operation_combination_rules(int operation, int x86_operation
     add_sse_operation_rule(operation, x86_operation, cost, RS3 + type, RS3 + type, MS3 + type, mov_template, op_template);
 }
 
-static void add_sse_operation_rules() {
+static void add_sse_operation_rules(void) {
     add_sse_operation_combination_rules(IR_ADD, X_FADD, 15, 0, "movss %v1F, %vdF", "addss %v1F, %vdF");
     add_sse_operation_combination_rules(IR_ADD, X_FADD, 15, 1, "movsd %v1D, %vdD", "addsd %v1D, %vdD");
     add_sse_operation_combination_rules(IR_SUB, X_FSUB, 15, 0, "movss %v1F, %vdF", "subss %v1F, %vdF");
@@ -1148,7 +1148,7 @@ static X86Operation *add_sse_function_call_arg_op(Rule *r, char *template) {
     add_op(r, X_ARG, 0, SRC1, SV1, "pushq %v2q");
 }
 
-void init_instruction_selection_rules() {
+void init_instruction_selection_rules(void) {
     Rule *r;
 
     instr_rule_count = 0;

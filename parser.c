@@ -5,10 +5,10 @@
 #include "wcc.h"
 
 static Type *integer_promote_type(Type *type);
-static Type *parse_struct_or_union_type_specifier();
-static Type *parse_enum_type_specifier();
-static void parse_directive();
-static void parse_statement();
+static Type *parse_struct_or_union_type_specifier(void);
+static Type *parse_enum_type_specifier(void);
+static void parse_directive(void);
+static void parse_statement(void);
 static void parse_expression(int level);
 
 static Type *base_type;
@@ -20,7 +20,7 @@ int all_structs_and_unions_count;        // Number of structs/unions, complete a
 int vreg_count;                          // Virtual register count for currently parsed function
 
 // Allocate a new virtual register
-static int new_vreg() {
+static int new_vreg(void) {
     vreg_count++;
     if (vreg_count >= MAX_VREG_COUNT) panic1d("Exceeded max vreg count %d", MAX_VREG_COUNT);
     return vreg_count;
@@ -40,13 +40,13 @@ static Value *push(Value *v) {
     return v;
 }
 
-static void check_stack_has_value() {
+static void check_stack_has_value(void) {
     if (vs == vs_start) panic("Internal error: Empty parser stack");
     if (vtop->type->type == TYPE_VOID) panic("Illegal attempt to use a void value");
 }
 
 // Pop a value from the stack
-static Value *pop() {
+static Value *pop(void) {
     check_stack_has_value();
 
     Value *result = *vs++;
@@ -56,7 +56,7 @@ static Value *pop() {
 }
 
 // Pop a void value from the stack, or nothing if the stack is empty
-static void *pop_void() {
+static void *pop_void(void) {
     if (vs == vs_start) return;
 
     vs++;
@@ -132,11 +132,11 @@ static Value *load(Value *src1) {
 }
 
 // Pop and load.
-static Value *pl() {
+static Value *pl(void) {
     return load(pop());
 }
 
-static int new_local_index() {
+static int new_local_index(void) {
     return -1 - cur_function_symbol->type->function->local_symbol_count++;
 }
 
@@ -147,7 +147,7 @@ static void push_integral_constant(int type_type, long value) {
 }
 
 // Push cur_long, using the lexer determined type cur_lexer_type
-static void push_cur_long() {
+static void push_cur_long(void) {
     Value *v = new_integral_constant(cur_lexer_type->type, cur_long);
     v->type->is_unsigned = cur_lexer_type->is_unsigned;
     push(v);
@@ -160,7 +160,7 @@ static void push_floating_point_constant(int type_type, long double value) {
 }
 
 // Push the currently lexed long double floating point number, cur_long_double
-static void push_cur_long_double() {
+static void push_cur_long_double(void) {
     Value *v = new_floating_point_constant(cur_lexer_type->type, cur_long_double);
     push(v);
 }
@@ -232,11 +232,11 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
 }
 
 // Returns destination type of an operation using the top two values in the stack
-static Type *vs_operation_type() {
+static Type *vs_operation_type(void) {
     return operation_type(vtop, vs[1], 0);
 }
 
-static int cur_token_is_type() {
+static int cur_token_is_type(void) {
     return (
         cur_token == TOK_SIGNED ||
         cur_token == TOK_UNSIGNED ||
@@ -262,7 +262,7 @@ static int get_type_inc_dec_size(Type *type) {
 }
 
 // Parse void, int, signed, unsigned, ... long, double, struct and typedef type names
-static Type *parse_type_specifier() {
+static Type *parse_type_specifier(void) {
     Type *type;
 
     int seen_signed = 0;
@@ -351,9 +351,9 @@ static Type *concat_types(Type *type1, Type *type2) {
     return type1;
 }
 
-Type *parse_direct_declarator();
+Type *parse_direct_declarator(void);
 
-Type *parse_declarator() {
+Type *parse_declarator(void) {
     Type *type = 0;
 
     while (1) {
@@ -385,15 +385,23 @@ static Type *parse_function(Type *return_type) {
 
     enter_scope();
     function_type->function->scope = cur_scope;
+    function_type->function->is_paramless = 1;
 
     int param_count = 0;
     while (1) {
         if (cur_token == TOK_RPAREN) break;
 
+        function_type->function->is_paramless = 0;
+
         if (cur_token_is_type()) {
             char *old_cur_type_identifier = cur_type_identifier;
             cur_type_identifier = 0;
             Type *type = parse_type_name();
+
+            if (type->type == TYPE_VOID) {
+                cur_type_identifier = old_cur_type_identifier;
+                break;
+            }
 
             Symbol *param_symbol = new_symbol();
             Type *symbol_type;
@@ -433,7 +441,7 @@ static Type *parse_function(Type *return_type) {
     return function_type;
 }
 
-Type *parse_direct_declarator() {
+Type *parse_direct_declarator(void) {
     Type *type = 0;
 
     if (cur_token == TOK_TYPEDEF_TYPE) {
@@ -484,7 +492,7 @@ Type *parse_direct_declarator() {
     }
 }
 
-Type *parse_type_name() {
+Type *parse_type_name(void) {
     return concat_types(parse_declarator(), parse_type_specifier());
 }
 
@@ -534,7 +542,7 @@ static Type *find_enum(char *identifier) {
 }
 
 // Parse struct definitions and uses.
-static Type *parse_struct_or_union_type_specifier() {
+static Type *parse_struct_or_union_type_specifier(void) {
     // Parse a struct or union
 
     int is_union = cur_token == TOK_UNION;
@@ -656,7 +664,7 @@ static Type *parse_struct_or_union_type_specifier() {
     }
 }
 
-static Type *parse_enum_type_specifier() {
+static Type *parse_enum_type_specifier(void) {
     next();
 
     Type *type = new_type(TYPE_ENUM);
@@ -728,7 +736,7 @@ static Type *parse_enum_type_specifier() {
     return type;
 }
 
-static void parse_typedef() {
+static void parse_typedef(void) {
     next();
 
     Type *base_type = parse_type_specifier();
@@ -755,7 +763,7 @@ static void parse_typedef() {
     }
 }
 
-static void indirect() {
+static void indirect(void) {
     // The stack contains an rvalue which is a pointer. All that needs doing
     // is conversion of the rvalue into an lvalue on the stack and a type
     // change.
@@ -789,7 +797,7 @@ static StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *iden
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
-static Value *new_label_dst() {
+static Value *new_label_dst(void) {
     Value *v = new_value();
     v->label = ++label_count;
 
@@ -1079,8 +1087,8 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
         // Deviation from the spec: comparisons between arithmetic and pointers types are allowed
         if (
             (!((src1_is_arithmetic || src1_is_pointer) && (src2_is_arithmetic || src2_is_pointer))) &&
-            (!(src1_is_pointer && src2_is_pointer && is_object_type(src1_type_deref) && is_object_type(src2_type_deref) && types_are_compabible(src1_type_deref, src2_type_deref))) &&
-            (!(src1_is_pointer && src2_is_pointer && is_incomplete_type(src1_type_deref) && is_incomplete_type(src2_type_deref) && types_are_compabible(src1_type_deref, src2_type_deref)))
+            (!(src1_is_pointer && src2_is_pointer && is_object_type(src1_type_deref) && is_object_type(src2_type_deref) && types_are_compatible(src1_type_deref, src2_type_deref))) &&
+            (!(src1_is_pointer && src2_is_pointer && is_incomplete_type(src1_type_deref) && is_incomplete_type(src2_type_deref) && types_are_compatible(src1_type_deref, src2_type_deref)))
         )
             panic("Invalid operands to relational operator");
     }
@@ -1102,7 +1110,7 @@ static void check_arithmetic_operation_type(int operation, Value *src1, Value *s
         if (
             (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
             (!((src1_is_function) && (src2_is_function))) &&
-            (!(src1_is_pointer && src2_is_pointer && types_are_compabible(src1_type_deref, src2_type_deref))) &&
+            (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
             (!(src1_is_pointer && src2_is_pointer && is_pointer_to_void(src2->type))) &&
             (!(src2_is_pointer && src1_is_pointer && is_pointer_to_void(src1->type))) &&
             (!(src1_is_pointer && is_null_pointer(src2))) &&
@@ -1228,14 +1236,14 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
     if (dst_is_arithmetic && src_is_arithmetic) return;
 
     // Both are compatible struct/union types
-    if (dst->type->type == TYPE_STRUCT_OR_UNION && types_are_compabible(dst->type, src->type)) return;
+    if (dst->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible(dst->type, src->type)) return;
 
     // Both are pointers with identical qualifiers, with the targets compatible
     if (dst->type->type == TYPE_PTR && src->type->type == TYPE_PTR) {
         if (dst->type->is_const != src->type->is_const)
             warn_of_incompatible_types_in_assignment(dst->type, src->type);
 
-        if (types_are_compabible(dst->type->target, src->type->target)) return;
+        if (types_are_compatible(dst->type->target, src->type->target)) return;
 
         if (is_pointer_to_void(dst->type) || is_pointer_to_void(src->type)) return;
 
@@ -1272,7 +1280,7 @@ static void parse_simple_assignment(int enforce_const) {
 }
 
 // Prepare compound assignment
-Value *prep_comp_assign() {
+Value *prep_comp_assign(void) {
     next();
 
     if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
@@ -1349,7 +1357,7 @@ static void parse_subtraction(int level) {
     // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
     if (
         (!(src1_is_arithmetic && src2_is_arithmetic)) &&
-        (!(src1_is_pointer && src2_is_pointer && types_are_compabible(deref_pointer(src1->type), deref_pointer(src2->type)))) &&
+        (!(src1_is_pointer && src2_is_pointer && types_are_compatible(deref_pointer(src1->type), deref_pointer(src2->type)))) &&
         (!(src1_is_pointer && src2_is_integer))
     )
     panic("Invalid operands to binary minus");
@@ -1384,7 +1392,7 @@ static void parse_bitwise_shift(int level, int operation) {
 }
 
 // Parse a declaration
-static void parse_declaration() {
+static void parse_declaration(void) {
     Symbol *symbol;
 
     cur_type_identifier = 0;
@@ -1430,7 +1438,7 @@ static void push_value_size_constant(Value *v) {
         push_integral_constant(TYPE_INT, size);
 }
 
-static void parse_function_call() {
+static void parse_function_call(void) {
     Value *popped_function = pl();
     if (popped_function->type->type != TYPE_FUNCTION && !is_pointer_to_function_type(popped_function->type))
         panic("Illegal attempt to call a non-function");
@@ -1448,6 +1456,10 @@ static void parse_function_call() {
 
     while (1) {
         if (cur_token == TOK_RPAREN) break;
+
+        if (!function->is_paramless && !function->is_variadic && function->param_count == 0)
+            panic("Too many arguments for function call");
+
         parse_expression(TOK_EQ);
         Value *arg = dup_value(src1);
         int arg_count = fpa->arg_count;
@@ -1467,6 +1479,9 @@ static void parse_function_call() {
             }
         }
         else {
+            if (!function->is_variadic && !function->is_paramless)
+                panic("Too many arguments for function call");
+
             // Apply default argument promotions & decay arrays
             Value *src1 = pl();
             Type *type;
@@ -1945,7 +1960,7 @@ static void parse_expression(int level) {
             if (
                 (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
                 (!(src1->type->type == TYPE_VOID && src2->type->type == TYPE_VOID)) &&
-                (!(src1_is_pointer && src2_is_pointer && types_are_compabible(src1_type_deref, src2_type_deref))) &&
+                (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
                 (!(src1_is_pointer && is_null_pointer(src2))) &&
                 (!(src2_is_pointer && is_null_pointer(src1))) &&
                 (!((is_pointer_to_object_type(src1->type) && is_pointer_to_void(src2->type)) ||
@@ -2003,7 +2018,7 @@ static void parse_iteration_conditional_expression(Value **lcond, Value **cur_lo
     add_conditional_jump(IR_JZ, lend);
 }
 
-static void parse_iteration_statement() {
+static void parse_iteration_statement(void) {
     enter_scope();
 
     int prev_loop = cur_loop;
@@ -2109,14 +2124,14 @@ static void parse_iteration_statement() {
     exit_scope();
 }
 
-static void parse_compound_statement() {
+static void parse_compound_statement(void) {
     consume(TOK_LCURLY, "{");
     while (cur_token != TOK_RCURLY) parse_statement();
     consume(TOK_RCURLY, "}");
 }
 
 // Parse a statement
-static void parse_statement() {
+static void parse_statement(void) {
     vs = vs_start; // Reset value stack
     base_type = 0; // Reset base type
 
@@ -2233,7 +2248,7 @@ static char *base_path(char *path) {
     return result;
 }
 
-static void parse_include() {
+static void parse_include(void) {
     if (parsing_header) panic("Nested header includes not impemented");
 
     consume(TOK_INCLUDE, "include");
@@ -2260,7 +2275,7 @@ static void parse_include() {
     init_lexer(filename);
 }
 
-static void parse_ifdefs() {
+static void parse_ifdefs(void) {
     if (cur_token == TOK_IFDEF && (in_ifdef || in_ifdef_else))
         panic("Nested ifdefs not implemented");
     else if (cur_token == TOK_ELSE) {
@@ -2313,7 +2328,7 @@ static void parse_ifdefs() {
     }
 }
 
-static void parse_directive() {
+static void parse_directive(void) {
     consume(TOK_HASH, "#");
     if (cur_token == TOK_INCLUDE) parse_include();
     else if (cur_token == TOK_IFDEF || cur_token == TOK_ELSE || cur_token == TOK_ENDIF) parse_ifdefs();
@@ -2334,7 +2349,7 @@ static void parse_directive() {
     }
 }
 
-void finish_parsing_header() {
+void finish_parsing_header(void) {
     input        = c_input;
     input_size   = c_input_size;
     ip           = c_ip;
@@ -2346,7 +2361,7 @@ void finish_parsing_header() {
 }
 
 // Parse a translation unit
-void parse() {
+void parse(void) {
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)
             next();
@@ -2451,7 +2466,7 @@ void parse() {
     }
 }
 
-void dump_symbols() {
+void dump_symbols(void) {
     printf("Symbols:\n");
 
     for (int i = 0; i < global_scope->symbol_count; i++) {
@@ -2470,7 +2485,7 @@ void dump_symbols() {
     printf("\n");
 }
 
-void init_parser() {
+void init_parser(void) {
     string_literals = malloc(sizeof(char *) * MAX_STRING_LITERALS);
     string_literal_count = 0;
 

@@ -195,7 +195,7 @@ Type *make_pointer(Type *src) {
     return dst;
 }
 
-Type *make_pointer_to_void() {
+Type *make_pointer_to_void(void) {
     return make_pointer(new_type(TYPE_VOID));
 }
 
@@ -338,22 +338,186 @@ int type_eq(Type *type1, Type *type2) {
     return (type1->is_unsigned == type2->is_unsigned);
 }
 
-int types_are_compabible(Type *type1, Type *type2) {
-    // Not implemented according to the C89 spec
-    // https://stackoverflow.com/questions/23486949/c-allowed-to-assign-any-array-to-pointer-to-array-of-incomplete-type
-    // C99 and C11 fixed many big flaws and insanities in the C language. For that reason alone, C89 is obsolete.
-    //
-    // Furthermore, gcc doesn't behave according to the spec and in some cases produces
-    // warnings and in others errors.
+static int types_tags_are_compatible(Type *type1, Type *type2) {
+    if ((type1->tag == 0) != (type2->tag == 0))
+        return 0;
 
+    // If defined, the tags must match
+    if (type1->tag && strcmp(type1->tag->identifier, type2->tag->identifier))
+        return 0;
+
+    return 1;
+}
+
+static int struct_or_union_member_count(StructOrUnion *s) {
+    int count = 0;
+    for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) count++;
+    return count;
+}
+
+static void quicksort_struct_members(StructOrUnionMember **members, int left, int right) {
+    if (left >= right) return;
+
+    int i = left;
+    int j = right;
+    char *pivot = members[i]->identifier ? members[i]->identifier : "";
+
+    while (1) {
+        while (strcmp(members[i]->identifier ? members[i]->identifier : "", pivot) < 0) i++;
+        while (strcmp(pivot, members[j]->identifier ? members[j]->identifier : "") < 0) j--;
+
+        if (i >= j) break;
+
+        StructOrUnionMember *temp = members[i];
+        members[i] = members[j];
+        members[j] = temp;
+
+        i++;
+        j--;
+    }
+
+    quicksort_struct_members(members, left, i - 1);
+    quicksort_struct_members(members, j + 1, right);
+}
+
+StructOrUnionMember **sort_struct_or_union_members(StructOrUnionMember **members, int count) {
+    // Make a shallow copy of the members (i.e. only the pointers)
+    StructOrUnionMember **result = malloc(sizeof(StructOrUnionMember *) * count);
+    for (int i = 0; i < count; i++) result[i] = members[i];
+
+    quicksort_struct_members(result, 0, count - 1);
+
+    return result;
+}
+
+static int recursive_types_are_compatible(Type *type1, Type *type2, Map *seen_tags);
+
+static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2, Map *seen_tags) {
+    if (s1->is_incomplete || s2->is_incomplete) return 1;
+
+    int count = struct_or_union_member_count(s1);
+    if (count != struct_or_union_member_count(s2)) return 0;
+
+    StructOrUnionMember **members1;
+    StructOrUnionMember **members2;
+
+    if (s1->is_union) {
+        // Members in unions can be out of order
+        members1 = sort_struct_or_union_members(s1->members, count);
+        members2 = sort_struct_or_union_members(s2->members, count);
+    }
+    else {
+        members1 = s1->members;
+        members2 = s2->members;
+    }
+
+    // The names must match and types must be compatible
+    for (int i = 0; i < count; i++) {
+        StructOrUnionMember *member1 = members1[i];
+        StructOrUnionMember *member2 = members2[i];
+
+        // Check for matching name
+        if ((member1->identifier == 0) != (member2->identifier == 0)) return 0;
+        if (strcmp(member1->identifier, member2->identifier)) return 0;
+
+        // Check bit field sizes match
+        if (member1->bit_field_size != member2->bit_field_size) return 0;
+
+        // Check types are compatible
+        if (!recursive_types_are_compatible(member1->type, member2->type, seen_tags)) return 0;
+    }
+
+    return 1;
+}
+
+static int functions_are_compatible(Type *type1, Type *type2, Map *seen_tags) {
+    if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags)) return 0;
+
+    // K&R Style functions aren't fully implemented. For now, if one of them is
+    // parameter less, treat them as compatible.
+    if (type1->function->is_paramless || type2->function->is_paramless) return 1;
+
+    // Check they both are or aren't variadic
+    if (type1->function->is_variadic != type2->function->is_variadic) return 0;
+
+    // Check param counts match
+    if (type1->function->param_count != type2->function->param_count) return 0;
+
+    // Check params match
+    for (int i = 0; i < type1->function->param_count; i++) {
+        if (!types_are_compatible(type1->function->param_types[i], type2->function->param_types[i]))
+            return 0;
+    }
+
+    return 1;
+}
+
+// Check two types are compatible. Prevent infinite loops by keeping a map of seen tags
+static int recursive_types_are_compatible(Type *type1, Type *type2, Map *seen_tags) {
+    // Following https://en.cppreference.com/w/c/language/type
+
+    if (type1->type == TYPE_STRUCT_OR_UNION && type1->tag) {
+        if (map_get(seen_tags, type1->tag->identifier)) return 1;
+        map_put(seen_tags, type1->tag->identifier, type1);
+    }
+
+    if (type2->type == TYPE_STRUCT_OR_UNION && type2->tag) {
+        if (map_get(seen_tags, type2->tag->identifier)) return 1;
+        map_put(seen_tags, type2->tag->identifier, type2);
+    }
+
+    // They are identically qualified versions of compatible unqualified types
+    if (type1->is_const != type2->is_const) return 0;
+
+    // They are pointer types and are pointing to compatible types
+    if (type1->type == TYPE_PTR && type2->type == TYPE_PTR)
+        return recursive_types_are_compatible(type1->target, type2->target, seen_tags);
+
+    // They are array types, and if both have constant size, that size is the same
+    // and element types are compatible
+    if (type1->type == TYPE_ARRAY && type2->type == TYPE_ARRAY) {
+        if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags)) return 0;
+        if (type1->array_size && type2->array_size && type1->array_size != type2->array_size) return 0;
+        return 1;
+    }
+
+    if (type1->type == TYPE_STRUCT_OR_UNION && type2->type == TYPE_STRUCT_OR_UNION) {
+        if (type1->tag) map_put(seen_tags, type1->tag->identifier, type1);
+        if (type2->tag) map_put(seen_tags, type2->tag->identifier, type2);
+
+        if (!types_tags_are_compatible(type1, type2)) return 0;
+    }
+
+    if (type1->type == TYPE_ENUM && type2->type == TYPE_ENUM) {
+        if (!types_tags_are_compatible(type1, type2)) return 0;
+
+      // Note: enum members aren't checked since it's not possible to declare two
+      // anonymous enums with the same member names since they would have clashing
+      // symbols Enum values checks are useless, since if the names don't match, they
+      // are incompatible. Therefore, it suffices to only check the tag.
+      return 1;
+    }
+
+    // One is an enumerated type and the other is that enumeration's underlying type
     if (type1->type == TYPE_ENUM && type2->type == TYPE_INT) return 1;
     if (type2->type == TYPE_ENUM && type1->type == TYPE_INT) return 1;
 
-    return type_eq(type1, type2);
+    if (type1->type == TYPE_STRUCT_OR_UNION && type2->type == TYPE_STRUCT_OR_UNION)
+        return struct_or_unions_are_compatible(type1->struct_or_union_desc, type2->struct_or_union_desc, seen_tags);
+
+    if (type1->type == TYPE_FUNCTION && type2->type == TYPE_FUNCTION)
+        return functions_are_compatible(type1, type2, seen_tags);
+
+    return type1->type == type2->type;
+}
+
+int types_are_compatible(Type *type1, Type *type2) {
+    Map *seen_tags = new_map();
+    return recursive_types_are_compatible(type1, type2, seen_tags);
 }
 
 Type *composite_type(Type *type1, Type *type2) {
-    if (!types_are_compabible(type1, type2)) panic("Incompatible types");
+    if (!types_are_compatible(type1, type2)) panic("Incompatible types");
 
     // Implicit else, the type->type matches
     if (type1->type == TYPE_ARRAY) {

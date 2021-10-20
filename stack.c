@@ -2,7 +2,7 @@
 
 #include "wcc.h"
 
-Stack *new_stack() {
+Stack *new_stack(void) {
     Stack *result = malloc(sizeof(Stack));
     result->elements = malloc(MAX_STACK_SIZE * sizeof(int));
     result->pos = MAX_STACK_SIZE;

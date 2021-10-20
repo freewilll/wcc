@@ -44,7 +44,7 @@ void panic1s1d(char *fmt, char *s, int i) {
     exit(1);
 }
 
-Function *new_function() {
+Function *new_function(void) {
     Function *function = malloc(sizeof(Function));
     memset(function, 0, sizeof(Function));
 

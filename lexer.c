@@ -57,7 +57,7 @@ static void finish_integer_constant(int is_decimal) {
 }
 
 // Lexer. Lex a next token or TOK_EOF if the file is ended
-void next() {
+void next(void) {
     char *i = input;
 
     while (ip < input_size) {

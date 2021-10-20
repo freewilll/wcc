@@ -107,6 +107,7 @@ typedef struct function {
     Type *return_type;                                  // Type of return value
     int param_count;                                    // Number of parameters
     Type **param_types;                                 // Types of parameters
+    int is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
     int local_symbol_count;                             // Number of local symbols, used by the parser
     int vreg_count;                                     // Number of virtual registers used in IR
     int stack_register_count;                           // Amount of stack space needed for registers spills
@@ -593,13 +594,13 @@ Set *set_difference(Set *s1, Set *s2);
 void set_difference_to(Set *dst, Set *s1, Set *s2);
 
 // stack.c
-Stack *new_stack();
+Stack *new_stack(void);
 int stack_top(Stack *s);
 void push_onto_stack(Stack *s, int v);
 int pop_from_stack(Stack *s);
 
 // map.c
-Map *new_map();
+Map *new_map(void);
 void *map_get(Map *map, char *key);
 void map_put(Map *map, char *key, void *value);
 void map_delete(Map *map, char *key);
@@ -616,11 +617,11 @@ void panic1s(char *fmt, char *s);
 void panic2d(char *fmt, int i1, int i2);
 void panic2s(char *fmt, char *s1, char *s2);
 void panic1s1d(char *fmt, char *s, int i);
-Function *new_function();
+Function *new_function(void);
 
 // lexer.c
 void init_lexer(char *filename);
-void next();
+void next(void);
 void expect(int token, char *what);
 void consume(int token, char *what);
 
@@ -628,21 +629,21 @@ void consume(int token, char *what);
 Symbol *memcpy_symbol;
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
-Type *parse_type_name();
-void finish_parsing_header();
-void parse();
-void dump_symbols();
-void init_parser();
+Type *parse_type_name(void);
+void finish_parsing_header(void);
+void parse(void);
+void dump_symbols(void);
+void init_parser(void);
 
 // scopes.c
 Scope *global_scope;
 
-void init_scopes();
-void enter_scope();
-void exit_scope();
-Symbol *new_symbol();
+void init_scopes(void);
+void enter_scope(void);
+void exit_scope(void);
+Symbol *new_symbol(void);
 Symbol *lookup_symbol(char *name, Scope *scope, int recurse);
-Tag *new_tag();
+Tag *new_tag(void);
 Tag *lookup_tag(char *name, Scope *scope, int recurse);
 
 // types.c
@@ -652,7 +653,7 @@ Type *new_type(int type);
 StructOrUnion *dup_struct_or_union(StructOrUnion *src);
 Type *dup_type(Type *src);
 Type *make_pointer(Type *src);
-Type *make_pointer_to_void();
+Type *make_pointer_to_void(void);
 Type *deref_pointer(Type *type);
 Type *make_array(Type *src, int size);
 Type *decay_array_to_pointer(Type *src);
@@ -673,7 +674,7 @@ int type_fits_in_single_int_register(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
 int type_eq(Type *type1, Type *type2);
-int types_are_compabible(Type *type1, Type *type2);
+int types_are_compatible(Type *type1, Type *type2);
 Type *composite_type(Type *type1, Type *type2);
 int is_integer_operation_result_unsigned(Type *src1, Type *src2);
 Type *make_struct_or_union_type(StructOrUnion *s);
@@ -682,7 +683,7 @@ int type_is_modifiable(Type *type);
 
 // ir.c
 void init_value(Value *v);
-Value *new_value();
+Value *new_value(void);
 Value *new_integral_constant(int type_type, long value);
 Value *new_floating_point_constant(int type_type, long double value);
 Value *dup_value(Value *src);
@@ -775,7 +776,7 @@ void compress_vregs(Function *function);
 void init_vreg_locations(Function *function);
 void allocate_registers_top_down(Function *function, int live_range_start, int physical_register_count, int preg_class);
 void allocate_registers(Function *function);
-void init_allocate_registers();
+void init_allocate_registers(void);
 
 // instrsel.c
 enum {
@@ -982,7 +983,7 @@ X86Operation *dup_x86_operation(X86Operation *operation);
 char size_to_x86_size(int size);
 char *non_terminal_string(int nt);
 void print_rule(Rule *r, int print_operations, int indent);
-void print_rules();
+void print_rules(void);
 void make_value_x86_size(Value *v);
 int match_value_to_rule_src(Value *v, int src);
 int match_value_to_rule_dst(Value *v, int dst);
@@ -990,7 +991,7 @@ int match_value_type_to_rule_dst(Value *v, int dst);
 char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
-void check_rules_dont_decrease_precision();
+void check_rules_dont_decrease_precision(void);
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
 X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template);
 void add_save_value(Rule *r, int arg, int slot);
@@ -998,13 +999,13 @@ void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
 void add_allocate_register_in_slot(Rule *r, int slot, int type);
 void add_allocate_label_in_slot(Rule *r, int slot);
 void fin_rule(Rule *r);
-void check_for_duplicate_rules();
-void write_rule_coverage_file();
+void check_for_duplicate_rules(void);
+void write_rule_coverage_file(void);
 
 // instrules.c
 int disable_check_for_duplicate_rules;
 
-void init_instruction_selection_rules();
+void init_instruction_selection_rules(void);
 
 // codegen.c
 char *register_name(int preg);
@@ -1060,13 +1061,13 @@ Value *g(int index);
 Value *gsz(int index, int type);
 Value *fu(int index);
 Value *pfu(int index);
-Value *make_arg_src1();
+Value *make_arg_src1(void);
 
-void start_ir();
+void start_ir(void);
 void finish_register_allocation_ir(Function *function);
 void finish_ir(Function *function);
 void finish_spill_ir(Function *function);
 
 // Autogenerated externals.c
-char *externals();
+char *externals(void);
 

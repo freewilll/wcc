@@ -82,7 +82,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     merge_rsp_func_call_add_subs(function);
 }
 
-static void compile_externals() {
+static void compile_externals(void) {
     char *temp_filename = make_temp_filename("/tmp/externals-XXXXXX.c");
     void *f = fopen(temp_filename, "w");
     fprintf(f, "%s", externals());

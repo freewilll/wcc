@@ -31,7 +31,7 @@ build:
 externals.c: externals.h
 	echo "// Auto generated, don't edit" > externals.c
 	echo "" >> externals.c
-	echo "char *externals() {" >> externals.c
+	echo "char *externals(void) {" >> externals.c
 	cat externals.h | sed ':a;N;$$!ba;s/\n/\\n/g;s/^/    return "/;s/$$/";/' >> externals.c
 	echo "}" >> externals.c
 

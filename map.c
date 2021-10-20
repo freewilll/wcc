@@ -113,7 +113,7 @@ void map_delete(Map *map, char *key) {
     }
 }
 
-Map *new_map() {
+Map *new_map(void) {
     Map *map = malloc(sizeof(Map));
     memset(map, 0, sizeof(Map));
     map->size = DEFAULT_SIZE;

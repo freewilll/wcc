@@ -278,7 +278,7 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 }
 
 // Called once at startup
-void init_allocate_registers() {
+void init_allocate_registers(void) {
     // Which registers are preserved across function calls
     callee_saved_registers = malloc(sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
     memset(callee_saved_registers, 0, sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));

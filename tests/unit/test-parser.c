@@ -195,7 +195,7 @@ int test_type_parsing() {
     test_type_parser("union {int x;}",                 "union {x as int}");
 
     // Function parameters
-    test_type_parser("void x(void)",                   "function(void) returning void");
+    test_type_parser("void x(void)",                   "function() returning void");
     test_type_parser("void x(int)",                    "function(int) returning void");
     test_type_parser("void x(int i)",                  "function(int) returning void");
     test_type_parser("void x(int i, ...)",             "function(int, ...) returning void");

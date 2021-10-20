@@ -16,7 +16,7 @@ void init_value(Value *v) {
     v->live_range = -1;
 }
 
-Value *new_value() {
+Value *new_value(void) {
     Value *v = malloc(sizeof(Value));
     memset(v, 0, sizeof(Value));
     init_value(v);

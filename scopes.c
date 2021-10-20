@@ -7,7 +7,7 @@
 Scope *global_scope;
 
 // Initialize the global scope
-void init_scopes() {
+void init_scopes(void) {
     global_scope = malloc(sizeof(Scope));
     memset(global_scope, 0, sizeof(Scope));
     global_scope->symbols = malloc(sizeof(Symbol) * MAX_GLOBAL_SCOPE_IDENTIFIERS);
@@ -21,7 +21,7 @@ void init_scopes() {
 }
 
 // Initialize a local scope and set cur_scope as the parent
-void enter_scope() {
+void enter_scope(void) {
     Scope *scope = malloc(sizeof(Scope));
     memset(scope, 0, sizeof(Scope));
     scope->symbols = malloc(sizeof(Symbol) * MAX_LOCAL_SCOPE_IDENTIFIERS);
@@ -35,12 +35,12 @@ void enter_scope() {
 }
 
 // Leave the current scope and go back up to the parent scope
-void exit_scope() {
+void exit_scope(void) {
     cur_scope = cur_scope->parent;
     if (!cur_scope) panic("Attempt to exit the global scope");
 }
 
-Symbol *new_symbol() {
+Symbol *new_symbol(void) {
     if (cur_scope->symbol_count == cur_scope->max_count)
         panic1d("Exceeded max symbol table size of %d symbols", cur_scope->max_count);
 
@@ -65,7 +65,7 @@ Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
     return 0;
 }
 
-Tag *new_tag() {
+Tag *new_tag(void) {
     if (cur_scope->tag_count == cur_scope->max_count)
         panic1d("Exceeded max tag table size of %d tags", cur_scope->max_count);
 

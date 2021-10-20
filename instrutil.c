@@ -256,7 +256,7 @@ static void make_rule_hash(int i) {
         ((long) r->operation << 27);
 }
 
-void check_for_duplicate_rules() {
+void check_for_duplicate_rules(void) {
     for (int i = 0; i < instr_rule_count; i++) make_rule_hash(i);
 
     int duplicates = 0;
@@ -279,7 +279,7 @@ void check_for_duplicate_rules() {
     }
 }
 
-void check_rules_dont_decrease_precision() {
+void check_rules_dont_decrease_precision(void) {
     int bad_rules = 0;
     for (int i = 0; i < instr_rule_count; i++) {
         Rule *r = &(instr_rules[i]);
@@ -423,7 +423,7 @@ void print_rule(Rule *r, int print_operations, int indent) {
         printf("\n");
 }
 
-void print_rules() {
+void print_rules(void) {
     for (int i = 0; i < instr_rule_count; i++) {
         printf("%-5d ", i);
         print_rule(&(instr_rules[i]), 1, 6);
@@ -667,7 +667,7 @@ Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) 
     return tac;
 }
 
-void write_rule_coverage_file() {
+void write_rule_coverage_file(void) {
     void *f = fopen(rule_coverage_file, "a");
 
     for (int i = 0; i <= rule_coverage->max_value; i++)

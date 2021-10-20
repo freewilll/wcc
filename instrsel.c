@@ -736,7 +736,7 @@ static void print_cost_graph(Graph *cost_graph, int *cost_rules, int *accumulate
     recursive_print_cost_graph(cost_graph, cost_rules, accumulated_cost, 0, -1, -1, 0);
 }
 
-static int new_cost_graph_node() {
+static int new_cost_graph_node(void) {
     if (cost_graph_node_count == MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT)
         panic("MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT");
     return cost_graph_node_count++;
