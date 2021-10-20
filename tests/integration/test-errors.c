@@ -148,5 +148,28 @@ int main(int argc, char **argv) {
         "Cannot assign to read-only variable",
         "Compound assignment");
 
+    check_main_output(
+        "struct s *s;"
+        "s = malloc(sizeof(s));"
+        "s->i = 1;",
+        "Dereferencing a pointer to incomplete struct or union",
+        "Dereferencing a pointer to incomplete struct or union");
+
+    check_main_output(
+        "sizeof(struct s)",
+        "Cannot take sizeof an incomplete type",
+        "Cannot take sizeof an incomplete type");
+
+    check_main_output(
+        "struct s { int i:5; } s;"
+        "sizeof(s.i)",
+        "Cannot take sizeof a bit field",
+        "Cannot take sizeof a bit field");
+
+    check_main_output(
+        "struct s { struct v v; };",
+        "Struct/union members cannot have an incomplete type",
+        "Struct/union members cannot have an incomplete type");
+
     finalize();
 }

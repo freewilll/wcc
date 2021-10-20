@@ -603,6 +603,9 @@ static Type *parse_struct_or_union_type_specifier() {
                     unnamed_bit_field = 1;
                 }
 
+                if (is_incomplete_type(type)) panic("Struct/union members cannot have an incomplete type");
+                if (type->type == TYPE_FUNCTION) panic("Struct/union members cannot have a function type");
+
                 StructOrUnionMember *member = malloc(sizeof(StructOrUnionMember));
                 memset(member, 0, sizeof(StructOrUnionMember));
                 member->identifier = cur_type_identifier;
@@ -756,6 +759,11 @@ static void indirect() {
     // is conversion of the rvalue into an lvalue on the stack and a type
     // change.
     Value *src1 = pl();
+
+    Type *target = src1->type->target;
+    if (is_incomplete_type(target))
+        panic("Attempt to use an incomplete type");
+
     if (src1->is_lvalue) panic("Internal error: expected rvalue");
     if (!src1->vreg) panic("Internal error: expected a vreg");
 
@@ -1355,14 +1363,13 @@ static void parse_declaration() {
     symbol->identifier = cur_type_identifier;
     symbol->local_index = new_local_index();
 
-    if (symbol->type->type == TYPE_STRUCT_OR_UNION) {
-        if (symbol->type->struct_or_union_desc->is_incomplete)
-            panic("Attempt to use an incomplete struct or union");
+    if (is_incomplete_type(symbol->type))
+        panic("Storage size is unknown");
 
+    if (symbol->type->type == TYPE_STRUCT_OR_UNION) {
         push_local_symbol(symbol);
         add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
     }
-
 
     if (symbol->type->type == TYPE_ARRAY) {
         push_local_symbol(symbol);
@@ -1729,8 +1736,15 @@ static void parse_expression(int level) {
             type = parse_type_name();
         else {
             parse_expression(TOK_COMMA);
-            type = pop()->type;
+            Value *v = pop();
+            if (v->bit_field_size) panic("Cannot take sizeof a bit field");
+            type = v->type;
         }
+
+        if (is_incomplete_type(type)) panic("Cannot take sizeof an incomplete type");
+
+
+
         push_integral_constant(TYPE_LONG, get_type_size(type));
         consume(TOK_RPAREN, ")");
     }
@@ -1786,6 +1800,7 @@ static void parse_expression(int level) {
             else {
                 if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
                 if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) panic("Can only use -> on a pointer to a struct or union");
+                if (is_incomplete_type(vtop->type->target)) panic("Dereferencing a pointer to incomplete struct or union");
             }
 
             int is_dot = cur_token == TOK_DOT;
@@ -2310,7 +2325,7 @@ void parse() {
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
 
-                if (base_type->type == TYPE_STRUCT_OR_UNION && base_type->struct_or_union_desc->is_incomplete)
+                if (is_incomplete_type(base_type))
                     panic("Attempt to use an incomplete struct or union");
 
                 Type *type = concat_types(parse_declarator(), dup_type(base_type));

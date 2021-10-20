@@ -246,7 +246,9 @@ int is_object_type(Type *type) {
 }
 
 int is_incomplete_type(Type *type) {
-    return 0; // TODO
+    if (type->type == TYPE_STRUCT_OR_UNION && type->struct_or_union_desc->is_incomplete) return 1;
+    if (type->type == TYPE_ARRAY && type->array_size == 0) return 1;
+    return 0;
 }
 
 int is_pointer_type(Type *type) {

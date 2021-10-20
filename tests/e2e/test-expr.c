@@ -665,7 +665,6 @@ void test_floating_point_sizes() {
 }
 
 void test_array_sizes() {
-    assert_int(0,   sizeof(int[0]),        "sizeof int[0]");
     assert_int(40,  sizeof(int[10]),       "sizeof int[10]");
     assert_int(24,  sizeof(int[2][3]),     "sizeof int[2][3]");
     assert_int(192, sizeof(long[2][3][4]), "sizeof long[2][3][4]");
