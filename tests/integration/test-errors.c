@@ -203,5 +203,10 @@ int main(int argc, char **argv) {
         "Incompatible types in assignment",
         "Moving const from array to array elements");
 
+    check_output(
+        "int foo()[];",
+        "Functions cannot return arrays",
+        "Functions cannot return arrays");
+
     finalize();
 }

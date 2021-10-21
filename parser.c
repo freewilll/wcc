@@ -363,6 +363,9 @@ static Type *concat_types(Type *type1, Type *type2) {
     while (type1_tail->target) type1_tail = type1_tail->target;
     type1_tail->target = type2;
 
+    if (type1_tail->type == TYPE_FUNCTION && type2->type == TYPE_ARRAY)
+        panic("Functions cannot return arrays");
+
     return move_array_const(type1);
 }
 
@@ -393,7 +396,7 @@ Type *parse_declarator(void) {
     }
 }
 
-static Type *parse_function(Type *return_type) {
+static Type *parse_function(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
     function_type->function = new_function();
     function_type->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
@@ -524,7 +527,7 @@ Type *parse_direct_declarator(void) {
             next();
             if (cur_token == TOK_RPAREN || cur_token == TOK_IDENTIFIER || cur_token_is_type()) {
                 // Function
-                type = concat_types(type, parse_function(type));
+                type = concat_types(type, parse_function());
             }
             else if (i == 0) {
                 // (subtype)
@@ -537,6 +540,7 @@ Type *parse_direct_declarator(void) {
         else if (cur_token == TOK_LBRACKET) {
             // Array [] or [<num>]
             next();
+
             int size = 0;
             if (cur_token == TOK_INTEGER) {
                 size = cur_long;
