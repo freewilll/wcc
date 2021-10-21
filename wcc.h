@@ -114,8 +114,7 @@ typedef struct function {
     int stack_register_count;                           // Amount of stack space needed for registers spills
     int stack_size;                                     // Size of the stack
     int is_defined;                                     // if a definition has been found
-    int is_external;                                    // Has external linkage
-    int is_static;                                      // Is a private function in the translation unit
+    int storage;                                        // One of STORAGE_*
     int is_variadic;                                    // Set to 1 for builtin variadic functions
     struct value *return_value_pointer;                 // Set to the register holding the memory return address if the function returns something in memory
     struct function_param_allocation *return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
@@ -400,6 +399,11 @@ enum {
     TYPE_ENUM            = 12,
     TYPE_FUNCTION        = 13,
     TYPE_TYPEDEF         = 14
+};
+
+enum {
+    STORAGE_EXTERN = 1,
+    STORAGE_STATIC,
 };
 
 // Intermediate representation operations

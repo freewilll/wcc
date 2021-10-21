@@ -2424,9 +2424,8 @@ void parse(void) {
         else if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC || cur_token_is_type() || cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
             // Variable or function definition
 
-            int is_external = cur_token == TOK_EXTERN;
             int is_static = cur_token == TOK_STATIC;
-            if (is_external || is_static) next();
+            if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC) next();
 
             Type *base_type;
 
@@ -2459,7 +2458,6 @@ void parse(void) {
                 if ((s->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
                     panic1s("%s redeclared as different kind of symbol", cur_type_identifier);
 
-
                 if (type->type == TYPE_FUNCTION) {
                     // Function declaration or definition
 
@@ -2469,8 +2467,8 @@ void parse(void) {
 
                     s->type->function->return_type = type->target;
                     s->type->function->ir = ir_start;
-                    s->type->function->is_external = is_external;
-                    s->type->function->is_static = is_static;
+                    s->type->function->storage = is_static ? STORAGE_STATIC : STORAGE_EXTERN;
+
                     s->type->function->local_symbol_count = 0;
 
                     if (type->target->type == TYPE_STRUCT_OR_UNION) {
