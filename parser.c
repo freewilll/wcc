@@ -192,7 +192,8 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     Type *result;
 
     if (src1_type->type == TYPE_STRUCT_OR_UNION || src2_type->type == TYPE_STRUCT_OR_UNION)
-        panic("Unexpected call to operation_type() on a structs/union");
+        // Compatibility should already have been checked for at this point
+        return src1_type;
 
     // If it's a ternary and one is a pointer and the other a pointer to void, then the result is a pointer to void.
     else if (src1_type->type == TYPE_PTR && is_pointer_to_void(src2->type)) return for_ternary ? src2->type : src1->type;
@@ -1985,7 +1986,7 @@ static void parse_expression(int level) {
 
             // One of the following shall hold for the second and third operands:
             // * both operands have arithmetic type;
-            // * both operands have compatible structure or union types; TODO
+            // * both operands have compatible structure or union types;
             // * both operands have void type;
             // * both operands are pointers to qualified or unqualified versions of compatible types;
             // * one operand is a pointer and the other is a null pointer constant; or
@@ -1993,6 +1994,7 @@ static void parse_expression(int level) {
 
             if (
                 (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
+                (!(src1->type->type == TYPE_STRUCT_OR_UNION && src2->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible(src1->type, src2->type))) &&
                 (!(src1->type->type == TYPE_VOID && src2->type->type == TYPE_VOID)) &&
                 (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
                 (!(src1_is_pointer && is_null_pointer(src2))) &&

@@ -181,13 +181,21 @@ int main(int argc, char **argv) {
         "void foo(void) {}\n"
         "int main() { foo(1) }",
         "Too many arguments for function call",
-        "Too many arguments for function call");
+        "Too many arguments for function call for foo(void)");
 
     check_output(
         "void foo(int i) {}\n"
         "int main() { foo(1, 2) }",
         "Too many arguments for function call",
         "Too many arguments for function call");
+
+    check_main_output(
+        "struct { int i; } s1;"
+        "struct { int j; } s2;"
+        "1 ? s1 : s2;",
+        "Invalid operands to ternary operator",
+        "Invalid operands to ternary operator for incompatible structs");
+
 
     finalize();
 }
