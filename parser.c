@@ -2403,14 +2403,20 @@ void parse(void) {
             next();
         else if (cur_token == TOK_HASH)
             parse_directive();
-        else if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC || cur_token_is_type() ) {
+        else if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC || cur_token_is_type() || cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
             // Variable or function definition
 
             int is_external = cur_token == TOK_EXTERN;
             int is_static = cur_token == TOK_STATIC;
             if (is_external || is_static) next();
 
-            Type *base_type = parse_type_specifier();
+            Type *base_type;
+
+            if (cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY)
+                // Implicit int
+                base_type = new_type(TYPE_INT);
+            else
+                base_type = parse_type_specifier();
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;

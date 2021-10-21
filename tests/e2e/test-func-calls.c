@@ -410,6 +410,14 @@ int test_function_pointer_comparisons() {
     assert_int(0, cpplus == fp1, "glob-reg");
 }
 
+implicit_int_foo() { return 1; }
+*implicit_pint_foo() { int *pi = malloc(sizeof(int)); *pi = 1; return pi; }
+
+int test_implicit_ints_in_globals() {
+    assert_int(1, implicit_int_foo(), "implicit_int_foo()");
+    assert_int(1, *implicit_pint_foo(), "*implicit_pint_foo()");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -432,6 +440,7 @@ int main(int argc, char **argv) {
     test_function_pointers();
     test_sizeof_function_pointer();
     test_function_pointer_comparisons();
+    test_implicit_ints_in_globals();
 
     finalize();
 }
