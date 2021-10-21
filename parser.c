@@ -2469,7 +2469,7 @@ void parse(void) {
 
                     type->function->return_type = type->target;
                     type->function->ir = ir_start;
-                    type->function->storage = is_static ? STORAGE_STATIC : STORAGE_EXTERN;
+                    type->function->linkage = is_static ? LINKAGE_INTERNAL : LINKAGE_EXTERNAL;
                     type->function->local_symbol_count = 0;
 
                     if (type->target->type == TYPE_STRUCT_OR_UNION) {

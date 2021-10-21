@@ -524,7 +524,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 tac->src1 = orig_ir->src1;
             }
             else {
-                if (orig_ir->src1->type->function->storage == STORAGE_EXTERN)
+                if (orig_ir->src1->type->function->linkage == LINKAGE_EXTERNAL)
                      asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->identifier);
                 else
                      asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->identifier);
@@ -649,7 +649,7 @@ void output_code(char *input_filename, char *output_filename) {
     // Output symbols for all non-external functions
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->storage == STORAGE_EXTERN)
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->linkage == LINKAGE_EXTERNAL)
             fprintf(f, "    .globl  %s\n", symbol->identifier);
     }
 
