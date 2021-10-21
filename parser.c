@@ -2445,17 +2445,19 @@ void parse(void) {
 
                 if (!cur_type_identifier) panic("Expected an identifier");
 
-                Symbol *s = lookup_symbol(cur_type_identifier, global_scope, 1);
-                if (!s) {
-                    // Create a new symbol if it wasn't already declared. The
-                    // previous declaration is left unchanged.
+                Symbol *original_symbol = lookup_symbol(cur_type_identifier, global_scope, 1);
+                Symbol *symbol;
+                if (!original_symbol) {
+                    // Create a new symbol if it wasn't already declared.
 
-                    s = new_symbol();
-                    s->type = dup_type(type);
-                    s->identifier = cur_type_identifier;
+                    symbol = new_symbol();
+                    symbol->type = dup_type(type);
+                    symbol->identifier = cur_type_identifier;
                 }
+                else
+                    symbol = original_symbol;
 
-                if ((s->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
+                if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
                     panic1s("%s redeclared as different kind of symbol", cur_type_identifier);
 
                 if (type->type == TYPE_FUNCTION) {
@@ -2465,25 +2467,37 @@ void parse(void) {
                     ir_start = 0;
                     ir_start = add_instruction(IR_NOP, 0, 0, 0);
 
-                    s->type->function->return_type = type->target;
-                    s->type->function->ir = ir_start;
-                    s->type->function->storage = is_static ? STORAGE_STATIC : STORAGE_EXTERN;
-
-                    s->type->function->local_symbol_count = 0;
+                    type->function->return_type = type->target;
+                    type->function->ir = ir_start;
+                    type->function->storage = is_static ? STORAGE_STATIC : STORAGE_EXTERN;
+                    type->function->local_symbol_count = 0;
 
                     if (type->target->type == TYPE_STRUCT_OR_UNION) {
                         FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
                         add_function_param_to_allocation(fpa, type->target);
-                        s->type->function->return_value_fpa = fpa;
+                        type->function->return_value_fpa = fpa;
                     }
 
                     // type->function->scope is left entered by the type parser
                     cur_scope = type->function->scope;
-                    cur_function_symbol = s;
+                    cur_function_symbol = symbol;
 
-                    // Parse optinoal old style declaration list
-                    if (s->type->function->is_paramless && cur_token != TOK_SEMI)
-                        parse_function_paramless_declaration_list(s->type->function);
+                    // Parse optional old style declaration list
+                    if (type->function->is_paramless && cur_token != TOK_SEMI)
+                        parse_function_paramless_declaration_list(type->function);
+
+                    if (original_symbol && !types_are_compatible(original_symbol->type, type))
+                        panic("Incompatible function types");
+
+                    if (original_symbol && original_symbol->type->function->is_defined && cur_token == TOK_LCURLY) {
+                        panic1s("Redefinition of %s", cur_type_identifier);
+                    }
+
+                    if (original_symbol)
+                        // Merge types if it's a redeclaration
+                        symbol->type = composite_type(type, original_symbol->type);
+                    else
+                        symbol->type = type;
 
                     // Parse function declaration
                     if (cur_token == TOK_LCURLY) {

@@ -208,5 +208,20 @@ int main(int argc, char **argv) {
         "Functions cannot return arrays",
         "Functions cannot return arrays");
 
+    check_output(
+        "int foo() {}\n int foo() {}",
+        "Redefinition of foo",
+        "Redefinition of function");
+
+    check_output(
+        "int foo();\n int foo(char);",
+        "Incompatible function types",
+        "Incompatible function types () vs (char)");
+
+    check_output(
+        "int foo();\n int foo(float);",
+        "Incompatible function types",
+        "Incompatible function types () vs (float)");
+
     finalize();
 }

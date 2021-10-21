@@ -447,12 +447,6 @@ static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2,
 static int functions_are_compatible(Type *type1, Type *type2, Map *seen_tags) {
     if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags)) return 0;
 
-    // Check they both are or aren't variadic
-    if (type1->function->is_variadic != type2->function->is_variadic) return 0;
-
-    // Check param counts match
-    if (type1->function->param_count != type2->function->param_count) return 0;
-
     // Both are non variadic and one of them has an old style parameter list
     if (!type1->function->is_variadic && !type2->function->is_variadic && type1->function->is_paramless != type2->function->is_paramless) {
         // Swap so that type1 is paramless, type2 is not
@@ -464,13 +458,28 @@ static int functions_are_compatible(Type *type1, Type *type2, Map *seen_tags) {
 
         // Ensure all types on type1 are compatible with type2 types after default argument promotions
         for (int i = 0; i < type2->function->param_count; i++) {
-            Type *type = apply_default_function_call_argument_promotions(type2->function->param_types[i]);
-            if (!types_are_compatible(type1->function->param_types[i], type))
-                return 0;
+            if (i < type1->function->param_count) {
+                // Check params match
+                Type *type = apply_default_function_call_argument_promotions(type2->function->param_types[i]);
+                if (!types_are_compatible(type1->function->param_types[i], type))
+                    return 0;
+            }
+            else {
+                // Check default promotions don't affect params
+                Type *type = apply_default_function_call_argument_promotions(type2->function->param_types[i]);
+                if (!types_are_compatible(type2->function->param_types[i], type))
+                    return 0;
+            }
         }
 
         return 1;
     }
+
+    // Check they both are or aren't variadic
+    if (type1->function->is_variadic != type2->function->is_variadic) return 0;
+
+    // Check param counts match
+    if (type1->function->param_count != type2->function->param_count) return 0;
 
     // Check params match
     for (int i = 0; i < type1->function->param_count; i++) {
