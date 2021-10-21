@@ -107,6 +107,7 @@ typedef struct function {
     Type *return_type;                                  // Type of return value
     int param_count;                                    // Number of parameters
     Type **param_types;                                 // Types of parameters
+    char **param_identifiers;                           // Names of parameters
     int is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
     int local_symbol_count;                             // Number of local symbols, used by the parser
     int vreg_count;                                     // Number of virtual registers used in IR
@@ -674,6 +675,7 @@ int type_fits_in_single_int_register(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);
 int type_eq(Type *type1, Type *type2);
+Type *apply_default_function_call_argument_promotions(Type *type);
 int types_are_compatible(Type *type1, Type *type2);
 Type *composite_type(Type *type1, Type *type2);
 int is_integer_operation_result_unsigned(Type *src1, Type *src2);

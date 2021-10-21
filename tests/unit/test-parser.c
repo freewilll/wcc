@@ -222,10 +222,10 @@ int test_composite_type() {
     res = composite_type(type2, type1);
     assert_int(10, res->target->array_size, "Composite type of int(*)[] and int(*)[10]");
 
-    type1 = run_lexer("void ()");
+    type1 = run_lexer("void (a)"); type1->function->param_types[0] = new_type(TYPE_INT);
     type2 = run_lexer("void (int)");
     res = composite_type(type1, type2);
-    assert_english_type(res, "function(int) returning void", "Composite type of void() and void(int");
+    assert_english_type(res, "function(int) returning void", "Composite type of void() and void(int)");
     res = composite_type(type2, type1);
     assert_english_type(res, "function(int) returning void", "Composite type of void() and void(int)");
 

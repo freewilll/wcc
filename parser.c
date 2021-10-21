@@ -382,6 +382,7 @@ static Type *parse_function(Type *return_type) {
     Type *function_type = new_type(TYPE_FUNCTION);
     function_type->function = new_function();
     function_type->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
+    function_type->function->param_identifiers = malloc(sizeof(char *) * MAX_FUNCTION_CALL_ARGS);
 
     enter_scope();
     function_type->function->scope = cur_scope;
@@ -391,12 +392,22 @@ static Type *parse_function(Type *return_type) {
     while (1) {
         if (cur_token == TOK_RPAREN) break;
 
-        function_type->function->is_paramless = 0;
+        int is_type_token = cur_token_is_type();
 
-        if (cur_token_is_type()) {
+        if (cur_token == TOK_IDENTIFIER || is_type_token) {
             char *old_cur_type_identifier = cur_type_identifier;
-            cur_type_identifier = 0;
-            Type *type = parse_type_name();
+            Type *type;
+
+            if (is_type_token) {
+                cur_type_identifier = 0;
+                type = parse_type_name();
+                function_type->function->is_paramless = 0;
+            }
+            else {
+                type = new_type(TYPE_INT);
+                cur_type_identifier = cur_identifier;
+                next();
+            }
 
             if (type->type == TYPE_VOID) {
                 cur_type_identifier = old_cur_type_identifier;
@@ -416,6 +427,7 @@ static Type *parse_function(Type *return_type) {
 
             param_symbol->identifier = cur_type_identifier;
             function_type->function->param_types[param_count] = dup_type(type);
+            function_type->function->param_identifiers[param_count] = cur_type_identifier;
             param_symbol->local_index = param_count++;
 
             cur_type_identifier = old_cur_type_identifier;
@@ -441,6 +453,40 @@ static Type *parse_function(Type *return_type) {
     return function_type;
 }
 
+// Parse old style K&R function declaration list,
+static void parse_function_paramless_declaration_list(Function *function) {
+    while (cur_token != TOK_LCURLY) {
+        Type *base_type = parse_type_specifier();
+        while (cur_token != TOK_SEMI) {
+            cur_type_identifier = 0;
+            Type *type = concat_types(parse_declarator(), base_type);
+
+            // Array parameters decay to a pointer
+            if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+
+            // Associate type with param symbol
+            if (!cur_type_identifier) panic("Expected identifier");
+            Symbol *symbol = lookup_symbol(cur_type_identifier, cur_scope, 0);
+            if (!symbol)  panic1s("Declaration for unknown parameter %s", cur_type_identifier);
+            symbol->type = type;
+
+            int found_identifier = 0;
+            for (int i = 0; i < function->param_count; i++) {
+                if (!strcmp(function->param_identifiers[i], cur_type_identifier)) {
+                    function->param_types[i] = type;
+                    found_identifier = 1;
+                    break;
+                }
+            }
+            if (!found_identifier) panic("Internal error: unable to match function param identifier");
+
+            if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) panic("Expected a ; or ,");
+            if (cur_token == TOK_COMMA) next();
+        }
+        while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
+    }
+}
+
 Type *parse_direct_declarator(void) {
     Type *type = 0;
 
@@ -461,7 +507,7 @@ Type *parse_direct_declarator(void) {
     for (int i = 0; ; i++) {
         if (cur_token == TOK_LPAREN) {
             next();
-            if (cur_token == TOK_RPAREN || cur_token_is_type()) {
+            if (cur_token == TOK_RPAREN || cur_token == TOK_IDENTIFIER || cur_token_is_type()) {
                 // Function
                 type = concat_types(type, parse_function(type));
             }
@@ -637,7 +683,6 @@ static Type *parse_struct_or_union_type_specifier(void) {
                 }
 
                 if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) panic("Expected a ; or ,");
-
                 if (cur_token == TOK_COMMA) next();
             }
             while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
@@ -1468,7 +1513,7 @@ static void parse_function_call(void) {
         if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
 
         // Convert type if needed
-        if (arg_count < function->param_count) {
+        if (!function->is_paramless && arg_count < function->param_count) {
             if (!type_eq(vtop->type, function->param_types[arg_count])) {
                 Type *param_type = function->param_types[arg_count];
 
@@ -1482,24 +1527,13 @@ static void parse_function_call(void) {
             if (!function->is_variadic && !function->is_paramless)
                 panic("Too many arguments for function call");
 
-            // Apply default argument promotions & decay arrays
-            Value *src1 = pl();
-            Type *type;
-            if (src1->type->type < TYPE_INT) {
-                type = new_type(TYPE_INT);
-                if (src1->type->is_unsigned) type->is_unsigned = 1;
-            }
-            else if (src1->type->type == TYPE_FLOAT)
-                type = new_type(TYPE_DOUBLE);
-            else if (src1->type->type == TYPE_ARRAY)
-                type = decay_array_to_pointer(src1->type);
-            else
-                type = src1->type;
+            Value *arg = pl();
+            Type *type = apply_default_function_call_argument_promotions(arg->type);
 
-            if (!type_eq(src1->type, type))
-                push(add_convert_type_if_needed(src1, type));
+            if (!type_eq(arg->type, type))
+                push(add_convert_type_if_needed(arg, type));
             else
-                push(src1);
+                push(arg);
         }
 
         add_function_param_to_allocation(fpa, vtop->type);
@@ -2422,6 +2456,10 @@ void parse(void) {
                     // type->function->scope is left entered by the type parser
                     cur_scope = type->function->scope;
                     cur_function_symbol = s;
+
+                    // Parse optinoal old style declaration list
+                    if (s->type->function->is_paramless && cur_token != TOK_SEMI)
+                        parse_function_paramless_declaration_list(s->type->function);
 
                     // Parse function declaration
                     if (cur_token == TOK_LCURLY) {

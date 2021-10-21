@@ -172,6 +172,14 @@ int test_compatible_types() {
     type1 = lex_type("void(char)");
     type2 = lex_type("void(int)");
     assert_int(0, types_are_compatible(type1, type2), "function types mismatch");
+
+    type1 = lex_type("void(int a)"); type1->function->is_paramless = 1; // Fake K&R
+    type2 = lex_type("void(int)");
+    assert_int(1, types_are_compatible(type1, type2), "function types match in K&R vs non-K&R");
+
+    type1 = lex_type("void(char a)"); type1->function->is_paramless = 1; // Fake K&R
+    type2 = lex_type("void(int)");
+    assert_int(0, types_are_compatible(type1, type2), "function types mismatch in K&R vs non-K&R");
 }
 
 int main(int argc, char **argv) {

@@ -439,6 +439,16 @@ void test_float_double_call_return_value() {
     gd1 = 6.0; assert_double(6.0, return_double_global(),      "Double global return value");
 }
 
+int max_with_default_ints(a, b) { return a > b ? a : b; }
+int max_int_with_declared_ints(a, b) int a, b; { return a > b ? a : b; }
+double max_double_with_declared_doubles(a, b) double a, b; { return a > b ? a : b; }
+
+int test_parameterless_functions() {
+    assert_int(2, max_with_default_ints(1, 2), "Max with default ints");
+    assert_int(2, max_int_with_declared_ints(1, 2), "Max with declared ints");
+    assert_double(2.1, max_double_with_declared_doubles(1.1, 2.1), "Max with declared doubles");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -464,6 +474,7 @@ int main(int argc, char **argv) {
     test_long_double_stack_index_pushed_register_rename_bug();
     test_float_double_params();
     test_float_double_call_return_value();
+    test_parameterless_functions();
 
     finalize();
 }
