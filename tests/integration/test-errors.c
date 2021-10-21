@@ -196,6 +196,12 @@ int main(int argc, char **argv) {
         "Invalid operands to ternary operator",
         "Invalid operands to ternary operator for incompatible structs");
 
+    check_main_output(
+        "typedef int A[2][3];"
+        "const A a;"
+        "int* pi = a[0]; // Error: a[0] has type const int*",
+        "Incompatible types in assignment",
+        "Moving const from array to array elements");
 
     finalize();
 }

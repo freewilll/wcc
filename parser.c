@@ -340,16 +340,30 @@ static Type *parse_type_specifier(void) {
     return type;
 }
 
+// If an array type is declared with the const type qualifier (through the use of
+// typedef), the array type is not const-qualified, but its element type is.
+static Type *move_array_const(Type *type) {
+    Type *result = type;
+
+    while (type && type->type == TYPE_ARRAY && type->is_const) {
+        type->is_const = 0;
+        type->target->is_const = 1;
+        type = type->target;
+    }
+
+    return result;
+}
+
 static Type *concat_types(Type *type1, Type *type2) {
-    if (type1 == 0) return type2;
-    else if (type2 == 0) return type1;
-    else if (type1 ==0 && type2 == 0) panic("concat type got two null types");
+    if (type1 == 0) return move_array_const(type2);
+    else if (type2 == 0) return move_array_const(type1);
+    else if (type1 == 0 && type2 == 0) panic("concat type got two null types");
 
     Type *type1_tail = type1;
     while (type1_tail->target) type1_tail = type1_tail->target;
     type1_tail->target = type2;
 
-    return type1;
+    return move_array_const(type1);
 }
 
 Type *parse_direct_declarator(void);
