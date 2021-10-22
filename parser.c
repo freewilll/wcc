@@ -2527,6 +2527,7 @@ void parse(void) {
                 base_type = parse_declaration_specifiers();
 
             int is_static = base_type->is_static;
+            int is_extern = base_type->is_extern;
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
@@ -2560,7 +2561,10 @@ void parse(void) {
                 if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
                     panic1s("%s redeclared as different kind of symbol", cur_type_identifier);
 
-                int linkage = is_static ? LINKAGE_INTERNAL : LINKAGE_EXTERNAL;
+                int linkage = is_static
+                    ? LINKAGE_INTERNAL
+                    : is_extern ? LINKAGE_UNDECLARED_EXTERNAL : LINKAGE_EXTERNAL;
+
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {
                     // Function declaration or definition

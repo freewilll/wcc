@@ -524,7 +524,8 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 tac->src1 = orig_ir->src1;
             }
             else {
-                if (orig_ir->src1->type->function->linkage == LINKAGE_EXTERNAL)
+                int linkage = orig_ir->src1->type->function->linkage;
+                if (linkage == LINKAGE_EXTERNAL || linkage == LINKAGE_UNDECLARED_EXTERNAL)
                      asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
                 else
                      asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
@@ -622,8 +623,9 @@ void output_code(char *input_filename, char *output_filename) {
         Symbol *symbol = global_scope->symbols[i];
         if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value) {
             if (symbol->linkage == LINKAGE_INTERNAL)
-                fprintf(f, "    .local   %s\n", symbol->global_identifier);
+                fprintf(f, "    .local  %s\n", symbol->global_identifier);
 
+            if (symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL)
             fprintf(f, "    .comm   %s,%d,%d\n",
                 symbol->global_identifier,
                 get_type_size(symbol->type),
