@@ -249,3 +249,5 @@ int get_linked_object() { return linked_object; }
 int get_unlinked_object() { return unlinked_object; }
 void set_linked_object(int i) { linked_object = i; }
 void set_unlinked_object(int i) { unlinked_object = i; }
+
+int extern_global_int;

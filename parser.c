@@ -520,7 +520,6 @@ static Type *parse_function(void) {
             param_symbol->type = dup_type(symbol_type);
 
             param_symbol->identifier = cur_type_identifier;
-            param_symbol->global_identifier = cur_type_identifier;
             function_type->function->param_types[param_count] = dup_type(type);
             function_type->function->param_identifiers[param_count] = cur_type_identifier;
             param_symbol->local_index = param_count++;
@@ -1304,7 +1303,7 @@ static void push_local_symbol(Symbol *symbol) {
 }
 
 static void push_symbol(Symbol *symbol) {
-    if (symbol->scope->parent == 0)
+    if (symbol->global_identifier)
         push_global_symbol(symbol);
     else
         push_local_symbol(symbol);
@@ -1571,6 +1570,15 @@ static void parse_declaration(void) {
         char *global_identifier;
         asprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, ++local_static_symbol_count);
         symbol->global_identifier = global_identifier;
+    }
+    else if (base_type->is_extern) {
+        // Add the identifier to the local scope, but give it a global identifier
+        // without adding any linkage
+        symbol = new_symbol();
+        symbol->type = dup_type(type);
+        symbol->linkage = LINKAGE_UNDECLARED_EXTERNAL;
+        symbol->identifier = cur_type_identifier;
+        symbol->global_identifier = cur_type_identifier;
     }
     else {
         symbol = new_symbol();
@@ -2564,6 +2572,9 @@ void parse(void) {
                 int linkage = is_static
                     ? LINKAGE_INTERNAL
                     : is_extern ? LINKAGE_UNDECLARED_EXTERNAL : LINKAGE_EXTERNAL;
+
+                if (original_symbol && original_symbol->linkage != linkage)
+                    panic1s("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {

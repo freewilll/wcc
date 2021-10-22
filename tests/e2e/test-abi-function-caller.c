@@ -191,7 +191,7 @@ void test_arrays() {
 int linked_object;
 static int unlinked_object;
 
-void test_object_linkage() {
+void test_global_object_linkage() {
     // Ensure values in linked object are the same
 
     set_linked_object(1);
@@ -208,6 +208,29 @@ void test_object_linkage() {
     assert_int(1, unlinked_object, "Unlinked object in this translation unit 1");
 }
 
+int global_int;
+extern int extern_global_int;
+
+void test_block_extern_object_linkage() {
+    // With internally defined global object
+    int global_int = 10;
+    {
+        extern int global_int;
+        global_int = 20;
+        assert_int(20, global_int, "extern int in block");
+    }
+    assert_int(10, global_int, "extern int outside of block");
+
+    // With externally defined global object
+    int extern_global_int = 10;
+    {
+        extern int extern_global_int;
+        extern_global_int = 20;
+        assert_int(20, extern_global_int, "extern int in block");
+    }
+    assert_int(10, extern_global_int, "extern int outside of block");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -216,7 +239,8 @@ int main(int argc, char **argv) {
     test_struct_params();
     test_struct_return_values();
     test_arrays();
-    test_object_linkage();
+    test_global_object_linkage();
+    test_block_extern_object_linkage();
 
     finalize();
 }
