@@ -2638,6 +2638,16 @@ void parse(void) {
 
                     break; // Break out of function parameters loop
                 }
+                else {
+                    // Non-function
+
+                    if (original_symbol)
+                        // Merge types if it's a redeclaration
+                        symbol->type = composite_type(type, original_symbol->type);
+                    else
+                        symbol->type = type;
+
+                }
 
                 if (cur_token == TOK_COMMA) next();
             }

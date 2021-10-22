@@ -1388,6 +1388,18 @@ int test_static_objects_in_function() {
     assert_int(2, inc_static_int(), "Static object 2");
 }
 
+int composite_global1[];
+int composite_global1[10];
+
+
+int composite_global2[10];
+int composite_global2[];
+
+int test_composite_type_of_globals() {
+    assert_int(40, sizeof(composite_global1), "composite global 1");
+    assert_int(40, sizeof(composite_global2), "composite global 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1432,6 +1444,7 @@ int main(int argc, char **argv) {
     test_global_var_in_the_middle();
     test_const_assignment();
     test_static_objects_in_function();
+    test_composite_type_of_globals();
 
     finalize();
 }
