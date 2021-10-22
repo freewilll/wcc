@@ -241,3 +241,11 @@ void accept_array(int a[4]) {
     assert_int(3, a[2], "Accept array 3");
     assert_int(4, a[3], "Accept array 4");
 }
+
+int linked_object;
+static int unlinked_object;
+
+int get_linked_object() { return linked_object; }
+int get_unlinked_object() { return unlinked_object; }
+void set_linked_object(int i) { linked_object = i; }
+void set_unlinked_object(int i) { unlinked_object = i; }

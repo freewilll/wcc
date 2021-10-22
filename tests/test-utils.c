@@ -247,6 +247,7 @@ Value *g(int index) {
     s = malloc(sizeof(Symbol));
     memset(s, 0, sizeof(Symbol));
     asprintf(&(s->identifier), "g%d", index);
+    asprintf(&(s->global_identifier), "g%d", index);
 
     v = new_value();
     v->type = new_type(TYPE_LONG);

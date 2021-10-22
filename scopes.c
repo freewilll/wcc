@@ -40,16 +40,26 @@ void exit_scope(void) {
     if (!cur_scope) panic("Attempt to exit the global scope");
 }
 
-Symbol *new_symbol(void) {
-    if (cur_scope->symbol_count == cur_scope->max_count)
-        panic1d("Exceeded max symbol table size of %d symbols", cur_scope->max_count);
+static Symbol *new_symbol_in_scope(Scope *scope) {
+    if (scope->symbol_count == scope->max_count)
+        panic1d("Exceeded max symbol table size of %d symbols", scope->max_count);
 
     Symbol *symbol = malloc(sizeof(Symbol));
     memset(symbol, 0, sizeof(Symbol));
-    cur_scope->symbols[cur_scope->symbol_count++] = symbol;
-    symbol->scope = cur_scope;
+    scope->symbols[scope->symbol_count++] = symbol;
+    symbol->scope = scope;
 
     return symbol;
+}
+
+// Add a symbol to the global
+Symbol *new_global_symbol(void) {
+    return new_symbol_in_scope(global_scope);
+}
+
+// Add a symbol to the current scope
+Symbol *new_symbol(void) {
+    return new_symbol_in_scope(cur_scope);
 }
 
 // Search for a symbol in a scope and recurse to parents if not found.

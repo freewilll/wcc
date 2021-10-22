@@ -18,6 +18,7 @@ int function_call_count; // Uniquely identify a function call within a function
 StructOrUnion **all_structs_and_unions;  // All structs/unions defined globally.
 int all_structs_and_unions_count;        // Number of structs/unions, complete and incomplete
 int vreg_count;                          // Virtual register count for currently parsed function
+int local_static_symbol_count;           // Amount of static objects with block scope
 
 // Allocate a new virtual register
 static int new_vreg(void) {
@@ -492,6 +493,9 @@ static Type *parse_function(void) {
                 cur_type_identifier = 0;
                 type = parse_type_name();
                 function_type->function->is_paramless = 0;
+
+                if (type->is_auto || type->is_static || type->is_extern)
+                    panic("Invalid storage for function parameter");
             }
             else {
                 type = new_type(TYPE_INT);
@@ -516,6 +520,7 @@ static Type *parse_function(void) {
             param_symbol->type = dup_type(symbol_type);
 
             param_symbol->identifier = cur_type_identifier;
+            param_symbol->global_identifier = cur_type_identifier;
             function_type->function->param_types[param_count] = dup_type(type);
             function_type->function->param_identifiers[param_count] = cur_type_identifier;
             param_symbol->local_index = param_count++;
@@ -1265,6 +1270,18 @@ static void parse_arithmetic_operation(int level, int operation, Type *type) {
     arithmetic_operation(operation, type);
 }
 
+static void push_global_symbol(Symbol *symbol) {
+    Value *src1 = new_value();
+    src1->type = dup_type(symbol->type);
+
+    // Functions are rvalues, everything else is an lvalue
+    src1->is_lvalue = (symbol->type->type != TYPE_FUNCTION);
+
+    src1->global_symbol = symbol;
+
+    push(src1);
+}
+
 static void push_local_symbol(Symbol *symbol) {
     Type *type = dup_type(symbol->type);
 
@@ -1284,6 +1301,13 @@ static void push_local_symbol(Symbol *symbol) {
         v->local_index = symbol->local_index;
 
     push(v);
+}
+
+static void push_symbol(Symbol *symbol) {
+    if (symbol->scope->parent == 0)
+        push_global_symbol(symbol);
+    else
+        push_local_symbol(symbol);
 }
 
 // Add type change move if necessary and return the dst value
@@ -1538,26 +1562,39 @@ static void parse_declaration(void) {
 
     if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_type_identifier);
 
-    symbol = new_symbol();
-    symbol->type = dup_type(type);
-    symbol->identifier = cur_type_identifier;
-    symbol->local_index = new_local_index();
+    if (base_type->is_static) {
+        symbol = new_global_symbol();
+        symbol->type = dup_type(type);
+        symbol->linkage = LINKAGE_INTERNAL;
+        symbol->identifier = cur_type_identifier;
+
+        char *global_identifier;
+        asprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, ++local_static_symbol_count);
+        symbol->global_identifier = global_identifier;
+    }
+    else {
+        symbol = new_symbol();
+        symbol->type = dup_type(type);
+        symbol->identifier = cur_type_identifier;
+        symbol->linkage = LINKAGE_NONE;
+        symbol->local_index = new_local_index();
+    }
 
     if (is_incomplete_type(symbol->type))
         panic("Storage size is unknown");
 
     if (symbol->type->type == TYPE_STRUCT_OR_UNION) {
-        push_local_symbol(symbol);
+        push_symbol(symbol);
         add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
     }
 
     if (symbol->type->type == TYPE_ARRAY) {
-        push_local_symbol(symbol);
+        push_symbol(symbol);
         add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
     }
 
     if (cur_token == TOK_EQ) {
-        push_local_symbol(symbol);
+        push_symbol(symbol);
         Type *old_base_type = base_type;
         base_type = 0;
         parse_simple_assignment(0);
@@ -1588,7 +1625,7 @@ static void parse_function_call(void) {
     int function_call = function_call_count++;
     Value *src1 = make_function_call_value(function_call);
     add_instruction(IR_START_CALL, 0, src1, 0);
-    FunctionParamAllocation *fpa = init_function_param_allocaton(symbol ? symbol->identifier : "(anonymous)");
+    FunctionParamAllocation *fpa = init_function_param_allocaton(symbol ? symbol->global_identifier : "(anonymous)");
 
     while (1) {
         if (cur_token == TOK_RPAREN) break;
@@ -1881,26 +1918,11 @@ static void parse_expression(int level) {
             if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
 
             next();
-            Type *type = dup_type(symbol->type);;
-            Scope *scope = symbol->scope;
 
             if (symbol->is_enum_value)
                 push_integral_constant(TYPE_INT, symbol->value);
-
-            else if (scope->parent == 0) {
-                // Global symbol
-                Value *src1 = new_value();
-                src1->type = dup_type(type);
-
-                // Functions are rvalues, everything else is an lvalue
-                src1->is_lvalue = (type->type != TYPE_FUNCTION);
-
-                src1->global_symbol = symbol;
-                push(src1);
-            }
-
             else
-                push_local_symbol(symbol);
+                push_symbol(symbol);
         }
     }
 
@@ -2512,6 +2534,12 @@ void parse(void) {
                 if (is_incomplete_type(base_type))
                     panic("Attempt to use an incomplete struct or union");
 
+                if (base_type->is_auto)
+                    panic("auto not allowed in global scope");
+                if (base_type->is_register)
+                    panic("register not allowed in global scope");
+
+
                 Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
                 if (!cur_type_identifier) panic("Expected an identifier");
@@ -2524,6 +2552,7 @@ void parse(void) {
                     symbol = new_symbol();
                     symbol->type = dup_type(type);
                     symbol->identifier = cur_type_identifier;
+                    symbol->global_identifier = cur_type_identifier;
                 }
                 else
                     symbol = original_symbol;
@@ -2531,6 +2560,8 @@ void parse(void) {
                 if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
                     panic1s("%s redeclared as different kind of symbol", cur_type_identifier);
 
+                int linkage = is_static ? LINKAGE_INTERNAL : LINKAGE_EXTERNAL;
+                symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {
                     // Function declaration or definition
 
@@ -2540,7 +2571,7 @@ void parse(void) {
 
                     type->function->return_type = type->target;
                     type->function->ir = ir_start;
-                    type->function->linkage = is_static ? LINKAGE_INTERNAL : LINKAGE_EXTERNAL;
+                    type->function->linkage = linkage;
                     type->function->local_symbol_count = 0;
 
                     if (type->target->type == TYPE_STRUCT_OR_UNION) {
@@ -2644,7 +2675,9 @@ void init_parser(void) {
 
     vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
     vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
+
     label_count = 0;
+    local_static_symbol_count = 0;
 
     in_ifdef = 0;
     in_ifdef_else = 0;

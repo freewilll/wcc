@@ -1378,6 +1378,16 @@ int test_const_assignment() {
     const int i = 1;
 }
 
+int inc_static_int() {
+    static int i;
+    return ++i;
+}
+
+int test_static_objects_in_function() {
+    assert_int(1, inc_static_int(), "Static object 1");
+    assert_int(2, inc_static_int(), "Static object 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1421,6 +1431,7 @@ int main(int argc, char **argv) {
     test_scopes();
     test_global_var_in_the_middle();
     test_const_assignment();
+    test_static_objects_in_function();
 
     finalize();
 }

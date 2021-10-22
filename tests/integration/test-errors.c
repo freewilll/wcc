@@ -223,5 +223,30 @@ int main(int argc, char **argv) {
         "Incompatible function types",
         "Incompatible function types () vs (float)");
 
+    check_output(
+        "auto int i;",
+        "auto not allowed in global scope",
+        "auto not allowed in global scope");
+
+    check_output(
+        "register int i;",
+        "register not allowed in global scope",
+        "register not allowed in global scope");
+
+    check_output(
+        "void foo(auto i)",
+        "Invalid storage for function parameter",
+        "Invalid storage for function parameter auto");
+
+    check_output(
+        "void foo(static i)",
+        "Invalid storage for function parameter",
+        "Invalid storage for function parameter static");
+
+    check_output(
+        "void foo(extern i)",
+        "Invalid storage for function parameter",
+        "Invalid storage for function parameter extern");
+
     finalize();
 }

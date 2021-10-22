@@ -188,6 +188,26 @@ void test_arrays() {
     accept_array(a);
 }
 
+int linked_object;
+static int unlinked_object;
+
+void test_object_linkage() {
+    // Ensure values in linked object are the same
+
+    set_linked_object(1);
+    assert_int(1, linked_object, "Linked object in this translation unit");
+    assert_int(1, get_linked_object(), "Linked object in other translation unit 1");
+    linked_object = 2;
+    assert_int(2, get_linked_object(), "Linked object in other translation unit 2");
+
+    // Ensure unlinked objects have distinct values
+    unlinked_object = 1;
+    assert_int(0, get_unlinked_object(), "Unlinked object in other translation unit 1");
+    set_unlinked_object(2);
+    assert_int(2, get_unlinked_object(), "Unlinked object in other translation unit 2");
+    assert_int(1, unlinked_object, "Unlinked object in this translation unit 1");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -196,6 +216,7 @@ int main(int argc, char **argv) {
     test_struct_params();
     test_struct_return_values();
     test_arrays();
+    test_object_linkage();
 
     finalize();
 }

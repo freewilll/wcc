@@ -139,14 +139,8 @@ void print_type_in_english(Type *type) {
 
 Type *new_type(int type) {
     Type *result = malloc(sizeof(Type));
+    memset(result, 0, sizeof(Type));
     result->type = type;
-    result->is_unsigned = 0;
-    result->target = 0;
-    result->struct_or_union_desc = 0;
-    result->function = 0;
-    result->array_size = 0;
-    result->is_const = 0;
-    result->is_volatile = 0;
 
     return result;
 }

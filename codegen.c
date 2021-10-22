@@ -308,20 +308,20 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     if (v->type->type == TYPE_LONG_DOUBLE) {
                         if (low) {
                             if (v->offset)
-                                sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->identifier, v->offset);
+                                sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->global_identifier, v->offset);
                             else
-                                sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                                sprintf(buffer, "%s(%%rip)", v->global_symbol->global_identifier);
                         }
                         else if (high)
-                            sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->identifier, v->offset + 8);
+                            sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->global_identifier, v->offset + 8);
                         else
                             panic("Did not get L/H/C specifier for double long constant");
                     }
                     else {
                         if (v->offset)
-                            sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->identifier, v->offset);
+                            sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->global_identifier, v->offset);
                         else
-                            sprintf(buffer, "%s(%%rip)", v->global_symbol->identifier);
+                            sprintf(buffer, "%s(%%rip)", v->global_symbol->global_identifier);
                     }
                 }
                 else if (v->stack_index) {
@@ -525,9 +525,9 @@ void add_final_x86_instructions(Function *function, char *function_name) {
             }
             else {
                 if (orig_ir->src1->type->function->linkage == LINKAGE_EXTERNAL)
-                     asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->identifier);
+                     asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
                 else
-                     asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->identifier);
+                     asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
              }
 
             ir = insert_instruction_after(ir, tac);
@@ -620,11 +620,15 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .text\n");
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
-        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
+        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value) {
+            if (symbol->linkage == LINKAGE_INTERNAL)
+                fprintf(f, "    .local   %s\n", symbol->global_identifier);
+
             fprintf(f, "    .comm   %s,%d,%d\n",
-                symbol->identifier,
+                symbol->global_identifier,
                 get_type_size(symbol->type),
                 get_type_alignment(symbol->type));
+        }
     }
 
     // Output string literals
