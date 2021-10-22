@@ -133,6 +133,10 @@ char *sprint_type_in_english(Type *type) {
     return start;
 }
 
+void print_type_in_english(Type *type) {
+    printf("%s\n", sprint_type_in_english(type));
+}
+
 Type *new_type(int type) {
     Type *result = malloc(sizeof(Type));
     result->type = type;

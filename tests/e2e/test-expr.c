@@ -617,7 +617,7 @@ void test_integer_sizes() {
     assert_int(8, sizeof(long int),     "sizeof long int");
     assert_int(8, sizeof(long long),    "sizeof long long");
     assert_int(8, sizeof(long long int),"sizeof long long int");
-    assert_int(4, sizeof(signed),        "sizeof signed");
+    assert_int(4, sizeof(signed),       "sizeof signed");
     assert_int(4, sizeof(unsigned),     "sizeof unsigned");
     assert_int(4, sizeof(const),        "sizeof const");
     assert_int(4, sizeof(volatile),     "sizeof volatile");

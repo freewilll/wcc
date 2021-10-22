@@ -166,8 +166,10 @@ void next(void) {
             else if (!strcmp(cur_identifier, "__packed__"   )) { cur_token = TOK_PACKED;    }
             else if (!strcmp(cur_identifier, "packed"       )) { cur_token = TOK_PACKED;    }
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
-            else if (!strcmp(cur_identifier, "extern"       )) { cur_token = TOK_EXTERN;    }
+            else if (!strcmp(cur_identifier, "auto"         )) { cur_token = TOK_AUTO;      }
+            else if (!strcmp(cur_identifier, "register"     )) { cur_token = TOK_REGISTER;  }
             else if (!strcmp(cur_identifier, "static"       )) { cur_token = TOK_STATIC;    }
+            else if (!strcmp(cur_identifier, "extern"       )) { cur_token = TOK_EXTERN;    }
             else if (!strcmp(cur_identifier, "const"        )) { cur_token = TOK_CONST;     }
             else if (!strcmp(cur_identifier, "volatile"     )) { cur_token = TOK_VOLATILE;  }
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }

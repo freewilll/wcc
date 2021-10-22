@@ -68,10 +68,14 @@ typedef struct i_graph {
 
 typedef struct type {
     int type;       // One of TYPE_*
-    int is_unsigned;
     int array_size;
-    int is_const;
-    int is_volatile;
+    char is_unsigned;
+    char is_const;
+    char is_volatile;
+    char is_auto;
+    char is_register;
+    char is_static;
+    char is_extern;
     struct type *target;
     struct struct_or_union_desc *struct_or_union_desc;
     struct function *function;
@@ -377,8 +381,10 @@ enum {
     TOK_UNDEF,
     TOK_IFDEF,              // 80
     TOK_ENDIF,
-    TOK_EXTERN,
+    TOK_AUTO,
+    TOK_REGISTER,
     TOK_STATIC,
+    TOK_EXTERN,
     TOK_CONST,
     TOK_VOLATILE,
     TOK_ELLIPSES
@@ -654,6 +660,7 @@ Tag *lookup_tag(char *name, Scope *scope, int recurse);
 // types.c
 int print_type(void *f, Type *type);
 char *sprint_type_in_english(Type *type);
+void print_type_in_english(Type *type);
 Type *new_type(int type);
 StructOrUnion *dup_struct_or_union(StructOrUnion *src);
 Type *dup_type(Type *src);

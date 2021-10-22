@@ -253,6 +253,10 @@ static int cur_token_is_type(void) {
         cur_token == TOK_STRUCT ||
         cur_token == TOK_UNION ||
         cur_token == TOK_ENUM ||
+        cur_token == TOK_AUTO ||
+        cur_token == TOK_REGISTER ||
+        cur_token == TOK_EXTERN ||
+        cur_token == TOK_STATIC ||
         cur_token == TOK_TYPEDEF_TYPE
     );
 }
@@ -262,80 +266,148 @@ static int get_type_inc_dec_size(Type *type) {
     return type->type == TYPE_PTR ? get_type_size(type->target) : 1;
 }
 
-// Parse void, int, signed, unsigned, ... long, double, struct and typedef type names
-static Type *parse_type_specifier(void) {
-    Type *type;
+// Parse
+// - storage-class-specifiers: auto, register, static, extern
+// - type-specifiers: void, int, signed, unsigned, ... long, double, struct, union
+// - type-qualifiers: const, volatile
+// - typedef type names
+static Type *parse_declaration_specifiers(void) {
+    Type *type = 0;
 
+    // Type specifiers
+    int seen_void = 0;
+    int seen_char = 0;
+    int seen_short = 0;
+    int seen_int = 0;
+    int seen_long = 0;
+    int seen_long_double = 0;
+    int seen_float = 0;
+    int seen_double = 0;
     int seen_signed = 0;
     int seen_unsigned = 0;
-    int seen_long = 0;
+
+    // Qualifiers
     int seen_const = 0;
     int seen_volatile = 0;
 
-    if (cur_token == TOK_SIGNED) {
-        seen_signed = 1;
-        next();
+    // Storage class specifiers
+    int seen_auto = 0;
+    int seen_register = 0;
+    int seen_static = 0;
+    int seen_extern = 0;
+
+    int seen_typedef = 0;
+    int seen_struct = 0;
+    int seen_union = 0;
+    int seen_enum = 0;
+
+    int changed = 1;
+    while (changed) {
+        changed = 1;
+
+             if (cur_token == TOK_VOID)     { next(); seen_void++;     type = new_type(TYPE_VOID);   }
+        else if (cur_token == TOK_CHAR)     { next(); seen_char++;     type = new_type(TYPE_CHAR);   }
+        else if (cur_token == TOK_INT)      { next(); seen_int++;      type = new_type(TYPE_INT);    }
+        else if (cur_token == TOK_FLOAT)    { next(); seen_float++;    type = new_type(TYPE_FLOAT);  }
+        else if (cur_token == TOK_DOUBLE)   { next(); seen_double++;   type = new_type(TYPE_DOUBLE); }
+        else if (cur_token == TOK_SHORT) {
+            next();
+            if (cur_token == TOK_INT) next();
+            seen_short++;
+            type = new_type(TYPE_SHORT);
+        }
+        else if (cur_token == TOK_LONG) {
+            next();
+            // if (cur_token == TOK_LONG) next();
+            if (cur_token == TOK_INT) {
+                next();
+                seen_long++;
+                type = new_type(TYPE_LONG);
+            }
+            else if (cur_token == TOK_DOUBLE)   {
+                next();
+                seen_long_double++;
+                type = new_type(TYPE_LONG_DOUBLE);
+            }
+            else {
+                seen_long++;
+                type = new_type(TYPE_LONG);
+            }
+        }
+        else if (cur_token == TOK_STRUCT) {
+            seen_struct++;
+            type = parse_struct_or_union_type_specifier();
+        }
+        else if (cur_token == TOK_UNION) {
+            seen_union++;
+            type = parse_struct_or_union_type_specifier();
+        }
+
+        else if (cur_token == TOK_ENUM) {
+            seen_enum++;
+            type = parse_enum_type_specifier();
+        }
+        else if (cur_token == TOK_TYPEDEF_TYPE) {
+            // If a typedef type has been encountered by the lexer and a type already
+            // exits, then it's not a typedef type, but a redefinition of a typedef
+            // type.
+            if (!type) {
+                seen_typedef++;
+                type = dup_type(cur_lexer_type);
+                next();
+            }
+            else
+                changed = 0;
+        }
+
+        else if (cur_token == TOK_SIGNED)   { next(); seen_signed++;   }
+        else if (cur_token == TOK_UNSIGNED) { next(); seen_unsigned++; }
+        else if (cur_token == TOK_CONST)    { next(); seen_const++;    }
+        else if (cur_token == TOK_VOLATILE) { next(); seen_volatile++; }
+        else if (cur_token == TOK_AUTO)     { next(); seen_auto++;     }
+        else if (cur_token == TOK_REGISTER) { next(); seen_register++; }
+        else if (cur_token == TOK_STATIC)   { next(); seen_static++;   }
+        else if (cur_token == TOK_EXTERN)   { next(); seen_extern++;   }
+
+        else changed = 0;
     }
-    else if (cur_token == TOK_UNSIGNED) {
-        seen_unsigned = 1;
-        next();
-    }
 
-    // Parse type qualifiers. They are allowed to be duplicated, e.g. const const
-    while (cur_token == TOK_CONST || cur_token == TOK_VOLATILE) {
-        if (cur_token == TOK_CONST) seen_const = 1;
-        else  seen_volatile = 1;
-        next();
-    }
+    if (seen_long == 2) seen_long = 1;
+    else if (seen_long > 2) panic("Too many longs in type specifier");
 
-         if (cur_token == TOK_VOID)         { type = new_type(TYPE_VOID);   next(); }
-    else if (cur_token == TOK_CHAR)         { type = new_type(TYPE_CHAR);   next(); }
-    else if (cur_token == TOK_SHORT)        { type = new_type(TYPE_SHORT);  next(); }
-    else if (cur_token == TOK_INT)          { type = new_type(TYPE_INT);    next(); }
-    else if (cur_token == TOK_FLOAT)        { type = new_type(TYPE_FLOAT);  next(); }
-    else if (cur_token == TOK_DOUBLE)       { type = new_type(TYPE_DOUBLE); next(); }
-    else if (cur_token == TOK_LONG)         { type = new_type(TYPE_LONG);   next(); seen_long = 1; }
+    int data_type_sum =
+        seen_void + seen_char + seen_short + seen_int + seen_long +
+        seen_float + seen_double + seen_long_double +
+        seen_struct + seen_union + seen_enum;
 
-    else if (cur_token == TOK_STRUCT || cur_token == TOK_UNION)
-        type = parse_struct_or_union_type_specifier();
-
-    else if (cur_token == TOK_ENUM)
-        type = parse_enum_type_specifier();
-
-    else if (cur_token == TOK_TYPEDEF_TYPE) {
-        type = dup_type(cur_lexer_type);
-        next();
-    }
-
-    else if (seen_signed || seen_unsigned || seen_const || seen_volatile)
+    if ((data_type_sum == 0) && !seen_typedef)
+        // Implicit int
         type = new_type(TYPE_INT);
 
-    else
-        panic1d("Unable to determine type from token %d", cur_token);
+    if (!type) panic("Internal error: type is null");
 
-    if ((seen_unsigned || seen_signed) && !is_integer_type(type)) panic("Signed/unsigned can only apply to integer types");
-    if (seen_unsigned && seen_signed && !is_integer_type(type)) panic("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
+    if ((data_type_sum > 1))
+        panic("Two or more data types in declaration specifiers");
+
+    if (seen_signed && seen_unsigned)
+        panic("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
+
+    int is_integer_type = type && (type->type == TYPE_CHAR || type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG);
+    if (!is_integer_type && (seen_signed || seen_unsigned))
+        panic("Signed/unsigned can only apply to integer types");
+
+    if ((seen_auto + seen_register + seen_static + seen_extern > 1))
+        panic("Duplicate storage class specifiers");
+
+    if (seen_auto) type->is_auto = 1;
+    if (seen_register) type->is_register = 1;
+    if (seen_static) type->is_static = 1;
+    if (seen_extern) type->is_extern = 1;
 
     if (seen_const) type->is_const = 1;
     if (seen_volatile) type->is_volatile = 1;
 
-    if (is_integer_type(type)) {
-        type->is_unsigned = seen_unsigned;
-
-        if (cur_token == TOK_LONG && type->type == TYPE_LONG) next(); // On 64 bit, long longs are equivalent to longs
-        if (cur_token == TOK_INT && (type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG)) next();
-    }
-
-    if (cur_token == TOK_FLOAT) {
-        type->type = TYPE_FLOAT;
-        next();
-    }
-
-    if (cur_token == TOK_DOUBLE) {
-        if (seen_signed || seen_unsigned) panic("Cannot have signed or unsigned in a long double");
-        type->type = seen_long ? TYPE_LONG_DOUBLE : TYPE_DOUBLE;
-        next();
-    }
+    if (seen_unsigned) type->is_unsigned = 1;
 
     return type;
 }
@@ -474,7 +546,7 @@ static Type *parse_function(void) {
 // Parse old style K&R function declaration list,
 static void parse_function_paramless_declaration_list(Function *function) {
     while (cur_token != TOK_LCURLY) {
-        Type *base_type = parse_type_specifier();
+        Type *base_type = parse_declaration_specifiers();
         while (cur_token != TOK_SEMI) {
             cur_type_identifier = 0;
             Type *type = concat_types(parse_declarator(), base_type);
@@ -558,7 +630,7 @@ Type *parse_direct_declarator(void) {
 }
 
 Type *parse_type_name(void) {
-    return concat_types(parse_declarator(), parse_type_specifier());
+    return concat_types(parse_declarator(), parse_declaration_specifiers());
 }
 
 // Allocate a new StructOrUnion
@@ -654,7 +726,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
                 continue;
             }
 
-            Type *base_type = parse_type_specifier();
+            Type *base_type = parse_declaration_specifiers();
 
             // Catch e.g. struct { struct s { int i; }; } s; which isn't in the C90 spec
             if (base_type->type == TYPE_STRUCT_OR_UNION && cur_token == TOK_SEMI)
@@ -803,7 +875,7 @@ static Type *parse_enum_type_specifier(void) {
 static void parse_typedef(void) {
     next();
 
-    Type *base_type = parse_type_specifier();
+    Type *base_type = parse_declaration_specifiers();
 
     while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
         cur_type_identifier = 0;
@@ -1624,7 +1696,7 @@ static void parse_function_call(void) {
 static void parse_expression(int level) {
     // Parse any tokens that can be at the start of an expression
     if (cur_token_is_type()) {
-        base_type = parse_type_specifier();
+        base_type = parse_declaration_specifiers();
         parse_expression(TOK_COMMA);
         base_type = 0;
     }
@@ -2195,7 +2267,7 @@ static void parse_statement(void) {
     }
 
     if (cur_token_is_type()) {
-        base_type = parse_type_specifier();
+        base_type = parse_declaration_specifiers();
         if (cur_token == TOK_SEMI && (base_type->type == TYPE_STRUCT_OR_UNION || base_type->type == TYPE_ENUM))
             next();
         else
@@ -2421,11 +2493,8 @@ void parse(void) {
             next();
         else if (cur_token == TOK_HASH)
             parse_directive();
-        else if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC || cur_token_is_type() || cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
+        else if (cur_token_is_type() || cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
             // Variable or function definition
-
-            int is_static = cur_token == TOK_STATIC;
-            if (cur_token == TOK_EXTERN || cur_token == TOK_STATIC) next();
 
             Type *base_type;
 
@@ -2433,7 +2502,9 @@ void parse(void) {
                 // Implicit int
                 base_type = new_type(TYPE_INT);
             else
-                base_type = parse_type_specifier();
+                base_type = parse_declaration_specifiers();
+
+            int is_static = base_type->is_static;
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
@@ -2529,7 +2600,7 @@ void parse(void) {
         }
 
         else if (cur_token == TOK_STRUCT || cur_token == TOK_UNION || cur_token == TOK_ENUM) {
-            parse_type_specifier();
+            parse_declaration_specifiers();
             consume(TOK_SEMI, ";");
         }
 
