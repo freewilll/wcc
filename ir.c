@@ -1088,6 +1088,5 @@ void convert_enums(Function *function) {
         if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_ENUM) tac->dst ->type = new_type(TYPE_INT);
         if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_ENUM) tac->src1->type = new_type(TYPE_INT);
         if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_ENUM) tac->src2->type = new_type(TYPE_INT);
-
     }
 }

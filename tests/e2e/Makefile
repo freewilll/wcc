@@ -18,7 +18,8 @@ WCC_TESTS=\
 	ifdef \
 	long-doubles \
 	floats-and-doubles \
-	typedefs
+	typedefs \
+	switch
 
 all: run-test-gcc run-test-wcc run-test-abi run-test-include
 

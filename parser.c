@@ -2286,7 +2286,119 @@ static void parse_compound_statement(void) {
     consume(TOK_RCURLY, "}");
 }
 
-static void parse_if_statement() {
+static void parse_switch_statement(void) {
+    consume(TOK_SWITCH, "switch");
+
+    consume(TOK_LPAREN, "(");
+    parse_expression(TOK_COMMA);
+    consume(TOK_RPAREN, ")");
+
+    Value *controlling_value = pl();
+
+    if (!is_integer_type(controlling_value->type))
+        panic("The controlling expression of a switch statement is not an integral type");
+
+    // Maintain two IRs:
+    // - main_ir, which contains the comparison statements
+    // - case_ir, which contains the bodies of the case statements
+    Tac *main_ir = ir;
+    Tac *case_ir_root = add_instruction(IR_NOP, 0, 0, 0);
+    Tac *case_ir = case_ir_root;
+
+    Value *ldefault  = new_label_dst();
+    Value *lbreak  = new_label_dst();
+    Value *old_loop_break_dst = cur_loop_break_dst;
+    cur_loop_break_dst = lbreak;
+
+    int seen_default = 0;
+
+    // No one in their right mind would right a case statement without curlies, but the
+    // grammar allows it, so it has to be taken into account.
+    int in_block = (cur_token == TOK_LCURLY);
+    if (in_block) next();
+
+    while (1) {
+        if (cur_token == TOK_RCURLY)
+            break;
+
+        else if (cur_token == TOK_CASE) {
+            next();
+
+            // TODO make this a constant expression
+            parse_expression(TOK_COMMA);
+            Value *v = pl();
+
+            if (!is_integer_type(v->type) || !v->is_constant)
+                panic("Case statements must be constant integers");
+
+            // Add comparison & jump to main IR
+            ir = main_ir;
+            push(v);
+
+            // Convert to controlling expression type if necessary
+            if (vtop->type->type != controlling_value->type->type) {
+                Value *v = new_value();
+                v->vreg = new_vreg();
+                v->type = dup_type(controlling_value->type);
+                add_instruction(IR_MOVE, v, pop(), 0);
+                push(v);
+            }
+
+            consume(TOK_COLON, ":");
+
+            push(controlling_value);
+            arithmetic_operation(IR_EQ, controlling_value->type);
+
+            Value *ldst = new_label_dst();
+            add_conditional_jump(IR_JNZ, ldst);
+            main_ir = ir;
+
+            // Add case statements to case IR
+            ir = case_ir;
+            add_jmp_target_instruction(ldst);
+            if (cur_token != TOK_CASE && cur_token != TOK_RCURLY) parse_statement();
+            case_ir = ir;
+        }
+
+        else if (cur_token == TOK_DEFAULT) {
+            next();
+            consume(TOK_COLON, ":");
+
+            ir = case_ir;
+            add_jmp_target_instruction(ldefault);
+            parse_statement();
+            case_ir = ir;
+
+            seen_default = 1;
+        }
+
+        else {
+            ir = case_ir;
+            parse_statement();
+            case_ir = ir;
+        }
+
+        if (!in_block) break;
+    }
+
+    if (in_block) consume(TOK_RCURLY, "}");
+
+    ir = main_ir;
+    add_instruction(IR_JMP, 0, seen_default ? ldefault : lbreak, 0);
+    main_ir = ir;
+
+    // Append case_ir onto main_ir
+    ir = main_ir;
+    main_ir->next = case_ir_root;
+    case_ir_root->prev = main_ir;
+    while (ir->next) ir = ir->next;
+
+    add_jmp_target_instruction(lbreak);
+
+    cur_loop_break_dst = old_loop_break_dst;
+}
+
+static void parse_if_statement(void) {
     consume(TOK_IF, "if");
 
     consume(TOK_LPAREN, "(");
@@ -2315,7 +2427,7 @@ static void parse_if_statement() {
     add_jmp_target_instruction(ldst2);
 }
 
-static void parse_return_statement() {
+static void parse_return_statement(void) {
     consume(TOK_RETURN, "return");
     if (cur_token == TOK_SEMI) {
         add_instruction(IR_RETURN, 0, 0, 0);
@@ -2389,6 +2501,9 @@ static void parse_statement(void) {
 
     else if (cur_token == TOK_IF)
         parse_if_statement();
+
+    else if (cur_token == TOK_SWITCH)
+        parse_switch_statement();
 
     else if (cur_token == TOK_RETURN)
         parse_return_statement();

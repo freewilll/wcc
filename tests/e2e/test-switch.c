@@ -109,7 +109,7 @@ static int test_int_switch_with_mixed_type_cases(int i) {
     return result;
 }
 
-static int test_long_long_switch_with_mixed_type_cases(long long ll) {
+static int test_long_switch_with_mixed_type_cases(long ll) {
     int result = 0;
     switch(ll) {
         case 0x000000000:
@@ -134,6 +134,35 @@ static int test_long_long_switch_with_mixed_type_cases(long long ll) {
             result |= 64;
     }
     return result;
+}
+
+typedef enum { I, J } E;
+
+int test_switch_with_enum(int e) {
+    int i = 0;
+
+    switch (e) {
+        case I:
+            i = 1;
+            break;
+        case J:
+            i = 2;
+            break;
+    }
+
+    return i;
+}
+
+int test_multiple_cases(int i) {
+    switch (i) {
+        case 1:
+        case 2:
+            return 12;
+        case 3:
+            return 3;
+        default:
+            return 0;
+    }
 }
 
 static void test_switch() {
@@ -173,16 +202,28 @@ static void test_switch() {
     assert_int(8,  test_int_switch_with_mixed_type_cases(0x100000002),  "Test int switch with mixed type cases 5");
     assert_int(16, test_int_switch_with_mixed_type_cases(3),            "Test int switch with mixed type cases 6");
 
-    assert_int(1,  test_long_long_switch_with_mixed_type_cases(0),           "Test long long switch with mixed type cases 1");
-    assert_int(2,  test_long_long_switch_with_mixed_type_cases(1),           "Test long long switch with mixed type cases 2");
-    assert_int(4,  test_long_long_switch_with_mixed_type_cases(2),           "Test long long switch with mixed type cases 3");
-    assert_int(64, test_long_long_switch_with_mixed_type_cases(3),           "Test long long switch with mixed type cases 4");
-    assert_int(1,  test_long_long_switch_with_mixed_type_cases(0x000000000), "Test long long switch with mixed type cases 5");
-    assert_int(2,  test_long_long_switch_with_mixed_type_cases(0x000000001), "Test long long switch with mixed type cases 6");
-    assert_int(4,  test_long_long_switch_with_mixed_type_cases(0x000000002), "Test long long switch with mixed type cases 7");
-    assert_int(8,  test_long_long_switch_with_mixed_type_cases(0x100000000), "Test long long switch with mixed type cases 8");
-    assert_int(16, test_long_long_switch_with_mixed_type_cases(0x100000001), "Test long long switch with mixed type cases 9");
-    assert_int(32, test_long_long_switch_with_mixed_type_cases(0x100000002), "Test long long switch with mixed type cases 10");
+    assert_int(1,  test_long_switch_with_mixed_type_cases(0),           "Test long switch with mixed type cases 1");
+    assert_int(2,  test_long_switch_with_mixed_type_cases(1),           "Test long switch with mixed type cases 2");
+    assert_int(4,  test_long_switch_with_mixed_type_cases(2),           "Test long switch with mixed type cases 3");
+    assert_int(64, test_long_switch_with_mixed_type_cases(3),           "Test long switch with mixed type cases 4");
+    assert_int(1,  test_long_switch_with_mixed_type_cases(0x000000000), "Test long switch with mixed type cases 5");
+    assert_int(2,  test_long_switch_with_mixed_type_cases(0x000000001), "Test long switch with mixed type cases 6");
+    assert_int(4,  test_long_switch_with_mixed_type_cases(0x000000002), "Test long switch with mixed type cases 7");
+    assert_int(8,  test_long_switch_with_mixed_type_cases(0x100000000), "Test long switch with mixed type cases 8");
+    assert_int(16, test_long_switch_with_mixed_type_cases(0x100000001), "Test long switch with mixed type cases 9");
+    assert_int(32, test_long_switch_with_mixed_type_cases(0x100000002), "Test long switch with mixed type cases 10");
+
+    assert_int(1, test_switch_with_enum(I), "Switch with enum I");
+    assert_int(2, test_switch_with_enum(J), "Switch with enum J");
+
+    int i;
+    i = 0; switch(1) case 1: i = 1; assert_int(1, i, "Silly switch case without curlies 1");
+    i = 0; switch(1) case 2: i = 1; assert_int(0, i, "Silly switch case without curlies 2");
+
+    assert_int(12, test_multiple_cases(1), "Multiple switch cases 1");
+    assert_int(12, test_multiple_cases(2), "Multiple switch cases 2");
+    assert_int(3,  test_multiple_cases(3), "Multiple switch cases 3");
+    assert_int(0,  test_multiple_cases(4), "Multiple switch cases 4");
 }
 
 int main(int argc, char **argv) {

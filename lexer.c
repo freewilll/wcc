@@ -159,6 +159,9 @@ void next(void) {
             else if (!strcmp(cur_identifier, "for"          )) { cur_token = TOK_FOR;       }
             else if (!strcmp(cur_identifier, "continue"     )) { cur_token = TOK_CONTINUE;  }
             else if (!strcmp(cur_identifier, "break"        )) { cur_token = TOK_BREAK;     }
+            else if (!strcmp(cur_identifier, "switch"       )) { cur_token = TOK_SWITCH;    }
+            else if (!strcmp(cur_identifier, "case"         )) { cur_token = TOK_CASE;      }
+            else if (!strcmp(cur_identifier, "default"      )) { cur_token = TOK_DEFAULT;   }
             else if (!strcmp(cur_identifier, "return"       )) { cur_token = TOK_RETURN;    }
             else if (!strcmp(cur_identifier, "enum"         )) { cur_token = TOK_ENUM;      }
             else if (!strcmp(cur_identifier, "sizeof"       )) { cur_token = TOK_SIZEOF;    }

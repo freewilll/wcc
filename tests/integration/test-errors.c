@@ -272,5 +272,16 @@ int main(int argc, char **argv) {
         "Mismatching linkage in redeclared identifier a",
         "Mismatching linkage non-static/static");
 
+    check_main_output(
+        "switch(1.1);",
+        "The controlling expression of a switch statement is not an integral type",
+        "Switch with double");
+
+    check_main_output(
+        "struct {int i;} s;"
+        "switch(s);",
+        "The controlling expression of a switch statement is not an integral type",
+        "Switch with struct");
+
     finalize();
 }
