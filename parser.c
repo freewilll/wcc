@@ -2286,6 +2286,61 @@ static void parse_compound_statement(void) {
     consume(TOK_RCURLY, "}");
 }
 
+static void parse_if_statement() {
+    consume(TOK_IF, "if");
+
+    consume(TOK_LPAREN, "(");
+    parse_expression(TOK_COMMA);
+    if (!is_scalar_type(vtop->type)) panic("The controlling statement of an if statement must be a scalar");
+    consume(TOK_RPAREN, ")");
+
+    Value *ldst1 = new_label_dst(); // False case
+    Value *ldst2 = new_label_dst(); // End
+    add_conditional_jump(IR_JZ, ldst1);
+    parse_statement();
+
+    if (cur_token == TOK_HASH) parse_directive();
+
+    if (cur_token == TOK_ELSE) {
+        next();
+        add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
+        add_jmp_target_instruction(ldst1);    // Start of else case
+        parse_statement();
+    }
+    else {
+        add_jmp_target_instruction(ldst1); // End of true case
+    }
+
+    // End
+    add_jmp_target_instruction(ldst2);
+}
+
+static void parse_return_statement() {
+    consume(TOK_RETURN, "return");
+    if (cur_token == TOK_SEMI) {
+        add_instruction(IR_RETURN, 0, 0, 0);
+    }
+    else {
+        parse_expression(TOK_COMMA);
+
+        if (vtop && vtop->type->type != TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID)
+            panic("Return with a value in a function returning void");
+
+        Value *src1;
+        if (vtop && vtop->type->type == TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID) {
+            // Deal with case of returning the result of a void function in a void function
+            // e.g. foo(); void bar() { return foo(); }
+            vs++; // Remove from value stack
+            src1 = 0;
+        }
+        else
+            src1 = add_convert_type_if_needed(pl(), cur_function_symbol->type->function->return_type);
+
+        add_instruction(IR_RETURN, 0, src1, 0);
+    }
+    consume(TOK_SEMI, ";");
+}
+
 // Parse a statement
 static void parse_statement(void) {
     vs = vs_start; // Reset value stack
@@ -2332,60 +2387,11 @@ static void parse_statement(void) {
         consume(TOK_SEMI, ";");
     }
 
-    else if (cur_token == TOK_IF) {
-        next();
+    else if (cur_token == TOK_IF)
+        parse_if_statement();
 
-        consume(TOK_LPAREN, "(");
-        parse_expression(TOK_COMMA);
-        if (!is_scalar_type(vtop->type)) panic("The controlling statement of an if statement must be a scalar");
-        consume(TOK_RPAREN, ")");
-
-        Value *ldst1 = new_label_dst(); // False case
-        Value *ldst2 = new_label_dst(); // End
-        add_conditional_jump(IR_JZ, ldst1);
-        parse_statement();
-
-        if (cur_token == TOK_HASH) parse_directive();
-
-        if (cur_token == TOK_ELSE) {
-            next();
-            add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
-            add_jmp_target_instruction(ldst1);    // Start of else case
-            parse_statement();
-        }
-        else {
-            add_jmp_target_instruction(ldst1); // End of true case
-        }
-
-        // End
-        add_jmp_target_instruction(ldst2);
-    }
-
-    else if (cur_token == TOK_RETURN) {
-        next();
-        if (cur_token == TOK_SEMI) {
-            add_instruction(IR_RETURN, 0, 0, 0);
-        }
-        else {
-            parse_expression(TOK_COMMA);
-
-            if (vtop && vtop->type->type != TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID)
-                panic("Return with a value in a function returning void");
-
-            Value *src1;
-            if (vtop && vtop->type->type == TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID) {
-                // Deal with case of returning the result of a void function in a void function
-                // e.g. foo(); void bar() { return foo(); }
-                vs++; // Remove from value stack
-                src1 = 0;
-            }
-            else
-                src1 = add_convert_type_if_needed(pl(), cur_function_symbol->type->function->return_type);
-
-            add_instruction(IR_RETURN, 0, src1, 0);
-        }
-        consume(TOK_SEMI, ";");
-    }
+    else if (cur_token == TOK_RETURN)
+        parse_return_statement();
 
     else {
         parse_expression(TOK_COMMA);
