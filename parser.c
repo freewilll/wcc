@@ -319,7 +319,6 @@ static Type *parse_declaration_specifiers(void) {
         }
         else if (cur_token == TOK_LONG) {
             next();
-            // if (cur_token == TOK_LONG) next();
             if (cur_token == TOK_INT) {
                 next();
                 seen_long++;
