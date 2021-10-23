@@ -44,7 +44,7 @@ int print_type(void *f, Type *type) {
         else len += fprintf(f, "[]");
     }
     else if (tt == TYPE_ENUM)
-        len += fprintf(f, "enum %s", t->tag ? t->tag->identifier : "(anonymous");
+        len += fprintf(f, "enum %s", t->tag ? t->tag->identifier : "(anonymous)");
     else if (tt == TYPE_FUNCTION)
         len += fprintf(f, "function");
     else
