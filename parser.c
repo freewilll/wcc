@@ -306,70 +306,71 @@ static Type *parse_declaration_specifiers(void) {
     while (changed) {
         changed = 1;
 
-             if (cur_token == TOK_VOID)     { next(); seen_void++;     type = new_type(TYPE_VOID);   }
-        else if (cur_token == TOK_CHAR)     { next(); seen_char++;     type = new_type(TYPE_CHAR);   }
-        else if (cur_token == TOK_INT)      { next(); seen_int++;      type = new_type(TYPE_INT);    }
-        else if (cur_token == TOK_FLOAT)    { next(); seen_float++;    type = new_type(TYPE_FLOAT);  }
-        else if (cur_token == TOK_DOUBLE)   { next(); seen_double++;   type = new_type(TYPE_DOUBLE); }
-        else if (cur_token == TOK_SHORT) {
-            next();
-            if (cur_token == TOK_INT) next();
-            seen_short++;
-            type = new_type(TYPE_SHORT);
-        }
-        else if (cur_token == TOK_LONG) {
-            next();
-            if (cur_token == TOK_INT) {
+        switch (cur_token) {
+            case TOK_VOID:     next(); seen_void++;     type = new_type(TYPE_VOID); break;
+            case TOK_CHAR:     next(); seen_char++;     type = new_type(TYPE_CHAR); break;
+            case TOK_INT:      next(); seen_int++;      type = new_type(TYPE_INT); break;
+            case TOK_FLOAT:    next(); seen_float++;    type = new_type(TYPE_FLOAT); break;
+            case TOK_DOUBLE:   next(); seen_double++;   type = new_type(TYPE_DOUBLE); break;
+            case TOK_SHORT:
                 next();
-                seen_long++;
-                type = new_type(TYPE_LONG);
-            }
-            else if (cur_token == TOK_DOUBLE)   {
+                if (cur_token == TOK_INT) next();
+                seen_short++;
+                type = new_type(TYPE_SHORT);
+                break;
+            case TOK_LONG:
                 next();
-                seen_long_double++;
-                type = new_type(TYPE_LONG_DOUBLE);
-            }
-            else {
-                seen_long++;
-                type = new_type(TYPE_LONG);
-            }
-        }
-        else if (cur_token == TOK_STRUCT) {
-            seen_struct++;
-            type = parse_struct_or_union_type_specifier();
-        }
-        else if (cur_token == TOK_UNION) {
-            seen_union++;
-            type = parse_struct_or_union_type_specifier();
-        }
+                if (cur_token == TOK_INT) {
+                    next();
+                    seen_long++;
+                    type = new_type(TYPE_LONG);
+                }
+                else if (cur_token == TOK_DOUBLE)   {
+                    next();
+                    seen_long_double++;
+                    type = new_type(TYPE_LONG_DOUBLE);
+                }
+                else {
+                    seen_long++;
+                    type = new_type(TYPE_LONG);
+                }
+                break;
+            case TOK_STRUCT:
+                seen_struct++;
+                type = parse_struct_or_union_type_specifier();
+                break;
+            case TOK_UNION:
+                seen_union++;
+                type = parse_struct_or_union_type_specifier();
+                break;
+            case TOK_ENUM:
+                seen_enum++;
+                type = parse_enum_type_specifier();
+                break;
+            case TOK_TYPEDEF_TYPE:
+                // If a typedef type has been encountered by the lexer and a type already
+                // exits, then it's not a typedef type, but a redefinition of a typedef
+                // type.
+                if (!type) {
+                    seen_typedef++;
+                    type = dup_type(cur_lexer_type);
+                    next();
+                }
+                else
+                    changed = 0;
+                break;
 
-        else if (cur_token == TOK_ENUM) {
-            seen_enum++;
-            type = parse_enum_type_specifier();
-        }
-        else if (cur_token == TOK_TYPEDEF_TYPE) {
-            // If a typedef type has been encountered by the lexer and a type already
-            // exits, then it's not a typedef type, but a redefinition of a typedef
-            // type.
-            if (!type) {
-                seen_typedef++;
-                type = dup_type(cur_lexer_type);
-                next();
-            }
-            else
-                changed = 0;
-        }
+            case TOK_SIGNED:   next(); seen_signed++; break;
+            case TOK_UNSIGNED: next(); seen_unsigned++; break;
+            case TOK_CONST:    next(); seen_const++; break;
+            case TOK_VOLATILE: next(); seen_volatile++; break;
+            case TOK_AUTO:     next(); seen_auto++; break;
+            case TOK_REGISTER: next(); seen_register++; break;
+            case TOK_STATIC:   next(); seen_static++; break;
+            case TOK_EXTERN:   next(); seen_extern++; break;
 
-        else if (cur_token == TOK_SIGNED)   { next(); seen_signed++;   }
-        else if (cur_token == TOK_UNSIGNED) { next(); seen_unsigned++; }
-        else if (cur_token == TOK_CONST)    { next(); seen_const++;    }
-        else if (cur_token == TOK_VOLATILE) { next(); seen_volatile++; }
-        else if (cur_token == TOK_AUTO)     { next(); seen_auto++;     }
-        else if (cur_token == TOK_REGISTER) { next(); seen_register++; }
-        else if (cur_token == TOK_STATIC)   { next(); seen_static++;   }
-        else if (cur_token == TOK_EXTERN)   { next(); seen_extern++;   }
-
-        else changed = 0;
+            default: changed = 0;
+        }
     }
 
     if (seen_long == 2) seen_long = 1;
@@ -1751,244 +1752,63 @@ static void parse_expression(int level) {
         base_type = 0;
     }
 
-    else if (cur_token == TOK_TYPEDEF)
-        parse_typedef();
+    else switch(cur_token) {
+        case TOK_TYPEDEF:
+            parse_typedef();
+            break;
 
-    else if (cur_token == TOK_LOGICAL_NOT) {
-        next();
-        parse_expression(TOK_INC);
-        if (!is_scalar_type(vtop->type)) panic("Cannot use ! on a non scalar");
+        case TOK_LOGICAL_NOT:
+            next();
+            parse_expression(TOK_INC);
+            if (!is_scalar_type(vtop->type)) panic("Cannot use ! on a non scalar");
 
-        if (vtop->is_constant)
-            push_integral_constant(TYPE_INT, !pop()->int_value);
-        else {
-            push_integral_constant(TYPE_INT, 0);
-            arithmetic_operation(IR_EQ, new_type(TYPE_INT));
-        }
-    }
+            if (vtop->is_constant)
+                push_integral_constant(TYPE_INT, !pop()->int_value);
+            else {
+                push_integral_constant(TYPE_INT, 0);
+                arithmetic_operation(IR_EQ, new_type(TYPE_INT));
+            }
+            break;
 
-    else if (cur_token == TOK_BITWISE_NOT) {
-        next();
-        parse_expression(TOK_INC);
-        if (!is_integer_type(vtop->type)) panic("Cannot use ~ on a non integer");
-        push(integer_promote(pl()));
-        Type *type = vtop->type;
-        add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
-    }
+        case TOK_BITWISE_NOT:
+            next();
+            parse_expression(TOK_INC);
+            if (!is_integer_type(vtop->type)) panic("Cannot use ~ on a non integer");
+            push(integer_promote(pl()));
+            Type *type = vtop->type;
+            add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
+            break;
 
-    else if (cur_token == TOK_ADDRESS_OF) {
-        next();
-        parse_expression(TOK_INC);
-
-        // Arrays are rvalues as well as lvalues. Otherwise, an lvalue is required
-        if ((vtop->type->type == TYPE_ARRAY && vtop->is_lvalue) && !vtop->is_lvalue)
-            panic("Cannot take an address of an rvalue");
-
-        if (vtop->bit_field_size) panic("Cannot take an address of a bit-field");
-
-        Value *src1 = pop();
-        add_ir_op(IR_ADDRESS_OF, make_pointer(src1->type), new_vreg(), src1, 0);
-        if (src1->offset && src1->vreg) {
-            // Non-vreg offsets are outputted by codegen. For addresses in registers, it
-            // needs to be calculated.
-            push_integral_constant(TYPE_INT, src1->offset);
-            arithmetic_operation(IR_ADD, 0);
-            src1->offset = 0;
-        }
-    }
-
-    else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
-        // Prefix increment & decrement
-
-        int org_token = cur_token;
-        next();
-        parse_expression(TOK_DOT);
-
-        if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
-        if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
-
-        Value *v1 = pop();                 // lvalue
-        Value *src1 = load(dup_value(v1)); // rvalue
-        push(src1);
-        push_value_size_constant(src1);
-        arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
-        add_instruction(IR_MOVE, v1, vtop, 0);
-        push(v1); // Push the original lvalue back on the value stack
-    }
-
-    else if (cur_token == TOK_MULTIPLY) {
-        if (base_type)
-            parse_declaration();
-        else {
+        case TOK_ADDRESS_OF:
             next();
             parse_expression(TOK_INC);
 
-            // Special case: indirects on function types are no-ops.
-            if (vtop->type->type != TYPE_FUNCTION)  {
-                if (!is_pointer_or_array_type(vtop->type)) panic("Cannot dereference a non-pointer");
-                indirect();
+            // Arrays are rvalues as well as lvalues. Otherwise, an lvalue is required
+            if ((vtop->type->type == TYPE_ARRAY && vtop->is_lvalue) && !vtop->is_lvalue)
+                panic("Cannot take an address of an rvalue");
+
+            if (vtop->bit_field_size) panic("Cannot take an address of a bit-field");
+
+            Value *src1 = pop();
+            add_ir_op(IR_ADDRESS_OF, make_pointer(src1->type), new_vreg(), src1, 0);
+            if (src1->offset && src1->vreg) {
+                // Non-vreg offsets are outputted by codegen. For addresses in registers, it
+                // needs to be calculated.
+                push_integral_constant(TYPE_INT, src1->offset);
+                arithmetic_operation(IR_ADD, 0);
+                src1->offset = 0;
             }
-        }
-    }
+            break;
 
-    else if (cur_token == TOK_MINUS) {
-        // Unary minus
-        next();
-
-        parse_expression(TOK_INC);
-        if (!is_arithmetic_type(vtop->type)) panic("Can only use unary - on an arithmetic type");
-
-        if (vtop->type->type == TYPE_LONG_DOUBLE)
-            push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
-        else if (vtop->type->type == TYPE_DOUBLE)
-            push_floating_point_constant(TYPE_DOUBLE, -1.0L);
-        else if (vtop->type->type == TYPE_FLOAT)
-            push_floating_point_constant(TYPE_FLOAT, -1.0L);
-        else
-            push_integral_constant(TYPE_INT, -1);
-
-        arithmetic_operation(IR_MUL, 0);
-    }
-
-    else if (cur_token == TOK_PLUS) {
-        // Unary plus
-
-        next();
-        parse_expression(TOK_INC);
-        if (!is_arithmetic_type(vtop->type)) panic("Can only use unary + on an arithmetic type");
-        if (is_integer_type(vtop->type)) push(integer_promote(pl()));
-    }
-
-    else if (cur_token == TOK_LPAREN) {
-        if (base_type)
-            parse_declaration();
-
-        else {
-            next();
-            if (cur_token_is_type()) {
-                // Cast
-                Type *org_type = parse_type_name();
-                consume(TOK_RPAREN, ")");
-                parse_expression(TOK_INC);
-
-                Value *v1 = pl();
-                // Special case for (void *) int-constant
-
-                if (is_pointer_to_void(org_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
-                    Value *dst = new_value();
-                    dst->is_constant =1;
-                    dst->int_value = v1->int_value;
-                    dst->type = make_pointer_to_void();
-                    push(dst);
-                }
-                else if (v1->type != org_type) {
-                    Value *dst = new_value();
-                    dst->vreg = new_vreg();
-                    dst->type = dup_type(org_type);
-                    add_instruction(IR_MOVE, dst, v1, 0);
-                    push(dst);
-                }
-                else push(v1);
-            }
-            else {
-                parse_expression(TOK_COMMA);
-                consume(TOK_RPAREN, ")");
-            }
-        }
-    }
-
-    else if (cur_token == TOK_INTEGER) {
-        push_cur_long();
-        next();
-    }
-
-    else if (cur_token == TOK_FLOATING_POINT_NUMBER) {
-        push_cur_long_double();
-        next();
-    }
-
-    else if (cur_token == TOK_STRING_LITERAL) {
-        int size = strlen(cur_string_literal) + 1;
-
-        Value *dst = new_value();
-        dst->type = make_array(new_type(TYPE_CHAR), size);
-        dst->string_literal_index = string_literal_count;
-        dst->is_string_literal = 1;
-        if (string_literal_count > MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);
-        string_literals[string_literal_count++] = cur_string_literal;
-
-        push(dst);
-        next();
-    }
-
-    else if (cur_token == TOK_IDENTIFIER) {
-        if (base_type)
-            parse_declaration();
-
-        else {
-            // It's an existing symbol
-            Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
-            if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
-
-            next();
-
-            if (symbol->is_enum_value)
-                push_integral_constant(TYPE_INT, symbol->value);
-            else
-                push_symbol(symbol);
-        }
-    }
-
-    else if (cur_token == TOK_SIZEOF) {
-        next();
-        consume(TOK_LPAREN, "(");
-        Type *type;
-        if (cur_token_is_type())
-            type = parse_type_name();
-        else {
-            parse_expression(TOK_COMMA);
-            Value *v = pop();
-            if (v->bit_field_size) panic("Cannot take sizeof a bit field");
-            type = v->type;
-        }
-
-        if (is_incomplete_type(type)) panic("Cannot take sizeof an incomplete type");
-
-
-
-        push_integral_constant(TYPE_LONG, get_type_size(type));
-        consume(TOK_RPAREN, ")");
-    }
-
-    else
-        panic1d("Unexpected token %d in expression", cur_token);
-
-    while (cur_token >= level) {
-        // In order or precedence, highest first
-
-        if (cur_token == TOK_LBRACKET) {
-            next();
-
-            if (vtop->type->type != TYPE_PTR && vtop->type->type != TYPE_ARRAY)
-                panic("Invalid operator [] on a non-pointer and non-array");
-
-            parse_addition(TOK_COMMA);
-            consume(TOK_RBRACKET, "]");
-            indirect();
-        }
-
-        else if (cur_token == TOK_LPAREN)
-            // Function call
-            parse_function_call();
-
-        else if (cur_token == TOK_INC || cur_token == TOK_DEC) {
-            // Postfix increment & decrement
+        case TOK_INC:
+        case TOK_DEC: {
+            // Prefix increment & decrement
 
             int org_token = cur_token;
             next();
+            parse_expression(TOK_DOT);
 
             if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
-            if (!is_scalar_type(vtop->type)) panic("Cannot postfix ++ or -- on a non scalar");
             if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
 
             Value *v1 = pop();                 // lvalue
@@ -1997,173 +1817,358 @@ static void parse_expression(int level) {
             push_value_size_constant(src1);
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
             add_instruction(IR_MOVE, v1, vtop, 0);
-            pop(); // Pop the lvalue of the assignment off the stack
-            push(src1); // Push the original rvalue back on the value stack
+            push(v1); // Push the original lvalue back on the value stack
+
+            break;
         }
 
-        else if (cur_token == TOK_DOT || cur_token == TOK_ARROW) {
-            // Struct/union member lookup
-
-            if (cur_token == TOK_DOT) {
-                if (vtop->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
-                if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
-            }
+        case TOK_MULTIPLY:
+            if (base_type)
+                parse_declaration();
             else {
-                if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
-                if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) panic("Can only use -> on a pointer to a struct or union");
-                if (is_incomplete_type(vtop->type->target)) panic("Dereferencing a pointer to incomplete struct or union");
+                next();
+                parse_expression(TOK_INC);
+
+                // Special case: indirects on function types are no-ops.
+                if (vtop->type->type != TYPE_FUNCTION)  {
+                    if (!is_pointer_or_array_type(vtop->type)) panic("Cannot dereference a non-pointer");
+                    indirect();
+                }
             }
+            break;
 
-            int is_dot = cur_token == TOK_DOT;
+        case TOK_MINUS:
+            // Unary minus
+            next();
+
+            parse_expression(TOK_INC);
+            if (!is_arithmetic_type(vtop->type)) panic("Can only use unary - on an arithmetic type");
+
+            if (vtop->type->type == TYPE_LONG_DOUBLE)
+                push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
+            else if (vtop->type->type == TYPE_DOUBLE)
+                push_floating_point_constant(TYPE_DOUBLE, -1.0L);
+            else if (vtop->type->type == TYPE_FLOAT)
+                push_floating_point_constant(TYPE_FLOAT, -1.0L);
+            else
+                push_integral_constant(TYPE_INT, -1);
+
+            arithmetic_operation(IR_MUL, 0);
+
+            break;
+
+        case TOK_PLUS:
+            // Unary plus
 
             next();
-            consume(TOK_IDENTIFIER, "identifier");
+            parse_expression(TOK_INC);
+            if (!is_arithmetic_type(vtop->type)) panic("Can only use unary + on an arithmetic type");
+            if (is_integer_type(vtop->type)) push(integer_promote(pl()));
+            break;
 
-            Type *str_type = is_dot ? vtop->type : vtop->type->target;
-            StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
+        case TOK_LPAREN:
+            if (base_type)
+                parse_declaration();
 
-            if (!type_is_modifiable(str_type)) {
-                member->type = dup_type(member->type);
-                member->type->is_const = 1;
+            else {
+                next();
+                if (cur_token_is_type()) {
+                    // Cast
+                    Type *org_type = parse_type_name();
+                    consume(TOK_RPAREN, ")");
+                    parse_expression(TOK_INC);
+
+                    Value *v1 = pl();
+                    // Special case for (void *) int-constant
+
+                    if (is_pointer_to_void(org_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
+                        Value *dst = new_value();
+                        dst->is_constant =1;
+                        dst->int_value = v1->int_value;
+                        dst->type = make_pointer_to_void();
+                        push(dst);
+                    }
+                    else if (v1->type != org_type) {
+                        Value *dst = new_value();
+                        dst->vreg = new_vreg();
+                        dst->type = dup_type(org_type);
+                        add_instruction(IR_MOVE, dst, v1, 0);
+                        push(dst);
+                    }
+                    else push(v1);
+                }
+                else {
+                    parse_expression(TOK_COMMA);
+                    consume(TOK_RPAREN, ")");
+                }
             }
+            break;
 
-            if (!is_dot) indirect();
-
-            vtop->offset = vtop->offset + member->offset;
-            vtop->bit_field_offset = vtop->offset * 8 + (member->bit_field_offset & 7);
-            vtop->bit_field_size = member->bit_field_size;
-            vtop->type = dup_type(member->type);
-            vtop->is_lvalue = 1;
-        }
-
-        else if (cur_token == TOK_MULTIPLY) { next(); parse_arithmetic_operation(TOK_DOT, IR_MUL, 0); }
-        else if (cur_token == TOK_DIVIDE)   { next(); parse_arithmetic_operation(TOK_INC, IR_DIV, 0); }
-        else if (cur_token == TOK_MOD)      { next(); parse_arithmetic_operation(TOK_INC, IR_MOD, 0); }
-
-        else if (cur_token == TOK_PLUS) {
+        case TOK_INTEGER:
+            push_cur_long();
             next();
-            parse_addition(TOK_MULTIPLY);
-        }
+            break;
 
-        else if (cur_token == TOK_MINUS) {
+        case TOK_FLOATING_POINT_NUMBER:
+            push_cur_long_double();
             next();
-            parse_subtraction(TOK_MULTIPLY);
-        }
+            break;
 
-        else if (cur_token == TOK_BITWISE_RIGHT) {
-            next();
-            parse_bitwise_shift(level, IR_BSHR);
-        }
+        case TOK_STRING_LITERAL: {
+            int size = strlen(cur_string_literal) + 1;
 
-        else if (cur_token == TOK_BITWISE_LEFT) {
-            next();
-            parse_bitwise_shift(level, IR_BSHL);
-        }
-
-        else if (cur_token == TOK_LT)            { next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LT,   new_type(TYPE_INT)); }
-        else if (cur_token == TOK_GT)            { next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GT,   new_type(TYPE_INT)); }
-        else if (cur_token == TOK_LE)            { next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LE,   new_type(TYPE_INT)); }
-        else if (cur_token == TOK_GE)            { next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GE,   new_type(TYPE_INT)); }
-        else if (cur_token == TOK_DBL_EQ)        { next(); parse_arithmetic_operation(TOK_LT,           IR_EQ,   new_type(TYPE_INT)); }
-        else if (cur_token == TOK_NOT_EQ)        { next(); parse_arithmetic_operation(TOK_LT,           IR_NE,   new_type(TYPE_INT)); }
-        else if (cur_token == TOK_ADDRESS_OF)    { next(); parse_arithmetic_operation(TOK_DBL_EQ,       IR_BAND, 0); }
-        else if (cur_token == TOK_XOR)           { next(); parse_arithmetic_operation(TOK_ADDRESS_OF,   IR_XOR,  0); }
-        else if (cur_token == TOK_BITWISE_OR)    { next(); parse_arithmetic_operation(TOK_XOR,          IR_BOR,  0); }
-
-        else if (cur_token == TOK_AND)           and_or_expr(1);
-        else if (cur_token == TOK_OR)            and_or_expr(0);
-
-        else if (cur_token == TOK_TERNARY) {
-            next();
-
-            if (!is_scalar_type(vtop->type)) panic("Expected scalar type for first operand of ternary operator");
-
-            // Destination register
             Value *dst = new_value();
-            dst->vreg = new_vreg();
+            dst->type = make_array(new_type(TYPE_CHAR), size);
+            dst->string_literal_index = string_literal_count;
+            dst->is_string_literal = 1;
+            if (string_literal_count > MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);
+            string_literals[string_literal_count++] = cur_string_literal;
 
-            Value *ldst1 = new_label_dst(); // False case
-            Value *ldst2 = new_label_dst(); // End
-            add_conditional_jump(IR_JZ, ldst1);
-            parse_expression(TOK_TERNARY);
-            Value *src1 = vtop;
-            if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
-            add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
-            add_jmp_target_instruction(ldst1);    // Start of false case
-            consume(TOK_COLON, ":");
-            parse_expression(TOK_TERNARY);
-            Value *src2 = vtop;
-
-            // Decay arrays to pointers
-            if (src1->type->type == TYPE_ARRAY) src1 = decay_array_value(src1);
-            if (src2->type->type == TYPE_ARRAY) src2 = decay_array_value(src2);
-
-            int src1_is_arithmetic = is_arithmetic_type(src1->type);
-            int src2_is_arithmetic = is_arithmetic_type(src2->type);
-            int src1_is_pointer = is_pointer_type(src1->type);
-            int src2_is_pointer = is_pointer_type(src2->type);
-
-            Type *src1_type_deref = 0;
-            Type *src2_type_deref = 0;
-
-            if (src1_is_pointer) src1_type_deref = deref_pointer(src1->type);
-            if (src2_is_pointer) src2_type_deref = deref_pointer(src2->type);
-
-            // One of the following shall hold for the second and third operands:
-            // * both operands have arithmetic type;
-            // * both operands have compatible structure or union types;
-            // * both operands have void type;
-            // * both operands are pointers to qualified or unqualified versions of compatible types;
-            // * one operand is a pointer and the other is a null pointer constant; or
-            // * one operand is a pointer to an object or incomplete type and the other is a pointer to a qualified or unqualified version of void .
-
-            if (
-                (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
-                (!(src1->type->type == TYPE_STRUCT_OR_UNION && src2->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible(src1->type, src2->type))) &&
-                (!(src1->type->type == TYPE_VOID && src2->type->type == TYPE_VOID)) &&
-                (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
-                (!(src1_is_pointer && is_null_pointer(src2))) &&
-                (!(src2_is_pointer && is_null_pointer(src1))) &&
-                (!((is_pointer_to_object_type(src1->type) && is_pointer_to_void(src2->type)) ||
-                   (is_pointer_to_object_type(src2->type) && is_pointer_to_void(src1->type))))
-            )
-                panic("Invalid operands to ternary operator");
-
-            dst->type = operation_type(src1, src2, 1);
-            if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
             push(dst);
-            add_jmp_target_instruction(ldst2); // End
-        }
-
-        else if (cur_token == TOK_EQ) parse_simple_assignment(1);
-
-        // Composite assignments
-        else if (cur_token == TOK_PLUS_EQ)          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ);                         finish_comp_assign(v); }
-        else if (cur_token == TOK_MINUS_EQ)         { Value *v = prep_comp_assign(); parse_subtraction(TOK_EQ);                      finish_comp_assign(v); }
-        else if (cur_token == TOK_MULTIPLY_EQ)      { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_MUL,  0); finish_comp_assign(v); }
-        else if (cur_token == TOK_DIVIDE_EQ)        { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_DIV,  0); finish_comp_assign(v); }
-        else if (cur_token == TOK_MOD_EQ)           { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_MOD,  0); finish_comp_assign(v); }
-        else if (cur_token == TOK_BITWISE_AND_EQ)   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_BAND, 0); finish_comp_assign(v); }
-        else if (cur_token == TOK_BITWISE_OR_EQ)    { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_BOR,  0); finish_comp_assign(v); }
-        else if (cur_token == TOK_BITWISE_XOR_EQ)   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_XOR,  0); finish_comp_assign(v); }
-        else if (cur_token == TOK_BITWISE_RIGHT_EQ) { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHR);           finish_comp_assign(v); }
-        else if (cur_token == TOK_BITWISE_LEFT_EQ)  { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHL);           finish_comp_assign(v); }
-
-        else if (cur_token == TOK_COMMA) {
-            // Replace the outcome from the previous expression on the stack with
-            // void and process the next expression.
-
-            pop_void();
-            Value *v = new_value();
-            v->type = new_type(TYPE_VOID);
-            v->vreg = new_vreg();
-            push(v);
             next();
-            parse_expression(TOK_COMMA);
+            break;
         }
 
-        else
-            return; // Bail once we hit something unknown
+        case TOK_IDENTIFIER:
+            if (base_type)
+                parse_declaration();
+
+            else {
+                // It's an existing symbol
+                Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
+                if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
+
+                next();
+
+                if (symbol->is_enum_value)
+                    push_integral_constant(TYPE_INT, symbol->value);
+                else
+                    push_symbol(symbol);
+            }
+            break;
+
+        case TOK_SIZEOF: {
+            next();
+            consume(TOK_LPAREN, "(");
+            Type *type;
+            if (cur_token_is_type())
+                type = parse_type_name();
+            else {
+                parse_expression(TOK_COMMA);
+                Value *v = pop();
+                if (v->bit_field_size) panic("Cannot take sizeof a bit field");
+                type = v->type;
+            }
+
+            if (is_incomplete_type(type)) panic("Cannot take sizeof an incomplete type");
+
+            push_integral_constant(TYPE_LONG, get_type_size(type));
+            consume(TOK_RPAREN, ")");
+            break;
+        }
+
+        default:
+            panic1d("Unexpected token %d in expression", cur_token);
+    }
+
+    // The next token is an operator
+    while (cur_token >= level) {
+        // In order or precedence, highest first
+
+        switch (cur_token) {
+
+            case TOK_LBRACKET:
+                next();
+
+                if (vtop->type->type != TYPE_PTR && vtop->type->type != TYPE_ARRAY)
+                    panic("Invalid operator [] on a non-pointer and non-array");
+
+                parse_addition(TOK_COMMA);
+                consume(TOK_RBRACKET, "]");
+                indirect();
+                break;
+
+            case TOK_LPAREN:
+                // Function call
+                parse_function_call();
+                break;
+
+            case TOK_INC:
+            case TOK_DEC: {
+                // Postfix increment & decrement
+
+                int org_token = cur_token;
+                next();
+
+                if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
+                if (!is_scalar_type(vtop->type)) panic("Cannot postfix ++ or -- on a non scalar");
+                if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
+
+                Value *v1 = pop();                 // lvalue
+                Value *src1 = load(dup_value(v1)); // rvalue
+                push(src1);
+                push_value_size_constant(src1);
+                arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
+                add_instruction(IR_MOVE, v1, vtop, 0);
+                pop(); // Pop the lvalue of the assignment off the stack
+                push(src1); // Push the original rvalue back on the value stack
+                break;
+            }
+
+            case TOK_DOT:
+            case TOK_ARROW: {
+                // Struct/union member lookup
+
+                if (cur_token == TOK_DOT) {
+                    if (vtop->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
+                    if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
+                }
+                else {
+                    if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
+                    if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) panic("Can only use -> on a pointer to a struct or union");
+                    if (is_incomplete_type(vtop->type->target)) panic("Dereferencing a pointer to incomplete struct or union");
+                }
+
+                int is_dot = cur_token == TOK_DOT;
+
+                next();
+                consume(TOK_IDENTIFIER, "identifier");
+
+                Type *str_type = is_dot ? vtop->type : vtop->type->target;
+                StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
+
+                if (!type_is_modifiable(str_type)) {
+                    member->type = dup_type(member->type);
+                    member->type->is_const = 1;
+                }
+
+                if (!is_dot) indirect();
+
+                vtop->offset = vtop->offset + member->offset;
+                vtop->bit_field_offset = vtop->offset * 8 + (member->bit_field_offset & 7);
+                vtop->bit_field_size = member->bit_field_size;
+                vtop->type = dup_type(member->type);
+                vtop->is_lvalue = 1;
+                break;
+            }
+
+            case TOK_MULTIPLY:      next(); parse_arithmetic_operation(TOK_DOT, IR_MUL, 0); break;
+            case TOK_DIVIDE:        next(); parse_arithmetic_operation(TOK_INC, IR_DIV, 0); break;
+            case TOK_MOD:           next(); parse_arithmetic_operation(TOK_INC, IR_MOD, 0); break;
+            case TOK_PLUS:          next(); parse_addition(TOK_MULTIPLY); break;
+            case TOK_MINUS:         next(); parse_subtraction(TOK_MULTIPLY); break;
+            case TOK_BITWISE_RIGHT: next(); parse_bitwise_shift(level, IR_BSHR); break;
+            case TOK_BITWISE_LEFT:  next(); parse_bitwise_shift(level, IR_BSHL); break;
+
+            case TOK_LT:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LT,   new_type(TYPE_INT)); break;
+            case TOK_GT:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GT,   new_type(TYPE_INT)); break;
+            case TOK_LE:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LE,   new_type(TYPE_INT)); break;
+            case TOK_GE:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GE,   new_type(TYPE_INT)); break;
+            case TOK_DBL_EQ:        next(); parse_arithmetic_operation(TOK_LT,           IR_EQ,   new_type(TYPE_INT)); break;
+            case TOK_NOT_EQ:        next(); parse_arithmetic_operation(TOK_LT,           IR_NE,   new_type(TYPE_INT)); break;
+            case TOK_ADDRESS_OF:    next(); parse_arithmetic_operation(TOK_DBL_EQ,       IR_BAND, 0); break;
+            case TOK_XOR:           next(); parse_arithmetic_operation(TOK_ADDRESS_OF,   IR_XOR,  0); break;
+            case TOK_BITWISE_OR:    next(); parse_arithmetic_operation(TOK_XOR,          IR_BOR,  0); break;
+
+            case TOK_AND:           and_or_expr(1); break;
+            case TOK_OR:            and_or_expr(0); break;
+
+            case TOK_TERNARY: {
+                next();
+
+                if (!is_scalar_type(vtop->type)) panic("Expected scalar type for first operand of ternary operator");
+
+                // Destination register
+                Value *dst = new_value();
+                dst->vreg = new_vreg();
+
+                Value *ldst1 = new_label_dst(); // False case
+                Value *ldst2 = new_label_dst(); // End
+                add_conditional_jump(IR_JZ, ldst1);
+                parse_expression(TOK_TERNARY);
+                Value *src1 = vtop;
+                if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
+                add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
+                add_jmp_target_instruction(ldst1);    // Start of false case
+                consume(TOK_COLON, ":");
+                parse_expression(TOK_TERNARY);
+                Value *src2 = vtop;
+
+                // Decay arrays to pointers
+                if (src1->type->type == TYPE_ARRAY) src1 = decay_array_value(src1);
+                if (src2->type->type == TYPE_ARRAY) src2 = decay_array_value(src2);
+
+                int src1_is_arithmetic = is_arithmetic_type(src1->type);
+                int src2_is_arithmetic = is_arithmetic_type(src2->type);
+                int src1_is_pointer = is_pointer_type(src1->type);
+                int src2_is_pointer = is_pointer_type(src2->type);
+
+                Type *src1_type_deref = 0;
+                Type *src2_type_deref = 0;
+
+                if (src1_is_pointer) src1_type_deref = deref_pointer(src1->type);
+                if (src2_is_pointer) src2_type_deref = deref_pointer(src2->type);
+
+                // One of the following shall hold for the second and third operands:
+                // * both operands have arithmetic type;
+                // * both operands have compatible structure or union types;
+                // * both operands have void type;
+                // * both operands are pointers to qualified or unqualified versions of compatible types;
+                // * one operand is a pointer and the other is a null pointer constant; or
+                // * one operand is a pointer to an object or incomplete type and the other is a pointer to a qualified or unqualified version of void .
+
+                if (
+                    (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
+                    (!(src1->type->type == TYPE_STRUCT_OR_UNION && src2->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible(src1->type, src2->type))) &&
+                    (!(src1->type->type == TYPE_VOID && src2->type->type == TYPE_VOID)) &&
+                    (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
+                    (!(src1_is_pointer && is_null_pointer(src2))) &&
+                    (!(src2_is_pointer && is_null_pointer(src1))) &&
+                    (!((is_pointer_to_object_type(src1->type) && is_pointer_to_void(src2->type)) ||
+                       (is_pointer_to_object_type(src2->type) && is_pointer_to_void(src1->type))))
+                )
+                    panic("Invalid operands to ternary operator");
+
+                dst->type = operation_type(src1, src2, 1);
+                if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
+                push(dst);
+                add_jmp_target_instruction(ldst2); // End
+                break;
+            }
+
+            case TOK_EQ:
+                parse_simple_assignment(1);
+                break;
+
+            // Composite assignments
+            case TOK_PLUS_EQ:          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ);                         finish_comp_assign(v); break; }
+            case TOK_MINUS_EQ:         { Value *v = prep_comp_assign(); parse_subtraction(TOK_EQ);                      finish_comp_assign(v); break; }
+            case TOK_MULTIPLY_EQ:      { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_MUL,  0); finish_comp_assign(v); break; }
+            case TOK_DIVIDE_EQ:        { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_DIV,  0); finish_comp_assign(v); break; }
+            case TOK_MOD_EQ:           { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_MOD,  0); finish_comp_assign(v); break; }
+            case TOK_BITWISE_AND_EQ:   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_BAND, 0); finish_comp_assign(v); break; }
+            case TOK_BITWISE_OR_EQ:    { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_BOR,  0); finish_comp_assign(v); break; }
+            case TOK_BITWISE_XOR_EQ:   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_XOR,  0); finish_comp_assign(v); break; }
+            case TOK_BITWISE_RIGHT_EQ: { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHR);           finish_comp_assign(v); break; }
+            case TOK_BITWISE_LEFT_EQ:  { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHL);           finish_comp_assign(v); break; }
+
+            case TOK_COMMA: {
+                // Replace the outcome from the previous expression on the stack with
+                // void and process the next expression.
+
+                pop_void();
+                Value *v = new_value();
+                v->type = new_type(TYPE_VOID);
+                v->vreg = new_vreg();
+                push(v);
+                next();
+                parse_expression(TOK_COMMA);
+                break;
+            }
+
+            default:
+                return; // Bail once we hit something unknown
+        }
     }
 }
 
@@ -2476,46 +2481,51 @@ static void parse_statement(void) {
             parse_expression(TOK_COMMA);
     }
 
-    else if (cur_token == TOK_SEMI) {
-        // Empty statement
-        next();
-        return;
-    }
+    else switch (cur_token) {
+        case TOK_SEMI:
+            // Empty statement
+            next();
+            return;
 
-    else if (cur_token == TOK_LCURLY) {
-        enter_scope();
-        parse_compound_statement();
-        exit_scope();
-        return;
-    }
+        case TOK_LCURLY:
+            enter_scope();
+            parse_compound_statement();
+            exit_scope();
+            return;
 
-    else if (cur_token == TOK_DO || cur_token == TOK_WHILE || cur_token == TOK_FOR)
-        parse_iteration_statement();
+        case TOK_DO:
+        case TOK_WHILE:
+        case TOK_FOR:
+            parse_iteration_statement();
+            break;
 
-    else if (cur_token == TOK_CONTINUE) {
-        next();
-        add_instruction(IR_JMP, 0, cur_loop_continue_dst, 0);
-        consume(TOK_SEMI, ";");
-    }
+        case TOK_CONTINUE:
+            next();
+            add_instruction(IR_JMP, 0, cur_loop_continue_dst, 0);
+            consume(TOK_SEMI, ";");
+            break;
 
-    else if (cur_token == TOK_BREAK) {
-        next();
-        add_instruction(IR_JMP, 0, cur_loop_break_dst, 0);
-        consume(TOK_SEMI, ";");
-    }
+        case TOK_BREAK:
+            next();
+            add_instruction(IR_JMP, 0, cur_loop_break_dst, 0);
+            consume(TOK_SEMI, ";");
+            break;
 
-    else if (cur_token == TOK_IF)
-        parse_if_statement();
+        case TOK_IF:
+            parse_if_statement();
+            break;
 
-    else if (cur_token == TOK_SWITCH)
-        parse_switch_statement();
+        case TOK_SWITCH:
+            parse_switch_statement();
+            break;
 
-    else if (cur_token == TOK_RETURN)
-        parse_return_statement();
+        case TOK_RETURN:
+            parse_return_statement();
+            break;
 
-    else {
-        parse_expression(TOK_COMMA);
-        consume(TOK_SEMI, ";");
+        default:
+            parse_expression(TOK_COMMA);
+            consume(TOK_SEMI, ";");
     }
 }
 

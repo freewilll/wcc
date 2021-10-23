@@ -24,31 +24,51 @@ int print_type(void *f, Type *type) {
     if (t->is_volatile) len += fprintf(f, "volatile ");
     if (t->is_unsigned) len += fprintf(f, "unsigned ");
 
-         if (tt == TYPE_VOID)             len += fprintf(f, "void");
-    else if (tt == TYPE_CHAR)             len += fprintf(f, "char");
-    else if (tt == TYPE_INT)              len += fprintf(f, "int");
-    else if (tt == TYPE_SHORT)            len += fprintf(f, "short");
-    else if (tt == TYPE_LONG)             len += fprintf(f, "long");
-    else if (tt == TYPE_FLOAT)            len += fprintf(f, "float");
-    else if (tt == TYPE_DOUBLE)           len += fprintf(f, "double");
-    else if (tt == TYPE_LONG_DOUBLE)      len += fprintf(f, "long double");
-    else if (tt == TYPE_STRUCT_OR_UNION)  {
-        if (t->struct_or_union_desc->is_union)
-            len += fprintf(f, "union %s", t->tag ? t->tag->identifier : "(anonymous)");
-        else
-            len += fprintf(f, "struct %s", t->tag ? t->tag->identifier : "(anonymous)");
+    switch (tt) {
+        case TYPE_VOID:
+            len += fprintf(f, "void");
+            break;
+        case TYPE_CHAR:
+            len += fprintf(f, "char");
+            break;
+        case TYPE_INT:
+            len += fprintf(f, "int");
+            break;
+        case TYPE_SHORT:
+            len += fprintf(f, "short");
+            break;
+        case TYPE_LONG:
+            len += fprintf(f, "long");
+            break;
+        case TYPE_FLOAT:
+            len += fprintf(f, "float");
+            break;
+        case TYPE_DOUBLE:
+            len += fprintf(f, "double");
+            break;
+        case TYPE_LONG_DOUBLE:
+            len += fprintf(f, "long double");
+            break;
+        case TYPE_STRUCT_OR_UNION:
+            if (t->struct_or_union_desc->is_union)
+                len += fprintf(f, "union %s", t->tag ? t->tag->identifier : "(anonymous)");
+            else
+                len += fprintf(f, "struct %s", t->tag ? t->tag->identifier : "(anonymous)");
+            break;
+        case TYPE_ARRAY:
+            len += print_type(f, t->target);
+            if (t->array_size) len += fprintf(f, "[%d]", t->array_size);
+            else len += fprintf(f, "[]");
+            break;
+        case TYPE_ENUM:
+            len += fprintf(f, "enum %s", t->tag ? t->tag->identifier : "(anonymous)");
+            break;
+        case TYPE_FUNCTION:
+            len += fprintf(f, "function");
+            break;
+        default:
+            len += fprintf(f, "unknown tt %d", tt);
     }
-    else if (tt == TYPE_ARRAY) {
-        len += print_type(f, t->target);
-        if (t->array_size) len += fprintf(f, "[%d]", t->array_size);
-        else len += fprintf(f, "[]");
-    }
-    else if (tt == TYPE_ENUM)
-        len += fprintf(f, "enum %s", t->tag ? t->tag->identifier : "(anonymous)");
-    else if (tt == TYPE_FUNCTION)
-        len += fprintf(f, "function");
-    else
-        len += fprintf(f, "unknown tt %d", tt);
 
     return len;
 }
@@ -65,67 +85,83 @@ char *sprint_type_in_english(Type *type) {
         if (type->is_volatile) buffer += sprintf(buffer, "volatile ");
         if (type->is_unsigned) buffer += sprintf(buffer, "unsigned ");
 
-             if (tt == TYPE_VOID)        buffer += sprintf(buffer, "void");
-        else if (tt == TYPE_CHAR)        buffer += sprintf(buffer, "char");
-        else if (tt == TYPE_INT)         buffer += sprintf(buffer, "int");
-        else if (tt == TYPE_SHORT)       buffer += sprintf(buffer, "short");
-        else if (tt == TYPE_LONG)        buffer += sprintf(buffer, "long");
-        else if (tt == TYPE_FLOAT)       buffer += sprintf(buffer, "float");
-        else if (tt == TYPE_DOUBLE)      buffer += sprintf(buffer, "double");
-        else if (tt == TYPE_LONG_DOUBLE) buffer += sprintf(buffer, "long double");
-        else if (tt == TYPE_PTR)         buffer += sprintf(buffer, "pointer to ");
+        switch (tt) {
+            case TYPE_VOID:
+                buffer += sprintf(buffer, "void");
+                break;
+            case TYPE_CHAR:
+                buffer += sprintf(buffer, "char");
+                break;
+            case TYPE_INT:
+                buffer += sprintf(buffer, "int");
+                break;
+            case TYPE_SHORT:
+                buffer += sprintf(buffer, "short");
+                break;
+            case TYPE_LONG:
+                buffer += sprintf(buffer, "long");
+                break;
+            case TYPE_FLOAT:
+                buffer += sprintf(buffer, "float");
+                break;
+            case TYPE_DOUBLE:
+                buffer += sprintf(buffer, "double");
+                break;
+            case TYPE_LONG_DOUBLE:
+                buffer += sprintf(buffer, "long double");
+                break;
+            case TYPE_PTR:
+                buffer += sprintf(buffer, "pointer to ");
+                break;
+            case TYPE_ARRAY:
+                if (type->array_size == 0) buffer += sprintf(buffer, "array of ");
+                else buffer += sprintf(buffer, "array[%d] of ", type->array_size);
+                break;
+            case TYPE_STRUCT_OR_UNION:
+                if (type->tag) {
+                    if (type->struct_or_union_desc->is_union)
+                        buffer += sprintf(buffer, "union %s {", type->tag->identifier);
+                    else
+                        buffer += sprintf(buffer, "struct %s {", type->tag->identifier);
+                }
+                else {
+                    if (type->struct_or_union_desc->is_union)
+                        buffer += sprintf(buffer, "union {");
+                    else
+                        buffer += sprintf(buffer, "struct {");
+                }
 
-        else if (tt == TYPE_ARRAY) {
-            if (type->array_size == 0) buffer += sprintf(buffer, "array of ");
-            else buffer += sprintf(buffer, "array[%d] of ", type->array_size);
-        }
+                int first = 1;
+                for (StructOrUnionMember **pmember = type->struct_or_union_desc->members; *pmember; pmember++) {
+                    if (!first) buffer += sprintf(buffer, ", "); else first = 0;
+                    char *member_english = sprint_type_in_english((*pmember)->type);
+                    buffer += sprintf(buffer, "%s as %s", (*pmember)->identifier, member_english);
+                }
 
-        else if (tt == TYPE_STRUCT_OR_UNION) {
-            if (type->tag) {
-                if (type->struct_or_union_desc->is_union)
-                    buffer += sprintf(buffer, "union %s {", type->tag->identifier);
+                buffer += sprintf(buffer, "}");
+                break;
+            case TYPE_ENUM:
+                if (type->tag)
+                    buffer += sprintf(buffer, "enum %s {}", type->tag->identifier);
                 else
-                    buffer += sprintf(buffer, "struct %s {", type->tag->identifier);
-            }
-            else {
-                if (type->struct_or_union_desc->is_union)
-                    buffer += sprintf(buffer, "union {");
-                else
-                    buffer += sprintf(buffer, "struct {");
-            }
+                    buffer += sprintf(buffer, "enum {}");
+                break;
+            case TYPE_FUNCTION: {
+                buffer += sprintf(buffer, "function(");
+                int first = 1;
+                for (int i = 0; i < type->function->param_count; i++) {
+                    if (!first) buffer += sprintf(buffer, ", "); else first = 0;
+                    buffer += sprintf(buffer, "%s", sprint_type_in_english(type->function->param_types[i]));
+                }
 
-            int first = 1;
-            for (StructOrUnionMember **pmember = type->struct_or_union_desc->members; *pmember; pmember++) {
-                if (!first) buffer += sprintf(buffer, ", "); else first = 0;
-                char *member_english = sprint_type_in_english((*pmember)->type);
-                buffer += sprintf(buffer, "%s as %s", (*pmember)->identifier, member_english);
-            }
+                if (type->function->is_variadic)buffer += sprintf(buffer, ", ...");
 
-            buffer += sprintf(buffer, "}");
+                buffer += sprintf(buffer, ") returning ");
+                break;
+            }
+            default:
+                panic1d("Unknown type->type=%d", tt);
         }
-
-        else if (tt == TYPE_ENUM) {
-            if (type->tag)
-                buffer += sprintf(buffer, "enum %s {}", type->tag->identifier);
-            else
-                buffer += sprintf(buffer, "enum {}");
-        }
-
-        else if (tt == TYPE_FUNCTION) {
-            buffer += sprintf(buffer, "function(");
-            int first = 1;
-            for (int i = 0; i < type->function->param_count; i++) {
-                if (!first) buffer += sprintf(buffer, ", "); else first = 0;
-                buffer += sprintf(buffer, "%s", sprint_type_in_english(type->function->param_types[i]));
-            }
-
-            if (type->function->is_variadic)buffer += sprintf(buffer, ", ...");
-
-            buffer += sprintf(buffer, ") returning ");
-        }
-
-        else
-            panic1d("Unknown type->type=%d", tt);
 
         type = type->target;
     }
@@ -285,21 +321,36 @@ int get_type_size(Type *type) {
     int t;
 
     t = type->type;
-         if (t == TYPE_VOID)            return sizeof(void);
-    else if (t == TYPE_CHAR)            return sizeof(char);
-    else if (t == TYPE_SHORT)           return sizeof(short);
-    else if (t == TYPE_INT)             return sizeof(int);
-    else if (t == TYPE_LONG)            return sizeof(long);
-    else if (t == TYPE_ENUM)            return sizeof(int);
-    else if (t == TYPE_FLOAT)           return sizeof(float);
-    else if (t == TYPE_DOUBLE)          return sizeof(double);
-    else if (t == TYPE_LONG_DOUBLE)     return sizeof(long double);
-    else if (t == TYPE_PTR)             return sizeof(void *);
-    else if (t == TYPE_STRUCT_OR_UNION) return type->struct_or_union_desc->size;
-    else if (t == TYPE_ARRAY)           return type->array_size * get_type_size(type->target);
-    else if (t == TYPE_FUNCTION)        return 1;
-
-    panic1d("sizeof unknown type %d", t);
+    switch(t) {
+        case TYPE_VOID:
+            return sizeof(void);
+        case TYPE_CHAR:
+            return sizeof(char);
+        case TYPE_SHORT:
+            return sizeof(short);
+        case TYPE_INT:
+            return sizeof(int);
+        case TYPE_LONG:
+            return sizeof(long);
+        case TYPE_ENUM:
+            return sizeof(int);
+        case TYPE_FLOAT:
+            return sizeof(float);
+        case TYPE_DOUBLE:
+            return sizeof(double);
+        case TYPE_LONG_DOUBLE:
+            return sizeof(long double);
+        case TYPE_PTR:
+            return sizeof(void *);
+        case TYPE_STRUCT_OR_UNION:
+            return type->struct_or_union_desc->size;
+        case TYPE_ARRAY:
+            return type->array_size * get_type_size(type->target);
+        case TYPE_FUNCTION:
+            return 1;
+        default:
+            panic1d("sizeof unknown type %d", t);
+    }
 }
 
 int get_type_alignment(Type *type) {
@@ -307,27 +358,39 @@ int get_type_alignment(Type *type) {
 
     t = type->type;
 
-         if (t == TYPE_PTR)          return 8;
-    else if (t == TYPE_CHAR)         return 1;
-    else if (t == TYPE_SHORT)        return 2;
-    else if (t == TYPE_INT)          return 4;
-    else if (t == TYPE_ENUM)         return 4;
-    else if (t == TYPE_LONG)         return 8;
-    else if (t == TYPE_FLOAT)        return 4;
-    else if (t == TYPE_DOUBLE)       return 8;
-    else if (t == TYPE_LONG_DOUBLE)  return 16;
-    else if (t == TYPE_ARRAY)        return get_type_alignment(type->target);
-    else if (t == TYPE_STRUCT_OR_UNION) {
-        // The alignment of a struct is the max alignment of all members
-        int max = 0;
-        for (StructOrUnionMember **pmember = type->struct_or_union_desc->members; *pmember; pmember++) {
-            int alignment = get_type_alignment((*pmember)->type);
-            if (alignment > max) max = alignment;
+    switch (t) {
+        case TYPE_PTR:
+            return 8;
+        case TYPE_CHAR:
+            return 1;
+        case TYPE_SHORT:
+            return 2;
+        case TYPE_INT:
+            return 4;
+        case TYPE_ENUM:
+            return 4;
+        case TYPE_LONG:
+            return 8;
+        case TYPE_FLOAT:
+            return 4;
+        case TYPE_DOUBLE:
+            return 8;
+        case TYPE_LONG_DOUBLE:
+            return 16;
+        case TYPE_ARRAY:
+            return get_type_alignment(type->target);
+        case TYPE_STRUCT_OR_UNION: {
+            // The alignment of a struct is the max alignment of all members
+            int max = 0;
+            for (StructOrUnionMember **pmember = type->struct_or_union_desc->members; *pmember; pmember++) {
+                int alignment = get_type_alignment((*pmember)->type);
+                if (alignment > max) max = alignment;
+            }
+            return max;
         }
-        return max;
+        default:
+            panic1d("align of unknown type %d", t);
     }
-
-    panic1d("align of unknown type %d", t);
 }
 
 // Apply default argument promotions & decay arrays

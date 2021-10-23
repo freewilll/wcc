@@ -33,30 +33,34 @@ static int transform_rule_value(int extend_size, int extend_sign, int v, int siz
     int result = v;
 
     if (extend_size) {
-             if (v == XCI) result = CI1 + size - 1;
-        else if (v == XCU) result = CU1 + size - 1;
-        else if (v == XRI) result = RI1 + size - 1;
-        else if (v == XRU) result = RU1 + size - 1;
-        else if (v == XMI) result = MI1 + size - 1;
-        else if (v == XMU) result = MU1 + size - 1;
-        else if (v == XRP) result = RP1 + size - 1;
-        else if (v == XC) result = (is_unsigned ? CU1 : CI1) + size - 1;
-        else if (v == XR) result = (is_unsigned ? RU1 : RI1) + size - 1;
-        else if (v == XM) result = (is_unsigned ? MU1 : MI1) + size - 1;
+        switch(v) {
+            case XCI: result = CI1 + size - 1; break;
+            case XCU: result = CU1 + size - 1; break;
+            case XRI: result = RI1 + size - 1; break;
+            case XRU: result = RU1 + size - 1; break;
+            case XMI: result = MI1 + size - 1; break;
+            case XMU: result = MU1 + size - 1; break;
+            case XRP: result = RP1 + size - 1; break;
+            case XC:  result = (is_unsigned ? CU1 : CI1) + size - 1; break;
+            case XR:  result = (is_unsigned ? RU1 : RI1) + size - 1; break;
+            case XM:  result = (is_unsigned ? MU1 : MI1) + size - 1; break;
+        }
     }
     else if (extend_sign) {
-             if (v == XC1) result = (is_unsigned ? CU1 : CI1);
-        else if (v == XC2) result = (is_unsigned ? CU2 : CI2);
-        else if (v == XC3) result = (is_unsigned ? CU3 : CI3);
-        else if (v == XC4) result = (is_unsigned ? CU4 : CI4);
-        else if (v == XR1) result = (is_unsigned ? RU1 : RI1);
-        else if (v == XR2) result = (is_unsigned ? RU2 : RI2);
-        else if (v == XR3) result = (is_unsigned ? RU3 : RI3);
-        else if (v == XR4) result = (is_unsigned ? RU4 : RI4);
-        else if (v == XM1) result = (is_unsigned ? MU1 : MI1);
-        else if (v == XM2) result = (is_unsigned ? MU2 : MI2);
-        else if (v == XM3) result = (is_unsigned ? MU3 : MI3);
-        else if (v == XM4) result = (is_unsigned ? MU4 : MI4);
+        switch (v) {
+            case XC1: result = (is_unsigned ? CU1 : CI1); break;
+            case XC2: result = (is_unsigned ? CU2 : CI2); break;
+            case XC3: result = (is_unsigned ? CU3 : CI3); break;
+            case XC4: result = (is_unsigned ? CU4 : CI4); break;
+            case XR1: result = (is_unsigned ? RU1 : RI1); break;
+            case XR2: result = (is_unsigned ? RU2 : RI2); break;
+            case XR3: result = (is_unsigned ? RU3 : RI3); break;
+            case XR4: result = (is_unsigned ? RU4 : RI4); break;
+            case XM1: result = (is_unsigned ? MU1 : MI1); break;
+            case XM2: result = (is_unsigned ? MU2 : MI2); break;
+            case XM3: result = (is_unsigned ? MU3 : MI3); break;
+            case XM4: result = (is_unsigned ? MU4 : MI4); break;
+        }
     }
 
     return result;
@@ -93,11 +97,13 @@ static X86Operation *dup_x86_operations(X86Operation *operation) {
 }
 
 char size_to_x86_size(int size) {
-         if (size == 1) return 'b';
-    else if (size == 2) return 'w';
-    else if (size == 3) return 'l';
-    else if (size == 4) return 'q';
-            else panic1d("Unknown size %d", size);
+    switch (size) {
+        case 1:  return 'b'; break;
+        case 2:  return 'w'; break;
+        case 3:  return 'l'; break;
+        case 4:  return 'q'; break;
+        default: panic1d("Unknown size %d", size);
+    }
 }
 
 static char *add_size_to_template(char *template, int size) {
@@ -307,76 +313,77 @@ void check_rules_dont_decrease_precision(void) {
 char *non_terminal_string(int nt) {
     char *buf = malloc(6);
 
-         if (!nt)         return "";
-    else if (nt == CSTV1) return "cstv1";
-    else if (nt == CSTV2) return "cstv2";
-    else if (nt == CSTV3) return "cstv3";
-    else if (nt == XC)    return "xc";
-    else if (nt == XC1)   return "xc1";
-    else if (nt == XC2)   return "xc2";
-    else if (nt == XC3)   return "xc3";
-    else if (nt == XC4)   return "xc4";
-    else if (nt == XCI)   return "xci";
-    else if (nt == CI1)   return "ci1";
-    else if (nt == CI2)   return "ci2";
-    else if (nt == CI3)   return "ci3";
-    else if (nt == CI4)   return "ci4";
-    else if (nt == XCU)   return "xcu";
-    else if (nt == CU1)   return "cu1";
-    else if (nt == CU2)   return "cu2";
-    else if (nt == CU3)   return "cu3";
-    else if (nt == CU4)   return "cu4";
-    else if (nt == CLD)   return "cld";
-    else if (nt == CS3)   return "cs3";
-    else if (nt == CS4)   return "cs4";
-    else if (nt == STL)   return "stl";
-    else if (nt == LAB)   return "lab";
-    else if (nt == FUN)   return "fun";
-    else if (nt == XR)    return "xr";
-    else if (nt == XR1)   return "xr1";
-    else if (nt == XR2)   return "xr2";
-    else if (nt == XR3)   return "xr3";
-    else if (nt == XR4)   return "xr4";
-    else if (nt == XRI)   return "xri";
-    else if (nt == RI1)   return "ri1";
-    else if (nt == RI2)   return "ri2";
-    else if (nt == RI3)   return "ri3";
-    else if (nt == RI4)   return "ri4";
-    else if (nt == XRU)   return "xru";
-    else if (nt == RU1)   return "ru1";
-    else if (nt == RU2)   return "ru2";
-    else if (nt == RU3)   return "ru3";
-    else if (nt == RU4)   return "ru4";
-    else if (nt == XM)    return "xm";
-    else if (nt == XM1)   return "xm1";
-    else if (nt == XM2)   return "xm2";
-    else if (nt == XM3)   return "xm3";
-    else if (nt == XM4)   return "xm4";
-    else if (nt == MI1)   return "mi1";
-    else if (nt == MI2)   return "mi2";
-    else if (nt == MI3)   return "mi3";
-    else if (nt == MI4)   return "mi4";
-    else if (nt == MU1)   return "mu1";
-    else if (nt == MU2)   return "mu2";
-    else if (nt == MU3)   return "mu3";
-    else if (nt == MU4)   return "mu4";
-    else if (nt == RP1)   return "rp1";
-    else if (nt == RP2)   return "rp2";
-    else if (nt == RP3)   return "rp3";
-    else if (nt == RP4)   return "rp4";
-    else if (nt == RP5)   return "rp5";
-    else if (nt == RPF)   return "rpf";
-    else if (nt == MPF)   return "mpf";
-    else if (nt == RS3)   return "rs3";
-    else if (nt == RS4)   return "rs4";
-    else if (nt == MLD5)  return "mld5";
-    else if (nt == MS3)   return "ms3";
-    else if (nt == MS4)   return "ms4";
-    else if (nt == MPV)   return "mpv";
-    else if (nt == MSA)   return "msa";
-    else {
-        asprintf(&buf, "nt%03d", nt);
-        return buf;
+    switch (nt) {
+        case 0:     return "";
+        case CSTV1: return "cstv1";
+        case CSTV2: return "cstv2";
+        case CSTV3: return "cstv3";
+        case XC:    return "xc";
+        case XC1:   return "xc1";
+        case XC2:   return "xc2";
+        case XC3:   return "xc3";
+        case XC4:   return "xc4";
+        case XCI:   return "xci";
+        case CI1:   return "ci1";
+        case CI2:   return "ci2";
+        case CI3:   return "ci3";
+        case CI4:   return "ci4";
+        case XCU:   return "xcu";
+        case CU1:   return "cu1";
+        case CU2:   return "cu2";
+        case CU3:   return "cu3";
+        case CU4:   return "cu4";
+        case CLD:   return "cld";
+        case CS3:   return "cs3";
+        case CS4:   return "cs4";
+        case STL:   return "stl";
+        case LAB:   return "lab";
+        case FUN:   return "fun";
+        case XR:    return "xr";
+        case XR1:   return "xr1";
+        case XR2:   return "xr2";
+        case XR3:   return "xr3";
+        case XR4:   return "xr4";
+        case XRI:   return "xri";
+        case RI1:   return "ri1";
+        case RI2:   return "ri2";
+        case RI3:   return "ri3";
+        case RI4:   return "ri4";
+        case XRU:   return "xru";
+        case RU1:   return "ru1";
+        case RU2:   return "ru2";
+        case RU3:   return "ru3";
+        case RU4:   return "ru4";
+        case XM:    return "xm";
+        case XM1:   return "xm1";
+        case XM2:   return "xm2";
+        case XM3:   return "xm3";
+        case XM4:   return "xm4";
+        case MI1:   return "mi1";
+        case MI2:   return "mi2";
+        case MI3:   return "mi3";
+        case MI4:   return "mi4";
+        case MU1:   return "mu1";
+        case MU2:   return "mu2";
+        case MU3:   return "mu3";
+        case MU4:   return "mu4";
+        case RP1:   return "rp1";
+        case RP2:   return "rp2";
+        case RP3:   return "rp3";
+        case RP4:   return "rp4";
+        case RP5:   return "rp5";
+        case RPF:   return "rpf";
+        case MPF:   return "mpf";
+        case RS3:   return "rs3";
+        case RS4:   return "rs4";
+        case MLD5:  return "mld5";
+        case MS3:   return "ms3";
+        case MS4:   return "ms4";
+        case MPV:   return "mpv";
+        case MSA:   return "msa";
+        default:
+            asprintf(&buf, "nt%03d", nt);
+            return buf;
     }
 }
 

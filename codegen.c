@@ -244,13 +244,15 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                 int double_literal = 0;
                 int long_double_literal = 0;
 
-                     if (t[1] == 'L') { t++; low  = 1; }
-                else if (t[1] == 'H') { t++; high = 1; }
-                else if (t[1] == 'f') { t++; float_arg = 1; }
-                else if (t[1] == 'd') { t++; double_arg = 1; }
-                else if (t[1] == 'C') { t++; long_double_literal = 1; }
-                else if (t[1] == 'F') { t++; float_literal = 1; x86_size = 3; }
-                else if (t[1] == 'D') { t++; double_literal = 1; x86_size = 4; }
+                switch (t[1]) {
+                    case 'L': t++; low  = 1; break;
+                    case 'H': t++; high = 1; break;
+                    case 'f': t++; float_arg = 1; break;
+                    case 'd': t++; double_arg = 1; break;
+                    case 'C': t++; long_double_literal = 1; break;
+                    case 'F': t++; float_literal = 1; x86_size = 3; break;
+                    case 'D': t++; double_literal = 1; x86_size = 4; break;
+                }
 
                 if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
@@ -448,95 +450,110 @@ void add_final_x86_instructions(Function *function, char *function_name) {
     while (ir) {
         added_end_of_function = 0;
 
-        if (ir->operation == IR_NOP);
-        if (ir->operation == IR_START_LOOP || ir->operation == IR_END_LOOP) ir->operation = IR_NOP;
+        switch (ir->operation) {
+            case IR_NOP:
+                break;
 
-        else if (ir->operation == IR_START_CALL) {
-            ir->operation = IR_NOP;
+            case IR_START_LOOP:
+            case IR_END_LOOP:
+                ir->operation = IR_NOP;
+                break;
 
-            int alignment_pushes = 0;
-            if (ir->src1->function_call_arg_stack_padding >= 8)
-                alignment_pushes++;
+            case IR_START_CALL: {
+                if (ir->operation == IR_START_CALL) {
+                    ir->operation = IR_NOP;
 
-            // Align the stack. This is matched with an adjustment when the function call ends
-            int need_aligned_call_push = ((cur_stack_push_count + ir->src1->function_call_arg_push_count) % 2 == 1);
-            if (need_aligned_call_push) {
-                ir->src1->function_call_arg_push_count++;
-                alignment_pushes++;
+                    int alignment_pushes = 0;
+                    if (ir->src1->function_call_arg_stack_padding >= 8)
+                        alignment_pushes++;
+
+                    // Align the stack. This is matched with an adjustment when the function call ends
+                    int need_aligned_call_push = ((cur_stack_push_count + ir->src1->function_call_arg_push_count) % 2 == 1);
+                    if (need_aligned_call_push) {
+                        ir->src1->function_call_arg_push_count++;
+                        alignment_pushes++;
+                    }
+
+                    // Special case of an alignment push to align the whole stack structure
+                    // combined with padding at the end of the stack. Eliminate both alignments
+                    // to save 16 bytes to stack space.
+                    if (alignment_pushes == 2) {
+                        ir->src1->function_call_arg_push_count -= 2;
+                        alignment_pushes = 0;
+                    }
+
+                    if (alignment_pushes) {
+                        cur_stack_push_count += alignment_pushes;
+                        ir = add_sub_rsp(ir, alignment_pushes * 8);
+                    }
+                }
+
+                break;
             }
 
-            // Special case of an alignment push to align the whole stack structure
-            // combined with padding at the end of the stack. Eliminate both alignments
-            // to save 16 bytes to stack space.
-            if (alignment_pushes == 2) {
-                ir->src1->function_call_arg_push_count -= 2;
-                alignment_pushes = 0;
+            case IR_END_CALL: {
+                ir->operation = IR_NOP;
+
+                // Adjust the stack for any args that are on in stack
+                int function_call_arg_push_count = ir->src1->function_call_arg_push_count;
+                if (function_call_arg_push_count > 0) {
+                    cur_stack_push_count -= function_call_arg_push_count;
+                    ir = add_add_rsp(ir, function_call_arg_push_count * 8);
+                }
+
+                break;
             }
 
-            if (alignment_pushes) {
-                cur_stack_push_count += alignment_pushes;
-                ir = add_sub_rsp(ir, alignment_pushes * 8);
+            case X_ARG:
+                cur_stack_push_count++;
+                break;
+
+            case IR_ARG_STACK_PADDING:
+                // This alignment push is needed for structures that are aligned
+                // on 16-bytes and are preceded in memory by something that left the stack
+                // aligned on 8-bytes.
+                cur_stack_push_count++;
+                ir = add_sub_rsp(ir, 8);
+
+                if (ir->operation == X_ALLOCATE_STACK)
+                    cur_stack_push_count += ir->src1->int_value / 8;
+
+                break;
+
+            case X_CALL: {
+                ir->operation = IR_NOP;
+
+                Tac *orig_ir = ir;
+
+                // A function can be either a direct function or a function pointer
+                Function *function = ir->src1->type->function ? ir->src1->type->function : ir->src1->type->target->function;
+                if (function->is_variadic) {
+                    char *buffer;
+                    asprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
+                    ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
+                }
+
+                Tac *tac = new_instruction(X_CALL_FROM_FUNC);
+
+                if (!orig_ir->src1->function_symbol) {
+                    asprintf(&(tac->x86_template), "callq *%%v1q");
+                    tac->src1 = orig_ir->src1;
+                }
+                else {
+                    int linkage = orig_ir->src1->type->function->linkage;
+                    if (linkage == LINKAGE_EXTERNAL || linkage == LINKAGE_UNDECLARED_EXTERNAL)
+                         asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
+                    else
+                         asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
+                 }
+
+                ir = insert_instruction_after(ir, tac);
+                break;
             }
-        }
 
-        else if (ir->operation == IR_END_CALL) {
-            ir->operation = IR_NOP;
-
-            // Adjust the stack for any args that are on in stack
-            int function_call_arg_push_count = ir->src1->function_call_arg_push_count;
-            if (function_call_arg_push_count > 0) {
-                cur_stack_push_count -= function_call_arg_push_count;
-                ir = add_add_rsp(ir, function_call_arg_push_count * 8);
-            }
-        }
-
-        else if (ir->operation == X_ARG)
-            cur_stack_push_count++;
-
-        else if (ir->operation == IR_ARG_STACK_PADDING) {
-            // This alignment push is needed for structures that are aligned
-            // on 16-bytes and are preceded in memory by something that left the stack
-            // aligned on 8-bytes.
-            cur_stack_push_count++;
-            ir = add_sub_rsp(ir, 8);
-        }
-
-        else if (ir->operation == X_ALLOCATE_STACK)
-            cur_stack_push_count += ir->src1->int_value / 8;
-
-        else if (ir->operation == X_CALL) {
-            ir->operation = IR_NOP;
-
-            Tac *orig_ir = ir;
-
-            // A function can be either a direct function or a function pointer
-            Function *function = ir->src1->type->function ? ir->src1->type->function : ir->src1->type->target->function;
-            if (function->is_variadic) {
-                char *buffer;
-                asprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
-                ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
-            }
-
-            Tac *tac = new_instruction(X_CALL_FROM_FUNC);
-
-            if (!orig_ir->src1->function_symbol) {
-                asprintf(&(tac->x86_template), "callq *%%v1q");
-                tac->src1 = orig_ir->src1;
-            }
-            else {
-                int linkage = orig_ir->src1->type->function->linkage;
-                if (linkage == LINKAGE_EXTERNAL || linkage == LINKAGE_UNDECLARED_EXTERNAL)
-                     asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
-                else
-                     asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
-             }
-
-            ir = insert_instruction_after(ir, tac);
-        }
-
-        else if (ir->operation == IR_RETURN) {
-            ir = insert_end_of_function(ir, saved_registers);
-            added_end_of_function = 1;
+            case IR_RETURN:
+                ir = insert_end_of_function(ir, saved_registers);
+                added_end_of_function = 1;
         }
 
         ir = ir->next;

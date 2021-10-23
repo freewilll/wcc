@@ -69,51 +69,50 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
 
     if (ign->tac) {
         int operation = ign->tac->operation;
-             if (operation == IR_MOVE)                 c += printf("=");
-        else if (operation == IR_MOVE_PREG_CLASS)      c += printf("move to preg class");
-        else if (operation == IR_MOVE_STACK_PTR)       c += printf("stack ptr to");
-        else if (operation == IR_DECL_LOCAL_COMP_OBJ)  c += printf("declare");
-        else if (operation == IR_LOAD_BIT_FIELD)       c += printf("load bit field");
-        else if (operation == IR_SAVE_BIT_FIELD)       c += printf("save bit field");
-        else if (operation == IR_ADD)                  c += printf("+");
-        else if (operation == IR_SUB)                  c += printf("-");
-        else if (operation == IR_MUL)                  c += printf("*");
-        else if (operation == IR_DIV)                  c += printf("/");
-        else if (operation == IR_BNOT)                 c += printf("~");
-        else if (operation == IR_BSHL)                 c += printf("<<");
-        else if (operation == IR_BSHR)                 c += printf(">>");
-        else if (operation == IR_ASHR)                 c += printf("a>>");
-        else if (operation == IR_BNOT)                 c += printf("!");
-        else if (operation == IR_BOR)                  c += printf("|");
-        else if (operation == IR_BAND)                 c += printf("&");
-        else if (operation == IR_XOR)                  c += printf("~");
-        else if (operation == IR_INDIRECT)             c += printf("indirect");
-        else if (operation == IR_ADDRESS_OF)           c += printf("&");
-        else if (operation == IR_MOVE_TO_PTR)          c += printf("move to ptr");
-        else if (operation == IR_NOP)                  c += printf("noop");
-        else if (operation == IR_RETURN)               c += printf("return");
-        else if (operation == IR_LOAD_LONG_DOUBLE)     c += printf("load long double");
-        else if (operation == IR_START_CALL)           c += printf("start call");
-        else if (operation == IR_END_CALL)             c += printf("end call");
-        else if (operation == IR_ARG)                  c += printf("arg");
-        else if (operation == IR_ARG_STACK_PADDING)    c += printf("arg stack padding");
-        else if (operation == IR_CALL)                 c += printf("call");
-        else if (operation == IR_CALL_ARG_REG)         c += printf("call arg reg");
-        else if (operation == IR_START_LOOP)           c += printf("start loop");
-        else if (operation == IR_END_LOOP)             c += printf("end loop");
-        else if (operation == IR_ALLOCATE_STACK)       c += printf("allocate stack");
-        else if (operation == IR_JZ)                   c += printf("jz");
-        else if (operation == IR_JNZ)                  c += printf("jnz");
-        else if (operation == IR_JMP)                  c += printf("jmp");
-        else if (operation == IR_EQ)                   c += printf("==");
-        else if (operation == IR_NE)                   c += printf("!=");
-        else if (operation == IR_LT)                   c += printf("<");
-        else if (operation == IR_GT)                   c += printf(">");
-        else if (operation == IR_LE)                   c += printf(">=");
-        else if (operation == IR_GE)                   c += printf("<=");
-
-        else
-            c += printf("Operation %d", operation);
+        switch (operation) {
+            case IR_MOVE:                 c += printf("="); break;
+            case IR_MOVE_PREG_CLASS:      c += printf("move to preg class"); break;
+            case IR_MOVE_STACK_PTR:       c += printf("stack ptr to"); break;
+            case IR_DECL_LOCAL_COMP_OBJ:  c += printf("declare"); break;
+            case IR_LOAD_BIT_FIELD:       c += printf("load bit field"); break;
+            case IR_SAVE_BIT_FIELD:       c += printf("save bit field"); break;
+            case IR_ADD:                  c += printf("+"); break;
+            case IR_SUB:                  c += printf("-"); break;
+            case IR_MUL:                  c += printf("*"); break;
+            case IR_DIV:                  c += printf("/"); break;
+            case IR_BSHL:                 c += printf("<<"); break;
+            case IR_BSHR:                 c += printf(">>"); break;
+            case IR_ASHR:                 c += printf("a>>"); break;
+            case IR_BNOT:                 c += printf("!"); break;
+            case IR_BOR:                  c += printf("|"); break;
+            case IR_BAND:                 c += printf("&"); break;
+            case IR_XOR:                  c += printf("~"); break;
+            case IR_INDIRECT:             c += printf("indirect"); break;
+            case IR_ADDRESS_OF:           c += printf("&"); break;
+            case IR_MOVE_TO_PTR:          c += printf("move to ptr"); break;
+            case IR_NOP:                  c += printf("noop"); break;
+            case IR_RETURN:               c += printf("return"); break;
+            case IR_LOAD_LONG_DOUBLE:     c += printf("load long double"); break;
+            case IR_START_CALL:           c += printf("start call"); break;
+            case IR_END_CALL:             c += printf("end call"); break;
+            case IR_ARG:                  c += printf("arg"); break;
+            case IR_ARG_STACK_PADDING:    c += printf("arg stack padding"); break;
+            case IR_CALL:                 c += printf("call"); break;
+            case IR_CALL_ARG_REG:         c += printf("call arg reg"); break;
+            case IR_START_LOOP:           c += printf("start loop"); break;
+            case IR_END_LOOP:             c += printf("end loop"); break;
+            case IR_ALLOCATE_STACK:       c += printf("allocate stack"); break;
+            case IR_JZ:                   c += printf("jz"); break;
+            case IR_JNZ:                  c += printf("jnz"); break;
+            case IR_JMP:                  c += printf("jmp"); break;
+            case IR_EQ:                   c += printf("=="); break;
+            case IR_NE:                   c += printf("!="); break;
+            case IR_LT:                   c += printf("<"); break;
+            case IR_GT:                   c += printf(">"); break;
+            case IR_LE:                   c += printf(">="); break;
+            case IR_GE:                   c += printf("<="); break;
+            default:                      c += printf("Operation %d", operation);
+        }
 
         if (ign->tac->dst) {
             c += printf(" -> ");

@@ -491,10 +491,12 @@ static void add_composite_pointer_rules(int *ntc) {
 static void add_int_indirect_rule(int dst, int src) {
     char *template;
 
-         if (src == RP1) template = "movb %v1o(%v1q), %vdb";
-    else if (src == RP2) template = "movw %v1o(%v1q), %vdw";
-    else if (src == RP3) template = "movl %v1o(%v1q), %vdl";
-    else                 template = "movq %v1o(%v1q), %vdq";
+    switch (src) {
+        case RP1: template = "movb %v1o(%v1q), %vdb"; break;
+        case RP2: template = "movw %v1o(%v1q), %vdw"; break;
+        case RP3: template = "movl %v1o(%v1q), %vdl"; break;
+        default:  template = "movq %v1o(%v1q), %vdq";
+    }
 
     Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
     add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, template);
@@ -503,9 +505,11 @@ static void add_int_indirect_rule(int dst, int src) {
 static void add_sse_indirect_rule(int dst, int src) {
     char *template;
 
-    if      (src == RP3) template = "movss %v1o(%v1q), %vdF";
-    else if (src == RP4) template = "movsd %v1o(%v1q), %vdD";
-    else panic1d("Unknown src in add_sse_indirect_rule %d", src);
+    switch (src) {
+        case RP3:  template = "movss %v1o(%v1q), %vdF"; break;
+        case RP4:  template = "movsd %v1o(%v1q), %vdD"; break;
+        default:   panic1d("Unknown src in add_sse_indirect_rule %d", src);
+    }
 
     Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
     add_op(r, X_MOV_FROM_IND, DST, SRC1, 0, template);
