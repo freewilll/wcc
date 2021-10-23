@@ -344,6 +344,7 @@ void add_function_return_moves(Function *function, char *identifier) {
 
             ir->dst = new_value();
             ir->dst->type = dup_type(function->return_type);
+            if (ir->dst->type->type == TYPE_ENUM) ir->dst->type = new_type(TYPE_INT);
             ir->dst->vreg = ++function->vreg_count;
             ir->dst->live_range_preg = live_range_preg;
             ir->src1->preferred_live_range_preg_index = live_range_preg;
@@ -628,6 +629,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
                 }
                 else {
                     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+                    if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
                     function_call_vreg = add_arg_move_to_register(function, ir, type, *call_arg, preg_class, i, &arg_register_set);
                     function_call_vreg_type = (*call_arg)->type;
                 }
@@ -926,6 +928,7 @@ void add_function_param_moves(Function *function, char *identifier) {
             // Scalar value
 
             if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+            if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
             if (has_address_of[i]) {
                 // Add a move instruction to save the register to the stack
@@ -1043,6 +1046,7 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     fpl->stack_padding = -1;
 
     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+    if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
     int is_single_int_register = type_fits_in_single_int_register(type);
     int is_single_sse_register = is_sse_floating_point_type(type);
@@ -1125,6 +1129,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
 
     else {
         if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+        if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
         int size = get_type_size(type);
         if (size > 16) {

@@ -514,6 +514,8 @@ static Type *parse_function(void) {
             // Array parameters decay to a pointer
             if (type->type == TYPE_ARRAY)
                 symbol_type = decay_array_to_pointer(type);
+            else if (type->type == TYPE_ENUM)
+                symbol_type = new_type(TYPE_INT);
             else
                 symbol_type = type;
 
@@ -557,6 +559,7 @@ static void parse_function_paramless_declaration_list(Function *function) {
 
             // Array parameters decay to a pointer
             if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+            if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
             // Associate type with param symbol
             if (!cur_type_identifier) panic("Expected identifier");
@@ -1647,6 +1650,7 @@ static void parse_function_call(void) {
         arg->function_call_arg_index = arg_count;
 
         if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
+        if (vtop->type->type == TYPE_ENUM) vtop->type->type = TYPE_INT;
 
         // Convert type if needed
         if (!function->is_paramless && arg_count < function->param_count) {
@@ -1655,6 +1659,8 @@ static void parse_function_call(void) {
 
                 if (param_type->type == TYPE_ARRAY)
                     param_type = decay_array_to_pointer(param_type);
+                else if (param_type->type == TYPE_ENUM)
+                    param_type = new_type(TYPE_INT);
 
                 push(add_convert_type_if_needed(pl(), param_type));
             }

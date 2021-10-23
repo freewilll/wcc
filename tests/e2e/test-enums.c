@@ -8,6 +8,8 @@ int failures;
 enum ge0 {GE0A, GE0B, GE0C};
 enum ge1 {GE1A=1, GE1B, GE1C};
 
+enum ge0 return_ge0(enum ge0 g) { return g; }
+
 void test_enums() {
     assert_int(0, GE0A, "Enums GE0 1");
     assert_int(1, GE0B, "Enums GE0 2");
@@ -98,6 +100,10 @@ void test_enums() {
     assert_int(-1, E7B, "Enums E7 2");
     assert_int(0,  E7C, "Enums E7 3");
     assert_int(1,  E7D, "Enums E7 4");
+
+    assert_int(GE0A, return_ge0(GE0A), "Return GE0A");
+    assert_int(GE0B, return_ge0(GE0B), "Return GE0B");
+    assert_int(GE0C, return_ge0(GE0C), "Return GE0C");
 }
 
 int main(int argc, char **argv) {

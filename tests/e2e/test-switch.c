@@ -138,7 +138,7 @@ static int test_long_switch_with_mixed_type_cases(long ll) {
 
 typedef enum { I, J } E;
 
-int test_switch_with_enum(int e) {
+int test_switch_with_enum(E e) {
     int i = 0;
 
     switch (e) {

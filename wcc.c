@@ -19,6 +19,7 @@ char *make_temp_filename(char *template) {
 
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at) {
     if (start_at == COMPILE_START_AT_BEGINNING) {
+        convert_enums(function);
         process_struct_and_union_copies(function);
         reverse_function_argument_order(function);
         merge_consecutive_labels(function);
@@ -29,7 +30,6 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
         allocate_value_stack_indexes(function);
         process_bit_fields(function);
         remove_unused_function_call_results(function);
-        convert_enums(function);
     }
 
     // Prepare for SSA phi function insertion
