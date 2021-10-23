@@ -9,7 +9,6 @@ WCC_TESTS=\
 	inc-dec \
 	conditionals \
 	structs \
-	typedef \
 	pointer-arithmetic \
 	loops \
 	enums \
