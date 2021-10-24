@@ -263,20 +263,20 @@ static void make_rule_hash(int i) {
 }
 
 void check_for_duplicate_rules(void) {
-    for (int i = 0; i < instr_rule_count; i++) make_rule_hash(i);
+    LongMap *map = new_longmap();
 
     int duplicates = 0;
     for (int i = 0; i < instr_rule_count; i++) {
-        for (int j = i + 1; j < instr_rule_count; j++) {
-            if (instr_rules[i].hash == instr_rules[j].hash) {
-                printf("Duplicate rules: %d and %d\n", i, j);
-                printf("%-4d ", i);
-                print_rule(&(instr_rules[i]), 1, 0);
-                printf("%-4d ", j);
-                print_rule(&(instr_rules[j]), 1, 0);
-                duplicates++;
-            }
+        make_rule_hash(i);
+        Rule *other_rule = longmap_get(map, instr_rules[i].hash);
+        if (other_rule) {
+            printf("Duplicate rules: %d\n", i);
+            print_rule(&(instr_rules[i]), 1, 0);
+            print_rule(other_rule, 1, 0);
+            printf("\n");
+            duplicates++;
         }
+        longmap_put(map, instr_rules[i].hash, &(instr_rules[i]));
     }
 
     if (duplicates) {
