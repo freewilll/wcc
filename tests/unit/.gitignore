@@ -1,6 +1,7 @@
 test-lexer
 test-set
-test-map
+test-strmap
+test-longmap
 test-graph
 test-ssa
 test-instrsel

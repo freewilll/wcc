@@ -17,7 +17,8 @@ SOURCES = \
   utils.c \
   set.c \
   stack.c \
-  map.c \
+  strmap.c \
+  longmap.c \
   graph.c \
   externals.c
 
@@ -80,7 +81,7 @@ test: test-self-compilation test-all
 	@echo All tests passed
 
 .PHONY: test-unit
-test-unit: libwcc.a
+test-unit: libwcc.a strmap.c longmap.c
 	cd tests && ${MAKE} test-unit
 
 .PHONY: test-unit-parser

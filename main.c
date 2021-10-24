@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     init_allocate_registers();
     init_instruction_selection_rules();
 
-    directives = new_map();
+    directives = new_strmap();
 
     argc--;
     argv++;
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
                 argv += 2;
             }
             else if (argc > 1 && !memcmp(argv[0], "-D", 2)) {
-                map_put(directives, argv[1], "");
+                strmap_put(directives, argv[1], "");
                 argc -= 2;
                 argv += 2;
             }

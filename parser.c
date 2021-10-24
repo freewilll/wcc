@@ -2592,7 +2592,7 @@ static void parse_ifdefs(void) {
     // Process an ifdef
     next();
     expect(TOK_IDENTIFIER, "identifier");
-    int directive_set = !!map_get(directives, cur_identifier);
+    int directive_set = !!strmap_get(directives, cur_identifier);
     next();
 
     if (directive_set) {
@@ -2627,13 +2627,13 @@ static void parse_directive(void) {
     else if (cur_token == TOK_DEFINE) {
         next();
         expect(TOK_IDENTIFIER, "identifier");
-        map_put(directives, cur_identifier, "");
+        strmap_put(directives, cur_identifier, "");
         next();
     }
     else if (cur_token == TOK_UNDEF) {
         next();
         expect(TOK_IDENTIFIER, "identifier");
-        map_delete(directives, cur_identifier);
+        strmap_delete(directives, cur_identifier);
         next();
     }
     else {

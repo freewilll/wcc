@@ -36,13 +36,22 @@ typedef struct stack {
     int pos;
 } Stack;
 
-typedef struct map {
+typedef struct strmap {
     char **keys;
     void **values;
     int size;
     int used_count;
     int element_count;
-} Map;
+} StrMap;
+
+typedef struct longmap {
+    long *keys;
+    void **values;
+    char *status;
+    int size;
+    int used_count;
+    int element_count;
+} LongMap;
 
 // One of preg or stack_index must have a value. (preg != 0) != (stack_index < 0)
 typedef struct vreg_location {
@@ -525,7 +534,7 @@ char *c_cur_filename;           // Current filename being lexed
 int c_cur_line;                 // Current line number being lexed
 
 int parsing_header;             // I a header being parsed?
-Map *directives;                // Map of CPP directives
+StrMap *directives;             // Map of CPP directives
 int cur_token;                  // Current token
 char *cur_identifier;           // Current identifier if the token is an identifier
 char *cur_type_identifier;      // Identifier of the last parsed declarator
@@ -617,11 +626,17 @@ int stack_top(Stack *s);
 void push_onto_stack(Stack *s, int v);
 int pop_from_stack(Stack *s);
 
-// map.c
-Map *new_map(void);
-void *map_get(Map *map, char *key);
-void map_put(Map *map, char *key, void *value);
-void map_delete(Map *map, char *key);
+// strmap.c
+StrMap *new_strmap(void);
+void *strmap_get(StrMap *strmap, char *key);
+void strmap_put(StrMap *strmap, char *key, void *value);
+void strmap_delete(StrMap *strmap, char *key);
+
+// longmap.c
+LongMap *new_longmap(void);
+void *longmap_get(LongMap *longmap, long key);
+void longmap_put(LongMap *longmap, long key, void *value);
+void longmap_delete(LongMap *longmap, long key);
 
 // graph.c
 Graph *new_graph(int node_count, int edge_count);

@@ -465,9 +465,9 @@ StructOrUnionMember **sort_struct_or_union_members(StructOrUnionMember **members
     return result;
 }
 
-static int recursive_types_are_compatible(Type *type1, Type *type2, Map *seen_tags);
+static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen_tags);
 
-static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2, Map *seen_tags) {
+static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2, StrMap *seen_tags) {
     if (s1->is_incomplete || s2->is_incomplete) return 1;
 
     int count = struct_or_union_member_count(s1);
@@ -505,7 +505,7 @@ static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2,
     return 1;
 }
 
-static int functions_are_compatible(Type *type1, Type *type2, Map *seen_tags) {
+static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags) {
     if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags)) return 0;
 
     // Both are non variadic and one of them has an old style parameter list
@@ -552,17 +552,17 @@ static int functions_are_compatible(Type *type1, Type *type2, Map *seen_tags) {
 }
 
 // Check two types are compatible. Prevent infinite loops by keeping a map of seen tags
-static int recursive_types_are_compatible(Type *type1, Type *type2, Map *seen_tags) {
+static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen_tags) {
     // Following https://en.cppreference.com/w/c/language/type
 
     if (type1->type == TYPE_STRUCT_OR_UNION && type1->tag) {
-        if (map_get(seen_tags, type1->tag->identifier)) return 1;
-        map_put(seen_tags, type1->tag->identifier, type1);
+        if (strmap_get(seen_tags, type1->tag->identifier)) return 1;
+        strmap_put(seen_tags, type1->tag->identifier, type1);
     }
 
     if (type2->type == TYPE_STRUCT_OR_UNION && type2->tag) {
-        if (map_get(seen_tags, type2->tag->identifier)) return 1;
-        map_put(seen_tags, type2->tag->identifier, type2);
+        if (strmap_get(seen_tags, type2->tag->identifier)) return 1;
+        strmap_put(seen_tags, type2->tag->identifier, type2);
     }
 
     // They are identically qualified versions of compatible unqualified types
@@ -581,8 +581,8 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, Map *seen_ta
     }
 
     if (type1->type == TYPE_STRUCT_OR_UNION && type2->type == TYPE_STRUCT_OR_UNION) {
-        if (type1->tag) map_put(seen_tags, type1->tag->identifier, type1);
-        if (type2->tag) map_put(seen_tags, type2->tag->identifier, type2);
+        if (type1->tag) strmap_put(seen_tags, type1->tag->identifier, type1);
+        if (type2->tag) strmap_put(seen_tags, type2->tag->identifier, type2);
 
         if (!types_tags_are_compatible(type1, type2)) return 0;
     }
@@ -611,7 +611,7 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, Map *seen_ta
 }
 
 int types_are_compatible(Type *type1, Type *type2) {
-    Map *seen_tags = new_map();
+    StrMap *seen_tags = new_strmap();
     return recursive_types_are_compatible(type1, type2, seen_tags);
 }
 

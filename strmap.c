@@ -22,8 +22,7 @@ static unsigned int hash(char *str) {
     return result;
 }
 
-static void maybe_rehash(Map *map) {
-    // Float's aren't implemented yet in WCC, so use integer math
+static void maybe_rehash(StrMap *map) {
     if (map->used_count * 1000 < map->size * MAX_LOAD_FACTOR) return;
 
     int new_size;
@@ -36,7 +35,7 @@ static void maybe_rehash(Map *map) {
     char **keys = malloc(new_size * sizeof(char *));
     void **values = malloc(new_size * sizeof(void *));
     memset(keys, 0, new_size * sizeof(char *));
-    memset(values, 0, new_size * sizeof(char *));
+    memset(values, 0, new_size * sizeof(void *));
 
     for (int i = 0; i < map->size; i++) {
         char *key;
@@ -60,7 +59,7 @@ static void maybe_rehash(Map *map) {
     map->used_count = map->element_count;
 }
 
-void map_put(Map *map, char *key, void *value) {
+void strmap_put(StrMap *map, char *key, void *value) {
     maybe_rehash(map);
 
     unsigned int mask = map->size - 1;
@@ -85,7 +84,7 @@ void map_put(Map *map, char *key, void *value) {
     }
 }
 
-void *map_get(Map *map, char *key) {
+void *strmap_get(StrMap *map, char *key) {
     unsigned int mask = map->size - 1;
     unsigned int pos = hash(key) & mask;
 
@@ -97,7 +96,7 @@ void *map_get(Map *map, char *key) {
     return 0;
 }
 
-void map_delete(Map *map, char *key) {
+void strmap_delete(StrMap *map, char *key) {
     unsigned int mask = map->size - 1;
     unsigned int pos = hash(key) & mask;
 
@@ -113,9 +112,9 @@ void map_delete(Map *map, char *key) {
     }
 }
 
-Map *new_map(void) {
-    Map *map = malloc(sizeof(Map));
-    memset(map, 0, sizeof(Map));
+StrMap *new_strmap(void) {
+    StrMap *map = malloc(sizeof(StrMap));
+    memset(map, 0, sizeof(StrMap));
     map->size = DEFAULT_SIZE;
     map->keys = malloc(DEFAULT_SIZE * sizeof(void *));
     map->values = malloc(DEFAULT_SIZE * sizeof(char *));
