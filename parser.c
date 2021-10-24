@@ -2322,6 +2322,8 @@ static void parse_switch_statement(void) {
 
     int seen_default = 0;
 
+    LongMap *values = new_longmap();
+
     // No one in their right mind would right a case statement without curlies, but the
     // grammar allows it, so it has to be taken into account.
     int in_block = (cur_token == TOK_LCURLY);
@@ -2343,20 +2345,29 @@ static void parse_switch_statement(void) {
 
             // Add comparison & jump to main IR
             ir = main_ir;
-            push(v);
+
+            long value = controlling_value->type->type == TYPE_INT
+                ? (int) v->int_value
+                : v->int_value;
+
+            // Ensure there are no duplicates
+            if (longmap_get(values, value))
+                panic("Duplicate switch case value");
+            else
+                longmap_put(values, value, (void *) 1);
 
             // Convert to controlling expression type if necessary
-            if (vtop->type->type != controlling_value->type->type) {
-                Value *v = new_value();
-                v->vreg = new_vreg();
+            if (v->type->type != controlling_value->type->type) {
                 v->type = dup_type(controlling_value->type);
-                add_instruction(IR_MOVE, v, pop(), 0);
-                push(v);
+                v->int_value = value;
             }
+
+            push(v);
+
+            push(controlling_value);
 
             consume(TOK_COLON, ":");
 
-            push(controlling_value);
             arithmetic_operation(IR_EQ, controlling_value->type);
 
             Value *ldst = new_label_dst();

@@ -283,5 +283,21 @@ int main(int argc, char **argv) {
         "The controlling expression of a switch statement is not an integral type",
         "Switch with struct");
 
+    check_main_output(
+        "    switch(1) {"
+        "       case 1: break;"
+        "       case 1: break;"
+        "    }",
+        "Duplicate switch case value",
+        "Switch with two same values");
+
+    check_main_output(
+        "    switch(1) {"
+        "       case 2: break;"
+        "       case 0x100000002: break;"
+        "    }",
+        "Duplicate switch case value",
+        "Switch with two same values, truncated from longs to ints");
+
     finalize();
 }
