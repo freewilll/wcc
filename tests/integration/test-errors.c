@@ -299,5 +299,10 @@ int main(int argc, char **argv) {
         "Duplicate switch case value",
         "Switch with two same values, truncated from longs to ints");
 
+    check_output(
+        "void main(int) {}",
+        "Missing identifier for parameter in function definition",
+        "Missing identifier for parameter in function definition");
+
     finalize();
 }

@@ -2663,15 +2663,17 @@ void finish_parsing_header(void) {
     next();
 }
 
-static void parse_function_definition(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
+static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
+    Function *function = type->function;
+
     // Setup the intermediate representation with a dummy no operation instruction.
     ir_start = 0;
     ir_start = add_instruction(IR_NOP, 0, 0, 0);
 
-    type->function->return_type = type->target;
-    type->function->ir = ir_start;
-    type->function->linkage = linkage;
-    type->function->local_symbol_count = 0;
+    function->return_type = type->target;
+    function->ir = ir_start;
+    function->linkage = linkage;
+    function->local_symbol_count = 0;
 
     if (type->target->type == TYPE_STRUCT_OR_UNION) {
         FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
@@ -2702,6 +2704,11 @@ static void parse_function_definition(Type *type, int linkage, Symbol *symbol, S
 
     // Parse function declaration
     if (cur_token == TOK_LCURLY) {
+        // Ensure parameters have identifiers
+        for (int i = 0; i < function->param_count; i++)
+            if (!function->param_identifiers[i])
+                panic("Missing identifier for parameter in function definition");
+
         // Reset globals for a new function
         vreg_count = 0;
         function_call_count = 0;
@@ -2782,7 +2789,7 @@ void parse(void) {
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {
-                    parse_function_definition(type, linkage, symbol, original_symbol);
+                    parse_function_declaration(type, linkage, symbol, original_symbol);
                     break; // Break out of function parameters loop
                 }
 
