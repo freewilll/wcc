@@ -2663,6 +2663,64 @@ void finish_parsing_header(void) {
     next();
 }
 
+static void parse_function_definition(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
+    // Setup the intermediate representation with a dummy no operation instruction.
+    ir_start = 0;
+    ir_start = add_instruction(IR_NOP, 0, 0, 0);
+
+    type->function->return_type = type->target;
+    type->function->ir = ir_start;
+    type->function->linkage = linkage;
+    type->function->local_symbol_count = 0;
+
+    if (type->target->type == TYPE_STRUCT_OR_UNION) {
+        FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
+        add_function_param_to_allocation(fpa, type->target);
+        type->function->return_value_fpa = fpa;
+    }
+
+    // type->function->scope is left entered by the type parser
+    cur_scope = type->function->scope;
+    cur_function_symbol = symbol;
+
+    // Parse optional old style declaration list
+    if (type->function->is_paramless && cur_token != TOK_SEMI)
+        parse_function_paramless_declaration_list(type->function);
+
+    if (original_symbol && !types_are_compatible(original_symbol->type, type))
+        panic("Incompatible function types");
+
+    if (original_symbol && original_symbol->type->function->is_defined && cur_token == TOK_LCURLY) {
+        panic1s("Redefinition of %s", cur_type_identifier);
+    }
+
+    if (original_symbol)
+        // Merge types if it's a redeclaration
+        symbol->type = composite_type(type, original_symbol->type);
+    else
+        symbol->type = type;
+
+    // Parse function declaration
+    if (cur_token == TOK_LCURLY) {
+        // Reset globals for a new function
+        vreg_count = 0;
+        function_call_count = 0;
+        cur_loop = 0;
+        loop_count = 0;
+
+        parse_compound_statement();
+
+        cur_function_symbol->type->function->is_defined = 1;
+        cur_function_symbol->type->function->vreg_count = vreg_count;
+    }
+    else
+        // Make it clear that this symbol will need to be backpatched if used
+        // before the definition has been processed.
+        cur_function_symbol->value = 0;
+
+    exit_scope();
+}
+
 // Parse a translation unit
 void parse(void) {
     while (cur_token != TOK_EOF) {
@@ -2695,7 +2753,6 @@ void parse(void) {
                 if (base_type->is_register)
                     panic("register not allowed in global scope");
 
-
                 Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
                 if (!cur_type_identifier) panic("Expected an identifier");
@@ -2725,66 +2782,10 @@ void parse(void) {
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {
-                    // Function declaration or definition
-
-                    // Setup the intermediate representation with a dummy no operation instruction.
-                    ir_start = 0;
-                    ir_start = add_instruction(IR_NOP, 0, 0, 0);
-
-                    type->function->return_type = type->target;
-                    type->function->ir = ir_start;
-                    type->function->linkage = linkage;
-                    type->function->local_symbol_count = 0;
-
-                    if (type->target->type == TYPE_STRUCT_OR_UNION) {
-                        FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
-                        add_function_param_to_allocation(fpa, type->target);
-                        type->function->return_value_fpa = fpa;
-                    }
-
-                    // type->function->scope is left entered by the type parser
-                    cur_scope = type->function->scope;
-                    cur_function_symbol = symbol;
-
-                    // Parse optional old style declaration list
-                    if (type->function->is_paramless && cur_token != TOK_SEMI)
-                        parse_function_paramless_declaration_list(type->function);
-
-                    if (original_symbol && !types_are_compatible(original_symbol->type, type))
-                        panic("Incompatible function types");
-
-                    if (original_symbol && original_symbol->type->function->is_defined && cur_token == TOK_LCURLY) {
-                        panic1s("Redefinition of %s", cur_type_identifier);
-                    }
-
-                    if (original_symbol)
-                        // Merge types if it's a redeclaration
-                        symbol->type = composite_type(type, original_symbol->type);
-                    else
-                        symbol->type = type;
-
-                    // Parse function declaration
-                    if (cur_token == TOK_LCURLY) {
-                        // Reset globals for a new function
-                        vreg_count = 0;
-                        function_call_count = 0;
-                        cur_loop = 0;
-                        loop_count = 0;
-
-                        parse_compound_statement();
-
-                        cur_function_symbol->type->function->is_defined = 1;
-                        cur_function_symbol->type->function->vreg_count = vreg_count;
-                    }
-                    else
-                        // Make it clear that this symbol will need to be backpatched if used
-                        // before the definition has been processed.
-                        cur_function_symbol->value = 0;
-
-                    exit_scope();
-
+                    parse_function_definition(type, linkage, symbol, original_symbol);
                     break; // Break out of function parameters loop
                 }
+
                 else {
                     // Non-function
 
