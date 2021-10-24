@@ -576,20 +576,40 @@ static void renumber_label(Tac *ir, int l1, int l2) {
 
 // Renumber all labels so they are consecutive. Uses label_count global.
 void renumber_labels(Function *function) {
-    int temp_labels = -2;
+    // Find highest label number in the function
+    int max_label_count = 0;
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->src1 && tac->src1->label && tac->src1->label > max_label_count) max_label_count = tac->src1->label;
+        if (tac->src2 && tac->src2->label && tac->src2->label > max_label_count) max_label_count = tac->src2->label;
+        if (tac->label && tac->label > max_label_count) max_label_count = tac->label;
+    }
+
+    if (!max_label_count) return;
+
+    int *mapping = malloc(sizeof(int) * (max_label_count + 1));
+    memset(mapping, 0, sizeof(int) * (max_label_count + 1));
+
+    // Make mapping of old to new label indexes
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->src1 && tac->src1->label && !mapping[tac->src1->label]) mapping[tac->src1->label] = ++label_count;
+        if (tac->src2 && tac->src2->label && !mapping[tac->src2->label]) mapping[tac->src2->label] = ++label_count;
+        if (tac->label && !mapping[tac->label]) mapping[tac->label] = ++label_count;
+    }
+
+    // Set int_value to one for renamed labels. This is needed since some Value objects
+    // are shared, and should not be renamed twice.
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->src1 && tac->src1->label && !tac->src1->int_value) { tac->src1->label = mapping[tac->src1->label]; tac->src1->int_value = 1; }
+        if (tac->src2 && tac->src2->label && !tac->src2->int_value) { tac->src2->label = mapping[tac->src2->label]; tac->src2->int_value = 1; }
+        if (tac->label) tac->label = mapping[tac->label];
+    }
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->label) {
-            // Rename target label out of the way
-            renumber_label(ir, label_count + 1, temp_labels);
-            temp_labels--;
-
-            // Replace t->label with label_count + 1
-            renumber_label(ir, tac->label, -1);
-            tac->label = ++label_count;
-            renumber_label(ir, -1, tac->label);
-        }
+        if (tac->src1 && tac->src1->label) tac->src1->int_value = 0;
+        if (tac->src2 && tac->src2->label) tac->src2->int_value = 0;
     }
+
+    free(mapping);
 }
 
 static void merge_labels(Tac *ir, Tac *tac, int ir_index) {
