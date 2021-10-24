@@ -182,28 +182,30 @@ void make_control_flow_graph(Function *function) {
             blocks[block_count - 1].end = tac;
             blocks[block_count++].start = tac->next;
         }
+
+        // Make instructions IR_NOP after with JMP operations until the next label since
+        // the instructions afterwards will never get executed. Furthermore, the
+        // instructions later on will mess with the liveness analysis, leading to
+        // incorrect live ranges for the code that _is_ executed, so they need to get
+        // excluded.
+        if ((tac->operation == IR_JMP || tac->operation == X_JMP) && tac->next && !tac->next->label) {
+            while (tac->next && !tac->next->label) {
+                tac = tac->next;
+                tac->operation = IR_NOP;
+                tac->dst = 0;
+                tac->src1 = 0;
+                tac->src2 = 0;
+            }
+            tac = tac->prev;
+        }
     }
+
 
     Tac *tac = function->ir;
     while (tac->next) tac = tac->next;
     blocks[block_count - 1].end = tac;
 
-    // Truncate blocks with JMP operations in them since the instructions
-    // afterwards will never get executed. Furthermore, the instructions later
-    // on will mess with the liveness analysis, leading to incorrect live
-    // ranges for the code that _is_ executed, so they need to get excluded.
-    for (int i = 0; i < block_count; i++) {
-        tac = blocks[i].start;
-        while (1) {
-            if (tac->operation == IR_JMP || tac->operation == X_JMP) {
-                blocks[i].end = tac;
-                break;
-            }
-
-            if (tac == blocks[i].end) break;
-            tac = tac->next;
-        }
-    }
+    index_tac(function->ir);
 
     Graph *cfg = new_graph(block_count, 0);
 
@@ -226,6 +228,8 @@ void make_control_flow_graph(Function *function) {
                 add_graph_edge(cfg, i, i + 1);
 
             if (tac == blocks[i].end) break;
+            if (tac->operation == IR_JMP || tac->operation == X_JMP) break;
+
             tac = tac->next;
         }
     }

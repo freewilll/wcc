@@ -175,19 +175,19 @@ void test_arithmetic_optimization() {
     test_long_double_arithmetic_optimization();
 }
 
-// Ensure a JMP statement in the middle of a block ends the block
+// Ensure a JMP statement in the middle of a block makes instructions noops until the next label
 void test_cfg_jmp() {
     Function *function;
-    Tac *t1, *t2, *t3, *t4;
 
     function = new_function();
 
     ir_start = 0;
 
-    t1 = i(0, IR_NOP, 0, 0,    0);
-    t2 = i(0, IR_JMP, 0, l(1), 0);
-    t3 = i(0, IR_NOP, 0, 0,    0);
-    t4 = i(1, IR_NOP, 0, 0,    0);
+    Tac *t1 = i(0, IR_NOP, 0, 0,    0);
+    Tac *t2 = i(0, IR_JMP, 0, l(1), 0);
+    Tac *t3 = i(0, IR_MUL, 0, 0,    0);
+    Tac *t4 = i(0, IR_NOP, 0, 0,    0);
+    Tac *t5 = i(1, IR_NOP, 0, 0,    0);
 
     function->ir = ir_start;
 
@@ -196,8 +196,8 @@ void test_cfg_jmp() {
 
     assert(2, function->cfg->node_count);
     assert(1, function->cfg->edge_count);
-    assert((long) t1, (long) function->blocks[0].start); assert((long) t2, (long) function->blocks[0].end);
-    assert((long) t4, (long) function->blocks[1].start); assert((long) t4, (long) function->blocks[1].end);
+    assert((long) t1, (long) function->blocks[0].start); assert((long) t4, (long) function->blocks[0].end);
+    assert((long) t5, (long) function->blocks[1].start); assert((long) t5, (long) function->blocks[1].end);
     assert(0, function->cfg->edges[0].from->id); assert(1, function->cfg->edges[0].to->id);
 }
 
