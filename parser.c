@@ -1415,6 +1415,10 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
 
     if (dst->type->type == TYPE_PTR && is_null_pointer(src)) return;
 
+    // Dst is a pointer to a function and src is a function
+    if (is_pointer_to_function_type(dst->type) && src->type->type == TYPE_FUNCTION && types_are_compatible(dst->type->target, src->type)) return;
+
+    // Fall back to ordinary type checking
     warn_of_incompatible_types_in_assignment(dst->type, src->type);
 }
 
