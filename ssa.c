@@ -1515,17 +1515,14 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
             for (Tac *tac = function->ir; tac; tac = tac->next) {
                 // Don't coalesce a move if the type doesn't match
                 if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type)) {
-                    // printf("wtf 1\n");
                     merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
                 }
 
                 else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
                     if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg) {
-                        // printf("wtf 2\n");
                         merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
                     }
                     if ((tac->next->operation == X_SHL || tac->next->operation == X_SAR) && tac->next->src1 && tac->next->src1->vreg) {
-                        // printf("wtf 3\n");
                         merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
                     }
                 }
