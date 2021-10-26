@@ -53,6 +53,11 @@ typedef struct longmap {
     int element_count;
 } LongMap;
 
+typedef struct longmap_iterator {
+    LongMap *map;
+    int pos;
+} LongMapIterator;
+
 // One of preg or stack_index must have a value. (preg != 0) != (stack_index < 0)
 typedef struct vreg_location {
     int preg;         // Physical register starting at 0. -1 is unused.
@@ -637,7 +642,10 @@ LongMap *new_longmap(void);
 void *longmap_get(LongMap *longmap, long key);
 void longmap_put(LongMap *longmap, long key, void *value);
 void longmap_delete(LongMap *longmap, long key);
-
+LongMapIterator *new_longmap_iterator(LongMap *map);
+int longmap_iterator_finished(LongMapIterator *iterator);
+void longmap_iterator_next(LongMapIterator *iterator);
+long longmap_iterator_key(LongMapIterator *iterator);
 // graph.c
 Graph *new_graph(int node_count, int edge_count);
 void dump_graph(Graph *g);

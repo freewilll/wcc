@@ -34,6 +34,12 @@ int main() {
         if (got_value) panic("Expected no match");
     }
 
+    // Test iteration
+    int i = 0, h = 0;
+    for (LongMapIterator *it = new_longmap_iterator(map); !longmap_iterator_finished(it); longmap_iterator_next(it), i++)
+        h += 7 * h + longmap_iterator_key(it);
+    if (h != -46927138) panic("Iteration checksum ok");
+
     // Reassign the even numbered elements with baz %d
     for (int i = -COUNT + 1; i < COUNT; i += 2) {
         long key = i * 42;

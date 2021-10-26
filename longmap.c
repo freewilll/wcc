@@ -118,6 +118,35 @@ void longmap_delete(LongMap *map, long key) {
     }
 }
 
+int longmap_iterator_finished(LongMapIterator *iterator) {
+    return iterator->pos == -1;
+}
+
+void longmap_iterator_next(LongMapIterator *iterator) {
+    iterator->pos++;
+
+    while (iterator->pos <= iterator->map->size && iterator->map->status[iterator->pos] != STATUS_USED)
+        iterator->pos++;
+
+    if (iterator->map->status[iterator->pos] != STATUS_USED) {
+        iterator->pos = -1;
+    }
+}
+
+long longmap_iterator_key(LongMapIterator *iterator) {
+    if (iterator->pos == -1) panic("Attempt to iterate beyond the end of the iterator");
+    return iterator->map->keys[iterator->pos];
+}
+
+LongMapIterator *new_longmap_iterator(LongMap *map) {
+    LongMapIterator *result = malloc(sizeof(LongMapIterator));
+    result->map = map;
+    result->pos = -1;
+    longmap_iterator_next(result);
+
+    return result;
+}
+
 LongMap *new_longmap(void) {
     LongMap *map = malloc(sizeof(LongMap));
     memset(map, 0, sizeof(LongMap));
