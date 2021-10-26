@@ -36,15 +36,14 @@ void test_for_statement_combinations() {
     int i;
     int c;
 
-    i = 0;        for(    ;        ;    ) { if (i == 10) break; i++; } assert_int(10, i, "for combinations 1");
-    i = 0;        for(    ;        ; i++) { if (i == 10) break; }      assert_int(10, i, "for combinations 2");
-    i = 0;        for(    ;  i<10  ;    ) i++;                         assert_int(10, i, "for combinations 3");
-    i = 0; c = 0; for(    ;  i<10  ; i++) c++;                         assert_int(10, i, "for combinations 4");
-                  for(i=0 ;        ;    ) { if (i == 10) break; i++; } assert_int(10, i, "for combinations 5");
-                  for(i=0 ;        ; i++) { if (i == 10) break; }      assert_int(10, i, "for combinations 6");
-                  for(i=0 ; i<10   ;    ) i++;                         assert_int(10, i, "for combinations 7");
-           c = 0; for(i=0 ; i<10   ; i++) c++;                         assert_int(10, i, "for combinations 8");
-
+    i = 0; c = 0; for(    ;        ;    ) { c++; if (i == 10) break; i++; } assert_int(10, i, "for combinations i 1"); assert_int(11, c, "for combinations c 1");
+    i = 0; c = 0; for(    ;        ; i++) { c++; if (i == 10) break; }      assert_int(10, i, "for combinations i 2"); assert_int(11, c, "for combinations c 2");
+    i = 0; c = 0; for(    ; i<10   ;    ) { c++; i++; }                     assert_int(10, i, "for combinations i 3"); assert_int(10, c, "for combinations c 3");
+    i = 0; c = 0; for(    ; i<10   ; i++) { c++; }                          assert_int(10, i, "for combinations i 4"); assert_int(10, c, "for combinations c 4");
+           c = 0; for(i=0 ;        ;    ) { c++; if (i == 10) break; i++; } assert_int(10, i, "for combinations i 5"); assert_int(11, c, "for combinations c 5");
+           c = 0; for(i=0 ;        ; i++) { c++; if (i == 10) break; }      assert_int(10, i, "for combinations i 6"); assert_int(11, c, "for combinations c 6");
+           c = 0; for(i=0 ; i<10   ;    ) { c++; i++; }                     assert_int(10, i, "for combinations i 7"); assert_int(10, c, "for combinations c 7");
+           c = 0; for(i=0 ; i<10   ; i++) { c++; }                          assert_int(10, i, "for combinations i 8"); assert_int(10, c, "for combinations c 8");
 }
 
 void test_while_continue() {

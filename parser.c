@@ -2225,8 +2225,8 @@ static void parse_iteration_statement(void) {
         // Condition
         if (cur_token != TOK_SEMI) {
             parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
-            add_instruction(IR_JMP, 0, lbody, 0);
         }
+        add_instruction(IR_JMP, 0, lbody, 0);
         consume(TOK_SEMI, ";");
 
         // Increment
