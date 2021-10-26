@@ -1,3 +1,4 @@
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -893,57 +894,82 @@ void rename_phi_function_variables(Function *function) {
     if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
 }
 
-// Page 696 engineering a compiler
-// To build live ranges from ssa form, the allocator uses the disjoint-set union- find algorithm.
+// Make mapping from (vreg, ssa_subscript) tuple to a unique index.
+// The LongMap has void * values, but they are being used to store longs.
+// The vars are sorted like r_1_0, r_1_1, r2_0, r3_0, r4_1 etc to preserve
+// the order they were declared in. This isn't necessary for compilation, but it
+// makes writing tests and debugging easier, since the live ranges will be in the same
+// order.
+static int make_live_range_varmap(Function *function, LongMap *map, long *reverse_map) {
+    // Populate the longmap with the (vreg, ssa_subscript) tuples.
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->dst  && tac->dst ->vreg) {
+            long hash = ((long) tac->dst ->vreg << 32) + tac->dst ->ssa_subscript;
+            longmap_put(map, hash, (void *) 1);
+        }
+
+        if (tac->src1 && tac->src1->vreg) {
+            long hash = ((long) tac->src1->vreg << 32) + tac->src1->ssa_subscript;
+            longmap_put(map, hash, (void *) 1);
+        }
+
+        if (tac->src2 && tac->src2->vreg) {
+            long hash = ((long) tac->src2->vreg << 32) + tac->src2->ssa_subscript;
+            longmap_put(map, hash, (void *) 1);
+        }
+
+        if (tac->operation == IR_PHI_FUNCTION) {
+            Value *v = tac->phi_values;
+            while (v->type) {
+                long hash = ((long) v->vreg << 32) + v->ssa_subscript;
+                longmap_put(map, hash, (void *) 1);
+                v++;
+            }
+        }
+    }
+
+    // Make an array with the keys
+    int count = 0;
+    for (LongMapIterator *it = new_longmap_iterator(map); !longmap_iterator_finished(it); longmap_iterator_next(it)) count++;
+    if (count == 0) return 0; // Bail if there are no vregs
+    unsigned long *hashes = malloc(sizeof(long) * count);
+    int i = 0;
+    for (LongMapIterator *it = new_longmap_iterator(map); !longmap_iterator_finished(it); longmap_iterator_next(it), i++)
+        hashes[i] = longmap_iterator_key(it);
+
+    // Sort the array
+    quicksort_ulong_array(hashes, 0, count - 1);
+
+    // Update the values in the map and populate the reverse map
+    for (int i = 0; i < count; i++) {
+        unsigned long hash = hashes[i];
+        longmap_put(map, hash, (void *) (long) i + 1);
+        if (debug_ssa_live_range) reverse_map[i + 1] = hash;
+    }
+
+    free(hashes);
+
+    return count + 1;
+}
+
 void make_live_ranges(Function *function) {
     if (debug_ssa_live_range) print_ir(function, 0, 0);
 
-    int vreg_count = function->vreg_count;
-    int ssa_subscript_count = 0;
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->dst  && tac->dst ->vreg && tac->dst ->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->dst ->ssa_subscript;
-        if (tac->src1 && tac->src1->vreg && tac->src1->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src1->ssa_subscript;
-        if (tac->src2 && tac->src2->vreg && tac->src2->ssa_subscript > ssa_subscript_count) ssa_subscript_count = tac->src2->ssa_subscript;
+    LongMap *varmap = new_longmap();
+    long *reverse_varmap;
+    if (debug_ssa_live_range) reverse_varmap = malloc(1000000 * sizeof(long));
 
-        if (tac->operation == IR_PHI_FUNCTION) {
-            Value *v = tac->phi_values;
-            while (v->type) {
-                if (v->ssa_subscript > ssa_subscript_count) ssa_subscript_count = v->ssa_subscript;
-                v++;
-            }
-        }
-    }
-
-    ssa_subscript_count += 1; // Starts at zero, so the count is one more
-
-    int max_ssa_var = (vreg_count + 1) * ssa_subscript_count;
-    Set *ssa_vars = new_set(max_ssa_var);
-
-    // Poor mans 2D array. 2d[vreg][subscript] => 1d[vreg * ssa_subscript_count + ssa_subscript]
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->dst  && tac->dst ->vreg) add_to_set(ssa_vars, tac->dst ->vreg * ssa_subscript_count + tac->dst ->ssa_subscript);
-        if (tac->src1 && tac->src1->vreg) add_to_set(ssa_vars, tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript);
-        if (tac->src2 && tac->src2->vreg) add_to_set(ssa_vars, tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript);
-
-        if (tac->operation == IR_PHI_FUNCTION) {
-            Value *v = tac->phi_values;
-            while (v->type) {
-                add_to_set(ssa_vars, v->vreg * ssa_subscript_count + v->ssa_subscript);
-                v++;
-            }
-        }
-    }
+    int ssa_var_count = make_live_range_varmap(function, varmap, reverse_varmap);
 
     // Create live ranges sets for all variables, each set with the variable itself in it.
     // Allocate all the memory we need. live_range_count
-    Set **live_ranges = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(Set *));
-    for (int i = 0; i <= max_ssa_var; i++) {
-        if (!ssa_vars->elements[i]) continue;
-        live_ranges[i] = new_set(max_ssa_var);
+    Set **live_ranges = malloc(ssa_var_count * sizeof(Set *));
+    for (int i = 1; i < ssa_var_count; i++) {
+        live_ranges[i] = new_set(ssa_var_count);
         add_to_set(live_ranges[i], i);
     }
 
-    Set *s = new_set(max_ssa_var);
+    Set *s = new_set(ssa_var_count);
 
     int *src_ssa_vars = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
     int *src_set_indexes = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
@@ -955,20 +981,18 @@ void make_live_ranges(Function *function) {
             Value *v = tac->phi_values;
             while (v->type) {
                 if (value_count == MAX_BLOCK_PREDECESSOR_COUNT) panic("Exceeded MAX_BLOCK_PREDECESSOR_COUNT");
-                src_ssa_vars[value_count++] = v->vreg * ssa_subscript_count + v->ssa_subscript;
+                src_ssa_vars[value_count++] = (long) longmap_get(varmap, ((long) v->vreg << 32) + v->ssa_subscript);
                 v++;
             }
 
-            int dst = tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript;
+            int dst = (long) longmap_get(varmap, ((long) tac->dst->vreg << 32) + tac->dst->ssa_subscript);
             int dst_set_index;
 
-            for (int i = 0; i <= max_ssa_var; i++) {
-                if (!ssa_vars->elements[i]) continue;
-
-                if (in_set(live_ranges[i], dst)) dst_set_index = i;
+            for (int i = 1; i < ssa_var_count; i++) {
+                if (live_ranges[i]->elements[dst]) dst_set_index = i;
 
                 for (int j = 0; j < value_count; j++)
-                    if (in_set(live_ranges[i], src_ssa_vars[j])) src_set_indexes[j] = i;
+                    if (live_ranges[i]->elements[src_ssa_vars[j]]) src_set_indexes[j] = i;
             }
 
             Set *dst_set = live_ranges[dst_set_index];
@@ -991,9 +1015,10 @@ void make_live_ranges(Function *function) {
 
     // Remove empty live ranges
     int live_range_count = 0;
-    for (int i = 0; i <= max_ssa_var; i++)
-        if (ssa_vars->elements[i] && set_len(live_ranges[i]))
+    for (int i = 1; i < ssa_var_count; i++) {
+        if (set_len(live_ranges[i]))
             live_ranges[live_range_count++] = live_ranges[i];
+    }
 
     // From here on, live ranges start at live_range_reserved_pregs_offset + 1
     if (debug_ssa_live_range) {
@@ -1002,42 +1027,46 @@ void make_live_ranges(Function *function) {
             printf("%d: ", i + live_range_reserved_pregs_offset + 1);
             printf("{");
             int first = 1;
-            for (int j = 0; j <= live_ranges[i]->max_value; j++) {
+            long mask = ((1l << 32) - 1);
+            for (int j = 1; j < live_ranges[i]->max_value; j++) {
                 if (!live_ranges[i]->elements[j]) continue;
                 if (!first)
                     printf(", ");
                 else
                     first = 0;
-                printf("%d_%d", j / ssa_subscript_count, j % ssa_subscript_count);
+
+                long hash = reverse_varmap[j];
+                printf("%ld_%ld", (hash >> 32) & mask, hash & mask);
             }
 
             printf("}\n");
         }
 
         printf("\n");
+        print_ir(function, 0, 0);
     }
 
     // Make a map of variable names to live range
-    int *map = malloc((vreg_count + 1) * ssa_subscript_count * sizeof(int));
-    memset(map, -1, (vreg_count + 1) * ssa_subscript_count * sizeof(int));
+    int *map = malloc(ssa_var_count * sizeof(int));
+    memset(map, -1, ssa_var_count * sizeof(int));
 
     for (int i = 0; i < live_range_count; i++) {
         Set *s = live_ranges[i];
         char *elements = s->elements;
-        for (int j = 0; j <= s->max_value; j++)
+        for (int j = 1; j < s->max_value; j++)
             if (elements[j]) map[j] = i;
     }
 
     // Assign live ranges to TAC & build live_ranges set
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst && tac->dst->vreg)
-            tac->dst->live_range = map[tac->dst->vreg * ssa_subscript_count + tac->dst->ssa_subscript] + live_range_reserved_pregs_offset + 1;
+            tac->dst->live_range = map[(long) longmap_get(varmap, ((long) tac->dst->vreg << 32) + tac->dst->ssa_subscript)] + live_range_reserved_pregs_offset + 1;
 
         if (tac->src1 && tac->src1->vreg)
-            tac->src1->live_range = map[tac->src1->vreg * ssa_subscript_count + tac->src1->ssa_subscript] + live_range_reserved_pregs_offset + 1;
+            tac->src1->live_range = map[(long) longmap_get(varmap, ((long) tac->src1->vreg << 32) + tac->src1->ssa_subscript)] + live_range_reserved_pregs_offset + 1;
 
         if (tac->src2 && tac->src2->vreg)
-            tac->src2->live_range = map[tac->src2->vreg * ssa_subscript_count + tac->src2->ssa_subscript] + live_range_reserved_pregs_offset + 1;
+            tac->src2->live_range = map[(long) longmap_get(varmap, ((long) tac->src2->vreg << 32) + tac->src2->ssa_subscript)] + live_range_reserved_pregs_offset + 1;
     }
 
     // Remove phi functions
@@ -1485,25 +1514,33 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
             // Create merge candidates
             for (Tac *tac = function->ir; tac; tac = tac->next) {
                 // Don't coalesce a move if the type doesn't match
-                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type))
+                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type)) {
+                    // printf("wtf 1\n");
                     merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
+                }
 
                 else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
-                    if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
+                    if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg) {
+                        // printf("wtf 2\n");
                         merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
-                    if ((tac->next->operation == X_SHL || tac->next->operation == X_SAR) && tac->next->src1 && tac->next->src1->vreg)
+                    }
+                    if ((tac->next->operation == X_SHL || tac->next->operation == X_SAR) && tac->next->src1 && tac->next->src1->vreg) {
+                        // printf("wtf 3\n");
                         merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
+                    }
                 }
 
                 else {
-                    if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1;
-                    if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1;
-                    if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1;
+                    if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) { instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1; }
+                    if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1; }
+                    if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1; }
                 }
 
                 if (tac->dst && tac->dst->vreg) {
-                    if (tac->operation == IR_CALL) clobbers[tac->dst->vreg] = 1;
+                    if (tac->operation == IR_CALL)  clobbers[tac->dst->vreg] = 1;
                     else if (tac->dst && tac->dst->vreg && tac->dst->live_range_preg) clobbers[tac->dst->vreg] = 1;
+                    else if (tac->src1 && tac->src1->vreg && tac->src1->live_range_preg) clobbers[tac->src1->vreg] = 1;
+                    else if (tac->src2 && tac->src2->vreg && tac->src2->live_range_preg) clobbers[tac->src2->vreg] = 1;
                 }
             }
 

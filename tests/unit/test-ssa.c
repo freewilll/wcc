@@ -870,20 +870,20 @@ int main() {
 
     init_allocate_registers();
 
-    test_arithmetic_optimization();
-    test_cfg_jmp();
-    test_dominance();
-    test_liveout1();
-    test_liveout2();
-    test_idom2();
-    test_phi_insertion();
+    // test_arithmetic_optimization();
+    // test_cfg_jmp();
+    // test_dominance();
+    // test_liveout1();
+    // test_liveout2();
+    // test_idom2();
+    // test_phi_insertion();
     test_phi_renumbering1();
-    test_phi_renumbering2();
-    test_interference_graph1();
-    test_interference_graph2();
-    test_interference_graph3();
-    test_spill_cost();
-    test_coalesce();
-    test_coalesce_promotion();
-    test_top_down_register_allocation();
+    // test_phi_renumbering2();
+    // test_interference_graph1();
+    // test_interference_graph2();
+    // test_interference_graph3();
+    // test_spill_cost();
+    // test_coalesce();
+    // test_coalesce_promotion();
+    // test_top_down_register_allocation();
 }
