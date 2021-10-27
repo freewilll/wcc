@@ -643,7 +643,7 @@ LongMap *new_longmap(void);
 void *longmap_get(LongMap *longmap, long key);
 void longmap_put(LongMap *longmap, long key, void *value);
 void longmap_delete(LongMap *longmap, long key);
-LongMapIterator *new_longmap_iterator(LongMap *map);
+LongMapIterator longmap_iterator(LongMap *map);
 int longmap_iterator_finished(LongMapIterator *iterator);
 void longmap_iterator_next(LongMapIterator *iterator);
 long longmap_iterator_key(LongMapIterator *iterator);

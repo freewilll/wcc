@@ -929,12 +929,12 @@ static int make_live_range_varmap(Function *function, LongMap *map, long *revers
 
     // Make an array with the keys
     int count = 0;
-    for (LongMapIterator *it = new_longmap_iterator(map); !longmap_iterator_finished(it); longmap_iterator_next(it)) count++;
+    for (LongMapIterator it = longmap_iterator(map); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) count++;
     if (count == 0) return 0; // Bail if there are no vregs
     unsigned long *hashes = malloc(sizeof(long) * count);
     int i = 0;
-    for (LongMapIterator *it = new_longmap_iterator(map); !longmap_iterator_finished(it); longmap_iterator_next(it), i++)
-        hashes[i] = longmap_iterator_key(it);
+    for (LongMapIterator it = longmap_iterator(map); !longmap_iterator_finished(&it); longmap_iterator_next(&it), i++)
+        hashes[i] = longmap_iterator_key(&it);
 
     // Sort the array
     quicksort_ulong_array(hashes, 0, count - 1);
@@ -1544,8 +1544,8 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
             }
 
             long mask = ((1l << 32) - 1);
-            for (LongMapIterator *it = new_longmap_iterator(mc); !longmap_iterator_finished(it); longmap_iterator_next(it)) {
-                long hash = longmap_iterator_key(it);
+            for (LongMapIterator it = longmap_iterator(mc); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+                long hash = longmap_iterator_key(&it);
                 int dst = (hash >> 32) & mask;
                 int src = hash & mask;
 

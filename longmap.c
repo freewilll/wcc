@@ -137,11 +137,11 @@ long longmap_iterator_key(LongMapIterator *iterator) {
     return iterator->map->keys[iterator->pos];
 }
 
-LongMapIterator *new_longmap_iterator(LongMap *map) {
-    LongMapIterator *result = malloc(sizeof(LongMapIterator));
-    result->map = map;
-    result->pos = -1;
-    longmap_iterator_next(result);
+LongMapIterator longmap_iterator(LongMap *map) {
+    LongMapIterator result;
+    result.map = map;
+    result.pos = -1;
+    longmap_iterator_next(&result);
 
     return result;
 }
