@@ -1254,7 +1254,7 @@ static void print_interference_graph(Function *function) {
 }
 
 // Page 701 of engineering a compiler
-static void make_interference_graph(Function *function) {
+void make_interference_graph(Function *function, int include_clobbers) {
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
         printf("--------------------------------------------------------\n");
@@ -1283,7 +1283,7 @@ static void make_interference_graph(Function *function) {
             enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src1);
             enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src2);
 
-            if (tac->operation == IR_CALL || tac->operation == X_CALL) {
+            if (include_clobbers && tac->operation == IR_CALL || tac->operation == X_CALL) {
                 // Integer arguments are clobbered
                 for (int j = 0; j < 6; j++) {
                     if (j == 2) continue; // RDX is a special case, see below
@@ -1311,26 +1311,28 @@ static void make_interference_graph(Function *function) {
             }
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
-                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                if (include_clobbers) {
+                    clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                    clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+                }
 
                 // Works together with the instruction rules
                 if (tac->operation == X_IDIV)
                     add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, tac->dst->vreg);
             }
 
-            if (tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
+            if (include_clobbers && tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
             }
 
             // Works together with the instruction rules. Ensure the shift value cannot be in rcx.
-            if ((tac->operation == X_SHL || tac->operation == X_SAR) && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
+            if (include_clobbers && (tac->operation == X_SHL || tac->operation == X_SAR) && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
                 add_ig_edge(interference_graph, vreg_count, tac->prev->dst->vreg, LIVE_RANGE_PREG_RCX_INDEX);
                 add_ig_edge(interference_graph, vreg_count, tac->prev->src1->vreg, LIVE_RANGE_PREG_RCX_INDEX);
             }
 
-            if (tac->operation == X_LD_EQ_CMP)
+            if (include_clobbers && tac->operation == X_LD_EQ_CMP)
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
 
             if (tac->dst && tac->dst->vreg) {
@@ -1493,7 +1495,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
         outer_changed = 0;
 
         make_live_range_spill_cost(function);
-        make_interference_graph(function);
+        make_interference_graph(function, 0);
 
         if (!opt_enable_live_range_coalescing) return;
 

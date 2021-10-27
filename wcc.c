@@ -69,6 +69,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
 
     // Register allocation and spilling
     sanity_test_ir_linkage(function);
+    make_interference_graph(function, 1);
     allocate_registers(function);
     remove_stack_self_moves(function);
     add_spill_code(function);
