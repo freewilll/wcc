@@ -619,6 +619,9 @@ static void add_pointer_rules(int *ntc) {
         add_move_to_ptr(RP4, is_unsigned ? RU4 : RI4, 0, "movq %v2q, %v1o(%v1q)");
     }
 
+    // Move a pointer to a function to a pointer to a pointer to a function
+    add_move_to_ptr(RP4, RPF, 0, "movq %v2q, %v1o(%v1q)");
+
     // Note, CI4 cannot be written to RP4 since there is no instruction for it
     add_move_to_ptr(RP1, CI1, 0, "movb $%v2b, %v1o(%v1q)");
     add_move_to_ptr(RP2, CI2, 0, "movw $%v2w, %v1o(%v1q)");

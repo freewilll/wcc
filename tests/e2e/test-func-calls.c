@@ -250,6 +250,9 @@ int do_operation(int (*callback)(int), int value) {
     else
         return 0;
 }
+struct struct_with_assert_int {
+    void (*assert_int)(int, int, char *);
+};
 
 void test_function_pointers() {
     global_func_ptr = plus; // TODO func ptr when there is global assignment
@@ -356,6 +359,13 @@ void test_function_pointers() {
 
     long double (*pfld)(int) = ldplus;
     assert_long_double(2.1, pfld(1), "Func pointer returning long double");
+
+    // Test assigning a pointer to a function to a pointer to a pointer to a function
+    struct struct_with_assert_int *swai = malloc(sizeof(struct struct_with_assert_int));
+    swai->assert_int = assert_int;
+    swai->assert_int(1,1, "s->func = func");
+    swai->assert_int = &assert_int;
+    swai->assert_int(1,1, "s->func = &func");
 }
 
 void test_sizeof_function_pointer() {
