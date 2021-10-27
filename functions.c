@@ -564,6 +564,11 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
     int *param_indexes = malloc(sizeof(int) * function_call_count * register_count);
     memset(param_indexes, -1, sizeof(int) * function_call_count * register_count);
 
+    // Set to 1 if the function returns a struct in memory, which reserves rdi for a
+    // pointer to the return address
+    char *has_struct_or_union_return_values = malloc(sizeof(char) * function_call_count);
+    memset(has_struct_or_union_return_values, 0, sizeof(char) * function_call_count);
+
     FunctionParamLocations **param_locations = malloc(sizeof(FunctionParamLocations *) * function_call_count * register_count);
     memset(param_locations, -1, sizeof(FunctionParamLocations *) * function_call_count * register_count);
 
@@ -572,6 +577,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG) {
             FunctionParamLocations *pl = ir->src1->function_call_arg_locations;
+            if (ir->src1->has_struct_or_union_return_value) has_struct_or_union_return_values[ir->src1->int_value] = 1;
 
             for (int loc = 0; loc < pl->count; loc++) {
                 int function_call_register_arg_index = preg_class == PC_INT
@@ -589,6 +595,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
         if (ir->operation == IR_CALL) {
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
+            int has_struct_or_union_return_value = has_struct_or_union_return_values[ir->src1->int_value];
             int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
             FunctionParamLocations **pls = &(param_locations[ir->src1->int_value * register_count]);
             Function *called_function = ir->src1->type->function;
@@ -599,6 +606,15 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
             // Add the moves backwards so that arg 0 (rsi) is last.
             int i = 0;
+
+            // Advance past the first parameter, which holds the pointer to the struct/union return value
+            if (has_struct_or_union_return_value && preg_class == PC_INT) {
+                call_arg++;
+                param_index++;
+                pls++;
+                i++;
+            }
+
             while (i < register_count && *call_arg) {
                 call_arg++;
                 param_index++;
@@ -612,6 +628,10 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
             i--;
 
             for (; i >= 0; i--) {
+                // Bail if we're doing integers and RDI is reserved for a struct/union
+                // return value.
+                if (has_struct_or_union_return_value && preg_class == PC_INT && i == 0) break;
+
                 Type *type;
                 int pi = *param_index;
                 if (pi >= 0 && pi < called_function->param_count) {

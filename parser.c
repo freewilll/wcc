@@ -1642,6 +1642,18 @@ static void parse_function_call(void) {
     add_instruction(IR_START_CALL, 0, src1, 0);
     FunctionParamAllocation *fpa = init_function_param_allocaton(symbol ? symbol->global_identifier : "(anonymous)");
 
+    // Allocate an integer slot if the function returns a slot in memory. The
+    // RDI register must contain a pointer to the return value, set by the caller.
+    int has_struct_or_union_return_value = 0;
+    FunctionParamAllocation *rv_fpa = function->return_value_fpa;
+    if (rv_fpa) {
+        FunctionParamLocations *rv_fpl = &(rv_fpa->params[0]);
+        if (rv_fpl->locations[0].stack_offset != -1) {
+            add_function_param_to_allocation(fpa, make_pointer_to_void());
+            has_struct_or_union_return_value = 1;
+        }
+    }
+
     while (1) {
         if (cur_token == TOK_RPAREN) break;
 
@@ -1650,7 +1662,8 @@ static void parse_function_call(void) {
 
         parse_expression(TOK_EQ);
         Value *arg = dup_value(src1);
-        int arg_count = fpa->arg_count;
+        int fpa_arg_count = fpa->arg_count;
+        int arg_count = fpa_arg_count - has_struct_or_union_return_value;
         arg->function_call_arg_index = arg_count;
 
         if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
@@ -1683,8 +1696,9 @@ static void parse_function_call(void) {
         }
 
         add_function_param_to_allocation(fpa, vtop->type);
-        FunctionParamLocations *fpl = &(fpa->params[arg_count]);
+        FunctionParamLocations *fpl = &(fpa->params[fpa_arg_count]);
         arg->function_call_arg_locations = fpl;
+        arg->has_struct_or_union_return_value = has_struct_or_union_return_value;
         add_instruction(IR_ARG, 0, arg, pl());
 
         // If a stack adjustment needs to take place to align 16-byte data

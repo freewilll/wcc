@@ -135,6 +135,13 @@ void test_struct_return_values() {
     assert_int(4, si5.i4, "return_si5");
     assert_int(5, si5.i5, "return_si5");
 
+    si5 = return_si5_with_params(1, 1.1);
+    assert_int(1, si5.i1, "return_si5");
+    assert_int(2, si5.i2, "return_si5");
+    assert_int(3, si5.i3, "return_si5");
+    assert_int(4, si5.i4, "return_si5");
+    assert_int(5, si5.i5, "return_si5");
+
     gsi1 = return_si1();
     assert_int(1, gsi1.i1, "return_si1 with global");
 

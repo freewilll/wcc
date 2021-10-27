@@ -93,6 +93,8 @@ struct si3 return_si3();
 struct si4 return_si4();
 struct si5 return_si5();
 
+struct si5 return_si5_with_params(int i, float f);
+
 void accept_array(int a[4]);
 
 int get_linked_object();

@@ -225,6 +225,7 @@ typedef struct value {
     int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
+    int has_struct_or_union_return_value;                // Is it a function call that returns a struct/union?
     FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or sse register, or in the case of a struct, a list of locations
     int function_call_sse_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
