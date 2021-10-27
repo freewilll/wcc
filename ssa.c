@@ -1,4 +1,3 @@
-#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1507,24 +1506,23 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
             inner_changed = max_cost = merge_src = merge_dst = 0;
 
             // A lower triangular matrix of all register copy operations and instrsel blockers
-            memset(merge_candidates, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
             memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
             memset(clobbers, 0, (vreg_count + 1) * sizeof(char));
+
+            LongMap *mc = new_longmap();
 
             // Create merge candidates
             for (Tac *tac = function->ir; tac; tac = tac->next) {
                 // Don't coalesce a move if the type doesn't match
-                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type)) {
-                    merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
-                }
+                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type))
+                    longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
                 else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
-                    if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg) {
-                        merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
-                    }
-                    if ((tac->next->operation == X_SHL || tac->next->operation == X_SAR) && tac->next->src1 && tac->next->src1->vreg) {
-                        merge_candidates[tac->dst->vreg * vreg_count + tac->src1->vreg]++;
-                    }
+                    if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
+                        longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
+
+                    if ((tac->next->operation == X_SHL || tac->next->operation == X_SAR) && tac->next->src1 && tac->next->src1->vreg)
+                        longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
                 }
 
                 else {
@@ -1533,12 +1531,9 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
                     if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1; }
                 }
 
-                if (tac->dst && tac->dst->vreg) {
-                    if (tac->operation == IR_CALL)  clobbers[tac->dst->vreg] = 1;
-                    else if (tac->dst && tac->dst->vreg && tac->dst->live_range_preg) clobbers[tac->dst->vreg] = 1;
-                    else if (tac->src1 && tac->src1->vreg && tac->src1->live_range_preg) clobbers[tac->src1->vreg] = 1;
-                    else if (tac->src2 && tac->src2->vreg && tac->src2->live_range_preg) clobbers[tac->src2->vreg] = 1;
-                }
+                if (tac->dst  && tac->dst-> vreg && tac->dst ->live_range_preg) clobbers[tac->dst ->vreg] = 1;
+                if (tac->src1 && tac->src1->vreg && tac->src1->live_range_preg) clobbers[tac->src1->vreg] = 1;
+                if (tac->src2 && tac->src2->vreg && tac->src2->live_range_preg) clobbers[tac->src2->vreg] = 1;
             }
 
             if (debug_ssa_live_range_coalescing) {
@@ -1546,30 +1541,25 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
                 printf("Live range coalesces:\n");
             }
 
-            for (int dst = 1; dst <= vreg_count; dst++) {
-                if (clobbers[dst]) continue;
+            long mask = ((1l << 32) - 1);
+            for (LongMapIterator *it = new_longmap_iterator(mc); !longmap_iterator_finished(it); longmap_iterator_next(it)) {
+                long hash = longmap_iterator_key(it);
+                int dst = (hash >> 32) & mask;
+                int src = hash & mask;
 
-                int src_component = 0;
-                int dst_component = dst * vreg_count;
-                for (int src = 1; src <= vreg_count; src++) {
-                    src_component += vreg_count;
+                if (clobbers[src] || clobbers[dst]) continue;
 
-                    if (clobbers[src]) continue;
+                int l1 = dst * vreg_count + src;
+                int l2 = src * vreg_count + dst;
 
-                    int l1 = dst_component + src;
-                    if (!merge_candidates[l1] || instrsel_blockers[l1]) continue;
-                    if (src > dst) continue;
+                if (instrsel_blockers[l1] || instrsel_blockers[l2]) continue;
+                if (interference_graph[l1] || interference_graph[l2]) continue;
 
-                    int l2 = src_component + dst;
-
-                    if (!instrsel_blockers[l2] && !interference_graph[l2]) {
-                        int cost = function->spill_cost[src] + function->spill_cost[dst];
-                        if (cost > max_cost) {
-                            max_cost = cost;
-                            merge_src = src;
-                            merge_dst = dst;
-                        }
-                    }
+                int cost = function->spill_cost[src] + function->spill_cost[dst];
+                if (cost > max_cost) {
+                    max_cost = cost;
+                    merge_src = src;
+                    merge_dst = dst;
                 }
             }
 
