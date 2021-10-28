@@ -2492,6 +2492,47 @@ static void parse_return_statement(void) {
     consume(TOK_SEMI, ";");
 }
 
+static void parse_label_statement(void) {
+    char *identifier = cur_identifier;
+    next();
+    if (cur_token == TOK_COLON) {
+        next();
+        Value *ldst = new_label_dst();
+        add_jmp_target_instruction(ldst);
+        strmap_put(cur_function_symbol->type->function->labels, identifier, ldst);
+    }
+    else {
+        rewind_lexer();
+        parse_expression(TOK_COMMA);
+        consume(TOK_SEMI, ";");
+    }
+}
+
+static void parse_goto_statement(void) {
+    next();
+    expect(TOK_IDENTIFIER, "identifier");
+    Value *ldst = strmap_get(cur_function_symbol->type->function->labels, cur_identifier);
+    if (ldst)
+        add_instruction(IR_JMP, 0, ldst, 0);
+    else {
+        Tac *ir = add_instruction(IR_JMP, 0, 0, 0);
+        strmap_put(cur_function_symbol->type->function->goto_backpatches, cur_identifier, ir);
+    }
+    next();
+    consume(TOK_SEMI, ";");
+}
+
+static void backpatch_gotos(void) {
+    StrMap *goto_backpatches = cur_function_symbol->type->function->goto_backpatches;
+    for (StrMapIterator it = strmap_iterator(goto_backpatches); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
+        char *identifier = strmap_iterator_key(&it);
+        Tac *ir = strmap_get(goto_backpatches, identifier);
+        if (!ir) panic1s("Unknown label %s", identifier);
+        Value *ldst = strmap_get(cur_function_symbol->type->function->labels, identifier);
+        ir->src1 = ldst;
+    }
+}
+
 // Parse a statement
 static void parse_statement(void) {
     vs = vs_start; // Reset value stack
@@ -2550,6 +2591,14 @@ static void parse_statement(void) {
 
         case TOK_RETURN:
             parse_return_statement();
+            break;
+
+        case TOK_IDENTIFIER:
+            parse_label_statement();
+            break;
+
+        case TOK_GOTO:
+            parse_goto_statement();
             break;
 
         default:
@@ -2692,6 +2741,8 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
     function->ir = ir_start;
     function->linkage = linkage;
     function->local_symbol_count = 0;
+    function->labels = new_strmap();
+    function->goto_backpatches = new_strmap();
 
     if (type->target->type == TYPE_STRUCT_OR_UNION) {
         FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
@@ -2737,6 +2788,7 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
 
         cur_function_symbol->type->function->is_defined = 1;
         cur_function_symbol->type->function->vreg_count = vreg_count;
+        backpatch_gotos();
     }
     else
         // Make it clear that this symbol will need to be backpatched if used

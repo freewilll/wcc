@@ -101,6 +101,22 @@ void test_do_while() {
     assert_int(4, c2, "do_while 4");
 }
 
+void test_goto() {
+    int i = 0, c = 0;
+
+loop:
+    i++;
+    c = c * 10 + i;
+    if (i < 10) goto loop;
+    c--;
+    goto done;
+
+    c--;
+
+done:;
+    assert_int(1234567899, c, "Goto");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -113,6 +129,7 @@ int main(int argc, char **argv) {
     test_while_continue();
     test_nested_while_continue();
     test_do_while();
+    test_goto();
 
     finalize();
 }

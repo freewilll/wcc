@@ -44,6 +44,11 @@ typedef struct strmap {
     int element_count;
 } StrMap;
 
+typedef struct strmap_iterator {
+    StrMap *map;
+    int pos;
+} StrMapIterator;
+
 typedef struct longmap {
     long *keys;
     void **values;
@@ -140,6 +145,8 @@ typedef struct function {
     struct function_param_allocation *return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
     Scope *scope;                                       // Scope, starting with the parameters
     struct three_address_code *ir;                      // Intermediate representation
+    StrMap *labels;                                     // Map of identifiers to label ids
+    StrMap *goto_backpatches;                           // Gotos to labels not yet defined
     Graph *cfg;                                         // Control flow graph
     Block *blocks;                                      // For functions, the blocks
     Set **dominance;                                    // Block dominances
@@ -407,7 +414,8 @@ enum {
     TOK_EXTERN,
     TOK_CONST,
     TOK_VOLATILE,           // 90
-    TOK_ELLIPSES
+    TOK_ELLIPSES,
+    TOK_GOTO
 };
 
 enum {
@@ -637,6 +645,10 @@ StrMap *new_strmap(void);
 void *strmap_get(StrMap *strmap, char *key);
 void strmap_put(StrMap *strmap, char *key, void *value);
 void strmap_delete(StrMap *strmap, char *key);
+StrMapIterator strmap_iterator(StrMap *map);
+int strmap_iterator_finished(StrMapIterator *iterator);
+void strmap_iterator_next(StrMapIterator *iterator);
+char *strmap_iterator_key(StrMapIterator *iterator);
 
 // longmap.c
 LongMap *new_longmap(void);
@@ -647,6 +659,7 @@ LongMapIterator longmap_iterator(LongMap *map);
 int longmap_iterator_finished(LongMapIterator *iterator);
 void longmap_iterator_next(LongMapIterator *iterator);
 long longmap_iterator_key(LongMapIterator *iterator);
+
 // graph.c
 Graph *new_graph(int node_count, int edge_count);
 void dump_graph(Graph *g);
@@ -665,6 +678,7 @@ void quicksort_ulong_array(unsigned long *array, int left, int right);
 // lexer.c
 void init_lexer(char *filename);
 void next(void);
+void rewind_lexer(void);
 void expect(int token, char *what);
 void consume(int token, char *what);
 

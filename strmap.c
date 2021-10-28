@@ -112,6 +112,34 @@ void strmap_delete(StrMap *map, char *key) {
     }
 }
 
+int strmap_iterator_finished(StrMapIterator *iterator) {
+    return iterator->pos == -1;
+}
+
+void strmap_iterator_next(StrMapIterator *iterator) {
+    iterator->pos++;
+
+    while (iterator->pos <= iterator->map->size && !iterator->map->keys[iterator->pos] && iterator->map->keys[iterator->pos] != (char *) TOMBSTONE)
+        iterator->pos++;
+
+    if (iterator->pos >= iterator->map->size || !iterator->map->keys[iterator->pos] && iterator->map->keys[iterator->pos] != (char *) TOMBSTONE)
+        iterator->pos = -1;
+}
+
+char *strmap_iterator_key(StrMapIterator *iterator) {
+    if (iterator->pos == -1) panic("Attempt to iterate beyond the end of the iterator");
+    return iterator->map->keys[iterator->pos];
+}
+
+StrMapIterator strmap_iterator(StrMap *map) {
+    StrMapIterator result;
+    result.map = map;
+    result.pos = -1;
+    strmap_iterator_next(&result);
+
+    return result;
+}
+
 StrMap *new_strmap(void) {
     StrMap *map = malloc(sizeof(StrMap));
     memset(map, 0, sizeof(StrMap));

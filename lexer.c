@@ -5,6 +5,15 @@
 
 #include "wcc.h"
 
+int         old_ip;
+int         old_cur_line;
+int         old_cur_token;
+Type*       old_cur_lexer_type;
+char*       old_cur_identifier;
+long        old_cur_long;
+long double old_cur_long_double;
+char*       old_cur_string_literal;
+
 void init_lexer(char *filename) {
     ip = 0;
     input = malloc(10 * 1024 * 1024);
@@ -59,6 +68,14 @@ static void finish_integer_constant(int is_decimal) {
 // Lexer. Lex a next token or TOK_EOF if the file is ended
 void next(void) {
     char *i = input;
+
+    old_ip              = ip;
+    old_cur_line        = cur_line;
+    old_cur_token       = cur_token;
+    old_cur_lexer_type  = cur_lexer_type;
+    old_cur_identifier  = cur_identifier;
+    old_cur_long        = cur_long;
+    old_cur_long_double = cur_long_double;
 
     while (ip < input_size) {
         char c1 = i[ip];
@@ -175,6 +192,7 @@ void next(void) {
             else if (!strcmp(cur_identifier, "extern"       )) { cur_token = TOK_EXTERN;    }
             else if (!strcmp(cur_identifier, "const"        )) { cur_token = TOK_CONST;     }
             else if (!strcmp(cur_identifier, "volatile"     )) { cur_token = TOK_VOLATILE;  }
+            else if (!strcmp(cur_identifier, "goto"         )) { cur_token = TOK_GOTO;      }
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
             else if (!strcmp(cur_identifier, "define"       )) { cur_token = TOK_DEFINE;    }
             else if (!strcmp(cur_identifier, "undef"        )) { cur_token = TOK_UNDEF;     }
@@ -303,6 +321,17 @@ void next(void) {
         finish_parsing_header();
     else
         cur_token = TOK_EOF;
+}
+
+void rewind_lexer(void) {
+    ip                 = old_ip;
+    cur_line           = old_cur_line;
+    cur_token          = old_cur_token;
+    cur_lexer_type     = old_cur_lexer_type;
+    cur_identifier     = old_cur_identifier;
+    cur_long           = old_cur_long;
+    cur_long_double    = old_cur_long_double;
+    cur_string_literal = old_cur_string_literal;
 }
 
 void expect(int token, char *what) {

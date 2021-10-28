@@ -36,6 +36,14 @@ int main() {
         if (got_value) panic("Expected no match");
     }
 
+    // Test iteration
+    int i = 0, h = 0;
+    for (StrMapIterator it = strmap_iterator(map); !strmap_iterator_finished(&it); strmap_iterator_next(&it), i++) {
+        char *value = strmap_iterator_key(&it);
+        h += 7 * atoi(&(value[4]));
+    }
+    if (h != 349965000) panic("Iteration checksum ok");
+
     // Reassign the even numbered elements with baz %d
     for (int i = 1; i < COUNT; i += 2) {
         char *key = malloc(16);
