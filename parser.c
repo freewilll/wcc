@@ -1548,12 +1548,13 @@ static void parse_subtraction(int level) {
     if (src2_is_pointer) vtop->type = new_type(TYPE_LONG);
 }
 
-static void parse_bitwise_shift(int level, int operation) {
+static void parse_bitwise_shift(int level, int unsigned_operation, int signed_operation) {
     if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
     Value *src1 = integer_promote(pl());
     parse_expression(level);
     if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
     Value *src2 = integer_promote(pl());
+    int operation = src1->type->is_unsigned ? unsigned_operation : signed_operation;
     add_ir_op(operation, src1->type, new_vreg(), src1, src2);
 }
 
@@ -2075,8 +2076,8 @@ static void parse_expression(int level) {
             case TOK_MOD:           next(); parse_arithmetic_operation(TOK_INC, IR_MOD, 0); break;
             case TOK_PLUS:          next(); parse_addition(TOK_MULTIPLY); break;
             case TOK_MINUS:         next(); parse_subtraction(TOK_MULTIPLY); break;
-            case TOK_BITWISE_RIGHT: next(); parse_bitwise_shift(level, IR_BSHR); break;
-            case TOK_BITWISE_LEFT:  next(); parse_bitwise_shift(level, IR_BSHL); break;
+            case TOK_BITWISE_RIGHT: next(); parse_bitwise_shift(level, IR_BSHR, IR_ASHR); break;
+            case TOK_BITWISE_LEFT:  next(); parse_bitwise_shift(level, IR_BSHL, IR_BSHL); break;
 
             case TOK_LT:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LT,   new_type(TYPE_INT)); break;
             case TOK_GT:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GT,   new_type(TYPE_INT)); break;
@@ -2167,8 +2168,8 @@ static void parse_expression(int level) {
             case TOK_BITWISE_AND_EQ:   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_BAND, 0); finish_comp_assign(v); break; }
             case TOK_BITWISE_OR_EQ:    { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_BOR,  0); finish_comp_assign(v); break; }
             case TOK_BITWISE_XOR_EQ:   { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_XOR,  0); finish_comp_assign(v); break; }
-            case TOK_BITWISE_RIGHT_EQ: { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHR);           finish_comp_assign(v); break; }
-            case TOK_BITWISE_LEFT_EQ:  { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHL);           finish_comp_assign(v); break; }
+            case TOK_BITWISE_RIGHT_EQ: { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHR, IR_ASHR);  finish_comp_assign(v); break; }
+            case TOK_BITWISE_LEFT_EQ:  { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHL, IR_BSHL);  finish_comp_assign(v); break; }
 
             case TOK_COMMA: {
                 // Replace the outcome from the previous expression on the stack with

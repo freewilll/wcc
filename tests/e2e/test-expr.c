@@ -218,7 +218,10 @@ void test_int_expr() {
     assert_int(           64, i   >> j,               "256 >> 2 d"  );
     assert_int(           32, 256 >> 3,               "256 >> 3"    );
     assert_int(           32, 8192 >> 8,              "8192 >> 8"   );
-    assert_int(536870911, ((unsigned int) (-1)) >> 3, "(unsigned int) (-1)) >> 3");
+    assert_int(536870911, ((unsigned int) -1) >> 3,   "(unsigned int) -1) >> 3");
+    assert_int(-1,        ((char) -1) >> 3,           "(char) -1) >> 3");
+    assert_int(-1,        ((short) -1) >> 3,          "(short) -1) >> 3");
+    assert_int(-1,        ((int) -1) >> 3,             "(int) -1) >> 3");
 }
 
 void test_uint_expr() {
