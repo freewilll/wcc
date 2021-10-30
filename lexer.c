@@ -5,14 +5,14 @@
 
 #include "wcc.h"
 
-int         old_ip;
-int         old_cur_line;
-int         old_cur_token;
-Type*       old_cur_lexer_type;
-char*       old_cur_identifier;
-long        old_cur_long;
-long double old_cur_long_double;
-char*       old_cur_string_literal;
+int           old_ip;
+int           old_cur_line;
+int           old_cur_token;
+Type*         old_cur_lexer_type;
+char*         old_cur_identifier;
+long          old_cur_long;
+long double   old_cur_long_double;
+StringLiteral old_cur_string_literal;
 
 void init_lexer(char *filename) {
     ip = 0;
@@ -63,6 +63,34 @@ static void finish_integer_constant(int is_decimal) {
 
     cur_lexer_type = new_type(is_long ? TYPE_LONG : TYPE_INT);
     cur_lexer_type->is_unsigned = is_unsigned;
+}
+
+static void lex_octal_literal(void) {
+    char *i = input;
+
+    cur_long = 0;
+    int c = 0;
+    while (i[ip] >= '0' && i[ip] <= '7') {
+        cur_long = cur_long * 8 + i[ip] - '0';
+        ip++;
+        c++;
+        if (c == 3) break;
+    }
+}
+
+static void lex_hex_literal(void) {
+    char *i = input;
+
+    cur_long = 0;
+    while (((i[ip] >= '0' && i[ip] <= '9')  || (i[ip] >= 'A' && i[ip] <= 'F') || (i[ip] >= 'a' && i[ip] <= 'f')) && ip < input_size) {
+        cur_long = cur_long * 16 + (
+            i[ip] >= 'a'
+            ? i[ip] - 'a' + 10
+            : i[ip] >= 'A'
+                ? i[ip] - 'A' + 10
+                : i[ip] - '0');
+        ip++;
+    }
 }
 
 // Lexer. Lex a next token or TOK_EOF if the file is ended
@@ -144,8 +172,6 @@ void next(void) {
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\\';   }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "...",  3            )) { ip += 3;  cur_token = TOK_ELLIPSES;                   }
 
-        else if (input_size - ip >= 3 && c1 == '\'' && i[ip+2] == '\'') { cur_long = i[ip+1]; ip += 3; cur_token = TOK_INTEGER; }
-
         // Identifier or keyword
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             cur_token = TOK_IDENTIFIER;
@@ -219,16 +245,7 @@ void next(void) {
         else if (c1 == '0' && input_size - ip >= 2 && (i[ip+1] == 'x' || i[ip+1] == 'X')) {
             ip += 2;
             cur_token = TOK_INTEGER;
-            cur_long = 0;
-            while (((i[ip] >= '0' && i[ip] <= '9')  || (i[ip] >= 'A' && i[ip] <= 'F') || (i[ip] >= 'a' && i[ip] <= 'f')) && ip < input_size) {
-                cur_long = cur_long * 16 + (
-                    i[ip] >= 'a'
-                    ? i[ip] - 'a' + 10
-                    : i[ip] >= 'A'
-                        ? i[ip] - 'A' + 10
-                        : i[ip] - '0');
-                ip++;
-            }
+            lex_hex_literal();
             finish_integer_constant(0);
         }
 
@@ -288,27 +305,91 @@ void next(void) {
             continue;
         }
 
+        // Character literal
+        else if (i[ip] == '\'') {
+            cur_token = TOK_INTEGER;
+            cur_lexer_type = new_type(TYPE_INT);
+            cur_long = 0;
+            ip += 1;
+
+            int byte_count = 0;
+            while (input_size - ip >= 1 && i[ip] != '\'') {
+                if (i[ip] != '\\') { cur_long = (cur_long  << 8) + i[ip++]; }
+                else if (i[ip] == '\\') {
+                    ip++;
+                         if (i[ip] == '\'') { ip++; cur_long = (cur_long << 8) +  '\''; }
+                    else if (i[ip] == '"' ) { ip++; cur_long = (cur_long << 8) +  '\"'; }
+                    else if (i[ip] == '?' ) { ip++; cur_long = (cur_long << 8) +  '?'; }
+                    else if (i[ip] == '\\') { ip++; cur_long = (cur_long << 8) +  '\\'; }
+                    else if (i[ip] == 'a' ) { ip++; cur_long = (cur_long << 8) +  7; }
+                    else if (i[ip] == 'b' ) { ip++; cur_long = (cur_long << 8) +  8; }
+                    else if (i[ip] == 'f' ) { ip++; cur_long = (cur_long << 8) +  12; }
+                    else if (i[ip] == 'n' ) { ip++; cur_long = (cur_long << 8) +  10; }
+                    else if (i[ip] == 'r' ) { ip++; cur_long = (cur_long << 8) +  13; }
+                    else if (i[ip] == 't' ) { ip++; cur_long = (cur_long << 8) +  9; }
+                    else if (i[ip] == 'v' ) { ip++; cur_long = (cur_long << 8) +  11; }
+                    else if (i[ip] >= '0' && i[ip] <= '7' ) {
+                        int old_cur_long = cur_long;
+                        lex_octal_literal();
+                        cur_long &= 0xff;
+                        cur_long = (old_cur_long << 8) + cur_long;
+                    }
+                    else if (i[ip] == 'x' ) {
+                        ip++;
+                        unsigned int old_cur_long = cur_long;
+                        lex_hex_literal();
+                        int mask = (1 << (byte_count << 3)) - 1;
+                        cur_long = ((old_cur_long & mask) << 8) + (cur_long & 0xff);
+
+                        // Sign extend the first byte
+                        if (byte_count == 0) cur_long = (int) ((char) cur_long);
+                    }
+                    else panic("Unknown \\ escape in character literal");
+                }
+                byte_count++;
+            }
+            ip++;
+        }
+
         // String literal
         else if (i[ip] == '"') {
             cur_token = TOK_STRING_LITERAL;
-            cur_string_literal = malloc(MAX_STRING_LITERAL_SIZE);
-            int j = 0;
+
+            char *data = malloc(MAX_STRING_LITERAL_SIZE);
+            int size = 0;
             ip += 1;
             while (input_size - ip >= 1 && i[ip] != '"') {
-                     if (i[ip] != '\\') { cur_string_literal[j] = i[ip]; j++; ip++; }
+                if (i[ip] != '\\') data[size++] = i[ip++];
                 else if (input_size - ip >= 2 && i[ip] == '\\') {
-                         if (i[ip+1] == 't' ) cur_string_literal[j++] = 9;
-                    else if (i[ip+1] == 'n' ) cur_string_literal[j++] = 10;
-                    else if (i[ip+1] == '\\') cur_string_literal[j++] = '\\';
-                    else if (i[ip+1] == '\'') cur_string_literal[j++] = '\'';
-                    else if (i[ip+1] == '\"') cur_string_literal[j++] = '\"';
+                         if (i[ip + 1] == '\'') { ip += 2; data[size++] = '\''; }
+                    else if (i[ip + 1] == '"' ) { ip += 2; data[size++] = '\"'; }
+                    else if (i[ip + 1] == '?' ) { ip += 2; data[size++] = '?'; }
+                    else if (i[ip + 1] == '\\') { ip += 2; data[size++] = '\\'; }
+                    else if (i[ip + 1] == 'a' ) { ip += 2; data[size++] = 7; }
+                    else if (i[ip + 1] == 'b' ) { ip += 2; data[size++] = 8; }
+                    else if (i[ip + 1] == 'f' ) { ip += 2; data[size++] = 12; }
+                    else if (i[ip + 1] == 'n' ) { ip += 2; data[size++] = 10; }
+                    else if (i[ip + 1] == 'r' ) { ip += 2; data[size++] = 13; }
+                    else if (i[ip + 1] == 't' ) { ip += 2; data[size++] = 9; }
+                    else if (i[ip + 1] == 'v' ) { ip += 2; data[size++] = 11; }
+                    else if (i[ip + 1] >= '0' && i[ip + 1] <= '7' ) {
+                        ip++;
+                        lex_octal_literal();
+                        data[size++] = cur_long & 0xff;
+                    }
+                    else if (i[ip + 1] == 'x' ) {
+                        ip += 2;
+                        lex_hex_literal();
+                        data[size++] = cur_long & 0xff;
+                    }
                     else panic("Unknown \\ escape in string literal");
-                    ip += 2;
                 }
             }
             ip++;
-            if (j >= MAX_STRING_LITERAL_SIZE) panic1d("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-            cur_string_literal[j] = 0;
+            if (size >= MAX_STRING_LITERAL_SIZE) panic1d("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+            data[size] = 0;
+            cur_string_literal.data = data;
+            cur_string_literal.size = size + 1;
         }
 
         else

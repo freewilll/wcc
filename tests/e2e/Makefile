@@ -19,7 +19,8 @@ WCC_TESTS=\
 	long-doubles \
 	floats-and-doubles \
 	typedefs \
-	switch
+	switch \
+	character-and-string-literals
 
 all: run-test-gcc run-test-wcc run-test-abi run-test-include
 

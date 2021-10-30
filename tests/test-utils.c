@@ -213,7 +213,8 @@ Value *s(int string_literal_index) {
     v->type = make_pointer(new_type(TYPE_CHAR));
     v->string_literal_index = string_literal_index;
     v->is_string_literal = 1;
-    asprintf(&(string_literals[string_literal_index]), "Test SL %d", string_literal_index);
+    asprintf(&(string_literals[string_literal_index].data), "Test SL %d", string_literal_index);
+    string_literals[string_literal_index].size = strlen(string_literals[string_literal_index].data);
 
     return v;
 }

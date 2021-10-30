@@ -523,6 +523,11 @@ typedef struct floating_point_literal {
     long double ld;
 } FloatingPointLiteral;
 
+typedef struct string_literal {
+    char *data;
+    int size;
+} StringLiteral;
+
 char *cur_filename;             // Current filename being lexed
 int cur_line;                   // Current line number being lexed
 
@@ -547,20 +552,20 @@ int c_ip;                       // Offset into *input, used by the lexer
 char *c_cur_filename;           // Current filename being lexed
 int c_cur_line;                 // Current line number being lexed
 
-int parsing_header;             // I a header being parsed?
-StrMap *directives;             // Map of CPP directives
-int cur_token;                  // Current token
-char *cur_identifier;           // Current identifier if the token is an identifier
-char *cur_type_identifier;      // Identifier of the last parsed declarator
-Type *cur_lexer_type;           // A type determined by the lexer
-long cur_long;                  // Current long if the token is an integral type
-long double cur_long_double;    // Current long double if the token is a floating point type
-char *cur_string_literal;       // Current string literal if the token is a string literal
-int in_ifdef;                   // In ifdef inclusion
-int in_ifdef_else;              // In ifdef exclusion
-Scope *cur_scope;               // Current scope.
-char **string_literals;         // Each string literal has an index in this array, with a pointer to the string literal
-int string_literal_count;       // Amount of string literals
+int parsing_header;                // Is a header being parsed?
+StrMap *directives;                // Map of CPP directives
+int cur_token;                     // Current token
+char *cur_identifier;              // Current identifier if the token is an identifier
+char *cur_type_identifier;         // Identifier of the last parsed declarator
+Type *cur_lexer_type;              // A type determined by the lexer
+long cur_long;                     // Current long if the token is an integral type
+long double cur_long_double;       // Current long double if the token is a floating point type
+StringLiteral cur_string_literal;  // Current string literal if the token is a string literal
+int in_ifdef;                      // In ifdef inclusion
+int in_ifdef_else;                 // In ifdef exclusion
+Scope *cur_scope;                  // Current scope.
+StringLiteral *string_literals;    // Each string literal has an index in this array, with a pointer to the string literal struct
+int string_literal_count;          // Amount of string literals
 
 FloatingPointLiteral *floating_point_literals; // Each floating point literal has an index in this array
 int floating_point_literal_count;              // Amount of floating point literals
@@ -757,7 +762,6 @@ Tac *insert_instruction_after_from_operation(Tac *ir, int operation, Value *dst,
 Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
-int fprintf_escaped_string_literal(void *f, char* sl);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac, int expect_preg);
@@ -1075,6 +1079,7 @@ void make_stack_offsets(Function *function, char *function_name);
 void add_final_x86_instructions(Function *function, char *function_name);
 void remove_nops(Function *function);
 void merge_rsp_func_call_add_subs(Function *function);
+int fprintf_escaped_string_literal(void *f, StringLiteral *sl, int for_assembly);
 void output_code(char *input_filename, char *output_filename);
 
 // wcc.c

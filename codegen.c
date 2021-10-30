@@ -609,6 +609,56 @@ void merge_rsp_func_call_add_subs(Function *function) {
     }
 }
 
+int fprintf_octal_char(void *f, char c) {
+    if (c == 0)
+        return fprintf(f, "\\0");
+
+    int count = 0;
+    count += fprintf(f, "\\");
+    for (int i = 2; i >= 0; i--) {
+        int value = ((unsigned char) c >> (i * 3)) & 7;
+        count += fprintf(f, "%d", value);
+    }
+    return count;
+}
+
+int fprintf_escaped_char(void *f, char c) {
+         if (c == '"' ) return fprintf(f, "\\\"");
+    else if (c == '\\') return fprintf(f, "\\\\");
+    else if (c == '\b') return fprintf(f, "\\b");
+    else if (c == '\f') return fprintf(f, "\\f");
+    else if (c == '\n') return fprintf(f, "\\n");
+    else if (c == '\r') return fprintf(f, "\\r");
+    else if (c == '\t') return fprintf(f, "\\t");
+    else if (c < 32 || c >= 128) return fprintf_octal_char(f, c);
+    else return fprintf(f, "%c", c);
+}
+
+int fprintf_escaped_string_literal(void *f, StringLiteral* sl, int for_assembly) {
+    char *data = sl->data;
+    int c = 0;
+
+    if (for_assembly)
+        c += fprintf(f, "    .string \"");
+    else
+        c += fprintf(f, "\"");
+
+    for (int i = 0; i < sl->size; i++) {
+        if (for_assembly && data[i] == 0 && i != sl->size -1) {
+            // Terminate the string & start a new one
+            c += fprintf(f, "\"\n");
+            c += fprintf(f, "    .string \"");
+
+        } else if (!for_assembly || (for_assembly && data[i]))
+            c += fprintf_escaped_char(f, data[i]);
+    }
+    c += fprintf(f, "\"");
+
+    if (for_assembly) c += fprintf(f, "\n");
+
+    return c;
+}
+
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
     int function_pc = symbol->type->function->param_count;
@@ -654,11 +704,9 @@ void output_code(char *input_filename, char *output_filename) {
     if (string_literal_count > 0) {
         fprintf(f, "\n    .section .rodata\n");
         for (int i = 0; i < string_literal_count; i++) {
-            char *sl = string_literals[i];
+            StringLiteral *sl = &(string_literals[i]);
             fprintf(f, ".SL%d:\n", i);
-            fprintf(f, "    .string ");
-            fprintf_escaped_string_literal(f, sl);
-            fprintf(f, "\n");
+            fprintf_escaped_string_literal(f, sl, 1);
         }
         fprintf(f, "\n");
     }

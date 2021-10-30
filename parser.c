@@ -1934,14 +1934,13 @@ static void parse_expression(int level) {
             break;
 
         case TOK_STRING_LITERAL: {
-            int size = strlen(cur_string_literal) + 1;
-
             Value *dst = new_value();
-            dst->type = make_array(new_type(TYPE_CHAR), size);
+            dst->type = make_array(new_type(TYPE_CHAR), cur_string_literal.size);
             dst->string_literal_index = string_literal_count;
             dst->is_string_literal = 1;
             if (string_literal_count > MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);
-            string_literals[string_literal_count++] = cur_string_literal;
+            string_literals[string_literal_count] = cur_string_literal;
+            string_literal_count++;
 
             push(dst);
             next();
@@ -2634,7 +2633,7 @@ static void parse_include(void) {
     if (cur_token != TOK_STRING_LITERAL) panic("Expected string literal in #include");
 
     char *filename;
-    asprintf(&filename, "%s%s", base_path(cur_filename), cur_string_literal);
+    asprintf(&filename, "%s%s", base_path(cur_filename), cur_string_literal.data);
 
     c_input        = input;
     c_input_size   = input_size;
@@ -2915,7 +2914,7 @@ void dump_symbols(void) {
 }
 
 void init_parser(void) {
-    string_literals = malloc(sizeof(char *) * MAX_STRING_LITERALS);
+    string_literals = malloc(sizeof(StringLiteral) * MAX_STRING_LITERALS);
     string_literal_count = 0;
 
     all_structs_and_unions = malloc(sizeof(struct struct_or_union_desc *) * MAX_STRUCTS_AND_UNIONS);

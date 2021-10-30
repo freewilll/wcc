@@ -96,21 +96,6 @@ void sanity_test_ir_linkage(Function *function) {
     }
 }
 
-int fprintf_escaped_string_literal(void *f, char* sl) {
-    int c = fprintf(f, "\"");
-    while (*sl) {
-             if (*sl == '\n') c += fprintf(f, "\\n");
-        else if (*sl == '\t') c += fprintf(f, "\\t");
-        else if (*sl == '\\') c += fprintf(f, "\\\\");
-        else if (*sl == '"')  c += fprintf(f, "\\\"");
-        else                  c += fprintf(f, "%c", *sl);
-        sl++;
-    }
-    c += fprintf(f, "\"");
-
-    return c;
-}
-
 int print_value(void *f, Value *v, int is_assignment_rhs) {
     int c = 0; // Count outputted characters
 
@@ -142,7 +127,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
     else if (v->global_symbol)
         c += fprintf(f, "%s", v->global_symbol->identifier);
     else if (v->is_string_literal)
-        c += fprintf_escaped_string_literal(f, string_literals[v->string_literal_index]);
+        c += fprintf_escaped_string_literal(f, &(string_literals[v->string_literal_index]), 0);
     else if (v->label)
         c += fprintf(f, "l%d", v->label);
     else if (v->function_symbol) {
