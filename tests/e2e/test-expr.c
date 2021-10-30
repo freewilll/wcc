@@ -1403,6 +1403,17 @@ int test_composite_type_of_globals() {
     assert_int(40, sizeof(composite_global2), "composite global 2");
 }
 
+void test_operations_with_64_bit_immediate() {
+    // 64 bit constants need to be loaded into a register, since the are no instructions
+    // for them.
+    long l;
+    l = 1; assert_long(4294967295, (long) (l + 0xfffffffe), "64 bit immedate register load +");
+    l = 1; assert_long(4026531841, (long) (l + 0xf0000000), "64 bit immedate register load *");
+    l = 1; assert_long(1,          (long) (l & 0xffffffff), "64 bit immedate register load &");
+    l = 1; assert_long(4294967295, (long) (l | 0xffffffff), "64 bit immedate register load |");
+    l = 1; assert_long(4294967294, (long) (l ^ 0xffffffff), "64 bit immedate register load ^");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1448,6 +1459,7 @@ int main(int argc, char **argv) {
     test_const_assignment();
     test_static_objects_in_function();
     test_composite_type_of_globals();
+    test_operations_with_64_bit_immediate();
 
     finalize();
 }

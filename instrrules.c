@@ -907,14 +907,18 @@ static void add_commutative_operation_rules(char *x86_operand, int operation, in
     for (int i = 0; i < 4; i++) {
         add_commutative_operation_rule(                operation, X_MOV, x86_operation, RI1 + i, XRI, XRI, cost,     "mov%s %v1, %vd",  op_vv);
         add_commutative_operation_rule(                operation, X_MOV, x86_operation, RU1 + i, XRU, XRU, cost,     "mov%s %v1, %vd",  op_vv);
-        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, XCI, XRI, cost,     "mov%s %v1, %vd",  op_cv);
-        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, XCU, XRI, cost,     "mov%s %v1, %vd",  op_cv);
-        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, XCU, XRU, cost,     "mov%s %v1, %vd",  op_cv);
-        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, XCI, XRU, cost,     "mov%s %v1, %vd",  op_cv);
         add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, XRI, XMI, cost + 1, "mov%s %v1, %vd",  op_vv);
         add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, XRU, XMU, cost + 1, "mov%s %v1, %vd",  op_vv);
-        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, XMI, XCI, cost + 1, "mov%s $%v1, %vd", op_vv);
-        add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, XMU, XCU, cost + 1, "mov%s $%v1, %vd", op_vv);
+
+        // 64 bit immediates aren't possible,
+        for (int j = 0; j < 3; j++) {
+            add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, CI1 + j, XRI,     cost,     "mov%s %v1, %vd",  op_cv);
+            add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, CU1 + j, XRI,     cost,     "mov%s %v1, %vd",  op_cv);
+            add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, CU1 + j, XRU,     cost,     "mov%s %v1, %vd",  op_cv);
+            add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, CI1 + j, XRU,     cost,     "mov%s %v1, %vd",  op_cv);
+            add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, XMI,     CI1 + j, cost + 1, "mov%s $%v1, %vd", op_vv);
+            add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, XMU,     CU1 + j, cost + 1, "mov%s $%v1, %vd", op_vv);
+        }
     }
 }
 
