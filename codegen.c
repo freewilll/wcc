@@ -301,8 +301,22 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         else
                             panic("Did not get L/H/C/F/D specifier for floating point constant");
                     }
-                    else
-                        sprintf(buffer, "%ld", v->int_value);
+                    else {
+                        if (!x86_size) {
+                            print_value(stdout, v, 0);
+                            printf("\n");
+                            panic1s("Did not get x86 size on template %s", tac->x86_template);
+                        }
+
+                        if (x86_size == 1)
+                            sprintf(buffer, "%ld", (long) (v->int_value & 0xff));
+                        else if (x86_size == 2)
+                            sprintf(buffer, "%ld", (long) (v->int_value & 0xffff));
+                        else if (x86_size == 3)
+                            sprintf(buffer, "%ld", (long) (v->int_value & 0xffffffff));
+                        else
+                            sprintf(buffer, "%ld", (long) v->int_value);
+                    }
                 }
                 else if (v->is_string_literal)
                     sprintf(buffer, ".SL%d(%%rip)", v->string_literal_index);

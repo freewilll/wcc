@@ -1414,6 +1414,35 @@ void test_operations_with_64_bit_immediate() {
     l = 1; assert_long(4294967294, (long) (l ^ 0xffffffff), "64 bit immedate register load ^");
 }
 
+int test_overflow() {
+    // This code is full of overflows. The numbers should get truncated down in
+    // the generated code and not trigger warnings in the assembler.
+
+    char c;
+    short s;
+    int i;
+    long l;
+
+    c = 255;
+    c = 256;
+    c = -128;
+    c = -129;
+
+    s = 65535;
+    s = 65536;
+    s = -32768;
+    s = -32769;
+
+    i = -2147483648;
+    i = -2147483649;
+    i = 4294967295;
+    i = 4294967296;
+
+    l = -9223372036854775807;    // 0x8000000000000001
+    l = 18446744073709551615;    // 0xffffffffffffffff
+    l = 18446744073709551616;    // 0x10000000000000000
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1460,6 +1489,7 @@ int main(int argc, char **argv) {
     test_static_objects_in_function();
     test_composite_type_of_globals();
     test_operations_with_64_bit_immediate();
+    test_overflow();
 
     finalize();
 }
