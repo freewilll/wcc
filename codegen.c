@@ -663,9 +663,6 @@ void output_code(char *input_filename, char *output_filename) {
         fprintf(f, "\n");
     }
 
-    // fprintf(f, "    .section    .rodata.cst16,"aM",@progbits,16");
-    // fprintf(f, "    .p2align    4    ");
-
     // Output code
     fprintf(f, "    .text\n");
 
