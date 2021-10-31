@@ -2,6 +2,13 @@
 
 typedef int wchar_t;
 
+typedef struct __wcc_va_list_item {
+    unsigned int gp_offset;
+    unsigned int fp_offset;
+    void *overflow_arg_area;
+    void *reg_save_area;
+} va_list[1];
+
 extern void *stdout;
 
 extern void exit(int __status);
@@ -12,6 +19,8 @@ extern int fclose(void *__stream);
 extern int close(int __fd);
 extern int printf(char *__format, ...);
 extern int fprintf(void *stream, char * __format, ...);
+extern int vprintf(char * format, va_list arg);
+extern int vsprintf(char * s, char *format, va_list arg);
 extern void *malloc(long __size);
 extern void free(void *__ptr);
 extern void *memset(void *__s, int __c, int __n);
@@ -31,3 +40,13 @@ extern char *getenv(char *__name);
 extern long double strtold(char* str, char** endptr);
 extern int atoi(char *str);
 extern int wcslen(wchar_t *str);
+
+// Builtins
+struct __wcc_fp_register_save_area {
+    long elements[2];
+};
+
+struct __wcc_register_save_area {
+    long gp[8];
+    struct __wcc_fp_register_save_area f8[8];
+};

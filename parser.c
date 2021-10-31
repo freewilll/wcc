@@ -662,7 +662,7 @@ static Type *new_struct_or_union(char *tag_identifier) {
 }
 
 // Search for a struct tag. Returns 0 if not found.
-static Type *find_struct_or_union(char *identifier, int is_union, int recurse) {
+Type *find_struct_or_union(char *identifier, int is_union, int recurse) {
     Tag *tag = lookup_tag(identifier, cur_scope, recurse);
 
     if (!tag) return 0;
@@ -940,7 +940,7 @@ static StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *iden
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
-static Value *new_label_dst(void) {
+Value *new_label_dst(void) {
     Value *v = new_value();
     v->label = ++label_count;
 
@@ -1760,6 +1760,97 @@ static void parse_function_call(void) {
     if (return_value) push(return_value);
 }
 
+// Get a function arg, which must be of type va_list
+static Value *parse_va_list() {
+    parse_expression(TOK_EQ);
+    Value *va_list = pop();
+    Type *struct_or_union = find_struct_or_union("__wcc_va_list_item", 0, 1);
+    Type *wcc_va_list_array_type = make_array(struct_or_union, 1);
+    Type *wcc_va_list_pointer_type = make_pointer(struct_or_union);
+    if (!types_are_compatible(va_list->type, wcc_va_list_array_type) && !types_are_compatible(va_list->type, wcc_va_list_pointer_type))
+        panic("Expected va_list type as first argument to va_start");
+
+    return va_list;
+}
+
+// Parse void va_start(va, last_arg_variable)
+static void parse_va_start() {
+    next();
+    consume(TOK_LPAREN, "(");
+
+    // Get the first arg, which must be of type va_list
+    Value *va_list = parse_va_list();
+
+    // Get the second arg
+    consume(TOK_COMMA, ",");
+    parse_expression(TOK_EQ);
+    Value *rightmost_param = pop();
+    consume(TOK_RPAREN, ")");
+
+    if (rightmost_param->local_index < 2)
+        panic("Expected function parameter as second argument to va_start");
+
+    int rightmost_param_index = rightmost_param->local_index - 2;
+
+    if (rightmost_param_index != cur_function_symbol->type->function->param_count - 1)
+        panic("Second argument to va_start isn't the rightmost function parameter");
+
+    Value *param_index_value = new_value();
+    param_index_value->type = new_type(TYPE_INT);
+    param_index_value->int_value = rightmost_param_index;
+    add_instruction(IR_VA_START, 0, va_list, 0);
+
+    Value *v = new_value();
+    v->type = new_type(TYPE_VOID);
+    push(v);
+}
+
+// Parse void va_arg(va, type)
+static void parse_va_arg() {
+    next();
+    consume(TOK_LPAREN, "(");
+
+    // Get the first arg, which must be of type va_list
+    Value *va_list = parse_va_list();
+
+    // Get the second arg, which must be a type
+    consume(TOK_COMMA, ",");
+    cur_type_identifier = 0;
+    Type *type = parse_type_name();
+
+    if (type->type == TYPE_ARRAY) panic("Cannot use an array in va_arg");
+
+    consume(TOK_RPAREN, ")");
+
+    Value *dst = new_value();
+    dst->type = type;
+    if (type->type == TYPE_LONG_DOUBLE)
+        dst->local_index = new_local_index();
+
+    else if (type->type == TYPE_STRUCT_OR_UNION) {
+        dst->local_index = new_local_index();
+        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, dst, 0);
+    }
+
+    else
+        dst->vreg = new_vreg();
+
+    add_instruction(IR_VA_ARG, dst, va_list, 0);
+    push(dst);
+}
+
+// Parse void va_end(va). No instructions are generated
+static void parse_va_end() {
+    next();
+    consume(TOK_LPAREN, "(");
+    parse_va_list();
+    consume(TOK_RPAREN, ")");
+
+    Value *v = new_value();
+    v->type = new_type(TYPE_VOID);
+    push(v);
+}
+
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
@@ -1952,16 +2043,31 @@ static void parse_expression(int level) {
                 parse_declaration();
 
             else {
-                // It's an existing symbol
-                Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
-                if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
+                // It's a symbol
+                if (!strcmp(cur_identifier, "va_start")) {
+                    parse_va_start();
+                    return;
+                }
+                else if (!strcmp(cur_identifier, "va_arg")) {
+                    parse_va_arg();
+                    return;
+                }
+                else if (!strcmp(cur_identifier, "va_end")) {
+                    parse_va_end();
+                    return;
+                }
+                else {
+                    // Look up symbol
+                    Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
+                    if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
 
-                next();
+                    next();
 
-                if (symbol->is_enum_value)
-                    push_integral_constant(TYPE_INT, symbol->value);
-                else
-                    push_symbol(symbol);
+                    if (symbol->is_enum_value)
+                        push_integral_constant(TYPE_INT, symbol->value);
+                    else
+                        push_symbol(symbol);
+                }
             }
             break;
 
@@ -2533,6 +2639,17 @@ static void backpatch_gotos(void) {
     }
 }
 
+static void add_va_register_save_area(void) {
+    Type *type = find_struct_or_union("__wcc_register_save_area", 0, 1);
+    if (!type) panic("Unable to find __wcc_register_save_area");
+    Value *v = new_value();
+    v->type = type;
+    v->local_index = new_local_index();
+    v->is_lvalue = 1;
+    cur_function_symbol->type->function->register_save_area = v;
+    add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, v, 0);
+}
+
 // Parse a statement
 static void parse_statement(void) {
     vs = vs_start; // Reset value stack
@@ -2784,6 +2901,7 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
         cur_loop = 0;
         loop_count = 0;
 
+        if (cur_function_symbol->type->function->is_variadic) add_va_register_save_area();
         parse_compound_statement();
 
         cur_function_symbol->type->function->is_defined = 1;

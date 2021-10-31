@@ -304,5 +304,47 @@ int main(int argc, char **argv) {
         "Missing identifier for parameter in function definition",
         "Missing identifier for parameter in function definition");
 
+    check_output(
+        "void main() {"
+        "    int i, j;"
+        "    va_start(i, j);"
+        "}",
+        "Expected va_list type as first argument to va_start",
+        "Expected va_list type as first argument to va_start");
+
+    check_output(
+        "void main() {"
+        "    va_list ap;"
+        "    int i;"
+        "    va_start(ap, i);"
+        "}",
+        "Expected function parameter as second argument to va_start",
+        "Expected function parameter as second argument to va_start 1");
+
+    check_output(
+        "void main() {"
+        "    va_list ap;"
+        "    va_start(ap, 0);"
+        "}",
+        "Expected function parameter as second argument to va_start",
+        "Expected function parameter as second argument to va_start 2");
+
+    check_output(
+        "void main(int i, int j, ...) {"
+        "    va_list ap;"
+        "    va_start(ap, i);"
+        "}",
+        "Second argument to va_start isn't the rightmost function parameter",
+        "Second argument to va_start isn't the rightmost function parameter");
+
+    check_output(
+        "void main(int i, ...) {"
+        "    va_list ap;"
+        "    va_start(ap, i);"
+        "    va_arg(ap, int[]);"
+        "}",
+        "Cannot use an array in va_arg",
+        "Cannot use an array in va_arg");
+
     finalize();
 }

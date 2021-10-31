@@ -143,7 +143,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
 
     if (!v->label) {
         c += fprintf(f, ":");
-        c +=  print_type(f, v->type);
+        c += print_type(f, v->type);
     }
 
     return c;
@@ -166,6 +166,8 @@ char *operation_string(int operation) {
         case IR_CALL:               return "IR_CALL";
         case IR_CALL_ARG_REG:       return "IR_CALL_ARG_REG";
         case IR_END_CALL:           return "IR_END_CALL";
+        case IR_VA_START:           return "IR_VA_START";
+        case IR_VA_ARG:             return "IR_VA_ARG";
         case IR_RETURN:             return "IR_RETURN";
         case IR_LOAD_LONG_DOUBLE:   return "IR_LOAD_LONG_DOUBLE";
         case IR_START_LOOP:         return "IR_START_LOOP";
@@ -289,6 +291,14 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
             print_value(f, tac->src1, 1);
         }
     }
+
+    else if (o == IR_VA_START) {
+        fprintf(f, "va_start ");
+        print_value(f, tac->src1, 1);
+    }
+
+    else if (o == IR_VA_ARG)
+        fprintf(f, "va_arg ");
 
     else if (o == IR_LOAD_LONG_DOUBLE) {
         fprintf(f, "load long double ");
@@ -834,8 +844,7 @@ static void *insert_arg_instruction(Tac **ir, Value *function_call_value, Value 
 }
 
 // Add memcpy calls for struct/union -> struct/union copies
-Tac *copy_memory_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
-
+Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
     int function_call_count = make_function_call_count(function);
 
     // Add start call instruction
@@ -880,7 +889,10 @@ Tac *copy_memory_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src
 }
 
 // Copy struct/unions using registers
-static Tac *copy_memory_with_registers(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
+//
+// splay_offsets is used when copying a struct with SSE values from the vararg register
+// save area. The SSE registers are saved with an annoying offset of 16 instead of 8.
+Tac *add_memory_copy_with_registers(Function *function, Tac *ir, Value *dst, Value *src1, int size, int splay_offsets) {
     int dst_offset = dst->offset;
     int src1_offset = src1->offset;
 
@@ -897,7 +909,8 @@ static Tac *copy_memory_with_registers(Function *function, Tac *ir, Value *dst, 
             offsetted_dst->offset = dst_offset;
             offsetted_dst->type = temp_value->type;
             Value *offsetted_src1 = dup_value(src1);
-            offsetted_src1->offset = src1_offset;
+            int splayed_offset = (splay_offsets && src1_offset >= 8) ? src1_offset + 8 : src1_offset;
+            offsetted_src1->offset = splayed_offset;
             offsetted_src1->type = temp_value->type;
 
             if (src1->is_lvalue && src1->vreg) {
@@ -924,9 +937,9 @@ Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int s
     // If either src or dst is an lvalue in a register, or the struct size > 32,
     // use a memory copy. Otherwise use temporary registers to do the copy.
     if (size > 32)
-        ir = copy_memory_with_memcpy(function, ir, dst, src1, size);
+        ir = add_memory_copy_with_memcpy(function, ir, dst, src1, size);
     else
-        ir = copy_memory_with_registers(function, ir, dst, src1, size);
+        ir = add_memory_copy_with_registers(function, ir, dst, src1, size, 0);
 
     return ir;
 }

@@ -143,10 +143,12 @@ typedef struct function {
     int linkage;                                        // One of LINKAGE_*
     struct value *return_value_pointer;                 // Set to the register holding the memory return address if the function returns something in memory
     struct function_param_allocation *return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
+    struct function_param_allocation *fpa;              // function_param_allocaton for the params
     Scope *scope;                                       // Scope, starting with the parameters
     struct three_address_code *ir;                      // Intermediate representation
     StrMap *labels;                                     // Map of identifiers to label ids
     StrMap *goto_backpatches;                           // Gotos to labels not yet defined
+    struct value *register_save_area;                   // Place where variadic functions store the arguments in registers
     Graph *cfg;                                         // Control flow graph
     Block *blocks;                                      // For functions, the blocks
     Set **dominance;                                    // Block dominances
@@ -228,6 +230,7 @@ typedef struct value {
     int offset;                                          // For composite objects, offset from the start of the object's memory
     int bit_field_offset;                                // Offset in bits for bit fields
     int bit_field_size;                                  // Size in bits for bit fields
+    int is_overflow_arg_area_address;                    // Set to indicate this value must point to the saved register save overflow for variadic functions
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
     int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
@@ -460,6 +463,8 @@ enum {
     IR_CALL_ARG_REG,          // Placeholder for fake read/write of a physical register to keep a live range alive
     IR_CALL,                  // Start of function call
     IR_END_CALL,              // End of function call
+    IR_VA_START,              // va_start function call
+    IR_VA_ARG,                // va_arg function call
     IR_ALLOCATE_STACK,        // Allocate stack space for a function call argument on the stack
     IR_RETURN,                // Return in function
     IR_LOAD_LONG_DOUBLE,      // Load a long double into the top of the x87 stack
@@ -515,6 +520,10 @@ enum {
     REG_XMM00,
     REG_XMM14 = 30,
     REG_XMM15,
+};
+
+enum {
+    OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX = 256
 };
 
 typedef struct floating_point_literal {
@@ -690,10 +699,12 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
+Value *new_label_dst(void);
 Symbol *memcpy_symbol;
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
 Type *parse_type_name(void);
+Type *find_struct_or_union(char *identifier, int is_union, int recurse);
 void finish_parsing_header(void);
 void parse(void);
 void dump_symbols(void);
@@ -779,6 +790,7 @@ void allocate_value_stack_indexes(Function *function);
 void process_bit_fields(Function *function);
 void remove_unused_function_call_results(Function *function);
 void process_struct_and_union_copies(Function *function);
+Tac *add_memory_copy_with_registers(Function *function, Tac *ir, Value *dst, Value *src1, int size, int splay_offsets);
 Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
 void convert_enums(Function *function);
 
@@ -826,6 +838,7 @@ void make_preferred_live_range_preg_indexes(Function *function);
 void add_function_call_result_moves(Function *function);
 void add_function_return_moves(Function *function, char *identifier);
 void add_function_call_arg_moves(Function *function);
+void process_function_varargs(Function *function);
 void add_function_param_moves(Function *function, char *identifier);
 Value *make_function_call_value(int function_call);
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);

@@ -57,16 +57,14 @@ char *register_name(int preg) {
 
 void process_stack_offset(Value *value, int *stack_alignments, int *stack_sizes) {
     if (value && value->stack_index < 0) {
-        if (!stack_alignments[-value->stack_index]) {
-            // When in doubt, pick the biggest of size & alignment. There can be
-            // mismatches during struct/union manipulation, where a bit of the stack
-            // is loaded/saved into up 8 bytes.
+        // When in doubt, pick the biggest of size & alignment. There can be
+        // mismatches during struct/union manipulation, where a bit of the stack
+        // is loaded/saved into up 8 bytes.
 
-            int value_alignment = get_type_alignment(value->type);
-            if (value_alignment > stack_alignments[-value->stack_index]) stack_alignments[-value->stack_index] = value_alignment;
-            int value_size = get_type_size(value->type);
-            if (value_size > stack_sizes[-value->stack_index]) stack_sizes[-value->stack_index] = value_size;
-        }
+        int value_alignment = get_type_alignment(value->type);
+        if (value_alignment > stack_alignments[-value->stack_index]) stack_alignments[-value->stack_index] = value_alignment;
+        int value_size = get_type_size(value->type);
+        if (value_size > stack_sizes[-value->stack_index]) stack_sizes[-value->stack_index] = value_size;
     }
 }
 
@@ -79,11 +77,11 @@ void make_stack_offsets(Function *function, char *function_name) {
     if (!count) return; // Nothing is on the stack
 
     // Determine size & alignments for all variables on the stack
-    int *stack_alignments = malloc((count+ 1) * sizeof(int));
-    memset(stack_alignments, 0, (count+ 1) * sizeof(int));
+    int *stack_alignments = malloc((count + 1) * sizeof(int));
+    memset(stack_alignments, 0, (count + 1) * sizeof(int));
 
-    int *stack_sizes = malloc((count+ 1) * sizeof(int));
-    memset(stack_sizes, 0, (count+ 1) * sizeof(int));
+    int *stack_sizes = malloc((count + 1) * sizeof(int));
+    memset(stack_sizes, 0, (count + 1) * sizeof(int));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst)  process_stack_offset(tac->dst,  stack_alignments, stack_sizes);
@@ -116,13 +114,20 @@ void make_stack_offsets(Function *function, char *function_name) {
     }
 
     // Align on 8 bytes, this is required by the function call stack alignment code.
-    total_size = (total_size + 7) & ~0x7;
+    total_size = (total_size + 7) & ~7;
     function->stack_size = total_size;
 
     // Assign stack_offsets
     for (Tac *tac = function->ir; tac; tac = tac->next) {
+        // Special case for functions with a va_list. A src1 with stack_index OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX
+        // needs to be reassigned with address where the pushed varargs start
+        if (tac->src1 && tac->src1->stack_index == OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX) {
+            tac->src1->stack_index = 2 + (function->fpa->size >> 3);
+        }
+        else
+            if (tac->src1 && tac->src1->stack_index < 0) tac->src1->stack_offset = stack_offsets[-tac->src1->stack_index];
+
         if (tac ->dst && tac ->dst->stack_index < 0) tac ->dst->stack_offset = stack_offsets[-tac ->dst->stack_index];
-        if (tac->src1 && tac->src1->stack_index < 0) tac->src1->stack_offset = stack_offsets[-tac->src1->stack_index];
         if (tac->src2 && tac->src2->stack_index < 0) tac->src2->stack_offset = stack_offsets[-tac->src2->stack_index];
     }
 }

@@ -20,7 +20,8 @@ WCC_TESTS=\
 	floats-and-doubles \
 	typedefs \
 	switch \
-	character-and-string-literals
+	character-and-string-literals \
+	varargs
 
 all: run-test-gcc run-test-wcc run-test-abi run-test-include
 

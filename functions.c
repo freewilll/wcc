@@ -869,6 +869,366 @@ static int setup_return_for_struct_or_union(Function *function) {
     return 1;
 }
 
+// For functions with variadic arguments, move registers into the register save area.
+// The register save area has been allocated on the stack by the parser with the
+// value set in function->register_save_area.
+static void add_function_vararg_param_moves(Function *function, FunctionParamAllocation *fpa) {
+    // Add moves for ints registers to register save area
+    for (int i = fpa->single_int_register_arg_count; i < 6; i++) {
+        Value *src = new_value();
+        src->vreg = ++function->vreg_count;
+        src->type = new_type(TYPE_LONG);
+        src->live_range_preg = int_arg_registers[i];
+        Value *dst = dup_value(function->register_save_area);
+        dst->type = new_type(TYPE_LONG);
+        dst->offset = i * 8;
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, src, 0);
+    }
+
+    // Skip SSE register copying if al is zero with a jump to "done"
+    Value *ldone = new_label_dst();
+    Value *rax = new_value();
+    rax->vreg = ++function->vreg_count;
+    rax->type = new_type(TYPE_CHAR);
+    rax->live_range_preg = LIVE_RANGE_PREG_RAX_INDEX;
+    ir = insert_instruction_after_from_operation(ir, IR_JZ, 0, rax, ldone);
+
+    // add moves for SSE registers to register save area
+    for (int i = fpa->single_sse_register_arg_count; i < 8; i++) {
+        Value *src = new_value();
+        src->vreg = ++function->vreg_count;
+        src->type = new_type(TYPE_DOUBLE);
+        src->live_range_preg = sse_arg_registers[i];
+
+        Value *temp_int = new_value();
+        temp_int->type = new_type(TYPE_LONG);
+        temp_int->vreg = ++function->vreg_count;
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE_PREG_CLASS, temp_int, src, 0);
+
+        Value *dst = dup_value(function->register_save_area);
+        dst->type = new_type(TYPE_LONG);
+        dst->offset = 48 + i * 16;
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, temp_int, 0);
+    }
+
+    // Add done label
+    ir = insert_instruction_after_from_operation(ir, IR_NOP, 0, 0, 0);
+    ir->label = ldone->label;
+}
+
+// Add code for a va_start() call. The va_list struct, present in src1, has to be
+// populated.
+static void process_function_va_start(Function *function, Tac *ir) {
+    Value *va_list = ir->src1;
+    ir->operation = IR_NOP;
+    ir->src1 = 0;
+
+    // Set va_list.fp_offset, the offset of the first vararg integer register
+    Value *fp_offset_value = new_value();
+    fp_offset_value->type = new_type(TYPE_INT);
+    fp_offset_value->type->is_unsigned = 1;
+    fp_offset_value->is_constant = 1;
+    fp_offset_value->int_value = function->fpa->single_int_register_arg_count * 8;
+
+    Value *dst = dup_value(va_list);
+    dst->type = new_type(TYPE_INT);
+    dst->type->is_unsigned = 1;
+    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, fp_offset_value, 0);
+
+    // Set va_list.gp_offset, the offset of the first vararg SSE register
+    Value *gp_offset_value = dup_value(fp_offset_value);
+    gp_offset_value->int_value = 48 + function->fpa->single_sse_register_arg_count * 16;
+    dst = dup_value(dst);
+    dst->offset = 4;
+    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, gp_offset_value, 0);
+
+    // Set va_list.overflow_arg_area, the address of the first vararg pushed on the stack
+    Value *tmp_dst = dup_value(dst);
+    tmp_dst->type = make_pointer_to_void();
+    tmp_dst->vreg = ++function->vreg_count;
+
+    Value *overflow = dup_value(dst);
+    overflow->type = make_pointer_to_void();
+    overflow->vreg = 0;
+    overflow->offset = 0;
+    overflow->stack_index = OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX;
+    ir = insert_instruction_after_from_operation(ir, IR_ADDRESS_OF, tmp_dst, overflow, 0);
+
+    dst = dup_value(dst);
+    dst->type = make_pointer_to_void();
+    dst->offset = 8;
+    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, tmp_dst, 0);
+
+    // Set va_list.reg_save_area, the address of the register save area
+    tmp_dst = dup_value(tmp_dst);
+    tmp_dst->vreg = ++function->vreg_count;
+    ir = insert_instruction_after_from_operation(ir, IR_ADDRESS_OF, tmp_dst, function->register_save_area, 0);
+
+    dst = dup_value(dst);
+    dst->type = make_pointer_to_void();
+    dst->offset = 16;
+    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, tmp_dst, 0);
+}
+
+// Read a value from va_list. This could be either directly from the stack or from
+// an lvalue in a register.
+static Tac *read_from_va_list(Function *function, Tac *ir, Value *va_list, Type *src_type, Type *dst_type, int offset, Value **result) {
+    *result = new_value();
+    (*result)->type = dst_type;
+    (*result)->vreg = ++function->vreg_count;
+
+    Value *src1 = dup_value(va_list);
+    src1->type = src_type;
+
+    if (src1->vreg) {
+        // va_list is a pointer in a register. Load it, add the offset to it, then
+        // indirect.
+        Value *tmp = dup_value(va_list);
+        tmp->type = make_pointer(dst_type);
+        tmp->vreg = ++function->vreg_count;
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE, tmp, va_list, 0);
+
+        src1->type = make_pointer(dst_type);
+        src1->offset = offset;
+        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, *result, src1, 0);
+    }
+    else {
+        // Read from the stack
+        src1->offset = offset;
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE, *result, src1, 0);
+    }
+
+    return ir;
+}
+
+// Write a value to va_list. This could be either directly from the stack or from
+// an lvalue in a register.
+static Tac *write_to_va_list(Function *function, Tac *ir, Value *va_list, Value *value, int offset) {
+    Value *dst = dup_value(va_list);
+
+    if (va_list->vreg) {
+        // va_list is a pointer in a register. Load it, add the offset to it, then
+        // write to the pointer.
+
+        Value *tmp = dup_value(dst);
+        tmp->is_lvalue = 1;
+        tmp->offset = offset;
+        tmp->type = value->type;
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE, tmp, value, 0);
+    }
+    else {
+        // Write to the stack
+    dst->type = value->type;
+        dst->offset = offset;
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, value, 0);
+    }
+}
+
+// Add instructions that read the FP or GP offset, determine if the type can fit
+// in a register, and if not, jmp to the stack read label fetch_from_stack.
+static Tac *add_function_va_arg_in_register_check(Function *function, Tac *ir, Type *type, Value *va_list, int gp_count, int fp_count, Value *fetch_from_stack, Value **result_gp_fp_offset) {
+    // Read gp_offset or fp_offset into gp_fp_offset register
+    Type *gp_fp_offset_type = new_type(TYPE_INT);
+    gp_fp_offset_type->is_unsigned = 1;
+    int gp_fp_offset_offset = gp_count ? 0 : 4; // gp_offset or fp_offset
+    Value *gp_fp_offset;
+    ir = read_from_va_list(function, ir, va_list, gp_fp_offset_type, gp_fp_offset_type, gp_fp_offset_offset, &gp_fp_offset);
+
+    // Check if gp_fp_offset >= 48, and if so jump to the stack fetching code
+    Value *gp_fp_offset_ge_result = new_value();
+    gp_fp_offset_ge_result->type = new_type(TYPE_INT);
+    gp_fp_offset_ge_result->type->is_unsigned = 1;
+    gp_fp_offset_ge_result->vreg = ++function->vreg_count;
+
+    int last_offset = gp_count ? 48 - gp_count * 8 : 176 - fp_count * 16;
+    Value *last_offset_value = new_integral_constant(TYPE_INT, last_offset);
+    last_offset_value->type->is_unsigned = 1;
+
+    // Compare and jump to stack code if the arg doesn't fit in the register save area
+    ir = insert_instruction_after_from_operation(ir, IR_GT, gp_fp_offset_ge_result, gp_fp_offset, last_offset_value);
+    ir = insert_instruction_after_from_operation(ir, IR_JNZ, 0, gp_fp_offset_ge_result, fetch_from_stack);
+
+    *result_gp_fp_offset = gp_fp_offset;
+
+    return ir;
+}
+
+static int va_arg_size(Type *type) {
+    if (type->type == TYPE_LONG_DOUBLE)
+        return 16;
+    else if (type->type == TYPE_STRUCT_OR_UNION) {
+        int size = get_type_size(type);
+        return (size + 7) & ~7;
+    }
+    else
+        return 8;
+}
+
+// Add instructions to read a vararg from the register save area
+static Tac *add_function_va_arg_register_save_area_read(Function *function, Tac *ir, Type *type, Value *va_list, int gp_count, int fp_count, Value *gp_fp_offset, Value *dst) {
+    // Read register_save_area into register_save_area register
+    Value *register_save_area;
+    ir = read_from_va_list(function, ir, va_list, make_pointer_to_void(), make_pointer(dst->type), 16, &register_save_area);
+
+    // Add gp_fp_offset to register_save_area
+    Value *ptr = new_value();
+    ptr->type = make_pointer(dst->type);
+    ptr->vreg = ++function->vreg_count;
+    ir = insert_instruction_after_from_operation(ir, IR_ADD, ptr, register_save_area, gp_fp_offset);
+
+    if (type->type == TYPE_STRUCT_OR_UNION) {
+        // Copy memory for struct/union
+        Value *memcpy_ptr = dup_value(ptr);
+        memcpy_ptr->is_lvalue = 1;
+        int size = va_arg_size(type);
+        int splay_offsets = fp_count > 0; // Splay offsets if it's an SSE struct
+        ir = add_memory_copy_with_registers(function, ir, dst, memcpy_ptr, size, splay_offsets);
+    }
+    else
+        // Read a scalar value from a pointer
+        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, dst, ptr, 0);
+
+    // Add 8 or 16 to gp_fp_offset register
+    Value *new_gp_fp_offset = dup_value(gp_fp_offset);
+    new_gp_fp_offset->vreg = ++function->vreg_count;
+    Value *size = new_integral_constant(TYPE_INT, gp_count * 8 + fp_count * 16);
+    size->type->is_unsigned = 1;
+    ir = insert_instruction_after_from_operation(ir, IR_ADD, new_gp_fp_offset, gp_fp_offset, size);
+
+    // Write new gp offset back to va_list
+    int offset = gp_count ? 0 : 4; // gp_offset or fp_offset
+    ir = write_to_va_list(function, ir, va_list, new_gp_fp_offset, offset);
+
+    return ir;
+}
+
+// Add instructions to read a vararg from the stack
+static Tac *add_function_va_arg_stack_read(Function *function, Tac *ir, Type *type, Value *va_list, Value *dst) {
+    int size = va_arg_size(type);
+    Value *size_value = new_integral_constant(TYPE_INT, size);
+    size_value->type->is_unsigned = 1;
+
+    // Read overflow_arg_area into overflow_arg_area register
+    Value *overflow_arg_area;
+    ir = read_from_va_list(function, ir, va_list, make_pointer_to_void(), make_pointer(dst->type), 8, &overflow_arg_area);
+
+    if (type->type == TYPE_LONG_DOUBLE) {
+        // Align overflow arg area to 16 byte boundary, by adding 15 then anding with ~15
+
+        Value *long_overflow_arg_area = dup_value(overflow_arg_area);
+        long_overflow_arg_area->type = new_type(TYPE_LONG);
+
+        // Add 15
+        Value *tmp1 = dup_value(long_overflow_arg_area);
+        tmp1->vreg = ++function->vreg_count;
+        ir = insert_instruction_after_from_operation(ir, IR_ADD, tmp1, long_overflow_arg_area, new_integral_constant(TYPE_LONG, 15));
+
+        Value *tmp2 = dup_value(long_overflow_arg_area);
+        tmp2->vreg = ++function->vreg_count;
+        ir = insert_instruction_after_from_operation(ir, IR_BAND, tmp2, tmp1, new_integral_constant(TYPE_LONG, ~15));
+        overflow_arg_area = dup_value(tmp2);
+        overflow_arg_area->type = make_pointer(dst->type);
+    }
+
+    // Read arg from stack
+    if (type->type == TYPE_STRUCT_OR_UNION) {
+        // Copy memory for struct/union
+        Value *memcpy_overflow_arg_area = dup_value(overflow_arg_area);
+        memcpy_overflow_arg_area->is_lvalue = 1;
+        ir = add_memory_copy(function, ir, dst, memcpy_overflow_arg_area, size);
+    }
+    else
+        // Read a scalar value from a pointer
+        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, dst, overflow_arg_area, 0);
+
+    // Add 8 or 16 to overflow_arg_area register
+    Value *new_overflow_arg_area = dup_value(overflow_arg_area);
+    new_overflow_arg_area->vreg = ++function->vreg_count;
+    ir = insert_instruction_after_from_operation(ir, IR_ADD, new_overflow_arg_area, overflow_arg_area, size_value);
+
+    // Write new gp overflow_arg_area back to va_list
+    // Value *final_gp_overflow_arg_area = dup_value(va_list);
+    // final_gp_overflow_arg_area->type = make_pointer_to_void();
+    // final_gp_overflow_arg_area->offset = 8;
+    // ir = insert_instruction_after_from_operation(ir, IR_MOVE, va_list, new_overflow_arg_area, 0);
+    ir = write_to_va_list(function, ir, va_list, new_overflow_arg_area, 8);
+
+    return ir;
+}
+
+// Generate code to read a vararg from either the register save area or the stack
+static void process_function_va_arg(Function *function, Tac *ir) {
+    Value *va_list = ir->src1;
+    Value *dst = ir->dst;
+    Type *type = dst->type;
+
+    ir->operation = IR_NOP;
+    ir->src1 = 0;
+    ir->dst = 0;
+
+    if (type->type == TYPE_LONG_DOUBLE) {
+        ir = add_function_va_arg_stack_read(function, ir, type, va_list, dst);
+        return;
+    }
+
+    // Determine how many gp and fp registers are needed
+    int gp_count = 0; // Integer registers
+    int fp_count = 0; // SSE registers
+
+    if (type->type == TYPE_STRUCT_OR_UNION) {
+        FunctionParamAllocation *fpa = init_function_param_allocaton("vararg struct");
+        add_function_param_to_allocation(fpa, type);
+        FunctionParamLocations *fpl = &(fpa->params[0]);
+
+        if (fpl->locations[0].stack_offset != -1) {
+            // It's on the stack
+            ir = add_function_va_arg_stack_read(function, ir, type, va_list, dst);
+            return;
+        }
+
+        // The arg can be in registers. Although it might end up on the stack
+        // if registers have run out.
+        else if (fpl->locations[0].int_register != -1)
+            gp_count = fpl->count;
+        else
+            fp_count = fpl->count;
+    }
+    else {
+        // A scalar arg is either in int (gp) or sse (fp) registers
+        gp_count = is_integer_type(type) || is_pointer_type(type);
+        fp_count = !gp_count;
+    }
+
+    Value *ldone = new_label_dst();
+    Value *fetch_from_stack = new_label_dst();
+
+    // Check if the arg is in the register save area or on stack
+    Value *gp_fp_offset;
+    ir = add_function_va_arg_in_register_check(function, ir, type, va_list, gp_count, fp_count, fetch_from_stack, &gp_fp_offset);
+
+    // Read from register save area & jump to the done label
+    ir = add_function_va_arg_register_save_area_read(function, ir, type, va_list, gp_count, fp_count, gp_fp_offset, dst);
+    ir = insert_instruction_after_from_operation(ir, IR_JMP, 0, ldone, 0);
+
+    // Add fetch_from_stack label
+    ir = insert_instruction_after_from_operation(ir, IR_NOP, 0, 0, 0);
+    ir->label = fetch_from_stack->label;
+
+    // Read from stack
+    ir = add_function_va_arg_stack_read(function, ir, type, va_list, dst);
+
+    // Add done label
+    ir = insert_instruction_after_from_operation(ir, IR_NOP, 0, 0, 0);
+    ir->label = ldone->label;
+}
+
+void process_function_varargs(Function *function) {
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation == IR_VA_START) process_function_va_start(function, ir);
+        else if (ir->operation == IR_VA_ARG) process_function_va_arg(function, ir);
+    }
+}
+
 // Add instructions that deal with the function arguments. Several cases are possible
 // - Scalar in register -> register
 // - Scalar in register -> stack, if an address of is used
@@ -899,7 +1259,7 @@ void add_function_param_moves(Function *function, char *identifier) {
 
     FunctionParamAllocation *fpa = init_function_param_allocaton(identifier);
 
-    int fpa_start = 0; // Which index in fpa->params has the first actualy parameter
+    int fpa_start = 0; // Which index in fpa->params has the first actual parameter
 
     if (function->return_type && function->return_type->type == TYPE_STRUCT_OR_UNION) {
         fpa_start = setup_return_for_struct_or_union(function);
@@ -908,6 +1268,9 @@ void add_function_param_moves(Function *function, char *identifier) {
 
     for (int i = 0; i < function->param_count; i++)
         add_function_param_to_allocation(fpa, function->param_types[i]);
+
+    function->fpa = fpa;
+    finalize_function_param_allocation(fpa);
 
     int *register_param_vregs = malloc(sizeof(int) * function->param_count);
     memset(register_param_vregs, -1, sizeof(int) * function->param_count);
@@ -968,6 +1331,8 @@ void add_function_param_moves(Function *function, char *identifier) {
             }
         }
     }
+
+    if (function->is_variadic) add_function_vararg_param_moves(function, fpa);
 
     // Adapt the function's IR to use the values in registers/stack
     for (Tac *ir = function->ir; ir; ir = ir->next) {
