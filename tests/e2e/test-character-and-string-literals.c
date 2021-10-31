@@ -192,12 +192,37 @@ static void test_string_literal_lexer() {
     assert_int(0,  s[3], "String escaping in codegen 4 3");
 }
 
+int test_wide_char_char_literal_lexer() {
+    assert_int(255,      L'\xff',         "wchar_t char 1");
+    assert_int(4095,     L'\xfff',        "wchar_t char 2");
+    assert_int(65535,    L'\xffff',       "wchar_t char 3");
+    assert_int(1048575,  L'\xfffff',      "wchar_t char 4");
+    assert_int(16777215, L'\xffffff',     "wchar_t char 5");
+    assert_int(-1,       L'\xffffffff',   "wchar_t char 6");
+    assert_int(-1,       L'\xfffffffff',  "wchar_t char 7");
+    assert_int(255,      L'\xff',         "wchar_t char 8");
+    assert_int(255,      L'\xff\xff',     "wchar_t char 9");
+    assert_int(255,      L'\xff\xff',     "wchar_t char 10");
+    assert_int(255,      L'\xff\xff\xff', "wchar_t char 111");
+}
+
+int test_wide_char_string_literal_lexer() {
+    wchar_t *wc = L"ab";
+    assert_int(4, sizeof(wc[0]), "wchar_t string literal char size");
+    assert_int(97, wc[0], "wchar_t string literal s[0]");
+    assert_int(98, wc[1], "wchar_t string literal s[1]");
+    assert_int(0,  wc[2], "wchar_t string literal s[2]");
+    assert_int(2, wcslen(wc), "wchar_t string literal wcslen");
+}
+
 int main(int argc, char **argv) {
 
     parse_args(argc, argv, &verbose);
 
     test_char_literal_lexer();
     test_string_literal_lexer();
+    test_wide_char_char_literal_lexer();
+    test_wide_char_string_literal_lexer();
 
     finalize();
 }

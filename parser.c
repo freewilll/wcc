@@ -1935,7 +1935,7 @@ static void parse_expression(int level) {
 
         case TOK_STRING_LITERAL: {
             Value *dst = new_value();
-            dst->type = make_array(new_type(TYPE_CHAR), cur_string_literal.size);
+            dst->type = make_array(new_type(cur_string_literal.is_wide_char ? TYPE_INT : TYPE_CHAR), cur_string_literal.size);
             dst->string_literal_index = string_literal_count;
             dst->is_string_literal = 1;
             if (string_literal_count > MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);

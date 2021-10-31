@@ -1,5 +1,7 @@
 // Simplified versions of what is used from the standard library
 
+typedef int wchar_t;
+
 extern void *stdout;
 
 extern void exit(int __status);
@@ -28,3 +30,4 @@ extern int system(char *__command);
 extern char *getenv(char *__name);
 extern long double strtold(char* str, char** endptr);
 extern int atoi(char *str);
+extern int wcslen(wchar_t *str);

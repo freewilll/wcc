@@ -172,6 +172,191 @@ void next(void) {
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\\';   }
         else if (input_size - ip >= 3 && !memcmp(i+ip, "...",  3            )) { ip += 3;  cur_token = TOK_ELLIPSES;                   }
 
+        // Hex numeric literal
+        else if (c1 == '0' && input_size - ip >= 2 && (i[ip+1] == 'x' || i[ip+1] == 'X')) {
+            ip += 2;
+            cur_token = TOK_INTEGER;
+            lex_hex_literal();
+            finish_integer_constant(0);
+        }
+
+        // Integer, octal and floating point literal
+        else if ((c1 >= '0' && c1 <= '9') || (input_size - ip >= 2 && c1 == '.' && c2 >= '0' && c2 <= '9')) {
+            // Note the current i and ip in case a floating point is lexed later on
+            char *start = i;
+            int start_ip = ip;
+
+            int has_leading_zero = c1 == '0';
+            long octal_integer = 0;
+            long decimal_integer = 0;
+            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) {
+                octal_integer = octal_integer * 8  + (i[ip] - '0');
+                decimal_integer = decimal_integer * 10 + (i[ip] - '0');
+                ip++;
+            }
+
+            int is_floating_point = i[ip] == '.' || i[ip] == 'e' || i[ip] == 'E';
+
+            if (!is_floating_point && has_leading_zero) {
+                // It's an octal number
+                cur_token = TOK_INTEGER;
+                cur_long = octal_integer;
+                finish_integer_constant(0);
+            }
+            else if (!is_floating_point) {
+                // It's a decimal number
+                cur_token = TOK_INTEGER;
+                cur_long = decimal_integer;
+                finish_integer_constant(1);
+            }
+            else {
+                char *new_i;
+                cur_long_double = strtold(start + start_ip, &new_i);
+                ip = start_ip + new_i - start - start_ip;
+
+                cur_token = TOK_FLOATING_POINT_NUMBER;
+
+                int type = TYPE_DOUBLE;
+                if (i[ip] == 'f' || i[ip] == 'F') { type = TYPE_FLOAT; ip++; }
+                if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++; }
+
+                cur_lexer_type = new_type(type);
+            }
+        }
+
+        else if (c1 == '.') {
+            ip += 1;
+            cur_token = TOK_DOT;
+        }
+
+        // Ignore other CPP directives
+        else if (c1 == '#') {
+            while (i[ip++] != '\n');
+            cur_line++;
+            continue;
+        }
+
+        // Character literal
+        else if ((c1 == '\'') || (input_size - ip >= 2 && c1 == 'L' && c2 == '\'')) {
+            int is_wide_char = 0;
+            if (c1 == 'L') {
+                is_wide_char = 1;
+                ip++;
+            }
+
+            cur_token = TOK_INTEGER;
+            cur_lexer_type = new_type(TYPE_INT);
+            cur_long = 0;
+            ip += 1;
+
+            int byte_count = 0;
+            while (input_size - ip >= 1 && i[ip] != '\'') {
+                if (i[ip] != '\\') { cur_long = (cur_long  << 8) + i[ip++]; }
+                else if (i[ip] == '\\') {
+                    ip++;
+                         if (i[ip] == '\'') { ip++; cur_long = (cur_long << 8) +  '\''; }
+                    else if (i[ip] == '"' ) { ip++; cur_long = (cur_long << 8) +  '\"'; }
+                    else if (i[ip] == '?' ) { ip++; cur_long = (cur_long << 8) +  '?'; }
+                    else if (i[ip] == '\\') { ip++; cur_long = (cur_long << 8) +  '\\'; }
+                    else if (i[ip] == 'a' ) { ip++; cur_long = (cur_long << 8) +  7; }
+                    else if (i[ip] == 'b' ) { ip++; cur_long = (cur_long << 8) +  8; }
+                    else if (i[ip] == 'f' ) { ip++; cur_long = (cur_long << 8) +  12; }
+                    else if (i[ip] == 'n' ) { ip++; cur_long = (cur_long << 8) +  10; }
+                    else if (i[ip] == 'r' ) { ip++; cur_long = (cur_long << 8) +  13; }
+                    else if (i[ip] == 't' ) { ip++; cur_long = (cur_long << 8) +  9; }
+                    else if (i[ip] == 'v' ) { ip++; cur_long = (cur_long << 8) +  11; }
+                    else if (i[ip] >= '0' && i[ip] <= '7' ) {
+                        int old_cur_long = cur_long;
+                        lex_octal_literal();
+                        cur_long &= 0xff;
+                        cur_long = (old_cur_long << 8) + cur_long;
+                    }
+                    else if (i[ip] == 'x' ) {
+                        ip++;
+                        unsigned int old_cur_long = cur_long;
+                        lex_hex_literal();
+                        int mask = (1 << (byte_count << 3)) - 1;
+
+                        if (!is_wide_char) {
+                            cur_long = ((old_cur_long & mask) << 8) + (cur_long & 0xff);
+
+                            // Sign extend the first byte
+                            if (byte_count == 0) cur_long = (int) ((char) cur_long);
+                        }
+                    }
+                    else panic("Unknown \\ escape in character literal");
+                }
+                byte_count++;
+            }
+            ip++;
+        }
+
+        // String literal
+        else if ((c1 == '"') || (input_size - ip >= 2 && c1 == 'L' && c2 == '"')) {
+            int is_wide_char = 0;
+            if (c1 == 'L') {
+                is_wide_char = 1;
+                ip++;
+            }
+
+            cur_token = TOK_STRING_LITERAL;
+
+            char *data = malloc(MAX_STRING_LITERAL_SIZE);
+            int size = 0;
+            ip += 1;
+            while (input_size - ip >= 1 && i[ip] != '"') {
+                if (i[ip] != '\\') data[size++] = i[ip++];
+                else if (input_size - ip >= 2 && i[ip] == '\\') {
+                         if (i[ip + 1] == '\'') { ip += 2; data[size++] = '\''; }
+                    else if (i[ip + 1] == '"' ) { ip += 2; data[size++] = '\"'; }
+                    else if (i[ip + 1] == '?' ) { ip += 2; data[size++] = '?'; }
+                    else if (i[ip + 1] == '\\') { ip += 2; data[size++] = '\\'; }
+                    else if (i[ip + 1] == 'a' ) { ip += 2; data[size++] = 7; }
+                    else if (i[ip + 1] == 'b' ) { ip += 2; data[size++] = 8; }
+                    else if (i[ip + 1] == 'f' ) { ip += 2; data[size++] = 12; }
+                    else if (i[ip + 1] == 'n' ) { ip += 2; data[size++] = 10; }
+                    else if (i[ip + 1] == 'r' ) { ip += 2; data[size++] = 13; }
+                    else if (i[ip + 1] == 't' ) { ip += 2; data[size++] = 9; }
+                    else if (i[ip + 1] == 'v' ) { ip += 2; data[size++] = 11; }
+                    else if (i[ip + 1] >= '0' && i[ip + 1] <= '7' ) {
+                        ip++;
+                        lex_octal_literal();
+                        data[size++] = cur_long & 0xff;
+                    }
+                    else if (i[ip + 1] == 'x' ) {
+                        ip += 2;
+                        lex_hex_literal();
+                        data[size++] = cur_long & 0xff;
+                    }
+                    else panic("Unknown \\ escape in string literal");
+                }
+
+                if (is_wide_char) {
+                    data[size] = 0;
+                    data[size + 1] = 0;
+                    data[size + 2] = 0;
+                    size += 3;
+                }
+            }
+
+            if (i[ip] != '"') panic("Expecting terminating \" in string literal");
+            ip++;
+
+            if (size >= MAX_STRING_LITERAL_SIZE) panic1d("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+
+            data[size] = 0;
+            if (is_wide_char) {
+                data[size] = 0;
+                data[size + 1] = 0;
+                data[size + 2] = 0;
+                size += 3;
+            }
+
+            cur_string_literal.data = data;
+            cur_string_literal.size = size + 1;
+            cur_string_literal.is_wide_char = is_wide_char;
+        }
+
         // Identifier or keyword
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             cur_token = TOK_IDENTIFIER;
@@ -239,157 +424,6 @@ void next(void) {
                     }
                 }
             }
-        }
-
-        // Hex numeric literal
-        else if (c1 == '0' && input_size - ip >= 2 && (i[ip+1] == 'x' || i[ip+1] == 'X')) {
-            ip += 2;
-            cur_token = TOK_INTEGER;
-            lex_hex_literal();
-            finish_integer_constant(0);
-        }
-
-        // Integer, octal and floating point literal
-        else if ((c1 >= '0' && c1 <= '9') || (input_size - ip >= 2 && c1 == '.' && c2 >= '0' && c2 <= '9')) {
-            // Note the current i and ip in case a floating point is lexed later on
-            char *start = i;
-            int start_ip = ip;
-
-            int has_leading_zero = c1 == '0';
-            long octal_integer = 0;
-            long decimal_integer = 0;
-            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) {
-                octal_integer = octal_integer * 8  + (i[ip] - '0');
-                decimal_integer = decimal_integer * 10 + (i[ip] - '0');
-                ip++;
-            }
-
-            int is_floating_point = i[ip] == '.' || i[ip] == 'e' || i[ip] == 'E';
-
-            if (!is_floating_point && has_leading_zero) {
-                // It's an octal number
-                cur_token = TOK_INTEGER;
-                cur_long = octal_integer;
-                finish_integer_constant(0);
-            }
-            else if (!is_floating_point) {
-                // It's a decimal number
-                cur_token = TOK_INTEGER;
-                cur_long = decimal_integer;
-                finish_integer_constant(1);
-            }
-            else {
-                char *new_i;
-                cur_long_double = strtold(start + start_ip, &new_i);
-                ip = start_ip + new_i - start - start_ip;
-
-                cur_token = TOK_FLOATING_POINT_NUMBER;
-
-                int type = TYPE_DOUBLE;
-                if (i[ip] == 'f' || i[ip] == 'F') { type = TYPE_FLOAT; ip++; }
-                if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++; }
-
-                cur_lexer_type = new_type(type);
-            }
-        }
-
-        else if (c1 == '.') {
-            ip += 1;
-            cur_token = TOK_DOT;
-        }
-
-        // Ignore other CPP directives
-        else if (c1 == '#') {
-            while (i[ip++] != '\n');
-            cur_line++;
-            continue;
-        }
-
-        // Character literal
-        else if (i[ip] == '\'') {
-            cur_token = TOK_INTEGER;
-            cur_lexer_type = new_type(TYPE_INT);
-            cur_long = 0;
-            ip += 1;
-
-            int byte_count = 0;
-            while (input_size - ip >= 1 && i[ip] != '\'') {
-                if (i[ip] != '\\') { cur_long = (cur_long  << 8) + i[ip++]; }
-                else if (i[ip] == '\\') {
-                    ip++;
-                         if (i[ip] == '\'') { ip++; cur_long = (cur_long << 8) +  '\''; }
-                    else if (i[ip] == '"' ) { ip++; cur_long = (cur_long << 8) +  '\"'; }
-                    else if (i[ip] == '?' ) { ip++; cur_long = (cur_long << 8) +  '?'; }
-                    else if (i[ip] == '\\') { ip++; cur_long = (cur_long << 8) +  '\\'; }
-                    else if (i[ip] == 'a' ) { ip++; cur_long = (cur_long << 8) +  7; }
-                    else if (i[ip] == 'b' ) { ip++; cur_long = (cur_long << 8) +  8; }
-                    else if (i[ip] == 'f' ) { ip++; cur_long = (cur_long << 8) +  12; }
-                    else if (i[ip] == 'n' ) { ip++; cur_long = (cur_long << 8) +  10; }
-                    else if (i[ip] == 'r' ) { ip++; cur_long = (cur_long << 8) +  13; }
-                    else if (i[ip] == 't' ) { ip++; cur_long = (cur_long << 8) +  9; }
-                    else if (i[ip] == 'v' ) { ip++; cur_long = (cur_long << 8) +  11; }
-                    else if (i[ip] >= '0' && i[ip] <= '7' ) {
-                        int old_cur_long = cur_long;
-                        lex_octal_literal();
-                        cur_long &= 0xff;
-                        cur_long = (old_cur_long << 8) + cur_long;
-                    }
-                    else if (i[ip] == 'x' ) {
-                        ip++;
-                        unsigned int old_cur_long = cur_long;
-                        lex_hex_literal();
-                        int mask = (1 << (byte_count << 3)) - 1;
-                        cur_long = ((old_cur_long & mask) << 8) + (cur_long & 0xff);
-
-                        // Sign extend the first byte
-                        if (byte_count == 0) cur_long = (int) ((char) cur_long);
-                    }
-                    else panic("Unknown \\ escape in character literal");
-                }
-                byte_count++;
-            }
-            ip++;
-        }
-
-        // String literal
-        else if (i[ip] == '"') {
-            cur_token = TOK_STRING_LITERAL;
-
-            char *data = malloc(MAX_STRING_LITERAL_SIZE);
-            int size = 0;
-            ip += 1;
-            while (input_size - ip >= 1 && i[ip] != '"') {
-                if (i[ip] != '\\') data[size++] = i[ip++];
-                else if (input_size - ip >= 2 && i[ip] == '\\') {
-                         if (i[ip + 1] == '\'') { ip += 2; data[size++] = '\''; }
-                    else if (i[ip + 1] == '"' ) { ip += 2; data[size++] = '\"'; }
-                    else if (i[ip + 1] == '?' ) { ip += 2; data[size++] = '?'; }
-                    else if (i[ip + 1] == '\\') { ip += 2; data[size++] = '\\'; }
-                    else if (i[ip + 1] == 'a' ) { ip += 2; data[size++] = 7; }
-                    else if (i[ip + 1] == 'b' ) { ip += 2; data[size++] = 8; }
-                    else if (i[ip + 1] == 'f' ) { ip += 2; data[size++] = 12; }
-                    else if (i[ip + 1] == 'n' ) { ip += 2; data[size++] = 10; }
-                    else if (i[ip + 1] == 'r' ) { ip += 2; data[size++] = 13; }
-                    else if (i[ip + 1] == 't' ) { ip += 2; data[size++] = 9; }
-                    else if (i[ip + 1] == 'v' ) { ip += 2; data[size++] = 11; }
-                    else if (i[ip + 1] >= '0' && i[ip + 1] <= '7' ) {
-                        ip++;
-                        lex_octal_literal();
-                        data[size++] = cur_long & 0xff;
-                    }
-                    else if (i[ip + 1] == 'x' ) {
-                        ip += 2;
-                        lex_hex_literal();
-                        data[size++] = cur_long & 0xff;
-                    }
-                    else panic("Unknown \\ escape in string literal");
-                }
-            }
-            ip++;
-            if (size >= MAX_STRING_LITERAL_SIZE) panic1d("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-            data[size] = 0;
-            cur_string_literal.data = data;
-            cur_string_literal.size = size + 1;
         }
 
         else

@@ -526,6 +526,7 @@ typedef struct floating_point_literal {
 typedef struct string_literal {
     char *data;
     int size;
+    int is_wide_char;
 } StringLiteral;
 
 char *cur_filename;             // Current filename being lexed
