@@ -201,7 +201,7 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
     for (int i = 1; i <= vreg_count; i++) {
         int vreg = ordered_nodes[i].vreg;
         if (vreg > live_range_reserved_pregs_offset && function->vreg_preg_classes[vreg] != preg_class) continue;
-        if (!function->vreg_preg_classes[vreg]) panic1d("Unexpected zero preg class for vreg %d", i);
+        if (!function->vreg_preg_classes[vreg]) panic("Unexpected zero preg class for vreg %d", i);
 
         int degree = graph_node_degree(interference_graph, vreg_count, vreg);
         if (degree < physical_register_count)
@@ -352,7 +352,7 @@ static void assign_vreg_locations(Function *function) {
             vl = &function_vl[tac->dst->vreg];
             if (vl->stack_index) {
                 if (tac->dst->live_range_preg)
-                    panic1s1d("Unexpectedly spilled a register for preg %s vreg %d",
+                    panic("Unexpectedly spilled a register for preg %s vreg %d",
                         register_name(preg_map[tac->dst->live_range_preg - 1]), tac->dst->vreg);
 
                 tac->dst->stack_index = vl->stack_index;
@@ -366,7 +366,7 @@ static void assign_vreg_locations(Function *function) {
             vl = &function_vl[tac->src1->vreg];
             if (vl->stack_index) {
                 if (tac->src1->live_range_preg)
-                    panic1s1d("Unexpectedly spilled a register for preg %s vreg %d",
+                    panic("Unexpectedly spilled a register for preg %s vreg %d",
                         register_name(preg_map[tac->src1->live_range_preg - 1]), tac->src1->vreg);
 
                 tac->src1->stack_index = vl->stack_index;
@@ -380,7 +380,7 @@ static void assign_vreg_locations(Function *function) {
             vl = &function_vl[tac->src2->vreg];
             if (vl->stack_index) {
                 if (tac->src2->live_range_preg)
-                    panic1s1d("Unexpectedly spilled a register for preg %s vreg %d",
+                    panic("Unexpectedly spilled a register for preg %s vreg %d",
                         register_name(preg_map[tac->src2->live_range_preg - 1]), tac->src2->vreg);
 
                 tac->src2->stack_index = vl->stack_index;

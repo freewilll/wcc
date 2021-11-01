@@ -508,7 +508,7 @@ static void add_sse_indirect_rule(int dst, int src) {
     switch (src) {
         case RP3:  template = "movss %v1o(%v1q), %vdF"; break;
         case RP4:  template = "movsd %v1o(%v1q), %vdD"; break;
-        default:   panic1d("Unknown src in add_sse_indirect_rule %d", src);
+        default:   panic("Unknown src in add_sse_indirect_rule %d", src);
     }
 
     Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
@@ -1471,7 +1471,7 @@ void init_instruction_selection_rules(void) {
     add_sse_comp_assignment_rules(&ntc);
 
     if (ntc >= AUTO_NON_TERMINAL_END)
-        panic2d("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
+        panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
 
     if (!disable_check_for_duplicate_rules) check_for_duplicate_rules();
 

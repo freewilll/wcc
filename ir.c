@@ -231,7 +231,7 @@ char *operation_string(int operation) {
         case X_MOVS:                return "movs";
         case X_MOVZ:                return "movz";
         case X_MOVC:                return "movc";
-        default:                    panic1d("Unknown x86 operation %d", operation);
+        default:                    panic("Unknown x86 operation %d", operation);
     }
 }
 
@@ -398,7 +398,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == X_SETGE)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
 
     else
-        panic1d("print_instruction(): Unknown operation: %d", tac->operation);
+        panic("print_instruction(): Unknown operation: %d", tac->operation);
 
     fprintf(f, "\n");
 }

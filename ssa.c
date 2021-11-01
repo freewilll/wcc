@@ -1450,15 +1450,15 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
             // Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
             if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
                 print_instruction(stdout, tac, 0);
-                panic1d("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
+                panic("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
             }
             if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
                 print_instruction(stdout, tac, 0);
-                panic1d("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
+                panic("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
             }
             if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
                 print_instruction(stdout, tac, 0);
-                panic1d("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
+                panic("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
             }
         }
     }

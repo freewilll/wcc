@@ -8,7 +8,7 @@ static int non_terminal_for_value(Value *v);
 static int value_ptr_target_x86_size(Value *v);
 
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
-    if (instr_rule_count == MAX_RULE_COUNT) panic1d("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
+    if (instr_rule_count == MAX_RULE_COUNT) panic("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
 
     Rule *r = &(instr_rules[instr_rule_count]);
 
@@ -102,7 +102,7 @@ char size_to_x86_size(int size) {
         case 2:  return 'w'; break;
         case 3:  return 'l'; break;
         case 4:  return 'q'; break;
-        default: panic1d("Unknown size %d", size);
+        default: panic("Unknown size %d", size);
     }
 }
 
@@ -467,7 +467,7 @@ void make_value_x86_size(Value *v) {
         else if (v->type->type == TYPE_LONG_DOUBLE)
             v->x86_size = 5;
         else
-            panic1d("Illegal type in make_value_x86_size() %d", v->type->type);
+            panic("Illegal type in make_value_x86_size() %d", v->type->type);
     }
 }
 
@@ -534,7 +534,7 @@ int match_value_to_rule_src(Value *v, int src) {
             return src == CS4;
         else {
             // Integer constant
-            if (v->type->type < TYPE_INT) panic1d("Unexpected constant type %d", v->type->type);
+            if (v->type->type < TYPE_INT) panic("Unexpected constant type %d", v->type->type);
 
             // Match 1, 2 and 3
                  if (src == CSTV1 && v->int_value == 1) return 1;
@@ -660,7 +660,7 @@ int make_x86_size_from_non_terminal(int nt) {
     else if (nt == STL) return 4;
     else if (nt >= AUTO_NON_TERMINAL_START) return -1;
     else
-        panic1s("Unable to determine size for %s", non_terminal_string(nt));
+        panic("Unable to determine size for %s", non_terminal_string(nt));
 }
 
 // Add an x86 instruction to the IR

@@ -23,7 +23,7 @@ int local_static_symbol_count;           // Amount of static objects with block 
 // Allocate a new virtual register
 static int new_vreg(void) {
     vreg_count++;
-    if (vreg_count >= MAX_VREG_COUNT) panic1d("Exceeded max vreg count %d", MAX_VREG_COUNT);
+    if (vreg_count >= MAX_VREG_COUNT) panic("Exceeded max vreg count %d", MAX_VREG_COUNT);
     return vreg_count;
 }
 
@@ -564,7 +564,7 @@ static void parse_function_paramless_declaration_list(Function *function) {
             // Associate type with param symbol
             if (!cur_type_identifier) panic("Expected identifier");
             Symbol *symbol = lookup_symbol(cur_type_identifier, cur_scope, 0);
-            if (!symbol)  panic1s("Declaration for unknown parameter %s", cur_type_identifier);
+            if (!symbol)  panic("Declaration for unknown parameter %s", cur_type_identifier);
             symbol->type = type;
 
             int found_identifier = 0;
@@ -669,18 +669,18 @@ Type *find_struct_or_union(char *identifier, int is_union, int recurse) {
 
     if (tag->type->type == TYPE_STRUCT_OR_UNION) {
         if (tag->type->struct_or_union_desc->is_union != is_union)
-            panic1s("Tag %s is the wrong kind of tag", identifier);
+            panic("Tag %s is the wrong kind of tag", identifier);
         return tag->type;
     }
     else
-        panic1s("Tag %s is the wrong kind of tag", identifier);
+        panic("Tag %s is the wrong kind of tag", identifier);
 }
 
 static Type *find_enum(char *identifier) {
     Tag *tag = lookup_tag(identifier, cur_scope, 1);
 
     if (!tag) return 0;
-    if (tag->type->type != TYPE_ENUM) panic1s("Tag %s is the wrong kind of tag", identifier);
+    if (tag->type->type != TYPE_ENUM) panic("Tag %s is the wrong kind of tag", identifier);
 
     return tag->type;
 }
@@ -772,7 +772,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     if (type->type != TYPE_INT) panic("Bit fields must be integers");
                     if (cur_token != TOK_INTEGER) panic("Expected an integer value for a bit field");
                     if (cur_type_identifier && cur_long == 0) panic("Invalid bit field size 0 for named member");
-                    if (cur_long < 0 || cur_long > 32) panic1d("Invalid bit field size %d", cur_long);
+                    if (cur_long < 0 || cur_long > 32) panic("Invalid bit field size %d", cur_long);
 
                     member->is_bit_field = 1;
                     member->bit_field_size = cur_long;
@@ -872,7 +872,7 @@ static Type *parse_enum_type_specifier(void) {
         // Enum use
 
         Type *type = find_enum(identifier);
-        if (!type) panic1s("Unknown enum %s", identifier);
+        if (!type) panic("Unknown enum %s", identifier);
         return type;
     }
 
@@ -936,7 +936,7 @@ static StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *iden
         pmember++;
     }
 
-    panic2s("Unknown member %s in struct %s\n", identifier, type->tag ? type->tag->identifier : "(anonymous)");
+    panic("Unknown member %s in struct %s\n", identifier, type->tag ? type->tag->identifier : "(anonymous)");
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
@@ -1567,7 +1567,7 @@ static void parse_declaration(void) {
 
     if (!cur_type_identifier) panic("Expected an identifier");
 
-    if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic1s("Identifier redeclared: %s", cur_type_identifier);
+    if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic("Identifier redeclared: %s", cur_type_identifier);
 
     if (base_type->is_static) {
         symbol = new_global_symbol();
@@ -2029,7 +2029,7 @@ static void parse_expression(int level) {
             dst->type = make_array(new_type(cur_string_literal.is_wide_char ? TYPE_INT : TYPE_CHAR), cur_string_literal.size);
             dst->string_literal_index = string_literal_count;
             dst->is_string_literal = 1;
-            if (string_literal_count > MAX_STRING_LITERALS) panic1d("Exceeded max string literals %d", MAX_STRING_LITERALS);
+            if (string_literal_count > MAX_STRING_LITERALS) panic("Exceeded max string literals %d", MAX_STRING_LITERALS);
             string_literals[string_literal_count] = cur_string_literal;
             string_literal_count++;
 
@@ -2059,7 +2059,7 @@ static void parse_expression(int level) {
                 else {
                     // Look up symbol
                     Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
-                    if (!symbol) panic1s("Unknown symbol \"%s\"", cur_identifier);
+                    if (!symbol) panic("Unknown symbol \"%s\"", cur_identifier);
 
                     next();
 
@@ -2092,7 +2092,7 @@ static void parse_expression(int level) {
         }
 
         default:
-            panic1d("Unexpected token %d in expression", cur_token);
+            panic("Unexpected token %d in expression", cur_token);
     }
 
     // The next token is an operator
@@ -2633,7 +2633,7 @@ static void backpatch_gotos(void) {
     for (StrMapIterator it = strmap_iterator(goto_backpatches); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
         char *identifier = strmap_iterator_key(&it);
         Tac *ir = strmap_get(goto_backpatches, identifier);
-        if (!ir) panic1s("Unknown label %s", identifier);
+        if (!ir) panic("Unknown label %s", identifier);
         Value *ldst = strmap_get(cur_function_symbol->type->function->labels, identifier);
         ir->src1 = ldst;
     }
@@ -2832,7 +2832,7 @@ static void parse_directive(void) {
         next();
     }
     else {
-        panic1d("Unimplemented directive with token %d", cur_token);
+        panic("Unimplemented directive with token %d", cur_token);
     }
 }
 
@@ -2879,7 +2879,7 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
         panic("Incompatible function types");
 
     if (original_symbol && original_symbol->type->function->is_defined && cur_token == TOK_LCURLY) {
-        panic1s("Redefinition of %s", cur_type_identifier);
+        panic("Redefinition of %s", cur_type_identifier);
     }
 
     if (original_symbol)
@@ -2966,14 +2966,14 @@ void parse(void) {
                     symbol = original_symbol;
 
                 if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
-                    panic1s("%s redeclared as different kind of symbol", cur_type_identifier);
+                    panic("%s redeclared as different kind of symbol", cur_type_identifier);
 
                 int linkage = is_static
                     ? LINKAGE_INTERNAL
                     : is_extern ? LINKAGE_UNDECLARED_EXTERNAL : LINKAGE_EXTERNAL;
 
                 if (original_symbol && original_symbol->linkage != linkage)
-                    panic1s("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
+                    panic("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {

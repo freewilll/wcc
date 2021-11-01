@@ -20,14 +20,14 @@ int shortcut_to_type(int s) {
     if (s == PI) return TYPE_INT;
     else if (s == PS) return TYPE_FLOAT;
     else if (s == PL) return TYPE_LONG_DOUBLE;
-    else panic1d("Unknown type shortcut", s);
+    else panic("Unknown type shortcut", s);
 }
 
 char shortcut_to_char(int s) {
     if (s == PI) return 'i';
     else if (s == PS) return 's';
     else if (s == PL) return 'l';
-    else panic1d("Unknown type shortcut", s);
+    else panic("Unknown type shortcut", s);
 }
 
 char *fpa_result_str(FunctionParamAllocation *fpa) {

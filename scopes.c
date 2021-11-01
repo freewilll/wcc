@@ -42,7 +42,7 @@ void exit_scope(void) {
 
 static Symbol *new_symbol_in_scope(Scope *scope) {
     if (scope->symbol_count == scope->max_count)
-        panic1d("Exceeded max symbol table size of %d symbols", scope->max_count);
+        panic("Exceeded max symbol table size of %d symbols", scope->max_count);
 
     Symbol *symbol = malloc(sizeof(Symbol));
     memset(symbol, 0, sizeof(Symbol));
@@ -77,7 +77,7 @@ Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
 
 Tag *new_tag(void) {
     if (cur_scope->tag_count == cur_scope->max_count)
-        panic1d("Exceeded max tag table size of %d tags", cur_scope->max_count);
+        panic("Exceeded max tag table size of %d tags", cur_scope->max_count);
 
     Tag *tag = malloc(sizeof(Tag));
     memset(tag, 0, sizeof(Tag));

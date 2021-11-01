@@ -52,9 +52,9 @@ void dump_graph(Graph *g) {
 }
 
 GraphEdge *add_graph_edge(Graph *g, int from, int to) {
-    if (g->edge_count == g->max_edge_count) panic1d("Exceeded max graph edge count %d", g->max_edge_count);
-    if (to < 0 || to >= g->node_count) panic2d("Node %d out of range %d", to, g->node_count);
-    if (from < 0 || from >= g->node_count) panic2d("Node %d out of range %d", from, g->node_count);
+    if (g->edge_count == g->max_edge_count) panic("Exceeded max graph edge count %d", g->max_edge_count);
+    if (to < 0 || to >= g->node_count) panic("Node %d out of range %d", to, g->node_count);
+    if (from < 0 || from >= g->node_count) panic("Node %d out of range %d", from, g->node_count);
 
     GraphEdge *e = &g->edges[g->edge_count];
     e->id = g->edge_count;

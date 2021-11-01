@@ -1035,7 +1035,7 @@ static Value *load_value_from_slot(int slot, char *arg) {
     slot = slot - SV1 + 1;
 
     if (slot > MAX_SAVED_REGISTERS)
-        panic2d("Loaded register exceeds maximum: %d > %d", slot, MAX_SAVED_REGISTERS);
+        panic("Loaded register exceeds maximum: %d > %d", slot, MAX_SAVED_REGISTERS);
 
     Value *slot_value = saved_values[slot];
     if (!slot_value) {
@@ -1115,21 +1115,21 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
         else if (x86op->dst == SRC2) x86_dst = src2;
         else if (x86op->dst == DST)  x86_dst = dst;
         else if (x86op->dst >= SV1 && x86op->dst <= SV8) x86_dst = load_value_from_slot(x86op->dst, "dst");
-        else panic1d("Unknown operand to x86 instruction: %d", x86op->v1);
+        else panic("Unknown operand to x86 instruction: %d", x86op->v1);
 
              if (x86op->v1 == 0)    x86_v1 = 0;
         else if (x86op->v1 == SRC1) x86_v1 = src1;
         else if (x86op->v1 == SRC2) x86_v1 = src2;
         else if (x86op->v1 == DST)  x86_v1 = dst;
         else if (x86op->v1 >= SV1 && x86op->v1 <= SV8) x86_v1 = load_value_from_slot(x86op->v1, "v1");
-        else panic1d("Unknown operand to x86 instruction: %d", x86op->v1);
+        else panic("Unknown operand to x86 instruction: %d", x86op->v1);
 
              if (x86op->v2 == 0)    x86_v2 = 0;
         else if (x86op->v2 == SRC1) x86_v2 = src1;
         else if (x86op->v2 == SRC2) x86_v2 = src2;
         else if (x86op->v2 == DST)  x86_v2 = dst;
         else if (x86op->v2 >= SV1 && x86op->v2 <= SV8) x86_v2 = load_value_from_slot(x86op->v2, "v2");
-        else panic1d("Unknown operand to x86 instruction: %d", x86op->v2);
+        else panic("Unknown operand to x86 instruction: %d", x86op->v2);
 
         if (x86_dst) x86_dst = dup_value(x86_dst);
         if (x86_v1)  x86_v1  = dup_value(x86_v1);
@@ -1139,12 +1139,12 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
 
         if (x86op->save_value_in_slot) {
             if (x86op->save_value_in_slot > MAX_SAVED_REGISTERS)
-                panic2d("Saved register exceeds maximum: %d > %d", x86op->save_value_in_slot, MAX_SAVED_REGISTERS);
+                panic("Saved register exceeds maximum: %d > %d", x86op->save_value_in_slot, MAX_SAVED_REGISTERS);
 
                  if (x86op->arg == 1) slot_value = src1;
             else if (x86op->arg == 2) slot_value = src2;
             else if (x86op->arg == 3) slot_value = dst;
-            else panic1d ("Unknown load arg target", x86op->arg);
+            else panic ("Unknown load arg target", x86op->arg);
 
             saved_values[x86op->save_value_in_slot] = slot_value;
             if (debug_instsel_tiling) {
@@ -1438,7 +1438,7 @@ static Tac *make_spill_instruction(Value *v) {
         x86_template = "movq %v1q, %vdq";
     }
     else
-        panic1d("Unknown x86 size %d", v->x86_size);
+        panic("Unknown x86 size %d", v->x86_size);
 
     Tac *tac = new_instruction(x86_operation);
     tac->x86_template = x86_template;

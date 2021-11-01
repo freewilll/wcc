@@ -682,12 +682,7 @@ void dump_graph(Graph *g);
 GraphEdge *add_graph_edge(Graph *g, int from, int to);
 
 // utils.c
-void panic(char *message);
-void panic1d(char *fmt, int i);
-void panic1s(char *fmt, char *s);
-void panic2d(char *fmt, int i1, int i2);
-void panic2s(char *fmt, char *s1, char *s2);
-void panic1s1d(char *fmt, char *s, int i);
+void panic(char *format, ...);
 Function *new_function(void);
 void quicksort_ulong_array(unsigned long *array, int left, int right);
 

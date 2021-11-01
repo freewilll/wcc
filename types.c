@@ -160,7 +160,7 @@ char *sprint_type_in_english(Type *type) {
                 break;
             }
             default:
-                panic1d("Unknown type->type=%d", tt);
+                panic("Unknown type->type=%d", tt);
         }
 
         type = type->target;
@@ -349,7 +349,7 @@ int get_type_size(Type *type) {
         case TYPE_FUNCTION:
             return 1;
         default:
-            panic1d("sizeof unknown type %d", t);
+            panic("sizeof unknown type %d", t);
     }
 }
 
@@ -389,7 +389,7 @@ int get_type_alignment(Type *type) {
             return max;
         }
         default:
-            panic1d("align of unknown type %d", t);
+            panic("align of unknown type %d", t);
     }
 }
 

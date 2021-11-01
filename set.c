@@ -69,17 +69,17 @@ void print_set(Set *s) {
 }
 
 void *add_to_set(Set *s, int value) {
-    if (value > s->max_value) panic2d("Max set value of %d exceeded with %d in add_to_set", s->max_value, value);
+    if (value > s->max_value) panic("Max set value of %d exceeded with %d in add_to_set", s->max_value, value);
     s->elements[value] = 1;
 }
 
 void *delete_from_set(Set *s, int value) {
-    if (value > s->max_value) panic2d("Max set value of %d exceeded with %d in delete_from_set", s->max_value, value);
+    if (value > s->max_value) panic("Max set value of %d exceeded with %d in delete_from_set", s->max_value, value);
     s->elements[value] = 0;
 }
 
 int in_set(Set *s, int value) {
-    if (value > s->max_value) panic2d("Max set value of %d exceeded with %d in in_set", s->max_value, value);
+    if (value > s->max_value) panic("Max set value of %d exceeded with %d in in_set", s->max_value, value);
     return s->elements[value] == 1;
 }
 

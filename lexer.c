@@ -342,7 +342,7 @@ void next(void) {
             if (i[ip] != '"') panic("Expecting terminating \" in string literal");
             ip++;
 
-            if (size >= MAX_STRING_LITERAL_SIZE) panic1d("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+            if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
 
             data[size] = 0;
             if (is_wide_char) {
@@ -427,7 +427,7 @@ void next(void) {
         }
 
         else
-            panic1d("Unknown token %d", cur_token);
+            panic("Unknown token %d", cur_token);
 
         return;
     }
@@ -450,7 +450,7 @@ void rewind_lexer(void) {
 }
 
 void expect(int token, char *what) {
-    if (cur_token != token) panic1s("Expected %s", what);
+    if (cur_token != token) panic("Expected %s", what);
 }
 
 void consume(int token, char *what) {

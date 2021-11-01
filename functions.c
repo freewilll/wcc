@@ -1514,7 +1514,7 @@ static void add_single_stack_function_param_location(FunctionParamAllocation *fp
 // Add a param/arg to a function and allocate registers & stack entries
 // Structs are decomposed.
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
-    if (fpa->arg_count > MAX_FUNCTION_CALL_ARGS) panic1d("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
+    if (fpa->arg_count > MAX_FUNCTION_CALL_ARGS) panic("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
 
     if (type->type != TYPE_STRUCT_OR_UNION) {
         // Create a single location for the arg

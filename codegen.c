@@ -10,9 +10,9 @@ int need_ld_to_ru4_symbol;
 
 static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
-    if (preg < 0 || preg >= 32) panic1d("Illegal preg %d", preg);
+    if (preg < 0 || preg >= 32) panic("Illegal preg %d", preg);
     if (preg_class == PC_INT && preg >= 16)
-        panic1d("Illegal int preg %d", preg);
+        panic("Illegal int preg %d", preg);
 }
 
 static void append_byte_register_name(char *buffer, int preg) {
@@ -159,7 +159,7 @@ static int get_stack_offset(int function_pc, Value *v) {
 }
 
 static void check_floating_point_literal_max(void) {
-    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic1d("Exceeded max floaing point literals %d", MAX_FLOATING_POINT_LITERALS);
+    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic("Exceeded max floaing point literals %d", MAX_FLOATING_POINT_LITERALS);
 }
 
 static int add_float_literal(long double value) {
@@ -214,14 +214,14 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
                 t++;
 
-                if (t[0] != 'v') panic1s("Unknown placeholder in %s", tac->x86_template);
+                if (t[0] != 'v') panic("Unknown placeholder in %s", tac->x86_template);
 
                 t++;
 
                      if (t[0] == '1') v = tac->src1;
                 else if (t[0] == '2') v = tac->src2;
                 else if (t[0] == 'd') v = tac->dst;
-                else panic1s("Indecipherable placeholder \"%s\"", tac->x86_template);
+                else panic("Indecipherable placeholder \"%s\"", tac->x86_template);
 
                 int x86_size = 0;
                 int is_offset = 0;
@@ -259,13 +259,13 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     case 'D': t++; double_literal = 1; x86_size = 4; break;
                 }
 
-                if (!v) panic1s("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
+                if (!v) panic("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
 
                 if (is_offset) {
                     if (v->offset || offset_is_required) sprintf(buffer, "%d", v->offset);
                 }
                 else if (!expect_preg && v->vreg) {
-                    if (!x86_size) panic1s("Missing size on register value \"%s\"", tac->x86_template);
+                    if (!x86_size) panic("Missing size on register value \"%s\"", tac->x86_template);
                     if (v->global_symbol) panic("Got global symbol in vreg");
 
                     *buffer++ = 'r';
@@ -274,13 +274,13 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     *buffer++ = size_to_x86_size(x86_size);
                 }
                 else if (expect_preg && v->preg != -1) {
-                    if (!x86_size) panic1s("Missing size on register value \"%s\"", tac->x86_template);
+                    if (!x86_size) panic("Missing size on register value \"%s\"", tac->x86_template);
 
                          if (x86_size == 1) append_byte_register_name(buffer, v->preg);
                     else if (x86_size == 2) append_word_register_name(buffer, v->preg);
                     else if (x86_size == 3) append_long_register_name(buffer, v->preg);
                     else if (x86_size == 4) append_quad_register_name(buffer, v->preg);
-                    else panic1d("Unknown register size %d", x86_size);
+                    else panic("Unknown register size %d", x86_size);
                 }
                 else if (v->is_constant) {
                     if (is_floating_point_type(v->type)) {
@@ -310,7 +310,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         if (!x86_size) {
                             print_value(stdout, v, 0);
                             printf("\n");
-                            panic1s("Did not get x86 size on template %s", tac->x86_template);
+                            panic("Did not get x86 size on template %s", tac->x86_template);
                         }
 
                         if (x86_size == 1)
