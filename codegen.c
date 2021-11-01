@@ -529,8 +529,10 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 cur_stack_push_count++;
                 ir = add_sub_rsp(ir, 8);
 
-                if (ir->operation == X_ALLOCATE_STACK)
-                    cur_stack_push_count += ir->src1->int_value / 8;
+                break;
+
+            case X_ALLOCATE_STACK:
+                cur_stack_push_count += ir->src1->int_value / 8;
 
                 break;
 
