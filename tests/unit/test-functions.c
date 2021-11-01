@@ -189,6 +189,14 @@ Type *parse_type_str(char *type_str) {
     return parse_type_name();
 }
 
+FunctionParamAllocation *run_with_multiple_structs(int initial_var, char *struct_str, int count) {
+    FunctionParamAllocation *fpa = init_function_param_allocaton("");
+    if (initial_var) add_function_param_to_allocation(fpa, new_type(initial_var));
+    for (int i = 0; i < count; i++) add_function_param_to_allocation(fpa,  parse_type_str(struct_str));
+    finalize_function_param_allocation(fpa);
+    return fpa;
+}
+
 void test_struct_params() {
     Type *type;
 
@@ -257,6 +265,44 @@ void test_struct_params() {
     finalize_function_param_allocation(fpa);
     assert_string(fpa_result_str(fpa), "       |          | 018 000 | 0", sprint_type_in_english(type));
     assert_int(1, fpa->params[0].count, "Location counts are 1");
+
+    // Test running out of registers for struct/union
+    fpa = run_with_multiple_structs(0, "struct { int i[4]; }", 4);
+    assert_string(fpa_result_str(fpa), "001122 |          | 010 000 | 3", sprint_type_in_english(type));
+    assert_int(1, fpa->params[3].count, "Location counts are 1");
+
+    // Test running out of registers for struct/union
+    fpa = run_with_multiple_structs(0, "struct { int i[4]; }", 5);
+    assert_string(fpa_result_str(fpa), "001122 |          | 020 000 | 3 4", sprint_type_in_english(type));
+    assert_int(1, fpa->params[3].count, "Location counts are 1");
+    assert_int(1, fpa->params[4].count, "Location counts are 1");
+
+    fpa = run_with_multiple_structs(TYPE_INT, "struct { int i[4]; }", 3);
+    assert_string(fpa_result_str(fpa), "01122  |          | 010 000 | 3", sprint_type_in_english(type));
+    assert_int(1, fpa->params[3].count, "Location counts are 1");
+
+    fpa = run_with_multiple_structs(TYPE_INT, "struct { int i[4]; }", 4);
+    assert_string(fpa_result_str(fpa), "01122  |          | 020 000 | 3 4", sprint_type_in_english(type));
+    assert_int(1, fpa->params[3].count, "Location counts 1");
+    assert_int(1, fpa->params[4].count, "Location counts 1");
+
+    fpa = run_with_multiple_structs(0, "struct { float i[4]; }", 5);
+    assert_string(fpa_result_str(fpa), "       | 00112233 | 010 000 | 4", sprint_type_in_english(type));
+    assert_int(1, fpa->params[4].count, "Location counts 1");
+
+    fpa = run_with_multiple_structs(0, "struct { float i[4]; }", 6);
+    assert_string(fpa_result_str(fpa), "       | 00112233 | 020 000 | 4 5", sprint_type_in_english(type));
+    assert_int(1, fpa->params[4].count, "Location counts 1");
+    assert_int(1, fpa->params[5].count, "Location counts 1");
+
+    fpa = run_with_multiple_structs(TYPE_FLOAT, "struct { float i[4]; }", 4);
+    assert_string(fpa_result_str(fpa), "       | 0112233  | 010 000 | 4", sprint_type_in_english(type));
+    assert_int(1, fpa->params[4].count, "Location counts are 1");
+
+    fpa = run_with_multiple_structs(TYPE_FLOAT, "struct { float i[4]; }", 5);
+    assert_string(fpa_result_str(fpa), "       | 0112233  | 020 000 | 4 5", sprint_type_in_english(type));
+    assert_int(1, fpa->params[4].count, "Location counts 1");
+    assert_int(1, fpa->params[5].count, "Location counts 1");
 }
 
 int main(int argc, char **argv) {
