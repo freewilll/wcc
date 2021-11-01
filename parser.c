@@ -662,8 +662,8 @@ static Type *new_struct_or_union(char *tag_identifier) {
 }
 
 // Search for a struct tag. Returns 0 if not found.
-static Type *find_struct_or_union(char *identifier, int is_union) {
-    Tag *tag = lookup_tag(identifier, cur_scope, 1);
+static Type *find_struct_or_union(char *identifier, int is_union, int recurse) {
+    Tag *tag = lookup_tag(identifier, cur_scope, recurse);
 
     if (!tag) return 0;
 
@@ -718,7 +718,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
         consume(TOK_LCURLY, "{");
 
         Type *type = 0;
-        if (identifier) type = find_struct_or_union(identifier, is_union);
+        if (identifier) type = find_struct_or_union(identifier, is_union, 0);
         if (!type) type = new_struct_or_union(identifier);
 
         StructOrUnion *s = type->struct_or_union_desc;
@@ -793,7 +793,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
     else {
         // Struct/union use
 
-        Type *type = find_struct_or_union(identifier, is_union);
+        Type *type = find_struct_or_union(identifier, is_union, 1);
         if (type) return type; // Found a complete or incomplete struct
 
         // Didn't find a struct, but that's ok, create a incomplete one
