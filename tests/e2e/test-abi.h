@@ -32,6 +32,10 @@ struct si9 { int i1, i2, i3, i4, i5, i6, i7, i8, i9; };
 
 struct sld2 { long double ld1, ld2; };
 
+struct sia2a2 { int i[2][2]; };
+struct sia4 { int i[4]; };
+struct sfa4 { float f[4]; };
+
 // Example from ABI doc v0.98
 typedef struct { int a, b; double d; } structparm;
 
@@ -67,8 +71,11 @@ void accept_si8(struct si8 si8);
 void accept_si9(struct si9 si9);
 
 void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4);
-
+void accept_i5sia4(int i1, int i2, int i3, int i4, int i5, struct sia4 sia4);
+void accept_sia2a2(struct sia2a2 sia2a2);
+void accept_i5sia2a2(int i1, int i2, int i3, int i4, int i5, struct sia2a2 sia2a2);
 void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff);
+void accept_f5sfa4(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4);
 
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2);
 

@@ -87,9 +87,21 @@ void test_struct_params() {
     struct si4 si4; si4.i1 = 6; si4.i2 = 7; si4.i3 = 8; si4.i4 = 9;
     accept_i5si4(1, 2, 3, 4, 5, si4);
 
+    struct sia4 sia4; sia4.i[0] = 6; sia4.i[1] = 7; sia4.i[2] = 8; sia4.i[3] = 9;
+    accept_i5sia4(1, 2, 3, 4, 5, sia4);
+
+    struct sia2a2 sia2a2; sia2a2.i[0][0] = 1; sia2a2.i[0][1] = 2; sia2a2.i[1][0] = 3; sia2a2.i[1][1] = 4;
+    accept_sia2a2(sia2a2);
+
+    sia2a2.i[0][0] = 6; sia2a2.i[0][1] = 7; sia2a2.i[1][0] = 8; sia2a2.i[1][1] = 9;
+    accept_i5sia2a2(1, 2, 3, 4, 5, sia2a2);
+
     // Forcing of sffff onto the stack due to partial register exhaustion
     sffff.f1 = 6.1; sffff.f2 = 7.1; sffff.f3 = 8.1; sffff.f4 = 9.1;
     accept_f5sffff(1.1, 2.1, 3.1, 4.1, 5.1, sffff);
+
+    struct sfa4 sfa4; sfa4.f[0] = 6.1; sfa4.f[1] = 7.1; sfa4.f[2] = 8.1; sfa4.f[3] = 9.1;
+    accept_f5sfa4(1.1, 2.1, 3.1, 4.1, 5.1, sfa4);
 
     // Alignment 16 struct with 8 bytes on the stack underneath it
     struct sld2 sld2; sld2.ld1 = 8.1; sld2.ld2 = 9.1; accept_i7sld2(1, 2, 3, 4, 5, 6, 7, sld2);

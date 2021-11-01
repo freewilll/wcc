@@ -1114,19 +1114,28 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     if (!in_stack && is_single_sse_register) fpa->single_sse_register_arg_count++;
 }
 
-// Recurse through struct/union and make list of all members + their offsets
-static void flatten_struct_or_union(StructOrUnion *s, StructOrUnionScalars *scalars, int offset) {
-    for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) {
-        StructOrUnionMember *member = *pmember;
-
-        if (member->type->type == TYPE_STRUCT_OR_UNION)
-            flatten_struct_or_union(member->type->struct_or_union_desc, scalars, offset + member->offset);
-        else {
-            StructOrUnionScalar *scalar = malloc(sizeof(StructOrUnionScalar));
-            scalars->scalars[scalars->count++] = scalar;
-            scalar->type = member->type;
-            scalar->offset = offset + member->offset;
+// Recurse through a type and make list of all scalars + their offsets
+static void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) {
+    if (type->type == TYPE_STRUCT_OR_UNION) {
+        StructOrUnion *s = type->struct_or_union_desc;
+        for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) {
+            StructOrUnionMember *member = *pmember;
+            flatten_type(member->type, scalars, offset + member->offset);
         }
+    }
+
+    else if (type->type == TYPE_ARRAY) {
+        int element_size = get_type_size(type->target);
+        for (int i = 0; i < type->array_size; i++)
+            flatten_type(type->target, scalars, offset + element_size * i);
+    }
+
+    else {
+        StructOrUnionScalar *scalar = malloc(sizeof(StructOrUnionScalar));
+        if (scalars->count == MAX_STRUCT_OR_UNION_SCALARS) panic("Exceeded max number of scalars in a struct/union");
+        scalars->scalars[scalars->count++] = scalar;
+        scalar->type = type;
+        scalar->offset = offset;
     }
 }
 
@@ -1161,9 +1170,9 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             // Decompose a struct or union into up to 8 8-bytes
 
             StructOrUnionScalars *scalars = malloc(sizeof(StructOrUnionScalars));
-            scalars->scalars = malloc(sizeof(StructOrUnionScalar) * 16);
+            scalars->scalars = malloc(sizeof(StructOrUnionScalar) * MAX_STRUCT_OR_UNION_SCALARS);
             scalars->count = 0;
-            flatten_struct_or_union(type->struct_or_union_desc, scalars, 0);
+            flatten_type(type, scalars, 0);
 
             // Classify the eight bytes
             char *seen_integer = malloc(sizeof(char) * 8);

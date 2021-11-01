@@ -189,6 +189,37 @@ void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4) {
     assert_int(9, si4.i4, "accept_i5si4 9");
 }
 
+void accept_i5sia4(int i1, int i2, int i3, int i4, int i5, struct sia4 sia4) {
+    assert_int(1, i1,        "accept_i5sia4 1");
+    assert_int(2, i2,        "accept_i5sia4 2");
+    assert_int(3, i3,        "accept_i5sia4 3");
+    assert_int(4, i4,        "accept_i5sia4 4");
+    assert_int(5, i5,        "accept_i5sia4 5");
+    assert_int(6, sia4.i[0], "accept_i5sia4 6");
+    assert_int(7, sia4.i[1], "accept_i5sia4 7");
+    assert_int(8, sia4.i[2], "accept_i5sia4 8");
+    assert_int(9, sia4.i[3], "accept_i5sia4 9");
+}
+
+void accept_sia2a2(struct sia2a2 sia2a2) {
+    assert_int(1, sia2a2.i[0][0], "accept_sia2a2 1");
+    assert_int(2, sia2a2.i[0][1], "accept_sia2a2 2");
+    assert_int(3, sia2a2.i[1][0], "accept_sia2a2 3");
+    assert_int(4, sia2a2.i[1][1], "accept_sia2a2 4");
+}
+
+void accept_i5sia2a2(int i1, int i2, int i3, int i4, int i5, struct sia2a2 sia2a2) {
+    assert_int(1, i1,             "accept_i5sia2a2 1");
+    assert_int(2, i2,             "accept_i5sia2a2 2");
+    assert_int(3, i3,             "accept_i5sia2a2 3");
+    assert_int(4, i4,             "accept_i5sia2a2 4");
+    assert_int(5, i5,             "accept_i5sia2a2 5");
+    assert_int(6, sia2a2.i[0][0], "accept_i5sia2a2 6");
+    assert_int(7, sia2a2.i[0][1], "accept_i5sia2a2 7");
+    assert_int(8, sia2a2.i[1][0], "accept_i5sia2a2 8");
+    assert_int(9, sia2a2.i[1][1], "accept_i5sia2a2 9");
+}
+
 void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff) {
     assert_int(1.1, f1,       "accept_f5sffff 1");
     assert_int(2.1, f2,       "accept_f5sffff 2");
@@ -199,6 +230,18 @@ void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sff
     assert_int(7.1, sffff.f2, "accept_f5sffff 7");
     assert_int(8.1, sffff.f3, "accept_f5sffff 8");
     assert_int(9.1, sffff.f4, "accept_f5sffff 9");
+}
+
+void accept_f5sfa4(float f1, float f2, float f3, float f4, float f5, struct sfa4 sfa4) {
+    assert_float(1.1, f1,        "accept_i5sfa4 1");
+    assert_float(2.1, f2,        "accept_i5sfa4 2");
+    assert_float(3.1, f3,        "accept_i5sfa4 3");
+    assert_float(4.1, f4,        "accept_i5sfa4 4");
+    assert_float(5.1, f5,        "accept_i5sfa4 5");
+    assert_float(6.1, sfa4.f[0], "accept_i5sfa4 6");
+    assert_float(7.1, sfa4.f[1], "accept_i5sfa4 7");
+    assert_float(8.1, sfa4.f[2], "accept_i5sfa4 8");
+    assert_float(9.1, sfa4.f[3], "accept_i5sfa4 9");
 }
 
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2) {

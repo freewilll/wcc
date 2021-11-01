@@ -299,6 +299,7 @@ typedef struct register_set {
 
 enum {
     MAX_STRUCTS_AND_UNIONS        = 1024,
+    MAX_STRUCT_OR_UNION_SCALARS   = 1024,
     MAX_TYPEDEFS                  = 1024,
     MAX_STRUCT_MEMBERS            = 1024,
     MAX_INPUT_SIZE                = 10485760,
