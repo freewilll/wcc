@@ -1213,6 +1213,11 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             }
 
             else {
+                FunctionParamAllocation *backup_fpa = malloc(sizeof(FunctionParamAllocation));
+                *backup_fpa = *fpa;
+                int on_stack = 0;
+                int in_registers = 0;
+
                 // Create a location for each eight byte
                 for (int i = 0; i < eight_bytes_count; i++) {
                     fpl->locations[i].stru_size = size > 8 ? 8 : size;
@@ -1225,6 +1230,16 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                         add_type_to_allocation(fpa, &(fpl->locations[i]), new_type(TYPE_INT), 0);
                     else
                         add_type_to_allocation(fpa, &(fpl->locations[i]), new_type(TYPE_FLOAT), 0);
+
+                    if (fpl->locations[i].stack_offset != -1) on_stack = 1;
+                    else in_registers = 1;
+                }
+
+                // Part of the struct/union overflowed into the stack due to a shortage
+                // of registers. Roll back & put the whole thing in the stack.
+                if (on_stack && in_registers) {
+                    *fpa = *backup_fpa;
+                    add_single_stack_function_param_location(fpa, type);
                 }
             }
         }

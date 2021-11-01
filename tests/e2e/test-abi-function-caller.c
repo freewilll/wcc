@@ -83,6 +83,14 @@ void test_struct_params() {
     accept_si5(*&gsi5); // <= 32 bytes, done with registers
     accept_si9(*&gsi9); // > 32 bytes, done with memcpy
 
+    // Forcing of si4 onto the stack due to partial register exhaustion
+    struct si4 si4; si4.i1 = 6; si4.i2 = 7; si4.i3 = 8; si4.i4 = 9;
+    accept_i5si4(1, 2, 3, 4, 5, si4);
+
+    // Forcing of sffff onto the stack due to partial register exhaustion
+    sffff.f1 = 6.1; sffff.f2 = 7.1; sffff.f3 = 8.1; sffff.f4 = 9.1;
+    accept_f5sffff(1.1, 2.1, 3.1, 4.1, 5.1, sffff);
+
     // Alignment 16 struct with 8 bytes on the stack underneath it
     struct sld2 sld2; sld2.ld1 = 8.1; sld2.ld2 = 9.1; accept_i7sld2(1, 2, 3, 4, 5, 6, 7, sld2);
 

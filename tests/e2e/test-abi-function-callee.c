@@ -177,6 +177,30 @@ void accept_si9(struct si9 si9) {
     assert_int(9, si9.i9, "accept_si9 9");
 }
 
+void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4) {
+    assert_int(1, i1,     "accept_i5si4 1");
+    assert_int(2, i2,     "accept_i5si4 2");
+    assert_int(3, i3,     "accept_i5si4 3");
+    assert_int(4, i4,     "accept_i5si4 4");
+    assert_int(5, i5,     "accept_i5si4 5");
+    assert_int(6, si4.i1, "accept_i5si4 6");
+    assert_int(7, si4.i2, "accept_i5si4 7");
+    assert_int(8, si4.i3, "accept_i5si4 8");
+    assert_int(9, si4.i4, "accept_i5si4 9");
+}
+
+void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff) {
+    assert_int(1.1, f1,       "accept_f5sffff 1");
+    assert_int(2.1, f2,       "accept_f5sffff 2");
+    assert_int(3.1, f3,       "accept_f5sffff 3");
+    assert_int(4.1, f4,       "accept_f5sffff 4");
+    assert_int(5.1, f5,       "accept_f5sffff 5");
+    assert_int(6.1, sffff.f1, "accept_f5sffff 6");
+    assert_int(7.1, sffff.f2, "accept_f5sffff 7");
+    assert_int(8.1, sffff.f3, "accept_f5sffff 8");
+    assert_int(9.1, sffff.f4, "accept_f5sffff 9");
+}
+
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2) {
     assert_int(1, i1, "accept_i7sld2 1");
     assert_int(2, i2, "accept_i7sld2 2");

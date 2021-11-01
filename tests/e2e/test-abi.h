@@ -66,6 +66,10 @@ void accept_si7(struct si7 si7);
 void accept_si8(struct si8 si8);
 void accept_si9(struct si9 si9);
 
+void accept_i5si4(int i1, int i2, int i3, int i4, int i5, struct si4 si4);
+
+void accept_f5sffff(float f1, float f2, float f3, float f4, float f5, struct sffff sffff);
+
 void accept_i7sld2(int i1, int i2, int i3, int i4, int i5, int i6, int i7, struct sld2 sld2);
 
 void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld, double m, double n, int i, int j, int k);
