@@ -2249,21 +2249,35 @@ static void parse_expression(int level) {
 
         case TOK_SIZEOF: {
             next();
-            consume(TOK_LPAREN, "(");
+
             Type *type;
-            if (cur_token_is_type())
-                type = parse_type_name();
+            Value *expression = 0;
+            if (cur_token == TOK_LPAREN) {
+                // Sizeof(type) or sizeof(expression)
+                next();
+
+                if (cur_token_is_type())
+                    type = parse_type_name();
+                else {
+                    parse_expression(TOK_COMMA);
+                    expression = pop();
+                }
+
+                consume(TOK_RPAREN, ")");
+            }
             else {
-                parse_expression(TOK_COMMA);
-                Value *v = pop();
-                if (v->bit_field_size) panic("Cannot take sizeof a bit field");
-                type = v->type;
+                parse_expression(TOK_INC);
+                expression = pop();
+            }
+
+            if (expression) {
+                if (expression->bit_field_size) panic("Cannot take sizeof a bit field");
+                type = expression->type;
             }
 
             if (is_incomplete_type(type)) panic("Cannot take sizeof an incomplete type");
 
             push_integral_constant(TYPE_LONG, get_type_size(type));
-            consume(TOK_RPAREN, ")");
             break;
         }
 

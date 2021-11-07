@@ -680,6 +680,7 @@ void test_combination_sizes() {
     assert_int(8,  sizeof(struct {int i;}(*)[4]), "sizeof struct {int i;}(*)[4]");
 
 }
+
 void test_sizeof_expr() {
     char c1, c2;
     short s1, s2;
@@ -703,6 +704,10 @@ void test_sizeof_expr() {
     assert_int(4, sizeof(s1 << c1), "sizeof s << c");
     assert_int(4, sizeof(i1 << c1), "sizeof i << c");
     assert_int(8, sizeof(l1 << c1), "sizeof l << c");
+
+    c2 = 100;
+    assert_int(1,   sizeof c1,      "sizeof c without parentheses");
+    assert_int(101, sizeof c1 + c2, "sizeof c+c without parentheses"); // Tests oprerator precedence
 }
 
 void test_conditional_jumps() {
