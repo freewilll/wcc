@@ -107,6 +107,15 @@ static Value *load(Value *src1) {
             dst->global_symbol = 0;
             dst->type = decay_array_to_pointer(dst->type);
             add_instruction(IR_ADDRESS_OF, dst, src1, 0);
+
+            // If it's a pointer in a register with an offset, the offset needs to be
+            // added to it.
+            if (src1->vreg && src1->offset) {
+                Value *tmp = dup_value(dst);
+                tmp->vreg = new_vreg();
+                add_instruction(IR_ADD, tmp, dst, new_integral_constant(TYPE_INT, src1->offset));
+                dst = tmp;
+            }
         }
     }
 

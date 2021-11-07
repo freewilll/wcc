@@ -1110,6 +1110,25 @@ static void test_bit_field_saving() {
     s4.k = 8192; assert_long(0x2000ffff00000000UL, *pl, "32 sized bit field write 5");
 }
 
+void test_array_member_array_lookup() {
+    // This tests a bug where a pointer in a register with an offset would get lost
+
+    struct {short s; char ca[1];} sa[2] = {1, 2, 3, 4};
+
+    assert_int(0, (void *) &(sa[0]      ) - (void *) &sa, "Struct array member array lookup offset of sa[0]      ");
+    assert_int(4, (void *) &(sa[1]      ) - (void *) &sa, "Struct array member array lookup offset of sa[1]      ");
+    assert_int(0, (void *) &(sa[0].s    ) - (void *) &sa, "Struct array member array lookup offset of sa[0].s    ");
+    assert_int(2, (void *) &(sa[0].ca   ) - (void *) &sa, "Struct array member array lookup offset of sa[0].ca   ");
+    assert_int(2, (void *) &(sa[0].ca[0]) - (void *) &sa, "Struct array member array lookup offset of sa[0].ca[0]");
+    assert_int(4, (void *) &(sa[1].s    ) - (void *) &sa, "Struct array member array lookup offset of sa[1].s    ");
+    assert_int(6, (void *) &(sa[1].ca[0]) - (void *) &sa, "Struct array member array lookup offset of sa[1].ca[0]");
+
+    assert_int(1, sa[0].s,     "Struct array member array lookup 1");
+    assert_int(2, sa[0].ca[0], "Struct array member array lookup 2");
+    assert_int(3, sa[1].s,     "Struct array member array lookup 3");
+    assert_int(4, sa[1].ca[0], "Struct array member array lookup 4");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1147,6 +1166,7 @@ int main(int argc, char **argv) {
     test_bit_field_sizes();
     test_bit_field_loading();
     test_bit_field_saving();
+    test_array_member_array_lookup();
 
     finalize();
 }
