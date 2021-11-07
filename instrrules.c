@@ -593,11 +593,11 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(XRP, IR_ADDRESS_OF, MS4,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, MPV,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RP5, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
-    r = add_rule(RP1, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
-    r = add_rule(RP2, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
-    r = add_rule(RP3, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
-    r = add_rule(RP4, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
-    r = add_rule(RP5, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
+    r = add_rule(RP1, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
+    r = add_rule(RP2, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
+    r = add_rule(RP3, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
+    r = add_rule(RP4, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
+    r = add_rule(RP5, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(RPF, IR_ADDRESS_OF, FUN,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
 
     // Stores of a pointer to a pointer
