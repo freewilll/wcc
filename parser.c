@@ -1662,10 +1662,8 @@ static void parse_addition(int level) {
     int factor = get_type_inc_dec_size(vs[1]->type);
 
     if (factor > 1) {
-        if (!src2_is_pointer) {
-            push_integral_constant(TYPE_INT, factor);
-            arithmetic_operation(IR_MUL, 0);
-        }
+        push_integral_constant(TYPE_INT, factor);
+        arithmetic_operation(IR_MUL, 0);
     }
 
     arithmetic_operation(IR_ADD, 0);
