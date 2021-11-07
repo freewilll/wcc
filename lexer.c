@@ -161,7 +161,7 @@ void next(void) {
         else if (                        c1 == '>'                          )  { ip += 1;  cur_token = TOK_GT;                         }
         else if (                        c1 == '!'                          )  { ip += 1;  cur_token = TOK_LOGICAL_NOT;                }
         else if (                        c1 == '~'                          )  { ip += 1;  cur_token = TOK_BITWISE_NOT;                }
-        else if (                        c1 == '&'                          )  { ip += 1;  cur_token = TOK_ADDRESS_OF;                 }
+        else if (                        c1 == '&'                          )  { ip += 1;  cur_token = TOK_AMPERSAND;                  }
         else if (                        c1 == '|'                          )  { ip += 1;  cur_token = TOK_BITWISE_OR;                 }
         else if (                        c1 == '^'                          )  { ip += 1;  cur_token = TOK_XOR;                        }
         else if (                        c1 == '#'                          )  { ip += 1;  cur_token = TOK_HASH;                       }

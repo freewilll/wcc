@@ -1448,6 +1448,54 @@ int test_overflow() {
     l = 18446744073709551616;    // 0x10000000000000000
 }
 
+int test_constant_expressions() {
+    // See also test-parser.c
+
+    int i, *pi;
+
+    enum {
+        I1 = sizeof(i),
+        PI1 = sizeof(pi),
+        I2 = sizeof i,
+        PI2 = sizeof pi,
+        I3 = sizeof(int),
+        PI3 = sizeof(int *),
+    };
+
+    assert_int(4, I1, "constant expression sizeof(i)");
+    assert_int(8, PI1, "constant expression sizeof(pi)");
+    assert_int(4, I2, "constant expression sizeof i");
+    assert_int(8, PI2, "constant expression sizeof pi");
+    assert_int(4, I2, "constant expression sizeof(int)");
+    assert_int(8, PI2, "constant expression sizeof(int *)");
+}
+
+int test_constant_expression_uses() {
+    // Array size
+    int ia[2+3]; assert_int(20, sizeof(ia), "Integer array with constant expression declaration");
+
+    // Bitfield size
+    struct s { int i: 1, j: 2, k: 2 + 1; } s;
+    *((int *) &s) = 0;
+    s.i = 0;
+    s.j = 0;
+    s.k = -1;
+    assert_int(4, sizeof(s), "Struct bit field with constant expression declaration size");
+    assert_int(56, *((int *) &s), "Struct bit field with constant expression declaration value");
+
+    // Case value
+    int j = 0;
+    switch (2) {
+        case 1 + 1:
+            j = 1;
+    }
+    assert_int(j, 1, "Case statement with constant expression");
+
+    // Enum
+    enum { FOO = 1 + 1, };
+    assert_int(FOO, 2, "Enum value with constant expression");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1495,6 +1543,8 @@ int main(int argc, char **argv) {
     test_composite_type_of_globals();
     test_operations_with_64_bit_immediate();
     test_overflow();
+    test_constant_expressions();
+    test_constant_expression_uses();
 
     finalize();
 }

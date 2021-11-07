@@ -8,6 +8,7 @@ static Type *integer_promote_type(Type *type);
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
 static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
+void check_and_or_operation_type(Value *src1, Value *src2);
 static void parse_directive(void);
 static void parse_statement(void);
 static void parse_expression(int level);
@@ -176,6 +177,19 @@ static void push_cur_long_double(void) {
     push(v);
 }
 
+Value *make_string_literal_value_from_cur_string_literal(void) {
+    Value *value = new_value();
+
+    value->type = make_array(new_type(cur_string_literal.is_wide_char ? TYPE_INT : TYPE_CHAR), cur_string_literal.size);
+    value->string_literal_index = string_literal_count;
+    value->is_string_literal = 1;
+    if (string_literal_count > MAX_STRING_LITERALS) panic("Exceeded max string literals %d", MAX_STRING_LITERALS);
+    string_literals[string_literal_count] = cur_string_literal;
+    string_literal_count++;
+
+    return value;
+}
+
 // Add an operation to the IR
 static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *src2) {
     Value *v = new_value();
@@ -248,7 +262,7 @@ static Type *vs_operation_type(void) {
     return operation_type(vtop, vs[1], 0);
 }
 
-static int cur_token_is_type(void) {
+int cur_token_is_type(void) {
     return (
         cur_token == TOK_SIGNED ||
         cur_token == TOK_UNSIGNED ||
@@ -635,9 +649,9 @@ Type *parse_direct_declarator(void) {
             next();
 
             int size = 0;
-            if (cur_token == TOK_INTEGER) {
-                size = cur_long;
-                next();
+            if (cur_token != TOK_RBRACKET) {
+                Value *v = parse_constant_integer_expression();
+                size = v->int_value;
             }
 
             Type *array_type = new_type(TYPE_ARRAY);
@@ -784,14 +798,15 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     if (!unnamed_bit_field) next(); // consume TOK_COLON
 
                     if (type->type != TYPE_INT) panic("Bit fields must be integers");
-                    if (cur_token != TOK_INTEGER) panic("Expected an integer value for a bit field");
-                    if (cur_type_identifier && cur_long == 0) panic("Invalid bit field size 0 for named member");
-                    if (cur_long < 0 || cur_long > 32) panic("Invalid bit field size %d", cur_long);
+
+                    Value *v = parse_constant_integer_expression();
+                    int bit_field_size = v->int_value;
+
+                    if (cur_type_identifier && bit_field_size == 0) panic("Invalid bit field size 0 for named member");
+                    if (bit_field_size < 0 || bit_field_size > 32) panic("Invalid bit field size %d", cur_long);
 
                     member->is_bit_field = 1;
-                    member->bit_field_size = cur_long;
-
-                    next();
+                    member->bit_field_size = bit_field_size;
                 }
 
                 if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) panic("Expected a ; or ,");
@@ -853,23 +868,17 @@ static Type *parse_enum_type_specifier(void) {
 
         while (cur_token != TOK_RCURLY) {
             expect(TOK_IDENTIFIER, "identifier");
+            char *enum_value_identifier = cur_identifier;
             next();
             if (cur_token == TOK_EQ) {
                 next();
-                int sign = 1;
-                if (cur_token == TOK_MINUS) {
-                    sign = -1;
-                    next();
-                }
-                expect(TOK_INTEGER, "integer");
-                value = sign * cur_long;
-                next();
+                value = parse_constant_integer_expression()->int_value;
             }
 
             Symbol *s = new_symbol();
             s->is_enum_value = 1;
             s->type = new_type(TYPE_INT);
-            s->identifier = cur_identifier;
+            s->identifier = enum_value_identifier;
             s->value = value++;
             s++;
 
@@ -974,8 +983,7 @@ static void add_conditional_jump(int operation, Value *dst) {
 
 // Add instructions for && and || operators
 static void and_or_expr(int is_and) {
-    if (!is_scalar_type(vtop->type)) panic("Invalid operands to &&/||");
-    next();
+    Value *src1 = vtop;
 
     Value *ldst1 = new_label_dst(); // Store zero
     Value *ldst2 = new_label_dst(); // Second operand test
@@ -999,7 +1007,8 @@ static void and_or_expr(int is_and) {
     // Test second operand
     add_jmp_target_instruction(ldst2);
     parse_expression(TOK_BITWISE_OR);
-    if (!is_scalar_type(vtop->type)) panic("Invalid operands to &&/||");
+    Value *src2 = vtop;
+    check_and_or_operation_type(src1, src2);
     add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
     push_integral_constant(TYPE_INT, is_and ? 1 : 0);     // Store 1
     add_instruction(IR_MOVE, dst, pl(), 0);
@@ -1211,7 +1220,76 @@ static void arithmetic_operation(int operation, Type *dst_type) {
     add_ir_op(operation, dst_type, new_vreg(), src1, src2);
 }
 
-static void check_arithmetic_operation_type(int operation, Value *src1, Value *src2) {
+void check_plus_operation_type(Value *src1, Value *src2) {
+    int src1_is_pointer = is_pointer_to_object_type(src1->type);
+    int src1_is_integer = is_integer_type(src1->type);
+    int src1_is_arithmetic = is_arithmetic_type(src1->type);
+    int src2_is_pointer = is_pointer_to_object_type(src2->type);
+    int src2_is_integer = is_integer_type(src2->type);
+    int src2_is_arithmetic = is_arithmetic_type(src2->type);
+
+    // Either both operands shall have arithmetic type, or one operand shall be a
+    // pointer to an object type and the other shall have integral type.
+    if (
+        (!src1_is_arithmetic || !src2_is_arithmetic) &&
+        (!src1_is_pointer || !src2_is_integer) &&
+        (!src2_is_pointer || !src1_is_integer)
+    )
+    panic("Invalid operands to binary plus");
+
+    // Either both operands shall have arithmetic type, or one operand shall be a
+    // pointer to an object type and the other shall have integral type.
+    if (
+        (!src1_is_arithmetic || !src2_is_arithmetic) &&
+        (!src1_is_pointer || !src2_is_integer) &&
+        (!src2_is_pointer || !src1_is_integer)
+    )
+    panic("Invalid operands to binary plus");
+}
+
+static void check_minus_operation_type(Value *src1, Value *src2) {
+    int src1_is_pointer = is_pointer_to_object_type(src1->type);
+    int src1_is_arithmetic = is_arithmetic_type(src1->type);
+    int src2_is_pointer = is_pointer_to_object_type(src2->type);
+    int src2_is_integer = is_integer_type(src2->type);
+    int src2_is_arithmetic = is_arithmetic_type(src2->type);
+
+    // One of the following shall hold:
+    // * both operands have arithmetic type;
+    // * both operands are pointers to qualified or unqualified versions of compatible object types; or
+    // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
+    if (
+        (!(src1_is_arithmetic && src2_is_arithmetic)) &&
+        (!(src1_is_pointer && src2_is_pointer && types_are_compatible(deref_pointer(src1->type), deref_pointer(src2->type)))) &&
+        (!(src1_is_pointer && src2_is_integer))
+    )
+    panic("Invalid operands to binary minus");
+}
+
+void check_bitwise_shift_operation_type(Value *src1, Value *src2) {
+    if (!is_integer_type(src1->type)) panic("Invalid operands to bitwise shift");
+    if (!is_integer_type(src2->type)) panic("Invalid operands to bitwise shift");
+}
+
+void check_and_or_operation_type(Value *src1, Value *src2) {
+    if (!is_scalar_type(src2->type)) panic("Invalid operands to &&/||");
+    if (!is_scalar_type(src2->type)) panic("Invalid operands to &&/||");
+}
+
+void check_unary_operation_type(int operation, Value *value) {
+    if (operation == IR_BNOT && !is_integer_type(value->type)) panic("Cannot use ~ on a non integer");
+    if (operation == IR_LNOT && !is_scalar_type(value->type)) panic("Cannot use ! on a non scalar");
+
+    if (operation == IR_ADD || operation == IR_SUB)
+        if (!is_arithmetic_type(value->type)) panic("Can only use unary +/- on an arithmetic type");
+}
+
+void check_binary_operation_types(int operation, Value *src1, Value *src2) {
+    if (operation == IR_ADD) return check_plus_operation_type(src1, src2);
+    if (operation == IR_SUB) return check_minus_operation_type(src1, src2);
+    if (operation == IR_BSHR || operation == IR_BSHL || operation == IR_ASHR) return check_bitwise_shift_operation_type(src1, src2);
+    if (operation == IR_LAND || operation == IR_LOR) return check_and_or_operation_type(src1, src2);
+
     int src1_is_arithmetic = is_arithmetic_type(src1->type);
     int src2_is_arithmetic = is_arithmetic_type(src2->type);
     int src1_is_integer = is_integer_type(src1->type);
@@ -1281,24 +1359,25 @@ static void parse_arithmetic_operation(int level, int operation, Type *type) {
     Value *src1 = vtop;
     parse_expression(level);
     Value *src2 = vtop;
-    check_arithmetic_operation_type(operation, src1, src2);
+    check_binary_operation_types(operation, src1, src2);
 
     arithmetic_operation(operation, type);
 }
 
-static void push_global_symbol(Symbol *symbol) {
-    Value *src1 = new_value();
-    src1->type = dup_type(symbol->type);
+// Make a value out of a global symbol
+Value *make_global_symbol_value(Symbol *symbol) {
+    Value *v = new_value();
+    v->type = dup_type(symbol->type);
+    v->global_symbol = symbol;
 
     // Functions are rvalues, everything else is an lvalue
-    src1->is_lvalue = (symbol->type->type != TYPE_FUNCTION);
+    v->is_lvalue = (symbol->type->type != TYPE_FUNCTION);
 
-    src1->global_symbol = symbol;
-
-    push(src1);
+    return v;
 }
 
-static void push_local_symbol(Symbol *symbol) {
+// Make a value out of a local symbol
+Value *make_local_symbol_value(Symbol *symbol) {
     Type *type = dup_type(symbol->type);
 
     // Local symbol
@@ -1316,14 +1395,20 @@ static void push_local_symbol(Symbol *symbol) {
         // Local variable
         v->local_index = symbol->local_index;
 
-    push(v);
+    return v;
 }
 
-static void push_symbol(Symbol *symbol) {
-    if (symbol->global_identifier)
-        push_global_symbol(symbol);
+// Make a value out of a symbol
+Value *make_symbol_value(Symbol *symbol) {
+   if (symbol->global_identifier)
+        return make_global_symbol_value(symbol);
     else
-        push_local_symbol(symbol);
+        return make_local_symbol_value(symbol);
+}
+
+// Push the value for a symbol
+static void push_symbol(Symbol *symbol) {
+    push(make_symbol_value(symbol));
 }
 
 // Add type change move if necessary and return the dst value
@@ -1645,29 +1730,22 @@ static void finish_comp_assign(Value *v1) {
 
 static void parse_addition(int level) {
     if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
-    int src1_is_pointer = is_pointer_to_object_type(vtop->type);
-    int src1_is_integer = is_integer_type(vtop->type);
-    int src1_is_arithmetic = is_arithmetic_type(vtop->type);
+    Value *src1 = vtop;
     parse_expression(level);
+    Value *src2 = vtop;
     if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
-    int src2_is_pointer = is_pointer_to_object_type(vtop->type);
-    int src2_is_integer = is_integer_type(vtop->type);
-    int src2_is_arithmetic = is_arithmetic_type(vtop->type);
 
-    // Either both operands shall have arithmetic type, or one operand shall be a
-    // pointer to an object type and the other shall have integral type.
-    if (
-        (!src1_is_arithmetic || !src2_is_arithmetic) &&
-        (!src1_is_pointer || !src2_is_integer) &&
-        (!src2_is_pointer || !src1_is_integer)
-    )
-    panic("Invalid operands to binary plus");
+    check_plus_operation_type(src1, src2);
+
+    int src1_is_pointer = is_pointer_to_object_type(src1->type);
+    int src2_is_pointer = is_pointer_to_object_type(src2->type);
 
     // Swap the operands so that the pointer comes first, for convenience
     if (!src1_is_pointer && src2_is_pointer) {
-        Value *src1 = vs[0];
+        Value *tmp = vs[0];
         vs[0] = vs[1];
-        vs[1] = src1;
+        vs[1] = tmp;
+        src1 = tmp;
 
         src2_is_pointer = 0;
     }
@@ -1684,28 +1762,15 @@ static void parse_addition(int level) {
 
 static void parse_subtraction(int level) {
     Value *src1 = vtop;
-    int src1_is_pointer = is_pointer_to_object_type(vtop->type);
-    int src1_is_arithmetic = is_arithmetic_type(vtop->type);
 
     int factor = get_type_inc_dec_size(vtop->type);
 
     parse_expression(level);
     Value *src2 = vtop;
 
-    int src2_is_pointer = is_pointer_to_object_type(vtop->type);
-    int src2_is_integer = is_integer_type(vtop->type);
-    int src2_is_arithmetic = is_arithmetic_type(vtop->type);
+    check_minus_operation_type(src1, src2);
 
-    // One of the following shall hold:
-    // * both operands have arithmetic type;
-    // * both operands are pointers to qualified or unqualified versions of compatible object types; or
-    // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
-    if (
-        (!(src1_is_arithmetic && src2_is_arithmetic)) &&
-        (!(src1_is_pointer && src2_is_pointer && types_are_compatible(deref_pointer(src1->type), deref_pointer(src2->type)))) &&
-        (!(src1_is_pointer && src2_is_integer))
-    )
-    panic("Invalid operands to binary minus");
+    int src2_is_pointer = is_pointer_to_object_type(src2->type);
 
     if (factor > 1) {
         if (!src2_is_pointer) {
@@ -1728,11 +1793,10 @@ static void parse_subtraction(int level) {
 }
 
 static void parse_bitwise_shift(int level, int unsigned_operation, int signed_operation) {
-    if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
     Value *src1 = integer_promote(pl());
     parse_expression(level);
-    if (!is_integer_type(vtop->type)) panic("Invalid operands to bitwise shift");
     Value *src2 = integer_promote(pl());
+    check_bitwise_shift_operation_type(src1, src2);
     int operation = src1->type->is_unsigned ? unsigned_operation : signed_operation;
     add_ir_op(operation, src1->type, new_vreg(), src1, src2);
 }
@@ -1803,6 +1867,40 @@ static void parse_declaration(void) {
     // If it's not initialized and incomplete, bail.
     else if (is_incomplete_type(symbol->type))
         panic("Storage size is unknown");
+}
+
+Value *parse_expression_and_pop(int level) {
+    parse_expression(level);
+    return pop();
+}
+
+int parse_sizeof(expression_and_pop_function_type expr) {
+    next();
+
+    Type *type;
+    Value *expression = 0;
+    if (cur_token == TOK_LPAREN) {
+        // Sizeof(type) or sizeof(expression)
+        next();
+
+        if (cur_token_is_type())
+            type = parse_type_name();
+        else
+            expression = expr(TOK_COMMA);
+
+        consume(TOK_RPAREN, ")");
+    }
+    else
+        expression = expr(TOK_INC);
+
+    if (expression) {
+        if (expression->bit_field_size) panic("Cannot take sizeof a bit field");
+        type = expression->type;
+    }
+
+    if (is_incomplete_type(type)) panic("Cannot take sizeof an incomplete type");
+
+    return get_type_size(type);
 }
 
 // Push either an int or long double constant with value the size of v
@@ -2038,6 +2136,107 @@ static void parse_va_end() {
     push(v);
 }
 
+void parse_struct_dot_arrow_expression(void) {
+    // Struct/union member lookup
+
+    if (cur_token == TOK_DOT) {
+        if (vtop->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
+        if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
+    }
+    else {
+        if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
+        if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) panic("Can only use -> on a pointer to a struct or union");
+        if (is_incomplete_type(vtop->type->target)) panic("Dereferencing a pointer to incomplete struct or union");
+    }
+
+    int is_dot = cur_token == TOK_DOT;
+
+    next();
+    consume(TOK_IDENTIFIER, "identifier");
+
+    Type *str_type = is_dot ? vtop->type : vtop->type->target;
+    StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
+
+    if (!type_is_modifiable(str_type)) {
+        member->type = dup_type(member->type);
+        member->type->is_const = 1;
+    }
+
+    if (!is_dot) indirect();
+
+    vtop->offset = vtop->offset + member->offset;
+    vtop->bit_field_offset = vtop->offset * 8 + (member->bit_field_offset & 7);
+    vtop->bit_field_size = member->bit_field_size;
+    vtop->type = dup_type(member->type);
+    vtop->is_lvalue = 1;
+}
+
+void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2) {
+    if (!is_scalar_type(switcher->type)) panic("Expected scalar type for first operand of ternary operator");
+
+    int src1_is_arithmetic = is_arithmetic_type(src1->type);
+    int src2_is_arithmetic = is_arithmetic_type(src2->type);
+    int src1_is_pointer = is_pointer_type(src1->type);
+    int src2_is_pointer = is_pointer_type(src2->type);
+
+    Type *src1_type_deref = 0;
+    Type *src2_type_deref = 0;
+
+    if (src1_is_pointer) src1_type_deref = deref_pointer(src1->type);
+    if (src2_is_pointer) src2_type_deref = deref_pointer(src2->type);
+
+    // One of the following shall hold for the second and third operands:
+    // * both operands have arithmetic type;
+    // * both operands have compatible structure or union types;
+    // * both operands have void type;
+    // * both operands are pointers to qualified or unqualified versions of compatible types;
+    // * one operand is a pointer and the other is a null pointer constant; or
+    // * one operand is a pointer to an object or incomplete type and the other is a pointer to a qualified or unqualified version of void .
+
+    if (
+        (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
+        (!(src1->type->type == TYPE_STRUCT_OR_UNION && src2->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible(src1->type, src2->type))) &&
+        (!(src1->type->type == TYPE_VOID && src2->type->type == TYPE_VOID)) &&
+        (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
+        (!(src1_is_pointer && is_null_pointer(src2))) &&
+        (!(src2_is_pointer && is_null_pointer(src1))) &&
+        (!((is_pointer_to_object_type(src1->type) && is_pointer_to_void(src2->type)) ||
+           (is_pointer_to_object_type(src2->type) && is_pointer_to_void(src1->type))))
+    )
+        panic("Invalid operands to ternary operator");
+}
+
+void parse_ternary_expression(void) {
+    Value *switcher = vtop;
+
+    // Destination register
+    Value *dst = new_value();
+    dst->vreg = new_vreg();
+
+    Value *ldst1 = new_label_dst(); // False case
+    Value *ldst2 = new_label_dst(); // End
+    add_conditional_jump(IR_JZ, ldst1);
+    parse_expression(TOK_TERNARY);
+    Value *src1 = vtop;
+    if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
+    add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
+    add_jmp_target_instruction(ldst1);    // Start of false case
+    consume(TOK_COLON, ":");
+    parse_expression(TOK_TERNARY);
+    Value *src2 = vtop;
+
+    // Decay arrays to pointers
+    if (src1->type->type == TYPE_ARRAY) src1 = decay_array_value(src1);
+    if (src2->type->type == TYPE_ARRAY) src2 = decay_array_value(src2);
+
+    check_ternary_operation_types(switcher, src1, src2);
+
+    dst->type = operation_type(src1, src2, 1);
+    if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
+    push(dst);
+    add_jmp_target_instruction(ldst2); // End
+}
+
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
@@ -2057,7 +2256,7 @@ static void parse_expression(int level) {
         case TOK_LOGICAL_NOT:
             next();
             parse_expression(TOK_INC);
-            if (!is_scalar_type(vtop->type)) panic("Cannot use ! on a non scalar");
+            check_unary_operation_type(IR_LNOT, vtop);
 
             if (vtop->is_constant)
                 push_integral_constant(TYPE_INT, !pop()->int_value);
@@ -2070,13 +2269,13 @@ static void parse_expression(int level) {
         case TOK_BITWISE_NOT:
             next();
             parse_expression(TOK_INC);
-            if (!is_integer_type(vtop->type)) panic("Cannot use ~ on a non integer");
+            check_unary_operation_type(IR_BNOT, vtop);
             push(integer_promote(pl()));
             Type *type = vtop->type;
             add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
             break;
 
-        case TOK_ADDRESS_OF:
+        case TOK_AMPERSAND:
             next();
             parse_expression(TOK_INC);
 
@@ -2134,12 +2333,21 @@ static void parse_expression(int level) {
             }
             break;
 
+        case TOK_PLUS:
+            // Unary plus
+
+            next();
+            parse_expression(TOK_INC);
+            check_unary_operation_type(IR_ADD, vtop);
+            if (is_integer_type(vtop->type)) push(integer_promote(pl()));
+            break;
+
         case TOK_MINUS:
             // Unary minus
             next();
 
             parse_expression(TOK_INC);
-            if (!is_arithmetic_type(vtop->type)) panic("Can only use unary - on an arithmetic type");
+            check_unary_operation_type(IR_SUB, vtop);
 
             if (vtop->type->type == TYPE_LONG_DOUBLE)
                 push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
@@ -2154,15 +2362,6 @@ static void parse_expression(int level) {
 
             break;
 
-        case TOK_PLUS:
-            // Unary plus
-
-            next();
-            parse_expression(TOK_INC);
-            if (!is_arithmetic_type(vtop->type)) panic("Can only use unary + on an arithmetic type");
-            if (is_integer_type(vtop->type)) push(integer_promote(pl()));
-            break;
-
         case TOK_LPAREN:
             if (base_type)
                 parse_declaration();
@@ -2171,30 +2370,37 @@ static void parse_expression(int level) {
                 next();
                 if (cur_token_is_type()) {
                     // Cast
-                    Type *org_type = parse_type_name();
+                    Type *dst_type = parse_type_name();
                     consume(TOK_RPAREN, ")");
+
                     parse_expression(TOK_INC);
-
                     Value *v1 = pl();
-                    // Special case for (void *) int-constant
 
-                    if (is_pointer_to_void(org_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
-                        Value *dst = new_value();
-                        dst->is_constant =1;
-                        dst->int_value = v1->int_value;
-                        dst->type = make_pointer_to_void();
-                        push(dst);
+                    if (v1->is_constant) {
+                        // Special case for (void *) int-constant
+                        if (is_pointer_to_void(dst_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
+                            Value *dst = new_value();
+                            dst->is_constant =1;
+                            dst->int_value = v1->int_value;
+                            dst->type = make_pointer_to_void();
+                            push(dst);
+                        }
+                        else
+                            // Cast integer constant
+                            push(cast_constant_value(v1, dst_type));
                     }
-                    else if (v1->type != org_type) {
+                    else if (v1->type != dst_type) {
+                        // Add move instruction
                         Value *dst = new_value();
                         dst->vreg = new_vreg();
-                        dst->type = dup_type(org_type);
+                        dst->type = dup_type(dst_type);
                         add_instruction(IR_MOVE, dst, v1, 0);
                         push(dst);
                     }
                     else push(v1);
                 }
                 else {
+                    // Sub expression
                     parse_expression(TOK_COMMA);
                     consume(TOK_RPAREN, ")");
                 }
@@ -2212,15 +2418,7 @@ static void parse_expression(int level) {
             break;
 
         case TOK_STRING_LITERAL: {
-            Value *dst = new_value();
-            dst->type = make_array(new_type(cur_string_literal.is_wide_char ? TYPE_INT : TYPE_CHAR), cur_string_literal.size);
-            dst->string_literal_index = string_literal_count;
-            dst->is_string_literal = 1;
-            if (string_literal_count > MAX_STRING_LITERALS) panic("Exceeded max string literals %d", MAX_STRING_LITERALS);
-            string_literals[string_literal_count] = cur_string_literal;
-            string_literal_count++;
-
-            push(dst);
+            push(make_string_literal_value_from_cur_string_literal());
             next();
             break;
         }
@@ -2258,39 +2456,9 @@ static void parse_expression(int level) {
             }
             break;
 
-        case TOK_SIZEOF: {
-            next();
-
-            Type *type;
-            Value *expression = 0;
-            if (cur_token == TOK_LPAREN) {
-                // Sizeof(type) or sizeof(expression)
-                next();
-
-                if (cur_token_is_type())
-                    type = parse_type_name();
-                else {
-                    parse_expression(TOK_COMMA);
-                    expression = pop();
-                }
-
-                consume(TOK_RPAREN, ")");
-            }
-            else {
-                parse_expression(TOK_INC);
-                expression = pop();
-            }
-
-            if (expression) {
-                if (expression->bit_field_size) panic("Cannot take sizeof a bit field");
-                type = expression->type;
-            }
-
-            if (is_incomplete_type(type)) panic("Cannot take sizeof an incomplete type");
-
-            push_integral_constant(TYPE_LONG, get_type_size(type));
+        case TOK_SIZEOF:
+            push_integral_constant(TYPE_LONG, parse_sizeof(parse_expression_and_pop));
             break;
-        }
 
         default:
             panic("Unexpected token %d in expression", cur_token);
@@ -2301,7 +2469,6 @@ static void parse_expression(int level) {
         // In order or precedence, highest first
 
         switch (cur_token) {
-
             case TOK_LBRACKET:
                 next();
 
@@ -2342,131 +2509,31 @@ static void parse_expression(int level) {
 
             case TOK_DOT:
             case TOK_ARROW: {
-                // Struct/union member lookup
-
-                if (cur_token == TOK_DOT) {
-                    if (vtop->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
-                    if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
-                }
-                else {
-                    if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
-                    if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) panic("Can only use -> on a pointer to a struct or union");
-                    if (is_incomplete_type(vtop->type->target)) panic("Dereferencing a pointer to incomplete struct or union");
-                }
-
-                int is_dot = cur_token == TOK_DOT;
-
-                next();
-                consume(TOK_IDENTIFIER, "identifier");
-
-                Type *str_type = is_dot ? vtop->type : vtop->type->target;
-                StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
-
-                if (!type_is_modifiable(str_type)) {
-                    member->type = dup_type(member->type);
-                    member->type->is_const = 1;
-                }
-
-                if (!is_dot) indirect();
-
-                vtop->offset = vtop->offset + member->offset;
-                vtop->bit_field_offset = vtop->offset * 8 + (member->bit_field_offset & 7);
-                vtop->bit_field_size = member->bit_field_size;
-                vtop->type = dup_type(member->type);
-                vtop->is_lvalue = 1;
+                parse_struct_dot_arrow_expression();
                 break;
             }
 
-            case TOK_MULTIPLY:      next(); parse_arithmetic_operation(TOK_DOT, IR_MUL, 0); break;
-            case TOK_DIVIDE:        next(); parse_arithmetic_operation(TOK_INC, IR_DIV, 0); break;
-            case TOK_MOD:           next(); parse_arithmetic_operation(TOK_INC, IR_MOD, 0); break;
-            case TOK_PLUS:          next(); parse_addition(TOK_MULTIPLY); break;
-            case TOK_MINUS:         next(); parse_subtraction(TOK_MULTIPLY); break;
-            case TOK_BITWISE_RIGHT: next(); parse_bitwise_shift(level, IR_BSHR, IR_ASHR); break;
-            case TOK_BITWISE_LEFT:  next(); parse_bitwise_shift(level, IR_BSHL, IR_BSHL); break;
-
-            case TOK_LT:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LT,   new_type(TYPE_INT)); break;
-            case TOK_GT:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GT,   new_type(TYPE_INT)); break;
-            case TOK_LE:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_LE,   new_type(TYPE_INT)); break;
-            case TOK_GE:            next(); parse_arithmetic_operation(TOK_BITWISE_LEFT, IR_GE,   new_type(TYPE_INT)); break;
-            case TOK_DBL_EQ:        next(); parse_arithmetic_operation(TOK_LT,           IR_EQ,   new_type(TYPE_INT)); break;
-            case TOK_NOT_EQ:        next(); parse_arithmetic_operation(TOK_LT,           IR_NE,   new_type(TYPE_INT)); break;
-            case TOK_ADDRESS_OF:    next(); parse_arithmetic_operation(TOK_DBL_EQ,       IR_BAND, 0); break;
-            case TOK_XOR:           next(); parse_arithmetic_operation(TOK_ADDRESS_OF,   IR_XOR,  0); break;
-            case TOK_BITWISE_OR:    next(); parse_arithmetic_operation(TOK_XOR,          IR_BOR,  0); break;
-
-            case TOK_AND:           and_or_expr(1); break;
-            case TOK_OR:            and_or_expr(0); break;
-
-            case TOK_TERNARY: {
-                next();
-
-                if (!is_scalar_type(vtop->type)) panic("Expected scalar type for first operand of ternary operator");
-
-                // Destination register
-                Value *dst = new_value();
-                dst->vreg = new_vreg();
-
-                Value *ldst1 = new_label_dst(); // False case
-                Value *ldst2 = new_label_dst(); // End
-                add_conditional_jump(IR_JZ, ldst1);
-                parse_expression(TOK_TERNARY);
-                Value *src1 = vtop;
-                if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
-                add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
-                add_jmp_target_instruction(ldst1);    // Start of false case
-                consume(TOK_COLON, ":");
-                parse_expression(TOK_TERNARY);
-                Value *src2 = vtop;
-
-                // Decay arrays to pointers
-                if (src1->type->type == TYPE_ARRAY) src1 = decay_array_value(src1);
-                if (src2->type->type == TYPE_ARRAY) src2 = decay_array_value(src2);
-
-                int src1_is_arithmetic = is_arithmetic_type(src1->type);
-                int src2_is_arithmetic = is_arithmetic_type(src2->type);
-                int src1_is_pointer = is_pointer_type(src1->type);
-                int src2_is_pointer = is_pointer_type(src2->type);
-
-                Type *src1_type_deref = 0;
-                Type *src2_type_deref = 0;
-
-                if (src1_is_pointer) src1_type_deref = deref_pointer(src1->type);
-                if (src2_is_pointer) src2_type_deref = deref_pointer(src2->type);
-
-                // One of the following shall hold for the second and third operands:
-                // * both operands have arithmetic type;
-                // * both operands have compatible structure or union types;
-                // * both operands have void type;
-                // * both operands are pointers to qualified or unqualified versions of compatible types;
-                // * one operand is a pointer and the other is a null pointer constant; or
-                // * one operand is a pointer to an object or incomplete type and the other is a pointer to a qualified or unqualified version of void .
-
-                if (
-                    (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
-                    (!(src1->type->type == TYPE_STRUCT_OR_UNION && src2->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible(src1->type, src2->type))) &&
-                    (!(src1->type->type == TYPE_VOID && src2->type->type == TYPE_VOID)) &&
-                    (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
-                    (!(src1_is_pointer && is_null_pointer(src2))) &&
-                    (!(src2_is_pointer && is_null_pointer(src1))) &&
-                    (!((is_pointer_to_object_type(src1->type) && is_pointer_to_void(src2->type)) ||
-                       (is_pointer_to_object_type(src2->type) && is_pointer_to_void(src1->type))))
-                )
-                    panic("Invalid operands to ternary operator");
-
-                dst->type = operation_type(src1, src2, 1);
-                if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
-                push(dst);
-                add_jmp_target_instruction(ldst2); // End
-                break;
-            }
-
-            case TOK_EQ:
-                next();
-                parse_simple_assignment(1);
-                break;
-
-            // Composite assignments
+            // In order of precedence
+            case TOK_MULTIPLY:         next(); parse_arithmetic_operation(TOK_DOT, IR_MUL, 0); break;
+            case TOK_DIVIDE:           next(); parse_arithmetic_operation(TOK_DOT, IR_DIV, 0); break;
+            case TOK_MOD:              next(); parse_arithmetic_operation(TOK_DOT, IR_MOD, 0); break;
+            case TOK_PLUS:             next(); parse_addition(TOK_MULTIPLY); break;
+            case TOK_MINUS:            next(); parse_subtraction(TOK_MULTIPLY); break;
+            case TOK_BITWISE_RIGHT:    next(); parse_bitwise_shift(TOK_PLUS, IR_BSHR, IR_ASHR); break;
+            case TOK_BITWISE_LEFT:     next(); parse_bitwise_shift(TOK_PLUS, IR_BSHL, IR_BSHL); break;
+            case TOK_LT:               next(); parse_arithmetic_operation(TOK_BITWISE_RIGHT, IR_LT,   new_type(TYPE_INT)); break;
+            case TOK_GT:               next(); parse_arithmetic_operation(TOK_BITWISE_RIGHT, IR_GT,   new_type(TYPE_INT)); break;
+            case TOK_LE:               next(); parse_arithmetic_operation(TOK_BITWISE_RIGHT, IR_LE,   new_type(TYPE_INT)); break;
+            case TOK_GE:               next(); parse_arithmetic_operation(TOK_BITWISE_RIGHT, IR_GE,   new_type(TYPE_INT)); break;
+            case TOK_DBL_EQ:           next(); parse_arithmetic_operation(TOK_LT,            IR_EQ,   new_type(TYPE_INT)); break;
+            case TOK_NOT_EQ:           next(); parse_arithmetic_operation(TOK_LT,            IR_NE,   new_type(TYPE_INT)); break;
+            case TOK_AMPERSAND:        next(); parse_arithmetic_operation(TOK_DBL_EQ,        IR_BAND, 0); break;
+            case TOK_XOR:              next(); parse_arithmetic_operation(TOK_AMPERSAND,     IR_XOR,  0); break;
+            case TOK_BITWISE_OR:       next(); parse_arithmetic_operation(TOK_XOR,           IR_BOR,  0); break;
+            case TOK_AND:              next(); and_or_expr(1); break;
+            case TOK_OR:               next(); and_or_expr(0); break;
+            case TOK_TERNARY:          next(); parse_ternary_expression(); break;
+            case TOK_EQ:               next(); parse_simple_assignment(1); break;
             case TOK_PLUS_EQ:          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ);                         finish_comp_assign(v); break; }
             case TOK_MINUS_EQ:         { Value *v = prep_comp_assign(); parse_subtraction(TOK_EQ);                      finish_comp_assign(v); break; }
             case TOK_MULTIPLY_EQ:      { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_MUL,  0); finish_comp_assign(v); break; }
@@ -2662,12 +2729,7 @@ static void parse_switch_statement(void) {
         else if (cur_token == TOK_CASE) {
             next();
 
-            // TODO make this a constant expression
-            parse_expression(TOK_COMMA);
-            Value *v = pl();
-
-            if (!is_integer_type(v->type) || !v->is_constant)
-                panic("Case statements must be constant integers");
+            Value *v = parse_constant_integer_expression();
 
             // Add comparison & jump to main IR
             ir = main_ir;

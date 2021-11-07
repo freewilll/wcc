@@ -526,15 +526,16 @@ static int non_terminal_for_value(Value *v) {
 // There are a couple of possible matches for a constant.
 int match_value_to_rule_src(Value *v, int src) {
     if (v->is_constant) {
-        if (v->type->type == TYPE_LONG_DOUBLE)
+        int vtt = v->type->type;
+
+        if (vtt == TYPE_LONG_DOUBLE)
             return src == CLD;
-        else if (v->type->type == TYPE_FLOAT)
+        else if (vtt == TYPE_FLOAT)
             return src == CS3;
-        else if (v->type->type == TYPE_DOUBLE)
+        else if (vtt == TYPE_DOUBLE)
             return src == CS4;
         else {
             // Integer constant
-            if (v->type->type < TYPE_INT) panic("Unexpected constant type %d", v->type->type);
 
             // Match 1, 2 and 3
                  if (src == CSTV1 && v->int_value == 1) return 1;
@@ -543,10 +544,10 @@ int match_value_to_rule_src(Value *v, int src) {
 
             // Check match with type from the parser. This is necessary for evil casts, e.g.
             // (unsigned int) -1, which would otherwise become a CU4 and not match rules for CU3.
-                 if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->type->type == TYPE_INT)   return 1;
-            else if (              src == CI4 && !v->type->is_unsigned)                                return 1;
-                 if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->type->type == TYPE_INT)   return 1;
-            else if (              src == CU4 &&  v->type->is_unsigned)                                return 1;
+                 if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && vtt != TYPE_LONG)  return 1;
+            else if (              src == CI4 && !v->type->is_unsigned)                      return 1;
+                 if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && vtt != TYPE_LONG)  return 1;
+            else if (              src == CU4 &&  v->type->is_unsigned)                      return 1;
 
             // Determine constant non termimal by looking at the signdness and value
             else if (src >= CI1 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80        && v->int_value < 0x80       ) return 1;

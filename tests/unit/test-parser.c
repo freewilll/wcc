@@ -10,6 +10,72 @@ int verbose;
 int passes;
 int failures;
 
+void init_lexer_with_str(char *str) {
+    char *filename =  make_temp_filename("/tmp/XXXXXX.c");
+    f = fopen(filename, "w");
+    fprintf(f, "%s\n", str);
+    fprintf(f, "\n");
+    fclose(f);
+    init_lexer(filename);
+    init_parser();
+    init_scopes();
+}
+
+Value *parse_constant_expression_str(char *str) {
+    init_lexer_with_str(str);
+    Value *value = parse_constant_expression(TOK_EQ);
+
+    if (cur_token != TOK_EOF)
+        printf("%-32s Did not get EOF parsing constant expressions\n", str);
+
+    return value;
+}
+
+int check_value_is_constant(Value *value, char *str) {
+    if (!value->is_constant) {
+        failures++;
+        printf("%-32s failed, expected an integer constant, got ", str);
+        print_value(stdout, value, 0);
+        printf("\n");
+        return 0;
+    }
+
+    return 1;
+}
+
+void assert_int_const_expr(char *str, long expected) {
+    Value *value = parse_constant_expression_str(str);
+
+    if (!check_value_is_constant(value, str))
+        return;
+    else if (value->int_value != expected) {
+        failures++;
+        printf("%-32s failed, expected %ld, got %ld\n", str, expected, value->int_value);
+    }
+    else {
+        passes++;
+        if (verbose) printf("%-32s ok\n", str);
+    }
+}
+
+void assert_fp_const_expr(char *str, long double expected) {
+    Value *value = parse_constant_expression_str(str);
+
+    if (!check_value_is_constant(value, str))
+        return;
+
+    long double diff = expected - value->fp_value;
+    if (diff < 0) diff = -diff;
+    if (diff > 0.0001) {
+        failures++;
+        printf("%-32s failed, expected %Lf, got %Lf\n", str, expected, value->fp_value);
+    }
+    else {
+        passes++;
+        if (verbose) printf("%-32s ok\n", str);
+    }
+}
+
 static void assert_english_type_str(char *expected, char *actual, char *message) {
     if (strcmp(expected, actual)) {
         printf("%-32s ", message);
@@ -95,16 +161,8 @@ void test_integer_types_operations() {
     test_integer_operation_type(t(TYPE_LONG, 1), t(TYPE_INT,   0), t(TYPE_LONG, 1));
 }
 
-Type *run_lexer(char *type_str) {
-    char *filename =  make_temp_filename("/tmp/XXXXXX.c");
-    f = fopen(filename, "w");
-    fprintf(f, "%s\n", type_str);
-    fprintf(f, "\n");
-    fclose(f);
-    init_lexer(filename);
-    init_parser();
-    init_scopes();
-
+Type *parse_type_str(char *type_str) {
+    init_lexer_with_str(type_str);
     Type *result = parse_type_name();
 
     if (cur_token != TOK_EOF)
@@ -114,7 +172,7 @@ Type *run_lexer(char *type_str) {
 }
 
 Type *test_type_parser(char *type_str, char *expected_english) {
-    Type *type = run_lexer(type_str);
+    Type *type = parse_type_str(type_str);
 
     assert_english_type(type, expected_english, type_str);
 
@@ -223,17 +281,69 @@ int test_composite_type() {
     res = composite_type(type2, type1);
     assert_int(10, res->target->array_size, "Composite type of int(*)[] and int(*)[10]");
 
-    type1 = run_lexer("void (a)"); type1->function->param_types[0] = new_type(TYPE_INT);
-    type2 = run_lexer("void (int)");
+    type1 = parse_type_str("void (a)"); type1->function->param_types[0] = new_type(TYPE_INT);
+    type2 = parse_type_str("void (int)");
     res = composite_type(type1, type2);
     assert_english_type(res, "function(int) returning void", "Composite type of void() and void(int)");
     res = composite_type(type2, type1);
     assert_english_type(res, "function(int) returning void", "Composite type of void() and void(int)");
 
-    type1 = run_lexer("void (int[])");
-    type2 = run_lexer("void (int[10])");
+    type1 = parse_type_str("void (int[])");
+    type2 = parse_type_str("void (int[10])");
     res = composite_type(type1, type2);
     assert_english_type(res, "function(array[10] of int) returning void", "Composite type of void(int[]) and void(int[10])");
+}
+
+void test_constant_expressions() {
+    assert_int_const_expr("1", 1);
+    assert_fp_const_expr("1.1", 1.1);
+    assert_int_const_expr("'a'", 97);
+    assert_int_const_expr("(1)", 1);
+
+    Value *value = parse_constant_expression_str("\"foo\"");
+    assert_int(1, value->is_string_literal, "Is string literal");
+    assert_string("foo", string_literals[value->string_literal_index].data, "String literal value");
+
+    assert_int_const_expr("1 + 1",         2);
+    assert_int_const_expr("3 - 2",         1);
+    assert_int_const_expr("2 * 3",         6);
+    assert_int_const_expr("7 / 2",         3);
+    assert_int_const_expr("7 % 2",         1);
+    assert_int_const_expr("1 +2*3",        7);
+    assert_int_const_expr("1 <<2",         4);
+    assert_int_const_expr("4 >>2",         1);
+    assert_int_const_expr("1 > 2",         0); assert_int_const_expr("2>1",  1);
+    assert_int_const_expr("1 < 2",         1); assert_int_const_expr("2<1",  0);
+    assert_int_const_expr("1 >=2",         0); assert_int_const_expr("2>=1", 1);
+    assert_int_const_expr("1 >=1",         1); assert_int_const_expr("1>=1", 1);
+    assert_int_const_expr("1 <=2",         1); assert_int_const_expr("2<=1", 0);
+    assert_int_const_expr("1 <=1",         1); assert_int_const_expr("1<=1", 1);
+    assert_int_const_expr("1 ==1",         1); assert_int_const_expr("1==2", 0);
+    assert_int_const_expr("1 !=1",         0); assert_int_const_expr("1!=2", 1);
+    assert_int_const_expr("7 & 3",         3);
+    assert_int_const_expr("5 | 3",         7);
+    assert_int_const_expr("5 ^ 3",         6);
+    assert_int_const_expr("0 && 0",        0);
+    assert_int_const_expr("0 && 1",        0);
+    assert_int_const_expr("1 && 0",        0);
+    assert_int_const_expr("1 && 1",        1);
+    assert_int_const_expr("0 || 0",        0);
+    assert_int_const_expr("0 || 1",        1);
+    assert_int_const_expr("1 || 0",        1);
+    assert_int_const_expr("1 || 1",        1);
+    assert_int_const_expr("0 ? 1 : 2",     2);
+    assert_int_const_expr("1 ? 1 : 2",     1);
+    assert_int_const_expr("!1",            0);
+    assert_int_const_expr("!2",            0);
+    assert_int_const_expr("!0",            1);
+    assert_int_const_expr("~1",            -2);
+    assert_int_const_expr("~0",            -1);
+    assert_int_const_expr("+1",            1);
+    assert_int_const_expr("-1",            -1);
+    assert_int_const_expr("~-0",           -1);
+    assert_int_const_expr("~-1",           0);
+    assert_int_const_expr("sizeof(int)",   4);
+    assert_int_const_expr("sizeof(int *)", 8);
 }
 
 int main(int argc, char **argv) {
@@ -245,6 +355,7 @@ int main(int argc, char **argv) {
     test_integer_types_operations();
     test_type_parsing();
     test_composite_type();
+    test_constant_expressions();
 
     finalize();
 }

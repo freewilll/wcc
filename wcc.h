@@ -313,7 +313,7 @@ enum {
     MAX_STRUCT_OR_UNION_SCALARS   = 1024,
     MAX_TYPEDEFS                  = 1024,
     MAX_STRUCT_MEMBERS            = 1024,
-    MAX_INPUT_SIZE                = 10485760,
+    MAX_INPUT_SIZE                = 1 << 20, // 1 MB
     MAX_STRING_LITERAL_SIZE       = 4095,
     MAX_STRING_LITERALS           = 10240,
     MAX_FLOATING_POINT_LITERALS   = 10240,
@@ -388,7 +388,7 @@ enum {
     TOK_AND,                // 50
     TOK_BITWISE_OR,
     TOK_XOR,
-    TOK_ADDRESS_OF,
+    TOK_AMPERSAND,
     TOK_DBL_EQ,
     TOK_NOT_EQ,
     TOK_LT,
@@ -491,6 +491,9 @@ enum {
     IR_MOD,                   // %
     IR_EQ,                    // ==
     IR_NE,                    // !=
+    IR_LOR,                   // Logical or |
+    IR_LAND,                  // Logical and &
+    IR_LNOT,                  // Logical not
     IR_BNOT,                  // Binary not ~
     IR_BOR,                   // Binary or |
     IR_BAND,                  // Binary and &
@@ -703,17 +706,35 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
+typedef Value *expression_and_pop_function_type(int);
+
+Value *make_string_literal_value_from_cur_string_literal(void);
 Value *new_label_dst(void);
 Symbol *memcpy_symbol;
 Symbol *memset_symbol;
+int cur_token_is_type(void);
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
+void check_unary_operation_type(int operation, Value *value);
+void check_binary_operation_types(int operation, Value *src1, Value *src2);
+void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2);
 Value *load_constant(Value *cv);
 Type *parse_type_name(void);
 Type *find_struct_or_union(char *identifier, int is_union, int recurse);
 void finish_parsing_header(void);
+Value *make_symbol_value(Symbol *symbol);
+int parse_sizeof(expression_and_pop_function_type expr);
 void parse(void);
 void dump_symbols(void);
 void init_parser(void);
+
+// constexpr.c
+Type *common_const_expression_type(Value *src1, Value *src2);
+Value* evaluate_const_unary_int_operation(int operation, Value *value);
+Value* evaluate_const_binary_int_operation(int operation, Value *src1, Value *src2);
+Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src2, Type *type);
+Value *cast_constant_value(Value *src, Type *type);
+Value *parse_constant_expression(int level);
+Value *parse_constant_integer_expression();
 
 // scopes.c
 Scope *global_scope;

@@ -346,5 +346,12 @@ int main(int argc, char **argv) {
         "Cannot use an array in va_arg",
         "Cannot use an array in va_arg");
 
+    check_output(
+        "void main() {"
+        "    char i[1.1]"
+        "}",
+        "Expected an integer constant expression",
+        "Expected an integer constant expression");
+
     finalize();
 }
