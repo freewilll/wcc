@@ -638,7 +638,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
                     type = called_function->param_types[pi];
                 }
                 else
-                    type = (*call_arg)->type;
+                    type = apply_default_function_call_argument_promotions((*call_arg)->type);
 
                 int function_call_vreg;
                 Type *function_call_vreg_type;

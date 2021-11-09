@@ -480,6 +480,17 @@ static void test_va_mixed_types() {
     assert_int(9318,        test_va_mixed_types3(ll1, i1, ll2, i2),                 "Varargs with mixed types 3");
 }
 
+static void test_default_argument_promotions() {
+    char buffer[100];
+
+    sprintf(buffer, "%d", (char) 1);
+    assert_string("1", buffer, "Default argument promotion in ... for char -> int");
+
+    float f = 1.1;
+    sprintf(buffer, "%f", (float) 1.1);
+    assert_string("1.100000", buffer, "Default argument promotion in ... for float -> double");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -496,6 +507,7 @@ int main(int argc, char **argv) {
     test_long_double_alignment();
     test_structs();
     test_va_mixed_types();
+    test_default_argument_promotions();
 
     finalize();
 }

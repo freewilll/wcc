@@ -119,6 +119,7 @@ Value *cast_constant_value(Value *src, Type *type) {
     dst->is_constant = 1;
     dst->type = type;
     dst->int_value = src->int_value;
+    dst->fp_value = src->fp_value;
 
     return dst;
 }
