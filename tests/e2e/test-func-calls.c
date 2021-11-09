@@ -244,12 +244,20 @@ long double  ldplus(int i) { return i + 1.1; }
 void vplus(int *i) { (*i)++; }
 void *pvplus(int *i) { (*i)++; }
 
-int do_operation(int (*callback)(int), int value) {
+int do_operation(int callback(int), int value) {
     if (callback)
         return callback(value);
     else
         return 0;
 }
+
+int do_operation_with_ptr(int (*callback)(int), int value) {
+    if (callback)
+        return callback(value);
+    else
+        return 0;
+}
+
 struct struct_with_assert_int {
     void (*assert_int)(int, int, char *);
 };
@@ -276,11 +284,20 @@ void test_function_pointers() {
     assert_int(2, (func_ptr)(1), "Function pointer call through (ptr)");
     assert_int(2, (plus)(1), "Function pointer call through (func)");
 
-    assert_int(2, do_operation(plus,       1), "Passing function to a function 1");
-    assert_int(1, do_operation(minus,      2), "Passing function to a function 2");
-    assert_int(1, do_operation(&minus,     2), "Passing function to a function 3");
-    assert_int(0, do_operation(0,          0), "Passing function to a function 4");
-    assert_int(0, do_operation((void *) 0, 0), "Passing function to a function 4");
+    assert_int(2, do_operation(plus,       1), "Passing function to a function accepting function 1");
+    assert_int(1, do_operation(minus,      2), "Passing function to a function accepting function 2");
+    assert_int(1, do_operation(&minus,     2), "Passing ptr to function to a function accepting function 3");
+
+    assert_int(2, do_operation_with_ptr(plus,       1), "Passing function to a function accepting ptr to function 1");
+    assert_int(1, do_operation_with_ptr(minus,      2), "Passing function to a function accepting ptr to function 2");
+    assert_int(1, do_operation_with_ptr(&minus,     2), "Passing ptr to function to a function accepting ptr to function 3");
+
+    assert_int(2, do_operation_with_ptr(plus,       1), "Passing function to a function accepting ptr to function 1");
+    assert_int(1, do_operation_with_ptr(minus,      2), "Passing function to a function accepting ptr to function 2");
+    assert_int(1, do_operation_with_ptr(&minus,     2), "Passing function to a function accepting ptr to function 3");
+
+    assert_int(0, do_operation_with_ptr(0,          0), "Passing zero function to a function 1");
+    assert_int(0, do_operation_with_ptr((void *) 0, 0), "Passing zero function to a function 2");
 
     assert_int(1, null_global_func_ptr == 0, "Null global pointer 1");
     assert_int(1, global_func_ptr != 0,      "Null global pointer 2");

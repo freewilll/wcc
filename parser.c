@@ -521,9 +521,13 @@ static Type *parse_function(void) {
             Symbol *param_symbol = new_symbol();
             Type *symbol_type;
 
-            // Array parameters decay to a pointer
+            // Convert parameter types
             if (type->type == TYPE_ARRAY)
                 symbol_type = decay_array_to_pointer(type);
+            else if (type->type == TYPE_FUNCTION) {
+                symbol_type = make_pointer(type);
+                type = symbol_type;
+            }
             else if (type->type == TYPE_ENUM)
                 symbol_type = new_type(TYPE_INT);
             else
