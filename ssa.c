@@ -1299,7 +1299,7 @@ void make_interference_graph(Function *function, int include_clobbers) {
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
 
                 // All SSE registers xmm2, xmm3, ... are clobbered
-                for (int j = 3; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
+                for (int j = 2; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
 
                 // Unless the function returns something in xmm0, clobber xmm0
