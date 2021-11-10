@@ -111,15 +111,54 @@ Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src
     return v;
 }
 
-Value *cast_constant_value(Value *src, Type *type) {
-    if (types_are_compatible(src->type, type)) return src;
+Value *cast_constant_value(Value *src, Type *dst_type) {
+    if (types_are_compatible(src->type, dst_type)) return src;
 
-    // TODO actually cast something
+    Type *src_type = src->type;
+
     Value *dst = new_value();
     dst->is_constant = 1;
-    dst->type = type;
-    dst->int_value = src->int_value;
-    dst->fp_value = src->fp_value;
+    dst->type = dst_type;
+
+    // FP -> FP
+    // Don't bother changing precision
+    if (is_floating_point_type(src_type) && is_floating_point_type(dst_type)) {
+        dst->fp_value = src->fp_value;
+        return dst;
+    }
+
+    // FP -> integer
+    if (is_floating_point_type(src_type) && !is_floating_point_type(dst_type)) {
+        dst->int_value = src->fp_value;
+
+        // For compatibililty with gcc when it comes to overflows
+             if (dst_type->type == TYPE_CHAR  && !dst_type->is_unsigned && src->fp_value >        0xff) dst->int_value = 0x7f;
+        else if (dst_type->type == TYPE_CHAR  &&  dst_type->is_unsigned && src->fp_value >        0xff) dst->int_value = 0xff;
+             if (dst_type->type == TYPE_CHAR  && !dst_type->is_unsigned && src->fp_value <       -0x7f) dst->int_value = -0x80;
+        else if (dst_type->type == TYPE_CHAR  &&  dst_type->is_unsigned && src->fp_value <       -0xff) dst->int_value = 0;
+             if (dst_type->type == TYPE_SHORT && !dst_type->is_unsigned && src->fp_value >      0xffff) dst->int_value = 0x7fff;
+        else if (dst_type->type == TYPE_SHORT &&  dst_type->is_unsigned && src->fp_value >      0xffff) dst->int_value = 0xffff;
+             if (dst_type->type == TYPE_SHORT && !dst_type->is_unsigned && src->fp_value <     -0x7fff) dst->int_value = -0x8000;
+        else if (dst_type->type == TYPE_SHORT &&  dst_type->is_unsigned && src->fp_value <     -0xffff) dst->int_value = 0;
+             if (dst_type->type == TYPE_INT   && !dst_type->is_unsigned && src->fp_value >  0xffffffff) dst->int_value = 0x7fffffff;
+        else if (dst_type->type == TYPE_INT   &&  dst_type->is_unsigned && src->fp_value >  0xffffffff) dst->int_value = 0xffffffff;
+             if (dst_type->type == TYPE_INT   && !dst_type->is_unsigned && src->fp_value < -0x7fffffff) dst->int_value = -0x80000000;
+        else if (dst_type->type == TYPE_INT   &&  dst_type->is_unsigned && src->fp_value < -0xffffffff) dst->int_value = 0;
+
+        return dst;
+    }
+
+    // Implicit else: integer -> integer
+    // int_value is already sign extended to a long, so this doesn't have to be done again.
+    // The only thing that needs doing is truncation to the target type, if it's smaller
+    // than a long.
+         if (dst_type->type == TYPE_CHAR  && !dst_type->is_unsigned) dst->int_value = (         char ) src->int_value;
+    else if (dst_type->type == TYPE_CHAR  &&  dst_type->is_unsigned) dst->int_value = (unsigned char ) src->int_value;
+    else if (dst_type->type == TYPE_SHORT && !dst_type->is_unsigned) dst->int_value = (         short) src->int_value;
+    else if (dst_type->type == TYPE_SHORT &&  dst_type->is_unsigned) dst->int_value = (unsigned short) src->int_value;
+    else if (dst_type->type == TYPE_INT   && !dst_type->is_unsigned) dst->int_value = (         int  ) src->int_value;
+    else if (dst_type->type == TYPE_INT   &&  dst_type->is_unsigned) dst->int_value = (unsigned int  ) src->int_value;
+    else                                                             dst->int_value =                  src->int_value;
 
     return dst;
 }

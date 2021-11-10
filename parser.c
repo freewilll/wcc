@@ -2349,16 +2349,26 @@ static void parse_expression(int level) {
             parse_expression(TOK_INC);
             check_unary_operation_type(IR_SUB, vtop);
 
-            if (vtop->type->type == TYPE_LONG_DOUBLE)
-                push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
-            else if (vtop->type->type == TYPE_DOUBLE)
-                push_floating_point_constant(TYPE_DOUBLE, -1.0L);
-            else if (vtop->type->type == TYPE_FLOAT)
-                push_floating_point_constant(TYPE_FLOAT, -1.0L);
-            else
-                push_integral_constant(TYPE_INT, -1);
+            if (vtop->is_constant) {
+                if (is_sse_floating_point_type(vtop->type))
+                    vtop->fp_value = -vtop->fp_value;
+                else {
+                    push_integral_constant(TYPE_INT, -1);
+                    arithmetic_operation(IR_MUL, 0);
+                }
+            }
+            else {
+                if (vtop->type->type == TYPE_LONG_DOUBLE)
+                    push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
+                else if (vtop->type->type == TYPE_DOUBLE)
+                    push_floating_point_constant(TYPE_DOUBLE, -1.0L);
+                else if (vtop->type->type == TYPE_FLOAT)
+                    push_floating_point_constant(TYPE_FLOAT, -1.0L);
+                else
+                    push_integral_constant(TYPE_INT, -1);
 
-            arithmetic_operation(IR_MUL, 0);
+                arithmetic_operation(IR_MUL, 0);
+            }
 
             break;
 

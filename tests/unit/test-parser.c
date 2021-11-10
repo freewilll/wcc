@@ -344,6 +344,8 @@ void test_constant_expressions() {
     assert_int_const_expr("~-1",           0);
     assert_int_const_expr("sizeof(int)",   4);
     assert_int_const_expr("sizeof(int *)", 8);
+
+    // Casting is tested in test_constant_casting()
 }
 
 int main(int argc, char **argv) {

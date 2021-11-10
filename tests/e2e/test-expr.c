@@ -1496,6 +1496,46 @@ int test_constant_expression_uses() {
     assert_int(FOO, 2, "Enum value with constant expression");
 }
 
+int test_constant_casting() {
+    // FP -> FP
+    assert_float(1.1f, (float)       1.1f, "Casting float -> float");
+    assert_float(1.1f, (double)      1.1f, "Casting float -> double");
+    assert_float(1.1f, (long double) 1.1f, "Casting float -> long double");
+    assert_float(1.1,  (float)       1.1,  "Casting double -> float");
+    assert_float(1.1,  (double)      1.1,  "Casting double -> double");
+    assert_float(1.1,  (long double) 1.1,  "Casting double -> long double");
+    assert_float(1.1L, (float)       1.1L, "Casting long double -> float");
+    assert_float(1.1L, (double)      1.1L, "Casting long double -> double");
+    assert_float(1.1L, (long double) 1.1L, "Casting long double -> long double");
+
+    // FP -> integer
+    assert_int(1,            (char)            1.1f,          "Casting float -> char");
+    assert_int(0x7f,         (char)            256.1f,        "Casting float -> char overflow");
+    assert_int(0xff,         (unsigned char)   256.1f,        "Casting float -> unsigned char overflow");
+    assert_int(-0x80,        (char)           -256.1f,        "Casting float -> char negative overflow");
+    assert_int(0,            (unsigned char)  -256.1f,        "Casting float -> unsigned char negative overflow");
+    assert_int(1,            (short)           1.1f,          "Casting float -> short");
+    assert_int(0x7fff,       (short)           65536.1f,      "Casting float -> short overflow");
+    assert_int(0xffff,       (unsigned short)  65536.1f,      "Casting float -> unsigned short overflow");
+    assert_int(-0x8000,      (short)          -65536.1f,      "Casting float -> short negative overflow");
+    assert_int(0,            (unsigned short) -65536.1f,      "Casting float -> unsigned short negative overflow");
+    assert_int(1,            (int)             1.1f,          "Casting float -> int");
+    assert_long(0x7fffffffL, (int)             4294967296.1f, "Casting float -> int overflow");
+    assert_int(-1,           (unsigned int)    4294967296.1f, "Casting float -> unsigned int overflow");
+    assert_int(-0x80000000,  (int)            -4294967296.1f, "Casting float -> int negative overflow");
+    assert_int(0,            (unsigned int)   -4294967296.1f, "Casting float -> unsigned int negative overflow");
+
+    // Integer -> integer
+    assert_int(255,                  (unsigned char)  -1L, "Casting to unsigned char");
+    assert_int(-1,                   (char)           -1L, "Casting to char");
+    assert_int(0xffff,               (unsigned short) -1L, "Casting to unsigned short");
+    assert_int(-1,                   (short)          -1L, "Casting to short");
+    assert_int(0xffffffffL,          (unsigned int)   -1L, "Casting to unsigned int");
+    assert_int(-1,                   (int)            -1L, "Casting to int");
+    assert_long(0xffffffffffffffffL, (unsigned long)  -1L, "Casting to unsigned long");
+    assert_long(-1,                  (long)           -1L, "Casting to long");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1545,6 +1585,7 @@ int main(int argc, char **argv) {
     test_overflow();
     test_constant_expressions();
     test_constant_expression_uses();
+    test_constant_casting();
 
     finalize();
 }
