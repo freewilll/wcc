@@ -1361,7 +1361,11 @@ static Tac *make_spill_instruction(Value *v) {
 
     make_value_x86_size(v);
 
-    if (v->type->type == TYPE_FLOAT) {
+    if (v->type->type == TYPE_FUNCTION) {
+        x86_operation = X_MOV;
+        x86_template = "movq %v1q, %vdq";
+    }
+    else if (v->type->type == TYPE_FLOAT) {
         x86_operation = X_MOV;
         x86_template = "movss %v1F, %vdF";
     }
@@ -1401,6 +1405,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
     tac->src1 = v;
     tac->dst = new_value();
     tac->dst->type = new_type(TYPE_LONG);
+    tac->dst->type->function = v->type->function; // For (pointers to )functions in registers
     tac->dst->x86_size = 4;
     tac->dst->vreg = -1000;   // Dummy value
     tac->dst->preg = preg;

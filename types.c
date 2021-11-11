@@ -397,6 +397,8 @@ int get_type_alignment(Type *type) {
             }
             return max;
         }
+        case TYPE_FUNCTION: // Is really a pointer to a function
+            return 8;
         default:
             panic("align of unknown type %d", t);
     }
