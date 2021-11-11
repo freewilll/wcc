@@ -4,19 +4,6 @@
 
 #include "wcc.h"
 
-Type *common_const_expression_type(Value *src1, Value *src2) {
-    if (src1->type->type == TYPE_LONG_DOUBLE || src2->type->type == TYPE_LONG_DOUBLE)
-        return new_type(TYPE_LONG_DOUBLE);
-    else if (src1->type->type == TYPE_DOUBLE || src2->type->type == TYPE_DOUBLE)
-        return new_type(TYPE_DOUBLE);
-    else if (src1->type->type == TYPE_FLOAT || src2->type->type == TYPE_FLOAT)
-        return new_type(TYPE_FLOAT);
-    else if (src1->type->type <= TYPE_INT && src2->type->type <= TYPE_INT)
-        return new_type(TYPE_INT);
-    else
-        return new_type(TYPE_LONG);
-}
-
 Value *evaluate_const_unary_int_operation(int operation, Value *value) {
     long r;
 
@@ -26,8 +13,9 @@ Value *evaluate_const_unary_int_operation(int operation, Value *value) {
     else if (operation == IR_SUB)  r = -value->int_value;
     else return 0;
 
+    // Perform integer promotions everywhere except for logical not,
     Value *v = new_value();
-    v->type = new_type(TYPE_LONG);
+    v->type = IR_LNOT ? new_type(TYPE_INT) : integer_promote_type(value->type);
     v->type->is_unsigned = value->type->is_unsigned;
     v->is_constant = 1;
     v->int_value = r;
@@ -78,7 +66,7 @@ Value *evaluate_const_binary_int_operation(int operation, Value *src1, Value *sr
     else return 0;
 
     Value *v = new_value();
-    v->type = new_type(TYPE_LONG);
+    v->type = operation_type(src1, src2, 0);
     v->type->is_unsigned = is_unsigned;
     v->is_constant = 1;
     v->int_value = r;

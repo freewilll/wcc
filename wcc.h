@@ -728,7 +728,6 @@ void dump_symbols(void);
 void init_parser(void);
 
 // constexpr.c
-Type *common_const_expression_type(Value *src1, Value *src2);
 Value* evaluate_const_unary_int_operation(int operation, Value *value);
 Value* evaluate_const_binary_int_operation(int operation, Value *src1, Value *src2);
 Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src2, Type *type);
@@ -755,6 +754,7 @@ void print_type_in_english(Type *type);
 Type *new_type(int type);
 StructOrUnion *dup_struct_or_union(StructOrUnion *src);
 Type *dup_type(Type *src);
+Type *integer_promote_type(Type *type);
 Type *make_pointer(Type *src);
 Type *make_pointer_to_void(void);
 Type *deref_pointer(Type *type);

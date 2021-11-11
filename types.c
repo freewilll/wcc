@@ -222,6 +222,15 @@ Type *dup_type(Type *src) {
     return dst;
 }
 
+Type *integer_promote_type(Type *type) {
+    if (!is_integer_type(type)) panic("Invalid operand, expected integer type");
+
+    if (type->type >= TYPE_INT && type->type <= TYPE_LONG)
+        return type;
+    else
+        return new_type(TYPE_INT); // An int can hold all the values
+}
+
 Type *make_pointer(Type *src) {
     Type *dst = new_type(TYPE_PTR);
     dst->target = dup_type(src);

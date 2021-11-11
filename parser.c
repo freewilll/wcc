@@ -4,7 +4,6 @@
 
 #include "wcc.h"
 
-static Type *integer_promote_type(Type *type);
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
 static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
@@ -1037,15 +1036,6 @@ static Value *integer_type_change(Value *src, Type *type) {
     add_instruction(IR_MOVE, dst, src, 0);
 
     return dst;
-}
-
-static Type *integer_promote_type(Type *type) {
-    if (!is_integer_type(type)) panic("Invalid operand, expected integer type");
-
-    if (type->type >= TYPE_INT && type->type <= TYPE_LONG)
-        return type;
-    else
-        return new_type(TYPE_INT); // An int can hold all the values
 }
 
 static Value *integer_promote(Value *v) {

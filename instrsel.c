@@ -621,7 +621,7 @@ static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     int cst2 = cst1 && (src2 && src2->is_constant);
     if (!src2 || !cst2) return 0;
 
-    Type *common_type = common_const_expression_type(src1, src2);
+    Type *common_type = operation_type(src1, src2, 0);
     if (is_floating_point_type(src1->type) && is_floating_point_type(src2->type)) {
         return merge_fp_constants(igraph, node_id, operation, src1, src2, common_type);
     }

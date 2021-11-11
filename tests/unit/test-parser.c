@@ -342,8 +342,17 @@ void test_constant_expressions() {
     assert_int_const_expr("-1",            -1);
     assert_int_const_expr("~-0",           -1);
     assert_int_const_expr("~-1",           0);
-    assert_int_const_expr("sizeof(int)",   4);
-    assert_int_const_expr("sizeof(int *)", 8);
+
+    // Sizes
+    assert_int_const_expr("sizeof(int)",        4);
+    assert_int_const_expr("sizeof(int *)",      8);
+    assert_int_const_expr("sizeof(1 + 1)",      4);
+    assert_int_const_expr("sizeof(!1)",         4);
+    assert_int_const_expr("sizeof((char) 1)",   1);
+    assert_int_const_expr("sizeof((short) 1)",  2);
+    assert_int_const_expr("sizeof((int) 1)",    4);
+    assert_int_const_expr("sizeof((long) 1)",   8);
+    assert_int_const_expr("sizeof(~ (char) 1)", 4);
 
     // Casting is tested in test_constant_casting()
 }
