@@ -23,6 +23,30 @@ Type *lex_type(char *type_str) {
     return parse_type_name();
 }
 
+void assert_type_eq(Type *type1, Type *type2, char *message) {
+    int compatible = types_are_compatible(type1, type2);
+    char buffer[100];
+    sprintf(buffer, "%s offset", message);
+    assert_int(1, compatible, buffer);
+
+    if (!compatible) {
+        printf("Type differences:\n");
+        printf("  Expected: "); print_type_in_english(type1);
+        printf("  Got:      "); print_type_in_english(type2);
+    }
+}
+
+void assert_it_type(TypeIterator *it, int offset, char *type_str, char *message) {
+    assert_type_eq(it->type, lex_type(type_str), message);
+    char buffer[100];
+    sprintf(buffer, "%s offset", message);
+    assert_int(offset, it->offset, buffer);
+}
+
+void assert_it_done(TypeIterator *it, int value) {
+    assert_int(value, type_iterator_done(it), "type iterator done");
+}
+
 int test_compatible_types() {
     Type *type1, *type2;
 
@@ -190,6 +214,116 @@ int test_compatible_types() {
     assert_int(0, types_are_compatible(type1, type2), "function types mismatch in K&R void(char) vs non-K&R void(int)");
 }
 
+void test_type_iterator() {
+    TypeIterator *it;
+    char *type_str;
+    Type *type;
+
+    // Test shallow iteration
+    type = lex_type("int");
+    it = type_iterator(type);
+                                 assert_it_done(it, 0); assert_it_type(it, 0, "int", "Shallow iteration int");
+    it = type_iterator_next(it); assert_it_done(it, 1);
+
+    type_str = "struct s { char c; short s; }";
+    type = lex_type(type_str);
+    it = type_iterator(type);    assert_it_done(it, 0); assert_it_type(it, 0, type_str, "Shallow iteration struct s { char c; short s; } char");
+    it = type_iterator_next(it); assert_it_done(it, 0); assert_it_type(it, 2, type_str, "Shallow iteration struct s { char c; short s; } short");
+    it = type_iterator_next(it); assert_it_done(it, 1);
+
+    type_str = "char c[2]";
+    type = lex_type(type_str);
+    it = type_iterator(type);
+                                 assert_it_done(it, 0); assert_it_type(it, 0, type_str, "Shallow iteration char c[2][0]");
+    it = type_iterator_next(it); assert_it_done(it, 0); assert_it_type(it, 1, type_str, "Shallow iteration char c[2][1]");
+    it = type_iterator_next(it); assert_it_done(it, 1);
+
+    type_str = "struct { struct { int i; long l; } s; char c[2]; short s; }";
+    type = lex_type(type_str);
+    it = type_iterator(type);
+                                 assert_it_done(it, 0); assert_it_type(it, 0,  type_str, "Shallow iteration nested struct 1");
+    it = type_iterator_next(it); assert_it_done(it, 0); assert_it_type(it, 16, type_str, "Shallow iteration nested struct 2");
+    it = type_iterator_next(it); assert_it_done(it, 0); assert_it_type(it, 18, type_str, "Shallow iteration nested struct 3");
+    it = type_iterator_next(it); assert_it_done(it, 1);
+
+    // Test deep iteration
+    type = lex_type("int");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "int", "Deep interation int");
+    it = type_iterator_dig(it); it = type_iterator_next(it); assert_it_done(it, 1);
+
+    type = lex_type("struct s { char c; short s; }");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "char",  "Deep interation struct s { char c; short s; } 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 2, "short", "Deep interation struct s { char c; short s; } 2");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("char c[2]");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "char", "Deep interation int char[2] 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 1, "char", "Deep interation int char[2] 2");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("struct s { char c; short s; }[2]");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "char",  "Deep interation struct s { char c; short s; }[2] 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 2, "short", "Deep interation struct s { char c; short s; }[2] 2");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 4, "char",  "Deep interation struct s { char c; short s; }[2] 3");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 6, "short", "Deep interation struct s { char c; short s; }[2] 4");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("struct s { char c[2]; short s; }");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "char",  "Deep interation struct s { char c[2]; short s; } 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 1, "char",  "Deep interation struct s { char c[2]; short s; } 2");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 2, "short", "Deep interation struct s { char c[2]; short s; } 3");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("struct s { struct { int i; long l; } s; char c; }");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0,  "int",  "struct s { struct { int i; long l; } s; char c; } 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 8,  "long", "struct s { struct { int i; long l; } s; char c; } 2");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 16, "char", "struct s { struct { int i; long l; } s; char c; } 3");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("struct s { struct { int i; long l; } s; char c[2]; }");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0,  "int",  "struct s { struct { int i; long l; } s; char c[2]; } 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 8,  "long", "struct s { struct { int i; long l; } s; char c[2]; } 2");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 16, "char", "struct s { struct { int i; long l; } s; char c[2]; } 3");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 17, "char", "struct s { struct { int i; long l; } s; char c[2]; } 4");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("struct s { struct { int i; long l[2]; } s; char c[2]; }");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0,  "int",  "struct s { struct { int i; long l[2]; } s; char c[2]; } 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 8,  "long", "struct s { struct { int i; long l[2]; } s; char c[2]; } 2");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 16, "long", "struct s { struct { int i; long l[2]; } s; char c[2]; } 3");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 24, "char", "struct s { struct { int i; long l[2]; } s; char c[2]; } 4");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 25, "char", "struct s { struct { int i; long l[2]; } s; char c[2]; } 5");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("struct s { struct {char c; short s; } s[2]; int i[1]; }");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "char",  "struct s { struct {char c; short s; } s[2]; int i[1]; } 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 2, "short", "struct s { struct {char c; short s; } s[2]; int i[1]; } 2");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 4, "char",  "struct s { struct {char c; short s; } s[2]; int i[1]; } 3");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 6, "short", "struct s { struct {char c; short s; } s[2]; int i[1]; } 4");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 8, "int",   "struct s { struct {char c; short s; } s[2]; int i[1]; } 5");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("union u { char c; short s; }");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "char", "Deep interation union u { char c; short s; }");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("union u { char c; short s; }[2]");
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "char", "Deep interation union u { char c; short s; }[2] 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 2, "char", "Deep interation union u { char c; short s; }[2] 2");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -197,6 +331,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv, &verbose);
 
     test_compatible_types();
+    test_type_iterator();
 
     finalize();
 }

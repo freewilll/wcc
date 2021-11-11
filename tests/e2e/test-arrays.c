@@ -169,7 +169,27 @@ void test_function_array_param_with_address_of() {
     accept_array_with_address_of(a);
 }
 
+void test_array_lvalues() {
+    int arr[2];
+    assert_int(&arr, &arr[0],                              "& on an array 1");
+    assert_int(arr + 1, &arr[1],                           "& on an array 2");
+    assert_int(sizeof(arr[1]), (int) &arr[1] - (int) &arr, "& on an array 3");
+}
+
+void test_negative_array_lookup() {
+    // Negative lookup
+    int i[3] = {1, 2, 3};
+    assert_int(1, i[0], "Negative array lookup 1");
+    assert_int(2, i[1], "Negative array lookup 2");
+    assert_int(3, i[2], "Negative array lookup 3");
+    int *pi = &i[3];
+    assert_int(3, pi[-1], "Negative array lookup 4");
+    assert_int(2, pi[-2], "Negative array lookup 5");
+    assert_int(1, pi[-3], "Negative array lookup 6");
+}
+
 int main(int argc, char **argv) {
+
     passes = 0;
     failures = 0;
 
@@ -183,6 +203,8 @@ int main(int argc, char **argv) {
     test_arithmetic();
     test_struct();
     test_function_array_param_with_address_of();
+    test_array_lvalues();
+    test_negative_array_lookup();
 
     finalize();
 }

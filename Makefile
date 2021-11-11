@@ -88,6 +88,10 @@ test-unit: libwcc.a strmap.c longmap.c
 test-unit-parser: libwcc.a
 	cd tests && ${MAKE} test-unit-parser
 
+.PHONY: test-unit-types
+test-unit-types: libwcc.a
+	cd tests && ${MAKE} test-unit-types
+
 .PHONY: test-integration
 test-integration: libwcc.a wcc
 	cd tests && ${MAKE} test-integration

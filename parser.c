@@ -7,6 +7,7 @@
 static Type *integer_promote_type(Type *type);
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
+static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
 static void parse_directive(void);
 static void parse_statement(void);
 static void parse_expression(int level);
@@ -1422,14 +1423,10 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
     warn_of_incompatible_types_in_assignment(dst->type, src->type);
 }
 
-static void parse_simple_assignment(int enforce_const) {
-    next();
-    if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
-    if (enforce_const && !type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
-
-    Value *dst = pop();
-    parse_expression(TOK_EQ);
-    Value *src1 = pl();
+// Add instruction to assign a scalar value in src1 to dst
+static void add_simple_assignment_instruction(Value *dst, Value *src1, int enforce_const) {
+    if (!dst->is_lvalue) panic("Cannot assign to an rvalue");
+    if (enforce_const && !type_is_modifiable(dst->type)) panic("Cannot assign to read-only variable");
 
     dst->is_lvalue = 1;
 
@@ -1443,6 +1440,177 @@ static void parse_simple_assignment(int enforce_const) {
         add_instruction(IR_MOVE, dst, src1, 0);
 
     push(dst);
+}
+
+// Parse a simple assignment expression. The stack as the dst.
+static void parse_simple_assignment(int enforce_const) {
+    if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
+    if (enforce_const && !type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
+
+    Value *dst = pop();
+    parse_expression(TOK_EQ);
+    Value *src1 = pl();
+
+    add_simple_assignment_instruction(dst, src1, enforce_const);
+}
+
+// Initialize value with zeroes starting with offset & size.
+// Do it in increments of 8, 4, 2, 1, to minimize the amount of instructions
+static void initialize_with_zeroes(Value *value, int offset, int size) {
+    Value *src1 = new_integral_constant(TYPE_INT, size);
+    Value *dst = dup_value(value);
+    dst->offset += offset;
+    add_instruction(IR_ZERO, dst, src1, 0);
+}
+
+// The first member of the union is going to get initialized. If the union size is
+// larger than the size of the first member, zero the upper remainder
+static void initialize_union_with_zeroes(Value *value, int offset) {
+    int union_size = get_type_size(value->type);
+    int first_member_size = get_type_size(value->type->struct_or_union_desc->members[0]->type);
+    if (first_member_size < union_size) initialize_with_zeroes(value, offset + first_member_size, union_size - first_member_size);
+}
+
+// Initialize an array of chars or wchar_t with a string literal
+static TypeIterator *initialize_with_string_literal(TypeIterator *it, Value *value, Value *string_literal) {
+    StringLiteral *sl = &(string_literals[string_literal->string_literal_index]);
+
+    if (sl->is_wide_char) {
+        int *int_data = (int *) sl->data;
+        int size = sl->size / sizeof(int);
+
+        for (int i = 0; i < size; i++) {
+            Value *v = new_integral_constant(TYPE_INT, int_data[i]);
+            it = parse_initializer(it, value, v);
+        }
+    }
+    else {
+        for (int i = 0; i < sl->size; i++) {
+            Value *v = new_integral_constant(TYPE_INT, sl->data[i]);
+            it = parse_initializer(it, value, v);
+        }
+    }
+
+    return it;
+}
+
+// Parse an initializer for a variable with automatic storage. If expression is set, it
+// is used as a initializer for a scalar value, otherwise, the expression is parsed.
+static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression) {
+    TypeIterator *outer_it = it;
+    int initial_outer_offset = it->offset;
+
+    if (cur_token == TOK_LCURLY) {
+        // Parse {...} initializer
+
+        next();
+        if (cur_token == TOK_RCURLY) panic("Empty array/struct/union initializer");
+
+        // Loop over all comma separated expressions
+        while (cur_token != TOK_RCURLY) {
+            if (cur_token != TOK_LCURLY) {
+                // Scalar
+                it = parse_initializer(it, value, 0);
+            }
+            else {
+                // Sub initializer {...}
+                if (!type_iterator_done(it)) {
+                    // When encountering a {} in a sub initializer, descend down
+                    // one level from wherever the iterator currently is, and recurse.
+                    TypeIterator *child;
+                    child = type_iterator_descend(it);
+                    child->parent = 0;
+                    parse_initializer(child, value, 0);
+                    it = type_iterator_next(it); // Advance the top level iterator
+                }
+                else {
+                    // There are extraneous expressions, keep recursing and throw
+                    // everything away
+                    parse_initializer(it, value, 0);
+                }
+            }
+
+            if (cur_token == TOK_COMMA) next();
+        }
+        consume(TOK_RCURLY, "}");
+    }
+
+    else {
+        // Initialization of a scalar value
+
+        if (type_iterator_done(it)) {
+            // Parse and ignore any expressions if the iteration has run out
+            if (!expression) parse_expression(TOK_EQ);
+            return it;
+        }
+
+        Value *src;
+        int initialize_string_literal = 0;
+        if (expression)
+            src = expression;
+        else {
+            parse_expression(TOK_EQ);
+            initialize_string_literal =
+                vtop->is_string_literal && it->type->type == TYPE_ARRAY &&
+                (it->type->target->type == TYPE_CHAR || it->type->target->type == TYPE_INT);
+        }
+
+        if (initialize_string_literal) {
+            it = initialize_with_string_literal(it, value, pop());
+            // Falls through to array size setting code
+        }
+
+        else {
+            if (!expression) src = pl();
+
+            // Recurse to deepest scalar unless the expression is a struct, which
+            // can be assigned directly.
+            if (src->type->type != TYPE_STRUCT_OR_UNION) it = type_iterator_dig(it);
+
+            // For unions, ensure that the whole union is initialized, even if the
+            // first member is smaller than the others.
+            if (value->type->type == TYPE_STRUCT_OR_UNION && value->type->struct_or_union_desc->is_union)
+                initialize_union_with_zeroes(value, it->offset);
+
+            Value *child = dup_value(value);
+            child->offset = it->offset;
+            child->type = it->type;
+            child->is_lvalue = 1;
+            add_simple_assignment_instruction(child, src, 0);
+
+            return type_iterator_next(it);
+        }
+    }
+
+    // Complete incomplete arrays
+    if (outer_it->type->type == TYPE_ARRAY && outer_it->type->array_size == 0) {
+        if (outer_it != it) {
+            // An array was descended into, but not completed. Zero the elements first.
+            int array_element_size = get_type_size(outer_it->type->target);
+            int zeroes = array_element_size - ((it->offset - initial_outer_offset) % array_element_size);
+            if (zeroes < 0) panic("Internal error, got negative zeroes");
+            if (zeroes)
+                initialize_with_zeroes(value, it->offset, zeroes);
+
+            // Advance the index since the half-initialized element counts towards
+            // the array size
+            outer_it->index++;
+        }
+
+        // Complete the array
+        outer_it->type->array_size = outer_it->index;
+    }
+
+    // If not all values where reached, set the remainder with zeroes
+    if (!type_iterator_done(it)) {
+        int outer_size = get_type_size((outer_it->type));
+        int zeroes = initial_outer_offset + outer_size - it->offset;
+        if (zeroes < 0) panic("Internal error, got negative zeroes");
+        if (zeroes)
+            initialize_with_zeroes(value, it->offset, zeroes);
+    }
+
+    return it;
 }
 
 // Prepare compound assignment
@@ -1596,9 +1764,8 @@ static void parse_declaration(void) {
         symbol->local_index = new_local_index();
     }
 
-    if (is_incomplete_type(symbol->type))
-        panic("Storage size is unknown");
-
+    // Ensure that incomplete arrays are completed if initialized
+    Value *array_declaration = 0;
     if (symbol->type->type == TYPE_STRUCT_OR_UNION) {
         push_symbol(symbol);
         add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
@@ -1606,16 +1773,25 @@ static void parse_declaration(void) {
 
     if (symbol->type->type == TYPE_ARRAY) {
         push_symbol(symbol);
-        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
+        array_declaration = pop();
+        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, array_declaration, 0);
     }
 
     if (cur_token == TOK_EQ) {
         push_symbol(symbol);
         Type *old_base_type = base_type;
         base_type = 0;
-        parse_simple_assignment(0);
+        next();
+        Value *v = pop();
+        parse_initializer(type_iterator(v->type), v, 0);
+        symbol->type = v->type;
+        if (array_declaration) array_declaration->type = v->type;
         base_type = old_base_type;
     }
+
+    // If it's not initialized and incomplete, bail.
+    else if (is_incomplete_type(symbol->type))
+        panic("Storage size is unknown");
 }
 
 // Push either an int or long double constant with value the size of v
@@ -2261,6 +2437,7 @@ static void parse_expression(int level) {
             }
 
             case TOK_EQ:
+                next();
                 parse_simple_assignment(1);
                 break;
 

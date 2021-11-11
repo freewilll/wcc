@@ -169,6 +169,7 @@ char *operation_string(int operation) {
         case IR_VA_START:           return "IR_VA_START";
         case IR_VA_ARG:             return "IR_VA_ARG";
         case IR_RETURN:             return "IR_RETURN";
+        case IR_ZERO:               return "IR_ZERO";
         case IR_LOAD_LONG_DOUBLE:   return "IR_LOAD_LONG_DOUBLE";
         case IR_START_LOOP:         return "IR_START_LOOP";
         case IR_END_LOOP:           return "IR_END_LOOP";
@@ -299,6 +300,11 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
 
     else if (o == IR_VA_ARG)
         fprintf(f, "va_arg ");
+
+    else if (o == IR_ZERO) {
+        fprintf(f, "zero memory with size ");
+        print_value(f, tac->src1, 1);
+    }
 
     else if (o == IR_LOAD_LONG_DOUBLE) {
         fprintf(f, "load long double ");
@@ -818,7 +824,7 @@ void remove_unused_function_call_results(Function *function) {
     free(used_vregs);
 }
 
-static Value *insert_address_of_instruction(Function *function, Tac **ir, Value *src) {
+static Value *insert_address_of_instruction_after(Function *function, Tac **ir, Value *src) {
     Value *v = new_value();
 
     v->vreg = ++function->vreg_count;
@@ -828,7 +834,7 @@ static Value *insert_address_of_instruction(Function *function, Tac **ir, Value 
     return v;
 }
 
-static void *insert_arg_instruction(Tac **ir, Value *function_call_value, Value *v, int int_arg_index) {
+static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Value *v, int int_arg_index) {
     Value *arg_value = dup_value(function_call_value);
     arg_value->function_call_arg_index = int_arg_index;
 
@@ -840,7 +846,23 @@ static void *insert_arg_instruction(Tac **ir, Value *function_call_value, Value 
     fpl->locations[0].int_register = int_arg_index;
     fpl->locations[0].sse_register = -1;
 
-    *ir = insert_instruction_after_from_operation(*ir, IR_ARG, 0, arg_value, v);
+    return insert_instruction_after_from_operation(ir, IR_ARG, 0, arg_value, v);
+}
+
+static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, Symbol *symbol) {
+    // Add call instruction
+    Value *function_value = new_value();
+    function_value->int_value = call_value->int_value;
+    function_value->function_symbol = symbol;
+    function_value->type = symbol->type;
+    function_value->function_call_arg_push_count = 0;
+    function_value->function_call_sse_register_arg_count = 0;
+    call_value->function_call_arg_push_count = 0;
+    call_value->function_call_arg_stack_padding = 0;
+    ir = insert_instruction_after_from_operation(ir, IR_CALL, 0, function_value, 0);
+
+    // Add end call instruction
+    ir = insert_instruction_after_from_operation(ir, IR_END_CALL, 0, call_value, 0);
 }
 
 // Add memcpy calls for struct/union -> struct/union copies
@@ -856,34 +878,23 @@ Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value 
     if (src1->is_lvalue && src1->vreg)
         src1_value = src1;
     else
-        src1_value = insert_address_of_instruction(function, &ir, src1);
+        src1_value = insert_address_of_instruction_after(function, &ir, src1);
 
     Value *dst_value;
     if (dst->is_lvalue && dst->vreg)
         dst_value = dst;
     else
-        dst_value = insert_address_of_instruction(function, &ir, dst);
+        dst_value = insert_address_of_instruction_after(function, &ir, dst);
 
     Value *size_value = new_integral_constant(TYPE_LONG, size);
 
     // Add arg instructions
-    insert_arg_instruction(&ir, call_value, dst_value, 0);
-    insert_arg_instruction(&ir, call_value, src1_value, 1);
-    insert_arg_instruction(&ir, call_value, size_value, 2);
+    ir = insert_arg_instruction_after(ir, call_value, dst_value, 0);
+    ir = insert_arg_instruction_after(ir, call_value, src1_value, 1);
+    ir = insert_arg_instruction_after(ir, call_value, size_value, 2);
 
-    // Add call instruction
-    Value *function_value = new_value();
-    function_value->int_value = call_value->int_value;
-    function_value->function_symbol = memcpy_symbol;
-    function_value->type = memcpy_symbol->type;
-    function_value->function_call_arg_push_count = 0;
-    function_value->function_call_sse_register_arg_count = 0;
-    call_value->function_call_arg_push_count = 0;
-    call_value->function_call_arg_stack_padding = 0;
-    ir = insert_instruction_after_from_operation(ir, IR_CALL, 0, function_value, 0);
-
-    // Add end call instruction
-    ir = insert_instruction_after_from_operation(ir, IR_END_CALL, 0, call_value, 0);
+    // Add function call
+    ir = insert_function_call_instructions_after(ir, call_value, memcpy_symbol);
 
     return ir;
 }
@@ -1108,5 +1119,55 @@ void convert_enums(Function *function) {
         if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_ENUM) tac->dst ->type = new_type(TYPE_INT);
         if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_ENUM) tac->src1->type = new_type(TYPE_INT);
         if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_ENUM) tac->src2->type = new_type(TYPE_INT);
+    }
+}
+
+// Add instructions that write zeroes to dst, starting at offset, with size in src1
+void add_zero_memory_instructions(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation != IR_ZERO) continue;
+
+        Value *dst = tac->dst;
+        int offset = tac->dst->offset;
+        int size = tac->src1->int_value;
+        tac->operation = IR_NOP;
+        tac->dst = 0;
+        tac->src1 = 0;
+
+        Value *zero = new_integral_constant(TYPE_INT, 0);
+
+        if (size < 32) {
+            // Write zeros directly
+            for (int i = 3; i >= 0; i -= 1) {
+                int step = 1 << i;
+
+                while (size >= step) {
+                    Value *tmp = dup_value(dst);
+                    tmp->offset = offset;
+                    tmp->type = new_type(TYPE_CHAR + i);
+                    insert_instruction_from_operation(tac, IR_MOVE, tmp, zero, 0, 1);
+
+                    size -= step;
+                    offset += step;
+                }
+            }
+        }
+        else {
+            // Call memset
+            int function_call_count = make_function_call_count(function);
+
+            // Add start call instruction
+            Value *call_value = make_function_call_value(function_call_count++);
+            ir = insert_instruction_after_from_operation(ir, IR_START_CALL, 0, call_value, 0);
+
+            Value *size_value = new_integral_constant(TYPE_INT, size);
+            Value *dst_address = insert_address_of_instruction_after(function, &ir, dst);
+            ir = insert_arg_instruction_after(ir, call_value, dst_address, 0);
+            ir = insert_arg_instruction_after(ir, call_value, zero, 1);
+            ir = insert_arg_instruction_after(ir, call_value, size_value, 2);
+
+            // Add function call
+            ir = insert_function_call_instructions_after(ir, call_value, memset_symbol);
+        }
     }
 }

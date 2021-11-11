@@ -776,3 +776,98 @@ int type_is_modifiable(Type *type) {
 
     return 1;
 }
+
+// Create a new type iterator instance. A type iterator can be used to recurse
+// through all scalars either depth first, or by iterating at a single level.
+TypeIterator *type_iterator(Type *type) {
+    TypeIterator *it = malloc(sizeof(TypeIterator));
+    memset(it, 0, sizeof(TypeIterator));
+    it->type = type;
+
+    return it;
+}
+
+// Are there any scalars left?
+int type_iterator_done(TypeIterator *it) {
+    return (it->index == -1);
+}
+
+// A child iterator calls this when it has run out of scalars
+static TypeIterator *type_iterator_recurse_upwards(TypeIterator *it) {
+    it->index = -1;
+    if (!it->parent) return it;
+    return type_iterator_next(it->parent);
+}
+
+// Go to the next element, staying at the same level if there are any left elements and
+// going back up if the elements run out.
+TypeIterator *type_iterator_next(TypeIterator *it) {
+    if (type_iterator_done(it)) panic("Attempt to call next on a done type iterator");
+
+    if (is_scalar_type(it->type)) {
+        it->offset += get_type_size(it->type);
+        return type_iterator_recurse_upwards(it);
+    }
+    else if (it->type->type == TYPE_ARRAY) {
+        it->offset += get_type_size(it->type->target);
+        it->index++;
+        if (it->index == it->type->array_size)
+            return type_iterator_recurse_upwards(it);
+        return it;
+    }
+    else if (it->type->type == TYPE_STRUCT_OR_UNION) {
+        it->index++;
+        int is_union = it->type->struct_or_union_desc->is_union;
+        if (is_union || !it->type->struct_or_union_desc->members[it->index]) {
+            it->offset = it->start_offset + get_type_size(it->type);
+            return type_iterator_recurse_upwards(it);
+        }
+
+        it->offset = it->start_offset + it->type->struct_or_union_desc->members[it->index]->offset;
+        return it;
+    }
+    else
+        panic("Unhandled type in type_iterator_next");
+}
+
+// Go down one level into a struct/union/array and return an new iterator
+TypeIterator *type_iterator_descend(TypeIterator *it) {
+    if (type_iterator_done(it))
+        panic("Attempt to call descend on a done type iterator");
+
+    if (is_scalar_type(it->type)) {
+        TypeIterator *child = type_iterator(it->type);
+        child->offset = it->offset;
+        child->parent = it;
+        return child;
+    }
+    if (it->type->type == TYPE_ARRAY) {
+        TypeIterator *child = type_iterator(it->type->target);
+        child->offset = it->offset;
+        child->start_offset = it->offset;
+        child->parent = it;
+        return child;;
+    }
+    else if (it->type->type == TYPE_STRUCT_OR_UNION) {
+        TypeIterator *child = type_iterator(it->type->struct_or_union_desc->members[it->index]->type);
+        child->offset = it->offset;
+        child->start_offset = it->offset;
+        child->parent = it;
+        return child;
+    }
+    else
+        panic("Unhandled type in type_iterator_descend");
+}
+
+// Go to the first scalar in a depth first walk.
+TypeIterator *type_iterator_dig(TypeIterator *it) {
+    if (type_iterator_done(it))
+        panic("Attempt to call dig on a done type iterator");
+    else if (is_scalar_type(it->type))
+        return it;
+    else if (it->type->type == TYPE_ARRAY || it->type->type == TYPE_STRUCT_OR_UNION)
+        return type_iterator_dig(type_iterator_descend(it));
+    else
+        panic("Unhandled type in type_iterator_dig");
+
+}

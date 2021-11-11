@@ -101,6 +101,14 @@ typedef struct type {
     struct tag *tag; // For structs, unions and enums
 } Type;
 
+typedef struct type_iterator {
+    Type *type;                     // The top level type being iterated
+    int index;                      // The index within the type. -1 if the end has been reached
+    int offset;                     // Offset at the position of the iterator
+    int start_offset;               // Offset when the iterator started on an array or struct/union
+    struct type_iterator *parent;   // Parent to recurse back to
+} TypeIterator;
+
 typedef struct symbol {
     Type *type;                 // Type
     int size;                   // Size
@@ -467,6 +475,7 @@ enum {
     IR_VA_ARG,                // va_arg function call
     IR_ALLOCATE_STACK,        // Allocate stack space for a function call argument on the stack
     IR_RETURN,                // Return in function
+    IR_ZERO,                  // Zero a block of memory
     IR_LOAD_LONG_DOUBLE,      // Load a long double into the top of the x87 stack
     IR_START_LOOP,            // Start of a for or while loop
     IR_END_LOOP,              // End of a for or while loop
@@ -696,6 +705,7 @@ void consume(int token, char *what);
 // parser.c
 Value *new_label_dst(void);
 Symbol *memcpy_symbol;
+Symbol *memset_symbol;
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 Value *load_constant(Value *cv);
 Type *parse_type_name(void);
@@ -753,6 +763,11 @@ int is_integer_operation_result_unsigned(Type *src1, Type *src2);
 Type *make_struct_or_union_type(StructOrUnion *s);
 void complete_struct_or_union(StructOrUnion *s);
 int type_is_modifiable(Type *type);
+TypeIterator *type_iterator(Type *type);
+int type_iterator_done(TypeIterator *it);
+TypeIterator *type_iterator_next(TypeIterator *it);
+TypeIterator *type_iterator_dig(TypeIterator *it);
+TypeIterator *type_iterator_descend(TypeIterator *it);
 
 // ir.c
 void init_value(Value *v);
@@ -779,6 +794,7 @@ void merge_consecutive_labels(Function *function);
 void renumber_labels(Function *function);
 void allocate_value_vregs(Function *function);
 void convert_long_doubles_jz_and_jnz(Function *function);
+void add_zero_memory_instructions(Function *function);
 void move_long_doubles_to_the_stack(Function *function);
 void make_stack_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);

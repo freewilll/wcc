@@ -26,6 +26,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
         renumber_labels(function);
         allocate_value_vregs(function);
         convert_long_doubles_jz_and_jnz(function);
+        add_zero_memory_instructions(function);
         move_long_doubles_to_the_stack(function);
         allocate_value_stack_indexes(function);
         process_bit_fields(function);
@@ -99,6 +100,7 @@ static void compile_externals(void) {
 void compile(char *compiler_input_filename, char *compiler_output_filename) {
     compile_externals();
     memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
+    memset_symbol = lookup_symbol("memset", global_scope, 0);
     init_lexer(compiler_input_filename);
     parse();
 

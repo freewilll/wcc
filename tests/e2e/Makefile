@@ -21,7 +21,8 @@ WCC_TESTS=\
 	typedefs \
 	switch \
 	character-and-string-literals \
-	varargs
+	varargs \
+	initializers
 
 all: run-test-gcc run-test-wcc run-test-abi run-test-include
 
