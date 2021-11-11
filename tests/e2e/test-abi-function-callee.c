@@ -323,6 +323,8 @@ void accept_array(int a[4]) {
 
 int linked_object;
 static int unlinked_object;
+int initialized_linked_object = 1;
+static int initialized_unlinked_object = 1;
 
 int get_linked_object() { return linked_object; }
 int get_unlinked_object() { return unlinked_object; }

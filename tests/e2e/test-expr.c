@@ -1525,6 +1525,11 @@ int test_constant_casting() {
     assert_int(-0x80000000,  (int)            -4294967296.1f, "Casting float -> int negative overflow");
     assert_int(0,            (unsigned int)   -4294967296.1f, "Casting float -> unsigned int negative overflow");
 
+    // Integer -> FP
+    assert_float(1, (float)       1, "Casting int -> float");
+    assert_float(1, (double)      1, "Casting int -> double");
+    assert_float(1, (long double) 1, "Casting int -> long double");
+
     // Integer -> integer
     assert_int(255,                  (unsigned char)  -1L, "Casting to unsigned char");
     assert_int(-1,                   (char)           -1L, "Casting to char");

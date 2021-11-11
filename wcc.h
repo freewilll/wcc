@@ -111,6 +111,12 @@ typedef struct type_iterator {
     struct type_iterator *parent;   // Parent to recurse back to
 } TypeIterator;
 
+typedef struct initializer {
+    int offset;                 // Offset of the initializer
+    int size;                   // Size of the initializer
+    void *data;                 // Pointer to the data, or zero if it's a block of zeroes
+} Initializer;
+
 typedef struct symbol {
     Type *type;                 // Type
     int size;                   // Size
@@ -122,6 +128,8 @@ typedef struct symbol {
     int local_index;            // Used by the parser for locals variables and function arguments
                                 // < 0 is a local variable or tempoary, >= 2 is a function parameter
     int is_enum_value;          // Enums are symbols with a value
+    Initializer *initializers;  // Set when a global object is initialized;
+    int initializer_count;      // Amount of initializers;
 } Symbol;
 
 typedef struct tag {
@@ -334,6 +342,7 @@ enum {
     MAX_GRAPH_EDGE_COUNT          = 10240,
     MAX_GLOBAL_SCOPE_IDENTIFIERS  = 4095,
     MAX_LOCAL_SCOPE_IDENTIFIERS   = 511,
+    MAX_INITIALIZERS              = 1024,
 };
 
 // Tokens in order of precedence
@@ -708,7 +717,7 @@ void expect(int token, char *what);
 void consume(int token, char *what);
 
 // parser.c
-typedef Value *expression_and_pop_function_type(int);
+typedef Value *parse_expression_function_type(int);
 
 Value *make_string_literal_value_from_cur_string_literal(void);
 Value *new_label_dst(void);
@@ -724,7 +733,7 @@ Type *parse_type_name(void);
 Type *find_struct_or_union(char *identifier, int is_union, int recurse);
 void finish_parsing_header(void);
 Value *make_symbol_value(Symbol *symbol);
-int parse_sizeof(expression_and_pop_function_type expr);
+int parse_sizeof(parse_expression_function_type expr);
 void parse(void);
 void dump_symbols(void);
 void init_parser(void);
@@ -821,6 +830,7 @@ void add_zero_memory_instructions(Function *function);
 void move_long_doubles_to_the_stack(Function *function);
 void make_stack_register_count(Function *function);
 void allocate_value_stack_indexes(Function *function);
+void determine_bit_field_params(Value *v, int *offset, int *bit_offset, int *bit_size);
 void process_bit_fields(Function *function);
 void remove_unused_function_call_results(Function *function);
 void process_struct_and_union_copies(Function *function);

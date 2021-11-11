@@ -9,6 +9,7 @@ static Type *parse_enum_type_specifier(void);
 static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
 void check_and_or_operation_type(Value *src1, Value *src2);
 static void parse_directive(void);
+Value *parse_expression_and_pop(int level);
 static void parse_statement(void);
 static void parse_expression(int level);
 
@@ -1547,13 +1548,81 @@ static void parse_simple_assignment(int enforce_const) {
     add_simple_assignment_instruction(dst, src1, enforce_const);
 }
 
+static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
+    Symbol *s = dst->global_symbol;
+    if (!s) panic("Attempt to add an initializer to value without a global_symbol");
+
+    if (!s->initializers) s->initializers = malloc(sizeof(Initializer) * MAX_INITIALIZERS);
+    if (s->initializer_count == MAX_INITIALIZERS) panic("Exceeded MAX_INITIALIZERS=%d", MAX_INITIALIZERS);
+    if (scalar && !scalar->is_constant) panic("Attempt to add an initializer for a non constant");
+
+    int bf_offset;
+    int bf_bit_offset;
+    int bf_bit_size;
+    determine_bit_field_params(dst, &bf_offset, &bf_bit_offset, &bf_bit_size);
+    if (dst->bit_field_size) offset += bf_offset;
+
+    Initializer *in;
+    if (dst->bit_field_size && s->initializer_count && s->initializers[s->initializer_count - 1].offset == offset)
+        in = &(s->initializers[s->initializer_count - 1]); // Amend previous initializer
+    else {
+        if (!dst->bit_field_size && s->initializer_count) {
+            Initializer *prev = &(s->initializers[s->initializer_count - 1]);
+            if (prev->offset + prev->size != offset) {
+                Initializer *zero = &(s->initializers[s->initializer_count++]);
+                zero->offset = prev->offset + prev->size;
+                zero->size = offset - prev->offset - prev->size;
+            }
+        }
+        in = &(s->initializers[s->initializer_count++]);
+    }
+
+    if (scalar) {
+        scalar = cast_constant_value(scalar, dst->type);
+        size = get_type_size(dst->type);
+
+        if (scalar->type->type == TYPE_FLOAT) {
+            in->data = malloc(sizeof(float));
+            *((float *) in->data) = scalar->fp_value;
+        }
+        else if (scalar->type->type == TYPE_DOUBLE) {
+            in->data = malloc(sizeof(double));
+            *((double *) in->data) = scalar->fp_value;
+        }
+        else if (scalar->type->type == TYPE_LONG_DOUBLE)
+            in->data = &scalar->fp_value;
+        else if (dst->bit_field_size) {
+            // Bit field
+            if (!in->data) {
+                in->data = malloc(sizeof(int));
+                *((unsigned int *) in->data) = 0;
+            }
+
+            unsigned int *pi = (int *) in->data;
+            unsigned int mask = bf_bit_size == 32 ? -1 : (1 << bf_bit_size) - 1;
+            unsigned int inverted_shifted_mask = ~(mask << bf_bit_offset);
+            (*pi) &= inverted_shifted_mask;
+            (*pi) |= ((scalar->int_value & mask) << bf_bit_offset);
+        }
+        else
+            in->data = &scalar->int_value;
+    }
+
+    in->offset = offset;
+    in->size = size;
+}
+
 // Initialize value with zeroes starting with offset & size.
 // Do it in increments of 8, 4, 2, 1, to minimize the amount of instructions
 static void initialize_with_zeroes(Value *value, int offset, int size) {
-    Value *src1 = new_integral_constant(TYPE_INT, size);
-    Value *dst = dup_value(value);
-    dst->offset += offset;
-    add_instruction(IR_ZERO, dst, src1, 0);
+    if (value->global_symbol)
+        add_initializer(value, offset, size, 0);
+    else {
+        Value *src1 = new_integral_constant(TYPE_INT, size);
+        Value *dst = dup_value(value);
+        dst->offset += offset;
+        add_instruction(IR_ZERO, dst, src1, 0);
+    }
 }
 
 // The first member of the union is going to get initialized. If the union size is
@@ -1590,6 +1659,9 @@ static TypeIterator *initialize_with_string_literal(TypeIterator *it, Value *val
 // Parse an initializer for a variable with automatic storage. If expression is set, it
 // is used as a initializer for a scalar value, otherwise, the expression is parsed.
 static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression) {
+    parse_expression_function_type *parse_expr = value->global_symbol
+        ? parse_constant_expression : parse_expression_and_pop;
+
     TypeIterator *outer_it = it;
     int initial_outer_offset = it->offset;
 
@@ -1633,28 +1705,32 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
 
         if (type_iterator_done(it)) {
             // Parse and ignore any expressions if the iteration has run out
-            if (!expression) parse_expression(TOK_EQ);
+            if (!expression) parse_expr(TOK_EQ);
             return it;
         }
 
         Value *src;
         int initialize_string_literal = 0;
+        Value *parsed_expression = 0;
         if (expression)
             src = expression;
         else {
-            parse_expression(TOK_EQ);
+            parsed_expression = parse_expr(TOK_EQ);
             initialize_string_literal =
-                vtop->is_string_literal && it->type->type == TYPE_ARRAY &&
+                parsed_expression->is_string_literal && it->type->type == TYPE_ARRAY &&
                 (it->type->target->type == TYPE_CHAR || it->type->target->type == TYPE_INT);
         }
 
         if (initialize_string_literal) {
-            it = initialize_with_string_literal(it, value, pop());
+            it = initialize_with_string_literal(it, value, parsed_expression);
             // Falls through to array size setting code
         }
 
         else {
-            if (!expression) src = pl();
+            if (!expression) {
+                if (value->global_symbol) src = parsed_expression;
+                else src = load(parsed_expression);
+            }
 
             // Recurse to deepest scalar unless the expression is a struct, which
             // can be assigned directly.
@@ -1666,12 +1742,18 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
                 initialize_union_with_zeroes(value, it->offset);
 
             Value *child = dup_value(value);
+            child->global_symbol = value->global_symbol;
             child->offset = it->offset;
             child->bit_field_offset = it->bit_field_offset;
             child->bit_field_size = it->bit_field_size;
             child->type = it->type;
             child->is_lvalue = 1;
-            add_simple_assignment_instruction(child, src, 0);
+
+            if (value->global_symbol)
+                add_initializer(child, it->offset, 0, src);
+
+            else
+                add_simple_assignment_instruction(child, src, 0);
 
             return type_iterator_next(it);
         }
@@ -1871,7 +1953,7 @@ Value *parse_expression_and_pop(int level) {
     return pop();
 }
 
-int parse_sizeof(expression_and_pop_function_type expr) {
+int parse_sizeof(parse_expression_function_type expr) {
     next();
 
     Type *type;
@@ -3258,6 +3340,15 @@ void parse(void) {
                 if (type->type == TYPE_FUNCTION) {
                     parse_function_declaration(type, linkage, symbol, original_symbol);
                     break; // Break out of function parameters loop
+                }
+                else if (cur_token == TOK_EQ) {
+                    Type *old_base_type = base_type;
+                    base_type = 0;
+                    next();
+                    Value *v = make_global_symbol_value(symbol);
+                    parse_initializer(type_iterator(v->type), v, 0);
+                    symbol->type = v->type;
+                    base_type = old_base_type;
                 }
 
                 else {

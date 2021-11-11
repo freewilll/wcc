@@ -155,6 +155,12 @@ Value *cast_constant_value(Value *src, Type *dst_type) {
         return dst;
     }
 
+    // Integer -> FP
+    if (is_floating_point_type(dst_type) && !is_floating_point_type(src_type)) {
+        if (src_type->is_unsigned) dst->fp_value = (unsigned long) src->int_value;
+        else dst->fp_value = src->int_value;
+    }
+
     // Implicit else: integer -> integer
     // int_value is already sign extended to a long, so this doesn't have to be done again.
     // The only thing that needs doing is truncation to the target type, if it's smaller

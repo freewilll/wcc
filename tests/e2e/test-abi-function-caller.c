@@ -217,6 +217,7 @@ void test_arrays() {
 
 int linked_object;
 static int unlinked_object;
+static int initialized_unlinked_object = 1;
 
 void test_global_object_linkage() {
     // Ensure values in linked object are the same

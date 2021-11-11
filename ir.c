@@ -977,7 +977,7 @@ void process_struct_and_union_copies(Function *function) {
 
 // Determine offset (in bytes), which has integer alignment.
 // Within the alignment, determine the offset (in bits) and size (in bits)
-static void determine_bit_field_params(Value *v, int *offset, int *bit_offset, int *bit_size) {
+void determine_bit_field_params(Value *v, int *offset, int *bit_offset, int *bit_size) {
     *offset = v->offset & (~3); // Align to the nearest integer boundary
     *bit_offset = v->bit_field_offset - (*offset << 3);
     *bit_size = v->bit_field_size;

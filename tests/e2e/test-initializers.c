@@ -8,6 +8,139 @@ int verbose;
 int passes;
 int failures;
 
+static char gc = 1;
+// static char *gpc1 = &gc; // TODO constant expressions with &
+// static char *gpc2 = &gc + 1;
+// static char *gpc3 = &gc + 2;
+
+static short gs = 1;
+// static short *gps1 = &gs; // TODO constant expressions with &
+// static short *gps2 = &gs + 1;
+// static short *gps3 = &gs + 2;
+
+static int gi = 1;
+// static int *gpi1 = &gi; // TODO constant expressions with &
+// static int *gpi2 = &gi + 1;
+// static int *gpi3 = &gi + 2;
+// static int *gpi4 = 1 + &gi;
+// static int *gpi5 = &gi - 1;
+
+float gf = 1.1;
+double gd = 1.2;
+long double gld = 1.3;
+
+static int gia[2];
+// static int *gpia1 = &gia; // TODO constant expressions with &
+// static int *gpia2 = &gia + 1;
+// static int *gpia3 = &gia + 2;
+
+static long gll = 0xffffffffffffffff;
+static long glla[2];
+
+int gia2[3] = {1, 2};
+int gia3[] = {1, 2, 3};
+
+// static long *gplla1 = &glla; // TODO constant expressions with &
+// static long *gplla2 = &glla + 1;
+// static long *gplla3 = &glla + 2;
+
+static void *gpv1 = (void *) 0;
+static void *gpv2 = 0;
+
+// // Strings
+// static char *string1 = "string1"; // TODO constant string expressions
+// static char *string2 = "string2" + 1;
+// static char *string3 = "string3" + 2;
+// static char *string4 = &"string4";
+
+// static char ca1[] = "chararr1"; // TODO constant string expressions
+// static char ca2[] = {"chararr2"};
+// static char ca3[2] = "foo";
+// static char ca4[3] = "foo";
+// static char ca5[4] = "foo";
+// static char ca5post = 'a';
+
+// char *apc[3] = {"foo", "bar", "bazzer"}; // TODO constant string expressions
+// char *aapc[3][3] = {
+//     {"a",       "ab",       "abc"},
+//     {"abcd",    "abcde",    "abcdef"},
+//     {"abcdefg", "abcdefgh", "abcdefghi"},
+// };
+
+// Test casting + pointer addition // TODO constant expressions with &
+// static void *gpvc1  = ((char *)      0) + 1;
+// static void *gpvs1  = ((short *)     0) + 1;
+// static void *gpvi1  = ((int *)       0) + 1;
+// static void *gpvll1 = ((long *) 0) + 1;
+// static void *gpvc2  = ((char *)      0) - 1;
+// static void *gpvs2  = ((short *)     0) - 1;
+// static void *gpvi2  = ((int *)       0) - 1;
+// static void *gpvll2 = ((long *) 0) - 1;
+
+char ca[10];
+short sa[10];
+int ia[10];
+long lla[10];
+// static void *gpvca  = &ca  + 1; // TODO constant expressions with &
+// static void *gpvsa  = &sa  + 1;
+// static void *gpvia  = &ia  + 1;
+// static void *gpvlla = &lla + 1;
+
+// static void *gpvca1  = &ca [1];
+// static void *gpvsa1  = &sa [1];
+// static void *gpvia1  = &ia [1];
+// static void *gpvlla1 = &lla[1];
+// static void *gpvca2  = &ca [1] + 1;
+// static void *gpvsa2  = &sa [1] + 1;
+// static void *gpvia2  = &ia [1] + 1;
+// static void *gpvlla2 = &lla[1] + 1;
+
+static int csize  = sizeof(char);
+static int ssize  = sizeof(short);
+static int isize  = sizeof(int);
+static int llsize = sizeof(long);
+
+static char      ccast  = (char)      1;
+static short     scast  = (short)     1;
+static int       icast  = (int)       1;
+static long llcast = (long) 1;
+
+int ia25[2][5];
+// static void *gpvia25_00  = &ia25[0][0]; // TODO constant expressions with &
+// static void *gpvia25_01  = &ia25[0][1];
+// static void *gpvia25_10  = &ia25[1][0];
+// static void *gpvia25_11  = &ia25[1][1];
+// static void *gpvia25_11x = &ia25[1][1] + 1;
+
+// enums
+enum e {EA=100, EB};
+static int enum_const1 = EA;
+static int enum_const2 = EB;
+// static enum e enum1 = EA; // TODO initializing global enums
+// static enum e enum2 = EB;
+
+// structs
+struct s {int a; int b;} sv1;
+// int *spi1 = &sv1.a; // TODO constant expressions with &
+// int *spi2 = &sv1.a + 1;
+// int *spi3 = (&(sv1) + 1);
+// int *spi4 = &sv1.b;
+// int *spi5 = &sv1.b + 1;
+
+struct s sv2 = {1, 2};
+
+static struct {char c1; short s1; int i1; char c2;} s2 = {1, 2, 3, 4};
+
+struct s1 {short s; char ca[3];} v6 = {1, 2, 3, 4};
+struct {short s; struct s1 v; int i;} s3[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+
+static struct {char c1; long ll; char c2;} s4;
+struct {char c1; float f; char c2; double d; char c3; long double ld; char c4;} s5;
+
+struct s2 {int i, j, k, l;} st2 = {1, 2, 3};
+
+struct bfs { int i:3, j:4, k:5, :0, l:5, m:5; } bfs = {-1, -2, -3, -4, -5};
+
 static void test_scalar_initializers() {
     int a = 1;          assert_int(1, a, "Scalar initializer 1 a");
     int b = {1};        assert_int(1, b, "Scalar initializer 1 b");
@@ -812,6 +945,244 @@ static void test_zeroing() {
     char c5[1000] = {1}; sum = 0; for (int i = 1; i < sizeof(c5); i++) sum += c5[i]; assert_int(0, sum, "Zeroing 1000"); // memset version
 }
 
+static void test_global_sizeof_types() {
+    assert_int(1, csize,  "Global initialization with sizeof 1");
+    assert_int(2, ssize,  "Global initialization with sizeof 2");
+    assert_int(4, isize,  "Global initialization with sizeof 3");
+    assert_int(8, llsize, "Global initialization with sizeof 4");
+}
+
+void test_global_initialization() {
+    assert_int(1, gc,                 "Global char initialization 1");
+    // assert_int(gpc1, &gc,             "Global char initialization 2");
+    // assert_int(gpc2, ((int) &gc) + 1, "Global char initialization 3");
+    // assert_int(gpc3, ((int) &gc) + 2, "Global char initialization 4");
+
+    assert_int(1, gs,                 "Global short initialization 1");
+    // assert_int(gps1, &gs,             "Global short initialization 2");
+    // assert_int(gps2, ((int) &gs) + 2, "Global short initialization 3");
+    // assert_int(gps3, ((int) &gs) + 4, "Global short initialization 4");
+
+    assert_int(1, gi,                 "Global int initialization 1");
+    // assert_int(gpi1, &gi,             "Global int initialization 2");
+    // assert_int(gpi2, ((int) &gi) + 4, "Global int initialization 3");
+    // assert_int(gpi3, ((int) &gi) + 8, "Global int initialization 4");
+    // assert_int(gpi4, ((int) &gi) + 4, "Global int initialization 5");
+    // assert_int(gpi5, ((int) &gi) - 4, "Global int initialization 6");
+
+    // assert_int(gpia1, &gia,              "Global int array initialization 1");
+    // assert_int(gpia2, &gia + 1,          "Global int array initialization 2");
+    // assert_int(gpia2, ((int) &gia) + 8,  "Global int array initialization 3");
+    // assert_int(gpia3, ((int) &gia) + 16, "Global int array initialization 4");
+
+    assert_long(18446744073709551615, gll, "Global long initialization");
+    // assert_int(gplla1, &glla,              "Global long array initialization 1");
+    // assert_int(gplla2, &glla + 1,          "Global long array initialization 2");
+    // assert_int(gplla2, ((int) &glla) + 16, "Global long array initialization 3");
+    // assert_int(gplla3, ((int) &glla) + 32, "Global long array initialization 4");
+
+    assert_int(1, gia2[0], "Global int array initialization 5");
+    assert_int(2, gia2[1], "Global int array initialization 6");
+    assert_int(0, gia2[2], "Global int array initialization 7");
+
+    assert_int(12, sizeof(gia3), "Global incomplete array completion 1");
+    assert_int(1, gia3[0], "Global incomplete array completion 2");
+    assert_int(2, gia3[1], "Global incomplete array completion 3");
+    assert_int(3, gia3[2], "Global incomplete array completion 4");
+
+    assert_float(1.1, gf, "Global float initialization");
+    assert_float(1.2, gd, "Global double initialization");
+    assert_float(1.3, gld, "Global long double initialization");
+
+    assert_int(0,  gpv1,   "Global pointer to void 1a");
+    assert_int(0,  gpv2,   "Global pointer to void 1b");
+    // assert_int(1,  gpvc1,  "Global pointer to void 1c");
+    // assert_int(2,  gpvs1,  "Global pointer to void 1d");
+    // assert_int(4,  gpvi1,  "Global pointer to void 1e");
+    // assert_int(8,  gpvll1, "Global pointer to void 1f");
+    // assert_int(-1, gpvc2,  "Global pointer to void 1g");
+    // assert_int(-2, gpvs2,  "Global pointer to void 1h");
+    // assert_int(-4, gpvi2,  "Global pointer to void 1i");
+    // assert_int(-8, gpvll2, "Global pointer to void 1j");
+
+    // assert_int(gpvca,  ((int) &ca)  + 10, "Global pointer to void 2a");
+    // assert_int(gpvsa,  ((int) &sa)  + 20, "Global pointer to void 2b");
+    // assert_int(gpvia,  ((int) &ia)  + 40, "Global pointer to void 2c");
+    // assert_int(gpvlla, ((int) &lla) + 80, "Global pointer to void 2d");
+
+    // assert_int(gpvca1,  ((int) &ca)  + 1, "Global pointer to void 3a");
+    // assert_int(gpvsa1,  ((int) &sa)  + 2, "Global pointer to void 3b");
+    // assert_int(gpvia1,  ((int) &ia)  + 4, "Global pointer to void 3c");
+    // assert_int(gpvlla1, ((int) &lla) + 8, "Global pointer to void 3d");
+
+    // assert_int(gpvca2,  ((int) &ca)  + 2,  "Global pointer to void 4a");
+    // assert_int(gpvsa2,  ((int) &sa)  + 4,  "Global pointer to void 4b");
+    // assert_int(gpvia2,  ((int) &ia)  + 8,  "Global pointer to void 4c");
+    // assert_int(gpvlla2, ((int) &lla) + 16, "Global pointer to void 4d");
+
+    // assert_int(gpvia25_00,  ((int) &ia25) + 0,  "Global pointer to void 5a");
+    // assert_int(gpvia25_01,  ((int) &ia25) + 4,  "Global pointer to void 5b");
+    // assert_int(gpvia25_10,  ((int) &ia25) + 20, "Global pointer to void 5c");
+    // assert_int(gpvia25_11,  ((int) &ia25) + 24, "Global pointer to void 5d");
+    // assert_int(gpvia25_11x, ((int) &ia25) + 28, "Global pointer to void 5e");
+
+    // assert_string("string1", string1, "Global string initialization 1");
+    // assert_string("tring2",  string2, "Global string initialization 2");
+    // assert_string("ring3",   string3, "Global string initialization 3");
+    // assert_string("string4", string4, "Global string initialization 4");
+
+    // assert_string("chararr1", ca1,    "Global char array initialization straight");
+    // assert_string("chararr2", ca2,    "Global char array initialization with {}");
+    // assert_int('f', ca3[0],           "Global char array initialization [2][0]");
+    // assert_int('o', ca3[1],           "Global char array initialization [2][1]");
+    // assert_int('f', ca4[0],           "Global char array initialization [3][0]");
+    // assert_int('o', ca4[1],           "Global char array initialization [3][1]");
+    // assert_int('o', ca4[2],           "Global char array initialization [3][2]");
+    // assert_string("foo", ca5,         "Global char array initialization [4]");
+    // assert_int('a', ca5post,          "Global char array initialization ca5post");
+
+    // assert_string("foo",    apc[0], "Array of pointer to chars 1");
+    // assert_string("bar",    apc[1], "Array of pointer to chars 2");
+    // assert_string("bazzer", apc[2], "Array of pointer to chars 3");
+
+    // assert_string("a",              aapc[0][0], "Array of array of pointer to chars 00");
+    // assert_string("ab",             aapc[0][1], "Array of array of pointer to chars 01");
+    // assert_string("abc",            aapc[0][2], "Array of array of pointer to chars 02");
+    // assert_string("abcd",           aapc[1][0], "Array of array of pointer to chars 10");
+    // assert_string("abcde",          aapc[1][1], "Array of array of pointer to chars 11");
+    // assert_string("abcdef",         aapc[1][2], "Array of array of pointer to chars 12");
+    // assert_string("abcdefg",        aapc[2][0], "Array of array of pointer to chars 20");
+    // assert_string("abcdefgh",       aapc[2][1], "Array of array of pointer to chars 21");
+    // assert_string("abcdefghi",      aapc[2][2], "Array of array of pointer to chars 22");
+
+    assert_int(1, ccast,  "Global cast from integer 1");
+    assert_int(1, scast,  "Global cast from integer 2");
+    assert_int(1, icast,  "Global cast from integer 3");
+    assert_int(1, llcast, "Global cast from integer 4");
+
+    assert_int(100, enum_const1, "Enum constant usage in constant expression 1");
+    assert_int(101, enum_const2, "Enum constant usage in constant expression 2");
+
+    // assert_int(100, enum1, "Enum constant usage in constant expression 2");
+    // assert_int(101, enum2, "Enum constant usage in constant expression 3");
+
+    assert_int(1, st2.i, "Global struct initialization 1");
+    assert_int(2, st2.j, "Global struct initialization 2");
+    assert_int(3, st2.k, "Global struct initialization 3");
+    assert_int(0, st2.l, "Global struct initialization 4");
+
+    assert_int(-1, bfs.i, "Global bit fields struct initialization 1");
+    assert_int(-2, bfs.j, "Global bit fields struct initialization 2");
+    assert_int(-3, bfs.k, "Global bit fields struct initialization 3");
+    assert_int(-4, bfs.l, "Global bit fields struct initialization 4");
+    assert_int(-5, bfs.m, "Global bit fields struct initialization 5");
+
+    // assert_int(spi1, &sv1.a,              "Constant expression with structs 1");
+    // assert_int(spi2, ((int) &sv1.a) + 4,  "Constant expression with structs 2");
+    // assert_int(spi3, ((int) &sv1.a) + 8,  "Constant expression with structs 3");
+    // assert_int(spi4, ((int) &sv1.b),      "Constant expression with structs 4");
+    // assert_int(spi5, ((int) &sv1.b) + 4,  "Constant expression with structs 5");
+
+    assert_int(12, sizeof(s2),              "Static struct alignment csic size");
+    assert_int(0, (int) &s2.c1 - (int) &s2, "Static struct alignment csic c1 offset");
+    assert_int(2, (int) &s2.s1 - (int) &s2, "Static struct alignment csic s1 offset");
+    assert_int(4, (int) &s2.i1 - (int) &s2, "Static struct alignment csic i1 offset");
+    assert_int(8, (int) &s2.c2 - (int) &s2, "Static struct alignment csic c2 offset");
+    assert_int(1, s2.c1,                    "Static struct alignment csic c1 value");
+    assert_int(2, s2.s1,                    "Static struct alignment csic s1 value");
+    assert_int(3, s2.i1,                    "Static struct alignment csic i1 value");
+    assert_int(4, s2.c2,                    "Static struct alignment csic c2 value");
+
+    assert_int(1,  s3[0].s,                 "Static struct alignment svi1 [0].s value");
+    assert_int(2,  s3[0].v.s,               "Static struct alignment svi1 [0].v.s value");
+    assert_int(3,  s3[0].v.ca[0],           "Static struct alignment svi1 [0].ca[0] value");
+    assert_int(4,  s3[0].v.ca[1],           "Static struct alignment svi1 [0].ca[1] value");
+    assert_int(5,  s3[0].v.ca[2],           "Static struct alignment svi1 [0].ca[2] value");
+    assert_int(6,  s3[0].i,                 "Static struct alignment svi1 [0].i value");
+    assert_int(7,  s3[1].s,                 "Static struct alignment svi1 [1].s value");
+    assert_int(8,  s3[1].v.s,               "Static struct alignment svi1 [1].v.s value");
+    assert_int(9,  s3[1].v.ca[0],           "Static struct alignment svi1 [1].ca[0] value");
+    assert_int(10, s3[1].v.ca[1],           "Static struct alignment svi1 [1].ca[1] value");
+    assert_int(11, s3[1].v.ca[2],           "Static struct alignment svi1 [1].ca[2] value");
+    assert_int(12, s3[1].i,                 "Static struct alignment svi1 [1].i value");
+
+    assert_int(24, sizeof(s4),               "Static struct alignment cllc size");
+    assert_int(0,  (int) &s4.c1 - (int) &s4, "Static struct alignment cllc c1 offset");
+    assert_int(8,  (int) &s4.ll - (int) &s4, "Static struct alignment cllc ll offset");
+    assert_int(16, (int) &s4.c2 - (int) &s4, "Static struct alignment cllc c2 offset");
+
+    assert_int(64, sizeof(s5),               "Static struct alignment floating point types size");
+    assert_int(0,  (int) &s5.c1 - (int) &s5, "Static struct alignment floating point types c1 offset");
+    assert_int(4,  (int) &s5.f  - (int) &s5, "Static struct alignment floating point types f offset");
+    assert_int(8,  (int) &s5.c2 - (int) &s5, "Static struct alignment floating point types c2 offset");
+    assert_int(16, (int) &s5.d  - (int) &s5, "Static struct alignment floating point types d offset");
+    assert_int(24, (int) &s5.c3 - (int) &s5, "Static struct alignment floating point types c3 offset");
+    assert_int(32, (int) &s5.ld - (int) &s5, "Static struct alignment floating point types ld offset");
+
+    // Test conversions
+    static int         i  = 1.1;  assert_int(1, i,          "Static type conversions 1");
+    static float       f1 = 1;    assert_float(1, f1,       "Static type conversions 2");
+    static float       f2 = 1.1;  assert_float(1.1, f2,     "Static type conversions 3");
+    static long double ld = 1;    assert_long_double(1, ld, "Static type conversions 4");
+}
+
+void func_with_static_string(char expected_first_char, char* message) {
+    // Ensure this one doesn't change between calls
+    char s[] = "Static string";
+    s[0]++;
+    assert_string("Ttatic string", s, message);
+
+    // The first character should keep increasing between calls
+    static char ss[] = "Static string";
+    ss[0]++;
+    assert_int(expected_first_char, ss[0], message);
+}
+
+void func_with_static_array(char expected0, char expected1, char* message) {
+    static int sia[2] = {10, 10};
+    sia[0]++;
+    sia[1]--;
+    assert_int(expected0, sia[0], message);
+    assert_int(expected1, sia[1], message);
+}
+
+void func_with_static_struct(char expected_c, short expected_s, int expected_i, char* message) {
+    static struct {char c; short s; int i;} s = {10, 11, 12};
+    s.c++;
+    s.s++;
+    s.i++;
+    assert_int(expected_c, s.c, message);
+    assert_int(expected_s, s.s, message);
+    assert_int(expected_i, s.i, message);
+}
+
+void test_static_local_initialization() {
+    // This is a subset of the global ones. This is just a sanity test
+    // to ensure that the global initialization cases also work for local
+    // statics.
+
+    static int i = 1;
+    // static int *pi = &i;
+    // assert_int(pi, &i, "Static local initialization 1");
+
+    // static char ca[] = "Local static char array"; // TODO constant string expressions
+    // assert_string("Local static char array", ca, "Static local initialization 2");
+    // ca[0] = 'F';
+    // assert_string("Focal static char array", ca, "Static local initialization 3");
+
+    func_with_static_string('T', "Static local string 1");
+    func_with_static_string('U', "Static local string 2");
+
+    func_with_static_array(11, 9, "Static local array 1");
+    func_with_static_array(12, 8, "Static local array 2");
+
+    func_with_static_struct(11, 12, 13, "Static local struct 1");
+    func_with_static_struct(12, 13, 14, "Static local struct 2");
+
+    static long ll = 0xffffffffffffffff;
+    assert_long(18446744073709551615, ll, "Static long initialization");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -863,6 +1234,11 @@ int main(int argc, char **argv) {
 
     // In case you're wondering, the mad numbering is a leftover from a much earlier
     // version of cwwc, written in Cornwall, I lifted many tests from there.
+
+    // Initialization of objects with static storage duration
+    test_global_sizeof_types();
+    test_global_initialization();
+    test_static_local_initialization();
 
     finalize();
 }
