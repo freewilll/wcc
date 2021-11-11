@@ -304,6 +304,7 @@ void test_constant_expressions() {
     assert_int(1, value->is_string_literal, "Is string literal");
     assert_string("foo", string_literals[value->string_literal_index].data, "String literal value");
 
+    // Integers
     assert_int_const_expr("1 + 1",         2);
     assert_int_const_expr("3 - 2",         1);
     assert_int_const_expr("2 * 3",         6);
@@ -312,14 +313,14 @@ void test_constant_expressions() {
     assert_int_const_expr("1 +2*3",        7);
     assert_int_const_expr("1 <<2",         4);
     assert_int_const_expr("4 >>2",         1);
-    assert_int_const_expr("1 > 2",         0); assert_int_const_expr("2>1",  1);
-    assert_int_const_expr("1 < 2",         1); assert_int_const_expr("2<1",  0);
-    assert_int_const_expr("1 >=2",         0); assert_int_const_expr("2>=1", 1);
-    assert_int_const_expr("1 >=1",         1); assert_int_const_expr("1>=1", 1);
-    assert_int_const_expr("1 <=2",         1); assert_int_const_expr("2<=1", 0);
-    assert_int_const_expr("1 <=1",         1); assert_int_const_expr("1<=1", 1);
-    assert_int_const_expr("1 ==1",         1); assert_int_const_expr("1==2", 0);
-    assert_int_const_expr("1 !=1",         0); assert_int_const_expr("1!=2", 1);
+    assert_int_const_expr("1 > 2",         0); assert_int_const_expr("2 >  1", 1);
+    assert_int_const_expr("1 < 2",         1); assert_int_const_expr("2 <  1", 0);
+    assert_int_const_expr("1 >=2",         0); assert_int_const_expr("2 >= 1", 1);
+    assert_int_const_expr("1 >=1",         1); assert_int_const_expr("1 >= 1", 1);
+    assert_int_const_expr("1 <=2",         1); assert_int_const_expr("2 <= 1", 0);
+    assert_int_const_expr("1 <=1",         1); assert_int_const_expr("1 <= 1", 1);
+    assert_int_const_expr("1 ==1",         1); assert_int_const_expr("1 == 2", 0);
+    assert_int_const_expr("1 !=1",         0); assert_int_const_expr("1 != 2", 1);
     assert_int_const_expr("7 & 3",         3);
     assert_int_const_expr("5 | 3",         7);
     assert_int_const_expr("5 ^ 3",         6);
@@ -343,16 +344,49 @@ void test_constant_expressions() {
     assert_int_const_expr("~-0",           -1);
     assert_int_const_expr("~-1",           0);
 
+    // Floating points
+    assert_fp_const_expr("1.1 + 1.1",         2.2);
+    assert_fp_const_expr("3.1 - 2.1",         1.0);
+    assert_fp_const_expr("2.1 * 3.1",         6.51);
+    assert_fp_const_expr("7.1 / 2.0",         3.55);
+    assert_fp_const_expr("1.1 +2.1*3.1",      7.61);
+    assert_int_const_expr("1.1 > 2.1",        0); assert_int_const_expr("2.1 > 1.1", 1);
+    assert_int_const_expr("1.1 < 2.1",        1); assert_int_const_expr("2.1 < 1.1", 0);
+    assert_int_const_expr("1.1 >=2.1",        0); assert_int_const_expr("2.1 >=1.1", 1);
+    assert_int_const_expr("1.1 >=1.1",        1); assert_int_const_expr("1.1 >=1.1", 1);
+    assert_int_const_expr("1.1 <=2.1",        1); assert_int_const_expr("2.1 <=1.1", 0);
+    assert_int_const_expr("1.1 <=1.1",        1); assert_int_const_expr("1.1 <=1.1", 1);
+    assert_int_const_expr("1.1 ==1.1",        1); assert_int_const_expr("1.1 ==2.1", 0);
+    assert_int_const_expr("1.1 !=1.1",        0); assert_int_const_expr("1.1 !=2.1", 1);
+    assert_fp_const_expr("0.0 ? 1.1 : 2.1",   2.1);
+    assert_fp_const_expr("1.1 ? 1.1 : 2.1",   1.1);
+    assert_int_const_expr("!1.1",             0);
+    assert_int_const_expr("!2.1",             0);
+    assert_int_const_expr("!0.0",             1);
+    assert_fp_const_expr("+1.1",              1.1);
+    assert_fp_const_expr("-1.1",              -1.1);
+
     // Sizes
-    assert_int_const_expr("sizeof(int)",        4);
-    assert_int_const_expr("sizeof(int *)",      8);
-    assert_int_const_expr("sizeof(1 + 1)",      4);
-    assert_int_const_expr("sizeof(!1)",         4);
-    assert_int_const_expr("sizeof((char) 1)",   1);
-    assert_int_const_expr("sizeof((short) 1)",  2);
-    assert_int_const_expr("sizeof((int) 1)",    4);
-    assert_int_const_expr("sizeof((long) 1)",   8);
-    assert_int_const_expr("sizeof(~ (char) 1)", 4);
+    assert_int_const_expr("sizeof(int)",             4);
+    assert_int_const_expr("sizeof(int *)",           8);
+    assert_int_const_expr("sizeof(1 + 1)",           4);
+    assert_int_const_expr("sizeof(1 + 1L)",          8);
+    assert_int_const_expr("sizeof(!1)",              4);
+    assert_int_const_expr("sizeof((char) 1)",        1);
+    assert_int_const_expr("sizeof((short) 1)",       2);
+    assert_int_const_expr("sizeof((int) 1)",         4);
+    assert_int_const_expr("sizeof((long) 1)",        8);
+    assert_int_const_expr("sizeof(~ (char) 1)",      4);
+    assert_int_const_expr("sizeof((float) 1)",       4);
+    assert_int_const_expr("sizeof((double) 1)",      8);
+    assert_int_const_expr("sizeof((long double) 1)", 16);
+    assert_int_const_expr("sizeof(1.1f + 1.1f)",     4);
+    assert_int_const_expr("sizeof(1.1 + 1.1)",       8);
+    assert_int_const_expr("sizeof(1.1 + 1.1f)",      8);
+    assert_int_const_expr("sizeof(1.1L + 1.1L)",     16);
+    assert_int_const_expr("sizeof(1.1 + 1.1L)",      16);
+    assert_int_const_expr("sizeof(!1.1)",            4);
+    assert_int_const_expr("sizeof(1.1 == 1.1)",      8); // FIXME should be int
 
     // Casting is tested in test_constant_casting()
 }

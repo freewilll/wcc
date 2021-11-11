@@ -23,6 +23,25 @@ Value *evaluate_const_unary_int_operation(int operation, Value *value) {
     return v;
 }
 
+Value *evaluate_const_unary_fp_operation(int operation, Value *value) {
+    int is_int;
+    unsigned int i;
+    long double ld;
+
+         if (operation == IR_LNOT) { is_int = 1; i = !value->fp_value; }
+    else if (operation == IR_ADD)  { is_int = 0; ld = +value->fp_value; }
+    else if (operation == IR_SUB)  { is_int = 0; ld = -value->fp_value; }
+    else return 0;
+
+    // Perform integer promotions everywhere except for logical not,
+    Value *v = new_value();
+    v->type = IR_LNOT ? new_type(TYPE_INT) : value->type;
+    v->is_constant = 1;
+    if (is_int) v->int_value = i; else v->fp_value = ld;
+
+    return v;
+}
+
 Value *evaluate_const_binary_int_operation(int operation, Value *src1, Value *src2) {
     int is_unsigned = src1->type->is_unsigned;
     int is_long = src1->type->type == TYPE_LONG || src2->type->type == TYPE_LONG;
@@ -92,7 +111,7 @@ Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src
     else return 0;
 
     Value *v = new_value();
-    v->type = is_int ? new_type(TYPE_LONG) : type;
+    v->type = is_int ? new_type(TYPE_LONG) : type; // FIXME should be int
     v->is_constant = 1;
     if (is_int) v->int_value = i; else v->fp_value = ld;
 
@@ -155,14 +174,22 @@ static Value *parse_unary_expression(int operation) {
     next();
     Value *value = parse_constant_expression(TOK_INC);
     check_unary_operation_type(operation, value);
-    return evaluate_const_unary_int_operation(operation, value);
+    if (is_floating_point_type(value->type))
+        return evaluate_const_unary_fp_operation(operation, value);
+    else
+        return evaluate_const_unary_int_operation(operation, value);
 }
 
 static Value *parse_binary_expression(int operation, int second_level, Value *value1) {
     next();
     Value *value2 = parse_constant_expression(second_level);
     check_binary_operation_types(operation, value1, value2);
-    return evaluate_const_binary_int_operation(operation, value1, value2);
+
+    Type *result_type = operation_type(value1, value2, 0);
+    if (is_floating_point_type(result_type))
+        return evaluate_const_binary_fp_operation(operation, value1, value2, result_type);
+    else
+        return evaluate_const_binary_int_operation(operation, value1, value2);
 }
 
 static Value *parse_ternary(Value *value) {
@@ -199,12 +226,6 @@ Value *parse_constant_expression(int level) {
                 Type *type = parse_type_name();
                 consume(TOK_RPAREN, ")");
                 value = parse_constant_expression(TOK_INC);
-
-                if (!is_arithmetic_type(value->type))
-                    panic("Can only cast from arithmetic types in an integer constant");
-                if (!is_integer_type(type))
-                    panic("Can only cast to integer types in an integer constant");
-
                 value = cast_constant_value(value, type);
             }
             else {
