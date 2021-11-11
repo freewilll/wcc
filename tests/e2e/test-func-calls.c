@@ -383,6 +383,13 @@ void test_function_pointers() {
     swai->assert_int(1,1, "s->func = func");
     swai->assert_int = &assert_int;
     swai->assert_int(1,1, "s->func = &func");
+
+    // A ternary without &
+    i = 1;
+    int (*a)(int);
+
+    i = 0; a = i ? plus : minus; assert_int(2, a(3), "Termary assignment without & 1");
+    i = 1; a = i ? plus : minus; assert_int(4, a(3), "Termary assignment without & 2");
 }
 
 void test_sizeof_function_pointer() {

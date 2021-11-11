@@ -210,8 +210,13 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     if (src1_type->type == TYPE_ARRAY) src1_type = decay_array_to_pointer(src1_type);
     if (src2_type->type == TYPE_ARRAY) src2_type = decay_array_to_pointer(src2_type);
 
-    if (src1_type->type == TYPE_FUNCTION && src2_type->type == TYPE_FUNCTION)
-        return new_type(TYPE_FUNCTION);
+    if (src1_type->type == TYPE_FUNCTION && src2_type->type == TYPE_FUNCTION) {
+        Type *type = new_type(TYPE_FUNCTION);
+        type->target = src1_type->target;
+        type->target = src1_type->target;
+        type->function = src1_type->function;
+        return type;
+    }
 
     Type *result;
 
@@ -2177,6 +2182,10 @@ void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2) {
     if (src1_is_pointer) src1_type_deref = deref_pointer(src1->type);
     if (src2_is_pointer) src2_type_deref = deref_pointer(src2->type);
 
+    // Convert functions to function pointers
+    if (src1->type->type == TYPE_FUNCTION) { src1_is_pointer = 1; src1_type_deref = src1->type; }
+    if (src2->type->type == TYPE_FUNCTION) { src2_is_pointer = 1; src2_type_deref = src2->type; }
+
     // One of the following shall hold for the second and third operands:
     // * both operands have arithmetic type;
     // * both operands have compatible structure or union types;
@@ -2224,6 +2233,10 @@ void parse_ternary_expression(void) {
     check_ternary_operation_types(switcher, src1, src2);
 
     dst->type = operation_type(src1, src2, 1);
+
+    // Convert dst function to pointer to function
+    if (dst->type->type == TYPE_FUNCTION) dst->type = make_pointer(dst->type);
+
     if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
     push(dst);
     add_jmp_target_instruction(ldst2); // End
