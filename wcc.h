@@ -106,6 +106,8 @@ typedef struct type_iterator {
     int index;                      // The index within the type. -1 if the end has been reached
     int offset;                     // Offset at the position of the iterator
     int start_offset;               // Offset when the iterator started on an array or struct/union
+    int bit_field_offset;           // Bit field offset if the scalar is a bit field
+    int bit_field_size;             // Bit field size if the scalar is a bit field
     struct type_iterator *parent;   // Parent to recurse back to
 } TypeIterator;
 

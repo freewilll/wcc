@@ -1662,6 +1662,8 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
 
             Value *child = dup_value(value);
             child->offset = it->offset;
+            child->bit_field_offset = it->bit_field_offset;
+            child->bit_field_size = it->bit_field_size;
             child->type = it->type;
             child->is_lvalue = 1;
             add_simple_assignment_instruction(child, src, 0);

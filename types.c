@@ -861,6 +861,8 @@ TypeIterator *type_iterator_descend(TypeIterator *it) {
     }
     else if (it->type->type == TYPE_STRUCT_OR_UNION) {
         TypeIterator *child = type_iterator(it->type->struct_or_union_desc->members[it->index]->type);
+        child->bit_field_offset = it->type->struct_or_union_desc->members[it->index]->bit_field_offset;
+        child->bit_field_size = it->type->struct_or_union_desc->members[it->index]->bit_field_size;
         child->offset = it->offset;
         child->start_offset = it->offset;
         child->parent = it;

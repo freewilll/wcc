@@ -636,6 +636,13 @@ void test_struct_init7() {
     assert_int(6, ((1 + ps)[1]).j, "Struct init 7 5e");
 }
 
+static void test_struct_init8() {
+    struct s { int i:3, j:3, k:3; } s = {1, 2, 3};
+    assert_int(1, s.i, "Struct init 8 1");
+    assert_int(2, s.j, "Struct init 8 2");
+    assert_int(3, s.k, "Struct init 8 3");
+}
+
 static void test_char_array_string_literal_inits() {
     char c1[] = "foo";
     assert_int(4, sizeof(c1), "sizeof(c1)");
@@ -836,6 +843,7 @@ int main(int argc, char **argv) {
     test_struct_init5();
     test_struct_init6();
     test_struct_init7();
+    test_struct_init8();
 
     // Strings
     test_char_array_string_literal_inits();
