@@ -111,7 +111,7 @@ Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src
     else return 0;
 
     Value *v = new_value();
-    v->type = is_int ? new_type(TYPE_LONG) : type; // FIXME should be int
+    v->type = is_int ? new_type(TYPE_INT) : type;
     v->is_constant = 1;
     if (is_int) v->int_value = i; else v->fp_value = ld;
 

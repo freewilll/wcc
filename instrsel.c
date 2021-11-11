@@ -584,12 +584,13 @@ static Value* merge_integer_constants(IGraph *igraph, int node_id, int operation
 
 static Value* merge_fp_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2, Type *type) {
     Value *value = evaluate_const_binary_fp_operation(operation, src1, src2, type);
+
     if (!value)
         return 0;
-    else if (value->type->type == TYPE_LONG)
-        merge_cst_int_node(igraph, node_id, value->int_value, 0);
-    else
+    else if (is_floating_point_type(value->type))
         merge_cst_fp_node(igraph, node_id, type, value->fp_value);
+    else
+        merge_cst_int_node(igraph, node_id, value->int_value, 0);
 }
 
 static Value *recursive_merge_constants(IGraph *igraph, int node_id) {

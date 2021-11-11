@@ -386,7 +386,7 @@ void test_constant_expressions() {
     assert_int_const_expr("sizeof(1.1L + 1.1L)",     16);
     assert_int_const_expr("sizeof(1.1 + 1.1L)",      16);
     assert_int_const_expr("sizeof(!1.1)",            4);
-    assert_int_const_expr("sizeof(1.1 == 1.1)",      8); // FIXME should be int
+    assert_int_const_expr("sizeof(1.1 == 1.1)",      4);
 
     // Casting is tested in test_constant_casting()
 }
