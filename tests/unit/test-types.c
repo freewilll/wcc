@@ -272,6 +272,20 @@ void test_type_iterator() {
     it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 6, "short", "Deep interation struct s { char c; short s; }[2] 4");
     it = type_iterator_next(it);                             assert_it_done(it, 1);
 
+    type = lex_type("struct s { int i:2, j:2, :0, l:2; }"); // With zero sized bit field
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "int", "Deep interation struct s { int i:2, j:2, k:0, l:2; } 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 0, "int", "Deep interation struct s { int i:2, j:2, k:0, l:2; } 2");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 4, "int", "Deep interation struct s { int i:2, j:2, k:0, l:2; } 3");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
+    type = lex_type("struct s { int i:2, j:2, :0, :0, l:2; }"); // With two zero sized bit fields
+    it = type_iterator(type);
+    it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "int", "Deep interation struct s { int i:2, j:2, k:0, l:2; } 1");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 0, "int", "Deep interation struct s { int i:2, j:2, k:0, l:2; } 2");
+    it = type_iterator_next(it); it = type_iterator_dig(it); assert_it_done(it, 0); assert_it_type(it, 4, "int", "Deep interation struct s { int i:2, j:2, k:0, l:2; } 3");
+    it = type_iterator_next(it);                             assert_it_done(it, 1);
+
     type = lex_type("struct s { char c[2]; short s; }");
     it = type_iterator(type);
     it = type_iterator_dig(it);                              assert_it_done(it, 0); assert_it_type(it, 0, "char",  "Deep interation struct s { char c[2]; short s; } 1");

@@ -837,6 +837,11 @@ TypeIterator *type_iterator_next(TypeIterator *it) {
         }
 
         it->offset = it->start_offset + it->type->struct_or_union_desc->members[it->index]->offset;
+
+        // Skip over zero size bit fields
+        StructOrUnionMember *member = it->type->struct_or_union_desc->members[it->index];
+        if (member->is_bit_field && !member->bit_field_size) return type_iterator_next(it);
+
         return it;
     }
     else

@@ -637,10 +637,15 @@ void test_struct_init7() {
 }
 
 static void test_struct_init8() {
-    struct s { int i:3, j:3, k:3; } s = {1, 2, 3};
-    assert_int(1, s.i, "Struct init 8 1");
-    assert_int(2, s.j, "Struct init 8 2");
-    assert_int(3, s.k, "Struct init 8 3");
+    struct s1 { int i:3, j:3, k:3; } s1 = {1, 2, 3};
+    assert_int(1, s1.i, "Struct init 8 1");
+    assert_int(2, s1.j, "Struct init 8 2");
+    assert_int(3, s1.k, "Struct init 8 3");
+
+    struct s2 { int i:3, j:3, :0, k:3; } s2 = {1, 2, 3};
+    assert_int(1, s2.i, "Struct init 8 4");
+    assert_int(2, s2.j, "Struct init 8 5");
+    assert_int(3, s2.k, "Struct init 8 6");
 }
 
 static void test_char_array_string_literal_inits() {
