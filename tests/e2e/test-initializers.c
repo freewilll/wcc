@@ -1185,10 +1185,10 @@ void test_static_local_initialization() {
     // static int *pi = &i;
     // assert_int(pi, &i, "Static local initialization 1");
 
-    // static char ca[] = "Local static char array"; // TODO constant string expressions
-    // assert_string("Local static char array", ca, "Static local initialization 2");
-    // ca[0] = 'F';
-    // assert_string("Focal static char array", ca, "Static local initialization 3");
+    static char ca[] = "Local static char array";
+    assert_string("Local static char array", ca, "Static local initialization 2");
+    ca[0] = 'F';
+    assert_string("Focal static char array", ca, "Static local initialization 3");
 
     func_with_static_string('T', "Static local string 1");
     func_with_static_string('U', "Static local string 2");
