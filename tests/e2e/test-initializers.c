@@ -53,12 +53,18 @@ static void *gpv2 = 0;
 // static char *string3 = "string3" + 2;
 // static char *string4 = &"string4";
 
-// static char ca1[] = "chararr1"; // TODO constant string expressions
-// static char ca2[] = {"chararr2"};
-// static char ca3[2] = "foo";
-// static char ca4[3] = "foo";
-// static char ca5[4] = "foo";
-// static char ca5post = 'a';
+static char ca1[] = "chararr1"; // TODO constant string expressions
+static char ca2[] = {"chararr2"};
+static char ca3[2] = "foo";
+static char ca4[3] = "foo";
+static char ca5[4] = "foo";
+static char ca5post = 'a';
+static char ca6[] = "foo";
+static char ca7[2] = "foo";
+
+static wchar_t wc1[] = L"foo";
+static wchar_t wc2[2] = L"foo";
+
 
 // char *apc[3] = {"foo", "bar", "bazzer"}; // TODO constant string expressions
 // char *aapc[3][3] = {
@@ -1031,15 +1037,29 @@ void test_global_initialization() {
     // assert_string("ring3",   string3, "Global string initialization 3");
     // assert_string("string4", string4, "Global string initialization 4");
 
-    // assert_string("chararr1", ca1,    "Global char array initialization straight");
-    // assert_string("chararr2", ca2,    "Global char array initialization with {}");
-    // assert_int('f', ca3[0],           "Global char array initialization [2][0]");
-    // assert_int('o', ca3[1],           "Global char array initialization [2][1]");
-    // assert_int('f', ca4[0],           "Global char array initialization [3][0]");
-    // assert_int('o', ca4[1],           "Global char array initialization [3][1]");
-    // assert_int('o', ca4[2],           "Global char array initialization [3][2]");
-    // assert_string("foo", ca5,         "Global char array initialization [4]");
-    // assert_int('a', ca5post,          "Global char array initialization ca5post");
+    assert_string("chararr1", ca1,    "Global char array initialization straight");
+    assert_string("chararr2", ca2,    "Global char array initialization with {}");
+    assert_int('f', ca3[0],           "Global char array initialization [2][0]");
+    assert_int('o', ca3[1],           "Global char array initialization [2][1]");
+    assert_int('f', ca4[0],           "Global char array initialization [3][0]");
+    assert_int('o', ca4[1],           "Global char array initialization [3][1]");
+    assert_int('o', ca4[2],           "Global char array initialization [3][2]");
+    assert_string("foo", ca5,         "Global char array initialization [4]");
+    assert_int('a', ca5post,          "Global char array initialization ca5post");
+    assert_int(4, sizeof(ca6),        "Global char array initialization ca6 size");
+    assert_string("foo", ca6,         "Global char array initialization ca6");
+    assert_int(2, sizeof(ca7),        "Global char array initialization ca7 size");
+    assert_int('f', ca7[0],           "Global char array initialization ca7[0]");
+
+    assert_int(16, sizeof(wc1), "Global char array initialization wc1 size");
+    assert_int('f', wc1[0],     "Global char array initialization wc1 f");
+    assert_int('o', wc1[1],     "Global char array initialization wc1 o");
+    assert_int('o', wc1[2],     "Global char array initialization wc1 o");
+    assert_int(0,   wc1[3],     "Global char array initialization wc1 0");
+
+    assert_int(8, sizeof(wc2), "Global char array initialization wc2 size");
+    assert_int('f', wc2[0],    "Global char array initialization wc2 f");
+    assert_int('o', wc2[1],    "Global char array initialization wc2 0");
 
     // assert_string("foo",    apc[0], "Array of pointer to chars 1");
     // assert_string("bar",    apc[1], "Array of pointer to chars 2");
