@@ -126,7 +126,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
     else if (v->stack_index)
         c += fprintf(f, "s[%d]", v->stack_index);
     else if (v->global_symbol)
-        c += fprintf(f, "%s", v->global_symbol->identifier);
+        c += fprintf(f, "%s", v->global_symbol->global_identifier);
     else if (v->is_string_literal)
         c += fprintf_escaped_string_literal(f, &(string_literals[v->string_literal_index]), 0);
     else if (v->label)

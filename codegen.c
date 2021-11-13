@@ -7,6 +7,7 @@
 
 int need_ru4_to_ld_symbol;
 int need_ld_to_ru4_symbol;
+int elf_section;
 
 typedef enum elf_section {
     SEC_NONE,
@@ -696,6 +697,48 @@ static void output_function_body_code(Symbol *symbol) {
     }
 }
 
+static void output_symbol(Symbol *symbol) {
+    if (symbol->linkage == LINKAGE_INTERNAL && !symbol->initializer_count) {
+        if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
+        fprintf(f, "    .local  %s\n", symbol->global_identifier);
+    }
+
+    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && !symbol->initializer_count) {
+        if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
+        fprintf(f, "    .comm   %s,%d,%d\n",
+            symbol->global_identifier,
+            get_type_size(symbol->type),
+            get_type_alignment(symbol->type));
+    }
+
+    else if (symbol->initializer_count) {
+        int size = get_type_size(symbol->type);
+        if (symbol->linkage == LINKAGE_EXTERNAL) fprintf(f, "    .globl   %s\n", symbol->global_identifier);
+        if (elf_section != SEC_DATA) { fprintf(f, "    .data\n"); elf_section = SEC_DATA; }
+        fprintf(f, "    .align   %d\n", get_type_alignment(symbol->type));
+        fprintf(f, "    .type    %s, @object\n", symbol->global_identifier);
+        fprintf(f, "    .size    %s, %d\n", symbol->global_identifier, size);
+        fprintf(f, "%s:\n", symbol->global_identifier);
+
+        for (int i = 0; i < symbol->initializer_count; i++) {
+            Initializer *in = &(symbol->initializers[i]);
+
+            if (!in->data) fprintf(f,"    .zero    %d\n", in->size);
+            else if (in->size == 1) fprintf(f,"    .byte    %d\n", *((char *) in->data));
+            else if (in->size == 2) fprintf(f,"    .word    %d\n", *((short *) in->data));
+            else if (in->size == 4) fprintf(f,"    .long    %d\n", *((int *) in->data));
+            else if (in->size == 8) fprintf(f,"    .quad    %ld\n", *((long *) in->data));
+            else if (in->size == 16) {
+                fprintf(f, "    .long   %d\n", (((int *) in->data))[0]);
+                fprintf(f, "    .long   %d\n", (((int *) in->data))[1]);
+                fprintf(f, "    .long   %d\n", (((int *) in->data))[2] & 0xffff);
+                fprintf(f, "    .long   0\n");
+            }
+            else panic("Unknown initializer size=%d data=%p\n", in->size, in->data);
+        }
+    }
+}
+
 // Output code for the translation unit
 void output_code(char *input_filename, char *output_filename) {
     if (!strcmp(output_filename, "-"))
@@ -712,50 +755,22 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .file   \"%s\"\n", input_filename);
 
     // Output symbols
-    int elf_section = SEC_NONE;
+    elf_section = SEC_NONE;
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbols[i];
-        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value) {
-            if (symbol->linkage == LINKAGE_INTERNAL && !symbol->initializer_count) {
-                if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
-                fprintf(f, "    .local  %s\n", symbol->global_identifier);
-            }
+        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
+            output_symbol(symbol);
+    }
 
-            if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && !symbol->initializer_count) {
-                if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
-                fprintf(f, "    .comm   %s,%d,%d\n",
-                    symbol->global_identifier,
-                    get_type_size(symbol->type),
-                    get_type_alignment(symbol->type));
-            }
-
-            else if (symbol->initializer_count) {
-                int size = get_type_size(symbol->type);
-                if (symbol->linkage == LINKAGE_EXTERNAL) fprintf(f, "    .globl   %s\n", symbol->global_identifier);
-                if (elf_section != SEC_DATA) { fprintf(f, "    .data\n"); elf_section = SEC_DATA; }
-                fprintf(f, "    .align   %d\n", get_type_alignment(symbol->type));
-                fprintf(f, "    .type    %s, @object\n", symbol->global_identifier);
-                fprintf(f, "    .size    %s, %d\n", symbol->global_identifier, size);
-                fprintf(f, "%s:\n", symbol->global_identifier);
-
-                for (int i = 0; i < symbol->initializer_count; i++) {
-                    Initializer *in = &(symbol->initializers[i]);
-
-                    if (!in->data) fprintf(f,"    .zero    %d\n", in->size);
-                    else if (in->size == 1) fprintf(f,"    .byte    %d\n", *((char *) in->data));
-                    else if (in->size == 2) fprintf(f,"    .word    %d\n", *((short *) in->data));
-                    else if (in->size == 4) fprintf(f,"    .long    %d\n", *((int *) in->data));
-                    else if (in->size == 8) fprintf(f,"    .quad    %ld\n", *((long *) in->data));
-                    else if (in->size == 16) {
-                        fprintf(f, "    .long   %d\n", (((int *) in->data))[0]);
-                        fprintf(f, "    .long   %d\n", (((int *) in->data))[1]);
-                        fprintf(f, "    .long   %d\n", (((int *) in->data))[2] & 0xffff);
-                        fprintf(f, "    .long   0\n");
-                    }
-                    else panic("Unknown initializer size=%d data=%p\n", in->size, in->data);
-                }
-            }
+    // Output static local symbols
+    for (int i = 0; i < global_scope->symbol_count; i++) {
+        Symbol *symbol = global_scope->symbols[i];
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
+            Function *function = symbol->type->function;
+            for (int j = 0; j < function->static_symbol_count; j++)
+                output_symbol(function->static_symbols[j]);
         }
+        symbol++;
     }
 
     // Output string literals

@@ -1892,7 +1892,7 @@ static void parse_declaration(void) {
     if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic("Identifier redeclared: %s", cur_type_identifier);
 
     if (base_type->is_static) {
-        symbol = new_global_symbol();
+        symbol = new_symbol();
         symbol->type = dup_type(type);
         symbol->linkage = LINKAGE_INTERNAL;
         symbol->identifier = cur_type_identifier;
@@ -1900,6 +1900,13 @@ static void parse_declaration(void) {
         char *global_identifier;
         asprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, ++local_static_symbol_count);
         symbol->global_identifier = global_identifier;
+
+        // cur_function_symbol->type->function->static_symbols
+        Function *function = cur_function_symbol->type->function;
+        if (function->static_symbol_count == MAX_LOCAL_SCOPE_IDENTIFIERS)
+            panic("Exceeded MAX_LOCAL_SCOPE_IDENTIFIERS=%d", MAX_LOCAL_SCOPE_IDENTIFIERS);
+
+        function->static_symbols[function->static_symbol_count++] = symbol;
     }
     else if (base_type->is_extern) {
         // Add the identifier to the local scope, but give it a global identifier
@@ -3263,6 +3270,9 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
         loop_count = 0;
 
         if (cur_function_symbol->type->function->is_variadic) add_va_register_save_area();
+
+        cur_function_symbol->type->function->static_symbols = malloc(sizeof(Symbol) * MAX_LOCAL_SCOPE_IDENTIFIERS);
+
         parse_compound_statement();
 
         cur_function_symbol->type->function->is_defined = 1;

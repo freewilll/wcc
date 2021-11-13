@@ -1183,6 +1183,20 @@ void test_static_local_initialization() {
     assert_long(18446744073709551615, ll, "Static long initialization");
 }
 
+int gi2 = 10;
+
+void f(int expected) {
+    static int gi2 = 1; // Same identifier as a global of the same name
+    assert_int(expected, gi2++, "Static int identifier reuse bug");
+}
+
+static void test_static_identifier_reuse_bug() {
+    f(1);
+    f(2);
+    f(3);
+    assert_int(10, gi2, "Static int identifier reuse bug, gi2 is untouched");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1239,6 +1253,7 @@ int main(int argc, char **argv) {
     test_global_sizeof_types();
     test_global_initialization();
     test_static_local_initialization();
+    test_static_identifier_reuse_bug();
 
     finalize();
 }
