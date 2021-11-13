@@ -281,7 +281,7 @@ int is_arithmetic_type(Type *type) {
 }
 
 int is_scalar_type(Type *type) {
-    return (type->type >= TYPE_CHAR && type->type <= TYPE_PTR);
+    return (type->type == TYPE_ENUM || (type->type >= TYPE_CHAR && type->type <= TYPE_PTR));
 }
 
 int is_object_type(Type *type) {

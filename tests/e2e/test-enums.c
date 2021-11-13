@@ -19,7 +19,7 @@ void test_enums() {
     assert_int(2, GE1B, "Enums GE1 2");
     assert_int(3, GE1C, "Enums GE1 3");
 
-    enum e0 {E0A, E0B, E0C};                // Intentional no trailing comma
+    enum e0 {E0A, E0B, E0C}; // Intentional no trailing comma
     assert_int(0, E0A, "Enums E0 1");
     assert_int(1, E0B, "Enums E0 2");
     assert_int(2, E0C, "Enums E0 3");
@@ -48,7 +48,7 @@ void test_enums() {
         E3C,
         E3D,
         E3E=3,
-        E3F,                                // Intentional trailing comma
+        E3F, // Intentional trailing comma
     };
     assert_int(0, E3A, "Enums E3 1");
     assert_int(2, E3B, "Enums E3 2");
@@ -104,6 +104,10 @@ void test_enums() {
     assert_int(GE0A, return_ge0(GE0A), "Return GE0A");
     assert_int(GE0B, return_ge0(GE0B), "Return GE0B");
     assert_int(GE0C, return_ge0(GE0C), "Return GE0C");
+
+    // Declaration + initialization
+    enum foo {FOO=1} f = FOO;
+    assert_int(FOO, f, "Declaration + initialization");
 }
 
 int main(int argc, char **argv) {
