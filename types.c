@@ -618,9 +618,7 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
     if (type1->type == TYPE_FUNCTION && type2->type == TYPE_FUNCTION)
         return functions_are_compatible(type1, type2, seen_tags);
 
-    if (type1->type != type2->type) return 0;
-
-    return type1->is_unsigned == type2->is_unsigned;
+    return (type1->type == type2->type);
 }
 
 int types_are_compatible(Type *type1, Type *type2) {
