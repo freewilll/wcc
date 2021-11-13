@@ -5,11 +5,6 @@
 
 #include "../../wcc.h"
 
-void panic(char *message) {
-    printf("%s\n", message);
-    exit(1);
-}
-
 int main() {
     LongMap *map = new_longmap();
 
