@@ -715,6 +715,7 @@ static void output_symbol(Symbol *symbol) {
         int size = get_type_size(symbol->type);
         if (symbol->linkage == LINKAGE_EXTERNAL) fprintf(f, "    .globl   %s\n", symbol->global_identifier);
         if (elf_section != SEC_DATA) { fprintf(f, "    .data\n"); elf_section = SEC_DATA; }
+
         fprintf(f, "    .align   %d\n", get_type_alignment(symbol->type));
         fprintf(f, "    .type    %s, @object\n", symbol->global_identifier);
         fprintf(f, "    .size    %s, %d\n", symbol->global_identifier, size);
@@ -723,7 +724,8 @@ static void output_symbol(Symbol *symbol) {
         for (int i = 0; i < symbol->initializer_count; i++) {
             Initializer *in = &(symbol->initializers[i]);
 
-            if (!in->data) fprintf(f,"    .zero    %d\n", in->size);
+            if (in->is_string_literal) fprintf(f,"    .quad    .SL%d\n", in->string_literal_index);
+            else if (!in->data) fprintf(f,"    .zero    %d\n", in->size);
             else if (in->size == 1) fprintf(f,"    .byte    %d\n", *((char *) in->data));
             else if (in->size == 2) fprintf(f,"    .word    %d\n", *((short *) in->data));
             else if (in->size == 4) fprintf(f,"    .long    %d\n", *((int *) in->data));

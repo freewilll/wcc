@@ -1554,7 +1554,6 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
 
     if (!s->initializers) s->initializers = malloc(sizeof(Initializer) * MAX_INITIALIZERS);
     if (s->initializer_count == MAX_INITIALIZERS) panic("Exceeded MAX_INITIALIZERS=%d", MAX_INITIALIZERS);
-    if (scalar && !scalar->is_constant) panic("Attempt to add an initializer for a non constant");
 
     int bf_offset;
     int bf_bit_offset;
@@ -1578,7 +1577,10 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     }
 
     if (scalar) {
-        scalar = cast_constant_value(scalar, dst->type);
+        if (!scalar->is_constant && !scalar->is_string_literal)
+            panic("Attempt to add an initializer for a non constant");
+
+        if (!scalar->is_string_literal) scalar = cast_constant_value(scalar, dst->type);
         size = get_type_size(dst->type);
 
         if (scalar->type->type == TYPE_FLOAT) {
@@ -1603,6 +1605,10 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
             unsigned int inverted_shifted_mask = ~(mask << bf_bit_offset);
             (*pi) &= inverted_shifted_mask;
             (*pi) |= ((scalar->int_value & mask) << bf_bit_offset);
+        }
+        else if (scalar->is_string_literal) {
+            in->is_string_literal = 1;
+            in->string_literal_index = scalar->string_literal_index;
         }
         else
             in->data = &scalar->int_value;

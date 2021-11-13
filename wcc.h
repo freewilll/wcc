@@ -115,6 +115,8 @@ typedef struct initializer {
     int offset;                 // Offset of the initializer
     int size;                   // Size of the initializer
     void *data;                 // Pointer to the data, or zero if it's a block of zeroes
+    int is_string_literal;      //
+    int string_literal_index;   // If it's a string literal, an index in string_literals
 } Initializer;
 
 typedef struct symbol {

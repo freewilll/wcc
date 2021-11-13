@@ -47,11 +47,11 @@ int gia3[] = {1, 2, 3};
 static void *gpv1 = (void *) 0;
 static void *gpv2 = 0;
 
-// // Strings
-// static char *string1 = "string1"; // TODO constant string expressions
-// static char *string2 = "string2" + 1;
-// static char *string3 = "string3" + 2;
-// static char *string4 = &"string4";
+// Strings
+static char *string1 = "string1";
+// static char *string2 = "string2" + 1; // TODO constant expressions with &
+// static char *string3 = "string3" + 2; // TODO constant expressions with &
+// static char *string4 = &"string4"; // TODO constant expressions with &
 
 static char ca1[] = "chararr1"; // TODO constant string expressions
 static char ca2[] = {"chararr2"};
@@ -66,12 +66,12 @@ static wchar_t wc1[] = L"foo";
 static wchar_t wc2[2] = L"foo";
 
 
-// char *apc[3] = {"foo", "bar", "bazzer"}; // TODO constant string expressions
-// char *aapc[3][3] = {
-//     {"a",       "ab",       "abc"},
-//     {"abcd",    "abcde",    "abcdef"},
-//     {"abcdefg", "abcdefgh", "abcdefghi"},
-// };
+char *apc[3] = {"foo", "bar", "bazzer"};
+char *aapc[3][3] = {
+    {"a",       "ab",       "abc"},
+    {"abcd",    "abcde",    "abcdef"},
+    {"abcdefg", "abcdefgh", "abcdefghi"},
+};
 
 // Test casting + pointer addition // TODO constant expressions with &
 // static void *gpvc1  = ((char *)      0) + 1;
@@ -1032,7 +1032,7 @@ void test_global_initialization() {
     // assert_int(gpvia25_11,  ((int) &ia25) + 24, "Global pointer to void 5d");
     // assert_int(gpvia25_11x, ((int) &ia25) + 28, "Global pointer to void 5e");
 
-    // assert_string("string1", string1, "Global string initialization 1");
+    assert_string("string1", string1, "Global string initialization 1");
     // assert_string("tring2",  string2, "Global string initialization 2");
     // assert_string("ring3",   string3, "Global string initialization 3");
     // assert_string("string4", string4, "Global string initialization 4");
@@ -1061,19 +1061,19 @@ void test_global_initialization() {
     assert_int('f', wc2[0],    "Global char array initialization wc2 f");
     assert_int('o', wc2[1],    "Global char array initialization wc2 0");
 
-    // assert_string("foo",    apc[0], "Array of pointer to chars 1");
-    // assert_string("bar",    apc[1], "Array of pointer to chars 2");
-    // assert_string("bazzer", apc[2], "Array of pointer to chars 3");
+    assert_string("foo",    apc[0], "Array of pointer to chars 1");
+    assert_string("bar",    apc[1], "Array of pointer to chars 2");
+    assert_string("bazzer", apc[2], "Array of pointer to chars 3");
 
-    // assert_string("a",              aapc[0][0], "Array of array of pointer to chars 00");
-    // assert_string("ab",             aapc[0][1], "Array of array of pointer to chars 01");
-    // assert_string("abc",            aapc[0][2], "Array of array of pointer to chars 02");
-    // assert_string("abcd",           aapc[1][0], "Array of array of pointer to chars 10");
-    // assert_string("abcde",          aapc[1][1], "Array of array of pointer to chars 11");
-    // assert_string("abcdef",         aapc[1][2], "Array of array of pointer to chars 12");
-    // assert_string("abcdefg",        aapc[2][0], "Array of array of pointer to chars 20");
-    // assert_string("abcdefgh",       aapc[2][1], "Array of array of pointer to chars 21");
-    // assert_string("abcdefghi",      aapc[2][2], "Array of array of pointer to chars 22");
+    assert_string("a",              aapc[0][0], "Array of array of pointer to chars 00");
+    assert_string("ab",             aapc[0][1], "Array of array of pointer to chars 01");
+    assert_string("abc",            aapc[0][2], "Array of array of pointer to chars 02");
+    assert_string("abcd",           aapc[1][0], "Array of array of pointer to chars 10");
+    assert_string("abcde",          aapc[1][1], "Array of array of pointer to chars 11");
+    assert_string("abcdef",         aapc[1][2], "Array of array of pointer to chars 12");
+    assert_string("abcdefg",        aapc[2][0], "Array of array of pointer to chars 20");
+    assert_string("abcdefgh",       aapc[2][1], "Array of array of pointer to chars 21");
+    assert_string("abcdefghi",      aapc[2][2], "Array of array of pointer to chars 22");
 
     assert_int(1, ccast,  "Global cast from integer 1");
     assert_int(1, scast,  "Global cast from integer 2");
