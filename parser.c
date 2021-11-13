@@ -1598,7 +1598,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
                 *((unsigned int *) in->data) = 0;
             }
 
-            unsigned int *pi = (int *) in->data;
+            unsigned int *pi = (unsigned int *) in->data;
             unsigned int mask = bf_bit_size == 32 ? -1 : (1 << bf_bit_size) - 1;
             unsigned int inverted_shifted_mask = ~(mask << bf_bit_offset);
             (*pi) &= inverted_shifted_mask;
