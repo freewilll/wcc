@@ -724,7 +724,18 @@ static void output_symbol(Symbol *symbol) {
         for (int i = 0; i < symbol->initializer_count; i++) {
             Initializer *in = &(symbol->initializers[i]);
 
-            if (in->is_string_literal) fprintf(f,"    .quad    .SL%d\n", in->string_literal_index);
+            if (in->is_address_of) {
+                if (in->address_of_offset)
+                    fprintf(f,"    .quad    %s + %d\n", in->symbol->global_identifier, in->address_of_offset);
+                else
+                    fprintf(f,"    .quad    %s\n", in->symbol->global_identifier);
+            }
+            else if (in->is_string_literal) {
+                if (in->address_of_offset)
+                    fprintf(f,"    .quad    .SL%d + %d\n", in->string_literal_index, in->address_of_offset);
+                else
+                    fprintf(f,"    .quad    .SL%d\n", in->string_literal_index);
+            }
             else if (!in->data) fprintf(f,"    .zero    %d\n", in->size);
             else if (in->size == 1) fprintf(f,"    .byte    %d\n", *((char *) in->data));
             else if (in->size == 2) fprintf(f,"    .word    %d\n", *((short *) in->data));

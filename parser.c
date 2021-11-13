@@ -955,7 +955,7 @@ static void indirect(void) {
 }
 
 // Search for a struct member. Panics if it doesn't exist
-static StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *identifier) {
+StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *identifier) {
     StructOrUnionMember **pmember = type->struct_or_union_desc->members;
 
     while (*pmember) {
@@ -1226,24 +1226,14 @@ void check_plus_operation_type(Value *src1, Value *src2) {
 
     // Either both operands shall have arithmetic type, or one operand shall be a
     // pointer to an object type and the other shall have integral type.
-    if (
-        (!src1_is_arithmetic || !src2_is_arithmetic) &&
-        (!src1_is_pointer || !src2_is_integer) &&
-        (!src2_is_pointer || !src1_is_integer)
-    )
-    panic("Invalid operands to binary plus");
 
-    // Either both operands shall have arithmetic type, or one operand shall be a
-    // pointer to an object type and the other shall have integral type.
-    if (
-        (!src1_is_arithmetic || !src2_is_arithmetic) &&
-        (!src1_is_pointer || !src2_is_integer) &&
-        (!src2_is_pointer || !src1_is_integer)
-    )
-    panic("Invalid operands to binary plus");
+    if (src1_is_arithmetic && src2_is_arithmetic) return;
+    else if (src1_is_pointer && src2_is_integer) return;
+    else if (src2_is_pointer && src1_is_integer) return;
+    else panic("Invalid operands to binary plus");
 }
 
-static void check_minus_operation_type(Value *src1, Value *src2) {
+void check_minus_operation_type(Value *src1, Value *src2) {
     int src1_is_pointer = is_pointer_to_object_type(src1->type);
     int src1_is_arithmetic = is_arithmetic_type(src1->type);
     int src2_is_pointer = is_pointer_to_object_type(src2->type);
@@ -1577,10 +1567,10 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     }
 
     if (scalar) {
-        if (!scalar->is_constant && !scalar->is_string_literal)
+        if (!scalar->is_constant && !scalar->is_string_literal && !scalar->is_address_of)
             panic("Attempt to add an initializer for a non constant");
 
-        if (!scalar->is_string_literal) scalar = cast_constant_value(scalar, dst->type);
+        if (!scalar->is_string_literal && !scalar->is_address_of) scalar = cast_constant_value(scalar, dst->type);
         size = get_type_size(dst->type);
 
         if (scalar->type->type == TYPE_FLOAT) {
@@ -1606,16 +1596,24 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
             (*pi) &= inverted_shifted_mask;
             (*pi) |= ((scalar->int_value & mask) << bf_bit_offset);
         }
+        else if (scalar->is_address_of) {
+            in->is_address_of = 1;
+            in->address_of_offset = scalar->address_of_offset;
+            in->is_string_literal = scalar->is_string_literal;
+            in->string_literal_index = scalar->string_literal_index;
+            in->symbol = scalar->global_symbol;
+        }
         else if (scalar->is_string_literal) {
             in->is_string_literal = 1;
             in->string_literal_index = scalar->string_literal_index;
+            in->address_of_offset = scalar->address_of_offset;
         }
         else
             in->data = &scalar->int_value;
     }
 
-    in->offset = offset;
     in->size = size;
+    in->offset = offset;
 }
 
 // Initialize value with zeroes starting with offset & size.
@@ -2256,7 +2254,7 @@ void parse_struct_dot_arrow_expression(void) {
 
     if (!is_dot) indirect();
 
-    vtop->offset = vtop->offset + member->offset;
+    vtop->offset += member->offset;
     vtop->bit_field_offset = vtop->offset * 8 + (member->bit_field_offset & 7);
     vtop->bit_field_size = member->bit_field_size;
     vtop->type = dup_type(member->type);

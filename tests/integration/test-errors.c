@@ -353,5 +353,12 @@ int main(int argc, char **argv) {
         "Expected an integer constant expression",
         "Expected an integer constant expression");
 
+    check_output(
+        "struct s {i:3;} s;"
+        "int *ps = &s.i;",
+        "Cannot take an address of a bit-field",
+        "Cannot take an address of a bit-field");
+
+
     finalize();
 }

@@ -117,6 +117,9 @@ typedef struct initializer {
     void *data;                 // Pointer to the data, or zero if it's a block of zeroes
     int is_string_literal;      //
     int string_literal_index;   // If it's a string literal, an index in string_literals
+    int is_address_of;          // When set, the initializer must also be either a string literal or have a symbol
+    int address_of_offset;      // Offset when used in combination with is_address_of
+    struct symbol *symbol;      // Used together with address of.
 } Initializer;
 
 typedef struct symbol {
@@ -254,6 +257,8 @@ typedef struct value {
     int bit_field_size;                                  // Size in bits for bit fields
     int is_overflow_arg_area_address;                    // Set to indicate this value must point to the saved register save overflow for variadic functions
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
+    int is_address_of;                                   // Is an address of a constant expression.
+    int address_of_offset;                               // Offset when used in combination with is_address_of
     int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
@@ -731,10 +736,13 @@ int cur_token_is_type(void);
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 void check_unary_operation_type(int operation, Value *value);
 void check_binary_operation_types(int operation, Value *src1, Value *src2);
+void check_plus_operation_type(Value *src1, Value *src2);
+void check_minus_operation_type(Value *src1, Value *src2);
 void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2);
 Value *load_constant(Value *cv);
 Type *parse_type_name(void);
 Type *find_struct_or_union(char *identifier, int is_union, int recurse);
+StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *identifier);
 void finish_parsing_header(void);
 Value *make_symbol_value(Symbol *symbol);
 int parse_sizeof(parse_expression_function_type expr);

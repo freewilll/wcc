@@ -186,10 +186,52 @@ static Value *parse_unary_expression(int operation) {
         return evaluate_const_unary_int_operation(operation, value);
 }
 
+static Value *parse_address_plus_minus(int operation, Value *value1, Value *value2) {
+    if (value1->is_string_literal) value1->type = decay_array_to_pointer(value1->type);
+    if (value2->is_string_literal) value2->type = decay_array_to_pointer(value2->type);
+
+    if (operation == IR_ADD) check_plus_operation_type(value1, value2);
+    else if (operation == IR_SUB) check_minus_operation_type(value1, value2);
+
+    Value *result;
+
+    if (operation == IR_ADD) {
+        int arithmetic_value;
+        if (is_pointer_type(value1->type)) {
+            result = dup_value(value1);
+            arithmetic_value = value2->int_value;
+        }
+        else {
+            result = dup_value(value2);
+            arithmetic_value = value1->int_value;
+        }
+
+        int size = arithmetic_value * get_type_size(result->type->target);
+
+        if (result->is_address_of || result->is_string_literal)
+            result->address_of_offset += size;
+        else
+            result->int_value += size;
+    }
+    else {
+        result = dup_value(value1);
+        int size =  value2->int_value * get_type_size(result->type->target);
+        if (result->is_address_of || result->is_string_literal)
+            result->address_of_offset -= size;
+        else
+            result->int_value -= size;
+    }
+
+    return result;
+}
+
 static Value *parse_binary_expression(int operation, int second_level, Value *value1) {
     next();
     Value *value2 = parse_constant_expression(second_level);
     check_binary_operation_types(operation, value1, value2);
+
+    if ((operation == IR_ADD || operation == IR_SUB) && (is_pointer_type(value1->type) || is_pointer_type(value2->type)) || value1->is_string_literal || value2->is_string_literal)
+        return parse_address_plus_minus(operation, value1, value2);
 
     Type *result_type = operation_type(value1, value2, 0);
     if (is_floating_point_type(result_type))
@@ -219,7 +261,16 @@ Value *parse_constant_expression(int level) {
         case TOK_BITWISE_NOT: value = parse_unary_expression(IR_BNOT); break;
 
         case TOK_AMPERSAND:
-            panic("TODO constant expressions of addresses TOK_AMPERSAND");
+            next();
+            value = parse_constant_expression(TOK_INC);
+            if (value->bit_field_size) panic("Cannot take an address of a bit-field");
+
+            if (!value->is_string_literal && !value->global_symbol)
+                panic("Illegal operand to & in constant expression");
+
+            value->is_address_of = 1;
+            value->type = make_pointer(value->type);
+
             break;
 
         case TOK_PLUS:  value = parse_unary_expression(IR_ADD); break;
@@ -285,11 +336,33 @@ Value *parse_constant_expression(int level) {
             // In order of descending operator precedence
 
             case TOK_LBRACKET:
-                panic("TODO constant expressions of addresses TOK_LBRACKET");
+                next();
+
+                if (value->type->type != TYPE_PTR && value->type->type != TYPE_ARRAY)
+                    panic("Invalid operator [] on a non-pointer and non-array");
+
+                Value *subscript_value = parse_constant_expression(TOK_COMMA);
+                consume(TOK_RBRACKET, "]");
+
+                if (!subscript_value->is_constant || !is_integer_type(subscript_value->type))
+                    panic("Expected an integer constant integer expression in []");
+
+                value->address_of_offset += get_type_size(value->type->target) * subscript_value->int_value;
+                value->type = value->type->target;
+
                 break;
 
             case TOK_DOT:
-                panic("TODO constant expressions of addresses TOK_DOT");
+                if (value->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
+
+                next();
+                consume(TOK_IDENTIFIER, "identifier");
+
+                StructOrUnionMember *member = lookup_struct_or_union_member(value->type, cur_identifier);
+                value->address_of_offset += member->offset;
+                value->bit_field_size = member->bit_field_size;
+                value->type = dup_type(member->type);
+
                 break;
 
             case TOK_MULTIPLY:       value = parse_binary_expression(IR_MUL,  TOK_DOT,          value); break;
