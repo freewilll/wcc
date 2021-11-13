@@ -122,8 +122,8 @@ int ia25[2][5];
 enum e {EA=100, EB};
 static int enum_const1 = EA;
 static int enum_const2 = EB;
-// static enum e enum1 = EA; // TODO initializing global enums
-// static enum e enum2 = EB;
+static enum e enum1 = EA;
+static enum e enum2 = EB;
 
 // structs
 struct s {int a; int b;} sv1;
@@ -1083,8 +1083,8 @@ void test_global_initialization() {
     assert_int(100, enum_const1, "Enum constant usage in constant expression 1");
     assert_int(101, enum_const2, "Enum constant usage in constant expression 2");
 
-    // assert_int(100, enum1, "Enum constant usage in constant expression 2");
-    // assert_int(101, enum2, "Enum constant usage in constant expression 3");
+    assert_int(100, enum1, "Enum constant usage in constant expression 2");
+    assert_int(101, enum2, "Enum constant usage in constant expression 3");
 
     assert_int(1, st2.i, "Global struct initialization 1");
     assert_int(2, st2.j, "Global struct initialization 2");
