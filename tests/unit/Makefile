@@ -1,7 +1,7 @@
 all: run-test-lexer run-test-set run-test-strmap run-test-longmap  run-test-ssa run-test-parser run-test-types run-test-graph run-test-functions
 
 test-lexer: ../../libwcc.a test-lexer.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -g -o test-lexer test-lexer.c ../../libwcc.a
+	gcc ${GCC_OPTS} -g -o test-lexer test-lexer.c ../../libwcc.a
 
 run-test-lexer: test-lexer
 	 ./test-lexer
@@ -25,31 +25,31 @@ run-test-longmap: test-longmap
 	 ./test-longmap
 
 test-ssa: ../../libwcc.a ../test-utils.c test-ssa.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-ssa test-ssa.c ../test-utils.c ../../libwcc.a
+	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-ssa test-ssa.c ../test-utils.c ../../libwcc.a
 
 run-test-ssa: test-ssa
 	 ./test-ssa
 
 test-graph: test-graph.c ../../graph.c ../../utils.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE test-graph.c ../../graph.c ../../utils.c -o test-graph
+	gcc ${GCC_OPTS} test-graph.c ../../graph.c ../../utils.c -o test-graph
 
 run-test-graph: test-graph
 	 ./test-graph
 
 test-parser: ../../libwcc.a test-parser.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-parser test-parser.c ../../libwcc.a ../test-lib.o
+	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-parser test-parser.c ../../libwcc.a ../test-lib.o
 
 run-test-parser: test-parser
 	 ./test-parser
 
 test-types: ../../libwcc.a test-types.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-types test-types.c ../../libwcc.a ../test-lib.o
+	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-types test-types.c ../../libwcc.a ../test-lib.o
 
 run-test-types: test-types
 	 ./test-types
 
 test-functions: ../../libwcc.a test-functions.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-functions test-functions.c ../../libwcc.a ../test-lib.o
+	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-functions test-functions.c ../../libwcc.a ../test-lib.o
 
 run-test-functions: test-functions
 	 ./test-functions

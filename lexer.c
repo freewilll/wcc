@@ -252,7 +252,6 @@ void next(void) {
         else if (                        c1 == '&'                          )  { ip += 1;  cur_token = TOK_AMPERSAND;                  }
         else if (                        c1 == '|'                          )  { ip += 1;  cur_token = TOK_BITWISE_OR;                 }
         else if (                        c1 == '^'                          )  { ip += 1;  cur_token = TOK_XOR;                        }
-        else if (                        c1 == '#'                          )  { ip += 1;  cur_token = TOK_HASH;                       }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'",  4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\t';   }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'",  4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\n';   }
         else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\'';   }
@@ -422,7 +421,10 @@ void next(void) {
             else if (!strcmp(cur_identifier, "sizeof"       )) { cur_token = TOK_SIZEOF;    }
             else if (!strcmp(cur_identifier, "__attribute__")) { cur_token = TOK_ATTRIBUTE; }
             else if (!strcmp(cur_identifier, "__packed__"   )) { cur_token = TOK_PACKED;    }
-            else if (!strcmp(cur_identifier, "packed"       )) { cur_token = TOK_PACKED;    }
+            else if (!strcmp(cur_identifier, "__restrict"   )) { cur_token = TOK_RESTRICT;  }
+            else if (!strcmp(cur_identifier, "restrict"     )) { cur_token = TOK_RESTRICT;   }
+            else if (!strcmp(cur_identifier, "__asm__"      )) { cur_token = TOK_ASM;       }
+            else if (!strcmp(cur_identifier, "inline"       )) { cur_token = TOK_INLINE;    }
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
             else if (!strcmp(cur_identifier, "auto"         )) { cur_token = TOK_AUTO;      }
             else if (!strcmp(cur_identifier, "register"     )) { cur_token = TOK_REGISTER;  }
@@ -459,10 +461,7 @@ void next(void) {
         return;
     }
 
-    if (parsing_header)
-        finish_parsing_header();
-    else
-        cur_token = TOK_EOF;
+    cur_token = TOK_EOF;
 }
 
 void rewind_lexer(void) {

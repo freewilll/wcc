@@ -213,7 +213,7 @@ Value *s(int string_literal_index) {
     v->type = make_pointer(new_type(TYPE_CHAR));
     v->string_literal_index = string_literal_index;
     v->is_string_literal = 1;
-    asprintf(&(string_literals[string_literal_index].data), "Test SL %d", string_literal_index);
+    wasprintf(&(string_literals[string_literal_index].data), "Test SL %d", string_literal_index);
     string_literals[string_literal_index].size = strlen(string_literals[string_literal_index].data);
 
     return v;
@@ -247,8 +247,8 @@ Value *g(int index) {
 
     s = malloc(sizeof(Symbol));
     memset(s, 0, sizeof(Symbol));
-    asprintf(&(s->identifier), "g%d", index);
-    asprintf(&(s->global_identifier), "g%d", index);
+    wasprintf(&(s->identifier), "g%d", index);
+    wasprintf(&(s->global_identifier), "g%d", index);
 
     v = new_value();
     v->type = new_type(TYPE_LONG);
@@ -279,7 +279,7 @@ Value *fu(int index) {
 
     v->function_symbol->type = new_type(TYPE_FUNCTION);
     v->function_symbol->type->function = new_function();
-    asprintf(&(v->function_symbol->identifier), "f%d", index);
+    wasprintf(&(v->function_symbol->identifier), "f%d", index);
 
     v->type = v->function_symbol->type;
 

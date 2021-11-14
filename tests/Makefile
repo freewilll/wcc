@@ -1,5 +1,8 @@
 all: test-unit test-integration test-e2e
 
+utils.o: ../utils.c
+	gcc ${GCC_OPTS} -c ../utils.c -o utils.o
+
 .PHONY:
 test-unit: test-utils.s test-lib.o
 	cd unit && ${MAKE} all
@@ -17,14 +20,14 @@ test-integration: test-utils.s test-lib.o
 	cd integration && ${MAKE} all
 
 .PHONY:
-test-e2e: test-lib.o
+test-e2e: test-lib.o utils.o
 	cd e2e && ${MAKE} all
 
 test-lib.o: test-lib.c
 	gcc ${GCC_OPTS} test-lib.c -c
 
 test-utils.s: test-utils.c
-	gcc ${GCC_OPTS} -D _GNU_SOURCE -c -S test-utils.c -o test-utils.s
+	gcc ${GCC_OPTS} -c -S test-utils.c -o test-utils.s
 
 clean:
 	cd unit && ${MAKE} clean

@@ -79,9 +79,12 @@ int main(int argc, char **argv) {
         "Cannot assign to read-only variable",
         "const int assignment");
 
-    check_main_output(
-        "int const *pi = malloc(sizeof(int));"
-        "*pi = 1;",
+    check_output(
+        "#include <stdlib.h>\n"
+        "int main() {"
+        "    int const *pi = malloc(sizeof(int));"
+        "    *pi = 1;"
+        "}",
         "Cannot assign to read-only variable",
         "assignment to pointer to const int");
 
@@ -148,10 +151,13 @@ int main(int argc, char **argv) {
         "Cannot assign to read-only variable",
         "Compound assignment");
 
-    check_main_output(
-        "struct s *s;"
-        "s = malloc(sizeof(s));"
-        "s->i = 1;",
+    check_output(
+        "#include <stdlib.h>\n"
+        "int main() {"
+        "    struct s *s;"
+        "    s = malloc(sizeof(s));"
+        "    s->i = 1;"
+        "}",
         "Dereferencing a pointer to incomplete struct or union",
         "Dereferencing a pointer to incomplete struct or union");
 
@@ -313,6 +319,7 @@ int main(int argc, char **argv) {
         "Expected va_list type as first argument to va_start");
 
     check_output(
+        "#include <stdarg.h>"
         "void main() {"
         "    va_list ap;"
         "    int i;"
@@ -322,6 +329,7 @@ int main(int argc, char **argv) {
         "Expected function parameter as second argument to va_start 1");
 
     check_output(
+        "#include <stdarg.h>"
         "void main() {"
         "    va_list ap;"
         "    va_start(ap, 0);"
@@ -330,6 +338,7 @@ int main(int argc, char **argv) {
         "Expected function parameter as second argument to va_start 2");
 
     check_output(
+        "#include <stdarg.h>"
         "void main(int i, int j, ...) {"
         "    va_list ap;"
         "    va_start(ap, i);"
@@ -338,6 +347,7 @@ int main(int argc, char **argv) {
         "Second argument to va_start isn't the rightmost function parameter");
 
     check_output(
+        "#include <stdarg.h>"
         "void main(int i, ...) {"
         "    va_list ap;"
         "    va_start(ap, i);"

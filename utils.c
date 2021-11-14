@@ -45,3 +45,28 @@ void quicksort_ulong_array(unsigned long *array, int left, int right) {
     quicksort_ulong_array(array, left, i - 1);
     quicksort_ulong_array(array, j + 1, right);
 }
+
+// Strip the filename component from a path
+char *base_path(char *path) {
+    int end = strlen(path) - 1;
+    char *result = malloc(strlen(path) + 1);
+    while (end >= 0 && path[end] != '/') end--;
+    if (end >= 0) result = memcpy(result, path, end + 1);
+    result[end + 1] = 0;
+
+    return result;
+}
+
+int wasprintf(char **ret, const char *format, ...) {
+    va_list ap1;
+    va_start(ap1, format);
+    va_list ap2;
+    va_copy(ap2, ap1);
+    int size = vsnprintf(NULL, 0, format, ap1);
+    va_end(ap1);
+    *ret = malloc(size + 1);
+    vsnprintf(*ret, size + 1, format, ap2);
+    va_end(ap2);
+
+    return size;
+}

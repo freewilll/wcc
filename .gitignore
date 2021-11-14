@@ -1,6 +1,6 @@
 *.o
 *.s
-externals.c
+internals.c
 libwcc.a
 wcc
 wcc2

@@ -21,7 +21,7 @@ SOURCES = \
   strmap.c \
   longmap.c \
   graph.c \
-  externals.c
+  internals.c
 
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
@@ -30,21 +30,21 @@ build:
 	@mkdir -p build/wcc2
 	@mkdir -p build/wcc3
 
-externals.c: externals.h
-	echo "// Auto generated, don't edit" > externals.c
-	echo "" >> externals.c
-	echo "char *externals(void) {" >> externals.c
-	cat externals.h | sed ':a;N;$$!ba;s/\n/\\n/g;s/^/    return "/;s/$$/";/' >> externals.c
-	echo "}" >> externals.c
+internals.c: internals.h
+	echo "// Auto generated, don't edit" > internals.c
+	echo "" >> internals.c
+	echo "char *internals(void) {" >> internals.c
+	cat internals.h | sed ':a;N;$$!ba;s/\n/\\n/g;s/^/    return "/;s/$$/";/' >> internals.c
+	echo "}" >> internals.c
 
 %.o: %.c wcc.h build
-	gcc ${GCC_OPTS} -c $< -o $@ -g -Wno-return-type -Wunused -D _GNU_SOURCE
+	gcc ${GCC_OPTS} -c $< -o $@ -g -Wno-return-type -Wunused
 
 libwcc.a: ${OBJECTS}
 	ar rcs libwcc.a ${OBJECTS}
 
 wcc: libwcc.a main.c wcc.h
-	gcc ${GCC_OPTS} main.c libwcc.a -o wcc -g -Wno-return-type -D _GNU_SOURCE
+	gcc ${GCC_OPTS} main.c libwcc.a -o wcc -g -Wno-return-type
 
 # wcc2
 WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
@@ -74,7 +74,7 @@ test-self-compilation: ${WCC2_ASSEMBLIES} build/wcc2/main.s ${WCC3_ASSEMBLIES} b
 	@echo self compilation test passed
 
 .PHONY: test-all
-test-all: wcc externals.c
+test-all: wcc internals.c utils.c include/stdarg.h
 	cd tests && ${MAKE} all
 
 .PHONY: test
@@ -113,7 +113,7 @@ clean:
 	cd tests && ${MAKE} clean
 	cd tools && ${MAKE} clean
 
-	@rm -f externals.c
+	@rm -f internals.c
 	@rm -f libwcc.a
 	@rm -f wcc
 	@rm -f wcc2

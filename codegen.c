@@ -557,22 +557,22 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 Function *function = ir->src1->type->function ? ir->src1->type->function : ir->src1->type->target->function;
                 if (function->is_variadic) {
                     char *buffer;
-                    asprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
+                    wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
                     ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
                 }
 
                 Tac *tac = new_instruction(X_CALL_FROM_FUNC);
 
                 if (!orig_ir->src1->function_symbol) {
-                    asprintf(&(tac->x86_template), "callq *%%v1q");
+                    wasprintf(&(tac->x86_template), "callq *%%v1q");
                     tac->src1 = orig_ir->src1;
                 }
                 else {
                     int linkage = orig_ir->src1->type->function->linkage;
                     if (linkage == LINKAGE_EXTERNAL)
-                         asprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
+                         wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
                     else
-                         asprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
+                         wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
                  }
 
                 ir = insert_instruction_after(ir, tac);

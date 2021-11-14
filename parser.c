@@ -8,7 +8,6 @@ static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
 static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
 void check_and_or_operation_type(Value *src1, Value *src2);
-static void parse_directive(void);
 Value *parse_expression_and_pop(int level);
 static void parse_statement(void);
 static void parse_expression(int level);
@@ -271,8 +270,10 @@ int cur_token_is_type(void) {
     return (
         cur_token == TOK_SIGNED ||
         cur_token == TOK_UNSIGNED ||
+        cur_token == TOK_INLINE ||
         cur_token == TOK_CONST ||
         cur_token == TOK_VOLATILE ||
+        cur_token == TOK_RESTRICT ||
         cur_token == TOK_VOID ||
         cur_token == TOK_CHAR ||
         cur_token == TOK_SHORT ||
@@ -315,10 +316,12 @@ static Type *parse_declaration_specifiers(void) {
     int seen_double = 0;
     int seen_signed = 0;
     int seen_unsigned = 0;
+    int seen_inline = 0;
 
     // Qualifiers
     int seen_const = 0;
     int seen_volatile = 0;
+    int seen_restrict = 0;
 
     // Storage class specifiers
     int seen_auto = 0;
@@ -386,8 +389,10 @@ static Type *parse_declaration_specifiers(void) {
 
             case TOK_SIGNED:   next(); seen_signed++; break;
             case TOK_UNSIGNED: next(); seen_unsigned++; break;
+            case TOK_INLINE:   next(); seen_inline++; break;
             case TOK_CONST:    next(); seen_const++; break;
             case TOK_VOLATILE: next(); seen_volatile++; break;
+            case TOK_RESTRICT: next(); seen_restrict++; break;
             case TOK_AUTO:     next(); seen_auto++; break;
             case TOK_REGISTER: next(); seen_register++; break;
             case TOK_STATIC:   next(); seen_static++; break;
@@ -430,6 +435,7 @@ static Type *parse_declaration_specifiers(void) {
 
     if (seen_auto) type->is_auto = 1;
     if (seen_register) type->is_register = 1;
+    if (seen_restrict) type->is_restrict = 1;
     if (seen_static) type->is_static = 1;
     if (seen_extern) type->is_extern = 1;
 
@@ -492,7 +498,7 @@ Type *parse_declarator(void) {
             type = make_pointer(type);
 
             // Parse type qualifiers. They are allowed to be duplicated, e.g. const const
-            while (cur_token == TOK_CONST || cur_token == TOK_VOLATILE) {
+            while (cur_token == TOK_CONST || cur_token == TOK_VOLATILE || cur_token == TOK_RESTRICT) {
                 if (cur_token == TOK_CONST) type->is_const = 1;
                 else type->is_volatile = 1;
                 next();
@@ -767,16 +773,13 @@ static Type *parse_struct_or_union_type_specifier(void) {
         // Loop over members
         int member_count = 0;
         while (cur_token != TOK_RCURLY) {
-            if (cur_token == TOK_HASH) {
-                parse_directive();
-                continue;
-            }
-
             Type *base_type = parse_declaration_specifiers();
 
             // Catch e.g. struct { struct s { int i; }; } s; which isn't in the C90 spec
-            if (base_type->type == TYPE_STRUCT_OR_UNION && cur_token == TOK_SEMI)
-                panic("Structs/unions members must have a name");
+            // TODO handle struct { struct { int i, j; }; int k; } s;
+            // Temporarily commented out until the above is implemented
+            // if (base_type->type == TYPE_STRUCT_OR_UNION && cur_token == TOK_SEMI)
+            //     panic("Structs/unions members must have a name");
 
             while (cur_token != TOK_SEMI) {
                 Type *type;
@@ -1904,7 +1907,7 @@ static void parse_declaration(void) {
         symbol->linkage = LINKAGE_INTERNAL;
 
         char *global_identifier;
-        asprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, ++local_static_symbol_count);
+        wasprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, ++local_static_symbol_count);
         symbol->global_identifier = global_identifier;
 
         // cur_function_symbol->type->function->static_symbols
@@ -2139,7 +2142,7 @@ static void parse_function_call(void) {
 static Value *parse_va_list() {
     parse_expression(TOK_EQ);
     Value *va_list = pop();
-    Type *struct_or_union = find_struct_or_union("__wcc_va_list_item", 0, 1);
+    Type *struct_or_union = find_struct_or_union("__va_list", 0, 1);
     Type *wcc_va_list_array_type = make_array(struct_or_union, 1);
     Type *wcc_va_list_pointer_type = make_pointer(struct_or_union);
     if (!types_are_compatible(va_list->type, wcc_va_list_array_type) && !types_are_compatible(va_list->type, wcc_va_list_pointer_type))
@@ -2212,18 +2215,6 @@ static void parse_va_arg() {
 
     add_instruction(IR_VA_ARG, dst, va_list, 0);
     push(dst);
-}
-
-// Parse void va_end(va). No instructions are generated
-static void parse_va_end() {
-    next();
-    consume(TOK_LPAREN, "(");
-    parse_va_list();
-    consume(TOK_RPAREN, ")");
-
-    Value *v = new_value();
-    v->type = new_type(TYPE_VOID);
-    push(v);
 }
 
 void parse_struct_dot_arrow_expression(void) {
@@ -2543,10 +2534,6 @@ static void parse_expression(int level) {
                 }
                 else if (!strcmp(cur_identifier, "va_arg")) {
                     parse_va_arg();
-                    return;
-                }
-                else if (!strcmp(cur_identifier, "va_end")) {
-                    parse_va_end();
                     return;
                 }
                 else {
@@ -2928,8 +2915,6 @@ static void parse_if_statement(void) {
     add_conditional_jump(IR_JZ, ldst1);
     parse_statement();
 
-    if (cur_token == TOK_HASH) parse_directive();
-
     if (cur_token == TOK_ELSE) {
         next();
         add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
@@ -3027,11 +3012,6 @@ static void parse_statement(void) {
     vs = vs_start; // Reset value stack
     base_type = 0; // Reset base type
 
-    if (cur_token == TOK_HASH) {
-        parse_directive();
-        return;
-    }
-
     if (cur_token_is_type()) {
         base_type = parse_declaration_specifiers();
         if (cur_token == TOK_SEMI && (base_type->type == TYPE_STRUCT_OR_UNION || base_type->type == TYPE_ENUM))
@@ -3096,129 +3076,6 @@ static void parse_statement(void) {
     }
 }
 
-// String the filename component from a path
-static char *base_path(char *path) {
-    int end = strlen(path) - 1;
-    char *result = malloc(strlen(path) + 1);
-    while (end >= 0 && path[end] != '/') end--;
-    if (end >= 0) result = memcpy(result, path, end + 1);
-    result[end + 1] = 0;
-
-    return result;
-}
-
-static void parse_include(void) {
-    if (parsing_header) panic("Nested header includes not impemented");
-
-    consume(TOK_INCLUDE, "include");
-    if (cur_token == TOK_LT) {
-        // Ignore #include <...>
-        next();
-        while (cur_token != TOK_GT) next();
-        next();
-        return;
-    }
-
-    if (cur_token != TOK_STRING_LITERAL) panic("Expected string literal in #include");
-
-    char *filename;
-    asprintf(&filename, "%s%s", base_path(cur_filename), cur_string_literal.data);
-
-    c_input        = input;
-    c_input_size   = input_size;
-    c_ip           = ip;
-    c_cur_filename = cur_filename;
-    c_cur_line     = cur_line;
-
-    parsing_header = 1;
-    init_lexer(filename);
-}
-
-static void parse_ifdefs(void) {
-    if (cur_token == TOK_IFDEF && (in_ifdef || in_ifdef_else))
-        panic("Nested ifdefs not implemented");
-    else if (cur_token == TOK_ELSE) {
-        // The true case has been parsed, skip else case
-        next();
-        if (!in_ifdef) panic("Got ELSE directive when not in an ifdef");
-        while (cur_token != TOK_ENDIF) next();
-        next();
-        in_ifdef = 0;
-        in_ifdef_else = 0;
-        return;
-    }
-    else if (cur_token == TOK_ENDIF) {
-        // Clean up
-        next();
-        if (!in_ifdef && !in_ifdef_else) panic("Got ENDIF without ifdef");
-        in_ifdef = 0;
-        in_ifdef_else = 0;
-        return;
-    }
-
-    // Process an ifdef
-    next();
-    expect(TOK_IDENTIFIER, "identifier");
-    int directive_set = !!strmap_get(directives, cur_identifier);
-    next();
-
-    if (directive_set) {
-        // Parse true case
-        in_ifdef = 1;
-        return;
-    }
-    else {
-        // Skip true case & look for #else or #endif
-        while (1) {
-            while (cur_token != TOK_HASH) {
-                if (cur_token == TOK_EOF) panic("Got ifdef without else of endif");
-                next();
-            }
-            next();
-            if (cur_token == TOK_ELSE || cur_token == TOK_ENDIF) break;
-        }
-        if (cur_token == TOK_ELSE) {
-            // Let else case be parsed
-            next();
-            in_ifdef_else = 1;
-            return;
-        }
-        next(); // TOK_ENDIF, there's nothing more to do
-    }
-}
-
-static void parse_directive(void) {
-    consume(TOK_HASH, "#");
-    if (cur_token == TOK_INCLUDE) parse_include();
-    else if (cur_token == TOK_IFDEF || cur_token == TOK_ELSE || cur_token == TOK_ENDIF) parse_ifdefs();
-    else if (cur_token == TOK_DEFINE) {
-        next();
-        expect(TOK_IDENTIFIER, "identifier");
-        strmap_put(directives, cur_identifier, "");
-        next();
-    }
-    else if (cur_token == TOK_UNDEF) {
-        next();
-        expect(TOK_IDENTIFIER, "identifier");
-        strmap_delete(directives, cur_identifier);
-        next();
-    }
-    else {
-        panic("Unimplemented directive with token %d", cur_token);
-    }
-}
-
-void finish_parsing_header(void) {
-    input        = c_input;
-    input_size   = c_input_size;
-    ip           = c_ip;
-    cur_filename = c_cur_filename;
-    cur_line     = c_cur_line;
-
-    parsing_header = 0;
-    next();
-}
-
 static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
     Function *function = type->function;
 
@@ -3260,6 +3117,15 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
     else
         symbol->type = type;
 
+    // Parse __asm__ ("replacement_global_identifier");
+    if (cur_token == TOK_ASM) {
+        next();
+        consume(TOK_LPAREN, "(");
+        consume(TOK_STRING_LITERAL, "string literal");
+        symbol->global_identifier = cur_string_literal.data;
+        consume(TOK_RPAREN, ")");
+    }
+
     // Parse function declaration
     if (cur_token == TOK_LCURLY) {
         // Ensure parameters have identifiers
@@ -3296,9 +3162,8 @@ void parse(void) {
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)
             next();
-        else if (cur_token == TOK_HASH)
-            parse_directive();
-        else if (cur_token_is_type() || cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
+
+        if (cur_token_is_type() || cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
             // Variable or function definition
 
             Type *base_type;

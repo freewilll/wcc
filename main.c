@@ -28,6 +28,34 @@ char *replace_extension(char *input, char *ext) {
     }
 }
 
+static void run_preprocessor(char *input_filename, char *preprocessor_output_filename, char *builtin_include_path, int verbose) {
+    char *command = malloc(1024 * 100);
+
+    char *directives_str = malloc(1024 * 100);
+    char *dptr = directives_str;
+
+    for (StrMapIterator it = strmap_iterator(directives); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
+        char *key = strmap_iterator_key(&it);
+        char *value = strmap_get(directives, key);
+        if (strcmp(value, ""))
+            dptr += sprintf(dptr, " -D %s=\"%s\"", key, value);
+        else
+            dptr += sprintf(dptr, " -D %s", key);
+    }
+    *dptr = 0;
+
+    sprintf(command, "tcc -I %s%s -E %s -o %s", builtin_include_path, directives_str, input_filename, preprocessor_output_filename);
+    if (verbose) {
+        sprintf(command, "%s %s", command, "-v");
+        printf("%s\n", command);
+    }
+    int result = system(command);
+    if (result != 0) exit(result >> 8);
+
+    free(command);
+    free(directives_str);
+}
+
 int main(int argc, char **argv) {
     print_ir1 = 0;
     print_ir2 = 0;
@@ -65,6 +93,10 @@ int main(int argc, char **argv) {
     init_instruction_selection_rules();
 
     directives = new_strmap();
+
+    // Determine path to the builtin include directory
+    char *builtin_include_path;
+    wasprintf(&builtin_include_path, "%sinclude", base_path(argv[0]));
 
     argc--;
     argv++;
@@ -292,6 +324,9 @@ int main(int argc, char **argv) {
             else
                 local_output_filename = output_filename;
 
+            char *preprocessor_output_filename = make_temp_filename("/tmp/XXXXXX.c");
+            run_preprocessor(input_filename, preprocessor_output_filename, builtin_include_path, verbose);
+
             char *compiler_input_filename = input_filename;
             if (run_assembler)
                 compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
@@ -310,7 +345,7 @@ int main(int argc, char **argv) {
                     assembler_output_filename = strdup(local_output_filename);
             }
 
-            compile(compiler_input_filename, compiler_output_filename);
+            compile(preprocessor_output_filename, compiler_input_filename, compiler_output_filename);
 
             if (print_symbols) dump_symbols();
             if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);

@@ -484,14 +484,14 @@ void test_int_long_double_type_changes() {
 void assert_long_double_int_conversion(long double ld, char c, short s, int i, long l, unsigned char uc, unsigned short us, unsigned int ui, unsigned long ul, char *message) {
     char *buffer = malloc(100);
 
-    asprintf(&buffer, "%s c",  message); assert_int(1, (char)           ld == c,  buffer);
-    asprintf(&buffer, "%s s",  message); assert_int(1, (short)          ld == s,  buffer);
-    asprintf(&buffer, "%s i",  message); assert_int(1, (int)            ld == i,  buffer);
-    asprintf(&buffer, "%s l",  message); assert_int(1, (long)           ld == l,  buffer);
-    asprintf(&buffer, "%s uc", message); assert_int(1, (unsigned char)  ld == uc, buffer);
-    asprintf(&buffer, "%s us", message); assert_int(1, (unsigned short) ld == us, buffer);
-    asprintf(&buffer, "%s ui", message); assert_int(1, (unsigned int)   ld == ui, buffer);
-    asprintf(&buffer, "%s ul", message); assert_int(1, (unsigned long)  ld == ul, buffer);
+    wasprintf(&buffer, "%s c",  message); assert_int(1, (char)           ld == c,  buffer);
+    wasprintf(&buffer, "%s s",  message); assert_int(1, (short)          ld == s,  buffer);
+    wasprintf(&buffer, "%s i",  message); assert_int(1, (int)            ld == i,  buffer);
+    wasprintf(&buffer, "%s l",  message); assert_int(1, (long)           ld == l,  buffer);
+    wasprintf(&buffer, "%s uc", message); assert_int(1, (unsigned char)  ld == uc, buffer);
+    wasprintf(&buffer, "%s us", message); assert_int(1, (unsigned short) ld == us, buffer);
+    wasprintf(&buffer, "%s ui", message); assert_int(1, (unsigned int)   ld == ui, buffer);
+    wasprintf(&buffer, "%s ul", message); assert_int(1, (unsigned long)  ld == ul, buffer);
 }
 
 int return_int_from_ld_constant() {

@@ -40,7 +40,7 @@ struct sfa4 { float f[4]; };
 typedef struct { int a, b; double d; } structparm;
 
 // An unaligned struct
-struct __attribute__ ((__packed__)) us { int i; char c; int j; };
+struct __attribute__ ((__packed__)) us { int i; char c; int j; }; // TODO revive packed structs
 
 void accept_spf(struct spf spf);
 void accept_spd(struct spd spd);

@@ -332,3 +332,7 @@ void set_linked_object(int i) { linked_object = i; }
 void set_unlinked_object(int i) { unlinked_object = i; }
 
 int extern_global_int;
+
+int extern_renamed_func(int i) {
+    return i + 1;
+}

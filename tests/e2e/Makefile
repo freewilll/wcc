@@ -29,24 +29,24 @@ all: run-test-gcc run-test-wcc run-test-abi run-test-include
 stack-check.o: stack-check.c
 	gcc ${GCC_OPTS} stack-check.c -c
 
-test-%.s: test-%.c ../../wcc
+test-%.s: test-%.c ../../wcc ../../include/stdarg.h
 	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
 
-test-%-wcc: test-%.s stack-check.o ../test-lib.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@
+test-%-wcc: test-%.s stack-check.o ../test-lib.o ../utils.o
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o -o $@
 
 run-test-%-wcc: test-%-wcc
 	./$<
 	touch run-$<
 
 gen-test-arithmetic-torture: gen-test-arithmetic-torture.c
-	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-arithmetic-torture.c -o gen-test-arithmetic-torture
+	gcc ${GCC_OPTS} -Wunused gen-test-arithmetic-torture.c -o gen-test-arithmetic-torture
 
 test-arithmetic-torture.c: gen-test-arithmetic-torture
 	./gen-test-arithmetic-torture
 
 gen-test-arithmetic-types-move-torture: gen-test-arithmetic-types-move-torture.c
-	gcc ${GCC_OPTS} -Wunused -D _GNU_SOURCE gen-test-arithmetic-types-move-torture.c -o gen-test-arithmetic-types-move-torture
+	gcc ${GCC_OPTS} -Wunused gen-test-arithmetic-types-move-torture.c -o gen-test-arithmetic-types-move-torture
 
 test-arithmetic-types-move-torture.c: gen-test-arithmetic-types-move-torture
 	./gen-test-arithmetic-types-move-torture
@@ -55,8 +55,8 @@ test-arithmetic-types-move-torture.c: gen-test-arithmetic-types-move-torture
 run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
 	@echo wcc tests passed
 
-test-%-gcc: test-%.c stack-check.o ../test-lib.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o -o $@ -w -D _GNU_SOURCE
+test-%-gcc: test-%.c stack-check.o ../test-lib.o ../utils.o
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o -o $@ -w
 
 run-test-%-gcc: test-%-gcc
 	./$<

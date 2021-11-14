@@ -7,3 +7,4 @@ void assert_long_double(long double expected, long double got, char *message);
 void assert_string(char *expected, char *actual, char *message);
 void finalize();
 void parse_args(int argc, char **argv, int *verbose);
+int wasprintf(char **ret, const char *format, ...);

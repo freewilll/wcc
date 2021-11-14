@@ -825,9 +825,9 @@ static void add_sse_eq_ne_assignment_memory_rule(int src1, int src2, char *mov_t
 
 static void add_sse_eq_ne_assignment_memory_rules(int dst, int src, char size1, char size2) {
     char *ucomiss, *comiss, *mov;
-    asprintf(&ucomiss, "ucomis%c %%v1%c, %%v2%c", size2, size1, size1);
-    asprintf(&comiss, "comis%c %%v1%c, %%v2%c", size2, size1, size1);
-    asprintf(&mov, "movs%c %%v1%c, %%vd%c", size2, size1, size1);
+    wasprintf(&ucomiss, "ucomis%c %%v1%c, %%v2%c", size2, size1, size1);
+    wasprintf(&comiss, "comis%c %%v1%c, %%v2%c", size2, size1, size1);
+    wasprintf(&mov, "movs%c %%v1%c, %%vd%c", size2, size1, size1);
 
     // Note: G[TE] rules are missing & covered by leaf register loads
     add_sse_eq_ne_assignment_memory_rule(dst, src,        mov, ucomiss);
@@ -901,8 +901,8 @@ static void add_bi_directional_commutative_operation_rules(int operation, int x8
 static void add_commutative_operation_rules(char *x86_operand, int operation, int x86_operation, int cost) {
     char *op_vv, *op_cv;
 
-    asprintf(&op_vv, "%s %%v1, %%v2",  x86_operand); // Perform operation on two registers or memory
-    asprintf(&op_cv, "%s $%%v1, %%v2", x86_operand); // Perform operation on a constant and a register
+    wasprintf(&op_vv, "%s %%v1, %%v2",  x86_operand); // Perform operation on two registers or memory
+    wasprintf(&op_cv, "%s $%%v1, %%v2", x86_operand); // Perform operation on a constant and a register
 
     // Add rules for byte, word and quads
     for (int i = 0; i < 3; i++) {

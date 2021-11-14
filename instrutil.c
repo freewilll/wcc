@@ -382,7 +382,7 @@ char *non_terminal_string(int nt) {
         case MPV:   return "mpv";
         case MSA:   return "msa";
         default:
-            asprintf(&buf, "nt%03d", nt);
+            wasprintf(&buf, "nt%03d", nt);
             return buf;
     }
 }

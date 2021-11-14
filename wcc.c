@@ -85,10 +85,10 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     merge_rsp_func_call_add_subs(function);
 }
 
-static void compile_externals(void) {
-    char *temp_filename = make_temp_filename("/tmp/externals-XXXXXX.c");
+static void compile_internals(void) {
+    char *temp_filename = make_temp_filename("/tmp/internals-XXXXXX.c");
     void *f = fopen(temp_filename, "w");
-    fprintf(f, "%s", externals());
+    fprintf(f, "%s", internals());
     fclose(f);
 
     init_scopes();
@@ -97,11 +97,11 @@ static void compile_externals(void) {
     parse();
 }
 
-void compile(char *compiler_input_filename, char *compiler_output_filename) {
-    compile_externals();
+void compile(char *input_filename, char *original_input_filename, char *output_filename) {
+    compile_internals();
     memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
     memset_symbol = lookup_symbol("memset", global_scope, 0);
-    init_lexer(compiler_input_filename);
+    init_lexer(input_filename);
     parse();
 
     // Keep track of floating point constant values.
@@ -119,5 +119,5 @@ void compile(char *compiler_input_filename, char *compiler_output_filename) {
         }
     }
 
-    output_code(compiler_input_filename, compiler_output_filename);
+    output_code(original_input_filename, output_filename);
 }

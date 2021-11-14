@@ -199,7 +199,7 @@ void test_int_cmp_with_conditional_jmp(Function *function, int cmp_operation, in
     i(0, jmp_operation,  0,    v(3), l(1));
     i(1, IR_NOP,         0,    0,    0   );
     finish_ir(function);
-    asprintf(&template, "%-11s .L1", jmp_instruction);
+    wasprintf(&template, "%-11s .L1", jmp_instruction);
     assert_x86_op("cmpq        r2q, r1q");
     assert_x86_op(template);
 }
@@ -226,7 +226,7 @@ void test_fp_cmp_with_conditional_jmp(Function *function, int cmp_operation, int
 
     assert_x86_op("fcomip      %st(1), %st");
     assert_x86_op("fstp        %st(0)");
-    asprintf(&template, "%-11s .L1", jmp_instruction);
+    wasprintf(&template, "%-11s .L1", jmp_instruction);
     assert_x86_op(template);
 }
 
@@ -250,7 +250,7 @@ void test_cmp_with_assignment(Function *function, int cmp_operation, char *set_i
     start_ir();
     i(0, cmp_operation, vsz(3, TYPE_INT), v(1), v(2));
     finish_ir(function);
-    asprintf(&template, "%-11s r3b", set_instruction);
+    wasprintf(&template, "%-11s r3b", set_instruction);
     assert_x86_op("cmpq        r2q, r1q");
     assert_x86_op(template);
     assert_x86_op("movzbl      r3b, r3l");

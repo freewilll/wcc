@@ -413,30 +413,30 @@ static void check_array_init12(int (*a)[3][2], char *message) {
     // way to ensure the compiler is testing itself and checking its own
     // bugs.
     char *buf;
-    asprintf(&buf, "%s 000", message); assert_int(1, a[0][0][0], buf);
-    asprintf(&buf, "%s 001", message); assert_int(0, a[0][0][1], buf);
-    asprintf(&buf, "%s 010", message); assert_int(0, a[0][1][0], buf);
-    asprintf(&buf, "%s 011", message); assert_int(0, a[0][1][1], buf);
-    asprintf(&buf, "%s 020", message); assert_int(0, a[0][2][0], buf);
-    asprintf(&buf, "%s 021", message); assert_int(0, a[0][2][1], buf);
-    asprintf(&buf, "%s 100", message); assert_int(2, a[1][0][0], buf);
-    asprintf(&buf, "%s 101", message); assert_int(3, a[1][0][1], buf);
-    asprintf(&buf, "%s 110", message); assert_int(0, a[1][1][0], buf);
-    asprintf(&buf, "%s 111", message); assert_int(0, a[1][1][1], buf);
-    asprintf(&buf, "%s 120", message); assert_int(0, a[1][2][0], buf);
-    asprintf(&buf, "%s 121", message); assert_int(0, a[1][2][1], buf);
-    asprintf(&buf, "%s 200", message); assert_int(4, a[2][0][0], buf);
-    asprintf(&buf, "%s 201", message); assert_int(5, a[2][0][1], buf);
-    asprintf(&buf, "%s 210", message); assert_int(6, a[2][1][0], buf);
-    asprintf(&buf, "%s 211", message); assert_int(0, a[2][1][1], buf);
-    asprintf(&buf, "%s 220", message); assert_int(0, a[2][2][0], buf);
-    asprintf(&buf, "%s 221", message); assert_int(0, a[2][2][1], buf);
-    asprintf(&buf, "%s 300", message); assert_int(0, a[3][0][0], buf);
-    asprintf(&buf, "%s 301", message); assert_int(0, a[3][0][1], buf);
-    asprintf(&buf, "%s 310", message); assert_int(0, a[3][1][0], buf);
-    asprintf(&buf, "%s 311", message); assert_int(0, a[3][1][1], buf);
-    asprintf(&buf, "%s 320", message); assert_int(0, a[3][2][0], buf);
-    asprintf(&buf, "%s 321", message); assert_int(0, a[3][2][1], buf);
+    wasprintf(&buf, "%s 000", message); assert_int(1, a[0][0][0], buf);
+    wasprintf(&buf, "%s 001", message); assert_int(0, a[0][0][1], buf);
+    wasprintf(&buf, "%s 010", message); assert_int(0, a[0][1][0], buf);
+    wasprintf(&buf, "%s 011", message); assert_int(0, a[0][1][1], buf);
+    wasprintf(&buf, "%s 020", message); assert_int(0, a[0][2][0], buf);
+    wasprintf(&buf, "%s 021", message); assert_int(0, a[0][2][1], buf);
+    wasprintf(&buf, "%s 100", message); assert_int(2, a[1][0][0], buf);
+    wasprintf(&buf, "%s 101", message); assert_int(3, a[1][0][1], buf);
+    wasprintf(&buf, "%s 110", message); assert_int(0, a[1][1][0], buf);
+    wasprintf(&buf, "%s 111", message); assert_int(0, a[1][1][1], buf);
+    wasprintf(&buf, "%s 120", message); assert_int(0, a[1][2][0], buf);
+    wasprintf(&buf, "%s 121", message); assert_int(0, a[1][2][1], buf);
+    wasprintf(&buf, "%s 200", message); assert_int(4, a[2][0][0], buf);
+    wasprintf(&buf, "%s 201", message); assert_int(5, a[2][0][1], buf);
+    wasprintf(&buf, "%s 210", message); assert_int(6, a[2][1][0], buf);
+    wasprintf(&buf, "%s 211", message); assert_int(0, a[2][1][1], buf);
+    wasprintf(&buf, "%s 220", message); assert_int(0, a[2][2][0], buf);
+    wasprintf(&buf, "%s 221", message); assert_int(0, a[2][2][1], buf);
+    wasprintf(&buf, "%s 300", message); assert_int(0, a[3][0][0], buf);
+    wasprintf(&buf, "%s 301", message); assert_int(0, a[3][0][1], buf);
+    wasprintf(&buf, "%s 310", message); assert_int(0, a[3][1][0], buf);
+    wasprintf(&buf, "%s 311", message); assert_int(0, a[3][1][1], buf);
+    wasprintf(&buf, "%s 320", message); assert_int(0, a[3][2][0], buf);
+    wasprintf(&buf, "%s 321", message); assert_int(0, a[3][2][1], buf);
 }
 
 static void test_array_init12() {

@@ -154,7 +154,7 @@ void rssa1(int nt) {
     buf = malloc(6);
 
     if (nt == 100) return;
-    asprintf(&buf, "nt%03d", nt);
+    wasprintf(&buf, "nt%03d", nt);
     assert_string("nt001", buf, "Return statement stack alignment 1");
 }
 
@@ -166,7 +166,7 @@ void rssa2(int nt) {
     if (nt == 100) return;
     if (nt == 101) return;
 
-    asprintf(&buf, "nt%03d", nt);
+    wasprintf(&buf, "nt%03d", nt);
     assert_string("nt001", buf, "Return statement stack alignment 1");
 }
 
