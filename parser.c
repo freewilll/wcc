@@ -349,19 +349,14 @@ static Type *parse_declaration_specifiers(void) {
                 break;
             case TOK_LONG:
                 next();
-                if (cur_token == TOK_INT) {
-                    next();
-                    seen_long++;
-                    type = new_type(TYPE_LONG);
-                }
-                else if (cur_token == TOK_DOUBLE)   {
+                if (cur_token == TOK_DOUBLE)   {
                     next();
                     seen_long_double++;
                     type = new_type(TYPE_LONG_DOUBLE);
                 }
                 else {
-                    seen_long++;
                     type = new_type(TYPE_LONG);
+                    seen_long++;
                 }
                 break;
             case TOK_STRUCT:
@@ -404,6 +399,10 @@ static Type *parse_declaration_specifiers(void) {
 
     if (seen_long == 2) seen_long = 1;
     else if (seen_long > 2) panic("Too many longs in type specifier");
+    if (seen_int && seen_long) {
+        seen_int = 0;
+        type = new_type(TYPE_LONG);
+    }
 
     int data_type_sum =
         seen_void + seen_char + seen_short + seen_int + seen_long +

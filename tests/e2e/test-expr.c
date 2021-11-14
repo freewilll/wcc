@@ -644,6 +644,7 @@ void test_integer_sizes() {
     assert_int(8, sizeof(signed long int),     "sizeof signed long int");      assert_int(8, sizeof(unsigned long int),     "sizeof unsigned long int");
     assert_int(8, sizeof(signed long long),    "sizeof signed long long");     assert_int(8, sizeof(unsigned long long),    "sizeof unsigned long long");
     assert_int(8, sizeof(signed long long int),"sizeof signed long long int"); assert_int(8, sizeof(unsigned long long int),"sizeof unsigned long long int");
+    assert_int(8, sizeof(long signed int),     "sizeof long signed int");      assert_int(8, sizeof(long unsigned int),     "sizeof long unsigned int");
     assert_int(8, sizeof(signed char *),       "sizeof signed char *");        assert_int(8, sizeof(unsigned char *),       "sizeof unsigned char *");
     assert_int(8, sizeof(signed short *),      "sizeof signed short *");       assert_int(8, sizeof(unsigned short *),      "sizeof unsigned short *");
     assert_int(8, sizeof(signed int *),        "sizeof signed int *");         assert_int(8, sizeof(unsigned int *),        "sizeof unsigned int *");
