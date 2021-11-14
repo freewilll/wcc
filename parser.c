@@ -647,7 +647,7 @@ Type *parse_direct_declarator(void) {
                 consume(TOK_RPAREN, ")");
             }
             else
-                panic("Expected )");
+                panic("Expected subtype or function parameter after (");
         }
         else if (cur_token == TOK_LBRACKET) {
             // Array [] or [<num>]
