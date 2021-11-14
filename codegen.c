@@ -791,6 +791,7 @@ void output_code(char *input_filename, char *output_filename) {
         fprintf(f, "\n    .section .rodata\n");
         for (int i = 0; i < string_literal_count; i++) {
             StringLiteral *sl = &(string_literals[i]);
+            if (sl->is_wide_char) fprintf(f, "    .align   4\n");
             fprintf(f, ".SL%d:\n", i);
             fprintf_escaped_string_literal(f, sl, 1);
         }
