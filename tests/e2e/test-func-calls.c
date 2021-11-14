@@ -230,9 +230,9 @@ void test_open_read_write_close() {
 
 int (*null_global_func_ptr)(int);
 
-int plus(int);
-int (*global_func_ptr)(int); //= plus; // TODO func ptr when there is global assignment
-int (*global_func_ptr2)(int); //= &plus; // TODO func ptr when there is global assignment
+int plus();
+int (*global_func_ptr)(int) = plus;
+int (*global_func_ptr2)(int) = &plus;
 
 int          plus(int x)  { return x + 1; }
 unsigned int uplus(int x)  { return x + 1; }
@@ -263,9 +263,6 @@ struct struct_with_assert_int {
 };
 
 void test_function_pointers() {
-    global_func_ptr = plus; // TODO func ptr when there is global assignment
-    global_func_ptr2 = &plus; // TODO func ptr when there is global assignment
-
     assert_int(2, global_func_ptr(1),  "Global function pointer init 1");
     assert_int(2, global_func_ptr2(1), "Global function pointer init 2");
     global_func_ptr = minus;

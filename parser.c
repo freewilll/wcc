@@ -1568,7 +1568,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
 
     if (scalar) {
         if (!scalar->is_constant && !scalar->is_string_literal && !scalar->is_address_of)
-            panic("Attempt to add an initializer for a non constant");
+            panic("An initializer for an object with static storage duration must be a constant expression");
 
         if (!scalar->is_string_literal && !scalar->is_address_of) scalar = cast_constant_value(scalar, dst->type);
         size = get_type_size(dst->type);

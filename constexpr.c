@@ -269,7 +269,10 @@ Value *parse_constant_expression(int level) {
                 panic("Illegal operand to & in constant expression");
 
             value->is_address_of = 1;
-            value->type = make_pointer(value->type);
+
+            // Hacky horror, only create a pointer unless it's already a pointer to a function
+            if (!is_pointer_to_function_type(value->type))
+                value->type = make_pointer(value->type);
 
             break;
 
@@ -315,6 +318,12 @@ Value *parse_constant_expression(int level) {
 
             if (symbol->is_enum_value)
                 value = new_integral_constant(TYPE_INT, symbol->value);
+            else if (symbol->type->type == TYPE_FUNCTION) {
+                // Convert a function to a &function
+                value = make_symbol_value(symbol);
+                value->type = make_pointer(value->type);
+                value->is_address_of = 1;
+            }
             else
                 value = make_symbol_value(symbol);
 

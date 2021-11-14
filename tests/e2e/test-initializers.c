@@ -146,6 +146,10 @@ struct s2 {int i, j, k, l;} st2 = {1, 2, 3};
 
 struct bfs { int i:3, j:4, k:5, :0, l:5, m:5; } bfs = {-1, -2, -3, -4, -5};
 
+int plus(int i) {}
+int (*global_func_ptr)(int) = plus;
+int (*global_func_ptr2)(int) = &plus;
+
 static void test_scalar_initializers() {
     int a = 1;          assert_int(1, a, "Scalar initializer 1 a");
     int b = {1};        assert_int(1, b, "Scalar initializer 1 b");
@@ -1142,6 +1146,11 @@ void test_global_initialization() {
     static float       f1 = 1;    assert_float(1, f1,       "Static type conversions 2");
     static float       f2 = 1.1;  assert_float(1.1, f2,     "Static type conversions 3");
     static long double ld = 1;    assert_long_double(1, ld, "Static type conversions 4");
+
+    assert_int(1, global_func_ptr == plus,   "global_func_ptr = plus 1");
+    assert_int(1, global_func_ptr == &plus,  "global_func_ptr = plus 2");
+    assert_int(1, global_func_ptr2 == plus,  "global_func_ptr2 = &plus 1");
+    assert_int(1, global_func_ptr2 == &plus, "global_func_ptr2 = &plus 2");
 }
 
 void func_with_static_string(char expected_first_char, char* message) {
