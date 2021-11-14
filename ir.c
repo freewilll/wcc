@@ -448,44 +448,68 @@ int make_function_call_count(Function *function) {
 // the seventh arg and later to be pushed in reverse order. Easiest is to flip
 // all args backwards, so they are pushed left to right.
 void reverse_function_argument_order(Function *function) {
-    TacInterval *args;
-    args = malloc(sizeof(TacInterval *) * 256);
+    const int MAX_ARGS = 256;
 
-    ir = function->ir;
+    typedef struct tac_interval {
+        Tac *start;
+        Tac *end;
+    } TacInterval;
 
     // Need to count this IR's function_call_count
     int function_call_count = make_function_call_count(function);
 
-    for (int i = 0; i < function_call_count; i++) {
-        Tac *tac = function->ir;
-        int arg_count = 0;
-        Tac *call_start = 0;
-        Tac *call = 0;
-        while (tac) {
-            if (tac->operation == IR_START_CALL && tac->src1->int_value == i) {
-                call_start = tac;
-                tac = tac->next;
-                args[arg_count].start = tac;
-            }
-            else if (tac->operation == IR_END_CALL && tac->src1->int_value == i) {
-                call = tac->prev;
-                tac = tac->next;
-            }
-            else if (tac->operation == IR_ARG && tac->src1->int_value == i) {
-                args[arg_count].end = tac;
-                tac = tac->next;
+    // First index, function_id, second index arg_id
+    TacInterval *function_args;
+    function_args = malloc(sizeof(TacInterval) * function_call_count * MAX_ARGS);
 
-                if (tac->operation == IR_ARG_STACK_PADDING) {
-                    args[arg_count].end = tac;
-                    tac = tac->next;
-                }
+    int *arg_counts = malloc(sizeof(int) * function_call_count);
+    memset(arg_counts, 0, sizeof(int) * function_call_count);
+    Tac **calls = malloc(sizeof(Tac *) * function_call_count);
+    memset(calls, 0, sizeof(int) * function_call_count);
+    Tac **call_starts = malloc(sizeof(Tac *) * function_call_count);
+    memset(call_starts, 0, sizeof(int) * function_call_count);
 
-                arg_count++;
-                if (tac->operation != IR_END_CALL) args[arg_count].start = tac;
-            }
-            else
-                tac = tac->next;
+    ir = function->ir;
+
+    // Collect function call details in one pass through the IR
+    Tac *tac = function->ir;
+    while (tac) {
+        if (tac->operation == IR_START_CALL) {
+            int func = tac->src1->int_value;
+            TacInterval *args = &(function_args[func * MAX_ARGS]);
+            call_starts[func] = tac;
+            tac = tac->next;
+            args[arg_counts[func]].start = tac;
         }
+        else if (tac->operation == IR_END_CALL) {
+            int func = tac->src1->int_value;
+            calls[func] = tac->prev;
+            tac = tac->next;
+        }
+        else if (tac->operation == IR_ARG) {
+            int func = tac->src1->int_value;
+            TacInterval *args = &(function_args[func * MAX_ARGS]);
+            args[arg_counts[func]].end = tac;
+            tac = tac->next;
+
+            if (tac->operation == IR_ARG_STACK_PADDING) {
+                args[arg_counts[func]].end = tac;
+                tac = tac->next;
+            }
+
+            arg_counts[func]++;
+            if (tac->operation != IR_END_CALL) args[arg_counts[func]].start = tac;
+        }
+        else
+            tac = tac->next;
+    }
+
+    // Reverse the args for each function call
+    for (int i = 0; i < function_call_count; i++) {
+        TacInterval *args = &(function_args[i * MAX_ARGS]);
+        int arg_count = arg_counts[i];
+        Tac *call = calls[i];
+        Tac *call_start = call_starts[i];
 
         if (arg_count > 1) {
             call_start->next = args[arg_count - 1].start;
@@ -506,7 +530,7 @@ void reverse_function_argument_order(Function *function) {
 
     }
 
-    free(args);
+    free(function_args);
 }
 
 // Insert tac instruction before ir

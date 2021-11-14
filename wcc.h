@@ -292,12 +292,6 @@ typedef struct three_address_code {
     char *x86_template;                 // Template for rendering x86 instruction
 } Tac;
 
-// Temporary struct for reversing function call arguments
-typedef struct tac_interval {
-    Tac *start;
-    Tac *end;
-} TacInterval;
-
 // Struct/union member
 typedef struct struct_or_union_member {
     char *identifier;
