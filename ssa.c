@@ -1180,34 +1180,35 @@ static void clobber_tac_and_livenow(char *ig, int vreg_count, Set *livenow, Tac 
 }
 
 static void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
-             if (preg_reg_index == LIVE_RANGE_PREG_RAX_INDEX) printf("rax");
-        else if (preg_reg_index == LIVE_RANGE_PREG_RBX_INDEX) printf("rbx");
-        else if (preg_reg_index == LIVE_RANGE_PREG_RCX_INDEX) printf("rcx");
-        else if (preg_reg_index == LIVE_RANGE_PREG_RDX_INDEX) printf("rdx");
-        else if (preg_reg_index == LIVE_RANGE_PREG_RSI_INDEX) printf("rsi");
-        else if (preg_reg_index == LIVE_RANGE_PREG_RDI_INDEX) printf("rdi");
-        else if (preg_reg_index == LIVE_RANGE_PREG_R08_INDEX) printf("r8");
-        else if (preg_reg_index == LIVE_RANGE_PREG_R09_INDEX) printf("r9");
-        else if (preg_reg_index == LIVE_RANGE_PREG_R12_INDEX) printf("r12");
-        else if (preg_reg_index == LIVE_RANGE_PREG_R13_INDEX) printf("r13");
-        else if (preg_reg_index == LIVE_RANGE_PREG_R14_INDEX) printf("r14");
-        else if (preg_reg_index == LIVE_RANGE_PREG_R15_INDEX) printf("r15");
-
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX     ) printf("xmm0");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 1 ) printf("xmm1");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 2 ) printf("xmm2");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 3 ) printf("xmm3");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 4 ) printf("xmm4");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 5 ) printf("xmm5");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 6 ) printf("xmm6");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 7 ) printf("xmm7");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 8 ) printf("xmm8");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 9 ) printf("xmm9");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 10) printf("xmm10");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 11) printf("xmm11");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 12) printf("xmm12");
-        else if (preg_reg_index == LIVE_RANGE_PREG_XMM00_INDEX + 13) printf("xmm13");
-        else printf("Unknown LR preg index %d", preg_reg_index);
+    switch(preg_reg_index) {
+        case LIVE_RANGE_PREG_RAX_INDEX:         printf("rax");   break;
+        case LIVE_RANGE_PREG_RBX_INDEX:         printf("rbx");   break;
+        case LIVE_RANGE_PREG_RCX_INDEX:         printf("rcx");   break;
+        case LIVE_RANGE_PREG_RDX_INDEX:         printf("rdx");   break;
+        case LIVE_RANGE_PREG_RSI_INDEX:         printf("rsi");   break;
+        case LIVE_RANGE_PREG_RDI_INDEX:         printf("rdi");   break;
+        case LIVE_RANGE_PREG_R08_INDEX:         printf("r8");    break;
+        case LIVE_RANGE_PREG_R09_INDEX:         printf("r9");    break;
+        case LIVE_RANGE_PREG_R12_INDEX:         printf("r12");   break;
+        case LIVE_RANGE_PREG_R13_INDEX:         printf("r13");   break;
+        case LIVE_RANGE_PREG_R14_INDEX:         printf("r14");   break;
+        case LIVE_RANGE_PREG_R15_INDEX:         printf("r15");   break;
+        case LIVE_RANGE_PREG_XMM00_INDEX:       printf("xmm0");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 1:   printf("xmm1");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 2:   printf("xmm2");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 3:   printf("xmm3");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 4:   printf("xmm4");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 5:   printf("xmm5");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 6:   printf("xmm6");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 7:   printf("xmm7");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 8:   printf("xmm8");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 9:   printf("xmm9");  break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 10:  printf("xmm10"); break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 11:  printf("xmm11"); break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 12:  printf("xmm12"); break;
+        case LIVE_RANGE_PREG_XMM00_INDEX + 13:  printf("xmm13"); break;
+        default: printf("Unknown LR preg index %d", preg_reg_index);
+    }
 }
 
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
