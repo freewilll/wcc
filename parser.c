@@ -537,7 +537,9 @@ static Type *parse_function(void) {
                 break;
             }
 
-            Symbol *param_symbol = new_symbol();
+            Symbol *param_symbol = 0;
+            if (cur_type_identifier) param_symbol = new_symbol(cur_type_identifier);
+
             Type *symbol_type;
 
             // Convert parameter types
@@ -552,12 +554,12 @@ static Type *parse_function(void) {
             else
                 symbol_type = type;
 
-            param_symbol->type = dup_type(symbol_type);
+            if (param_symbol) param_symbol->type = dup_type(symbol_type);
 
-            param_symbol->identifier = cur_type_identifier;
             function_type->function->param_types[param_count] = dup_type(type);
             function_type->function->param_identifiers[param_count] = cur_type_identifier;
-            param_symbol->local_index = param_count++;
+            if (param_symbol) param_symbol->local_index = param_count;
+            param_count++;
 
             cur_type_identifier = old_cur_type_identifier;
         }
@@ -880,10 +882,9 @@ static Type *parse_enum_type_specifier(void) {
                 value = parse_constant_integer_expression()->int_value;
             }
 
-            Symbol *s = new_symbol();
+            Symbol *s = new_symbol(enum_value_identifier);
             s->is_enum_value = 1;
             s->type = new_type(TYPE_INT);
-            s->identifier = enum_value_identifier;
             s->value = value++;
             s++;
 
@@ -924,10 +925,9 @@ static void parse_typedef(void) {
         td->type = type;
         all_typedefs[all_typedefs_count++] = td;
 
-        Symbol *symbol = new_symbol();
+        Symbol *symbol = new_symbol(cur_type_identifier);
         symbol->type = new_type(TYPE_TYPEDEF);
         symbol->type->target = type;
-        symbol->identifier = cur_type_identifier;
 
         if (cur_token == TOK_COMMA) next();
         if (cur_token == TOK_SEMI) break;
@@ -1896,10 +1896,9 @@ static void parse_declaration(void) {
     if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic("Identifier redeclared: %s", cur_type_identifier);
 
     if (base_type->is_static) {
-        symbol = new_symbol();
+        symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
         symbol->linkage = LINKAGE_INTERNAL;
-        symbol->identifier = cur_type_identifier;
 
         char *global_identifier;
         asprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, ++local_static_symbol_count);
@@ -1915,16 +1914,14 @@ static void parse_declaration(void) {
     else if (base_type->is_extern) {
         // Add the identifier to the local scope, but give it a global identifier
         // without adding any linkage
-        symbol = new_symbol();
+        symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
         symbol->linkage = LINKAGE_UNDECLARED_EXTERNAL;
-        symbol->identifier = cur_type_identifier;
         symbol->global_identifier = cur_type_identifier;
     }
     else {
-        symbol = new_symbol();
+        symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
-        symbol->identifier = cur_type_identifier;
         symbol->linkage = LINKAGE_NONE;
         symbol->local_index = new_local_index();
     }
@@ -3332,9 +3329,8 @@ void parse(void) {
                 if (!original_symbol) {
                     // Create a new symbol if it wasn't already declared.
 
-                    symbol = new_symbol();
+                    symbol = new_symbol(cur_type_identifier);
                     symbol->type = dup_type(type);
-                    symbol->identifier = cur_type_identifier;
                     symbol->global_identifier = cur_type_identifier;
                 }
                 else
@@ -3400,7 +3396,7 @@ void dump_symbols(void) {
     printf("Symbols:\n");
 
     for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbols[i];
+        Symbol *symbol = global_scope->symbol_list[i];
         Type *type = symbol->type;
         char *identifier = symbol->identifier;
         long value = symbol->value;

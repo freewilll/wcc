@@ -10,7 +10,8 @@ Scope *global_scope;
 void init_scopes(void) {
     global_scope = malloc(sizeof(Scope));
     memset(global_scope, 0, sizeof(Scope));
-    global_scope->symbols = malloc(sizeof(Symbol) * MAX_GLOBAL_SCOPE_IDENTIFIERS);
+    global_scope->symbol_list = malloc(sizeof(Symbol) * MAX_GLOBAL_SCOPE_IDENTIFIERS);
+    global_scope->symbols = new_strmap();
     global_scope->tags = malloc(sizeof(Tag) * MAX_GLOBAL_SCOPE_IDENTIFIERS);
     global_scope->max_count = MAX_GLOBAL_SCOPE_IDENTIFIERS;
     global_scope->symbol_count = 0;
@@ -24,7 +25,8 @@ void init_scopes(void) {
 void enter_scope(void) {
     Scope *scope = malloc(sizeof(Scope));
     memset(scope, 0, sizeof(Scope));
-    scope->symbols = malloc(sizeof(Symbol) * MAX_LOCAL_SCOPE_IDENTIFIERS);
+    scope->symbol_list = malloc(sizeof(Symbol) * MAX_LOCAL_SCOPE_IDENTIFIERS);
+    scope->symbols = new_strmap();
     scope->tags = malloc(sizeof(Tag) * MAX_LOCAL_SCOPE_IDENTIFIERS);
     scope->max_count = MAX_LOCAL_SCOPE_IDENTIFIERS;
     scope->symbol_count = 0;
@@ -40,39 +42,28 @@ void exit_scope(void) {
     if (!cur_scope) panic("Attempt to exit the global scope");
 }
 
-static Symbol *new_symbol_in_scope(Scope *scope) {
-    if (scope->symbol_count == scope->max_count)
-        panic("Exceeded max symbol table size of %d symbols", scope->max_count);
+// Add a symbol to the current scope
+Symbol *new_symbol(char *identifier) {
+    if (cur_scope->symbol_count == cur_scope->max_count)
+        panic("Exceeded max symbol table size of %d symbols", cur_scope->max_count);
 
     Symbol *symbol = malloc(sizeof(Symbol));
     memset(symbol, 0, sizeof(Symbol));
-    scope->symbols[scope->symbol_count++] = symbol;
-    symbol->scope = scope;
+    symbol->identifier = identifier;
+    cur_scope->symbol_list[cur_scope->symbol_count++] = symbol;
+    strmap_put(cur_scope->symbols, identifier, symbol);
+    symbol->scope = cur_scope;
 
     return symbol;
-}
-
-// Add a symbol to the global
-Symbol *new_global_symbol(void) {
-    return new_symbol_in_scope(global_scope);
-}
-
-// Add a symbol to the current scope
-Symbol *new_symbol(void) {
-    return new_symbol_in_scope(cur_scope);
 }
 
 // Search for a symbol in a scope and recurse to parents if not found.
 // Returns zero if not found in any parents
 Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
-    for (int i = 0; i < scope->symbol_count; i++) {
-        Symbol *symbol = scope->symbols[i];
-        if (!strcmp(symbol->identifier, name)) return symbol;
-    }
-
-    if (recurse && scope->parent) return lookup_symbol(name, scope->parent, recurse);
-
-    return 0;
+    Symbol *symbol = strmap_get(scope->symbols, name);
+    if (symbol) return symbol;
+    else if (recurse && scope->parent) return lookup_symbol(name, scope->parent, recurse);
+    else return 0;
 }
 
 Tag *new_tag(void) {

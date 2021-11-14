@@ -770,14 +770,14 @@ void output_code(char *input_filename, char *output_filename) {
     // Output symbols
     elf_section = SEC_NONE;
     for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbols[i];
+        Symbol *symbol = global_scope->symbol_list[i];
         if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
             output_symbol(symbol);
     }
 
     // Output static local symbols
     for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbols[i];
+        Symbol *symbol = global_scope->symbol_list[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             Function *function = symbol->type->function;
             for (int j = 0; j < function->static_symbol_count; j++)
@@ -802,7 +802,7 @@ void output_code(char *input_filename, char *output_filename) {
 
     // Output symbols for all non-external functions
     for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbols[i];
+        Symbol *symbol = global_scope->symbol_list[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->linkage == LINKAGE_EXTERNAL)
             fprintf(f, "    .globl  %s\n", symbol->identifier);
     }
@@ -817,7 +817,7 @@ void output_code(char *input_filename, char *output_filename) {
     need_ru4_to_ld_symbol = 0;
     need_ld_to_ru4_symbol = 0;
     for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbols[i];
+        Symbol *symbol = global_scope->symbol_list[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             output_function_body_code(symbol);

@@ -145,8 +145,9 @@ typedef struct tag {
 typedef struct scope {
     struct scope *parent;       // Parent scope, zero if it's the global scope
     int max_count;              // Maximum amount of symbols or tags memory is allocated for
-    Symbol **symbols;           // Symbol list
-    int symbol_count;           // Count of symbols
+    StrMap *symbols;            // Symbols
+    Symbol **symbol_list;       // List of symbols, in order of declaration/definition
+    int symbol_count;           // Amount of symbols
     Tag **tags;                 // Struct, union or enum tags
     int tag_count;              // Count of tags
 } Scope;
@@ -764,8 +765,7 @@ Scope *global_scope;
 void init_scopes(void);
 void enter_scope(void);
 void exit_scope(void);
-Symbol *new_global_symbol(void);
-Symbol *new_symbol(void);
+Symbol *new_symbol(char *identifier);
 Symbol *lookup_symbol(char *name, Scope *scope, int recurse);
 Tag *new_tag(void);
 Tag *lookup_tag(char *name, Scope *scope, int recurse);
