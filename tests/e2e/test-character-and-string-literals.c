@@ -104,10 +104,11 @@ static void test_char_literal_lexer() {
 }
 
 static void test_string_literal_lexer() {
-    // TODO split string literals
-    // assert_string("foobar", "foo" "bar", "Adjacent string literals 1");
-    // assert_string("foobar", "foo"
-    //                         "bar",       "Adjacent string literals 2");
+    assert_string("foobar", "foo" "bar", "Adjacent string literals 1");
+    assert_string("foobar", "foo"
+                            "bar",       "Adjacent string literals 2");
+    assert_string("foobarbaz", "foo"
+                            "bar" "baz", "Adjacent string literals 2");
 
     char *foon = "foo\n";
     assert_int(4, strlen(foon), "String literal escapes \\n 1");
@@ -213,6 +214,20 @@ int test_wide_char_string_literal_lexer() {
     assert_int(98, wc[1], "wchar_t string literal s[1]");
     assert_int(0,  wc[2], "wchar_t string literal s[2]");
     assert_int(2, wcslen(wc), "wchar_t string literal wcslen");
+
+    wchar_t *wc2 = L"ab" L"cd";
+    assert_int(97,  wc2[0], "wchar_t string literal 2 s[0]");
+    assert_int(98,  wc2[1], "wchar_t string literal 2 s[1]");
+    assert_int(99,  wc2[2], "wchar_t string literal 2 s[2]");
+    assert_int(100, wc2[3], "wchar_t string literal 2 s[3]");
+    assert_int(0,   wc2[4], "wchar_t string literal 2 s[4]");
+    assert_int(4, wcslen(wc2), "wchar_t string literal 2 wcslen");
+
+    // If any string literal are wide, they all are wide
+    assert_int(8,  sizeof( "foo"  "bars"), "Sizeof split strings ..");
+    assert_int(32, sizeof( "foo" L"bars"), "Sizeof split strings .L");
+    assert_int(32, sizeof(L"foo"  "bars"), "Sizeof split strings L.");
+    assert_int(32, sizeof(L"foo" L"bars"), "Sizeof split strings LL");
 }
 
 int main(int argc, char **argv) {

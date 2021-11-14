@@ -671,8 +671,9 @@ int fprintf_escaped_string_literal(void *f, StringLiteral* sl, int for_assembly)
     else
         c += fprintf(f, "\"");
 
-    for (int i = 0; i < sl->size; i++) {
-        if (for_assembly && data[i] == 0 && i != sl->size -1) {
+    int data_count = sl->is_wide_char ? sl->size * 4 : sl->size;
+    for (int i = 0; i < data_count; i++) {
+        if (for_assembly && data[i] == 0 && i != data_count - 1) {
             // Terminate the string & start a new one
             c += fprintf(f, "\"\n");
             c += fprintf(f, "    .string \"");

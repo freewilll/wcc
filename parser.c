@@ -1640,7 +1640,7 @@ static TypeIterator *initialize_with_string_literal(TypeIterator *it, Value *val
 
     if (sl->is_wide_char) {
         int *int_data = (int *) sl->data;
-        int size = sl->size / sizeof(int);
+        int size = sl->size;
 
         for (int i = 0; i < size; i++) {
             Value *v = new_integral_constant(TYPE_INT, int_data[i]);
