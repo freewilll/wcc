@@ -1407,7 +1407,9 @@ void init_instruction_selection_rules(void) {
     // https://www.felixcloutier.com/x86/cmp
 
     // Comparision + conditional jump rules
-    add_int_comp_cond_jmp_rules(&ntc, 0, XRP, XRP, cmpq_vv);
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            add_int_comp_cond_jmp_rules(&ntc, 0, RP1 + i, RP1 + j, cmpq_vv);
 
     // Note the RU4, CI3 oddball. cmpq can only be done on imm32, which has to be signed. If CU4 were allowed, then 0x80000000 and higher would
     // be produced, which is illegal, since that would become an imm64 in the assembler.
@@ -1431,7 +1433,10 @@ void init_instruction_selection_rules(void) {
     add_int_comp_cond_jmp_rules(&ntc, 0, MPV, CI3, "cmpq $%v2q, %v1q"); add_int_comp_cond_jmp_rules(&ntc, 0, MPV, CU3, "cmpq $%v2q, %v1q");
 
     // Comparision + conditional assignment
-    add_int_comp_assignment_rules(0, XRP, XRP, cmpq_vv);
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            add_int_comp_assignment_rules(0, RP1 + i, RP1 + j, cmpq_vv);
+
     add_int_comp_assignment_rules(0, RPF, RPF, "cmpq %v2q, %v1q");
 
     add_int_comp_assignment_rules(0, XRI, XRI, cmp_vv);             add_int_comp_assignment_rules(1, XRU, XRU, cmp_vv);
