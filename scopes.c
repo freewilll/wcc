@@ -12,10 +12,9 @@ void init_scopes(void) {
     memset(global_scope, 0, sizeof(Scope));
     global_scope->symbol_list = malloc(sizeof(Symbol) * MAX_GLOBAL_SCOPE_IDENTIFIERS);
     global_scope->symbols = new_strmap();
-    global_scope->tags = malloc(sizeof(Tag) * MAX_GLOBAL_SCOPE_IDENTIFIERS);
+    global_scope->tags = new_strmap();
     global_scope->max_count = MAX_GLOBAL_SCOPE_IDENTIFIERS;
     global_scope->symbol_count = 0;
-    global_scope->tag_count = 0;
     global_scope->parent = 0;
 
     cur_scope = global_scope;
@@ -27,10 +26,9 @@ void enter_scope(void) {
     memset(scope, 0, sizeof(Scope));
     scope->symbol_list = malloc(sizeof(Symbol) * MAX_LOCAL_SCOPE_IDENTIFIERS);
     scope->symbols = new_strmap();
-    scope->tags = malloc(sizeof(Tag) * MAX_LOCAL_SCOPE_IDENTIFIERS);
+    scope->tags = new_strmap();
     scope->max_count = MAX_LOCAL_SCOPE_IDENTIFIERS;
     scope->symbol_count = 0;
-    scope->tag_count = 0;
     scope->parent = cur_scope;
 
     cur_scope = scope;
@@ -66,13 +64,11 @@ Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
     else return 0;
 }
 
-Tag *new_tag(void) {
-    if (cur_scope->tag_count == cur_scope->max_count)
-        panic("Exceeded max tag table size of %d tags", cur_scope->max_count);
-
+Tag *new_tag(char *identifier) {
     Tag *tag = malloc(sizeof(Tag));
     memset(tag, 0, sizeof(Tag));
-    cur_scope->tags[cur_scope->tag_count++] = tag;
+    tag->identifier = identifier;
+    strmap_put(cur_scope->tags, identifier, tag);
 
     return tag;
 }
@@ -80,12 +76,8 @@ Tag *new_tag(void) {
 // Search for a tag in a scope and recurse to parents if not found.
 // Returns zero if not found in any parents
 Tag *lookup_tag(char *name, Scope *scope, int recurse) {
-    for (int i = 0; i < scope->tag_count; i++) {
-        Tag *tag = scope->tags[i];
-        if (!strcmp(tag->identifier, name)) return tag;
-    }
-
-    if (recurse && scope->parent) return lookup_tag(name, scope->parent, recurse);
-
-    return 0;
+    Tag *tag = strmap_get(scope->tags, name);
+    if (tag) return tag;
+    else if (recurse && scope->parent) return lookup_tag(name, scope->parent, recurse);
+    else return 0;
 }

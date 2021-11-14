@@ -685,8 +685,7 @@ static Type *new_struct_or_union(char *tag_identifier) {
     Type *type = make_struct_or_union_type(s);
 
     if (tag_identifier) {
-        Tag *tag = new_tag();
-        tag->identifier = tag_identifier;
+        Tag *tag = new_tag(tag_identifier);
         tag->type = type;
         type->tag = tag;
     }
@@ -855,8 +854,7 @@ static Type *parse_enum_type_specifier(void) {
     if (cur_token == TOK_IDENTIFIER || cur_token == TOK_TYPEDEF_TYPE) {
         identifier = cur_identifier;
 
-        Tag *tag = new_tag();
-        tag->identifier = cur_identifier;
+        Tag *tag = new_tag(cur_identifier);
         tag->type = type;
         type->tag = tag;
 

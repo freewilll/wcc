@@ -148,8 +148,7 @@ typedef struct scope {
     StrMap *symbols;            // Symbols
     Symbol **symbol_list;       // List of symbols, in order of declaration/definition
     int symbol_count;           // Amount of symbols
-    Tag **tags;                 // Struct, union or enum tags
-    int tag_count;              // Count of tags
+    StrMap *tags;               // Struct, union or enum tags
 } Scope;
 
 typedef struct function {
@@ -767,7 +766,7 @@ void enter_scope(void);
 void exit_scope(void);
 Symbol *new_symbol(char *identifier);
 Symbol *lookup_symbol(char *name, Scope *scope, int recurse);
-Tag *new_tag(void);
+Tag *new_tag(char *identifier);
 Tag *lookup_tag(char *name, Scope *scope, int recurse);
 
 // types.c
