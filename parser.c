@@ -3304,7 +3304,6 @@ void parse(void) {
                 base_type = parse_declaration_specifiers();
 
             int is_static = base_type->is_static;
-            int is_extern = base_type->is_extern;
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
