@@ -3369,7 +3369,7 @@ void parse(void) {
 
                 }
 
-                if (cur_token == TOK_COMMA) next();
+                if (cur_token != TOK_SEMI) consume(TOK_COMMA, ",");
             }
 
             if (cur_token == TOK_SEMI) next();
