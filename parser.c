@@ -887,7 +887,7 @@ static Type *parse_enum_type_specifier(void) {
 
             member_count++;
 
-            if (cur_token == TOK_COMMA) next();
+            if (cur_token != TOK_RCURLY) consume(TOK_COMMA, ",");
         }
         consume(TOK_RCURLY, "}");
 
