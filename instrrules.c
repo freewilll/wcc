@@ -904,13 +904,14 @@ static void add_commutative_operation_rules(char *x86_operand, int operation, in
     asprintf(&op_vv, "%s %%v1, %%v2",  x86_operand); // Perform operation on two registers or memory
     asprintf(&op_cv, "%s $%%v1, %%v2", x86_operand); // Perform operation on a constant and a register
 
-    for (int i = 0; i < 4; i++) {
+    // Add rules for byte, word and quads
+    for (int i = 0; i < 3; i++) {
         add_commutative_operation_rule(                operation, X_MOV, x86_operation, RI1 + i, XRI, XRI, cost,     "mov%s %v1, %vd",  op_vv);
         add_commutative_operation_rule(                operation, X_MOV, x86_operation, RU1 + i, XRU, XRU, cost,     "mov%s %v1, %vd",  op_vv);
         add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, XRI, XMI, cost + 1, "mov%s %v1, %vd",  op_vv);
         add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, XRU, XMU, cost + 1, "mov%s %v1, %vd",  op_vv);
 
-        // 64 bit immediates aren't possible,
+        // 64 bit immediates aren't possible, but 32 bit constants can't be used on quads either.
         for (int j = 0; j < 3; j++) {
             add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, CI1 + j, XRI,     cost,     "mov%s %v1, %vd",  op_cv);
             add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI1 + i, CU1 + j, XRI,     cost,     "mov%s %v1, %vd",  op_cv);
@@ -920,6 +921,18 @@ static void add_commutative_operation_rules(char *x86_operand, int operation, in
             add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU1 + i, XMU,     CU1 + j, cost + 1, "mov%s $%v1, %vd", op_vv);
         }
     }
+
+    // Register moves on quads
+    add_commutative_operation_rule(                operation, X_MOV, x86_operation, RI4, XRI, XRI, cost,     "mov%s %v1, %vd",  op_vv);
+    add_commutative_operation_rule(                operation, X_MOV, x86_operation, RU4, XRU, XRU, cost,     "mov%s %v1, %vd",  op_vv);
+    add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RI4, XRI, XMI, cost + 1, "mov%s %v1, %vd",  op_vv);
+    add_bi_directional_commutative_operation_rules(operation, X_MOV, x86_operation, RU4, XRU, XMU, cost + 1, "mov%s %v1, %vd",  op_vv);
+
+    // Operations between a register/memory and a constant with a quad result aren't straightforward
+    // 1. There isn't an immediate 64 bit operand
+    // 2. It's not possible to use CI1, CI2, CI3, CU1, CU2, CU3 on a quad without taking
+    //    care, since e.g. andq $ffffffff could end up getting translated to andq $-1 which is incorrect.
+    // For simplicity, no rules are present for quads & constants, forcing the constant into a register.
 }
 
 static void add_pointer_plus_int_rule(int dst, int src, int cost, int x86_operation, char *sign_extend_template) {

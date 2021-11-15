@@ -1542,6 +1542,24 @@ int test_constant_casting() {
     assert_long(-1,                  (long)           -1L, "Casting to long");
 }
 
+static long bswap64(long i)
+{
+    return (
+        (((i) & 0xff00000000000000ull) >> 56) |
+        (((i) & 0x00ff000000000000ull) >> 40) |
+        (((i) & 0x0000ff0000000000ull) >> 24) |
+        (((i) & 0x000000ff00000000ull) >> 8)  |
+        (((i) & 0x00000000ff000000ull) << 8)  |
+        (((i) & 0x0000000000ff0000ull) << 24) |
+        (((i) & 0x000000000000ff00ull) << 40) |
+        (((i) & 0x00000000000000ffull) << 56)
+    );
+}
+
+void test_bswap64() {
+    assert_long(0x8877665544332211UL, bswap64(0x1122334455667788UL), "bswap64");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1592,6 +1610,7 @@ int main(int argc, char **argv) {
     test_constant_expressions();
     test_constant_expression_uses();
     test_constant_casting();
+    test_bswap64();
 
     finalize();
 }

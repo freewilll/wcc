@@ -344,38 +344,6 @@ void test_instrsel_expr() {
     finish_ir(function);
     assert_x86_op("movq        $1, r1q");
 
-    // c1 + c2, with both cst/reg & reg/cst rules missing, forcing two register loads.
-    // c1 goes into v2 and c2 goes into v3
-    start_ir();
-    disable_merge_constants = 1;
-    nuke_rule(RI4, IR_ADD, XCI, RI4); nuke_rule(RI4, IR_ADD, RI4, XCI);
-    i(0, IR_ADD, v(1), c(1), c(2));
-    finish_ir(function);
-    assert_x86_op("movb        $2, r2b");
-    assert_x86_op("movb        r2b, r1b");
-    assert_x86_op("addb        $1, r1b");
-
-    // c1 + c2, with only the cst/reg rule, forcing a register load for c2 into v2.
-    start_ir();
-    disable_merge_constants = 1;
-    nuke_rule(XRI, IR_ADD, RI4, XCI);
-    i(0, IR_ADD, v(1), c(1), c(2));
-    finish_ir(function);
-    assert_x86_op("movb        $2, r2b");
-    assert_x86_op("movb        r2b, r1b");
-    assert_x86_op("addb        $1, r1b");
-
-    // c1 + c2, with only the reg/cst rule, forcing a register load for c1 into v2.
-    start_ir();
-    disable_merge_constants = 1;
-    nuke_rule(RI4, IR_ADD, XCI, RI4);
-    i(0, IR_ADD, v(1), c(1), c(2));
-    finish_ir(function);
-    assert_x86_op("movb        $2, r2b");
-    assert_x86_op("movb        r2b, r1b");
-    assert_x86_op("addb        $1, r1b");
-    init_instruction_selection_rules();
-
     // r1 + r2. No loads are necessary, this is the simplest add operation.
     start_ir();
     i(0, IR_ADD, v(3), v(1), v(2));
@@ -415,15 +383,17 @@ void test_instrsel_expr() {
     start_ir();
     i(0, IR_ADD, v(2), c(1), g(1));
     finish_ir(function);
-    assert_x86_op("movq        $1, r1q");
-    assert_x86_op("addq        g1(%rip), r1q");
+    assert_x86_op("movq        $1, r2q");
+    assert_x86_op("movq        g1(%rip), r1q");
+    assert_x86_op("addq        r2q, r1q");
 
     // g1 + c1
     start_ir();
     i(0, IR_ADD, v(2), g(1), c(1));
     finish_ir(function);
-    assert_x86_op("movq        $1, r1q");
-    assert_x86_op("addq        g1(%rip), r1q");
+    assert_x86_op("movq        $1, r2q");
+    assert_x86_op("movq        g1(%rip), r1q");
+    assert_x86_op("addq        r2q, r1q");
 
     // Store c in g
     start_ir();
