@@ -1696,7 +1696,7 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
                 }
             }
 
-            if (cur_token == TOK_COMMA) next();
+            if (cur_token != TOK_RCURLY) consume(TOK_COMMA, ",");
         }
         consume(TOK_RCURLY, "}");
     }
