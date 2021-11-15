@@ -1913,7 +1913,7 @@ static void parse_declaration(void) {
         // without adding any linkage
         symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
-        symbol->linkage = LINKAGE_UNDECLARED_EXTERNAL;
+        symbol->linkage = LINKAGE_EXTERNAL;
         symbol->global_identifier = cur_type_identifier;
     }
     else {
@@ -3338,10 +3338,12 @@ void parse(void) {
 
                 int linkage = is_static
                     ? LINKAGE_INTERNAL
-                    : is_extern ? LINKAGE_UNDECLARED_EXTERNAL : LINKAGE_EXTERNAL;
+                    : LINKAGE_EXTERNAL;
 
-                if (original_symbol && original_symbol->linkage != linkage)
+                if (original_symbol && original_symbol->linkage != linkage) {
                     panic("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
+
+                }
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {

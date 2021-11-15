@@ -465,7 +465,6 @@ enum {
     LINKAGE_NONE = 1,
     LINKAGE_INTERNAL,
     LINKAGE_EXTERNAL,
-    LINKAGE_UNDECLARED_EXTERNAL, // When storage class is extern on objects at file and block scope
 };
 
 // Intermediate representation operations

@@ -11,6 +11,10 @@ int failures;
 
 struct sffff gsffff;
 
+// No test is present for a redeclared symbol with default extern and later extern, but this must compile without errors.
+void redeclared_extern(int size);
+extern void redeclared_extern (int __size);
+
 void test_struct_in_stack_with_zero_offset() {
     struct si5 si5; si5.i1 = 1; si5.i2 = 2; si5.i3 = 3; si5.i4 = 4; si5.i5 = 5;                                                 accept_si5(si5);
     struct si6 si6; si6.i1 = 1; si6.i2 = 2; si6.i3 = 3; si6.i4 = 4; si6.i5 = 5; si6.i6 = 6;                                     accept_si6(si6);
