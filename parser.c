@@ -926,7 +926,7 @@ static void parse_typedef(void) {
         symbol->type = new_type(TYPE_TYPEDEF);
         symbol->type->target = type;
 
-        if (cur_token == TOK_COMMA) next();
+        if (cur_token != TOK_SEMI) consume(TOK_COMMA, ",");
         if (cur_token == TOK_SEMI) break;
     }
 }
