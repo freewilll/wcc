@@ -84,6 +84,51 @@ static void finish_integer_constant(int is_decimal) {
     cur_lexer_type->is_unsigned = is_unsigned;
 }
 
+void lex_non_hex_literal(void) {
+    char *i = input;
+
+    // Note the current i and ip in case a floating point is lexed later on
+    char *start = i;
+    int start_ip = ip;
+
+    int has_leading_zero = i[ip] == '0';
+    long octal_integer = 0;
+    long decimal_integer = 0;
+    while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) {
+        octal_integer = octal_integer * 8  + (i[ip] - '0');
+        decimal_integer = decimal_integer * 10 + (i[ip] - '0');
+        ip++;
+    }
+
+    int is_floating_point = i[ip] == '.' || i[ip] == 'e' || i[ip] == 'E';
+
+    if (!is_floating_point && has_leading_zero) {
+        // It's an octal number
+        cur_token = TOK_INTEGER;
+        cur_long = octal_integer;
+        finish_integer_constant(0);
+    }
+    else if (!is_floating_point) {
+        // It's a decimal number
+        cur_token = TOK_INTEGER;
+        cur_long = decimal_integer;
+        finish_integer_constant(1);
+    }
+    else {
+        char *new_i;
+        cur_long_double = strtold(start + start_ip, &new_i);
+        ip = start_ip + new_i - start - start_ip;
+
+        cur_token = TOK_FLOATING_POINT_NUMBER;
+
+        int type = TYPE_DOUBLE;
+        if (i[ip] == 'f' || i[ip] == 'F') { type = TYPE_FLOAT; ip++; }
+        if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++; }
+
+        cur_lexer_type = new_type(type);
+    }
+}
+
 static void lex_octal_literal(void) {
     char *i = input;
 
@@ -267,59 +312,33 @@ void next(void) {
             finish_integer_constant(0);
         }
 
-        // Integer, octal and floating point literal
-        else if ((c1 >= '0' && c1 <= '9') || (input_size - ip >= 2 && c1 == '.' && c2 >= '0' && c2 <= '9')) {
-            // Note the current i and ip in case a floating point is lexed later on
-            char *start = i;
-            int start_ip = ip;
-
-            int has_leading_zero = c1 == '0';
-            long octal_integer = 0;
-            long decimal_integer = 0;
-            while ((i[ip] >= '0' && i[ip] <= '9') && ip < input_size) {
-                octal_integer = octal_integer * 8  + (i[ip] - '0');
-                decimal_integer = decimal_integer * 10 + (i[ip] - '0');
-                ip++;
-            }
-
-            int is_floating_point = i[ip] == '.' || i[ip] == 'e' || i[ip] == 'E';
-
-            if (!is_floating_point && has_leading_zero) {
-                // It's an octal number
-                cur_token = TOK_INTEGER;
-                cur_long = octal_integer;
-                finish_integer_constant(0);
-            }
-            else if (!is_floating_point) {
-                // It's a decimal number
-                cur_token = TOK_INTEGER;
-                cur_long = decimal_integer;
-                finish_integer_constant(1);
-            }
-            else {
-                char *new_i;
-                cur_long_double = strtold(start + start_ip, &new_i);
-                ip = start_ip + new_i - start - start_ip;
-
-                cur_token = TOK_FLOATING_POINT_NUMBER;
-
-                int type = TYPE_DOUBLE;
-                if (i[ip] == 'f' || i[ip] == 'F') { type = TYPE_FLOAT; ip++; }
-                if (i[ip] == 'l' || i[ip] == 'L') { type = TYPE_LONG_DOUBLE; ip++; }
-
-                cur_lexer_type = new_type(type);
-            }
-        }
+        // Decimal, octal and floating point literal
+        else if ((c1 >= '0' && c1 <= '9') || (input_size - ip >= 2 && c1 == '.' && c2 >= '0' && c2 <= '9'))
+            lex_non_hex_literal();
 
         else if (c1 == '.') {
             ip += 1;
             cur_token = TOK_DOT;
         }
 
-        // Ignore other CPP directives
-        else if (c1 == '#') {
-            while (i[ip++] != '\n');
-            cur_line++;
+        else if (i[ip] == '#') {
+            // Lex # <num> "filename" ...
+
+            ip++;
+            skip_whitespace();
+
+            lex_non_hex_literal();
+            skip_whitespace();
+
+            int *data = malloc(MAX_STRING_LITERAL_SIZE * 4);
+            int size = 0;
+            ip++; // Skip the "
+            lex_single_string_literal(data, &size);
+            finish_string_literal(data, size, 0);
+
+            cur_filename = cur_string_literal.data;
+            cur_line = cur_long;
+            if (i[ip] != '\n') while (i[ip++] != '\n');
             continue;
         }
 
