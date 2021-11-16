@@ -467,6 +467,12 @@ static Type *concat_types(Type *type1, Type *type2) {
     if (type1_tail->type == TYPE_FUNCTION && type2->type == TYPE_ARRAY)
         panic("Functions cannot return arrays");
 
+    // Check arrays have complete elements
+    if (type1_tail->type == TYPE_ARRAY) {
+        if (type2->type == TYPE_STRUCT_OR_UNION && !get_type_size(type2))
+            panic("Array has incomplete element type");
+    }
+
     return move_array_const(type1);
 }
 

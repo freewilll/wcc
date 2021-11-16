@@ -359,6 +359,11 @@ int main(int argc, char **argv) {
         "Cannot take an address of a bit-field",
         "Cannot take an address of a bit-field");
 
+    check_main_output(
+        "struct s;"
+        "struct s sa[1];",
+        "Array has incomplete element type",
+        "Array has incomplete element type");
 
     finalize();
 }
