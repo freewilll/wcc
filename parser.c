@@ -3162,13 +3162,17 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
 }
 
 // Ensure linkage is the same for a symbol that has been redeclared.
-void check_rededined_symbol_linkage(int linkage1, int linkage2, char *cur_type_identifier) {
+int redefined_symbol_linkage(int linkage1, int linkage2, char *cur_type_identifier) {
+    // Allow, e.g. static int i; extern int i;
+    if (linkage1 == LINKAGE_INTERNAL && linkage2 == LINKAGE_UNDECLARED_EXTERNAL)
+        return LINKAGE_INTERNAL;
 
     if (linkage1 == LINKAGE_UNDECLARED_EXTERNAL) linkage1 = LINKAGE_EXTERNAL;
     if (linkage2 == LINKAGE_UNDECLARED_EXTERNAL) linkage2 = LINKAGE_EXTERNAL;
 
-    if (linkage1 != linkage2)
-        panic("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
+    if (linkage1 == linkage2) return linkage1;
+
+    panic("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
 }
 
 // Parse a translation unit
@@ -3223,7 +3227,7 @@ void parse(void) {
                     : is_extern ? LINKAGE_UNDECLARED_EXTERNAL : LINKAGE_EXTERNAL;
 
                 if (original_symbol)
-                    check_rededined_symbol_linkage(original_symbol->linkage, linkage, cur_type_identifier);
+                    linkage = redefined_symbol_linkage(original_symbol->linkage, linkage, cur_type_identifier);
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {

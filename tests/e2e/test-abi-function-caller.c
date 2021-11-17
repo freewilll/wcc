@@ -223,6 +223,10 @@ int linked_object;
 static int unlinked_object;
 static int initialized_unlinked_object = 1;
 
+// A object with internal linkage can be redeclared with extern, but with unchanged linkage
+static int sei;
+extern int sei;
+
 void test_global_object_linkage() {
     // Ensure values in linked object are the same
 
@@ -238,6 +242,12 @@ void test_global_object_linkage() {
     set_unlinked_object(2);
     assert_int(2, get_unlinked_object(), "Unlinked object in other translation unit 2");
     assert_int(1, unlinked_object, "Unlinked object in this translation unit 1");
+
+    sei = 1;
+    assert_int(0, get_sei(), "Redeclared unlinked object in other translation unit 1");
+    set_sei(2);
+    assert_int(2, get_sei(), "Redeclared unlinked object in other translation unit 2");
+    assert_int(1, sei, "Redeclared unlinked object in this translation unit 1");
 }
 
 int global_int;

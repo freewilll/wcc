@@ -112,3 +112,5 @@ int get_linked_object();
 int get_unlinked_object();
 void set_linked_object(int i);
 void set_unlinked_object(int i);
+int get_sei();
+void set_sei(int i);

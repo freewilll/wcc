@@ -331,6 +331,13 @@ int get_unlinked_object() { return unlinked_object; }
 void set_linked_object(int i) { linked_object = i; }
 void set_unlinked_object(int i) { unlinked_object = i; }
 
+// A object with internal linkage can be redeclared with extern, but with unchanged linkage
+static int sei;
+extern int sei;
+
+int get_sei() { return sei; }
+void set_sei(int i) { sei = i; }
+
 int extern_global_int;
 
 int extern_renamed_func(int i) {
