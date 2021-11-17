@@ -1922,7 +1922,7 @@ static void parse_declaration(void) {
         // without adding any linkage
         symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
-        symbol->linkage = LINKAGE_EXTERNAL;
+        symbol->linkage = LINKAGE_UNDECLARED_EXTERNAL;
         symbol->global_identifier = cur_type_identifier;
     }
     else {
@@ -3157,6 +3157,16 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
     exit_scope();
 }
 
+// Ensure linkage is the same for a symbol that has been redeclared.
+void check_rededined_symbol_linkage(int linkage1, int linkage2, char *cur_type_identifier) {
+
+    if (linkage1 == LINKAGE_UNDECLARED_EXTERNAL) linkage1 = LINKAGE_EXTERNAL;
+    if (linkage2 == LINKAGE_UNDECLARED_EXTERNAL) linkage2 = LINKAGE_EXTERNAL;
+
+    if (linkage1 != linkage2)
+        panic("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
+}
+
 // Parse a translation unit
 void parse(void) {
     while (cur_token != TOK_EOF) {
@@ -3175,6 +3185,7 @@ void parse(void) {
                 base_type = parse_declaration_specifiers();
 
             int is_static = base_type->is_static;
+            int is_extern = base_type->is_extern;
 
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
@@ -3208,12 +3219,10 @@ void parse(void) {
 
                 int linkage = is_static
                     ? LINKAGE_INTERNAL
-                    : LINKAGE_EXTERNAL;
+                    : is_extern ? LINKAGE_UNDECLARED_EXTERNAL : LINKAGE_EXTERNAL;
 
-                if (original_symbol && original_symbol->linkage != linkage) {
-                    panic("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
-
-                }
+                if (original_symbol)
+                    check_rededined_symbol_linkage(original_symbol->linkage, linkage, cur_type_identifier);
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {

@@ -469,6 +469,11 @@ enum {
     LINKAGE_NONE = 1,
     LINKAGE_INTERNAL,
     LINKAGE_EXTERNAL,
+    // Used for
+    // a) static local symbols that need to be global, but with internal linkage and
+    // b) global symbols with extern symbol
+    // This has nothing to do with the C spec, but comes from mimicking what gcc does.
+    LINKAGE_UNDECLARED_EXTERNAL,
 };
 
 // Intermediate representation operations
