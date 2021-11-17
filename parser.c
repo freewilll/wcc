@@ -3304,7 +3304,4 @@ void init_parser(void) {
 
     label_count = 0;
     local_static_symbol_count = 0;
-
-    in_ifdef = 0;
-    in_ifdef_else = 0;
 }

@@ -606,8 +606,6 @@ Type *cur_lexer_type;              // A type determined by the lexer
 long cur_long;                     // Current long if the token is an integral type
 long double cur_long_double;       // Current long double if the token is a floating point type
 StringLiteral cur_string_literal;  // Current string literal if the token is a string literal
-int in_ifdef;                      // In ifdef inclusion
-int in_ifdef_else;                 // In ifdef exclusion
 Scope *cur_scope;                  // Current scope.
 StringLiteral *string_literals;    // Each string literal has an index in this array, with a pointer to the string literal struct
 int string_literal_count;          // Amount of string literals
