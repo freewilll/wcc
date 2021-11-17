@@ -375,5 +375,17 @@ int main(int argc, char **argv) {
         "Array has incomplete element type",
         "Array has incomplete element type");
 
+    check_output(
+        "struct s;"
+        "struct s s = {1};",
+        "Attempt to use an incomplete struct or union in an initializer",
+        "Attempt to use an incomplete struct or union in an initializer");
+
+    check_main_output(
+        "struct s;"
+        "struct s s = {1};",
+        "Attempt to use an incomplete struct or union in an initializer",
+        "Attempt to use an incomplete struct or union in an initializer");
+
     finalize();
 }

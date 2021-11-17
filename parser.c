@@ -1951,6 +1951,10 @@ static void parse_declaration(void) {
         base_type = 0;
         next();
         Value *v = pop();
+
+        if (v->type->type == TYPE_STRUCT_OR_UNION && is_incomplete_type(v->type))
+            panic("Attempt to use an incomplete struct or union in an initializer");
+
         parse_initializer(type_iterator(v->type), v, 0);
         symbol->type = v->type;
         if (array_declaration) array_declaration->type = v->type;
@@ -3190,9 +3194,6 @@ void parse(void) {
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
 
-                if (is_incomplete_type(base_type))
-                    panic("Attempt to use an incomplete struct or union");
-
                 if (base_type->is_auto)
                     panic("auto not allowed in global scope");
                 if (base_type->is_register)
@@ -3234,6 +3235,10 @@ void parse(void) {
                     base_type = 0;
                     next();
                     Value *v = make_global_symbol_value(symbol);
+
+                    if (v->type->type == TYPE_STRUCT_OR_UNION && is_incomplete_type(v->type))
+                        panic("Attempt to use an incomplete struct or union in an initializer");
+
                     parse_initializer(type_iterator(v->type), v, 0);
                     symbol->type = v->type;
                     base_type = old_base_type;
