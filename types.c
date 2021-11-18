@@ -761,8 +761,52 @@ int recursive_complete_struct_or_union(StructOrUnion *s, int bit_offset, int is_
     return size;
 }
 
+// Recursively flatten anonymous structs, .e.g.
+// struct { struct { int i, j; }; int k; } => struct { int i, j, k; }
+void flatten_anonymous_structs(StructOrUnion *s) {
+    // Determine member count of the outer struct
+    int member_count = 0;
+    for (StructOrUnionMember **pmember = s->members; *pmember; pmember++)
+        member_count++;
+
+    StructOrUnionMember **pmember = s->members;
+    int member_index = 0;
+    while (*pmember) {
+        StructOrUnionMember *member = *pmember;
+        Type *type = member->type;
+
+        // A struct is anonymous if the struct has no tag & no identifier
+        if (type->type == TYPE_STRUCT_OR_UNION && !type->tag && !member->identifier) {
+            StructOrUnion *sub = type->struct_or_union_desc;
+
+            // Determine member count of the inner struct
+            int sub_member_count = 0;
+            for (StructOrUnionMember **sub_pmember = sub->members; *sub_pmember; sub_pmember++)
+                sub_member_count++;
+
+            if (member_count + sub_member_count == MAX_STRUCT_MEMBERS)
+                panic("Exceeded max struct/union members %d", MAX_STRUCT_MEMBERS);
+
+            // Move the trailing members forward
+            for (int i = 0; i < member_count - member_index - 1; i++)
+                s->members[member_count - i + sub_member_count - 2] = s->members[member_count - i - 1];
+
+            // Copy the sub struct members
+            for (int i = 0; i < sub_member_count; i++)
+                s->members[member_index + i] = sub->members[i];
+
+            member_count += sub_member_count;
+            continue; // Keep going with current pmember & member_index
+        }
+
+        pmember++;
+        member_index++;
+    }
+}
+
 void complete_struct_or_union(StructOrUnion *s) {
     recursive_complete_struct_or_union(s, 0, 1);
+    flatten_anonymous_structs(s);
 }
 
 int type_is_modifiable(Type *type) {

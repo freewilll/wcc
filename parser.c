@@ -730,6 +730,22 @@ static Type *find_enum(char *identifier) {
     return tag->type;
 }
 
+// Recursively add a struct member. In the simplest case, it just gets added. For anonymous
+// structs/unions, the function is called recursively with the sub members.
+static StructOrUnionMember *add_struct_member(char *identifier, Type *type, StructOrUnion *s, int *member_count) {
+    StructOrUnionMember *member = malloc(sizeof(StructOrUnionMember));
+    memset(member, 0, sizeof(StructOrUnionMember));
+    member->identifier = identifier;
+    member->type = dup_type(type);
+
+    if (*member_count == MAX_STRUCT_MEMBERS)
+        panic("Exceeded max struct/union members %d", MAX_STRUCT_MEMBERS);
+
+    s->members[(*member_count)++] = member;
+
+    return member;
+}
+
 // Parse struct definitions and uses.
 static Type *parse_struct_or_union_type_specifier(void) {
     // Parse a struct or union
@@ -775,13 +791,8 @@ static Type *parse_struct_or_union_type_specifier(void) {
         while (cur_token != TOK_RCURLY) {
             Type *base_type = parse_declaration_specifiers();
 
-            // Catch e.g. struct { struct s { int i; }; } s; which isn't in the C90 spec
-            // TODO handle struct { struct { int i, j; }; int k; } s;
-            // Temporarily commented out until the above is implemented
-            // if (base_type->type == TYPE_STRUCT_OR_UNION && cur_token == TOK_SEMI)
-            //     panic("Structs/unions members must have a name");
-
-            while (cur_token != TOK_SEMI) {
+            int done_parsing_members = 0;
+            while (!done_parsing_members) {
                 Type *type;
 
                 int unnamed_bit_field = 0;
@@ -801,13 +812,9 @@ static Type *parse_struct_or_union_type_specifier(void) {
                 if (is_incomplete_type(type)) panic("Struct/union members cannot have an incomplete type");
                 if (type->type == TYPE_FUNCTION) panic("Struct/union members cannot have a function type");
 
-                StructOrUnionMember *member = malloc(sizeof(StructOrUnionMember));
-                memset(member, 0, sizeof(StructOrUnionMember));
-                member->identifier = cur_type_identifier;
-                member->type = dup_type(type);
-                s->members[member_count++] = member;
+                StructOrUnionMember *member = add_struct_member(cur_type_identifier, type, s, &member_count);
 
-                if (unnamed_bit_field || cur_token == TOK_COLON) {
+                if (member && unnamed_bit_field || cur_token == TOK_COLON) {
                     // Bit field
                     if (!unnamed_bit_field) next(); // consume TOK_COLON
 
@@ -823,10 +830,14 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     member->bit_field_size = bit_field_size;
                 }
 
-                if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) panic("Expected a ; or ,");
                 if (cur_token == TOK_COMMA) next();
+                else if (cur_token == TOK_SEMI) {
+                    next();
+                    done_parsing_members = 1;
+                }
+                else panic("Expected a ;, or ,");
             }
-            while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
+            if (cur_token == TOK_RCURLY) break;
         }
         consume(TOK_RCURLY, "}");
 

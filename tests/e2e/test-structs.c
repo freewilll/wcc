@@ -1129,6 +1129,32 @@ void test_array_member_array_lookup() {
     assert_int(4, sa[1].ca[0], "Struct array member array lookup 4");
 }
 
+void test_anonymous_struct_flattening() {
+    struct { struct { int i, j; }; int k; } s2 = {1, 2, 3};
+
+    assert_int(1, s2.i, "Anonymous struct flattening s2 1");
+    assert_int(2, s2.j, "Anonymous struct flattening s2 2");
+    assert_int(3, s2.k, "Anonymous struct flattening s2 3");
+
+
+    struct {
+        int a;
+        union {
+            short b;
+            unsigned char c[2];
+            };
+        int d;
+    } foo;
+
+    foo.b = 0xff00;
+    assert_int(0x00, foo.c[0], "Anonymous struct flattening 1");
+    assert_int(0xff, foo.c[1], "Anonymous struct flattening 2");
+
+    foo.b = 0x00ff;
+    assert_int(0xff, foo.c[0], "Anonymous struct flattening 3");
+    assert_int(0x00, foo.c[1], "Anonymous struct flattening 4");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1167,6 +1193,7 @@ int main(int argc, char **argv) {
     test_bit_field_loading();
     test_bit_field_saving();
     test_array_member_array_lookup();
+    test_anonymous_struct_flattening();
 
     finalize();
 }

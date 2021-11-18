@@ -342,6 +342,23 @@ void test_type_iterator() {
     it = type_iterator_next(it);                             assert_it_done(it, 1);
 }
 
+void flattened_eq(char *src, char *dst) {
+    assert_type_eq(lex_type(src), lex_type(dst), src);
+}
+
+void test_anonymous_struct_flattening() {
+    Type *type;
+
+    flattened_eq("struct {           struct { int i, j; };           }",  "struct { int i, j; }");
+    flattened_eq("struct { int i;    struct { int j, k; };           }",  "struct { int i, j, k; }");
+    flattened_eq("struct { int i, j; struct { int k, l; };           }",  "struct { int i, j, k, l; }");
+    flattened_eq("struct {           struct { int i, j; }; int k;    }",  "struct { int i, j, k; }");
+    flattened_eq("struct { int i;    struct { int j, k; }; int l;    }",  "struct { int i, j, k, l; }");
+    flattened_eq("struct { int i;    struct { int j, k; }; int l, m; } ", "struct { int i, j, k, l, m; }");
+
+    flattened_eq("struct { int i;    struct { int j; struct { int k; }; }; int l, m; } ", "struct { int i, j, k, l, m; }");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -350,6 +367,7 @@ int main(int argc, char **argv) {
 
     test_compatible_types();
     test_type_iterator();
+    test_anonymous_struct_flattening();
 
     finalize();
 }
