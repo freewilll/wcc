@@ -769,11 +769,19 @@ void flatten_anonymous_structs(StructOrUnion *s) {
     for (StructOrUnionMember **pmember = s->members; *pmember; pmember++)
         member_count++;
 
+    StrMap *member_map = new_strmap();
+
     StructOrUnionMember **pmember = s->members;
     int member_index = 0;
     while (*pmember) {
         StructOrUnionMember *member = *pmember;
         Type *type = member->type;
+
+        if (member->identifier)  {
+            if (strmap_get(member_map, member->identifier))
+                panic("Duplicate struct/union member %s", member->identifier);
+            strmap_put(member_map, member->identifier, (void *) 1);
+        }
 
         // A struct is anonymous if the struct has no tag & no identifier
         if (type->type == TYPE_STRUCT_OR_UNION && !type->tag && !member->identifier) {

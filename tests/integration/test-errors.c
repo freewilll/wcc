@@ -387,5 +387,15 @@ int main(int argc, char **argv) {
         "Attempt to use an incomplete struct or union in an initializer",
         "Attempt to use an incomplete struct or union in an initializer");
 
+    check_main_output(
+        "struct s {int i; int i;};",
+        " Duplicate struct/union member",
+        " Duplicate struct/union member direct");
+
+    check_main_output(
+        "struct s {int i; struct { int i;}; };",
+        " Duplicate struct/union member",
+        " Duplicate struct/union member indirect");
+
     finalize();
 }

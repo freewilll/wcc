@@ -242,7 +242,7 @@ void test_type_iterator() {
     it = type_iterator_next(it); assert_it_done(it, 0); assert_it_type(it, 1, type_str, "Shallow iteration char c[2][1]");
     it = type_iterator_next(it); assert_it_done(it, 1);
 
-    type_str = "struct { struct { int i; long l; } s; char c[2]; short s; }";
+    type_str = "struct { struct { int i; long l; } s1; char c[2]; short s2; }";
     type = lex_type(type_str);
     it = type_iterator(type);
                                  assert_it_done(it, 0); assert_it_type(it, 0,  type_str, "Shallow iteration nested struct 1");
