@@ -34,9 +34,7 @@ void test_numeric_integer_literal(char *string, int type_type, int is_unsigned) 
     warn_integer_constant_too_large = 0;
     cur_filename = "test";
     cur_line = 0;
-    ip = 0;
-    input = string;
-    input_size = strlen(input);
+    init_lexer_from_string(string);
     next();
     assert_type(type_type, is_unsigned, string);
 }
@@ -120,9 +118,7 @@ void test_hex_constants() {
 void test_numeric_floating_point_literal(char *string, long double expected, int type) {
     cur_filename = "test";
     cur_line = 0;
-    ip = 0;
-    input = string;
-    input_size = strlen(input);
+    init_lexer_from_string(string);
     next();
 
     char *buffer = malloc(100);

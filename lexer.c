@@ -5,14 +5,19 @@
 
 #include "wcc.h"
 
-int           old_ip;
-int           old_cur_line;
-int           old_cur_token;
-Type*         old_cur_lexer_type;
-char*         old_cur_identifier;
-long          old_cur_long;
-long double   old_cur_long_double;
-StringLiteral old_cur_string_literal;
+static char *input;     // Input file data
+static int input_size;  // Size of the input file
+static int ip;          // Offset into *input
+
+// Copies
+static int           old_ip;
+static int           old_cur_line;
+static int           old_cur_token;
+static Type*         old_cur_lexer_type;
+static char*         old_cur_identifier;
+static long          old_cur_long;
+static long double   old_cur_long_double;
+static StringLiteral old_cur_string_literal;
 
 void init_lexer(char *filename) {
     ip = 0;
@@ -33,6 +38,12 @@ void init_lexer(char *filename) {
     cur_filename = filename;
     cur_line = 1;
     next();
+}
+
+void init_lexer_from_string(char *string) {
+    ip = 0;
+    input = string;
+    input_size = strlen(string);
 }
 
 static void skip_whitespace(void) {

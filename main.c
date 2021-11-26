@@ -307,7 +307,6 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < input_filename_count; i++) {
         char *input_filename = input_filenames[i];
-        parsing_header = 0;
 
         char *assembler_input_filename, *assembler_output_filename;
         char *compiler_output_filename;

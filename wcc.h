@@ -586,18 +586,6 @@ int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
 int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
 int opt_enable_preferred_pregs;         // Enable preferred preg selection in register allocator
 
-char *input;                    // Input file data
-int input_size;                 // Size of the input file
-int ip;                         // Offset into *input, used by the lexer
-
-// Copies of the above, for when a header is being parsed
-char *c_input;                  // Input file data
-int c_input_size;               // Size of the input file
-int c_ip;                       // Offset into *input, used by the lexer
-char *c_cur_filename;           // Current filename being lexed
-int c_cur_line;                 // Current line number being lexed
-
-int parsing_header;                // Is a header being parsed?
 StrMap *directives;                // Map of CPP directives
 int cur_token;                     // Current token
 char *cur_identifier;              // Current identifier if the token is an identifier
@@ -722,6 +710,7 @@ int wasprintf(char **ret, const char *format, ...);
 
 // lexer.c
 void init_lexer(char *filename);
+void init_lexer_from_string(char *string);
 void next(void);
 void rewind_lexer(void);
 void expect(int token, char *what);
