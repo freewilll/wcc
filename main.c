@@ -56,6 +56,10 @@ static void run_preprocessor(char *input_filename, char *preprocessor_output_fil
     free(directives_str);
 }
 
+static void builtin_preprocessor(char *input_filename) {
+    preprocess(input_filename);
+}
+
 int main(int argc, char **argv) {
     print_ir1 = 0;
     print_ir2 = 0;
@@ -74,6 +78,7 @@ int main(int argc, char **argv) {
     int run_compiler = 1;   // Compile .c file
     int run_assembler = 1;  // Assemble .s file
     int run_linker = 1;     // Link .o file
+    int run_builtin_preprocessor = 0; // Run built in preprocessor
     int target_is_object_file = 0;
     int target_is_assembly_file = 0;
     int help = 0;
@@ -156,6 +161,14 @@ int main(int argc, char **argv) {
                 argc--;
                 argv++;
             }
+            else if (argc > 0 && !memcmp(argv[0], "-E", 2)) {
+                run_compiler = 0;
+                run_assembler = 0;
+                run_linker = 0;
+                run_builtin_preprocessor = 1;
+                argc--;
+                argv++;
+            }
             else if (argc > 1 && !memcmp(argv[0], "-o", 2)) {
                 output_filename = argv[1];
                 argc -= 2;
@@ -185,11 +198,12 @@ int main(int argc, char **argv) {
     }
 
     if (help) {
-        printf("Usage: wcc [-S -c -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
+        printf("Usage: wcc [-S -c -E -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
         printf("Flags\n");
         printf("-h                                          Help\n");
         printf("-S                                          Compile only; do not assemble or link\n");
         printf("-c                                          Compile and assemble, but do not link\n");
+        printf("-E                                          Run the preprocessor\n");
         printf("-o <file>                                   Output file. Use - for stdout. Defaults to the source file with extension .s\n");
         printf("-D <directive>                              Set a directive\n");
         printf("-v                                          Display the programs invoked by the compiler\n");
@@ -310,6 +324,10 @@ int main(int argc, char **argv) {
 
         char *assembler_input_filename, *assembler_output_filename;
         char *compiler_output_filename;
+
+        if (run_builtin_preprocessor)
+            builtin_preprocessor(input_filename);
+
         if (run_compiler) {
             char *local_output_filename;
             if (!output_filename) {

@@ -21,7 +21,8 @@ SOURCES = \
   strmap.c \
   longmap.c \
   graph.c \
-  internals.c
+  internals.c \
+  cpp.c
 
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
@@ -88,6 +89,10 @@ test-unit: libwcc.a strmap.c longmap.c
 .PHONY: test-unit-parser
 test-unit-parser: libwcc.a
 	cd tests && ${MAKE} test-unit-parser
+
+.PHONY: test-unit-cpp
+test-unit-cpp: libwcc.a
+	cd tests && ${MAKE} test-unit-cpp
 
 .PHONY: test-unit-types
 test-unit-types: libwcc.a

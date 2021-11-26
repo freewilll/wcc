@@ -323,6 +323,7 @@ typedef struct register_set {
 } RegisterSet;
 
 enum {
+    MAX_CPP_FILESIZE              = 10 * 1024 * 1024,
     MAX_STRUCTS_AND_UNIONS        = 1024,
     MAX_STRUCT_OR_UNION_SCALARS   = 1024,
     MAX_TYPEDEFS                  = 1024,
@@ -715,6 +716,20 @@ void next(void);
 void rewind_lexer(void);
 void expect(int token, char *what);
 void consume(int token, char *what);
+
+// cpp.c
+typedef struct line_map {
+    int position;
+    int line_number;
+    struct line_map *next;
+} LineMap;
+
+
+void preprocess(char *filename);
+void init_cpp_from_string(char *string);
+char *get_cpp_input(void);
+LineMap *get_cpp_linemap(void);
+void strip_backslash_newlines(void);
 
 // parser.c
 typedef Value *parse_expression_function_type(int);

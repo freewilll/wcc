@@ -1,4 +1,5 @@
 test-lexer
+test-cpp
 test-set
 test-strmap
 test-longmap
