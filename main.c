@@ -118,6 +118,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0;   argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-vreg-renumbering"             )) { opt_enable_vreg_renumbering = 0;          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--trigraphs"                       )) { opt_enable_trigraphs = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-rules"                     )) { print_instr_rules = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-precision-decrease-rules"  )) { print_instr_precision_decrease_rules = 1; argc--; argv++; }
 
@@ -222,6 +223,7 @@ int main(int argc, char **argv) {
         printf("-fno-dont-spill-short-live-ranges           Disable infinite spill costs for short live ranges\n");
         printf("-fno-optimize-arithmetic                    Disable arithmetic optimizations\n");
         printf("-fno-vreg-renumbering                       Disable renumbering of vregs before live range coalesces\n");
+        printf("--trigraphs                                 Enable preprocessing of trigraphs\n");
         printf("\n");
         printf("Warning flags:\n");
         printf("-Wno-integer-constant-too-large             Disable too large integer constant warnings\n");

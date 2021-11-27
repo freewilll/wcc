@@ -586,6 +586,7 @@ int opt_spill_furthest_liveness_end;    // Prioritize spilling physical register
 int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
 int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
 int opt_enable_preferred_pregs;         // Enable preferred preg selection in register allocator
+int opt_enable_trigraphs;               // Enable trigraph preprocessing
 
 StrMap *directives;                // Map of CPP directives
 int cur_token;                     // Current token
@@ -729,6 +730,7 @@ void preprocess(char *filename);
 void init_cpp_from_string(char *string);
 char *get_cpp_input(void);
 LineMap *get_cpp_linemap(void);
+void transform_trigraphs(void);
 void strip_backslash_newlines(void);
 
 // parser.c

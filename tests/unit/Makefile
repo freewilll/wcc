@@ -6,8 +6,8 @@ test-lexer: ../../libwcc.a test-lexer.c
 run-test-lexer: test-lexer
 	 ./test-lexer
 
-test-cpp: ../../libwcc.a test-cpp.c
-	gcc ${GCC_OPTS} -g -o test-cpp test-cpp.c ../../libwcc.a
+test-cpp: ../../libwcc.a ../test-lib.o test-cpp.c
+	gcc ${GCC_OPTS} -g -o test-cpp test-cpp.c ../../libwcc.a ../test-lib.o
 
 run-test-cpp: test-cpp
 	 ./test-cpp

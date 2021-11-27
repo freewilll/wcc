@@ -3,13 +3,29 @@
 #include <string.h>
 
 #include "../../wcc.h"
+#include "../test-lib.h"
 
+
+int verbose;
+int passes;
 int failures;
 
 typedef struct line_map_tuple {
     int position;
     int line_number;
 } LineMapTuple;
+
+static void test_transform_trigraphs() {
+    init_cpp_from_string("?" "?" "="); transform_trigraphs(); assert_string("#",  get_cpp_input(), "Trigraph #");
+    init_cpp_from_string("?" "?" "("); transform_trigraphs(); assert_string("[",  get_cpp_input(), "Trigraph [");
+    init_cpp_from_string("?" "?" "/"); transform_trigraphs(); assert_string("\\", get_cpp_input(), "Trigraph \\");
+    init_cpp_from_string("?" "?" ")"); transform_trigraphs(); assert_string("]",  get_cpp_input(), "Trigraph ]");
+    init_cpp_from_string("?" "?" "'"); transform_trigraphs(); assert_string("^",  get_cpp_input(), "Trigraph ^");
+    init_cpp_from_string("?" "?" "<"); transform_trigraphs(); assert_string("{",  get_cpp_input(), "Trigraph {");
+    init_cpp_from_string("?" "?" "!"); transform_trigraphs(); assert_string("|",  get_cpp_input(), "Trigraph |");
+    init_cpp_from_string("?" "?" ">"); transform_trigraphs(); assert_string("}",  get_cpp_input(), "Trigraph }");
+    init_cpp_from_string("?" "?" "-"); transform_trigraphs(); assert_string("~",  get_cpp_input(), "Trigraph ~");
+}
 
 static void test_strip_bsnl(char *input, char *expected_output, LineMapTuple expected_linemap[]) {
     init_cpp_from_string(input);
@@ -61,14 +77,14 @@ static void test_strip_backslash_newlines(void) {
     test_strip_bsnl("a\\\n\\\nb",   "ab\n",         (LineMapTuple[]) {0,1, 1,3, 0,0});
 }
 
-int main() {
+int main(int argc, char **argv) {
+    passes = 0;
     failures = 0;
 
+    parse_args(argc, argv, &verbose);
+
+    test_transform_trigraphs();
     test_strip_backslash_newlines();
 
-    if (failures) {
-        printf("%d tests failed\n", failures);
-        exit(1);
-    }
-    printf("All tests succeeded\n");
+    finalize();
 }

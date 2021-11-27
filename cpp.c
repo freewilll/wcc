@@ -57,6 +57,37 @@ static LineMap *add_to_linemap(LineMap *lm, int position, int line_number) {
     return lm->next;
 }
 
+void transform_trigraphs(void) {
+    char *output = malloc(MAX_CPP_FILESIZE);
+    int ip = 0; // Input offset
+    int op = 0; // Output offset
+
+    while (ip < cpp_input_size) {
+        if (cpp_input_size - ip >= 3) {
+            // Check for trigraphs
+            char c1 = cpp_input[ip];
+            char c2 = cpp_input[ip + 1];
+            char c3 = cpp_input[ip + 2];
+
+                 if (c1 == '?' && c2 == '?' && c3 == '=')  { output[op++] = '#';  ip += 3; }
+            else if (c1 == '?' && c2 == '?' && c3 == '(')  { output[op++] = '[';  ip += 3; }
+            else if (c1 == '?' && c2 == '?' && c3 == '/')  { output[op++] = '\\'; ip += 3; }
+            else if (c1 == '?' && c2 == '?' && c3 == ')')  { output[op++] = ']';  ip += 3; }
+            else if (c1 == '?' && c2 == '?' && c3 == '\'') { output[op++] = '^';  ip += 3; }
+            else if (c1 == '?' && c2 == '?' && c3 == '<')  { output[op++] = '{';  ip += 3; }
+            else if (c1 == '?' && c2 == '?' && c3 == '!')  { output[op++] = '|';  ip += 3; }
+            else if (c1 == '?' && c2 == '?' && c3 == '>')  { output[op++] = '}';  ip += 3; }
+            else if (c1 == '?' && c2 == '?' && c3 == '-')  { output[op++] = '~';  ip += 3; }
+            else output[op++] = cpp_input[ip++];
+        }
+        else output[op++] = cpp_input[ip++];
+    }
+
+    output[op] = 0;
+    cpp_input = output;
+    cpp_input_size = op;
+}
+
 void strip_backslash_newlines(void) {
     char *output = malloc(MAX_CPP_FILESIZE);
     int ip = 0; // Input offset
@@ -143,6 +174,7 @@ static void print_cpp_input(int print_line_numbers) {
 
 void preprocess(char *filename) {
     init_cpp(filename);
+    if (opt_enable_trigraphs) transform_trigraphs();
     strip_backslash_newlines();
     print_cpp_input(0);
 }
