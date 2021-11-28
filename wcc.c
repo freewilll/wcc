@@ -97,10 +97,25 @@ static void compile_internals(void) {
     parse();
 }
 
+// Create empty directives strmap and add CLI directives to them
+void init_directives(void) {
+    directives = new_strmap();
+    CliDirective *cd = cli_directives;
+    while (cd) {
+        Directive *d = malloc(sizeof(Directive));
+        d->tokens = cd->tokens;
+        strmap_put(directives, cd->identifier, d);
+        cd = cd->next;
+    }
+}
+
 void compile(char *input_filename, char *original_input_filename, char *output_filename) {
     compile_internals();
     memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
     memset_symbol = lookup_symbol("memset", global_scope, 0);
+
+    init_directives();
+
     init_lexer(input_filename);
     parse();
 

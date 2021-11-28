@@ -330,6 +330,7 @@ enum {
     MAX_STRUCT_OR_UNION_SCALARS   = 1024,
     MAX_TYPEDEFS                  = 1024,
     MAX_STRUCT_MEMBERS            = 1024,
+    MAX_IDENTIFIER_SIZE           = 1024,
     MAX_INPUT_SIZE                = 1 << 20, // 1 MB
     MAX_STRING_LITERAL_SIZE       = 4095,
     MAX_STRING_LITERALS           = 10240,
@@ -576,6 +577,23 @@ typedef struct string_literal {
     int is_wide_char;
 } StringLiteral;
 
+typedef struct cpp_token {
+    int kind;           // One of CPP_TOK*
+    char *whitespace;   // Preceding whitespace
+    char c;
+    char *identifier;   // Identifier in the case of CPP_TOK_IDENTIFIER
+    int line_number;
+    struct cpp_token *next;
+} CppToken;
+
+// Structure with all directives passed on the command line with -D
+typedef struct cli_directive {
+    char *identifier;               // Identifier of the directive
+    char *value;                    // String version of the value
+    CppToken *tokens;               // Parsed CppTokens for the directive
+    struct cli_directive *next;
+} CliDirective;
+
 char *cur_filename;             // Current filename being lexed
 int cur_line;                   // Current line number being lexed
 
@@ -590,6 +608,7 @@ int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
 int opt_enable_preferred_pregs;         // Enable preferred preg selection in register allocator
 int opt_enable_trigraphs;               // Enable trigraph preprocessing
 
+CliDirective *cli_directives;      // Linked list of directives passed on the command line
 StrMap *directives;                // Map of CPP directives
 int cur_token;                     // Current token
 char *cur_identifier;              // Current identifier if the token is an identifier
@@ -727,13 +746,17 @@ typedef struct line_map {
     struct line_map *next;
 } LineMap;
 
+typedef struct directive {
+    CppToken *tokens;
+} Directive;
 
-void preprocess(char *filename, char *output_filename);
 void init_cpp_from_string(char *string);
 char *get_cpp_input(void);
 LineMap *get_cpp_linemap(void);
 void transform_trigraphs(void);
 void strip_backslash_newlines(void);
+CppToken *parse_cli_define(char *string);
+void preprocess(char *filename, char *output_filename);
 
 // parser.c
 typedef Value *parse_expression_function_type(int);
@@ -1175,6 +1198,7 @@ enum {
 
 char *make_temp_filename(char *template);
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at);
+void init_directives(void);
 void compile(char *input_filename, char *original_input_filename, char *output_filename);
 
 // test-utils.c

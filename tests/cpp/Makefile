@@ -9,13 +9,15 @@ CPP_TESTS = \
 	empty-line-spacing \
 	empty-line-spacing-7-lines \
 	empty-line-spacing-8-lines \
-	empty-line-spacing-9-lines
+	empty-line-spacing-9-lines \
+	object-like-macros \
 
+OK_FILENAMES := $(addsuffix -ok, ${CPP_TESTS})
 RESULT_FILENAMES := $(addsuffix -result.c, ${CPP_TESTS})
 
-all: ${RESULT_FILENAMES}
+all: ${OK_FILENAMES}
 
-%-result.c: %.c %-output.c ../../wcc
+%-ok: %.c %-output.c ../../wcc
 	@# Run preprocessor & diff with expected result
 	../../wcc -E $< -o $*-result.c
 	diff $*-output.c $*-result.c
@@ -24,5 +26,8 @@ all: ${RESULT_FILENAMES}
 	../../wcc -E $*-result.c -o $*-result2.c
 	diff $*-result.c $*-result2.c
 
+	touch $*-ok
+
 clean:
 	@rm -f *-result*.c
+	@rm -f *-ok

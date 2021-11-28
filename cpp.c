@@ -10,17 +10,14 @@ enum {
 };
 
 enum {
+    CPP_TOK_EOL=1,
+    CPP_TOK_EOF,
+    CPP_TOK_IDENTIFIER,
+    CPP_TOK_HASH,
+    CPP_TOK_DEFINE,
+    CPP_TOK_UNDEF,
     CPP_TOK_OTHER,
-    CPP_TOK_EOL,
-    CPP_TOK_EOF
 };
-
-typedef struct cpp_token {
-    int kind;           // One of CPP_TOK*
-    char *whitespace;   // Preceding whitespace
-    char c;
-    int line_number;
-} CppToken;
 
 static char *cpp_input;
 static int cpp_input_size;
@@ -68,6 +65,10 @@ void init_cpp_from_string(char *string) {
     cpp_input = string;
     cpp_input_size = strlen(string);
     cpp_cur_filename = 0;
+
+    cpp_cur_ip = 0;
+    cpp_cur_line_map = 0;
+    cpp_cur_line_number = 1;
 }
 
 char *get_cpp_input(void) {
@@ -227,6 +228,7 @@ static void append_string_to_output(char *s) {
 static void cpp_next() {
     char *whitespace = 0;
     int whitespace_pos = 0;
+
     while (cpp_cur_ip < cpp_input_size && (cpp_input[cpp_cur_ip] == '\t' || cpp_input[cpp_cur_ip] == ' ')) {
         if (!whitespace) whitespace = malloc(1024);
         if (whitespace_pos == 1024) panic("Ran out of whitespace buffer");
@@ -237,16 +239,47 @@ static void cpp_next() {
     if (whitespace)
         whitespace[whitespace_pos] = 0;
 
+    char *i = cpp_input;
+
     if (cpp_cur_ip >= cpp_input_size)
         cpp_cur_token = new_cpp_token(CPP_TOK_EOF);
     else {
-        if (cpp_input[cpp_cur_ip] == '\n')
+        char c = cpp_input[cpp_cur_ip];
+        if (c == '\n') {
             cpp_cur_token = new_cpp_token(CPP_TOK_EOL);
+            advance_cur_ip();
+        }
+
+        else if (c == '#') {
+            cpp_cur_token = new_cpp_token(CPP_TOK_HASH);
+            advance_cur_ip();
+        }
+
+        else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
+            char *identifier = malloc(1024);
+            int j = 0;
+            while (((i[cpp_cur_ip] >= 'a' && i[cpp_cur_ip] <= 'z') || (i[cpp_cur_ip] >= 'A' && i[cpp_cur_ip] <= 'Z') || (i[cpp_cur_ip] >= '0' && i[cpp_cur_ip] <= '9') || (i[cpp_cur_ip] == '_')) && cpp_cur_ip < cpp_input_size) {
+                if (j == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);
+                identifier[j] = i[cpp_cur_ip];
+                j++;
+                advance_cur_ip();
+            }
+            identifier[j] = 0;
+
+            if      (!strcmp(identifier, "define")) cpp_cur_token = new_cpp_token(CPP_TOK_DEFINE);
+            else if (!strcmp(identifier, "undef"))  cpp_cur_token = new_cpp_token(CPP_TOK_UNDEF);
+
+            else {
+                cpp_cur_token = new_cpp_token(CPP_TOK_IDENTIFIER);
+                cpp_cur_token->identifier = identifier;
+            }
+        }
+
         else {
             cpp_cur_token = new_cpp_token(CPP_TOK_OTHER);
-            cpp_cur_token->c = cpp_input[cpp_cur_ip];
+            cpp_cur_token->c = c;
+            advance_cur_ip();
         }
-        advance_cur_ip();
     }
 
     cpp_cur_token->line_number = cpp_cur_line_number;
@@ -255,14 +288,89 @@ static void cpp_next() {
     return;
 }
 
+static CppToken *parse_define_tokens(void) {
+    CppToken *tokens;
+
+    if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF)
+        tokens = 0;
+    else {
+        tokens = cpp_cur_token;
+        CppToken *tokens = cpp_cur_token;
+        while (cpp_cur_token->kind != CPP_TOK_EOL && cpp_cur_token->kind != CPP_TOK_EOF) {
+            tokens->next = cpp_cur_token;
+            tokens = tokens->next;
+            cpp_next();
+        }
+        tokens->next = 0;
+    }
+
+    // Clear whitespace on initial token
+    if (tokens) tokens->whitespace = 0;
+
+    return tokens;
+}
+
+static void parse_directive(void) {
+    cpp_next();
+    switch (cpp_cur_token->kind) {
+        case CPP_TOK_DEFINE:
+            cpp_next();
+            if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+
+            char *identifier = cpp_cur_token->identifier;
+            cpp_next();
+
+            Directive *directive = malloc(sizeof(Directive));
+            strmap_put(directives, identifier, directive);
+            directive->tokens = parse_define_tokens();
+
+            break;
+        case CPP_TOK_UNDEF:
+            cpp_next();
+            if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+            strmap_delete(directives, cpp_cur_token->identifier);
+            cpp_next();
+
+            // Ignore any tokens until EOL/EOF
+            while (cpp_cur_token->kind != CPP_TOK_EOL && cpp_cur_token->kind != CPP_TOK_EOF)
+                cpp_next();
+
+            break;
+    }
+}
+
+static void append_cpp_token_to_output(CppToken *token) {
+    switch (token->kind) {
+        case CPP_TOK_IDENTIFIER:
+            if (token->whitespace) append_string_to_output(token->whitespace);
+            append_string_to_output(token->identifier);
+            break;
+        case CPP_TOK_OTHER:
+            if (token->whitespace) append_string_to_output(token->whitespace);
+            append_char_to_output(token->c);
+            break;
+        default:
+            panic("Unexpected token %d", token->kind);
+    }
+}
+
+static void append_cpp_tokens_to_output(CppToken *token) {
+    while (token) {
+        append_cpp_token_to_output(token);
+        token = token->next;
+    }
+}
+
 // Parse tokens from the lexer
 static void cpp_parse() {
     int print_line_number = 1;
+    int in_start_of_line = 1;
 
     while (cpp_cur_token->kind != CPP_TOK_EOF) {
         switch (cpp_cur_token->kind) {
             case CPP_TOK_EOF:
                 break;
+
             case CPP_TOK_EOL:
                 append_char_to_output('\n');
                 print_line_number++;
@@ -272,15 +380,51 @@ static void cpp_parse() {
                     append_char_to_output('\n');
                 }
 
+                in_start_of_line = 1;
+
+                break;
+
+            case CPP_TOK_HASH:
+                if (in_start_of_line) {
+                    parse_directive();
+                    append_char_to_output('\n');
+                    print_line_number++;
+                }
+                else {
+                    if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
+                    append_char_to_output('#');
+                    in_start_of_line = 0;
+                }
+
+                break;
+
+            case CPP_TOK_IDENTIFIER:
+                if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
+                Directive *directive = strmap_get(directives, cpp_cur_token->identifier);
+                if (directive)
+                    // TODO macro expansion
+                    append_cpp_tokens_to_output(directive->tokens);
+                else
+                    append_string_to_output(cpp_cur_token->identifier);
+
+                in_start_of_line = 0;
+
                 break;
             default:
                 if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
                 append_char_to_output(cpp_cur_token->c);
+                in_start_of_line = 0;
                 break;
         }
 
         cpp_next();
     }
+}
+
+CppToken *parse_cli_define(char *string) {
+    init_cpp_from_string(string);
+    cpp_next();
+    return parse_define_tokens();
 }
 
 void preprocess(char *filename, char *output_filename) {

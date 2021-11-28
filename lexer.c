@@ -426,6 +426,7 @@ void next(void) {
             cur_identifier = malloc(1024);
             int j = 0;
             while (((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z') || (i[ip] >= '0' && i[ip] <= '9') || (i[ip] == '_')) && ip < input_size) {
+                if (ip == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);
                 cur_identifier[j] = i[ip];
                 j++; ip++;
             }

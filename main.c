@@ -28,20 +28,54 @@ char *replace_extension(char *input, char *ext) {
     }
 }
 
+static void parse_directive(char *expr) {
+    CliDirective *cli_directive = malloc(sizeof(CliDirective));
+    cli_directive->tokens = 0;
+    cli_directive->next = 0;
+
+    char *key;
+    char *value;
+
+    char *p = strchr(expr, '=');
+    if (p) {
+        if (p == expr) panic("Invalid directive");
+        if (p - expr == strlen(expr) - 1) panic("Invalid directive");
+        *p = 0;
+        key = expr;
+        value = p + 1;
+    }
+    else {
+        key = expr;
+        value = "1";
+    }
+
+    cli_directive->value = value;
+    cli_directive->identifier = key;
+    cli_directive->tokens = parse_cli_define(value);
+
+    if (!cli_directives) cli_directives = cli_directive;
+    else {
+        CliDirective *cd = cli_directives;
+        while (cd->next) cd = cd->next;
+        cli_directives->next = cli_directive;
+    }
+}
+
 static void run_preprocessor(char *input_filename, char *preprocessor_output_filename, char *builtin_include_path, int verbose) {
     char *command = malloc(1024 * 100);
 
     char *directives_str = malloc(1024 * 100);
     char *dptr = directives_str;
 
-    for (StrMapIterator it = strmap_iterator(directives); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
-        char *key = strmap_iterator_key(&it);
-        char *value = strmap_get(directives, key);
-        if (strcmp(value, ""))
-            dptr += sprintf(dptr, " -D %s=\"%s\"", key, value);
-        else
-            dptr += sprintf(dptr, " -D %s", key);
+    CliDirective *cd = cli_directives;
+    while (cd) {
+        Directive *d = malloc(sizeof(Directive));
+        printf("%s=%s\n", cd->identifier, cd->value);
+        dptr += sprintf(dptr, " -D %s=\"%s\"", cd->identifier, cd->value);
+        d->tokens = cd->tokens;
+        cd = cd->next;
     }
+
     *dptr = 0;
 
     sprintf(command, "tcc -I %s%s -E %s -o %s", builtin_include_path, directives_str, input_filename, preprocessor_output_filename);
@@ -57,6 +91,7 @@ static void run_preprocessor(char *input_filename, char *preprocessor_output_fil
 }
 
 static void builtin_preprocessor(char *input_filename, char *output_filename) {
+    init_directives(); // Create directives and add CLI directives
     preprocess(input_filename, output_filename);
 }
 
@@ -97,7 +132,7 @@ int main(int argc, char **argv) {
     init_allocate_registers();
     init_instruction_selection_rules();
 
-    directives = new_strmap();
+    cli_directives = 0;
 
     // Determine path to the builtin include directory
     char *builtin_include_path;
@@ -176,9 +211,16 @@ int main(int argc, char **argv) {
                 argv += 2;
             }
             else if (argc > 1 && !memcmp(argv[0], "-D", 2)) {
-                strmap_put(directives, argv[1], "");
+                // -D ...
+                parse_directive(argv[1]);
                 argc -= 2;
                 argv += 2;
+            }
+            else if (argv[0][0] == '-' && argv[0][1] == 'D') {
+                // -D...
+                parse_directive(&(argv[0][2]));
+                argc -= 1;
+                argv += 1;
             }
             else if (argc > 1 && !strcmp(argv[0], "--rule-coverage-file")) {
                 rule_coverage_file = argv[1];
@@ -206,7 +248,7 @@ int main(int argc, char **argv) {
         printf("-c                                          Compile and assemble, but do not link\n");
         printf("-E                                          Run the preprocessor\n");
         printf("-o <file>                                   Output file. Use - for stdout. Defaults to the source file with extension .s\n");
-        printf("-D <directive>                              Set a directive\n");
+        printf("-D <directive>[=<value>]                    Set a directive\n");
         printf("-v                                          Display the programs invoked by the compiler\n");
         printf("-d                                          Debug output\n");
         printf("-s                                          Output symbol table\n");
