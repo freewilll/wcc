@@ -689,6 +689,7 @@ Type *parse_type_name(void) {
 // Allocate a new StructOrUnion
 static Type *new_struct_or_union(char *tag_identifier) {
     StructOrUnion *s = malloc(sizeof(StructOrUnion));
+    memset(s, 0, sizeof(StructOrUnion));
     if (tag_identifier != 0) all_structs_and_unions[all_structs_and_unions_count++] = s;
     s->members = malloc(sizeof(StructOrUnionMember *) * MAX_STRUCT_MEMBERS);
     memset(s->members, 0, sizeof(StructOrUnionMember *) * MAX_STRUCT_MEMBERS);
