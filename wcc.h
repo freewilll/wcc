@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 typedef struct block {
     struct three_address_code *start, *end;
 } Block;
@@ -623,7 +625,7 @@ int total_stack_register_count;   // Spilled register count for all functions
 int *callee_saved_registers;      // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
 int cur_stack_push_count;         // Used in codegen to keep track of stack position
 
-void *f; // Output file handle
+FILE *f; // Output file handle
 
 int warn_integer_constant_too_large;
 int warn_assignment_types_incompatible;

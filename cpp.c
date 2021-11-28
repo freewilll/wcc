@@ -13,20 +13,27 @@ static LineMap *cpp_line_map;
 
 static void init_cpp(char *filename) {
     cpp_ip = 0;
-    cpp_input = malloc(MAX_CPP_FILESIZE);
     FILE *f  = fopen(filename, "r");
+
     if (f == 0) {
         perror(filename);
         exit(1);
     }
-    cpp_input_size = fread(cpp_input, 1, MAX_CPP_FILESIZE, f);
-    if (cpp_input_size < 0) {
+
+    fseek(f, 0, SEEK_END);
+    cpp_input_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    cpp_input = malloc(cpp_input_size + 1);
+    int read = fread(cpp_input, 1, cpp_input_size, f);
+    if (read != cpp_input_size) {
         printf("Unable to read input file\n");
         exit(1);
     }
-    cpp_input[cpp_input_size] = 0;
+
     fclose(f);
 
+    cpp_input[cpp_input_size] = 0;
     cpp_cur_filename = filename;
 }
 
@@ -58,7 +65,7 @@ static LineMap *add_to_linemap(LineMap *lm, int position, int line_number) {
 }
 
 void transform_trigraphs(void) {
-    char *output = malloc(MAX_CPP_FILESIZE);
+    char *output = malloc(cpp_input_size + 1);
     int ip = 0; // Input offset
     int op = 0; // Output offset
 
@@ -89,7 +96,7 @@ void transform_trigraphs(void) {
 }
 
 void strip_backslash_newlines(void) {
-    char *output = malloc(MAX_CPP_FILESIZE);
+    char *output = malloc(cpp_input_size + 1);
     int ip = 0; // Input offset
     int op = 0; // Output offset
     int line_number = 1;

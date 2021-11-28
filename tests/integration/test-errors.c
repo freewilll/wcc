@@ -58,6 +58,7 @@ static void check_output(char *code, char *expected, char *message) {
     else {
         failures++;
         printf("%-60s failed, did not find: '%s'\n", message, expected);
+        printf("Got: %s\n", line);
     }
 }
 

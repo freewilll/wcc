@@ -21,17 +21,24 @@ static StringLiteral old_cur_string_literal;
 
 void init_lexer(char *filename) {
     ip = 0;
-    input = malloc(10 * 1024 * 1024);
-    void *f  = fopen(filename, "r");
+    FILE *f  = fopen(filename, "r");
+
     if (f == 0) {
         perror(filename);
         exit(1);
     }
-    input_size = fread(input, 1, 10 * 1024 * 1024, f);
-    if (input_size < 0) {
+
+    fseek(f, 0, SEEK_END);
+    input_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    input = malloc(input_size + 1);
+    int read = fread(input, 1, input_size, f);
+    if (read != input_size) {
         printf("Unable to read input file\n");
         exit(1);
     }
+
     input[input_size] = 0;
     fclose(f);
 
