@@ -102,9 +102,13 @@ test-unit-types: libwcc.a
 test-integration: libwcc.a wcc
 	cd tests && ${MAKE} test-integration
 
-.PHONY: test-2e2
+.PHONY: test-e2e
 test-e2e: wcc
 	cd tests && ${MAKE} test-e2e
+
+.PHONY: test-cpp
+test-cpp: wcc
+	cd tests && ${MAKE} test-cpp
 
 .PHONY: run-benchmark
 run-benchmark: wcc wcc2

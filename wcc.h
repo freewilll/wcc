@@ -728,7 +728,7 @@ typedef struct line_map {
 } LineMap;
 
 
-void preprocess(char *filename);
+void preprocess(char *filename, char *output_filename);
 void init_cpp_from_string(char *string);
 char *get_cpp_input(void);
 LineMap *get_cpp_linemap(void);

@@ -56,8 +56,8 @@ static void run_preprocessor(char *input_filename, char *preprocessor_output_fil
     free(directives_str);
 }
 
-static void builtin_preprocessor(char *input_filename) {
-    preprocess(input_filename);
+static void builtin_preprocessor(char *input_filename, char *output_filename) {
+    preprocess(input_filename, output_filename);
 }
 
 int main(int argc, char **argv) {
@@ -328,7 +328,7 @@ int main(int argc, char **argv) {
         char *compiler_output_filename;
 
         if (run_builtin_preprocessor)
-            builtin_preprocessor(input_filename);
+            builtin_preprocessor(input_filename, output_filename);
 
         if (run_compiler) {
             char *local_output_filename;

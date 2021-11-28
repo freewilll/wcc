@@ -5,14 +5,41 @@
 
 #include "wcc.h"
 
+enum {
+    MAX_CPP_OUTPUT_SIZE = 10 * 1024 * 1024,
+};
+
+enum {
+    CPP_TOK_OTHER,
+    CPP_TOK_EOL,
+    CPP_TOK_EOF
+};
+
+typedef struct cpp_token {
+    int kind;           // One of CPP_TOK*
+    char *whitespace;   // Preceding whitespace
+    char c;
+    int line_number;
+} CppToken;
+
 static char *cpp_input;
 static int cpp_input_size;
-static int cpp_ip;
-static char *cpp_cur_filename;
 static LineMap *cpp_line_map;
 
+// Current parsing state
+static int cpp_cur_ip;              // Offset in cpp_input
+static char *cpp_cur_filename;      // Current filename
+static LineMap *cpp_cur_line_map;   // Linemap
+static int cpp_cur_line_number;     // Current line number
+static CppToken *cpp_cur_token;     // Current token
+
+// Output
+FILE *cpp_output_file;                     // Output file handle
+static char *cpp_output;                   // Overall output
+static int cpp_output_pos;                 // Position in cpp_output;
+static int allocated_output;               // How much has been allocated for cpp_output;
+
 static void init_cpp(char *filename) {
-    cpp_ip = 0;
     FILE *f  = fopen(filename, "r");
 
     if (f == 0) {
@@ -38,7 +65,6 @@ static void init_cpp(char *filename) {
 }
 
 void init_cpp_from_string(char *string) {
-    cpp_ip = 0;
     cpp_input = string;
     cpp_input_size = strlen(string);
     cpp_cur_filename = 0;
@@ -151,37 +177,142 @@ static void advance_ip(int *ip, LineMap **lm, int *line_number) {
     }
 }
 
-static void print_cpp_input(int print_line_numbers) {
-    int ip = 0;
-    LineMap *lm = cpp_line_map->next;
-    int line_number = 1;
+// Advance global current input pointers
+static void advance_cur_ip(void) {
+    advance_ip(&cpp_cur_ip, &cpp_cur_line_map, &cpp_cur_line_number);
+}
 
-    if (print_line_numbers) printf("[%4d]", line_number);
+// Create a new CPP token
+static CppToken *new_cpp_token(int kind) {
+    CppToken *tok = malloc(sizeof(CppToken));
+    memset(tok, 0, sizeof(CppToken));
 
-    int print_line_number = 1;
-    while (ip < cpp_input_size) {
-        printf("%c", cpp_input[ip]);
+    tok->kind = kind;
 
-        int is_newline = cpp_input[ip] == '\n';
+    return tok;
+}
 
-        int old_line_number = line_number;
-        advance_ip(&ip, &lm, &line_number);
-        if (print_line_numbers && line_number != old_line_number) printf("[%4d]", line_number);
+// Allocate twice the input size and round up to nearest power of two.
+static void init_output(void) {
+    allocated_output = 1;
+    while (allocated_output < cpp_input_size * 2) allocated_output <<= 1;
+    if (allocated_output > MAX_CPP_OUTPUT_SIZE) panic("Exceeded max CPP output size %d", MAX_CPP_OUTPUT_SIZE);
+    cpp_output = malloc(sizeof(allocated_output));
+}
 
-        if (is_newline) {
-            print_line_number++;
+// Append a character to the output
+static void append_char_to_output(char c) {
+    if (cpp_output_pos == allocated_output) {
+        allocated_output *= 2;
+        if (allocated_output > MAX_CPP_OUTPUT_SIZE) panic("Exceeded max CPP output size %d", MAX_CPP_OUTPUT_SIZE);
+        cpp_output = realloc(cpp_output, allocated_output);
+    }
+    cpp_output[cpp_output_pos++] = c;
+}
 
-            while (print_line_number < line_number) {
-                print_line_number++;
-                printf("\n");
-            }
+// Append a string to the output
+static void append_string_to_output(char *s) {
+    int len = strlen(s);
+    int needed = cpp_output_pos + len;
+    if (allocated_output < needed) {
+        while (allocated_output < needed) allocated_output <<= 1;
+        if (allocated_output > MAX_CPP_OUTPUT_SIZE) panic("Exceeded max CPP output size %d", MAX_CPP_OUTPUT_SIZE);
+        cpp_output = realloc(cpp_output, allocated_output);
+    }
+    sprintf(cpp_output + cpp_output_pos, "%s", s);
+    cpp_output_pos += len;
+}
+
+// Lex one CPP token, starting with optional whitespace
+static void cpp_next() {
+    char *whitespace = 0;
+    int whitespace_pos = 0;
+    while (cpp_cur_ip < cpp_input_size && (cpp_input[cpp_cur_ip] == '\t' || cpp_input[cpp_cur_ip] == ' ')) {
+        if (!whitespace) whitespace = malloc(1024);
+        if (whitespace_pos == 1024) panic("Ran out of whitespace buffer");
+        whitespace[whitespace_pos++] = cpp_input[cpp_cur_ip];
+        advance_cur_ip();
+    }
+
+    if (whitespace)
+        whitespace[whitespace_pos] = 0;
+
+    if (cpp_cur_ip >= cpp_input_size)
+        cpp_cur_token = new_cpp_token(CPP_TOK_EOF);
+    else {
+        if (cpp_input[cpp_cur_ip] == '\n')
+            cpp_cur_token = new_cpp_token(CPP_TOK_EOL);
+        else {
+            cpp_cur_token = new_cpp_token(CPP_TOK_OTHER);
+            cpp_cur_token->c = cpp_input[cpp_cur_ip];
         }
+        advance_cur_ip();
+    }
+
+    cpp_cur_token->line_number = cpp_cur_line_number;
+    cpp_cur_token->whitespace = whitespace;
+
+    return;
+}
+
+// Parse tokens from the lexer
+static void cpp_parse() {
+    int print_line_number = 1;
+
+    while (cpp_cur_token->kind != CPP_TOK_EOF) {
+        switch (cpp_cur_token->kind) {
+            case CPP_TOK_EOF:
+                break;
+            case CPP_TOK_EOL:
+                append_char_to_output('\n');
+                print_line_number++;
+
+                while (print_line_number < cpp_cur_line_number) {
+                    print_line_number++;
+                    append_char_to_output('\n');
+                }
+
+                break;
+            default:
+                if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
+                append_char_to_output(cpp_cur_token->c);
+                break;
+        }
+
+        cpp_next();
     }
 }
 
-void preprocess(char *filename) {
+void preprocess(char *filename, char *output_filename) {
     init_cpp(filename);
+
     if (opt_enable_trigraphs) transform_trigraphs();
+
     strip_backslash_newlines();
-    print_cpp_input(0);
+
+    // Initialize the lexer
+    cpp_cur_ip = 0;
+    cpp_cur_line_map = cpp_line_map->next;
+    cpp_cur_line_number = 1;
+    cpp_next();
+
+    // Parse
+    init_output();
+    cpp_parse();
+    append_char_to_output(0);
+
+    // Print the output
+    if (!output_filename || !strcmp(output_filename, "-"))
+        cpp_output_file = stdout;
+    else {
+        // Open output file for writing
+        cpp_output_file = fopen(output_filename, "w");
+        if (cpp_output_file == 0) {
+            perror(output_filename);
+            exit(1);
+        }
+    }
+
+    fprintf(cpp_output_file, "%s", cpp_output);
+    fclose(cpp_output_file);
 }

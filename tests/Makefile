@@ -1,4 +1,4 @@
-all: test-unit test-integration test-e2e
+all: test-unit test-integration test-e2e test-cpp
 
 utils.o: ../utils.c
 	gcc ${GCC_OPTS} -c ../utils.c -o utils.o
@@ -22,6 +22,10 @@ test-unit-types: test-utils.s test-lib.o
 .PHONY:
 test-integration: test-utils.s test-lib.o
 	cd integration && ${MAKE} all
+
+.PHONY:
+test-cpp:
+	cd cpp && ${MAKE} all
 
 .PHONY:
 test-e2e: test-lib.o utils.o
