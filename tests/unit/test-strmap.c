@@ -77,6 +77,14 @@ int main() {
         if ((!!got_value) == (!!(i % 2))) panic("Mismatch in key deletion");
     }
 
+    // Test iteration again, now that the map has deleted values
+    i = 0, h = 0;
+    for (StrMapIterator it = strmap_iterator(map); !strmap_iterator_finished(&it); strmap_iterator_next(&it), i++) {
+        char *value = strmap_iterator_key(&it);
+        h += 7 * atoi(&(value[4]));
+    }
+    if (h != 174965000) panic("Iteration checksum ok");
+
     // Insert/deletion thrashing in a new map. This tests rehashing without
     // a resize.
     map = new_strmap();
