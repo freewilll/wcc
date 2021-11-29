@@ -19,6 +19,7 @@ SOURCES = \
   set.c \
   stack.c \
   strmap.c \
+  strset.c \
   longmap.c \
   graph.c \
   internals.c \

@@ -51,6 +51,10 @@ typedef struct strmap_iterator {
     int pos;
 } StrMapIterator;
 
+typedef struct strset {
+    StrMap *strmap;
+} StrSet;
+
 typedef struct longmap {
     long *keys;
     void **values;
@@ -708,6 +712,13 @@ StrMapIterator strmap_iterator(StrMap *map);
 int strmap_iterator_finished(StrMapIterator *iterator);
 void strmap_iterator_next(StrMapIterator *iterator);
 char *strmap_iterator_key(StrMapIterator *iterator);
+
+// strset.c
+StrSet *new_strset(void);
+void strset_add(StrSet *ss, char *element);
+int strset_in(StrSet *ss, char *element);
+StrSet *strset_union(StrSet *ss1, StrSet *ss2);
+StrSet *strset_intersection(StrSet *ss1, StrSet *ss2);
 
 // longmap.c
 LongMap *new_longmap(void);

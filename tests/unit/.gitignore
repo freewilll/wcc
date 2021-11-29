@@ -2,6 +2,7 @@ test-lexer
 test-cpp
 test-set
 test-strmap
+test-strset
 test-longmap
 test-graph
 test-ssa
