@@ -6,6 +6,42 @@ FOO
 FOO
 #undef FOO with more tokens
 FOO
+
+#define INT1 1
+INT1
+
+#define INT2 2
+INT2
+
+#define STR1 "string"
+STR1
+
+#define STR2 string2
+string2
+
+#define CHR1 'c'
+'c'
+
+#define CHR2 'c' + 1
+CHR2
+
+#define LOTS_OF_TOKENS1 "lots" 'o' f tokens
+LOTS_OF_TOKENS1
+
+#define SELF1 SELF1
+SELF1
+
+#define x y
+#define y x
+x
+y
+
+#define COMBO INT1 INT2 CHR1 CHR2
+COMBO
+
+#define COMBO2 COMBO SELF1
+COMBO2
+
 #define EMPTY
 a EMPTY b
 a  EMPTY  b

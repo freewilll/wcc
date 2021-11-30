@@ -587,6 +587,7 @@ typedef struct cpp_token {
     char c;
     char *identifier;   // Identifier in the case of CPP_TOK_IDENTIFIER
     int line_number;
+    StrSet *hide_set;   // Hide set, when expanding macros
     struct cpp_token *next;
 } CppToken;
 

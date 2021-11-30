@@ -36,6 +36,9 @@ static char *cpp_output;                   // Overall output
 static int cpp_output_pos;                 // Position in cpp_output;
 static int allocated_output;               // How much has been allocated for cpp_output;
 
+static CppToken *subst(CppToken *is, CppToken *fp, CppToken *ap, StrSet *hs, CppToken *os);
+static CppToken *hsadd(StrSet *hs, CppToken *ts);
+
 static void init_cpp(char *filename) {
     FILE *f  = fopen(filename, "r");
 
@@ -193,6 +196,13 @@ static CppToken *new_cpp_token(int kind) {
     return tok;
 }
 
+// Shallow copy a new CPP token
+static CppToken *dup_cpp_token(CppToken *tok) {
+    CppToken *result = malloc(sizeof(CppToken));
+    *result = *tok;
+    return result;
+}
+
 // Allocate twice the input size and round up to nearest power of two.
 static void init_output(void) {
     allocated_output = 1;
@@ -286,6 +296,117 @@ static void cpp_next() {
     cpp_cur_token->whitespace = whitespace;
 
     return;
+}
+
+// Append to linked list, creating it if it doesn't exist
+CppToken *ll_append(CppToken *list1, CppToken *list2) {
+    if (!list1) return list2;
+    CppToken *l = list1;
+    while (l->next) l = l->next;
+    l->next = list2;
+    return list1;
+}
+
+// Append to list2 to circular linked list list1, creating list1 f it doesn't exist
+CppToken *cll_append(CppToken *list1, CppToken *list2) {
+    if (!list2) panic("Unexpected list2 null in cll_append");
+
+    if (!list1) {
+        // Make list2 into a circular linked list and return it
+        list1 = list2;
+        while (list2->next) list2 = list2->next;
+        list2->next = list1;
+        return list1;
+    }
+
+    CppToken *list1_head = list1->next;
+    list1->next = list2;
+    while (list1->next) list1 = list1->next;
+    list1->next = list1_head;
+    return list1;
+}
+
+// Convert a circular linked list to a linked list.
+// cll must be at the tail of the linked list
+static CppToken *convert_cll_to_ll(CppToken *cll) {
+    CppToken *head = cll->next;
+    cll->next = 0;
+    return head;
+}
+
+// Implementation of Dave Prosser's C Preprocessing Algorithm
+// This is the main macro expansion function: expand an input sequence into an output sequence.
+static CppToken *expand(CppToken *is) {
+    if (!is) return 0;
+
+    if (is->identifier && is->hide_set && strset_in(is->hide_set, is->identifier)) {
+        // The first token is in its own hide set, don't expand it
+        // return the first token + the expanded rest
+        if (!is->next) return is;
+        CppToken *t = dup_cpp_token(is);
+        t->next = expand(is->next);
+        return t;
+    }
+
+    Directive *directive = 0;
+    if (is->identifier) directive = strmap_get(directives, is->identifier);
+
+    if (directive) {
+        // Object like macro
+
+        StrSet *identifier_hs = new_strset();
+        strset_add(identifier_hs, is->identifier);
+        StrSet *hs = strset_union(is->hide_set ? is->hide_set : new_strset(), identifier_hs);
+        CppToken *substituted = subst(directive->tokens, 0, 0, hs, 0);
+        if (substituted) substituted->whitespace = is->whitespace;
+        CppToken *result = expand(ll_append(substituted, is->next));
+
+        return result;
+    }
+
+    // The first token is an ordinary token, return the first token + the expanded rest
+    CppToken *t = dup_cpp_token(is);
+    t->next = expand(is->next);
+    return t;
+}
+
+// Inputs:
+//   is: input sequence
+//   fp: formal parameters
+//   ap: actual parameters
+//   hs: hide set
+//   os: output sequence in circular linked list form
+// Output
+//   output sequence in linked list form
+static CppToken *subst(CppToken *is, CppToken *fp, CppToken *ap, StrSet *hs, CppToken *os) {
+    if (!is) {
+        if (!os) return os;
+        return convert_cll_to_ll(hsadd(hs, os));
+    }
+
+    // Append first token in is to os
+    CppToken *new_token = dup_cpp_token(is);
+    new_token->next = 0;
+    os = cll_append(os, new_token);
+    return subst(is->next, fp, ap, hs, os);
+}
+
+// Add a a hide set to a token sequence's hide set. ts and result are circular linked lists.
+static CppToken *hsadd(StrSet *hs, CppToken *ts) {
+    if (!hs) panic("Empty hs in hsadd");
+
+    ts = convert_cll_to_ll(ts);
+
+    CppToken *result = 0; // A circular linked list
+    while (ts) {
+        CppToken *new_token = dup_cpp_token(ts);
+        new_token->next = 0;
+        new_token->hide_set = strset_union(new_token->hide_set ? new_token->hide_set : new_strset(), hs);
+        result = cll_append(result, new_token);
+        ts = ts->next;
+    }
+
+    return result;
 }
 
 static CppToken *parse_define_tokens(void) {
@@ -398,18 +519,20 @@ static void cpp_parse() {
 
                 break;
 
-            case CPP_TOK_IDENTIFIER:
-                if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
+            case CPP_TOK_IDENTIFIER: {
                 Directive *directive = strmap_get(directives, cpp_cur_token->identifier);
                 if (directive)
-                    // TODO macro expansion
-                    append_cpp_tokens_to_output(directive->tokens);
-                else
+                    append_cpp_tokens_to_output(expand(cpp_cur_token));
+                else {
+                    if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
                     append_string_to_output(cpp_cur_token->identifier);
+                }
 
                 in_start_of_line = 0;
 
                 break;
+            }
+
             default:
                 if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
                 append_char_to_output(cpp_cur_token->c);
