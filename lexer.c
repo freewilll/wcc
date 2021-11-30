@@ -63,11 +63,6 @@ static void skip_whitespace(void) {
             ip++;
             cur_line++;
         }
-        else if (i[ip] == '/' && input_size - ip >= 2 && i[ip + 1] == '/') {
-            ip += 2;
-            while (i[ip++] != '\n');
-            cur_line++;
-        }
         else return;
     }
 }

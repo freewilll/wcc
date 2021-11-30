@@ -208,7 +208,7 @@ static void init_output(void) {
     allocated_output = 1;
     while (allocated_output < cpp_input_size * 2) allocated_output <<= 1;
     if (allocated_output > MAX_CPP_OUTPUT_SIZE) panic("Exceeded max CPP output size %d", MAX_CPP_OUTPUT_SIZE);
-    cpp_output = malloc(sizeof(allocated_output));
+    cpp_output = malloc(allocated_output);
 }
 
 // Append a character to the output
@@ -234,16 +234,48 @@ static void append_string_to_output(char *s) {
     cpp_output_pos += len;
 }
 
+static void add_to_whitespace(char **whitespace, int *whitespace_pos, char c) {
+    if (!*whitespace) *whitespace = malloc(1024);
+    if (*whitespace_pos == 1024) panic("Ran out of whitespace buffer");
+    (*whitespace)[(*whitespace_pos)++] = c;
+}
+
 // Lex one CPP token, starting with optional whitespace
 static void cpp_next() {
     char *whitespace = 0;
     int whitespace_pos = 0;
 
-    while (cpp_cur_ip < cpp_input_size && (cpp_input[cpp_cur_ip] == '\t' || cpp_input[cpp_cur_ip] == ' ')) {
-        if (!whitespace) whitespace = malloc(1024);
-        if (whitespace_pos == 1024) panic("Ran out of whitespace buffer");
-        whitespace[whitespace_pos++] = cpp_input[cpp_cur_ip];
-        advance_cur_ip();
+    // Process whitespace and comments
+    while (cpp_cur_ip < cpp_input_size) {
+        if ((cpp_input[cpp_cur_ip] == '\t' || cpp_input[cpp_cur_ip] == ' ')) {
+            add_to_whitespace(&whitespace, &whitespace_pos, cpp_input[cpp_cur_ip]);
+            advance_cur_ip();
+            continue;
+        }
+
+        // Process // comment
+        if (cpp_input_size - cpp_cur_ip >= 2 && cpp_input[cpp_cur_ip] == '/' && cpp_input[cpp_cur_ip + 1] == '/') {
+            while (cpp_input[cpp_cur_ip] != '\n') advance_cur_ip();
+            add_to_whitespace(&whitespace, &whitespace_pos, ' ');
+            continue;
+        }
+
+        // Process /* comments */
+        if (cpp_input_size - cpp_cur_ip >= 2 && cpp_input[cpp_cur_ip] == '/' && cpp_input[cpp_cur_ip + 1] == '*') {
+            advance_cur_ip();
+            advance_cur_ip();
+
+            while (cpp_input_size - cpp_cur_ip >= 2 && (cpp_input[cpp_cur_ip] != '*' || cpp_input[cpp_cur_ip + 1] != '/'))
+                advance_cur_ip();
+
+            advance_cur_ip();
+            advance_cur_ip();
+
+            add_to_whitespace(&whitespace, &whitespace_pos, ' ');
+            continue;
+        }
+
+        break;
     }
 
     if (whitespace)
@@ -490,6 +522,7 @@ static void cpp_parse() {
     while (cpp_cur_token->kind != CPP_TOK_EOF) {
         switch (cpp_cur_token->kind) {
             case CPP_TOK_EOF:
+                cpp_next();
                 break;
 
             case CPP_TOK_EOL:
@@ -503,18 +536,17 @@ static void cpp_parse() {
 
                 in_start_of_line = 1;
 
+                cpp_next();
                 break;
 
             case CPP_TOK_HASH:
-                if (in_start_of_line) {
+                if (in_start_of_line)
                     parse_directive();
-                    append_char_to_output('\n');
-                    print_line_number++;
-                }
                 else {
                     if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
                     append_char_to_output('#');
                     in_start_of_line = 0;
+                    cpp_next();
                 }
 
                 break;
@@ -530,6 +562,7 @@ static void cpp_parse() {
 
                 in_start_of_line = 0;
 
+                cpp_next();
                 break;
             }
 
@@ -537,10 +570,10 @@ static void cpp_parse() {
                 if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
                 append_char_to_output(cpp_cur_token->c);
                 in_start_of_line = 0;
+
+                cpp_next();
                 break;
         }
-
-        cpp_next();
     }
 }
 

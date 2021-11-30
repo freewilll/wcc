@@ -1,5 +1,3 @@
-// Builtins
-
 struct __wcc_fp_register_save_area {
     long elements[2];
 };

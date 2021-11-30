@@ -33,8 +33,6 @@ build:
 	@mkdir -p build/wcc3
 
 internals.c: internals.h
-	echo "// Auto generated, don't edit" > internals.c
-	echo "" >> internals.c
 	echo "char *internals(void) {" >> internals.c
 	cat internals.h | sed ':a;N;$$!ba;s/\n/\\n/g;s/^/    return "/;s/$$/";/' >> internals.c
 	echo "}" >> internals.c
