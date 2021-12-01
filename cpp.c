@@ -241,7 +241,7 @@ static void add_to_whitespace(char **whitespace, int *whitespace_pos, char c) {
     (*whitespace)[(*whitespace_pos)++] = c;
 }
 
-char *lex_whitespace(void) {
+static char *lex_whitespace(void) {
     char *whitespace = 0;
     int whitespace_pos = 0;
 
@@ -283,6 +283,43 @@ char *lex_whitespace(void) {
 
     return whitespace;
 
+}
+
+static void lex_string_and_char_literal(char delimiter) {
+    char *i = cpp_input;
+
+    if (i[cpp_cur_ip]== 'L')  advance_cur_ip();;
+    advance_cur_ip();
+
+    char *data = malloc(MAX_STRING_LITERAL_SIZE + 2);
+    data[0] = delimiter;
+    int size = 0;
+
+    while (cpp_cur_ip < cpp_input_size) {
+        if (i[cpp_cur_ip] == delimiter) {
+            advance_cur_ip();
+            break;
+        }
+
+        if (cpp_input_size - cpp_cur_ip >= 2 && i[cpp_cur_ip] == '\\') {
+            if (size + 1 >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+            data[1 + size++] = '\\';
+            data[1 + size++] = i[cpp_cur_ip + 1];
+            advance_cur_ip();
+            advance_cur_ip();
+        }
+
+        else {
+            if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+            data[1 + size++] = i[cpp_cur_ip];
+            advance_cur_ip();
+        }
+    }
+
+    data[size + 1] = delimiter;
+    data[size + 2] = 0;
+    cpp_cur_token = new_cpp_token(CPP_TOK_STRING_LITERAL);
+    cpp_cur_token->str = data;
 }
 
 // Lex one CPP token, starting with optional whitespace
@@ -328,40 +365,11 @@ static void cpp_next() {
             }
         }
 
-        else if ((c1 == '"') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '"')) {
-            if (c1 == 'L')  advance_cur_ip();;
-            advance_cur_ip();
+        else if ((c1 == '"') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '"'))
+            lex_string_and_char_literal('"');
 
-            char *data = malloc(MAX_STRING_LITERAL_SIZE + 2);
-            data[0] = '"';
-            int size = 0;
-
-            while (cpp_cur_ip < cpp_input_size) {
-                if (i[cpp_cur_ip] == '"') {
-                    advance_cur_ip();
-                    break;
-                }
-
-                if (cpp_input_size - cpp_cur_ip >= 2 && i[cpp_cur_ip] == '\\' && i[cpp_cur_ip + 1] == '\\') {
-                    advance_cur_ip();
-                    advance_cur_ip();
-                    if (size + 1 >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-                    data[1 + size++] = '\\';
-                    data[1 + size++] = '\\';
-                }
-
-                else {
-                    if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-                    data[1 + size++] = i[cpp_cur_ip];
-                    advance_cur_ip();
-                }
-            }
-
-            data[size + 1] = '"';
-            data[size + 2] = 0;
-            cpp_cur_token = new_cpp_token(CPP_TOK_STRING_LITERAL);
-            cpp_cur_token->str = data;
-        }
+        else if ((c1 == '\'') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '\''))
+            lex_string_and_char_literal('\'');
 
         else {
             cpp_cur_token = new_cpp_token(CPP_TOK_OTHER);
