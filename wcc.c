@@ -102,9 +102,7 @@ void init_directives(void) {
     directives = new_strmap();
     CliDirective *cd = cli_directives;
     while (cd) {
-        Directive *d = malloc(sizeof(Directive));
-        d->tokens = cd->tokens;
-        strmap_put(directives, cd->identifier, d);
+        strmap_put(directives, cd->identifier, cd->directive);
         cd = cd->next;
     }
 }

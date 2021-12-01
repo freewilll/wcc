@@ -26,7 +26,7 @@ static char *cpp_output;                   // Overall output
 static int cpp_output_pos;                 // Position in cpp_output;
 static int allocated_output;               // How much has been allocated for cpp_output;
 
-static CppToken *subst(CppToken *is, CppToken *fp, CppToken *ap, StrSet *hs, CppToken *os);
+static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os);
 static CppToken *hsadd(StrSet *hs, CppToken *ts);
 
 static void init_cpp(char *filename) {
@@ -320,12 +320,14 @@ static void lex_string_and_char_literal(char delimiter) {
 #define is_non_digit(c1) ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_')
 #define is_exponent(c1, c2) (c1 == 'E' || c1 == 'e') && (c2 == '+' || c2 == '-')
 
-#define make_other_token(size) \
+#define make_token(kind, size) \
     do { \
-        cpp_cur_token = new_cpp_token(CPP_TOK_OTHER); \
+        cpp_cur_token = new_cpp_token(kind); \
         copy_token_str(start, size); \
         advance_cur_ip_by_count(size); \
     } while (0)
+
+#define make_other_token(size) make_token(CPP_TOK_OTHER, size)
 
 #define copy_token_str(start, size) \
     do { \
@@ -352,13 +354,12 @@ static void cpp_next() {
 
         if (c1 == '\n') {
             cpp_cur_token = new_cpp_token(CPP_TOK_EOL);
+            cpp_cur_token->str = "\n";
             advance_cur_ip();
         }
 
-        else if (c1 == '#') {
-            cpp_cur_token = new_cpp_token(CPP_TOK_HASH);
-            advance_cur_ip();
-        }
+        else if (c1 == '#')
+            make_token(CPP_TOK_HASH, 1);
 
         else if (left >= 2 && c1 == '&' && c2 == '&'             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '|' && c2 == '|'             )  { make_other_token(2); }
@@ -382,6 +383,9 @@ static void cpp_next() {
         else if (left >= 3 && c1 == '.' && c2 == '.' && c3 == '.')  { make_other_token(3); }
         else if (left >= 2 && c1 == '>' && c2 == '>'             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '<' && c2 == '<'             )  { make_other_token(2); }
+        else if (             c1 == '('                          )  { make_token(CPP_TOK_LPAREN, 1); }
+        else if (             c1 == ')'                          )  { make_token(CPP_TOK_RPAREN, 1); }
+        else if (             c1 == ','                          )  { make_token(CPP_TOK_COMMA, 1); }
 
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             char *identifier = malloc(1024);
@@ -434,7 +438,7 @@ static void cpp_next() {
     return;
 }
 
-// Append to list2 to circular linked list list1, creating list1 if it doesn't exist
+// Append list2 to circular linked list list1, creating list1 if it doesn't exist
 CppToken *cll_append(CppToken *list1, CppToken *list2) {
     if (!list2) return list1;
 
@@ -443,7 +447,7 @@ CppToken *cll_append(CppToken *list1, CppToken *list2) {
         list1 = list2;
         while (list2->next) list2 = list2->next;
         list2->next = list1;
-        return list1;
+        return list2;
     }
 
     CppToken *list1_head = list1->next;
@@ -463,10 +467,60 @@ static CppToken *convert_cll_to_ll(CppToken *cll) {
     return head;
 }
 
+#define add_token_to_actuals() CppToken *t = dup_cpp_token(token); t->next = 0; current_actual = cll_append(current_actual, t);
+
+// Parse function-like macro call, starting with the '('
+// Loop over ts; ts is advanced up to the enclosing ')'
+// Returns a ptr to the token sequences for each actual parameter.
+// Nested () are taken into account, for cases like f((1, 2), 3), which
+// results in (1, 2) and 3 for the actual parameters.
+CppToken **make_function_actual_parameters(CppToken **ts) {
+    CppToken **result = malloc(sizeof(CppToken *) * MAX_CPP_MACRO_PARAM_COUNT);
+    memset(result, 0, sizeof(CppToken *) * MAX_CPP_MACRO_PARAM_COUNT);
+
+    int parenthesis_nesting_level = 0;
+    CppToken *current_actual = 0;
+    int index = 0;
+
+    while (1) {
+        CppToken *token = *ts;
+        if (!token) panic("Expected macro function-like parameter or )");
+
+        if (token->kind == CPP_TOK_RPAREN && !parenthesis_nesting_level) {
+            // We're not in nested parentheses
+            result[index++] = convert_cll_to_ll(current_actual);
+            return result;
+        }
+        else if (token->kind == CPP_TOK_RPAREN) {
+            // We're in nested parentheses
+            add_token_to_actuals();
+            parenthesis_nesting_level--;
+        }
+        else if (token->kind == CPP_TOK_LPAREN) {
+            // Enter nested parentheses
+            add_token_to_actuals();
+            parenthesis_nesting_level++;
+        }
+        else if (token->kind == CPP_TOK_COMMA && !parenthesis_nesting_level) {
+            // Finish current ap and start next ap
+            result[index++] = convert_cll_to_ll(current_actual);
+            current_actual = 0;
+        }
+        else {
+            // It's an ordinary token, append it to current actual
+            add_token_to_actuals();
+        }
+
+        *ts =(*ts)->next;
+    }
+}
+
 // Implementation of Dave Prosser's C Preprocessing Algorithm
 // This is the main macro expansion function: expand an input sequence into an output sequence.
 static CppToken *expand(CppToken *is) {
     if (!is) return 0;
+
+    CppToken *is1 = is->next;
 
     if (is->str && is->hide_set && strset_in(is->hide_set, is->str)) {
         // The first token is in its own hide set, don't expand it
@@ -480,17 +534,56 @@ static CppToken *expand(CppToken *is) {
     Directive *directive = 0;
     if (is->str) directive = strmap_get(directives, is->str);
 
-    if (directive) {
+    if (directive && !directive->is_function) {
         // Object like macro
 
         StrSet *identifier_hs = new_strset();
         strset_add(identifier_hs, is->str);
-        StrSet *hs = strset_union(is->hide_set ? is->hide_set : new_strset(), identifier_hs);
+        StrSet *hs = is->hide_set ? strset_union(is->hide_set, identifier_hs) : identifier_hs;
         CppToken *substituted = subst(directive->tokens, 0, 0, hs, 0);
         if (substituted) substituted->next->whitespace = is->whitespace;
-        CppToken *result = expand(convert_cll_to_ll(cll_append(substituted, is->next)));
+        CppToken *with_is_next = cll_append(substituted, is->next);
+        return expand(convert_cll_to_ll(with_is_next));
+    }
 
-        return result;
+    else if (directive && directive->is_function && is1 && is1->kind == CPP_TOK_LPAREN) {
+        // Function like macro
+
+        CppToken *directive_token = is;
+        StrSet *directive_token_hs = is->hide_set;
+        is = is->next->next;
+        CppToken **actuals = make_function_actual_parameters(&is);
+        if (!is || is->kind != CPP_TOK_RPAREN) panic("Expected )");
+
+        int actual_count = 0;
+        for (CppToken **tok = actuals; *tok; tok++, actual_count++);
+        if (actual_count > directive->param_count) panic("Mismatch in number of macro parameters");
+
+        StrSet *rparen_hs = is->hide_set;
+        CppToken *rest = is->next;
+
+        // Make the hideset for the macro subsitution
+        // T is the directive token
+        // HS is directive token hide set
+        // HS' is ')' hide set
+        // HS = (HS ∩ HS’) ∪ {T}
+        StrSet *hs1 =
+            directive_token_hs && rparen_hs
+                ? strset_intersection(directive_token_hs, rparen_hs)
+                : directive_token_hs
+                    ? directive_token_hs
+                    : rparen_hs;
+
+
+        StrSet *hs2 = new_strset();
+        strset_add(hs2, directive_token->str);
+
+        StrSet *hs = hs1 ? strset_union(hs1, hs2) : hs2;
+
+        CppToken *substituted = subst(directive->tokens, directive->param_identifiers, actuals, hs, 0);
+        if (substituted) substituted->next->whitespace = directive_token->whitespace;
+
+        return expand(convert_cll_to_ll(cll_append(substituted, rest)));
     }
 
     // The first token is an ordinary token, return the first token + the expanded rest
@@ -507,10 +600,25 @@ static CppToken *expand(CppToken *is) {
 //   os: output sequence is a circular linked list
 // Output
 //   output sequence in a circular linked list
-static CppToken *subst(CppToken *is, CppToken *fp, CppToken *ap, StrSet *hs, CppToken *os) {
+static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os) {
     if (!is) {
         if (!os) return os;
         return hsadd(hs, os);
+    }
+
+    int fp_index = fp ? (int) (long) strmap_get(fp, is->str) : 0;
+    if (fp_index) {
+        CppToken *replacement = ap[fp_index - 1];
+
+        CppToken *expanded = expand(replacement);
+        if (!expanded) {
+            expanded = new_cpp_token(CPP_TOK_PADDING);
+            expanded->str = "";
+        }
+        expanded->whitespace = is->whitespace;
+
+        if (expanded) os = cll_append(os, expanded);
+        return subst(is->next, fp, ap, hs, os);
     }
 
     // Append first token in is to os
@@ -538,26 +646,69 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
     return result;
 }
 
-static CppToken *parse_define_tokens(void) {
+static CppToken *parse_define_replacement_tokens(void) {
+    if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF)
+        return 0;
+
+    CppToken *result = cpp_cur_token;
+    CppToken *tokens = cpp_cur_token;
+    while (cpp_cur_token->kind != CPP_TOK_EOL && cpp_cur_token->kind != CPP_TOK_EOF) {
+        tokens->next = cpp_cur_token;
+        tokens = tokens->next;
+        cpp_next();
+    }
+    tokens->next = 0;
+
+    // Clear whitespace on initial token
+    if (tokens) result->whitespace = 0;
+
+    return result;
+}
+
+static Directive *parse_define_tokens(void) {
+    Directive *directive = malloc(sizeof(Directive));
     CppToken *tokens;
 
     if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF)
         tokens = 0;
     else {
-        tokens = cpp_cur_token;
-        CppToken *tokens = cpp_cur_token;
-        while (cpp_cur_token->kind != CPP_TOK_EOL && cpp_cur_token->kind != CPP_TOK_EOF) {
-            tokens->next = cpp_cur_token;
-            tokens = tokens->next;
-            cpp_next();
+        if (cpp_cur_token->kind != CPP_TOK_LPAREN) {
+            // Parse object-like macro
+            directive->is_function = 0;
+            tokens = parse_define_replacement_tokens();
         }
-        tokens->next = 0;
+        else {
+            // Parse function-like macro
+            cpp_next();
+
+            directive->is_function = 1;
+            directive->param_count = 0;
+            directive->param_identifiers = new_strmap();
+            int first = 1;
+
+            while (cpp_cur_token->kind != CPP_TOK_RPAREN) {
+                if (!first) {
+                    if (cpp_cur_token->kind != CPP_TOK_COMMA) panic("Expected comma");
+                    cpp_next();
+                }
+
+                first = 0;
+
+                if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+                if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
+                strmap_put(directive->param_identifiers, cpp_cur_token->str, (void *) (long) ++directive->param_count);
+                cpp_next();
+            }
+
+            cpp_next();
+
+            tokens = parse_define_replacement_tokens();
+        }
     }
 
-    // Clear whitespace on initial token
-    if (tokens) tokens->whitespace = 0;
+    directive->tokens = tokens;
 
-    return tokens;
+    return directive;
 }
 
 static void parse_directive(void) {
@@ -570,9 +721,8 @@ static void parse_directive(void) {
             char *identifier = cpp_cur_token->str;
             cpp_next();
 
-            Directive *directive = malloc(sizeof(Directive));
+            Directive *directive = parse_define_tokens();
             strmap_put(directives, identifier, directive);
-            directive->tokens = parse_define_tokens();
 
             break;
         case CPP_TOK_UNDEF:
@@ -586,21 +736,14 @@ static void parse_directive(void) {
                 cpp_next();
 
             break;
+        default:
+            panic("Unknown directive %s", cpp_cur_token->str);
     }
 }
 
 static void append_cpp_token_to_output(CppToken *token) {
-    switch (token->kind) {
-        case CPP_TOK_IDENTIFIER:
-        case CPP_TOK_STRING_LITERAL:
-        case CPP_TOK_NUMBER:
-        case CPP_TOK_OTHER:
-            if (token->whitespace) append_string_to_output(token->whitespace);
-            append_string_to_output(token->str);
-            break;
-        default:
-            panic("Unexpected token %d", token->kind);
-    }
+    if (token->whitespace) append_string_to_output(token->whitespace);
+    append_string_to_output(token->str);
 }
 
 static void append_cpp_tokens_to_output(CppToken *token) {
@@ -613,71 +756,39 @@ static void append_cpp_tokens_to_output(CppToken *token) {
 // Parse tokens from the lexer
 static void cpp_parse() {
     int print_line_number = 1;
-    int in_start_of_line = 1;
 
     while (cpp_cur_token->kind != CPP_TOK_EOF) {
-        switch (cpp_cur_token->kind) {
-            case CPP_TOK_EOF:
+        if (cpp_cur_token->kind == CPP_TOK_HASH) {
+            parse_directive();
+        }
+
+        else {
+            // Gather tokens until EOF or EOL
+
+            CppToken *line_tokens = 0;
+            while (cpp_cur_token->kind != CPP_TOK_EOL && cpp_cur_token->kind != CPP_TOK_EOF) {
+                line_tokens = cll_append(line_tokens, cpp_cur_token);
                 cpp_next();
-                break;
-
-            case CPP_TOK_EOL:
-                append_char_to_output('\n');
-                print_line_number++;
-
-                while (print_line_number < cpp_cur_line_number) {
-                    print_line_number++;
-                    append_char_to_output('\n');
-                }
-
-                in_start_of_line = 1;
-
-                cpp_next();
-                break;
-
-            case CPP_TOK_HASH:
-                if (in_start_of_line)
-                    parse_directive();
-                else {
-                    if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
-                    append_char_to_output('#');
-                    in_start_of_line = 0;
-                    cpp_next();
-                }
-
-                break;
-
-            case CPP_TOK_IDENTIFIER: {
-                Directive *directive = strmap_get(directives, cpp_cur_token->str);
-                if (directive)
-                    append_cpp_tokens_to_output(expand(cpp_cur_token));
-                else
-                    append_cpp_tokens_to_output(cpp_cur_token);
-
-                in_start_of_line = 0;
-
-                cpp_next();
-                break;
             }
 
-            case CPP_TOK_STRING_LITERAL:
-                append_cpp_token_to_output(cpp_cur_token);
-                in_start_of_line = 0;
-
-                cpp_next();
-                break;
-
-            default:
-                append_cpp_tokens_to_output(expand(cpp_cur_token));
-                in_start_of_line = 0;
-
-                cpp_next();
-                break;
+            append_cpp_tokens_to_output(expand(convert_cll_to_ll(line_tokens)));
         }
+
+        if (cpp_cur_token->kind == CPP_TOK_EOL)
+            append_cpp_tokens_to_output(cpp_cur_token);
+
+        print_line_number++;
+
+        while (print_line_number < cpp_cur_line_number) {
+            print_line_number++;
+            append_char_to_output('\n');
+        }
+
+        cpp_next();
     }
 }
 
-CppToken *parse_cli_define(char *string) {
+Directive *parse_cli_define(char *string) {
     init_cpp_from_string(string);
     cpp_next();
     return parse_define_tokens();

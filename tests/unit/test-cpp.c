@@ -78,7 +78,7 @@ static void test_strip_backslash_newlines(void) {
 }
 
 static void test_single_token(char *input, int kind, char *expected) {
-    CppToken *token = parse_cli_define(input);
+    CppToken *token = parse_cli_define(input)->tokens;
     if (!token) panic("Expected token");
 
     assert_int(kind, token->kind, input);
@@ -90,7 +90,7 @@ static void test_tokenization(void) {
     CppToken *tokens;
 
     // Two identifiers
-    tokens = parse_cli_define("foo bar");
+    tokens = parse_cli_define("foo bar")->tokens;
     assert_int(CPP_TOK_IDENTIFIER, tokens->kind, "foo kind");
     assert_string("foo", tokens->str, "foo str");
     tokens = tokens->next;

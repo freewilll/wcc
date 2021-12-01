@@ -330,6 +330,7 @@ typedef struct register_set {
 
 enum {
     MAX_CPP_FILESIZE              = 10 * 1024 * 1024,
+    MAX_CPP_MACRO_PARAM_COUNT     = 1024,
     MAX_STRUCTS_AND_UNIONS        = 1024,
     MAX_STRUCT_OR_UNION_SCALARS   = 1024,
     MAX_TYPEDEFS                  = 1024,
@@ -584,12 +585,16 @@ typedef struct string_literal {
 enum {
     CPP_TOK_EOL=1,
     CPP_TOK_EOF,
+    CPP_TOK_PADDING,
     CPP_TOK_IDENTIFIER,
     CPP_TOK_STRING_LITERAL,
     CPP_TOK_NUMBER,
     CPP_TOK_HASH,
     CPP_TOK_DEFINE,
     CPP_TOK_UNDEF,
+    CPP_TOK_LPAREN,
+    CPP_TOK_RPAREN,
+    CPP_TOK_COMMA,
     CPP_TOK_OTHER,
 };
 
@@ -602,11 +607,18 @@ typedef struct cpp_token {
     struct cpp_token *next;
 } CppToken;
 
+typedef struct directive {
+    int is_function;            // Is the macro an object or function macro
+    CppToken *tokens;           // Replacement tokens
+    StrMap *param_identifiers;  // Mapping of parameter identifiers => index, index starts at 1
+    int param_count;            // Amount of parameters.
+} Directive;
+
 // Structure with all directives passed on the command line with -D
 typedef struct cli_directive {
     char *identifier;               // Identifier of the directive
     char *value;                    // String version of the value
-    CppToken *tokens;               // Parsed CppTokens for the directive
+    Directive *directive;           // The actual directive
     struct cli_directive *next;
 } CliDirective;
 
@@ -769,16 +781,12 @@ typedef struct line_map {
     struct line_map *next;
 } LineMap;
 
-typedef struct directive {
-    CppToken *tokens;
-} Directive;
-
 void init_cpp_from_string(char *string);
 char *get_cpp_input(void);
 LineMap *get_cpp_linemap(void);
 void transform_trigraphs(void);
 void strip_backslash_newlines(void);
-CppToken *parse_cli_define(char *string);
+Directive *parse_cli_define(char *string);
 void preprocess(char *filename, char *output_filename);
 
 // parser.c

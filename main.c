@@ -30,7 +30,6 @@ char *replace_extension(char *input, char *ext) {
 
 static void parse_directive(char *expr) {
     CliDirective *cli_directive = malloc(sizeof(CliDirective));
-    cli_directive->tokens = 0;
     cli_directive->next = 0;
 
     char *key;
@@ -51,7 +50,7 @@ static void parse_directive(char *expr) {
 
     cli_directive->value = value;
     cli_directive->identifier = key;
-    cli_directive->tokens = parse_cli_define(value);
+    cli_directive->directive = parse_cli_define(value);
 
     if (!cli_directives) cli_directives = cli_directive;
     else {
@@ -69,10 +68,7 @@ static void run_preprocessor(char *input_filename, char *preprocessor_output_fil
 
     CliDirective *cd = cli_directives;
     while (cd) {
-        Directive *d = malloc(sizeof(Directive));
-        printf("%s=%s\n", cd->identifier, cd->value);
         dptr += sprintf(dptr, " -D %s=\"%s\"", cd->identifier, cd->value);
-        d->tokens = cd->tokens;
         cd = cd->next;
     }
 
