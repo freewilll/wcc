@@ -584,9 +584,7 @@ typedef struct string_literal {
 typedef struct cpp_token {
     int kind;               // One of CPP_TOK*
     char *whitespace;       // Preceding whitespace
-    char c;
-    char *identifier;       // Identifier in the case of CPP_TOK_IDENTIFIER
-    char *string_literal;   // String literal data if CPP_TOK_STRING_LITERAL
+    char *str;              // The token text
     int line_number;
     StrSet *hide_set;       // Hide set, when expanding macros
     struct cpp_token *next;

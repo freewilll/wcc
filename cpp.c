@@ -324,7 +324,7 @@ static void cpp_next() {
 
             else {
                 cpp_cur_token = new_cpp_token(CPP_TOK_IDENTIFIER);
-                cpp_cur_token->identifier = identifier;
+                cpp_cur_token->str = identifier;
             }
         }
 
@@ -332,7 +332,8 @@ static void cpp_next() {
             if (c1 == 'L')  advance_cur_ip();;
             advance_cur_ip();
 
-            char *data = malloc(MAX_STRING_LITERAL_SIZE);
+            char *data = malloc(MAX_STRING_LITERAL_SIZE + 2);
+            data[0] = '"';
             int size = 0;
 
             while (cpp_cur_ip < cpp_input_size) {
@@ -345,25 +346,28 @@ static void cpp_next() {
                     advance_cur_ip();
                     advance_cur_ip();
                     if (size + 1 >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-                    data[size++] = '\\';
-                    data[size++] = '\\';
+                    data[1 + size++] = '\\';
+                    data[1 + size++] = '\\';
                 }
 
                 else {
                     if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-                    data[size++] = i[cpp_cur_ip];
+                    data[1 + size++] = i[cpp_cur_ip];
                     advance_cur_ip();
                 }
             }
 
-            data[size] = 0;
+            data[size + 1] = '"';
+            data[size + 2] = 0;
             cpp_cur_token = new_cpp_token(CPP_TOK_STRING_LITERAL);
-            cpp_cur_token->string_literal = data;
+            cpp_cur_token->str = data;
         }
 
         else {
             cpp_cur_token = new_cpp_token(CPP_TOK_OTHER);
-            cpp_cur_token->c = c1;
+            cpp_cur_token->str = malloc(2);
+            cpp_cur_token->str[0] = c1;
+            cpp_cur_token->str[1] = 0;
             advance_cur_ip();
         }
     }
@@ -408,7 +412,7 @@ static CppToken *convert_cll_to_ll(CppToken *cll) {
 static CppToken *expand(CppToken *is) {
     if (!is) return 0;
 
-    if (is->identifier && is->hide_set && strset_in(is->hide_set, is->identifier)) {
+    if (is->str && is->hide_set && strset_in(is->hide_set, is->str)) {
         // The first token is in its own hide set, don't expand it
         // return the first token + the expanded rest
         if (!is->next) return is;
@@ -418,13 +422,13 @@ static CppToken *expand(CppToken *is) {
     }
 
     Directive *directive = 0;
-    if (is->identifier) directive = strmap_get(directives, is->identifier);
+    if (is->str) directive = strmap_get(directives, is->str);
 
     if (directive) {
         // Object like macro
 
         StrSet *identifier_hs = new_strset();
-        strset_add(identifier_hs, is->identifier);
+        strset_add(identifier_hs, is->str);
         StrSet *hs = strset_union(is->hide_set ? is->hide_set : new_strset(), identifier_hs);
         CppToken *substituted = subst(directive->tokens, 0, 0, hs, 0);
         if (substituted) substituted->next->whitespace = is->whitespace;
@@ -507,7 +511,7 @@ static void parse_directive(void) {
             cpp_next();
             if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
 
-            char *identifier = cpp_cur_token->identifier;
+            char *identifier = cpp_cur_token->str;
             cpp_next();
 
             Directive *directive = malloc(sizeof(Directive));
@@ -518,7 +522,7 @@ static void parse_directive(void) {
         case CPP_TOK_UNDEF:
             cpp_next();
             if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
-            strmap_delete(directives, cpp_cur_token->identifier);
+            strmap_delete(directives, cpp_cur_token->str);
             cpp_next();
 
             // Ignore any tokens until EOL/EOF
@@ -533,17 +537,15 @@ static void append_cpp_token_to_output(CppToken *token) {
     switch (token->kind) {
         case CPP_TOK_IDENTIFIER:
             if (token->whitespace) append_string_to_output(token->whitespace);
-            append_string_to_output(token->identifier);
+            append_string_to_output(token->str);
             break;
         case CPP_TOK_STRING_LITERAL:
             if (token->whitespace) append_string_to_output(token->whitespace);
-            append_char_to_output('"');
-            append_string_to_output(token->string_literal);
-            append_char_to_output('"');
+            append_string_to_output(token->str);
             break;
         case CPP_TOK_OTHER:
             if (token->whitespace) append_string_to_output(token->whitespace);
-            append_char_to_output(token->c);
+            append_string_to_output(token->str);
             break;
         default:
             panic("Unexpected token %d", token->kind);
@@ -595,7 +597,7 @@ static void cpp_parse() {
                 break;
 
             case CPP_TOK_IDENTIFIER: {
-                Directive *directive = strmap_get(directives, cpp_cur_token->identifier);
+                Directive *directive = strmap_get(directives, cpp_cur_token->str);
                 if (directive)
                     append_cpp_tokens_to_output(expand(cpp_cur_token));
                 else
