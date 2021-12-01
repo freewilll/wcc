@@ -77,6 +77,39 @@ static void test_strip_backslash_newlines(void) {
     test_strip_bsnl("a\\\n\\\nb",   "ab\n",         (LineMapTuple[]) {0,1, 1,3, 0,0});
 }
 
+static void test_single_token(char *input, int kind, char *expected) {
+    CppToken *token = parse_cli_define(input);
+    if (!token) panic("Expected token");
+
+    assert_int(kind, token->kind, input);
+    assert_string(expected, token->str, input);
+    assert_int(0, !!token->next, input);
+}
+
+static void test_tokenization(void) {
+    CppToken *tokens;
+
+    // Two identifiers
+    tokens = parse_cli_define("foo bar");
+    assert_int(CPP_TOK_IDENTIFIER, tokens->kind, "foo kind");
+    assert_string("foo", tokens->str, "foo str");
+    tokens = tokens->next;
+    assert_int(CPP_TOK_IDENTIFIER, tokens->kind, "bar kind");
+    assert_string("bar", tokens->str, "bar str");
+
+    test_single_token("\"foo\"", CPP_TOK_STRING_LITERAL, "\"foo\"");
+    test_single_token("'a'", CPP_TOK_STRING_LITERAL, "'a'");
+    test_single_token("12", CPP_TOK_NUMBER, "12");
+    test_single_token("99", CPP_TOK_NUMBER, "99");
+    test_single_token("1.21", CPP_TOK_NUMBER, "1.21");
+    test_single_token("123.456", CPP_TOK_NUMBER, "123.456");
+    test_single_token("1.21x", CPP_TOK_NUMBER, "1.21x");
+    test_single_token("1.21x_y_AZ", CPP_TOK_NUMBER, "1.21x_y_AZ");
+    test_single_token("1.21E+1", CPP_TOK_NUMBER, "1.21E+1");
+    test_single_token("1.21e-1", CPP_TOK_NUMBER, "1.21e-1");
+    test_single_token("1.", CPP_TOK_NUMBER, "1.");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -85,6 +118,7 @@ int main(int argc, char **argv) {
 
     test_transform_trigraphs();
     test_strip_backslash_newlines();
+    test_tokenization();
 
     finalize();
 }

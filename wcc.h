@@ -581,6 +581,18 @@ typedef struct string_literal {
     int is_wide_char;
 } StringLiteral;
 
+enum {
+    CPP_TOK_EOL=1,
+    CPP_TOK_EOF,
+    CPP_TOK_IDENTIFIER,
+    CPP_TOK_STRING_LITERAL,
+    CPP_TOK_NUMBER,
+    CPP_TOK_HASH,
+    CPP_TOK_DEFINE,
+    CPP_TOK_UNDEF,
+    CPP_TOK_OTHER,
+};
+
 typedef struct cpp_token {
     int kind;               // One of CPP_TOK*
     char *whitespace;       // Preceding whitespace

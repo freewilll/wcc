@@ -9,17 +9,6 @@ enum {
     MAX_CPP_OUTPUT_SIZE = 10 * 1024 * 1024,
 };
 
-enum {
-    CPP_TOK_EOL=1,
-    CPP_TOK_EOF,
-    CPP_TOK_IDENTIFIER,
-    CPP_TOK_STRING_LITERAL,
-    CPP_TOK_HASH,
-    CPP_TOK_DEFINE,
-    CPP_TOK_UNDEF,
-    CPP_TOK_OTHER,
-};
-
 static char *cpp_input;
 static int cpp_input_size;
 static LineMap *cpp_line_map;
@@ -322,6 +311,10 @@ static void lex_string_and_char_literal(char delimiter) {
     cpp_cur_token->str = data;
 }
 
+#define is_pp_number(c1, c2) (c1 >= '0' && c1 <= '9') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == '.' && (c2 >= '0' && c2 <= '9'))
+#define is_non_digit(c1) ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_')
+#define is_exponent(c1, c2) (c1 == 'E' || c1 == 'e') && (c2 == '+' || c2 == '-')
+
 // Lex one CPP token, starting with optional whitespace
 static void cpp_next() {
     char *whitespace = lex_whitespace();
@@ -370,6 +363,23 @@ static void cpp_next() {
 
         else if ((c1 == '\'') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '\''))
             lex_string_and_char_literal('\'');
+
+        else if (is_pp_number(c1, c2)) {
+            int size = 1;
+            char *start = &(i[cpp_cur_ip]);
+            advance_cur_ip();
+
+            while (c1 = i[cpp_cur_ip], c2 = i[cpp_cur_ip + 1], c1 == '.' || is_pp_number(c1, c2) || is_non_digit(c1) || is_exponent(c1, c2)) {
+                if (is_exponent(c1, c2)) { advance_cur_ip(); size++; }
+                advance_cur_ip();
+                size++;
+            }
+
+            cpp_cur_token = new_cpp_token(CPP_TOK_NUMBER);
+            cpp_cur_token->str = malloc(size + 1);
+            memcpy(cpp_cur_token->str, start, size);
+            cpp_cur_token->str[size] = 0;
+        }
 
         else {
             cpp_cur_token = new_cpp_token(CPP_TOK_OTHER);
@@ -544,13 +554,8 @@ static void parse_directive(void) {
 static void append_cpp_token_to_output(CppToken *token) {
     switch (token->kind) {
         case CPP_TOK_IDENTIFIER:
-            if (token->whitespace) append_string_to_output(token->whitespace);
-            append_string_to_output(token->str);
-            break;
         case CPP_TOK_STRING_LITERAL:
-            if (token->whitespace) append_string_to_output(token->whitespace);
-            append_string_to_output(token->str);
-            break;
+        case CPP_TOK_NUMBER:
         case CPP_TOK_OTHER:
             if (token->whitespace) append_string_to_output(token->whitespace);
             append_string_to_output(token->str);
