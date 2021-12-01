@@ -176,6 +176,11 @@ static void advance_cur_ip(void) {
     advance_ip(&cpp_cur_ip, &cpp_cur_line_map, &cpp_cur_line_number);
 }
 
+static void advance_cur_ip_by_count(int count) {
+    for (int i = 0; i < count; i++)
+        advance_ip(&cpp_cur_ip, &cpp_cur_line_map, &cpp_cur_line_number);
+}
+
 // Create a new CPP token
 static CppToken *new_cpp_token(int kind) {
     CppToken *tok = malloc(sizeof(CppToken));
@@ -315,6 +320,20 @@ static void lex_string_and_char_literal(char delimiter) {
 #define is_non_digit(c1) ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_')
 #define is_exponent(c1, c2) (c1 == 'E' || c1 == 'e') && (c2 == '+' || c2 == '-')
 
+#define make_other_token(size) \
+    do { \
+        cpp_cur_token = new_cpp_token(CPP_TOK_OTHER); \
+        copy_token_str(start, size); \
+        advance_cur_ip_by_count(size); \
+    } while (0)
+
+#define copy_token_str(start, size) \
+    do { \
+        cpp_cur_token->str = malloc(size + 1); \
+        memcpy(cpp_cur_token->str, start, size); \
+        cpp_cur_token->str[size] = 0; \
+    } while (0)
+
 // Lex one CPP token, starting with optional whitespace
 static void cpp_next() {
     char *whitespace = lex_whitespace();
@@ -325,8 +344,11 @@ static void cpp_next() {
         cpp_cur_token = new_cpp_token(CPP_TOK_EOF);
 
     else {
+        int left = cpp_input_size - cpp_cur_ip;
         char c1 = i[cpp_cur_ip];
         char c2 = i[cpp_cur_ip + 1];
+        char c3 = left >= 3 ? i[cpp_cur_ip + 2] : 0;
+        char *start = &(i[cpp_cur_ip]);
 
         if (c1 == '\n') {
             cpp_cur_token = new_cpp_token(CPP_TOK_EOL);
@@ -337,6 +359,29 @@ static void cpp_next() {
             cpp_cur_token = new_cpp_token(CPP_TOK_HASH);
             advance_cur_ip();
         }
+
+        else if (left >= 2 && c1 == '&' && c2 == '&'             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '|' && c2 == '|'             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '=' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '!' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '<' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '>' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '+' && c2 == '+'             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '-' && c2 == '-'             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '+' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '-' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '*' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '/' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '%' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '&' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '|' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '^' && c2 == '='             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '-' && c2 == '>'             )  { make_other_token(2); }
+        else if (left >= 3 && c1 == '>' && c2 == '>' && c3 == '=')  { make_other_token(3); }
+        else if (left >= 3 && c1 == '<' && c2 == '<' && c3 == '=')  { make_other_token(3); }
+        else if (left >= 3 && c1 == '.' && c2 == '.' && c3 == '.')  { make_other_token(3); }
+        else if (left >= 2 && c1 == '>' && c2 == '>'             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '<' && c2 == '<'             )  { make_other_token(2); }
 
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             char *identifier = malloc(1024);
@@ -376,18 +421,11 @@ static void cpp_next() {
             }
 
             cpp_cur_token = new_cpp_token(CPP_TOK_NUMBER);
-            cpp_cur_token->str = malloc(size + 1);
-            memcpy(cpp_cur_token->str, start, size);
-            cpp_cur_token->str[size] = 0;
+            copy_token_str(start, size);
         }
 
-        else {
-            cpp_cur_token = new_cpp_token(CPP_TOK_OTHER);
-            cpp_cur_token->str = malloc(2);
-            cpp_cur_token->str[0] = c1;
-            cpp_cur_token->str[1] = 0;
-            advance_cur_ip();
-        }
+        else
+            make_other_token(1);
     }
 
     cpp_cur_token->line_number = cpp_cur_line_number;

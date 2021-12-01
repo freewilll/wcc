@@ -262,60 +262,56 @@ void next(void) {
 
         if (ip >= input_size) break;
 
+        int left = input_size - ip;
         char c1 = i[ip];
         char c2 = i[ip + 1];
-        char c3 = ip >= 3 ? i[ip + 2] : 0;
+        char c3 = left>= 3 ? i[ip + 2] : 0;
 
-        if (                             c1 == '('                          )  { ip += 1;  cur_token = TOK_LPAREN;                     }
-        else if (                        c1 == ')'                          )  { ip += 1;  cur_token = TOK_RPAREN;                     }
-        else if (                        c1 == '['                          )  { ip += 1;  cur_token = TOK_LBRACKET;                   }
-        else if (                        c1 == ']'                          )  { ip += 1;  cur_token = TOK_RBRACKET;                   }
-        else if (                        c1 == '{'                          )  { ip += 1;  cur_token = TOK_LCURLY;                     }
-        else if (                        c1 == '}'                          )  { ip += 1;  cur_token = TOK_RCURLY;                     }
-        else if (                        c1 == ','                          )  { ip += 1;  cur_token = TOK_COMMA;                      }
-        else if (                        c1 == ';'                          )  { ip += 1;  cur_token = TOK_SEMI;                       }
-        else if (                        c1 == '?'                          )  { ip += 1;  cur_token = TOK_TERNARY;                    }
-        else if (                        c1 == ':'                          )  { ip += 1;  cur_token = TOK_COLON;                      }
-        else if (input_size - ip >= 2 && c1 == '&' && c2 == '&'             )  { ip += 2;  cur_token = TOK_AND;                        }
-        else if (input_size - ip >= 2 && c1 == '|' && c2 == '|'             )  { ip += 2;  cur_token = TOK_OR;                         }
-        else if (input_size - ip >= 2 && c1 == '=' && c2 == '='             )  { ip += 2;  cur_token = TOK_DBL_EQ;                     }
-        else if (input_size - ip >= 2 && c1 == '!' && c2 == '='             )  { ip += 2;  cur_token = TOK_NOT_EQ;                     }
-        else if (input_size - ip >= 2 && c1 == '<' && c2 == '='             )  { ip += 2;  cur_token = TOK_LE;                         }
-        else if (input_size - ip >= 2 && c1 == '>' && c2 == '='             )  { ip += 2;  cur_token = TOK_GE;                         }
-        else if (input_size - ip >= 2 && c1 == '+' && c2 == '+'             )  { ip += 2;  cur_token = TOK_INC;                        }
-        else if (input_size - ip >= 2 && c1 == '-' && c2 == '-'             )  { ip += 2;  cur_token = TOK_DEC;                        }
-        else if (input_size - ip >= 2 &&              c1 == '+' && c2 == '=')  { ip += 2;  cur_token = TOK_PLUS_EQ;                    }
-        else if (input_size - ip >= 2 &&              c1 == '-' && c2 == '=')  { ip += 2;  cur_token = TOK_MINUS_EQ;                   }
-        else if (input_size - ip >= 2 &&              c1 == '*' && c2 == '=')  { ip += 2;  cur_token = TOK_MULTIPLY_EQ;                }
-        else if (input_size - ip >= 2 &&              c1 == '/' && c2 == '=')  { ip += 2;  cur_token = TOK_DIVIDE_EQ;                  }
-        else if (input_size - ip >= 2 &&              c1 == '%' && c2 == '=')  { ip += 2;  cur_token = TOK_MOD_EQ;                     }
-        else if (input_size - ip >= 2 &&              c1 == '&' && c2 == '=')  { ip += 2;  cur_token = TOK_BITWISE_AND_EQ;             }
-        else if (input_size - ip >= 2 &&              c1 == '|' && c2 == '=')  { ip += 2;  cur_token = TOK_BITWISE_OR_EQ;              }
-        else if (input_size - ip >= 2 &&              c1 == '^' && c2 == '=')  { ip += 2;  cur_token = TOK_BITWISE_XOR_EQ;             }
-        else if (input_size - ip >= 3 && c1 == '>' && c2 == '>' && c3 == '=')  { ip += 3;  cur_token = TOK_BITWISE_RIGHT_EQ;           }
-        else if (input_size - ip >= 3 && c1 == '<' && c2 == '<' && c3 == '=')  { ip += 3;  cur_token = TOK_BITWISE_LEFT_EQ;            }
-        else if (input_size - ip >= 2 && c1 == '-' && c2 == '>'             )  { ip += 2;  cur_token = TOK_ARROW;                      }
-        else if (input_size - ip >= 2 && c1 == '>' && c2 == '>'             )  { ip += 2;  cur_token = TOK_BITWISE_RIGHT;              }
-        else if (input_size - ip >= 2 && c1 == '<' && c2 == '<'             )  { ip += 2;  cur_token = TOK_BITWISE_LEFT;               }
-        else if (                        c1 == '+'                          )  { ip += 1;  cur_token = TOK_PLUS;                       }
-        else if (                        c1 == '-'                          )  { ip += 1;  cur_token = TOK_MINUS;                      }
-        else if (                        c1 == '*'                          )  { ip += 1;  cur_token = TOK_MULTIPLY;                   }
-        else if (                        c1 == '/'                          )  { ip += 1;  cur_token = TOK_DIVIDE;                     }
-        else if (                        c1 == '%'                          )  { ip += 1;  cur_token = TOK_MOD;                        }
-        else if (                        c1 == '='                          )  { ip += 1;  cur_token = TOK_EQ;                         }
-        else if (                        c1 == '<'                          )  { ip += 1;  cur_token = TOK_LT;                         }
-        else if (                        c1 == '>'                          )  { ip += 1;  cur_token = TOK_GT;                         }
-        else if (                        c1 == '!'                          )  { ip += 1;  cur_token = TOK_LOGICAL_NOT;                }
-        else if (                        c1 == '~'                          )  { ip += 1;  cur_token = TOK_BITWISE_NOT;                }
-        else if (                        c1 == '&'                          )  { ip += 1;  cur_token = TOK_AMPERSAND;                  }
-        else if (                        c1 == '|'                          )  { ip += 1;  cur_token = TOK_BITWISE_OR;                 }
-        else if (                        c1 == '^'                          )  { ip += 1;  cur_token = TOK_XOR;                        }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\t'",  4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\t';   }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\n'",  4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\n';   }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\''",  4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\'';   }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\"'", 4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\"';   }
-        else if (input_size - ip >= 4 && !memcmp(i+ip, "'\\\\'", 4          )) { ip += 4;  cur_token = TOK_INTEGER; cur_long = '\\';   }
-        else if (input_size - ip >= 3 && !memcmp(i+ip, "...",  3            )) { ip += 3;  cur_token = TOK_ELLIPSES;                   }
+        if (                  c1 == '('                          )  { ip += 1;  cur_token = TOK_LPAREN;                     }
+        else if (             c1 == ')'                          )  { ip += 1;  cur_token = TOK_RPAREN;                     }
+        else if (             c1 == '['                          )  { ip += 1;  cur_token = TOK_LBRACKET;                   }
+        else if (             c1 == ']'                          )  { ip += 1;  cur_token = TOK_RBRACKET;                   }
+        else if (             c1 == '{'                          )  { ip += 1;  cur_token = TOK_LCURLY;                     }
+        else if (             c1 == '}'                          )  { ip += 1;  cur_token = TOK_RCURLY;                     }
+        else if (             c1 == ','                          )  { ip += 1;  cur_token = TOK_COMMA;                      }
+        else if (             c1 == ';'                          )  { ip += 1;  cur_token = TOK_SEMI;                       }
+        else if (             c1 == '?'                          )  { ip += 1;  cur_token = TOK_TERNARY;                    }
+        else if (             c1 == ':'                          )  { ip += 1;  cur_token = TOK_COLON;                      }
+        else if (left >= 2 && c1 == '&' && c2 == '&'             )  { ip += 2;  cur_token = TOK_AND;                        }
+        else if (left >= 2 && c1 == '|' && c2 == '|'             )  { ip += 2;  cur_token = TOK_OR;                         }
+        else if (left >= 2 && c1 == '=' && c2 == '='             )  { ip += 2;  cur_token = TOK_DBL_EQ;                     }
+        else if (left >= 2 && c1 == '!' && c2 == '='             )  { ip += 2;  cur_token = TOK_NOT_EQ;                     }
+        else if (left >= 2 && c1 == '<' && c2 == '='             )  { ip += 2;  cur_token = TOK_LE;                         }
+        else if (left >= 2 && c1 == '>' && c2 == '='             )  { ip += 2;  cur_token = TOK_GE;                         }
+        else if (left >= 2 && c1 == '+' && c2 == '+'             )  { ip += 2;  cur_token = TOK_INC;                        }
+        else if (left >= 2 && c1 == '-' && c2 == '-'             )  { ip += 2;  cur_token = TOK_DEC;                        }
+        else if (left >= 2 && c1 == '+' && c2 == '='             )  { ip += 2;  cur_token = TOK_PLUS_EQ;                    }
+        else if (left >= 2 && c1 == '-' && c2 == '='             )  { ip += 2;  cur_token = TOK_MINUS_EQ;                   }
+        else if (left >= 2 && c1 == '*' && c2 == '='             )  { ip += 2;  cur_token = TOK_MULTIPLY_EQ;                }
+        else if (left >= 2 && c1 == '/' && c2 == '='             )  { ip += 2;  cur_token = TOK_DIVIDE_EQ;                  }
+        else if (left >= 2 && c1 == '%' && c2 == '='             )  { ip += 2;  cur_token = TOK_MOD_EQ;                     }
+        else if (left >= 2 && c1 == '&' && c2 == '='             )  { ip += 2;  cur_token = TOK_BITWISE_AND_EQ;             }
+        else if (left >= 2 && c1 == '|' && c2 == '='             )  { ip += 2;  cur_token = TOK_BITWISE_OR_EQ;              }
+        else if (left >= 2 && c1 == '^' && c2 == '='             )  { ip += 2;  cur_token = TOK_BITWISE_XOR_EQ;             }
+        else if (left >= 2 && c1 == '-' && c2 == '>'             )  { ip += 2;  cur_token = TOK_ARROW;                      }
+        else if (left >= 3 && c1 == '>' && c2 == '>' && c3 == '=')  { ip += 3;  cur_token = TOK_BITWISE_RIGHT_EQ;           }
+        else if (left >= 3 && c1 == '<' && c2 == '<' && c3 == '=')  { ip += 3;  cur_token = TOK_BITWISE_LEFT_EQ;            }
+        else if (left >= 3 && c1 == '.' && c2 == '.' && c3 == '.')  { ip += 3;  cur_token = TOK_ELLIPSES;                   }
+        else if (left >= 2 && c1 == '>' && c2 == '>'             )  { ip += 2;  cur_token = TOK_BITWISE_RIGHT;              }
+        else if (left >= 2 && c1 == '<' && c2 == '<'             )  { ip += 2;  cur_token = TOK_BITWISE_LEFT;               }
+        else if (             c1 == '+'                          )  { ip += 1;  cur_token = TOK_PLUS;                       }
+        else if (             c1 == '-'                          )  { ip += 1;  cur_token = TOK_MINUS;                      }
+        else if (             c1 == '*'                          )  { ip += 1;  cur_token = TOK_MULTIPLY;                   }
+        else if (             c1 == '/'                          )  { ip += 1;  cur_token = TOK_DIVIDE;                     }
+        else if (             c1 == '%'                          )  { ip += 1;  cur_token = TOK_MOD;                        }
+        else if (             c1 == '='                          )  { ip += 1;  cur_token = TOK_EQ;                         }
+        else if (             c1 == '<'                          )  { ip += 1;  cur_token = TOK_LT;                         }
+        else if (             c1 == '>'                          )  { ip += 1;  cur_token = TOK_GT;                         }
+        else if (             c1 == '!'                          )  { ip += 1;  cur_token = TOK_LOGICAL_NOT;                }
+        else if (             c1 == '~'                          )  { ip += 1;  cur_token = TOK_BITWISE_NOT;                }
+        else if (             c1 == '&'                          )  { ip += 1;  cur_token = TOK_AMPERSAND;                  }
+        else if (             c1 == '|'                          )  { ip += 1;  cur_token = TOK_BITWISE_OR;                 }
+        else if (             c1 == '^'                          )  { ip += 1;  cur_token = TOK_XOR;                        }
 
         // Hex numeric literal
         else if (c1 == '0' && input_size - ip >= 2 && (i[ip+1] == 'x' || i[ip+1] == 'X')) {

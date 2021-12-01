@@ -97,17 +97,44 @@ static void test_tokenization(void) {
     assert_int(CPP_TOK_IDENTIFIER, tokens->kind, "bar kind");
     assert_string("bar", tokens->str, "bar str");
 
+    // String & character literals
     test_single_token("\"foo\"", CPP_TOK_STRING_LITERAL, "\"foo\"");
     test_single_token("'a'", CPP_TOK_STRING_LITERAL, "'a'");
-    test_single_token("12", CPP_TOK_NUMBER, "12");
-    test_single_token("99", CPP_TOK_NUMBER, "99");
-    test_single_token("1.21", CPP_TOK_NUMBER, "1.21");
-    test_single_token("123.456", CPP_TOK_NUMBER, "123.456");
-    test_single_token("1.21x", CPP_TOK_NUMBER, "1.21x");
+
+    // Numbers
+    test_single_token("12",         CPP_TOK_NUMBER, "12");
+    test_single_token("99",         CPP_TOK_NUMBER, "99");
+    test_single_token("1.21",       CPP_TOK_NUMBER, "1.21");
+    test_single_token("123.456",    CPP_TOK_NUMBER, "123.456");
+    test_single_token("1.21x",      CPP_TOK_NUMBER, "1.21x");
     test_single_token("1.21x_y_AZ", CPP_TOK_NUMBER, "1.21x_y_AZ");
-    test_single_token("1.21E+1", CPP_TOK_NUMBER, "1.21E+1");
-    test_single_token("1.21e-1", CPP_TOK_NUMBER, "1.21e-1");
-    test_single_token("1.", CPP_TOK_NUMBER, "1.");
+    test_single_token("1.21E+1",    CPP_TOK_NUMBER, "1.21E+1");
+    test_single_token("1.21e-1",    CPP_TOK_NUMBER, "1.21e-1");
+    test_single_token("1.",         CPP_TOK_NUMBER, "1.");
+
+    // Multi-character tokens
+    test_single_token("&&",  CPP_TOK_OTHER, "&&");
+    test_single_token("||",  CPP_TOK_OTHER, "||");
+    test_single_token("==",  CPP_TOK_OTHER, "==");
+    test_single_token("!=",  CPP_TOK_OTHER, "!=");
+    test_single_token("<=",  CPP_TOK_OTHER, "<=");
+    test_single_token(">=",  CPP_TOK_OTHER, ">=");
+    test_single_token("++",  CPP_TOK_OTHER, "++");
+    test_single_token("--",  CPP_TOK_OTHER, "--");
+    test_single_token("+=",  CPP_TOK_OTHER, "+=");
+    test_single_token("-=",  CPP_TOK_OTHER, "-=");
+    test_single_token("*=",  CPP_TOK_OTHER, "*=");
+    test_single_token("/=",  CPP_TOK_OTHER, "/=");
+    test_single_token("%=",  CPP_TOK_OTHER, "%=");
+    test_single_token("&=",  CPP_TOK_OTHER, "&=");
+    test_single_token("|=",  CPP_TOK_OTHER, "|=");
+    test_single_token("^=",  CPP_TOK_OTHER, "^=");
+    test_single_token("->",  CPP_TOK_OTHER, "->");
+    test_single_token(">>",  CPP_TOK_OTHER, ">>");
+    test_single_token("<<",  CPP_TOK_OTHER, "<<");
+    test_single_token(">>=", CPP_TOK_OTHER, ">>=");
+    test_single_token("<<=", CPP_TOK_OTHER, "<<=");
+    test_single_token("...", CPP_TOK_OTHER, "...");
 }
 
 int main(int argc, char **argv) {
