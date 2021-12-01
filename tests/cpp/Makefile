@@ -3,6 +3,7 @@ CPP_TESTS = \
 	empty-line \
 	one-line \
 	backslash-newlines \
+	string-literals \
 	whitespace \
 	hashes \
 	one-empty-line \

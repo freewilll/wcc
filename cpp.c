@@ -13,6 +13,7 @@ enum {
     CPP_TOK_EOL=1,
     CPP_TOK_EOF,
     CPP_TOK_IDENTIFIER,
+    CPP_TOK_STRING_LITERAL,
     CPP_TOK_HASH,
     CPP_TOK_DEFINE,
     CPP_TOK_UNDEF,
@@ -240,8 +241,7 @@ static void add_to_whitespace(char **whitespace, int *whitespace_pos, char c) {
     (*whitespace)[(*whitespace_pos)++] = c;
 }
 
-// Lex one CPP token, starting with optional whitespace
-static void cpp_next() {
+char *lex_whitespace(void) {
     char *whitespace = 0;
     int whitespace_pos = 0;
 
@@ -281,23 +281,34 @@ static void cpp_next() {
     if (whitespace)
         whitespace[whitespace_pos] = 0;
 
+    return whitespace;
+
+}
+
+// Lex one CPP token, starting with optional whitespace
+static void cpp_next() {
+    char *whitespace = lex_whitespace();
+
     char *i = cpp_input;
 
     if (cpp_cur_ip >= cpp_input_size)
         cpp_cur_token = new_cpp_token(CPP_TOK_EOF);
+
     else {
-        char c = cpp_input[cpp_cur_ip];
-        if (c == '\n') {
+        char c1 = i[cpp_cur_ip];
+        char c2 = i[cpp_cur_ip + 1];
+
+        if (c1 == '\n') {
             cpp_cur_token = new_cpp_token(CPP_TOK_EOL);
             advance_cur_ip();
         }
 
-        else if (c == '#') {
+        else if (c1 == '#') {
             cpp_cur_token = new_cpp_token(CPP_TOK_HASH);
             advance_cur_ip();
         }
 
-        else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
+        else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             char *identifier = malloc(1024);
             int j = 0;
             while (((i[cpp_cur_ip] >= 'a' && i[cpp_cur_ip] <= 'z') || (i[cpp_cur_ip] >= 'A' && i[cpp_cur_ip] <= 'Z') || (i[cpp_cur_ip] >= '0' && i[cpp_cur_ip] <= '9') || (i[cpp_cur_ip] == '_')) && cpp_cur_ip < cpp_input_size) {
@@ -317,9 +328,42 @@ static void cpp_next() {
             }
         }
 
+        else if ((c1 == '"') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '"')) {
+            if (c1 == 'L')  advance_cur_ip();;
+            advance_cur_ip();
+
+            char *data = malloc(MAX_STRING_LITERAL_SIZE);
+            int size = 0;
+
+            while (cpp_cur_ip < cpp_input_size) {
+                if (i[cpp_cur_ip] == '"') {
+                    advance_cur_ip();
+                    break;
+                }
+
+                if (cpp_input_size - cpp_cur_ip >= 2 && i[cpp_cur_ip] == '\\' && i[cpp_cur_ip + 1] == '\\') {
+                    advance_cur_ip();
+                    advance_cur_ip();
+                    if (size + 1 >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+                    data[size++] = '\\';
+                    data[size++] = '\\';
+                }
+
+                else {
+                    if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+                    data[size++] = i[cpp_cur_ip];
+                    advance_cur_ip();
+                }
+            }
+
+            data[size] = 0;
+            cpp_cur_token = new_cpp_token(CPP_TOK_STRING_LITERAL);
+            cpp_cur_token->string_literal = data;
+        }
+
         else {
             cpp_cur_token = new_cpp_token(CPP_TOK_OTHER);
-            cpp_cur_token->c = c;
+            cpp_cur_token->c = c1;
             advance_cur_ip();
         }
     }
@@ -491,6 +535,12 @@ static void append_cpp_token_to_output(CppToken *token) {
             if (token->whitespace) append_string_to_output(token->whitespace);
             append_string_to_output(token->identifier);
             break;
+        case CPP_TOK_STRING_LITERAL:
+            if (token->whitespace) append_string_to_output(token->whitespace);
+            append_char_to_output('"');
+            append_string_to_output(token->string_literal);
+            append_char_to_output('"');
+            break;
         case CPP_TOK_OTHER:
             if (token->whitespace) append_string_to_output(token->whitespace);
             append_char_to_output(token->c);
@@ -548,10 +598,8 @@ static void cpp_parse() {
                 Directive *directive = strmap_get(directives, cpp_cur_token->identifier);
                 if (directive)
                     append_cpp_tokens_to_output(expand(cpp_cur_token));
-                else {
-                    if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
-                    append_string_to_output(cpp_cur_token->identifier);
-                }
+                else
+                    append_cpp_tokens_to_output(cpp_cur_token);
 
                 in_start_of_line = 0;
 
@@ -559,9 +607,15 @@ static void cpp_parse() {
                 break;
             }
 
+            case CPP_TOK_STRING_LITERAL:
+                append_cpp_token_to_output(cpp_cur_token);
+                in_start_of_line = 0;
+
+                cpp_next();
+                break;
+
             default:
-                if (cpp_cur_token->whitespace) append_string_to_output(cpp_cur_token->whitespace);
-                append_char_to_output(cpp_cur_token->c);
+                append_cpp_tokens_to_output(expand(cpp_cur_token));
                 in_start_of_line = 0;
 
                 cpp_next();
