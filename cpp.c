@@ -669,8 +669,10 @@ static Directive *parse_define_tokens(void) {
     Directive *directive = malloc(sizeof(Directive));
     CppToken *tokens;
 
-    if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF)
+    if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF) {
+        directive->is_function = 0;
         tokens = 0;
+    }
     else {
         if (cpp_cur_token->kind != CPP_TOK_LPAREN) {
             // Parse object-like macro
