@@ -206,16 +206,6 @@ static void init_output(void) {
     cpp_output = malloc(allocated_output);
 }
 
-// Append a character to the output
-static void append_char_to_output(char c) {
-    if (cpp_output_pos == allocated_output) {
-        allocated_output *= 2;
-        if (allocated_output > MAX_CPP_OUTPUT_SIZE) panic("Exceeded max CPP output size %d", MAX_CPP_OUTPUT_SIZE);
-        cpp_output = realloc(cpp_output, allocated_output);
-    }
-    cpp_output[cpp_output_pos++] = c;
-}
-
 // Append a string to the output
 static void append_string_to_output(char *s) {
     int len = strlen(s);
@@ -281,12 +271,19 @@ static char *lex_whitespace(void) {
 
 static void lex_string_and_char_literal(char delimiter) {
     char *i = cpp_input;
-
-    if (i[cpp_cur_ip]== 'L')  advance_cur_ip();;
-    advance_cur_ip();
+    int data_offset = 0;
 
     char *data = malloc(MAX_STRING_LITERAL_SIZE + 2);
-    data[0] = delimiter;
+
+    if (i[cpp_cur_ip] == 'L') {
+        advance_cur_ip();
+        data_offset = 1;
+        data[0] = 'L';
+    }
+
+    advance_cur_ip();
+
+    data[data_offset] = delimiter;
     int size = 0;
 
     while (cpp_cur_ip < cpp_input_size) {
@@ -297,21 +294,21 @@ static void lex_string_and_char_literal(char delimiter) {
 
         if (cpp_input_size - cpp_cur_ip >= 2 && i[cpp_cur_ip] == '\\') {
             if (size + 1 >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-            data[1 + size++] = '\\';
-            data[1 + size++] = i[cpp_cur_ip + 1];
+            data[data_offset + 1 + size++] = '\\';
+            data[data_offset + 1 + size++] = i[cpp_cur_ip + 1];
             advance_cur_ip();
             advance_cur_ip();
         }
 
         else {
             if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-            data[1 + size++] = i[cpp_cur_ip];
+            data[data_offset + 1 + size++] = i[cpp_cur_ip];
             advance_cur_ip();
         }
     }
 
-    data[size + 1] = delimiter;
-    data[size + 2] = 0;
+    data[data_offset + size + 1] = delimiter;
+    data[data_offset + size + 2] = 0;
     cpp_cur_token = new_cpp_token(CPP_TOK_STRING_LITERAL);
     cpp_cur_token->str = data;
 }
@@ -367,8 +364,6 @@ static void cpp_next() {
         else if (left >= 2 && c1 == '!' && c2 == '='             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '<' && c2 == '='             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '>' && c2 == '='             )  { make_other_token(2); }
-        else if (left >= 2 && c1 == '+' && c2 == '+'             )  { make_other_token(2); }
-        else if (left >= 2 && c1 == '-' && c2 == '-'             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '+' && c2 == '='             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '-' && c2 == '='             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '*' && c2 == '='             )  { make_other_token(2); }
@@ -381,11 +376,17 @@ static void cpp_next() {
         else if (left >= 3 && c1 == '>' && c2 == '>' && c3 == '=')  { make_other_token(3); }
         else if (left >= 3 && c1 == '<' && c2 == '<' && c3 == '=')  { make_other_token(3); }
         else if (left >= 3 && c1 == '.' && c2 == '.' && c3 == '.')  { make_other_token(3); }
-        else if (left >= 2 && c1 == '>' && c2 == '>'             )  { make_other_token(2); }
-        else if (left >= 2 && c1 == '<' && c2 == '<'             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '+' && c2 == '+'             )  { make_token(CPP_TOK_INC, 2); }
+        else if (left >= 2 && c1 == '-' && c2 == '-'             )  { make_token(CPP_TOK_DEC, 2); }
         else if (             c1 == '('                          )  { make_token(CPP_TOK_LPAREN, 1); }
         else if (             c1 == ')'                          )  { make_token(CPP_TOK_RPAREN, 1); }
         else if (             c1 == ','                          )  { make_token(CPP_TOK_COMMA, 1); }
+
+        else if ((c1 == '"') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '"'))
+            lex_string_and_char_literal('"');
+
+        else if ((c1 == '\'') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '\''))
+            lex_string_and_char_literal('\'');
 
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             char *identifier = malloc(1024);
@@ -407,12 +408,6 @@ static void cpp_next() {
             }
         }
 
-        else if ((c1 == '"') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '"'))
-            lex_string_and_char_literal('"');
-
-        else if ((c1 == '\'') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '\''))
-            lex_string_and_char_literal('\'');
-
         else if (is_pp_number(c1, c2)) {
             int size = 1;
             char *start = &(i[cpp_cur_ip]);
@@ -429,7 +424,7 @@ static void cpp_next() {
         }
 
         else
-            make_other_token(1);
+            make_token(c1, 1);
     }
 
     cpp_cur_token->line_number = cpp_cur_line_number;
@@ -743,14 +738,59 @@ static void parse_directive(void) {
     }
 }
 
-static void append_cpp_token_to_output(CppToken *token) {
-    if (token->whitespace) append_string_to_output(token->whitespace);
-    append_string_to_output(token->str);
+// Determine if two tokens that don't have a space in between them already need one.
+// The specs are unclear about this, so I followed gcc's cpp_avoid_paste() in lex.c.
+static int need_token_space(CppToken *t1, CppToken *t2) {
+    if (t2->kind == '=') {
+        switch(t1->kind) {
+            case '=':
+            case '!':
+            case '+':
+            case '-':
+            case '*':
+            case '/':
+            case '%':
+            case '<':
+            case '>':
+            case '&':
+            case '|':
+            case '^':
+                return 1;
+        }
+    }
+
+         if (t1->kind == '<' && t2->kind == '<') return 1;
+    else if (t1->kind == '>' && t2->kind == '>') return 1;
+    else if (t1->kind == '+' && t2->kind == '+') return 1;
+    else if (t1->kind == '-' && t2->kind == '-') return 1;
+    else if (t1->kind == '&' && t2->kind == '&') return 1;
+    else if (t1->kind == '|' && t2->kind == '|') return 1;
+    else if (t1->kind == '-' && t2->kind == '>') return 1;
+    else if (t1->kind == '/' && t2->kind == '*') return 1;
+
+    else if (t1->kind == '+' && t2->kind == CPP_TOK_INC) return 1;
+    else if (t1->kind == '-' && t2->kind == CPP_TOK_DEC) return 1;
+    else if (t1->kind == '.' && t2->kind == CPP_TOK_NUMBER) return 1;
+
+    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_IDENTIFIER) return 1;
+    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_NUMBER) return 1;
+    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_STRING_LITERAL) return 1;
+    else if (t1->kind == CPP_TOK_NUMBER     && t2->kind == CPP_TOK_IDENTIFIER) return 1;
+    else if (t1->kind == CPP_TOK_NUMBER     && t2->kind == CPP_TOK_NUMBER) return 1;
+
+    return 0;
 }
 
 static void append_cpp_tokens_to_output(CppToken *token) {
+    CppToken *prev = 0;
     while (token) {
-        append_cpp_token_to_output(token);
+        if (token->whitespace)
+            append_string_to_output(token->whitespace);
+        else if (prev && need_token_space(prev, token))
+            append_string_to_output(" ");
+
+        append_string_to_output(token->str);
+        prev = token;
         token = token->next;
     }
 }
@@ -783,7 +823,7 @@ static void cpp_parse() {
 
         while (print_line_number < cpp_cur_line_number) {
             print_line_number++;
-            append_char_to_output('\n');
+            append_string_to_output("\n");
         }
 
         cpp_next();
@@ -812,7 +852,7 @@ void preprocess(char *filename, char *output_filename) {
     // Parse
     init_output();
     cpp_parse();
-    append_char_to_output(0);
+    cpp_output[cpp_output_pos++] = 0;
 
     // Print the output
     if (!output_filename || !strcmp(output_filename, "-"))

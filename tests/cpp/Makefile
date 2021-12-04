@@ -19,6 +19,7 @@ CPP_TESTS = \
 OK_FILENAMES := $(addsuffix -ok, ${CPP_TESTS})
 RESULT_FILENAMES := $(addsuffix -result.c, ${CPP_TESTS})
 
+
 all: ${OK_FILENAMES}
 
 %-ok: %.c %-output.c ../../wcc
@@ -31,6 +32,10 @@ all: ${OK_FILENAMES}
 	diff $*-result.c $*-result2.c
 
 	touch $*-ok
+
+.PHONY: regen
+regen:
+	$(foreach var,$(CPP_TESTS),../../wcc -E $(var).c -o $(var)-output.c;)
 
 clean:
 	@rm -f *-result*.c

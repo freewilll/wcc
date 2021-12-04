@@ -595,6 +595,8 @@ enum {
     CPP_TOK_LPAREN,
     CPP_TOK_RPAREN,
     CPP_TOK_COMMA,
+    CPP_TOK_INC,
+    CPP_TOK_DEC,
     CPP_TOK_OTHER,
 };
 

@@ -33,3 +33,153 @@ empty_func(foo)
 #define foo3() bar3
 foo3
 baz3
+
+#define T =
+T=
+=T
+=T=
+
+// Token paste avoidance
+#undef T
+#define T &
+&T T&
+
+#undef T
+#define T |
+|T T|
+
+#undef T
+#define T =
+=T T=
+
+#undef T
+#define T !
+T=
+
+#undef T
+#define T <
+T=
+
+#undef T
+#define T >
+T=
+
+#undef T
+#define T +
+T+
+
+#undef T
+#define T -
+T-
+
+#undef T
+#define T +
+T++
+
+#undef T
+#define T -
+T--
+
+#undef T
+#define T ++
+T+
+
+#undef T
+#define T --
+T-
+
+#undef T
+#define T +
+T=
+
+#undef T
+#define T -
+T=
+
+#undef T
+#define T *
+T=
+
+#undef T
+#define T /
+T=
+
+#undef T
+#define T %
+T=
+
+#undef T
+#define T &
+T=
+
+#undef T
+#define T |
+T=
+
+#undef T
+#define T ^
+T=
+
+#undef T
+#define T -
+T>
+
+#undef T
+#define T >
+T>
+
+#undef T
+#define T <
+T<
+
+#undef T
+#define T *
+T*
+
+#undef t
+#undef t2
+#define t() .
+#define t2 1
+t()t2
+
+#undef t
+#undef t2
+#define t() a
+#define t2 b
+t()t2
+
+#undef t
+#undef t2
+#define t() a
+#define t2 1
+t()t2
+
+#undef t
+#undef t2
+#define t() a
+#define t2 "foo"
+t()t2
+
+#undef t
+#undef t2
+#define t() a
+#define t2 'f'
+t()t2
+
+#undef t
+#undef t2
+#define t() 1
+#define t2 a
+t()t2
+
+#undef t
+#undef t2
+#define t() 1
+#define t2 2
+t()t2
+
+#undef t
+#undef t2
+#define t() /
+#define t2 *
+t()t2

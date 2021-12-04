@@ -119,8 +119,8 @@ static void test_tokenization(void) {
     test_single_token("!=",  CPP_TOK_OTHER, "!=");
     test_single_token("<=",  CPP_TOK_OTHER, "<=");
     test_single_token(">=",  CPP_TOK_OTHER, ">=");
-    test_single_token("++",  CPP_TOK_OTHER, "++");
-    test_single_token("--",  CPP_TOK_OTHER, "--");
+    test_single_token("++",  CPP_TOK_INC,   "++");
+    test_single_token("--",  CPP_TOK_DEC,   "--");
     test_single_token("+=",  CPP_TOK_OTHER, "+=");
     test_single_token("-=",  CPP_TOK_OTHER, "-=");
     test_single_token("*=",  CPP_TOK_OTHER, "*=");
@@ -130,8 +130,6 @@ static void test_tokenization(void) {
     test_single_token("|=",  CPP_TOK_OTHER, "|=");
     test_single_token("^=",  CPP_TOK_OTHER, "^=");
     test_single_token("->",  CPP_TOK_OTHER, "->");
-    test_single_token(">>",  CPP_TOK_OTHER, ">>");
-    test_single_token("<<",  CPP_TOK_OTHER, "<<");
     test_single_token(">>=", CPP_TOK_OTHER, ">>=");
     test_single_token("<<=", CPP_TOK_OTHER, "<<=");
     test_single_token("...", CPP_TOK_OTHER, "...");
