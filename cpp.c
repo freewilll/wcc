@@ -52,6 +52,7 @@ static void init_cpp(char *filename) {
 
     cpp_input[cpp_input_size] = 0;
     cpp_cur_filename = filename;
+    cur_filename = filename;
 }
 
 void init_cpp_from_string(char *string) {
@@ -167,6 +168,7 @@ static void advance_ip(int *ip, LineMap **lm, int *line_number) {
 
     if (*lm && *ip == (*lm)->position) {
         *line_number = (*lm)->line_number;
+        cur_line = *line_number;
         *lm = (*lm)->next;
     }
 }
