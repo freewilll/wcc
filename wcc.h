@@ -776,6 +776,7 @@ char *base_path(char *path);
 int wasprintf(char **ret, const char *format, ...);
 StringBuffer *new_string_buffer(int initial_size);
 void append_to_string_buffer(StringBuffer *sb, char *str);
+void terminate_string_buffer(StringBuffer *sb);
 
 // lexer.c
 void init_lexer(char *filename);

@@ -71,6 +71,7 @@ int wasprintf(char **ret, const char *format, ...) {
     return size;
 }
 
+// Allocate data for a new string buffer, rounding initial_size up to a power of two.
 StringBuffer *new_string_buffer(int initial_size) {
     StringBuffer *sb = malloc(sizeof(StringBuffer));
     sb->position = 0;
@@ -83,7 +84,7 @@ StringBuffer *new_string_buffer(int initial_size) {
     return sb;
 }
 
-// Append a string to the output
+// Append a string to the string buffer
 void append_to_string_buffer(StringBuffer *sb, char *str) {
     int len = strlen(str);
     int needed = sb->position + len;
@@ -93,4 +94,9 @@ void append_to_string_buffer(StringBuffer *sb, char *str) {
     }
     sprintf(sb->data + sb->position, "%s", str);
     sb->position += len;
+}
+
+// Null terminate the string in the string buffer
+void terminate_string_buffer(StringBuffer *sb) {
+    sb->data[sb->position] = 0;
 }

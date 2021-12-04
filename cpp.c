@@ -28,9 +28,6 @@ static int output_line_number; // How many lines have been outputted
 static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os);
 static CppToken *hsadd(StrSet *hs, CppToken *ts);
 
-// Append a string to the output
-#define append_string_to_output(str) do { append_to_string_buffer(output, str); } while(0)
-
 static void init_cpp(char *filename) {
     FILE *f  = fopen(filename, "r");
 
@@ -163,6 +160,85 @@ void strip_backslash_newlines(void) {
     cpp_input = output;
     cpp_input_size = op;
     lm->next = 0;
+}
+
+// Determine if two tokens that don't have a space in between them already need one.
+// The specs are unclear about this, so I followed gcc's cpp_avoid_paste() in lex.c.
+static int need_token_space(CppToken *t1, CppToken *t2) {
+    if (t2->kind == '=') {
+        switch(t1->kind) {
+            case '=':
+            case '!':
+            case '+':
+            case '-':
+            case '*':
+            case '/':
+            case '%':
+            case '<':
+            case '>':
+            case '&':
+            case '|':
+            case '^':
+                return 1;
+        }
+    }
+
+         if (t1->kind == '<' && t2->kind == '<') return 1;
+    else if (t1->kind == '>' && t2->kind == '>') return 1;
+    else if (t1->kind == '+' && t2->kind == '+') return 1;
+    else if (t1->kind == '-' && t2->kind == '-') return 1;
+    else if (t1->kind == '&' && t2->kind == '&') return 1;
+    else if (t1->kind == '|' && t2->kind == '|') return 1;
+    else if (t1->kind == '-' && t2->kind == '>') return 1;
+    else if (t1->kind == '/' && t2->kind == '*') return 1;
+
+    else if (t1->kind == '+' && t2->kind == CPP_TOK_INC) return 1;
+    else if (t1->kind == '-' && t2->kind == CPP_TOK_DEC) return 1;
+    else if (t1->kind == '.' && t2->kind == CPP_TOK_NUMBER) return 1;
+
+    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_IDENTIFIER) return 1;
+    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_NUMBER) return 1;
+    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_STRING_LITERAL) return 1;
+    else if (t1->kind == CPP_TOK_NUMBER     && t2->kind == CPP_TOK_IDENTIFIER) return 1;
+    else if (t1->kind == CPP_TOK_NUMBER     && t2->kind == CPP_TOK_NUMBER) return 1;
+    else if (t1->kind == CPP_TOK_STRING_LITERAL && t2->kind == CPP_TOK_STRING_LITERAL) return 1;
+
+    return 0;
+}
+
+static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, int collapse_whitespace) {
+    CppToken *prev = 0;
+    while (token) {
+        if (token->whitespace && !collapse_whitespace)
+            append_to_string_buffer(sb, token->whitespace);
+        else if (token->whitespace && collapse_whitespace)
+            append_to_string_buffer(sb, " ");
+        else if (prev && need_token_space(prev, token))
+            append_to_string_buffer(sb, " ");
+
+        append_to_string_buffer(sb, token->str);
+
+        int is_eol = (token->kind == CPP_TOK_EOL);
+
+        prev = token;
+        token = token->next;
+
+        if (is_eol) output_line_number++;
+
+        if (is_eol && token) {
+            // Output sufficient newlines to catch up with token->line_number
+            // This ensures that each line in the input ends up on the same line
+            // in the output.
+            while (output_line_number < token->line_number) {
+                output_line_number++;
+                append_to_string_buffer(sb, "\n");
+            }
+        }
+    }
+}
+
+static void append_tokens_to_output(CppToken *tokens) {
+    append_tokens_to_string_buffer(output, tokens, 0);
 }
 
 static void advance_ip(int *ip, LineMap **lm, int *line_number) {
@@ -589,6 +665,70 @@ static CppToken *expand(CppToken *is) {
     return t;
 }
 
+// Returns a new token which is the stringized version of the input token sequence
+static CppToken *stringize(CppToken *ts) {
+    StringBuffer *rendered = new_string_buffer(128);
+
+    append_tokens_to_string_buffer(rendered, ts, 1);
+
+    terminate_string_buffer(rendered);
+
+    StringBuffer *escaped = new_string_buffer(strlen(rendered->data) * 2);
+    append_to_string_buffer(escaped, "\"");
+
+    int in_string = 0;
+    int in_char = 0;
+
+    char *s = rendered->data;
+    while (*s == ' ') s++; // Skip leading whitespace
+
+    for (; *s; s++) {
+        char c = *s;
+
+        if (c == '"') {
+            append_to_string_buffer(escaped, "\\\"");
+            in_string = !in_string;
+        }
+        else if (c == '\'') {
+            append_to_string_buffer(escaped, "'");
+            in_char = !in_char;
+        }
+        else if (c == '\\') {
+            char c2 = s[1];
+            if (in_string && c2 == '"') {
+                append_to_string_buffer(escaped, "\\\\\\\"");  // Escape \"
+                s++;
+                continue;
+            }
+            else if (in_char && c2 == '\'') {
+                append_to_string_buffer(escaped, "\\\\'");  // Escape \'
+                s++;
+                continue;
+            }
+            else if ((in_string || in_char) && (c2 == '\\')) {
+                append_to_string_buffer(escaped, "\\\\\\\\");  // Escape double backslash
+                s++;
+                continue;
+            }
+
+            if (in_string || in_char)
+                append_to_string_buffer(escaped, "\\\\");
+            else
+                append_to_string_buffer(escaped, "\\");
+        }
+        else {
+            char s[2] = {c, 0};
+            append_to_string_buffer(escaped, s);
+        }
+    }
+
+    append_to_string_buffer(escaped, "\"");
+
+    CppToken *result = new_cpp_token(CPP_TOK_STRING_LITERAL);
+    result->str = escaped->data;
+    return result;
+}
+
 // Inputs:
 //   is: input sequence
 //   fp: formal parameters
@@ -603,9 +743,20 @@ static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppT
         return hsadd(hs, os);
     }
 
-    int fp_index = fp ? (int) (long) strmap_get(fp, is->str) : 0;
-    if (fp_index) {
-        CppToken *replacement = ap[fp_index - 1];
+    CppToken *is1 = is->next;
+
+    int is_fp_index = fp ? (int) (long) strmap_get(fp, is->str) : 0;
+    int is1_fp_index = fp && is1 ? (int) (long) strmap_get(fp, is1->str) : 0;
+
+    if (is->kind == CPP_TOK_HASH && is1_fp_index) {
+        CppToken *replacement = ap[is1_fp_index - 1];
+        os = cll_append(os, stringize(replacement));
+
+        return subst(is1->next, fp, ap, hs, os);
+    }
+
+    if (is_fp_index) {
+        CppToken *replacement = ap[is_fp_index - 1];
 
         CppToken *expanded = expand(replacement);
         if (!expanded) {
@@ -741,78 +892,6 @@ static void parse_directive(void) {
     }
 }
 
-// Determine if two tokens that don't have a space in between them already need one.
-// The specs are unclear about this, so I followed gcc's cpp_avoid_paste() in lex.c.
-static int need_token_space(CppToken *t1, CppToken *t2) {
-    if (t2->kind == '=') {
-        switch(t1->kind) {
-            case '=':
-            case '!':
-            case '+':
-            case '-':
-            case '*':
-            case '/':
-            case '%':
-            case '<':
-            case '>':
-            case '&':
-            case '|':
-            case '^':
-                return 1;
-        }
-    }
-
-         if (t1->kind == '<' && t2->kind == '<') return 1;
-    else if (t1->kind == '>' && t2->kind == '>') return 1;
-    else if (t1->kind == '+' && t2->kind == '+') return 1;
-    else if (t1->kind == '-' && t2->kind == '-') return 1;
-    else if (t1->kind == '&' && t2->kind == '&') return 1;
-    else if (t1->kind == '|' && t2->kind == '|') return 1;
-    else if (t1->kind == '-' && t2->kind == '>') return 1;
-    else if (t1->kind == '/' && t2->kind == '*') return 1;
-
-    else if (t1->kind == '+' && t2->kind == CPP_TOK_INC) return 1;
-    else if (t1->kind == '-' && t2->kind == CPP_TOK_DEC) return 1;
-    else if (t1->kind == '.' && t2->kind == CPP_TOK_NUMBER) return 1;
-
-    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_IDENTIFIER) return 1;
-    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_NUMBER) return 1;
-    else if (t1->kind == CPP_TOK_IDENTIFIER && t2->kind == CPP_TOK_STRING_LITERAL) return 1;
-    else if (t1->kind == CPP_TOK_NUMBER     && t2->kind == CPP_TOK_IDENTIFIER) return 1;
-    else if (t1->kind == CPP_TOK_NUMBER     && t2->kind == CPP_TOK_NUMBER) return 1;
-
-    return 0;
-}
-
-static void append_cpp_tokens_to_output(CppToken *token) {
-    CppToken *prev = 0;
-    while (token) {
-        if (token->whitespace)
-            append_string_to_output(token->whitespace);
-        else if (prev && need_token_space(prev, token))
-            append_string_to_output(" ");
-
-        append_string_to_output(token->str);
-
-        int is_eol = (token->kind == CPP_TOK_EOL);
-
-        prev = token;
-        token = token->next;
-
-        if (is_eol) output_line_number++;
-
-        if (is_eol && token) {
-            // Output sufficient newlines to catch up with token->line_number
-            // This ensures that each line in the input ends up on the same line
-            // in the output.
-            while (output_line_number < token->line_number) {
-                output_line_number++;
-                append_string_to_output("\n");
-            }
-        }
-    }
-}
-
 // Parse tokens from the lexer
 static void cpp_parse() {
     output_line_number = 1;
@@ -822,7 +901,7 @@ static void cpp_parse() {
     while (cpp_cur_token->kind != CPP_TOK_EOF) {
         while (cpp_cur_token->kind != CPP_TOK_EOF) {
             if (new_line && cpp_cur_token->kind == CPP_TOK_HASH) {
-                if (group_tokens) append_cpp_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
+                if (group_tokens) append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
 
                 parse_directive();
                 group_tokens = 0;
@@ -835,7 +914,7 @@ static void cpp_parse() {
         }
     }
 
-    if (group_tokens) append_cpp_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
+    if (group_tokens) append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
 }
 
 Directive *parse_cli_define(char *string) {
@@ -860,7 +939,7 @@ void preprocess(char *filename, char *output_filename) {
     // Parse
     output = new_string_buffer(cpp_input_size * 2);
     cpp_parse();
-    output->data[output->position] = 0;
+    terminate_string_buffer(output);
 
     // Print the output
     if (!output_filename || !strcmp(output_filename, "-"))

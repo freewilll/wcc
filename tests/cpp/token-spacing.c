@@ -183,3 +183,9 @@ t()t2
 #define t() /
 #define t2 *
 t()t2
+
+#undef t
+#undef t2
+#define t() "a"
+#define t2 "b"
+t()t2

@@ -15,7 +15,8 @@ CPP_TESTS = \
 	object-like-macros \
 	function-like-macros \
 	newlines-and-macros \
-	comments
+	stringizing-operator \
+	comments \
 
 OK_FILENAMES := $(addsuffix -ok, ${CPP_TESTS})
 RESULT_FILENAMES := $(addsuffix -result.c, ${CPP_TESTS})
