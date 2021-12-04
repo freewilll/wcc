@@ -70,3 +70,27 @@ int wasprintf(char **ret, const char *format, ...) {
 
     return size;
 }
+
+StringBuffer *new_string_buffer(int initial_size) {
+    StringBuffer *sb = malloc(sizeof(StringBuffer));
+    sb->position = 0;
+
+    int allocated = 1;
+    while (allocated < initial_size * 2) allocated <<= 1;
+    sb->allocated = allocated;
+    sb->data = malloc(allocated);
+
+    return sb;
+}
+
+// Append a string to the output
+void append_to_string_buffer(StringBuffer *sb, char *str) {
+    int len = strlen(str);
+    int needed = sb->position + len;
+    if (sb->allocated < needed) {
+        while (sb->allocated < needed) sb->allocated <<= 1;
+        sb->data = realloc(sb->data, sb->allocated);
+    }
+    sprintf(sb->data + sb->position, "%s", str);
+    sb->position += len;
+}

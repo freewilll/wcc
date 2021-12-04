@@ -762,11 +762,20 @@ void dump_graph(Graph *g);
 GraphEdge *add_graph_edge(Graph *g, int from, int to);
 
 // utils.c
+// A struct for appending strings to a buffer without knowing the size beforehand
+typedef struct string_buffer {
+    char *data;
+    int position;
+    int allocated;
+} StringBuffer;
+
 void panic(char *format, ...);
 Function *new_function(void);
 void quicksort_ulong_array(unsigned long *array, int left, int right);
 char *base_path(char *path);
 int wasprintf(char **ret, const char *format, ...);
+StringBuffer *new_string_buffer(int initial_size);
+void append_to_string_buffer(StringBuffer *sb, char *str);
 
 // lexer.c
 void init_lexer(char *filename);

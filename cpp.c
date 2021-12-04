@@ -22,13 +22,14 @@ static CppToken *cpp_cur_token;     // Current token
 
 // Output
 FILE *cpp_output_file;         // Output file handle
-static char *cpp_output;       // Overall output
-static int cpp_output_pos;     // Position in cpp_output;
-static int allocated_output;   // How much has been allocated for cpp_output;
+StringBuffer *output;          // Output string buffer;
 static int output_line_number; // How many lines have been outputted
 
 static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os);
 static CppToken *hsadd(StrSet *hs, CppToken *ts);
+
+// Append a string to the output
+#define append_string_to_output(str) do { append_to_string_buffer(output, str); } while(0)
 
 static void init_cpp(char *filename) {
     FILE *f  = fopen(filename, "r");
@@ -199,27 +200,6 @@ static CppToken *dup_cpp_token(CppToken *tok) {
     CppToken *result = malloc(sizeof(CppToken));
     *result = *tok;
     return result;
-}
-
-// Allocate twice the input size and round up to nearest power of two.
-static void init_output(void) {
-    allocated_output = 1;
-    while (allocated_output < cpp_input_size * 2) allocated_output <<= 1;
-    if (allocated_output > MAX_CPP_OUTPUT_SIZE) panic("Exceeded max CPP output size %d", MAX_CPP_OUTPUT_SIZE);
-    cpp_output = malloc(allocated_output);
-}
-
-// Append a string to the output
-static void append_string_to_output(char *s) {
-    int len = strlen(s);
-    int needed = cpp_output_pos + len;
-    if (allocated_output < needed) {
-        while (allocated_output < needed) allocated_output <<= 1;
-        if (allocated_output > MAX_CPP_OUTPUT_SIZE) panic("Exceeded max CPP output size %d", MAX_CPP_OUTPUT_SIZE);
-        cpp_output = realloc(cpp_output, allocated_output);
-    }
-    sprintf(cpp_output + cpp_output_pos, "%s", s);
-    cpp_output_pos += len;
 }
 
 static void add_to_whitespace(char **whitespace, int *whitespace_pos, char c) {
@@ -878,9 +858,9 @@ void preprocess(char *filename, char *output_filename) {
     cpp_next();
 
     // Parse
-    init_output();
+    output = new_string_buffer(cpp_input_size * 2);
     cpp_parse();
-    cpp_output[cpp_output_pos++] = 0;
+    output->data[output->position] = 0;
 
     // Print the output
     if (!output_filename || !strcmp(output_filename, "-"))
@@ -894,6 +874,6 @@ void preprocess(char *filename, char *output_filename) {
         }
     }
 
-    fprintf(cpp_output_file, "%s", cpp_output);
+    fprintf(cpp_output_file, "%s", output->data);
     fclose(cpp_output_file);
 }
