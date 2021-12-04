@@ -1,5 +1,10 @@
 // Single line comments
 
+#define func(x) x // a comment
+func(1)
+func(1 // a comment
+)
+
 #define foo y // a comment
 foo
 
@@ -99,12 +104,35 @@ foo/* foo
     #
 */
 
+// Test comments inside macro invocations
+#define func2(x,y) x + y
+func2(2, 3  // some comments
+ );
+
+func2(2, 3/*
+*/);
+
+func2(2, 3  /*
+    some multiline
+    comments */
+ );
+
+func2(2, 3  /*
+    some multiline
+    comments
+*/ );
+
+func2(2, /* some comments */ 3);
+
 #define mlcfoo1 bar1 /* */
 mlcfoo1
 
 #define mlcfoo2 bar2 /*
 */
 mlcfoo2
+
+#define mlcfoo3(x) x + 1 /*  */
+mlcfoo3(1)
 
 a /* */ /* */ b
 

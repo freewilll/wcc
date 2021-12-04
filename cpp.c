@@ -21,10 +21,11 @@ static int cpp_cur_line_number;     // Current line number
 static CppToken *cpp_cur_token;     // Current token
 
 // Output
-FILE *cpp_output_file;                     // Output file handle
-static char *cpp_output;                   // Overall output
-static int cpp_output_pos;                 // Position in cpp_output;
-static int allocated_output;               // How much has been allocated for cpp_output;
+FILE *cpp_output_file;         // Output file handle
+static char *cpp_output;       // Overall output
+static int cpp_output_pos;     // Position in cpp_output;
+static int allocated_output;   // How much has been allocated for cpp_output;
+static int output_line_number; // How many lines have been outputted
 
 static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os);
 static CppToken *hsadd(StrSet *hs, CppToken *ts);
@@ -354,6 +355,7 @@ static void cpp_next() {
         if (c1 == '\n') {
             cpp_cur_token = new_cpp_token(CPP_TOK_EOL);
             cpp_cur_token->str = "\n";
+            cpp_cur_token->line_number = cpp_cur_line_number; // Needs to be the line number of the \n token, not the next token
             advance_cur_ip();
         }
 
@@ -429,7 +431,8 @@ static void cpp_next() {
             make_token(c1, 1);
     }
 
-    cpp_cur_token->line_number = cpp_cur_line_number;
+    // Set the line number of not already set
+    if (!cpp_cur_token->line_number) cpp_cur_token->line_number = cpp_cur_line_number;
     cpp_cur_token->whitespace = whitespace;
 
     return;
@@ -462,6 +465,16 @@ static CppToken *convert_cll_to_ll(CppToken *cll) {
     CppToken *head = cll->next;
     cll->next = 0;
     return head;
+}
+
+// Set line number on all tokens in circular linked list ts
+static void set_line_number_on_token_sequence(CppToken *ts, int line_number) {
+    CppToken *tail = ts;
+    ts = ts->next;
+    do {
+        ts->line_number = line_number;
+        ts = ts->next;
+    } while (ts != tail);
 }
 
 #define add_token_to_actuals() CppToken *t = dup_cpp_token(token); t->next = 0; current_actual = cll_append(current_actual, t);
@@ -518,6 +531,7 @@ static CppToken *expand(CppToken *is) {
     if (!is) return 0;
 
     CppToken *is1 = is->next;
+    while (is1 && is1->kind == CPP_TOK_EOL) is1 = is1->next;
 
     if (is->str && is->hide_set && strset_in(is->hide_set, is->str)) {
         // The first token is in its own hide set, don't expand it
@@ -538,7 +552,10 @@ static CppToken *expand(CppToken *is) {
         strset_add(identifier_hs, is->str);
         StrSet *hs = is->hide_set ? strset_union(is->hide_set, identifier_hs) : identifier_hs;
         CppToken *substituted = subst(directive->tokens, 0, 0, hs, 0);
-        if (substituted) substituted->next->whitespace = is->whitespace;
+        if (substituted) {
+            set_line_number_on_token_sequence(substituted, is->line_number);
+            substituted->next->whitespace = is->whitespace;
+        }
         CppToken *with_is_next = cll_append(substituted, is->next);
         return expand(convert_cll_to_ll(with_is_next));
     }
@@ -548,7 +565,7 @@ static CppToken *expand(CppToken *is) {
 
         CppToken *directive_token = is;
         StrSet *directive_token_hs = is->hide_set;
-        is = is->next->next;
+        is = is1->next;
         CppToken **actuals = make_function_actual_parameters(&is);
         if (!is || is->kind != CPP_TOK_RPAREN) panic("Expected )");
 
@@ -578,7 +595,10 @@ static CppToken *expand(CppToken *is) {
         StrSet *hs = hs1 ? strset_union(hs1, hs2) : hs2;
 
         CppToken *substituted = subst(directive->tokens, directive->param_identifiers, actuals, hs, 0);
-        if (substituted) substituted->next->whitespace = directive_token->whitespace;
+        if (substituted) {
+            set_line_number_on_token_sequence(substituted, directive_token->line_number);
+            substituted->next->whitespace = directive_token->whitespace;
+        }
 
         return expand(convert_cll_to_ll(cll_append(substituted, rest)));
     }
@@ -793,44 +813,49 @@ static void append_cpp_tokens_to_output(CppToken *token) {
             append_string_to_output(" ");
 
         append_string_to_output(token->str);
+
+        int is_eol = (token->kind == CPP_TOK_EOL);
+
         prev = token;
         token = token->next;
+
+        if (is_eol) output_line_number++;
+
+        if (is_eol && token) {
+            // Output sufficient newlines to catch up with token->line_number
+            // This ensures that each line in the input ends up on the same line
+            // in the output.
+            while (output_line_number < token->line_number) {
+                output_line_number++;
+                append_string_to_output("\n");
+            }
+        }
     }
 }
 
 // Parse tokens from the lexer
 static void cpp_parse() {
-    int print_line_number = 1;
+    output_line_number = 1;
+    int new_line = 1;
+    CppToken *group_tokens = 0;
 
     while (cpp_cur_token->kind != CPP_TOK_EOF) {
-        if (cpp_cur_token->kind == CPP_TOK_HASH) {
-            parse_directive();
-        }
+        while (cpp_cur_token->kind != CPP_TOK_EOF) {
+            if (new_line && cpp_cur_token->kind == CPP_TOK_HASH) {
+                if (group_tokens) append_cpp_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
 
-        else {
-            // Gather tokens until EOF or EOL
-
-            CppToken *line_tokens = 0;
-            while (cpp_cur_token->kind != CPP_TOK_EOL && cpp_cur_token->kind != CPP_TOK_EOF) {
-                line_tokens = cll_append(line_tokens, cpp_cur_token);
+                parse_directive();
+                group_tokens = 0;
+            }
+            else {
+                group_tokens = cll_append(group_tokens, cpp_cur_token);
+                new_line = (cpp_cur_token->kind == CPP_TOK_EOL);
                 cpp_next();
             }
-
-            append_cpp_tokens_to_output(expand(convert_cll_to_ll(line_tokens)));
         }
-
-        if (cpp_cur_token->kind == CPP_TOK_EOL)
-            append_cpp_tokens_to_output(cpp_cur_token);
-
-        print_line_number++;
-
-        while (print_line_number < cpp_cur_line_number) {
-            print_line_number++;
-            append_string_to_output("\n");
-        }
-
-        cpp_next();
     }
+
+    if (group_tokens) append_cpp_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
 }
 
 Directive *parse_cli_define(char *string) {

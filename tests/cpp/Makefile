@@ -14,6 +14,7 @@ CPP_TESTS = \
 	token-spacing \
 	object-like-macros \
 	function-like-macros \
+	newlines-and-macros \
 	comments
 
 OK_FILENAMES := $(addsuffix -ok, ${CPP_TESTS})
