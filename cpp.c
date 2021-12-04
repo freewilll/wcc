@@ -685,7 +685,7 @@ static Directive *parse_define_tokens(void) {
             directive->param_identifiers = new_strmap();
             int first = 1;
 
-            while (cpp_cur_token->kind != CPP_TOK_RPAREN) {
+            while (cpp_cur_token->kind != CPP_TOK_RPAREN && cpp_cur_token->kind != CPP_TOK_EOF) {
                 if (!first) {
                     if (cpp_cur_token->kind != CPP_TOK_COMMA) panic("Expected comma");
                     cpp_next();
@@ -699,6 +699,7 @@ static Directive *parse_define_tokens(void) {
                 cpp_next();
             }
 
+            if (cpp_cur_token->kind != CPP_TOK_RPAREN) panic("Expected )");
             cpp_next();
 
             tokens = parse_define_replacement_tokens();
