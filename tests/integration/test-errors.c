@@ -35,7 +35,7 @@ static void check_output(char *code, char *expected, char *message) {
     char *filename = write_temp_file(code);
 
     char command[64];
-    sprintf(command, "../../wcc %s\n", filename);
+    sprintf(command, "../../wcc %s 2>&1", filename);
 
     FILE *f = popen(command, "r");
     if (f == NULL) {
@@ -44,7 +44,7 @@ static void check_output(char *code, char *expected, char *message) {
     }
 
     int found = 0;
-    char line[1035];
+    char line[1024];
     while (fgets(line, sizeof(line), f) != NULL) {
         if (strstr(line, expected) != NULL) found = 1;
     }

@@ -8,11 +8,20 @@
 void panic(char *format, ...) {
     va_list ap;
     va_start(ap, format);
-    printf("%s:%d: ", cur_filename, cur_line);
-    vprintf(format, ap);
-    printf("\n");
+    fprintf(stderr, "%s:%d: error: ", cur_filename, cur_line);
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, "\n");
     va_end(ap);
     exit(1);
+}
+
+void warning(char *format, ...) {
+    va_list ap;
+    va_start(ap, format);
+    fprintf(stderr, "%s:%d: warning: ", cur_filename, cur_line);
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
 }
 
 Function *new_function(void) {

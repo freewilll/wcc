@@ -777,6 +777,7 @@ typedef struct string_buffer {
 } StringBuffer;
 
 void panic(char *format, ...);
+void warning(char *format, ...);
 Function *new_function(void);
 void quicksort_ulong_array(unsigned long *array, int left, int right);
 char *base_path(char *path);
