@@ -576,7 +576,6 @@ CppToken *cll_append(CppToken *list1, CppToken *list2) {
 }
 
 // Convert a circular linked list to a linked list.
-// cll must be at the tail of the linked list
 static CppToken *convert_cll_to_ll(CppToken *cll) {
     if (!cll) return 0;
 
@@ -1007,6 +1006,54 @@ static void enter_if() {
     conditional_include_stack = ci;
 }
 
+// Make a numeric token with a 0 or 1 value
+static CppToken *make_boolean_token(int value) {
+    CppToken *result = new_cpp_token(CPP_TOK_NUMBER);
+
+    result->str = malloc(2);
+    result->str[0] = '0' + value;
+    result->str[1] = 0;
+
+    return result;
+}
+
+// Expand defined FOO and defined(FOO) a token sequence. Returns a circular linked list.
+static CppToken *expand_defineds(CppToken *is) {
+    CppToken *os = 0;
+
+    while (is) {
+        CppToken *is1 = is->next;
+
+        if (is->kind == CPP_TOK_DEFINED) {
+            if (is1 && is1->kind == CPP_TOK_IDENTIFIER) {
+                os = cll_append(os, make_boolean_token(!!strmap_get(directives, is1->str)));
+                is = is1->next;
+            }
+            else if (is1 && is1->kind == CPP_TOK_LPAREN) {
+                is = is1->next;
+                if (!is || is->kind != CPP_TOK_IDENTIFIER)
+                    panic("Expected identifier");
+
+                os = cll_append(os, make_boolean_token(!!strmap_get(directives, is->str)));
+                if (!is->next || is->next->kind != CPP_TOK_RPAREN)
+                    panic("Expected )");
+                is = is->next->next;
+            }
+            else
+                panic("Expected identifier or ( after #defined");
+
+        }
+        else {
+            CppToken *tok = dup_cpp_token(is);
+            tok->next = 0;
+            os = cll_append(os, tok);
+            is = is->next;
+        }
+    }
+
+    return os;
+}
+
 // Parse expression
 // 1. Gather tokens until EOF/EOL.
 // 2. Perform macro substitution.
@@ -1021,7 +1068,8 @@ static long parse_conditional_expression() {
     }
     if (!tokens) panic("Expected expresison");
 
-    CppToken *expanded = expand(convert_cll_to_ll(tokens));
+    CppToken *expanded_defineds = expand_defineds(convert_cll_to_ll(tokens));
+    CppToken *expanded = expand(convert_cll_to_ll(expanded_defineds));
 
     // Replace identifiers with 0
     for (CppToken *tok = expanded; tok; tok = tok->next)
@@ -1156,7 +1204,6 @@ static void parse_directive(void) {
         }
 
         case CPP_TOK_IF:
-            // TODO IFDEF IFNDEF
             cpp_next();
 
             enter_if();

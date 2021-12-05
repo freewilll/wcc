@@ -188,67 +188,53 @@ foo
 def
 #endif
 
-// TODO defined
-// defined
-// #undef UNDEF
-// #define DEF
-// #if defined DEF
-// def
-// #endif
+// Use of defined and defined(...)
+#undef UNDEF
+#define DEF
+#if defined DEF
+def
+#endif
 
-// #if defined UNDEF
-// def
-// #endif
+#if defined UNDEF
+def
+#endif
 
-// #if defined(DEF)
-// def
-// #endif
+#if defined(DEF)
+def
+#endif
 
-// #if defined (DEF)
-// def
-// #endif
+#if defined (DEF)
+def
+#endif
 
-// #if defined( DEF)
-// def
-// #endif
+#if defined( DEF)
+def
+#endif
 
-// #if defined(DEF )
-// def
-// #endif
+#if defined(DEF )
+def
+#endif
 
-// #if defined ( DEF )
-// def
-// #endif
+#if defined ( DEF )
+def
+#endif
 
-// #if !defined UNDEF
-// !defined undef
-// #endif
+#if !defined UNDEF
+!defined undef
+#endif
 
-// // defined in the middle of an expression
-// #if defined(UNDEF) || FOO
-// foo
-// #endif
+// defined in the middle of an expression
+#if defined(UNDEF) || FOO
+foo
+#endif
 
-// #if defined UNDEF || FOO
-// foo
-// #endif
+#if defined UNDEF || FOO
+foo
+#endif
 
-// #if FOO && defined(DEF)
-// foo
-// #endif
-
-// #undef FOO
-// // Something that happens in MacOS system headers
-// #define __FOO (defined(FOO))
-// #if !__FOO
-// foo
-// #endif
-
-// FIXME The defined handling an expansion needs some work
-// #define FOO 1
-// #if !__FOO
-// foo
-// #endif
+#if FOO && defined(DEF)
+foo
+#endif
 
 // TODO error
 // // Ensure the error directive is skipped
@@ -256,6 +242,7 @@ def
 // #error "error"
 // #endif
 
+// TODO include
 // // Ensure the include directive is skipped
 // #if 0
 // #include "foo"
