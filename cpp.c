@@ -1057,6 +1057,58 @@ static void parse_if_defined(int negate) {
     }
 }
 
+// Ensure two directive have identical replacement lists, and if they are
+// function-like, have identical paramter identifiers.
+static void check_directive_redeclaration(Directive *d1, Directive *d2, char *identifier) {
+    if (d1->is_function != d2->is_function)
+        panic("Redeclared macro type mismatch for %s", identifier);
+
+    if (d1->is_function) {
+        // Compare parameter identifiers
+
+        StrMap *d1p = d1->param_identifiers;
+        StrMap *d2p = d2->param_identifiers;
+
+        int d1_param_count = 0;
+        for (StrMapIterator it = strmap_iterator(d1p); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
+            d1_param_count++;
+            char *param_identifier = strmap_iterator_key(&it);
+            int position = (int) (long) strmap_get(d1p, param_identifier);
+            if (position != (int) (long) strmap_get(d2p, param_identifier))
+                panic("Redeclared directive mismatch for %s, parameters differ for %s", identifier, param_identifier);
+        }
+
+        int d2_param_count = 0;
+        for (StrMapIterator it = strmap_iterator(d2p); !strmap_iterator_finished(&it); strmap_iterator_next(&it))
+            d2_param_count++;
+
+        if (d1_param_count != d2_param_count) panic("Param count mismatch for redeclared macro %s", identifier);
+    }
+
+    // Check replacement lists are identical
+    CppToken *t1 = d1->tokens;
+    CppToken *t2 = d2->tokens;
+
+    int identical = 1;
+    while (t1 && t2) {
+        if (t1->kind != t2->kind) {
+            identical = 0;
+            break;
+        }
+
+        if (strcmp(t1->str, t2->str)) {
+            identical = 0;
+            break;
+        }
+
+        t1 = t1->next, t2 = t2->next;
+    }
+
+
+    if (!!t1 != !!t2) identical = 0;
+    if (!identical) warning("Macro %s redefined", identifier);
+}
+
 static void parse_directive(void) {
     cpp_next();
     switch (cpp_cur_token->kind) {
@@ -1069,7 +1121,9 @@ static void parse_directive(void) {
                 char *identifier = cpp_cur_token->str;
                 cpp_next();
 
+                Directive *existing_directive = strmap_get(directives, identifier);
                 Directive *directive = parse_define_tokens();
+                if (existing_directive) check_directive_redeclaration(existing_directive, directive, identifier);
                 strmap_put(directives, identifier, directive);
             }
             else
