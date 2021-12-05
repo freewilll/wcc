@@ -980,6 +980,7 @@ static Directive *parse_define_tokens(void) {
 
                 if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
                 if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
+                if (strmap_get(directive->param_identifiers, cpp_cur_token->str)) panic("Duplicate macro parameter %s", cpp_cur_token->str);
                 strmap_put(directive->param_identifiers, cpp_cur_token->str, (void *) (long) ++directive->param_count);
                 cpp_next();
             }
