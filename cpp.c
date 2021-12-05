@@ -759,11 +759,7 @@ static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppT
         CppToken *replacement = ap[is_fp_index - 1];
 
         CppToken *expanded = expand(replacement);
-        if (!expanded) {
-            expanded = new_cpp_token(CPP_TOK_PADDING);
-            expanded->str = "";
-        }
-        expanded->whitespace = is->whitespace;
+        if (expanded) expanded->whitespace = is->whitespace;
 
         if (expanded) os = cll_append(os, expanded);
         return subst(is->next, fp, ap, hs, os);

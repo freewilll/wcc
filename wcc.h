@@ -585,7 +585,6 @@ typedef struct string_literal {
 enum {
     CPP_TOK_EOL=1,
     CPP_TOK_EOF,
-    CPP_TOK_PADDING,
     CPP_TOK_IDENTIFIER,
     CPP_TOK_STRING_LITERAL,
     CPP_TOK_NUMBER,
