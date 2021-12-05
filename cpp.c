@@ -876,13 +876,16 @@ static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppT
         CppToken *replacement = ap[is_fp_index - 1];
         if (!replacement) {
             if (is2 && is2_fp_index) {
+                // (empty) ## (replacement2) ...
                 CppToken *replacement2 = ap[is2_fp_index - 1];
                 return subst(is2->next, fp, ap, hs, cll_append(os, replacement2));
             }
             else
+                // (empty) ## (empty) ...
                 return subst(is2, fp, ap, hs, os);
         }
         else
+            // (replacement) ## ...
             return subst(is1, fp, ap, hs, cll_append(os, replacement));
     }
 
@@ -926,6 +929,8 @@ static CppToken *parse_define_replacement_tokens(void) {
     if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF)
         return 0;
 
+    if (cpp_cur_token->kind == CPP_TOK_PASTE) panic("## at start of macro replacement list");
+
     CppToken *result = cpp_cur_token;
     CppToken *tokens = cpp_cur_token;
     while (cpp_cur_token->kind != CPP_TOK_EOL && cpp_cur_token->kind != CPP_TOK_EOF) {
@@ -934,6 +939,7 @@ static CppToken *parse_define_replacement_tokens(void) {
         cpp_next();
     }
     tokens->next = 0;
+    if (tokens->kind == CPP_TOK_PASTE) panic("## at end of macro replacement list");
 
     // Clear whitespace on initial token
     if (tokens) result->whitespace = 0;
