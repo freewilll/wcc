@@ -54,3 +54,9 @@ a  b
   a
 
 A # in the middle of a line
+
+ 
+
+(stuff in parentheses)
+(stuff in parentheses)()
+(stuff in parentheses)(a)

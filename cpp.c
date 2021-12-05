@@ -952,11 +952,12 @@ static Directive *parse_define_tokens(void) {
     CppToken *tokens;
 
     if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF) {
+        // No tokens
         directive->is_function = 0;
         tokens = 0;
     }
     else {
-        if (cpp_cur_token->kind != CPP_TOK_LPAREN) {
+        if (cpp_cur_token->kind != CPP_TOK_LPAREN || (cpp_cur_token->kind == CPP_TOK_LPAREN && cpp_cur_token->whitespace != 0)) {
             // Parse object-like macro
             directive->is_function = 0;
             tokens = parse_define_replacement_tokens();

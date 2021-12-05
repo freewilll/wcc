@@ -54,3 +54,9 @@ EMPTY EMPTY a
 EMPTY EMPTY  a
 
 A # in the middle of a line
+
+// Check an object like macro can be defined with a replacement list staring with a (
+#define OBJ (stuff in parentheses)
+OBJ
+OBJ()
+OBJ(a)
