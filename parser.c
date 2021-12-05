@@ -668,7 +668,7 @@ Type *parse_direct_declarator(void) {
 
             int size = 0;
             if (cur_token != TOK_RBRACKET) {
-                Value *v = parse_constant_integer_expression();
+                Value *v = parse_constant_integer_expression(0);
                 size = v->int_value;
             }
 
@@ -821,7 +821,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
 
                     if (type->type != TYPE_INT) panic("Bit fields must be integers");
 
-                    Value *v = parse_constant_integer_expression();
+                    Value *v = parse_constant_integer_expression(0);
                     int bit_field_size = v->int_value;
 
                     if (cur_type_identifier && bit_field_size == 0) panic("Invalid bit field size 0 for named member");
@@ -897,7 +897,7 @@ static Type *parse_enum_type_specifier(void) {
             next();
             if (cur_token == TOK_EQ) {
                 next();
-                value = parse_constant_integer_expression()->int_value;
+                value = parse_constant_integer_expression(0)->int_value;
             }
 
             Symbol *s = new_symbol(enum_value_identifier);
@@ -2840,7 +2840,7 @@ static void parse_switch_statement(void) {
         else if (cur_token == TOK_CASE) {
             next();
 
-            Value *v = parse_constant_integer_expression();
+            Value *v = parse_constant_integer_expression(0);
 
             // Add comparison & jump to main IR
             ir = main_ir;

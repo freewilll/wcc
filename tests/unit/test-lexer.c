@@ -35,7 +35,6 @@ void test_numeric_integer_literal(char *string, int type_type, int is_unsigned) 
     cur_filename = "test";
     cur_line = 0;
     init_lexer_from_string(string);
-    next();
     assert_type(type_type, is_unsigned, string);
 }
 
@@ -119,7 +118,6 @@ void test_numeric_floating_point_literal(char *string, long double expected, int
     cur_filename = "test";
     cur_line = 0;
     init_lexer_from_string(string);
-    next();
 
     char *buffer = malloc(100);
     sprintf(buffer, "Floating point literal %s", string);

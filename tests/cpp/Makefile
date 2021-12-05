@@ -17,6 +17,7 @@ CPP_TESTS = \
 	newlines-and-macros \
 	stringizing-operator \
 	token-paste-operator \
+	conditional-includes \
 	comments \
 
 OK_FILENAMES := $(addsuffix -ok, ${CPP_TESTS})

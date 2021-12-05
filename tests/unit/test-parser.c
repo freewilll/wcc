@@ -10,19 +10,8 @@ int verbose;
 int passes;
 int failures;
 
-void init_lexer_with_str(char *str) {
-    char *filename =  make_temp_filename("/tmp/XXXXXX.c");
-    f = fopen(filename, "w");
-    fprintf(f, "%s\n", str);
-    fprintf(f, "\n");
-    fclose(f);
-    init_lexer(filename);
-    init_parser();
-    init_scopes();
-}
-
 Value *parse_constant_expression_str(char *str) {
-    init_lexer_with_str(str);
+    init_lexer_from_string(str);
     Value *value = parse_constant_expression(TOK_EQ);
 
     if (cur_token != TOK_EOF)
@@ -162,7 +151,10 @@ void test_integer_types_operations() {
 }
 
 Type *parse_type_str(char *type_str) {
-    init_lexer_with_str(type_str);
+    init_lexer_from_string(type_str);
+    init_parser();
+    init_scopes();
+
     Type *result = parse_type_name();
 
     if (cur_token != TOK_EOF)

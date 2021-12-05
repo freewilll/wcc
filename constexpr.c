@@ -4,6 +4,8 @@
 
 #include "wcc.h"
 
+static int integers_are_longs;
+
 Value *evaluate_const_unary_int_operation(int operation, Value *value) {
     long r;
 
@@ -296,7 +298,7 @@ Value *parse_constant_expression(int level) {
             break;
 
         case TOK_INTEGER:
-            value = new_integral_constant(cur_lexer_type->type, cur_long);
+            value = new_integral_constant(integers_are_longs ? TYPE_LONG : cur_lexer_type->type, cur_long);
             next();
             break;
 
@@ -406,7 +408,9 @@ Value *parse_constant_expression(int level) {
     return value;
 }
 
-Value *parse_constant_integer_expression() {
+Value *parse_constant_integer_expression(int all_longs) {
+    integers_are_longs = all_longs;
+
     Value *value = parse_constant_expression(TOK_EQ);
     if (!value->is_constant) panic("Expected a constant expression");
     if (!is_integer_type(value->type)) panic("Expected an integer constant expression");

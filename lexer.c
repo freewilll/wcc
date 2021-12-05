@@ -51,6 +51,7 @@ void init_lexer_from_string(char *string) {
     ip = 0;
     input = string;
     input_size = strlen(string);
+    next();
 }
 
 static void skip_whitespace(void) {

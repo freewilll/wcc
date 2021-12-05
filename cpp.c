@@ -9,6 +9,14 @@ enum {
     MAX_CPP_OUTPUT_SIZE = 10 * 1024 * 1024,
 };
 
+typedef struct conditional_include {
+    int matched;    // Is the evaluated controlling expression 1?
+    int skipping;   // Is a group being skipped?
+    struct conditional_include *prev;
+} ConditionalInclude;
+
+ConditionalInclude *conditional_include_stack;
+
 static char *cpp_input;
 static int cpp_input_size;
 static LineMap *cpp_line_map;
@@ -80,6 +88,9 @@ static void init_cpp(char *filename) {
     cpp_input[cpp_input_size] = 0;
     cpp_cur_filename = filename;
     cur_filename = filename;
+
+    conditional_include_stack = malloc(sizeof(ConditionalInclude));
+    memset(conditional_include_stack, 0, sizeof(ConditionalInclude));
 }
 
 void init_cpp_from_string(char *string) {
@@ -420,6 +431,7 @@ static void lex_string_and_char_literal(char delimiter) {
         cpp_cur_token->str[size] = 0; \
     } while (0)
 
+
 // Lex one CPP token, starting with optional whitespace
 static void cpp_next() {
     char *whitespace = lex_whitespace();
@@ -490,8 +502,27 @@ static void cpp_next() {
             }
             identifier[j] = 0;
 
-            if      (!strcmp(identifier, "define")) cpp_cur_token = new_cpp_token(CPP_TOK_DEFINE);
-            else if (!strcmp(identifier, "undef"))  cpp_cur_token = new_cpp_token(CPP_TOK_UNDEF);
+            #define is_identifier(t) (\
+                t->kind == CPP_TOK_IDENTIFIER || \
+                t->kind == CPP_TOK_DEFINE     || \
+                t->kind == CPP_TOK_UNDEF      || \
+                t->kind == CPP_TOK_IF         || \
+                t->kind == CPP_TOK_IFDEF      || \
+                t->kind == CPP_TOK_IFNDEF     || \
+                t->kind == CPP_TOK_ELIF       || \
+                t->kind == CPP_TOK_ELSE       || \
+                t->kind == CPP_TOK_ENDIF      || \
+                t->kind == CPP_TOK_DEFINED)
+
+            if      (!strcmp(identifier, "define"))   { cpp_cur_token = new_cpp_token(CPP_TOK_DEFINE);  cpp_cur_token->str = "define";  }
+            else if (!strcmp(identifier, "undef"))    { cpp_cur_token = new_cpp_token(CPP_TOK_UNDEF);   cpp_cur_token->str = "undef";   }
+            else if (!strcmp(identifier, "if"))       { cpp_cur_token = new_cpp_token(CPP_TOK_IF);      cpp_cur_token->str = "if";      }
+            else if (!strcmp(identifier, "ifdef"))    { cpp_cur_token = new_cpp_token(CPP_TOK_IFDEF);   cpp_cur_token->str = "ifdef";   }
+            else if (!strcmp(identifier, "ifndef"))   { cpp_cur_token = new_cpp_token(CPP_TOK_IFNDEF);  cpp_cur_token->str = "ifndef";  }
+            else if (!strcmp(identifier, "elif"))     { cpp_cur_token = new_cpp_token(CPP_TOK_ELIF);    cpp_cur_token->str = "elif";    }
+            else if (!strcmp(identifier, "else"))     { cpp_cur_token = new_cpp_token(CPP_TOK_ELSE);    cpp_cur_token->str = "else";    }
+            else if (!strcmp(identifier, "endif"))    { cpp_cur_token = new_cpp_token(CPP_TOK_ENDIF);   cpp_cur_token->str = "endif";   }
+            else if (!strcmp(identifier, "defined"))  { cpp_cur_token = new_cpp_token(CPP_TOK_DEFINED); cpp_cur_token->str = "defined"; }
 
             else {
                 cpp_cur_token = new_cpp_token(CPP_TOK_IDENTIFIER);
@@ -959,31 +990,166 @@ static Directive *parse_define_tokens(void) {
     return directive;
 }
 
+// Enter group after if, ifdef or ifndef
+static void enter_if() {
+    ConditionalInclude *ci = malloc(sizeof(ConditionalInclude));
+    memset(ci, 0, sizeof(ConditionalInclude));
+    ci->prev = conditional_include_stack;
+    ci->skipping = conditional_include_stack->skipping;
+    conditional_include_stack = ci;
+}
+
+// Parse expression
+// 1. Gather tokens until EOF/EOL.
+// 2. Perform macro substitution.
+// 3. Replace all identifiers with zero.
+// 4. Render tokens into a string
+// 5. Evaluate the string as an integral constant expression
+static long parse_conditional_expression() {
+    CppToken *tokens = 0;
+    while (cpp_cur_token->kind != CPP_TOK_EOF && cpp_cur_token->kind != CPP_TOK_EOL) {
+        tokens = cll_append(tokens, cpp_cur_token);
+        cpp_next();
+    }
+    if (!tokens) panic("Expected expresison");
+
+    CppToken *expanded = expand(convert_cll_to_ll(tokens));
+
+    // Replace identifiers with 0
+    for (CppToken *tok = expanded; tok; tok = tok->next)
+        if (is_identifier(tok))  {
+            tok->kind = CPP_TOK_NUMBER;
+            tok->str = "0";
+        }
+
+    StringBuffer *rendered = new_string_buffer(128);
+    append_tokens_to_string_buffer(rendered, expanded, 1);
+
+    init_lexer_from_string(rendered->data);
+    Value *value = parse_constant_integer_expression(1);
+
+    return value->int_value;
+}
+
+static void skip_until_eol() {
+    while (cpp_cur_token->kind != CPP_TOK_EOF && cpp_cur_token->kind != CPP_TOK_EOL) {
+        cpp_next();
+    }
+}
+
+static void parse_if_defined(int negate) {
+    enter_if();
+
+    if (!conditional_include_stack->skipping) {
+        if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+
+        Directive *directive = strmap_get(directives, cpp_cur_token->str);
+        int value = negate ? !directive : !!directive;
+        conditional_include_stack->skipping = !value;
+        conditional_include_stack->matched = !!value;
+    }
+}
+
 static void parse_directive(void) {
     cpp_next();
     switch (cpp_cur_token->kind) {
         case CPP_TOK_DEFINE:
             cpp_next();
-            if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
 
-            char *identifier = cpp_cur_token->str;
-            cpp_next();
+            if (!conditional_include_stack->skipping) {
+                if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
 
-            Directive *directive = parse_define_tokens();
-            strmap_put(directives, identifier, directive);
-
-            break;
-        case CPP_TOK_UNDEF:
-            cpp_next();
-            if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
-            strmap_delete(directives, cpp_cur_token->str);
-            cpp_next();
-
-            // Ignore any tokens until EOL/EOF
-            while (cpp_cur_token->kind != CPP_TOK_EOL && cpp_cur_token->kind != CPP_TOK_EOF)
+                char *identifier = cpp_cur_token->str;
                 cpp_next();
 
+                Directive *directive = parse_define_tokens();
+                strmap_put(directives, identifier, directive);
+            }
+            else
+                skip_until_eol();
+
             break;
+
+        case CPP_TOK_UNDEF:
+            cpp_next();
+
+            if (!conditional_include_stack->skipping) {
+                if (cpp_cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+                strmap_delete(directives, cpp_cur_token->str);
+                cpp_next();
+
+                skip_until_eol();
+            }
+
+            break;
+
+        case CPP_TOK_IFDEF:
+        case CPP_TOK_IFNDEF: {
+            int negate = (cpp_cur_token->kind == CPP_TOK_IFNDEF);
+            cpp_next();
+            parse_if_defined(negate);
+
+            skip_until_eol();
+            break;
+        }
+
+        case CPP_TOK_IF:
+            // TODO IFDEF IFNDEF
+            cpp_next();
+
+            enter_if();
+            if (!conditional_include_stack->skipping) {
+                long value = parse_conditional_expression();
+                conditional_include_stack->skipping = !value;
+                conditional_include_stack->matched = !!value;
+            }
+
+            skip_until_eol();
+            break;
+
+        case CPP_TOK_ELIF: {
+            cpp_next();
+
+            // We're skipping a section and found an #elif. Ignore the directive
+            if (!conditional_include_stack->prev->skipping) {
+                if (conditional_include_stack->matched) {
+                    conditional_include_stack->skipping = 1;
+                    break;
+                }
+
+                long value = parse_conditional_expression();
+                conditional_include_stack->skipping = !value;
+                conditional_include_stack->matched = !!value;
+            }
+
+            skip_until_eol();
+            break;
+        }
+
+        case CPP_TOK_ELSE:
+            cpp_next();
+
+            if (!conditional_include_stack->prev) panic("Found an #else without an #if");
+            if (conditional_include_stack->prev->skipping) break;
+
+            conditional_include_stack->skipping = conditional_include_stack->matched;
+
+            skip_until_eol();
+            break;
+
+        case CPP_TOK_ENDIF: {
+            cpp_next();
+
+            if (!conditional_include_stack->prev) panic("Found an #endif without an #if");
+
+            ConditionalInclude *prev = conditional_include_stack->prev;
+            free(conditional_include_stack);
+            conditional_include_stack = prev;
+
+            skip_until_eol();
+            break;
+        }
+
         default:
             panic("Unknown directive %s", cpp_cur_token->str);
     }
@@ -998,14 +1164,15 @@ static void cpp_parse() {
     while (cpp_cur_token->kind != CPP_TOK_EOF) {
         while (cpp_cur_token->kind != CPP_TOK_EOF) {
             if (new_line && cpp_cur_token->kind == CPP_TOK_HASH) {
-                if (group_tokens) append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
-
+                append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
                 parse_directive();
                 group_tokens = 0;
             }
             else {
-                group_tokens = cll_append(group_tokens, cpp_cur_token);
-                new_line = (cpp_cur_token->kind == CPP_TOK_EOL);
+                if (!conditional_include_stack->skipping) {
+                    group_tokens = cll_append(group_tokens, cpp_cur_token);
+                    new_line = (cpp_cur_token->kind == CPP_TOK_EOL);
+                }
                 cpp_next();
             }
         }

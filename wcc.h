@@ -592,6 +592,13 @@ enum {
     CPP_TOK_PASTE,
     CPP_TOK_DEFINE,
     CPP_TOK_UNDEF,
+    CPP_TOK_IF,
+    CPP_TOK_IFDEF,
+    CPP_TOK_IFNDEF,
+    CPP_TOK_ELIF,
+    CPP_TOK_ELSE,
+    CPP_TOK_ENDIF,
+    CPP_TOK_DEFINED,
     CPP_TOK_LPAREN,
     CPP_TOK_RPAREN,
     CPP_TOK_COMMA,
@@ -831,7 +838,7 @@ Value* evaluate_const_binary_int_operation(int operation, Value *src1, Value *sr
 Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src2, Type *type);
 Value *cast_constant_value(Value *src, Type *type);
 Value *parse_constant_expression(int level);
-Value *parse_constant_integer_expression();
+Value *parse_constant_integer_expression(int all_longs);
 
 // scopes.c
 Scope *global_scope;
