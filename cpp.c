@@ -28,6 +28,34 @@ static int output_line_number; // How many lines have been outputted
 static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os);
 static CppToken *hsadd(StrSet *hs, CppToken *ts);
 
+void debug_print_token_sequence(CppToken *ts) {
+    printf("|");
+    while (ts) {
+        if (ts->whitespace) printf("[%s]", ts->whitespace);
+        printf("%s|", ts->str);
+        ts = ts->next;
+    }
+    printf("\n");
+}
+
+void debug_print_cll_token_sequence(CppToken *ts) {
+    if (!ts) {
+        printf("|\n");
+        return;
+    }
+
+    CppToken *head = ts->next;
+    ts = head;
+
+    printf("|");
+    do {
+        if (ts->whitespace) printf("[%s]", ts->whitespace);
+        printf("%s|", ts->str);
+        ts = ts->next;
+    } while (ts != head);
+    printf("\n");
+}
+
 static void init_cpp(char *filename) {
     FILE *f  = fopen(filename, "r");
 
@@ -415,6 +443,9 @@ static void cpp_next() {
             advance_cur_ip();
         }
 
+        else if (c1 == '#' && c2 == '#')
+            make_token(CPP_TOK_PASTE, 2);
+
         else if (c1 == '#')
             make_token(CPP_TOK_HASH, 1);
 
@@ -581,6 +612,22 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
     }
 }
 
+// Union two sets. Either or both may be NULL
+#define safe_strset_union(set1, set2) \
+    set1 && set2 \
+        ? strset_union(set1, set2) \
+        : set1 \
+            ? set1 \
+            : set2
+
+// Intersect two sets. Either or both may be NULL
+#define safe_strset_intersection(set1, set2) \
+    set1 && set2 \
+        ? strset_intersection(set1, set2) \
+        : set1 \
+            ? set1 \
+            : set2
+
 // Implementation of Dave Prosser's C Preprocessing Algorithm
 // This is the main macro expansion function: expand an input sequence into an output sequence.
 static CppToken *expand(CppToken *is) {
@@ -637,18 +684,12 @@ static CppToken *expand(CppToken *is) {
         // HS is directive token hide set
         // HS' is ')' hide set
         // HS = (HS ∩ HS’) ∪ {T}
-        StrSet *hs1 =
-            directive_token_hs && rparen_hs
-                ? strset_intersection(directive_token_hs, rparen_hs)
-                : directive_token_hs
-                    ? directive_token_hs
-                    : rparen_hs;
-
+        StrSet *hs1 = safe_strset_intersection(directive_token_hs, rparen_hs);
 
         StrSet *hs2 = new_strset();
         strset_add(hs2, directive_token->str);
 
-        StrSet *hs = hs1 ? strset_union(hs1, hs2) : hs2;
+        StrSet *hs = safe_strset_union(hs1, hs2);
 
         CppToken *substituted = subst(directive->tokens, directive->param_identifiers, actuals, hs, 0);
         if (substituted) {
@@ -729,6 +770,29 @@ static CppToken *stringize(CppToken *ts) {
     return result;
 }
 
+// Merge two token lists together. ls is a circular linked list, rs is an linked list.
+// ls is mutated and the result is ls.
+static CppToken *glue(CppToken *ls, CppToken *rs) {
+    if (ls == 0) return cll_append(0, rs);
+    if (rs == 0) panic("Attempt to glue an empty right side");
+
+    // Mutating ls, this is allowed cause ls is append only
+    wasprintf(&ls->str, "%s%s", ls->str, rs->str);
+    ls->kind = CPP_TOK_OTHER;
+    ls->hide_set = safe_strset_intersection(ls->hide_set, rs->hide_set);
+
+    // Copy all elements from the right side except the first
+    rs = rs->next;
+    while (rs) {
+        CppToken *tok = dup_cpp_token(rs);
+        tok->next = 0;
+        ls = cll_append(ls, tok);
+        rs = rs->next;
+    }
+
+    return ls;
+}
+
 // Inputs:
 //   is: input sequence
 //   fp: formal parameters
@@ -738,16 +802,20 @@ static CppToken *stringize(CppToken *ts) {
 // Output
 //   output sequence in a circular linked list
 static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os) {
+    // Empty token sequence, update the hide set and return output sequence
     if (!is) {
         if (!os) return os;
         return hsadd(hs, os);
     }
 
     CppToken *is1 = is->next;
+    CppToken *is2 = is1 ? is1->next : 0;
 
     int is_fp_index = fp ? (int) (long) strmap_get(fp, is->str) : 0;
     int is1_fp_index = fp && is1 ? (int) (long) strmap_get(fp, is1->str) : 0;
+    int is2_fp_index = fp && is2 ? (int) (long) strmap_get(fp, is2->str) : 0;
 
+    // # FP
     if (is->kind == CPP_TOK_HASH && is1_fp_index) {
         CppToken *replacement = ap[is1_fp_index - 1];
         os = cll_append(os, stringize(replacement));
@@ -755,6 +823,39 @@ static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppT
         return subst(is1->next, fp, ap, hs, os);
     }
 
+    // ## FP
+    if (is->kind == CPP_TOK_PASTE && is1_fp_index) {
+        CppToken *replacement = ap[is1_fp_index - 1];
+        if (!replacement)
+            return subst(is1->next, fp, ap, hs, os);
+        else
+            return subst(is1->next, fp, ap, hs, glue(os, replacement));
+    }
+
+    // ## TS
+    if (is->kind == CPP_TOK_PASTE) {
+        if (!is1) panic("Got ## without a following token");
+        CppToken *tok = dup_cpp_token(is1);
+        tok->next = 0;
+        return subst(is1->next, fp, ap, hs, glue(os, tok));
+    }
+
+    // FP ##
+    if (is_fp_index && is1 && is1->kind == CPP_TOK_PASTE) {
+        CppToken *replacement = ap[is_fp_index - 1];
+        if (!replacement) {
+            if (is2 && is2_fp_index) {
+                CppToken *replacement2 = ap[is2_fp_index - 1];
+                return subst(is2->next, fp, ap, hs, cll_append(os, replacement2));
+            }
+            else
+                return subst(is2, fp, ap, hs, os);
+        }
+        else
+            return subst(is1, fp, ap, hs, cll_append(os, replacement));
+    }
+
+    // FP
     if (is_fp_index) {
         CppToken *replacement = ap[is_fp_index - 1];
 
