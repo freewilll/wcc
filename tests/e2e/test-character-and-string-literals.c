@@ -22,6 +22,7 @@ static void test_char_literal_lexer() {
     assert_int(13, '\r', "Char literal escapes \\r");
     assert_int( 9, '\t', "Char literal escapes \\t");
     assert_int(11, '\v', "Char literal escapes \\v");
+    assert_int(27, '\e', "Char literal escapes \\e");
 
     // Truncation of last 32 bits
     assert_int(97,         'a',      "Multiple chars in char literal 1");
@@ -132,6 +133,7 @@ static void test_string_literal_lexer() {
     assert_int(13, "\r"[0], "String literal escapes \\r");
     assert_int( 9, "\t"[0], "String literal escapes \\t");
     assert_int(11, "\v"[0], "String literal escapes \\v");
+    assert_int(27, "\e"[0], "String literal escapes \\e");
 
     // Hex escapes
     assert_string("fooA",       "foo\x41",          "String literal hex 1");
@@ -159,8 +161,8 @@ static void test_string_literal_lexer() {
     assert_int('A',   "\10A"[1],                    "String literal octal 3b");
 
     // Test escaping of a string literal in the assembly output by using a variable
-    char *s = "\'\"\?\\\a\b\f\n\r\t\v\x80\xff";
-    assert_int(13, strlen(s), "String escaping in codegen 1");
+    char *s = "\'\"\?\\\a\b\f\n\r\t\v\e\x80\xff";
+    assert_int(14, strlen(s), "String escaping in codegen 1");
     assert_int(39,   s[0],    "String escaping in codegen 1 0");
     assert_int(34,   s[1],    "String escaping in codegen 1 1");
     assert_int(63,   s[2],    "String escaping in codegen 1 2");
@@ -172,9 +174,10 @@ static void test_string_literal_lexer() {
     assert_int(13,   s[8],    "String escaping in codegen 1 8");
     assert_int(9,    s[9],    "String escaping in codegen 1 9");
     assert_int(11,   s[10],   "String escaping in codegen 1 10");
-    assert_int(-128, s[11],   "String escaping in codegen 1 11");
-    assert_int(-1,   s[12],   "String escaping in codegen 1 12");
-    assert_int(0,    s[13],   "String escaping in codegen 1 13");
+    assert_int(27,   s[11],   "String escaping in codegen 1 11");
+    assert_int(-128, s[12],   "String escaping in codegen 1 12");
+    assert_int(-1,   s[13],   "String escaping in codegen 1 13");
+    assert_int(0,    s[14],   "String escaping in codegen 1 14");
 
     // Test \0 in strings
     s = "\0a";

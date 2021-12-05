@@ -201,6 +201,7 @@ void lex_single_string_literal(int *data, int *size) {
             else if (i[ip + 1] == 'r' ) { ip += 2; data[(*size)++] = 13; }
             else if (i[ip + 1] == 't' ) { ip += 2; data[(*size)++] = 9; }
             else if (i[ip + 1] == 'v' ) { ip += 2; data[(*size)++] = 11; }
+            else if (i[ip + 1] == 'e' ) { ip += 2; data[(*size)++] = 27; }
             else if (i[ip + 1] >= '0' && i[ip + 1] <= '7' ) {
                 ip++;
                 lex_octal_literal();
@@ -381,6 +382,7 @@ void next(void) {
                     else if (i[ip] == 'r' ) { ip++; cur_long = (cur_long << 8) +  13; }
                     else if (i[ip] == 't' ) { ip++; cur_long = (cur_long << 8) +  9; }
                     else if (i[ip] == 'v' ) { ip++; cur_long = (cur_long << 8) +  11; }
+                    else if (i[ip] == 'e' ) { ip++; cur_long = (cur_long << 8) +  27; }
                     else if (i[ip] >= '0' && i[ip] <= '7' ) {
                         int old_cur_long = cur_long;
                         lex_octal_literal();
