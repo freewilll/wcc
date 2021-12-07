@@ -1,4 +1,5 @@
- 
+# 1 "backslash-newlines.c"
+
 
 
 
@@ -52,7 +53,7 @@ something backslashed again
 
 FOO8
 
- 
+
 
 somethingbackslashed
 
@@ -74,11 +75,11 @@ something    backslashed
 something     backslashed
 
 
-something 
+something
 
 backslashed
 
-something 
+something
 
  backslashed
 

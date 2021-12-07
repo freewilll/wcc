@@ -1,3 +1,4 @@
+# 1 "string-literals.c"
 "foo bar"
 "foo ' bar"
 "foo \" bar"

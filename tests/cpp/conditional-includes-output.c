@@ -1,43 +1,10 @@
- 
-
-
-
-
-
-
-
-
-
- 
-
-
-
-
- 
-
-
-
-
-
- 
-
-
+# 1 "conditional-includes.c"
+# 11 "conditional-includes.c"
+# 17 "conditional-includes.c"
+# 25 "conditional-includes.c"
 
 foo
-
-
-
- 
-
-
-
-
- 
-
-foo
-
-
- 
+# 35 "conditional-includes.c"
 
 
 foo
@@ -46,21 +13,20 @@ foo
 
 
 
-
-
-
+foo
+# 52 "conditional-includes.c"
 
 
 
 foo
 
 
- 
+
 
 longs are ok
 
 
- 
+
 
 true
 
@@ -68,7 +34,7 @@ true
 
 
 
- 
+
 
 true
 
@@ -76,24 +42,10 @@ x
 
 
 
- 
-
-foo
-
-
-
-
- 
-
 
 
 foo
-
-
-
-
- 
-
+# 90 "conditional-includes.c"
 foo
 
 
@@ -101,9 +53,8 @@ foo
 
 
 
-
-
-
+foo
+# 107 "conditional-includes.c"
 bar
 
 
@@ -111,84 +62,27 @@ bar
 
 
 foo
-
-
-
-
-
-
-
-
-
-
-
+# 125 "conditional-includes.c"
 baz
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# 150 "conditional-includes.c"
 baz
-
-
-
-
-
- 
-
-
-
-
-
+# 165 "conditional-includes.c"
 OBJ
 FUNC(1)
 1
-
-
-
-
-
-
-
-
+# 173 "conditional-includes.c"
 foo
 
 
 
 
 foo
-
-
-
-
-
-
-
-
+# 188 "conditional-includes.c"
 
 def
 
 
- 
+
 
 
 
@@ -221,34 +115,15 @@ def
 
 
 !defined undef
+# 234 "conditional-includes.c"
+# 245 "conditional-includes.c"
+# 250 "conditional-includes.c"
 
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
- 
- 
- 
- 
- 
-
- 
-
-
-
-
-
+# 1 "include.h" 1
 Hello from include.h
+# 252 "conditional-includes.c" 2
 
 
+# 1 "include.h" 1
 Hello from include.h
+# 255 "conditional-includes.c" 2

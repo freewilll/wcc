@@ -34,18 +34,18 @@ all: ${OK_FILENAMES}
 
 %-ok: %.c %-output.c ../../wcc ${CPP_TESTS_INCLUDES}
 	@# Run preprocessor & diff with expected result
-	../../wcc -E $< | grep -v '^#' > $*-result.c | true
+	../../wcc -E $< -o $*-result.c
 	diff $*-output.c $*-result.c
 
 	@# check re-preprocessing produces the same result
-	../../wcc -E $*-result.c | grep -v '^#' > $*-result2.c | true
-	diff $*-result.c $*-result2.c
+	../../wcc -E $*-result.c -o $*-result2.c
+	diff -I '^#' $*-result.c $*-result2.c
 
 	touch $*-ok
 
 .PHONY: regen
 regen:
-	$(foreach var,$(CPP_TESTS),../../wcc -E $(var).c | grep -v '^#' > $(var)-output.c;)
+	$(foreach var,$(CPP_TESTS),../../wcc -E $(var).c -o $(var)-output.c;)
 
 clean:
 	@rm -f *-result*.c

@@ -1,3 +1,4 @@
+# 1 "object-like-macros.c"
 
 foo bar
 
@@ -55,7 +56,7 @@ a  b
 
 A # in the middle of a line
 
- 
+
 
 (stuff in parentheses)
 (stuff in parentheses)()

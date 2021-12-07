@@ -1,4 +1,5 @@
- 
+# 1 "token-paste-operator.c"
+
 
 a bc d
 e a bc d
@@ -10,15 +11,8 @@ a bc de f
 g a bc de f
 a bc de f h
 g a bc de f h
+# 22 "token-paste-operator.c"
 
- 
- 
- 
- 
- 
-
- 
- 
 
 
 f # x
@@ -34,7 +28,7 @@ foo bar f # x f #
  f # x
  f #
 
- 
+
 
 
 a

@@ -106,6 +106,25 @@ static void init_cpp_from_fh(FILE *f, char *filename) {
     memset(conditional_include_stack, 0, sizeof(ConditionalInclude));
 }
 
+// If the output has an amount newlines > threshold, collapse them into a # line statement
+static void collapse_trailing_newlines(int threshold, int output_line_directive) {
+    int count = 0;
+    while (output->position - count > 0 && output->data[output->position - count - 1] == '\n') count++;
+
+    if (count > threshold) {
+        // Rewind output by count -1 characters
+        output->data[output->position - count + 1] = '\n';
+        output->position -= count - 1;
+
+        if (output_line_directive) {
+            char *buf = malloc(256);
+            sprintf(buf, "# %d \"%s\"\n", cpp_cur_line_number - 1, cpp_cur_filename);
+            append_to_string_buffer(output, buf);
+            free(buf);
+        }
+    }
+}
+
 // Run the preprocessor on an opened file handle
 static void run_preprocessor_on_file(char *filename, int first_file) {
     if (opt_enable_trigraphs) transform_trigraphs();
@@ -125,6 +144,8 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
     append_to_string_buffer(output, "\n");
 
     cpp_parse();
+
+    collapse_trailing_newlines(0, 0);
 }
 
 void init_cpp_from_string(char *string) {
@@ -282,16 +303,17 @@ static int need_token_space(CppToken *t1, CppToken *t2) {
 static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, int collapse_whitespace) {
     CppToken *prev = 0;
     while (token) {
-        if (token->whitespace && !collapse_whitespace)
+        int is_eol = (token->kind == CPP_TOK_EOL);
+
+        if (!is_eol && token->whitespace && !collapse_whitespace)
             append_to_string_buffer(sb, token->whitespace);
-        else if (token->whitespace && collapse_whitespace)
+        else if (!is_eol && token->whitespace && collapse_whitespace)
             append_to_string_buffer(sb, " ");
         else if (prev && need_token_space(prev, token))
             append_to_string_buffer(sb, " ");
 
+        collapse_trailing_newlines(8, 1);
         append_to_string_buffer(sb, token->str);
-
-        int is_eol = (token->kind == CPP_TOK_EOL);
 
         prev = token;
         token = token->next;
@@ -306,6 +328,7 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
                 cpp_output_line_number++;
                 append_to_string_buffer(sb, "\n");
             }
+            collapse_trailing_newlines(8, 1);
         }
     }
 }

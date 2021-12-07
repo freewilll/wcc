@@ -1,3 +1,4 @@
+# 1 "stringizing-operator.c"
 
 "1"
 "1 2"
@@ -47,7 +48,7 @@
 
 "EMPTY" ""
 
- 
+
 
 printf_s("In quotes in the printf function call" "\n" );
 printf_s("\"In quotes when printed to the screen\"" "\n" );
