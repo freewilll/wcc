@@ -1053,23 +1053,16 @@ static void skip_until_eol() {
 }
 
 static void parse_include() {
-    if (state.cur_token->kind == CPP_TOK_EOL || state.cur_token->kind == CPP_TOK_EOF)
-        panic("Invalid #include");
-
     if (include_depth == MAX_CPP_INCLUDE_DEPTH)
         panic("Exceeded maximum include depth %d", MAX_CPP_INCLUDE_DEPTH);
 
     char *path;
     int is_system;
 
-    if (state.cur_token->kind == CPP_TOK_STRING_LITERAL || state.cur_token->kind == CPP_TOK_HCHAR_STRING_LITERAL) {
-        // Remove "" or <> tokens
-        path = &(state.cur_token->str[1]);
-        path[strlen(path) - 1] = 0;
-        is_system = state.cur_token->kind == CPP_TOK_HCHAR_STRING_LITERAL;
-        cpp_next();
-    }
-    else {
+    int have_pp_tokens = (state.cur_token->kind != CPP_TOK_STRING_LITERAL && state.cur_token->kind != CPP_TOK_HCHAR_STRING_LITERAL);
+    CppToken *include_token;
+
+    if (have_pp_tokens) {
         // Parse #include pp-tokens
 
         // Gather tokens until eol
@@ -1088,20 +1081,32 @@ static void parse_include() {
         append_tokens_to_string_buffer(rendered, tokens, 0);
         terminate_string_buffer(rendered);
 
-        // Extract "foo" or <foo> from the rendered tokens
-        char *expr = rendered->data;
+        // Lex tokens
+        CppState backup_state = state;
+        init_cpp_from_string(rendered->data);
+        cpp_next();
+        CppToken *lexed_tokens = 0;
+        while (state.cur_token->kind != CPP_TOK_EOF && state.cur_token->kind != CPP_TOK_EOL) {
+            lexed_tokens = cll_append(lexed_tokens, state.cur_token);
+            cpp_next();
+        }
+        state = backup_state;
 
-        while (*expr == ' ') expr++; // Skip any leading whitespace
-
-        int len = strlen(expr);
-        if (len < 2) panic("Invalid #include");
-        is_system = expr[0] == '<';
-        if ((is_system && expr[len - 1] != '>') || (!is_system && expr[len - 1] != '"'))
-            panic("Invalid #include");
-
-        expr[len - 1] = 0;
-        path = expr + 1;
+        include_token = lexed_tokens;
     }
+
+    else {
+        include_token = state.cur_token;
+        cpp_next();
+    }
+
+    if (include_token->kind == CPP_TOK_EOL || include_token->kind == CPP_TOK_EOF)
+        panic("Invalid #include");
+
+    // Remove "" or <> tokens
+    path = &(include_token->str[1]);
+    path[strlen(path) - 1] = 0;
+    is_system = include_token->kind == CPP_TOK_HCHAR_STRING_LITERAL;
 
     skip_until_eol();
 
