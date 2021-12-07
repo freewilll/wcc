@@ -19,7 +19,9 @@ CPP_TESTS = \
 	token-paste-operator \
 	conditional-includes \
 	comments \
-	inception1
+	inception1 \
+	includes
+
 
 CPP_TESTS_INCLUDES = \
 	include.h \

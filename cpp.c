@@ -161,6 +161,56 @@ void init_cpp_from_string(char *string) {
     state.line_number = 1;
 }
 
+// Create a new CPP token
+static CppToken *new_cpp_token(int kind) {
+    CppToken *tok = malloc(sizeof(CppToken));
+    memset(tok, 0, sizeof(CppToken));
+
+    tok->kind = kind;
+
+    return tok;
+}
+
+// Shallow copy a new CPP token
+static CppToken *dup_cpp_token(CppToken *tok) {
+    CppToken *result = malloc(sizeof(CppToken));
+    *result = *tok;
+    return result;
+}
+
+static void add_builtin_directive(char *identifier, DirectiveRenderer renderer) {
+    Directive *directive = malloc(sizeof(Directive));
+    memset(directive, 0, sizeof(Directive));
+    directive->renderer = renderer;
+    strmap_put(directives, identifier, directive);
+}
+
+static CppToken *render_file(CppToken *directive_token) {
+    CppToken *result = new_cpp_token(CPP_TOK_STRING_LITERAL);
+    wasprintf(&(result->str), "\"%s\"", state.filename);
+    return result;
+}
+
+
+static CppToken *render_line(CppToken *directive_token) {
+    CppToken *result = new_cpp_token(CPP_TOK_NUMBER);
+    wasprintf(&(result->str), "%d", directive_token->line_number);
+    return result;
+}
+
+// Create empty directives strmap and add CLI directives to them
+void init_directives(void) {
+    directives = new_strmap();
+    CliDirective *cd = cli_directives;
+    while (cd) {
+        strmap_put(directives, cd->identifier, cd->directive);
+        cd = cd->next;
+    }
+
+    add_builtin_directive("__FILE__", render_file);
+    add_builtin_directive("__LINE__", render_line);
+}
+
 char *get_cpp_input(void) {
     return state.input;
 }
@@ -358,23 +408,6 @@ static void advance_cur_ip(void) {
 static void advance_cur_ip_by_count(int count) {
     for (int i = 0; i < count; i++)
         advance_ip(&state.ip, &state.line_map, &state.line_number);
-}
-
-// Create a new CPP token
-static CppToken *new_cpp_token(int kind) {
-    CppToken *tok = malloc(sizeof(CppToken));
-    memset(tok, 0, sizeof(CppToken));
-
-    tok->kind = kind;
-
-    return tok;
-}
-
-// Shallow copy a new CPP token
-static CppToken *dup_cpp_token(CppToken *tok) {
-    CppToken *result = malloc(sizeof(CppToken));
-    *result = *tok;
-    return result;
 }
 
 static void add_to_whitespace(char **whitespace, int *whitespace_pos, char c) {
@@ -756,7 +789,8 @@ static CppToken *expand(CppToken *is) {
         StrSet *identifier_hs = new_strset();
         strset_add(identifier_hs, is->str);
         StrSet *hs = is->hide_set ? strset_union(is->hide_set, identifier_hs) : identifier_hs;
-        CppToken *substituted = subst(directive->tokens, 0, 0, hs, 0);
+        CppToken *replacement_tokens = directive->renderer ? directive->renderer(is) : directive->tokens;
+        CppToken *substituted = subst(replacement_tokens, 0, 0, hs, 0);
         if (substituted) {
             set_line_number_on_token_sequence(substituted, is->line_number);
             substituted->next->whitespace = is->whitespace;
@@ -1151,6 +1185,8 @@ static CppToken *parse_define_replacement_tokens(void) {
 
 static Directive *parse_define_tokens(void) {
     Directive *directive = malloc(sizeof(Directive));
+    memset(directive, 0, sizeof(Directive));
+
     CppToken *tokens;
 
     if (state.token->kind == CPP_TOK_EOL || state.token->kind == CPP_TOK_EOF) {

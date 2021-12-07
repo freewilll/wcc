@@ -619,11 +619,14 @@ typedef struct cpp_token {
     struct cpp_token *next;
 } CppToken;
 
+typedef CppToken *(*DirectiveRenderer)(CppToken *);
+
 typedef struct directive {
     int is_function;            // Is the macro an object or function macro
     CppToken *tokens;           // Replacement tokens
     StrMap *param_identifiers;  // Mapping of parameter identifiers => index, index starts at 1
     int param_count;            // Amount of parameters.
+    DirectiveRenderer renderer; // Renderer for builtin directives
 } Directive;
 
 // Structure with all directives passed on the command line with -D
@@ -813,6 +816,7 @@ typedef struct line_map {
 
 void init_cpp_from_string(char *string);
 char *get_cpp_input(void);
+void init_directives(void);
 LineMap *get_cpp_linemap(void);
 void transform_trigraphs(void);
 void strip_backslash_newlines(void);
@@ -1259,7 +1263,6 @@ enum {
 
 char *make_temp_filename(char *template);
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at);
-void init_directives(void);
 void compile(char *input_filename, char *original_input_filename, char *output_filename);
 
 // test-utils.c
