@@ -66,3 +66,4 @@ A # in the middle of a line
 1
 "object-like-macros.c"
 67
+1

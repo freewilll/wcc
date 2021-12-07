@@ -65,3 +65,4 @@ OBJ(a)
 __STDC__
 __FILE__
 __LINE__
+__x86_64__
