@@ -61,3 +61,8 @@ A # in the middle of a line
 (stuff in parentheses)
 (stuff in parentheses)()
 (stuff in parentheses)(a)
+
+
+1
+"object-like-macros.c"
+67

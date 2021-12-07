@@ -60,3 +60,8 @@ A # in the middle of a line
 OBJ
 OBJ()
 OBJ(a)
+
+// Builtin macros
+__STDC__
+__FILE__
+__LINE__

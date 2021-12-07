@@ -198,6 +198,12 @@ static CppToken *render_line(CppToken *directive_token) {
     return result;
 }
 
+static CppToken *render_stdc(CppToken *directive_token) {
+    CppToken *result = new_cpp_token(CPP_TOK_NUMBER);
+    wasprintf(&(result->str), "1");
+    return result;
+}
+
 // Create empty directives strmap and add CLI directives to them
 void init_directives(void) {
     directives = new_strmap();
@@ -209,6 +215,7 @@ void init_directives(void) {
 
     add_builtin_directive("__FILE__", render_file);
     add_builtin_directive("__LINE__", render_line);
+    add_builtin_directive("__STDC__", render_stdc);
 }
 
 char *get_cpp_input(void) {
