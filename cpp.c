@@ -26,12 +26,11 @@ typedef struct conditional_include {
 typedef struct cpp_state {
     char *     input;
     int        input_size;
-    LineMap *  line_map;
-    int        cur_ip;             // Offset in input
-    char *     cur_filename;       // Current filename
-    LineMap *  cur_line_map;       // Linemap
-    int        cur_line_number;    // Current line number
-    CppToken * cur_token;          // Current token
+    int        ip;                 // Offset in input
+    char *     filename;           // Current filename
+    LineMap *  line_map;           // Linemap
+    int        line_number;        // Current line number
+    CppToken * token;              // Current token
     int        hchar_lex_state;    // State of #include <...> lexing
     int        output_line_number; // How many lines have been outputted
 } CppState;
@@ -102,8 +101,8 @@ static void init_cpp_from_fh(FILE *f, char *filename) {
     fclose(f);
 
     state.input[state.input_size] = 0;
-    state.cur_filename = filename;
-    cur_filename = filename;
+    state.filename = filename;
+    filename = filename;
     state.hchar_lex_state = HLS_START_OF_LINE;
 
     conditional_include_stack = malloc(sizeof(ConditionalInclude));
@@ -122,7 +121,7 @@ static void collapse_trailing_newlines(int threshold, int output_line_directive)
 
         if (output_line_directive) {
             char *buf = malloc(256);
-            sprintf(buf, "# %d \"%s\"\n", state.cur_line_number - 1, state.cur_filename);
+            sprintf(buf, "# %d \"%s\"\n", state.line_number - 1, state.filename);
             append_to_string_buffer(output, buf);
             free(buf);
         }
@@ -136,9 +135,9 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
     strip_backslash_newlines();
 
     // Initialize the lexer
-    state.cur_ip = 0;
-    state.cur_line_map = state.cur_line_map->next;
-    state.cur_line_number = 1;
+    state.ip = 0;
+    state.line_map = state.line_map->next;
+    state.line_number = 1;
     cpp_next();
 
     append_to_string_buffer(output, "# 1 \"");
@@ -155,11 +154,11 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
 void init_cpp_from_string(char *string) {
     state.input = string;
     state.input_size = strlen(string);
-    state.cur_filename = 0;
+    state.filename = 0;
 
-    state.cur_ip = 0;
-    state.cur_line_map = 0;
-    state.cur_line_number = 1;
+    state.ip = 0;
+    state.line_map = 0;
+    state.line_number = 1;
 }
 
 char *get_cpp_input(void) {
@@ -167,7 +166,7 @@ char *get_cpp_input(void) {
 }
 
 LineMap *get_cpp_linemap(void) {
-    return state.cur_line_map;
+    return state.line_map;
 }
 
 static LineMap *add_to_linemap(LineMap *lm, int position, int line_number) {
@@ -219,10 +218,10 @@ void strip_backslash_newlines(void) {
     int op = 0; // Output offset
     int line_number = 1;
 
-    state.cur_line_map = malloc(sizeof(LineMap));
-    state.cur_line_map->position = ip;
-    state.cur_line_map->line_number = line_number;
-    LineMap *lm = state.cur_line_map;
+    state.line_map = malloc(sizeof(LineMap));
+    state.line_map->position = ip;
+    state.line_map->line_number = line_number;
+    LineMap *lm = state.line_map;
 
     if (state.input_size == 0) {
         state.input = output;
@@ -353,12 +352,12 @@ static void advance_ip(int *ip, LineMap **lm, int *line_number) {
 
 // Advance global current input pointers
 static void advance_cur_ip(void) {
-    advance_ip(&state.cur_ip, &state.cur_line_map, &state.cur_line_number);
+    advance_ip(&state.ip, &state.line_map, &state.line_number);
 }
 
 static void advance_cur_ip_by_count(int count) {
     for (int i = 0; i < count; i++)
-        advance_ip(&state.cur_ip, &state.cur_line_map, &state.cur_line_number);
+        advance_ip(&state.ip, &state.line_map, &state.line_number);
 }
 
 // Create a new CPP token
@@ -389,26 +388,26 @@ static char *lex_whitespace(void) {
     int whitespace_pos = 0;
 
     // Process whitespace and comments
-    while (state.cur_ip < state.input_size) {
-        if ((state.input[state.cur_ip] == '\t' || state.input[state.cur_ip] == ' ')) {
-            add_to_whitespace(&whitespace, &whitespace_pos, state.input[state.cur_ip]);
+    while (state.ip < state.input_size) {
+        if ((state.input[state.ip] == '\t' || state.input[state.ip] == ' ')) {
+            add_to_whitespace(&whitespace, &whitespace_pos, state.input[state.ip]);
             advance_cur_ip();
             continue;
         }
 
         // Process // comment
-        if (state.input_size - state.cur_ip >= 2 && state.input[state.cur_ip] == '/' && state.input[state.cur_ip + 1] == '/') {
-            while (state.input[state.cur_ip] != '\n') advance_cur_ip();
+        if (state.input_size - state.ip >= 2 && state.input[state.ip] == '/' && state.input[state.ip + 1] == '/') {
+            while (state.input[state.ip] != '\n') advance_cur_ip();
             add_to_whitespace(&whitespace, &whitespace_pos, ' ');
             continue;
         }
 
         // Process /* comments */
-        if (state.input_size - state.cur_ip >= 2 && state.input[state.cur_ip] == '/' && state.input[state.cur_ip + 1] == '*') {
+        if (state.input_size - state.ip >= 2 && state.input[state.ip] == '/' && state.input[state.ip + 1] == '*') {
             advance_cur_ip();
             advance_cur_ip();
 
-            while (state.input_size - state.cur_ip >= 2 && (state.input[state.cur_ip] != '*' || state.input[state.cur_ip + 1] != '/'))
+            while (state.input_size - state.ip >= 2 && (state.input[state.ip] != '*' || state.input[state.ip + 1] != '/'))
                 advance_cur_ip();
 
             advance_cur_ip();
@@ -434,7 +433,7 @@ static void lex_string_and_char_literal(char delimiter) {
 
     char *data = malloc(MAX_STRING_LITERAL_SIZE + 2);
 
-    if (i[state.cur_ip] == 'L') {
+    if (i[state.ip] == 'L') {
         advance_cur_ip();
         data_offset = 1;
         data[0] = 'L';
@@ -445,23 +444,23 @@ static void lex_string_and_char_literal(char delimiter) {
     data[data_offset] = delimiter == '>' ? '<' : delimiter;
     int size = 0;
 
-    while (state.cur_ip < state.input_size) {
-        if (i[state.cur_ip] == delimiter) {
+    while (state.ip < state.input_size) {
+        if (i[state.ip] == delimiter) {
             advance_cur_ip();
             break;
         }
 
-        if (state.input_size - state.cur_ip >= 2 && i[state.cur_ip] == '\\') {
+        if (state.input_size - state.ip >= 2 && i[state.ip] == '\\') {
             if (size + 1 >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
             data[data_offset + 1 + size++] = '\\';
-            data[data_offset + 1 + size++] = i[state.cur_ip + 1];
+            data[data_offset + 1 + size++] = i[state.ip + 1];
             advance_cur_ip();
             advance_cur_ip();
         }
 
         else {
             if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
-            data[data_offset + 1 + size++] = i[state.cur_ip];
+            data[data_offset + 1 + size++] = i[state.ip];
             advance_cur_ip();
         }
     }
@@ -469,17 +468,17 @@ static void lex_string_and_char_literal(char delimiter) {
     data[data_offset + size + 1] = delimiter;
     data[data_offset + size + 2] = 0;
 
-    state.cur_token = new_cpp_token(CPP_TOK_STRING_LITERAL);
-    state.cur_token->str = data;
+    state.token = new_cpp_token(CPP_TOK_STRING_LITERAL);
+    state.token->str = data;
 }
 
-#define is_pp_number(c1, c2) (c1 >= '0' && c1 <= '9') || (state.input_size - state.cur_ip >= 2 && c1 == '.' && (c2 >= '0' && c2 <= '9'))
+#define is_pp_number(c1, c2) (c1 >= '0' && c1 <= '9') || (state.input_size - state.ip >= 2 && c1 == '.' && (c2 >= '0' && c2 <= '9'))
 #define is_non_digit(c1) ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_')
 #define is_exponent(c1, c2) (c1 == 'E' || c1 == 'e') && (c2 == '+' || c2 == '-')
 
 #define make_token(kind, size) \
     do { \
-        state.cur_token = new_cpp_token(kind); \
+        state.token = new_cpp_token(kind); \
         copy_token_str(start, size); \
         advance_cur_ip_by_count(size); \
     } while (0)
@@ -488,9 +487,9 @@ static void lex_string_and_char_literal(char delimiter) {
 
 #define copy_token_str(start, size) \
     do { \
-        state.cur_token->str = malloc(size + 1); \
-        memcpy(state.cur_token->str, start, size); \
-        state.cur_token->str[size] = 0; \
+        state.token->str = malloc(size + 1); \
+        memcpy(state.token->str, start, size); \
+        state.token->str[size] = 0; \
     } while (0)
 
 // Lex one CPP token, starting with optional whitespace
@@ -499,20 +498,20 @@ static void cpp_next() {
 
     char *i = state.input;
 
-    if (state.cur_ip >= state.input_size)
-        state.cur_token = new_cpp_token(CPP_TOK_EOF);
+    if (state.ip >= state.input_size)
+        state.token = new_cpp_token(CPP_TOK_EOF);
 
     else {
-        int left = state.input_size - state.cur_ip;
-        char c1 = i[state.cur_ip];
-        char c2 = i[state.cur_ip + 1];
-        char c3 = left >= 3 ? i[state.cur_ip + 2] : 0;
-        char *start = &(i[state.cur_ip]);
+        int left = state.input_size - state.ip;
+        char c1 = i[state.ip];
+        char c2 = i[state.ip + 1];
+        char c3 = left >= 3 ? i[state.ip + 2] : 0;
+        char *start = &(i[state.ip]);
 
         if (c1 == '\n') {
-            state.cur_token = new_cpp_token(CPP_TOK_EOL);
-            state.cur_token->str = "\n";
-            state.cur_token->line_number = state.cur_line_number; // Needs to be the line number of the \n token, not the next token
+            state.token = new_cpp_token(CPP_TOK_EOL);
+            state.token->str = "\n";
+            state.token->line_number = state.line_number; // Needs to be the line number of the \n token, not the next token
             state.hchar_lex_state = HLS_START_OF_LINE;
             advance_cur_ip();
         }
@@ -547,24 +546,24 @@ static void cpp_next() {
         else if (             c1 == ')'                          )  { make_token(CPP_TOK_RPAREN, 1); }
         else if (             c1 == ','                          )  { make_token(CPP_TOK_COMMA, 1); }
 
-        else if ((c1 == '"') || (state.input_size - state.cur_ip >= 2 && c1 == 'L' && c2 == '"'))
+        else if ((c1 == '"') || (state.input_size - state.ip >= 2 && c1 == 'L' && c2 == '"'))
             lex_string_and_char_literal('"');
 
-        else if ((c1 == '\'') || (state.input_size - state.cur_ip >= 2 && c1 == 'L' && c2 == '\''))
+        else if ((c1 == '\'') || (state.input_size - state.ip >= 2 && c1 == 'L' && c2 == '\''))
             lex_string_and_char_literal('\'');
 
         else if (c1 == '<' && state.hchar_lex_state == HLS_SEEN_INCLUDE) {
             lex_string_and_char_literal('>');
-            state.cur_token->kind = CPP_TOK_HCHAR_STRING_LITERAL;
+            state.token->kind = CPP_TOK_HCHAR_STRING_LITERAL;
             state.hchar_lex_state = HLS_OTHER;
         }
 
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             char *identifier = malloc(1024);
             int j = 0;
-            while (((i[state.cur_ip] >= 'a' && i[state.cur_ip] <= 'z') || (i[state.cur_ip] >= 'A' && i[state.cur_ip] <= 'Z') || (i[state.cur_ip] >= '0' && i[state.cur_ip] <= '9') || (i[state.cur_ip] == '_')) && state.cur_ip < state.input_size) {
+            while (((i[state.ip] >= 'a' && i[state.ip] <= 'z') || (i[state.ip] >= 'A' && i[state.ip] <= 'Z') || (i[state.ip] >= '0' && i[state.ip] <= '9') || (i[state.ip] == '_')) && state.ip < state.input_size) {
                 if (j == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);
-                identifier[j] = i[state.cur_ip];
+                identifier[j] = i[state.ip];
                 j++;
                 advance_cur_ip();
             }
@@ -583,35 +582,35 @@ static void cpp_next() {
                 t->kind == CPP_TOK_ENDIF      || \
                 t->kind == CPP_TOK_DEFINED)
 
-            if      (!strcmp(identifier, "define"))   { state.cur_token = new_cpp_token(CPP_TOK_DEFINE);  state.cur_token->str = "define";  }
-            else if (!strcmp(identifier, "include"))  { state.cur_token = new_cpp_token(CPP_TOK_INCLUDE); state.cur_token->str = "include"; }
-            else if (!strcmp(identifier, "undef"))    { state.cur_token = new_cpp_token(CPP_TOK_UNDEF);   state.cur_token->str = "undef";   }
-            else if (!strcmp(identifier, "if"))       { state.cur_token = new_cpp_token(CPP_TOK_IF);      state.cur_token->str = "if";      }
-            else if (!strcmp(identifier, "ifdef"))    { state.cur_token = new_cpp_token(CPP_TOK_IFDEF);   state.cur_token->str = "ifdef";   }
-            else if (!strcmp(identifier, "ifndef"))   { state.cur_token = new_cpp_token(CPP_TOK_IFNDEF);  state.cur_token->str = "ifndef";  }
-            else if (!strcmp(identifier, "elif"))     { state.cur_token = new_cpp_token(CPP_TOK_ELIF);    state.cur_token->str = "elif";    }
-            else if (!strcmp(identifier, "else"))     { state.cur_token = new_cpp_token(CPP_TOK_ELSE);    state.cur_token->str = "else";    }
-            else if (!strcmp(identifier, "endif"))    { state.cur_token = new_cpp_token(CPP_TOK_ENDIF);   state.cur_token->str = "endif";   }
-            else if (!strcmp(identifier, "defined"))  { state.cur_token = new_cpp_token(CPP_TOK_DEFINED); state.cur_token->str = "defined"; }
+            if      (!strcmp(identifier, "define"))   { state.token = new_cpp_token(CPP_TOK_DEFINE);  state.token->str = "define";  }
+            else if (!strcmp(identifier, "include"))  { state.token = new_cpp_token(CPP_TOK_INCLUDE); state.token->str = "include"; }
+            else if (!strcmp(identifier, "undef"))    { state.token = new_cpp_token(CPP_TOK_UNDEF);   state.token->str = "undef";   }
+            else if (!strcmp(identifier, "if"))       { state.token = new_cpp_token(CPP_TOK_IF);      state.token->str = "if";      }
+            else if (!strcmp(identifier, "ifdef"))    { state.token = new_cpp_token(CPP_TOK_IFDEF);   state.token->str = "ifdef";   }
+            else if (!strcmp(identifier, "ifndef"))   { state.token = new_cpp_token(CPP_TOK_IFNDEF);  state.token->str = "ifndef";  }
+            else if (!strcmp(identifier, "elif"))     { state.token = new_cpp_token(CPP_TOK_ELIF);    state.token->str = "elif";    }
+            else if (!strcmp(identifier, "else"))     { state.token = new_cpp_token(CPP_TOK_ELSE);    state.token->str = "else";    }
+            else if (!strcmp(identifier, "endif"))    { state.token = new_cpp_token(CPP_TOK_ENDIF);   state.token->str = "endif";   }
+            else if (!strcmp(identifier, "defined"))  { state.token = new_cpp_token(CPP_TOK_DEFINED); state.token->str = "defined"; }
 
             else {
-                state.cur_token = new_cpp_token(CPP_TOK_IDENTIFIER);
-                state.cur_token->str = identifier;
+                state.token = new_cpp_token(CPP_TOK_IDENTIFIER);
+                state.token->str = identifier;
             }
         }
 
         else if (is_pp_number(c1, c2)) {
             int size = 1;
-            char *start = &(i[state.cur_ip]);
+            char *start = &(i[state.ip]);
             advance_cur_ip();
 
-            while (c1 = i[state.cur_ip], c2 = i[state.cur_ip + 1], c1 == '.' || is_pp_number(c1, c2) || is_non_digit(c1) || is_exponent(c1, c2)) {
+            while (c1 = i[state.ip], c2 = i[state.ip + 1], c1 == '.' || is_pp_number(c1, c2) || is_non_digit(c1) || is_exponent(c1, c2)) {
                 if (is_exponent(c1, c2)) { advance_cur_ip(); size++; }
                 advance_cur_ip();
                 size++;
             }
 
-            state.cur_token = new_cpp_token(CPP_TOK_NUMBER);
+            state.token = new_cpp_token(CPP_TOK_NUMBER);
             copy_token_str(start, size);
         }
 
@@ -620,11 +619,11 @@ static void cpp_next() {
     }
 
     // Set the line number of not already set
-    if (!state.cur_token->line_number) state.cur_token->line_number = state.cur_line_number;
-    state.cur_token->whitespace = whitespace;
+    if (!state.token->line_number) state.token->line_number = state.line_number;
+    state.token->whitespace = whitespace;
 
-    if (state.hchar_lex_state == HLS_START_OF_LINE && state.cur_token->kind == CPP_TOK_HASH   ) state.hchar_lex_state = HLS_SEEN_HASH;
-    if (state.hchar_lex_state == HLS_SEEN_HASH     && state.cur_token->kind == CPP_TOK_INCLUDE) state.hchar_lex_state = HLS_SEEN_INCLUDE;
+    if (state.hchar_lex_state == HLS_START_OF_LINE && state.token->kind == CPP_TOK_HASH   ) state.hchar_lex_state = HLS_SEEN_HASH;
+    if (state.hchar_lex_state == HLS_SEEN_HASH     && state.token->kind == CPP_TOK_INCLUDE) state.hchar_lex_state = HLS_SEEN_INCLUDE;
 
     return;
 }
@@ -998,11 +997,11 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
 }
 
 static char *get_current_file_path() {
-    char *p = strrchr(state.cur_filename, '/');
+    char *p = strrchr(state.filename, '/');
     if (!p) return strdup("./");
-    char *path = malloc(p - state.cur_filename + 2);
-    memcpy(path, state.cur_filename, p - state.cur_filename + 1);
-    path[p - state.cur_filename + 1] = 0;
+    char *path = malloc(p - state.filename + 2);
+    memcpy(path, state.filename, p - state.filename + 1);
+    path[p - state.filename + 1] = 0;
 
     return path;
 }
@@ -1047,7 +1046,7 @@ static int open_include_file(char *path, int is_system_include) {
 }
 
 static void skip_until_eol() {
-    while (state.cur_token->kind != CPP_TOK_EOF && state.cur_token->kind != CPP_TOK_EOL) {
+    while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
         cpp_next();
     }
 }
@@ -1059,7 +1058,7 @@ static void parse_include() {
     char *path;
     int is_system;
 
-    int have_pp_tokens = (state.cur_token->kind != CPP_TOK_STRING_LITERAL && state.cur_token->kind != CPP_TOK_HCHAR_STRING_LITERAL);
+    int have_pp_tokens = (state.token->kind != CPP_TOK_STRING_LITERAL && state.token->kind != CPP_TOK_HCHAR_STRING_LITERAL);
     CppToken *include_token;
 
     if (have_pp_tokens) {
@@ -1067,8 +1066,8 @@ static void parse_include() {
 
         // Gather tokens until eol
         CppToken *tokens = 0;
-        while (state.cur_token->kind != CPP_TOK_EOF && state.cur_token->kind != CPP_TOK_EOL) {
-            tokens = cll_append(tokens, state.cur_token);
+        while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
+            tokens = cll_append(tokens, state.token);
             cpp_next();
         }
 
@@ -1086,8 +1085,8 @@ static void parse_include() {
         init_cpp_from_string(rendered->data);
         cpp_next();
         CppToken *lexed_tokens = 0;
-        while (state.cur_token->kind != CPP_TOK_EOF && state.cur_token->kind != CPP_TOK_EOL) {
-            lexed_tokens = cll_append(lexed_tokens, state.cur_token);
+        while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
+            lexed_tokens = cll_append(lexed_tokens, state.token);
             cpp_next();
         }
         state = backup_state;
@@ -1096,7 +1095,7 @@ static void parse_include() {
     }
 
     else {
-        include_token = state.cur_token;
+        include_token = state.token;
         cpp_next();
     }
 
@@ -1123,21 +1122,21 @@ static void parse_include() {
     state = backup_state;
 
     char *buf = malloc(256);
-    sprintf(buf, "# %d \"%s\" 2", state.cur_line_number, state.cur_filename);
+    sprintf(buf, "# %d \"%s\" 2", state.line_number, state.filename);
     append_to_string_buffer(output, buf);
     free(buf);
 }
 
 static CppToken *parse_define_replacement_tokens(void) {
-    if (state.cur_token->kind == CPP_TOK_EOL || state.cur_token->kind == CPP_TOK_EOF)
+    if (state.token->kind == CPP_TOK_EOL || state.token->kind == CPP_TOK_EOF)
         return 0;
 
-    if (state.cur_token->kind == CPP_TOK_PASTE) panic("## at start of macro replacement list");
+    if (state.token->kind == CPP_TOK_PASTE) panic("## at start of macro replacement list");
 
-    CppToken *result = state.cur_token;
-    CppToken *tokens = state.cur_token;
-    while (state.cur_token->kind != CPP_TOK_EOL && state.cur_token->kind != CPP_TOK_EOF) {
-        tokens->next = state.cur_token;
+    CppToken *result = state.token;
+    CppToken *tokens = state.token;
+    while (state.token->kind != CPP_TOK_EOL && state.token->kind != CPP_TOK_EOF) {
+        tokens->next = state.token;
         tokens = tokens->next;
         cpp_next();
     }
@@ -1154,13 +1153,13 @@ static Directive *parse_define_tokens(void) {
     Directive *directive = malloc(sizeof(Directive));
     CppToken *tokens;
 
-    if (state.cur_token->kind == CPP_TOK_EOL || state.cur_token->kind == CPP_TOK_EOF) {
+    if (state.token->kind == CPP_TOK_EOL || state.token->kind == CPP_TOK_EOF) {
         // No tokens
         directive->is_function = 0;
         tokens = 0;
     }
     else {
-        if (state.cur_token->kind != CPP_TOK_LPAREN || (state.cur_token->kind == CPP_TOK_LPAREN && state.cur_token->whitespace != 0)) {
+        if (state.token->kind != CPP_TOK_LPAREN || (state.token->kind == CPP_TOK_LPAREN && state.token->whitespace != 0)) {
             // Parse object-like macro
             directive->is_function = 0;
             tokens = parse_define_replacement_tokens();
@@ -1174,22 +1173,22 @@ static Directive *parse_define_tokens(void) {
             directive->param_identifiers = new_strmap();
             int first = 1;
 
-            while (state.cur_token->kind != CPP_TOK_RPAREN && state.cur_token->kind != CPP_TOK_EOF) {
+            while (state.token->kind != CPP_TOK_RPAREN && state.token->kind != CPP_TOK_EOF) {
                 if (!first) {
-                    if (state.cur_token->kind != CPP_TOK_COMMA) panic("Expected comma");
+                    if (state.token->kind != CPP_TOK_COMMA) panic("Expected comma");
                     cpp_next();
                 }
 
                 first = 0;
 
-                if (state.cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+                if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
                 if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
-                if (strmap_get(directive->param_identifiers, state.cur_token->str)) panic("Duplicate macro parameter %s", state.cur_token->str);
-                strmap_put(directive->param_identifiers, state.cur_token->str, (void *) (long) ++directive->param_count);
+                if (strmap_get(directive->param_identifiers, state.token->str)) panic("Duplicate macro parameter %s", state.token->str);
+                strmap_put(directive->param_identifiers, state.token->str, (void *) (long) ++directive->param_count);
                 cpp_next();
             }
 
-            if (state.cur_token->kind != CPP_TOK_RPAREN) panic("Expected )");
+            if (state.token->kind != CPP_TOK_RPAREN) panic("Expected )");
             cpp_next();
 
             tokens = parse_define_replacement_tokens();
@@ -1266,8 +1265,8 @@ static CppToken *expand_defineds(CppToken *is) {
 // 5. Evaluate the string as an integral constant expression
 static long parse_conditional_expression() {
     CppToken *tokens = 0;
-    while (state.cur_token->kind != CPP_TOK_EOF && state.cur_token->kind != CPP_TOK_EOL) {
-        tokens = cll_append(tokens, state.cur_token);
+    while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
+        tokens = cll_append(tokens, state.token);
         cpp_next();
     }
     if (!tokens) panic("Expected expresison");
@@ -1295,9 +1294,9 @@ static void parse_if_defined(int negate) {
     enter_if();
 
     if (!conditional_include_stack->skipping) {
-        if (state.cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+        if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
 
-        Directive *directive = strmap_get(directives, state.cur_token->str);
+        Directive *directive = strmap_get(directives, state.token->str);
         int value = negate ? !directive : !!directive;
         conditional_include_stack->skipping = !value;
         conditional_include_stack->matched = !!value;
@@ -1357,10 +1356,10 @@ static void check_directive_redeclaration(Directive *d1, Directive *d2, char *id
 }
 
 static void parse_directive(void) {
-    CppToken *directive_hash_token = state.cur_token;
+    CppToken *directive_hash_token = state.token;
     cpp_next();
 
-    switch (state.cur_token->kind) {
+    switch (state.token->kind) {
         case CPP_TOK_INCLUDE:
             cpp_next();
 
@@ -1374,9 +1373,9 @@ static void parse_directive(void) {
             cpp_next();
 
             if (!conditional_include_stack->skipping) {
-                if (state.cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+                if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
 
-                char *identifier = state.cur_token->str;
+                char *identifier = state.token->str;
                 cpp_next();
 
                 Directive *existing_directive = strmap_get(directives, identifier);
@@ -1393,8 +1392,8 @@ static void parse_directive(void) {
             cpp_next();
 
             if (!conditional_include_stack->skipping) {
-                if (state.cur_token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
-                strmap_delete(directives, state.cur_token->str);
+                if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+                strmap_delete(directives, state.token->str);
                 cpp_next();
 
                 skip_until_eol();
@@ -1404,7 +1403,7 @@ static void parse_directive(void) {
 
         case CPP_TOK_IFDEF:
         case CPP_TOK_IFNDEF: {
-            int negate = (state.cur_token->kind == CPP_TOK_IFNDEF);
+            int negate = (state.token->kind == CPP_TOK_IFNDEF);
             cpp_next();
             parse_if_defined(negate);
 
@@ -1476,8 +1475,8 @@ static void parse_directive(void) {
             directive_hash_token->next = 0;
             tokens = cll_append(tokens, directive_hash_token);
 
-            while (state.cur_token->kind != CPP_TOK_EOF && state.cur_token->kind != CPP_TOK_EOL) {
-                tokens = cll_append(tokens, state.cur_token);
+            while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
+                tokens = cll_append(tokens, state.token);
                 cpp_next();
             }
 
@@ -1487,7 +1486,7 @@ static void parse_directive(void) {
         }
 
         default:
-            panic("Unknown directive %s", state.cur_token->str);
+            panic("Unknown directive %s", state.token->str);
     }
 }
 
@@ -1497,17 +1496,17 @@ static void cpp_parse() {
     int new_line = 1;
     CppToken *group_tokens = 0;
 
-    while (state.cur_token->kind != CPP_TOK_EOF) {
-        while (state.cur_token->kind != CPP_TOK_EOF) {
-            if (new_line && state.cur_token->kind == CPP_TOK_HASH) {
+    while (state.token->kind != CPP_TOK_EOF) {
+        while (state.token->kind != CPP_TOK_EOF) {
+            if (new_line && state.token->kind == CPP_TOK_HASH) {
                 append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
                 parse_directive();
                 group_tokens = 0;
             }
             else {
                 if (!conditional_include_stack->skipping) {
-                    group_tokens = cll_append(group_tokens, state.cur_token);
-                    new_line = (state.cur_token->kind == CPP_TOK_EOL);
+                    group_tokens = cll_append(group_tokens, state.token);
+                    new_line = (state.token->kind == CPP_TOK_EOL);
                 }
                 cpp_next();
             }
