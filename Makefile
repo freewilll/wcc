@@ -28,6 +28,8 @@ SOURCES = \
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
 
+BUILD_DIR = "$(shell pwd)"
+
 build:
 	@mkdir -p build/wcc2
 	@mkdir -p build/wcc3
@@ -38,7 +40,7 @@ internals.c: internals.h
 	echo "}" >> internals.c
 
 %.o: %.c wcc.h build
-	gcc ${GCC_OPTS} -c $< -o $@ -g -Wno-return-type -Wunused
+	gcc ${GCC_OPTS} -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}' -g -Wno-return-type -Wunused
 
 libwcc.a: ${OBJECTS}
 	ar rcs libwcc.a ${OBJECTS}
@@ -51,7 +53,7 @@ WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
 WCC2_ASSEMBLIES := ${WCC2_SOURCES:.c=.s}
 
 build/wcc2/%.s: %.c wcc
-	./wcc ${WCC_OPTS} --rule-coverage-file wcc2.rulecov -c $< -S -o $@
+	./wcc ${WCC_OPTS} --rule-coverage-file wcc2.rulecov -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 wcc2: ${WCC2_ASSEMBLIES} build/wcc2/main.s
 	gcc ${GCC_OPTS} ${WCC2_ASSEMBLIES} build/wcc2/main.s -o wcc2
@@ -61,7 +63,7 @@ WCC3_SOURCES := ${SOURCES:%=build/wcc3/%}
 WCC3_ASSEMBLIES := ${WCC3_SOURCES:.c=.s}
 
 build/wcc3/%.s: %.c wcc2
-	./wcc2 ${WCC_OPTS} -c $< -S -o $@
+	./wcc2 ${WCC_OPTS} -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 wcc3: ${WCC3_ASSEMBLIES} build/wcc3/main.s
 	gcc ${GCC_OPTS} ${WCC3_ASSEMBLIES} build/wcc3/main.s -o wcc3

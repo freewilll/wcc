@@ -60,6 +60,24 @@ static void parse_directive(char *expr) {
     }
 }
 
+static void add_include_path(char *path) {
+    int len = strlen(path);
+    if (!len) panic("Invalid include path");
+
+    if (len > 1 && path[len - 1] == '/') path[len - 1] = 0; // Strip trailing /
+
+    CliIncludePath *cli_include_path = malloc(sizeof(CliIncludePath));
+    cli_include_path->path = path;
+    cli_include_path->next = 0;
+
+    if (!cli_include_paths) cli_include_paths = cli_include_path;
+    else {
+        CliIncludePath *cd = cli_include_paths;
+        while (cd->next) cd = cd->next;
+        cli_include_paths->next = cli_include_path;
+    }
+}
+
 static void run_preprocessor(char *input_filename, char *preprocessor_output_filename, char *builtin_include_path, int verbose) {
     char *command = malloc(1024 * 100);
 
@@ -68,7 +86,7 @@ static void run_preprocessor(char *input_filename, char *preprocessor_output_fil
 
     CliDirective *cd = cli_directives;
     while (cd) {
-        dptr += sprintf(dptr, " -D %s=\"%s\"", cd->identifier, cd->value);
+        dptr += sprintf(dptr, " -D %s='%s'", cd->identifier, cd->value);
         cd = cd->next;
     }
 
@@ -129,6 +147,7 @@ int main(int argc, char **argv) {
     init_instruction_selection_rules();
 
     cli_directives = 0;
+    cli_include_paths = 0;
 
     // Determine path to the builtin include directory
     char *builtin_include_path;
@@ -206,7 +225,7 @@ int main(int argc, char **argv) {
                 argc -= 2;
                 argv += 2;
             }
-            else if (argc > 1 && !memcmp(argv[0], "-D", 2)) {
+            else if (argc > 1 && !strcmp(argv[0], "-D")) {
                 // -D ...
                 parse_directive(argv[1]);
                 argc -= 2;
@@ -215,8 +234,20 @@ int main(int argc, char **argv) {
             else if (argv[0][0] == '-' && argv[0][1] == 'D') {
                 // -D...
                 parse_directive(&(argv[0][2]));
-                argc -= 1;
-                argv += 1;
+                argc--;
+                argv++;
+            }
+            else if (argc > 1 && !strcmp(argv[0], "-I")) {
+                // -D ...
+                add_include_path(argv[1]);
+                argc -= 2;
+                argv += 2;
+            }
+            else if (argv[0][0] == '-' && argv[0][1] == 'I') {
+                // -D...
+                add_include_path(&(argv[0][2]));
+                argc--;
+                argv++;
             }
             else if (argc > 1 && !strcmp(argv[0], "--rule-coverage-file")) {
                 rule_coverage_file = argv[1];
@@ -245,6 +276,7 @@ int main(int argc, char **argv) {
         printf("-E                                          Run the preprocessor\n");
         printf("-o <file>                                   Output file. Use - for stdout. Defaults to the source file with extension .s\n");
         printf("-D <directive>[=<value>]                    Set a directive\n");
+        printf("-I <path>                                   Prepend an include path to to search path\n");
         printf("-v                                          Display the programs invoked by the compiler\n");
         printf("-d                                          Debug output\n");
         printf("-s                                          Output symbol table\n");

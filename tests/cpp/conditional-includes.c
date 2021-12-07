@@ -242,8 +242,13 @@ foo
 // #error "error"
 // #endif
 
-// TODO include
-// // Ensure the include directive is skipped
-// #if 0
-// #include "foo"
-// #endif
+// Ensure the include directive is skipped
+#if 0
+#include "foo"
+#endif
+
+#define INC1(x) # x
+#include INC1(include.h)
+
+#define INC2 "include.h"
+#include INC2

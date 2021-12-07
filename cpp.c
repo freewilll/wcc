@@ -9,6 +9,13 @@ enum {
     MAX_CPP_OUTPUT_SIZE = 10 * 1024 * 1024,
 };
 
+enum hchar_lex_state {
+    HLS_START_OF_LINE,
+    HLS_SEEN_HASH,
+    HLS_SEEN_INCLUDE,
+    HLS_OTHER,
+};
+
 typedef struct conditional_include {
     int matched;    // Is the evaluated controlling expression 1?
     int skipping;   // Is a group being skipped?
@@ -17,24 +24,36 @@ typedef struct conditional_include {
 
 ConditionalInclude *conditional_include_stack;
 
+// Lexing/parsing state for current file
 static char *cpp_input;
 static int cpp_input_size;
 static LineMap *cpp_line_map;
+static int cpp_cur_ip;             // Offset in cpp_input
+static char *cpp_cur_filename;     // Current filename
+static LineMap *cpp_cur_line_map;  // Linemap
+static int cpp_cur_line_number;    // Current line number
+static CppToken *cpp_cur_token;    // Current token
+static int cpp_hchar_lex_state;    // State of #include <...> lexing
+static int cpp_output_line_number; // How many lines have been outputted
 
-// Current parsing state
-static int cpp_cur_ip;              // Offset in cpp_input
-static char *cpp_cur_filename;      // Current filename
-static LineMap *cpp_cur_line_map;   // Linemap
-static int cpp_cur_line_number;     // Current line number
-static CppToken *cpp_cur_token;     // Current token
+static int include_depth;
 
 // Output
 FILE *cpp_output_file;         // Output file handle
 StringBuffer *output;          // Output string buffer;
-static int output_line_number; // How many lines have been outputted
 
+static void cpp_next();
+static void cpp_parse();
 static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os);
 static CppToken *hsadd(StrSet *hs, CppToken *ts);
+
+char *BUILTIN_INCLUDE_PATHS[5] = {
+    BUILD_DIR "/include/",  // Set during compilation to local wcc source dir
+    "/usr/local/include/",
+    "/usr/include/x86_64-linux-gnu/",
+    "/usr/include/",
+    0,
+};
 
 void debug_print_token_sequence(CppToken *ts) {
     printf("|");
@@ -64,14 +83,7 @@ void debug_print_cll_token_sequence(CppToken *ts) {
     printf("\n");
 }
 
-static void init_cpp(char *filename) {
-    FILE *f  = fopen(filename, "r");
-
-    if (f == 0) {
-        perror(filename);
-        exit(1);
-    }
-
+static void init_cpp_from_fh(FILE *f, char *filename) {
     fseek(f, 0, SEEK_END);
     cpp_input_size = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -88,9 +100,31 @@ static void init_cpp(char *filename) {
     cpp_input[cpp_input_size] = 0;
     cpp_cur_filename = filename;
     cur_filename = filename;
+    cpp_hchar_lex_state = HLS_START_OF_LINE;
 
     conditional_include_stack = malloc(sizeof(ConditionalInclude));
     memset(conditional_include_stack, 0, sizeof(ConditionalInclude));
+}
+
+// Run the preprocessor on an opened file handle
+static void run_preprocessor_on_file(char *filename, int first_file) {
+    if (opt_enable_trigraphs) transform_trigraphs();
+
+    strip_backslash_newlines();
+
+    // Initialize the lexer
+    cpp_cur_ip = 0;
+    cpp_cur_line_map = cpp_line_map->next;
+    cpp_cur_line_number = 1;
+    cpp_next();
+
+    append_to_string_buffer(output, "# 1 \"");
+    append_to_string_buffer(output, filename);
+    append_to_string_buffer(output, "\"");
+    if (!first_file) append_to_string_buffer(output, " 1");
+    append_to_string_buffer(output, "\n");
+
+    cpp_parse();
 }
 
 void init_cpp_from_string(char *string) {
@@ -262,14 +296,14 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
         prev = token;
         token = token->next;
 
-        if (is_eol) output_line_number++;
+        if (is_eol) cpp_output_line_number++;
 
         if (is_eol && token) {
             // Output sufficient newlines to catch up with token->line_number
             // This ensures that each line in the input ends up on the same line
             // in the output.
-            while (output_line_number < token->line_number) {
-                output_line_number++;
+            while (cpp_output_line_number < token->line_number) {
+                cpp_output_line_number++;
                 append_to_string_buffer(sb, "\n");
             }
         }
@@ -381,7 +415,7 @@ static void lex_string_and_char_literal(char delimiter) {
 
     advance_cur_ip();
 
-    data[data_offset] = delimiter;
+    data[data_offset] = delimiter == '>' ? '<' : delimiter;
     int size = 0;
 
     while (cpp_cur_ip < cpp_input_size) {
@@ -407,6 +441,7 @@ static void lex_string_and_char_literal(char delimiter) {
 
     data[data_offset + size + 1] = delimiter;
     data[data_offset + size + 2] = 0;
+
     cpp_cur_token = new_cpp_token(CPP_TOK_STRING_LITERAL);
     cpp_cur_token->str = data;
 }
@@ -431,7 +466,6 @@ static void lex_string_and_char_literal(char delimiter) {
         cpp_cur_token->str[size] = 0; \
     } while (0)
 
-
 // Lex one CPP token, starting with optional whitespace
 static void cpp_next() {
     char *whitespace = lex_whitespace();
@@ -452,6 +486,7 @@ static void cpp_next() {
             cpp_cur_token = new_cpp_token(CPP_TOK_EOL);
             cpp_cur_token->str = "\n";
             cpp_cur_token->line_number = cpp_cur_line_number; // Needs to be the line number of the \n token, not the next token
+            cpp_hchar_lex_state = HLS_START_OF_LINE;
             advance_cur_ip();
         }
 
@@ -491,6 +526,12 @@ static void cpp_next() {
         else if ((c1 == '\'') || (cpp_input_size - cpp_cur_ip >= 2 && c1 == 'L' && c2 == '\''))
             lex_string_and_char_literal('\'');
 
+        else if (c1 == '<' && cpp_hchar_lex_state == HLS_SEEN_INCLUDE) {
+            lex_string_and_char_literal('>');
+            cpp_cur_token->kind = CPP_TOK_HCHAR_STRING_LITERAL;
+            cpp_hchar_lex_state = HLS_OTHER;
+        }
+
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             char *identifier = malloc(1024);
             int j = 0;
@@ -504,6 +545,7 @@ static void cpp_next() {
 
             #define is_identifier(t) (\
                 t->kind == CPP_TOK_IDENTIFIER || \
+                t->kind == CPP_TOK_INCLUDE    || \
                 t->kind == CPP_TOK_DEFINE     || \
                 t->kind == CPP_TOK_UNDEF      || \
                 t->kind == CPP_TOK_IF         || \
@@ -515,6 +557,7 @@ static void cpp_next() {
                 t->kind == CPP_TOK_DEFINED)
 
             if      (!strcmp(identifier, "define"))   { cpp_cur_token = new_cpp_token(CPP_TOK_DEFINE);  cpp_cur_token->str = "define";  }
+            else if (!strcmp(identifier, "include"))  { cpp_cur_token = new_cpp_token(CPP_TOK_INCLUDE); cpp_cur_token->str = "include"; }
             else if (!strcmp(identifier, "undef"))    { cpp_cur_token = new_cpp_token(CPP_TOK_UNDEF);   cpp_cur_token->str = "undef";   }
             else if (!strcmp(identifier, "if"))       { cpp_cur_token = new_cpp_token(CPP_TOK_IF);      cpp_cur_token->str = "if";      }
             else if (!strcmp(identifier, "ifdef"))    { cpp_cur_token = new_cpp_token(CPP_TOK_IFDEF);   cpp_cur_token->str = "ifdef";   }
@@ -552,6 +595,9 @@ static void cpp_next() {
     // Set the line number of not already set
     if (!cpp_cur_token->line_number) cpp_cur_token->line_number = cpp_cur_line_number;
     cpp_cur_token->whitespace = whitespace;
+
+    if (cpp_hchar_lex_state == HLS_START_OF_LINE && cpp_cur_token->kind == CPP_TOK_HASH   ) cpp_hchar_lex_state = HLS_SEEN_HASH;
+    if (cpp_hchar_lex_state == HLS_SEEN_HASH     && cpp_cur_token->kind == CPP_TOK_INCLUDE) cpp_hchar_lex_state = HLS_SEEN_INCLUDE;
 
     return;
 }
@@ -924,6 +970,150 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
     return result;
 }
 
+static char *get_current_file_path() {
+    char *p = strrchr(cpp_cur_filename, '/');
+    if (!p) return strdup("./");
+    char *path = malloc(p - cpp_cur_filename + 2);
+    memcpy(path, cpp_cur_filename, p - cpp_cur_filename + 1);
+    path[p - cpp_cur_filename + 1] = 0;
+
+    return path;
+}
+
+static int try_and_open_include_file(char *full_path, char *path) {
+    FILE *file = fopen(full_path, "r" );
+    if (file) {
+        init_cpp_from_fh(file, path);
+        return 1;
+    }
+
+    return 0;
+}
+
+// Locate a filename in the search paths open it.
+static int open_include_file(char *path, int is_system_include) {
+    if (path[0] == '/')
+        // Absolute path
+        return try_and_open_include_file(path, path);
+
+    // Relative path
+    if (!is_system_include) {
+        char *full_path;
+        wasprintf(&full_path, "%s%s", get_current_file_path(), path);
+        if (try_and_open_include_file(full_path, path)) return 1;
+    }
+
+    for (CliIncludePath *cip = cli_include_paths; cip; cip = cip->next) {
+        char *full_path;
+        wasprintf(&full_path, "%s/%s", cip->path, path);
+        if (try_and_open_include_file(full_path, path)) return 1;
+    }
+
+    char *include_path;
+    for (int i = 1; (include_path = BUILTIN_INCLUDE_PATHS[i]); i++) {
+        char *full_path;
+        wasprintf(&full_path, "%s%s", include_path, path);
+        if (try_and_open_include_file(full_path, path)) return 1;
+    }
+
+    return 0;
+}
+
+static void skip_until_eol() {
+    while (cpp_cur_token->kind != CPP_TOK_EOF && cpp_cur_token->kind != CPP_TOK_EOL) {
+        cpp_next();
+    }
+}
+
+static void parse_include() {
+    if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF)
+        panic("Invalid #include");
+
+    if (include_depth == MAX_CPP_INCLUDE_DEPTH)
+        panic("Exceeded maximum include depth %d", MAX_CPP_INCLUDE_DEPTH);
+
+    char *path;
+    int is_system;
+
+    if (cpp_cur_token->kind == CPP_TOK_STRING_LITERAL || cpp_cur_token->kind == CPP_TOK_HCHAR_STRING_LITERAL) {
+        // Remove "" or <> tokens
+        path = &(cpp_cur_token->str[1]);
+        path[strlen(path) - 1] = 0;
+        is_system = cpp_cur_token->kind == CPP_TOK_HCHAR_STRING_LITERAL;
+        cpp_next();
+    }
+    else {
+        // Parse #include pp-tokens
+
+        // Gather tokens until eol
+        CppToken *tokens = 0;
+        while (cpp_cur_token->kind != CPP_TOK_EOF && cpp_cur_token->kind != CPP_TOK_EOL) {
+            tokens = cll_append(tokens, cpp_cur_token);
+            cpp_next();
+        }
+
+        // Macro expand the tokens
+        tokens = convert_cll_to_ll(tokens);
+        tokens = expand(tokens);
+
+        // Render the tokens
+        StringBuffer *rendered = new_string_buffer(128);
+        append_tokens_to_string_buffer(rendered, tokens, 0);
+        terminate_string_buffer(rendered);
+
+        // Extract "foo" or <foo> from the rendered tokens
+        char *expr = rendered->data;
+
+        while (*expr == ' ') expr++; // Skip any leading whitespace
+
+        int len = strlen(expr);
+        if (len < 2) panic("Invalid #include");
+        is_system = expr[0] == '<';
+        if ((is_system && expr[len - 1] != '>') || (!is_system && expr[len - 1] != '"'))
+            panic("Invalid #include");
+
+        expr[len - 1] = 0;
+        path = expr + 1;
+    }
+
+    skip_until_eol();
+
+    // Backup current parsing state
+    char *     bak_cpp_input              = cpp_input;
+    int        bak_cpp_input_size         = cpp_input_size;
+    LineMap *  bak_cpp_line_map           = cpp_line_map;
+    int        bak_cpp_cur_ip             = cpp_cur_ip;
+    char *     bak_cpp_cur_filename       = cpp_cur_filename;
+    LineMap *  bak_cpp_cur_line_map       = cpp_cur_line_map;
+    int        bak_cpp_cur_line_number    = cpp_cur_line_number;
+    CppToken * bak_cpp_cur_token          = cpp_cur_token;
+    int        bak_cpp_hchar_lex_state    = cpp_hchar_lex_state;
+    int        bak_cpp_output_line_number = cpp_output_line_number;
+
+    if (!open_include_file(path, is_system)) panic("Unable to find %s in any include paths", path);
+
+    include_depth++;
+    run_preprocessor_on_file(path, 0);
+    include_depth--;
+
+    // Restore parsing state
+    cpp_input              = bak_cpp_input;
+    cpp_input_size         = bak_cpp_input_size;
+    cpp_line_map           = bak_cpp_line_map;
+    cpp_cur_ip             = bak_cpp_cur_ip;
+    cpp_cur_filename       = bak_cpp_cur_filename;
+    cpp_cur_line_map       = bak_cpp_cur_line_map;
+    cpp_cur_line_number    = bak_cpp_cur_line_number;
+    cpp_cur_token          = bak_cpp_cur_token;
+    cpp_hchar_lex_state    = bak_cpp_hchar_lex_state;
+    cpp_output_line_number = bak_cpp_output_line_number;
+
+    char *buf = malloc(256);
+    sprintf(buf, "# %d \"%s\" 2", cpp_cur_line_number, cpp_cur_filename);
+    append_to_string_buffer(output, buf);
+    free(buf);
+}
+
 static CppToken *parse_define_replacement_tokens(void) {
     if (cpp_cur_token->kind == CPP_TOK_EOL || cpp_cur_token->kind == CPP_TOK_EOF)
         return 0;
@@ -1087,12 +1277,6 @@ static long parse_conditional_expression() {
     return value->int_value;
 }
 
-static void skip_until_eol() {
-    while (cpp_cur_token->kind != CPP_TOK_EOF && cpp_cur_token->kind != CPP_TOK_EOL) {
-        cpp_next();
-    }
-}
-
 static void parse_if_defined(int negate) {
     enter_if();
 
@@ -1159,8 +1343,19 @@ static void check_directive_redeclaration(Directive *d1, Directive *d2, char *id
 }
 
 static void parse_directive(void) {
+    CppToken *directive_hash_token = cpp_cur_token;
     cpp_next();
+
     switch (cpp_cur_token->kind) {
+        case CPP_TOK_INCLUDE:
+            cpp_next();
+
+            if (!conditional_include_stack->skipping)
+                parse_include();
+
+            skip_until_eol();
+            break;
+
         case CPP_TOK_DEFINE:
             cpp_next();
 
@@ -1259,6 +1454,24 @@ static void parse_directive(void) {
             break;
         }
 
+        case CPP_TOK_NUMBER: {
+            // # <number> ...
+            // We're probably re-preprocessing everything, keep the line
+
+            CppToken *tokens = 0;
+            directive_hash_token->next = 0;
+            tokens = cll_append(tokens, directive_hash_token);
+
+            while (cpp_cur_token->kind != CPP_TOK_EOF && cpp_cur_token->kind != CPP_TOK_EOL) {
+                tokens = cll_append(tokens, cpp_cur_token);
+                cpp_next();
+            }
+
+            append_tokens_to_output(expand(convert_cll_to_ll(tokens)));
+
+            break;
+        }
+
         default:
             panic("Unknown directive %s", cpp_cur_token->str);
     }
@@ -1266,7 +1479,7 @@ static void parse_directive(void) {
 
 // Parse tokens from the lexer
 static void cpp_parse() {
-    output_line_number = 1;
+    cpp_output_line_number = 1;
     int new_line = 1;
     CppToken *group_tokens = 0;
 
@@ -1296,25 +1509,27 @@ Directive *parse_cli_define(char *string) {
     return parse_define_tokens();
 }
 
+// Entrypoint for the preprocessor. This handles a top level file. It prepares the
+// output, runs the preprocessor, then prints the output to a file handle.
 void preprocess(char *filename, char *output_filename) {
-    init_cpp(filename);
+    include_depth = 0;
 
-    if (opt_enable_trigraphs) transform_trigraphs();
+    FILE *f  = fopen(filename, "r");
 
-    strip_backslash_newlines();
+    if (f == 0) {
+        perror(filename);
+        exit(1);
+    }
 
-    // Initialize the lexer
-    cpp_cur_ip = 0;
-    cpp_cur_line_map = cpp_line_map->next;
-    cpp_cur_line_number = 1;
-    cpp_next();
+    init_cpp_from_fh(f, filename);
 
-    // Parse
     output = new_string_buffer(cpp_input_size * 2);
-    cpp_parse();
-    terminate_string_buffer(output);
+
+    run_preprocessor_on_file(filename, 1);
 
     // Print the output
+    terminate_string_buffer(output);
+
     if (!output_filename || !strcmp(output_filename, "-"))
         cpp_output_file = stdout;
     else {

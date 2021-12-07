@@ -330,6 +330,7 @@ typedef struct register_set {
 
 enum {
     MAX_CPP_FILESIZE              = 10 * 1024 * 1024,
+    MAX_CPP_INCLUDE_DEPTH         = 15,
     MAX_CPP_MACRO_PARAM_COUNT     = 1024,
     MAX_STRUCTS_AND_UNIONS        = 1024,
     MAX_STRUCT_OR_UNION_SCALARS   = 1024,
@@ -587,9 +588,11 @@ enum {
     CPP_TOK_EOF,
     CPP_TOK_IDENTIFIER,
     CPP_TOK_STRING_LITERAL,
+    CPP_TOK_HCHAR_STRING_LITERAL,
     CPP_TOK_NUMBER,
     CPP_TOK_HASH,
     CPP_TOK_PASTE,
+    CPP_TOK_INCLUDE,
     CPP_TOK_DEFINE,
     CPP_TOK_UNDEF,
     CPP_TOK_IF,
@@ -631,6 +634,12 @@ typedef struct cli_directive {
     struct cli_directive *next;
 } CliDirective;
 
+// Structure with all include paths passed on the command line with -I
+typedef struct cli_include_path {
+    char *path;
+    struct cli_include_path *next;
+} CliIncludePath;
+
 char *cur_filename;             // Current filename being lexed
 int cur_line;                   // Current line number being lexed
 
@@ -646,6 +655,7 @@ int opt_enable_preferred_pregs;         // Enable preferred preg selection in re
 int opt_enable_trigraphs;               // Enable trigraph preprocessing
 
 CliDirective *cli_directives;      // Linked list of directives passed on the command line
+CliIncludePath *cli_include_paths; // Linked list of directives passed on the command line
 StrMap *directives;                // Map of CPP directives
 int cur_token;                     // Current token
 char *cur_identifier;              // Current identifier if the token is an identifier
