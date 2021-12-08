@@ -4,6 +4,11 @@
 
 #include "wcc.h"
 
+typedef struct base_type {
+    Type *type;
+    int storage_class;
+} BaseType;
+
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
 static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
@@ -12,7 +17,7 @@ Value *parse_expression_and_pop(int level);
 static void parse_statement(void);
 static void parse_expression(int level);
 
-static Type *base_type;
+static BaseType *base_type;
 
 int function_call_count; // Uniquely identify a function call within a function
 
@@ -297,12 +302,19 @@ static int get_type_inc_dec_size(Type *type) {
     return type->type == TYPE_PTR ? get_type_size(type->target) : 1;
 }
 
+static BaseType *dup_base_type(BaseType *base_type) {
+    BaseType *result = malloc(sizeof(BaseType));
+    result->type = dup_type(base_type->type);
+    result->storage_class = base_type->storage_class;
+    return result;
+}
+
 // Parse
 // - storage-class-specifiers: auto, register, static, extern
 // - type-specifiers: void, int, signed, unsigned, ... long, double, struct, union
 // - type-qualifiers: const, volatile
 // - typedef type names
-static Type *parse_declaration_specifiers(void) {
+static BaseType *parse_declaration_specifiers(void) {
     Type *type = 0;
 
     // Type specifiers
@@ -433,10 +445,14 @@ static Type *parse_declaration_specifiers(void) {
     if ((seen_auto + seen_register + seen_static + seen_extern > 1))
         panic("Duplicate storage class specifiers");
 
-    if (seen_extern) type->storage_class = SC_EXTERN;
-    if (seen_static) type->storage_class = SC_STATIC;
-    if (seen_auto) type->storage_class = SC_AUTO;
-    if (seen_register) type->storage_class = SC_REGISTER;
+    BaseType *base_type = malloc(sizeof(BaseType));
+    base_type->type = type;
+    base_type->storage_class = SC_NONE;
+
+    if (seen_extern) base_type->storage_class = SC_EXTERN;
+    if (seen_static) base_type->storage_class = SC_STATIC;
+    if (seen_auto) base_type->storage_class = SC_AUTO;
+    if (seen_register) base_type->storage_class = SC_REGISTER;
 
     if (seen_restrict) type->is_restrict = 1;
 
@@ -445,7 +461,7 @@ static Type *parse_declaration_specifiers(void) {
 
     if (seen_unsigned) type->is_unsigned = 1;
 
-    return type;
+    return base_type;
 }
 
 // If an array type is declared with the const type qualifier (through the use of
@@ -481,6 +497,12 @@ static Type *concat_types(Type *type1, Type *type2) {
     }
 
     return move_array_const(type1);
+}
+
+static Type *concat_base_type(Type *type, BaseType *base_type) {
+    Type *result = concat_types(type, base_type->type);
+    result->storage_class = base_type->storage_class;
+    return result;
 }
 
 Type *parse_direct_declarator(void);
@@ -599,10 +621,10 @@ static Type *parse_function(void) {
 // Parse old style K&R function declaration list,
 static void parse_function_paramless_declaration_list(Function *function) {
     while (cur_token != TOK_LCURLY) {
-        Type *base_type = parse_declaration_specifiers();
+        BaseType *base_type = parse_declaration_specifiers();
         while (cur_token != TOK_SEMI) {
             cur_type_identifier = 0;
-            Type *type = concat_types(parse_declarator(), base_type);
+            Type *type = concat_base_type(parse_declarator(), base_type);
 
             // Array parameters decay to a pointer
             if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
@@ -684,7 +706,9 @@ Type *parse_direct_declarator(void) {
 }
 
 Type *parse_type_name(void) {
-    return concat_types(parse_declarator(), parse_declaration_specifiers());
+    BaseType *base_type = parse_declaration_specifiers();
+    base_type->type->storage_class = base_type->storage_class;
+    return concat_types(parse_declarator(), base_type->type);
 }
 
 // Allocate a new StructOrUnion
@@ -791,7 +815,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
         // Loop over members
         int member_count = 0;
         while (cur_token != TOK_RCURLY) {
-            Type *base_type = parse_declaration_specifiers();
+            BaseType *base_type = parse_declaration_specifiers();
 
             int done_parsing_members = 0;
             while (!done_parsing_members) {
@@ -800,7 +824,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
                 int unnamed_bit_field = 0;
                 if (cur_token != TOK_COLON) {
                     cur_type_identifier = 0;
-                    type = concat_types(parse_declarator(), base_type);
+                    type = concat_base_type(parse_declarator(), base_type);
                 }
 
                 else {
@@ -930,7 +954,8 @@ static Type *parse_enum_type_specifier(void) {
 static void parse_typedef(void) {
     next();
 
-    Type *base_type = parse_declaration_specifiers();
+    BaseType *base_type_with_storage_class = parse_declaration_specifiers();
+    Type *base_type = base_type_with_storage_class->type;
 
     while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
         cur_type_identifier = 0;
@@ -1908,7 +1933,7 @@ static void parse_declaration(void) {
     Symbol *symbol;
 
     cur_type_identifier = 0;
-    Type *type = concat_types(parse_declarator(), dup_type(base_type));
+    Type *type = concat_base_type(parse_declarator(), dup_base_type(base_type));
 
     if (!cur_type_identifier) panic("Expected an identifier");
 
@@ -1960,7 +1985,7 @@ static void parse_declaration(void) {
 
     if (cur_token == TOK_EQ) {
         push_symbol(symbol);
-        Type *old_base_type = base_type;
+        BaseType *old_base_type = base_type;
         base_type = 0;
         next();
         Value *v = pop();
@@ -3031,7 +3056,7 @@ static void parse_statement(void) {
 
     if (cur_token_is_type()) {
         base_type = parse_declaration_specifiers();
-        if (cur_token == TOK_SEMI && (base_type->type == TYPE_STRUCT_OR_UNION || base_type->type == TYPE_ENUM))
+        if (cur_token == TOK_SEMI && (base_type->type->type == TYPE_STRUCT_OR_UNION || base_type->type->type == TYPE_ENUM))
             next();
         else
             parse_expression(TOK_COMMA);
@@ -3197,11 +3222,14 @@ void parse(void) {
         if (cur_token_is_type() || cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
             // Variable or function definition
 
-            Type *base_type;
+            BaseType *base_type;
 
-            if (cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY)
+            if (cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
                 // Implicit int
-                base_type = new_type(TYPE_INT);
+                base_type = malloc(sizeof(BaseType));
+                base_type->type = new_type(TYPE_INT);
+                base_type->storage_class = SC_NONE;
+            }
             else
                 base_type = parse_declaration_specifiers();
 
@@ -3213,7 +3241,7 @@ void parse(void) {
                 if (base_type->storage_class == SC_REGISTER)
                     panic("register not allowed in global scope");
 
-                Type *type = concat_types(parse_declarator(), dup_type(base_type));
+                Type *type = concat_base_type(parse_declarator(), dup_base_type(base_type));
 
                 if (!cur_type_identifier) panic("Expected an identifier");
 
@@ -3246,7 +3274,7 @@ void parse(void) {
                     break; // Break out of function parameters loop
                 }
                 else if (cur_token == TOK_EQ) {
-                    Type *old_base_type = base_type;
+                    BaseType *old_base_type = base_type;
                     base_type = 0;
                     next();
                     Value *v = make_global_symbol_value(symbol);

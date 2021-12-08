@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "../test-lib.h"
 
@@ -1560,6 +1561,15 @@ void test_bswap64() {
     assert_long(0x8877665544332211UL, bswap64(0x1122334455667788UL), "bswap64");
 }
 
+void test_extern_function_returning_pointer_to_struct_bug() {
+    // Tests bug where an extern storage class specifier was being applied to a struct
+    // instead of to a function returning a pointer to struct
+
+    time_t rawtime;
+    time(&rawtime);
+    struct tm *info = localtime(&rawtime);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1611,6 +1621,7 @@ int main(int argc, char **argv) {
     test_constant_expression_uses();
     test_constant_casting();
     test_bswap64();
+    test_extern_function_returning_pointer_to_struct_bug();
 
     finalize();
 }
