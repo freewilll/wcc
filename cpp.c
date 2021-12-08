@@ -89,7 +89,7 @@ void debug_print_cll_token_sequence(CppToken *ts) {
     printf("\n");
 }
 
-static void init_cpp_from_fh(FILE *f, char *filename) {
+static void init_cpp_from_fh(FILE *f, char *full_path, char *filename) {
     fseek(f, 0, SEEK_END);
     state.input_size = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -105,7 +105,7 @@ static void init_cpp_from_fh(FILE *f, char *filename) {
 
     state.input[state.input_size] = 0;
     state.filename = filename;
-    cur_filename = filename;
+    cur_filename = full_path;
     filename = filename;
     state.hchar_lex_state = HLS_START_OF_LINE;
 
@@ -1084,7 +1084,7 @@ static char *get_current_file_path() {
 static int try_and_open_include_file(char *full_path, char *path) {
     FILE *file = fopen(full_path, "r" );
     if (file) {
-        init_cpp_from_fh(file, path);
+        init_cpp_from_fh(file, full_path, path);
         return 1;
     }
 
@@ -1604,14 +1604,14 @@ Directive *parse_cli_define(char *string) {
 void preprocess(char *filename, char *output_filename) {
     include_depth = 0;
 
-    FILE *f  = fopen(filename, "r");
+    FILE *f = fopen(filename, "r");
 
     if (f == 0) {
         perror(filename);
         exit(1);
     }
 
-    init_cpp_from_fh(f, filename);
+    init_cpp_from_fh(f, filename, filename);
 
     output = new_string_buffer(state.input_size * 2);
 
