@@ -1563,7 +1563,7 @@ static void parse_directive(void) {
         }
 
         default:
-            panic("Unknown directive %s", state.token->str);
+            panic("Unknown directive \"%s\"", state.token->str);
     }
 }
 
