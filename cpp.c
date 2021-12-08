@@ -1174,7 +1174,7 @@ static void parse_include() {
         cpp_next();
     }
 
-    if (include_token->kind == CPP_TOK_EOL || include_token->kind == CPP_TOK_EOF)
+    if (!include_token || include_token->kind == CPP_TOK_EOL || include_token->kind == CPP_TOK_EOF)
         panic("Invalid #include");
 
     // Remove "" or <> tokens
