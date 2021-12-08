@@ -3276,11 +3276,6 @@ void parse(void) {
             if (cur_token == TOK_SEMI) next();
         }
 
-        else if (cur_token == TOK_STRUCT || cur_token == TOK_UNION || cur_token == TOK_ENUM) {
-            parse_declaration_specifiers();
-            consume(TOK_SEMI, ";");
-        }
-
         else if (cur_token == TOK_TYPEDEF) {
             parse_typedef();
             consume(TOK_SEMI, ";");
