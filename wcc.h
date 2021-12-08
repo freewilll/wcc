@@ -91,17 +91,22 @@ typedef struct i_graph {
     int node_count;
 } IGraph;
 
+enum {
+    SC_NONE,
+    SC_EXTERN,
+    SC_STATIC,
+    SC_AUTO,
+    SC_REGISTER,
+};
+
 typedef struct type {
     int type;       // One of TYPE_*
     int array_size;
     char is_unsigned;
     char is_const;
     char is_volatile;
-    char is_auto;
-    char is_register;
+    char storage_class;
     char is_restrict;
-    char is_static;
-    char is_extern;
     struct type *target;
     struct struct_or_union_desc *struct_or_union_desc;
     struct function *function;

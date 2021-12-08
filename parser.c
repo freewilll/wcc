@@ -433,11 +433,12 @@ static Type *parse_declaration_specifiers(void) {
     if ((seen_auto + seen_register + seen_static + seen_extern > 1))
         panic("Duplicate storage class specifiers");
 
-    if (seen_auto) type->is_auto = 1;
-    if (seen_register) type->is_register = 1;
+    if (seen_extern) type->storage_class = SC_EXTERN;
+    if (seen_static) type->storage_class = SC_STATIC;
+    if (seen_auto) type->storage_class = SC_AUTO;
+    if (seen_register) type->storage_class = SC_REGISTER;
+
     if (seen_restrict) type->is_restrict = 1;
-    if (seen_static) type->is_static = 1;
-    if (seen_extern) type->is_extern = 1;
 
     if (seen_const) type->is_const = 1;
     if (seen_volatile) type->is_volatile = 1;
@@ -534,7 +535,7 @@ static Type *parse_function(void) {
                 type = parse_type_name();
                 function_type->function->is_paramless = 0;
 
-                if (type->is_auto || type->is_static || type->is_extern)
+                if (type->storage_class == SC_AUTO || type->storage_class == SC_STATIC || type->storage_class == SC_EXTERN)
                     panic("Invalid storage for function parameter");
             }
             else {
@@ -1913,7 +1914,7 @@ static void parse_declaration(void) {
 
     if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic("Identifier redeclared: %s", cur_type_identifier);
 
-    if (base_type->is_static) {
+    if (base_type->storage_class == SC_STATIC) {
         symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
         symbol->linkage = LINKAGE_INTERNAL;
@@ -1929,7 +1930,7 @@ static void parse_declaration(void) {
 
         function->static_symbols[function->static_symbol_count++] = symbol;
     }
-    else if (base_type->is_extern) {
+    else if (base_type->storage_class == SC_EXTERN) {
         // Add the identifier to the local scope, but give it a global identifier
         // without adding any linkage
         symbol = new_symbol(cur_type_identifier);
@@ -3204,15 +3205,12 @@ void parse(void) {
             else
                 base_type = parse_declaration_specifiers();
 
-            int is_static = base_type->is_static;
-            int is_extern = base_type->is_extern;
-
             while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
                 cur_type_identifier = 0;
 
-                if (base_type->is_auto)
+                if (base_type->storage_class == SC_AUTO)
                     panic("auto not allowed in global scope");
-                if (base_type->is_register)
+                if (base_type->storage_class == SC_REGISTER)
                     panic("register not allowed in global scope");
 
                 Type *type = concat_types(parse_declarator(), dup_type(base_type));
@@ -3234,9 +3232,10 @@ void parse(void) {
                 if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
                     panic("%s redeclared as different kind of symbol", cur_type_identifier);
 
-                int linkage = is_static
-                    ? LINKAGE_INTERNAL
-                    : is_extern ? LINKAGE_UNDECLARED_EXTERNAL : LINKAGE_EXTERNAL;
+                int linkage =
+                    base_type->storage_class == SC_STATIC ? LINKAGE_INTERNAL
+                    : base_type->storage_class == SC_EXTERN ? LINKAGE_UNDECLARED_EXTERNAL
+                    : LINKAGE_EXTERNAL;
 
                 if (original_symbol)
                     linkage = redefined_symbol_linkage(original_symbol->linkage, linkage, cur_type_identifier);
