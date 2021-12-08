@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 #include "wcc.h"
 
@@ -49,6 +50,8 @@ static void cpp_next();
 static void cpp_parse();
 static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os);
 static CppToken *hsadd(StrSet *hs, CppToken *ts);
+
+const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 char *BUILTIN_INCLUDE_PATHS[5] = {
     BUILD_DIR "/include/",  // Set during compilation to local wcc source dir
@@ -192,10 +195,29 @@ static CppToken *render_file(CppToken *directive_token) {
     return result;
 }
 
-
 static CppToken *render_line(CppToken *directive_token) {
     CppToken *result = new_cpp_token(CPP_TOK_NUMBER);
     wasprintf(&(result->str), "%d", directive_token->line_number);
+    return result;
+}
+
+static CppToken *render_time(CppToken *directive_token) {
+    time_t rawtime;
+    struct tm *info;
+    time(&rawtime);
+    info = localtime(&rawtime);
+    CppToken *result = new_cpp_token(CPP_TOK_STRING_LITERAL);
+    wasprintf(&(result->str), "\"%02d:%02d:%02d\"", info->tm_hour, info->tm_min, info->tm_sec);
+    return result;
+}
+
+static CppToken *render_date(CppToken *directive_token) {
+    time_t rawtime;
+    struct tm *info;
+    time(&rawtime);
+    info = localtime(&rawtime);
+    CppToken *result = new_cpp_token(CPP_TOK_STRING_LITERAL);
+    wasprintf(&(result->str), "\"%3s %2d %04d\"", months[info->tm_mon], info->tm_mday, info->tm_year + 1900);
     return result;
 }
 
@@ -220,6 +242,8 @@ void init_directives(void) {
 
     add_builtin_directive("__FILE__", render_file);
     add_builtin_directive("__LINE__", render_line);
+    add_builtin_directive("__TIME__", render_time);
+    add_builtin_directive("__DATE__", render_date);
     add_builtin_directive("__STDC__", render_stdc);
 
     Directive *directive = malloc(sizeof(Directive));
