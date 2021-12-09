@@ -662,7 +662,8 @@ static void cpp_next() {
                 t->kind == CPP_TOK_ELSE       || \
                 t->kind == CPP_TOK_ENDIF      || \
                 t->kind == CPP_TOK_LINE       || \
-                t->kind == CPP_TOK_DEFINED)
+                t->kind == CPP_TOK_DEFINED    || \
+                t->kind == CPP_TOK_PRAGMA)
 
             if      (!strcmp(identifier, "define"))   { state.token = new_cpp_token(CPP_TOK_DEFINE);  state.token->str = "define";  }
             else if (!strcmp(identifier, "include"))  { state.token = new_cpp_token(CPP_TOK_INCLUDE); state.token->str = "include"; }
@@ -675,6 +676,7 @@ static void cpp_next() {
             else if (!strcmp(identifier, "endif"))    { state.token = new_cpp_token(CPP_TOK_ENDIF);   state.token->str = "endif";   }
             else if (!strcmp(identifier, "line"))     { state.token = new_cpp_token(CPP_TOK_LINE);    state.token->str = "line";    }
             else if (!strcmp(identifier, "defined"))  { state.token = new_cpp_token(CPP_TOK_DEFINED); state.token->str = "defined"; }
+            else if (!strcmp(identifier, "pragma"))   { state.token = new_cpp_token(CPP_TOK_PRAGMA);  state.token->str = "pragma"; }
 
             else {
                 state.token = new_cpp_token(CPP_TOK_IDENTIFIER);
@@ -1597,6 +1599,12 @@ static void parse_directive(void) {
 
             break;
         }
+
+        case CPP_TOK_PRAGMA:
+            // Ignore #pragma
+
+            skip_until_eol();
+            break;
 
         case CPP_TOK_EOL:
         case CPP_TOK_EOF:

@@ -23,7 +23,8 @@ CPP_TESTS = \
 	includes \
 	line \
 	c99-examples \
-	null
+	null \
+	pragma
 
 
 CPP_TESTS_INCLUDES = \
