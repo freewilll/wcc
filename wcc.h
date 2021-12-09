@@ -606,6 +606,7 @@ enum {
     CPP_TOK_ELIF,
     CPP_TOK_ELSE,
     CPP_TOK_ENDIF,
+    CPP_TOK_LINE,
     CPP_TOK_DEFINED,
     CPP_TOK_LPAREN,
     CPP_TOK_RPAREN,
@@ -620,6 +621,7 @@ typedef struct cpp_token {
     char *whitespace;       // Preceding whitespace
     char *str;              // The token text
     int line_number;
+    int line_number_offset; // Amended line number due to #line
     StrSet *hide_set;       // Hide set, when expanding macros
     struct cpp_token *next;
 } CppToken;

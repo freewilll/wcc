@@ -29,8 +29,10 @@ typedef struct cpp_state {
     int        input_size;
     int        ip;                 // Offset in input
     char *     filename;           // Current filename
+    char *     override_filename;  // Overridden filename with #line
     LineMap *  line_map;           // Linemap
     int        line_number;        // Current line number
+    int        line_number_offset; // Difference in line number set by #line directive
     CppToken * token;              // Current token
     int        hchar_lex_state;    // State of #include <...> lexing
     int        output_line_number; // How many lines have been outputted
@@ -113,8 +115,16 @@ static void init_cpp_from_fh(FILE *f, char *full_path, char *filename) {
     memset(conditional_include_stack, 0, sizeof(ConditionalInclude));
 }
 
+static void output_line_directive(int offset, int add_eol) {
+    char *buf = malloc(256);
+    char *filename = state.override_filename ? state.override_filename : state.filename;
+    sprintf(buf, "# %d \"%s\"%s", state.line_number_offset + state.line_number + offset, filename, add_eol ? "\n" : "");
+    append_to_string_buffer(output, buf);
+    free(buf);
+}
+
 // If the output has an amount newlines > threshold, collapse them into a # line statement
-static void collapse_trailing_newlines(int threshold, int output_line_directive) {
+static void collapse_trailing_newlines(int threshold, int output_line) {
     int count = 0;
     while (output->position - count > 0 && output->data[output->position - count - 1] == '\n') count++;
 
@@ -123,12 +133,7 @@ static void collapse_trailing_newlines(int threshold, int output_line_directive)
         output->data[output->position - count + 1] = '\n';
         output->position -= count - 1;
 
-        if (output_line_directive) {
-            char *buf = malloc(256);
-            sprintf(buf, "# %d \"%s\"\n", state.line_number - 1, state.filename);
-            append_to_string_buffer(output, buf);
-            free(buf);
-        }
+        if (output_line) output_line_directive(-1, 1);
     }
 }
 
@@ -142,6 +147,8 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
     state.ip = 0;
     state.line_map = state.line_map->next;
     state.line_number = 1;
+    state.line_number_offset = 0;
+    state.override_filename = 0;
     cpp_next();
 
     append_to_string_buffer(output, "# 1 \"");
@@ -191,13 +198,13 @@ static void add_builtin_directive(char *identifier, DirectiveRenderer renderer) 
 
 static CppToken *render_file(CppToken *directive_token) {
     CppToken *result = new_cpp_token(CPP_TOK_STRING_LITERAL);
-    wasprintf(&(result->str), "\"%s\"", state.filename);
+    wasprintf(&(result->str), "\"%s\"", state.override_filename ? state.override_filename : state.filename);
     return result;
 }
 
 static CppToken *render_line(CppToken *directive_token) {
     CppToken *result = new_cpp_token(CPP_TOK_NUMBER);
-    wasprintf(&(result->str), "%d", directive_token->line_number);
+    wasprintf(&(result->str), "%d", directive_token->line_number_offset + directive_token->line_number);
     return result;
 }
 
@@ -654,6 +661,7 @@ static void cpp_next() {
                 t->kind == CPP_TOK_ELIF       || \
                 t->kind == CPP_TOK_ELSE       || \
                 t->kind == CPP_TOK_ENDIF      || \
+                t->kind == CPP_TOK_LINE       || \
                 t->kind == CPP_TOK_DEFINED)
 
             if      (!strcmp(identifier, "define"))   { state.token = new_cpp_token(CPP_TOK_DEFINE);  state.token->str = "define";  }
@@ -665,6 +673,7 @@ static void cpp_next() {
             else if (!strcmp(identifier, "elif"))     { state.token = new_cpp_token(CPP_TOK_ELIF);    state.token->str = "elif";    }
             else if (!strcmp(identifier, "else"))     { state.token = new_cpp_token(CPP_TOK_ELSE);    state.token->str = "else";    }
             else if (!strcmp(identifier, "endif"))    { state.token = new_cpp_token(CPP_TOK_ENDIF);   state.token->str = "endif";   }
+            else if (!strcmp(identifier, "line"))     { state.token = new_cpp_token(CPP_TOK_LINE);    state.token->str = "line";    }
             else if (!strcmp(identifier, "defined"))  { state.token = new_cpp_token(CPP_TOK_DEFINED); state.token->str = "defined"; }
 
             else {
@@ -693,7 +702,11 @@ static void cpp_next() {
     }
 
     // Set the line number of not already set
-    if (!state.token->line_number) state.token->line_number = state.line_number;
+    if (!state.token->line_number) {
+        state.token->line_number = state.line_number;
+        state.token->line_number_offset = state.line_number_offset;
+    }
+
     state.token->whitespace = whitespace;
 
     if (state.hchar_lex_state == HLS_START_OF_LINE && state.token->kind == CPP_TOK_HASH   ) state.hchar_lex_state = HLS_SEEN_HASH;
@@ -1126,6 +1139,20 @@ static void skip_until_eol() {
     }
 }
 
+static CppToken *gather_tokens_until_eol() {
+    CppToken *tokens = 0;
+    while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
+        tokens = cll_append(tokens, state.token);
+        cpp_next();
+    }
+
+    return convert_cll_to_ll(tokens);
+}
+
+static CppToken *gather_tokens_until_eol_and_expand() {
+    return expand(gather_tokens_until_eol());
+}
+
 static void parse_include() {
     if (include_depth == MAX_CPP_INCLUDE_DEPTH)
         panic("Exceeded maximum include depth %d", MAX_CPP_INCLUDE_DEPTH);
@@ -1136,38 +1163,9 @@ static void parse_include() {
     int have_pp_tokens = (state.token->kind != CPP_TOK_STRING_LITERAL && state.token->kind != CPP_TOK_HCHAR_STRING_LITERAL);
     CppToken *include_token;
 
-    if (have_pp_tokens) {
+    if (have_pp_tokens)
         // Parse #include pp-tokens
-
-        // Gather tokens until eol
-        CppToken *tokens = 0;
-        while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
-            tokens = cll_append(tokens, state.token);
-            cpp_next();
-        }
-
-        // Macro expand the tokens
-        tokens = convert_cll_to_ll(tokens);
-        tokens = expand(tokens);
-
-        // Render the tokens
-        StringBuffer *rendered = new_string_buffer(128);
-        append_tokens_to_string_buffer(rendered, tokens, 0);
-        terminate_string_buffer(rendered);
-
-        // Lex tokens
-        CppState backup_state = state;
-        init_cpp_from_string(rendered->data);
-        cpp_next();
-        CppToken *lexed_tokens = 0;
-        while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
-            lexed_tokens = cll_append(lexed_tokens, state.token);
-            cpp_next();
-        }
-        state = backup_state;
-
-        include_token = lexed_tokens;
-    }
+        include_token = gather_tokens_until_eol_and_expand();
 
     else {
         include_token = state.token;
@@ -1197,7 +1195,8 @@ static void parse_include() {
     state = backup_state;
 
     char *buf = malloc(256);
-    sprintf(buf, "# %d \"%s\" 2", state.line_number, state.filename);
+    char *filename = state.override_filename ? state.override_filename : state.filename;
+    sprintf(buf, "# %d \"%s\" 2", state.line_number_offset + state.line_number, filename);
     append_to_string_buffer(output, buf);
     free(buf);
 }
@@ -1380,6 +1379,35 @@ static void parse_if_defined(int negate) {
     }
 }
 
+static void parse_line() {
+    CppToken *tokens;
+
+    if (state.token->kind != CPP_TOK_NUMBER)
+        // Parse #line pp-tokens
+        tokens = gather_tokens_until_eol_and_expand();
+    else
+        // Parse #line <number> ...
+        tokens = gather_tokens_until_eol();
+
+    if (tokens->kind == CPP_TOK_NUMBER) {
+        state.line_number_offset = atoi(tokens->str) - state.line_number;
+        tokens = tokens->next;
+
+        if (tokens && tokens->kind == CPP_TOK_STRING_LITERAL) {
+            char *filename = tokens->str;
+            filename[strlen(filename) - 1] = 0;
+            filename++;
+            state.override_filename = filename;
+            cur_filename = tokens->str;
+        }
+
+        // skip_until_eol();
+        output_line_directive(0, 0);
+    }
+    else
+        panic("Invalid #line directive");
+}
+
 // Ensure two directive have identical replacement lists, and if they are
 // function-like, have identical paramter identifiers.
 static void check_directive_redeclaration(Directive *d1, Directive *d2, char *identifier) {
@@ -1543,6 +1571,14 @@ static void parse_directive(void) {
             skip_until_eol();
             break;
         }
+
+        case CPP_TOK_LINE:
+            cpp_next();
+
+            if (!conditional_include_stack->skipping) parse_line();
+
+            skip_until_eol();
+            break;
 
         case CPP_TOK_NUMBER: {
             // # <number> ...

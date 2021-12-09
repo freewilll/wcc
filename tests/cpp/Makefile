@@ -20,7 +20,8 @@ CPP_TESTS = \
 	conditional-includes \
 	comments \
 	inception1 \
-	includes
+	includes \
+	line
 
 
 CPP_TESTS_INCLUDES = \
