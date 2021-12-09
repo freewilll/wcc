@@ -22,7 +22,8 @@ CPP_TESTS = \
 	inception1 \
 	includes \
 	line \
-	c99-examples
+	c99-examples \
+	null
 
 
 CPP_TESTS_INCLUDES = \

@@ -1598,6 +1598,12 @@ static void parse_directive(void) {
             break;
         }
 
+        case CPP_TOK_EOL:
+        case CPP_TOK_EOF:
+            // null directive
+
+            break;
+
         default:
             panic("Unknown directive \"%s\"", state.token->str);
     }
