@@ -348,7 +348,7 @@ void next(void) {
             finish_string_literal(data, size, 0);
 
             cur_filename = cur_string_literal.data;
-            cur_line = cur_long;
+            cur_line = cur_long - 1;
             if (i[ip] != '\n') while (i[ip++] != '\n');
             continue;
         }
