@@ -236,11 +236,10 @@ foo
 foo
 #endif
 
-// TODO error
-// // Ensure the error directive is skipped
-// #if 0
-// #error "error"
-// #endif
+// Ensure the error directive is skipped
+#if 0
+#error "error"
+#endif
 
 // Ensure the include directive is skipped
 #if 0

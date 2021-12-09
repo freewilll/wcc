@@ -663,6 +663,7 @@ static void cpp_next() {
                 t->kind == CPP_TOK_ENDIF      || \
                 t->kind == CPP_TOK_LINE       || \
                 t->kind == CPP_TOK_DEFINED    || \
+                t->kind == CPP_TOK_ERROR      || \
                 t->kind == CPP_TOK_PRAGMA)
 
             if      (!strcmp(identifier, "define"))   { state.token = new_cpp_token(CPP_TOK_DEFINE);  state.token->str = "define";  }
@@ -676,7 +677,8 @@ static void cpp_next() {
             else if (!strcmp(identifier, "endif"))    { state.token = new_cpp_token(CPP_TOK_ENDIF);   state.token->str = "endif";   }
             else if (!strcmp(identifier, "line"))     { state.token = new_cpp_token(CPP_TOK_LINE);    state.token->str = "line";    }
             else if (!strcmp(identifier, "defined"))  { state.token = new_cpp_token(CPP_TOK_DEFINED); state.token->str = "defined"; }
-            else if (!strcmp(identifier, "pragma"))   { state.token = new_cpp_token(CPP_TOK_PRAGMA);  state.token->str = "pragma"; }
+            else if (!strcmp(identifier, "error"))    { state.token = new_cpp_token(CPP_TOK_ERROR);   state.token->str = "error";   }
+            else if (!strcmp(identifier, "pragma"))   { state.token = new_cpp_token(CPP_TOK_PRAGMA);  state.token->str = "pragma";  }
 
             else {
                 state.token = new_cpp_token(CPP_TOK_IDENTIFIER);
@@ -1604,6 +1606,17 @@ static void parse_directive(void) {
             // Ignore #pragma
 
             skip_until_eol();
+            break;
+
+        case CPP_TOK_ERROR:
+            // #error
+
+            if (!conditional_include_stack->skipping) {
+                StringBuffer *message = new_string_buffer(128);
+                append_tokens_to_string_buffer(message, gather_tokens_until_eol(), 0);
+                panic("%s", message->data);
+            }
+
             break;
 
         case CPP_TOK_EOL:
