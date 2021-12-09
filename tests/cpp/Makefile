@@ -21,7 +21,8 @@ CPP_TESTS = \
 	comments \
 	inception1 \
 	includes \
-	line
+	line \
+	c99-examples
 
 
 CPP_TESTS_INCLUDES = \
