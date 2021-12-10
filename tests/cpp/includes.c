@@ -9,3 +9,9 @@ before include again
 #include "include1.h"
 after include again
 __FILE__ __LINE__
+
+// Test conditional include with a sub-include
+#ifndef FOO
+#define FOO
+#include "include1.h"
+#endif

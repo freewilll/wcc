@@ -25,25 +25,24 @@ typedef struct conditional_include {
 
 // Lexing/parsing state for current file
 typedef struct cpp_state {
-    char *     input;
-    int        input_size;
-    int        ip;                 // Offset in input
-    char *     filename;           // Current filename
-    char *     override_filename;  // Overridden filename with #line
-    char *     full_path;          // Full path to filename
-    LineMap *  line_map;           // Linemap
-    int        line_number;        // Current line number
-    int        line_number_offset; // Difference in line number set by #line directive
-    CppToken * token;              // Current token
-    int        hchar_lex_state;    // State of #include <...> lexing
-    int        output_line_number; // How many lines have been outputted
+    char *               input;
+    int                  input_size;
+    int                  ip;                          // Offset in input
+    char *               filename;                    // Current filename
+    char *               override_filename;           // Overridden filename with #line
+    char *               full_path;                   // Full path to filename
+    LineMap *            line_map;                    // Linemap
+    int                  line_number;                 // Current line number
+    int                  line_number_offset;          // Difference in line number set by #line directive
+    CppToken *           token;                       // Current token
+    int                  hchar_lex_state;             // State of #include <...> lexing
+    int                  output_line_number;          // How many lines have been outputted
+    ConditionalInclude * conditional_include_stack;   // Includes
+    int                  include_depth;               // How deep are we in nested includes
 } CppState;
 
 CppState state;
 
-ConditionalInclude *conditional_include_stack;
-
-static int include_depth;
 
 // Output
 FILE *cpp_output_file;         // Output file handle
@@ -113,8 +112,8 @@ static void init_cpp_from_fh(FILE *f, char *full_path, char *filename) {
     filename = filename;
     state.hchar_lex_state = HLS_START_OF_LINE;
 
-    conditional_include_stack = malloc(sizeof(ConditionalInclude));
-    memset(conditional_include_stack, 0, sizeof(ConditionalInclude));
+    state.conditional_include_stack = malloc(sizeof(ConditionalInclude));
+    memset(state.conditional_include_stack, 0, sizeof(ConditionalInclude));
 }
 
 static void output_line_directive(int offset, int add_eol) {
@@ -151,6 +150,8 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
     state.line_number = 1;
     state.line_number_offset = 0;
     state.override_filename = 0;
+    state.include_depth = 0;
+
     cpp_next();
 
     append_to_string_buffer(output, "# 1 \"");
@@ -1177,7 +1178,7 @@ static CppToken *gather_tokens_until_eol_and_expand() {
 }
 
 static void parse_include() {
-    if (include_depth == MAX_CPP_INCLUDE_DEPTH)
+    if (state.include_depth == MAX_CPP_INCLUDE_DEPTH)
         panic("Exceeded maximum include depth %d", MAX_CPP_INCLUDE_DEPTH);
 
     char *path;
@@ -1210,9 +1211,9 @@ static void parse_include() {
 
     if (!open_include_file(path, is_system)) panic("Unable to find %s in any include paths", path);
 
-    include_depth++;
+    state.include_depth++;
     run_preprocessor_on_file(path, 0);
-    include_depth--;
+    state.include_depth--;
 
     // Restore parsing state
     state = backup_state;
@@ -1304,9 +1305,9 @@ static Directive *parse_define_tokens(void) {
 static void enter_if() {
     ConditionalInclude *ci = malloc(sizeof(ConditionalInclude));
     memset(ci, 0, sizeof(ConditionalInclude));
-    ci->prev = conditional_include_stack;
-    ci->skipping = conditional_include_stack->skipping;
-    conditional_include_stack = ci;
+    ci->prev = state.conditional_include_stack;
+    ci->skipping = state.conditional_include_stack->skipping;
+    state.conditional_include_stack = ci;
 }
 
 // Make a numeric token with a 0 or 1 value
@@ -1393,13 +1394,13 @@ static long parse_conditional_expression() {
 static void parse_if_defined(int negate) {
     enter_if();
 
-    if (!conditional_include_stack->skipping) {
+    if (!state.conditional_include_stack->skipping) {
         if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
 
         Directive *directive = strmap_get(directives, state.token->str);
         int value = negate ? !directive : !!directive;
-        conditional_include_stack->skipping = !value;
-        conditional_include_stack->matched = !!value;
+        state.conditional_include_stack->skipping = !value;
+        state.conditional_include_stack->matched = !!value;
     }
 }
 
@@ -1492,7 +1493,7 @@ static void parse_directive(void) {
         case CPP_TOK_INCLUDE:
             cpp_next();
 
-            if (!conditional_include_stack->skipping)
+            if (!state.conditional_include_stack->skipping)
                 parse_include();
 
             skip_until_eol();
@@ -1501,7 +1502,7 @@ static void parse_directive(void) {
         case CPP_TOK_DEFINE:
             cpp_next();
 
-            if (!conditional_include_stack->skipping) {
+            if (!state.conditional_include_stack->skipping) {
                 if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
 
                 char *identifier = state.token->str;
@@ -1520,7 +1521,7 @@ static void parse_directive(void) {
         case CPP_TOK_UNDEF:
             cpp_next();
 
-            if (!conditional_include_stack->skipping) {
+            if (!state.conditional_include_stack->skipping) {
                 if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
                 strmap_delete(directives, state.token->str);
                 cpp_next();
@@ -1544,10 +1545,10 @@ static void parse_directive(void) {
             cpp_next();
 
             enter_if();
-            if (!conditional_include_stack->skipping) {
+            if (!state.conditional_include_stack->skipping) {
                 long value = parse_conditional_expression();
-                conditional_include_stack->skipping = !value;
-                conditional_include_stack->matched = !!value;
+                state.conditional_include_stack->skipping = !value;
+                state.conditional_include_stack->matched = !!value;
             }
 
             skip_until_eol();
@@ -1557,15 +1558,15 @@ static void parse_directive(void) {
             cpp_next();
 
             // We're skipping a section and found an #elif. Ignore the directive
-            if (!conditional_include_stack->prev->skipping) {
-                if (conditional_include_stack->matched) {
-                    conditional_include_stack->skipping = 1;
+            if (!state.conditional_include_stack->prev->skipping) {
+                if (state.conditional_include_stack->matched) {
+                    state.conditional_include_stack->skipping = 1;
                     break;
                 }
 
                 long value = parse_conditional_expression();
-                conditional_include_stack->skipping = !value;
-                conditional_include_stack->matched = !!value;
+                state.conditional_include_stack->skipping = !value;
+                state.conditional_include_stack->matched = !!value;
             }
 
             skip_until_eol();
@@ -1575,10 +1576,10 @@ static void parse_directive(void) {
         case CPP_TOK_ELSE:
             cpp_next();
 
-            if (!conditional_include_stack->prev) panic("Found an #else without an #if");
-            if (conditional_include_stack->prev->skipping) break;
+            if (!state.conditional_include_stack->prev) panic("Found an #else without an #if");
+            if (state.conditional_include_stack->prev->skipping) break;
 
-            conditional_include_stack->skipping = conditional_include_stack->matched;
+            state.conditional_include_stack->skipping = state.conditional_include_stack->matched;
 
             skip_until_eol();
             break;
@@ -1586,11 +1587,11 @@ static void parse_directive(void) {
         case CPP_TOK_ENDIF: {
             cpp_next();
 
-            if (!conditional_include_stack->prev) panic("Found an #endif without an #if");
+            if (!state.conditional_include_stack->prev) panic("Found an #endif without an #if");
 
-            ConditionalInclude *prev = conditional_include_stack->prev;
-            free(conditional_include_stack);
-            conditional_include_stack = prev;
+            ConditionalInclude *prev = state.conditional_include_stack->prev;
+            free(state.conditional_include_stack);
+            state.conditional_include_stack = prev;
 
             skip_until_eol();
             break;
@@ -1599,7 +1600,7 @@ static void parse_directive(void) {
         case CPP_TOK_LINE:
             cpp_next();
 
-            if (!conditional_include_stack->skipping) parse_line();
+            if (!state.conditional_include_stack->skipping) parse_line();
 
             skip_until_eol();
             break;
@@ -1631,7 +1632,7 @@ static void parse_directive(void) {
         case CPP_TOK_WARNING:
             // #warning
 
-            if (!conditional_include_stack->skipping) {
+            if (!state.conditional_include_stack->skipping) {
                 StringBuffer *message = new_string_buffer(128);
                 append_tokens_to_string_buffer(message, gather_tokens_until_eol(), 0);
                 warning("%s", message->data);
@@ -1642,7 +1643,7 @@ static void parse_directive(void) {
         case CPP_TOK_ERROR:
             // #error
 
-            if (!conditional_include_stack->skipping) {
+            if (!state.conditional_include_stack->skipping) {
                 StringBuffer *message = new_string_buffer(128);
                 append_tokens_to_string_buffer(message, gather_tokens_until_eol(), 0);
                 panic("%s", message->data);
@@ -1675,7 +1676,7 @@ static void cpp_parse() {
                 group_tokens = 0;
             }
             else {
-                if (!conditional_include_stack->skipping) {
+                if (!state.conditional_include_stack->skipping) {
                     group_tokens = cll_append(group_tokens, state.token);
                     new_line = (state.token->kind == CPP_TOK_EOL);
                 }
@@ -1696,8 +1697,6 @@ Directive *parse_cli_define(char *string) {
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
 // output, runs the preprocessor, then prints the output to a file handle.
 void preprocess(char *filename, char *output_filename) {
-    include_depth = 0;
-
     FILE *f = fopen(filename, "r");
 
     if (f == 0) {
