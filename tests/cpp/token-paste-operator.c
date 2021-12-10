@@ -79,3 +79,7 @@ func_paste4b(a)
 func_paste4b()
 #define func_paste4c(x, y) 1 ## x ## 2
 func_paste4c(a,b)
+
+// Ensure multi character tokens are lexed correctly
+#define OPS && || == != <= >= += -= *= /= %= &= |= ^= -> >>= <<= ... ++ -- << >>
+OPS

@@ -636,6 +636,8 @@ static void cpp_next() {
         else if (left >= 3 && c1 == '>' && c2 == '>' && c3 == '=')  { make_other_token(3); }
         else if (left >= 3 && c1 == '<' && c2 == '<' && c3 == '=')  { make_other_token(3); }
         else if (left >= 3 && c1 == '.' && c2 == '.' && c3 == '.')  { make_other_token(3); }
+        else if (left >= 2 && c1 == '<' && c2 == '<'             )  { make_other_token(2); }
+        else if (left >= 2 && c1 == '>' && c2 == '>'             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '+' && c2 == '+'             )  { make_token(CPP_TOK_INC, 2); }
         else if (left >= 2 && c1 == '-' && c2 == '-'             )  { make_token(CPP_TOK_DEC, 2); }
         else if (             c1 == '('                          )  { make_token(CPP_TOK_LPAREN, 1); }
