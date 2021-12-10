@@ -1148,7 +1148,7 @@ static int open_include_file(char *path, int is_system_include) {
     }
 
     char *include_path;
-    for (int i = 1; (include_path = BUILTIN_INCLUDE_PATHS[i]); i++) {
+    for (int i = 0; (include_path = BUILTIN_INCLUDE_PATHS[i]); i++) {
         char *full_path;
         wasprintf(&full_path, "%s%s", include_path, path);
         if (try_and_open_include_file(full_path, path)) return 1;
