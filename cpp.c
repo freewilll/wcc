@@ -30,6 +30,7 @@ typedef struct cpp_state {
     int        ip;                 // Offset in input
     char *     filename;           // Current filename
     char *     override_filename;  // Overridden filename with #line
+    char *     full_path;          // Full path to filename
     LineMap *  line_map;           // Linemap
     int        line_number;        // Current line number
     int        line_number_offset; // Difference in line number set by #line directive
@@ -107,6 +108,7 @@ static void init_cpp_from_fh(FILE *f, char *full_path, char *filename) {
 
     state.input[state.input_size] = 0;
     state.filename = filename;
+    state.full_path = full_path;
     cur_filename = full_path;
     filename = filename;
     state.hchar_lex_state = HLS_START_OF_LINE;
@@ -1212,6 +1214,7 @@ static void parse_include() {
 
     // Restore parsing state
     state = backup_state;
+    cur_filename = state.full_path;
 
     char *buf = malloc(256);
     char *filename = state.override_filename ? state.override_filename : state.filename;
