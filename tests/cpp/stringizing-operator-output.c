@@ -60,3 +60,13 @@ printf_s("\"This: \\\"  prints an escaped double quote\"" "\n" );
 
 "F B"
 "abc def"
+
+
+"x y"
+
+x
+
+
+"x y"
+
+ x

@@ -405,12 +405,25 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
     CppToken *prev = 0;
     while (token) {
         int is_eol = (token->kind == CPP_TOK_EOL);
+        int seen_whitespace = is_eol;
+
+        // If collapsing whitespace, pretend EOLs don't exist
+        if (collapse_whitespace) {
+            is_eol = 0;
+
+            while (token && token->kind == CPP_TOK_EOL) {
+                prev = token;
+                token = token->next;
+            }
+        }
 
         if (!is_eol && token->whitespace && !collapse_whitespace)
             append_to_string_buffer(sb, token->whitespace);
         else if (!is_eol && token->whitespace && collapse_whitespace)
             append_to_string_buffer(sb, " ");
         else if (prev && need_token_space(prev, token))
+            append_to_string_buffer(sb, " ");
+        else if (seen_whitespace && collapse_whitespace)
             append_to_string_buffer(sb, " ");
 
         collapse_trailing_newlines(8, 1);

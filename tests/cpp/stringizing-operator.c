@@ -59,3 +59,13 @@ stringer( "This: \"  prints an escaped double quote" );
 #define FB1(arg) FB(arg)
 FB(F B)
 FB1(F B)
+
+#define str(x) # x
+str(x
+y)
+x
+
+#define str(x) # x
+str(x
+    y)
+ x

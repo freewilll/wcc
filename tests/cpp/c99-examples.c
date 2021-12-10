@@ -36,6 +36,8 @@ char c[2][6] = { str(hello), str() };
 #define HIGHLOW         "hello"
 #define LOW             LOW ", world"
 debug(1, 2);
+fputs(str(strncmp("abc\0d", "abc", '\4') // this goes away
+          == 0) str(: @\n), s);
 glue(HIGH, LOW);
 xglue(HIGH, LOW)
 
