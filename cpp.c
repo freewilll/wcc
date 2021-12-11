@@ -1370,7 +1370,7 @@ static long parse_conditional_expression() {
         tokens = cll_append(tokens, state.token);
         cpp_next();
     }
-    if (!tokens) panic("Expected expresison");
+    if (!tokens) panic("Expected expression");
 
     CppToken *expanded_defineds = expand_defineds(convert_cll_to_ll(tokens));
     CppToken *expanded = expand(convert_cll_to_ll(expanded_defineds));
