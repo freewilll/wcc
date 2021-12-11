@@ -846,6 +846,20 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
 static CppToken *expand(CppToken *is) {
     if (!is) return 0;
 
+    // Skip past any non-directives, to eliminate unnecessary recursion
+    CppToken *left = 0;
+    while (is && is->str && !strmap_get(directives, is->str)) {
+        CppToken *t = dup_cpp_token(is);
+        t->next = 0;
+        left = cll_append(left, t);
+        is = is->next;
+    }
+
+    if (left) {
+        if (!is) return convert_cll_to_ll(left);
+        return convert_cll_to_ll(cll_append(left, expand(is)));
+    }
+
     CppToken *is1 = is->next;
     while (is1 && is1->kind == CPP_TOK_EOL) is1 = is1->next;
 
