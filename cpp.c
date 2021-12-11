@@ -1710,7 +1710,7 @@ Directive *parse_cli_define(char *string) {
 
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
 // output, runs the preprocessor, then prints the output to a file handle.
-void preprocess(char *filename, char *output_filename) {
+char *preprocess(char *filename) {
     FILE *f = fopen(filename, "r");
 
     if (f == 0) {
@@ -1724,9 +1724,15 @@ void preprocess(char *filename, char *output_filename) {
 
     run_preprocessor_on_file(filename, 1);
 
-    // Print the output
     terminate_string_buffer(output);
 
+    return output->data;
+}
+
+void preprocess_to_file(char *input_filename, char *output_filename) {
+    preprocess(input_filename);
+
+    // Print the output
     if (!output_filename || !strcmp(output_filename, "-"))
         cpp_output_file = stdout;
     else {

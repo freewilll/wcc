@@ -831,7 +831,8 @@ LineMap *get_cpp_linemap(void);
 void transform_trigraphs(void);
 void strip_backslash_newlines(void);
 Directive *parse_cli_define(char *string);
-void preprocess(char *filename, char *output_filename);
+char *preprocess(char *filename);
+void preprocess_to_file(char *input_filename, char *output_filename);
 
 // parser.c
 typedef Value *parse_expression_function_type(int);
@@ -1273,7 +1274,7 @@ enum {
 
 char *make_temp_filename(char *template);
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at);
-void compile(char *input_filename, char *original_input_filename, char *output_filename);
+void compile(char *input, char *original_input_filename, char *output_filename);
 
 // test-utils.c
 int failures;

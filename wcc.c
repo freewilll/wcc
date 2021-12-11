@@ -97,14 +97,14 @@ static void compile_internals(void) {
     parse();
 }
 
-void compile(char *input_filename, char *original_input_filename, char *output_filename) {
+void compile(char *input, char *original_input_filename, char *output_filename) {
     compile_internals();
     memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
     memset_symbol = lookup_symbol("memset", global_scope, 0);
 
     init_directives();
 
-    init_lexer(input_filename);
+    init_lexer_from_string(input);
     parse();
 
     // Keep track of floating point constant values.

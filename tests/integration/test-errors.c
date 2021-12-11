@@ -320,7 +320,7 @@ int main(int argc, char **argv) {
         "Expected va_list type as first argument to va_start");
 
     check_output(
-        "#include <stdarg.h>"
+        "#include <stdarg.h>\n"
         "void main() {"
         "    va_list ap;"
         "    int i;"
@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
         "Expected function parameter as second argument to va_start 1");
 
     check_output(
-        "#include <stdarg.h>"
+        "#include <stdarg.h>\n"
         "void main() {"
         "    va_list ap;"
         "    va_start(ap, 0);"
@@ -339,7 +339,7 @@ int main(int argc, char **argv) {
         "Expected function parameter as second argument to va_start 2");
 
     check_output(
-        "#include <stdarg.h>"
+        "#include <stdarg.h>\n"
         "void main(int i, int j, ...) {"
         "    va_list ap;"
         "    va_start(ap, i);"
@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
         "Second argument to va_start isn't the rightmost function parameter");
 
     check_output(
-        "#include <stdarg.h>"
+        "#include <stdarg.h>\n"
         "void main(int i, ...) {"
         "    va_list ap;"
         "    va_start(ap, i);"

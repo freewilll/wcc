@@ -78,37 +78,6 @@ static void add_include_path(char *path) {
     }
 }
 
-static void run_preprocessor(char *input_filename, char *preprocessor_output_filename, char *builtin_include_path, int verbose) {
-    char *command = malloc(1024 * 100);
-
-    char *directives_str = malloc(1024 * 100);
-    char *dptr = directives_str;
-
-    CliDirective *cd = cli_directives;
-    while (cd) {
-        dptr += sprintf(dptr, " -D %s='%s'", cd->identifier, cd->value);
-        cd = cd->next;
-    }
-
-    *dptr = 0;
-
-    sprintf(command, "tcc -I %s%s -E %s -o %s", builtin_include_path, directives_str, input_filename, preprocessor_output_filename);
-    if (verbose) {
-        sprintf(command, "%s %s", command, "-v");
-        printf("%s\n", command);
-    }
-    int result = system(command);
-    if (result != 0) exit(result >> 8);
-
-    free(command);
-    free(directives_str);
-}
-
-static void builtin_preprocessor(char *input_filename, char *output_filename) {
-    init_directives(); // Create directives and add CLI directives
-    preprocess(input_filename, output_filename);
-}
-
 int main(int argc, char **argv) {
     print_ir1 = 0;
     print_ir2 = 0;
@@ -127,7 +96,7 @@ int main(int argc, char **argv) {
     int run_compiler = 1;   // Compile .c file
     int run_assembler = 1;  // Assemble .s file
     int run_linker = 1;     // Link .o file
-    int run_builtin_preprocessor = 0; // Run built in preprocessor
+    int only_run_preprocessor = 0;
     int target_is_object_file = 0;
     int target_is_assembly_file = 0;
     int help = 0;
@@ -216,7 +185,7 @@ int main(int argc, char **argv) {
                 run_compiler = 0;
                 run_assembler = 0;
                 run_linker = 0;
-                run_builtin_preprocessor = 1;
+                only_run_preprocessor = 1;
                 argc--;
                 argv++;
             }
@@ -389,6 +358,8 @@ int main(int argc, char **argv) {
         }
     }
 
+    init_directives(); // Create directives and add CLI directives
+
     char *command = malloc(1024 * 100);
 
     for (int i = 0; i < input_filename_count; i++) {
@@ -397,8 +368,10 @@ int main(int argc, char **argv) {
         char *assembler_input_filename, *assembler_output_filename;
         char *compiler_output_filename;
 
-        if (run_builtin_preprocessor)
-            builtin_preprocessor(input_filename, output_filename);
+        if (only_run_preprocessor) {
+            preprocess_to_file(input_filename, output_filename);
+            return;
+        }
 
         if (run_compiler) {
             char *local_output_filename;
@@ -414,9 +387,8 @@ int main(int argc, char **argv) {
                 local_output_filename = output_filename;
 
             char *preprocessor_output_filename = make_temp_filename("/tmp/XXXXXX.c");
-            run_preprocessor(input_filename, preprocessor_output_filename, builtin_include_path, verbose);
+            char *preprocessor_output = preprocess(input_filename);
 
-            char *compiler_input_filename = input_filename;
             if (run_assembler)
                 compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
             else
@@ -434,7 +406,7 @@ int main(int argc, char **argv) {
                     assembler_output_filename = strdup(local_output_filename);
             }
 
-            compile(preprocessor_output_filename, compiler_input_filename, compiler_output_filename);
+            compile(preprocessor_output, input_filename, compiler_output_filename);
 
             if (print_symbols) dump_symbols();
             if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
