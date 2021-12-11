@@ -642,7 +642,6 @@ typedef struct directive {
 // Structure with all directives passed on the command line with -D
 typedef struct cli_directive {
     char *identifier;               // Identifier of the directive
-    char *value;                    // String version of the value
     Directive *directive;           // The actual directive
     struct cli_directive *next;
 } CliDirective;

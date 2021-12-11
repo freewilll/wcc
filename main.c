@@ -48,7 +48,6 @@ static void parse_directive(char *expr) {
         value = "1";
     }
 
-    cli_directive->value = value;
     cli_directive->identifier = key;
     cli_directive->directive = parse_cli_define(value);
 
