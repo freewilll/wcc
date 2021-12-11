@@ -116,16 +116,18 @@ static void init_cpp_from_fh(FILE *f, char *full_path, char *filename) {
     memset(state.conditional_include_stack, 0, sizeof(ConditionalInclude));
 }
 
-static void output_line_directive(int offset, int add_eol) {
+static void output_line_directive(int offset, int add_eol, CppToken *token) {
+    if (!token) return;
+
     char *buf = malloc(256);
     char *filename = state.override_filename ? state.override_filename : state.filename;
-    sprintf(buf, "# %d \"%s\"%s", state.line_number_offset + state.line_number + offset, filename, add_eol ? "\n" : "");
+    sprintf(buf, "# %d \"%s\"%s", state.line_number_offset + token->line_number + offset, filename, add_eol ? "\n" : "");
     append_to_string_buffer(output, buf);
     free(buf);
 }
 
 // If the output has an amount newlines > threshold, collapse them into a # line statement
-static void collapse_trailing_newlines(int threshold, int output_line) {
+static void collapse_trailing_newlines(int threshold, int output_line, CppToken *token) {
     int count = 0;
     while (output->position - count > 0 && output->data[output->position - count - 1] == '\n') count++;
 
@@ -134,7 +136,7 @@ static void collapse_trailing_newlines(int threshold, int output_line) {
         output->data[output->position - count + 1] = '\n';
         output->position -= count - 1;
 
-        if (output_line) output_line_directive(-1, 1);
+        if (output_line) output_line_directive(0, 1, token);
     }
 }
 
@@ -162,7 +164,7 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
 
     cpp_parse();
 
-    collapse_trailing_newlines(0, 0);
+    collapse_trailing_newlines(0, 0, 0);
 }
 
 void init_cpp_from_string(char *string) {
@@ -429,7 +431,7 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
         else if (seen_whitespace && collapse_whitespace)
             append_to_string_buffer(sb, " ");
 
-        collapse_trailing_newlines(8, 1);
+        if (!is_eol) collapse_trailing_newlines(8, 1, token);
         append_to_string_buffer(sb, token->str);
 
         prev = token;
@@ -438,14 +440,13 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
         if (is_eol) state.output_line_number++;
 
         if (is_eol && token) {
-            // Output sufficient newlines to catch up with token->line_number
+            // Output sufficient newlines to catch up with token->line_number.
             // This ensures that each line in the input ends up on the same line
             // in the output.
             while (state.output_line_number < token->line_number) {
                 state.output_line_number++;
                 append_to_string_buffer(sb, "\n");
             }
-            collapse_trailing_newlines(8, 1);
         }
     }
 }
@@ -1440,8 +1441,7 @@ static void parse_line() {
             cur_filename = tokens->str;
         }
 
-        // skip_until_eol();
-        output_line_directive(0, 0);
+        output_line_directive(1, 0, state.token);
     }
     else
         panic("Invalid #line directive");

@@ -1,22 +1,18 @@
 # 1 "conditional-includes.c"
-# 11 "conditional-includes.c"
-# 17 "conditional-includes.c"
+# 12 "conditional-includes.c"
 # 25 "conditional-includes.c"
 
 foo
-# 35 "conditional-includes.c"
+# 36 "conditional-includes.c"
+
+foo
+
+
+
 
 
 foo
-
-
-
-
-
-foo
-# 52 "conditional-includes.c"
-
-
+# 54 "conditional-includes.c"
 
 foo
 
@@ -66,7 +62,7 @@ foo
 baz
 # 150 "conditional-includes.c"
 baz
-# 165 "conditional-includes.c"
+# 162 "conditional-includes.c"
 OBJ
 FUNC(1)
 1
@@ -78,7 +74,6 @@ foo
 
 foo
 # 188 "conditional-includes.c"
-
 def
 
 
@@ -115,10 +110,8 @@ def
 
 
 !defined undef
-# 234 "conditional-includes.c"
-# 244 "conditional-includes.c"
-
-
+# 235 "conditional-includes.c"
+# 245 "conditional-includes.c"
 
 
 

@@ -11,6 +11,8 @@ CPP_TESTS = \
 	empty-line-spacing-7-lines \
 	empty-line-spacing-8-lines \
 	empty-line-spacing-9-lines \
+	empty-line-spacing-18-38-lines \
+	empty-line-spacing-42-lines \
 	token-spacing \
 	object-like-macros \
 	function-like-macros \

@@ -11,10 +11,7 @@ a bc de f
 g a bc de f
 a bc de f h
 g a bc de f h
-# 22 "token-paste-operator.c"
-
-
-
+# 24 "token-paste-operator.c"
 f # x
 
 

@@ -97,9 +97,7 @@ y  bar
 y   bar
 
 y bar
-# 107 "comments.c"
-
-
+# 109 "comments.c"
 2 + 3
 ;
 
