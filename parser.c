@@ -1515,8 +1515,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
 }
 
 static void warn_of_incompatible_types_in_assignment(Type *dst, Type *src) {
-    if (warn_assignment_types_incompatible)
-        printf("Incompatible types in assignment\n");
+    if (warn_assignment_types_incompatible) warning("Incompatible types in assignment");
 }
 
 static void check_simple_assignment_types(Value *dst, Value *src) {

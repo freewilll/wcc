@@ -89,7 +89,7 @@ static void finish_integer_constant(int is_decimal) {
     else {
         // unsigned long
         if (warn_integer_constant_too_large && may_not_be_unsigned && cur_long < 0)
-            printf("Warning: Integer literal doesn't fit in a signed long %lu\n", cur_long);
+            warning("Warning: Integer literal doesn't fit in a signed long %lu", cur_long);
         is_unsigned = 1;
         is_long = 1;
     }
