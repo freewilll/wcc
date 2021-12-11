@@ -109,6 +109,7 @@ static void init_cpp_from_fh(FILE *f, char *full_path, char *filename) {
     state.filename = filename;
     state.full_path = full_path;
     cur_filename = full_path;
+    cur_line = 1;
     filename = filename;
     state.hchar_lex_state = HLS_START_OF_LINE;
 
