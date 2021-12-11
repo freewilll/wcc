@@ -1031,7 +1031,7 @@ static void add_conditional_jump(int operation, Value *dst) {
 }
 
 // Add instructions for && and || operators
-static void and_or_expr(int is_and) {
+static void and_or_expr(int is_and, int level) {
     Value *src1 = vtop;
 
     Value *ldst1 = new_label_dst(); // Store zero
@@ -1055,7 +1055,7 @@ static void and_or_expr(int is_and) {
 
     // Test second operand
     add_jmp_target_instruction(ldst2);
-    parse_expression(TOK_BITWISE_OR);
+    parse_expression(level);
     Value *src2 = vtop;
     check_and_or_operation_type(src1, src2);
     add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
@@ -2667,8 +2667,8 @@ static void parse_expression(int level) {
             case TOK_AMPERSAND:        next(); parse_arithmetic_operation(TOK_DBL_EQ,        IR_BAND, 0); break;
             case TOK_XOR:              next(); parse_arithmetic_operation(TOK_AMPERSAND,     IR_XOR,  0); break;
             case TOK_BITWISE_OR:       next(); parse_arithmetic_operation(TOK_XOR,           IR_BOR,  0); break;
-            case TOK_AND:              next(); and_or_expr(1); break;
-            case TOK_OR:               next(); and_or_expr(0); break;
+            case TOK_AND:              next(); and_or_expr(1, TOK_BITWISE_OR); break;
+            case TOK_OR:               next(); and_or_expr(0, TOK_AND);        break;
             case TOK_TERNARY:          next(); parse_ternary_expression(); break;
             case TOK_EQ:               next(); parse_simple_assignment(1); break;
             case TOK_PLUS_EQ:          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ);                         finish_comp_assign(v); break; }
