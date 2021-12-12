@@ -30,7 +30,6 @@ typedef struct cpp_state {
     int                  ip;                          // Offset in input
     char *               filename;                    // Current filename
     char *               override_filename;           // Overridden filename with #line
-    char *               full_path;                   // Full path to filename
     LineMap *            line_map;                    // Linemap
     int                  line_number;                 // Current line number
     int                  line_number_offset;          // Difference in line number set by #line directive
@@ -91,7 +90,7 @@ void debug_print_cll_token_sequence(CppToken *ts) {
     printf("\n");
 }
 
-static void init_cpp_from_fh(FILE *f, char *full_path, char *filename) {
+static void init_cpp_from_fh(FILE *f, char *path) {
     fseek(f, 0, SEEK_END);
     state.input_size = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -106,11 +105,9 @@ static void init_cpp_from_fh(FILE *f, char *full_path, char *filename) {
     fclose(f);
 
     state.input[state.input_size] = 0;
-    state.filename = filename;
-    state.full_path = full_path;
-    cur_filename = full_path;
+    state.filename = path;
+    cur_filename = path;
     cur_line = 1;
-    filename = filename;
     state.hchar_lex_state = HLS_START_OF_LINE;
 
     state.conditional_include_stack = malloc(sizeof(ConditionalInclude));
@@ -1126,7 +1123,7 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
 
 static char *get_current_file_path() {
     char *p = strrchr(state.filename, '/');
-    if (!p) return strdup("./");
+    if (!p) return "";
     char *path = malloc(p - state.filename + 2);
     memcpy(path, state.filename, p - state.filename + 1);
     path[p - state.filename + 1] = 0;
@@ -1137,7 +1134,7 @@ static char *get_current_file_path() {
 static int try_and_open_include_file(char *full_path, char *path) {
     FILE *file = fopen(full_path, "r" );
     if (file) {
-        init_cpp_from_fh(file, full_path, path);
+        init_cpp_from_fh(file, full_path);
         return 1;
     }
 
@@ -1228,12 +1225,12 @@ static void parse_include() {
     if (!open_include_file(path, is_system)) panic("Unable to find %s in any include paths", path);
 
     state.include_depth++;
-    run_preprocessor_on_file(path, 0);
+    run_preprocessor_on_file(state.filename, 0);
     state.include_depth--;
 
     // Restore parsing state
     state = backup_state;
-    cur_filename = state.full_path;
+    cur_filename = state.filename;
 
     char *buf = malloc(256);
     char *filename = state.override_filename ? state.override_filename : state.filename;
@@ -1719,7 +1716,7 @@ char *preprocess(char *filename) {
         exit(1);
     }
 
-    init_cpp_from_fh(f, filename, filename);
+    init_cpp_from_fh(f, filename);
 
     output = new_string_buffer(state.input_size * 2);
 
