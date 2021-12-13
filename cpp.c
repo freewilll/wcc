@@ -453,24 +453,24 @@ static void append_tokens_to_output(CppToken *tokens) {
     append_tokens_to_string_buffer(output, tokens, 0);
 }
 
-static void advance_ip(int *ip, LineMap **lm, int *line_number) {
-    (*ip)++;
+static void advance_ip() {
+    state.ip++;
 
-    if (*lm && *ip == (*lm)->position) {
-        *line_number = (*lm)->line_number;
-        cur_line = *line_number;
-        *lm = (*lm)->next;
+    if (state.line_map && state.ip == state.line_map->position) {
+        state.line_number = state.line_map->line_number;
+        cur_line = state.line_number;
+        state.line_map = state.line_map->next;
     }
 }
 
 // Advance global current input pointers
 static void advance_cur_ip(void) {
-    advance_ip(&state.ip, &state.line_map, &state.line_number);
+    advance_ip();
 }
 
 static void advance_cur_ip_by_count(int count) {
     for (int i = 0; i < count; i++)
-        advance_ip(&state.ip, &state.line_map, &state.line_number);
+        advance_ip();
 }
 
 static void add_to_whitespace(char **whitespace, int *whitespace_pos, char c) {
