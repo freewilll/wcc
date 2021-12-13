@@ -51,8 +51,8 @@ all: ${OK_FILENAMES}
 
 	touch $*-ok
 
-.PHONY: regen
-regen:
+.PHONY: regen-cpp-tests-output
+regen-cpp-tests-output:
 	$(foreach var,$(CPP_TESTS),../../wcc -E $(var).c -o $(var)-output.c;)
 
 clean:

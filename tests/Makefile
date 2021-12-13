@@ -30,6 +30,10 @@ test-integration: test-utils.s test-lib.o
 test-cpp:
 	cd cpp && ${MAKE} all
 
+.PHONY: regen-cpp-tests-output
+regen-cpp-tests-output:
+	cd cpp && ${MAKE} regen-cpp-tests-output
+
 .PHONY:
 test-e2e: test-lib.o utils.o panic.o
 	cd e2e && ${MAKE} all

@@ -96,6 +96,10 @@ test-unit-parser: libwcc.a
 test-unit-cpp: libwcc.a
 	cd tests && ${MAKE} test-unit-cpp
 
+.PHONY: regen-cpp-tests-output
+regen-cpp-tests-output: wcc
+	cd tests && ${MAKE} regen-cpp-tests-output
+
 .PHONY: test-unit-types
 test-unit-types: libwcc.a
 	cd tests && ${MAKE} test-unit-types
