@@ -90,6 +90,12 @@ void debug_print_cll_token_sequence(CppToken *ts) {
     printf("\n");
 }
 
+// Set cur_filename and cur_line globals from CPP state
+void get_cpp_filename_and_line() {
+    cur_line = state.line_number_offset + state.line_number;
+    cur_filename = state.filename;
+}
+
 static void init_cpp_from_fh(FILE *f, char *path) {
     fseek(f, 0, SEEK_END);
     state.input_size = ftell(f);

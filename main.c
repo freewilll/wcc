@@ -368,6 +368,7 @@ int main(int argc, char **argv) {
         char *compiler_output_filename;
 
         if (only_run_preprocessor) {
+            compile_phase = CP_PREPROCESSING;
             preprocess_to_file(input_filename, output_filename);
             return;
         }
@@ -386,6 +387,7 @@ int main(int argc, char **argv) {
                 local_output_filename = output_filename;
 
             char *preprocessor_output_filename = make_temp_filename("/tmp/XXXXXX.c");
+            compile_phase = CP_PREPROCESSING;
             char *preprocessor_output = preprocess(input_filename);
 
             if (run_assembler)

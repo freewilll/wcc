@@ -652,6 +652,12 @@ typedef struct cli_include_path {
     struct cli_include_path *next;
 } CliIncludePath;
 
+typedef enum {
+    CP_PREPROCESSING,
+    CP_PARSING,
+    CP_POST_PARSING,
+} CompilePhase;
+
 char *cur_filename;             // Current filename being lexed
 int cur_line;                   // Current line number being lexed
 
@@ -669,6 +675,7 @@ int opt_enable_trigraphs;               // Enable trigraph preprocessing
 CliDirective *cli_directives;      // Linked list of directives passed on the command line
 CliIncludePath *cli_include_paths; // Linked list of directives passed on the command line
 StrMap *directives;                // Map of CPP directives
+CompilePhase compile_phase;        // One of CP_*
 int cur_token;                     // Current token
 char *cur_identifier;              // Current identifier if the token is an identifier
 char *cur_type_identifier;         // Identifier of the last parsed declarator
@@ -825,6 +832,7 @@ typedef struct line_map {
     struct line_map *next;
 } LineMap;
 
+void get_cpp_filename_and_line();
 void init_cpp_from_string(char *string);
 char *get_cpp_input(void);
 void init_directives(void);

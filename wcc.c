@@ -104,8 +104,10 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
 
     init_directives();
 
+    compile_phase = CP_PARSING;
     init_lexer_from_string(input);
     parse();
+    compile_phase = CP_POST_PARSING;
 
     // Keep track of floating point constant values.
     floating_point_literals = malloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
