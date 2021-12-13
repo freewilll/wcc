@@ -223,7 +223,7 @@ Type *dup_type(Type *src) {
 }
 
 Type *integer_promote_type(Type *type) {
-    if (!is_integer_type(type)) panic("Invalid operand, expected integer type");
+    if (!is_integer_type(type)) error("Invalid operand, expected integer type");
 
     if (type->type >= TYPE_INT && type->type <= TYPE_LONG)
         return type;
@@ -243,7 +243,7 @@ Type *make_pointer_to_void(void) {
 }
 
 Type *deref_pointer(Type *src) {
-    if (src->type != TYPE_PTR && src->type != TYPE_ARRAY) panic("Cannot dereference a non-pointer");
+    if (src->type != TYPE_PTR && src->type != TYPE_ARRAY) error("Cannot dereference a non-pointer");
 
     return dup_type(src->target);
 }
@@ -627,7 +627,7 @@ int types_are_compatible(Type *type1, Type *type2) {
 }
 
 Type *composite_type(Type *type1, Type *type2) {
-    if (!types_are_compatible(type1, type2)) panic("Incompatible types");
+    if (!types_are_compatible(type1, type2)) error("Incompatible types");
 
     // Implicit else, the type->type matches
     if (type1->type == TYPE_ARRAY) {
@@ -646,7 +646,7 @@ Type *composite_type(Type *type1, Type *type2) {
             return type1;
         else {
             if (type1->function->param_count != type2->function->param_count)
-                panic("Incompatible types");
+                error("Incompatible types");
 
             Type *result = new_type(TYPE_FUNCTION);
             result->target = type1->target;
@@ -779,7 +779,7 @@ void flatten_anonymous_structs(StructOrUnion *s) {
 
         if (member->identifier)  {
             if (strmap_get(member_map, member->identifier))
-                panic("Duplicate struct/union member %s", member->identifier);
+                error("Duplicate struct/union member %s", member->identifier);
             strmap_put(member_map, member->identifier, (void *) 1);
         }
 

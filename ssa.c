@@ -45,10 +45,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
     }
 
     else if (tac->operation == IR_DIV && cv && tac->src2->is_constant) {
-        if (c == 0)
-            panic("Illegal division by zero");
-
-        else if (c == 1) {
+        if (c == 1) {
             tac->operation = IR_MOVE;
             tac->src1 = v;
             tac->src2 = 0;
@@ -64,10 +61,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
     }
 
     else if (tac->operation == IR_MOD && cv && tac->src2->is_constant) {
-        if (c == 0)
-            panic("Illegal modulus by zero");
-
-        else if (c == 1) {
+        if (c == 1) {
             tac->operation = IR_MOVE;
             tac->src1 = new_integral_constant(tac->dst->type->type, 0);
             tac->src2 = 0;

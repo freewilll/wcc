@@ -799,6 +799,7 @@ typedef struct string_buffer {
 } StringBuffer;
 
 void panic(char *format, ...);
+void simple_error(char *format, ...);
 void error(char *format, ...);
 void warning(char *format, ...);
 Function *new_function(void);

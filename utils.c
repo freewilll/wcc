@@ -18,7 +18,22 @@ static void print_filename_and_linenumber(int is_tty) {
     if (is_tty) fprintf(stderr, RESET);
 }
 
-// Report an error and exit
+// Report an error by itself (no filename or line number) and exit
+void simple_error(char *format, ...) {
+    va_list ap;
+    va_start(ap, format);
+
+    int is_tty = isatty(2);
+    if (is_tty) fprintf(stderr, BRED);
+    fprintf(stderr, "error: ");
+    if (is_tty) fprintf(stderr, RESET);
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(1);
+}
+
+// Report an error with a filename and line number and exit
 void error(char *format, ...) {
     va_list ap;
     va_start(ap, format);
@@ -34,7 +49,7 @@ void error(char *format, ...) {
     exit(1);
 }
 
-// Report a warning
+// Report a warning with a filename and line number
 void warning(char *format, ...) {
     va_list ap;
     va_start(ap, format);

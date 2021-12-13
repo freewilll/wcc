@@ -6,6 +6,7 @@
 void panic(char *format, ...) {
     va_list ap;
     va_start(ap, format);
+    fprintf(stderr, "Internal error: ");
     vfprintf(stderr, format, ap);
     fprintf(stderr, "\n");
     va_end(ap);

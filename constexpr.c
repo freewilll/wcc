@@ -265,10 +265,10 @@ Value *parse_constant_expression(int level) {
         case TOK_AMPERSAND:
             next();
             value = parse_constant_expression(TOK_INC);
-            if (value->bit_field_size) panic("Cannot take an address of a bit-field");
+            if (value->bit_field_size) error("Cannot take an address of a bit-field");
 
             if (!value->is_string_literal && !value->global_symbol)
-                panic("Illegal operand to & in constant expression");
+                error("Illegal operand to & in constant expression");
 
             value->is_address_of = 1;
 
@@ -314,7 +314,7 @@ Value *parse_constant_expression(int level) {
 
         case TOK_IDENTIFIER: {
             Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
-            if (!symbol) panic("Unknown symbol \"%s\"", cur_identifier);
+            if (!symbol) error("Unknown symbol \"%s\"", cur_identifier);
 
             next();
 
@@ -339,7 +339,7 @@ Value *parse_constant_expression(int level) {
         }
 
         default:
-            panic("Unexpected token %d in constant expression", cur_token);
+            error("Unexpected token %d in constant expression", cur_token);
     }
 
     while (cur_token >= level) {
@@ -350,13 +350,13 @@ Value *parse_constant_expression(int level) {
                 next();
 
                 if (value->type->type != TYPE_PTR && value->type->type != TYPE_ARRAY)
-                    panic("Invalid operator [] on a non-pointer and non-array");
+                    error("Invalid operator [] on a non-pointer and non-array");
 
                 Value *subscript_value = parse_constant_expression(TOK_COMMA);
                 consume(TOK_RBRACKET, "]");
 
                 if (!subscript_value->is_constant || !is_integer_type(subscript_value->type))
-                    panic("Expected an integer constant integer expression in []");
+                    error("Expected an integer constant integer expression in []");
 
                 value->address_of_offset += get_type_size(value->type->target) * subscript_value->int_value;
                 value->type = value->type->target;
@@ -364,7 +364,7 @@ Value *parse_constant_expression(int level) {
                 break;
 
             case TOK_DOT:
-                if (value->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
+                if (value->type->type != TYPE_STRUCT_OR_UNION) error("Can only use . on a struct or union");
 
                 next();
                 consume(TOK_IDENTIFIER, "identifier");
@@ -412,7 +412,7 @@ Value *parse_constant_integer_expression(int all_longs) {
     integers_are_longs = all_longs;
 
     Value *value = parse_constant_expression(TOK_EQ);
-    if (!value->is_constant) panic("Expected a constant expression");
-    if (!is_integer_type(value->type)) panic("Expected an integer constant expression");
+    if (!value->is_constant) error("Expected a constant expression");
+    if (!is_integer_type(value->type)) error("Expected an integer constant expression");
     return value;
 }

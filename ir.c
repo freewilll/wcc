@@ -583,7 +583,7 @@ Tac *insert_instruction_after_from_operation(Tac *ir, int operation, Value *dst,
 
 // Delete an instruction inside a linked list. It cannot be the first instruction.
 Tac *delete_instruction(Tac *tac) {
-    if (!tac->prev) panic("Attemp to delete the first instruction");
+    if (!tac->prev) panic("Attempt to delete the first instruction");
     if (tac->next && tac->next->label) panic("Deleting an instruction would obliterate the next label");
 
     tac->prev->next = tac->next;

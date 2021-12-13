@@ -166,7 +166,7 @@ static int get_stack_offset(int function_pc, Value *v) {
 }
 
 static void check_floating_point_literal_max(void) {
-    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic("Exceeded max floaing point literals %d", MAX_FLOATING_POINT_LITERALS);
+    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic("Exceeded max floating point literals %d", MAX_FLOATING_POINT_LITERALS);
 }
 
 static int add_float_literal(long double value) {

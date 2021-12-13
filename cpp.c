@@ -793,7 +793,7 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
 
     while (1) {
         CppToken *token = *ts;
-        if (!token) panic("Expected macro function-like parameter or )");
+        if (!token) error("Expected macro function-like parameter or )");
 
         if (token->kind == CPP_TOK_RPAREN && !parenthesis_nesting_level) {
             // We're not in nested parentheses
@@ -897,11 +897,11 @@ static CppToken *expand(CppToken *is) {
         StrSet *directive_token_hs = is->hide_set;
         is = is1->next;
         CppToken **actuals = make_function_actual_parameters(&is);
-        if (!is || is->kind != CPP_TOK_RPAREN) panic("Expected )");
+        if (!is || is->kind != CPP_TOK_RPAREN) error("Expected )");
 
         int actual_count = 0;
         for (CppToken **tok = actuals; *tok; tok++, actual_count++);
-        if (actual_count > directive->param_count) panic("Mismatch in number of macro parameters");
+        if (actual_count > directive->param_count) error("Mismatch in number of macro parameters");
 
         StrSet *rparen_hs = is->hide_set;
         CppToken *rest = is->next;
@@ -1001,7 +1001,7 @@ static CppToken *stringize(CppToken *ts) {
 // ls is mutated and the result is ls.
 static CppToken *glue(CppToken *ls, CppToken *rs) {
     if (ls == 0) return cll_append(0, rs);
-    if (rs == 0) panic("Attempt to glue an empty right side");
+    if (rs == 0) error("Attempt to glue an empty right side");
 
     // Mutating ls, this is allowed cause ls is append only
     wasprintf(&ls->str, "%s%s", ls->str, rs->str);
@@ -1061,7 +1061,7 @@ static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppT
 
     // ## TS
     if (is->kind == CPP_TOK_PASTE) {
-        if (!is1) panic("Got ## without a following token");
+        if (!is1) error("Got ## without a following token");
         CppToken *tok = dup_cpp_token(is1);
         tok->next = 0;
         return subst(is1->next, fp, ap, hs, glue(os, tok));
@@ -1192,7 +1192,7 @@ static CppToken *gather_tokens_until_eol_and_expand() {
 
 static void parse_include() {
     if (state.include_depth == MAX_CPP_INCLUDE_DEPTH)
-        panic("Exceeded maximum include depth %d", MAX_CPP_INCLUDE_DEPTH);
+        error("Exceeded maximum include depth %d", MAX_CPP_INCLUDE_DEPTH);
 
     char *path;
     int is_system;
@@ -1210,7 +1210,7 @@ static void parse_include() {
     }
 
     if (!include_token || include_token->kind == CPP_TOK_EOL || include_token->kind == CPP_TOK_EOF)
-        panic("Invalid #include");
+        error("Invalid #include");
 
     // Remove "" or <> tokens
     path = &(include_token->str[1]);
@@ -1222,7 +1222,7 @@ static void parse_include() {
     // Backup current parsing state
     CppState backup_state = state;
 
-    if (!open_include_file(path, is_system)) panic("Unable to find %s in any include paths", path);
+    if (!open_include_file(path, is_system)) error("Unable to find %s in any include paths", path);
 
     state.include_depth++;
     run_preprocessor_on_file(state.filename, 0);
@@ -1243,7 +1243,7 @@ static CppToken *parse_define_replacement_tokens(void) {
     if (state.token->kind == CPP_TOK_EOL || state.token->kind == CPP_TOK_EOF)
         return 0;
 
-    if (state.token->kind == CPP_TOK_PASTE) panic("## at start of macro replacement list");
+    if (state.token->kind == CPP_TOK_PASTE) error("## at start of macro replacement list");
 
     CppToken *result = state.token;
     CppToken *tokens = state.token;
@@ -1253,7 +1253,7 @@ static CppToken *parse_define_replacement_tokens(void) {
         cpp_next();
     }
     tokens->next = 0;
-    if (tokens->kind == CPP_TOK_PASTE) panic("## at end of macro replacement list");
+    if (tokens->kind == CPP_TOK_PASTE) error("## at end of macro replacement list");
 
     // Clear whitespace on initial token
     if (tokens) result->whitespace = 0;
@@ -1289,20 +1289,20 @@ static Directive *parse_define_tokens(void) {
 
             while (state.token->kind != CPP_TOK_RPAREN && state.token->kind != CPP_TOK_EOF) {
                 if (!first) {
-                    if (state.token->kind != CPP_TOK_COMMA) panic("Expected comma");
+                    if (state.token->kind != CPP_TOK_COMMA) error("Expected comma");
                     cpp_next();
                 }
 
                 first = 0;
 
-                if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+                if (state.token->kind != CPP_TOK_IDENTIFIER) error("Expected identifier");
                 if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
-                if (strmap_get(directive->param_identifiers, state.token->str)) panic("Duplicate macro parameter %s", state.token->str);
+                if (strmap_get(directive->param_identifiers, state.token->str)) error("Duplicate macro parameter %s", state.token->str);
                 strmap_put(directive->param_identifiers, state.token->str, (void *) (long) ++directive->param_count);
                 cpp_next();
             }
 
-            if (state.token->kind != CPP_TOK_RPAREN) panic("Expected )");
+            if (state.token->kind != CPP_TOK_RPAREN) error("Expected )");
             cpp_next();
 
             tokens = parse_define_replacement_tokens();
@@ -1349,15 +1349,15 @@ static CppToken *expand_defineds(CppToken *is) {
             else if (is1 && is1->kind == CPP_TOK_LPAREN) {
                 is = is1->next;
                 if (!is || is->kind != CPP_TOK_IDENTIFIER)
-                    panic("Expected identifier");
+                    error("Expected identifier");
 
                 os = cll_append(os, make_boolean_token(!!strmap_get(directives, is->str)));
                 if (!is->next || is->next->kind != CPP_TOK_RPAREN)
-                    panic("Expected )");
+                    error("Expected )");
                 is = is->next->next;
             }
             else
-                panic("Expected identifier or ( after #defined");
+                error("Expected identifier or ( after #defined");
 
         }
         else {
@@ -1383,7 +1383,7 @@ static long parse_conditional_expression() {
         tokens = cll_append(tokens, state.token);
         cpp_next();
     }
-    if (!tokens) panic("Expected expression");
+    if (!tokens) error("Expected expression");
 
     CppToken *expanded_defineds = expand_defineds(convert_cll_to_ll(tokens));
     CppToken *expanded = expand(convert_cll_to_ll(expanded_defineds));
@@ -1408,7 +1408,7 @@ static void parse_if_defined(int negate) {
     enter_if();
 
     if (!state.conditional_include_stack->skipping) {
-        if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+        if (state.token->kind != CPP_TOK_IDENTIFIER) error("Expected identifier");
 
         Directive *directive = strmap_get(directives, state.token->str);
         int value = negate ? !directive : !!directive;
@@ -1442,14 +1442,14 @@ static void parse_line() {
         output_line_directive(1, 0, state.token);
     }
     else
-        panic("Invalid #line directive");
+        error("Invalid #line directive");
 }
 
 // Ensure two directive have identical replacement lists, and if they are
 // function-like, have identical paramter identifiers.
 static void check_directive_redeclaration(Directive *d1, Directive *d2, char *identifier) {
     if (d1->is_function != d2->is_function)
-        panic("Redeclared macro type mismatch for %s", identifier);
+        error("Redeclared macro type mismatch for %s", identifier);
 
     if (d1->is_function) {
         // Compare parameter identifiers
@@ -1463,14 +1463,14 @@ static void check_directive_redeclaration(Directive *d1, Directive *d2, char *id
             char *param_identifier = strmap_iterator_key(&it);
             int position = (int) (long) strmap_get(d1p, param_identifier);
             if (position != (int) (long) strmap_get(d2p, param_identifier))
-                panic("Redeclared directive mismatch for %s, parameters differ for %s", identifier, param_identifier);
+                error("Redeclared directive mismatch for %s, parameters differ for %s", identifier, param_identifier);
         }
 
         int d2_param_count = 0;
         for (StrMapIterator it = strmap_iterator(d2p); !strmap_iterator_finished(&it); strmap_iterator_next(&it))
             d2_param_count++;
 
-        if (d1_param_count != d2_param_count) panic("Param count mismatch for redeclared macro %s", identifier);
+        if (d1_param_count != d2_param_count) error("Param count mismatch for redeclared macro %s", identifier);
     }
 
     // Check replacement lists are identical
@@ -1515,7 +1515,7 @@ static void parse_directive(void) {
             cpp_next();
 
             if (!state.conditional_include_stack->skipping) {
-                if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+                if (state.token->kind != CPP_TOK_IDENTIFIER) error("Expected identifier");
 
                 char *identifier = state.token->str;
                 cpp_next();
@@ -1534,7 +1534,7 @@ static void parse_directive(void) {
             cpp_next();
 
             if (!state.conditional_include_stack->skipping) {
-                if (state.token->kind != CPP_TOK_IDENTIFIER) panic("Expected identifier");
+                if (state.token->kind != CPP_TOK_IDENTIFIER) error("Expected identifier");
                 strmap_delete(directives, state.token->str);
                 cpp_next();
 
@@ -1588,7 +1588,7 @@ static void parse_directive(void) {
         case CPP_TOK_ELSE:
             cpp_next();
 
-            if (!state.conditional_include_stack->prev) panic("Found an #else without an #if");
+            if (!state.conditional_include_stack->prev) error("Found an #else without an #if");
             if (state.conditional_include_stack->prev->skipping) break;
 
             state.conditional_include_stack->skipping = state.conditional_include_stack->matched;
@@ -1599,7 +1599,7 @@ static void parse_directive(void) {
         case CPP_TOK_ENDIF: {
             cpp_next();
 
-            if (!state.conditional_include_stack->prev) panic("Found an #endif without an #if");
+            if (!state.conditional_include_stack->prev) error("Found an #endif without an #if");
 
             ConditionalInclude *prev = state.conditional_include_stack->prev;
             free(state.conditional_include_stack);
@@ -1658,7 +1658,7 @@ static void parse_directive(void) {
             if (!state.conditional_include_stack->skipping) {
                 StringBuffer *message = new_string_buffer(128);
                 append_tokens_to_string_buffer(message, gather_tokens_until_eol(), 0);
-                panic("%s", message->data);
+                error("%s", message->data);
             }
 
             break;
@@ -1670,7 +1670,7 @@ static void parse_directive(void) {
             break;
 
         default:
-            panic("Unknown directive \"%s\"", state.token->str);
+            error("Unknown directive \"%s\"", state.token->str);
     }
 }
 

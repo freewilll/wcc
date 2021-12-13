@@ -974,7 +974,7 @@ static int get_least_expensive_choice_node_id(int node_id, int parent_node_id, i
     }
 
     if (least_expensive_choice_node_id == -1)
-        panic("Internal error: No matched choices in recursive_make_intermediate_representation");
+        panic("No matched choices in recursive_make_intermediate_representation");
 
     return least_expensive_choice_node_id;
 }

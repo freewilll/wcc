@@ -37,8 +37,8 @@ static void parse_directive(char *expr) {
 
     char *p = strchr(expr, '=');
     if (p) {
-        if (p == expr) panic("Invalid directive");
-        if (p - expr == strlen(expr) - 1) panic("Invalid directive");
+        if (p == expr) simple_error("Invalid directive");
+        if (p - expr == strlen(expr) - 1) simple_error("Invalid directive");
         *p = 0;
         key = expr;
         value = p + 1;
@@ -61,7 +61,7 @@ static void parse_directive(char *expr) {
 
 static void add_include_path(char *path) {
     int len = strlen(path);
-    if (!len) panic("Invalid include path");
+    if (!len) simple_error("Invalid include path");
 
     if (len > 1 && path[len - 1] == '/') path[len - 1] = 0; // Strip trailing /
 
@@ -337,7 +337,7 @@ int main(int argc, char **argv) {
     }
 
     if (output_filename && input_filename_count > 1 && (target_is_object_file || target_is_assembly_file)) {
-        panic("cannot specify -o with -c or -S with multiple files");
+        simple_error("cannot specify -o with -c or -S with multiple files");
     }
 
     for (int i = 0; i < input_filename_count; i++) {

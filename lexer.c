@@ -212,13 +212,13 @@ void lex_single_string_literal(int *data, int *size) {
                 lex_hex_literal();
                 data[(*size)++] = cur_long & 0xff;
             }
-            else panic("Unknown \\ escape in string literal");
+            else error("Unknown \\ escape in string literal");
         }
 
         data[*size] = 0;
     }
 
-    if (i[ip] != '"') panic("Expecting terminating \" in string literal");
+    if (i[ip] != '"') error("Expecting terminating \" in string literal");
     ip++;
 
     if (*size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
@@ -405,7 +405,7 @@ void next(void) {
                             if (byte_count == 0) cur_long = (int) ((char) cur_long);
                         }
                     }
-                    else panic("Unknown \\ escape in character literal");
+                    else error("Unknown \\ escape in character literal");
                 }
                 byte_count++;
             }
@@ -491,7 +491,7 @@ void next(void) {
         }
 
         else
-            panic("Unknown token %d", cur_token);
+            error("Unknown token %d", cur_token);
 
         return;
     }
@@ -511,7 +511,7 @@ void rewind_lexer(void) {
 }
 
 void expect(int token, char *what) {
-    if (cur_token != token) panic("Expected %s", what);
+    if (cur_token != token) error("Expected %s", what);
 }
 
 void consume(int token, char *what) {

@@ -48,8 +48,8 @@ static Value *push(Value *v) {
 }
 
 static void check_stack_has_value(void) {
-    if (vs == vs_start) panic("Internal error: Empty parser stack");
-    if (vtop->type->type == TYPE_VOID) panic("Illegal attempt to use a void value");
+    if (vs == vs_start) panic("Empty parser stack");
+    if (vtop->type->type == TYPE_VOID) error("Illegal attempt to use a void value");
 }
 
 // Pop a value from the stack
@@ -126,9 +126,9 @@ static Value *load(Value *src1) {
 
     else if (src1->vreg && src1->is_lvalue) {
         // An lvalue in a register needs a dereference
-        if (src1->type->type == TYPE_VOID) panic("Cannot dereference a *void");
-        if (src1->type->type == TYPE_STRUCT_OR_UNION) panic("Cannot dereference a pointer to a struct/union");
-        if (src1->type->type == TYPE_ARRAY) panic("Cannot dereference a pointer to an array");
+        if (src1->type->type == TYPE_VOID) error("Cannot dereference a *void");
+        if (src1->type->type == TYPE_STRUCT_OR_UNION) error("Cannot dereference a pointer to a struct/union");
+        if (src1->type->type == TYPE_ARRAY) error("Cannot dereference a pointer to an array");
 
         src1 = dup_value(src1);
         src1->type = make_pointer(src1->type);
@@ -415,7 +415,7 @@ static BaseType *parse_declaration_specifiers(void) {
     }
 
     if (seen_long == 2) seen_long = 1;
-    else if (seen_long > 2) panic("Too many longs in type specifier");
+    else if (seen_long > 2) error("Too many longs in type specifier");
     if (seen_int && seen_long) {
         seen_int = 0;
         type = new_type(TYPE_LONG);
@@ -430,20 +430,20 @@ static BaseType *parse_declaration_specifiers(void) {
         // Implicit int
         type = new_type(TYPE_INT);
 
-    if (!type) panic("Internal error: type is null");
+    if (!type) panic("Type is null");
 
     if ((data_type_sum > 1))
-        panic("Two or more data types in declaration specifiers");
+        error("Two or more data types in declaration specifiers");
 
     if (seen_signed && seen_unsigned)
-        panic("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
+        error("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
 
     int is_integer_type = type && (type->type == TYPE_CHAR || type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG);
     if (!is_integer_type && (seen_signed || seen_unsigned))
-        panic("Signed/unsigned can only apply to integer types");
+        error("Signed/unsigned can only apply to integer types");
 
     if ((seen_auto + seen_register + seen_static + seen_extern > 1))
-        panic("Duplicate storage class specifiers");
+        error("Duplicate storage class specifiers");
 
     BaseType *base_type = malloc(sizeof(BaseType));
     base_type->type = type;
@@ -488,12 +488,12 @@ static Type *concat_types(Type *type1, Type *type2) {
     type1_tail->target = type2;
 
     if (type1_tail->type == TYPE_FUNCTION && type2->type == TYPE_ARRAY)
-        panic("Functions cannot return arrays");
+        error("Functions cannot return arrays");
 
     // Check arrays have complete elements
     if (type1_tail->type == TYPE_ARRAY) {
         if (type2->type == TYPE_STRUCT_OR_UNION && !get_type_size(type2))
-            panic("Array has incomplete element type");
+            error("Array has incomplete element type");
     }
 
     return move_array_const(type1);
@@ -558,7 +558,7 @@ static Type *parse_function(void) {
                 function_type->function->is_paramless = 0;
 
                 if (type->storage_class == SC_AUTO || type->storage_class == SC_STATIC || type->storage_class == SC_EXTERN)
-                    panic("Invalid storage for function parameter");
+                    error("Invalid storage for function parameter");
             }
             else {
                 type = new_type(TYPE_INT);
@@ -602,11 +602,11 @@ static Type *parse_function(void) {
             next();
         }
         else
-            panic("Expected type or )");
+            error("Expected type or )");
 
         if (cur_token == TOK_RPAREN) break;
         consume(TOK_COMMA, ",");
-        if (cur_token == TOK_RPAREN) panic("Expected expression");
+        if (cur_token == TOK_RPAREN) error("Expected expression");
     }
 
     function_type->function->param_count = param_count;
@@ -631,9 +631,9 @@ static void parse_function_paramless_declaration_list(Function *function) {
             if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
             // Associate type with param symbol
-            if (!cur_type_identifier) panic("Expected identifier");
+            if (!cur_type_identifier) error("Expected identifier");
             Symbol *symbol = lookup_symbol(cur_type_identifier, cur_scope, 0);
-            if (!symbol)  panic("Declaration for unknown parameter %s", cur_type_identifier);
+            if (!symbol)  error("Declaration for unknown parameter %s", cur_type_identifier);
             symbol->type = type;
 
             int found_identifier = 0;
@@ -644,9 +644,9 @@ static void parse_function_paramless_declaration_list(Function *function) {
                     break;
                 }
             }
-            if (!found_identifier) panic("Internal error: unable to match function param identifier");
+            if (!found_identifier) panic("unable to match function param identifier");
 
-            if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) panic("Expected a ; or ,");
+            if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) error("Expected a ; or ,");
             if (cur_token == TOK_COMMA) next();
         }
         while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
@@ -683,7 +683,7 @@ Type *parse_direct_declarator(void) {
                 consume(TOK_RPAREN, ")");
             }
             else
-                panic("Expected subtype or function parameter after (");
+                error("Expected subtype or function parameter after (");
         }
         else if (cur_token == TOK_LBRACKET) {
             // Array [] or [<num>]
@@ -740,18 +740,18 @@ Type *find_struct_or_union(char *identifier, int is_union, int recurse) {
 
     if (tag->type->type == TYPE_STRUCT_OR_UNION) {
         if (tag->type->struct_or_union_desc->is_union != is_union)
-            panic("Tag %s is the wrong kind of tag", identifier);
+            error("Tag %s is the wrong kind of tag", identifier);
         return tag->type;
     }
     else
-        panic("Tag %s is the wrong kind of tag", identifier);
+        error("Tag %s is the wrong kind of tag", identifier);
 }
 
 static Type *find_enum(char *identifier) {
     Tag *tag = lookup_tag(identifier, cur_scope, 1);
 
     if (!tag) return 0;
-    if (tag->type->type != TYPE_ENUM) panic("Tag %s is the wrong kind of tag", identifier);
+    if (tag->type->type != TYPE_ENUM) error("Tag %s is the wrong kind of tag", identifier);
 
     return tag->type;
 }
@@ -835,8 +835,8 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     unnamed_bit_field = 1;
                 }
 
-                if (is_incomplete_type(type)) panic("Struct/union members cannot have an incomplete type");
-                if (type->type == TYPE_FUNCTION) panic("Struct/union members cannot have a function type");
+                if (is_incomplete_type(type)) error("Struct/union members cannot have an incomplete type");
+                if (type->type == TYPE_FUNCTION) error("Struct/union members cannot have a function type");
 
                 StructOrUnionMember *member = add_struct_member(cur_type_identifier, type, s, &member_count);
 
@@ -844,13 +844,13 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     // Bit field
                     if (!unnamed_bit_field) next(); // consume TOK_COLON
 
-                    if (type->type != TYPE_INT) panic("Bit fields must be integers");
+                    if (type->type != TYPE_INT) error("Bit fields must be integers");
 
                     Value *v = parse_constant_integer_expression(0);
                     int bit_field_size = v->int_value;
 
-                    if (cur_type_identifier && bit_field_size == 0) panic("Invalid bit field size 0 for named member");
-                    if (bit_field_size < 0 || bit_field_size > 32) panic("Invalid bit field size %d", cur_long);
+                    if (cur_type_identifier && bit_field_size == 0) error("Invalid bit field size 0 for named member");
+                    if (bit_field_size < 0 || bit_field_size > 32) error("Invalid bit field size %d", cur_long);
 
                     member->is_bit_field = 1;
                     member->bit_field_size = bit_field_size;
@@ -861,7 +861,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     next();
                     done_parsing_members = 1;
                 }
-                else panic("Expected a ;, or ,");
+                else error("Expected a ;, or ,");
             }
             if (cur_token == TOK_RCURLY) break;
         }
@@ -937,14 +937,14 @@ static Type *parse_enum_type_specifier(void) {
         }
         consume(TOK_RCURLY, "}");
 
-        if (!member_count) panic("An enum must have at least one member");
+        if (!member_count) error("An enum must have at least one member");
     }
 
     else {
         // Enum use
 
         Type *type = find_enum(identifier);
-        if (!type) panic("Unknown enum %s", identifier);
+        if (!type) error("Unknown enum %s", identifier);
         return type;
     }
 
@@ -986,10 +986,10 @@ static void indirect(void) {
 
     Type *target = src1->type->target;
     if (is_incomplete_type(target))
-        panic("Attempt to use an incomplete type");
+        error("Attempt to use an incomplete type");
 
-    if (src1->is_lvalue) panic("Internal error: expected rvalue");
-    if (!src1->vreg) panic("Internal error: expected a vreg");
+    if (src1->is_lvalue) panic("Expected rvalue");
+    if (!src1->vreg) panic("Expected a vreg");
 
     Value *dst = new_value();
     dst->vreg = src1->vreg;
@@ -1008,7 +1008,7 @@ StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *identifier)
         pmember++;
     }
 
-    panic("Unknown member %s in struct %s\n", identifier, type->tag ? type->tag->identifier : "(anonymous)");
+    error("Unknown member %s in struct %s\n", identifier, type->tag ? type->tag->identifier : "(anonymous)");
 }
 
 // Allocate a new label and create a value for it, for use in a jmp
@@ -1089,7 +1089,7 @@ static Value *integer_type_change(Value *src, Type *type) {
 }
 
 static Value *integer_promote(Value *v) {
-    if (!is_integer_type(v->type)) panic("Invalid operand, expected integer type");
+    if (!is_integer_type(v->type)) error("Invalid operand, expected integer type");
 
     Type *type = integer_promote_type(v->type);
     if (type_eq(v->type, type))
@@ -1115,7 +1115,7 @@ Value *convert_int_constant_to_floating_point(Value *v, Type *dst_type) {
 static Value *long_double_type_change(Value *src) {
     Value *dst;
 
-    if (src->type->type == TYPE_PTR) panic("Unable to convert a pointer to a long double");
+    if (src->type->type == TYPE_PTR) error("Unable to convert a pointer to a long double");
     if (src->type->type == TYPE_LONG_DOUBLE) return src;
 
     if (src->is_constant) {
@@ -1145,7 +1145,7 @@ static Value *long_double_type_change(Value *src) {
 static Value *double_type_change(Value *src) {
     Value *dst;
 
-    if (src->type->type == TYPE_PTR) panic("Unable to convert a pointer to a double");
+    if (src->type->type == TYPE_PTR) error("Unable to convert a pointer to a double");
     if (src->type->type == TYPE_LONG_DOUBLE) panic("Unexpectedly got a long double -> double conversion");
     if (src->type->type == TYPE_DOUBLE) return src;
 
@@ -1175,7 +1175,7 @@ static Value *double_type_change(Value *src) {
 static Value *float_type_change(Value *src) {
     Value *dst;
 
-    if (src->type->type == TYPE_PTR) panic("Unable to convert a pointer to a double");
+    if (src->type->type == TYPE_PTR) error("Unable to convert a pointer to a double");
     if (src->type->type == TYPE_LONG_DOUBLE) panic("Unexpectedly got a long double -> float conversion");
     if (src->type->type == TYPE_DOUBLE) panic("Unexpectedly got a double -> float conversion");
     if (src->type->type == TYPE_FLOAT) return src;
@@ -1202,6 +1202,14 @@ static void arithmetic_operation(int operation, Type *dst_type) {
 
     Value *src2 = pl();
     Value *src1 = pl();
+
+    int src2_is_int = is_integer_type(src2->type);
+
+    if (operation == IR_DIV && src2->is_constant && (src2_is_int && src2->int_value == 0 || !src2_is_int && src2->fp_value == 0))
+        error("Illegal division by zero");
+
+    if (operation == IR_MOD && src2->is_constant && src2->int_value == 0)
+        error("Illegal modulus by zero");
 
     // In an equality compariosn, swap operands so that the constant is second.
     // Instruction selection doesn't have rules that deal with a constant first operand.
@@ -1274,7 +1282,7 @@ void check_plus_operation_type(Value *src1, Value *src2) {
     if (src1_is_arithmetic && src2_is_arithmetic) return;
     else if (src1_is_pointer && src2_is_integer) return;
     else if (src2_is_pointer && src1_is_integer) return;
-    else panic("Invalid operands to binary plus");
+    else error("Invalid operands to binary plus");
 }
 
 void check_minus_operation_type(Value *src1, Value *src2) {
@@ -1293,25 +1301,25 @@ void check_minus_operation_type(Value *src1, Value *src2) {
         (!(src1_is_pointer && src2_is_pointer && types_are_compatible(deref_pointer(src1->type), deref_pointer(src2->type)))) &&
         (!(src1_is_pointer && src2_is_integer))
     )
-    panic("Invalid operands to binary minus");
+    error("Invalid operands to binary minus");
 }
 
 void check_bitwise_shift_operation_type(Value *src1, Value *src2) {
-    if (!is_integer_type(src1->type)) panic("Invalid operands to bitwise shift");
-    if (!is_integer_type(src2->type)) panic("Invalid operands to bitwise shift");
+    if (!is_integer_type(src1->type)) error("Invalid operands to bitwise shift");
+    if (!is_integer_type(src2->type)) error("Invalid operands to bitwise shift");
 }
 
 void check_and_or_operation_type(Value *src1, Value *src2) {
-    if (!is_scalar_type(src2->type)) panic("Invalid operands to &&/||");
-    if (!is_scalar_type(src2->type)) panic("Invalid operands to &&/||");
+    if (!is_scalar_type(src2->type)) error("Invalid operands to &&/||");
+    if (!is_scalar_type(src2->type)) error("Invalid operands to &&/||");
 }
 
 void check_unary_operation_type(int operation, Value *value) {
-    if (operation == IR_BNOT && !is_integer_type(value->type)) panic("Cannot use ~ on a non integer");
-    if (operation == IR_LNOT && !is_scalar_type(value->type)) panic("Cannot use ! on a non scalar");
+    if (operation == IR_BNOT && !is_integer_type(value->type)) error("Cannot use ~ on a non integer");
+    if (operation == IR_LNOT && !is_scalar_type(value->type)) error("Cannot use ! on a non scalar");
 
     if (operation == IR_ADD || operation == IR_SUB)
-        if (!is_arithmetic_type(value->type)) panic("Can only use unary +/- on an arithmetic type");
+        if (!is_arithmetic_type(value->type)) error("Can only use unary +/- on an arithmetic type");
 }
 
 void check_binary_operation_types(int operation, Value *src1, Value *src2) {
@@ -1330,12 +1338,12 @@ void check_binary_operation_types(int operation, Value *src1, Value *src2) {
     int src1_is_function = src1->type->type == TYPE_FUNCTION || is_pointer_to_function_type(src1->type);
     int src2_is_function = src2->type->type == TYPE_FUNCTION || is_pointer_to_function_type(src2->type);
 
-    if (operation == IR_MUL  && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary *");
-    if (operation == IR_DIV  && (!src1_is_arithmetic || !src2_is_arithmetic)) panic("Invalid operands to binary /");
-    if (operation == IR_MOD  && (!src1_is_integer    || !src2_is_integer))    panic("Invalid operands to binary %");
-    if (operation == IR_BAND && (!src1_is_integer    || !src2_is_integer))    panic("Invalid operands to binary &");
-    if (operation == IR_BOR  && (!src1_is_integer    || !src2_is_integer))    panic("Invalid operands to binary |");
-    if (operation == IR_XOR  && (!src1_is_integer    || !src2_is_integer))    panic("Invalid operands to binary ^");
+    if (operation == IR_MUL  && (!src1_is_arithmetic || !src2_is_arithmetic)) error("Invalid operands to binary *");
+    if (operation == IR_DIV  && (!src1_is_arithmetic || !src2_is_arithmetic)) error("Invalid operands to binary /");
+    if (operation == IR_MOD  && (!src1_is_integer    || !src2_is_integer))    error("Invalid operands to binary %");
+    if (operation == IR_BAND && (!src1_is_integer    || !src2_is_integer))    error("Invalid operands to binary &");
+    if (operation == IR_BOR  && (!src1_is_integer    || !src2_is_integer))    error("Invalid operands to binary |");
+    if (operation == IR_XOR  && (!src1_is_integer    || !src2_is_integer))    error("Invalid operands to binary ^");
 
     if (operation == IR_LT || operation == IR_GT || operation == IR_LE || operation == IR_GE) {
         Type *src1_type_deref = 0;
@@ -1355,7 +1363,7 @@ void check_binary_operation_types(int operation, Value *src1, Value *src2) {
             (!(src1_is_pointer && src2_is_pointer && is_object_type(src1_type_deref) && is_object_type(src2_type_deref) && types_are_compatible(src1_type_deref, src2_type_deref))) &&
             (!(src1_is_pointer && src2_is_pointer && is_incomplete_type(src1_type_deref) && is_incomplete_type(src2_type_deref) && types_are_compatible(src1_type_deref, src2_type_deref)))
         )
-            panic("Invalid operands to relational operator");
+            error("Invalid operands to relational operator");
     }
 
     if (operation == IR_EQ || operation == IR_NE) {
@@ -1381,7 +1389,7 @@ void check_binary_operation_types(int operation, Value *src1, Value *src2) {
             (!(src1_is_pointer && is_null_pointer(src2))) &&
             (!(src2_is_pointer && is_null_pointer(src1)))
         )
-            panic("Invalid operands to relational operator");
+            error("Invalid operands to relational operator");
     }
 }
 
@@ -1443,7 +1451,7 @@ static void push_symbol(Symbol *symbol) {
 
 // Add type change move if necessary and return the dst value
 Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
-    if (dst_type->type == TYPE_FUNCTION) panic("Function type mismatch");
+    if (dst_type->type == TYPE_FUNCTION) error("Function type mismatch");
 
     int dst_is_function = is_pointer_to_function_type(dst_type);
     int src_is_function = is_pointer_to_function_type(src->type) || src->type->type == TYPE_FUNCTION;
@@ -1464,7 +1472,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
 
     if (!type_eq(dst_type, src->type)) {
         if (src->is_constant) {
-            if (dst_is_function && !is_null_pointer(src)) panic("Function type mismatch");
+            if (dst_is_function && !is_null_pointer(src)) error("Function type mismatch");
             int src_is_int = is_integer_type(src->type);
             int dst_is_int = is_integer_type(dst_type);
             int src_is_sse = is_sse_floating_point_type(src->type);
@@ -1501,7 +1509,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
 
         // Implicit else: src is not a constant
         else if (dst_is_function && !src_is_function)
-            panic("Function type mismatch");
+            error("Function type mismatch");
 
         // Convert non constant
         Value *src2 = new_value();
@@ -1552,8 +1560,8 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
 
 // Add instruction to assign a scalar value in src1 to dst
 static void add_simple_assignment_instruction(Value *dst, Value *src1, int enforce_const) {
-    if (!dst->is_lvalue) panic("Cannot assign to an rvalue");
-    if (enforce_const && !type_is_modifiable(dst->type)) panic("Cannot assign to read-only variable");
+    if (!dst->is_lvalue) error("Cannot assign to an rvalue");
+    if (enforce_const && !type_is_modifiable(dst->type)) error("Cannot assign to read-only variable");
 
     dst->is_lvalue = 1;
 
@@ -1571,8 +1579,8 @@ static void add_simple_assignment_instruction(Value *dst, Value *src1, int enfor
 
 // Parse a simple assignment expression. The stack as the dst.
 static void parse_simple_assignment(int enforce_const) {
-    if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
-    if (enforce_const && !type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
+    if (!vtop->is_lvalue) error("Cannot assign to an rvalue");
+    if (enforce_const && !type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");
 
     Value *dst = pop();
     parse_expression(TOK_EQ);
@@ -1583,7 +1591,7 @@ static void parse_simple_assignment(int enforce_const) {
 
 static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     Symbol *s = dst->global_symbol;
-    if (!s) panic("Attempt to add an initializer to value without a global_symbol");
+    if (!s) error("Attempt to add an initializer to value without a global_symbol");
 
     if (!s->initializers) s->initializers = malloc(sizeof(Initializer) * MAX_INITIALIZERS);
     if (s->initializer_count == MAX_INITIALIZERS) panic("Exceeded MAX_INITIALIZERS=%d", MAX_INITIALIZERS);
@@ -1611,7 +1619,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
 
     if (scalar) {
         if (!scalar->is_constant && !scalar->is_string_literal && !scalar->is_address_of)
-            panic("An initializer for an object with static storage duration must be a constant expression");
+            error("An initializer for an object with static storage duration must be a constant expression");
 
         if (!scalar->is_string_literal && !scalar->is_address_of) scalar = cast_constant_value(scalar, dst->type);
         size = get_type_size(dst->type);
@@ -1716,7 +1724,7 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
         // Parse {...} initializer
 
         next();
-        if (cur_token == TOK_RCURLY) panic("Empty array/struct/union initializer");
+        if (cur_token == TOK_RCURLY) error("Empty array/struct/union initializer");
 
         // Loop over all comma separated expressions
         while (cur_token != TOK_RCURLY) {
@@ -1812,7 +1820,7 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
             // An array was descended into, but not completed. Zero the elements first.
             int array_element_size = get_type_size(outer_it->type->target);
             int zeroes = array_element_size - ((it->offset - initial_outer_offset) % array_element_size);
-            if (zeroes < 0) panic("Internal error, got negative zeroes");
+            if (zeroes < 0) panic("Got negative zeroes");
             if (zeroes)
                 initialize_with_zeroes(value, it->offset, zeroes);
 
@@ -1829,7 +1837,7 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
     if (!type_iterator_done(it)) {
         int outer_size = get_type_size((outer_it->type));
         int zeroes = initial_outer_offset + outer_size - it->offset;
-        if (zeroes < 0) panic("Internal error, got negative zeroes");
+        if (zeroes < 0) panic("Got negative zeroes");
         if (zeroes)
             initialize_with_zeroes(value, it->offset, zeroes);
     }
@@ -1841,8 +1849,8 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
 Value *prep_comp_assign(void) {
     next();
 
-    if (!vtop->is_lvalue) panic("Cannot assign to an rvalue");
-    if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
+    if (!vtop->is_lvalue) error("Cannot assign to an rvalue");
+    if (!type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");
 
     Value *v1 = vtop;           // lvalue
     push(load(dup_value(v1)));  // rvalue
@@ -1934,9 +1942,9 @@ static void parse_declaration(void) {
     cur_type_identifier = 0;
     Type *type = concat_base_type(parse_declarator(), dup_base_type(base_type));
 
-    if (!cur_type_identifier) panic("Expected an identifier");
+    if (!cur_type_identifier) error("Expected an identifier");
 
-    if (lookup_symbol(cur_type_identifier, cur_scope, 0)) panic("Identifier redeclared: %s", cur_type_identifier);
+    if (lookup_symbol(cur_type_identifier, cur_scope, 0)) error("Identifier redeclared: %s", cur_type_identifier);
 
     if (base_type->storage_class == SC_STATIC) {
         symbol = new_symbol(cur_type_identifier);
@@ -1990,7 +1998,7 @@ static void parse_declaration(void) {
         Value *v = pop();
 
         if (v->type->type == TYPE_STRUCT_OR_UNION && is_incomplete_type(v->type))
-            panic("Attempt to use an incomplete struct or union in an initializer");
+            error("Attempt to use an incomplete struct or union in an initializer");
 
         parse_initializer(type_iterator(v->type), v, 0);
         symbol->type = v->type;
@@ -2000,7 +2008,7 @@ static void parse_declaration(void) {
 
     // If it's not initialized and incomplete, bail.
     else if (is_incomplete_type(symbol->type))
-        panic("Storage size is unknown");
+        error("Storage size is unknown");
 }
 
 Value *parse_expression_and_pop(int level) {
@@ -2028,11 +2036,11 @@ int parse_sizeof(parse_expression_function_type expr) {
         expression = expr(TOK_INC);
 
     if (expression) {
-        if (expression->bit_field_size) panic("Cannot take sizeof a bit field");
+        if (expression->bit_field_size) error("Cannot take sizeof a bit field");
         type = expression->type;
     }
 
-    if (is_incomplete_type(type)) panic("Cannot take sizeof an incomplete type");
+    if (is_incomplete_type(type)) error("Cannot take sizeof an incomplete type");
 
     return get_type_size(type);
 }
@@ -2049,7 +2057,7 @@ static void push_value_size_constant(Value *v) {
 static void parse_function_call(void) {
     Value *popped_function = pl();
     if (popped_function->type->type != TYPE_FUNCTION && !is_pointer_to_function_type(popped_function->type))
-        panic("Illegal attempt to call a non-function");
+        error("Illegal attempt to call a non-function");
 
     Symbol *symbol = popped_function->global_symbol;
     Type *function_type = popped_function->type->function ? popped_function->type : popped_function->type->target;
@@ -2078,7 +2086,7 @@ static void parse_function_call(void) {
         if (cur_token == TOK_RPAREN) break;
 
         if (!function->is_paramless && !function->is_variadic && function->param_count == 0)
-            panic("Too many arguments for function call");
+            error("Too many arguments for function call");
 
         parse_expression(TOK_EQ);
         Value *arg = dup_value(src1);
@@ -2104,7 +2112,7 @@ static void parse_function_call(void) {
         }
         else {
             if (!function->is_variadic && !function->is_paramless)
-                panic("Too many arguments for function call");
+                error("Too many arguments for function call");
 
             Value *arg = pl();
             Type *type = apply_default_function_call_argument_promotions(arg->type);
@@ -2128,7 +2136,7 @@ static void parse_function_call(void) {
 
         if (cur_token == TOK_RPAREN) break;
         consume(TOK_COMMA, ",");
-        if (cur_token == TOK_RPAREN) panic("Expected expression");
+        if (cur_token == TOK_RPAREN) error("Expected expression");
     }
     consume(TOK_RPAREN, ")");
 
@@ -2187,7 +2195,7 @@ static Value *parse_va_list() {
     Type *wcc_va_list_array_type = make_array(struct_or_union, 1);
     Type *wcc_va_list_pointer_type = make_pointer(struct_or_union);
     if (!types_are_compatible(va_list->type, wcc_va_list_array_type) && !types_are_compatible(va_list->type, wcc_va_list_pointer_type))
-        panic("Expected va_list type as first argument to va_start");
+        error("Expected va_list type as first argument to va_start");
 
     return va_list;
 }
@@ -2207,12 +2215,12 @@ static void parse_va_start() {
     consume(TOK_RPAREN, ")");
 
     if (rightmost_param->local_index < 2)
-        panic("Expected function parameter as second argument to va_start");
+        error("Expected function parameter as second argument to va_start");
 
     int rightmost_param_index = rightmost_param->local_index - 2;
 
     if (rightmost_param_index != cur_function_symbol->type->function->param_count - 1)
-        panic("Second argument to va_start isn't the rightmost function parameter");
+        error("Second argument to va_start isn't the rightmost function parameter");
 
     Value *param_index_value = new_value();
     param_index_value->type = new_type(TYPE_INT);
@@ -2237,7 +2245,7 @@ static void parse_va_arg() {
     cur_type_identifier = 0;
     Type *type = parse_type_name();
 
-    if (type->type == TYPE_ARRAY) panic("Cannot use an array in va_arg");
+    if (type->type == TYPE_ARRAY) error("Cannot use an array in va_arg");
 
     consume(TOK_RPAREN, ")");
 
@@ -2262,13 +2270,13 @@ void parse_struct_dot_arrow_expression(void) {
     // Struct/union member lookup
 
     if (cur_token == TOK_DOT) {
-        if (vtop->type->type != TYPE_STRUCT_OR_UNION) panic("Can only use . on a struct or union");
-        if (!vtop->is_lvalue) panic("Expected lvalue for struct . operation.");
+        if (vtop->type->type != TYPE_STRUCT_OR_UNION) error("Can only use . on a struct or union");
+        if (!vtop->is_lvalue) error("Expected lvalue for struct . operation.");
     }
     else {
-        if (vtop->type->type != TYPE_PTR) panic("Cannot use -> on a non-pointer");
-        if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) panic("Can only use -> on a pointer to a struct or union");
-        if (is_incomplete_type(vtop->type->target)) panic("Dereferencing a pointer to incomplete struct or union");
+        if (vtop->type->type != TYPE_PTR) error("Cannot use -> on a non-pointer");
+        if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) error("Can only use -> on a pointer to a struct or union");
+        if (is_incomplete_type(vtop->type->target)) error("Dereferencing a pointer to incomplete struct or union");
     }
 
     int is_dot = cur_token == TOK_DOT;
@@ -2294,7 +2302,7 @@ void parse_struct_dot_arrow_expression(void) {
 }
 
 void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2) {
-    if (!is_scalar_type(switcher->type)) panic("Expected scalar type for first operand of ternary operator");
+    if (!is_scalar_type(switcher->type)) error("Expected scalar type for first operand of ternary operator");
 
     int src1_is_arithmetic = is_arithmetic_type(src1->type);
     int src2_is_arithmetic = is_arithmetic_type(src2->type);
@@ -2329,7 +2337,7 @@ void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2) {
         (!((is_pointer_to_object_type(src1->type) && is_pointer_to_void(src2->type)) ||
            (is_pointer_to_object_type(src2->type) && is_pointer_to_void(src1->type))))
     )
-        panic("Invalid operands to ternary operator");
+        error("Invalid operands to ternary operator");
 }
 
 void parse_ternary_expression(void) {
@@ -2411,9 +2419,9 @@ static void parse_expression(int level) {
 
             // Arrays are rvalues as well as lvalues. Otherwise, an lvalue is required
             if ((vtop->type->type == TYPE_ARRAY && vtop->is_lvalue) && !vtop->is_lvalue)
-                panic("Cannot take an address of an rvalue");
+                error("Cannot take an address of an rvalue");
 
-            if (vtop->bit_field_size) panic("Cannot take an address of a bit-field");
+            if (vtop->bit_field_size) error("Cannot take an address of a bit-field");
 
             Value *src1 = pop();
             add_ir_op(IR_ADDRESS_OF, make_pointer(src1->type), new_vreg(), src1, 0);
@@ -2434,8 +2442,8 @@ static void parse_expression(int level) {
             next();
             parse_expression(TOK_DOT);
 
-            if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
-            if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
+            if (!vtop->is_lvalue) error("Cannot ++ or -- an rvalue");
+            if (!type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");
 
             Value *v1 = pop();                 // lvalue
             Value *src1 = load(dup_value(v1)); // rvalue
@@ -2457,7 +2465,7 @@ static void parse_expression(int level) {
 
                 // Special case: indirects on function types are no-ops.
                 if (vtop->type->type != TYPE_FUNCTION)  {
-                    if (!is_pointer_or_array_type(vtop->type)) panic("Cannot dereference a non-pointer");
+                    if (!is_pointer_or_array_type(vtop->type)) error("Cannot dereference a non-pointer");
                     indirect();
                 }
             }
@@ -2580,7 +2588,7 @@ static void parse_expression(int level) {
                 else {
                     // Look up symbol
                     Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
-                    if (!symbol) panic("Unknown symbol \"%s\"", cur_identifier);
+                    if (!symbol) error("Unknown symbol \"%s\"", cur_identifier);
 
                     next();
 
@@ -2597,7 +2605,7 @@ static void parse_expression(int level) {
             break;
 
         default:
-            panic("Unexpected token %d in expression", cur_token);
+            error("Unexpected token %d in expression", cur_token);
     }
 
     // The next token is an operator
@@ -2609,7 +2617,7 @@ static void parse_expression(int level) {
                 next();
 
                 if (vtop->type->type != TYPE_PTR && vtop->type->type != TYPE_ARRAY)
-                    panic("Invalid operator [] on a non-pointer and non-array");
+                    error("Invalid operator [] on a non-pointer and non-array");
 
                 parse_addition(TOK_COMMA);
                 consume(TOK_RBRACKET, "]");
@@ -2628,9 +2636,9 @@ static void parse_expression(int level) {
                 int org_token = cur_token;
                 next();
 
-                if (!vtop->is_lvalue) panic("Cannot ++ or -- an rvalue");
-                if (!is_scalar_type(vtop->type)) panic("Cannot postfix ++ or -- on a non scalar");
-                if (!type_is_modifiable(vtop->type)) panic("Cannot assign to read-only variable");
+                if (!vtop->is_lvalue) error("Cannot ++ or -- an rvalue");
+                if (!is_scalar_type(vtop->type)) error("Cannot postfix ++ or -- on a non scalar");
+                if (!type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");
 
                 Value *v1 = pop();                 // lvalue
                 Value *src1 = load(dup_value(v1)); // rvalue
@@ -2708,7 +2716,7 @@ static void parse_iteration_conditional_expression(Value **lcond, Value **cur_lo
 
     parse_expression(TOK_COMMA);
     if (!is_scalar_type(vtop->type))
-        panic("Expected scalar type for loop controlling expression");
+        error("Expected scalar type for loop controlling expression");
 
     add_conditional_jump(IR_JZ, lend);
 }
@@ -2835,7 +2843,7 @@ static void parse_switch_statement(void) {
     Value *controlling_value = pl();
 
     if (!is_integer_type(controlling_value->type))
-        panic("The controlling expression of a switch statement is not an integral type");
+        error("The controlling expression of a switch statement is not an integral type");
 
     // Maintain two IRs:
     // - main_ir, which contains the comparison statements
@@ -2876,7 +2884,7 @@ static void parse_switch_statement(void) {
 
             // Ensure there are no duplicates
             if (longmap_get(values, value))
-                panic("Duplicate switch case value");
+                error("Duplicate switch case value");
             else
                 longmap_put(values, value, (void *) 1);
 
@@ -2948,7 +2956,7 @@ static void parse_if_statement(void) {
 
     consume(TOK_LPAREN, "(");
     parse_expression(TOK_COMMA);
-    if (!is_scalar_type(vtop->type)) panic("The controlling statement of an if statement must be a scalar");
+    if (!is_scalar_type(vtop->type)) error("The controlling statement of an if statement must be a scalar");
     consume(TOK_RPAREN, ")");
 
     Value *ldst1 = new_label_dst(); // False case
@@ -2979,7 +2987,7 @@ static void parse_return_statement(void) {
         parse_expression(TOK_COMMA);
 
         if (vtop && vtop->type->type != TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID)
-            panic("Return with a value in a function returning void");
+            error("Return with a value in a function returning void");
 
         Value *src1;
         if (vtop && vtop->type->type == TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID) {
@@ -3031,7 +3039,7 @@ static void backpatch_gotos(void) {
     for (StrMapIterator it = strmap_iterator(goto_backpatches); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
         char *identifier = strmap_iterator_key(&it);
         Tac *ir = strmap_get(goto_backpatches, identifier);
-        if (!ir) panic("Unknown label %s", identifier);
+        if (!ir) error("Unknown label %s", identifier);
         Value *ldst = strmap_get(cur_function_symbol->type->function->labels, identifier);
         ir->src1 = ldst;
     }
@@ -3146,10 +3154,10 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
         parse_function_paramless_declaration_list(type->function);
 
     if (original_symbol && !types_are_compatible(original_symbol->type, type))
-        panic("Incompatible function types");
+        error("Incompatible function types");
 
     if (original_symbol && original_symbol->type->function->is_defined && cur_token == TOK_LCURLY) {
-        panic("Redefinition of %s", cur_type_identifier);
+        error("Redefinition of %s", cur_type_identifier);
     }
 
     if (original_symbol)
@@ -3172,7 +3180,7 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
         // Ensure parameters have identifiers
         for (int i = 0; i < function->param_count; i++)
             if (!function->param_identifiers[i])
-                panic("Missing identifier for parameter in function definition");
+                error("Missing identifier for parameter in function definition");
 
         // Reset globals for a new function
         vreg_count = 0;
@@ -3209,7 +3217,7 @@ int redefined_symbol_linkage(int linkage1, int linkage2, char *cur_type_identifi
 
     if (linkage1 == linkage2) return linkage1;
 
-    panic("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
+    error("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
 }
 
 // Parse a translation unit
@@ -3236,13 +3244,13 @@ void parse(void) {
                 cur_type_identifier = 0;
 
                 if (base_type->storage_class == SC_AUTO)
-                    panic("auto not allowed in global scope");
+                    error("auto not allowed in global scope");
                 if (base_type->storage_class == SC_REGISTER)
-                    panic("register not allowed in global scope");
+                    error("register not allowed in global scope");
 
                 Type *type = concat_base_type(parse_declarator(), dup_base_type(base_type));
 
-                if (!cur_type_identifier) panic("Expected an identifier");
+                if (!cur_type_identifier) error("Expected an identifier");
 
                 Symbol *original_symbol = lookup_symbol(cur_type_identifier, global_scope, 1);
                 Symbol *symbol;
@@ -3257,7 +3265,7 @@ void parse(void) {
                     symbol = original_symbol;
 
                 if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
-                    panic("%s redeclared as different kind of symbol", cur_type_identifier);
+                    error("%s redeclared as different kind of symbol", cur_type_identifier);
 
                 int linkage =
                     base_type->storage_class == SC_STATIC ? LINKAGE_INTERNAL
@@ -3279,7 +3287,7 @@ void parse(void) {
                     Value *v = make_global_symbol_value(symbol);
 
                     if (v->type->type == TYPE_STRUCT_OR_UNION && is_incomplete_type(v->type))
-                        panic("Attempt to use an incomplete struct or union in an initializer");
+                        error("Attempt to use an incomplete struct or union in an initializer");
 
                     parse_initializer(type_iterator(v->type), v, 0);
                     symbol->type = v->type;
@@ -3308,7 +3316,7 @@ void parse(void) {
             consume(TOK_SEMI, ";");
         }
 
-        else panic("Expected global declaration or function");
+        else error("Expected global declaration or function");
     }
 }
 
