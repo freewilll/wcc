@@ -349,7 +349,10 @@ void next(void) {
 
             cur_filename = cur_string_literal.data;
             cur_line = cur_long - 1;
-            if (i[ip] != '\n') while (i[ip++] != '\n');
+
+            while (ip < input_size && i[ip] != '\n') ip++; // Skip non-whitespace
+            skip_whitespace(); // Skip EOL if present
+
             continue;
         }
 
