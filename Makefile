@@ -16,6 +16,7 @@ SOURCES = \
   instrrules.c \
   codegen.c \
   utils.c \
+  panic.c \
   set.c \
   stack.c \
   strmap.c \

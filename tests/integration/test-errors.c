@@ -390,13 +390,13 @@ int main(int argc, char **argv) {
 
     check_main_output(
         "struct s {int i; int i;};",
-        " Duplicate struct/union member",
-        " Duplicate struct/union member direct");
+        "Duplicate struct/union member",
+        "Duplicate struct/union member direct");
 
     check_main_output(
         "struct s {int i; struct { int i;}; };",
-        " Duplicate struct/union member",
-        " Duplicate struct/union member indirect");
+        "Duplicate struct/union member",
+        "Duplicate struct/union member indirect");
 
     finalize();
 }

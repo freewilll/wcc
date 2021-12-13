@@ -18,7 +18,8 @@ static void print_filename_and_linenumber(int is_tty) {
     if (is_tty) fprintf(stderr, RESET);
 }
 
-void panic(char *format, ...) {
+// Report an error and exit
+void error(char *format, ...) {
     va_list ap;
     va_start(ap, format);
 
@@ -33,6 +34,7 @@ void panic(char *format, ...) {
     exit(1);
 }
 
+// Report a warning
 void warning(char *format, ...) {
     va_list ap;
     va_start(ap, format);

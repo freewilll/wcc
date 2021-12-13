@@ -32,8 +32,8 @@ stack-check.o: stack-check.c
 test-%.s: test-%.c ../../wcc ../../include/stdarg.h
 	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
 
-test-%-wcc: test-%.s stack-check.o ../test-lib.o ../utils.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o -o $@
+test-%-wcc: test-%.s stack-check.o ../test-lib.o ../utils.o ../panic.o
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o ../panic.o -o $@
 
 run-test-%-wcc: test-%-wcc
 	./$<
@@ -55,8 +55,8 @@ test-arithmetic-types-move-torture.c: gen-test-arithmetic-types-move-torture
 run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
 	@echo wcc tests passed
 
-test-%-gcc: test-%.c stack-check.o ../test-lib.o ../utils.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o -o $@ -w
+test-%-gcc: test-%.c stack-check.o ../test-lib.o ../utils.o ../panic.o
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o ../panic.o -o $@ -w
 
 run-test-%-gcc: test-%-gcc
 	./$<
