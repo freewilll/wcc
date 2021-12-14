@@ -58,7 +58,7 @@ static void skip_whitespace(void) {
     char *i = input;
 
     while (ip < input_size) {
-        if (i[ip] == ' ' || i[ip] == '\t')
+        if (i[ip] == ' ' || i[ip] == '\t' || i[ip] == '\f' || i[ip] == '\v' || i[ip] == '\r')
             ip++;
         else if (i[ip] == '\n') {
             ip++;
