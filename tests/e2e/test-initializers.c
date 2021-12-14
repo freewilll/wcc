@@ -1212,15 +1212,15 @@ void test_static_local_initialization() {
 
 int gi2 = 10;
 
-void f(int expected) {
+void fn(int expected) {
     static int gi2 = 1; // Same identifier as a global of the same name
     assert_int(expected, gi2++, "Static int identifier reuse bug");
 }
 
 static void test_static_identifier_reuse_bug() {
-    f(1);
-    f(2);
-    f(3);
+    fn(1);
+    fn(2);
+    fn(3);
     assert_int(10, gi2, "Static int identifier reuse bug, gi2 is untouched");
 }
 
