@@ -491,6 +491,9 @@ static char *lex_whitespace(void) {
 
     // Process whitespace and comments
     while (state.ip < state.input_size) {
+        char c = state.input[state.ip];
+        if (c == '\f' || c == '\v' || c == '\r') state.input[state.ip] = ' ';
+
         if ((state.input[state.ip] == '\t' || state.input[state.ip] == ' ')) {
             add_to_whitespace(&whitespace, &whitespace_pos, state.input[state.ip]);
             advance_cur_ip();

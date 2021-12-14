@@ -17,3 +17,7 @@ int	main()	{}
  		int main()  {}
   	int main()  {}
   		int main()  {}
+
+// \f and \v
+\f Formfeed
+\v verticaltab
