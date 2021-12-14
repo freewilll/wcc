@@ -14,6 +14,7 @@ foo
 foo
 # 54 "conditional-includes.c"
 
+
 foo
 
 
@@ -112,7 +113,6 @@ def
 !defined undef
 # 235 "conditional-includes.c"
 # 245 "conditional-includes.c"
-
 
 
 

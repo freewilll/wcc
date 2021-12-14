@@ -460,13 +460,13 @@ static void append_tokens_to_output(CppToken *tokens) {
 }
 
 static void advance_ip() {
-    state.ip++;
-
     if (state.line_map && state.ip == state.line_map->position) {
         state.line_number = state.line_map->line_number;
         cur_line = state.line_number;
         state.line_map = state.line_map->next;
     }
+
+    state.ip++;
 }
 
 // Advance global current input pointers
@@ -1240,7 +1240,7 @@ static void parse_include() {
 
     char *buf = malloc(256);
     char *filename = state.override_filename ? state.override_filename : state.filename;
-    sprintf(buf, "# %d \"%s\" 2", state.line_number_offset + state.line_number, filename);
+    sprintf(buf, "# %d \"%s\" 2", state.line_number_offset + state.line_number + 1, filename);
     append_to_string_buffer(output, buf);
     free(buf);
 }
@@ -1433,8 +1433,14 @@ static void parse_line() {
         // Parse #line <number> ...
         tokens = gather_tokens_until_eol();
 
+    if (state.token->kind != CPP_TOK_EOL && state.token->kind != CPP_TOK_EOF) panic("Expected EOL or EOF");
+
     if (tokens->kind == CPP_TOK_NUMBER) {
-        state.line_number_offset = atoi(tokens->str) - state.line_number;
+        state.line_number_offset = atoi(tokens->str) - state.line_number - 1;
+
+        // Amend the next token's line number offset too
+        state.token->line_number_offset = state.line_number_offset;
+
         tokens = tokens->next;
 
         if (tokens && tokens->kind == CPP_TOK_STRING_LITERAL) {
@@ -1611,7 +1617,6 @@ static void parse_directive(void) {
             free(state.conditional_include_stack);
             state.conditional_include_stack = prev;
 
-            skip_until_eol();
             break;
         }
 
@@ -1620,7 +1625,6 @@ static void parse_directive(void) {
 
             if (!state.conditional_include_stack->skipping) parse_line();
 
-            skip_until_eol();
             break;
 
         case CPP_TOK_NUMBER: {
