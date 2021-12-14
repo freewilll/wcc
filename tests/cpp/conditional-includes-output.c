@@ -1,10 +1,7 @@
 # 1 "conditional-includes.c"
-# 12 "conditional-includes.c"
-# 25 "conditional-includes.c"
-
+# 26 "conditional-includes.c"
 foo
-# 36 "conditional-includes.c"
-
+# 37 "conditional-includes.c"
 foo
 
 
@@ -12,9 +9,7 @@ foo
 
 
 foo
-# 54 "conditional-includes.c"
-
-
+# 55 "conditional-includes.c"
 foo
 
 
@@ -111,19 +106,11 @@ def
 
 
 !defined undef
-# 235 "conditional-includes.c"
-# 245 "conditional-includes.c"
-
-
-
-
 # 1 "include.h" 1
 Hello from include.h in "include.h" 1
 # 100 "include-override"
 Hello from include.h again in "include-override" 100
 # 251 "conditional-includes.c" 2
-
-
 # 1 "include.h" 1
 Hello from include.h in "include.h" 1
 # 100 "include-override"

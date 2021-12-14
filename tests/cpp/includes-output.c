@@ -18,10 +18,6 @@ include1 end
 # 10 "includes.c" 2
 after include again
 "includes.c" 11
-
-
-
-
 # 1 "include1.h" 1
 include1 start
 "include1.h" 2

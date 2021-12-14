@@ -410,7 +410,7 @@ static int need_token_space(CppToken *t1, CppToken *t2) {
     return 0;
 }
 
-static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, int collapse_whitespace) {
+static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, int collapse_whitespace, int update_output) {
     CppToken *prev = 0;
     while (token) {
         int is_eol = (token->kind == CPP_TOK_EOL);
@@ -435,28 +435,30 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
         else if (seen_whitespace && collapse_whitespace)
             append_to_string_buffer(sb, " ");
 
-        if (!is_eol) collapse_trailing_newlines(8, 1, token);
+        if (update_output && !is_eol) collapse_trailing_newlines(8, 1, token);
         append_to_string_buffer(sb, token->str);
 
         prev = token;
         token = token->next;
 
-        if (is_eol) state.output_line_number++;
+        if (update_output) {
+            if (is_eol) state.output_line_number++;
 
-        if (is_eol && token) {
-            // Output sufficient newlines to catch up with token->line_number.
-            // This ensures that each line in the input ends up on the same line
-            // in the output.
-            while (state.output_line_number < token->line_number) {
-                state.output_line_number++;
-                append_to_string_buffer(sb, "\n");
+            if (is_eol && token) {
+                // Output sufficient newlines to catch up with token->line_number.
+                // This ensures that each line in the input ends up on the same line
+                // in the output.
+                while (state.output_line_number < token->line_number) {
+                    state.output_line_number++;
+                    append_to_string_buffer(sb, "\n");
+                }
             }
         }
     }
 }
 
 static void append_tokens_to_output(CppToken *tokens) {
-    append_tokens_to_string_buffer(output, tokens, 0);
+    append_tokens_to_string_buffer(output, tokens, 0, 1);
 }
 
 static void advance_ip() {
@@ -946,7 +948,7 @@ static CppToken *expand(CppToken *is) {
 static CppToken *stringize(CppToken *ts) {
     StringBuffer *rendered = new_string_buffer(128);
 
-    append_tokens_to_string_buffer(rendered, ts, 1);
+    append_tokens_to_string_buffer(rendered, ts, 1, 0);
 
     terminate_string_buffer(rendered);
 
@@ -1227,6 +1229,7 @@ static void parse_include() {
     is_system = include_token->kind == CPP_TOK_HCHAR_STRING_LITERAL;
 
     skip_until_eol();
+    collapse_trailing_newlines(0, 0, 0);
 
     // Backup current parsing state
     CppState backup_state = state;
@@ -1405,7 +1408,7 @@ static long parse_conditional_expression() {
         }
 
     StringBuffer *rendered = new_string_buffer(128);
-    append_tokens_to_string_buffer(rendered, expanded, 1);
+    append_tokens_to_string_buffer(rendered, expanded, 1, 0);
 
     init_lexer_from_string(rendered->data);
     Value *value = parse_constant_integer_expression(1);
@@ -1659,7 +1662,7 @@ static void parse_directive(void) {
 
             if (!state.conditional_include_stack->skipping) {
                 StringBuffer *message = new_string_buffer(128);
-                append_tokens_to_string_buffer(message, gather_tokens_until_eol(), 0);
+                append_tokens_to_string_buffer(message, gather_tokens_until_eol(), 0, 0);
                 warning("%s", message->data);
             }
 
@@ -1670,7 +1673,7 @@ static void parse_directive(void) {
 
             if (!state.conditional_include_stack->skipping) {
                 StringBuffer *message = new_string_buffer(128);
-                append_tokens_to_string_buffer(message, gather_tokens_until_eol(), 0);
+                append_tokens_to_string_buffer(message, gather_tokens_until_eol(), 0, 0);
                 error("%s", message->data);
             }
 
