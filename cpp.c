@@ -1687,19 +1687,17 @@ static void cpp_parse() {
     CppToken *group_tokens = 0;
 
     while (state.token->kind != CPP_TOK_EOF) {
-        while (state.token->kind != CPP_TOK_EOF) {
-            if (new_line && state.token->kind == CPP_TOK_HASH) {
-                append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
-                parse_directive();
-                group_tokens = 0;
+        if (new_line && state.token->kind == CPP_TOK_HASH) {
+            append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
+            parse_directive();
+            group_tokens = 0;
+        }
+        else {
+            if (!state.conditional_include_stack->skipping) {
+                group_tokens = cll_append(group_tokens, state.token);
+                new_line = (state.token->kind == CPP_TOK_EOL);
             }
-            else {
-                if (!state.conditional_include_stack->skipping) {
-                    group_tokens = cll_append(group_tokens, state.token);
-                    new_line = (state.token->kind == CPP_TOK_EOL);
-                }
-                cpp_next();
-            }
+            cpp_next();
         }
     }
 
