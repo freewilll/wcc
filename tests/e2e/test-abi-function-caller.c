@@ -117,10 +117,6 @@ void test_struct_params() {
     double m = 9.1; double n = 10.1;
     s.a = 11; s.b = 12; s.d = 13.1;
     accept_abi_example(e, f, s, g, h, ld, m, n, i, j, k);
-
-    // struct us us; // TODO revive packed structs
-    // us.i = 1; us.c = 2; us.j = 3;
-    // accept_us(us);
 }
 
 void test_struct_return_values() {

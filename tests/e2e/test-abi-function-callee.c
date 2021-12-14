@@ -273,12 +273,6 @@ void accept_abi_example(int e, int f, structparm s, int g, int h, long double ld
     assert_double(13.1, s.d, "abi_example s.d");
 }
 
-void accept_us(struct us us) {
-    assert_int(1, us.i, "accept-us i");
-    assert_int(2, us.c, "accept-us c");
-    assert_int(3, us.j, "accept-us j");
-}
-
 struct spf gspf;
 
 struct spf    return_spf() { struct spf spf; spf.f1 = 1.1; return spf; }

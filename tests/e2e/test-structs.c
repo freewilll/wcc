@@ -78,8 +78,6 @@ struct cldc { char c1; long double  c2;     char c3; };
 struct clac { char c1; long         c2[10]; char c3; };
 
 struct                              pss1 { int i; char c; int j; };
-// struct __attribute__ ((__packed__)) pss2 { int i; char c; int j; }; // TODO revive packed structs
-// struct __attribute__ ((packed))     pss3 { int i; char c; int j; }; // TODO revive packed structs
 
 struct is1 {
     struct is2* s1;
@@ -376,22 +374,6 @@ void test_nested_struct() {
     assert_int(4, s1->j,    "nested struct 6");
     assert_int(3, s2->s->i, "nested struct 7");
     assert_int(4, s2->s->j, "nested struct 8");
-}
-
-void test_packed_struct() {
-    // struct pss1 *s1;
-    // struct pss2 *s2;
-    // struct pss3 *s3;
-
-    // assert_int(12, sizeof(struct pss1),                         "packed struct 1");
-    // assert_int( 4, (long) &(s1->c) - (long) s1,                 "packed struct 2");
-    // assert_int( 8, (long) &(s1->j) - (long) s1,                 "packed struct 3");
-    // assert_int( 9, sizeof(struct pss2),                         "packed struct 4");
-    // assert_int( 4, (long) &(s2->c) - (long) s2,                 "packed struct 5");
-    // assert_int( 5, (long) &(s2->j) - (long) s2,                 "packed struct 6");
-    // assert_int( 9, sizeof(struct pss3),                         "packed struct 7");
-    // assert_int( 4, (long) &(s3->c) - (long) s3,                 "packed struct 8");
-    // assert_int( 5, (long) &(s3->j) - (long) s3,                 "packed struct 9");
 }
 
 void test_incomplete_struct() {
@@ -1168,7 +1150,6 @@ int main(int argc, char **argv) {
     test_struct_alignment_bug();
     test_struct_member_size_lookup_bug();
     test_nested_struct();
-    // test_packed_struct(); // TODO revive packed structs
     test_incomplete_struct();
     test_struct_member_array_lookup();
     test_double_deref_precision1();
