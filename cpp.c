@@ -461,22 +461,16 @@ static void append_tokens_to_output(CppToken *tokens) {
     append_tokens_to_string_buffer(output, tokens, 0, 1);
 }
 
-static void advance_ip() {
-    if (state.line_map && state.ip == state.line_map->position) {
-        state.line_number = state.line_map->line_number;
-        cur_line = state.line_number;
-        state.line_map = state.line_map->next;
-    }
+#define advance_ip() do { \
+    if (state.line_map && state.ip == state.line_map->position) { \
+        state.line_number = state.line_map->line_number; \
+        cur_line = state.line_number; \
+        state.line_map = state.line_map->next; \
+    } \
+    state.ip++; \
+} while(0)
 
-    state.ip++;
-}
-
-// Advance global current input pointers
-static void advance_cur_ip(void) {
-    advance_ip();
-}
-
-static void advance_cur_ip_by_count(int count) {
+static void advance_ip_by_count(int count) {
     for (int i = 0; i < count; i++)
         advance_ip();
 }
@@ -498,27 +492,27 @@ static char *lex_whitespace(void) {
 
         if ((state.input[state.ip] == '\t' || state.input[state.ip] == ' ')) {
             add_to_whitespace(&whitespace, &whitespace_pos, state.input[state.ip]);
-            advance_cur_ip();
+            advance_ip();
             continue;
         }
 
         // Process // comment
         if (state.input_size - state.ip >= 2 && state.input[state.ip] == '/' && state.input[state.ip + 1] == '/') {
-            while (state.input[state.ip] != '\n') advance_cur_ip();
+            while (state.input[state.ip] != '\n') advance_ip();
             add_to_whitespace(&whitespace, &whitespace_pos, ' ');
             continue;
         }
 
         // Process /* comments */
         if (state.input_size - state.ip >= 2 && state.input[state.ip] == '/' && state.input[state.ip + 1] == '*') {
-            advance_cur_ip();
-            advance_cur_ip();
+            advance_ip();
+            advance_ip();
 
             while (state.input_size - state.ip >= 2 && (state.input[state.ip] != '*' || state.input[state.ip + 1] != '/'))
-                advance_cur_ip();
+                advance_ip();
 
-            advance_cur_ip();
-            advance_cur_ip();
+            advance_ip();
+            advance_ip();
 
             add_to_whitespace(&whitespace, &whitespace_pos, ' ');
             continue;
@@ -541,19 +535,19 @@ static void lex_string_and_char_literal(char delimiter) {
     char *data = malloc(MAX_STRING_LITERAL_SIZE + 2);
 
     if (i[state.ip] == 'L') {
-        advance_cur_ip();
+        advance_ip();
         data_offset = 1;
         data[0] = 'L';
     }
 
-    advance_cur_ip();
+    advance_ip();
 
     data[data_offset] = delimiter == '>' ? '<' : delimiter;
     int size = 0;
 
     while (state.ip < state.input_size) {
         if (i[state.ip] == delimiter) {
-            advance_cur_ip();
+            advance_ip();
             break;
         }
 
@@ -561,14 +555,14 @@ static void lex_string_and_char_literal(char delimiter) {
             if (size + 1 >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
             data[data_offset + 1 + size++] = '\\';
             data[data_offset + 1 + size++] = i[state.ip + 1];
-            advance_cur_ip();
-            advance_cur_ip();
+            advance_ip();
+            advance_ip();
         }
 
         else {
             if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
             data[data_offset + 1 + size++] = i[state.ip];
-            advance_cur_ip();
+            advance_ip();
         }
     }
 
@@ -587,7 +581,7 @@ static void lex_string_and_char_literal(char delimiter) {
     do { \
         state.token = new_cpp_token(kind); \
         copy_token_str(start, size); \
-        advance_cur_ip_by_count(size); \
+        advance_ip_by_count(size); \
     } while (0)
 
 #define make_other_token(size) make_token(CPP_TOK_OTHER, size)
@@ -620,7 +614,7 @@ static void cpp_next() {
             state.token->str = "\n";
             state.token->line_number = state.line_number; // Needs to be the line number of the \n token, not the next token
             state.hchar_lex_state = HLS_START_OF_LINE;
-            advance_cur_ip();
+            advance_ip();
         }
 
         else if (c1 == '#' && c2 == '#')
@@ -674,7 +668,7 @@ static void cpp_next() {
                 if (j == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);
                 identifier[j] = i[state.ip];
                 j++;
-                advance_cur_ip();
+                advance_ip();
             }
             identifier[j] = 0;
 
@@ -719,11 +713,11 @@ static void cpp_next() {
         else if (is_pp_number(c1, c2)) {
             int size = 1;
             char *start = &(i[state.ip]);
-            advance_cur_ip();
+            advance_ip();
 
             while (c1 = i[state.ip], c2 = i[state.ip + 1], c1 == '.' || is_pp_number(c1, c2) || is_non_digit(c1) || is_exponent(c1, c2)) {
-                if (is_exponent(c1, c2)) { advance_cur_ip(); size++; }
-                advance_cur_ip();
+                if (is_exponent(c1, c2)) { advance_ip(); size++; }
+                advance_ip();
                 size++;
             }
 
