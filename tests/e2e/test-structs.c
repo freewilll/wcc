@@ -1135,6 +1135,20 @@ void test_anonymous_struct_flattening() {
     foo.b = 0x00ff;
     assert_int(0xff, foo.c[0], "Anonymous struct flattening 3");
     assert_int(0x00, foo.c[1], "Anonymous struct flattening 4");
+
+    // Check offset is correct of the anonymous struct
+    struct s {
+        int a;
+        struct { int b; };
+    } v;
+
+    assert_int(4, (void *) &v.b - (void *) &v, "Anonymous struct flattening 5");
+
+    v.a = 1;
+    v.b = 2;
+
+    assert_int(1, v.a, "Anonymous struct flattening 6");
+    assert_int(2, v.b, "Anonymous struct flattening 7");
 }
 
 int main(int argc, char **argv) {

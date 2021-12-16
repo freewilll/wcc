@@ -800,8 +800,10 @@ void flatten_anonymous_structs(StructOrUnion *s) {
                 s->members[member_count - i + sub_member_count - 2] = s->members[member_count - i - 1];
 
             // Copy the sub struct members
-            for (int i = 0; i < sub_member_count; i++)
+            for (int i = 0; i < sub_member_count; i++) {
+                sub->members[i]->offset += member->offset;
                 s->members[member_index + i] = sub->members[i];
+            }
 
             member_count += sub_member_count;
             continue; // Keep going with current pmember & member_index
