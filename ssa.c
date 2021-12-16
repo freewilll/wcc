@@ -429,7 +429,7 @@ static void make_block_dominance_frontiers(Function *function) {
             for (int j = 0; j < predecessor_count; j++) {
                 int p = predecessors[j];
                 int runner = p;
-                while (runner != idom[i]) {
+                while (runner != idom[i] && runner != -1) {
                     add_to_set(df[runner], i);
                     runner = idom[runner];
                 }

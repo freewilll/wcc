@@ -426,6 +426,45 @@ void test_idom2() {
     assert_set(function->dominance_frontiers[8],  7, -1, -1, -1, -1);
 }
 
+void test_idom3() {
+    // Test building dominance frontiers with unreachable code
+    // int main() { do continue; while(1); }
+
+    Function *function;
+    Tac *tac;
+
+    function = new_function();
+
+    ir_start = 0;
+    i(0, IR_NOP,         0,    0,    0   );
+    i(0, IR_START_LOOP,  0,    c(0), c(1));
+    i(1, IR_NOP,         0,    0,    0   );
+    i(0, IR_JMP,         0,    l(1), 0   );
+    i(3, IR_NOP,         0,    0,    0   ); // Unreachable
+    i(0, IR_JZ,          0,    c(1), l(2)); // Unreachable
+    i(0, IR_JMP,         0,    l(1), 0   ); // Unreachable
+    i(2, IR_NOP,         0,    0,    0   ); // Unreachable
+    i(0, IR_END_LOOP,    0,    c(0), c(1));
+
+    function->ir = ir_start;
+
+    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
+
+    assert(5, function->cfg->node_count);
+
+    assert(-1, function->idom[0]);
+    assert( 0, function->idom[1]);
+    assert(-1, function->idom[2]);
+    assert(-1, function->idom[3]);
+    assert(-1, function->idom[4]);
+
+    assert_set(function->dominance_frontiers[0], -1, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[1],  1, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[2], -1, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[3],  1, -1, -1, -1, -1);
+    assert_set(function->dominance_frontiers[4], -1, -1, -1, -1, -1);
+}
+
 void check_phi(Tac *tac, int vreg) {
     assert(IR_PHI_FUNCTION, tac->operation);
     assert(vreg, tac->dst->vreg);
@@ -876,6 +915,7 @@ int main() {
     test_liveout1();
     test_liveout2();
     test_idom2();
+    test_idom3();
     test_phi_insertion();
     test_phi_renumbering1();
     test_phi_renumbering2();

@@ -117,6 +117,11 @@ done:;
     assert_int(1234567899, c, "Goto");
 }
 
+int test_compilation_crash_on_unreachable_code() {
+    // A bug in SSA caused this to fail to compile.
+    do continue; while(1);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
