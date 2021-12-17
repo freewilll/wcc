@@ -312,8 +312,13 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         print_value(f, tac->src1, 1);
     }
 
-    else if (o == IR_RETURN)
+    else if (o == IR_RETURN) {
         fprintf(f, "return");
+        if (tac->src1) {
+            fprintf(f, " ");
+            print_value(f, tac->src1, 1);
+        }
+    }
 
     else if (o == IR_START_LOOP) fprintf(f, "start loop par=%ld loop=%ld", tac->src1->int_value, tac->src2->int_value);
     else if (o == IR_END_LOOP)   fprintf(f, "end loop par=%ld loop=%ld",   tac->src1->int_value, tac->src2->int_value);

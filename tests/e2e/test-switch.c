@@ -90,6 +90,33 @@ static int run_nested_switch(int i, int j) {
     return ri * 10 + rj;
 }
 
+int run_deeply_nested_switch(int i) {
+    switch(i) {
+        {
+            assert_int(0, 1, "Should not get here; it's dead code");
+
+            case 1:
+                return 1;
+            case 3:
+                return 3;
+            {
+                case 4:
+                    return 4;
+                {
+                    case 5:
+                        return 5;
+                    default:
+                        return -1;
+                }
+            }
+
+        }
+        case 2:
+            return 2;
+    }
+}
+
+
 static int test_int_switch_with_mixed_type_cases(int i) {
     int result = 0;
     // The case statements should be truncated to ints
@@ -194,6 +221,13 @@ static void test_switch() {
     assert_int(27,  run_nested_switch(3, 1), "Test nested switch 3, 1");
     assert_int(24,  run_nested_switch(3, 2), "Test nested switch 3, 2");
     assert_int(24,  run_nested_switch(3, 3), "Test nested switch 3, 3");
+
+    assert_int(-1, run_deeply_nested_switch(-1), "Test deeply nested switch -1");
+    assert_int( 1, run_deeply_nested_switch( 1), "Test deeply nested switch 1");
+    assert_int( 2, run_deeply_nested_switch( 2), "Test deeply nested switch 2");
+    assert_int( 3, run_deeply_nested_switch( 3), "Test deeply nested switch 3");
+    assert_int( 4, run_deeply_nested_switch( 4), "Test deeply nested switch 4");
+    assert_int( 5, run_deeply_nested_switch( 5), "Test deeply nested switch 5");
 
     assert_int(1,  test_int_switch_with_mixed_type_cases(0),            "Test int switch with mixed type cases 1");
     assert_int(2,  test_int_switch_with_mixed_type_cases(1),            "Test int switch with mixed type cases 2");

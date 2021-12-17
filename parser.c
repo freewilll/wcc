@@ -26,6 +26,13 @@ int all_structs_and_unions_count;        // Number of structs/unions, complete a
 int vreg_count;                          // Virtual register count for currently parsed function
 int local_static_symbol_count;           // Amount of static objects with block scope
 
+Value *controlling_case_value;  // Controlling value for the current switch statement
+LongMap *case_values;           // Already seen case value in current switch statement
+Tac *case_ir_start;             // Start of IR for current switch case conditional & jump statements
+Tac *case_ir;                   // IR for current switch case conditional & jump statements
+Value *case_default_label;      // Label for curren't switch's statement default case, if present
+int seen_switch_default;        // Set to 1 if a default label has been seen within the current switch statement
+
 // Allocate a new virtual register
 static int new_vreg(void) {
     vreg_count++;
@@ -2834,121 +2841,125 @@ static void parse_compound_statement(void) {
 }
 
 static void parse_switch_statement(void) {
-    consume(TOK_SWITCH, "switch");
+    next();
 
     consume(TOK_LPAREN, "(");
     parse_expression(TOK_COMMA);
     consume(TOK_RPAREN, ")");
 
-    Value *controlling_value = pl();
+    // Maintain two IRs:
+    // - ir has all the statement code and is used as normal
+    // - case_ir has all the case comparison and jump statements
 
-    if (!is_integer_type(controlling_value->type))
+    Tac *old_case_ir_start            = case_ir_start;
+    Tac *old_case_ir                  = case_ir;
+    Value *old_case_default_label     = case_default_label;
+    Value *old_loop_break_dst         = cur_loop_break_dst;
+    Value *old_controlling_case_value = controlling_case_value;
+    LongMap *old_case_values          = case_values;
+    int old_seen_switch_default       = seen_switch_default;
+
+    controlling_case_value = pl();
+
+    if (!is_integer_type(controlling_case_value->type))
         error("The controlling expression of a switch statement is not an integral type");
 
-    // Maintain two IRs:
-    // - main_ir, which contains the comparison statements
-    // - case_ir, which contains the bodies of the case statements
-    Tac *main_ir = ir;
-    Tac *case_ir_root = add_instruction(IR_NOP, 0, 0, 0);
-    Tac *case_ir = case_ir_root;
+    // Add an entry to the implicit switch stack
+    case_ir_start = new_instruction(IR_NOP);
+    case_ir = case_ir_start;
+    Tac *root = ir;
+    case_default_label = 0;
+    cur_loop_break_dst = new_label_dst();
+    case_values = new_longmap();
+    seen_switch_default = 0;
 
-    Value *ldefault  = new_label_dst();
-    Value *lbreak  = new_label_dst();
-    Value *old_loop_break_dst = cur_loop_break_dst;
-    cur_loop_break_dst = lbreak;
+    parse_statement();
 
-    int seen_default = 0;
+    // Reorder IR so that it becomes
+    // ... -> root -> case_ir -> jmp default -> statement_ir -> break label
 
-    LongMap *values = new_longmap();
-
-    // No one in their right mind would right a case statement without curlies, but the
-    // grammar allows it, so it has to be taken into account.
-    int in_block = (cur_token == TOK_LCURLY);
-    if (in_block) next();
-
-    while (1) {
-        if (cur_token == TOK_RCURLY)
-            break;
-
-        else if (cur_token == TOK_CASE) {
-            next();
-
-            Value *v = parse_constant_integer_expression(0);
-
-            // Add comparison & jump to main IR
-            ir = main_ir;
-
-            long value = controlling_value->type->type == TYPE_INT
-                ? (int) v->int_value
-                : v->int_value;
-
-            // Ensure there are no duplicates
-            if (longmap_get(values, value))
-                error("Duplicate switch case value");
-            else
-                longmap_put(values, value, (void *) 1);
-
-            // Convert to controlling expression type if necessary
-            if (v->type->type != controlling_value->type->type) {
-                v->type = dup_type(controlling_value->type);
-                v->int_value = value;
-            }
-
-            push(v);
-
-            push(controlling_value);
-
-            consume(TOK_COLON, ":");
-
-            arithmetic_operation(IR_EQ, controlling_value->type);
-
-            Value *ldst = new_label_dst();
-            add_conditional_jump(IR_JNZ, ldst);
-            main_ir = ir;
-
-            // Add case statements to case IR
-            ir = case_ir;
-            add_jmp_target_instruction(ldst);
-            if (cur_token != TOK_CASE && cur_token != TOK_RCURLY) parse_statement();
-            case_ir = ir;
-        }
-
-        else if (cur_token == TOK_DEFAULT) {
-            next();
-            consume(TOK_COLON, ":");
-
-            ir = case_ir;
-            add_jmp_target_instruction(ldefault);
-            parse_statement();
-            case_ir = ir;
-
-            seen_default = 1;
-        }
-
-        else {
-            ir = case_ir;
-            parse_statement();
-            case_ir = ir;
-        }
-
-        if (!in_block) break;
-    }
-
-    if (in_block) consume(TOK_RCURLY, "}");
-
-    ir = main_ir;
-    add_instruction(IR_JMP, 0, seen_default ? ldefault : lbreak, 0);
-    main_ir = ir;
-
-    // Append case_ir onto main_ir
-    ir = main_ir;
-    main_ir->next = case_ir_root;
-    case_ir_root->prev = main_ir;
+    // Make root -> case_ir
+    Tac *statement_ir_start = root->next;
+    root->next = case_ir_start;
+    case_ir_start->prev = root;
+    ir = case_ir_start;
     while (ir->next) ir = ir->next;
 
-    add_jmp_target_instruction(lbreak);
+    // Add jump to default label, if present, otherwise to the break label
+    add_instruction(IR_JMP, 0, case_default_label ? case_default_label : cur_loop_break_dst, 0);
 
-    cur_loop_break_dst = old_loop_break_dst;
+    // Add statement IR
+    ir->next = statement_ir_start;
+    statement_ir_start->prev = ir;
+    while (ir->next) ir = ir->next;
+
+    // Add final break label
+    add_jmp_target_instruction(cur_loop_break_dst);
+
+    // Pop the old switch state back, if any
+    cur_loop_break_dst      = old_loop_break_dst;
+    case_default_label      = old_case_default_label;
+    case_ir                 = old_case_ir;
+    case_ir_start           = old_case_ir_start;
+    controlling_case_value  = old_controlling_case_value;
+    case_values             = old_case_values;
+    seen_switch_default     = old_seen_switch_default;
+}
+
+static void parse_case_statement(void) {
+    next();
+
+    if (!controlling_case_value) error("Case label not within a switch statement");
+
+    Value *v = parse_constant_integer_expression(0);
+
+    long value = controlling_case_value->type->type == TYPE_INT
+        ? (int) v->int_value
+        : v->int_value;
+
+    // Ensure there are no duplicates
+    if (longmap_get(case_values, value))
+        error("Duplicate switch case value");
+    else
+        longmap_put(case_values, value, (void *) 1);
+
+    // Convert to controlling expression type if necessary
+    if (v->type->type != controlling_case_value->type->type) {
+        v->type = dup_type(controlling_case_value->type);
+        v->int_value = value;
+    }
+
+    push(v);
+    push(controlling_case_value);
+    consume(TOK_COLON, ":");
+
+    Value *ldst = new_label_dst();
+
+    // Add comparison & jump to current switch's case IR
+    Tac *org_ir = ir;
+    ir = case_ir;
+    arithmetic_operation(IR_EQ, controlling_case_value->type);
+    add_conditional_jump(IR_JNZ, ldst);
+    case_ir = ir;
+    ir = org_ir;
+
+    add_jmp_target_instruction(ldst);
+    if (cur_token != TOK_CASE && cur_token != TOK_RCURLY) parse_statement();
+}
+
+static void parse_default_statement() {
+    next();
+
+    if (!controlling_case_value) error("Default label not within a switch statement");
+
+    if (seen_switch_default) error("Duplicate default label");
+    seen_switch_default = 1;
+
+    consume(TOK_COLON, ":");
+
+    case_default_label = new_label_dst();
+    add_jmp_target_instruction(case_default_label);
+    parse_statement();
 }
 
 static void parse_if_statement(void) {
@@ -3105,6 +3116,14 @@ static void parse_statement(void) {
 
         case TOK_SWITCH:
             parse_switch_statement();
+            break;
+
+        case TOK_CASE:
+            parse_case_statement();
+            break;
+
+        case TOK_DEFAULT:
+            parse_default_statement();
             break;
 
         case TOK_RETURN:
@@ -3354,4 +3373,6 @@ void init_parser(void) {
 
     label_count = 0;
     local_static_symbol_count = 0;
+
+    controlling_case_value = 0;
 }

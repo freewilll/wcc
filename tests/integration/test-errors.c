@@ -398,5 +398,20 @@ int main(int argc, char **argv) {
         "Duplicate struct/union member",
         "Duplicate struct/union member indirect");
 
+    check_main_output(
+        "case 1:;",
+        "Case label not within a switch statement",
+        "Case label not within a switch statement");
+
+    check_main_output(
+        "default:;",
+        "Default label not within a switch statement",
+        "Default label not within a switch statement");
+
+    check_main_output(
+        "switch(0) { default:; default:;}",
+        "Duplicate default label",
+        "Duplicate default label");
+
     finalize();
 }
