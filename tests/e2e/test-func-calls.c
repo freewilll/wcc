@@ -262,6 +262,10 @@ struct struct_with_assert_int {
     void (*assert_int)(int, int, char *);
 };
 
+void inc_x(int *x) {
+    (*x)++;
+}
+
 void test_function_pointers() {
     assert_int(2, global_func_ptr(1),  "Global function pointer init 1");
     assert_int(2, global_func_ptr2(1), "Global function pointer init 2");
@@ -387,6 +391,13 @@ void test_function_pointers() {
 
     i = 0; a = i ? plus : minus; assert_int(2, a(3), "Termary assignment without & 1");
     i = 1; a = i ? plus : minus; assert_int(4, a(3), "Termary assignment without & 2");
+
+    // Declaration of a function inside a function
+    void inc_x();
+    i = 1;
+    inc_x(&i);
+    assert_int(2, i, "Declaration of a function inside a function");
+
 }
 
 void test_sizeof_function_pointer() {

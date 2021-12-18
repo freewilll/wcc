@@ -1969,7 +1969,7 @@ static void parse_declaration(void) {
 
         function->static_symbols[function->static_symbol_count++] = symbol;
     }
-    else if (base_type->storage_class == SC_EXTERN) {
+    else if (base_type->storage_class == SC_EXTERN || type->type == TYPE_FUNCTION) {
         // Add the identifier to the local scope, but give it a global identifier
         // without adding any linkage
         symbol = new_symbol(cur_type_identifier);
