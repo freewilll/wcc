@@ -295,7 +295,7 @@ int is_incomplete_type(Type *type) {
 }
 
 int is_pointer_type(Type *type) {
-    return type->type == TYPE_PTR;
+    return type->type == TYPE_PTR || type->type == TYPE_ARRAY;
 }
 
 int is_pointer_to_object_type(Type *type) {

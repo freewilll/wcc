@@ -555,6 +555,10 @@ int test_address_of_function_parameters() {
         c, s, i, l, f, d, st);
 }
 
+int test_string_literal_in_eq() {
+    assert_int(0, "abc" == (void *) 0, "Compare a string literal to NULL");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -587,6 +591,7 @@ int main(int argc, char **argv) {
     test_null_pointer();
     test_comparisons();
     test_address_of_function_parameters();
+    test_string_literal_in_eq();
 
     finalize();
 }
