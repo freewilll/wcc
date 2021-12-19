@@ -299,7 +299,7 @@ int is_pointer_type(Type *type) {
 }
 
 int is_pointer_to_object_type(Type *type) {
-    return type->type == TYPE_PTR || type->type == TYPE_ARRAY;
+    return (type->type == TYPE_PTR || type->type == TYPE_ARRAY) && is_object_type(type->target);
 }
 
 int is_pointer_to_function_type(Type *type) {
