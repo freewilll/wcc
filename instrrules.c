@@ -1308,6 +1308,7 @@ void init_instruction_selection_rules(void) {
     r = add_rule(XRI,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(XRU,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(XRP,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
+    r = add_rule(RPF,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RS3,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RS4,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(MLD5, IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); add_op(r, X_MOVC, DST, DST, 0, "fstpt %v1L");

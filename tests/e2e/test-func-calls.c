@@ -266,6 +266,12 @@ void inc_x(int *x) {
     (*x)++;
 }
 
+int return_1() { return 1; }
+
+typedef int (*pfi)(); // A pointer to a function returning an int
+
+pfi return_pfi() { return &return_1; }
+
 void test_function_pointers() {
     assert_int(2, global_func_ptr(1),  "Global function pointer init 1");
     assert_int(2, global_func_ptr2(1), "Global function pointer init 2");
@@ -398,6 +404,9 @@ void test_function_pointers() {
     inc_x(&i);
     assert_int(2, i, "Declaration of a function inside a function");
 
+    // A function returning a pointer to a function
+    pfi pfi1 = return_pfi();
+    assert_int(1, pfi1(), "Pointer to function returning int");
 }
 
 void test_sizeof_function_pointer() {
