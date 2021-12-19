@@ -3144,7 +3144,7 @@ static void parse_statement(void) {
     }
 }
 
-static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
+static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
     Function *function = type->function;
 
     // Setup the intermediate representation with a dummy no operation instruction.
@@ -3169,7 +3169,7 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
     cur_function_symbol = symbol;
 
     // Parse optional old style declaration list
-    if (type->function->is_paramless && cur_token != TOK_SEMI)
+    if (type->function->is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA)
         parse_function_paramless_declaration_list(type->function);
 
     if (original_symbol && !types_are_compatible(original_symbol->type, type))
@@ -3194,8 +3194,12 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
         consume(TOK_RPAREN, ")");
     }
 
+    int is_definition = 0;
+
     // Parse function declaration
     if (cur_token == TOK_LCURLY) {
+        is_definition = 1;
+
         // Ensure parameters have identifiers
         for (int i = 0; i < function->param_count; i++)
             if (!function->param_identifiers[i])
@@ -3223,6 +3227,8 @@ static void parse_function_declaration(Type *type, int linkage, Symbol *symbol, 
         cur_function_symbol->value = 0;
 
     exit_scope();
+
+    return is_definition;
 }
 
 // Ensure linkage is the same for a symbol that has been redeclared.
@@ -3296,8 +3302,8 @@ void parse(void) {
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {
-                    parse_function_declaration(type, linkage, symbol, original_symbol);
-                    break; // Break out of function parameters loop
+                    int is_definition = parse_function_declaration(type, linkage, symbol, original_symbol);
+                    if (is_definition) break; // No more declarations are possible, break out of comma parsing loop
                 }
                 else if (cur_token == TOK_EQ) {
                     BaseType *old_base_type = base_type;

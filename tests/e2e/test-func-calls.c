@@ -469,6 +469,19 @@ int test_implicit_ints_in_globals() {
     assert_int(1, *implicit_pint_foo(), "*implicit_pint_foo()");
 }
 
+// Test mixed declaration of functions and objects
+int global_func1(int a), global_func2(int a), global_object;
+
+int test_mixed_global_declaration()  {
+    assert_int(100, global_func1(10), "Mixed global declaration 1");
+    assert_int(220, global_func2(20), "Mixed global declaration 2");
+    global_object = 1;
+    assert_int(1, global_object, "Mixed global declaration 3");
+}
+
+int global_func1(int a) { return a * 10; }
+int global_func2(int a) { return a * 11; }
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -492,6 +505,7 @@ int main(int argc, char **argv) {
     test_sizeof_function_pointer();
     test_function_pointer_comparisons();
     test_implicit_ints_in_globals();
+    test_mixed_global_declaration();
 
     finalize();
 }
