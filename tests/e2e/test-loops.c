@@ -122,6 +122,21 @@ int test_compilation_crash_on_unreachable_code() {
     do continue; while(1);
 }
 
+// Sick case of a goto and label of something that's also atypedef
+void test_goto_typedef(void) {
+    typedef int s;
+
+    goto s;
+
+    assert_int(1, 0, "Goto typedef 1");
+
+    s: {
+        assert_int(1, 1, "Goto typedef 1");
+        return;
+    }
+
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -135,6 +150,7 @@ int main(int argc, char **argv) {
     test_nested_while_continue();
     test_do_while();
     test_goto();
+    test_goto_typedef();
 
     finalize();
 }

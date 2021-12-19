@@ -2387,6 +2387,7 @@ void parse_ternary_expression(void) {
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 static void parse_expression(int level) {
     // Parse any tokens that can be at the start of an expression
+
     if (cur_token_is_type()) {
         base_type = parse_declaration_specifiers();
         parse_expression(TOK_COMMA);
@@ -2394,6 +2395,7 @@ static void parse_expression(int level) {
     }
 
     else switch(cur_token) {
+        // A typedef an also be used as an identifier in a labelled statement
         case TOK_TYPEDEF:
             parse_typedef();
             break;
@@ -3015,9 +3017,7 @@ static void parse_return_statement(void) {
     consume(TOK_SEMI, ";");
 }
 
-static void parse_label_statement(void) {
-    char *identifier = cur_identifier;
-    next();
+static void parse_label_statement(char *identifier) {
     if (cur_token == TOK_COLON) {
         next();
         Value *ldst = new_label_dst();
@@ -3033,7 +3033,10 @@ static void parse_label_statement(void) {
 
 static void parse_goto_statement(void) {
     next();
-    expect(TOK_IDENTIFIER, "identifier");
+
+    // A typedef an also be used as an identifier in a goto statement
+    if (cur_token != TOK_TYPEDEF_TYPE && cur_token != TOK_IDENTIFIER) panic("Expected an identifier");
+
     Value *ldst = strmap_get(cur_function_symbol->type->function->labels, cur_identifier);
     if (ldst)
         add_instruction(IR_JMP, 0, ldst, 0);
@@ -3073,9 +3076,15 @@ static void parse_statement(void) {
     base_type = 0; // Reset base type
 
     if (cur_token_is_type()) {
+        int is_typedef = cur_token == TOK_TYPEDEF_TYPE;
+        char *identifier = cur_identifier;
+
         base_type = parse_declaration_specifiers();
         if (cur_token == TOK_SEMI && (base_type->type->type == TYPE_STRUCT_OR_UNION || base_type->type->type == TYPE_ENUM))
             next();
+        else if (cur_token == TOK_COLON && is_typedef)
+            // Special case for a typedef used as a labelled statement
+            parse_label_statement(identifier);
         else
             parse_expression(TOK_COMMA);
     }
@@ -3130,9 +3139,12 @@ static void parse_statement(void) {
             parse_return_statement();
             break;
 
-        case TOK_IDENTIFIER:
-            parse_label_statement();
+        case TOK_IDENTIFIER: {
+            char *identifier = cur_identifier;
+            next();
+            parse_label_statement(identifier);
             break;
+        }
 
         case TOK_GOTO:
             parse_goto_statement();
