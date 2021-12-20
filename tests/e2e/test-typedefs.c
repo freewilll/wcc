@@ -180,6 +180,22 @@ static int test_typedef_forward_declaration() {
 // definition can at least be dealt with without error.
 static void do_nothing_with_an_anonymous_struct(struct {int a;} v) {}
 
+typedef int foo;
+// typedef foo bar;
+
+// typedef int altint, intarr[3], *intptr, *arrptrint[3];
+
+int test_typedef_redeclared_as_variable(void) {
+    foo foo;
+    foo = 1;
+    assert_int(1, foo, "Typedef redeclared as variable");
+    {
+        foo = 2;
+        assert_int(2, foo, "Typedef redeclared as variable");
+    }
+    assert_int(2, foo, "Typedef redeclared as variable");
+}
+
 int main(int argc, char **argv) {
     parse_args(argc, argv, &verbose);
 
@@ -190,6 +206,7 @@ int main(int argc, char **argv) {
     test_typedef_structs();
     test_typedef_tags();
     test_typedef_forward_declaration();
+    test_typedef_redeclared_as_variable();
 
     finalize();
 }

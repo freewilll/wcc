@@ -321,7 +321,7 @@ static BaseType *dup_base_type(BaseType *base_type) {
 // - type-specifiers: void, int, signed, unsigned, ... long, double, struct, union
 // - type-qualifiers: const, volatile
 // - typedef type names
-static BaseType *parse_declaration_specifiers(void) {
+static BaseType *parse_declaration_specifiers() {
     Type *type = 0;
 
     // Type specifiers
@@ -395,7 +395,7 @@ static BaseType *parse_declaration_specifiers(void) {
                 break;
             case TOK_TYPEDEF_TYPE:
                 // If a typedef type has been encountered by the lexer and a type already
-                // exits, then it's not a typedef type, but a redefinition of a typedef
+                // exists, then it's not a typedef type, but a redefinition of a typedef
                 // type.
                 if (!type) {
                     seen_typedef++;
@@ -404,6 +404,7 @@ static BaseType *parse_declaration_specifiers(void) {
                 }
                 else
                     changed = 0;
+
                 break;
 
             case TOK_SIGNED:   next(); seen_signed++; break;
@@ -961,7 +962,7 @@ static Type *parse_enum_type_specifier(void) {
 static void parse_typedef(void) {
     next();
 
-    BaseType *base_type_with_storage_class = parse_declaration_specifiers();
+    BaseType *base_type_with_storage_class = parse_declaration_specifiers(0);
     Type *base_type = base_type_with_storage_class->type;
 
     while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {
@@ -2388,7 +2389,11 @@ void parse_ternary_expression(void) {
 static void parse_expression(int level) {
     // Parse any tokens that can be at the start of an expression
 
-    if (cur_token_is_type()) {
+    // If base type has a value, then the current token cannot be a type. The
+    // exception is if it's a typedef which has been redeclared as a variable, in which
+    // case, cur_token_is_type will identify it as a typedef, when it should be
+    // treated as an identifier.
+    if (!base_type && cur_token_is_type()) {
         base_type = parse_declaration_specifiers();
         parse_expression(TOK_COMMA);
         base_type = 0;
@@ -2581,6 +2586,10 @@ static void parse_expression(int level) {
         }
 
         case TOK_IDENTIFIER:
+
+        // In this context, the lexer can identify a typedef which has been redeclared as a variable.
+        // Treat it as if it was an identifier
+        case TOK_TYPEDEF_TYPE:
             if (base_type)
                 parse_declaration();
 
