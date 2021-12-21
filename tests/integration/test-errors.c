@@ -413,5 +413,16 @@ int main(int argc, char **argv) {
         "Duplicate default label",
         "Duplicate default label");
 
+
+    // Sick case of redefining a typedef as a variable. This specifically tests a lexer bug.
+    check_output(
+        "typedef int foo;\n"
+        "int main(void) {\n"
+            "{ foo foo; }\n"
+            "foo = 3;\n"
+        "}",
+        "Unexpected token",
+        "Unexpected token");
+
     finalize();
 }

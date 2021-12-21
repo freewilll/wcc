@@ -2848,6 +2848,9 @@ static void parse_iteration_statement(void) {
 static void parse_compound_statement(void) {
     consume(TOK_LCURLY, "{");
     while (cur_token != TOK_RCURLY) parse_statement();
+
+    // The scope must be exited before parsing of }, so that the lexer lexes the next token in the correct scope.
+    exit_scope();
     consume(TOK_RCURLY, "}");
 }
 
@@ -3107,7 +3110,6 @@ static void parse_statement(void) {
         case TOK_LCURLY:
             enter_scope();
             parse_compound_statement();
-            exit_scope();
             return;
 
         case TOK_DO:
@@ -3242,12 +3244,12 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
         cur_function_symbol->type->function->vreg_count = vreg_count;
         backpatch_gotos();
     }
-    else
+    else {
         // Make it clear that this symbol will need to be backpatched if used
         // before the definition has been processed.
         cur_function_symbol->value = 0;
-
-    exit_scope();
+        exit_scope();
+    }
 
     return is_definition;
 }
