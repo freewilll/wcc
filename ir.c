@@ -1144,11 +1144,16 @@ void process_bit_fields(Function *function) {
     }
 }
 
+// Ensure any enums that make it to the instruction selection are convertd to TYPE_INT
 void convert_enums(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_ENUM) tac->dst ->type = new_type(TYPE_INT);
         if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_ENUM) tac->src1->type = new_type(TYPE_INT);
         if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_ENUM) tac->src2->type = new_type(TYPE_INT);
+
+        if (tac->dst  && tac->dst ->type && tac->dst ->type->type == TYPE_PTR && tac->dst ->type->target->type == TYPE_ENUM ) tac->dst ->type = make_pointer(new_type(TYPE_INT));
+        if (tac->src1 && tac->src1->type && tac->src1->type->type == TYPE_PTR && tac->src1->type->target->type == TYPE_ENUM ) tac->src1->type = make_pointer(new_type(TYPE_INT));
+        if (tac->src2 && tac->src2->type && tac->src2->type->type == TYPE_PTR && tac->src2->type->target->type == TYPE_ENUM ) tac->src2->type = make_pointer(new_type(TYPE_INT));
     }
 }
 

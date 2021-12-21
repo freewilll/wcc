@@ -108,6 +108,14 @@ void test_enums() {
     // Declaration + initialization
     enum foo {FOO=1} f = FOO;
     assert_int(FOO, f, "Declaration + initialization");
+
+    // Test mixing pointers to enums and ints
+    enum E { EA, EB } e, *pe;
+    int i, *pi;
+
+    pe = &e;
+    pi = &e;
+    pe = &i;
 }
 
 int main(int argc, char **argv) {

@@ -609,8 +609,8 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
     }
 
     // One is an enumerated type and the other is that enumeration's underlying type
-    if (type1->type == TYPE_ENUM && type2->type == TYPE_INT && !type2->is_unsigned) return 1;
-    if (type2->type == TYPE_ENUM && type1->type == TYPE_INT && !type1->is_unsigned) return 1;
+    if (type1->type == TYPE_ENUM && type2->type == TYPE_INT) return 1;
+    if (type2->type == TYPE_ENUM && type1->type == TYPE_INT) return 1;
 
     if (type1->type == TYPE_STRUCT_OR_UNION && type2->type == TYPE_STRUCT_OR_UNION)
         return struct_or_unions_are_compatible(type1->struct_or_union_desc, type2->struct_or_union_desc, seen_tags);
