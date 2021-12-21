@@ -109,7 +109,7 @@ void optimize_floating_point_arithmetic_operation(Tac *tac) {
         c = tac->src2->fp_value;
 
         if (c == 0.0L)
-            panic("Illegal division by zero");
+            panic("Division by zero");
 
         else if (c == 1.0L) {
             tac->operation = IR_MOVE;

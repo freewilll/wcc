@@ -1214,10 +1214,10 @@ static void arithmetic_operation(int operation, Type *dst_type) {
     int src2_is_int = is_integer_type(src2->type);
 
     if (operation == IR_DIV && src2->is_constant && (src2_is_int && src2->int_value == 0 || !src2_is_int && src2->fp_value == 0))
-        error("Illegal division by zero");
+        warning("Division by zero");
 
     if (operation == IR_MOD && src2->is_constant && src2->int_value == 0)
-        error("Illegal modulus by zero");
+        warning("Modulus by zero");
 
     // In an equality compariosn, swap operands so that the constant is second.
     // Instruction selection doesn't have rules that deal with a constant first operand.

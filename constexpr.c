@@ -65,6 +65,10 @@ Value *evaluate_const_binary_int_operation(int operation, Value *src1, Value *sr
 
     unsigned long r = 0;
 
+    int divisor = ui ? s2ui : ul ? s2ul : si ? s2si : s2sl;
+    if (operation == IR_DIV && divisor == 0) error("Division by zero");
+    if (operation == IR_MOD && divisor == 0) error("Modulus by zero");
+
          if (operation == IR_ADD ) { if (ui) r = s1ui +  s2ui; else if (ul) r = s1ul +  s2ul; else if (si) r = s1si +  s2si; else if (sl) r = s1sl +  s2sl; }
     else if (operation == IR_SUB ) { if (ui) r = s1ui -  s2ui; else if (ul) r = s1ul -  s2ul; else if (si) r = s1si -  s2si; else if (sl) r = s1sl -  s2sl; }
     else if (operation == IR_MUL ) { if (ui) r = s1ui *  s2ui; else if (ul) r = s1ul *  s2ul; else if (si) r = s1si *  s2si; else if (sl) r = s1sl *  s2sl; }
