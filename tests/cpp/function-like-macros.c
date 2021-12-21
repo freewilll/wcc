@@ -73,3 +73,7 @@ x erlfooxy(x, y) x
 // Same formal parameter used twice, combined with an actual parameter which is a macro
 #define param_twice(x) x * x
 param_twice(Z)
+
+// Using a CPP keyword as function parameter name
+#define foo(line) line + line
+foo(1)

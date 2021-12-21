@@ -23,3 +23,11 @@ __FILE__ __LINE__
 #define FOO 420 "renamed"
 #line FOO
 __FILE__ __LINE__
+
+#undef line
+#define line 1000
+line
+#line line
+#if 1000 != __LINE__
+"  # line line" not working
+#endif

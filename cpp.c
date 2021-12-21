@@ -1301,7 +1301,7 @@ static Directive *parse_define_tokens(void) {
 
                 first = 0;
 
-                if (state.token->kind != CPP_TOK_IDENTIFIER) error("Expected identifier");
+                if (!is_identifier(state.token)) error("Expected identifier");
                 if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
                 if (strmap_get(directive->param_identifiers, state.token->str)) error("Duplicate macro parameter %s", state.token->str);
                 strmap_put(directive->param_identifiers, state.token->str, (void *) (long) ++directive->param_count);
@@ -1414,7 +1414,7 @@ static void parse_if_defined(int negate) {
     enter_if();
 
     if (!state.conditional_include_stack->skipping) {
-        if (state.token->kind != CPP_TOK_IDENTIFIER) error("Expected identifier");
+        if (!is_identifier(state.token)) error("Expected identifier");
 
         Directive *directive = strmap_get(directives, state.token->str);
         int value = negate ? !directive : !!directive;
@@ -1527,7 +1527,7 @@ static void parse_directive(void) {
             cpp_next();
 
             if (!state.conditional_include_stack->skipping) {
-                if (state.token->kind != CPP_TOK_IDENTIFIER) error("Expected identifier");
+                if (!is_identifier(state.token)) error("Expected identifier");
 
                 char *identifier = state.token->str;
                 cpp_next();
@@ -1546,7 +1546,7 @@ static void parse_directive(void) {
             cpp_next();
 
             if (!state.conditional_include_stack->skipping) {
-                if (state.token->kind != CPP_TOK_IDENTIFIER) error("Expected identifier");
+                if (!is_identifier(state.token)) error("Expected identifier");
                 strmap_delete(directives, state.token->str);
                 cpp_next();
 
