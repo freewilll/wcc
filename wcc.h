@@ -354,7 +354,7 @@ enum {
     PHYSICAL_SSE_REGISTER_COUNT   = 14, // Available registers for floating points
     MAX_SPILLED_REGISTER_COUNT    = 1024,
     MAX_INPUT_FILENAMES           = 1024,
-    MAX_BLOCKS                    = 1024,
+    MAX_BLOCKS                    = 10240,
     MAX_BLOCK_EDGES               = 1024,
     MAX_STACK_SIZE                = 10240,
     MAX_BLOCK_PREDECESSOR_COUNT   = 128,

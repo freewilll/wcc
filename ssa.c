@@ -166,6 +166,7 @@ void make_control_flow_graph(Function *function) {
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->label) {
+            if (block_count == MAX_BLOCKS) panic("Exceeded max blocks %d", MAX_BLOCKS);
             blocks[block_count - 1].end = tac->prev;
             blocks[block_count++].start = tac;
         }
@@ -173,6 +174,7 @@ void make_control_flow_graph(Function *function) {
         // Start a new block after a conditional jump.
         // Check if a label is set so that we don't get a double block
         if (tac->next && !tac->next->label && (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE || tac->operation == X_JB || tac->operation == X_JA || tac->operation == X_JBE || tac->operation == X_JAE)) {
+            if (block_count == MAX_BLOCKS) panic("Exceeded max blocks %d", MAX_BLOCKS);
             blocks[block_count - 1].end = tac;
             blocks[block_count++].start = tac->next;
         }
