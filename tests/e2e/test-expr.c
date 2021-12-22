@@ -1571,6 +1571,12 @@ void test_extern_function_returning_pointer_to_struct_bug() {
     struct tm *info = localtime(&rawtime);
 }
 
+void test_BSHR_conversion_bug() {
+    // If both operands to a division are constants, and the first one is a power of 2,
+    // it would convert it to a BSHR using the wrong operand.
+    assert_int(2, 16 / 8, ">> 3 bug");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1623,6 +1629,7 @@ int main(int argc, char **argv) {
     test_constant_casting();
     test_bswap64();
     test_extern_function_returning_pointer_to_struct_bug();
+    test_BSHR_conversion_bug();
 
     finalize();
 }

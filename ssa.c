@@ -12,6 +12,9 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
     Value *cv = 0;
     long c, l;
 
+    // If both are constants, don't optimizing, since the operation will be evaluated later on.
+    if (tac->src1 && tac->src1->is_constant && tac->src2 && tac->src2->is_constant) return;
+
     if (tac->src1 && tac->src1->is_constant) {
         cv = tac->src1;
         v = tac->src2;
