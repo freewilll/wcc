@@ -66,3 +66,8 @@ __STDC__
 __FILE__
 __LINE__
 __x86_64__
+
+// From c-testsuite 00201.c
+#define CAT(a,b) a##b
+#define AB(x) CAT(x,y)
+CAT(A,B)(x)

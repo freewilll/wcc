@@ -40,3 +40,20 @@ StrSet *strset_intersection(StrSet *ss1, StrSet *ss2) {
 
     return result;
 }
+
+void print_strset(StrSet *s) {
+    if (!s) {
+        printf("{}");
+        return;
+    }
+
+    int first = 1;
+    printf("{");
+    for (StrMapIterator it = strmap_iterator(s->strmap); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
+        char *key = strmap_iterator_key(&it);
+        if (!first) { printf(", "); }
+        printf("%s", key);
+        first = 0;
+    }
+    printf("}");
+}

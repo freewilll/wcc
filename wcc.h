@@ -781,6 +781,7 @@ void strset_add(StrSet *ss, char *element);
 int strset_in(StrSet *ss, char *element);
 StrSet *strset_union(StrSet *ss1, StrSet *ss2);
 StrSet *strset_intersection(StrSet *ss1, StrSet *ss2);
+void print_strset(StrSet *s);
 
 // longmap.c
 LongMap *new_longmap(void);

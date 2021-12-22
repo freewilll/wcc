@@ -841,9 +841,7 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
 #define safe_strset_intersection(set1, set2) \
     set1 && set2 \
         ? strset_intersection(set1, set2) \
-        : set1 \
-            ? set1 \
-            : set2
+        : 0;
 
 // Implementation of Dave Prosser's C Preprocessing Algorithm
 // This is the main macro expansion function: expand an input sequence into an output sequence.
