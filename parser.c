@@ -2282,7 +2282,7 @@ void parse_struct_dot_arrow_expression(void) {
         if (!vtop->is_lvalue) error("Expected lvalue for struct . operation.");
     }
     else {
-        if (vtop->type->type != TYPE_PTR) error("Cannot use -> on a non-pointer");
+        if (!is_pointer_type(vtop->type)) error("Cannot use -> on a non-pointer");
         if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) error("Can only use -> on a pointer to a struct or union");
         if (is_incomplete_type(vtop->type->target)) error("Dereferencing a pointer to incomplete struct or union");
     }
