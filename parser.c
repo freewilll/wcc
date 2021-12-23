@@ -2302,11 +2302,16 @@ void parse_struct_dot_arrow_expression(void) {
 
     if (!is_dot) indirect();
 
-    vtop->offset += member->offset;
-    vtop->bit_field_offset = vtop->offset * 8 + (member->bit_field_offset & 7);
-    vtop->bit_field_size = member->bit_field_size;
-    vtop->type = dup_type(member->type);
-    vtop->is_lvalue = 1;
+    // The value stack is immutable. An offset may need adding, so this must be done
+    // on a copied value. Otherwise, e.g. a struct function return result may not get
+    // persisted to the stack this is needed for e.g. int i = return_struct().i;
+    Value *v = dup_value(pop());
+    v->offset += member->offset;
+    v->bit_field_offset = v->offset * 8 + (member->bit_field_offset & 7);
+    v->bit_field_size = member->bit_field_size;
+    v->type = dup_type(member->type);
+    v->is_lvalue = 1;
+    push(v);
 }
 
 void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2) {

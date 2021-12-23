@@ -1151,6 +1151,14 @@ void test_anonymous_struct_flattening() {
     assert_int(2, v.b, "Anonymous struct flattening 7");
 }
 
+struct s { float f1, f2; } gst = { 1.1, 1.2 };
+struct s return_gst(void) { return gst; }
+
+int test_temporary_struct_member_lookup() {
+    assert_float(1.1, return_gst().f1, "Temporary struct member lookup 1");
+    assert_float(1.2, return_gst().f2, "Temporary struct member lookup 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1189,6 +1197,7 @@ int main(int argc, char **argv) {
     test_bit_field_saving();
     test_array_member_array_lookup();
     test_anonymous_struct_flattening();
+    test_temporary_struct_member_lookup();
 
     finalize();
 }
