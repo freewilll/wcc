@@ -1779,9 +1779,14 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
             src = expression;
         else {
             parsed_expression = parse_expr(TOK_EQ);
-            initialize_string_literal =
-                parsed_expression->is_string_literal && it->type->type == TYPE_ARRAY &&
-                (it->type->target->type == TYPE_CHAR || it->type->target->type == TYPE_INT);
+
+            if (parsed_expression->is_string_literal) {
+                it = type_iterator_dig_for_string_literal(it);
+
+                initialize_string_literal =
+                    it->type->type == TYPE_ARRAY &&
+                    (it->type->target->type == TYPE_CHAR || it->type->target->type == TYPE_INT);
+                }
         }
 
         if (initialize_string_literal) {

@@ -810,6 +810,9 @@ static void test_char_array_string_literal_inits() {
     assert_int('f', c2[0], "c2[0]");
     assert_int('o', c2[1], "c2[1]");
     assert_int('o', c2[2], "c2[2]");
+
+    struct s { char x[10]; } s = { "ABCDEFGHI" };
+    assert_string("ABCDEFGHI", s.x, "String literal in sruct");
 }
 
 static void test_wide_char_array_string_literal_inits() {

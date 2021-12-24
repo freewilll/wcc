@@ -928,6 +928,7 @@ TypeIterator *type_iterator(Type *type);
 int type_iterator_done(TypeIterator *it);
 TypeIterator *type_iterator_next(TypeIterator *it);
 TypeIterator *type_iterator_dig(TypeIterator *it);
+TypeIterator *type_iterator_dig_for_string_literal(TypeIterator *it);
 TypeIterator *type_iterator_descend(TypeIterator *it);
 
 // ir.c

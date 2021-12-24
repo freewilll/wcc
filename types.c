@@ -943,3 +943,18 @@ TypeIterator *type_iterator_dig(TypeIterator *it) {
         panic("Unhandled type in type_iterator_dig");
 
 }
+
+// Go to the first scalar in a depth first walk.
+TypeIterator *type_iterator_dig_for_string_literal(TypeIterator *it) {
+    if (type_iterator_done(it))
+        panic("Attempt to call dig on a done type iterator");
+    else if (is_scalar_type(it->type))
+        return it;
+    else if (it->type->type == TYPE_ARRAY && (it->type->target->type == TYPE_CHAR || it->type->target->type == TYPE_INT))
+        return it;
+    else if (it->type->type == TYPE_ARRAY || it->type->type == TYPE_STRUCT_OR_UNION)
+        return type_iterator_dig_for_string_literal(type_iterator_descend(it));
+    else
+        panic("Unhandled type in type_iterator_dig");
+
+}
