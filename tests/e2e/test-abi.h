@@ -36,6 +36,8 @@ struct sia2a2 { int i[2][2]; };
 struct sia4 { int i[4]; };
 struct sfa4 { float f[4]; };
 
+struct ld3 { long double ld1, ld2, ld3; };
+
 // Example from ABI doc v0.98
 typedef struct { int a, b; double d; } structparm;
 
@@ -100,6 +102,8 @@ struct si4 return_si4();
 struct si5 return_si5();
 
 struct si5 return_si5_with_params(int i, float f);
+
+struct ld3 return_ld3();
 
 void accept_array(int a[4]);
 

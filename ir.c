@@ -541,6 +541,7 @@ void reverse_function_argument_order(Function *function) {
 // Insert tac instruction before ir
 void insert_instruction(Tac *ir, Tac *tac, int move_label) {
     Tac *prev = ir->prev;
+    if (!ir->prev) panic("insert_instruction called with null prev");
     tac->prev = prev;
     tac->next = ir;
     ir->prev = tac;

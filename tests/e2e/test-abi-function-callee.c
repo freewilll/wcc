@@ -295,6 +295,7 @@ struct si2    return_si2()    { struct si2 si2;         si2.i1 = 1; si2.i2 = 2; 
 struct si3    return_si3()    { struct si3 si3;         si3.i1 = 1; si3.i2 = 2; si3.i3 = 3; return si3; }
 struct si4    return_si4()    { struct si4 si4;         si4.i1 = 1; si4.i2 = 2; si4.i3 = 3; si4.i4 = 4; return si4; }
 struct si5    return_si5()    { struct si5 si5;         si5.i1 = 1; si5.i2 = 2; si5.i3 = 3; si5.i4 = 4; si5.i5 = 5; return si5; }
+struct ld3    return_ld3()    { struct ld3 ld3;         ld3.ld1 = 1.1; ld3.ld2 = 2.1; ld3.ld3 = 3.1; return ld3; }
 
 struct si5 return_si5_with_params(int i, float f) {
     assert_int(1, i, "return_si5_with_params i");

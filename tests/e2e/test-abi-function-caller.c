@@ -162,6 +162,12 @@ void test_struct_return_values() {
     assert_int(4, si5.i4, "return_si5");
     assert_int(5, si5.i5, "return_si5");
 
+    struct ld3 ld3;
+    ld3 = return_ld3();
+    assert_float(1.1, ld3.ld1, "return_ld3");
+    assert_float(2.1, ld3.ld2, "return_ld3");
+    assert_float(3.1, ld3.ld3, "return_ld3");
+
     gsi1 = return_si1();
     assert_int(1, gsi1.i1, "return_si1 with global");
 

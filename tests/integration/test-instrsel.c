@@ -766,27 +766,6 @@ void test_instrsel_types_cmp_pointer() {
     }
 }
 
-void test_function_call(Value *dst, int mov_op) {
-    // This test don't test much, just that the IR_CALL rules will work.
-    start_ir();
-    Tac *tac = i(0, IR_CALL, dst, fu(1), 0);
-    tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
-    i(0, IR_MOVE, v(2), dst, 0);
-    finish_ir(function);
-    assert_tac(ir_start,       X_CALL, v(3), fu(1), 0);
-    assert_tac(ir_start->next, mov_op, v(2), v(3), 0);
-}
-
-void test_instrsel_function_calls() {
-    remove_reserved_physical_registers = 1;
-
-    test_function_call(vsz(1, TYPE_CHAR),  X_MOVS);
-    test_function_call(vsz(1, TYPE_SHORT), X_MOVS);
-    test_function_call(vsz(1, TYPE_INT),   X_MOVS);
-    test_function_call(vsz(1, TYPE_LONG),  X_MOV);
-    test_function_call(asz(1, TYPE_VOID),  X_MOV);
-}
-
 void test_instrsel_function_call_rearranging() {
     remove_reserved_physical_registers = 1;
 
@@ -1691,34 +1670,34 @@ void test_param_vreg_moves() {
     // arg 8 stack index 3 32(%rbp)
     // arg 9 stack index 2 40(%rbp)
 
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %dil, %r12b");     // arg 0    the first 6 args are already in registers
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %sil, %bl");       // arg 1
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %dl, %r14b");      // arg 2
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %cl, %dl");        // arg 3
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %r8b, %dil");      // arg 4
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %r9b, %sil");      // arg 5
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %dil, %bl");       // arg 0    the first 6 args are already in registers
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %sil, %dil");      // arg 1
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %dl, %sil");       // arg 2
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %cl, %r14b");      // arg 3
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %r8b, %r13b");     // arg 4
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        %r9b, %dl");       // arg 5
     assert_rx86_preg_op_with_function_pc(function->param_count, "movb        16(%rbp), %cl");   // arg 6    pushed args get loaded into registers
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        24(%rbp), %r13b"); // arg 7
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        32(%rbp), %r8b");  // arg 8
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        24(%rbp), %r8b");  // arg 7
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movb        32(%rbp), %r12b"); // arg 8
     assert_rx86_preg_op_with_function_pc(function->param_count, "movb        40(%rbp), %r9b");  // arg 9
 
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r12, %r12");      // arg 0    addition code starts here
-    assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %r12");
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rbx, %rbx");      // arg 1
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rbx, %rbx");      // arg 0    addition code starts here
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r14, %rbx");      // arg 2
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rdi, %rbx");      // arg 1
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rdx, %rbx");      // arg 3
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rsi, %rbx");      // arg 2
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rdi, %rbx");      // arg 4
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r14, %rbx");      // arg 3
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rsi, %rbx");      // arg 5
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r13, %rbx");      // arg 4
+    assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rdx, %rbx");      // arg 5
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
     assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %rcx, %rbx");      // arg 6
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r13, %rbx");      // arg 7
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r8, %rbx");       // arg 7
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r8, %rbx");       // arg 8
+    assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r12, %rbx");      // arg 8
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
     assert_rx86_preg_op_with_function_pc(function->param_count, "movq        %r9, %rbx");       // arg 9
     assert_rx86_preg_op_with_function_pc(function->param_count, "addq        %rax, %rbx");
@@ -1749,7 +1728,6 @@ int main() {
     if (verbose) printf("Running instrsel function_args\n");                                  test_function_args();
     if (verbose) printf("Running instrsel instrsel_types_add_vregs\n");                       test_instrsel_types_add_vregs();
     if (verbose) printf("Running instrsel instrsel_types_cmp_pointer\n");                     test_instrsel_types_cmp_pointer();
-    if (verbose) printf("Running instrsel instrsel_function_calls\n");                        test_instrsel_function_calls();
     if (verbose) printf("Running instrsel instrsel_function_call_rearranging\n");             test_instrsel_function_call_rearranging();
     if (verbose) printf("Running instrsel misc_commutative_operations\n");                    test_misc_commutative_operations();
     if (verbose) printf("Running instrsel sub_operations\n");                                 test_sub_operations();

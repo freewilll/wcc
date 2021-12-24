@@ -36,10 +36,10 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     // Prepare for SSA phi function insertion
     sanity_test_ir_linkage(function);
     optimize_arithmetic_operations(function);
-    add_function_call_arg_moves(function);
     add_function_param_moves(function, function_name);
     add_function_return_moves(function, function_name);
     add_function_call_result_moves(function);
+    add_function_call_arg_moves(function);
     process_function_varargs(function);
     rewrite_lvalue_reg_assignments(function);
     analyze_dominance(function);
