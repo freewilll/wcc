@@ -3075,8 +3075,8 @@ static void backpatch_gotos(void) {
     for (StrMapIterator it = strmap_iterator(goto_backpatches); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
         char *identifier = strmap_iterator_key(&it);
         Tac *ir = strmap_get(goto_backpatches, identifier);
-        if (!ir) error("Unknown label %s", identifier);
         Value *ldst = strmap_get(cur_function_symbol->type->function->labels, identifier);
+        if (!ldst) error("Unknown label %s", identifier);
         ir->src1 = ldst;
     }
 }

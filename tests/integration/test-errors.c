@@ -433,5 +433,10 @@ int main(int argc, char **argv) {
         "Modulus by zero",
         "Modulus by zero");
 
+    check_main_output(
+        "goto foo;",
+        "Unknown label foo",
+        "Unknown label foo");
+
     finalize();
 }
