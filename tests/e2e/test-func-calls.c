@@ -482,6 +482,19 @@ int test_mixed_global_declaration()  {
 int global_func1(int a) { return a * 10; }
 int global_func2(int a) { return a * 11; }
 
+struct s7 { char s[7]; } s7 = { "abcdef" };
+struct s9 { char s[9]; } s9 = { "ghijklmn" };
+
+void accept_s7_s9(int i, struct s7 s7, struct s9 s9) {
+    assert_string("abcdef",   s7.s, "Accept s7 and s9 - s7");
+    assert_string("ghijklmn", s9.s, "Accept s7 and s9 - s9");
+}
+
+int test_s7_s9_bug() {
+    // Test rcx mis allocation big due to overzealous constraint imposing
+    accept_s7_s9(0, s7, s9);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -506,6 +519,7 @@ int main(int argc, char **argv) {
     test_function_pointer_comparisons();
     test_implicit_ints_in_globals();
     test_mixed_global_declaration();
+    test_s7_s9_bug();
 
     finalize();
 }

@@ -1326,7 +1326,7 @@ void make_interference_graph(Function *function, int include_clobbers) {
             }
 
             // Works together with the instruction rules. Ensure the shift value cannot be in rcx.
-            if (include_clobbers && (tac->operation == X_SHL || tac->operation == X_SAR) && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
+            if (include_clobbers && (tac->operation == X_SHR) && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
                 add_ig_edge(interference_graph, vreg_count, tac->prev->dst->vreg, LIVE_RANGE_PREG_RCX_INDEX);
                 add_ig_edge(interference_graph, vreg_count, tac->prev->src1->vreg, LIVE_RANGE_PREG_RCX_INDEX);
@@ -1523,7 +1523,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
                     if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
                         longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
-                    if ((tac->next->operation == X_SHL || tac->next->operation == X_SAR) && tac->next->src1 && tac->next->src1->vreg)
+                    if ((tac->next->operation == X_SHR) && tac->next->src1 && tac->next->src1->vreg)
                         longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
                 }
 

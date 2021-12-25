@@ -176,7 +176,7 @@ static void add_long_double_integer_move_rule(int dst, int type, char *conv_temp
     if (ru4) {
         // xor the high bit if the value was > 2^53
         add_op(r, X_MOVC, 0,   0, SV5, "movzbq %v2b, %v2q"); // Zero all bits except the first
-        add_op(r, X_SHL,  0,   0, SV5, "shlq $63, %v2q");    // Move the first bit to the last bit
+        add_op(r, X_SHR,  0,   0, SV5, "shlq $63, %v2q");    // Move the first bit to the last bit
         add_op(r, X_XOR,  DST, 0, SV5, "xorq  %v2q, %vdq");  // set the sign bit if the original value was >= 2^63 - 1
     }
 }
@@ -235,7 +235,7 @@ static void add_ulong_to_sse_operations(Rule *r, int dst, int src) {
     add_op(r, X_MOVC,  DST,  SRC1,  0,    t1);                      // Signed case
     add_op(r, X_JMP,   0,    SV1,   0,    "jmp %v1");
     add_op(r, X_MOVC,  SV3,  SRC1,  0,    ".L2:movq %v1q, %vdq");   // Unsigned case
-    add_op(r, X_SAR,   SV3,  SV3,   0,    "shrq %v1q");
+    add_op(r, X_SHR,   SV3,  SV3,   0,    "shrq %v1q");
     add_op(r, X_BAND,  SRC1, SRC1,  0,    "andl $1, %v1l");
     add_op(r, X_BOR,   SV3,  SV3,   SRC1, "orq %v1q, %v2q");
     add_op(r, X_MOVC,  DST,  SRC1,  0,    t1);
@@ -1046,13 +1046,13 @@ static void add_binary_constant_shift_rule(int dst, int src1, int src2, char *te
     Rule *r;
 
    r = add_rule(dst, IR_BSHL, src1, src2, 3); add_op(r, X_MOV, DST, SRC1, 0,   "mov%s %v1, %vd");
-                                              add_op(r, X_SHL, DST, SRC2, DST, "shl%s $%v1, %vd");
+                                              add_op(r, X_SHC, DST, SRC2, DST, "shl%s $%v1, %vd");
                                               fin_rule(r);
    r = add_rule(dst, IR_BSHR, src1, src2, 3); add_op(r, X_MOV, DST, SRC1, 0,   "mov%s %v1, %vd");   // Binary
-                                              add_op(r, X_SHL, DST, SRC2, DST, "shr%s $%v1, %vd");
+                                              add_op(r, X_SHC, DST, SRC2, DST, "shr%s $%v1, %vd");
                                               fin_rule(r);
    r = add_rule(dst, IR_ASHR, src1, src2, 3); add_op(r, X_MOV, DST, SRC1, 0,   "mov%s %v1, %vd");   // Arithmetic
-                                              add_op(r, X_SHL, DST, SRC2, DST, "sar%s $%v1, %vd");
+                                              add_op(r, X_SHC, DST, SRC2, DST, "sar%s $%v1, %vd");
                                               fin_rule(r);
 }
 
@@ -1061,16 +1061,16 @@ static void add_binary_register_shift_rule(int src1, int src2, char *template) {
 
     r = add_rule(src1, IR_BSHL, src1, src2, 4); add_op(r, X_MOVC, 0,   SRC2, 0,   template);
                                                 add_op(r, X_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");
-                                                add_op(r, X_SHL,  DST, 0,    DST, "shl%s %%cl, %vd");
+                                                add_op(r, X_SHR,  DST, 0,    DST, "shl%s %%cl, %vd");
                                                 fin_rule(r);
 
     r = add_rule(src1, IR_BSHR, src1, src2, 4); add_op(r, X_MOVC, 0,   SRC2, 0,   template);
                                                 add_op(r, X_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");    // Binary
-                                                add_op(r, X_SHL,  DST, 0,    DST, "shr%s %%cl, %vd");
+                                                add_op(r, X_SHR,  DST, 0,    DST, "shr%s %%cl, %vd");
                                                 fin_rule(r);
     r = add_rule(src1, IR_ASHR, src1, src2, 4); add_op(r, X_MOVC, 0,   SRC2, 0,   template);
                                                 add_op(r, X_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");    // Arithmetic
-                                                add_op(r, X_SHL,  DST, 0,    DST, "sar%s %%cl, %vd");
+                                                add_op(r, X_SHR,  DST, 0,    DST, "sar%s %%cl, %vd");
                                                 fin_rule(r);
 }
 

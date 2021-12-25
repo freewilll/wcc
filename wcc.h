@@ -1138,8 +1138,8 @@ enum {
     X_IDIV,
     X_CQTO,
     X_CLTD,
-    X_SHL,
-    X_SAR,
+    X_SHC, // Shift with a constant
+    X_SHR, // Shift with a register
     X_BOR,
     X_BAND,
     X_XOR,
