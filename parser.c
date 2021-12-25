@@ -2548,7 +2548,13 @@ static void parse_expression(int level) {
                     parse_expression(TOK_INC);
                     Value *v1 = pl();
 
-                    if (v1->is_constant) {
+                    if (dst_type->type == TYPE_VOID) {
+                        Value *v = new_value();
+                        v->type = new_type(TYPE_VOID);
+                        v->vreg = new_vreg();
+                        push(v);
+                    }
+                    else if (v1->is_constant) {
                         // Special case for (void *) int-constant
                         if (is_pointer_to_void(dst_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
                             Value *dst = new_value();
@@ -2561,7 +2567,7 @@ static void parse_expression(int level) {
                             // Cast integer constant
                             push(cast_constant_value(v1, dst_type));
                     }
-                    else if (v1->type != dst_type) {
+                    else if (dst_type->type != TYPE_VOID && v1->type != dst_type) {
                         // Add move instruction
                         Value *dst = new_value();
                         dst->vreg = new_vreg();

@@ -1577,6 +1577,12 @@ void test_BSHR_conversion_bug() {
     assert_int(2, 16 / 8, ">> 3 bug");
 }
 
+int return_int() { return 1; }
+
+void test_cast_to_void() {
+    (void) return_int();
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1630,6 +1636,7 @@ int main(int argc, char **argv) {
     test_bswap64();
     test_extern_function_returning_pointer_to_struct_bug();
     test_BSHR_conversion_bug();
+    test_cast_to_void();
 
     finalize();
 }
