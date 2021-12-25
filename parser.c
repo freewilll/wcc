@@ -3044,6 +3044,8 @@ static void parse_label_statement(char *identifier) {
         next();
         Value *ldst = new_label_dst();
         add_jmp_target_instruction(ldst);
+        Value *dst = strmap_get(cur_function_symbol->type->function->labels, identifier);
+        if (dst) error("Duplicate label %s", identifier);
         strmap_put(cur_function_symbol->type->function->labels, identifier, ldst);
     }
     else {

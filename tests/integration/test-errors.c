@@ -438,5 +438,10 @@ int main(int argc, char **argv) {
         "Unknown label foo",
         "Unknown label foo");
 
+    check_main_output(
+        "foo:; foo:;",
+        "Duplicate label foo",
+        "Duplicate label foo");
+
     finalize();
 }
