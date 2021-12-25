@@ -492,6 +492,22 @@ static void test_default_argument_promotions() {
     assert_string("1.100000", buffer, "Default argument promotion in ... for float -> double");
 }
 
+struct ld3 { long double ld1, ld2, ld3; } ld3 = { 1.1, 1.2, 1.3 };
+
+void big_struct(int i, ...) {
+    const char *s;
+    va_list ap;
+    va_start(ap, i);
+    struct ld3 ld3 = va_arg(ap, struct ld3);
+    assert_int(1.1, ld3.ld1, "Big struct 1");
+    assert_int(1.2, ld3.ld2, "Big struct 2");
+    assert_int(1.3, ld3.ld3, "Big struct 3");
+}
+
+int test_big_struct() {
+    big_struct(0, ld3);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -509,6 +525,7 @@ int main(int argc, char **argv) {
     test_structs();
     test_va_mixed_types();
     test_default_argument_promotions();
+    test_big_struct();
 
     finalize();
 }
