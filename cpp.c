@@ -1727,6 +1727,9 @@ static void free_allocated_tokens() {
         free_cpp_token(a->target);
         a = a->next;
     } while (a != head);
+
+    free_circular_linked_list(allocated_tokens);
+    allocated_tokens = 0; // Ensure any future tokens get appended
 }
 
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
