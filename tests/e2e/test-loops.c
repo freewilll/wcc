@@ -101,7 +101,7 @@ void test_do_while() {
     assert_int(4, c2, "do_while 4");
 }
 
-void test_goto() {
+void test_single_goto() {
     int i = 0, c = 0;
 
 loop:
@@ -115,6 +115,32 @@ loop:
 
 done:;
     assert_int(1234567899, c, "Goto");
+}
+
+int _test_double_goto(int i) {
+    int result;
+
+    if (i == 1) {
+        result = 1;
+        goto foo;
+    }
+
+    if (i == 2) {
+        result = 2;
+        goto foo;
+    }
+
+    result = 3;
+    goto foo;
+
+    foo: return result;
+}
+
+void test_double_goto() {
+    assert_int(1, _test_double_goto(1), "Double goto 1");
+    assert_int(2, _test_double_goto(2), "Double goto 2");
+    assert_int(3, _test_double_goto(3), "Double goto 3");
+    assert_int(3, _test_double_goto(4), "Double goto 4");
 }
 
 int test_compilation_crash_on_unreachable_code() {
@@ -134,7 +160,6 @@ void test_goto_typedef(void) {
         assert_int(1, 1, "Goto typedef 1");
         return;
     }
-
 }
 
 int main(int argc, char **argv) {
@@ -149,7 +174,8 @@ int main(int argc, char **argv) {
     test_while_continue();
     test_nested_while_continue();
     test_do_while();
-    test_goto();
+    test_single_goto();
+    test_double_goto();
     test_goto_typedef();
 
     finalize();

@@ -69,6 +69,11 @@ typedef struct longmap_iterator {
     int pos;
 } LongMapIterator;
 
+typedef struct circular_linked_list {
+    void *target;
+    struct circular_linked_list *next;
+} CircularLinkedList;
+
 // One of preg or stack_index must have a value. (preg != 0) != (stack_index < 0)
 typedef struct vreg_location {
     int preg;         // Physical register starting at 0. -1 is unused.
@@ -184,7 +189,7 @@ typedef struct function {
     Scope *scope;                                       // Scope, starting with the parameters
     struct three_address_code *ir;                      // Intermediate representation
     StrMap *labels;                                     // Map of identifiers to label ids
-    StrMap *goto_backpatches;                           // Gotos to labels not yet defined
+    CircularLinkedList *goto_backpatches;               // Gotos to labels not yet defined
     struct value *register_save_area;                   // Place where variadic functions store the arguments in registers
     Graph *cfg;                                         // Control flow graph
     Block *blocks;                                      // For functions, the blocks
@@ -796,10 +801,6 @@ void longmap_iterator_next(LongMapIterator *iterator);
 long longmap_iterator_key(LongMapIterator *iterator);
 
 // list.c
-typedef struct circular_linked_list {
-    void *target;
-    struct circular_linked_list *next;
-} CircularLinkedList;
 
 // Append to circular linked list of allocated tokens
 #define append_to_cll(cll, new_target) \
@@ -809,6 +810,7 @@ typedef struct circular_linked_list {
             next->target = new_target; \
             next->next = cll->next; \
             cll->next = next; \
+            cll = next; \
         } \
         else { \
             cll = malloc(sizeof(CircularLinkedList)); \

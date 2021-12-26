@@ -1721,10 +1721,12 @@ Directive *parse_cli_define(char *string) {
 
 
 static void free_allocated_tokens() {
-    for (CircularLinkedList *a = allocated_tokens->next; a != allocated_tokens; a = a->next)
+    CircularLinkedList *head = allocated_tokens->next;
+    CircularLinkedList *a = head;
+    do {
         free_cpp_token(a->target);
-
-    free_circular_linked_list(allocated_tokens);
+        a = a->next;
+    } while (a != head);
 }
 
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the

@@ -9,6 +9,11 @@ typedef struct base_type {
     int storage_class;
 } BaseType;
 
+typedef struct goto_backpatch {
+    char *identifier;
+    Tac *ir;
+} GotoBackPatch;
+
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
 static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
@@ -3072,21 +3077,33 @@ static void parse_goto_statement(void) {
         add_instruction(IR_JMP, 0, ldst, 0);
     else {
         Tac *ir = add_instruction(IR_JMP, 0, 0, 0);
-        strmap_put(cur_function_symbol->type->function->goto_backpatches, cur_identifier, ir);
+        GotoBackPatch *gbp = malloc(sizeof(GotoBackPatch));
+        gbp->identifier = cur_identifier;
+        gbp->ir = ir;
+        append_to_cll(cur_function_symbol->type->function->goto_backpatches, gbp);
     }
     next();
     consume(TOK_SEMI, ";");
 }
 
 static void backpatch_gotos(void) {
-    StrMap *goto_backpatches = cur_function_symbol->type->function->goto_backpatches;
-    for (StrMapIterator it = strmap_iterator(goto_backpatches); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
-        char *identifier = strmap_iterator_key(&it);
-        Tac *ir = strmap_get(goto_backpatches, identifier);
-        Value *ldst = strmap_get(cur_function_symbol->type->function->labels, identifier);
-        if (!ldst) error("Unknown label %s", identifier);
-        ir->src1 = ldst;
-    }
+    CircularLinkedList *goto_backpatches = cur_function_symbol->type->function->goto_backpatches;
+    if (!goto_backpatches) return;
+
+    CircularLinkedList *head = goto_backpatches->next;
+    CircularLinkedList *gbp_cll = head;
+    do {
+        GotoBackPatch *gbp = gbp_cll->target;
+
+        Value *ldst = strmap_get(cur_function_symbol->type->function->labels, gbp->identifier);
+        if (!ldst) error("Unknown label %s", gbp->identifier);
+        gbp->ir->src1 = ldst;
+        free(gbp);
+
+        gbp_cll = gbp_cll->next;
+    } while (gbp_cll != head);
+
+    free_circular_linked_list(goto_backpatches);
 }
 
 static void add_va_register_save_area(void) {
@@ -3197,7 +3214,7 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
     function->linkage = linkage;
     function->local_symbol_count = 0;
     function->labels = new_strmap();
-    function->goto_backpatches = new_strmap();
+    function->goto_backpatches = 0;
 
     if (type->target->type == TYPE_STRUCT_OR_UNION) {
         FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
