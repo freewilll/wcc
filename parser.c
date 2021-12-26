@@ -1546,10 +1546,10 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
 
     // Both are pointers with identical qualifiers, with the targets compatible
     if (dst->type->type == TYPE_PTR && src->type->type == TYPE_PTR) {
-        if (dst->type->is_const != src->type->is_const)
-            warn_of_incompatible_types_in_assignment(dst->type, src->type);
+        if (src->type->target->is_const && !dst->type->target->is_const)
+            warning("Assignment discards const qualifier");
 
-        if (types_are_compatible(dst->type->target, src->type->target)) return;
+        if (types_are_compatible_ignore_qualifiers(dst->type->target, src->type->target)) return;
 
         if (is_pointer_to_void(dst->type) || is_pointer_to_void(src->type)) return;
 

@@ -919,6 +919,7 @@ int get_type_alignment(Type *type);
 int type_eq(Type *type1, Type *type2);
 Type *apply_default_function_call_argument_promotions(Type *type);
 int types_are_compatible(Type *type1, Type *type2);
+int types_are_compatible_ignore_qualifiers(Type *type1, Type *type2);
 Type *composite_type(Type *type1, Type *type2);
 int is_integer_operation_result_unsigned(Type *src1, Type *src2);
 Type *make_struct_or_union_type(StructOrUnion *s);

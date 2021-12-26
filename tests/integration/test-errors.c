@@ -207,8 +207,15 @@ int main(int argc, char **argv) {
         "typedef int A[2][3];"
         "const A a;"
         "int* pi = a[0]; // Error: a[0] has type const int*",
-        "Incompatible types in assignment",
+        "Assignment discards const qualifier",
         "Moving const from array to array elements");
+
+    check_main_output(
+        "char *dst;"
+        "const char *src;"
+        "dst = src;",
+        "Assignment discards const qualifier",
+        "Discarding const in assignment");
 
     check_output(
         "int foo()[];",

@@ -476,9 +476,9 @@ StructOrUnionMember **sort_struct_or_union_members(StructOrUnionMember **members
     return result;
 }
 
-static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen_tags);
+static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen_tags, int check_qualifiers);
 
-static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2, StrMap *seen_tags) {
+static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2, StrMap *seen_tags, int check_qualifiers) {
     if (s1->is_incomplete || s2->is_incomplete) return 1;
 
     int count = struct_or_union_member_count(s1);
@@ -510,14 +510,14 @@ static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2,
         if (member1->bit_field_size != member2->bit_field_size) return 0;
 
         // Check types are compatible
-        if (!recursive_types_are_compatible(member1->type, member2->type, seen_tags)) return 0;
+        if (!recursive_types_are_compatible(member1->type, member2->type, seen_tags, 1)) return 0;
     }
 
     return 1;
 }
 
 static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags) {
-    if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags)) return 0;
+    if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags, 1)) return 0;
 
     // Both are non variadic and one of them has an old style parameter list
     if (!type1->function->is_variadic && !type2->function->is_variadic && type1->function->is_paramless != type2->function->is_paramless) {
@@ -563,7 +563,7 @@ static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags)
 }
 
 // Check two types are compatible. Prevent infinite loops by keeping a map of seen tags
-static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen_tags) {
+static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen_tags, int check_qualifiers) {
     // Following https://en.cppreference.com/w/c/language/type
 
     if (type1->type == TYPE_STRUCT_OR_UNION && type1->tag) {
@@ -577,16 +577,16 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
     }
 
     // They are identically qualified versions of compatible unqualified types
-    if (type1->is_const != type2->is_const) return 0;
+    if (check_qualifiers && type1->is_const != type2->is_const) return 0;
 
     // They are pointer types and are pointing to compatible types
     if (type1->type == TYPE_PTR && type2->type == TYPE_PTR)
-        return recursive_types_are_compatible(type1->target, type2->target, seen_tags);
+        return recursive_types_are_compatible(type1->target, type2->target, seen_tags, check_qualifiers);
 
     // They are array types, and if both have constant size, that size is the same
     // and element types are compatible
     if (type1->type == TYPE_ARRAY && type2->type == TYPE_ARRAY) {
-        if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags)) return 0;
+        if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags, check_qualifiers)) return 0;
         if (type1->array_size && type2->array_size && type1->array_size != type2->array_size) return 0;
         return 1;
     }
@@ -613,7 +613,7 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
     if (type2->type == TYPE_ENUM && type1->type == TYPE_INT) return 1;
 
     if (type1->type == TYPE_STRUCT_OR_UNION && type2->type == TYPE_STRUCT_OR_UNION)
-        return struct_or_unions_are_compatible(type1->struct_or_union_desc, type2->struct_or_union_desc, seen_tags);
+        return struct_or_unions_are_compatible(type1->struct_or_union_desc, type2->struct_or_union_desc, seen_tags, check_qualifiers);
 
     if (type1->type == TYPE_FUNCTION && type2->type == TYPE_FUNCTION)
         return functions_are_compatible(type1, type2, seen_tags);
@@ -623,7 +623,13 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
 
 int types_are_compatible(Type *type1, Type *type2) {
     StrMap *seen_tags = new_strmap();
-    return recursive_types_are_compatible(type1, type2, seen_tags);
+    return recursive_types_are_compatible(type1, type2, seen_tags, 1);
+}
+
+// Ignore qualifiers at the top level
+int types_are_compatible_ignore_qualifiers(Type *type1, Type *type2) {
+    StrMap *seen_tags = new_strmap();
+    return recursive_types_are_compatible(type1, type2, seen_tags, 0);
 }
 
 Type *composite_type(Type *type1, Type *type2) {
