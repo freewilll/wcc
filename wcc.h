@@ -795,6 +795,30 @@ int longmap_iterator_finished(LongMapIterator *iterator);
 void longmap_iterator_next(LongMapIterator *iterator);
 long longmap_iterator_key(LongMapIterator *iterator);
 
+// list.c
+typedef struct circular_linked_list {
+    void *target;
+    struct circular_linked_list *next;
+} CircularLinkedList;
+
+// Append to circular linked list of allocated tokens
+#define append_to_cll(cll, new_target) \
+    do { \
+        if (cll) { \
+            CircularLinkedList *next = malloc(sizeof(CircularLinkedList)); \
+            next->target = new_target; \
+            next->next = cll->next; \
+            cll->next = next; \
+        } \
+        else { \
+            cll = malloc(sizeof(CircularLinkedList)); \
+            cll->target = new_target; \
+            cll->next = cll; \
+        } \
+    } while(0)
+
+void free_circular_linked_list(CircularLinkedList *cll);
+
 // graph.c
 Graph *new_graph(int node_count, int edge_count);
 void dump_graph(Graph *g);

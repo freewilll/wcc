@@ -42,12 +42,7 @@ typedef struct cpp_state {
 
 CppState state;
 
-typedef struct allocated_token {
-    CppToken *token;
-    struct allocated_token *next;
-} AllocatedToken;
-
-AllocatedToken *allocated_tokens; // Keep track of all malloc'd tokens in a circular linked list
+CircularLinkedList *allocated_tokens; // Keep track of all malloc'd tokens
 
 // Output
 FILE *cpp_output_file;         // Output file handle
@@ -227,18 +222,7 @@ static CppToken *new_cpp_token(int kind) {
     CppToken *tok = malloc(sizeof(CppToken));
     memset(tok, 0, sizeof(CppToken));
 
-    // Append to circular linked list of allocated tokens
-    if (allocated_tokens) {
-        AllocatedToken *a = malloc(sizeof(AllocatedToken));
-        a->token = tok;
-        a->next = allocated_tokens->next;
-        allocated_tokens->next = a;
-    }
-    else {
-        allocated_tokens = malloc(sizeof(AllocatedToken));
-        allocated_tokens->token = tok;
-        allocated_tokens->next = allocated_tokens;
-    }
+    append_to_cll(allocated_tokens, tok);
 
     tok->kind = kind;
 
@@ -1737,12 +1721,10 @@ Directive *parse_cli_define(char *string) {
 
 
 static void free_allocated_tokens() {
-    AllocatedToken *a = allocated_tokens->next;
-    while (a != allocated_tokens) {
-        free_cpp_token(a->token);
-        a = a->next;
-    }
+    for (CircularLinkedList *a = allocated_tokens->next; a != allocated_tokens; a = a->next)
+        free_cpp_token(a->target);
 
+    free_circular_linked_list(allocated_tokens);
 }
 
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the

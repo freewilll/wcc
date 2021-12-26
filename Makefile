@@ -22,6 +22,7 @@ SOURCES = \
   strmap.c \
   strset.c \
   longmap.c \
+  list.c \
   graph.c \
   internals.c \
   cpp.c
