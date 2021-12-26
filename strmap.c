@@ -150,3 +150,14 @@ StrMap *new_strmap(void) {
     memset(map->values, 0, DEFAULT_SIZE * sizeof(void *));
     return map;
 }
+
+void free_strmap(StrMap *map) {
+    for (int i = 0; i < map->size; i++) {
+        char *key;
+        if ((key = map->keys[i]) && key != (char *) TOMBSTONE) free(key);
+    }
+
+    free(map->keys);
+    free(map->values);
+    free(map);
+}

@@ -42,6 +42,12 @@ typedef struct cpp_state {
 
 CppState state;
 
+typedef struct allocated_token {
+    CppToken *token;
+    struct allocated_token *next;
+} AllocatedToken;
+
+AllocatedToken *allocated_tokens; // Keep track of all malloc'd tokens in a circular linked list
 
 // Output
 FILE *cpp_output_file;         // Output file handle
@@ -181,10 +187,58 @@ void init_cpp_from_string(char *string) {
     state.line_number = 1;
 }
 
+// Append list2 to circular linked list list1, creating list1 if it doesn't exist
+CppToken *cll_append(CppToken *list1, CppToken *list2) {
+    if (!list2) return list1;
+
+    if (!list1) {
+        // Make list2 into a circular linked list and return it
+        list1 = list2;
+        while (list2->next) list2 = list2->next;
+        list2->next = list1;
+        return list2;
+    }
+
+    CppToken *list1_head = list1->next;
+    list1->next = list2;
+    while (list1->next) list1 = list1->next;
+    list1->next = list1_head;
+    return list1;
+}
+
+// Convert a circular linked list to a linked list.
+static CppToken *convert_cll_to_ll(CppToken *cll) {
+    if (!cll) return 0;
+
+    CppToken *head = cll->next;
+    cll->next = 0;
+    return head;
+}
+
+// Free a CPP token
+static void free_cpp_token(CppToken *token) {
+    if (token->str) free(token->str);
+    if (token->whitespace) free(token->whitespace);
+    if (token->hide_set) free_strset(token->hide_set);
+}
+
 // Create a new CPP token
 static CppToken *new_cpp_token(int kind) {
     CppToken *tok = malloc(sizeof(CppToken));
     memset(tok, 0, sizeof(CppToken));
+
+    // Append to circular linked list of allocated tokens
+    if (allocated_tokens) {
+        AllocatedToken *a = malloc(sizeof(AllocatedToken));
+        a->token = tok;
+        a->next = allocated_tokens->next;
+        allocated_tokens->next = a;
+    }
+    else {
+        allocated_tokens = malloc(sizeof(AllocatedToken));
+        allocated_tokens->token = tok;
+        allocated_tokens->next = allocated_tokens;
+    }
 
     tok->kind = kind;
 
@@ -608,7 +662,7 @@ static void cpp_next() {
 
         if (c1 == '\n') {
             state.token = new_cpp_token(CPP_TOK_EOL);
-            state.token->str = "\n";
+            state.token->str = strdup("\n");
             state.token->line_number = state.line_number; // Needs to be the line number of the \n token, not the next token
             state.hchar_lex_state = HLS_START_OF_LINE;
             advance_ip();
@@ -686,20 +740,20 @@ static void cpp_next() {
                 t->kind == CPP_TOK_ERROR      || \
                 t->kind == CPP_TOK_PRAGMA)
 
-            if      (!strcmp(identifier, "define"))   { state.token = new_cpp_token(CPP_TOK_DEFINE);  state.token->str = "define";  }
-            else if (!strcmp(identifier, "include"))  { state.token = new_cpp_token(CPP_TOK_INCLUDE); state.token->str = "include"; }
-            else if (!strcmp(identifier, "undef"))    { state.token = new_cpp_token(CPP_TOK_UNDEF);   state.token->str = "undef";   }
-            else if (!strcmp(identifier, "if"))       { state.token = new_cpp_token(CPP_TOK_IF);      state.token->str = "if";      }
-            else if (!strcmp(identifier, "ifdef"))    { state.token = new_cpp_token(CPP_TOK_IFDEF);   state.token->str = "ifdef";   }
-            else if (!strcmp(identifier, "ifndef"))   { state.token = new_cpp_token(CPP_TOK_IFNDEF);  state.token->str = "ifndef";  }
-            else if (!strcmp(identifier, "elif"))     { state.token = new_cpp_token(CPP_TOK_ELIF);    state.token->str = "elif";    }
-            else if (!strcmp(identifier, "else"))     { state.token = new_cpp_token(CPP_TOK_ELSE);    state.token->str = "else";    }
-            else if (!strcmp(identifier, "endif"))    { state.token = new_cpp_token(CPP_TOK_ENDIF);   state.token->str = "endif";   }
-            else if (!strcmp(identifier, "line"))     { state.token = new_cpp_token(CPP_TOK_LINE);    state.token->str = "line";    }
-            else if (!strcmp(identifier, "defined"))  { state.token = new_cpp_token(CPP_TOK_DEFINED); state.token->str = "defined"; }
-            else if (!strcmp(identifier, "warning"))  { state.token = new_cpp_token(CPP_TOK_WARNING); state.token->str = "warning"; }
-            else if (!strcmp(identifier, "error"))    { state.token = new_cpp_token(CPP_TOK_ERROR);   state.token->str = "error";   }
-            else if (!strcmp(identifier, "pragma"))   { state.token = new_cpp_token(CPP_TOK_PRAGMA);  state.token->str = "pragma";  }
+            if      (!strcmp(identifier, "define"))   { state.token = new_cpp_token(CPP_TOK_DEFINE);  state.token->str = identifier; }
+            else if (!strcmp(identifier, "include"))  { state.token = new_cpp_token(CPP_TOK_INCLUDE); state.token->str = identifier; }
+            else if (!strcmp(identifier, "undef"))    { state.token = new_cpp_token(CPP_TOK_UNDEF);   state.token->str = identifier; }
+            else if (!strcmp(identifier, "if"))       { state.token = new_cpp_token(CPP_TOK_IF);      state.token->str = identifier; }
+            else if (!strcmp(identifier, "ifdef"))    { state.token = new_cpp_token(CPP_TOK_IFDEF);   state.token->str = identifier; }
+            else if (!strcmp(identifier, "ifndef"))   { state.token = new_cpp_token(CPP_TOK_IFNDEF);  state.token->str = identifier; }
+            else if (!strcmp(identifier, "elif"))     { state.token = new_cpp_token(CPP_TOK_ELIF);    state.token->str = identifier; }
+            else if (!strcmp(identifier, "else"))     { state.token = new_cpp_token(CPP_TOK_ELSE);    state.token->str = identifier; }
+            else if (!strcmp(identifier, "endif"))    { state.token = new_cpp_token(CPP_TOK_ENDIF);   state.token->str = identifier; }
+            else if (!strcmp(identifier, "line"))     { state.token = new_cpp_token(CPP_TOK_LINE);    state.token->str = identifier; }
+            else if (!strcmp(identifier, "defined"))  { state.token = new_cpp_token(CPP_TOK_DEFINED); state.token->str = identifier; }
+            else if (!strcmp(identifier, "warning"))  { state.token = new_cpp_token(CPP_TOK_WARNING); state.token->str = identifier; }
+            else if (!strcmp(identifier, "error"))    { state.token = new_cpp_token(CPP_TOK_ERROR);   state.token->str = identifier; }
+            else if (!strcmp(identifier, "pragma"))   { state.token = new_cpp_token(CPP_TOK_PRAGMA);  state.token->str = identifier; }
 
             else {
                 state.token = new_cpp_token(CPP_TOK_IDENTIFIER);
@@ -738,34 +792,6 @@ static void cpp_next() {
     if (state.hchar_lex_state == HLS_SEEN_HASH     && state.token->kind == CPP_TOK_INCLUDE) state.hchar_lex_state = HLS_SEEN_INCLUDE;
 
     return;
-}
-
-// Append list2 to circular linked list list1, creating list1 if it doesn't exist
-CppToken *cll_append(CppToken *list1, CppToken *list2) {
-    if (!list2) return list1;
-
-    if (!list1) {
-        // Make list2 into a circular linked list and return it
-        list1 = list2;
-        while (list2->next) list2 = list2->next;
-        list2->next = list1;
-        return list2;
-    }
-
-    CppToken *list1_head = list1->next;
-    list1->next = list2;
-    while (list1->next) list1 = list1->next;
-    list1->next = list1_head;
-    return list1;
-}
-
-// Convert a circular linked list to a linked list.
-static CppToken *convert_cll_to_ll(CppToken *cll) {
-    if (!cll) return 0;
-
-    CppToken *head = cll->next;
-    cll->next = 0;
-    return head;
 }
 
 // Set line number on all tokens in circular linked list ts
@@ -1709,6 +1735,16 @@ Directive *parse_cli_define(char *string) {
     return parse_define_tokens();
 }
 
+
+static void free_allocated_tokens() {
+    AllocatedToken *a = allocated_tokens->next;
+    while (a != allocated_tokens) {
+        free_cpp_token(a->token);
+        a = a->next;
+    }
+
+}
+
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
 // output, runs the preprocessor, then prints the output to a file handle.
 char *preprocess(char *filename) {
@@ -1719,6 +1755,7 @@ char *preprocess(char *filename) {
         exit(1);
     }
 
+    allocated_tokens = 0;
     init_cpp_from_fh(f, filename);
 
     output = new_string_buffer(state.input_size * 2);
@@ -1726,6 +1763,8 @@ char *preprocess(char *filename) {
     run_preprocessor_on_file(filename, 1);
 
     terminate_string_buffer(output);
+
+    free_allocated_tokens();
 
     return output->data;
 }

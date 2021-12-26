@@ -10,6 +10,11 @@ StrSet *new_strset(void) {
     return ss;
 }
 
+void free_strset(StrSet *ss) {
+    free_strmap(ss->strmap);
+    free(ss);
+}
+
 void strset_add(StrSet *ss, char *element) {
     strmap_put(ss->strmap, element, (void *) 1);
 }

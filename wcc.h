@@ -767,6 +767,7 @@ int pop_from_stack(Stack *s);
 
 // strmap.c
 StrMap *new_strmap(void);
+void free_strmap(StrMap *map);
 void *strmap_get(StrMap *strmap, char *key);
 void strmap_put(StrMap *strmap, char *key, void *value);
 void strmap_delete(StrMap *strmap, char *key);
@@ -777,6 +778,7 @@ char *strmap_iterator_key(StrMapIterator *iterator);
 
 // strset.c
 StrSet *new_strset(void);
+void free_strset(StrSet *ss);
 void strset_add(StrSet *ss, char *element);
 int strset_in(StrSet *ss, char *element);
 StrSet *strset_union(StrSet *ss1, StrSet *ss2);
