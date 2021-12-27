@@ -569,7 +569,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 }
                 else {
                     int linkage = orig_ir->src1->type->function->linkage;
-                    if (linkage == LINKAGE_EXTERNAL || LINKAGE_UNDECLARED_EXTERNAL)
+                    if (linkage == LINKAGE_EXTERNAL || linkage == LINKAGE_UNDECLARED_EXTERNAL)
                          wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
                     else
                          wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
