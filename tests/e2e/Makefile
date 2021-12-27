@@ -24,7 +24,7 @@ WCC_TESTS=\
 	varargs \
 	initializers
 
-all: run-test-gcc run-test-wcc run-test-abi run-test-include
+all: run-test-gcc run-test-wcc run-test-abi run-test-include run-test-shlib
 
 stack-check.o: stack-check.c
 	gcc ${GCC_OPTS} stack-check.c -c
@@ -98,6 +98,44 @@ run-test-abi: test-abi-gcc-gcc test-abi-wcc-gcc test-abi-gcc-wcc test-abi-wcc-wc
 	./test-abi-wcc-wcc
 	touch run-test-abi
 
+# Shared library tests
+test-shlib-lib-gcc.o: test-shlib-lib.c test-shlib.h
+	gcc ${GCC_OPTS} -c -fPIC -o test-shlib-lib-gcc.o test-shlib-lib.c
+
+test-shlib-lib-wcc.o: test-shlib-lib.c test-shlib.h ../../wcc
+	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-lib-wcc.o test-shlib-lib.c
+
+libtest-shlib-lib-gcc.so: test-shlib-lib-gcc.o
+	gcc test-shlib-lib-gcc.o -shared -o libtest-shlib-lib-gcc.so
+
+libtest-shlib-lib-wcc.so: test-shlib-lib-wcc.o
+	gcc test-shlib-lib-wcc.o -shared -o libtest-shlib-lib-wcc.so
+
+test-shlib-main-gcc.o: test-shlib-main.c test-shlib.h
+	gcc ${GCC_OPTS} -c -fPIC -o test-shlib-main-gcc.o test-shlib-main.c
+
+test-shlib-main-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
+	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-main-wcc.o test-shlib-main.c
+
+test-shlib-gcc-gcc: test-shlib-main-gcc.o libtest-shlib-lib-gcc.so
+	gcc test-shlib-main-gcc.o -L. -l test-shlib-lib-gcc ../test-lib.o -o test-shlib-gcc-gcc
+
+test-shlib-wcc-gcc: test-shlib-main-wcc.o libtest-shlib-lib-gcc.so
+	gcc test-shlib-main-wcc.o -L. -l test-shlib-lib-gcc ../test-lib.o -o test-shlib-wcc-gcc
+
+test-shlib-gcc-wcc: test-shlib-main-gcc.o libtest-shlib-lib-wcc.so
+	gcc test-shlib-main-gcc.o -L. -l test-shlib-lib-wcc ../test-lib.o -o test-shlib-gcc-wcc
+
+test-shlib-wcc-wcc: test-shlib-main-wcc.o libtest-shlib-lib-wcc.so
+	gcc test-shlib-main-wcc.o -L. -l test-shlib-lib-wcc ../test-lib.o -o test-shlib-wcc-wcc
+
+run-test-shlib: test-shlib-gcc-gcc test-shlib-wcc-gcc test-shlib-gcc-wcc test-shlib-wcc-wcc
+	LD_LIBRARY_PATH=. ./test-shlib-gcc-gcc
+	LD_LIBRARY_PATH=. ./test-shlib-wcc-gcc
+	LD_LIBRARY_PATH=. ./test-shlib-gcc-wcc
+	LD_LIBRARY_PATH=. ./test-shlib-wcc-wcc
+	touch run-test-shlib
+
 # Includes
 test-include/test-include: ../../wcc test-include/include.h test-include/main.c test-include/foo.c
 	cd test-include && ../../../wcc ${WCC_OPTS} main.c foo.c -o test-include
@@ -107,7 +145,8 @@ run-test-include: test-include/test-include
 
 clean:
 	@rm -f test-wcc
-	@rm -f test-wcc-*-wcc
+	@rm -f test-*-gcc
+	@rm -f test-*-wcc
 	@rm -f test-wcc-arithmetic-torture.c
 	@rm -f gen-test-arithmetic-torture
 	@rm -f test-wcc-arithmetic-types-move-torture.c
@@ -118,11 +157,18 @@ clean:
 	@rm -f test-wcc-*-gcc
 	@rm -f *.s
 	@rm -f *.o
+	@rm -f *.so
 	@rm -f core
 	@rm -f test-include/test-include
 	@rm -f wcc-tests.rulecov
-	@ rm -f test-abi-gcc-gcc
-	@ rm -f test-abi-wcc-gcc
-	@ rm -f test-abi-gcc-wcc
-	@ rm -f test-abi-wcc-wcc
-
+	@rm -f test-abi-gcc-gcc
+	@rm -f test-abi-wcc-gcc
+	@rm -f test-abi-gcc-wcc
+	@rm -f test-abi-wcc-wcc
+	@rm -f run-test-shlib
+	@rm -f libtest-shlib-gcc.so
+	@rm -f libtest-shlib-wcc.so
+	@rm -f test-shlib-gcc-gcc
+	@rm -f test-shlib-wcc-gcc
+	@rm -f test-shlib-gcc-wcc
+	@rm -f test-shlib-wcc-wcc

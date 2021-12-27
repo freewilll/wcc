@@ -76,6 +76,8 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
             case IR_DECL_LOCAL_COMP_OBJ:  c += printf("declare"); break;
             case IR_LOAD_BIT_FIELD:       c += printf("load bit field"); break;
             case IR_SAVE_BIT_FIELD:       c += printf("save bit field"); break;
+            case IR_LOAD_FROM_GOT:        c += printf("load from GOT"); break;
+            case IR_ADDRESS_OF_FROM_GOT:  c += printf("& from GOT"); break;
             case IR_ADD:                  c += printf("+"); break;
             case IR_SUB:                  c += printf("-"); break;
             case IR_MUL:                  c += printf("*"); break;

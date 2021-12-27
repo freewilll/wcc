@@ -507,6 +507,8 @@ enum {
     IR_DECL_LOCAL_COMP_OBJ,   // Declare a local compound object
     IR_LOAD_BIT_FIELD,        // Load a bit field into a register
     IR_SAVE_BIT_FIELD,        // Save a bit field into a register
+    IR_LOAD_FROM_GOT,         // Load object from global offset table (for PIC)
+    IR_ADDRESS_OF_FROM_GOT,   // & an object from global offset table (for PIC)
     IR_START_CALL,            // Function call
     IR_ARG,                   // Function call argument
     IR_ARG_STACK_PADDING,     // Extra padding push to align arguments pushed onto the stack
@@ -668,6 +670,7 @@ int cur_line;                   // Current line number being lexed
 
 int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after register allocation
+int opt_PIC;                            // Make position independent code
 int opt_enable_vreg_renumbering;        // Renumber vregs so the numbers are consecutive
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible
@@ -970,7 +973,7 @@ void add_tac_to_ir(Tac *tac);
 Tac *new_instruction(int operation);
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2);
 void insert_instruction(Tac *ir, Tac *tac, int move_label);
-void insert_instruction_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, int move_label);
+Tac *insert_instruction_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, int move_label);
 Tac *insert_instruction_after(Tac *ir, Tac *tac);
 Tac *insert_instruction_after_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2);
 Tac *delete_instruction(Tac *tac);
@@ -996,6 +999,7 @@ void process_struct_and_union_copies(Function *function);
 Tac *add_memory_copy_with_registers(Function *function, Tac *ir, Value *dst, Value *src1, int size, int splay_offsets);
 Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
 void convert_enums(Function *function);
+void add_PIC_load_and_saves(Function *function);
 
 // ssa.c
 enum {

@@ -337,8 +337,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         if (low) {
                             if (v->offset)
                                 sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->global_identifier, v->offset);
-                            else
-                                sprintf(buffer, "%s(%%rip)", v->global_symbol->global_identifier);
+                            else {
+                                if (opt_PIC)
+                                    sprintf(buffer, "%s@GOTPCREL(%%rip)", v->global_symbol->global_identifier);
+                                else
+                                    sprintf(buffer, "%s(%%rip)", v->global_symbol->global_identifier);
+                            }
                         }
                         else if (high)
                             sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->global_identifier, v->offset + 8);
@@ -348,8 +352,12 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     else {
                         if (v->offset)
                             sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->global_identifier, v->offset);
-                        else
-                            sprintf(buffer, "%s(%%rip)", v->global_symbol->global_identifier);
+                        else {
+                            if (opt_PIC)
+                                sprintf(buffer, "%s@GOTPCREL(%%rip)", v->global_symbol->global_identifier);
+                            else
+                                sprintf(buffer, "%s(%%rip)", v->global_symbol->global_identifier);
+                        }
                     }
                 }
                 else if (v->stack_index) {
@@ -714,7 +722,9 @@ static void output_symbol(Symbol *symbol) {
 
     else if (symbol->initializer_count) {
         int size = get_type_size(symbol->type);
-        if (symbol->linkage == LINKAGE_EXTERNAL) fprintf(f, "    .globl   %s\n", symbol->global_identifier);
+        if (symbol->linkage == LINKAGE_EXTERNAL)
+            fprintf(f, "    .globl   %s\n", symbol->global_identifier);
+
         if (elf_section != SEC_DATA) { fprintf(f, "    .data\n"); elf_section = SEC_DATA; }
 
         fprintf(f, "    .align   %d\n", get_type_alignment(symbol->type));

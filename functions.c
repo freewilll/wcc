@@ -356,6 +356,8 @@ void add_function_return_moves(Function *function, char *identifier) {
             ir->src1 = 0;
             ir->src2 = 0;
         }
+
+        ir->src1 = 0;
     }
 }
 

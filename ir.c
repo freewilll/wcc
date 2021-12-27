@@ -152,88 +152,90 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
 
 char *operation_string(int operation) {
     switch (operation) {
-        case 0:                     return "";
-        case IR_MOVE:               return "IR_MOVE";
-        case IR_MOVE_PREG_CLASS:    return "IR_MOVE_PREG_CLASS";
-        case IR_MOVE_STACK_PTR:     return "IR_MOVE_STACK_PTR";
-        case IR_ADDRESS_OF:         return "IR_ADDRESS_OF";
-        case IR_INDIRECT:           return "IR_INDIRECT";
-        case IR_DECL_LOCAL_COMP_OBJ:return "IR_DECL_LOCAL_COMP_OBJ";
-        case IR_LOAD_BIT_FIELD:     return "IR_LOAD_BIT_FIELD";
-        case IR_SAVE_BIT_FIELD:     return "IR_SAVE_BIT_FIELD";
-        case IR_START_CALL:         return "IR_START_CALL";
-        case IR_ARG:                return "IR_ARG";
-        case IR_ARG_STACK_PADDING:  return "IR_ARG_STACK_PADDING";
-        case IR_CALL:               return "IR_CALL";
-        case IR_CALL_ARG_REG:       return "IR_CALL_ARG_REG";
-        case IR_END_CALL:           return "IR_END_CALL";
-        case IR_VA_START:           return "IR_VA_START";
-        case IR_VA_ARG:             return "IR_VA_ARG";
-        case IR_RETURN:             return "IR_RETURN";
-        case IR_ZERO:               return "IR_ZERO";
-        case IR_LOAD_LONG_DOUBLE:   return "IR_LOAD_LONG_DOUBLE";
-        case IR_START_LOOP:         return "IR_START_LOOP";
-        case IR_END_LOOP:           return "IR_END_LOOP";
-        case IR_ALLOCATE_STACK:     return "IR_ALLOCATE_STACK";
-        case IR_MOVE_TO_PTR:        return "IR_MOVE_TO_PTR";
-        case IR_NOP:                return "IR_NOP";
-        case IR_JMP:                return "IR_JMP";
-        case IR_JZ:                 return "IR_JZ";
-        case IR_JNZ:                return "IR_JNZ";
-        case IR_ADD:                return "IR_ADD";
-        case IR_SUB:                return "IR_SUB";
-        case IR_RSUB:               return "IR_RSUB";
-        case IR_MUL:                return "IR_MUL";
-        case IR_DIV:                return "IR_DIV";
-        case IR_MOD:                return "IR_MOD";
-        case IR_EQ:                 return "IR_EQ";
-        case IR_NE:                 return "IR_NE";
-        case IR_BNOT:               return "IR_BNOT";
-        case IR_BOR:                return "IR_BOR";
-        case IR_BAND:               return "IR_BAND";
-        case IR_XOR:                return "IR_XOR";
-        case IR_BSHL:               return "IR_BSHL";
-        case IR_BSHR:               return "IR_BSHR";
-        case IR_ASHR:               return "IR_ASHR";
-        case IR_LT:                 return "IR_LT";
-        case IR_GT:                 return "IR_GT";
-        case IR_LE:                 return "IR_LE";
-        case IR_GE:                 return "IR_GE";
-        case IR_PHI_FUNCTION:       return "IR_PHI_FUNCTION";
-        case X_MOV:                 return "mov";
-        case X_ADD:                 return "add";
-        case X_MUL:                 return "mul";
-        case X_IDIV:                return "idiv";
-        case X_CQTO:                return "cqto";
-        case X_CMP:                 return "cmp";
-        case X_COMIS:               return "comis";
-        case X_TEST:                return "test";
-        case X_CMPZ:                return "cmpz";
-        case X_JMP:                 return "jmp";
-        case X_JZ:                  return "jz";
-        case X_JNZ:                 return "jnz";
-        case X_JE:                  return "je";
-        case X_JNE:                 return "jne";
-        case X_JLT:                 return "jlt";
-        case X_JGT:                 return "jgt";
-        case X_JLE:                 return "jle";
-        case X_JGE:                 return "jge";
-        case X_JB:                  return "jb";
-        case X_JA:                  return "ja";
-        case X_JBE:                 return "jbe";
-        case X_JAE:                 return "jae";
-        case X_SETE:                return "sete";
-        case X_SETNE:               return "setne";
-        case X_SETP:                return "setp";
-        case X_SETNP:               return "setnp";
-        case X_SETLT:               return "setlt";
-        case X_SETGT:               return "setgt";
-        case X_SETLE:               return "setle";
-        case X_SETGE:               return "setge";
-        case X_MOVS:                return "movs";
-        case X_MOVZ:                return "movz";
-        case X_MOVC:                return "movc";
-        default:                    panic("Unknown x86 operation %d", operation);
+        case 0:                      return "";
+        case IR_MOVE:                return "IR_MOVE";
+        case IR_MOVE_PREG_CLASS:     return "IR_MOVE_PREG_CLASS";
+        case IR_MOVE_STACK_PTR:      return "IR_MOVE_STACK_PTR";
+        case IR_ADDRESS_OF:          return "IR_ADDRESS_OF";
+        case IR_INDIRECT:            return "IR_INDIRECT";
+        case IR_DECL_LOCAL_COMP_OBJ: return "IR_DECL_LOCAL_COMP_OBJ";
+        case IR_LOAD_BIT_FIELD:      return "IR_LOAD_BIT_FIELD";
+        case IR_LOAD_FROM_GOT:       return "IR_LOAD_FROM_GOT";
+        case IR_ADDRESS_OF_FROM_GOT: return "IR_ADDRESS_OF_FROM_GOT";
+        case IR_SAVE_BIT_FIELD:      return "IR_SAVE_BIT_FIELD";
+        case IR_START_CALL:          return "IR_START_CALL";
+        case IR_ARG:                 return "IR_ARG";
+        case IR_ARG_STACK_PADDING:   return "IR_ARG_STACK_PADDING";
+        case IR_CALL:                return "IR_CALL";
+        case IR_CALL_ARG_REG:        return "IR_CALL_ARG_REG";
+        case IR_END_CALL:            return "IR_END_CALL";
+        case IR_VA_START:            return "IR_VA_START";
+        case IR_VA_ARG:              return "IR_VA_ARG";
+        case IR_RETURN:              return "IR_RETURN";
+        case IR_ZERO:                return "IR_ZERO";
+        case IR_LOAD_LONG_DOUBLE:    return "IR_LOAD_LONG_DOUBLE";
+        case IR_START_LOOP:          return "IR_START_LOOP";
+        case IR_END_LOOP:            return "IR_END_LOOP";
+        case IR_ALLOCATE_STACK:      return "IR_ALLOCATE_STACK";
+        case IR_MOVE_TO_PTR:         return "IR_MOVE_TO_PTR";
+        case IR_NOP:                 return "IR_NOP";
+        case IR_JMP:                 return "IR_JMP";
+        case IR_JZ:                  return "IR_JZ";
+        case IR_JNZ:                 return "IR_JNZ";
+        case IR_ADD:                 return "IR_ADD";
+        case IR_SUB:                 return "IR_SUB";
+        case IR_RSUB:                return "IR_RSUB";
+        case IR_MUL:                 return "IR_MUL";
+        case IR_DIV:                 return "IR_DIV";
+        case IR_MOD:                 return "IR_MOD";
+        case IR_EQ:                  return "IR_EQ";
+        case IR_NE:                  return "IR_NE";
+        case IR_BNOT:                return "IR_BNOT";
+        case IR_BOR:                 return "IR_BOR";
+        case IR_BAND:                return "IR_BAND";
+        case IR_XOR:                 return "IR_XOR";
+        case IR_BSHL:                return "IR_BSHL";
+        case IR_BSHR:                return "IR_BSHR";
+        case IR_ASHR:                return "IR_ASHR";
+        case IR_LT:                  return "IR_LT";
+        case IR_GT:                  return "IR_GT";
+        case IR_LE:                  return "IR_LE";
+        case IR_GE:                  return "IR_GE";
+        case IR_PHI_FUNCTION:        return "IR_PHI_FUNCTION";
+        case X_MOV:                  return "mov";
+        case X_ADD:                  return "add";
+        case X_MUL:                  return "mul";
+        case X_IDIV:                 return "idiv";
+        case X_CQTO:                 return "cqto";
+        case X_CMP:                  return "cmp";
+        case X_COMIS:                return "comis";
+        case X_TEST:                 return "test";
+        case X_CMPZ:                 return "cmpz";
+        case X_JMP:                  return "jmp";
+        case X_JZ:                   return "jz";
+        case X_JNZ:                  return "jnz";
+        case X_JE:                   return "je";
+        case X_JNE:                  return "jne";
+        case X_JLT:                  return "jlt";
+        case X_JGT:                  return "jgt";
+        case X_JLE:                  return "jle";
+        case X_JGE:                  return "jge";
+        case X_JB:                   return "jb";
+        case X_JA:                   return "ja";
+        case X_JBE:                  return "jbe";
+        case X_JAE:                  return "jae";
+        case X_SETE:                 return "sete";
+        case X_SETNE:                return "setne";
+        case X_SETP:                 return "setp";
+        case X_SETNP:                return "setnp";
+        case X_SETLT:                return "setlt";
+        case X_SETGT:                return "setgt";
+        case X_SETLE:                return "setle";
+        case X_SETGE:                return "setge";
+        case X_MOVS:                 return "movs";
+        case X_MOVZ:                 return "movz";
+        case X_MOVC:                 return "movc";
+        default:                     panic("Unknown x86 operation %d", operation);
     }
 }
 
@@ -265,6 +267,11 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
 
     if (o == IR_MOVE || o == IR_MOVE_PREG_CLASS || o == IR_LOAD_BIT_FIELD || o == IR_SAVE_BIT_FIELD)
         print_value(f, tac->src1, 1);
+
+    else if (o == IR_LOAD_FROM_GOT) {
+        fprintf(f, "from GOT ");
+        print_value(f, tac->src1, 1);
+    }
 
     else if (o == IR_MOVE_STACK_PTR)
         fprintf(f, "rsp");
@@ -353,27 +360,28 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         fprintf(f, ")");
     }
 
-    else if (o == IR_INDIRECT)      {                               fprintf(f, "*");     print_value(f, tac->src1, 1); }
-    else if (o == IR_ADDRESS_OF)    {                               fprintf(f, "&");     print_value(f, tac->src1, 1); }
-    else if (o == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");   print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
-    else if (o == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_DIV)           { print_value(f, tac->src1, 1); fprintf(f, " / ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_MOD)           { print_value(f, tac->src1, 1); fprintf(f, " %% ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_BNOT)          {                               fprintf(f, "~");     print_value(f, tac->src1, 1); }
-    else if (o == IR_EQ)            { print_value(f, tac->src1, 1); fprintf(f, " == ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_NE)            { print_value(f, tac->src1, 1); fprintf(f, " != ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_GT)            { print_value(f, tac->src1, 1); fprintf(f, " > ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_LT)            { print_value(f, tac->src1, 1); fprintf(f, " < ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_GE)            { print_value(f, tac->src1, 1); fprintf(f, " >= ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_LE)            { print_value(f, tac->src1, 1); fprintf(f, " <= ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_BAND)          { print_value(f, tac->src1, 1); fprintf(f, " & ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_BOR)           { print_value(f, tac->src1, 1); fprintf(f, " | ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");   print_value(f, tac->src2, 1); }
-    else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> ");  print_value(f, tac->src2, 1); }
-    else if (o == IR_ASHR)          { print_value(f, tac->src1, 1); fprintf(f, " a>> "); print_value(f, tac->src2, 1); }
+    else if (o == IR_INDIRECT)      {                               fprintf(f, "*");          print_value(f, tac->src1, 1); }
+    else if (o == IR_ADDRESS_OF)    {                               fprintf(f, "&");          print_value(f, tac->src1, 1); }
+    else if (o == IR_ADDRESS_OF_FROM_GOT) {                         fprintf(f, "& from GOT"); print_value(f, tac->src1, 1); }
+    else if (o == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");        print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
+    else if (o == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_DIV)           { print_value(f, tac->src1, 1); fprintf(f, " / ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_MOD)           { print_value(f, tac->src1, 1); fprintf(f, " %% ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_BNOT)          {                               fprintf(f, "~");          print_value(f, tac->src1, 1); }
+    else if (o == IR_EQ)            { print_value(f, tac->src1, 1); fprintf(f, " == ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_NE)            { print_value(f, tac->src1, 1); fprintf(f, " != ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_GT)            { print_value(f, tac->src1, 1); fprintf(f, " > ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_LT)            { print_value(f, tac->src1, 1); fprintf(f, " < ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_GE)            { print_value(f, tac->src1, 1); fprintf(f, " >= ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_LE)            { print_value(f, tac->src1, 1); fprintf(f, " <= ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_BAND)          { print_value(f, tac->src1, 1); fprintf(f, " & ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_BOR)           { print_value(f, tac->src1, 1); fprintf(f, " | ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_ASHR)          { print_value(f, tac->src1, 1); fprintf(f, " a>> ");      print_value(f, tac->src2, 1); }
     else if (o == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); if (tac->dst) { printf(" -> "); print_value(f, tac->dst, 1); } }
     else if (o == IR_CALL_ARG_REG)  { fprintf(f, "call reg arg "); print_value(f, tac->dst ? tac->dst : tac->src1 , 1); }
     else if (o == IR_ALLOCATE_STACK){ fprintf(f, "allocate stack "); print_value(f, tac->src1, 1); }
@@ -553,12 +561,13 @@ void insert_instruction(Tac *ir, Tac *tac, int move_label) {
     }
 }
 
-void insert_instruction_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, int move_label) {
+Tac *insert_instruction_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, int move_label) {
     Tac *tac = new_instruction(operation);
     tac->dst = dst;
     tac->src1 = src1;
     tac->src2 = src2;
     insert_instruction(ir, tac, move_label);
+    return tac;
 }
 
 // Append tac to ir
@@ -1204,6 +1213,80 @@ void add_zero_memory_instructions(Function *function) {
 
             // Add function call
             ir = insert_function_call_instructions_after(ir, call_value, memset_symbol);
+        }
+    }
+}
+
+// Add an instruction to load a value from the GOT. The result is a pointer to the
+// value.
+Value *add_load_from_tac(Function *function, Tac *tac, Value *src) {
+    Value *dst = new_value();
+    dst->vreg = ++function->vreg_count;
+    dst->type = make_pointer(src->type);
+    Value *got_src = dup_value(src);
+    got_src->type = dst->type;
+
+    insert_instruction_from_operation(tac, IR_LOAD_FROM_GOT, dst, got_src, 0, 0);
+
+    dst->offset = src->offset;
+    src->offset = 0;
+    got_src->offset = 0;
+
+    return dst;
+}
+
+// When compiled with Position Independent Code (PIC) , all accesses to global objects
+// go through a Global Offset Table (GOT). The GOT table has pointers to the globals.
+// Any load/save must first load a pointer to the global object from the GOT and use
+// that rather than going directly to memory.
+void add_PIC_load_and_saves(Function *function) {
+    if (!opt_PIC) return;
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        // Ensure all global values are only ever loaded or saved
+
+        if (tac->dst && tac->dst->global_symbol && tac->operation != IR_MOVE)
+            panic("Unexpected global_symbol in dst");
+        if (tac->src1 && tac->src1->global_symbol
+                && tac->operation != IR_MOVE
+                && tac->operation != IR_CALL
+                && tac->operation != IR_ADDRESS_OF
+                && tac->operation != IR_DECL_LOCAL_COMP_OBJ)
+            panic("Unexpected operation for global_symbol in src1: %d", tac->operation);
+        if (tac->src2 && tac->src2->global_symbol)
+            panic("Unexpected operation for global_symbol in src2: %d", tac->operation);
+
+        // Convert a save of a global to a mov from the GOT followed by a store to a pointer in a register
+        if (tac->dst && tac->dst->global_symbol && tac->operation == IR_MOVE) {
+            Value *dst = add_load_from_tac(function, tac, tac->dst);
+
+            // Convert to a move to an lvalue in a register
+            Type *type = tac->dst->type;
+            tac->dst = dup_value(dst);
+            tac->dst->is_lvalue = 1;
+            tac->dst->type = type;
+        }
+
+        // Convert a load of a global to a mov from the GOT followed by an indirect
+        if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_MOVE) {
+            Value *dst = add_load_from_tac(function, tac, tac->src1);
+
+            // Convert to an indirect unless it's a pointer to a function
+            tac->src1 = dst;
+            if (!is_pointer_to_function_type(tac->src1->type))
+                tac->operation = IR_INDIRECT;
+        }
+
+        else if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_ADDRESS_OF) {
+            tac->operation = IR_ADDRESS_OF_FROM_GOT;
+            if (tac->src1->offset) {
+                int offset = tac->src1->offset;
+                tac->src1->offset = 0;
+                Value *dst_with_offset = dup_value(tac->dst);
+                tac->dst = dup_value(tac->dst);
+                tac->dst->vreg = ++function->vreg_count;
+                tac = insert_instruction_after_from_operation(tac, IR_ADD, dst_with_offset, tac->dst, new_integral_constant(TYPE_INT, offset));
+            }
         }
     }
 }

@@ -41,6 +41,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     add_function_call_result_moves(function);
     process_function_varargs(function);
     add_function_call_arg_moves(function);
+    add_PIC_load_and_saves(function);
     rewrite_lvalue_reg_assignments(function);
     analyze_dominance(function);
     if (stop_at == COMPILE_STOP_AFTER_ANALYZE_DOMINANCE) return;

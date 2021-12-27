@@ -573,6 +573,17 @@ static void add_indirect_rules(void) {
     add_op(r, X_MOV_TO_IND, 0,   SRC1, SV1, "movq %v2q, %v1or+8(%v1q)");
 }
 
+static void add_address_of_rule(int dst, int src, char *template_args, int finish) {
+    Rule *r;
+
+    char *mov_template, *lea_template;
+    wasprintf(&lea_template, "leaq %s", template_args);
+    wasprintf(&mov_template, "movq %s", template_args);
+
+    r = add_rule(dst, IR_ADDRESS_OF,          src,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, lea_template); if (finish) fin_rule(r);
+    r = add_rule(dst, IR_ADDRESS_OF_FROM_GOT, src,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, mov_template); if (finish) fin_rule(r);
+}
+
 static void add_pointer_rules(int *ntc) {
     Rule *r;
 
@@ -587,18 +598,20 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(XRP, IR_ADDRESS_OF, RP4,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RP5, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_ADDRESS_OF, XMI,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_ADDRESS_OF, XMU,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_ADDRESS_OF, MS3,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_ADDRESS_OF, MS4,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_ADDRESS_OF, MPV,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(RP5, IR_ADDRESS_OF, MLD5, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1L, %vdq");
-    r = add_rule(RP1, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(RP2, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(RP3, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(RP4, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(RP5, IR_ADDRESS_OF, MSA,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(RPF, IR_ADDRESS_OF, FUN,  0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
+
+    // Common rules for IR_ADDRESS_OF and IR_ADDRESS_OF_FROM_GOT
+    add_address_of_rule(XRP, XMI,  "%v1q, %vdq", 1);
+    add_address_of_rule(XRP, XMU,  "%v1q, %vdq", 1);
+    add_address_of_rule(XRP, MS3,  "%v1q, %vdq", 1);
+    add_address_of_rule(XRP, MS4,  "%v1q, %vdq", 1);
+    add_address_of_rule(XRP, MPV,  "%v1q, %vdq", 1);
+    add_address_of_rule(RP5, MLD5, "%v1L, %vdq", 0);
+    add_address_of_rule(RP1, MSA,  "%v1q, %vdq", 0);
+    add_address_of_rule(RP2, MSA,  "%v1q, %vdq", 0);
+    add_address_of_rule(RP3, MSA,  "%v1q, %vdq", 0);
+    add_address_of_rule(RP4, MSA,  "%v1q, %vdq", 0);
+    add_address_of_rule(RP5, MSA,  "%v1q, %vdq", 0);
+    add_address_of_rule(RPF, FUN,  "%v1q, %vdq", 0);
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)
@@ -1303,6 +1316,11 @@ void init_instruction_selection_rules(void) {
     r = add_rule(MPV, IR_MOVE, XRU, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
 
     add_pointer_rules(&ntc);
+
+    // Position Independent Code (PIC)
+    r = add_rule(XRP, IR_LOAD_FROM_GOT, XRP,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP5, IR_LOAD_FROM_GOT, RP5,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RPF, IR_LOAD_FROM_GOT, RPF,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
 
     // Direct function calls
     r = add_rule(XRI,  IR_CALL, FUN, 0, 5); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);

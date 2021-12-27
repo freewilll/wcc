@@ -128,6 +128,7 @@ int main(int argc, char **argv) {
                  if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fPIC"                             )) { opt_PIC = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_stack_register_count = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                            argc--; argv++; }
@@ -248,6 +249,7 @@ int main(int argc, char **argv) {
         printf("-v                                          Display the programs invoked by the compiler\n");
         printf("-d                                          Debug output\n");
         printf("-s                                          Output symbol table\n");
+        printf("-fPIC                                       Make position independent code\n");
         printf("--prc                                       Output spilled register count\n");
         printf("--ir1                                       Output intermediate representation after parsing\n");
         printf("--ir2                                       Output intermediate representation after x86_64 rearrangements\n");
