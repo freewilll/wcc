@@ -615,7 +615,7 @@ static void add_pointer_rules(int *ntc) {
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)
-        for (int src = RP1; src <= RP4; src++)
+        for (int src = RP1; src <= RP5; src++)
             add_move_to_ptr(dst, src, 0, "movq %v2q, %v1o(%v1q)");
 
     // Stores to a pointer

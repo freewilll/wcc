@@ -288,6 +288,13 @@ void test_pointers() {
     // Assignment of constant to memory
     gpld = 0;
     gpld = 0ul;
+
+    // Assignment to a pointer in a register
+    ld = 11.1;
+    pld = &ld;
+    ppld = malloc(sizeof(*pld));
+    *ppld = &ld;
+    assert_ld_string(**ppld,  "11.10000", "*ppld = &ld");
 }
 
 void test_pointer_arithmetic() {
