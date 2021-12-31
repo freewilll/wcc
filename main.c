@@ -73,7 +73,7 @@ static void add_include_path(char *path) {
     else {
         CliIncludePath *cd = cli_include_paths;
         while (cd->next) cd = cd->next;
-        cli_include_paths->next = cli_include_path;
+        cd->next = cli_include_path;
     }
 }
 
