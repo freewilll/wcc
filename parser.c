@@ -132,6 +132,7 @@ static Value *load(Value *src1) {
                 tmp->vreg = new_vreg();
                 add_instruction(IR_ADD, tmp, dst, new_integral_constant(TYPE_INT, src1->offset));
                 dst = tmp;
+                src1->offset = 0; // Ensure downstream code doesn't deal with the offset again.
             }
         }
     }

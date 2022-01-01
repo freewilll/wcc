@@ -301,6 +301,27 @@ void test_register_reuse_in_function_calls() {
     trr(2);
 }
 
+struct sl {
+    int i;
+    long a[1];
+};
+
+// This is a rather fragile test that ensures an offset isn't added twice; once by
+// the parser and another time by spill code.
+void _test_double_offset_bug(struct sl *psl) {
+    assert_long(42, psl->a[0], "foo");
+    assert_long(42, psl->a[0], "foo");
+
+    int i, j, k, l, m, n, o, p, q, r, s;
+    int z = i + j + k + l + m + n + o + p + q + r + s;
+}
+
+int test_double_offset_bug() {
+    struct sl *sl = malloc(sizeof(struct sl));
+    sl->a[0] = 42;
+    _test_double_offset_bug(sl);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -326,6 +347,7 @@ int main(int argc, char **argv) {
     test_function_returning_pointer_to_char_in_conditional_jump();
     test_unary_precedence();
     test_register_reuse_in_function_calls();
+    test_double_offset_bug();
 
     finalize();
 }
