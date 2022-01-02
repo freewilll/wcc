@@ -1040,6 +1040,11 @@ static void test_bit_field_loading() {
     assert_int(1,     s4.i,   "7fffa200000001 nested s.i");
     assert_int(2,     s4.s.i, "7fffa200000001 nested s.j");
     assert_int(-3,    s4.s.j, "7fffa200000001 nested s.k");
+
+    struct s { long l; unsigned int i :4; } s5;
+    ((long *) &s5)[1] = 0x0000000c;
+    assert_int(12, s5.i, "Bit field loading from pointer in register 1");
+    assert_int(12, (&s5)->i, "Bit field loading from pointer in register 2");
 }
 
 static void test_bit_field_saving() {

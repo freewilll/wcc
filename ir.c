@@ -1041,7 +1041,14 @@ static void add_load_bit_field(Function *function, Tac *ir) {
     ir->src1 = 0;
     ir->src2 = 0;
 
-    ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_value, src1, 0);
+    if (src1->is_lvalue && src1->vreg) {
+        // Make it a pointer and add an indirect instruction
+        Value *indirect_src1 = dup_value(src1);
+        indirect_src1->type = make_pointer(loaded_value->type);
+        indirect_src1->is_lvalue = 0;
+        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, loaded_value, indirect_src1, 0);
+    } else
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_value, src1, 0);
 
     if (src1->type->is_unsigned) {
         // Shift right
