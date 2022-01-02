@@ -699,7 +699,7 @@ Type *make_struct_or_union_type(StructOrUnion *s) {
 
 // Recurse through all struct members and determine offsets
 // Bit fields are only implemented for integers (32 bits size) according to the C89 spec.
-int recursive_complete_struct_or_union(StructOrUnion *s, int bit_offset, int is_root) {
+int recursive_complete_struct_or_union(StructOrUnion *s, int bit_offset) {
     bit_offset = 0;
 
     int initial_bit_offset = bit_offset;
@@ -734,7 +734,7 @@ int recursive_complete_struct_or_union(StructOrUnion *s, int bit_offset, int is_
                 // Duplicate the structs, since the bit_offset will be set and otherwise
                 // would end up to a reused struct having invalid bit_offsets
                 member->type->struct_or_union_desc = dup_struct_or_union(member->type->struct_or_union_desc);
-                size = recursive_complete_struct_or_union(member->type->struct_or_union_desc, bit_offset, 0);
+                size = recursive_complete_struct_or_union(member->type->struct_or_union_desc, bit_offset);
             }
             else {
                 size = get_type_size(member->type) * 8;
@@ -755,10 +755,7 @@ int recursive_complete_struct_or_union(StructOrUnion *s, int bit_offset, int is_
     if (s->is_union)
         size = max_size;
     else {
-        if (is_root)
-            // Add padding to the root, but not sub struct/unions
-            bit_offset = ((bit_offset + max_alignment  - 1) & (~(max_alignment - 1)));
-
+        bit_offset = ((bit_offset + max_alignment  - 1) & (~(max_alignment - 1)));
         size = bit_offset - initial_bit_offset;
     }
 
@@ -821,7 +818,7 @@ void flatten_anonymous_structs(StructOrUnion *s) {
 }
 
 void complete_struct_or_union(StructOrUnion *s) {
-    recursive_complete_struct_or_union(s, 0, 1);
+    recursive_complete_struct_or_union(s, 0);
     flatten_anonymous_structs(s);
 }
 

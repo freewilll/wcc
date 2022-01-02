@@ -344,6 +344,22 @@ void test_struct_alignment_bug() {
     assert_int(24, sizeof(struct s2),            "struct alignment bug 4");
 }
 
+void test_struct_alignment_bug2() {
+    struct t {
+        long l;
+        char c;
+    };
+
+    struct s {
+        struct t t;
+        int i;
+    };
+
+    struct s p;
+
+    assert_int(16, (void *) &(p.i) -  (void *) &p, "struct alignment bug 2 1");
+}
+
 void test_struct_member_size_lookup_bug() {
     struct s2 *s;
 
