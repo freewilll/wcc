@@ -1111,6 +1111,34 @@ static void test_bit_field_saving() {
     s4.k = -1;   assert_long(0xffffffffffffffffUL, *pl, "32 sized bit field write 3");
     s4.i = 0;    assert_long(0xffffffff00000000UL, *pl, "32 sized bit field write 4");
     s4.k = 8192; assert_long(0x2000ffff00000000UL, *pl, "32 sized bit field write 5");
+
+    struct s5 {
+        short s;
+        unsigned bf1:1;
+        unsigned bf2:1;
+    };
+
+    struct s5 *s5 = malloc(sizeof(struct s5));
+    s5->s = 4;
+    s5->bf1 = 0;
+    s5->bf2 = 0;
+    assert_int(4, s5->s,   "Bit field saving from pointer in register 1");
+    assert_int(0, s5->bf1, "Bit field saving from pointer in register 2");
+    assert_int(0, s5->bf2, "Bit field saving from pointer in register 3");
+    s5->bf1 = 1;
+    assert_int(4, s5->s,   "Bit field saving from pointer in register 4");
+    assert_int(1, s5->bf1, "Bit field saving from pointer in register 5");
+    assert_int(0, s5->bf2, "Bit field saving from pointer in register 6");
+
+    s5->bf2 = 1;
+    assert_int(4, s5->s,   "Bit field saving from pointer in register 7");
+    assert_int(1, s5->bf1, "Bit field saving from pointer in register 8");
+    assert_int(1, s5->bf2, "Bit field saving from pointer in register 9");
+
+    s5->bf1 = 0;
+    assert_int(4, s5->s,   "Bit field saving from pointer in register 10");
+    assert_int(0, s5->bf1, "Bit field saving from pointer in register 11");
+    assert_int(1, s5->bf2, "Bit field saving from pointer in register 12");
 }
 
 void test_array_member_array_lookup() {

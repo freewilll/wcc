@@ -1090,7 +1090,7 @@ static void add_save_bit_field(Function *function, Tac *ir) {
     int offset, bit_offset, bit_size;
     determine_bit_field_params(ir->dst, &offset, &bit_offset, &bit_size);
 
-    Value *dst = dup_value(ir->dst);
+    Value *dst = dup_value(ir->dst);;
     Value *src1 = dup_value(ir->src1);
 
     ir->operation = IR_NOP;
@@ -1134,7 +1134,15 @@ static void add_save_bit_field(Function *function, Tac *ir) {
     dst->offset = offset;
     dst->bit_field_offset = 0;
     dst->bit_field_size = 0;
-    ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_dst, dst, 0);
+
+    if (dst->is_lvalue && dst->vreg) {
+        // Make it a pointer and add an indirect instruction
+        Value *indirect_dst = dup_value(dst);
+        indirect_dst->type = make_pointer(loaded_dst->type);
+        indirect_dst->is_lvalue = 0;
+        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, loaded_dst, indirect_dst, 0);
+    } else
+        ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_dst, dst, 0);
 
     // Set the destination bits to zero on the loaded dst
     unsigned int inverted_shifted_mask = ~(mask << bit_offset);
