@@ -679,6 +679,7 @@ int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
 int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
 int opt_enable_preferred_pregs;         // Enable preferred preg selection in register allocator
 int opt_enable_trigraphs;               // Enable trigraph preprocessing
+int opt_warnings_are_errors;            // Treat all warnings as errors
 
 CliDirective *cli_directives;      // Linked list of directives passed on the command line
 CliIncludePath *cli_include_paths; // Linked list of directives passed on the command line

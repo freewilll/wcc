@@ -33,10 +33,7 @@ void simple_error(char *format, ...) {
 }
 
 // Report an error with a filename and line number and exit
-void error(char *format, ...) {
-    va_list ap;
-    va_start(ap, format);
-
+void _error(char *format, va_list ap) {
     if (compile_phase == CP_PREPROCESSING) get_cpp_filename_and_line();
 
     int is_tty = isatty(2);
@@ -50,10 +47,18 @@ void error(char *format, ...) {
     exit(1);
 }
 
+void error(char *format, ...) {
+    va_list ap;
+    va_start(ap, format);
+    _error(format, ap);
+}
+
 // Report a warning with a filename and line number
 void warning(char *format, ...) {
     va_list ap;
     va_start(ap, format);
+
+    if (opt_warnings_are_errors) _error(format, ap);
 
     if (compile_phase == CP_PREPROCESSING) get_cpp_filename_and_line();
 
