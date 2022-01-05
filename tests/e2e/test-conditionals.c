@@ -161,6 +161,10 @@ void test_ternary() {
     pi1 = &i3;
     i = 0; pi2 = i ? pi1 : pv; assert_long(pv,  pi2, "pi/pv false");
     i = 1; pi2 = i ? pi1 : pv; assert_long(pi1, pi2, "pi/pv true");
+
+    // Commas in expression in between ? and :
+    assert_int(3, 0 ? 1, 2 : 3, "Ternary with , between ? and : 1");
+    assert_int(2, 1 ? 1, 2 : 3, "Ternary with , between ? and : 2");
 }
 
 int ternary_cast() {

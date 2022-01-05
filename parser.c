@@ -2373,7 +2373,7 @@ void parse_ternary_expression(void) {
     Value *ldst1 = new_label_dst(); // False case
     Value *ldst2 = new_label_dst(); // End
     add_conditional_jump(IR_JZ, ldst1);
-    parse_expression(TOK_TERNARY);
+    parse_expression(TOK_COMMA); // See https://en.cppreference.com/w/c/language/operator_precedence#cite_note-3
     Value *src1 = vtop;
     if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
     add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
