@@ -161,6 +161,10 @@ int example9() {
     return(1), 2, 3;
 }
 
+int test_comma_in_addition() {
+    assert_int(3, 1 + (1, 2), "1 + (1, 2)");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -177,6 +181,7 @@ int main(int argc, char **argv) {
     assert_int(6, example7(), "commas example 7");
     assert_int(3, example8(), "commas example 8");
     assert_int(3, example9(), "commas example 9");
+    test_comma_in_addition();
 
     finalize();
 }

@@ -2739,16 +2739,12 @@ static void parse_expression(int level) {
             case TOK_BITWISE_LEFT_EQ:  { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHL, IR_BSHL);  finish_comp_assign(v); break; }
 
             case TOK_COMMA: {
-                // Replace the outcome from the previous expression on the stack with
-                // void and process the next expression.
+                // Delete the last expression (if any) on thestack
 
                 pop_void();
-                Value *v = new_value();
-                v->type = new_type(TYPE_VOID);
-                v->vreg = new_vreg();
-                push(v);
                 next();
                 parse_expression(TOK_COMMA);
+
                 break;
             }
 
