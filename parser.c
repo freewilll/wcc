@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "wcc.h"
@@ -41,7 +42,7 @@ int seen_switch_default;        // Set to 1 if a default label has been seen wit
 // Allocate a new virtual register
 static int new_vreg(void) {
     vreg_count++;
-    if (vreg_count >= MAX_VREG_COUNT) panic("Exceeded max vreg count %d", MAX_VREG_COUNT);
+    if (vreg_count >= MAX_VREG_COUNT) panic_with_line_number("Exceeded max vreg count %d", MAX_VREG_COUNT);
     return vreg_count;
 }
 
@@ -60,7 +61,7 @@ static Value *push(Value *v) {
 }
 
 static void check_stack_has_value(void) {
-    if (vs == vs_start) panic("Empty parser stack");
+    if (vs == vs_start) panic_with_line_number("Empty parser stack");
     if (vtop->type->type == TYPE_VOID) error("Illegal attempt to use a void value");
 }
 
@@ -200,7 +201,7 @@ Value *make_string_literal_value_from_cur_string_literal(void) {
     value->type = make_array(new_type(cur_string_literal.is_wide_char ? TYPE_INT : TYPE_CHAR), cur_string_literal.size);
     value->string_literal_index = string_literal_count;
     value->is_string_literal = 1;
-    if (string_literal_count > MAX_STRING_LITERALS) panic("Exceeded max string literals %d", MAX_STRING_LITERALS);
+    if (string_literal_count > MAX_STRING_LITERALS) panic_with_line_number("Exceeded max string literals %d", MAX_STRING_LITERALS);
     string_literals[string_literal_count] = cur_string_literal;
     string_literal_count++;
 
@@ -444,7 +445,7 @@ static BaseType *parse_declaration_specifiers() {
         // Implicit int
         type = new_type(TYPE_INT);
 
-    if (!type) panic("Type is null");
+    if (!type) panic_with_line_number("Type is null");
 
     if ((data_type_sum > 1))
         error("Two or more data types in declaration specifiers");
@@ -495,7 +496,7 @@ static Type *move_array_const(Type *type) {
 static Type *concat_types(Type *type1, Type *type2) {
     if (type1 == 0) return move_array_const(type2);
     else if (type2 == 0) return move_array_const(type1);
-    else if (type1 == 0 && type2 == 0) panic("concat type got two null types");
+    else if (type1 == 0 && type2 == 0) panic_with_line_number("concat type got two null types");
 
     Type *type1_tail = type1;
     while (type1_tail->target) type1_tail = type1_tail->target;
@@ -658,7 +659,7 @@ static void parse_function_paramless_declaration_list(Function *function) {
                     break;
                 }
             }
-            if (!found_identifier) panic("unable to match function param identifier");
+            if (!found_identifier) panic_with_line_number("unable to match function param identifier");
 
             if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) error("Expected a ; or ,");
             if (cur_token == TOK_COMMA) next();
@@ -779,7 +780,7 @@ static StructOrUnionMember *add_struct_member(char *identifier, Type *type, Stru
     member->type = dup_type(type);
 
     if (*member_count == MAX_STRUCT_MEMBERS)
-        panic("Exceeded max struct/union members %d", MAX_STRUCT_MEMBERS);
+        panic_with_line_number("Exceeded max struct/union members %d", MAX_STRUCT_MEMBERS);
 
     s->members[(*member_count)++] = member;
 
@@ -976,7 +977,7 @@ static void parse_typedef(void) {
 
         Type *type = concat_types(parse_declarator(), dup_type(base_type));
 
-        if (all_typedefs_count == MAX_TYPEDEFS) panic("Exceeded max typedefs");
+        if (all_typedefs_count == MAX_TYPEDEFS) panic_with_line_number("Exceeded max typedefs");
         Typedef *td = malloc(sizeof(Typedef));
         memset(td, 0, sizeof(Typedef));
         td->identifier = cur_type_identifier;
@@ -1002,8 +1003,8 @@ static void indirect(void) {
     if (is_incomplete_type(target))
         error("Attempt to use an incomplete type");
 
-    if (src1->is_lvalue) panic("Expected rvalue");
-    if (!src1->vreg) panic("Expected a vreg");
+    if (src1->is_lvalue) panic_with_line_number("Expected rvalue");
+    if (!src1->vreg) panic_with_line_number("Expected a vreg");
 
     Value *dst = new_value();
     dst->vreg = src1->vreg;
@@ -1160,7 +1161,7 @@ static Value *double_type_change(Value *src) {
     Value *dst;
 
     if (src->type->type == TYPE_PTR) error("Unable to convert a pointer to a double");
-    if (src->type->type == TYPE_LONG_DOUBLE) panic("Unexpectedly got a long double -> double conversion");
+    if (src->type->type == TYPE_LONG_DOUBLE) panic_with_line_number("Unexpectedly got a long double -> double conversion");
     if (src->type->type == TYPE_DOUBLE) return src;
 
     if (src->is_constant) {
@@ -1190,8 +1191,8 @@ static Value *float_type_change(Value *src) {
     Value *dst;
 
     if (src->type->type == TYPE_PTR) error("Unable to convert a pointer to a double");
-    if (src->type->type == TYPE_LONG_DOUBLE) panic("Unexpectedly got a long double -> float conversion");
-    if (src->type->type == TYPE_DOUBLE) panic("Unexpectedly got a double -> float conversion");
+    if (src->type->type == TYPE_LONG_DOUBLE) panic_with_line_number("Unexpectedly got a long double -> float conversion");
+    if (src->type->type == TYPE_DOUBLE) panic_with_line_number("Unexpectedly got a double -> float conversion");
     if (src->type->type == TYPE_FLOAT) return src;
 
     if (src->is_constant)
@@ -1608,7 +1609,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     if (!s) error("Attempt to add an initializer to value without a global_symbol");
 
     if (!s->initializers) s->initializers = malloc(sizeof(Initializer) * MAX_INITIALIZERS);
-    if (s->initializer_count == MAX_INITIALIZERS) panic("Exceeded MAX_INITIALIZERS=%d", MAX_INITIALIZERS);
+    if (s->initializer_count == MAX_INITIALIZERS) panic_with_line_number("Exceeded MAX_INITIALIZERS=%d", MAX_INITIALIZERS);
 
     int bf_offset;
     int bf_bit_offset;
@@ -1839,7 +1840,7 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
             // An array was descended into, but not completed. Zero the elements first.
             int array_element_size = get_type_size(outer_it->type->target);
             int zeroes = array_element_size - ((it->offset - initial_outer_offset) % array_element_size);
-            if (zeroes < 0) panic("Got negative zeroes");
+            if (zeroes < 0) panic_with_line_number("Got negative zeroes");
             if (zeroes)
                 initialize_with_zeroes(value, it->offset, zeroes);
 
@@ -1856,7 +1857,7 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
     if (!type_iterator_done(it)) {
         int outer_size = get_type_size((outer_it->type));
         int zeroes = initial_outer_offset + outer_size - it->offset;
-        if (zeroes < 0) panic("Got negative zeroes");
+        if (zeroes < 0) panic_with_line_number("Got negative zeroes");
         if (zeroes)
             initialize_with_zeroes(value, it->offset, zeroes);
     }
@@ -1977,7 +1978,7 @@ static void parse_declaration(void) {
         // cur_function_symbol->type->function->static_symbols
         Function *function = cur_function_symbol->type->function;
         if (function->static_symbol_count == MAX_LOCAL_SCOPE_IDENTIFIERS)
-            panic("Exceeded MAX_LOCAL_SCOPE_IDENTIFIERS=%d", MAX_LOCAL_SCOPE_IDENTIFIERS);
+            panic_with_line_number("Exceeded MAX_LOCAL_SCOPE_IDENTIFIERS=%d", MAX_LOCAL_SCOPE_IDENTIFIERS);
 
         function->static_symbols[function->static_symbol_count++] = symbol;
     }
@@ -3070,7 +3071,7 @@ static void parse_goto_statement(void) {
     next();
 
     // A typedef an also be used as an identifier in a goto statement
-    if (cur_token != TOK_TYPEDEF_TYPE && cur_token != TOK_IDENTIFIER) panic("Expected an identifier");
+    if (cur_token != TOK_TYPEDEF_TYPE && cur_token != TOK_IDENTIFIER) panic_with_line_number("Expected an identifier");
 
     Value *ldst = strmap_get(cur_function_symbol->type->function->labels, cur_identifier);
     if (ldst)
@@ -3108,7 +3109,7 @@ static void backpatch_gotos(void) {
 
 static void add_va_register_save_area(void) {
     Type *type = find_struct_or_union("__wcc_register_save_area", 0, 1);
-    if (!type) panic("Unable to find __wcc_register_save_area");
+    if (!type) panic_with_line_number("Unable to find __wcc_register_save_area");
     Value *v = new_value();
     v->type = type;
     v->local_index = new_local_index();

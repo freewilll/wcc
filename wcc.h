@@ -839,9 +839,7 @@ typedef struct string_buffer {
 } StringBuffer;
 
 void panic(char *format, ...);
-void simple_error(char *format, ...);
-void error(char *format, ...);
-void warning(char *format, ...);
+
 Function *new_function(void);
 void quicksort_ulong_array(unsigned long *array, int left, int right);
 char *base_path(char *path);
@@ -849,6 +847,12 @@ int wasprintf(char **ret, const char *format, ...);
 StringBuffer *new_string_buffer(int initial_size);
 void append_to_string_buffer(StringBuffer *sb, char *str);
 void terminate_string_buffer(StringBuffer *sb);
+
+// error.c
+void panic_with_line_number(char *format, ...);
+void simple_error(char *format, ...);
+void error(char *format, ...);
+void warning(char *format, ...);
 
 // lexer.c
 void init_lexer(char *filename);

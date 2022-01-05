@@ -17,6 +17,22 @@ static void print_filename_and_linenumber(int is_tty) {
     if (is_tty) fprintf(stderr, RESET);
 }
 
+void panic_with_line_number(char *format, ...) {
+    va_list ap;
+    va_start(ap, format);
+
+    int is_tty = isatty(2);
+    print_filename_and_linenumber(is_tty);
+    if (is_tty) fprintf(stderr, BRED);
+    fprintf(stderr, "internal error: ");
+    if (is_tty) fprintf(stderr, RESET);
+    vfprintf(stderr, format, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    exit(1);
+}
+
+
 // Report an error by itself (no filename or line number) and exit
 void simple_error(char *format, ...) {
     va_list ap;
