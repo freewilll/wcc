@@ -2481,7 +2481,6 @@ static void parse_expression(int level) {
             push_value_size_constant(src1);
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
             add_instruction(IR_MOVE, v1, vtop, 0);
-            push(v1); // Push the original lvalue back on the value stack
 
             break;
         }

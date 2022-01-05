@@ -67,6 +67,19 @@ void test_inc_dec_sizes() {
     uppl++; assert_int(8, uppl, "++- size uca");  uppl--; assert_int(0, uppl, "++- size ucb"); ++uppl; assert_int(8, uppl, "++- size ucc");  uppl--; assert_int(0, uppl, "++- size ucd");
 }
 
+int test_prefix_inc_bug() {
+    unsigned char *puc;
+    unsigned int i;
+
+    puc = malloc(2 * sizeof(char));
+
+    i = 1;
+    puc[0] = 0;
+    puc[1] = 0x81;
+
+    assert_int(129, (i << 7) | (*++puc & 0x7f), "Prefix ++ bug");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -76,6 +89,7 @@ int main(int argc, char **argv) {
     test_prefix_inc_dec();
     test_postfix_inc_dec();
     test_inc_dec_sizes();
+    test_prefix_inc_bug();
 
     finalize();
 }
