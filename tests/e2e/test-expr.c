@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -1583,6 +1584,15 @@ void test_cast_to_void() {
     (void) return_int();
 }
 
+void test_offsetof(){
+    assert_int(1, offsetof(struct { char e1; char  e2; }, e2), "offsetof cc");
+    assert_int(2, offsetof(struct { char e1; short e2; }, e2), "offsetof cs");
+    assert_int(4, offsetof(struct { char e1; int   e2; }, e2), "offsetof ci");
+    assert_int(8, offsetof(struct { char e1; long  e2; }, e2), "offsetof cl");
+    assert_int(4, offsetof(struct { int  e1; char  e2; }, e2), "offsetof ic");
+    assert_int(8, offsetof(struct { int  e1; long  e2; }, e2), "offsetof il");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1637,6 +1647,7 @@ int main(int argc, char **argv) {
     test_extern_function_returning_pointer_to_struct_bug();
     test_BSHR_conversion_bug();
     test_cast_to_void();
+    test_offsetof();
 
     finalize();
 }

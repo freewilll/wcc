@@ -1004,10 +1004,8 @@ static void indirect(void) {
         error("Attempt to use an incomplete type");
 
     if (src1->is_lvalue) panic_with_line_number("Expected rvalue");
-    if (!src1->vreg) panic_with_line_number("Expected a vreg");
 
-    Value *dst = new_value();
-    dst->vreg = src1->vreg;
+    Value *dst = dup_value(src1);
     dst->type = deref_pointer(src1->type);
     dst->is_lvalue = 1;
     push(dst);
@@ -2455,14 +2453,25 @@ static void parse_expression(int level) {
             if (vtop->bit_field_size) error("Cannot take an address of a bit-field");
 
             Value *src1 = pop();
-            add_ir_op(IR_ADDRESS_OF, make_pointer(src1->type), new_vreg(), src1, 0);
-            if (src1->offset && src1->vreg) {
-                // Non-vreg offsets are outputted by codegen. For addresses in registers, it
-                // needs to be calculated.
-                push_integral_constant(TYPE_INT, src1->offset);
-                arithmetic_operation(IR_ADD, 0);
-                src1->offset = 0;
+
+            if (src1->is_constant)
+                // Special case of taking an address of a constant. This happens with
+                // the offsetof macro which does something like:
+                // define offsetof(STRUCTURE,FIELD) ((int) ((size_t)&((STRUCTURE*)0)->FIELD))
+                // e.g. (int) ((size_t) &((struct s *) 0)->m);
+                push_integral_constant(TYPE_LONG, src1->int_value + src1->offset);
+
+            else {
+                add_ir_op(IR_ADDRESS_OF, make_pointer(src1->type), new_vreg(), src1, 0);
+                if (src1->offset && src1->vreg) {
+                    // Non-vreg offsets are outputted by codegen. For addresses in registers, it
+                    // needs to be calculated.
+                    push_integral_constant(TYPE_INT, src1->offset);
+                    arithmetic_operation(IR_ADD, 0);
+                    src1->offset = 0;
+                }
             }
+
             break;
 
         case TOK_INC:
