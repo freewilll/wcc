@@ -2305,10 +2305,9 @@ void parse_struct_dot_arrow_expression(void) {
     Type *str_type = is_dot ? vtop->type : vtop->type->target;
     StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
 
-    if (!type_is_modifiable(str_type)) {
-        member->type = dup_type(member->type);
-        member->type->is_const = 1;
-    }
+    int member_is_const = 0;
+    if (!type_is_modifiable(str_type))
+        member_is_const = 1;
 
     if (!is_dot) indirect();
 
@@ -2320,6 +2319,7 @@ void parse_struct_dot_arrow_expression(void) {
     v->bit_field_offset = v->offset * 8 + (member->bit_field_offset & 7);
     v->bit_field_size = member->bit_field_size;
     v->type = dup_type(member->type);
+    v->type->is_const = member_is_const;
     v->is_lvalue = 1;
     push(v);
 }

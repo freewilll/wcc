@@ -1393,6 +1393,9 @@ int test_const_assignment() {
     const struct s s;
     struct s s2;
     s2.i = 1;
+
+    struct s s3;
+    s3.i = 1;
 }
 
 int inc_static_int() {

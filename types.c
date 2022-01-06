@@ -831,7 +831,10 @@ int type_is_modifiable(Type *type) {
         for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) {
             StructOrUnionMember *member = *pmember;
 
-            if (member->type->is_const) { is_modifiable = 0; break; }
+            if (member->type->is_const) {
+                is_modifiable = 0;
+                break;
+            }
 
             if (member->type->type == TYPE_STRUCT_OR_UNION) {
                 is_modifiable = type_is_modifiable(member->type);
