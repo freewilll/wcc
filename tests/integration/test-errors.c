@@ -450,5 +450,15 @@ int main(int argc, char **argv) {
         "Duplicate label foo",
         "Duplicate label foo");
 
+    check_output(
+        "void foo() { return 1; }",
+        "Return with a value in a function returning void",
+        "Return with a value in a function returning void");
+
+    check_main_output(
+        "const a *b;",
+        "Missing expression",
+        "Missing expression");
+
     finalize();
 }

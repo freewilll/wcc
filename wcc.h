@@ -703,10 +703,6 @@ Symbol *cur_function_symbol;     // Currently parsed function
 Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
 Value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
 
-Value **vs_start;        // Value stack start
-Value **vs;              // Value stack current position
-Value *vtop;             // Value at the top of the stack
-
 Typedef **all_typedefs;   // All typedefs
 int all_typedefs_count;   // Number of typedefs
 

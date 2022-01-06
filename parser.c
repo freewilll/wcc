@@ -15,16 +15,6 @@ typedef struct goto_backpatch {
     Tac *ir;
 } GotoBackPatch;
 
-static Type *parse_struct_or_union_type_specifier(void);
-static Type *parse_enum_type_specifier(void);
-static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
-void check_and_or_operation_type(Value *src1, Value *src2);
-Value *parse_expression_and_pop(int level);
-static void parse_statement(void);
-static void parse_expression(int level);
-
-static BaseType *base_type;
-
 int function_call_count; // Uniquely identify a function call within a function
 
 StructOrUnion **all_structs_and_unions;  // All structs/unions defined globally.
@@ -38,6 +28,28 @@ Tac *case_ir_start;             // Start of IR for current switch case condition
 Tac *case_ir;                   // IR for current switch case conditional & jump statements
 Value *case_default_label;      // Label for curren't switch's statement default case, if present
 int seen_switch_default;        // Set to 1 if a default label has been seen within the current switch statement
+
+Value **vs_start;        // Value stack start
+Value **vs;              // Value stack current position
+
+static Type *parse_struct_or_union_type_specifier(void);
+static Type *parse_enum_type_specifier(void);
+static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
+void check_and_or_operation_type(Value *src1, Value *src2);
+Value *parse_expression_and_pop(int level);
+static void parse_statement(void);
+static void parse_expression(int level);
+
+static BaseType *base_type;
+
+static int value_stack_is_empty(void) {
+    return vs == vs_start;
+}
+
+static Value *vtop(void) {
+    if (vs == vs_start) error("Missing expression");
+    return *vs;
+}
 
 // Allocate a new virtual register
 static int new_vreg(void) {
@@ -56,13 +68,12 @@ static Value *decay_array_value(Value *v) {
 // Push a value to the stack
 static Value *push(Value *v) {
     *--vs = v;
-    vtop = *vs;
     return v;
 }
 
 static void check_stack_has_value(void) {
     if (vs == vs_start) panic_with_line_number("Empty parser stack");
-    if (vtop->type->type == TYPE_VOID) error("Illegal attempt to use a void value");
+    if (vtop()->type->type == TYPE_VOID) error("Illegal attempt to use a void value");
 }
 
 // Pop a value from the stack
@@ -70,7 +81,6 @@ static Value *pop(void) {
     check_stack_has_value();
 
     Value *result = *vs++;
-    vtop = *vs;
 
     return result;
 }
@@ -80,7 +90,6 @@ static void *pop_void(void) {
     if (vs == vs_start) return;
 
     vs++;
-    vtop = *vs;
 }
 
 static Value *load_bit_field(Value *src1) {
@@ -282,7 +291,7 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
 
 // Returns destination type of an operation using the top two values in the stack
 static Type *vs_operation_type(void) {
-    return operation_type(vtop, vs[1], 0);
+    return operation_type(vtop(), vs[1], 0);
 }
 
 int cur_token_is_type(void) {
@@ -1045,7 +1054,7 @@ static void add_conditional_jump(int operation, Value *dst) {
 
 // Add instructions for && and || operators
 static void and_or_expr(int is_and, int level) {
-    Value *src1 = vtop;
+    Value *src1 = vtop();
 
     Value *ldst1 = new_label_dst(); // Store zero
     Value *ldst2 = new_label_dst(); // Second operand test
@@ -1069,7 +1078,7 @@ static void and_or_expr(int is_and, int level) {
     // Test second operand
     add_jmp_target_instruction(ldst2);
     parse_expression(level);
-    Value *src2 = vtop;
+    Value *src2 = vtop();
     check_and_or_operation_type(src1, src2);
     add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
     push_integral_constant(TYPE_INT, is_and ? 1 : 0);     // Store 1
@@ -1407,9 +1416,9 @@ void check_binary_operation_types(int operation, Value *src1, Value *src2) {
 }
 
 static void parse_arithmetic_operation(int level, int operation, Type *type) {
-    Value *src1 = vtop;
+    Value *src1 = vtop();
     parse_expression(level);
-    Value *src2 = vtop;
+    Value *src2 = vtop();
     check_binary_operation_types(operation, src1, src2);
 
     arithmetic_operation(operation, type);
@@ -1592,8 +1601,8 @@ static void add_simple_assignment_instruction(Value *dst, Value *src1, int enfor
 
 // Parse a simple assignment expression. The stack is the dst.
 static void parse_simple_assignment(int enforce_const) {
-    if (!vtop->is_lvalue) error("Cannot assign to an rvalue");
-    if (enforce_const && !type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");
+    if (!vtop()->is_lvalue) error("Cannot assign to an rvalue");
+    if (enforce_const && !type_is_modifiable(vtop()->type)) error("Cannot assign to read-only variable");
 
     Value *dst = pop();
     parse_expression(TOK_EQ);
@@ -1867,25 +1876,25 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
 Value *prep_comp_assign(void) {
     next();
 
-    if (!vtop->is_lvalue) error("Cannot assign to an rvalue");
-    if (!type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");
+    if (!vtop()->is_lvalue) error("Cannot assign to an rvalue");
+    if (!type_is_modifiable(vtop()->type)) error("Cannot assign to read-only variable");
 
-    Value *v1 = vtop;           // lvalue
+    Value *v1 = vtop();           // lvalue
     push(load(dup_value(v1)));  // rvalue
     return v1;
 }
 
 // Finish compound assignment
 static void finish_comp_assign(Value *v1) {
-    add_instruction(IR_MOVE, v1, vtop, 0);
+    add_instruction(IR_MOVE, v1, vtop(), 0);
 }
 
 static void parse_addition(int level) {
-    if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
-    Value *src1 = vtop;
+    if (vtop()->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
+    Value *src1 = vtop();
     parse_expression(level);
-    Value *src2 = vtop;
-    if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
+    Value *src2 = vtop();
+    if (vtop()->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
 
     check_plus_operation_type(src1, src2);
 
@@ -1913,12 +1922,12 @@ static void parse_addition(int level) {
 }
 
 static void parse_subtraction(int level) {
-    Value *src1 = vtop;
+    Value *src1 = vtop();
 
-    int factor = get_type_inc_dec_size(vtop->type);
+    int factor = get_type_inc_dec_size(vtop()->type);
 
     parse_expression(level);
-    Value *src2 = vtop;
+    Value *src2 = vtop();
 
     check_minus_operation_type(src1, src2);
 
@@ -1933,7 +1942,7 @@ static void parse_subtraction(int level) {
         arithmetic_operation(IR_SUB, 0);
 
         if (src2_is_pointer) {
-            vtop->type = new_type(TYPE_LONG);
+            vtop()->type = new_type(TYPE_LONG);
             push_integral_constant(TYPE_INT, factor);
             arithmetic_operation(IR_DIV, 0);
         }
@@ -1941,7 +1950,7 @@ static void parse_subtraction(int level) {
     else
         arithmetic_operation(IR_SUB, 0);
 
-    if (src2_is_pointer) vtop->type = new_type(TYPE_LONG);
+    if (src2_is_pointer) vtop()->type = new_type(TYPE_LONG);
 }
 
 static void parse_bitwise_shift(int level, int unsigned_operation, int signed_operation) {
@@ -2112,12 +2121,12 @@ static void parse_function_call(void) {
         int arg_count = fpa_arg_count - has_struct_or_union_return_value;
         arg->function_call_arg_index = arg_count;
 
-        if (vtop->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
-        if (vtop->type->type == TYPE_ENUM) vtop->type->type = TYPE_INT;
+        if (vtop()->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
+        if (vtop()->type->type == TYPE_ENUM) vtop()->type->type = TYPE_INT;
 
         // Convert type if needed
         if (!function->is_paramless && arg_count < function->param_count) {
-            if (!type_eq(vtop->type, function->param_types[arg_count])) {
+            if (!type_eq(vtop()->type, function->param_types[arg_count])) {
                 Type *param_type = function->param_types[arg_count];
 
                 if (param_type->type == TYPE_ARRAY)
@@ -2141,7 +2150,7 @@ static void parse_function_call(void) {
                 push(arg);
         }
 
-        add_function_param_to_allocation(fpa, vtop->type);
+        add_function_param_to_allocation(fpa, vtop()->type);
         FunctionParamLocations *fpl = &(fpa->params[fpa_arg_count]);
         arg->function_call_arg_locations = fpl;
         arg->has_struct_or_union_return_value = has_struct_or_union_return_value;
@@ -2288,13 +2297,13 @@ void parse_struct_dot_arrow_expression(void) {
     // Struct/union member lookup
 
     if (cur_token == TOK_DOT) {
-        if (vtop->type->type != TYPE_STRUCT_OR_UNION) error("Can only use . on a struct or union");
-        if (!vtop->is_lvalue) error("Expected lvalue for struct . operation.");
+        if (vtop()->type->type != TYPE_STRUCT_OR_UNION) error("Can only use . on a struct or union");
+        if (!vtop()->is_lvalue) error("Expected lvalue for struct . operation.");
     }
     else {
-        if (!is_pointer_type(vtop->type)) error("Cannot use -> on a non-pointer");
-        if (vtop->type->target->type != TYPE_STRUCT_OR_UNION) error("Can only use -> on a pointer to a struct or union");
-        if (is_incomplete_type(vtop->type->target)) error("Dereferencing a pointer to incomplete struct or union");
+        if (!is_pointer_type(vtop()->type)) error("Cannot use -> on a non-pointer");
+        if (vtop()->type->target->type != TYPE_STRUCT_OR_UNION) error("Can only use -> on a pointer to a struct or union");
+        if (is_incomplete_type(vtop()->type->target)) error("Dereferencing a pointer to incomplete struct or union");
     }
 
     int is_dot = cur_token == TOK_DOT;
@@ -2302,7 +2311,7 @@ void parse_struct_dot_arrow_expression(void) {
     next();
     consume(TOK_IDENTIFIER, "identifier");
 
-    Type *str_type = is_dot ? vtop->type : vtop->type->target;
+    Type *str_type = is_dot ? vtop()->type : vtop()->type->target;
     StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
 
     int member_is_const = 0;
@@ -2364,7 +2373,7 @@ void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2) {
 }
 
 void parse_ternary_expression(void) {
-    Value *switcher = vtop;
+    Value *switcher = vtop();
 
     // Destination register
     Value *dst = new_value();
@@ -2374,13 +2383,13 @@ void parse_ternary_expression(void) {
     Value *ldst2 = new_label_dst(); // End
     add_conditional_jump(IR_JZ, ldst1);
     parse_expression(TOK_COMMA); // See https://en.cppreference.com/w/c/language/operator_precedence#cite_note-3
-    Value *src1 = vtop;
-    if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
+    Value *src1 = vtop();
+    if (vtop()->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
     add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
     add_jmp_target_instruction(ldst1);    // Start of false case
     consume(TOK_COLON, ":");
     parse_expression(TOK_TERNARY);
-    Value *src2 = vtop;
+    Value *src2 = vtop();
 
     // Decay arrays to pointers
     if (src1->type->type == TYPE_ARRAY) src1 = decay_array_value(src1);
@@ -2393,7 +2402,7 @@ void parse_ternary_expression(void) {
     // Convert dst function to pointer to function
     if (dst->type->type == TYPE_FUNCTION) dst->type = make_pointer(dst->type);
 
-    if (vtop->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
+    if (vtop()->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
     push(dst);
     add_jmp_target_instruction(ldst2); // End
 }
@@ -2423,9 +2432,9 @@ static void parse_expression(int level) {
         case TOK_LOGICAL_NOT:
             next();
             parse_expression(TOK_INC);
-            check_unary_operation_type(IR_LNOT, vtop);
+            check_unary_operation_type(IR_LNOT, vtop());
 
-            if (vtop->is_constant)
+            if (vtop()->is_constant)
                 push_integral_constant(TYPE_INT, !pop()->int_value);
             else {
                 push_integral_constant(TYPE_INT, 0);
@@ -2436,9 +2445,9 @@ static void parse_expression(int level) {
         case TOK_BITWISE_NOT:
             next();
             parse_expression(TOK_INC);
-            check_unary_operation_type(IR_BNOT, vtop);
+            check_unary_operation_type(IR_BNOT, vtop());
             push(integer_promote(pl()));
-            Type *type = vtop->type;
+            Type *type = vtop()->type;
             add_ir_op(IR_BNOT, type, new_vreg(), pl(), 0);
             break;
 
@@ -2447,10 +2456,10 @@ static void parse_expression(int level) {
             parse_expression(TOK_INC);
 
             // Arrays are rvalues as well as lvalues. Otherwise, an lvalue is required
-            if ((vtop->type->type == TYPE_ARRAY && vtop->is_lvalue) && !vtop->is_lvalue)
+            if ((vtop()->type->type == TYPE_ARRAY && vtop()->is_lvalue) && !vtop()->is_lvalue)
                 error("Cannot take an address of an rvalue");
 
-            if (vtop->bit_field_size) error("Cannot take an address of a bit-field");
+            if (vtop()->bit_field_size) error("Cannot take an address of a bit-field");
 
             Value *src1 = pop();
 
@@ -2482,15 +2491,15 @@ static void parse_expression(int level) {
             next();
             parse_expression(TOK_DOT);
 
-            if (!vtop->is_lvalue) error("Cannot ++ or -- an rvalue");
-            if (!type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");
+            if (!vtop()->is_lvalue) error("Cannot ++ or -- an rvalue");
+            if (!type_is_modifiable(vtop()->type)) error("Cannot assign to read-only variable");
 
             Value *v1 = pop();                 // lvalue
             Value *src1 = load(dup_value(v1)); // rvalue
             push(src1);
             push_value_size_constant(src1);
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
-            add_instruction(IR_MOVE, v1, vtop, 0);
+            add_instruction(IR_MOVE, v1, vtop(), 0);
 
             break;
         }
@@ -2503,8 +2512,8 @@ static void parse_expression(int level) {
                 parse_expression(TOK_INC);
 
                 // Special case: indirects on function types are no-ops.
-                if (vtop->type->type != TYPE_FUNCTION)  {
-                    if (!is_pointer_or_array_type(vtop->type)) error("Cannot dereference a non-pointer");
+                if (vtop()->type->type != TYPE_FUNCTION)  {
+                    if (!is_pointer_or_array_type(vtop()->type)) error("Cannot dereference a non-pointer");
                     indirect();
                 }
             }
@@ -2515,8 +2524,8 @@ static void parse_expression(int level) {
 
             next();
             parse_expression(TOK_INC);
-            check_unary_operation_type(IR_ADD, vtop);
-            if (is_integer_type(vtop->type)) push(integer_promote(pl()));
+            check_unary_operation_type(IR_ADD, vtop());
+            if (is_integer_type(vtop()->type)) push(integer_promote(pl()));
             break;
 
         case TOK_MINUS:
@@ -2524,22 +2533,22 @@ static void parse_expression(int level) {
             next();
 
             parse_expression(TOK_INC);
-            check_unary_operation_type(IR_SUB, vtop);
+            check_unary_operation_type(IR_SUB, vtop());
 
-            if (vtop->is_constant) {
-                if (is_sse_floating_point_type(vtop->type))
-                    vtop->fp_value = -vtop->fp_value;
+            if (vtop()->is_constant) {
+                if (is_sse_floating_point_type(vtop()->type))
+                    vtop()->fp_value = -vtop()->fp_value;
                 else {
                     push_integral_constant(TYPE_INT, -1);
                     arithmetic_operation(IR_MUL, 0);
                 }
             }
             else {
-                if (vtop->type->type == TYPE_LONG_DOUBLE)
+                if (vtop()->type->type == TYPE_LONG_DOUBLE)
                     push_floating_point_constant(TYPE_LONG_DOUBLE, -1.0L);
-                else if (vtop->type->type == TYPE_DOUBLE)
+                else if (vtop()->type->type == TYPE_DOUBLE)
                     push_floating_point_constant(TYPE_DOUBLE, -1.0L);
-                else if (vtop->type->type == TYPE_FLOAT)
+                else if (vtop()->type->type == TYPE_FLOAT)
                     push_floating_point_constant(TYPE_FLOAT, -1.0L);
                 else
                     push_integral_constant(TYPE_INT, -1);
@@ -2665,7 +2674,7 @@ static void parse_expression(int level) {
             case TOK_LBRACKET:
                 next();
 
-                if (vtop->type->type != TYPE_PTR && vtop->type->type != TYPE_ARRAY)
+                if (vtop()->type->type != TYPE_PTR && vtop()->type->type != TYPE_ARRAY)
                     error("Invalid operator [] on a non-pointer and non-array");
 
                 parse_addition(TOK_COMMA);
@@ -2685,16 +2694,16 @@ static void parse_expression(int level) {
                 int org_token = cur_token;
                 next();
 
-                if (!vtop->is_lvalue) error("Cannot ++ or -- an rvalue");
-                if (!is_scalar_type(vtop->type)) error("Cannot postfix ++ or -- on a non scalar");
-                if (!type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");
+                if (!vtop()->is_lvalue) error("Cannot ++ or -- an rvalue");
+                if (!is_scalar_type(vtop()->type)) error("Cannot postfix ++ or -- on a non scalar");
+                if (!type_is_modifiable(vtop()->type)) error("Cannot assign to read-only variable");
 
                 Value *v1 = pop();                 // lvalue
                 Value *src1 = load(dup_value(v1)); // rvalue
                 push(src1);
                 push_value_size_constant(src1);
                 arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
-                add_instruction(IR_MOVE, v1, vtop, 0);
+                add_instruction(IR_MOVE, v1, vtop(), 0);
                 pop(); // Pop the lvalue of the assignment off the stack
                 push(src1); // Push the original rvalue back on the value stack
                 break;
@@ -2760,7 +2769,7 @@ static void parse_iteration_conditional_expression(Value **lcond, Value **cur_lo
     add_jmp_target_instruction(*lcond);
 
     parse_expression(TOK_COMMA);
-    if (!is_scalar_type(vtop->type))
+    if (!is_scalar_type(vtop()->type))
         error("Expected scalar type for loop controlling expression");
 
     add_conditional_jump(IR_JZ, lend);
@@ -3008,7 +3017,7 @@ static void parse_if_statement(void) {
 
     consume(TOK_LPAREN, "(");
     parse_expression(TOK_COMMA);
-    if (!is_scalar_type(vtop->type)) error("The controlling statement of an if statement must be a scalar");
+    if (!is_scalar_type(vtop()->type)) error("The controlling statement of an if statement must be a scalar");
     consume(TOK_RPAREN, ")");
 
     Value *ldst1 = new_label_dst(); // False case
@@ -3038,11 +3047,11 @@ static void parse_return_statement(void) {
     else {
         parse_expression(TOK_COMMA);
 
-        if (vtop && vtop->type->type != TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID)
+        if (!value_stack_is_empty() && vtop()->type->type != TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID)
             error("Return with a value in a function returning void");
 
         Value *src1;
-        if (vtop && vtop->type->type == TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID) {
+        if (!value_stack_is_empty() && vtop()->type->type == TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID) {
             // Deal with case of returning the result of a void function in a void function
             // e.g. foo(); void bar() { return foo(); }
             vs++; // Remove from value stack
