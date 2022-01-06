@@ -390,15 +390,15 @@ static BaseType *parse_declaration_specifiers() {
                 break;
             case TOK_STRUCT:
                 seen_struct++;
-                type = parse_struct_or_union_type_specifier();
+                type = dup_type(parse_struct_or_union_type_specifier());
                 break;
             case TOK_UNION:
                 seen_union++;
-                type = parse_struct_or_union_type_specifier();
+                type = dup_type(parse_struct_or_union_type_specifier());
                 break;
             case TOK_ENUM:
                 seen_enum++;
-                type = parse_enum_type_specifier();
+                type = dup_type(parse_enum_type_specifier());
                 break;
             case TOK_TYPEDEF_TYPE:
                 // If a typedef type has been encountered by the lexer and a type already
@@ -1590,7 +1590,7 @@ static void add_simple_assignment_instruction(Value *dst, Value *src1, int enfor
     push(dst);
 }
 
-// Parse a simple assignment expression. The stack as the dst.
+// Parse a simple assignment expression. The stack is the dst.
 static void parse_simple_assignment(int enforce_const) {
     if (!vtop->is_lvalue) error("Cannot assign to an rvalue");
     if (enforce_const && !type_is_modifiable(vtop->type)) error("Cannot assign to read-only variable");

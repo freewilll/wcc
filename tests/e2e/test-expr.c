@@ -1388,6 +1388,11 @@ int test_global_var_in_the_middle() {
 
 int test_const_assignment() {
     const int i = 1;
+
+    struct s { int i; };
+    const struct s s;
+    struct s s2;
+    s2.i = 1;
 }
 
 int inc_static_int() {

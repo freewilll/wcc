@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
         "const struct s s;"
         "struct s *const ps = &s;"
         "ps->i = 1;",
-        "Cannot assign to read-only variable",
+        "Assignment discards const qualifier",
         "Assigmnent to const struct through -> operator");
 
     check_main_output(
