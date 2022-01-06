@@ -3359,8 +3359,10 @@ void parse(void) {
                     symbol->type = dup_type(type);
                     symbol->global_identifier = cur_type_identifier;
                 }
-                else
+                else {
+                    if (original_symbol->initializers) error("Redefinition of %s", cur_type_identifier);
                     symbol = original_symbol;
+                }
 
                 if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
                     error("%s redeclared as different kind of symbol", cur_type_identifier);
