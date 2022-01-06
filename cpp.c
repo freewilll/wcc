@@ -1749,6 +1749,8 @@ char *preprocess(char *filename) {
 
     run_preprocessor_on_file(filename, 1);
 
+    if (state.conditional_include_stack->prev) error("Unterminated #if");
+
     terminate_string_buffer(output);
 
     free_allocated_tokens();
