@@ -987,6 +987,7 @@ static void add_sub_rules(void) {
         add_sub_rule(XRI, XRI,     CI1 + i, 10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
         add_sub_rule(XRU, XRU,     CU1 + i, 10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
         add_sub_rule(XRP, XRP,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
+        add_sub_rule(RI4, XRP,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq"); // A pointer difference is a signed int
         add_sub_rule(XRP, XRP,     CU1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
         add_sub_rule(RP5, RP5,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
         add_sub_rule(RP5, RP5,     CU1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");

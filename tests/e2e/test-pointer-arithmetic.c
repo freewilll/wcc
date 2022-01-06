@@ -171,6 +171,19 @@ void test_pointer_int_subtraction() {
     assert_long(0, l1 - uc, "pl - uc"); assert_long(0, l1 - us, "pl - us"); assert_long(0, l1 - ui, "pl - ui"); assert_long(0, l1 - ul, "pl - ul");
 }
 
+void test_pointer_const_pointer_subtraction() {
+    void *pc = (void *) 1024;;
+
+    assert_long(1024, ((char  *) pc) - (char  *) 0, "Pointer - const subtraction char 1");
+    assert_long(1023, ((char  *) pc) - (char  *) 1, "Pointer - const subtraction char 2");
+    assert_long(512,  ((short *) pc) - (short *) 0, "Pointer - const subtraction short 1");
+    assert_long(511,  ((short *) pc) - (short *) 1, "Pointer - const subtraction short 2");
+    assert_long(256,  ((int   *) pc) - (int   *) 0, "Pointer - const subtraction int 1");
+    assert_long(255,  ((int   *) pc) - (int   *) 1, "Pointer - const subtraction int 2");
+    assert_long(128,  ((long  *) pc) - (long  *) 0, "Pointer - const subtraction long 1");
+    assert_long(127,  ((long  *) pc) - (long  *) 1, "Pointer - const subtraction long 2");
+}
+
 void test_dereferenced_pointer_inc_dec() {
     struct s1 *s;
 
@@ -254,6 +267,7 @@ int main(int argc, char **argv) {
     test_pointer_pointer_subtraction1();
     test_pointer_pointer_subtraction2();
     test_pointer_int_subtraction();
+    test_pointer_const_pointer_subtraction();
     test_dereferenced_pointer_inc_dec();
     test_pointer_with_non_constant_non_pointer_addition();
     test_pointer_arithmetic_addition();
