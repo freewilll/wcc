@@ -495,6 +495,20 @@ int test_s7_s9_bug() {
     accept_s7_s9(0, s7, s9);
 }
 
+int gi = 1;
+static void func() {
+    gi = 2;
+}
+
+int call_with_func(int i1, int i2, int i3, int i4, int i5, int i6, void(*f)() ) {
+    f();
+}
+
+int test_calling_a_function_with_a_pointer_to_function_on_stack() {
+    call_with_func(1, 1, 1, 1, 1, 1, func);
+    assert_int(2, gi, "Calling a function with a *f on the stack");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -520,6 +534,7 @@ int main(int argc, char **argv) {
     test_implicit_ints_in_globals();
     test_mixed_global_declaration();
     test_s7_s9_bug();
+    test_calling_a_function_with_a_pointer_to_function_on_stack();
 
     finalize();
 }

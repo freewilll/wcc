@@ -1396,6 +1396,7 @@ void init_instruction_selection_rules(void) {
     r = add_rule(0, IR_ARG, CI4, RP2, 2);                                                          add_int_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RP3, 2);                                                          add_int_function_call_arg_op(r);
     r = add_rule(0, IR_ARG, CI4, RP4, 2);                                                          add_int_function_call_arg_op(r);
+    r = add_rule(0, IR_ARG, CI4, RPF, 2);                                                          add_int_function_call_arg_op(r);
 
     // Long double return rules
     r = add_rule(0, IR_LOAD_LONG_DOUBLE, CLD,  0, 1); add_op(r, X_MOVC, DST, SRC1, 0, "fldt %v1C");
