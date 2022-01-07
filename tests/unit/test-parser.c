@@ -247,7 +247,9 @@ int test_type_parsing() {
 
     // Function parameters
     test_type_parser("void x(void)",                   "function() returning void");
+    test_type_parser("void x()" ,                      "function() returning void");
     test_type_parser("void x(int)",                    "function(int) returning void");
+    test_type_parser("void x(i)",                      "function(int) returning void");
     test_type_parser("void x(int i)",                  "function(int) returning void");
     test_type_parser("void x(int i, ...)",             "function(int, ...) returning void");
     test_type_parser("void x(int i, int *i, int i[])", "function(int, pointer to int, array of int) returning void");

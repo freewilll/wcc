@@ -181,9 +181,6 @@ static int test_typedef_forward_declaration() {
 static void do_nothing_with_an_anonymous_struct(struct {int a;} v) {}
 
 typedef int foo;
-// typedef foo bar;
-
-// typedef int altint, intarr[3], *intptr, *arrptrint[3];
 
 int test_typedef_redeclared_as_variable(void) {
     foo foo;
@@ -194,6 +191,18 @@ int test_typedef_redeclared_as_variable(void) {
         assert_int(2, foo, "Typedef redeclared as variable");
     }
     assert_int(2, foo, "Typedef redeclared as variable");
+}
+
+// C89 3.5.4.3
+// In a parameter declaration, a single typedef name in parentheses is taken to be an
+// abstract declarator that specifies a function with a single parameter, not as
+// redundant parentheses around the identifier for a declarator.
+typedef unsigned char u8;
+int fu8(u8); // function with a u8 as a parmeter;
+int fu8(u8 i) { return  i + 1; }
+
+int test_typedef_as_single_function_parameter() {
+    assert_int(2, fu8(1), "int fu8(u8);");
 }
 
 int main(int argc, char **argv) {
@@ -207,6 +216,7 @@ int main(int argc, char **argv) {
     test_typedef_tags();
     test_typedef_forward_declaration();
     test_typedef_redeclared_as_variable();
+    test_typedef_as_single_function_parameter();
 
     finalize();
 }
