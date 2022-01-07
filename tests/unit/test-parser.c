@@ -183,6 +183,7 @@ int test_type_parsing() {
     test_type_parser("long double x",             "long double");
     test_type_parser("unsigned int x",            "unsigned int");
     test_type_parser("signed int x",              "int");
+    test_type_parser("x",                         "int"); // Implicit int
 
     // Qualifiers
     test_type_parser("const int x",               "const int");
@@ -256,6 +257,25 @@ int test_type_parsing() {
 
     // Enums
     test_type_parser("enum {I}", "enum {}");
+}
+
+void test_typedef_parsing() {
+    init_parser();
+    init_scopes();
+    init_lexer_from_string("typedef int i32;");
+    parse_typedef();
+
+    Symbol *s = lookup_symbol("i32", global_scope, 0);
+    assert_int(0, !s, "Typedef symbol");
+    assert_english_type(s->type->target, "int", "typedef int i32");
+
+    init_lexer_from_string("i32");
+    Type *type = parse_type_name();
+    assert_english_type(type, "int", "typedef int i32 use");
+
+    init_lexer_from_string("const i32");
+    type = parse_type_name();
+    assert_english_type(type, "const int", "const typedef int i32 use");
 }
 
 int test_composite_type() {
@@ -393,6 +413,7 @@ int main(int argc, char **argv) {
 
     test_integer_types_operations();
     test_type_parsing();
+    test_typedef_parsing();
     test_composite_type();
     test_constant_expressions();
 

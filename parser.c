@@ -975,7 +975,7 @@ static Type *parse_enum_type_specifier(void) {
     return type;
 }
 
-static void parse_typedef(void) {
+void parse_typedef(void) {
     next();
 
     BaseType *base_type_with_storage_class = parse_declaration_specifiers(0);

@@ -892,6 +892,7 @@ void check_minus_operation_type(Value *src1, Value *src2);
 void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2);
 Value *load_constant(Value *cv);
 Type *parse_type_name(void);
+void parse_typedef(void);
 Type *find_struct_or_union(char *identifier, int is_union, int recurse);
 StructOrUnionMember *lookup_struct_or_union_member(Type *type, char *identifier);
 Value *make_symbol_value(Symbol *symbol);
