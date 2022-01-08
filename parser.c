@@ -1318,7 +1318,7 @@ void check_minus_operation_type(Value *src1, Value *src2) {
     // * the left operand is a pointer to an object type and the right operand has integral type. (Decrementing is equivalent to subtracting 1.)
     if (
         (!(src1_is_arithmetic && src2_is_arithmetic)) &&
-        (!(src1_is_pointer && src2_is_pointer && types_are_compatible(deref_pointer(src1->type), deref_pointer(src2->type)))) &&
+        (!(src1_is_pointer && src2_is_pointer && types_are_compatible_ignore_qualifiers(deref_pointer(src1->type), deref_pointer(src2->type)))) &&
         (!(src1_is_pointer && src2_is_integer))
     )
     error("Invalid operands to binary minus");
