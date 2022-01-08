@@ -255,7 +255,7 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     // If it's a ternary and one is a pointer and the other a pointer to void, then the result is a pointer to void.
     else if (src1_type->type == TYPE_PTR && is_pointer_to_void(src2->type)) return for_ternary ? src2->type : src1->type;
     else if (src2_type->type == TYPE_PTR && is_pointer_to_void(src1->type)) return for_ternary ? src1->type : src2->type;
-    else if (for_ternary && src1_type->type == TYPE_PTR && src2_type->type == TYPE_PTR) return composite_type(src1->type, src2->type);
+    else if (for_ternary && src1_type->type == TYPE_PTR && src2_type->type == TYPE_PTR) return ternary_pointer_composite_type(src1->type, src2->type);
     else if (src1_type->type == TYPE_PTR) return src1_type;
     else if (src2_type->type == TYPE_PTR) return src2_type;
 
@@ -2361,7 +2361,7 @@ void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2) {
         (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
         (!(src1->type->type == TYPE_STRUCT_OR_UNION && src2->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible(src1->type, src2->type))) &&
         (!(src1->type->type == TYPE_VOID && src2->type->type == TYPE_VOID)) &&
-        (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
+        (!(src1_is_pointer && src2_is_pointer && types_are_compatible_ignore_qualifiers(src1_type_deref, src2_type_deref))) &&
         (!(src1_is_pointer && is_null_pointer(src2))) &&
         (!(src2_is_pointer && is_null_pointer(src1))) &&
         (!((is_pointer_to_object_type(src1->type) && is_pointer_to_void(src2->type)) ||

@@ -673,6 +673,32 @@ Type *composite_type(Type *type1, Type *type2) {
     return type1;
 }
 
+// Make the composite type for two pointers in a ternary operation If both the second
+//
+// From 3.3.15:
+// and third operands are pointers or one is a null pointer constant and the other is a
+// pointer, the result type is a pointer to a type qualified with all the type
+// qualifiers of the types pointed-to by both operands.
+Type *ternary_pointer_composite_type(Type *type1, Type *type2) {
+    // If the qualifiers of the target are the same, the composite type can be made directly
+    if (type1->target->is_const == type2->target->is_const)
+        return composite_type(type1, type2);
+
+    int is_const = type1->target->is_const || type2->target->is_const ;
+
+    // Make copies and discard the const qualifier
+    Type *dup_type1 = dup_type(type1);
+    Type *dup_type2 = dup_type(type2);
+    dup_type1->target->is_const = 0;
+    dup_type2->target->is_const = 0;
+    Type *result = composite_type(dup_type1, dup_type2);
+
+    // If either is a pointer to a const, the result is a pointer to a const
+    result->target->is_const = is_const;
+
+    return result;
+}
+
 int is_integer_operation_result_unsigned(Type *src1, Type *src2) {
     int is_insigned;
 

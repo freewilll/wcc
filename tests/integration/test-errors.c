@@ -122,6 +122,23 @@ int main(int argc, char **argv) {
         "Assignment discards const qualifier",
         "Assigmnent to const struct through -> operator");
 
+    // Test special case of composite type in ternary. If either of the operands is a
+    // pointer to a const, then the composite type is a pointer to a const.
+    check_main_output(
+        "int *pix = 1 ? (int *) 0 : (const int *) 0;",
+        "Assignment discards const qualifier",
+        "Ternary composite result non-const - const");
+
+    check_main_output(
+        "int *pix = 1 ? (const int *) 0 : (int *) 0;",
+        "Assignment discards const qualifier",
+        "Ternary composite result const - non-const");
+
+    check_main_output(
+        "int *pix = 1 ? (const int *) 0 : (const int *) 0;",
+        "Assignment discards const qualifier",
+        "Ternary composite result const - const");
+
     check_main_output(
         "const int i;"
         "i++;",

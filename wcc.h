@@ -954,6 +954,7 @@ Type *apply_default_function_call_argument_promotions(Type *type);
 int types_are_compatible(Type *type1, Type *type2);
 int types_are_compatible_ignore_qualifiers(Type *type1, Type *type2);
 Type *composite_type(Type *type1, Type *type2);
+Type *ternary_pointer_composite_type(Type *type1, Type *type2);
 int is_integer_operation_result_unsigned(Type *src1, Type *src2);
 Type *make_struct_or_union_type(StructOrUnion *s);
 void complete_struct_or_union(StructOrUnion *s);
