@@ -205,6 +205,16 @@ int test_typedef_as_single_function_parameter() {
     assert_int(2, fu8(1), "int fu8(u8);");
 }
 
+typedef int (fri)();
+
+int return_int() { return 1; }
+
+fri *function_that_returns_int = return_int;
+
+static void test_typedef_of_function_returning_int() {
+    assert_int(1, function_that_returns_int(), "typedef int (fri)()");
+}
+
 int main(int argc, char **argv) {
     parse_args(argc, argv, &verbose);
 
@@ -217,6 +227,7 @@ int main(int argc, char **argv) {
     test_typedef_forward_declaration();
     test_typedef_redeclared_as_variable();
     test_typedef_as_single_function_parameter();
+    test_typedef_of_function_returning_int();
 
     finalize();
 }

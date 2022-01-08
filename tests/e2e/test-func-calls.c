@@ -509,6 +509,15 @@ int test_calling_a_function_with_a_pointer_to_function_on_stack() {
     assert_int(2, gi, "Calling a function with a *f on the stack");
 }
 
+// Definition of a function with extra parameters
+int (function_returning_int)() {
+    return 1;
+}
+
+static void test_function_returning_int() {
+    assert_int(1, function_returning_int(), "Function definition with extra parameters");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -535,6 +544,7 @@ int main(int argc, char **argv) {
     test_mixed_global_declaration();
     test_s7_s9_bug();
     test_calling_a_function_with_a_pointer_to_function_on_stack();
+    test_function_returning_int();
 
     finalize();
 }

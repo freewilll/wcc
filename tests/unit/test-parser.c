@@ -184,6 +184,8 @@ int test_type_parsing() {
     test_type_parser("unsigned int x",            "unsigned int");
     test_type_parser("signed int x",              "int");
     test_type_parser("x",                         "int"); // Implicit int
+    test_type_parser("int (x)",                   "int");
+    test_type_parser("int ((x))",                 "int");
 
     // Qualifiers
     test_type_parser("const int x",               "const int");
@@ -201,11 +203,16 @@ int test_type_parsing() {
     test_type_parser("const int * const x",       "const pointer to const int");
     test_type_parser("const int const",           "const int");
 
+
     // Combinations of pointers, arrays and function calls
     test_type_parser("int *x",                    "pointer to int");
     test_type_parser("int x[]",                   "array of int");
     test_type_parser("int x[1]",                  "array[1] of int");
+    test_type_parser("int (x)[1]",                "array[1] of int");
+    test_type_parser("int ((x))[1]",              "array[1] of int");
     test_type_parser("int x()",                   "function() returning int");
+    test_type_parser("int (x)()",                 "function() returning int");
+    test_type_parser("int ((x))()",               "function() returning int");
     test_type_parser("int **x",                   "pointer to pointer to int");
     test_type_parser("int (*x)[]",                "pointer to array of int");
     test_type_parser("int (*x)[1]",               "pointer to array[1] of int");
@@ -262,9 +269,10 @@ int test_type_parsing() {
 void test_typedef_parsing() {
     init_parser();
     init_scopes();
-    init_lexer_from_string("typedef int i32;");
-    parse_typedef();
 
+    init_lexer_from_string("typedef int i32;");
+
+    parse_typedef();
     Symbol *s = lookup_symbol("i32", global_scope, 0);
     assert_int(0, !s, "Typedef symbol");
     assert_english_type(s->type->target, "int", "typedef int i32");
@@ -276,6 +284,14 @@ void test_typedef_parsing() {
     init_lexer_from_string("const i32");
     type = parse_type_name();
     assert_english_type(type, "const int", "const typedef int i32 use");
+
+    init_lexer_from_string("typedef int (fri)();");
+    parse_typedef();
+    s = lookup_symbol("fri", global_scope, 0);
+    assert_int(0, !s, "Typedef symbol");
+    assert_english_type(s->type->target, "function() returning int", "typedef function() returning int");
+    typedef int (fri)();
+
 }
 
 int test_composite_type() {
@@ -295,15 +311,15 @@ int test_composite_type() {
     res = composite_type(type2, type1);
     assert_int(10, res->target->array_size, "Composite type of int(*)[] and int(*)[10]");
 
-    type1 = parse_type_str("void (a)"); type1->function->param_types[0] = new_type(TYPE_INT);
-    type2 = parse_type_str("void (int)");
+    type1 = parse_type_str("void a(b)"); type1->function->param_types[0] = new_type(TYPE_INT);
+    type2 = parse_type_str("void a(int)");
     res = composite_type(type1, type2);
     assert_english_type(res, "function(int) returning void", "Composite type of void() and void(int)");
     res = composite_type(type2, type1);
     assert_english_type(res, "function(int) returning void", "Composite type of void() and void(int)");
 
-    type1 = parse_type_str("void (int[])");
-    type2 = parse_type_str("void (int[10])");
+    type1 = parse_type_str("void a(int[])");
+    type2 = parse_type_str("void a(int[10])");
     res = composite_type(type1, type2);
     assert_english_type(res, "function(array[10] of int) returning void", "Composite type of void(int[]) and void(int[10])");
 }

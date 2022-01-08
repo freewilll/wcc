@@ -694,20 +694,18 @@ Type *parse_direct_declarator(void) {
         next();
     }
 
+    else if (cur_token == TOK_LPAREN) {
+        // (subtype)
+        next();
+        type = concat_types(type, parse_declarator());
+        consume(TOK_RPAREN, ")");
+    }
+
     for (int i = 0; ; i++) {
         if (cur_token == TOK_LPAREN) {
+            // Function
             next();
-            if (cur_token == TOK_RPAREN || cur_token == TOK_IDENTIFIER || cur_token_is_type()) {
-                // Function
-                type = concat_types(type, parse_function());
-            }
-            else if (i == 0) {
-                // (subtype)
-                type = concat_types(type, parse_declarator());
-                consume(TOK_RPAREN, ")");
-            }
-            else
-                error("Expected subtype or function parameter after (");
+            type = concat_types(type, parse_function());
         }
         else if (cur_token == TOK_LBRACKET) {
             // Array [] or [<num>]

@@ -20,7 +20,12 @@ Type *lex_type(char *type_str) {
     init_parser();
     init_scopes();
 
-    return parse_type_name();
+    Type *type = parse_type_name();
+
+    if (cur_token != TOK_EOF)
+        printf("%-32s Did not get EOF parsing type\n", type_str);
+
+    return type;
 }
 
 void assert_type_eq(Type *type1, Type *type2, char *message) {
@@ -177,44 +182,44 @@ int test_compatible_types() {
     type2 = lex_type("union { char i, a, j, b; }");
     assert_int(0, types_are_compatible(type1, type2), "union member type mismatch");
 
-    type1 = lex_type("void()");
-    type2 = lex_type("void()");
+    type1 = lex_type("void f()");
+    type2 = lex_type("void f()");
     assert_int(1, types_are_compatible(type1, type2), "function return types match");
 
-    type1 = lex_type("void()");
-    type2 = lex_type("int()");
+    type1 = lex_type("void f()");
+    type2 = lex_type("int f()");
     assert_int(0, types_are_compatible(type1, type2), "function return types mismatch");
 
-    type1 = lex_type("void(char *pc, ...)");
-    type2 = lex_type("void(char *pc, ...)");
+    type1 = lex_type("void f(char *pc, ...)");
+    type2 = lex_type("void f(char *pc, ...)");
     assert_int(1, types_are_compatible(type1, type2), "function variadic match");
 
-    type1 = lex_type("void(char *pc, ...)");
-    type2 = lex_type("void(char *pc)");
+    type1 = lex_type("void f(char *pc, ...)");
+    type2 = lex_type("void f(char *pc)");
     assert_int(0, types_are_compatible(type1, type2), "function variadic mismatch");
 
-    type1 = lex_type("void(int)");
-    type2 = lex_type("void(int)");
+    type1 = lex_type("void f(int)");
+    type2 = lex_type("void f(int)");
     assert_int(1, types_are_compatible(type1, type2), "function types match");
 
-    type1 = lex_type("void(char)");
-    type2 = lex_type("void(int)");
+    type1 = lex_type("void f(char)");
+    type2 = lex_type("void f(int)");
     assert_int(0, types_are_compatible(type1, type2), "function types mismatch");
 
-    type1 = lex_type("void()");
-    type2 = lex_type("void(char)");
+    type1 = lex_type("void f()");
+    type2 = lex_type("void f(char)");
     assert_int(0, types_are_compatible(type1, type2), "function types mismatch in K&R () vs non-K&R void(char)");
 
-    type1 = lex_type("void()");
-    type2 = lex_type("void(int)");
+    type1 = lex_type("void f()");
+    type2 = lex_type("void f(int)");
     assert_int(1, types_are_compatible(type1, type2), "function types match in K&R () vs non-K&R void(int)");
 
-    type1 = lex_type("void(int a)"); type1->function->is_paramless = 1; // Fake K&R
-    type2 = lex_type("void(int)");
+    type1 = lex_type("void f(int a)"); type1->function->is_paramless = 1; // Fake K&R
+    type2 = lex_type("void f(int)");
     assert_int(1, types_are_compatible(type1, type2), "function types match in K&R void(int) vs non-K&R void(int)");
 
-    type1 = lex_type("void(char a)"); type1->function->is_paramless = 1; // Fake K&R
-    type2 = lex_type("void(int)");
+    type1 = lex_type("void f(char a)"); type1->function->is_paramless = 1; // Fake K&R
+    type2 = lex_type("void f(int)");
     assert_int(0, types_are_compatible(type1, type2), "function types mismatch in K&R void(char) vs non-K&R void(int)");
 }
 
