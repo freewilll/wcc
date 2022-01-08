@@ -478,7 +478,7 @@ StructOrUnionMember **sort_struct_or_union_members(StructOrUnionMember **members
 
 static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen_tags, int check_qualifiers);
 
-static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2, StrMap *seen_tags, int check_qualifiers) {
+static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2, StrMap *seen_tags) {
     if (s1->is_incomplete || s2->is_incomplete) return 1;
 
     int count = struct_or_union_member_count(s1);
@@ -510,7 +510,7 @@ static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2,
         if (member1->bit_field_size != member2->bit_field_size) return 0;
 
         // Check types are compatible
-        if (!recursive_types_are_compatible(member1->type, member2->type, seen_tags, 1)) return 0;
+        if (!recursive_types_are_compatible(member1->type, member2->type, seen_tags, 0)) return 0;
     }
 
     return 1;
@@ -581,12 +581,12 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
 
     // They are pointer types and are pointing to compatible types
     if (type1->type == TYPE_PTR && type2->type == TYPE_PTR)
-        return recursive_types_are_compatible(type1->target, type2->target, seen_tags, check_qualifiers);
+        return recursive_types_are_compatible(type1->target, type2->target, seen_tags, 0);
 
     // They are array types, and if both have constant size, that size is the same
     // and element types are compatible
     if (type1->type == TYPE_ARRAY && type2->type == TYPE_ARRAY) {
-        if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags, check_qualifiers)) return 0;
+        if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags, 0)) return 0;
         if (type1->array_size && type2->array_size && type1->array_size != type2->array_size) return 0;
         return 1;
     }
@@ -613,7 +613,7 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
     if (type2->type == TYPE_ENUM && type1->type == TYPE_INT) return 1;
 
     if (type1->type == TYPE_STRUCT_OR_UNION && type2->type == TYPE_STRUCT_OR_UNION)
-        return struct_or_unions_are_compatible(type1->struct_or_union_desc, type2->struct_or_union_desc, seen_tags, check_qualifiers);
+        return struct_or_unions_are_compatible(type1->struct_or_union_desc, type2->struct_or_union_desc, seen_tags);
 
     if (type1->type == TYPE_FUNCTION && type2->type == TYPE_FUNCTION)
         return functions_are_compatible(type1, type2, seen_tags);
