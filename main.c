@@ -55,7 +55,7 @@ static void parse_directive(char *expr) {
     else {
         CliDirective *cd = cli_directives;
         while (cd->next) cd = cd->next;
-        cli_directives->next = cli_directive;
+        cd->next = cli_directive;
     }
 }
 
