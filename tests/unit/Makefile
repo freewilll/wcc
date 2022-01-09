@@ -1,4 +1,4 @@
-all: run-test-lexer run-test-cpp run-test-set run-test-strmap run-test-strset run-test-longmap  run-test-ssa run-test-parser run-test-types run-test-graph run-test-functions
+all: run-test-lexer run-test-cpp run-test-set run-test-list run-test-strmap run-test-strset run-test-longmap  run-test-ssa run-test-parser run-test-types run-test-graph run-test-functions
 
 test-lexer: ../../libwcc.a test-lexer.c
 	gcc ${GCC_OPTS} -g -o test-lexer test-lexer.c ../../libwcc.a
@@ -17,6 +17,12 @@ test-set: ../../libwcc.a test-set.c
 
 run-test-set: test-set
 	 ./test-set
+
+test-list: ../../libwcc.a test-list.c
+	gcc ${GCC_OPTS} -g -o test-list test-list.c ../../libwcc.a
+
+run-test-list: test-list
+	 ./test-list
 
 test-strmap: test-strmap.c ../../strmap.c
 	gcc ${GCC_OPTS} -g -o test-strmap test-strmap.c ../../libwcc.a
@@ -73,6 +79,7 @@ clean:
 	@rm -f test-lexer
 	@rm -f test-cpp
 	@rm -f test-set
+	@rm -f test-list
 	@rm -f test-strmap
 	@rm -f test-strset
 	@rm -f test-longmap

@@ -821,6 +821,15 @@ long longmap_iterator_key(LongMapIterator *iterator);
 
 void free_circular_linked_list(CircularLinkedList *cll);
 
+typedef struct list {
+    int length;
+    int allocated;
+    void **elements;
+} List;
+
+List *new_list(int length);
+void append_to_list(List *l, void *element);
+
 // graph.c
 Graph *new_graph(int node_count, int edge_count);
 void dump_graph(Graph *g);

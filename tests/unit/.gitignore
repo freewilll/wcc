@@ -1,6 +1,7 @@
 test-lexer
 test-cpp
 test-set
+test-list
 test-strmap
 test-strset
 test-longmap
