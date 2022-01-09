@@ -2313,8 +2313,7 @@ void parse_struct_dot_arrow_expression(void) {
     StructOrUnionMember *member = lookup_struct_or_union_member(str_type, cur_identifier);
 
     int member_is_const = 0;
-    if (!type_is_modifiable(str_type))
-        member_is_const = 1;
+    member_is_const = !type_is_modifiable(str_type);
 
     if (!is_dot) indirect();
 

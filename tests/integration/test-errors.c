@@ -477,5 +477,60 @@ int main(int argc, char **argv) {
         "Missing expression",
         "Missing expression");
 
+    check_main_output(
+        "int i; *i;",
+        "Cannot dereference a non-pointer",
+        "Cannot dereference a non-pointer");
+
+    check_main_output(
+        "int i; char ac[*i];",
+        "Cannot dereference a non-pointer",
+        "Cannot dereference a non-pointer");
+
+    check_main_output(
+        "int *pi, *pj; char ac[&pi - &pj];",
+        "Operand mismatch in constant pointer subtraction",
+        "Operand mismatch in constant pointer subtraction");
+
+    check_main_output(
+        "int i; i.x;",
+        "Can only use . on a struct or union",
+        "Can only use . on a struct or union");
+
+    check_main_output(
+        "int i; char c[i.x];",
+        "Can only use . on a struct or union",
+        "Can only use . on a struct or union in constant expression");
+
+    check_main_output(
+        "int i; i->x;",
+        "Cannot use -> on a non-pointer",
+        "Cannot use -> on a non-pointer");
+
+    check_main_output(
+        "int i; char c[i->x];",
+        "Cannot use -> on a non-pointer",
+        "Cannot use -> on a non-pointer in constant expression");
+
+    check_main_output(
+        "int *pi; pi->x;",
+        "Can only use -> on a pointer to a struct or union",
+        "Can only use -> on a pointer to a struct or union");
+
+    check_main_output(
+        "int *pi; char c[pi->x];",
+        "Can only use -> on a pointer to a struct or union",
+        "Can only use -> on a pointer to a struct or union in constant expression");
+
+    check_main_output(
+        "struct s *s; s->x;",
+        "Dereferencing a pointer to incomplete struct or union",
+        "Dereferencing a pointer to incomplete struct or union");
+
+    check_main_output(
+        "struct s *s; char c[s->x];",
+        "Dereferencing a pointer to incomplete struct or union",
+        "Dereferencing a pointer to incomplete struct or union in constant expression");
+
     finalize();
 }

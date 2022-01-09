@@ -419,6 +419,7 @@ void test_constant_expressions() {
     assert_int_const_expr("sizeof(1.1 == 1.1)",      4);
 
     // Casting is tested in test_constant_casting()
+    // See also test-initializers for many more constant expression tests
 }
 
 int main(int argc, char **argv) {

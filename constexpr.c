@@ -6,6 +6,14 @@
 
 static int integers_are_longs;
 
+static Value *indirect(Value *value) {
+    if (!is_pointer_type(value->type)) error("Cannot dereference a non-pointer");
+
+    value->type = deref_pointer(value->type);
+
+    return value;
+}
+
 Value *evaluate_const_unary_int_operation(int operation, Value *value) {
     long r;
 
@@ -131,7 +139,10 @@ Value *cast_constant_value(Value *src, Type *dst_type) {
 
     Value *dst = new_value();
     dst->is_constant = 1;
+    dst->address_of_offset = src->address_of_offset;
+    dst->int_value = src->int_value;
     dst->type = dst_type;
+    dst->global_symbol = src->global_symbol;
 
     // FP -> FP
     // Don't bother changing precision
@@ -220,12 +231,25 @@ static Value *parse_address_plus_minus(int operation, Value *value1, Value *valu
             result->int_value += size;
     }
     else {
-        result = dup_value(value1);
-        int size =  value2->int_value * get_type_size(result->type->target);
-        if (result->is_address_of || result->is_string_literal)
-            result->address_of_offset -= size;
-        else
-            result->int_value -= size;
+        if (is_pointer_type(value2->type)) {
+            // Pointer-pointer subtraction
+            int size =  get_type_size(value1->type->target);
+
+            if (value1->global_symbol != value2->global_symbol)
+                error("Operand mismatch in constant pointer subtraction");
+
+            int difference = value1->address_of_offset + value1->int_value - value2->address_of_offset - value2->int_value;
+            result = new_integral_constant(TYPE_LONG, difference / size);
+
+        }
+        else {
+            result = dup_value(value1);
+            int size =  value2->int_value * get_type_size(result->type->target);
+            if (result->is_address_of || result->is_string_literal)
+                result->address_of_offset -= size;
+            else
+                result->int_value -= size;
+        }
     }
 
     return result;
@@ -266,13 +290,28 @@ Value *parse_constant_expression(int level) {
         case TOK_LOGICAL_NOT: value = parse_unary_expression(IR_LNOT); break;
         case TOK_BITWISE_NOT: value = parse_unary_expression(IR_BNOT); break;
 
+        case TOK_MULTIPLY:
+            // Indirect
+            next();
+            value = parse_constant_expression(TOK_INC);
+            value = indirect(value);
+
+            break;
+
         case TOK_AMPERSAND:
+            // Address of
+
             next();
             value = parse_constant_expression(TOK_INC);
             if (value->bit_field_size) error("Cannot take an address of a bit-field");
 
-            if (!value->is_string_literal && !value->global_symbol)
+            if (!value->is_string_literal && !value->global_symbol && !value->is_constant)
                 error("Illegal operand to & in constant expression");
+
+            if (value->is_constant) {
+                value->int_value += value->address_of_offset;
+                value->is_constant = 0;
+            }
 
             value->is_address_of = 1;
 
@@ -333,6 +372,8 @@ Value *parse_constant_expression(int level) {
             else
                 value = make_symbol_value(symbol);
 
+            value->global_symbol = symbol;
+
             break;
         }
 
@@ -368,12 +409,25 @@ Value *parse_constant_expression(int level) {
                 break;
 
             case TOK_DOT:
-                if (value->type->type != TYPE_STRUCT_OR_UNION) error("Can only use . on a struct or union");
+            case TOK_ARROW:
+                if (cur_token == TOK_DOT && value->type->type != TYPE_STRUCT_OR_UNION)
+                    error("Can only use . on a struct or union");
+
+                if (cur_token != TOK_DOT) {
+                    if (!is_pointer_type(value->type)) error("Cannot use -> on a non-pointer");
+                    if (value->type->target->type != TYPE_STRUCT_OR_UNION) error("Can only use -> on a pointer to a struct or union");
+                    if (is_incomplete_type(value->type->target)) error("Dereferencing a pointer to incomplete struct or union");
+                }
+
+                int is_dot = cur_token == TOK_DOT;
 
                 next();
                 consume(TOK_IDENTIFIER, "identifier");
 
+                if (!is_dot) value = indirect(value);
+
                 StructOrUnionMember *member = lookup_struct_or_union_member(value->type, cur_identifier);
+
                 value->address_of_offset += member->offset;
                 value->bit_field_size = member->bit_field_size;
                 value->type = dup_type(member->type);

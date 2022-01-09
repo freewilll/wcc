@@ -144,6 +144,30 @@ struct {char c1; float f; char c2; double d; char c3; long double ld; char c4;} 
 
 struct s2 {int i, j, k, l;} st2 = {1, 2, 3};
 
+// Structs, pointers, sizeof and offsetof
+struct s6 {
+    long l1;
+    struct s s;
+    long l2;
+};
+
+struct s6 s6;
+struct s6 *ps6 = 0;
+
+// Offset of a struct
+char ac1v[(void  *) &s6.s - (void  *) &s6];
+char ac1c[(char  *) &s6.s - (char  *) &s6];
+char ac1s[(short *) &s6.s - (short *) &s6];
+char ac1i[(int   *) &s6.s - (int   *) &s6];
+char ac1l[(long  *) &s6.s - (long  *) &s6];
+
+// Offset of a pointer to a struct
+char ac2[(void *) &ps6->s - (void *) ps6];
+
+// Offset of with a constant pointer
+char ac3[(((size_t) &((struct s6 *) 0)->s))];
+char ac4[(((size_t) &((*(struct s6 *) 0)).s))];  // Using (*p). instead of p->
+
 struct bfs { int i:3, j:4, k:5, :0, l:5, m:5; } bfs = {-1, -2, -3, -4, -5};
 
 int plus(int i) {}
@@ -1154,6 +1178,16 @@ void test_global_initialization() {
     assert_int(1, global_func_ptr == &plus,  "global_func_ptr = plus 2");
     assert_int(1, global_func_ptr2 == plus,  "global_func_ptr2 = &plus 1");
     assert_int(1, global_func_ptr2 == &plus, "global_func_ptr2 = &plus 2");
+
+    // Structs, pointers, sizeof and offsetof
+    assert_int(8, sizeof(ac1v), ". and -> ac1v");
+    assert_int(8, sizeof(ac1c), ". and -> ac1c");
+    assert_int(4, sizeof(ac1s), ". and -> ac1s");
+    assert_int(2, sizeof(ac1i), ". and -> ac1i");
+    assert_int(1, sizeof(ac1l), ". and -> ac1l");
+    assert_int(8, sizeof(ac2),  ". and -> ac2");
+    assert_int(8, sizeof(ac3),  ". and -> ac3");
+    assert_int(8, sizeof(ac4),  ". and -> ac4");
 }
 
 void func_with_static_string(char expected_first_char, char* message) {
