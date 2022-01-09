@@ -1554,7 +1554,7 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
     if (dst_is_arithmetic && src_is_arithmetic) return;
 
     // Both are compatible struct/union types
-    if (dst->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible(dst->type, src->type)) return;
+    if (dst->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible_ignore_qualifiers(dst->type, src->type)) return;
 
     // Both are pointers with identical qualifiers, with the targets compatible
     if (dst->type->type == TYPE_PTR && src->type->type == TYPE_PTR) {
