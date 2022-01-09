@@ -981,20 +981,22 @@ static void add_sub_rule(int dst, int src1, int src2, int cost, char *mov_templa
 }
 
 static void add_sub_rules(void) {
-    for (int i = 0; i < 4; i++) {
-        add_sub_rule(XRI, CI1 + i, XRI,     10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
-        add_sub_rule(XRU, CU1 + i, XRU,     10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
-        add_sub_rule(XRI, XRI,     CI1 + i, 10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
-        add_sub_rule(XRU, XRU,     CU1 + i, 10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
-        add_sub_rule(XRP, XRP,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
-        add_sub_rule(RI4, XRP,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq"); // A pointer difference is a signed int
-        add_sub_rule(XRP, XRP,     CU1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
-        add_sub_rule(RP5, RP5,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
-        add_sub_rule(RP5, RP5,     CU1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
-        add_sub_rule(XRI, CI1 + i, XMI,     11, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
-        add_sub_rule(XRU, CU1 + i, XMU,     11, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
-        add_sub_rule(XRI, XMI,     CI1 + i, 11, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
-        add_sub_rule(XRU, XMU,     CI1 + i, 11, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
+    // All of these subtractions can only done with 32 bit constants
+    // CU3s need to be ruled out since they overflow if >= 0x80000000
+    for (int i = 0; i < 3; i++) {
+                    add_sub_rule(XRI, CI1 + i, XRI,     10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
+        if (i != 2) add_sub_rule(XRU, CU1 + i, XRU,     10, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
+                    add_sub_rule(XRI, XRI,     CI1 + i, 10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
+        if (i != 2) add_sub_rule(XRU, XRU,     CU1 + i, 10, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
+                    add_sub_rule(XRP, XRP,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
+                    add_sub_rule(RI4, XRP,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq"); // A pointer difference is a signed int
+        if (i != 2) add_sub_rule(XRP, XRP,     CU1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
+                    add_sub_rule(RP5, RP5,     CI1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
+        if (i != 2) add_sub_rule(RP5, RP5,     CU1 + i, 10, "movq %v1q, %vdq", 0, "subq $%v1q, %vdq");
+                    add_sub_rule(XRI, CI1 + i, XMI,     11, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
+        if (i != 2) add_sub_rule(XRU, CU1 + i, XMU,     11, "mov%s $%v1, %vd", 0, "sub%s %v1, %vd");
+                    add_sub_rule(XRI, XMI,     CI1 + i, 11, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
+                    add_sub_rule(XRU, XMU,     CI1 + i, 11, "mov%s %v1, %vd",  0, "sub%s $%v1, %vd");
     }
 
     add_sub_rule(XR, XR, XR,  10, "mov%s %v1, %vd",  0, "sub%s %v1, %vd");

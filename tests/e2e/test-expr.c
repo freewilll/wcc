@@ -973,6 +973,38 @@ void test_unary_minus() {
     ld = 1; assert_long_double(-1.0,       -ld, "ld = 1; -ld");
 }
 
+void test_80000000_addition_and_subtraction() {
+    long l = 0x80000000;
+
+    assert_long(0x00000001,  l - 0x7fffffff, "l - 0x7fffffff");
+    assert_long(0x00000000,  l - 0x80000000, "l - 0x80000000");
+    assert_long(0xffffffff,  l + 0x7fffffff, "l + 0x7fffffff");
+    assert_long(0x100000000, l + 0x80000000, "l + 0x80000000");
+
+    assert_long(-1,          0x7fffffff - l , "0x7fffffff - l");
+    assert_long(0x00000000,  0x80000000 - l , "0x80000000 - l");
+    assert_long(0xffffffff,  0x7fffffff + l , "0x7fffffff + l");
+    assert_long(0x100000000, 0x80000000 + l , "0x80000000 + l");
+
+    unsigned long ul = 0x80000000;
+
+    assert_long(0x00000001,  ul - 0x7fffffff, "ul - 0x7fffffff");
+    assert_long(0x00000000,  ul - 0x80000000, "ul - 0x80000000");
+    assert_long(0xffffffff,  ul + 0x7fffffff, "ul + 0x7fffffff");
+    assert_long(0x100000000, ul + 0x80000000, "ul + 0x80000000");
+
+    assert_long(-1,          0x7fffffff - ul , "0x7fffffff - ul");
+    assert_long(0x00000000,  0x80000000 - ul , "0x80000000 - ul");
+    assert_long(0xffffffff,  0x7fffffff + ul , "0x7fffffff + ul");
+    assert_long(0x100000000, 0x80000000 + ul , "0x80000000 + ul");
+
+    char *pc = 0x80000000;
+    assert_long(0x00000001,  pc - 0x7fffffff , "pc - 0x7fffffff");
+    assert_long(0x00000000,  pc - 0x80000000 , "pc - 0x80000000");
+    assert_long(0xffffffff,  pc + 0x7fffffff , "pc + 0x7fffffff");
+    assert_long(0x100000000, pc + 0x80000000 , "pc + 0x80000000");
+}
+
 void test_80000000_unary_minus() {
     int i;
     long l;
@@ -1630,6 +1662,7 @@ int main(int argc, char **argv) {
     test_constant_suffixes();
     test_unary_plus();
     test_unary_minus();
+    test_80000000_addition_and_subtraction();
     test_80000000_unary_minus();
     test_80000000_cmp();
     test_pointer_casting_reads();
