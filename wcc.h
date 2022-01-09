@@ -128,6 +128,12 @@ typedef struct type_iterator {
     struct type_iterator *parent;   // Parent to recurse back to
 } TypeIterator;
 
+typedef struct list {
+    int length;
+    int allocated;
+    void **elements;
+} List;
+
 typedef struct initializer {
     int offset;                 // Offset of the initializer
     int size;                   // Size of the initializer
@@ -150,8 +156,7 @@ typedef struct symbol {
     int local_index;            // Used by the parser for locals variables and function arguments
                                 // < 0 is a local variable or tempoary, >= 2 is a function parameter
     int is_enum_value;          // Enums are symbols with a value
-    Initializer *initializers;  // Set when a global object is initialized;
-    int initializer_count;      // Amount of initializers;
+    List *initializers;         // Set when a global object is initialized;
 } Symbol;
 
 typedef struct tag {
@@ -820,12 +825,6 @@ long longmap_iterator_key(LongMapIterator *iterator);
     } while(0)
 
 void free_circular_linked_list(CircularLinkedList *cll);
-
-typedef struct list {
-    int length;
-    int allocated;
-    void **elements;
-} List;
 
 List *new_list(int length);
 void append_to_list(List *l, void *element);

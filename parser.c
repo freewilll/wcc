@@ -5,6 +5,8 @@
 
 #include "wcc.h"
 
+#define INITIAL_INITALIZERS_COUNT 32
+
 typedef struct base_type {
     Type *type;
     int storage_class;
@@ -1613,8 +1615,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     Symbol *s = dst->global_symbol;
     if (!s) error("Attempt to add an initializer to value without a global_symbol");
 
-    if (!s->initializers) s->initializers = malloc(sizeof(Initializer) * MAX_INITIALIZERS);
-    if (s->initializer_count == MAX_INITIALIZERS) panic_with_line_number("Exceeded MAX_INITIALIZERS=%d", MAX_INITIALIZERS);
+    if (!s->initializers) s->initializers = new_list(INITIAL_INITALIZERS_COUNT);
 
     int bf_offset;
     int bf_bit_offset;
@@ -1623,18 +1624,26 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     if (dst->bit_field_size) offset += bf_offset;
 
     Initializer *in;
-    if (dst->bit_field_size && s->initializer_count && s->initializers[s->initializer_count - 1].offset == offset)
-        in = &(s->initializers[s->initializer_count - 1]); // Amend previous initializer
+    if (dst->bit_field_size && s->initializers->length && ((Initializer *) s->initializers->elements[s->initializers->length - 1])->offset == offset)
+        // Amend previous initializer for bit field
+        in = (Initializer *) s->initializers->elements[s->initializers->length - 1];
+
+
     else {
-        if (!dst->bit_field_size && s->initializer_count) {
-            Initializer *prev = &(s->initializers[s->initializer_count - 1]);
+        if (!dst->bit_field_size && s->initializers->length) {
+            Initializer *prev = (Initializer *) s->initializers->elements[s->initializers->length - 1];
             if (prev->offset + prev->size != offset) {
-                Initializer *zero = &(s->initializers[s->initializer_count++]);
+                Initializer *zero = malloc(sizeof(Initializer));
+                memset(zero, 0, sizeof(Initializer));
                 zero->offset = prev->offset + prev->size;
                 zero->size = offset - prev->offset - prev->size;
+                append_to_list(s->initializers, zero);
             }
         }
-        in = &(s->initializers[s->initializer_count++]);
+
+        in = malloc(sizeof(Initializer));
+        memset(in, 0, sizeof(Initializer));
+        append_to_list(s->initializers, in);
     }
 
     if (scalar) {

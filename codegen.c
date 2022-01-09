@@ -707,12 +707,12 @@ static void output_function_body_code(Symbol *symbol) {
 }
 
 static void output_symbol(Symbol *symbol) {
-    if (symbol->linkage == LINKAGE_INTERNAL && !symbol->initializer_count) {
+    if (symbol->linkage == LINKAGE_INTERNAL && !symbol->initializers) {
         if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
         fprintf(f, "    .local  %s\n", symbol->global_identifier);
     }
 
-    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && !symbol->initializer_count) {
+    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && !symbol->initializers) {
         if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
         fprintf(f, "    .comm   %s,%d,%d\n",
             symbol->global_identifier,
@@ -720,7 +720,7 @@ static void output_symbol(Symbol *symbol) {
             get_type_alignment(symbol->type));
     }
 
-    else if (symbol->initializer_count) {
+    else if (symbol->initializers) {
         int size = get_type_size(symbol->type);
         if (symbol->linkage == LINKAGE_EXTERNAL)
             fprintf(f, "    .globl   %s\n", symbol->global_identifier);
@@ -732,8 +732,8 @@ static void output_symbol(Symbol *symbol) {
         fprintf(f, "    .size    %s, %d\n", symbol->global_identifier, size);
         fprintf(f, "%s:\n", symbol->global_identifier);
 
-        for (int i = 0; i < symbol->initializer_count; i++) {
-            Initializer *in = &(symbol->initializers[i]);
+        for (int i = 0; i < symbol->initializers->length; i++) {
+            Initializer *in = (Initializer *) symbol->initializers->elements[i];
 
             if (in->is_address_of) {
                 if (in->address_of_offset)
