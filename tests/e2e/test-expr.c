@@ -1633,6 +1633,28 @@ void test_offsetof(){
     assert_int(8, offsetof(struct { int  e1; long  e2; }, e2), "offsetof il");
 }
 
+void test_mixed_sign_assignments_to_memory() {
+    unsigned char uc; &uc;
+    uc = 0xff;
+    uc &= ~1;
+    assert_int(254, uc, "in memory uc &= ~1");
+
+    unsigned short us; &us;
+    us = 0xff;
+    us &= ~1;
+    assert_int(254, us, "in memory us &= ~1");
+
+    unsigned int ui; &ui;
+    ui = 0xff;
+    ui &= ~1;
+    assert_int(254, ui, "in memory ui &= ~1");
+
+    unsigned long ul; &ul;
+    ul = 0xff;
+    ul &= ~1;
+    assert_int(254, ul, "in memory ul &= ~1");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1689,6 +1711,7 @@ int main(int argc, char **argv) {
     test_BSHR_conversion_bug();
     test_cast_to_void();
     test_offsetof();
+    test_mixed_sign_assignments_to_memory();
 
     finalize();
 }

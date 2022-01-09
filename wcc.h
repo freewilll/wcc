@@ -1078,7 +1078,7 @@ void init_allocate_registers(void);
 
 // instrsel.c
 enum {
-    MAX_RULE_COUNT = 7000,
+    MAX_RULE_COUNT = 9000,
 
     // Non terminals
     STL = 1,                     // String literal

@@ -13,8 +13,9 @@ static void add_mov_rule(int dst, int src, int operation, char *template) {
     int src_size = make_x86_size_from_non_terminal(src) - 1;
     int dst_size = make_x86_size_from_non_terminal(dst) - 1;
 
-    char **moves_templates = (src == RI1 || src == RI2 || src == RI3 || src == RI4) ? signed_moves_templates : unsigned_moves_templates;
-    int *moves_operations = (src == RI1 || src == RI2 || src == RI3 || src == RI4) ? signed_moves_operations : unsigned_moves_operations;
+    int is_signed = src == RI1 || src == RI2 || src == RI3 || src == RI4;
+    char **moves_templates = (is_signed) ? signed_moves_templates : unsigned_moves_templates;
+    int *moves_operations = (is_signed) ? signed_moves_operations : unsigned_moves_operations;
 
     if (!template) template = moves_templates[src_size * 4 + dst_size];
     if (!operation) operation = moves_operations[src_size * 4 + dst_size];
@@ -1249,7 +1250,7 @@ void init_instruction_selection_rules(void) {
     r = add_rule(RP3, 0,  STL,  0, 1); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For wchar_t
     r = add_rule(RPF, 0,  MPF,  0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
 
-    // Register-register move rules
+    // Register -> register move rules
     for (int dst = RI1; dst <= RI4; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RU1; dst <= RU4; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RI1; dst <= RI4; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
@@ -1289,6 +1290,10 @@ void init_instruction_selection_rules(void) {
     // Register -> memory move rules
     add_move_rules_ri_to_mi();
     add_move_rules_ru_to_mu();
+
+    // Mixed sign register -> memory move rules
+    r = add_rule(MU1, IR_MOVE, RI3, 0, 2); add_op(r, X_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
+    r = add_rule(MU2, IR_MOVE, RI3, 0, 2); add_op(r, X_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
 
     add_float_and_double_move_rules();
     add_long_double_move_rules();
