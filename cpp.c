@@ -64,11 +64,15 @@ char *BUILTIN_INCLUDE_PATHS[5] = {
 };
 
 void debug_print_token_sequence(CppToken *ts) {
+    int c = 0;
+
     printf("|");
     while (ts) {
         if (ts->whitespace) printf("[%s]", ts->whitespace);
         printf("%s|", ts->str);
         ts = ts->next;
+        c++;
+        if (c == 1024) panic("Exceeded reasonable debug limit");
     }
     printf("\n");
 }
@@ -82,11 +86,14 @@ void debug_print_cll_token_sequence(CppToken *ts) {
     CppToken *head = ts->next;
     ts = head;
 
+    int c = 0;
+
     printf("|");
     do {
         if (ts->whitespace) printf("[%s]", ts->whitespace);
         printf("%s|", ts->str);
         ts = ts->next;
+        if (c == 1024) panic("Exceeded reasonable debug limit");
     } while (ts != head);
     printf("\n");
 }
@@ -182,7 +189,33 @@ void init_cpp_from_string(char *string) {
     state.line_number = 1;
 }
 
-// Append list2 to circular linked list list1, creating list1 if it doesn't exist
+// Shallow copy a new CPP token
+static CppToken *dup_cpp_token(CppToken *tok) {
+    CppToken *result = malloc(sizeof(CppToken));
+    *result = *tok;
+    return result;
+}
+
+
+// Duplicate a linked list of tokens, making a shallow copy of each token
+CppToken *dup_ll(CppToken *src) {
+    if (!src) return 0;
+
+    CppToken *result = dup_cpp_token(src);
+    CppToken *dst = result;
+
+    while (src->next) {
+        dst->next = dup_cpp_token(src->next);
+        src = src->next;
+        dst = dst->next;
+    }
+
+    dst->next = 0;
+    return dst;
+}
+
+// Append list2 to circular linked list list1, creating list1 if it doesn't exist.
+// Be warned: list2 is modified.
 CppToken *cll_append(CppToken *list1, CppToken *list2) {
     if (!list2) return list1;
 
@@ -227,13 +260,6 @@ static CppToken *new_cpp_token(int kind) {
     tok->kind = kind;
 
     return tok;
-}
-
-// Shallow copy a new CPP token
-static CppToken *dup_cpp_token(CppToken *tok) {
-    CppToken *result = malloc(sizeof(CppToken));
-    *result = *tok;
-    return result;
 }
 
 static void add_builtin_directive(char *identifier, DirectiveRenderer renderer) {
@@ -1084,15 +1110,16 @@ static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppT
             if (is2 && is2_fp_index) {
                 // (empty) ## (replacement2) ...
                 CppToken *replacement2 = ap[is2_fp_index - 1];
-                return subst(is2->next, fp, ap, hs, cll_append(os, replacement2));
+                return subst(is2->next, fp, ap, hs, cll_append(os, dup_ll(replacement2)));
             }
             else
                 // (empty) ## (empty) ...
                 return subst(is2, fp, ap, hs, os);
         }
-        else
+        else {
             // (replacement) ## ...
-            return subst(is1, fp, ap, hs, cll_append(os, replacement));
+            return subst(is1, fp, ap, hs, cll_append(os, dup_ll(replacement)));
+        }
     }
 
     // FP

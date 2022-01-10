@@ -83,3 +83,8 @@ func_paste4c(a,b)
 // Ensure multi character tokens are lexed correctly
 #define OPS && || == != <= >= += -= *= /= %= &= |= ^= -> >>= <<= ... ++ -- << >>
 OPS
+
+// Bug where replacement list was turned into a circular linked list
+// love you baby Licious
+#define A(X) X ## X;
+A(a)
