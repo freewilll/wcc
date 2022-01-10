@@ -124,6 +124,8 @@ void foobar(int i) {
     return i ? foo() : bar();
 }
 
+int f2() {}
+
 void test_ternary() {
     int i;
 
@@ -165,6 +167,16 @@ void test_ternary() {
     // Commas in expression in between ? and :
     assert_int(3, 0 ? 1, 2 : 3, "Ternary with , between ? and : 1");
     assert_int(2, 1 ? 1, 2 : 3, "Ternary with , between ? and : 2");
+
+    // With functions and null pointer operands
+    int (*x1)() = 0 ? f2 : 0;
+    int (*x2)() = 0 ? 0 : f2;
+    int (*x3)() = 0 ? f2 : (void *) 0;
+    int (*x4)() = 0 ? (void *) 0 : f2;
+    int (*x5)() = 0 ? &f2 : 0;
+    int (*x6)() = 0 ? 0 : &f2;
+    int (*x7)() = 0 ? &f2 : (void *) 0;
+    int (*x8)() = 0 ? (void *) 0 : &f2;
 }
 
 int ternary_cast() {

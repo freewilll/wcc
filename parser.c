@@ -257,6 +257,8 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     // If it's a ternary and one is a pointer and the other a pointer to void, then the result is a pointer to void.
     else if (src1_type->type == TYPE_PTR && is_pointer_to_void(src2->type)) return for_ternary ? src2->type : src1->type;
     else if (src2_type->type == TYPE_PTR && is_pointer_to_void(src1->type)) return for_ternary ? src1->type : src2->type;
+    else if (for_ternary && (src1_type->type == TYPE_PTR || src1_type->type == TYPE_FUNCTION) && is_null_pointer(src2)) return src1->type;
+    else if (for_ternary && (src2_type->type == TYPE_PTR || src2_type->type == TYPE_FUNCTION) && is_null_pointer(src1)) return src2->type;
     else if (for_ternary && src1_type->type == TYPE_PTR && src2_type->type == TYPE_PTR) return ternary_pointer_composite_type(src1->type, src2->type);
     else if (src1_type->type == TYPE_PTR) return src1_type;
     else if (src2_type->type == TYPE_PTR) return src2_type;
@@ -1475,7 +1477,7 @@ static void push_symbol(Symbol *symbol) {
 Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     if (dst_type->type == TYPE_FUNCTION) error("Function type mismatch");
 
-    int dst_is_function = is_pointer_to_function_type(dst_type);
+    int dst_is_function = is_pointer_to_function_type(dst_type)  || dst_type->type == TYPE_FUNCTION;
     int src_is_function = is_pointer_to_function_type(src->type) || src->type->type == TYPE_FUNCTION;
 
     if (dst_is_function && src_is_function) {
@@ -1530,7 +1532,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
         }
 
         // Implicit else: src is not a constant
-        else if (dst_is_function && !src_is_function)
+        else if (dst_is_function && !src_is_function && !is_null_pointer(src) && !is_pointer_to_void(src->type))
             error("Function type mismatch");
 
         // Convert non constant
