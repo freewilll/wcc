@@ -1384,8 +1384,8 @@ void check_binary_operation_types(int operation, Value *src1, Value *src2) {
         // Deviation from the spec: comparisons between arithmetic and pointers types are allowed
         if (
             (!((src1_is_arithmetic || src1_is_pointer) && (src2_is_arithmetic || src2_is_pointer))) &&
-            (!(src1_is_pointer && src2_is_pointer && is_object_type(src1_type_deref) && is_object_type(src2_type_deref) && types_are_compatible(src1_type_deref, src2_type_deref))) &&
-            (!(src1_is_pointer && src2_is_pointer && is_incomplete_type(src1_type_deref) && is_incomplete_type(src2_type_deref) && types_are_compatible(src1_type_deref, src2_type_deref)))
+            (!(src1_is_pointer && src2_is_pointer && is_object_type(src1_type_deref) && is_object_type(src2_type_deref) && types_are_compatible_ignore_qualifiers(src1_type_deref, src2_type_deref))) &&
+            (!(src1_is_pointer && src2_is_pointer && is_incomplete_type(src1_type_deref) && is_incomplete_type(src2_type_deref) && types_are_compatible_ignore_qualifiers(src1_type_deref, src2_type_deref)))
         )
             error("Invalid operands to relational operator");
     }
@@ -1407,7 +1407,7 @@ void check_binary_operation_types(int operation, Value *src1, Value *src2) {
         if (
             (!((src1_is_arithmetic) && (src2_is_arithmetic))) &&
             (!((src1_is_function) && (src2_is_function))) &&
-            (!(src1_is_pointer && src2_is_pointer && types_are_compatible(src1_type_deref, src2_type_deref))) &&
+            (!(src1_is_pointer && src2_is_pointer && types_are_compatible_ignore_qualifiers(src1_type_deref, src2_type_deref))) &&
             (!(src1_is_pointer && src2_is_pointer && is_pointer_to_void(src2->type))) &&
             (!(src2_is_pointer && src1_is_pointer && is_pointer_to_void(src1->type))) &&
             (!(src1_is_pointer && is_null_pointer(src2))) &&
