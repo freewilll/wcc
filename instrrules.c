@@ -1411,10 +1411,11 @@ void init_instruction_selection_rules(void) {
     r = add_rule(0, IR_LOAD_LONG_DOUBLE, MLD5, 0, 1); add_op(r, X_MOVC, DST, SRC1, 0, "fldt %v1L");
 
     // Function pointers
-    r = add_rule(XRI, IR_MOVE, RPF, 0, 2); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
-    r = add_rule(XRU, IR_MOVE, RPF, 0, 2); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
-    r = add_rule(XRP, IR_MOVE, RPF, 0, 2); add_op(r, X_CALL, DST, SRC1, 0, 0); fin_rule(r);
+    r = add_rule(XRI, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, 0); fin_rule(r);
+    r = add_rule(XRU, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, 0); fin_rule(r);
+    r = add_rule(XRP, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RPF, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(RPF, IR_MOVE, RP4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(MPF, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(RPF, IR_MOVE, MPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(RPF, IR_MOVE, FUN, 0, 2); add_op(r, X_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
