@@ -508,6 +508,20 @@ int test_big_struct() {
     big_struct(0, ld3);
 }
 
+int assignment_after_va_arg(int i, ...) {
+    va_list ap;
+    va_start(ap, i);
+    va_arg(ap, int*)[0] = 2;
+}
+
+int test_assignment_after_va_arg() {
+    int *pi = malloc(sizeof(int));
+    pi[0] = 1;
+
+    assignment_after_va_arg(1, pi);
+    assert_int(2, pi[0], "va_arg(ap, int*)[0] = 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;

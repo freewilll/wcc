@@ -2641,14 +2641,12 @@ static void parse_expression(int level) {
 
             else {
                 // It's a symbol
-                if (!strcmp(cur_identifier, "va_start")) {
+                if (!strcmp(cur_identifier, "va_start"))
                     parse_va_start();
-                    return;
-                }
-                else if (!strcmp(cur_identifier, "va_arg")) {
+
+                else if (!strcmp(cur_identifier, "va_arg"))
                     parse_va_arg();
-                    return;
-                }
+
                 else {
                     // Look up symbol
                     Symbol *symbol = lookup_symbol(cur_identifier, cur_scope, 1);
