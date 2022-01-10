@@ -200,6 +200,7 @@ int test_type_parsing() {
     test_type_parser("int * volatile volatile x", "volatile pointer to int");
     test_type_parser("int * const volatile x",    "const volatile pointer to int");
     test_type_parser("int * const * volatile x",  "volatile pointer to const pointer to int");
+    test_type_parser("const int * x",             "pointer to const int");
     test_type_parser("const int * const x",       "const pointer to const int");
     test_type_parser("const int const",           "const int");
 

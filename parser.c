@@ -3258,9 +3258,11 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
         error("Redefinition of %s", cur_type_identifier);
     }
 
-    if (original_symbol)
+    if (original_symbol) {
         // Merge types if it's a redeclaration
+        if (!types_are_compatible(type, original_symbol->type)) error("Incompatible types");
         symbol->type = composite_type(type, original_symbol->type);
+    }
     else
         symbol->type = type;
 
@@ -3403,9 +3405,11 @@ void parse(void) {
                 else {
                     // Non-function
 
-                    if (original_symbol)
+                    if (original_symbol) {
                         // Merge types if it's a redeclaration
+                        if (!types_are_compatible(type, original_symbol->type)) error("Incompatible types");
                         symbol->type = composite_type(type, original_symbol->type);
+                    }
                     else
                         symbol->type = type;
 

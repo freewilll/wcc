@@ -632,9 +632,8 @@ int types_are_compatible_ignore_qualifiers(Type *type1, Type *type2) {
     return recursive_types_are_compatible(type1, type2, seen_tags, 0);
 }
 
+// Compatibility checks must already have been done before calling this
 Type *composite_type(Type *type1, Type *type2) {
-    if (!types_are_compatible(type1, type2)) error("Incompatible types");
-
     // Implicit else, the type->type matches
     if (type1->type == TYPE_ARRAY) {
         if (type1->array_size) return type1;
