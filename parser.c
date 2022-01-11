@@ -2508,6 +2508,7 @@ static void parse_expression(int level) {
             push(src1);
             push_value_size_constant(src1);
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
+            push(add_convert_type_if_needed(pop(), v1->type));
             add_instruction(IR_MOVE, v1, vtop(), 0);
 
             break;
@@ -2710,6 +2711,7 @@ static void parse_expression(int level) {
                 push(src1);
                 push_value_size_constant(src1);
                 arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
+                push(add_convert_type_if_needed(pop(), v1->type));
                 add_instruction(IR_MOVE, v1, vtop(), 0);
                 pop(); // Pop the lvalue of the assignment off the stack
                 push(src1); // Push the original rvalue back on the value stack

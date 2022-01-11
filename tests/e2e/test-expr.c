@@ -1653,6 +1653,24 @@ void test_mixed_sign_assignments_to_memory() {
     ul = 0xff;
     ul &= ~1;
     assert_int(254, ul, "in memory ul &= ~1");
+
+}
+void test_mixed_sign_assignments_to_memory2(unsigned char uc, unsigned int ui) {
+    char mc; &mc;
+    int mi; &mi;
+
+    mc = 2; mc += uc; assert_int(3, mc, "in memory mc += 1 * uc");
+    mc = 2; mc += ui; assert_int(3, mc, "in memory mc += 1 * ui");
+    mi = 2; mi += uc; assert_int(3, mi, "in memory mi += 1 * uc");
+    mi = 2; mi += ui; assert_int(3, mi, "in memory mi += 1 * ui");
+}
+
+void test_mixed_sign_assignments_to_memory3() {
+    struct s { unsigned char c; } s;
+    s.c++;
+    ++s.c;
+    s.c--;
+    --s.c;
 }
 
 int main(int argc, char **argv) {
@@ -1712,6 +1730,8 @@ int main(int argc, char **argv) {
     test_cast_to_void();
     test_offsetof();
     test_mixed_sign_assignments_to_memory();
+    test_mixed_sign_assignments_to_memory2(1, 1);
+    test_mixed_sign_assignments_to_memory3();
 
     finalize();
 }
