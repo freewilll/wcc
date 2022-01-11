@@ -1497,8 +1497,6 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
         make_live_range_spill_cost(function);
         make_interference_graph(function, 0);
 
-        if (!opt_enable_live_range_coalescing) return;
-
         char *interference_graph = function->interference_graph;
 
         int inner_changed = 1;
@@ -1590,6 +1588,13 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
     make_liveout(function);
     make_preferred_live_range_preg_indexes(function);
     set_preg_classes(function);
+
+    if (!opt_enable_live_range_coalescing) {
+        make_live_range_spill_cost(function);
+        make_interference_graph(function, 0);
+
+        return;
+    }
 
     coalesce_live_ranges_for_preg(function, check_register_constraints, PC_INT);
     coalesce_live_ranges_for_preg(function, check_register_constraints, PC_SSE);
