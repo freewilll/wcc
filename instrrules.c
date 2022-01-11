@@ -613,6 +613,7 @@ static void add_pointer_rules(int *ntc) {
     add_address_of_rule(RP4, MSA,  "%v1q, %vdq", 0);
     add_address_of_rule(RP5, MSA,  "%v1q, %vdq", 0);
     add_address_of_rule(RPF, FUN,  "%v1q, %vdq", 0);
+    add_address_of_rule(RP4, MPF,  "%v1q, %vdq", 0);
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++)

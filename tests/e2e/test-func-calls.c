@@ -413,6 +413,12 @@ void test_function_pointers() {
     // A function returning a pointer to a function, but as a void *
     pfi pfi2 = (pfi) return_pfi2();
     assert_int(1, pfi2(), "function returning a pointer to a function 2");
+
+    // Assigning a function to a pointer in the stack
+    int (*pf1)();
+    &pf1;
+    pf1 = &return_1;
+    assert_int(1, pf1(), "&pointer on the stack");
 }
 
 void test_sizeof_function_pointer() {
