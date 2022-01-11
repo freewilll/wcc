@@ -1895,6 +1895,7 @@ Value *prep_comp_assign(void) {
 
 // Finish compound assignment
 static void finish_comp_assign(Value *v1) {
+    push(add_convert_type_if_needed(pop(), v1->type));
     add_instruction(IR_MOVE, v1, vtop(), 0);
 }
 

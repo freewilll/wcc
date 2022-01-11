@@ -1291,10 +1291,6 @@ void init_instruction_selection_rules(void) {
     add_move_rules_ri_to_mi();
     add_move_rules_ru_to_mu();
 
-    // Mixed sign register -> memory move rules
-    r = add_rule(MU1, IR_MOVE, RI3, 0, 2); add_op(r, X_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
-    r = add_rule(MU2, IR_MOVE, RI3, 0, 2); add_op(r, X_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
-
     add_float_and_double_move_rules();
     add_long_double_move_rules();
 
