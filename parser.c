@@ -1648,10 +1648,11 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     }
 
     if (scalar) {
-        if (!scalar->is_constant && !scalar->is_string_literal && !scalar->is_address_of)
+        if (!scalar->is_constant && !scalar->is_string_literal && !scalar->is_address_of && !scalar->type->type == TYPE_ARRAY)
             error("An initializer for an object with static storage duration must be a constant expression");
 
-        if (!scalar->is_string_literal && !scalar->is_address_of) scalar = cast_constant_value(scalar, dst->type);
+        if (!scalar->is_string_literal && !scalar->is_address_of && scalar->type->type != TYPE_ARRAY) scalar = cast_constant_value(scalar, dst->type);
+
         size = get_type_size(dst->type);
 
         if (scalar->type->type == TYPE_FLOAT) {
@@ -1688,6 +1689,9 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
             in->is_string_literal = 1;
             in->string_literal_index = scalar->string_literal_index;
             in->address_of_offset = scalar->address_of_offset;
+        }
+        else if (scalar->type->type == TYPE_ARRAY) {
+            in->symbol = scalar->global_symbol;
         }
         else
             in->data = &scalar->int_value;

@@ -735,7 +735,7 @@ static void output_symbol(Symbol *symbol) {
         for (int i = 0; i < symbol->initializers->length; i++) {
             Initializer *in = (Initializer *) symbol->initializers->elements[i];
 
-            if (in->is_address_of) {
+            if (in->is_address_of || in->symbol) {
                 if (in->address_of_offset)
                     fprintf(f,"    .quad    %s + %d\n", in->symbol->global_identifier, in->address_of_offset);
                 else

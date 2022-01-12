@@ -174,6 +174,9 @@ int plus(int i) {}
 int (*global_func_ptr)(int) = plus;
 int (*global_func_ptr2)(int) = &plus;
 
+char ac[] = "Hello";
+char *pc = ac;
+
 static void test_scalar_initializers() {
     int a = 1;          assert_int(1, a, "Scalar initializer 1 a");
     int b = {1};        assert_int(1, b, "Scalar initializer 1 b");
@@ -1188,6 +1191,8 @@ void test_global_initialization() {
     assert_int(8, sizeof(ac2),  ". and -> ac2");
     assert_int(8, sizeof(ac3),  ". and -> ac3");
     assert_int(8, sizeof(ac4),  ". and -> ac4");
+
+    assert_string(pc, "Hello", "char *pc = ac");
 }
 
 void func_with_static_string(char expected_first_char, char* message) {
