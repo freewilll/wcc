@@ -1074,7 +1074,6 @@ static void and_or_expr(int is_and, int level) {
     add_jmp_target_instruction(ldst1);
     push_integral_constant(TYPE_INT, is_and ? 0 : 1); // Store 0
     add_instruction(IR_MOVE, dst, pl(), 0);
-    push(dst);
     add_instruction(IR_JMP, 0, ldst3, 0);
 
     // Test second operand

@@ -1673,6 +1673,13 @@ void test_mixed_sign_assignments_to_memory3() {
     --s.c;
 }
 
+void test_and_or_value_stack_clobber_bug() {
+    assert_int(1, 1 == (2 || 3), "|| && value stack clobber bug 1");
+
+    assert_int(4, 0 + (0 ? (2 || 3) : 4), "|| && value stack clobber bug 2");
+    assert_int(1, 0 + (1 ? (2 || 3) : 4), "|| && value stack clobber bug 3");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1732,6 +1739,7 @@ int main(int argc, char **argv) {
     test_mixed_sign_assignments_to_memory();
     test_mixed_sign_assignments_to_memory2(1, 1);
     test_mixed_sign_assignments_to_memory3();
+    test_and_or_value_stack_clobber_bug();
 
     finalize();
 }
