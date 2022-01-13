@@ -895,7 +895,7 @@ int cur_token_is_type(void);
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 void check_unary_operation_type(int operation, Value *value);
 void check_binary_operation_types(int operation, Value *src1, Value *src2);
-void check_plus_operation_type(Value *src1, Value *src2);
+void check_plus_operation_type(Value *src1, Value *src2, int for_array_subscript);
 void check_minus_operation_type(Value *src1, Value *src2);
 void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2);
 Value *load_constant(Value *cv);

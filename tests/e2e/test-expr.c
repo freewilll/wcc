@@ -1680,6 +1680,13 @@ void test_and_or_value_stack_clobber_bug() {
     assert_int(1, 0 + (1 ? (2 || 3) : 4), "|| && value stack clobber bug 3");
 }
 
+// What can I say? The spec allows it. See C89 3.3.2.1.
+void test_insane_array_lookup() {
+    int ca[2] = { 1, 2 };
+    assert_int(1, 0[ca], "Insane array lookup 1");
+    assert_int(2, 1[ca], "Insane array lookup 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1740,6 +1747,7 @@ int main(int argc, char **argv) {
     test_mixed_sign_assignments_to_memory2(1, 1);
     test_mixed_sign_assignments_to_memory3();
     test_and_or_value_stack_clobber_bug();
+    test_insane_array_lookup();
 
     finalize();
 }

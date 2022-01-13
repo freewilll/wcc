@@ -207,7 +207,7 @@ static Value *parse_address_plus_minus(int operation, Value *value1, Value *valu
     if (value1->is_string_literal) value1->type = decay_array_to_pointer(value1->type);
     if (value2->is_string_literal) value2->type = decay_array_to_pointer(value2->type);
 
-    if (operation == IR_ADD) check_plus_operation_type(value1, value2);
+    if (operation == IR_ADD) check_plus_operation_type(value1, value2, 0);
     else if (operation == IR_SUB) check_minus_operation_type(value1, value2);
 
     Value *result;

@@ -1291,7 +1291,7 @@ static void arithmetic_operation(int operation, Type *dst_type) {
     add_ir_op(operation, dst_type, new_vreg(), src1, src2);
 }
 
-void check_plus_operation_type(Value *src1, Value *src2) {
+void check_plus_operation_type(Value *src1, Value *src2, int for_array_subscript) {
     int src1_is_pointer = is_pointer_to_object_type(src1->type);
     int src1_is_integer = is_integer_type(src1->type);
     int src1_is_arithmetic = is_arithmetic_type(src1->type);
@@ -1302,10 +1302,10 @@ void check_plus_operation_type(Value *src1, Value *src2) {
     // Either both operands shall have arithmetic type, or one operand shall be a
     // pointer to an object type and the other shall have integral type.
 
-    if (src1_is_arithmetic && src2_is_arithmetic) return;
+    if (!for_array_subscript && src1_is_arithmetic && src2_is_arithmetic) return;
     else if (src1_is_pointer && src2_is_integer) return;
     else if (src2_is_pointer && src1_is_integer) return;
-    else error("Invalid operands to binary plus");
+    else error("Invalid operands");
 }
 
 void check_minus_operation_type(Value *src1, Value *src2) {
@@ -1346,7 +1346,7 @@ void check_unary_operation_type(int operation, Value *value) {
 }
 
 void check_binary_operation_types(int operation, Value *src1, Value *src2) {
-    if (operation == IR_ADD) return check_plus_operation_type(src1, src2);
+    if (operation == IR_ADD) return check_plus_operation_type(src1, src2, 0);
     if (operation == IR_SUB) return check_minus_operation_type(src1, src2);
     if (operation == IR_BSHR || operation == IR_BSHL || operation == IR_ASHR) return check_bitwise_shift_operation_type(src1, src2);
     if (operation == IR_LAND || operation == IR_LOR) return check_and_or_operation_type(src1, src2);
@@ -1902,14 +1902,14 @@ static void finish_comp_assign(Value *v1) {
     add_instruction(IR_MOVE, v1, vtop(), 0);
 }
 
-static void parse_addition(int level) {
+static void parse_addition(int level, int for_array_subscript) {
     if (vtop()->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
     Value *src1 = vtop();
     parse_expression(level);
     Value *src2 = vtop();
     if (vtop()->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
 
-    check_plus_operation_type(src1, src2);
+    check_plus_operation_type(src1, src2, for_array_subscript);
 
     int src1_is_pointer = is_pointer_to_object_type(src1->type);
     int src2_is_pointer = is_pointer_to_object_type(src2->type);
@@ -2685,10 +2685,7 @@ static void parse_expression(int level) {
             case TOK_LBRACKET:
                 next();
 
-                if (vtop()->type->type != TYPE_PTR && vtop()->type->type != TYPE_ARRAY)
-                    error("Invalid operator [] on a non-pointer and non-array");
-
-                parse_addition(TOK_COMMA);
+                parse_addition(TOK_COMMA, 1);
                 consume(TOK_RBRACKET, "]");
                 indirect();
                 break;
@@ -2731,7 +2728,7 @@ static void parse_expression(int level) {
             case TOK_MULTIPLY:         next(); parse_arithmetic_operation(TOK_DOT, IR_MUL, 0); break;
             case TOK_DIVIDE:           next(); parse_arithmetic_operation(TOK_DOT, IR_DIV, 0); break;
             case TOK_MOD:              next(); parse_arithmetic_operation(TOK_DOT, IR_MOD, 0); break;
-            case TOK_PLUS:             next(); parse_addition(TOK_MULTIPLY); break;
+            case TOK_PLUS:             next(); parse_addition(TOK_MULTIPLY, 0); break;
             case TOK_MINUS:            next(); parse_subtraction(TOK_MULTIPLY); break;
             case TOK_BITWISE_RIGHT:    next(); parse_bitwise_shift(TOK_PLUS, IR_BSHR, IR_ASHR); break;
             case TOK_BITWISE_LEFT:     next(); parse_bitwise_shift(TOK_PLUS, IR_BSHL, IR_BSHL); break;
@@ -2748,7 +2745,7 @@ static void parse_expression(int level) {
             case TOK_OR:               next(); and_or_expr(0, TOK_AND);        break;
             case TOK_TERNARY:          next(); parse_ternary_expression(); break;
             case TOK_EQ:               next(); parse_simple_assignment(1); break;
-            case TOK_PLUS_EQ:          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ);                         finish_comp_assign(v); break; }
+            case TOK_PLUS_EQ:          { Value *v = prep_comp_assign(); parse_addition(TOK_EQ, 0);                      finish_comp_assign(v); break; }
             case TOK_MINUS_EQ:         { Value *v = prep_comp_assign(); parse_subtraction(TOK_EQ);                      finish_comp_assign(v); break; }
             case TOK_MULTIPLY_EQ:      { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_MUL,  0); finish_comp_assign(v); break; }
             case TOK_DIVIDE_EQ:        { Value *v = prep_comp_assign(); parse_arithmetic_operation(TOK_EQ, IR_DIV,  0); finish_comp_assign(v); break; }
