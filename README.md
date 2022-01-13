@@ -11,6 +11,7 @@ $ ./wcc test.c -o test
 # Implementation
 The compiler goes through the following phases:
 
+- C Preprocessor
 - Hand rolled lexer
 - Precedence climbing parser
 - `optimize_arithmetic_operations` for simple arithmetic transformations
