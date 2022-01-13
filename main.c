@@ -130,6 +130,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fPIC"                             )) { opt_PIC = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_stack_register_count = 1;           argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--log-compiler-phase-durations"    )) { log_compiler_phase_durations = 1;         argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-live-range-coalescing"        )) { opt_enable_live_range_coalescing = 0;     argc--; argv++; }
@@ -252,6 +253,7 @@ int main(int argc, char **argv) {
         printf("-s                                          Output symbol table\n");
         printf("-fPIC                                       Make position independent code\n");
         printf("--prc                                       Output spilled register count\n");
+        printf("--log-compiler-phase-durations              Log durations of each compiler phase\n");
         printf("--ir1                                       Output intermediate representation after parsing\n");
         printf("--ir2                                       Output intermediate representation after x86_64 rearrangements\n");
         printf("--print-rules                               Print instruction selection rules\n");

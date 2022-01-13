@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <sys/time.h>
 
 #include "wcc.h"
+
+static struct timeval debug_log_start;
 
 // Report an internal error and exit
 void panic(char *format, ...) {
@@ -100,4 +103,29 @@ void append_to_string_buffer(StringBuffer *sb, char *str) {
 // Null terminate the string in the string buffer
 void terminate_string_buffer(StringBuffer *sb) {
     sb->data[sb->position] = 0;
+}
+
+int set_debug_logging_start_time() {
+    gettimeofday(&debug_log_start, NULL);
+}
+
+int debug_log(char *format, ...) {
+    struct timeval end;
+
+    va_list ap;
+    va_start(ap, format);
+
+    gettimeofday(&end, NULL);
+    long secs_used=(end.tv_sec - debug_log_start.tv_sec); //avoid overflow by subtracting first
+    long microseconds = ((secs_used*1000000) + end.tv_usec) - (debug_log_start.tv_usec);
+    microseconds = (microseconds % 1000000);
+    microseconds /= 10000;
+
+    int hr=(int)(secs_used/3600);
+    int min=((int)(secs_used/60))%60;
+    int sec=(int)(secs_used%60);
+
+    printf("%02d:%02d:%02d.%02ld ", hr, min, sec, microseconds);
+    vprintf(format, ap);
+    printf("\n");
 }

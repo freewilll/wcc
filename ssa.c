@@ -1584,8 +1584,11 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
 void coalesce_live_ranges(Function *function, int check_register_constraints) {
     make_vreg_count(function, live_range_reserved_pregs_offset);
+    if (log_compiler_phase_durations) debug_log("Make uevar and varkill");
     make_uevar_and_varkill(function);
+    if (log_compiler_phase_durations) debug_log("Make liveout");
     make_liveout(function);
+    if (log_compiler_phase_durations) debug_log("Make preferred LR indexes");
     make_preferred_live_range_preg_indexes(function);
     set_preg_classes(function);
 
@@ -1596,7 +1599,9 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
         return;
     }
 
+    if (log_compiler_phase_durations) debug_log("Coalesce live ranges for int");
     coalesce_live_ranges_for_preg(function, check_register_constraints, PC_INT);
+    if (log_compiler_phase_durations) debug_log("Coalesce live ranges for SSE");
     coalesce_live_ranges_for_preg(function, check_register_constraints, PC_SSE);
 }
 

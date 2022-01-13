@@ -18,6 +18,10 @@ char *make_temp_filename(char *template) {
 }
 
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at) {
+    if (log_compiler_phase_durations) set_debug_logging_start_time();
+
+    if (log_compiler_phase_durations) debug_log("Starting compiler phases for of %s", function_name);
+
     if (start_at == COMPILE_START_AT_BEGINNING) {
         convert_enums(function);
         process_struct_and_union_copies(function);
@@ -35,14 +39,21 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
 
     // Prepare for SSA phi function insertion
     sanity_test_ir_linkage(function);
+    if (log_compiler_phase_durations) debug_log("Optimizing arithmetic operations");
     optimize_arithmetic_operations(function);
+    if (log_compiler_phase_durations) debug_log("Function arg/param manipulation");
     add_function_param_moves(function, function_name);
     add_function_return_moves(function, function_name);
     add_function_call_result_moves(function);
     process_function_varargs(function);
     add_function_call_arg_moves(function);
+
+    if (log_compiler_phase_durations) debug_log("Adding PIC loads & saves");
     add_PIC_load_and_saves(function);
+    if (log_compiler_phase_durations) debug_log("Converting lvalue assignments");
     rewrite_lvalue_reg_assignments(function);
+
+    if (log_compiler_phase_durations) debug_log("Analyzing dominance");
     analyze_dominance(function);
     if (stop_at == COMPILE_STOP_AFTER_ANALYZE_DOMINANCE) return;
 
@@ -55,14 +66,18 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     // Come out of SSA and coalesce live ranges
     sanity_test_ir_linkage(function);
     rename_phi_function_variables(function);
+
+    if (log_compiler_phase_durations) debug_log("Make live ranges");
     make_live_ranges(function);
     blast_vregs_with_live_ranges(function);
     coalesce_live_ranges(function, 1);
     if (stop_at == COMPILE_STOP_AFTER_LIVE_RANGES) return;
 
     // Instruction selection
+    if (log_compiler_phase_durations) debug_log("Instruction Selection");
     select_instructions(function);
     compress_vregs(function);
+    if (log_compiler_phase_durations) debug_log("Analyzing dominance");
     analyze_dominance(function);
     coalesce_live_ranges(function, 0);
     remove_vreg_self_moves(function);
@@ -71,6 +86,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     if (stop_at == COMPILE_STOP_AFTER_INSTRUCTION_SELECTION) return;
 
     // Register allocation and spilling
+    if (log_compiler_phase_durations) debug_log("Register allocation");
     sanity_test_ir_linkage(function);
     make_interference_graph(function, 1);
     allocate_registers(function);
@@ -84,6 +100,8 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     add_final_x86_instructions(function, function_name);
     remove_nops(function);
     merge_rsp_func_call_add_subs(function);
+
+    if (log_compiler_phase_durations) debug_log("Finished compilation");
 }
 
 static void compile_internals(void) {

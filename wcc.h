@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/time.h>
 
 typedef struct block {
     struct three_address_code *start, *end;
@@ -675,6 +676,7 @@ int cur_line;                   // Current line number being lexed
 
 int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after register allocation
+int log_compiler_phase_durations;       // Output logs of how long each compiler phase lasts
 int opt_PIC;                            // Make position independent code
 int opt_enable_vreg_renumbering;        // Renumber vregs so the numbers are consecutive
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
@@ -851,6 +853,9 @@ int wasprintf(char **ret, const char *format, ...);
 StringBuffer *new_string_buffer(int initial_size);
 void append_to_string_buffer(StringBuffer *sb, char *str);
 void terminate_string_buffer(StringBuffer *sb);
+
+int set_debug_logging_start_time();
+int debug_log(char *format, ...);
 
 // error.c
 void panic_with_line_number(char *format, ...);
