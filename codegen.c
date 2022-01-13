@@ -815,8 +815,11 @@ void output_code(char *input_filename, char *output_filename) {
     // Output symbols for all non-external functions
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbol_list[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined && symbol->type->function->linkage == LINKAGE_EXTERNAL)
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined && symbol->type->function->linkage == LINKAGE_EXTERNAL) {
             fprintf(f, "    .globl  %s\n", symbol->identifier);
+            fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
+            fprintf(f, "    .size   %s, .-%s\n", symbol->global_identifier, symbol->global_identifier);
+        }
     }
 
     fprintf(f, "\n");
