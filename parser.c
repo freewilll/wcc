@@ -705,7 +705,7 @@ Type *parse_direct_declarator(void) {
         consume(TOK_RPAREN, ")");
     }
 
-    for (int i = 0; ; i++) {
+    while (1) {
         if (cur_token == TOK_LPAREN) {
             // Function
             next();
