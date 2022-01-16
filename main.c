@@ -149,7 +149,9 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa"                             )) { debug_ssa = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-liveout"                     )) { debug_ssa_liveout = 1;                      argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-cfg"                         )) { debug_ssa_cfg = 1;                          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-dominance"                   )) { debug_ssa_dominance = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-idom"                        )) { debug_ssa_idom = 1;                         argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-dominance-frontiers"         )) { debug_ssa_dominance_frontiers = 1;          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-phi-insertion"               )) { debug_ssa_phi_insertion = 1;                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-phi-renumbering"             )) { debug_ssa_phi_renumbering = 1;              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-ssa-live-range"                  )) { debug_ssa_live_range = 1;                   argc--; argv++; }
@@ -281,7 +283,8 @@ int main(int argc, char **argv) {
         printf("--debug-ssa\n");
         printf("--debug-ssa-liveout\n");
         printf("--debug-ssa-cfg\n");
-        printf("--debug-ssa-idom\n");
+        printf("--debug-ssa-dominance\n");
+        printf("--debug-ssa-dominance-frontiers\n");
         printf("--debug-ssa-phi-insertion\n");
         printf("--debug-ssa-phi-renumbering\n");
         printf("--debug-ssa-live-range\n");
@@ -309,7 +312,9 @@ int main(int argc, char **argv) {
     get_debug_env_value("DEBUG_SSA", &debug_ssa);
     get_debug_env_value("DEBUG_SSA_LIVEOUT", &debug_ssa_liveout);
     get_debug_env_value("DEBUG_SSA_CFG", &debug_ssa_cfg);
+    get_debug_env_value("DEBUG_SSA_DOMINANCE", &debug_ssa_dominance);
     get_debug_env_value("DEBUG_SSA_IDOM", &debug_ssa_idom);
+    get_debug_env_value("DEBUG_SSA_DOMINANCE_FRONTIERS", &debug_ssa_dominance_frontiers);
     get_debug_env_value("DEBUG_SSA_PHI_INSERTION", &debug_ssa_phi_insertion);
     get_debug_env_value("DEBUG_SSA_PHI_RENUMBERING", &debug_ssa_phi_renumbering);
     get_debug_env_value("DEBUG_SSA_LIVE_RANGE", &debug_ssa_live_range);

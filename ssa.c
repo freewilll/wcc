@@ -310,6 +310,15 @@ void make_block_dominance(Function *function) {
     memset(function->dominance, 0, block_count * sizeof(Set));
 
     for (int i = 0; i < block_count; i++) function->dominance[i] = dom[i];
+
+    if (debug_ssa_dominance) {
+        printf("\nDominance:\n");
+        for (int i = 0; i < block_count; i++) {
+            printf("%d: ", i);
+            print_set(dom[i]);
+            printf("\n");
+        }
+    }
 }
 
 static void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) {
@@ -396,7 +405,7 @@ static void make_block_immediate_dominators(Function *function) {
 
     idoms[0] = -1;
 
-    if (debug_ssa) {
+    if (debug_ssa_idom) {
         printf("\nIdoms:\n");
         for (int i = 0; i < block_count; i++) printf("%d: %d\n", i, idoms[i]);
     }
@@ -445,7 +454,7 @@ static void make_block_dominance_frontiers(Function *function) {
     function->dominance_frontiers = malloc(block_count * sizeof(Set *));
     for (int i = 0; i < block_count; i++) function->dominance_frontiers[i] = df[i];
 
-    if (debug_ssa) {
+    if (debug_ssa_dominance_frontiers) {
         printf("\nDominance frontiers:\n");
         for (int i = 0; i < block_count; i++) {
             printf("%d: ", i);
