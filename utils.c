@@ -119,13 +119,13 @@ int debug_log(char *format, ...) {
     long secs_used=(end.tv_sec - debug_log_start.tv_sec); //avoid overflow by subtracting first
     long microseconds = ((secs_used*1000000) + end.tv_usec) - (debug_log_start.tv_usec);
     microseconds = (microseconds % 1000000);
-    microseconds /= 10000;
+    microseconds /= 1000;
 
     int hr=(int)(secs_used/3600);
     int min=((int)(secs_used/60))%60;
     int sec=(int)(secs_used%60);
 
-    printf("%02d:%02d:%02d.%02ld ", hr, min, sec, microseconds);
+    printf("%02d:%02d:%02d.%03ld ", hr, min, sec, microseconds);
     vprintf(format, ap);
     printf("\n");
 }
