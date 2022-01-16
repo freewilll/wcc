@@ -209,9 +209,9 @@ typedef struct function {
     Graph *cfg;                                         // Control flow graph
     Block *blocks;                                      // For functions, the blocks
     Set **dominance;                                    // Block dominances
-    Set **uevar;                                        // The upward exposed set for each block
-    Set **varkill;                                      // The killed var set for each block
-    Set **liveout;                                      // The liveout set for each block
+    LongSet **uevar;                                    // The upward exposed set for each block
+    LongSet **varkill;                                  // The killed var set for each block
+    LongSet **liveout;                                  // The liveout set for each block
     int *idom;                                          // Immediate dominator for each block
     Set **dominance_frontiers;                          // Dominance frontier for each block
     Set **var_blocks;                                   // Var/block associations for vars that are written to
@@ -812,8 +812,12 @@ void print_strset(StrSet *s);
 LongSet *new_longset(void);
 void free_longset(LongSet *ss);
 void longset_add(LongSet *ss, long element);
+void longset_delete(LongSet *ls, long element);
 int longset_in(LongSet *ss, long element);
-void longset_empty(LongSet *ss);
+void longset_empty(LongSet *ls);
+LongSet *longset_copy(LongSet *ls);
+int longset_eq(LongSet *ss1, LongSet *ss2);
+int longset_len(LongSet *ls);
 LongSet *longset_union(LongSet *ss1, LongSet *ss2);
 LongSet *longset_intersection(LongSet *ss1, LongSet *ss2);
 int longset_iterator_finished(LongSetIterator *iterator);
@@ -830,6 +834,7 @@ void *longmap_get(LongMap *longmap, long key);
 void longmap_put(LongMap *longmap, long key, void *value);
 void longmap_delete(LongMap *longmap, long key);
 void longmap_empty(LongMap *map);
+LongMap *longmap_copy(LongMap *map);
 LongMapIterator longmap_iterator(LongMap *map);
 int longmap_iterator_finished(LongMapIterator *iterator);
 void longmap_iterator_next(LongMapIterator *iterator);

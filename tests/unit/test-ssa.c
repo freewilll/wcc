@@ -13,16 +13,26 @@ void assert(long expected, long actual) {
     }
 }
 
-void assert_set(Set *set, int v1, int v2, int v3, int v4, int v5) {
+void assert_set(Set *got, int v1, int v2, int v3, int v4, int v5) {
     Set *is;
 
-    is = new_set(set->max_value);
+    is = new_set(got->max_value);
     if (v1 != -1) add_to_set(is, v1);
     if (v2 != -1) add_to_set(is, v2);
     if (v3 != -1) add_to_set(is, v3);
     if (v4 != -1) add_to_set(is, v4);
     if (v5 != -1) add_to_set(is, v5);
-    assert(1, set_eq(set, is));
+    assert(1, set_eq(got, is));
+}
+
+void assert_longset(LongSet *got, int v1, int v2, int v3, int v4, int v5) {
+    LongSet *expected = new_longset();
+    if (v1 != -1) longset_add(expected, v1);
+    if (v2 != -1) longset_add(expected, v2);
+    if (v3 != -1) longset_add(expected, v3);
+    if (v4 != -1) longset_add(expected, v4);
+    if (v5 != -1) longset_add(expected, v5);
+    assert(1, longset_eq(expected, got));
 }
 
 void run_arithmetic_optimization(int operation, Value *dst, Value *src1, Value *src2) {
@@ -279,23 +289,23 @@ void test_liveout1() {
     assert(5, function->cfg->node_count);
     assert(6, function->cfg->edge_count);
 
-    assert_set(function->uevar[0], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[1],  1, -1, -1, -1, -1);
-    assert_set(function->uevar[2], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[3],  1,  2, -1, -1, -1);
-    assert_set(function->uevar[4], -1,  2, -1, -1, -1);
+    assert_longset(function->uevar[0], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[1],  1, -1, -1, -1, -1);
+    assert_longset(function->uevar[2], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[3],  1,  2, -1, -1, -1);
+    assert_longset(function->uevar[4], -1,  2, -1, -1, -1);
 
-    assert_set(function->varkill[0],  1, -1, -1, -1, -1);
-    assert_set(function->varkill[1], -1, -1, -1, -1, -1);
-    assert_set(function->varkill[2], -1,  2, -1, -1, -1);
-    assert_set(function->varkill[3],  1,  2, -1, -1, -1);
-    assert_set(function->varkill[4], -1, -1, -1, -1, -1);
+    assert_longset(function->varkill[0],  1, -1, -1, -1, -1);
+    assert_longset(function->varkill[1], -1, -1, -1, -1, -1);
+    assert_longset(function->varkill[2], -1,  2, -1, -1, -1);
+    assert_longset(function->varkill[3],  1,  2, -1, -1, -1);
+    assert_longset(function->varkill[4], -1, -1, -1, -1, -1);
 
-    assert_set(function->liveout[0],  1,  2, -1, -1, -1);
-    assert_set(function->liveout[1],  1,  2, -1, -1, -1);
-    assert_set(function->liveout[2],  1,  2, -1, -1, -1);
-    assert_set(function->liveout[3],  1,  2, -1, -1, -1);
-    assert_set(function->liveout[4], -1, -1, -1, -1, -1);
+    assert_longset(function->liveout[0],  1,  2, -1, -1, -1);
+    assert_longset(function->liveout[1],  1,  2, -1, -1, -1);
+    assert_longset(function->liveout[2],  1,  2, -1, -1, -1);
+    assert_longset(function->liveout[3],  1,  2, -1, -1, -1);
+    assert_longset(function->liveout[4], -1, -1, -1, -1, -1);
 }
 
 // Make IR for the test example on page 484 of engineering a compiler
@@ -366,35 +376,35 @@ void test_liveout2() {
     assert(9, function->cfg->node_count);
     assert(11, function->cfg->edge_count);
 
-    assert_set(function->uevar[0], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[1], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[2], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[3],  1,  2,  3,  4,  5);
-    assert_set(function->uevar[4], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[5], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[6], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[7], -1, -1, -1, -1, -1);
-    assert_set(function->uevar[8], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[0], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[1], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[2], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[3],  1,  2,  3,  4,  5);
+    assert_longset(function->uevar[4], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[5], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[6], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[7], -1, -1, -1, -1, -1);
+    assert_longset(function->uevar[8], -1, -1, -1, -1, -1);
 
-    assert_set(function->varkill[0],  1, -1, -1, -1, -1);
-    assert_set(function->varkill[1],  2,  4, -1, -1, -1);
-    assert_set(function->varkill[2],  3,  4,  5, -1, -1);
-    assert_set(function->varkill[3],  1,  6,  7, -1, -1);
-    assert_set(function->varkill[4], -1, -1, -1, -1, -1);
-    assert_set(function->varkill[5],  2,  5, -1, -1, -1);
-    assert_set(function->varkill[6],  5, -1, -1, -1, -1);
-    assert_set(function->varkill[7],  3, -1, -1, -1, -1);
-    assert_set(function->varkill[8],  4, -1, -1, -1, -1);
+    assert_longset(function->varkill[0],  1, -1, -1, -1, -1);
+    assert_longset(function->varkill[1],  2,  4, -1, -1, -1);
+    assert_longset(function->varkill[2],  3,  4,  5, -1, -1);
+    assert_longset(function->varkill[3],  1,  6,  7, -1, -1);
+    assert_longset(function->varkill[4], -1, -1, -1, -1, -1);
+    assert_longset(function->varkill[5],  2,  5, -1, -1, -1);
+    assert_longset(function->varkill[6],  5, -1, -1, -1, -1);
+    assert_longset(function->varkill[7],  3, -1, -1, -1, -1);
+    assert_longset(function->varkill[8],  4, -1, -1, -1, -1);
 
-    assert_set(function->liveout[0],  1, -1, -1, -1, -1);
-    assert_set(function->liveout[1],  2,  4,  1, -1, -1);
-    assert_set(function->liveout[2],  1,  2,  3,  4,  5);
-    assert_set(function->liveout[3],  1, -1, -1, -1, -1);
-    assert_set(function->liveout[4], -1, -1, -1, -1, -1);
-    assert_set(function->liveout[5],  1,  2,  4,  5, -1);
-    assert_set(function->liveout[6],  1,  2,  4,  5, -1);
-    assert_set(function->liveout[7],  1,  2,  3,  4,  5);
-    assert_set(function->liveout[8],  1,  2,  4,  5, -1);
+    assert_longset(function->liveout[0],  1, -1, -1, -1, -1);
+    assert_longset(function->liveout[1],  2,  4,  1, -1, -1);
+    assert_longset(function->liveout[2],  1,  2,  3,  4,  5);
+    assert_longset(function->liveout[3],  1, -1, -1, -1, -1);
+    assert_longset(function->liveout[4], -1, -1, -1, -1, -1);
+    assert_longset(function->liveout[5],  1,  2,  4,  5, -1);
+    assert_longset(function->liveout[6],  1,  2,  4,  5, -1);
+    assert_longset(function->liveout[7],  1,  2,  3,  4,  5);
+    assert_longset(function->liveout[8],  1,  2,  4,  5, -1);
 }
 
 // Test example on page 484 and 531 of engineering a compiler

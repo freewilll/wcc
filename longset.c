@@ -18,6 +18,10 @@ void longset_add(LongSet *ls, long element) {
     longmap_put(ls->longmap, element, (void *) 1);
 }
 
+void longset_delete(LongSet *ls, long element) {
+    longmap_delete(ls->longmap, element);
+}
+
 void longset_empty(LongSet *ls) {
     longmap_empty(ls->longmap);
 }
@@ -25,6 +29,40 @@ void longset_empty(LongSet *ls) {
 int longset_in(LongSet *ls, long element) {
     return !!longmap_get(ls->longmap, element);
 }
+
+int longset_eq(LongSet *ls1, LongSet *ls2) {
+    int count1 = 0;
+
+    for (LongMapIterator it = longmap_iterator(ls1->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+        count1++;
+        if (!longmap_get(ls2->longmap, longmap_iterator_key(&it))) return 0;
+    }
+
+    int count2 = 0;
+    for (LongMapIterator it = longmap_iterator(ls2->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) count2++;
+
+    return (count1 == count2);
+
+    return 1;
+}
+
+int longset_len(LongSet *ls) {
+    int count = 0;
+
+    for (LongMapIterator it = longmap_iterator(ls->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it))
+        count++;
+
+    return count;
+}
+
+LongSet *longset_copy(LongSet *ls) {
+    LongSet *result = new_longset();
+
+    result->longmap = longmap_copy(ls->longmap);
+
+    return result;
+}
+
 
 LongSet *longset_union(LongSet *ls1, LongSet *ls2) {
     LongSet *result = new_longset();
@@ -48,7 +86,6 @@ LongSet *longset_intersection(LongSet *ls1, LongSet *ls2) {
 
     return result;
 }
-
 
 int longset_iterator_finished(LongSetIterator *iterator) {
     return longmap_iterator_finished(&iterator->longmap_iterator);

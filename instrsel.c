@@ -340,17 +340,23 @@ static void make_igraphs(Function *function, int block_id) {
     }
 
     // Mark liveouts as off-limits for merging
-    Set *liveout = function->liveout[block_id];
+    LongSet *liveout = function->liveout[block_id];
 
-    if (liveout->max_value > vreg_count) vreg_count = liveout->max_value;
+    int liveout_vreg_count = 0;
+    for (LongSetIterator it = longset_iterator(liveout); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+        int vreg = longset_iterator_element(&it);
+        if (vreg > liveout_vreg_count) liveout_vreg_count = vreg;
+    }
+
+    if (liveout_vreg_count > vreg_count) vreg_count = liveout_vreg_count;
 
     VregIGraph* vreg_igraphs = malloc((vreg_count + 1) * sizeof(VregIGraph));
     memset(vreg_igraphs, 0, (vreg_count + 1) * sizeof(VregIGraph));
 
-    for (int i = 0; i <= liveout->max_value; i++) {
-        if (!liveout->elements[i]) continue;
-        vreg_igraphs[i].count++;
-        vreg_igraphs[i].igraph_id = -1;
+    for (LongSetIterator it = longset_iterator(liveout); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+        int vreg = longset_iterator_element(&it);
+        vreg_igraphs[vreg].count++;
+        vreg_igraphs[vreg].igraph_id = -1;
     }
 
     i = instr_count - 1;

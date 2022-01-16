@@ -121,6 +121,25 @@ void longmap_delete(LongMap *map, long key) {
 
 void longmap_empty(LongMap *map) {
     memset(map->status, 0, map->size * sizeof(char));
+    map->used_count = 0;
+    map->element_count = 0;
+}
+
+LongMap *longmap_copy(LongMap *map) {
+    LongMap *result = malloc(sizeof(LongMap));
+    memset(result, 0, sizeof(LongMap));
+    result->keys = malloc(map->size * sizeof(long));
+    result->values = malloc(map->size * sizeof(void *));
+    result->status = malloc(map->size * sizeof(char));
+    memcpy(result->keys, map->keys, map->size * sizeof(long));
+    memcpy(result->values, map->values, map->size * sizeof(void *));
+    memcpy(result->status, map->status, map->size * sizeof(char));
+    result->size = map->size;
+    result->used_count = map->used_count;
+    result->element_count = map->element_count;
+    result->hashfunc = map->hashfunc;
+
+    return result;
 }
 
 int longmap_iterator_finished(LongMapIterator *iterator) {

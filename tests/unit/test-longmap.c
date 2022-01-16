@@ -99,4 +99,8 @@ int main() {
     map = new_longmap();
     longmap_put(map, 1, (void *) 1);
     if (!longmap_get(map, 1)) panic("Did not get 1");
+
+    // Test custom hashfunc
+    LongMap *copy = longmap_copy(map);
+    if (!longmap_get(copy, 1)) panic("Did not get 1 in copy");
 }

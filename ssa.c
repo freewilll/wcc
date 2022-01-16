@@ -494,24 +494,22 @@ void make_uevar_and_varkill(Function *function) {
     Block *blocks = function->blocks;
     int block_count = function->cfg->node_count;
 
-    function->uevar = malloc(block_count * sizeof(Set *));
-    memset(function->uevar, 0, block_count * sizeof(Set *));
-    function->varkill = malloc(block_count * sizeof(Set *));
-    memset(function->varkill, 0, block_count * sizeof(Set *));
-
-    int vreg_count = function->vreg_count;
+    function->uevar = malloc(block_count * sizeof(LongSet *));
+    memset(function->uevar, 0, block_count * sizeof(LongSet *));
+    function->varkill = malloc(block_count * sizeof(LongSet *));
+    memset(function->varkill, 0, block_count * sizeof(LongSet *));
 
     for (int i = 0; i < block_count; i++) {
-        Set *uevar = new_set(vreg_count);
-        Set *varkill = new_set(vreg_count);
+        LongSet *uevar = new_longset();
+        LongSet *varkill = new_longset();
         function->uevar[i] = uevar;
         function->varkill[i] = varkill;
 
         Tac *tac = blocks[i].start;
         while (1) {
-            if (tac->src1 && tac->src1->vreg && !in_set(varkill, tac->src1->vreg)) add_to_set(uevar, tac->src1->vreg);
-            if (tac->src2 && tac->src2->vreg && !in_set(varkill, tac->src2->vreg)) add_to_set(uevar, tac->src2->vreg);
-            if (tac->dst && tac->dst->vreg) add_to_set(varkill, tac->dst->vreg);
+            if (tac->src1 && tac->src1->vreg && !longset_in(varkill, tac->src1->vreg)) longset_add(uevar, tac->src1->vreg);
+            if (tac->src2 && tac->src2->vreg && !longset_in(varkill, tac->src2->vreg)) longset_add(uevar, tac->src2->vreg);
+            if (tac->dst && tac->dst->vreg) longset_add(varkill, tac->dst->vreg);
 
             if (tac == blocks[i].end) break;
             tac = tac->next;
@@ -522,9 +520,9 @@ void make_uevar_and_varkill(Function *function) {
         printf("\nuevar & varkills:\n");
         for (int i = 0; i < block_count; i++) {
             printf("%d: uevar=", i);
-            print_set(function->uevar[i]);
+            print_longset(function->uevar[i]);
             printf(" varkill=");
-            print_set(function->varkill[i]);
+            print_longset(function->varkill[i]);
             printf("\n");
         }
     }
@@ -532,40 +530,15 @@ void make_uevar_and_varkill(Function *function) {
 
 // Page 447 of Engineering a compiler
 void make_liveout(Function *function) {
-    Block *blocks = function->blocks;
     Graph *cfg = function->cfg;
     int block_count = cfg->node_count;
 
-    function->liveout = malloc(block_count * sizeof(Set *));
-    memset(function->liveout, 0, block_count * sizeof(Set *));
-
-    int vreg_count = function->vreg_count;
+    function->liveout = malloc(block_count * sizeof(LongSet *));
+    memset(function->liveout, 0, block_count * sizeof(LongSet *));
 
     // Set all liveouts to {0}
     for (int i = 0; i < block_count; i++)
-        function->liveout[i] = new_set(vreg_count);
-
-    // Set all_vars to {0, 1, 2, ... n}, i.e. the set of all vars in a block
-    Set *all_vars = new_set(vreg_count);
-    char *all_vars_elements = all_vars->elements;
-
-    for (int i = 0; i < block_count; i++) {
-        Tac *tac = blocks[i].start;
-        while (1) {
-            if (tac->src1 && tac->src1->vreg) add_to_set(all_vars, tac->src1->vreg);
-            if (tac->src2 && tac->src2->vreg) add_to_set(all_vars, tac->src2->vreg);
-            if (tac->dst && tac->dst->vreg) add_to_set(all_vars, tac->dst->vreg);
-
-            if (tac == blocks[i].end) break;
-            tac = tac->next;
-        }
-    }
-
-    Set *unions = new_set(vreg_count);
-    char *unions_elements = unions->elements;
-    Set *inv_varkill = new_set(vreg_count);
-    Set *is1 = new_set(vreg_count);
-    Set *is2 = new_set(vreg_count);
+        function->liveout[i] = new_longset();
 
     if (debug_ssa_liveout) printf("Doing liveout on %d blocks\n", block_count);
 
@@ -574,45 +547,44 @@ void make_liveout(Function *function) {
         changed = 0;
 
         for (int i = 0; i < block_count; i++) {
-            empty_set(unions);
+            LongSet *unions = new_longset();
 
             GraphEdge *e = cfg->nodes[i].succ;
             while (e) {
                 // Got a successor edge from i -> successor_block
                 int successor_block = e->to->id;
-                char *successor_block_liveout_elements = function->liveout[successor_block]->elements;
-                char *successor_block_varkill_elements = function->varkill[successor_block]->elements;
-                char *successor_block_uevar_elements = function->uevar[successor_block]->elements;
+                LongSet *successor_block_liveout = function->liveout[successor_block];
+                LongSet *successor_block_varkill = function->varkill[successor_block];
+                LongSet *successor_block_uevar = function->uevar[successor_block];
 
-                for (int j = 1; j <= vreg_count; j++) {
-                    unions->elements[j] =
-                        successor_block_uevar_elements[j] ||                               // union
-                        unions_elements[j] ||                                              // union
-                        (successor_block_liveout_elements[j] &&                            // intersection
-                            (all_vars_elements[j] && !successor_block_varkill_elements[j]) // difference
-                        );
+                for (LongSetIterator it = longset_iterator(successor_block_uevar); !longset_iterator_finished(&it); longset_iterator_next(&it))
+                    longset_add(unions, longset_iterator_element(&it));
+
+                for (LongSetIterator it = longset_iterator(successor_block_liveout); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+                    long vreg = longset_iterator_element(&it);
+                    if (!longset_in(successor_block_varkill, vreg))
+                        longset_add(unions, vreg);
+
                 }
 
                 e = e->next_succ;
             }
 
-            if (!set_eq(unions, function->liveout[i])) {
-                function->liveout[i] = copy_set(unions);
+            if (!longset_eq(function->liveout[i], unions)) {
+                free_longset(function->liveout[i]);
+                function->liveout[i] = unions;
                 changed = 1;
             }
+            else
+                free_longset(unions);
         }
     }
-
-    free_set(unions);
-    free_set(inv_varkill);
-    free_set(is1);
-    free_set(is2);
 
     if (debug_ssa_liveout) {
         printf("\nLiveouts:\n");
         for (int i = 0; i < block_count; i++) {
             printf("%d: ", i);
-            print_set(function->liveout[i]);
+            print_longset(function->liveout[i]);
             printf("\n");
         }
     }
@@ -1154,20 +1126,15 @@ void add_ig_edge(char *ig, int vreg_count, int to, int from) {
 
 // Add edges to a physical register for all live variables, preventing the physical register from
 // getting used.
-static void clobber_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
+static void clobber_livenow(char *ig, int vreg_count, LongSet *livenow, Tac *tac, int preg_reg_index) {
     if (debug_ssa_interference_graph) printf("Clobbering livenow for pri=%d\n", preg_reg_index);
 
-    int max_value = livenow->max_value;
-    char *elements = livenow->elements;
-
-    for (int i = 0; i <= max_value; i++) {
-        if (elements[i])
-            add_ig_edge(ig, vreg_count, preg_reg_index, i);
-    }
+    for (LongSetIterator it = longset_iterator(livenow); !longset_iterator_finished(&it); longset_iterator_next(&it))
+        add_ig_edge(ig, vreg_count, preg_reg_index, longset_iterator_element(&it));
 }
 
 // Add edges to a physical register for all live variables and all values in an instruction
-static void clobber_tac_and_livenow(char *ig, int vreg_count, Set *livenow, Tac *tac, int preg_reg_index) {
+static void clobber_tac_and_livenow(char *ig, int vreg_count, LongSet *livenow, Tac *tac, int preg_reg_index) {
     if (debug_ssa_interference_graph) printf("Adding edges for pri=%d\n", preg_reg_index);
 
     clobber_livenow(ig, vreg_count, livenow, tac, preg_reg_index);
@@ -1210,16 +1177,17 @@ static void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
 }
 
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
-static void force_physical_register(char *ig, int vreg_count, Set *livenow, int vreg, int preg_reg_index, int preg_class) {
+static void force_physical_register(char *ig, int vreg_count, LongSet *livenow, int vreg, int preg_reg_index, int preg_class) {
     if (debug_ssa_interference_graph || debug_register_allocation) {
         printf("Forcing ");
         print_physical_register_name_for_lr_reg_index(preg_reg_index);
         printf(" onto vreg %d\n", vreg);
     }
 
-    for (int i = 0; i <= livenow->max_value; i++)
-        if (i != vreg && livenow->elements[i])
-            add_ig_edge(ig, vreg_count, preg_reg_index, i);
+    for (LongSetIterator it = longset_iterator(livenow); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+        int it_vreg = longset_iterator_element(&it);
+        if (it_vreg != vreg) add_ig_edge(ig, vreg_count, preg_reg_index, it_vreg);
+    }
 
     // Add edges to all non reserved physical registers
     int start = preg_class == PC_INT ? 1 : PHYSICAL_INT_REGISTER_COUNT + 1;
@@ -1228,13 +1196,13 @@ static void force_physical_register(char *ig, int vreg_count, Set *livenow, int 
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
-static void enforce_live_range_preg_for_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value, int preg_class, int *arg_registers) {
+static void enforce_live_range_preg_for_preg(char *interference_graph, int vreg_count, LongSet *livenow, Value *value, int preg_class, int *arg_registers) {
     if (value && value && value->preg_class == preg_class && value->live_range_preg)
         force_physical_register(interference_graph, vreg_count, livenow, value->vreg, value->live_range_preg, preg_class);
 }
 
 // For values that have live_range_preg set, add interference graph edges for all live ranges except live_range_preg
-static void enforce_live_range_preg(char *interference_graph, int vreg_count, Set *livenow, Value *value) {
+static void enforce_live_range_preg(char *interference_graph, int vreg_count, LongSet *livenow, Value *value) {
     enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_INT, int_arg_registers);
     enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_SSE, sse_arg_registers);
 }
@@ -1270,9 +1238,7 @@ void make_interference_graph(Function *function, int include_clobbers) {
     int block_count = function->cfg->node_count;
 
     for (int i = block_count - 1; i >= 0; i--) {
-        Set *livenow = copy_set(function->liveout[i]);
-        int livenow_max_value = livenow->max_value;
-        char *livenow_elements = livenow->elements;
+        LongSet *livenow = longset_copy(function->liveout[i]);
 
         Tac *tac = blocks[i].end;
         while (tac) {
@@ -1351,11 +1317,11 @@ void make_interference_graph(Function *function, int include_clobbers) {
                     if (debug_ssa_interference_graph) printf("added src2 <-> dst %d <-> %d\n", tac->src2->vreg, tac->dst->vreg);
                 }
 
-                for (int j = 0; j <= livenow_max_value; j++) {
-                    if (!livenow_elements[j]) continue;
+                for (LongSetIterator it = longset_iterator(livenow); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+                    int it_vreg = longset_iterator_element(&it);
 
-                    if (j == tac->dst->vreg) continue; // Ignore self assignment
-                    if (tac->dst->preg_class != vreg_preg_classes[j]) continue;
+                    if (it_vreg == tac->dst->vreg) continue; // Ignore self assignment
+                    if (tac->dst->preg_class != vreg_preg_classes[it_vreg]) continue;
 
                     // Don't add an edge for register copies
                     if ((
@@ -1364,38 +1330,38 @@ void make_interference_graph(Function *function, int include_clobbers) {
                         tac->operation == X_MOVZ ||
                         tac->operation == X_MOVS ||
                         tac->operation == X_MOVC
-                       ) && tac->src1 && tac->src1->vreg && tac->src1->vreg == j) continue;
-                    add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, j);
-                    if (debug_ssa_interference_graph) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, j);
+                       ) && tac->src1 && tac->src1->vreg && tac->src1->vreg == it_vreg) continue;
+                    add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, it_vreg);
+                    if (debug_ssa_interference_graph) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, it_vreg);
                 }
             }
 
             if (tac->dst && tac->dst->vreg) {
                 if (debug_ssa_interference_graph)
                     printf("livenow: -= %d -> ", tac->dst->vreg);
-                delete_from_set(livenow, tac->dst->vreg);
-                if (debug_ssa_interference_graph) { print_set(livenow); printf("\n"); }
+                longset_delete(livenow, tac->dst->vreg);
+                if (debug_ssa_interference_graph) { print_longset(livenow); printf("\n"); }
             }
 
             if (tac->src1 && tac->src1->vreg) {
                 if (debug_ssa_interference_graph)
                     printf("livenow: += (src1) %d -> ", tac->src1->vreg);
-                add_to_set(livenow, tac->src1->vreg);
-                if (debug_ssa_interference_graph) { print_set(livenow); printf("\n"); }
+                longset_add(livenow, tac->src1->vreg);
+                if (debug_ssa_interference_graph) { print_longset(livenow); printf("\n"); }
             }
 
             if (tac->src2 && tac->src2->vreg) {
                 if (debug_ssa_interference_graph)
                     printf("livenow: += (src2) %d -> ", tac->src2->vreg);
-                add_to_set(livenow, tac->src2->vreg);
-                if (debug_ssa_interference_graph) { print_set(livenow); printf("\n"); }
+                longset_add(livenow, tac->src2->vreg);
+                if (debug_ssa_interference_graph) { print_longset(livenow); printf("\n"); }
             }
 
             if (tac == blocks[i].start) break;
             tac = tac->prev;
         }
 
-        free_set(livenow);
+        free_longset(livenow);
     }
 
     function->interference_graph = interference_graph;
@@ -1467,10 +1433,10 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
     // Migrate liveouts
     int block_count = function->cfg->node_count;
     for (int i = 0; i < block_count; i++) {
-        Set *l = function->liveout[i];
-        if (in_set(l, src)) {
-            delete_from_set(l, src);
-            add_to_set(l, dst);
+        LongSet *l = function->liveout[i];
+        if (longset_in(l, src)) {
+            longset_delete(l, src);
+            longset_add(l, dst);
         }
     }
 }
@@ -1631,7 +1597,7 @@ static void add_infinite_spill_costs(Function *function) {
     int block_count = function->cfg->node_count;
 
     for (int i = block_count - 1; i >= 0; i--) {
-        Set *livenow = copy_set(function->liveout[i]);
+        LongSet *livenow = longset_copy(function->liveout[i]);
 
         Tac *tac = blocks[i].end;
         while (tac) {
@@ -1639,20 +1605,19 @@ static void add_infinite_spill_costs(Function *function) {
                 if ((tac->src1 && tac->src1->vreg && tac->src1->vreg == tac->prev->dst->vreg) ||
                     (tac->src2 && tac->src2->vreg && tac->src2->vreg == tac->prev->dst->vreg)) {
 
-                    if (!in_set(livenow, tac->prev->dst->vreg)) {
+                    if (!longset_in(livenow, tac->prev->dst->vreg))
                         spill_cost[tac->prev->dst->vreg] = 2 << 15;
-                    }
                 }
             }
-            if (tac->dst && tac->dst->vreg) delete_from_set(livenow, tac->dst->vreg);
-            if (tac->src1 && tac->src1->vreg) add_to_set(livenow, tac->src1->vreg);
-            if (tac->src2 && tac->src2->vreg) add_to_set(livenow, tac->src2->vreg);
+            if (tac->dst && tac->dst->vreg) longset_delete(livenow, tac->dst->vreg);
+            if (tac->src1 && tac->src1->vreg) longset_add(livenow, tac->src1->vreg);
+            if (tac->src2 && tac->src2->vreg) longset_add(livenow, tac->src2->vreg);
 
             if (tac == blocks[i].start) break;
             tac = tac->prev;
         }
 
-        free_set(livenow);
+        free_longset(livenow);
     }
 }
 
