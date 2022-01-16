@@ -6,6 +6,11 @@
 
 static void make_live_range_spill_cost(Function *function);
 
+typedef struct live_range {
+    LongSet *set;
+    long weight;
+} LiveRange;
+
 // Optimize arithmetic operations for integer values
 void optimize_integer_arithmetic_operation(Tac *tac) {
     Value *v;
@@ -901,179 +906,159 @@ void rename_phi_function_variables(Function *function) {
     if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
 }
 
-// Make mapping from (vreg, ssa_subscript) tuple to a unique index.
-// The LongMap has void * values, but they are being used to store longs.
-// The vars are sorted like r_1_0, r_1_1, r2_0, r3_0, r4_1 etc to preserve
-// the order they were declared in. This isn't necessary for compilation, but it
-// makes writing tests and debugging easier, since the live ranges will be in the same
-// order.
-static int make_live_range_varmap(Function *function, LongMap *map, long *reverse_map) {
-    // Populate the longmap with the (vreg, ssa_subscript) tuples.
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->dst  && tac->dst ->vreg) {
-            long hash = ((long) tac->dst ->vreg << 32) + tac->dst ->ssa_subscript;
-            longmap_put(map, hash, (void *) 1);
-        }
+static void quicksort_live_ranges(LiveRange *live_ranges, int left, int right) {
+    if (left >= right) return;
 
-        if (tac->src1 && tac->src1->vreg) {
-            long hash = ((long) tac->src1->vreg << 32) + tac->src1->ssa_subscript;
-            longmap_put(map, hash, (void *) 1);
-        }
+    int i = left;
+    int j = right;
+    long pivot = live_ranges[i].weight;
 
-        if (tac->src2 && tac->src2->vreg) {
-            long hash = ((long) tac->src2->vreg << 32) + tac->src2->ssa_subscript;
-            longmap_put(map, hash, (void *) 1);
-        }
+    while (1) {
+        while (live_ranges[i].weight < pivot) i++;
+        while (pivot < live_ranges[j].weight) j--;
+        if (i >= j) break;
 
-        if (tac->operation == IR_PHI_FUNCTION) {
-            Value *v = tac->phi_values;
-            while (v->type) {
-                long hash = ((long) v->vreg << 32) + v->ssa_subscript;
-                longmap_put(map, hash, (void *) 1);
-                v++;
-            }
-        }
+        LongSet *tmp_set = live_ranges[i].set;
+        long tmp_weight = live_ranges[i].weight;
+        live_ranges[i].set = live_ranges[j].set;
+        live_ranges[i].weight = live_ranges[j].weight;
+        live_ranges[j].set = tmp_set;
+        live_ranges[j].weight = tmp_weight;
+
+        i++;
+        j--;
     }
 
-    // Make an array with the keys
-    int count = 0;
-    for (LongMapIterator it = longmap_iterator(map); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) count++;
-    if (count == 0) return 0; // Bail if there are no vregs
-    unsigned long *hashes = malloc(sizeof(long) * count);
-    int i = 0;
-    for (LongMapIterator it = longmap_iterator(map); !longmap_iterator_finished(&it); longmap_iterator_next(&it), i++)
-        hashes[i] = longmap_iterator_key(&it);
-
-    // Sort the array
-    quicksort_ulong_array(hashes, 0, count - 1);
-
-    // Update the values in the map and populate the reverse map
-    for (int i = 0; i < count; i++) {
-        unsigned long hash = hashes[i];
-        longmap_put(map, hash, (void *) (long) i + 1);
-        if (debug_ssa_live_range) reverse_map[i + 1] = hash;
-    }
-
-    free(hashes);
-
-    return count + 1;
+    quicksort_live_ranges(live_ranges, left, i - 1);
+    quicksort_live_ranges(live_ranges, j + 1, right);
 }
 
+#define LR_HASH(vreg, ssa_subscript) 3 * (ssa_subscript * (vreg_count + 1) + vreg)
+#define LR_HASH_SSA_SUBSCRIPT(hash) (hash / 3) / (vreg_count + 1)
+#define LR_HASH_VREG(hash) (hash / 3) % (vreg_count + 1)
+
+#define LR_ADD_TO_MAP(live_ranges, v) if (v && v->vreg) longmap_put(live_ranges, LR_HASH(v->vreg, v->ssa_subscript), (void *) 1)
+
+#define LR_ASSIGN(final_map, v) if (v && v->vreg) { \
+    long live_range = (long) longmap_get(final_map, (long) (LR_HASH(v->vreg, v->ssa_subscript))); \
+    if (!live_range) panic("Missing live range for %d_%d", v->vreg, v->ssa_subscript); \
+    v->live_range = (long) longmap_get(final_map, (long) (LR_HASH(v->vreg, v->ssa_subscript))); \
+}
+
+// Move out of SSA by converting all SSA variables to live ranges and removing phi
+// functions. The algorithm on described in page 696 of engineering a compiler. First,
+// live ranges are created for all SSA variables including phi function destinations
+// and phi function parameters. Then, each phi function is examined. The sets of the
+// dst and sets of the parameters are unioned to make a new set. The old sets are no
+// longer relevant are get assigned the new set, which is later deduped. Once the
+// deduping is done, the final sets are sorted, so that the vreg order is more or less
+// preserved.
 void make_live_ranges(Function *function) {
     if (debug_ssa_live_range) print_ir(function, 0, 0);
 
-    LongMap *varmap = new_longmap();
-    long *reverse_varmap;
-    if (debug_ssa_live_range) reverse_varmap = malloc(1000000 * sizeof(long));
+    LongMap *live_ranges = new_longmap();
 
-    int ssa_var_count = make_live_range_varmap(function, varmap, reverse_varmap);
+    make_vreg_count(function, 0);
+    int vreg_count = function->vreg_count;
 
-    // Create live ranges sets for all variables, each set with the variable itself in it.
-    // Allocate all the memory we need. live_range_count
-    Set **live_ranges = malloc(ssa_var_count * sizeof(Set *));
-    for (int i = 1; i < ssa_var_count; i++) {
-        live_ranges[i] = new_set(ssa_var_count);
-        add_to_set(live_ranges[i], i);
+    // Make initial live ranges. Each SSA variable has a live range with itself in the set.
+
+    // Collect all SSA vars and put them in the live_ranges map
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        LR_ADD_TO_MAP(live_ranges, tac->dst);
+        LR_ADD_TO_MAP(live_ranges, tac->src1);
+        LR_ADD_TO_MAP(live_ranges, tac->src2);
+
+        if (tac->operation == IR_PHI_FUNCTION)
+            for (Value *v = tac->phi_values; v->type; v++) LR_ADD_TO_MAP(live_ranges, v);
     }
 
-    Set *s = new_set(ssa_var_count);
+    // Create the initial sets
+    for (LongMapIterator it = longmap_iterator(live_ranges); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+        long key = longmap_iterator_key(&it);
+        LongSet *s = new_longset();
+        longset_add(s, key);
+        longmap_put(live_ranges, key, s);
+    }
 
-    int *src_ssa_vars = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
-    int *src_set_indexes = malloc(MAX_BLOCK_PREDECESSOR_COUNT * sizeof(int));
-
-    // Make live ranges out of SSA variables in phi functions
+    // Create live range sets by unioning together the sets of the phi function destination and parameters.
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation == IR_PHI_FUNCTION) {
-            int value_count = 0;
-            Value *v = tac->phi_values;
-            while (v->type) {
-                if (value_count == MAX_BLOCK_PREDECESSOR_COUNT) panic("Exceeded MAX_BLOCK_PREDECESSOR_COUNT");
-                src_ssa_vars[value_count++] = (long) longmap_get(varmap, ((long) v->vreg << 32) + v->ssa_subscript);
-                v++;
-            }
+        if (tac->operation != IR_PHI_FUNCTION) continue;
 
-            int dst = (long) longmap_get(varmap, ((long) tac->dst->vreg << 32) + tac->dst->ssa_subscript);
-            int dst_set_index;
+        LongSet *dst = longmap_get(live_ranges, LR_HASH(tac->dst->vreg, tac->dst->ssa_subscript));
 
-            for (int i = 1; i < ssa_var_count; i++) {
-                if (live_ranges[i]->elements[dst]) dst_set_index = i;
+        for (Value *v = tac->phi_values; v->type; v++) {
+            LongSet *src_set = longmap_get(live_ranges, LR_HASH(v->vreg, v->ssa_subscript));
 
-                for (int j = 0; j < value_count; j++)
-                    if (live_ranges[i]->elements[src_ssa_vars[j]]) src_set_indexes[j] = i;
-            }
-
-            Set *dst_set = live_ranges[dst_set_index];
-
-            copy_set_to(s, dst_set);
-            for (int j = 0; j < value_count; j++) {
-                int set_index = src_set_indexes[j];
-                set_union_to(s, s, live_ranges[set_index]);
-            }
-            copy_set_to(live_ranges[dst_set_index], s);
-
-            for (int j = 0; j < value_count; j++) {
-                int set_index = src_set_indexes[j];
-                if (set_index != dst_set_index) empty_set(live_ranges[set_index]);
+            // Add all elements of the phi function parameter set to the dst
+            for (LongSetIterator it = longset_iterator(src_set); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+                long src = longset_iterator_element(&it);
+                longmap_put(dst->longmap, src, (void *) 1);
+                longmap_put(live_ranges, src, dst);
             }
         }
+
+        // Make all phi function params the same set
+        for (Value *v = tac->phi_values; v->type; v++)
+            longmap_put(live_ranges, LR_HASH(v->vreg, v->ssa_subscript), dst);
     }
 
-    free_set(s);
+    // Dedupe live ranges by putting the pointers to the sets in a set
+    LongSet *deduped = new_longset();
+    for (LongMapIterator it = longmap_iterator(live_ranges); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+        long key = longmap_iterator_key(&it);
+        LongSet *s = longmap_get(live_ranges, key);
+        longset_add(deduped, (long) s);
+    }
 
-    // Remove empty live ranges
+    // Sort live ranges by first element of the live ranges set, vreg first, then
+    // ssa_subscript. The sorting isn't necessary, but makes debugging & tests easier,
+    // since the live ranges end up being ordered in the same way as the original
+    // vregs.
     int live_range_count = 0;
-    for (int i = 1; i < ssa_var_count; i++) {
-        if (set_len(live_ranges[i]))
-            live_ranges[live_range_count++] = live_ranges[i];
+    for (LongSetIterator it = longset_iterator(deduped); !longset_iterator_finished(&it); longset_iterator_next(&it))
+        live_range_count++;
+
+    LiveRange *live_ranges_array = malloc(live_range_count * sizeof(LiveRange));
+    int i = 0;
+    for (LongSetIterator it = longset_iterator(deduped); !longset_iterator_finished(&it); longset_iterator_next(&it), i++) {
+        // Find vreg/ssa_subscript for first element of the live range set
+        LongSet *set = (LongSet *) longset_iterator_element(&it);
+        LongMapIterator lrit = longmap_iterator(set->longmap);
+        long hash = (long) longmap_iterator_key(&lrit);
+        if (!hash) panic("Expected non-zero elements in live range set");
+
+        LiveRange lr = { set, (LR_HASH_VREG(hash) << 32) + LR_HASH_SSA_SUBSCRIPT(hash) };
+        live_ranges_array[i] = lr;
     }
 
-    // From here on, live ranges start at live_range_reserved_pregs_offset + 1
-    if (debug_ssa_live_range) {
-        printf("Live ranges:\n");
-        for (int i = 0; i < live_range_count; i++) {
-            printf("%d: ", i + live_range_reserved_pregs_offset + 1);
-            printf("{");
-            int first = 1;
-            long mask = ((1l << 32) - 1);
-            for (int j = 1; j < live_ranges[i]->max_value; j++) {
-                if (!live_ranges[i]->elements[j]) continue;
-                if (!first)
-                    printf(", ");
-                else
-                    first = 0;
+    quicksort_live_ranges(live_ranges_array, 0, live_range_count - 1);
 
-                long hash = reverse_varmap[j];
-                printf("%ld_%ld", (hash >> 32) & mask, hash & mask);
+    if (debug_ssa_live_range) printf("\nLive ranges:\n");
+    LongMap *final_map = new_longmap();
+    for (int live_range = 0; live_range < live_range_count; live_range++) {
+        LongSet *s = live_ranges_array[live_range].set;
+
+        int first = 1;
+        for (LongMapIterator it = longmap_iterator(s->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+            if (debug_ssa_live_range) {
+                if (first) printf("%d: {", live_range + live_range_reserved_pregs_offset + 1); else printf(", ");
             }
 
-            printf("}\n");
+            first = 0;
+            long key = longmap_iterator_key(&it);
+            if (debug_ssa_live_range) printf("%ld_%ld", LR_HASH_VREG(key), LR_HASH_SSA_SUBSCRIPT(key));
+            longmap_put(final_map, key, (void *) (long) live_range + live_range_reserved_pregs_offset + 1);
         }
-
-        printf("\n");
-        print_ir(function, 0, 0);
+        if (debug_ssa_live_range) printf("}\n");
     }
 
-    // Make a map of variable names to live range
-    int *map = malloc(ssa_var_count * sizeof(int));
-    memset(map, -1, ssa_var_count * sizeof(int));
-
-    for (int i = 0; i < live_range_count; i++) {
-        Set *s = live_ranges[i];
-        char *elements = s->elements;
-        for (int j = 1; j < s->max_value; j++)
-            if (elements[j]) map[j] = i;
-    }
-
-    // Assign live ranges to TAC & build live_ranges set
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->dst && tac->dst->vreg)
-            tac->dst->live_range = map[(long) longmap_get(varmap, ((long) tac->dst->vreg << 32) + tac->dst->ssa_subscript)] + live_range_reserved_pregs_offset + 1;
+        if (tac->operation == IR_PHI_FUNCTION) continue;
 
-        if (tac->src1 && tac->src1->vreg)
-            tac->src1->live_range = map[(long) longmap_get(varmap, ((long) tac->src1->vreg << 32) + tac->src1->ssa_subscript)] + live_range_reserved_pregs_offset + 1;
-
-        if (tac->src2 && tac->src2->vreg)
-            tac->src2->live_range = map[(long) longmap_get(varmap, ((long) tac->src2->vreg << 32) + tac->src2->ssa_subscript)] + live_range_reserved_pregs_offset + 1;
+        LR_ASSIGN(final_map, tac->dst);
+        LR_ASSIGN(final_map, tac->src1);
+        LR_ASSIGN(final_map, tac->src2);
     }
 
     // Remove phi functions

@@ -94,6 +94,10 @@ test-unit: libwcc.a strmap.c longmap.c
 test-unit-parser: libwcc.a
 	cd tests && ${MAKE} test-unit-parser
 
+.PHONY: test-unit-ssa
+test-unit-ssa: libwcc.a
+	cd tests && ${MAKE} test-unit-ssa
+
 .PHONY: test-unit-cpp
 test-unit-cpp: libwcc.a
 	cd tests && ${MAKE} test-unit-cpp
