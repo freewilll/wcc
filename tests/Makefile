@@ -12,6 +12,10 @@ test-unit-parser: test-utils.s test-lib.o
 	cd unit && ${MAKE} run-test-parser
 
 .PHONY:
+test-unit-ssa: test-utils.s test-lib.o
+	cd unit && ${MAKE} run-test-ssa
+
+.PHONY:
 test-unit-cpp: test-utils.s test-lib.o
 	cd unit && ${MAKE} run-test-cpp
 

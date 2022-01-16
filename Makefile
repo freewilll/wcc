@@ -21,6 +21,7 @@ SOURCES = \
   stack.c \
   strmap.c \
   strset.c \
+  longset.c \
   longmap.c \
   list.c \
   graph.c \

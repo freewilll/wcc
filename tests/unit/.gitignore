@@ -5,6 +5,7 @@ test-list
 test-strmap
 test-strset
 test-longmap
+test-longset
 test-graph
 test-ssa
 test-instrsel

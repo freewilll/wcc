@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "../../wcc.h"
 
@@ -62,7 +63,7 @@ int main() {
         longmap_delete(map, key);
     }
 
-    // Check half keys are gone
+    // Check half of keys are gone
     for (int i = -COUNT + 1; i < COUNT; i++) {
         long key = i * 42;
         char *got_value = longmap_get(map, key);
@@ -82,4 +83,11 @@ int main() {
         got_value = longmap_get(map, key);
         if (got_value) panic("Got a key");
     }
+
+    // Test emptying
+    map = new_longmap();
+    longmap_put(map, 1, (void *) 1);
+    if (!longmap_get(map, 1)) panic("Did not get 1");
+    longmap_empty(map);
+    if (longmap_get(map, 1)) panic("Unexpectedly got 1");
 }

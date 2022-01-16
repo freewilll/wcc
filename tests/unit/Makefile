@@ -1,4 +1,4 @@
-all: run-test-lexer run-test-cpp run-test-set run-test-list run-test-strmap run-test-strset run-test-longmap  run-test-ssa run-test-parser run-test-types run-test-graph run-test-functions
+all: run-test-lexer run-test-cpp run-test-set run-test-list run-test-strmap run-test-strset run-test-longmap run-test-longset run-test-ssa run-test-parser run-test-types run-test-graph run-test-functions
 
 test-lexer: ../../libwcc.a test-lexer.c
 	gcc ${GCC_OPTS} -g -o test-lexer test-lexer.c ../../libwcc.a
@@ -42,6 +42,12 @@ test-longmap: test-longmap.c ../../longmap.c
 run-test-longmap: test-longmap
 	 ./test-longmap
 
+test-longset: test-longset.c ../../longset.c
+	gcc ${GCC_OPTS} -g -o test-longset test-longset.c ../../libwcc.a
+
+run-test-longset: test-longset
+	 ./test-longset
+
 test-ssa: ../../libwcc.a ../test-utils.c test-ssa.c
 	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-ssa test-ssa.c ../test-utils.c ../../libwcc.a
 
@@ -83,6 +89,7 @@ clean:
 	@rm -f test-strmap
 	@rm -f test-strset
 	@rm -f test-longmap
+	@rm -f test-longset
 	@rm -f test-ssa
 	@rm -f test-graph
 	@rm -f test-parser

@@ -118,6 +118,10 @@ void longmap_delete(LongMap *map, long key) {
     }
 }
 
+void longmap_empty(LongMap *map) {
+    memset(map->status, 0, map->size * sizeof(char));
+}
+
 int longmap_iterator_finished(LongMapIterator *iterator) {
     return iterator->pos == -1;
 }
@@ -157,4 +161,11 @@ LongMap *new_longmap(void) {
     memset(map->values, 0, DEFAULT_SIZE * sizeof(void *));
     memset(map->status, 0, DEFAULT_SIZE * sizeof(char));
     return map;
+}
+
+void free_longmap(LongMap *map) {
+    free(map->keys);
+    free(map->values);
+    free(map->status);
+    free(map);
 }
