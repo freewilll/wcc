@@ -933,9 +933,13 @@ static void quicksort_live_ranges(LiveRange *live_ranges, int left, int right) {
     quicksort_live_ranges(live_ranges, j + 1, right);
 }
 
-#define LR_HASH(vreg, ssa_subscript) 3 * (ssa_subscript * (vreg_count + 1) + vreg)
-#define LR_HASH_SSA_SUBSCRIPT(hash) (hash / 3) / (vreg_count + 1)
-#define LR_HASH_VREG(hash) (hash / 3) % (vreg_count + 1)
+static long live_range_hash(long l) {
+    return 3 * l;
+}
+
+#define LR_HASH(vreg, ssa_subscript) ssa_subscript * (vreg_count + 1) + vreg
+#define LR_HASH_SSA_SUBSCRIPT(hash) hash / (vreg_count + 1)
+#define LR_HASH_VREG(hash) hash % (vreg_count + 1)
 
 #define LR_ADD_TO_MAP(live_ranges, v) if (v && v->vreg) longmap_put(live_ranges, LR_HASH(v->vreg, v->ssa_subscript), (void *) 1)
 
@@ -957,6 +961,7 @@ void make_live_ranges(Function *function) {
     if (debug_ssa_live_range) print_ir(function, 0, 0);
 
     LongMap *live_ranges = new_longmap();
+    live_ranges->hashfunc = live_range_hash;
 
     make_vreg_count(function, 0);
     int vreg_count = function->vreg_count;
@@ -1470,6 +1475,12 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
     }
 }
 
+// Merge together the upper and lower 32 bits, otherwise there will be lost of
+// hash collisions on the upper half.
+long merge_candidates_hash(long l) {
+    return 3 * (l >> 32) + 5 * (l & 31);
+}
+
 // Page 706 of engineering a compiler
 //
 // An outer loop (re)calculates the interference graph.
@@ -1503,7 +1514,9 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
             memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
             memset(clobbers, 0, (vreg_count + 1) * sizeof(char));
 
+            // Make make of merge candidates
             LongMap *mc = new_longmap();
+            mc->hashfunc = merge_candidates_hash;
 
             // Create merge candidates
             for (Tac *tac = function->ir; tac; tac = tac->next) {

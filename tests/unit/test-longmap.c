@@ -6,6 +6,10 @@
 
 #include "../../wcc.h"
 
+long hashfunc(long l) {
+    return ~l;
+}
+
 int main() {
     LongMap *map = new_longmap();
 
@@ -90,4 +94,9 @@ int main() {
     if (!longmap_get(map, 1)) panic("Did not get 1");
     longmap_empty(map);
     if (longmap_get(map, 1)) panic("Unexpectedly got 1");
+
+    // Test custom hashfunc
+    map = new_longmap();
+    longmap_put(map, 1, (void *) 1);
+    if (!longmap_get(map, 1)) panic("Did not get 1");
 }

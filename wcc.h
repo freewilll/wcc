@@ -63,6 +63,7 @@ typedef struct longmap {
     int size;
     int used_count;
     int element_count;
+    long (*hashfunc)(long);
 } LongMap;
 
 typedef struct longmap_iterator {

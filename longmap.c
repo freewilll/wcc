@@ -16,6 +16,7 @@ enum {
 };
 
 
+// Default hash function
 static long hash(long l) {
     return l;
 }
@@ -40,7 +41,7 @@ static void maybe_rehash(LongMap *map) {
     for (int i = 0; i < map->size; i++) {
         if (map->status[i] != STATUS_USED) continue;
         long key = map->keys[i];
-        long pos = hash(key) & mask;
+        long pos = map->hashfunc(key) & mask;
         while (1) {
             if (status[pos] == STATUS_EMPTY) {
                 keys[pos] = key;
@@ -66,7 +67,7 @@ void longmap_put(LongMap *map, long key, void *value) {
     maybe_rehash(map);
 
     long mask = map->size - 1;
-    long pos = hash(key) & mask;
+    long pos = map->hashfunc(key) & mask;
 
     while (1) {
         char status = map->status[pos];
@@ -89,7 +90,7 @@ void longmap_put(LongMap *map, long key, void *value) {
 
 void *longmap_get(LongMap *map, long key) {
     long mask = map->size - 1;
-    long pos = hash(key) & mask;
+    long pos = map->hashfunc(key) & mask;
 
     char status = map->status[pos];
     while (status != STATUS_EMPTY) {
@@ -103,7 +104,7 @@ void *longmap_get(LongMap *map, long key) {
 
 void longmap_delete(LongMap *map, long key) {
     long mask = map->size - 1;
-    long pos = hash(key) & mask;
+    long pos = map->hashfunc(key) & mask;
 
     char status = map->status[pos];
     while (status != STATUS_EMPTY) {
@@ -160,6 +161,7 @@ LongMap *new_longmap(void) {
     memset(map->keys, 0, DEFAULT_SIZE * sizeof(long));
     memset(map->values, 0, DEFAULT_SIZE * sizeof(void *));
     memset(map->status, 0, DEFAULT_SIZE * sizeof(char));
+    map->hashfunc = hash;
     return map;
 }
 
