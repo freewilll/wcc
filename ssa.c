@@ -536,29 +536,82 @@ void make_liveout(Function *function) {
     function->liveout = malloc(block_count * sizeof(LongSet *));
     memset(function->liveout, 0, block_count * sizeof(LongSet *));
 
+    make_vreg_count(function, 0);
+    int vreg_count = function->vreg_count;
+    int **block_uevars = malloc(block_count * sizeof(int *));
+
+    // Keep track of versions of liveouts. Everytime a block liveout changes, the
+    // version number is incremented. This is used to avoid recalculating the liveouts
+    // repeatedly.
+    int *liveout_versions = malloc(block_count * sizeof(int));
+    memset(liveout_versions, 0, block_count * sizeof(int));
+
+    int **successor_liveout_versions = malloc(block_count * sizeof(int *));
+    memset(successor_liveout_versions, 0, block_count * sizeof(int *));
+
+    for (int i = 0; i < block_count; i++) {
+        block_uevars[i] = malloc((vreg_count + 1) * sizeof(int));
+        memset(block_uevars[i], 0, (vreg_count + 1) * sizeof(int));
+
+        successor_liveout_versions[i] = malloc(block_count * sizeof(int));
+        memset(successor_liveout_versions[i], 0, block_count * sizeof(int));
+
+        liveout_versions[i] = 1;
+        int j = 0;
+        int *bue = block_uevars[i];
+        LongSet *uevar = function->uevar[i];
+        for (LongSetIterator it = longset_iterator(uevar); !longset_iterator_finished(&it); longset_iterator_next(&it), j++)
+            bue[j] = longset_iterator_element(&it);
+    }
+
     // Set all liveouts to {0}
     for (int i = 0; i < block_count; i++)
         function->liveout[i] = new_longset();
 
     if (debug_ssa_liveout) printf("Doing liveout on %d blocks\n", block_count);
 
+    LongSet *unions = new_longset();
+
+    int inner_count = 0;
     int changed = 1;
     while (changed) {
         changed = 0;
 
         for (int i = 0; i < block_count; i++) {
-            LongSet *unions = new_longset();
+            int *block_successor_liveout_versions = successor_liveout_versions[i];
 
+            // Check to see if any of the successor liveouts have changed. If they
+            // haven't, the entire calculation can be skipped for this block.
+            int successor = 0;
+            int match = 1;
             GraphEdge *e = cfg->nodes[i].succ;
             while (e) {
+                int successor_block = e->to->id;
+
+                if (block_successor_liveout_versions[successor] != liveout_versions[successor_block]) {
+                    match = 0;
+                    break;
+                }
+
+                e = e->next_succ;
+                successor++;
+            }
+
+            if (match) continue;
+
+            successor = 0;
+            e = cfg->nodes[i].succ;
+            while (e) {
+                inner_count++;
                 // Got a successor edge from i -> successor_block
                 int successor_block = e->to->id;
                 LongSet *successor_block_liveout = function->liveout[successor_block];
                 LongSet *successor_block_varkill = function->varkill[successor_block];
-                LongSet *successor_block_uevar = function->uevar[successor_block];
+                int *successor_block_uevars = block_uevars[successor_block];
+                block_successor_liveout_versions[successor] = liveout_versions[successor_block];
 
-                for (LongSetIterator it = longset_iterator(successor_block_uevar); !longset_iterator_finished(&it); longset_iterator_next(&it))
-                    longset_add(unions, longset_iterator_element(&it));
+                for (int *i = successor_block_uevars; *i; i++)
+                    longset_add(unions, *i);
 
                 for (LongSetIterator it = longset_iterator(successor_block_liveout); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
                     long vreg = longset_iterator_element(&it);
@@ -568,17 +621,24 @@ void make_liveout(Function *function) {
                 }
 
                 e = e->next_succ;
+                successor++;
             }
+            block_successor_liveout_versions[successor] = 0;
 
+            // Ensure unions has been emptied before the next iteration
             if (!longset_eq(function->liveout[i], unions)) {
+                liveout_versions[i]++;
                 free_longset(function->liveout[i]);
                 function->liveout[i] = unions;
+                unions = new_longset();
                 changed = 1;
             }
             else
-                free_longset(unions);
+                longset_empty(unions);
         }
     }
+
+    free_longset(unions);
 
     if (debug_ssa_liveout) {
         printf("\nLiveouts:\n");
@@ -588,6 +648,15 @@ void make_liveout(Function *function) {
             printf("\n");
         }
     }
+
+    for (int i = 0; i < block_count; i++) {
+        free(block_uevars[i]);
+        free(successor_liveout_versions[i]);
+    }
+    free(block_uevars);
+
+    free(liveout_versions);
+    free(successor_liveout_versions);
 }
 
 // Algorithm on page 501 of engineering a compiler

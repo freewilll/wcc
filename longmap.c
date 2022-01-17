@@ -142,23 +142,18 @@ LongMap *longmap_copy(LongMap *map) {
     return result;
 }
 
-int longmap_iterator_finished(LongMapIterator *iterator) {
-    return iterator->pos == -1;
-}
-
 void longmap_iterator_next(LongMapIterator *iterator) {
+    LongMap *map = iterator->map;
+    char *status = iterator->map->status;
+    int size = map->size;
+
     iterator->pos++;
 
-    while (iterator->pos <= iterator->map->size && iterator->map->status[iterator->pos] != STATUS_USED)
+    while (iterator->pos <= size && status[iterator->pos] != STATUS_USED)
         iterator->pos++;
 
-    if (iterator->pos >= iterator->map->size || iterator->map->status[iterator->pos] != STATUS_USED)
+    if (iterator->pos >= size || status[iterator->pos] != STATUS_USED)
         iterator->pos = -1;
-}
-
-long longmap_iterator_key(LongMapIterator *iterator) {
-    if (iterator->pos == -1) panic("Attempt to iterate beyond the end of the iterator");
-    return iterator->map->keys[iterator->pos];
 }
 
 LongMapIterator longmap_iterator(LongMap *map) {

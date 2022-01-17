@@ -87,16 +87,8 @@ LongSet *longset_intersection(LongSet *ls1, LongSet *ls2) {
     return result;
 }
 
-int longset_iterator_finished(LongSetIterator *iterator) {
-    return longmap_iterator_finished(&iterator->longmap_iterator);
-}
-
 void longset_iterator_next(LongSetIterator *iterator) {
     longmap_iterator_next(&iterator->longmap_iterator);
-}
-
-long longset_iterator_element(LongSetIterator *iterator) {
-    return longmap_iterator_key(&iterator->longmap_iterator);
 }
 
 LongSetIterator longset_iterator(LongSet *ls) {

@@ -820,9 +820,9 @@ int longset_eq(LongSet *ss1, LongSet *ss2);
 int longset_len(LongSet *ls);
 LongSet *longset_union(LongSet *ss1, LongSet *ss2);
 LongSet *longset_intersection(LongSet *ss1, LongSet *ss2);
-int longset_iterator_finished(LongSetIterator *iterator);
+#define longset_iterator_finished(iterator) longmap_iterator_finished(&(iterator)->longmap_iterator)
 void longset_iterator_next(LongSetIterator *iterator);
-long longset_iterator_element(LongSetIterator *iterator);
+#define longset_iterator_element(iterator) longmap_iterator_key(&(iterator)->longmap_iterator)
 LongSetIterator longset_iterator(LongSet *ls);
 
 void print_longset(LongSet *s);
@@ -836,9 +836,9 @@ void longmap_delete(LongMap *longmap, long key);
 void longmap_empty(LongMap *map);
 LongMap *longmap_copy(LongMap *map);
 LongMapIterator longmap_iterator(LongMap *map);
-int longmap_iterator_finished(LongMapIterator *iterator);
+#define longmap_iterator_finished(iterator) ((iterator)->pos == -1)
 void longmap_iterator_next(LongMapIterator *iterator);
-long longmap_iterator_key(LongMapIterator *iterator);
+#define longmap_iterator_key(iterator) (iterator)->map->keys[(iterator)->pos]
 
 // list.c
 
