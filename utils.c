@@ -118,6 +118,7 @@ int debug_log(char *format, ...) {
     gettimeofday(&end, NULL);
     long secs_used=(end.tv_sec - debug_log_start.tv_sec); //avoid overflow by subtracting first
     long microseconds = ((secs_used*1000000) + end.tv_usec) - (debug_log_start.tv_usec);
+    secs_used = microseconds / 1000000;
     microseconds = (microseconds % 1000000);
     microseconds /= 1000;
 
