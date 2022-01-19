@@ -11,6 +11,11 @@ typedef struct live_range {
     long weight;
 } LiveRange;
 
+typedef struct coalesce {
+    int
+    src, dst, cost;
+} Coalesce;
+
 // Optimize arithmetic operations for integer values
 void optimize_integer_arithmetic_operation(Tac *tac) {
     Value *v;
@@ -1443,16 +1448,22 @@ static void copy_interference_graph_edges(char *interference_graph, int vreg_cou
     }
 }
 
-// Delete src, merging it into dst
-static void coalesce_live_range(Function *function, int src, int dst, int check_register_constraints) {
-    int vreg_count = function->vreg_count;
+#define move_coalesced_vreg(coalesces, v) { \
+    if (v && v->vreg) { \
+        int coalesce_dst = (long) longmap_get(coalesces, (long) v->vreg); \
+        if (coalesce_dst) v->vreg = coalesce_dst; \
+    } \
+}
 
-    // Rewrite IR src => dst
+// Rewrite the IR, renaming all registers in the coalesces map. Then, upgade the interference graph and liveouts.
+static void coalesce_pending_coalesces(Function *function, LongMap *coalesces, int check_register_constraints) {
+    // Rewrite IR src => dst if present in the coalesces map
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->dst  && tac->dst ->vreg == src) tac->dst ->vreg = dst;
-        if (tac->src1 && tac->src1->vreg == src) tac->src1->vreg = dst;
-        if (tac->src2 && tac->src2->vreg == src) tac->src2->vreg = dst;
+        move_coalesced_vreg(coalesces, tac->dst);
+        move_coalesced_vreg(coalesces, tac->src1);
+        move_coalesced_vreg(coalesces, tac->src2);
 
+        // Create IR_NOP for the move instruction
         if (tac->operation == IR_MOVE && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
             tac->operation = IR_NOP;
             tac->dst = 0;
@@ -1477,15 +1488,18 @@ static void coalesce_live_range(Function *function, int src, int dst, int check_
         }
     }
 
-    copy_interference_graph_edges(function->interference_graph, vreg_count, src, dst);
-
     // Migrate liveouts
-    int block_count = function->cfg->node_count;
-    for (int i = 0; i < block_count; i++) {
-        LongSet *l = function->liveout[i];
-        if (longset_in(l, src)) {
-            longset_delete(l, src);
-            longset_add(l, dst);
+    for (LongMapIterator it = longmap_iterator(coalesces); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+        int src = longmap_iterator_key(&it);
+        int dst = (long) longmap_get(coalesces, src);
+
+        int block_count = function->cfg->node_count;
+        for (int i = 0; i < block_count; i++) {
+            LongSet *l = function->liveout[i];
+            if (longset_in(l, src)) {
+                longset_delete(l, src);
+                longset_add(l, dst);
+            }
         }
     }
 }
@@ -1496,17 +1510,26 @@ long merge_candidates_hash(long l) {
     return 3 * (l >> 32) + 5 * (l & 31);
 }
 
+static int coalesce_cmpfunc(const void *a, const void *b) {
+    return ((Coalesce *) b)->cost - ((Coalesce *) a)->cost;
+}
+
 // Page 706 of engineering a compiler
+// A loop (re)calculates the interference graph.
 //
-// An outer loop (re)calculates the interference graph.
-// An inner loop discovers the live range to be coalesced, coalesces them,
-// and does a conservative update to the interference graph. The update can introduce
-// false interferences, however they will disappear when the outer loop runs again.
-// Since earlier coalesces can lead to later coalesces not happening, with each inner
-// loop, the registers with the highest spill cost are coalesced.
+// Inside the loop
+// - Make live range candidates to be merged with a single pass over the IR
+// - Sort the candidates by cost
+// - Loop over all candidates, selecting the ones that are possible and keep track
+// - of pending live ranges, while updating the interference graph, insrsel constraints and clobbers.
+// - Rewrite the code
+//
+// The update can introduce false interferences, however they will disappear when the
+// loop runs again. Since earlier coalesces can lead to later coalesces not
+// happening, with each inner loop, the registers with the highest spill cost are
+// coalesced.
 static void coalesce_live_ranges_for_preg(Function *function, int check_register_constraints, int preg_class) {
     int vreg_count = function->vreg_count;
-    char *merge_candidates = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
     char *instrsel_blockers = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
     char *clobbers = malloc((vreg_count + 1) * sizeof(char));
 
@@ -1519,82 +1542,118 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
         char *interference_graph = function->interference_graph;
 
-        int inner_changed = 1;
-        int max_cost;
-        int merge_src, merge_dst;
-        while (inner_changed) {
-            inner_changed = max_cost = merge_src = merge_dst = 0;
+        // A lower triangular matrix of all register copy operations and instrsel blockers
+        memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
+        memset(clobbers, 0, (vreg_count + 1) * sizeof(char));
 
-            // A lower triangular matrix of all register copy operations and instrsel blockers
-            memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
-            memset(clobbers, 0, (vreg_count + 1) * sizeof(char));
+        // Make make of merge candidates
+        LongMap *mc = new_longmap();
+        mc->hashfunc = merge_candidates_hash;
 
-            // Make make of merge candidates
-            LongMap *mc = new_longmap();
-            mc->hashfunc = merge_candidates_hash;
+        // Create merge candidates
+        for (Tac *tac = function->ir; tac; tac = tac->next) {
+            // Don't coalesce a move if the type doesn't match
+            if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type))
+                longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
-            // Create merge candidates
-            for (Tac *tac = function->ir; tac; tac = tac->next) {
-                // Don't coalesce a move if the type doesn't match
-                if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type))
+            else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
+                if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
                     longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
-                else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
-                    if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
-                        longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
-
-                    if ((tac->next->operation == X_SHR) && tac->next->src1 && tac->next->src1->vreg)
-                        longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
-                }
-
-                else {
-                    if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) { instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1; }
-                    if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1; }
-                    if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1; }
-                }
-
-                if (tac->dst  && tac->dst-> vreg && tac->dst ->live_range_preg) clobbers[tac->dst ->vreg] = 1;
-                if (tac->src1 && tac->src1->vreg && tac->src1->live_range_preg) clobbers[tac->src1->vreg] = 1;
-                if (tac->src2 && tac->src2->vreg && tac->src2->live_range_preg) clobbers[tac->src2->vreg] = 1;
+                if ((tac->next->operation == X_SHR) && tac->next->src1 && tac->next->src1->vreg)
+                    longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
             }
 
-            if (debug_ssa_live_range_coalescing) {
-                print_ir(function, 0, 0);
-                printf("Live range coalesces:\n");
+            else {
+                if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) { instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1; }
+                if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1; }
+                if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1; }
             }
 
-            long mask = ((1l << 32) - 1);
-            for (LongMapIterator it = longmap_iterator(mc); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
-                long hash = longmap_iterator_key(&it);
-                int dst = (hash >> 32) & mask;
-                int src = hash & mask;
+            if (tac->dst  && tac->dst-> vreg && tac->dst ->live_range_preg) clobbers[tac->dst ->vreg] = 1;
+            if (tac->src1 && tac->src1->vreg && tac->src1->live_range_preg) clobbers[tac->src1->vreg] = 1;
+            if (tac->src2 && tac->src2->vreg && tac->src2->live_range_preg) clobbers[tac->src2->vreg] = 1;
+        }
 
-                if (clobbers[src] || clobbers[dst]) continue;
+        if (debug_ssa_live_range_coalescing) {
+            print_ir(function, 0, 0);
+            printf("Live range coalesces:\n");
+        }
 
-                int l1 = dst * vreg_count + src;
-                int l2 = src * vreg_count + dst;
+        // Allocate memory for the worst case: all vregs are coalesced
+        Coalesce *coalesces = malloc((vreg_count + 1) * sizeof(Coalesce));
+        int coalesce_count = 0;
 
-                if (instrsel_blockers[l1] || instrsel_blockers[l2]) continue;
-                if (interference_graph[l1] || interference_graph[l2]) continue;
+        long mask = ((1l << 32) - 1);
+        for (LongMapIterator it = longmap_iterator(mc); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+            long hash = longmap_iterator_key(&it);
+            int dst = (hash >> 32) & mask;
+            int src = hash & mask;
 
-                int cost = function->spill_cost[src] + function->spill_cost[dst];
-                if (cost > max_cost) {
-                    max_cost = cost;
-                    merge_src = src;
-                    merge_dst = dst;
-                }
+            coalesces[coalesce_count].src = src;
+            coalesces[coalesce_count].dst = dst;
+            coalesces[coalesce_count].cost = function->spill_cost[src] + function->spill_cost[dst];
+            coalesce_count++;
+        }
+
+        qsort(coalesces, coalesce_count, sizeof(Coalesce), coalesce_cmpfunc);
+
+        LongMap *pending_coalesces = new_longmap();
+        for (int i = 0; i < coalesce_count; i++) {
+            int src = (long) coalesces[i].src;
+            int dst = (long) coalesces[i].dst;
+
+            int coalesced_src = (long) longmap_get(pending_coalesces, src);
+            if (coalesced_src) src = coalesced_src;
+
+            int coalesced_dst = (long) longmap_get(pending_coalesces, dst);
+            if (coalesced_dst) dst = coalesced_dst;
+
+            if (clobbers[src] || clobbers[dst]) continue;
+
+            int l1 = dst * vreg_count + src;
+            int l2 = src * vreg_count + dst;
+
+            if (instrsel_blockers[l1] || instrsel_blockers[l2]) continue;
+            if (interference_graph[l1] || interference_graph[l2]) continue;
+
+            // Update all dsts
+            for (LongMapIterator it = longmap_iterator(pending_coalesces); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+                int done_src = longmap_iterator_key(&it);
+                int done_dst = (long) longmap_get(pending_coalesces, done_src);
+
+                if (done_dst == src)
+                    longmap_put(pending_coalesces, (long) done_src, (void *) (long) dst);
             }
 
-            if (merge_src) {
-                if (debug_ssa_live_range_coalescing) printf("Coalescing %d -> %d\n", merge_src, merge_dst);
-                coalesce_live_range(function, merge_src, merge_dst, check_register_constraints);
-                inner_changed = 1;
-                outer_changed = 1;
+            // Update constraints, moving all from src -> dst
+            copy_interference_graph_edges(function->interference_graph, vreg_count, src, dst);
+
+            for (int vreg = 1; vreg <= vreg_count; vreg++) {
+                int old_l1 = src * vreg_count + vreg;
+                int old_l2 = vreg * vreg_count + src;
+
+                int new_l1 = dst * vreg_count + vreg;
+                int new_l2 = vreg * vreg_count + dst;
+
+                instrsel_blockers[new_l1] |= instrsel_blockers[old_l1];
+                instrsel_blockers[new_l2] |= instrsel_blockers[old_l2];
             }
-        }  // while inner changed
+
+            clobbers[dst] |= clobbers[src];
+
+            // Add to the done coalesces
+            if (debug_ssa_live_range_coalescing) printf("  %d -> %d\n", src, dst);
+            longmap_put(pending_coalesces, (long) src, (void *) (long) dst);
+            outer_changed = 1;
+        }
+
+        coalesce_pending_coalesces(function, pending_coalesces, check_register_constraints);
+
+        free(coalesces);
+        free_longmap(pending_coalesces);
     } // while outer changed
 
-    free(merge_candidates);
     free(instrsel_blockers);
     free(clobbers);
 
@@ -1623,6 +1682,7 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
 
     if (log_compiler_phase_durations) debug_log("Coalesce live ranges for int");
     coalesce_live_ranges_for_preg(function, check_register_constraints, PC_INT);
+
     if (log_compiler_phase_durations) debug_log("Coalesce live ranges for SSE");
     coalesce_live_ranges_for_preg(function, check_register_constraints, PC_SSE);
 }
