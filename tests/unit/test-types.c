@@ -166,6 +166,10 @@ int test_compatible_types() {
     type2 = lex_type("union { int i, a, j, b; }");
     assert_int(1, types_are_compatible(type1, type2), "union match");
 
+    type1 = lex_type("union { int i, a, j, b; }");
+    type2 = lex_type("union { int a, b, i, j; }");
+    assert_int(1, types_are_compatible(type1, type2), "union out of order match");
+
     type1 = lex_type("union { int i; }");
     type2 = lex_type("union { int i, j; }");
     assert_int(0, types_are_compatible(type1, type2), "union member count mismatch");

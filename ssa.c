@@ -947,31 +947,11 @@ void rename_phi_function_variables(Function *function) {
     if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
 }
 
-static void quicksort_live_ranges(LiveRange *live_ranges, int left, int right) {
-    if (left >= right) return;
-
-    int i = left;
-    int j = right;
-    long pivot = live_ranges[i].weight;
-
-    while (1) {
-        while (live_ranges[i].weight < pivot) i++;
-        while (pivot < live_ranges[j].weight) j--;
-        if (i >= j) break;
-
-        LongSet *tmp_set = live_ranges[i].set;
-        long tmp_weight = live_ranges[i].weight;
-        live_ranges[i].set = live_ranges[j].set;
-        live_ranges[i].weight = live_ranges[j].weight;
-        live_ranges[j].set = tmp_set;
-        live_ranges[j].weight = tmp_weight;
-
-        i++;
-        j--;
-    }
-
-    quicksort_live_ranges(live_ranges, left, i - 1);
-    quicksort_live_ranges(live_ranges, j + 1, right);
+static int live_range_cmpfunc(const void *a, const void *b) {
+    long diff = ((LiveRange *) a)->weight - ((LiveRange *) b)->weight;
+    if (diff < 0) return -1;
+    else if (diff > 0) return 1;
+    else return 0;
 }
 
 static long live_range_hash(long l) {
@@ -1078,7 +1058,7 @@ void make_live_ranges(Function *function) {
         live_ranges_array[i] = lr;
     }
 
-    quicksort_live_ranges(live_ranges_array, 0, live_range_count - 1);
+    qsort(live_ranges_array, live_range_count, sizeof(LiveRange), live_range_cmpfunc);
 
     if (debug_ssa_live_range) printf("\nLive ranges:\n");
     LongMap *final_map = new_longmap();

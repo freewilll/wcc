@@ -880,7 +880,6 @@ typedef struct string_buffer {
 void panic(char *format, ...);
 
 Function *new_function(void);
-void quicksort_ulong_array(unsigned long *array, int left, int right);
 char *base_path(char *path);
 int wasprintf(char **ret, const char *format, ...);
 StringBuffer *new_string_buffer(int initial_size);

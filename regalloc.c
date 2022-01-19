@@ -59,32 +59,8 @@ void compress_vregs(Function *function) {
     free(vreg_map);
 }
 
-
-static void quicksort_vreg_cost(VregCost *vreg_cost, int left, int right) {
-    if (left >= right) return;
-
-    int i = left;
-    int j = right;
-    int pivot = vreg_cost[i].cost;
-
-    while (1) {
-        while (vreg_cost[i].cost > pivot) i++;
-        while (pivot > vreg_cost[j].cost) j--;
-        if (i >= j) break;
-
-        int tmp_vreg = vreg_cost[i].vreg;
-        int tmp_cost = vreg_cost[i].cost;
-        vreg_cost[i].vreg = vreg_cost[j].vreg;
-        vreg_cost[i].cost = vreg_cost[j].cost;
-        vreg_cost[j].vreg = tmp_vreg;
-        vreg_cost[j].cost = tmp_cost;
-
-        i++;
-        j--;
-    }
-
-    quicksort_vreg_cost(vreg_cost, left, i - 1);
-    quicksort_vreg_cost(vreg_cost, j + 1, right);
+static int vreg_cost_cmpfunc(const void *a, const void *b) {
+    return ((VregCost *) b)->cost - ((VregCost *) a)->cost;
 }
 
 static int *make_original_stack_indexes(Function *function) {
@@ -192,7 +168,7 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
         ordered_nodes[i].cost = spill_cost[i];
     }
 
-    quicksort_vreg_cost(ordered_nodes, 1, vreg_count);
+    qsort(&ordered_nodes[1], vreg_count, sizeof(VregCost), vreg_cost_cmpfunc);
 
     Set *constrained = new_set(vreg_count);
     Set *unconstrained = new_set(vreg_count);

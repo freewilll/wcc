@@ -441,29 +441,13 @@ static int struct_or_union_member_count(StructOrUnion *s) {
     return count;
 }
 
-static void quicksort_struct_members(StructOrUnionMember **members, int left, int right) {
-    if (left >= right) return;
+static int struct_members_cmpfunc(const void *a, const void *b) {
+    char *a_identifier = (*(StructOrUnionMember **) a)->identifier;
+    char *b_identifier = (*(StructOrUnionMember **) b)->identifier;
+    if (!a_identifier) a_identifier = "";
+    if (!b_identifier) b_identifier = "";
 
-    int i = left;
-    int j = right;
-    char *pivot = members[i]->identifier ? members[i]->identifier : "";
-
-    while (1) {
-        while (strcmp(members[i]->identifier ? members[i]->identifier : "", pivot) < 0) i++;
-        while (strcmp(pivot, members[j]->identifier ? members[j]->identifier : "") < 0) j--;
-
-        if (i >= j) break;
-
-        StructOrUnionMember *temp = members[i];
-        members[i] = members[j];
-        members[j] = temp;
-
-        i++;
-        j--;
-    }
-
-    quicksort_struct_members(members, left, i - 1);
-    quicksort_struct_members(members, j + 1, right);
+   return strcmp(a_identifier, b_identifier);
 }
 
 StructOrUnionMember **sort_struct_or_union_members(StructOrUnionMember **members, int count) {
@@ -471,7 +455,7 @@ StructOrUnionMember **sort_struct_or_union_members(StructOrUnionMember **members
     StructOrUnionMember **result = malloc(sizeof(StructOrUnionMember *) * count);
     for (int i = 0; i < count; i++) result[i] = members[i];
 
-    quicksort_struct_members(result, 0, count - 1);
+    qsort(result, count, sizeof(StructOrUnionMember *), struct_members_cmpfunc);
 
     return result;
 }

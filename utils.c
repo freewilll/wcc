@@ -26,30 +26,6 @@ Function *new_function(void) {
     return function;
 }
 
-void quicksort_ulong_array(unsigned long *array, int left, int right) {
-    if (left >= right) return;
-
-    int i = left;
-    int j = right;
-    long pivot = array[i];
-
-    while (1) {
-        while (array[i] < pivot) i++;
-        while (pivot < array[j]) j--;
-        if (i >= j) break;
-
-        unsigned long temp = array[i];
-        array[i] = array[j];
-        array[j] = temp;
-
-        i++;
-        j--;
-    }
-
-    quicksort_ulong_array(array, left, i - 1);
-    quicksort_ulong_array(array, j + 1, right);
-}
-
 // Strip the filename component from a path
 char *base_path(char *path) {
     int end = strlen(path) - 1;
