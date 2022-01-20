@@ -824,8 +824,8 @@ LongSet *longset_intersection(LongSet *ss1, LongSet *ss2);
 void longset_iterator_next(LongSetIterator *iterator);
 #define longset_iterator_element(iterator) longmap_iterator_key(&(iterator)->longmap_iterator)
 LongSetIterator longset_iterator(LongSet *ls);
-
 void print_longset(LongSet *s);
+#define longset_foreach(ls, it) for (LongSetIterator it = longset_iterator(ls); !longset_iterator_finished(&it); longset_iterator_next(&it))
 
 // longmap.c
 LongMap *new_longmap(void);

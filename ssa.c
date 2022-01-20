@@ -618,7 +618,7 @@ void make_liveout(Function *function) {
                 for (int *i = successor_block_uevars; *i; i++)
                     longset_add(unions, *i);
 
-                for (LongSetIterator it = longset_iterator(successor_block_liveout); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+                longset_foreach(successor_block_liveout, it) {
                     long vreg = longset_iterator_element(&it);
                     if (!longset_in(successor_block_varkill, vreg))
                         longset_add(unions, vreg);
@@ -1022,7 +1022,7 @@ void make_live_ranges(Function *function) {
             LongSet *src_set = longmap_get(live_ranges, LR_HASH(v->vreg, v->ssa_subscript));
 
             // Add all elements of the phi function parameter set to the dst
-            for (LongSetIterator it = longset_iterator(src_set); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+            longset_foreach(src_set, it) {
                 long src = longset_iterator_element(&it);
                 longmap_put(dst->longmap, src, (void *) 1);
                 longmap_put(live_ranges, src, dst);
@@ -1047,8 +1047,7 @@ void make_live_ranges(Function *function) {
     // since the live ranges end up being ordered in the same way as the original
     // vregs.
     int live_range_count = 0;
-    for (LongSetIterator it = longset_iterator(deduped); !longset_iterator_finished(&it); longset_iterator_next(&it))
-        live_range_count++;
+    longset_foreach(deduped, it) live_range_count++;
 
     LiveRange *live_ranges_array = malloc(live_range_count * sizeof(LiveRange));
     int i = 0;
@@ -1183,7 +1182,7 @@ void add_ig_edge(char *ig, int vreg_count, int to, int from) {
 static void clobber_livenow(char *ig, int vreg_count, LongSet *livenow, Tac *tac, int preg_reg_index) {
     if (debug_ssa_interference_graph) printf("Clobbering livenow for pri=%d\n", preg_reg_index);
 
-    for (LongSetIterator it = longset_iterator(livenow); !longset_iterator_finished(&it); longset_iterator_next(&it))
+    longset_foreach(livenow, it)
         add_ig_edge(ig, vreg_count, preg_reg_index, longset_iterator_element(&it));
 }
 
@@ -1238,7 +1237,7 @@ static void force_physical_register(char *ig, int vreg_count, LongSet *livenow, 
         printf(" onto vreg %d\n", vreg);
     }
 
-    for (LongSetIterator it = longset_iterator(livenow); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+    longset_foreach(livenow, it) {
         int it_vreg = longset_iterator_element(&it);
         if (it_vreg != vreg) add_ig_edge(ig, vreg_count, preg_reg_index, it_vreg);
     }
@@ -1371,7 +1370,7 @@ void make_interference_graph(Function *function, int include_clobbers) {
                     if (debug_ssa_interference_graph) printf("added src2 <-> dst %d <-> %d\n", tac->src2->vreg, tac->dst->vreg);
                 }
 
-                for (LongSetIterator it = longset_iterator(livenow); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
+                longset_foreach(livenow, it) {
                     int it_vreg = longset_iterator_element(&it);
 
                     if (it_vreg == tac->dst->vreg) continue; // Ignore self assignment

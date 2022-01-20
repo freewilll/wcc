@@ -57,7 +57,7 @@ int main() {
     longset_add(ls7, 2);
     longset_add(ls7, 3);
     int h = 0;
-    for (LongSetIterator it = longset_iterator(ls7); !longset_iterator_finished(&it); longset_iterator_next(&it))
+    longset_foreach(ls7, it)
         h += 7 * h + longset_iterator_element(&it);
     if (h != 83) panic("Longset iteratator");
 
