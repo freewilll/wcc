@@ -839,9 +839,9 @@ LongMapIterator longmap_iterator(LongMap *map);
 #define longmap_iterator_finished(iterator) ((iterator)->pos == -1)
 void longmap_iterator_next(LongMapIterator *iterator);
 #define longmap_iterator_key(iterator) (iterator)->map->keys[(iterator)->pos]
+#define longmap_foreach(map, it) for (LongMapIterator it = longmap_iterator(map); !longmap_iterator_finished(&it); longmap_iterator_next(&it))
 
 // list.c
-
 // Append to circular linked list of allocated tokens
 #define append_to_cll(cll, new_target) \
     do { \

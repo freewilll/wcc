@@ -33,13 +33,13 @@ int longset_in(LongSet *ls, long element) {
 int longset_eq(LongSet *ls1, LongSet *ls2) {
     int count1 = 0;
 
-    for (LongMapIterator it = longmap_iterator(ls1->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+    longmap_foreach(ls1->longmap, it) {
         count1++;
         if (!longmap_get(ls2->longmap, longmap_iterator_key(&it))) return 0;
     }
 
     int count2 = 0;
-    for (LongMapIterator it = longmap_iterator(ls2->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) count2++;
+    longmap_foreach(ls2->longmap, it) count2++;
 
     return (count1 == count2);
 
@@ -49,7 +49,7 @@ int longset_eq(LongSet *ls1, LongSet *ls2) {
 int longset_len(LongSet *ls) {
     int count = 0;
 
-    for (LongMapIterator it = longmap_iterator(ls->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it))
+    longmap_foreach(ls->longmap, it)
         count++;
 
     return count;
@@ -67,10 +67,10 @@ LongSet *longset_copy(LongSet *ls) {
 LongSet *longset_union(LongSet *ls1, LongSet *ls2) {
     LongSet *result = new_longset();
 
-    for (LongMapIterator it = longmap_iterator(ls1->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it))
+    longmap_foreach(ls1->longmap, it)
         longmap_put(result->longmap, longmap_iterator_key(&it), (void *) 1);
 
-    for (LongMapIterator it = longmap_iterator(ls2->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it))
+    longmap_foreach(ls2->longmap, it)
         longmap_put(result->longmap, longmap_iterator_key(&it), (void *) 1);
 
     return result;
@@ -79,7 +79,7 @@ LongSet *longset_union(LongSet *ls1, LongSet *ls2) {
 LongSet *longset_intersection(LongSet *ls1, LongSet *ls2) {
     LongSet *result = new_longset();
 
-    for (LongMapIterator it = longmap_iterator(ls1->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+    longmap_foreach(ls1->longmap, it) {
         long key = longmap_iterator_key(&it);
         if (longmap_get(ls2->longmap, key)) longmap_put(result->longmap, longmap_iterator_key(&it), (void *) 1);
     }

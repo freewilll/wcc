@@ -1005,7 +1005,7 @@ void make_live_ranges(Function *function) {
     }
 
     // Create the initial sets
-    for (LongMapIterator it = longmap_iterator(live_ranges); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+    longmap_foreach(live_ranges, it) {
         long key = longmap_iterator_key(&it);
         LongSet *s = new_longset();
         longset_add(s, key);
@@ -1036,7 +1036,7 @@ void make_live_ranges(Function *function) {
 
     // Dedupe live ranges by putting the pointers to the sets in a set
     LongSet *deduped = new_longset();
-    for (LongMapIterator it = longmap_iterator(live_ranges); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+    longmap_foreach(live_ranges, it) {
         long key = longmap_iterator_key(&it);
         LongSet *s = longmap_get(live_ranges, key);
         longset_add(deduped, (long) s);
@@ -1071,7 +1071,7 @@ void make_live_ranges(Function *function) {
         LongSet *s = live_ranges_array[live_range].set;
 
         int first = 1;
-        for (LongMapIterator it = longmap_iterator(s->longmap); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+        longmap_foreach(s->longmap, it) {
             if (debug_ssa_live_range) {
                 if (first) printf("%d: {", live_range + live_range_reserved_pregs_offset + 1); else printf(", ");
             }
@@ -1489,7 +1489,7 @@ static void coalesce_pending_coalesces(Function *function, LongMap *coalesces, i
     }
 
     // Migrate liveouts
-    for (LongMapIterator it = longmap_iterator(coalesces); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+    longmap_foreach(coalesces, it) {
         int src = longmap_iterator_key(&it);
         int dst = (long) longmap_get(coalesces, src);
 
@@ -1585,7 +1585,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
         int coalesce_count = 0;
 
         long mask = ((1l << 32) - 1);
-        for (LongMapIterator it = longmap_iterator(mc); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+        longmap_foreach(mc, it) {
             long hash = longmap_iterator_key(&it);
             int dst = (hash >> 32) & mask;
             int src = hash & mask;
@@ -1618,7 +1618,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
             if (interference_graph[l1] || interference_graph[l2]) continue;
 
             // Update all dsts
-            for (LongMapIterator it = longmap_iterator(pending_coalesces); !longmap_iterator_finished(&it); longmap_iterator_next(&it)) {
+            longmap_foreach(pending_coalesces, it) {
                 int done_src = longmap_iterator_key(&it);
                 int done_dst = (long) longmap_get(pending_coalesces, done_src);
 

@@ -35,8 +35,8 @@ int main() {
     }
 
     // Test iteration
-    int i = 0, h = 0;
-    for (LongMapIterator it = longmap_iterator(map); !longmap_iterator_finished(&it); longmap_iterator_next(&it), i++)
+    int h = 0;
+    longmap_foreach(map, it)
         h += 7 * h + longmap_iterator_key(&it);
     if (h != -46927138) panic("Iteration checksum ok");
 
