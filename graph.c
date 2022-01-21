@@ -29,6 +29,12 @@ Graph *new_graph(int node_count, int edge_count) {
     return g;
 }
 
+void free_graph(Graph *g) {
+    free(g->nodes);
+    free(g->edges);
+    free(g);
+}
+
 void dump_graph(Graph *g) {
     printf("Nodes:\n");
     for (int i = 0; i < g->node_count; i++) {

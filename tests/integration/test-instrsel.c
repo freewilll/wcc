@@ -622,6 +622,7 @@ void run_function_call_single_arg(Value *src) {
 
     start_ir();
     i(0, IR_ARG, 0, make_arg_src1(), src);
+    tac = i(0, IR_START_CALL, 0, c(0), 0);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
     tac->src1->type->function->param_count = 1;
     tac->src1->type->function->param_types = malloc(sizeof(Type));
@@ -709,11 +710,13 @@ void test_function_args() {
     start_ir();
     i(0, IR_MOVE, asz(1, TYPE_CHAR), s(1), 0);
     i(0, IR_ARG, 0, make_arg_src1(), asz(1, TYPE_CHAR));
+    i(0, IR_START_CALL, 0, c(0), 0);
     Tac *tac = i(0, IR_CALL, v(2), fu(1), 0);
     tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(3), v(2), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("leaq        .SL1(%rip), %rdi");
+    assert_rx86_preg_op("leaq        .SL1(%rip), %rax");
+    assert_rx86_preg_op("movq        %rax, %rdi" );
     assert_rx86_preg_op("movq        %rax, %rax" );
     assert_rx86_preg_op(0);
 }

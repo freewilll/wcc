@@ -866,6 +866,7 @@ void append_to_list(List *l, void *element);
 
 // graph.c
 Graph *new_graph(int node_count, int edge_count);
+void free_graph(Graph *g);
 void dump_graph(Graph *g);
 GraphEdge *add_graph_edge(Graph *g, int from, int to);
 

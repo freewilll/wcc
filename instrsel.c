@@ -1291,6 +1291,14 @@ static void tile_igraphs(Function *function) {
             f->ir = current_instruction_ir_start;
             print_ir(f, 0, 0);
         }
+
+        for (int j = 0; j < igraphs[i].node_count; j++) free_set(igraph_labels[j]);
+        free(igraph_labels);
+        free(igraph_rules);
+        free_graph(cost_graph);
+        free(cost_rules);
+        free(accumulated_cost);
+        free(cost_to_igraph_map);
     }
 
     if (debug_instsel_tiling) {
