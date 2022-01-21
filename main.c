@@ -38,7 +38,6 @@ static void parse_directive(char *expr) {
     char *p = strchr(expr, '=');
     if (p) {
         if (p == expr) simple_error("Invalid directive");
-        if (p - expr == strlen(expr) - 1) simple_error("Invalid directive");
         *p = 0;
         key = expr;
         value = p + 1;
