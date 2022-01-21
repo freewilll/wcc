@@ -33,6 +33,11 @@ List *new_list(int initial_allocation) {
     return l;
 }
 
+void free_list(List *l) {
+    free(l->elements);
+    free(l);
+}
+
 static int round_up(int length) {
     if (length == 0) return 0;
     int result = 1;

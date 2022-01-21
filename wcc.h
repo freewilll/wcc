@@ -877,6 +877,7 @@ void longmap_iterator_next(LongMapIterator *iterator);
 void free_circular_linked_list(CircularLinkedList *cll);
 
 List *new_list(int length);
+void free_list(List *l);
 void append_to_list(List *l, void *element);
 
 // graph.c

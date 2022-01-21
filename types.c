@@ -179,7 +179,7 @@ void init_type_allocations(void) {
 
 void free_types(void) {
     for (int i = 0; i < allocated_types->length; i++) free(allocated_types->elements[i]);
-    free(allocated_types);
+    free_list(allocated_types);
 }
 
 Type *new_type(int type) {

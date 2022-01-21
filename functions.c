@@ -10,7 +10,7 @@ void init_function_allocations(void) {
 
 void free_functions(void) {
     for (int i = 0; i < allocated_functions->length; i++) free(allocated_functions->elements[i]);
-    free(allocated_functions);
+    free_list(allocated_functions);
 }
 
 Function *new_function(void) {
