@@ -16,6 +16,7 @@ Set *new_set(int max_value) {
 }
 
 void free_set(Set *s) {
+    if (s->cached_elements) free(s->cached_elements);
     free(s->elements);
     free(s);
 }
