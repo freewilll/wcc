@@ -784,6 +784,7 @@ void set_difference_to(Set *dst, Set *s1, Set *s2);
 
 // stack.c
 Stack *new_stack(void);
+void free_stack(Stack *s);
 int stack_top(Stack *s);
 void push_onto_stack(Stack *s, int v);
 int pop_from_stack(Stack *s);

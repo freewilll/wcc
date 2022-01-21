@@ -950,6 +950,9 @@ void rename_phi_function_variables(Function *function) {
     rename_vars(function, stack, counters, 0, vreg_count);
 
     if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
+
+    for (int i = 1; i <= vreg_count; i++) free_stack(stack[i]);
+    free(stack);
 }
 
 static int live_range_cmpfunc(const void *a, const void *b) {

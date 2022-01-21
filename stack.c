@@ -10,6 +10,11 @@ Stack *new_stack(void) {
     return result;
 }
 
+void free_stack(Stack *s) {
+    free(s->elements);
+    free(s);
+}
+
 int stack_top(Stack *s) {
     if (s->pos == MAX_STACK_SIZE) panic("Attempt to read top of an empty stack");
     return s->elements[s->pos];
