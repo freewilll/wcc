@@ -311,6 +311,8 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv, &verbose);
 
+    init_memory_management_for_translation_unit();
+
     test_scalar_params();
     test_struct_params();
 

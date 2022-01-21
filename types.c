@@ -173,10 +173,20 @@ void print_type_in_english(Type *type) {
     printf("%s\n", sprint_type_in_english(type));
 }
 
+void init_type_allocations(void) {
+    allocated_types = new_list(1024);
+}
+
+void free_types(void) {
+    for (int i = 0; i < allocated_types->length; i++) free(allocated_types->elements[i]);
+    free(allocated_types);
+}
+
 Type *new_type(int type) {
     Type *result = malloc(sizeof(Type));
     memset(result, 0, sizeof(Type));
     result->type = type;
+    append_to_list(allocated_types, result);
 
     return result;
 }
@@ -218,6 +228,7 @@ Type *dup_type(Type *src) {
     Type *dst = malloc(sizeof(Type));
     *dst = *src;
     dst->target = dup_type(src->target);
+    append_to_list(allocated_types, dst);
 
     return dst;
 }

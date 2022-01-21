@@ -429,6 +429,8 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv, &verbose);
 
+    init_memory_management_for_translation_unit();
+
     test_integer_types_operations();
     test_type_parsing();
     test_typedef_parsing();

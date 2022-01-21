@@ -982,12 +982,16 @@ Tag *new_tag(char *identifier);
 Tag *lookup_tag(char *name, Scope *scope, int recurse);
 
 // types.c
+List *allocated_types;
+
 int print_type(void *f, Type *type);
 char *sprint_type_in_english(Type *type);
 void print_type_in_english(Type *type);
+void init_type_allocations(void);
 Type *new_type(int type);
 StructOrUnion *dup_struct_or_union(StructOrUnion *src);
 Type *dup_type(Type *src);
+void free_types(void);
 Type *integer_promote_type(Type *type);
 Type *make_pointer(Type *src);
 Type *make_pointer_to_void(void);
@@ -1379,6 +1383,9 @@ enum {
     COMPILE_STOP_AFTER_ADD_SPILL_CODE,
     COMPILE_STOP_AT_END,
 };
+
+char init_memory_management_for_translation_unit(void);
+char free_memory_for_translation_unit(void);
 
 char *make_temp_filename(char *template);
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at);

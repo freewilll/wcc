@@ -5,6 +5,14 @@
 
 #include "wcc.h"
 
+char init_memory_management_for_translation_unit(void) {
+    init_type_allocations();
+}
+
+char free_memory_for_translation_unit(void) {
+    free_types();
+}
+
 char *make_temp_filename(char *template) {
     template = strdup(template);
     int fd = mkstemps(template, 2);

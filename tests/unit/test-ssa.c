@@ -918,6 +918,7 @@ int main() {
     string_literals = malloc(MAX_STRING_LITERALS);
 
     init_allocate_registers();
+    init_memory_management_for_translation_unit();
 
     test_arithmetic_optimization();
     test_cfg_jmp();

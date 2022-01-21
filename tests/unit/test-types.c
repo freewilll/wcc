@@ -374,6 +374,8 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv, &verbose);
 
+    init_memory_management_for_translation_unit();
+
     test_compatible_types();
     test_type_iterator();
     test_anonymous_struct_flattening();

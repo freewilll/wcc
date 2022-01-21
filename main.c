@@ -435,6 +435,8 @@ int main(int argc, char **argv) {
     char *command = malloc(1024 * 100);
 
     for (int i = 0; i < input_filename_count; i++) {
+        init_memory_management_for_translation_unit();
+
         char *input_filename = input_filenames[i];
 
         char *assembler_input_filename, *assembler_output_filename;
@@ -498,6 +500,8 @@ int main(int argc, char **argv) {
         }
         else
             linker_input_filenames[i] = input_filename;
+
+        free_memory_for_translation_unit();
     }
 
     if (run_linker) {
