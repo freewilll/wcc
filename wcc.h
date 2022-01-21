@@ -1032,6 +1032,10 @@ TypeIterator *type_iterator_dig_for_string_literal(TypeIterator *it);
 TypeIterator *type_iterator_descend(TypeIterator *it);
 
 // ir.c
+List *allocated_values;
+
+void init_value_allocations(void) ;
+void free_values(void);
 void init_value(Value *v);
 Value *new_value(void);
 Value *new_integral_constant(int type_type, long value);

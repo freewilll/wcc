@@ -16,9 +16,19 @@ void init_value(Value *v) {
     v->live_range = -1;
 }
 
+void init_value_allocations(void) {
+    allocated_values = new_list(1024);
+}
+
+void free_values(void) {
+    for (int i = 0; i < allocated_values->length; i++) free(allocated_values->elements[i]);
+    free(allocated_values);
+}
+
 Value *new_value(void) {
     Value *v = malloc(sizeof(Value));
     memset(v, 0, sizeof(Value));
+    append_to_list(allocated_values, v);
     init_value(v);
 
     return v;
