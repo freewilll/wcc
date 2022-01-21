@@ -674,6 +674,18 @@ typedef struct cli_include_path {
     struct cli_include_path *next;
 } CliIncludePath;
 
+// Structure with all include paths passed on the command line with -L
+typedef struct cli_library_path {
+    char *path;
+    struct cli_library_path *next;
+} CliLibraryPath;
+
+// Structure with all include libraries passed on the command line with -l
+typedef struct cli_library {
+    char *library;
+    struct cli_library *next;
+} CliLibrary;
+
 typedef enum {
     CP_PREPROCESSING,
     CP_PARSING,
@@ -697,8 +709,10 @@ int opt_enable_preferred_pregs;         // Enable preferred preg selection in re
 int opt_enable_trigraphs;               // Enable trigraph preprocessing
 int opt_warnings_are_errors;            // Treat all warnings as errors
 
-CliDirective *cli_directives;      // Linked list of directives passed on the command line
-CliIncludePath *cli_include_paths; // Linked list of directives passed on the command line
+CliDirective *cli_directives;      // Linked list of directives passed on the command line with -D
+CliIncludePath *cli_include_paths; // Linked list of include paths passed on the command line with -I
+CliLibraryPath *cli_library_paths; // Linked list of library paths passed on the command line with -L
+CliLibrary *cli_libraries;         // Linked list of libraries passed on the command line with -l
 StrMap *directives;                // Map of CPP directives
 CompilePhase compile_phase;        // One of CP_*
 int cur_token;                     // Current token

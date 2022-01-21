@@ -76,7 +76,42 @@ static void add_include_path(char *path) {
     }
 }
 
+static void add_library_path(char *path) {
+    int len = strlen(path);
+    if (!len) simple_error("Invalid library path");
+
+    if (len > 1 && path[len - 1] == '/') path[len - 1] = 0; // Strip trailing /
+
+    CliLibraryPath *cli_library_path = malloc(sizeof(CliLibraryPath));
+    cli_library_path->path = path;
+    cli_library_path->next = 0;
+
+    if (!cli_library_paths) cli_library_paths = cli_library_path;
+    else {
+        CliLibraryPath *cd = cli_library_paths;
+        while (cd->next) cd = cd->next;
+        cd->next = cli_library_path;
+    }
+}
+
+static void add_library(char *library) {
+    int len = strlen(library);
+    if (!len) simple_error("Invalid library");
+
+    CliLibrary *cli_library = malloc(sizeof(CliLibrary));
+    cli_library->library = library;
+    cli_library->next = 0;
+
+    if (!cli_libraries) cli_libraries = cli_library;
+    else {
+        CliLibrary *cd = cli_libraries;
+        while (cd->next) cd = cd->next;
+        cd->next = cli_library;
+    }
+}
+
 int main(int argc, char **argv) {
+
     print_ir1 = 0;
     print_ir2 = 0;
 
@@ -115,6 +150,8 @@ int main(int argc, char **argv) {
 
     cli_directives = 0;
     cli_include_paths = 0;
+    cli_library_paths = 0;
+    cli_libraries = 0;
 
     // Determine path to the builtin include directory
     char *builtin_include_path;
@@ -210,14 +247,38 @@ int main(int argc, char **argv) {
                 argv++;
             }
             else if (argc > 1 && !strcmp(argv[0], "-I")) {
-                // -D ...
+                // -I ...
                 add_include_path(argv[1]);
                 argc -= 2;
                 argv += 2;
             }
             else if (argv[0][0] == '-' && argv[0][1] == 'I') {
-                // -D...
+                // -I...
                 add_include_path(&(argv[0][2]));
+                argc--;
+                argv++;
+            }
+            else if (argc > 1 && !strcmp(argv[0], "-L")) {
+                // -L ...
+                add_library_path(argv[1]);
+                argc -= 2;
+                argv += 2;
+            }
+            else if (argv[0][0] == '-' && argv[0][1] == 'L') {
+                // -L...
+                add_library_path(&(argv[0][2]));
+                argc--;
+                argv++;
+            }
+            else if (argc > 1 && !strcmp(argv[0], "-l")) {
+                // -l ...
+                add_library(argv[1]);
+                argc -= 2;
+                argv += 2;
+            }
+            else if (argv[0][0] == '-' && argv[0][1] == 'l') {
+                // -L...
+                add_library(&(argv[0][2]));
                 argc--;
                 argv++;
             }
@@ -249,6 +310,8 @@ int main(int argc, char **argv) {
         printf("-o <file>                                   Output file. Use - for stdout. Defaults to the source file with extension .s\n");
         printf("-D <directive>[=<value>]                    Set a directive\n");
         printf("-I <path>                                   Prepend an include path to to search path\n");
+        printf("-L <path>                                   Pass library path to the linker\n");
+        printf("-l <library>                                Pass library to the linker\n");
         printf("-v                                          Display the programs invoked by the compiler\n");
         printf("-d                                          Debug output\n");
         printf("-s                                          Output symbol table\n");
@@ -438,26 +501,27 @@ int main(int argc, char **argv) {
     }
 
     if (run_linker) {
-        int len = 0;
-        for (int i = 0; i < input_filename_count; i++) len += strlen(linker_input_filenames[i]);
-        len += input_filename_count - 1; // For the spaces
-        char *linker_input_filenames_str = malloc(len + 1);
-        memset(linker_input_filenames_str, ' ', len + 1);
-        linker_input_filenames_str[len] = 0;
+        char *s = command;
+        s += sprintf(s, "gcc");
+        for (int i = 0; i < input_filename_count; i++)
+            s += sprintf(s, " %s", linker_input_filenames[i]);
 
-        int k = 0;
-        for (int i = 0; i < input_filename_count; i++) {
-            char *input_filename = linker_input_filenames[i];
-            len = strlen(linker_input_filenames[i]);
-            for (int j = 0; j < len; j++) linker_input_filenames_str[k++] = input_filename[j];
-            k++;
-        }
+        for (CliLibraryPath *cli_library_path = cli_library_paths; cli_library_path; cli_library_path = cli_library_path->next)
+            s += sprintf(s, " -L %s", cli_library_path->path);
 
-        sprintf(command, "gcc %s -o %s", linker_input_filenames_str, output_filename);
+        for (CliLibrary *cli_library = cli_libraries; cli_library; cli_library = cli_library->next)
+            s += sprintf(s, " -l %s", cli_library->library);
+
+        s += sprintf(s, " -o %s", output_filename);
+
         if (verbose) {
-            sprintf(command, "%s %s", command, "-v");
+            s += sprintf(s, " -v");
+            *s = 0;
             printf("%s\n", command);
         }
+
+        *s = 0;
+
         int result = system(command);
         if (result != 0) exit(result >> 8);
     }
