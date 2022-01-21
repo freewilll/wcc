@@ -119,10 +119,10 @@ int strmap_iterator_finished(StrMapIterator *iterator) {
 void strmap_iterator_next(StrMapIterator *iterator) {
     iterator->pos++;
 
-    while (iterator->pos <= iterator->map->size && (!iterator->map->keys[iterator->pos] || iterator->map->keys[iterator->pos] == (char *) TOMBSTONE))
+    while (iterator->pos < iterator->map->size && (!iterator->map->keys[iterator->pos] || iterator->map->keys[iterator->pos] == (char *) TOMBSTONE))
         iterator->pos++;
 
-    if (iterator->pos >= iterator->map->size || (!iterator->map->keys[iterator->pos] || iterator->map->keys[iterator->pos] == (char *) TOMBSTONE))
+    if (iterator->pos == iterator->map->size || (!iterator->map->keys[iterator->pos] || iterator->map->keys[iterator->pos] == (char *) TOMBSTONE))
         iterator->pos = -1;
 }
 

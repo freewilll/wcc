@@ -149,10 +149,10 @@ void longmap_iterator_next(LongMapIterator *iterator) {
 
     iterator->pos++;
 
-    while (iterator->pos <= size && status[iterator->pos] != STATUS_USED)
+    while (iterator->pos < size && status[iterator->pos] != STATUS_USED)
         iterator->pos++;
 
-    if (iterator->pos >= size || status[iterator->pos] != STATUS_USED)
+    if (iterator->pos == size || status[iterator->pos] != STATUS_USED)
         iterator->pos = -1;
 }
 
