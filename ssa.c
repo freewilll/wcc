@@ -1136,8 +1136,10 @@ void blast_vregs_with_live_ranges(Function *function) {
 // The first 28 values are for the available physical registers,
 // 1-12 is for integers, 13-28 for floating point values.
 static void set_preg_classes(Function *function) {
-    char *vreg_preg_classes = malloc(sizeof(char) * (function->vreg_count + 1));
-    memset(vreg_preg_classes, 0, sizeof(char) * (function->vreg_count + 1));
+    int count = function->vreg_count;
+    if (count < PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT) count = PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT;
+    char *vreg_preg_classes = malloc(sizeof(char) * (count + 1));
+    memset(vreg_preg_classes, 0, sizeof(char) * (count + 1));
 
     if (live_range_reserved_pregs_offset > 0) {
         for (int i = 1; i <= PHYSICAL_SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_INT;
