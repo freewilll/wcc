@@ -4,6 +4,23 @@
 
 #include "wcc.h"
 
+void init_function_allocations(void) {
+    allocated_functions = new_list(1024);
+}
+
+void free_functions(void) {
+    for (int i = 0; i < allocated_functions->length; i++) free(allocated_functions->elements[i]);
+    free(allocated_functions);
+}
+
+Function *new_function(void) {
+    Function *function = malloc(sizeof(Function));
+    memset(function, 0, sizeof(Function));
+    append_to_list(allocated_functions, function);
+
+    return function;
+}
+
 // Details about a single scalar in a struct/union
 typedef struct struct_or_union_scalar {
     Type *type;

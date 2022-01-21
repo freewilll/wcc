@@ -19,13 +19,6 @@ void panic(char *format, ...) {
     exit(1);
 }
 
-Function *new_function(void) {
-    Function *function = malloc(sizeof(Function));
-    memset(function, 0, sizeof(Function));
-
-    return function;
-}
-
 // Strip the filename component from a path
 char *base_path(char *path) {
     int end = strlen(path) - 1;

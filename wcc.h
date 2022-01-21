@@ -895,7 +895,6 @@ typedef struct string_buffer {
 
 void panic(char *format, ...);
 
-Function *new_function(void);
 char *base_path(char *path);
 int wasprintf(char **ret, const char *format, ...);
 StringBuffer *new_string_buffer(int initial_size);
@@ -988,10 +987,10 @@ int print_type(void *f, Type *type);
 char *sprint_type_in_english(Type *type);
 void print_type_in_english(Type *type);
 void init_type_allocations(void);
+void free_types(void);
 Type *new_type(int type);
 StructOrUnion *dup_struct_or_union(StructOrUnion *src);
 Type *dup_type(Type *src);
-void free_types(void);
 Type *integer_promote_type(Type *type);
 Type *make_pointer(Type *src);
 Type *make_pointer_to_void(void);
@@ -1114,6 +1113,11 @@ void coalesce_live_ranges(Function *function, int check_register_constraints);
 void make_preferred_live_range_preg_indexes(Function *function);
 
 // functions.c
+List *allocated_functions;
+
+void init_function_allocations(void);
+void free_functions(void);
+Function *new_function(void);
 void add_function_call_result_moves(Function *function);
 void add_function_return_moves(Function *function, char *identifier);
 void add_function_call_arg_moves(Function *function);

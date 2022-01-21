@@ -1711,12 +1711,14 @@ int main() {
 
     verbose = 0;
     failures = 0;
+
+    init_memory_management_for_translation_unit();
+
     function = new_function();
 
     opt_optimize_arithmetic_operations = 1;
     string_literals = malloc(MAX_STRING_LITERALS);
 
-    init_memory_management_for_translation_unit();
     init_allocate_registers();
     init_instruction_selection_rules();
 
