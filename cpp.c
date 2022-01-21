@@ -1712,7 +1712,8 @@ static void parse_directive(void) {
             break;
 
         default:
-            error("Unknown directive \"%s\"", state.token->str);
+            if (!state.conditional_include_stack->skipping)
+                error("Unknown directive \"%s\"", state.token->str);
     }
 }
 
