@@ -1443,23 +1443,31 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
 
 static void copy_interference_graph_edges(char *interference_graph, int vreg_count, int src, int dst) {
     // Copy all edges in the lower triangular interference graph matrics from src to dst
+
+    // Precalculate whatever is possible
+    int dtvc = dst * vreg_count;
+    int stvc = src * vreg_count;
+    int itvc = vreg_count;
+
     // Fun with lower triangular matrices follows ...
     for (int i = 1; i <= vreg_count; i++) {
         // src < i case
-        if (interference_graph[src * vreg_count + i] == 1) {
+        if (interference_graph[stvc + i]) {
             if (dst < i)
-                interference_graph[dst * vreg_count + i] = 1;
+                interference_graph[dtvc + i] = 1;
             else
-                interference_graph[i * vreg_count + dst] = 1;
+                interference_graph[itvc + dst] = 1;
         }
 
         // i < src case
-        if (interference_graph[i * vreg_count + src] == 1) {
+        if (interference_graph[itvc + src]) {
             if (i < dst)
-                interference_graph[i * vreg_count + dst] = 1;
+                interference_graph[itvc + dst] = 1;
             else
-                interference_graph[dst * vreg_count + i] = 1;
+                interference_graph[dtvc + i] = 1;
         }
+
+        itvc += vreg_count;
     }
 }
 
