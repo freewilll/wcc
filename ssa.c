@@ -1279,6 +1279,9 @@ static void print_interference_graph(Function *function) {
 }
 
 // Page 701 of engineering a compiler
+// If include_clobbers is set, then edges for any IR_* instruction that adds register constraints are skipped.
+// If include_instrsel_constraints is set, then constraints are added that precent coalescing of registers
+// to ensure instruction selection gets an IR it can deal with.
 void make_interference_graph(Function *function, int include_clobbers, int include_instrsel_constraints) {
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
@@ -1349,13 +1352,13 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
             }
 
             // Works together with the instruction rules. Ensure the shift value cannot be in rcx.
-            if (include_clobbers && (tac->operation == X_SHR) && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
+            if (tac->operation == X_SHR && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
                 add_ig_edge(interference_graph, vreg_count, tac->prev->dst->vreg, LIVE_RANGE_PREG_RCX_INDEX);
                 add_ig_edge(interference_graph, vreg_count, tac->prev->src1->vreg, LIVE_RANGE_PREG_RCX_INDEX);
             }
 
-            if (include_clobbers && tac->operation == X_LD_EQ_CMP)
+            if (tac->operation == X_LD_EQ_CMP)
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
 
             if (tac->dst && tac->dst->vreg) {
