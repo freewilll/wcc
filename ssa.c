@@ -1279,7 +1279,7 @@ static void print_interference_graph(Function *function) {
 }
 
 // Page 701 of engineering a compiler
-void make_interference_graph(Function *function, int include_clobbers) {
+void make_interference_graph(Function *function, int include_clobbers, int include_instrsel_constraints) {
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
         printf("--------------------------------------------------------\n");
@@ -1392,6 +1392,14 @@ void make_interference_graph(Function *function, int include_clobbers) {
                     add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, it_vreg);
                     if (debug_ssa_interference_graph) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, it_vreg);
                 }
+            }
+
+            if (include_instrsel_constraints && tac->operation != IR_MOVE) {
+                // Add edges necessary for instruction selection constraints:
+                // dst != src1, dst != src2, src1 != src2,
+                if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) add_ig_edge(interference_graph, vreg_count, tac-> dst->vreg, tac->src1->vreg);
+                if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) add_ig_edge(interference_graph, vreg_count, tac-> dst->vreg, tac->src2->vreg);
+                if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) add_ig_edge(interference_graph, vreg_count, tac->src1->vreg, tac->src2->vreg);
             }
 
             if (tac->dst && tac->dst->vreg) {
@@ -1534,7 +1542,6 @@ static int coalesce_cmpfunc(const void *a, const void *b) {
 // coalesced.
 static void coalesce_live_ranges_for_preg(Function *function, int check_register_constraints, int preg_class) {
     int vreg_count = function->vreg_count;
-    char *instrsel_blockers = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(char));
     char *clobbers = malloc((vreg_count + 1) * sizeof(char));
 
     int outer_changed = 1;
@@ -1542,12 +1549,11 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
         outer_changed = 0;
 
         make_live_range_spill_cost(function);
-        make_interference_graph(function, 0);
+        make_interference_graph(function, 0, 1);
 
         char *interference_graph = function->interference_graph;
 
         // A lower triangular matrix of all register copy operations and instrsel blockers
-        memset(instrsel_blockers, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(char));
         memset(clobbers, 0, (vreg_count + 1) * sizeof(char));
 
         // Make make of merge candidates
@@ -1566,12 +1572,6 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
                 if ((tac->next->operation == X_SHR) && tac->next->src1 && tac->next->src1->vreg)
                     longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
-            }
-
-            else {
-                if (tac-> dst && tac-> dst->vreg && tac->src1 && tac->src1->vreg) { instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src1->vreg] = 1; }
-                if (tac-> dst && tac-> dst->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac-> dst->vreg * vreg_count + tac->src2->vreg] = 1; }
-                if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg) { instrsel_blockers[tac->src1->vreg * vreg_count + tac->src2->vreg] = 1; }
             }
 
             if (tac->dst  && tac->dst-> vreg && tac->dst ->live_range_preg) clobbers[tac->dst ->vreg] = 1;
@@ -1618,7 +1618,6 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
             int l1 = dst * vreg_count + src;
             int l2 = src * vreg_count + dst;
 
-            if (instrsel_blockers[l1] || instrsel_blockers[l2]) continue;
             if (interference_graph[l1] || interference_graph[l2]) continue;
 
             // Update all dsts
@@ -1632,17 +1631,6 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
             // Update constraints, moving all from src -> dst
             copy_interference_graph_edges(function->interference_graph, vreg_count, src, dst);
-
-            for (int vreg = 1; vreg <= vreg_count; vreg++) {
-                int old_l1 = src * vreg_count + vreg;
-                int old_l2 = vreg * vreg_count + src;
-
-                int new_l1 = dst * vreg_count + vreg;
-                int new_l2 = vreg * vreg_count + dst;
-
-                instrsel_blockers[new_l1] |= instrsel_blockers[old_l1];
-                instrsel_blockers[new_l2] |= instrsel_blockers[old_l2];
-            }
 
             clobbers[dst] |= clobbers[src];
 
@@ -1658,7 +1646,6 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
         free_longmap(pending_coalesces);
     } // while outer changed
 
-    free(instrsel_blockers);
     free(clobbers);
 
     if (debug_ssa_live_range_coalescing) {
@@ -1679,7 +1666,7 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
 
     if (!opt_enable_live_range_coalescing) {
         make_live_range_spill_cost(function);
-        make_interference_graph(function, 0);
+        make_interference_graph(function, 0, 0);
 
         return;
     }
