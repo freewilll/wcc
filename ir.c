@@ -1255,12 +1255,13 @@ void add_zero_memory_instructions(Function *function) {
 
 // Add an instruction to load a value from the GOT. The result is a pointer to the
 // value.
-Value *add_load_from_tac(Function *function, Tac *tac, Value *src) {
+static Value *add_load_from_got(Function *function, Tac *tac, Value *src) {
     Value *dst = new_value();
     dst->vreg = ++function->vreg_count;
     dst->type = make_pointer(src->type);
     Value *got_src = dup_value(src);
     got_src->type = dst->type;
+    got_src->load_from_got = 1;
 
     insert_instruction_from_operation(tac, IR_LOAD_FROM_GOT, dst, got_src, 0, 0);
 
@@ -1294,7 +1295,7 @@ void add_PIC_load_and_saves(Function *function) {
 
         // Convert a save of a global to a mov from the GOT followed by a store to a pointer in a register
         if (tac->dst && tac->dst->global_symbol && tac->operation == IR_MOVE) {
-            Value *dst = add_load_from_tac(function, tac, tac->dst);
+            Value *dst = add_load_from_got(function, tac, tac->dst);
 
             // Convert to a move to an lvalue in a register
             Type *type = tac->dst->type;
@@ -1305,7 +1306,7 @@ void add_PIC_load_and_saves(Function *function) {
 
         // Convert a load of a global to a mov from the GOT followed by an indirect
         if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_MOVE) {
-            Value *dst = add_load_from_tac(function, tac, tac->src1);
+            Value *dst = add_load_from_got(function, tac, tac->src1);
 
             // Convert to an indirect unless it's a pointer to a function
             tac->src1 = dst;
@@ -1315,6 +1316,7 @@ void add_PIC_load_and_saves(Function *function) {
 
         else if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_ADDRESS_OF) {
             tac->operation = IR_ADDRESS_OF_FROM_GOT;
+            tac->src1->load_from_got = 1;
             if (tac->src1->offset) {
                 int offset = tac->src1->offset;
                 tac->src1->offset = 0;
@@ -1323,6 +1325,17 @@ void add_PIC_load_and_saves(Function *function) {
                 tac->dst->vreg = ++function->vreg_count;
                 tac = insert_instruction_after_from_operation(tac, IR_ADD, dst_with_offset, tac->dst, new_integral_constant(TYPE_INT, offset));
             }
+        }
+    }
+}
+
+// Convert and loads of address to functions to a load the GOT, unless the
+// function has been defined.
+void convert_functions_address_of(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_ADDRESS_OF && tac->src1->type->type == TYPE_FUNCTION && !tac->src1->type->function->is_defined) {
+            tac->operation = IR_ADDRESS_OF_FROM_GOT;
+            tac->src1->load_from_got = 1;
         }
     }
 }

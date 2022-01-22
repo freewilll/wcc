@@ -117,6 +117,9 @@ test-shlib-main-gcc.o: test-shlib-main.c test-shlib.h
 test-shlib-main-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
 	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-main-wcc.o test-shlib-main.c
 
+test-shlib-main-no-pic-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
+	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -o test-shlib-main-no-pic-wcc.o test-shlib-main.c
+
 test-shlib-gcc-gcc: test-shlib-main-gcc.o libtest-shlib-lib-gcc.so
 	gcc test-shlib-main-gcc.o -L. -l test-shlib-lib-gcc ../test-lib.o -o test-shlib-gcc-gcc
 
@@ -128,6 +131,9 @@ test-shlib-gcc-wcc: test-shlib-main-gcc.o libtest-shlib-lib-wcc.so
 
 test-shlib-wcc-wcc: test-shlib-main-wcc.o libtest-shlib-lib-wcc.so
 	gcc test-shlib-main-wcc.o -L. -l test-shlib-lib-wcc ../test-lib.o -o test-shlib-wcc-wcc
+
+test-shlib-mixed-pic-wcc-wcc: test-shlib-main-no-pic-wcc.o libtest-shlib-lib-wcc.so
+	gcc test-shlib-main-no-pic-wcc.o libtest-shlib-lib-wcc.so ../test-lib.o -o test-shlib-mixed-pic-wcc-wcc
 
 run-test-shlib: test-shlib-gcc-gcc test-shlib-wcc-gcc test-shlib-gcc-wcc test-shlib-wcc-wcc
 	LD_LIBRARY_PATH=. ./test-shlib-gcc-gcc
@@ -172,3 +178,4 @@ clean:
 	@rm -f test-shlib-wcc-gcc
 	@rm -f test-shlib-gcc-wcc
 	@rm -f test-shlib-wcc-wcc
+	@rm -f test-shlib-mixed-pic-wcc-wcc

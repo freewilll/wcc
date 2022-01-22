@@ -338,7 +338,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                             if (v->offset)
                                 sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->global_identifier, v->offset);
                             else {
-                                if (opt_PIC)
+                                if (v->load_from_got)
                                     sprintf(buffer, "%s@GOTPCREL(%%rip)", v->global_symbol->global_identifier);
                                 else
                                     sprintf(buffer, "%s(%%rip)", v->global_symbol->global_identifier);
@@ -353,7 +353,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         if (v->offset)
                             sprintf(buffer, "%s+%d(%%rip)", v->global_symbol->global_identifier, v->offset);
                         else {
-                            if (opt_PIC)
+                            if (v->load_from_got)
                                 sprintf(buffer, "%s@GOTPCREL(%%rip)", v->global_symbol->global_identifier);
                             else
                                 sprintf(buffer, "%s(%%rip)", v->global_symbol->global_identifier);

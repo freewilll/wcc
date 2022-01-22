@@ -62,6 +62,8 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
 
     if (log_compiler_phase_durations) debug_log("Adding PIC loads & saves");
     add_PIC_load_and_saves(function);
+    if (log_compiler_phase_durations) debug_log("Converting & functions to loads");
+    convert_functions_address_of(function);
     if (log_compiler_phase_durations) debug_log("Converting lvalue assignments");
     rewrite_lvalue_reg_assignments(function);
 

@@ -48,3 +48,5 @@ int inc_st();
 int inc_ia();
 
 void test_address_of();
+
+int add_one(int i);

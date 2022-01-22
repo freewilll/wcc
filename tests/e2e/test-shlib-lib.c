@@ -95,5 +95,8 @@ void test_address_of() {
     assert_int(8,  (void *) &v1.s2   -  (void *) &v1,  "Anonymous s/s 6");
     assert_int(8,  (void *) &v1.s2.c -  (void *) &v1,  "Anonymous s/s 7");
     assert_int(12, (void *) &v1.s2.d -  (void *) &v1,  "Anonymous s/s 8");
+}
 
+int add_one(int i) {
+    return i + 1;
 }

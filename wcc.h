@@ -291,6 +291,7 @@ typedef struct value {
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
     int is_address_of;                                   // Is an address of a constant expression.
     int address_of_offset;                               // Offset when used in combination with is_address_of
+    int load_from_got;                                   // Load from Global Offset Table (GOT)
     int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
@@ -1077,6 +1078,7 @@ Tac *add_memory_copy_with_registers(Function *function, Tac *ir, Value *dst, Val
 Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int size);
 void convert_enums(Function *function);
 void add_PIC_load_and_saves(Function *function);
+void convert_functions_address_of(Function *function);
 
 // ssa.c
 enum {

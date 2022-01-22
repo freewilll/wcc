@@ -46,6 +46,11 @@ void test_direct_access() {
 
     i = 42;
     assert_int(42, fri(), "Pointer to function");
+
+    int main() {
+        int (*f)(int) = add_one;
+        assert_int(3, f(2), "&address in the shared library");
+    }
 }
 
 int main(int argc, char **argv) {
