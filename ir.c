@@ -617,14 +617,6 @@ Tac *delete_instruction(Tac *tac) {
     return tac->next;
 }
 
-static void renumber_label(Tac *ir, int l1, int l2) {
-    for (Tac *t = ir; t; t = t->next) {
-        if (t->src1 && t->src1->label == l1) t->src1->label = l2;
-        if (t->src2 && t->src2->label == l1) t->src2->label = l2;
-        if (t->label == l1) t->label = l2;
-    }
-}
-
 // Renumber all labels so they are consecutive. Uses label_count global.
 void renumber_labels(Function *function) {
     // Find highest label number in the function
@@ -663,25 +655,44 @@ void renumber_labels(Function *function) {
     free(mapping);
 }
 
-static void merge_labels(Tac *ir, Tac *tac, int ir_index) {
-    while(1) {
-        if (!tac->label || !tac->next || !tac->next->label) return;
-
-        Tac *deleted_tac = tac->next;
-        merge_instructions(tac, ir_index, 1);
-        renumber_label(ir, deleted_tac->label, tac->label);
-    }
+#define renumber_value(v) { \
+    if (v && v->label) { \
+        int replacement = (long) longmap_get(renumbers, v->label); \
+        if (replacement) v->label = replacement; \
+    } \
 }
 
-// When the parser completes, each jmp target is a nop with its own label. This
-// can lead to consecutive nops with different labels. Merge those nops and labels
-// into one.
+// When the parser completes, each jmp target is a nop with its own label. This can lead
+// to consecutive nops with different labels. Merge those nops and labels into one.
+// Gather all renumbers in one pass and apply them in a second pass.
 void merge_consecutive_labels(Function *function) {
+    LongMap *renumbers = new_longmap();
+
     int i = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        merge_labels(ir, tac, i);
+        while(1) {
+            if (!tac->label || !tac->next || !tac->next->label) break;
+
+            Tac *deleted_tac = tac->next;
+            merge_instructions(tac, i, 1);
+            int src = deleted_tac->label;
+            int dst = tac->label;
+
+            int renumbered_src = (long) longmap_get(renumbers, src); if (renumbered_src) src = renumbered_src;
+            int renumbered_dst = (long) longmap_get(renumbers, dst); if (renumbered_dst) dst = renumbered_dst;
+            longmap_put(renumbers, src, (void *) (long) dst);
+        }
+
         i++;
     }
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        renumber_value(tac->dst);
+        renumber_value(tac->src1);
+        renumber_value(tac->src2);
+    }
+
+    free_longmap(renumbers);
 }
 
 static void assign_local_to_register(Value *v, int vreg) {
