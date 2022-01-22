@@ -777,6 +777,11 @@ int debug_instsel_spilling;
 int debug_stack_frame_layout;
 
 // set.c
+#define add_to_set(s, value) do { \
+    if (value > s->max_value) panic("Max set value of %d exceeded with %d in add_to_set", s->max_value, value); \
+    s->elements[value] = 1; \
+} while (0)
+
 Set *new_set(int max_value);
 void free_set(Set *s);
 void empty_set(Set *s);
@@ -785,7 +790,7 @@ void copy_set_to(Set *dst, Set *src);
 void cache_set_elements(Set *s);
 int set_len(Set *s);
 void print_set(Set *s);
-void *add_to_set(Set *s, int value);
+
 int in_set(Set *s, int value);
 int set_eq(Set *s1, Set *s2);
 void *delete_from_set(Set *s, int value);
