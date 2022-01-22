@@ -67,6 +67,7 @@ __FILE__
 __LINE__
 __x86_64__
 __LP64__
+__linux__
 
 // From c-testsuite 00201.c
 #define CAT(a,b) a##b

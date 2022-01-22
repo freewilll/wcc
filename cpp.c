@@ -327,6 +327,7 @@ void init_directives(void) {
     strmap_put(directives, "__STDC__", directive);
     strmap_put(directives, "__x86_64__", directive);
     strmap_put(directives, "__LP64__", directive);
+    strmap_put(directives, "__linux__", directive);
 }
 
 char *get_cpp_input(void) {
