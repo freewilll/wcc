@@ -1472,10 +1472,9 @@ static void push_symbol(Symbol *symbol) {
     push(make_symbol_value(symbol));
 }
 
-// Add type change move if necessary and return the dst value
-Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
-    if (dst_type->type == TYPE_FUNCTION) error("Function type mismatch");
-
+// If src is a function type and a global symbol, add an address of instruction to
+// load it into a register.
+Value *load_function(Value *src, Type *dst_type) {
     int dst_is_function = is_pointer_to_function_type(dst_type)  || dst_type->type == TYPE_FUNCTION;
     int src_is_function = is_pointer_to_function_type(src->type) || src->type->type == TYPE_FUNCTION;
 
@@ -1492,6 +1491,19 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
 
         return src;
     }
+
+    return src;
+}
+
+// Add type change move if necessary and return the dst value
+Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
+    if (dst_type->type == TYPE_FUNCTION) error("Function type mismatch");
+
+    int dst_is_function = is_pointer_to_function_type(dst_type)  || dst_type->type == TYPE_FUNCTION;
+    int src_is_function = is_pointer_to_function_type(src->type) || src->type->type == TYPE_FUNCTION;
+
+    if (dst_is_function && src_is_function)
+        return load_function(src, dst_type);
 
     if (!type_eq(dst_type, src->type)) {
         if (src->is_constant) {
@@ -2605,6 +2617,8 @@ static void parse_expression(int level) {
                             push(cast_constant_value(v1, dst_type));
                     }
                     else if (dst_type->type != TYPE_VOID && v1->type != dst_type) {
+                        if (v1->type->type == TYPE_FUNCTION) v1 = load_function(v1, dst_type);
+
                         // Add move instruction
                         Value *dst = new_value();
                         dst->vreg = new_vreg();
