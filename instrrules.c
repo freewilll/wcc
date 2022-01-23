@@ -1024,29 +1024,27 @@ static void add_sub_rules(void) {
             add_sub_rule(RI4, i, j,  10, "movq %v1q, %vdq", 0, "subq %v1q, %vdq");
 }
 
-static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *t4, char *tdiv, char *tmod) {
+static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *tdiv, char *tmod) {
     Rule *r;
 
     r = add_rule(dst, IR_DIV, src1,  src2,  cost); add_op(r, X_MOV,  0,    SRC1, 0,    t1);
                                                    add_op(r, X_CLTD, 0,    0,    0,    t2);
-                                                   add_op(r, X_MOV,  DST,  SRC2, 0,    t3);
-                                                   add_op(r, X_IDIV, DST,  SRC1, SRC2, t4);
+                                                   add_op(r, X_IDIV, 0,    SRC2, 0,    t3);
                                                    add_op(r, X_MOV,  DST,  0,    0,    tdiv);
                                                    fin_rule(r);
     r = add_rule(dst, IR_MOD, src1,  src2,  cost); add_op(r, X_MOV,  0,    SRC1, 0,    t1);
                                                    add_op(r, X_CLTD, 0,    0,    0,    t2);
-                                                   add_op(r, X_MOV,  DST,  SRC2, 0,    t3);
-                                                   add_op(r, X_IDIV, DST,  SRC1, SRC2, t4);
+                                                   add_op(r, X_IDIV, 0,    SRC2, 0,    t3);
                                                    add_op(r, X_MOV,  DST,  0,    0,    tmod);
                                                    fin_rule(r);
 }
 
 static void add_div_rules(void) {
-    add_div_rule(RI3, RI3, RI3, 40, "movl %v1l, %%eax", "cltd", "movl %v1l, %vdl", "idivl %vdl", "movl %%eax, %vdl", "movl %%edx, %vdl");
-    add_div_rule(RI4, RI4, RI4, 50, "movq %v1q, %%rax", "cqto", "movq %v1q, %vdq", "idivq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
+    add_div_rule(RI3, RI3, RI3, 40, "movl %v1l, %%eax", "cltd", "idivl %v1l", "movl %%eax, %vdl", "movl %%edx, %vdl");
+    add_div_rule(RI4, RI4, RI4, 50, "movq %v1q, %%rax", "cqto", "idivq %v1q", "movq %%rax, %vdq", "movq %%rdx, %vdq");
 
-    add_div_rule(RU3, RU3, RU3, 40, "movl %v1l, %%eax", "movl $0, %%edx", "movl %v1l, %vdl", "divl %vdl", "movl %%eax, %vdl", "movl %%edx, %vdl");
-    add_div_rule(RU4, RU4, RU4, 50, "movq %v1q, %%rax", "movq $0, %%rdx", "movq %v1q, %vdq", "divq %vdq", "movq %%rax, %vdq", "movq %%rdx, %vdq");
+    add_div_rule(RU3, RU3, RU3, 40, "movl %v1l, %%eax", "movl $0, %%edx", "divl %v1l", "movl %%eax, %vdl", "movl %%edx, %vdl");
+    add_div_rule(RU4, RU4, RU4, 50, "movq %v1q, %%rax", "movq $0, %%rdx", "divq %v1q", "movq %%rax, %vdq", "movq %%rdx, %vdq");
 }
 
 static void add_bnot_rule(int dst, int src) {

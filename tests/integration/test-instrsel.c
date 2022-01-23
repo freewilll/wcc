@@ -833,7 +833,7 @@ void test_sub_operations() {
     assert_x86_op("subq        $1, r1q");
 }
 
-void test_div_operation(int operation, int type, Value *dst, Value *src1, Value *src2, char *t1, char *t2, char *t3, char *t4, char *t5) {
+void test_div_operation(int operation, int type, Value *dst, Value *src1, Value *src2, char *t1, char *t2, char *t3, char *t4) {
     dst->type->type = type;
     src1->type->type = type;
     src2->type->type = type;
@@ -843,20 +843,19 @@ void test_div_operation(int operation, int type, Value *dst, Value *src1, Value 
     assert_x86_op(t2);
     assert_x86_op(t3);
     assert_x86_op(t4);
-    assert_x86_op(t5);
 }
 
 void test_div_mod_operations() {
     remove_reserved_physical_registers = 1;
 
-    test_div_operation(IR_DIV, TYPE_INT,   v(3),  v(1),  v(2), "movl        r1l, %eax", "cltd",                 "movl        r2l, r3l", "idivl       r3l", "movl        %eax, r3l");
-    test_div_operation(IR_MOD, TYPE_INT,   v(3),  v(1),  v(2), "movl        r1l, %eax", "cltd",                 "movl        r2l, r3l", "idivl       r3l", "movl        %edx, r3l");
-    test_div_operation(IR_DIV, TYPE_INT,  uv(3), uv(1), uv(2), "movl        r1l, %eax", "movl        $0, %edx", "movl        r2l, r3l", "divl        r3l", "movl        %eax, r3l");
-    test_div_operation(IR_MOD, TYPE_INT,  uv(3), uv(1), uv(2), "movl        r1l, %eax", "movl        $0, %edx", "movl        r2l, r3l", "divl        r3l", "movl        %edx, r3l");
-    test_div_operation(IR_DIV, TYPE_LONG,  v(3),  v(1),  v(2), "movq        r1q, %rax", "cqto",                 "movq        r2q, r3q", "idivq       r3q", "movq        %rax, r3q");
-    test_div_operation(IR_MOD, TYPE_LONG,  v(3),  v(1),  v(2), "movq        r1q, %rax", "cqto",                 "movq        r2q, r3q", "idivq       r3q", "movq        %rdx, r3q");
-    test_div_operation(IR_DIV, TYPE_LONG, uv(3), uv(1), uv(2), "movq        r1q, %rax", "movq        $0, %rdx", "movq        r2q, r3q", "divq        r3q", "movq        %rax, r3q");
-    test_div_operation(IR_MOD, TYPE_LONG, uv(3), uv(1), uv(2), "movq        r1q, %rax", "movq        $0, %rdx", "movq        r2q, r3q", "divq        r3q", "movq        %rdx, r3q");
+    test_div_operation(IR_DIV, TYPE_INT,   v(3),  v(1),  v(2), "movl        r1l, %eax", "cltd",                 "idivl       r2l", "movl        %eax, r3l");
+    test_div_operation(IR_MOD, TYPE_INT,   v(3),  v(1),  v(2), "movl        r1l, %eax", "cltd",                 "idivl       r2l", "movl        %edx, r3l");
+    test_div_operation(IR_DIV, TYPE_INT,  uv(3), uv(1), uv(2), "movl        r1l, %eax", "movl        $0, %edx", "divl        r2l", "movl        %eax, r3l");
+    test_div_operation(IR_MOD, TYPE_INT,  uv(3), uv(1), uv(2), "movl        r1l, %eax", "movl        $0, %edx", "divl        r2l", "movl        %edx, r3l");
+    test_div_operation(IR_DIV, TYPE_LONG,  v(3),  v(1),  v(2), "movq        r1q, %rax", "cqto",                 "idivq       r2q", "movq        %rax, r3q");
+    test_div_operation(IR_MOD, TYPE_LONG,  v(3),  v(1),  v(2), "movq        r1q, %rax", "cqto",                 "idivq       r2q", "movq        %rdx, r3q");
+    test_div_operation(IR_DIV, TYPE_LONG, uv(3), uv(1), uv(2), "movq        r1q, %rax", "movq        $0, %rdx", "divq        r2q", "movq        %rax, r3q");
+    test_div_operation(IR_MOD, TYPE_LONG, uv(3), uv(1), uv(2), "movq        r1q, %rax", "movq        $0, %rdx", "divq        r2q", "movq        %rdx, r3q");
 }
 
 void test_bnot_operations() {

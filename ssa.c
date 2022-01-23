@@ -1341,10 +1341,6 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
                     clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
                     clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
                 }
-
-                // Works together with the instruction rules
-                if (tac->operation == X_IDIV)
-                    add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, tac->dst->vreg);
             }
 
             if (include_clobbers && tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
