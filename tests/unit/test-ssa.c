@@ -102,19 +102,35 @@ void test_int_arithmetic_optimization_mul() {
 
 void test_int_arithmetic_optimization_div() {
     // v2 = v1 / 1
-    run_int_arithmetic_optimization(IR_DIV, v(1), c(1));
+    run_int_arithmetic_optimization(IR_DIV, uv(1), c(1));
     assert(IR_MOVE, ir_start->operation);
     assert(1, ir_start->src1->vreg);
 
-    // v2 = v1 / 2
+    // signed v2 = v1 / 2 is unchanged
     run_int_arithmetic_optimization(IR_DIV, v(1), c(2));
+    assert(IR_DIV, ir_start->operation);
+
+    // signed v2 = v1 / 3 is unchanged
+    run_int_arithmetic_optimization(IR_DIV, v(1), c(3));
+    assert(IR_DIV, ir_start->operation);
+
+    // signed v2 = v1 / 4 is unchanged
+    run_int_arithmetic_optimization(IR_DIV, v(1), c(4));
+    assert(IR_DIV, ir_start->operation);
+
+    // unsigned v2 = v1 / 2
+    run_int_arithmetic_optimization(IR_DIV, uv(1), c(2));
     assert(IR_BSHR, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);
     assert(1, ir_start->src2->int_value);
 
-    // v2 = v1 / 4
-    run_int_arithmetic_optimization(IR_DIV, v(1), c(4));
+    // unsigned v2 = v1 / 3 is unchanged
+    run_int_arithmetic_optimization(IR_DIV, uv(1), c(3));
+    assert(IR_DIV, ir_start->operation);
+
+    // unsigned v2 = v1 / 4
+    run_int_arithmetic_optimization(IR_DIV, uv(1), c(4));
     assert(IR_BSHR, ir_start->operation);
     assert(1, ir_start->src1->vreg);
     assert(1, ir_start->src2->is_constant);

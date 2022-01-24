@@ -73,55 +73,59 @@ void test_constant_expr() {
 void test_int_expr() {
     int i, j, k, l;
 
-    i = 1; j = 2; assert_int( 1,  1,               "1");
-    i = 1; j = 2; assert_int( 3,  1+2,             "1+2 a");
-    i = 1; j = 2; assert_int( 3,  i+2,             "1+2 b");
-    i = 1; j = 2; assert_int( 3,  1+j,             "1+2 c");
-    i = 1; j = 2; assert_int( 3,  i+j,             "1+2 d");
-    i = 1; j = 3; assert_int( 2,  3-1,             "3-1 a");
-    i = 1; j = 3; assert_int( 2,  j-1,             "3-1 b");
-    i = 1; j = 3; assert_int( 2,  3-i,             "3-1 c");
-    i = 1; j = 3; assert_int( 2,  j-i,             "3-1 d");
-    i = 1; j = 2; assert_int( 1,  3-2,             "3-2");
-    i = 1; j = 2; assert_int( 0,  3-2-1,           "3-2-1");
-    i = 1; j = 2; assert_int( 4,  3+2-1,           "3+2-1");
-    i = 1; j = 2; assert_int( 2,  3-2+1,           "3-2+1");
-    i = 2; j = 3; assert_int( 6,  2*3,             "2*3 a");
-    i = 2; j = 3; assert_int( 6,  i*3,             "2*3 b");
-    i = 2; j = 3; assert_int( 6,  2*j,             "2*3 c");
-    i = 2; j = 3; assert_int( 6,  i*j,             "2*3 d");
-    i = 1; j = 2; assert_int( 7,  1+2*3,           "1+2*3");
-    i = 1; j = 2; assert_int(10,  2*3+4,           "2*3+4");
-    i = 1; j = 2; assert_int( 3,  2*3/2,           "2*3/2");
-    i = 6; j = 2; assert_int( 3,  6/2,             "6/2 a");
-    i = 6; j = 2; assert_int( 3,  i/2,             "6/2 b");
-    i = 6; j = 2; assert_int( 3,  6/j,             "6/2 c");
-    i = 6; j = 2; assert_int( 3,  i/j,             "6/2 d");
-    i = 6; j = 2; assert_int( 0,  6%2,             "6%2 a");
-    i = 6; j = 2; assert_int( 0,  i%2,             "6%2 b");
-    i = 6; j = 2; assert_int( 0,  6%j,             "6%2 c");
-    i = 6; j = 2; assert_int( 0,  i%j,             "6%2 d");
-    i = 7; j = 2; assert_int( 1,  7%2,             "7%2 a");
-    i = 7; j = 2; assert_int( 1,  i%2,             "7%2 b");
-    i = 7; j = 2; assert_int( 1,  7%j,             "7%2 c");
-    i = 7; j = 2; assert_int( 1,  i%j,             "7%2 d");
-    i = 1; j = 2; assert_int(64,  1*2+3*4+5*10,    "1*2+3*4+5*10");
-    i = 1; j = 2; assert_int(74,  1*2+3*4+5*10+10, "1*2+3*4+5*10+10");
-    i = 1; j = 2; assert_int( 9,  (1+2)*3,         "(1+2)*3");
-    i = 1; j = 2; assert_int( 7,  (2*3)+1,         "(2*3)+1");
-    i = 1; j = 2; assert_int( 0,  3-(2+1),         "3-(2+1)");
-    i = 1; j = 2; assert_int(-3,  3-(2+1)*2,       "3-(2+1)*2");
-    i = 1; j = 2; assert_int( 7,  3-(2+1)*2+10,    "3-(2+1)*2+10");
-    i = 1; j = 2; assert_int(-1,  -1,              "-1");
-    i = 1; j = 2; assert_int( 1,  -1+2,            "-1+2");
-    i = 1; j = 2; assert_int(-2,  -1-1,            "-1-1");
-    i = 1; j = 2; assert_int( 3,  2- -1,           "2- -1");
-    i = 2; j = 3; assert_int(-6,  -(2*3),          "-(2*3) a");
-    i = 2; j = 3; assert_int(-6,  -(i*3),          "-(2*3) b");
-    i = 2; j = 3; assert_int(-6,  -(2*j),          "-(2*3) c");
-    i = 2; j = 3; assert_int(-6,  -(i*j),          "-(2*3) d");
-    i = 1; j = 2; assert_int(-5,  -(2*3)+1,        "-(2*3)+1");
-    i = 1; j = 2; assert_int(-11, -(2*3)*2+1,      "-(2*3)*2+1");
+    i = 1;  j = 2; assert_int( 1,  1,               "1");
+    i = 1;  j = 2; assert_int( 3,  1+2,             "1+2 a");
+    i = 1;  j = 2; assert_int( 3,  i+2,             "1+2 b");
+    i = 1;  j = 2; assert_int( 3,  1+j,             "1+2 c");
+    i = 1;  j = 2; assert_int( 3,  i+j,             "1+2 d");
+    i = 1;  j = 3; assert_int( 2,  3-1,             "3-1 a");
+    i = 1;  j = 3; assert_int( 2,  j-1,             "3-1 b");
+    i = 1;  j = 3; assert_int( 2,  3-i,             "3-1 c");
+    i = 1;  j = 3; assert_int( 2,  j-i,             "3-1 d");
+    i = 1;  j = 2; assert_int( 1,  3-2,             "3-2");
+    i = 1;  j = 2; assert_int( 0,  3-2-1,           "3-2-1");
+    i = 1;  j = 2; assert_int( 4,  3+2-1,           "3+2-1");
+    i = 1;  j = 2; assert_int( 2,  3-2+1,           "3-2+1");
+    i = 2;  j = 3; assert_int( 6,  2*3,             "2*3 a");
+    i = 2;  j = 3; assert_int( 6,  i*3,             "2*3 b");
+    i = -2; j = 2; assert_int(-4,  i*2,             "-2*2 b");
+    i = -2; j = 4; assert_int(-8,  i*4,             "-2*4 b");
+    i = 2;  j = 3; assert_int( 6,  2*j,             "2*3 c");
+    i = 2;  j = 3; assert_int( 6,  i*j,             "2*3 d");
+    i = 1;  j = 2; assert_int( 7,  1+2*3,           "1+2*3");
+    i = 1;  j = 2; assert_int(10,  2*3+4,           "2*3+4");
+    i = 1;  j = 2; assert_int( 3,  2*3/2,           "2*3/2");
+    i = 6;  j = 2; assert_int( 3,  6/2,             "6/2 a");
+    i = 6;  j = 2; assert_int( 3,  i/2,             "6/2 b");
+    i = -6; j = 2; assert_int( -3, i/2,             "-6/2");
+    i = -6; j = 4; assert_int( -1, i/4,             "-6/4");
+    i = 6;  j = 2; assert_int( 3,  6/j,             "6/2 c");
+    i = 6;  j = 2; assert_int( 3,  i/j,             "6/2 d");
+    i = 6;  j = 2; assert_int( 0,  6%2,             "6%2 a");
+    i = 6;  j = 2; assert_int( 0,  i%2,             "6%2 b");
+    i = 6;  j = 2; assert_int( 0,  6%j,             "6%2 c");
+    i = 6;  j = 2; assert_int( 0,  i%j,             "6%2 d");
+    i = 7;  j = 2; assert_int( 1,  7%2,             "7%2 a");
+    i = 7;  j = 2; assert_int( 1,  i%2,             "7%2 b");
+    i = 7;  j = 2; assert_int( 1,  7%j,             "7%2 c");
+    i = 7;  j = 2; assert_int( 1,  i%j,             "7%2 d");
+    i = 1;  j = 2; assert_int(64,  1*2+3*4+5*10,    "1*2+3*4+5*10");
+    i = 1;  j = 2; assert_int(74,  1*2+3*4+5*10+10, "1*2+3*4+5*10+10");
+    i = 1;  j = 2; assert_int( 9,  (1+2)*3,         "(1+2)*3");
+    i = 1;  j = 2; assert_int( 7,  (2*3)+1,         "(2*3)+1");
+    i = 1;  j = 2; assert_int( 0,  3-(2+1),         "3-(2+1)");
+    i = 1;  j = 2; assert_int(-3,  3-(2+1)*2,       "3-(2+1)*2");
+    i = 1;  j = 2; assert_int( 7,  3-(2+1)*2+10,    "3-(2+1)*2+10");
+    i = 1;  j = 2; assert_int(-1,  -1,              "-1");
+    i = 1;  j = 2; assert_int( 1,  -1+2,            "-1+2");
+    i = 1;  j = 2; assert_int(-2,  -1-1,            "-1-1");
+    i = 1;  j = 2; assert_int( 3,  2- -1,           "2- -1");
+    i = 2;  j = 3; assert_int(-6,  -(2*3),          "-(2*3) a");
+    i = 2;  j = 3; assert_int(-6,  -(i*3),          "-(2*3) b");
+    i = 2;  j = 3; assert_int(-6,  -(2*j),          "-(2*3) c");
+    i = 2;  j = 3; assert_int(-6,  -(i*j),          "-(2*3) d");
+    i = 1;  j = 2; assert_int(-5,  -(2*3)+1,        "-(2*3)+1");
+    i = 1;  j = 2; assert_int(-11, -(2*3)*2+1,      "-(2*3)*2+1");
 
     i = 0; j = 1; k = 2; l = 3;
 
@@ -1687,6 +1691,16 @@ void test_insane_array_lookup() {
     assert_int(2, 1[ca], "Insane array lookup 2");
 }
 
+void test_shr_on_signed_int_bug() {
+    int i = -9;
+    i = -9; assert_int(-4,  i / 2, "SHL on signed int bug 1");
+    i = -9; assert_int(-2,  i / 4, "SHL on signed int bug 2");
+
+    unsigned int ui = -9;
+    ui = -9; assert_int(2147483643,  ui / 2, "SHL on signed int bug 3");
+    ui = -9; assert_int(1073741821,  ui / 4, "SHL on signed int bug 4");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1748,6 +1762,7 @@ int main(int argc, char **argv) {
     test_mixed_sign_assignments_to_memory3();
     test_and_or_value_stack_clobber_bug();
     test_insane_array_lookup();
+    test_shr_on_signed_int_bug();
 
     finalize();
 }

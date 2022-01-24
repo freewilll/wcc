@@ -64,7 +64,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
             tac->src2 = 0;
         }
 
-        else if ((c & (c - 1)) == 0) {
+        else if (tac->src1->type->is_unsigned && (c & (c - 1)) == 0) {
             l = -1;
             while (c > 0) { c >>= 1; l++; }
             tac->operation = IR_BSHR;
