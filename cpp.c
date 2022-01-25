@@ -382,7 +382,8 @@ void transform_trigraphs(void) {
 }
 
 void strip_backslash_newlines(void) {
-    char *output = malloc(state.input_size + 1);
+    // Add one for the last zero and another one for a potential trailing newline
+    char *output = malloc(state.input_size + 2); //
     int ip = 0; // Input offset
     int op = 0; // Output offset
     int line_number = 1;
