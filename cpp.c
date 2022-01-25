@@ -307,6 +307,13 @@ static CppToken *render_numeric_token(int value) {
     return result;
 }
 
+Directive *make_numeric_directive(int value) {
+    Directive *directive = malloc(sizeof(Directive));
+    memset(directive, 0, sizeof(Directive));
+    directive->tokens = render_numeric_token(value);
+    return directive;
+}
+
 // Create empty directives strmap and add CLI directives to them
 void init_directives(void) {
     directives = new_strmap();
@@ -321,13 +328,11 @@ void init_directives(void) {
     add_builtin_directive("__TIME__", render_time);
     add_builtin_directive("__DATE__", render_date);
 
-    Directive *directive = malloc(sizeof(Directive));
-    memset(directive, 0, sizeof(Directive));
-    directive->tokens = render_numeric_token(1);
-    strmap_put(directives, "__STDC__", directive);
-    strmap_put(directives, "__x86_64__", directive);
-    strmap_put(directives, "__LP64__", directive);
-    strmap_put(directives, "__linux__", directive);
+    strmap_put(directives, "__STDC__", make_numeric_directive(1));
+    strmap_put(directives, "__x86_64__", make_numeric_directive(1));
+    strmap_put(directives, "__LP64__", make_numeric_directive(1));
+    strmap_put(directives, "__linux__", make_numeric_directive(1));
+    strmap_put(directives, "__GNUC__", make_numeric_directive(2));
 }
 
 char *get_cpp_input(void) {

@@ -455,11 +455,13 @@ void next(void) {
             else if (!strcmp(cur_identifier, "enum"         )) { cur_token = TOK_ENUM;      }
             else if (!strcmp(cur_identifier, "sizeof"       )) { cur_token = TOK_SIZEOF;    }
             else if (!strcmp(cur_identifier, "__attribute__")) { cur_token = TOK_ATTRIBUTE; }
+            else if (!strcmp(cur_identifier, "packed"       )) { cur_token = TOK_PACKED;    }
             else if (!strcmp(cur_identifier, "__packed__"   )) { cur_token = TOK_PACKED;    }
             else if (!strcmp(cur_identifier, "__restrict"   )) { cur_token = TOK_RESTRICT;  }
             else if (!strcmp(cur_identifier, "restrict"     )) { cur_token = TOK_RESTRICT;   }
             else if (!strcmp(cur_identifier, "__asm__"      )) { cur_token = TOK_ASM;       }
             else if (!strcmp(cur_identifier, "inline"       )) { cur_token = TOK_INLINE;    }
+            else if (!strcmp(cur_identifier, "__inline"     )) { cur_token = TOK_INLINE;    }
             else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
             else if (!strcmp(cur_identifier, "auto"         )) { cur_token = TOK_AUTO;      }
             else if (!strcmp(cur_identifier, "register"     )) { cur_token = TOK_REGISTER;  }

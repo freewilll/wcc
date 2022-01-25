@@ -320,7 +320,8 @@ int cur_token_is_type(void) {
         cur_token == TOK_REGISTER ||
         cur_token == TOK_EXTERN ||
         cur_token == TOK_STATIC ||
-        cur_token == TOK_TYPEDEF_TYPE
+        cur_token == TOK_TYPEDEF_TYPE ||
+        cur_token == TOK_ATTRIBUTE
     );
 }
 
@@ -334,6 +335,25 @@ static BaseType *dup_base_type(BaseType *base_type) {
     result->type = dup_type(base_type->type);
     result->storage_class = base_type->storage_class;
     return result;
+}
+
+// Parse __attribute__ ((...)), ignoring everything inside the ((...))
+void parse_attribute(void) {
+    next(); // TOK_ATTRIBUTE
+
+    consume(TOK_LPAREN, "(");
+    consume(TOK_LPAREN, "(");
+    int parentheses_nesting_level = 2;
+
+    // Keep parsing until we break out of the ((
+    while (cur_token != TOK_EOF) {
+        if (cur_token == TOK_LPAREN) parentheses_nesting_level++;
+        else if (cur_token == TOK_RPAREN) parentheses_nesting_level--;
+
+        next();
+
+        if (!parentheses_nesting_level) return;
+    }
 }
 
 // Parse
@@ -437,6 +457,8 @@ static BaseType *parse_declaration_specifiers() {
             case TOK_REGISTER: next(); seen_register++; break;
             case TOK_STATIC:   next(); seen_static++; break;
             case TOK_EXTERN:   next(); seen_extern++; break;
+
+            case TOK_ATTRIBUTE: parse_attribute(); break;
 
             default: changed = 0;
         }
@@ -3265,7 +3287,7 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
     cur_function_symbol = symbol;
 
     // Parse optional old style declaration list
-    if (type->function->is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA)
+    if (type->function->is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)
         parse_function_paramless_declaration_list(type->function);
 
     if (original_symbol && !types_are_compatible(original_symbol->type, type))
@@ -3431,6 +3453,8 @@ void parse(void) {
                         symbol->type = type;
 
                 }
+
+                if (cur_token == TOK_ATTRIBUTE) parse_attribute();
 
                 if (cur_token != TOK_SEMI) consume(TOK_COMMA, ", or ; in declaration");
             }

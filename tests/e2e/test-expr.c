@@ -1701,6 +1701,11 @@ void test_shr_on_signed_int_bug() {
     ui = -9; assert_int(1073741821,  ui / 4, "SHL on signed int bug 4");
 }
 
+// Test for ignoring __attribute__
+int function_with_format_attribute() __attribute__ ((__format__ (__printf__, 3, 4)));
+static __attribute__((noinline)) void function_with_noinline_attribute();
+__attribute__((noinline)) int function_with_noinline_attribute2();
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
