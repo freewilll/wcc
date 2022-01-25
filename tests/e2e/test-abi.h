@@ -42,7 +42,7 @@ struct ld3 { long double ld1, ld2, ld3; };
 typedef struct { int a, b; double d; } structparm;
 
 // An unaligned struct
-struct __attribute__ ((__packed__)) us { int i; char c; int j; }; // TODO revive packed structs
+struct __attribute__ ((__packed__)) us { int i; char c; int j; };
 
 void accept_spf(struct spf spf);
 void accept_spd(struct spd spd);
