@@ -60,7 +60,7 @@ StringBuffer *new_string_buffer(int initial_size) {
 // Append a string to the string buffer
 void append_to_string_buffer(StringBuffer *sb, char *str) {
     int len = strlen(str);
-    int needed = sb->position + len;
+    int needed = sb->position + len + 1;
     if (sb->allocated < needed) {
         while (sb->allocated < needed) sb->allocated <<= 1;
         sb->data = realloc(sb->data, sb->allocated);
