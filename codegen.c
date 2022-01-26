@@ -828,7 +828,6 @@ void output_code(char *input_filename, char *output_filename) {
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined && symbol->type->function->linkage == LINKAGE_EXTERNAL) {
             fprintf(f, "    .globl  %s\n", symbol->identifier);
             fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
-            fprintf(f, "    .size   %s, .-%s\n", symbol->global_identifier, symbol->global_identifier);
         }
     }
 
@@ -846,6 +845,7 @@ void output_code(char *input_filename, char *output_filename) {
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             output_function_body_code(symbol);
+            fprintf(f, "    .size       %s, .-%s\n", symbol->global_identifier, symbol->global_identifier);
             fprintf(f, "\n");
         }
         symbol++;
