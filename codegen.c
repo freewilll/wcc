@@ -2,8 +2,30 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "wcc.h"
+
+// DWARF constants taken from dwarf.h
+#define DWARF_VERSION       4
+
+#define DW_LANG_C89         0x0001
+
+#define DW_TAG_compile_unit 0x11
+
+#define DW_AT_name          0x03
+#define DW_AT_stmt_list     0x10
+#define DW_AT_low_pc        0x11
+#define DW_AT_high_pc       0x12
+#define DW_AT_language      0x13
+#define DW_AT_comp_dir      0x1b
+#define DW_AT_producer      0x25
+
+#define DW_FORM_addr        0x01
+#define DW_FORM_data8       0x07
+#define DW_FORM_data1       0x0b
+#define DW_FORM_strp        0x0e
+#define DW_FORM_sec_offset  0x17
 
 int need_ru4_to_ld_symbol;
 int need_ld_to_ru4_symbol;
@@ -24,6 +46,11 @@ typedef struct floating_point_literal {
 
 static FloatingPointLiteral *floating_point_literals; // Each floating point literal has an index in this array
 static int floating_point_literal_count;              // Amount of floating point literals
+
+StrMap *debug_strings;                      // Map of debug strings to identifiers
+int debug_string_counter;                   // Counter to uniquely identify a debug string
+int last_outputted_filename_id;             // Keep track of last printed .loc filename id
+int last_outputted_filename_line_number;    // Keep track of last printed .loc line number
 
 static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
@@ -706,13 +733,35 @@ int fprintf_escaped_string_literal(void *f, StringLiteral* sl, int for_assembly)
     return c;
 }
 
+// Add a ".loc" line with an integer identifying the filename and the line number.
+// The debug_strings map has the mapping from filename to id.
+static void output_debug_loc(Tac *tac) {
+    if (opt_debug_symbols && tac->origin) {
+        int id = (long) strmap_get(debug_strings, tac->origin->filename);
+        if (!id) {
+            id = ++debug_string_counter;
+            strmap_put(debug_strings, tac->origin->filename, (void *) (long) id);
+            fprintf(f, "    .file       %d \"%s\"\n", id, tac->origin->filename);
+        }
+
+        if (id != last_outputted_filename_id || tac->origin->line_number != last_outputted_filename_line_number) {
+            fprintf(f, "    .loc        %d %d\n", id, tac->origin->line_number);
+            last_outputted_filename_id = id;
+            last_outputted_filename_line_number = tac->origin->line_number;
+        }
+    }
+}
+
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
     int function_pc = symbol->type->function->param_count;
 
     for (Tac *tac = symbol->type->function->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);
-        if (tac->operation != IR_NOP) output_x86_operation(tac, function_pc);
+        if (tac->operation != IR_NOP) {
+            output_debug_loc(tac);
+            output_x86_operation(tac, function_pc);
+        }
     }
 }
 
@@ -773,6 +822,76 @@ static void output_symbol(Symbol *symbol) {
     }
 }
 
+// Output a debug_info section with only a DW_TAG_compile_unit with a corresponding
+// debug_abbrev section. debug_str contains debug strings. This is enough information
+// to have the source filename, directory, function names and line numbers.
+void output_debug_sections(char *input_filename) {
+    char *cwd = malloc(1024);
+    if (!getcwd(cwd, 1024)) panic("Unable to get cwd");
+
+    // Output debug_info section
+    fprintf(f, "    .section .debug_info,\"\",@progbits\n\n");
+
+    fprintf(f, ".Ldebug_info0:\n");
+    fprintf(f, "    .long   .Ldebug_info_end - .Ldebug_info_start\n"); // Size
+
+    fprintf(f, ".Ldebug_info_start:\n");
+    fprintf(f, "    .value  %d\n", DWARF_VERSION);
+    fprintf(f, "    .long   .debug_abbrev\n");      // Pointer to debug_abbrev section
+    fprintf(f, "    .byte   0x8\n");                // Pointer size
+
+    // Output DW_TAG_compile_unit
+    fprintf(f, "    .uleb128 0x1\n");                               // DW_TAG_compile_unit
+    fprintf(f, "    .long   .Ldebug_info.producer\n");              // DW_AT_producer
+    fprintf(f, "    .byte   %d\n", DW_LANG_C89);                    // DW_AT_language
+    fprintf(f, "    .long   .Ldebug_info.filename\n");              // DW_AT_name
+    fprintf(f, "    .long   .debug_info.cwd\n");                    // DW_AT_comp_dir
+    fprintf(f, "    .quad   .Lall.code.start\n");                   // DW_AT_low_pc (start of code)
+    fprintf(f, "    .quad   .Lall.code.end-.Lall.code.start \n");   // DW_AT_high_pc (size of code)
+    fprintf(f, "    .long   .Lline_table_start\n");                 // DW_AT_stmt_list (pointer to line number table)
+    fprintf(f, ".Ldebug_info_end:\n\n");
+
+    // Output debug_abbrev section. All lines with DW are pairs of a key & data type
+    fprintf(f, "    .section    .debug_abbrev,\"\",@progbits\n");
+
+    fprintf(f, "    .uleb128 0x1\n");                       // type number 1
+    fprintf(f, "    .uleb128 %d\n", DW_TAG_compile_unit);   // tag: DW_TAG_compile_unit
+    fprintf(f, "    .byte   0\n");                          // has children 0
+    fprintf(f, "    .uleb128 %d\n", DW_AT_producer);        // DW_AT_producer / DW_FORM_strp
+    fprintf(f, "    .uleb128 %d\n", DW_FORM_strp);
+    fprintf(f, "    .uleb128 %d\n", DW_AT_language);        // DW_AT_language / DW_FORM_data1
+    fprintf(f, "    .uleb128 %d\n", DW_FORM_data1);
+    fprintf(f, "    .uleb128 %d\n", DW_AT_name);            // DW_AT_name / DW_FORM_strp
+    fprintf(f, "    .uleb128 %d\n", DW_FORM_strp);
+    fprintf(f, "    .uleb128 %d\n", DW_AT_comp_dir);        // DW_AT_comp_dir / DW_FORM_strp
+    fprintf(f, "    .uleb128 %d\n", DW_FORM_strp);
+    fprintf(f, "    .uleb128 %d\n", DW_AT_low_pc);          // DW_AT_low_pc / DW_FORM_addr
+    fprintf(f, "    .uleb128 %d\n", DW_FORM_addr);
+    fprintf(f, "    .uleb128 %d\n", DW_AT_high_pc);         // DW_AT_high_pc / DW_FORM_data8
+    fprintf(f, "    .uleb128 %d\n", DW_FORM_data8);
+    fprintf(f, "    .uleb128 %d\n", DW_AT_stmt_list);       // DW_AT_stmt_list / DW_FORM_sec_offset
+    fprintf(f, "    .uleb128 %d\n", DW_FORM_sec_offset);
+    fprintf(f, "    .byte   0\n");                          // End
+    fprintf(f, "    .byte   0\n");
+    fprintf(f, "    .byte   0\n");
+
+    // Output debug_str section
+    fprintf(f, "\n    .section    .debug_str,\"MS\",@progbits,1\n");
+    fprintf(f, ".Ldebug_info.producer:\n");
+    fprintf(f, "    .string  \"wcc\"\n");
+    fprintf(f, ".Ldebug_info.filename:\n");
+    fprintf(f, "    .string  \"%s\"\n", input_filename);
+    fprintf(f, ".debug_info.cwd:\n");
+    fprintf(f, "    .string  \"%s\"\n", cwd);
+
+    // Output debug_line section. There's nothing much here, the assembler populates
+    // this with information from the .loc lines.
+    fprintf(f, "\n    .section    .debug_line,\"\",@progbits\n");
+    fprintf(f, "\n.Lline_table_start:\n");
+
+    free(cwd);
+}
+
 // Output code for the translation unit
 void output_code(char *input_filename, char *output_filename) {
     if (!strcmp(output_filename, "-"))
@@ -809,7 +928,8 @@ void output_code(char *input_filename, char *output_filename) {
 
     // Output string literals
     if (string_literal_count > 0) {
-        fprintf(f, "\n    .section .rodata\n");
+        fprintf(f, "\n    .section .rodata\n\n");
+        fprintf(f, ".Ltext0:\n\n");
         for (int i = 0; i < string_literal_count; i++) {
             StringLiteral *sl = &(string_literals[i]);
             if (sl->is_wide_char) fprintf(f, "    .align   4\n");
@@ -840,16 +960,19 @@ void output_code(char *input_filename, char *output_filename) {
     // Output functions code
     need_ru4_to_ld_symbol = 0;
     need_ld_to_ru4_symbol = 0;
+    fprintf(f, ".Lall.code.start:\n");
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbol_list[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
+            fprintf(f, ".L%s.start:\n", symbol->identifier);
             output_function_body_code(symbol);
             fprintf(f, "    .size       %s, .-%s\n", symbol->global_identifier, symbol->global_identifier);
+            fprintf(f, ".L%s.end:\n", symbol->identifier);
             fprintf(f, "\n");
         }
-        symbol++;
     }
+    fprintf(f, ".Lall.code.end:\n\n");
 
     // Output floating point literals
     if (floating_point_literal_count > 0) {
@@ -888,10 +1011,18 @@ void output_code(char *input_filename, char *output_filename) {
         fprintf(f, "     .long   1593835520 # 9223372036854775808\n");
     }
 
+    if (opt_debug_symbols) output_debug_sections(input_filename);
+
     fclose(f);
 }
 
 void init_codegen(void) {
     floating_point_literals = malloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
     floating_point_literal_count = 0;
+
+    debug_strings = new_strmap();
+    debug_string_counter = 0;
+
+    last_outputted_filename_id = 0;
+    last_outputted_filename_line_number = 0;
 }

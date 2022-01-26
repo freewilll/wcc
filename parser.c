@@ -60,6 +60,16 @@ static int new_vreg(void) {
     return vreg_count;
 }
 
+// Add an instruction and set the line number and filename
+Tac *add_parser_instruction(int operation, Value *dst, Value *src1, Value *src2) {
+    Origin *origin = malloc(sizeof(Origin));
+    origin->filename = cur_filename;
+    origin->line_number = cur_line;
+    Tac *tac = add_instruction(operation, dst, src1, src2);
+    tac->origin = origin;
+    return tac;
+}
+
 static Value *decay_array_value(Value *v) {
     Value *result = dup_value(v);
     result->type = decay_array_to_pointer(v->type);
@@ -99,7 +109,7 @@ static Value *load_bit_field(Value *src1) {
     dst->type = new_type(TYPE_INT);
     dst->type->is_unsigned = src1->type->is_unsigned;
     dst->vreg = new_vreg();
-    add_instruction(IR_LOAD_BIT_FIELD, dst, src1, 0);
+    add_parser_instruction(IR_LOAD_BIT_FIELD, dst, src1, 0);
 
     return dst;
 }
@@ -128,21 +138,21 @@ static Value *load(Value *src1) {
             dst->type = decay_array_to_pointer(dst->type);
             dst->is_string_literal = 0;
             dst->string_literal_index = 0;
-            add_instruction(IR_MOVE, dst, src1, 0);
+            add_parser_instruction(IR_MOVE, dst, src1, 0);
         }
         else {
             // Take the address of an array
             dst->local_index = 0;
             dst->global_symbol = 0;
             dst->type = decay_array_to_pointer(dst->type);
-            add_instruction(IR_ADDRESS_OF, dst, src1, 0);
+            add_parser_instruction(IR_ADDRESS_OF, dst, src1, 0);
 
             // If it's a pointer in a register with an offset, the offset needs to be
             // added to it.
             if (src1->vreg && src1->offset) {
                 Value *tmp = dup_value(dst);
                 tmp->vreg = new_vreg();
-                add_instruction(IR_ADD, tmp, dst, new_integral_constant(TYPE_INT, src1->offset));
+                add_parser_instruction(IR_ADD, tmp, dst, new_integral_constant(TYPE_INT, src1->offset));
                 dst = tmp;
                 src1->offset = 0; // Ensure downstream code doesn't deal with the offset again.
             }
@@ -159,14 +169,14 @@ static Value *load(Value *src1) {
         src1->type = make_pointer(src1->type);
         src1->is_lvalue = 0;
         src1->type->is_const = 0;
-        add_instruction(IR_INDIRECT, dst, src1, 0);
+        add_parser_instruction(IR_INDIRECT, dst, src1, 0);
     }
 
     else {
         // Load a value into a register. This could be a global or a local.
         dst->local_index = 0;
         dst->global_symbol = 0;
-        add_instruction(IR_MOVE, dst, src1, 0);
+        add_parser_instruction(IR_MOVE, dst, src1, 0);
     }
 
     return dst;
@@ -224,7 +234,7 @@ static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *s
     Value *v = new_value();
     v->vreg = vreg;
     v->type = dup_type(type);
-    Tac *result = add_instruction(operation, v, src1, src2);
+    Tac *result = add_parser_instruction(operation, v, src1, src2);
     push(v);
 
     return result;
@@ -1067,13 +1077,13 @@ Value *new_label_dst(void) {
 
 // Add a no-op instruction with a label
 static void add_jmp_target_instruction(Value *v) {
-    Tac *tac = add_instruction(IR_NOP, 0, 0, 0);
+    Tac *tac = add_parser_instruction(IR_NOP, 0, 0, 0);
     tac->label = v->label;
 }
 
 static void add_conditional_jump(int operation, Value *dst) {
     // Load the result into a register
-    add_instruction(operation, 0, pl(), dst);
+    add_parser_instruction(operation, 0, pl(), dst);
 }
 
 // Add instructions for && and || operators
@@ -1095,8 +1105,8 @@ static void and_or_expr(int is_and, int level) {
     // Store zero & end
     add_jmp_target_instruction(ldst1);
     push_integral_constant(TYPE_INT, is_and ? 0 : 1); // Store 0
-    add_instruction(IR_MOVE, dst, pl(), 0);
-    add_instruction(IR_JMP, 0, ldst3, 0);
+    add_parser_instruction(IR_MOVE, dst, pl(), 0);
+    add_parser_instruction(IR_JMP, 0, ldst3, 0);
 
     // Test second operand
     add_jmp_target_instruction(ldst2);
@@ -1105,7 +1115,7 @@ static void and_or_expr(int is_and, int level) {
     check_and_or_operation_type(src1, src2);
     add_conditional_jump(is_and ? IR_JZ : IR_JNZ, ldst1); // Store zero & end
     push_integral_constant(TYPE_INT, is_and ? 1 : 0);     // Store 1
-    add_instruction(IR_MOVE, dst, pl(), 0);
+    add_parser_instruction(IR_MOVE, dst, pl(), 0);
     push(dst);
 
     // End
@@ -1128,7 +1138,7 @@ static Value *integer_type_change(Value *src, Type *type) {
     dst = dup_value(src);
     dst->vreg = new_vreg();
     dst->type = type;
-    add_instruction(IR_MOVE, dst, src, 0);
+    add_parser_instruction(IR_MOVE, dst, src, 0);
 
     return dst;
 }
@@ -1181,7 +1191,7 @@ static Value *long_double_type_change(Value *src) {
     dst->vreg = 0;
     dst->local_index = new_local_index();
     dst->type = new_type(TYPE_LONG_DOUBLE);
-    add_instruction(IR_MOVE, dst, src, 0);
+    add_parser_instruction(IR_MOVE, dst, src, 0);
 
     return dst;
 }
@@ -1211,7 +1221,7 @@ static Value *double_type_change(Value *src) {
     dst->vreg = 0;
     dst->local_index = new_local_index();
     dst->type = new_type(TYPE_DOUBLE);
-    add_instruction(IR_MOVE, dst, src, 0);
+    add_parser_instruction(IR_MOVE, dst, src, 0);
 
     return dst;
 }
@@ -1234,7 +1244,7 @@ static Value *float_type_change(Value *src) {
     dst->vreg = 0;
     dst->local_index = new_local_index();
     dst->type = new_type(TYPE_FLOAT);
-    add_instruction(IR_MOVE, dst, src, 0);
+    add_parser_instruction(IR_MOVE, dst, src, 0);
 
     return dst;
 }
@@ -1276,7 +1286,7 @@ static void arithmetic_operation(int operation, Type *dst_type) {
             Value *new_src1 = new_value();
             new_src1->vreg = new_vreg();
             new_src1->type = make_pointer(dup_type(src1->type));
-            add_instruction(IR_ADDRESS_OF, new_src1, src1, 0);
+            add_parser_instruction(IR_ADDRESS_OF, new_src1, src1, 0);
             src1 = new_src1;
         }
 
@@ -1285,7 +1295,7 @@ static void arithmetic_operation(int operation, Type *dst_type) {
             Value *new_src2 = new_value();
             new_src2->vreg = new_vreg();
             new_src2->type = make_pointer(dup_type(src2->type));
-            add_instruction(IR_ADDRESS_OF, new_src2, src2, 0);
+            add_parser_instruction(IR_ADDRESS_OF, new_src2, src2, 0);
             src2 = new_src2;
         }
     }
@@ -1506,7 +1516,7 @@ Value *load_function(Value *src, Type *dst_type) {
             Value *src2 = new_value();
             src2->vreg = new_vreg();
             src2->type = make_pointer(dup_type(src->type));
-            add_instruction(IR_ADDRESS_OF, src2, src, 0);
+            add_parser_instruction(IR_ADDRESS_OF, src2, src, 0);
 
             return src2;
         }
@@ -1572,7 +1582,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
         Value *src2 = new_value();
         src2->vreg = new_vreg();
         src2->type = dup_type(dst_type);
-        add_instruction(IR_MOVE, src2, src, 0);
+        add_parser_instruction(IR_MOVE, src2, src, 0);
         return src2;
     }
 
@@ -1627,9 +1637,9 @@ static void add_simple_assignment_instruction(Value *dst, Value *src1, int enfor
     src1 = add_convert_type_if_needed(src1, dst->type);
 
     if (dst->bit_field_size)
-        add_instruction(IR_SAVE_BIT_FIELD, dst, src1, 0);
+        add_parser_instruction(IR_SAVE_BIT_FIELD, dst, src1, 0);
     else
-        add_instruction(IR_MOVE, dst, src1, 0);
+        add_parser_instruction(IR_MOVE, dst, src1, 0);
 
     push(dst);
 }
@@ -1744,7 +1754,7 @@ static void initialize_with_zeroes(Value *value, int offset, int size) {
         Value *src1 = new_integral_constant(TYPE_INT, size);
         Value *dst = dup_value(value);
         dst->offset += offset;
-        add_instruction(IR_ZERO, dst, src1, 0);
+        add_parser_instruction(IR_ZERO, dst, src1, 0);
     }
 }
 
@@ -1933,7 +1943,7 @@ Value *prep_comp_assign(void) {
 // Finish compound assignment
 static void finish_comp_assign(Value *v1) {
     push(add_convert_type_if_needed(pop(), v1->type));
-    add_instruction(IR_MOVE, v1, vtop(), 0);
+    add_parser_instruction(IR_MOVE, v1, vtop(), 0);
 }
 
 static void parse_addition(int level, int for_array_subscript) {
@@ -2055,13 +2065,13 @@ static void parse_declaration(void) {
     Value *array_declaration = 0;
     if (symbol->type->type == TYPE_STRUCT_OR_UNION) {
         push_symbol(symbol);
-        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
+        add_parser_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, pop(), 0);
     }
 
     if (symbol->type->type == TYPE_ARRAY) {
         push_symbol(symbol);
         array_declaration = pop();
-        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, array_declaration, 0);
+        add_parser_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, array_declaration, 0);
     }
 
     if (cur_token == TOK_EQ) {
@@ -2141,7 +2151,7 @@ static void parse_function_call(void) {
 
     int function_call = function_call_count++;
     Value *src1 = make_function_call_value(function_call);
-    add_instruction(IR_START_CALL, 0, src1, 0);
+    add_parser_instruction(IR_START_CALL, 0, src1, 0);
     FunctionParamAllocation *fpa = init_function_param_allocaton(symbol ? symbol->global_identifier : "(anonymous)");
 
     // Allocate an integer slot if the function returns a slot in memory. The
@@ -2201,12 +2211,12 @@ static void parse_function_call(void) {
         FunctionParamLocations *fpl = &(fpa->params[fpa_arg_count]);
         arg->function_call_arg_locations = fpl;
         arg->has_struct_or_union_return_value = has_struct_or_union_return_value;
-        add_instruction(IR_ARG, 0, arg, pl());
+        add_parser_instruction(IR_ARG, 0, arg, pl());
 
         // If a stack adjustment needs to take place to align 16-byte data
         // such as long doubles and structs with long doubles, an
         // IR_ARG_STACK_PADDING is inserted.
-        if (fpl->locations[0].stack_padding >= 8) add_instruction(IR_ARG_STACK_PADDING, 0, 0, 0);
+        if (fpl->locations[0].stack_padding >= 8) add_parser_instruction(IR_ARG_STACK_PADDING, 0, 0, 0);
 
         if (cur_token == TOK_RPAREN) break;
         consume(TOK_COMMA, ",");
@@ -2242,7 +2252,7 @@ static void parse_function_call(void) {
 
         // Declare the temp so that the stack allocation code knows the
         // size of the struct
-        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, return_value, 0);
+        add_parser_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, return_value, 0);
     }
     else if (return_type->type != TYPE_VOID) {
         return_value = new_value();
@@ -2255,8 +2265,8 @@ static void parse_function_call(void) {
         push(v);
     }
 
-    add_instruction(IR_CALL, return_value, function_value, 0);
-    add_instruction(IR_END_CALL, 0, src1, 0);
+    add_parser_instruction(IR_CALL, return_value, function_value, 0);
+    add_parser_instruction(IR_END_CALL, 0, src1, 0);
 
     if (return_value) push(return_value);
 }
@@ -2299,7 +2309,7 @@ static void parse_va_start() {
     Value *param_index_value = new_value();
     param_index_value->type = new_type(TYPE_INT);
     param_index_value->int_value = rightmost_param_index;
-    add_instruction(IR_VA_START, 0, va_list, 0);
+    add_parser_instruction(IR_VA_START, 0, va_list, 0);
 
     Value *v = new_value();
     v->type = new_type(TYPE_VOID);
@@ -2330,13 +2340,13 @@ static void parse_va_arg() {
 
     else if (type->type == TYPE_STRUCT_OR_UNION) {
         dst->local_index = new_local_index();
-        add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, dst, 0);
+        add_parser_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, dst, 0);
     }
 
     else
         dst->vreg = new_vreg();
 
-    add_instruction(IR_VA_ARG, dst, va_list, 0);
+    add_parser_instruction(IR_VA_ARG, dst, va_list, 0);
     push(dst);
 }
 
@@ -2430,8 +2440,8 @@ void parse_ternary_expression(void) {
     add_conditional_jump(IR_JZ, ldst1);
     parse_expression(TOK_COMMA); // See https://en.cppreference.com/w/c/language/operator_precedence#cite_note-3
     Value *src1 = vtop();
-    if (vtop()->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
-    add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
+    if (vtop()->type->type != TYPE_VOID) add_parser_instruction(IR_MOVE, dst, pl(), 0);
+    add_parser_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
     add_jmp_target_instruction(ldst1);    // Start of false case
     consume(TOK_COLON, ":");
     parse_expression(TOK_TERNARY);
@@ -2448,7 +2458,7 @@ void parse_ternary_expression(void) {
     // Convert dst function to pointer to function
     if (dst->type->type == TYPE_FUNCTION) dst->type = make_pointer(dst->type);
 
-    if (vtop()->type->type != TYPE_VOID) add_instruction(IR_MOVE, dst, pl(), 0);
+    if (vtop()->type->type != TYPE_VOID) add_parser_instruction(IR_MOVE, dst, pl(), 0);
     push(dst);
     add_jmp_target_instruction(ldst2); // End
 }
@@ -2546,7 +2556,7 @@ static void parse_expression(int level) {
             push_value_size_constant(src1);
             arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
             push(add_convert_type_if_needed(pop(), v1->type));
-            add_instruction(IR_MOVE, v1, vtop(), 0);
+            add_parser_instruction(IR_MOVE, v1, vtop(), 0);
 
             break;
         }
@@ -2645,7 +2655,7 @@ static void parse_expression(int level) {
                         Value *dst = new_value();
                         dst->vreg = new_vreg();
                         dst->type = dup_type(dst_type);
-                        add_instruction(IR_MOVE, dst, v1, 0);
+                        add_parser_instruction(IR_MOVE, dst, v1, 0);
                         push(dst);
                     }
                     else push(v1);
@@ -2748,7 +2758,7 @@ static void parse_expression(int level) {
                 push_value_size_constant(src1);
                 arithmetic_operation(org_token == TOK_INC ? IR_ADD : IR_SUB, 0);
                 push(add_convert_type_if_needed(pop(), v1->type));
-                add_instruction(IR_MOVE, v1, vtop(), 0);
+                add_parser_instruction(IR_MOVE, v1, vtop(), 0);
                 pop(); // Pop the lvalue of the assignment off the stack
                 push(src1); // Push the original rvalue back on the value stack
                 break;
@@ -2829,7 +2839,7 @@ static void parse_iteration_statement(void) {
     src1->int_value = prev_loop;
     Value *src2 = new_value();
     src2->int_value = cur_loop;
-    add_instruction(IR_START_LOOP, 0, src1, src2);
+    add_parser_instruction(IR_START_LOOP, 0, src1, src2);
 
     int loop_token = cur_token;
     next();
@@ -2862,7 +2872,7 @@ static void parse_iteration_statement(void) {
         if (cur_token != TOK_SEMI) {
             parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
         }
-        add_instruction(IR_JMP, 0, lbody, 0);
+        add_parser_instruction(IR_JMP, 0, lbody, 0);
         consume(TOK_SEMI, ";");
 
         // Increment
@@ -2871,7 +2881,7 @@ static void parse_iteration_statement(void) {
             cur_loop_continue_dst = lincrement;
             add_jmp_target_instruction(lincrement);
             parse_expression(TOK_COMMA);
-            if (lcond) add_instruction(IR_JMP, 0, lcond, 0);
+            if (lcond) add_parser_instruction(IR_JMP, 0, lcond, 0);
         }
 
         consume(TOK_RPAREN, ")");
@@ -2881,7 +2891,7 @@ static void parse_iteration_statement(void) {
     else if (loop_token == TOK_WHILE) {
         consume(TOK_LPAREN, "(");
         parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
-        add_instruction(IR_JMP, 0, lbody, 0);
+        add_parser_instruction(IR_JMP, 0, lbody, 0);
         consume(TOK_RPAREN, ")");
     }
 
@@ -2900,17 +2910,17 @@ static void parse_iteration_statement(void) {
     }
 
     if (lincrement)
-        add_instruction(IR_JMP, 0, lincrement, 0);
+        add_parser_instruction(IR_JMP, 0, lincrement, 0);
     else if (lcond && loop_token != TOK_DO)
-        add_instruction(IR_JMP, 0, lcond, 0);
+        add_parser_instruction(IR_JMP, 0, lcond, 0);
     else if (lcond && loop_token == TOK_DO)
-        add_instruction(IR_JMP, 0, lbody, 0);
+        add_parser_instruction(IR_JMP, 0, lbody, 0);
     else
-        add_instruction(IR_JMP, 0, lbody, 0);
+        add_parser_instruction(IR_JMP, 0, lbody, 0);
 
     // Jump to the start of the body in a for loop like (;;i++)
     if (loop_token == TOK_FOR && !linit && !lcond && lincrement)
-        add_instruction(IR_JMP, 0, lbody, 0);
+        add_parser_instruction(IR_JMP, 0, lbody, 0);
 
     add_jmp_target_instruction(lend);
 
@@ -2921,7 +2931,7 @@ static void parse_iteration_statement(void) {
     // Restore outer loop counter
     cur_loop = prev_loop;
 
-    add_instruction(IR_END_LOOP, 0, src1, src2);
+    add_parser_instruction(IR_END_LOOP, 0, src1, src2);
 
     exit_scope();
 }
@@ -2981,7 +2991,7 @@ static void parse_switch_statement(void) {
     while (ir->next) ir = ir->next;
 
     // Add jump to default label, if present, otherwise to the break label
-    add_instruction(IR_JMP, 0, case_default_label ? case_default_label : cur_loop_break_dst, 0);
+    add_parser_instruction(IR_JMP, 0, case_default_label ? case_default_label : cur_loop_break_dst, 0);
 
     // Add statement IR
     ir->next = statement_ir_start;
@@ -3072,7 +3082,7 @@ static void parse_if_statement(void) {
 
     if (cur_token == TOK_ELSE) {
         next();
-        add_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
+        add_parser_instruction(IR_JMP, 0, ldst2, 0); // Jump to end
         add_jmp_target_instruction(ldst1);    // Start of else case
         parse_statement();
     }
@@ -3087,7 +3097,7 @@ static void parse_if_statement(void) {
 static void parse_return_statement(void) {
     consume(TOK_RETURN, "return");
     if (cur_token == TOK_SEMI) {
-        add_instruction(IR_RETURN, 0, 0, 0);
+        add_parser_instruction(IR_RETURN, 0, 0, 0);
     }
     else {
         parse_expression(TOK_COMMA);
@@ -3105,7 +3115,7 @@ static void parse_return_statement(void) {
         else
             src1 = add_convert_type_if_needed(pl(), cur_function_symbol->type->function->return_type);
 
-        add_instruction(IR_RETURN, 0, src1, 0);
+        add_parser_instruction(IR_RETURN, 0, src1, 0);
     }
     consume(TOK_SEMI, ";");
 }
@@ -3134,9 +3144,9 @@ static void parse_goto_statement(void) {
 
     Value *ldst = strmap_get(cur_function_symbol->type->function->labels, cur_identifier);
     if (ldst)
-        add_instruction(IR_JMP, 0, ldst, 0);
+        add_parser_instruction(IR_JMP, 0, ldst, 0);
     else {
-        Tac *ir = add_instruction(IR_JMP, 0, 0, 0);
+        Tac *ir = add_parser_instruction(IR_JMP, 0, 0, 0);
         GotoBackPatch *gbp = malloc(sizeof(GotoBackPatch));
         gbp->identifier = cur_identifier;
         gbp->ir = ir;
@@ -3174,7 +3184,7 @@ static void add_va_register_save_area(void) {
     v->local_index = new_local_index();
     v->is_lvalue = 1;
     cur_function_symbol->type->function->register_save_area = v;
-    add_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, v, 0);
+    add_parser_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, v, 0);
 }
 
 // Parse a statement
@@ -3215,13 +3225,13 @@ static void parse_statement(void) {
 
         case TOK_CONTINUE:
             next();
-            add_instruction(IR_JMP, 0, cur_loop_continue_dst, 0);
+            add_parser_instruction(IR_JMP, 0, cur_loop_continue_dst, 0);
             consume(TOK_SEMI, ";");
             break;
 
         case TOK_BREAK:
             next();
-            add_instruction(IR_JMP, 0, cur_loop_break_dst, 0);
+            add_parser_instruction(IR_JMP, 0, cur_loop_break_dst, 0);
             consume(TOK_SEMI, ";");
             break;
 
@@ -3267,7 +3277,7 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
 
     // Setup the intermediate representation with a dummy no operation instruction.
     ir_start = 0;
-    ir_start = add_instruction(IR_NOP, 0, 0, 0);
+    ir_start = add_parser_instruction(IR_NOP, 0, 0, 0);
 
     function->return_type = type->target;
     function->ir = ir_start;

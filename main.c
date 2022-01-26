@@ -164,6 +164,7 @@ int main(int argc, char **argv) {
                  if (argc > 0 && !strcmp(argv[0], "-h"                                )) { help = 1;                                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-v"                                )) { verbose = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-g"                                )) { opt_debug_symbols = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fPIC"                             )) { opt_PIC = 1;                              argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_stack_register_count = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--log-compiler-phase-durations"    )) { log_compiler_phase_durations = 1;         argc--; argv++; }
@@ -313,7 +314,7 @@ int main(int argc, char **argv) {
         printf("-L <path>                                   Pass library path to the linker\n");
         printf("-l <library>                                Pass library to the linker\n");
         printf("-v                                          Display the programs invoked by the compiler\n");
-        printf("-d                                          Debug output\n");
+        printf("-g                                          Add debugging information\n");
         printf("-s                                          Output symbol table\n");
         printf("-fPIC                                       Make position independent code\n");
         printf("--prc                                       Output spilled register count\n");

@@ -560,6 +560,9 @@ void reverse_function_argument_order(Function *function) {
 void insert_instruction(Tac *ir, Tac *tac, int move_label) {
     Tac *prev = ir->prev;
     if (!ir->prev) panic("insert_instruction called with null prev");
+
+    tac->origin = ir->origin;
+
     tac->prev = prev;
     tac->next = ir;
     ir->prev = tac;
@@ -582,6 +585,8 @@ Tac *insert_instruction_from_operation(Tac *ir, int operation, Value *dst, Value
 
 // Append tac to ir
 Tac *insert_instruction_after(Tac *ir, Tac *tac) {
+    tac->origin = ir->origin;
+
     Tac *next = ir->next;
     ir->next = tac;
     tac->prev = ir;

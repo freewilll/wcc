@@ -1158,6 +1158,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             }
 
             Tac *tac = add_x86_instruction(x86op2, x86_dst, x86_v1, x86_v2);
+            if (ign->tac) tac->origin = ign->tac->origin;
             tac->label = label;
             if (debug_instsel_tiling) print_instruction(stdout, tac, 0);
         }
@@ -1318,6 +1319,7 @@ void select_instructions(Function *function) {
 
     // new_ir_start is the start of the new IR
     Tac *new_ir_start = new_instruction(IR_NOP);
+    new_ir_start->origin = ir->origin;
     Tac *new_ir_pos = new_ir_start;
 
     // Loop over all blocks

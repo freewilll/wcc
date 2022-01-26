@@ -312,6 +312,11 @@ typedef struct value {
     char has_been_renamed;                               // Used in renaming and stack renumbering code
 } Value;
 
+typedef struct origin {
+    char *filename;
+    int line_number;
+} Origin;
+
 typedef struct three_address_code {
     int index;                          // Index in a tac chain
     int operation;                      // IR_* operation
@@ -323,6 +328,7 @@ typedef struct three_address_code {
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
     char *x86_template;                 // Template for rendering x86 instruction
+    Origin *origin;                     // Filename and line numberwhere the tac was created
 } Tac;
 
 // Struct/union member
@@ -693,6 +699,7 @@ int print_ir1;                          // Print IR after parsing
 int print_ir2;                          // Print IR after register allocation
 int log_compiler_phase_durations;       // Output logs of how long each compiler phase lasts
 int opt_PIC;                            // Make position independent code
+int opt_debug_symbols;                  // Add debug symbols
 int opt_enable_vreg_renumbering;        // Renumber vregs so the numbers are consecutive
 int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
 int opt_enable_live_range_coalescing;   // Merge live ranges where possible
