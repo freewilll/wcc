@@ -142,9 +142,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     parse();
     compile_phase = CP_POST_PARSING;
 
-    // Keep track of floating point constant values.
-    floating_point_literals = malloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
-    floating_point_literal_count = 0;
+    init_codegen();
 
     // Compile all functions
     for (int i = 0; i < global_scope->symbol_count; i++) {

@@ -15,6 +15,16 @@ typedef enum elf_section {
     SEC_DATA,
 } ElfSection;
 
+typedef struct floating_point_literal {
+    int type;
+    float f;
+    double d;
+    long double ld;
+} FloatingPointLiteral;
+
+static FloatingPointLiteral *floating_point_literals; // Each floating point literal has an index in this array
+static int floating_point_literal_count;              // Amount of floating point literals
+
 static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
     if (preg < 0 || preg >= 32) panic("Illegal preg %d", preg);
@@ -879,4 +889,9 @@ void output_code(char *input_filename, char *output_filename) {
     }
 
     fclose(f);
+}
+
+void init_codegen(void) {
+    floating_point_literals = malloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
+    floating_point_literal_count = 0;
 }

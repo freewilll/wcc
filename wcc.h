@@ -598,13 +598,6 @@ enum {
     OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX = 256
 };
 
-typedef struct floating_point_literal {
-    int type;
-    float f;
-    double d;
-    long double ld;
-} FloatingPointLiteral;
-
 typedef struct string_literal {
     char *data;
     int size;
@@ -726,9 +719,6 @@ StringLiteral cur_string_literal;  // Current string literal if the token is a s
 Scope *cur_scope;                  // Current scope.
 StringLiteral *string_literals;    // Each string literal has an index in this array, with a pointer to the string literal struct
 int string_literal_count;          // Amount of string literals
-
-FloatingPointLiteral *floating_point_literals; // Each floating point literal has an index in this array
-int floating_point_literal_count;              // Amount of floating point literals
 
 Symbol *cur_function_symbol;     // Currently parsed function
 Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
@@ -1387,6 +1377,7 @@ void remove_nops(Function *function);
 void merge_rsp_func_call_add_subs(Function *function);
 int fprintf_escaped_string_literal(void *f, StringLiteral *sl, int for_assembly);
 void output_code(char *input_filename, char *output_filename);
+void init_codegen(void);
 
 // wcc.c
 enum {
