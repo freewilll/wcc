@@ -347,22 +347,26 @@ static BaseType *dup_base_type(BaseType *base_type) {
     return result;
 }
 
-// Parse __attribute__ ((...)), ignoring everything inside the ((...))
-void parse_attribute(void) {
-    next(); // TOK_ATTRIBUTE
-
-    consume(TOK_LPAREN, "(");
-    consume(TOK_LPAREN, "(");
-    int parentheses_nesting_level = 2;
-
-    // Keep parsing until we break out of the ((
-    while (cur_token != TOK_EOF) {
-        if (cur_token == TOK_LPAREN) parentheses_nesting_level++;
-        else if (cur_token == TOK_RPAREN) parentheses_nesting_level--;
+// Parse optional repeated __attribute__ ((...)), ignoring everything inside the ((...))
+void parse_attributes(void) {
+    while (1) {
+        if (cur_token != TOK_ATTRIBUTE) return;
 
         next();
 
-        if (!parentheses_nesting_level) return;
+        consume(TOK_LPAREN, "(");
+        consume(TOK_LPAREN, "(");
+        int parentheses_nesting_level = 2;
+
+        // Keep parsing until we break out of the ((
+        while (cur_token != TOK_EOF) {
+            if (cur_token == TOK_LPAREN) parentheses_nesting_level++;
+            else if (cur_token == TOK_RPAREN) parentheses_nesting_level--;
+
+            next();
+
+            if (!parentheses_nesting_level) break;
+        }
     }
 }
 
@@ -468,7 +472,7 @@ static BaseType *parse_declaration_specifiers() {
             case TOK_STATIC:   next(); seen_static++; break;
             case TOK_EXTERN:   next(); seen_extern++; break;
 
-            case TOK_ATTRIBUTE: parse_attribute(); break;
+            case TOK_ATTRIBUTE: parse_attributes(); break;
 
             default: changed = 0;
         }
@@ -1043,6 +1047,8 @@ void parse_typedef(void) {
         cur_type_identifier = 0;
 
         Type *type = concat_types(parse_declarator(), dup_type(base_type));
+
+        parse_attributes();
 
         if (all_typedefs_count == MAX_TYPEDEFS) panic_with_line_number("Exceeded max typedefs");
         Typedef *td = malloc(sizeof(Typedef));
@@ -3488,7 +3494,7 @@ void parse(void) {
 
                 }
 
-                if (cur_token == TOK_ATTRIBUTE) parse_attribute();
+                parse_attributes();
 
                 if (cur_token != TOK_SEMI) consume(TOK_COMMA, ", or ; in declaration");
             }

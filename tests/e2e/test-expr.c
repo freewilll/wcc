@@ -1703,8 +1703,10 @@ void test_shr_on_signed_int_bug() {
 
 // Test for ignoring __attribute__
 int function_with_format_attribute() __attribute__ ((__format__ (__printf__, 3, 4)));
+int function_with_multiple_attributes() __attribute__ ((__noreturn__)) __attribute__ ((__weak__));
 static __attribute__((noinline)) void function_with_noinline_attribute();
 __attribute__((noinline)) int function_with_noinline_attribute2();
+typedef int more_aligned_int __attribute__ ((aligned));
 
 int main(int argc, char **argv) {
     passes = 0;
