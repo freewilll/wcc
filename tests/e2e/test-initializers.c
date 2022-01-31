@@ -179,6 +179,8 @@ char *pc = ac;
 
 void *pgi = (void *) &gi;
 
+char *space = (char *) " ";
+
 static void test_scalar_initializers() {
     int a = 1;          assert_int(1, a, "Scalar initializer 1 a");
     int b = {1};        assert_int(1, b, "Scalar initializer 1 b");
@@ -1197,6 +1199,7 @@ void test_global_initialization() {
     assert_string(pc, "Hello", "char *pc = ac");
 
     assert_int(1, *(int *) pgi, "void *pgi = (void *) &gi");
+    assert_string(" ", space, "static char * const space[] = { (char *) \" \" }");
 }
 
 void func_with_static_string(char expected_first_char, char* message) {
