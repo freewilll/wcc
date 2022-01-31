@@ -143,6 +143,7 @@ Value *cast_constant_value(Value *src, Type *dst_type) {
     dst->int_value = src->int_value;
     dst->type = dst_type;
     dst->global_symbol = src->global_symbol;
+    dst->is_address_of = src->is_address_of;
 
     // FP -> FP
     // Don't bother changing precision
