@@ -830,6 +830,34 @@ static StructOrUnionMember *add_struct_member(char *identifier, Type *type, Stru
     return member;
 }
 
+// Parse an optional __attribute(packed|aligned). Returns is_packed True/False
+static int parse_struct_or_union_attribute(void) {
+    // Check for optional packed & aligned attributes
+
+    int is_packed = 0;
+
+    if (cur_token == TOK_ATTRIBUTE) {
+        consume(TOK_ATTRIBUTE, "attribute");
+        consume(TOK_LPAREN, "(");
+        consume(TOK_LPAREN, "(");
+
+        if (cur_token == TOK_PACKED) {
+            is_packed = 1;
+            next();
+        }
+        else if (cur_token == TOK_ALIGNED) {
+            // Ignore aligned and __aligned__
+            next();
+        }
+
+        consume(TOK_RPAREN, ")");
+        consume(TOK_RPAREN, ")");
+        is_packed = 1;
+    }
+
+    return is_packed;
+}
+
 // Parse struct definitions and uses.
 static Type *parse_struct_or_union_type_specifier(void) {
     // Parse a struct or union
@@ -837,17 +865,8 @@ static Type *parse_struct_or_union_type_specifier(void) {
     int is_union = cur_token == TOK_UNION;
     next();
 
-    // Check for packed attribute
-    int is_packed = 0;
-    if (cur_token == TOK_ATTRIBUTE) {
-        consume(TOK_ATTRIBUTE, "attribute");
-        consume(TOK_LPAREN, "(");
-        consume(TOK_LPAREN, "(");
-        consume(TOK_PACKED, "packed");
-        consume(TOK_RPAREN, ")");
-        consume(TOK_RPAREN, ")");
-        is_packed = 1;
-    }
+    // Parse __attribute__ that might precede the definition
+    int is_packed1 = parse_struct_or_union_attribute();
 
     char *identifier = 0;
     // A typedef identifier be the same as a struct tag, in this context, the lexer
@@ -867,7 +886,6 @@ static Type *parse_struct_or_union_type_specifier(void) {
         if (!type) type = new_struct_or_union(identifier);
 
         StructOrUnion *s = type->struct_or_union_desc;
-        s->is_packed = is_packed;
         s->is_union = is_union;
 
         // Loop over members
@@ -925,6 +943,10 @@ static Type *parse_struct_or_union_type_specifier(void) {
         }
         consume(TOK_RCURLY, "}");
 
+        // Parse __attribute__ that might come after the definition
+        int is_packed2 = parse_struct_or_union_attribute();
+        s->is_packed = is_packed1 || is_packed2;
+
         complete_struct_or_union(s);
         return type;
     }
@@ -939,7 +961,9 @@ static Type *parse_struct_or_union_type_specifier(void) {
         type = new_struct_or_union(identifier);
         StructOrUnion *s = type->struct_or_union_desc;
         s->is_incomplete = 1;
-        s->is_packed = is_packed;
+
+        s->is_packed = is_packed1;
+
         s->is_union = is_union;
         return type;
     }

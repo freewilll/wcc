@@ -472,7 +472,8 @@ enum {
     TOK_LPAREN,
     TOK_ATTRIBUTE,
     TOK_PACKED,
-    TOK_HASH,               // 80
+    TOK_ALIGNED,            // 80
+    TOK_HASH,
     TOK_INCLUDE,
     TOK_DEFINE,
     TOK_UNDEF,
@@ -481,8 +482,8 @@ enum {
     TOK_AUTO,
     TOK_REGISTER,
     TOK_STATIC,
-    TOK_EXTERN,
-    TOK_CONST,              // 90
+    TOK_EXTERN,             // 90
+    TOK_CONST,
     TOK_VOLATILE,
     TOK_RESTRICT,
     TOK_ELLIPSES,

@@ -80,6 +80,7 @@ struct clac { char c1; long         c2[10]; char c3; };
 struct                              pss1 { int i; char c; int j; };
 struct __attribute__ ((__packed__)) pss2 { int i; char c; int j; };
 struct __attribute__ ((packed))     pss3 { int i; char c; int j; };
+struct                              pss4 { int i; char c; int j; } __attribute__ ((packed));
 
 struct is1 {
     struct is2* s1;
@@ -398,6 +399,7 @@ void test_packed_struct() {
     struct pss1 *s1;
     struct pss2 *s2;
     struct pss3 *s3;
+    struct pss4 *s4;
 
     assert_int(12, sizeof(struct pss1),                         "packed struct 1");
     assert_int( 4, (long) &(s1->c) - (long) s1,                 "packed struct 2");
@@ -408,6 +410,9 @@ void test_packed_struct() {
     assert_int( 9, sizeof(struct pss3),                         "packed struct 7");
     assert_int( 4, (long) &(s3->c) - (long) s3,                 "packed struct 8");
     assert_int( 5, (long) &(s3->j) - (long) s3,                 "packed struct 9");
+    assert_int( 9, sizeof(struct pss4),                         "packed struct 10");
+    assert_int( 4, (long) &(s4->c) - (long) s4,                 "packed struct 11");
+    assert_int( 5, (long) &(s4->j) - (long) s4,                 "packed struct 12");
 }
 
 void test_incomplete_struct() {
