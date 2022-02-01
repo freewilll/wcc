@@ -1334,6 +1334,10 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
                 // Unless the function returns something in xmm1, clobber xmm1
                 if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM01_INDEX))
                     clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM01_INDEX);
+
+                // If it's a function call from a pointer in a vreg, ensure it doesn't reside in RAX
+                if (tac->src1->vreg)
+                    add_ig_edge(interference_graph, vreg_count, LIVE_RANGE_PREG_RAX_INDEX, tac->src1->vreg);
             }
 
             if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
