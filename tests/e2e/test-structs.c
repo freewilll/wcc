@@ -1231,6 +1231,14 @@ int test_temporary_struct_member_lookup() {
     assert_float(1.2, return_gst().f2, "Temporary struct member lookup 2");
 }
 
+int test_zero_length_arrays() {
+    struct { char c; short sa[0]; } s1;
+    assert_int(2, (void *) &(s1.sa) -  (void *) &s1, "Zero length array of shorts");
+
+    struct { char c; int ia[0]; } s2;
+    assert_int(4, (void *) &(s2.ia) -  (void *) &s2, "Zero length array of ints");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1271,6 +1279,7 @@ int main(int argc, char **argv) {
     test_array_member_array_lookup();
     test_anonymous_struct_flattening();
     test_temporary_struct_member_lookup();
+    test_zero_length_arrays();
 
     finalize();
 }

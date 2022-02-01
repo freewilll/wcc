@@ -915,7 +915,11 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     unnamed_bit_field = 1;
                 }
 
-                if (is_incomplete_type(type)) error("Struct/union members cannot have an incomplete type");
+                // GCC Arrays of Length Zero extension
+                // https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html
+                int is_zero_length_array = type->type == TYPE_ARRAY && type->array_size == 0;
+
+                if (!is_zero_length_array && is_incomplete_type(type)) error("Struct/union members cannot have an incomplete type");
                 if (type->type == TYPE_FUNCTION) error("Struct/union members cannot have a function type");
 
                 StructOrUnionMember *member = add_struct_member(cur_type_identifier, type, s, &member_count);
