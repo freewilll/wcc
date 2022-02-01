@@ -314,6 +314,12 @@ Directive *make_numeric_directive(int value) {
     return directive;
 }
 
+Directive *make_empty_directive(void) {
+    Directive *directive = malloc(sizeof(Directive));
+    memset(directive, 0, sizeof(Directive));
+    return directive;
+}
+
 // Create empty directives strmap and add CLI directives to them
 void init_directives(void) {
     directives = new_strmap();
@@ -333,6 +339,7 @@ void init_directives(void) {
     strmap_put(directives, "__LP64__", make_numeric_directive(1));
     strmap_put(directives, "__linux__", make_numeric_directive(1));
     strmap_put(directives, "__GNUC__", make_numeric_directive(2));
+    strmap_put(directives, "__USER_LABEL_PREFIX__", make_empty_directive());
 }
 
 char *get_cpp_input(void) {
