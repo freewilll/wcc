@@ -117,6 +117,8 @@ int strmap_iterator_finished(StrMapIterator *iterator) {
 }
 
 void strmap_iterator_next(StrMapIterator *iterator) {
+    if (iterator->original_size != iterator->map->size) panic("longset size changed during iteration");
+
     iterator->pos++;
 
     while (iterator->pos < iterator->map->size && (!iterator->map->keys[iterator->pos] || iterator->map->keys[iterator->pos] == (char *) TOMBSTONE))
@@ -135,6 +137,7 @@ StrMapIterator strmap_iterator(StrMap *map) {
     StrMapIterator result;
     result.map = map;
     result.pos = -1;
+    result.original_size = map->size;
     strmap_iterator_next(&result);
 
     return result;

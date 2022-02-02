@@ -1008,12 +1008,17 @@ void make_live_ranges(Function *function) {
     }
 
     // Create the initial sets
-    longmap_foreach(live_ranges, it) {
-        long key = longmap_iterator_key(&it);
+    int *keys;
+    int keys_count = longmap_keys(live_ranges, &keys);
+
+    for (int i = 0; i < keys_count; i++) {
+        long key = keys[i];
         LongSet *s = new_longset();
         longset_add(s, key);
         longmap_put(live_ranges, key, s);
     }
+
+    free(keys);
 
     // Create live range sets by unioning together the sets of the phi function destination and parameters.
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -1022,19 +1027,24 @@ void make_live_ranges(Function *function) {
         LongSet *dst = longmap_get(live_ranges, LR_HASH(tac->dst->vreg, tac->dst->ssa_subscript));
 
         for (Value *v = tac->phi_values; v->type; v++) {
-            LongSet *src_set = longmap_get(live_ranges, LR_HASH(v->vreg, v->ssa_subscript));
+            long hash = LR_HASH(v->vreg, v->ssa_subscript);
+            LongSet *src_set = longmap_get(live_ranges, hash);
 
             // Add all elements of the phi function parameter set to the dst
             longset_foreach(src_set, it) {
                 long src = longset_iterator_element(&it);
-                longmap_put(dst->longmap, src, (void *) 1);
-                longmap_put(live_ranges, src, dst);
+                // Only add to the set if different to avoid an iteration changed panic
+                if (dst != src_set) longset_add(dst, src);
+
+                // Only put if the map is different to avoid an iteration changed panic
+                if (src != hash) longmap_put(live_ranges, src, dst);
             }
         }
 
         // Make all phi function params the same set
-        for (Value *v = tac->phi_values; v->type; v++)
+        for (Value *v = tac->phi_values; v->type; v++) {
             longmap_put(live_ranges, LR_HASH(v->vreg, v->ssa_subscript), dst);
+        }
     }
 
     // Dedupe live ranges by putting the pointers to the sets in a set
@@ -1631,14 +1641,20 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
             if (interference_graph[l1] || interference_graph[l2]) continue;
 
+            // Collect done_srcs in the pending_coalesces since we will used to modify the
+            // map.
+            int *done_srcs;
+            int done_srcs_count = longmap_keys(pending_coalesces, &done_srcs);
+
             // Update all dsts
-            longmap_foreach(pending_coalesces, it) {
-                int done_src = longmap_iterator_key(&it);
+            for (int i = 0; i < done_srcs_count; i++) {
+                int done_src = done_srcs[i];
                 int done_dst = (long) longmap_get(pending_coalesces, done_src);
 
                 if (done_dst == src)
                     longmap_put(pending_coalesces, (long) done_src, (void *) (long) dst);
             }
+            free(done_srcs);
 
             // Update constraints, moving all from src -> dst
             copy_interference_graph_edges(function->interference_graph, vreg_count, src, dst);

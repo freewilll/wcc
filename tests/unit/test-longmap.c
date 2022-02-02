@@ -40,6 +40,14 @@ int main() {
         h += 7 * h + longmap_iterator_key(&it);
     if (h != -46927138) panic("Iteration checksum ok");
 
+    // Test keys function
+    int *keys;
+    int count = longmap_keys(map, &keys);
+    if (count != COUNT * 2) panic("Expected COUNT keys");
+    h = 0;
+    for (int i = 0; i < count; i++) h += 7 * h + keys[i];
+        if (h != -46927138) panic("Iteration checksum ok for keys");
+
     // Reassign the even numbered elements with baz %d
     for (int i = -COUNT + 1; i < COUNT; i += 2) {
         long key = i * 42;

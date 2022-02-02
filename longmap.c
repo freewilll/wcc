@@ -119,6 +119,17 @@ void longmap_delete(LongMap *map, long key) {
     }
 }
 
+// Populate keys with the keys in the map & return the count. Memory for keys is
+// allocated, the caller is expected to free it.
+int longmap_keys(LongMap *map, int **keys) {
+    *keys = malloc(map->size * sizeof(int));
+    int count = 0;
+
+    longmap_foreach(map, it) (*keys)[count++] = longmap_iterator_key(&it);
+
+    return count;
+}
+
 void longmap_empty(LongMap *map) {
     memset(map->status, 0, map->size * sizeof(char));
     map->used_count = 0;
@@ -147,6 +158,8 @@ void longmap_iterator_next(LongMapIterator *iterator) {
     char *status = iterator->map->status;
     int size = map->size;
 
+    if (iterator->original_size != map->size) panic("longmap size changed during iteration");
+
     iterator->pos++;
 
     while (iterator->pos < size && status[iterator->pos] != STATUS_USED)
@@ -160,6 +173,7 @@ LongMapIterator longmap_iterator(LongMap *map) {
     LongMapIterator result;
     result.map = map;
     result.pos = -1;
+    result.original_size = map->size;
     longmap_iterator_next(&result);
 
     return result;

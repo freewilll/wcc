@@ -50,6 +50,7 @@ typedef struct strmap {
 typedef struct strmap_iterator {
     StrMap *map;
     int pos;
+    int original_size;
 } StrMapIterator;
 
 typedef struct strset {
@@ -69,6 +70,7 @@ typedef struct longmap {
 typedef struct longmap_iterator {
     LongMap *map;
     int pos;
+    int original_size;
 } LongMapIterator;
 
 typedef struct longset {
@@ -852,6 +854,7 @@ void free_longmap(LongMap *map);
 void *longmap_get(LongMap *longmap, long key);
 void longmap_put(LongMap *longmap, long key, void *value);
 void longmap_delete(LongMap *longmap, long key);
+int longmap_keys(LongMap *map, int **keys);
 void longmap_empty(LongMap *map);
 LongMap *longmap_copy(LongMap *map);
 LongMapIterator longmap_iterator(LongMap *map);
