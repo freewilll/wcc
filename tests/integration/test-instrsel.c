@@ -230,7 +230,7 @@ void test_fp_cmp_with_conditional_jmp(Function *function, int cmp_operation, int
     assert_x86_op(template);
 }
 
-void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load, char *template) {
+void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value *src2, int disable_adrq_load, char *template1, char *template2) {
     start_ir();
     if (disable_adrq_load) nuke_rule(RI4, 0, RP4, 0); // Disable direct RP4 into register passthrough
     i(0, IR_LT,  v(3), src1, src2);
@@ -239,8 +239,8 @@ void test_less_than_with_conditional_jmp(Function *function, Value *src1, Value 
     src1 = dup_value(src1);
     src2 = dup_value(src2);
     finish_ir(function);
-    assert_x86_op(template);
-    assert_x86_op("jge         .L1");
+    assert_x86_op(template1);
+    assert_x86_op(template2);
     init_instruction_selection_rules();
 }
 
@@ -569,17 +569,17 @@ void test_instrsel_conditionals() {
     test_fp_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "jae"); test_fp_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "jb" );
 
     // a < b with a conditional with different src1 and src2 operands
-    test_less_than_with_conditional_jmp(function, v(1), c(1), 0,  "cmpq        $1, r1q"       );
-    test_less_than_with_conditional_jmp(function, a(1), c(1), 1,  "cmpq        $1, r1q"       );
-    test_less_than_with_conditional_jmp(function, g(1), c(1), 0,  "cmpq        $1, g1(%rip)"  );
-    test_less_than_with_conditional_jmp(function, v(1), g(1), 0,  "cmpq        g1(%rip), r1q" );
-    test_less_than_with_conditional_jmp(function, a(1), g(1), 1,  "cmpq        g1(%rip), r1q" );
-    test_less_than_with_conditional_jmp(function, g(1), v(1), 0,  "cmpq        r1q, g1(%rip)" );
-    test_less_than_with_conditional_jmp(function, v(1), S(-2), 0, "cmpq        -8(%rbp), r1q");
-    test_less_than_with_conditional_jmp(function, a(1), S(-2), 1, "cmpq        -8(%rbp), r1q");
-    test_less_than_with_conditional_jmp(function, S(-2), v(1), 0, "cmpq        r1q, -8(%rbp)");
-    test_less_than_with_conditional_jmp(function, S(-2), a(1), 1, "cmpq        r1q, -8(%rbp)");
-    test_less_than_with_conditional_jmp(function, S(-2), c(1), 0, "cmpq        $1, -8(%rbp)" );
+    test_less_than_with_conditional_jmp(function, v(1), c(1), 0,  "cmpq        $1, r1q",       "jge         .L1");
+    test_less_than_with_conditional_jmp(function, a(1), c(1), 1,  "cmpq        $1, r1q",       "jae         .L1");
+    test_less_than_with_conditional_jmp(function, g(1), c(1), 0,  "cmpq        $1, g1(%rip)",  "jge         .L1");
+    test_less_than_with_conditional_jmp(function, v(1), g(1), 0,  "cmpq        g1(%rip), r1q", "jge         .L1");
+    test_less_than_with_conditional_jmp(function, a(1), g(1), 1,  "cmpq        g1(%rip), r1q", "jae         .L1");
+    test_less_than_with_conditional_jmp(function, g(1), v(1), 0,  "cmpq        r1q, g1(%rip)", "jge         .L1");
+    test_less_than_with_conditional_jmp(function, v(1), S(-2), 0, "cmpq        -8(%rbp), r1q", "jge         .L1");
+    test_less_than_with_conditional_jmp(function, a(1), S(-2), 1, "cmpq        -8(%rbp), r1q", "jae         .L1");
+    test_less_than_with_conditional_jmp(function, S(-2), v(1), 0, "cmpq        r1q, -8(%rbp)", "jge         .L1");
+    test_less_than_with_conditional_jmp(function, S(-2), a(1), 1, "cmpq        r1q, -8(%rbp)", "jae         .L1");
+    test_less_than_with_conditional_jmp(function, S(-2), c(1), 0, "cmpq        $1, -8(%rbp)" , "jge         .L1");
 
     // Conditional assignment with 2 registers
     test_cmp_with_assignment(function, IR_EQ, "sete");
@@ -590,14 +590,16 @@ void test_instrsel_conditionals() {
     test_cmp_with_assignment(function, IR_GE, "setge");
 
     // Test r1 = a < b with different src1 and src2 operands
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  c(1),               "cmpq        $1, r1q",        "setl        r2b", "movzbl      r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  c(1),               "cmpq        $1, r1q",        "setb        r2b", "movzbl      r2b, r2l", 0);
     test_less_than_with_cmp_assignment(function, v(1),               c(1),               "cmpq        $1, r1q",        "setl        r2b", "movzbl      r2b, r2l", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  c(1),               "cmpq        $1, r1q",        "setl        r2b", "movzbl      r2b, r2l", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  asz(1, TYPE_VOID),  "cmpq        r1q, r2q",       "setl        r3b", "movzbl      r3b, r3l", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  asz(1, TYPE_CHAR),  "cmpq        r1q, r2q",       "setl        r3b", "movzbl      r3b, r3l", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_SHORT), asz(1, TYPE_SHORT), "cmpq        r1q, r2q",       "setl        r3b", "movzbl      r3b, r3l", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_INT),   asz(1, TYPE_INT),   "cmpq        r1q, r2q",       "setl        r3b", "movzbl      r3b, r3l", 0);
-    test_less_than_with_cmp_assignment(function, asz(2, TYPE_LONG),  asz(1, TYPE_LONG),  "cmpq        r1q, r2q",       "setl        r3b", "movzbl      r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  c(1),               "cmpq        $1, r1q",        "setb        r2b", "movzbl      r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  uc(1),              "cmpq        $1, r1q",        "setb        r2b", "movzbl      r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  uc(1),              "cmpq        $1, r1q",        "setb        r2b", "movzbl      r2b, r2l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_VOID),  asz(1, TYPE_VOID),  "cmpq        r1q, r2q",       "setb        r3b", "movzbl      r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_CHAR),  asz(1, TYPE_CHAR),  "cmpq        r1q, r2q",       "setb        r3b", "movzbl      r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_SHORT), asz(1, TYPE_SHORT), "cmpq        r1q, r2q",       "setb        r3b", "movzbl      r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_INT),   asz(1, TYPE_INT),   "cmpq        r1q, r2q",       "setb        r3b", "movzbl      r3b, r3l", 0);
+    test_less_than_with_cmp_assignment(function, asz(2, TYPE_LONG),  asz(1, TYPE_LONG),  "cmpq        r1q, r2q",       "setb        r3b", "movzbl      r3b, r3l", 0);
     test_less_than_with_cmp_assignment(function, g(1),               c(1),               "cmpq        $1, g1(%rip)",   "setl        r1b", "movzbl      r1b, r1l", 0);
     test_less_than_with_cmp_assignment(function, v(1),               g(1),               "cmpq        g1(%rip), r1q",  "setl        r2b", "movzbl      r2b, r2l", 0);
     test_less_than_with_cmp_assignment(function, g(1),               v(1),               "cmpq        r1q, g1(%rip)",  "setl        r2b", "movzbl      r2b, r2l", 0);
@@ -611,6 +613,13 @@ void test_instrsel_conditionals() {
         "movq        $4294967296, r3q",
         "cmpq        r3q, r1q",
         "setl        r2b",
+        "movzbl      r2b, r2l"
+    );
+
+    test_less_than_with_cmp_assignment(function, uv(1), uc(l),
+        "movq        $4294967296, r3q",
+        "cmpq        r3q, r1q",
+        "setb        r2b",
         "movzbl      r2b, r2l"
     );
 }

@@ -776,6 +776,12 @@ void test_conditional_jumps() {
     ui1 = 2; ui2 =  1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 >= ui2");
 }
 
+void test_pointer_comparisons() {
+    unsigned char *p1 = (unsigned char *)(1);
+    unsigned char *p2 = (unsigned char *)(-1);
+    assert_int(1, p1 < p2, "pointer to unsigned char comparison");
+}
+
 static void test_integer_constant_sizes() {
     // Sizes of signed integer constants
     assert_int(4,  sizeof(1),                    "Integer constant size 1");
@@ -1732,6 +1738,7 @@ int main(int argc, char **argv) {
     test_logical_or_operation_sign();
     test_sizeof_expr();
     test_conditional_jumps();
+    test_pointer_comparisons();
     test_integer_constant_sizes();
     test_hex_and_octal_constants();
     test_constant_suffixes();
