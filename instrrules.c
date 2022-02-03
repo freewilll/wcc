@@ -713,6 +713,12 @@ static void add_int_comp_assignment_rules(int is_unsigned, int src1, int src2, c
     }
 }
 
+// Add conditional jump and assignment rules for an integer comparison
+static void add_int_comparison_rules(int *ntc, int is_unsigned, int src1, int src2, char *template) {
+    add_int_comp_cond_jmp_rules(ntc, is_unsigned, src1, src2, template);
+    add_int_comp_assignment_rules(is_unsigned, src1, src2, template);
+}
+
 static void add_long_double_comparison_instructions(Rule *r, int src1, int src2, char *src1_template, char *src2_template, char *template, int src1_first) {
     if (src1_first) {
         add_op(r, X_MOVC, 0, SRC1, 0, src1_template);
@@ -1447,51 +1453,32 @@ void init_instruction_selection_rules(void) {
     // Pointer comparisons are unsigned
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            add_int_comp_cond_jmp_rules(&ntc, 1, RP1 + i, RP1 + j, cmpq_vv);
+            add_int_comparison_rules(&ntc, 1, RP1 + i, RP1 + j, cmpq_vv);
+
+    add_int_comparison_rules(&ntc, 1, RPF, RPF, "cmpq %v2q, %v1q");
 
     // Note the RU4, CI3 oddball. cmpq can only be done on imm32, which has to be signed. If CU4 were allowed, then 0x80000000 and higher would
     // be produced, which is illegal, since that would become an imm64 in the assembler.
-    add_int_comp_cond_jmp_rules(&ntc, 0, XRI, XRI, cmp_vv);             add_int_comp_cond_jmp_rules(&ntc, 1, XRU, XRU, cmp_vv); // integers
-    add_int_comp_cond_jmp_rules(&ntc, 0, XRI, XMI, cmp_vv);             add_int_comp_cond_jmp_rules(&ntc, 1, XRU, XMU, cmp_vv); // integers
-    add_int_comp_cond_jmp_rules(&ntc, 0, XMI, XRI, cmp_vv);             add_int_comp_cond_jmp_rules(&ntc, 1, XMU, XRU, cmp_vv); // integers
-    add_int_comp_cond_jmp_rules(&ntc, 1, RI4, XRP, cmpq_vv);            add_int_comp_cond_jmp_rules(&ntc, 1, RU4, XRP, cmpq_vv); // unsigned pointer with register
-    add_int_comp_cond_jmp_rules(&ntc, 1, XRP, RI4, cmpq_vv);            add_int_comp_cond_jmp_rules(&ntc, 1, XRP, RU4, cmpq_vv); // unsigned pointer with register
-    add_int_comp_cond_jmp_rules(&ntc, 1, XRP, XCI, cmpq_vc);            add_int_comp_cond_jmp_rules(&ntc, 1, XRP, XCU, cmpq_vc); // pointer with constant
-    add_int_comp_cond_jmp_rules(&ntc, 1, XRP, XMI, cmpq_vv);            add_int_comp_cond_jmp_rules(&ntc, 1, XRP, XMU, cmpq_vv); // pointer in register with pointer in memory
-    add_int_comp_cond_jmp_rules(&ntc, 1, RI4, MPV, cmpq_vv);            add_int_comp_cond_jmp_rules(&ntc, 1, RU4, MPV, cmpq_vv); // integer with pointer in memory
-    add_int_comp_cond_jmp_rules(&ntc, 1, XMI, XRP, cmpq_vv);            add_int_comp_cond_jmp_rules(&ntc, 1, XMU, XRP, cmpq_vv); // pointer in memory with pointer in register
-    add_int_comp_cond_jmp_rules(&ntc, 0, RI1, CI1, "cmpb $%v2b, %v1b"); add_int_comp_cond_jmp_rules(&ntc, 1, RU1, CU1, "cmpb $%v2b, %v1b");
-    add_int_comp_cond_jmp_rules(&ntc, 0, RI2, CI2, "cmpw $%v2w, %v1w"); add_int_comp_cond_jmp_rules(&ntc, 1, RU2, CU2, "cmpw $%v2w, %v1w");
-    add_int_comp_cond_jmp_rules(&ntc, 0, RI3, CI3, "cmpl $%v2l, %v1l"); add_int_comp_cond_jmp_rules(&ntc, 1, RU3, CU3, "cmpl $%v2l, %v1l");
-    add_int_comp_cond_jmp_rules(&ntc, 0, RI4, CI3, "cmpq $%v2q, %v1q"); add_int_comp_cond_jmp_rules(&ntc, 1, RU4, CI3, "cmpq $%v2q, %v1q");
-    add_int_comp_cond_jmp_rules(&ntc, 0, MI1, CI1, "cmpb $%v2b, %v1b"); add_int_comp_cond_jmp_rules(&ntc, 1, MU1, CU1, "cmpb $%v2b, %v1b");
-    add_int_comp_cond_jmp_rules(&ntc, 0, MI2, CI2, "cmpw $%v2w, %v1w"); add_int_comp_cond_jmp_rules(&ntc, 1, MU2, CU2, "cmpw $%v2w, %v1w");
-    add_int_comp_cond_jmp_rules(&ntc, 0, MI3, CI3, "cmpl $%v2l, %v1l"); add_int_comp_cond_jmp_rules(&ntc, 1, MU3, CU3, "cmpl $%v2l, %v1l");
-    add_int_comp_cond_jmp_rules(&ntc, 0, MI4, CI3, "cmpq $%v2q, %v1q"); add_int_comp_cond_jmp_rules(&ntc, 1, MU4, CU3, "cmpq $%v2q, %v1q");
-    add_int_comp_cond_jmp_rules(&ntc, 0, MPV, CI3, "cmpq $%v2q, %v1q"); add_int_comp_cond_jmp_rules(&ntc, 0, MPV, CU3, "cmpq $%v2q, %v1q");
-
-    // Comparision + conditional assignment
-    // Pointer comparisons are unsigned
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            add_int_comp_assignment_rules(1, RP1 + i, RP1 + j, cmpq_vv);
-
-    add_int_comp_assignment_rules(1, RPF, RPF, "cmpq %v2q, %v1q");
-
-    add_int_comp_assignment_rules(0, XRI, XRI, cmp_vv);             add_int_comp_assignment_rules(1, XRU, XRU, cmp_vv);   // integers
-    add_int_comp_assignment_rules(0, XRI, XMI, cmp_vv);             add_int_comp_assignment_rules(1, XRU, XMU, cmp_vv);   // integers
-    add_int_comp_assignment_rules(0, XMI, XRI, cmp_vv);             add_int_comp_assignment_rules(1, XMU, XRU, cmp_vv);   // integers
-    add_int_comp_assignment_rules(1, XRP, XCI, cmpq_vc);            add_int_comp_assignment_rules(1, XRP, XCU, cmpq_vc);  // pointer with constant
-    add_int_comp_assignment_rules(1, RPF, XCI, cmpq_vc);            add_int_comp_assignment_rules(1, RPF, XCU, cmpq_vc);  // pointer to function in register with constant
-    add_int_comp_assignment_rules(1, MPF, XCI, cmpq_vc);            add_int_comp_assignment_rules(1, MPF, XCU, cmpq_vc);  // pointer to function in memory with contant
-    add_int_comp_assignment_rules(0, RI1, CI1, "cmpb $%v2b, %v1b"); add_int_comp_assignment_rules(1, RU1, CU1, "cmpb $%v2b, %v1b");
-    add_int_comp_assignment_rules(0, RI2, CI2, "cmpw $%v2w, %v1w"); add_int_comp_assignment_rules(1, RU2, CU2, "cmpw $%v2w, %v1w");
-    add_int_comp_assignment_rules(0, RI3, CI3, "cmpl $%v2l, %v1l"); add_int_comp_assignment_rules(1, RU3, CU3, "cmpl $%v2l, %v1l");
-    add_int_comp_assignment_rules(0, RI4, CI3, "cmpq $%v2q, %v1q"); add_int_comp_assignment_rules(1, RU4, CI3, "cmpq $%v2q, %v1q");
-    add_int_comp_assignment_rules(0, MI1, CI1, "cmpb $%v2b, %v1b"); add_int_comp_assignment_rules(1, MU1, CU1, "cmpb $%v2b, %v1b");
-    add_int_comp_assignment_rules(0, MI2, CI2, "cmpw $%v2w, %v1w"); add_int_comp_assignment_rules(1, MU2, CU2, "cmpw $%v2w, %v1w");
-    add_int_comp_assignment_rules(0, MI3, CI3, "cmpl $%v2l, %v1l"); add_int_comp_assignment_rules(1, MU3, CU3, "cmpl $%v2l, %v1l");
-    add_int_comp_assignment_rules(0, MI4, CI3, "cmpq $%v2q, %v1q"); add_int_comp_assignment_rules(1, MU4, CU3, "cmpq $%v2q, %v1q");
+    add_int_comparison_rules(&ntc, 0, XRI, XRI, cmp_vv);             add_int_comparison_rules(&ntc, 1, XRU, XRU, cmp_vv);
+    add_int_comparison_rules(&ntc, 0, XRI, XMI, cmp_vv);             add_int_comparison_rules(&ntc, 1, XRU, XMU, cmp_vv);
+    add_int_comparison_rules(&ntc, 0, XMI, XRI, cmp_vv);             add_int_comparison_rules(&ntc, 1, XMU, XRU, cmp_vv);
+    add_int_comparison_rules(&ntc, 1, RI4, XRP, cmpq_vv);            add_int_comparison_rules(&ntc, 1, RU4, XRP, cmpq_vv);
+    add_int_comparison_rules(&ntc, 1, XRP, RI4, cmpq_vv);            add_int_comparison_rules(&ntc, 1, XRP, RU4, cmpq_vv);
+    add_int_comparison_rules(&ntc, 1, XRP, XCI, cmpq_vc);            add_int_comparison_rules(&ntc, 1, XRP, XCU, cmpq_vc);
+    add_int_comparison_rules(&ntc, 1, RPF, XCI, cmpq_vc);            add_int_comparison_rules(&ntc, 1, RPF, XCU, cmpq_vc);
+    add_int_comparison_rules(&ntc, 1, MPF, XCI, cmpq_vc);            add_int_comparison_rules(&ntc, 1, MPF, XCU, cmpq_vc);
+    add_int_comparison_rules(&ntc, 1, XRP, XMI, cmpq_vv);            add_int_comparison_rules(&ntc, 1, XRP, XMU, cmpq_vv);
+    add_int_comparison_rules(&ntc, 1, RI4, MPV, cmpq_vv);            add_int_comparison_rules(&ntc, 1, RU4, MPV, cmpq_vv);
+    add_int_comparison_rules(&ntc, 1, XMI, XRP, cmpq_vv);            add_int_comparison_rules(&ntc, 1, XMU, XRP, cmpq_vv);
+    add_int_comparison_rules(&ntc, 0, RI1, CI1, "cmpb $%v2b, %v1b"); add_int_comparison_rules(&ntc, 1, RU1, CU1, "cmpb $%v2b, %v1b");
+    add_int_comparison_rules(&ntc, 0, RI2, CI2, "cmpw $%v2w, %v1w"); add_int_comparison_rules(&ntc, 1, RU2, CU2, "cmpw $%v2w, %v1w");
+    add_int_comparison_rules(&ntc, 0, RI3, CI3, "cmpl $%v2l, %v1l"); add_int_comparison_rules(&ntc, 1, RU3, CU3, "cmpl $%v2l, %v1l");
+    add_int_comparison_rules(&ntc, 0, RI4, CI3, "cmpq $%v2q, %v1q"); add_int_comparison_rules(&ntc, 1, RU4, CI3, "cmpq $%v2q, %v1q");
+    add_int_comparison_rules(&ntc, 0, MI1, CI1, "cmpb $%v2b, %v1b"); add_int_comparison_rules(&ntc, 1, MU1, CU1, "cmpb $%v2b, %v1b");
+    add_int_comparison_rules(&ntc, 0, MI2, CI2, "cmpw $%v2w, %v1w"); add_int_comparison_rules(&ntc, 1, MU2, CU2, "cmpw $%v2w, %v1w");
+    add_int_comparison_rules(&ntc, 0, MI3, CI3, "cmpl $%v2l, %v1l"); add_int_comparison_rules(&ntc, 1, MU3, CU3, "cmpl $%v2l, %v1l");
+    add_int_comparison_rules(&ntc, 0, MI4, CI3, "cmpq $%v2q, %v1q"); add_int_comparison_rules(&ntc, 1, MU4, CU3, "cmpq $%v2q, %v1q");
+    add_int_comparison_rules(&ntc, 0, MPV, CI3, "cmpq $%v2q, %v1q"); add_int_comparison_rules(&ntc, 0, MPV, CU3, "cmpq $%v2q, %v1q");
 
     add_long_double_comp_rules(&ntc, MLD5, MLD5, ll, ll);
     add_long_double_comp_rules(&ntc, MLD5, CLD,  ll, lc);
