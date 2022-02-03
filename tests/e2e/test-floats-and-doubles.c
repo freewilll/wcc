@@ -1041,6 +1041,22 @@ void test_inc_dec() {
     gd--; assert_double(2.0, gd, "Global double postfix --");
 }
 
+// Test bug where a 4 bytes were allocated on the stack instead of 8 when converting
+// a long double to a double
+int test_stack_smashing_bug() {
+    int i, j; &i; &j;
+    long l, m; &l; &m;
+
+    i = j = l = m = -1;
+
+    long double ld = 1.0;
+    double d = ld; &d;
+    assert_int(-1, i, "LD -> SSE conversion allocation bug 1");
+    assert_int(-1, j, "LD -> SSE conversion allocation bug 2");
+    assert_long(-1, l, "LD -> SSE conversion allocation bug 3");
+    assert_long(-1, m, "LD -> SSE conversion allocation bug 4");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1071,6 +1087,7 @@ int main(int argc, char **argv) {
     test_pointer_casting();
     test_structs();
     test_inc_dec();
+    test_stack_smashing_bug();
 
     finalize();
 }
