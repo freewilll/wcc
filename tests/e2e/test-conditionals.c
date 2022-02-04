@@ -206,6 +206,17 @@ int test_ternary_composite_type() {
     assert_int(12, sizeof(*(1 ? j : i)), "Composite ternary ptr to array 2");
 }
 
+int test_string_literal_used_as_scalar() {
+    int i = "foo" ? 1 : 2;
+    assert_int(1, i, "\"foo\" in ternary");
+
+    int ia[1];
+    int j = ia ? 1 : 2;
+
+    assert_int(1, j, "int array in ternary");
+    if ("foo") assert_int(1, 1, "\"foo\" in if"); else assert_int(0, 1, "\"foo\" in if");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -219,6 +230,7 @@ int main(int argc, char **argv) {
     test_ternary();
     test_ternary_cast();
     test_ternary_composite_type();
+    test_string_literal_used_as_scalar();
 
     finalize();
 }

@@ -2424,7 +2424,8 @@ void parse_struct_dot_arrow_expression(void) {
 }
 
 void check_ternary_operation_types(Value *switcher, Value *src1, Value *src2) {
-    if (!is_scalar_type(switcher->type)) error("Expected scalar type for first operand of ternary operator");
+    if (switcher->type->type != TYPE_ARRAY && !is_scalar_type(switcher->type))
+        error("Expected scalar type for first operand of ternary operator");
 
     int src1_is_arithmetic = is_arithmetic_type(src1->type);
     int src2_is_arithmetic = is_arithmetic_type(src2->type);
@@ -3106,7 +3107,10 @@ static void parse_if_statement(void) {
 
     consume(TOK_LPAREN, "(");
     parse_expression(TOK_COMMA);
-    if (!is_scalar_type(vtop()->type)) error("The controlling statement of an if statement must be a scalar");
+
+    if (vtop()->type->type != TYPE_ARRAY && !is_scalar_type(vtop()->type))
+        error("The controlling statement of an if statement must be a scalar");
+
     consume(TOK_RPAREN, ")");
 
     Value *ldst1 = new_label_dst(); // False case
