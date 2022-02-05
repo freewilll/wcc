@@ -344,3 +344,5 @@ int extern_global_int;
 int extern_renamed_func(int i) {
     return i + 1;
 }
+
+extern int extern_func(int i) { return i + 1; }

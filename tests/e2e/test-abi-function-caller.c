@@ -286,6 +286,12 @@ void test_extern_renamed_func() {
     assert_int(2, intern_renamed_func(1), "Linkage of a renamed extern function");
 }
 
+void test_extern_func() {
+    extern int extern_func(int i);
+
+    assert_int(2, extern_func(1), "calling extern func in another translation unit");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -297,6 +303,7 @@ int main(int argc, char **argv) {
     test_global_object_linkage();
     test_block_extern_object_linkage();
     test_extern_renamed_func();
+    test_extern_func();
 
     finalize();
 }

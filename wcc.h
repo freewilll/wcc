@@ -514,10 +514,10 @@ enum {
     LINKAGE_NONE = 1,
     LINKAGE_INTERNAL,
     LINKAGE_EXTERNAL,
-    // Used for
-    // a) static local symbols that need to be global, but with internal linkage and
-    // b) global symbols with extern symbol
-    // This has nothing to do with the C spec, but comes from mimicking what gcc does.
+    // Used for a) static local symbols that need to be global, but with internal
+    // linkage and b) global symbols with extern symbol This mimicks what gcc does.
+    // LINKAGE_UNDECLARED_EXTERNAL is equivalent to LINKAGE_EXTERNAL in codegen, the
+    // difference is only used when reporting errors in the parser.
     LINKAGE_UNDECLARED_EXTERNAL,
 };
 

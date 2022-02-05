@@ -613,11 +613,11 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                     tac->src1 = orig_ir->src1;
                 }
                 else {
-                    int linkage = orig_ir->src1->type->function->linkage;
-                    if (linkage == LINKAGE_EXTERNAL || linkage == LINKAGE_UNDECLARED_EXTERNAL)
-                         wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
-                    else
+                    // If a function has been defined locally, call it directly, otherwise use the PLT
+                    if (orig_ir->src1->type->function->is_defined)
                          wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
+                    else
+                         wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
                  }
 
                 ir = insert_instruction_after(ir, tac);
@@ -942,10 +942,12 @@ void output_code(char *input_filename, char *output_filename) {
     // Output code
     fprintf(f, "    .text\n");
 
-    // Output symbols for all non-external functions
+    // Output symbols for all functions that are defined and have external linkage
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbol_list[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined && symbol->type->function->linkage == LINKAGE_EXTERNAL) {
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined &&
+                (symbol->type->function->linkage == LINKAGE_EXTERNAL || symbol->type->function->linkage == LINKAGE_UNDECLARED_EXTERNAL)) {
+
             fprintf(f, "    .globl  %s\n", symbol->identifier);
             fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
         }
