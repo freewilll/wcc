@@ -3401,14 +3401,22 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
 
 // Ensure linkage is the same for a symbol that has been redeclared.
 int redefined_symbol_linkage(int linkage1, int linkage2, char *cur_type_identifier) {
+    if (linkage1 == linkage2) return linkage1;
+
     // Allow, e.g. static int i; extern int i;
     if (linkage1 == LINKAGE_INTERNAL && linkage2 == LINKAGE_EXPLICIT_EXTERNAL)
         return LINKAGE_INTERNAL;
 
-    if (linkage1 == LINKAGE_EXPLICIT_EXTERNAL) linkage1 = LINKAGE_IMPLICIT_EXTERNAL;
-    if (linkage2 == LINKAGE_EXPLICIT_EXTERNAL) linkage2 = LINKAGE_IMPLICIT_EXTERNAL;
+    // If either is an implicit external, then the result is an implicit external
+    if (
+            (linkage1 == LINKAGE_IMPLICIT_EXTERNAL && linkage2 == LINKAGE_EXPLICIT_EXTERNAL) ||
+            (linkage1 == LINKAGE_EXPLICIT_EXTERNAL && linkage2 == LINKAGE_IMPLICIT_EXTERNAL) ||
+            (linkage1 == LINKAGE_IMPLICIT_EXTERNAL && linkage2 == LINKAGE_IMPLICIT_EXTERNAL))
+        return LINKAGE_IMPLICIT_EXTERNAL;
 
-    if (linkage1 == linkage2) return linkage1;
+    // Otherwise if either is explicit external, the result is an explicit external
+    if (linkage1 == LINKAGE_EXPLICIT_EXTERNAL && linkage2 == LINKAGE_EXPLICIT_EXTERNAL)
+        return LINKAGE_EXPLICIT_EXTERNAL;
 
     error("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
 }
