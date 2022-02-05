@@ -574,10 +574,6 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
     // They are identically qualified versions of compatible unqualified types
     if (check_qualifiers && type1->is_const != type2->is_const) return 0;
 
-    // They are pointer types and are pointing to compatible types
-    if (type1->type == TYPE_PTR && type2->type == TYPE_PTR)
-        return recursive_types_are_compatible(type1->target, type2->target, seen_tags, 0);
-
     // They are array types, and if both have constant size, that size is the same
     // and element types are compatible
     if (type1->type == TYPE_ARRAY && type2->type == TYPE_ARRAY) {
@@ -585,6 +581,10 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
         if (type1->array_size && type2->array_size && type1->array_size != type2->array_size) return 0;
         return 1;
     }
+
+    // They are pointer types and are pointing to compatible types
+    if (is_pointer_type(type1) && is_pointer_type(type2))
+        return recursive_types_are_compatible(type1->target, type2->target, seen_tags, 0);
 
     if (type1->type == TYPE_STRUCT_OR_UNION && type2->type == TYPE_STRUCT_OR_UNION) {
         if (type1->tag) strmap_put(seen_tags, type1->tag->identifier, type1);

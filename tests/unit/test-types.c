@@ -99,6 +99,10 @@ int test_compatible_types() {
     type2 = make_array(new_type(TYPE_INT), 10);
     assert_int(0, types_are_compatible(type1, type2), "mismatched array element type");
 
+    type1 = lex_type("int **ppi");
+    type2 = lex_type("int *pai[]");
+    assert_int(1, types_are_compatible(type1, type2), "pointer and array with same target");
+
     type1 = lex_type("struct { int i; }");
     type2 = lex_type("struct { int i; }");
     assert_int(1, types_are_compatible(type1, type2), "matching struct tags");
