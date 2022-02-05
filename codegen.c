@@ -771,7 +771,7 @@ static void output_symbol(Symbol *symbol) {
         fprintf(f, "    .local  %s\n", symbol->global_identifier);
     }
 
-    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && !symbol->initializers) {
+    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL) && !symbol->initializers) {
         if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
         fprintf(f, "    .comm   %s,%d,%d\n",
             symbol->global_identifier,
@@ -781,7 +781,7 @@ static void output_symbol(Symbol *symbol) {
 
     else if (symbol->initializers) {
         int size = get_type_size(symbol->type);
-        if (symbol->linkage == LINKAGE_EXTERNAL)
+        if (symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL)
             fprintf(f, "    .globl   %s\n", symbol->global_identifier);
 
         if (elf_section != SEC_DATA) { fprintf(f, "    .data\n"); elf_section = SEC_DATA; }
@@ -946,7 +946,7 @@ void output_code(char *input_filename, char *output_filename) {
     for (int i = 0; i < global_scope->symbol_count; i++) {
         Symbol *symbol = global_scope->symbol_list[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined &&
-                (symbol->type->function->linkage == LINKAGE_EXTERNAL || symbol->type->function->linkage == LINKAGE_UNDECLARED_EXTERNAL)) {
+                (symbol->type->function->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->type->function->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
 
             fprintf(f, "    .globl  %s\n", symbol->identifier);
             fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);

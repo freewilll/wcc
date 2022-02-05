@@ -2085,7 +2085,7 @@ static void parse_declaration(void) {
         // without adding any linkage
         symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
-        symbol->linkage = LINKAGE_UNDECLARED_EXTERNAL;
+        symbol->linkage = LINKAGE_EXPLICIT_EXTERNAL;
         symbol->global_identifier = cur_type_identifier;
     }
     else {
@@ -3402,11 +3402,11 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
 // Ensure linkage is the same for a symbol that has been redeclared.
 int redefined_symbol_linkage(int linkage1, int linkage2, char *cur_type_identifier) {
     // Allow, e.g. static int i; extern int i;
-    if (linkage1 == LINKAGE_INTERNAL && linkage2 == LINKAGE_UNDECLARED_EXTERNAL)
+    if (linkage1 == LINKAGE_INTERNAL && linkage2 == LINKAGE_EXPLICIT_EXTERNAL)
         return LINKAGE_INTERNAL;
 
-    if (linkage1 == LINKAGE_UNDECLARED_EXTERNAL) linkage1 = LINKAGE_EXTERNAL;
-    if (linkage2 == LINKAGE_UNDECLARED_EXTERNAL) linkage2 = LINKAGE_EXTERNAL;
+    if (linkage1 == LINKAGE_EXPLICIT_EXTERNAL) linkage1 = LINKAGE_IMPLICIT_EXTERNAL;
+    if (linkage2 == LINKAGE_EXPLICIT_EXTERNAL) linkage2 = LINKAGE_IMPLICIT_EXTERNAL;
 
     if (linkage1 == linkage2) return linkage1;
 
@@ -3464,8 +3464,8 @@ void parse(void) {
 
                 int linkage =
                     base_type->storage_class == SC_STATIC ? LINKAGE_INTERNAL
-                    : base_type->storage_class == SC_EXTERN ? LINKAGE_UNDECLARED_EXTERNAL
-                    : LINKAGE_EXTERNAL;
+                    : base_type->storage_class == SC_EXTERN ? LINKAGE_EXPLICIT_EXTERNAL
+                    : LINKAGE_IMPLICIT_EXTERNAL;
 
                 if (original_symbol)
                     linkage = redefined_symbol_linkage(original_symbol->linkage, linkage, cur_type_identifier);
