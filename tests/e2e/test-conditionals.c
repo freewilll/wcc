@@ -217,6 +217,27 @@ int test_string_literal_used_as_scalar() {
     if ("foo") assert_int(1, 1, "\"foo\" in if"); else assert_int(0, 1, "\"foo\" in if");
 }
 
+// Test bug where a temporary struct was in a register instead of on the stack
+int test_structs_in_ternary() {
+    struct s { long i, j; } s[4] = {{0, 0}, {1, 2}, {3, 4}};
+    s[3] = s[0].i == 0 ? s[1] : s[2];
+    assert_int(1, s[3].i, "Structs in ternary 1");
+    assert_int(2, s[3].j, "Structs in ternary 2");
+
+    s[0].i = 1;
+    s[3] = s[0].i == 0 ? s[1] : s[2];
+    assert_int(3, s[3].i, "Structs in ternary 3");
+    assert_int(4, s[3].j, "Structs in ternary 4");
+}
+
+int test_long_doubles_in_ternary() {
+    long double ld[4] = {0.0, 1.1, 2.2};
+    ld[3] = 1 ? ld[1] : ld[2];
+    assert_long_double(1.1, ld[3], "Long double in ternary 1");
+    ld[3] = 0 ? ld[1] : ld[2];
+    assert_long_double(2.2, ld[3], "Long double in ternary 2");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -231,6 +252,8 @@ int main(int argc, char **argv) {
     test_ternary_cast();
     test_ternary_composite_type();
     test_string_literal_used_as_scalar();
+    test_structs_in_ternary();
+    test_long_doubles_in_ternary();
 
     finalize();
 }

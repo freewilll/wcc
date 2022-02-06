@@ -2468,7 +2468,6 @@ void parse_ternary_expression(void) {
 
     // Destination register
     Value *dst = new_value();
-    dst->vreg = new_vreg();
 
     Value *ldst1 = new_label_dst(); // False case
     Value *ldst2 = new_label_dst(); // End
@@ -2489,6 +2488,13 @@ void parse_ternary_expression(void) {
     check_ternary_operation_types(switcher, src1, src2);
 
     dst->type = operation_type(src1, src2, 1);
+
+    if (dst->type->type == TYPE_STRUCT_OR_UNION) {
+        dst->local_index = new_local_index();
+        add_parser_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, dst, 0);
+    }
+    else
+        dst->vreg = new_vreg();
 
     // Convert dst function to pointer to function
     if (dst->type->type == TYPE_FUNCTION) dst->type = make_pointer(dst->type);
