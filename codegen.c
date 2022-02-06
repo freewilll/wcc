@@ -196,10 +196,12 @@ static int get_stack_offset(int function_pc, Value *v) {
     if (stack_index >= 2)
         // Function parameter
         return 8 * stack_index;
-    else if (stack_index < 0)
+    else if (stack_index < 0) {
+        if (!v->stack_offset) panic("Unexpected zero stack offset");
         return -v->stack_offset;
+    }
     else
-        printf("Unexpected stack_index %d\n", stack_index);
+        panic("Unexpected zero stack_index");
 }
 
 static void check_floating_point_literal_max(void) {

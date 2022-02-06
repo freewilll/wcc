@@ -1237,6 +1237,14 @@ int test_zero_length_arrays() {
 
     struct { char c; int ia[0]; } s2;
     assert_int(4, (void *) &(s2.ia) -  (void *) &s2, "Zero length array of ints");
+
+    struct s { char c; int ia[0]; };
+    struct s *s = malloc(sizeof(struct s) + 4 * sizeof(int));
+    s->c = 1;
+    s->ia[0] = 2;
+    s->ia[1] = 3;
+    s->ia[2] = 4;
+    s->ia[3] = 5;
 }
 
 int main(int argc, char **argv) {
