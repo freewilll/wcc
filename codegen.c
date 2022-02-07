@@ -197,7 +197,7 @@ static int get_stack_offset(int function_pc, Value *v) {
         // Function parameter
         return 8 * stack_index;
     else if (stack_index < 0) {
-        if (!v->stack_offset) panic("Unexpected zero stack offset");
+        if (!v->stack_offset && !debug_instsel_tiling) panic("Unexpected zero stack offset");
         return -v->stack_offset;
     }
     else
