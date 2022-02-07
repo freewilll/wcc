@@ -316,6 +316,7 @@ int is_pointer_to_object_type(Type *type) {
 int is_pointer_to_function_type(Type *type) {
     return type->type == TYPE_PTR && type->target->type == TYPE_FUNCTION;
 }
+
 int is_null_pointer(Value *v) {
     Type *type = v->type;
 
@@ -425,6 +426,8 @@ Type *apply_default_function_call_argument_promotions(Type *type) {
         type = new_type(TYPE_DOUBLE);
     else if (type->type == TYPE_ARRAY)
         type = decay_array_to_pointer(type);
+    else if (type->type == TYPE_FUNCTION)
+        type = make_pointer(type);
 
     return type;
 }

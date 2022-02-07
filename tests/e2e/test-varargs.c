@@ -11,6 +11,8 @@ int failures;
 
 struct sca {char c[3];};
 
+int gi;
+
 int vp(char *template, char *expected, ...) {
     va_list ap;
     va_start(ap, expected);
@@ -522,6 +524,28 @@ int test_assignment_after_va_arg() {
     assert_int(2, pi[0], "va_arg(ap, int*)[0] = 2");
 }
 
+int call_function_in_vararg(int i, ...) {
+    va_list ap;
+    va_start(ap, i);
+    void (*f)(int) = va_arg(ap, void (*)(int));
+    f(i);
+    va_end(ap);
+}
+
+void set_gi(int i) {
+    gi = i;
+}
+
+int test_function_in_vararg(){
+    gi = 0;
+    call_function_in_vararg(1, set_gi);
+    assert_int(1, gi, "Function in vararg with direct function");
+
+    gi = 0;
+    call_function_in_vararg(1, &set_gi);
+    assert_int(1, gi, "Function in vararg with pointer to function");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -540,6 +564,7 @@ int main(int argc, char **argv) {
     test_va_mixed_types();
     test_default_argument_promotions();
     test_big_struct();
+    test_function_in_vararg();
 
     finalize();
 }
