@@ -1714,6 +1714,27 @@ static __attribute__((noinline)) void function_with_noinline_attribute();
 __attribute__((noinline)) int function_with_noinline_attribute2();
 typedef int more_aligned_int __attribute__ ((aligned));
 
+struct pc_clobber_bug {
+    int i;
+    long l;
+};
+
+// The bug would cause the PC to be overwritten, leading to a segmentation fault on
+// return
+void IR_DECL_LOCAL_COMP_OBJ_bug_func(struct pc_clobber_bug *ppc_clobber_bug){
+    goto l;
+    struct pc_clobber_bug pc_clobber_bug;
+    l:;
+    pc_clobber_bug = *ppc_clobber_bug;
+}
+
+int test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug() {
+    struct pc_clobber_bug pc_clobber_bug;
+    pc_clobber_bug.i = 1;
+    pc_clobber_bug.l = 2;
+    IR_DECL_LOCAL_COMP_OBJ_bug_func(&pc_clobber_bug);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1777,6 +1798,7 @@ int main(int argc, char **argv) {
     test_and_or_value_stack_clobber_bug();
     test_insane_array_lookup();
     test_shr_on_signed_int_bug();
+    test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug();
 
     finalize();
 }

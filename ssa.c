@@ -200,10 +200,15 @@ void make_control_flow_graph(Function *function) {
         if ((tac->operation == IR_JMP || tac->operation == X_JMP) && tac->next && !tac->next->label) {
             while (tac->next && !tac->next->label) {
                 tac = tac->next;
-                tac->operation = IR_NOP;
-                tac->dst = 0;
-                tac->src1 = 0;
-                tac->src2 = 0;
+
+                // Keep IR_DECL_LOCAL_COMP_OBJ, otherwise bad things will happen in the
+                // stack offset allocation in codegen.
+                if (tac->operation != IR_DECL_LOCAL_COMP_OBJ) {
+                    tac->operation = IR_NOP;
+                    tac->dst = 0;
+                    tac->src1 = 0;
+                    tac->src2 = 0;
+                }
             }
             tac = tac->prev;
         }
