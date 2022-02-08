@@ -258,6 +258,10 @@ static void test_switch() {
     assert_int(12, test_multiple_cases(2), "Multiple switch cases 2");
     assert_int(3,  test_multiple_cases(3), "Multiple switch cases 3");
     assert_int(0,  test_multiple_cases(4), "Multiple switch cases 4");
+
+    // Should not crash
+    switch (1);
+    switch (1) {}; // Should not crash
 }
 
 int main(int argc, char **argv) {

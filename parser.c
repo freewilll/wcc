@@ -3039,7 +3039,7 @@ static void parse_switch_statement(void) {
 
     // Add statement IR
     ir->next = statement_ir_start;
-    statement_ir_start->prev = ir;
+    if (statement_ir_start) statement_ir_start->prev = ir;
     while (ir->next) ir = ir->next;
 
     // Add final break label
