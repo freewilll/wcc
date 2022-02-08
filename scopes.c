@@ -10,11 +10,9 @@ Scope *global_scope;
 void init_scopes(void) {
     global_scope = malloc(sizeof(Scope));
     memset(global_scope, 0, sizeof(Scope));
-    global_scope->symbol_list = malloc(sizeof(Symbol) * MAX_GLOBAL_SCOPE_IDENTIFIERS);
+    global_scope->symbol_list = new_list(128);
     global_scope->symbols = new_strmap();
     global_scope->tags = new_strmap();
-    global_scope->max_count = MAX_GLOBAL_SCOPE_IDENTIFIERS;
-    global_scope->symbol_count = 0;
     global_scope->parent = 0;
 
     cur_scope = global_scope;
@@ -24,11 +22,9 @@ void init_scopes(void) {
 void enter_scope(void) {
     Scope *scope = malloc(sizeof(Scope));
     memset(scope, 0, sizeof(Scope));
-    scope->symbol_list = malloc(sizeof(Symbol) * MAX_LOCAL_SCOPE_IDENTIFIERS);
+    scope->symbol_list = new_list(128);
     scope->symbols = new_strmap();
     scope->tags = new_strmap();
-    scope->max_count = MAX_LOCAL_SCOPE_IDENTIFIERS;
-    scope->symbol_count = 0;
     scope->parent = cur_scope;
 
     cur_scope = scope;
@@ -42,13 +38,10 @@ void exit_scope(void) {
 
 // Add a symbol to the current scope
 Symbol *new_symbol(char *identifier) {
-    if (cur_scope->symbol_count == cur_scope->max_count)
-        panic("Exceeded max symbol table size of %d symbols", cur_scope->max_count);
-
     Symbol *symbol = malloc(sizeof(Symbol));
     memset(symbol, 0, sizeof(Symbol));
     symbol->identifier = identifier;
-    cur_scope->symbol_list[cur_scope->symbol_count++] = symbol;
+    append_to_list(cur_scope->symbol_list, symbol);
     strmap_put(cur_scope->symbols, identifier, symbol);
     symbol->scope = cur_scope;
 

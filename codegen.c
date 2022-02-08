@@ -911,15 +911,15 @@ void output_code(char *input_filename, char *output_filename) {
 
     // Output symbols
     elf_section = SEC_NONE;
-    for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbol_list[i];
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
         if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
             output_symbol(symbol);
     }
 
     // Output static local symbols
-    for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbol_list[i];
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             Function *function = symbol->type->function;
             for (int j = 0; j < function->static_symbol_count; j++)
@@ -945,8 +945,8 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, "    .text\n");
 
     // Output symbols for all functions that are defined and have external linkage
-    for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbol_list[i];
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined &&
                 (symbol->type->function->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->type->function->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
 
@@ -965,8 +965,8 @@ void output_code(char *input_filename, char *output_filename) {
     need_ru4_to_ld_symbol = 0;
     need_ld_to_ru4_symbol = 0;
     fprintf(f, ".Lall.code.start:\n");
-    for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbol_list[i];
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             fprintf(f, ".L%s.start:\n", symbol->identifier);

@@ -145,8 +145,8 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     init_codegen();
 
     // Compile all functions
-    for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbol_list[i];
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             Function *function = symbol->type->function;
             if (print_ir1) print_ir(function, symbol->identifier, 0);

@@ -3539,8 +3539,8 @@ void parse(void) {
 void dump_symbols(void) {
     printf("Symbols:\n");
 
-    for (int i = 0; i < global_scope->symbol_count; i++) {
-        Symbol *symbol = global_scope->symbol_list[i];
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
         Type *type = symbol->type;
         char *identifier = symbol->identifier;
         long value = symbol->value;

@@ -178,10 +178,8 @@ typedef struct tag {
 
 typedef struct scope {
     struct scope *parent;       // Parent scope, zero if it's the global scope
-    int max_count;              // Maximum amount of symbols or tags memory is allocated for
     StrMap *symbols;            // Symbols
-    Symbol **symbol_list;       // List of symbols, in order of declaration/definition
-    int symbol_count;           // Amount of symbols
+    List *symbol_list;          // List of symbols, in order of declaration/definition
     StrMap *tags;               // Struct, union or enum tags
 } Scope;
 
@@ -388,7 +386,6 @@ enum {
     MAX_STACK_SIZE                = 10240,
     MAX_BLOCK_PREDECESSOR_COUNT   = 1024,
     MAX_GRAPH_EDGE_COUNT          = 10240,
-    MAX_GLOBAL_SCOPE_IDENTIFIERS  = 4095,
     MAX_LOCAL_SCOPE_IDENTIFIERS   = 511,
     MAX_INITIALIZERS              = 1024,
 };
