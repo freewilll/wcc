@@ -1541,10 +1541,10 @@ static void push_symbol(Symbol *symbol) {
 // If src is a function type and a global symbol, add an address of instruction to
 // load it into a register.
 Value *load_function(Value *src, Type *dst_type) {
-    int dst_is_function = is_pointer_to_function_type(dst_type)  || dst_type->type == TYPE_FUNCTION;
+    int dst_can_be_function = is_pointer_to_function_type(dst_type)  || dst_type->type == TYPE_FUNCTION || is_pointer_to_void(dst_type);
     int src_is_function = is_pointer_to_function_type(src->type) || src->type->type == TYPE_FUNCTION;
 
-    if (dst_is_function && src_is_function) {
+    if (dst_can_be_function && src_is_function) {
         if (src->type->type == TYPE_FUNCTION && src->global_symbol) {
             // Add instruction to load a global function into a register
             Value *src2 = new_value();
@@ -1568,7 +1568,7 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     int dst_is_function = is_pointer_to_function_type(dst_type)  || dst_type->type == TYPE_FUNCTION;
     int src_is_function = is_pointer_to_function_type(src->type) || src->type->type == TYPE_FUNCTION;
 
-    if (dst_is_function && src_is_function)
+    if ((dst_is_function && src_is_function) || (is_pointer_to_void(dst_type) && src->type->type == TYPE_FUNCTION))
         return load_function(src, dst_type);
 
     if (!type_eq(dst_type, src->type)) {
@@ -1636,6 +1636,9 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
 
     // Both are compatible struct/union types
     if (dst->type->type == TYPE_STRUCT_OR_UNION && types_are_compatible_ignore_qualifiers(dst->type, src->type)) return;
+
+    // Allow a function to be assigned to void *
+    if (is_pointer_to_void(dst->type) && src->type->type == TYPE_FUNCTION) return;
 
     // Both are pointers with identical qualifiers, with the targets compatible
     if (dst->type->type == TYPE_PTR && src->type->type == TYPE_PTR) {

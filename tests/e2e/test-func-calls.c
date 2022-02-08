@@ -530,6 +530,18 @@ static void test_function_returning_int() {
     assert_int(1, function_returning_int(), "Function definition with extra parameters");
 }
 
+void set_g(int i) {
+    g = i;
+}
+
+int test_assigning_a_function_to_a_pointer_to_void(void){
+    void *pv = set_g;
+    void (*func)(int) = pv;
+    g = 0;
+    func(1);
+    assert_int(1, g, "Assigning a function to a void *");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -557,6 +569,7 @@ int main(int argc, char **argv) {
     test_s7_s9_bug();
     test_calling_a_function_with_a_pointer_to_function_on_stack();
     test_function_returning_int();
+    test_assigning_a_function_to_a_pointer_to_void();
 
     finalize();
 }
