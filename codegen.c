@@ -922,8 +922,8 @@ void output_code(char *input_filename, char *output_filename) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             Function *function = symbol->type->function;
-            for (int j = 0; j < function->static_symbol_count; j++)
-                output_symbol(function->static_symbols[j]);
+            for (int j = 0; j < function->static_symbols->length; j++)
+                output_symbol(function->static_symbols->elements[j]);
         }
         symbol++;
     }

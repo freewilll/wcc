@@ -196,8 +196,7 @@ typedef struct function {
     int is_defined;                                     // if a definition has been found
     int is_variadic;                                    // Set to 1 for builtin variadic functions
     int linkage;                                        // One of LINKAGE_*
-    Symbol **static_symbols;                            // Static symbols
-    int static_symbol_count;                            // Amount of static symbols
+    List *static_symbols;                               // Static symbols
     struct value *return_value_pointer;                 // Set to the register holding the memory return address if the function returns something in memory
     struct function_param_allocation *return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
     struct function_param_allocation *fpa;              // function_param_allocaton for the params
@@ -386,8 +385,6 @@ enum {
     MAX_STACK_SIZE                = 10240,
     MAX_BLOCK_PREDECESSOR_COUNT   = 1024,
     MAX_GRAPH_EDGE_COUNT          = 10240,
-    MAX_LOCAL_SCOPE_IDENTIFIERS   = 511,
-    MAX_INITIALIZERS              = 1024,
 };
 
 // Tokens in order of precedence
