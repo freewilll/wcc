@@ -775,11 +775,9 @@ Type *parse_type_name(void) {
 
 // Allocate a new StructOrUnion
 static Type *new_struct_or_union(char *tag_identifier) {
-    StructOrUnion *s = malloc(sizeof(StructOrUnion));
-    memset(s, 0, sizeof(StructOrUnion));
+    StructOrUnion *s = calloc(1, sizeof(StructOrUnion));
     if (tag_identifier != 0) all_structs_and_unions[all_structs_and_unions_count++] = s;
-    s->members = malloc(sizeof(StructOrUnionMember *) * MAX_STRUCT_MEMBERS);
-    memset(s->members, 0, sizeof(StructOrUnionMember *) * MAX_STRUCT_MEMBERS);
+    s->members = calloc(MAX_STRUCT_MEMBERS, sizeof(StructOrUnionMember *));
 
     Type *type = make_struct_or_union_type(s);
 
@@ -821,8 +819,7 @@ static Type *find_enum(char *identifier) {
 // Recursively add a struct member. In the simplest case, it just gets added. For anonymous
 // structs/unions, the function is called recursively with the sub members.
 static StructOrUnionMember *add_struct_member(char *identifier, Type *type, StructOrUnion *s, int *member_count) {
-    StructOrUnionMember *member = malloc(sizeof(StructOrUnionMember));
-    memset(member, 0, sizeof(StructOrUnionMember));
+    StructOrUnionMember *member = calloc(1, sizeof(StructOrUnionMember));
     member->identifier = identifier;
     member->type = dup_type(type);
 
@@ -1055,8 +1052,7 @@ void parse_typedef(void) {
         parse_attributes();
 
         if (all_typedefs_count == MAX_TYPEDEFS) panic_with_line_number("Exceeded max typedefs");
-        Typedef *td = malloc(sizeof(Typedef));
-        memset(td, 0, sizeof(Typedef));
+        Typedef *td = calloc(1, sizeof(Typedef));
         td->identifier = cur_type_identifier;
         td->type = type;
         all_typedefs[all_typedefs_count++] = td;
@@ -1715,16 +1711,14 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
         if (!dst->bit_field_size && s->initializers->length) {
             Initializer *prev = (Initializer *) s->initializers->elements[s->initializers->length - 1];
             if (prev->offset + prev->size != offset) {
-                Initializer *zero = malloc(sizeof(Initializer));
-                memset(zero, 0, sizeof(Initializer));
+                Initializer *zero = calloc(1, sizeof(Initializer));
                 zero->offset = prev->offset + prev->size;
                 zero->size = offset - prev->offset - prev->size;
                 append_to_list(s->initializers, zero);
             }
         }
 
-        in = malloc(sizeof(Initializer));
-        memset(in, 0, sizeof(Initializer));
+        in = calloc(1, sizeof(Initializer));
         append_to_list(s->initializers, in);
     }
 

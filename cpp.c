@@ -124,8 +124,7 @@ static void init_cpp_from_fh(FILE *f, char *path) {
     cur_line = 1;
     state.hchar_lex_state = HLS_START_OF_LINE;
 
-    state.conditional_include_stack = malloc(sizeof(ConditionalInclude));
-    memset(state.conditional_include_stack, 0, sizeof(ConditionalInclude));
+    state.conditional_include_stack = calloc(1, sizeof(ConditionalInclude));
 }
 
 static void output_line_directive(int offset, int add_eol, CppToken *token) {
@@ -252,8 +251,7 @@ static void free_cpp_token(CppToken *token) {
 
 // Create a new CPP token
 static CppToken *new_cpp_token(int kind) {
-    CppToken *tok = malloc(sizeof(CppToken));
-    memset(tok, 0, sizeof(CppToken));
+    CppToken *tok = calloc(1, sizeof(CppToken));
 
     append_to_cll(allocated_tokens, tok);
 
@@ -263,8 +261,7 @@ static CppToken *new_cpp_token(int kind) {
 }
 
 static void add_builtin_directive(char *identifier, DirectiveRenderer renderer) {
-    Directive *directive = malloc(sizeof(Directive));
-    memset(directive, 0, sizeof(Directive));
+    Directive *directive = calloc(1, sizeof(Directive));
     directive->renderer = renderer;
     strmap_put(directives, identifier, directive);
 }
@@ -308,15 +305,13 @@ static CppToken *render_numeric_token(int value) {
 }
 
 Directive *make_numeric_directive(int value) {
-    Directive *directive = malloc(sizeof(Directive));
-    memset(directive, 0, sizeof(Directive));
+    Directive *directive = calloc(1, sizeof(Directive));
     directive->tokens = render_numeric_token(value);
     return directive;
 }
 
 Directive *make_empty_directive(void) {
-    Directive *directive = malloc(sizeof(Directive));
-    memset(directive, 0, sizeof(Directive));
+    Directive *directive = calloc(1, sizeof(Directive));
     return directive;
 }
 
@@ -836,8 +831,7 @@ static void set_line_number_on_token_sequence(CppToken *ts, int line_number) {
 // Nested () are taken into account, for cases like f((1, 2), 3), which
 // results in (1, 2) and 3 for the actual parameters.
 CppToken **make_function_actual_parameters(CppToken **ts) {
-    CppToken **result = malloc(sizeof(CppToken *) * MAX_CPP_MACRO_PARAM_COUNT);
-    memset(result, 0, sizeof(CppToken *) * MAX_CPP_MACRO_PARAM_COUNT);
+    CppToken **result = calloc(MAX_CPP_MACRO_PARAM_COUNT, sizeof(CppToken *));
 
     int parenthesis_nesting_level = 0;
     CppToken *current_actual = 0;
@@ -1314,8 +1308,7 @@ static CppToken *parse_define_replacement_tokens(void) {
 }
 
 static Directive *parse_define_tokens(void) {
-    Directive *directive = malloc(sizeof(Directive));
-    memset(directive, 0, sizeof(Directive));
+    Directive *directive = calloc(1, sizeof(Directive));
 
     CppToken *tokens;
 
@@ -1368,8 +1361,7 @@ static Directive *parse_define_tokens(void) {
 
 // Enter group after if, ifdef or ifndef
 static void enter_if() {
-    ConditionalInclude *ci = malloc(sizeof(ConditionalInclude));
-    memset(ci, 0, sizeof(ConditionalInclude));
+    ConditionalInclude *ci = calloc(1, sizeof(ConditionalInclude));
     ci->prev = state.conditional_include_stack;
     ci->skipping = state.conditional_include_stack->skipping;
     state.conditional_include_stack = ci;

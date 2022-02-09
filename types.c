@@ -183,8 +183,7 @@ void free_types(void) {
 }
 
 Type *new_type(int type) {
-    Type *result = malloc(sizeof(Type));
-    memset(result, 0, sizeof(Type));
+    Type *result = calloc(1, sizeof(Type));
     result->type = type;
     append_to_list(allocated_types, result);
 
@@ -213,8 +212,7 @@ StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
     int len;
     for (len = 0; src->members[len]; len++);
 
-    dst->members = malloc(sizeof(StructOrUnionMember *) * (len + 1));
-    memset(dst->members, 0, sizeof(StructOrUnionMember *) * (len + 1));
+    dst->members = calloc(len + 1, sizeof(StructOrUnionMember *));
 
     for (int i = 0; src->members[i]; i++)
         dst->members[i] = dup_struct_or_union_member(src->members[i]);
@@ -874,8 +872,7 @@ int type_is_modifiable(Type *type) {
 // Create a new type iterator instance. A type iterator can be used to recurse
 // through all scalars either depth first, or by iterating at a single level.
 TypeIterator *type_iterator(Type *type) {
-    TypeIterator *it = malloc(sizeof(TypeIterator));
-    memset(it, 0, sizeof(TypeIterator));
+    TypeIterator *it = calloc(1, sizeof(TypeIterator));
     it->type = type;
 
     return it;

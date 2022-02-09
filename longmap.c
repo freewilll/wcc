@@ -31,12 +31,9 @@ static void maybe_rehash(LongMap *map) {
         new_size = map->size * 2;
 
     int mask = new_size - 1;
-    long *keys = malloc(new_size * sizeof(long));
-    void **values = malloc(new_size * sizeof(void *));
-    char *status = malloc(new_size * sizeof(char));
-    memset(keys, 0, new_size * sizeof(long));
-    memset(values, 0, new_size * sizeof(void *));
-    memset(status, 0, new_size * sizeof(char));
+    long *keys = calloc(new_size, sizeof(long));
+    void **values = calloc(new_size, sizeof(void *));
+    char *status = calloc(new_size, sizeof(char));
 
     for (int i = 0; i < map->size; i++) {
         if (map->status[i] != STATUS_USED) continue;
@@ -137,8 +134,7 @@ void longmap_empty(LongMap *map) {
 }
 
 LongMap *longmap_copy(LongMap *map) {
-    LongMap *result = malloc(sizeof(LongMap));
-    memset(result, 0, sizeof(LongMap));
+    LongMap *result = calloc(1, sizeof(LongMap));
     result->keys = malloc(map->size * sizeof(long));
     result->values = malloc(map->size * sizeof(void *));
     result->status = malloc(map->size * sizeof(char));
@@ -180,15 +176,11 @@ LongMapIterator longmap_iterator(LongMap *map) {
 }
 
 LongMap *new_longmap(void) {
-    LongMap *map = malloc(sizeof(LongMap));
-    memset(map, 0, sizeof(LongMap));
+    LongMap *map = calloc(1, sizeof(LongMap));
     map->size = DEFAULT_SIZE;
-    map->keys = malloc(DEFAULT_SIZE * sizeof(long));
-    map->values = malloc(DEFAULT_SIZE * sizeof(void *));
-    map->status = malloc(DEFAULT_SIZE * sizeof(char));
-    memset(map->keys, 0, DEFAULT_SIZE * sizeof(long));
-    memset(map->values, 0, DEFAULT_SIZE * sizeof(void *));
-    memset(map->status, 0, DEFAULT_SIZE * sizeof(char));
+    map->keys = calloc(DEFAULT_SIZE, sizeof(long));
+    map->values = calloc(DEFAULT_SIZE, sizeof(void *));
+    map->status = calloc(DEFAULT_SIZE, sizeof(char));
     map->hashfunc = hash;
     return map;
 }

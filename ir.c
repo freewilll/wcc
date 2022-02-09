@@ -26,8 +26,7 @@ void free_values(void) {
 }
 
 Value *new_value(void) {
-    Value *v = malloc(sizeof(Value));
-    memset(v, 0, sizeof(Value));
+    Value *v = calloc(1, sizeof(Value));
     append_to_list(allocated_values, v);
     init_value(v);
 
@@ -76,8 +75,7 @@ void add_tac_to_ir(Tac *tac) {
 }
 
 Tac *new_instruction(int operation) {
-    Tac *tac = malloc(sizeof(Tac));
-    memset(tac, 0, sizeof(Tac));
+    Tac *tac = calloc(1, sizeof(Tac));
     tac->operation = operation;
 
     return tac;
@@ -485,12 +483,9 @@ void reverse_function_argument_order(Function *function) {
     TacInterval *function_args;
     function_args = malloc(sizeof(TacInterval) * function_call_count * MAX_ARGS);
 
-    int *arg_counts = malloc(sizeof(int) * function_call_count);
-    memset(arg_counts, 0, sizeof(int) * function_call_count);
-    Tac **calls = malloc(sizeof(Tac *) * function_call_count);
-    memset(calls, 0, sizeof(int) * function_call_count);
-    Tac **call_starts = malloc(sizeof(Tac *) * function_call_count);
-    memset(call_starts, 0, sizeof(int) * function_call_count);
+    int *arg_counts = calloc(function_call_count, sizeof(int));
+    Tac **calls = calloc(function_call_count, sizeof(Tac *));
+    Tac **call_starts = calloc(function_call_count, sizeof(Tac *));
 
     ir = function->ir;
 
@@ -634,8 +629,7 @@ void renumber_labels(Function *function) {
 
     if (!max_label_count) return;
 
-    int *mapping = malloc(sizeof(int) * (max_label_count + 1));
-    memset(mapping, 0, sizeof(int) * (max_label_count + 1));
+    int *mapping = calloc(max_label_count + 1, sizeof(int));
 
     // Make mapping of old to new label indexes
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -719,8 +713,7 @@ static void set_on_stack(Value *v, char *on_stack) {
 // which case, they must be on the stack.
 // Function parameters aren't touched in this function
 void allocate_value_vregs(Function *function) {
-    char *on_stack = malloc(sizeof(char) * (function->local_symbol_count + 1));
-    memset(on_stack, 0, sizeof(char) * (function->local_symbol_count + 1));
+    char *on_stack = calloc(function->local_symbol_count + 1, sizeof(char));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Keep variables that are used with the & operator on the stack
@@ -756,8 +749,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
             ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
-            Tac *tac = malloc(sizeof(Tac));
-            memset(tac, 0, sizeof(Tac));
+            Tac *tac = calloc(1, sizeof(Tac));
             tac->operation = IR_JNZ;
             ir->dst = new_value();
             ir->dst->type = new_type(TYPE_INT);
@@ -773,8 +765,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
 // Long double rvalues never live in registers, ensure all of them are on the stack
 void move_long_doubles_to_the_stack(Function *function) {
     make_vreg_count(function, 0);
-    int *local_indexes = malloc(sizeof(int) * (function->vreg_count + 1));
-    memset(local_indexes, 0, sizeof(int) * (function->vreg_count + 1));
+    int *local_indexes = calloc(function->vreg_count + 1, sizeof(int));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Long doubles in vregs are moved to the stack
@@ -872,8 +863,7 @@ void remove_unused_function_call_results(Function *function) {
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
     }
 
-    char *used_vregs = malloc(sizeof(char) * (vreg_count + 1));
-    memset(used_vregs, 0, sizeof(char) * (vreg_count + 1));
+    char *used_vregs = calloc(vreg_count + 1, sizeof(char));
 
     Tac *tac = function->ir;
     while (tac->next) tac = tac->next;

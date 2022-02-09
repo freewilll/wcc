@@ -121,11 +121,9 @@ void make_stack_offsets(Function *function, char *function_name) {
     if (!count) return; // Nothing is on the stack
 
     // Determine size & alignments for all variables on the stack
-    int *stack_alignments = malloc((count + 1) * sizeof(int));
-    memset(stack_alignments, 0, (count + 1) * sizeof(int));
+    int *stack_alignments = calloc((count + 1), sizeof(int));
 
-    int *stack_sizes = malloc((count + 1) * sizeof(int));
-    memset(stack_sizes, 0, (count + 1) * sizeof(int));
+    int *stack_sizes = calloc((count + 1), sizeof(int));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst)  process_stack_offset(tac->dst,  stack_alignments, stack_sizes);
@@ -234,8 +232,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
     if (!t) return 0;
 
-    char *buffer = malloc(128);
-    memset(buffer, 0, 128);
+    char *buffer = calloc(1, 128);
     char *result = buffer;
 
     while (*t && *t != ' ') *buffer++ = *t++;
@@ -441,8 +438,7 @@ static void output_x86_operation(Tac *tac, int function_pc) {
 
 // Add an instruction after ir and return ir of the new instruction
 static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *x86_template) {
-    Tac *tac = malloc(sizeof(Tac));
-    memset(tac, 0, sizeof(Tac));
+    Tac *tac = calloc(1, sizeof(Tac));
     tac->operation = operation;
     tac->dst = dst;
     tac->src1 = src1;
@@ -515,8 +511,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
         cur_stack_push_count += stack_size / 8;
     }
 
-    saved_registers = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
-    memset(saved_registers, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    saved_registers = calloc(sizeof(int), PHYSICAL_REGISTER_COUNT);
 
     ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
 

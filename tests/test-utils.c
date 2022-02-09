@@ -245,8 +245,7 @@ Value *g(int index) {
     Value *v;
     Symbol *s;
 
-    s = malloc(sizeof(Symbol));
-    memset(s, 0, sizeof(Symbol));
+    s = calloc(1, sizeof(Symbol));
     wasprintf(&(s->identifier), "g%d", index);
     wasprintf(&(s->global_identifier), "g%d", index);
 
@@ -274,8 +273,7 @@ Value *fu(int index) {
     v = new_value();
     v->function_symbol = s;
 
-    v->function_symbol = malloc(sizeof(Symbol));
-    memset(v->function_symbol, 0, sizeof(Symbol));
+    v->function_symbol = calloc(1, sizeof(Symbol));
 
     v->function_symbol->type = new_type(TYPE_FUNCTION);
     v->function_symbol->type->function = new_function();

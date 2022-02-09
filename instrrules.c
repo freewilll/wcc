@@ -1201,8 +1201,7 @@ void init_instruction_selection_rules(void) {
     disable_merge_constants = 0;
     rule_coverage_file = 0;
 
-    instr_rules = malloc(MAX_RULE_COUNT * sizeof(Rule));
-    memset(instr_rules, 0, MAX_RULE_COUNT * sizeof(Rule));
+    instr_rules = calloc(MAX_RULE_COUNT, sizeof(Rule));
 
     init_moves_templates();
 

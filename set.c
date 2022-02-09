@@ -7,8 +7,7 @@
 Set *new_set(int max_value) {
     Set *result = malloc(sizeof(Set));
     result->max_value = max_value;
-    result->elements = malloc((max_value + 1) * sizeof(char));
-    memset(result->elements, 0, (max_value + 1) * sizeof(char));
+    result->elements = calloc(max_value + 1, sizeof(char));
     result->cached_element_count = 0;
     result->cached_elements = 0;
 

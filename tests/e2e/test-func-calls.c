@@ -218,8 +218,7 @@ void test_open_read_write_close() {
     assert_int(4, i, "write 4 bytes");
     fclose(f);
 
-    data = malloc(16);
-    memset(data, 0, 16);
+    data = calloc(1, 16);
     f = fopen("/tmp/write-test", "r");
     assert_int(1, f > 0, "open file for reading");
     assert_int(4, fread(data, 1, 16, f), "read 4 bytes");

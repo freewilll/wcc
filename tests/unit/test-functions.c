@@ -107,8 +107,7 @@ void test_param_allocation(
 
     finalize_function_param_allocation(fpa);
 
-    char *description = malloc(256);
-    memset(description, 0, 256);
+    char *description = calloc(1, 256);
     sprintf(description, "Function param placing                 ");
     char *b = &(description[23]);
 

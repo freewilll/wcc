@@ -32,10 +32,8 @@ static void maybe_rehash(StrMap *map) {
         new_size = map->size * 2;
 
     int mask = new_size - 1;
-    char **keys = malloc(new_size * sizeof(char *));
-    void **values = malloc(new_size * sizeof(void *));
-    memset(keys, 0, new_size * sizeof(char *));
-    memset(values, 0, new_size * sizeof(void *));
+    char **keys = calloc(new_size,  sizeof(char *));
+    void **values = calloc(new_size,  sizeof(void *));
 
     for (int i = 0; i < map->size; i++) {
         char *key;
@@ -144,13 +142,10 @@ StrMapIterator strmap_iterator(StrMap *map) {
 }
 
 StrMap *new_strmap(void) {
-    StrMap *map = malloc(sizeof(StrMap));
-    memset(map, 0, sizeof(StrMap));
+    StrMap *map = calloc(1, sizeof(StrMap));
     map->size = DEFAULT_SIZE;
-    map->keys = malloc(DEFAULT_SIZE * sizeof(void *));
-    map->values = malloc(DEFAULT_SIZE * sizeof(char *));
-    memset(map->keys, 0, DEFAULT_SIZE * sizeof(void *));
-    memset(map->values, 0, DEFAULT_SIZE * sizeof(void *));
+    map->keys = calloc(DEFAULT_SIZE, sizeof(void *));
+    map->values = calloc(DEFAULT_SIZE, sizeof(char *));
     return map;
 }
 

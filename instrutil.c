@@ -110,8 +110,7 @@ static char *add_size_to_template(char *template, int size) {
     if (!template) return 0; // Some magic operations have no templates but are implemented in codegen.
 
     char x86_size = size_to_x86_size(size);
-    char *result = malloc(128);
-    memset(result, 0, 128);
+    char *result = calloc(1, 128);
     char *dst = result;
 
     char *c = template;
@@ -222,32 +221,28 @@ X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *temp
 
 // Add a save value operation to a rule
 void add_save_value(Rule *r, int arg, int slot) {
-    X86Operation *x86op = malloc(sizeof(X86Operation));
-    memset(x86op, 0, sizeof(X86Operation));
+    X86Operation *x86op = calloc(1, sizeof(X86Operation));
     x86op->save_value_in_slot = slot;
     x86op->arg = arg;
     add_x86_op_to_rule(r, x86op);
 }
 
 void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
-    X86Operation *x86op = malloc(sizeof(X86Operation));
-    memset(x86op, 0, sizeof(X86Operation));
+    X86Operation *x86op = calloc(1, sizeof(X86Operation));
     x86op->allocate_stack_index_in_slot = slot;
     x86op->allocated_type = type;
     add_x86_op_to_rule(r, x86op);
 }
 
 void add_allocate_register_in_slot(Rule *r, int slot, int type) {
-    X86Operation *x86op = malloc(sizeof(X86Operation));
-    memset(x86op, 0, sizeof(X86Operation));
+    X86Operation *x86op = calloc(1, sizeof(X86Operation));
     x86op->allocate_register_in_slot = slot;
     x86op->allocated_type = type;
     add_x86_op_to_rule(r, x86op);
 }
 
 void add_allocate_label_in_slot(Rule *r, int slot) {
-    X86Operation *x86op = malloc(sizeof(X86Operation));
-    memset(x86op, 0, sizeof(X86Operation));
+    X86Operation *x86op = calloc(1, sizeof(X86Operation));
     x86op->allocate_label_in_slot = slot;
     add_x86_op_to_rule(r, x86op);
 }

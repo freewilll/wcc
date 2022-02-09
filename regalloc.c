@@ -17,8 +17,7 @@ void compress_vregs(Function *function) {
 
     make_vreg_count(function, 0);
     int old_vreg_count = function->vreg_count;
-    int *vreg_map = malloc((old_vreg_count + 1) * sizeof(int));
-    memset(vreg_map, 0, (old_vreg_count + 1) * sizeof(int));
+    int *vreg_map = calloc(old_vreg_count + 1, sizeof(int));
     int new_vreg_count = live_range_reserved_pregs_offset;
 
     if (debug_ssa_vreg_renumbering) {
@@ -64,8 +63,7 @@ static int vreg_cost_cmpfunc(const void *a, const void *b) {
 }
 
 static int *make_original_stack_indexes(Function *function) {
-    int *result = malloc(sizeof(int *) * (function->vreg_count + 1));
-    memset(result, 0, sizeof(int *) * (function->vreg_count + 1));
+    int *result = calloc(function->vreg_count + 1, sizeof(int *));
 
     for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->operation == X_MOV && tac->src1 && tac->src1->function_param_original_stack_index)
@@ -256,8 +254,7 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 // Called once at startup
 void init_allocate_registers(void) {
     // Which registers are preserved across function calls
-    callee_saved_registers = malloc(sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
-    memset(callee_saved_registers, 0, sizeof(int) * (PHYSICAL_REGISTER_COUNT + 1));
+    callee_saved_registers = calloc(PHYSICAL_REGISTER_COUNT + 1, sizeof(int));
 
     callee_saved_registers[REG_RBX] = 1;
     callee_saved_registers[REG_R12] = 1;
@@ -279,8 +276,7 @@ void init_allocate_registers(void) {
     for (int i = 0; i < 8; i++) sse_arg_registers[i] = LIVE_RANGE_PREG_XMM00_INDEX + i;
 
     // Map from reserved register 0-11 to physical register 0-15
-    preg_map = malloc(sizeof(int) * PHYSICAL_REGISTER_COUNT);
-    memset(preg_map, 0, sizeof(int) * PHYSICAL_REGISTER_COUNT);
+    preg_map = calloc(PHYSICAL_REGISTER_COUNT, sizeof(int));
 
     arg_register_set.int_registers = int_arg_registers;
     arg_register_set.sse_registers = sse_arg_registers;

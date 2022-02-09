@@ -235,8 +235,7 @@ void test_dominance() {
 
     function = new_function();
 
-    blocks = malloc(9 * sizeof(Block));
-    memset(blocks, 0, 9 * sizeof(Block));
+    blocks = calloc(9, sizeof(Block));
 
     function->cfg = new_graph(9, 11);
     function->blocks = blocks;
@@ -853,8 +852,7 @@ void test_top_down_register_allocation() {
     function->spill_cost = malloc((vreg_count + 1) * sizeof(int));
     for (i = 1; i <= vreg_count; i++) function->spill_cost[i] = i;
 
-    ig = malloc((vreg_count + 1) * (vreg_count + 1) * sizeof(int));
-    memset(ig, 0, (vreg_count + 1) * (vreg_count + 1) * sizeof(int));
+    ig = calloc((vreg_count + 1) * (vreg_count + 1), sizeof(int));
     function->interference_graph = ig;
 
     add_ig_edge(ig, vreg_count, 1, 2);

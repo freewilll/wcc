@@ -140,10 +140,8 @@ int main(int argc, char **argv) {
 
     char *output_filename = 0;
     int input_filename_count = 0;
-    char **input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
-    memset(input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
-    char **linker_input_filenames = malloc(sizeof(char *) * MAX_INPUT_FILENAMES);
-    memset(linker_input_filenames, 0, sizeof(char *) * MAX_INPUT_FILENAMES);
+    char **input_filenames = calloc(MAX_INPUT_FILENAMES, sizeof(char *));
+    char **linker_input_filenames = calloc(MAX_INPUT_FILENAMES, sizeof(char *));
 
     init_allocate_registers();
     init_instruction_selection_rules();

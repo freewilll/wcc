@@ -166,12 +166,10 @@ static IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
         printf("\n");
     }
 
-    IGraph *g = malloc(sizeof(IGraph));
-    memset(g, 0, sizeof(IGraph));
+    IGraph *g = calloc(1, sizeof(IGraph));
 
     int node_count = g1->node_count + g2->node_count;
-    IGraphNode *inodes = malloc(node_count * sizeof(IGraphNode));
-    memset(inodes, 0, node_count * sizeof(IGraphNode));
+    IGraphNode *inodes = calloc(node_count, sizeof(IGraphNode));
 
     g->nodes = inodes;
     g->graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
@@ -318,8 +316,7 @@ static void make_igraphs(Function *function, int block_id) {
         if (tac->src1) node_count++;
         if (tac->src2) node_count++;
 
-        IGraphNode *nodes = malloc(node_count * sizeof(IGraphNode));
-        memset(nodes, 0, node_count * sizeof(IGraphNode));
+        IGraphNode *nodes = calloc(node_count, sizeof(IGraphNode));
 
         Graph *graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
 
@@ -350,8 +347,7 @@ static void make_igraphs(Function *function, int block_id) {
 
     if (liveout_vreg_count > vreg_count) vreg_count = liveout_vreg_count;
 
-    VregIGraph* vreg_igraphs = malloc((vreg_count + 1) * sizeof(VregIGraph));
-    memset(vreg_igraphs, 0, (vreg_count + 1) * sizeof(VregIGraph));
+    VregIGraph* vreg_igraphs = calloc(vreg_count + 1, sizeof(VregIGraph));
 
     for (LongSetIterator it = longset_iterator(liveout); !longset_iterator_finished(&it); longset_iterator_next(&it)) {
         int vreg = longset_iterator_element(&it);
@@ -496,12 +492,10 @@ static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id,
 // Remove sequences of moves from the instruction graph. A new graph is created by
 // recursing through the src.
 static IGraph *simplify_igraph(IGraph *src) {
-    IGraph *dst = malloc(sizeof(IGraph));
-    memset(dst, 0, sizeof(IGraph));
+    IGraph *dst = calloc(1, sizeof(IGraph));
 
     int node_count = src->node_count;
-    IGraphNode *inodes = malloc(node_count * sizeof(IGraphNode));
-    memset(inodes, 0, node_count * sizeof(IGraphNode));
+    IGraphNode *inodes = calloc(node_count, sizeof(IGraphNode));
 
     dst->nodes = inodes;
     dst->graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
@@ -1258,24 +1252,17 @@ static void tile_igraphs(Function *function) {
         igraph_labels = malloc(igraphs[i].node_count * sizeof(Set *));
         for (int j = 0; j < igraphs[i].node_count; j++) igraph_labels[j] = new_set(instr_rule_count);
 
-        igraph_rules = malloc(igraphs[i].node_count * sizeof(Rule *));
-        memset(igraph_rules, 0, igraphs[i].node_count * sizeof(Rule *));
+        igraph_rules = calloc(igraphs[i].node_count, sizeof(Rule *));
 
         if (debug_instsel_tiling)
             printf("\nTiling\n-----------------------------------------------------\n");
 
         cost_graph = new_graph(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT, MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT);
-
-        cost_rules = malloc(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
-        memset(cost_rules, 0, MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
-
-        accumulated_cost = malloc(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
-        memset(accumulated_cost, 0, MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
+        cost_rules = calloc(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT, sizeof(int));
+        accumulated_cost = calloc(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT, sizeof(int));
 
         cost_graph_node_count = 0;
-
-        cost_to_igraph_map = malloc(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
-        memset(cost_to_igraph_map, 0, MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT * sizeof(int));
+        cost_to_igraph_map = calloc(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT, sizeof(int));
 
         recursive_tile_igraphs(&(igraphs[i]), 0);
         if (debug_instsel_cost_graph) print_cost_graph(cost_graph, cost_rules, accumulated_cost);

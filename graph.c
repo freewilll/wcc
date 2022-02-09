@@ -6,11 +6,8 @@
 #include "wcc.h"
 
 static void allocate_graph_storage(Graph *g) {
-    g->nodes = malloc(g->node_count * sizeof(GraphNode));
-    memset(g->nodes, 0, g->node_count * sizeof(GraphNode));
-
-    g->edges = malloc(g->max_edge_count * sizeof(GraphEdge));
-    memset(g->edges, 0, g->max_edge_count * sizeof(GraphEdge));
+    g->nodes = calloc(g->node_count, sizeof(GraphNode));
+    g->edges = calloc(g->max_edge_count, sizeof(GraphEdge));
 }
 
 static void init_graph(Graph *g, int node_count, int edge_count) {
@@ -22,8 +19,7 @@ static void init_graph(Graph *g, int node_count, int edge_count) {
 }
 
 Graph *new_graph(int node_count, int edge_count) {
-    Graph *g = malloc(sizeof(Graph));
-    memset(g, 0, sizeof(Graph));
+    Graph *g = calloc(1, sizeof(Graph));
     init_graph(g, node_count, edge_count);
 
     return g;
