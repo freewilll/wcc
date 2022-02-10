@@ -86,6 +86,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     blast_vregs_with_live_ranges(function);
     coalesce_live_ranges(function, 1);
     if (stop_at == COMPILE_STOP_AFTER_LIVE_RANGES) return;
+    free_interference_graph(function);
 
     // Instruction selection
     if (log_compiler_phase_durations) debug_log("Instruction Selection");
@@ -106,6 +107,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     make_interference_graph(function, 1, 0);
     free_dominance(function);
     allocate_registers(function);
+    free_interference_graph(function);
     remove_stack_self_moves(function);
     add_spill_code(function);
 

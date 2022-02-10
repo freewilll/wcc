@@ -1464,6 +1464,13 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
     }
 }
 
+void free_interference_graph(Function *function) {
+    if (function->interference_graph) {
+        free(function->interference_graph);
+        function->interference_graph = 0;
+    }
+}
+
 static void copy_interference_graph_edges(char *interference_graph, int vreg_count, int src, int dst) {
     // Copy all edges in the lower triangular interference graph matrics from src to dst
 
@@ -1583,6 +1590,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
         outer_changed = 0;
 
         make_live_range_spill_cost(function);
+        free_interference_graph(function);
         make_interference_graph(function, 0, 1);
 
         char *interference_graph = function->interference_graph;

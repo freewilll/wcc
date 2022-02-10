@@ -1113,6 +1113,7 @@ void make_live_ranges(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
 void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void make_interference_graph(Function *function, int include_clobbers, int include_instrsel_constraints);
+void free_interference_graph(Function *function);
 void coalesce_live_ranges(Function *function, int check_register_constraints);
 void make_preferred_live_range_preg_indexes(Function *function);
 
