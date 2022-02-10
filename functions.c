@@ -807,7 +807,10 @@ static Tac *make_param_move_to_register_tac(Function *function, Type *type, int 
 
     tac->src1 = new_value();
     tac->src1->type = dup_type(tac->dst->type);
-    tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
+
+    int max = is_sse_floating_point_type(type) ? 8 : 6;
+    if (function_param_index < max)
+        tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
 
     return tac;
 }
@@ -821,7 +824,10 @@ static Tac *make_param_move_to_stack_tac(Function *function, Type *type, int fun
 
     tac->src1 = new_value();
     tac->src1->type = dup_type(tac->dst->type);
-    tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
+
+    int max = is_sse_floating_point_type(type) ? 8 : 6;
+    if (function_param_index < max)
+        tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
 
     return tac;
 }
