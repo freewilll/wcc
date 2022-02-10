@@ -762,7 +762,7 @@ void insert_phi_functions(Function *function) {
             GraphEdge *e = cfg->nodes[b].pred;
             while (e) { predecessor_count++; e = e->next_pred; }
 
-            Value *phi_values = calloc(predecessor_count, sizeof(Value));
+            Value *phi_values = calloc(predecessor_count + 1, sizeof(Value));
             for (int i = 0; i < predecessor_count; i++) {
                 init_value(&phi_values[i]);
                 phi_values[i].type = new_type(TYPE_LONG);
