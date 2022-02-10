@@ -1102,6 +1102,7 @@ void rewrite_lvalue_reg_assignments(Function *function);
 void make_control_flow_graph(Function *function);
 void make_block_dominance(Function *function);
 void analyze_dominance(Function *function);
+void free_dominance(Function *function);
 int make_vreg_count(Function *function, int starting_count);
 void make_uevar_and_varkill(Function *function);
 void make_liveout(Function *function);

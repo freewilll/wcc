@@ -263,6 +263,11 @@ void make_control_flow_graph(Function *function) {
     }
 }
 
+void free_control_flow_graph(Function *function) {
+    free(function->blocks);
+    free_graph(function->cfg);
+}
+
 // Algorithm from page 503 of Engineering a compiler
 void make_block_dominance(Function *function) {
     Graph *cfg = function->cfg;
@@ -331,6 +336,10 @@ void make_block_dominance(Function *function) {
             printf("\n");
         }
     }
+}
+
+void free_block_dominance(Function *function) {
+    free(function->dominance);
 }
 
 static void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) {
@@ -420,6 +429,13 @@ static void make_block_immediate_dominators(Function *function) {
 
     function->idom = calloc(block_count, sizeof(int));
     for (int i = 0; i < block_count; i++) function->idom[i] = idoms[i];
+
+    free(rpos);
+    free(visited);
+}
+
+static void free_block_immediate_dominators(Function *function) {
+    free(function->idom);
 }
 
 // Algorithm on page 499 of engineering a compiler
@@ -428,7 +444,7 @@ static void make_block_dominance_frontiers(Function *function) {
     Graph *cfg = function->cfg;
     int block_count = function->cfg->node_count;
 
-    Set **df = calloc(block_count, sizeof(Set));
+    Set **df = calloc(block_count, sizeof(Set *));
     for (int i = 0; i < block_count; i++) df[i] = new_set(block_count);
 
     int *predecessors = malloc(block_count * sizeof(int));
@@ -466,6 +482,14 @@ static void make_block_dominance_frontiers(Function *function) {
             printf("\n");
         }
     }
+
+    free(predecessors);
+}
+
+static void free_block_dominance_frontiers(Function *function) {
+    int block_count = function->cfg->node_count;
+    for (int i = 0; i < block_count; i++) free_set(function->dominance_frontiers[i]);
+    free(function->dominance_frontiers);
 }
 
 void analyze_dominance(Function *function) {
@@ -475,6 +499,13 @@ void analyze_dominance(Function *function) {
     make_block_dominance(function);
     make_block_immediate_dominators(function);
     make_block_dominance_frontiers(function);
+}
+
+void free_dominance(Function *function) {
+    free_block_dominance_frontiers(function);
+    free_block_immediate_dominators(function);
+    free_block_dominance(function);
+    free_control_flow_graph(function);
 }
 
 int make_vreg_count(Function *function, int starting_count) {
