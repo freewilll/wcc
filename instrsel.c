@@ -22,6 +22,8 @@ int *cost_rules;                // Mapping of cost graph node id to x86 instruct
 int *accumulated_cost;          // Total cost of sub tree of a cost graph node
 Set **igraph_labels;            // Matched instruction rule ids for a igraph node id
 Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node id
+List *allocated_graphs;         // Keep track of allocations so they can be freed
+List *allocated_igraphs;        // Keep track of allocations so they can be freed
 
 static int recursive_tile_igraphs(IGraph *igraph, int node_id);
 
@@ -167,12 +169,14 @@ static IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
     }
 
     IGraph *g = calloc(1, sizeof(IGraph));
+    append_to_list(allocated_igraphs, g);
 
     int node_count = g1->node_count + g2->node_count;
     IGraphNode *inodes = calloc(node_count, sizeof(IGraphNode));
 
     g->nodes = inodes;
     g->graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
+    append_to_list(allocated_graphs, g->graph);
     g->node_count = node_count;
     int join_from = -1;
     int join_to = -1;
@@ -287,6 +291,9 @@ static int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
 }
 
 static void make_igraphs(Function *function, int block_id) {
+    allocated_graphs = new_list(1024);
+    allocated_igraphs = new_list(1024);
+
     Block *blocks = function->blocks;
 
     int vreg_count = 0;
@@ -319,6 +326,7 @@ static void make_igraphs(Function *function, int block_id) {
         IGraphNode *nodes = calloc(node_count, sizeof(IGraphNode));
 
         Graph *graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
+        append_to_list(allocated_graphs, graph);
 
         nodes[0].tac = tac;
         node_count = 1;
@@ -329,6 +337,7 @@ static void make_igraphs(Function *function, int block_id) {
         igraphs[i].graph = graph;
         igraphs[i].nodes = nodes;
         igraphs[i].node_count = node_count;
+        append_to_list(allocated_igraphs, &(igraphs[i]));
 
         i++;
 
@@ -437,6 +446,8 @@ static void make_igraphs(Function *function, int block_id) {
         tac = tac->prev;
     }
 
+    free(vreg_igraphs);
+
     if (debug_instsel_tree_merging)
         printf("\n=================================\n");
 
@@ -455,6 +466,21 @@ static void make_igraphs(Function *function, int block_id) {
             dump_igraph(&(igraphs[i]), 0);
         }
     }
+}
+
+static void free_igraphs(Function *function) {
+    for (int i = 0; i < allocated_graphs->length; i++)
+        free_graph(allocated_graphs->elements[i]);
+
+    for (int i = 0; i < allocated_igraphs->length; i++) {
+        IGraph *ig = allocated_igraphs->elements[i];
+        if (ig->node_count) free(ig->nodes);
+    }
+
+    free(igraphs);
+
+    free_list(allocated_igraphs);
+    free_list(allocated_graphs);
 }
 
 // Recurse down src igraph, copying nodes to dst igraph and adding edges
@@ -499,6 +525,7 @@ static IGraph *simplify_igraph(IGraph *src) {
 
     dst->nodes = inodes;
     dst->graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
+    append_to_list(allocated_graphs,dst->graph);
     dst->node_count = node_count;
 
     if (debug_instsel_igraph_simplification) {
@@ -1317,6 +1344,7 @@ void select_instructions(Function *function) {
         simplify_igraphs(function, i);
         if (!disable_merge_constants) merge_constants(function);
         tile_igraphs(function);
+        free_igraphs(function);
 
         if (ir_start) {
             new_ir_pos->next = ir_start;
