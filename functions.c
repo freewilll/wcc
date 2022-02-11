@@ -649,7 +649,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
                 Type *type;
                 int pi = *param_index;
                 if (pi >= 0 && pi < called_function->param_count) {
-                    type = called_function->param_types[pi];
+                    type = called_function->param_types->elements[pi];
                 }
                 else
                     type = apply_default_function_call_argument_promotions((*call_arg)->type);
@@ -1287,7 +1287,7 @@ void add_function_param_moves(Function *function, char *identifier) {
     }
 
     for (int i = 0; i < function->param_count; i++)
-        add_function_param_to_allocation(fpa, function->param_types[i]);
+        add_function_param_to_allocation(fpa, function->param_types->elements[i]);
 
     function->fpa = fpa;
     finalize_function_param_allocation(fpa);
@@ -1314,7 +1314,7 @@ void add_function_param_moves(Function *function, char *identifier) {
     for (int i = 0; i < function->param_count; i++) {
         if (fpa->params[fpa_start + i].locations[0].stack_offset != -1) continue;
 
-        Type *type = function->param_types[i];
+        Type *type = function->param_types->elements[i];
 
         int single_register_arg_count = fpa->params[fpa_start + i].locations[0].int_register == -1
             ? fpa->params[fpa_start + i].locations[0].sse_register
@@ -1381,7 +1381,7 @@ void add_function_param_moves(Function *function, char *identifier) {
     for (int i = 0; i < function->param_count; i++) {
         if (fpa->params[fpa_start + i].locations[0].stack_offset == -1) continue;
 
-        Type *type = function->param_types[i];
+        Type *type = function->param_types->elements[i];
 
         int stack_index = (fpa->params[fpa_start + i].locations[0].stack_offset + 16) >> 3;
 
@@ -1643,4 +1643,9 @@ void finalize_function_param_allocation(FunctionParamAllocation *fpa) {
         printf("  --------------------------------------------------------------\n");
         printf("  total                        size   0x%04x with padding 0x%04x\n", fpa->size, fpa->padding);
     }
+}
+
+void free_function(Function *function) {
+    free_list(function->param_types);
+    free_list(function->param_identifiers);
 }

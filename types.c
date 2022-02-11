@@ -151,7 +151,7 @@ char *sprint_type_in_english(Type *type) {
                 int first = 1;
                 for (int i = 0; i < type->function->param_count; i++) {
                     if (!first) buffer += sprintf(buffer, ", "); else first = 0;
-                    buffer += sprintf(buffer, "%s", sprint_type_in_english(type->function->param_types[i]));
+                    buffer += sprintf(buffer, "%s", sprint_type_in_english(type->function->param_types->elements[i]));
                 }
 
                 if (type->function->is_variadic)buffer += sprintf(buffer, ", ...");
@@ -528,14 +528,14 @@ static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags)
         for (int i = 0; i < type2->function->param_count; i++) {
             if (i < type1->function->param_count) {
                 // Check params match
-                Type *type = apply_default_function_call_argument_promotions(type2->function->param_types[i]);
-                if (!types_are_compatible(type1->function->param_types[i], type))
+                Type *type = apply_default_function_call_argument_promotions(type2->function->param_types->elements[i]);
+                if (!types_are_compatible(type1->function->param_types->elements[i], type))
                     return 0;
             }
             else {
                 // Check default promotions don't affect params
-                Type *type = apply_default_function_call_argument_promotions(type2->function->param_types[i]);
-                if (!types_are_compatible(type2->function->param_types[i], type))
+                Type *type = apply_default_function_call_argument_promotions(type2->function->param_types->elements[i]);
+                if (!types_are_compatible(type2->function->param_types->elements[i], type))
                     return 0;
             }
         }
@@ -551,7 +551,7 @@ static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags)
 
     // Check params match
     for (int i = 0; i < type1->function->param_count; i++) {
-        if (!types_are_compatible(type1->function->param_types[i], type2->function->param_types[i]))
+        if (!types_are_compatible(type1->function->param_types->elements[i], type2->function->param_types->elements[i]))
             return 0;
     }
 
@@ -657,8 +657,8 @@ Type *composite_type(Type *type1, Type *type2) {
             result->function = function;
 
             for (int i = 0; i < function->param_count; i++) {
-                Type *type = composite_type(type1->function->param_types[i], type2->function->param_types[i]);
-                function->param_types[i] = type;
+                Type *type = composite_type(type1->function->param_types->elements[i], type2->function->param_types->elements[i]);
+                function->param_types->elements[i] = type;
             }
 
             return result;

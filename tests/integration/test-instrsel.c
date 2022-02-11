@@ -634,8 +634,8 @@ void run_function_call_single_arg(Value *src) {
     tac = i(0, IR_START_CALL, 0, c(0), 0);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
     tac->src1->type->function->param_count = 1;
-    tac->src1->type->function->param_types = malloc(sizeof(Type));
-    tac->src1->type->function->param_types[0] = dup_type(src->type);
+    tac->src1->type->function->param_types = new_list(1);
+    append_to_list(tac->src1->type->function->param_types, dup_type(src->type));
     tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(2), v(1), 0);
     finish_spill_ir(function);
@@ -1658,9 +1658,9 @@ void test_param_vreg_moves() {
     start_ir();
 
     function->param_count = 10;
-    function->param_types = malloc(sizeof(Type) * function->param_count);
+    function->param_types = new_list(1);
     for (j = 0; j < function->param_count; j++)
-        function->param_types[j] = new_type(TYPE_CHAR);
+        append_to_list(function->param_types, new_type(TYPE_CHAR));
 
     i(0, IR_NOP, 0, 0, 0);
 

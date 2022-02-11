@@ -186,8 +186,8 @@ typedef struct scope {
 typedef struct function {
     Type *return_type;                                  // Type of return value
     int param_count;                                    // Number of parameters
-    Type **param_types;                                 // Types of parameters
-    char **param_identifiers;                           // Names of parameters
+    List *param_types;                                  // List of types of parameters
+    List *param_identifiers;                            // List of names of parameters
     int is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
     int local_symbol_count;                             // Number of local symbols, used by the parser
     int vreg_count;                                     // Number of virtual registers used in IR
@@ -1132,6 +1132,7 @@ Value *make_function_call_value(int function_call);
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 void finalize_function_param_allocation(FunctionParamAllocation *fpa);
+void free_function(Function *function);
 
 // regalloc.c
 int *int_arg_registers;

@@ -599,8 +599,8 @@ Type *parse_declarator(void) {
 static Type *parse_function(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
     function_type->function = new_function();
-    function_type->function->param_types = malloc(sizeof(Type) * MAX_FUNCTION_CALL_ARGS);
-    function_type->function->param_identifiers = malloc(sizeof(char *) * MAX_FUNCTION_CALL_ARGS);
+    function_type->function->param_types = new_list(8);
+    function_type->function->param_identifiers = new_list(8);
 
     enter_scope();
     function_type->function->scope = cur_scope;
@@ -654,8 +654,8 @@ static Type *parse_function(void) {
 
             if (param_symbol) param_symbol->type = dup_type(symbol_type);
 
-            function_type->function->param_types[param_count] = dup_type(type);
-            function_type->function->param_identifiers[param_count] = cur_type_identifier;
+            append_to_list(function_type->function->param_types, dup_type(type));
+            append_to_list(function_type->function->param_identifiers, cur_type_identifier);
             if (param_symbol) param_symbol->local_index = param_count;
             param_count++;
 
@@ -702,8 +702,8 @@ static void parse_function_paramless_declaration_list(Function *function) {
 
             int found_identifier = 0;
             for (int i = 0; i < function->param_count; i++) {
-                if (!strcmp(function->param_identifiers[i], cur_type_identifier)) {
-                    function->param_types[i] = type;
+                if (!strcmp(function->param_identifiers->elements[i], cur_type_identifier)) {
+                    function->param_types->elements[i] = type;
                     found_identifier = 1;
                     break;
                 }
@@ -2210,8 +2210,8 @@ static void parse_function_call(void) {
 
         // Convert type if needed
         if (!function->is_paramless && arg_count < function->param_count) {
-            if (!type_eq(vtop()->type, function->param_types[arg_count])) {
-                Type *param_type = function->param_types[arg_count];
+            if (!type_eq(vtop()->type, function->param_types->elements[arg_count])) {
+                Type *param_type = function->param_types->elements[arg_count];
 
                 if (param_type->type == TYPE_ARRAY)
                     param_type = decay_array_to_pointer(param_type);
@@ -3369,7 +3369,7 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
 
         // Ensure parameters have identifiers
         for (int i = 0; i < function->param_count; i++)
-            if (!function->param_identifiers[i])
+            if (!function->param_identifiers->elements[i])
                 error("Missing identifier for parameter in function definition");
 
         // Reset globals for a new function
