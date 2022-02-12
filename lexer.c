@@ -464,7 +464,6 @@ void next(void) {
             else if (!strcmp(cur_identifier, "__asm__"      )) { cur_token = TOK_ASM;       }
             else if (!strcmp(cur_identifier, "inline"       )) { cur_token = TOK_INLINE;    }
             else if (!strcmp(cur_identifier, "__inline"     )) { cur_token = TOK_INLINE;    }
-            else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
             else if (!strcmp(cur_identifier, "auto"         )) { cur_token = TOK_AUTO;      }
             else if (!strcmp(cur_identifier, "register"     )) { cur_token = TOK_REGISTER;  }
             else if (!strcmp(cur_identifier, "static"       )) { cur_token = TOK_STATIC;    }
@@ -472,11 +471,6 @@ void next(void) {
             else if (!strcmp(cur_identifier, "const"        )) { cur_token = TOK_CONST;     }
             else if (!strcmp(cur_identifier, "volatile"     )) { cur_token = TOK_VOLATILE;  }
             else if (!strcmp(cur_identifier, "goto"         )) { cur_token = TOK_GOTO;      }
-            else if (!strcmp(cur_identifier, "include"      )) { cur_token = TOK_INCLUDE;   }
-            else if (!strcmp(cur_identifier, "define"       )) { cur_token = TOK_DEFINE;    }
-            else if (!strcmp(cur_identifier, "undef"        )) { cur_token = TOK_UNDEF;     }
-            else if (!strcmp(cur_identifier, "ifdef"        )) { cur_token = TOK_IFDEF;     }
-            else if (!strcmp(cur_identifier, "endif"        )) { cur_token = TOK_ENDIF;     }
 
             else {
                 // Lookup typedef by first going through the short list of known typedefs

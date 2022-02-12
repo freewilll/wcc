@@ -470,20 +470,15 @@ enum {
     TOK_PACKED,
     TOK_ALIGNED,            // 80
     TOK_HASH,
-    TOK_INCLUDE,
-    TOK_DEFINE,
-    TOK_UNDEF,
-    TOK_IFDEF,
-    TOK_ENDIF,
     TOK_AUTO,
     TOK_REGISTER,
     TOK_STATIC,
-    TOK_EXTERN,             // 90
+    TOK_EXTERN,
     TOK_CONST,
     TOK_VOLATILE,
     TOK_RESTRICT,
     TOK_ELLIPSES,
-    TOK_GOTO,
+    TOK_GOTO,               // 90
     TOK_ASM,
 };
 
