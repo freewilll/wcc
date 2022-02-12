@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 #include "../test-lib.h"
 
@@ -1735,6 +1736,19 @@ int test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug() {
     IR_DECL_LOCAL_COMP_OBJ_bug_func(&pc_clobber_bug);
 }
 
+void inc_gi() { gi++; }
+
+int test_expression_statement() {
+    assert_int(1, ({ 1; }), "Expression statement ({ 1; })");
+    assert_int(3, 1 + ({ 2; }), "Expression statement 1 + ({ 2; })");
+
+    gi = 0;
+    ({ inc_gi(); });
+    assert_int( 1, gi, "Expression statement ({ inc_gi(); })");
+
+    assert(1); // with __GNUC__ >= 2, this uses an expression statement
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1799,6 +1813,7 @@ int main(int argc, char **argv) {
     test_insane_array_lookup();
     test_shr_on_signed_int_bug();
     test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug();
+    test_expression_statement();
 
     finalize();
 }

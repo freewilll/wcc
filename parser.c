@@ -41,6 +41,7 @@ void check_and_or_operation_type(Value *src1, Value *src2);
 Value *parse_expression_and_pop(int level);
 static void parse_statement(void);
 static void parse_expression(int level);
+static void parse_compound_statement(void);
 
 static BaseType *base_type;
 
@@ -97,7 +98,20 @@ static Value *pop(void) {
     return result;
 }
 
-// Pop a void value from the stack, or nothing if the stack is empty
+// Make a void value
+static Value *make_void_value(void) {
+    Value *v = new_value();
+    v->type = new_type(TYPE_VOID);
+    v->vreg = new_vreg();
+    return v;
+}
+
+// Push a void value to the stack
+static void push_void(void) {
+    push(make_void_value());
+}
+
+// Pop a void value from the stack,unless the stack is empty
 static void *pop_void(void) {
     if (vs == vs_start) return;
 
@@ -2497,6 +2511,37 @@ void parse_ternary_expression(void) {
     add_jmp_target_instruction(ldst2); // End
 }
 
+static void init_value_stack(void) {
+    vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
+    vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
+}
+
+// Parse GNU extension Statements and Declarations in Expressions
+// https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
+static Value *parse_statement_expression(void) {
+    // Backup the old value stack, since it needs to be reset when the statement is done
+    Value **old_vs_start = vs_start;
+    Value **old_vs = vs;
+
+    init_value_stack();
+    enter_scope();
+    parse_compound_statement();
+
+    Value *result;
+    if (value_stack_is_empty() || vtop()->type->type == TYPE_VOID)
+        result = make_void_value();
+    else
+        result = pop();
+
+    // Restore the original value stack
+    vs_start = old_vs_start;
+    vs = old_vs;
+
+    push(result);
+
+    return result;
+}
+
 // Parse an expression using top-down precedence climbing parsing
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
@@ -2655,7 +2700,13 @@ static void parse_expression(int level) {
 
             else {
                 next();
-                if (cur_token_is_type()) {
+
+                if (cur_token == TOK_LCURLY) {
+                    parse_statement_expression();
+                    consume(TOK_RPAREN, ")");
+                }
+
+                else if (cur_token_is_type()) {
                     // Cast
                     Type *dst_type = parse_type_name();
                     consume(TOK_RPAREN, ")");
@@ -2663,12 +2714,9 @@ static void parse_expression(int level) {
                     parse_expression(TOK_INC);
                     Value *v1 = pl();
 
-                    if (dst_type->type == TYPE_VOID) {
-                        Value *v = new_value();
-                        v->type = new_type(TYPE_VOID);
-                        v->vreg = new_vreg();
-                        push(v);
-                    }
+                    if (dst_type->type == TYPE_VOID)
+                        push_void();
+
                     else if (v1->is_constant) {
                         // Special case for (void *) int-constant
                         if (is_pointer_to_void(dst_type) && (is_integer_type(v1->type) || is_pointer_to_void(v1->type)) && v1->is_constant) {
@@ -3555,8 +3603,7 @@ void init_parser(void) {
     all_typedefs = malloc(sizeof(struct typedef_desc *) * MAX_TYPEDEFS);
     all_typedefs_count = 0;
 
-    vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
-    vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
+    init_value_stack();
 
     label_count = 0;
     local_static_symbol_count = 0;
