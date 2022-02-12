@@ -286,6 +286,10 @@ int main(int argc, char **argv) {
                 argc -= 2;
                 argv += 2;
             }
+            else if (argc > 0 && !strncmp(argv[0], "-print-prog-name=", 17)) {
+                printf("%s\n", &(argv[0][17]));
+                exit(0);
+            }
             else {
                 printf("Unknown parameter %s\n", argv[0]);
                 exit(1);
@@ -322,6 +326,7 @@ int main(int argc, char **argv) {
         printf("--print-rules                               Print instruction selection rules\n");
         printf("--print-precision-decrease-rules            Print instruction selection rules that decrease precision\n");
         printf("--rule-coverage-file <file>                 Append matched rules to file\n");
+        printf("-print-prog-name=<name>                     Print program name\n");
         printf("\n");
         printf("Optimization flags:\n");
         printf("-fno-live-range-coalescing                  Disable SSA live range coalescing\n");
