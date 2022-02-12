@@ -43,6 +43,7 @@ typedef struct cpp_state {
 CppState state;
 
 CircularLinkedList *allocated_tokens; // Keep track of all malloc'd tokens
+CircularLinkedList *allocated_tokens_duplicates; // Keep track of all malloc'd tokens
 
 // Output
 FILE *cpp_output_file;         // Output file handle
@@ -192,6 +193,7 @@ void init_cpp_from_string(char *string) {
 static CppToken *dup_cpp_token(CppToken *tok) {
     CppToken *result = malloc(sizeof(CppToken));
     *result = *tok;
+    append_to_cll(allocated_tokens_duplicates, result);
     return result;
 }
 
@@ -1755,6 +1757,7 @@ Directive *parse_cli_define(char *string) {
 
 
 static void free_allocated_tokens() {
+    // Free allocated_tokens
     CircularLinkedList *head = allocated_tokens->next;
     CircularLinkedList *a = head;
     do {
@@ -1763,7 +1766,22 @@ static void free_allocated_tokens() {
     } while (a != head);
 
     free_circular_linked_list(allocated_tokens);
-    allocated_tokens = 0; // Ensure any future tokens get appended
+
+    // Free allocated_tokens_duplicates
+    if (allocated_tokens_duplicates) {
+        head = allocated_tokens_duplicates->next;
+        a = head;
+        do {
+            if (a->target) free(a->target);
+            a = a->next;
+        } while (a != head);
+
+        free_circular_linked_list(allocated_tokens_duplicates);
+    }
+
+    // Ensure any future tokens get appended
+    allocated_tokens = 0;
+    allocated_tokens_duplicates = 0;
 }
 
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
@@ -1777,6 +1795,8 @@ char *preprocess(char *filename) {
     }
 
     allocated_tokens = 0;
+    allocated_tokens_duplicates = 0;
+
     init_cpp_from_fh(f, filename);
 
     output = new_string_buffer(state.input_size * 2);
