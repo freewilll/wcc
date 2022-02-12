@@ -137,6 +137,7 @@ int main(int argc, char **argv) {
     int print_instr_rules = 0;
     int print_instr_precision_decrease_rules = 0;
     int print_symbols = 0;
+    int shared = 0;
 
     char *output_filename = 0;
     int input_filename_count = 0;
@@ -164,6 +165,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-g"                                )) { opt_debug_symbols = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fPIC"                             )) { opt_PIC = 1;                              argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-shared"                           )) { shared = 1;                                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_stack_register_count = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--log-compiler-phase-durations"    )) { log_compiler_phase_durations = 1;         argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
@@ -323,6 +325,7 @@ int main(int argc, char **argv) {
         printf("-O<n>                                       Set optimization level (ignored)\n");
         printf("-s                                          Output symbol table\n");
         printf("-fPIC                                       Make position independent code\n");
+        printf("-shared                                     Make a shared library\n");
         printf("--prc                                       Output spilled register count\n");
         printf("--log-compiler-phase-durations              Log durations of each compiler phase\n");
         printf("--ir1                                       Output intermediate representation after parsing\n");
@@ -525,6 +528,8 @@ int main(int argc, char **argv) {
             s += sprintf(s, " -l %s", cli_library->library);
 
         s += sprintf(s, " -o %s", output_filename);
+
+        if (shared) s += sprintf(s, " -shared");
 
         if (verbose) {
             s += sprintf(s, " -v");
