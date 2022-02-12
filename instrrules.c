@@ -1415,6 +1415,9 @@ void init_instruction_selection_rules(void) {
     r = add_rule(XRU, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(XRP, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, 0); fin_rule(r);
     r = add_rule(RPF, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(RPF, IR_MOVE, RP1, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(RPF, IR_MOVE, RP2, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(RPF, IR_MOVE, RP3, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(RPF, IR_MOVE, RP4, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(MPF, IR_MOVE, RPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(RPF, IR_MOVE, MPF, 0, 2); add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");

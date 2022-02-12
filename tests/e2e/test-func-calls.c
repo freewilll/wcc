@@ -418,6 +418,12 @@ void test_function_pointers() {
     &pf1;
     pf1 = &return_1;
     assert_int(1, pf1(), "&pointer on the stack");
+
+    // Some bizarre casts
+    pc = &return_1; (*(void(*)(void)) (pc)) ();
+    psh = &return_1; (*(void(*)(void)) (psh)) ();
+    pi = &return_1; (*(void(*)(void)) (pi)) ();
+    pl = &return_1; (*(void(*)(void)) (pl)) ();
 }
 
 void test_sizeof_function_pointer() {
