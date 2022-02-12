@@ -152,6 +152,8 @@ int main(int argc, char **argv) {
     cli_library_paths = 0;
     cli_libraries = 0;
 
+    List *extra_linker_args = new_list(0);
+
     // Determine path to the builtin include directory
     char *builtin_include_path;
     wasprintf(&builtin_include_path, "%sinclude", base_path(argv[0]));
@@ -165,7 +167,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-g"                                )) { opt_debug_symbols = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fPIC"                             )) { opt_PIC = 1;                              argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-shared"                           )) { shared = 1;                                argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-shared"                           )) { shared = 1;                               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_stack_register_count = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--log-compiler-phase-durations"    )) { log_compiler_phase_durations = 1;         argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
@@ -285,6 +287,11 @@ int main(int argc, char **argv) {
                 add_library(&(argv[0][2]));
                 argc--;
                 argv++;
+            }
+            else if (argc > 0 && !strncmp(argv[0], "-Wl,", 4)) {
+                append_to_list(extra_linker_args, &(argv[0][4]));
+                argc -= 1;
+                argv += 1;
             }
             else if (argc > 1 && !strcmp(argv[0], "--rule-coverage-file")) {
                 rule_coverage_file = argv[1];
@@ -530,6 +537,9 @@ int main(int argc, char **argv) {
         s += sprintf(s, " -o %s", output_filename);
 
         if (shared) s += sprintf(s, " -shared");
+
+        for (int i = 0; i < extra_linker_args->length; i++)
+            s += sprintf(s, " -Wl,%s", (char *) extra_linker_args->elements[i]);
 
         if (verbose) {
             s += sprintf(s, " -v");
