@@ -207,6 +207,9 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-Wno-integer-constant-too-large"         )) { warn_integer_constant_too_large = 0;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-Wno-warn-assignment-types-incompatible" )) { warn_assignment_types_incompatible = 0;     argc--; argv++; }
 
+            else if (argc > 0 && !strncmp(argv[0], "-O", 2)) { argc--; argv++; } // Ignore -O
+
+
             else if (argc > 0 && !strcmp(argv[0], "-S")) {
                 run_assembler = 0;
                 run_linker = 0;
@@ -317,6 +320,7 @@ int main(int argc, char **argv) {
         printf("-l <library>                                Pass library to the linker\n");
         printf("-v                                          Display the programs invoked by the compiler\n");
         printf("-g                                          Add debugging information\n");
+        printf("-O<n>                                       Set optimization level (ignored)\n");
         printf("-s                                          Output symbol table\n");
         printf("-fPIC                                       Make position independent code\n");
         printf("--prc                                       Output spilled register count\n");
