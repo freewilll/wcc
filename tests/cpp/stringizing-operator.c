@@ -69,3 +69,7 @@ x
 str(x
     y)
  x
+
+#define stringify(x) #x
+stringify(1
+)

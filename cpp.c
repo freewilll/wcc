@@ -498,6 +498,8 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
             }
         }
 
+        if (!token) return;
+
         if (!is_eol && token->whitespace && !collapse_whitespace)
             append_to_string_buffer(sb, token->whitespace);
         else if (!is_eol && token->whitespace && collapse_whitespace)
