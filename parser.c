@@ -3364,17 +3364,21 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
     ir_start = 0;
     ir_start = add_parser_instruction(IR_NOP, 0, 0, 0);
 
-    function->return_type = type->target;
-    function->ir = ir_start;
-    function->linkage = linkage;
-    function->local_symbol_count = 0;
-    function->labels = new_strmap();
-    function->goto_backpatches = 0;
+    int is_defined = original_symbol && original_symbol->type->function->is_defined;
 
-    if (type->target->type == TYPE_STRUCT_OR_UNION) {
-        FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
-        add_function_param_to_allocation(fpa, type->target);
-        type->function->return_value_fpa = fpa;
+    if (!is_defined) {
+        function->return_type = type->target;
+        function->ir = ir_start;
+        function->linkage = linkage;
+        function->local_symbol_count = 0;
+        function->labels = new_strmap();
+        function->goto_backpatches = 0;
+
+        if (type->target->type == TYPE_STRUCT_OR_UNION) {
+            FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
+            add_function_param_to_allocation(fpa, type->target);
+            type->function->return_value_fpa = fpa;
+        }
     }
 
     // type->function->scope is left entered by the type parser
@@ -3393,9 +3397,11 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
     }
 
     if (original_symbol) {
-        // Merge types if it's a redeclaration
         if (!types_are_compatible(type, original_symbol->type)) error("Incompatible types");
-        symbol->type = composite_type(type, original_symbol->type);
+
+        // Merge types if it's a redeclaration
+        int is_defined = original_symbol->type->function->is_defined;
+        if (!is_defined) symbol->type = composite_type(type, original_symbol->type);
     }
     else
         symbol->type = type;

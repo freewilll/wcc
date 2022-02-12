@@ -547,6 +547,15 @@ int test_assigning_a_function_to_a_pointer_to_void(void){
     assert_int(1, g, "Assigning a function to a void *");
 }
 
+// Test redeclaring a function without a {} doesn't mess up internal linkage
+static int static_func_declared_after_definition();
+static int static_func_declared_after_definition() {}
+static int static_func_declared_after_definition();
+
+int test_static_func_declared_after_definition() {
+    static_func_declared_after_definition();
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -575,6 +584,7 @@ int main(int argc, char **argv) {
     test_calling_a_function_with_a_pointer_to_function_on_stack();
     test_function_returning_int();
     test_assigning_a_function_to_a_pointer_to_void();
+    test_static_func_declared_after_definition();
 
     finalize();
 }
