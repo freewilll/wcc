@@ -10,6 +10,26 @@ void get_debug_env_value(char *key, int *val) {
     if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;
 }
 
+// Check if the filename ends in .c
+static int is_c_source_file(const char *const filename) {
+    int filename_len = strlen(filename);
+    return filename_len > 2 && filename[filename_len - 2] == '.' && filename[filename_len - 1] == 'c';
+}
+
+// Check if the filename ends in .s
+static int is_assembly_file(const char *const filename) {
+    int filename_len = strlen(filename);
+    return filename_len > 2 && filename[filename_len - 2] == '.' && filename[filename_len - 1] == 's';
+}
+
+// Check if the filename ends in .so or .o
+static int is_object_file(const char *const filename) {
+    int filename_len = strlen(filename);
+    return
+        (filename_len > 3 && filename[filename_len - 3] == '.' && filename[filename_len - 2] == 's' && filename[filename_len - 1] == 'o') ||
+        (filename_len > 2 && filename[filename_len - 2] == '.' && filename[filename_len - 1] == 'o');
+}
+
 char *replace_extension(char *input, char *ext) {
     char *p  = strrchr(input,'.');
     if (!p) {
@@ -115,6 +135,7 @@ int main(int argc, char **argv) {
     print_ir1 = 0;
     print_ir2 = 0;
 
+    int print_filenames = 0;
     opt_enable_vreg_renumbering = 1;
     opt_enable_register_coalescing = 1;
     opt_enable_preferred_pregs = 1;
@@ -129,9 +150,7 @@ int main(int argc, char **argv) {
     int run_compiler = 1;   // Compile .c file
     int run_assembler = 1;  // Assemble .s file
     int run_linker = 1;     // Link .o file
-    int only_run_preprocessor = 0;
-    int target_is_object_file = 0;
-    int target_is_assembly_file = 0;
+    int single_target = 0;
     int help = 0;
     int print_stack_register_count = 0;
     int print_instr_rules = 0;
@@ -140,9 +159,7 @@ int main(int argc, char **argv) {
     int shared = 0;
 
     char *output_filename = 0;
-    int input_filename_count = 0;
-    char **input_filenames = wcalloc(MAX_INPUT_FILENAMES, sizeof(char *));
-    char **linker_input_filenames = wcalloc(MAX_INPUT_FILENAMES, sizeof(char *));
+    List *input_filenames = new_list(32);
 
     init_allocate_registers();
     init_instruction_selection_rules();
@@ -180,6 +197,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--trigraphs"                       )) { opt_enable_trigraphs = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-rules"                     )) { print_instr_rules = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-precision-decrease-rules"  )) { print_instr_precision_decrease_rules = 1; argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--print-filenames"                 )) { print_filenames = 1;                      argc--; argv++; }
 
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-param-allocation"       )) { debug_function_param_allocation = 1;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-arg-mapping"            )) { debug_function_arg_mapping = 1;             argc--; argv++; }
@@ -217,13 +235,13 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-S")) {
                 run_assembler = 0;
                 run_linker = 0;
-                target_is_assembly_file = 1;
+                single_target = 1;
                 argc--;
                 argv++;
             }
             else if (argc > 0 && !memcmp(argv[0], "-c", 2)) {
                 run_linker = 0;
-                target_is_object_file = 1;
+                single_target = 1;
                 argc--;
                 argv++;
             }
@@ -231,7 +249,7 @@ int main(int argc, char **argv) {
                 run_compiler = 0;
                 run_assembler = 0;
                 run_linker = 0;
-                only_run_preprocessor = 1;
+                single_target = 1;
                 argc--;
                 argv++;
             }
@@ -308,8 +326,7 @@ int main(int argc, char **argv) {
             }
         }
         else {
-            if (input_filename_count == MAX_INPUT_FILENAMES) panic("Exceeded max input filenames");
-            input_filenames[input_filename_count++] = argv[0];
+            append_to_list(input_filenames, argv[0]);
             argc--;
             argv++;
         }
@@ -356,6 +373,7 @@ int main(int argc, char **argv) {
         printf("-Wno-warn-assignment-types-incompatible     Disable warnings about incopmatible type assignments\n");
         printf("\n");
         printf("Debug flags:\n");
+        printf("--print-filenames\n");
         printf("--debug-function-param-allocation\n");
         printf("--debug-function-arg-mapping\n");
         printf("--debug-function-param-mapping\n");
@@ -422,111 +440,107 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    if (!input_filename_count) {
+    if (!input_filenames->length) {
         printf("Missing input filename\n");
         exit(1);
     }
 
-    if (output_filename && input_filename_count > 1 && (target_is_object_file || target_is_assembly_file)) {
-        simple_error("cannot specify -o with -c or -S with multiple files");
-    }
-
-    for (int i = 0; i < input_filename_count; i++) {
-        char *input_filename = input_filenames[i];
-        int filename_len = strlen(input_filename);
-
-        if (filename_len > 2 && input_filename[filename_len - 2] == '.') {
-            if (input_filename[filename_len - 1] == 'o') {
-                run_compiler = 0;
-                run_assembler = 0;
-                run_linker = 1;
-            }
-            else if (input_filename[filename_len - 1] == 's') {
-                run_compiler = 0;
-                run_assembler = 1;
-            }
-        }
+    if (output_filename && input_filenames->length > 1 && single_target) {
+        simple_error("cannot specify -o with -c or -S -E with multiple files");
     }
 
     char *command = wmalloc(1024 * 100);
 
-    for (int i = 0; i < input_filename_count; i++) {
+    List *compiler_input_filenames = new_list(input_filenames->length);
+    List *assembler_input_filenames = new_list(input_filenames->length);
+    List *linker_input_filenames = new_list(input_filenames->length);
+
+    // Only run preprocessor & preprocess with file/stdout output
+    if (!run_compiler) {
+        compile_phase = CP_PREPROCESSING;
+        for (int i = 0; i < input_filenames->length; i++) {
+            if (is_c_source_file(input_filenames->elements[i])) {
+                init_memory_management_for_translation_unit();
+                init_directives(); // Create directives and add CLI directives
+                preprocess_to_file(input_filenames->elements[i], output_filename);
+                free_memory_for_translation_unit();
+            }
+        }
+        exit(0);
+    }
+
+    // Preprocessing + compilation phase
+    for (int i = 0; i < input_filenames->length; i++) {
+        char *input_filename = input_filenames->elements[i];
+
+        if (is_assembly_file(input_filename)) {
+            append_to_list(assembler_input_filenames, input_filename);
+            continue;
+        }
+
+        // Object files need to be at the end
+        if (is_object_file(input_filename)) continue;
+
         init_memory_management_for_translation_unit();
+        init_directives();
+        char *preprocessor_output = preprocess(input_filename);
 
-        char *input_filename = input_filenames[i];
+        char *compiler_output_filename =
+            !run_assembler && !run_linker ? (output_filename ? output_filename : replace_extension(input_filename, "s"))
+            : make_temp_filename("/tmp/XXXXXX.s");
 
-        char *assembler_input_filename, *assembler_output_filename;
-        char *compiler_output_filename;
+        if (print_filenames) printf("Compiling %s to %s\n", input_filename, compiler_output_filename);
 
-        init_directives(); // Create directives and add CLI directives
+        compile(preprocessor_output, input_filename, compiler_output_filename);
 
-        if (only_run_preprocessor) {
-            compile_phase = CP_PREPROCESSING;
-            preprocess_to_file(input_filename, output_filename);
-            return;
-        }
+        if (run_assembler) append_to_list(assembler_input_filenames, compiler_output_filename);
 
-        if (run_compiler) {
-            char *local_output_filename;
-            if (!output_filename) {
-                if (run_linker)
-                    output_filename = "a.out";
-                else if (run_assembler)
-                    local_output_filename = replace_extension(input_filename, "o");
-                else
-                    local_output_filename = replace_extension(input_filename, "s");
-            }
-            else
-                local_output_filename = output_filename;
+        if (print_symbols) dump_symbols();
+        if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
 
-            char *preprocessor_output_filename = make_temp_filename("/tmp/XXXXXX.c");
-            compile_phase = CP_PREPROCESSING;
-            char *preprocessor_output = preprocess(input_filename);
+        free_memory_for_translation_unit();
+    }
 
-            if (run_assembler)
-                compiler_output_filename = make_temp_filename("/tmp/XXXXXX.s");
-            else
-                compiler_output_filename = strdup(local_output_filename);
+    // Assembler phase
+    if (run_assembler) {
+        for (int i = 0; i < assembler_input_filenames->length; i++) {
+            char *input_filename = assembler_input_filenames->elements[i];
 
-            if (run_assembler) {
-                if (run_compiler)
-                    assembler_input_filename = compiler_output_filename;
-                else
-                    assembler_input_filename = input_filename;
+            char *assembler_output_filename =
+                !run_linker ? (output_filename ? output_filename : replace_extension(single_target ? input_filenames->elements[0] : input_filename, "o"))
+                : make_temp_filename("/tmp/XXXXXX.o");
 
-                if (run_linker)
-                    assembler_output_filename = make_temp_filename("/tmp/XXXXXX.o");
-                else
-                    assembler_output_filename = strdup(local_output_filename);
-            }
+            if (print_filenames) printf("Assembling %s to %s\n", input_filename, assembler_output_filename);
 
-            compile(preprocessor_output, input_filename, compiler_output_filename);
-
-            if (print_symbols) dump_symbols();
-            if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
-        }
-
-        if (run_assembler) {
-            sprintf(command, "as -64 %s -o %s", assembler_input_filename, assembler_output_filename);
+            sprintf(command, "as -64 %s -o %s", input_filename, assembler_output_filename);
             if (verbose) {
                 sprintf(command, "%s %s", command, "-v");
                 printf("%s\n", command);
             }
             int result = system(command);
             if (result != 0) exit(result >> 8);
-            linker_input_filenames[i] = assembler_output_filename;
-        }
-        else
-            linker_input_filenames[i] = input_filename;
 
-        free_memory_for_translation_unit();
+            if (run_linker) append_to_list(linker_input_filenames, assembler_output_filename);
+        }
     }
 
+    // Preprocessing + compilation phase
+    for (int i = 0; i < input_filenames->length; i++) {
+        char *input_filename = input_filenames->elements[i];
+        if (is_object_file(input_filename)) append_to_list(linker_input_filenames, input_filename);
+    }
+
+    // Linker phase
     if (run_linker) {
-        char *s = command;
-        s += sprintf(s, "gcc");
-        for (int i = 0; i < input_filename_count; i++)
-            s += sprintf(s, " %s", linker_input_filenames[i]);
+        char *filenames = wmalloc(1024 * 100);
+        char *s = filenames;
+        for (int i = 0; i < linker_input_filenames->length; i++)
+            s += sprintf(s, " %s", (char *) linker_input_filenames->elements[i]);
+        if (print_filenames) printf("Running linker on%s\n", filenames);
+
+        s = command;
+        s += sprintf(s, "gcc%s", filenames);
+        free(filenames);
 
         for (CliLibraryPath *cli_library_path = cli_library_paths; cli_library_path; cli_library_path = cli_library_path->next)
             s += sprintf(s, " -L %s", cli_library_path->path);
@@ -534,7 +548,8 @@ int main(int argc, char **argv) {
         for (CliLibrary *cli_library = cli_libraries; cli_library; cli_library = cli_library->next)
             s += sprintf(s, " -l %s", cli_library->library);
 
-        s += sprintf(s, " -o %s", output_filename);
+        char *linker_output_filename = output_filename ? output_filename : "a.out";
+        s += sprintf(s, " -o %s", linker_output_filename);
 
         if (shared) s += sprintf(s, " -shared");
 
@@ -552,6 +567,11 @@ int main(int argc, char **argv) {
         int result = system(command);
         if (result != 0) exit(result >> 8);
     }
+
+    free_list(compiler_input_filenames);
+    free_list(assembler_input_filenames);
+    free_list(linker_input_filenames);
+    free(command);
 
     exit(0);
 }

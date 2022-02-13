@@ -345,6 +345,7 @@ void free_directives(void) {
         Directive *d = (Directive *) strmap_get(directives, key);
         if (d && d->is_freeable) free(d);
     }
+    free(directives);
 }
 
 char *get_cpp_input(void) {
@@ -1823,6 +1824,8 @@ char *preprocess(char *filename) {
     return output->data;
 }
 
+// Run preprocessor on a file. If output_filename is '-' or not defined, send output
+// to stdout.
 void preprocess_to_file(char *input_filename, char *output_filename) {
     preprocess(input_filename);
 
@@ -1839,5 +1842,5 @@ void preprocess_to_file(char *input_filename, char *output_filename) {
     }
 
     fprintf(cpp_output_file, "%s", output->data);
-    fclose(cpp_output_file);
+    if (cpp_output_file != stdout) fclose(cpp_output_file);
 }
