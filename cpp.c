@@ -339,6 +339,14 @@ void init_directives(void) {
     strmap_put(directives, "__USER_LABEL_PREFIX__", make_empty_directive());
 }
 
+void free_directives(void) {
+    for (StrMapIterator it = strmap_iterator(directives); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
+        char *key = strmap_iterator_key(&it);
+        Directive *d = (Directive *) strmap_get(directives, key);
+        if (d && d->is_freeable) free(d);
+    }
+}
+
 char *get_cpp_input(void) {
     return state.input;
 }
@@ -1576,6 +1584,7 @@ static void parse_directive(void) {
 
                 Directive *existing_directive = strmap_get(directives, identifier);
                 Directive *directive = parse_define_tokens();
+                directive->is_freeable = 1;
                 if (existing_directive) check_directive_redeclaration(existing_directive, directive, identifier);
                 strmap_put(directives, identifier, directive);
             }
@@ -1757,7 +1766,6 @@ Directive *parse_cli_define(char *string) {
     return parse_define_tokens();
 }
 
-
 static void free_allocated_tokens() {
     // Free allocated_tokens
     CircularLinkedList *head = allocated_tokens->next;
@@ -1809,6 +1817,7 @@ char *preprocess(char *filename) {
 
     terminate_string_buffer(output);
 
+    free_directives();
     free_allocated_tokens();
 
     return output->data;

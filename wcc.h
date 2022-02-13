@@ -926,6 +926,7 @@ void get_cpp_filename_and_line();
 void init_cpp_from_string(char *string);
 char *get_cpp_input(void);
 void init_directives(void);
+void free_directives(void);
 LineMap *get_cpp_linemap(void);
 void transform_trigraphs(void);
 void strip_backslash_newlines(void);

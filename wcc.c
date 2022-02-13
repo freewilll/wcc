@@ -139,8 +139,6 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
     memset_symbol = lookup_symbol("memset", global_scope, 0);
 
-    init_directives();
-
     compile_phase = CP_PARSING;
     init_lexer_from_string(input);
     parse();

@@ -448,8 +448,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    init_directives(); // Create directives and add CLI directives
-
     char *command = malloc(1024 * 100);
 
     for (int i = 0; i < input_filename_count; i++) {
@@ -459,6 +457,8 @@ int main(int argc, char **argv) {
 
         char *assembler_input_filename, *assembler_output_filename;
         char *compiler_output_filename;
+
+        init_directives(); // Create directives and add CLI directives
 
         if (only_run_preprocessor) {
             compile_phase = CP_PREPROCESSING;
