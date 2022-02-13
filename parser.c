@@ -3515,10 +3515,8 @@ void parse(void) {
                     symbol->type = dup_type(type);
                     symbol->global_identifier = cur_type_identifier;
                 }
-                else {
-                    if (original_symbol->initializers) error("Redefinition of %s", cur_type_identifier);
+                else
                     symbol = original_symbol;
-                }
 
                 if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
                     error("%s redeclared as different kind of symbol", cur_type_identifier);
@@ -3537,6 +3535,8 @@ void parse(void) {
                     if (is_definition) break; // No more declarations are possible, break out of comma parsing loop
                 }
                 else if (cur_token == TOK_EQ) {
+                    if (original_symbol && original_symbol->initializers) error("Redefinition of %s", cur_type_identifier);
+
                     BaseType *old_base_type = base_type;
                     base_type = 0;
                     next();
