@@ -74,7 +74,7 @@ int print_type(void *f, Type *type) {
 }
 
 char *sprint_type_in_english(Type *type) {
-    char *buffer = malloc(256);
+    char *buffer = wmalloc(256);
     char *start = buffer;
 
     int tt;
@@ -183,7 +183,7 @@ void free_types(void) {
 }
 
 Type *new_type(int type) {
-    Type *result = calloc(1, sizeof(Type));
+    Type *result = wcalloc(1, sizeof(Type));
     result->type = type;
     append_to_list(allocated_types, result);
 
@@ -191,7 +191,7 @@ Type *new_type(int type) {
 }
 
 static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src) {
-    StructOrUnionMember *dst = malloc(sizeof(StructOrUnionMember));
+    StructOrUnionMember *dst = wmalloc(sizeof(StructOrUnionMember));
     dst->identifier = strdup(src->identifier);
     dst->type = dup_type(src->type);
     dst->offset = src->offset;
@@ -202,7 +202,7 @@ static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src)
 }
 
 StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
-    StructOrUnion *dst = malloc(sizeof(StructOrUnion));
+    StructOrUnion *dst = wmalloc(sizeof(StructOrUnion));
 
     dst->size          = src->size;
     dst->is_incomplete = src->is_incomplete;
@@ -212,7 +212,7 @@ StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
     int len;
     for (len = 0; src->members[len]; len++);
 
-    dst->members = calloc(len + 1, sizeof(StructOrUnionMember *));
+    dst->members = wcalloc(len + 1, sizeof(StructOrUnionMember *));
 
     for (int i = 0; src->members[i]; i++)
         dst->members[i] = dup_struct_or_union_member(src->members[i]);
@@ -223,7 +223,7 @@ StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
 Type *dup_type(Type *src) {
     if (!src) return 0;
 
-    Type *dst = malloc(sizeof(Type));
+    Type *dst = wmalloc(sizeof(Type));
     *dst = *src;
     dst->target = dup_type(src->target);
     append_to_list(allocated_types, dst);
@@ -464,7 +464,7 @@ static int struct_members_cmpfunc(const void *a, const void *b) {
 
 StructOrUnionMember **sort_struct_or_union_members(StructOrUnionMember **members, int count) {
     // Make a shallow copy of the members (i.e. only the pointers)
-    StructOrUnionMember **result = malloc(sizeof(StructOrUnionMember *) * count);
+    StructOrUnionMember **result = wmalloc(sizeof(StructOrUnionMember *) * count);
     for (int i = 0; i < count; i++) result[i] = members[i];
 
     qsort(result, count, sizeof(StructOrUnionMember *), struct_members_cmpfunc);
@@ -651,7 +651,7 @@ Type *composite_type(Type *type1, Type *type2) {
 
             Type *result = new_type(TYPE_FUNCTION);
             result->target = type1->target;
-            Function *function = malloc(sizeof(Function));
+            Function *function = wmalloc(sizeof(Function));
             *function = *type1->function;
             function->return_type = type1->function->return_type;
             result->function = function;
@@ -872,7 +872,7 @@ int type_is_modifiable(Type *type) {
 // Create a new type iterator instance. A type iterator can be used to recurse
 // through all scalars either depth first, or by iterating at a single level.
 TypeIterator *type_iterator(Type *type) {
-    TypeIterator *it = calloc(1, sizeof(TypeIterator));
+    TypeIterator *it = wcalloc(1, sizeof(TypeIterator));
     it->type = type;
 
     return it;

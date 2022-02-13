@@ -32,7 +32,7 @@ void init_lexer(char *filename) {
     input_size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    input = malloc(input_size + 1);
+    input = wmalloc(input_size + 1);
     int read = fread(input, 1, input_size, f);
     if (read != input_size) {
         printf("Unable to read input file\n");
@@ -230,7 +230,7 @@ void lex_string_literal(void) {
     char *i = input;
 
     int is_wide_char = 0;
-    int *data = malloc(MAX_STRING_LITERAL_SIZE * 4);
+    int *data = wmalloc(MAX_STRING_LITERAL_SIZE * 4);
     int size = 0;
 
     while (ip < input_size && (i[ip] == '"') || (input_size - ip >= 2 && i[ip] == 'L' && i[ip + 1] == '"')) {
@@ -341,7 +341,7 @@ void next(void) {
             lex_non_hex_literal();
             skip_whitespace();
 
-            int *data = malloc(MAX_STRING_LITERAL_SIZE * 4);
+            int *data = wmalloc(MAX_STRING_LITERAL_SIZE * 4);
             int size = 0;
             ip++; // Skip the "
             lex_single_string_literal(data, &size);
@@ -420,7 +420,7 @@ void next(void) {
         // Identifier or keyword
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             cur_token = TOK_IDENTIFIER;
-            cur_identifier = malloc(1024);
+            cur_identifier = wmalloc(1024);
             int j = 0;
             while (((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z') || (i[ip] >= '0' && i[ip] <= '9') || (i[ip] == '_')) && ip < input_size) {
                 if (j == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);

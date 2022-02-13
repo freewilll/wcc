@@ -31,9 +31,9 @@ static void maybe_rehash(LongMap *map) {
         new_size = map->size * 2;
 
     int mask = new_size - 1;
-    long *keys = calloc(new_size, sizeof(long));
-    void **values = calloc(new_size, sizeof(void *));
-    char *status = calloc(new_size, sizeof(char));
+    long *keys = wcalloc(new_size, sizeof(long));
+    void **values = wcalloc(new_size, sizeof(void *));
+    char *status = wcalloc(new_size, sizeof(char));
 
     for (int i = 0; i < map->size; i++) {
         if (map->status[i] != STATUS_USED) continue;
@@ -119,7 +119,7 @@ void longmap_delete(LongMap *map, long key) {
 // Populate keys with the keys in the map & return the count. Memory for keys is
 // allocated, the caller is expected to free it.
 int longmap_keys(LongMap *map, int **keys) {
-    *keys = malloc(map->size * sizeof(int));
+    *keys = wmalloc(map->size * sizeof(int));
     int count = 0;
 
     longmap_foreach(map, it) (*keys)[count++] = longmap_iterator_key(&it);
@@ -134,10 +134,10 @@ void longmap_empty(LongMap *map) {
 }
 
 LongMap *longmap_copy(LongMap *map) {
-    LongMap *result = calloc(1, sizeof(LongMap));
-    result->keys = malloc(map->size * sizeof(long));
-    result->values = malloc(map->size * sizeof(void *));
-    result->status = malloc(map->size * sizeof(char));
+    LongMap *result = wcalloc(1, sizeof(LongMap));
+    result->keys = wmalloc(map->size * sizeof(long));
+    result->values = wmalloc(map->size * sizeof(void *));
+    result->status = wmalloc(map->size * sizeof(char));
     memcpy(result->keys, map->keys, map->size * sizeof(long));
     memcpy(result->values, map->values, map->size * sizeof(void *));
     memcpy(result->status, map->status, map->size * sizeof(char));
@@ -176,11 +176,11 @@ LongMapIterator longmap_iterator(LongMap *map) {
 }
 
 LongMap *new_longmap(void) {
-    LongMap *map = calloc(1, sizeof(LongMap));
+    LongMap *map = wcalloc(1, sizeof(LongMap));
     map->size = DEFAULT_SIZE;
-    map->keys = calloc(DEFAULT_SIZE, sizeof(long));
-    map->values = calloc(DEFAULT_SIZE, sizeof(void *));
-    map->status = calloc(DEFAULT_SIZE, sizeof(char));
+    map->keys = wcalloc(DEFAULT_SIZE, sizeof(long));
+    map->values = wcalloc(DEFAULT_SIZE, sizeof(void *));
+    map->status = wcalloc(DEFAULT_SIZE, sizeof(char));
     map->hashfunc = hash;
     return map;
 }

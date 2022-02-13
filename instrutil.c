@@ -67,7 +67,7 @@ static int transform_rule_value(int extend_size, int extend_sign, int v, int siz
 }
 
 X86Operation *dup_x86_operation(X86Operation *operation) {
-    X86Operation *result = malloc(sizeof(X86Operation));
+    X86Operation *result = wmalloc(sizeof(X86Operation));
     *result = *operation;
     result->template = operation->template ? strdup(operation->template) : 0;
     result->next = 0;
@@ -110,7 +110,7 @@ static char *add_size_to_template(char *template, int size) {
     if (!template) return 0; // Some magic operations have no templates but are implemented in codegen.
 
     char x86_size = size_to_x86_size(size);
-    char *result = calloc(1, 128);
+    char *result = wcalloc(1, 128);
     char *dst = result;
 
     char *c = template;
@@ -197,7 +197,7 @@ static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
 
 // Add an x86 operation template to a rule
 X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
-    X86Operation *x86op = malloc(sizeof(X86Operation));
+    X86Operation *x86op = wmalloc(sizeof(X86Operation));
     x86op->operation = operation;
 
     x86op->dst = dst;
@@ -221,28 +221,28 @@ X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *temp
 
 // Add a save value operation to a rule
 void add_save_value(Rule *r, int arg, int slot) {
-    X86Operation *x86op = calloc(1, sizeof(X86Operation));
+    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
     x86op->save_value_in_slot = slot;
     x86op->arg = arg;
     add_x86_op_to_rule(r, x86op);
 }
 
 void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
-    X86Operation *x86op = calloc(1, sizeof(X86Operation));
+    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
     x86op->allocate_stack_index_in_slot = slot;
     x86op->allocated_type = type;
     add_x86_op_to_rule(r, x86op);
 }
 
 void add_allocate_register_in_slot(Rule *r, int slot, int type) {
-    X86Operation *x86op = calloc(1, sizeof(X86Operation));
+    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
     x86op->allocate_register_in_slot = slot;
     x86op->allocated_type = type;
     add_x86_op_to_rule(r, x86op);
 }
 
 void add_allocate_label_in_slot(Rule *r, int slot) {
-    X86Operation *x86op = calloc(1, sizeof(X86Operation));
+    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
     x86op->allocate_label_in_slot = slot;
     add_x86_op_to_rule(r, x86op);
 }
@@ -306,7 +306,7 @@ void check_rules_dont_decrease_precision(void) {
 
 // Make a textual representation of a non terminal
 char *non_terminal_string(int nt) {
-    char *buf = malloc(6);
+    char *buf = wmalloc(6);
 
     switch (nt) {
         case 0:     return "";

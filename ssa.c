@@ -172,7 +172,7 @@ static void index_tac(Tac *ir) {
 }
 
 void make_control_flow_graph(Function *function) {
-    Block *blocks = calloc(MAX_BLOCKS, sizeof(Block));
+    Block *blocks = wcalloc(MAX_BLOCKS, sizeof(Block));
     blocks[0].start = function->ir;
     int block_count = 1;
 
@@ -273,7 +273,7 @@ void make_block_dominance(Function *function) {
     Graph *cfg = function->cfg;
     int block_count = cfg->node_count;
 
-    Set **dom = calloc(block_count, sizeof(Set));
+    Set **dom = wcalloc(block_count, sizeof(Set));
 
     // dom[0] = {0}
     dom[0] = new_set(block_count);
@@ -324,7 +324,7 @@ void make_block_dominance(Function *function) {
     free_set(is1);
     free_set(is2);
 
-    function->dominance = calloc(block_count, sizeof(Set));
+    function->dominance = wcalloc(block_count, sizeof(Set));
 
     for (int i = 0; i < block_count; i++) function->dominance[i] = dom[i];
 
@@ -375,17 +375,17 @@ static void make_block_immediate_dominators(Function *function) {
     Graph *cfg = function->cfg;
     int block_count = function->cfg->node_count;
 
-    int *rpos = calloc(block_count, sizeof(int));
+    int *rpos = wcalloc(block_count, sizeof(int));
 
-    int *visited = calloc(block_count, sizeof(int));
+    int *visited = wcalloc(block_count, sizeof(int));
 
     int pos = block_count - 1;
     make_rpo(function, rpos, &pos, visited, 0);
 
-    int *rpos_order = calloc(block_count, sizeof(int));
+    int *rpos_order = wcalloc(block_count, sizeof(int));
     for (int i = 0; i < block_count; i++) rpos_order[rpos[i]] = i;
 
-    int *idoms = calloc(block_count, sizeof(int));
+    int *idoms = wcalloc(block_count, sizeof(int));
 
     for (int i = 0; i < block_count; i++) idoms[i] = -1;
     idoms[0] = 0;
@@ -427,7 +427,7 @@ static void make_block_immediate_dominators(Function *function) {
         for (int i = 0; i < block_count; i++) printf("%d: %d\n", i, idoms[i]);
     }
 
-    function->idom = calloc(block_count, sizeof(int));
+    function->idom = wcalloc(block_count, sizeof(int));
     for (int i = 0; i < block_count; i++) function->idom[i] = idoms[i];
 
     free(rpos);
@@ -444,10 +444,10 @@ static void make_block_dominance_frontiers(Function *function) {
     Graph *cfg = function->cfg;
     int block_count = function->cfg->node_count;
 
-    Set **df = calloc(block_count, sizeof(Set *));
+    Set **df = wcalloc(block_count, sizeof(Set *));
     for (int i = 0; i < block_count; i++) df[i] = new_set(block_count);
 
-    int *predecessors = malloc(block_count * sizeof(int));
+    int *predecessors = wmalloc(block_count * sizeof(int));
 
     int *idom = function->idom;
 
@@ -471,7 +471,7 @@ static void make_block_dominance_frontiers(Function *function) {
         }
     }
 
-    function->dominance_frontiers = malloc(block_count * sizeof(Set *));
+    function->dominance_frontiers = wmalloc(block_count * sizeof(Set *));
     for (int i = 0; i < block_count; i++) function->dominance_frontiers[i] = df[i];
 
     if (debug_ssa_dominance_frontiers) {
@@ -524,8 +524,8 @@ void make_uevar_and_varkill(Function *function) {
     Block *blocks = function->blocks;
     int block_count = function->cfg->node_count;
 
-    function->uevar = calloc(block_count, sizeof(LongSet *));
-    function->varkill = calloc(block_count, sizeof(LongSet *));
+    function->uevar = wcalloc(block_count, sizeof(LongSet *));
+    function->varkill = wcalloc(block_count, sizeof(LongSet *));
 
     for (int i = 0; i < block_count; i++) {
         LongSet *uevar = new_longset();
@@ -561,23 +561,23 @@ void make_liveout(Function *function) {
     Graph *cfg = function->cfg;
     int block_count = cfg->node_count;
 
-    function->liveout = calloc(block_count, sizeof(LongSet *));
+    function->liveout = wcalloc(block_count, sizeof(LongSet *));
 
     make_vreg_count(function, 0);
     int vreg_count = function->vreg_count;
-    int **block_uevars = malloc(block_count * sizeof(int *));
+    int **block_uevars = wmalloc(block_count * sizeof(int *));
 
     // Keep track of versions of liveouts. Everytime a block liveout changes, the
     // version number is incremented. This is used to avoid recalculating the liveouts
     // repeatedly.
-    int *liveout_versions = calloc(block_count, sizeof(int));
+    int *liveout_versions = wcalloc(block_count, sizeof(int));
 
-    int **successor_liveout_versions = calloc(block_count, sizeof(int *));
+    int **successor_liveout_versions = wcalloc(block_count, sizeof(int *));
 
     for (int i = 0; i < block_count; i++) {
-        block_uevars[i] = calloc(vreg_count + 1, sizeof(int));
+        block_uevars[i] = wcalloc(vreg_count + 1, sizeof(int));
 
-        successor_liveout_versions[i] = calloc(block_count, sizeof(int));
+        successor_liveout_versions[i] = wcalloc(block_count, sizeof(int));
 
         liveout_versions[i] = 1;
         int j = 0;
@@ -689,7 +689,7 @@ void make_globals_and_var_blocks(Function *function) {
 
     int vreg_count = function->vreg_count;
 
-    Set **var_blocks = calloc(vreg_count + 1, sizeof(Set *));
+    Set **var_blocks = wcalloc(vreg_count + 1, sizeof(Set *));
     for (int i = 1; i <= vreg_count; i++) var_blocks[i] = new_set(block_count);
 
     make_vreg_count(function, 0);
@@ -741,7 +741,7 @@ void insert_phi_functions(Function *function) {
     Set *globals = function->globals;
     int vreg_count = function->vreg_count;
 
-    Set **phi_functions = malloc(block_count * sizeof(Set *));
+    Set **phi_functions = wmalloc(block_count * sizeof(Set *));
     for (int i = 0; i < block_count; i++) phi_functions[i] = new_set(vreg_count);
 
     for (int global = 0; global <= globals->max_value; global++) {
@@ -793,7 +793,7 @@ void insert_phi_functions(Function *function) {
             GraphEdge *e = cfg->nodes[b].pred;
             while (e) { predecessor_count++; e = e->next_pred; }
 
-            Value *phi_values = calloc(predecessor_count + 1, sizeof(Value));
+            Value *phi_values = wcalloc(predecessor_count + 1, sizeof(Value));
             for (int i = 0; i < predecessor_count; i++) {
                 init_value(&phi_values[i]);
                 phi_values[i].type = new_type(TYPE_LONG);
@@ -957,9 +957,9 @@ void rename_phi_function_variables(Function *function) {
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
     }
 
-    int *counters = calloc(vreg_count + 1, sizeof(int));
+    int *counters = wcalloc(vreg_count + 1, sizeof(int));
 
-    Stack **stack = malloc((vreg_count + 1) * sizeof(Stack *));
+    Stack **stack = wmalloc((vreg_count + 1) * sizeof(Stack *));
     for (int i = 1; i <= vreg_count; i++) stack[i] = new_stack();
 
     rename_vars(function, stack, counters, 0, vreg_count);
@@ -1077,7 +1077,7 @@ void make_live_ranges(Function *function) {
     int live_range_count = 0;
     longset_foreach(deduped, it) live_range_count++;
 
-    LiveRange *live_ranges_array = malloc(live_range_count * sizeof(LiveRange));
+    LiveRange *live_ranges_array = wmalloc(live_range_count * sizeof(LiveRange));
     int i = 0;
     for (LongSetIterator it = longset_iterator(deduped); !longset_iterator_finished(&it); longset_iterator_next(&it), i++) {
         // Find vreg/ssa_subscript for first element of the live range set
@@ -1163,7 +1163,7 @@ void blast_vregs_with_live_ranges(Function *function) {
 static void set_preg_classes(Function *function) {
     int count = function->vreg_count;
     if (count < PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT) count = PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT;
-    char *vreg_preg_classes = calloc(count + 1, sizeof(char));
+    char *vreg_preg_classes = wcalloc(count + 1, sizeof(char));
 
     if (live_range_reserved_pregs_offset > 0) {
         for (int i = 1; i <= PHYSICAL_SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_INT;
@@ -1316,7 +1316,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
     int vreg_count = function->vreg_count;
     char *vreg_preg_classes = function->vreg_preg_classes;
 
-    char *interference_graph = calloc((vreg_count + 1) * (vreg_count + 1), sizeof(int));
+    char *interference_graph = wcalloc((vreg_count + 1) * (vreg_count + 1), sizeof(int));
 
     Block *blocks = function->blocks;
     int block_count = function->cfg->node_count;
@@ -1583,7 +1583,7 @@ static int coalesce_cmpfunc(const void *a, const void *b) {
 // coalesced.
 static void coalesce_live_ranges_for_preg(Function *function, int check_register_constraints, int preg_class) {
     int vreg_count = function->vreg_count;
-    char *clobbers = malloc((vreg_count + 1) * sizeof(char));
+    char *clobbers = wmalloc((vreg_count + 1) * sizeof(char));
 
     int outer_changed = 1;
     while (outer_changed) {
@@ -1627,7 +1627,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
         }
 
         // Allocate memory for the worst case: all vregs are coalesced
-        Coalesce *coalesces = malloc((vreg_count + 1) * sizeof(Coalesce));
+        Coalesce *coalesces = wmalloc((vreg_count + 1) * sizeof(Coalesce));
         int coalesce_count = 0;
 
         long mask = ((1l << 32) - 1);
@@ -1771,7 +1771,7 @@ static void add_infinite_spill_costs(Function *function) {
 
 static void make_live_range_spill_cost(Function *function) {
     int vreg_count = function->vreg_count;
-    int *spill_cost = calloc(vreg_count + 1, sizeof(int));
+    int *spill_cost = wcalloc(vreg_count + 1, sizeof(int));
 
     int for_loop_depth = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -1798,7 +1798,7 @@ static void make_live_range_spill_cost(Function *function) {
 void make_preferred_live_range_preg_indexes(Function *function) {
     int vreg_count = function->vreg_count;
 
-    char *preferred_live_range_preg_indexes = calloc(vreg_count + 1, sizeof(char));
+    char *preferred_live_range_preg_indexes = wcalloc(vreg_count + 1, sizeof(char));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->src1 && tac->src1->preferred_live_range_preg_index)

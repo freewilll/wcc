@@ -42,8 +42,8 @@ typedef struct cpp_state {
 
 CppState state;
 
-CircularLinkedList *allocated_tokens; // Keep track of all malloc'd tokens
-CircularLinkedList *allocated_tokens_duplicates; // Keep track of all malloc'd tokens
+CircularLinkedList *allocated_tokens; // Keep track of all wmalloc'd tokens
+CircularLinkedList *allocated_tokens_duplicates; // Keep track of all wmalloc'd tokens
 
 // Output
 FILE *cpp_output_file;         // Output file handle
@@ -110,7 +110,7 @@ static void init_cpp_from_fh(FILE *f, char *path) {
     state.input_size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    state.input = malloc(state.input_size + 1);
+    state.input = wmalloc(state.input_size + 1);
     int read = fread(state.input, 1, state.input_size, f);
     if (read != state.input_size) {
         printf("Unable to read input file\n");
@@ -125,13 +125,13 @@ static void init_cpp_from_fh(FILE *f, char *path) {
     cur_line = 1;
     state.hchar_lex_state = HLS_START_OF_LINE;
 
-    state.conditional_include_stack = calloc(1, sizeof(ConditionalInclude));
+    state.conditional_include_stack = wcalloc(1, sizeof(ConditionalInclude));
 }
 
 static void output_line_directive(int offset, int add_eol, CppToken *token) {
     if (!token) return;
 
-    char *buf = malloc(256);
+    char *buf = wmalloc(256);
     char *filename = state.override_filename ? state.override_filename : state.filename;
     sprintf(buf, "# %d \"%s\"%s", state.line_number_offset + token->line_number + offset, filename, add_eol ? "\n" : "");
     append_to_string_buffer(output, buf);
@@ -191,7 +191,7 @@ void init_cpp_from_string(char *string) {
 
 // Shallow copy a new CPP token
 static CppToken *dup_cpp_token(CppToken *tok) {
-    CppToken *result = malloc(sizeof(CppToken));
+    CppToken *result = wmalloc(sizeof(CppToken));
     *result = *tok;
     append_to_cll(allocated_tokens_duplicates, result);
     return result;
@@ -253,7 +253,7 @@ static void free_cpp_token(CppToken *token) {
 
 // Create a new CPP token
 static CppToken *new_cpp_token(int kind) {
-    CppToken *tok = calloc(1, sizeof(CppToken));
+    CppToken *tok = wcalloc(1, sizeof(CppToken));
 
     append_to_cll(allocated_tokens, tok);
 
@@ -263,7 +263,7 @@ static CppToken *new_cpp_token(int kind) {
 }
 
 static void add_builtin_directive(char *identifier, DirectiveRenderer renderer) {
-    Directive *directive = calloc(1, sizeof(Directive));
+    Directive *directive = wcalloc(1, sizeof(Directive));
     directive->renderer = renderer;
     strmap_put(directives, identifier, directive);
 }
@@ -307,13 +307,13 @@ static CppToken *render_numeric_token(int value) {
 }
 
 Directive *make_numeric_directive(int value) {
-    Directive *directive = calloc(1, sizeof(Directive));
+    Directive *directive = wcalloc(1, sizeof(Directive));
     directive->tokens = render_numeric_token(value);
     return directive;
 }
 
 Directive *make_empty_directive(void) {
-    Directive *directive = calloc(1, sizeof(Directive));
+    Directive *directive = wcalloc(1, sizeof(Directive));
     return directive;
 }
 
@@ -361,14 +361,14 @@ static LineMap *add_to_linemap(LineMap *lm, int position, int line_number) {
         return;
     }
 
-    lm->next = malloc(sizeof(LineMap));
+    lm->next = wmalloc(sizeof(LineMap));
     lm->next->position = position;
     lm->next->line_number = line_number;
     return lm->next;
 }
 
 void transform_trigraphs(void) {
-    char *output = malloc(state.input_size + 1);
+    char *output = wmalloc(state.input_size + 1);
     int ip = 0; // Input offset
     int op = 0; // Output offset
 
@@ -400,12 +400,12 @@ void transform_trigraphs(void) {
 
 void strip_backslash_newlines(void) {
     // Add one for the last zero and another one for a potential trailing newline
-    char *output = malloc(state.input_size + 2); //
+    char *output = wmalloc(state.input_size + 2); //
     int ip = 0; // Input offset
     int op = 0; // Output offset
     int line_number = 1;
 
-    state.line_map = malloc(sizeof(LineMap));
+    state.line_map = wmalloc(sizeof(LineMap));
     state.line_map->position = ip;
     state.line_map->line_number = line_number;
     LineMap *lm = state.line_map;
@@ -558,7 +558,7 @@ static void advance_ip_by_count(int count) {
 }
 
 static void add_to_whitespace(char **whitespace, int *whitespace_pos, char c) {
-    if (!*whitespace) *whitespace = malloc(1024);
+    if (!*whitespace) *whitespace = wmalloc(1024);
     if (*whitespace_pos == 1024) panic("Ran out of whitespace buffer");
     (*whitespace)[(*whitespace_pos)++] = c;
 }
@@ -614,7 +614,7 @@ static void lex_string_and_char_literal(char delimiter) {
     char *i = state.input;
     int data_offset = 0;
 
-    char *data = malloc(MAX_STRING_LITERAL_SIZE + 2);
+    char *data = wmalloc(MAX_STRING_LITERAL_SIZE + 2);
 
     if (i[state.ip] == 'L') {
         advance_ip();
@@ -670,7 +670,7 @@ static void lex_string_and_char_literal(char delimiter) {
 
 #define copy_token_str(start, size) \
     do { \
-        state.token->str = malloc(size + 1); \
+        state.token->str = wmalloc(size + 1); \
         memcpy(state.token->str, start, size); \
         state.token->str[size] = 0; \
     } while (0)
@@ -744,7 +744,7 @@ static void cpp_next() {
         }
 
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
-            char *identifier = malloc(1024);
+            char *identifier = wmalloc(1024);
             int j = 0;
             while (((i[state.ip] >= 'a' && i[state.ip] <= 'z') || (i[state.ip] >= 'A' && i[state.ip] <= 'Z') || (i[state.ip] >= '0' && i[state.ip] <= '9') || (i[state.ip] == '_')) && state.ip < state.input_size) {
                 if (j == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);
@@ -843,7 +843,7 @@ static void set_line_number_on_token_sequence(CppToken *ts, int line_number) {
 // Nested () are taken into account, for cases like f((1, 2), 3), which
 // results in (1, 2) and 3 for the actual parameters.
 CppToken **make_function_actual_parameters(CppToken **ts) {
-    CppToken **result = calloc(MAX_CPP_MACRO_PARAM_COUNT, sizeof(CppToken *));
+    CppToken **result = wcalloc(MAX_CPP_MACRO_PARAM_COUNT, sizeof(CppToken *));
 
     int parenthesis_nesting_level = 0;
     CppToken *current_actual = 0;
@@ -1181,7 +1181,7 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
 static char *get_current_file_path() {
     char *p = strrchr(state.filename, '/');
     if (!p) return "";
-    char *path = malloc(p - state.filename + 2);
+    char *path = wmalloc(p - state.filename + 2);
     memcpy(path, state.filename, p - state.filename + 1);
     path[p - state.filename + 1] = 0;
 
@@ -1290,7 +1290,7 @@ static void parse_include() {
     state = backup_state;
     cur_filename = state.filename;
 
-    char *buf = malloc(256);
+    char *buf = wmalloc(256);
     char *filename = state.override_filename ? state.override_filename : state.filename;
     sprintf(buf, "# %d \"%s\" 2", state.line_number_offset + state.line_number + 1, filename);
     append_to_string_buffer(output, buf);
@@ -1320,7 +1320,7 @@ static CppToken *parse_define_replacement_tokens(void) {
 }
 
 static Directive *parse_define_tokens(void) {
-    Directive *directive = calloc(1, sizeof(Directive));
+    Directive *directive = wcalloc(1, sizeof(Directive));
 
     CppToken *tokens;
 
@@ -1373,7 +1373,7 @@ static Directive *parse_define_tokens(void) {
 
 // Enter group after if, ifdef or ifndef
 static void enter_if() {
-    ConditionalInclude *ci = calloc(1, sizeof(ConditionalInclude));
+    ConditionalInclude *ci = wcalloc(1, sizeof(ConditionalInclude));
     ci->prev = state.conditional_include_stack;
     ci->skipping = state.conditional_include_stack->skipping;
     state.conditional_include_stack = ci;
@@ -1383,7 +1383,7 @@ static void enter_if() {
 static CppToken *make_boolean_token(int value) {
     CppToken *result = new_cpp_token(CPP_TOK_NUMBER);
 
-    result->str = malloc(2);
+    result->str = wmalloc(2);
     result->str[0] = '0' + value;
     result->str[1] = 0;
 

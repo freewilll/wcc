@@ -13,13 +13,13 @@ void get_debug_env_value(char *key, int *val) {
 char *replace_extension(char *input, char *ext) {
     char *p  = strrchr(input,'.');
     if (!p) {
-        char *result = malloc(strlen(input) + strlen(ext) + 2);
+        char *result = wmalloc(strlen(input) + strlen(ext) + 2);
         sprintf(result, "%s.%s", input, ext);
         return result;
     }
     else {
         int len = p - input + strlen(ext) + 1;
-        char *result = malloc(len + 1);
+        char *result = wmalloc(len + 1);
         memcpy(result, input, p - input);
         result[p  - input] = '.';
         memcpy(result + (p - input + 1), ext, strlen(ext));
@@ -29,7 +29,7 @@ char *replace_extension(char *input, char *ext) {
 }
 
 static void parse_directive(char *expr) {
-    CliDirective *cli_directive = malloc(sizeof(CliDirective));
+    CliDirective *cli_directive = wmalloc(sizeof(CliDirective));
     cli_directive->next = 0;
 
     char *key;
@@ -64,7 +64,7 @@ static void add_include_path(char *path) {
 
     if (len > 1 && path[len - 1] == '/') path[len - 1] = 0; // Strip trailing /
 
-    CliIncludePath *cli_include_path = malloc(sizeof(CliIncludePath));
+    CliIncludePath *cli_include_path = wmalloc(sizeof(CliIncludePath));
     cli_include_path->path = path;
     cli_include_path->next = 0;
 
@@ -82,7 +82,7 @@ static void add_library_path(char *path) {
 
     if (len > 1 && path[len - 1] == '/') path[len - 1] = 0; // Strip trailing /
 
-    CliLibraryPath *cli_library_path = malloc(sizeof(CliLibraryPath));
+    CliLibraryPath *cli_library_path = wmalloc(sizeof(CliLibraryPath));
     cli_library_path->path = path;
     cli_library_path->next = 0;
 
@@ -98,7 +98,7 @@ static void add_library(char *library) {
     int len = strlen(library);
     if (!len) simple_error("Invalid library");
 
-    CliLibrary *cli_library = malloc(sizeof(CliLibrary));
+    CliLibrary *cli_library = wmalloc(sizeof(CliLibrary));
     cli_library->library = library;
     cli_library->next = 0;
 
@@ -141,8 +141,8 @@ int main(int argc, char **argv) {
 
     char *output_filename = 0;
     int input_filename_count = 0;
-    char **input_filenames = calloc(MAX_INPUT_FILENAMES, sizeof(char *));
-    char **linker_input_filenames = calloc(MAX_INPUT_FILENAMES, sizeof(char *));
+    char **input_filenames = wcalloc(MAX_INPUT_FILENAMES, sizeof(char *));
+    char **linker_input_filenames = wcalloc(MAX_INPUT_FILENAMES, sizeof(char *));
 
     init_allocate_registers();
     init_instruction_selection_rules();
@@ -448,7 +448,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    char *command = malloc(1024 * 100);
+    char *command = wmalloc(1024 * 100);
 
     for (int i = 0; i < input_filename_count; i++) {
         init_memory_management_for_translation_unit();

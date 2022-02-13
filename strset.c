@@ -4,7 +4,7 @@
 #include "wcc.h"
 
 StrSet *new_strset(void) {
-    StrSet *ss = malloc(sizeof(StrSet));
+    StrSet *ss = wmalloc(sizeof(StrSet));
     ss->strmap = new_strmap();
 
     return ss;

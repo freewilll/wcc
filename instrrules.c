@@ -25,11 +25,11 @@ static void add_mov_rule(int dst, int src, int operation, char *template) {
 }
 
 static void init_moves_templates(void) {
-    signed_moves_templates = malloc(sizeof(char *) * 16);
-    unsigned_moves_templates = malloc(sizeof(char *) * 16);
+    signed_moves_templates = wmalloc(sizeof(char *) * 16);
+    unsigned_moves_templates = wmalloc(sizeof(char *) * 16);
 
-    signed_moves_operations = malloc(sizeof(int) * 16);
-    unsigned_moves_operations = malloc(sizeof(int) * 16);
+    signed_moves_operations = wmalloc(sizeof(int) * 16);
+    unsigned_moves_operations = wmalloc(sizeof(int) * 16);
 
     // A move from src->dst. Index is src * 4 + dst
     signed_moves_templates[0 ] = "movb   %v1b, %vdb"; // 1 -> 1
@@ -1201,7 +1201,7 @@ void init_instruction_selection_rules(void) {
     disable_merge_constants = 0;
     rule_coverage_file = 0;
 
-    instr_rules = calloc(MAX_RULE_COUNT, sizeof(Rule));
+    instr_rules = wcalloc(MAX_RULE_COUNT, sizeof(Rule));
 
     init_moves_templates();
 

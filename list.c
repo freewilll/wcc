@@ -19,7 +19,7 @@ void free_circular_linked_list(CircularLinkedList *cll) {
 static void resize_list(List* l, int new_length);
 
 List *new_list(int initial_allocation) {
-    List *l = malloc(sizeof(List));
+    List *l = wmalloc(sizeof(List));
 
     l->length = 0;
     l->allocated = 0;
@@ -27,7 +27,7 @@ List *new_list(int initial_allocation) {
 
     if (initial_allocation) {
         l->allocated = initial_allocation;
-        l->elements = malloc(sizeof(void *) * initial_allocation);
+        l->elements = wmalloc(sizeof(void *) * initial_allocation);
     }
 
     return l;
@@ -54,7 +54,7 @@ static void resize_list(List* l, int new_length) {
     int new_allocated = round_up(new_length);
     if (new_allocated < MIN_SIZE) new_allocated = MIN_SIZE;
     if (new_length > l->length) {
-        l->elements = realloc(l->elements, sizeof(void *) * new_allocated);
+        l->elements = wrealloc(l->elements, sizeof(void *) * new_allocated);
         if (!l->elements) panic("Realloc failed");
     }
     l->length = new_length;

@@ -14,7 +14,7 @@ void free_functions(void) {
 }
 
 Function *new_function(void) {
-    Function *function = calloc(1, sizeof(Function));
+    Function *function = wcalloc(1, sizeof(Function));
     append_to_list(allocated_functions, function);
 
     return function;
@@ -170,7 +170,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
         ir = ir->next;
 
         // Allocate result vregs and create a live range or them
-        int *live_range_pregs = malloc(sizeof(int) * 8);
+        int *live_range_pregs = wmalloc(sizeof(int) * 8);
         for (int loc = 0; loc < fpl->count; loc++) {
             FunctionParamLocation *location = &(fpl->locations[loc]);
             live_range_pregs[loc] = ++function->vreg_count;
@@ -287,7 +287,7 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
     add_function_param_to_allocation(fpa, ir->src1->type);
     FunctionParamLocations *fpl = &(fpa->params[0]);
 
-    Value **function_call_values = calloc(2, sizeof(Value *));
+    Value **function_call_values = wcalloc(2, sizeof(Value *));
 
     if (fpl->locations[0].stack_offset != -1) {
         // Move data into memory
@@ -571,20 +571,20 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
     int register_count = preg_class == PC_INT ? 6 : 8;
 
     // Values of the passed argument, i.e. by the caller
-    Value **arg_values = calloc(function_call_count * register_count, sizeof(Value *));
+    Value **arg_values = wcalloc(function_call_count * register_count, sizeof(Value *));
 
     // param_indexes maps the register indexes to a parameter index, e.g.
     // foo(int i, long double ld, int j) will produce
     // param_indexes[0] = 0
     // param_indexes[1] = 2
-    int *param_indexes = malloc(sizeof(int) * function_call_count * register_count);
+    int *param_indexes = wmalloc(sizeof(int) * function_call_count * register_count);
     memset(param_indexes, -1, sizeof(int) * function_call_count * register_count);
 
     // Set to 1 if the function returns a struct in memory, which reserves rdi for a
     // pointer to the return address
-    char *has_struct_or_union_return_values = calloc(function_call_count, sizeof(char));
+    char *has_struct_or_union_return_values = wcalloc(function_call_count, sizeof(char));
 
-    FunctionParamLocations **param_locations = malloc(sizeof(FunctionParamLocations *) * function_call_count * register_count);
+    FunctionParamLocations **param_locations = wmalloc(sizeof(FunctionParamLocations *) * function_call_count * register_count);
     memset(param_locations, -1, sizeof(FunctionParamLocations *) * function_call_count * register_count);
 
     make_vreg_count(function, 0);
@@ -616,7 +616,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
             Function *called_function = ir->src1->type->function;
 
             // Allocated registers that hold the argument value
-            Value **function_call_values = calloc(register_count, sizeof(Value *));
+            Value **function_call_values = wcalloc(register_count, sizeof(Value *));
 
             // Add the moves backwards so that arg 0 (rsi) is last.
             int i = 0;
@@ -1292,15 +1292,15 @@ void add_function_param_moves(Function *function, char *identifier) {
     function->fpa = fpa;
     finalize_function_param_allocation(fpa);
 
-    int *register_param_vregs = malloc(sizeof(int) * function->param_count);
+    int *register_param_vregs = wmalloc(sizeof(int) * function->param_count);
     memset(register_param_vregs, -1, sizeof(int) * function->param_count);
 
-    int *register_param_stack_indexes = calloc(function->param_count, sizeof(int));
+    int *register_param_stack_indexes = wcalloc(function->param_count, sizeof(int));
 
-    int *has_address_of = calloc(function->param_count, sizeof(int));
+    int *has_address_of = wcalloc(function->param_count, sizeof(int));
 
     // The stack is never bigger than function->param_count * 2 & starts at 2
-    int *stack_param_vregs = malloc(sizeof(int) * (function->param_count * 2 + 2));
+    int *stack_param_vregs = wmalloc(sizeof(int) * (function->param_count * 2 + 2));
     memset(stack_param_vregs, -1, sizeof(int) * (function->param_count * 2 + 2));
 
     // Determine which parameters in registers are used in IR_ADDRESS_OF instructions
@@ -1373,7 +1373,7 @@ void add_function_param_moves(Function *function, char *identifier) {
     // Parameter stack indexes go from 2, 3, 4 for arg 0, arg 1, arg 2, ...
     // Determine the actual stack index based on type sizes and alignment and
     // remap stack_index.
-    int *stack_index_remap = malloc(sizeof(int) * (function->param_count + 2));
+    int *stack_index_remap = wmalloc(sizeof(int) * (function->param_count + 2));
     memset(stack_index_remap, -1, sizeof(int) * (function->param_count + 2));
 
     // Determine stack offsets for parameters on the stack and add moves
@@ -1434,8 +1434,8 @@ Value *make_function_call_value(int function_call) {
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier) {
     if (debug_function_param_allocation) printf("\nInitializing param allocation for function %s\n", function_identifier);
 
-    FunctionParamAllocation *fpa = calloc(1, sizeof(FunctionParamAllocation));
-    fpa->params = malloc(sizeof(FunctionParamLocations) * MAX_FUNCTION_CALL_ARGS);
+    FunctionParamAllocation *fpa = wcalloc(1, sizeof(FunctionParamAllocation));
+    fpa->params = wmalloc(sizeof(FunctionParamLocations) * MAX_FUNCTION_CALL_ARGS);
 
     return fpa;
 }
@@ -1513,7 +1513,7 @@ static void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) 
     }
 
     else {
-        StructOrUnionScalar *scalar = malloc(sizeof(StructOrUnionScalar));
+        StructOrUnionScalar *scalar = wmalloc(sizeof(StructOrUnionScalar));
         if (scalars->count == MAX_STRUCT_OR_UNION_SCALARS) panic("Exceeded max number of scalars in a struct/union");
         scalars->scalars[scalars->count++] = scalar;
         scalar->type = type;
@@ -1523,7 +1523,7 @@ static void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) 
 
 static void add_single_stack_function_param_location(FunctionParamAllocation *fpa, Type *type) {
     FunctionParamLocations *fpl = &(fpa->params[fpa->arg_count]);
-    fpl->locations = malloc(sizeof(FunctionParamLocation));
+    fpl->locations = wmalloc(sizeof(FunctionParamLocation));
     fpl->count = 1;
     add_type_to_allocation(fpa, &(fpl->locations[0]), type, 0);
 
@@ -1551,16 +1551,16 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
         else {
             // Decompose a struct or union into up to 8 8-bytes
 
-            StructOrUnionScalars *scalars = malloc(sizeof(StructOrUnionScalars));
-            scalars->scalars = malloc(sizeof(StructOrUnionScalar) * MAX_STRUCT_OR_UNION_SCALARS);
+            StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
+            scalars->scalars = wmalloc(sizeof(StructOrUnionScalar) * MAX_STRUCT_OR_UNION_SCALARS);
             scalars->count = 0;
             flatten_type(type, scalars, 0);
 
             // Classify the eight bytes
-            char *seen_integer = calloc(8, sizeof(char));
-            char *seen_sse = calloc(8, sizeof(char));
-            char *seen_memory = calloc(8, sizeof(char));
-            char *member_counts = calloc(8, sizeof(char));
+            char *seen_integer = wcalloc(8, sizeof(char));
+            char *seen_sse = wcalloc(8, sizeof(char));
+            char *seen_memory = wcalloc(8, sizeof(char));
+            char *member_counts = wcalloc(8, sizeof(char));
 
             int unaligned = 0;
 
@@ -1587,7 +1587,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             // Determine number of 8-bytes & allocate memory
             int eight_bytes_count = (size + 7) / 8;
             FunctionParamLocations *fpl = &(fpa->params[fpa->arg_count]);
-            fpl->locations = malloc(sizeof(FunctionParamLocation) * eight_bytes_count);
+            fpl->locations = wmalloc(sizeof(FunctionParamLocation) * eight_bytes_count);
             fpl->count = eight_bytes_count;
 
             // If one of the classes is MEMORY, the whole argument is passed in memory.
@@ -1600,7 +1600,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             }
 
             else {
-                FunctionParamAllocation *backup_fpa = malloc(sizeof(FunctionParamAllocation));
+                FunctionParamAllocation *backup_fpa = wmalloc(sizeof(FunctionParamAllocation));
                 *backup_fpa = *fpa;
                 int on_stack = 0;
 

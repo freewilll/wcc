@@ -3,7 +3,7 @@
 #include "wcc.h"
 
 LongSet *new_longset(void) {
-    LongSet *ls = malloc(sizeof(LongSet));
+    LongSet *ls = wmalloc(sizeof(LongSet));
     ls->longmap = new_longmap();
 
     return ls;

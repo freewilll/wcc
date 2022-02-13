@@ -26,7 +26,7 @@ void free_values(void) {
 }
 
 Value *new_value(void) {
-    Value *v = calloc(1, sizeof(Value));
+    Value *v = wcalloc(1, sizeof(Value));
     append_to_list(allocated_values, v);
     init_value(v);
 
@@ -75,7 +75,7 @@ void add_tac_to_ir(Tac *tac) {
 }
 
 Tac *new_instruction(int operation) {
-    Tac *tac = calloc(1, sizeof(Tac));
+    Tac *tac = wcalloc(1, sizeof(Tac));
     tac->operation = operation;
 
     return tac;
@@ -481,11 +481,11 @@ void reverse_function_argument_order(Function *function) {
 
     // First index, function_id, second index arg_id
     TacInterval *function_args;
-    function_args = malloc(sizeof(TacInterval) * function_call_count * MAX_ARGS);
+    function_args = wmalloc(sizeof(TacInterval) * function_call_count * MAX_ARGS);
 
-    int *arg_counts = calloc(function_call_count, sizeof(int));
-    Tac **calls = calloc(function_call_count, sizeof(Tac *));
-    Tac **call_starts = calloc(function_call_count, sizeof(Tac *));
+    int *arg_counts = wcalloc(function_call_count, sizeof(int));
+    Tac **calls = wcalloc(function_call_count, sizeof(Tac *));
+    Tac **call_starts = wcalloc(function_call_count, sizeof(Tac *));
 
     ir = function->ir;
 
@@ -629,7 +629,7 @@ void renumber_labels(Function *function) {
 
     if (!max_label_count) return;
 
-    int *mapping = calloc(max_label_count + 1, sizeof(int));
+    int *mapping = wcalloc(max_label_count + 1, sizeof(int));
 
     // Make mapping of old to new label indexes
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -713,7 +713,7 @@ static void set_on_stack(Value *v, char *on_stack) {
 // which case, they must be on the stack.
 // Function parameters aren't touched in this function
 void allocate_value_vregs(Function *function) {
-    char *on_stack = calloc(function->local_symbol_count + 1, sizeof(char));
+    char *on_stack = wcalloc(function->local_symbol_count + 1, sizeof(char));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Keep variables that are used with the & operator on the stack
@@ -749,7 +749,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
             ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
-            Tac *tac = calloc(1, sizeof(Tac));
+            Tac *tac = wcalloc(1, sizeof(Tac));
             tac->operation = IR_JNZ;
             ir->dst = new_value();
             ir->dst->type = new_type(TYPE_INT);
@@ -765,7 +765,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
 // Long double rvalues never live in registers, ensure all of them are on the stack
 void move_long_doubles_to_the_stack(Function *function) {
     make_vreg_count(function, 0);
-    int *local_indexes = calloc(function->vreg_count + 1, sizeof(int));
+    int *local_indexes = wcalloc(function->vreg_count + 1, sizeof(int));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Long doubles in vregs are moved to the stack
@@ -804,7 +804,7 @@ void make_stack_register_count(Function *function) {
 void allocate_value_stack_indexes(Function *function) {
     int stack_register_count = 0;
 
-    int *stack_index_map = malloc((function->local_symbol_count + 1) * sizeof(int));
+    int *stack_index_map = wmalloc((function->local_symbol_count + 1) * sizeof(int));
     memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
 
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
@@ -863,7 +863,7 @@ void remove_unused_function_call_results(Function *function) {
         if (tac->src2 && tac->src2->vreg && tac->src2->vreg > vreg_count) vreg_count = tac->src2->vreg;
     }
 
-    char *used_vregs = calloc(vreg_count + 1, sizeof(char));
+    char *used_vregs = wcalloc(vreg_count + 1, sizeof(char));
 
     Tac *tac = function->ir;
     while (tac->next) tac = tac->next;
@@ -894,9 +894,9 @@ static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Va
     Value *arg_value = dup_value(function_call_value);
     arg_value->function_call_arg_index = int_arg_index;
 
-    FunctionParamLocations *fpl = malloc(sizeof(FunctionParamLocations));
+    FunctionParamLocations *fpl = wmalloc(sizeof(FunctionParamLocations));
     arg_value->function_call_arg_locations = fpl;
-    fpl->locations = malloc(sizeof(FunctionParamLocation));
+    fpl->locations = wmalloc(sizeof(FunctionParamLocation));
     memset(fpl->locations, -1, sizeof(FunctionParamLocation));
     fpl->count = 1;
     fpl->locations[0].int_register = int_arg_index;

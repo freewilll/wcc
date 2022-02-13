@@ -63,7 +63,7 @@ static int new_vreg(void) {
 
 // Add an instruction and set the line number and filename
 Tac *add_parser_instruction(int operation, Value *dst, Value *src1, Value *src2) {
-    Origin *origin = malloc(sizeof(Origin));
+    Origin *origin = wmalloc(sizeof(Origin));
     origin->filename = cur_filename;
     origin->line_number = cur_line;
     Tac *tac = add_instruction(operation, dst, src1, src2);
@@ -355,7 +355,7 @@ static int get_type_inc_dec_size(Type *type) {
 }
 
 static BaseType *dup_base_type(BaseType *base_type) {
-    BaseType *result = malloc(sizeof(BaseType));
+    BaseType *result = wmalloc(sizeof(BaseType));
     result->type = dup_type(base_type->type);
     result->storage_class = base_type->storage_class;
     return result;
@@ -523,7 +523,7 @@ static BaseType *parse_declaration_specifiers() {
     if ((seen_auto + seen_register + seen_static + seen_extern > 1))
         error("Duplicate storage class specifiers");
 
-    BaseType *base_type = malloc(sizeof(BaseType));
+    BaseType *base_type = wmalloc(sizeof(BaseType));
     base_type->type = type;
     base_type->storage_class = SC_NONE;
 
@@ -789,9 +789,9 @@ Type *parse_type_name(void) {
 
 // Allocate a new StructOrUnion
 static Type *new_struct_or_union(char *tag_identifier) {
-    StructOrUnion *s = calloc(1, sizeof(StructOrUnion));
+    StructOrUnion *s = wcalloc(1, sizeof(StructOrUnion));
     if (tag_identifier != 0) all_structs_and_unions[all_structs_and_unions_count++] = s;
-    s->members = calloc(MAX_STRUCT_MEMBERS, sizeof(StructOrUnionMember *));
+    s->members = wcalloc(MAX_STRUCT_MEMBERS, sizeof(StructOrUnionMember *));
 
     Type *type = make_struct_or_union_type(s);
 
@@ -833,7 +833,7 @@ static Type *find_enum(char *identifier) {
 // Recursively add a struct member. In the simplest case, it just gets added. For anonymous
 // structs/unions, the function is called recursively with the sub members.
 static StructOrUnionMember *add_struct_member(char *identifier, Type *type, StructOrUnion *s, int *member_count) {
-    StructOrUnionMember *member = calloc(1, sizeof(StructOrUnionMember));
+    StructOrUnionMember *member = wcalloc(1, sizeof(StructOrUnionMember));
     member->identifier = identifier;
     member->type = dup_type(type);
 
@@ -1066,7 +1066,7 @@ void parse_typedef(void) {
         parse_attributes();
 
         if (all_typedefs_count == MAX_TYPEDEFS) panic_with_line_number("Exceeded max typedefs");
-        Typedef *td = calloc(1, sizeof(Typedef));
+        Typedef *td = wcalloc(1, sizeof(Typedef));
         td->identifier = cur_type_identifier;
         td->type = type;
         all_typedefs[all_typedefs_count++] = td;
@@ -1725,14 +1725,14 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
         if (!dst->bit_field_size && s->initializers->length) {
             Initializer *prev = (Initializer *) s->initializers->elements[s->initializers->length - 1];
             if (prev->offset + prev->size != offset) {
-                Initializer *zero = calloc(1, sizeof(Initializer));
+                Initializer *zero = wcalloc(1, sizeof(Initializer));
                 zero->offset = prev->offset + prev->size;
                 zero->size = offset - prev->offset - prev->size;
                 append_to_list(s->initializers, zero);
             }
         }
 
-        in = calloc(1, sizeof(Initializer));
+        in = wcalloc(1, sizeof(Initializer));
         append_to_list(s->initializers, in);
     }
 
@@ -1745,11 +1745,11 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
         size = get_type_size(dst->type);
 
         if (scalar->type->type == TYPE_FLOAT) {
-            in->data = malloc(sizeof(float));
+            in->data = wmalloc(sizeof(float));
             *((float *) in->data) = scalar->fp_value;
         }
         else if (scalar->type->type == TYPE_DOUBLE) {
-            in->data = malloc(sizeof(double));
+            in->data = wmalloc(sizeof(double));
             *((double *) in->data) = scalar->fp_value;
         }
         else if (scalar->type->type == TYPE_LONG_DOUBLE)
@@ -1757,7 +1757,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
         else if (dst->bit_field_size) {
             // Bit field
             if (!in->data) {
-                in->data = malloc(sizeof(int));
+                in->data = wmalloc(sizeof(int));
                 *((unsigned int *) in->data) = 0;
             }
 
@@ -2512,7 +2512,7 @@ void parse_ternary_expression(void) {
 }
 
 static void init_value_stack(void) {
-    vs_start = malloc(sizeof(struct value *) * VALUE_STACK_SIZE);
+    vs_start = wmalloc(sizeof(struct value *) * VALUE_STACK_SIZE);
     vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
 }
 
@@ -3232,7 +3232,7 @@ static void parse_goto_statement(void) {
         add_parser_instruction(IR_JMP, 0, ldst, 0);
     else {
         Tac *ir = add_parser_instruction(IR_JMP, 0, 0, 0);
-        GotoBackPatch *gbp = malloc(sizeof(GotoBackPatch));
+        GotoBackPatch *gbp = wmalloc(sizeof(GotoBackPatch));
         gbp->identifier = cur_identifier;
         gbp->ir = ir;
         append_to_cll(cur_function_symbol->type->function->goto_backpatches, gbp);
@@ -3487,7 +3487,7 @@ void parse(void) {
 
             if (cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
                 // Implicit int
-                base_type = malloc(sizeof(BaseType));
+                base_type = wmalloc(sizeof(BaseType));
                 base_type->type = new_type(TYPE_INT);
                 base_type->storage_class = SC_NONE;
             }
@@ -3600,13 +3600,13 @@ void dump_symbols(void) {
 }
 
 void init_parser(void) {
-    string_literals = malloc(sizeof(StringLiteral) * MAX_STRING_LITERALS);
+    string_literals = wmalloc(sizeof(StringLiteral) * MAX_STRING_LITERALS);
     string_literal_count = 0;
 
-    all_structs_and_unions = malloc(sizeof(struct struct_or_union_desc *) * MAX_STRUCTS_AND_UNIONS);
+    all_structs_and_unions = wmalloc(sizeof(struct struct_or_union_desc *) * MAX_STRUCTS_AND_UNIONS);
     all_structs_and_unions_count = 0;
 
-    all_typedefs = malloc(sizeof(struct typedef_desc *) * MAX_TYPEDEFS);
+    all_typedefs = wmalloc(sizeof(struct typedef_desc *) * MAX_TYPEDEFS);
     all_typedefs_count = 0;
 
     init_value_stack();

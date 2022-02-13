@@ -5,9 +5,9 @@
 #include "wcc.h"
 
 Set *new_set(int max_value) {
-    Set *result = malloc(sizeof(Set));
+    Set *result = wmalloc(sizeof(Set));
     result->max_value = max_value;
-    result->elements = calloc(max_value + 1, sizeof(char));
+    result->elements = wcalloc(max_value + 1, sizeof(char));
     result->cached_element_count = 0;
     result->cached_elements = 0;
 
@@ -36,7 +36,7 @@ void copy_set_to(Set *dst, Set *src) {
 }
 
 void cache_set_elements(Set *s) {
-    if (!s->cached_elements) s->cached_elements = malloc((s->max_value + 1) * sizeof(int));
+    if (!s->cached_elements) s->cached_elements = wmalloc((s->max_value + 1) * sizeof(int));
     int *cached_elements = s->cached_elements;
 
     int count = 0;

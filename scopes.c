@@ -8,7 +8,7 @@ Scope *global_scope;
 
 // Initialize the global scope
 void init_scopes(void) {
-    global_scope = calloc(1, sizeof(Scope));
+    global_scope = wcalloc(1, sizeof(Scope));
     global_scope->symbol_list = new_list(128);
     global_scope->symbols = new_strmap();
     global_scope->tags = new_strmap();
@@ -19,7 +19,7 @@ void init_scopes(void) {
 
 // Initialize a local scope and set cur_scope as the parent
 void enter_scope(void) {
-    Scope *scope = calloc(1, sizeof(Scope));
+    Scope *scope = wcalloc(1, sizeof(Scope));
     scope->symbol_list = new_list(128);
     scope->symbols = new_strmap();
     scope->tags = new_strmap();
@@ -36,7 +36,7 @@ void exit_scope(void) {
 
 // Add a symbol to the current scope
 Symbol *new_symbol(char *identifier) {
-    Symbol *symbol = calloc(1, sizeof(Symbol));
+    Symbol *symbol = wcalloc(1, sizeof(Symbol));
     symbol->identifier = identifier;
     append_to_list(cur_scope->symbol_list, symbol);
     strmap_put(cur_scope->symbols, identifier, symbol);
@@ -55,7 +55,7 @@ Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
 }
 
 Tag *new_tag(char *identifier) {
-    Tag *tag = calloc(1, sizeof(Tag));
+    Tag *tag = wcalloc(1, sizeof(Tag));
     tag->identifier = identifier;
     strmap_put(cur_scope->tags, identifier, tag);
 

@@ -93,7 +93,7 @@ static void append_quad_register_name(char *buffer, int preg) {
 }
 
 char *register_name(int preg) {
-    char *buffer = malloc(16);
+    char *buffer = wmalloc(16);
     buffer[0] = 0;
     append_quad_register_name(buffer, preg);
     return buffer;
@@ -121,9 +121,9 @@ void make_stack_offsets(Function *function, char *function_name) {
     if (!count) return; // Nothing is on the stack
 
     // Determine size & alignments for all variables on the stack
-    int *stack_alignments = calloc((count + 1), sizeof(int));
+    int *stack_alignments = wcalloc((count + 1), sizeof(int));
 
-    int *stack_sizes = calloc((count + 1), sizeof(int));
+    int *stack_sizes = wcalloc((count + 1), sizeof(int));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst)  process_stack_offset(tac->dst,  stack_alignments, stack_sizes);
@@ -132,7 +132,7 @@ void make_stack_offsets(Function *function, char *function_name) {
     }
 
     // Determine stack offsets
-    int *stack_offsets = malloc((count+ 1) * sizeof(int));
+    int *stack_offsets = wmalloc((count+ 1) * sizeof(int));
     int offset = 0;
     int total_size = 0;
     for (int size = 4; size >= 0; size--) {
@@ -232,7 +232,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
     if (!t) return 0;
 
-    char *buffer = calloc(1, 128);
+    char *buffer = wcalloc(1, 128);
     char *result = buffer;
 
     while (*t && *t != ' ') *buffer++ = *t++;
@@ -438,7 +438,7 @@ static void output_x86_operation(Tac *tac, int function_pc) {
 
 // Add an instruction after ir and return ir of the new instruction
 static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *x86_template) {
-    Tac *tac = calloc(1, sizeof(Tac));
+    Tac *tac = wcalloc(1, sizeof(Tac));
     tac->operation = operation;
     tac->dst = dst;
     tac->src1 = src1;
@@ -511,7 +511,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
         cur_stack_push_count += stack_size / 8;
     }
 
-    saved_registers = calloc(sizeof(int), PHYSICAL_REGISTER_COUNT);
+    saved_registers = wcalloc(sizeof(int), PHYSICAL_REGISTER_COUNT);
 
     ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
 
@@ -823,7 +823,7 @@ static void output_symbol(Symbol *symbol) {
 // debug_abbrev section. debug_str contains debug strings. This is enough information
 // to have the source filename, directory, function names and line numbers.
 void output_debug_sections(char *input_filename) {
-    char *cwd = malloc(1024);
+    char *cwd = wmalloc(1024);
     if (!getcwd(cwd, 1024)) panic("Unable to get cwd");
 
     // Output debug_info section
@@ -1016,7 +1016,7 @@ void output_code(char *input_filename, char *output_filename) {
 }
 
 void init_codegen(void) {
-    floating_point_literals = malloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
+    floating_point_literals = wmalloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
     floating_point_literal_count = 0;
 
     debug_strings = new_strmap();

@@ -646,10 +646,11 @@ typedef struct cpp_token {
 typedef CppToken *(*DirectiveRenderer)(CppToken *);
 
 typedef struct directive {
-    int is_function;            // Is the macro an object or function macro
-    CppToken *tokens;           // Replacement tokens
-    StrMap *param_identifiers;  // Mapping of parameter identifiers => index, index starts at 1
+    char is_function;           // Is the macro an object or function macro
+    char is_freeable;           // Can the memory be freed after preprocessing?
     int param_count;            // Amount of parameters.
+    StrMap *param_identifiers;  // Mapping of parameter identifiers => index, index starts at 1
+    CppToken *tokens;           // Replacement tokens
     DirectiveRenderer renderer; // Renderer for builtin directives
 } Directive;
 
@@ -900,6 +901,10 @@ void terminate_string_buffer(StringBuffer *sb);
 
 int set_debug_logging_start_time();
 int debug_log(char *format, ...);
+
+void *wmalloc(size_t size);
+void *wrealloc(void *ptr, size_t size);
+void *wcalloc(size_t nitems, size_t size);
 
 // error.c
 void panic_with_line_number(char *format, ...);
