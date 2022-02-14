@@ -789,6 +789,7 @@ static void output_symbol(Symbol *symbol) {
         fprintf(f, "%s:\n", symbol->global_identifier);
 
         for (int i = 0; i < symbol->initializers->length; i++) {
+
             Initializer *in = (Initializer *) symbol->initializers->elements[i];
 
             if (in->is_address_of || in->symbol) {
@@ -796,26 +797,34 @@ static void output_symbol(Symbol *symbol) {
                     fprintf(f,"    .quad    %s + %d\n", in->symbol->global_identifier, in->address_of_offset);
                 else
                     fprintf(f,"    .quad    %s\n", in->symbol->global_identifier);
+                size -= 8;
             }
             else if (in->is_string_literal) {
                 if (in->address_of_offset)
                     fprintf(f,"    .quad    .SL%d + %d\n", in->string_literal_index, in->address_of_offset);
                 else
                     fprintf(f,"    .quad    .SL%d\n", in->string_literal_index);
+                size -= 8;
             }
-            else if (!in->data) fprintf(f,"    .zero    %d\n", in->size);
-            else if (in->size == 1) fprintf(f,"    .byte    %d\n", *((char *) in->data));
-            else if (in->size == 2) fprintf(f,"    .word    %d\n", *((short *) in->data));
-            else if (in->size == 4) fprintf(f,"    .long    %d\n", *((int *) in->data));
-            else if (in->size == 8) fprintf(f,"    .quad    %ld\n", *((long *) in->data));
-            else if (in->size == 16) {
-                fprintf(f, "    .long   %d\n", (((int *) in->data))[0]);
-                fprintf(f, "    .long   %d\n", (((int *) in->data))[1]);
-                fprintf(f, "    .long   %d\n", (((int *) in->data))[2] & 0xffff);
-                fprintf(f, "    .long   0\n");
+            else {
+                if (!in->data) fprintf(f,"    .zero    %d\n", in->size);
+                else if (in->size == 1) fprintf(f,"    .byte    %d\n", *((char *) in->data));
+                else if (in->size == 2) fprintf(f,"    .word    %d\n", *((short *) in->data));
+                else if (in->size == 4) fprintf(f,"    .long    %d\n", *((int *) in->data));
+                else if (in->size == 8) fprintf(f,"    .quad    %ld\n", *((long *) in->data));
+                else if (in->size == 16) {
+                    fprintf(f, "    .long   %d\n", (((int *) in->data))[0]);
+                    fprintf(f, "    .long   %d\n", (((int *) in->data))[1]);
+                    fprintf(f, "    .long   %d\n", (((int *) in->data))[2] & 0xffff);
+                    fprintf(f, "    .long   0\n");
+                }
+                else panic("Unknown initializer size=%d data=%p\n", in->size, in->data);
+                size -= in->size;
             }
-            else panic("Unknown initializer size=%d data=%p\n", in->size, in->data);
         }
+
+        // Add padding for structs that have padding at the end
+        if (size) fprintf(f,"    .zero    %d\n", size);
     }
 }
 

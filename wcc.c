@@ -152,6 +152,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
         if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
             Function *function = symbol->type->function;
             if (print_ir1) print_ir(function, symbol->identifier, 0);
+
             run_compiler_phases(function, symbol->identifier, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
             if (print_ir2) print_ir(function, symbol->identifier, 0);
         }

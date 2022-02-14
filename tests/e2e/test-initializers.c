@@ -1273,6 +1273,21 @@ static void test_static_identifier_reuse_bug() {
     assert_int(10, gi2, "Static int identifier reuse bug, gi2 is untouched");
 }
 
+struct s12 {
+    long l[3];
+    int i;
+} s12 = { 1, 2, 3, 4 };
+
+char ca8[4] = { 1, 2, 3, 4 };
+
+int test_zero_padding_at_end_of_struct() {
+    memset(&s12, 0, sizeof(struct s12));
+    assert_int(1, ca8[0], "Zero padding at end of struct 1");
+    assert_int(2, ca8[1], "Zero padding at end of struct 2");
+    assert_int(3, ca8[2], "Zero padding at end of struct 3");
+    assert_int(4, ca8[3], "Zero padding at end of struct 4");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1330,6 +1345,7 @@ int main(int argc, char **argv) {
     test_global_initialization();
     test_static_local_initialization();
     test_static_identifier_reuse_bug();
+    test_zero_padding_at_end_of_struct();
 
     finalize();
 }
