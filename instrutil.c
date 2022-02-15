@@ -4,7 +4,9 @@
 
 #include "wcc.h"
 
-static int non_terminal_for_value(Value *v);
+#define non_terminal_for_value(v) (v->non_terminal ? v->non_terminal : uncached_non_terminal_for_value(v))
+
+static int uncached_non_terminal_for_value(Value *v);
 static int value_ptr_target_x86_size(Value *v);
 
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
@@ -456,7 +458,7 @@ void make_value_x86_size(Value *v) {
     }
 }
 
-static int non_terminal_for_value(Value *v) {
+static int uncached_non_terminal_for_value(Value *v) {
     int result;
 
     if (!v->x86_size) make_value_x86_size(v);
