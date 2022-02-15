@@ -452,8 +452,8 @@ int main(int argc, char **argv) {
     char *command = wmalloc(1024 * 100);
 
     List *compiler_input_filenames = new_list(input_filenames->length);
-    List *assembler_input_filenames = new_list(input_filenames->length);
-    List *linker_input_filenames = new_list(input_filenames->length);
+    char **assembler_input_filenames = wcalloc(input_filenames->length, sizeof(char *));
+    char **linker_input_filenames = wcalloc(input_filenames->length, sizeof(char *));
 
     // Only run preprocessor & preprocess with file/stdout output
     if (!run_compiler) {
@@ -474,7 +474,7 @@ int main(int argc, char **argv) {
         char *input_filename = input_filenames->elements[i];
 
         if (is_assembly_file(input_filename)) {
-            append_to_list(assembler_input_filenames, input_filename);
+            assembler_input_filenames[i] = input_filename;
             continue;
         }
 
@@ -493,7 +493,7 @@ int main(int argc, char **argv) {
 
         compile(preprocessor_output, input_filename, compiler_output_filename);
 
-        if (run_assembler) append_to_list(assembler_input_filenames, compiler_output_filename);
+        if (run_assembler) assembler_input_filenames[i] = compiler_output_filename;
 
         if (print_symbols) dump_symbols();
         if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
@@ -503,8 +503,9 @@ int main(int argc, char **argv) {
 
     // Assembler phase
     if (run_assembler) {
-        for (int i = 0; i < assembler_input_filenames->length; i++) {
-            char *input_filename = assembler_input_filenames->elements[i];
+        for (int i = 0; i < input_filenames->length; i++) {
+            char *input_filename = assembler_input_filenames[i];
+            if (!input_filename) continue;
 
             char *assembler_output_filename =
                 !run_linker ? (output_filename ? output_filename : replace_extension(single_target ? input_filenames->elements[0] : input_filename, "o"))
@@ -520,22 +521,24 @@ int main(int argc, char **argv) {
             int result = system(command);
             if (result != 0) exit(result >> 8);
 
-            if (run_linker) append_to_list(linker_input_filenames, assembler_output_filename);
+            if (run_linker) linker_input_filenames[i] = assembler_output_filename;
         }
     }
 
     // Preprocessing + compilation phase
     for (int i = 0; i < input_filenames->length; i++) {
         char *input_filename = input_filenames->elements[i];
-        if (is_object_file(input_filename)) append_to_list(linker_input_filenames, input_filename);
+        if (is_object_file(input_filename)) linker_input_filenames[i] = input_filename;
     }
 
     // Linker phase
     if (run_linker) {
         char *filenames = wmalloc(1024 * 100);
         char *s = filenames;
-        for (int i = 0; i < linker_input_filenames->length; i++)
-            s += sprintf(s, " %s", (char *) linker_input_filenames->elements[i]);
+        for (int i = 0; i < input_filenames->length; i++) {
+            char *filename = linker_input_filenames[i];
+            if (filename) s += sprintf(s, " %s", (char *) filename);
+        }
         if (print_filenames) printf("Running linker on%s\n", filenames);
 
         s = command;
@@ -569,8 +572,8 @@ int main(int argc, char **argv) {
     }
 
     free_list(compiler_input_filenames);
-    free_list(assembler_input_filenames);
-    free_list(linker_input_filenames);
+    free(assembler_input_filenames);
+    free(linker_input_filenames);
     free(command);
 
     exit(0);
