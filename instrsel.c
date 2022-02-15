@@ -20,7 +20,7 @@ int cost_graph_node_count;      // Number of nodes in cost graph
 int *cost_to_igraph_map;        // Mapping of a cost graph node back to the instruction graph node
 int *cost_rules;                // Mapping of cost graph node id to x86 instruction rule id
 int *accumulated_cost;          // Total cost of sub tree of a cost graph node
-Set **igraph_labels;            // Matched instruction rule ids for a igraph node id
+LongSet **igraph_labels;        // Matched instruction rule ids for a igraph node id
 Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node id
 List *allocated_graphs;         // Keep track of allocations so they can be freed
 List *allocated_igraphs;        // Keep track of allocations so they can be freed
@@ -811,7 +811,7 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
             printf("matched rule %d:\n", i);
             print_rule(r, 0, 0);
         }
-        add_to_set(igraph_labels[node_id], i);
+        longset_add(igraph_labels[node_id], i);
 
         int choice_node_id = new_cost_graph_node();
         cost_to_igraph_map[choice_node_id] = node_id;
@@ -833,10 +833,11 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
 // Check if the dst for any label in the child tree for src_id matches rule_src.
 static int match_subtree_labels_to_rule(int src_id, int rule_src) {
-    int count = igraph_labels[src_id]->cached_element_count;
-    int *cached_elements = igraph_labels[src_id]->cached_elements;
-    for (int i = 0; i < count; i++)
-        if (rule_src == instr_rules[cached_elements[i]].dst) return 1;
+    longset_foreach(igraph_labels[src_id], it) {
+        int rule = longset_iterator_element(&it);
+        if (rule_src == instr_rules[rule].dst) return 1;
+    }
+
 
     return 0;
 }
@@ -881,18 +882,15 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
     if (debug_instsel_tiling) {
         printf("back from recursing at node=%d\n\n", node_id);
-        printf("src1 labels: "); print_set(igraph_labels[src1_id]); printf(" ");
+        printf("src1 labels: "); print_longset(igraph_labels[src1_id]); printf(" ");
         printf("\n");
 
         if (src2_id) {
             printf("src2 labels: ");
-            print_set(igraph_labels[src2_id]);
+            print_longset(igraph_labels[src2_id]);
             printf("\n");
         }
     }
-
-    if (src1_id) cache_set_elements(igraph_labels[src1_id]);
-    if (src2_id) cache_set_elements(igraph_labels[src2_id]);
 
     if (debug_instsel_tiling && tac->dst)
         printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
@@ -935,7 +933,7 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
             print_rule(r, 1, 0);
         }
 
-        add_to_set(igraph_labels[node_id], i); // Add a label
+        longset_add(igraph_labels[node_id], i); // Add a label
 
         // Add cost graph nodes for src1 and potentially src2
         int choice_node_id = new_cost_graph_node();
@@ -1276,8 +1274,8 @@ static void tile_igraphs(Function *function) {
             continue;
         }
 
-        igraph_labels = wmalloc(igraphs[i].node_count * sizeof(Set *));
-        for (int j = 0; j < igraphs[i].node_count; j++) igraph_labels[j] = new_set(instr_rule_count);
+        igraph_labels = wmalloc(igraphs[i].node_count * sizeof(LongSet *));
+        for (int j = 0; j < igraphs[i].node_count; j++) igraph_labels[j] = new_longset();
 
         igraph_rules = wcalloc(igraphs[i].node_count, sizeof(Rule *));
 
@@ -1307,7 +1305,7 @@ static void tile_igraphs(Function *function) {
             print_ir(f, 0, 0);
         }
 
-        for (int j = 0; j < igraphs[i].node_count; j++) free_set(igraph_labels[j]);
+        for (int j = 0; j < igraphs[i].node_count; j++) free_longset(igraph_labels[j]);
         free(igraph_labels);
         free(igraph_rules);
         free_graph(cost_graph);
