@@ -765,24 +765,25 @@ static int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
     cost_to_igraph_map[cost_graph_node_id] = node_id;
 
     Tac *tac = igraph->nodes[node_id].tac;
-    for (int i = 0; i < instr_rule_count; i++) {
-        Rule *r = &(instr_rules[i]);
-        if (r->operation == tac->operation) {
-            if (debug_instsel_tiling) {
-                printf("matched rule %d:\n", i);
-                print_rule(r, 0, 0);
-            }
 
-            int choice_node_id = new_cost_graph_node();
-            cost_to_igraph_map[choice_node_id] = node_id;
-            cost_rules[choice_node_id] = i;
-            accumulated_cost[choice_node_id] = instr_rules[i].cost;
+    List *rules = longmap_get(instr_rules_by_operation, tac->operation);
+    for (int i = 0; i < rules->length; i++) {
+        Rule *r = rules->elements[i];
 
-            add_graph_edge(cost_graph, cost_graph_node_id, choice_node_id);
-
-            return cost_graph_node_id;
+        if (debug_instsel_tiling) {
+            printf("matched rule %d:\n", r->index);
+            print_rule(r, 0, 0);
         }
-    }
+
+        int choice_node_id = new_cost_graph_node();
+        cost_to_igraph_map[choice_node_id] = node_id;
+        cost_rules[choice_node_id] = r->index;
+        accumulated_cost[choice_node_id] = r->cost;
+
+        add_graph_edge(cost_graph, cost_graph_node_id, choice_node_id);
+
+        return cost_graph_node_id;
+        }
 
     dump_igraph(igraph, 0);
     panic("Did not match any rules");
@@ -800,23 +801,23 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
     // Find a matching instruction
     int matched = 0;
-    for (int i = 0; i < instr_rule_count; i++) {
-        Rule *r = &(instr_rules[i]);
-        if (r->operation) continue;
+    List *rules = longmap_get(instr_rules_by_operation, 0); // Rules without an operation
+    for (int i = 0; i < rules->length; i++) {
+        Rule *r = rules->elements[i];
 
         if (!match_value_to_rule_src(v, r->src1)) continue;
         if (!v->is_constant && !v->label && v->type->type != TYPE_FUNCTION && !match_value_type_to_rule_dst(v, r->dst)) continue;
 
         if (debug_instsel_tiling) {
-            printf("matched rule %d:\n", i);
+            printf("matched rule %d:\n", r->index);
             print_rule(r, 0, 0);
         }
-        longset_add(igraph_labels[node_id], i);
+        longset_add(igraph_labels[node_id], r->index);
 
         int choice_node_id = new_cost_graph_node();
         cost_to_igraph_map[choice_node_id] = node_id;
-        cost_rules[choice_node_id] = i;
-        accumulated_cost[choice_node_id] = instr_rules[i].cost;
+        cost_rules[choice_node_id] = r->index;
+        accumulated_cost[choice_node_id] = r->cost;
 
         add_graph_edge(cost_graph, cost_graph_node_id, choice_node_id);
 
@@ -837,7 +838,6 @@ static int match_subtree_labels_to_rule(int src_id, int rule_src) {
         int rule = longset_iterator_element(&it);
         if (rule_src == instr_rules[rule].dst) return 1;
     }
-
 
     return 0;
 }
@@ -897,10 +897,10 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
 
     // Loop over all rules and gather matches in the cost graph
     int matched = 0;
-    for (int i = 0; i < instr_rule_count; i++) {
-        Rule *r = &(instr_rules[i]);
+    List *rules = longmap_get(instr_rules_by_operation, operation);
+    for (int i = 0; i < rules->length; i++) {
+        Rule *r = rules->elements[i];
 
-        if (r->operation != operation) continue; // Only handle operations nodes
         if (src2_id && !r->src2 || !src2_id && r->src2) continue; // Filter rules requiring src2
 
         // If this is the top level or a rule requires it, ensure the dst matches.
@@ -929,15 +929,15 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         matched = 1;
 
         if (debug_instsel_tiling) {
-            printf("matched rule %d:\n", i);
+            printf("matched rule %d:\n", r->index);
             print_rule(r, 1, 0);
         }
 
-        longset_add(igraph_labels[node_id], i); // Add a label
+        longset_add(igraph_labels[node_id], r->index); // Add a label
 
         // Add cost graph nodes for src1 and potentially src2
         int choice_node_id = new_cost_graph_node();
-        cost_rules[choice_node_id] = i;
+        cost_rules[choice_node_id] = r->index;
         cost_to_igraph_map[choice_node_id] = node_id;
 
         add_graph_edge(cost_graph, cost_graph_node_id, choice_node_id);

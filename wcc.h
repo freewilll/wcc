@@ -1339,6 +1339,7 @@ typedef struct x86_operation {
 int instr_rule_count;
 int disable_merge_constants;
 Rule *instr_rules;
+LongMap *instr_rules_by_operation;
 Value **saved_values;
 char *rule_coverage_file;
 Set *rule_coverage;
@@ -1368,6 +1369,7 @@ void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
 void add_allocate_register_in_slot(Rule *r, int slot, int type);
 void add_allocate_label_in_slot(Rule *r, int slot);
 void fin_rule(Rule *r);
+void make_rules_by_operation(void);
 void check_for_duplicate_rules(void);
 void write_rule_coverage_file(void);
 

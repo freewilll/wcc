@@ -257,6 +257,20 @@ static void make_rule_hash(int i) {
         ((long) r->operation << 27);
 }
 
+void make_rules_by_operation(void) {
+    instr_rules_by_operation = new_longmap();
+
+    for (int i = 0; i < instr_rule_count; i++) {
+        Rule *r = &(instr_rules[i]);
+        List *list = longmap_get(instr_rules_by_operation, r->operation);
+        if (!list) {
+            list = new_list(128);
+            longmap_put(instr_rules_by_operation, r->operation, list);
+        }
+        append_to_list(list, r);
+    }
+}
+
 void check_for_duplicate_rules(void) {
     LongMap *map = new_longmap();
 

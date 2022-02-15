@@ -1508,5 +1508,7 @@ void init_instruction_selection_rules(void) {
 
     if (!disable_check_for_duplicate_rules) check_for_duplicate_rules();
 
+    make_rules_by_operation();
+
     rule_coverage = new_set(instr_rule_count - 1);
 }
