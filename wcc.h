@@ -1357,7 +1357,12 @@ void print_rule(Rule *r, int print_operations, int indent);
 void print_rules(void);
 void make_value_x86_size(Value *v);
 int match_value_to_rule_src(Value *v, int src);
-int match_value_to_rule_dst(Value *v, int dst);
+
+#define non_terminal_for_value(v) (v->non_terminal ? v->non_terminal : uncached_non_terminal_for_value(v))
+int uncached_non_terminal_for_value(Value *v);
+// Used to match the root node. It must be an exact match.
+#define match_value_to_rule_dst(v, dst) (non_terminal_for_value(v) == dst)
+
 int match_value_type_to_rule_dst(Value *v, int dst);
 char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);

@@ -4,9 +4,6 @@
 
 #include "wcc.h"
 
-#define non_terminal_for_value(v) (v->non_terminal ? v->non_terminal : uncached_non_terminal_for_value(v))
-
-static int uncached_non_terminal_for_value(Value *v);
 static int value_ptr_target_x86_size(Value *v);
 
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
@@ -458,7 +455,7 @@ void make_value_x86_size(Value *v) {
     }
 }
 
-static int uncached_non_terminal_for_value(Value *v) {
+int uncached_non_terminal_for_value(Value *v) {
     int result;
 
     if (!v->x86_size) make_value_x86_size(v);
@@ -552,11 +549,6 @@ int match_value_to_rule_src(Value *v, int src) {
     }
     else
         return non_terminal_for_value(v) == src;
-}
-
-// Used to match the root node. It must be an exact match.
-int match_value_to_rule_dst(Value *v, int dst) {
-    return non_terminal_for_value(v) == dst;
 }
 
 // Match a value type to a non terminal rule type. This is necessary to ensure that
