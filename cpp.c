@@ -249,6 +249,7 @@ static void free_cpp_token(CppToken *token) {
     if (token->str) free(token->str);
     if (token->whitespace) free(token->whitespace);
     if (token->hide_set) free_strset(token->hide_set);
+    free(token);
 }
 
 // Create a new CPP token
