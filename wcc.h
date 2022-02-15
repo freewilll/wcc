@@ -119,11 +119,11 @@ enum {
 typedef struct type {
     int type;       // One of TYPE_*
     int array_size;
-    char is_unsigned;
-    char is_const;
-    char is_volatile;
+    unsigned int is_unsigned:1;
+    unsigned int is_const:1;
+    unsigned int is_volatile:1;
+    unsigned int is_restrict:1;
     char storage_class;
-    char is_restrict;
     struct type *target;
     struct struct_or_union_desc *struct_or_union_desc;
     struct function *function;
@@ -271,15 +271,19 @@ typedef struct value {
     int vreg;                                            // Optional vreg number
     int preg;                                            // Allocated physical register
     char preg_class;                                     // Class of physical register, PC_INT or PC_SSE
-    int is_lvalue;                                       // Is the value an lvalue?
-    int is_lvalue_in_register;                           // Is the value an lvalue in a register?
+    unsigned int is_lvalue:1;                            // Is the value an lvalue?
+    unsigned int is_lvalue_in_register:1;                // Is the value an lvalue in a register?
+    unsigned int spilled:1;                              // 1 if spilled
+    unsigned int is_constant:1;                          // Is it a constant? If so, value is the value.
+    unsigned int is_string_literal:1;                    // Is the value a string literal?
+    unsigned int has_been_renamed:1;                     // Used in renaming and stack renumbering code
+    unsigned int is_address_of:1;                        // Is an address of a constant expression.
+    unsigned int has_struct_or_union_return_value:1;     // Is it a function call that returns a struct/union?
+    unsigned int load_from_got:1;                        // Load from Global Offset Table (GOT)
     int local_index;                                     // Used by parser for local variable and temporaries and function arguments
     int stack_index;                                     // stack index in case of a pushed function argument, & usage or register spill
                                                          // < 0 is for locals, temporaries and spills. >= 2 is for pushed arguments, that start at 2.
     int stack_offset;                                    // Position on the stack
-    int spilled;                                         // 1 if spilled
-    int is_constant;                                     // Is it a constant? If so, value is the value.
-    int is_string_literal;                               // Is the value a string literal?
     int string_literal_index;                            // Index in the string_literals array in the case of a string literal
     long int_value;                                      // Value in the case of an integer constant
     long double fp_value;                                // Value in the case of a floating point constant
@@ -288,13 +292,10 @@ typedef struct value {
     int bit_field_size;                                  // Size in bits for bit fields
     int is_overflow_arg_area_address;                    // Set to indicate this value must point to the saved register save overflow for variadic functions
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
-    int is_address_of;                                   // Is an address of a constant expression.
     int address_of_offset;                               // Offset when used in combination with is_address_of
-    int load_from_got;                                   // Load from Global Offset Table (GOT)
     int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
-    int has_struct_or_union_return_value;                // Is it a function call that returns a struct/union?
     FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or sse register, or in the case of a struct, a list of locations
     int function_call_sse_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
@@ -307,8 +308,7 @@ typedef struct value {
     int live_range;                                      // Optional SSA live range
     char preferred_live_range_preg_index;                // Preferred physical register
     int x86_size;                                        // Current size while generating x86 code
-    int non_terminal;                                    // Use in rule matching
-    char has_been_renamed;                               // Used in renaming and stack renumbering code
+    int non_terminal;                                    // Used in rule matching
 } Value;
 
 typedef struct origin {
