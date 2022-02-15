@@ -280,30 +280,6 @@ void check_for_duplicate_rules(void) {
     }
 }
 
-void check_rules_dont_decrease_precision(void) {
-    int bad_rules = 0;
-    for (int i = 0; i < instr_rule_count; i++) {
-        Rule *r = &(instr_rules[i]);
-        if (!r->dst) continue;
-
-        int dst_size = make_x86_size_from_non_terminal(r->dst);
-
-        if (r->src1 && make_x86_size_from_non_terminal(r->src1) > dst_size) {
-            print_rule(r, 0, 0);
-            bad_rules++;
-        }
-        if (r->src2 && make_x86_size_from_non_terminal(r->src2) > dst_size) {
-            print_rule(r, 0, 0);
-            bad_rules++;
-        }
-    }
-
-    if (bad_rules) {
-        printf("There are %d rules that decrease precision\n", bad_rules);
-        exit(1);
-    }
-}
-
 // Make a textual representation of a non terminal
 char *non_terminal_string(int nt) {
     char *buf = wmalloc(6);

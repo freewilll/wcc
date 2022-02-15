@@ -1361,7 +1361,6 @@ int match_value_type_to_rule_dst(Value *v, int dst);
 char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
 Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
-void check_rules_dont_decrease_precision(void);
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
 X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template);
 void add_save_value(Rule *r, int arg, int slot);

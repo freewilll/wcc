@@ -153,7 +153,6 @@ int main(int argc, char **argv) {
     int help = 0;
     int print_stack_register_count = 0;
     int print_instr_rules = 0;
-    int print_instr_precision_decrease_rules = 0;
     int print_symbols = 0;
     int shared = 0;
 
@@ -195,7 +194,6 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-fno-vreg-renumbering"             )) { opt_enable_vreg_renumbering = 0;          argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--trigraphs"                       )) { opt_enable_trigraphs = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-rules"                     )) { print_instr_rules = 1;                    argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "--print-precision-decrease-rules"  )) { print_instr_precision_decrease_rules = 1; argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-filenames"                 )) { print_filenames = 1;                      argc--; argv++; }
 
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-param-allocation"       )) { debug_function_param_allocation = 1;        argc--; argv++; }
@@ -437,11 +435,6 @@ int main(int argc, char **argv) {
 
     if (print_instr_rules) {
         print_rules();
-        exit(0);
-    }
-
-    if (print_instr_precision_decrease_rules) {
-        check_rules_dont_decrease_precision();
         exit(0);
     }
 
