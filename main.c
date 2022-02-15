@@ -131,7 +131,6 @@ static void add_library(char *library) {
 }
 
 int main(int argc, char **argv) {
-
     print_ir1 = 0;
     print_ir2 = 0;
 
@@ -320,6 +319,10 @@ int main(int argc, char **argv) {
                 printf("%s\n", &(argv[0][17]));
                 exit(0);
             }
+            else if (argc > 0 && !strcmp(argv[0], "-dumpmachine")) {
+                printf("x86_64-linux-gnu\n");
+                exit(0);
+            }
             else {
                 printf("Unknown parameter %s\n", argv[0]);
                 exit(1);
@@ -357,7 +360,9 @@ int main(int argc, char **argv) {
         printf("--print-rules                               Print instruction selection rules\n");
         printf("--print-precision-decrease-rules            Print instruction selection rules that decrease precision\n");
         printf("--rule-coverage-file <file>                 Append matched rules to file\n");
+        printf("\n");
         printf("-print-prog-name=<name>                     Print program name\n");
+        printf("-dumpmachine                                Print x86_64-linux-gnu\n");
         printf("\n");
         printf("Optimization flags:\n");
         printf("-fno-live-range-coalescing                  Disable SSA live range coalescing\n");
