@@ -1203,7 +1203,7 @@ void add_ig_edge(char *ig, int vreg_count, int to, int from) {
     else
         index = from * vreg_count + to;
 
-    if (!ig[index]) ig[index] = 1;
+    ig[index] |= 1;
 }
 
 // Add edges to a physical register for all live variables, preventing the physical register from
