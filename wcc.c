@@ -96,6 +96,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     if (log_compiler_phase_durations) debug_log("Analyzing dominance");
     analyze_dominance(function);
     coalesce_live_ranges(function, 0);
+    free_interference_graph(function);
     remove_vreg_self_moves(function);
     if (rule_coverage_file) write_rule_coverage_file();
 
