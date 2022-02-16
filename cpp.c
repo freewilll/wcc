@@ -1316,7 +1316,10 @@ static CppToken *parse_define_replacement_tokens(void) {
     if (tokens->kind == CPP_TOK_PASTE) error("## at end of macro replacement list");
 
     // Clear whitespace on initial token
-    if (tokens) result->whitespace = 0;
+    if (tokens) {
+        free(result->whitespace);
+        result->whitespace = NULL;
+    }
 
     return result;
 }
