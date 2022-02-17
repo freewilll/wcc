@@ -43,7 +43,7 @@ internals.c: internals.h
 	echo "}" >> internals.c
 
 %.o: %.c wcc.h build
-	gcc -g ${GCC_OPTS} -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}' -g -Wno-return-type -Wunused
+	gcc -g ${GCC_OPTS} -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}' -g
 
 libwcc.a: ${OBJECTS}
 	ar rcs libwcc.a ${OBJECTS}

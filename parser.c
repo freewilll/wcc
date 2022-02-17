@@ -113,7 +113,7 @@ static void push_void(void) {
 
 // Pop a void value from the stack,unless the stack is empty
 static void *pop_void(void) {
-    if (vs == vs_start) return;
+    if (vs == vs_start) return NULL;
 
     vs++;
 }

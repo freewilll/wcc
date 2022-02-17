@@ -360,7 +360,7 @@ LineMap *get_cpp_linemap(void) {
 static LineMap *add_to_linemap(LineMap *lm, int position, int line_number) {
     if (lm->position == position) {
         lm->line_number = line_number;
-        return;
+        return lm;
     }
 
     lm->next = wmalloc(sizeof(LineMap));
