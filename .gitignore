@@ -1,6 +1,8 @@
 *.o
 *.s
 internals.c
+instrgen
+instrrules-generated.c
 libwcc.a
 wcc
 wcc2

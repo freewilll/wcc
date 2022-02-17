@@ -13,7 +13,7 @@ SOURCES = \
   regalloc.c \
   instrsel.c \
   instrutil.c \
-  instrrules.c \
+  instrrules-generated.c \
   codegen.c \
   utils.c \
   error.c \
@@ -42,8 +42,14 @@ internals.c: internals.h
 	cat internals.h | sed ':a;N;$$!ba;s/\n/\\n/g;s/^/    return "/;s/$$/";/' >> internals.c
 	echo "}" >> internals.c
 
+instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c longmap.c types.c list.c set.c strmap.c wcc.h
+	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c longmap.c types.c list.c set.c strmap.c
+
+instrrules-generated.c: instrgen
+	./instrgen > instrrules-generated.c
+
 %.o: %.c wcc.h build
-	gcc -g ${GCC_OPTS} -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}' -g
+	gcc -g ${GCC_OPTS} -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 libwcc.a: ${OBJECTS}
 	ar rcs libwcc.a ${OBJECTS}
@@ -135,6 +141,8 @@ clean:
 	cd tools && ${MAKE} clean
 
 	@rm -f internals.c
+	@rm -f instrgen
+	@rm -f instrrules-generated.c
 	@rm -f libwcc.a
 	@rm -f wcc
 	@rm -f wcc2

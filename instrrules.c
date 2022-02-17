@@ -5,9 +5,220 @@
 
 #include "wcc.h"
 
-int disable_check_for_duplicate_rules;
+#define MAX_X86_OPERATION_PER_RULE 32
+
 char **signed_moves_templates, **unsigned_moves_templates;
 int *signed_moves_operations, *unsigned_moves_operations;
+
+static int transform_rule_value(int extend_size, int extend_sign, int v, int size, int is_unsigned) {
+    int result = v;
+
+    if (extend_size) {
+        switch(v) {
+            case XCI: result = CI1 + size - 1; break;
+            case XCU: result = CU1 + size - 1; break;
+            case XRI: result = RI1 + size - 1; break;
+            case XRU: result = RU1 + size - 1; break;
+            case XMI: result = MI1 + size - 1; break;
+            case XMU: result = MU1 + size - 1; break;
+            case XRP: result = RP1 + size - 1; break;
+            case XC:  result = (is_unsigned ? CU1 : CI1) + size - 1; break;
+            case XR:  result = (is_unsigned ? RU1 : RI1) + size - 1; break;
+            case XM:  result = (is_unsigned ? MU1 : MI1) + size - 1; break;
+        }
+    }
+    else if (extend_sign) {
+        switch (v) {
+            case XC1: result = (is_unsigned ? CU1 : CI1); break;
+            case XC2: result = (is_unsigned ? CU2 : CI2); break;
+            case XC3: result = (is_unsigned ? CU3 : CI3); break;
+            case XC4: result = (is_unsigned ? CU4 : CI4); break;
+            case XR1: result = (is_unsigned ? RU1 : RI1); break;
+            case XR2: result = (is_unsigned ? RU2 : RI2); break;
+            case XR3: result = (is_unsigned ? RU3 : RI3); break;
+            case XR4: result = (is_unsigned ? RU4 : RI4); break;
+            case XM1: result = (is_unsigned ? MU1 : MI1); break;
+            case XM2: result = (is_unsigned ? MU2 : MI2); break;
+            case XM3: result = (is_unsigned ? MU3 : MI3); break;
+            case XM4: result = (is_unsigned ? MU4 : MI4); break;
+        }
+    }
+
+    return result;
+}
+
+static void dup_x86_operations(X86Operation *x86_operations, int x86_operation_count, Rule *dst) {
+    dst->x86_operation_count = x86_operation_count;
+    if (!x86_operation_count) return;
+
+    dst->x86_operations = wmalloc(MAX_X86_OPERATION_PER_RULE * sizeof(X86Operation));
+
+    for (int i = 0; i < x86_operation_count; i++)
+        dst->x86_operations[i] = *dup_x86_operation(&x86_operations[i]);
+
+    return;
+}
+
+static Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
+    if (instr_rule_count == MAX_RULE_COUNT) panic("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
+
+    Rule *r = &(instr_rules[instr_rule_count]);
+
+    r->index          = instr_rule_count;
+    r->operation      = operation;
+    r->dst            = dst;
+    r->src1           = src1;
+    r->src2           = src2;
+    r->cost           = cost;
+    r->x86_operations = 0;
+
+    if (cost == 0 && operation != 0) {
+        print_rule(r, 0, 0);
+        printf("A zero cost rule cannot have an operation");
+    }
+
+    instr_rule_count++;
+    return r;
+}
+
+// Add an X86Operation template to a rule's linked list
+static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
+    if (!r->x86_operation_count)
+        r->x86_operations = wmalloc(MAX_X86_OPERATION_PER_RULE * sizeof(X86Operation));
+
+    if (r->x86_operation_count == MAX_X86_OPERATION_PER_RULE) panic("Exceeded MAX_X86_OPERATION_PER_RULE");
+
+    r->x86_operations[r->x86_operation_count++] = *x86op;
+}
+
+// Add an x86 operation template to a rule
+static X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
+    X86Operation *x86op = wmalloc(sizeof(X86Operation));
+    x86op->operation = operation;
+
+    x86op->dst = dst;
+    x86op->v1 = v1;
+    x86op->v2 = v2;
+
+    x86op->template = template;
+    x86op->save_value_in_slot = 0;
+    x86op->allocate_stack_index_in_slot = 0;
+    x86op->allocate_register_in_slot = 0;
+    x86op->allocate_label_in_slot = 0;
+    x86op->allocated_type = 0;
+    x86op->arg = 0;
+
+    add_x86_op_to_rule(r, x86op);
+
+    return x86op;
+}
+
+static char *add_size_to_template(char *template, int size) {
+    if (!template) return 0; // Some magic operations have no templates but are implemented in codegen.
+
+    char x86_size = size_to_x86_size(size);
+    char *result = wcalloc(1, 128);
+    char *dst = result;
+
+    char *c = template;
+    while (*c) {
+        if (c[0] == '%' && c[1] == 's') {
+            *dst++ = x86_size;
+            c++;
+        }
+        else if (c[0] == '%' && c[1] == 'v' && (c[3] != 'b' && c[3] != 'w' && c[3] != 'l' && c[3] != 'q')) {
+            *dst++ = '%';
+            *dst++ = 'v';
+            *dst++ = c[2];
+            *dst++ = x86_size;
+            c += 2;
+        }
+        else
+            *dst++ = *c;
+
+        c++;
+    }
+
+    return result;
+}
+
+// Create new rules by expanding type and/or sign in non terminals
+// e.g.
+// (RP, RI) => (RP1, RI1), (RP2, RI2), (RP3, RI3), (RP4, RI4)
+//
+// XC  => CI1, CI2, CI3, CI4, CU1, CU2, CU3, CU4
+// XR  => RI1, RI2, RI3, RI4, RU1, RU2, RU3, RU4
+// XM  => MI1, MI2, MI3, MI4, MU1, MU2, MU3, MU4
+// XCI => CI1, CI2, CI3, CI4
+// XRI => RI1, RI2, RI3, RI4
+// XRU => RU1, RU2, RU3, RU4
+// XRP => RP1, RP2, RP3, RP4
+// XC1 => CI1, CU1, also XC2 => ... etc
+// XR1 => RI1, RU1, also XR2 => ... etc
+// XM1 => MI1, MU1, also XM2 => ... etc
+static void fin_rule(Rule *r) {
+    int operation                = r->operation;
+    int dst                      = r->dst;
+    int src1                     = r->src1;
+    int src2                     = r->src2;
+    int cost                     = r->cost;
+    int x86_operation_count      = r->x86_operation_count;
+    X86Operation *x86_operations = r->x86_operations;
+
+    int expand_size = dst & EXP_SIZE || src1 & EXP_SIZE || src2 & EXP_SIZE;
+    int expand_sign = dst & EXP_SIGN || src1 & EXP_SIGN || src2 & EXP_SIGN;
+
+    if (!expand_size && !expand_sign) return;
+
+    instr_rule_count--; // Rewind next pointer so that the last rule is overwritten
+
+    for (int size = 1; size <= (expand_size ? 4 : 1); size++) {
+        for (int is_unsigned = 0; is_unsigned < (expand_sign ? 2 : 1); is_unsigned++) {
+            Rule *new_rule = add_rule(
+                transform_rule_value(expand_size, expand_sign, dst, size, is_unsigned),
+                operation,
+                transform_rule_value(expand_size, expand_sign, src1, size, is_unsigned),
+                transform_rule_value(expand_size, expand_sign, src2, size, is_unsigned),
+                cost
+            );
+
+            dup_x86_operations(x86_operations, x86_operation_count, new_rule);
+
+            for (int i = 0; i < new_rule->x86_operation_count; i++) {
+                X86Operation *x86_operation = &new_rule->x86_operations[i];
+                x86_operation->template = add_size_to_template(x86_operation->template, size);
+            }
+        }
+    }
+}
+
+// Add a save value operation to a rule
+static void add_save_value(Rule *r, int arg, int slot) {
+    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
+    x86op->save_value_in_slot = slot;
+    x86op->arg = arg;
+    add_x86_op_to_rule(r, x86op);
+}
+
+static void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
+    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
+    x86op->allocate_stack_index_in_slot = slot;
+    x86op->allocated_type = type;
+    add_x86_op_to_rule(r, x86op);
+}
+
+static void add_allocate_register_in_slot(Rule *r, int slot, int type) {
+    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
+    x86op->allocate_register_in_slot = slot;
+    x86op->allocated_type = type;
+    add_x86_op_to_rule(r, x86op);
+}
+
+static void add_allocate_label_in_slot(Rule *r, int slot) {
+    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
+    x86op->allocate_label_in_slot = slot;
+    add_x86_op_to_rule(r, x86op);
+}
 
 static void add_mov_rule(int dst, int src, int operation, char *template) {
     int src_size = make_x86_size_from_non_terminal(src) - 1;
@@ -22,6 +233,39 @@ static void add_mov_rule(int dst, int src, int operation, char *template) {
 
     Rule *r = add_rule(dst,  IR_MOVE, src, 0, 1);
     add_op(r, operation, DST, SRC1, 0, template);
+}
+
+static void make_rule_hash(int i) {
+    Rule *r = &(instr_rules[i]);
+
+    r->hash =
+        ((long) r->dst       <<  0) +
+        ((long) r->src1      <<  9) +
+        ((long) r->src2      << 18) +
+        ((long) r->operation << 27);
+}
+
+void check_for_duplicate_rules(void) {
+    LongMap *map = new_longmap();
+
+    int duplicates = 0;
+    for (int i = 0; i < instr_rule_count; i++) {
+        make_rule_hash(i);
+        Rule *other_rule = longmap_get(map, instr_rules[i].hash);
+        if (other_rule) {
+            printf("Duplicate rules: %d\n", i);
+            print_rule(&(instr_rules[i]), 1, 0);
+            print_rule(other_rule, 1, 0);
+            printf("\n");
+            duplicates++;
+        }
+        longmap_put(map, instr_rules[i].hash, &(instr_rules[i]));
+    }
+
+    if (duplicates) {
+        printf("There are %d duplicated rules\n", duplicates);
+        exit(1);
+    }
 }
 
 static void init_moves_templates(void) {
@@ -1194,7 +1438,7 @@ static X86Operation *add_sse_function_call_arg_op(Rule *r, char *template) {
     add_op(r, X_ARG, 0, SRC1, SV1, "pushq %v2q");
 }
 
-void init_instruction_selection_rules(void) {
+void define_rules(void) {
     Rule *r;
 
     instr_rule_count = 0;
@@ -1505,10 +1749,4 @@ void init_instruction_selection_rules(void) {
 
     if (ntc >= AUTO_NON_TERMINAL_END)
         panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
-
-    if (!disable_check_for_duplicate_rules) check_for_duplicate_rules();
-
-    make_rules_by_operation();
-
-    rule_coverage = new_set(instr_rule_count - 1);
 }

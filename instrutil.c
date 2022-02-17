@@ -6,91 +6,10 @@
 
 static int value_ptr_target_x86_size(Value *v);
 
-Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
-    if (instr_rule_count == MAX_RULE_COUNT) panic("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
-
-    Rule *r = &(instr_rules[instr_rule_count]);
-
-    r->index          = instr_rule_count;
-    r->operation      = operation;
-    r->dst            = dst;
-    r->src1           = src1;
-    r->src2           = src2;
-    r->cost           = cost;
-    r->x86_operations = 0;
-
-    if (cost == 0 && operation != 0) {
-        print_rule(r, 0, 0);
-        printf("A zero cost rule cannot have an operation");
-    }
-
-    instr_rule_count++;
-    return r;
-}
-
-static int transform_rule_value(int extend_size, int extend_sign, int v, int size, int is_unsigned) {
-    int result = v;
-
-    if (extend_size) {
-        switch(v) {
-            case XCI: result = CI1 + size - 1; break;
-            case XCU: result = CU1 + size - 1; break;
-            case XRI: result = RI1 + size - 1; break;
-            case XRU: result = RU1 + size - 1; break;
-            case XMI: result = MI1 + size - 1; break;
-            case XMU: result = MU1 + size - 1; break;
-            case XRP: result = RP1 + size - 1; break;
-            case XC:  result = (is_unsigned ? CU1 : CI1) + size - 1; break;
-            case XR:  result = (is_unsigned ? RU1 : RI1) + size - 1; break;
-            case XM:  result = (is_unsigned ? MU1 : MI1) + size - 1; break;
-        }
-    }
-    else if (extend_sign) {
-        switch (v) {
-            case XC1: result = (is_unsigned ? CU1 : CI1); break;
-            case XC2: result = (is_unsigned ? CU2 : CI2); break;
-            case XC3: result = (is_unsigned ? CU3 : CI3); break;
-            case XC4: result = (is_unsigned ? CU4 : CI4); break;
-            case XR1: result = (is_unsigned ? RU1 : RI1); break;
-            case XR2: result = (is_unsigned ? RU2 : RI2); break;
-            case XR3: result = (is_unsigned ? RU3 : RI3); break;
-            case XR4: result = (is_unsigned ? RU4 : RI4); break;
-            case XM1: result = (is_unsigned ? MU1 : MI1); break;
-            case XM2: result = (is_unsigned ? MU2 : MI2); break;
-            case XM3: result = (is_unsigned ? MU3 : MI3); break;
-            case XM4: result = (is_unsigned ? MU4 : MI4); break;
-        }
-    }
-
-    return result;
-}
-
 X86Operation *dup_x86_operation(X86Operation *operation) {
     X86Operation *result = wmalloc(sizeof(X86Operation));
     *result = *operation;
     result->template = operation->template ? strdup(operation->template) : 0;
-    result->next = 0;
-
-    return result;
-}
-
-static X86Operation *dup_x86_operations(X86Operation *operation) {
-    X86Operation *o;
-    X86Operation *result = 0;
-
-    // Create new linked list with duplicates of the x86 operations
-    while (operation) {
-        X86Operation *new_operation = dup_x86_operation(operation);
-        if (!result) {
-            result = new_operation;
-            o = result;
-        }
-        else {
-            o->next = new_operation;
-            o = new_operation;
-        }
-        operation = operation->next;
-    }
 
     return result;
 }
@@ -105,157 +24,6 @@ char size_to_x86_size(int size) {
     }
 }
 
-static char *add_size_to_template(char *template, int size) {
-    if (!template) return 0; // Some magic operations have no templates but are implemented in codegen.
-
-    char x86_size = size_to_x86_size(size);
-    char *result = wcalloc(1, 128);
-    char *dst = result;
-
-    char *c = template;
-    while (*c) {
-        if (c[0] == '%' && c[1] == 's') {
-            *dst++ = x86_size;
-            c++;
-        }
-        else if (c[0] == '%' && c[1] == 'v' && (c[3] != 'b' && c[3] != 'w' && c[3] != 'l' && c[3] != 'q')) {
-            *dst++ = '%';
-            *dst++ = 'v';
-            *dst++ = c[2];
-            *dst++ = x86_size;
-            c += 2;
-        }
-        else
-            *dst++ = *c;
-
-        c++;
-    }
-
-    return result;
-}
-
-// Create new rules by expanding type and/or sign in non terminals
-// e.g.
-// (RP, RI) => (RP1, RI1), (RP2, RI2), (RP3, RI3), (RP4, RI4)
-//
-// XC  => CI1, CI2, CI3, CI4, CU1, CU2, CU3, CU4
-// XR  => RI1, RI2, RI3, RI4, RU1, RU2, RU3, RU4
-// XM  => MI1, MI2, MI3, MI4, MU1, MU2, MU3, MU4
-// XCI => CI1, CI2, CI3, CI4
-// XRI => RI1, RI2, RI3, RI4
-// XRU => RU1, RU2, RU3, RU4
-// XRP => RP1, RP2, RP3, RP4
-// XC1 => CI1, CU1, also XC2 => ... etc
-// XR1 => RI1, RU1, also XR2 => ... etc
-// XM1 => MI1, MU1, also XM2 => ... etc
-void fin_rule(Rule *r) {
-    int operation                = r->operation;
-    int dst                      = r->dst;
-    int src1                     = r->src1;
-    int src2                     = r->src2;
-    int cost                     = r->cost;
-    X86Operation *x86_operations = r->x86_operations;
-
-    int expand_size = dst & EXP_SIZE || src1 & EXP_SIZE || src2 & EXP_SIZE;
-    int expand_sign = dst & EXP_SIGN || src1 & EXP_SIGN || src2 & EXP_SIGN;
-
-    if (!expand_size && !expand_sign) return;
-
-    instr_rule_count--; // Rewind next pointer so that the last rule is overwritten
-
-    for (int size = 1; size <= (expand_size ? 4 : 1); size++) {
-        for (int is_unsigned = 0; is_unsigned < (expand_sign ? 2 : 1); is_unsigned++) {
-            Rule *new_rule = add_rule(
-                transform_rule_value(expand_size, expand_sign, dst, size, is_unsigned),
-                operation,
-                transform_rule_value(expand_size, expand_sign, src1, size, is_unsigned),
-                transform_rule_value(expand_size, expand_sign, src2, size, is_unsigned),
-                cost
-            );
-            new_rule->x86_operations = dup_x86_operations(x86_operations);
-
-            X86Operation *x86_operation = new_rule->x86_operations;
-            while (x86_operation) {
-                x86_operation->template = add_size_to_template(x86_operation->template, size);
-                x86_operation = x86_operation->next;
-            }
-        }
-    }
-}
-
-// Add an X86Operation template to a rule's linked list
-static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
-    if (!r->x86_operations)
-        r->x86_operations = x86op;
-    else {
-        X86Operation *o = r->x86_operations;
-        while (o->next) o = o->next;
-        o->next = x86op;
-    }
-}
-
-// Add an x86 operation template to a rule
-X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
-    X86Operation *x86op = wmalloc(sizeof(X86Operation));
-    x86op->operation = operation;
-
-    x86op->dst = dst;
-    x86op->v1 = v1;
-    x86op->v2 = v2;
-
-    x86op->template = template;
-    x86op->save_value_in_slot = 0;
-    x86op->allocate_stack_index_in_slot = 0;
-    x86op->allocate_register_in_slot = 0;
-    x86op->allocate_label_in_slot = 0;
-    x86op->allocated_type = 0;
-    x86op->arg = 0;
-
-    x86op->next = 0;
-
-    add_x86_op_to_rule(r, x86op);
-
-    return x86op;
-}
-
-// Add a save value operation to a rule
-void add_save_value(Rule *r, int arg, int slot) {
-    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
-    x86op->save_value_in_slot = slot;
-    x86op->arg = arg;
-    add_x86_op_to_rule(r, x86op);
-}
-
-void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
-    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
-    x86op->allocate_stack_index_in_slot = slot;
-    x86op->allocated_type = type;
-    add_x86_op_to_rule(r, x86op);
-}
-
-void add_allocate_register_in_slot(Rule *r, int slot, int type) {
-    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
-    x86op->allocate_register_in_slot = slot;
-    x86op->allocated_type = type;
-    add_x86_op_to_rule(r, x86op);
-}
-
-void add_allocate_label_in_slot(Rule *r, int slot) {
-    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
-    x86op->allocate_label_in_slot = slot;
-    add_x86_op_to_rule(r, x86op);
-}
-
-static void make_rule_hash(int i) {
-    Rule *r = &(instr_rules[i]);
-
-    r->hash =
-        ((long) r->dst       <<  0) +
-        ((long) r->src1      <<  9) +
-        ((long) r->src2      << 18) +
-        ((long) r->operation << 27);
-}
-
 void make_rules_by_operation(void) {
     instr_rules_by_operation = new_longmap();
 
@@ -267,29 +35,6 @@ void make_rules_by_operation(void) {
             longmap_put(instr_rules_by_operation, r->operation, list);
         }
         append_to_list(list, r);
-    }
-}
-
-void check_for_duplicate_rules(void) {
-    LongMap *map = new_longmap();
-
-    int duplicates = 0;
-    for (int i = 0; i < instr_rule_count; i++) {
-        make_rule_hash(i);
-        Rule *other_rule = longmap_get(map, instr_rules[i].hash);
-        if (other_rule) {
-            printf("Duplicate rules: %d\n", i);
-            print_rule(&(instr_rules[i]), 1, 0);
-            print_rule(other_rule, 1, 0);
-            printf("\n");
-            duplicates++;
-        }
-        longmap_put(map, instr_rules[i].hash, &(instr_rules[i]));
-    }
-
-    if (duplicates) {
-        printf("There are %d duplicated rules\n", duplicates);
-        exit(1);
     }
 }
 
@@ -387,7 +132,10 @@ void print_rule(Rule *r, int print_operations, int indent) {
     if (print_operations && r->x86_operations) {
         X86Operation *operation = r->x86_operations;
         int first = 1;
-        while (operation) {
+
+        for (int i = 0; i < r->x86_operation_count; i++) {
+            X86Operation *operation = &r->x86_operations[i];
+
             if (!first) {
                 for (int i = 0;i < indent; i++) printf(" ");
                 printf("                                                     ");
@@ -407,8 +155,9 @@ void print_rule(Rule *r, int print_operations, int indent) {
             else
                 printf("\n");
 
-            operation = operation->next;
+            operation++;
         }
+        printf("\n");
     }
     else
         printf("\n");
@@ -418,6 +167,95 @@ void print_rules(void) {
     for (int i = 0; i < instr_rule_count; i++) {
         printf("%-5d ", i);
         print_rule(&(instr_rules[i]), 1, 6);
+    }
+}
+
+char *operation_string(int operation) {
+    switch (operation) {
+        case 0:                      return "";
+        case IR_MOVE:                return "IR_MOVE";
+        case IR_MOVE_PREG_CLASS:     return "IR_MOVE_PREG_CLASS";
+        case IR_MOVE_STACK_PTR:      return "IR_MOVE_STACK_PTR";
+        case IR_ADDRESS_OF:          return "IR_ADDRESS_OF";
+        case IR_INDIRECT:            return "IR_INDIRECT";
+        case IR_DECL_LOCAL_COMP_OBJ: return "IR_DECL_LOCAL_COMP_OBJ";
+        case IR_LOAD_BIT_FIELD:      return "IR_LOAD_BIT_FIELD";
+        case IR_LOAD_FROM_GOT:       return "IR_LOAD_FROM_GOT";
+        case IR_ADDRESS_OF_FROM_GOT: return "IR_ADDRESS_OF_FROM_GOT";
+        case IR_SAVE_BIT_FIELD:      return "IR_SAVE_BIT_FIELD";
+        case IR_START_CALL:          return "IR_START_CALL";
+        case IR_ARG:                 return "IR_ARG";
+        case IR_ARG_STACK_PADDING:   return "IR_ARG_STACK_PADDING";
+        case IR_CALL:                return "IR_CALL";
+        case IR_CALL_ARG_REG:        return "IR_CALL_ARG_REG";
+        case IR_END_CALL:            return "IR_END_CALL";
+        case IR_VA_START:            return "IR_VA_START";
+        case IR_VA_ARG:              return "IR_VA_ARG";
+        case IR_RETURN:              return "IR_RETURN";
+        case IR_ZERO:                return "IR_ZERO";
+        case IR_LOAD_LONG_DOUBLE:    return "IR_LOAD_LONG_DOUBLE";
+        case IR_START_LOOP:          return "IR_START_LOOP";
+        case IR_END_LOOP:            return "IR_END_LOOP";
+        case IR_ALLOCATE_STACK:      return "IR_ALLOCATE_STACK";
+        case IR_MOVE_TO_PTR:         return "IR_MOVE_TO_PTR";
+        case IR_NOP:                 return "IR_NOP";
+        case IR_JMP:                 return "IR_JMP";
+        case IR_JZ:                  return "IR_JZ";
+        case IR_JNZ:                 return "IR_JNZ";
+        case IR_ADD:                 return "IR_ADD";
+        case IR_SUB:                 return "IR_SUB";
+        case IR_RSUB:                return "IR_RSUB";
+        case IR_MUL:                 return "IR_MUL";
+        case IR_DIV:                 return "IR_DIV";
+        case IR_MOD:                 return "IR_MOD";
+        case IR_EQ:                  return "IR_EQ";
+        case IR_NE:                  return "IR_NE";
+        case IR_BNOT:                return "IR_BNOT";
+        case IR_BOR:                 return "IR_BOR";
+        case IR_BAND:                return "IR_BAND";
+        case IR_XOR:                 return "IR_XOR";
+        case IR_BSHL:                return "IR_BSHL";
+        case IR_BSHR:                return "IR_BSHR";
+        case IR_ASHR:                return "IR_ASHR";
+        case IR_LT:                  return "IR_LT";
+        case IR_GT:                  return "IR_GT";
+        case IR_LE:                  return "IR_LE";
+        case IR_GE:                  return "IR_GE";
+        case IR_PHI_FUNCTION:        return "IR_PHI_FUNCTION";
+        case X_MOV:                  return "mov";
+        case X_ADD:                  return "add";
+        case X_MUL:                  return "mul";
+        case X_IDIV:                 return "idiv";
+        case X_CQTO:                 return "cqto";
+        case X_CMP:                  return "cmp";
+        case X_COMIS:                return "comis";
+        case X_TEST:                 return "test";
+        case X_CMPZ:                 return "cmpz";
+        case X_JMP:                  return "jmp";
+        case X_JZ:                   return "jz";
+        case X_JNZ:                  return "jnz";
+        case X_JE:                   return "je";
+        case X_JNE:                  return "jne";
+        case X_JLT:                  return "jlt";
+        case X_JGT:                  return "jgt";
+        case X_JLE:                  return "jle";
+        case X_JGE:                  return "jge";
+        case X_JB:                   return "jb";
+        case X_JA:                   return "ja";
+        case X_JBE:                  return "jbe";
+        case X_JAE:                  return "jae";
+        case X_SETE:                 return "sete";
+        case X_SETNE:                return "setne";
+        case X_SETP:                 return "setp";
+        case X_SETNP:                return "setnp";
+        case X_SETLT:                return "setlt";
+        case X_SETGT:                return "setgt";
+        case X_SETLE:                return "setle";
+        case X_SETGE:                return "setge";
+        case X_MOVS:                 return "movs";
+        case X_MOVZ:                 return "movz";
+        case X_MOVC:                 return "movc";
+        default:                     panic("Unknown x86 operation %d", operation);
     }
 }
 
@@ -431,11 +269,8 @@ void make_value_x86_size(Value *v) {
     if (v->type->type == TYPE_ARRAY) return;
     if (v->type->type == TYPE_FUNCTION || v->function_symbol) return;
 
-    if (!v->type) {
-        print_value(stdout, v, 0);
-        printf("\n");
+    if (!v->type)
         panic("make_value_x86_size() got called with a value with no type");
-    }
 
     if (v->is_string_literal)
         v->x86_size = 4;
@@ -496,10 +331,8 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (!is_local && v->type->is_unsigned)                               result =  MU1 + v->x86_size - 1;
     else if (is_local  &&  v->type->is_unsigned)                              result =  RU1 + v->x86_size - 1;
 
-    else {
-        print_value(stdout, v, 0);
+    else
         panic("\n^ Bad value in non_terminal_for_value()");
-    }
 
     v->non_terminal = result;
 
@@ -643,17 +476,6 @@ int make_x86_size_from_non_terminal(int nt) {
         panic("Unable to determine size for %s", non_terminal_string(nt));
 }
 
-// Add an x86 instruction to the IR
-Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
-    if (v1) make_value_x86_size(v1);
-    if (v2) make_value_x86_size(v2);
-
-    Tac *tac = add_instruction(x86op->operation, dst, v1, v2);
-    tac->x86_template = x86op->template;
-
-    return tac;
-}
-
 void write_rule_coverage_file(void) {
     void *f = fopen(rule_coverage_file, "a");
 
@@ -662,3 +484,4 @@ void write_rule_coverage_file(void) {
 
     fclose(f);
 }
+

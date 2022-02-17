@@ -1027,6 +1027,17 @@ static Value *load_value_from_slot(int slot, char *arg) {
     return slot_value;
 }
 
+// Add an x86 instruction to the IR
+static Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
+    if (v1) make_value_x86_size(v1);
+    if (v2) make_value_x86_size(v2);
+
+    Tac *tac = add_instruction(x86op->operation, dst, v1, v2);
+    tac->x86_template = x86op->template;
+
+    return tac;
+}
+
 static Value *generate_instructions(Function *function, IGraphNode *ign, int is_root, Rule *rule, Value *src1, Value *src2) {
     if (debug_instsel_tiling) {
         printf("Generating instructions for rule %-4d: ", rule->index);
@@ -1081,10 +1092,11 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
     // operations. The final operation(s) then loads the values from the saved slots
     // and add them to the tac.
     // These keep track of the values outputted during the loads.
-    X86Operation *x86op = rule->x86_operations;
     Value *x86_dst, *x86_v1, *x86_v2;
 
-    while (x86op) {
+    for (int i = 0; i < rule->x86_operation_count; i++) {
+        X86Operation *x86op = &rule->x86_operations[i];
+
              if (x86op->dst == 0)    x86_dst = 0;
         else if (x86op->dst == SRC1) x86_dst = src1;
         else if (x86op->dst == SRC2) x86_dst = src2;
@@ -1181,8 +1193,6 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             tac->label = label;
             if (debug_instsel_tiling) print_instruction(stdout, tac, 0);
         }
-
-        x86op = x86op->next;
     }
 
     return dst;

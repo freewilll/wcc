@@ -370,7 +370,7 @@ enum {
     MAX_IDENTIFIER_SIZE           = 1024,
     MAX_INPUT_SIZE                = 1 << 20, // 1 MB
     MAX_STRING_LITERAL_SIZE       = 4095,
-    MAX_STRING_LITERALS           = 10240,
+    MAX_STRING_LITERALS           = 20480,
     MAX_FLOATING_POINT_LITERALS   = 10240,
     MAX_FUNCTION_CALL_ARGS        = 253,
     VALUE_STACK_SIZE              = 10240,
@@ -1054,7 +1054,6 @@ Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
 int print_value(void *f, Value *v, int is_assignment_rhs);
-char *operation_string(int operation);
 void print_instruction(void *f, Tac *tac, int expect_preg);
 void print_ir(Function *function, char* name, int expect_preg);
 void reverse_function_argument_order(Function *function);
@@ -1313,13 +1312,14 @@ enum {
 
 typedef struct rule {
     int index;
-    long hash;
     int operation;
     int dst;
     int src1;
     int src2;
     int cost;
     struct x86_operation *x86_operations;
+    int x86_operation_count;
+    long hash;
 } Rule;
 
 typedef struct x86_operation {
@@ -1332,13 +1332,11 @@ typedef struct x86_operation {
     int allocate_label_in_slot;       // Allocate a label and put in slot
     int allocated_type;               // Type to use to determine the allocated stack size
     int arg;                          // The argument (src1 or src2) to load/save
-    struct x86_operation *next;
 } X86Operation;
 
-
 int instr_rule_count;
-int disable_merge_constants;
 Rule *instr_rules;
+int disable_merge_constants;
 LongMap *instr_rules_by_operation;
 Value **saved_values;
 char *rule_coverage_file;
@@ -1349,12 +1347,16 @@ void remove_vreg_self_moves(Function *function);
 void remove_stack_self_moves(Function *function);
 void add_spill_code(Function *function);
 
+// instrrules-generated.c
+void init_generated_instruction_selection_rules(void);
+
 // instrutil.c
 X86Operation *dup_x86_operation(X86Operation *operation);
 char size_to_x86_size(int size);
 char *non_terminal_string(int nt);
 void print_rule(Rule *r, int print_operations, int indent);
 void print_rules(void);
+char *operation_string(int operation);
 void make_value_x86_size(Value *v);
 int match_value_to_rule_src(Value *v, int src);
 
@@ -1366,22 +1368,12 @@ int uncached_non_terminal_for_value(Value *v);
 int match_value_type_to_rule_dst(Value *v, int dst);
 char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
-Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2);
-Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
-X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template);
-void add_save_value(Rule *r, int arg, int slot);
-void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
-void add_allocate_register_in_slot(Rule *r, int slot, int type);
-void add_allocate_label_in_slot(Rule *r, int slot);
-void fin_rule(Rule *r);
 void make_rules_by_operation(void);
 void check_for_duplicate_rules(void);
 void write_rule_coverage_file(void);
 
 // instrules.c
-int disable_check_for_duplicate_rules;
-
-void init_instruction_selection_rules(void);
+void define_rules(void);
 
 // codegen.c
 char *register_name(int preg);
@@ -1405,6 +1397,8 @@ enum {
     COMPILE_STOP_AFTER_ADD_SPILL_CODE,
     COMPILE_STOP_AT_END,
 };
+
+void init_instruction_selection_rules(void);
 
 char init_memory_management_for_translation_unit(void);
 char free_memory_for_translation_unit(void);

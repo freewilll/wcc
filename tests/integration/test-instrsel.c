@@ -1731,8 +1731,6 @@ int main() {
     init_instruction_selection_rules();
 
     // Disable inefficient rules check that only needs running once
-    disable_check_for_duplicate_rules = 1;
-
     if (verbose) printf("Running instrsel instrsel_tree_merging\n");                          test_instrsel_tree_merging();
     if (verbose) printf("Running instrsel instrsel_tree_merging_type_merges\n");              test_instrsel_tree_merging_type_merges();
     if (verbose) printf("Running instrsel instrsel_tree_merging_register_constraint\n");      test_instrsel_tree_merging_register_constraint();

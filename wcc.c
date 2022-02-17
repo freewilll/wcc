@@ -5,6 +5,14 @@
 
 #include "wcc.h"
 
+void init_instruction_selection_rules(void) {
+    init_generated_instruction_selection_rules();
+
+    make_rules_by_operation();
+
+    rule_coverage = new_set(instr_rule_count - 1);
+}
+
 char init_memory_management_for_translation_unit(void) {
     init_type_allocations();
     init_value_allocations();
@@ -167,3 +175,4 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
 
     output_code(original_input_filename, output_filename);
 }
+
