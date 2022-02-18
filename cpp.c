@@ -64,20 +64,6 @@ char *BUILTIN_INCLUDE_PATHS[5] = {
     0,
 };
 
-void debug_print_token_sequence(CppToken *ts) {
-    int c = 0;
-
-    printf("|");
-    while (ts) {
-        if (ts->whitespace) printf("[%s]", ts->whitespace);
-        printf("%s|", ts->str);
-        ts = ts->next;
-        c++;
-        if (c == 1024) panic("Exceeded reasonable debug limit");
-    }
-    printf("\n");
-}
-
 void debug_print_cll_token_sequence(CppToken *ts) {
     if (!ts) {
         printf("|\n");
@@ -92,7 +78,12 @@ void debug_print_cll_token_sequence(CppToken *ts) {
     printf("|");
     do {
         if (ts->whitespace) printf("[%s]", ts->whitespace);
-        printf("%s|", ts->str);
+
+        if (strcmp("\n", ts->str))
+            printf("%s|", ts->str);
+        else
+            printf("\\n");
+
         ts = ts->next;
         if (c == 1024) panic("Exceeded reasonable debug limit");
     } while (ts != head);
@@ -193,55 +184,52 @@ void init_cpp_from_string(char *string) {
 static CppToken *dup_cpp_token(CppToken *tok) {
     CppToken *result = wmalloc(sizeof(CppToken));
     *result = *tok;
+    result->next = result;
     append_to_cll(allocated_tokens_duplicates, result);
     return result;
 }
 
-
-// Duplicate a linked list of tokens, making a shallow copy of each token
-CppToken *dup_ll(CppToken *src) {
-    if (!src) return 0;
-
-    CppToken *result = dup_cpp_token(src);
-    CppToken *dst = result;
-
-    while (src->next) {
-        dst->next = dup_cpp_token(src->next);
-        src = src->next;
-        dst = dst->next;
+// Append a single token to a circular linked list. token is modified.
+static CppToken *cll_append_token(CppToken *list, CppToken *token) {
+    if (!list) {
+        // Convert token into a CLL and return it
+        token->next = token;
+        return token;
     }
 
-    dst->next = 0;
-    return dst;
+    token->next = list->next;
+    list->next = token;
+    return token;
 }
 
-// Append list2 to circular linked list list1, creating list1 if it doesn't exist.
-// Be warned: list2 is modified.
-CppToken *cll_append(CppToken *list1, CppToken *list2) {
+// Concatenate two circular linked lists
+static CppToken *concat_clls(CppToken *list1, CppToken *list2) {
+    if (!list1) return list2;
     if (!list2) return list1;
 
-    if (!list1) {
-        // Make list2 into a circular linked list and return it
-        list1 = list2;
-        while (list2->next) list2 = list2->next;
-        list2->next = list1;
-        return list2;
-    }
+    CppToken *head = list1->next;
+    list1->next = list2->next;
+    list2->next = head;
 
-    CppToken *list1_head = list1->next;
-    list1->next = list2;
-    while (list1->next) list1 = list1->next;
-    list1->next = list1_head;
-    return list1;
+    return list2;
 }
 
-// Convert a circular linked list to a linked list.
-static CppToken *convert_cll_to_ll(CppToken *cll) {
-    if (!cll) return 0;
+// Return the next token in the circular linked list, or zero if at the end
+#define cll_next(cll, token) ((cll == token) ? 0 : token->next)
 
-    CppToken *head = cll->next;
-    cll->next = 0;
-    return head;
+// Make a new cll from token->next, or zero if token is at the end
+// Beware, this alters the head of cll.
+#define cll_from_next(cll, token) (cll == token ? 0 : (cll->next = token->next, cll))
+
+// Duplicate a circular linked list of tokens, making a shallow copy of each token
+static CppToken *dup_cll(CppToken *src) {
+    if (!src) return 0;
+
+    CppToken *dst = 0;
+    for (CppToken *src_token = src->next; src_token; src_token = cll_next(src, src_token))
+        dst = cll_append_token(dst, dup_cpp_token(src_token));
+
+    return dst;
 }
 
 // Free a CPP token
@@ -255,6 +243,7 @@ static void free_cpp_token(CppToken *token) {
 // Create a new CPP token
 static CppToken *new_cpp_token(int kind) {
     CppToken *tok = wcalloc(1, sizeof(CppToken));
+    tok->next = tok;
 
     append_to_cll(allocated_tokens, tok);
 
@@ -492,9 +481,14 @@ static int need_token_space(CppToken *t1, CppToken *t2) {
     return 0;
 }
 
-static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, int collapse_whitespace, int update_output) {
+static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *tokens, int collapse_whitespace, int update_output) {
+    if (!tokens) return;
+
     CppToken *prev = 0;
-    while (token) {
+    CppToken *head = tokens->next;
+    CppToken *token = head;
+
+    do {
         int is_eol = (token->kind == CPP_TOK_EOL);
         int seen_whitespace = is_eol;
 
@@ -504,7 +498,7 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
 
             while (token && token->kind == CPP_TOK_EOL) {
                 prev = token;
-                token = token->next;
+                token = cll_next(tokens, token);
             }
         }
 
@@ -538,7 +532,7 @@ static void append_tokens_to_string_buffer(StringBuffer *sb, CppToken *token, in
                 }
             }
         }
-    }
+    } while (token != head);
 }
 
 static void append_tokens_to_output(CppToken *tokens) {
@@ -827,7 +821,7 @@ static void cpp_next() {
     return;
 }
 
-// Set line number on all tokens in circular linked list ts
+// Set line number on all tokens in ts
 static void set_line_number_on_token_sequence(CppToken *ts, int line_number) {
     CppToken *tail = ts;
     ts = ts->next;
@@ -837,7 +831,7 @@ static void set_line_number_on_token_sequence(CppToken *ts, int line_number) {
     } while (ts != tail);
 }
 
-#define add_token_to_actuals() CppToken *t = dup_cpp_token(token); t->next = 0; current_actual = cll_append(current_actual, t);
+#define add_token_to_actuals() current_actual = cll_append_token(current_actual, dup_cpp_token(token));
 
 // Parse function-like macro call, starting with the '('
 // Loop over ts; ts is advanced up to the enclosing ')'
@@ -857,7 +851,7 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
 
         if (token->kind == CPP_TOK_RPAREN && !parenthesis_nesting_level) {
             // We're not in nested parentheses
-            result[index++] = convert_cll_to_ll(current_actual);
+            result[index++] = current_actual;
             return result;
         }
         else if (token->kind == CPP_TOK_RPAREN) {
@@ -872,7 +866,7 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
         }
         else if (token->kind == CPP_TOK_COMMA && !parenthesis_nesting_level) {
             // Finish current ap and start next ap
-            result[index++] = convert_cll_to_ll(current_actual);
+            result[index++] = current_actual;
             current_actual = 0;
         }
         else {
@@ -905,64 +899,68 @@ static CppToken *expand(CppToken *is) {
 
     // Skip past any non-directives, to eliminate unnecessary recursion
     CppToken *left = 0;
-    while (is && is->str && !strmap_get(directives, is->str)) {
-        CppToken *t = dup_cpp_token(is);
-        t->next = 0;
-        left = cll_append(left, t);
-        is = is->next;
+    CppToken *is_head = is->next;
+    CppToken *is_tail = is;
+    CppToken *tok = is_head;
+    while (tok->str && !strmap_get(directives, tok->str)) {
+        left = cll_append_token(left, dup_cpp_token(tok));
+        tok = tok->next;
+        if (tok == is_head) break;
     }
 
     if (left) {
-        if (!is) return convert_cll_to_ll(left);
-        return convert_cll_to_ll(cll_append(left, expand(is)));
+        if (tok == is_head) return left;
+
+        // Make is the remainder
+        is_tail->next = tok; // Make tok the head of the cll
+        CppToken *result = concat_clls(left, expand(is));
+        return result;
     }
 
-    CppToken *is1 = is->next;
-    while (is1 && is1->kind == CPP_TOK_EOL) is1 = is1->next;
+    CppToken *tok1 = tok->next != is_head ? tok->next : 0;
+    while (tok1 && tok1->kind == CPP_TOK_EOL) tok1 = cll_next(is, tok1);
 
-    if (is->str && is->hide_set && strset_in(is->hide_set, is->str)) {
-        // The first token is in its own hide set, don't expand it
+    if (tok->str && tok->hide_set && strset_in(tok->hide_set, tok->str)) {
+        // The first token tok in its own hide set, don't expand it
         // return the first token + the expanded rest
-        if (!is->next) return is;
-        CppToken *t = dup_cpp_token(is);
-        t->next = expand(is->next);
-        return t;
+        if (is_tail == is_head) return is_tail; // Only one token
+        CppToken *t = dup_cpp_token(tok);
+        return concat_clls(t, expand(cll_from_next(is, tok)));
     }
 
     Directive *directive = 0;
-    if (is->str) directive = strmap_get(directives, is->str);
+    if (tok->str) directive = strmap_get(directives, tok->str);
 
     if (directive && !directive->is_function) {
         // Object like macro
 
         StrSet *identifier_hs = new_strset();
-        strset_add(identifier_hs, is->str);
-        StrSet *hs = is->hide_set ? strset_union(is->hide_set, identifier_hs) : identifier_hs;
-        CppToken *replacement_tokens = directive->renderer ? directive->renderer(is) : directive->tokens;
+        strset_add(identifier_hs, tok->str);
+        StrSet *hs = tok->hide_set ? strset_union(tok->hide_set, identifier_hs) : identifier_hs;
+        CppToken *replacement_tokens = directive->renderer ? directive->renderer(tok) : directive->tokens;
         CppToken *substituted = subst(replacement_tokens, 0, 0, hs, 0);
         if (substituted) {
-            set_line_number_on_token_sequence(substituted, is->line_number);
-            substituted->next->whitespace = is->whitespace;
+            set_line_number_on_token_sequence(substituted, tok->line_number);
+            substituted->next->whitespace = tok->whitespace;
         }
-        CppToken *with_is_next = cll_append(substituted, is->next);
-        return expand(convert_cll_to_ll(with_is_next));
+
+        return expand(concat_clls(substituted, cll_from_next(is, tok)));
     }
 
-    else if (directive && directive->is_function && is1 && is1->kind == CPP_TOK_LPAREN) {
+    else if (directive && directive->is_function && tok1 && tok1->kind == CPP_TOK_LPAREN) {
         // Function like macro
 
-        CppToken *directive_token = is;
-        StrSet *directive_token_hs = is->hide_set;
-        is = is1->next;
-        CppToken **actuals = make_function_actual_parameters(&is);
-        if (!is || is->kind != CPP_TOK_RPAREN) error("Expected )");
+        CppToken *directive_token = tok;
+        StrSet *directive_token_hs = tok->hide_set;
+        tok = cll_next(is, tok1);
+        CppToken **actuals = make_function_actual_parameters(&tok);
+        if (!tok || tok->kind != CPP_TOK_RPAREN) error("Expected )");
 
         int actual_count = 0;
         for (CppToken **tok = actuals; *tok; tok++, actual_count++);
         if (actual_count > directive->param_count) error("Mismatch in number of macro parameters");
 
-        StrSet *rparen_hs = is->hide_set;
-        CppToken *rest = is->next;
+        StrSet *rparen_hs = tok->hide_set;
 
         // Make the hideset for the macro subsitution
         // T is the directive token
@@ -976,19 +974,21 @@ static CppToken *expand(CppToken *is) {
 
         StrSet *hs = safe_strset_union(hs1, hs2);
 
-        CppToken *substituted = subst(directive->tokens, directive->param_identifiers, actuals, hs, 0);
+        CppToken *substituted = 0;
+        if (directive->tokens)
+            substituted = subst(dup_cll(directive->tokens), directive->param_identifiers, actuals, hs, 0);
+
         if (substituted) {
             set_line_number_on_token_sequence(substituted, directive_token->line_number);
             substituted->next->whitespace = directive_token->whitespace;
         }
 
-        return expand(convert_cll_to_ll(cll_append(substituted, rest)));
+        return expand(concat_clls(substituted, cll_from_next(is, tok)));
     }
 
     // The first token is an ordinary token, return the first token + the expanded rest
-    CppToken *t = dup_cpp_token(is);
-    t->next = expand(is->next);
-    return t;
+    CppToken *t = dup_cpp_token(tok);
+    return concat_clls(t, expand(cll_from_next(is, tok)));
 }
 
 // Returns a new token which is the stringized version of the input token sequence
@@ -1055,24 +1055,23 @@ static CppToken *stringize(CppToken *ts) {
     return result;
 }
 
-// Merge two token lists together. ls is a circular linked list, rs is an linked list.
+// Merge two token lists together.
 // ls is mutated and the result is ls.
 static CppToken *glue(CppToken *ls, CppToken *rs) {
-    if (ls == 0) return cll_append(0, rs);
+    if (ls == 0) return rs;
     if (rs == 0) error("Attempt to glue an empty right side");
 
     // Mutating ls, this is allowed cause ls is append only
-    wasprintf(&ls->str, "%s%s", ls->str, rs->str);
+    wasprintf(&ls->str, "%s%s", ls->str, rs->next->str);
     ls->kind = CPP_TOK_OTHER;
-    ls->hide_set = safe_strset_intersection(ls->hide_set, rs->hide_set);
+    ls->hide_set = safe_strset_intersection(ls->hide_set, rs->next->hide_set);
 
     // Copy all elements from the right side except the first
-    rs = rs->next;
-    while (rs) {
-        CppToken *tok = dup_cpp_token(rs);
-        tok->next = 0;
-        ls = cll_append(ls, tok);
-        rs = rs->next;
+    CppToken *rs_tok = rs->next;
+    rs_tok = cll_next(rs, rs_tok);
+    while (rs_tok) {
+        ls = cll_append_token(ls, dup_cpp_token(rs_tok));
+        rs_tok = cll_next(rs, rs_tok);
     }
 
     return ls;
@@ -1083,9 +1082,9 @@ static CppToken *glue(CppToken *ls, CppToken *rs) {
 //   fp: formal parameters
 //   ap: actual parameters
 //   hs: hide set
-//   os: output sequence is a circular linked list
+//   os: output sequence
 // Output
-//   output sequence in a circular linked list
+//   output sequence
 static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppToken *os) {
     // Empty token sequence, update the hide set and return output sequence
     if (!is) {
@@ -1093,88 +1092,88 @@ static CppToken *subst(CppToken *is, StrMap *fp, CppToken **ap, StrSet *hs, CppT
         return hsadd(hs, os);
     }
 
-    CppToken *is1 = is->next;
-    CppToken *is2 = is1 ? is1->next : 0;
+    CppToken *is_head = is->next;
+    CppToken *is_tail = is;
+    CppToken *tok = is_head;
 
-    int is_fp_index = fp ? (int) (long) strmap_get(fp, is->str) : 0;
-    int is1_fp_index = fp && is1 ? (int) (long) strmap_get(fp, is1->str) : 0;
-    int is2_fp_index = fp && is2 ? (int) (long) strmap_get(fp, is2->str) : 0;
+    CppToken *tok1 = cll_next(is, tok);
+    CppToken *tok2 = tok1 ? cll_next(is, tok1) : 0;
+
+    int tok_fp_index = fp ? (int) (long) strmap_get(fp, tok->str) : 0;
+    int tok1_fp_index = fp && tok1 ? (int) (long) strmap_get(fp, tok1->str) : 0;
+    int tok2_fp_index = fp && tok2 ? (int) (long) strmap_get(fp, tok2->str) : 0;
 
     // # FP
-    if (is->kind == CPP_TOK_HASH && is1_fp_index) {
-        CppToken *replacement = ap[is1_fp_index - 1];
-        os = cll_append(os, stringize(replacement));
+    if (tok->kind == CPP_TOK_HASH && tok1_fp_index) {
+        CppToken *replacement = ap[tok1_fp_index - 1];
+        os = cll_append_token(os, stringize(replacement));
 
-        return subst(is1->next, fp, ap, hs, os);
+        return subst(cll_from_next(is, tok1), fp, ap, hs, os);
     }
 
     // ## FP
-    if (is->kind == CPP_TOK_PASTE && is1_fp_index) {
-        CppToken *replacement = ap[is1_fp_index - 1];
+    if (tok->kind == CPP_TOK_PASTE && tok1_fp_index) {
+        CppToken *replacement = ap[tok1_fp_index - 1];
         if (!replacement)
-            return subst(is1->next, fp, ap, hs, os);
+            return subst(cll_from_next(is, tok1), fp, ap, hs, os);
         else
-            return subst(is1->next, fp, ap, hs, glue(os, replacement));
+            return subst(cll_from_next(is, tok1), fp, ap, hs, glue(os, dup_cll(replacement)));
     }
 
     // ## TS
-    if (is->kind == CPP_TOK_PASTE) {
-        if (!is1) error("Got ## without a following token");
-        CppToken *tok = dup_cpp_token(is1);
-        tok->next = 0;
-        return subst(is1->next, fp, ap, hs, glue(os, tok));
+    if (tok->kind == CPP_TOK_PASTE) {
+        if (!tok1) error("Got ## without a following token");
+        CppToken *tok = dup_cpp_token(tok1);
+        return subst(cll_from_next(is, tok1), fp, ap, hs, glue(os, tok));
     }
 
     // FP ##
-    if (is_fp_index && is1 && is1->kind == CPP_TOK_PASTE) {
-        CppToken *replacement = ap[is_fp_index - 1];
+    if (tok_fp_index && tok1 && tok1->kind == CPP_TOK_PASTE) {
+        CppToken *replacement = ap[tok_fp_index - 1];
         if (!replacement) {
-            if (is2 && is2_fp_index) {
+            if (tok2 && tok2_fp_index) {
                 // (empty) ## (replacement2) ...
-                CppToken *replacement2 = ap[is2_fp_index - 1];
-                return subst(is2->next, fp, ap, hs, cll_append(os, dup_ll(replacement2)));
+                CppToken *replacement2 = ap[tok2_fp_index - 1];
+                return subst(cll_from_next(is, tok2), fp, ap, hs, concat_clls(os, dup_cll(replacement2)));
             }
             else
                 // (empty) ## (empty) ...
-                return subst(is2, fp, ap, hs, os);
+                return subst(cll_from_next(is, tok1), fp, ap, hs, os);
         }
-        else {
+        else
             // (replacement) ## ...
-            return subst(is1, fp, ap, hs, cll_append(os, dup_ll(replacement)));
-        }
+            return subst(cll_from_next(is, tok), fp, ap, hs, concat_clls(os, dup_cll(replacement)));
     }
 
     // FP
-    if (is_fp_index) {
-        CppToken *replacement = ap[is_fp_index - 1];
+    if (tok_fp_index) {
+        CppToken *replacement = ap[tok_fp_index - 1];
 
-        CppToken *expanded = expand(replacement);
-        if (expanded) expanded->whitespace = is->whitespace;
+        CppToken *expanded = expand(dup_cll(replacement));
+        if (expanded) expanded->next->whitespace = tok->whitespace;
 
-        if (expanded) os = cll_append(os, expanded);
-        return subst(is->next, fp, ap, hs, os);
+        if (expanded) os = concat_clls(os, expanded);
+        return subst(cll_from_next(is, tok), fp, ap, hs, os);
     }
 
     // Append first token in is to os
-    CppToken *new_token = dup_cpp_token(is);
-    new_token->next = 0;
-    os = cll_append(os, new_token);
-    return subst(is->next, fp, ap, hs, os);
+    os = cll_append_token(os, dup_cpp_token(tok));
+    CppToken *org_head = is_tail->next;
+    CppToken *result = subst(cll_from_next(is, tok), fp, ap, hs, os);
+    is_tail->next = org_head;
+    return result;
 }
 
-// Add a a hide set to a token sequence's hide set. ts and result are circular linked lists.
+// Add a a hide set to a token sequence's hide set.
 static CppToken *hsadd(StrSet *hs, CppToken *ts) {
     if (!hs) panic("Empty hs in hsadd");
+    if (!ts) return 0;
 
-    ts = convert_cll_to_ll(ts);
-
-    CppToken *result = 0; // A circular linked list
-    while (ts) {
-        CppToken *new_token = dup_cpp_token(ts);
-        new_token->next = 0;
+    CppToken *result = 0;
+    for (CppToken *tok = ts->next; tok; tok = cll_next(ts, tok)) {
+        CppToken *new_token = dup_cpp_token(tok);
         new_token->hide_set = strset_union(new_token->hide_set ? new_token->hide_set : new_strset(), hs);
-        result = cll_append(result, new_token);
-        ts = ts->next;
+        result = cll_append_token(result, new_token);
     }
 
     return result;
@@ -1238,11 +1237,11 @@ static void skip_until_eol() {
 static CppToken *gather_tokens_until_eol() {
     CppToken *tokens = 0;
     while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
-        tokens = cll_append(tokens, state.token);
+        tokens = cll_append_token(tokens, state.token);
         cpp_next();
     }
 
-    return convert_cll_to_ll(tokens);
+    return tokens;
 }
 
 static CppToken *gather_tokens_until_eol_and_expand() {
@@ -1305,21 +1304,18 @@ static CppToken *parse_define_replacement_tokens(void) {
 
     if (state.token->kind == CPP_TOK_PASTE) error("## at start of macro replacement list");
 
-    CppToken *result = state.token;
-    CppToken *tokens = state.token;
+    CppToken *result = 0;
+    result = cll_append_token(result, state.token);
+
     while (state.token->kind != CPP_TOK_EOL && state.token->kind != CPP_TOK_EOF) {
-        tokens->next = state.token;
-        tokens = tokens->next;
+        result = cll_append_token(result, state.token);
         cpp_next();
     }
-    tokens->next = 0;
-    if (tokens->kind == CPP_TOK_PASTE) error("## at end of macro replacement list");
+    if (result->kind == CPP_TOK_PASTE) error("## at end of macro replacement list");
 
     // Clear whitespace on initial token
-    if (tokens) {
-        free(result->whitespace);
-        result->whitespace = NULL;
-    }
+    free(result->next->whitespace);
+    result->next->whitespace = NULL;
 
     return result;
 }
@@ -1395,37 +1391,37 @@ static CppToken *make_boolean_token(int value) {
     return result;
 }
 
-// Expand defined FOO and defined(FOO) a token sequence. Returns a circular linked list.
+// Expand defined FOO and defined(FOO) in a token sequence.
 static CppToken *expand_defineds(CppToken *is) {
     CppToken *os = 0;
 
-    while (is) {
-        CppToken *is1 = is->next;
+    CppToken *tok = is->next;
 
-        if (is->kind == CPP_TOK_DEFINED) {
-            if (is1 && is1->kind == CPP_TOK_IDENTIFIER) {
-                os = cll_append(os, make_boolean_token(!!strmap_get(directives, is1->str)));
-                is = is1->next;
+    while (tok) {
+        CppToken *tok1 = cll_next(is, tok);
+
+        if (tok->kind == CPP_TOK_DEFINED) {
+            if (tok1 && tok1->kind == CPP_TOK_IDENTIFIER) {
+                os = cll_append_token(os, make_boolean_token(!!strmap_get(directives, tok1->str)));
+                tok = cll_next(is, tok1);
             }
-            else if (is1 && is1->kind == CPP_TOK_LPAREN) {
-                is = is1->next;
-                if (!is || is->kind != CPP_TOK_IDENTIFIER)
+            else if (tok1 && tok1->kind == CPP_TOK_LPAREN) {
+                tok = cll_next(is, tok1);
+                if (!tok || tok->kind != CPP_TOK_IDENTIFIER)
                     error("Expected identifier");
 
-                os = cll_append(os, make_boolean_token(!!strmap_get(directives, is->str)));
-                if (!is->next || is->next->kind != CPP_TOK_RPAREN)
+                os = cll_append_token(os, make_boolean_token(!!strmap_get(directives, tok->str)));
+                if (tok->next == is->next || tok->next->kind != CPP_TOK_RPAREN)
                     error("Expected )");
-                is = is->next->next;
+                tok = cll_next(is, cll_next(is, tok));
             }
             else
                 error("Expected identifier or ( after #defined");
 
         }
         else {
-            CppToken *tok = dup_cpp_token(is);
-            tok->next = 0;
-            os = cll_append(os, tok);
-            is = is->next;
+            os = cll_append_token(os, dup_cpp_token(tok));
+            tok = cll_next(is, tok);
         }
     }
 
@@ -1441,16 +1437,16 @@ static CppToken *expand_defineds(CppToken *is) {
 static long parse_conditional_expression() {
     CppToken *tokens = 0;
     while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
-        tokens = cll_append(tokens, state.token);
+        tokens = cll_append_token(tokens, state.token);
         cpp_next();
     }
     if (!tokens) error("Expected expression");
 
-    CppToken *expanded_defineds = expand_defineds(convert_cll_to_ll(tokens));
-    CppToken *expanded = expand(convert_cll_to_ll(expanded_defineds));
+    CppToken *expanded_defineds = expand_defineds(tokens);
+    CppToken *expanded = expand(expanded_defineds);
 
     // Replace identifiers with 0
-    for (CppToken *tok = expanded; tok; tok = tok->next)
+    for (CppToken *tok = expanded->next; tok; tok = cll_next(expanded, tok))
         if (is_identifier(tok))  {
             tok->kind = CPP_TOK_NUMBER;
             tok->str = "0";
@@ -1488,22 +1484,24 @@ static void parse_line() {
         // Parse #line <number> ...
         tokens = gather_tokens_until_eol();
 
+    CppToken *token = tokens->next;
+
     if (state.token->kind != CPP_TOK_EOL && state.token->kind != CPP_TOK_EOF) panic("Expected EOL or EOF");
 
-    if (tokens->kind == CPP_TOK_NUMBER) {
-        state.line_number_offset = atoi(tokens->str) - state.line_number - 1;
+    if (token->kind == CPP_TOK_NUMBER) {
+        state.line_number_offset = atoi(token->str) - state.line_number - 1;
 
         // Amend the next token's line number offset too
         state.token->line_number_offset = state.line_number_offset;
 
-        tokens = tokens->next;
+        token = cll_next(tokens, token);
 
-        if (tokens && tokens->kind == CPP_TOK_STRING_LITERAL) {
-            char *filename = tokens->str;
+        if (token && token->kind == CPP_TOK_STRING_LITERAL) {
+            char *filename = token->str;
             filename[strlen(filename) - 1] = 0;
             filename++;
             state.override_filename = filename;
-            cur_filename = tokens->str;
+            cur_filename = token->str;
         }
 
         output_line_directive(1, 0, state.token);
@@ -1556,7 +1554,8 @@ static void check_directive_redeclaration(Directive *d1, Directive *d2, char *id
             break;
         }
 
-        t1 = t1->next, t2 = t2->next;
+        t1 = cll_next(d1->tokens, t1);
+        t2 = cll_next(d2->tokens, t2);
     }
 
 
@@ -1688,15 +1687,14 @@ static void parse_directive(void) {
             // We're probably re-preprocessing everything, keep the line
 
             CppToken *tokens = 0;
-            directive_hash_token->next = 0;
-            tokens = cll_append(tokens, directive_hash_token);
+            tokens = cll_append_token(tokens, directive_hash_token);
 
             while (state.token->kind != CPP_TOK_EOF && state.token->kind != CPP_TOK_EOL) {
-                tokens = cll_append(tokens, state.token);
+                tokens = cll_append_token(tokens, state.token);
                 cpp_next();
             }
 
-            append_tokens_to_output(expand(convert_cll_to_ll(tokens)));
+            append_tokens_to_output(expand(tokens));
 
             break;
         }
@@ -1749,20 +1747,20 @@ static void cpp_parse() {
 
     while (state.token->kind != CPP_TOK_EOF) {
         if (new_line && state.token->kind == CPP_TOK_HASH) {
-            append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
+            append_tokens_to_output(expand(group_tokens));
             parse_directive();
             group_tokens = 0;
         }
         else {
             if (!state.conditional_include_stack->skipping) {
-                group_tokens = cll_append(group_tokens, state.token);
+                group_tokens = cll_append_token(group_tokens, state.token);
                 new_line = (state.token->kind == CPP_TOK_EOL);
             }
             cpp_next();
         }
     }
 
-    if (group_tokens) append_tokens_to_output(expand(convert_cll_to_ll(group_tokens)));
+    if (group_tokens) append_tokens_to_output(expand(group_tokens));
 }
 
 Directive *parse_cli_define(char *string) {

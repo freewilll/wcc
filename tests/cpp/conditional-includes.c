@@ -219,6 +219,14 @@ def
 def
 #endif
 
+#if (defined(DEF))
+def
+#endif
+
+#if defined(DEF) && 0
+foo
+#endif
+
 #if !defined UNDEF
 !defined undef
 #endif
