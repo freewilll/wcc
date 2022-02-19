@@ -49,13 +49,13 @@ instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
 
 %.o: %.c wcc.h build
-	gcc -g ${GCC_OPTS} -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}'
+	gcc -g ${GCC_OPTS} -Wunused -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 libwcc.a: ${OBJECTS}
 	ar rcs libwcc.a ${OBJECTS}
 
 wcc: libwcc.a main.c wcc.h
-	gcc ${GCC_OPTS} main.c libwcc.a -o wcc -g -Wno-return-type
+	gcc ${GCC_OPTS} -Wunused  main.c libwcc.a -o wcc -g -Wno-return-type
 
 # wcc2
 WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
