@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
                 if (op->template)
                     printf("\"%s\", ", op->template);
                 else
-                    printf("0, ");
+                    printf("NULL, ");
 
                 printf("%d, %d, %d, %d, %d, %d },\n",
                     op->save_value_in_slot, op->allocate_stack_index_in_slot,
