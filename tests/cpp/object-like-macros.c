@@ -70,8 +70,3 @@ __LP64__
 __linux__
 __GNUC__
 __USER_LABEL_PREFIX__
-
-// From c-testsuite 00201.c
-#define CAT(a,b) a##b
-#define AB(x) CAT(x,y)
-CAT(A,B)(x)

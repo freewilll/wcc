@@ -88,3 +88,8 @@ OPS
 // love you baby Licious
 #define A(X) X ## X;
 A(a)
+
+// From c-testsuite 00201.c
+#define CAT(a,b) a##b
+#define AB(x) CAT(x,y)
+CAT(A,B)(x)
