@@ -130,7 +130,6 @@ void print_rule(Rule *r, int print_operations, int indent) {
     );
 
     if (print_operations && r->x86_operations) {
-        X86Operation *operation = r->x86_operations;
         int first = 1;
 
         for (int i = 0; i < r->x86_operation_count; i++) {
