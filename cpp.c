@@ -171,7 +171,13 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
     collapse_trailing_newlines(0, 0, 0);
 
     free(state.input);
-    free(state.line_map_start);
+
+    LineMap *lm = state.line_map_start;
+    while (lm) {
+        LineMap *next = lm->next;
+        free(lm);
+        lm = next;
+    } while (lm);
 }
 
 void init_cpp_from_string(char *string) {
@@ -362,6 +368,7 @@ static LineMap *add_to_linemap(LineMap *lm, int position, int line_number) {
     lm->next = wmalloc(sizeof(LineMap));
     lm->next->position = position;
     lm->next->line_number = line_number;
+    lm->next->next = NULL;
     return lm->next;
 }
 
@@ -407,6 +414,7 @@ void strip_backslash_newlines(void) {
     state.line_map = state.line_map_start;
     state.line_map->position = ip;
     state.line_map->line_number = line_number;
+    state.line_map->next = NULL;
     LineMap *lm = state.line_map;
 
     if (state.input_size == 0) {
