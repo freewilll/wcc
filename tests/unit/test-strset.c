@@ -46,4 +46,8 @@ int main() {
 
     StrSet *ssi5 = strset_intersection(new_strset(), ss1);
     if (strset_in(ssi5, "foo")) panic("Did not expect foo in set");
+
+    StrSet *ss6 = dup_strset(ss5);
+    if (!strset_in(ss5, "foo")) panic("Expected foo in set");
+    if (!strset_in(ss5, "bar")) panic("Expected bar in set");
 }

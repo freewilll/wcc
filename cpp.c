@@ -43,8 +43,9 @@ typedef struct cpp_state {
 
 CppState state;
 
-CircularLinkedList *allocated_tokens; // Keep track of all wmalloc'd tokens
+CircularLinkedList *allocated_tokens;            // Keep track of all wmalloc'd tokens
 CircularLinkedList *allocated_tokens_duplicates; // Keep track of all wmalloc'd tokens
+CircularLinkedList *allocated_strsets;           // Keep track of miscellaneous strsets.
 
 // Output
 FILE *cpp_output_file;         // Output file handle
@@ -964,6 +965,7 @@ static CppToken *expand(CppToken *is) {
         StrSet *hs = tok->hide_set ? strset_union(tok->hide_set, identifier_hs) : identifier_hs;
         CppToken *replacement_tokens = directive->renderer ? directive->renderer(tok) : directive->tokens;
         CppToken *substituted = subst(replacement_tokens, 0, 0, hs, 0);
+        free_strset(hs);
         if (substituted) {
             set_line_number_on_token_sequence(substituted, tok->line_number);
             substituted->next->whitespace = tok->whitespace;
@@ -1000,8 +1002,10 @@ static CppToken *expand(CppToken *is) {
         StrSet *hs = safe_strset_union(hs1, hs2);
 
         CppToken *substituted = 0;
-        if (directive->tokens)
+        if (directive->tokens) {
             substituted = subst(dup_cll(directive->tokens), directive->param_identifiers, actuals, hs, 0);
+            free_strset(hs);
+        }
 
         free_function_actual_parameters(actuals);
 
@@ -1199,7 +1203,16 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
     CppToken *result = 0;
     for (CppToken *tok = ts->next; tok; tok = cll_next(ts, tok)) {
         CppToken *new_token = dup_cpp_token(tok);
-        new_token->hide_set = strset_union(new_token->hide_set ? new_token->hide_set : new_strset(), hs);
+
+        if (new_token->hide_set)
+            new_token->hide_set = strset_union(new_token->hide_set, hs);
+        else {
+            new_token->hide_set = dup_strset(hs);
+        }
+
+        // hs must be garbage collected since new_token was a shallow copy and its interior will not be freed
+        append_to_cll(allocated_strsets, new_token->hide_set);
+
         result = cll_append_token(result, new_token);
     }
 
@@ -1801,7 +1814,7 @@ Directive *parse_cli_define(char *string) {
     return parse_define_tokens();
 }
 
-static void free_allocated_tokens() {
+static void collect_garbage() {
     // Free allocated_tokens
     CircularLinkedList *head = allocated_tokens->next;
     CircularLinkedList *a = head;
@@ -1824,9 +1837,22 @@ static void free_allocated_tokens() {
         free_circular_linked_list(allocated_tokens_duplicates);
     }
 
+    // Free any allocated strsets
+    if (allocated_strsets) {
+        CircularLinkedList *head = allocated_strsets->next;
+        CircularLinkedList *a = head;
+        do {
+            free_strset(a->target);
+            a = a->next;
+        } while (a != head);
+
+        free_circular_linked_list(allocated_strsets);
+    }
+
     // Ensure any future tokens get appended
     allocated_tokens = 0;
     allocated_tokens_duplicates = 0;
+    allocated_strsets = 0;
 }
 
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
@@ -1834,6 +1860,7 @@ static void free_allocated_tokens() {
 char *preprocess(char *filename) {
     allocated_tokens = 0;
     allocated_tokens_duplicates = 0;
+    allocated_strsets = 0;
 
     init_directives();
 
@@ -1858,7 +1885,7 @@ char *preprocess(char *filename) {
     free_string_buffer(output, 0);
 
     free_directives();
-    free_allocated_tokens();
+    collect_garbage();
     free(state.conditional_include_stack);
 
     return data;

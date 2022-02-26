@@ -23,6 +23,15 @@ int strset_in(StrSet *ss, char *element) {
     return !!strmap_get(ss->strmap, element);
 }
 
+StrSet *dup_strset(StrSet *ss) {
+    StrSet *result = new_strset();
+
+    for (StrMapIterator it = strmap_iterator(ss->strmap); !strmap_iterator_finished(&it); strmap_iterator_next(&it))
+        strmap_put(result->strmap, strmap_iterator_key(&it), (void *) 1);
+
+    return result;
+}
+
 StrSet *strset_union(StrSet *ss1, StrSet *ss2) {
     StrSet *result = new_strset();
 
