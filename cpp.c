@@ -896,6 +896,10 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
     }
 }
 
+void free_function_actual_parameters(CppToken **actuals) {
+    free(actuals); // The tokens are freed as part of the garbage collection
+}
+
 // Union two sets. Either or both may be NULL
 #define safe_strset_union(set1, set2) \
     set1 && set2 \
@@ -974,9 +978,9 @@ static CppToken *expand(CppToken *is) {
         CppToken **actuals = make_function_actual_parameters(&tok);
         if (!tok || tok->kind != CPP_TOK_RPAREN) error("Expected )");
 
-        int actual_count = 0;
-        for (CppToken **tok = actuals; *tok; tok++, actual_count++);
-        if (actual_count > directive->param_count) error("Mismatch in number of macro parameters");
+        int actuals_count = 0;
+        for (CppToken **tok = actuals; *tok; tok++, actuals_count++);
+        if (actuals_count > directive->param_count) error("Mismatch in number of macro parameters");
 
         StrSet *rparen_hs = tok->hide_set;
 
@@ -995,6 +999,8 @@ static CppToken *expand(CppToken *is) {
         CppToken *substituted = 0;
         if (directive->tokens)
             substituted = subst(dup_cll(directive->tokens), directive->param_identifiers, actuals, hs, 0);
+
+        free_function_actual_parameters(actuals);
 
         if (substituted) {
             set_line_number_on_token_sequence(substituted, directive_token->line_number);
