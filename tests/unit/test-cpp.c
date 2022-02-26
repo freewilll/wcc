@@ -28,7 +28,7 @@ static void test_transform_trigraphs() {
 }
 
 static void test_strip_bsnl(char *input, char *expected_output, LineMapTuple expected_linemap[]) {
-    init_cpp_from_string(input);
+    init_cpp_from_string(strdup(input));
     strip_backslash_newlines();
     char *output = get_cpp_input();
     if (strcmp(expected_output, output)) {

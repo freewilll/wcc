@@ -168,6 +168,8 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
     cpp_parse();
 
     collapse_trailing_newlines(0, 0, 0);
+
+    free(state.input);
 }
 
 void init_cpp_from_string(char *string) {
@@ -433,6 +435,8 @@ void strip_backslash_newlines(void) {
         output[op++] = '\n';
         line_number++;
     }
+
+    free(state.input);
 
     output[op] = 0;
     state.input = output;
