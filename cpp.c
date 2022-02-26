@@ -1481,8 +1481,11 @@ static long parse_conditional_expression() {
     StringBuffer *rendered = new_string_buffer(128);
     append_tokens_to_string_buffer(rendered, expanded, 1, 0);
 
-    init_lexer_from_string(rendered->data);
+    char *data = rendered->data;
+    free_string_buffer(rendered, 0);
+    init_lexer_from_string(data);
     Value *value = parse_constant_integer_expression(1);
+    free(data);
 
     return value->int_value;
 }
