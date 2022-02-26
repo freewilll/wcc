@@ -1385,6 +1385,7 @@ void merge_rsp_func_call_add_subs(Function *function);
 int fprintf_escaped_string_literal(void *f, StringLiteral *sl, int for_assembly);
 void output_code(char *input_filename, char *output_filename);
 void init_codegen(void);
+void free_codegen(void);
 
 // wcc.c
 enum {

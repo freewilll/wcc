@@ -174,5 +174,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     }
 
     output_code(original_input_filename, output_filename);
+
+    free_codegen();
 }
 
