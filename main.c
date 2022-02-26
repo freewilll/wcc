@@ -577,6 +577,7 @@ int main(int argc, char **argv) {
 exit_main:
     free_instruction_selection_rules();
 
+    free_list(input_filenames);
     free_list(compiler_input_filenames);
     free(assembler_input_filenames);
     free(linker_input_filenames);
