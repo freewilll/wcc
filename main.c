@@ -170,10 +170,6 @@ int main(int argc, char **argv) {
 
     List *extra_linker_args = new_list(0);
 
-    // Determine path to the builtin include directory
-    char *builtin_include_path;
-    wasprintf(&builtin_include_path, "%sinclude", base_path(argv[0]));
-
     argc--;
     argv++;
     while (argc > 0) {

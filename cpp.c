@@ -255,6 +255,7 @@ static CppToken *new_cpp_token(int kind) {
 static void add_builtin_directive(char *identifier, DirectiveRenderer renderer) {
     Directive *directive = wcalloc(1, sizeof(Directive));
     directive->renderer = renderer;
+    directive->is_freeable = 1;
     strmap_put(directives, identifier, directive);
 }
 
@@ -298,12 +299,14 @@ static CppToken *render_numeric_token(int value) {
 
 Directive *make_numeric_directive(int value) {
     Directive *directive = wcalloc(1, sizeof(Directive));
+    directive->is_freeable = 1;
     directive->tokens = render_numeric_token(value);
     return directive;
 }
 
 Directive *make_empty_directive(void) {
     Directive *directive = wcalloc(1, sizeof(Directive));
+    directive->is_freeable = 1;
     return directive;
 }
 
@@ -1800,6 +1803,9 @@ static void free_allocated_tokens() {
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
 // output, runs the preprocessor, then prints the output to a file handle.
 char *preprocess(char *filename) {
+    allocated_tokens = 0;
+    allocated_tokens_duplicates = 0;
+
     init_directives();
 
     FILE *f = fopen(filename, "r");
@@ -1808,9 +1814,6 @@ char *preprocess(char *filename) {
         perror(filename);
         exit(1);
     }
-
-    allocated_tokens = 0;
-    allocated_tokens_duplicates = 0;
 
     init_cpp_from_fh(f, filename);
 
