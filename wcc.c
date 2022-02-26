@@ -137,14 +137,16 @@ static void compile_internals(void) {
     fprintf(f, "%s", internals());
     fclose(f);
 
-    init_scopes();
-    init_parser();
     init_lexer(temp_filename);
     parse();
 }
 
 void compile(char *input, char *original_input_filename, char *output_filename) {
+    init_scopes();
+    init_parser();
+
     compile_internals();
+
     memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
     memset_symbol = lookup_symbol("memset", global_scope, 0);
 
@@ -176,5 +178,6 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     output_code(original_input_filename, output_filename);
 
     free_codegen();
+    free_parser();
 }
 

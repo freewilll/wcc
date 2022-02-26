@@ -31,6 +31,7 @@ Tac *case_ir;                   // IR for current switch case conditional & jump
 Value *case_default_label;      // Label for curren't switch's statement default case, if present
 int seen_switch_default;        // Set to 1 if a default label has been seen within the current switch statement
 
+Value **vs_bottom;       // Allocated value stack
 Value **vs_start;        // Value stack start
 Value **vs;              // Value stack current position
 
@@ -2512,8 +2513,12 @@ void parse_ternary_expression(void) {
 }
 
 static void init_value_stack(void) {
-    vs_start = wmalloc(sizeof(struct value *) * VALUE_STACK_SIZE);
-    vs_start += VALUE_STACK_SIZE; // The stack traditionally grows downwards
+    vs_bottom = wmalloc(sizeof(struct value *) * VALUE_STACK_SIZE);
+    vs_start = vs_bottom + VALUE_STACK_SIZE; // The stack traditionally grows downwards
+}
+
+static void free_value_stack(void) {
+    free(vs_bottom);
 }
 
 // Parse GNU extension Statements and Declarations in Expressions
@@ -3615,4 +3620,11 @@ void init_parser(void) {
     local_static_symbol_count = 0;
 
     controlling_case_value = 0;
+}
+
+void free_parser(void) {
+    free(string_literals);
+    free(all_structs_and_unions);
+    free(all_typedefs);
+    free_value_stack();
 }

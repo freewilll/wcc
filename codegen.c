@@ -1035,7 +1035,7 @@ void init_codegen(void) {
     last_outputted_filename_line_number = 0;
 }
 
-void free_codegen() {
+void free_codegen(void) {
     free(floating_point_literals);
     free_strmap(debug_strings);
 }

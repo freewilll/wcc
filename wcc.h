@@ -963,6 +963,7 @@ int parse_sizeof(parse_expression_function_type expr);
 void parse(void);
 void dump_symbols(void);
 void init_parser(void);
+void free_parser(void);
 
 // constexpr.c
 Value* evaluate_const_unary_int_operation(int operation, Value *value);
