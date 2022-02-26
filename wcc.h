@@ -1,6 +1,32 @@
 #include <stdio.h>
 #include <sys/time.h>
 
+#define MAX_CPP_FILESIZE              10 * 1024 * 1024
+#define MAX_CPP_INCLUDE_DEPTH         15
+#define MAX_CPP_MACRO_PARAM_COUNT     1024
+#define MAX_STRUCTS_AND_UNIONS        1024
+#define MAX_STRUCT_OR_UNION_SCALARS   1024
+#define MAX_TYPEDEFS                  1024
+#define MAX_STRUCT_MEMBERS            1024
+#define MAX_IDENTIFIER_SIZE           1024
+#define MAX_INPUT_SIZE                1 << 20 // 1 MB
+#define MAX_STRING_LITERAL_SIZE       4095
+#define MAX_STRING_LITERALS           20480
+#define MAX_FLOATING_POINT_LITERALS   10240
+#define MAX_FUNCTION_CALL_ARGS        253
+#define VALUE_STACK_SIZE              10240
+#define MAX_VREG_COUNT                20480
+#define PHYSICAL_REGISTER_COUNT       32 // integer + xmm
+#define PHYSICAL_INT_REGISTER_COUNT   12 // Available registers for integers
+#define PHYSICAL_SSE_REGISTER_COUNT   14 // Available registers for floating points
+#define MAX_SPILLED_REGISTER_COUNT    1024
+#define MAX_INPUT_FILENAMES           1024
+#define MAX_BLOCKS                    10240
+#define MAX_BLOCK_EDGES               1024
+#define MAX_STACK_SIZE                10240
+#define MAX_BLOCK_PREDECESSOR_COUNT   1024
+#define MAX_GRAPH_EDGE_COUNT          10240
+
 typedef struct block {
     struct three_address_code *start, *end;
 } Block;
@@ -359,34 +385,6 @@ typedef struct register_set {
     int *sse_registers;
 } RegisterSet;
 
-enum {
-    MAX_CPP_FILESIZE              = 10 * 1024 * 1024,
-    MAX_CPP_INCLUDE_DEPTH         = 15,
-    MAX_CPP_MACRO_PARAM_COUNT     = 1024,
-    MAX_STRUCTS_AND_UNIONS        = 1024,
-    MAX_STRUCT_OR_UNION_SCALARS   = 1024,
-    MAX_TYPEDEFS                  = 1024,
-    MAX_STRUCT_MEMBERS            = 1024,
-    MAX_IDENTIFIER_SIZE           = 1024,
-    MAX_INPUT_SIZE                = 1 << 20, // 1 MB
-    MAX_STRING_LITERAL_SIZE       = 4095,
-    MAX_STRING_LITERALS           = 20480,
-    MAX_FLOATING_POINT_LITERALS   = 10240,
-    MAX_FUNCTION_CALL_ARGS        = 253,
-    VALUE_STACK_SIZE              = 10240,
-    MAX_VREG_COUNT                = 20480,
-    PHYSICAL_REGISTER_COUNT       = 32, // integer + xmm
-    PHYSICAL_INT_REGISTER_COUNT   = 12, // Available registers for integers
-    PHYSICAL_SSE_REGISTER_COUNT   = 14, // Available registers for floating points
-    MAX_SPILLED_REGISTER_COUNT    = 1024,
-    MAX_INPUT_FILENAMES           = 1024,
-    MAX_BLOCKS                    = 10240,
-    MAX_BLOCK_EDGES               = 1024,
-    MAX_STACK_SIZE                = 10240,
-    MAX_BLOCK_PREDECESSOR_COUNT   = 1024,
-    MAX_GRAPH_EDGE_COUNT          = 10240,
-};
-
 // Tokens in order of precedence
 enum {
     TOK_EOF=1,
@@ -733,8 +731,11 @@ int cur_loop;                     // Current loop being parsed
 int loop_count;                   // Loop counter
 int stack_register_count;         // Spilled register count for current function that's undergoing register allocation
 int total_stack_register_count;   // Spilled register count for all functions
-int *callee_saved_registers;      // Constant list of length PHYSICAL_REGISTER_COUNT. Set to 1 for registers that must be preserved in function calls.
 int cur_stack_push_count;         // Used in codegen to keep track of stack position
+
+int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
+int int_arg_registers[6];
+int sse_arg_registers[8];
 
 FILE *f; // Output file handle
 
@@ -1135,10 +1136,6 @@ FunctionParamAllocation *init_function_param_allocaton(char *function_identifier
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 void finalize_function_param_allocation(FunctionParamAllocation *fpa);
 void free_function(Function *function);
-
-// regalloc.c
-int *int_arg_registers;
-int *sse_arg_registers;
 
 RegisterSet arg_register_set;
 RegisterSet function_return_value_register_set;

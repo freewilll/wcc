@@ -9,7 +9,7 @@ typedef struct vreg_cost {
     int cost;
 } VregCost;
 
-int *preg_map;              // Map from reserved register 0-11 to physical register 0-15
+int preg_map[PHYSICAL_REGISTER_COUNT]; // Map from reserved register 0-11 to physical register 0-15
 
 // Renumber all vregs so that they are consecutive
 void compress_vregs(Function *function) {
@@ -254,8 +254,6 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 // Called once at startup
 void init_allocate_registers(void) {
     // Which registers are preserved across function calls
-    callee_saved_registers = wcalloc(PHYSICAL_REGISTER_COUNT + 1, sizeof(int));
-
     callee_saved_registers[REG_RBX] = 1;
     callee_saved_registers[REG_R12] = 1;
     callee_saved_registers[REG_R13] = 1;
@@ -263,7 +261,6 @@ void init_allocate_registers(void) {
     callee_saved_registers[REG_R15] = 1;
 
     // Registers used for function calls
-    int_arg_registers = wmalloc(sizeof(int) * 6);
     int_arg_registers[0]  = LIVE_RANGE_PREG_RDI_INDEX;
     int_arg_registers[1]  = LIVE_RANGE_PREG_RSI_INDEX;
     int_arg_registers[2]  = LIVE_RANGE_PREG_RDX_INDEX;
@@ -272,18 +269,14 @@ void init_allocate_registers(void) {
     int_arg_registers[5]  = LIVE_RANGE_PREG_R09_INDEX;
 
     // Map SSE xmm0-xmm7 argument registers
-    sse_arg_registers = wmalloc(sizeof(int) * 8);
     for (int i = 0; i < 8; i++) sse_arg_registers[i] = LIVE_RANGE_PREG_XMM00_INDEX + i;
-
-    // Map from reserved register 0-11 to physical register 0-15
-    preg_map = wcalloc(PHYSICAL_REGISTER_COUNT, sizeof(int));
 
     arg_register_set.int_registers = int_arg_registers;
     arg_register_set.sse_registers = sse_arg_registers;
 
     // Make function return value register sets
-    int *int_rv_registers = wmalloc(sizeof(int) * 2);
-    int *sse_rv_registers = wmalloc(sizeof(int) * 2);
+    static int int_rv_registers[2];
+    static int sse_rv_registers[2];
 
     int_rv_registers[0] = LIVE_RANGE_PREG_RAX_INDEX;
     int_rv_registers[1] = LIVE_RANGE_PREG_RDX_INDEX;
