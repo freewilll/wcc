@@ -30,7 +30,8 @@ typedef struct cpp_state {
     int                  ip;                          // Offset in input
     char *               filename;                    // Current filename
     char *               override_filename;           // Overridden filename with #line
-    LineMap *            line_map;                    // Linemap
+    LineMap *            line_map_start;              // Start of Linemap
+    LineMap *            line_map;                    // Current position in linemap
     int                  line_number;                 // Current line number
     int                  line_number_offset;          // Difference in line number set by #line directive
     CppToken *           token;                       // Current token
@@ -170,6 +171,7 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
     collapse_trailing_newlines(0, 0, 0);
 
     free(state.input);
+    free(state.line_map_start);
 }
 
 void init_cpp_from_string(char *string) {
@@ -401,7 +403,8 @@ void strip_backslash_newlines(void) {
     int op = 0; // Output offset
     int line_number = 1;
 
-    state.line_map = wmalloc(sizeof(LineMap));
+    state.line_map_start = wmalloc(sizeof(LineMap));
+    state.line_map = state.line_map_start;
     state.line_map->position = ip;
     state.line_map->line_number = line_number;
     LineMap *lm = state.line_map;
