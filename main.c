@@ -576,6 +576,7 @@ exit_main:
     free(assembler_input_filenames);
     free(linker_input_filenames);
     free(command);
+    free_list(extra_linker_args);
 
     exit(exit_code);
 }
