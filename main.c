@@ -145,6 +145,7 @@ int main(int argc, char **argv) {
     warn_integer_constant_too_large = 1;
     warn_assignment_types_incompatible = 1;
 
+    int exit_code = 0;
     int verbose = 0;        // Print invoked program command lines
     int run_compiler = 1;   // Compile .c file
     int run_assembler = 1;  // Assemble .s file
@@ -464,7 +465,7 @@ int main(int argc, char **argv) {
                 free_memory_for_translation_unit();
             }
         }
-        exit(0);
+        goto exit_main;
     }
 
     // Preprocessing + compilation phase
@@ -566,13 +567,18 @@ int main(int argc, char **argv) {
         *s = 0;
 
         int result = system(command);
-        if (result != 0) exit(result >> 8);
+        if (result != 0) {
+            exit_code = result >> 8;
+            goto exit_main;
+        }
     }
 
+
+exit_main:
     free_list(compiler_input_filenames);
     free(assembler_input_filenames);
     free(linker_input_filenames);
     free(command);
 
-    exit(0);
+    exit(exit_code);
 }
