@@ -1825,16 +1825,19 @@ char *preprocess(char *filename) {
 
     terminate_string_buffer(output);
 
+    char *data = output->data;
+    free_string_buffer(output, 0);
+
     free_directives();
     free_allocated_tokens();
 
-    return output->data;
+    return data;
 }
 
 // Run preprocessor on a file. If output_filename is '-' or not defined, send output
 // to stdout.
 void preprocess_to_file(char *input_filename, char *output_filename) {
-    preprocess(input_filename);
+    char *data = preprocess(input_filename);
 
     // Print the output
     if (!output_filename || !strcmp(output_filename, "-"))
@@ -1848,6 +1851,8 @@ void preprocess_to_file(char *input_filename, char *output_filename) {
         }
     }
 
-    fprintf(cpp_output_file, "%s", output->data);
+    fprintf(cpp_output_file, "%s", data);
     if (cpp_output_file != stdout) fclose(cpp_output_file);
+
+    free(data);
 }

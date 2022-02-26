@@ -492,6 +492,7 @@ int main(int argc, char **argv) {
         if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
 
         free_memory_for_translation_unit();
+        free(preprocessor_output);
     }
 
     // Assembler phase

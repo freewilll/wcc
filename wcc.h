@@ -898,6 +898,7 @@ void panic(char *format, ...);
 char *base_path(char *path);
 int wasprintf(char **ret, const char *format, ...);
 StringBuffer *new_string_buffer(int initial_size);
+void free_string_buffer(StringBuffer *sb, int free_data);
 void append_to_string_buffer(StringBuffer *sb, char *str);
 void terminate_string_buffer(StringBuffer *sb);
 

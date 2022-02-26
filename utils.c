@@ -57,6 +57,11 @@ StringBuffer *new_string_buffer(int initial_size) {
     return sb;
 }
 
+void free_string_buffer(StringBuffer *sb, int free_data) {
+    if (free_data) free(sb->data);
+    free(sb);
+}
+
 // Append a string to the string buffer
 void append_to_string_buffer(StringBuffer *sb, char *str) {
     int len = strlen(str);
