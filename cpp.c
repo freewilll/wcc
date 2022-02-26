@@ -346,7 +346,10 @@ void free_directives(void) {
     for (StrMapIterator it = strmap_iterator(directives); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
         char *key = strmap_iterator_key(&it);
         Directive *d = (Directive *) strmap_get(directives, key);
-        if (d && d->is_freeable) free(d);
+        if (d && d->is_freeable) {
+            if (d->param_identifiers) free_strmap(d->param_identifiers);
+            free(d);
+        }
     }
     free_strmap(directives);
 }
