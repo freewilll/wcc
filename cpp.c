@@ -335,7 +335,7 @@ void free_directives(void) {
         Directive *d = (Directive *) strmap_get(directives, key);
         if (d && d->is_freeable) free(d);
     }
-    free(directives);
+    free_strmap(directives);
 }
 
 char *get_cpp_input(void) {
@@ -1800,6 +1800,8 @@ static void free_allocated_tokens() {
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
 // output, runs the preprocessor, then prints the output to a file handle.
 char *preprocess(char *filename) {
+    init_directives();
+
     FILE *f = fopen(filename, "r");
 
     if (f == 0) {

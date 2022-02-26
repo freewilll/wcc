@@ -1037,5 +1037,8 @@ void init_codegen(void) {
 
 void free_codegen(void) {
     free(floating_point_literals);
+
+    strmap_foreach(debug_strings, it) free(strmap_iterator_key(&it));
     free_strmap(debug_strings);
+
 }

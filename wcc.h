@@ -809,6 +809,7 @@ StrMapIterator strmap_iterator(StrMap *map);
 int strmap_iterator_finished(StrMapIterator *iterator);
 void strmap_iterator_next(StrMapIterator *iterator);
 char *strmap_iterator_key(StrMapIterator *iterator);
+#define strmap_foreach(ls, it) for (StrMapIterator it = strmap_iterator(ls); !strmap_iterator_finished(&it); strmap_iterator_next(&it))
 
 // strset.c
 StrSet *new_strset(void);

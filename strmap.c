@@ -150,11 +150,6 @@ StrMap *new_strmap(void) {
 }
 
 void free_strmap(StrMap *map) {
-    for (int i = 0; i < map->size; i++) {
-        char *key;
-        if ((key = map->keys[i]) && key != (char *) TOMBSTONE) free(key);
-    }
-
     free(map->keys);
     free(map->values);
     free(map);

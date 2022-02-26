@@ -460,7 +460,6 @@ int main(int argc, char **argv) {
         for (int i = 0; i < input_filenames->length; i++) {
             if (is_c_source_file(input_filenames->elements[i])) {
                 init_memory_management_for_translation_unit();
-                init_directives(); // Create directives and add CLI directives
                 preprocess_to_file(input_filenames->elements[i], output_filename);
                 free_memory_for_translation_unit();
             }
@@ -481,7 +480,6 @@ int main(int argc, char **argv) {
         if (is_object_file(input_filename)) continue;
 
         init_memory_management_for_translation_unit();
-        init_directives();
         char *preprocessor_output = preprocess(input_filename);
 
         char *compiler_output_filename =
