@@ -1297,6 +1297,8 @@ static void parse_include() {
     run_preprocessor_on_file(state.filename, 0);
     state.include_depth--;
 
+    free(state.conditional_include_stack);
+
     // Restore parsing state
     state = backup_state;
     cur_filename = state.filename;
@@ -1837,6 +1839,7 @@ char *preprocess(char *filename) {
 
     free_directives();
     free_allocated_tokens();
+    free(state.conditional_include_stack);
 
     return data;
 }
