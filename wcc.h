@@ -1369,7 +1369,8 @@ int uncached_non_terminal_for_value(Value *v);
 int match_value_type_to_rule_dst(Value *v, int dst);
 char *value_to_non_terminal_string(Value *v);
 int make_x86_size_from_non_terminal(int non_terminal);
-void make_rules_by_operation(void);
+void init_rules_by_operation(void);
+void free_rules_by_operation(void);
 void check_for_duplicate_rules(void);
 void write_rule_coverage_file(void);
 
@@ -1401,6 +1402,7 @@ enum {
 };
 
 void init_instruction_selection_rules(void);
+void free_instruction_selection_rules(void);
 
 char init_memory_management_for_translation_unit(void);
 char free_memory_for_translation_unit(void);

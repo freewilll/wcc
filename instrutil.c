@@ -24,7 +24,7 @@ char size_to_x86_size(int size) {
     }
 }
 
-void make_rules_by_operation(void) {
+void init_rules_by_operation(void) {
     instr_rules_by_operation = new_longmap();
 
     for (int i = 0; i < instr_rule_count; i++) {
@@ -36,6 +36,13 @@ void make_rules_by_operation(void) {
         }
         append_to_list(list, r);
     }
+}
+
+void free_rules_by_operation(void) {
+    longmap_foreach(instr_rules_by_operation, it)
+        free_list(longmap_get(instr_rules_by_operation, longmap_iterator_key(&it)));
+
+    free_longmap(instr_rules_by_operation);
 }
 
 // Make a textual representation of a non terminal

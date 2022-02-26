@@ -8,9 +8,14 @@
 void init_instruction_selection_rules(void) {
     init_generated_instruction_selection_rules();
 
-    make_rules_by_operation();
+    init_rules_by_operation();
 
     rule_coverage = new_set(instr_rule_count - 1);
+}
+
+void free_instruction_selection_rules(void) {
+    free_set(rule_coverage);
+    free_rules_by_operation();
 }
 
 char init_memory_management_for_translation_unit(void) {
