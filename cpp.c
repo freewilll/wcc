@@ -113,8 +113,8 @@ static void init_cpp_from_fh(FILE *f, char *path) {
     fclose(f);
 
     state.input[state.input_size] = 0;
-    state.filename = path;
-    cur_filename = path;
+    state.filename = strdup(path);
+    cur_filename = state.filename;
     cur_line = 1;
     state.hchar_lex_state = HLS_START_OF_LINE;
 
@@ -172,6 +172,7 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
     collapse_trailing_newlines(0, 0, 0);
 
     free(state.input);
+    free(state.filename);
 
     LineMap *lm = state.line_map_start;
     while (lm) {
@@ -1249,20 +1250,26 @@ static int open_include_file(char *path, int is_system_include) {
     if (!is_system_include) {
         char *full_path;
         wasprintf(&full_path, "%s%s", get_current_file_path(), path);
-        if (try_and_open_include_file(full_path, path)) return 1;
+        int ok = try_and_open_include_file(full_path, path);
+        free(full_path);
+        if (ok) return 1;
     }
 
     for (CliIncludePath *cip = cli_include_paths; cip; cip = cip->next) {
         char *full_path;
         wasprintf(&full_path, "%s/%s", cip->path, path);
-        if (try_and_open_include_file(full_path, path)) return 1;
+        int ok = try_and_open_include_file(full_path, path);
+        free(full_path);
+        if (ok) return 1;
     }
 
     char *include_path;
     for (int i = 0; (include_path = BUILTIN_INCLUDE_PATHS[i]); i++) {
         char *full_path;
         wasprintf(&full_path, "%s%s", include_path, path);
-        if (try_and_open_include_file(full_path, path)) return 1;
+        int ok = try_and_open_include_file(full_path, path);
+        free(full_path);
+        if (ok) return 1;
     }
 
     return 0;
