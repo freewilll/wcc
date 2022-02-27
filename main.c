@@ -48,36 +48,6 @@ char *replace_extension(char *input, char *ext) {
     }
 }
 
-static void parse_directive(char *expr) {
-    CliDirective *cli_directive = wmalloc(sizeof(CliDirective));
-    cli_directive->next = 0;
-
-    char *key;
-    char *value;
-
-    char *p = strchr(expr, '=');
-    if (p) {
-        if (p == expr) simple_error("Invalid directive");
-        *p = 0;
-        key = expr;
-        value = p + 1;
-    }
-    else {
-        key = expr;
-        value = "1";
-    }
-
-    cli_directive->identifier = key;
-    cli_directive->directive = parse_cli_define(value);
-
-    if (!cli_directives) cli_directives = cli_directive;
-    else {
-        CliDirective *cd = cli_directives;
-        while (cd->next) cd = cd->next;
-        cd->next = cli_directive;
-    }
-}
-
 static void add_include_path(char *path) {
     int len = strlen(path);
     if (!len) simple_error("Invalid include path");
@@ -163,12 +133,13 @@ int main(int argc, char **argv) {
     init_allocate_registers();
     init_instruction_selection_rules();
 
-    cli_directives = 0;
     cli_include_paths = 0;
     cli_library_paths = 0;
     cli_libraries = 0;
 
     List *extra_linker_args = new_list(0);
+
+    List *directive_cli_strings = new_list(8);
 
     argc--;
     argv++;
@@ -254,13 +225,13 @@ int main(int argc, char **argv) {
             }
             else if (argc > 1 && !strcmp(argv[0], "-D")) {
                 // -D ...
-                parse_directive(argv[1]);
+                append_to_list(directive_cli_strings, argv[1]);
                 argc -= 2;
                 argv += 2;
             }
             else if (argv[0][0] == '-' && argv[0][1] == 'D') {
                 // -D...
-                parse_directive(&(argv[0][2]));
+                append_to_list(directive_cli_strings, &(argv[0][2]));
                 argc--;
                 argv++;
             }
@@ -456,7 +427,7 @@ int main(int argc, char **argv) {
         for (int i = 0; i < input_filenames->length; i++) {
             if (is_c_source_file(input_filenames->elements[i])) {
                 init_memory_management_for_translation_unit();
-                preprocess_to_file(input_filenames->elements[i], output_filename);
+                preprocess_to_file(input_filenames->elements[i], output_filename, directive_cli_strings);
                 free_memory_for_translation_unit();
             }
         }
@@ -476,7 +447,7 @@ int main(int argc, char **argv) {
         if (is_object_file(input_filename)) continue;
 
         init_memory_management_for_translation_unit();
-        char *preprocessor_output = preprocess(input_filename);
+        char *preprocessor_output = preprocess(input_filename, directive_cli_strings);
 
         char *compiler_output_filename =
             !run_assembler && !run_linker ? (output_filename ? output_filename : replace_extension(input_filename, "s"))
@@ -579,6 +550,7 @@ exit_main:
     free(linker_input_filenames);
     free(command);
     free_list(extra_linker_args);
+    free_list(directive_cli_strings);
 
     exit(exit_code);
 }

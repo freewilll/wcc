@@ -267,7 +267,6 @@ static CppToken *new_cpp_token(int kind) {
 static void add_builtin_directive(char *identifier, DirectiveRenderer renderer) {
     Directive *directive = wcalloc(1, sizeof(Directive));
     directive->renderer = renderer;
-    directive->is_freeable = 1;
     strmap_put(directives, identifier, directive);
 }
 
@@ -311,14 +310,12 @@ static CppToken *render_numeric_token(int value) {
 
 Directive *make_numeric_directive(int value) {
     Directive *directive = wcalloc(1, sizeof(Directive));
-    directive->is_freeable = 1;
     directive->tokens = render_numeric_token(value);
     return directive;
 }
 
 Directive *make_empty_directive(void) {
     Directive *directive = wcalloc(1, sizeof(Directive));
-    directive->is_freeable = 1;
     return directive;
 }
 
@@ -345,7 +342,7 @@ void init_directives(void) {
 }
 
 void free_directive(Directive *d) {
-    if (d && d->is_freeable) {
+    if (d) {
         if (d->param_identifiers) free_strmap(d->param_identifiers);
         free(d);
     }
@@ -1664,7 +1661,6 @@ static void parse_directive(void) {
 
                 Directive *existing_directive = strmap_get(directives, identifier);
                 Directive *directive = parse_define_tokens();
-                directive->is_freeable = 1;
                 if (existing_directive) {
                     check_directive_redeclaration(existing_directive, directive, identifier);
                     free_directive(existing_directive);
@@ -1844,7 +1840,7 @@ static void cpp_parse() {
     if (group_tokens) append_tokens_to_output(expand(group_tokens));
 }
 
-static void init_allocated_garbage(void) {
+void init_cpp(void) {
     allocated_tokens = new_list(1024);
     allocated_tokens_duplicates = new_list(1024);
     allocated_strsets = new_list(1024);
@@ -1873,17 +1869,72 @@ void free_cpp_allocated_garbage() {
 }
 
 Directive *parse_cli_define(char *string) {
-    init_allocated_garbage();
     init_cpp_from_string(string);
     cpp_next();
     Directive *d = parse_define_tokens();
+    free(state.input);
     return d;
+}
+
+static void parse_cli_directive_string(char *expr) {
+    expr = strdup(expr);
+
+    CliDirective *cli_directive = wmalloc(sizeof(CliDirective));
+    cli_directive->next = 0;
+
+    char *key;
+    char *value;
+
+    char *p = strchr(expr, '=');
+    if (p) {
+        if (p == expr) simple_error("Invalid directive");
+        *p = 0;
+        key = expr;
+        value = p + 1;
+    }
+    else {
+        key = expr;
+        value = "1";
+    }
+
+    cli_directive->identifier = strdup(key);
+    cli_directive->directive = parse_cli_define(value);
+
+    if (!cli_directives) cli_directives = cli_directive;
+    else {
+        CliDirective *cd = cli_directives;
+        while (cd->next) cd = cd->next;
+        cd->next = cli_directive;
+    }
+
+    free(expr);
+}
+
+static void parse_cli_directive_strings(List *cli_directive_strings) {
+    cli_directives = 0;
+
+    for (int i = 0; i < cli_directive_strings->length; i++)
+        parse_cli_directive_string(cli_directive_strings->elements[i]);
+}
+
+static void free_cli_directives(void) {
+    if (!cli_directives) return;
+
+    CliDirective *cd = cli_directives;
+    while (cd) {
+        CliDirective *next = cd->next;
+        free(cd->identifier);
+        free(cd);
+        cd = next;
+    }
+
 }
 
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
 // output, runs the preprocessor, then prints the output to a file handle.
-char *preprocess(char *filename) {
-    init_allocated_garbage();
+char *preprocess(char *filename, List *cli_directive_strings) {    init_cpp();
+    parse_cli_directive_strings(cli_directive_strings);
+
     init_directives();
 
     FILE *f = fopen(filename, "r");
@@ -1910,16 +1961,17 @@ char *preprocess(char *filename) {
     free_cpp_allocated_garbage();
 
     free(state.conditional_include_stack);
+    init_cpp(); // For the next round
 
-    init_allocated_garbage(); // For the next round
+    free_cli_directives();
 
     return data;
 }
 
 // Run preprocessor on a file. If output_filename is '-' or not defined, send output
 // to stdout.
-void preprocess_to_file(char *input_filename, char *output_filename) {
-    char *data = preprocess(input_filename);
+void preprocess_to_file(char *input_filename, char *output_filename, List *cli_directive_strings) {
+    char *data = preprocess(input_filename, cli_directive_strings);
 
     // Print the output
     if (!output_filename || !strcmp(output_filename, "-"))

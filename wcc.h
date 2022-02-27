@@ -645,7 +645,6 @@ typedef CppToken *(*DirectiveRenderer)(CppToken *);
 
 typedef struct directive {
     char is_function;           // Is the macro an object or function macro
-    char is_freeable;           // Can the memory be freed after preprocessing?
     int param_count;            // Amount of parameters.
     StrMap *param_identifiers;  // Mapping of parameter identifiers => index, index starts at 1
     CppToken *tokens;           // Replacement tokens
@@ -931,6 +930,7 @@ typedef struct line_map {
     struct line_map *next;
 } LineMap;
 
+void init_cpp(void);
 void get_cpp_filename_and_line();
 void init_cpp_from_string(char *string);
 char *get_cpp_input(void);
@@ -940,8 +940,8 @@ LineMap *get_cpp_linemap(void);
 void transform_trigraphs(void);
 void strip_backslash_newlines(void);
 Directive *parse_cli_define(char *string);
-char *preprocess(char *filename);
-void preprocess_to_file(char *input_filename, char *output_filename);
+char *preprocess(char *filename, List *cli_directive_strings);
+void preprocess_to_file(char *input_filename, char *output_filename, List *cli_directive_strings);
 void free_cpp_allocated_garbage();
 
 // parser.c

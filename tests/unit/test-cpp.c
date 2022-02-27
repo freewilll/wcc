@@ -92,6 +92,8 @@ static void test_single_token(char *input, int kind, char *expected) {
 static void test_tokenization(void) {
     CppToken *tokens;
 
+    init_cpp();
+
     // Two identifiers
     tokens = parse_cli_define("foo bar")->tokens->next;
     assert_int(CPP_TOK_IDENTIFIER, tokens->kind, "foo kind");
