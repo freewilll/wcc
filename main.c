@@ -572,6 +572,7 @@ int main(int argc, char **argv) {
 exit_main:
     free_instruction_selection_rules();
 
+    free_cpp_allocated_garbage();
     free_list(input_filenames);
     free_list(compiler_input_filenames);
     free(assembler_input_filenames);

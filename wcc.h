@@ -942,6 +942,7 @@ void strip_backslash_newlines(void);
 Directive *parse_cli_define(char *string);
 char *preprocess(char *filename);
 void preprocess_to_file(char *input_filename, char *output_filename);
+void free_cpp_allocated_garbage();
 
 // parser.c
 typedef Value *parse_expression_function_type(int);

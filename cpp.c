@@ -43,9 +43,9 @@ typedef struct cpp_state {
 
 CppState state;
 
-CircularLinkedList *allocated_tokens;            // Keep track of all wmalloc'd tokens
-CircularLinkedList *allocated_tokens_duplicates; // Keep track of all wmalloc'd tokens
-CircularLinkedList *allocated_strsets;           // Keep track of miscellaneous strsets.
+List *allocated_tokens;            // Keep track of all wmalloc'd tokens
+List *allocated_tokens_duplicates; // Keep track of all wmalloc'd tokens
+List *allocated_strsets;           // Keep track of miscellaneous strsets.
 
 // Output
 FILE *cpp_output_file;         // Output file handle
@@ -197,7 +197,7 @@ static CppToken *dup_cpp_token(CppToken *tok) {
     CppToken *result = wmalloc(sizeof(CppToken));
     *result = *tok;
     result->next = result;
-    append_to_cll(allocated_tokens_duplicates, result);
+    append_to_list(allocated_tokens_duplicates, result);
     return result;
 }
 
@@ -256,7 +256,7 @@ static CppToken *new_cpp_token(int kind) {
     CppToken *tok = wcalloc(1, sizeof(CppToken));
     tok->next = tok;
 
-    append_to_cll(allocated_tokens, tok);
+    append_to_list(allocated_tokens, tok);
 
     tok->kind = kind;
 
@@ -911,7 +911,7 @@ void free_function_actual_parameters(CppToken **actuals) {
 // Call strset_union and register the allocated strset for freeing later on.
 StrSet *cpp_strset_union(StrSet *set1, StrSet *set2) {
     StrSet *s = strset_union(set1, set2);
-    append_to_cll(allocated_strsets, s);
+    append_to_list(allocated_strsets, s);
     return s;
 }
 
@@ -926,7 +926,7 @@ StrSet *cpp_strset_union(StrSet *set1, StrSet *set2) {
 // Call strset_intersection and register the allocated strset for freeing later on.
 StrSet *cpp_strset_intersection(StrSet *set1, StrSet *set2) {
     StrSet *s = strset_intersection(set1, set2);
-    append_to_cll(allocated_strsets, s);
+    append_to_list(allocated_strsets, s);
     return s;
 }
 
@@ -979,7 +979,7 @@ static CppToken *expand(CppToken *is) {
         // Object like macro
 
         StrSet *identifier_hs = new_strset();
-        append_to_cll(allocated_strsets, identifier_hs);
+        append_to_list(allocated_strsets, identifier_hs);
         strset_add(identifier_hs, tok->str);
         StrSet *hs = tok->hide_set ? cpp_strset_union(tok->hide_set, identifier_hs) : identifier_hs;
         CppToken *replacement_tokens = directive->renderer ? directive->renderer(tok) : directive->tokens;
@@ -1017,7 +1017,7 @@ static CppToken *expand(CppToken *is) {
 
         StrSet *hs2 = new_strset();
         strset_add(hs2, directive_token->str);
-        if (hs2) append_to_cll(allocated_strsets, hs2);
+        if (hs2) append_to_list(allocated_strsets, hs2);
 
         StrSet *hs = safe_strset_union(hs1, hs2);
 
@@ -1230,7 +1230,7 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
             new_token->hide_set = cpp_strset_union(new_token->hide_set, hs);
         else {
             new_token->hide_set = dup_strset(hs);
-            if (new_token->hide_set) append_to_cll(allocated_strsets, new_token->hide_set);
+            if (new_token->hide_set) append_to_list(allocated_strsets, new_token->hide_set);
         }
 
         result = cll_append_token(result, new_token);
@@ -1839,60 +1839,40 @@ static void cpp_parse() {
     if (group_tokens) append_tokens_to_output(expand(group_tokens));
 }
 
-Directive *parse_cli_define(char *string) {
-    init_cpp_from_string(string);
-    cpp_next();
-    return parse_define_tokens();
+static void init_allocated_garbage(void) {
+    allocated_tokens = new_list(1024);
+    allocated_tokens_duplicates = new_list(1024);
+    allocated_strsets = new_list(1024);
 }
 
-static void free_allocated_garbage() {
+void free_cpp_allocated_garbage() {
     // Free allocated_tokens
-    CircularLinkedList *head = allocated_tokens->next;
-    CircularLinkedList *a = head;
-    do {
-        free_cpp_token(a->target);
-        a = a->next;
-    } while (a != head);
+    for (int i = 0; i < allocated_tokens->length; i++)
+        free_cpp_token(allocated_tokens->elements[i]);
+    free_list(allocated_tokens);
 
-    free_circular_linked_list(allocated_tokens);
-
-    // Free allocated_tokens_duplicates
-    if (allocated_tokens_duplicates) {
-        head = allocated_tokens_duplicates->next;
-        a = head;
-        do {
-            if (a->target) free(a->target);
-            a = a->next;
-        } while (a != head);
-
-        free_circular_linked_list(allocated_tokens_duplicates);
-    }
+    for (int i = 0; i < allocated_tokens_duplicates->length; i++)
+        free(allocated_tokens_duplicates->elements[i]);
+    free_list(allocated_tokens_duplicates);
 
     // Free any allocated strsets
-    if (allocated_strsets) {
-        CircularLinkedList *head = allocated_strsets->next;
-        CircularLinkedList *a = head;
-        do {
-            free_strset(a->target);
-            a = a->next;
-        } while (a != head);
+    for (int i = 0; i < allocated_strsets->length; i++)
+        free_strset(allocated_strsets->elements[i]);
+    free_list(allocated_strsets);
+}
 
-        free_circular_linked_list(allocated_strsets);
-    }
-
-    // Ensure any future tokens get appended
-    allocated_tokens = 0;
-    allocated_tokens_duplicates = 0;
-    allocated_strsets = 0;
+Directive *parse_cli_define(char *string) {
+    init_allocated_garbage();
+    init_cpp_from_string(string);
+    cpp_next();
+    Directive *d = parse_define_tokens();
+    return d;
 }
 
 // Entrypoint for the preprocessor. This handles a top level file. It prepares the
 // output, runs the preprocessor, then prints the output to a file handle.
 char *preprocess(char *filename) {
-    allocated_tokens = 0;
-    allocated_tokens_duplicates = 0;
-    allocated_strsets = 0;
-
+    init_allocated_garbage();
     init_directives();
 
     FILE *f = fopen(filename, "r");
@@ -1916,8 +1896,11 @@ char *preprocess(char *filename) {
     free_string_buffer(output, 0);
 
     free_directives();
-    free_allocated_garbage();
+    free_cpp_allocated_garbage();
+
     free(state.conditional_include_stack);
+
+    init_allocated_garbage(); // For the next round
 
     return data;
 }
