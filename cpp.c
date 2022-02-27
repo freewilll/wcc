@@ -1097,6 +1097,10 @@ static CppToken *stringize(CppToken *ts) {
 
     CppToken *result = new_cpp_token(CPP_TOK_STRING_LITERAL);
     result->str = escaped->data;
+
+    free_string_buffer(escaped, 0);
+    free_string_buffer(rendered, 1);
+
     return result;
 }
 
