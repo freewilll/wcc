@@ -427,6 +427,7 @@ void strip_backslash_newlines(void) {
     LineMap *lm = state.line_map;
 
     if (state.input_size == 0) {
+        free(state.input);
         state.input = output;
         return;
     }
