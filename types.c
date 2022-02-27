@@ -652,6 +652,7 @@ Type *composite_type(Type *type1, Type *type2) {
             Type *result = new_type(TYPE_FUNCTION);
             result->target = type1->target;
             Function *function = wmalloc(sizeof(Function));
+            append_to_list(allocated_functions, function);
             *function = *type1->function;
             function->return_type = type1->function->return_type;
             result->function = function;
