@@ -184,7 +184,7 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
 }
 
 void init_cpp_from_string(char *string) {
-    state.input = string;
+    state.input = strdup(string);
     state.input_size = strlen(string);
     state.filename = 0;
 
@@ -406,6 +406,8 @@ void transform_trigraphs(void) {
         }
         else output[op++] = state.input[ip++];
     }
+
+    free(state.input);
 
     output[op] = 0;
     state.input = output;
