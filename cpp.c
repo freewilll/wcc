@@ -44,8 +44,9 @@ typedef struct cpp_state {
 CppState state;
 
 List *allocated_tokens;            // Keep track of all wmalloc'd tokens
-List *allocated_tokens_duplicates; // Keep track of all wmalloc'd tokens
-List *allocated_strsets;           // Keep track of miscellaneous strsets.
+List *allocated_tokens_duplicates; // Keep track of all wmalloc'd shallow copied tokens
+List *allocated_strsets;
+List *allocated_strings;
 
 // Output
 FILE *cpp_output_file;         // Output file handle
@@ -1116,6 +1117,7 @@ static CppToken *glue(CppToken *ls, CppToken *rs) {
 
     // Mutating ls, this is allowed since ls is append only
     wasprintf(&ls->str, "%s%s", ls->str, rs->next->str);
+    append_to_list(allocated_strings, ls->str);
     ls->kind = CPP_TOK_OTHER;
     ls->hide_set = safe_strset_intersection(ls->hide_set, rs->next->hide_set);
 
@@ -1843,6 +1845,7 @@ static void init_allocated_garbage(void) {
     allocated_tokens = new_list(1024);
     allocated_tokens_duplicates = new_list(1024);
     allocated_strsets = new_list(1024);
+    allocated_strings = new_list(1024);
 }
 
 void free_cpp_allocated_garbage() {
@@ -1859,6 +1862,11 @@ void free_cpp_allocated_garbage() {
     for (int i = 0; i < allocated_strsets->length; i++)
         free_strset(allocated_strsets->elements[i]);
     free_list(allocated_strsets);
+
+    // Free any allocated strings
+    for (int i = 0; i < allocated_strings->length; i++)
+        free(allocated_strings->elements[i]);
+    free_list(allocated_strings);
 }
 
 Directive *parse_cli_define(char *string) {
