@@ -147,7 +147,6 @@ static void compile_internals(void) {
 }
 
 void compile(char *input, char *original_input_filename, char *output_filename) {
-    init_scopes();
     init_parser();
 
     compile_internals();
@@ -159,7 +158,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     init_lexer_from_string(input);
     parse();
 
-    if (debug_exit_after_parser) return;
+    if (debug_exit_after_parser) goto exit_compile;
 
     compile_phase = CP_POST_PARSING;
 
@@ -186,6 +185,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     output_code(original_input_filename, output_filename);
 
     free_codegen();
+
+exit_compile:;
     free_parser();
 }
-

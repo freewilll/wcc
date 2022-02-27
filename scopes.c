@@ -6,9 +6,14 @@
 
 Scope *global_scope;
 
+static List *allocated_scopes;
+
 // Initialize the global scope
 void init_scopes(void) {
+    allocated_scopes = new_list(128);
+
     global_scope = wcalloc(1, sizeof(Scope));
+    append_to_list(allocated_scopes, global_scope);
     global_scope->symbol_list = new_list(128);
     global_scope->symbols = new_strmap();
     global_scope->tags = new_strmap();
@@ -17,9 +22,29 @@ void init_scopes(void) {
     cur_scope = global_scope;
 }
 
+void free_scopes(void) {
+    for (int i = 0; i < allocated_scopes->length; i++) {
+        Scope *scope = allocated_scopes->elements[i];
+        for (int j = 0; j < scope->symbol_list->length; j++) free(scope->symbol_list->elements[j]);
+        free_list(scope->symbol_list);
+        free_strmap(scope->symbols);
+
+        strmap_foreach(scope->tags, it) {
+            char *key = strmap_iterator_key(&it);
+            free(strmap_get(scope->tags, key));
+        }
+        free_strmap(scope->tags);
+
+        free(scope);
+    }
+
+    free(allocated_scopes);
+}
+
 // Initialize a local scope and set cur_scope as the parent
 void enter_scope(void) {
     Scope *scope = wcalloc(1, sizeof(Scope));
+    append_to_list(allocated_scopes, scope);
     scope->symbol_list = new_list(128);
     scope->symbols = new_strmap();
     scope->tags = new_strmap();

@@ -3605,6 +3605,8 @@ void dump_symbols(void) {
 }
 
 void init_parser(void) {
+    init_scopes();
+
     string_literals = wmalloc(sizeof(StringLiteral) * MAX_STRING_LITERALS);
     string_literal_count = 0;
 
@@ -3627,4 +3629,5 @@ void free_parser(void) {
     free(all_structs_and_unions);
     free(all_typedefs);
     free_value_stack();
+    free_scopes();
 }

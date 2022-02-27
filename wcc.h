@@ -983,6 +983,7 @@ Value *parse_constant_integer_expression(int all_longs);
 Scope *global_scope;
 
 void init_scopes(void);
+void free_scopes(void);
 void enter_scope(void);
 void exit_scope(void);
 Symbol *new_symbol(char *identifier);
@@ -991,8 +992,6 @@ Tag *new_tag(char *identifier);
 Tag *lookup_tag(char *name, Scope *scope, int recurse);
 
 // types.c
-List *allocated_types;
-
 int print_type(void *f, Type *type);
 char *sprint_type_in_english(Type *type);
 void print_type_in_english(Type *type);

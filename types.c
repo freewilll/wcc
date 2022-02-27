@@ -4,6 +4,8 @@
 
 #include "wcc.h"
 
+static List *allocated_types;
+
 int print_type(void *f, Type *type) {
     int len = 0;
 
