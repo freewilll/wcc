@@ -248,7 +248,6 @@ static CppToken *dup_cll(CppToken *src) {
 static void free_cpp_token(CppToken *token) {
     if (token->str) free(token->str);
     if (token->whitespace) free(token->whitespace);
-    if (token->hide_set) free_strset(token->hide_set);
     free(token);
 }
 
@@ -902,21 +901,35 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
 }
 
 void free_function_actual_parameters(CppToken **actuals) {
-    free(actuals); // The tokens are freed as part of the garbage collection
+    free(actuals); // The tokens are freed as part of the garbage freeing
+}
+
+// Call strset_union and register the allocated strset for freeing later on.
+StrSet *cpp_strset_union(StrSet *set1, StrSet *set2) {
+    StrSet *s = strset_union(set1, set2);
+    append_to_cll(allocated_strsets, s);
+    return s;
 }
 
 // Union two sets. Either or both may be NULL
 #define safe_strset_union(set1, set2) \
     set1 && set2 \
-        ? strset_union(set1, set2) \
+        ? cpp_strset_union(set1, set2) \
         : set1 \
             ? set1 \
             : set2
 
+// Call strset_intersection and register the allocated strset for freeing later on.
+StrSet *cpp_strset_intersection(StrSet *set1, StrSet *set2) {
+    StrSet *s = strset_intersection(set1, set2);
+    append_to_cll(allocated_strsets, s);
+    return s;
+}
+
 // Intersect two sets. Either or both may be NULL
 #define safe_strset_intersection(set1, set2) \
     set1 && set2 \
-        ? strset_intersection(set1, set2) \
+        ? cpp_strset_intersection(set1, set2) \
         : 0;
 
 // Implementation of Dave Prosser's C Preprocessing Algorithm
@@ -962,11 +975,12 @@ static CppToken *expand(CppToken *is) {
         // Object like macro
 
         StrSet *identifier_hs = new_strset();
+        append_to_cll(allocated_strsets, identifier_hs);
         strset_add(identifier_hs, tok->str);
-        StrSet *hs = tok->hide_set ? strset_union(tok->hide_set, identifier_hs) : identifier_hs;
+        StrSet *hs = tok->hide_set ? cpp_strset_union(tok->hide_set, identifier_hs) : identifier_hs;
         CppToken *replacement_tokens = directive->renderer ? directive->renderer(tok) : directive->tokens;
         CppToken *substituted = subst(replacement_tokens, 0, 0, hs, 0);
-        free_strset(hs);
+
         if (substituted) {
             set_line_number_on_token_sequence(substituted, tok->line_number);
             substituted->next->whitespace = tok->whitespace;
@@ -999,14 +1013,13 @@ static CppToken *expand(CppToken *is) {
 
         StrSet *hs2 = new_strset();
         strset_add(hs2, directive_token->str);
+        if (hs2) append_to_cll(allocated_strsets, hs2);
 
         StrSet *hs = safe_strset_union(hs1, hs2);
 
         CppToken *substituted = 0;
-        if (directive->tokens) {
+        if (directive->tokens)
             substituted = subst(dup_cll(directive->tokens), directive->param_identifiers, actuals, hs, 0);
-            free_strset(hs);
-        }
 
         free_function_actual_parameters(actuals);
 
@@ -1093,7 +1106,7 @@ static CppToken *glue(CppToken *ls, CppToken *rs) {
     if (ls == 0) return rs;
     if (rs == 0) error("Attempt to glue an empty right side");
 
-    // Mutating ls, this is allowed cause ls is append only
+    // Mutating ls, this is allowed since ls is append only
     wasprintf(&ls->str, "%s%s", ls->str, rs->next->str);
     ls->kind = CPP_TOK_OTHER;
     ls->hide_set = safe_strset_intersection(ls->hide_set, rs->next->hide_set);
@@ -1206,13 +1219,11 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
         CppToken *new_token = dup_cpp_token(tok);
 
         if (new_token->hide_set)
-            new_token->hide_set = strset_union(new_token->hide_set, hs);
+            new_token->hide_set = cpp_strset_union(new_token->hide_set, hs);
         else {
             new_token->hide_set = dup_strset(hs);
+            if (new_token->hide_set) append_to_cll(allocated_strsets, new_token->hide_set);
         }
-
-        // hs must be garbage collected since new_token was a shallow copy and its interior will not be freed
-        append_to_cll(allocated_strsets, new_token->hide_set);
 
         result = cll_append_token(result, new_token);
     }
@@ -1821,7 +1832,7 @@ Directive *parse_cli_define(char *string) {
     return parse_define_tokens();
 }
 
-static void collect_garbage() {
+static void free_allocated_garbage() {
     // Free allocated_tokens
     CircularLinkedList *head = allocated_tokens->next;
     CircularLinkedList *a = head;
@@ -1892,7 +1903,7 @@ char *preprocess(char *filename) {
     free_string_buffer(output, 0);
 
     free_directives();
-    collect_garbage();
+    free_allocated_garbage();
     free(state.conditional_include_stack);
 
     return data;
