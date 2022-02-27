@@ -158,6 +158,9 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     compile_phase = CP_PARSING;
     init_lexer_from_string(input);
     parse();
+
+    if (debug_exit_after_parser) return;
+
     compile_phase = CP_POST_PARSING;
 
     init_codegen();

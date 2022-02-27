@@ -190,6 +190,8 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-cost-graph"              )) { debug_instsel_cost_graph = 1;               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-spilling"                )) { debug_instsel_spilling = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-stack-frame-layout"              )) { debug_stack_frame_layout = 1;               argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-exit-after-parser"               )) { debug_exit_after_parser = 1;                argc--; argv++; }
+
             else if (argc > 0 && !strcmp(argv[0], "-Werror"                                 )) { opt_warnings_are_errors = 1;                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-Wno-integer-constant-too-large"         )) { warn_integer_constant_too_large = 0;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-Wno-warn-assignment-types-incompatible" )) { warn_assignment_types_incompatible = 0;     argc--; argv++; }
@@ -370,6 +372,7 @@ int main(int argc, char **argv) {
         printf("--debug-instsel-cost-graph\n");
         printf("--debug-instsel-spilling\n");
         printf("--debug-stack-frame-layout\n");
+        printf("--debug-exit-after-parser\n");
 
         exit(1);
     }
@@ -413,6 +416,17 @@ int main(int argc, char **argv) {
 
     if (output_filename && input_filenames->length > 1 && single_target) {
         simple_error("cannot specify -o with -c or -S -E with multiple files");
+        exit(1);
+    }
+
+    if (debug_exit_after_parser && input_filenames->length != 1) {
+        simple_error("--debug-exit-after-parser can only be used with exactly one input file");
+        exit(1);
+    }
+
+    if (debug_exit_after_parser && run_linker) {
+        simple_error("--debug-exit-after-parser must be used with -c");
+        exit(1);
     }
 
     char *command = wmalloc(1024 * 100);
@@ -464,6 +478,8 @@ int main(int argc, char **argv) {
 
         free_memory_for_translation_unit();
         free(preprocessor_output);
+
+        if (debug_exit_after_parser) exit(0);
     }
 
     // Assembler phase

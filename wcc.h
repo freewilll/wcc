@@ -766,6 +766,7 @@ int debug_instsel_tiling;
 int debug_instsel_cost_graph;
 int debug_instsel_spilling;
 int debug_stack_frame_layout;
+int debug_exit_after_parser;
 
 // set.c
 #define add_to_set(s, value) do { \
