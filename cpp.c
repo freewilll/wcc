@@ -343,14 +343,18 @@ void init_directives(void) {
     strmap_put(directives, "__USER_LABEL_PREFIX__", make_empty_directive());
 }
 
+void free_directive(Directive *d) {
+    if (d && d->is_freeable) {
+        if (d->param_identifiers) free_strmap(d->param_identifiers);
+        free(d);
+    }
+}
+
 void free_directives(void) {
     for (StrMapIterator it = strmap_iterator(directives); !strmap_iterator_finished(&it); strmap_iterator_next(&it)) {
         char *key = strmap_iterator_key(&it);
         Directive *d = (Directive *) strmap_get(directives, key);
-        if (d && d->is_freeable) {
-            if (d->param_identifiers) free_strmap(d->param_identifiers);
-            free(d);
-        }
+        free_directive(d);
     }
     free_strmap(directives);
 }
@@ -1656,7 +1660,10 @@ static void parse_directive(void) {
                 Directive *existing_directive = strmap_get(directives, identifier);
                 Directive *directive = parse_define_tokens();
                 directive->is_freeable = 1;
-                if (existing_directive) check_directive_redeclaration(existing_directive, directive, identifier);
+                if (existing_directive) {
+                    check_directive_redeclaration(existing_directive, directive, identifier);
+                    free_directive(existing_directive);
+                }
                 strmap_put(directives, identifier, directive);
             }
             else
@@ -1669,6 +1676,8 @@ static void parse_directive(void) {
 
             if (!state.conditional_include_stack->skipping) {
                 if (!is_identifier(state.token)) error("Expected identifier");
+                Directive *existing_directive = strmap_get(directives, state.token->str);
+                if (existing_directive) free_directive(existing_directive);
                 strmap_delete(directives, state.token->str);
                 cpp_next();
 
