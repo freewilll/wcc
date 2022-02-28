@@ -1723,6 +1723,8 @@ int main() {
     init_memory_management_for_translation_unit();
 
     function = new_function();
+    function->type = new_type(TYPE_FUNCTION);
+    function->type->target = new_type(TYPE_INT);
 
     opt_optimize_arithmetic_operations = 1;
     string_literals = malloc(MAX_STRING_LITERALS);

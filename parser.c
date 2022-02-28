@@ -3192,18 +3192,18 @@ static void parse_return_statement(void) {
     else {
         parse_expression(TOK_COMMA);
 
-        if (!value_stack_is_empty() && vtop()->type->type != TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID)
+        if (!value_stack_is_empty() && vtop()->type->type != TYPE_VOID && cur_function_symbol->type->function->type->target->type == TYPE_VOID)
             error("Return with a value in a function returning void");
 
         Value *src1;
-        if (!value_stack_is_empty() && vtop()->type->type == TYPE_VOID && cur_function_symbol->type->function->return_type->type == TYPE_VOID) {
+        if (!value_stack_is_empty() && vtop()->type->type == TYPE_VOID && cur_function_symbol->type->function->type->target->type == TYPE_VOID) {
             // Deal with case of returning the result of a void function in a void function
             // e.g. foo(); void bar() { return foo(); }
             vs++; // Remove from value stack
             src1 = 0;
         }
         else
-            src1 = add_convert_type_if_needed(pl(), cur_function_symbol->type->function->return_type);
+            src1 = add_convert_type_if_needed(pl(), cur_function_symbol->type->function->type->target);
 
         add_parser_instruction(IR_RETURN, 0, src1, 0);
     }
@@ -3372,7 +3372,7 @@ static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, S
     int is_defined = original_symbol && original_symbol->type->function->is_defined;
 
     if (!is_defined) {
-        function->return_type = type->target;
+        function->type = type;
         function->ir = ir_start;
         function->linkage = linkage;
         function->local_symbol_count = 0;

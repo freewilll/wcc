@@ -352,13 +352,13 @@ void add_function_return_moves(Function *function, char *identifier) {
             add_function_return_moves_for_struct_or_union(function, ir, identifier);
 
         else {
-            int is_sse = is_sse_floating_point_type(function->return_type);
+            int is_sse = is_sse_floating_point_type(function->type->target);
             int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
 
             ir->src1->preferred_live_range_preg_index = live_range_preg;
 
             ir->dst = new_value();
-            ir->dst->type = dup_type(function->return_type);
+            ir->dst->type = dup_type(function->type->target);
             if (ir->dst->type->type == TYPE_ENUM) ir->dst->type = new_type(TYPE_INT);
             ir->dst->vreg = ++function->vreg_count;
             ir->dst->live_range_preg = live_range_preg;
@@ -1281,7 +1281,7 @@ void add_function_param_moves(Function *function, char *identifier) {
 
     int fpa_start = 0; // Which index in fpa->params has the first actual parameter
 
-    if (function->return_type && function->return_type->type == TYPE_STRUCT_OR_UNION) {
+    if (function->type->target->type == TYPE_STRUCT_OR_UNION) {
         fpa_start = setup_return_for_struct_or_union(function);
         if (fpa_start) add_function_param_to_allocation(fpa, function->return_value_pointer->type);
     }

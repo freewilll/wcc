@@ -210,7 +210,7 @@ typedef struct scope {
 } Scope;
 
 typedef struct function {
-    Type *return_type;                                  // Type of return value
+    Type *type;                                         // Type of the function
     int param_count;                                    // Number of parameters
     List *param_types;                                  // List of types of parameters
     List *param_identifiers;                            // List of names of parameters

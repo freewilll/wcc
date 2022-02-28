@@ -35,12 +35,19 @@ void assert_longset(LongSet *got, int v1, int v2, int v3, int v4, int v5) {
     assert(1, longset_eq(expected, got));
 }
 
+Function *new_function_with_type(void) {
+    Function *result = new_function();
+    result->type = new_type(TYPE_FUNCTION);
+    result->type->target = new_type(TYPE_INT);
+    return result;
+}
+
 void run_arithmetic_optimization(int operation, Value *dst, Value *src1, Value *src2) {
     Function *function;
     Tac *tac;
 
     opt_optimize_arithmetic_operations = 1;
-    function = new_function();
+    function = new_function_with_type();
     ir_start = 0;
     i(0, operation, dst, src1, src2);
     function->ir = ir_start;
@@ -205,7 +212,7 @@ void test_arithmetic_optimization() {
 void test_cfg_jmp() {
     Function *function;
 
-    function = new_function();
+    function = new_function_with_type();
 
     ir_start = 0;
 
@@ -233,7 +240,7 @@ void test_dominance() {
     Function *function;
     Block *blocks;
 
-    function = new_function();
+    function = new_function_with_type();
 
     blocks = calloc(9, sizeof(Block));
 
@@ -281,7 +288,7 @@ void test_liveout1() {
     Function *function;
     Tac *tac;
 
-    function = new_function();
+    function = new_function_with_type();
 
     ir_start = 0;
     i(0, IR_NOP,         0,    0,    0   );
@@ -294,6 +301,8 @@ void test_liveout1() {
     i(0, IR_MOVE_TO_PTR, 0,    v(2), c(1));
 
     function->ir = ir_start;
+    function->type = new_type(TYPE_FUNCTION);
+    function->type->target = new_type(TYPE_INT);
 
     if (debug_ssa) print_ir(function, 0, 0);
 
@@ -328,7 +337,7 @@ Function *make_ir2(int init_four_vars) {
     Function *function;
     Tac *tac;
 
-    function = new_function();
+    function = new_function_with_type();
 
     // var/register
     // i = 1
@@ -373,6 +382,8 @@ Function *make_ir2(int init_four_vars) {
     i(0, IR_JMP,     0,    l(7), 0   );
 
     function->ir = ir_start;
+    function->type = new_type(TYPE_FUNCTION);
+    function->type->target = new_type(TYPE_INT);
 
     if (debug_ssa) print_ir(function, 0, 0);
 
@@ -458,7 +469,7 @@ void test_idom3() {
     Function *function;
     Tac *tac;
 
-    function = new_function();
+    function = new_function_with_type();
 
     ir_start = 0;
     i(0, IR_NOP,         0,    0,    0   );
@@ -472,6 +483,8 @@ void test_idom3() {
     i(0, IR_END_LOOP,    0,    c(0), c(1));
 
     function->ir = ir_start;
+    function->type = new_type(TYPE_FUNCTION);
+    function->type->target = new_type(TYPE_INT);
 
     run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
 
@@ -609,7 +622,7 @@ void test_phi_renumbering2() {
     Stack **stack;
     Tac *tac;
 
-    function = new_function();
+    function = new_function_with_type();
     ir_start = 0;
 
     i(0, IR_NOP,  0,    0,    0  );
@@ -622,6 +635,8 @@ void test_phi_renumbering2() {
     i(0, IR_MOVE, v(2), v(1), 0  );
 
     function->ir = ir_start;
+    function->type = new_type(TYPE_FUNCTION);
+    function->type->target = new_type(TYPE_INT);
 
     run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS);
     rename_phi_function_variables(function);
@@ -637,7 +652,7 @@ Function *make_ir3(int loop_count) {
     Function *function;
     Tac *tac;
 
-    function = new_function();
+    function = new_function_with_type();
 
     ir_start = 0;
     i(0, IR_NOP,    0,    0,    0   );
@@ -659,6 +674,8 @@ Function *make_ir3(int loop_count) {
     i(0, IR_ADD,    0,    v(4), v(4)); // ... = d
 
     function->ir = ir_start;
+    function->type = new_type(TYPE_FUNCTION);
+    function->type->target = new_type(TYPE_INT);
 
     return function;
 }
@@ -697,6 +714,8 @@ void test_interference_graph2() {
     l = live_range_reserved_pregs_offset;
 
     function = make_ir2(1);
+    function->type = new_type(TYPE_FUNCTION);
+    function->type->target = new_type(TYPE_INT);
 
     run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
 
@@ -729,7 +748,7 @@ void test_interference_graph3() {
 
     l = live_range_reserved_pregs_offset;
 
-    function = new_function();
+    function = new_function_with_type();
 
     ir_start = 0;
 
@@ -741,6 +760,8 @@ void test_interference_graph3() {
     i(0, IR_ADD,  0,    v(1), v(1)); // ... = a
 
     function->ir = ir_start;
+    function->type = new_type(TYPE_FUNCTION);
+    function->type->target = new_type(TYPE_INT);
 
     opt_enable_live_range_coalescing = 0;
     run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
@@ -841,7 +862,7 @@ void test_top_down_register_allocation() {
     // | \
     // 2   3
 
-    function = new_function();
+    function = new_function_with_type();
 
     vreg_count =  4;
     function->vreg_count = vreg_count;
@@ -929,7 +950,7 @@ void test_top_down_register_allocation() {
 int main() {
     init_memory_management_for_translation_unit();
 
-    function = new_function();
+    function = new_function_with_type();
     opt_optimize_arithmetic_operations = 1;
     string_literals = malloc(MAX_STRING_LITERALS);
 

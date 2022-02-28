@@ -656,7 +656,7 @@ Type *composite_type(Type *type1, Type *type2) {
             Function *function = wmalloc(sizeof(Function));
             append_to_list(allocated_functions, function);
             *function = *type1->function;
-            function->return_type = type1->function->return_type;
+            function->type = result;
             result->function = function;
 
             for (int i = 0; i < function->param_count; i++) {
