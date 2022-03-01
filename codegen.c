@@ -751,9 +751,9 @@ static void output_debug_loc(Tac *tac) {
 
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
-    int function_pc = symbol->type->xfunction->param_count;
+    int function_pc = symbol->function->param_count;
 
-    for (Tac *tac = symbol->type->xfunction->ir; tac; tac = tac->next) {
+    for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);
         if (tac->operation != IR_NOP) {
             output_debug_loc(tac);
@@ -924,8 +924,8 @@ void output_code(char *input_filename, char *output_filename) {
     // Output static local symbols
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->xfunction->is_defined) {
-            Function *function = symbol->type->xfunction;
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
+            Function *function = symbol->function;
             for (int j = 0; j < function->static_symbols->length; j++)
                 output_symbol(function->static_symbols->elements[j]);
         }
@@ -951,8 +951,8 @@ void output_code(char *input_filename, char *output_filename) {
     // Output symbols for all functions that are defined and have external linkage
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->xfunction->is_defined &&
-                (symbol->type->xfunction->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->type->xfunction->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined &&
+                (symbol->function->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->function->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
 
             fprintf(f, "    .globl  %s\n", symbol->identifier);
             fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
@@ -971,7 +971,7 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, ".Lall.code.start:\n");
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->xfunction->is_defined) {
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             fprintf(f, ".L%s.start:\n", symbol->identifier);
             output_function_body_code(symbol);

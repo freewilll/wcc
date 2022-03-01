@@ -277,6 +277,7 @@ Value *fu(int index) {
 
     v->function_symbol->type = new_type(TYPE_FUNCTION);
     v->function_symbol->type->xfunction = new_function();
+    v->function_symbol->function = v->function_symbol->type->xfunction;
     wasprintf(&(v->function_symbol->identifier), "f%d", index);
 
     v->type = v->function_symbol->type;

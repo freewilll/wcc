@@ -167,8 +167,8 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     // Compile all functions
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->xfunction->is_defined) {
-            Function *function = symbol->type->xfunction;
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
+            Function *function = symbol->function;
             if (print_ir1) print_ir(function, symbol->identifier, 0);
 
             run_compiler_phases(function, symbol->identifier, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
@@ -178,8 +178,8 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
 
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->xfunction->is_defined)
-            free_function(symbol->type->xfunction);
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined)
+            free_function(symbol->function);
     }
 
     output_code(original_input_filename, output_filename);
