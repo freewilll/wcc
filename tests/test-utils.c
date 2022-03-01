@@ -276,7 +276,7 @@ Value *fu(int index) {
     v->function_symbol = calloc(1, sizeof(Symbol));
 
     v->function_symbol->type = new_type(TYPE_FUNCTION);
-    v->function_symbol->type->function = new_function();
+    v->function_symbol->type->xfunction = new_function();
     wasprintf(&(v->function_symbol->identifier), "f%d", index);
 
     v->type = v->function_symbol->type;

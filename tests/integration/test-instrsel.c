@@ -633,9 +633,9 @@ void run_function_call_single_arg(Value *src) {
     i(0, IR_ARG, 0, make_arg_src1(), src);
     tac = i(0, IR_START_CALL, 0, c(0), 0);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
-    tac->src1->type->function->param_count = 1;
-    tac->src1->type->function->param_types = new_list(1);
-    append_to_list(tac->src1->type->function->param_types, dup_type(src->type));
+    tac->src1->type->xfunction->param_count = 1;
+    tac->src1->type->xfunction->param_types = new_list(1);
+    append_to_list(tac->src1->type->xfunction->param_types, dup_type(src->type));
     tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(2), v(1), 0);
     finish_spill_ir(function);

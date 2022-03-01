@@ -1446,7 +1446,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
     tac->src1 = v;
     tac->dst = new_value();
     tac->dst->type = new_type(TYPE_LONG);
-    tac->dst->type->function = v->type->function; // For (pointers to )functions in registers
+    tac->dst->type->xfunction = v->type->xfunction; // For (pointers to )functions in registers
     tac->dst->x86_size = 4;
     tac->dst->vreg = -1000;   // Dummy value
     tac->dst->preg = preg;

@@ -152,7 +152,7 @@ typedef struct type {
     char storage_class;
     struct type *target;
     struct struct_or_union_desc *struct_or_union_desc;
-    struct function *function;
+    struct function *xfunction;         // Work in progress ... this will be removed at one point
     struct tag *tag; // For structs, unions and enums
 } Type;
 

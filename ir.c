@@ -1239,7 +1239,7 @@ void add_PIC_load_and_saves(Function *function) {
 // function has been defined.
 void convert_functions_address_of(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_ADDRESS_OF && tac->src1->type->type == TYPE_FUNCTION && !tac->src1->type->function->is_defined) {
+        if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_ADDRESS_OF && tac->src1->type->type == TYPE_FUNCTION && !tac->src1->type->xfunction->is_defined) {
             tac->operation = IR_ADDRESS_OF_FROM_GOT;
             tac->src1->load_from_got = 1;
         }

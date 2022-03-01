@@ -203,7 +203,7 @@ static Value *pl(void) {
 }
 
 static int new_local_index(void) {
-    return -1 - cur_function_symbol->type->function->local_symbol_count++;
+    return -1 - cur_function_symbol->type->xfunction->local_symbol_count++;
 }
 
 // Create a new typed constant value and push it to the stack.
@@ -269,7 +269,7 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
         Type *type = new_type(TYPE_FUNCTION);
         type->target = src1_type->target;
         type->target = src1_type->target;
-        type->function = src1_type->function;
+        type->xfunction = src1_type->xfunction;
         return type;
     }
 
@@ -613,13 +613,13 @@ Type *parse_declarator(void) {
 
 static Type *parse_function_type(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
-    function_type->function = new_function();
-    function_type->function->param_types = new_list(8);
-    function_type->function->param_identifiers = new_list(8);
+    function_type->xfunction = new_function();
+    function_type->xfunction->param_types = new_list(8);
+    function_type->xfunction->param_identifiers = new_list(8);
 
     enter_scope();
-    function_type->function->scope = cur_scope;
-    function_type->function->is_paramless = 1;
+    function_type->xfunction->scope = cur_scope;
+    function_type->xfunction->is_paramless = 1;
 
     int param_count = 0;
     while (1) {
@@ -634,7 +634,7 @@ static Type *parse_function_type(void) {
             if (is_type_token) {
                 cur_type_identifier = 0;
                 type = parse_type_name();
-                function_type->function->is_paramless = 0;
+                function_type->xfunction->is_paramless = 0;
 
                 if (type->storage_class == SC_AUTO || type->storage_class == SC_STATIC || type->storage_class == SC_EXTERN)
                     error("Invalid storage for function parameter");
@@ -669,15 +669,15 @@ static Type *parse_function_type(void) {
 
             if (param_symbol) param_symbol->type = dup_type(symbol_type);
 
-            append_to_list(function_type->function->param_types, dup_type(type));
-            append_to_list(function_type->function->param_identifiers, cur_type_identifier);
+            append_to_list(function_type->xfunction->param_types, dup_type(type));
+            append_to_list(function_type->xfunction->param_identifiers, cur_type_identifier);
             if (param_symbol) param_symbol->local_index = param_count;
             param_count++;
 
             cur_type_identifier = old_cur_type_identifier;
         }
         else if (cur_token == TOK_ELLIPSES) {
-            function_type->function->is_variadic = 1;
+            function_type->xfunction->is_variadic = 1;
             next();
         }
         else
@@ -688,7 +688,7 @@ static Type *parse_function_type(void) {
         if (cur_token == TOK_RPAREN) error("Expected expression");
     }
 
-    function_type->function->param_count = param_count;
+    function_type->xfunction->param_count = param_count;
 
     exit_scope();
 
@@ -2080,7 +2080,7 @@ static void parse_declaration(void) {
         symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
         symbol->linkage = LINKAGE_INTERNAL;
-        Function *function = cur_function_symbol->type->function;
+        Function *function = cur_function_symbol->type->xfunction;
 
         char *global_identifier;
         wasprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, function->static_symbols->length + 1);
@@ -2186,8 +2186,8 @@ static void parse_function_call(void) {
         error("Illegal attempt to call a non-function");
 
     Symbol *symbol = popped_function->global_symbol;
-    Type *function_type = popped_function->type->function ? popped_function->type : popped_function->type->target;
-    Function *function = function_type->function;
+    Type *function_type = popped_function->type->xfunction ? popped_function->type : popped_function->type->target;
+    Function *function = function_type->xfunction;
 
     next();
 
@@ -2345,7 +2345,7 @@ static void parse_va_start() {
 
     int rightmost_param_index = rightmost_param->local_index - 2;
 
-    if (rightmost_param_index != cur_function_symbol->type->function->param_count - 1)
+    if (rightmost_param_index != cur_function_symbol->type->xfunction->param_count - 1)
         error("Second argument to va_start isn't the rightmost function parameter");
 
     Value *param_index_value = new_value();
@@ -3192,18 +3192,18 @@ static void parse_return_statement(void) {
     else {
         parse_expression(TOK_COMMA);
 
-        if (!value_stack_is_empty() && vtop()->type->type != TYPE_VOID && cur_function_symbol->type->function->type->target->type == TYPE_VOID)
+        if (!value_stack_is_empty() && vtop()->type->type != TYPE_VOID && cur_function_symbol->type->xfunction->type->target->type == TYPE_VOID)
             error("Return with a value in a function returning void");
 
         Value *src1;
-        if (!value_stack_is_empty() && vtop()->type->type == TYPE_VOID && cur_function_symbol->type->function->type->target->type == TYPE_VOID) {
+        if (!value_stack_is_empty() && vtop()->type->type == TYPE_VOID && cur_function_symbol->type->xfunction->type->target->type == TYPE_VOID) {
             // Deal with case of returning the result of a void function in a void function
             // e.g. foo(); void bar() { return foo(); }
             vs++; // Remove from value stack
             src1 = 0;
         }
         else
-            src1 = add_convert_type_if_needed(pl(), cur_function_symbol->type->function->type->target);
+            src1 = add_convert_type_if_needed(pl(), cur_function_symbol->type->xfunction->type->target);
 
         add_parser_instruction(IR_RETURN, 0, src1, 0);
     }
@@ -3215,9 +3215,9 @@ static void parse_label_statement(char *identifier) {
         next();
         Value *ldst = new_label_dst();
         add_jmp_target_instruction(ldst);
-        Value *dst = strmap_get(cur_function_symbol->type->function->labels, identifier);
+        Value *dst = strmap_get(cur_function_symbol->type->xfunction->labels, identifier);
         if (dst) error("Duplicate label %s", identifier);
-        strmap_put(cur_function_symbol->type->function->labels, identifier, ldst);
+        strmap_put(cur_function_symbol->type->xfunction->labels, identifier, ldst);
     }
     else {
         rewind_lexer();
@@ -3232,7 +3232,7 @@ static void parse_goto_statement(void) {
     // A typedef an also be used as an identifier in a goto statement
     if (cur_token != TOK_TYPEDEF_TYPE && cur_token != TOK_IDENTIFIER) panic_with_line_number("Expected an identifier");
 
-    Value *ldst = strmap_get(cur_function_symbol->type->function->labels, cur_identifier);
+    Value *ldst = strmap_get(cur_function_symbol->type->xfunction->labels, cur_identifier);
     if (ldst)
         add_parser_instruction(IR_JMP, 0, ldst, 0);
     else {
@@ -3240,14 +3240,14 @@ static void parse_goto_statement(void) {
         GotoBackPatch *gbp = wmalloc(sizeof(GotoBackPatch));
         gbp->identifier = cur_identifier;
         gbp->ir = ir;
-        append_to_cll(cur_function_symbol->type->function->goto_backpatches, gbp);
+        append_to_cll(cur_function_symbol->type->xfunction->goto_backpatches, gbp);
     }
     next();
     consume(TOK_SEMI, ";");
 }
 
 static void backpatch_gotos(void) {
-    CircularLinkedList *goto_backpatches = cur_function_symbol->type->function->goto_backpatches;
+    CircularLinkedList *goto_backpatches = cur_function_symbol->type->xfunction->goto_backpatches;
     if (!goto_backpatches) return;
 
     CircularLinkedList *head = goto_backpatches->next;
@@ -3255,7 +3255,7 @@ static void backpatch_gotos(void) {
     do {
         GotoBackPatch *gbp = gbp_cll->target;
 
-        Value *ldst = strmap_get(cur_function_symbol->type->function->labels, gbp->identifier);
+        Value *ldst = strmap_get(cur_function_symbol->type->xfunction->labels, gbp->identifier);
         if (!ldst) error("Unknown label %s", gbp->identifier);
         gbp->ir->src1 = ldst;
         free(gbp);
@@ -3273,7 +3273,7 @@ static void add_va_register_save_area(void) {
     v->type = type;
     v->local_index = new_local_index();
     v->is_lvalue = 1;
-    cur_function_symbol->type->function->register_save_area = v;
+    cur_function_symbol->type->xfunction->register_save_area = v;
     add_parser_instruction(IR_DECL_LOCAL_COMP_OBJ, 0, v, 0);
 }
 
@@ -3364,13 +3364,13 @@ static void parse_statement(void) {
 
 // Parse function definition and possible declaration
 static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
-    Function *function = type->function;
+    Function *function = type->xfunction;
 
     // Setup the intermediate representation with a dummy no operation instruction.
     ir_start = 0;
     ir_start = add_parser_instruction(IR_NOP, 0, 0, 0);
 
-    int is_defined = original_symbol && original_symbol->type->function->is_defined;
+    int is_defined = original_symbol && original_symbol->type->xfunction->is_defined;
 
     if (!is_defined) {
         function->type = type;
@@ -3383,22 +3383,22 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         if (type->target->type == TYPE_STRUCT_OR_UNION) {
             FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
             add_function_param_to_allocation(fpa, type->target);
-            type->function->return_value_fpa = fpa;
+            type->xfunction->return_value_fpa = fpa;
         }
     }
 
-    // type->function->scope is left entered by the type parser
-    cur_scope = type->function->scope;
+    // type->xfunction->scope is left entered by the type parser
+    cur_scope = type->xfunction->scope;
     cur_function_symbol = symbol;
 
     // Parse optional old style declaration list
-    if (type->function->is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)
-        parse_function_paramless_declaration_list(type->function);
+    if (type->xfunction->is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)
+        parse_function_paramless_declaration_list(type->xfunction);
 
     if (original_symbol && !types_are_compatible(original_symbol->type, type))
         error("Incompatible function types");
 
-    if (original_symbol && original_symbol->type->function->is_defined && cur_token == TOK_LCURLY) {
+    if (original_symbol && original_symbol->type->xfunction->is_defined && cur_token == TOK_LCURLY) {
         error("Redefinition of %s", cur_type_identifier);
     }
 
@@ -3406,7 +3406,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         if (!types_are_compatible(type, original_symbol->type)) error("Incompatible types");
 
         // Merge types if it's a redeclaration
-        int is_defined = original_symbol->type->function->is_defined;
+        int is_defined = original_symbol->type->xfunction->is_defined;
         if (!is_defined) symbol->type = composite_type(type, original_symbol->type);
     }
     else
@@ -3438,14 +3438,14 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         cur_loop = 0;
         loop_count = 0;
 
-        if (cur_function_symbol->type->function->is_variadic) add_va_register_save_area();
+        if (cur_function_symbol->type->xfunction->is_variadic) add_va_register_save_area();
 
-        cur_function_symbol->type->function->static_symbols = new_list(128);
+        cur_function_symbol->type->xfunction->static_symbols = new_list(128);
 
         parse_compound_statement();
 
-        cur_function_symbol->type->function->is_defined = 1;
-        cur_function_symbol->type->function->vreg_count = vreg_count;
+        cur_function_symbol->type->xfunction->is_defined = 1;
+        cur_function_symbol->type->xfunction->vreg_count = vreg_count;
         backpatch_gotos();
     }
     else {

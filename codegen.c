@@ -596,7 +596,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 Tac *orig_ir = ir;
 
                 // A function can be either a direct function or a function pointer
-                Function *function = ir->src1->type->function ? ir->src1->type->function : ir->src1->type->target->function;
+                Function *function = ir->src1->type->xfunction ? ir->src1->type->xfunction : ir->src1->type->target->xfunction;
                 if (function->is_variadic) {
                     char *buffer;
                     wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
@@ -611,7 +611,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 }
                 else {
                     // If a function has been defined locally, call it directly, otherwise use the PLT
-                    if (orig_ir->src1->type->function->is_defined)
+                    if (orig_ir->src1->type->xfunction->is_defined)
                          wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
                     else
                          wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
@@ -751,9 +751,9 @@ static void output_debug_loc(Tac *tac) {
 
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
-    int function_pc = symbol->type->function->param_count;
+    int function_pc = symbol->type->xfunction->param_count;
 
-    for (Tac *tac = symbol->type->function->ir; tac; tac = tac->next) {
+    for (Tac *tac = symbol->type->xfunction->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);
         if (tac->operation != IR_NOP) {
             output_debug_loc(tac);
@@ -924,8 +924,8 @@ void output_code(char *input_filename, char *output_filename) {
     // Output static local symbols
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
-            Function *function = symbol->type->function;
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->xfunction->is_defined) {
+            Function *function = symbol->type->xfunction;
             for (int j = 0; j < function->static_symbols->length; j++)
                 output_symbol(function->static_symbols->elements[j]);
         }
@@ -951,8 +951,8 @@ void output_code(char *input_filename, char *output_filename) {
     // Output symbols for all functions that are defined and have external linkage
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined &&
-                (symbol->type->function->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->type->function->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->xfunction->is_defined &&
+                (symbol->type->xfunction->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->type->xfunction->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
 
             fprintf(f, "    .globl  %s\n", symbol->identifier);
             fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
@@ -971,7 +971,7 @@ void output_code(char *input_filename, char *output_filename) {
     fprintf(f, ".Lall.code.start:\n");
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->type->function->is_defined) {
+        if (symbol->type->type == TYPE_FUNCTION && symbol->type->xfunction->is_defined) {
             fprintf(f, "%s:\n", symbol->identifier);
             fprintf(f, ".L%s.start:\n", symbol->identifier);
             output_function_body_code(symbol);
