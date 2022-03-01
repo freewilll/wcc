@@ -611,7 +611,7 @@ Type *parse_declarator(void) {
     }
 }
 
-static Type *parse_function(void) {
+static Type *parse_function_type(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
     function_type->function = new_function();
     function_type->function->param_types = new_list(8);
@@ -760,7 +760,7 @@ Type *parse_direct_declarator(void) {
         if (cur_token == TOK_LPAREN) {
             // Function
             next();
-            type = concat_types(type, parse_function());
+            type = concat_types(type, parse_function_type());
         }
         else if (cur_token == TOK_LBRACKET) {
             // Array [] or [<num>]
@@ -3362,7 +3362,8 @@ static void parse_statement(void) {
     }
 }
 
-static int parse_function_declaration(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
+// Parse function definition and possible declaration
+static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
     Function *function = type->function;
 
     // Setup the intermediate representation with a dummy no operation instruction.
@@ -3536,7 +3537,7 @@ void parse(void) {
 
                 symbol->linkage = linkage;
                 if (type->type == TYPE_FUNCTION) {
-                    int is_definition = parse_function_declaration(type, linkage, symbol, original_symbol);
+                    int is_definition = parse_function(type, linkage, symbol, original_symbol);
                     if (is_definition) break; // No more declarations are possible, break out of comma parsing loop
                 }
                 else if (cur_token == TOK_EQ) {
