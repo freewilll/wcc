@@ -2186,7 +2186,7 @@ static void parse_function_call(void) {
         error("Illegal attempt to call a non-function");
 
     Symbol *symbol = popped_function->global_symbol;
-    Type *function_type = popped_function->type->xfunction ? popped_function->type : popped_function->type->target;
+    Type *function_type = popped_function->type->type == TYPE_FUNCTION ? popped_function->type : popped_function->type->target;
     Function *function = function_type->xfunction;
 
     next();
@@ -3373,9 +3373,10 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
     int is_defined = original_symbol && original_symbol->function->is_defined;
 
     if (!is_defined) {
+        symbol->linkage = linkage;
+
         function->type = type;
         function->ir = ir_start;
-        function->linkage = linkage;
         function->local_symbol_count = 0;
         function->labels = new_strmap();
         function->goto_backpatches = 0;

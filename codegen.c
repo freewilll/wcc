@@ -952,7 +952,7 @@ void output_code(char *input_filename, char *output_filename) {
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined &&
-                (symbol->function->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->function->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
+                (symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
 
             fprintf(f, "    .globl  %s\n", symbol->identifier);
             fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
