@@ -677,7 +677,7 @@ static Type *parse_function_type(void) {
             cur_type_identifier = old_cur_type_identifier;
         }
         else if (cur_token == TOK_ELLIPSES) {
-            function_type->xfunction->is_variadic = 1;
+            function_type->function_is_variadic = 1;
             next();
         }
         else
@@ -2211,7 +2211,7 @@ static void parse_function_call(void) {
     while (1) {
         if (cur_token == TOK_RPAREN) break;
 
-        if (!function->is_paramless && !function->is_variadic && function->param_count == 0)
+        if (!function->is_paramless && !function_type->function_is_variadic && function->param_count == 0)
             error("Too many arguments for function call");
 
         parse_expression(TOK_EQ);
@@ -2237,7 +2237,7 @@ static void parse_function_call(void) {
             }
         }
         else {
-            if (!function->is_variadic && !function->is_paramless)
+            if (!function_type->function_is_variadic && !function->is_paramless)
                 error("Too many arguments for function call");
 
             Value *arg = pl();
@@ -3441,7 +3441,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         cur_loop = 0;
         loop_count = 0;
 
-        if (cur_function_symbol->function->is_variadic) add_va_register_save_area();
+        if (type->function_is_variadic) add_va_register_save_area();
 
         cur_function_symbol->function->static_symbols = new_list(128);
 

@@ -156,7 +156,7 @@ char *sprint_type_in_english(Type *type) {
                     buffer += sprintf(buffer, "%s", sprint_type_in_english(type->xfunction->param_types->elements[i]));
                 }
 
-                if (type->xfunction->is_variadic)buffer += sprintf(buffer, ", ...");
+                if (type->function_is_variadic) buffer += sprintf(buffer, ", ...");
 
                 buffer += sprintf(buffer, ") returning ");
                 break;
@@ -518,7 +518,7 @@ static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags)
     if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags, 1)) return 0;
 
     // Both are non variadic and one of them has an old style parameter list
-    if (!type1->xfunction->is_variadic && !type2->xfunction->is_variadic && type1->xfunction->is_paramless != type2->xfunction->is_paramless) {
+    if (!type1->function_is_variadic && !type2->function_is_variadic && type1->xfunction->is_paramless != type2->xfunction->is_paramless) {
         // Swap so that type1 is paramless, type2 is not
         if (type2->xfunction->is_paramless) {
             Type *temp = type1;
@@ -546,7 +546,7 @@ static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags)
     }
 
     // Check they both are or aren't variadic
-    if (type1->xfunction->is_variadic != type2->xfunction->is_variadic) return 0;
+    if (type1->function_is_variadic != type2->function_is_variadic) return 0;
 
     // Check param counts match
     if (type1->xfunction->param_count != type2->xfunction->param_count) return 0;
@@ -658,6 +658,7 @@ Type *composite_type(Type *type1, Type *type2) {
             *function = *type1->xfunction;
             function->type = result;
             result->xfunction = function;
+            result->function_is_variadic = type1->function_is_variadic;
 
             for (int i = 0; i < function->param_count; i++) {
                 Type *type = composite_type(type1->xfunction->param_types->elements[i], type2->xfunction->param_types->elements[i]);

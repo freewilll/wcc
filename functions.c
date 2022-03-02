@@ -1350,7 +1350,7 @@ void add_function_param_moves(Function *function, char *identifier) {
         }
     }
 
-    if (function->is_variadic) add_function_vararg_param_moves(function, fpa);
+    if (function->type->function_is_variadic) add_function_vararg_param_moves(function, fpa);
 
     // Adapt the function's IR to use the values in registers/stack
     for (Tac *ir = function->ir; ir; ir = ir->next) {
