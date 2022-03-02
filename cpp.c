@@ -1848,6 +1848,8 @@ void init_cpp(void) {
 }
 
 void free_cpp_allocated_garbage() {
+    if (!allocated_tokens) return; // CPP has not been initted
+
     // Free allocated_tokens
     for (int i = 0; i < allocated_tokens->length; i++)
         free_cpp_token(allocated_tokens->elements[i]);
