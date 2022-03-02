@@ -660,6 +660,7 @@ Type *composite_type(Type *type1, Type *type2) {
             result->xfunction = function;
             result->function_is_variadic = type1->function_is_variadic;
             result->function_is_paramless = type1->function_is_paramless;
+            result->function_return_value_fpa = type1->function_return_value_fpa;
 
             for (int i = 0; i < function->param_count; i++) {
                 Type *type = composite_type(type1->xfunction->param_types->elements[i], type2->xfunction->param_types->elements[i]);

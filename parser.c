@@ -2199,7 +2199,7 @@ static void parse_function_call(void) {
     // Allocate an integer slot if the function returns a slot in memory. The
     // RDI register must contain a pointer to the return value, set by the caller.
     int has_struct_or_union_return_value = 0;
-    FunctionParamAllocation *rv_fpa = function->return_value_fpa;
+    FunctionParamAllocation *rv_fpa = function_type->function_return_value_fpa;
     if (rv_fpa) {
         FunctionParamLocations *rv_fpl = &(rv_fpa->params[0]);
         if (rv_fpl->locations[0].stack_offset != -1) {
@@ -3384,7 +3384,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         if (type->target->type == TYPE_STRUCT_OR_UNION) {
             FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
             add_function_param_to_allocation(fpa, type->target);
-            type->xfunction->return_value_fpa = fpa;
+            type->function_return_value_fpa = fpa;
         }
     }
 

@@ -152,10 +152,11 @@ typedef struct type {
     char storage_class;
     struct type *target;
     struct struct_or_union_desc *struct_or_union_desc;
-    struct function *xfunction;                         // Work in progress ... this will be removed at one point
-    int function_is_variadic;                           // Set to 1 for builtin variadic functions
-    int function_is_paramless;                          // No parameters are declared, it's an old style K&R function definition
-    struct tag *tag;                                    // For structs, unions and enums
+    struct function *xfunction;                                  // Work in progress ... this will be removed at one point
+    int function_is_variadic;                                    // Set to 1 for builtin variadic functions
+    int function_is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
+    struct function_param_allocation *function_return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
+    struct tag *tag;                                             // For structs, unions and enums
 } Type;
 
 typedef struct type_iterator {
@@ -224,7 +225,6 @@ typedef struct function {
     int is_defined;                                     // if a definition has been found
     List *static_symbols;                               // Static symbols
     struct value *return_value_pointer;                 // Set to the register holding the memory return address if the function returns something in memory
-    struct function_param_allocation *return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
     struct function_param_allocation *fpa;              // function_param_allocaton for the params
     Scope *scope;                                       // Scope, starting with the parameters
     struct three_address_code *ir;                      // Intermediate representation

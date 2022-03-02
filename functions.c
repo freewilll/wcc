@@ -158,7 +158,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
 
     Type *function_type = ir->src1->type;
 
-    FunctionParamAllocation *fpa = function_type->xfunction->return_value_fpa;
+    FunctionParamAllocation *fpa = function_type->function_return_value_fpa;
     FunctionParamLocations *fpl = &(fpa->params[0]);
 
     Value *function_value = ir->src1;
@@ -867,7 +867,7 @@ void remap_stack_index(int *stack_index_remap, Value *v) {
 // the target in rdi. Make a copy of rdi in return_value_pointer for use in the
 // return value code. The function returns 1 if rdi has been used in this way.
 static int setup_return_for_struct_or_union(Function *function) {
-    FunctionParamAllocation *fpa = function->return_value_fpa;
+    FunctionParamAllocation *fpa = function->type->function_return_value_fpa;
 
     if (fpa->params[0].locations[0].stack_offset == -1) return 0;
 
