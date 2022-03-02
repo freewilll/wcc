@@ -142,6 +142,12 @@ enum {
     SC_REGISTER,
 };
 
+typedef struct list {
+    int length;
+    int allocated;
+    void **elements;
+} List;
+
 typedef struct type {
     int type;       // One of TYPE_*
     int array_size;
@@ -153,6 +159,8 @@ typedef struct type {
     struct type *target;
     struct struct_or_union_desc *struct_or_union_desc;
     struct function *xfunction;                                  // Work in progress ... this will be removed at one point
+    int function_param_count;                                    // Number of parameters
+    List *function_param_types;                                  // List of types of parameters
     int function_is_variadic;                                    // Set to 1 for builtin variadic functions
     int function_is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
     struct function_param_allocation *function_return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
@@ -168,12 +176,6 @@ typedef struct type_iterator {
     int bit_field_size;             // Bit field size if the scalar is a bit field
     struct type_iterator *parent;   // Parent to recurse back to
 } TypeIterator;
-
-typedef struct list {
-    int length;
-    int allocated;
-    void **elements;
-} List;
 
 typedef struct initializer {
     int offset;                 // Offset of the initializer
@@ -215,8 +217,8 @@ typedef struct scope {
 
 typedef struct function {
     Type *type;                                         // Type of the function
-    int param_count;                                    // Number of parameters
-    List *param_types;                                  // List of types of parameters
+    int xparam_count;                                    // Number of parameters
+    List *xparam_types;                                  // List of types of parameters
     List *param_identifiers;                            // List of names of parameters
     int local_symbol_count;                             // Number of local symbols, used by the parser
     int vreg_count;                                     // Number of virtual registers used in IR

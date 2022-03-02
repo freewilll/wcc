@@ -751,7 +751,7 @@ static void output_debug_loc(Tac *tac) {
 
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
-    int function_pc = symbol->function->param_count;
+    int function_pc = symbol->function->type->function_param_count;
 
     for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);

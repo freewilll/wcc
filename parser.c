@@ -270,6 +270,14 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
         type->target = src1_type->target;
         type->target = src1_type->target;
         type->xfunction = src1_type->xfunction;
+
+        // TODO get rid of manual function_ copying
+        type->function_is_variadic = src1_type->function_is_variadic;
+        type->function_is_paramless = src1_type->function_is_paramless;
+        type->function_return_value_fpa = src1_type->function_return_value_fpa;
+        type->function_param_count = src1_type->function_param_count;
+        type->function_param_types = src1_type->function_param_types;
+
         return type;
     }
 
@@ -614,7 +622,8 @@ Type *parse_declarator(void) {
 static Type *parse_function_type(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
     function_type->xfunction = new_function();
-    function_type->xfunction->param_types = new_list(8);
+    function_type->xfunction->xparam_types = new_list(8);
+    function_type->function_param_types = function_type->xfunction->xparam_types;
     function_type->xfunction->param_identifiers = new_list(8);
 
     enter_scope();
@@ -669,7 +678,7 @@ static Type *parse_function_type(void) {
 
             if (param_symbol) param_symbol->type = dup_type(symbol_type);
 
-            append_to_list(function_type->xfunction->param_types, dup_type(type));
+            append_to_list(function_type->function_param_types, dup_type(type));
             append_to_list(function_type->xfunction->param_identifiers, cur_type_identifier);
             if (param_symbol) param_symbol->local_index = param_count;
             param_count++;
@@ -688,7 +697,8 @@ static Type *parse_function_type(void) {
         if (cur_token == TOK_RPAREN) error("Expected expression");
     }
 
-    function_type->xfunction->param_count = param_count;
+    function_type->xfunction->xparam_count = param_count;
+    function_type->function_param_count = param_count;
 
     exit_scope();
 
@@ -716,9 +726,9 @@ static void parse_function_paramless_declaration_list(Function *function) {
             symbol->type = type;
 
             int found_identifier = 0;
-            for (int i = 0; i < function->param_count; i++) {
+            for (int i = 0; i < function->type->function_param_count; i++) {
                 if (!strcmp(function->param_identifiers->elements[i], cur_type_identifier)) {
-                    function->param_types->elements[i] = type;
+                    function->type->function_param_types->elements[i] = type;
                     found_identifier = 1;
                     break;
                 }
@@ -2187,7 +2197,6 @@ static void parse_function_call(void) {
 
     Symbol *symbol = popped_function->global_symbol;
     Type *function_type = popped_function->type->type == TYPE_FUNCTION ? popped_function->type : popped_function->type->target;
-    Function *function = function_type->xfunction;
 
     next();
 
@@ -2211,7 +2220,7 @@ static void parse_function_call(void) {
     while (1) {
         if (cur_token == TOK_RPAREN) break;
 
-        if (!function_type->function_is_paramless && !function_type->function_is_variadic && function->param_count == 0)
+        if (!function_type->function_is_paramless && !function_type->function_is_variadic && function_type->function_param_count == 0)
             error("Too many arguments for function call");
 
         parse_expression(TOK_EQ);
@@ -2224,9 +2233,9 @@ static void parse_function_call(void) {
         if (vtop()->type->type == TYPE_ENUM) vtop()->type->type = TYPE_INT;
 
         // Convert type if needed
-        if (!function_type->function_is_paramless && arg_count < function->param_count) {
-            if (!type_eq(vtop()->type, function->param_types->elements[arg_count])) {
-                Type *param_type = function->param_types->elements[arg_count];
+        if (!function_type->function_is_paramless && arg_count < function_type->function_param_count) {
+            if (!type_eq(vtop()->type, function_type->function_param_types->elements[arg_count])) {
+                Type *param_type = function_type->function_param_types->elements[arg_count];
 
                 if (param_type->type == TYPE_ARRAY)
                     param_type = decay_array_to_pointer(param_type);
@@ -2345,7 +2354,7 @@ static void parse_va_start() {
 
     int rightmost_param_index = rightmost_param->local_index - 2;
 
-    if (rightmost_param_index != cur_function_symbol->function->param_count - 1)
+    if (rightmost_param_index != cur_function_symbol->function->type->function_param_count - 1)
         error("Second argument to va_start isn't the rightmost function parameter");
 
     Value *param_index_value = new_value();
@@ -3431,7 +3440,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         is_definition = 1;
 
         // Ensure parameters have identifiers
-        for (int i = 0; i < function->param_count; i++)
+        for (int i = 0; i < function->type->function_param_count; i++)
             if (!function->param_identifiers->elements[i])
                 error("Missing identifier for parameter in function definition");
 
