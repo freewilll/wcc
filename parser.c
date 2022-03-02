@@ -610,7 +610,7 @@ static Type *parse_function_type(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
     function_type->xfunction = new_function();
     function_type->function_param_types = new_list(8);
-    function_type->xfunction->param_identifiers = new_list(8);
+    function_type->function_param_identifiers = new_list(8);
 
     enter_scope();
     function_type->xfunction->scope = cur_scope;
@@ -665,7 +665,7 @@ static Type *parse_function_type(void) {
             if (param_symbol) param_symbol->type = dup_type(symbol_type);
 
             append_to_list(function_type->function_param_types, dup_type(type));
-            append_to_list(function_type->xfunction->param_identifiers, cur_type_identifier);
+            append_to_list(function_type->function_param_identifiers, cur_type_identifier);
             if (param_symbol) param_symbol->local_index = param_count;
             param_count++;
 
@@ -712,7 +712,7 @@ static void parse_function_paramless_declaration_list(Function *function) {
 
             int found_identifier = 0;
             for (int i = 0; i < function->type->function_param_count; i++) {
-                if (!strcmp(function->param_identifiers->elements[i], cur_type_identifier)) {
+                if (!strcmp(function->type->function_param_identifiers->elements[i], cur_type_identifier)) {
                     function->type->function_param_types->elements[i] = type;
                     found_identifier = 1;
                     break;
@@ -3426,7 +3426,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
 
         // Ensure parameters have identifiers
         for (int i = 0; i < function->type->function_param_count; i++)
-            if (!function->param_identifiers->elements[i])
+            if (!function->type->function_param_identifiers->elements[i])
                 error("Missing identifier for parameter in function definition");
 
         // Reset globals for a new function

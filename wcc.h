@@ -161,6 +161,7 @@ typedef struct type {
     struct function *xfunction;                                  // Work in progress ... this will be removed at one point
     int function_param_count;                                    // Number of parameters
     List *function_param_types;                                  // List of types of parameters
+    List *function_param_identifiers;                            // List of names of parameters
     int function_is_variadic;                                    // Set to 1 for builtin variadic functions
     int function_is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
     struct function_param_allocation *function_return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
@@ -217,7 +218,6 @@ typedef struct scope {
 
 typedef struct function {
     Type *type;                                         // Type of the function
-    List *param_identifiers;                            // List of names of parameters
     int local_symbol_count;                             // Number of local symbols, used by the parser
     int vreg_count;                                     // Number of virtual registers used in IR
     int stack_register_count;                           // Amount of stack space needed for registers spills
