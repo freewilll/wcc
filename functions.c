@@ -1646,6 +1646,5 @@ void finalize_function_param_allocation(FunctionParamAllocation *fpa) {
 }
 
 void free_function(Function *function) {
-    free_list(function->xparam_types);
     free_list(function->param_identifiers);
 }

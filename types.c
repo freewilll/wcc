@@ -652,21 +652,8 @@ Type *composite_type(Type *type1, Type *type2) {
             if (type1->function_param_count != type2->function_param_count)
                 error("Incompatible types");
 
-            Type *result = new_type(TYPE_FUNCTION);
-            result->target = type1->target;
-            Function *function = wmalloc(sizeof(Function));
-            append_to_list(allocated_functions, function);
-            *function = *type1->xfunction;
-            function->xparam_types = new_list(type1->function_param_count);
-            function->type = result;
-            result->xfunction = function;
-
-            // TODO get rid of manual function_ copying
-            result->function_is_variadic = type1->function_is_variadic;
-            result->function_is_paramless = type1->function_is_paramless;
-            result->function_return_value_fpa = type1->function_return_value_fpa;
-            result->function_param_count = type1->function_param_count;
-            result->function_param_types = result->xfunction->xparam_types;
+            Type *result = dup_type(type1);
+            result->function_param_types = new_list(type1->function_param_count);
 
             for (int i = 0; i < type1->function_param_count; i++) {
                 Type *type = composite_type(type1->function_param_types->elements[i], type2->function_param_types->elements[i]);

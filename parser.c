@@ -265,21 +265,8 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     if (src1_type->type == TYPE_ARRAY) src1_type = decay_array_to_pointer(src1_type);
     if (src2_type->type == TYPE_ARRAY) src2_type = decay_array_to_pointer(src2_type);
 
-    if (src1_type->type == TYPE_FUNCTION && src2_type->type == TYPE_FUNCTION) {
-        Type *type = new_type(TYPE_FUNCTION);
-        type->target = src1_type->target;
-        type->target = src1_type->target;
-        type->xfunction = src1_type->xfunction;
-
-        // TODO get rid of manual function_ copying
-        type->function_is_variadic = src1_type->function_is_variadic;
-        type->function_is_paramless = src1_type->function_is_paramless;
-        type->function_return_value_fpa = src1_type->function_return_value_fpa;
-        type->function_param_count = src1_type->function_param_count;
-        type->function_param_types = src1_type->function_param_types;
-
-        return type;
-    }
+    if (src1_type->type == TYPE_FUNCTION && src2_type->type == TYPE_FUNCTION)
+        return dup_type(src1_type);
 
     Type *result;
 
@@ -622,8 +609,7 @@ Type *parse_declarator(void) {
 static Type *parse_function_type(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
     function_type->xfunction = new_function();
-    function_type->xfunction->xparam_types = new_list(8);
-    function_type->function_param_types = function_type->xfunction->xparam_types;
+    function_type->function_param_types = new_list(8);
     function_type->xfunction->param_identifiers = new_list(8);
 
     enter_scope();
@@ -697,7 +683,6 @@ static Type *parse_function_type(void) {
         if (cur_token == TOK_RPAREN) error("Expected expression");
     }
 
-    function_type->xfunction->xparam_count = param_count;
     function_type->function_param_count = param_count;
 
     exit_scope();

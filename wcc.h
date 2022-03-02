@@ -217,8 +217,6 @@ typedef struct scope {
 
 typedef struct function {
     Type *type;                                         // Type of the function
-    int xparam_count;                                    // Number of parameters
-    List *xparam_types;                                  // List of types of parameters
     List *param_identifiers;                            // List of names of parameters
     int local_symbol_count;                             // Number of local symbols, used by the parser
     int vreg_count;                                     // Number of virtual registers used in IR
