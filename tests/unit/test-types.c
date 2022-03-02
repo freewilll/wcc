@@ -222,11 +222,11 @@ int test_compatible_types() {
     type2 = lex_type("void f(int)");
     assert_int(1, types_are_compatible(type1, type2), "function types match in K&R () vs non-K&R void(int)");
 
-    type1 = lex_type("void f(int a)"); type1->xfunction->is_paramless = 1; // Fake K&R
+    type1 = lex_type("void f(int a)"); type1->function_is_paramless = 1; // Fake K&R
     type2 = lex_type("void f(int)");
     assert_int(1, types_are_compatible(type1, type2), "function types match in K&R void(int) vs non-K&R void(int)");
 
-    type1 = lex_type("void f(char a)"); type1->xfunction->is_paramless = 1; // Fake K&R
+    type1 = lex_type("void f(char a)"); type1->function_is_paramless = 1; // Fake K&R
     type2 = lex_type("void f(int)");
     assert_int(0, types_are_compatible(type1, type2), "function types mismatch in K&R void(char) vs non-K&R void(int)");
 }

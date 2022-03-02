@@ -619,7 +619,7 @@ static Type *parse_function_type(void) {
 
     enter_scope();
     function_type->xfunction->scope = cur_scope;
-    function_type->xfunction->is_paramless = 1;
+    function_type->function_is_paramless = 1;
 
     int param_count = 0;
     while (1) {
@@ -634,7 +634,7 @@ static Type *parse_function_type(void) {
             if (is_type_token) {
                 cur_type_identifier = 0;
                 type = parse_type_name();
-                function_type->xfunction->is_paramless = 0;
+                function_type->function_is_paramless = 0;
 
                 if (type->storage_class == SC_AUTO || type->storage_class == SC_STATIC || type->storage_class == SC_EXTERN)
                     error("Invalid storage for function parameter");
@@ -2211,7 +2211,7 @@ static void parse_function_call(void) {
     while (1) {
         if (cur_token == TOK_RPAREN) break;
 
-        if (!function->is_paramless && !function_type->function_is_variadic && function->param_count == 0)
+        if (!function_type->function_is_paramless && !function_type->function_is_variadic && function->param_count == 0)
             error("Too many arguments for function call");
 
         parse_expression(TOK_EQ);
@@ -2224,7 +2224,7 @@ static void parse_function_call(void) {
         if (vtop()->type->type == TYPE_ENUM) vtop()->type->type = TYPE_INT;
 
         // Convert type if needed
-        if (!function->is_paramless && arg_count < function->param_count) {
+        if (!function_type->function_is_paramless && arg_count < function->param_count) {
             if (!type_eq(vtop()->type, function->param_types->elements[arg_count])) {
                 Type *param_type = function->param_types->elements[arg_count];
 
@@ -2237,7 +2237,7 @@ static void parse_function_call(void) {
             }
         }
         else {
-            if (!function_type->function_is_variadic && !function->is_paramless)
+            if (!function_type->function_is_variadic && !function_type->function_is_paramless)
                 error("Too many arguments for function call");
 
             Value *arg = pl();
@@ -3392,7 +3392,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
     cur_scope = type->xfunction->scope;
 
     // Parse optional old style declaration list
-    if (type->xfunction->is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)
+    if (type->function_is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)
         parse_function_paramless_declaration_list(type->xfunction);
 
     if (original_symbol && !types_are_compatible(original_symbol->type, type))

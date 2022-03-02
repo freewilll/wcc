@@ -154,6 +154,7 @@ typedef struct type {
     struct struct_or_union_desc *struct_or_union_desc;
     struct function *xfunction;                         // Work in progress ... this will be removed at one point
     int function_is_variadic;                           // Set to 1 for builtin variadic functions
+    int function_is_paramless;                          // No parameters are declared, it's an old style K&R function definition
     struct tag *tag;                                    // For structs, unions and enums
 } Type;
 
@@ -216,7 +217,6 @@ typedef struct function {
     int param_count;                                    // Number of parameters
     List *param_types;                                  // List of types of parameters
     List *param_identifiers;                            // List of names of parameters
-    int is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
     int local_symbol_count;                             // Number of local symbols, used by the parser
     int vreg_count;                                     // Number of virtual registers used in IR
     int stack_register_count;                           // Amount of stack space needed for registers spills
