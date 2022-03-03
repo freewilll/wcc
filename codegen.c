@@ -610,12 +610,8 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                     tac->src1 = orig_ir->src1;
                 }
                 else {
-                    char *identifier = orig_ir->src1->function_symbol->identifier;
-                    Symbol *symbol = lookup_symbol(identifier, global_scope, 1);
-                    int is_defined = symbol ? symbol->function->is_defined : 0;
-
                     // If a function has been defined locally, call it directly, otherwise use the PLT
-                    if (is_defined)
+                    if (orig_ir->src1->function_symbol->function && orig_ir->src1->function_symbol->function->is_defined)
                          wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
                     else
                          wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
