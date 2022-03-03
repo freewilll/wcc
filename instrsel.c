@@ -1445,7 +1445,11 @@ static void add_spill_load(Tac *ir, int src, int preg) {
     Tac *tac = make_spill_instruction(v);
     tac->src1 = v;
     tac->dst = new_value();
-    tac->dst->type = new_type(TYPE_LONG);
+
+    // Codegen needs to know if this is a function; in all other cases the spill is
+    // done on a full 64 bit register.
+    tac->dst->type = new_type(v->type->type == TYPE_FUNCTION ? TYPE_FUNCTION : TYPE_LONG);
+
     tac->dst->type->xfunction = v->type->xfunction; // For (pointers to )functions in registers
     tac->dst->x86_size = 4;
     tac->dst->vreg = -1000;   // Dummy value

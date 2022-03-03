@@ -596,7 +596,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 Tac *orig_ir = ir;
 
                 // A function can be either a direct function or a function pointer
-                Type *function_type = ir->src1->type->xfunction ? ir->src1->type : ir->src1->type->target;
+                Type *function_type = ir->src1->type->type == TYPE_FUNCTION ? ir->src1->type : ir->src1->type->target;
                 if (function_type->function_is_variadic) {
                     char *buffer;
                     wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
