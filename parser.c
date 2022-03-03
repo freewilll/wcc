@@ -613,7 +613,7 @@ static Type *parse_function_type(void) {
     function_type->function_param_identifiers = new_list(8);
 
     enter_scope();
-    function_type->xfunction->scope = cur_scope;
+    function_type->function_scope = cur_scope;
     function_type->function_is_paramless = 1;
 
     int param_count = 0;
@@ -3382,8 +3382,8 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         }
     }
 
-    // type->xfunction->scope is left entered by the type parser
-    cur_scope = type->xfunction->scope;
+    // The scope is left entered by the type parser
+    cur_scope = type->function_scope;
 
     // Parse optional old style declaration list
     if (type->function_is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)

@@ -159,6 +159,7 @@ typedef struct type {
     struct type *target;
     struct struct_or_union_desc *struct_or_union_desc;
     struct function *xfunction;                                  // Work in progress ... this will be removed at one point
+    struct scope *function_scope;                                // Scope, starting with the parameters
     int function_param_count;                                    // Number of parameters
     List *function_param_types;                                  // List of types of parameters
     List *function_param_identifiers;                            // List of names of parameters
@@ -226,7 +227,6 @@ typedef struct function {
     List *static_symbols;                               // Static symbols
     struct value *return_value_pointer;                 // Set to the register holding the memory return address if the function returns something in memory
     struct function_param_allocation *fpa;              // function_param_allocaton for the params
-    Scope *scope;                                       // Scope, starting with the parameters
     struct three_address_code *ir;                      // Intermediate representation
     StrMap *labels;                                     // Map of identifiers to label ids
     CircularLinkedList *goto_backpatches;               // Gotos to labels not yet defined
