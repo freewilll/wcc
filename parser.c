@@ -608,7 +608,6 @@ Type *parse_declarator(void) {
 
 static Type *parse_function_type(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
-    function_type->xfunction = new_function();
     function_type->function_param_types = new_list(8);
     function_type->function_param_identifiers = new_list(8);
 
@@ -3358,8 +3357,6 @@ static void parse_statement(void) {
 
 // Parse function definition and possible declaration
 static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *original_symbol) {
-    Function *function = type->xfunction;
-
     // Setup the intermediate representation with a dummy no operation instruction.
     ir_start = 0;
     ir_start = add_parser_instruction(IR_NOP, 0, 0, 0);
@@ -3368,12 +3365,13 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
 
     if (!is_defined) {
         symbol->linkage = linkage;
+        symbol->function = new_function();
 
-        function->type = type;
-        function->ir = ir_start;
-        function->local_symbol_count = 0;
-        function->labels = new_strmap();
-        function->goto_backpatches = 0;
+        symbol->function->type = type;
+        symbol->function->ir = ir_start;
+        symbol->function->local_symbol_count = 0;
+        symbol->function->labels = new_strmap();
+        symbol->function->goto_backpatches = 0;
 
         if (type->target->type == TYPE_STRUCT_OR_UNION) {
             FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
@@ -3381,13 +3379,15 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
             type->function_return_value_fpa = fpa;
         }
     }
+    else
+        symbol->function = original_symbol->function;
 
     // The scope is left entered by the type parser
     cur_scope = type->function_scope;
 
     // Parse optional old style declaration list
     if (type->function_is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)
-        parse_function_paramless_declaration_list(type->xfunction);
+        parse_function_paramless_declaration_list(symbol->function);
 
     if (original_symbol && !types_are_compatible(original_symbol->type, type))
         error("Incompatible function types");
@@ -3396,7 +3396,6 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         error("Redefinition of %s", cur_type_identifier);
     }
 
-    symbol->function = type->xfunction;
     cur_function_symbol = symbol;
 
     if (original_symbol) {
@@ -3404,7 +3403,6 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
 
         // Merge types if it's a redeclaration
         if (!is_defined) symbol->type = composite_type(type, original_symbol->type);
-        symbol->function = symbol->type->xfunction;
     }
     else
         symbol->type = type;
@@ -3425,8 +3423,8 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         is_definition = 1;
 
         // Ensure parameters have identifiers
-        for (int i = 0; i < function->type->function_param_count; i++)
-            if (!function->type->function_param_identifiers->elements[i])
+        for (int i = 0; i < symbol->function->type->function_param_count; i++)
+            if (!symbol->function->type->function_param_identifiers->elements[i])
                 error("Missing identifier for parameter in function definition");
 
         // Reset globals for a new function
