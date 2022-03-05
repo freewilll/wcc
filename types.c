@@ -151,12 +151,12 @@ char *sprint_type_in_english(Type *type) {
             case TYPE_FUNCTION: {
                 buffer += sprintf(buffer, "function(");
                 int first = 1;
-                for (int i = 0; i < type->function_param_count; i++) {
+                for (int i = 0; i < type->function->param_count; i++) {
                     if (!first) buffer += sprintf(buffer, ", "); else first = 0;
-                    buffer += sprintf(buffer, "%s", sprint_type_in_english(type->function_param_types->elements[i]));
+                    buffer += sprintf(buffer, "%s", sprint_type_in_english(type->function->param_types->elements[i]));
                 }
 
-                if (type->function_is_variadic) buffer += sprintf(buffer, ", ...");
+                if (type->function->is_variadic) buffer += sprintf(buffer, ", ...");
 
                 buffer += sprintf(buffer, ") returning ");
                 break;
@@ -222,13 +222,20 @@ StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
     return dst;
 }
 
-// Do a shallow copy of a type, except for target, which is deep copied
+// Do a shallow copy of a type, except for target and function type
 Type *dup_type(Type *src) {
     if (!src) return 0;
 
     Type *dst = wmalloc(sizeof(Type));
     *dst = *src;
     dst->target = dup_type(src->target);
+
+    // Do a shallow copy of FunctionType
+    if (src->function) {
+        dst->function = wcalloc(1, sizeof(FunctionType));
+        *dst->function = *src->function;
+    }
+
     append_to_list(allocated_types, dst);
 
     return dst;
@@ -519,26 +526,26 @@ static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags)
     if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags, 1)) return 0;
 
     // Both are non variadic and one of them has an old style parameter list
-    if (!type1->function_is_variadic && !type2->function_is_variadic && type1->function_is_paramless != type2->function_is_paramless) {
+    if (!type1->function->is_variadic && !type2->function->is_variadic && type1->function->is_paramless != type2->function->is_paramless) {
         // Swap so that type1 is paramless, type2 is not
-        if (type2->function_is_paramless) {
+        if (type2->function->is_paramless) {
             Type *temp = type1;
             type1 = type2;
             type2 = temp;
         }
 
         // Ensure all types on type1 are compatible with type2 types after default argument promotions
-        for (int i = 0; i < type2->function_param_count; i++) {
-            if (i < type1->function_param_count) {
+        for (int i = 0; i < type2->function->param_count; i++) {
+            if (i < type1->function->param_count) {
                 // Check params match
-                Type *type = apply_default_function_call_argument_promotions(type2->function_param_types->elements[i]);
-                if (!types_are_compatible(type1->function_param_types->elements[i], type))
+                Type *type = apply_default_function_call_argument_promotions(type2->function->param_types->elements[i]);
+                if (!types_are_compatible(type1->function->param_types->elements[i], type))
                     return 0;
             }
             else {
                 // Check default promotions don't affect params
-                Type *type = apply_default_function_call_argument_promotions(type2->function_param_types->elements[i]);
-                if (!types_are_compatible(type2->function_param_types->elements[i], type))
+                Type *type = apply_default_function_call_argument_promotions(type2->function->param_types->elements[i]);
+                if (!types_are_compatible(type2->function->param_types->elements[i], type))
                     return 0;
             }
         }
@@ -547,14 +554,14 @@ static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags)
     }
 
     // Check they both are or aren't variadic
-    if (type1->function_is_variadic != type2->function_is_variadic) return 0;
+    if (type1->function->is_variadic != type2->function->is_variadic) return 0;
 
     // Check param counts match
-    if (type1->function_param_count != type2->function_param_count) return 0;
+    if (type1->function->param_count != type2->function->param_count) return 0;
 
     // Check params match
-    for (int i = 0; i < type1->function_param_count; i++) {
-        if (!types_are_compatible(type1->function_param_types->elements[i], type2->function_param_types->elements[i]))
+    for (int i = 0; i < type1->function->param_count; i++) {
+        if (!types_are_compatible(type1->function->param_types->elements[i], type2->function->param_types->elements[i]))
             return 0;
     }
 
@@ -644,20 +651,20 @@ Type *composite_type(Type *type1, Type *type2) {
         return make_pointer(composite_type(type1->target, type2->target));
 
     if (type1->type == TYPE_FUNCTION) {
-        if (type1->function_param_count == 0 && type2->function_param_count != 0)
+        if (type1->function->param_count == 0 && type2->function->param_count != 0)
             return type2;
-        else if (type2->function_param_count == 0 && type1->function_param_count != 0)
+        else if (type2->function->param_count == 0 && type1->function->param_count != 0)
             return type1;
         else {
-            if (type1->function_param_count != type2->function_param_count)
+            if (type1->function->param_count != type2->function->param_count)
                 error("Incompatible types");
 
             Type *result = dup_type(type1);
-            result->function_param_types = new_list(type1->function_param_count);
+            result->function->param_types = new_list(type1->function->param_count);
 
-            for (int i = 0; i < type1->function_param_count; i++) {
-                Type *type = composite_type(type1->function_param_types->elements[i], type2->function_param_types->elements[i]);
-                append_to_list(result->function_param_types, type);
+            for (int i = 0; i < type1->function->param_count; i++) {
+                Type *type = composite_type(type1->function->param_types->elements[i], type2->function->param_types->elements[i]);
+                append_to_list(result->function->param_types, type);
             }
 
             return result;

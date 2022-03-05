@@ -148,6 +148,16 @@ typedef struct list {
     void **elements;
 } List;
 
+typedef struct function_type {
+    struct scope *scope;                                // Scope, starting with the parameters
+    int param_count;                                    // Number of parameters
+    List *param_types;                                  // List of types of parameters
+    List *param_identifiers;                            // List of names of parameters
+    int is_variadic;                                    // Set to 1 for builtin variadic functions
+    int is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
+    struct function_param_allocation *return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
+} FunctionType;
+
 typedef struct type {
     int type;       // One of TYPE_*
     int array_size;
@@ -157,15 +167,9 @@ typedef struct type {
     unsigned int is_restrict:1;
     char storage_class;
     struct type *target;
+    struct tag *tag;                                    // For structs, unions and enums
     struct struct_or_union_desc *struct_or_union_desc;
-    struct scope *function_scope;                                // Scope, starting with the parameters
-    int function_param_count;                                    // Number of parameters
-    List *function_param_types;                                  // List of types of parameters
-    List *function_param_identifiers;                            // List of names of parameters
-    int function_is_variadic;                                    // Set to 1 for builtin variadic functions
-    int function_is_paramless;                                   // No parameters are declared, it's an old style K&R function definition
-    struct function_param_allocation *function_return_value_fpa; // function_param_allocaton for the return value if it's a struct or union
-    struct tag *tag;                                             // For structs, unions and enums
+    FunctionType *function;                             // For functions
 } Type;
 
 typedef struct type_iterator {

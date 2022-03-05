@@ -158,7 +158,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
 
     Type *function_type = ir->src1->type;
 
-    FunctionParamAllocation *fpa = function_type->function_return_value_fpa;
+    FunctionParamAllocation *fpa = function_type->function->return_value_fpa;
     FunctionParamLocations *fpl = &(fpa->params[0]);
 
     Value *function_value = ir->src1;
@@ -648,8 +648,8 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
                 Type *type;
                 int pi = *param_index;
-                if (pi >= 0 && pi < called_function_type->function_param_count) {
-                    type = called_function_type->function_param_types->elements[pi];
+                if (pi >= 0 && pi < called_function_type->function->param_count) {
+                    type = called_function_type->function->param_types->elements[pi];
                 }
                 else
                     type = apply_default_function_call_argument_promotions((*call_arg)->type);
@@ -867,7 +867,7 @@ void remap_stack_index(int *stack_index_remap, Value *v) {
 // the target in rdi. Make a copy of rdi in return_value_pointer for use in the
 // return value code. The function returns 1 if rdi has been used in this way.
 static int setup_return_for_struct_or_union(Function *function) {
-    FunctionParamAllocation *fpa = function->type->function_return_value_fpa;
+    FunctionParamAllocation *fpa = function->type->function->return_value_fpa;
 
     if (fpa->params[0].locations[0].stack_offset == -1) return 0;
 
@@ -1286,22 +1286,22 @@ void add_function_param_moves(Function *function, char *identifier) {
         if (fpa_start) add_function_param_to_allocation(fpa, function->return_value_pointer->type);
     }
 
-    for (int i = 0; i < function->type->function_param_count; i++)
-        add_function_param_to_allocation(fpa, function->type->function_param_types->elements[i]);
+    for (int i = 0; i < function->type->function->param_count; i++)
+        add_function_param_to_allocation(fpa, function->type->function->param_types->elements[i]);
 
     function->fpa = fpa;
     finalize_function_param_allocation(fpa);
 
-    int *register_param_vregs = wmalloc(sizeof(int) * function->type->function_param_count);
-    memset(register_param_vregs, -1, sizeof(int) * function->type->function_param_count);
+    int *register_param_vregs = wmalloc(sizeof(int) * function->type->function->param_count);
+    memset(register_param_vregs, -1, sizeof(int) * function->type->function->param_count);
 
-    int *register_param_stack_indexes = wcalloc(function->type->function_param_count, sizeof(int));
+    int *register_param_stack_indexes = wcalloc(function->type->function->param_count, sizeof(int));
 
-    int *has_address_of = wcalloc(function->type->function_param_count, sizeof(int));
+    int *has_address_of = wcalloc(function->type->function->param_count, sizeof(int));
 
-    // The stack is never bigger than function->type->function_param_count * 2 & starts at 2
-    int *stack_param_vregs = wmalloc(sizeof(int) * (function->type->function_param_count * 2 + 2));
-    memset(stack_param_vregs, -1, sizeof(int) * (function->type->function_param_count * 2 + 2));
+    // The stack is never bigger than function->type->function->param_count * 2 & starts at 2
+    int *stack_param_vregs = wmalloc(sizeof(int) * (function->type->function->param_count * 2 + 2));
+    memset(stack_param_vregs, -1, sizeof(int) * (function->type->function->param_count * 2 + 2));
 
     // Determine which parameters in registers are used in IR_ADDRESS_OF instructions
     for (Tac *ir = function->ir; ir; ir = ir->next) {
@@ -1311,10 +1311,10 @@ void add_function_param_moves(Function *function, char *identifier) {
     }
 
     // Add moves for registers
-    for (int i = 0; i < function->type->function_param_count; i++) {
+    for (int i = 0; i < function->type->function->param_count; i++) {
         if (fpa->params[fpa_start + i].locations[0].stack_offset != -1) continue;
 
-        Type *type = function->type->function_param_types->elements[i];
+        Type *type = function->type->function->param_types->elements[i];
 
         int single_register_arg_count = fpa->params[fpa_start + i].locations[0].int_register == -1
             ? fpa->params[fpa_start + i].locations[0].sse_register
@@ -1350,7 +1350,7 @@ void add_function_param_moves(Function *function, char *identifier) {
         }
     }
 
-    if (function->type->function_is_variadic) add_function_vararg_param_moves(function, fpa);
+    if (function->type->function->is_variadic) add_function_vararg_param_moves(function, fpa);
 
     // Adapt the function's IR to use the values in registers/stack
     for (Tac *ir = function->ir; ir; ir = ir->next) {
@@ -1373,15 +1373,15 @@ void add_function_param_moves(Function *function, char *identifier) {
     // Parameter stack indexes go from 2, 3, 4 for arg 0, arg 1, arg 2, ...
     // Determine the actual stack index based on type sizes and alignment and
     // remap stack_index.
-    int *stack_index_remap = wmalloc(sizeof(int) * (function->type->function_param_count + 2));
-    memset(stack_index_remap, -1, sizeof(int) * (function->type->function_param_count + 2));
+    int *stack_index_remap = wmalloc(sizeof(int) * (function->type->function->param_count + 2));
+    memset(stack_index_remap, -1, sizeof(int) * (function->type->function->param_count + 2));
 
     // Determine stack offsets for parameters on the stack and add moves
 
-    for (int i = 0; i < function->type->function_param_count; i++) {
+    for (int i = 0; i < function->type->function->param_count; i++) {
         if (fpa->params[fpa_start + i].locations[0].stack_offset == -1) continue;
 
-        Type *type = function->type->function_param_types->elements[i];
+        Type *type = function->type->function->param_types->elements[i];
 
         int stack_index = (fpa->params[fpa_start + i].locations[0].stack_offset + 16) >> 3;
 

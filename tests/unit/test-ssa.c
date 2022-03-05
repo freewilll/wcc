@@ -38,6 +38,7 @@ void assert_longset(LongSet *got, int v1, int v2, int v3, int v4, int v5) {
 Function *new_function_with_type(void) {
     Function *result = new_function();
     result->type = new_type(TYPE_FUNCTION);
+    result->type->function = wcalloc(1, sizeof(FunctionType));
     result->type->target = new_type(TYPE_INT);
     return result;
 }
@@ -302,6 +303,7 @@ void test_liveout1() {
 
     function->ir = ir_start;
     function->type = new_type(TYPE_FUNCTION);
+    function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
     if (debug_ssa) print_ir(function, 0, 0);
@@ -383,6 +385,7 @@ Function *make_ir2(int init_four_vars) {
 
     function->ir = ir_start;
     function->type = new_type(TYPE_FUNCTION);
+    function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
     if (debug_ssa) print_ir(function, 0, 0);
@@ -484,6 +487,7 @@ void test_idom3() {
 
     function->ir = ir_start;
     function->type = new_type(TYPE_FUNCTION);
+    function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
     run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
@@ -636,6 +640,7 @@ void test_phi_renumbering2() {
 
     function->ir = ir_start;
     function->type = new_type(TYPE_FUNCTION);
+    function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
     run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS);
@@ -675,6 +680,7 @@ Function *make_ir3(int loop_count) {
 
     function->ir = ir_start;
     function->type = new_type(TYPE_FUNCTION);
+    function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
     return function;
@@ -715,6 +721,7 @@ void test_interference_graph2() {
 
     function = make_ir2(1);
     function->type = new_type(TYPE_FUNCTION);
+    function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
     run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
@@ -761,6 +768,7 @@ void test_interference_graph3() {
 
     function->ir = ir_start;
     function->type = new_type(TYPE_FUNCTION);
+    function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
     opt_enable_live_range_coalescing = 0;

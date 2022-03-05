@@ -597,7 +597,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
 
                 // A function can be either a direct function or a function pointer
                 Type *function_type = ir->src1->type->type == TYPE_FUNCTION ? ir->src1->type : ir->src1->type->target;
-                if (function_type->function_is_variadic) {
+                if (function_type->function->is_variadic) {
                     char *buffer;
                     wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
                     ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
@@ -751,7 +751,7 @@ static void output_debug_loc(Tac *tac) {
 
 // Output code from the IR of a function
 static void output_function_body_code(Symbol *symbol) {
-    int function_pc = symbol->function->type->function_param_count;
+    int function_pc = symbol->function->type->function->param_count;
 
     for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);

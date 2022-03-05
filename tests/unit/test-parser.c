@@ -312,7 +312,7 @@ int test_composite_type() {
     res = composite_type(type2, type1);
     assert_int(10, res->target->array_size, "Composite type of int(*)[] and int(*)[10]");
 
-    type1 = parse_type_str("void a(b)"); append_to_list(type1->function_param_types, new_type(TYPE_INT));
+    type1 = parse_type_str("void a(b)"); append_to_list(type1->function->param_types, new_type(TYPE_INT));
     type2 = parse_type_str("void a(int)");
     res = composite_type(type1, type2);
     assert_english_type(res, "function(int) returning void", "Composite type of void() and void(int)");

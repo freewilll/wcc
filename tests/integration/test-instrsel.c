@@ -633,9 +633,9 @@ void run_function_call_single_arg(Value *src) {
     i(0, IR_ARG, 0, make_arg_src1(), src);
     tac = i(0, IR_START_CALL, 0, c(0), 0);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
-    tac->src1->type->function_param_count = 1;
-    tac->src1->type->function_param_types = new_list(1);
-    append_to_list(tac->src1->type->function_param_types, dup_type(src->type));
+    tac->src1->type->function->param_count = 1;
+    tac->src1->type->function->param_types = new_list(1);
+    append_to_list(tac->src1->type->function->param_types, dup_type(src->type));
     tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(2), v(1), 0);
     finish_spill_ir(function);
@@ -1657,14 +1657,14 @@ void test_param_vreg_moves() {
 
     start_ir();
 
-    function->type->function_param_count = 10;
-    function->type->function_param_types = new_list(1);
-    for (j = 0; j < function->type->function_param_count; j++)
-        append_to_list(function->type->function_param_types, new_type(TYPE_CHAR));
+    function->type->function->param_count = 10;
+    function->type->function->param_types = new_list(1);
+    for (j = 0; j < function->type->function->param_count; j++)
+        append_to_list(function->type->function->param_types, new_type(TYPE_CHAR));
 
     i(0, IR_NOP, 0, 0, 0);
 
-    for (j = 0; j < function->type->function_param_count; j++)
+    for (j = 0; j < function->type->function->param_count; j++)
         tac = i(0, IR_ADD, v(j + 3), v(1), S(j + 2));
 
     finish_spill_ir(function);
@@ -1681,37 +1681,37 @@ void test_param_vreg_moves() {
     // arg 8 stack index 3 32(%rbp)
     // arg 9 stack index 2 40(%rbp)
 
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        %dil, %bl");       // arg 0    the first 6 args are already in registers
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        %sil, %dil");      // arg 1
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        %dl, %sil");       // arg 2
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        %cl, %dl");        // arg 3
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        %r8b, %cl");       // arg 4
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        %r9b, %r8b");      // arg 5
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        16(%rbp), %r9b");  // arg 6    pushed args get loaded into registers
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        24(%rbp), %r12b"); // arg 7
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        32(%rbp), %r13b"); // arg 8
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movb        40(%rbp), %r14b"); // arg 9
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        %dil, %bl");       // arg 0    the first 6 args are already in registers
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        %sil, %dil");      // arg 1
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        %dl, %sil");       // arg 2
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        %cl, %dl");        // arg 3
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        %r8b, %cl");       // arg 4
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        %r9b, %r8b");      // arg 5
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        16(%rbp), %r9b");  // arg 6    pushed args get loaded into registers
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        24(%rbp), %r12b"); // arg 7
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        32(%rbp), %r13b"); // arg 8
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movb        40(%rbp), %r14b"); // arg 9
 
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %rbx, %rbx");      // arg 0    addition code starts here
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %rdi, %rbx");      // arg 1
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %rsi, %rbx");      // arg 2
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %rdx, %rbx");      // arg 3
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %rcx, %rbx");      // arg 4
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %r8, %rbx");       // arg 5
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %r9, %rbx");       // arg 6
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %r12, %rbx");      // arg 7
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %r13, %rbx");      // arg 8
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "movq        %r14, %rbx");      // arg 9
-    assert_rx86_preg_op_with_function_pc(function->type->function_param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %rbx, %rbx");      // arg 0    addition code starts here
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %rdi, %rbx");      // arg 1
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %rsi, %rbx");      // arg 2
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %rdx, %rbx");      // arg 3
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %rcx, %rbx");      // arg 4
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %r8, %rbx");       // arg 5
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %r9, %rbx");       // arg 6
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %r12, %rbx");      // arg 7
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %r13, %rbx");      // arg 8
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "movq        %r14, %rbx");      // arg 9
+    assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
 }
 
 int main() {
@@ -1724,6 +1724,7 @@ int main() {
 
     function = new_function();
     function->type = new_type(TYPE_FUNCTION);
+    function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
     opt_optimize_arithmetic_operations = 1;

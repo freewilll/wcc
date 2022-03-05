@@ -608,12 +608,13 @@ Type *parse_declarator(void) {
 
 static Type *parse_function_type(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
-    function_type->function_param_types = new_list(8);
-    function_type->function_param_identifiers = new_list(8);
+    function_type->function = wcalloc(1, sizeof(FunctionType));
+    function_type->function->param_types = new_list(8);
+    function_type->function->param_identifiers = new_list(8);
 
     enter_scope();
-    function_type->function_scope = cur_scope;
-    function_type->function_is_paramless = 1;
+    function_type->function->scope = cur_scope;
+    function_type->function->is_paramless = 1;
 
     int param_count = 0;
     while (1) {
@@ -628,7 +629,7 @@ static Type *parse_function_type(void) {
             if (is_type_token) {
                 cur_type_identifier = 0;
                 type = parse_type_name();
-                function_type->function_is_paramless = 0;
+                function_type->function->is_paramless = 0;
 
                 if (type->storage_class == SC_AUTO || type->storage_class == SC_STATIC || type->storage_class == SC_EXTERN)
                     error("Invalid storage for function parameter");
@@ -663,15 +664,15 @@ static Type *parse_function_type(void) {
 
             if (param_symbol) param_symbol->type = dup_type(symbol_type);
 
-            append_to_list(function_type->function_param_types, dup_type(type));
-            append_to_list(function_type->function_param_identifiers, cur_type_identifier);
+            append_to_list(function_type->function->param_types, dup_type(type));
+            append_to_list(function_type->function->param_identifiers, cur_type_identifier);
             if (param_symbol) param_symbol->local_index = param_count;
             param_count++;
 
             cur_type_identifier = old_cur_type_identifier;
         }
         else if (cur_token == TOK_ELLIPSES) {
-            function_type->function_is_variadic = 1;
+            function_type->function->is_variadic = 1;
             next();
         }
         else
@@ -682,7 +683,7 @@ static Type *parse_function_type(void) {
         if (cur_token == TOK_RPAREN) error("Expected expression");
     }
 
-    function_type->function_param_count = param_count;
+    function_type->function->param_count = param_count;
 
     exit_scope();
 
@@ -710,9 +711,9 @@ static void parse_function_paramless_declaration_list(Function *function) {
             symbol->type = type;
 
             int found_identifier = 0;
-            for (int i = 0; i < function->type->function_param_count; i++) {
-                if (!strcmp(function->type->function_param_identifiers->elements[i], cur_type_identifier)) {
-                    function->type->function_param_types->elements[i] = type;
+            for (int i = 0; i < function->type->function->param_count; i++) {
+                if (!strcmp(function->type->function->param_identifiers->elements[i], cur_type_identifier)) {
+                    function->type->function->param_types->elements[i] = type;
                     found_identifier = 1;
                     break;
                 }
@@ -2192,7 +2193,7 @@ static void parse_function_call(void) {
     // Allocate an integer slot if the function returns a slot in memory. The
     // RDI register must contain a pointer to the return value, set by the caller.
     int has_struct_or_union_return_value = 0;
-    FunctionParamAllocation *rv_fpa = function_type->function_return_value_fpa;
+    FunctionParamAllocation *rv_fpa = function_type->function->return_value_fpa;
     if (rv_fpa) {
         FunctionParamLocations *rv_fpl = &(rv_fpa->params[0]);
         if (rv_fpl->locations[0].stack_offset != -1) {
@@ -2204,7 +2205,7 @@ static void parse_function_call(void) {
     while (1) {
         if (cur_token == TOK_RPAREN) break;
 
-        if (!function_type->function_is_paramless && !function_type->function_is_variadic && function_type->function_param_count == 0)
+        if (!function_type->function->is_paramless && !function_type->function->is_variadic && function_type->function->param_count == 0)
             error("Too many arguments for function call");
 
         parse_expression(TOK_EQ);
@@ -2217,9 +2218,9 @@ static void parse_function_call(void) {
         if (vtop()->type->type == TYPE_ENUM) vtop()->type->type = TYPE_INT;
 
         // Convert type if needed
-        if (!function_type->function_is_paramless && arg_count < function_type->function_param_count) {
-            if (!type_eq(vtop()->type, function_type->function_param_types->elements[arg_count])) {
-                Type *param_type = function_type->function_param_types->elements[arg_count];
+        if (!function_type->function->is_paramless && arg_count < function_type->function->param_count) {
+            if (!type_eq(vtop()->type, function_type->function->param_types->elements[arg_count])) {
+                Type *param_type = function_type->function->param_types->elements[arg_count];
 
                 if (param_type->type == TYPE_ARRAY)
                     param_type = decay_array_to_pointer(param_type);
@@ -2230,7 +2231,7 @@ static void parse_function_call(void) {
             }
         }
         else {
-            if (!function_type->function_is_variadic && !function_type->function_is_paramless)
+            if (!function_type->function->is_variadic && !function_type->function->is_paramless)
                 error("Too many arguments for function call");
 
             Value *arg = pl();
@@ -2338,7 +2339,7 @@ static void parse_va_start() {
 
     int rightmost_param_index = rightmost_param->local_index - 2;
 
-    if (rightmost_param_index != cur_function_symbol->function->type->function_param_count - 1)
+    if (rightmost_param_index != cur_function_symbol->function->type->function->param_count - 1)
         error("Second argument to va_start isn't the rightmost function parameter");
 
     Value *param_index_value = new_value();
@@ -3376,17 +3377,17 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         if (type->target->type == TYPE_STRUCT_OR_UNION) {
             FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
             add_function_param_to_allocation(fpa, type->target);
-            type->function_return_value_fpa = fpa;
+            type->function->return_value_fpa = fpa;
         }
     }
     else
         symbol->function = original_symbol->function;
 
     // The scope is left entered by the type parser
-    cur_scope = type->function_scope;
+    cur_scope = type->function->scope;
 
     // Parse optional old style declaration list
-    if (type->function_is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)
+    if (type->function->is_paramless && cur_token != TOK_SEMI && cur_token != TOK_COMMA && cur_token != TOK_ATTRIBUTE)
         parse_function_paramless_declaration_list(symbol->function);
 
     if (original_symbol && !types_are_compatible(original_symbol->type, type))
@@ -3423,8 +3424,8 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         is_definition = 1;
 
         // Ensure parameters have identifiers
-        for (int i = 0; i < symbol->function->type->function_param_count; i++)
-            if (!symbol->function->type->function_param_identifiers->elements[i])
+        for (int i = 0; i < symbol->function->type->function->param_count; i++)
+            if (!symbol->function->type->function->param_identifiers->elements[i])
                 error("Missing identifier for parameter in function definition");
 
         // Reset globals for a new function
@@ -3433,7 +3434,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         cur_loop = 0;
         loop_count = 0;
 
-        if (type->function_is_variadic) add_va_register_save_area();
+        if (type->function->is_variadic) add_va_register_save_area();
 
         cur_function_symbol->function->static_symbols = new_list(128);
 
