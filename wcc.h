@@ -923,6 +923,7 @@ void warning(char *format, ...);
 // lexer.c
 void init_lexer(char *filename);
 void init_lexer_from_string(char *string);
+void free_lexer(void);
 void next(void);
 void rewind_lexer(void);
 void expect(int token, char *what);

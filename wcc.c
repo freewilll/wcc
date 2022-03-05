@@ -152,6 +152,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
     compile_phase = CP_PARSING;
     init_lexer_from_string(input);
     parse();
+    free_lexer();
 
     if (debug_exit_after_parser) goto exit_compile;
 

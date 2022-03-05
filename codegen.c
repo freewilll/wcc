@@ -733,11 +733,11 @@ int fprintf_escaped_string_literal(void *f, StringLiteral* sl, int for_assembly)
 // Add a ".loc" line with an integer identifying the filename and the line number.
 // The debug_strings map has the mapping from filename to id.
 static void output_debug_loc(Tac *tac) {
-    if (opt_debug_symbols && tac->origin) {
+    if (opt_debug_symbols && tac->origin && tac->origin->filename) {
         int id = (long) strmap_get(debug_strings, tac->origin->filename);
         if (!id) {
             id = ++debug_string_counter;
-            strmap_put(debug_strings, tac->origin->filename, (void *) (long) id);
+            strmap_put(debug_strings, strdup(tac->origin->filename), (void *) (long) id);
             fprintf(f, "    .file       %d \"%s\"\n", id, tac->origin->filename);
         }
 

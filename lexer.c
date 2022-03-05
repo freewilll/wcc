@@ -42,15 +42,22 @@ void init_lexer(char *filename) {
     input[input_size] = 0;
     fclose(f);
 
-    cur_filename = filename;
+    cur_filename = strdup(filename);
     cur_line = 1;
     next();
+}
+
+void free_lexer(void) {
+    if (cur_filename) free(cur_filename);
 }
 
 void init_lexer_from_string(char *string) {
     ip = 0;
     input = string;
     input_size = strlen(string);
+
+    cur_filename = 0;
+    cur_line = 1;
     next();
 }
 
@@ -347,10 +354,9 @@ void next(void) {
             lex_single_string_literal(data, &size);
             finish_string_literal(data, size, 0);
 
-            cur_filename = strdup(cur_string_literal.data);
+            if (cur_filename) free(cur_filename);
+            cur_filename = cur_string_literal.data;
             cur_line = cur_long - 1;
-
-            free(data);
 
             while (ip < input_size && i[ip] != '\n') ip++; // Skip non-whitespace
             skip_whitespace(); // Skip EOL if present

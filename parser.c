@@ -65,7 +65,7 @@ static int new_vreg(void) {
 // Add an instruction and set the line number and filename
 Tac *add_parser_instruction(int operation, Value *dst, Value *src1, Value *src2) {
     Origin *origin = wmalloc(sizeof(Origin));
-    origin->filename = cur_filename;
+    origin->filename = cur_filename ? strdup(cur_filename) : NULL;
     origin->line_number = cur_line;
     Tac *tac = add_instruction(operation, dst, src1, src2);
     tac->origin = origin;
