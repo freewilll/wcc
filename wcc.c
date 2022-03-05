@@ -39,7 +39,7 @@ char *make_temp_filename(char *template) {
     }
     close(fd);
 
-    return strdup(template);
+    return template;
 }
 
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at) {
