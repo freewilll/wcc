@@ -455,7 +455,7 @@ int main(int argc, char **argv) {
         char *input_filename = input_filenames->elements[i];
 
         if (is_assembly_file(input_filename)) {
-            assembler_input_filenames[i] = input_filename;
+            assembler_input_filenames[i] = strdup(input_filename);
             continue;
         }
 
@@ -466,7 +466,7 @@ int main(int argc, char **argv) {
         char *preprocessor_output = preprocess(input_filename, directive_cli_strings);
 
         char *compiler_output_filename =
-            !run_assembler && !run_linker ? (output_filename ? output_filename : replace_extension(input_filename, "s"))
+            !run_assembler && !run_linker ? (output_filename ? strdup(output_filename) : strdup(replace_extension(input_filename, "s")))
             : make_temp_filename("/tmp/XXXXXX.s");
 
         if (print_filenames) printf("Compiling %s to %s\n", input_filename, compiler_output_filename);
@@ -562,9 +562,14 @@ exit_main:
     free_instruction_selection_rules();
 
     free_cpp_allocated_garbage();
-    free_list(input_filenames);
     free_list(compiler_input_filenames);
+
+    for (int i = 0; i < input_filenames->length; i++) if (assembler_input_filenames[i])
+        free(assembler_input_filenames[i]);
+
     free(assembler_input_filenames);
+    free_list(input_filenames);
+
     free(linker_input_filenames);
     free(command);
     free_list(extra_linker_args);
