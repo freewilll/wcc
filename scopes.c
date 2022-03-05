@@ -38,7 +38,7 @@ void free_scopes(void) {
         free(scope);
     }
 
-    free(allocated_scopes);
+    free_list(allocated_scopes);
 }
 
 // Initialize a local scope and set cur_scope as the parent
