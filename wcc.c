@@ -137,12 +137,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
 }
 
 static void compile_internals(void) {
-    char *temp_filename = make_temp_filename("/tmp/internals-XXXXXX.c");
-    void *f = fopen(temp_filename, "w");
-    fprintf(f, "%s", internals());
-    fclose(f);
-
-    init_lexer(temp_filename);
+    init_lexer_from_string(internals());
     parse();
 }
 
