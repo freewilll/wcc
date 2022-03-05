@@ -479,7 +479,7 @@ int main(int argc, char **argv) {
         free_memory_for_translation_unit();
         free(preprocessor_output);
 
-        if (debug_exit_after_parser) exit(0);
+        if (debug_exit_after_parser) goto exit_main;
     }
 
     // Assembler phase
