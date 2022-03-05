@@ -144,7 +144,7 @@ static void compile_internals(void) {
 void compile(char *input, char *original_input_filename, char *output_filename) {
     init_parser();
 
-    compile_internals();
+    if (!debug_dont_compile_internals) compile_internals();
 
     memcpy_symbol = lookup_symbol("memcpy", global_scope, 0);
     memset_symbol = lookup_symbol("memset", global_scope, 0);

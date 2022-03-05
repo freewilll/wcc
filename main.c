@@ -191,6 +191,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-spilling"                )) { debug_instsel_spilling = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-stack-frame-layout"              )) { debug_stack_frame_layout = 1;               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-exit-after-parser"               )) { debug_exit_after_parser = 1;                argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-dont-compile-internals"          )) { debug_dont_compile_internals = 1;           argc--; argv++; }
 
             else if (argc > 0 && !strcmp(argv[0], "-Werror"                                 )) { opt_warnings_are_errors = 1;                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-Wno-integer-constant-too-large"         )) { warn_integer_constant_too_large = 0;        argc--; argv++; }
@@ -373,6 +374,7 @@ int main(int argc, char **argv) {
         printf("--debug-instsel-spilling\n");
         printf("--debug-stack-frame-layout\n");
         printf("--debug-exit-after-parser\n");
+        printf("--debug-dont-compile-internals\n");
 
         exit(1);
     }
