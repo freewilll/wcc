@@ -821,7 +821,7 @@ static Type *find_enum(char *identifier) {
 // structs/unions, the function is called recursively with the sub members.
 static StructOrUnionMember *add_struct_member(char *identifier, Type *type, StructOrUnion *s, int *member_count) {
     StructOrUnionMember *member = wcalloc(1, sizeof(StructOrUnionMember));
-    member->identifier = parser_strdup(identifier);
+    member->identifier = identifier;
     member->type = dup_type(type);
 
     if (*member_count == MAX_STRUCT_MEMBERS)
