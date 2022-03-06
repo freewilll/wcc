@@ -19,8 +19,6 @@ typedef struct goto_backpatch {
 
 int function_call_count; // Uniquely identify a function call within a function
 
-StructOrUnion **all_structs_and_unions;  // All structs/unions defined globally.
-int all_structs_and_unions_count;        // Number of structs/unions, complete and incomplete
 int vreg_count;                          // Virtual register count for currently parsed function
 int local_static_symbol_count;           // Amount of static objects with block scope
 
@@ -793,25 +791,6 @@ Type *parse_type_name(void) {
     BaseType *base_type = parse_declaration_specifiers();
     base_type->type->storage_class = base_type->storage_class;
     return concat_types(parse_declarator(), base_type->type);
-}
-
-// Allocate a new StructOrUnion
-static Type *new_struct_or_union(char *tag_identifier) {
-    StructOrUnion *s = wcalloc(1, sizeof(StructOrUnion));
-    if (tag_identifier != 0) all_structs_and_unions[all_structs_and_unions_count++] = s;
-    s->members = wcalloc(MAX_STRUCT_MEMBERS, sizeof(StructOrUnionMember *));
-
-    Type *type = make_struct_or_union_type(s);
-
-    if (tag_identifier) {
-        Tag *tag = new_tag(tag_identifier);
-        tag->type = type;
-        type->tag = tag;
-    }
-    else
-        type->tag = 0;
-
-    return type;
 }
 
 // Search for a struct tag. Returns 0 if not found.
@@ -3619,9 +3598,6 @@ void init_parser(void) {
     string_literals = wmalloc(sizeof(StringLiteral) * MAX_STRING_LITERALS);
     string_literal_count = 0;
 
-    all_structs_and_unions = wmalloc(sizeof(struct struct_or_union_desc *) * MAX_STRUCTS_AND_UNIONS);
-    all_structs_and_unions_count = 0;
-
     all_typedefs = wmalloc(sizeof(struct typedef_desc *) * MAX_TYPEDEFS);
     all_typedefs_count = 0;
 
@@ -3637,7 +3613,6 @@ void init_parser(void) {
 
 void free_parser(void) {
     free(string_literals);
-    free(all_structs_and_unions);
     free(all_typedefs);
     free_value_stack();
     free_scopes();

@@ -42,8 +42,8 @@ internals.c: internals.h
 	cat internals.h | sed ':a;N;$$!ba;s/\n/\\n/g;s/^/    return "/;s/$$/";/' >> internals.c
 	echo "}" >> internals.c
 
-instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c longmap.c types.c list.c set.c strmap.c wcc.h
-	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c longmap.c types.c list.c set.c strmap.c
+instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c longmap.c types.c scopes.c list.c set.c strmap.c wcc.h
+	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c longmap.c types.c scopes.c list.c set.c strmap.c
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c

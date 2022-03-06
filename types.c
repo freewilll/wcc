@@ -6,6 +6,9 @@
 
 static List *allocated_types;
 
+StructOrUnion **all_structs_and_unions;  // All structs/unions defined globally.
+int all_structs_and_unions_count;        // Number of structs/unions, complete and incomplete
+
 int print_type(void *f, Type *type) {
     int len = 0;
 
@@ -177,11 +180,16 @@ void print_type_in_english(Type *type) {
 
 void init_type_allocations(void) {
     allocated_types = new_list(1024);
+
+    all_structs_and_unions = wmalloc(sizeof(struct struct_or_union_desc *) * MAX_STRUCTS_AND_UNIONS);
+    all_structs_and_unions_count = 0;
 }
 
 void free_types(void) {
     for (int i = 0; i < allocated_types->length; i++) free(allocated_types->elements[i]);
     free_list(allocated_types);
+
+    free(all_structs_and_unions);
 }
 
 Type *new_type(int type) {
@@ -190,36 +198,6 @@ Type *new_type(int type) {
     append_to_list(allocated_types, result);
 
     return result;
-}
-
-static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src) {
-    StructOrUnionMember *dst = wmalloc(sizeof(StructOrUnionMember));
-    dst->identifier = strdup(src->identifier);
-    dst->type = dup_type(src->type);
-    dst->offset = src->offset;
-    dst->is_bit_field = src->is_bit_field;
-    dst->bit_field_size = src->bit_field_size;
-    dst->bit_field_offset = src->bit_field_offset;
-    return dst;
-}
-
-StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
-    StructOrUnion *dst = wmalloc(sizeof(StructOrUnion));
-
-    dst->size          = src->size;
-    dst->is_incomplete = src->is_incomplete;
-    dst->is_packed     = src->is_packed;
-    dst->is_union      = src->is_union;
-
-    int len;
-    for (len = 0; src->members[len]; len++);
-
-    dst->members = wcalloc(len + 1, sizeof(StructOrUnionMember *));
-
-    for (int i = 0; src->members[i]; i++)
-        dst->members[i] = dup_struct_or_union_member(src->members[i]);
-
-    return dst;
 }
 
 // Do a shallow copy of a type, except for target and function type
@@ -237,6 +215,56 @@ Type *dup_type(Type *src) {
     }
 
     append_to_list(allocated_types, dst);
+
+    return dst;
+}
+
+// Allocate a new StructOrUnion
+Type *new_struct_or_union(char *tag_identifier) {
+    StructOrUnion *s = wcalloc(1, sizeof(StructOrUnion));
+    if (tag_identifier != 0) all_structs_and_unions[all_structs_and_unions_count++] = s;
+    s->members = wcalloc(MAX_STRUCT_MEMBERS, sizeof(StructOrUnionMember *));
+
+    Type *type = make_struct_or_union_type(s);
+
+    if (tag_identifier) {
+        Tag *tag = new_tag(tag_identifier);
+        tag->type = type;
+        type->tag = tag;
+    }
+    else
+        type->tag = 0;
+
+    return type;
+}
+
+
+static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src) {
+    StructOrUnionMember *dst = wmalloc(sizeof(StructOrUnionMember));
+    dst->identifier = strdup(src->identifier);
+    dst->type = dup_type(src->type);
+    dst->offset = src->offset;
+    dst->is_bit_field = src->is_bit_field;
+    dst->bit_field_size = src->bit_field_size;
+    dst->bit_field_offset = src->bit_field_offset;
+    return dst;
+}
+
+static StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
+    StructOrUnion *dst = wmalloc(sizeof(StructOrUnion));
+
+    dst->size          = src->size;
+    dst->is_incomplete = src->is_incomplete;
+    dst->is_packed     = src->is_packed;
+    dst->is_union      = src->is_union;
+
+    int len;
+    for (len = 0; src->members[len]; len++);
+
+    dst->members = wcalloc(len + 1, sizeof(StructOrUnionMember *));
+
+    for (int i = 0; src->members[i]; i++)
+        dst->members[i] = dup_struct_or_union_member(src->members[i]);
 
     return dst;
 }
