@@ -139,6 +139,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
 static void compile_internals(void) {
     init_lexer_from_string(internals());
     parse();
+    free_lexer();
 }
 
 void compile(char *input, char *original_input_filename, char *output_filename) {

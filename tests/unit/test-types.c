@@ -16,7 +16,7 @@ Type *lex_type(char *type_str) {
     fprintf(f, "%s\n", type_str);
     fprintf(f, "\n");
     fclose(f);
-    init_lexer(filename);
+    init_lexer_from_filename(filename);
     init_parser();
     init_scopes();
 

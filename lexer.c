@@ -5,9 +5,10 @@
 
 #include "wcc.h"
 
-static char *input;     // Input file data
-static int input_size;  // Size of the input file
-static int ip;          // Offset into *input
+static char *input;             // Input file data
+static char input_is_freeable;  // Does the inut need to be freed when done?
+static int input_size;          // Size of the input file
+static int ip;                  // Offset into *input
 
 // Copies
 static int           old_ip;
@@ -19,8 +20,21 @@ static long          old_cur_long;
 static long double   old_cur_long_double;
 static StringLiteral old_cur_string_literal;
 
-void init_lexer(char *filename) {
+static void init_lexer(void) {
     ip = 0;
+    cur_line = 1;
+    cur_identifier = wmalloc(MAX_IDENTIFIER_SIZE);
+
+    next();
+}
+
+void free_lexer(void) {
+    free_and_null(cur_filename);
+    free_and_null(cur_identifier);
+    if (input_is_freeable) free(input);
+}
+
+void init_lexer_from_filename(char *filename) {
     FILE *f  = fopen(filename, "r");
 
     if (f == 0) {
@@ -33,6 +47,7 @@ void init_lexer(char *filename) {
     fseek(f, 0, SEEK_SET);
 
     input = wmalloc(input_size + 1);
+    input_is_freeable = 1;
     int read = fread(input, 1, input_size, f);
     if (read != input_size) {
         printf("Unable to read input file\n");
@@ -43,22 +58,18 @@ void init_lexer(char *filename) {
     fclose(f);
 
     cur_filename = strdup(filename);
-    cur_line = 1;
-    next();
-}
 
-void free_lexer(void) {
-    if (cur_filename) free(cur_filename);
+    init_lexer();
 }
 
 void init_lexer_from_string(char *string) {
-    ip = 0;
     input = string;
     input_size = strlen(string);
+    input_is_freeable = 0;
 
     cur_filename = 0;
-    cur_line = 1;
-    next();
+
+    init_lexer();
 }
 
 static void skip_whitespace(void) {
@@ -428,7 +439,7 @@ void next(void) {
         // Identifier or keyword
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
             cur_token = TOK_IDENTIFIER;
-            cur_identifier = wmalloc(1024);
+
             int j = 0;
             while (((i[ip] >= 'a' && i[ip] <= 'z') || (i[ip] >= 'A' && i[ip] <= 'Z') || (i[ip] >= '0' && i[ip] <= '9') || (i[ip] == '_')) && ip < input_size) {
                 if (j == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);

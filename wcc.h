@@ -772,6 +772,8 @@ int debug_stack_frame_layout;
 int debug_exit_after_parser;
 int debug_dont_compile_internals;
 
+#define free_and_null(object) do { if (object) { free(object); object = NULL; } } while(0);
+
 // set.c
 #define add_to_set(s, value) do { \
     if (value > s->max_value) panic("Max set value of %d exceeded with %d in add_to_set", s->max_value, value); \
@@ -921,7 +923,7 @@ void error(char *format, ...);
 void warning(char *format, ...);
 
 // lexer.c
-void init_lexer(char *filename);
+void init_lexer_from_filename(char *filename);
 void init_lexer_from_string(char *string);
 void free_lexer(void);
 void next(void);

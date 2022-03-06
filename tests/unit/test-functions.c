@@ -181,7 +181,7 @@ Type *parse_type_str(char *type_str) {
     fprintf(f, "\n");
     fclose(f);
 
-    init_lexer(filename);
+    init_lexer_from_filename(filename);
     init_parser();
     init_scopes();
 
