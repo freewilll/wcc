@@ -4,18 +4,27 @@
 
 #include "wcc.h"
 
+static LongSet *allocated_functions;
+
 void init_function_allocations(void) {
-    allocated_functions = new_list(1024);
+    allocated_functions = new_longset();
 }
 
+void free_function(Function *function, int remove_from_allocations) {
+    free_strmap(function->labels);
+    free(function);
+    if (remove_from_allocations) longset_delete(allocated_functions, (long) function);
+}
+
+// Free remaining functions
 void free_functions(void) {
-    for (int i = 0; i < allocated_functions->length; i++) free(allocated_functions->elements[i]);
-    free_list(allocated_functions);
+    longset_foreach(allocated_functions, it) free_function((Function *) longset_iterator_element(&it), 0);
+    free_longset(allocated_functions);
 }
 
 Function *new_function(void) {
     Function *function = wcalloc(1, sizeof(Function));
-    append_to_list(allocated_functions, function);
+    longset_add(allocated_functions, (long) function);
 
     return function;
 }
@@ -1643,8 +1652,4 @@ void finalize_function_param_allocation(FunctionParamAllocation *fpa) {
         printf("  --------------------------------------------------------------\n");
         printf("  total                        size   0x%04x with padding 0x%04x\n", fpa->size, fpa->padding);
     }
-}
-
-void free_function(Function *function) {
-    //  TODO
 }

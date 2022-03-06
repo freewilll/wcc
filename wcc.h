@@ -1130,9 +1130,8 @@ void coalesce_live_ranges(Function *function, int check_register_constraints);
 void make_preferred_live_range_preg_indexes(Function *function);
 
 // functions.c
-List *allocated_functions;
-
 void init_function_allocations(void);
+void free_function(Function *function, int remove_from_allocations);
 void free_functions(void);
 Function *new_function(void);
 void add_function_call_result_moves(Function *function);
@@ -1144,7 +1143,6 @@ Value *make_function_call_value(int function_call);
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 void finalize_function_param_allocation(FunctionParamAllocation *fpa);
-void free_function(Function *function);
 
 RegisterSet arg_register_set;
 RegisterSet function_return_value_register_set;

@@ -173,13 +173,13 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
         }
     }
 
+    output_code(original_input_filename, output_filename);
+
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined)
-            free_function(symbol->function);
+            free_function(symbol->function, 1);
     }
-
-    output_code(original_input_filename, output_filename);
 
     free_codegen();
 
