@@ -6,8 +6,7 @@
 
 static List *allocated_types;
 
-StructOrUnion **all_structs_and_unions;  // All structs/unions defined globally.
-int all_structs_and_unions_count;        // Number of structs/unions, complete and incomplete
+List *all_structs_and_unions;  // All structs/unions defined globally.
 
 int print_type(void *f, Type *type) {
     int len = 0;
@@ -180,16 +179,20 @@ void print_type_in_english(Type *type) {
 
 void init_type_allocations(void) {
     allocated_types = new_list(1024);
-
-    all_structs_and_unions = wmalloc(sizeof(struct struct_or_union_desc *) * MAX_STRUCTS_AND_UNIONS);
-    all_structs_and_unions_count = 0;
+    all_structs_and_unions = new_list(32);
 }
 
 void free_types(void) {
     for (int i = 0; i < allocated_types->length; i++) free(allocated_types->elements[i]);
     free_list(allocated_types);
 
-    free(all_structs_and_unions);
+    for (int i = 0; i < all_structs_and_unions->length; i++) {
+        StructOrUnion *s = all_structs_and_unions->elements[i];
+        for (StructOrUnionMember **pmember = s->members; *pmember; pmember++)  free(*pmember);
+        free(s->members);
+        free(s);
+    }
+    free_list(all_structs_and_unions);
 }
 
 Type *new_type(int type) {
@@ -222,7 +225,7 @@ Type *dup_type(Type *src) {
 // Allocate a new StructOrUnion
 Type *new_struct_or_union(char *tag_identifier) {
     StructOrUnion *s = wcalloc(1, sizeof(StructOrUnion));
-    if (tag_identifier != 0) all_structs_and_unions[all_structs_and_unions_count++] = s;
+    append_to_list(all_structs_and_unions, s);
     s->members = wcalloc(MAX_STRUCT_MEMBERS, sizeof(StructOrUnionMember *));
 
     Type *type = make_struct_or_union_type(s);
@@ -252,6 +255,7 @@ static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src)
 
 static StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
     StructOrUnion *dst = wmalloc(sizeof(StructOrUnion));
+    append_to_list(all_structs_and_unions, dst);
 
     dst->size          = src->size;
     dst->is_incomplete = src->is_incomplete;
@@ -821,6 +825,8 @@ int recursive_complete_struct_or_union(StructOrUnion *s, int bit_offset) {
 
 // Recursively flatten anonymous structs, .e.g.
 // struct { struct { int i, j; }; int k; } => struct { int i, j, k; }
+// Members from the inner struct are copied to the outer struct since they are
+// freed separately.
 void flatten_anonymous_structs(StructOrUnion *s) {
     // Determine member count of the outer struct
     int member_count = 0;
@@ -860,7 +866,7 @@ void flatten_anonymous_structs(StructOrUnion *s) {
             // Copy the sub struct members
             for (int i = 0; i < sub_member_count; i++) {
                 sub->members[i]->offset += member->offset;
-                s->members[member_index + i] = sub->members[i];
+                s->members[member_index + i] = dup_struct_or_union_member(sub->members[i]);
             }
 
             member_count += sub_member_count;

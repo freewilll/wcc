@@ -4,7 +4,6 @@
 #define MAX_CPP_FILESIZE              10 * 1024 * 1024
 #define MAX_CPP_INCLUDE_DEPTH         15
 #define MAX_CPP_MACRO_PARAM_COUNT     1024
-#define MAX_STRUCTS_AND_UNIONS        1024
 #define MAX_STRUCT_OR_UNION_SCALARS   1024
 #define MAX_TYPEDEFS                  1024
 #define MAX_STRUCT_MEMBERS            1024
