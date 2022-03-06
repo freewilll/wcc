@@ -876,6 +876,8 @@ void flatten_anonymous_structs(StructOrUnion *s) {
         pmember++;
         member_index++;
     }
+
+    free_strmap(member_map);
 }
 
 void complete_struct_or_union(StructOrUnion *s) {
