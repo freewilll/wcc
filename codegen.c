@@ -27,9 +27,9 @@
 #define DW_FORM_strp        0x0e
 #define DW_FORM_sec_offset  0x17
 
-int need_ru4_to_ld_symbol;
-int need_ld_to_ru4_symbol;
-int elf_section;
+static int need_ru4_to_ld_symbol;
+static int need_ld_to_ru4_symbol;
+static int elf_section;
 
 typedef enum elf_section {
     SEC_NONE,
@@ -438,7 +438,7 @@ static void output_x86_operation(Tac *tac, int function_pc) {
 
 // Add an instruction after ir and return ir of the new instruction
 static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *x86_template) {
-    Tac *tac = wcalloc(1, sizeof(Tac));
+    Tac *tac = new_instruction(operation);
     tac->operation = operation;
     tac->dst = dst;
     tac->src1 = src1;

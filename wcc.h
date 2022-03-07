@@ -1048,6 +1048,9 @@ TypeIterator *type_iterator_descend(TypeIterator *it);
 // ir.c
 List *allocated_values;
 
+void init_ir(void);
+void free_ir(void);
+
 void init_value_allocations(void) ;
 void free_values(void);
 void init_value(Value *v);

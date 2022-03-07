@@ -22,12 +22,14 @@ char init_memory_management_for_translation_unit(void) {
     init_type_allocations();
     init_value_allocations();
     init_function_allocations();
+    init_ir();
 }
 
 char free_memory_for_translation_unit(void) {
     free_types();
     free_values();
     free_functions();
+    free_ir();
 }
 
 char *make_temp_filename(char *template) {

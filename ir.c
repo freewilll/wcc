@@ -4,6 +4,17 @@
 
 #include "wcc.h"
 
+static List *allocated_tacs;
+
+void init_ir(void) {
+    allocated_tacs = new_list(1024);
+}
+
+void free_ir(void) {
+    for (int i = 0; i < allocated_tacs->length; i++) free(allocated_tacs->elements[i]);
+    free_list(allocated_tacs);
+}
+
 // Allocate a new local variable or tempoary
 static int new_local_index(Function *function) {
     return -1 - function->local_symbol_count++;
@@ -76,6 +87,7 @@ void add_tac_to_ir(Tac *tac) {
 
 Tac *new_instruction(int operation) {
     Tac *tac = wcalloc(1, sizeof(Tac));
+    append_to_list(allocated_tacs, tac);
     tac->operation = operation;
 
     return tac;
@@ -660,7 +672,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
             ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
-            Tac *tac = wcalloc(1, sizeof(Tac));
+            Tac *tac = new_instruction(IR_JNZ);
             tac->operation = IR_JNZ;
             ir->dst = new_value();
             ir->dst->type = new_type(TYPE_INT);
