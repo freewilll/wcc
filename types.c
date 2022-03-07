@@ -185,7 +185,8 @@ void init_type_allocations(void) {
 static void free_type(Type *type) {
     if (type->type == TYPE_FUNCTION) {
         FunctionType *function = type->function;
-        free_list(function->param_types);
+        free_list(function->param_types); // The types are already GC'd
+        free_list(function->param_identifiers); // The identifiers are already GC'd
         free(function);
     }
 
@@ -198,7 +199,7 @@ void free_types(void) {
 
     for (int i = 0; i < all_structs_and_unions->length; i++) {
         StructOrUnion *s = all_structs_and_unions->elements[i];
-        for (StructOrUnionMember **pmember = s->members; *pmember; pmember++)  free(*pmember);
+        for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) free(*pmember);
         free(s->members);
         free(s);
     }
@@ -213,6 +214,7 @@ Type *new_type(int type) {
     if (type == TYPE_FUNCTION) {
         result->function = wcalloc(1, sizeof(FunctionType));
         result->function->param_types = new_list(8);
+        result->function->param_identifiers = new_list(8);
     }
 
     return result;
@@ -226,6 +228,12 @@ FunctionType *dup_function_type(FunctionType *src) {
     dst->param_types = new_list(src->param_types->length);
     for (int i = 0; i < src->param_types->length; i++)
         append_to_list(dst->param_types, src->param_types->elements[i]);
+
+    dst->param_identifiers = new_list(src->param_types->length);
+    for (int i = 0; i < src->param_identifiers->length; i++) {
+        char *identifier = src->param_identifiers->elements[i];
+        append_to_list(dst->param_identifiers, identifier);
+    }
 
     return dst;
 }
