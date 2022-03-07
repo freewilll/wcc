@@ -34,6 +34,8 @@ Value **vs_start;        // Value stack start
 Value **vs;              // Value stack current position
 
 static List *allocated_strings;
+static StrMap *origin_filenames; // Map lexer filename to a unique filename in memory
+static List *allocated_origins;  // Allocated Origin instances
 
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
@@ -74,7 +76,19 @@ static int new_vreg(void) {
 // Add an instruction and set the line number and filename
 Tac *add_parser_instruction(int operation, Value *dst, Value *src1, Value *src2) {
     Origin *origin = wmalloc(sizeof(Origin));
-    origin->filename = cur_filename ? strdup(cur_filename) : NULL;
+    append_to_list(allocated_origins, origin);
+
+    char *filename = NULL;
+
+    if (cur_filename) {
+        filename = strmap_get(origin_filenames, cur_filename);
+        if (!filename) {
+            filename = parser_strdup(cur_filename);
+            strmap_put(origin_filenames, filename, filename);
+        }
+    }
+
+    origin->filename = filename;
     origin->line_number = cur_line;
     Tac *tac = add_instruction(operation, dst, src1, src2);
     tac->origin = origin;
@@ -3616,6 +3630,9 @@ void init_parser(void) {
     allocated_strings = new_list(128);
 
     base_type = 0;
+
+    origin_filenames = new_strmap();
+    allocated_origins = new_list(1024);
 }
 
 void free_parser(void) {
@@ -3628,4 +3645,9 @@ void free_parser(void) {
 
     for (int i = 0; i < allocated_strings->length; i++) free(allocated_strings->elements[i]);
     free_list(allocated_strings);
+
+    free_strmap(origin_filenames);
+
+    for (int i = 0; i < allocated_origins->length; i++) free(allocated_origins->elements[i]);
+    free_list(allocated_origins);
 }
