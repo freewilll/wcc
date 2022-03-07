@@ -276,7 +276,6 @@ Value *fu(int index) {
     v->function_symbol = calloc(1, sizeof(Symbol));
 
     v->function_symbol->type = new_type(TYPE_FUNCTION);
-    v->function_symbol->type->function = wcalloc(1, sizeof(FunctionType));
     v->function_symbol->function = new_function();
     wasprintf(&(v->function_symbol->identifier), "f%d", index);
 
@@ -290,7 +289,6 @@ Value *pfu(int vreg) {
     v->vreg = vreg;
 
     v->type = make_pointer(new_type(TYPE_FUNCTION));
-    v->type->target->function = wcalloc(1, sizeof(FunctionType));
 
     return v;
 }

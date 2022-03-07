@@ -13,6 +13,7 @@ void init_function_allocations(void) {
 void free_function(Function *function, int remove_from_allocations) {
     free_strmap(function->labels);
     free(function);
+
     if (remove_from_allocations) longset_delete(allocated_functions, (long) function);
 }
 

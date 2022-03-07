@@ -1448,10 +1448,8 @@ static void add_spill_load(Tac *ir, int src, int preg) {
 
     // Codegen needs to know if this is a function; in all other cases the spill is
     // done on a full 64 bit register.
-    if (v->type->type == TYPE_FUNCTION) {
+    if (v->type->type == TYPE_FUNCTION)
         tac->dst->type = new_type(TYPE_FUNCTION);
-        tac->dst->type->function = wcalloc(1, sizeof(FunctionType));
-    }
     else
         tac->dst->type = new_type(TYPE_LONG);
 

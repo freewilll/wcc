@@ -617,8 +617,6 @@ Type *parse_declarator(void) {
 
 static Type *parse_function_type(void) {
     Type *function_type = new_type(TYPE_FUNCTION);
-    function_type->function = wcalloc(1, sizeof(FunctionType));
-    function_type->function->param_types = new_list(8);
     function_type->function->param_identifiers = new_list(8);
 
     enter_scope();

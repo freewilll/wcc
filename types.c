@@ -182,8 +182,18 @@ void init_type_allocations(void) {
     all_structs_and_unions = new_list(32);
 }
 
+static void free_type(Type *type) {
+    if (type->type == TYPE_FUNCTION) {
+        FunctionType *function = type->function;
+        free_list(function->param_types);
+        free(function);
+    }
+
+    free(type);
+}
+
 void free_types(void) {
-    for (int i = 0; i < allocated_types->length; i++) free(allocated_types->elements[i]);
+    for (int i = 0; i < allocated_types->length; i++) free_type(allocated_types->elements[i]);
     free_list(allocated_types);
 
     for (int i = 0; i < all_structs_and_unions->length; i++) {
@@ -200,7 +210,24 @@ Type *new_type(int type) {
     result->type = type;
     append_to_list(allocated_types, result);
 
+    if (type == TYPE_FUNCTION) {
+        result->function = wcalloc(1, sizeof(FunctionType));
+        result->function->param_types = new_list(8);
+    }
+
     return result;
+}
+
+// Do a deep copy of a FunctionType
+FunctionType *dup_function_type(FunctionType *src) {
+    FunctionType *dst = wcalloc(1, sizeof(FunctionType));
+    *dst = *src;
+
+    dst->param_types = new_list(src->param_types->length);
+    for (int i = 0; i < src->param_types->length; i++)
+        append_to_list(dst->param_types, src->param_types->elements[i]);
+
+    return dst;
 }
 
 // Do a shallow copy of a type, except for target and function type
@@ -211,11 +238,7 @@ Type *dup_type(Type *src) {
     *dst = *src;
     dst->target = dup_type(src->target);
 
-    // Do a shallow copy of FunctionType
-    if (src->function) {
-        dst->function = wcalloc(1, sizeof(FunctionType));
-        *dst->function = *src->function;
-    }
+    if (src->function) dst->function = dup_function_type(src->function);
 
     append_to_list(allocated_types, dst);
 
