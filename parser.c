@@ -939,11 +939,12 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     done_parsing_members = 1;
                 }
                 else error("Expected a ;, or ,");
-            }
-            if (cur_token == TOK_RCURLY) break;
+            } // Parsing members with member_base_type
 
             free(member_base_type);
-        }
+
+            if (cur_token == TOK_RCURLY) break;
+        } // Parsing struct
 
         consume(TOK_RCURLY, "}");
 
