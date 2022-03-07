@@ -12,7 +12,6 @@
 #define MAX_STRING_LITERAL_SIZE       4095
 #define MAX_STRING_LITERALS           20480
 #define MAX_FLOATING_POINT_LITERALS   10240
-#define MAX_FUNCTION_CALL_ARGS        253
 #define VALUE_STACK_SIZE              10240
 #define MAX_VREG_COUNT                20480
 #define PHYSICAL_REGISTER_COUNT       32 // integer + xmm
@@ -272,14 +271,13 @@ typedef struct function_param_locations {
 } FunctionParamLocations;
 
 typedef struct function_param_allocation {
-    int arg_count;
     int single_int_register_arg_count;
     int single_sse_register_arg_count;
     int biggest_alignment;
     int offset;
     int padding;
     int size;
-    FunctionParamLocations *params;
+    List *param_locations;
 } FunctionParamAllocation;
 
 // Physical register class

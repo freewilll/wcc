@@ -2201,7 +2201,7 @@ static void parse_function_call(void) {
     int has_struct_or_union_return_value = 0;
     FunctionParamAllocation *rv_fpa = function_type->function->return_value_fpa;
     if (rv_fpa) {
-        FunctionParamLocations *rv_fpl = &(rv_fpa->params[0]);
+        FunctionParamLocations *rv_fpl = rv_fpa->param_locations->elements[0];
         if (rv_fpl->locations[0].stack_offset != -1) {
             add_function_param_to_allocation(fpa, make_pointer_to_void());
             has_struct_or_union_return_value = 1;
@@ -2216,7 +2216,7 @@ static void parse_function_call(void) {
 
         parse_expression(TOK_EQ);
         Value *arg = dup_value(src1);
-        int fpa_arg_count = fpa->arg_count;
+        int fpa_arg_count = fpa->param_locations->length;
         int arg_count = fpa_arg_count - has_struct_or_union_return_value;
         arg->function_call_arg_index = arg_count;
 
@@ -2250,7 +2250,7 @@ static void parse_function_call(void) {
         }
 
         add_function_param_to_allocation(fpa, vtop()->type);
-        FunctionParamLocations *fpl = &(fpa->params[fpa_arg_count]);
+        FunctionParamLocations *fpl = fpa->param_locations->elements[fpa_arg_count];
         arg->function_call_arg_locations = fpl;
         arg->has_struct_or_union_return_value = has_struct_or_union_return_value;
         add_parser_instruction(IR_ARG, 0, arg, pl());

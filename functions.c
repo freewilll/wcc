@@ -4,6 +4,8 @@
 
 #include "wcc.h"
 
+#define fpa_pl(fpa, i) (*((FunctionParamLocations *) fpa->param_locations->elements[i]))
+
 static LongSet *allocated_functions;
 
 void init_function_allocations(void) {
@@ -169,7 +171,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
     Type *function_type = ir->src1->type;
 
     FunctionParamAllocation *fpa = function_type->function->return_value_fpa;
-    FunctionParamLocations *fpl = &(fpa->params[0]);
+    FunctionParamLocations *fpl = fpa->param_locations->elements[0];
 
     Value *function_value = ir->src1;
 
@@ -295,7 +297,7 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
     // Determine registers
     FunctionParamAllocation *fpa = init_function_param_allocaton(identifier);
     add_function_param_to_allocation(fpa, ir->src1->type);
-    FunctionParamLocations *fpl = &(fpa->params[0]);
+    FunctionParamLocations *fpl = fpa->param_locations->elements[0];
 
     Value **function_call_values = wcalloc(2, sizeof(Value *));
 
@@ -879,7 +881,7 @@ void remap_stack_index(int *stack_index_remap, Value *v) {
 static int setup_return_for_struct_or_union(Function *function) {
     FunctionParamAllocation *fpa = function->type->function->return_value_fpa;
 
-    if (fpa->params[0].locations[0].stack_offset == -1) return 0;
+    if (fpa_pl(fpa, 0).locations[0].stack_offset == -1) return 0;
 
     function->return_value_pointer = new_value();
     function->return_value_pointer->vreg = ++function->vreg_count;
@@ -1208,7 +1210,7 @@ static void process_function_va_arg(Function *function, Tac *ir) {
     if (type->type == TYPE_STRUCT_OR_UNION) {
         FunctionParamAllocation *fpa = init_function_param_allocaton("vararg struct");
         add_function_param_to_allocation(fpa, type);
-        FunctionParamLocations *fpl = &(fpa->params[0]);
+        FunctionParamLocations *fpl = fpa->param_locations->elements[0];
 
         if (fpl->locations[0].stack_offset != -1) {
             // It's on the stack
@@ -1289,7 +1291,7 @@ void add_function_param_moves(Function *function, char *identifier) {
 
     FunctionParamAllocation *fpa = init_function_param_allocaton(identifier);
 
-    int fpa_start = 0; // Which index in fpa->params has the first actual parameter
+    int fpa_start = 0; // Which index in fpa->param_locations has the first actual parameter
 
     if (function->type->target->type == TYPE_STRUCT_OR_UNION) {
         fpa_start = setup_return_for_struct_or_union(function);
@@ -1322,16 +1324,16 @@ void add_function_param_moves(Function *function, char *identifier) {
 
     // Add moves for registers
     for (int i = 0; i < function->type->function->param_count; i++) {
-        if (fpa->params[fpa_start + i].locations[0].stack_offset != -1) continue;
+        if (fpa_pl(fpa, fpa_start + i).locations[0].stack_offset != -1) continue;
 
         Type *type = function->type->function->param_types->elements[i];
 
-        int single_register_arg_count = fpa->params[fpa_start + i].locations[0].int_register == -1
-            ? fpa->params[fpa_start + i].locations[0].sse_register
-            : fpa->params[fpa_start + i].locations[0].int_register;
+        int single_register_arg_count = fpa_pl(fpa, fpa_start + i).locations[0].int_register == -1
+            ? fpa_pl(fpa, fpa_start + i).locations[0].sse_register
+            : fpa_pl(fpa, fpa_start + i).locations[0].int_register;
 
         if (type->type == TYPE_STRUCT_OR_UNION)  {
-            int stack_index = add_struct_or_union_param_move(function, ir, type, &(fpa->params[fpa_start + i]), &arg_register_set);
+            int stack_index = add_struct_or_union_param_move(function, ir, type, fpa->param_locations->elements[fpa_start + i], &arg_register_set);
             register_param_stack_indexes[i] = stack_index;
         }
 
@@ -1389,11 +1391,11 @@ void add_function_param_moves(Function *function, char *identifier) {
     // Determine stack offsets for parameters on the stack and add moves
 
     for (int i = 0; i < function->type->function->param_count; i++) {
-        if (fpa->params[fpa_start + i].locations[0].stack_offset == -1) continue;
+        if (fpa_pl(fpa, fpa_start + i).locations[0].stack_offset == -1) continue;
 
         Type *type = function->type->function->param_types->elements[i];
 
-        int stack_index = (fpa->params[fpa_start + i].locations[0].stack_offset + 16) >> 3;
+        int stack_index = (fpa_pl(fpa, fpa_start + i).locations[0].stack_offset + 16) >> 3;
 
         // The rightmost arg has stack index 2
         if (i + 2 != stack_index) stack_index_remap[i + 2] = stack_index;
@@ -1445,7 +1447,7 @@ FunctionParamAllocation *init_function_param_allocaton(char *function_identifier
     if (debug_function_param_allocation) printf("\nInitializing param allocation for function %s\n", function_identifier);
 
     FunctionParamAllocation *fpa = wcalloc(1, sizeof(FunctionParamAllocation));
-    fpa->params = wmalloc(sizeof(FunctionParamLocations) * MAX_FUNCTION_CALL_ARGS);
+    fpa->param_locations = new_list(8);
 
     return fpa;
 }
@@ -1492,14 +1494,14 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
         fpa->offset += type_size;
 
         if (debug_function_param_allocation)
-            printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", fpa->arg_count, alignment, fpl->stack_offset, fpl->stack_padding);
+            printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", fpa->param_locations->length, alignment, fpl->stack_offset, fpl->stack_padding);
     }
 
     if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_sse_register)) {
         if (fpl->int_register != -1)
-            printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->arg_count, alignment, fpl->int_register);
+            printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->param_locations->length, alignment, fpl->int_register);
         else
-            printf("  arg %2d with alignment %2d     sse reg %5d\n", fpa->arg_count, alignment, fpl->sse_register);
+            printf("  arg %2d with alignment %2d     sse reg %5d\n", fpa->param_locations->length, alignment, fpl->sse_register);
     }
 
     fpa->single_int_register_arg_count += is_single_int_register;
@@ -1532,7 +1534,8 @@ static void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) 
 }
 
 static void add_single_stack_function_param_location(FunctionParamAllocation *fpa, Type *type) {
-    FunctionParamLocations *fpl = &(fpa->params[fpa->arg_count]);
+    FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
+    append_to_list(fpa->param_locations, fpl);
     fpl->locations = wmalloc(sizeof(FunctionParamLocation));
     fpl->count = 1;
     add_type_to_allocation(fpa, &(fpl->locations[0]), type, 0);
@@ -1541,8 +1544,6 @@ static void add_single_stack_function_param_location(FunctionParamAllocation *fp
 // Add a param/arg to a function and allocate registers & stack entries
 // Structs are decomposed.
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
-    if (fpa->arg_count > MAX_FUNCTION_CALL_ARGS) panic("Maximum function call arg count of %d exceeded", MAX_FUNCTION_CALL_ARGS);
-
     if (type->type != TYPE_STRUCT_OR_UNION) {
         // Create a single location for the arg
         add_single_stack_function_param_location(fpa, type);
@@ -1596,7 +1597,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
 
             // Determine number of 8-bytes & allocate memory
             int eight_bytes_count = (size + 7) / 8;
-            FunctionParamLocations *fpl = &(fpa->params[fpa->arg_count]);
+            FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
             fpl->locations = wmalloc(sizeof(FunctionParamLocation) * eight_bytes_count);
             fpl->count = eight_bytes_count;
 
@@ -1637,11 +1638,11 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                     *fpa = *backup_fpa;
                     add_single_stack_function_param_location(fpa, type);
                 }
+                else
+                    append_to_list(fpa->param_locations, fpl);
             }
         }
     }
-
-    fpa->arg_count++;
 }
 
 // Calculate the final size and padding of the stack
