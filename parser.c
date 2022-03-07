@@ -359,13 +359,6 @@ static int get_type_inc_dec_size(Type *type) {
     return type->type == TYPE_PTR ? get_type_size(type->target) : 1;
 }
 
-static BaseType *dup_base_type(BaseType *base_type) {
-    BaseType *result = wmalloc(sizeof(BaseType));
-    result->type = dup_type(base_type->type);
-    result->storage_class = base_type->storage_class;
-    return result;
-}
-
 // Parse optional repeated __attribute__ ((...)), ignoring everything inside the ((...))
 void parse_attributes(void) {
     while (1) {
@@ -583,7 +576,7 @@ static Type *concat_types(Type *type1, Type *type2) {
 }
 
 static Type *concat_base_type(Type *type, BaseType *base_type) {
-    Type *result = concat_types(type, base_type->type);
+    Type *result = concat_types(type, dup_type(base_type->type));
     result->storage_class = base_type->storage_class;
     return result;
 }
@@ -730,6 +723,9 @@ static void parse_function_paramless_declaration_list(Function *function) {
             if (cur_token != TOK_COMMA && cur_token != TOK_SEMI) error("Expected a ; or ,");
             if (cur_token == TOK_COMMA) next();
         }
+
+        free(base_type);
+
         while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
     }
 }
@@ -787,7 +783,9 @@ Type *parse_direct_declarator(void) {
 Type *parse_type_name(void) {
     BaseType *base_type = parse_declaration_specifiers();
     base_type->type->storage_class = base_type->storage_class;
-    return concat_types(parse_declarator(), base_type->type);
+    Type *result = concat_types(parse_declarator(), base_type->type);
+    free(base_type);
+    return result;
 }
 
 // Search for a struct tag. Returns 0 if not found.
@@ -890,7 +888,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
         // Loop over members
         int member_count = 0;
         while (cur_token != TOK_RCURLY) {
-            BaseType *base_type = parse_declaration_specifiers();
+            BaseType *member_base_type = parse_declaration_specifiers();
 
             int done_parsing_members = 0;
             while (!done_parsing_members) {
@@ -899,7 +897,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
                 int unnamed_bit_field = 0;
                 if (cur_token != TOK_COLON) {
                     cur_type_identifier = 0;
-                    type = concat_base_type(parse_declarator(), base_type);
+                    type = concat_base_type(parse_declarator(), member_base_type);
                 }
 
                 else {
@@ -943,7 +941,10 @@ static Type *parse_struct_or_union_type_specifier(void) {
                 else error("Expected a ;, or ,");
             }
             if (cur_token == TOK_RCURLY) break;
+
+            free(member_base_type);
         }
+
         consume(TOK_RCURLY, "}");
 
         // Parse __attribute__ that might come after the definition
@@ -1062,6 +1063,8 @@ void parse_typedef(void) {
         if (cur_token != TOK_SEMI) consume(TOK_COMMA, ",");
         if (cur_token == TOK_SEMI) break;
     }
+
+    free(base_type_with_storage_class);
 }
 
 static void indirect(void) {
@@ -2053,7 +2056,7 @@ static void parse_declaration(void) {
     Symbol *symbol;
 
     cur_type_identifier = 0;
-    Type *type = concat_base_type(parse_declarator(), dup_base_type(base_type));
+    Type *type = concat_base_type(parse_declarator(), base_type);
 
     if (!cur_type_identifier) error("Expected an identifier");
 
@@ -3262,6 +3265,8 @@ static void add_va_register_save_area(void) {
 // Parse a statement
 static void parse_statement(void) {
     vs = vs_start; // Reset value stack
+
+    if (base_type) free(base_type);
     base_type = 0; // Reset base type
 
     if (cur_token_is_type()) {
@@ -3492,7 +3497,7 @@ void parse(void) {
                 if (base_type->storage_class == SC_REGISTER)
                     error("register not allowed in global scope");
 
-                Type *type = concat_base_type(parse_declarator(), dup_base_type(base_type));
+                Type *type = concat_base_type(parse_declarator(), base_type);
 
                 if (!cur_type_identifier) error("Expected an identifier");
 
@@ -3558,6 +3563,8 @@ void parse(void) {
                 if (cur_token != TOK_SEMI) consume(TOK_COMMA, ", or ; in declaration");
             }
 
+            free(base_type);
+
             if (cur_token == TOK_SEMI) next();
         }
 
@@ -3606,9 +3613,13 @@ void init_parser(void) {
     controlling_case_value = 0;
 
     allocated_strings = new_list(128);
+
+    base_type = 0;
 }
 
 void free_parser(void) {
+    if (base_type) free (base_type);
+
     free(string_literals);
     free(all_typedefs);
     free_value_stack();
