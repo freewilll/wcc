@@ -36,6 +36,7 @@ Value **vs;              // Value stack current position
 static List *allocated_strings;
 static StrMap *origin_filenames; // Map lexer filename to a unique filename in memory
 static List *allocated_origins;  // Allocated Origin instances
+static List *allocated_sets;  // Allocated Set instances
 
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
@@ -2289,6 +2290,7 @@ static void parse_function_call(void) {
 
     // LIVE_RANGE_PREG_XMM01_INDEX is the max set value
     function_value->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
+    append_to_list(allocated_sets, function_value->return_value_live_ranges);
 
     src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
 
@@ -3641,6 +3643,7 @@ void init_parser(void) {
 
     origin_filenames = new_strmap();
     allocated_origins = new_list(1024);
+    allocated_sets = new_list(1024);
 }
 
 void free_parser(void) {
@@ -3658,4 +3661,7 @@ void free_parser(void) {
 
     for (int i = 0; i < allocated_origins->length; i++) free(allocated_origins->elements[i]);
     free_list(allocated_origins);
+
+    for (int i = 0; i < allocated_sets->length; i++) free_set(allocated_sets->elements[i]);
+    free_list(allocated_sets);
 }

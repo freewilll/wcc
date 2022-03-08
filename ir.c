@@ -32,7 +32,11 @@ void init_value_allocations(void) {
 }
 
 void free_values(void) {
-    for (int i = 0; i < allocated_values->length; i++) free(allocated_values->elements[i]);
+    for (int i = 0; i < allocated_values->length; i++) {
+        Value *v = allocated_values->elements[i];
+        free(v);
+    }
+
     free_list(allocated_values);
 }
 
