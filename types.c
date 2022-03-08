@@ -692,13 +692,17 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
 
 int types_are_compatible(Type *type1, Type *type2) {
     StrMap *seen_tags = new_strmap();
-    return recursive_types_are_compatible(type1, type2, seen_tags, 1);
+    int result = recursive_types_are_compatible(type1, type2, seen_tags, 1);
+    free_strmap(seen_tags);
+    return result;
 }
 
 // Ignore qualifiers at the top level
 int types_are_compatible_ignore_qualifiers(Type *type1, Type *type2) {
     StrMap *seen_tags = new_strmap();
-    return recursive_types_are_compatible(type1, type2, seen_tags, 0);
+    int result = recursive_types_are_compatible(type1, type2, seen_tags, 0);
+    free_strmap(seen_tags);
+    return result;
 }
 
 // Compatibility checks must already have been done before calling this
