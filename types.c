@@ -732,6 +732,7 @@ Type *composite_type(Type *type1, Type *type2) {
                 error("Incompatible types");
 
             Type *result = dup_type(type1);
+            free_list(result->function->param_types);
             result->function->param_types = new_list(type1->function->param_count);
 
             for (int i = 0; i < type1->function->param_count; i++) {
