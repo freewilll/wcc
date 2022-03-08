@@ -1530,6 +1530,7 @@ static long parse_conditional_expression() {
     init_lexer_from_string(data);
     Value *value = parse_constant_integer_expression(1);
     free(data);
+    free_lexer();
 
     return value->int_value;
 }

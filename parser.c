@@ -262,6 +262,14 @@ Value *make_string_literal_value_from_cur_string_literal(void) {
     value->is_string_literal = 1;
     if (string_literal_count > MAX_STRING_LITERALS) panic_with_line_number("Exceeded max string literals %d", MAX_STRING_LITERALS);
     string_literals[string_literal_count] = cur_string_literal;
+
+    // Copy string literal data
+    int count = cur_string_literal.size * (cur_string_literal.is_wide_char ? 4 : 1);
+    char *copy = malloc(count);
+    for (int i = 0; i < count; i++) copy[i] = cur_string_literal.data[i];
+    append_to_list(allocated_strings, copy);
+    string_literals[string_literal_count].data = copy;
+
     string_literal_count++;
 
     return value;

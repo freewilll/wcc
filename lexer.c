@@ -24,6 +24,7 @@ static void init_lexer(void) {
     ip = 0;
     cur_line = 1;
     cur_identifier = wmalloc(MAX_IDENTIFIER_SIZE);
+    cur_string_literal.data = wmalloc(MAX_STRING_LITERAL_SIZE * 4);
 
     next();
 }
@@ -32,6 +33,7 @@ void free_lexer(void) {
     free_and_null(cur_filename);
     free_and_null(cur_identifier);
     if (input_is_freeable) free(input);
+    free_and_null(cur_string_literal.data);
 }
 
 void init_lexer_from_filename(char *filename) {
@@ -189,20 +191,19 @@ static void lex_hex_literal(void) {
     }
 }
 
-void finish_string_literal(int *data, int size, int is_wide_char) {
+void finish_string_literal(int size, int is_wide_char) {
+    int *data = (int *) cur_string_literal.data;
     cur_token = TOK_STRING_LITERAL;
 
     cur_string_literal.is_wide_char = is_wide_char;
-    cur_string_literal.data = (char *) data;
     cur_string_literal.size = size + 1;
 
-    if (!is_wide_char) {
-        for (int i = 0; i <= size; i++) ((char *) data)[i] = data[i];
-        cur_string_literal.size = size + 1;
-    }
+    if (!is_wide_char)
+        for (int i = 0; i <= size; i++) cur_string_literal.data[i] = data[i];
 }
 
-void lex_single_string_literal(int *data, int *size) {
+void lex_single_string_literal(int *size) {
+    int *data = (int *) cur_string_literal.data;
     char *i = input;
 
     while (input_size - ip >= 1 && i[ip] != '"') {
@@ -248,7 +249,6 @@ void lex_string_literal(void) {
     char *i = input;
 
     int is_wide_char = 0;
-    int *data = wmalloc(MAX_STRING_LITERAL_SIZE * 4);
     int size = 0;
 
     while (ip < input_size && (i[ip] == '"') || (input_size - ip >= 2 && i[ip] == 'L' && i[ip + 1] == '"')) {
@@ -258,24 +258,25 @@ void lex_string_literal(void) {
         }
 
         ip += 1;
-        lex_single_string_literal(data, &size);
+        lex_single_string_literal(&size);
         skip_whitespace();
     }
 
-    finish_string_literal(data, size, is_wide_char);
+    finish_string_literal(size, is_wide_char);
 }
 
 // Lexer. Lex a next token or TOK_EOF if the file is ended
 void next(void) {
     char *i = input;
 
-    old_ip              = ip;
-    old_cur_line        = cur_line;
-    old_cur_token       = cur_token;
-    old_cur_lexer_type  = cur_lexer_type;
-    old_cur_identifier  = cur_identifier;
-    old_cur_long        = cur_long;
-    old_cur_long_double = cur_long_double;
+    old_ip                 = ip;
+    old_cur_line           = cur_line;
+    old_cur_token          = cur_token;
+    old_cur_lexer_type     = cur_lexer_type;
+    old_cur_identifier     = cur_identifier;
+    old_cur_long           = cur_long;
+    old_cur_long_double    = cur_long_double;
+    old_cur_string_literal = cur_string_literal;
 
     while (ip < input_size) {
         skip_whitespace();
@@ -359,14 +360,13 @@ void next(void) {
             lex_non_hex_literal();
             skip_whitespace();
 
-            int *data = wmalloc(MAX_STRING_LITERAL_SIZE * 4);
             int size = 0;
             ip++; // Skip the "
-            lex_single_string_literal(data, &size);
-            finish_string_literal(data, size, 0);
+            lex_single_string_literal(&size);
+            finish_string_literal(size, 0);
 
-            if (cur_filename) free(cur_filename);
-            cur_filename = cur_string_literal.data;
+            if (cur_filename) free_and_null(cur_filename);
+            cur_filename = strdup(cur_string_literal.data);
             cur_line = cur_long - 1;
 
             while (ip < input_size && i[ip] != '\n') ip++; // Skip non-whitespace
