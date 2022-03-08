@@ -280,7 +280,7 @@ Type *new_struct_or_union(char *tag_identifier) {
 
 static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src) {
     StructOrUnionMember *dst = wmalloc(sizeof(StructOrUnionMember));
-    dst->identifier = strdup(src->identifier);
+    dst->identifier = src->identifier;
     dst->type = dup_type(src->type);
     dst->offset = src->offset;
     dst->is_bit_field = src->is_bit_field;
