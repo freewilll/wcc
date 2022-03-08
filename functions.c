@@ -1461,8 +1461,12 @@ FunctionParamAllocation *init_function_param_allocaton(char *function_identifier
 }
 
 void free_function_param_allocaton(FunctionParamAllocation *fpa) {
-    List *fpls = fpa->param_locations;
-    for (int i = 0; i < fpls->length; i++) free(fpls->elements[i]);
+    List *fpls_list = fpa->param_locations;
+    for (int i = 0; i < fpls_list->length; i++) {
+        FunctionParamLocations* fpl = fpls_list->elements[i];
+        free(fpl->locations);
+        free(fpl);
+    }
     free_list(fpa->param_locations);
     free(fpa);
 }
