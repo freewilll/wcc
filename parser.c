@@ -3650,7 +3650,10 @@ void free_parser(void) {
     if (base_type) free (base_type);
 
     free(string_literals);
+
+    for (int i = 0; i < all_typedefs_count; i++) free(all_typedefs[i]);
     free(all_typedefs);
+
     free_value_stack();
     free_scopes();
 
