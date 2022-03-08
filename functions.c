@@ -1663,6 +1663,11 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                 free(backup_fpa);
             }
 
+            free(seen_integer);
+            free(seen_sse);
+            free(seen_memory);
+            free(member_counts);
+
             free(scalars->scalars);
             free(scalars);
         }
