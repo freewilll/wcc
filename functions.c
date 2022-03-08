@@ -7,9 +7,11 @@
 #define fpa_pl(fpa, i) (*((FunctionParamLocations *) fpa->param_locations->elements[i]))
 
 static LongSet *allocated_functions;
+static List *allocated_function_param_allocatons;
 
 void init_function_allocations(void) {
     allocated_functions = new_longset();
+    allocated_function_param_allocatons = new_list(128);
 }
 
 void free_function(Function *function, int remove_from_allocations) {
@@ -19,10 +21,14 @@ void free_function(Function *function, int remove_from_allocations) {
     if (remove_from_allocations) longset_delete(allocated_functions, (long) function);
 }
 
-// Free remaining functions
+// Free remaining functions and other memory
 void free_functions(void) {
     longset_foreach(allocated_functions, it) free_function((Function *) longset_iterator_element(&it), 0);
     free_longset(allocated_functions);
+
+    for (int i = 0; i < allocated_function_param_allocatons->length; i++)
+        free_function_param_allocaton(allocated_function_param_allocatons->elements[i]);
+    free_list(allocated_function_param_allocatons);
 }
 
 Function *new_function(void) {
@@ -1447,9 +1453,17 @@ FunctionParamAllocation *init_function_param_allocaton(char *function_identifier
     if (debug_function_param_allocation) printf("\nInitializing param allocation for function %s\n", function_identifier);
 
     FunctionParamAllocation *fpa = wcalloc(1, sizeof(FunctionParamAllocation));
+    append_to_list(allocated_function_param_allocatons, fpa);
     fpa->param_locations = new_list(8);
 
     return fpa;
+}
+
+void free_function_param_allocaton(FunctionParamAllocation *fpa) {
+    List *fpls = fpa->param_locations;
+    for (int i = 0; i < fpls->length; i++) free(fpls->elements[i]);
+    free_list(fpa->param_locations);
+    free(fpa);
 }
 
 // Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
@@ -1640,6 +1654,8 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                 }
                 else
                     append_to_list(fpa->param_locations, fpl);
+
+                free(backup_fpa);
             }
         }
     }

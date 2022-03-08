@@ -1142,6 +1142,7 @@ void process_function_varargs(Function *function);
 void add_function_param_moves(Function *function, char *identifier);
 Value *make_function_call_value(int function_call);
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
+void free_function_param_allocaton(FunctionParamAllocation *fpa);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 void finalize_function_param_allocation(FunctionParamAllocation *fpa);
 
