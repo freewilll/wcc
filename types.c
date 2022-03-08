@@ -5,6 +5,7 @@
 #include "wcc.h"
 
 static List *allocated_types;
+static List *allocated_type_iterators;
 
 List *all_structs_and_unions;  // All structs/unions defined globally.
 
@@ -179,6 +180,7 @@ void print_type_in_english(Type *type) {
 
 void init_type_allocations(void) {
     allocated_types = new_list(1024);
+    allocated_type_iterators = new_list(32);
     all_structs_and_unions = new_list(32);
 }
 
@@ -196,6 +198,9 @@ static void free_type(Type *type) {
 void free_types(void) {
     for (int i = 0; i < allocated_types->length; i++) free_type(allocated_types->elements[i]);
     free_list(allocated_types);
+
+    for (int i = 0; i < allocated_type_iterators->length; i++) free(allocated_type_iterators->elements[i]);
+    free_list(allocated_type_iterators);
 
     for (int i = 0; i < all_structs_and_unions->length; i++) {
         StructOrUnion *s = all_structs_and_unions->elements[i];
@@ -950,6 +955,7 @@ int type_is_modifiable(Type *type) {
 // through all scalars either depth first, or by iterating at a single level.
 TypeIterator *type_iterator(Type *type) {
     TypeIterator *it = wcalloc(1, sizeof(TypeIterator));
+    append_to_list(allocated_type_iterators, it);
     it->type = type;
 
     return it;
