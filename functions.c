@@ -9,6 +9,18 @@
 static LongSet *allocated_functions;
 static List *allocated_function_param_allocatons;
 
+// Details about a single scalar in a struct/union
+typedef struct struct_or_union_scalar {
+    Type *type;
+    int offset;
+} StructOrUnionScalar;
+
+// A list of StructOrUnionScalar
+typedef struct struct_or_union_scalars {
+    StructOrUnionScalar **scalars;
+    int count;
+} StructOrUnionScalars;
+
 void init_function_allocations(void) {
     allocated_functions = new_longset();
     allocated_function_param_allocatons = new_list(128);
@@ -38,18 +50,6 @@ Function *new_function(void) {
 
     return function;
 }
-
-// Details about a single scalar in a struct/union
-typedef struct struct_or_union_scalar {
-    Type *type;
-    int offset;
-} StructOrUnionScalar;
-
-// A list of StructOrUnionScalar
-typedef struct struct_or_union_scalars {
-    StructOrUnionScalar **scalars;
-    int count;
-} StructOrUnionScalars;
 
 static int make_struct_or_union_arg_move_instructions(
         Function *function, Tac *ir, Value *param, int preg_class, int register_index,
@@ -1668,6 +1668,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             free(seen_memory);
             free(member_counts);
 
+            for (int i = 0; i < scalars->count; i++) free(scalars->scalars[i]);
             free(scalars->scalars);
             free(scalars);
         }
