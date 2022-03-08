@@ -16,6 +16,7 @@ void init_function_allocations(void) {
 
 void free_function(Function *function, int remove_from_allocations) {
     free_strmap(function->labels);
+    if (function->static_symbols) free_list(function->static_symbols);
     free(function);
 
     if (remove_from_allocations) longset_delete(allocated_functions, (long) function);
