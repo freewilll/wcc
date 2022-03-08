@@ -2570,7 +2570,7 @@ static void parse_expression(int level) {
     if (!base_type && cur_token_is_type()) {
         base_type = parse_declaration_specifiers();
         parse_expression(TOK_COMMA);
-        base_type = 0;
+        free_and_null(base_type);
     }
 
     else switch(cur_token) {
@@ -3293,13 +3293,14 @@ static void add_va_register_save_area(void) {
 static void parse_statement(void) {
     vs = vs_start; // Reset value stack
 
-    if (base_type) free(base_type);
+    if (base_type) free_and_null(base_type);
     base_type = 0; // Reset base type
 
     if (cur_token_is_type()) {
         int is_typedef = cur_token == TOK_TYPEDEF_TYPE;
         char *identifier = parser_strdup(cur_identifier);
 
+        if (base_type) free(base_type);
         base_type = parse_declaration_specifiers();
         if (cur_token == TOK_SEMI && (base_type->type->type == TYPE_STRUCT_OR_UNION || base_type->type->type == TYPE_ENUM))
             next();
