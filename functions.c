@@ -1582,7 +1582,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             // Decompose a struct or union into up to 8 8-bytes
 
             StructOrUnionScalars *scalars = wmalloc(sizeof(StructOrUnionScalars));
-            scalars->scalars = wmalloc(sizeof(StructOrUnionScalar) * MAX_STRUCT_OR_UNION_SCALARS);
+            scalars->scalars = wmalloc(sizeof(StructOrUnionScalar *) * MAX_STRUCT_OR_UNION_SCALARS);
             scalars->count = 0;
             flatten_type(type, scalars, 0);
 
