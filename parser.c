@@ -3098,6 +3098,8 @@ static void parse_switch_statement(void) {
     // Add final break label
     add_jmp_target_instruction(cur_loop_break_dst);
 
+    free_longmap(case_values);
+
     // Pop the old switch state back, if any
     cur_loop_break_dst      = old_loop_break_dst;
     case_default_label      = old_case_default_label;
