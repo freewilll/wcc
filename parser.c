@@ -838,7 +838,7 @@ static Type *find_enum(char *identifier) {
 // Recursively add a struct member. In the simplest case, it just gets added. For anonymous
 // structs/unions, the function is called recursively with the sub members.
 static StructOrUnionMember *add_struct_member(char *identifier, Type *type, StructOrUnion *s, int *member_count) {
-    StructOrUnionMember *member = wcalloc(1, sizeof(StructOrUnionMember));
+    StructOrUnionMember *member = new_struct_member();
     member->identifier = identifier;
     member->type = dup_type(type);
 

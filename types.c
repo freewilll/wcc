@@ -6,6 +6,7 @@
 
 static List *allocated_types;
 static List *allocated_type_iterators;
+static List *allocated_struct_members;
 
 List *all_structs_and_unions;  // All structs/unions defined globally.
 
@@ -181,6 +182,7 @@ void print_type_in_english(Type *type) {
 void init_type_allocations(void) {
     allocated_types = new_list(1024);
     allocated_type_iterators = new_list(32);
+    allocated_struct_members = new_list(128);
     all_structs_and_unions = new_list(32);
 }
 
@@ -202,9 +204,11 @@ void free_types(void) {
     for (int i = 0; i < allocated_type_iterators->length; i++) free(allocated_type_iterators->elements[i]);
     free_list(allocated_type_iterators);
 
+    for (int i = 0; i < allocated_struct_members->length; i++) free(allocated_struct_members->elements[i]);
+    free_list(allocated_struct_members);
+
     for (int i = 0; i < all_structs_and_unions->length; i++) {
         StructOrUnion *s = all_structs_and_unions->elements[i];
-        for (StructOrUnionMember **pmember = s->members; *pmember; pmember++) free(*pmember);
         free(s->members);
         free(s);
     }
@@ -278,8 +282,15 @@ Type *new_struct_or_union(char *tag_identifier) {
 }
 
 
+StructOrUnionMember *new_struct_member(void) {
+    StructOrUnionMember *result = wcalloc(1, sizeof(StructOrUnionMember));
+    append_to_list(allocated_struct_members, result);
+    return result;
+}
+
 static StructOrUnionMember *dup_struct_or_union_member(StructOrUnionMember *src) {
     StructOrUnionMember *dst = wmalloc(sizeof(StructOrUnionMember));
+    append_to_list(allocated_struct_members, dst);
     dst->identifier = src->identifier;
     dst->type = dup_type(src->type);
     dst->offset = src->offset;

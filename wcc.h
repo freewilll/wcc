@@ -1004,6 +1004,7 @@ void free_types(void);
 Type *new_type(int type);
 Type *dup_type(Type *src);
 Type *new_struct_or_union(char *tag_identifier);
+StructOrUnionMember *new_struct_member(void);
 Type *integer_promote_type(Type *type);
 Type *make_pointer(Type *src);
 Type *make_pointer_to_void(void);
