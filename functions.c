@@ -1658,6 +1658,9 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
 
                 free(backup_fpa);
             }
+
+            free(scalars->scalars);
+            free(scalars);
         }
     }
 }
