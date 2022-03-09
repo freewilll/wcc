@@ -479,8 +479,7 @@ static void make_block_dominance_frontiers(Function *function) {
         }
     }
 
-    function->dominance_frontiers = wmalloc(block_count * sizeof(Set *));
-    for (int i = 0; i < block_count; i++) function->dominance_frontiers[i] = df[i];
+    function->dominance_frontiers = df;
 
     if (debug_ssa_dominance_frontiers) {
         printf("\nDominance frontiers:\n");
