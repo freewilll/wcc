@@ -582,23 +582,30 @@ static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2,
         members2 = s2->members;
     }
 
+    int result = 1;
+
     // The names must match and types must be compatible
     for (int i = 0; i < count; i++) {
         StructOrUnionMember *member1 = members1[i];
         StructOrUnionMember *member2 = members2[i];
 
         // Check for matching name
-        if ((member1->identifier == 0) != (member2->identifier == 0)) return 0;
-        if (strcmp(member1->identifier, member2->identifier)) return 0;
+        if ((member1->identifier == 0) != (member2->identifier == 0)) { result = 0; break; }
+        if (strcmp(member1->identifier, member2->identifier)) { result = 0; break; }
 
         // Check bit field sizes match
-        if (member1->bit_field_size != member2->bit_field_size) return 0;
+        if (member1->bit_field_size != member2->bit_field_size) { result = 0; break; }
 
         // Check types are compatible
-        if (!recursive_types_are_compatible(member1->type, member2->type, seen_tags, 0)) return 0;
+        if (!recursive_types_are_compatible(member1->type, member2->type, seen_tags, 0)) { result = 0; break; }
     }
 
-    return 1;
+    if (s1->is_union) {
+        free(members1);
+        free(members2);
+    }
+
+    return result;
 }
 
 static int functions_are_compatible(Type *type1, Type *type2, StrMap *seen_tags) {
