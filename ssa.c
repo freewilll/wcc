@@ -320,6 +320,7 @@ void make_block_dominance(Function *function) {
 
             // Update if changed & keep looping
             if (!set_eq(is2, dom[i])) {
+                free_set(dom[i]);
                 dom[i] = copy_set(is2);
                 changed = 1;
             }
