@@ -93,6 +93,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     if (stop_at == COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS) return;
 
     // Come out of SSA and coalesce live ranges
+    free_globals_and_var_blocks(function);
     sanity_test_ir_linkage(function);
     rename_phi_function_variables(function);
 

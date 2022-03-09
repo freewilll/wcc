@@ -1121,6 +1121,7 @@ int make_vreg_count(Function *function, int starting_count);
 void make_uevar_and_varkill(Function *function);
 void make_liveout(Function *function);
 void make_globals_and_var_blocks(Function *function);
+void free_globals_and_var_blocks(Function *function);
 void insert_phi_functions(Function *function);
 void rename_phi_function_variables(Function *function);
 void make_live_ranges(Function *function);

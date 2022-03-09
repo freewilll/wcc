@@ -733,6 +733,15 @@ void make_globals_and_var_blocks(Function *function) {
     function->globals = globals;
 }
 
+void free_globals_and_var_blocks(Function *function) {
+    int vreg_count = function->vreg_count;
+
+    for (int i = 1; i <= vreg_count; i++) free_set(function->var_blocks[i]);
+    free(function->var_blocks);
+
+    free_set(function->globals);
+}
+
 // Algorithm on page 501 of engineering a compiler
 void insert_phi_functions(Function *function) {
     Block *blocks = function->blocks;
