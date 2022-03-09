@@ -7,10 +7,12 @@
 Scope *global_scope;
 
 static List *allocated_scopes;
+static List *allocated_tags;
 
 // Initialize the global scope
 void init_scopes(void) {
     allocated_scopes = new_list(128);
+    allocated_tags = new_list(32);
 
     global_scope = wcalloc(1, sizeof(Scope));
     append_to_list(allocated_scopes, global_scope);
@@ -42,19 +44,18 @@ void free_scopes(void) {
 
             free(symbol);
         }
+
         free_list(scope->symbol_list);
         free_strmap(scope->symbols);
-
-        strmap_foreach(scope->tags, it) {
-            char *key = strmap_iterator_key(&it);
-            free(strmap_get(scope->tags, key));
-        }
         free_strmap(scope->tags);
 
         free(scope);
     }
 
     free_list(allocated_scopes);
+
+    for (int i = 0; i < allocated_tags->length; i++) free(allocated_tags->elements[i]);
+    free_list(allocated_tags);
 }
 
 // Initialize a local scope and set cur_scope as the parent
@@ -97,6 +98,7 @@ Symbol *lookup_symbol(char *name, Scope *scope, int recurse) {
 
 Tag *new_tag(char *identifier) {
     Tag *tag = wcalloc(1, sizeof(Tag));
+    append_to_list(allocated_tags, tag);
     tag->identifier = identifier;
     strmap_put(cur_scope->tags, identifier, tag);
 

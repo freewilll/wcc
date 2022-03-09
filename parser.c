@@ -2098,6 +2098,7 @@ static void parse_declaration(void) {
 
         char *global_identifier;
         wasprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, function->static_symbols->length + 1);
+        append_to_list(allocated_strings, global_identifier);
         symbol->global_identifier = global_identifier;
 
         append_to_list(function->static_symbols, symbol);
