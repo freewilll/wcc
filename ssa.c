@@ -301,12 +301,15 @@ void make_block_dominance(Function *function) {
 
             GraphEdge *e = cfg->nodes[i].pred;
             while (e) {
-                pred_intersections = set_intersection(pred_intersections, dom[e->from->id]);
+                set_intersection_to(pred_intersections, pred_intersections, dom[e->from->id]);
                 got_predecessors = 1;
                 e = e->next_pred;
             }
 
-            if (!got_predecessors) pred_intersections = new_set(block_count);
+            if (!got_predecessors) {
+                free_set(pred_intersections);
+                pred_intersections = new_set(block_count);
+            }
 
             // Union with {i}
             empty_set(is1);
@@ -318,15 +321,15 @@ void make_block_dominance(Function *function) {
                 dom[i] = copy_set(is2);
                 changed = 1;
             }
+
+            free_set(pred_intersections);
         }
     }
 
     free_set(is1);
     free_set(is2);
 
-    function->dominance = wcalloc(block_count, sizeof(Set));
-
-    for (int i = 0; i < block_count; i++) function->dominance[i] = dom[i];
+    function->dominance = dom;
 
     if (debug_ssa_dominance) {
         printf("\nDominance:\n");
@@ -339,6 +342,8 @@ void make_block_dominance(Function *function) {
 }
 
 void free_block_dominance(Function *function) {
+    int block_count = function->cfg->node_count;
+    for (int i = 0; i < block_count; i++) free_set(function->dominance[i]);
     free(function->dominance);
 }
 
