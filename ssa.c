@@ -689,7 +689,14 @@ void make_liveout(Function *function) {
     free(successor_liveout_versions);
 }
 
-// Algorithm on page 501 of engineering a compiler
+void free_liveout(Function *function) {
+    int block_count = function->cfg->node_count;
+    for (int i = 0; i < block_count; i++)
+        free_longset(function->liveout[i]);
+
+    free(function->liveout);
+}
+
 void make_globals_and_var_blocks(Function *function) {
     Block *blocks = function->blocks;
     int block_count = function->cfg->node_count;

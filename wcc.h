@@ -1120,6 +1120,7 @@ void free_dominance(Function *function);
 int make_vreg_count(Function *function, int starting_count);
 void make_uevar_and_varkill(Function *function);
 void make_liveout(Function *function);
+void free_liveout(Function *function);
 void make_globals_and_var_blocks(Function *function);
 void free_globals_and_var_blocks(Function *function);
 void insert_phi_functions(Function *function);

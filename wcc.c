@@ -109,6 +109,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     // Instruction selection
     if (log_compiler_phase_durations) debug_log("Instruction Selection");
     select_instructions(function);
+    free_liveout(function);
     free_dominance(function);
     compress_vregs(function);
     if (log_compiler_phase_durations) debug_log("Analyzing dominance");
@@ -124,6 +125,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     if (log_compiler_phase_durations) debug_log("Register allocation");
     sanity_test_ir_linkage(function);
     make_interference_graph(function, 1, 0);
+    free_liveout(function);
     free_dominance(function);
     allocate_registers(function);
     free_interference_graph(function);
