@@ -512,6 +512,7 @@ void free_dominance(Function *function) {
     free_block_dominance_frontiers(function);
     free_block_immediate_dominators(function);
     free_block_dominance(function);
+    free_uevar_and_varkill(function);
     free_control_flow_graph(function);
 }
 
@@ -561,6 +562,18 @@ void make_uevar_and_varkill(Function *function) {
             printf("\n");
         }
     }
+}
+
+void free_uevar_and_varkill(Function *function) {
+    int block_count = function->cfg->node_count;
+
+    for (int i = 0; i < block_count; i++) {
+        free_longset(function->uevar[i]);
+        free_longset(function->varkill[i]);
+    }
+
+    free(function->uevar);
+    free(function->varkill);
 }
 
 // Page 447 of Engineering a compiler
