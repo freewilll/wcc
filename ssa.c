@@ -1060,10 +1060,12 @@ void make_live_ranges(Function *function) {
     // Create the initial sets
     int *keys;
     int keys_count = longmap_keys(live_ranges, &keys);
+    List *allocated_longsets = new_list(128);
 
     for (int i = 0; i < keys_count; i++) {
         long key = keys[i];
         LongSet *s = new_longset();
+        append_to_list(allocated_longsets, s);
         longset_add(s, key);
         longmap_put(live_ranges, key, s);
     }
@@ -1104,6 +1106,8 @@ void make_live_ranges(Function *function) {
         LongSet *s = longmap_get(live_ranges, key);
         longset_add(deduped, (long) s);
     }
+
+    free_longmap(live_ranges);
 
     // Sort live ranges by first element of the live ranges set, vreg first, then
     // ssa_subscript. The sorting isn't necessary, but makes debugging & tests easier,
@@ -1146,6 +1150,8 @@ void make_live_ranges(Function *function) {
         if (debug_ssa_live_range) printf("}\n");
     }
 
+    free(live_ranges_array);
+
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_PHI_FUNCTION) continue;
 
@@ -1153,6 +1159,11 @@ void make_live_ranges(Function *function) {
         LR_ASSIGN(final_map, tac->src1);
         LR_ASSIGN(final_map, tac->src2);
     }
+
+    for (int i = 0; i < allocated_longsets->length; i++) free_longset(allocated_longsets->elements[i]);
+    free_list(allocated_longsets);
+    free_longset(deduped);
+    free_longmap(final_map);
 
     // Remove phi functions
     Block *blocks = function->blocks;
