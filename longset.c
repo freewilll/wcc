@@ -56,8 +56,7 @@ int longset_len(LongSet *ls) {
 }
 
 LongSet *longset_copy(LongSet *ls) {
-    LongSet *result = new_longset();
-
+    LongSet *result = wmalloc(sizeof(LongSet));
     result->longmap = longmap_copy(ls->longmap);
 
     return result;
