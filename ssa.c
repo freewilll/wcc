@@ -1759,6 +1759,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
         free(coalesces);
         free_longmap(pending_coalesces);
+        free_longmap(mc);
     } // while outer changed
 
     free(clobbers);
