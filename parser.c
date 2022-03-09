@@ -1763,8 +1763,10 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
             in->data = wmalloc(sizeof(double));
             *((double *) in->data) = scalar->fp_value;
         }
-        else if (scalar->type->type == TYPE_LONG_DOUBLE)
-            in->data = &scalar->fp_value;
+        else if (scalar->type->type == TYPE_LONG_DOUBLE) {
+            in->data = wmalloc(sizeof(long double));
+            *((long double *) in->data) = scalar->fp_value;
+        }
         else if (dst->bit_field_size) {
             // Bit field
             if (!in->data) {
@@ -1793,8 +1795,10 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
         else if (scalar->type->type == TYPE_ARRAY) {
             in->symbol = scalar->global_symbol;
         }
-        else
-            in->data = &scalar->int_value;
+        else {
+            in->data = wmalloc(sizeof(long));
+            *((long *) in->data) = scalar->int_value;
+        }
     }
 
     in->size = size;

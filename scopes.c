@@ -25,7 +25,23 @@ void init_scopes(void) {
 void free_scopes(void) {
     for (int i = 0; i < allocated_scopes->length; i++) {
         Scope *scope = allocated_scopes->elements[i];
-        for (int j = 0; j < scope->symbol_list->length; j++) free(scope->symbol_list->elements[j]);
+
+        for (int j = 0; j < scope->symbol_list->length; j++) {
+            Symbol *symbol = scope->symbol_list->elements[j];
+
+            List *initializers = symbol->initializers;
+            if (initializers) {
+                for (int j = 0; j < initializers->length; j++) {
+                    Initializer *in = initializers->elements[j];
+                    if (in->data) free(in->data);
+                    free(in);
+                }
+
+                free_list(initializers);
+            }
+
+            free(symbol);
+        }
         free_list(scope->symbol_list);
         free_strmap(scope->symbols);
 
