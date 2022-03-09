@@ -1123,6 +1123,7 @@ void make_liveout(Function *function);
 void make_globals_and_var_blocks(Function *function);
 void free_globals_and_var_blocks(Function *function);
 void insert_phi_functions(Function *function);
+void free_phi_functions(Function *function);
 void rename_phi_function_variables(Function *function);
 void make_live_ranges(Function *function);
 void blast_vregs_with_live_ranges(Function *function);

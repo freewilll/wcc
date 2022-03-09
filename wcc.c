@@ -102,6 +102,8 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     blast_vregs_with_live_ranges(function);
     coalesce_live_ranges(function, 1);
     if (stop_at == COMPILE_STOP_AFTER_LIVE_RANGES) return;
+
+    free_phi_functions(function);
     free_interference_graph(function);
 
     // Instruction selection

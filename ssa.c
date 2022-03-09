@@ -4,6 +4,8 @@
 
 #include "wcc.h"
 
+static List *allocated_phi_values;
+
 static void make_live_range_spill_cost(Function *function);
 
 typedef struct live_range {
@@ -749,6 +751,8 @@ void free_globals_and_var_blocks(Function *function) {
 
 // Algorithm on page 501 of engineering a compiler
 void insert_phi_functions(Function *function) {
+    allocated_phi_values = new_list(1024);
+
     Block *blocks = function->blocks;
     Graph *cfg = function->cfg;
     int block_count = cfg->node_count;
@@ -779,6 +783,8 @@ void insert_phi_functions(Function *function) {
                 }
             }
         }
+
+        free_set(work_list);
     }
 
     function->phi_functions = phi_functions;
@@ -808,6 +814,8 @@ void insert_phi_functions(Function *function) {
             while (e) { predecessor_count++; e = e->next_pred; }
 
             Value *phi_values = wcalloc(predecessor_count + 1, sizeof(Value));
+            append_to_list(allocated_phi_values, phi_values);
+
             for (int i = 0; i < predecessor_count; i++) {
                 init_value(&phi_values[i]);
                 phi_values[i].type = new_type(TYPE_LONG);
@@ -830,6 +838,19 @@ void insert_phi_functions(Function *function) {
         printf("\nIR with phi functions:\n");
         print_ir(function, 0, 0);
     }
+}
+
+void free_phi_functions(Function *function) {
+    int block_count = function->cfg->node_count;
+    for (int i = 0; i < block_count; i++) free_set(function->phi_functions[i]);
+    free(function->phi_functions);
+
+
+    for (int i = 0; i < allocated_phi_values->length; i++) {
+        free(allocated_phi_values->elements[i]);
+    }
+
+    free_list(allocated_phi_values);
 }
 
 static int new_subscript(Stack **stack, int *counters, int n) {
