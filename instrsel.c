@@ -22,8 +22,10 @@ int *cost_rules;                // Mapping of cost graph node id to x86 instruct
 int *accumulated_cost;          // Total cost of sub tree of a cost graph node
 LongSet **igraph_labels;        // Matched instruction rule ids for a igraph node id
 Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node id
-List *allocated_graphs;         // Keep track of allocations so they can be freed
-List *allocated_igraphs;        // Keep track of allocations so they can be freed
+
+List *allocated_graphs;         // Track Graph allocations
+List *allocated_igraphs;        // Track IGraph allocations
+List *allocated_igraph_nodes;   // Track IGraphNode allocations
 
 static int recursive_tile_igraphs(IGraph *igraph, int node_id);
 
@@ -173,6 +175,7 @@ static IGraph *merge_igraphs(IGraph *g1, IGraph *g2, int vreg) {
 
     int node_count = g1->node_count + g2->node_count;
     IGraphNode *inodes = wcalloc(node_count, sizeof(IGraphNode));
+    append_to_list(allocated_igraph_nodes, inodes);
 
     g->nodes = inodes;
     g->graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
@@ -293,6 +296,7 @@ static int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
 static void make_igraphs(Function *function, int block_id) {
     allocated_graphs = new_list(1024);
     allocated_igraphs = new_list(1024);
+    allocated_igraph_nodes = new_list(1024);
 
     Block *blocks = function->blocks;
 
@@ -313,6 +317,7 @@ static void make_igraphs(Function *function, int block_id) {
         tac = tac->next;
     }
 
+    // Allocate global igraphs
     igraphs = wmalloc(instr_count * sizeof(IGraph));
 
     int i = 0;
@@ -324,6 +329,7 @@ static void make_igraphs(Function *function, int block_id) {
         if (tac->src2) node_count++;
 
         IGraphNode *nodes = wcalloc(node_count, sizeof(IGraphNode));
+        append_to_list(allocated_igraph_nodes, nodes);
 
         Graph *graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
         append_to_list(allocated_graphs, graph);
@@ -337,7 +343,6 @@ static void make_igraphs(Function *function, int block_id) {
         igraphs[i].graph = graph;
         igraphs[i].nodes = nodes;
         igraphs[i].node_count = node_count;
-        append_to_list(allocated_igraphs, &(igraphs[i]));
 
         i++;
 
@@ -471,16 +476,17 @@ static void make_igraphs(Function *function, int block_id) {
 static void free_igraphs(Function *function) {
     for (int i = 0; i < allocated_graphs->length; i++)
         free_graph(allocated_graphs->elements[i]);
-
-    for (int i = 0; i < allocated_igraphs->length; i++) {
-        IGraph *ig = allocated_igraphs->elements[i];
-        if (ig->node_count) free(ig->nodes);
-    }
-
-    free(igraphs);
-
-    free_list(allocated_igraphs);
     free_list(allocated_graphs);
+
+    for (int i = 0; i < allocated_igraphs->length; i++)
+        free(allocated_igraphs->elements[i]);
+    free_list(allocated_igraphs);
+
+    for (int i = 0; i < allocated_igraph_nodes->length; i++)
+        free(allocated_igraph_nodes->elements[i]);
+    free_list(allocated_igraph_nodes);
+
+    free(igraphs); // Free global igraphs
 }
 
 // Recurse down src igraph, copying nodes to dst igraph and adding edges
@@ -519,13 +525,15 @@ static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id,
 // recursing through the src.
 static IGraph *simplify_igraph(IGraph *src) {
     IGraph *dst = wcalloc(1, sizeof(IGraph));
+    append_to_list(allocated_igraphs, dst);
 
     int node_count = src->node_count;
     IGraphNode *inodes = wcalloc(node_count, sizeof(IGraphNode));
+    append_to_list(allocated_igraph_nodes, inodes);
 
     dst->nodes = inodes;
     dst->graph = new_graph(node_count, MAX_INSTRUCTION_GRAPH_EDGE_COUNT);
-    append_to_list(allocated_graphs,dst->graph);
+    append_to_list(allocated_graphs, dst->graph);
     dst->node_count = node_count;
 
     if (debug_instsel_igraph_simplification) {
