@@ -697,8 +697,15 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
             }
 
             add_ir_call_reg_instructions(ir, function_call_values, register_count);
+
+            free(function_call_values);
         }
     }
+
+    free(arg_values);
+    free(param_indexes);
+    free(has_struct_or_union_return_values);
+    free(param_locations);
 }
 
 // Add instructions to copy a struct to the stack
