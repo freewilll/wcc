@@ -1024,6 +1024,8 @@ void rename_phi_function_variables(Function *function) {
 
     for (int i = 1; i <= vreg_count; i++) free_stack(stack[i]);
     free(stack);
+
+    free(counters);
 }
 
 static int live_range_cmpfunc(const void *a, const void *b) {
