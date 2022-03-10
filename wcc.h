@@ -1136,6 +1136,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
 void free_interference_graph(Function *function);
 void coalesce_live_ranges(Function *function, int check_register_constraints);
 void make_preferred_live_range_preg_indexes(Function *function);
+void free_preferred_live_range_preg_indexes(Function *function);
 
 // functions.c
 void init_function_allocations(void);

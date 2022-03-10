@@ -1885,3 +1885,7 @@ void make_preferred_live_range_preg_indexes(Function *function) {
 
     function->preferred_live_range_preg_indexes = preferred_live_range_preg_indexes;
 }
+
+void free_preferred_live_range_preg_indexes(Function *function) {
+    free_and_null(function->preferred_live_range_preg_indexes);
+}
