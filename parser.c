@@ -266,7 +266,7 @@ Value *make_string_literal_value_from_cur_string_literal(void) {
 
     // Copy string literal data
     int count = cur_string_literal.size * (cur_string_literal.is_wide_char ? 4 : 1);
-    char *copy = malloc(count);
+    char *copy = wmalloc(count);
     for (int i = 0; i < count; i++) copy[i] = cur_string_literal.data[i];
     append_to_list(allocated_strings, copy);
     string_literals[string_literal_count].data = copy;
