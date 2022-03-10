@@ -380,6 +380,10 @@ void init_vreg_locations(Function *function) {
     function->vreg_locations = vreg_locations;
 }
 
+void free_vreg_locations(Function *function) {
+    free(function->vreg_locations);
+
+}
 void allocate_registers(Function *function) {
     init_vreg_locations(function);
 
@@ -402,5 +406,7 @@ void allocate_registers(Function *function) {
 
     assign_vreg_locations(function);
     remove_preg_self_moves(function);
+
+    free_vreg_locations(function);
 }
 

@@ -1159,6 +1159,7 @@ RegisterSet function_return_value_register_set;
 
 void compress_vregs(Function *function);
 void init_vreg_locations(Function *function);
+void free_vreg_locations(Function *function);
 void allocate_registers_top_down(Function *function, int live_range_start, int physical_register_count, int preg_class);
 void allocate_registers(Function *function);
 void init_allocate_registers(void);
