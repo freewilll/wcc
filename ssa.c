@@ -1227,7 +1227,7 @@ void blast_vregs_with_live_ranges(Function *function) {
 // Set preg_class (PC_INT or PC_SSE) for all vregs in the IR by looking at the type
 // The first 28 values are for the available physical registers,
 // 1-12 is for integers, 13-28 for floating point values.
-static void set_preg_classes(Function *function) {
+static void make_vreg_preg_classes(Function *function) {
     int count = function->vreg_count;
     if (count < PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT) count = PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT;
     char *vreg_preg_classes = wcalloc(count + 1, sizeof(char));
@@ -1258,6 +1258,10 @@ static void set_preg_classes(Function *function) {
             vreg_preg_classes[tac->src2->vreg] = tac->src2->preg_class;
         }
     }
+}
+
+void free_vreg_preg_classes(Function *function) {
+    free_and_null(function->vreg_preg_classes);
 }
 
 void add_ig_edge(char *ig, int vreg_count, int to, int from) {
@@ -1779,7 +1783,8 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
     make_liveout(function);
     if (log_compiler_phase_durations) debug_log("Make preferred LR indexes");
     make_preferred_live_range_preg_indexes(function);
-    set_preg_classes(function);
+    free_vreg_preg_classes(function);
+    make_vreg_preg_classes(function);
 
     if (!opt_enable_live_range_coalescing) {
         make_live_range_spill_cost(function);

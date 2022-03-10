@@ -1129,6 +1129,7 @@ void free_phi_functions(Function *function);
 void rename_phi_function_variables(Function *function);
 void make_live_ranges(Function *function);
 void free_live_range_spill_cost(Function *function);
+void free_vreg_preg_classes(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
 void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void make_interference_graph(Function *function, int include_clobbers, int include_instrsel_constraints);
