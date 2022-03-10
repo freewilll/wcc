@@ -713,6 +713,8 @@ void move_long_doubles_to_the_stack(Function *function) {
         if (tac->src1 && tac->src1->vreg && local_indexes[tac->src1->vreg]) { tac->src1->local_index = local_indexes[tac->src1->vreg]; tac->src1->vreg = 0; }
         if (tac->src2 && tac->src2->vreg && local_indexes[tac->src2->vreg]) { tac->src2->local_index = local_indexes[tac->src2->vreg]; tac->src2->vreg = 0; }
     }
+
+    free(local_indexes);
 }
 
 void make_stack_register_count(Function *function) {
