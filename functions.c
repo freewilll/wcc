@@ -1437,6 +1437,8 @@ void add_function_param_moves(Function *function, char *identifier) {
     }
 
     free(register_param_vregs);
+    free(register_param_stack_indexes);
+    free(has_address_of);
     free(stack_param_vregs);
     free(stack_index_remap);
 

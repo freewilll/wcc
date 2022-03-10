@@ -476,6 +476,10 @@ void reverse_function_argument_order(Function *function) {
     }
 
     free(function_args);
+
+    free(arg_counts);
+    free(calls);
+    free(call_starts);
 }
 
 // Insert tac instruction before ir
@@ -777,6 +781,8 @@ void allocate_value_stack_indexes(Function *function) {
         printf("Moved %d registers to stack\n", stack_register_count);
 
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
+
+    free(stack_index_map);
 }
 
 // If a function returns a value and it's called, the parser will always allocate a
