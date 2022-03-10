@@ -125,7 +125,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
         if (preferred_live_range_preg_index && !in_set(neighbor_colors, vreg_locations[preferred_live_range_preg_index].preg)) {
             vreg_locations[vreg].preg = vreg_locations[preferred_live_range_preg_index].preg;
             if (debug_graph_coloring) printf("  allocated preferred LR %d preg %d\n", preferred_live_range_preg_index, vreg_locations[preferred_live_range_preg_index].preg);
-            return;
+            goto exit_color_vreg;
         }
         else {
             // Find first free register in the range preg_live_range_start - 1 to preg_live_range_end - 1
@@ -134,7 +134,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
                 if (!in_set(neighbor_colors, j)) {
                     vreg_locations[vreg].preg = j;
                     if (debug_graph_coloring) printf("  allocated preg %d to vreg %d\n", j, vreg);
-                    return;
+                    goto exit_color_vreg;
                 }
             }
         }
@@ -142,6 +142,7 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
         panic("Should not get here");
     }
 
+exit_color_vreg:;
     free_set(neighbor_colors);
 }
 
