@@ -52,6 +52,8 @@ int debug_string_counter;                   // Counter to uniquely identify a de
 int last_outputted_filename_id;             // Keep track of last printed .loc filename id
 int last_outputted_filename_line_number;    // Keep track of last printed .loc line number
 
+static List *allocated_strings;
+
 static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
     if (preg < 0 || preg >= 32) panic("Illegal preg %d", preg);
@@ -122,7 +124,6 @@ void make_stack_offsets(Function *function, char *function_name) {
 
     // Determine size & alignments for all variables on the stack
     int *stack_alignments = wcalloc((count + 1), sizeof(int));
-
     int *stack_sizes = wcalloc((count + 1), sizeof(int));
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -172,6 +173,10 @@ void make_stack_offsets(Function *function, char *function_name) {
         if (tac ->dst && tac ->dst->stack_index < 0) tac ->dst->stack_offset = stack_offsets[-tac ->dst->stack_index];
         if (tac->src2 && tac->src2->stack_index < 0) tac->src2->stack_offset = stack_offsets[-tac->src2->stack_index];
     }
+
+    free(stack_alignments);
+    free(stack_sizes);
+    free(stack_offsets);
 }
 
 // Get offset from the stack in bytes, from a stack_index for function args
@@ -492,7 +497,7 @@ static Tac *add_add_rsp(Tac *ir, int amount) {
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
 void add_final_x86_instructions(Function *function, char *function_name) {
-    int stack_size;       // Size of the stack containing local variables and spilled registers
+    int stack_size;             // Size of the stack containing local variables and spilled registers
     int *saved_registers;       // Callee saved registers
     int added_end_of_function;  // To ensure a double epilogue isn't emitted
 
@@ -600,6 +605,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                 if (function_type->function->is_variadic) {
                     char *buffer;
                     wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
+                    append_to_list(allocated_strings, buffer);
                     ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
                 }
 
@@ -607,14 +613,19 @@ void add_final_x86_instructions(Function *function, char *function_name) {
 
                 if (!orig_ir->src1->function_symbol) {
                     wasprintf(&(tac->x86_template), "callq *%%v1q");
+                    append_to_list(allocated_strings, tac->x86_template);
                     tac->src1 = orig_ir->src1;
                 }
                 else {
                     // If a function has been defined locally, call it directly, otherwise use the PLT
-                    if (orig_ir->src1->function_symbol->function && orig_ir->src1->function_symbol->function->is_defined)
+                    if (orig_ir->src1->function_symbol->function && orig_ir->src1->function_symbol->function->is_defined) {
                          wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
-                    else
+                         append_to_list(allocated_strings, tac->x86_template);
+                     }
+                    else {
                          wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
+                         append_to_list(allocated_strings, tac->x86_template);
+                     }
                  }
 
                 ir = insert_instruction_after(ir, tac);
@@ -639,6 +650,8 @@ void add_final_x86_instructions(Function *function, char *function_name) {
     if (!added_end_of_function) {
         insert_end_of_function(ir, saved_registers);
     }
+
+    free(saved_registers);
 }
 
 // Remove all possible IR_NOP instructions
@@ -1033,6 +1046,8 @@ void init_codegen(void) {
 
     last_outputted_filename_id = 0;
     last_outputted_filename_line_number = 0;
+
+    allocated_strings = new_list(128);
 }
 
 void free_codegen(void) {
@@ -1041,4 +1056,6 @@ void free_codegen(void) {
     strmap_foreach(debug_strings, it) free(strmap_iterator_key(&it));
     free_strmap(debug_strings);
 
+    for (int i = 0; i < allocated_strings->length; i++) free(allocated_strings->elements[i]);
+    free_list(allocated_strings);
 }
