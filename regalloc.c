@@ -250,6 +250,8 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 
     free_set(constrained);
     free_set(unconstrained);
+    free_set(preferred_pregs);
+    free(ordered_nodes);
 }
 
 // Called once at startup
