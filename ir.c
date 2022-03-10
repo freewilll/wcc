@@ -829,7 +829,11 @@ static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Va
     Value *arg_value = dup_value(function_call_value);
     arg_value->function_call_arg_index = int_arg_index;
 
+
+    FunctionParamAllocation *fpa = init_function_param_allocaton(NULL);
     FunctionParamLocations *fpl = wmalloc(sizeof(FunctionParamLocations));
+    append_to_list(fpa->param_locations, fpl);
+
     arg_value->function_call_arg_locations = fpl;
     fpl->locations = wmalloc(sizeof(FunctionParamLocation));
     memset(fpl->locations, -1, sizeof(FunctionParamLocation));
