@@ -436,9 +436,9 @@ static void make_block_immediate_dominators(Function *function) {
         for (int i = 0; i < block_count; i++) printf("%d: %d\n", i, idoms[i]);
     }
 
-    function->idom = wcalloc(block_count, sizeof(int));
-    for (int i = 0; i < block_count; i++) function->idom[i] = idoms[i];
+    function->idom = idoms;
 
+    free(rpos_order);
     free(rpos);
     free(visited);
 }
