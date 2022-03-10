@@ -466,14 +466,17 @@ int main(int argc, char **argv) {
         char *preprocessor_output = preprocess(input_filename, directive_cli_strings);
 
         char *compiler_output_filename =
-            !run_assembler && !run_linker ? (output_filename ? strdup(output_filename) : strdup(replace_extension(input_filename, "s")))
+            !run_assembler && !run_linker ? (output_filename ? strdup(output_filename) : replace_extension(input_filename, "s"))
             : make_temp_filename("/tmp/XXXXXX.s");
 
         if (print_filenames) printf("Compiling %s to %s\n", input_filename, compiler_output_filename);
 
         compile(preprocessor_output, input_filename, compiler_output_filename);
 
-        if (run_assembler) assembler_input_filenames[i] = compiler_output_filename;
+        if (run_assembler)
+            assembler_input_filenames[i] = compiler_output_filename;
+        else
+            free(compiler_output_filename);
 
         if (print_symbols) dump_symbols();
         if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
@@ -491,7 +494,7 @@ int main(int argc, char **argv) {
             if (!input_filename) continue;
 
             char *assembler_output_filename =
-                !run_linker ? (output_filename ? output_filename : replace_extension(single_target ? input_filenames->elements[0] : input_filename, "o"))
+                !run_linker ? (output_filename ? strdup(output_filename) : replace_extension(single_target ? input_filenames->elements[0] : input_filename, "o"))
                 : make_temp_filename("/tmp/XXXXXX.o");
 
             if (print_filenames) printf("Assembling %s to %s\n", input_filename, assembler_output_filename);
@@ -504,7 +507,10 @@ int main(int argc, char **argv) {
             int result = system(command);
             if (result != 0) exit(result >> 8);
 
-            if (run_linker) linker_input_filenames[i] = assembler_output_filename;
+            if (run_linker)
+                linker_input_filenames[i] = assembler_output_filename;
+            else
+                free(assembler_output_filename);
         }
     }
 
