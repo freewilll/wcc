@@ -105,6 +105,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
 
     free_phi_functions(function);
     free_interference_graph(function);
+    free_live_range_spill_cost(function);
 
     // Instruction selection
     if (log_compiler_phase_durations) debug_log("Instruction Selection");
@@ -129,6 +130,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     free_dominance(function);
     allocate_registers(function);
     free_interference_graph(function);
+    free_live_range_spill_cost(function);
     remove_stack_self_moves(function);
     add_spill_code(function);
 

@@ -7,6 +7,7 @@
 static List *allocated_phi_values;
 
 static void make_live_range_spill_cost(Function *function);
+void free_live_range_spill_cost(Function *function);
 
 typedef struct live_range {
     LongSet *set;
@@ -1655,6 +1656,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
     while (outer_changed) {
         outer_changed = 0;
 
+        free_live_range_spill_cost(function);
         make_live_range_spill_cost(function);
         free_interference_graph(function);
         make_interference_graph(function, 0, 1);
@@ -1860,6 +1862,10 @@ static void make_live_range_spill_cost(Function *function) {
             printf("%d: %d\n", i, spill_cost[i]);
 
     }
+}
+
+void free_live_range_spill_cost(Function *function) {
+    free_and_null(function->spill_cost);
 }
 
 void make_preferred_live_range_preg_indexes(Function *function) {
