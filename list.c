@@ -9,7 +9,7 @@ void free_circular_linked_list(CircularLinkedList *cll) {
     CircularLinkedList *l = head;
     do {
         CircularLinkedList *next = l->next;
-        free(l);
+        wfree(l);
         l = next;
     } while (l != head);
 }
@@ -34,8 +34,8 @@ List *new_list(int initial_allocation) {
 }
 
 void free_list(List *l) {
-    free(l->elements);
-    free(l);
+    wfree(l->elements);
+    wfree(l);
 }
 
 static int round_up(int length) {

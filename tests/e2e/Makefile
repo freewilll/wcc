@@ -30,10 +30,10 @@ stack-check.o: stack-check.c
 	gcc ${GCC_OPTS} stack-check.c -c
 
 test-%.s: test-%.c ../../wcc ../../include/stdarg.h
-	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
+	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
 
-test-%-wcc: test-%.s stack-check.o ../test-lib.o ../utils.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o -o $@
+test-%-wcc: test-%.s stack-check.o ../test-lib.o ../utils.o ../memory.o
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o ../memory.o -o $@
 
 run-test-%-wcc: test-%-wcc
 	./$<
@@ -55,8 +55,8 @@ test-arithmetic-types-move-torture.c: gen-test-arithmetic-types-move-torture
 run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
 	@echo wcc tests passed
 
-test-%-gcc: test-%.c stack-check.o ../test-lib.o ../utils.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o -o $@ -w
+test-%-gcc: test-%.c stack-check.o ../test-lib.o ../utils.o ../memory.o
+	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o ../memory.o -o $@ -w
 
 run-test-%-gcc: test-%-gcc
 	./$<
@@ -74,10 +74,10 @@ test-abi-function-callee-gcc.o: test-abi-function-callee.c test-abi.h ../../wcc
 	gcc ${GCC_OPTS} -c -o test-abi-function-callee-gcc.o test-abi-function-callee.c
 
 test-abi-function-caller-wcc.o: test-abi-function-caller.c test-abi.h ../../wcc
-	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-caller-wcc.o test-abi-function-caller.c
+	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-caller-wcc.o test-abi-function-caller.c
 
 test-abi-function-callee-wcc.o: test-abi-function-callee.c test-abi.h ../../wcc
-	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-callee-wcc.o test-abi-function-callee.c
+	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-callee-wcc.o test-abi-function-callee.c
 
 test-abi-gcc-gcc: stack-check.o ../test-lib.o test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
 	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-gcc-gcc test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
@@ -103,7 +103,7 @@ test-shlib-lib-gcc.o: test-shlib-lib.c test-shlib.h
 	gcc ${GCC_OPTS} -c -fPIC -o test-shlib-lib-gcc.o test-shlib-lib.c
 
 test-shlib-lib-wcc.o: test-shlib-lib.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-lib-wcc.o test-shlib-lib.c
+	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-lib-wcc.o test-shlib-lib.c
 
 libtest-shlib-lib-gcc.so: test-shlib-lib-gcc.o
 	gcc test-shlib-lib-gcc.o -shared -o libtest-shlib-lib-gcc.so
@@ -115,10 +115,10 @@ test-shlib-main-gcc.o: test-shlib-main.c test-shlib.h
 	gcc ${GCC_OPTS} -c -fPIC -o test-shlib-main-gcc.o test-shlib-main.c
 
 test-shlib-main-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-main-wcc.o test-shlib-main.c
+	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-main-wcc.o test-shlib-main.c
 
 test-shlib-main-no-pic-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} --rule-coverage-file wcc-tests.rulecov -c -o test-shlib-main-no-pic-wcc.o test-shlib-main.c
+	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-shlib-main-no-pic-wcc.o test-shlib-main.c
 
 test-shlib-gcc-gcc: test-shlib-main-gcc.o libtest-shlib-lib-gcc.so
 	gcc test-shlib-main-gcc.o -L. -l test-shlib-lib-gcc ../test-lib.o -o test-shlib-gcc-gcc

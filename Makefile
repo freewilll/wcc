@@ -16,6 +16,7 @@ SOURCES = \
   instrrules-generated.c \
   codegen.c \
   utils.c \
+  memory.c \
   error.c \
   set.c \
   stack.c \
@@ -42,8 +43,8 @@ internals.c: internals.h
 	cat internals.h | sed ':a;N;$$!ba;s/\n/\\n/g;s/^/    return "/;s/$$/";/' >> internals.c
 	echo "}" >> internals.c
 
-instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c longmap.c types.c scopes.c list.c set.c strmap.c wcc.h
-	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c longmap.c types.c scopes.c list.c set.c strmap.c
+instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c wcc.h
+	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
@@ -62,7 +63,7 @@ WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
 WCC2_ASSEMBLIES := ${WCC2_SOURCES:.c=.s}
 
 build/wcc2/%.s: %.c wcc
-	./wcc ${WCC_OPTS} --rule-coverage-file wcc2.rulecov -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
+	./wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc2.rulecov -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 wcc2: ${WCC2_ASSEMBLIES} build/wcc2/main.s
 	gcc ${GCC_OPTS} ${WCC2_ASSEMBLIES} build/wcc2/main.s -o wcc2
@@ -72,7 +73,7 @@ WCC3_SOURCES := ${SOURCES:%=build/wcc3/%}
 WCC3_ASSEMBLIES := ${WCC3_SOURCES:.c=.s}
 
 build/wcc3/%.s: %.c wcc2
-	./wcc2 ${WCC_OPTS} -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
+	./wcc2 ${WCC_OPTS} --fail-on-leaked-memory -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 wcc3: ${WCC3_ASSEMBLIES} build/wcc3/main.s
 	gcc ${GCC_OPTS} ${WCC3_ASSEMBLIES} build/wcc3/main.s -o wcc3
@@ -85,7 +86,7 @@ test-self-compilation: ${WCC2_ASSEMBLIES} build/wcc2/main.s ${WCC3_ASSEMBLIES} b
 	@echo self compilation test passed
 
 .PHONY: test-all
-test-all: wcc internals.c utils.c include/stdarg.h
+test-all: wcc internals.c utils.c memory.c include/stdarg.h
 	cd tests && ${MAKE} all
 
 .PHONY: test

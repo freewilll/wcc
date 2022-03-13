@@ -114,7 +114,7 @@ static void init_cpp_from_fh(FILE *f, char *path) {
     fclose(f);
 
     state.input[state.input_size] = 0;
-    state.filename = strdup(path);
+    state.filename = wstrdup(path);
     cur_filename = state.filename;
     cur_line = 1;
     state.hchar_lex_state = HLS_START_OF_LINE;
@@ -129,7 +129,7 @@ static void output_line_directive(int offset, int add_eol, CppToken *token) {
     char *filename = state.override_filename ? state.override_filename : state.filename;
     sprintf(buf, "# %d \"%s\"%s", state.line_number_offset + token->line_number + offset, filename, add_eol ? "\n" : "");
     append_to_string_buffer(output, buf);
-    free(buf);
+    wfree(buf);
 }
 
 // If the output has an amount newlines > threshold, collapse them into a # line statement
@@ -172,19 +172,19 @@ static void run_preprocessor_on_file(char *filename, int first_file) {
 
     collapse_trailing_newlines(0, 0, 0);
 
-    free(state.input);
-    free(state.filename);
+    wfree(state.input);
+    wfree(state.filename);
 
     LineMap *lm = state.line_map_start;
     while (lm) {
         LineMap *next = lm->next;
-        free(lm);
+        wfree(lm);
         lm = next;
     } while (lm);
 }
 
 void init_cpp_from_string(char *string) {
-    state.input = strdup(string);
+    state.input = wstrdup(string);
     state.input_size = strlen(string);
     state.filename = 0;
 
@@ -247,9 +247,9 @@ static CppToken *dup_cll(CppToken *src) {
 
 // Free a CPP token
 static void free_cpp_token(CppToken *token) {
-    if (token->str) free(token->str);
-    if (token->whitespace) free(token->whitespace);
-    free(token);
+    if (token->str) wfree(token->str);
+    if (token->whitespace) wfree(token->whitespace);
+    wfree(token);
 }
 
 // Create a new CPP token
@@ -344,7 +344,7 @@ void init_directives(void) {
 void free_directive(Directive *d) {
     if (d) {
         if (d->param_identifiers) free_strmap(d->param_identifiers);
-        free(d);
+        wfree(d);
     }
 }
 
@@ -404,7 +404,7 @@ void transform_trigraphs(void) {
         else output[op++] = state.input[ip++];
     }
 
-    free(state.input);
+    wfree(state.input);
 
     output[op] = 0;
     state.input = output;
@@ -426,7 +426,7 @@ void strip_backslash_newlines(void) {
     LineMap *lm = state.line_map;
 
     if (state.input_size == 0) {
-        free(state.input);
+        wfree(state.input);
         state.input = output;
         return;
     }
@@ -456,7 +456,7 @@ void strip_backslash_newlines(void) {
         line_number++;
     }
 
-    free(state.input);
+    wfree(state.input);
 
     output[op] = 0;
     state.input = output;
@@ -716,7 +716,7 @@ static void cpp_next() {
 
         if (c1 == '\n') {
             state.token = new_cpp_token(CPP_TOK_EOL);
-            state.token->str = strdup("\n");
+            state.token->str = wstrdup("\n");
             state.token->line_number = state.line_number; // Needs to be the line number of the \n token, not the next token
             state.hchar_lex_state = HLS_START_OF_LINE;
             advance_ip();
@@ -906,7 +906,7 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
 }
 
 void free_function_actual_parameters(CppToken **actuals) {
-    free(actuals); // The tokens are freed as part of the garbage freeing
+    wfree(actuals); // The tokens are freed as part of the garbage freeing
 }
 
 // Call strset_union and register the allocated strset for freeing later on.
@@ -1272,7 +1272,7 @@ static int open_include_file(char *path, int is_system_include) {
         char *full_path;
         wasprintf(&full_path, "%s%s", get_current_file_path(), path);
         int ok = try_and_open_include_file(full_path, path);
-        free(full_path);
+        wfree(full_path);
         if (ok) return 1;
     }
 
@@ -1280,7 +1280,7 @@ static int open_include_file(char *path, int is_system_include) {
         char *full_path;
         wasprintf(&full_path, "%s/%s", cip->path, path);
         int ok = try_and_open_include_file(full_path, path);
-        free(full_path);
+        wfree(full_path);
         if (ok) return 1;
     }
 
@@ -1289,7 +1289,7 @@ static int open_include_file(char *path, int is_system_include) {
         char *full_path;
         wasprintf(&full_path, "%s%s", include_path, path);
         int ok = try_and_open_include_file(full_path, path);
-        free(full_path);
+        wfree(full_path);
         if (ok) return 1;
     }
 
@@ -1355,7 +1355,7 @@ static void parse_include() {
     run_preprocessor_on_file(state.filename, 0);
     state.include_depth--;
 
-    free(state.conditional_include_stack);
+    wfree(state.conditional_include_stack);
 
     // Restore parsing state
     state = backup_state;
@@ -1365,7 +1365,7 @@ static void parse_include() {
     char *filename = state.override_filename ? state.override_filename : state.filename;
     sprintf(buf, "# %d \"%s\" 2", state.line_number_offset + state.line_number + 1, filename);
     append_to_string_buffer(output, buf);
-    free(buf);
+    wfree(buf);
 }
 
 static CppToken *parse_define_replacement_tokens(void) {
@@ -1384,7 +1384,7 @@ static CppToken *parse_define_replacement_tokens(void) {
     if (result->kind == CPP_TOK_PASTE) error("## at end of macro replacement list");
 
     // Clear whitespace on initial token
-    free(result->next->whitespace);
+    wfree(result->next->whitespace);
     result->next->whitespace = NULL;
 
     return result;
@@ -1529,7 +1529,7 @@ static long parse_conditional_expression() {
     free_string_buffer(rendered, 0);
     init_lexer_from_string(data);
     Value *value = parse_constant_integer_expression(1);
-    free(data);
+    wfree(data);
     free_lexer();
 
     return value->int_value;
@@ -1747,7 +1747,7 @@ static void parse_directive(void) {
             if (!state.conditional_include_stack->prev) error("Found an #endif without an #if");
 
             ConditionalInclude *prev = state.conditional_include_stack->prev;
-            free(state.conditional_include_stack);
+            wfree(state.conditional_include_stack);
             state.conditional_include_stack = prev;
 
             break;
@@ -1857,7 +1857,7 @@ void free_cpp_allocated_garbage() {
     free_list(allocated_tokens);
 
     for (int i = 0; i < allocated_tokens_duplicates->length; i++)
-        free(allocated_tokens_duplicates->elements[i]);
+        wfree(allocated_tokens_duplicates->elements[i]);
     free_list(allocated_tokens_duplicates);
 
     // Free any allocated strsets
@@ -1867,7 +1867,7 @@ void free_cpp_allocated_garbage() {
 
     // Free any allocated strings
     for (int i = 0; i < allocated_strings->length; i++)
-        free(allocated_strings->elements[i]);
+        wfree(allocated_strings->elements[i]);
     free_list(allocated_strings);
 }
 
@@ -1875,12 +1875,12 @@ Directive *parse_cli_define(char *string) {
     init_cpp_from_string(string);
     cpp_next();
     Directive *d = parse_define_tokens();
-    free(state.input);
+    wfree(state.input);
     return d;
 }
 
 static void parse_cli_directive_string(char *expr) {
-    expr = strdup(expr);
+    expr = wstrdup(expr);
 
     CliDirective *cli_directive = wmalloc(sizeof(CliDirective));
     cli_directive->next = 0;
@@ -1900,7 +1900,7 @@ static void parse_cli_directive_string(char *expr) {
         value = "1";
     }
 
-    cli_directive->identifier = strdup(key);
+    cli_directive->identifier = wstrdup(key);
     cli_directive->directive = parse_cli_define(value);
 
     if (!cli_directives) cli_directives = cli_directive;
@@ -1910,7 +1910,7 @@ static void parse_cli_directive_string(char *expr) {
         cd->next = cli_directive;
     }
 
-    free(expr);
+    wfree(expr);
 }
 
 static void parse_cli_directive_strings(List *cli_directive_strings) {
@@ -1926,8 +1926,8 @@ static void free_cli_directives(void) {
     CliDirective *cd = cli_directives;
     while (cd) {
         CliDirective *next = cd->next;
-        free(cd->identifier);
-        free(cd);
+        wfree(cd->identifier);
+        wfree(cd);
         cd = next;
     }
 
@@ -1963,7 +1963,7 @@ char *preprocess(char *filename, List *cli_directive_strings) {    init_cpp();
     free_directives();
     free_cpp_allocated_garbage();
 
-    free(state.conditional_include_stack);
+    wfree(state.conditional_include_stack);
     init_cpp(); // For the next round
 
     free_cli_directives();
@@ -1991,5 +1991,5 @@ void preprocess_to_file(char *input_filename, char *output_filename, List *cli_d
     fprintf(cpp_output_file, "%s", data);
     if (cpp_output_file != stdout) fclose(cpp_output_file);
 
-    free(data);
+    wfree(data);
 }

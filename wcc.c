@@ -33,7 +33,7 @@ char free_memory_for_translation_unit(void) {
 }
 
 char *make_temp_filename(char *template) {
-    template = strdup(template);
+    template = wstrdup(template);
     int fd = mkstemps(template, 2);
     if (fd == -1) {
         perror("in make_temp_filename");

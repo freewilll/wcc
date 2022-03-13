@@ -50,10 +50,10 @@ static void parse_compound_statement(void);
 static BaseType *base_type;
 
 // Duplicate a string an track it in allocate_strings
-static char *parser_strdup(char *str) {
+static char *parser_wstrdup(char *str) {
     if (!str) return NULL;
 
-    char *result = strdup(str);
+    char *result = wstrdup(str);
     append_to_list(allocated_strings, result);
     return result;
 }
@@ -84,7 +84,7 @@ Tac *add_parser_instruction(int operation, Value *dst, Value *src1, Value *src2)
     if (cur_filename) {
         filename = strmap_get(origin_filenames, cur_filename);
         if (!filename) {
-            filename = parser_strdup(cur_filename);
+            filename = parser_wstrdup(cur_filename);
             strmap_put(origin_filenames, filename, filename);
         }
     }
@@ -658,7 +658,7 @@ static Type *parse_function_type(void) {
             }
             else {
                 type = new_type(TYPE_INT);
-                cur_type_identifier = parser_strdup(cur_identifier);
+                cur_type_identifier = parser_wstrdup(cur_identifier);
                 next();
             }
 
@@ -747,7 +747,7 @@ static void parse_function_paramless_declaration_list(Function *function) {
             if (cur_token == TOK_COMMA) next();
         }
 
-        free(base_type);
+        wfree(base_type);
 
         while (cur_token == TOK_SEMI) consume(TOK_SEMI, ";");
     }
@@ -766,7 +766,7 @@ Type *parse_direct_declarator(void) {
         // Set cur_type_identifier only once. The caller is expected to set
         // cur_type_identifier to zero. This way, the first parsed identifier
         // is kept.
-        if (!cur_type_identifier) cur_type_identifier = parser_strdup(cur_identifier);
+        if (!cur_type_identifier) cur_type_identifier = parser_wstrdup(cur_identifier);
         next();
     }
 
@@ -807,7 +807,7 @@ Type *parse_type_name(void) {
     BaseType *base_type = parse_declaration_specifiers();
     base_type->type->storage_class = base_type->storage_class;
     Type *result = concat_types(parse_declarator(), base_type->type);
-    free(base_type);
+    wfree(base_type);
     return result;
 }
 
@@ -892,7 +892,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
     // A typedef identifier be the same as a struct tag, in this context, the lexer
     // sees a typedef tag, but really it's a struct tag.
     if (cur_token == TOK_IDENTIFIER || cur_token == TOK_TYPEDEF_TYPE) {
-        identifier = parser_strdup(cur_identifier);
+        identifier = parser_wstrdup(cur_identifier);
         next();
     }
 
@@ -964,7 +964,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
                 else error("Expected a ;, or ,");
             } // Parsing members with member_base_type
 
-            free(member_base_type);
+            wfree(member_base_type);
 
             if (cur_token == TOK_RCURLY) break;
         } // Parsing struct
@@ -986,7 +986,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
 
         // Didn't find a struct, but that's ok, create a incomplete one
         // to be populated later when it's defined.
-        type = new_struct_or_union(parser_strdup(identifier));
+        type = new_struct_or_union(parser_wstrdup(identifier));
         StructOrUnion *s = type->struct_or_union_desc;
         s->is_incomplete = 1;
 
@@ -1007,9 +1007,9 @@ static Type *parse_enum_type_specifier(void) {
     // A typedef identifier be the same as a struct tag, in this context, the lexer
     // sees a typedef tag, but really it's a struct tag.
     if (cur_token == TOK_IDENTIFIER || cur_token == TOK_TYPEDEF_TYPE) {
-        identifier = parser_strdup(cur_identifier);
+        identifier = parser_wstrdup(cur_identifier);
 
-        Tag *tag = new_tag(parser_strdup(cur_identifier));
+        Tag *tag = new_tag(parser_wstrdup(cur_identifier));
         tag->type = type;
         type->tag = tag;
 
@@ -1028,14 +1028,14 @@ static Type *parse_enum_type_specifier(void) {
 
         while (cur_token != TOK_RCURLY) {
             expect(TOK_IDENTIFIER, "identifier");
-            char *enum_value_identifier = parser_strdup(cur_identifier);
+            char *enum_value_identifier = parser_wstrdup(cur_identifier);
             next();
             if (cur_token == TOK_EQ) {
                 next();
                 value = parse_constant_integer_expression(0)->int_value;
             }
 
-            Symbol *s = new_symbol(parser_strdup(enum_value_identifier));
+            Symbol *s = new_symbol(parser_wstrdup(enum_value_identifier));
             s->is_enum_value = 1;
             s->type = new_type(TYPE_INT);
             s->value = value++;
@@ -1088,7 +1088,7 @@ void parse_typedef(void) {
         if (cur_token == TOK_SEMI) break;
     }
 
-    free(base_type_with_storage_class);
+    wfree(base_type_with_storage_class);
 }
 
 static void indirect(void) {
@@ -2533,7 +2533,7 @@ static void init_value_stack(void) {
 }
 
 static void free_value_stack(void) {
-    free(vs_bottom);
+    wfree(vs_bottom);
 }
 
 // Parse GNU extension Statements and Declarations in Expressions
@@ -3234,7 +3234,7 @@ static void parse_label_statement(char *identifier) {
         add_jmp_target_instruction(ldst);
         Value *dst = strmap_get(cur_function_symbol->function->labels, identifier);
         if (dst) error("Duplicate label %s", identifier);
-        strmap_put(cur_function_symbol->function->labels, parser_strdup(identifier), ldst);
+        strmap_put(cur_function_symbol->function->labels, parser_wstrdup(identifier), ldst);
     }
     else {
         rewind_lexer();
@@ -3255,7 +3255,7 @@ static void parse_goto_statement(void) {
     else {
         Tac *ir = add_parser_instruction(IR_JMP, 0, 0, 0);
         GotoBackPatch *gbp = wmalloc(sizeof(GotoBackPatch));
-        gbp->identifier = parser_strdup(cur_identifier);
+        gbp->identifier = parser_wstrdup(cur_identifier);
         gbp->ir = ir;
         append_to_cll(cur_function_symbol->function->goto_backpatches, gbp);
     }
@@ -3275,7 +3275,7 @@ static void backpatch_gotos(void) {
         Value *ldst = strmap_get(cur_function_symbol->function->labels, gbp->identifier);
         if (!ldst) error("Unknown label %s", gbp->identifier);
         gbp->ir->src1 = ldst;
-        free(gbp);
+        wfree(gbp);
 
         gbp_cll = gbp_cll->next;
     } while (gbp_cll != head);
@@ -3303,9 +3303,9 @@ static void parse_statement(void) {
 
     if (cur_token_is_type()) {
         int is_typedef = cur_token == TOK_TYPEDEF_TYPE;
-        char *identifier = parser_strdup(cur_identifier);
+        char *identifier = parser_wstrdup(cur_identifier);
 
-        if (base_type) free(base_type);
+        if (base_type) wfree(base_type);
         base_type = parse_declaration_specifiers();
         if (cur_token == TOK_SEMI && (base_type->type->type == TYPE_STRUCT_OR_UNION || base_type->type->type == TYPE_ENUM))
             next();
@@ -3366,7 +3366,7 @@ static void parse_statement(void) {
             break;
 
         case TOK_IDENTIFIER: {
-            char *identifier = parser_strdup(cur_identifier);
+            char *identifier = parser_wstrdup(cur_identifier);
             next();
             parse_label_statement(identifier);
             break;
@@ -3439,7 +3439,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         next();
         consume(TOK_LPAREN, "(");
         consume(TOK_STRING_LITERAL, "string literal");
-        symbol->global_identifier = parser_strdup(cur_string_literal.data);
+        symbol->global_identifier = parser_wstrdup(cur_string_literal.data);
         consume(TOK_RPAREN, ")");
     }
 
@@ -3596,7 +3596,7 @@ void parse(void) {
                 if (cur_token != TOK_SEMI) consume(TOK_COMMA, ", or ; in declaration");
             }
 
-            free(base_type);
+            wfree(base_type);
 
             if (cur_token == TOK_SEMI) next();
         }
@@ -3657,20 +3657,20 @@ void init_parser(void) {
 void free_parser(void) {
     if (base_type) free (base_type);
 
-    free(string_literals);
+    wfree(string_literals);
 
-    for (int i = 0; i < all_typedefs_count; i++) free(all_typedefs[i]);
-    free(all_typedefs);
+    for (int i = 0; i < all_typedefs_count; i++) wfree(all_typedefs[i]);
+    wfree(all_typedefs);
 
     free_value_stack();
     free_scopes();
 
-    for (int i = 0; i < allocated_strings->length; i++) free(allocated_strings->elements[i]);
+    for (int i = 0; i < allocated_strings->length; i++) wfree(allocated_strings->elements[i]);
     free_list(allocated_strings);
 
     free_strmap(origin_filenames);
 
-    for (int i = 0; i < allocated_origins->length; i++) free(allocated_origins->elements[i]);
+    for (int i = 0; i < allocated_origins->length; i++) wfree(allocated_origins->elements[i]);
     free_list(allocated_origins);
 
     for (int i = 0; i < allocated_sets->length; i++) free_set(allocated_sets->elements[i]);

@@ -49,8 +49,8 @@ static void maybe_rehash(StrMap *map) {
         }
     }
 
-    free(map->keys);
-    free(map->values);
+    wfree(map->keys);
+    wfree(map->values);
     map->keys = keys;
     map->values = values;
     map->size = new_size;
@@ -150,7 +150,7 @@ StrMap *new_strmap(void) {
 }
 
 void free_strmap(StrMap *map) {
-    free(map->keys);
-    free(map->values);
-    free(map);
+    wfree(map->keys);
+    wfree(map->values);
+    wfree(map);
 }

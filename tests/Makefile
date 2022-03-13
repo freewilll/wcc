@@ -3,6 +3,9 @@ all: test-unit test-integration test-e2e test-cpp
 utils.o: ../utils.c
 	gcc ${GCC_OPTS} -c ../utils.c -o utils.o
 
+memory.o: ../memory.c
+	gcc ${GCC_OPTS} -c ../memory.c -o memory.o
+
 .PHONY:
 test-unit: test-utils.s test-lib.o
 	cd unit && ${MAKE} all
@@ -36,7 +39,7 @@ regen-cpp-tests-output:
 	cd cpp && ${MAKE} regen-cpp-tests-output
 
 .PHONY:
-test-e2e: test-lib.o utils.o
+test-e2e: test-lib.o utils.o memory.o
 	cd e2e && ${MAKE} all
 
 test-lib.o: test-lib.c

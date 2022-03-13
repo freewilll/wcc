@@ -11,7 +11,7 @@ LongSet *new_longset(void) {
 
 void free_longset(LongSet *ls) {
     free_longmap(ls->longmap);
-    free(ls);
+    wfree(ls);
 }
 
 void longset_add(LongSet *ls, long element) {

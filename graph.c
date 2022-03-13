@@ -26,9 +26,9 @@ Graph *new_graph(int node_count, int edge_count) {
 }
 
 void free_graph(Graph *g) {
-    free(g->nodes);
-    free(g->edges);
-    free(g);
+    wfree(g->nodes);
+    wfree(g->edges);
+    wfree(g);
 }
 
 void dump_graph(Graph *g) {

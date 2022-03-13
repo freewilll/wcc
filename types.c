@@ -191,26 +191,26 @@ static void free_type(Type *type) {
         FunctionType *function = type->function;
         free_list(function->param_types); // The types are already GC'd
         free_list(function->param_identifiers); // The identifiers are already GC'd
-        free(function);
+        wfree(function);
     }
 
-    free(type);
+    wfree(type);
 }
 
 void free_types(void) {
     for (int i = 0; i < allocated_types->length; i++) free_type(allocated_types->elements[i]);
     free_list(allocated_types);
 
-    for (int i = 0; i < allocated_type_iterators->length; i++) free(allocated_type_iterators->elements[i]);
+    for (int i = 0; i < allocated_type_iterators->length; i++) wfree(allocated_type_iterators->elements[i]);
     free_list(allocated_type_iterators);
 
-    for (int i = 0; i < allocated_struct_members->length; i++) free(allocated_struct_members->elements[i]);
+    for (int i = 0; i < allocated_struct_members->length; i++) wfree(allocated_struct_members->elements[i]);
     free_list(allocated_struct_members);
 
     for (int i = 0; i < all_structs_and_unions->length; i++) {
         StructOrUnion *s = all_structs_and_unions->elements[i];
-        free(s->members);
-        free(s);
+        wfree(s->members);
+        wfree(s);
     }
     free_list(all_structs_and_unions);
 }
@@ -601,8 +601,8 @@ static int struct_or_unions_are_compatible(StructOrUnion *s1, StructOrUnion *s2,
     }
 
     if (s1->is_union) {
-        free(members1);
-        free(members2);
+        wfree(members1);
+        wfree(members2);
     }
 
     return result;

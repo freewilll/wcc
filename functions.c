@@ -29,7 +29,7 @@ void init_function_allocations(void) {
 void free_function(Function *function, int remove_from_allocations) {
     free_strmap(function->labels);
     if (function->static_symbols) free_list(function->static_symbols);
-    free(function);
+    wfree(function);
 
     if (remove_from_allocations) longset_delete(allocated_functions, (long) function);
 }
@@ -698,14 +698,14 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
             add_ir_call_reg_instructions(ir, function_call_values, register_count);
 
-            free(function_call_values);
+            wfree(function_call_values);
         }
     }
 
-    free(arg_values);
-    free(param_indexes);
-    free(has_struct_or_union_return_values);
-    free(param_locations);
+    wfree(arg_values);
+    wfree(param_indexes);
+    wfree(has_struct_or_union_return_values);
+    wfree(param_locations);
 }
 
 // Add instructions to copy a struct to the stack
@@ -1436,11 +1436,11 @@ void add_function_param_moves(Function *function, char *identifier) {
         convert_pushed_param_stack_index_to_register(function, stack_param_vregs, ir->src2);
     }
 
-    free(register_param_vregs);
-    free(register_param_stack_indexes);
-    free(has_address_of);
-    free(stack_param_vregs);
-    free(stack_index_remap);
+    wfree(register_param_vregs);
+    wfree(register_param_stack_indexes);
+    wfree(has_address_of);
+    wfree(stack_param_vregs);
+    wfree(stack_index_remap);
 
     if (debug_function_param_mapping) {
         printf("After function param mapping\n");
@@ -1473,11 +1473,11 @@ void free_function_param_allocaton(FunctionParamAllocation *fpa) {
     List *fpls_list = fpa->param_locations;
     for (int i = 0; i < fpls_list->length; i++) {
         FunctionParamLocations* fpl = fpls_list->elements[i];
-        free(fpl->locations);
-        free(fpl);
+        wfree(fpl->locations);
+        wfree(fpl);
     }
     free_list(fpa->param_locations);
-    free(fpa);
+    wfree(fpa);
 }
 
 // Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
@@ -1669,17 +1669,17 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                 else
                     append_to_list(fpa->param_locations, fpl);
 
-                free(backup_fpa);
+                wfree(backup_fpa);
             }
 
-            free(seen_integer);
-            free(seen_sse);
-            free(seen_memory);
-            free(member_counts);
+            wfree(seen_integer);
+            wfree(seen_sse);
+            wfree(seen_memory);
+            wfree(member_counts);
 
-            for (int i = 0; i < scalars->count; i++) free(scalars->scalars[i]);
-            free(scalars->scalars);
-            free(scalars);
+            for (int i = 0; i < scalars->count; i++) wfree(scalars->scalars[i]);
+            wfree(scalars->scalars);
+            wfree(scalars);
         }
     }
 }

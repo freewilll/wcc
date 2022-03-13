@@ -32,7 +32,7 @@ static void init_lexer(void) {
 void free_lexer(void) {
     free_and_null(cur_filename);
     free_and_null(cur_identifier);
-    if (input_is_freeable) free(input);
+    if (input_is_freeable) wfree(input);
     free_and_null(cur_string_literal.data);
 }
 
@@ -59,7 +59,7 @@ void init_lexer_from_filename(char *filename) {
     input[input_size] = 0;
     fclose(f);
 
-    cur_filename = strdup(filename);
+    cur_filename = wstrdup(filename);
 
     init_lexer();
 }
@@ -366,7 +366,7 @@ void next(void) {
             finish_string_literal(size, 0);
 
             if (cur_filename) free_and_null(cur_filename);
-            cur_filename = strdup(cur_string_literal.data);
+            cur_filename = wstrdup(cur_string_literal.data);
             cur_line = cur_long - 1;
 
             while (ip < input_size && i[ip] != '\n') ip++; // Skip non-whitespace

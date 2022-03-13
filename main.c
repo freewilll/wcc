@@ -163,6 +163,8 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--trigraphs"                       )) { opt_enable_trigraphs = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-rules"                     )) { print_instr_rules = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-filenames"                 )) { print_filenames = 1;                      argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--print-heap-usage"                )) { print_heap_usage = 1;                     argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--fail-on-leaked-memory"           )) { fail_on_leaked_memory = 1;                argc--; argv++; }
 
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-param-allocation"       )) { debug_function_param_allocation = 1;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-arg-mapping"            )) { debug_function_arg_mapping = 1;             argc--; argv++; }
@@ -329,6 +331,8 @@ int main(int argc, char **argv) {
         printf("--print-rules                               Print instruction selection rules\n");
         printf("--print-precision-decrease-rules            Print instruction selection rules that decrease precision\n");
         printf("--rule-coverage-file <file>                 Append matched rules to file\n");
+        printf("--print-heap-usage                          Print heap usage at exit\n");
+        printf("--fail-on-leaked-memory                     Exit with a failure code if any memory was leaked\n");
         printf("\n");
         printf("-print-prog-name=<name>                     Print program name\n");
         printf("-dumpmachine                                Print x86_64-linux-gnu\n");
@@ -455,7 +459,7 @@ int main(int argc, char **argv) {
         char *input_filename = input_filenames->elements[i];
 
         if (is_assembly_file(input_filename)) {
-            assembler_input_filenames[i] = strdup(input_filename);
+            assembler_input_filenames[i] = wstrdup(input_filename);
             continue;
         }
 
@@ -466,7 +470,7 @@ int main(int argc, char **argv) {
         char *preprocessor_output = preprocess(input_filename, directive_cli_strings);
 
         char *compiler_output_filename =
-            !run_assembler && !run_linker ? (output_filename ? strdup(output_filename) : replace_extension(input_filename, "s"))
+            !run_assembler && !run_linker ? (output_filename ? wstrdup(output_filename) : replace_extension(input_filename, "s"))
             : make_temp_filename("/tmp/XXXXXX.s");
 
         if (print_filenames) printf("Compiling %s to %s\n", input_filename, compiler_output_filename);
@@ -476,13 +480,13 @@ int main(int argc, char **argv) {
         if (run_assembler)
             assembler_input_filenames[i] = compiler_output_filename;
         else
-            free(compiler_output_filename);
+            wfree(compiler_output_filename);
 
         if (print_symbols) dump_symbols();
         if (print_stack_register_count) printf("stack_register_count=%d\n", total_stack_register_count);
 
         free_memory_for_translation_unit();
-        free(preprocessor_output);
+        wfree(preprocessor_output);
 
         if (debug_exit_after_parser) goto exit_main;
     }
@@ -494,7 +498,7 @@ int main(int argc, char **argv) {
             if (!input_filename) continue;
 
             char *assembler_output_filename =
-                !run_linker ? (output_filename ? strdup(output_filename) : replace_extension(single_target ? input_filenames->elements[0] : input_filename, "o"))
+                !run_linker ? (output_filename ? wstrdup(output_filename) : replace_extension(single_target ? input_filenames->elements[0] : input_filename, "o"))
                 : make_temp_filename("/tmp/XXXXXX.o");
 
             if (print_filenames) printf("Assembling %s to %s\n", input_filename, assembler_output_filename);
@@ -510,7 +514,7 @@ int main(int argc, char **argv) {
             if (run_linker)
                 linker_input_filenames[i] = assembler_output_filename;
             else
-                free(assembler_output_filename);
+                wfree(assembler_output_filename);
         }
     }
 
@@ -532,7 +536,7 @@ int main(int argc, char **argv) {
 
         s = command;
         s += sprintf(s, "gcc%s", filenames);
-        free(filenames);
+        wfree(filenames);
 
         for (CliLibraryPath *cli_library_path = cli_library_paths; cli_library_path; cli_library_path = cli_library_path->next)
             s += sprintf(s, " -L %s", cli_library_path->path);
@@ -571,15 +575,17 @@ exit_main:
     free_list(compiler_input_filenames);
 
     for (int i = 0; i < input_filenames->length; i++) if (assembler_input_filenames[i])
-        free(assembler_input_filenames[i]);
+        wfree(assembler_input_filenames[i]);
 
-    free(assembler_input_filenames);
+    wfree(assembler_input_filenames);
     free_list(input_filenames);
 
-    free(linker_input_filenames);
-    free(command);
+    wfree(linker_input_filenames);
+    wfree(command);
     free_list(extra_linker_args);
     free_list(directive_cli_strings);
+
+    if (print_heap_usage) print_allocation_stats();
 
     exit(exit_code);
 }

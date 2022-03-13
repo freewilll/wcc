@@ -174,9 +174,9 @@ void make_stack_offsets(Function *function, char *function_name) {
         if (tac->src2 && tac->src2->stack_index < 0) tac->src2->stack_offset = stack_offsets[-tac->src2->stack_index];
     }
 
-    free(stack_alignments);
-    free(stack_sizes);
-    free(stack_offsets);
+    wfree(stack_alignments);
+    wfree(stack_sizes);
+    wfree(stack_offsets);
 }
 
 // Get offset from the stack in bytes, from a stack_index for function args
@@ -437,7 +437,7 @@ static void output_x86_operation(Tac *tac, int function_pc) {
     char *buffer = render_x86_operation(tac, function_pc, 1);
     if (buffer) {
         fprintf(f, "    %s\n", buffer);
-        free(buffer);
+        wfree(buffer);
     }
 }
 
@@ -651,7 +651,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
         insert_end_of_function(ir, saved_registers);
     }
 
-    free(saved_registers);
+    wfree(saved_registers);
 }
 
 // Remove all possible IR_NOP instructions
@@ -750,7 +750,7 @@ static void output_debug_loc(Tac *tac) {
         int id = (long) strmap_get(debug_strings, tac->origin->filename);
         if (!id) {
             id = ++debug_string_counter;
-            strmap_put(debug_strings, strdup(tac->origin->filename), (void *) (long) id);
+            strmap_put(debug_strings, wstrdup(tac->origin->filename), (void *) (long) id);
             fprintf(f, "    .file       %d \"%s\"\n", id, tac->origin->filename);
         }
 
@@ -908,7 +908,7 @@ void output_debug_sections(char *input_filename) {
     fprintf(f, "\n    .section    .debug_line,\"\",@progbits\n");
     fprintf(f, "\n.Lline_table_start:\n");
 
-    free(cwd);
+    wfree(cwd);
 }
 
 // Output code for the translation unit
@@ -1051,11 +1051,11 @@ void init_codegen(void) {
 }
 
 void free_codegen(void) {
-    free(floating_point_literals);
+    wfree(floating_point_literals);
 
-    strmap_foreach(debug_strings, it) free(strmap_iterator_key(&it));
+    strmap_foreach(debug_strings, it) wfree(strmap_iterator_key(&it));
     free_strmap(debug_strings);
 
-    for (int i = 0; i < allocated_strings->length; i++) free(allocated_strings->elements[i]);
+    for (int i = 0; i < allocated_strings->length; i++) wfree(allocated_strings->elements[i]);
     free_list(allocated_strings);
 }

@@ -451,7 +451,7 @@ static void make_igraphs(Function *function, int block_id) {
         tac = tac->prev;
     }
 
-    free(vreg_igraphs);
+    wfree(vreg_igraphs);
 
     if (debug_instsel_tree_merging)
         printf("\n=================================\n");
@@ -479,14 +479,14 @@ static void free_igraphs(Function *function) {
     free_list(allocated_graphs);
 
     for (int i = 0; i < allocated_igraphs->length; i++)
-        free(allocated_igraphs->elements[i]);
+        wfree(allocated_igraphs->elements[i]);
     free_list(allocated_igraphs);
 
     for (int i = 0; i < allocated_igraph_nodes->length; i++)
-        free(allocated_igraph_nodes->elements[i]);
+        wfree(allocated_igraph_nodes->elements[i]);
     free_list(allocated_igraph_nodes);
 
-    free(igraphs); // Free global igraphs
+    wfree(igraphs); // Free global igraphs
 }
 
 // Recurse down src igraph, copying nodes to dst igraph and adding edges
@@ -1246,7 +1246,7 @@ static void make_intermediate_representation(Function *function, IGraph *igraph)
 
     saved_values = wmalloc((MAX_SAVED_REGISTERS + 1) * sizeof(Value *));
     recursive_make_intermediate_representation(function, igraph, 0, -1, -1);
-    free(saved_values);
+    wfree(saved_values);
 
     if (debug_instsel_tiling) {
         printf("\nMatched rules\n");
@@ -1324,12 +1324,12 @@ static void tile_igraphs(Function *function) {
         }
 
         for (int j = 0; j < igraphs[i].node_count; j++) free_longset(igraph_labels[j]);
-        free(igraph_labels);
-        free(igraph_rules);
+        wfree(igraph_labels);
+        wfree(igraph_rules);
         free_graph(cost_graph);
-        free(cost_rules);
-        free(accumulated_cost);
-        free(cost_to_igraph_map);
+        wfree(cost_rules);
+        wfree(accumulated_cost);
+        wfree(cost_to_igraph_map);
     }
 
     if (debug_instsel_tiling) {

@@ -12,7 +12,7 @@ StrSet *new_strset(void) {
 
 void free_strset(StrSet *ss) {
     free_strmap(ss->strmap);
-    free(ss);
+    wfree(ss);
 }
 
 void strset_add(StrSet *ss, char *element) {

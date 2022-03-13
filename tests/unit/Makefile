@@ -54,8 +54,8 @@ test-ssa: ../../libwcc.a ../test-utils.c test-ssa.c
 run-test-ssa: test-ssa
 	 ./test-ssa
 
-test-graph: test-graph.c ../../graph.c ../../utils.c
-	gcc ${GCC_OPTS} test-graph.c ../../graph.c ../../utils.c -o test-graph
+test-graph: test-graph.c ../../graph.c ../../utils.c ../../memory.c
+	gcc ${GCC_OPTS} test-graph.c ../../graph.c ../../utils.c ../../memory.c -o test-graph
 
 run-test-graph: test-graph
 	 ./test-graph

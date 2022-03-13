@@ -769,7 +769,7 @@ int debug_stack_frame_layout;
 int debug_exit_after_parser;
 int debug_dont_compile_internals;
 
-#define free_and_null(object) do { if (object) { free(object); object = NULL; } } while(0);
+#define free_and_null(object) do { wfree(object); object = NULL; } while(0);
 
 // set.c
 #define add_to_set(s, value) do { \
@@ -864,14 +864,14 @@ void longmap_iterator_next(LongMapIterator *iterator);
 #define append_to_cll(cll, new_target) \
     do { \
         if (cll) { \
-            CircularLinkedList *next = malloc(sizeof(CircularLinkedList)); \
+            CircularLinkedList *next = wmalloc(sizeof(CircularLinkedList)); \
             next->target = new_target; \
             next->next = cll->next; \
             cll->next = next; \
             cll = next; \
         } \
         else { \
-            cll = malloc(sizeof(CircularLinkedList)); \
+            cll = wmalloc(sizeof(CircularLinkedList)); \
             cll->target = new_target; \
             cll->next = cll; \
         } \
@@ -909,9 +909,18 @@ void terminate_string_buffer(StringBuffer *sb);
 int set_debug_logging_start_time();
 int debug_log(char *format, ...);
 
+
+// memory.c
+int print_heap_usage;
+int fail_on_leaked_memory;
+
 void *wmalloc(size_t size);
 void *wrealloc(void *ptr, size_t size);
 void *wcalloc(size_t nitems, size_t size);
+void *wcalloc(size_t nitems, size_t size);
+char *wstrdup(const char *str);
+void wfree(void *ptr);
+void print_allocation_stats(void);
 
 // error.c
 void panic_with_line_number(char *format, ...);

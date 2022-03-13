@@ -58,8 +58,8 @@ StringBuffer *new_string_buffer(int initial_size) {
 }
 
 void free_string_buffer(StringBuffer *sb, int free_data) {
-    if (free_data) free(sb->data);
-    free(sb);
+    if (free_data) wfree(sb->data);
+    wfree(sb);
 }
 
 // Append a string to the string buffer
@@ -103,40 +103,4 @@ int debug_log(char *format, ...) {
     printf("%02d:%02d:%02d.%03ld ", hr, min, sec, microseconds);
     vprintf(format, ap);
     printf("\n");
-}
-
-// Wrapper around malloc that exits if malloc fails
-void *wmalloc(size_t size) {
-    void *result = malloc(size);
-
-    if (!result) {
-        printf("Failed to malloc %ld bytes\n", size);
-        exit(1);
-    }
-
-    return result;
-}
-
-// Wrapper around realloc that exits if realloc fails
-void *wrealloc(void *ptr, size_t size) {
-    void *result = realloc(ptr, size);
-
-    if (!result) {
-        printf("Failed to realloc %ld bytes\n", size);
-        exit(1);
-    }
-
-    return result;
-}
-
-// Wrapper around calloc that exits if calloc fails
-void *wcalloc(size_t nitems, size_t size) {
-    void *result = calloc(nitems, size);
-
-    if (!result) {
-        printf("Failed to calloc %ld bytes\n", size);
-        exit(1);
-    }
-
-    return result;
 }

@@ -11,8 +11,8 @@ Stack *new_stack(void) {
 }
 
 void free_stack(Stack *s) {
-    free(s->elements);
-    free(s);
+    wfree(s->elements);
+    wfree(s);
 }
 
 int stack_top(Stack *s) {

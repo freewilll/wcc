@@ -11,7 +11,7 @@ void init_ir(void) {
 }
 
 void free_ir(void) {
-    for (int i = 0; i < allocated_tacs->length; i++) free(allocated_tacs->elements[i]);
+    for (int i = 0; i < allocated_tacs->length; i++) wfree(allocated_tacs->elements[i]);
     free_list(allocated_tacs);
 }
 
@@ -34,7 +34,7 @@ void init_value_allocations(void) {
 void free_values(void) {
     for (int i = 0; i < allocated_values->length; i++) {
         Value *v = allocated_values->elements[i];
-        free(v);
+        wfree(v);
     }
 
     free_list(allocated_values);
@@ -185,7 +185,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     if (tac->x86_template) {
         char *buffer = render_x86_operation(tac, 0, expect_preg);
         fprintf(f, "%s\n", buffer);
-        free(buffer);
+        wfree(buffer);
         return;
     }
 
@@ -475,11 +475,11 @@ void reverse_function_argument_order(Function *function) {
 
     }
 
-    free(function_args);
+    wfree(function_args);
 
-    free(arg_counts);
-    free(calls);
-    free(call_starts);
+    wfree(arg_counts);
+    wfree(calls);
+    wfree(call_starts);
 }
 
 // Insert tac instruction before ir
@@ -582,7 +582,7 @@ void renumber_labels(Function *function) {
         if (tac->src2 && tac->src2->label) tac->src2->int_value = 0;
     }
 
-    free(mapping);
+    wfree(mapping);
 }
 
 #define renumber_value(v) { \
@@ -667,7 +667,7 @@ void allocate_value_vregs(Function *function) {
         }
     }
 
-    free(on_stack);
+    wfree(on_stack);
 }
 
 // IR_JZ and IR_JNZ aren't implemented in the backend for SSE & long doubles.
@@ -714,7 +714,7 @@ void move_long_doubles_to_the_stack(Function *function) {
         if (tac->src2 && tac->src2->vreg && local_indexes[tac->src2->vreg]) { tac->src2->local_index = local_indexes[tac->src2->vreg]; tac->src2->vreg = 0; }
     }
 
-    free(local_indexes);
+    wfree(local_indexes);
 }
 
 void make_stack_register_count(Function *function) {
@@ -784,7 +784,7 @@ void allocate_value_stack_indexes(Function *function) {
 
     if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
 
-    free(stack_index_map);
+    wfree(stack_index_map);
 }
 
 // If a function returns a value and it's called, the parser will always allocate a
@@ -812,7 +812,7 @@ void remove_unused_function_call_results(Function *function) {
         tac = tac->prev;
     }
 
-    free(used_vregs);
+    wfree(used_vregs);
 }
 
 static Value *insert_address_of_instruction_after(Function *function, Tac **ir, Value *src) {

@@ -35,26 +35,26 @@ void free_scopes(void) {
             if (initializers) {
                 for (int j = 0; j < initializers->length; j++) {
                     Initializer *in = initializers->elements[j];
-                    if (in->data) free(in->data);
-                    free(in);
+                    if (in->data) wfree(in->data);
+                    wfree(in);
                 }
 
                 free_list(initializers);
             }
 
-            free(symbol);
+            wfree(symbol);
         }
 
         free_list(scope->symbol_list);
         free_strmap(scope->symbols);
         free_strmap(scope->tags);
 
-        free(scope);
+        wfree(scope);
     }
 
     free_list(allocated_scopes);
 
-    for (int i = 0; i < allocated_tags->length; i++) free(allocated_tags->elements[i]);
+    for (int i = 0; i < allocated_tags->length; i++) wfree(allocated_tags->elements[i]);
     free_list(allocated_tags);
 }
 

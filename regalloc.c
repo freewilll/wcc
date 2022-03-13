@@ -55,7 +55,7 @@ void compress_vregs(Function *function) {
         print_ir(function, 0, 0);
     }
 
-    free(vreg_map);
+    wfree(vreg_map);
 }
 
 static int vreg_cost_cmpfunc(const void *a, const void *b) {
@@ -251,8 +251,8 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
     free_set(constrained);
     free_set(unconstrained);
     free_set(preferred_pregs);
-    free(ordered_nodes);
-    free(original_stack_indexes);
+    wfree(ordered_nodes);
+    wfree(original_stack_indexes);
 }
 
 // Called once at startup
@@ -384,7 +384,7 @@ void init_vreg_locations(Function *function) {
 }
 
 void free_vreg_locations(Function *function) {
-    free(function->vreg_locations);
+    wfree(function->vreg_locations);
 
 }
 void allocate_registers(Function *function) {

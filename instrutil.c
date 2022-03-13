@@ -9,7 +9,7 @@ static int value_ptr_target_x86_size(Value *v);
 X86Operation *dup_x86_operation(X86Operation *operation) {
     X86Operation *result = wmalloc(sizeof(X86Operation));
     *result = *operation;
-    result->template = operation->template ? strdup(operation->template) : 0;
+    result->template = operation->template ? wstrdup(operation->template) : 0;
 
     return result;
 }

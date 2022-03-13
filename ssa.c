@@ -267,7 +267,7 @@ void make_control_flow_graph(Function *function) {
 }
 
 void free_control_flow_graph(Function *function) {
-    free(function->blocks);
+    wfree(function->blocks);
     free_graph(function->cfg);
 }
 
@@ -348,7 +348,7 @@ void make_block_dominance(Function *function) {
 void free_block_dominance(Function *function) {
     int block_count = function->cfg->node_count;
     for (int i = 0; i < block_count; i++) free_set(function->dominance[i]);
-    free(function->dominance);
+    wfree(function->dominance);
 }
 
 static void make_rpo(Function *function, int *rpos, int *pos, int *visited, int block) {
@@ -438,13 +438,13 @@ static void make_block_immediate_dominators(Function *function) {
 
     function->idom = idoms;
 
-    free(rpos_order);
-    free(rpos);
-    free(visited);
+    wfree(rpos_order);
+    wfree(rpos);
+    wfree(visited);
 }
 
 static void free_block_immediate_dominators(Function *function) {
-    free(function->idom);
+    wfree(function->idom);
 }
 
 // Algorithm on page 499 of engineering a compiler
@@ -491,13 +491,13 @@ static void make_block_dominance_frontiers(Function *function) {
         }
     }
 
-    free(predecessors);
+    wfree(predecessors);
 }
 
 static void free_block_dominance_frontiers(Function *function) {
     int block_count = function->cfg->node_count;
     for (int i = 0; i < block_count; i++) free_set(function->dominance_frontiers[i]);
-    free(function->dominance_frontiers);
+    wfree(function->dominance_frontiers);
 }
 
 void analyze_dominance(Function *function) {
@@ -573,8 +573,8 @@ void free_uevar_and_varkill(Function *function) {
         free_longset(function->varkill[i]);
     }
 
-    free(function->uevar);
-    free(function->varkill);
+    wfree(function->uevar);
+    wfree(function->varkill);
 }
 
 // Page 447 of Engineering a compiler
@@ -694,13 +694,13 @@ void make_liveout(Function *function) {
     }
 
     for (int i = 0; i < block_count; i++) {
-        free(block_uevars[i]);
-        free(successor_liveout_versions[i]);
+        wfree(block_uevars[i]);
+        wfree(successor_liveout_versions[i]);
     }
-    free(block_uevars);
+    wfree(block_uevars);
 
-    free(liveout_versions);
-    free(successor_liveout_versions);
+    wfree(liveout_versions);
+    wfree(successor_liveout_versions);
 }
 
 void free_liveout(Function *function) {
@@ -708,7 +708,7 @@ void free_liveout(Function *function) {
     for (int i = 0; i < block_count; i++)
         free_longset(function->liveout[i]);
 
-    free(function->liveout);
+    wfree(function->liveout);
 }
 
 void make_globals_and_var_blocks(Function *function) {
@@ -765,7 +765,7 @@ void free_globals_and_var_blocks(Function *function) {
     int vreg_count = function->vreg_count;
 
     for (int i = 1; i <= vreg_count; i++) free_set(function->var_blocks[i]);
-    free(function->var_blocks);
+    wfree(function->var_blocks);
 
     free_set(function->globals);
 }
@@ -864,11 +864,11 @@ void insert_phi_functions(Function *function) {
 void free_phi_functions(Function *function) {
     int block_count = function->cfg->node_count;
     for (int i = 0; i < block_count; i++) free_set(function->phi_functions[i]);
-    free(function->phi_functions);
+    wfree(function->phi_functions);
 
 
     for (int i = 0; i < allocated_phi_values->length; i++) {
-        free(allocated_phi_values->elements[i]);
+        wfree(allocated_phi_values->elements[i]);
     }
 
     free_list(allocated_phi_values);
@@ -1023,9 +1023,9 @@ void rename_phi_function_variables(Function *function) {
     if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
 
     for (int i = 1; i <= vreg_count; i++) free_stack(stack[i]);
-    free(stack);
+    wfree(stack);
 
-    free(counters);
+    wfree(counters);
 }
 
 static int live_range_cmpfunc(const void *a, const void *b) {
@@ -1093,7 +1093,7 @@ void make_live_ranges(Function *function) {
         longmap_put(live_ranges, key, s);
     }
 
-    free(keys);
+    wfree(keys);
 
     // Create live range sets by unioning together the sets of the phi function destination and parameters.
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -1173,7 +1173,7 @@ void make_live_ranges(Function *function) {
         if (debug_ssa_live_range) printf("}\n");
     }
 
-    free(live_ranges_array);
+    wfree(live_ranges_array);
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_PHI_FUNCTION) continue;
@@ -1539,7 +1539,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
 
 void free_interference_graph(Function *function) {
     if (function->interference_graph) {
-        free(function->interference_graph);
+        wfree(function->interference_graph);
         function->interference_graph = 0;
     }
 }
@@ -1749,7 +1749,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
                 if (done_dst == src)
                     longmap_put(pending_coalesces, (long) done_src, (void *) (long) dst);
             }
-            free(done_srcs);
+            wfree(done_srcs);
 
             // Update constraints, moving all from src -> dst
             copy_interference_graph_edges(function->interference_graph, vreg_count, src, dst);
@@ -1764,12 +1764,12 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
         coalesce_pending_coalesces(function, pending_coalesces, check_register_constraints);
 
-        free(coalesces);
+        wfree(coalesces);
         free_longmap(pending_coalesces);
         free_longmap(mc);
     } // while outer changed
 
-    free(clobbers);
+    wfree(clobbers);
 
     if (debug_ssa_live_range_coalescing) {
         printf("\nLive range coalesce results for preg_class=%d:\n", preg_class);

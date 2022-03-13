@@ -50,9 +50,9 @@ static void maybe_rehash(LongMap *map) {
         }
     }
 
-    free(map->keys);
-    free(map->values);
-    free(map->status);
+    wfree(map->keys);
+    wfree(map->values);
+    wfree(map->status);
     map->keys = keys;
     map->values = values;
     map->status = status;
@@ -186,8 +186,8 @@ LongMap *new_longmap(void) {
 }
 
 void free_longmap(LongMap *map) {
-    free(map->keys);
-    free(map->values);
-    free(map->status);
-    free(map);
+    wfree(map->keys);
+    wfree(map->values);
+    wfree(map->status);
+    wfree(map);
 }
