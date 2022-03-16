@@ -1120,6 +1120,15 @@ enum {
 
 int live_range_reserved_pregs_offset;
 
+// Interference graph indexing for a lower triangular matrix with size vreg_count
+#define ig_lookup(ig, vreg_count, i1, i2) ig[i1 > i2 ? i2 * vreg_count + i1 : i1 * vreg_count + i2]
+
+#define add_ig_edge(ig, vreg_count, to, from) \
+    do { \
+        if (debug_ssa_interference_graph) printf("Adding edge %d <-> %d\n", (int) to, (int) from); \
+        ig_lookup(ig, vreg_count, to, from) = 1; \
+    } while(0)
+
 void optimize_arithmetic_operations(Function *function);
 void rewrite_lvalue_reg_assignments(Function *function);
 void make_control_flow_graph(Function *function);
@@ -1140,7 +1149,6 @@ void make_live_ranges(Function *function);
 void free_live_range_spill_cost(Function *function);
 void free_vreg_preg_classes(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
-void add_ig_edge(char *ig, int vreg_count, int to, int from);
 void make_interference_graph(Function *function, int include_clobbers, int include_instrsel_constraints);
 void free_interference_graph(Function *function);
 void coalesce_live_ranges(Function *function, int check_register_constraints);

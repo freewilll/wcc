@@ -1266,19 +1266,6 @@ void free_vreg_preg_classes(Function *function) {
     free_and_null(function->vreg_preg_classes);
 }
 
-void add_ig_edge(char *ig, int vreg_count, int to, int from) {
-    int index;
-
-    if (debug_ssa_interference_graph) printf("Adding edge %d <-> %d\n", to, from);
-
-    if (from > to)
-        index = to * vreg_count + from;
-    else
-        index = from * vreg_count + to;
-
-    ig[index] = 1;
-}
-
 // Add edges to a physical register for all live variables, preventing the physical register from
 // getting used.
 static void clobber_livenow(char *ig, int vreg_count, LongSet *livenow, Tac *tac, int preg_reg_index) {
@@ -1544,34 +1531,11 @@ void free_interference_graph(Function *function) {
     }
 }
 
+// Copy all edges in the lower triangular interference graph matrics from src to dst
 static void copy_interference_graph_edges(char *interference_graph, int vreg_count, int src, int dst) {
-    // Copy all edges in the lower triangular interference graph matrics from src to dst
-
-    // Precalculate whatever is possible
-    int dtvc = dst * vreg_count;
-    int stvc = src * vreg_count;
-    int itvc = vreg_count;
-
-    // Fun with lower triangular matrices follows ...
-    for (int i = 1; i <= vreg_count; i++) {
-        // src < i case
-        if (interference_graph[stvc + i]) {
-            if (dst < i)
-                interference_graph[dtvc + i] = 1;
-            else
-                interference_graph[itvc + dst] = 1;
-        }
-
-        // i < src case
-        if (interference_graph[itvc + src]) {
-            if (i < dst)
-                interference_graph[itvc + dst] = 1;
-            else
-                interference_graph[dtvc + i] = 1;
-        }
-
-        itvc += vreg_count;
-    }
+    for (int i = 1; i <= vreg_count; i++)
+        if (ig_lookup(interference_graph, vreg_count, i, src))
+            ig_lookup(interference_graph, vreg_count, i, dst) = 1;
 }
 
 #define move_coalesced_vreg(coalesces, v) { \
@@ -1731,10 +1695,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
             if (clobbers[src] || clobbers[dst]) continue;
 
-            int l1 = dst * vreg_count + src;
-            int l2 = src * vreg_count + dst;
-
-            if (interference_graph[l1] || interference_graph[l2]) continue;
+            if (ig_lookup(interference_graph, vreg_count, src, dst)) continue;
 
             // Collect done_srcs in the pending_coalesces since we will used to modify the
             // map.
