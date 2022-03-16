@@ -217,6 +217,8 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
 
             add_to_set(function_value->return_value_live_ranges, live_range_preg);
         }
+
+        wfree(live_range_pregs);
     }
     else {
         // Move registers to a struct/union in memory. rax contains the address
