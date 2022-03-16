@@ -2540,6 +2540,7 @@ static void free_value_stack(void) {
 // https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
 static Value *parse_statement_expression(void) {
     // Backup the old value stack, since it needs to be reset when the statement is done
+    Value **old_vs_bottom = vs_bottom;
     Value **old_vs_start = vs_start;
     Value **old_vs = vs;
 
@@ -2553,11 +2554,15 @@ static Value *parse_statement_expression(void) {
     else
         result = pop();
 
+    free_value_stack();
+
     // Restore the original value stack
+    vs_bottom = old_vs_bottom;
     vs_start = old_vs_start;
     vs = old_vs;
 
     push(result);
+
 
     return result;
 }
