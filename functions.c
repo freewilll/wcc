@@ -349,6 +349,8 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
         // Add instructions to ensure the values stay in the registers
         add_ir_call_reg_instructions(ir, function_call_values, 2);
     }
+
+    wfree(function_call_values);
 }
 
 // Add a move for a function return value. If it's a long double, a load can be done,
