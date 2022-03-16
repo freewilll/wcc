@@ -104,17 +104,19 @@ static void print_human_readable_value(long value) {
     }
 }
 
-void print_allocation_stats(void) {
-    printf("In use at exit: ");
-    print_human_readable_value(current_allocation); printf(" bytes\n");
+void process_memory_allocation_stats(void) {
+    if (print_heap_usage || (fail_on_leaked_memory && current_allocation)) {
+        printf("In use at exit: ");
+        print_human_readable_value(current_allocation); printf(" bytes\n");
 
-    printf("Total heap usage: ");
-    print_human_readable_value(allocation_count); printf(" allocs, ");
-    print_human_readable_value(free_count);       printf(" frees, ");
-    print_human_readable_value(total_allocation); printf(" bytes allocated, ");
-    print_human_readable_value(peak_allocation); printf(" bytes peak usage\n");
+        printf("Total heap usage: ");
+        print_human_readable_value(allocation_count); printf(" allocs, ");
+        print_human_readable_value(free_count);       printf(" frees, ");
+        print_human_readable_value(total_allocation); printf(" bytes allocated, ");
+        print_human_readable_value(peak_allocation); printf(" bytes peak usage\n");
+    }
 
-    if (fail_on_leaked_memory && current_allocation) {
+   if (fail_on_leaked_memory && current_allocation) {
         printf("Memory has been leaked.\n");
         exit(1);
     }

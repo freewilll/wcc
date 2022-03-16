@@ -920,7 +920,7 @@ void *wcalloc(size_t nitems, size_t size);
 void *wcalloc(size_t nitems, size_t size);
 char *wstrdup(const char *str);
 void wfree(void *ptr);
-void print_allocation_stats(void);
+void process_memory_allocation_stats(void);
 
 // error.c
 void panic_with_line_number(char *format, ...);
