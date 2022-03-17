@@ -172,6 +172,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
 
     compile_phase = CP_POST_PARSING;
 
+    init_instrsel();
     init_codegen();
 
     // Compile all functions
@@ -194,6 +195,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
             free_function(symbol->function, 1);
     }
 
+    free_instrsel();
     free_codegen();
 
 exit_compile:;

@@ -26,8 +26,19 @@ Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node
 List *allocated_graphs;         // Track Graph allocations
 List *allocated_igraphs;        // Track IGraph allocations
 List *allocated_igraph_nodes;   // Track IGraphNode allocations
+List *allocated_things;         // Track anything that can be freed with a simple wfree()
 
 static int recursive_tile_igraphs(IGraph *igraph, int node_id);
+
+void init_instrsel() {
+    allocated_things = new_list(1024);
+}
+
+void free_instrsel() {
+    for (int i = 0; i < allocated_things->length; i++)
+        wfree(allocated_things->elements[i]);
+    free_list(allocated_things);
+}
 
 static void transform_lvalues(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -1183,6 +1194,9 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             X86Operation *x86op2 = x86op;
             if (x86op->template && x86op->template[0] == '.' && x86op->template[1] == 'L') {
                 x86op2 = dup_x86_operation(x86op);
+                append_to_list(allocated_things, x86op2);
+                if (x86op2->template) append_to_list(allocated_things, x86op2->template);
+
                 // If the template starts with ".Ln:", where n is a digit, load a label
                 // from slot n, use it in the instruction and rewrite the mnemonic
                 int slot = x86op2->template[2] - '0';

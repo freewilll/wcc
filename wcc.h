@@ -1411,6 +1411,9 @@ void write_rule_coverage_file(void);
 void define_rules(void);
 
 // codegen.c
+void init_instrsel();
+void free_instrsel();
+
 char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
 void make_stack_offsets(Function *function, char *function_name);
