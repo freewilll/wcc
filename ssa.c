@@ -715,12 +715,12 @@ void make_globals_and_var_blocks(Function *function) {
     Block *blocks = function->blocks;
     int block_count = function->cfg->node_count;
 
+    make_vreg_count(function, 0);
     int vreg_count = function->vreg_count;
 
     Set **var_blocks = wcalloc(vreg_count + 1, sizeof(Set *));
     for (int i = 1; i <= vreg_count; i++) var_blocks[i] = new_set(block_count);
 
-    make_vreg_count(function, 0);
     Set *globals = new_set(vreg_count);
 
     for (int i = 0; i < block_count; i++) {
