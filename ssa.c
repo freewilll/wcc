@@ -732,7 +732,6 @@ void make_globals_and_var_blocks(Function *function) {
             if (tac->src2 && tac->src2->vreg && !in_set(varkill, tac->src2->vreg)) add_to_set(globals, tac->src2->vreg);
             if (tac->dst && tac->dst->vreg) {
                 add_to_set(varkill, tac->dst->vreg);
-                // printf("vreg_count=%d, tac->dst->vreg=%d\n", vreg_count, tac->dst->vreg);
                 add_to_set(var_blocks[tac->dst->vreg], i);
             }
 
