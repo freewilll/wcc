@@ -576,11 +576,15 @@ exit_main:
 
     for (int i = 0; i < input_filenames->length; i++) if (assembler_input_filenames[i])
         wfree(assembler_input_filenames[i]);
-
     wfree(assembler_input_filenames);
+
+
+    for (int i = 0; i < input_filenames->length; i++) if (linker_input_filenames[i])
+        wfree(linker_input_filenames[i]);
+    wfree(linker_input_filenames);
+
     free_list(input_filenames);
 
-    wfree(linker_input_filenames);
     wfree(command);
     free_list(extra_linker_args);
     free_list(directive_cli_strings);
