@@ -820,7 +820,9 @@ static void cpp_next() {
             char *start = &(i[state.ip]);
             advance_ip();
 
-            while (c1 = i[state.ip], c2 = i[state.ip + 1], c1 == '.' || is_pp_number(c1, c2) || is_non_digit(c1) || is_exponent(c1, c2)) {
+            while (
+                    c1 = i[state.ip], c2 = state.input_size - state.ip >= 2 ? i[state.ip + 1] : 0,
+                    (c1 == '.' || is_non_digit(c1)) || (is_pp_number(c1, c2) || is_exponent(c1, c2))) {
                 if (is_exponent(c1, c2)) { advance_ip(); size++; }
                 advance_ip();
                 size++;
