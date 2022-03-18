@@ -66,6 +66,15 @@ static void add_include_path(char *path) {
     }
 }
 
+static void free_include_paths(void) {
+    CliIncludePath *cli_include_path = cli_include_paths;
+    while (cli_include_path) {
+        CliIncludePath *next = cli_include_path->next;
+        wfree(cli_include_path);
+        cli_include_path = next;
+    }
+}
+
 static void add_library_path(char *path) {
     int len = strlen(path);
     if (!len) simple_error("Invalid library path");
@@ -84,6 +93,15 @@ static void add_library_path(char *path) {
     }
 }
 
+static void free_cli_library_paths(void) {
+    CliLibraryPath *cli_library_path = cli_library_paths;
+    while (cli_library_path) {
+        CliLibraryPath *next = cli_library_path->next;
+        wfree(cli_library_path);
+        cli_library_path = next;
+    }
+}
+
 static void add_library(char *library) {
     int len = strlen(library);
     if (!len) simple_error("Invalid library");
@@ -97,6 +115,15 @@ static void add_library(char *library) {
         CliLibrary *cd = cli_libraries;
         while (cd->next) cd = cd->next;
         cd->next = cli_library;
+    }
+}
+
+static void free_cli_libraries(void) {
+    CliLibrary *cli_library = cli_libraries;
+    while (cli_library) {
+        CliLibrary *next = cli_library->next;
+        wfree(cli_library);
+        cli_library = next;
     }
 }
 
@@ -589,7 +616,11 @@ exit_main:
     free_list(extra_linker_args);
     free_list(directive_cli_strings);
 
-    if (print_heap_usage) print_allocation_stats();
+    free_include_paths();
+    free_cli_library_paths();
+    free_cli_libraries();
+
+    process_memory_allocation_stats();
 
     exit(exit_code);
 }
