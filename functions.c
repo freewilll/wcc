@@ -1473,13 +1473,16 @@ FunctionParamAllocation *init_function_param_allocaton(char *function_identifier
     return fpa;
 }
 
+static void free_function_param_locations(FunctionParamLocations *fpl) {
+    wfree(fpl->locations);
+    wfree(fpl);
+}
+
 void free_function_param_allocaton(FunctionParamAllocation *fpa) {
     List *fpls_list = fpa->param_locations;
-    for (int i = 0; i < fpls_list->length; i++) {
-        FunctionParamLocations* fpl = fpls_list->elements[i];
-        wfree(fpl->locations);
-        wfree(fpl);
-    }
+    for (int i = 0; i < fpls_list->length; i++)
+        free_function_param_locations(fpls_list->elements[i]);
+
     free_list(fpa->param_locations);
     wfree(fpa);
 }
@@ -1640,6 +1643,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
             if  (in_memory || unaligned) {
                 // The entire thing is on the stack
                 add_single_stack_function_param_location(fpa, type);
+                free_function_param_locations(fpl);
             }
 
             else {
@@ -1669,6 +1673,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
                     if (debug_function_param_allocation) printf("         ran out of registers, rewinding ... \n");
                     *fpa = *backup_fpa;
                     add_single_stack_function_param_location(fpa, type);
+                    free_function_param_locations(fpl);
                 }
                 else
                     append_to_list(fpa->param_locations, fpl);
