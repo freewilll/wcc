@@ -1245,7 +1245,7 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts) {
 
 static char *get_current_file_path() {
     char *p = strrchr(state.filename, '/');
-    if (!p) return "";
+    if (!p) return wstrdup("");
     char *path = wmalloc(p - state.filename + 2);
     memcpy(path, state.filename, p - state.filename + 1);
     path[p - state.filename + 1] = 0;
@@ -1272,7 +1272,9 @@ static int open_include_file(char *path, int is_system_include) {
     // Relative path
     if (!is_system_include) {
         char *full_path;
-        wasprintf(&full_path, "%s%s", get_current_file_path(), path);
+        char *current_file_path = get_current_file_path();
+        wasprintf(&full_path, "%s%s", current_file_path, path);
+        wfree(current_file_path);
         int ok = try_and_open_include_file(full_path, path);
         wfree(full_path);
         if (ok) return 1;
