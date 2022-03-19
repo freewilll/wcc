@@ -1,6 +1,6 @@
 # WCC C Compiler for x86_64 Linux
 
-This project is an implementation of a subset of C for x86_64 linux as an exercise in how to write an optimizing compiler. The implementation is mostly based on [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). The compiler is self hosting. It's just a hobby, it won't be big and professional like gcc. All of the [C89/C90 specification](https://port70.net/~nsz/c/c89/c89-draft.html) has been implemented. All tests in [SQLite](https://www.sqlite.org/index.html)'s `tcltest` pass.
+This project is an implementation of the full C89/C90 C specification for `x86-64` linux. It'sis mostly based on [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). The compiler is self hosting. It's just a hobby, it won't be big and professional like gcc. All of the [C89/C90 specification](https://port70.net/~nsz/c/c89/c89-draft.html) has been implemented. All tests in [SQLite](https://www.sqlite.org/index.html)'s `tcltest` pass.
 
 # Usage
 ```
@@ -38,6 +38,12 @@ $ make test-self-compilation
 Run benchmarks
 ```
 $ make run-benchmark
+```
+
+Compile and test `sqlite3`
+```
+$ CC=.../wcc ./configure
+$ make tcltest
 ```
 
 # Example compilation
@@ -99,4 +105,4 @@ The project started out as a clone of [c4](https://github.com/rswier/c4) to teac
 
 After a hiatus I resumed work and fixed a ton of bugs in the instruction selection. I then decided to implement the full C89/C90 specification, starting with the non-preprocessor parts, then the preprocessor.
 
-To validate the compiler can compile something other than itself correctly, I fixed enough bugs to get Sqlite3 to compile and pass the `tcltest` tests.
+To validate the compiler can compile something other than itself correctly, I fixed enough bugs to get `sqlite3` to compile and pass the `tcltest` tests.
