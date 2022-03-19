@@ -549,7 +549,7 @@ int main(int argc, char **argv) {
     // Preprocessing + compilation phase
     for (int i = 0; i < input_filenames->length; i++) {
         char *input_filename = input_filenames->elements[i];
-        if (is_object_file(input_filename)) linker_input_filenames[i] = input_filename;
+        if (is_object_file(input_filename)) linker_input_filenames[i] = wstrdup(input_filename);
     }
 
     // Linker phase
