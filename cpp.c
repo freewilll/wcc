@@ -1857,6 +1857,7 @@ void free_cpp_allocated_garbage() {
     for (int i = 0; i < allocated_tokens->length; i++)
         free_cpp_token(allocated_tokens->elements[i]);
     free_list(allocated_tokens);
+    allocated_tokens = NULL;
 
     for (int i = 0; i < allocated_tokens_duplicates->length; i++)
         wfree(allocated_tokens_duplicates->elements[i]);

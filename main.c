@@ -514,6 +514,7 @@ int main(int argc, char **argv) {
 
         free_memory_for_translation_unit();
         wfree(preprocessor_output);
+        free_cpp_allocated_garbage();
 
         if (debug_exit_after_parser) goto exit_main;
     }
