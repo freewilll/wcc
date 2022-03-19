@@ -319,11 +319,20 @@ Directive *make_empty_directive(void) {
     return directive;
 }
 
+void free_directive(Directive *d) {
+    if (d) {
+        if (d->param_identifiers) free_strmap(d->param_identifiers);
+        wfree(d);
+    }
+}
+
 // Create empty directives strmap and add CLI directives to them
 void init_directives(void) {
     directives = new_strmap();
     CliDirective *cd = cli_directives;
     while (cd) {
+        Directive *existing = strmap_get(directives, cd->identifier);
+        if (existing) free_directive(existing);
         strmap_put(directives, cd->identifier, cd->directive);
         cd = cd->next;
     }
@@ -339,13 +348,6 @@ void init_directives(void) {
     strmap_put(directives, "__linux__", make_numeric_directive(1));
     strmap_put(directives, "__GNUC__", make_numeric_directive(2));
     strmap_put(directives, "__USER_LABEL_PREFIX__", make_empty_directive());
-}
-
-void free_directive(Directive *d) {
-    if (d) {
-        if (d->param_identifiers) free_strmap(d->param_identifiers);
-        wfree(d);
-    }
 }
 
 void free_directives(void) {
