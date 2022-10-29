@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
 
+#ifdef __linux__
+#include <malloc.h>
+#endif
 #include "wcc.h"
 
 static long total_allocation = 0;
@@ -10,6 +12,14 @@ static long peak_allocation = 0;
 static long current_allocation = 0;
 static int allocation_count = 0;
 static int free_count = 0;
+
+#ifndef __linux__
+// malloc_usable_size is linux specific
+size_t malloc_usable_size(void * ptr) {
+    return 0;
+}
+
+#endif
 
 static void add_to_allocation(size_t size) {
     current_allocation += size;
