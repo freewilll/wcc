@@ -1358,14 +1358,14 @@ typedef struct rule {
 
 typedef struct x86_operation {
     int operation;
-    int dst, v1, v2;
+    char dst, v1, v2;
     char *template;
-    int save_value_in_slot;           // Slot number to save a value in
-    int allocate_stack_index_in_slot; // Allocate a stack index and put in slot
-    int allocate_register_in_slot;    // Allocate a register and put in slot
-    int allocate_label_in_slot;       // Allocate a label and put in slot
-    int allocated_type;               // Type to use to determine the allocated stack size
-    int arg;                          // The argument (src1 or src2) to load/save
+    char save_value_in_slot;           // Slot number to save a value in
+    char allocate_stack_index_in_slot; // Allocate a stack index and put in slot
+    char allocate_register_in_slot;    // Allocate a register and put in slot
+    char allocate_label_in_slot;       // Allocate a label and put in slot
+    char allocated_type;               // Type to use to determine the allocated stack size
+    char arg;                          // The argument (src1 or src2) to load/save
 } X86Operation;
 
 int instr_rule_count;

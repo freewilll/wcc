@@ -30,10 +30,16 @@ int main(int argc, char **argv) {
                 else
                     printf("NULL, ");
 
-                printf("%d, %d, %d, %d, %d, %d },\n",
-                    op->save_value_in_slot, op->allocate_stack_index_in_slot,
-                    op->allocate_register_in_slot, op->allocate_label_in_slot,
-                    op->allocated_type, op->arg /*, next */);
+                if (op->save_value_in_slot + op->allocate_stack_index_in_slot +
+                        op->allocate_register_in_slot + op->allocate_label_in_slot +
+                        op->allocated_type + op->arg != 0) {
+                    printf("%d, %d, %d, %d, %d, %d },\n",
+                        op->save_value_in_slot, op->allocate_stack_index_in_slot,
+                        op->allocate_register_in_slot, op->allocate_label_in_slot,
+                        op->allocated_type, op->arg /*, next */);
+                }
+                else
+                    printf("},\n");
             }
 
             printf("};\n\n");
