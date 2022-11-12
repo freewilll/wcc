@@ -38,10 +38,11 @@ build:
 	@mkdir -p build/wcc2
 	@mkdir -p build/wcc3
 
-internals.c: internals.h
-	echo "char *internals(void) {" >> internals.c
-	cat internals.h | sed ':a;N;$$!ba;s/\n/\\n/g;s/^/    return "/;s/$$/";/' >> internals.c
-	echo "}" >> internals.c
+make-internals: make-internals.c
+	gcc make-internals.c -o make-internals
+
+internals.c: internals.h make-internals
+	./make-internals > internals.c
 
 instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c wcc.h
 	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c
@@ -141,6 +142,7 @@ clean:
 	cd tests && ${MAKE} clean
 	cd tools && ${MAKE} clean
 
+	@rm -f make-internals
 	@rm -f internals.c
 	@rm -f instrgen
 	@rm -f instrrules-generated.c

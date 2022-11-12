@@ -1,5 +1,6 @@
 *.o
 *.s
+make-internals
 internals.c
 instrgen
 instrrules-generated.c
