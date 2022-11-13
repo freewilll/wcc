@@ -35,6 +35,8 @@ static void remove_from_allocation(size_t size) {
 
 // Wrapper around malloc that exits if malloc fails
 void *wmalloc(size_t size) {
+    if (!size) return NULL;
+
     void *result = malloc(size);
 
     if (!result) {
@@ -64,10 +66,12 @@ void *wrealloc(void *ptr, size_t size) {
 
 // Wrapper around calloc that exits if calloc fails
 void *wcalloc(size_t nitems, size_t size) {
+    if (!size || !nitems) return NULL;
+
     void *result = calloc(nitems, size);
 
     if (!result) {
-        printf("Failed to calloc %ld bytes\n", size);
+        printf("Failed to calloc %ld items of %ld bytes\n", nitems, size);
         exit(1);
     }
     add_to_allocation(malloc_usable_size(result));

@@ -819,17 +819,18 @@ void test_coalesce() {
     start_ir();
     i(0, IR_MOVE, vsz(1, TYPE_LONG), c(1),              0                );
     i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0                );
+    i(0, IR_START_CALL, 0, c(0), 0);
     i(0, IR_ARG,  0,                 make_arg_src1(),   vsz(2, TYPE_LONG));
     finish_register_allocation_ir(function);
     assert_tac(ir_start,       IR_MOVE, vsz(2, TYPE_LONG), c(1), 0);
     assert_tac(ir_start->next, IR_NOP,  0,                 0,    0);
-
 
     // Don't coalesce if the registers interfere
     start_ir();
     i(0, IR_MOVE, vsz(1, TYPE_LONG), c(1),              0               );
     i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_LONG), 0               );
     i(0, IR_ADD, vsz(3, TYPE_LONG),  vsz(1, TYPE_LONG), vsz(2, TYPE_LONG));
+    i(0, IR_START_CALL, 0, c(0), 0);
     i(0, IR_ARG,  0,                 make_arg_src1(),   vsz(2, TYPE_LONG));
     finish_register_allocation_ir(function);
 
@@ -845,6 +846,7 @@ void test_coalesce_promotion() {
     start_ir();
     i(0, IR_MOVE, vsz(1, TYPE_INT),  c(1),             0               );
     i(0, IR_MOVE, vsz(2, TYPE_LONG), vsz(1, TYPE_INT), 0               );
+    i(0, IR_START_CALL, 0, c(0), 0);
     i(0, IR_ARG,  0,                 make_arg_src1(),  vsz(2, TYPE_LONG));
     finish_register_allocation_ir(function);
     assert_tac(ir_start, IR_MOVE, vsz(1, TYPE_INT), c(1), 0   );
