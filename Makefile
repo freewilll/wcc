@@ -44,8 +44,8 @@ make-internals: make-internals.c
 internals.c: internals.h make-internals
 	./make-internals > internals.c
 
-instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c wcc.h
-	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c
+instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c wcc.h
+	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c  -Wno-return-type -D BUILD_DIR='${BUILD_DIR}'
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
