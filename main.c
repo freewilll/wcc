@@ -334,7 +334,7 @@ int main(int argc, char **argv) {
     }
 
     if (help) {
-        printf("Usage: wcc [-S -c -E -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE\n\n");
+        printf("Usage: wcc [-S -c -E -v -d -ir1 -ir2 -ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE...\n\n");
         printf("Flags\n");
         printf("-h                                          Help\n");
         printf("-S                                          Compile only; do not assemble or link\n");
