@@ -1,3 +1,10 @@
+# Remove implicit rule, otherwise rules here making an intermedate .s between a .c
+# and .o  will not run since the chain is longer than the implict rule that creates
+# an .o from .c directly.
+%.o: %.c
+
+AS ?= as
+
 WCC_TESTS=\
 	expr \
 	comma \
@@ -32,7 +39,10 @@ stack-check.o: stack-check.c
 test-%.s: test-%.c ../../wcc ../../include/stdarg.h
 	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
 
-test-%-wcc: test-%.s stack-check.o ../test-lib.o ../utils.o ../memory.o
+test-%.o: test-%.s
+	${AS} $< -o $@
+
+test-%-wcc: test-%.o stack-check.o ../test-lib.o ../utils.o ../memory.o
 	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o ../memory.o -o $@
 
 run-test-%-wcc: test-%-wcc

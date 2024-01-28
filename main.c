@@ -10,6 +10,11 @@ void get_debug_env_value(char *key, int *val) {
     if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;
 }
 
+static char *get_as_binary(void) {
+    char *env_value = getenv("AS");
+    return env_value ? env_value : "as";
+}
+
 // Check if the filename ends in .c
 static int is_c_source_file(const char *const filename) {
     int filename_len = strlen(filename);
@@ -531,7 +536,7 @@ int main(int argc, char **argv) {
 
             if (print_filenames) printf("Assembling %s to %s\n", input_filename, assembler_output_filename);
 
-            sprintf(command, "as -64 %s -o %s", input_filename, assembler_output_filename);
+            sprintf(command, "%s -64 %s -o %s", get_as_binary(), input_filename, assembler_output_filename);
             if (verbose) {
                 sprintf(command, "%s %s", command, "-v");
                 printf("%s\n", command);
