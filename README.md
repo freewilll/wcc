@@ -1,6 +1,6 @@
 # WCC C Compiler for x86_64 Linux
 
-This project is an implementation of the full C89/C90 C specification for `x86-64` linux. It'sis mostly based on [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). The compiler is self hosting. It's just a hobby, it won't be big and professional like gcc. All of the [C89/C90 specification](https://port70.net/~nsz/c/c89/c89-draft.html) has been implemented. All tests in [SQLite](https://www.sqlite.org/index.html)'s `tcltest` pass. The [was assembler](https://github.com/freewilll/was?tab=readme-ov-file) can be used to produce object files by setting the `AS` environment variable.
+This project is an implementation of the full C89/C90 C specification for `x86-64` linux. It's mostly based on [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). The compiler is self hosting. It's just a hobby, it won't be big and professional like gcc. All of the [C89/C90 specification](https://port70.net/~nsz/c/c89/c89-draft.html) has been implemented. All tests in [SQLite](https://www.sqlite.org/index.html)'s `tcltest` pass. The [was assembler](https://github.com/freewilll/was?tab=readme-ov-file) can be used to produce object files by setting the `AS` environment variable.
 
 # Usage
 ```
