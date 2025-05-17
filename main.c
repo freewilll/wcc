@@ -12,7 +12,12 @@ void get_debug_env_value(char *key, int *val) {
 
 static char *get_as_binary(void) {
     char *env_value = getenv("AS");
-    return env_value ? env_value : "as";
+    return env_value ? env_value : DEFAULT_AS_COMMAND;
+}
+
+static char *get_ld_binary(void) {
+    char *env_value = getenv("LD");
+    return env_value ? env_value : DEFAULT_LD_COMMAND;
 }
 
 // Check if the filename ends in .c
@@ -157,7 +162,8 @@ int main(int argc, char **argv) {
     int print_stack_register_count = 0;
     int print_instr_rules = 0;
     int print_symbols = 0;
-    int shared = 0;
+    int is_shared = 0;
+    int is_static = 0;
 
     char *output_filename = 0;
     List *input_filenames = new_list(32);
@@ -182,7 +188,8 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-s"                                )) { print_symbols = 1;                        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-g"                                )) { opt_debug_symbols = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fPIC"                             )) { opt_PIC = 1;                              argc--; argv++; }
-            else if (argc > 0 && !strcmp(argv[0], "-shared"                           )) { shared = 1;                               argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-shared"                           )) { is_shared = 1;                            argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-static"                           )) { is_static = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--prc"                             )) { print_stack_register_count = 1;           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--log-compiler-phase-durations"    )) { log_compiler_phase_durations = 1;         argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
@@ -355,6 +362,7 @@ int main(int argc, char **argv) {
         printf("-O<n>                                       Set optimization level (ignored)\n");
         printf("-s                                          Output symbol table\n");
         printf("-fPIC                                       Make position independent code\n");
+        printf("-static                                     Make a statically linked executable\n");
         printf("-shared                                     Make a shared library\n");
         printf("--prc                                       Output spilled register count\n");
         printf("--log-compiler-phase-durations              Log durations of each compiler phase\n");
@@ -467,6 +475,11 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    if (is_static && is_shared) {
+        simple_error("-shared and -static cannot be used together");
+        exit(1);
+    }
+
     char *command = wmalloc(1024 * 100);
 
     List *compiler_input_filenames = new_list(input_filenames->length);
@@ -542,6 +555,7 @@ int main(int argc, char **argv) {
                 printf("%s\n", command);
             }
             int result = system(command);
+
             if (result != 0) exit(result >> 8);
 
             if (run_linker)
@@ -568,30 +582,55 @@ int main(int argc, char **argv) {
         if (print_filenames) printf("Running linker on%s\n", filenames);
 
         s = command;
-        s += sprintf(s, "gcc%s", filenames);
-        wfree(filenames);
+        s += sprintf(s, "%s", get_ld_binary());
 
+        // Exectuables are always dynamic, set the libc dynamic linker interpreter
+        if (is_shared)
+            s += sprintf(s, " -shared");
+        else if (!is_static)
+            s += sprintf(s, " -dynamic-linker %s", DYNAMIC_LINKER);
+        else
+            s += sprintf(s, " -static");
+
+        // Add library paths for libc and gcc
+        s += sprintf(s, " -L %s", LIBC_LIBRARY_PATH);
+        s += sprintf(s, " -L %s", GCC_LIBRARY_PATH);
+
+        // Add CLI library paths
         for (CliLibraryPath *cli_library_path = cli_library_paths; cli_library_path; cli_library_path = cli_library_path->next)
             s += sprintf(s, " -L %s", cli_library_path->path);
 
+        // Add CLI libraries
         for (CliLibrary *cli_library = cli_libraries; cli_library; cli_library = cli_library->next)
             s += sprintf(s, " -l %s", cli_library->library);
 
+        // Set output filename
         char *linker_output_filename = output_filename ? output_filename : "a.out";
         s += sprintf(s, " -o %s", linker_output_filename);
 
-        if (shared) s += sprintf(s, " -shared");
+        // Add C runtime start files
+        if (!is_shared) s += sprintf(s, " %s", STARTFILES);
+
+        // Add input filenames
+        s += sprintf(s, "%s", filenames);
+
+        // Include standard libraries
+        s += sprintf(s, " -lc");        // C standard library
+        s += sprintf(s, " -lgcc");      // gcc libs
+        s += sprintf(s, " -lgcc_eh");   // gcc exception handling
+        s += sprintf(s, " -lc");        // C standard library again to resolve potential gcc symbols
+
+        // Add C runtime end files
+        if (!is_shared) s += sprintf(s, " %s", ENDFILES);
+
+        wfree(filenames);
 
         for (int i = 0; i < extra_linker_args->length; i++)
-            s += sprintf(s, " -Wl,%s", (char *) extra_linker_args->elements[i]);
-
-        if (verbose) {
-            s += sprintf(s, " -v");
-            *s = 0;
-            printf("%s\n", command);
-        }
+            s += sprintf(s, " %s", (char *) extra_linker_args->elements[i]);
 
         *s = 0;
+
+        if (verbose) printf("%s\n", command);
 
         int result = system(command);
         if (result != 0) {

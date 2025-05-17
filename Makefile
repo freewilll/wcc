@@ -44,19 +44,19 @@ make-internals: make-internals.c
 internals.c: internals.h make-internals
 	./make-internals > internals.c
 
-instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c wcc.h
+instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c config.h wcc.h
 	gcc -o instrgen instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c  -Wno-return-type -D BUILD_DIR='${BUILD_DIR}'
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
 
-%.o: %.c wcc.h build
+%.o: %.c config.h wcc.h build
 	gcc -g ${GCC_OPTS} -Wunused -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 libwcc.a: ${OBJECTS}
 	ar rcs libwcc.a ${OBJECTS}
 
-wcc: libwcc.a main.c wcc.h
+wcc: libwcc.a main.c config.h wcc.h
 	gcc ${GCC_OPTS} -Wunused  main.c libwcc.a -o wcc -g -Wno-return-type
 
 # wcc2
@@ -163,3 +163,6 @@ clean:
 	@rm -f *.gcov
 	@rm -f main_coverage.info
 	@rm -f prof_output
+
+distclean: clean
+	@rm -f config.h

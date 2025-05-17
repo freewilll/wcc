@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <sys/time.h>
 
+#include "config.h"
+
 #define MAX_CPP_FILESIZE              10 * 1024 * 1024
 #define MAX_CPP_INCLUDE_DEPTH         15
 #define MAX_CPP_MACRO_PARAM_COUNT     1024

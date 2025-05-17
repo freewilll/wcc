@@ -1,0 +1,84 @@
+#!/bin/sh
+
+set -e
+
+# Configure:
+# - C library: musl or glibc
+# - as binary
+# - ld binary
+#
+# The results are written to config.h
+
+USE_MUSL=0
+
+DEFAULT_AS_COMMAND="${AS:-$(command -v as  || true)}"   # Default assembler.
+DEFAULT_LD_COMMAND="${LD:-$(command -v ld  || true)}"   # Default linker.
+
+# Show the help
+help() {
+    cat <<END
+Usage: ./configure [options]
+
+Flags:
+--use-musl    Use MUSL libc instead of glibc
+--as=PATH     Use assembler binary (detected: $DEFAULT_AS_COMMAND)
+--ld=PATH     Use linker binary    (detected: $DEFAULT_LD_COMMAND)
+-h, --help    Print this help text.
+END
+    exit 0
+}
+
+# Parse args
+for arg in "$@"; do
+    case $arg in
+    --use-musl)   USE_MUSL=1 ;;
+    --as=*)       DEFAULT_AS_COMMAND="${arg#*=}" ;;
+    --ld=*)       DEFAULT_LD_COMMAND="${arg#*=}" ;;
+    -h|--help) help ;;
+    *) echo "Unknown arg: $arg" >&2; exit 1 ;;
+    esac
+    shift || true
+done
+
+# gcc C runtime files
+GCC_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9
+GCC_CRTBEGIN=/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o
+GCC_CRTEND=/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o
+
+# Configure libc
+if [ $USE_MUSL -eq 0 ]
+then
+    echo Using glibc
+
+    DYNAMIC_LINKER=/lib64/ld-linux-x86-64.so.2
+    LIBC_LIBRARY_PATH=/usr/lib
+    STARTFILES="/usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o $GCC_CRTBEGIN"
+    ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-gnu/crtn.o"
+
+else
+    echo Using musl libc
+
+    DYNAMIC_LINKER=/lib/ld-musl-x86_64.so.1
+    LIBC_LIBRARY_PATH=/usr/lib/x86_64-linux-musl
+	STARTFILES="/usr/lib/x86_64-linux-musl/Scrt1.o /usr/lib/x86_64-linux-musl/crti.o $GCC_CRTBEGIN"
+	ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-musl/crtn.o"
+
+fi
+
+echo Using assembler $DEFAULT_AS_COMMAND
+echo Using linker $DEFAULT_LD_COMMAND
+
+# Write out config.h
+CONFIG_H_PATH=config.h
+
+cat > $CONFIG_H_PATH <<END
+// This file is auto generated. Do not edit.
+
+#define DEFAULT_AS_COMMAND "$DEFAULT_AS_COMMAND"
+#define DEFAULT_LD_COMMAND "$DEFAULT_LD_COMMAND"
+#define DYNAMIC_LINKER "$DYNAMIC_LINKER"
+#define LIBC_LIBRARY_PATH "$LIBC_LIBRARY_PATH"
+#define GCC_LIBRARY_PATH "$GCC_LIBRARY_PATH"
+#define STARTFILES "$STARTFILES"
+#define ENDFILES "$ENDFILES"
+END
