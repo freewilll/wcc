@@ -450,6 +450,18 @@ int main(int argc, char **argv) {
     get_debug_env_value("DEBUG_INSTSEL_SPILLING", &debug_instsel_spilling);
     get_debug_env_value("DEBUG_STACK_FRAME_LAYOUT", &debug_stack_frame_layout);
 
+    if (verbose) {
+        printf("Configuration:\n");
+
+        printf("DEFAULT_AS_COMMAND    %s\n", DEFAULT_AS_COMMAND);
+        printf("DEFAULT_LD_COMMAND    %s\n", DEFAULT_LD_COMMAND);
+        printf("DYNAMIC_LINKER        %s\n", DYNAMIC_LINKER);
+        printf("LIBC_LIBRARY_PATH     %s\n", LIBC_LIBRARY_PATH);
+        printf("GCC_LIBRARY_PATH      %s\n", GCC_LIBRARY_PATH);
+        printf("STARTFILES            %s\n", STARTFILES);
+        printf("ENDFILES              %s\n", ENDFILES);
+    }
+
     if (print_instr_rules) {
         print_rules();
         exit(0);
