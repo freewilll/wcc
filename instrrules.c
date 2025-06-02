@@ -1676,11 +1676,11 @@ void define_rules(void) {
 
     add_conditional_zero_jump_rule(IR_JZ,  XR,  LAB, 3, X_TEST, "test%s %v1, %v1",  "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JZ,  XRP, LAB, 3, X_TEST, "testq %v1q, %v1q", "jz %v1",   1);
-    add_conditional_zero_jump_rule(IR_JZ,  XMI, LAB, 3, X_CMPZ, "cmp $0, %v1",      "jz %v1",   1);
+    add_conditional_zero_jump_rule(IR_JZ,  XMI, LAB, 3, X_CMPZ, "cmp%s $0, %v1",    "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JZ,  RPF, LAB, 3, X_TEST, "testq %v1q, %v1q", "jz %v1",   1);
     add_conditional_zero_jump_rule(IR_JNZ, XR,  LAB, 3, X_TEST, "test%s %v1, %v1",  "jnz %v1",  1);
     add_conditional_zero_jump_rule(IR_JNZ, XRP, LAB, 3, X_TEST, "testq %v1q, %v1q", "jnz %v1",  1);
-    add_conditional_zero_jump_rule(IR_JNZ, XMI, LAB, 3, X_CMPZ, "cmp $0, %v1",      "jnz %v1",  1);
+    add_conditional_zero_jump_rule(IR_JNZ, XMI, LAB, 3, X_CMPZ, "cmp%s $0, %v1",    "jnz %v1",  1);
     add_conditional_zero_jump_rule(IR_JNZ, RPF, LAB, 3, X_TEST, "testq %v1q, %v1q", "jnz %v1",  1);
 
     // Integer comparisons

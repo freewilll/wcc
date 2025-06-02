@@ -34,6 +34,17 @@ void test_if_else() {
     assert_int(1, t4, "if/else 4");
 }
 
+// Test a regression where a cmpl was being generated instead of a cmpb
+void test_if_else_with_char() {
+    static char foo = 0;
+    static char padding = 1; // Set the next byte after foo to something non-zero
+
+    if (foo)
+        assert_int(0, 1, "if with char true case"); // This case should not run
+    else
+        assert_int(1, 1, "if with char false case"); // This is the normal case
+}
+
 void test_constant_and_or_shortcutting() {
     int i, t1, t2, t3, t4;
 
@@ -245,6 +256,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv, &verbose);
 
     test_if_else();
+    test_if_else_with_char();
     test_constant_and_or_shortcutting();
     test_register_memory_and_or_shortcutting();
     test_first_arg_to_or_and_and_must_be_rvalue();

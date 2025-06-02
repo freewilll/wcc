@@ -123,7 +123,7 @@ void test_instrsel_tree_merging() {
     i(1, IR_EQ,   vsz(4, TYPE_INT), v(1), v(2));
     finish_ir(function);
 
-    // Ensure both CMP instructions operate on registers
+    // Ensure both "CMP" instructions operate on registers
     tac = ir_start;
     for (j = 0; j < 2; j++) {
         while (tac && tac->operation != X_CMP) tac = tac->next;
@@ -505,7 +505,7 @@ void test_instrsel_expr() {
     i(0, IR_JZ,  0,    g(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_x86_op("cmp         $0, g1(%rip)");
+    assert_x86_op("cmpq        $0, g1(%rip)");
     assert_x86_op("jz          .L1");
 
     // jnz with r1
@@ -547,7 +547,7 @@ void test_instrsel_expr() {
     i(0, IR_JNZ, 0,    g(1), l(1));
     i(1, IR_NOP, 0,    0,    0);
     finish_ir(function);
-    assert_x86_op("cmp         $0, g1(%rip)");
+    assert_x86_op("cmpq        $0, g1(%rip)");
     assert_x86_op("jnz         .L1");
 }
 
