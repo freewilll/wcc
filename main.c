@@ -608,14 +608,6 @@ int main(int argc, char **argv) {
         s += sprintf(s, " -L %s", LIBC_LIBRARY_PATH);
         s += sprintf(s, " -L %s", GCC_LIBRARY_PATH);
 
-        // Add CLI library paths
-        for (CliLibraryPath *cli_library_path = cli_library_paths; cli_library_path; cli_library_path = cli_library_path->next)
-            s += sprintf(s, " -L %s", cli_library_path->path);
-
-        // Add CLI libraries
-        for (CliLibrary *cli_library = cli_libraries; cli_library; cli_library = cli_library->next)
-            s += sprintf(s, " -l %s", cli_library->library);
-
         // Set output filename
         char *linker_output_filename = output_filename ? output_filename : "a.out";
         s += sprintf(s, " -o %s", linker_output_filename);
@@ -625,6 +617,18 @@ int main(int argc, char **argv) {
 
         // Add input filenames
         s += sprintf(s, "%s", filenames);
+
+        // Add CLI library paths
+        // Library and object paths should be passed in in the same order as on the command line
+        // instead of doing all objects first, then all libraries.
+        // This is done incorrectly here: object files first, then libraries.
+
+        for (CliLibraryPath *cli_library_path = cli_library_paths; cli_library_path; cli_library_path = cli_library_path->next)
+            s += sprintf(s, " -L %s", cli_library_path->path);
+
+        // Add CLI libraries
+        for (CliLibrary *cli_library = cli_libraries; cli_library; cli_library = cli_library->next)
+            s += sprintf(s, " -l %s", cli_library->library);
 
         // Include standard libraries
         s += sprintf(s, " -lc");        // C standard library
