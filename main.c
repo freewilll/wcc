@@ -5,6 +5,12 @@
 
 #include "wcc.h"
 
+// Keeps track of the order of -l and filename args to be passed to the linker in the same order
+typedef struct linker_input {
+    int input_filename_index;   // Either input_filename_index or library_index isn't -1
+    int library_index;
+} LinkerInput;
+
 void get_debug_env_value(char *key, int *val) {
     char *env_value;
     if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;
@@ -112,29 +118,16 @@ static void free_cli_library_paths(void) {
     }
 }
 
-static void add_library(char *library) {
+static void add_library(char *library, List *cli_libraries, List *linker_inputs) {
     int len = strlen(library);
     if (!len) simple_error("Invalid library");
 
-    CliLibrary *cli_library = wmalloc(sizeof(CliLibrary));
-    cli_library->library = library;
-    cli_library->next = 0;
+    LinkerInput *linker_input = wmalloc(sizeof(LinkerInput));
+    linker_input->input_filename_index = -1;
+    linker_input->library_index = cli_libraries->length;
+    append_to_list(linker_inputs, linker_input);
 
-    if (!cli_libraries) cli_libraries = cli_library;
-    else {
-        CliLibrary *cd = cli_libraries;
-        while (cd->next) cd = cd->next;
-        cd->next = cli_library;
-    }
-}
-
-static void free_cli_libraries(void) {
-    CliLibrary *cli_library = cli_libraries;
-    while (cli_library) {
-        CliLibrary *next = cli_library->next;
-        wfree(cli_library);
-        cli_library = next;
-    }
+    append_to_list(cli_libraries, library);
 }
 
 int main(int argc, char **argv) {
@@ -167,16 +160,16 @@ int main(int argc, char **argv) {
 
     char *output_filename = 0;
     List *input_filenames = new_list(32);
+    List *cli_libraries = new_list(32); // Linked list of libraries passed on the command line with -l
+    List* linker_inputs = new_list(32); // List of indexes of input filenames and library names
 
     init_allocate_registers();
     init_instruction_selection_rules();
 
     cli_include_paths = 0;
     cli_library_paths = 0;
-    cli_libraries = 0;
 
     List *extra_linker_args = new_list(0);
-
     List *directive_cli_strings = new_list(8);
 
     argc--;
@@ -305,13 +298,13 @@ int main(int argc, char **argv) {
             }
             else if (argc > 1 && !strcmp(argv[0], "-l")) {
                 // -l ...
-                add_library(argv[1]);
+                add_library(argv[1], cli_libraries, linker_inputs);
                 argc -= 2;
                 argv += 2;
             }
             else if (argv[0][0] == '-' && argv[0][1] == 'l') {
                 // -L...
-                add_library(&(argv[0][2]));
+                add_library(&(argv[0][2]), cli_libraries, linker_inputs);
                 argc--;
                 argv++;
             }
@@ -339,7 +332,13 @@ int main(int argc, char **argv) {
             }
         }
         else {
+            LinkerInput *linker_input = wmalloc(sizeof(LinkerInput));
+            linker_input->input_filename_index = input_filenames->length;
+            linker_input->library_index = -1;
+            append_to_list(linker_inputs, linker_input);
+
             append_to_list(input_filenames, argv[0]);
+
             argc--;
             argv++;
         }
@@ -585,13 +584,7 @@ int main(int argc, char **argv) {
 
     // Linker phase
     if (run_linker) {
-        char *filenames = wmalloc(1024 * 100);
-        char *s = filenames;
-        for (int i = 0; i < input_filenames->length; i++) {
-            char *filename = linker_input_filenames[i];
-            if (filename) s += sprintf(s, " %s", (char *) filename);
-        }
-        if (print_filenames) printf("Running linker on%s\n", filenames);
+        char *s = wmalloc(1024 * 100);
 
         s = command;
         s += sprintf(s, "%s", get_ld_binary());
@@ -615,20 +608,18 @@ int main(int argc, char **argv) {
         // Add C runtime start files
         if (!is_shared) s += sprintf(s, " %s", STARTFILES);
 
-        // Add input filenames
-        s += sprintf(s, "%s", filenames);
-
         // Add CLI library paths
-        // Library and object paths should be passed in in the same order as on the command line
-        // instead of doing all objects first, then all libraries.
-        // This is done incorrectly here: object files first, then libraries.
-
         for (CliLibraryPath *cli_library_path = cli_library_paths; cli_library_path; cli_library_path = cli_library_path->next)
             s += sprintf(s, " -L %s", cli_library_path->path);
 
-        // Add CLI libraries
-        for (CliLibrary *cli_library = cli_libraries; cli_library; cli_library = cli_library->next)
-            s += sprintf(s, " -l %s", cli_library->library);
+        // Add files and libraries
+        for (int i = 0; i < linker_inputs->length; i++) {
+            LinkerInput *linker_input = linker_inputs->elements[i];
+            if (linker_input->input_filename_index != -1)
+                s += sprintf(s, " %s", linker_input_filenames[linker_input->input_filename_index]);
+            else
+                s += sprintf(s, " -l%s", (char *) cli_libraries->elements[linker_input->library_index]);
+        }
 
         // Include standard libraries
         s += sprintf(s, " -lc");        // C standard library
@@ -638,8 +629,6 @@ int main(int argc, char **argv) {
 
         // Add C runtime end files
         if (!is_shared) s += sprintf(s, " %s", ENDFILES);
-
-        wfree(filenames);
 
         for (int i = 0; i < extra_linker_args->length; i++)
             s += sprintf(s, " %s", (char *) extra_linker_args->elements[i]);
@@ -666,7 +655,6 @@ exit_main:
         wfree(assembler_input_filenames[i]);
     wfree(assembler_input_filenames);
 
-
     for (int i = 0; i < input_filenames->length; i++) if (linker_input_filenames[i])
         wfree(linker_input_filenames[i]);
     wfree(linker_input_filenames);
@@ -679,7 +667,11 @@ exit_main:
 
     free_include_paths();
     free_cli_library_paths();
-    free_cli_libraries();
+    free_list(cli_libraries);
+
+    for (int i = 0; i < linker_inputs->length; i++)
+        wfree(linker_inputs->elements[i]);
+    free_list(linker_inputs);
 
     process_memory_allocation_stats();
 
