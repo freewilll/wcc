@@ -13,7 +13,7 @@ run-test-errors: test-errors
 	./test-errors
 
 test-debug: test-debug.c ../../wcc
-	../../wcc test-debug.c -o test-debug -g
+	../../wcc ${WCC_OPTS} test-debug.c -o test-debug -g
 
 check-test-debug-headers: test-debug
 	objdump -h test-debug | grep .debug_info > /dev/null
