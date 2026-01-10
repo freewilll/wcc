@@ -69,7 +69,7 @@ build/wcc2/%.s: %.c wcc
 	./wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc2.rulecov -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 wcc2: ${WCC2_ASSEMBLIES} build/wcc2/main.s wcc
-	./wcc ${GCC_OPTS} ${WCC2_ASSEMBLIES} build/wcc2/main.s -o wcc2
+	./wcc ${WCC_OPTS} ${WCC2_ASSEMBLIES} build/wcc2/main.s -o wcc2
 
 # wcc3
 WCC3_SOURCES := ${SOURCES:%=build/wcc3/%}
@@ -79,7 +79,7 @@ build/wcc3/%.s: %.c wcc2
 	./wcc2 ${WCC_OPTS} --fail-on-leaked-memory -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
 
 wcc3: ${WCC3_ASSEMBLIES} build/wcc3/main.s wcc2
-	./wcc2 ${GCC_OPTS} ${WCC3_ASSEMBLIES} build/wcc3/main.s -o wcc3
+	./wcc2 ${WCC_OPTS} ${WCC3_ASSEMBLIES} build/wcc3/main.s -o wcc3
 
 .PHONY: test-self-compilation
 test-self-compilation: ${WCC2_ASSEMBLIES} build/wcc2/main.s ${WCC3_ASSEMBLIES} build/wcc3/main.s
