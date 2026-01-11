@@ -61,7 +61,7 @@ const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", 
 
 char *BUILTIN_INCLUDE_PATHS[] = {
     // Builtin
-    BUILD_DIR "/include/",  // Set during compilation to local wcc source dir
+    BUILD_DIR "/include",  // Set during compilation to local wcc source dir
 
     // From config.h
     INCLUDE_PATHS,
@@ -1303,7 +1303,7 @@ static int open_include_file(char *path, int is_system_include) {
     char *include_path;
     for (int i = 0; (include_path = BUILTIN_INCLUDE_PATHS[i]); i++) {
         char *full_path;
-        wasprintf(&full_path, "%s%s", include_path, path);
+        wasprintf(&full_path, "%s/%s", include_path, path);
         int ok = try_and_open_include_file(full_path, path);
         wfree(full_path);
         if (ok) return 1;
