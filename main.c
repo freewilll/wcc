@@ -459,6 +459,9 @@ int main(int argc, char **argv) {
         printf("GCC_LIBRARY_PATH      %s\n", GCC_LIBRARY_PATH);
         printf("STARTFILES            %s\n", STARTFILES);
         printf("ENDFILES              %s\n", ENDFILES);
+        printf("INCLUDE_PATHS         ");
+        print_builtin_include_paths();
+        printf("\n");
     }
 
     if (print_instr_rules) {

@@ -59,13 +59,23 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts);
 
 const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
-char *BUILTIN_INCLUDE_PATHS[5] = {
+char *BUILTIN_INCLUDE_PATHS[] = {
+    // Builtin
     BUILD_DIR "/include/",  // Set during compilation to local wcc source dir
-    "/usr/local/include/",
-    "/usr/include/x86_64-linux-gnu/",
-    "/usr/include/",
+
+    // From config.h
+    INCLUDE_PATHS,
+
     0,
 };
+
+void print_builtin_include_paths() {
+    char *include_path;
+    for (int i = 0; (include_path = BUILTIN_INCLUDE_PATHS[i]); i++) {
+        if (i > 0) printf(", ");
+        printf("%s", include_path);
+    }
+}
 
 void debug_print_cll_token_sequence(CppToken *ts) {
     if (!ts) {

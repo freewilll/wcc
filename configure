@@ -54,7 +54,7 @@ then
     LIBC_LIBRARY_PATH=/usr/lib
     STARTFILES="/usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o $GCC_CRTBEGIN"
     ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-gnu/crtn.o"
-
+    INCLUDE_PATHS='"/usr/lib/gcc/x86_64-linux-gnu/9/include/", "/usr/local/include/", "/usr/include/x86_64-linux-gnu/", "/usr/include/"'
 else
     echo Using musl libc
 
@@ -62,7 +62,7 @@ else
     LIBC_LIBRARY_PATH=/usr/lib/x86_64-linux-musl
 	STARTFILES="/usr/lib/x86_64-linux-musl/Scrt1.o /usr/lib/x86_64-linux-musl/crti.o $GCC_CRTBEGIN"
 	ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-musl/crtn.o"
-
+    INCLUDE_PATHS='"/usr/include/x86_64-linux-musl/", "/usr/lib/gcc/x86_64-linux-gnu/9/include/"'
 fi
 
 echo Using assembler $DEFAULT_AS_COMMAND
@@ -81,4 +81,5 @@ cat > $CONFIG_H_PATH <<END
 #define GCC_LIBRARY_PATH "$GCC_LIBRARY_PATH"
 #define STARTFILES "$STARTFILES"
 #define ENDFILES "$ENDFILES"
+#define INCLUDE_PATHS $INCLUDE_PATHS
 END

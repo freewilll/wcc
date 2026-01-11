@@ -939,6 +939,7 @@ typedef struct line_map {
     struct line_map *next;
 } LineMap;
 
+void  print_builtin_include_paths();
 void init_cpp(void);
 void get_cpp_filename_and_line();
 void init_cpp_from_string(char *string);
