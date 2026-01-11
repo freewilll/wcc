@@ -276,6 +276,27 @@ Value *make_string_literal_value_from_cur_string_literal(void) {
     return value;
 }
 
+static Value *make_string_literal_value_from_string_literal(const char *string_literal) {
+    int size = strlen(string_literal) + 1;
+
+    Value *value = new_value();
+
+    value->type = make_array(new_type(TYPE_CHAR), size);
+    value->string_literal_index = string_literal_count;
+    value->is_string_literal = 1;
+    if (string_literal_count > MAX_STRING_LITERALS) panic_with_line_number("Exceeded max string literals %d", MAX_STRING_LITERALS);
+    string_literals[string_literal_count] = cur_string_literal;
+
+    // Copy string literal data
+    char *copy =  wstrdup(string_literal);
+    append_to_list(allocated_strings, copy);
+    string_literals[string_literal_count].data = copy;
+
+    string_literal_count++;
+
+    return value;
+}
+
 // Add an operation to the IR
 static Tac *add_ir_op(int operation, Type *type, int vreg, Value *src1, Value *src2) {
     Value *v = new_value();
@@ -2407,6 +2428,12 @@ static void parse_va_arg() {
     push(dst);
 }
 
+// Parse an identifier called __func__, which is replaced with a string literal of the current function name.
+void parse___func__(void) {
+    push(make_string_literal_value_from_string_literal(cur_function_symbol->identifier));
+    next();
+}
+
 void parse_struct_dot_arrow_expression(void) {
     // Struct/union member lookup
 
@@ -2806,6 +2833,9 @@ static void parse_expression(int level) {
 
                 else if (!strcmp(cur_identifier, "va_arg"))
                     parse_va_arg();
+
+                else if (!strcmp(cur_identifier, "__func__"))
+                    parse___func__();
 
                 else {
                     // Look up symbol

@@ -1749,6 +1749,11 @@ int test_expression_statement() {
     assert(1); // with __GNUC__ >= 2, this uses an expression statement
 }
 
+int test___func__statement() {
+    // __func__ is set to the current function name
+    assert_string("test___func__statement", __func__, "__func__");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1814,6 +1819,7 @@ int main(int argc, char **argv) {
     test_shr_on_signed_int_bug();
     test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug();
     test_expression_statement();
+    test___func__statement();
 
     finalize();
 }
