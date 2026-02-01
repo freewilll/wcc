@@ -3,13 +3,10 @@
 set -e
 
 # Configure:
-# - C library: musl or glibc
 # - as binary
 # - ld binary
 #
 # The results are written to config.h
-
-USE_MUSL=0
 
 DEFAULT_AS_COMMAND="${AS:-$(command -v as  || true)}"   # Default assembler.
 DEFAULT_LD_COMMAND="${LD:-$(command -v ld  || true)}"   # Default linker.
@@ -20,7 +17,6 @@ help() {
 Usage: ./configure [options]
 
 Flags:
---use-musl    Use MUSL libc instead of glibc
 --as=PATH     Use assembler binary (detected: $DEFAULT_AS_COMMAND)
 --ld=PATH     Use linker binary    (detected: $DEFAULT_LD_COMMAND)
 -h, --help    Print this help text.
@@ -31,7 +27,6 @@ END
 # Parse args
 for arg in "$@"; do
     case $arg in
-    --use-musl)   USE_MUSL=1 ;;
     --as=*)       DEFAULT_AS_COMMAND="${arg#*=}" ;;
     --ld=*)       DEFAULT_LD_COMMAND="${arg#*=}" ;;
     -h|--help) help ;;
@@ -45,25 +40,18 @@ GCC_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9
 GCC_CRTBEGIN=/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o
 GCC_CRTEND=/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o
 
-# Configure libc
-if [ $USE_MUSL -eq 0 ]
-then
-    echo Using glibc
+# Libc configs are chosen at runtime via wcc --libc=glibc|musl.
+GLIBC_DYNAMIC_LINKER=/lib64/ld-linux-x86-64.so.2
+GLIBC_LIBC_LIBRARY_PATH=/usr/lib
+GLIBC_STARTFILES="/usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o $GCC_CRTBEGIN"
+GLIBC_ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-gnu/crtn.o"
+GLIBC_INCLUDE_PATHS='"/usr/lib/gcc/x86_64-linux-gnu/9/include", "/usr/local/include", "/usr/include/x86_64-linux-gnu", "/usr/include"'
 
-    DYNAMIC_LINKER=/lib64/ld-linux-x86-64.so.2
-    LIBC_LIBRARY_PATH=/usr/lib
-    STARTFILES="/usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o $GCC_CRTBEGIN"
-    ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-gnu/crtn.o"
-    INCLUDE_PATHS='"/usr/lib/gcc/x86_64-linux-gnu/9/include", "/usr/local/include", "/usr/include/x86_64-linux-gnu", "/usr/include"'
-else
-    echo Using musl libc
-
-    DYNAMIC_LINKER=/lib/ld-musl-x86_64.so.1
-    LIBC_LIBRARY_PATH=/usr/lib/x86_64-linux-musl
-	STARTFILES="/usr/lib/x86_64-linux-musl/Scrt1.o /usr/lib/x86_64-linux-musl/crti.o $GCC_CRTBEGIN"
-	ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-musl/crtn.o"
-    INCLUDE_PATHS='"/usr/include/x86_64-linux-musl", "/usr/lib/gcc/x86_64-linux-gnu/9/include"'
-fi
+MUSL_DYNAMIC_LINKER=/lib/ld-musl-x86_64.so.1
+MUSL_LIBC_LIBRARY_PATH=/usr/lib/x86_64-linux-musl
+MUSL_STARTFILES="/usr/lib/x86_64-linux-musl/Scrt1.o /usr/lib/x86_64-linux-musl/crti.o $GCC_CRTBEGIN"
+MUSL_ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-musl/crtn.o"
+MUSL_INCLUDE_PATHS='"/usr/include/x86_64-linux-musl", "/usr/lib/gcc/x86_64-linux-gnu/9/include"'
 
 echo Using assembler $DEFAULT_AS_COMMAND
 echo Using linker $DEFAULT_LD_COMMAND
@@ -76,10 +64,15 @@ cat > $CONFIG_H_PATH <<END
 
 #define DEFAULT_AS_COMMAND "$DEFAULT_AS_COMMAND"
 #define DEFAULT_LD_COMMAND "$DEFAULT_LD_COMMAND"
-#define DYNAMIC_LINKER "$DYNAMIC_LINKER"
-#define LIBC_LIBRARY_PATH "$LIBC_LIBRARY_PATH"
 #define GCC_LIBRARY_PATH "$GCC_LIBRARY_PATH"
-#define STARTFILES "$STARTFILES"
-#define ENDFILES "$ENDFILES"
-#define INCLUDE_PATHS $INCLUDE_PATHS
+#define GLIBC_DYNAMIC_LINKER "$GLIBC_DYNAMIC_LINKER"
+#define GLIBC_LIBC_LIBRARY_PATH "$GLIBC_LIBC_LIBRARY_PATH"
+#define GLIBC_STARTFILES "$GLIBC_STARTFILES"
+#define GLIBC_ENDFILES "$GLIBC_ENDFILES"
+#define GLIBC_INCLUDE_PATHS $GLIBC_INCLUDE_PATHS
+#define MUSL_DYNAMIC_LINKER "$MUSL_DYNAMIC_LINKER"
+#define MUSL_LIBC_LIBRARY_PATH "$MUSL_LIBC_LIBRARY_PATH"
+#define MUSL_STARTFILES "$MUSL_STARTFILES"
+#define MUSL_ENDFILES "$MUSL_ENDFILES"
+#define MUSL_INCLUDE_PATHS $MUSL_INCLUDE_PATHS
 END

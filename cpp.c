@@ -59,19 +59,29 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts);
 
 const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
-char *BUILTIN_INCLUDE_PATHS[] = {
-    // Builtin
-    BUILD_DIR "/include",  // Set during compilation to local wcc source dir
-
-    // From config.h
-    INCLUDE_PATHS,
-
+static const char *builtin_include_paths[64] = {
+    BUILD_DIR "/include",
+    GLIBC_INCLUDE_PATHS,
     0,
 };
 
+void set_libc_include_paths(int use_musl) {
+    char *glibc_include_paths[] = { GLIBC_INCLUDE_PATHS, 0 };
+    char *musl_include_paths[] = { MUSL_INCLUDE_PATHS, 0 };
+
+    char **libc_include_paths = use_musl ? musl_include_paths : glibc_include_paths;
+
+    int i = 0;
+    builtin_include_paths[i++] = BUILD_DIR "/include";
+    for (int j = 0; libc_include_paths[j]; j++) {
+        builtin_include_paths[i++] = libc_include_paths[j];
+    }
+    builtin_include_paths[i] = 0;
+}
+
 void print_builtin_include_paths() {
-    char *include_path;
-    for (int i = 0; (include_path = BUILTIN_INCLUDE_PATHS[i]); i++) {
+    const char *include_path;
+    for (int i = 0; (include_path = builtin_include_paths[i]); i++) {
         if (i > 0) printf(", ");
         printf("%s", include_path);
     }
@@ -1300,8 +1310,8 @@ static int open_include_file(char *path, int is_system_include) {
         if (ok) return 1;
     }
 
-    char *include_path;
-    for (int i = 0; (include_path = BUILTIN_INCLUDE_PATHS[i]); i++) {
+    const char *include_path;
+    for (int i = 0; (include_path = builtin_include_paths[i]); i++) {
         char *full_path;
         wasprintf(&full_path, "%s/%s", include_path, path);
         int ok = try_and_open_include_file(full_path, path);

@@ -26,6 +26,30 @@ static char *get_ld_binary(void) {
     return env_value ? env_value : DEFAULT_LD_COMMAND;
 }
 
+typedef struct libc_config {
+    const char *name;
+    const char *dynamic_linker;
+    const char *libc_library_path;
+    const char *startfiles;
+    const char *endfiles;
+} LibcConfig;
+
+static const LibcConfig GLIBC_CONFIG = {
+    "glibc",
+    GLIBC_DYNAMIC_LINKER,
+    GLIBC_LIBC_LIBRARY_PATH,
+    GLIBC_STARTFILES,
+    GLIBC_ENDFILES,
+};
+
+static const LibcConfig MUSL_CONFIG = {
+    "musl",
+    MUSL_DYNAMIC_LINKER,
+    MUSL_LIBC_LIBRARY_PATH,
+    MUSL_STARTFILES,
+    MUSL_ENDFILES,
+};
+
 // Check if the filename ends in .c
 static int is_c_source_file(const char *const filename) {
     int filename_len = strlen(filename);
@@ -157,6 +181,8 @@ int main(int argc, char **argv) {
     int print_symbols = 0;
     int is_shared = 0;
     int is_static = 0;
+    int use_musl = 0;
+    const LibcConfig *libc = &GLIBC_CONFIG;
 
     char *output_filename = 0;
     List *input_filenames = new_list(32);
@@ -197,6 +223,26 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--print-filenames"                 )) { print_filenames = 1;                      argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-heap-usage"                )) { print_heap_usage = 1;                     argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--fail-on-leaked-memory"           )) { fail_on_leaked_memory = 1;                argc--; argv++; }
+            else if (argc > 0 && !strncmp(argv[0], "--libc", 6)) {
+                if (argc == 1 || argv[0][6] == '=') {
+                    printf("Usage: --libc musl|glibc\n");
+                    exit(1);
+                }
+                else if (!strcmp(argv[1], "glibc")) {
+                    use_musl = 0;
+                    libc = &GLIBC_CONFIG;
+                }
+                else if (!strcmp(argv[1], "musl")) {
+                    use_musl = 1;
+                    libc = &MUSL_CONFIG;
+                }
+                else {
+                    printf("Unknown libc: %s\n", argv[1]);
+                    exit(1);
+                }
+                argc -= 2;
+                argv += 2;
+            }
 
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-param-allocation"       )) { debug_function_param_allocation = 1;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-function-arg-mapping"            )) { debug_function_arg_mapping = 1;             argc--; argv++; }
@@ -363,6 +409,7 @@ int main(int argc, char **argv) {
         printf("-fPIC                                       Make position independent code\n");
         printf("-static                                     Make a statically linked executable\n");
         printf("-shared                                     Make a shared library\n");
+        printf("--libc glibc|musl                           Select the C library configuration\n");
         printf("--prc                                       Output spilled register count\n");
         printf("--log-compiler-phase-durations              Log durations of each compiler phase\n");
         printf("--ir1                                       Output intermediate representation after parsing\n");
@@ -449,16 +496,19 @@ int main(int argc, char **argv) {
     get_debug_env_value("DEBUG_INSTSEL_SPILLING", &debug_instsel_spilling);
     get_debug_env_value("DEBUG_STACK_FRAME_LAYOUT", &debug_stack_frame_layout);
 
+    set_libc_include_paths(use_musl);
+
     if (verbose) {
         printf("Configuration:\n");
 
+        printf("LIBC                  %s\n", libc->name);
         printf("DEFAULT_AS_COMMAND    %s\n", DEFAULT_AS_COMMAND);
         printf("DEFAULT_LD_COMMAND    %s\n", DEFAULT_LD_COMMAND);
-        printf("DYNAMIC_LINKER        %s\n", DYNAMIC_LINKER);
-        printf("LIBC_LIBRARY_PATH     %s\n", LIBC_LIBRARY_PATH);
+        printf("DYNAMIC_LINKER        %s\n", libc->dynamic_linker);
+        printf("LIBC_LIBRARY_PATH     %s\n", libc->libc_library_path);
         printf("GCC_LIBRARY_PATH      %s\n", GCC_LIBRARY_PATH);
-        printf("STARTFILES            %s\n", STARTFILES);
-        printf("ENDFILES              %s\n", ENDFILES);
+        printf("STARTFILES            %s\n", libc->startfiles);
+        printf("ENDFILES              %s\n", libc->endfiles);
         printf("INCLUDE_PATHS         ");
         print_builtin_include_paths();
         printf("\n");
@@ -596,12 +646,12 @@ int main(int argc, char **argv) {
         if (is_shared)
             s += sprintf(s, " -shared");
         else if (!is_static)
-            s += sprintf(s, " -dynamic-linker %s", DYNAMIC_LINKER);
+            s += sprintf(s, " -dynamic-linker %s", libc->dynamic_linker);
         else
             s += sprintf(s, " -static");
 
         // Add library paths for libc and gcc
-        s += sprintf(s, " -L %s", LIBC_LIBRARY_PATH);
+        s += sprintf(s, " -L %s", libc->libc_library_path);
         s += sprintf(s, " -L %s", GCC_LIBRARY_PATH);
 
         // Set output filename
@@ -609,7 +659,7 @@ int main(int argc, char **argv) {
         s += sprintf(s, " -o %s", linker_output_filename);
 
         // Add C runtime start files
-        if (!is_shared) s += sprintf(s, " %s", STARTFILES);
+        if (!is_shared) s += sprintf(s, " %s", libc->startfiles);
 
         // Add CLI library paths
         for (CliLibraryPath *cli_library_path = cli_library_paths; cli_library_path; cli_library_path = cli_library_path->next)
@@ -631,7 +681,7 @@ int main(int argc, char **argv) {
         s += sprintf(s, " -lc");        // C standard library again to resolve potential gcc symbols
 
         // Add C runtime end files
-        if (!is_shared) s += sprintf(s, " %s", ENDFILES);
+        if (!is_shared) s += sprintf(s, " %s", libc->endfiles);
 
         for (int i = 0; i < extra_linker_args->length; i++)
             s += sprintf(s, " %s", (char *) extra_linker_args->elements[i]);

@@ -940,6 +940,7 @@ typedef struct line_map {
 } LineMap;
 
 void  print_builtin_include_paths();
+void set_libc_include_paths(int use_musl);
 void init_cpp(void);
 void get_cpp_filename_and_line();
 void init_cpp_from_string(char *string);

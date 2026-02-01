@@ -49,6 +49,15 @@ $ CC=.../wcc ./configure
 $ make tcltest
 ```
 
+## Running and testing with musl libc
+To run wcc using musl, use `--libc musl`
+
+To run the tests with musl libc:
+```
+GCC=musl-gcc WCC_OPTS="--libc musl" make test
+```
+`GCC=musl-gcc` is necessary so that wcc compiled with gcc and wcc self compiled continue to produce the same result.
+
 # Example compilation
 ```
 #include <stdio.h>
