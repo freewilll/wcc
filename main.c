@@ -637,9 +637,8 @@ int main(int argc, char **argv) {
 
     // Linker phase
     if (run_linker) {
-        char *s = wmalloc(1024 * 100);
+        char *s = command;
 
-        s = command;
         s += sprintf(s, "%s", get_ld_binary());
 
         // Exectuables are always dynamic, set the libc dynamic linker interpreter
