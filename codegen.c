@@ -372,7 +372,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     }
                 }
                 else if (v->is_string_literal)
-                    sprintf(buffer, ".SL%d(%%rip)", v->string_literal_index);
+                    sprintf(buffer, ".LS%d(%%rip)", v->string_literal_index);
                 else if (v->global_symbol) {
                     if (v->type->type == TYPE_LONG_DOUBLE) {
                         if (low) {
@@ -814,9 +814,9 @@ static void output_symbol(Symbol *symbol) {
             }
             else if (in->is_string_literal) {
                 if (in->address_of_offset)
-                    fprintf(f,"    .quad    .SL%d + %d\n", in->string_literal_index, in->address_of_offset);
+                    fprintf(f,"    .quad    .LS%d + %d\n", in->string_literal_index, in->address_of_offset);
                 else
-                    fprintf(f,"    .quad    .SL%d\n", in->string_literal_index);
+                    fprintf(f,"    .quad    .LS%d\n", in->string_literal_index);
                 size -= 8;
             }
             else {
@@ -952,7 +952,7 @@ void output_code(char *input_filename, char *output_filename) {
         for (int i = 0; i < string_literal_count; i++) {
             StringLiteral *sl = &(string_literals[i]);
             if (sl->is_wide_char) fprintf(f, "    .align   4\n");
-            fprintf(f, ".SL%d:\n", i);
+            fprintf(f, ".LS%d:\n", i);
             fprintf_escaped_string_literal(f, sl, 1);
         }
         fprintf(f, "\n");

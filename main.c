@@ -616,7 +616,7 @@ int main(int argc, char **argv) {
             sprintf(command, "%s -64 %s -o %s", get_as_binary(), input_filename, assembler_output_filename);
             if (verbose) {
                 sprintf(command, "%s %s", command, "-v");
-                printf("%s\n", command);
+                printf("*%s\n", command);
             }
             int result = system(command);
 

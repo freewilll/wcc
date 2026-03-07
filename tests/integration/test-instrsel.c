@@ -724,7 +724,7 @@ void test_function_args() {
     tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(3), v(2), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("leaq        .SL1(%rip), %rax");
+    assert_rx86_preg_op("leaq        .LS1(%rip), %rax");
     assert_rx86_preg_op("movq        %rax, %rdi" );
     assert_rx86_preg_op("movq        %rax, %rax" );
     assert_rx86_preg_op(0);
@@ -1172,7 +1172,7 @@ void test_pointer_string_literal() {
     start_ir();
     i(0, IR_ADD, asz(1, TYPE_CHAR), s(1), c(1));
     finish_ir(function);
-    assert_x86_op("leaq        .SL1(%rip), r2q");
+    assert_x86_op("leaq        .LS1(%rip), r2q");
     assert_x86_op("movq        r2q, r1q");
     assert_x86_op("addq        $1, r1q");
 }

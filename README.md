@@ -102,7 +102,7 @@ main:
     movq        %rbx, %rax
     movq        (%rax), %rax
     movl        4(%rax), %esi
-    leaq        .SL0(%rip), %rdi
+    leaq        .LS0(%rip), %rdi
     movb        $0, %al         # printf is variadic, 0 is the number of floating point arguments
     callq       printf@PLT
     addq        $8, %rsp
