@@ -346,11 +346,11 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                             sprintf(buffer, "$%ld", *((long *) &d));
                         }
                         else if (float_literal)
-                            sprintf(buffer, ".FPL%d(%%rip)", add_float_literal(v->fp_value));
+                            sprintf(buffer, ".LFP%d(%%rip)", add_float_literal(v->fp_value));
                         else if (double_literal)
-                            sprintf(buffer, ".FPL%d(%%rip)", add_double_literal(v->fp_value));
+                            sprintf(buffer, ".LFP%d(%%rip)", add_double_literal(v->fp_value));
                         else if (long_double_literal)
-                            sprintf(buffer, ".FPL%d(%%rip)", add_long_double_literal(v->fp_value));
+                            sprintf(buffer, ".LFP%d(%%rip)", add_long_double_literal(v->fp_value));
                         else
                             panic("Did not get L/H/C/F/D specifier for floating point constant");
                     }
@@ -999,7 +999,7 @@ void output_code(char *input_filename, char *output_filename) {
     if (floating_point_literal_count > 0) {
         for (int i = 0; i < floating_point_literal_count; i++) {
             // The zero and & is to be compatible with gcc
-            fprintf(f, ".FPL%d:\n", i);
+            fprintf(f, ".LFP%d:\n", i);
 
             if (floating_point_literals[i].type == TYPE_FLOAT) {
                 float fl = floating_point_literals[i].f;
