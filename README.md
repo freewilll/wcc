@@ -2,7 +2,7 @@
 
 This project is an implementation of the full C89/C90 C specification for `x86-64` linux. It's mostly based on [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). The compiler is self hosting. It's just a hobby, it won't be big and professional like gcc. All of the [C89/C90 specification](https://port70.net/~nsz/c/c89/c89-draft.html) has been implemented. All tests in [SQLite](https://www.sqlite.org/index.html)'s `tcltest` pass.
 
-The [was assembler](https://github.com/freewilll/wbinutils/was) and [wld linker](https://github.com/freewilll/wbinutils/wld) can be used to produce object files by either running `configure` with `--as`, `--ld` or setting the `AS` and `LD` environment variables.
+The [was assembler](https://github.com/freewilll/wbinutils/tree/master/was) and [wld linker](https://github.com/freewilll/wbinutils/tree/master/wld) can be used to produce object files by either running `configure` with `--as`, `--ld` or setting the `AS` and `LD` environment variables.
 
 The compiler has only been built and tested on Ubuntu focal 20.04.3 LTS. It will almost certainly not build or function normally anywhere else. This compiler is a hobby project and even close to be ready for production use.
 
