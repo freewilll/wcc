@@ -1,97 +1,93 @@
-all: run-test-lexer run-test-cpp run-test-set run-test-list run-test-strmap run-test-strset run-test-longmap run-test-longset run-test-ssa run-test-parser run-test-types run-test-graph run-test-functions
+GCC ?= gcc
 
-test-lexer: ../../libwcc.a test-lexer.c
-	gcc ${GCC_OPTS} -g -o test-lexer test-lexer.c ../../libwcc.a
+TEST_BUILD_DIR = ${BUILD_DIR}/tests/unit
+UNIT_TEST_FLAGS := ${GCC_OPTS} -g
+UNIT_TEST_WARN_FLAGS := -Wno-int-conversion -Wno-pointer-to-int-cast
 
-run-test-lexer: test-lexer
-	 ./test-lexer
+all:  \
+	run-test-lexer \
+	run-test-cpp \
+	run-test-set \
+	run-test-list \
+	run-test-strmap \
+	run-test-strset \
+	run-test-longmap \
+	run-test-longset \
+	run-test-ssa \
+	run-test-parser \
+	run-test-types \
+	run-test-graph  \
+	run-test-functions \
 
-test-cpp: ../../libwcc.a ../test-lib.o test-cpp.c
-	gcc ${GCC_OPTS} -g -o test-cpp test-cpp.c ../../libwcc.a ../test-lib.o
+${TEST_BUILD_DIR}/test-lexer: test-lexer.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-run-test-cpp: test-cpp
-	 ./test-cpp
+${TEST_BUILD_DIR}/test-cpp: test-cpp.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-test-set: ../../libwcc.a test-set.c
-	gcc ${GCC_OPTS} -g -o test-set test-set.c ../../libwcc.a
+${TEST_BUILD_DIR}/test-set: test-set.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-run-test-set: test-set
-	 ./test-set
+${TEST_BUILD_DIR}/test-list: test-list.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-test-list: ../../libwcc.a test-list.c
-	gcc ${GCC_OPTS} -g -o test-list test-list.c ../../libwcc.a
+${TEST_BUILD_DIR}/test-strmap: test-strmap.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-run-test-list: test-list
-	 ./test-list
+${TEST_BUILD_DIR}/test-strset: test-strset.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-test-strmap: test-strmap.c ../../strmap.c
-	gcc ${GCC_OPTS} -g -o test-strmap test-strmap.c ../../libwcc.a
+${TEST_BUILD_DIR}/test-longmap: test-longmap.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-run-test-strmap: test-strmap
-	 ./test-strmap
+${TEST_BUILD_DIR}/test-longset: test-longset.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
-test-strset: test-strset.c ../../strset.c
-	gcc ${GCC_OPTS} -g -o test-strset test-strset.c ../../libwcc.a
+${TEST_BUILD_DIR}/test-ssa: test-ssa.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 
-run-test-strset: test-strset
-	 ./test-strset
+${TEST_BUILD_DIR}/test-graph: test-graph.c ${SRC_DIR}/graph.c ${SRC_DIR}/utils.c ${SRC_DIR}/memory.c
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} $^ -o $@
 
-test-longmap: test-longmap.c ../../longmap.c
-	gcc ${GCC_OPTS} -g -o test-longmap test-longmap.c ../../libwcc.a
+${TEST_BUILD_DIR}/test-parser: test-parser.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 
-run-test-longmap: test-longmap
-	 ./test-longmap
+${TEST_BUILD_DIR}/test-types: test-types.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 
-test-longset: test-longset.c ../../longset.c
-	gcc ${GCC_OPTS} -g -o test-longset test-longset.c ../../libwcc.a
+${TEST_BUILD_DIR}/test-functions: test-functions.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
+	@mkdir -p $(@D)
+	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 
-run-test-longset: test-longset
-	 ./test-longset
-
-test-ssa: ../../libwcc.a ../test-utils.c test-ssa.c
-	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-ssa test-ssa.c ../test-utils.c ../../libwcc.a
-
-run-test-ssa: test-ssa
-	 ./test-ssa
-
-test-graph: test-graph.c ../../graph.c ../../utils.c ../../memory.c
-	gcc ${GCC_OPTS} test-graph.c ../../graph.c ../../utils.c ../../memory.c -o test-graph
-
-run-test-graph: test-graph
-	 ./test-graph
-
-test-parser: ../../libwcc.a test-parser.c
-	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-parser test-parser.c ../../libwcc.a ../test-lib.o
-
-run-test-parser: test-parser
-	 ./test-parser
-
-test-types: ../../libwcc.a test-types.c
-	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-types test-types.c ../../libwcc.a ../test-lib.o
-
-run-test-types: test-types
-	 ./test-types
-
-test-functions: ../../libwcc.a test-functions.c
-	gcc ${GCC_OPTS} -Wno-int-conversion -Wno-pointer-to-int-cast -g -o test-functions test-functions.c ../../libwcc.a ../test-lib.o
-
-run-test-functions: test-functions
-	 ./test-functions
+run-%: ${TEST_BUILD_DIR}/%
+	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
 
 clean:
-	@rm -f *.s
-	@rm -f *.o
-	@rm -f core
-	@rm -f test-lexer
-	@rm -f test-cpp
-	@rm -f test-set
-	@rm -f test-list
-	@rm -f test-strmap
-	@rm -f test-strset
-	@rm -f test-longmap
-	@rm -f test-longset
-	@rm -f test-ssa
-	@rm -f test-graph
-	@rm -f test-parser
-	@rm -f test-types
-	@rm -f test-functions
+	@rm -f ${TEST_BUILD_DIR}/*.s
+	@rm -f ${TEST_BUILD_DIR}/*.o
+	@rm -f ${TEST_BUILD_DIR}/core
+	@rm -f ${TEST_BUILD_DIR}/test-lexer
+	@rm -f ${TEST_BUILD_DIR}/test-cpp
+	@rm -f ${TEST_BUILD_DIR}/test-set
+	@rm -f ${TEST_BUILD_DIR}/test-list
+	@rm -f ${TEST_BUILD_DIR}/test-strmap
+	@rm -f ${TEST_BUILD_DIR}/test-strset
+	@rm -f ${TEST_BUILD_DIR}/test-longmap
+	@rm -f ${TEST_BUILD_DIR}/test-longset
+	@rm -f ${TEST_BUILD_DIR}/test-ssa
+	@rm -f ${TEST_BUILD_DIR}/test-graph
+	@rm -f ${TEST_BUILD_DIR}/test-parser
+	@rm -f ${TEST_BUILD_DIR}/test-types
+	@rm -f ${TEST_BUILD_DIR}/test-functions

@@ -34,8 +34,8 @@ static char *write_temp_file(char *content) {
 static void check_output(char *code, char *expected, char *message) {
     char *filename = write_temp_file(code);
 
-    char command[64];
-    sprintf(command, "../../wcc %s -I ../../include 2>&1", filename);
+    char command[128];
+    sprintf(command, WCC " %s -I ../../include 2>&1", filename);
 
     FILE *f = popen(command, "r");
     if (f == NULL) {

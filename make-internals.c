@@ -6,8 +6,15 @@ void die(char *message) {
     exit(1);
 }
 
-int main() {
-    FILE *f = fopen("internals.h", "r");
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        printf("Usage: make-internals PATH-TO-internals.h\n");
+        exit(1);
+    }
+
+    char *internals_h = argv[1];
+
+    FILE *f = fopen(internals_h, "r");
     if (!f) die("Opening internals.h");
 
     char *buffer = malloc(1024 * 1024);

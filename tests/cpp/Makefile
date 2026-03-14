@@ -1,3 +1,5 @@
+TEST_BUILD_DIR = ${BUILD_DIR}/tests/cpp
+
 CPP_TESTS = \
 	empty \
 	empty-line \
@@ -34,27 +36,27 @@ CPP_TESTS_INCLUDES = \
 	inception2.h \
 	inception3.h
 
-OK_FILENAMES := $(addsuffix -ok, ${CPP_TESTS})
-RESULT_FILENAMES := $(addsuffix -result.c, ${CPP_TESTS})
-
+OK_FILENAMES := $(addprefix ${TEST_BUILD_DIR}/,$(addsuffix -ok, ${CPP_TESTS}))
+RESULT_FILENAMES := $(addprefix ${TEST_BUILD_DIR}/,$(addsuffix -result.c, ${CPP_TESTS}))
 
 all: ${OK_FILENAMES}
 
-%-ok: %.c %-output.c ../../wcc ${CPP_TESTS_INCLUDES}
-	@# Run preprocessor & diff with expected result
-	../../wcc -E $< -o $*-result.c
-	diff $*-output.c $*-result.c
+${TEST_BUILD_DIR}/%-ok: %.c %-output.c ${BUILD_DIR}/wcc ${CPP_TESTS_INCLUDES}
+	@# Run the preprocessor and diff with the expected result.
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_OPTS} -E $< -o ${TEST_BUILD_DIR}/$*-result.c
+	diff $*-output.c ${TEST_BUILD_DIR}/$*-result.c
 
-	@# check re-preprocessing produces the same result
-	../../wcc -E $*-result.c -o $*-result2.c
-	diff -I '^#' $*-result.c $*-result2.c
+	@# Re-preprocessing should produce the same result.
+	${BUILD_DIR}/wcc ${WCC_OPTS} -E ${TEST_BUILD_DIR}/$*-result.c -o ${TEST_BUILD_DIR}/$*-result2.c
+	diff -I '^#' ${TEST_BUILD_DIR}/$*-result.c ${TEST_BUILD_DIR}/$*-result2.c
 
-	touch $*-ok
+	touch $@
 
 .PHONY: regen-cpp-tests-output
 regen-cpp-tests-output:
-	$(foreach var,$(CPP_TESTS),../../wcc -E $(var).c -o $(var)-output.c;)
+	$(foreach var,$(CPP_TESTS),${BUILD_DIR}/wcc ${WCC_OPTS} -E $(var).c -o $(var)-output.c;)
 
 clean:
-	@rm -f *-result*.c
-	@rm -f *-ok
+	@rm -f ${TEST_BUILD_DIR}/*-result*.c
+	@rm -f ${TEST_BUILD_DIR}/*-ok

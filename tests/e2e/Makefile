@@ -1,5 +1,4 @@
--include ../../config.mk
--include ../../common.mk
+GCC ?= gcc
 
 # Remove implicit rule, otherwise rules here making an intermedate .s between a .c
 # and .o  will not run since the chain is longer than the implict rule that creates
@@ -7,6 +6,7 @@
 %.o: %.c
 
 AS ?= as
+TEST_BUILD_DIR = ${BUILD_DIR}/tests/e2e
 
 WCC_TESTS=\
 	expr \
@@ -34,161 +34,189 @@ WCC_TESTS=\
 	varargs \
 	initializers
 
+WCC_RUN_FLAGS = -I ${SRC_DIR}/include
+WCC_E2E_FLAGS := ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file ${BUILD_DIR}/tests/e2e/wcc-tests.rulecov
+WCC_E2E_WARN_FLAGS := -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible
+E2E_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test-lib.o ${BUILD_DIR}/utils.o ${BUILD_DIR}/memory.o
+ABI_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test-lib.o
+
 all: run-test-gcc run-test-wcc run-test-abi run-test-include run-test-shlib
 
-stack-check.o: stack-check.c
-	gcc ${GCC_OPTS} stack-check.c -c
+${BUILD_DIR}/tests/e2e/stack-check.o: stack-check.c
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -c $< -o $@
 
-test-%.s: test-%.c ../../wcc ../../include/stdarg.h
-	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
+${BUILD_DIR}/tests/e2e/test-%.s: test-%.c ${BUILD_DIR}/wcc ${SRC_DIR}/include/stdarg.h
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} ${WCC_E2E_WARN_FLAGS} -c -S $< -o $@
 
-test-%.o: test-%.s
+${BUILD_DIR}/tests/e2e/test-%.o: ${BUILD_DIR}/tests/e2e/test-%.s
 	${AS} $< -o $@
 
-test-%-wcc: test-%.o stack-check.o ../test-lib.o ../utils.o ../memory.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o ../memory.o -o $@
+${BUILD_DIR}/tests/e2e/test-%-wcc: ${BUILD_DIR}/tests/e2e/test-%.o ${E2E_LINK_OBJECTS}
+	${GCC} ${GCC_OPTS} $^ -o $@
 
-run-test-%-wcc: test-%-wcc
-	./$<
-	touch run-$<
+run-test-%-wcc: ${BUILD_DIR}/tests/e2e/test-%-wcc
+	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
 
-gen-test-arithmetic-torture: gen-test-arithmetic-torture.c
-	gcc ${GCC_OPTS} -Wunused gen-test-arithmetic-torture.c -o gen-test-arithmetic-torture
+${BUILD_DIR}/tests/e2e/gen-test-arithmetic-torture: ${SRC_DIR}/tests/e2e/gen-test-arithmetic-torture.c
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -Wunused $< -o $@
 
-test-arithmetic-torture.c: gen-test-arithmetic-torture
-	./gen-test-arithmetic-torture
+${BUILD_DIR}/tests/e2e/test-arithmetic-torture.c: ${BUILD_DIR}/tests/e2e/gen-test-arithmetic-torture
+	cd ${TEST_BUILD_DIR} && ./gen-test-arithmetic-torture
 
-gen-test-arithmetic-types-move-torture: gen-test-arithmetic-types-move-torture.c
-	gcc ${GCC_OPTS} -Wunused gen-test-arithmetic-types-move-torture.c -o gen-test-arithmetic-types-move-torture
+${BUILD_DIR}/tests/e2e/gen-test-arithmetic-types-move-torture: ${SRC_DIR}/tests/e2e/gen-test-arithmetic-types-move-torture.c
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -Wunused $< -o $@
 
-test-arithmetic-types-move-torture.c: gen-test-arithmetic-types-move-torture
-	./gen-test-arithmetic-types-move-torture
+${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture.c: ${BUILD_DIR}/tests/e2e/gen-test-arithmetic-types-move-torture
+	cd ${TEST_BUILD_DIR} && ./gen-test-arithmetic-types-move-torture
+
+${BUILD_DIR}/tests/e2e/test-arithmetic-torture.s: ${BUILD_DIR}/tests/e2e/test-arithmetic-torture.c ${BUILD_DIR}/wcc ${SRC_DIR}/include/stdarg.h
+	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} ${WCC_E2E_WARN_FLAGS} -I ${SRC_DIR}/tests -c -S $< -o $@
+
+${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture.s: ${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture.c ${BUILD_DIR}/wcc ${SRC_DIR}/include/stdarg.h
+	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} ${WCC_E2E_WARN_FLAGS} -I ${SRC_DIR}/tests -c -S $< -o $@
 
 .PHONY: run-test-wcc
 run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
 	@echo wcc tests passed
 
-test-%-gcc: test-%.c stack-check.o ../test-lib.o ../utils.o ../memory.o
-	gcc ${GCC_OPTS} $< stack-check.o ../test-lib.o ../utils.o ../memory.o -o $@ -w
+${BUILD_DIR}/tests/e2e/test-%-gcc: test-%.c ${E2E_LINK_OBJECTS}
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
 
-run-test-%-gcc: test-%-gcc
-	./$<
-	touch run-$<
+${BUILD_DIR}/tests/e2e/test-arithmetic-torture-gcc: ${BUILD_DIR}/tests/e2e/test-arithmetic-torture.c ${E2E_LINK_OBJECTS}
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
+
+${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture-gcc: ${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture.c ${E2E_LINK_OBJECTS}
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
+
+run-test-%-gcc: ${BUILD_DIR}/tests/e2e/test-%-gcc
+	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
 
 .PHONY: run-test-gcc
 run-test-gcc: ${WCC_TESTS:%=run-test-%-gcc}
 	@echo gcc tests passed
 
 # ABI tests
-test-abi-function-caller-gcc.o: test-abi-function-caller.c test-abi.h ../../wcc
-	gcc ${GCC_OPTS} -c -o test-abi-function-caller-gcc.o test-abi-function-caller.c
+${BUILD_DIR}/tests/e2e/test-abi-function-caller-gcc.o: test-abi-function-caller.c test-abi.h ${BUILD_DIR}/wcc
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -c $< -o $@
 
-test-abi-function-callee-gcc.o: test-abi-function-callee.c test-abi.h ../../wcc
-	gcc ${GCC_OPTS} -c -o test-abi-function-callee-gcc.o test-abi-function-callee.c
+${BUILD_DIR}/tests/e2e/test-abi-function-callee-gcc.o: test-abi-function-callee.c test-abi.h ${BUILD_DIR}/wcc
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -c $< -o $@
 
-test-abi-function-caller-wcc.o: test-abi-function-caller.c test-abi.h ../../wcc
-	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-caller-wcc.o test-abi-function-caller.c
+${BUILD_DIR}/tests/e2e/test-abi-function-caller-wcc.o: test-abi-function-caller.c test-abi.h ${BUILD_DIR}/wcc
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} -c $< -o $@
 
-test-abi-function-callee-wcc.o: test-abi-function-callee.c test-abi.h ../../wcc
-	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-callee-wcc.o test-abi-function-callee.c
+${BUILD_DIR}/tests/e2e/test-abi-function-callee-wcc.o: test-abi-function-callee.c test-abi.h ${BUILD_DIR}/wcc
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} -c $< -o $@
 
-test-abi-gcc-gcc: stack-check.o ../test-lib.o test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
-	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-gcc-gcc test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
+${BUILD_DIR}/tests/e2e/test-abi-gcc-gcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/e2e/test-abi-function-caller-gcc.o ${BUILD_DIR}/tests/e2e/test-abi-function-callee-gcc.o
+	${GCC} ${GCC_OPTS} $^ -o $@
 
-test-abi-wcc-gcc: stack-check.o ../test-lib.o test-abi-function-caller-wcc.o test-abi-function-callee-gcc.o
-	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-wcc-gcc test-abi-function-caller-wcc.o test-abi-function-callee-gcc.o
+${BUILD_DIR}/tests/e2e/test-abi-wcc-gcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/e2e/test-abi-function-caller-wcc.o ${BUILD_DIR}/tests/e2e/test-abi-function-callee-gcc.o
+	${GCC} ${GCC_OPTS} $^ -o $@
 
-test-abi-gcc-wcc: stack-check.o ../test-lib.o test-abi-function-caller-gcc.o test-abi-function-callee-wcc.o
-	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-gcc-wcc test-abi-function-caller-gcc.o test-abi-function-callee-wcc.o
+${BUILD_DIR}/tests/e2e/test-abi-gcc-wcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/e2e/test-abi-function-caller-gcc.o ${BUILD_DIR}/tests/e2e/test-abi-function-callee-wcc.o
+	${GCC} ${GCC_OPTS} $^ -o $@
 
-test-abi-wcc-wcc: stack-check.o ../test-lib.o test-abi-function-caller-wcc.o test-abi-function-callee-wcc.o
-	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-wcc-wcc test-abi-function-caller-wcc.o test-abi-function-callee-wcc.o
+${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/e2e/test-abi-function-caller-wcc.o ${BUILD_DIR}/tests/e2e/test-abi-function-callee-wcc.o
+	${GCC} ${GCC_OPTS} $^ -o $@
 
-run-test-abi: test-abi-gcc-gcc test-abi-wcc-gcc test-abi-gcc-wcc test-abi-wcc-wcc
-	./test-abi-gcc-gcc
-	./test-abi-wcc-gcc
-	./test-abi-gcc-wcc
-	./test-abi-wcc-wcc
-	touch run-test-abi
+run-test-abi: ${BUILD_DIR}/tests/e2e/test-abi-gcc-gcc ${BUILD_DIR}/tests/e2e/test-abi-wcc-gcc ${BUILD_DIR}/tests/e2e/test-abi-gcc-wcc ${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc
+	cd ${TEST_BUILD_DIR} && ./test-abi-gcc-gcc
+	cd ${TEST_BUILD_DIR} && ./test-abi-wcc-gcc
+	cd ${TEST_BUILD_DIR} && ./test-abi-gcc-wcc
+	cd ${TEST_BUILD_DIR} && ./test-abi-wcc-wcc
 
 # Shared library tests
-test-shlib-lib-gcc.o: test-shlib-lib.c test-shlib.h
-	gcc ${GCC_OPTS} -c -fPIC -o test-shlib-lib-gcc.o test-shlib-lib.c
+${BUILD_DIR}/tests/e2e/test-shlib-lib-gcc.o: test-shlib-lib.c test-shlib.h
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -c -fPIC $< -o $@
 
-test-shlib-lib-wcc.o: test-shlib-lib.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-lib-wcc.o test-shlib-lib.c
+${BUILD_DIR}/tests/e2e/test-shlib-lib-wcc.o: test-shlib-lib.c test-shlib.h ${BUILD_DIR}/wcc
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} -c -fPIC $< -o $@
 
-libtest-shlib-lib-gcc.so: test-shlib-lib-gcc.o
-	gcc test-shlib-lib-gcc.o -shared -o libtest-shlib-lib-gcc.so
+${BUILD_DIR}/tests/e2e/libtest-shlib-lib-gcc.so: ${BUILD_DIR}/tests/e2e/test-shlib-lib-gcc.o
+	${GCC} -shared $< -o $@
 
-libtest-shlib-lib-wcc.so: test-shlib-lib-wcc.o
-	gcc test-shlib-lib-wcc.o -shared -o libtest-shlib-lib-wcc.so
+${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so: ${BUILD_DIR}/tests/e2e/test-shlib-lib-wcc.o
+	${GCC} -shared $< -o $@
 
-test-shlib-main-gcc.o: test-shlib-main.c test-shlib.h
-	gcc ${GCC_OPTS} -c -fPIC -o test-shlib-main-gcc.o test-shlib-main.c
+${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o: test-shlib-main.c test-shlib.h
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -c -fPIC $< -o $@
 
-test-shlib-main-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-main-wcc.o test-shlib-main.c
+${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o: test-shlib-main.c test-shlib.h ${BUILD_DIR}/wcc
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} -c -fPIC $< -o $@
 
-test-shlib-main-no-pic-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-shlib-main-no-pic-wcc.o test-shlib-main.c
+${BUILD_DIR}/tests/e2e/test-shlib-main-no-pic-wcc.o: test-shlib-main.c test-shlib.h ${BUILD_DIR}/wcc
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_E2E_FLAGS} -c $< -o $@
 
-test-shlib-gcc-gcc: test-shlib-main-gcc.o libtest-shlib-lib-gcc.so
-	gcc test-shlib-main-gcc.o -L. -l test-shlib-lib-gcc ../test-lib.o -o test-shlib-gcc-gcc
+${BUILD_DIR}/tests/e2e/test-shlib-gcc-gcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-gcc.so
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-gcc ${BUILD_DIR}/tests/test-lib.o -o $@
 
-test-shlib-wcc-gcc: test-shlib-main-wcc.o libtest-shlib-lib-gcc.so
-	gcc test-shlib-main-wcc.o -L. -l test-shlib-lib-gcc ../test-lib.o -o test-shlib-wcc-gcc
+${BUILD_DIR}/tests/e2e/test-shlib-wcc-gcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-gcc.so
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-gcc ${BUILD_DIR}/tests/test-lib.o -o $@
 
-test-shlib-gcc-wcc: test-shlib-main-gcc.o libtest-shlib-lib-wcc.so
-	gcc test-shlib-main-gcc.o -L. -l test-shlib-lib-wcc ../test-lib.o -o test-shlib-gcc-wcc
+${BUILD_DIR}/tests/e2e/test-shlib-gcc-wcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-gcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-wcc ${BUILD_DIR}/tests/test-lib.o -o $@
 
-test-shlib-wcc-wcc: test-shlib-main-wcc.o libtest-shlib-lib-wcc.so
-	gcc test-shlib-main-wcc.o -L. -l test-shlib-lib-wcc ../test-lib.o -o test-shlib-wcc-wcc
+${BUILD_DIR}/tests/e2e/test-shlib-wcc-wcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-wcc.o -L${BUILD_DIR}/tests/e2e -ltest-shlib-lib-wcc ${BUILD_DIR}/tests/test-lib.o -o $@
 
-test-shlib-mixed-pic-wcc-wcc: test-shlib-main-no-pic-wcc.o libtest-shlib-lib-wcc.so
-	gcc test-shlib-main-no-pic-wcc.o libtest-shlib-lib-wcc.so ../test-lib.o -o test-shlib-mixed-pic-wcc-wcc
+${BUILD_DIR}/tests/e2e/test-shlib-mixed-pic-wcc-wcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-no-pic-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so
+	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-no-pic-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so ${BUILD_DIR}/tests/test-lib.o -o $@
 
-run-test-shlib: test-shlib-gcc-gcc test-shlib-wcc-gcc test-shlib-gcc-wcc test-shlib-wcc-wcc
-	LD_LIBRARY_PATH=. ./test-shlib-gcc-gcc
-	LD_LIBRARY_PATH=. ./test-shlib-wcc-gcc
-	LD_LIBRARY_PATH=. ./test-shlib-gcc-wcc
-	LD_LIBRARY_PATH=. ./test-shlib-wcc-wcc
-	touch run-test-shlib
+run-test-shlib: ${BUILD_DIR}/tests/e2e/test-shlib-gcc-gcc ${BUILD_DIR}/tests/e2e/test-shlib-wcc-gcc ${BUILD_DIR}/tests/e2e/test-shlib-gcc-wcc ${BUILD_DIR}/tests/e2e/test-shlib-wcc-wcc
+	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-gcc-gcc
+	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-wcc-gcc
+	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-gcc-wcc
+	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-wcc-wcc
 
 # Includes
-test-include/test-include: ../../wcc test-include/include.h test-include/main.c test-include/foo.c
-	cd test-include && ../../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} main.c foo.c -o test-include
+${BUILD_DIR}/tests/e2e/test-include/test-include: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-include/include.h ${SRC_DIR}/tests/e2e/test-include/main.c ${SRC_DIR}/tests/e2e/test-include/foo.c
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} -I ${SRC_DIR}/tests/e2e/test-include ${SRC_DIR}/tests/e2e/test-include/main.c ${SRC_DIR}/tests/e2e/test-include/foo.c -o $@
 
-run-test-include: test-include/test-include
-	test-include/test-include
+run-test-include: ${BUILD_DIR}/tests/e2e/test-include/test-include
+	$<
 
 clean:
-	@rm -f test-wcc
-	@rm -f test-*-gcc
-	@rm -f test-*-wcc
-	@rm -f test-wcc-arithmetic-torture.c
-	@rm -f gen-test-arithmetic-torture
-	@rm -f test-wcc-arithmetic-types-move-torture.c
-	@rm -f gen-test-arithmetic-types-move-torture
-	@rm -f run-test-*
-	@rm -f run-test-abi
-	@rm -f test-wcc-gcc
-	@rm -f test-wcc-*-gcc
-	@rm -f *.s
-	@rm -f *.o
-	@rm -f *.so
-	@rm -f core
-	@rm -f test-include/test-include
-	@rm -f wcc-tests.rulecov
-	@rm -f test-abi-gcc-gcc
-	@rm -f test-abi-wcc-gcc
-	@rm -f test-abi-gcc-wcc
-	@rm -f test-abi-wcc-wcc
-	@rm -f run-test-shlib
-	@rm -f libtest-shlib-gcc.so
-	@rm -f libtest-shlib-wcc.so
-	@rm -f test-shlib-gcc-gcc
-	@rm -f test-shlib-wcc-gcc
-	@rm -f test-shlib-gcc-wcc
-	@rm -f test-shlib-wcc-wcc
-	@rm -f test-shlib-mixed-pic-wcc-wcc
+	@rm -f ${BUILD_DIR}/tests/e2e/*.o
+	@rm -f ${BUILD_DIR}/tests/e2e/*.s
+	@rm -f ${BUILD_DIR}/tests/e2e/*.so
+	@rm -f ${BUILD_DIR}/tests/e2e/core
+	@rm -f ${BUILD_DIR}/tests/e2e/gen-test-arithmetic-torture
+	@rm -f ${BUILD_DIR}/tests/e2e/gen-test-arithmetic-types-move-torture
+	@rm -f ${BUILD_DIR}/tests/e2e/test-arithmetic-torture.c
+	@rm -f ${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture.c
+	@rm -f ${BUILD_DIR}/tests/e2e/test-arithmetic-torture-gcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture-gcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-*-gcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-*-wcc
+	@rm -f ${BUILD_DIR}/tests/e2e/run-test-*
+	@rm -f ${BUILD_DIR}/tests/e2e/test-include/test-include
+	@rm -f ${BUILD_DIR}/tests/e2e/wcc-tests.rulecov
+	@rm -f ${BUILD_DIR}/tests/e2e/test-abi-gcc-gcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-abi-wcc-gcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-abi-gcc-wcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc
+	@rm -f ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-gcc.so
+	@rm -f ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so
+	@rm -f ${BUILD_DIR}/tests/e2e/test-shlib-gcc-gcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-shlib-wcc-gcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-shlib-gcc-wcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-shlib-wcc-wcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-shlib-mixed-pic-wcc-wcc

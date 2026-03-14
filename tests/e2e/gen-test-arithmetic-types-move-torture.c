@@ -106,7 +106,7 @@ int main() {
     fprintf(f, "#include <stdio.h>\n");
     fprintf(f, "#include <stdlib.h>\n");
     fprintf(f, "\n");
-    fprintf(f, "#include \"../test-lib.h\"\n");
+    fprintf(f, "#include \"test-lib.h\"\n");
     fprintf(f, "\n");
     fprintf(f, "int failures;\n");
     fprintf(f, "int passes;\n");

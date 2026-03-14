@@ -6,7 +6,13 @@ The [was assembler](https://github.com/freewilll/wbinutils/tree/master/was) and 
 
 The compiler has only been built and tested on Ubuntu focal 20.04.3 LTS. It will almost certainly not build or function normally anywhere else. This compiler is a hobby project and even close to be ready for production use.
 
-# Usage
+# Installation
+```
+$ ./configure
+$ make install
+```
+
+# Running wcc from source
 ```
 $ ./configure
 $ make wcc

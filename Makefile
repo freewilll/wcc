@@ -1,155 +1,191 @@
+SRC_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+BUILD_DIR := $(CURDIR)
+CONFIG ?= $(BUILD_DIR)/config.mk
+
+-include $(CONFIG)
+
+VERSION = 0
+INSTALL_BIN_DIR = ${PREFIX}/bin
+INSTALL_LIB_DIR = ${PREFIX}/lib/wcc/${VERSION}
+INSTALL_LIB_INCLUDE_DIR = ${INSTALL_LIB_DIR}/include
+
+WCC_BUILD_FLAGS := -D INSTALL_LIB_DIR='"${INSTALL_LIB_DIR}"'
+WCC_RUN_FLAGS := -I ${SRC_DIR}/include
+WCC_SELFHOST_FLAGS := ${WCC_OPTS} --fail-on-leaked-memory
+WCC_RULE_COVERAGE_FLAGS := --rule-coverage-file wcc2.rulecov
+
 all: wcc
 
 GCC ?= gcc
 
-SOURCES = \
-  wcc.c \
-  lexer.c \
-  parser.c \
-  constexpr.c \
-  scopes.c \
-  types.c \
-  ir.c \
-  functions.c \
-  ssa.c \
-  regalloc.c \
-  instrsel.c \
-  instrutil.c \
-  instrrules-generated.c \
-  codegen.c \
-  utils.c \
-  memory.c \
-  error.c \
-  set.c \
-  stack.c \
-  strmap.c \
-  strset.c \
-  longset.c \
-  longmap.c \
-  list.c \
-  graph.c \
-  internals.c \
-  cpp.c
+MAKE_ARGS := SRC_DIR=${SRC_DIR} BUILD_DIR=${BUILD_DIR}
 
--include config.mk
--include common.mk
+SOURCES := \
+	lexer.c \
+	parser.c \
+	constexpr.c \
+	scopes.c \
+	types.c \
+	ir.c \
+	functions.c \
+	ssa.c \
+	regalloc.c \
+	instrsel.c \
+	instrutil.c \
+	codegen.c \
+	utils.c \
+	memory.c \
+	error.c \
+	set.c \
+	stack.c \
+	strmap.c \
+	strset.c \
+	longset.c \
+	longmap.c \
+	list.c \
+	graph.c \
+	cpp.c
 
+MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
+SOURCES_ABS_PATH := ${SOURCES:%=${SRC_DIR}/%}
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
 
 build:
-	@mkdir -p build/wcc2
-	@mkdir -p build/wcc3
+	@mkdir -p ${BUILD_DIR}/build/wcc2
+	@mkdir -p ${BUILD_DIR}/build/wcc3
 
-make-internals: make-internals.c
-	${GCC} make-internals.c -o make-internals
+make-internals: ${SRC_DIR}/make-internals.c
+	${GCC} ${GCC_OPTS} $< -o $@
 
-internals.c: internals.h make-internals
-	./make-internals > internals.c
+internals.c: ${SRC_DIR}/internals.h make-internals
+	./make-internals ${SRC_DIR}/internals.h > internals.c
 
-instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c config.h wcc.h
-	${GCC} -o instrgen instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c  -Wno-return-type ${WCC_BUILD_FLAGS}
+internals.o: internals.c
+	${GCC} ${GCC_OPTS} -c $< -o $@
+
+instrgen: ${SOURCES_ABS_PATH} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c
+	${GCC} ${GCC_OPTS} -Wno-return-type ${WCC_BUILD_FLAGS} -I . ${SOURCES_ABS_PATH} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c -o $@
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
 
-%.o: %.c config.h wcc.h build
-	${GCC} -g ${GCC_OPTS} -Wunused -c $< -o $@ ${WCC_BUILD_FLAGS}
+instrrules-generated.o: instrrules-generated.c
+	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I ${SRC_DIR} -I . -c $< -o $@
 
-libwcc.a: ${OBJECTS}
-	ar rcs libwcc.a ${OBJECTS}
+%.o: ${SRC_DIR}/%.c ${BUILD_DIR}/config.h ${SRC_DIR}/wcc.h build
+	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I . -c $< -o $@
 
-wcc: libwcc.a main.c config.h wcc.h
-	${GCC} ${GCC_OPTS} -Wunused  main.c libwcc.a -o wcc -g -Wno-return-type
+libwcc.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
+	ar rcs libwcc.a ${OBJECTS} wcc.o instrrules-generated.o internals.o
+
+wcc: libwcc.a ${SRC_DIR}/main.c instrrules-generated.c config.h ${SRC_DIR}/wcc.h
+	${GCC} ${GCC_OPTS} -g -Wunused -Wno-return-type ${WCC_BUILD_FLAGS} -I ${SRC_DIR} -I . ${SRC_DIR}/main.c instrrules-generated.c libwcc.a -o $@
 
 # wcc2
 WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
 WCC2_ASSEMBLIES := ${WCC2_SOURCES:.c=.s}
+WCC2_MISC_SOURCES := ${MISC_SOURCES:%=build/wcc2/%}
+WCC2_MISC_ASSEMBLIES := ${WCC2_MISC_SOURCES:.c=.s}
 
-build/wcc2/%.s: %.c wcc
-	./wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc2.rulecov -c $< -S -o $@ ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS}
+build/wcc2/instrrules-generated.s: instrrules-generated.c wcc
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -I ${SRC_DIR} -c $< -S -o $@
 
-wcc2: ${WCC2_ASSEMBLIES} build/wcc2/main.s wcc
-	./wcc ${WCC_OPTS} ${WCC2_ASSEMBLIES} build/wcc2/main.s -o wcc2
+build/wcc2/internals.s: internals.c wcc
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -I ${SRC_DIR} -c $< -S -o $@
+
+build/wcc2/%.s: ${SRC_DIR}/%.c wcc
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -c $< -S -o $@
+
+wcc2: ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} wcc
+	./wcc ${WCC_OPTS} ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} -o wcc2
 
 # wcc3
 WCC3_SOURCES := ${SOURCES:%=build/wcc3/%}
 WCC3_ASSEMBLIES := ${WCC3_SOURCES:.c=.s}
+WCC3_MISC_SOURCES := ${MISC_SOURCES:%=build/wcc3/%}
+WCC3_MISC_ASSEMBLIES := ${WCC3_MISC_SOURCES:.c=.s}
 
-build/wcc3/%.s: %.c wcc2
-	./wcc2 ${WCC_OPTS} --fail-on-leaked-memory -c $< -S -o $@ ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS}
+build/wcc3/instrrules-generated.s: instrrules-generated.c wcc2
+	./wcc2 ${WCC_OPTS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -I ${SRC_DIR} -c $< -S -o $@
 
-wcc3: ${WCC3_ASSEMBLIES} build/wcc3/main.s wcc2
-	./wcc2 ${WCC_OPTS} ${WCC3_ASSEMBLIES} build/wcc3/main.s -o wcc3
+build/wcc3/internals.s: internals.c wcc2
+	./wcc2 ${WCC_OPTS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -I ${SRC_DIR} -c $< -S -o $@
+
+build/wcc3/%.s: ${SRC_DIR}/%.c wcc2
+	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -c $< -S -o $@
+
+wcc3: ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} wcc2
+	./wcc2 ${WCC_OPTS} ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} -o wcc3
 
 .PHONY: test-self-compilation
-test-self-compilation: ${WCC2_ASSEMBLIES} build/wcc2/main.s ${WCC3_ASSEMBLIES} build/wcc3/main.s
+test-self-compilation: wcc2 wcc3
 	cat build/wcc2/*.s > build/wcc2/all-s
 	cat build/wcc3/*.s > build/wcc3/all-s
 	diff build/wcc2/all-s build/wcc3/all-s
 	@echo self compilation test passed
 
-.PHONY: test-all
-test-all: wcc internals.c utils.c memory.c include/stdarg.h
-	cd tests && ${MAKE} all
-
 .PHONY: test
 test: test-self-compilation test-all
 	@echo All tests passed
 
+.PHONY: test-all
+test-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} all
+
 .PHONY: test-unit
-test-unit: libwcc.a strmap.c longmap.c
-	cd tests && ${MAKE} test-unit
+test-unit: libwcc.a
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit
 
 .PHONY: test-unit-parser
 test-unit-parser: libwcc.a
-	cd tests && ${MAKE} test-unit-parser
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit-parser
 
 .PHONY: test-unit-ssa
 test-unit-ssa: libwcc.a
-	cd tests && ${MAKE} test-unit-ssa
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit-ssa
 
 .PHONY: test-unit-cpp
 test-unit-cpp: libwcc.a
-	cd tests && ${MAKE} test-unit-cpp
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit-cpp
 
 .PHONY: regen-cpp-tests-output
 regen-cpp-tests-output: wcc
-	cd tests && ${MAKE} regen-cpp-tests-output
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} regen-cpp-tests-output
 
 .PHONY: test-unit-types
 test-unit-types: libwcc.a
-	cd tests && ${MAKE} test-unit-types
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit-types
 
 .PHONY: test-integration
 test-integration: libwcc.a wcc
-	cd tests && ${MAKE} test-integration
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-integration
 
 .PHONY: test-e2e
 test-e2e: wcc
-	cd tests && ${MAKE} test-e2e
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-e2e
 
 .PHONY: test-cpp
 test-cpp: wcc
-	cd tests && ${MAKE} test-cpp
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS}  test-cpp
 
 .PHONY: run-benchmark
 run-benchmark: wcc wcc2
-	cd tools && ${MAKE} run-benchmark
+	${MAKE} -C ${SRC_DIR}/tools ${MAKE_ARGS} run-benchmark
 
 .PHONY: rule-coverage-report
 rule-coverage-report: wcc wcc2 test
-	cd tools && ${MAKE} rule-coverage-report
+	${MAKE} -C ${SRC_DIR}/tools ${MAKE_ARGS} rule-coverage-report
 
 install: wcc
 	mkdir -p '${INSTALL_BIN_DIR}'
 	cp wcc '${INSTALL_BIN_DIR}/wcc'
 	mkdir -p '${INSTALL_LIB_INCLUDE_DIR}'
-	cp include/* '${INSTALL_LIB_INCLUDE_DIR}'
+	cp ${SRC_DIR}/include/* '${INSTALL_LIB_INCLUDE_DIR}'
 
 clean:
-	cd tests && ${MAKE} clean
-	cd tools && ${MAKE} clean
+	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} clean
+	${MAKE} -C ${SRC_DIR}/tools ${MAKE_ARGS} clean
 
 	@rm -f make-internals
 	@rm -f internals.c
@@ -173,6 +209,18 @@ clean:
 	@rm -f main_coverage.info
 	@rm -f prof_output
 
+# Detect out-of-source build
+ifneq ($(SRC_DIR),$(BUILD_DIR))
+
 distclean: clean
 	@rm -f config.h
 	@rm -f config.mk
+	@rm -f Makefile
+
+else
+
+distclean: clean
+	@rm -f config.h
+	@rm -f config.mk
+
+endif

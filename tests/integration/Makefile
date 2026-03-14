@@ -1,37 +1,41 @@
--include ../../config.mk
--include ../../common.mk
+GCC ?= gcc
+
+WCC_RUN_FLAGS = -I ${SRC_DIR}/include
+TEST_BUILD_DIR = ${BUILD_DIR}/tests/integration
+INTEGRATION_TEST_FLAGS := ${GCC_OPTS} -g
 
 all: run-test-instrsel run-test-errors check-test-debug-headers
 
-test-instrsel: ../../libwcc.a ../test-utils.c test-instrsel.c
-	gcc ${GCC_OPTS} -g -o test-instrsel test-instrsel.c ../test-utils.c ../../libwcc.a
+${TEST_BUILD_DIR}/test-instrsel: test-instrsel.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR}/libwcc.a
+	@mkdir -p $(@D)
+	${GCC} ${INTEGRATION_TEST_FLAGS} $^ -o $@
 
-run-test-instrsel: test-instrsel
-	./test-instrsel
+${TEST_BUILD_DIR}/test-errors: test-errors.c ${BUILD_DIR}/wcc ${BUILD_DIR}/tests/test-lib.o
+	@mkdir -p $(@D)
+	${GCC} ${INTEGRATION_TEST_FLAGS} -D WCC='"${BUILD_DIR}/wcc -I ${SRC_DIR}/include"' $< ${BUILD_DIR}/tests/test-lib.o -o $@
 
-test-errors: ../../wcc ../test-lib.o test-errors.c
-	gcc ${GCC_OPTS} -g -o test-errors test-errors.c ../test-lib.o
+run-%: ${TEST_BUILD_DIR}/%
+	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
 
-run-test-errors: test-errors
-	./test-errors
+${TEST_BUILD_DIR}/test-debug: test-debug.c ${BUILD_DIR}/wcc
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} -g $< -o $@
 
-test-debug: test-debug.c ../../wcc
-	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} test-debug.c -o test-debug -g
+check-test-debug-headers: ${TEST_BUILD_DIR}/test-debug
+	objdump -h $< | grep .debug_info > /dev/null
+	objdump -h $< | grep .debug_line > /dev/null
+	objdump -h $< | grep .debug_abbrev > /dev/null
+	objdump -h $< | grep .debug_str > /dev/null
 
-check-test-debug-headers: test-debug
-	objdump -h test-debug | grep .debug_info > /dev/null
-	objdump -h test-debug | grep .debug_line > /dev/null
-	objdump -h test-debug | grep .debug_abbrev > /dev/null
-	objdump -h test-debug | grep .debug_str > /dev/null
-
-	objdump -g test-debug | grep -E 'DW_AT_producer.*wcc' > /dev/null
-	objdump -g test-debug | grep 'Line Number Statements:' > /dev/null
+	objdump -g $< | grep -E 'DW_AT_producer.*wcc' > /dev/null
+	objdump -g $< | grep 'Line Number Statements:' > /dev/null
 
 clean:
-	@rm -f *.s
-	@rm -f *.o
-	@rm -f core
-	@rm -f test-instrsel
-	@rm -f test-errors
-	@rm -f instrsel-tests.rulecov
-	@rm -f test-debug
+	@rm -f ${TEST_BUILD_DIR}/*.s
+	@rm -f ${TEST_BUILD_DIR}/*.o
+	@rm -f ${TEST_BUILD_DIR}/core
+	@rm -f ${TEST_BUILD_DIR}/test-instrsel
+	@rm -f ${TEST_BUILD_DIR}/test-errors
+	@rm -f ${TEST_BUILD_DIR}/instrsel-tests.rulecov
+	@rm -f ${TEST_BUILD_DIR}/test-debug
+	@rm -f ${TEST_BUILD_DIR}/a.out

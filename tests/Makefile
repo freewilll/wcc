@@ -1,58 +1,60 @@
+GCC ?= gcc
+
 all: test-unit test-integration test-e2e test-cpp
 
-utils.o: ../utils.c
-	gcc ${GCC_OPTS} -c ../utils.c -o utils.o
+COMMON_DEPENDENCIES := ${BUILD_DIR}/tests/test-utils.s ${BUILD_DIR}/tests/test-lib.o
+MAKE_ARGS := SRC_DIR=${SRC_DIR} BUILD_DIR=${BUILD_DIR} GCC=${GCC}
 
-memory.o: ../memory.c
-	gcc ${GCC_OPTS} -c ../memory.c -o memory.o
+${BUILD_DIR}/tests/test-lib.o: ${SRC_DIR}/tests/test-lib.c
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -c $< -o $@
 
-.PHONY:
-test-unit: test-utils.s test-lib.o
-	cd unit && ${MAKE} all
+${BUILD_DIR}/tests/test-utils.s: ${SRC_DIR}/tests/test-utils.c
+	@mkdir -p $(@D)
+	${GCC} ${GCC_OPTS} -c -S $< -o $@
 
-.PHONY:
-test-unit-parser: test-utils.s test-lib.o
-	cd unit && ${MAKE} run-test-parser
+.PHONY: test-unit
+test-unit: ${COMMON_DEPENDENCIES}
+	${MAKE} -C ${SRC_DIR}/tests/unit ${MAKE_ARGS} all
 
-.PHONY:
-test-unit-ssa: test-utils.s test-lib.o
-	cd unit && ${MAKE} run-test-ssa
+.PHONY: test-unit-parser
+test-unit-parser: ${COMMON_DEPENDENCIES}
+	${MAKE} -C ${SRC_DIR}/tests/unit ${MAKE_ARGS} run-test-parser
 
-.PHONY:
-test-unit-cpp: test-utils.s test-lib.o
-	cd unit && ${MAKE} run-test-cpp
+.PHONY: test-unit-ssa
+test-unit-ssa: ${COMMON_DEPENDENCIES}
+	${MAKE} -C ${SRC_DIR}/tests/unit ${MAKE_ARGS} run-test-ssa
 
-.PHONY:
-test-unit-types: test-utils.s test-lib.o
-	cd unit && ${MAKE} run-test-types
+.PHONY: test-unit-cpp
+test-unit-cpp: ${COMMON_DEPENDENCIES}
+	${MAKE} -C ${SRC_DIR}/tests/unit ${MAKE_ARGS} run-test-cpp
 
-.PHONY:
-test-integration: test-utils.s test-lib.o
-	cd integration && ${MAKE} all
+.PHONY: test-unit-types
+test-unit-types: ${COMMON_DEPENDENCIES}
+	${MAKE} -C ${SRC_DIR}/tests/unit ${MAKE_ARGS} run-test-types
 
-.PHONY:
+.PHONY: test-integration
+test-integration: ${COMMON_DEPENDENCIES}
+	${MAKE} -C ${SRC_DIR}/tests/integration ${MAKE_ARGS} all
+
+.PHONY: test-cpp
 test-cpp:
-	cd cpp && ${MAKE} all
+	${MAKE} -C ${SRC_DIR}/tests/cpp ${MAKE_ARGS} all
 
 .PHONY: regen-cpp-tests-output
 regen-cpp-tests-output:
-	cd cpp && ${MAKE} regen-cpp-tests-output
+	${MAKE} -C ${SRC_DIR}/tests/cpp ${MAKE_ARGS} regen-cpp-tests-output
 
-.PHONY:
-test-e2e: test-lib.o utils.o memory.o
-	cd e2e && ${MAKE} all
-
-test-lib.o: test-lib.c
-	gcc ${GCC_OPTS} test-lib.c -c
-
-test-utils.s: test-utils.c
-	gcc ${GCC_OPTS} -c -S test-utils.c -o test-utils.s
+.PHONY: test-e2e
+test-e2e: ${BUILD_DIR}/tests/test-lib.o
+	${MAKE} -C ${SRC_DIR}/tests/e2e ${MAKE_ARGS} all
 
 clean:
-	cd unit && ${MAKE} clean
-	cd integration && ${MAKE} clean
-	cd e2e && ${MAKE} clean
+	${MAKE} -C ${SRC_DIR}/tests/unit ${MAKE_ARGS} clean
+	${MAKE} -C ${SRC_DIR}/tests/integration ${MAKE_ARGS} clean
+	${MAKE} -C ${SRC_DIR}/tests/e2e ${MAKE_ARGS} clean
+	${MAKE} -C ${SRC_DIR}/tests/cpp ${MAKE_ARGS} clean
 
-	@rm -f *.s
-	@rm -f *.o
-	@rm -f core
+	@rm -f ${BUILD_DIR}/tests/*.s
+	@rm -f ${BUILD_DIR}/tests/*.o
+	@rm -f ${BUILD_DIR}/tests/core
