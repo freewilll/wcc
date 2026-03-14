@@ -1,3 +1,6 @@
+-include ../../config.mk
+-include ../../common.mk
+
 all: run-test-instrsel run-test-errors check-test-debug-headers
 
 test-instrsel: ../../libwcc.a ../test-utils.c test-instrsel.c
@@ -13,7 +16,7 @@ run-test-errors: test-errors
 	./test-errors
 
 test-debug: test-debug.c ../../wcc
-	../../wcc ${WCC_OPTS} test-debug.c -o test-debug -g
+	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} test-debug.c -o test-debug -g
 
 check-test-debug-headers: test-debug
 	objdump -h test-debug | grep .debug_info > /dev/null

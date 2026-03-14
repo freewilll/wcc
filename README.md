@@ -10,7 +10,7 @@ The compiler has only been built and tested on Ubuntu focal 20.04.3 LTS. It will
 ```
 $ ./configure
 $ make wcc
-$ ./wcc test.c -o test
+$ ./wcc -I include test.c -o test
 ```
 
 # Implementation

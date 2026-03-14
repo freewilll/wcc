@@ -1,3 +1,6 @@
+-include ../../config.mk
+-include ../../common.mk
+
 # Remove implicit rule, otherwise rules here making an intermedate .s between a .c
 # and .o  will not run since the chain is longer than the implict rule that creates
 # an .o from .c directly.
@@ -37,7 +40,7 @@ stack-check.o: stack-check.c
 	gcc ${GCC_OPTS} stack-check.c -c
 
 test-%.s: test-%.c ../../wcc ../../include/stdarg.h
-	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
+	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible -c -S $<
 
 test-%.o: test-%.s
 	${AS} $< -o $@
@@ -84,10 +87,10 @@ test-abi-function-callee-gcc.o: test-abi-function-callee.c test-abi.h ../../wcc
 	gcc ${GCC_OPTS} -c -o test-abi-function-callee-gcc.o test-abi-function-callee.c
 
 test-abi-function-caller-wcc.o: test-abi-function-caller.c test-abi.h ../../wcc
-	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-caller-wcc.o test-abi-function-caller.c
+	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-caller-wcc.o test-abi-function-caller.c
 
 test-abi-function-callee-wcc.o: test-abi-function-callee.c test-abi.h ../../wcc
-	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-callee-wcc.o test-abi-function-callee.c
+	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-abi-function-callee-wcc.o test-abi-function-callee.c
 
 test-abi-gcc-gcc: stack-check.o ../test-lib.o test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
 	gcc ${GCC_OPTS} stack-check.o ../test-lib.o -o test-abi-gcc-gcc test-abi-function-caller-gcc.o test-abi-function-callee-gcc.o
@@ -113,7 +116,7 @@ test-shlib-lib-gcc.o: test-shlib-lib.c test-shlib.h
 	gcc ${GCC_OPTS} -c -fPIC -o test-shlib-lib-gcc.o test-shlib-lib.c
 
 test-shlib-lib-wcc.o: test-shlib-lib.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-lib-wcc.o test-shlib-lib.c
+	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-lib-wcc.o test-shlib-lib.c
 
 libtest-shlib-lib-gcc.so: test-shlib-lib-gcc.o
 	gcc test-shlib-lib-gcc.o -shared -o libtest-shlib-lib-gcc.so
@@ -125,10 +128,10 @@ test-shlib-main-gcc.o: test-shlib-main.c test-shlib.h
 	gcc ${GCC_OPTS} -c -fPIC -o test-shlib-main-gcc.o test-shlib-main.c
 
 test-shlib-main-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-main-wcc.o test-shlib-main.c
+	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -fPIC -o test-shlib-main-wcc.o test-shlib-main.c
 
 test-shlib-main-no-pic-wcc.o: test-shlib-main.c test-shlib.h ../../wcc
-	../../wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-shlib-main-no-pic-wcc.o test-shlib-main.c
+	../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file wcc-tests.rulecov -c -o test-shlib-main-no-pic-wcc.o test-shlib-main.c
 
 test-shlib-gcc-gcc: test-shlib-main-gcc.o libtest-shlib-lib-gcc.so
 	gcc test-shlib-main-gcc.o -L. -l test-shlib-lib-gcc ../test-lib.o -o test-shlib-gcc-gcc
@@ -154,7 +157,7 @@ run-test-shlib: test-shlib-gcc-gcc test-shlib-wcc-gcc test-shlib-gcc-wcc test-sh
 
 # Includes
 test-include/test-include: ../../wcc test-include/include.h test-include/main.c test-include/foo.c
-	cd test-include && ../../../wcc ${WCC_OPTS} main.c foo.c -o test-include
+	cd test-include && ../../../wcc ${WCC_OPTS} ${WCC_RUN_FLAGS} main.c foo.c -o test-include
 
 run-test-include: test-include/test-include
 	test-include/test-include

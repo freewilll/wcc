@@ -8,6 +8,8 @@ set -e
 #
 # The results are written to config.h
 
+PREFIX=/usr # Default prefix
+
 DEFAULT_AS_COMMAND="${AS:-$(command -v as  || true)}"   # Default assembler.
 DEFAULT_LD_COMMAND="${LD:-$(command -v ld  || true)}"   # Default linker.
 
@@ -17,6 +19,7 @@ help() {
 Usage: ./configure [options]
 
 Flags:
+--prefix=PATH Install prefix, default: /usr
 --as=PATH     Use assembler binary (detected: $DEFAULT_AS_COMMAND)
 --ld=PATH     Use linker binary    (detected: $DEFAULT_LD_COMMAND)
 -h, --help    Print this help text.
@@ -27,6 +30,7 @@ END
 # Parse args
 for arg in "$@"; do
     case $arg in
+    --prefix=*)   PREFIX="${arg#*=}" ;;
     --as=*)       DEFAULT_AS_COMMAND="${arg#*=}" ;;
     --ld=*)       DEFAULT_LD_COMMAND="${arg#*=}" ;;
     -h|--help) help ;;
@@ -75,4 +79,11 @@ cat > $CONFIG_H_PATH <<END
 #define MUSL_STARTFILES "$MUSL_STARTFILES"
 #define MUSL_ENDFILES "$MUSL_ENDFILES"
 #define MUSL_INCLUDE_PATHS $MUSL_INCLUDE_PATHS
+END
+
+# Write out config.mk
+CONFIG_MK_PATH=config.mk
+cat > $CONFIG_MK_PATH <<END
+PREFIX := $PREFIX
+SIR_DIR := $(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 END

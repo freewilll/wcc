@@ -60,7 +60,7 @@ static CppToken *hsadd(StrSet *hs, CppToken *ts);
 const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 static const char *builtin_include_paths[64] = {
-    BUILD_DIR "/include",
+    INSTALL_LIB_DIR "/include",
     GLIBC_INCLUDE_PATHS,
     0,
 };
@@ -72,7 +72,7 @@ void set_libc_include_paths(int use_musl) {
     char **libc_include_paths = use_musl ? musl_include_paths : glibc_include_paths;
 
     int i = 0;
-    builtin_include_paths[i++] = BUILD_DIR "/include";
+    builtin_include_paths[i++] = INSTALL_LIB_DIR "/include";
     for (int j = 0; libc_include_paths[j]; j++) {
         builtin_include_paths[i++] = libc_include_paths[j];
     }

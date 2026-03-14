@@ -31,10 +31,11 @@ SOURCES = \
   internals.c \
   cpp.c
 
+-include config.mk
+-include common.mk
+
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
-
-BUILD_DIR = "$(shell pwd)"
 
 build:
 	@mkdir -p build/wcc2
@@ -47,13 +48,13 @@ internals.c: internals.h make-internals
 	./make-internals > internals.c
 
 instrgen: instrgen.c instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c config.h wcc.h
-	${GCC} -o instrgen instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c  -Wno-return-type -D BUILD_DIR='${BUILD_DIR}'
+	${GCC} -o instrgen instrgen.c instrrules.c instrutil.c utils.c memory.c longmap.c types.c scopes.c list.c set.c strmap.c error.c cpp.c strset.c lexer.c constexpr.c parser.c functions.c ir.c codegen.c longset.c instrsel.c graph.c ssa.c stack.c  -Wno-return-type ${WCC_BUILD_FLAGS}
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
 
 %.o: %.c config.h wcc.h build
-	${GCC} -g ${GCC_OPTS} -Wunused -c $< -o $@ -D BUILD_DIR='${BUILD_DIR}'
+	${GCC} -g ${GCC_OPTS} -Wunused -c $< -o $@ ${WCC_BUILD_FLAGS}
 
 libwcc.a: ${OBJECTS}
 	ar rcs libwcc.a ${OBJECTS}
@@ -66,7 +67,7 @@ WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
 WCC2_ASSEMBLIES := ${WCC2_SOURCES:.c=.s}
 
 build/wcc2/%.s: %.c wcc
-	./wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc2.rulecov -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
+	./wcc ${WCC_OPTS} --fail-on-leaked-memory --rule-coverage-file wcc2.rulecov -c $< -S -o $@ ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS}
 
 wcc2: ${WCC2_ASSEMBLIES} build/wcc2/main.s wcc
 	./wcc ${WCC_OPTS} ${WCC2_ASSEMBLIES} build/wcc2/main.s -o wcc2
@@ -76,7 +77,7 @@ WCC3_SOURCES := ${SOURCES:%=build/wcc3/%}
 WCC3_ASSEMBLIES := ${WCC3_SOURCES:.c=.s}
 
 build/wcc3/%.s: %.c wcc2
-	./wcc2 ${WCC_OPTS} --fail-on-leaked-memory -c $< -S -o $@ -D BUILD_DIR='${BUILD_DIR}'
+	./wcc2 ${WCC_OPTS} --fail-on-leaked-memory -c $< -S -o $@ ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS}
 
 wcc3: ${WCC3_ASSEMBLIES} build/wcc3/main.s wcc2
 	./wcc2 ${WCC_OPTS} ${WCC3_ASSEMBLIES} build/wcc3/main.s -o wcc3
@@ -140,6 +141,12 @@ run-benchmark: wcc wcc2
 rule-coverage-report: wcc wcc2 test
 	cd tools && ${MAKE} rule-coverage-report
 
+install: wcc
+	mkdir -p '${INSTALL_BIN_DIR}'
+	cp wcc '${INSTALL_BIN_DIR}/wcc'
+	mkdir -p '${INSTALL_LIB_INCLUDE_DIR}'
+	cp include/* '${INSTALL_LIB_INCLUDE_DIR}'
+
 clean:
 	cd tests && ${MAKE} clean
 	cd tools && ${MAKE} clean
@@ -168,3 +175,4 @@ clean:
 
 distclean: clean
 	@rm -f config.h
+	@rm -f config.mk

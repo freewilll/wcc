@@ -1,6 +1,7 @@
 *.o
 *.s
 config.h
+config.mk
 make-internals
 internals.c
 instrgen
