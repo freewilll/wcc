@@ -10,8 +10,19 @@ set -e
 
 PREFIX=/usr # Default prefix
 
-DEFAULT_AS_COMMAND="${AS:-$(command -v as  || true)}"   # Default assembler.
-DEFAULT_LD_COMMAND="${LD:-$(command -v ld  || true)}"   # Default linker.
+# Search for the was binary first, then as
+DEFAULT_AS_COMMAND="${AS:-$(command -v was || command -v as || true)}"
+DEFAULT_LD_COMMAND="${LD:-$(command -v wld || command -v ld || true)}"
+
+if [ -z "${DEFAULT_AS_COMMAND:-}" ]; then
+    echo "Unable to locate an assembler. Install one, or use --as to specify the path to one."
+    exit 1
+fi
+
+if [ -z "${DEFAULT_LD_COMMAND:-}" ]; then
+    echo "Unable to locate a linker. Install one, or use --ld to specify the path to one."
+    exit 1
+fi
 
 # Show the help
 help() {
