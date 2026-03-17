@@ -92,14 +92,14 @@ cat > $CONFIG_H_PATH <<END
 #define MUSL_INCLUDE_PATHS $MUSL_INCLUDE_PATHS
 END
 
-SRC_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-BUILD_DIR=$(pwd)
-
 # Write out config.mk
 CONFIG_MK_PATH=config.mk
 cat > $CONFIG_MK_PATH <<END
 PREFIX := $PREFIX
 END
+
+SRC_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+BUILD_DIR=$(pwd)
 
 if [ "$SRC_DIR" != "$BUILD_DIR" ]
 then
@@ -112,9 +112,6 @@ then
 # Write out Makefile
 MAKEFILE=Makefile
 cat > $MAKEFILE <<END
-PREFIX := $PREFIX
-SRC_DIR := $SRC_DIR
-BUILD_DIR := $BUILD_DIR
-include \$(SRC_DIR)/Makefile
+include $SRC_DIR/Makefile
 END
 fi
