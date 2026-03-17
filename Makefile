@@ -1,5 +1,5 @@
-SRC_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR := $(CURDIR)
+export SRC_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+export BUILD_DIR := $(CURDIR)
 CONFIG ?= $(BUILD_DIR)/config.mk
 
 -include $(CONFIG)
@@ -17,8 +17,6 @@ WCC_RULE_COVERAGE_FLAGS := --rule-coverage-file wcc2.rulecov
 all: wcc
 
 GCC ?= gcc
-
-MAKE_ARGS := SRC_DIR=${SRC_DIR} BUILD_DIR=${BUILD_DIR}
 
 SOURCES := \
 	lexer.c \
@@ -131,51 +129,51 @@ test: test-self-compilation test-all
 
 .PHONY: test-all
 test-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} all
+	${MAKE} -C ${SRC_DIR}/tests all
 
 .PHONY: test-unit
 test-unit: libwcc.a
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit
+	${MAKE} -C ${SRC_DIR}/tests test-unit
 
 .PHONY: test-unit-parser
 test-unit-parser: libwcc.a
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit-parser
+	${MAKE} -C ${SRC_DIR}/tests test-unit-parser
 
 .PHONY: test-unit-ssa
 test-unit-ssa: libwcc.a
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit-ssa
+	${MAKE} -C ${SRC_DIR}/tests test-unit-ssa
 
 .PHONY: test-unit-cpp
 test-unit-cpp: libwcc.a
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit-cpp
+	${MAKE} -C ${SRC_DIR}/tests test-unit-cpp
 
 .PHONY: regen-cpp-tests-output
 regen-cpp-tests-output: wcc
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} regen-cpp-tests-output
+	${MAKE} -C ${SRC_DIR}/tests regen-cpp-tests-output
 
 .PHONY: test-unit-types
 test-unit-types: libwcc.a
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-unit-types
+	${MAKE} -C ${SRC_DIR}/tests test-unit-types
 
 .PHONY: test-integration
 test-integration: libwcc.a wcc
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-integration
+	${MAKE} -C ${SRC_DIR}/tests test-integration
 
 .PHONY: test-e2e
 test-e2e: wcc
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} test-e2e
+	${MAKE} -C ${SRC_DIR}/tests test-e2e
 
 .PHONY: test-cpp
 test-cpp: wcc
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS}  test-cpp
+	${MAKE} -C ${SRC_DIR}/tests  test-cpp
 
 .PHONY: run-benchmark
 run-benchmark: wcc wcc2
-	${MAKE} -C ${SRC_DIR}/tools ${MAKE_ARGS} run-benchmark
+	${MAKE} -C ${SRC_DIR}/tools run-benchmark
 
 .PHONY: rule-coverage-report
 rule-coverage-report: wcc wcc2 test
-	${MAKE} -C ${SRC_DIR}/tools ${MAKE_ARGS} rule-coverage-report
+	${MAKE} -C ${SRC_DIR}/tools rule-coverage-report
 
 install: wcc
 	mkdir -p '${INSTALL_BIN_DIR}'
@@ -184,8 +182,8 @@ install: wcc
 	cp ${SRC_DIR}/include/* '${INSTALL_LIB_INCLUDE_DIR}'
 
 clean:
-	${MAKE} -C ${SRC_DIR}/tests ${MAKE_ARGS} clean
-	${MAKE} -C ${SRC_DIR}/tools ${MAKE_ARGS} clean
+	${MAKE} -C ${SRC_DIR}/tests clean
+	${MAKE} -C ${SRC_DIR}/tools clean
 
 	@rm -f make-internals
 	@rm -f internals.c
