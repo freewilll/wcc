@@ -10,7 +10,7 @@ ${BUILD_DIR}/tests/test-lib.o: ${SRC_DIR}/tests/test-lib.c
 
 ${BUILD_DIR}/tests/test-utils.s: ${SRC_DIR}/tests/test-utils.c
 	@mkdir -p $(@D)
-	${GCC} ${GCC_OPTS} -c -S $< -o $@
+	${GCC} ${GCC_OPTS} -I ${BUILD_DIR} -c -S $< -o $@
 
 .PHONY: test-unit
 test-unit: ${COMMON_DEPENDENCIES}

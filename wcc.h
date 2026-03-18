@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#include "config.h"
+// Deliberately current working directory for config.h, for out-of-tree builds
+#include <config.h>
 
 #define MAX_CPP_FILESIZE              10 * 1024 * 1024
 #define MAX_CPP_INCLUDE_DEPTH         15

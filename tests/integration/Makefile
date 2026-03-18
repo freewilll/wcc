@@ -2,7 +2,7 @@ GCC ?= gcc
 
 WCC_RUN_FLAGS = -I ${SRC_DIR}/include
 TEST_BUILD_DIR = ${BUILD_DIR}/tests/integration
-INTEGRATION_TEST_FLAGS := ${GCC_OPTS} -g
+INTEGRATION_TEST_FLAGS := ${GCC_OPTS} -g -I ${BUILD_DIR}
 
 all: run-test-instrsel run-test-errors check-test-debug-headers
 

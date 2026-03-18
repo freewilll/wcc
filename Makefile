@@ -10,7 +10,7 @@ INSTALL_LIB_DIR = ${PREFIX}/lib/wcc/${VERSION}
 INSTALL_LIB_INCLUDE_DIR = ${INSTALL_LIB_DIR}/include
 
 WCC_BUILD_FLAGS := -D INSTALL_LIB_DIR='"${INSTALL_LIB_DIR}"'
-WCC_RUN_FLAGS := -I ${SRC_DIR}/include
+WCC_SRC_INCLUDE := -I ${SRC_DIR}/include
 WCC_SELFHOST_FLAGS := ${WCC_OPTS} --fail-on-leaked-memory
 WCC_RULE_COVERAGE_FLAGS := --rule-coverage-file wcc2.rulecov
 
@@ -63,22 +63,22 @@ internals.o: internals.c
 	${GCC} ${GCC_OPTS} -c $< -o $@
 
 instrgen: ${SOURCES_ABS_PATH} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c
-	${GCC} ${GCC_OPTS} -Wno-return-type ${WCC_BUILD_FLAGS} -I . ${SOURCES_ABS_PATH} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c -o $@
+	${GCC} ${GCC_OPTS} -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${SOURCES_ABS_PATH} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c -o $@
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
 
 instrrules-generated.o: instrrules-generated.c
-	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I ${SRC_DIR} -I . -c $< -o $@
+	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} -c $< -o $@
 
 %.o: ${SRC_DIR}/%.c ${BUILD_DIR}/config.h ${SRC_DIR}/wcc.h build
-	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I . -c $< -o $@
+	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -c $< -o $@
 
 libwcc.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
 	ar rcs libwcc.a ${OBJECTS} wcc.o instrrules-generated.o internals.o
 
 wcc: libwcc.a ${SRC_DIR}/main.c instrrules-generated.c config.h ${SRC_DIR}/wcc.h
-	${GCC} ${GCC_OPTS} -g -Wunused -Wno-return-type ${WCC_BUILD_FLAGS} -I ${SRC_DIR} -I . ${SRC_DIR}/main.c instrrules-generated.c libwcc.a -o $@
+	${GCC} ${GCC_OPTS} -g -Wunused -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} ${SRC_DIR}/main.c instrrules-generated.c libwcc.a -o $@
 
 # wcc2
 WCC2_SOURCES := ${SOURCES:%=build/wcc2/%}
@@ -87,13 +87,13 @@ WCC2_MISC_SOURCES := ${MISC_SOURCES:%=build/wcc2/%}
 WCC2_MISC_ASSEMBLIES := ${WCC2_MISC_SOURCES:.c=.s}
 
 build/wcc2/instrrules-generated.s: instrrules-generated.c wcc
-	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -I ${SRC_DIR} -c $< -S -o $@
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 build/wcc2/internals.s: internals.c wcc
-	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -I ${SRC_DIR} -c $< -S -o $@
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 build/wcc2/%.s: ${SRC_DIR}/%.c wcc
-	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -c $< -S -o $@
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
 
 wcc2: ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} wcc
 	./wcc ${WCC_OPTS} ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} -o wcc2
@@ -105,13 +105,13 @@ WCC3_MISC_SOURCES := ${MISC_SOURCES:%=build/wcc3/%}
 WCC3_MISC_ASSEMBLIES := ${WCC3_MISC_SOURCES:.c=.s}
 
 build/wcc3/instrrules-generated.s: instrrules-generated.c wcc2
-	./wcc2 ${WCC_OPTS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -I ${SRC_DIR} -c $< -S -o $@
+	./wcc2 ${WCC_OPTS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 build/wcc3/internals.s: internals.c wcc2
-	./wcc2 ${WCC_OPTS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -I ${SRC_DIR} -c $< -S -o $@
+	./wcc2 ${WCC_OPTS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 build/wcc3/%.s: ${SRC_DIR}/%.c wcc2
-	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} ${WCC_RUN_FLAGS} -c $< -S -o $@
+	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
 
 wcc3: ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} wcc2
 	./wcc2 ${WCC_OPTS} ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} -o wcc3

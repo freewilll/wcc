@@ -1,7 +1,7 @@
 GCC ?= gcc
 
 TEST_BUILD_DIR = ${BUILD_DIR}/tests/unit
-UNIT_TEST_FLAGS := ${GCC_OPTS} -g
+UNIT_TEST_FLAGS := ${GCC_OPTS} -g -I ${BUILD_DIR}
 UNIT_TEST_WARN_FLAGS := -Wno-int-conversion -Wno-pointer-to-int-cast
 
 all:  \
@@ -57,7 +57,7 @@ ${TEST_BUILD_DIR}/test-ssa: test-ssa.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR
 
 ${TEST_BUILD_DIR}/test-graph: test-graph.c ${SRC_DIR}/graph.c ${SRC_DIR}/utils.c ${SRC_DIR}/memory.c
 	@mkdir -p $(@D)
-	${GCC} ${GCC_OPTS} $^ -o $@
+	${GCC} ${UNIT_TEST_FLAGS} $^ -o $@
 
 ${TEST_BUILD_DIR}/test-parser: test-parser.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
 	@mkdir -p $(@D)
