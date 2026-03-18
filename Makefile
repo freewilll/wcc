@@ -214,6 +214,7 @@ distclean: clean
 	@rm -f config.h
 	@rm -f config.mk
 	@rm -f Makefile
+	@rm -f wcc-musl
 
 else
 

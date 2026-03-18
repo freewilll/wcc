@@ -109,6 +109,8 @@ then
     mkdir -p tests/cpp
     mkdir -p tests/e2e
 
+    cp "$SRC_DIR/musl-wcc" wcc-musl
+
 # Write out Makefile
 MAKEFILE=Makefile
 cat > $MAKEFILE <<END
