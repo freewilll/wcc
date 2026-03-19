@@ -58,8 +58,22 @@ void compress_vregs(Function *function) {
     wfree(vreg_map);
 }
 
-static int vreg_cost_cmpfunc(const void *a, const void *b) {
-    return ((VregCost *) b)->cost - ((VregCost *) a)->cost;
+static int vreg_cost_cmpfunc(const void *void_a, const void *void_b) {
+    const VregCost *a = void_a;
+    const VregCost *b = void_b;
+
+    if (a->cost < b->cost) return 1;
+    if (a->cost > b->cost) return -1;
+
+    // Fall back to vreg if the cost is equal. This is really only just to
+    // make the sort deterministic when running in glibc and musl,
+    // and really is just for testing convenience.
+    // If the cost is equal, then the one with the
+    // the lowest vreg number comes first.
+    if (a->vreg < b->vreg) return -1;
+    if (a->vreg > b->vreg) return 1;
+
+    return 0;
 }
 
 static int *make_original_stack_indexes(Function *function) {
@@ -412,4 +426,3 @@ void allocate_registers(Function *function) {
 
     free_vreg_locations(function);
 }
-
