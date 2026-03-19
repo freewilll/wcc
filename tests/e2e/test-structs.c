@@ -464,6 +464,8 @@ void test_double_deref_precision1() {
     s2 = malloc(sizeof(struct sddp2 *));
     s3 = malloc(sizeof(struct sddp3 *));
     s2->s3 = s3;
+
+    s3->i = 0;
     s3->end = -1;
 
     assert_long(0, s2->s3->i, "Double deref precision 1-1");
