@@ -178,6 +178,7 @@ rule-coverage-report: wcc wcc2 test
 install: wcc
 	mkdir -p '${INSTALL_BIN_DIR}'
 	cp wcc '${INSTALL_BIN_DIR}/wcc'
+	cp ${SRC_DIR}/musl-wcc '${INSTALL_BIN_DIR}/'
 	mkdir -p '${INSTALL_LIB_INCLUDE_DIR}'
 	cp ${SRC_DIR}/include/* '${INSTALL_LIB_INCLUDE_DIR}'
 
