@@ -42,7 +42,7 @@ void test_mem_functions() {
     assert_int(-1, pi1[0], "memory functions 2");
     assert_int(-1, pi1[3], "memory functions 3");
 
-    assert_int(255, memcmp(pi1, pi2, 32), "memory functions 4");
+    assert_int(1, memcmp(pi1, pi2, 32) > 0, "memory functions 4");
 
     // gcc's strcmp is builtin and returns different numbers than the
     // std library's. Only the sign is the same. Hence, we have to use <
