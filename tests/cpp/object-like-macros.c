@@ -108,3 +108,7 @@ __INT32_MAX__
 __UINT32_MAX__
 __INT64_MAX__
 __UINT64_MAX__
+
+// Math macro replacements
+__builtin_ceil
+__builtin_floor

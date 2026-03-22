@@ -427,6 +427,10 @@ void init_directives(void) {
     strmap_put(directives, "__UINT32_MAX__",        make_string_directive("0xffffffffU"));
     strmap_put(directives, "__INT64_MAX__",         make_string_directive("0x7fffffffffffffffL"));
     strmap_put(directives, "__UINT64_MAX__",        make_string_directive("0xffffffffffffffffUL"));
+
+    // Mimic gcc math builtins
+    strmap_put(directives, "__builtin_ceil",        make_string_directive("ceil"));
+    strmap_put(directives, "__builtin_floor",       make_string_directive("floor"));
 }
 
 void free_directives(void) {

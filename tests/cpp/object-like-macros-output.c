@@ -109,3 +109,7 @@ unsigned long int
 0xffffffffU
 0x7fffffffffffffffL
 0xffffffffffffffffUL
+
+
+ceil
+floor
