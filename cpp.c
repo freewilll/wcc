@@ -43,6 +43,14 @@ typedef struct cpp_state {
 
 CppState state;
 
+#define INITIAL_WHITESPACE_BUFFER_SIZE 16
+
+typedef struct whitespace {
+    char *data;     // NULL if empty
+    int size;
+    int allocated;  // Amount of allocated memory
+} Whitespace;
+
 List *allocated_tokens;            // Keep track of all wmalloc'd tokens
 List *allocated_tokens_duplicates; // Keep track of all wmalloc'd shallow copied tokens
 List *allocated_strsets;
@@ -602,15 +610,22 @@ static void advance_ip_by_count(int count) {
         advance_ip();
 }
 
-static void add_to_whitespace(char **whitespace, int *whitespace_pos, char c) {
-    if (!*whitespace) *whitespace = wmalloc(1024);
-    if (*whitespace_pos == 1024) panic("Ran out of whitespace buffer");
-    (*whitespace)[(*whitespace_pos)++] = c;
+static void add_to_whitespace(Whitespace *whitespace, char c) {
+    if (!whitespace->data) {
+        whitespace->data = wmalloc(INITIAL_WHITESPACE_BUFFER_SIZE);
+        whitespace->allocated = INITIAL_WHITESPACE_BUFFER_SIZE;
+    }
+
+    if (whitespace->size == whitespace->allocated) {
+        whitespace->allocated *= 2;
+        whitespace->data = wrealloc(whitespace->data, whitespace->allocated);
+    }
+
+    (whitespace->data)[(whitespace->size)++] = c;
 }
 
 static char *lex_whitespace(void) {
-    char *whitespace = 0;
-    int whitespace_pos = 0;
+    Whitespace whitespace = {0};
 
     // Process whitespace and comments
     while (state.ip < state.input_size) {
@@ -618,7 +633,7 @@ static char *lex_whitespace(void) {
         if (c == '\f' || c == '\v' || c == '\r') state.input[state.ip] = ' ';
 
         if ((state.input[state.ip] == '\t' || state.input[state.ip] == ' ')) {
-            add_to_whitespace(&whitespace, &whitespace_pos, state.input[state.ip]);
+            add_to_whitespace(&whitespace, state.input[state.ip]);
             advance_ip();
             continue;
         }
@@ -626,7 +641,7 @@ static char *lex_whitespace(void) {
         // Process // comment
         if (state.input_size - state.ip >= 2 && state.input[state.ip] == '/' && state.input[state.ip + 1] == '/') {
             while (state.input[state.ip] != '\n') advance_ip();
-            add_to_whitespace(&whitespace, &whitespace_pos, ' ');
+            add_to_whitespace(&whitespace, ' ');
             continue;
         }
 
@@ -641,18 +656,17 @@ static char *lex_whitespace(void) {
             advance_ip();
             advance_ip();
 
-            add_to_whitespace(&whitespace, &whitespace_pos, ' ');
+            add_to_whitespace(&whitespace, ' ');
             continue;
         }
 
         break;
     }
 
-    if (whitespace)
-        whitespace[whitespace_pos] = 0;
+    if (whitespace.data)
+        add_to_whitespace(&whitespace, 0);
 
-    return whitespace;
-
+    return whitespace.data;
 }
 
 static void lex_string_and_char_literal(char delimiter) {
