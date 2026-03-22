@@ -116,4 +116,7 @@ MAKEFILE=Makefile
 cat > $MAKEFILE <<END
 include $SRC_DIR/Makefile
 END
+
+    # Copy musl-wcc wrapper over
+    cp $SRC_DIR/musl-wcc $BUILD_DIR/
 fi
