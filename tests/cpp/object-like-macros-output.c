@@ -70,3 +70,42 @@ A # in the middle of a line
 1
 1
 2
+
+
+
+signed char
+short
+int
+long int
+unsigned char
+unsigned short
+unsigned int
+long unsigned int
+signed char
+short int
+int
+long int
+unsigned char
+unsigned short int
+unsigned int
+unsigned long int
+signed char
+long int
+long int
+long int
+unsigned char
+unsigned long int
+unsigned long int
+unsigned long int
+long int
+unsigned long  int
+long int
+unsigned long int
+0x7f
+0xff
+0x7fff
+0xffff
+0x7fffffff
+0xffffffffU
+0x7fffffffffffffffL
+0xffffffffffffffffUL

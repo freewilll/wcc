@@ -336,9 +336,21 @@ static CppToken *render_numeric_token(int value) {
     return result;
 }
 
+static CppToken *render_string_token(const char *value) {
+    CppToken *result = new_cpp_token(CPP_TOK_IDENTIFIER);
+    wasprintf(&(result->str), "%s", value);
+    return result;
+}
+
 Directive *make_numeric_directive(int value) {
     Directive *directive = wcalloc(1, sizeof(Directive));
     directive->tokens = render_numeric_token(value);
+    return directive;
+}
+
+Directive *make_string_directive(const char *value) {
+    Directive *directive = wcalloc(1, sizeof(Directive));
+    directive->tokens = render_string_token(value);
     return directive;
 }
 
@@ -354,7 +366,8 @@ void free_directive(Directive *d) {
     }
 }
 
-// Create empty directives strmap and add CLI directives to them
+// Create empty directives strmap and add CLI directives to them.
+// Also add a bunch of built in directives needed by glibc headers
 void init_directives(void) {
     directives = new_strmap();
     CliDirective *cd = cli_directives;
@@ -376,6 +389,44 @@ void init_directives(void) {
     strmap_put(directives, "__linux__", make_numeric_directive(1));
     strmap_put(directives, "__GNUC__", make_numeric_directive(2));
     strmap_put(directives, "__USER_LABEL_PREFIX__", make_empty_directive());
+
+    // Add type definitions used in glibc stdint.h
+    strmap_put(directives, "__INT8_TYPE__",         make_string_directive("signed char"));
+    strmap_put(directives, "__INT16_TYPE__",        make_string_directive("short"));
+    strmap_put(directives, "__INT32_TYPE__",        make_string_directive("int"));
+    strmap_put(directives, "__INT64_TYPE__",        make_string_directive("long int"));
+    strmap_put(directives, "__UINT8_TYPE__",        make_string_directive("unsigned char"));
+    strmap_put(directives, "__UINT16_TYPE__",       make_string_directive("unsigned short"));
+    strmap_put(directives, "__UINT32_TYPE__",       make_string_directive("unsigned int"));
+    strmap_put(directives, "__UINT64_TYPE__",       make_string_directive("long unsigned int"));
+    strmap_put(directives, "__INT_LEAST8_TYPE__",   make_string_directive("signed char"));
+    strmap_put(directives, "__INT_LEAST16_TYPE__",  make_string_directive("short int"));
+    strmap_put(directives, "__INT_LEAST32_TYPE__",  make_string_directive("int"));
+    strmap_put(directives, "__INT_LEAST64_TYPE__",  make_string_directive("long int"));
+    strmap_put(directives, "__UINT_LEAST8_TYPE__",  make_string_directive("unsigned char"));
+    strmap_put(directives, "__UINT_LEAST16_TYPE__", make_string_directive("unsigned short int"));
+    strmap_put(directives, "__UINT_LEAST32_TYPE__", make_string_directive("unsigned int"));
+    strmap_put(directives, "__UINT_LEAST64_TYPE__", make_string_directive("unsigned long int"));
+    strmap_put(directives, "__INT_FAST8_TYPE__",    make_string_directive("signed char"));
+    strmap_put(directives, "__INT_FAST16_TYPE__",   make_string_directive("long int"));
+    strmap_put(directives, "__INT_FAST32_TYPE__",   make_string_directive("long int"));
+    strmap_put(directives, "__INT_FAST64_TYPE__",   make_string_directive("long int"));
+    strmap_put(directives, "__UINT_FAST8_TYPE__",   make_string_directive("unsigned char"));
+    strmap_put(directives, "__UINT_FAST16_TYPE__",  make_string_directive("unsigned long int"));
+    strmap_put(directives, "__UINT_FAST32_TYPE__",  make_string_directive("unsigned long int"));
+    strmap_put(directives, "__UINT_FAST64_TYPE__",  make_string_directive("unsigned long int"));
+    strmap_put(directives, "__INTPTR_TYPE__",       make_string_directive("long int"));
+    strmap_put(directives, "__UINTPTR_TYPE__",      make_string_directive("unsigned long  int"));
+    strmap_put(directives, "__INTMAX_TYPE__",       make_string_directive("long int"));
+    strmap_put(directives, "__UINTMAX_TYPE__",      make_string_directive("unsigned long int"));
+    strmap_put(directives, "__INT8_MAX__",          make_string_directive("0x7f"));
+    strmap_put(directives, "__UINT8_MAX__",         make_string_directive("0xff"));
+    strmap_put(directives, "__INT16_MAX__",         make_string_directive("0x7fff"));
+    strmap_put(directives, "__UINT16_MAX__",        make_string_directive("0xffff"));
+    strmap_put(directives, "__INT32_MAX__",         make_string_directive("0x7fffffff"));
+    strmap_put(directives, "__UINT32_MAX__",        make_string_directive("0xffffffffU"));
+    strmap_put(directives, "__INT64_MAX__",         make_string_directive("0x7fffffffffffffffL"));
+    strmap_put(directives, "__UINT64_MAX__",        make_string_directive("0xffffffffffffffffUL"));
 }
 
 void free_directives(void) {
