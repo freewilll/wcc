@@ -803,15 +803,16 @@ static void cpp_next() {
         }
 
         else if ((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z') || c1 == '_') {
-            char *identifier = wmalloc(1024);
-            int j = 0;
+            int start_ip = state.ip;
+            int size = 0;
             while (((i[state.ip] >= 'a' && i[state.ip] <= 'z') || (i[state.ip] >= 'A' && i[state.ip] <= 'Z') || (i[state.ip] >= '0' && i[state.ip] <= '9') || (i[state.ip] == '_')) && state.ip < state.input_size) {
-                if (j == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);
-                identifier[j] = i[state.ip];
-                j++;
+                if (size == MAX_IDENTIFIER_SIZE) panic("Exceeded maximum identifier size %d", MAX_IDENTIFIER_SIZE);
+                size++;
                 advance_ip();
             }
-            identifier[j] = 0;
+            char *identifier = wmalloc(size + 1);
+            memcpy(identifier, &i[start_ip], size);
+            identifier[size] = 0;
 
             #define is_identifier(t) (\
                 t->kind == CPP_TOK_IDENTIFIER || \
