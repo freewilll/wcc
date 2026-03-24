@@ -2834,7 +2834,13 @@ static void parse_expression(int level) {
                 else if (!strcmp(cur_identifier, "va_arg"))
                     parse_va_arg();
 
-                else if (!strcmp(cur_identifier, "__func__"))
+                else if (
+                        !strcmp(cur_identifier, "__func__") ||
+                        // GCC predefines __FUNCTION__ and __PRETTY_FUNCTION__,
+                        // but internally they are the same as __func__.
+                        // See https://gcc.gnu.org/onlinedocs/gcc-3.3.5/gcc/Function-Names.html
+                        !strcmp(cur_identifier, "__FUNCTION__") ||
+                        !strcmp(cur_identifier, "__PRETTY_FUNCTION__"))
                     parse___func__();
 
                 else {
