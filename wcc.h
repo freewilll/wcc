@@ -481,6 +481,7 @@ enum {
     TOK_ELLIPSES,
     TOK_GOTO,               // 90
     TOK_ASM,
+    TOK_EXTENSION
 };
 
 enum {

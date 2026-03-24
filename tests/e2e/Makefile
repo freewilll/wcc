@@ -32,7 +32,8 @@ WCC_TESTS=\
 	switch \
 	character-and-string-literals \
 	varargs \
-	initializers
+	initializers \
+	extension-keyword
 
 WCC_RUN_FLAGS = -I ${SRC_DIR}/include
 WCC_E2E_FLAGS := ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file ${BUILD_DIR}/tests/e2e/wcc-tests.rulecov

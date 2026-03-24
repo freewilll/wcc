@@ -481,6 +481,7 @@ void next(void) {
             else if (!strcmp(cur_identifier, "__restrict"   )) { cur_token = TOK_RESTRICT;  }
             else if (!strcmp(cur_identifier, "restrict"     )) { cur_token = TOK_RESTRICT;  }
             else if (!strcmp(cur_identifier, "__asm__"      )) { cur_token = TOK_ASM;       }
+            else if (!strcmp(cur_identifier, "__extension__")) { cur_token = TOK_EXTENSION; }
             else if (!strcmp(cur_identifier, "inline"       )) { cur_token = TOK_INLINE;    }
             else if (!strcmp(cur_identifier, "__inline"     )) { cur_token = TOK_INLINE;    }
             else if (!strcmp(cur_identifier, "auto"         )) { cur_token = TOK_AUTO;      }

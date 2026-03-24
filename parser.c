@@ -432,6 +432,9 @@ void parse_attributes(void) {
 // - type-qualifiers: const, volatile
 // - typedef type names
 static BaseType *parse_declaration_specifiers() {
+    // Ignore GNU __extension__ keyword
+    if (cur_token == TOK_EXTENSION) next();
+
     Type *type = 0;
 
     // Type specifiers
@@ -2598,6 +2601,9 @@ static Value *parse_statement_expression(void) {
 // https://en.cppreference.com/w/c/language/operator_precedence
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Precedence_climbing_method
 static void parse_expression(int level) {
+    // Ignore GNU __extension__ keyword
+    if (cur_token == TOK_EXTENSION) next();
+
     // Parse any tokens that can be at the start of an expression
 
     // If base type has a value, then the current token cannot be a type. The
@@ -3547,6 +3553,10 @@ int redefined_symbol_linkage(int linkage1, int linkage2, char *cur_type_identifi
 void parse(void) {
     while (cur_token != TOK_EOF) {
         if (cur_token == TOK_SEMI)
+            next();
+
+        // Ignore GNU __extension__ keyword
+        if (cur_token == TOK_EXTENSION)
             next();
 
         if (cur_token_is_type() || cur_token == TOK_IDENTIFIER || cur_token == TOK_MULTIPLY) {
