@@ -387,7 +387,12 @@ void init_directives(void) {
     strmap_put(directives, "__x86_64__", make_numeric_directive(1));
     strmap_put(directives, "__LP64__", make_numeric_directive(1));
     strmap_put(directives, "__linux__", make_numeric_directive(1));
-    strmap_put(directives, "__GNUC__", make_numeric_directive(2));
+
+    // strmap_put(directives, "__GNUC__", make_numeric_directive(2)); //wwip
+    // Set GNU version to 3.3
+    strmap_put(directives, "__GNUC__", make_numeric_directive(3));
+    strmap_put(directives, "__GNUC_MINOR__", make_numeric_directive(3));
+
     strmap_put(directives, "__USER_LABEL_PREFIX__", make_empty_directive());
 
     // Add type definitions used in glibc stdint.h

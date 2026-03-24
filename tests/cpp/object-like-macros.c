@@ -69,6 +69,7 @@ __x86_64__
 __LP64__
 __linux__
 __GNUC__
+__GNUC_MINOR__
 __USER_LABEL_PREFIX__
 
 // stdint macros

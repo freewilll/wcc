@@ -52,21 +52,19 @@ done
 
 # gcc C runtime files
 GCC_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9
-GCC_CRTBEGIN=/usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o
-GCC_CRTEND=/usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o
 
 # Libc configs are chosen at runtime via wcc --libc=glibc|musl.
 GLIBC_DYNAMIC_LINKER=/lib64/ld-linux-x86-64.so.2
 GLIBC_LIBC_LIBRARY_PATH=/usr/lib
-GLIBC_STARTFILES="/usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o $GCC_CRTBEGIN"
+GLIBC_STARTFILES="/usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o"
 GLIBC_ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-gnu/crtn.o"
-GLIBC_INCLUDE_PATHS='"/usr/lib/gcc/x86_64-linux-gnu/9/include", "/usr/local/include", "/usr/include/x86_64-linux-gnu", "/usr/include"'
+GLIBC_INCLUDE_PATHS='"/usr/local/include", "/usr/include/x86_64-linux-gnu", "/usr/include"'
 
 MUSL_DYNAMIC_LINKER=/lib/ld-musl-x86_64.so.1
 MUSL_LIBC_LIBRARY_PATH=/usr/lib/x86_64-linux-musl
-MUSL_STARTFILES="/usr/lib/x86_64-linux-musl/Scrt1.o /usr/lib/x86_64-linux-musl/crti.o $GCC_CRTBEGIN"
+MUSL_STARTFILES="/usr/lib/x86_64-linux-musl/Scrt1.o /usr/lib/x86_64-linux-musl/crti.o"
 MUSL_ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-musl/crtn.o"
-MUSL_INCLUDE_PATHS='"/usr/include/x86_64-linux-musl", "/usr/lib/gcc/x86_64-linux-gnu/9/include"'
+MUSL_INCLUDE_PATHS='"/usr/include/x86_64-linux-musl"'
 
 echo Using assembler $DEFAULT_AS_COMMAND
 echo Using linker $DEFAULT_LD_COMMAND

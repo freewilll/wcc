@@ -1750,7 +1750,9 @@ int test_expression_statement() {
     ({ inc_gi(); });
     assert_int( 1, gi, "Expression statement ({ inc_gi(); })");
 
-    assert(1); // with __GNUC__ >= 2, this uses an expression statement
+    // with __GNUC__ >= 2, this uses an expression statement. This is no longer the case with GNU >= 3.3,
+    // but I'll leave it in anyways.
+    assert(1);
 }
 
 int test___func__statements() {
