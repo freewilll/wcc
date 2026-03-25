@@ -211,23 +211,30 @@ static void check_floating_point_literal_max(void) {
     if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic("Exceeded max floating point literals %d", MAX_FLOATING_POINT_LITERALS);
 }
 
-static int add_float_literal(long double value) {
+static int add_float_literal(Value *value) {
     check_floating_point_literal_max();
-    floating_point_literals[floating_point_literal_count].f = value;
+
+    if (value->is_float_nan)
+        // Special case for NAN floating point values. Assign the magic NAN number 0x7fc00000
+        ((int *) &floating_point_literals[floating_point_literal_count].f)[0] = 0x7fc00000;
+    else
+        floating_point_literals[floating_point_literal_count].f = value->fp_value;
+
     floating_point_literals[floating_point_literal_count].type = TYPE_FLOAT;
+
     return floating_point_literal_count++;
 }
 
-static int add_double_literal(long double value) {
+static int add_double_literal(Value *value) {
     check_floating_point_literal_max();
-    floating_point_literals[floating_point_literal_count].d = value;
+    floating_point_literals[floating_point_literal_count].d = value->fp_value;
     floating_point_literals[floating_point_literal_count].type = TYPE_DOUBLE;
     return floating_point_literal_count++;
 }
 
-static int add_long_double_literal(long double value) {
+static int add_long_double_literal(Value *value) {
     check_floating_point_literal_max();
-    floating_point_literals[floating_point_literal_count].ld = value;
+    floating_point_literals[floating_point_literal_count].ld = value->fp_value;
     floating_point_literals[floating_point_literal_count].type = TYPE_LONG_DOUBLE;
     return floating_point_literal_count++;
 }
@@ -346,11 +353,11 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                             sprintf(buffer, "$%ld", *((long *) &d));
                         }
                         else if (float_literal)
-                            sprintf(buffer, ".LFP%d(%%rip)", add_float_literal(v->fp_value));
+                            sprintf(buffer, ".LFP%d(%%rip)", add_float_literal(v));
                         else if (double_literal)
-                            sprintf(buffer, ".LFP%d(%%rip)", add_double_literal(v->fp_value));
+                            sprintf(buffer, ".LFP%d(%%rip)", add_double_literal(v));
                         else if (long_double_literal)
-                            sprintf(buffer, ".LFP%d(%%rip)", add_long_double_literal(v->fp_value));
+                            sprintf(buffer, ".LFP%d(%%rip)", add_long_double_literal(v));
                         else
                             panic("Did not get L/H/C/F/D specifier for floating point constant");
                     }

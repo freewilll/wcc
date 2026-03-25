@@ -2437,6 +2437,24 @@ void parse___func__(void) {
     next();
 }
 
+// Parse __builtin_nanf("...")
+void parse____builtin_nanf(void) {
+    next();
+    consume(TOK_LPAREN, "(");
+    consume(TOK_STRING_LITERAL, "string literal");
+
+    if (cur_string_literal.size != 1) warning("Non-empty argument to __builtin_nanf() is not implemented\n");
+
+    consume(TOK_RPAREN, ")");
+
+    Value *cv = new_value();
+    cv->type = new_type(TYPE_FLOAT);
+    cv->is_constant = 1;
+    cv->is_float_nan = 1;
+
+    push(cv);
+}
+
 void parse_struct_dot_arrow_expression(void) {
     // Struct/union member lookup
 
@@ -2848,6 +2866,9 @@ static void parse_expression(int level) {
                         !strcmp(cur_identifier, "__FUNCTION__") ||
                         !strcmp(cur_identifier, "__PRETTY_FUNCTION__"))
                     parse___func__();
+
+                else if (!strcmp(cur_identifier, "__builtin_nanf"))
+                    parse____builtin_nanf();
 
                 else {
                     // Look up symbol

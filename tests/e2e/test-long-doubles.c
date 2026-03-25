@@ -573,6 +573,11 @@ void test_function_call_argument_conversions() {
     function_with_long_double_parameter(1);
 }
 
+void test___builtin_nanf() {
+    float f = __builtin_nanf("");
+    assert_int(0x7fc00000, *(int *) &f, "__builtin_nanf");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -593,6 +598,7 @@ int main(int argc, char **argv) {
     test_int_long_double_type_changes();
     test_long_double_type_int_changes();
     test_function_call_argument_conversions();
+    test___builtin_nanf();
 
     finalize();
 }
