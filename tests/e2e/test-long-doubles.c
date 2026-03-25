@@ -578,6 +578,11 @@ void test___builtin_nanf() {
     assert_int(0x7fc00000, *(int *) &f, "__builtin_nanf");
 }
 
+void test___builtin_inff() {
+    float f = __builtin_inff();
+    assert_int(0x7f800000, *(int *) &f, "__builtin_inff");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -599,6 +604,7 @@ int main(int argc, char **argv) {
     test_long_double_type_int_changes();
     test_function_call_argument_conversions();
     test___builtin_nanf();
+    test___builtin_inff();
 
     finalize();
 }

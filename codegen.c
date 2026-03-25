@@ -217,6 +217,9 @@ static int add_float_literal(Value *value) {
     if (value->is_float_nan)
         // Special case for NAN floating point values. Assign the magic NAN number 0x7fc00000
         ((int *) &floating_point_literals[floating_point_literal_count].f)[0] = 0x7fc00000;
+    else if (value->is_float_inf)
+        // Special case for infinite floating point values. Assign the magic number 0x7f800000
+        ((int *) &floating_point_literals[floating_point_literal_count].f)[0] = 0x7f800000;
     else
         floating_point_literals[floating_point_literal_count].f = value->fp_value;
 

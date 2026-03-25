@@ -310,6 +310,7 @@ typedef struct value {
     unsigned int has_struct_or_union_return_value:1;     // Is it a function call that returns a struct/union?
     unsigned int load_from_got:1;                        // Load from Global Offset Table (GOT)
     unsigned int is_float_nan:1;                         // Is a floating point NAN
+    unsigned int is_float_inf:1;                         // Is a floating point infinity
     int local_index;                                     // Used by parser for local variable and temporaries and function arguments
     int stack_index;                                     // stack index in case of a pushed function argument, & usage or register spill
                                                          // < 0 is for locals, temporaries and spills. >= 2 is for pushed arguments, that start at 2.

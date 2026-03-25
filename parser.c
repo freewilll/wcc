@@ -2455,6 +2455,20 @@ void parse____builtin_nanf(void) {
     push(cv);
 }
 
+// Parse __builtin_inff()
+void parse___builtin_inff(void) {
+    next();
+    consume(TOK_LPAREN, "(");
+    consume(TOK_RPAREN, ")");
+
+    Value *cv = new_value();
+    cv->type = new_type(TYPE_FLOAT);
+    cv->is_constant = 1;
+    cv->is_float_inf = 1;
+
+    push(cv);
+}
+
 void parse_struct_dot_arrow_expression(void) {
     // Struct/union member lookup
 
@@ -2869,6 +2883,9 @@ static void parse_expression(int level) {
 
                 else if (!strcmp(cur_identifier, "__builtin_nanf"))
                     parse____builtin_nanf();
+
+                else if (!strcmp(cur_identifier, "__builtin_inff"))
+                    parse___builtin_inff();
 
                 else {
                     // Look up symbol
