@@ -21,10 +21,13 @@ static long double   old_cur_long_double;
 static StringLiteral old_cur_string_literal;
 
 static void init_lexer(void) {
+    const int initial_size = 128;
+
     ip = 0;
     cur_line = 1;
     cur_identifier = wmalloc(MAX_IDENTIFIER_SIZE);
-    cur_string_literal.data = wmalloc(MAX_STRING_LITERAL_SIZE * 4);
+    cur_string_literal.data = wmalloc(initial_size);
+    cur_string_literal.allocated = initial_size;
 
     next();
 }
@@ -199,14 +202,22 @@ void finish_string_literal(int size, int is_wide_char) {
     cur_string_literal.size = size + 1;
 
     if (!is_wide_char)
+        // Reduce the data scattered around as ints into chars
         for (int i = 0; i <= size; i++) cur_string_literal.data[i] = data[i];
 }
 
 void lex_single_string_literal(int *size) {
+    // Make a copy for convenience, it'll get written back at the end of the function
     int *data = (int *) cur_string_literal.data;
+
     char *i = input;
 
     while (input_size - ip >= 1 && i[ip] != '"') {
+        if (*size * 4 >= cur_string_literal.allocated) {
+            cur_string_literal.allocated *= 2;
+            data = wrealloc(data, cur_string_literal.allocated);
+        }
+
         if (i[ip] != '\\') data[(*size)++] = i[ip++];
         else if (input_size - ip >= 2 && i[ip] == '\\') {
                  if (i[ip + 1] == '\'') { ip += 2; data[(*size)++] = '\''; }
@@ -233,16 +244,20 @@ void lex_single_string_literal(int *size) {
             }
             else error("Unknown \\ escape in string literal");
         }
-
-        data[*size] = 0;
     }
 
     if (i[ip] != '"') error("Expecting terminating \" in string literal");
     ip++;
 
-    if (*size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+    if (*size * 4 >= cur_string_literal.allocated) {
+        cur_string_literal.allocated *= 2;
+        data = wrealloc(data, cur_string_literal.allocated);
+    }
 
     data[*size] = 0;
+
+    // Write data back since it may have been reallocated
+    cur_string_literal.data = (char *) data;
 }
 
 void lex_string_literal(void) {

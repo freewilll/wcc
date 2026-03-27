@@ -12,7 +12,6 @@
 #define MAX_STRUCT_MEMBERS            1024
 #define MAX_IDENTIFIER_SIZE           1024
 #define MAX_INPUT_SIZE                1 << 20 // 1 MB
-#define MAX_STRING_LITERAL_SIZE       4095
 #define MAX_STRING_LITERALS           20480
 #define MAX_FLOATING_POINT_LITERALS   10240
 #define VALUE_STACK_SIZE              10240
@@ -604,6 +603,7 @@ typedef struct string_literal {
     char *data;
     int size;
     int is_wide_char;
+    int allocated;
 } StringLiteral;
 
 enum {

@@ -727,12 +727,15 @@ static char *lex_whitespace(void) {
 static void lex_string_and_char_literal(char delimiter) {
     char *i = state.input;
     int data_offset = 0;
+    int extra_bytes = 3; // Two delimeters + final zero byte
 
-    char *data = wmalloc(MAX_STRING_LITERAL_SIZE + 2);
+    int allocated = 128;
+    char *data = wmalloc(allocated);
 
     if (i[state.ip] == 'L') {
         advance_ip();
         data_offset = 1;
+        extra_bytes += 1;
         data[0] = 'L';
     }
 
@@ -748,7 +751,7 @@ static void lex_string_and_char_literal(char delimiter) {
         }
 
         if (state.input_size - state.ip >= 2 && i[state.ip] == '\\') {
-            if (size + 1 >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+            if (size + extra_bytes + 1 >= allocated) { allocated *= 2; data = wrealloc(data, allocated); }
             data[data_offset + 1 + size++] = '\\';
             data[data_offset + 1 + size++] = i[state.ip + 1];
             advance_ip();
@@ -756,7 +759,7 @@ static void lex_string_and_char_literal(char delimiter) {
         }
 
         else {
-            if (size >= MAX_STRING_LITERAL_SIZE) panic("Exceeded maximum string literal size %d", MAX_STRING_LITERAL_SIZE);
+            if (size + extra_bytes >= allocated) { allocated *= 2; data = wrealloc(data, allocated); }
             data[data_offset + 1 + size++] = i[state.ip];
             advance_ip();
         }
