@@ -576,11 +576,25 @@ void test_function_call_argument_conversions() {
 void test___builtin_nanf() {
     float f = __builtin_nanf("");
     assert_int(0x7fc00000, *(int *) &f, "__builtin_nanf");
+
+    double d = __builtin_nanf("");
+    assert_long(0x7ff8000000000000, *(long *) &d, "__builtin_nanf converted to double");
+
+    long double ld = __builtin_nanf("");
+    assert_long(0xc000000000000000, ((long * ) &ld)[0], "__builtin_nanf converted to long double 1");
+    assert_int(0x7fff,              ((short *) &ld)[4], "__builtin_nanf converted to long double 2");
 }
 
 void test___builtin_inff() {
     float f = __builtin_inff();
     assert_int(0x7f800000, *(int *) &f, "__builtin_inff");
+
+    double d = __builtin_inff();
+    assert_long(0x7ff0000000000000, *(long *) &d, "__builtin_inff converted to double");
+
+    long double ld = __builtin_inff();
+    assert_long(0x8000000000000000, ((long *)  &ld)[0], "__builtin_inff converted to long double 1");
+    assert_int(0x7fff,              ((short *) &ld)[4], "__builtin_inff converted to long double 2");
 }
 
 int main(int argc, char **argv) {

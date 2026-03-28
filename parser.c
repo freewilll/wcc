@@ -2452,7 +2452,11 @@ void parse____builtin_nanf(void) {
     Value *cv = new_value();
     cv->type = new_type(TYPE_FLOAT);
     cv->is_constant = 1;
-    cv->is_float_nan = 1;
+
+    long double ld;
+    ((long *)&ld)[0] = (1ULL << 63) | (1ULL << 62);
+    ((short *)&ld)[4] = 0x7fff;
+    cv->fp_value = ld;
 
     push(cv);
 }
@@ -2466,7 +2470,11 @@ void parse___builtin_inff(void) {
     Value *cv = new_value();
     cv->type = new_type(TYPE_FLOAT);
     cv->is_constant = 1;
-    cv->is_float_inf = 1;
+
+    long double ld;
+    ((long *)&ld)[0] = 1ULL << 63;
+    ((short *)&ld)[4] = 0x7fff;
+    cv->fp_value = ld;
 
     push(cv);
 }
