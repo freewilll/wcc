@@ -1715,6 +1715,10 @@ static __attribute__((noinline)) void function_with_noinline_attribute();
 __attribute__((noinline)) int function_with_noinline_attribute2();
 typedef int more_aligned_int __attribute__ ((aligned));
 
+struct attribute_s {
+    void (*f) () __attribute__ ((__format__ (__printf__, 1, 2)));
+};
+
 struct pc_clobber_bug {
     int i;
     long l;

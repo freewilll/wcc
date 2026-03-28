@@ -980,6 +980,8 @@ static Type *parse_struct_or_union_type_specifier(void) {
                     member->bit_field_size = bit_field_size;
                 }
 
+                if (cur_token ==  TOK_ATTRIBUTE) parse_attributes();
+
                 if (cur_token == TOK_COMMA) next();
                 else if (cur_token == TOK_SEMI) {
                     next();
