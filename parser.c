@@ -1757,7 +1757,6 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
         // Amend previous initializer for bit field
         in = (Initializer *) s->initializers->elements[s->initializers->length - 1];
 
-
     else {
         if (!dst->bit_field_size && s->initializers->length) {
             Initializer *prev = (Initializer *) s->initializers->elements[s->initializers->length - 1];
@@ -1855,10 +1854,10 @@ static void initialize_union_with_zeroes(Value *value, int offset) {
 // Initialize an array of chars or wchar_t with a string literal
 static TypeIterator *initialize_with_string_literal(TypeIterator *it, Value *value, Value *string_literal) {
     StringLiteral *sl = &(string_literals[string_literal->string_literal_index]);
+    int size = sl->size;
 
     if (sl->is_wide_char) {
         int *int_data = (int *) sl->data;
-        int size = sl->size;
 
         for (int i = 0; i < size; i++) {
             Value *v = new_integral_constant(TYPE_INT, int_data[i]);
@@ -1866,7 +1865,7 @@ static TypeIterator *initialize_with_string_literal(TypeIterator *it, Value *val
         }
     }
     else {
-        for (int i = 0; i < sl->size; i++) {
+        for (int i = 0; i < size; i++) {
             Value *v = new_integral_constant(TYPE_INT, sl->data[i]);
             it = parse_initializer(it, value, v);
         }
@@ -1884,7 +1883,13 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
     TypeIterator *outer_it = it;
     int initial_outer_offset = it->offset;
 
-    if (cur_token == TOK_LCURLY) {
+    if (expression && expression->is_string_literal) {
+        // Initialization with a string literal
+        // The current type a char[] or int[]
+        it = initialize_with_string_literal(it, value, expression);
+    }
+
+    else if (cur_token == TOK_LCURLY) {
         // Parse {...} initializer
 
         next();
@@ -1920,7 +1925,7 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
     }
 
     else {
-        // Initialization of a scalar value
+        // Initialization with a scalar value
 
         if (type_iterator_done(it)) {
             // Parse and ignore any expressions if the iteration has run out
@@ -1946,8 +1951,19 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
         }
 
         if (initialize_string_literal) {
-            it = initialize_with_string_literal(it, value, parsed_expression);
-            // Falls through to array size setting code
+            // The current type a char[] or int[]
+
+            // Ringfence the iterator around the current array and recurse
+            TypeIterator *old_parent = it->parent;
+            it->parent = 0;
+            it = parse_initializer(it, value, parsed_expression);
+            it->parent = old_parent;
+
+            // Continue where the iterator would have gone after the current array.
+            if (old_parent) it = type_iterator_next(old_parent);
+
+            // No further processing is needed, the recursive call took care of that
+            return it;
         }
 
         else {
@@ -2007,8 +2023,10 @@ static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *ex
         int outer_size = get_type_size((outer_it->type));
         int zeroes = initial_outer_offset + outer_size - it->offset;
         if (zeroes < 0) panic_with_line_number("Got negative zeroes");
-        if (zeroes)
+        if (zeroes) {
             initialize_with_zeroes(value, it->offset, zeroes);
+            it->offset += zeroes;
+        }
     }
 
     return it;

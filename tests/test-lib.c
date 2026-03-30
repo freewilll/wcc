@@ -128,6 +128,25 @@ void assert_string(char *expected, char *actual, char *message) {
     }
 }
 
+void assert_memory(char *expected, char *actual, int size, char *message) {
+    if (memcmp(expected, actual, size)) {
+        char *buffer1 = calloc(1, size + 1);
+        memcpy(buffer1, expected, size);
+        char *buffer2 = calloc(1, size + 1);
+        memcpy(buffer2, actual, size);
+        printf("failed, expected \"%s\" got \"%s\"\n", buffer1, buffer2);
+        failures++;
+    }
+    else {
+        passes++;
+        if (verbose) {
+            printf("%-60s ", message);
+            printf("ok\n");
+        }
+    }
+}
+
+
 void finalize() {
     if (failures == 0) {
         printf("All %d tests passed\n", passes + failures);

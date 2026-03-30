@@ -821,7 +821,7 @@ static void test_struct_init8() {
     assert_int(3, s2.k, "Struct init 8 6");
 }
 
-static void test_char_array_string_literal_inits() {
+static void test_char_array_string_literal_init0() {
     char c1[] = "foo";
     assert_int(4, sizeof(c1), "sizeof(c1)");
     assert_int('f', c1[0], "c1[0]");
@@ -843,9 +843,106 @@ static void test_char_array_string_literal_inits() {
     assert_int('o', c2[2], "c2[2]");
 
     struct s { char x[10]; } s = { "ABCDEFGHI" };
-    assert_string("ABCDEFGHI", s.x, "String literal in sruct");
+    assert_string("ABCDEFGHI", s.x, "String literal in struct");
 }
 
+static void test_char_array_string_literal_init1() {
+    static struct s {char s[3];} s = {"a"};
+
+    assert_memory("a\0\0", s.s, 3, "char[3] with \"a\"");
+}
+
+static void test_char_array_string_literal_init2() {
+    static struct {char s[3];} s = {"abc"};
+
+    assert_memory("abc", s.s, 3, "char[3] with \"abc\"");
+}
+
+static void test_char_array_string_literal_init3() {
+    static struct {char s[3];} s = {"abcd"}; // Should print warning
+
+    assert_memory("abc", s.s, 3, "char[3] with \"abc\"");
+}
+
+static void test_char_array_string_literal_init4() {
+    static struct {char s[3]; int i;} s = {"a"};
+
+    assert_memory("a\0\0", s.s, 3, "char[3] with \"a\"");
+    assert_int(0, s.i, "char[3] with \"a\"");
+    assert_int(4, (void *) &s.i - (void *) &s.s, "char[3] with \"a\" offset");
+}
+
+static void test_char_array_string_literal_init5() {
+    static struct {char s[3]; int i;} s = {"abc"};
+
+    assert_memory("abc", s.s, 3, "char[3] with \"abc\"");
+    assert_int(0, s.i, "char[3] with \"abc\"");
+    assert_int(4, (void *) &s.i - (void *) &s.s, "char[3] with \"abc\" offset");
+}
+
+static void test_char_array_string_literal_init6() {
+    static struct {char s[3]; int i;} s = {"abcd"}; // Should print warning
+
+    assert_memory("abc", s.s, 3, "char[3] with \"abcd\"");
+    assert_int(0, s.i, "char[3] with \"abcd\"");
+    assert_int(4, (void *) &s.i - (void *) &s.s, "char[3] with \"abcd\" offset");
+}
+
+static void test_char_array_string_literal_init7() {
+    static char s[3] = "a";
+
+    assert_memory("a\0\0", s, 3, "char[3] with \"a\"");
+}
+
+static void test_char_array_string_literal_init8() {
+    static char s[3] = "abc";
+
+    assert_memory("abc", s, 3, "char[3] with \"abc\"");
+}
+
+static void test_char_array_string_literal_init9() {
+    static char s[3] = "abcd"; // Should print warning
+
+    assert_memory("abc", s, 3, "char[3] with \"abc\"");
+}
+
+static void test_char_array_string_literal_init10() {
+    static struct {char s1[3], s2[3];} s = {"abcde"}; // Should print warning
+
+    assert_memory("abc", s.s1, 3, "s1[3]/s2[3] with \"abc\"");
+    assert_memory("\0\0\0", s.s2, 3, "s1[3]/s2[3] with \"nulls\"");
+}
+
+static void test_char_array_string_literal_init11() {
+    static struct {char s1[3], s2[3];} s = {"ab", "cde"};
+
+    assert_memory("ab", s.s1, 3, "s1[3]/s2[3] with \"ab\"");
+    assert_memory("cde", s.s2, 3, "s1[3]/s2[3] with \"cde\"");
+
+    struct {char s1[3], s2[3];} s2 = {"ab", "cde"};
+
+    assert_memory("ab", s2.s1, 3, "s1[3]/s2[3] with \"ab\"");
+    assert_memory("cde", s2.s2, 3, "s1[3]/s2[3] with \"cde\"");
+}
+
+static void test_char_array_string_literal_init12() {
+    static struct {char s1[3], s2[3];} s = {{97, 98, 99, 100, 101}}; // Should print warning
+
+    assert_memory("abc", s.s1, 3, "s1[3]/s2[3] with \"abc\"");
+    assert_memory("\0\0\0", s.s2, 3, "s1[3]/s2[3] with \"nulls\"");
+}
+
+static void test_char_array_string_literal_init13() {
+    static struct {int i;} s = {1, "foo"}; // Should print warning
+
+    assert_int(1, s.i, "Extraneous string in initializer");
+}
+
+static void test_char_array_string_literal_init14() {
+    static struct {char s[3];} s = {"a"};
+
+    assert_memory("a\0\0", s.s, 3, "Initializer with extra {}");
+}
 static void test_wide_char_array_string_literal_inits() {
     wchar_t wc1[] = L"foo";
     assert_int(16, sizeof(wc1), "wide char initialization size");
@@ -1327,7 +1424,22 @@ int main(int argc, char **argv) {
     test_struct_init8();
 
     // Strings
-    test_char_array_string_literal_inits();
+    test_char_array_string_literal_init0();
+    test_char_array_string_literal_init1();
+    test_char_array_string_literal_init2();
+    test_char_array_string_literal_init3();
+    test_char_array_string_literal_init4();
+    test_char_array_string_literal_init5();
+    test_char_array_string_literal_init6();
+    test_char_array_string_literal_init7();
+    test_char_array_string_literal_init8();
+    test_char_array_string_literal_init9();
+    test_char_array_string_literal_init10();
+    test_char_array_string_literal_init11();
+    test_char_array_string_literal_init12();
+    test_char_array_string_literal_init13();
+    test_char_array_string_literal_init14();
+
     test_char_array_bound_checks();
     test_assignment_side_effects();
     test_array_of_strings();

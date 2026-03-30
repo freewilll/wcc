@@ -802,7 +802,6 @@ static void output_symbol(Symbol *symbol) {
         fprintf(f, "%s:\n", symbol->global_identifier);
 
         for (int i = 0; i < symbol->initializers->length; i++) {
-
             Initializer *in = (Initializer *) symbol->initializers->elements[i];
 
             if (in->is_address_of || in->symbol) {
@@ -820,7 +819,11 @@ static void output_symbol(Symbol *symbol) {
                 size -= 8;
             }
             else {
-                if (!in->data) fprintf(f,"    .zero    %d\n", in->size);
+                if (!in->data) {
+                    if (in->size < 0)
+                        panic("Got negative .zero padding %d for the intializer for %s", in->size, symbol->identifier);
+                    fprintf(f,"    .zero    %d\n", in->size);
+                }
                 else if (in->size == 1) fprintf(f,"    .byte    %d\n", *((char *) in->data));
                 else if (in->size == 2) fprintf(f,"    .word    %d\n", *((short *) in->data));
                 else if (in->size == 4) fprintf(f,"    .long    %d\n", *((int *) in->data));
@@ -837,6 +840,9 @@ static void output_symbol(Symbol *symbol) {
         }
 
         // Add padding for structs that have padding at the end
+        if (size < 0)
+            panic("Got negative .zero padding %d for final padding", size);
+
         if (size) fprintf(f,"    .zero    %d\n", size);
     }
 }
