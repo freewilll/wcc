@@ -125,4 +125,5 @@ The project started out as a clone of [c4](https://github.com/rswier/c4) to teac
 
 After a hiatus I resumed work and fixed a ton of bugs in the instruction selection. I then decided to implement the full C89/C90 specification, starting with the non-preprocessor parts, then the preprocessor.
 
-To validate the compiler can compile something other than itself correctly, I fixed enough bugs to get `sqlite3` to compile and pass the `tcltest` tests. This was done using sqlite commit [62e9c352e](https://github.com/sqlite/sqlite/commits/62e9c352e) on ubuntu 20.04. This sqlite commit which was the latest commit at the time wcc was written.
+To validate the compiler can compile something other than itself correctly, I fixed enough bugs to get `sqlite3` to compile and pass the `tcltest` tests.
+I have so far only tested this on ubuntu 20.04. The latest version of sqlite that compiles and passes its tests is 3.38.5.
