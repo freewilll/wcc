@@ -697,6 +697,7 @@ extern int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
 extern int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
 extern int opt_enable_preferred_pregs;         // Enable preferred preg selection in register allocator
 extern int opt_enable_trigraphs;               // Enable trigraph preprocessing
+extern int opt_enable_common_symbols;          // Enable .comm symbols
 extern int opt_warnings_are_errors;            // Treat all warnings as errors
 
 extern CliDirective *cli_directives;      // Linked list of directives passed on the command line with -D

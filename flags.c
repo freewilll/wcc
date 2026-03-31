@@ -14,6 +14,7 @@ int opt_short_lr_infinite_spill_costs = 0;  // Don't spill short live ranges
 int opt_optimize_arithmetic_operations = 0; // Optimize arithmetic operations
 int opt_enable_preferred_pregs = 0;         // Enable preferred preg selection in register allocator
 int opt_enable_trigraphs = 0;               // Enable trigraph preprocessing
+int opt_enable_common_symbols = 0;          // Enable .comm symbols
 int opt_warnings_are_errors = 0;            // Treat all warnings as errors
 
 int warn_integer_constant_too_large = 0;

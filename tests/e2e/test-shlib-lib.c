@@ -23,6 +23,9 @@ char ca[2] = {1, 2};
 short sa[2] = {1, 2};
 int ia[2] = {1, 2};
 long la[2] = {1, 2};
+float fa[2] = {0, 0};
+double da[2] = {0, 0};
+long double lda[2] = {0, 0};
 
 int inc_c() { c++; }
 int inc_s() { s++; }

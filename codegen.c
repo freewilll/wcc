@@ -44,6 +44,7 @@ typedef enum elf_section {
     SEC_NONE,
     SEC_TEXT,
     SEC_DATA,
+    SEC_BSS,
 } ElfSection;
 
 typedef struct floating_point_literal {
@@ -792,10 +793,27 @@ static void output_symbol(Symbol *symbol) {
 
     if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL) && !symbol->initializers) {
         if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
-        fprintf(f, "    .comm   %s,%d,%d\n",
-            symbol->global_identifier,
-            get_type_size(symbol->type),
-            get_type_alignment(symbol->type));
+
+        if (opt_enable_common_symbols) {
+            fprintf(f, "    .comm   %s,%d,%d\n",
+                symbol->global_identifier,
+                get_type_size(symbol->type),
+                get_type_alignment(symbol->type));
+        }
+        else {
+            int size = get_type_size(symbol->type);
+
+            if (symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL)
+                fprintf(f, "    .globl   %s\n", symbol->global_identifier);
+
+                if (elf_section != SEC_BSS) { fprintf(f, "    .bss\n"); elf_section = SEC_BSS; }
+
+            fprintf(f, "    .align   %d\n", get_type_alignment(symbol->type));
+            fprintf(f, "    .type    %s, @object\n", symbol->global_identifier);
+            fprintf(f, "    .size    %s, %d\n", symbol->global_identifier, size);
+            fprintf(f, "%s:\n", symbol->global_identifier);
+            fprintf(f, "    .zero    %d\n", size);
+        }
     }
 
     else if (symbol->initializers) {

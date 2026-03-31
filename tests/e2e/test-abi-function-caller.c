@@ -225,7 +225,7 @@ void test_arrays() {
     accept_array(a);
 }
 
-int linked_object;
+extern int linked_object;
 static int unlinked_object;
 static int initialized_unlinked_object = 1;
 

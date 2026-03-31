@@ -21,3 +21,4 @@ test-shlib-gcc-gcc
 test-shlib-wcc-gcc
 test-shlib-gcc-wcc
 test-shlib-wcc-wcc
+test-fcommon

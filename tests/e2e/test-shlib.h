@@ -1,32 +1,32 @@
-char c;
-int i;
-short s;
-long l;
+extern char c;
+extern int i;
+extern short s;
+extern long l;
 
-unsigned char uc;
-unsigned int ui;
-unsigned short us;
-unsigned long ul;
+extern unsigned char uc;
+extern unsigned int ui;
+extern unsigned short us;
+extern unsigned long ul;
 
-float f;
-double d;
-long double ld;
+extern float f;
+extern double d;
+extern long double ld;
 
-int *pi;
+extern int *pi;
 
-struct st { int i, j; } st;
+extern struct st { int i, j; } st;
 
-char ca[2];
-short sa[2];
-int ia[2];
-long la[2];
-float fa[2];
-double da[2];
-long double lda[2];
+extern char ca[2];
+extern short sa[2];
+extern int ia[2];
+extern long la[2];
+extern float fa[2];
+extern double da[2];
+extern long double lda[2];
 
 typedef int (*FuncReturningInt)();
 
-FuncReturningInt fri;
+extern FuncReturningInt fri;
 
 int inc_c();
 int inc_s();

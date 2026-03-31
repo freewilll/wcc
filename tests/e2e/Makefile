@@ -41,7 +41,7 @@ WCC_E2E_WARN_FLAGS := -Wno-integer-constant-too-large -Wno-warn-assignment-types
 E2E_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test-lib.o ${BUILD_DIR}/utils.o ${BUILD_DIR}/memory.o
 ABI_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test-lib.o
 
-all: run-test-gcc run-test-wcc run-test-abi run-test-include run-test-shlib
+all: run-test-gcc run-test-wcc run-test-abi run-test-shlib run-test-include run-test-fcommon
 
 ${BUILD_DIR}/tests/e2e/stack-check.o: stack-check.c
 	@mkdir -p $(@D)
@@ -194,6 +194,13 @@ ${BUILD_DIR}/tests/e2e/test-include/test-include: ${BUILD_DIR}/wcc ${SRC_DIR}/te
 run-test-include: ${BUILD_DIR}/tests/e2e/test-include/test-include
 	$<
 
+${BUILD_DIR}/tests/e2e/test-fcommon: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-fcommon-main.c ${SRC_DIR}/tests/e2e/test-fcommon-lib.c
+	@mkdir -p $(@D)
+	${BUILD_DIR}/wcc ${WCC_OPTS} -fcommon ${WCC_RUN_FLAGS} ${SRC_DIR}/tests/e2e/test-fcommon-main.c ${SRC_DIR}/tests/e2e/test-fcommon-lib.c -o $@
+
+run-test-fcommon: ${BUILD_DIR}/tests/e2e/test-fcommon
+	$<
+
 clean:
 	@rm -f ${BUILD_DIR}/tests/e2e/*.o
 	@rm -f ${BUILD_DIR}/tests/e2e/*.s
@@ -221,3 +228,4 @@ clean:
 	@rm -f ${BUILD_DIR}/tests/e2e/test-shlib-gcc-wcc
 	@rm -f ${BUILD_DIR}/tests/e2e/test-shlib-wcc-wcc
 	@rm -f ${BUILD_DIR}/tests/e2e/test-shlib-mixed-pic-wcc-wcc
+	@rm -f ${BUILD_DIR}/tests/e2e/test-fcommon

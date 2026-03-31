@@ -220,6 +220,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-optimize-arithmetic"          )) { opt_optimize_arithmetic_operations = 0;   argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-vreg-renumbering"             )) { opt_enable_vreg_renumbering = 0;          argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-fcommon"                          )) { opt_enable_common_symbols = 1;            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--trigraphs"                       )) { opt_enable_trigraphs = 1;                 argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-rules"                     )) { print_instr_rules = 1;                    argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-filenames"                 )) { print_filenames = 1;                      argc--; argv++; }
