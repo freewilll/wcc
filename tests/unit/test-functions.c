@@ -178,7 +178,7 @@ void test_scalar_params() {
 Type *parse_type_str(char *type_str) {
     char *filename =  make_temp_filename("/tmp/XXXXXX.c");
 
-    f = fopen(filename, "w");
+    FILE *f = fopen(filename, "w");
     fprintf(f, "%s\n", type_str);
     fprintf(f, "\n");
     fclose(f);

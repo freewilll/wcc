@@ -7,6 +7,9 @@
 static List *allocated_phi_values;
 
 static void make_live_range_spill_cost(Function *function);
+
+int live_range_reserved_pregs_offset;
+
 void free_live_range_spill_cost(Function *function);
 
 typedef struct live_range {

@@ -28,7 +28,16 @@ List *allocated_igraphs;        // Track IGraph allocations
 List *allocated_igraph_nodes;   // Track IGraphNode allocations
 List *allocated_things;         // Track anything that can be freed with a simple wfree()
 
+int instr_rule_count;
+Rule *instr_rules;
+int disable_merge_constants;
+LongMap *instr_rules_by_operation;
+Value **saved_values;
+char *rule_coverage_file;
+Set *rule_coverage;
+
 static int recursive_tile_igraphs(IGraph *igraph, int node_id);
+
 
 void init_instrsel() {
     allocated_things = new_list(1024);

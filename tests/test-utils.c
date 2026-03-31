@@ -4,6 +4,9 @@
 
 #include "../wcc.h"
 
+int failures;
+int remove_reserved_physical_registers;
+
 void assert_long(long expected, long actual) {
     if (expected != actual) {
         failures++;

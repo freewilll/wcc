@@ -680,91 +680,90 @@ typedef enum {
     CP_POST_PARSING,
 } CompilePhase;
 
-char *cur_filename;             // Current filename being lexed
-int cur_line;                   // Current line number being lexed
+extern char *cur_filename;              // Current filename being lexed
+extern int cur_line;                    // Current line number being lexed
 
-int print_ir1;                          // Print IR after parsing
-int print_ir2;                          // Print IR after register allocation
-int log_compiler_phase_durations;       // Output logs of how long each compiler phase lasts
-int opt_PIC;                            // Make position independent code
-int opt_debug_symbols;                  // Add debug symbols
-int opt_enable_vreg_renumbering;        // Renumber vregs so the numbers are consecutive
-int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
-int opt_enable_live_range_coalescing;   // Merge live ranges where possible
-int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end
-int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
-int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
-int opt_enable_preferred_pregs;         // Enable preferred preg selection in register allocator
-int opt_enable_trigraphs;               // Enable trigraph preprocessing
-int opt_warnings_are_errors;            // Treat all warnings as errors
+extern int print_ir1;                          // Print IR after parsing
+extern int print_ir2;                          // Print IR after register allocation
+extern int log_compiler_phase_durations;       // Output logs of how long each compiler phase lasts
 
-CliDirective *cli_directives;      // Linked list of directives passed on the command line with -D
-CliIncludePath *cli_include_paths; // Linked list of include paths passed on the command line with -I
-CliLibraryPath *cli_library_paths; // Linked list of library paths passed on the command line with -L
-StrMap *directives;                // Map of CPP directives
-CompilePhase compile_phase;        // One of CP_*
-int cur_token;                     // Current token
-char *cur_identifier;              // Current identifier if the token is an identifier
-char *cur_type_identifier;         // Identifier of the last parsed declarator
-Type *cur_lexer_type;              // A type determined by the lexer
-long cur_long;                     // Current long if the token is an integral type
-long double cur_long_double;       // Current long double if the token is a floating point type
-StringLiteral cur_string_literal;  // Current string literal if the token is a string literal
-Scope *cur_scope;                  // Current scope.
-StringLiteral *string_literals;    // Each string literal has an index in this array, with a pointer to the string literal struct
-int string_literal_count;          // Amount of string literals
+extern int opt_PIC;                            // Make position independent code
+extern int opt_debug_symbols;                  // Add debug symbols
+extern int opt_enable_vreg_renumbering;        // Renumber vregs so the numbers are consecutive
+extern int opt_enable_register_coalescing;     // Merge registers that can be reused within the same operation
+extern int opt_enable_live_range_coalescing;   // Merge live ranges where possible
+extern int opt_spill_furthest_liveness_end;    // Prioritize spilling physical registers with furthest liveness end
+extern int opt_short_lr_infinite_spill_costs;  // Don't spill short live ranges
+extern int opt_optimize_arithmetic_operations; // Optimize arithmetic operations
+extern int opt_enable_preferred_pregs;         // Enable preferred preg selection in register allocator
+extern int opt_enable_trigraphs;               // Enable trigraph preprocessing
+extern int opt_warnings_are_errors;            // Treat all warnings as errors
 
-Symbol *cur_function_symbol;     // Currently parsed function
-Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
-Value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
+extern CliDirective *cli_directives;      // Linked list of directives passed on the command line with -D
+extern CliIncludePath *cli_include_paths; // Linked list of include paths passed on the command line with -I
+extern CliLibraryPath *cli_library_paths; // Linked list of library paths passed on the command line with -L
+extern StrMap *directives;                // Map of CPP directives
+extern CompilePhase compile_phase;        // One of CP_*
 
-Typedef **all_typedefs;   // All typedefs
-int all_typedefs_count;   // Number of typedefs
+extern int cur_token;                     // Current token
+extern char *cur_identifier;              // Current identifier if the token is an identifier
+extern char *cur_type_identifier;         // Identifier of the last parsed declarator
+extern Type *cur_lexer_type;              // A type determined by the lexer
+extern long cur_long;                     // Current long if the token is an integral type
+extern long double cur_long_double;       // Current long double if the token is a floating point type
+extern StringLiteral cur_string_literal;  // Current string literal if the token is a string literal
 
-Tac *ir_start, *ir;               // intermediate representation for currently parsed function
-int label_count;                  // Global label count, always growing
-int cur_loop;                     // Current loop being parsed
-int loop_count;                   // Loop counter
-int stack_register_count;         // Spilled register count for current function that's undergoing register allocation
-int total_stack_register_count;   // Spilled register count for all functions
-int cur_stack_push_count;         // Used in codegen to keep track of stack position
+extern Scope *cur_scope;                  // Current scope.
+extern StringLiteral *string_literals;    // Each string literal has an index in this array, with a pointer to the string literal struct
+extern int string_literal_count;          // Amount of string literals
 
-int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
-int int_arg_registers[6];
-int sse_arg_registers[8];
+extern Symbol *cur_function_symbol;     // Currently parsed function
+extern Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
+extern Value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
 
-FILE *f; // Output file handle
+extern Typedef **all_typedefs;   // All typedefs
+extern int all_typedefs_count;   // Number of typedefs
 
-int warn_integer_constant_too_large;
-int warn_assignment_types_incompatible;
-int debug_function_param_allocation;
-int debug_function_arg_mapping;
-int debug_function_param_mapping;
-int debug_ssa_mapping_local_stack_indexes;
-int debug_ssa;
-int debug_ssa_liveout;
-int debug_ssa_cfg;
-int debug_ssa_dominance;
-int debug_ssa_idom;
-int debug_ssa_dominance_frontiers;
-int debug_ssa_phi_insertion;
-int debug_ssa_phi_renumbering;
-int debug_ssa_live_range;
-int debug_ssa_vreg_renumbering;
-int debug_ssa_interference_graph;
-int debug_ssa_live_range_coalescing;
-int debug_ssa_spill_cost;
-int debug_register_allocation;
-int debug_graph_coloring;
-int debug_instsel_tree_merging;
-int debug_instsel_tree_merging_deep;
-int debug_instsel_igraph_simplification;
-int debug_instsel_tiling;
-int debug_instsel_cost_graph;
-int debug_instsel_spilling;
-int debug_stack_frame_layout;
-int debug_exit_after_parser;
-int debug_dont_compile_internals;
+extern Tac *ir_start, *ir;               // intermediate representation for currently parsed function
+extern int label_count;                  // Global label count, always growing
+extern int cur_loop;                     // Current loop being parsed
+extern int loop_count;                   // Loop counter
+extern int total_stack_register_count;   // Spilled register count for all functions
+
+extern int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
+extern int int_arg_registers[6];
+extern int sse_arg_registers[8];
+
+extern int warn_integer_constant_too_large;
+extern int warn_assignment_types_incompatible;
+extern int debug_function_param_allocation;
+extern int debug_function_arg_mapping;
+extern int debug_function_param_mapping;
+extern int debug_ssa_mapping_local_stack_indexes;
+extern int debug_ssa;
+extern int debug_ssa_liveout;
+extern int debug_ssa_cfg;
+extern int debug_ssa_dominance;
+extern int debug_ssa_idom;
+extern int debug_ssa_dominance_frontiers;
+extern int debug_ssa_phi_insertion;
+extern int debug_ssa_phi_renumbering;
+extern int debug_ssa_live_range;
+extern int debug_ssa_vreg_renumbering;
+extern int debug_ssa_interference_graph;
+extern int debug_ssa_live_range_coalescing;
+extern int debug_ssa_spill_cost;
+extern int debug_register_allocation;
+extern int debug_graph_coloring;
+extern int debug_instsel_tree_merging;
+extern int debug_instsel_tree_merging_deep;
+extern int debug_instsel_igraph_simplification;
+extern int debug_instsel_tiling;
+extern int debug_instsel_cost_graph;
+extern int debug_instsel_spilling;
+extern int debug_stack_frame_layout;
+extern int debug_exit_after_parser;
+extern int debug_dont_compile_internals;
 
 #define free_and_null(object) do { wfree(object); object = NULL; } while(0);
 
@@ -908,8 +907,8 @@ int debug_log(char *format, ...);
 
 
 // memory.c
-int print_heap_usage;
-int fail_on_leaked_memory;
+extern int print_heap_usage;
+extern int fail_on_leaked_memory;
 
 void *wmalloc(size_t size);
 void *wrealloc(void *ptr, size_t size);
@@ -960,10 +959,11 @@ void free_cpp_allocated_garbage();
 // parser.c
 typedef Value *parse_expression_function_type(int);
 
+extern Symbol *memcpy_symbol;
+extern Symbol *memset_symbol;
+
 Value *make_string_literal_value_from_cur_string_literal(void);
 Value *new_label_dst(void);
-Symbol *memcpy_symbol;
-Symbol *memset_symbol;
 int cur_token_is_type(void);
 Type *operation_type(Value *src1, Value *src2, int for_ternary);
 void check_unary_operation_type(int operation, Value *value);
@@ -992,7 +992,7 @@ Value *parse_constant_expression(int level);
 Value *parse_constant_integer_expression(int all_longs);
 
 // scopes.c
-Scope *global_scope;
+extern Scope *global_scope;
 
 void init_scopes(void);
 void free_scopes(void);
@@ -1053,8 +1053,6 @@ TypeIterator *type_iterator_dig_for_string_literal(TypeIterator *it);
 TypeIterator *type_iterator_descend(TypeIterator *it);
 
 // ir.c
-List *allocated_values;
-
 void init_ir(void);
 void free_ir(void);
 
@@ -1117,7 +1115,7 @@ enum {
     LIVE_RANGE_PREG_XMM01_INDEX,
 };
 
-int live_range_reserved_pregs_offset;
+extern int live_range_reserved_pregs_offset;
 
 // Interference graph indexing for a lower triangular matrix with size vreg_count
 #define ig_lookup(ig, vreg_count, i1, i2) ig[i1 > i2 ? i2 * vreg_count + i1 : i1 * vreg_count + i2]
@@ -1170,8 +1168,8 @@ void free_function_param_allocaton(FunctionParamAllocation *fpa);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 void finalize_function_param_allocation(FunctionParamAllocation *fpa);
 
-RegisterSet arg_register_set;
-RegisterSet function_return_value_register_set;
+extern RegisterSet arg_register_set;
+extern RegisterSet function_return_value_register_set;
 
 void compress_vregs(Function *function);
 void init_vreg_locations(Function *function);
@@ -1367,13 +1365,13 @@ typedef struct x86_operation {
     char arg;                          // The argument (src1 or src2) to load/save
 } X86Operation;
 
-int instr_rule_count;
-Rule *instr_rules;
-int disable_merge_constants;
-LongMap *instr_rules_by_operation;
-Value **saved_values;
-char *rule_coverage_file;
-Set *rule_coverage;
+extern int instr_rule_count;
+extern Rule *instr_rules;
+extern int disable_merge_constants;
+extern LongMap *instr_rules_by_operation;
+extern Value **saved_values;
+extern char *rule_coverage_file;
+extern Set *rule_coverage;
 
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
@@ -1447,8 +1445,8 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
 void compile(char *input, char *original_input_filename, char *output_filename);
 
 // test-utils.c
-int failures;
-int remove_reserved_physical_registers;
+extern int failures;
+extern int remove_reserved_physical_registers;
 
 void assert_x86_op(char *expected);
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2);

@@ -31,6 +31,15 @@ static int need_ru4_to_ld_symbol;
 static int need_ld_to_ru4_symbol;
 static int elf_section;
 
+static FILE *f; // Output file handle
+static int cur_stack_push_count; // Used in codegen to keep track of stack position
+
+Tac *ir_start, *ir;               // intermediate representation for currently parsed function
+int label_count;                  // Global label count, always growing
+int cur_loop;                     // Current loop being parsed
+int loop_count;                   // Loop counter
+int total_stack_register_count;   // Spilled register count for all functions
+
 typedef enum elf_section {
     SEC_NONE,
     SEC_TEXT,

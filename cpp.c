@@ -43,6 +43,10 @@ typedef struct cpp_state {
 
 CppState state;
 
+CliDirective *cli_directives;           // Linked list of directives passed on the command line with -D
+CliIncludePath *cli_include_paths;      // Linked list of include paths passed on the command line with -I
+StrMap *directives;                     // Map of CPP directives
+
 #define INITIAL_WHITESPACE_BUFFER_SIZE 16
 
 typedef struct whitespace {

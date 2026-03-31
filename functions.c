@@ -9,6 +9,9 @@
 static LongSet *allocated_functions;
 static List *allocated_function_param_allocatons;
 
+RegisterSet arg_register_set;
+RegisterSet function_return_value_register_set;
+
 // Details about a single scalar in a struct/union
 typedef struct struct_or_union_scalar {
     Type *type;

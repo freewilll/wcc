@@ -42,7 +42,8 @@ SOURCES := \
 	longmap.c \
 	list.c \
 	graph.c \
-	cpp.c
+	cpp.c \
+	flags.c
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
 SOURCES_ABS_PATH := ${SOURCES:%=${SRC_DIR}/%}

@@ -5,6 +5,7 @@
 #include "wcc.h"
 
 static List *allocated_tacs;
+static List *allocated_values;
 
 void init_ir(void) {
     allocated_tacs = new_list(1024);

@@ -13,6 +13,9 @@ static long current_allocation = 0;
 static int allocation_count = 0;
 static int free_count = 0;
 
+int print_heap_usage;
+int fail_on_leaked_memory;
+
 #ifndef __linux__
 // malloc_usable_size is linux specific
 size_t malloc_usable_size(void * ptr) {

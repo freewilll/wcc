@@ -11,6 +11,10 @@ typedef struct vreg_cost {
 
 int preg_map[PHYSICAL_REGISTER_COUNT]; // Map from reserved register 0-11 to physical register 0-15
 
+int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
+int int_arg_registers[6];
+int sse_arg_registers[8];
+
 // Renumber all vregs so that they are consecutive
 void compress_vregs(Function *function) {
     if (!opt_enable_vreg_renumbering) return;

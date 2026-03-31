@@ -11,6 +11,8 @@ typedef struct linker_input {
     int library_index;
 } LinkerInput;
 
+CliLibraryPath *cli_library_paths;      // Linked list of library paths passed on the command line with -L
+
 void get_debug_env_value(char *key, int *val) {
     char *env_value;
     if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;

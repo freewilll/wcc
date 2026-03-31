@@ -22,6 +22,16 @@ int function_call_count; // Uniquely identify a function call within a function
 int vreg_count;                          // Virtual register count for currently parsed function
 int local_static_symbol_count;           // Amount of static objects with block scope
 
+static List *allocated_strings;
+static StrMap *origin_filenames; // Map lexer filename to a unique filename in memory
+static List *allocated_origins;  // Allocated Origin instances
+static List *allocated_sets;  // Allocated Set instances
+
+static BaseType *base_type;
+
+Symbol *memcpy_symbol;
+Symbol *memset_symbol;
+
 Value *controlling_case_value;  // Controlling value for the current switch statement
 LongMap *case_values;           // Already seen case value in current switch statement
 Tac *case_ir_start;             // Start of IR for current switch case conditional & jump statements
@@ -33,10 +43,16 @@ Value **vs_bottom;       // Allocated value stack
 Value **vs_start;        // Value stack start
 Value **vs;              // Value stack current position
 
-static List *allocated_strings;
-static StrMap *origin_filenames; // Map lexer filename to a unique filename in memory
-static List *allocated_origins;  // Allocated Origin instances
-static List *allocated_sets;  // Allocated Set instances
+Symbol *cur_function_symbol;     // Currently parsed function
+Value *cur_loop_continue_dst;    // Target jmp of continue statement in the current for/while loop
+Value *cur_loop_break_dst;       // Target jmp of break statement in the current for/while loop
+
+Typedef **all_typedefs;   // All typedefs
+int all_typedefs_count;   // Number of typedefs
+
+Scope *cur_scope;                  // Current scope.
+StringLiteral *string_literals;    // Each string literal has an index in this array, with a pointer to the string literal struct
+int string_literal_count;          // Amount of string literals
 
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
@@ -46,8 +62,6 @@ Value *parse_expression_and_pop(int level);
 static void parse_statement(void);
 static void parse_expression(int level);
 static void parse_compound_statement(void);
-
-static BaseType *base_type;
 
 // Duplicate a string an track it in allocate_strings
 static char *parser_wstrdup(char *str) {

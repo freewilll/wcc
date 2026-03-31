@@ -11,6 +11,8 @@
 #define BMAG "\e[1;35m"  // Bright magenta
 #define RESET "\e[0m"    // Reset
 
+CompilePhase compile_phase;             // One of CP_*
+
 static void print_filename_and_linenumber(int is_tty) {
     if (is_tty) fprintf(stderr, LOCUS);
     fprintf(stderr, "%s:%d: ", cur_filename, cur_line);
