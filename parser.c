@@ -154,7 +154,7 @@ static void push_void(void) {
 static void *pop_void(void) {
     if (vs == vs_start) return NULL;
 
-    vs++;
+    return vs++;
 }
 
 static Value *load_bit_field(Value *src1) {
@@ -445,7 +445,7 @@ void parse_attributes(void) {
 // - type-specifiers: void, int, signed, unsigned, ... long, double, struct, union
 // - type-qualifiers: const, volatile
 // - typedef type names
-static BaseType *parse_declaration_specifiers() {
+static BaseType *parse_declaration_specifiers(void) {
     // Ignore GNU __extension__ keyword
     if (cur_token == TOK_EXTENSION) next();
 
@@ -462,7 +462,6 @@ static BaseType *parse_declaration_specifiers() {
     int seen_double = 0;
     int seen_signed = 0;
     int seen_unsigned = 0;
-    int seen_inline = 0;
 
     // Qualifiers
     int seen_const = 0;
@@ -536,7 +535,7 @@ static BaseType *parse_declaration_specifiers() {
 
             case TOK_SIGNED:   next(); seen_signed++; break;
             case TOK_UNSIGNED: next(); seen_unsigned++; break;
-            case TOK_INLINE:   next(); seen_inline++; break;
+            case TOK_INLINE:   next(); break; // Ignored
             case TOK_CONST:    next(); seen_const++; break;
             case TOK_VOLATILE: next(); seen_volatile++; break;
             case TOK_RESTRICT: next(); seen_restrict++; break;
@@ -1104,7 +1103,7 @@ static Type *parse_enum_type_specifier(void) {
 void parse_typedef(void) {
     next();
 
-    BaseType *base_type_with_storage_class = parse_declaration_specifiers(0);
+    BaseType *base_type_with_storage_class = parse_declaration_specifiers();
     Type *base_type = base_type_with_storage_class->type;
 
     while (cur_token != TOK_SEMI && cur_token != TOK_EOF) {

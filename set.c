@@ -68,7 +68,7 @@ void print_set(Set *s) {
     printf("}");
 }
 
-void *delete_from_set(Set *s, int value) {
+void delete_from_set(Set *s, int value) {
     if (value > s->max_value) panic("Max set value of %d exceeded with %d in delete_from_set", s->max_value, value);
     s->elements[value] = 0;
 }

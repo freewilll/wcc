@@ -859,6 +859,8 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
 
     // Add end call instruction
     ir = insert_instruction_after_from_operation(ir, IR_END_CALL, 0, call_value, 0);
+
+    return ir;
 }
 
 // Add memcpy calls for struct/union -> struct/union copies

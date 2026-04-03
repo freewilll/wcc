@@ -715,7 +715,7 @@ int fprintf_octal_char(void *f, char c) {
     return count;
 }
 
-int fprintf_escaped_char(void *f, char c) {
+int fprintf_escaped_char(void *f, unsigned char c) {
          if (c == '"' ) return fprintf(f, "\\\"");
     else if (c == '\\') return fprintf(f, "\\\\");
     else if (c == '\b') return fprintf(f, "\\b");
@@ -728,7 +728,7 @@ int fprintf_escaped_char(void *f, char c) {
 }
 
 int fprintf_escaped_string_literal(void *f, StringLiteral* sl, int for_assembly) {
-    char *data = sl->data;
+    unsigned char *data = (unsigned char *) sl->data;
     int c = 0;
 
     if (for_assembly)

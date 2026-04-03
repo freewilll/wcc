@@ -174,7 +174,7 @@ static void dup_inode(IGraphNode *src, IGraphNode *dst) {
     dst->value = src->value;
 }
 
-static IGraph *shallow_dup_igraph(IGraph *src, IGraph *dst) {
+static void shallow_dup_igraph(IGraph *src, IGraph *dst) {
     dst->nodes = src->nodes;
     dst->graph = src->graph;
     dst->node_count = src->node_count;
@@ -645,9 +645,9 @@ static Value* merge_fp_constants(IGraph *igraph, int node_id, int operation, Val
     if (!value)
         return 0;
     else if (is_floating_point_type(value->type))
-        merge_cst_fp_node(igraph, node_id, type, value->fp_value);
+        return merge_cst_fp_node(igraph, node_id, type, value->fp_value);
     else
-        merge_cst_int_node(igraph, node_id, value->int_value, 0);
+        return merge_cst_int_node(igraph, node_id, value->int_value, 0);
 }
 
 static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
@@ -1380,7 +1380,7 @@ void select_instructions(Function *function) {
         blocks[i].end->next = 0; // Will be re-entangled later
 
         make_igraphs(function, i);
-        simplify_igraphs(function, i);
+        simplify_igraphs();
         if (!disable_merge_constants) merge_constants(function);
         tile_igraphs(function);
         free_igraphs(function);

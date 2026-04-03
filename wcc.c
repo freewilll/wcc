@@ -18,14 +18,14 @@ void free_instruction_selection_rules(void) {
     free_rules_by_operation();
 }
 
-char init_memory_management_for_translation_unit(void) {
+void init_memory_management_for_translation_unit(void) {
     init_type_allocations();
     init_value_allocations();
     init_function_allocations();
     init_ir();
 }
 
-char free_memory_for_translation_unit(void) {
+void free_memory_for_translation_unit(void) {
     free_types();
     free_values();
     free_functions();

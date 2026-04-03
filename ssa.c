@@ -619,7 +619,6 @@ void make_liveout(Function *function) {
 
     LongSet *unions = new_longset();
 
-    int inner_count = 0;
     int changed = 1;
     while (changed) {
         changed = 0;
@@ -649,7 +648,6 @@ void make_liveout(Function *function) {
             successor = 0;
             e = cfg->nodes[i].succ;
             while (e) {
-                inner_count++;
                 // Got a successor edge from i -> successor_block
                 int successor_block = e->to->id;
                 LongSet *successor_block_liveout = function->liveout[successor_block];

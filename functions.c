@@ -1075,6 +1075,8 @@ static Tac *write_to_va_list(Function *function, Tac *ir, Value *va_list, Value 
         dst->offset = offset;
         ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, value, 0);
     }
+
+    return ir;
 }
 
 // Add instructions that read the FP or GP offset, determine if the type can fit

@@ -79,11 +79,11 @@ void terminate_string_buffer(StringBuffer *sb) {
     sb->data[sb->position] = 0;
 }
 
-int set_debug_logging_start_time() {
+void set_debug_logging_start_time() {
     gettimeofday(&debug_log_start, NULL);
 }
 
-int debug_log(char *format, ...) {
+void debug_log(char *format, ...) {
     struct timeval end;
 
     va_list ap;

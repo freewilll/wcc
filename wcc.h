@@ -793,7 +793,7 @@ void print_set(Set *s);
 
 int in_set(Set *s, int value);
 int set_eq(Set *s1, Set *s2);
-void *delete_from_set(Set *s, int value);
+void delete_from_set(Set *s, int value);
 Set *set_intersection(Set *s1, Set *s2);
 void set_intersection_to(Set *dst, Set *s1, Set *s2);
 Set *set_union(Set *s1, Set *s2);
@@ -911,9 +911,8 @@ void free_string_buffer(StringBuffer *sb, int free_data);
 void append_to_string_buffer(StringBuffer *sb, char *str);
 void terminate_string_buffer(StringBuffer *sb);
 
-int set_debug_logging_start_time();
-int debug_log(char *format, ...);
-
+void set_debug_logging_start_time();
+void debug_log(char *format, ...);
 
 // memory.c
 extern int print_heap_usage;
@@ -1446,8 +1445,8 @@ enum {
 void init_instruction_selection_rules(void);
 void free_instruction_selection_rules(void);
 
-char init_memory_management_for_translation_unit(void);
-char free_memory_for_translation_unit(void);
+void init_memory_management_for_translation_unit(void);
+void free_memory_for_translation_unit(void);
 
 char *make_temp_filename(char *template);
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at);
