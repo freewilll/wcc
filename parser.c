@@ -1786,7 +1786,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     }
 
     if (scalar) {
-        if (!scalar->is_constant && !scalar->is_string_literal && !scalar->is_address_of && !scalar->type->type == TYPE_ARRAY)
+        if (!scalar->is_constant && !scalar->is_string_literal && !scalar->is_address_of && scalar->type->type != TYPE_ARRAY)
             error("An initializer for an object with static storage duration must be a constant expression");
 
         if (!scalar->is_string_literal && !scalar->is_address_of && scalar->type->type != TYPE_ARRAY) scalar = cast_constant_value(scalar, dst->type);

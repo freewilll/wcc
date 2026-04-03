@@ -538,5 +538,10 @@ int main(int argc, char **argv) {
         "Mismatch in number of macro parameters",
         "Mismatch in number of macro parameters");
 
-    finalize();
+    check_main_output(
+        "int i; static int j = i;",
+        "An initializer for an object with static storage duration must be a constant expression",
+        "An initializer for an object with static storage duration must be a constant expression");
+
+        finalize();
 }
