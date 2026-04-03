@@ -50,8 +50,15 @@ for arg in "$@"; do
     shift || true
 done
 
-# gcc C runtime files
-GCC_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/9
+# Find the highest version of gcc C runtime files
+GCC_BASE=/usr/lib/gcc/x86_64-linux-gnu
+
+if [ -z "$GCC_LIBRARY_PATH" ]; then
+    GCC_DIR="$(ls -1 "$GCC_BASE" | sort -V | tail -n 1)"
+    GCC_LIBRARY_PATH="$GCC_BASE/$GCC_DIR"
+fi
+
+echo Using GCC library path $GCC_LIBRARY_PATH
 
 # Libc configs are chosen at runtime via wcc --libc=glibc|musl.
 GLIBC_DYNAMIC_LINKER=/lib64/ld-linux-x86-64.so.2
