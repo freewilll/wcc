@@ -9,7 +9,7 @@
 static struct timeval debug_log_start;
 
 // Report an internal error and exit
-void panic(char *format, ...) {
+NORETURN void panic(char *format, ...) {
     va_list ap;
     va_start(ap, format);
     fprintf(stderr, "Internal error: ");

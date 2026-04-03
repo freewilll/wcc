@@ -19,7 +19,7 @@ static void print_filename_and_linenumber(int is_tty) {
     if (is_tty) fprintf(stderr, RESET);
 }
 
-void panic_with_line_number(char *format, ...) {
+NORETURN void panic_with_line_number(char *format, ...) {
     va_list ap;
     va_start(ap, format);
 
@@ -34,9 +34,8 @@ void panic_with_line_number(char *format, ...) {
     exit(1);
 }
 
-
 // Report an error by itself (no filename or line number) and exit
-void simple_error(char *format, ...) {
+NORETURN void simple_error(char *format, ...) {
     va_list ap;
     va_start(ap, format);
 
@@ -51,7 +50,7 @@ void simple_error(char *format, ...) {
 }
 
 // Report an error with a filename and line number and exit
-void _error(char *format, va_list ap) {
+NORETURN void _error(char *format, va_list ap) {
     if (compile_phase == CP_PREPROCESSING) get_cpp_filename_and_line();
 
     int is_tty = isatty(2);
@@ -65,7 +64,7 @@ void _error(char *format, va_list ap) {
     exit(1);
 }
 
-void error(char *format, ...) {
+NORETURN void error(char *format, ...) {
     va_list ap;
     va_start(ap, format);
     _error(format, ap);

@@ -4,6 +4,12 @@
 // Deliberately current working directory for config.h, for out-of-tree builds
 #include <config.h>
 
+#if defined(__GNUC__) || defined(__clang__)
+#define NORETURN __attribute__((noreturn))
+#else
+#define NORETURN
+#endif
+
 #define MAX_CPP_FILESIZE              10 * 1024 * 1024
 #define MAX_CPP_INCLUDE_DEPTH         15
 #define MAX_CPP_MACRO_PARAM_COUNT     1024
@@ -896,7 +902,7 @@ typedef struct string_buffer {
     int allocated;
 } StringBuffer;
 
-void panic(char *format, ...);
+NORETURN void panic(char *format, ...);
 
 char *base_path(char *path);
 int wasprintf(char **ret, const char *format, ...);
@@ -922,9 +928,9 @@ void wfree(void *ptr);
 void process_memory_allocation_stats(void);
 
 // error.c
-void panic_with_line_number(char *format, ...);
-void simple_error(char *format, ...);
-void error(char *format, ...);
+NORETURN void panic_with_line_number(char *format, ...);
+NORETURN void simple_error(char *format, ...);
+NORETURN void error(char *format, ...);
 void warning(char *format, ...);
 
 // lexer.c
