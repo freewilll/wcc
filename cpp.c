@@ -847,9 +847,9 @@ static void cpp_next() {
         else if (left >= 2 && c1 == '-' && c2 == '>'             )  { make_other_token(2); }
         else if (left >= 3 && c1 == '>' && c2 == '>' && c3 == '=')  { make_other_token(3); }
         else if (left >= 3 && c1 == '<' && c2 == '<' && c3 == '=')  { make_other_token(3); }
-        else if (left >= 3 && c1 == '.' && c2 == '.' && c3 == '.')  { make_other_token(3); }
         else if (left >= 2 && c1 == '<' && c2 == '<'             )  { make_other_token(2); }
         else if (left >= 2 && c1 == '>' && c2 == '>'             )  { make_other_token(2); }
+        else if (left >= 3 && c1 == '.' && c2 == '.' && c3 == '.')  { make_token(CPP_TOK_ELLIPSES, 3); }
         else if (left >= 2 && c1 == '+' && c2 == '+'             )  { make_token(CPP_TOK_INC, 2); }
         else if (left >= 2 && c1 == '-' && c2 == '-'             )  { make_token(CPP_TOK_DEC, 2); }
         else if (             c1 == '('                          )  { make_token(CPP_TOK_LPAREN, 1); }
@@ -970,12 +970,13 @@ static void set_line_number_on_token_sequence(CppToken *ts, int line_number) {
 // Returns a ptr to the token sequences for each actual parameter.
 // Nested () are taken into account, for cases like f((1, 2), 3), which
 // results in (1, 2) and 3 for the actual parameters.
-CppToken **make_function_actual_parameters(CppToken **ts) {
+CppToken **make_function_actual_parameters(CppToken **ts, Directive *directive) {
     CppToken **result = wcalloc(MAX_CPP_MACRO_PARAM_COUNT, sizeof(CppToken *));
 
     int parenthesis_nesting_level = 0;
     CppToken *current_actual = 0;
     int index = 0;
+    int processing_varargs = 0;
 
     while (1) {
         CppToken *token = *ts;
@@ -997,14 +998,21 @@ CppToken **make_function_actual_parameters(CppToken **ts) {
             parenthesis_nesting_level++;
         }
         else if (token->kind == CPP_TOK_COMMA && !parenthesis_nesting_level) {
-            // Finish current ap and start next ap
-            result[index++] = current_actual;
-            current_actual = 0;
+            if (processing_varargs) {
+                add_token_to_actuals();
+            }
+            else {
+                // Finish current ap and start next ap
+                result[index++] = current_actual;
+                current_actual = 0;
+            }
         }
         else {
             // It's an ordinary token, append it to current actual
             add_token_to_actuals();
         }
+
+        if (directive->is_variadic && index == directive->param_count) processing_varargs = 1;
 
         *ts =(*ts)->next;
     }
@@ -1105,12 +1113,13 @@ static CppToken *expand(CppToken *is) {
         CppToken *directive_token = tok;
         StrSet *directive_token_hs = tok->hide_set;
         tok = cll_next(is, tok1);
-        CppToken **actuals = make_function_actual_parameters(&tok);
+        CppToken **actuals = make_function_actual_parameters(&tok, directive);
         if (!tok || tok->kind != CPP_TOK_RPAREN) error("Expected )");
 
         int actuals_count = 0;
         for (CppToken **tok = actuals; *tok; tok++, actuals_count++);
-        if (actuals_count > directive->param_count) error("Mismatch in number of macro parameters");
+        if (!directive->is_variadic && actuals_count > directive->param_count)
+            error("Mismatch in number of macro parameters");
 
         StrSet *rparen_hs = tok->hide_set;
 
@@ -1530,10 +1539,19 @@ static Directive *parse_define_tokens(void) {
 
                 first = 0;
 
-                if (!is_identifier(state.token)) error("Expected identifier");
-                if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
-                if (strmap_get(directive->param_identifiers, state.token->str)) error("Duplicate macro parameter %s", state.token->str);
-                strmap_put(directive->param_identifiers, state.token->str, (void *) (long) ++directive->param_count);
+                if (state.token->kind == CPP_TOK_ELLIPSES) {
+                    directive->is_variadic = 1;
+
+                    // The last parameter is a special one. It's not counted towards param_count. It will be given a value
+                    // duren token expansion.
+                    strmap_put(directive->param_identifiers, "__VA_ARGS__", (void *) (long) directive->param_count + 1);
+                }
+                else {
+                    if (!is_identifier(state.token)) error("Expected identifier");
+                    if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
+                    if (strmap_get(directive->param_identifiers, state.token->str)) error("Duplicate macro parameter %s", state.token->str);
+                    strmap_put(directive->param_identifiers, state.token->str, (void *) (long) ++directive->param_count);
+                }
                 cpp_next();
             }
 

@@ -532,5 +532,11 @@ int main(int argc, char **argv) {
         "Dereferencing a pointer to incomplete struct or union",
         "Dereferencing a pointer to incomplete struct or union in constant expression");
 
+    check_output(
+        "#define foo(a)\n"
+        "foo(a, b)",
+        "Mismatch in number of macro parameters",
+        "Mismatch in number of macro parameters");
+
     finalize();
 }

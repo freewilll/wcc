@@ -77,3 +77,15 @@ param_twice(Z)
 // Using a CPP keyword as function parameter name
 #define foo(line) line + line
 foo(1)
+
+// Variadic args
+#define debug(...) fprintf(stderr, __VA_ARGS__)
+debug("Flag\n");
+debug("X = %d\n", x);
+debug("X = %d\n", (x));
+
+#define showlist(...) puts(#__VA_ARGS__)
+showlist(The first, second, and third items.);
+
+#define report(test, ...) ((test)?puts(#test):printf(__VA_ARGS__))
+report(x>y, "x is %d but y is %d", x, y);
