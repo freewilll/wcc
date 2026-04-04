@@ -959,6 +959,10 @@ void output_code(char *input_filename, char *output_filename) {
 
     fprintf(f, "    .file   \"%s\"\n", input_filename);
 
+    // Indicate this object file doesn't need an executable stack
+    // See https://man7.org/linux/man-pages/man5/elf.5.html
+    fprintf(f, "    .section .note.GNU-stack,\"\",@progbits\n\n");
+
     // Output symbols
     elf_section = SEC_NONE;
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
