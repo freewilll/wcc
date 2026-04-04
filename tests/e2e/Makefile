@@ -39,6 +39,7 @@ WCC_RUN_FLAGS = -I ${SRC_DIR}/include
 WCC_E2E_FLAGS := ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --rule-coverage-file ${BUILD_DIR}/tests/e2e/wcc-tests.rulecov
 COMMON_WARN_FLAGS := -Wno-incompatible-pointer-types -Wno-int-conversion
 WCC_E2E_WARN_FLAGS := ${COMMON_WARN_FLAGS} -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible
+GCC_E2E_WARN_FLAGS := ${COMMON_WARN_FLAGS} -Wno-implicit-int
 E2E_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test-lib.o ${BUILD_DIR}/utils.o ${BUILD_DIR}/memory.o
 ABI_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test-lib.o
 
@@ -56,7 +57,7 @@ ${BUILD_DIR}/tests/e2e/test-%.o: ${BUILD_DIR}/tests/e2e/test-%.s
 	${AS} $< -o $@
 
 ${BUILD_DIR}/tests/e2e/test-%-wcc: ${BUILD_DIR}/tests/e2e/test-%.o ${E2E_LINK_OBJECTS}
-	${GCC} ${COMMON_WARN_FLAGS} ${GCC_OPTS} $^ -o $@
+	${GCC} ${GCC_E2E_WARN_FLAGS} ${GCC_OPTS} $^ -o $@
 
 run-test-%-wcc: ${BUILD_DIR}/tests/e2e/test-%-wcc
 	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
@@ -87,15 +88,15 @@ run-test-wcc: ${WCC_TESTS:%=run-test-%-wcc}
 
 ${BUILD_DIR}/tests/e2e/test-%-gcc: test-%.c ${E2E_LINK_OBJECTS}
 	@mkdir -p $(@D)
-	${GCC} ${COMMON_WARN_FLAGS} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
+	${GCC} ${GCC_E2E_WARN_FLAGS} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
 
 ${BUILD_DIR}/tests/e2e/test-arithmetic-torture-gcc: ${BUILD_DIR}/tests/e2e/test-arithmetic-torture.c ${E2E_LINK_OBJECTS}
 	@mkdir -p $(@D)
-	${GCC} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
+	${GCC} ${GCC_E2E_WARN_FLAGS} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
 
 ${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture-gcc: ${BUILD_DIR}/tests/e2e/test-arithmetic-types-move-torture.c ${E2E_LINK_OBJECTS}
 	@mkdir -p $(@D)
-	${GCC} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
+	${GCC} ${GCC_E2E_WARN_FLAGS} ${GCC_OPTS} -I ${SRC_DIR}/tests $^ -o $@ -w
 
 run-test-%-gcc: ${BUILD_DIR}/tests/e2e/test-%-gcc
 	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
