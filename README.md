@@ -4,7 +4,7 @@ This project is an implementation of the full C89/C90 C specification for `x86-6
 
 The [was assembler](https://github.com/freewilll/wbinutils/tree/master/was) and [wld linker](https://github.com/freewilll/wbinutils/tree/master/wld) can be used to produce object files by either running `configure` with `--as`, `--ld` or setting the `AS` and `LD` environment variables.
 
-The compiler has only been built and tested on Ubuntu focal 20.04.3 LTS. It will almost certainly not build or function normally anywhere else. This compiler is a hobby project and even close to be ready for production use.
+This compiler is a hobby project and even close to be ready for production use.
 
 # Installation
 ```
