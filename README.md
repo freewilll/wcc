@@ -132,6 +132,7 @@ wcc was developed on Ubuntu 20.04 in between 2018 and 2021. An effort to support
 Distributes where both wcc, wbinutils and sqlite tests pass:
 - Ubuntu 20.04
 - Ubuntu 22.04
+- Ubuntu 24.04
 
 # History
 The project started out as a clone of [c4](https://github.com/rswier/c4) to teach myself to write it from scratch. I then went down a route based on [TCC](https://bellard.org/tcc/) where I wrote a code generator that outputted an object (`.o`) file. It then quickly became clear that generating object code without using an assembler is a waste of time, so I adapted it to produce `.s` files and compiled them with gcc. I then proceeded implemeting [Sebastian Falbesoner's](https://www.complang.tuwien.ac.at/Diplomarbeiten/falbesoner14.pdf) approach to register allocation. At this point I went academic and started reading [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). First SSA transformation, then graph coloring register allocation, then finally instruction selection using tree pattern matching.
