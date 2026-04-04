@@ -1762,6 +1762,12 @@ int test___func__statements() {
     assert_string("test___func__statements", __PRETTY_FUNCTION__, "__PRETTY_FUNCTION__");
 }
 
+
+void test___signed__keyword() {
+    __signed__ char c = 1;
+    assert_int(1, c, "__signed__ char c");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1828,6 +1834,7 @@ int main(int argc, char **argv) {
     test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug();
     test_expression_statement();
     test___func__statements();
+    test___signed__keyword();
 
     finalize();
 }

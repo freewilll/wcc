@@ -477,6 +477,7 @@ void next(void) {
                  if (!strcmp(cur_identifier, "if"           )) { cur_token = TOK_IF;        }
             else if (!strcmp(cur_identifier, "else"         )) { cur_token = TOK_ELSE;      }
             else if (!strcmp(cur_identifier, "signed"       )) { cur_token = TOK_SIGNED;    }
+            else if (!strcmp(cur_identifier, "__signed__"   )) { cur_token = TOK_SIGNED;    }
             else if (!strcmp(cur_identifier, "unsigned"     )) { cur_token = TOK_UNSIGNED;  }
             else if (!strcmp(cur_identifier, "char"         )) { cur_token = TOK_CHAR;      }
             else if (!strcmp(cur_identifier, "short"        )) { cur_token = TOK_SHORT;     }
