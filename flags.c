@@ -17,6 +17,9 @@ int opt_enable_trigraphs = 0;               // Enable trigraph preprocessing
 int opt_enable_common_symbols = 0;          // Enable .comm symbols
 int opt_warnings_are_errors = 0;            // Treat all warnings as errors
 
+int error_incomptatible_pointer_type = 0;
+int error_int_conversion = 0;
+
 int warn_integer_constant_too_large = 0;
 int warn_assignment_types_incompatible = 0;
 

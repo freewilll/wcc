@@ -543,5 +543,20 @@ int main(int argc, char **argv) {
         "An initializer for an object with static storage duration must be a constant expression",
         "An initializer for an object with static storage duration must be a constant expression");
 
-        finalize();
+    check_main_output(
+        "int *i; char *j = i;",
+        "Incompatible pointer types",
+        "Incompatible pointer types");
+
+    check_main_output(
+        "int *i; int j = i;",
+        "Conversion makes integer from pointer without a cast",
+        "Conversion makes integer from pointer without a cast");
+
+    check_main_output(
+        "int i; int *j = i;",
+        "Conversion makes pointer from integer without a cast",
+        "Conversion makes pointer from integer without a cast");
+
+    finalize();
 }

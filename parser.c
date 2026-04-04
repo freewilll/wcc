@@ -1683,10 +1683,6 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     return src;
 }
 
-static void warn_of_incompatible_types_in_assignment(Type *dst, Type *src) {
-    if (warn_assignment_types_incompatible) warning("Incompatible types in assignment");
-}
-
 static void check_simple_assignment_types(Value *dst, Value *src) {
     int dst_is_arithmetic = is_arithmetic_type(dst->type);
     int src_is_arithmetic = is_arithmetic_type(src->type);
@@ -1709,7 +1705,7 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
 
         if (is_pointer_to_void(dst->type) || is_pointer_to_void(src->type)) return;
 
-        warn_of_incompatible_types_in_assignment(dst->type, src->type);
+        if (error_incomptatible_pointer_type) error("Incompatible pointer types");
         return;
     }
 
@@ -1718,8 +1714,14 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
     // Dst is a pointer to a function and src is a function
     if (is_pointer_to_function_type(dst->type) && src->type->type == TYPE_FUNCTION && types_are_compatible(dst->type->target, src->type)) return;
 
-    // Fall back to ordinary type checking
-    warn_of_incompatible_types_in_assignment(dst->type, src->type);
+    if (error_int_conversion && is_integer_type(dst->type) && src->type->type == TYPE_PTR)
+        error("Conversion makes integer from pointer without a cast");
+
+    if (error_int_conversion && is_integer_type(src->type) && dst->type->type == TYPE_PTR)
+        error("Conversion makes pointer from integer without a cast");
+
+    // The whitelist failed, print a warning.
+    if (warn_assignment_types_incompatible) warning("Incompatible types");
 }
 
 // Add instruction to assign a scalar value in src1 to dst

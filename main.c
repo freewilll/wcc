@@ -170,6 +170,8 @@ int main(int argc, char **argv) {
     opt_optimize_arithmetic_operations = 1;
     warn_integer_constant_too_large = 1;
     warn_assignment_types_incompatible = 1;
+    error_incomptatible_pointer_type = 1;
+    error_int_conversion = 1;
 
     int exit_code = 0;
     int verbose = 0;        // Print invoked program command lines
@@ -275,8 +277,9 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-stack-frame-layout"              )) { debug_stack_frame_layout = 1;               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-exit-after-parser"               )) { debug_exit_after_parser = 1;                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-dont-compile-internals"          )) { debug_dont_compile_internals = 1;           argc--; argv++; }
-
             else if (argc > 0 && !strcmp(argv[0], "-Werror"                                 )) { opt_warnings_are_errors = 1;                argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-Wno-incompatible-pointer-types"         )) { error_incomptatible_pointer_type = 0;       argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-Wno-int-conversion"                     )) { error_int_conversion = 0;                   argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-Wno-integer-constant-too-large"         )) { warn_integer_constant_too_large = 0;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-Wno-warn-assignment-types-incompatible" )) { warn_assignment_types_incompatible = 0;     argc--; argv++; }
 
@@ -434,10 +437,12 @@ int main(int argc, char **argv) {
         printf("-fno-vreg-renumbering                       Disable renumbering of vregs before live range coalesces\n");
         printf("--trigraphs                                 Enable preprocessing of trigraphs\n");
         printf("\n");
-        printf("Warning flags:\n");
+        printf("Warning and error flags:\n");
         printf("-Werror                                     Treat all warnings as errors\n");
+        printf("-Wno-incompatible-pointer-types             Disable incompatible pointer types errors");
         printf("-Wno-integer-constant-too-large             Disable too large integer constant warnings\n");
         printf("-Wno-warn-assignment-types-incompatible     Disable warnings about incopmatible type assignments\n");
+
         printf("\n");
         printf("Debug flags:\n");
         printf("--print-filenames\n");

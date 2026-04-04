@@ -743,8 +743,12 @@ extern int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for 
 extern int int_arg_registers[6];
 extern int sse_arg_registers[8];
 
+extern int error_incomptatible_pointer_type;
+extern int error_int_conversion;
+
 extern int warn_integer_constant_too_large;
 extern int warn_assignment_types_incompatible;
+
 extern int debug_function_param_allocation;
 extern int debug_function_arg_mapping;
 extern int debug_function_param_mapping;
