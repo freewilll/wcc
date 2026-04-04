@@ -120,10 +120,20 @@ main:
     retq
 ```
 
+# Testing
+A unpublished hand rolled CI-style runner is used to run automated tests in the above linux distribtions. Fullblown github CI would be good, but considering the hobby state of the project it was deemed unnecessary for now.
+
+To validate the compiler can compile something other than itself correctly, I fixed enough bugs to get `sqlite3` to compile and pass the `tcltest` tests.
+The latest version of sqlite that compiles and passes its tests is 3.38.5.
+
+# Supported linux distributions
+wcc was developed on Ubuntu 20.04 in between 2018 and 2021. An effort to support more recent linux distributions was started in March 2025.
+
+Distributes where both wcc, wbinutils and sqlite tests pass:
+- Ubuntu 20.04
+- Ubuntu 22.04
+
 # History
 The project started out as a clone of [c4](https://github.com/rswier/c4) to teach myself to write it from scratch. I then went down a route based on [TCC](https://bellard.org/tcc/) where I wrote a code generator that outputted an object (`.o`) file. It then quickly became clear that generating object code without using an assembler is a waste of time, so I adapted it to produce `.s` files and compiled them with gcc. I then proceeded implemeting [Sebastian Falbesoner's](https://www.complang.tuwien.ac.at/Diplomarbeiten/falbesoner14.pdf) approach to register allocation. At this point I went academic and started reading [Engineering a Compiler 2nd Edition](https://www.amazon.com/Engineering-Compiler-Keith-Cooper/dp/012088478X). First SSA transformation, then graph coloring register allocation, then finally instruction selection using tree pattern matching.
 
 After a hiatus I resumed work and fixed a ton of bugs in the instruction selection. I then decided to implement the full C89/C90 specification, starting with the non-preprocessor parts, then the preprocessor.
-
-To validate the compiler can compile something other than itself correctly, I fixed enough bugs to get `sqlite3` to compile and pass the `tcltest` tests.
-I have so far only tested this on ubuntu 20.04. The latest version of sqlite that compiles and passes its tests is 3.38.5.
