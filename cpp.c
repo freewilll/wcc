@@ -1539,20 +1539,41 @@ static Directive *parse_define_tokens(void) {
 
                 first = 0;
 
+                if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
+
                 if (state.token->kind == CPP_TOK_ELLIPSES) {
+                    // Handle e.g. #define foo(FOO, ...) printf(FOO, __VA_ARGS__)
+
                     directive->is_variadic = 1;
 
                     // The last parameter is a special one. It's not counted towards param_count. It will be given a value
-                    // duren token expansion.
+                    // during token expansion.
                     strmap_put(directive->param_identifiers, "__VA_ARGS__", (void *) (long) directive->param_count + 1);
+                    cpp_next();
                 }
                 else {
                     if (!is_identifier(state.token)) error("Expected identifier");
-                    if (directive->param_count == MAX_CPP_MACRO_PARAM_COUNT) panic("Exceeded max CPP function macro param count");
                     if (strmap_get(directive->param_identifiers, state.token->str)) error("Duplicate macro parameter %s", state.token->str);
-                    strmap_put(directive->param_identifiers, state.token->str, (void *) (long) ++directive->param_count);
+                    char *identifier = state.token->str;
+                    cpp_next();
+
+                    if (state.token->kind == CPP_TOK_ELLIPSES) {
+                        // Handle e.g. #define foo(FOO, BAR ...) printf(FOO, BAR)
+
+                        directive->is_variadic = 1;
+
+                        // The last parameter is a special one. It's not counted towards param_count. It will be given a value
+                        // during token expansion. identifier is used for the place
+                        strmap_put(directive->param_identifiers, identifier, (void *) (long) directive->param_count + 1);
+                        cpp_next();
+                    }
+                    else {
+                        strmap_put(directive->param_identifiers, identifier, (void *) (long) ++directive->param_count);
+                    }
                 }
-                cpp_next();
+
+                if (directive->is_variadic && state.token->kind != CPP_TOK_RPAREN)
+                    error("Expected ) after ...");
             }
 
             if (state.token->kind != CPP_TOK_RPAREN) error("Expected )");

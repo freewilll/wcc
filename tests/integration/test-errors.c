@@ -558,5 +558,10 @@ int main(int argc, char **argv) {
         "Conversion makes pointer from integer without a cast",
         "Conversion makes pointer from integer without a cast");
 
+    check_output(
+        "#define foo(..., a)\n",
+        "Expected ) after ...",
+        "Expected ) after ...");
+
     finalize();
 }

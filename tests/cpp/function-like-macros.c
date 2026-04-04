@@ -89,3 +89,6 @@ showlist(The first, second, and third items.);
 
 #define report(test, ...) ((test)?puts(#test):printf(__VA_ARGS__))
 report(x>y, "x is %d but y is %d", x, y);
+
+#define named_va_args(FOO, BAR ...) printf(FOO, BAR)
+named_va_args("%s\n", "foo");

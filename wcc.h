@@ -655,12 +655,13 @@ typedef struct cpp_token {
 typedef CppToken *(*DirectiveRenderer)(CppToken *);
 
 typedef struct directive {
-    char is_function;           // Is the macro an object or function macro
-    int param_count;            // Amount of parameters.
-    int is_variadic;            // A function-like macro has a ... at the end of the parameters definition
-    StrMap *param_identifiers;  // Mapping of parameter identifiers => index, index starts at 1
-    CppToken *tokens;           // Replacement tokens
-    DirectiveRenderer renderer; // Renderer for builtin directives
+    char is_function;               // Is the macro an object or function macro
+    int param_count;                // Amount of parameters.
+    int is_variadic;                // A function-like macro has a ... at the end of the parameters definition
+    const char *variadic_arg_name;  // Optionally overrides the "__VA_ARGS__" identifier
+    StrMap *param_identifiers;      // Mapping of parameter identifiers => index, index starts at 1
+    CppToken *tokens;               // Replacement tokens
+    DirectiveRenderer renderer;     // Renderer for builtin directives
 } Directive;
 
 // Structure with all directives passed on the command line with -D
