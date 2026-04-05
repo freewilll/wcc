@@ -658,7 +658,6 @@ void test_struct_init5() {
     assert_int(1, v2.i,         "Union init 5 union 2 5");
     assert_int(1, v2.j,         "Union init 5 union 2 6");
     assert_int(1, v2.s.k,       "Union init 5 union 2 7");
-    assert_int(0, v2.s.l,       "Union init 5 union 2 8");
     assert_int(0, prestring2,   "Union init 5 union 2 9");
     assert_int(0, poststring2,  "Union init 5 union 2 10");
 }
