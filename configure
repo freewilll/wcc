@@ -2,6 +2,20 @@
 
 set -e
 
+# Show the help
+help() {
+    cat <<END
+Usage: ./configure [options]
+
+Flags:
+--prefix=PATH Install prefix, default: /usr
+--as=PATH     Use assembler binary (detected: $DEFAULT_AS_COMMAND)
+--ld=PATH     Use linker binary    (detected: $DEFAULT_LD_COMMAND)
+-h, --help    Print this help text.
+END
+    exit 0
+}
+
 # Configure:
 # - as binary
 # - ld binary
@@ -24,19 +38,9 @@ if [ -z "${DEFAULT_LD_COMMAND:-}" ]; then
     exit 1
 fi
 
-# Show the help
-help() {
-    cat <<END
-Usage: ./configure [options]
+echo Using assembler $DEFAULT_AS_COMMAND
+echo Using linker $DEFAULT_LD_COMMAND
 
-Flags:
---prefix=PATH Install prefix, default: /usr
---as=PATH     Use assembler binary (detected: $DEFAULT_AS_COMMAND)
---ld=PATH     Use linker binary    (detected: $DEFAULT_LD_COMMAND)
--h, --help    Print this help text.
-END
-    exit 0
-}
 
 # Parse args
 for arg in "$@"; do
@@ -50,31 +54,50 @@ for arg in "$@"; do
     shift || true
 done
 
-# Find the highest version of gcc C runtime files
-GCC_BASE=/usr/lib/gcc/x86_64-linux-gnu
-
-if [ -z "$GCC_LIBRARY_PATH" ]; then
-    GCC_DIR="$(ls -1 "$GCC_BASE" | sort -V | tail -n 1)"
-    GCC_LIBRARY_PATH="$GCC_BASE/$GCC_DIR"
-fi
+FILE_crt1=$(gcc -print-file-name=crt1.o)
+FILE_crti=$(gcc -print-file-name=crti.o)
+FILE_crtn=$(gcc -print-file-name=crtn.o)
+FILE_crtbegin=$(gcc -print-file-name=crtbegin.o)
+FILE_crtend=$(gcc -print-file-name=crtend.o)
+GCC_LIBRARY_PATH=$(dirname "$(gcc -print-libgcc-file-name)")
 
 echo Using GCC library path $GCC_LIBRARY_PATH
 
 # Libc configs are chosen at runtime via wcc --libc=glibc|musl.
 GLIBC_DYNAMIC_LINKER=/lib64/ld-linux-x86-64.so.2
 GLIBC_LIBC_LIBRARY_PATH=/usr/lib
-GLIBC_STARTFILES="/usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o"
-GLIBC_ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-gnu/crtn.o"
+GLIBC_STARTFILES="$FILE_crt1 $FILE_crti $FILE_crtbegin"
+GLIBC_ENDFILES="$FILE_crtend $FILE_crtn"
 GLIBC_INCLUDE_PATHS='"/usr/local/include", "/usr/include/x86_64-linux-gnu", "/usr/include"'
 
-MUSL_DYNAMIC_LINKER=/lib/ld-musl-x86_64.so.1
-MUSL_LIBC_LIBRARY_PATH=/usr/lib/x86_64-linux-musl
-MUSL_STARTFILES="/usr/lib/x86_64-linux-musl/Scrt1.o /usr/lib/x86_64-linux-musl/crti.o"
-MUSL_ENDFILES="$GCC_CRTEND /usr/lib/x86_64-linux-musl/crtn.o"
-MUSL_INCLUDE_PATHS='"/usr/include/x86_64-linux-musl"'
+echo Using glibc library path $GLIBC_LIBC_LIBRARY_PATH
 
-echo Using assembler $DEFAULT_AS_COMMAND
-echo Using linker $DEFAULT_LD_COMMAND
+# Determine musl paths
+MUSL_DYNAMIC_LINKER=/lib/ld-musl-x86_64.so.1
+
+if [ -d "/usr/lib/x86_64-linux-musl" ]; then
+    MUSL_LIBC_LIBRARY_PATH=/usr/lib/x86_64-linux-musl
+elif [ -d "/usr/x86_64-linux-musl/lib64" ]; then
+    MUSL_LIBC_LIBRARY_PATH=/usr/x86_64-linux-musl/lib64
+else
+    # Not sure if this is sane default, but configure should not fail if musl isn't found
+    MUSL_LIBC_LIBRARY_PATH=/usr/lib
+fi
+
+if [ -d "/usr/include/x86_64-linux-musl" ]; then
+    MUSL_INCLUDE_PATHS='"/usr/include/x86_64-linux-musl"'
+elif [ -d "/usr/x86_64-linux-musl/include" ]; then
+    MUSL_INCLUDE_PATHS='"/usr/x86_64-linux-musl/include"'
+else
+    # Not sure if this is sane default, but configure should not fail if musl isn't found
+    MUSL_INCLUDE_PATHS='"/usr/include"'
+fi
+
+MUSL_STARTFILES="$MUSL_LIBC_LIBRARY_PATH/Scrt1.o $MUSL_LIBC_LIBRARY_PATH/crti.o $FILE_crtbegin"
+MUSL_ENDFILES="$FILE_crtend $MUSL_LIBC_LIBRARY_PATH/crtn.o"
+
+echo Using musl library path $MUSL_LIBC_LIBRARY_PATH
+echo Using musl include path $MUSL_INCLUDE_PATHS
 
 # Write out config.h
 CONFIG_H_PATH=config.h
