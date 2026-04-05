@@ -229,7 +229,7 @@ void test_open_read_write_close() {
 
 int (*null_global_func_ptr)(int);
 
-int plus();
+int plus(int);
 int (*global_func_ptr)(int) = plus;
 int (*global_func_ptr2)(int) = &plus;
 
@@ -400,7 +400,7 @@ void test_function_pointers() {
     i = 1; a = i ? plus : minus; assert_int(4, a(3), "Termary assignment without & 2");
 
     // Declaration of a function inside a function
-    void inc_x();
+    void inc_x(int *);
     i = 1;
     inc_x(&i);
     assert_int(2, i, "Declaration of a function inside a function");
