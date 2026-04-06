@@ -143,6 +143,34 @@ void test_double_goto() {
     assert_int(3, _test_double_goto(4), "Double goto 4");
 }
 
+static int goto_labels_register_counter = 5;
+
+// Test a regression where the function prologue was taking over the label
+int test_goto_labels_register(int i) {
+    label:
+        goto_labels_register_counter--;
+        i++;
+        if (goto_labels_register_counter == 0) return i;
+        goto label;
+}
+
+static int goto_labels_stack_counter = 5;
+
+// Test a regression where the function prologue was taking over the label
+int test_goto_labels_stack(int i) {
+    label:
+        goto_labels_stack_counter--;
+        i++;
+        int *j = &i;
+        if (goto_labels_stack_counter == 0) return i;
+        goto label;
+}
+
+void test_goto_labels() {
+    assert_int(6, test_goto_labels_register(1), "goto labels register");
+    assert_int(6, test_goto_labels_stack(1), "goto labels stack");
+}
+
 int test_compilation_crash_on_unreachable_code() {
     // A bug in SSA caused this to fail to compile.
     do continue; while(1);
@@ -176,6 +204,7 @@ int main(int argc, char **argv) {
     test_do_while();
     test_single_goto();
     test_double_goto();
+    test_goto_labels();
     test_goto_typedef();
 
     finalize();

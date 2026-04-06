@@ -144,6 +144,10 @@ test-unit-parser: libwcc.a
 test-unit-ssa: libwcc.a
 	${MAKE} -C ${SRC_DIR}/tests test-unit-ssa
 
+.PHONY: test-unit-functions
+test-unit-functions: libwcc.a
+	${MAKE} -C ${SRC_DIR}/tests test-unit-functions
+
 .PHONY: test-unit-cpp
 test-unit-cpp: libwcc.a
 	${MAKE} -C ${SRC_DIR}/tests test-unit-cpp

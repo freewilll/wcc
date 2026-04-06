@@ -316,7 +316,7 @@ void start_ir() {
     rule_coverage_file = "instrsel-tests.rulecov";
 }
 
-void _finish_ir(Function *function, int stop_after_live_ranges, int stop_after_instruction_selection) {
+static void _finish_ir(Function *function, int stop_after_live_ranges, int stop_after_instruction_selection) {
     function->ir = ir_start;
     function->stack_register_count = 0;
 

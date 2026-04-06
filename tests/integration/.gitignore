@@ -1,4 +1,5 @@
 test-instrsel
+test-functions
 test-errors
 test-debug
 instrsel-tests.rulecov

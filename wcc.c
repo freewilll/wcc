@@ -68,12 +68,14 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     sanity_test_ir_linkage(function);
     if (log_compiler_phase_durations) debug_log("Optimizing arithmetic operations");
     optimize_arithmetic_operations(function);
+
     if (log_compiler_phase_durations) debug_log("Function arg/param manipulation");
     add_function_param_moves(function, function_name);
     add_function_return_moves(function, function_name);
     add_function_call_result_moves(function);
     process_function_varargs(function);
     add_function_call_arg_moves(function);
+    if (stop_at == COMPILE_STOP_AFTER_FUNCTION_PARAM_MOVES) return;
 
     if (log_compiler_phase_durations) debug_log("Adding PIC loads & saves");
     add_PIC_load_and_saves(function);

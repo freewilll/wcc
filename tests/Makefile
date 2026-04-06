@@ -24,6 +24,10 @@ test-unit-parser: ${COMMON_DEPENDENCIES}
 test-unit-ssa: ${COMMON_DEPENDENCIES}
 	${MAKE} -C ${SRC_DIR}/tests/unit run-test-ssa
 
+.PHONY: test-unit-functions
+test-unit-functions: ${COMMON_DEPENDENCIES}
+	${MAKE} -C ${SRC_DIR}/tests/unit run-test-functions
+
 .PHONY: test-unit-cpp
 test-unit-cpp: ${COMMON_DEPENDENCIES}
 	${MAKE} -C ${SRC_DIR}/tests/unit run-test-cpp
