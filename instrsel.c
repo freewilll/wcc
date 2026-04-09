@@ -137,6 +137,8 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
             case IR_GT:                   c += printf(">"); break;
             case IR_LE:                   c += printf(">="); break;
             case IR_GE:                   c += printf("<="); break;
+            case IR_BIT_SCAN_FWD:         c += printf("bit scan forward"); break;
+            case IR_BIT_SCAN_REV:         c += printf("bit scan reverse"); break;
             default:                      c += printf("Operation %d", operation);
         }
 

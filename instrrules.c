@@ -1438,6 +1438,40 @@ static X86Operation *add_sse_function_call_arg_op(Rule *r, char *template) {
     add_op(r, X_ARG, 0, SRC1, SV1, "pushq %v2q");
 }
 
+static void add_bit_scan_rules(void) {
+    Rule *r;
+
+    // Bit scan forward
+    r = add_rule(RI3, IR_BIT_SCAN_FWD, RI3,  0, 2);
+    add_op(r, X_BSR,  DST, SRC1, 0, "bsrl %v1l, %vdl");
+    add_op(r, X_BSR,  DST, SRC1, 0, "xorl $0x1f, %vdl");
+
+    r = add_rule(RI3, IR_BIT_SCAN_FWD, RU3,  0, 2);
+    add_op(r, X_BSR,  DST, SRC1, 0, "bsrl %v1l, %vdl");
+    add_op(r, X_BSR,  DST, SRC1, 0, "xorl $0x1f, %vdl");
+
+    r = add_rule(RI3, IR_BIT_SCAN_FWD, RI4,  0, 2);
+    add_op(r, X_BSR,  DST, SRC1, 0, "bsrq %v1q, %vdq");
+    add_op(r, X_BSR,  DST, SRC1, 0, "xorq $0x3f, %vdq");
+
+    r = add_rule(RI3, IR_BIT_SCAN_FWD, RU4,  0, 2);
+    add_op(r, X_BSR,  DST, SRC1, 0, "bsrq %v1q, %vdq");
+    add_op(r, X_BSR,  DST, SRC1, 0, "xorq $0x3f, %vdq");
+
+    // Bit scan reverse
+    r = add_rule(RI3, IR_BIT_SCAN_REV, RI3,  0, 2);
+    add_op(r, X_TZCNT,  DST, SRC1, 0, "tzcntl %v1l, %vdl");
+
+    r = add_rule(RI3, IR_BIT_SCAN_REV, RU3,  0, 2);
+    add_op(r, X_TZCNT,  DST, SRC1, 0, "tzcntl %v1l, %vdl");
+
+    r = add_rule(RI3, IR_BIT_SCAN_REV, RI4,  0, 2);
+    add_op(r, X_TZCNT,  DST, SRC1, 0, "tzcntq %v1q, %vdq");
+
+    r = add_rule(RI3, IR_BIT_SCAN_REV, RU4,  0, 2);
+    add_op(r, X_TZCNT,  DST, SRC1, 0, "tzcntq %v1q, %vdq");
+}
+
 void define_rules(void) {
     Rule *r;
 
@@ -1746,6 +1780,8 @@ void define_rules(void) {
     add_long_double_operation_rules();
     add_sse_operation_rules();
     add_sse_comp_assignment_rules(&ntc);
+
+    add_bit_scan_rules();
 
     if (ntc >= AUTO_NON_TERMINAL_END)
         panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);

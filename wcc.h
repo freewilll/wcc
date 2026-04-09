@@ -570,6 +570,8 @@ enum {
     IR_GT,                    // >
     IR_LE,                    // <=
     IR_GE,                    // >=
+    IR_BIT_SCAN_FWD,          // Bit scan forward
+    IR_BIT_SCAN_REV,          // Bit scan reverse
     IR_PHI_FUNCTION,          // SSA phi function
 };
 
@@ -1303,6 +1305,8 @@ enum {
     X_BAND,
     X_XOR,
     X_BNOT,
+    X_BSR,   // Bit shift reverse
+    X_TZCNT, // Count the number of trailing zero bits
 
     X_FADD,
     X_FSUB,

@@ -223,6 +223,8 @@ char *operation_string(int operation) {
         case IR_BSHL:                return "IR_BSHL";
         case IR_BSHR:                return "IR_BSHR";
         case IR_ASHR:                return "IR_ASHR";
+        case IR_BIT_SCAN_FWD:        return "IR_BIT_SCAN_FWD";
+        case IR_BIT_SCAN_REV:        return "IR_BIT_SCAN_REV";
         case IR_LT:                  return "IR_LT";
         case IR_GT:                  return "IR_GT";
         case IR_LE:                  return "IR_LE";

@@ -1714,6 +1714,42 @@ void test_param_vreg_moves() {
     assert_rx86_preg_op_with_function_pc(function->type->function->param_count, "addq        %rax, %rbx");
 }
 
+void test_bitscans() {
+    remove_reserved_physical_registers = 1;
+
+    // Bit scan forward int
+    si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vsz(1, TYPE_INT), 0);
+    assert_x86_op("bsrl        r1l, r2l");
+    assert_x86_op("xorl        $0x1f, r2l");
+
+    si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vusz(1, TYPE_INT), 0);
+    assert_x86_op("bsrl        r1l, r2l");
+    assert_x86_op("xorl        $0x1f, r2l");
+
+    // Bit scan reverse int
+    si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vsz(1, TYPE_INT), 0);
+    assert_x86_op("tzcntl      r1l, r2l");
+
+    si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vusz(1, TYPE_INT), 0);
+    assert_x86_op("tzcntl      r1l, r2l");
+
+    // Bit scan forward long
+    si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vsz(1, TYPE_LONG), 0);
+    assert_x86_op("bsrq        r1q, r2q");
+    assert_x86_op("xorq        $0x3f, r2q");
+
+    si(function, 0, IR_BIT_SCAN_FWD, vsz(2, TYPE_INT), vusz(1, TYPE_LONG), 0);
+    assert_x86_op("bsrq        r1q, r2q");
+    assert_x86_op("xorq        $0x3f, r2q");
+
+    // Bit scan reverse long
+    si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vsz(1, TYPE_LONG), 0);
+    assert_x86_op("tzcntq      r1q, r2q");
+
+    si(function, 0, IR_BIT_SCAN_REV, vsz(2, TYPE_INT), vusz(1, TYPE_LONG), 0);
+    assert_x86_op("tzcntq      r1q, r2q");
+}
+
 int main() {
     int verbose;
 
@@ -1774,6 +1810,7 @@ int main() {
     if (verbose) printf("Running instrsel constant_cast_to_ptr\n");                           test_constant_cast_to_ptr();
     if (verbose) printf("Running instrsel spilling\n");                                       test_spilling();
     if (verbose) printf("Running instrsel param_vreg_moves\n");                               test_param_vreg_moves();
+    if (verbose) printf("Running instrsel bitscans\n");                                       test_bitscans();
 
     if (failures) {
         printf("%d tests failed\n", failures);

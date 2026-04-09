@@ -1774,6 +1774,34 @@ void test___signed__keyword() {
     assert_int(1, c, "__signed__ char c");
 }
 
+void test_bit_scans() {
+    // Long
+    assert_int(0,  __builtin_clzl(1L << 63),  "clzl 1 << 63");
+    assert_int(1,  __builtin_clzl(1L << 62),  "clzl 1 << 62");
+    assert_int(6,  __builtin_clzl(1L << 57),  "clzl 1 << 57");
+    assert_int(61, __builtin_clzl(4),         "clzl 3");
+    assert_int(62, __builtin_clzl(3),         "clzl 4");
+
+    assert_int(63, __builtin_ctzl(1L << 63),  "ctzl 1 << 63");
+    assert_int(62, __builtin_ctzl(1L << 62),  "ctzl 1 << 62");
+    assert_int(57, __builtin_ctzl(1L << 57),  "ctzl 1 << 56");
+    assert_int(2,  __builtin_ctzl(4),         "ctzl 4");
+    assert_int(0,  __builtin_ctzl(3),         "ctzl 3");
+
+    // Long long
+    assert_int(0,  __builtin_clzll(1L << 63),  "clzll 1 << 63");
+    assert_int(1,  __builtin_clzll(1L << 62),  "clzll 1 << 62");
+    assert_int(6,  __builtin_clzll(1L << 57),  "clzll 1 << 57");
+    assert_int(61, __builtin_clzll(4),         "clzll 3");
+    assert_int(62, __builtin_clzll(3),         "clzll 4");
+
+    assert_int(63, __builtin_ctzll(1L << 63),  "ctzll 1 << 63");
+    assert_int(62, __builtin_ctzll(1L << 62),  "ctzll 1 << 62");
+    assert_int(57, __builtin_ctzll(1L << 57),  "ctzll 1 << 56");
+    assert_int(2,  __builtin_ctzll(4),         "ctzll 4");
+    assert_int(0,  __builtin_ctzll(3),         "ctzll 3");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1841,6 +1869,7 @@ int main(int argc, char **argv) {
     test_expression_statement();
     test___func__statements();
     test___signed__keyword();
+    test_bit_scans();
 
     finalize();
 }
