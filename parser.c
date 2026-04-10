@@ -2990,7 +2990,7 @@ static void parse_expression(int level) {
             break;
 
         default:
-            error("Unexpected token %d in expression", cur_token);
+            error("Unexpected %s in expression", token_names[cur_token]);
     }
 
     // The next token is an operator

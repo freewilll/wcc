@@ -393,100 +393,113 @@ typedef struct register_set {
     int *sse_registers;
 } RegisterSet;
 
-// Tokens in order of precedence
+#define TOKEN_LIST(TOKEN_ITEM) \
+    TOKEN_ITEM(TOK_EOF,                   "EOF") \
+    TOKEN_ITEM(TOK_IDENTIFIER,            "identifier") \
+    TOKEN_ITEM(TOK_INTEGER,               "integer") \
+    TOKEN_ITEM(TOK_FLOATING_POINT_NUMBER, "floating point number") \
+    TOKEN_ITEM(TOK_STRING_LITERAL,        "string literal") \
+    TOKEN_ITEM(TOK_IF,                    "if") \
+    TOKEN_ITEM(TOK_ELSE,                  "else") \
+    TOKEN_ITEM(TOK_SIGNED,                "signed") \
+    TOKEN_ITEM(TOK_UNSIGNED,              "unsigned") \
+    TOKEN_ITEM(TOK_INLINE,                "inline") \
+    TOKEN_ITEM(TOK_VOID,                  "void") \
+    TOKEN_ITEM(TOK_CHAR,                  "char") \
+    TOKEN_ITEM(TOK_INT,                   "int") \
+    TOKEN_ITEM(TOK_SHORT,                 "short") \
+    TOKEN_ITEM(TOK_LONG,                  "long") \
+    TOKEN_ITEM(TOK_FLOAT,                 "float") \
+    TOKEN_ITEM(TOK_DOUBLE,                "double") \
+    TOKEN_ITEM(TOK_STRUCT,                "struct") \
+    TOKEN_ITEM(TOK_UNION,                 "union") \
+    TOKEN_ITEM(TOK_TYPEDEF,               "typedef") \
+    TOKEN_ITEM(TOK_TYPEDEF_TYPE,          "typedef type") \
+    TOKEN_ITEM(TOK_DO,                    "do") \
+    TOKEN_ITEM(TOK_WHILE,                 "while") \
+    TOKEN_ITEM(TOK_FOR,                   "for") \
+    TOKEN_ITEM(TOK_SWITCH,                "switch") \
+    TOKEN_ITEM(TOK_CASE,                  "case") \
+    TOKEN_ITEM(TOK_DEFAULT,               "default") \
+    TOKEN_ITEM(TOK_CONTINUE,              "continue") \
+    TOKEN_ITEM(TOK_BREAK,                 "break") \
+    TOKEN_ITEM(TOK_RETURN,                "return") \
+    TOKEN_ITEM(TOK_ENUM,                  "enum") \
+    TOKEN_ITEM(TOK_SIZEOF,                "sizeof") \
+    TOKEN_ITEM(TOK_RCURLY,                "}") \
+    TOKEN_ITEM(TOK_LCURLY,                "{") \
+    TOKEN_ITEM(TOK_SEMI,                  ";") \
+    TOKEN_ITEM(TOK_COMMA,                 ",") \
+    TOKEN_ITEM(TOK_EQ,                    "=") \
+    TOKEN_ITEM(TOK_PLUS_EQ,               "+=") \
+    TOKEN_ITEM(TOK_MINUS_EQ,              "-=") \
+    TOKEN_ITEM(TOK_MULTIPLY_EQ,           "*=") \
+    TOKEN_ITEM(TOK_DIVIDE_EQ,             "/=") \
+    TOKEN_ITEM(TOK_MOD_EQ,                "%=") \
+    TOKEN_ITEM(TOK_BITWISE_AND_EQ,        "&=") \
+    TOKEN_ITEM(TOK_BITWISE_OR_EQ,         "|=") \
+    TOKEN_ITEM(TOK_BITWISE_XOR_EQ,        "^=") \
+    TOKEN_ITEM(TOK_BITWISE_RIGHT_EQ,      ">>=") \
+    TOKEN_ITEM(TOK_BITWISE_LEFT_EQ,       "<<=") \
+    TOKEN_ITEM(TOK_TERNARY,               "?") \
+    TOKEN_ITEM(TOK_COLON,                 ":") \
+    TOKEN_ITEM(TOK_OR,                    "|") \
+    TOKEN_ITEM(TOK_AND,                   "&") \
+    TOKEN_ITEM(TOK_BITWISE_OR,            "|") \
+    TOKEN_ITEM(TOK_XOR,                   "^") \
+    TOKEN_ITEM(TOK_AMPERSAND,             "&") \
+    TOKEN_ITEM(TOK_DBL_EQ,                "==") \
+    TOKEN_ITEM(TOK_NOT_EQ,                "!=") \
+    TOKEN_ITEM(TOK_LT,                    ">") \
+    TOKEN_ITEM(TOK_GT,                    ">") \
+    TOKEN_ITEM(TOK_LE,                    "<=") \
+    TOKEN_ITEM(TOK_GE,                    ">=") \
+    TOKEN_ITEM(TOK_BITWISE_LEFT,          "<<") \
+    TOKEN_ITEM(TOK_BITWISE_RIGHT,         ">>") \
+    TOKEN_ITEM(TOK_PLUS,                  "+") \
+    TOKEN_ITEM(TOK_MINUS,                 "-") \
+    TOKEN_ITEM(TOK_MULTIPLY,              "*") \
+    TOKEN_ITEM(TOK_DIVIDE,                "/") \
+    TOKEN_ITEM(TOK_MOD,                   "%") \
+    TOKEN_ITEM(TOK_LOGICAL_NOT,           "!") \
+    TOKEN_ITEM(TOK_BITWISE_NOT,           "~") \
+    TOKEN_ITEM(TOK_INC,                   "++") \
+    TOKEN_ITEM(TOK_DEC,                   "--") \
+    TOKEN_ITEM(TOK_DOT,                   ".") \
+    TOKEN_ITEM(TOK_ARROW,                 "->") \
+    TOKEN_ITEM(TOK_RBRACKET,              "]") \
+    TOKEN_ITEM(TOK_LBRACKET,              "[") \
+    TOKEN_ITEM(TOK_RPAREN,                ")") \
+    TOKEN_ITEM(TOK_LPAREN,                "(") \
+    TOKEN_ITEM(TOK_ATTRIBUTE,             "attribute") \
+    TOKEN_ITEM(TOK_PACKED,                "packed") \
+    TOKEN_ITEM(TOK_ALIGNED,               "aligned") \
+    TOKEN_ITEM(TOK_HASH,                  "#") \
+    TOKEN_ITEM(TOK_AUTO,                  "auto") \
+    TOKEN_ITEM(TOK_REGISTER,              "register") \
+    TOKEN_ITEM(TOK_STATIC,                "static") \
+    TOKEN_ITEM(TOK_EXTERN,                "extern") \
+    TOKEN_ITEM(TOK_CONST,                 "const") \
+    TOKEN_ITEM(TOK_VOLATILE,              "volatile") \
+    TOKEN_ITEM(TOK_RESTRICT,              "resrict") \
+    TOKEN_ITEM(TOK_ELLIPSES,              "...") \
+    TOKEN_ITEM(TOK_GOTO,                  "goto") \
+    TOKEN_ITEM(TOK_ASM,                   "asm") \
+    TOKEN_ITEM(TOK_EXTENSION,             "extension")
+
+
 enum {
-    TOK_EOF=1,
-    TOK_IDENTIFIER,
-    TOK_INTEGER,
-    TOK_FLOATING_POINT_NUMBER,
-    TOK_STRING_LITERAL,
-    TOK_IF,
-    TOK_ELSE,
-    TOK_SIGNED,
-    TOK_UNSIGNED,
-    TOK_INLINE,             // 10
-    TOK_VOID,
-    TOK_CHAR,
-    TOK_INT,
-    TOK_SHORT,
-    TOK_LONG,
-    TOK_FLOAT,
-    TOK_DOUBLE,
-    TOK_STRUCT,
-    TOK_UNION,
-    TOK_TYPEDEF,            // 20
-    TOK_TYPEDEF_TYPE,
-    TOK_DO,
-    TOK_WHILE,
-    TOK_FOR,
-    TOK_SWITCH,
-    TOK_CASE,
-    TOK_DEFAULT,
-    TOK_CONTINUE,
-    TOK_BREAK,
-    TOK_RETURN,             // 30
-    TOK_ENUM,
-    TOK_SIZEOF,
-    TOK_RCURLY,
-    TOK_LCURLY,
-    TOK_SEMI,
-    TOK_COMMA,
-    TOK_EQ,
-    TOK_PLUS_EQ,
-    TOK_MINUS_EQ,
-    TOK_MULTIPLY_EQ,        // 40
-    TOK_DIVIDE_EQ,
-    TOK_MOD_EQ,
-    TOK_BITWISE_AND_EQ,
-    TOK_BITWISE_OR_EQ,
-    TOK_BITWISE_XOR_EQ,
-    TOK_BITWISE_RIGHT_EQ,
-    TOK_BITWISE_LEFT_EQ,
-    TOK_TERNARY,
-    TOK_COLON,
-    TOK_OR,                 // 50
-    TOK_AND,
-    TOK_BITWISE_OR,
-    TOK_XOR,
-    TOK_AMPERSAND,
-    TOK_DBL_EQ,
-    TOK_NOT_EQ,
-    TOK_LT,
-    TOK_GT,
-    TOK_LE,
-    TOK_GE,                 // 60
-    TOK_BITWISE_LEFT,
-    TOK_BITWISE_RIGHT,
-    TOK_PLUS,
-    TOK_MINUS,
-    TOK_MULTIPLY,
-    TOK_DIVIDE,
-    TOK_MOD,
-    TOK_LOGICAL_NOT,
-    TOK_BITWISE_NOT,
-    TOK_INC,                // 70
-    TOK_DEC,
-    TOK_DOT,
-    TOK_ARROW,
-    TOK_RBRACKET,
-    TOK_LBRACKET,
-    TOK_RPAREN,
-    TOK_LPAREN,
-    TOK_ATTRIBUTE,
-    TOK_PACKED,
-    TOK_ALIGNED,            // 80
-    TOK_HASH,
-    TOK_AUTO,
-    TOK_REGISTER,
-    TOK_STATIC,
-    TOK_EXTERN,
-    TOK_CONST,
-    TOK_VOLATILE,
-    TOK_RESTRICT,
-    TOK_ELLIPSES,
-    TOK_GOTO,               // 90
-    TOK_ASM,
-    TOK_EXTENSION
+    TOK_NULL,
+#define TOKEN_ITEM(tok, str) tok,
+    TOKEN_LIST(TOKEN_ITEM)
+#undef TOKEN_ITEM
+};
+
+static const char *const token_names[] = {
+    NULL,
+#define TOKEN_ITEM(tok, str) str,
+    TOKEN_LIST(TOKEN_ITEM)
+#undef TOKEN_ITEM
 };
 
 enum {

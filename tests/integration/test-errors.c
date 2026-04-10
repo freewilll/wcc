@@ -444,8 +444,8 @@ int main(int argc, char **argv) {
             "{ foo foo; }\n"
             "foo = 3;\n"
         "}",
-        "Unexpected token",
-        "Unexpected token");
+        "Unexpected =",
+        "Unexpected =");
 
     check_main_output(
         "int i[0 / 0];",

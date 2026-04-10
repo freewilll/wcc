@@ -387,7 +387,7 @@ Value *parse_constant_expression(int level) {
         }
 
         default:
-            error("Unexpected token %d in constant expression", cur_token);
+            error("Unexpected %s in constant expression", token_names[cur_token]);
     }
 
     while (cur_token >= level) {
