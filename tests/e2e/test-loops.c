@@ -99,6 +99,20 @@ void test_do_while() {
 
     assert_int(5, c1, "do_while 3");
     assert_int(4, c2, "do_while 4");
+
+    // Ensure a continue jumps to the conditional expression
+    i = 0;
+    int itererations = 0;
+    do {
+        itererations++;
+        if (itererations == 5) {
+            assert_int(1, 0, "do_while 5: loop didn't terminate");
+            break;
+        }
+
+        continue;
+    } while (i++ < 2);
+    assert_int(1, 1, "do_while 5: loop terminated");
 }
 
 void test_single_goto() {

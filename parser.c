@@ -3088,8 +3088,14 @@ static void parse_expression(int level) {
     }
 }
 
-static void parse_iteration_conditional_expression(Value **lcond, Value **cur_loop_continue_dst, Value *lend) {
-    *lcond  = new_label_dst();
+static void parse_iteration_conditional_expression(Value **lcond, Value **cur_loop_continue_dst, Value *lend, int use_existing_cur_loop_continue_dst) {
+    if (use_existing_cur_loop_continue_dst)
+        // For do/while loops
+        *lcond = *cur_loop_continue_dst;
+    else
+        // For other loops, create a new label
+        *lcond = new_label_dst();
+
     *cur_loop_continue_dst = *lcond;
     add_jmp_target_instruction(*lcond);
 
@@ -3140,7 +3146,7 @@ static void parse_iteration_statement(void) {
 
         // Condition
         if (cur_token != TOK_SEMI) {
-            parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
+            parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend, 0);
         }
         add_parser_instruction(IR_JMP, 0, lbody, 0);
         consume(TOK_SEMI, ";");
@@ -3160,20 +3166,27 @@ static void parse_iteration_statement(void) {
     // Parse while
     else if (loop_token == TOK_WHILE) {
         consume(TOK_LPAREN, "(");
-        parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
+        parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend, 0);
         add_parser_instruction(IR_JMP, 0, lbody, 0);
         consume(TOK_RPAREN, ")");
     }
 
     if (!cur_loop_continue_dst) cur_loop_continue_dst = lbody;
     add_jmp_target_instruction(lbody);
+
+    // In a do/while loop, the continue statement jumps to the conditional statement.
+    // This label needs creating first, so that the loop body can be parsed, and
+    // potentially use the label. The
+    if (loop_token == TOK_DO)
+        cur_loop_continue_dst = new_label_dst();
+
     parse_statement();
 
     // Parse do/while
     if (loop_token == TOK_DO) {
         consume(TOK_WHILE, "while");
         consume(TOK_LPAREN, "(");
-        parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend);
+        parse_iteration_conditional_expression(&lcond, &cur_loop_continue_dst, lend, 1);
         consume(TOK_RPAREN, ")");
         expect(TOK_SEMI, ";");
         while (cur_token == TOK_SEMI) next();
