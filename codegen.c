@@ -791,7 +791,7 @@ static void output_symbol(Symbol *symbol) {
         fprintf(f, "    .local  %s\n", symbol->global_identifier);
     }
 
-    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL) && !symbol->initializers) {
+    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && symbol->definition_status == DEFINITION_STATUS_TENTATIVE) {
         if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
 
         if (opt_enable_common_symbols) {
@@ -803,10 +803,10 @@ static void output_symbol(Symbol *symbol) {
         else {
             int size = get_type_size(symbol->type);
 
-            if (symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL)
+            if (symbol->linkage == LINKAGE_EXTERNAL)
                 fprintf(f, "    .globl   %s\n", symbol->global_identifier);
 
-                if (elf_section != SEC_BSS) { fprintf(f, "    .bss\n"); elf_section = SEC_BSS; }
+            if (elf_section != SEC_BSS) { fprintf(f, "    .bss\n"); elf_section = SEC_BSS; }
 
             fprintf(f, "    .align   %d\n", get_type_alignment(symbol->type));
             fprintf(f, "    .type    %s, @object\n", symbol->global_identifier);
@@ -816,9 +816,11 @@ static void output_symbol(Symbol *symbol) {
         }
     }
 
-    else if (symbol->initializers) {
+    else if (symbol->definition_status == DEFINITION_STATUS_DEFINED) {
+        if (!symbol->initializers) panic("Expected initializers for a symbol with definition status defined");
+
         int size = get_type_size(symbol->type);
-        if (symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL)
+        if (symbol->linkage == LINKAGE_EXTERNAL)
             fprintf(f, "    .globl   %s\n", symbol->global_identifier);
 
         if (elf_section != SEC_DATA) { fprintf(f, "    .data\n"); elf_section = SEC_DATA; }
@@ -1001,9 +1003,7 @@ void output_code(char *input_filename, char *output_filename) {
     // Output symbols for all functions that are defined and have external linkage
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined &&
-                (symbol->linkage == LINKAGE_IMPLICIT_EXTERNAL || symbol->linkage == LINKAGE_EXPLICIT_EXTERNAL)) {
-
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined && symbol->linkage == LINKAGE_EXTERNAL) {
             fprintf(f, "    .globl  %s\n", symbol->identifier);
             fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
         }

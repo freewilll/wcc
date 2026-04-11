@@ -146,6 +146,26 @@ void assert_memory(char *expected, char *actual, int size, char *message) {
     }
 }
 
+char *write_temp_c_file(char *content) {
+    char *filename = strdup("/tmp/test-XXXXXX.c");
+    int fd = mkstemps(filename, 2);
+    if (fd == -1) {
+        perror("in mkstemps");
+        exit(1);
+    }
+
+    FILE *fp = fdopen(fd, "w");
+    if (!fp) {
+        perror("in fdopen");
+        exit(1);
+    }
+
+    fprintf(fp, "%s", content);
+    fclose(fp);
+
+    return filename;
+}
+
 
 void finalize() {
     if (failures == 0) {

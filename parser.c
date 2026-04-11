@@ -1761,6 +1761,8 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
 
     if (!s->initializers) s->initializers = new_list(INITIAL_INITALIZERS_COUNT);
 
+    s->definition_status = DEFINITION_STATUS_DEFINED;
+
     int bf_offset;
     int bf_bit_offset;
     int bf_bit_size;
@@ -2153,6 +2155,7 @@ static void parse_declaration(void) {
         symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
         symbol->linkage = LINKAGE_INTERNAL;
+        symbol->definition_status = DEFINITION_STATUS_TENTATIVE;
         Function *function = cur_function_symbol->function;
 
         char *global_identifier;
@@ -2167,13 +2170,15 @@ static void parse_declaration(void) {
         // without adding any linkage
         symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
-        symbol->linkage = LINKAGE_EXPLICIT_EXTERNAL;
+        symbol->linkage = LINKAGE_EXTERNAL;
+        symbol->definition_status = DEFINITION_STATUS_DEFINED;
         symbol->global_identifier = cur_type_identifier;
     }
     else {
         symbol = new_symbol(cur_type_identifier);
         symbol->type = dup_type(type);
         symbol->linkage = LINKAGE_NONE;
+        symbol->definition_status = DEFINITION_STATUS_NONE;
         symbol->local_index = new_local_index();
     }
 
@@ -3573,6 +3578,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
 
     if (!is_defined) {
         symbol->linkage = linkage;
+        symbol->definition_status = DEFINITION_STATUS_DEFINED;
         symbol->function = new_function();
 
         symbol->function->type = type;
@@ -3661,28 +3667,6 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
     return is_definition;
 }
 
-// Ensure linkage is the same for a symbol that has been redeclared.
-int redefined_symbol_linkage(int linkage1, int linkage2, char *cur_type_identifier) {
-    if (linkage1 == linkage2) return linkage1;
-
-    // Allow, e.g. static int i; extern int i;
-    if (linkage1 == LINKAGE_INTERNAL && linkage2 == LINKAGE_EXPLICIT_EXTERNAL)
-        return LINKAGE_INTERNAL;
-
-    // If either is an implicit external, then the result is an implicit external
-    if (
-            (linkage1 == LINKAGE_IMPLICIT_EXTERNAL && linkage2 == LINKAGE_EXPLICIT_EXTERNAL) ||
-            (linkage1 == LINKAGE_EXPLICIT_EXTERNAL && linkage2 == LINKAGE_IMPLICIT_EXTERNAL) ||
-            (linkage1 == LINKAGE_IMPLICIT_EXTERNAL && linkage2 == LINKAGE_IMPLICIT_EXTERNAL))
-        return LINKAGE_IMPLICIT_EXTERNAL;
-
-    // Otherwise if either is explicit external, the result is an explicit external
-    if (linkage1 == LINKAGE_EXPLICIT_EXTERNAL && linkage2 == LINKAGE_EXPLICIT_EXTERNAL)
-        return LINKAGE_EXPLICIT_EXTERNAL;
-
-    error("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
-}
-
 // Parse a translation unit
 void parse(void) {
     while (cur_token != TOK_EOF) {
@@ -3731,18 +3715,31 @@ void parse(void) {
                 else
                     symbol = original_symbol;
 
-                if ((symbol->type->type == TYPE_FUNCTION) != (type->type == TYPE_FUNCTION))
+                int is_function = symbol->type->type == TYPE_FUNCTION;
+                if ((is_function) != (type->type == TYPE_FUNCTION))
                     error("%s redeclared as different kind of symbol", cur_type_identifier);
 
-                int linkage =
-                    base_type->storage_class == SC_STATIC ? LINKAGE_INTERNAL
-                    : base_type->storage_class == SC_EXTERN ? LINKAGE_EXPLICIT_EXTERNAL
-                    : LINKAGE_IMPLICIT_EXTERNAL;
+                if (!original_symbol && !is_function && base_type->storage_class == SC_EXTERN) {
+                    // The object has no storage. This may change later if another declaration or definition comes along.
+                    symbol->definition_status = DEFINITION_STATUS_NONE;
+                }
+                else {
+                    // Set the storage to tentative. This may change if a definition comes along later
+                    symbol->definition_status = DEFINITION_STATUS_TENTATIVE;
+                }
 
-                if (original_symbol)
-                    linkage = redefined_symbol_linkage(original_symbol->linkage, linkage, cur_type_identifier);
+                int linkage = base_type->storage_class == SC_STATIC ? LINKAGE_INTERNAL : LINKAGE_EXTERNAL;
+
+                if (original_symbol) {
+                    int inherit_from_previous = base_type->storage_class == SC_EXTERN;
+                    if (!inherit_from_previous && original_symbol->linkage != linkage)
+                        error("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
+                    else if (inherit_from_previous)
+                        linkage = original_symbol->linkage;
+                }
 
                 symbol->linkage = linkage;
+
                 if (type->type == TYPE_FUNCTION) {
                     int is_definition = parse_function(type, linkage, symbol, original_symbol);
                     if (is_definition) break; // No more declarations are possible, break out of comma parsing loop

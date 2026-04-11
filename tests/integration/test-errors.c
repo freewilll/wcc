@@ -11,28 +11,8 @@ int verbose;
 int passes;
 int failures;
 
-static char *write_temp_file(char *content) {
-    char *filename = strdup("/tmp/test-errors-XXXXXX.c");
-    int fd = mkstemps(filename, 2);
-    if (fd == -1) {
-        perror("in mkstemps");
-        exit(1);
-    }
-
-    FILE *fp = fdopen(fd, "w");
-    if (!fp) {
-        perror("in fdopen");
-        exit(1);
-    }
-
-    fprintf(fp, "%s", content);
-    fclose(fp);
-
-    return filename;
-}
-
 static void check_output(char *code, char *expected, char *message) {
-    char *filename = write_temp_file(code);
+    char *filename = write_temp_c_file(code);
 
     char command[128];
     sprintf(command, WCC " %s -I ../../include 2>&1", filename);
@@ -283,25 +263,25 @@ int main(int argc, char **argv) {
         "static int a;"
         "int a;",
         "Mismatching linkage in redeclared identifier a",
-        "Mismatching linkage static/non-static");
+        "Mismatching linkage static/non-static 1");
 
     check_output(
         "int a;"
         "static int a;",
         "Mismatching linkage in redeclared identifier a",
-        "Mismatching linkage non-static/static");
+        "Mismatching linkage non-static/static 1");
 
     check_output(
         "static int a();"
         "int a();",
         "Mismatching linkage in redeclared identifier a",
-        "Mismatching linkage static/non-static");
+        "Mismatching linkage static/non-static 2");
 
     check_output(
         "int a();"
         "static int a();",
         "Mismatching linkage in redeclared identifier a",
-        "Mismatching linkage non-static/static");
+        "Mismatching linkage non-static/static 2");
 
     check_main_output(
         "switch(1.1);",

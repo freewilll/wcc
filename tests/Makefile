@@ -40,6 +40,10 @@ test-unit-types: ${COMMON_DEPENDENCIES}
 test-integration: ${COMMON_DEPENDENCIES}
 	${MAKE} -C ${SRC_DIR}/tests/integration all
 
+.PHONY: test-integration-test-linkage-and-storage
+test-integration-test-linkage-and-storage: ${COMMON_DEPENDENCIES}
+	${MAKE} -C ${SRC_DIR}/tests/integration run-test-linkage-and-storage
+
 .PHONY: test-cpp
 test-cpp:
 	${MAKE} -C ${SRC_DIR}/tests/cpp all

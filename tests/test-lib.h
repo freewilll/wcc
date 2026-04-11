@@ -6,6 +6,7 @@ void assert_double(double expected, double got, char *message);
 void assert_long_double(long double expected, long double got, char *message);
 void assert_string(char *expected, char *actual, char *message);
 void assert_memory(char *expected, char *actual, int size, char *message);
+char *write_temp_c_file(char *content);
 void finalize();
 void parse_args(int argc, char **argv, int *verbose);
 int wasprintf(char **ret, const char *format, ...);

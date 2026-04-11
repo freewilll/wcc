@@ -164,6 +164,10 @@ test-unit-types: libwcc.a
 test-integration: libwcc.a wcc
 	${MAKE} -C ${SRC_DIR}/tests test-integration
 
+.PHONY: test-integration-test-linkage-and-storage
+test-integration-test-linkage-and-storage: libwcc.a wcc
+	${MAKE} -C ${SRC_DIR}/tests test-integration-test-linkage-and-storage
+
 .PHONY: test-e2e
 test-e2e: wcc
 	${MAKE} -C ${SRC_DIR}/tests test-e2e
