@@ -794,7 +794,9 @@ static void output_symbol(Symbol *symbol) {
     if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && symbol->definition_status == DEFINITION_STATUS_TENTATIVE) {
         if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
 
-        if (opt_enable_common_symbols) {
+        // opt_enable_common_symbols applies to symbols with external linkage.
+        // For symbols with internal linkage, a .comm section will do just fine.
+        if (symbol->linkage == LINKAGE_INTERNAL || opt_enable_common_symbols) {
             fprintf(f, "    .comm   %s,%d,%d\n",
                 symbol->global_identifier,
                 get_type_size(symbol->type),
