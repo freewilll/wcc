@@ -1003,8 +1003,9 @@ void output_code(char *input_filename, char *output_filename) {
     // Output symbols for all functions that are defined and have external linkage
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined && symbol->linkage == LINKAGE_EXTERNAL) {
-            fprintf(f, "    .globl  %s\n", symbol->identifier);
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
+            if (symbol->linkage == LINKAGE_EXTERNAL)
+                fprintf(f, "    .globl  %s\n", symbol->identifier);
             fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
         }
     }

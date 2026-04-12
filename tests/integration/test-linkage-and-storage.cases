@@ -140,6 +140,7 @@ f:
 static int f() {}
 ------------------------
     .text
+    .type   f, @function
 
 .Lall.code.start:
 f:
@@ -159,6 +160,7 @@ f:
 static int f(); int f() {}
 ------------------------
     .text
+    .type   f, @function
 
 .Lall.code.start:
 f:
@@ -178,6 +180,7 @@ f:
 static int f(); int f() {}
 ------------------------
     .text
+    .type   f, @function
 
 .Lall.code.start:
 f:
