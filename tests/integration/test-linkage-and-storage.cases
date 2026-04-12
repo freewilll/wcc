@@ -153,6 +153,44 @@ f:
 
 ------------------------
 
+% static int f(}; int f() {} Defined declaration, internal linkage
+static int f(); int f() {}
+------------------------
+    .text
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+
+% static int f(}; extern int f() {} Defined declaration, internal linkage
+static int f(); int f() {}
+------------------------
+    .text
+
+.Lall.code.start:
+f:
+.Lf.start:
+    push        %rbp
+    mov         %rsp, %rbp
+    leaveq
+    retq
+    .size       f, .-f
+.Lf.end:
+
+.Lall.code.end:
+
+------------------------
+
 % {int i; } no declaration, no linkage
 void f() { int i; }
 ------------------------

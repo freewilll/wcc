@@ -272,12 +272,6 @@ int main(int argc, char **argv) {
         "Mismatching linkage non-static/static 1");
 
     check_output(
-        "static int a();"
-        "int a();",
-        "Mismatching linkage in redeclared identifier a",
-        "Mismatching linkage static/non-static 2");
-
-    check_output(
         "int a();"
         "static int a();",
         "Mismatching linkage in redeclared identifier a",

@@ -3715,6 +3715,7 @@ void parse(void) {
                 else
                     symbol = original_symbol;
 
+                // Determine the definition status
                 int is_function = symbol->type->type == TYPE_FUNCTION;
                 if ((is_function) != (type->type == TYPE_FUNCTION))
                     error("%s redeclared as different kind of symbol", cur_type_identifier);
@@ -3728,10 +3729,18 @@ void parse(void) {
                     symbol->definition_status = DEFINITION_STATUS_TENTATIVE;
                 }
 
+                // The linkage for objects without a storage class is external.
+                // The linkage for functions without a storage class is external if there is no prior declaration.
                 int linkage = base_type->storage_class == SC_STATIC ? LINKAGE_INTERNAL : LINKAGE_EXTERNAL;
 
                 if (original_symbol) {
+                    // The extern keyword applies to both functions and objects and caused them
+                    // both to use the linkage from a prior declaration.
                     int inherit_from_previous = base_type->storage_class == SC_EXTERN;
+
+                    // The linkage for a function without a storage class behaves as if the extern keyword was present.
+                    if (is_function && base_type->storage_class == SC_NONE) inherit_from_previous = 1;
+
                     if (!inherit_from_previous && original_symbol->linkage != linkage)
                         error("Mismatching linkage in redeclared identifier %s", cur_type_identifier);
                     else if (inherit_from_previous)
