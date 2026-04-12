@@ -22,6 +22,7 @@ int error_int_conversion = 0;
 
 int warn_integer_constant_too_large = 0;
 int warn_assignment_types_incompatible = 0;
+int warn_extern_initializer = 0;
 
 int debug_function_param_allocation = 0;
 int debug_function_arg_mapping = 0;

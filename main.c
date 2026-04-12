@@ -170,6 +170,7 @@ int main(int argc, char **argv) {
     opt_optimize_arithmetic_operations = 1;
     warn_integer_constant_too_large = 1;
     warn_assignment_types_incompatible = 1;
+    warn_extern_initializer = 1;
     error_incomptatible_pointer_type = 1;
     error_int_conversion = 1;
 
@@ -282,6 +283,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "-Wno-int-conversion"                     )) { error_int_conversion = 0;                   argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-Wno-integer-constant-too-large"         )) { warn_integer_constant_too_large = 0;        argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-Wno-warn-assignment-types-incompatible" )) { warn_assignment_types_incompatible = 0;     argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "-Wno-extern-initializer"                 )) { warn_extern_initializer = 0;                argc--; argv++; }
 
             else if (argc > 0 && !strncmp(argv[0], "-O", 2)) { argc--; argv++; } // Ignore -O
 

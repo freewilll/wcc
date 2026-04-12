@@ -1761,6 +1761,9 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
 
     if (!s->initializers) s->initializers = new_list(INITIAL_INITALIZERS_COUNT);
 
+    if (s->has_extern_keyword && warn_extern_initializer)
+        warning("Object with extern keyword %s has an initializer", s->identifier);
+
     s->definition_status = DEFINITION_STATUS_DEFINED;
 
     int bf_offset;
@@ -3717,10 +3720,11 @@ void parse(void) {
 
                 // Determine the definition status
                 int is_function = symbol->type->type == TYPE_FUNCTION;
+                int has_extern_keyword = base_type->storage_class == SC_EXTERN;
                 if ((is_function) != (type->type == TYPE_FUNCTION))
                     error("%s redeclared as different kind of symbol", cur_type_identifier);
 
-                if (!original_symbol && !is_function && base_type->storage_class == SC_EXTERN) {
+                if (!original_symbol && !is_function && has_extern_keyword) {
                     // The object has no storage. This may change later if another declaration or definition comes along.
                     symbol->definition_status = DEFINITION_STATUS_NONE;
                 }
@@ -3736,7 +3740,7 @@ void parse(void) {
                 if (original_symbol) {
                     // The extern keyword applies to both functions and objects and caused them
                     // both to use the linkage from a prior declaration.
-                    int inherit_from_previous = base_type->storage_class == SC_EXTERN;
+                    int inherit_from_previous = has_extern_keyword;
 
                     // The linkage for a function without a storage class behaves as if the extern keyword was present.
                     if (is_function && base_type->storage_class == SC_NONE) inherit_from_previous = 1;
@@ -3748,6 +3752,7 @@ void parse(void) {
                 }
 
                 symbol->linkage = linkage;
+                symbol->has_extern_keyword = has_extern_keyword;
 
                 if (type->type == TYPE_FUNCTION) {
                     int is_definition = parse_function(type, linkage, symbol, original_symbol);

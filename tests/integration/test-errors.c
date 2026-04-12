@@ -277,6 +277,11 @@ int main(int argc, char **argv) {
         "Mismatching linkage in redeclared identifier a",
         "Mismatching linkage non-static/static 2");
 
+    check_output(
+        "extern int i = 1;",
+        "Object with extern keyword i has an initializer",
+        "Object with extern keyword i has an initializer");
+
     check_main_output(
         "switch(1.1);",
         "The controlling expression of a switch statement is not an integral type",

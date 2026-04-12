@@ -20,7 +20,7 @@ static void check_output(char *code, char *expected, char *message) {
     int fd = mkstemps(input_filename, 2);
 
     char command[128];
-    sprintf(command, WCC " %s -I ../../include -c -S -o %s", input_filename, output_filename);
+    sprintf(command, WCC " %s -I ../../include -Wno-extern-initializer -c -S -o %s", input_filename, output_filename);
 
     int result = system(command);
     if (result != 0) exit(result >> 8);
