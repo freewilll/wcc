@@ -103,3 +103,13 @@ void test_address_of() {
 int add_one(int i) {
     return i + 1;
 }
+
+// Test a bug where IR code was trying to load/save and panicking on a global symbol being present
+static int enum_global_symbol_bug(void) {
+    enum { FOO };
+
+    switch (1) {
+        case FOO:
+            return 1;
+    }
+}
