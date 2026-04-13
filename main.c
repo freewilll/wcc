@@ -64,12 +64,8 @@ static int is_assembly_file(const char *const filename) {
     return filename_len > 2 && filename[filename_len - 2] == '.' && filename[filename_len - 1] == 's';
 }
 
-// Check if the filename ends in .so or .o
-static int is_object_file(const char *const filename) {
-    int filename_len = strlen(filename);
-    return
-        (filename_len > 3 && filename[filename_len - 3] == '.' && filename[filename_len - 2] == 's' && filename[filename_len - 1] == 'o') ||
-        (filename_len > 2 && filename[filename_len - 2] == '.' && filename[filename_len - 1] == 'o');
+static int is_linker_file(const char *const filename) {
+    return !is_c_source_file(filename) && !is_assembly_file(filename);
 }
 
 // Strip the path an add/replace the filename's extension
@@ -592,7 +588,7 @@ int main(int argc, char **argv) {
         }
 
         // Object files need to be at the end
-        if (is_object_file(input_filename)) continue;
+        if (is_linker_file(input_filename)) continue;
 
         init_memory_management_for_translation_unit();
         char *preprocessor_output = preprocess(input_filename, directive_cli_strings);
@@ -651,7 +647,7 @@ int main(int argc, char **argv) {
     // Preprocessing + compilation phase
     for (int i = 0; i < input_filenames->length; i++) {
         char *input_filename = input_filenames->elements[i];
-        if (is_object_file(input_filename)) linker_input_filenames[i] = wstrdup(input_filename);
+        if (is_linker_file(input_filename)) linker_input_filenames[i] = wstrdup(input_filename);
     }
 
     // Linker phase
