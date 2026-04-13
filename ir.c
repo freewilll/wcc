@@ -1207,13 +1207,12 @@ static Value *add_load_from_got(Function *function, Tac *tac, Value *src) {
     insert_instruction_from_operation(tac, IR_LOAD_FROM_GOT, dst, got_src, 0, 0);
 
     dst->offset = src->offset;
-    src->offset = 0;
     got_src->offset = 0;
 
     return dst;
 }
 
-// When compiled with Position Independent Code (PIC) , all accesses to global objects
+// When compiled with Position Independent Code (PIC), all accesses to global objects
 // go through a Global Offset Table (GOT). The GOT table has pointers to the globals.
 // Any load/save must first load a pointer to the global object from the GOT and use
 // that rather than going directly to memory.

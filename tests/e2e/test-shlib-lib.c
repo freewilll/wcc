@@ -27,6 +27,12 @@ float fa[2] = {0, 0};
 double da[2] = {0, 0};
 long double lda[2] = {0, 0};
 
+struct {
+    int a;
+    int b;
+    int c;
+} g;
+
 int inc_c() { c++; }
 int inc_s() { s++; }
 int inc_i() { i++; }
@@ -112,4 +118,17 @@ static int enum_global_symbol_bug(void) {
         case FOO:
             return 1;
     }
+}
+
+// This tests a bugfix.
+// The double assignment caused the same src1 to be reused. A first TAC obliterated the offset, leading
+// to a zero offset in the second TAC.
+void test_global_struct_member_access(void) {
+    int n = 20;
+    g.a = -1;
+    g.b = g.c = n;
+
+    assert_int(-1, g.a, "Read/writes from global struct with -fPIC a");
+    assert_int(20, g.b, "Read/writes from global struct with -fPIC b");
+    assert_int(20, g.c, "Read/writes from global struct with -fPIC c");
 }
