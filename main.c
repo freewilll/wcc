@@ -13,21 +13,6 @@ typedef struct linker_input {
 
 CliLibraryPath *cli_library_paths;      // Linked list of library paths passed on the command line with -L
 
-void get_debug_env_value(char *key, int *val) {
-    char *env_value;
-    if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;
-}
-
-static char *get_as_binary(void) {
-    char *env_value = getenv("AS");
-    return env_value ? env_value : DEFAULT_AS_COMMAND;
-}
-
-static char *get_ld_binary(void) {
-    char *env_value = getenv("LD");
-    return env_value ? env_value : DEFAULT_LD_COMMAND;
-}
-
 typedef struct libc_config {
     const char *name;
     const char *dynamic_linker;
@@ -51,6 +36,21 @@ static const LibcConfig MUSL_CONFIG = {
     MUSL_STARTFILES,
     MUSL_ENDFILES,
 };
+
+static void get_debug_env_value(char *key, int *val) {
+    char *env_value;
+    if ((env_value = getenv(key)) && !strcmp(env_value, "1")) *val = 1;
+}
+
+static char *get_as_binary(void) {
+    char *env_value = getenv("AS");
+    return env_value ? env_value : DEFAULT_AS_COMMAND;
+}
+
+static char *get_ld_binary(void) {
+    char *env_value = getenv("LD");
+    return env_value ? env_value : DEFAULT_LD_COMMAND;
+}
 
 // Check if the filename ends in .c
 static int is_c_source_file(const char *const filename) {
