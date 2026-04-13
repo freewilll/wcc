@@ -928,7 +928,6 @@ typedef struct string_buffer {
 
 NORETURN void panic(char *format, ...);
 
-char *base_path(char *path);
 int wasprintf(char **ret, const char *format, ...);
 StringBuffer *new_string_buffer(int initial_size);
 void free_string_buffer(StringBuffer *sb, int free_data);

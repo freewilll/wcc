@@ -19,17 +19,6 @@ NORETURN void panic(char *format, ...) {
     exit(1);
 }
 
-// Strip the filename component from a path
-char *base_path(char *path) {
-    int end = strlen(path) - 1;
-    char *result = wmalloc(strlen(path) + 1);
-    while (end >= 0 && path[end] != '/') end--;
-    if (end >= 0) result = memcpy(result, path, end + 1);
-    result[end + 1] = 0;
-
-    return result;
-}
-
 int wasprintf(char **ret, const char *format, ...) {
     va_list ap1;
     va_start(ap1, format);
