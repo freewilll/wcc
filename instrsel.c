@@ -109,10 +109,10 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
             case IR_BSHL:                 c += printf("<<"); break;
             case IR_BSHR:                 c += printf(">>"); break;
             case IR_ASHR:                 c += printf("a>>"); break;
-            case IR_BNOT:                 c += printf("!"); break;
+            case IR_BNOT:                 c += printf("~"); break;
             case IR_BOR:                  c += printf("|"); break;
             case IR_BAND:                 c += printf("&"); break;
-            case IR_XOR:                  c += printf("~"); break;
+            case IR_XOR:                  c += printf("^"); break;
             case IR_INDIRECT:             c += printf("indirect"); break;
             case IR_ADDRESS_OF:           c += printf("&"); break;
             case IR_MOVE_TO_PTR:          c += printf("move to ptr"); break;
@@ -615,10 +615,10 @@ static Value *merge_cst_node(IGraph *igraph, int node_id, Value *v) {
     return v;
 }
 
-static Value *merge_cst_int_node(IGraph *igraph, int node_id, long constant_value, int is_unsigned) {
+static Value *merge_cst_int_node(IGraph *igraph, int node_id, long constant_value, Type *type) {
     Value *v = new_value();
-    v->type = new_type(TYPE_LONG);
-    v->type->is_unsigned = is_unsigned;
+    v->type = dup_type(type);
+
     v->is_constant = 1;
     v->int_value = constant_value;
     return merge_cst_node(igraph, node_id, v);
@@ -638,7 +638,7 @@ static Value* merge_integer_constants(IGraph *igraph, int node_id, int operation
     if (!value)
         return 0;
     else
-        return merge_cst_int_node(igraph, node_id, value->int_value, value->type->is_unsigned);
+        return merge_cst_int_node(igraph, node_id, value->int_value, value->type);
 }
 
 static Value* merge_fp_constants(IGraph *igraph, int node_id, int operation, Value *src1, Value *src2, Type *type) {
@@ -649,7 +649,7 @@ static Value* merge_fp_constants(IGraph *igraph, int node_id, int operation, Val
     else if (is_floating_point_type(value->type))
         return merge_cst_fp_node(igraph, node_id, type, value->fp_value);
     else
-        return merge_cst_int_node(igraph, node_id, value->int_value, 0);
+        return merge_cst_int_node(igraph, node_id, value->int_value, value->type);
 }
 
 static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
@@ -675,7 +675,7 @@ static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     if (!src1 || !cst1) return 0;
 
     // Unary operations
-    if (operation == IR_BNOT) return merge_cst_int_node(igraph, node_id, ~src1->int_value, src1->type->is_unsigned);
+    if (operation == IR_BNOT) return merge_cst_int_node(igraph, node_id, ~src1->int_value, src1->type);
 
     // Binary operations
     int cst2 = cst1 && (src2 && src2->is_constant);

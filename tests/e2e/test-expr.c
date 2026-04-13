@@ -1600,10 +1600,14 @@ int test_constant_casting() {
     assert_int(-1,                   (int)            -1L, "Casting to int");
     assert_long(0xffffffffffffffffL, (unsigned long)  -1L, "Casting to unsigned long");
     assert_long(-1,                  (long)           -1L, "Casting to long");
+
+    // Edge case of constant folding leading to a long internal type instead of an unsigned int.
+    // This would lead to no matched rules.
+    unsigned int f = 7;
+    assert_long(5, f & ~(unsigned int) (char) 2, "Constant folding with casts");
 }
 
-static long bswap64(long i)
-{
+static long bswap64(long i) {
     return (
         (((i) & 0xff00000000000000ull) >> 56) |
         (((i) & 0x00ff000000000000ull) >> 40) |
