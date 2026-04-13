@@ -1016,7 +1016,6 @@ void init_parser(void);
 void free_parser(void);
 
 // constexpr.c
-Value* evaluate_const_unary_int_operation(int operation, Value *value);
 Value* evaluate_const_binary_int_operation(int operation, Value *src1, Value *src2);
 Value* evaluate_const_binary_fp_operation(int operation, Value *src1, Value *src2, Type *type);
 Value *cast_constant_value(Value *src, Type *type);

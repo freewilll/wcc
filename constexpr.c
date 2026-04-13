@@ -14,7 +14,7 @@ static Value *indirect(Value *value) {
     return value;
 }
 
-Value *evaluate_const_unary_int_operation(int operation, Value *value) {
+static Value *evaluate_const_unary_int_operation(int operation, Value *value) {
     long r;
 
          if (operation == IR_BNOT) r = ~value->int_value;
@@ -25,7 +25,7 @@ Value *evaluate_const_unary_int_operation(int operation, Value *value) {
 
     // Perform integer promotions everywhere except for logical not,
     Value *v = new_value();
-    v->type = IR_LNOT ? new_type(TYPE_INT) : integer_promote_type(value->type);
+    v->type = operation == IR_LNOT ? new_type(TYPE_INT) : integer_promote_type(value->type);
     v->type->is_unsigned = value->type->is_unsigned;
     v->is_constant = 1;
     v->int_value = r;
@@ -45,7 +45,7 @@ Value *evaluate_const_unary_fp_operation(int operation, Value *value) {
 
     // Perform integer promotions everywhere except for logical not,
     Value *v = new_value();
-    v->type = IR_LNOT ? new_type(TYPE_INT) : value->type;
+    v->type = operation == IR_LNOT ? new_type(TYPE_INT) : value->type;
     v->is_constant = 1;
     if (is_int) v->int_value = i; else v->fp_value = ld;
 

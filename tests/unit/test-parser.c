@@ -418,6 +418,12 @@ void test_constant_expressions() {
     assert_int_const_expr("sizeof(1.1 + 1.1L)",      16);
     assert_int_const_expr("sizeof(!1.1)",            4);
     assert_int_const_expr("sizeof(1.1 == 1.1)",      4);
+    assert_int_const_expr("sizeof(+1L)",             8);
+    assert_int_const_expr("sizeof(-1L)",             8);
+    assert_int_const_expr("sizeof(+1.0)",            8);
+    assert_int_const_expr("sizeof(-1.0)",            8);
+    assert_int_const_expr("sizeof(+1.0L)",           16);
+    assert_int_const_expr("sizeof(-1.0L)",           16);
 
     // Casting is tested in test_constant_casting()
     // See also test-initializers for many more constant expression tests
