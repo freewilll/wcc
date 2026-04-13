@@ -63,8 +63,8 @@ internals.c: ${SRC_DIR}/internals.h make-internals
 internals.o: internals.c
 	${GCC} ${GCC_OPTS} -c $< -o $@
 
-instrgen: ${SOURCES_ABS_PATH} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c
-	${GCC} ${GCC_OPTS} -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${SOURCES_ABS_PATH} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c -o $@
+instrgen: ${OBJECTS} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c
+	${GCC} ${GCC_OPTS} -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${OBJECTS} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c -o $@
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
