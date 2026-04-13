@@ -58,9 +58,21 @@ int test_compatible_types() {
     assert_int(0, types_are_compatible(new_type(TYPE_CHAR), new_type(TYPE_INT)), "char int");
     assert_int(1, types_are_compatible(new_type(TYPE_INT), new_type(TYPE_INT)), "int int");
 
+    type1 = lex_type("char i");
+    type2 = lex_type("unsigned char i");
+    assert_int(0, types_are_compatible(type1, type2), "unsigned char and signed char");
+
+    type1 = lex_type("short i");
+    type2 = lex_type("unsigned short i");
+    assert_int(0, types_are_compatible(type1, type2), "unsigned short and signed short");
+
     type1 = lex_type("int i");
     type2 = lex_type("unsigned int i");
-    assert_int(1, types_are_compatible(type1, type2), "unsigned int and signed int");
+    assert_int(0, types_are_compatible(type1, type2), "unsigned int and signed int");
+
+    type1 = lex_type("long i");
+    type2 = lex_type("unsigned long i");
+    assert_int(0, types_are_compatible(type1, type2), "unsigned long and signed long");
 
     type1 = new_type(TYPE_INT); type1->is_const = 1;
     type2 = new_type(TYPE_INT);

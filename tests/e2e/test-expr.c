@@ -1605,6 +1605,11 @@ int test_constant_casting() {
     // This would lead to no matched rules.
     unsigned int f = 7;
     assert_long(5, f & ~(unsigned int) (char) 2, "Constant folding with casts");
+
+    // Bugfix where an unsigned long and long were considered a compatible type,
+    // leading to the (long) cast getting ignored.
+    // 0x8000000000000000LL lexes to an unsigned long.
+    assert_int(1, ((long) 0x8000000000000000LL) < 0, "Casting unsigned long literal to long");
 }
 
 static long bswap64(long i) {
