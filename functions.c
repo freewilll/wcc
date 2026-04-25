@@ -104,7 +104,7 @@ static int make_int_struct_or_union_move_from_register_to_stack_instructions(
         shift_register->type = new_type(TYPE_CHAR + i);
         shift_register->type->is_unsigned = 1;
 
-        insert_instruction_from_operation(ir, IR_MOVE, dst, shift_register, 0, 0);
+        new_tac_before(ir, IR_MOVE, dst, shift_register, 0, 0);
 
         size -= size_unit;
         offset += size_unit;
@@ -117,7 +117,7 @@ static int make_int_struct_or_union_move_from_register_to_stack_instructions(
         Value *new_shift_register = dup_value(shift_register);
         new_shift_register->live_range_preg = 0;
 
-        insert_instruction_from_operation(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 0);
+        new_tac_before(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 0);
 
         shift_register = new_shift_register;
     }
@@ -146,14 +146,14 @@ static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
         // Move a single float
         param_register->type = new_type(TYPE_FLOAT);
         Value *dst = make_param_dst_on_stack(TYPE_FLOAT, stack_index, pl->stru_offset);
-        insert_instruction_from_operation(ir, IR_MOVE, dst, param_register, 0, 0);
+        new_tac_before(ir, IR_MOVE, dst, param_register, 0, 0);
     }
 
     else if (pl->stru_size == 8 && pl->stru_member_count == 1) {
         // Move a single double
         param_register->type = new_type(TYPE_DOUBLE);
         Value *dst = make_param_dst_on_stack(TYPE_DOUBLE, stack_index, pl->stru_offset);
-        insert_instruction_from_operation(ir, IR_MOVE, dst, param_register, 0, 0);
+        new_tac_before(ir, IR_MOVE, dst, param_register, 0, 0);
     }
 
     else {
@@ -163,10 +163,10 @@ static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
         Value *temp_int = new_value();
         temp_int->type = new_type(TYPE_LONG);
         temp_int->vreg = ++function->vreg_count;
-        insert_instruction_from_operation(ir, IR_MOVE_PREG_CLASS, temp_int, param_register, 0, 0);
+        new_tac_before(ir, IR_MOVE_PREG_CLASS, temp_int, param_register, 0, 0);
 
         Value *dst = make_param_dst_on_stack(TYPE_LONG, stack_index, pl->stru_offset);
-        insert_instruction_from_operation(ir, IR_MOVE, dst, temp_int, 0, 0);
+        new_tac_before(ir, IR_MOVE, dst, temp_int, 0, 0);
     }
 
     return live_range_preg;
@@ -200,7 +200,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
             Value *dst = new_value();
             dst->vreg = live_range_pregs[loc];
             dst->type = location->int_register != -1 ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
-            insert_instruction_from_operation(ir, IR_CALL_ARG_REG, dst, 0, 0, 1);
+            new_tac_before(ir, IR_CALL_ARG_REG, dst, 0, 0, 1);
         }
 
         for (int loc = 0; loc < fpl->count; loc++) {
@@ -234,14 +234,14 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
         Value *address_value = new_value();
         address_value->vreg = ++function->vreg_count;
         address_value->type = make_pointer_to_void();
-        insert_instruction_from_operation(ir, IR_ADDRESS_OF, address_value, ir->dst, 0, 1);
+        new_tac_before(ir, IR_ADDRESS_OF, address_value, ir->dst, 0, 1);
 
         // Move struct/union target address into rdi
         Value *rdi_value = new_value();
         rdi_value->vreg = ++function->vreg_count;
         rdi_value->type = make_pointer_to_void();
         rdi_value->live_range_preg = LIVE_RANGE_PREG_RDI_INDEX;
-        insert_instruction_from_operation(ir, IR_MOVE, rdi_value, address_value, 0, 1);
+        new_tac_before(ir, IR_MOVE, rdi_value, address_value, 0, 1);
 
         // Setup dst for rax
         Value *struct_dst = ir->dst;
@@ -288,7 +288,7 @@ void add_function_call_result_moves(Function *function) {
             add_to_set(ir->src1->return_value_live_ranges, tac->src1->live_range_preg);
 
             ir->dst = value;
-            insert_instruction(ir->next, tac, 1);
+            insert_tac_before(ir->next, tac, 1);
         }
     }
 }
@@ -302,7 +302,7 @@ void add_function_call_result_moves(Function *function) {
 static void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count) {
     for (int i = 0; i < count; i++)
         if (function_call_values[i])
-            insert_instruction_from_operation(ir, IR_CALL_ARG_REG, 0, function_call_values[i], 0, 1);
+            new_tac_before(ir, IR_CALL_ARG_REG, 0, function_call_values[i], 0, 1);
 }
 
 // Move struct or union of size <= 32 into rax/rdx or xmm0/xmm1
@@ -336,8 +336,8 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
         dst->type = make_pointer_to_void();
         dst->vreg = ++function->vreg_count;
 
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, function->return_value_pointer, 0);
-        ir = insert_instruction_after_from_operation(ir, IR_RETURN, 0, 0, 0);
+        ir = new_tac_after(ir, IR_MOVE, dst, function->return_value_pointer, 0);
+        ir = new_tac_after(ir, IR_RETURN, 0, 0, 0);
     }
     else {
         // Move the data into registers
@@ -367,7 +367,7 @@ void add_function_return_moves(Function *function, char *identifier) {
 
         // Implicit else, operation == IR_RETURN & ir-src1 has a value
         if (ir->src1->type->type == TYPE_LONG_DOUBLE) {
-            insert_instruction_from_operation(ir, IR_LOAD_LONG_DOUBLE, 0, ir->src1, 0, 1);
+            new_tac_before(ir, IR_LOAD_LONG_DOUBLE, 0, ir->src1, 0, 1);
 
             ir->operation = IR_RETURN;
             ir->dst = 0;
@@ -391,7 +391,7 @@ void add_function_return_moves(Function *function, char *identifier) {
             ir->dst->live_range_preg = live_range_preg;
             ir->src1->preferred_live_range_preg_index = live_range_preg;
 
-            insert_instruction_from_operation(ir, IR_MOVE, ir->dst, ir->src1, 0, 1);
+            new_tac_before(ir, IR_MOVE, ir->dst, ir->src1, 0, 1);
 
             ir->operation = IR_RETURN;
             ir->dst = 0;
@@ -423,7 +423,7 @@ static int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Val
 
     if (debug_function_arg_mapping) printf("Adding arg move from register for preg-class=%d register_index=%d\n", preg_class, register_index);
 
-    insert_instruction(ir, tac, 1);
+    insert_tac_before(ir, tac, 1);
 
     return tac->dst->vreg;
 }
@@ -436,7 +436,7 @@ static void load_struct_scalar_into_temp(Function *function, Tac *ir, Value *par
     src1->type = type;
     src1->offset += pl->stru_offset + offset;
 
-    insert_instruction_from_operation(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, temp, src1, 0, 1);
+    new_tac_before(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, temp, src1, 0, 1);
 }
 
 // Load a scalar in a struct into a register. The scalar can be either a local, global, or lvalue in register
@@ -507,20 +507,20 @@ static int make_int_struct_or_union_arg_move_instructions(
             temp2->type = new_type(TYPE_CHAR + i);
             temp2->type->is_unsigned = 1;
             temp2->offset += pl->stru_offset + offset;
-            insert_instruction_from_operation(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, loaded_value, temp2, 0, 1);
+            new_tac_before(ir, lvalue_in_register ? IR_INDIRECT : IR_MOVE, loaded_value, temp2, 0, 1);
 
             // Shift loaded value
             Value *shifted_value;
             if (offset) {
                 shifted_value = make_long_temp(function);
-                insert_instruction_from_operation(ir, IR_BSHL, shifted_value, loaded_value, new_integral_constant(TYPE_LONG, offset * 8), 1);
+                new_tac_before(ir, IR_BSHL, shifted_value, loaded_value, new_integral_constant(TYPE_LONG, offset * 8), 1);
             }
             else
                 shifted_value = loaded_value;
 
             // Bitwise or shifted_value and put result in result_register
             Value *orred_value = make_long_temp(function);
-            insert_instruction_from_operation(ir, IR_BOR, orred_value, shifted_value, result_register, 1);
+            new_tac_before(ir, IR_BOR, orred_value, shifted_value, result_register, 1);
             result_register = orred_value;
         }
 
@@ -557,7 +557,7 @@ static int make_sse_struct_or_union_arg_move_instructions(
         Value *temp_sse = new_value();
         temp_sse->type = new_type(TYPE_DOUBLE);
         temp_sse->vreg = ++function->vreg_count;
-        insert_instruction_from_operation(ir, IR_MOVE_PREG_CLASS, temp_sse, temp_int, 0, 1);
+        new_tac_before(ir, IR_MOVE_PREG_CLASS, temp_sse, temp_int, 0, 1);
         return add_arg_move_to_register(function, ir, new_type(TYPE_DOUBLE), temp_sse, preg_class, register_index, register_set);
     }
 }
@@ -722,11 +722,11 @@ static void add_function_call_arg_move_for_struct_or_union_on_stack(Function *fu
     int rounded_up_size = (size + 7) & ~7;
 
     // Allocate stack space with a sub $n, %rsp instruction
-    insert_instruction_from_operation(ir, IR_ALLOCATE_STACK, 0, new_integral_constant(TYPE_LONG, rounded_up_size), 0, 1);
+    new_tac_before(ir, IR_ALLOCATE_STACK, 0, new_integral_constant(TYPE_LONG, rounded_up_size), 0, 1);
 
     // Add an instruction to move the stack pointer %rsp to a temporary register
     Value *stack_pointer_temp = make_long_temp(function);
-    insert_instruction_from_operation(ir, IR_MOVE_STACK_PTR, stack_pointer_temp, 0, 0, 1);
+    new_tac_before(ir, IR_MOVE_STACK_PTR, stack_pointer_temp, 0, 0, 1);
 
     // Prepare destination, which must be a * void
     Value *dst = dup_value(stack_pointer_temp);
@@ -873,7 +873,7 @@ static int add_struct_or_union_param_move(Function *function, Tac *ir, Type *typ
     v->type = dup_type(type);
     v->is_lvalue = 1;
     v->stack_index = -(++function->stack_register_count);
-    insert_instruction_from_operation(ir, IR_DECL_LOCAL_COMP_OBJ, 0, v, 0, 0);
+    new_tac_before(ir, IR_DECL_LOCAL_COMP_OBJ, 0, v, 0, 0);
 
     for (int loc = 0; loc < pl->count; loc++) {
         FunctionParamLocation *location = &(pl->locations[loc]);
@@ -918,7 +918,7 @@ static int setup_return_for_struct_or_union(Function *function) {
 
     Value *dst = dup_value(function->return_value_pointer);
 
-    insert_instruction_from_operation(ir, IR_MOVE, dst, src1, 0, 0);
+    new_tac_before(ir, IR_MOVE, dst, src1, 0, 0);
 
     return 1;
 }
@@ -936,7 +936,7 @@ static void add_function_vararg_param_moves(Function *function, FunctionParamAll
         Value *dst = dup_value(function->register_save_area);
         dst->type = new_type(TYPE_LONG);
         dst->offset = i * 8;
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, src, 0);
+        ir = new_tac_after(ir, IR_MOVE, dst, src, 0);
     }
 
     // Skip SSE register copying if al is zero with a jump to "done"
@@ -945,7 +945,7 @@ static void add_function_vararg_param_moves(Function *function, FunctionParamAll
     rax->vreg = ++function->vreg_count;
     rax->type = new_type(TYPE_CHAR);
     rax->live_range_preg = LIVE_RANGE_PREG_RAX_INDEX;
-    ir = insert_instruction_after_from_operation(ir, IR_JZ, 0, rax, ldone);
+    ir = new_tac_after(ir, IR_JZ, 0, rax, ldone);
 
     // add moves for SSE registers to register save area
     for (int i = fpa->single_sse_register_arg_count; i < 8; i++) {
@@ -957,16 +957,16 @@ static void add_function_vararg_param_moves(Function *function, FunctionParamAll
         Value *temp_int = new_value();
         temp_int->type = new_type(TYPE_LONG);
         temp_int->vreg = ++function->vreg_count;
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE_PREG_CLASS, temp_int, src, 0);
+        ir = new_tac_after(ir, IR_MOVE_PREG_CLASS, temp_int, src, 0);
 
         Value *dst = dup_value(function->register_save_area);
         dst->type = new_type(TYPE_LONG);
         dst->offset = 48 + i * 16;
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, temp_int, 0);
+        ir = new_tac_after(ir, IR_MOVE, dst, temp_int, 0);
     }
 
     // Add done label
-    ir = insert_instruction_after_from_operation(ir, IR_NOP, 0, 0, 0);
+    ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
     ir->label = ldone->label;
 }
 
@@ -987,14 +987,14 @@ static void process_function_va_start(Function *function, Tac *ir) {
     Value *dst = dup_value(va_list);
     dst->type = new_type(TYPE_INT);
     dst->type->is_unsigned = 1;
-    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, fp_offset_value, 0);
+    ir = new_tac_after(ir, IR_MOVE, dst, fp_offset_value, 0);
 
     // Set va_list.gp_offset, the offset of the first vararg SSE register
     Value *gp_offset_value = dup_value(fp_offset_value);
     gp_offset_value->int_value = 48 + function->fpa->single_sse_register_arg_count * 16;
     dst = dup_value(dst);
     dst->offset = 4;
-    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, gp_offset_value, 0);
+    ir = new_tac_after(ir, IR_MOVE, dst, gp_offset_value, 0);
 
     // Set va_list.overflow_arg_area, the address of the first vararg pushed on the stack
     Value *tmp_dst = dup_value(dst);
@@ -1006,22 +1006,22 @@ static void process_function_va_start(Function *function, Tac *ir) {
     overflow->vreg = 0;
     overflow->offset = 0;
     overflow->stack_index = OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX;
-    ir = insert_instruction_after_from_operation(ir, IR_ADDRESS_OF, tmp_dst, overflow, 0);
+    ir = new_tac_after(ir, IR_ADDRESS_OF, tmp_dst, overflow, 0);
 
     dst = dup_value(dst);
     dst->type = make_pointer_to_void();
     dst->offset = 8;
-    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, tmp_dst, 0);
+    ir = new_tac_after(ir, IR_MOVE, dst, tmp_dst, 0);
 
     // Set va_list.reg_save_area, the address of the register save area
     tmp_dst = dup_value(tmp_dst);
     tmp_dst->vreg = ++function->vreg_count;
-    ir = insert_instruction_after_from_operation(ir, IR_ADDRESS_OF, tmp_dst, function->register_save_area, 0);
+    ir = new_tac_after(ir, IR_ADDRESS_OF, tmp_dst, function->register_save_area, 0);
 
     dst = dup_value(dst);
     dst->type = make_pointer_to_void();
     dst->offset = 16;
-    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, tmp_dst, 0);
+    ir = new_tac_after(ir, IR_MOVE, dst, tmp_dst, 0);
 }
 
 // Read a value from va_list. This could be either directly from the stack or from
@@ -1040,16 +1040,16 @@ static Tac *read_from_va_list(Function *function, Tac *ir, Value *va_list, Type 
         Value *tmp = dup_value(va_list);
         tmp->type = make_pointer(dst_type);
         tmp->vreg = ++function->vreg_count;
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, tmp, va_list, 0);
+        ir = new_tac_after(ir, IR_MOVE, tmp, va_list, 0);
 
         src1->type = make_pointer(dst_type);
         src1->offset = offset;
-        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, *result, src1, 0);
+        ir = new_tac_after(ir, IR_INDIRECT, *result, src1, 0);
     }
     else {
         // Read from the stack
         src1->offset = offset;
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, *result, src1, 0);
+        ir = new_tac_after(ir, IR_MOVE, *result, src1, 0);
     }
 
     return ir;
@@ -1068,13 +1068,13 @@ static Tac *write_to_va_list(Function *function, Tac *ir, Value *va_list, Value 
         tmp->is_lvalue = 1;
         tmp->offset = offset;
         tmp->type = value->type;
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, tmp, value, 0);
+        ir = new_tac_after(ir, IR_MOVE, tmp, value, 0);
     }
     else {
         // Write to the stack
     dst->type = value->type;
         dst->offset = offset;
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, value, 0);
+        ir = new_tac_after(ir, IR_MOVE, dst, value, 0);
     }
 
     return ir;
@@ -1101,8 +1101,8 @@ static Tac *add_function_va_arg_in_register_check(Function *function, Tac *ir, T
     last_offset_value->type->is_unsigned = 1;
 
     // Compare and jump to stack code if the arg doesn't fit in the register save area
-    ir = insert_instruction_after_from_operation(ir, IR_GT, gp_fp_offset_ge_result, gp_fp_offset, last_offset_value);
-    ir = insert_instruction_after_from_operation(ir, IR_JNZ, 0, gp_fp_offset_ge_result, fetch_from_stack);
+    ir = new_tac_after(ir, IR_GT, gp_fp_offset_ge_result, gp_fp_offset, last_offset_value);
+    ir = new_tac_after(ir, IR_JNZ, 0, gp_fp_offset_ge_result, fetch_from_stack);
 
     *result_gp_fp_offset = gp_fp_offset;
 
@@ -1130,7 +1130,7 @@ static Tac *add_function_va_arg_register_save_area_read(Function *function, Tac 
     Value *ptr = new_value();
     ptr->type = make_pointer(dst->type);
     ptr->vreg = ++function->vreg_count;
-    ir = insert_instruction_after_from_operation(ir, IR_ADD, ptr, register_save_area, gp_fp_offset);
+    ir = new_tac_after(ir, IR_ADD, ptr, register_save_area, gp_fp_offset);
 
     if (type->type == TYPE_STRUCT_OR_UNION) {
         // Copy memory for struct/union
@@ -1142,14 +1142,14 @@ static Tac *add_function_va_arg_register_save_area_read(Function *function, Tac 
     }
     else
         // Read a scalar value from a pointer
-        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, dst, ptr, 0);
+        ir = new_tac_after(ir, IR_INDIRECT, dst, ptr, 0);
 
     // Add 8 or 16 to gp_fp_offset register
     Value *new_gp_fp_offset = dup_value(gp_fp_offset);
     new_gp_fp_offset->vreg = ++function->vreg_count;
     Value *size = new_integral_constant(TYPE_INT, gp_count * 8 + fp_count * 16);
     size->type->is_unsigned = 1;
-    ir = insert_instruction_after_from_operation(ir, IR_ADD, new_gp_fp_offset, gp_fp_offset, size);
+    ir = new_tac_after(ir, IR_ADD, new_gp_fp_offset, gp_fp_offset, size);
 
     // Write new gp offset back to va_list
     int offset = gp_count ? 0 : 4; // gp_offset or fp_offset
@@ -1177,11 +1177,11 @@ static Tac *add_function_va_arg_stack_read(Function *function, Tac *ir, Type *ty
         // Add 15
         Value *tmp1 = dup_value(long_overflow_arg_area);
         tmp1->vreg = ++function->vreg_count;
-        ir = insert_instruction_after_from_operation(ir, IR_ADD, tmp1, long_overflow_arg_area, new_integral_constant(TYPE_LONG, 15));
+        ir = new_tac_after(ir, IR_ADD, tmp1, long_overflow_arg_area, new_integral_constant(TYPE_LONG, 15));
 
         Value *tmp2 = dup_value(long_overflow_arg_area);
         tmp2->vreg = ++function->vreg_count;
-        ir = insert_instruction_after_from_operation(ir, IR_BAND, tmp2, tmp1, new_integral_constant(TYPE_LONG, ~15));
+        ir = new_tac_after(ir, IR_BAND, tmp2, tmp1, new_integral_constant(TYPE_LONG, ~15));
         overflow_arg_area = dup_value(tmp2);
         overflow_arg_area->type = make_pointer(dst->type);
     }
@@ -1195,18 +1195,18 @@ static Tac *add_function_va_arg_stack_read(Function *function, Tac *ir, Type *ty
     }
     else
         // Read a scalar value from a pointer
-        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, dst, overflow_arg_area, 0);
+        ir = new_tac_after(ir, IR_INDIRECT, dst, overflow_arg_area, 0);
 
     // Add 8 or 16 to overflow_arg_area register
     Value *new_overflow_arg_area = dup_value(overflow_arg_area);
     new_overflow_arg_area->vreg = ++function->vreg_count;
-    ir = insert_instruction_after_from_operation(ir, IR_ADD, new_overflow_arg_area, overflow_arg_area, size_value);
+    ir = new_tac_after(ir, IR_ADD, new_overflow_arg_area, overflow_arg_area, size_value);
 
     // Write new gp overflow_arg_area back to va_list
     // Value *final_gp_overflow_arg_area = dup_value(va_list);
     // final_gp_overflow_arg_area->type = make_pointer_to_void();
     // final_gp_overflow_arg_area->offset = 8;
-    // ir = insert_instruction_after_from_operation(ir, IR_MOVE, va_list, new_overflow_arg_area, 0);
+    // ir = new_tac_after(ir, IR_MOVE, va_list, new_overflow_arg_area, 0);
     ir = write_to_va_list(function, ir, va_list, new_overflow_arg_area, 8);
 
     return ir;
@@ -1264,17 +1264,17 @@ static void process_function_va_arg(Function *function, Tac *ir) {
 
     // Read from register save area & jump to the done label
     ir = add_function_va_arg_register_save_area_read(function, ir, type, va_list, gp_count, fp_count, gp_fp_offset, dst);
-    ir = insert_instruction_after_from_operation(ir, IR_JMP, 0, ldone, 0);
+    ir = new_tac_after(ir, IR_JMP, 0, ldone, 0);
 
     // Add fetch_from_stack label
-    ir = insert_instruction_after_from_operation(ir, IR_NOP, 0, 0, 0);
+    ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
     ir->label = fetch_from_stack->label;
 
     // Read from stack
     ir = add_function_va_arg_stack_read(function, ir, type, va_list, dst);
 
     // Add done label
-    ir = insert_instruction_after_from_operation(ir, IR_NOP, 0, 0, 0);
+    ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
     ir->label = ldone->label;
 }
 
@@ -1372,7 +1372,7 @@ void add_function_param_moves(Function *function, char *identifier) {
                 Tac *tac = make_param_move_to_stack_tac(function, type, single_register_arg_count);
                 register_param_stack_indexes[i] = tac->dst->stack_index;
                 tac->src1->vreg = ++function->vreg_count;
-                insert_instruction(ir, tac, 0);
+                insert_tac_before(ir, tac, 0);
                 if (debug_function_param_mapping) printf("Param %d reg param reg %d -> local SI %d\n", i, tac->src1->vreg, tac->dst->stack_index);
             }
             else {
@@ -1380,7 +1380,7 @@ void add_function_param_moves(Function *function, char *identifier) {
                 Tac *tac = make_param_move_to_register_tac(function, type, single_register_arg_count);
                 register_param_vregs[i] = tac->dst->vreg;
                 tac->src1->vreg = ++function->vreg_count;
-                insert_instruction(ir, tac, 0);
+                insert_tac_before(ir, tac, 0);
                 if (debug_function_param_mapping) printf("Param %d reg param reg %d -> local reg %d\n", i, tac->src1->vreg, tac->dst->vreg);
             }
         }
@@ -1432,7 +1432,7 @@ void add_function_param_moves(Function *function, char *identifier) {
             tac->src1->function_param_original_stack_index = stack_index;
             tac->src1->stack_index = stack_index;
             tac->src1->has_been_renamed = 1;
-            insert_instruction(ir, tac, 0);
+            insert_tac_before(ir, tac, 0);
         }
     }
 

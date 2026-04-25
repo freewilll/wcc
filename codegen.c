@@ -460,7 +460,7 @@ static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *sr
     tac->src2 = src2;
     tac->x86_template = x86_template;
 
-    return insert_instruction_after(ir, tac);
+    return insert_tac_after(ir, tac);
 }
 
 static Value *new_preg_value(int preg) {
@@ -638,7 +638,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
                      }
                  }
 
-                ir = insert_instruction_after(ir, tac);
+                ir = insert_tac_after(ir, tac);
                 break;
             }
 

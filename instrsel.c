@@ -1495,7 +1495,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
     else
         ir->src2 = dup_value(tac->dst);
 
-    insert_instruction(ir, tac, 1);
+    insert_tac_before(ir, tac, 1);
 
     // If a register has an offset, it's used in an indirect operation, such
     // as 4(rax). This means, take the value in rax and add four to it. However, by
@@ -1516,7 +1516,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
         tac->dst->vreg = -1000;   // Dummy value
         tac->dst->preg = preg;
 
-        insert_instruction(ir, tac, 1);
+        insert_tac_before(ir, tac, 1);
 
         v->offset = 0;
     }
@@ -1538,7 +1538,7 @@ static void add_spill_store(Tac *ir, Value *v, int preg) {
         tac->prev = ir;
     }
     else
-        insert_instruction(ir->next, tac, 0);
+        insert_tac_before(ir->next, tac, 0);
 }
 
 // Return one of the int or sse registers used as temporary in spill code

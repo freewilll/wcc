@@ -488,7 +488,7 @@ void reverse_function_argument_order(Function *function) {
 }
 
 // Insert tac instruction before ir
-void insert_instruction(Tac *ir, Tac *tac, int move_label) {
+void insert_tac_before(Tac *ir, Tac *tac, int move_label) {
     Tac *prev = ir->prev;
     if (!ir->prev) panic("insert_instruction called with null prev");
 
@@ -505,17 +505,18 @@ void insert_instruction(Tac *ir, Tac *tac, int move_label) {
     }
 }
 
-Tac *insert_instruction_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, int move_label) {
+// Insert tac instruction before ir from an operation and values
+Tac *new_tac_before(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, int move_label) {
     Tac *tac = new_instruction(operation);
     tac->dst = dst;
     tac->src1 = src1;
     tac->src2 = src2;
-    insert_instruction(ir, tac, move_label);
+    insert_tac_before(ir, tac, move_label);
     return tac;
 }
 
-// Append tac to ir
-Tac *insert_instruction_after(Tac *ir, Tac *tac) {
+// Insert instruction after tac
+Tac *insert_tac_after(Tac *ir, Tac *tac) {
     tac->origin = ir->origin;
 
     Tac *next = ir->next;
@@ -527,7 +528,8 @@ Tac *insert_instruction_after(Tac *ir, Tac *tac) {
     return tac;
 }
 
-Tac *insert_instruction_after_from_operation(Tac *ir, int operation, Value *dst, Value *src1, Value *src2) {
+// Insert instruction after tac from an operation and values
+Tac *new_tac_after(Tac *ir, int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac = new_instruction(operation);
     tac->dst = dst;
     tac->src1 = src1;
@@ -693,7 +695,7 @@ void convert_long_doubles_jz_and_jnz(Function *function) {
             tac->src1 = ir->dst;
             tac->src2 = ir->src2;
             ir->src2 = new_floating_point_constant(ir->src1->type->type, 0.0L);
-            ir = insert_instruction_after(ir, tac);
+            ir = insert_tac_after(ir, tac);
         }
     }
 }
@@ -825,7 +827,7 @@ static Value *insert_address_of_instruction_after(Function *function, Tac **ir, 
 
     v->vreg = ++function->vreg_count;
     v->type = make_pointer_to_void();
-    *ir = insert_instruction_after_from_operation(*ir, IR_ADDRESS_OF, v, src, 0);
+    *ir = new_tac_after(*ir, IR_ADDRESS_OF, v, src, 0);
 
     return v;
 }
@@ -846,7 +848,7 @@ static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Va
     fpl->locations[0].int_register = int_arg_index;
     fpl->locations[0].sse_register = -1;
 
-    return insert_instruction_after_from_operation(ir, IR_ARG, 0, arg_value, v);
+    return new_tac_after(ir, IR_ARG, 0, arg_value, v);
 }
 
 static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, Symbol *symbol) {
@@ -859,10 +861,10 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
     function_value->function_call_sse_register_arg_count = 0;
     call_value->function_call_arg_push_count = 0;
     call_value->function_call_arg_stack_padding = 0;
-    ir = insert_instruction_after_from_operation(ir, IR_CALL, 0, function_value, 0);
+    ir = new_tac_after(ir, IR_CALL, 0, function_value, 0);
 
     // Add end call instruction
-    ir = insert_instruction_after_from_operation(ir, IR_END_CALL, 0, call_value, 0);
+    ir = new_tac_after(ir, IR_END_CALL, 0, call_value, 0);
 
     return ir;
 }
@@ -873,7 +875,7 @@ Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value 
 
     // Add start call instruction
     Value *call_value = make_function_call_value(function_call_count++);
-    ir = insert_instruction_after_from_operation(ir, IR_START_CALL, 0, call_value, 0);
+    ir = new_tac_after(ir, IR_START_CALL, 0, call_value, 0);
 
     // Load of addresses of src1, dst & make size value
     Value *src1_value;
@@ -931,11 +933,11 @@ Tac *add_memory_copy_with_registers(Function *function, Tac *ir, Value *dst, Val
                 Value *indirect_src1 = dup_value(offsetted_src1);
                 indirect_src1->type = make_pointer(temp_value->type);
                 indirect_src1->is_lvalue = 0;
-                ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, temp_value, indirect_src1, 0);
+                ir = new_tac_after(ir, IR_INDIRECT, temp_value, indirect_src1, 0);
             } else
-                ir = insert_instruction_after_from_operation(ir, IR_MOVE, temp_value, offsetted_src1, 0);
+                ir = new_tac_after(ir, IR_MOVE, temp_value, offsetted_src1, 0);
 
-            ir = insert_instruction_after_from_operation(ir, IR_MOVE, offsetted_dst, temp_value, 0);
+            ir = new_tac_after(ir, IR_MOVE, offsetted_dst, temp_value, 0);
 
             size -= step;
             dst_offset += step;
@@ -1008,9 +1010,9 @@ static void add_load_bit_field(Function *function, Tac *ir) {
         Value *indirect_src1 = dup_value(src1);
         indirect_src1->type = make_pointer(loaded_value->type);
         indirect_src1->is_lvalue = 0;
-        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, loaded_value, indirect_src1, 0);
+        ir = new_tac_after(ir, IR_INDIRECT, loaded_value, indirect_src1, 0);
     } else
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_value, src1, 0);
+        ir = new_tac_after(ir, IR_MOVE, loaded_value, src1, 0);
 
     if (src1->type->is_unsigned) {
         // Shift right
@@ -1018,14 +1020,14 @@ static void add_load_bit_field(Function *function, Tac *ir) {
         if (bit_offset) {
             shifted_value = dup_value(loaded_value);
             shifted_value->vreg = ++function->vreg_count;
-            ir = insert_instruction_after_from_operation(ir, IR_BSHR, shifted_value, loaded_value, new_integral_constant(TYPE_INT, bit_offset));
+            ir = new_tac_after(ir, IR_BSHR, shifted_value, loaded_value, new_integral_constant(TYPE_INT, bit_offset));
         }
         else
             shifted_value = loaded_value;
 
         // Apply mask
         unsigned int mask = (1 << bit_size) - 1;
-        ir = insert_instruction_after_from_operation(ir, IR_BAND, dst, shifted_value, new_integral_constant(TYPE_INT, mask));
+        ir = new_tac_after(ir, IR_BAND, dst, shifted_value, new_integral_constant(TYPE_INT, mask));
     }
     else {
         // Shift left so that the value is at the end of the integer boundary
@@ -1034,14 +1036,14 @@ static void add_load_bit_field(Function *function, Tac *ir) {
         if (left_shift_offset) {
             shifted_value = dup_value(loaded_value);
             shifted_value->vreg = ++function->vreg_count;
-            ir = insert_instruction_after_from_operation(ir, IR_BSHL, shifted_value, loaded_value, new_integral_constant(TYPE_INT, left_shift_offset));
+            ir = new_tac_after(ir, IR_BSHL, shifted_value, loaded_value, new_integral_constant(TYPE_INT, left_shift_offset));
         }
         else
             shifted_value = loaded_value;
 
         // Sign extend by shifting right
         if (32 - bit_size)
-            ir = insert_instruction_after_from_operation(ir, IR_ASHR, dst, shifted_value, new_integral_constant(TYPE_INT, 32 - bit_size));
+            ir = new_tac_after(ir, IR_ASHR, dst, shifted_value, new_integral_constant(TYPE_INT, 32 - bit_size));
         else
             dst = shifted_value;
     }
@@ -1066,7 +1068,7 @@ static void add_save_bit_field(Function *function, Tac *ir) {
     loaded_src1->type = new_type(TYPE_INT);
     loaded_src1->type->is_unsigned = 1;
     loaded_src1->vreg = ++function->vreg_count;
-    ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_src1, src1, 0);
+    ir = new_tac_after(ir, IR_MOVE, loaded_src1, src1, 0);
 
     // Set bits outside of the src value to zero
     Value *masked_src1 = dup_value(loaded_src1);
@@ -1074,14 +1076,14 @@ static void add_save_bit_field(Function *function, Tac *ir) {
     unsigned int mask = bit_size == 32 ? -1 : (1 << bit_size) - 1;
     Value *mask_value = new_integral_constant(TYPE_INT, mask);
     mask_value->type->is_unsigned = 1;
-    ir = insert_instruction_after_from_operation(ir, IR_BAND, masked_src1, loaded_src1, mask_value);
+    ir = new_tac_after(ir, IR_BAND, masked_src1, loaded_src1, mask_value);
 
     // Shift the src over to the right spot
     Value *shifted_src1;
     if (bit_offset) {
         shifted_src1 = dup_value(masked_src1);
         shifted_src1->vreg = ++function->vreg_count;
-        ir = insert_instruction_after_from_operation(ir, IR_BSHL, shifted_src1, masked_src1, new_integral_constant(TYPE_INT, bit_offset));
+        ir = new_tac_after(ir, IR_BSHL, shifted_src1, masked_src1, new_integral_constant(TYPE_INT, bit_offset));
     }
     else
         shifted_src1 = masked_src1;
@@ -1102,9 +1104,9 @@ static void add_save_bit_field(Function *function, Tac *ir) {
         Value *indirect_dst = dup_value(dst);
         indirect_dst->type = make_pointer(loaded_dst->type);
         indirect_dst->is_lvalue = 0;
-        ir = insert_instruction_after_from_operation(ir, IR_INDIRECT, loaded_dst, indirect_dst, 0);
+        ir = new_tac_after(ir, IR_INDIRECT, loaded_dst, indirect_dst, 0);
     } else
-        ir = insert_instruction_after_from_operation(ir, IR_MOVE, loaded_dst, dst, 0);
+        ir = new_tac_after(ir, IR_MOVE, loaded_dst, dst, 0);
 
     // Set the destination bits to zero on the loaded dst
     unsigned int inverted_shifted_mask = ~(mask << bit_offset);
@@ -1112,15 +1114,15 @@ static void add_save_bit_field(Function *function, Tac *ir) {
     masked_dst->vreg = ++function->vreg_count;
     Value *inverted_shifted_mask_value = new_integral_constant(TYPE_INT, inverted_shifted_mask);
     inverted_shifted_mask_value->type->is_unsigned = 1;
-    ir = insert_instruction_after_from_operation(ir, IR_BAND, masked_dst, loaded_dst, inverted_shifted_mask_value);
+    ir = new_tac_after(ir, IR_BAND, masked_dst, loaded_dst, inverted_shifted_mask_value);
 
     // Or two values
     Value *orred_dst = dup_value(loaded_dst);
     orred_dst->vreg = ++function->vreg_count;
-    ir = insert_instruction_after_from_operation(ir, IR_BOR, orred_dst, masked_dst, shifted_src1);
+    ir = new_tac_after(ir, IR_BOR, orred_dst, masked_dst, shifted_src1);
 
     // Store the result in dst
-    ir = insert_instruction_after_from_operation(ir, IR_MOVE, dst, orred_dst, 0);
+    ir = new_tac_after(ir, IR_MOVE, dst, orred_dst, 0);
 }
 
 // Add instructions for loading and saving bit fields
@@ -1167,7 +1169,7 @@ void add_zero_memory_instructions(Function *function) {
                     Value *tmp = dup_value(dst);
                     tmp->offset = offset;
                     tmp->type = new_type(TYPE_CHAR + i);
-                    insert_instruction_from_operation(tac, IR_MOVE, tmp, zero, 0, 1);
+                    new_tac_before(tac, IR_MOVE, tmp, zero, 0, 1);
 
                     size -= step;
                     offset += step;
@@ -1180,7 +1182,7 @@ void add_zero_memory_instructions(Function *function) {
 
             // Add start call instruction
             Value *call_value = make_function_call_value(function_call_count++);
-            ir = insert_instruction_after_from_operation(ir, IR_START_CALL, 0, call_value, 0);
+            ir = new_tac_after(ir, IR_START_CALL, 0, call_value, 0);
 
             Value *size_value = new_integral_constant(TYPE_INT, size);
             Value *dst_address = insert_address_of_instruction_after(function, &ir, dst);
@@ -1204,7 +1206,7 @@ static Value *add_load_from_got(Function *function, Tac *tac, Value *src) {
     got_src->type = dst->type;
     got_src->load_from_got = 1;
 
-    insert_instruction_from_operation(tac, IR_LOAD_FROM_GOT, dst, got_src, 0, 0);
+    new_tac_before(tac, IR_LOAD_FROM_GOT, dst, got_src, 0, 0);
 
     dst->offset = src->offset;
     got_src->offset = 0;
@@ -1263,7 +1265,7 @@ void add_PIC_load_and_saves(Function *function) {
                 Value *dst_with_offset = dup_value(tac->dst);
                 tac->dst = dup_value(tac->dst);
                 tac->dst->vreg = ++function->vreg_count;
-                tac = insert_instruction_after_from_operation(tac, IR_ADD, dst_with_offset, tac->dst, new_integral_constant(TYPE_INT, offset));
+                tac = new_tac_after(tac, IR_ADD, dst_with_offset, tac->dst, new_integral_constant(TYPE_INT, offset));
             }
         }
     }
