@@ -70,18 +70,16 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     optimize_arithmetic_operations(function);
 
     if (log_compiler_phase_durations) debug_log("Function arg/param manipulation");
+    // Part one of function param/arg manipulation
+    // The plan is to move these all beyond the SSA processing,
+    // so that all ABI code is after a certain processing point.
     add_function_param_moves(function, function_name);
     add_function_return_moves(function, function_name);
     add_function_call_result_moves(function);
     process_function_varargs(function);
-    add_function_call_arg_moves(function);
+
     if (stop_at == COMPILE_STOP_AFTER_FUNCTION_PARAM_MOVES) return;
 
-    if (log_compiler_phase_durations) debug_log("Adding PIC loads & saves");
-    add_PIC_load_and_saves(function);
-    if (log_compiler_phase_durations) debug_log("Converting & functions to loads");
-    convert_functions_address_of(function);
-    if (log_compiler_phase_durations) debug_log("Converting lvalue assignments");
     rewrite_lvalue_reg_assignments(function);
 
     if (log_compiler_phase_durations) debug_log("Analyzing dominance");
@@ -102,6 +100,22 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     if (log_compiler_phase_durations) debug_log("Make live ranges");
     make_live_ranges(function);
     blast_vregs_with_live_ranges(function);
+
+    free_dominance(function);
+
+    // Part two of function param/arg manipulation
+    if (log_compiler_phase_durations) debug_log("Add function call arg moves");
+    add_function_call_arg_moves(function);
+    if (log_compiler_phase_durations) debug_log("Adding PIC loads & saves");
+    add_PIC_load_and_saves(function);
+    if (log_compiler_phase_durations) debug_log("Converting & functions to loads");
+    convert_functions_address_of(function);
+    if (log_compiler_phase_durations) debug_log("Converting lvalue assignments");
+    rewrite_lvalue_reg_assignments(function);
+
+    analyze_dominance(function);
+    if (log_compiler_phase_durations) debug_log("Make uevar and varkill");
+    make_uevar_and_varkill(function);
     coalesce_live_ranges(function, 1);
     if (stop_at == COMPILE_STOP_AFTER_LIVE_RANGES) return;
 
@@ -115,10 +129,13 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     if (log_compiler_phase_durations) debug_log("Instruction Selection");
     select_instructions(function);
     free_liveout(function);
+    free_uevar_and_varkill(function);
     free_dominance(function);
     compress_vregs(function);
     if (log_compiler_phase_durations) debug_log("Analyzing dominance");
     analyze_dominance(function);
+    if (log_compiler_phase_durations) debug_log("Make uevar and varkill");
+    make_uevar_and_varkill(function);
     coalesce_live_ranges(function, 0);
     free_interference_graph(function);
     remove_vreg_self_moves(function);
@@ -131,6 +148,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     sanity_test_ir_linkage(function);
     make_interference_graph(function, 1, 0);
     free_liveout(function);
+    free_uevar_and_varkill(function);
     free_dominance(function);
     allocate_registers(function);
     free_interference_graph(function);

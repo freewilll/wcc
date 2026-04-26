@@ -407,7 +407,7 @@ void add_function_return_moves(Function *function, char *identifier) {
 // function_call_*_register_arg_index ensures that dst will become the actual
 // x86_64 physical register rdi, rsi, etc
 static int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *param, int preg_class, int register_index, RegisterSet *register_set) {
-    int *arg_registers = preg_class == PC_INT ? int_arg_registers : sse_arg_registers;
+    const int *arg_registers = preg_class == PC_INT ? int_arg_registers : sse_arg_registers;
 
     Tac *tac = new_instruction(IR_MOVE);
 
@@ -593,26 +593,26 @@ static int make_struct_or_union_arg_move_instructions(
 // - the first 8 floating point args.
 // The dst of the move will be constrained so that rdi, rsi, xmm0, xmm1 etc are allocated to it.
 void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
-    int function_call_count = make_function_call_count(function);
-
+    int function_calls_size = make_max_function_call_id(function) + 1;
     int register_count = preg_class == PC_INT ? 6 : 8;
 
     // Values of the passed argument, i.e. by the caller
-    Value **arg_values = wcalloc(function_call_count * register_count, sizeof(Value *));
+    int allocated_count = function_calls_size * register_count;
+    Value **arg_values = wcalloc(allocated_count, sizeof(Value *));
 
     // param_indexes maps the register indexes to a parameter index, e.g.
     // foo(int i, long double ld, int j) will produce
     // param_indexes[0] = 0
     // param_indexes[1] = 2
-    int *param_indexes = wmalloc(sizeof(int) * function_call_count * register_count);
-    memset(param_indexes, -1, sizeof(int) * function_call_count * register_count);
+    int *param_indexes = wmalloc(sizeof(int) * function_calls_size * register_count);
+    memset(param_indexes, -1, sizeof(int) * function_calls_size * register_count);
 
     // Set to 1 if the function returns a struct in memory, which reserves rdi for a
     // pointer to the return address
-    char *has_struct_or_union_return_values = wcalloc(function_call_count, sizeof(char));
+    char *has_struct_or_union_return_values = wcalloc(function_calls_size, sizeof(char));
 
-    FunctionParamLocations **param_locations = wmalloc(sizeof(FunctionParamLocations *) * function_call_count * register_count);
-    memset(param_locations, -1, sizeof(FunctionParamLocations *) * function_call_count * register_count);
+    FunctionParamLocations **param_locations = wmalloc(sizeof(FunctionParamLocations *) * function_calls_size * register_count);
+    memset(param_locations, -1, sizeof(FunctionParamLocations *) * function_calls_size * register_count);
 
     make_vreg_count(function, 0);
 
@@ -628,6 +628,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
                 if (function_call_register_arg_index >= 0) {
                     int i = ir->src1->int_value * register_count + function_call_register_arg_index;
+                    if (i >= allocated_count) panic("Exceeding arg_values space, want=%d, allocated=%d", i, allocated_count);
                     arg_values[i] = ir->src2;
                     param_indexes[i] = ir->src1->function_call_arg_index;
                     param_locations[i] = pl;
@@ -638,6 +639,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
         if (ir->operation == IR_CALL) {
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
             int has_struct_or_union_return_value = has_struct_or_union_return_values[ir->src1->int_value];
+            if (ir->src1->int_value >= function_calls_size) panic("Exceeding param_locations space, want=%d, allocated=%d", ir->src1->int_value, function_calls_size);
             int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
             FunctionParamLocations **pls = &(param_locations[ir->src1->int_value * register_count]);
             Type *called_function_type = ir->src1->type;

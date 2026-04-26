@@ -64,6 +64,7 @@ int main(int argc, char **argv) {
     test_direct_access();
     test_address_of();
     test_global_struct_member_access();
+    test_struct_copy_with_globals();
 
     finalize();
 }

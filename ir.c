@@ -397,6 +397,19 @@ int make_function_call_count(Function *function) {
     return function_call_count;
 }
 
+// Find highest number of the function call value for function call args.
+// This number may be higher than the number of actual function calls,
+// since SSA code may have function calls from dead code.
+int make_max_function_call_id(Function *function) {
+    int max = 0;
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if ((ir->operation == IR_ARG || ir->operation == IR_CALL) && ir->src1->int_value > max)
+            max = ir->src1->int_value;
+    }
+
+    return max;
+}
+
 // The arguments are pushed onto the stack right to left, but the ABI requries
 // the seventh arg and later to be pushed in reverse order. Easiest is to flip
 // all args backwards, so they are pushed left to right.
@@ -1231,9 +1244,9 @@ void add_PIC_load_and_saves(Function *function) {
                 && tac->operation != IR_CALL
                 && tac->operation != IR_ADDRESS_OF
                 && tac->operation != IR_DECL_LOCAL_COMP_OBJ)
-            panic("Unexpected operation for global_symbol in src1: %d", tac->operation);
+            panic("Unexpected operation for global_symbol in src1: %s", operation_string(tac->operation));
         if (tac->src2 && tac->src2->global_symbol)
-            panic("Unexpected operation for global_symbol in src2: %d", tac->operation);
+            panic("Unexpected operation for global_symbol in src2: %s", operation_string(tac->operation));
 
         // Convert a save of a global to a mov from the GOT followed by a store to a pointer in a register
         if (tac->dst && tac->dst->global_symbol && tac->operation == IR_MOVE) {

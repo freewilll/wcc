@@ -63,6 +63,13 @@ struct nss {
     struct {int c; int d; } s2;
 } v1 = { 1, 2, 3, 4};
 
+struct bigstruct_item { int i[16]; };
+
+struct bigstruct {
+  int i[100];
+  struct bigstruct_item f1;
+  struct bigstruct_item f2;
+} bigstruct;
 
 void test_address_of() {
     char  *pc = &c; c = 1; assert_int(1, *pc, "&c"); (*pc)++; assert_int(2, c, "&c");
@@ -131,4 +138,16 @@ void test_global_struct_member_access(void) {
     assert_int(-1, g.a, "Read/writes from global struct with -fPIC a");
     assert_int(20, g.b, "Read/writes from global struct with -fPIC b");
     assert_int(20, g.c, "Read/writes from global struct with -fPIC c");
+}
+
+// Test combination of GOT handling an struct member memcpy on a global.
+// This tests a potential regression I found during refactors.
+void test_struct_copy_with_globals(void) {
+    for (int i = 0; i < 16; i++) bigstruct.f1.i[i] = i * 10;
+
+    bigstruct.f2 = bigstruct.f1;
+
+    for (int i = 0; i < 16; i++) {
+        assert_int(i * 10, bigstruct.f2.i[i], "Global struct member copy");
+    }
 }

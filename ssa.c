@@ -516,7 +516,6 @@ void free_dominance(Function *function) {
     free_block_dominance_frontiers(function);
     free_block_immediate_dominators(function);
     free_block_dominance(function);
-    free_uevar_and_varkill(function);
     free_control_flow_graph(function);
 }
 
@@ -1338,7 +1337,7 @@ static void force_physical_register(char *ig, int vreg_count, LongSet *livenow, 
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
 }
 
-static void enforce_live_range_preg_for_preg(char *interference_graph, int vreg_count, LongSet *livenow, Value *value, int preg_class, int *arg_registers) {
+static void enforce_live_range_preg_for_preg(char *interference_graph, int vreg_count, LongSet *livenow, Value *value, int preg_class, const int *arg_registers) {
     if (value && value && value->preg_class == preg_class && value->live_range_preg)
         force_physical_register(interference_graph, vreg_count, livenow, value->vreg, value->live_range_preg, preg_class);
 }
@@ -1740,8 +1739,6 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
 
 void coalesce_live_ranges(Function *function, int check_register_constraints) {
     make_vreg_count(function, live_range_reserved_pregs_offset);
-    if (log_compiler_phase_durations) debug_log("Make uevar and varkill");
-    make_uevar_and_varkill(function);
     if (log_compiler_phase_durations) debug_log("Make liveout");
     make_liveout(function);
     if (log_compiler_phase_durations) debug_log("Make preferred LR indexes");

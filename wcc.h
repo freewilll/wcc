@@ -391,8 +391,8 @@ typedef struct typedef_desc {
 } Typedef;
 
 typedef struct register_set {
-    int *int_registers;
-    int *sse_registers;
+    const int *int_registers;
+    const int *sse_registers;
 } RegisterSet;
 
 #define TOKEN_LIST(TOKEN_ITEM) \
@@ -759,8 +759,8 @@ extern int loop_count;                   // Loop counter
 extern int total_stack_register_count;   // Spilled register count for all functions
 
 extern int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
-extern int int_arg_registers[6];
-extern int sse_arg_registers[8];
+extern const int int_arg_registers[6];
+extern const int sse_arg_registers[8];
 
 extern int error_incomptatible_pointer_type;
 extern int error_int_conversion;
@@ -1104,6 +1104,7 @@ Tac *new_tac_after(Tac *ir, int operation, Value *dst, Value *src1, Value *src2)
 Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 int make_function_call_count(Function *function);
+int make_max_function_call_id(Function *function);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 void print_instruction(void *f, Tac *tac, int expect_preg);
 void print_ir(Function *function, char* name, int expect_preg);
@@ -1144,6 +1145,12 @@ enum {
 
     LIVE_RANGE_PREG_XMM00_INDEX,    // 13
     LIVE_RANGE_PREG_XMM01_INDEX,
+    LIVE_RANGE_PREG_XMM02_INDEX,
+    LIVE_RANGE_PREG_XMM03_INDEX,
+    LIVE_RANGE_PREG_XMM04_INDEX,
+    LIVE_RANGE_PREG_XMM05_INDEX,
+    LIVE_RANGE_PREG_XMM06_INDEX,
+    LIVE_RANGE_PREG_XMM07_INDEX,
 };
 
 extern int live_range_reserved_pregs_offset;

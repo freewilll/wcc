@@ -12,8 +12,27 @@ typedef struct vreg_cost {
 int preg_map[PHYSICAL_REGISTER_COUNT]; // Map from reserved register 0-11 to physical register 0-15
 
 int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
-int int_arg_registers[6];
-int sse_arg_registers[8];
+
+// Registers used for function calls
+const int int_arg_registers[6] = {
+    LIVE_RANGE_PREG_RDI_INDEX,
+    LIVE_RANGE_PREG_RSI_INDEX,
+    LIVE_RANGE_PREG_RDX_INDEX,
+    LIVE_RANGE_PREG_RCX_INDEX,
+    LIVE_RANGE_PREG_R08_INDEX,
+    LIVE_RANGE_PREG_R09_INDEX,
+};
+
+const int sse_arg_registers[8] = {
+    LIVE_RANGE_PREG_XMM00_INDEX,
+    LIVE_RANGE_PREG_XMM01_INDEX,
+    LIVE_RANGE_PREG_XMM02_INDEX,
+    LIVE_RANGE_PREG_XMM03_INDEX,
+    LIVE_RANGE_PREG_XMM04_INDEX,
+    LIVE_RANGE_PREG_XMM05_INDEX,
+    LIVE_RANGE_PREG_XMM06_INDEX,
+    LIVE_RANGE_PREG_XMM07_INDEX,
+};
 
 // Renumber all vregs so that they are consecutive
 void compress_vregs(Function *function) {
@@ -281,17 +300,6 @@ void init_allocate_registers(void) {
     callee_saved_registers[REG_R13] = 1;
     callee_saved_registers[REG_R14] = 1;
     callee_saved_registers[REG_R15] = 1;
-
-    // Registers used for function calls
-    int_arg_registers[0]  = LIVE_RANGE_PREG_RDI_INDEX;
-    int_arg_registers[1]  = LIVE_RANGE_PREG_RSI_INDEX;
-    int_arg_registers[2]  = LIVE_RANGE_PREG_RDX_INDEX;
-    int_arg_registers[3]  = LIVE_RANGE_PREG_RCX_INDEX;
-    int_arg_registers[4]  = LIVE_RANGE_PREG_R08_INDEX;
-    int_arg_registers[5]  = LIVE_RANGE_PREG_R09_INDEX;
-
-    // Map SSE xmm0-xmm7 argument registers
-    for (int i = 0; i < 8; i++) sse_arg_registers[i] = LIVE_RANGE_PREG_XMM00_INDEX + i;
 
     arg_register_set.int_registers = int_arg_registers;
     arg_register_set.sse_registers = sse_arg_registers;

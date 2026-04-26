@@ -52,3 +52,4 @@ void test_address_of();
 int add_one(int i);
 
 void test_global_struct_member_access(void);
+void test_struct_copy_with_globals(void);
