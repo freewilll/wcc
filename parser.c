@@ -3582,7 +3582,7 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
     if (!is_defined) {
         symbol->linkage = linkage;
         symbol->definition_status = DEFINITION_STATUS_DEFINED;
-        symbol->function = new_function();
+        symbol->function = new_function(symbol->identifier);
 
         symbol->function->type = type;
         symbol->function->ir = ir_start;

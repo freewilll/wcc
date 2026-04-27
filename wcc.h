@@ -229,6 +229,7 @@ typedef struct scope {
 } Scope;
 
 typedef struct function {
+    char *identifier;                                   // The name of the function
     Type *type;                                         // Type of the function
     int local_symbol_count;                             // Number of local symbols, used by the parser
     int vreg_count;                                     // Number of virtual registers used in IR
@@ -1194,12 +1195,12 @@ void free_preferred_live_range_preg_indexes(Function *function);
 void init_function_allocations(void);
 void free_function(Function *function, int remove_from_allocations);
 void free_functions(void);
-Function *new_function(void);
+Function *new_function(char *identifier);
 void add_function_call_result_moves(Function *function);
-void add_function_return_moves(Function *function, char *identifier);
+void add_function_return_moves(Function *function);
 void add_function_call_arg_moves(Function *function);
 void process_function_varargs(Function *function);
-void add_function_param_moves(Function *function, char *identifier);
+void add_function_param_moves(Function *function);
 Value *make_function_call_value(int function_call);
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
 void free_function_param_allocaton(FunctionParamAllocation *fpa);
@@ -1453,8 +1454,8 @@ void free_instrsel();
 
 char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
-void make_stack_offsets(Function *function, char *function_name);
-void add_final_x86_instructions(Function *function, char *function_name);
+void make_stack_offsets(Function *function);
+void add_final_x86_instructions(Function *function);
 void remove_nops(Function *function);
 void merge_rsp_func_call_add_subs(Function *function);
 int fprintf_escaped_string_literal(void *f, StringLiteral *sl, int for_assembly);
@@ -1463,17 +1464,18 @@ void init_codegen(void);
 void free_codegen(void);
 
 // wcc.c
-enum {
-    COMPILE_START_AT_BEGINNING,
-    COMPILE_START_AT_ARITHMETIC_MANPULATION,
-    COMPILE_STOP_AFTER_FUNCTION_PARAM_MOVES,
-    COMPILE_STOP_AFTER_ANALYZE_DOMINANCE,
-    COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS,
-    COMPILE_STOP_AFTER_LIVE_RANGES,
-    COMPILE_STOP_AFTER_INSTRUCTION_SELECTION,
-    COMPILE_STOP_AFTER_ADD_SPILL_CODE,
-    COMPILE_STOP_AT_END,
-};
+typedef enum compiler_phase_tags {
+    PH_NONE,
+    PH_BEGIN,
+    PH_ARITH,
+    PH_PARAM,
+    PH_DOM,
+    PH_PHI,
+    PH_LIVE,
+    PH_INSTR,
+    PH_SPILL,
+    PH_END,
+} CompilerPhaseTag;
 
 void init_instruction_selection_rules(void);
 void free_instruction_selection_rules(void);

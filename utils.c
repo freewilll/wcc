@@ -79,15 +79,15 @@ void debug_log(char *format, ...) {
     va_start(ap, format);
 
     gettimeofday(&end, NULL);
-    long secs_used=(end.tv_sec - debug_log_start.tv_sec); //avoid overflow by subtracting first
-    long microseconds = ((secs_used*1000000) + end.tv_usec) - (debug_log_start.tv_usec);
+    long secs_used = (end.tv_sec - debug_log_start.tv_sec); // Avoid overflow by subtracting first
+    long microseconds = ((secs_used * 1000000) + end.tv_usec) - (debug_log_start.tv_usec);
     secs_used = microseconds / 1000000;
     microseconds = (microseconds % 1000000);
     microseconds /= 1000;
 
-    int hr=(int)(secs_used/3600);
-    int min=((int)(secs_used/60))%60;
-    int sec=(int)(secs_used%60);
+    int hr  = (int) (secs_used/3600);
+    int min = ((int) (secs_used/60)) % 60;
+    int sec = (int) (secs_used%60);
 
     printf("%02d:%02d:%02d.%03ld ", hr, min, sec, microseconds);
     vprintf(format, ap);

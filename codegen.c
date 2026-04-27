@@ -127,7 +127,7 @@ void process_stack_offset(Value *value, int *stack_alignments, int *stack_sizes)
 // Allocate stack offsets for variables on the stack (stack_index < 0). Go backwards
 // in alignment, allocating the ones with the largest alignment first, in order of
 // stack_index.
-void make_stack_offsets(Function *function, char *function_name) {
+void make_stack_offsets(Function *function) {
     int count = function->stack_register_count;
 
     if (!count) return; // Nothing is on the stack
@@ -159,7 +159,7 @@ void make_stack_offsets(Function *function, char *function_name) {
     }
 
     if (debug_stack_frame_layout) {
-        printf("Stack frame for %s:\n", function_name);
+        printf("Stack frame for %s:\n", function->identifier);
         for (int i = 1; i <= count; i++) {
             printf("Slot %d offset=%4d size=%4d alignment=%4d\n", i, stack_offsets[i], stack_sizes[i], stack_alignments[i]);
         }
@@ -506,7 +506,7 @@ static Tac *add_add_rsp(Tac *ir, int amount) {
 }
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
-void add_final_x86_instructions(Function *function, char *function_name) {
+void add_final_x86_instructions(Function *function) {
     int stack_size;             // Size of the stack containing local variables and spilled registers
     int *saved_registers;       // Callee saved registers
     int added_end_of_function;  // To ensure a double epilogue isn't emitted
@@ -654,7 +654,7 @@ void add_final_x86_instructions(Function *function, char *function_name) {
     while (ir->next) ir = ir->next;
 
     // Special case for main, return 0 if no return statement is present
-    if (!strcmp(function_name, "main"))
+    if (!strcmp(function->identifier, "main"))
         ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
 
     if (!added_end_of_function) {

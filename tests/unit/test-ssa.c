@@ -36,7 +36,7 @@ void assert_longset(LongSet *got, int v1, int v2, int v3, int v4, int v5) {
 }
 
 Function *new_function_with_type(void) {
-    Function *result = new_function();
+    Function *result = new_function("test");
     result->type = new_type(TYPE_FUNCTION);
     result->type->function = wcalloc(1, sizeof(FunctionType));
     result->type->target = new_type(TYPE_INT);
@@ -308,7 +308,7 @@ void test_liveout1() {
 
     if (debug_ssa) print_ir(function, 0, 0);
 
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_DOM);
     make_uevar_and_varkill(function);
     make_liveout(function);
 
@@ -398,7 +398,7 @@ void test_liveout2() {
     Function *function;
 
     function = make_ir2(0);
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_DOM);
     make_uevar_and_varkill(function);
     make_liveout(function);
 
@@ -441,7 +441,7 @@ void test_idom2() {
     Function *function;
 
     function = make_ir2(0);
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_DOM);
 
     assert(-1, function->idom[0]);
     assert( 0, function->idom[1]);
@@ -490,7 +490,7 @@ void test_idom3() {
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ANALYZE_DOMINANCE);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_DOM);
 
     assert(5, function->cfg->node_count);
 
@@ -518,7 +518,7 @@ void test_phi_insertion() {
     Function *function;
 
     function = make_ir2(0);
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_PHI);
 
     // Page 502 of engineering a compiler
     assert_set(function->globals, 1, 2, 3, 4, 5);
@@ -585,7 +585,7 @@ void test_phi_renumbering1() {
     Tac *tac;
 
     function = make_ir2(1);
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_PHI);
     rename_phi_function_variables(function);
 
     if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
@@ -643,7 +643,7 @@ void test_phi_renumbering2() {
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_PHI);
     rename_phi_function_variables(function);
 
     if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
@@ -702,7 +702,7 @@ void test_interference_graph1() {
     if (debug_ssa_interference_graph) print_ir(function, 0, 0);
 
     opt_enable_live_range_coalescing = 0;
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
 
     ig = function->interference_graph;
     int vreg_count = function->vreg_count;
@@ -724,7 +724,7 @@ void test_interference_graph2() {
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
 
     if (debug_ssa_interference_graph) print_ir(function, 0, 0);
 
@@ -772,7 +772,7 @@ void test_interference_graph3() {
     function->type->target = new_type(TYPE_INT);
 
     opt_enable_live_range_coalescing = 0;
-    run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
+    run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
 
     if (debug_ssa_interference_graph) print_ir(function, 0, 0);
 
@@ -793,7 +793,7 @@ void test_spill_cost() {
         function = make_ir3(i);
 
         opt_enable_live_range_coalescing = 0;
-        run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
+        run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
 
         if (debug_ssa_spill_cost) print_ir(function, 0, 0);
 

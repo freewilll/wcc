@@ -28,7 +28,7 @@ static Tac *run_function_params_compiler(const char *code) {
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
             Function *function = symbol->function;
             if (!strcmp(symbol->identifier, "test")) {
-                run_compiler_phases(function, symbol->identifier, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AFTER_FUNCTION_PARAM_MOVES);
+                run_compiler_phases(function, symbol->identifier, PH_BEGIN, PH_PARAM);
 
                 // Move ir_start to first non-labelled non-noop for convenience
                 ir_start = function->ir;

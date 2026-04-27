@@ -279,7 +279,7 @@ Value *fu(int index) {
     v->function_symbol = calloc(1, sizeof(Symbol));
 
     v->function_symbol->type = new_type(TYPE_FUNCTION);
-    v->function_symbol->function = new_function();
+    v->function_symbol->function = new_function("test");
     wasprintf(&(v->function_symbol->identifier), "f%d", index);
 
     v->type = v->function_symbol->type;
@@ -321,15 +321,15 @@ static void _finish_ir(Function *function, int stop_after_live_ranges, int stop_
     function->stack_register_count = 0;
 
     if (stop_after_live_ranges)
-        run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_LIVE_RANGES);
+        run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
     else if (stop_after_instruction_selection)
-        run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_INSTRUCTION_SELECTION);
+        run_compiler_phases(function, "dummy", PH_ARITH, PH_INSTR);
     else
-        run_compiler_phases(function, "dummy", COMPILE_START_AT_ARITHMETIC_MANPULATION, COMPILE_STOP_AFTER_ADD_SPILL_CODE);
+        run_compiler_phases(function, "dummy", PH_ARITH, PH_SPILL);
 
     remove_reserved_physical_register_count_from_tac(function->ir);
     make_stack_register_count(function);
-    make_stack_offsets(function, "dummy");
+    make_stack_offsets(function);
 
     // Move ir_start to first non-noop for convenience
     ir_start = function->ir;

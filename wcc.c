@@ -5,6 +5,8 @@
 
 #include "wcc.h"
 
+#define SANITY_TEST_IR_LINKAGE 0
+
 void init_instruction_selection_rules(void) {
     init_generated_instruction_selection_rules();
 
@@ -44,127 +46,153 @@ char *make_temp_filename(char *template) {
     return template;
 }
 
+typedef void (*CompilerPhaseFunction)(Function *function);
+
+typedef struct compiler_phase {
+    CompilerPhaseFunction function;
+    CompilerPhaseTag start_tag;
+    CompilerPhaseTag stop_tag;
+    const char *description;
+} CompilerPhase;
+
+static void coalesce_live_ranges_checked(Function *function) {
+    coalesce_live_ranges(function, 1);
+}
+
+static void coalesce_live_ranges_unchecked(Function *function) {
+    coalesce_live_ranges(function, 0);
+}
+
+static void make_interference_graph_local(Function *function) {
+    make_interference_graph(function, 1, 0);
+}
+
+static void write_rule_coverage_file_local(Function *function) {
+    (void) function;
+    if (rule_coverage_file) write_rule_coverage_file();
+}
+
+static CompilerPhase compiler_phases[] = {
+    // Parser post processing
+    { convert_enums,                               PH_BEGIN, PH_NONE,  "Convert enums" },
+    { process_struct_and_union_copies,             PH_NONE,  PH_NONE,  "Process struct and union copies" },
+    { reverse_function_argument_order,             PH_NONE,  PH_NONE,  "Reverse function argument order" },
+    { merge_consecutive_labels,                    PH_NONE,  PH_NONE,  "Merge consecutive labels" },
+    { renumber_labels,                             PH_NONE,  PH_NONE,  "Renumber labels" },
+    { allocate_value_vregs,                        PH_NONE,  PH_NONE,  "Allocate value vregs" },
+    { convert_long_doubles_jz_and_jnz,             PH_NONE,  PH_NONE,  "Convert long double conditional jumps" },
+    { add_zero_memory_instructions,                PH_NONE,  PH_NONE,  "Add zero memory instructions" },
+    { move_long_doubles_to_the_stack,              PH_NONE,  PH_NONE,  "Move long doubles to the stack" },
+    { allocate_value_stack_indexes,                PH_NONE,  PH_NONE,  "Allocate value stack indexes" },
+    { process_bit_fields,                          PH_NONE,  PH_NONE,  "Process bit fields" },
+    { remove_unused_function_call_results,         PH_NONE,  PH_NONE,  "Remove unused function call results" },
+
+    // Arithmetic optimization
+    { optimize_arithmetic_operations,              PH_ARITH, PH_NONE,  "Optimizing arithmetic operations" },
+
+    // Function call processing part 1
+    { add_function_param_moves,                    PH_NONE,  PH_NONE,  "Function arg/param manipulation" },
+    { add_function_return_moves,                   PH_NONE,  PH_NONE,  "Add function return moves" },
+    { add_function_call_result_moves,              PH_NONE,  PH_NONE,  "Add function call result moves" },
+    { process_function_varargs,                    PH_NONE,  PH_PARAM, "Process function varargs" },
+
+    // Misc IR conversions
+    { rewrite_lvalue_reg_assignments,              PH_NONE,  PH_NONE,  "Rewrite lvalue register assignments" },
+
+    // SSA
+    { analyze_dominance,                           PH_NONE,  PH_DOM,   "Analyzing dominance" },
+    { make_globals_and_var_blocks,                 PH_NONE,  PH_NONE,  "Make globals and variable blocks" },
+    { insert_phi_functions,                        PH_NONE,  PH_PHI,   "Insert phi functions" },
+    { free_globals_and_var_blocks,                 PH_NONE,  PH_NONE,  NULL },
+    { rename_phi_function_variables,               PH_NONE,  PH_NONE,  "Rename phi function variables" },
+    { make_live_ranges,                            PH_NONE,  PH_NONE,  "Make live ranges" },
+    { blast_vregs_with_live_ranges,                PH_NONE,  PH_NONE,  "Blast vregs with live ranges" },
+    { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
+
+    // Function call processing part 2
+    { add_function_call_arg_moves,                 PH_NONE,  PH_NONE,  "Add function call arg moves" },
+
+    // Misc IR conversions
+    { add_PIC_load_and_saves,                      PH_NONE,  PH_NONE,  "Adding PIC loads & saves" },
+    { convert_functions_address_of,                PH_NONE,  PH_NONE,  "Converting & functions to loads" },
+    { rewrite_lvalue_reg_assignments,              PH_NONE,  PH_NONE,  "Converting lvalue assignments" },
+
+    // Coalesce live ranges
+    { analyze_dominance,                           PH_NONE,  PH_NONE,  "Analyzing dominance" },
+    { make_uevar_and_varkill,                      PH_NONE,  PH_NONE,  "Make uevar and varkill" },
+    { coalesce_live_ranges_checked,                PH_NONE,  PH_LIVE,  "Coalesce live ranges" },
+    { free_phi_functions,                          PH_NONE,  PH_NONE,  NULL },
+    { free_interference_graph,                     PH_NONE,  PH_NONE,  NULL },
+    { free_live_range_spill_cost,                  PH_NONE,  PH_NONE,  NULL },
+    { free_vreg_preg_classes,                      PH_NONE,  PH_NONE,  NULL },
+    { free_preferred_live_range_preg_indexes,      PH_NONE,  PH_NONE,  NULL },
+    { select_instructions,                         PH_NONE,  PH_NONE,  "Instruction Selection" },
+    { free_liveout,                                PH_NONE,  PH_NONE,  NULL },
+    { free_uevar_and_varkill,                      PH_NONE,  PH_NONE,  NULL },
+    { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
+    { compress_vregs,                              PH_NONE,  PH_NONE,  "Compress vregs" },
+
+    // Coalesce live ranges again after instruction selection
+    { analyze_dominance,                           PH_NONE,  PH_NONE,  "Analyzing dominance" },
+    { make_uevar_and_varkill,                      PH_NONE,  PH_NONE,  "Make uevar and varkill" },
+    { coalesce_live_ranges_unchecked,              PH_NONE,  PH_NONE,  "Coalesce live ranges" },
+    { free_interference_graph,                     PH_NONE,  PH_NONE,  NULL },
+
+    // Allocate registers
+    { remove_vreg_self_moves,                      PH_NONE,  PH_NONE,  "Remove vreg self moves" },
+    { write_rule_coverage_file_local,              PH_NONE,  PH_INSTR, "Write rule coverage file" },
+    { make_interference_graph_local,               PH_NONE,  PH_NONE,  "Make interference graph" },
+    { free_liveout,                                PH_NONE,  PH_NONE,  NULL },
+    { free_uevar_and_varkill,                      PH_NONE,  PH_NONE,  NULL },
+    { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
+    { allocate_registers,                          PH_NONE,  PH_NONE,  "Allocate registers" },
+    { free_interference_graph,                     PH_NONE,  PH_NONE,  NULL },
+    { free_live_range_spill_cost,                  PH_NONE,  PH_NONE,  NULL },
+    { free_vreg_preg_classes,                      PH_NONE,  PH_NONE,  NULL },
+    { free_preferred_live_range_preg_indexes,      PH_NONE,  PH_NONE,  NULL },
+
+    // Final x86 manipulations
+    { remove_stack_self_moves,                     PH_NONE,  PH_NONE,  "Remove stack self moves" },
+    { add_spill_code,                              PH_NONE,  PH_SPILL, "Add spill code" },
+    { make_stack_offsets,                          PH_NONE,  PH_NONE,  "Make stack offsets" },
+    { add_final_x86_instructions,                  PH_NONE,  PH_NONE,  "Add final x86 instructions" },
+    { remove_nops,                                 PH_NONE,  PH_NONE,  "Remove nops" },
+    { merge_rsp_func_call_add_subs,                PH_NONE,  PH_END,   "Merge rsp function call adjustments" },
+};
+
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at) {
-    if (log_compiler_phase_durations) set_debug_logging_start_time();
-
-    if (log_compiler_phase_durations) debug_log("Starting compiler phases for of %s", function_name);
-
-    if (start_at == COMPILE_START_AT_BEGINNING) {
-        convert_enums(function);
-        process_struct_and_union_copies(function);
-        reverse_function_argument_order(function);
-        merge_consecutive_labels(function);
-        renumber_labels(function);
-        allocate_value_vregs(function);
-        convert_long_doubles_jz_and_jnz(function);
-        add_zero_memory_instructions(function);
-        move_long_doubles_to_the_stack(function);
-        allocate_value_stack_indexes(function);
-        process_bit_fields(function);
-        remove_unused_function_call_results(function);
+    if (log_compiler_phase_durations) {
+        set_debug_logging_start_time();
+        debug_log("Starting compiler phases for %s", function_name);
     }
 
-    // Prepare for SSA phi function insertion
-    sanity_test_ir_linkage(function);
-    if (log_compiler_phase_durations) debug_log("Optimizing arithmetic operations");
-    optimize_arithmetic_operations(function);
+    int started = 0;
+    int stopped = 0;
 
-    if (log_compiler_phase_durations) debug_log("Function arg/param manipulation");
-    // Part one of function param/arg manipulation
-    // The plan is to move these all beyond the SSA processing,
-    // so that all ABI code is after a certain processing point.
-    add_function_param_moves(function, function_name);
-    add_function_return_moves(function, function_name);
-    add_function_call_result_moves(function);
-    process_function_varargs(function);
+    int phase_count = sizeof(compiler_phases) / sizeof(compiler_phases[0]);
+    for (int i = 0; i < phase_count; i++) {
+        if (SANITY_TEST_IR_LINKAGE) sanity_test_ir_linkage(function);
 
-    if (stop_at == COMPILE_STOP_AFTER_FUNCTION_PARAM_MOVES) return;
+        CompilerPhase *phase = &compiler_phases[i];
 
-    rewrite_lvalue_reg_assignments(function);
+        if (!started) {
+            if (phase->start_tag != start_at) continue;
+            started = 1;
+        }
 
-    if (log_compiler_phase_durations) debug_log("Analyzing dominance");
-    analyze_dominance(function);
-    if (stop_at == COMPILE_STOP_AFTER_ANALYZE_DOMINANCE) return;
+        if (phase->description && log_compiler_phase_durations) debug_log("%s", phase->description);
 
-    // Insert SSA phi functions
-    sanity_test_ir_linkage(function);
-    make_globals_and_var_blocks(function);
-    insert_phi_functions(function);
-    if (stop_at == COMPILE_STOP_AFTER_INSERT_PHI_FUNCTIONS) return;
+        phase->function(function);
 
-    // Come out of SSA and coalesce live ranges
-    free_globals_and_var_blocks(function);
-    sanity_test_ir_linkage(function);
-    rename_phi_function_variables(function);
+        if (phase->stop_tag == stop_at) {
+            stopped = 1;
+            break;
+        }
+    }
 
-    if (log_compiler_phase_durations) debug_log("Make live ranges");
-    make_live_ranges(function);
-    blast_vregs_with_live_ranges(function);
-
-    free_dominance(function);
-
-    // Part two of function param/arg manipulation
-    if (log_compiler_phase_durations) debug_log("Add function call arg moves");
-    add_function_call_arg_moves(function);
-    if (log_compiler_phase_durations) debug_log("Adding PIC loads & saves");
-    add_PIC_load_and_saves(function);
-    if (log_compiler_phase_durations) debug_log("Converting & functions to loads");
-    convert_functions_address_of(function);
-    if (log_compiler_phase_durations) debug_log("Converting lvalue assignments");
-    rewrite_lvalue_reg_assignments(function);
-
-    analyze_dominance(function);
-    if (log_compiler_phase_durations) debug_log("Make uevar and varkill");
-    make_uevar_and_varkill(function);
-    coalesce_live_ranges(function, 1);
-    if (stop_at == COMPILE_STOP_AFTER_LIVE_RANGES) return;
-
-    free_phi_functions(function);
-    free_interference_graph(function);
-    free_live_range_spill_cost(function);
-    free_vreg_preg_classes(function);
-    free_preferred_live_range_preg_indexes(function);
-
-    // Instruction selection
-    if (log_compiler_phase_durations) debug_log("Instruction Selection");
-    select_instructions(function);
-    free_liveout(function);
-    free_uevar_and_varkill(function);
-    free_dominance(function);
-    compress_vregs(function);
-    if (log_compiler_phase_durations) debug_log("Analyzing dominance");
-    analyze_dominance(function);
-    if (log_compiler_phase_durations) debug_log("Make uevar and varkill");
-    make_uevar_and_varkill(function);
-    coalesce_live_ranges(function, 0);
-    free_interference_graph(function);
-    remove_vreg_self_moves(function);
-    if (rule_coverage_file) write_rule_coverage_file();
-
-    if (stop_at == COMPILE_STOP_AFTER_INSTRUCTION_SELECTION) return;
-
-    // Register allocation and spilling
-    if (log_compiler_phase_durations) debug_log("Register allocation");
-    sanity_test_ir_linkage(function);
-    make_interference_graph(function, 1, 0);
-    free_liveout(function);
-    free_uevar_and_varkill(function);
-    free_dominance(function);
-    allocate_registers(function);
-    free_interference_graph(function);
-    free_live_range_spill_cost(function);
-    free_vreg_preg_classes(function);
-    free_preferred_live_range_preg_indexes(function);
-    remove_stack_self_moves(function);
-    add_spill_code(function);
-
-    if (stop_at == COMPILE_STOP_AFTER_ADD_SPILL_CODE) return;
-
-    // Final x86_64 changes
-    make_stack_offsets(function, function_name);
-    add_final_x86_instructions(function, function_name);
-    remove_nops(function);
-    merge_rsp_func_call_add_subs(function);
+    if (!started) panic("Unknown compiler phase start tag %d", start_at);
+    if (!stopped) panic("Compiler phase stop tag %d was not reached after start tag %d", stop_at, start_at);
+    if (stop_at != PH_END) return;
 
     if (log_compiler_phase_durations) debug_log("Finished compilation");
 }
@@ -202,7 +230,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
             Function *function = symbol->function;
             if (print_ir1) print_ir(function, symbol->identifier, 0);
 
-            run_compiler_phases(function, symbol->identifier, COMPILE_START_AT_BEGINNING, COMPILE_STOP_AT_END);
+            run_compiler_phases(function, symbol->identifier, PH_BEGIN, PH_END);
             if (print_ir2) print_ir(function, symbol->identifier, 1);
         }
     }

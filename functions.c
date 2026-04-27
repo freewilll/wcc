@@ -47,9 +47,10 @@ void free_functions(void) {
     free_list(allocated_function_param_allocatons);
 }
 
-Function *new_function(void) {
+Function *new_function(char *identifier) {
     Function *function = wcalloc(1, sizeof(Function));
     longset_add(allocated_functions, (long) function);
+    function->identifier = identifier;
 
     return function;
 }
@@ -361,7 +362,7 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
 
 // Add a move for a function return value. If it's a long double, a load can be done,
 // otherwise, either rax or xmm0 must hold the result.
-void add_function_return_moves(Function *function, char *identifier) {
+void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation == IR_RETURN && !ir->src1) || ir->operation != IR_RETURN) continue;
 
@@ -376,7 +377,7 @@ void add_function_return_moves(Function *function, char *identifier) {
         }
 
         else if (ir->src1->type->type == TYPE_STRUCT_OR_UNION)
-            add_function_return_moves_for_struct_or_union(function, ir, identifier);
+            add_function_return_moves_for_struct_or_union(function, ir, function->identifier);
 
         else {
             int is_sse = is_sse_floating_point_type(function->type->target);
@@ -1302,8 +1303,8 @@ void process_function_varargs(Function *function) {
 //
 // Return values for structs & unions with size > 16 bytes are passed in memory,
 // with rdi containing a pointer to the memory.
-void add_function_param_moves(Function *function, char *identifier) {
-    if (debug_function_param_mapping) printf("Mapping function parameters for %s\n", identifier);
+void add_function_param_moves(Function *function) {
+    if (debug_function_param_mapping) printf("Mapping function parameters for %s\n", function->identifier);
 
     ir = function->ir;
 
@@ -1315,7 +1316,7 @@ void add_function_param_moves(Function *function, char *identifier) {
 
     ir = function->ir->next;
 
-    FunctionParamAllocation *fpa = init_function_param_allocaton(identifier);
+    FunctionParamAllocation *fpa = init_function_param_allocaton(function->identifier);
 
     int fpa_start = 0; // Which index in fpa->param_locations has the first actual parameter
 

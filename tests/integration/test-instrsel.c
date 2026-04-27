@@ -1758,7 +1758,7 @@ int main() {
 
     init_memory_management_for_translation_unit();
 
-    function = new_function();
+    function = new_function("test");
     function->type = new_type(TYPE_FUNCTION);
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);

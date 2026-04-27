@@ -1343,7 +1343,7 @@ static void tile_igraphs(Function *function) {
         Tac *current_instruction_ir_start = ir;
         make_intermediate_representation(function, &(igraphs[i]));
         if (debug_instsel_tiling) {
-            Function *f = new_function();
+            Function *f = new_function(function->identifier);
             f->ir = current_instruction_ir_start;
             print_ir(f, 0, 0);
         }
@@ -1359,7 +1359,7 @@ static void tile_igraphs(Function *function) {
 
     if (debug_instsel_tiling) {
         printf("\nFinal IR for block:\n");
-        Function *f = new_function();
+        Function *f = new_function(function->identifier);
         f->ir = ir_start;
         print_ir(f, 0, 0);
     }
