@@ -73,7 +73,7 @@ instrrules-generated.o: instrrules-generated.c
 	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} -c $< -o $@
 
 %.o: ${SRC_DIR}/%.c ${BUILD_DIR}/config.h ${SRC_DIR}/wcc.h build
-	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -c $< -o $@
+	${GCC} ${GCC_OPTS} -g -Wunused -Wno-unused-function ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -c $< -o $@
 
 libwcc.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
 	ar rcs libwcc.a ${OBJECTS} wcc.o instrrules-generated.o internals.o

@@ -1000,7 +1000,7 @@ static void process_function_va_start(Function *function, Tac *ir) {
     ir = new_tac_after(ir, IR_MOVE, dst, gp_offset_value, 0);
 
     // Set va_list.overflow_arg_area, the address of the first vararg pushed on the stack
-    Value *tmp_dst = dup_value(dst);
+    Value *tmp_dst = new_value();
     tmp_dst->type = make_pointer_to_void();
     tmp_dst->vreg = ++function->vreg_count;
 
@@ -1017,7 +1017,8 @@ static void process_function_va_start(Function *function, Tac *ir) {
     ir = new_tac_after(ir, IR_MOVE, dst, tmp_dst, 0);
 
     // Set va_list.reg_save_area, the address of the register save area
-    tmp_dst = dup_value(tmp_dst);
+    tmp_dst = new_value();
+    tmp_dst->type = make_pointer_to_void();
     tmp_dst->vreg = ++function->vreg_count;
     ir = new_tac_after(ir, IR_ADDRESS_OF, tmp_dst, function->register_save_area, 0);
 
@@ -1280,6 +1281,7 @@ static void process_function_va_arg(Function *function, Tac *ir) {
     ir = new_tac_after(ir, IR_NOP, 0, 0, 0);
     ir->label = ldone->label;
 }
+
 
 void process_function_varargs(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {

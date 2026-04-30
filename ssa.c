@@ -1223,6 +1223,9 @@ void blast_vregs_with_live_ranges(Function *function) {
         if (tac->src2 && tac->src2->vreg) { tac->src2->live_range = -100000; tac->src2->ssa_subscript = -1; }
         if (tac->dst  && tac->dst-> vreg) { tac->dst-> live_range = -100000; tac->dst-> ssa_subscript = -1; }
     }
+
+    // Update vreg count for downstream code that may add more vregs.
+    make_vreg_count(function, 0);
 }
 
 // Set preg_class (PC_INT or PC_SSE) for all vregs in the IR by looking at the type
@@ -1545,7 +1548,7 @@ static void copy_interference_graph_edges(char *interference_graph, int vreg_cou
 }
 
 // Rewrite the IR, renaming all registers in the coalesces map. Then, upgade the interference graph and liveouts.
-static void coalesce_pending_coalesces(Function *function, LongMap *coalesces, int check_register_constraints) {
+static void coalesce_pending_coalesces(Function *function, LongMap *coalesces) {
     // Rewrite IR src => dst if present in the coalesces map
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         move_coalesced_vreg(coalesces, tac->dst);
@@ -1558,22 +1561,6 @@ static void coalesce_pending_coalesces(Function *function, LongMap *coalesces, i
             tac->dst = 0;
             tac->src1 = 0;
             tac->src2 = 0;
-        }
-
-        if (check_register_constraints) {
-            // Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
-            if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
-                print_instruction(stdout, tac, 0);
-                panic("Illegal violation of dst != src1 (%d), required by instrsel", tac->dst->vreg);
-            }
-            if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
-                print_instruction(stdout, tac, 0);
-                panic("Illegal violation of dst != src2 (%d) , required by instrsel", tac->dst->vreg);
-            }
-            if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
-                print_instruction(stdout, tac, 0);
-                panic("Illegal violation of src1 != src2 (%d) , required by instrsel", tac->src1->vreg);
-            }
         }
     }
 
@@ -1617,7 +1604,7 @@ static int coalesce_cmpfunc(const void *a, const void *b) {
 // loop runs again. Since earlier coalesces can lead to later coalesces not
 // happening, with each inner loop, the registers with the highest spill cost are
 // coalesced.
-static void coalesce_live_ranges_for_preg(Function *function, int check_register_constraints, int preg_class) {
+static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
     int vreg_count = function->vreg_count;
     char *clobbers = wmalloc((vreg_count + 1) * sizeof(char));
 
@@ -1722,7 +1709,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
             outer_changed = 1;
         }
 
-        coalesce_pending_coalesces(function, pending_coalesces, check_register_constraints);
+        coalesce_pending_coalesces(function, pending_coalesces);
 
         wfree(coalesces);
         free_longmap(pending_coalesces);
@@ -1737,7 +1724,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int check_register
     }
 }
 
-void coalesce_live_ranges(Function *function, int check_register_constraints) {
+void coalesce_live_ranges(Function *function) {
     make_vreg_count(function, live_range_reserved_pregs_offset);
     if (log_compiler_phase_durations) debug_log("Make liveout");
     make_liveout(function);
@@ -1754,10 +1741,10 @@ void coalesce_live_ranges(Function *function, int check_register_constraints) {
     }
 
     if (log_compiler_phase_durations) debug_log("Coalesce live ranges for int");
-    coalesce_live_ranges_for_preg(function, check_register_constraints, PC_INT);
+    coalesce_live_ranges_for_preg(function, PC_INT);
 
     if (log_compiler_phase_durations) debug_log("Coalesce live ranges for SSE");
-    coalesce_live_ranges_for_preg(function, check_register_constraints, PC_SSE);
+    coalesce_live_ranges_for_preg(function, PC_SSE);
 }
 
 // 10^p

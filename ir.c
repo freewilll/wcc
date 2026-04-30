@@ -121,6 +121,25 @@ void sanity_test_ir_linkage(Function *function) {
     }
 }
 
+#define CHECK_VREG_AND_STACK_INDEX(tac, value) \
+    if ((value) && (value)->vreg && (value)->stack_index) { \
+        printf("Instruction:\n"); \
+        print_instruction(stdout, tac, 0); \
+        printf("Value: "); \
+        print_value(stdout, value, 0); \
+        printf("\n"); \
+        panic("Value has both a vreg (%d) and a stack_index (%d)", (value)->vreg, (value)->stack_index); \
+    }
+
+// Ensure values don't have a stack_index and vreg set at the same time
+void sanity_test_values(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        CHECK_VREG_AND_STACK_INDEX(tac, tac->dst);
+        CHECK_VREG_AND_STACK_INDEX(tac, tac->src1);
+        CHECK_VREG_AND_STACK_INDEX(tac, tac->src2);
+    }
+}
+
 int print_value(void *f, Value *v, int is_assignment_rhs) {
     int c = 0; // Count outputted characters
 

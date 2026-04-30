@@ -49,6 +49,24 @@ void free_instrsel() {
     free_list(allocated_things);
 }
 
+// Sanity check for instrsel, ensure dst != src1, dst != src2 and src1 != src2
+void check_instrsel_register_sanity(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            print_instruction(stdout, tac, 0);
+            panic("Illegal violation of dst != src1 (%d), required by instrsel in function %s", tac->dst->vreg, function->identifier);
+        }
+        if (tac->dst && tac->dst->vreg && tac->src2 && tac->src2->vreg && tac->dst->vreg == tac->src2->vreg) {
+            print_instruction(stdout, tac, 0);
+            panic("Illegal violation of dst != src2 (%d) , required by instrsel in function %s", tac->dst->vreg, function->identifier);
+        }
+        if (tac->src1 && tac->src1->vreg && tac->src2 && tac->src2->vreg && tac->src1->vreg == tac->src2->vreg) {
+            print_instruction(stdout, tac, 0);
+            panic("Illegal violation of src1 != src2 (%d) , required by instrsel in function %s", tac->src1->vreg, function->identifier);
+        }
+    }
+}
+
 static void transform_lvalues(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_MOVE_TO_PTR) {
@@ -1323,7 +1341,7 @@ static void tile_igraphs(Function *function) {
         igraph_rules = wcalloc(igraphs[i].node_count, sizeof(Rule *));
 
         if (debug_instsel_tiling)
-            printf("\nTiling\n-----------------------------------------------------\n");
+            printf("\nTiling\n");
 
         cost_graph = new_graph(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT, MAX_INSTRUCTION_GRAPH_CHOICE_EDGE_COUNT);
         cost_rules = wcalloc(MAX_INSTRUCTION_GRAPH_CHOICE_NODE_COUNT, sizeof(int));
@@ -1380,6 +1398,18 @@ void select_instructions(Function *function) {
     // Loop over all blocks
     for (int i = 0; i < block_count; i++) {
         blocks[i].end->next = 0; // Will be re-entangled later
+
+        if (debug_instsel_tiling)  {
+            printf("Tiling function %s, block %d\n", function->identifier, i);
+            printf("-----------------------------------------------------\n");
+
+            Tac *tac = blocks[i].start;
+            while (1) {
+                if (tac == blocks[i].end) break;
+                if (debug_instsel_tiling) print_instruction(stdout, tac, 0);
+                tac = tac->next;
+            }
+        }
 
         make_igraphs(function, i);
         simplify_igraphs();
@@ -1562,7 +1592,7 @@ void add_spill_code(Function *function) {
         // Allow non sign-extends moves if the dst is on the stack and the src is a register
         if (tac->operation == X_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) continue;
 
-        int dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->vreg == tac->src1->vreg);
+        int dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->stack_index == tac->src1->stack_index);
 
         if (tac->src1 && tac->src1->spilled)  {
             if (debug_instsel_spilling) printf("Adding spill load\n");

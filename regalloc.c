@@ -350,6 +350,7 @@ static void assign_vreg_locations(Function *function) {
                     panic("Unexpectedly spilled a register for preg %s vreg %d in tac->dst",
                         register_name(preg_map[tac->dst->live_range_preg - 1]), tac->dst->vreg);
 
+                tac->dst->vreg = 0;
                 tac->dst->stack_index = vl->stack_index;
                 tac->dst->spilled = 1;
             }
@@ -364,6 +365,7 @@ static void assign_vreg_locations(Function *function) {
                     panic("Unexpectedly spilled a register for preg %s vreg %d in tac->src1",
                         register_name(preg_map[tac->src1->live_range_preg - 1]), tac->src1->vreg);
 
+                tac->src1->vreg = 0;
                 tac->src1->stack_index = vl->stack_index;
                 tac->src1->spilled = 1;
             }
@@ -378,6 +380,7 @@ static void assign_vreg_locations(Function *function) {
                     panic("Unexpectedly spilled a register for preg %s vreg %d in tac->src2",
                         register_name(preg_map[tac->src2->live_range_preg - 1]), tac->src2->vreg);
 
+                tac->src2->vreg = 0;
                 tac->src2->stack_index = vl->stack_index;
                 tac->src2->spilled = 1;
             }

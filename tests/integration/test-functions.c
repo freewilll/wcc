@@ -28,6 +28,7 @@ static Tac *run_function_params_compiler(const char *code) {
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
             Function *function = symbol->function;
             if (!strcmp(symbol->identifier, "test")) {
+                live_range_reserved_pregs_offset = 0; // Disable register allocation
                 run_compiler_phases(function, symbol->identifier, PH_BEGIN, PH_PARAM);
 
                 // Move ir_start to first non-labelled non-noop for convenience
@@ -161,12 +162,12 @@ static void test_big_struct_in_registers_in_func_call(void) {
     assert_int(0, !!ir->label);
     ir = ir->next;
 
-    // 1:long = r1_LRpreg6:long >> 32:long
-    assert_tac(ir, IR_BSHR, vsz(1, TYPE_INT), vsz(1, TYPE_INT), c(32));
+    // r2:long = r1_LRpreg6:long >> 32:long
+    assert_tac(ir, IR_BSHR, vsz(2, TYPE_INT), vsz(1, TYPE_INT), c(32));
     ir = ir->next;
 
-    // {l}S[-1][4]:unsigned char = r1:unsigned char
-    assert_tac(ir, IR_MOVE, S(-1), vsz(1, TYPE_CHAR), 0);
+    // {l}S[-1][4]:unsigned char = r2:unsigned char
+    assert_tac(ir, IR_MOVE, S(-1), vsz(2, TYPE_CHAR), 0);
     assert_int(0, !!ir->label);
     ir = ir->next;
 

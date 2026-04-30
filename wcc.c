@@ -6,6 +6,7 @@
 #include "wcc.h"
 
 #define SANITY_TEST_IR_LINKAGE 0
+#define SANITY_TEST_VALUES 0
 
 void init_instruction_selection_rules(void) {
     init_generated_instruction_selection_rules();
@@ -55,14 +56,6 @@ typedef struct compiler_phase {
     const char *description;
 } CompilerPhase;
 
-static void coalesce_live_ranges_checked(Function *function) {
-    coalesce_live_ranges(function, 1);
-}
-
-static void coalesce_live_ranges_unchecked(Function *function) {
-    coalesce_live_ranges(function, 0);
-}
-
 static void make_interference_graph_local(Function *function) {
     make_interference_graph(function, 1, 0);
 }
@@ -72,6 +65,10 @@ static void write_rule_coverage_file_local(Function *function) {
     if (rule_coverage_file) write_rule_coverage_file();
 }
 
+static void print_ir_local(Function *function) {
+    print_ir(function, NULL, 0);
+
+}
 static CompilerPhase compiler_phases[] = {
     // Parser post processing
     { convert_enums,                               PH_BEGIN, PH_NONE,  "Convert enums" },
@@ -94,7 +91,6 @@ static CompilerPhase compiler_phases[] = {
     { add_function_param_moves,                    PH_NONE,  PH_NONE,  "Function arg/param manipulation" },
     { add_function_return_moves,                   PH_NONE,  PH_NONE,  "Add function return moves" },
     { add_function_call_result_moves,              PH_NONE,  PH_NONE,  "Add function call result moves" },
-    { process_function_varargs,                    PH_NONE,  PH_PARAM, "Process function varargs" },
 
     // Misc IR conversions
     { rewrite_lvalue_reg_assignments,              PH_NONE,  PH_NONE,  "Rewrite lvalue register assignments" },
@@ -107,10 +103,12 @@ static CompilerPhase compiler_phases[] = {
     { rename_phi_function_variables,               PH_NONE,  PH_NONE,  "Rename phi function variables" },
     { make_live_ranges,                            PH_NONE,  PH_NONE,  "Make live ranges" },
     { blast_vregs_with_live_ranges,                PH_NONE,  PH_NONE,  "Blast vregs with live ranges" },
+    { free_phi_functions,                          PH_NONE,  PH_NONE,  NULL },
     { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
 
     // Function call processing part 2
-    { add_function_call_arg_moves,                 PH_NONE,  PH_NONE,  "Add function call arg moves" },
+    { process_function_varargs,                    PH_NONE,  PH_NONE,  "Process function varargs" },
+    { add_function_call_arg_moves,                 PH_NONE,  PH_PARAM, "Add function call arg moves" },
 
     // Misc IR conversions
     { add_PIC_load_and_saves,                      PH_NONE,  PH_NONE,  "Adding PIC loads & saves" },
@@ -120,8 +118,8 @@ static CompilerPhase compiler_phases[] = {
     // Coalesce live ranges
     { analyze_dominance,                           PH_NONE,  PH_NONE,  "Analyzing dominance" },
     { make_uevar_and_varkill,                      PH_NONE,  PH_NONE,  "Make uevar and varkill" },
-    { coalesce_live_ranges_checked,                PH_NONE,  PH_LIVE,  "Coalesce live ranges" },
-    { free_phi_functions,                          PH_NONE,  PH_NONE,  NULL },
+    { coalesce_live_ranges,                        PH_NONE,  PH_LIVE,  "Coalesce live ranges" },
+    { check_instrsel_register_sanity,              PH_NONE,  PH_LIVE,  "Check registers are SSA-like for instrsel" },
     { free_interference_graph,                     PH_NONE,  PH_NONE,  NULL },
     { free_live_range_spill_cost,                  PH_NONE,  PH_NONE,  NULL },
     { free_vreg_preg_classes,                      PH_NONE,  PH_NONE,  NULL },
@@ -135,7 +133,7 @@ static CompilerPhase compiler_phases[] = {
     // Coalesce live ranges again after instruction selection
     { analyze_dominance,                           PH_NONE,  PH_NONE,  "Analyzing dominance" },
     { make_uevar_and_varkill,                      PH_NONE,  PH_NONE,  "Make uevar and varkill" },
-    { coalesce_live_ranges_unchecked,              PH_NONE,  PH_NONE,  "Coalesce live ranges" },
+    { coalesce_live_ranges,                        PH_NONE,  PH_NONE,  "Coalesce live ranges" },
     { free_interference_graph,                     PH_NONE,  PH_NONE,  NULL },
 
     // Allocate registers
@@ -172,6 +170,7 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
     int phase_count = sizeof(compiler_phases) / sizeof(compiler_phases[0]);
     for (int i = 0; i < phase_count; i++) {
         if (SANITY_TEST_IR_LINKAGE) sanity_test_ir_linkage(function);
+        if (SANITY_TEST_VALUES) sanity_test_values(function);
 
         CompilerPhase *phase = &compiler_phases[i];
 

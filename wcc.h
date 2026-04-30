@@ -1104,6 +1104,7 @@ Tac *insert_tac_after(Tac *ir, Tac *tac);
 Tac *new_tac_after(Tac *ir, int operation, Value *dst, Value *src1, Value *src2);
 Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
+void sanity_test_values(Function *function);
 int make_function_call_count(Function *function);
 int make_max_function_call_id(Function *function);
 int print_value(void *f, Value *v, int is_assignment_rhs);
@@ -1187,7 +1188,7 @@ void free_vreg_preg_classes(Function *function);
 void blast_vregs_with_live_ranges(Function *function);
 void make_interference_graph(Function *function, int include_clobbers, int include_instrsel_constraints);
 void free_interference_graph(Function *function);
-void coalesce_live_ranges(Function *function, int check_register_constraints);
+void coalesce_live_ranges(Function *function);
 void make_preferred_live_range_preg_indexes(Function *function);
 void free_preferred_live_range_preg_indexes(Function *function);
 
@@ -1414,6 +1415,9 @@ extern Value **saved_values;
 extern char *rule_coverage_file;
 extern Set *rule_coverage;
 
+void init_instrsel();
+void free_instrsel();
+void check_instrsel_register_sanity(Function *function);
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
 void remove_stack_self_moves(Function *function);
@@ -1449,9 +1453,6 @@ void write_rule_coverage_file(void);
 void define_rules(void);
 
 // codegen.c
-void init_instrsel();
-void free_instrsel();
-
 char *register_name(int preg);
 char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
 void make_stack_offsets(Function *function);
