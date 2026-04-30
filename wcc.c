@@ -87,7 +87,6 @@ static CompilerPhase compiler_phases[] = {
     // Function call processing part 1
     { add_function_param_moves,                    PH_NONE,  PH_NONE,  "Function arg/param manipulation" },
     { add_function_return_moves,                   PH_NONE,  PH_NONE,  "Add function return moves" },
-    { add_function_call_result_moves,              PH_NONE,  PH_NONE,  "Add function call result moves" },
 
     // Misc IR conversions
     { rewrite_lvalue_reg_assignments,              PH_NONE,  PH_NONE,  "Rewrite lvalue register assignments" },
@@ -104,6 +103,7 @@ static CompilerPhase compiler_phases[] = {
     { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
 
     // Function call processing part 2
+    { add_function_call_result_moves,              PH_NONE,  PH_NONE,  "Add function call result moves" },
     { process_function_varargs,                    PH_NONE,  PH_NONE,  "Process function varargs" },
     { add_function_call_arg_moves,                 PH_NONE,  PH_PARAM, "Add function call arg moves" },
 
