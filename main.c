@@ -178,6 +178,7 @@ int main(int argc, char **argv) {
     warn_extern_initializer = 1;
     error_incomptatible_pointer_type = 1;
     error_int_conversion = 1;
+    sanity_check_ir = 0;
 
     int exit_code = 0;
     int verbose = 0;        // Print invoked program command lines
@@ -192,6 +193,7 @@ int main(int argc, char **argv) {
     int is_shared = 0;
     int is_static = 0;
     int use_musl = 0;
+
     const LibcConfig *libc = &GLIBC_CONFIG;
 
     char *output_filename = 0;
@@ -234,6 +236,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--print-filenames"                 )) { print_filenames = 1;                      argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--print-heap-usage"                )) { print_heap_usage = 1;                     argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--fail-on-leaked-memory"           )) { fail_on_leaked_memory = 1;                argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--sanity-check-ir"                 )) { sanity_check_ir = 1;                      argc--; argv++; }
             else if (argc > 0 && !strncmp(argv[0], "--libc", 6)) {
                 if (argc == 1 || argv[0][6] == '=') {
                     printf("Usage: --libc musl|glibc\n");
@@ -432,6 +435,7 @@ int main(int argc, char **argv) {
         printf("--rule-coverage-file <file>                 Append matched rules to file\n");
         printf("--print-heap-usage                          Print heap usage at exit\n");
         printf("--fail-on-leaked-memory                     Exit with a failure code if any memory was leaked\n");
+        printf("--sanity-check-ir                           Check internal consistency of intermediate representation\n");
         printf("\n");
         printf("-print-prog-name=<name>                     Print program name\n");
         printf("-dumpmachine                                Print x86_64-linux-gnu\n");

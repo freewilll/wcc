@@ -11,7 +11,7 @@ INSTALL_LIB_INCLUDE_DIR = ${INSTALL_LIB_DIR}/include
 
 WCC_BUILD_FLAGS := -D INSTALL_LIB_DIR='"${INSTALL_LIB_DIR}"'
 WCC_SRC_INCLUDE := -I ${SRC_DIR}/include
-WCC_SELFHOST_FLAGS := ${WCC_OPTS} --fail-on-leaked-memory
+WCC_SELFHOST_FLAGS := ${WCC_OPTS} --fail-on-leaked-memory --sanity-check-ir
 WCC_RULE_COVERAGE_FLAGS := --rule-coverage-file wcc2.rulecov
 
 all: wcc

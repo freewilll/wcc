@@ -714,6 +714,7 @@ extern int cur_line;                    // Current line number being lexed
 extern int print_ir1;                          // Print IR after parsing
 extern int print_ir2;                          // Print IR after register allocation
 extern int log_compiler_phase_durations;       // Output logs of how long each compiler phase lasts
+extern int sanity_check_ir;                    // Sanity check intermediate representations
 
 extern int opt_PIC;                            // Make position independent code
 extern int opt_debug_symbols;                  // Add debug symbols

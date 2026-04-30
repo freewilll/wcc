@@ -5,9 +5,6 @@
 
 #include "wcc.h"
 
-#define SANITY_TEST_IR_LINKAGE 0
-#define SANITY_TEST_VALUES 0
-
 void init_instruction_selection_rules(void) {
     init_generated_instruction_selection_rules();
 
@@ -169,8 +166,10 @@ void run_compiler_phases(Function *function, char *function_name, int start_at, 
 
     int phase_count = sizeof(compiler_phases) / sizeof(compiler_phases[0]);
     for (int i = 0; i < phase_count; i++) {
-        if (SANITY_TEST_IR_LINKAGE) sanity_test_ir_linkage(function);
-        if (SANITY_TEST_VALUES) sanity_test_values(function);
+        if (sanity_check_ir) {
+            sanity_test_ir_linkage(function);
+            sanity_test_values(function);
+        }
 
         CompilerPhase *phase = &compiler_phases[i];
 
