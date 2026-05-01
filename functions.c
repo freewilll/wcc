@@ -117,6 +117,7 @@ static int make_int_struct_or_union_move_from_register_to_stack_instructions(
 
         Value *new_shift_register = dup_value(shift_register);
         new_shift_register->live_range_preg = 0;
+        new_shift_register->vreg = ++function->vreg_count;
 
         new_tac_before(ir, IR_BSHR, new_shift_register, shift_register, new_integral_constant(TYPE_LONG, size_unit * 8), 0);
 
@@ -796,7 +797,7 @@ void add_function_call_arg_moves(Function *function) {
 
     if (debug_function_arg_mapping) {
         printf("After function call arg mapping\n");
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 }
 
@@ -1459,7 +1460,7 @@ void add_function_param_moves(Function *function) {
 
     if (debug_function_param_mapping) {
         printf("After function param mapping\n");
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 }
 

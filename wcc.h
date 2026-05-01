@@ -1110,7 +1110,7 @@ int make_function_call_count(Function *function);
 int make_max_function_call_id(Function *function);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 void print_instruction(void *f, Tac *tac, int expect_preg);
-void print_ir(Function *function, char* name, int expect_preg);
+void print_ir(Function *function, int expect_preg);
 void reverse_function_argument_order(Function *function);
 void merge_consecutive_labels(Function *function);
 void renumber_labels(Function *function);

@@ -45,7 +45,7 @@ void compress_vregs(Function *function) {
 
     if (debug_ssa_vreg_renumbering) {
         printf("Before vreg renumbering:\n");
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -75,7 +75,7 @@ void compress_vregs(Function *function) {
 
     if (debug_ssa_vreg_renumbering) {
         printf("\nAfter vreg renumbering:\n");
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 
     wfree(vreg_map);
@@ -195,7 +195,7 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 
     if (debug_register_allocation) {
         printf("Allocating registers for live_range_start=%d, live_range_end=%d physical_register_count=%d\n", live_range_start, live_range_end, physical_register_count);
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 
     VregCost *ordered_nodes = wmalloc((vreg_count + 1) * sizeof(VregCost));

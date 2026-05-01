@@ -63,7 +63,7 @@ static void write_rule_coverage_file_local(Function *function) {
 }
 
 static void print_ir_local(Function *function) {
-    print_ir(function, NULL, 0);
+    print_ir(function, 0);
 
 }
 static CompilerPhase compiler_phases[] = {
@@ -84,14 +84,12 @@ static CompilerPhase compiler_phases[] = {
     // Arithmetic optimization
     { optimize_arithmetic_operations,              PH_ARITH, PH_NONE,  "Optimizing arithmetic operations" },
 
-    // Function call processing part 1
-    { add_function_param_moves,                    PH_NONE,  PH_NONE,  "Function arg/param manipulation" },
-    { add_function_return_moves,                   PH_NONE,  PH_NONE,  "Add function return moves" },
-
     // Misc IR conversions
     { rewrite_lvalue_reg_assignments,              PH_NONE,  PH_NONE,  "Rewrite lvalue register assignments" },
 
-    // SSA
+    // Convert the IR to SSA and back out again
+    // It's a bit pointless, since the SSA representation isn't made use of,
+    // but the plan is to use it in the future.
     { analyze_dominance,                           PH_NONE,  PH_DOM,   "Analyzing dominance" },
     { make_globals_and_var_blocks,                 PH_NONE,  PH_NONE,  "Make globals and variable blocks" },
     { insert_phi_functions,                        PH_NONE,  PH_PHI,   "Insert phi functions" },
@@ -102,7 +100,9 @@ static CompilerPhase compiler_phases[] = {
     { free_phi_functions,                          PH_NONE,  PH_NONE,  NULL },
     { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
 
-    // Function call processing part 2
+    // The backend x86_64 specific phase follows
+    { add_function_param_moves,                    PH_NONE,  PH_NONE,  "Function arg/param manipulation" },
+    { add_function_return_moves,                   PH_NONE,  PH_NONE,  "Add function return moves" },
     { add_function_call_result_moves,              PH_NONE,  PH_NONE,  "Add function call result moves" },
     { process_function_varargs,                    PH_NONE,  PH_NONE,  "Process function varargs" },
     { add_function_call_arg_moves,                 PH_NONE,  PH_PARAM, "Add function call arg moves" },
@@ -226,10 +226,10 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
             Function *function = symbol->function;
-            if (print_ir1) print_ir(function, symbol->identifier, 0);
+            if (print_ir1) print_ir(function, 0);
 
             run_compiler_phases(function, symbol->identifier, PH_BEGIN, PH_END);
-            if (print_ir2) print_ir(function, symbol->identifier, 1);
+            if (print_ir2) print_ir(function, 1);
         }
     }
 

@@ -259,7 +259,7 @@ void make_control_flow_graph(Function *function) {
     index_tac(function->ir);
 
     if (debug_ssa_cfg) {
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
 
         printf("Blocks:\n");
         for (int i = 0; i < block_count; i++) printf("%d: %d -> %d\n", i, blocks[i].start->index, blocks[i].end->index);
@@ -856,7 +856,7 @@ void insert_phi_functions(Function *function) {
 
     if (debug_ssa_phi_insertion) {
         printf("\nIR with phi functions:\n");
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 }
 
@@ -1019,7 +1019,7 @@ void rename_phi_function_variables(Function *function) {
 
     rename_vars(function, stack, counters, 0, vreg_count);
 
-    if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
+    if (debug_ssa_phi_renumbering) print_ir(function, 0);
 
     for (int i = 1; i <= vreg_count; i++) free_stack(stack[i]);
     wfree(stack);
@@ -1059,7 +1059,7 @@ static long live_range_hash(long l) {
 // deduping is done, the final sets are sorted, so that the vreg order is more or less
 // preserved.
 void make_live_ranges(Function *function) {
-    if (debug_ssa_live_range) print_ir(function, 0, 0);
+    if (debug_ssa_live_range) print_ir(function, 0);
 
     LongMap *live_ranges = new_longmap();
     live_ranges->hashfunc = live_range_hash;
@@ -1202,7 +1202,7 @@ void make_live_ranges(Function *function) {
         blocks[i].start = tac;
     }
 
-    if (debug_ssa_live_range) print_ir(function, 0, 0);
+    if (debug_ssa_live_range) print_ir(function, 0);
 }
 
 // Having vreg & live_range separately isn't particularly useful, since most
@@ -1225,7 +1225,7 @@ void blast_vregs_with_live_ranges(Function *function) {
     }
 
     // Update vreg count for downstream code that may add more vregs.
-    make_vreg_count(function, 0);
+    make_vreg_count(function, live_range_reserved_pregs_offset);
 }
 
 // Set preg_class (PC_INT or PC_SSE) for all vregs in the IR by looking at the type
@@ -1336,8 +1336,9 @@ static void force_physical_register(char *ig, int vreg_count, LongSet *livenow, 
     // Add edges to all non reserved physical registers
     int start = preg_class == PC_INT ? 1 : PHYSICAL_INT_REGISTER_COUNT + 1;
     int size = preg_class == PC_INT ? PHYSICAL_INT_REGISTER_COUNT : PHYSICAL_SSE_REGISTER_COUNT;
-    for (int i = start; i < start + size; i++)
+    for (int i = start; i < start + size; i++) {
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
+    }
 }
 
 static void enforce_live_range_preg_for_preg(char *interference_graph, int vreg_count, LongSet *livenow, Value *value, int preg_class, const int *arg_registers) {
@@ -1372,7 +1373,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
         printf("--------------------------------------------------------\n");
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 
     int vreg_count = function->vreg_count;
@@ -1646,7 +1647,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
         }
 
         if (debug_ssa_live_range_coalescing) {
-            print_ir(function, 0, 0);
+            print_ir(function, 0);
             printf("Live range coalesces:\n");
         }
 
@@ -1720,7 +1721,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
 
     if (debug_ssa_live_range_coalescing) {
         printf("\nLive range coalesce results for preg_class=%d:\n", preg_class);
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 }
 

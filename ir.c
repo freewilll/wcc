@@ -382,8 +382,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     fprintf(f, "\n");
 }
 
-void print_ir(Function *function, char* name, int expect_preg) {
-    if (name) fprintf(stdout, "%s:\n", name);
+void print_ir(Function *function, int expect_preg) {
+    if (function->identifier) fprintf(stdout, "%s:\n", function->identifier);
 
     int i = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -779,7 +779,7 @@ void allocate_value_stack_indexes(Function *function) {
     int *stack_index_map = wmalloc((function->local_symbol_count + 1) * sizeof(int));
     memset(stack_index_map, -1, (function->local_symbol_count + 1) * sizeof(int));
 
-    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
+    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
 
     // Make stack_index_map
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -821,7 +821,7 @@ void allocate_value_stack_indexes(Function *function) {
     if (debug_ssa_mapping_local_stack_indexes)
         printf("Moved %d registers to stack\n", stack_register_count);
 
-    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0, 0);
+    if (debug_ssa_mapping_local_stack_indexes) print_ir(function, 0);
 
     wfree(stack_index_map);
 }

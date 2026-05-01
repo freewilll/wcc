@@ -1363,7 +1363,7 @@ static void tile_igraphs(Function *function) {
         if (debug_instsel_tiling) {
             Function *f = new_function(function->identifier);
             f->ir = current_instruction_ir_start;
-            print_ir(f, 0, 0);
+            print_ir(f, 0);
         }
 
         for (int j = 0; j < igraphs[i].node_count; j++) free_longset(igraph_labels[j]);
@@ -1379,7 +1379,7 @@ static void tile_igraphs(Function *function) {
         printf("\nFinal IR for block:\n");
         Function *f = new_function(function->identifier);
         f->ir = ir_start;
-        print_ir(f, 0, 0);
+        print_ir(f, 0);
     }
 }
 
@@ -1429,7 +1429,7 @@ void select_instructions(Function *function) {
 
     if (debug_instsel_tiling) {
         printf("\nFinal IR for function:\n");
-        print_ir(function, 0, 0);
+        print_ir(function, 0);
     }
 }
 

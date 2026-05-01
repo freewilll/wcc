@@ -306,7 +306,7 @@ void test_liveout1() {
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
-    if (debug_ssa) print_ir(function, 0, 0);
+    if (debug_ssa) print_ir(function, 0);
 
     run_compiler_phases(function, "dummy", PH_ARITH, PH_DOM);
     make_uevar_and_varkill(function);
@@ -388,7 +388,7 @@ Function *make_ir2(int init_four_vars) {
     function->type->function = wcalloc(1, sizeof(FunctionType));
     function->type->target = new_type(TYPE_INT);
 
-    if (debug_ssa) print_ir(function, 0, 0);
+    if (debug_ssa) print_ir(function, 0);
 
     return function;
 }
@@ -588,7 +588,7 @@ void test_phi_renumbering1() {
     run_compiler_phases(function, "dummy", PH_ARITH, PH_PHI);
     rename_phi_function_variables(function);
 
-    if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
+    if (debug_ssa_phi_renumbering) print_ir(function, 0);
 
     // Check renumbered args to phi functions are correct, page 509.
     // No effort is done to validate all other vars. It's safe to assume that
@@ -646,7 +646,7 @@ void test_phi_renumbering2() {
     run_compiler_phases(function, "dummy", PH_ARITH, PH_PHI);
     rename_phi_function_variables(function);
 
-    if (debug_ssa_phi_renumbering) print_ir(function, 0, 0);
+    if (debug_ssa_phi_renumbering) print_ir(function, 0);
 
     // r1_3:long = Φ(r1_0:long, r1_1:long, r1_2:long)
     check_rphi(function->blocks[3].start, 1, 3,  1, 0,  1, 1,  1, 2);
@@ -699,7 +699,7 @@ void test_interference_graph1() {
 
     function = make_ir3(0);
 
-    if (debug_ssa_interference_graph) print_ir(function, 0, 0);
+    if (debug_ssa_interference_graph) print_ir(function, 0);
 
     opt_enable_live_range_coalescing = 0;
     run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
@@ -726,7 +726,7 @@ void test_interference_graph2() {
 
     run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
 
-    if (debug_ssa_interference_graph) print_ir(function, 0, 0);
+    if (debug_ssa_interference_graph) print_ir(function, 0);
 
     ig = function->interference_graph;
     int vreg_count = function->vreg_count;
@@ -774,7 +774,7 @@ void test_interference_graph3() {
     opt_enable_live_range_coalescing = 0;
     run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
 
-    if (debug_ssa_interference_graph) print_ir(function, 0, 0);
+    if (debug_ssa_interference_graph) print_ir(function, 0);
 
     ig = function->interference_graph;
     int vreg_count = function->vreg_count;
@@ -795,7 +795,7 @@ void test_spill_cost() {
         opt_enable_live_range_coalescing = 0;
         run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
 
-        if (debug_ssa_spill_cost) print_ir(function, 0, 0);
+        if (debug_ssa_spill_cost) print_ir(function, 0);
 
         if (i == 0) p = 1;
         else if (i == 1) p = 10;
