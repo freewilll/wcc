@@ -407,13 +407,18 @@ static void merge_instructions(Tac *tac, int ir_index, int allow_labelled_next) 
     next->next = 0;
 }
 
-int make_function_call_count(Function *function) {
+// Determines the highest value of a function call number. This may be the higher than the amount
+// of function calls.
+static int make_max_function_call_value(Function *function) {
     // Need to count this IR's function_call_count
-    int function_call_count = 0;
+    int max_function_call_value = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->operation == IR_START_CALL) function_call_count++;
+        if (tac->operation == IR_START_CALL) {
+            int func_call_value = tac->src1->int_value;
+            if (func_call_value > max_function_call_value) max_function_call_value = func_call_value;
+        }
 
-    return function_call_count;
+    return max_function_call_value;
 }
 
 // Find highest number of the function call value for function call args.
@@ -441,15 +446,15 @@ void reverse_function_argument_order(Function *function) {
     } TacInterval;
 
     // Need to count this IR's function_call_count
-    int function_call_count = make_function_call_count(function);
+    int max_function_call_value = make_max_function_call_value(function);
 
     // First index, function_id, second index arg_id
     TacInterval *function_args;
-    function_args = wmalloc(sizeof(TacInterval) * function_call_count * MAX_ARGS);
+    function_args = wmalloc(sizeof(TacInterval) * (max_function_call_value + 1) * MAX_ARGS);
 
-    int *arg_counts = wcalloc(function_call_count, sizeof(int));
-    Tac **calls = wcalloc(function_call_count, sizeof(Tac *));
-    Tac **call_starts = wcalloc(function_call_count, sizeof(Tac *));
+    int *arg_counts = wcalloc(max_function_call_value + 1, sizeof(int));
+    Tac **calls = wcalloc(max_function_call_value + 1, sizeof(Tac *));
+    Tac **call_starts = wcalloc(max_function_call_value + 1, sizeof(Tac *));
 
     ir = function->ir;
 
@@ -458,6 +463,7 @@ void reverse_function_argument_order(Function *function) {
     while (tac) {
         if (tac->operation == IR_START_CALL) {
             int func = tac->src1->int_value;
+            if (func > max_function_call_value) panic("func (%d) > max_function_call_value (%d)", func, max_function_call_value);
             TacInterval *args = &(function_args[func * MAX_ARGS]);
             call_starts[func] = tac;
             tac = tac->next;
@@ -487,7 +493,7 @@ void reverse_function_argument_order(Function *function) {
     }
 
     // Reverse the args for each function call
-    for (int i = 0; i < function_call_count; i++) {
+    for (int i = 0; i <= max_function_call_value; i++) {
         TacInterval *args = &(function_args[i * MAX_ARGS]);
         int arg_count = arg_counts[i];
         Tac *call = calls[i];
@@ -903,10 +909,10 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
 
 // Add memcpy calls for struct/union -> struct/union copies
 Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
-    int function_call_count = make_function_call_count(function);
+    int max_function_call_value = make_max_function_call_value(function);
 
     // Add start call instruction
-    Value *call_value = make_function_call_value(function_call_count++);
+    Value *call_value = make_function_call_value(++max_function_call_value);
     ir = new_tac_after(ir, IR_START_CALL, 0, call_value, 0);
 
     // Load of addresses of src1, dst & make size value
@@ -1210,20 +1216,22 @@ void add_zero_memory_instructions(Function *function) {
         }
         else {
             // Call memset
-            int function_call_count = make_function_call_count(function);
+            int max_function_call_value = make_max_function_call_value(function);
 
             // Add start call instruction
-            Value *call_value = make_function_call_value(function_call_count++);
-            ir = new_tac_after(ir, IR_START_CALL, 0, call_value, 0);
+            Value *call_value = make_function_call_value(++max_function_call_value);
+            tac = new_tac_after(tac, IR_START_CALL, 0, call_value, 0);
 
             Value *size_value = new_integral_constant(TYPE_INT, size);
-            Value *dst_address = insert_address_of_instruction_after(function, &ir, dst);
-            ir = insert_arg_instruction_after(ir, call_value, dst_address, 0);
-            ir = insert_arg_instruction_after(ir, call_value, zero, 1);
-            ir = insert_arg_instruction_after(ir, call_value, size_value, 2);
+            Value *dst_address = insert_address_of_instruction_after(function, &tac, dst);
+
+            // Note: these are backwards to comply with downstream function arg processing
+            tac = insert_arg_instruction_after(tac, call_value, size_value, 2);
+            tac = insert_arg_instruction_after(tac, call_value, zero, 1);
+            tac = insert_arg_instruction_after(tac, call_value, dst_address, 0);
 
             // Add function call
-            ir = insert_function_call_instructions_after(ir, call_value, memset_symbol);
+            tac = insert_function_call_instructions_after(tac, call_value, memset_symbol);
         }
     }
 }

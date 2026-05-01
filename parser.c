@@ -3081,7 +3081,7 @@ static void parse_expression(int level) {
             case TOK_BITWISE_LEFT_EQ:  { Value *v = prep_comp_assign(); parse_bitwise_shift(TOK_EQ, IR_BSHL, IR_BSHL);  finish_comp_assign(v); break; }
 
             case TOK_COMMA: {
-                // Delete the last expression (if any) on thestack
+                // Delete the last expression (if any) on the stack
 
                 pop_void();
                 next();

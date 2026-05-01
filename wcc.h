@@ -1106,7 +1106,6 @@ Tac *new_tac_after(Tac *ir, int operation, Value *dst, Value *src1, Value *src2)
 Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 void sanity_test_values(Function *function);
-int make_function_call_count(Function *function);
 int make_max_function_call_id(Function *function);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 void print_instruction(void *f, Tac *tac, int expect_preg);
@@ -1469,7 +1468,7 @@ void free_codegen(void);
 typedef enum compiler_phase_tags {
     PH_NONE,
     PH_BEGIN,
-    PH_ARITH,
+    PH_SSA,
     PH_PARAM,
     PH_DOM,
     PH_PHI,

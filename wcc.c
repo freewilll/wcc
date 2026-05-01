@@ -70,7 +70,6 @@ static CompilerPhase compiler_phases[] = {
     // Parser post processing
     { convert_enums,                               PH_BEGIN, PH_NONE,  "Convert enums" },
     { process_struct_and_union_copies,             PH_NONE,  PH_NONE,  "Process struct and union copies" },
-    { reverse_function_argument_order,             PH_NONE,  PH_NONE,  "Reverse function argument order" },
     { merge_consecutive_labels,                    PH_NONE,  PH_NONE,  "Merge consecutive labels" },
     { renumber_labels,                             PH_NONE,  PH_NONE,  "Renumber labels" },
     { allocate_value_vregs,                        PH_NONE,  PH_NONE,  "Allocate value vregs" },
@@ -82,14 +81,12 @@ static CompilerPhase compiler_phases[] = {
     { remove_unused_function_call_results,         PH_NONE,  PH_NONE,  "Remove unused function call results" },
 
     // Arithmetic optimization
-    { optimize_arithmetic_operations,              PH_ARITH, PH_NONE,  "Optimizing arithmetic operations" },
-
-    // Misc IR conversions
-    { rewrite_lvalue_reg_assignments,              PH_NONE,  PH_NONE,  "Rewrite lvalue register assignments" },
+    { optimize_arithmetic_operations,              PH_NONE, PH_NONE,   "Optimizing arithmetic operations" },
 
     // Convert the IR to SSA and back out again
     // It's a bit pointless, since the SSA representation isn't made use of,
     // but the plan is to use it in the future.
+    { rewrite_lvalue_reg_assignments,              PH_SSA,   PH_NONE,  "Rewrite lvalue register assignments" },
     { analyze_dominance,                           PH_NONE,  PH_DOM,   "Analyzing dominance" },
     { make_globals_and_var_blocks,                 PH_NONE,  PH_NONE,  "Make globals and variable blocks" },
     { insert_phi_functions,                        PH_NONE,  PH_PHI,   "Insert phi functions" },
@@ -101,6 +98,7 @@ static CompilerPhase compiler_phases[] = {
     { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
 
     // The backend x86_64 specific phase follows
+    { reverse_function_argument_order,             PH_NONE,  PH_NONE,  "Reverse function argument order" },
     { add_function_param_moves,                    PH_NONE,  PH_NONE,  "Function arg/param manipulation" },
     { add_function_return_moves,                   PH_NONE,  PH_NONE,  "Add function return moves" },
     { add_function_call_result_moves,              PH_NONE,  PH_NONE,  "Add function call result moves" },

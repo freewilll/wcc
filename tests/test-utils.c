@@ -321,11 +321,11 @@ static void _finish_ir(Function *function, int stop_after_live_ranges, int stop_
     function->stack_register_count = 0;
 
     if (stop_after_live_ranges)
-        run_compiler_phases(function, "dummy", PH_ARITH, PH_LIVE);
+        run_compiler_phases(function, "dummy", PH_SSA, PH_LIVE);
     else if (stop_after_instruction_selection)
-        run_compiler_phases(function, "dummy", PH_ARITH, PH_INSTR);
+        run_compiler_phases(function, "dummy", PH_SSA, PH_INSTR);
     else
-        run_compiler_phases(function, "dummy", PH_ARITH, PH_SPILL);
+        run_compiler_phases(function, "dummy", PH_SSA, PH_SPILL);
 
     remove_reserved_physical_register_count_from_tac(function->ir);
     make_stack_register_count(function);
