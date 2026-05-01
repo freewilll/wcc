@@ -73,7 +73,6 @@ static CompilerPhase compiler_phases[] = {
     { merge_consecutive_labels,                    PH_NONE,  PH_NONE,  "Merge consecutive labels" },
     { renumber_labels,                             PH_NONE,  PH_NONE,  "Renumber labels" },
     { allocate_value_vregs,                        PH_NONE,  PH_NONE,  "Allocate value vregs" },
-    { convert_long_doubles_jz_and_jnz,             PH_NONE,  PH_NONE,  "Convert long double conditional jumps" },
     { add_zero_memory_instructions,                PH_NONE,  PH_NONE,  "Add zero memory instructions" },
     { move_long_doubles_to_the_stack,              PH_NONE,  PH_NONE,  "Move long doubles to the stack" },
     { allocate_value_stack_indexes,                PH_NONE,  PH_NONE,  "Allocate value stack indexes" },
@@ -98,6 +97,9 @@ static CompilerPhase compiler_phases[] = {
     { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
 
     // The backend x86_64 specific phase follows
+    { convert_long_doubles_jz_and_jnz,             PH_NONE,  PH_NONE,  "Convert long double conditional jumps" },
+
+    // Function param and arg processing
     { reverse_function_argument_order,             PH_NONE,  PH_NONE,  "Reverse function argument order" },
     { add_function_param_moves,                    PH_NONE,  PH_NONE,  "Function arg/param manipulation" },
     { add_function_return_moves,                   PH_NONE,  PH_NONE,  "Add function return moves" },

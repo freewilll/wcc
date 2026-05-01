@@ -720,8 +720,6 @@ void allocate_value_vregs(Function *function) {
 // - IR_JZ  => IR_EQ with 0.0 & IR_JNZ
 // - IR_JNZ => IR_NE with 0.0 & IR_JNZ
 void convert_long_doubles_jz_and_jnz(Function *function) {
-    make_vreg_count(function, 0);
-
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
             ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
