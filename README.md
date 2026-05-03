@@ -123,16 +123,16 @@ main:
 # Testing
 A unpublished hand rolled CI-style runner is used to run automated tests in the above linux distribtions. Fullblown github CI would be good, but considering the hobby state of the project it was deemed unnecessary for now.
 
-To validate the compiler can compile something other than itself correctly, I fixed enough bugs to get `sqlite3` to compile and pass the `tcltest` tests.
-The latest version of sqlite that compiles and passes its tests is 3.38.5.
+To validate the compiler can compile something other than itself correctly, I got `sqlite3` to compile and pass the `tcltest` tests.
+The latest commit of sqlite that has been tested to compile and passes its tests is [a217a4af09](https://github.com/sqlite/sqlite/commit/a217a4af09).
 
 # Supported linux distributions
 wcc was developed on Ubuntu 20.04 in between 2018 and 2021. An effort to support more recent linux distributions was started in March 2025.
 
-Linux distributions where both wcc, wbinutils and sqlite tests pass:
+Linux distributions that have been tested for both wcc, wbinutils and sqlite tests pass:
 - Ubuntu 22.04
 - Ubuntu 24.04
-- Ubuntu 25.04
+- Ubuntu 26.04
 - debian 13
 - fedora 43*
 
