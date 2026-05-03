@@ -1,0 +1,472 @@
+#include "assert.h"
+#include "wcc.h"
+
+// Vreg numbers for a 128-bit vreg split into a low and high vregs
+typedef struct split_vreg {
+    int low;
+    int high;
+} SplitVreg;
+
+// A 128-bit value that has been split into low and high values
+typedef struct split_value {
+    Value *low;
+    Value *high;
+} SplitValue;
+
+static SplitVreg **int128_register_mappings; // A map from 128-bit registers to split 2*64-bit registers
+static int original_vreg_count;              // Count before the extra registers were allocated
+
+#define VALUE_IS_INT128(value) (value && value->type && value->type->type == TYPE_INT128)
+#define VALUE_IS_INT128_VREG(value) (value && value->vreg && value->type && value->type->type  == TYPE_INT128)
+#define TAC_IS_INT128(tac) (VALUE_IS_INT128(tac->dst) || VALUE_IS_INT128(tac->src1) || VALUE_IS_INT128(tac->src2))
+
+// Lots of things have not been implemented. Print the failing instruction and fail hard.
+static void bail_on_unimplemented_instruction(Tac *tac, const char *message) {
+    fprintf(stderr, "%s", message);
+    print_instruction(stderr, tac, 0);
+    panic("bailing");
+}
+
+// Allocate a new vreg
+static int new_vreg(Function *function) {
+    function->vreg_count++;
+    if (function->vreg_count >= MAX_VREG_COUNT) panic_with_line_number("Exceeded max vreg count %d", MAX_VREG_COUNT);
+    return function->vreg_count;
+}
+
+// Allocate a new vreg of type long
+static Value *new_long_vreg(Function *function) {
+    Value *value = new_value();
+    value->type = new_type(TYPE_LONG);
+    value->vreg = new_vreg(function);
+    return value;
+}
+
+// Allocate a new vreg of type long or unsigned long using the signess from a reference value
+static Value *new_long_vreg_from_value(Function *function, Value *reference_value) {
+    Value *value = new_value();
+    value->type = dup_type(reference_value->type);
+    value->type->type = TYPE_LONG;
+    value->vreg = new_vreg(function);
+    return value;
+}
+
+// Allocate 2 vregs and create a new SplitVreg
+static SplitVreg* new_split_vreg(Function *function) {
+    SplitVreg *split_vreg = wmalloc(sizeof(SplitVreg));
+
+    split_vreg->low = new_vreg(function);
+    split_vreg->high = new_vreg(function);
+
+    return split_vreg;
+}
+
+// Split one 128-bit vreg into two, if not already done and add to the map
+static int map_one_vreg(Function *function, int vreg) {
+    if (int128_register_mappings[vreg]) return 0;
+
+    SplitVreg *split_vreg = new_split_vreg(function);
+    int128_register_mappings[vreg] = split_vreg;
+    if (debug_int128)
+        printf("Mapping int128 vreg %3d -> %3d / %3d\n", vreg, split_vreg->low, split_vreg->high);
+
+    return 1;
+}
+
+// For each 128-bit regsiter of type INT_128, allocate two registers and add to the map
+static int map_int128_registers(Function *function) {
+    original_vreg_count = function->vreg_count;
+    // Allocate enough space in the worst case of all existing vregs needing a split.
+    int128_register_mappings = wcalloc(original_vreg_count + 1, sizeof(SplitVreg *));
+
+    int count = 0;
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (VALUE_IS_INT128_VREG(tac->dst )) count += map_one_vreg(function, tac->dst->vreg);
+        if (VALUE_IS_INT128_VREG(tac->src1)) count += map_one_vreg(function, tac->src1->vreg);
+        if (VALUE_IS_INT128_VREG(tac->src2)) count += map_one_vreg(function, tac->src2->vreg);
+    }
+
+    return count;
+}
+
+// Split a 128-bit value into two 64-bit long values
+static SplitValue split_value(Value *value) {
+    SplitValue split_value;
+
+    if (value->vreg) {
+        if (value->type->type != TYPE_INT128) panic("Expected an int128 register in split_value()");
+
+        SplitVreg *split_vreg = int128_register_mappings[value->vreg];
+        if (!split_vreg) panic("Expected int128 register in split_value()");
+
+        split_value.low = dup_value(value);
+        split_value.high = dup_value(value);
+        split_value.low->vreg = split_vreg->low;
+        split_value.high->vreg = split_vreg->high;
+        split_value.low->type->type = TYPE_LONG;
+        split_value.high->type->type = TYPE_LONG;
+
+        return split_value;
+    }
+
+    else if (value->is_constant) {
+        // Discard the upper bits, but sign extend if necessary
+        long high_value = value->type->is_unsigned
+            ? 0
+            : value->int_value < 0 ? -1 : 0;
+        split_value.low = new_integral_constant(TYPE_LONG, value->int_value);
+        split_value.high = new_integral_constant(TYPE_LONG, high_value);
+
+        if (value->type->is_unsigned) {
+            split_value.low->type->is_unsigned = 1;
+            split_value.high->type->is_unsigned = 1;
+        }
+    }
+
+    else {
+        fprintf(stderr, "split_value for non-vreg value:");
+        print_value(stderr, value, 0);
+        fprintf(stderr, "\n");
+        panic("bailing");
+    }
+
+    return split_value;
+}
+
+// Split a 128-bit instruction into two identical instructions,
+// the first with the low bits and the second with the high bits/
+static Tac *split_instruction(Tac *tac) {
+    SplitValue tmp_dst, tmp_src1, tmp_src2;
+
+    SplitValue *split_dst =  tac->dst  ?( tmp_dst  = split_value(tac->dst),  &tmp_dst)  : NULL;
+    SplitValue *split_src1 = tac->src1 ? (tmp_src1 = split_value(tac->src1), &tmp_src1) : NULL;
+    SplitValue *split_src2 = tac->src2 ? (tmp_src2 = split_value(tac->src2), &tmp_src2) : NULL;
+
+    assign_values_to_instruction(tac,
+        split_dst  ? split_dst->low  : NULL,
+        split_src1 ? split_src1->low : NULL,
+        split_src2 ? split_src2->low : NULL);
+
+    Tac *tac2 = new_instruction_with_values(tac->operation,
+        split_dst  ? split_dst->high  : NULL,
+        split_src1 ? split_src1->high : NULL,
+        split_src2 ? split_src2->high : NULL);
+
+    insert_tac_after(tac, tac2);
+
+    return tac2;
+}
+
+static Tac *transform_move(Function *function, Tac *tac) {
+    if (tac->dst->vreg && tac->src1->is_constant) {
+        // Assign an int or long constant to an int128 in a register
+
+        return split_instruction(tac);
+    }
+
+    if (VALUE_IS_INT128_VREG(tac->dst) && tac->src1->vreg && is_non_128_bit_integer_type(tac->src1->type)) {
+        // Convert an non-128 bit integer in a register to an int128 in a register
+
+        Tac *top_tac = tac;
+
+        SplitValue split_dst = split_value(tac->dst);
+
+        // Upgrade the value size to a long if necessary
+        Value *long_value;
+        if (tac->src1->type->type < TYPE_LONG) {
+            long_value = new_long_vreg_from_value(function, tac->src1);
+            long_value->type->is_unsigned = tac->src1->type->is_unsigned;
+            tac = new_tac_after(tac, IR_MOVE, long_value, tac->src1, NULL);
+        }
+        else {
+            long_value = top_tac->src1;
+        }
+
+        // Copy the low bits
+        tac = new_tac_after(tac, IR_MOVE, split_dst.low, long_value, NULL);
+
+        // Set the high bits to all zeroes or all ones
+        if (top_tac->src1->type->is_unsigned) {
+            // Set the high bits to zero
+            tac = new_tac_after(tac, IR_MOVE, split_dst.high, new_unsigned_integral_constant(TYPE_LONG, 0), NULL);
+        } else {
+            // Sign extend the high bits by copying the low bits over
+            // and then doing an arithmetic shift right of 31 bits.
+            Value *sign_bits = new_long_vreg(function);
+            tac = new_tac_after(tac, IR_MOVE, sign_bits, long_value, NULL);
+            tac = new_tac_after(tac, IR_ASHR, split_dst.high, sign_bits, new_integral_constant(TYPE_INT, 63));
+        }
+
+        make_instruction_a_nop(top_tac);
+
+        return tac;
+    }
+
+    if (tac->dst->vreg && tac->src1->vreg) {
+        if (is_non_128_bit_integer_type(tac->dst->type)) {
+            // Convert an int128 in a register to a non-128 bit integer in a register
+
+            SplitVreg *src1_vregs = int128_register_mappings[tac->src1->vreg];
+            assert(src1_vregs);
+
+            // Discard the high bits
+            tac->src1 = dup_value(tac->src1);
+            tac->src1->vreg = src1_vregs->low;
+            tac->src1->type->type = TYPE_LONG;
+
+            return tac;
+        }
+
+        else if (tac->dst->type->type != TYPE_INT128 || tac->src1->type->type != TYPE_INT128)
+            bail_on_unimplemented_instruction(tac, "int128 type conversion not implemented for:");
+
+        // Move a 128-bit vreg to a 128-bit vreg
+        return split_instruction(tac);
+    }
+
+    bail_on_unimplemented_instruction(tac, "int128 IR_MOVE not implemented for:");
+
+    return tac;
+}
+
+// Generic function to make an IR with left or right bitshifts, arithmetic and binary.
+static Tac *transform_bitshift(Function *function, Tac *tac, int operation) {
+    int is_left = operation == IR_BSHL;
+
+    int opposite_operation;
+    switch (operation) {
+        case IR_BSHL:
+            opposite_operation = IR_BSHR;
+            break;
+
+        case IR_ASHR:
+        case IR_BSHR:
+            opposite_operation = IR_BSHL;
+            break;
+
+        default:
+            panic("Unhandled bitshift operation");
+    }
+
+    // Handle a bit shift from a constant or register by a constant amount
+    if (VALUE_IS_INT128_VREG(tac->dst) && (tac->src1->is_constant || VALUE_IS_INT128_VREG(tac->src1)) && tac->src2->is_constant) {
+        SplitValue split_dst = split_value(tac->dst);
+        SplitValue split_src1 = split_value(tac->src1);
+
+        Value *start_dst_value  = is_left ? split_dst.low   : split_dst.high;
+        Value *end_dst_value    = is_left ? split_dst.high  : split_dst.low;
+        Value *start_src1_value = is_left ? split_src1.low  : split_src1.high;
+        Value *end_src1_value   = is_left ? split_src1.high : split_src1.low;
+
+        if (tac->src2->int_value == 0) {
+            // A zero shift is equivalent to a straight copy
+            make_instruction_a_nop(tac);
+
+            tac = new_tac_after(tac, IR_MOVE, split_dst.low, split_src1.low, NULL);
+            tac = new_tac_after(tac, IR_MOVE, split_dst.high, split_src1.high, NULL);
+
+            return tac;
+        }
+
+        if (tac->src2->int_value < 64) {
+            // Shift by less than 64 bits. This needs doing in a couple of steps,
+            // since there are some bits that travel from low to/from high.
+
+            Tac *top_tac = tac;
+
+            int count = top_tac->src2->int_value;
+
+            Value *temp = new_long_vreg_from_value(function, top_tac->src1);
+            Value *transition_bits = new_long_vreg_from_value(function, top_tac->src1);
+            Value *shifted = new_long_vreg_from_value(function, top_tac->src1);
+
+            make_instruction_a_nop(top_tac);
+
+            // Make a copy of the low bits
+            tac = new_tac_after(tac, IR_MOVE, temp, start_src1_value, NULL);
+
+            // Shift the transitional bits to the left, so they are ready to be orred onto the vacated high bits
+            tac = new_tac_after(tac, opposite_operation, transition_bits, temp, new_integral_constant(TYPE_INT, 64 - count));
+
+            // Shift the low bits to the left
+            tac = new_tac_after(tac, operation, start_dst_value, start_src1_value, new_integral_constant(TYPE_INT, count));
+
+            // Shift the high bits to the left into a temporary high vreg
+            tac = new_tac_after(tac, operation, shifted, end_src1_value, new_integral_constant(TYPE_INT, count));
+
+            // Or the transitional bits onto the temporary high vreg into the dst
+            tac = new_tac_after(tac, IR_BOR, end_dst_value, shifted, transition_bits);
+
+            return tac;
+        }
+
+        if (tac->src2->int_value == 64) {
+            // Move the start byte over to end byte
+
+            tac->operation = IR_MOVE;
+            tac->dst = end_dst_value;
+            tac->src1 = start_src1_value;
+            tac->src2 = NULL;
+
+            return new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
+        }
+
+        if (tac->src2->int_value >= 64) {
+            // Shift left by more than 64 bits. The entire low byte is obliterated.
+            // Shift the low bytes by 64 bits less.
+
+            tac->dst = end_dst_value;
+            tac->src1 = start_src1_value;
+            tac->src2->int_value -= 64;
+
+            return new_tac_after(tac, IR_MOVE, start_dst_value, new_integral_constant(TYPE_LONG, 0), NULL);
+        }
+    }
+
+    bail_on_unimplemented_instruction(tac, "int128 bit shift not implemented for:");
+
+    return tac;
+}
+
+// Transform and, or and xor
+static Tac *transform_binary_operation(Tac *tac) {
+    if (VALUE_IS_INT128_VREG(tac->dst) && VALUE_IS_INT128_VREG(tac->src1) && VALUE_IS_INT128(tac->src2) && tac->src2->is_constant) {
+        return split_instruction(tac);
+    }
+    else if (VALUE_IS_INT128_VREG(tac->dst) && VALUE_IS_INT128_VREG(tac->src1) && VALUE_IS_INT128_VREG(tac->src2)) {
+        return split_instruction(tac);
+    }
+
+    bail_on_unimplemented_instruction(tac, "int128 IR_BOR not implemented for:");
+
+    return tac;
+}
+
+// Transform addition and subtraction
+static Tac *transform_add_and_sub(Function *function, Tac *tac, int first_op, int second_op) {
+    SplitValue split_dst = split_value(tac->dst);
+    SplitValue split_src1 = split_value(tac->src1);
+    SplitValue split_src2 = split_value(tac->src2);
+
+    make_instruction_a_nop(tac);
+
+    tac = new_tac_after(tac, first_op, split_dst.low, split_src1.low, split_src2.low);
+    tac = new_tac_after(tac, second_op, split_dst.high, split_src1.high, split_src2.high);
+
+    return tac;
+}
+
+// Transform multiplication
+static Tac *transform_mul(Function *function, Tac *tac) {
+    if (VALUE_IS_INT128_VREG(tac->dst) && VALUE_IS_INT128_VREG(tac->src1) && VALUE_IS_INT128_VREG(tac->src2)) {
+        // Multiply src1 with src2
+        // Notation: src1_hi:src1_lo src2_hi:src2_lo
+        // p00 = src1_lo * src2_lo
+        // p01 = src1_hi * src2_lo
+        // p10 = src1_lo * src2_hi
+        //
+        // result_lo = p00_lo
+        // result_hi = p00_hi + p01_lo + p10_lo
+
+        SplitValue split_dst = split_value(tac->dst);
+        SplitValue split_src1 = split_value(tac->src1);
+        SplitValue split_src2 = split_value(tac->src2);
+
+        // Nuke the current TAC for convenience
+        make_instruction_a_nop(tac);
+
+        Value *p01 = new_long_vreg_from_value(function, split_src1.low);
+        Value *p10 = new_long_vreg_from_value(function, split_src1.low);
+        Value *p00_low = new_long_vreg_from_value(function, split_src1.low);
+        Value *p00_high = new_long_vreg_from_value(function, split_src1.low);
+
+        // p01 = src1_hi * src2_lo
+        tac = new_tac_after(tac, IR_MUL, p01, split_src1.high, split_src2.low);
+
+        // p10 = src1_lo * src2_hi
+        tac = new_tac_after(tac, IR_MUL, p10, split_src1.low, split_src2.high);
+
+        // p00 = src1_lo * src2_lo
+        tac = new_tac_after(tac, IR_MUL128A, p00_low, split_src1.low, split_src2.low);
+
+        // We need a dummy src1 to satisfy the instruction selection code
+        tac = new_tac_after(tac, IR_MUL128B, p00_high, p00_low, NULL);
+        tac->src1 = p00_low;
+
+        // result_lo = p00_lo
+        tac = new_tac_after(tac, IR_MOVE, split_dst.low, p00_low, NULL);
+
+        // result_hi = p00_hi + p01_lo + p10_lo
+        Value *result_hi = new_long_vreg_from_value(function, split_src1.low);
+        tac = new_tac_after(tac, IR_ADD, result_hi, p00_high, p01);
+        tac = new_tac_after(tac, IR_ADD, split_dst.high, result_hi, p10);
+
+        return tac;
+    }
+
+    bail_on_unimplemented_instruction(tac, "int128 IR_MUL not implemented for:");
+
+    return tac;
+}
+
+// Allocate two new vregs for each 128-bit vreg and alter the instructions so that no
+// int128 types remain. Transform all instructions so that all traces of 128-bit integers are gone.
+void transform_int128_instructions(Function *function) {
+    if (debug_int128) {
+        printf("Before int128 instruction transformations:\n");
+        print_ir(function, 0);
+    }
+
+    // Allocate split registers
+    map_int128_registers(function);
+
+    // Transform operations
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (!TAC_IS_INT128(tac)) continue;
+
+        switch (tac->operation) {
+            case IR_MOVE:
+                tac = transform_move(function, tac);
+                break;
+            case IR_ASHR:
+                tac = transform_bitshift(function, tac, IR_ASHR);
+                break;
+            case IR_BSHR:
+                tac = transform_bitshift(function, tac, IR_BSHR);
+                break;
+            case IR_BSHL:
+                tac = transform_bitshift(function, tac, IR_BSHL);
+                break;
+            case IR_BOR:
+            case IR_BAND:
+            case IR_XOR:
+                tac = transform_binary_operation(tac);
+                break;
+            case IR_ADD:
+                tac = transform_add_and_sub(function, tac, IR_ADD, IR_ADDC);
+                break;
+            case IR_SUB:
+                tac = transform_add_and_sub(function, tac, IR_SUB, IR_SUBC);
+                break;
+            case IR_MUL:
+                tac = transform_mul(function, tac);
+                break;
+            default:
+                fprintf(stderr, "Unimplemented int 128 IR operation %s\n", operation_string(tac->operation));
+                bail_on_unimplemented_instruction(tac, "for:");
+        }
+    }
+
+    // Cleanup
+    for (int i = 1; i <= original_vreg_count; i++) {
+        SplitVreg *split_vreg = int128_register_mappings[i];
+        if (split_vreg) wfree(split_vreg);
+    }
+
+    if (debug_int128) {
+        printf("After int128 instruction transformations:\n");
+        print_ir(function, 0);
+    }
+
+    wfree(int128_register_mappings);
+}

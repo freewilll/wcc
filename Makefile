@@ -27,6 +27,7 @@ SOURCES := \
 	ir.c \
 	functions.c \
 	ssa.c \
+	int128.c \
 	regalloc.c \
 	instrsel.c \
 	instrutil.c \

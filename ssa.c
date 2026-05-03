@@ -1447,6 +1447,13 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
             if (tac->operation == X_LD_EQ_CMP)
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
 
+
+            // The x86 single operatnd MUL instruction puts its results in rax and rdx
+            if (tac->operation == X_MUL128A || tac->operation == X_MUL128B) {
+                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+            }
+
             if (tac->dst && tac->dst->vreg) {
                 if (tac->operation == IR_RSUB && tac->src1->vreg) {
                     // Ensure that dst and src1 don't reside in the same preg.
@@ -1634,7 +1641,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
                 longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
             else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
-                if ((tac->next->operation == X_ADD || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
+                if ((tac->next->operation == X_ADD || tac->next->operation == X_ADDC || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
                     longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
                 if ((tac->next->operation == X_SHR) && tac->next->src1 && tac->next->src1->vreg)

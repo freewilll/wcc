@@ -370,7 +370,9 @@ Type *operation_type(Value *src1, Value *src2, int for_ternary) {
     src2_type = integer_promote_type(src2_type);
 
     // They are two integer types
-    if (src1_type->type == TYPE_LONG || src2_type->type == TYPE_LONG)
+    if (src1_type->type == TYPE_INT128 || src2_type->type == TYPE_INT128)
+        result = new_type(TYPE_INT128);
+    else if (src1_type->type == TYPE_LONG || src2_type->type == TYPE_LONG)
         result = new_type(TYPE_LONG);
     else
         result = new_type(TYPE_INT);
@@ -400,6 +402,7 @@ int cur_token_is_type(void) {
         cur_token == TOK_FLOAT ||
         cur_token == TOK_DOUBLE ||
         cur_token == TOK_LONG ||
+        cur_token == TOK_INT128 ||
         cur_token == TOK_STRUCT ||
         cur_token == TOK_UNION ||
         cur_token == TOK_ENUM ||
@@ -457,6 +460,7 @@ static BaseType *parse_declaration_specifiers(void) {
     int seen_short = 0;
     int seen_int = 0;
     int seen_long = 0;
+    int seen_int128 = 0;
     int seen_long_double = 0;
     int seen_float = 0;
     int seen_double = 0;
@@ -506,6 +510,11 @@ static BaseType *parse_declaration_specifiers(void) {
                     type = new_type(TYPE_LONG);
                     seen_long++;
                 }
+                break;
+            case TOK_INT128:
+                next();
+                seen_int128++;
+                type = new_type(TYPE_INT128);
                 break;
             case TOK_STRUCT:
                 seen_struct++;
@@ -558,7 +567,8 @@ static BaseType *parse_declaration_specifiers(void) {
     }
 
     int data_type_sum =
-        seen_void + seen_char + seen_short + seen_int + seen_long +
+        seen_void +
+        seen_char + seen_short + seen_int + seen_long + seen_int128 +
         seen_float + seen_double + seen_long_double +
         seen_struct + seen_union + seen_enum;
 
@@ -574,7 +584,7 @@ static BaseType *parse_declaration_specifiers(void) {
     if (seen_signed && seen_unsigned)
         error("Both ‘signed’ and ‘unsigned’ in declaration specifiers");
 
-    int is_integer_type = type && (type->type == TYPE_CHAR || type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG);
+    int is_integer_type = type && (type->type == TYPE_CHAR || type->type == TYPE_SHORT || type->type == TYPE_INT || type->type == TYPE_LONG || type->type == TYPE_INT128);
     if (!is_integer_type && (seen_signed || seen_unsigned))
         error("Signed/unsigned can only apply to integer types");
 
@@ -1839,6 +1849,11 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
         }
         else if (scalar->type->type == TYPE_ARRAY) {
             in->symbol = scalar->global_symbol;
+        }
+        else if (scalar->type->type == TYPE_INT128) {
+            in->data = wcalloc(1, 128);
+            in->is_int128 = 1;
+            *((long *) in->data) = scalar->int_value; // Only copy over the low 64 bits from the constant
         }
         else {
             in->data = wmalloc(sizeof(long));

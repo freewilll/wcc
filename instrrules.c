@@ -1472,6 +1472,44 @@ static void add_bit_scan_rules(void) {
     add_op(r, X_TZCNT,  DST, SRC1, 0, "tzcntq %v1q, %vdq");
 }
 
+static void add_int2128_addc_rules(int type) {
+    Rule *r = add_rule(type, IR_ADDC, type, type, 10);
+    add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    add_op(r, X_ADDC, DST, SRC2, 0, "adc %v1q, %vdq");
+}
+
+static void add_int2128_subc_rules(int type) {
+    Rule *r = add_rule(type, IR_SUBC, type, type, 10);
+    add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    add_op(r, X_SUBC, DST, SRC2, 0, "sbb %v1q, %vdq");
+}
+
+// Add two rules that work together. The first does the multiplication and fetches the low 64 bits
+// from rax. The second fetches the high 64 bits from rdx.
+// They are meant to always run consecutively.
+// This approach of using a MUL instruction what gcc and clang do.
+static void add_int128_multiply_rule(int type) {
+    Rule *r = add_rule(type, IR_MUL128A, type, type, 30);
+    add_op(r, X_MOV, DST, SRC1, 0, "movq %v1q, %%rax");
+    add_op(r, X_MUL128A, DST, SRC2, 0, "mul %v1q"); // The outputs are in rax and rdx
+    add_op(r, X_MOV, DST, 0, 0, "movq %%rax, %vdq"); // Move the low output out
+
+    // We need a dummy src1 to satisfy the instruction selection code
+    r = add_rule(type, IR_MUL128B, type, 0, 1);
+    add_op(r, X_MUL128B, DST, 0, 0, "movq %%rdx, %vdq"); // Move the high output out
+}
+
+static void add_int128_rules(void) {
+    add_int128_multiply_rule(RI4);
+    add_int128_multiply_rule(RU4);
+
+    add_int2128_addc_rules(RI4);
+    add_int2128_addc_rules(RU4);
+
+    add_int2128_subc_rules(RI4);
+    add_int2128_subc_rules(RU4);
+}
+
 void define_rules(void) {
     Rule *r;
 
@@ -1782,6 +1820,8 @@ void define_rules(void) {
     add_sse_comp_assignment_rules(&ntc);
 
     add_bit_scan_rules();
+
+    add_int128_rules();
 
     if (ntc >= AUTO_NON_TERMINAL_END)
         panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);

@@ -58,6 +58,16 @@ Value *new_integral_constant(int type_type, long value) {
     return cv;
 }
 
+// Create a new typed integral constant value.
+Value *new_unsigned_integral_constant(int type_type, long value) {
+    Value *cv = new_value();
+    cv->int_value = value;
+    cv->type = new_type(type_type);
+    cv->type->is_unsigned = 1;
+    cv->is_constant = 1;
+    return cv;
+}
+
 // Create a new typed floating point constant value.
 Value *new_floating_point_constant(int type_type, long double value) {
     Value *cv = new_value();
@@ -98,6 +108,23 @@ Tac *new_instruction(int operation) {
     return tac;
 }
 
+Tac *new_instruction_with_values(int operation, Value *dst, Value *src1, Value *src2) {
+    Tac *tac = wcalloc(1, sizeof(Tac));
+    append_to_list(allocated_tacs, tac);
+    tac->operation = operation;
+    tac->dst = dst;
+    tac->src1 = src1;
+    tac->src2 = src2;
+
+    return tac;
+}
+
+Tac *assign_values_to_instruction(Tac *tac, Value *dst, Value *src1, Value *src2) {
+    tac->dst = dst;
+    tac->src1 = src1;
+    tac->src2 = src2;
+}
+
 // Add instruction to the global intermediate representation ir
 Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac = new_instruction(operation);
@@ -107,6 +134,13 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
     add_tac_to_ir(tac);
 
     return tac;
+}
+
+void make_instruction_a_nop(Tac *tac) {
+    tac->operation = IR_NOP;
+    tac->dst = NULL;
+    tac->src1 = NULL;
+    tac->src2 = NULL;
 }
 
 // Ensure the double linked list in an IR is correct by checking last pointers
@@ -319,9 +353,13 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_ADDRESS_OF)    {                               fprintf(f, "&");          print_value(f, tac->src1, 1); }
     else if (o == IR_ADDRESS_OF_FROM_GOT) {                         fprintf(f, "& from GOT"); print_value(f, tac->src1, 1); }
     else if (o == IR_ADD)           { print_value(f, tac->src1, 1); fprintf(f, " + ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_ADDC)          { print_value(f, tac->src1, 1); fprintf(f, " +C ");       print_value(f, tac->src2, 1); }
     else if (o == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_SUBC)          { print_value(f, tac->src1, 1); fprintf(f, " -C ");       print_value(f, tac->src2, 1); }
     else if (o == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");        print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
     else if (o == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");        print_value(f, tac->src2, 1); }
+    else if (o == IR_MUL128A)       { print_value(f, tac->src1, 1); fprintf(f, " *1 ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_MUL128B)       { printf("high bits from from previous *1");                                    }
     else if (o == IR_DIV)           { print_value(f, tac->src1, 1); fprintf(f, " / ");        print_value(f, tac->src2, 1); }
     else if (o == IR_MOD)           { print_value(f, tac->src1, 1); fprintf(f, " %% ");       print_value(f, tac->src2, 1); }
     else if (o == IR_BNOT)          {                               fprintf(f, "~");          print_value(f, tac->src1, 1); }
@@ -351,7 +389,12 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == X_MOVZ)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_MOVC)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_ADD)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_ADDC)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_SUB)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_SUBC)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_MUL)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_MUL128A){ fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X_MUL128B){ fprintf(f, "%-6s", operation_string(o));                                                 print_value(f, tac->dst,  1); }
     else if (o == X_IDIV)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_CQTO)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
     else if (o == X_CMP)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }

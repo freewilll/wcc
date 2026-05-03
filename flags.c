@@ -50,6 +50,7 @@ int debug_instsel_igraph_simplification = 0;
 int debug_instsel_tiling = 0;
 int debug_instsel_cost_graph = 0;
 int debug_instsel_spilling = 0;
+int debug_int128 = 0;
 int debug_stack_frame_layout = 0;
 int debug_exit_after_parser = 0;
 int debug_dont_compile_internals = 0;

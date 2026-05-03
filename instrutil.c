@@ -210,8 +210,11 @@ char *operation_string(int operation) {
         case IR_JNZ:                 return "IR_JNZ";
         case IR_ADD:                 return "IR_ADD";
         case IR_SUB:                 return "IR_SUB";
+        case IR_SUBC:                return "IR_SUBC";
         case IR_RSUB:                return "IR_RSUB";
         case IR_MUL:                 return "IR_MUL";
+        case IR_MUL128A:             return "IR_MUL128A";
+        case IR_MUL128B:             return "IR_MUL128B";
         case IR_DIV:                 return "IR_DIV";
         case IR_MOD:                 return "IR_MOD";
         case IR_EQ:                  return "IR_EQ";
@@ -232,7 +235,12 @@ char *operation_string(int operation) {
         case IR_PHI_FUNCTION:        return "IR_PHI_FUNCTION";
         case X_MOV:                  return "mov";
         case X_ADD:                  return "add";
+        case X_ADDC:                 return "addc";
+        case X_SUB:                  return "sub";
+        case X_SUBC:                 return "subc";
         case X_MUL:                  return "mul";
+        case X_MUL128A:              return "mul128A";
+        case X_MUL128B:              return "mul128B";
         case X_IDIV:                 return "idiv";
         case X_CQTO:                 return "cqto";
         case X_CMP:                  return "cmp";
@@ -285,7 +293,7 @@ void make_value_x86_size(Value *v) {
     else if (v->vreg || v->global_symbol || v->stack_index) {
         if (v->type->type == TYPE_PTR)
             v->x86_size = 4;
-        else if (v->type->type <= TYPE_LONG)
+        else if (v->type->type <= TYPE_INT128)
             v->x86_size = v->type->type - TYPE_CHAR + 1;
         else if (v->type->type == TYPE_FLOAT)
             v->x86_size = 3;

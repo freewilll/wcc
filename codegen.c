@@ -855,11 +855,17 @@ static void output_symbol(Symbol *symbol) {
                         panic("Got negative .zero padding %d for the intializer for %s", in->size, symbol->identifier);
                     fprintf(f,"    .zero    %d\n", in->size);
                 }
-                else if (in->size == 1) fprintf(f,"    .byte    %d\n", *((char *) in->data));
-                else if (in->size == 2) fprintf(f,"    .word    %d\n", *((short *) in->data));
-                else if (in->size == 4) fprintf(f,"    .long    %d\n", *((int *) in->data));
-                else if (in->size == 8) fprintf(f,"    .quad    %ld\n", *((long *) in->data));
+                else if (in->size == 1) fprintf(f, "    .byte    %d\n",  *((char *)  in->data));
+                else if (in->size == 2) fprintf(f, "    .word    %d\n",  *((short *) in->data));
+                else if (in->size == 4) fprintf(f, "    .long    %d\n",  *((int *)   in->data));
+                else if (in->size == 8) fprintf(f, "    .quad    %ld\n", *((long *)  in->data));
+                else if (in->is_int128) {
+                    // int128
+                    fprintf(f, "    .quad    %ld\n", ((long *) in->data)[0]);
+                    fprintf(f, "    .quad    %ld\n", ((long *) in->data)[1]);
+                }
                 else if (in->size == 16) {
+                    // Long double
                     fprintf(f, "    .long   %d\n", (((int *) in->data))[0]);
                     fprintf(f, "    .long   %d\n", (((int *) in->data))[1]);
                     fprintf(f, "    .long   %d\n", (((int *) in->data))[2] & 0xffff);

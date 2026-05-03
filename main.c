@@ -283,6 +283,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-tiling"                  )) { debug_instsel_tiling = 1;                   argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-cost-graph"              )) { debug_instsel_cost_graph = 1;               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-instsel-spilling"                )) { debug_instsel_spilling = 1;                 argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--debug-int128"                          )) { debug_int128 = 1;                           argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-stack-frame-layout"              )) { debug_stack_frame_layout = 1;               argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-exit-after-parser"               )) { debug_exit_after_parser = 1;                argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--debug-dont-compile-internals"          )) { debug_dont_compile_internals = 1;           argc--; argv++; }
@@ -513,6 +514,7 @@ int main(int argc, char **argv) {
     get_debug_env_value("DEBUG_INSTSEL_TILING", &debug_instsel_tiling);
     get_debug_env_value("DEBUG_INSTSEL_COST_GRAPH", &debug_instsel_cost_graph);
     get_debug_env_value("DEBUG_INSTSEL_SPILLING", &debug_instsel_spilling);
+    get_debug_env_value("DEBUG_INT128", &debug_int128);
     get_debug_env_value("DEBUG_STACK_FRAME_LAYOUT", &debug_stack_frame_layout);
 
     set_libc_include_paths(use_musl);

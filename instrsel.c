@@ -123,6 +123,8 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
             case IR_ADD:                  c += printf("+"); break;
             case IR_SUB:                  c += printf("-"); break;
             case IR_MUL:                  c += printf("*"); break;
+            case IR_MUL128A:              c += printf("*128A"); break;
+            case IR_MUL128B:              c += printf("*128B"); break;
             case IR_DIV:                  c += printf("/"); break;
             case IR_BSHL:                 c += printf("<<"); break;
             case IR_BSHR:                 c += printf(">>"); break;

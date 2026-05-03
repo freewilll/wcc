@@ -33,7 +33,8 @@ WCC_TESTS=\
 	character-and-string-literals \
 	varargs \
 	initializers \
-	extension-keyword
+	extension-keyword \
+	int128
 
 WCC_RUN_FLAGS = -I ${SRC_DIR}/include
 WCC_E2E_FLAGS := ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --sanity-check-ir --rule-coverage-file ${BUILD_DIR}/tests/e2e/wcc-tests.rulecov

@@ -98,6 +98,7 @@ static CompilerPhase compiler_phases[] = {
 
     // The backend x86_64 specific phase follows
     { convert_long_doubles_jz_and_jnz,             PH_NONE,  PH_NONE,  "Convert long double conditional jumps" },
+    { transform_int128_instructions,               PH_NONE,  PH_NONE,  "Lower int128 code" },
 
     // Function param and arg processing
     { reverse_function_argument_order,             PH_NONE,  PH_NONE,  "Reverse function argument order" },

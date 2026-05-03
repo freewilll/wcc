@@ -46,6 +46,9 @@ int print_type(void *f, Type *type) {
         case TYPE_LONG:
             len += fprintf(f, "long");
             break;
+        case TYPE_INT128:
+            len += fprintf(f, "int128");
+            break;
         case TYPE_FLOAT:
             len += fprintf(f, "float");
             break;
@@ -323,7 +326,7 @@ static StructOrUnion *dup_struct_or_union(StructOrUnion *src) {
 Type *integer_promote_type(Type *type) {
     if (!is_integer_type(type)) error("Invalid operand, expected integer type");
 
-    if (type->type >= TYPE_INT && type->type <= TYPE_LONG)
+    if (type->type >= TYPE_INT && type->type <= TYPE_INT128)
         return type;
     else
         return new_type(TYPE_INT); // An int can hold all the values
@@ -362,7 +365,11 @@ Type *decay_array_to_pointer(Type *src) {
 // Arithmetic types and pointer types are collectively called scalar types.
 // Array and structure types are collectively called aggregate types.
 int is_integer_type(Type *type) {
-    return ((type->type >= TYPE_CHAR && type->type <= TYPE_LONG) || type->type == TYPE_ENUM);
+    return ((type->type >= TYPE_CHAR && type->type <= TYPE_INT128) || type->type == TYPE_ENUM);
+}
+
+int is_non_128_bit_integer_type(Type *type) {
+    return ((type->type >= TYPE_CHAR && type->type < TYPE_INT128) || type->type == TYPE_ENUM);
 }
 
 int is_floating_point_type(Type *type) {
@@ -440,6 +447,8 @@ int get_type_size(Type *type) {
             return sizeof(int);
         case TYPE_LONG:
             return sizeof(long);
+        case TYPE_INT128:
+            return 16;
         case TYPE_ENUM:
             return sizeof(int);
         case TYPE_FLOAT:
@@ -479,6 +488,8 @@ int get_type_alignment(Type *type) {
             return 4;
         case TYPE_LONG:
             return 8;
+        case TYPE_INT128:
+            return 16;
         case TYPE_FLOAT:
             return 4;
         case TYPE_DOUBLE:

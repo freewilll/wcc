@@ -483,6 +483,7 @@ void next(void) {
             else if (!strcmp(cur_identifier, "short"        )) { cur_token = TOK_SHORT;     }
             else if (!strcmp(cur_identifier, "int"          )) { cur_token = TOK_INT;       }
             else if (!strcmp(cur_identifier, "long"         )) { cur_token = TOK_LONG;      }
+            else if (!strcmp(cur_identifier, "__int128"     )) { cur_token = TOK_INT128;      }
             else if (!strcmp(cur_identifier, "float"        )) { cur_token = TOK_FLOAT;     }
             else if (!strcmp(cur_identifier, "double"       )) { cur_token = TOK_DOUBLE;    }
             else if (!strcmp(cur_identifier, "void"         )) { cur_token = TOK_VOID;      }
