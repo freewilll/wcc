@@ -953,7 +953,9 @@ Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value 
     int max_function_call_value = make_max_function_call_value(function);
 
     // Add start call instruction
-    Value *call_value = make_function_call_value(++max_function_call_value);
+    Value *call_value = make_function_call_value(++max_function_call_value, memcpy_symbol->type);
+    call_value->function_symbol = memcpy_symbol;
+
     ir = new_tac_after(ir, IR_START_CALL, 0, call_value, 0);
 
     // Load of addresses of src1, dst & make size value
@@ -970,6 +972,10 @@ Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value 
         dst_value = insert_address_of_instruction_after(function, &ir, dst);
 
     Value *size_value = new_integral_constant(TYPE_LONG, size);
+
+    // Get rid of the original type, since memcpy only needs to deal with pointers to void
+    dst_value->type = make_pointer_to_void();
+    src1_value->type = make_pointer_to_void();
 
     // Add arg instructions
     ir = insert_arg_instruction_after(ir, call_value, dst_value, 0);
@@ -1260,16 +1266,16 @@ void add_zero_memory_instructions(Function *function) {
             int max_function_call_value = make_max_function_call_value(function);
 
             // Add start call instruction
-            Value *call_value = make_function_call_value(++max_function_call_value);
+            Value *call_value = make_function_call_value(++max_function_call_value, memset_symbol->type);
+            call_value->function_symbol = memset_symbol;
             tac = new_tac_after(tac, IR_START_CALL, 0, call_value, 0);
 
             Value *size_value = new_integral_constant(TYPE_INT, size);
             Value *dst_address = insert_address_of_instruction_after(function, &tac, dst);
 
-            // Note: these are backwards to comply with downstream function arg processing
-            tac = insert_arg_instruction_after(tac, call_value, size_value, 2);
-            tac = insert_arg_instruction_after(tac, call_value, zero, 1);
             tac = insert_arg_instruction_after(tac, call_value, dst_address, 0);
+            tac = insert_arg_instruction_after(tac, call_value, zero, 1);
+            tac = insert_arg_instruction_after(tac, call_value, size_value, 2);
 
             // Add function call
             tac = insert_function_call_instructions_after(tac, call_value, memset_symbol);

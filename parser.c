@@ -2288,21 +2288,13 @@ static void parse_function_call(void) {
     next();
 
     int function_call = function_call_count++;
-    Value *src1 = make_function_call_value(function_call);
-    add_parser_instruction(IR_START_CALL, 0, src1, 0);
-    FunctionParamAllocation *fpa = init_function_param_allocaton(symbol ? symbol->global_identifier : "(anonymous)");
+    Value *src1 = make_function_call_value(function_call, function_type);
+    src1->function_symbol = symbol;
+    src1->function_type = function_type;
 
-    // Allocate an integer slot if the function returns a slot in memory. The
-    // RDI register must contain a pointer to the return value, set by the caller.
-    int has_struct_or_union_return_value = 0;
-    FunctionParamAllocation *rv_fpa = function_type->function->return_value_fpa;
-    if (rv_fpa) {
-        FunctionParamLocations *rv_fpl = rv_fpa->param_locations->elements[0];
-        if (rv_fpl->locations[0].stack_offset != -1) {
-            add_function_param_to_allocation(fpa, make_pointer_to_void());
-            has_struct_or_union_return_value = 1;
-        }
-    }
+    add_parser_instruction(IR_START_CALL, 0, src1, 0);
+
+    int arg_count = 0;
 
     while (1) {
         if (cur_token == TOK_RPAREN) break;
@@ -2312,9 +2304,6 @@ static void parse_function_call(void) {
 
         parse_expression(TOK_EQ);
         Value *arg = dup_value(src1);
-        int fpa_arg_count = fpa->param_locations->length;
-        int arg_count = fpa_arg_count - has_struct_or_union_return_value;
-        arg->function_call_arg_index = arg_count;
 
         if (vtop()->type->type == TYPE_ARRAY) push(decay_array_value(pl()));
         if (vtop()->type->type == TYPE_ENUM) vtop()->type->type = TYPE_INT;
@@ -2345,25 +2334,15 @@ static void parse_function_call(void) {
                 push(arg);
         }
 
-        add_function_param_to_allocation(fpa, vtop()->type);
-        FunctionParamLocations *fpl = fpa->param_locations->elements[fpa_arg_count];
-        arg->function_call_arg_locations = fpl;
-        arg->has_struct_or_union_return_value = has_struct_or_union_return_value;
         add_parser_instruction(IR_ARG, 0, arg, pl());
 
-        // If a stack adjustment needs to take place to align 16-byte data
-        // such as long doubles and structs with long doubles, an
-        // IR_ARG_STACK_PADDING is inserted.
-        if (fpl->locations[0].stack_padding >= 8) add_parser_instruction(IR_ARG_STACK_PADDING, 0, 0, 0);
+        arg_count++;
 
         if (cur_token == TOK_RPAREN) break;
         consume(TOK_COMMA, ",");
         if (cur_token == TOK_RPAREN) error("Expected expression");
     }
     consume(TOK_RPAREN, ")");
-
-    finalize_function_param_allocation(fpa);
-    src1->function_call_arg_stack_padding = fpa->padding;
 
     Value *function_value = new_value();
     function_value->int_value = function_call;
@@ -2372,14 +2351,10 @@ static void parse_function_call(void) {
     function_value->type = function_type;
     function_value->local_index = popped_function->local_index;
     function_value->vreg = popped_function->vreg;
-    function_value->function_call_arg_push_count = (fpa->size + 7) / 8;
-    function_value->function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
 
     // LIVE_RANGE_PREG_XMM01_INDEX is the max set value
     function_value->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     append_to_list(allocated_sets, function_value->return_value_live_ranges);
-
-    src1->function_call_arg_push_count = function_value->function_call_arg_push_count;
 
     Type *return_type = function_type->target;
     Value *return_value = 0;

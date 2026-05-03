@@ -22,6 +22,14 @@ void nop() {
     ir_start = ir_start->next;
 }
 
+Function *new_function_with_type(void) {
+    Function *result = new_function("test");
+    result->type = new_type(TYPE_FUNCTION);
+    result->type->function = wcalloc(1, sizeof(FunctionType));
+    result->type->target = new_type(TYPE_INT);
+    return result;
+}
+
 void assert_rx86_preg_op_with_function_pc(int function_param_count, char *expected) {
     char *got;
 
@@ -630,8 +638,8 @@ void run_function_call_single_arg(Value *src) {
     remove_reserved_physical_registers = 1;
 
     start_ir();
+    tac = i(0, IR_START_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     i(0, IR_ARG, 0, make_arg_src1(), src);
-    tac = i(0, IR_START_CALL, 0, c(0), 0);
     tac = i(0, IR_CALL, v(1), fu(1), 0);
     tac->src1->type->function->param_count = 1;
     tac->src1->type->function->param_types = new_list(1);
@@ -718,8 +726,8 @@ void test_function_args() {
     remove_reserved_physical_registers = 1;
     start_ir();
     i(0, IR_MOVE, asz(1, TYPE_CHAR), s(1), 0);
+    i(0, IR_START_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     i(0, IR_ARG, 0, make_arg_src1(), asz(1, TYPE_CHAR));
-    i(0, IR_START_CALL, 0, c(0), 0);
     Tac *tac = i(0, IR_CALL, v(2), fu(1), 0);
     tac->src1->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     i(0, IR_MOVE, v(3), v(2), 0);
@@ -782,7 +790,7 @@ void test_instrsel_function_call_rearranging() {
     remove_reserved_physical_registers = 1;
 
     start_ir();
-    i(0, IR_START_CALL, 0,    c(0),  0);
+    i(0, IR_START_CALL, 0, make_function_call_value(0, new_function_with_type()->type), 0);
     i(0, IR_CALL,       0,    fu(1), 0);
     i(0, IR_END_CALL,   0,    c(0),  0);
     i(0, IR_MOVE,       g(1), v(1),  0);

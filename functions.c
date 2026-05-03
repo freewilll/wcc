@@ -59,6 +59,97 @@ static int make_struct_or_union_arg_move_instructions(
         Function *function, Tac *ir, Value *param, int preg_class, int register_index,
         FunctionParamLocation *location, RegisterSet *register_set);
 
+// Prepare register/stack allocation for function calls
+void process_function_call_arg_allocations(Function *function) {
+    int function_calls_size = make_max_function_call_id(function) + 1;
+    FunctionParamAllocation **fpas = wcalloc(function_calls_size, sizeof(FunctionParamAllocation));
+
+    int has_struct_or_union_return_value = -1;
+
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->operation == IR_START_CALL) {
+            has_struct_or_union_return_value = 0;
+
+            if (!ir->src1) panic("src1 NULL in IR_START_CALL");
+            Symbol *symbol = ir->src1->function_symbol;
+            char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
+            Type *function_type = ir->src1->function_type;
+            if (!function_type) panic("function_type NULL in IR_START_CALL in function %s", symbol ? symbol->global_identifier : "(anonymous)");
+            FunctionParamAllocation *fpa = init_function_param_allocaton(symbol_name);
+            int function_call_number = ir->src1->int_value;
+            fpas[function_call_number] = fpa;
+
+            if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
+                FunctionParamAllocation *rv_fpa = init_function_param_allocaton(cur_type_identifier);
+                add_function_param_to_allocation(rv_fpa, function_type->target);
+                function_type->function->return_value_fpa = rv_fpa;
+
+                FunctionParamLocations *rv_fpl = rv_fpa->param_locations->elements[0];
+                if (rv_fpl->locations[0].stack_offset != -1) {
+                    // Allocate an integer slot if the function returns a slot in memory. The
+                    // RDI register must contain a pointer to the return value, set by the caller.
+                    // Allocate the RDI register which has the pointer to the struct, passed in by the caller
+                    add_function_param_to_allocation(fpa, make_pointer_to_void());
+                    has_struct_or_union_return_value = 1;
+                }
+            }
+        }
+        else if (ir->operation == IR_ARG) {
+            Symbol *symbol = ir->src1->function_symbol;
+            char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
+
+            Value *arg = ir->src1;
+            int function_call_number = arg->int_value;
+
+            FunctionParamAllocation *fpa = fpas[function_call_number];
+            if (!fpa) panic("fpa was NULL in an IR_ARG for a function call to %s in function %s", symbol_name, function->identifier);
+
+            if (has_struct_or_union_return_value == -1) panic("has_struct_or_union_return_value was not set");
+
+            int fpa_arg_count = fpa->param_locations->length;
+            int arg_count = fpa_arg_count - has_struct_or_union_return_value;
+            arg->function_call_arg_index = arg_count;
+
+            add_function_param_to_allocation(fpa, ir->src2->type);
+            FunctionParamLocations *fpl = fpa->param_locations->elements[fpa_arg_count];
+            arg->function_call_arg_locations = fpl;
+            if (fpl->locations[0].stack_padding >= 8) new_tac_after(ir, IR_ARG_STACK_PADDING, 0, 0, 0);
+        }
+        else if (ir->operation == IR_CALL) {
+            Symbol *symbol = ir->src1->function_symbol;
+            char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
+
+            Value *function_value = ir->src1;
+            int function_call_number = function_value->int_value;
+
+            FunctionParamAllocation *fpa = fpas[function_call_number];
+            if (!fpa) panic("fpa was NULL in an IR_CALL for a function call to %s in function %s", symbol_name, function->identifier);
+
+            function_value->function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
+
+            if (has_struct_or_union_return_value == -1) panic("has_struct_or_union_return_value was not set");
+            function_value->has_struct_or_union_return_value = has_struct_or_union_return_value;
+        }
+
+        else if (ir->operation == IR_END_CALL) {
+            Symbol *symbol = ir->src1->function_symbol;
+            char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
+
+            Value *arg = ir->src1;
+            int function_call_number = arg->int_value;
+
+            FunctionParamAllocation *fpa = fpas[function_call_number];
+            if (!fpa) panic("fpa was NULL in an IR_END_CALL for a function call to %s in function %s", symbol_name, function->identifier);
+
+            finalize_function_param_allocation(fpa);
+            arg->function_call_arg_stack_padding = fpa->padding;
+            arg->function_call_arg_push_count = (fpa->size + 7) / 8;
+        }
+    }
+
+    wfree(fpas);
+}
+
 static Value *make_param_dst_on_stack(int type, int stack_index, int offset) {
     Value *dst = new_value();
 
@@ -609,10 +700,6 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
     int *param_indexes = wmalloc(sizeof(int) * function_calls_size * register_count);
     memset(param_indexes, -1, sizeof(int) * function_calls_size * register_count);
 
-    // Set to 1 if the function returns a struct in memory, which reserves rdi for a
-    // pointer to the return address
-    char *has_struct_or_union_return_values = wcalloc(function_calls_size, sizeof(char));
-
     FunctionParamLocations **param_locations = wmalloc(sizeof(FunctionParamLocations *) * function_calls_size * register_count);
     memset(param_locations, -1, sizeof(FunctionParamLocations *) * function_calls_size * register_count);
 
@@ -621,7 +708,6 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG) {
             FunctionParamLocations *pl = ir->src1->function_call_arg_locations;
-            if (ir->src1->has_struct_or_union_return_value) has_struct_or_union_return_values[ir->src1->int_value] = 1;
 
             for (int loc = 0; loc < pl->count; loc++) {
                 int function_call_register_arg_index = preg_class == PC_INT
@@ -640,11 +726,11 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
         if (ir->operation == IR_CALL) {
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
-            int has_struct_or_union_return_value = has_struct_or_union_return_values[ir->src1->int_value];
             if (ir->src1->int_value >= function_calls_size) panic("Exceeding param_locations space, want=%d, allocated=%d", ir->src1->int_value, function_calls_size);
             int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
             FunctionParamLocations **pls = &(param_locations[ir->src1->int_value * register_count]);
             Type *called_function_type = ir->src1->type;
+            int has_struct_or_union_return_value = ir->src1->has_struct_or_union_return_value;
 
             // Allocated registers that hold the argument value
             Value **function_call_values = wcalloc(register_count, sizeof(Value *));
@@ -716,7 +802,6 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
     wfree(arg_values);
     wfree(param_indexes);
-    wfree(has_struct_or_union_return_values);
     wfree(param_locations);
 }
 
@@ -1464,12 +1549,13 @@ void add_function_param_moves(Function *function) {
     }
 }
 
-Value *make_function_call_value(int function_call) {
+Value *make_function_call_value(int function_call, Type *type) {
     Value *src1 = new_value();
 
     src1->int_value = function_call;
     src1->is_constant = 1;
     src1->type = new_type(TYPE_LONG);
+    src1->function_type = type;
 
     return src1;
 }

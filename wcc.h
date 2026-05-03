@@ -330,6 +330,7 @@ typedef struct value {
     int bit_field_size;                                  // Size in bits for bit fields
     int is_overflow_arg_area_address;                    // Set to indicate this value must point to the saved register save overflow for variadic functions
     Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
+    Type *function_type;                                 // Type of the function in a function call
     int address_of_offset;                               // Offset when used in combination with is_address_of
     int live_range_preg;                                 // This value is bound to a physical register
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
@@ -1209,12 +1210,13 @@ void init_function_allocations(void);
 void free_function(Function *function, int remove_from_allocations);
 void free_functions(void);
 Function *new_function(char *identifier);
+void process_function_call_arg_allocations(Function *function);
 void add_function_call_result_moves(Function *function);
 void add_function_return_moves(Function *function);
 void add_function_call_arg_moves(Function *function);
 void process_function_varargs(Function *function);
 void add_function_param_moves(Function *function);
-Value *make_function_call_value(int function_call);
+Value *make_function_call_value(int function_call, Type *type);
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
 void free_function_param_allocaton(FunctionParamAllocation *fpa);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);

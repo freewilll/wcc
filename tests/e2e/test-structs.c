@@ -867,6 +867,12 @@ int test_copy() {
     s2 = s1;
     assert_int(1, ps2->i, "Struct copy bad vreg bug 1");
     assert_int(2, ps2->j, "Struct copy bad vreg bug 2");
+
+    // Test a copy from a struct to a deferenced pointer of a struct
+    struct c { int i[9];} c1 = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    struct c *c2 = malloc(sizeof(struct c));
+    *c2 = c1;
+    assert_int(0, memcmp(&c1, c2, sizeof(struct c)), "Struct copy 25");
 }
 
 int test_pointers() {
