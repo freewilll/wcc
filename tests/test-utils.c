@@ -31,8 +31,8 @@ void assert_value(Value *v1, Value *v2) {
         assert_long(v1->label, v2->label);
     else if (v1->stack_index)
         assert_long(v1->stack_index, v2->stack_index);
-    else if (v1->function_symbol)
-        assert_long(v1->function_symbol->identifier[1], v2->function_symbol->identifier[1]);
+    else if (v1->function_call.function_symbol)
+        assert_long(v1->function_call.function_symbol->identifier[1], v2->function_call.function_symbol->identifier[1]);
     else
         panic("Don't know how to assert_value");
 }
@@ -274,15 +274,15 @@ Value *fu(int index) {
     Symbol *s;
 
     v = new_value();
-    v->function_symbol = s;
+    v->function_call.function_symbol = s;
 
-    v->function_symbol = calloc(1, sizeof(Symbol));
+    v->function_call.function_symbol = calloc(1, sizeof(Symbol));
 
-    v->function_symbol->type = new_type(TYPE_FUNCTION);
-    v->function_symbol->function = new_function("test");
-    wasprintf(&(v->function_symbol->identifier), "f%d", index);
+    v->function_call.function_symbol->type = new_type(TYPE_FUNCTION);
+    v->function_call.function_symbol->function = new_function("test");
+    wasprintf(&(v->function_call.function_symbol->identifier), "f%d", index);
 
-    v->type = v->function_symbol->type;
+    v->type = v->function_call.function_symbol->type;
 
     return v;
 }
@@ -357,7 +357,7 @@ Value *make_arg_src1() {
     fpl->count = 1;
     fpl->locations[0].int_register = 0;
     fpl->locations[0].sse_register = -1;
-    arg_src1->function_call_arg_locations = fpl;
+    arg_src1->function_call.function_call_arg_locations = fpl;
 
     return arg_src1;
 }

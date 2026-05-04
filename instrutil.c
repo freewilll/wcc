@@ -283,7 +283,7 @@ void make_value_x86_size(Value *v) {
     if (v->label) return;
     if (v->type->type == TYPE_STRUCT_OR_UNION) return;
     if (v->type->type == TYPE_ARRAY) return;
-    if (v->type->type == TYPE_FUNCTION || v->function_symbol) return;
+    if (v->type->type == TYPE_FUNCTION || v->function_call.function_symbol) return;
 
     if (!v->type)
         panic("make_value_x86_size() got called with a value with no type");

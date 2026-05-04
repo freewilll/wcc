@@ -547,13 +547,13 @@ void add_final_x86_instructions(Function *function) {
                     ir->operation = IR_NOP;
 
                     int alignment_pushes = 0;
-                    if (ir->src1->function_call_arg_stack_padding >= 8)
+                    if (ir->src1->function_call.function_call_arg_stack_padding >= 8)
                         alignment_pushes++;
 
                     // Align the stack. This is matched with an adjustment when the function call ends
-                    int need_aligned_call_push = ((cur_stack_push_count + ir->src1->function_call_arg_push_count) % 2 == 1);
+                    int need_aligned_call_push = ((cur_stack_push_count + ir->src1->function_call.function_call_arg_push_count) % 2 == 1);
                     if (need_aligned_call_push) {
-                        ir->src1->function_call_arg_push_count++;
+                        ir->src1->function_call.function_call_arg_push_count++;
                         alignment_pushes++;
                     }
 
@@ -561,7 +561,7 @@ void add_final_x86_instructions(Function *function) {
                     // combined with padding at the end of the stack. Eliminate both alignments
                     // to save 16 bytes to stack space.
                     if (alignment_pushes == 2) {
-                        ir->src1->function_call_arg_push_count -= 2;
+                        ir->src1->function_call.function_call_arg_push_count -= 2;
                         alignment_pushes = 0;
                     }
 
@@ -578,7 +578,7 @@ void add_final_x86_instructions(Function *function) {
                 ir->operation = IR_NOP;
 
                 // Adjust the stack for any args that are on in stack
-                int function_call_arg_push_count = ir->src1->function_call_arg_push_count;
+                int function_call_arg_push_count = ir->src1->function_call.function_call_arg_push_count;
                 if (function_call_arg_push_count > 0) {
                     cur_stack_push_count -= function_call_arg_push_count;
                     ir = add_add_rsp(ir, function_call_arg_push_count * 8);
@@ -614,26 +614,26 @@ void add_final_x86_instructions(Function *function) {
                 Type *function_type = ir->src1->type->type == TYPE_FUNCTION ? ir->src1->type : ir->src1->type->target;
                 if (function_type->function->is_variadic) {
                     char *buffer;
-                    wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call_sse_register_arg_count);
+                    wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call.function_call_sse_register_arg_count);
                     append_to_list(allocated_strings, buffer);
                     ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
                 }
 
                 Tac *tac = new_instruction(X_CALL_FROM_FUNC);
 
-                if (!orig_ir->src1->function_symbol) {
+                if (!orig_ir->src1->function_call.function_symbol) {
                     wasprintf(&(tac->x86_template), "callq *%%v1q");
                     append_to_list(allocated_strings, tac->x86_template);
                     tac->src1 = orig_ir->src1;
                 }
                 else {
                     // If a function has been defined locally, call it directly, otherwise use the PLT
-                    if (orig_ir->src1->function_symbol->function && orig_ir->src1->function_symbol->function->is_defined) {
-                         wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_symbol->global_identifier);
+                    if (orig_ir->src1->function_call.function_symbol->function && orig_ir->src1->function_call.function_symbol->function->is_defined) {
+                         wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_call.function_symbol->global_identifier);
                          append_to_list(allocated_strings, tac->x86_template);
                      }
                     else {
-                         wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_symbol->global_identifier);
+                         wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_call.function_symbol->global_identifier);
                          append_to_list(allocated_strings, tac->x86_template);
                      }
                  }

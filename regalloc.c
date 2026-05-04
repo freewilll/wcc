@@ -103,8 +103,8 @@ static int *make_original_stack_indexes(Function *function) {
     int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
 
     for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->operation == X_MOV && tac->src1 && tac->src1->function_param_original_stack_index)
-            result[tac->dst->vreg] = tac->src1->function_param_original_stack_index;
+        if (tac->operation == X_MOV && tac->src1 && tac->src1->function_call.function_param_original_stack_index)
+            result[tac->dst->vreg] = tac->src1->function_call.function_param_original_stack_index;
 
     return result;
 }

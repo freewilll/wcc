@@ -209,8 +209,8 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
         c += fprintf_escaped_string_literal(f, &(string_literals[v->string_literal_index]), 0);
     else if (v->label)
         c += fprintf(f, "l%d", v->label);
-    else if (v->function_symbol) {
-        c += fprintf(f, "function:%s", v->function_symbol->identifier);
+    else if (v->function_call.function_symbol) {
+        c += fprintf(f, "function:%s", v->function_call.function_symbol->identifier);
         return c;
     }
     else
@@ -282,8 +282,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     }
 
     else if (o == IR_CALL) {
-        if (tac->src1->function_symbol)
-            fprintf(f, "call \"%s\"", tac->src1->function_symbol->identifier);
+        if (tac->src1->function_call.function_symbol)
+            fprintf(f, "call \"%s\"", tac->src1->function_call.function_symbol->identifier);
         else {
             fprintf(f, "call ");
             print_value(f, tac->src1, 1);
@@ -913,14 +913,14 @@ static Value *insert_address_of_instruction_after(Function *function, Tac **ir, 
 
 static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Value *v, int int_arg_index) {
     Value *arg_value = dup_value(function_call_value);
-    arg_value->function_call_arg_index = int_arg_index;
+    arg_value->function_call.function_call_arg_index = int_arg_index;
 
 
     FunctionParamAllocation *fpa = init_function_param_allocaton(NULL);
     FunctionParamLocations *fpl = wmalloc(sizeof(FunctionParamLocations));
     append_to_list(fpa->param_locations, fpl);
 
-    arg_value->function_call_arg_locations = fpl;
+    arg_value->function_call.function_call_arg_locations = fpl;
     fpl->locations = wmalloc(sizeof(FunctionParamLocation));
     memset(fpl->locations, -1, sizeof(FunctionParamLocation));
     fpl->count = 1;
@@ -934,12 +934,12 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
     // Add call instruction
     Value *function_value = new_value();
     function_value->int_value = call_value->int_value;
-    function_value->function_symbol = symbol;
+    function_value->function_call.function_symbol = symbol;
     function_value->type = symbol->type;
-    function_value->function_call_arg_push_count = 0;
-    function_value->function_call_sse_register_arg_count = 0;
-    call_value->function_call_arg_push_count = 0;
-    call_value->function_call_arg_stack_padding = 0;
+    function_value->function_call.function_call_arg_push_count = 0;
+    function_value->function_call.function_call_sse_register_arg_count = 0;
+    call_value->function_call.function_call_arg_push_count = 0;
+    call_value->function_call.function_call_arg_stack_padding = 0;
     ir = new_tac_after(ir, IR_CALL, 0, function_value, 0);
 
     // Add end call instruction
@@ -954,7 +954,7 @@ Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value 
 
     // Add start call instruction
     Value *call_value = make_function_call_value(++max_function_call_value, memcpy_symbol->type);
-    call_value->function_symbol = memcpy_symbol;
+    call_value->function_call.function_symbol = memcpy_symbol;
 
     ir = new_tac_after(ir, IR_START_CALL, 0, call_value, 0);
 
@@ -1267,7 +1267,7 @@ void add_zero_memory_instructions(Function *function) {
 
             // Add start call instruction
             Value *call_value = make_function_call_value(++max_function_call_value, memset_symbol->type);
-            call_value->function_symbol = memset_symbol;
+            call_value->function_call.function_symbol = memset_symbol;
             tac = new_tac_after(tac, IR_START_CALL, 0, call_value, 0);
 
             Value *size_value = new_integral_constant(TYPE_INT, size);
@@ -1364,7 +1364,8 @@ void convert_functions_address_of(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation == IR_ADDRESS_OF && tac->src1->global_symbol && tac->src1->type->type == TYPE_FUNCTION) {
 
-            int is_defined = tac->src1->function_symbol && tac->src1->function_symbol->function && tac->src1->function_symbol->function->is_defined;
+            FunctionCallValue *fcv = &tac->src1->function_call;
+            int is_defined = fcv->function_symbol && fcv->function_symbol->function && fcv->function_symbol->function->is_defined;
 
             if (!is_defined) {
                 tac->operation = IR_ADDRESS_OF_FROM_GOT;

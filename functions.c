@@ -71,9 +71,9 @@ void process_function_call_arg_allocations(Function *function) {
             has_struct_or_union_return_value = 0;
 
             if (!ir->src1) panic("src1 NULL in IR_START_CALL");
-            Symbol *symbol = ir->src1->function_symbol;
+            Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
-            Type *function_type = ir->src1->function_type;
+            Type *function_type = ir->src1->function_call.function_type;
             if (!function_type) panic("function_type NULL in IR_START_CALL in function %s", symbol ? symbol->global_identifier : "(anonymous)");
             FunctionParamAllocation *fpa = init_function_param_allocaton(symbol_name);
             int function_call_number = ir->src1->int_value;
@@ -95,7 +95,7 @@ void process_function_call_arg_allocations(Function *function) {
             }
         }
         else if (ir->operation == IR_ARG) {
-            Symbol *symbol = ir->src1->function_symbol;
+            Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
             Value *arg = ir->src1;
@@ -108,15 +108,15 @@ void process_function_call_arg_allocations(Function *function) {
 
             int fpa_arg_count = fpa->param_locations->length;
             int arg_count = fpa_arg_count - has_struct_or_union_return_value;
-            arg->function_call_arg_index = arg_count;
+            arg->function_call.function_call_arg_index = arg_count;
 
             add_function_param_to_allocation(fpa, ir->src2->type);
             FunctionParamLocations *fpl = fpa->param_locations->elements[fpa_arg_count];
-            arg->function_call_arg_locations = fpl;
+            arg->function_call.function_call_arg_locations = fpl;
             if (fpl->locations[0].stack_padding >= 8) new_tac_after(ir, IR_ARG_STACK_PADDING, 0, 0, 0);
         }
         else if (ir->operation == IR_CALL) {
-            Symbol *symbol = ir->src1->function_symbol;
+            Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
             Value *function_value = ir->src1;
@@ -125,14 +125,14 @@ void process_function_call_arg_allocations(Function *function) {
             FunctionParamAllocation *fpa = fpas[function_call_number];
             if (!fpa) panic("fpa was NULL in an IR_CALL for a function call to %s in function %s", symbol_name, function->identifier);
 
-            function_value->function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
+            function_value->function_call.function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
 
             if (has_struct_or_union_return_value == -1) panic("has_struct_or_union_return_value was not set");
             function_value->has_struct_or_union_return_value = has_struct_or_union_return_value;
         }
 
         else if (ir->operation == IR_END_CALL) {
-            Symbol *symbol = ir->src1->function_symbol;
+            Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
             Value *arg = ir->src1;
@@ -142,8 +142,8 @@ void process_function_call_arg_allocations(Function *function) {
             if (!fpa) panic("fpa was NULL in an IR_END_CALL for a function call to %s in function %s", symbol_name, function->identifier);
 
             finalize_function_param_allocation(fpa);
-            arg->function_call_arg_stack_padding = fpa->padding;
-            arg->function_call_arg_push_count = (fpa->size + 7) / 8;
+            arg->function_call.function_call_arg_stack_padding = fpa->padding;
+            arg->function_call.function_call_arg_push_count = (fpa->size + 7) / 8;
         }
     }
 
@@ -707,7 +707,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG) {
-            FunctionParamLocations *pl = ir->src1->function_call_arg_locations;
+            FunctionParamLocations *pl = ir->src1->function_call.function_call_arg_locations;
 
             for (int loc = 0; loc < pl->count; loc++) {
                 int function_call_register_arg_index = preg_class == PC_INT
@@ -718,7 +718,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
                     int i = ir->src1->int_value * register_count + function_call_register_arg_index;
                     if (i >= allocated_count) panic("Exceeding arg_values space, want=%d, allocated=%d", i, allocated_count);
                     arg_values[i] = ir->src2;
-                    param_indexes[i] = ir->src1->function_call_arg_index;
+                    param_indexes[i] = ir->src1->function_call.function_call_arg_index;
                     param_locations[i] = pl;
                 }
             }
@@ -836,7 +836,7 @@ static void add_function_call_arg_move_for_struct_or_union_on_stack(Function *fu
 static void remove_IR_ARG_instructions_that_have_been_handled(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG) {
-            FunctionParamLocations *pl = ir->src1->function_call_arg_locations;
+            FunctionParamLocations *pl = ir->src1->function_call.function_call_arg_locations;
 
             for (int loc = 0; loc < pl->count; loc++) {
                 if (pl->locations[loc].int_register != -1 || pl->locations[loc].sse_register != -1) {
@@ -864,7 +864,7 @@ void add_function_call_arg_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation == IR_ARG) {
             if (ir->src2->type->type == TYPE_STRUCT_OR_UNION) {
-                FunctionParamLocations *pls = ir->src1->function_call_arg_locations;
+                FunctionParamLocations *pls = ir->src1->function_call.function_call_arg_locations;
                 if (pls->count != 1) panic("Unexpected struct/union to stack move with locations->count != 1");
                 add_function_call_arg_move_for_struct_or_union_on_stack(function, ir);
 
@@ -917,7 +917,7 @@ static void convert_register_param_stack_index_to_stack(Function *function, int 
 
 // Convert a value that has a stack index >= 2, i.e. it's a pushed parameter into a vreg
 static void convert_pushed_param_stack_index_to_register(Function *function, int *stack_param_vregs, Value *v) {
-    if (v && !v->function_param_original_stack_index && v->stack_index >= 2 && stack_param_vregs[v->stack_index - 2] != -1)
+    if (v && !v->function_call.function_param_original_stack_index && v->stack_index >= 2 && stack_param_vregs[v->stack_index - 2] != -1)
         assign_register_to_value(v, stack_param_vregs[v->stack_index - 2]);
 }
 
@@ -1520,7 +1520,7 @@ void add_function_param_moves(Function *function) {
         if (!has_address_of[i] && type->type != TYPE_LONG_DOUBLE && type->type != TYPE_STRUCT_OR_UNION) {
             Tac *tac = make_param_move_to_register_tac(function, type, i);
             stack_param_vregs[stack_index - 2] = tac->dst->vreg;
-            tac->src1->function_param_original_stack_index = stack_index;
+            tac->src1->function_call.function_param_original_stack_index = stack_index;
             tac->src1->stack_index = stack_index;
             tac->src1->has_been_renamed = 1;
             insert_tac_before(ir, tac, 0);
@@ -1555,7 +1555,7 @@ Value *make_function_call_value(int function_call, Type *type) {
     src1->int_value = function_call;
     src1->is_constant = 1;
     src1->type = new_type(TYPE_LONG);
-    src1->function_type = type;
+    src1->function_call.function_type = type;
 
     return src1;
 }

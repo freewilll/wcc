@@ -2289,8 +2289,8 @@ static void parse_function_call(void) {
 
     int function_call = function_call_count++;
     Value *src1 = make_function_call_value(function_call, function_type);
-    src1->function_symbol = symbol;
-    src1->function_type = function_type;
+    src1->function_call.function_symbol = symbol;
+    src1->function_call.function_type = function_type;
 
     add_parser_instruction(IR_START_CALL, 0, src1, 0);
 
@@ -2346,7 +2346,7 @@ static void parse_function_call(void) {
 
     Value *function_value = new_value();
     function_value->int_value = function_call;
-    function_value->function_symbol = symbol;
+    function_value->function_call.function_symbol = symbol;
     function_value->global_symbol = symbol;
     function_value->type = function_type;
     function_value->local_index = popped_function->local_index;

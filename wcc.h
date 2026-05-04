@@ -298,6 +298,20 @@ enum {
     PC_SSE = 2,
 };
 
+// Function call data related to a value
+typedef struct function_call_value {
+    int is_overflow_arg_area_address;                    // Set to indicate this value must point to the saved register save overflow for variadic functions
+    Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
+    Type *function_type;                                 // Type of the function in a function call
+    int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
+    int function_call_arg_index;                         // Index of the argument (0=leftmost)
+    FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or sse register, or in the case of a struct, a list of locations
+    int function_call_sse_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
+    int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
+    int function_call_arg_push_count;                    // Number of arguments pushed on the stack
+    int function_call_sse_register_arg_count;            // Number of SSE (xmm) arguments in registers
+} FunctionCallValue;
+
 // Value is a value on the value stack. A value can be one of
 // - global
 // - local
@@ -328,18 +342,9 @@ typedef struct value {
     int offset;                                          // For composite objects, offset from the start of the object's memory
     int bit_field_offset;                                // Offset in bits for bit fields
     int bit_field_size;                                  // Size in bits for bit fields
-    int is_overflow_arg_area_address;                    // Set to indicate this value must point to the saved register save overflow for variadic functions
-    Symbol *function_symbol;                             // Corresponding symbol in the case of a function call
-    Type *function_type;                                 // Type of the function in a function call
+    FunctionCallValue function_call;                     // Function call related data
     int address_of_offset;                               // Offset when used in combination with is_address_of
     int live_range_preg;                                 // This value is bound to a physical register
-    int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
-    int function_call_arg_index;                         // Index of the argument (0=leftmost)
-    FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or sse register, or in the case of a struct, a list of locations
-    int function_call_sse_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
-    int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
-    int function_call_arg_push_count;                    // Number of arguments pushed on the stack
-    int function_call_sse_register_arg_count;            // Number of SSE (xmm) arguments in registers
     Set *return_value_live_ranges;                       // Live ranges for registers that are part of the function return values
     Symbol *global_symbol;                               // Pointer to a global symbol if the value is a global symbol
     int label;                                           // Target label in the case of jump instructions
