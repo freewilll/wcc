@@ -360,9 +360,15 @@ typedef struct origin {
     int line_number;
 } Origin;
 
+typedef struct operation {
+    int id;                     // IR_* or X86_OP_* operation
+    int is_conditional_jump;    // Set if the operation is a conditional jump
+    int is_unconditional_jump;  // Set if the operation is a unconditional jump
+} Operation;
+
 typedef struct three_address_code {
     int index;                          // Index in a tac chain
-    int operation;                      // IR_* operation
+    Operation operation;                // The operation
     int label;                          // Label if this instruction is jumped to
     Value *dst;                         // Destination
     Value *src1;                        // First rhs operand
@@ -371,7 +377,7 @@ typedef struct three_address_code {
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
     char *x86_template;                 // Template for rendering x86 instruction
-    Origin *origin;                     // Filename and line numberwhere the tac was created
+    Origin *origin;                     // Filename and line number where the tac was created
 } Tac;
 
 // Struct/union member
@@ -1332,7 +1338,7 @@ typedef struct rule {
 } Rule;
 
 typedef struct x86_operation {
-    int operation;
+    Operation operation;
     char dst, v1, v2;
     char *template;
     char save_value_in_slot;           // Slot number to save a value in

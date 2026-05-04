@@ -103,7 +103,7 @@ static int *make_original_stack_indexes(Function *function) {
     int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
 
     for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->operation == X86_OP_MOV && tac->src1 && tac->src1->function_call.function_param_original_stack_index)
+        if (tac->operation.id == X86_OP_MOV && tac->src1 && tac->src1->function_call.function_param_original_stack_index)
             result[tac->dst->vreg] = tac->src1->function_call.function_param_original_stack_index;
 
     return result;
@@ -396,7 +396,7 @@ static void assign_vreg_locations(Function *function) {
 static void remove_preg_self_moves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
-            if (tac->operation == X86_OP_MOV) tac->operation = IR_NOP;
+            if (tac->operation.id == X86_OP_MOV) tac->operation.id = IR_NOP;
 }
 
 // Initialize vreg_locations, which maps vregs to either a preg or a stack index

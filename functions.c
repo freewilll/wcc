@@ -67,7 +67,7 @@ void process_function_call_arg_allocations(Function *function) {
     int has_struct_or_union_return_value = -1;
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_START_CALL) {
+        if (ir->operation.id == IR_START_CALL) {
             has_struct_or_union_return_value = 0;
 
             if (!ir->src1) panic("src1 NULL in IR_START_CALL");
@@ -94,7 +94,7 @@ void process_function_call_arg_allocations(Function *function) {
                 }
             }
         }
-        else if (ir->operation == IR_ARG) {
+        else if (ir->operation.id == IR_ARG) {
             Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
@@ -115,7 +115,7 @@ void process_function_call_arg_allocations(Function *function) {
             arg->function_call.function_call_arg_locations = fpl;
             if (fpl->locations[0].stack_padding >= 8) new_tac_after(ir, IR_ARG_STACK_PADDING, 0, 0, 0);
         }
-        else if (ir->operation == IR_CALL) {
+        else if (ir->operation.id == IR_CALL) {
             Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
@@ -131,7 +131,7 @@ void process_function_call_arg_allocations(Function *function) {
             function_value->has_struct_or_union_return_value = has_struct_or_union_return_value;
         }
 
-        else if (ir->operation == IR_END_CALL) {
+        else if (ir->operation.id == IR_END_CALL) {
             Symbol *symbol = ir->src1->function_call.function_symbol;
             char *symbol_name = symbol ? symbol->global_identifier : "(anonymous)";
 
@@ -363,7 +363,7 @@ void add_function_call_result_moves(Function *function) {
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation != IR_CALL || !ir->dst) continue;
+        if (ir->operation.id != IR_CALL || !ir->dst) continue;
 
         if (ir->dst->type->type == TYPE_STRUCT_OR_UNION)
             add_function_call_result_moves_for_struct_or_union(function, ir);
@@ -410,7 +410,7 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
     if (fpl->locations[0].stack_offset != -1) {
         // Move data into memory
 
-        ir->operation = IR_NOP;
+        ir->operation.id = IR_NOP;
 
         // Convert src1 to be a pointer to void
         Value *src1 = dup_value(ir->src1);
@@ -456,13 +456,13 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
 // otherwise, either rax or xmm0 must hold the result.
 void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if ((ir->operation == IR_RETURN && !ir->src1) || ir->operation != IR_RETURN) continue;
+        if ((ir->operation.id == IR_RETURN && !ir->src1) || ir->operation.id != IR_RETURN) continue;
 
         // Implicit else, operation == IR_RETURN & ir-src1 has a value
         if (ir->src1->type->type == TYPE_LONG_DOUBLE) {
             new_tac_before(ir, IR_LOAD_LONG_DOUBLE, 0, ir->src1, 0, 1);
 
-            ir->operation = IR_RETURN;
+            ir->operation.id = IR_RETURN;
             ir->dst = 0;
             ir->src1 = 0;
             ir->src2 = 0;
@@ -486,7 +486,7 @@ void add_function_return_moves(Function *function) {
 
             new_tac_before(ir, IR_MOVE, ir->dst, ir->src1, 0, 1);
 
-            ir->operation = IR_RETURN;
+            ir->operation.id = IR_RETURN;
             ir->dst = 0;
             ir->src1 = 0;
             ir->src2 = 0;
@@ -706,7 +706,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
     make_vreg_count(function, 0);
 
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_ARG) {
+        if (ir->operation.id == IR_ARG) {
             FunctionParamLocations *pl = ir->src1->function_call.function_call_arg_locations;
 
             for (int loc = 0; loc < pl->count; loc++) {
@@ -724,7 +724,7 @@ void add_function_call_arg_moves_for_preg_class(Function *function, int preg_cla
             }
         }
 
-        if (ir->operation == IR_CALL) {
+        if (ir->operation.id == IR_CALL) {
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
             if (ir->src1->int_value >= function_calls_size) panic("Exceeding param_locations space, want=%d, allocated=%d", ir->src1->int_value, function_calls_size);
             int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
@@ -835,12 +835,12 @@ static void add_function_call_arg_move_for_struct_or_union_on_stack(Function *fu
 // Nuke all IR_ARG instructions that have had code added that moves the value into a register
 static void remove_IR_ARG_instructions_that_have_been_handled(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_ARG) {
+        if (ir->operation.id == IR_ARG) {
             FunctionParamLocations *pl = ir->src1->function_call.function_call_arg_locations;
 
             for (int loc = 0; loc < pl->count; loc++) {
                 if (pl->locations[loc].int_register != -1 || pl->locations[loc].sse_register != -1) {
-                    ir->operation = IR_NOP;
+                    ir->operation.id = IR_NOP;
                     ir->dst = 0;
                     ir->src1 = 0;
                     ir->src2 = 0;
@@ -862,13 +862,13 @@ void add_function_call_arg_moves(Function *function) {
 
     // Add memory copies for struct and unions
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_ARG) {
+        if (ir->operation.id == IR_ARG) {
             if (ir->src2->type->type == TYPE_STRUCT_OR_UNION) {
                 FunctionParamLocations *pls = ir->src1->function_call.function_call_arg_locations;
                 if (pls->count != 1) panic("Unexpected struct/union to stack move with locations->count != 1");
                 add_function_call_arg_move_for_struct_or_union_on_stack(function, ir);
 
-                ir->operation = IR_NOP;
+                ir->operation.id = IR_NOP;
                 ir->dst = 0;
                 ir->src1 = 0;
                 ir->src2 = 0;
@@ -889,7 +889,7 @@ void add_function_call_arg_moves(Function *function) {
 // Set has_address_of to 1 if a value is a parameter in a register and it's used in a & instruction
 static void check_param_value_has_used_in_an_address_of(int *has_address_of, Tac *tac, Value *v) {
     if (!v) return;
-    if (tac->operation != IR_ADDRESS_OF) return;
+    if (tac->operation.id != IR_ADDRESS_OF) return;
     if (v->stack_index < 2) return;
     has_address_of[v->stack_index - 2] = 1;
     return;
@@ -1063,7 +1063,7 @@ static void add_function_vararg_param_moves(Function *function, FunctionParamAll
 // populated.
 static void process_function_va_start(Function *function, Tac *ir) {
     Value *va_list = ir->src1;
-    ir->operation = IR_NOP;
+    ir->operation.id = IR_NOP;
     ir->src1 = 0;
 
     // Set va_list.fp_offset, the offset of the first vararg integer register
@@ -1308,7 +1308,7 @@ static void process_function_va_arg(Function *function, Tac *ir) {
     Value *dst = ir->dst;
     Type *type = dst->type;
 
-    ir->operation = IR_NOP;
+    ir->operation.id = IR_NOP;
     ir->src1 = 0;
     ir->dst = 0;
 
@@ -1371,8 +1371,8 @@ static void process_function_va_arg(Function *function, Tac *ir) {
 
 void process_function_varargs(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_VA_START) process_function_va_start(function, ir);
-        else if (ir->operation == IR_VA_ARG) process_function_va_arg(function, ir);
+        if (ir->operation.id == IR_VA_START) process_function_va_start(function, ir);
+        else if (ir->operation.id == IR_VA_ARG) process_function_va_arg(function, ir);
     }
 }
 

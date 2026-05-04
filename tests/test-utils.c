@@ -70,7 +70,7 @@ void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2) {
         return;
     }
 
-    assert_long(operation, tac->operation);
+    assert_long(operation, tac->operation.id);
 
     if (dst)
         assert_value(dst,  tac->dst);
@@ -333,7 +333,7 @@ static void _finish_ir(Function *function, int stop_after_live_ranges, int stop_
 
     // Move ir_start to first non-noop for convenience
     ir_start = function->ir;
-    while (ir_start && ir_start->operation == IR_NOP) ir_start = ir_start->next;
+    while (ir_start && ir_start->operation.id == IR_NOP) ir_start = ir_start->next;
     function->ir = ir_start;
 }
 

@@ -94,7 +94,23 @@ static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
 // Add an x86 operation template to a rule
 static X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     X86Operation *x86op = wmalloc(sizeof(X86Operation));
-    x86op->operation = operation;
+    x86op->operation.id = operation;
+
+    x86op->operation.is_conditional_jump = (
+        operation == X86_OP_JZ ||
+        operation == X86_OP_JNZ ||
+        operation == X86_OP_JE ||
+        operation == X86_OP_JNE ||
+        operation == X86_OP_JGT ||
+        operation == X86_OP_JLT ||
+        operation == X86_OP_JGE ||
+        operation == X86_OP_JLE ||
+        operation == X86_OP_JB ||
+        operation == X86_OP_JA ||
+        operation == X86_OP_JBE ||
+        operation == X86_OP_JAE);
+
+    x86op->operation.is_unconditional_jump = (operation == X86_OP_JMP);
 
     x86op->dst = dst;
     x86op->v1 = v1;

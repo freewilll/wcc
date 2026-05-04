@@ -454,7 +454,7 @@ static void output_x86_operation(Tac *tac, int function_pc) {
 // Add an instruction after ir and return ir of the new instruction
 static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *x86_template) {
     Tac *tac = new_instruction(operation);
-    tac->operation = operation;
+    tac->operation.id = operation;
     tac->dst = dst;
     tac->src1 = src1;
     tac->src2 = src2;
@@ -533,18 +533,18 @@ void add_final_x86_instructions(Function *function) {
     while (ir) {
         added_end_of_function = 0;
 
-        switch (ir->operation) {
+        switch (ir->operation.id) {
             case IR_NOP:
                 break;
 
             case IR_START_LOOP:
             case IR_END_LOOP:
-                ir->operation = IR_NOP;
+                ir->operation.id = IR_NOP;
                 break;
 
             case IR_START_CALL: {
-                if (ir->operation == IR_START_CALL) {
-                    ir->operation = IR_NOP;
+                if (ir->operation.id == IR_START_CALL) {
+                    ir->operation.id = IR_NOP;
 
                     int alignment_pushes = 0;
                     if (ir->src1->function_call.function_call_arg_stack_padding >= 8)
@@ -575,7 +575,7 @@ void add_final_x86_instructions(Function *function) {
             }
 
             case IR_END_CALL: {
-                ir->operation = IR_NOP;
+                ir->operation.id = IR_NOP;
 
                 // Adjust the stack for any args that are on in stack
                 int function_call_arg_push_count = ir->src1->function_call.function_call_arg_push_count;
@@ -606,7 +606,7 @@ void add_final_x86_instructions(Function *function) {
                 break;
 
             case X86_OP_CALL: {
-                ir->operation = IR_NOP;
+                ir->operation.id = IR_NOP;
 
                 Tac *orig_ir = ir;
 
@@ -667,7 +667,7 @@ void add_final_x86_instructions(Function *function) {
 // Remove all possible IR_NOP instructions
 void remove_nops(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation != IR_NOP) continue;
+        if (tac->operation.id != IR_NOP) continue;
         if (!tac->next) panic("Unexpected NOP as last instruction");
         if (!tac->prev) continue;
         if (tac->next->label) continue;
@@ -681,20 +681,20 @@ void merge_rsp_func_call_add_subs(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (
                 // First operation is add/sub n, %rsp
-                (tac->operation == X86_OP_ADD || tac->operation == X86_OP_SUB) && tac->dst && tac->dst->preg == REG_RSP &&
+                (tac->operation.id == X86_OP_ADD || tac->operation.id == X86_OP_SUB) && tac->dst && tac->dst->preg == REG_RSP &&
                 // Second operation is add/sub n, %rsp
-                tac->next && (tac->next->operation == X86_OP_ADD || tac->next->operation == X86_OP_SUB) && tac->next->dst && tac->next->dst->preg == REG_RSP &&
+                tac->next && (tac->next->operation.id == X86_OP_ADD || tac->next->operation.id == X86_OP_SUB) && tac->next->dst && tac->next->dst->preg == REG_RSP &&
                 // No labels are involved
                 !tac->label && !tac->next->label) {
 
-            int value = tac->operation == X86_OP_ADD ? tac->src1->int_value : -tac->src1->int_value;
-            value += tac->next->operation == X86_OP_ADD ? tac->next->src1->int_value : -tac->next->src1->int_value;
+            int value = tac->operation.id == X86_OP_ADD ? tac->src1->int_value : -tac->src1->int_value;
+            value += tac->next->operation.id == X86_OP_ADD ? tac->next->src1->int_value : -tac->next->src1->int_value;
             if (!value) {
                 tac = delete_instruction(tac);
                 tac = delete_instruction(tac);
             } else {
                 tac = delete_instruction(tac);
-                tac->operation = value < 0 ? X86_OP_SUB : X86_OP_ADD;
+                tac->operation.id = value < 0 ? X86_OP_SUB : X86_OP_ADD;
                 tac->x86_template = value < 0 ? "subq $%v1q, %vdq" : "addq $%v1q, %vdq";
                 tac->src1->int_value = value > 0 ? value : -value;
             }
@@ -778,7 +778,7 @@ static void output_function_body_code(Symbol *symbol) {
 
     for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
         if (tac->label) fprintf(f, ".L%d:\n", tac->label);
-        if (tac->operation != IR_NOP) {
+        if (tac->operation.id != IR_NOP) {
             output_debug_loc(tac);
             output_x86_operation(tac, function_pc);
         }

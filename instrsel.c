@@ -69,7 +69,7 @@ void check_instrsel_register_sanity(Function *function) {
 
 static void transform_lvalues(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation == IR_MOVE_TO_PTR) {
+        if (tac->operation.id == IR_MOVE_TO_PTR) {
             tac->src1 = dup_value(tac->src1);
             tac->src1->type = make_pointer(tac->src1->type);
             tac->src1->is_lvalue = 0;
@@ -77,7 +77,7 @@ static void transform_lvalues(Function *function) {
         }
         else {
             // Ensure type of dst and src1 matches in a pointer addition operation
-            if (tac->operation == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
+            if (tac->operation.id == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
                 tac->dst = dup_value(tac->dst);
                 tac->dst->type = make_pointer(tac->dst->type);
                 tac->dst->is_lvalue = 0;
@@ -110,7 +110,7 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
     for (int i = 0; i < indent; i++) printf("  ");
 
     if (ign->tac) {
-        int operation = ign->tac->operation;
+        int operation = ign->tac->operation.id;
         switch (operation) {
             case IR_MOVE:                 c += printf("="); break;
             case IR_MOVE_PREG_CLASS:      c += printf("move to preg class"); break;
@@ -327,7 +327,7 @@ static int igraphs_are_neighbors(IGraph *igraphs, int i1, int i2) {
 
     while (i1 <= i2) {
         if (i1 == i2) return 1;
-        int is_nop = igraphs[i1].node_count == 1 && igraphs[i1].nodes[0].tac->operation == IR_NOP;
+        int is_nop = igraphs[i1].node_count == 1 && igraphs[i1].nodes[0].tac->operation.id == IR_NOP;
         if (!is_nop && igraphs[i1].node_count != 0) return 0;
         i1++;
     }
@@ -432,7 +432,7 @@ static void make_igraphs(Function *function, int block_id) {
             vreg_igraphs[src2].igraph_id = i;
         }
 
-        if (tac->operation != IR_MOVE_TO_PTR && dst && ((src1 && dst == src1) || (src2 && dst == src2))) {
+        if (tac->operation.id != IR_MOVE_TO_PTR && dst && ((src1 && dst == src1) || (src2 && dst == src2))) {
             print_instruction(stdout, tac, 0);
             panic("Illegal assignment of src1/src2 to dst");
         }
@@ -450,9 +450,9 @@ static void make_igraphs(Function *function, int block_id) {
         // IR_CALL_ARG_REG is also off limits, since it's a placeholder for function
         // arg registers and no code is actually emitted.
         if (vreg_igraphs[dst].count == 1 && vreg_igraphs[dst].igraph_id != -1 &&
-            tac->operation != IR_CALL && tac->operation != IR_MOVE_TO_PTR &&
-            igraphs[g1_igraph_id].nodes[0].tac->operation != IR_CALL_ARG_REG &&
-            tac->operation != IR_CALL_ARG_REG &&
+            tac->operation.id != IR_CALL && tac->operation.id != IR_MOVE_TO_PTR &&
+            igraphs[g1_igraph_id].nodes[0].tac->operation.id != IR_CALL_ARG_REG &&
+            tac->operation.id != IR_CALL_ARG_REG &&
             igraphs_are_neighbors(igraphs, i, g1_igraph_id)
             ) {
 
@@ -484,7 +484,7 @@ static void make_igraphs(Function *function, int block_id) {
             }
         }
 
-        if (dst && tac->operation != IR_MOVE_TO_PTR)
+        if (dst && tac->operation.id != IR_MOVE_TO_PTR)
             vreg_igraphs[dst].count = 0;
 
         i--;
@@ -502,7 +502,7 @@ static void make_igraphs(Function *function, int block_id) {
         for (int i = 0; i < instr_count; i++) {
             if (!igraphs[i].node_count) continue;
             tac = igraphs[i].nodes[0].tac;
-            if (tac && tac->operation == IR_NOP) continue;
+            if (tac && tac->operation.id == IR_NOP) continue;
             if (tac) {
                 Value *v = igraphs[i].nodes[0].tac->dst;
                 if (v) {
@@ -540,7 +540,7 @@ static void recursive_simplify_igraph(IGraph *src, IGraph *dst, int src_node_id,
     // If src is not the root node, the operation is a move, and it's not a type change,
     // recurse, with dst moved further down the tree
     int operation;
-    if (tac) operation = tac->operation; else operation = 0;
+    if (tac) operation = tac->operation.id; else operation = 0;
     if (operation == IR_MOVE && src_node_id != 0 && type_eq(tac->dst->type, tac->src1->type)) {
         recursive_simplify_igraph(src, dst, e->to->id, dst_parent_node_id, dst_child_node_id);
         return;
@@ -602,7 +602,7 @@ static void simplify_igraphs() {
     for (int i = 0; i < instr_count; i++) {
         IGraphNode *ign = &(igraphs[i].nodes[0]);
         int operation;
-        if (ign->tac) operation = ign->tac->operation; else operation = 0;
+        if (ign->tac) operation = ign->tac->operation.id; else operation = 0;
         if (operation != IR_NOP && igraphs[i].node_count) {
             IGraph *ig = simplify_igraph(&(igraphs[i]));
             shallow_dup_igraph(ig, &(igraphs[i]));
@@ -618,7 +618,7 @@ static Value *merge_cst_node(IGraph *igraph, int node_id, Value *v) {
     if (node_id == 0) {
         // Root node, convert it into a move, since it has to end up
         // in a register
-        igraph->nodes[node_id].tac->operation = IR_MOVE;
+        igraph->nodes[node_id].tac->operation.id = IR_MOVE;
         igraph->nodes[node_id].tac->src1 = v;
         igraph->nodes[node_id].tac->src2 = 0;
         igraph->nodes[src_node->succ->to->id].value = v;
@@ -676,7 +676,7 @@ static Value *recursive_merge_constants(IGraph *igraph, int node_id) {
     GraphNode *src_node = &(igraph->graph->nodes[node_id]);
     Tac *tac = igraph->nodes[node_id].tac;
     if (!tac) return igraph->nodes[node_id].value;
-    int operation = tac->operation;
+    int operation = tac->operation.id;
     if (operation == IR_NOP) return 0;
 
     int i = 1;
@@ -816,7 +816,7 @@ static int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
 
     Tac *tac = igraph->nodes[node_id].tac;
 
-    List *rules = longmap_get(instr_rules_by_operation, tac->operation);
+    List *rules = longmap_get(instr_rules_by_operation, tac->operation.id);
     for (int i = 0; i < rules->length; i++) {
         Rule *r = rules->elements[i];
 
@@ -896,7 +896,7 @@ static int match_subtree_labels_to_rule(int src_id, int rule_src) {
 static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     IGraphNode *inode = &(igraph->nodes[node_id]);
     Tac *tac = inode->tac;
-    int operation = tac->operation;
+    int operation = tac->operation.id;
 
     if (debug_instsel_tiling) {
         printf("tile_igraph_operation_node on node=%d\n", node_id);
@@ -959,11 +959,11 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         // IR_MOVE_TO_PTR is a special case since it doesn't have a dst. The dst is actually
         // src1, which isn't modified.
         if (match_dst) {
-            if (tac->operation != IR_MOVE_TO_PTR && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
-            if (tac->operation == IR_MOVE_TO_PTR && !match_value_to_rule_dst(tac->src1, r->dst)) continue;
+            if (tac->operation.id != IR_MOVE_TO_PTR && !match_value_to_rule_dst(tac->dst, r->dst)) continue;
+            if (tac->operation.id == IR_MOVE_TO_PTR && !match_value_to_rule_dst(tac->src1, r->dst)) continue;
         }
 
-        if (tac->operation == IR_MOVE_TO_PTR && !match_value_type_to_rule_dst(tac->src1, r->dst)) continue;
+        if (tac->operation.id == IR_MOVE_TO_PTR && !match_value_type_to_rule_dst(tac->src1, r->dst)) continue;
         else if (tac->dst && !match_value_type_to_rule_dst(tac->dst, r->dst)) continue;
 
         // Check dst of the subtree tile matches what is needed
@@ -1082,7 +1082,9 @@ static Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Valu
     if (v1) make_value_x86_size(v1);
     if (v2) make_value_x86_size(v2);
 
-    Tac *tac = add_instruction(x86op->operation, dst, v1, v2);
+    Tac *tac = add_instruction(x86op->operation.id, dst, v1, v2);
+    tac->operation.is_conditional_jump = x86op->operation.is_conditional_jump;
+    tac->operation.is_unconditional_jump = x86op->operation.is_unconditional_jump;
     tac->x86_template = x86op->template;
 
     return tac;
@@ -1323,15 +1325,15 @@ static void tile_igraphs(Function *function) {
 
         // Whitelist operations there are no rules for
         if (tac &&
-            (tac->operation == IR_NOP ||
-             tac->operation == IR_DECL_LOCAL_COMP_OBJ ||
-             tac->operation == IR_START_CALL ||
-             tac->operation == IR_END_CALL ||
-             tac->operation == IR_RETURN ||
-             tac->operation == IR_START_LOOP ||
-             tac->operation == IR_END_LOOP ||
-             tac->operation == IR_CALL_ARG_REG ||
-             tac->operation == IR_ARG_STACK_PADDING)) {
+            (tac->operation.id == IR_NOP ||
+             tac->operation.id == IR_DECL_LOCAL_COMP_OBJ ||
+             tac->operation.id == IR_START_CALL ||
+             tac->operation.id == IR_END_CALL ||
+             tac->operation.id == IR_RETURN ||
+             tac->operation.id == IR_START_LOOP ||
+             tac->operation.id == IR_END_LOOP ||
+             tac->operation.id == IR_CALL_ARG_REG ||
+             tac->operation.id == IR_ARG_STACK_PADDING)) {
 
             add_tac_to_ir(tac);
             continue;
@@ -1438,8 +1440,8 @@ void select_instructions(Function *function) {
 // This removes instructions that copy a stack location to itself by replacing them with noops.
 void remove_stack_self_moves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->stack_index && tac->dst->stack_index == tac->src1->stack_index) {
-            tac->operation = IR_NOP;
+        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->stack_index && tac->dst->stack_index == tac->src1->stack_index) {
+            tac->operation.id = IR_NOP;
             tac->dst = 0;
             tac->src1 = 0;
             tac->src2 = 0;
@@ -1451,8 +1453,8 @@ void remove_stack_self_moves(Function *function) {
 // This removes instructions that copy a register to itself by replacing them with noops.
 void remove_vreg_self_moves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation == X86_OP_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
-            tac->operation = IR_NOP;
+        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            tac->operation.id = IR_NOP;
             tac->dst = 0;
             tac->src1 = 0;
             tac->src2 = 0;
@@ -1588,11 +1590,11 @@ void add_spill_code(Function *function) {
         if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
 
         // Allow all moves where either dst is a register and src is on the stack
-        if (tac->operation == X86_OP_MOV || tac->operation == X86_OP_MOVS || tac->operation == X86_OP_MOVZ)
+        if (tac->operation.id == X86_OP_MOV || tac->operation.id == X86_OP_MOVS || tac->operation.id == X86_OP_MOVZ)
             if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->stack_index) continue;
 
         // Allow non sign-extends moves if the dst is on the stack and the src is a register
-        if (tac->operation == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) continue;
+        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) continue;
 
         int dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->stack_index == tac->src1->stack_index);
 
@@ -1614,7 +1616,7 @@ void add_spill_code(Function *function) {
 
         if (tac->dst && tac->dst->spilled) {
             if (debug_instsel_spilling) printf("Adding spill store\n");
-            if (tac->operation == X86_OP_CALL) panic("Unexpected spill from X_CALL");
+            if (tac->operation.id == X86_OP_CALL) panic("Unexpected spill from X_CALL");
             add_spill_store(tac, tac->dst, get_spill_register(tac->dst, 2));
             tac = tac->next;
         }

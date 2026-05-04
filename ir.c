@@ -103,7 +103,7 @@ void add_tac_to_ir(Tac *tac) {
 Tac *new_instruction(int operation) {
     Tac *tac = wcalloc(1, sizeof(Tac));
     append_to_list(allocated_tacs, tac);
-    tac->operation = operation;
+    tac->operation.id = operation;
 
     return tac;
 }
@@ -111,7 +111,7 @@ Tac *new_instruction(int operation) {
 Tac *new_instruction_with_values(int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac = wcalloc(1, sizeof(Tac));
     append_to_list(allocated_tacs, tac);
-    tac->operation = operation;
+    tac->operation.id = operation;
     tac->dst = dst;
     tac->src1 = src1;
     tac->src2 = src2;
@@ -137,7 +137,7 @@ Tac *add_instruction(int operation, Value *dst, Value *src1, Value *src2) {
 }
 
 void make_instruction_a_nop(Tac *tac) {
-    tac->operation = IR_NOP;
+    tac->operation.id = IR_NOP;
     tac->dst = NULL;
     tac->src1 = NULL;
     tac->src2 = NULL;
@@ -229,7 +229,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
 }
 
 void print_instruction(void *f, Tac *tac, int expect_preg) {
-    int o = tac->operation;
+    int o = tac->operation.id;
 
     if (tac->label)
         fprintf(f, "l%-5d", tac->label);
@@ -420,7 +420,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == X86_OP_SETGE)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
 
     else
-        panic("print_instruction(): Unknown operation: %d", tac->operation);
+        panic("print_instruction(): Unknown operation: %d", tac->operation.id);
 
     fprintf(f, "\n");
 }
@@ -456,7 +456,7 @@ static int make_max_function_call_value(Function *function) {
     // Need to count this IR's function_call_count
     int max_function_call_value = 0;
     for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->operation == IR_START_CALL) {
+        if (tac->operation.id == IR_START_CALL) {
             int func_call_value = tac->src1->int_value;
             if (func_call_value > max_function_call_value) max_function_call_value = func_call_value;
         }
@@ -470,7 +470,7 @@ static int make_max_function_call_value(Function *function) {
 int make_max_function_call_id(Function *function) {
     int max = 0;
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if ((ir->operation == IR_ARG || ir->operation == IR_CALL) && ir->src1->int_value > max)
+        if ((ir->operation.id == IR_ARG || ir->operation.id == IR_CALL) && ir->src1->int_value > max)
             max = ir->src1->int_value;
     }
 
@@ -504,7 +504,7 @@ void reverse_function_argument_order(Function *function) {
     // Collect function call details in one pass through the IR
     Tac *tac = function->ir;
     while (tac) {
-        if (tac->operation == IR_START_CALL) {
+        if (tac->operation.id == IR_START_CALL) {
             int func = tac->src1->int_value;
             if (func > max_function_call_value) panic("func (%d) > max_function_call_value (%d)", func, max_function_call_value);
             TacInterval *args = &(function_args[func * MAX_ARGS]);
@@ -512,24 +512,24 @@ void reverse_function_argument_order(Function *function) {
             tac = tac->next;
             args[arg_counts[func]].start = tac;
         }
-        else if (tac->operation == IR_END_CALL) {
+        else if (tac->operation.id == IR_END_CALL) {
             int func = tac->src1->int_value;
             calls[func] = tac->prev;
             tac = tac->next;
         }
-        else if (tac->operation == IR_ARG) {
+        else if (tac->operation.id == IR_ARG) {
             int func = tac->src1->int_value;
             TacInterval *args = &(function_args[func * MAX_ARGS]);
             args[arg_counts[func]].end = tac;
             tac = tac->next;
 
-            if (tac->operation == IR_ARG_STACK_PADDING) {
+            if (tac->operation.id == IR_ARG_STACK_PADDING) {
                 args[arg_counts[func]].end = tac;
                 tac = tac->next;
             }
 
             arg_counts[func]++;
-            if (tac->operation != IR_END_CALL) args[arg_counts[func]].start = tac;
+            if (tac->operation.id != IR_END_CALL) args[arg_counts[func]].start = tac;
         }
         else
             tac = tac->next;
@@ -736,7 +736,7 @@ void allocate_value_vregs(Function *function) {
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Keep variables that are used with the & operator on the stack
-        if (tac->operation == IR_ADDRESS_OF && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
+        if (tac->operation.id == IR_ADDRESS_OF && tac->src1->local_index < 0) on_stack[-tac->src1->local_index] = 1;
 
         // Keep long doubles, struct/unions and arrays on the stack
         if (tac->dst  && tac->dst ->type && tac->dst ->local_index < 0) set_on_stack(tac->dst,  on_stack);
@@ -764,10 +764,10 @@ void allocate_value_vregs(Function *function) {
 // - IR_JNZ => IR_NE with 0.0 & IR_JNZ
 void convert_long_doubles_jz_and_jnz(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if ((ir->operation == IR_JZ || ir->operation == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
-            ir->operation = ir->operation == IR_JZ ? IR_EQ : IR_NE;
+        if ((ir->operation.id == IR_JZ || ir->operation.id == IR_JNZ) && is_floating_point_type(ir->src1->type)) {
+            ir->operation.id = ir->operation.id == IR_JZ ? IR_EQ : IR_NE;
             Tac *tac = new_instruction(IR_JNZ);
-            tac->operation = IR_JNZ;
+            tac->operation.id = IR_JNZ;
             ir->dst = new_value();
             ir->dst->type = new_type(TYPE_INT);
             ir->dst->vreg = ++function->vreg_count;
@@ -892,8 +892,8 @@ void remove_unused_function_call_results(Function *function) {
     while (tac) {
         if (tac->src1 && tac->src1->vreg) used_vregs[tac->src1->vreg] = 1;
         if (tac->src2 && tac->src2->vreg) used_vregs[tac->src2->vreg] = 1;
-        if (tac->operation == IR_MOVE && tac->dst->vreg && tac->dst->is_lvalue) used_vregs[tac->dst->vreg] = 1;
-        if (tac->operation == IR_CALL && tac->dst && tac->dst->vreg && !used_vregs[tac->dst->vreg]) tac->dst = 0;
+        if (tac->operation.id == IR_MOVE && tac->dst->vreg && tac->dst->is_lvalue) used_vregs[tac->dst->vreg] = 1;
+        if (tac->operation.id == IR_CALL && tac->dst && tac->dst->vreg && !used_vregs[tac->dst->vreg]) tac->dst = 0;
 
         tac = tac->prev;
     }
@@ -1047,7 +1047,7 @@ Tac *add_memory_copy(Function *function, Tac *ir, Value *dst, Value *src1, int s
 // Add memcpy calls for struct/union -> struct/union copies
 void process_struct_and_union_copies(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation != IR_MOVE) continue;
+        if (ir->operation.id != IR_MOVE) continue;
         if (ir->src1->type->type != TYPE_STRUCT_OR_UNION) continue;
         if (ir->dst->type->type != ir->src1->type->type) panic("Mismatched struct/union copy type");
 
@@ -1055,7 +1055,7 @@ void process_struct_and_union_copies(Function *function) {
         Value *dst = ir->dst;
         Value *src1 = ir->src1;
 
-        ir->operation = IR_NOP;
+        ir->operation.id = IR_NOP;
         ir->dst = 0;
         ir->src1 = 0;
 
@@ -1085,7 +1085,7 @@ static void add_load_bit_field(Function *function, Tac *ir) {
     Value *loaded_value = dup_value(ir->dst);
     loaded_value->vreg = ++function->vreg_count;
 
-    ir->operation = IR_NOP;
+    ir->operation.id = IR_NOP;
     ir->dst = 0;
     ir->src1 = 0;
     ir->src2 = 0;
@@ -1142,7 +1142,7 @@ static void add_save_bit_field(Function *function, Tac *ir) {
     Value *dst = dup_value(ir->dst);;
     Value *src1 = dup_value(ir->src1);
 
-    ir->operation = IR_NOP;
+    ir->operation.id = IR_NOP;
     ir->dst = 0;
     ir->src1 = 0;
     ir->src2 = 0;
@@ -1213,8 +1213,8 @@ static void add_save_bit_field(Function *function, Tac *ir) {
 // Add instructions for loading and saving bit fields
 void process_bit_fields(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->operation == IR_LOAD_BIT_FIELD) add_load_bit_field(function, ir);
-        else if (ir->operation == IR_SAVE_BIT_FIELD) add_save_bit_field(function, ir);
+        if (ir->operation.id == IR_LOAD_BIT_FIELD) add_load_bit_field(function, ir);
+        else if (ir->operation.id == IR_SAVE_BIT_FIELD) add_save_bit_field(function, ir);
     }
 }
 
@@ -1234,12 +1234,12 @@ void convert_enums(Function *function) {
 // Add instructions that write zeroes to dst, starting at offset, with size in src1
 void add_zero_memory_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation != IR_ZERO) continue;
+        if (tac->operation.id != IR_ZERO) continue;
 
         Value *dst = tac->dst;
         int offset = tac->dst->offset;
         int size = tac->src1->int_value;
-        tac->operation = IR_NOP;
+        tac->operation.id = IR_NOP;
         tac->dst = 0;
         tac->src1 = 0;
 
@@ -1311,19 +1311,19 @@ void add_PIC_load_and_saves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Ensure all global values are only ever loaded or saved
 
-        if (tac->dst && tac->dst->global_symbol && tac->operation != IR_MOVE)
+        if (tac->dst && tac->dst->global_symbol && tac->operation.id != IR_MOVE)
             panic("Unexpected global_symbol in dst");
         if (tac->src1 && tac->src1->global_symbol
-                && tac->operation != IR_MOVE
-                && tac->operation != IR_CALL
-                && tac->operation != IR_ADDRESS_OF
-                && tac->operation != IR_DECL_LOCAL_COMP_OBJ)
-            panic("Unexpected operation for global_symbol in src1: %s", operation_string(tac->operation));
+                && tac->operation.id != IR_MOVE
+                && tac->operation.id != IR_CALL
+                && tac->operation.id != IR_ADDRESS_OF
+                && tac->operation.id != IR_DECL_LOCAL_COMP_OBJ)
+            panic("Unexpected operation for global_symbol in src1: %s", operation_string(tac->operation.id));
         if (tac->src2 && tac->src2->global_symbol)
-            panic("Unexpected operation for global_symbol in src2: %s", operation_string(tac->operation));
+            panic("Unexpected operation for global_symbol in src2: %s", operation_string(tac->operation.id));
 
         // Convert a save of a global to a mov from the GOT followed by a store to a pointer in a register
-        if (tac->dst && tac->dst->global_symbol && tac->operation == IR_MOVE) {
+        if (tac->dst && tac->dst->global_symbol && tac->operation.id == IR_MOVE) {
             Value *dst = add_load_from_got(function, tac, tac->dst);
 
             // Convert to a move to an lvalue in a register
@@ -1334,17 +1334,17 @@ void add_PIC_load_and_saves(Function *function) {
         }
 
         // Convert a load of a global to a mov from the GOT followed by an indirect
-        if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_MOVE) {
+        if (tac->src1 && tac->src1->global_symbol && tac->operation.id == IR_MOVE) {
             Value *dst = add_load_from_got(function, tac, tac->src1);
 
             // Convert to an indirect unless it's a pointer to a function
             tac->src1 = dst;
             if (!is_pointer_to_function_type(tac->src1->type))
-                tac->operation = IR_INDIRECT;
+                tac->operation.id = IR_INDIRECT;
         }
 
-        else if (tac->src1 && tac->src1->global_symbol && tac->operation == IR_ADDRESS_OF) {
-            tac->operation = IR_ADDRESS_OF_FROM_GOT;
+        else if (tac->src1 && tac->src1->global_symbol && tac->operation.id == IR_ADDRESS_OF) {
+            tac->operation.id = IR_ADDRESS_OF_FROM_GOT;
             tac->src1->load_from_got = 1;
             if (tac->src1->offset) {
                 int offset = tac->src1->offset;
@@ -1362,13 +1362,13 @@ void add_PIC_load_and_saves(Function *function) {
 // function has been defined.
 void convert_functions_address_of(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation == IR_ADDRESS_OF && tac->src1->global_symbol && tac->src1->type->type == TYPE_FUNCTION) {
+        if (tac->operation.id == IR_ADDRESS_OF && tac->src1->global_symbol && tac->src1->type->type == TYPE_FUNCTION) {
 
             FunctionCallValue *fcv = &tac->src1->function_call;
             int is_defined = fcv->function_symbol && fcv->function_symbol->function && fcv->function_symbol->function->is_defined;
 
             if (!is_defined) {
-                tac->operation = IR_ADDRESS_OF_FROM_GOT;
+                tac->operation.id = IR_ADDRESS_OF_FROM_GOT;
                 tac->src1->load_from_got = 1;
             }
         }

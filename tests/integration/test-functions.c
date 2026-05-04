@@ -33,7 +33,7 @@ static Tac *run_function_params_compiler(const char *code) {
 
                 // Move ir_start to first non-labelled non-noop for convenience
                 ir_start = function->ir;
-                while (ir_start && ir_start->operation == IR_NOP && !ir_start->label) ir_start = ir_start->next;
+                while (ir_start && ir_start->operation.id == IR_NOP && !ir_start->label) ir_start = ir_start->next;
                 function->ir = ir_start;
                 return ir_start;
             }
@@ -130,7 +130,7 @@ static void test_small_struct_in_registers_in_func_call(void) {
         "}");
 
     // declare {l}S[-1]:struct s
-    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation);
+    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation.id);
     ir = ir->next;
 
     // {l}S[-1]:unsigned int = r1_LRpreg6:unsigned int
@@ -153,7 +153,7 @@ static void test_big_struct_in_registers_in_func_call(void) {
         "}");
 
     // declare {l}S[-1]:struct s
-    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation);
+    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation.id);
     ir = ir->next;
 
     // {l}S[-1]:unsigned int = r1_LRpreg6:unsigned int
@@ -184,7 +184,7 @@ static void test_one_float(void) {
         "}");
 
     // declare {l}S[-1]:struct s
-    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation);
+    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation.id);
     ir = ir->next;
 
     // {l}S[-1]:float = r1_LRpreg13:float
@@ -206,7 +206,7 @@ static void test_one_double(void) {
         "}");
 
     // declare {l}S[-1]:struct s
-    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation);
+    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation.id);
     ir = ir->next;
 
     // {l}S[-1]:double = r1_LRpreg13:double
@@ -228,7 +228,7 @@ static void test_two_floats(void) {
         "}");
 
     // declare {l}S[-1]:struct s
-    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation);
+    assert_int(IR_DECL_LOCAL_COMP_OBJ, ir->operation.id);
     ir = ir->next;
 
     // r2:long = r1_LRpreg13:double

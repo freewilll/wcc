@@ -147,7 +147,7 @@ static Tac *split_instruction(Tac *tac) {
         split_src1 ? split_src1->low : NULL,
         split_src2 ? split_src2->low : NULL);
 
-    Tac *tac2 = new_instruction_with_values(tac->operation,
+    Tac *tac2 = new_instruction_with_values(tac->operation.id,
         split_dst  ? split_dst->high  : NULL,
         split_src1 ? split_src1->high : NULL,
         split_src2 ? split_src2->high : NULL);
@@ -303,7 +303,7 @@ static Tac *transform_bitshift(Function *function, Tac *tac, int operation) {
         if (tac->src2->int_value == 64) {
             // Move the start byte over to end byte
 
-            tac->operation = IR_MOVE;
+            tac->operation.id = IR_MOVE;
             tac->dst = end_dst_value;
             tac->src1 = start_src1_value;
             tac->src2 = NULL;
@@ -424,7 +424,7 @@ void transform_int128_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (!TAC_IS_INT128(tac)) continue;
 
-        switch (tac->operation) {
+        switch (tac->operation.id) {
             case IR_MOVE:
                 tac = transform_move(function, tac);
                 break;
@@ -452,7 +452,7 @@ void transform_int128_instructions(Function *function) {
                 tac = transform_mul(function, tac);
                 break;
             default:
-                fprintf(stderr, "Unimplemented int 128 IR operation %s\n", operation_string(tac->operation));
+                fprintf(stderr, "Unimplemented int 128 IR operation %s\n", operation_string(tac->operation.id));
                 bail_on_unimplemented_instruction(tac, "for:");
         }
     }

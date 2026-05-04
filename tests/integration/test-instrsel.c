@@ -18,7 +18,7 @@ void n() {
 }
 
 void nop() {
-    assert(IR_NOP, ir_start->operation);
+    assert(IR_NOP, ir_start->operation.id);
     ir_start = ir_start->next;
 }
 
@@ -134,7 +134,7 @@ void test_instrsel_tree_merging() {
     // Ensure both "CMP" instructions operate on registers
     tac = ir_start;
     for (j = 0; j < 2; j++) {
-        while (tac && tac->operation != X86_OP_CMP) tac = tac->next;
+        while (tac && tac->operation.id != X86_OP_CMP) tac = tac->next;
         assert(1, !!tac);
         assert(1, tac->src1->vreg > 0);
         assert(1, tac->src2->vreg > 0);
