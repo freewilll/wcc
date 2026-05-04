@@ -44,12 +44,16 @@ SOURCES := \
 	list.c \
 	graph.c \
 	cpp.c \
-	flags.c
+	flags.c \
+	x86_64.c
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
 SOURCES_ABS_PATH := ${SOURCES:%=${SRC_DIR}/%}
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
+
+HEADERS = wcc.h x86_64.h
+HEADERS_ABS_PATH := ${HEADERS:%=${SRC_DIR}/%}
 
 build:
 	@mkdir -p ${BUILD_DIR}/build/wcc2
@@ -73,13 +77,13 @@ instrrules-generated.c: instrgen
 instrrules-generated.o: instrrules-generated.c
 	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} -c $< -o $@
 
-%.o: ${SRC_DIR}/%.c ${BUILD_DIR}/config.h ${SRC_DIR}/wcc.h build
+%.o: ${SRC_DIR}/%.c ${BUILD_DIR}/config.h ${HEADERS_ABS_PATH} build
 	${GCC} ${GCC_OPTS} -g -Wunused -Wno-unused-function ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -c $< -o $@
 
 libwcc.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
 	ar rcs libwcc.a ${OBJECTS} wcc.o instrrules-generated.o internals.o
 
-wcc: libwcc.a ${SRC_DIR}/main.c instrrules-generated.c config.h ${SRC_DIR}/wcc.h
+wcc: libwcc.a ${SRC_DIR}/main.c instrrules-generated.c config.h ${HEADERS_ABS_PATH}
 	${GCC} ${GCC_OPTS} -g -Wunused -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} ${SRC_DIR}/main.c instrrules-generated.c libwcc.a -o $@
 
 # wcc2

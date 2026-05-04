@@ -177,6 +177,10 @@ void print_rules(void) {
 }
 
 char *operation_string(int operation) {
+    if (operation >= BACKEND_OPS_START) {
+        return backend_op_name(operation);
+    }
+
     switch (operation) {
         case 0:                      return "";
         case IR_MOVE:                return "IR_MOVE";
@@ -209,6 +213,7 @@ char *operation_string(int operation) {
         case IR_JZ:                  return "IR_JZ";
         case IR_JNZ:                 return "IR_JNZ";
         case IR_ADD:                 return "IR_ADD";
+        case IR_ADDC:                return "IR_ADDC";
         case IR_SUB:                 return "IR_SUB";
         case IR_SUBC:                return "IR_SUBC";
         case IR_RSUB:                return "IR_RSUB";
@@ -233,45 +238,7 @@ char *operation_string(int operation) {
         case IR_LE:                  return "IR_LE";
         case IR_GE:                  return "IR_GE";
         case IR_PHI_FUNCTION:        return "IR_PHI_FUNCTION";
-        case X86_OP_MOV:             return "mov";
-        case X86_OP_ADD:             return "add";
-        case X86_OP_ADDC:            return "addc";
-        case X86_OP_SUB:             return "sub";
-        case X86_OP_SUBC:            return "subc";
-        case X86_OP_MUL:             return "mul";
-        case X86_OP_MUL128A:         return "mul128A";
-        case X86_OP_MUL128B:         return "mul128B";
-        case X86_OP_IDIV:            return "idiv";
-        case X86_OP_CQTO:            return "cqto";
-        case X86_OP_CMP:             return "cmp";
-        case X86_OP_COMIS:           return "comis";
-        case X86_OP_TEST:            return "test";
-        case X86_OP_CMPZ:            return "cmpz";
-        case X86_OP_JMP:             return "jmp";
-        case X86_OP_JZ:              return "jz";
-        case X86_OP_JNZ:             return "jnz";
-        case X86_OP_JE:              return "je";
-        case X86_OP_JNE:             return "jne";
-        case X86_OP_JLT:             return "jlt";
-        case X86_OP_JGT:             return "jgt";
-        case X86_OP_JLE:             return "jle";
-        case X86_OP_JGE:             return "jge";
-        case X86_OP_JB:              return "jb";
-        case X86_OP_JA:              return "ja";
-        case X86_OP_JBE:             return "jbe";
-        case X86_OP_JAE:             return "jae";
-        case X86_OP_SETE:            return "sete";
-        case X86_OP_SETNE:           return "setne";
-        case X86_OP_SETP:            return "setp";
-        case X86_OP_SETNP:           return "setnp";
-        case X86_OP_SETLT:           return "setlt";
-        case X86_OP_SETGT:           return "setgt";
-        case X86_OP_SETLE:           return "setle";
-        case X86_OP_SETGE:           return "setge";
-        case X86_OP_MOVS:            return "movs";
-        case X86_OP_MOVZ:            return "movz";
-        case X86_OP_MOVC:            return "movc";
-        default:                     panic("Unknown x86 operation %d", operation);
+        default:                     panic("Unknown operation %d", operation);
     }
 }
 
