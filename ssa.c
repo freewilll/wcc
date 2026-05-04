@@ -1395,7 +1395,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
             enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src1);
             enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src2);
 
-            if (include_clobbers && tac->operation == IR_CALL || tac->operation == X_CALL) {
+            if (include_clobbers && (tac->operation == IR_CALL || tac->operation == X_CALL)) {
                 // Integer arguments are clobbered
                 for (int j = 0; j < 6; j++) {
                     if (j == 2) continue; // RDX is a special case, see below
@@ -1433,7 +1433,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
                 }
             }
 
-            if (include_clobbers && tac->operation == IR_BSHL || tac->operation == IR_BSHR) {
+            if (include_clobbers && (tac->operation == IR_BSHL || tac->operation == IR_BSHR)) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
             }
 
