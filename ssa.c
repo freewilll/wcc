@@ -191,7 +191,7 @@ void make_control_flow_graph(Function *function) {
 
         // Start a new block after a conditional jump.
         // Check if a label is set so that we don't get a double block
-        if (tac->next && !tac->next->label && (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE || tac->operation == X_JB || tac->operation == X_JA || tac->operation == X_JBE || tac->operation == X_JAE)) {
+        if (tac->next && !tac->next->label && (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X86_OP_JZ || tac->operation == X86_OP_JNZ || tac->operation == X86_OP_JE || tac->operation == X86_OP_JNE || tac->operation == X86_OP_JGT || tac->operation == X86_OP_JLT || tac->operation == X86_OP_JGE || tac->operation == X86_OP_JLE || tac->operation == X86_OP_JB || tac->operation == X86_OP_JA || tac->operation == X86_OP_JBE || tac->operation == X86_OP_JAE)) {
             if (block_count == MAX_BLOCKS) panic("Exceeded max blocks %d", MAX_BLOCKS);
             blocks[block_count - 1].end = tac;
             blocks[block_count++].start = tac->next;
@@ -202,7 +202,7 @@ void make_control_flow_graph(Function *function) {
         // instructions later on will mess with the liveness analysis, leading to
         // incorrect live ranges for the code that _is_ executed, so they need to get
         // excluded.
-        if ((tac->operation == IR_JMP || tac->operation == X_JMP) && tac->next && !tac->next->label) {
+        if ((tac->operation == IR_JMP || tac->operation == X86_OP_JMP) && tac->next && !tac->next->label) {
             while (tac->next && !tac->next->label) {
                 tac = tac->next;
 
@@ -231,8 +231,8 @@ void make_control_flow_graph(Function *function) {
     for (int i = 0; i < block_count; i++) {
         tac = blocks[i].start;
         while (1) {
-            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE || tac->operation == X_JB || tac->operation == X_JA || tac->operation == X_JBE || tac->operation == X_JAE) {
-                int label = tac->operation == IR_JMP ||  tac->operation == X_JMP || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE || tac->operation == X_JB || tac->operation == X_JA || tac->operation == X_JBE || tac->operation == X_JAE
+            if (tac->operation == IR_JMP || tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X86_OP_JMP || tac->operation == X86_OP_JZ || tac->operation == X86_OP_JNZ || tac->operation == X86_OP_JE || tac->operation == X86_OP_JNE || tac->operation == X86_OP_JGT || tac->operation == X86_OP_JLT || tac->operation == X86_OP_JGE || tac->operation == X86_OP_JLE || tac->operation == X86_OP_JB || tac->operation == X86_OP_JA || tac->operation == X86_OP_JBE || tac->operation == X86_OP_JAE) {
+                int label = tac->operation == IR_JMP ||  tac->operation == X86_OP_JMP || tac->operation == X86_OP_JZ || tac->operation == X86_OP_JNZ || tac->operation == X86_OP_JE || tac->operation == X86_OP_JNE || tac->operation == X86_OP_JGT || tac->operation == X86_OP_JLT || tac->operation == X86_OP_JGE || tac->operation == X86_OP_JLE || tac->operation == X86_OP_JB || tac->operation == X86_OP_JA || tac->operation == X86_OP_JBE || tac->operation == X86_OP_JAE
                     ? tac->src1->label
                     : tac->src2->label;
                 for (int j = 0; j < block_count; j++)
@@ -243,11 +243,11 @@ void make_control_flow_graph(Function *function) {
                 // For normal instructions, check if the next instruction is a label, if so it's an edge
                 add_graph_edge(cfg, i, i + 1);
 
-            if (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X_JZ || tac->operation == X_JNZ || tac->operation == X_JE || tac->operation == X_JNE || tac->operation == X_JGT || tac->operation == X_JLT || tac->operation == X_JGE || tac->operation == X_JLE || tac->operation == X_JB || tac->operation == X_JA || tac->operation == X_JBE || tac->operation == X_JAE)
+            if (tac->operation == IR_JZ || tac->operation == IR_JNZ || tac->operation == X86_OP_JZ || tac->operation == X86_OP_JNZ || tac->operation == X86_OP_JE || tac->operation == X86_OP_JNE || tac->operation == X86_OP_JGT || tac->operation == X86_OP_JLT || tac->operation == X86_OP_JGE || tac->operation == X86_OP_JLE || tac->operation == X86_OP_JB || tac->operation == X86_OP_JA || tac->operation == X86_OP_JBE || tac->operation == X86_OP_JAE)
                 add_graph_edge(cfg, i, i + 1);
 
             if (tac == blocks[i].end) break;
-            if (tac->operation == IR_JMP || tac->operation == X_JMP) break;
+            if (tac->operation == IR_JMP || tac->operation == X86_OP_JMP) break;
 
             tac = tac->next;
         }
@@ -1395,7 +1395,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
             enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src1);
             enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src2);
 
-            if (include_clobbers && (tac->operation == IR_CALL || tac->operation == X_CALL)) {
+            if (include_clobbers && (tac->operation == IR_CALL || tac->operation == X86_OP_CALL)) {
                 // Integer arguments are clobbered
                 for (int j = 0; j < 6; j++) {
                     if (j == 2) continue; // RDX is a special case, see below
@@ -1426,7 +1426,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
                     add_ig_edge(interference_graph, vreg_count, LIVE_RANGE_PREG_RAX_INDEX, tac->src1->vreg);
             }
 
-            if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X_IDIV) {
+            if (tac->operation == IR_DIV || tac->operation == IR_MOD || tac->operation == X86_OP_IDIV) {
                 if (include_clobbers) {
                     clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
                     clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
@@ -1438,18 +1438,18 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
             }
 
             // Works together with the instruction rules. Ensure the shift value cannot be in rcx.
-            if (tac->operation == X_SHR && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
+            if (tac->operation == X86_OP_SHR && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
                 add_ig_edge(interference_graph, vreg_count, tac->prev->dst->vreg, LIVE_RANGE_PREG_RCX_INDEX);
                 add_ig_edge(interference_graph, vreg_count, tac->prev->src1->vreg, LIVE_RANGE_PREG_RCX_INDEX);
             }
 
-            if (tac->operation == X_LD_EQ_CMP)
+            if (tac->operation == X86_OP_LD_EQ_CMP)
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
 
 
             // The x86 single operatnd MUL instruction puts its results in rax and rdx
-            if (tac->operation == X_MUL128A || tac->operation == X_MUL128B) {
+            if (tac->operation == X86_OP_MUL128A || tac->operation == X86_OP_MUL128B) {
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
                 clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
             }
@@ -1463,7 +1463,7 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
                     if (debug_ssa_interference_graph) printf("added src1 <-> dst %d <-> %d\n", tac->src1->vreg, tac->dst->vreg);
                 }
 
-                if (tac->operation == X_SUB && tac->src2->vreg) {
+                if (tac->operation == X86_OP_SUB && tac->src2->vreg) {
                     // Ensure that dst and src2 don't reside in the same preg.
                     // This allows codegen to generate code with just one mov and sub while
                     // ensuring the other registers preserve their values.
@@ -1480,10 +1480,10 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
                     // Don't add an edge for register copies
                     if ((
                         tac->operation == IR_MOVE ||
-                        tac->operation == X_MOV ||
-                        tac->operation == X_MOVZ ||
-                        tac->operation == X_MOVS ||
-                        tac->operation == X_MOVC
+                        tac->operation == X86_OP_MOV ||
+                        tac->operation == X86_OP_MOVZ ||
+                        tac->operation == X86_OP_MOVS ||
+                        tac->operation == X86_OP_MOVC
                        ) && tac->src1 && tac->src1->vreg && tac->src1->vreg == it_vreg) continue;
                     add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, it_vreg);
                     if (debug_ssa_interference_graph) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, it_vreg);
@@ -1640,11 +1640,11 @@ static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
             if (tac->operation == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type))
                 longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
-            else if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
-                if ((tac->next->operation == X_ADD || tac->next->operation == X_ADDC || tac->next->operation == X_SUB || tac->next->operation == X_MUL) && tac->next->src2 && tac->next->src2->vreg)
+            else if (tac->operation == X86_OP_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
+                if ((tac->next->operation == X86_OP_ADD || tac->next->operation == X86_OP_ADDC || tac->next->operation == X86_OP_SUB || tac->next->operation == X86_OP_MUL) && tac->next->src2 && tac->next->src2->vreg)
                     longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
-                if ((tac->next->operation == X_SHR) && tac->next->src1 && tac->next->src1->vreg)
+                if ((tac->next->operation == X86_OP_SHR) && tac->next->src1 && tac->next->src1->vreg)
                     longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
             }
 

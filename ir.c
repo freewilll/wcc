@@ -243,7 +243,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         return;
     }
 
-    if (tac->dst && o < X_START) {
+    if (tac->dst && o < X86_OP_START) {
         print_value(f, tac->dst, o != IR_MOVE);
         fprintf(f, " = ");
     }
@@ -273,7 +273,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_START_CALL) fprintf(f, "start call %ld", tac->src1->int_value);
     else if (o == IR_END_CALL) fprintf(f, "end call %ld", tac->src1->int_value);
 
-    else if (o == IR_ARG || o == X_ARG) {
+    else if (o == IR_ARG || o == X86_OP_ARG) {
         fprintf(f, "arg for call %ld ", tac->src1->int_value);
         print_value(f, tac->src2, 1);
     }
@@ -379,45 +379,45 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_BIT_SCAN_FWD)  { fprintf(f, " bit_scan_fwd("); print_value(f, tac->src1, 1); fprintf(f, ")"); }
     else if (o == IR_BIT_SCAN_REV)  { fprintf(f, " bit_scan_rev("); print_value(f, tac->src1, 1); fprintf(f, ")"); }
 
-    else if (o == X_CALL)           { fprintf(f, "call "  ); print_value(f, tac->src1, 1); if (tac->dst) { printf(" -> "); print_value(f, tac->dst, 1); } }
+    else if (o == X86_OP_CALL)      { fprintf(f, "call "  ); print_value(f, tac->src1, 1); if (tac->dst) { printf(" -> "); print_value(f, tac->dst, 1); } }
     else if (o == IR_CALL_ARG_REG)  { fprintf(f, "call reg arg "); print_value(f, tac->dst ? tac->dst : tac->src1 , 1); }
     else if (o == IR_ALLOCATE_STACK){ fprintf(f, "allocate stack "); print_value(f, tac->src1, 1); }
-    else if (o == X_LEA)            { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_LEA)       { fprintf(f, "lea "   ); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
 
-    else if (o == X_MOV)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_MOVS)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_MOVZ)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_MOVC)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_ADD)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_ADDC)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_SUB)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_SUBC)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_MUL)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_MUL128A){ fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_MUL128B){ fprintf(f, "%-6s", operation_string(o));                                                 print_value(f, tac->dst,  1); }
-    else if (o == X_IDIV)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_CQTO)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == X_CMP)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
-    else if (o == X_CMPZ)   { fprintf(f, "%-6s", operation_string(o)); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
-    else if (o == X_JMP)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JZ)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JNZ)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JE)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JNE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JLT)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JGT)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JLE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JGE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JB)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JA)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JBE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_JAE)    { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_SETE)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_SETNE)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_SETLT)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_SETGT)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_SETLE)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
-    else if (o == X_SETGE)  { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_MOV)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_MOVS)      { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_MOVZ)      { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_MOVC)      { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_ADD)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_ADDC)      { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_SUB)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_SUBC)      { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_MUL)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_MUL128A)   { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_MUL128B)   { fprintf(f, "%-6s", operation_string(o));                                                 print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_IDIV)      { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_CQTO)      { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
+    else if (o == X86_OP_CMP)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->src2, 1); }
+    else if (o == X86_OP_CMPZ)      { fprintf(f, "%-6s", operation_string(o)); fprintf(f, "0");              fprintf(f, ", "); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JMP)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JZ)        { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JNZ)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JE)        { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JNE)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JLT)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JGT)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JLE)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JGE)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JB)        { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JA)        { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JBE)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_JAE)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_SETE)      { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_SETNE)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_SETLT)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_SETGT)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_SETLE)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
+    else if (o == X86_OP_SETGE)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
 
     else
         panic("print_instruction(): Unknown operation: %d", tac->operation);

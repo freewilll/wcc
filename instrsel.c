@@ -1438,7 +1438,7 @@ void select_instructions(Function *function) {
 // This removes instructions that copy a stack location to itself by replacing them with noops.
 void remove_stack_self_moves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation == X_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->stack_index && tac->dst->stack_index == tac->src1->stack_index) {
+        if (tac->operation == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->stack_index && tac->dst->stack_index == tac->src1->stack_index) {
             tac->operation = IR_NOP;
             tac->dst = 0;
             tac->src1 = 0;
@@ -1451,7 +1451,7 @@ void remove_stack_self_moves(Function *function) {
 // This removes instructions that copy a register to itself by replacing them with noops.
 void remove_vreg_self_moves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation == X_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+        if (tac->operation == X86_OP_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
             tac->operation = IR_NOP;
             tac->dst = 0;
             tac->src1 = 0;
@@ -1468,31 +1468,31 @@ static Tac *make_spill_instruction(Value *v) {
     make_value_x86_size(v);
 
     if (v->type->type == TYPE_FUNCTION) {
-        x86_operation = X_MOV;
+        x86_operation = X86_OP_MOV;
         x86_template = "movq %v1q, %vdq";
     }
     else if (v->type->type == TYPE_FLOAT) {
-        x86_operation = X_MOV;
+        x86_operation = X86_OP_MOV;
         x86_template = "movss %v1F, %vdF";
     }
     else if (v->type->type == TYPE_FLOAT) {
-        x86_operation = X_MOV;
+        x86_operation = X86_OP_MOV;
         x86_template = "movsd %v1D, %vdD";
     }
     else if (v->x86_size == 1) {
-        x86_operation = X_MOV;
+        x86_operation = X86_OP_MOV;
         x86_template = "movb %v1b, %vdb";
     }
     else if (v->x86_size == 2) {
-        x86_operation = X_MOV;
+        x86_operation = X86_OP_MOV;
         x86_template = "movw %v1w, %vdw";
     }
     else if (v->x86_size == 3) {
-        x86_operation = X_MOV;
+        x86_operation = X86_OP_MOV;
         x86_template = "movl %v1l, %vdl";
     }
     else if (v->x86_size == 4) {
-        x86_operation = X_MOV;
+        x86_operation = X86_OP_MOV;
         x86_template = "movq %v1q, %vdq";
     }
     else
@@ -1537,7 +1537,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
     // movq allocated_stack_offset(rbp), spill_reg
     // addq spill_reg, 4.
     if (v->offset) {
-        Tac *tac = new_instruction(X_MOV);
+        Tac *tac = new_instruction(X86_OP_MOV);
         tac->x86_template = "addq $%v1q, %vdq";
 
         tac->src1 = new_integral_constant(TYPE_LONG, v->offset);
@@ -1588,11 +1588,11 @@ void add_spill_code(Function *function) {
         if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
 
         // Allow all moves where either dst is a register and src is on the stack
-        if (tac->operation == X_MOV || tac->operation == X_MOVS || tac->operation == X_MOVZ)
+        if (tac->operation == X86_OP_MOV || tac->operation == X86_OP_MOVS || tac->operation == X86_OP_MOVZ)
             if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->stack_index) continue;
 
         // Allow non sign-extends moves if the dst is on the stack and the src is a register
-        if (tac->operation == X_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) continue;
+        if (tac->operation == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->preg != -1) continue;
 
         int dst_eq_src1 = (tac->dst && tac->src1 && tac->dst->stack_index == tac->src1->stack_index);
 
@@ -1614,7 +1614,7 @@ void add_spill_code(Function *function) {
 
         if (tac->dst && tac->dst->spilled) {
             if (debug_instsel_spilling) printf("Adding spill store\n");
-            if (tac->operation == X_CALL) panic("Unexpected spill from X_CALL");
+            if (tac->operation == X86_OP_CALL) panic("Unexpected spill from X_CALL");
             add_spill_store(tac, tac->dst, get_spill_register(tac->dst, 2));
             tac = tac->next;
         }

@@ -134,7 +134,7 @@ void test_instrsel_tree_merging() {
     // Ensure both "CMP" instructions operate on registers
     tac = ir_start;
     for (j = 0; j < 2; j++) {
-        while (tac && tac->operation != X_CMP) tac = tac->next;
+        while (tac && tac->operation != X86_OP_CMP) tac = tac->next;
         assert(1, !!tac);
         assert(1, tac->src1->vreg > 0);
         assert(1, tac->src2->vreg > 0);
@@ -797,9 +797,9 @@ void test_instrsel_function_call_rearranging() {
     finish_ir(function);
 
     assert_tac(ir_start,                   IR_START_CALL, 0,    c(0),  0);
-    assert_tac(ir_start->next,             X_CALL,        0,    fu(1), 0);
+    assert_tac(ir_start->next,             X86_OP_CALL,   0,    fu(1), 0);
     assert_tac(ir_start->next->next,       IR_END_CALL,   0,    c(0),  0);
-    assert_tac(ir_start->next->next->next, X_MOV,         g(1), v(1),  0);
+    assert_tac(ir_start->next->next->next, X86_OP_MOV,    g(1), v(1),  0);
 }
 
 void test_misc_commutative_operations() {

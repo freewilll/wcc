@@ -481,7 +481,7 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
     for (int i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
         if (saved_registers[i]) {
             cur_stack_push_count++;
-            ir = insert_x86_instruction(ir, X_PUSH, new_preg_value(i), 0, 0, "push %vdq");
+            ir = insert_x86_instruction(ir, X86_OP_PUSH, new_preg_value(i), 0, 0, "push %vdq");
         }
     }
 
@@ -491,18 +491,18 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
 static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
     for (int i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--)
         if (saved_registers[i])
-            ir = insert_x86_instruction(ir, X_POP, new_preg_value(i), 0, 0, "popq %vdq");
+            ir = insert_x86_instruction(ir, X86_OP_POP, new_preg_value(i), 0, 0, "popq %vdq");
 
-    ir = insert_x86_instruction(ir, X_LEAVE, 0, 0, 0, "leaveq");
-    return insert_x86_instruction(ir, X_RET_FROM_FUNC, 0, 0, 0, "retq");
+    ir = insert_x86_instruction(ir, X86_OP_LEAVE, 0, 0, 0, "leaveq");
+    return insert_x86_instruction(ir, X86_OP_RET_FROM_FUNC, 0, 0, 0, "retq");
 }
 
 static Tac *add_sub_rsp(Tac *ir, int amount) {
-    return insert_x86_instruction(ir, X_SUB, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "subq $%v1q, %vdq");
+    return insert_x86_instruction(ir, X86_OP_SUB, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "subq $%v1q, %vdq");
 }
 
 static Tac *add_add_rsp(Tac *ir, int amount) {
-    return insert_x86_instruction(ir, X_ADD, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
+    return insert_x86_instruction(ir, X86_OP_ADD, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
 }
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
@@ -516,8 +516,8 @@ void add_final_x86_instructions(Function *function) {
     cur_stack_push_count = 2; // Program counter and rbp
 
     // Add function prologue
-    ir = insert_x86_instruction(ir, X_PUSH, new_preg_value(REG_RBP), 0, 0, "push %vdq");
-    ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RBP), new_preg_value(REG_RSP), 0, "mov %v1q, %vdq");
+    ir = insert_x86_instruction(ir, X86_OP_PUSH, new_preg_value(REG_RBP), 0, 0, "push %vdq");
+    ir = insert_x86_instruction(ir, X86_OP_MOV, new_preg_value(REG_RBP), new_preg_value(REG_RSP), 0, "mov %v1q, %vdq");
 
     // Allocate stack space for local variables and spilled registers
     stack_size = function->stack_size;
@@ -587,7 +587,7 @@ void add_final_x86_instructions(Function *function) {
                 break;
             }
 
-            case X_ARG:
+            case X86_OP_ARG:
                 cur_stack_push_count++;
                 break;
 
@@ -600,12 +600,12 @@ void add_final_x86_instructions(Function *function) {
 
                 break;
 
-            case X_ALLOCATE_STACK:
+            case X86_OP_ALLOCATE_STACK:
                 cur_stack_push_count += ir->src1->int_value / 8;
 
                 break;
 
-            case X_CALL: {
+            case X86_OP_CALL: {
                 ir->operation = IR_NOP;
 
                 Tac *orig_ir = ir;
@@ -616,10 +616,10 @@ void add_final_x86_instructions(Function *function) {
                     char *buffer;
                     wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call.function_call_sse_register_arg_count);
                     append_to_list(allocated_strings, buffer);
-                    ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
+                    ir = insert_x86_instruction(ir, X86_OP_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
                 }
 
-                Tac *tac = new_instruction(X_CALL_FROM_FUNC);
+                Tac *tac = new_instruction(X86_OP_CALL_FROM_FUNC);
 
                 if (!orig_ir->src1->function_call.function_symbol) {
                     wasprintf(&(tac->x86_template), "callq *%%v1q");
@@ -655,7 +655,7 @@ void add_final_x86_instructions(Function *function) {
 
     // Special case for main, return 0 if no return statement is present
     if (!strcmp(function->identifier, "main"))
-        ir = insert_x86_instruction(ir, X_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
+        ir = insert_x86_instruction(ir, X86_OP_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
 
     if (!added_end_of_function) {
         insert_end_of_function(ir, saved_registers);
@@ -681,20 +681,20 @@ void merge_rsp_func_call_add_subs(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (
                 // First operation is add/sub n, %rsp
-                (tac->operation == X_ADD || tac->operation == X_SUB) && tac->dst && tac->dst->preg == REG_RSP &&
+                (tac->operation == X86_OP_ADD || tac->operation == X86_OP_SUB) && tac->dst && tac->dst->preg == REG_RSP &&
                 // Second operation is add/sub n, %rsp
-                tac->next && (tac->next->operation == X_ADD || tac->next->operation == X_SUB) && tac->next->dst && tac->next->dst->preg == REG_RSP &&
+                tac->next && (tac->next->operation == X86_OP_ADD || tac->next->operation == X86_OP_SUB) && tac->next->dst && tac->next->dst->preg == REG_RSP &&
                 // No labels are involved
                 !tac->label && !tac->next->label) {
 
-            int value = tac->operation == X_ADD ? tac->src1->int_value : -tac->src1->int_value;
-            value += tac->next->operation == X_ADD ? tac->next->src1->int_value : -tac->next->src1->int_value;
+            int value = tac->operation == X86_OP_ADD ? tac->src1->int_value : -tac->src1->int_value;
+            value += tac->next->operation == X86_OP_ADD ? tac->next->src1->int_value : -tac->next->src1->int_value;
             if (!value) {
                 tac = delete_instruction(tac);
                 tac = delete_instruction(tac);
             } else {
                 tac = delete_instruction(tac);
-                tac->operation = value < 0 ? X_SUB : X_ADD;
+                tac->operation = value < 0 ? X86_OP_SUB : X86_OP_ADD;
                 tac->x86_template = value < 0 ? "subq $%v1q, %vdq" : "addq $%v1q, %vdq";
                 tac->src1->int_value = value > 0 ? value : -value;
             }
