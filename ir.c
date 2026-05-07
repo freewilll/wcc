@@ -1013,7 +1013,14 @@ void process_struct_and_union_copies(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id != IR_MOVE) continue;
         if (ir->src1->type->type != TYPE_STRUCT_OR_UNION) continue;
-        if (ir->dst->type->type != ir->src1->type->type) panic("Mismatched struct/union copy type");
+        if (ir->dst->type->type != ir->src1->type->type) {
+            printf("dst type: ");
+            print_type(stdout, ir->dst->type);
+            printf(", src1 type: ");
+            print_type(stdout, ir->src1->type);
+            printf("\n");
+            panic("Mismatched struct/union copy type");
+        }
 
         int size = get_type_size(ir->dst->type);
         Value *dst = ir->dst;

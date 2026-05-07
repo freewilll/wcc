@@ -852,7 +852,7 @@ static void output_symbol(Symbol *symbol) {
             else {
                 if (!in->data) {
                     if (in->size < 0)
-                        panic("Got negative .zero padding %d for the intializer for %s", in->size, symbol->identifier);
+                        panic("Got negative .zero %d for the intializer for %s", in->size, symbol->identifier);
                     fprintf(f,"    .zero    %d\n", in->size);
                 }
                 else if (in->size == 1) fprintf(f, "    .byte    %d\n",  *((char *)  in->data));

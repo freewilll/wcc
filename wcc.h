@@ -174,6 +174,7 @@ typedef struct function_type {
 typedef struct type {
     int type;       // One of TYPE_*
     int array_size;
+    int bit_field_size;                                 // Used for struct members. Type is TYPE_INT
     unsigned int is_unsigned:1;
     unsigned int is_const:1;
     unsigned int is_volatile:1;
@@ -184,16 +185,6 @@ typedef struct type {
     struct struct_or_union_desc *struct_or_union_desc;
     FunctionType *function;                             // For functions
 } Type;
-
-typedef struct type_iterator {
-    Type *type;                     // The top level type being iterated
-    int index;                      // The index within the type. -1 if the end has been reached
-    int offset;                     // Offset at the position of the iterator
-    int start_offset;               // Offset when the iterator started on an array or struct/union
-    int bit_field_offset;           // Bit field offset if the scalar is a bit field
-    int bit_field_size;             // Bit field size if the scalar is a bit field
-    struct type_iterator *parent;   // Parent to recurse back to
-} TypeIterator;
 
 typedef struct initializer {
     int offset;                 // Offset of the initializer
@@ -796,6 +787,7 @@ extern int error_int_conversion;
 extern int warn_integer_constant_too_large;
 extern int warn_assignment_types_incompatible;
 extern int warn_extern_initializer;
+extern int warn_excess_initializers;
 
 extern int debug_function_param_allocation;
 extern int debug_function_arg_mapping;
@@ -1105,12 +1097,6 @@ int is_integer_operation_result_unsigned(Type *src1, Type *src2);
 Type *make_struct_or_union_type(StructOrUnion *s);
 void complete_struct_or_union(StructOrUnion *s);
 int type_is_modifiable(Type *type);
-TypeIterator *type_iterator(Type *type);
-int type_iterator_done(TypeIterator *it);
-TypeIterator *type_iterator_next(TypeIterator *it);
-TypeIterator *type_iterator_dig(TypeIterator *it);
-TypeIterator *type_iterator_dig_for_string_literal(TypeIterator *it);
-TypeIterator *type_iterator_descend(TypeIterator *it);
 
 // ir.c
 void init_ir(void);

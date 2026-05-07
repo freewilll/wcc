@@ -38,7 +38,7 @@ WCC_TESTS=\
 
 WCC_RUN_FLAGS = -I ${SRC_DIR}/include
 WCC_E2E_FLAGS := ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --sanity-check-ir --rule-coverage-file ${BUILD_DIR}/tests/e2e/wcc-tests.rulecov
-COMMON_WARN_FLAGS := -Wno-incompatible-pointer-types -Wno-int-conversion
+COMMON_WARN_FLAGS := -Wno-incompatible-pointer-types -Wno-int-conversion -Wno-excess-initializers
 WCC_E2E_WARN_FLAGS := ${COMMON_WARN_FLAGS} -Wno-integer-constant-too-large -Wno-warn-assignment-types-incompatible
 GCC_E2E_WARN_FLAGS := ${COMMON_WARN_FLAGS} -Wno-implicit-int
 E2E_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test-lib.o ${BUILD_DIR}/utils.o ${BUILD_DIR}/memory.o

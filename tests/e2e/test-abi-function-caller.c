@@ -292,6 +292,11 @@ void test_extern_func() {
     assert_int(2, extern_func(1), "calling extern func in another translation unit");
 }
 
+void test_bit_fields() {
+    struct bfs bfs = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    test_bitfield_struct_fields(&bfs);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -304,6 +309,7 @@ int main(int argc, char **argv) {
     test_block_extern_object_linkage();
     test_extern_renamed_func();
     test_extern_func();
+    test_bit_fields();
 
     finalize();
 }

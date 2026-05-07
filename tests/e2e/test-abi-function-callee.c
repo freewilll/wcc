@@ -346,3 +346,14 @@ int extern_renamed_func(int i) {
 }
 
 extern int extern_func(int i) { return i + 1; }
+
+void test_bitfield_struct_fields(struct bfs *bfs) {
+    assert_int(1,  bfs->i1, "Test bfs 1");
+    assert_int(2 , bfs->i2, "Test bfs 2");
+    assert_int(3,  bfs->i3, "Test bfs 3");
+    assert_int(-4, bfs->i4, "Test bfs 4"); // The high bit is set
+    assert_int(-3, bfs->i5, "Test bfs 5"); // The high bit is set
+    assert_int(6,  bfs->i6, "Test bfs 6");
+    assert_int(7,  bfs->i7, "Test bfs 7");
+    assert_int(8,  bfs->i8, "Test bfs 8");
+}

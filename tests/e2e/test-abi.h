@@ -44,6 +44,9 @@ typedef struct { int a, b; double d; } structparm;
 // An unaligned struct
 struct __attribute__ ((__packed__)) us { int i; char c; int j; };
 
+// A struct with a bunch of bit fields
+struct bfs { int i1; int i2:16; int i3:3; int i4:3; int i5:3; int i6:5; int i7:5; int i8; };
+
 void accept_spf(struct spf spf);
 void accept_spd(struct spd spd);
 void accept_spdf(struct spdf spdf);
@@ -118,3 +121,4 @@ void set_linked_object(int i);
 void set_unlinked_object(int i);
 int get_sei();
 void set_sei(int i);
+void test_bitfield_struct_fields(struct bfs *bfs);

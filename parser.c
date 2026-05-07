@@ -25,7 +25,7 @@ int local_static_symbol_count;           // Amount of static objects with block 
 static List *allocated_strings;
 static StrMap *origin_filenames; // Map lexer filename to a unique filename in memory
 static List *allocated_origins;  // Allocated Origin instances
-static List *allocated_sets;  // Allocated Set instances
+static List *allocated_sets;     // Allocated Set instances
 
 static BaseType *base_type;
 
@@ -56,7 +56,7 @@ int string_literal_count;          // Amount of string literals
 
 static Type *parse_struct_or_union_type_specifier(void);
 static Type *parse_enum_type_specifier(void);
-static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression);
+static int parse_initializer(Value *root_value, Type *type, int offset, int bit_field_offset, Value *expression);
 void check_and_or_operation_type(Value *src1, Value *src2);
 Value *parse_expression_and_pop(int level);
 static void parse_statement(void);
@@ -281,7 +281,7 @@ Value *make_string_literal_value_from_cur_string_literal(void) {
     // Copy string literal data
     int count = cur_string_literal.size * (cur_string_literal.is_wide_char ? 4 : 1);
     char *copy = wmalloc(count);
-    for (int i = 0; i < count; i++) copy[i] = cur_string_literal.data[i];
+    memcpy(copy, cur_string_literal.data, count);
     append_to_list(allocated_strings, copy);
     string_literals[string_literal_count].data = copy;
 
@@ -1001,6 +1001,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
 
                     member->is_bit_field = 1;
                     member->bit_field_size = bit_field_size;
+                    member->type->bit_field_size = bit_field_size;
                 }
 
                 if (cur_token ==  TOK_ATTRIBUTE) parse_attributes();
@@ -1867,204 +1868,299 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
 
 // Initialize value with zeroes starting with offset & size.
 // Do it in increments of 8, 4, 2, 1, to minimize the amount of instructions
-static void initialize_with_zeroes(Value *value, int offset, int size) {
-    if (value->global_symbol)
-        add_initializer(value, offset, size, 0);
+static void initialize_with_zeroes(Value *root_value, int offset, int size) {
+    if (size < 0) panic("initialize_with_zeroes with size %d < 0", size);
+
+    if (root_value->global_symbol)
+        add_initializer(root_value, offset, size, 0);
     else {
         Value *src1 = new_integral_constant(TYPE_INT, size);
-        Value *dst = dup_value(value);
+        Value *dst = dup_value(root_value);
         dst->offset += offset;
         add_parser_instruction(IR_ZERO, dst, src1, 0);
     }
 }
 
-// The first member of the union is going to get initialized. If the union size is
-// larger than the size of the first member, zero the upper remainder
-static void initialize_union_with_zeroes(Value *value, int offset) {
-    int union_size = get_type_size(value->type);
-    int first_member_size = get_type_size(value->type->struct_or_union_desc->members[0]->type);
-    if (first_member_size < union_size) initialize_with_zeroes(value, offset + first_member_size, union_size - first_member_size);
+// Parse an initializer that can be handled with a simple assignment instruction. Some examples of this:
+// int i = 1;
+// char *s = "foo";
+// int i:4 = i; // Assigning a bit field inside a struct as part of a sub initializer
+// struct s s = other_s;
+// Returns the offset + the size of the type that was initialized
+static int parse_non_aggregate_initializer(Value *root_value, Type *type, int offset, int bit_field_offset, Value *rhs) {
+    if (!rhs) panic ("parse_non_aggregate_initializer with null rhs");
+
+    if (!root_value->global_symbol) rhs = load(rhs);
+
+    Value *dst = dup_value(root_value);
+    dst->type = dup_type(type);
+    dst->global_symbol = root_value->global_symbol;
+    dst->offset = offset;
+    dst->bit_field_offset = bit_field_offset;
+    dst->bit_field_size = type->bit_field_size;
+    dst->is_lvalue = 1;
+
+    if (root_value->global_symbol)
+        add_initializer(dst, offset, 0, rhs);
+    else
+        add_simple_assignment_instruction(dst, rhs, 0);
+
+    return offset + get_type_size(type);
 }
 
-// Initialize an array of chars or wchar_t with a string literal
-static TypeIterator *initialize_with_string_literal(TypeIterator *it, Value *value, Value *string_literal) {
-    StringLiteral *sl = &(string_literals[string_literal->string_literal_index]);
-    int size = sl->size;
+// Parse type[...] = {...}
+// Parse char[...] = "foo";
+// Parse int[...] = "foo";
+// Any outer {} has already been removed by the caller.
+// If there aren't enough elements, initialize the rest with zeros
+static int parse_array_initializer(Value *root_value, Type *type, int offset, Value *rhs) {
+    int start_offset = offset;
+    int index = 0;  // The index of the current element being processed
+    int array_size = type->array_size;
+    int element_size = get_type_size(type->target);
 
-    if (sl->is_wide_char) {
-        int *int_data = (int *) sl->data;
+    // String literal variables
+    int initialize_string_literal = 0;
 
-        for (int i = 0; i < size; i++) {
-            Value *v = new_integral_constant(TYPE_INT, int_data[i]);
-            it = parse_initializer(it, value, v);
-        }
-    }
-    else {
-        for (int i = 0; i < size; i++) {
-            Value *v = new_integral_constant(TYPE_INT, sl->data[i]);
-            it = parse_initializer(it, value, v);
-        }
-    }
+    // Check if the LHS is an int[] or char[]
+    // If not, the array is an element, e.g. char *foo[] = {"foo"};
+    int can_initialize_string_literal = (type->target->type == TYPE_CHAR || type->target->type == TYPE_INT);
 
-    return it;
-}
+    int is_string_literal = rhs && rhs->is_string_literal;
+    int sl_size;
+    int sl_is_wide_char;
+    char *sl_char_data;
+    int *sl_int_data;
 
-// Parse an initializer for a variable with automatic storage. If expression is set, it
-// is used as a initializer for a scalar value, otherwise, the expression is parsed.
-static TypeIterator *parse_initializer(TypeIterator *it, Value *value, Value *expression) {
-    parse_expression_function_type *parse_expr = value->global_symbol
-        ? parse_constant_expression : parse_expression_and_pop;
-
-    TypeIterator *outer_it = it;
-    int initial_outer_offset = it->offset;
-
-    if (expression && expression->is_string_literal) {
-        // Initialization with a string literal
-        // The current type a char[] or int[]
-        it = initialize_with_string_literal(it, value, expression);
+    if (is_string_literal && can_initialize_string_literal) {
+        initialize_string_literal = 1;
+        StringLiteral *sl = &(string_literals[rhs->string_literal_index]);
+        sl_size = sl->size;
+        sl_is_wide_char = sl->is_wide_char;
+        sl_char_data = sl->data;
+        sl_int_data = (int *) sl->data;
     }
 
-    else if (cur_token == TOK_LCURLY) {
-        // Parse {...} initializer
+    while (1) {
+        if (array_size != 0 && index == array_size) break; // No more elements
 
-        next();
-        if (cur_token == TOK_RCURLY) error("Empty array/struct/union initializer");
+        if (index && cur_token == TOK_COMMA) consume(TOK_COMMA, ",");
 
-        // Loop over all comma separated expressions
-        while (cur_token != TOK_RCURLY) {
-            if (cur_token != TOK_LCURLY) {
-                // Scalar
-                it = parse_initializer(it, value, 0);
-            }
-            else {
-                // Sub initializer {...}
-                if (!type_iterator_done(it)) {
-                    // When encountering a {} in a sub initializer, descend down
-                    // one level from wherever the iterator currently is, and recurse.
-                    TypeIterator *child;
-                    child = type_iterator_descend(it);
-                    child->parent = 0;
-                    parse_initializer(child, value, 0);
-                    it = type_iterator_next(it); // Advance the top level iterator
-                }
-                else {
-                    // There are extraneous expressions, keep recursing and throw
-                    // everything away
-                    parse_initializer(it, value, 0);
-                }
-            }
+        if (initialize_string_literal && index == sl_size) break; // No more space in the array
 
-            if (cur_token != TOK_RCURLY) consume(TOK_COMMA, ",");
-        }
-        consume(TOK_RCURLY, "}");
-    }
-
-    else {
-        // Initialization with a scalar value
-
-        if (type_iterator_done(it)) {
-            // Parse and ignore any expressions if the iteration has run out
-            if (!expression) parse_expr(TOK_EQ);
-            return it;
-        }
-
-        Value *src;
-        int initialize_string_literal = 0;
-        Value *parsed_expression = 0;
-        if (expression)
-            src = expression;
-        else {
-            parsed_expression = parse_expr(TOK_EQ);
-
-            if (parsed_expression->is_string_literal) {
-                it = type_iterator_dig_for_string_literal(it);
-
-                initialize_string_literal =
-                    it->type->type == TYPE_ARRAY &&
-                    (it->type->target->type == TYPE_CHAR || it->type->target->type == TYPE_INT);
-                }
-        }
+        // If we hit a } and the code below would evaluate an expression, break, since there is no expression to evaluate.
+        if (!rhs && !initialize_string_literal && cur_token == TOK_RCURLY) break;
 
         if (initialize_string_literal) {
-            // The current type a char[] or int[]
+            if (sl_is_wide_char)
+                rhs = new_integral_constant(TYPE_INT, sl_int_data[index]);
+            else
+                rhs = new_integral_constant(TYPE_INT, sl_char_data[index]);
 
-            // Ringfence the iterator around the current array and recurse
-            TypeIterator *old_parent = it->parent;
-            it->parent = 0;
-            it = parse_initializer(it, value, parsed_expression);
-            it->parent = old_parent;
+            parse_non_aggregate_initializer(root_value, type->target, offset, 0, rhs);
+        }
+        else {
+            parse_initializer(root_value, type->target, offset, 0, rhs);
+        }
 
-            // Continue where the iterator would have gone after the current array.
-            if (old_parent) it = type_iterator_next(old_parent);
+        rhs = NULL;
 
-            // No further processing is needed, the recursive call took care of that
-            return it;
+        offset += element_size;
+        index++;
+    }
+
+    // Set the array size on arrays declared with [], i.e. without a siz.e
+    if (array_size == 0) {
+        array_size = index;
+        type->array_size = array_size;
+    }
+
+    // Zero out the remaining bytes
+    if (index < array_size) {
+        int padding = array_size * element_size - (offset - start_offset);
+        if (padding < 0) panic("Strangely, got negative end of struct padding");
+        if (padding > 0) {
+            initialize_with_zeroes(root_value, offset, padding);
+            offset += padding;
+        }
+    }
+}
+
+// Parse struct s = {} ...
+// Any outer {} has already been removed by the caller.
+// If there aren't enough members, initialize the remaining members with zeros.
+static int parse_struct_and_union_initializer(Value *root_value, Type *type, int offset, Value *rhs) {
+    // If the type is a union, recurse into its first member
+    if (type->struct_or_union_desc->is_union) {
+        // Recurse into the first member of the union
+        StructOrUnionMember *member = type->struct_or_union_desc->members[0];
+        return parse_initializer(root_value, member->type, offset, 0, rhs);
+    }
+
+    int start_offset = offset;
+    int first = 1;  // Is this the first member being initialized?
+    StructOrUnionMember **pmember = type->struct_or_union_desc->members;
+
+    while (1) {
+        StructOrUnionMember *member = *pmember;
+
+        if (!member) break; // No more members
+
+        if (!first && cur_token == TOK_COMMA) consume(TOK_COMMA, ",");
+        first = 0;
+
+        if (!rhs && cur_token == TOK_RCURLY) break; // No more initializers
+
+        // Skip zero size struct members
+        if (member->is_bit_field && !member->bit_field_size) { pmember++; continue; }
+
+        parse_initializer(root_value, member->type, start_offset + member->offset, member->bit_field_offset, rhs);
+        rhs = NULL;
+
+        offset = start_offset + member->offset + get_type_size(member->type);
+        pmember++;
+    }
+
+    if (*pmember) {
+        // Not all struct members have been initialized. All remaining members are required to be
+        // initialized to zero. This is done in two steps: first any bit fields that
+        // are in the current integer, then zero the rest with a multi-byte single operation.
+
+        // Zero out any bit fields
+        int current_member_offset = (*pmember)->offset;
+        while (1) {
+            StructOrUnionMember *member = *pmember;
+
+            if (!member) break; // No more members
+
+            // Skip zero sized struct members
+            if (member->is_bit_field && !member->bit_field_size) { pmember++; continue; }
+
+            // There are no more bit field initializers in the current integer
+            if (!member->bit_field_size || (current_member_offset != member->offset)) break;
+
+            // There is a bit field and it's aligned on a byte boundary, so it's ok to fall back to the byte based zeroing.
+            if ((member->bit_field_offset & 0x7) == 0) {
+                // Set the offset to the offset of where the bit field starts
+                offset = start_offset + (member->bit_field_offset >> 3);
+                break;
+            }
+
+            // At this point, there is a bit field that needs zeroing. Zero the rest of the integer.
+            int bit_field_size = 32 - (member->bit_field_offset & 0x1f);
+            if (bit_field_size == 0 || bit_field_size == 32) panic("Bizarre bit field size zeroing %d", bit_field_size);
+
+            Value *zero = new_value();
+            zero->type = new_type(TYPE_INT);
+            zero->is_constant = 1;
+            zero->type->bit_field_size = bit_field_size;
+
+            parse_non_aggregate_initializer(root_value, zero->type, start_offset + member->offset, member->bit_field_offset, zero);
+
+            // The entire 32-bit integer has been dealt with. Continue zeroing byte by byte from the next integer.
+            // Round offset up to next integer.
+            offset = start_offset + (member->offset & ~3) + 4;
+
+            break;
+        }
+
+        // Zero out the remaining bytes
+        int padding = type->struct_or_union_desc->size - (offset - start_offset);
+        if (padding < 0) panic("Strangely, got negative end of struct padding");
+        if (padding > 0) {
+            initialize_with_zeroes(root_value, offset, padding);
+            offset += padding;
+        }
+    }
+
+    return offset;
+}
+
+// Main recursive routing that parses an initializer. This may be a scalar value, a struct or union,
+// or something inside {}.
+// If a {} is seen, recurse into the LHS's type and then throw away an excess unused elements until the closing }
+// If there is no {}, recurse into specific handlers
+static int parse_initializer(Value *root_value, Type *type, int offset, int bit_field_offset, Value *rhs) {
+    parse_expression_function_type *parse_expr = root_value->global_symbol
+        ? parse_constant_expression : parse_expression_and_pop;
+
+    if (cur_token != TOK_LCURLY) {
+        if (!rhs) rhs = parse_expr(TOK_EQ);
+
+        if (is_scalar_type(type)) {
+            offset = parse_non_aggregate_initializer(root_value, type, offset, bit_field_offset, rhs);
+        }
+
+        else if (type->type == TYPE_ARRAY) {
+            offset = parse_array_initializer(root_value, type, offset, rhs);
+        }
+
+        // Assignment of a struct = struct or union = union
+        else if (type->type == TYPE_STRUCT_OR_UNION && rhs->type->type == TYPE_STRUCT_OR_UNION) {
+            offset = parse_non_aggregate_initializer(root_value, type, offset, 0, rhs);
+        }
+
+        // Assignment of a struct/union = subexpression
+        else if (type->type == TYPE_STRUCT_OR_UNION) {
+            offset = parse_struct_and_union_initializer(root_value, type, offset, rhs);
         }
 
         else {
-            if (!expression) {
-                if (value->global_symbol) src = parsed_expression;
-                else src = load(parsed_expression);
+            panic("Missing initializer code");
+        }
+
+        return offset;
+    }
+
+    // Implicit else: parse an initializer like {...}
+
+    if (rhs) panic("parse_initializer: Got a { with a rhs");
+
+    next(); // Consume the {
+
+    if (type->type == TYPE_ARRAY) {
+        if (!rhs && cur_token != TOK_RCURLY && cur_token != TOK_LCURLY) rhs = parse_expr(TOK_EQ);
+        offset = parse_array_initializer(root_value, type, offset, rhs);
+    }
+
+    else if (type->type == TYPE_STRUCT_OR_UNION) {
+        // Assignment of a struct/union = {}
+        offset = parse_struct_and_union_initializer(root_value, type, offset, rhs);
+    }
+
+    else {
+        offset = parse_initializer(root_value, type, offset, bit_field_offset, rhs);
+    }
+
+    if (cur_token == TOK_COMMA) next();
+
+    if (cur_token == TOK_RCURLY) {
+        next();
+    }
+
+    else {
+        // The next token isn't a right curly. Consume everything until the matching } is seen
+        if (warn_excess_initializers) warning("Excess elements in initializer");
+
+        int curly_nesting = 1;
+
+        while (curly_nesting > 0 && cur_token != TOK_EOF) {
+            if (cur_token == TOK_LCURLY) {
+                curly_nesting++;
+                next();
             }
-
-            // Recurse to deepest scalar unless the expression is a struct, which
-            // can be assigned directly.
-            if (src->type->type != TYPE_STRUCT_OR_UNION) it = type_iterator_dig(it);
-
-            // For unions, ensure that the whole union is initialized, even if the
-            // first member is smaller than the others.
-            if (value->type->type == TYPE_STRUCT_OR_UNION && value->type->struct_or_union_desc->is_union)
-                initialize_union_with_zeroes(value, it->offset);
-
-            Value *child = dup_value(value);
-            child->global_symbol = value->global_symbol;
-            child->offset = it->offset;
-            child->bit_field_offset = it->bit_field_offset;
-            child->bit_field_size = it->bit_field_size;
-            child->type = it->type;
-            child->is_lvalue = 1;
-
-            if (value->global_symbol)
-                add_initializer(child, it->offset, 0, src);
-
-            else
-                add_simple_assignment_instruction(child, src, 0);
-
-            return type_iterator_next(it);
+            else if (cur_token == TOK_RCURLY) {
+                curly_nesting--;
+                next();
+            }
+            else {
+                parse_expr(TOK_EQ);
+                if (cur_token == TOK_COMMA) next();
+            }
         }
     }
 
-    // Complete incomplete arrays
-    if (outer_it->type->type == TYPE_ARRAY && outer_it->type->array_size == 0) {
-        if (outer_it != it) {
-            // An array was descended into, but not completed. Zero the elements first.
-            int array_element_size = get_type_size(outer_it->type->target);
-            int zeroes = array_element_size - ((it->offset - initial_outer_offset) % array_element_size);
-            if (zeroes < 0) panic_with_line_number("Got negative zeroes");
-            if (zeroes)
-                initialize_with_zeroes(value, it->offset, zeroes);
-
-            // Advance the index since the half-initialized element counts towards
-            // the array size
-            outer_it->index++;
-        }
-
-        // Complete the array
-        outer_it->type->array_size = outer_it->index;
-    }
-
-    // If not all values where reached, set the remainder with zeroes
-    if (!type_iterator_done(it)) {
-        int outer_size = get_type_size((outer_it->type));
-        int zeroes = initial_outer_offset + outer_size - it->offset;
-        if (zeroes < 0) panic_with_line_number("Got negative zeroes");
-        if (zeroes) {
-            initialize_with_zeroes(value, it->offset, zeroes);
-            it->offset += zeroes;
-        }
-    }
-
-    return it;
+    return offset;
 }
 
 // Prepare compound assignment
@@ -2074,7 +2170,7 @@ Value *prep_comp_assign(void) {
     if (!vtop()->is_lvalue) error("Cannot assign to an rvalue");
     if (!type_is_modifiable(vtop()->type)) error("Cannot assign to read-only variable");
 
-    Value *v1 = vtop();           // lvalue
+    Value *v1 = vtop();         // lvalue
     push(load(dup_value(v1)));  // rvalue
     return v1;
 }
@@ -2223,7 +2319,7 @@ static void parse_declaration(void) {
         if (v->type->type == TYPE_STRUCT_OR_UNION && is_incomplete_type(v->type))
             error("Attempt to use an incomplete struct or union in an initializer");
 
-        parse_initializer(type_iterator(v->type), v, 0);
+        parse_initializer(v, v->type, 0, 0, NULL);
         symbol->type = v->type;
         if (array_declaration) array_declaration->type = v->type;
         base_type = old_base_type;
@@ -3759,7 +3855,7 @@ void parse(void) {
                     if (v->type->type == TYPE_STRUCT_OR_UNION && is_incomplete_type(v->type))
                         error("Attempt to use an incomplete struct or union in an initializer");
 
-                    parse_initializer(type_iterator(v->type), v, 0);
+                    parse_initializer(v, v->type, 0, 0, NULL);
                     symbol->type = v->type;
                     base_type = old_base_type;
                 }

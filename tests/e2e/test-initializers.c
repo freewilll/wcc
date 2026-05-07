@@ -351,8 +351,11 @@ static void test_array_init5() {
 }
 
 static void test_array_init6() {
-    int a[3] = {100};
-    assert_int(100, a[0], "init array 6");
+    int i1[3] = {100};
+    assert_int(100, i1[0], "init array 6 1");
+
+    int i2[1] = {100,};
+    assert_int(100, i2[0], "init array 6 2");
 }
 
 static void test_array_init7() {
@@ -583,6 +586,26 @@ static void test_array_init17() {
     assert_int(1, a[0],      "Array init 17 3");
 }
 
+void test_struct_init0() {
+    struct {int i;} s1 = {1};
+    assert_int(1, s1.i,   "Struct init 0 1a");
+
+    struct {int i, j;} s2 = {1, 2};
+    assert_int(1, s2.i,   "Struct init 0 2a");
+    assert_int(2, s2.j,   "Struct init 0 2b");
+
+    struct {int i, j;} s3 = {1, 2, 0};
+    assert_int(1, s3.i,   "Struct init 0 3a");
+    assert_int(2, s3.j,   "Struct init 0 3b");
+
+    struct {int i, j;} s4 = {1};
+    assert_int(1, s4.i,   "Struct init 0 4a");
+    assert_int(0, s4.j,   "Struct init 0 4b");
+
+    struct {int i, j;} s5 = {1,};
+    assert_int(1, s5.i,   "Struct init 0 5a");
+}
+
 void test_struct_init1() {
     struct s { int i; short j; struct { int k, l; } s; } s1 = {1, 2, 3, 4};
     assert_int(1, s1.i,   "Struct init 1 1");
@@ -608,11 +631,11 @@ void test_struct_init2() {
     };
 
     struct s v1 = {1, 2, 3, 4, 5, 6};
-    assert_int(1, v1.i,     "Struct init 1i");
-    assert_int(2, v1.s.j,   "Struct init 1j");
-    assert_int(3, v1.s.k,   "Struct init 1k");
-    assert_int(4, v1.s.s.l, "Struct init 1l");
-    assert_int(5, v1.s.s.m, "Struct init 1m");
+    assert_int(1, v1.i,     "Struct init 2i");
+    assert_int(2, v1.s.j,   "Struct init 2j");
+    assert_int(3, v1.s.k,   "Struct init 2k");
+    assert_int(4, v1.s.s.l, "Struct init 2l");
+    assert_int(5, v1.s.s.m, "Struct init 2m");
 }
 
 void test_struct_init3() {
@@ -820,6 +843,142 @@ static void test_struct_init8() {
     assert_int(3, s2.k, "Struct init 8 6");
 }
 
+static void test_struct_init9() {
+    struct s {int i, j;};
+    struct p { struct s s1, s2; };
+
+    struct s s1  = {1, 2};
+    struct s s2  = {3, 4};
+    struct p p = {s1, s2};
+
+    assert_int(1, p.s1.i, "Struct init 9 1");
+    assert_int(2, p.s1.j, "Struct init 9 2");
+    assert_int(3, p.s2.i, "Struct init 9 3");
+    assert_int(4, p.s2.j, "Struct init 9 4");
+}
+
+static void test_struct_init10() {
+    struct s { int i1; int i2:1; int i3; };
+    static struct s s[] = { 1 };
+    assert_int(1, s[0].i1, "Struct init 10: struct with aligned bitfield in the middle 1");
+    assert_int(0, s[0].i2, "Struct init 10: struct with aligned bitfield in the middle 2");
+    assert_int(0, s[0].i3, "Struct init 10: struct with aligned bitfield in the middle 3");
+}
+
+static void test_struct_init11() {
+    struct s1 { int i, j; } s1 = { 10, 20 };;
+    struct s2 { struct s1 s1; int x; } s2 = { s1, 30 };
+
+    assert_int(10, s2.s1.i, "Struct init 11 1");
+    assert_int(20, s2.s1.j, "Struct init 11 2");
+    assert_int(30, s2.x,    "Struct init 11 3");
+}
+
+static test_struct_init12() {
+    struct s1 {
+        union {
+            char c;
+            int i;
+        } u;
+        int x;
+    } s1 = { 1, 2 };;
+
+    assert_int(1, s1.u.c, "Struct init 12 1");
+    assert_int(2, s1.x,   "Struct init 12 3");
+}
+
+static void test_struct_init13() {
+    union U {
+        struct {
+            char a;
+            char b;
+        } s;
+        int i;
+    };
+
+    static union U u = { 1, 2 };
+    assert_int(1, u.s.a, "Struct init 13 1");
+    assert_int(2, u.s.b, "Struct init 13 2");
+    assert_int(513, u.i, "Struct init 13 3");
+}
+
+// Put -1s in the stack in the place where the sturct in test_struct_init14* puts its struct
+static void pre_test_struct_init14() {
+    struct s { long l1, l2, l3, l4; } s = {-1, -1, -1, -1 };
+}
+
+// The last assertion may pass even if there is a bug, since the zero
+// might be there before the initialization by chance.
+// pre_test_struct_init14 makes it a bit stronger, but not guaranteed.
+static void test_struct_init14a() {
+    struct bfs { int i:3, j:4, k:5, :0, l:5, m:5; } bfs = {-1, -2, -3, -4};
+    assert_int(-1, bfs.i, "Struct init 14a 1");
+    assert_int(-2, bfs.j, "Struct init 14a 2");
+    assert_int(-3, bfs.k, "Struct init 14a 3");
+    assert_int(-4, bfs.l, "Struct init 14a 4");
+    assert_int(0,  bfs.m, "Struct init 14a 5");
+}
+
+// Fragile, see comment above
+static void test_struct_init14b() {
+    struct bfs { int i1; int i2:16; int i3:2; int i4:3; } bfs[] = { 1, 1, 1 };
+    assert_int(1,  bfs[0].i1, "Struct init 14b 1");
+    assert_int(1 , bfs[0].i2, "Struct init 14b 2");
+    assert_int(1,  bfs[0].i3, "Struct init 14b 3");
+    assert_int(0,  bfs[0].i4, "Struct init 14b 4");
+}
+
+// Fragile, see comment above
+static void test_struct_init14c() {
+    struct bfs { int i1; int i2:1; int i3; } bfs[] = { 1 };
+    assert_int(1, bfs[0].i1, "Struct init 14c 1");
+    assert_int(0, bfs[0].i2, "Struct init 14c 2");
+    assert_int(0, bfs[0].i3, "Struct init 14c 3");
+}
+
+// Fragile, see comment above
+static void test_struct_init14d() {
+    struct bfs { int i1; int i2:8; int i3:5; } bfs = { 1, 1 };
+    assert_int(1, bfs.i1, "Struct init 14d 1");
+    assert_int(1, bfs.i2, "Struct init 14d 2");
+    assert_int(0, bfs.i3, "Struct init 14d 3");
+}
+
+static void test_struct_init15() {
+    struct bfs { int i, j; } bfs2 = {(-1), (-2)};
+    assert_int(-1, bfs2.i, "Struct init 15 - global bit fields struct initialization 1");
+    assert_int(-2, bfs2.j, "Struct init 15 - global bit fields struct initialization 2");
+}
+
+static void test_struct_init16() {
+    struct bfs { int i:3, j:4; };
+
+    struct s { struct bfs bfs1, bfs2; } s = {{1, 2}, {3, 4}};
+
+    assert_int(1, s.bfs1.i, "Struct init 16 1");
+    assert_int(2, s.bfs1.j, "Struct init 16 2");
+    assert_int(3, s.bfs2.i, "Struct init 16 3");
+    assert_int(4, s.bfs2.j, "Struct init 16 4");
+}
+
+static void test_struct_init17() {
+    struct bfs { int i:3, j:4; };
+
+    struct bfs bfsa1[2] = {{1, 2}, {3, 4}};
+
+    assert_int(1, bfsa1[0].i, "Struct init 17 1a");
+    assert_int(2, bfsa1[0].j, "Struct init 17 2a");
+    assert_int(3, bfsa1[1].i, "Struct init 17 3a");
+    assert_int(4, bfsa1[1].j, "Struct init 17 4a");
+
+    struct bfs bfsa2[2] = {1, 2, 3, 4};
+
+    assert_int(1, bfsa2[0].i, "Struct init 17 1b");
+    assert_int(2, bfsa2[0].j, "Struct init 17 2b");
+    assert_int(3, bfsa2[1].i, "Struct init 17 3b");
+    assert_int(4, bfsa2[1].j, "Struct init 17 4b");
+}
+
 static void test_char_array_string_literal_init0() {
     char c1[] = "foo";
     assert_int(4, sizeof(c1), "sizeof(c1)");
@@ -942,6 +1101,7 @@ static void test_char_array_string_literal_init14() {
 
     assert_memory("a\0\0", s.s, 3, "Initializer with extra {}");
 }
+
 static void test_wide_char_array_string_literal_inits() {
     wchar_t wc1[] = L"foo";
     assert_int(16, sizeof(wc1), "wide char initialization size");
@@ -1019,6 +1179,7 @@ static void test_string_initializers() {
     char *pc0;
     pc0 = "foo";
     assert_string("foo",  pc0, "Assign string literal to char *");
+
 
     char *pc1 = "foo\n";
     assert_string("foo\n",  pc1, "char * initialization with a string literal");
@@ -1413,6 +1574,7 @@ int main(int argc, char **argv) {
     test_array_init17();
 
     // Structs
+    test_struct_init0();
     test_struct_init1();
     test_struct_init2();
     test_struct_init3();
@@ -1421,6 +1583,18 @@ int main(int argc, char **argv) {
     test_struct_init6();
     test_struct_init7();
     test_struct_init8();
+    test_struct_init9();
+    test_struct_init10();
+    test_struct_init11();
+    test_struct_init12();
+    test_struct_init13();
+    pre_test_struct_init14(); test_struct_init14a();
+    pre_test_struct_init14(); test_struct_init14b();
+    pre_test_struct_init14(); test_struct_init14c();
+    pre_test_struct_init14(); test_struct_init14d();
+    test_struct_init15();
+    test_struct_init16();
+    test_struct_init17();
 
     // Strings
     test_char_array_string_literal_init0();
