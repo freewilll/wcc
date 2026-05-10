@@ -834,14 +834,14 @@ Type *parse_direct_declarator(void) {
             // Array [] or [<num>]
             next();
 
-            int size = 0;
+            int length = 0;
             if (cur_token != TOK_RBRACKET) {
                 Value *v = parse_constant_integer_expression(0);
-                size = v->int_value;
+                length = v->int_value;
             }
 
             Type *array_type = new_type(TYPE_ARRAY);
-            array_type->array_size = size;
+            array_type->array_length = length;
             type = concat_types(type, array_type);
             consume(TOK_RBRACKET, "]");
         }
@@ -980,7 +980,7 @@ static Type *parse_struct_or_union_type_specifier(void) {
 
                 // GCC Arrays of Length Zero extension
                 // https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html
-                int is_zero_length_array = type->type == TYPE_ARRAY && type->array_size == 0;
+                int is_zero_length_array = type->type == TYPE_ARRAY && type->array_length == 0;
 
                 if (!is_zero_length_array && is_incomplete_type(type)) error("Struct/union members cannot have an incomplete type");
                 if (type->type == TYPE_FUNCTION) error("Struct/union members cannot have a function type");
@@ -1916,7 +1916,7 @@ static int parse_non_aggregate_initializer(Value *root_value, Type *type, int of
 static int parse_array_initializer(Value *root_value, Type *type, int offset, Value *rhs) {
     int start_offset = offset;
     int index = 0;  // The index of the current element being processed
-    int array_size = type->array_size;
+    int array_length = type->array_length;
     int element_size = get_type_size(type->target);
 
     // String literal variables
@@ -1942,7 +1942,7 @@ static int parse_array_initializer(Value *root_value, Type *type, int offset, Va
     }
 
     while (1) {
-        if (array_size != 0 && index == array_size) break; // No more elements
+        if (array_length != 0 && index == array_length) break; // No more elements
 
         if (index && cur_token == TOK_COMMA) consume(TOK_COMMA, ",");
 
@@ -1970,14 +1970,14 @@ static int parse_array_initializer(Value *root_value, Type *type, int offset, Va
     }
 
     // Set the array size on arrays declared with [], i.e. without a siz.e
-    if (array_size == 0) {
-        array_size = index;
-        type->array_size = array_size;
+    if (array_length == 0) {
+        array_length = index;
+        type->array_length = array_length;
     }
 
     // Zero out the remaining bytes
-    if (index < array_size) {
-        int padding = array_size * element_size - (offset - start_offset);
+    if (index < array_length) {
+        int padding = array_length * element_size - (offset - start_offset);
         if (padding < 0) panic("Strangely, got negative end of struct padding");
         if (padding > 0) {
             initialize_with_zeroes(root_value, offset, padding);

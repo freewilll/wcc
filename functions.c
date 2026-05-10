@@ -1653,7 +1653,7 @@ static void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) 
 
     else if (type->type == TYPE_ARRAY) {
         int element_size = get_type_size(type->target);
-        for (int i = 0; i < type->array_size; i++)
+        for (int i = 0; i < type->array_length; i++)
             flatten_type(type->target, scalars, offset + element_size * i);
     }
 

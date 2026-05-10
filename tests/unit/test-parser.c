@@ -301,16 +301,16 @@ int test_composite_type() {
     type1 = make_array(new_type(TYPE_INT), 10);
     type2 = make_array(new_type(TYPE_INT), 0);
     res = composite_type(type1, type2);
-    assert_int(10, res->array_size, "Composite type of int[10] and int[]");
+    assert_int(10, res->array_length, "Composite type of int[10] and int[]");
     res = composite_type(type2, type1);
-    assert_int(10, res->array_size, "Composite type of int[] and int[10]");
+    assert_int(10, res->array_length, "Composite type of int[] and int[10]");
 
     type1 = make_pointer(make_array(new_type(TYPE_INT), 10));
     type2 = make_pointer(make_array(new_type(TYPE_INT), 0));
     res = composite_type(type1, type2);
-    assert_int(10, res->target->array_size, "Composite type of int(*)[10] and int(*)[]");
+    assert_int(10, res->target->array_length, "Composite type of int(*)[10] and int(*)[]");
     res = composite_type(type2, type1);
-    assert_int(10, res->target->array_size, "Composite type of int(*)[] and int(*)[10]");
+    assert_int(10, res->target->array_length, "Composite type of int(*)[] and int(*)[10]");
 
     type1 = parse_type_str("void a(b)"); append_to_list(type1->function->param_types, new_type(TYPE_INT));
     type2 = parse_type_str("void a(int)");

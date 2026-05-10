@@ -66,7 +66,7 @@ int print_type(void *f, Type *type) {
             break;
         case TYPE_ARRAY:
             len += print_type(f, t->target);
-            if (t->array_size) len += fprintf(f, "[%d]", t->array_size);
+            if (t->array_length) len += fprintf(f, "[%d]", t->array_length);
             else len += fprintf(f, "[]");
             break;
         case TYPE_ENUM:
@@ -123,8 +123,8 @@ char *sprint_type_in_english(Type *type) {
                 buffer += sprintf(buffer, "pointer to ");
                 break;
             case TYPE_ARRAY:
-                if (type->array_size == 0) buffer += sprintf(buffer, "array of ");
-                else buffer += sprintf(buffer, "array[%d] of ", type->array_size);
+                if (type->array_length == 0) buffer += sprintf(buffer, "array of ");
+                else buffer += sprintf(buffer, "array[%d] of ", type->array_length);
                 break;
             case TYPE_STRUCT_OR_UNION:
                 if (type->tag) {
@@ -352,7 +352,7 @@ Type *deref_pointer(Type *src) {
 Type *make_array(Type *src, int size) {
     Type *dst = new_type(TYPE_ARRAY);
     dst->target = dup_type(src);
-    dst->array_size = size;
+    dst->array_length = size;
 
     return dst;
 }
@@ -395,7 +395,7 @@ int is_object_type(Type *type) {
 
 int is_incomplete_type(Type *type) {
     if (type->type == TYPE_STRUCT_OR_UNION && type->struct_or_union_desc->is_incomplete) return 1;
-    if (type->type == TYPE_ARRAY && type->array_size == 0) return 1;
+    if (type->type == TYPE_ARRAY && type->array_length == 0) return 1;
     return 0;
 }
 
@@ -462,7 +462,7 @@ int get_type_size(Type *type) {
         case TYPE_STRUCT_OR_UNION:
             return type->struct_or_union_desc->size;
         case TYPE_ARRAY:
-            return type->array_size * get_type_size(type->target);
+            return type->array_length * get_type_size(type->target);
         case TYPE_FUNCTION:
             return 1;
         default:
@@ -686,7 +686,7 @@ static int recursive_types_are_compatible(Type *type1, Type *type2, StrMap *seen
     // and element types are compatible
     if (type1->type == TYPE_ARRAY && type2->type == TYPE_ARRAY) {
         if (!recursive_types_are_compatible(type1->target, type2->target, seen_tags, 0)) return 0;
-        if (type1->array_size && type2->array_size && type1->array_size != type2->array_size) return 0;
+        if (type1->array_length && type2->array_length && type1->array_length != type2->array_length) return 0;
         return 1;
     }
 
@@ -744,8 +744,8 @@ int types_are_compatible_ignore_qualifiers(Type *type1, Type *type2) {
 Type *composite_type(Type *type1, Type *type2) {
     // Implicit else, the type->type matches
     if (type1->type == TYPE_ARRAY) {
-        if (type1->array_size) return type1;
-        else if (type2->array_size) return type2;
+        if (type1->array_length) return type1;
+        else if (type2->array_length) return type2;
         else return type1;
     }
 

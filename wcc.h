@@ -173,7 +173,7 @@ typedef struct function_type {
 
 typedef struct type {
     int type;       // One of TYPE_*
-    int array_size;
+    int array_length;
     int bit_field_size;                                 // Used for struct members. Type is TYPE_INT
     unsigned int is_unsigned:1;
     unsigned int is_const:1;
