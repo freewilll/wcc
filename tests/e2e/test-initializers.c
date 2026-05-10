@@ -973,10 +973,24 @@ static void test_struct_init17() {
 
     struct bfs bfsa2[2] = {1, 2, 3, 4};
 
-    assert_int(1, bfsa2[0].i, "Struct init 17 1b");
+    assert_int(1, bfsa2[0].i, "Struct init 17 1a");
     assert_int(2, bfsa2[0].j, "Struct init 17 2b");
     assert_int(3, bfsa2[1].i, "Struct init 17 3b");
     assert_int(4, bfsa2[1].j, "Struct init 17 4b");
+}
+
+static void test_struct_init18() {
+    struct bfs { int i1; int i2:5; int i3; };
+
+    struct bfs bfs1 = { 1, 2, 3 };
+    assert_int(1, bfs1.i1, "Struct init 18 1a");
+    assert_int(2, bfs1.i2, "Struct init 18 1b");
+    assert_int(3, bfs1.i3, "Struct init 18 1c");
+
+    static struct bfs bfs2 = { 1, 2, 3 };
+    assert_int(1, bfs2.i1, "Struct init 18 2a");
+    assert_int(2, bfs2.i2, "Struct init 18 2b");
+    assert_int(3, bfs2.i3, "Struct init 18 2c");
 }
 
 static void test_char_array_string_literal_init0() {
@@ -1595,6 +1609,10 @@ int main(int argc, char **argv) {
     test_struct_init15();
     test_struct_init16();
     test_struct_init17();
+    test_struct_init18();
+    struct bfs { int i1; int i2:5; int i3; };
+
+    struct bfs bfs = { 1, 2, 3 };
 
     // Strings
     test_char_array_string_literal_init0();

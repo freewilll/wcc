@@ -1781,7 +1781,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
     int bf_bit_offset;
     int bf_bit_size;
     determine_bit_field_params(dst, &bf_offset, &bf_bit_offset, &bf_bit_size);
-    if (dst->bit_field_size) offset += bf_offset;
+    if (dst->bit_field_size) offset = offset - dst->offset + bf_offset;
 
     Initializer *in;
     if (dst->bit_field_size && s->initializers->length && ((Initializer *) s->initializers->elements[s->initializers->length - 1])->offset == offset)
@@ -1795,6 +1795,7 @@ static void add_initializer(Value *dst, int offset, int size, Value *scalar) {
                 Initializer *zero = wcalloc(1, sizeof(Initializer));
                 zero->offset = prev->offset + prev->size;
                 zero->size = offset - prev->offset - prev->size;
+                if (zero->size < 0) panic("Attempt to create a negative initializer of size %d", zero->size);
                 append_to_list(s->initializers, zero);
             }
         }
