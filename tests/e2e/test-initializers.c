@@ -993,6 +993,32 @@ static void test_struct_init18() {
     assert_int(3, bfs2.i3, "Struct init 18 2c");
 }
 
+static void test_struct_init19() {
+    struct s1 {
+        char i1;
+        int i2:5;
+        int i3:5;
+    };
+
+    struct s2 { struct s1 s1[2]; };
+
+    struct s2 s2 = { {{1, 2, 3}, {4, 5, 6}} };
+    assert_int(1, s2.s1[0].i1, "Struct init 19 1a");
+    assert_int(2, s2.s1[0].i2, "Struct init 19 1b");
+    assert_int(3, s2.s1[0].i3, "Struct init 19 1c");
+    assert_int(4, s2.s1[1].i1, "Struct init 19 1a");
+    assert_int(5, s2.s1[1].i2, "Struct init 19 1b");
+    assert_int(6, s2.s1[1].i3, "Struct init 19 1c");
+
+    static struct s2 s3 = { {{1, 2, 3}, {4, 5, 6}} };
+    assert_int(1, s3.s1[0].i1, "Struct init 19 1a");
+    assert_int(2, s3.s1[0].i2, "Struct init 19 1b");
+    assert_int(3, s3.s1[0].i3, "Struct init 19 1c");
+    assert_int(4, s3.s1[1].i1, "Struct init 19 1a");
+    assert_int(5, s3.s1[1].i2, "Struct init 19 1b");
+    assert_int(6, s3.s1[1].i3, "Struct init 19 1c");
+}
+
 static void test_char_array_string_literal_init0() {
     char c1[] = "foo";
     assert_int(4, sizeof(c1), "sizeof(c1)");
@@ -1610,9 +1636,7 @@ int main(int argc, char **argv) {
     test_struct_init16();
     test_struct_init17();
     test_struct_init18();
-    struct bfs { int i1; int i2:5; int i3; };
-
-    struct bfs bfs = { 1, 2, 3 };
+    test_struct_init19();
 
     // Strings
     test_char_array_string_literal_init0();
