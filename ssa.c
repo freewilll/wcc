@@ -1564,13 +1564,10 @@ static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
             if (tac->operation.id == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type))
                 longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
-            else if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->vreg && tac->dst->preg_class == preg_class && tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class && tac->next) {
-                if ((tac->next->operation.id == X86_OP_ADD || tac->next->operation.id == X86_OP_ADDC || tac->next->operation.id == X86_OP_SUB || tac->next->operation.id == X86_OP_MUL) && tac->next->src2 && tac->next->src2->vreg)
-                    longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
-
-                if ((tac->next->operation.id == X86_OP_SHR) && tac->next->src1 && tac->next->src1->vreg)
-                    longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
-            }
+            else if (tac->operation.id == X86_OP_MOV &&
+                    tac->dst  && tac->dst->vreg  && tac->dst->preg_class  == preg_class &&
+                    tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class)
+                longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
             if (tac->dst  && tac->dst-> vreg && tac->dst ->live_range_preg) clobbers[tac->dst ->vreg] = 1;
             if (tac->src1 && tac->src1->vreg && tac->src1->live_range_preg) clobbers[tac->src1->vreg] = 1;
