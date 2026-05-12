@@ -1421,6 +1421,7 @@ char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
 void print_backend_instruction(void *f, Tac *tac);
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index);
+void perform_peephole_optimization(Function *function);
 
 // Target functions related code
 Set *allocate_return_value_live_ranges(void);

@@ -139,6 +139,8 @@ static CompilerPhase compiler_phases[] = {
     { free_uevar_and_varkill,                      PH_NONE,  PH_NONE,  NULL },
     { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
     { allocate_registers,                          PH_NONE,  PH_NONE,  "Allocate registers" },
+    { perform_peephole_optimization,               PH_NONE,  PH_NONE,  "Perform target peephole optimizations" },
+
     { free_interference_graph,                     PH_NONE,  PH_NONE,  NULL },
     { free_live_range_spill_cost,                  PH_NONE,  PH_NONE,  NULL },
     { free_vreg_preg_classes,                      PH_NONE,  PH_NONE,  NULL },

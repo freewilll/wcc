@@ -126,3 +126,10 @@ void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
     }
 }
 
+// This removes instructions that copy a physical register to itself by replacing them with noops.
+void perform_peephole_optimization(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next)
+        if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
+            if (tac->operation.id == X86_OP_MOV) tac->operation.id = IR_NOP;
+}
+
