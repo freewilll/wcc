@@ -1233,12 +1233,12 @@ void blast_vregs_with_live_ranges(Function *function) {
 // 1-12 is for integers, 13-28 for floating point values.
 static void make_vreg_preg_classes(Function *function) {
     int count = function->vreg_count;
-    if (count < PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT) count = PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT;
+    if (count < PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_FP_REGISTER_COUNT) count = PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_FP_REGISTER_COUNT;
     char *vreg_preg_classes = wcalloc(count + 1, sizeof(char));
 
     if (live_range_reserved_pregs_offset > 0) {
-        for (int i = 1; i <= PHYSICAL_SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_INT;
-        for (int i = PHYSICAL_SSE_REGISTER_COUNT + 1; i <= PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_SSE_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_SSE;
+        for (int i = 1; i <= PHYSICAL_FP_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_INT;
+        for (int i = PHYSICAL_FP_REGISTER_COUNT + 1; i <= PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_FP_REGISTER_COUNT; i++) vreg_preg_classes[i] = PC_SSE;
     }
 
     function->vreg_preg_classes = vreg_preg_classes;
@@ -1303,7 +1303,7 @@ static void force_physical_register(char *ig, int vreg_count, LongSet *livenow, 
 
     // Add edges to all non reserved physical registers
     int start = preg_class == PC_INT ? 1 : PHYSICAL_INT_REGISTER_COUNT + 1;
-    int size = preg_class == PC_INT ? PHYSICAL_INT_REGISTER_COUNT : PHYSICAL_SSE_REGISTER_COUNT;
+    int size = preg_class == PC_INT ? PHYSICAL_INT_REGISTER_COUNT : PHYSICAL_FP_REGISTER_COUNT;
     for (int i = start; i < start + size; i++) {
         if (preg_reg_index != i) add_ig_edge(ig, vreg_count, vreg, i);
     }

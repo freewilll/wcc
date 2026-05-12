@@ -6,9 +6,6 @@
 
 #define fpa_pl(fpa, i) (*((FunctionParamLocations *) fpa->param_locations->elements[i]))
 
-RegisterSet arg_register_set;
-RegisterSet function_return_value_register_set;
-
 // Details about a single scalar in a struct/union
 typedef struct struct_or_union_scalar {
     Type *type;
@@ -198,7 +195,7 @@ static int make_sse_struct_or_union_move_from_register_to_stack_instructions(
     // Make param register value
     Value *param_register = new_value();
     param_register->vreg = param_register_vreg;
-    int live_range_preg = register_set->sse_registers[register_index];
+    int live_range_preg = register_set->fp_registers[register_index];
     param_register->live_range_preg = live_range_preg;
 
     if (pl->stru_size == 4) {
@@ -474,7 +471,7 @@ static int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Val
     tac->dst = new_value();
     tac->dst->type = dup_type(type);
     tac->dst->vreg = ++function->vreg_count;
-    tac->dst->live_range_preg = preg_class == PC_INT ? register_set->int_registers[register_index] : register_set->sse_registers[register_index];
+    tac->dst->live_range_preg = preg_class == PC_INT ? register_set->int_registers[register_index] : register_set->fp_registers[register_index];
 
     // src
     tac->src1 = param;
@@ -1746,7 +1743,7 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
         clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
 
     // All SSE registers xmm2, xmm3, ... are clobbered
-    for (int j = 2; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
+    for (int j = 2; j < PHYSICAL_FP_REGISTER_COUNT; j++)
         clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
 
     // Unless the function returns something in xmm0, clobber xmm0

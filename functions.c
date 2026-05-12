@@ -3,6 +3,8 @@
 static LongSet *allocated_functions;
 static List *allocated_function_param_allocatons;
 
+RegisterSet arg_register_set;
+RegisterSet function_return_value_register_set;
 
 void init_function_allocations(void) {
     allocated_functions = new_longset();

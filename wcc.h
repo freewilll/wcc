@@ -29,9 +29,6 @@
 #define MAX_FLOATING_POINT_LITERALS   10240
 #define VALUE_STACK_SIZE              10240
 #define MAX_VREG_COUNT                20480
-#define PHYSICAL_REGISTER_COUNT       32 // integer + xmm
-#define PHYSICAL_INT_REGISTER_COUNT   12 // Available registers for integers
-#define PHYSICAL_SSE_REGISTER_COUNT   14 // Available registers for floating points
 #define MAX_SPILLED_REGISTER_COUNT    1024
 #define MAX_INPUT_FILENAMES           1024
 #define MAX_BLOCKS                    10240
@@ -359,7 +356,7 @@ typedef struct origin {
 } Origin;
 
 typedef struct clobber {
-    char live_range_preg;                   // The clobbered register, one of LIVE_RANGE_PREG_*
+    char live_range_preg;                   // The clobbered physical registers
     unsigned int add_ig_edge_to_dst:1;      // Add interference graph edge to ...
     unsigned int add_ig_edge_to_src1:1;
     unsigned int add_ig_edge_to_src2:1;
@@ -415,8 +412,8 @@ typedef struct typedef_desc {
 } Typedef;
 
 typedef struct register_set {
-    const int *int_registers;
-    const int *sse_registers;
+    const int *int_registers;   // Intger registers
+    const int *fp_registers;    // Floating point registers
 } RegisterSet;
 
 #define TOKEN_LIST(TOKEN_ITEM) \
@@ -759,7 +756,6 @@ extern int cur_loop;                     // Current loop being parsed
 extern int loop_count;                   // Loop counter
 extern int total_stack_register_count;   // Spilled register count for all functions
 
-extern int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
 extern const int int_arg_registers[6];
 extern const int sse_arg_registers[8];
 
@@ -1181,12 +1177,15 @@ void finalize_function_param_allocation(FunctionParamAllocation *fpa);
 extern RegisterSet arg_register_set;
 extern RegisterSet function_return_value_register_set;
 
+// regalloc.c
+extern int preg_map[PHYSICAL_REGISTER_COUNT];                   // Map from live range registers to physical registers
+extern int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
+
 void compress_vregs(Function *function);
 void init_vreg_locations(Function *function);
 void free_vreg_locations(Function *function);
 void allocate_registers_top_down(Function *function, int live_range_start, int physical_register_count, int preg_class);
 void allocate_registers(Function *function);
-void init_allocate_registers(void);
 
 // instrsel.c
 enum {
@@ -1428,5 +1427,8 @@ Set *allocate_return_value_live_ranges(void);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
+
+// Target registers related code
+void init_allocate_registers(void);
 
 #endif

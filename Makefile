@@ -46,7 +46,8 @@ SOURCES := \
 	cpp.c \
 	flags.c \
 	target/x86_64/x86_64.c \
-	target/x86_64/functions.c
+	target/x86_64/functions.c \
+	target/x86_64/registers.c
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
 SOURCES_ABS_PATH := ${SOURCES:%=${SRC_DIR}/%}
