@@ -322,6 +322,33 @@ int test_double_offset_bug() {
     _test_double_offset_bug(sl);
 }
 
+// Allocate a bunch of registers, then do a shift, which clobbers cl.
+// If the  clobber is missing, then the sum will be incorrect since the value
+// in the ecx register gets blown away.
+int run_shift_c_register_clobber(int i, int j) {
+    int i1 = 1;
+    int i2 = 2;
+    int i3 = 3;
+    int i4 = 4;
+    int i5 = 5;
+    int i6 = 6;
+    int i7 = 7;
+    int i8 = 8;
+    int i9 = 9;
+
+    int shift_result = j << i;
+
+    int sum = i1+i2+i3+i4+i5+i6+i7+i8+i9;
+
+    assert_int(45, sum, "Shift %cl register clobber sum");
+
+    return shift_result;
+}
+
+int test_shift_c_register_clobber() {
+    assert_int(1114112, run_shift_c_register_clobber(16, 17), "Shift %cl register clobber shift result");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -348,6 +375,7 @@ int main(int argc, char **argv) {
     test_unary_precedence();
     test_register_reuse_in_function_calls();
     test_double_offset_bug();
+    test_shift_c_register_clobber();
 
     finalize();
 }

@@ -1270,7 +1270,7 @@ void free_vreg_preg_classes(Function *function) {
 
 // Add edges to a physical register for all live variables, preventing the physical register from
 // getting used.
-static void clobber_livenow(char *ig, int vreg_count, LongSet *livenow, Tac *tac, int preg_reg_index) {
+void clobber_livenow(char *ig, int vreg_count, LongSet *livenow, Tac *tac, int preg_reg_index) {
     if (debug_ssa_interference_graph) printf("Clobbering livenow for pri=%d\n", preg_reg_index);
 
     longset_foreach(livenow, it)
@@ -1286,38 +1286,6 @@ static void clobber_tac_and_livenow(char *ig, int vreg_count, LongSet *livenow, 
     if (tac->dst  && tac->dst ->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->dst->vreg );
     if (tac->src1 && tac->src1->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->src1->vreg);
     if (tac->src2 && tac->src2->vreg) add_ig_edge(ig, vreg_count, preg_reg_index, tac->src2->vreg);
-}
-
-static void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
-    switch(preg_reg_index) {
-        case LIVE_RANGE_PREG_RAX_INDEX:         printf("rax");   break;
-        case LIVE_RANGE_PREG_RBX_INDEX:         printf("rbx");   break;
-        case LIVE_RANGE_PREG_RCX_INDEX:         printf("rcx");   break;
-        case LIVE_RANGE_PREG_RDX_INDEX:         printf("rdx");   break;
-        case LIVE_RANGE_PREG_RSI_INDEX:         printf("rsi");   break;
-        case LIVE_RANGE_PREG_RDI_INDEX:         printf("rdi");   break;
-        case LIVE_RANGE_PREG_R08_INDEX:         printf("r8");    break;
-        case LIVE_RANGE_PREG_R09_INDEX:         printf("r9");    break;
-        case LIVE_RANGE_PREG_R12_INDEX:         printf("r12");   break;
-        case LIVE_RANGE_PREG_R13_INDEX:         printf("r13");   break;
-        case LIVE_RANGE_PREG_R14_INDEX:         printf("r14");   break;
-        case LIVE_RANGE_PREG_R15_INDEX:         printf("r15");   break;
-        case LIVE_RANGE_PREG_XMM00_INDEX:       printf("xmm0");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 1:   printf("xmm1");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 2:   printf("xmm2");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 3:   printf("xmm3");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 4:   printf("xmm4");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 5:   printf("xmm5");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 6:   printf("xmm6");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 7:   printf("xmm7");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 8:   printf("xmm8");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 9:   printf("xmm9");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 10:  printf("xmm10"); break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 11:  printf("xmm11"); break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 12:  printf("xmm12"); break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 13:  printf("xmm13"); break;
-        default: printf("Unknown LR preg index %d", preg_reg_index);
-    }
 }
 
 // Force a physical register to be assigned to vreg by the graph coloring by adding edges to all other pregs
@@ -1366,10 +1334,9 @@ static void print_interference_graph(Function *function) {
 }
 
 // Page 701 of engineering a compiler
-// If include_clobbers is set, then edges for any IR_* instruction that adds register constraints are skipped.
 // If include_instrsel_constraints is set, then constraints are added that precent coalescing of registers
 // to ensure instruction selection gets an IR it can deal with.
-void make_interference_graph(Function *function, int include_clobbers, int include_instrsel_constraints) {
+void make_interference_graph(Function *function, int include_instrsel_constraints) {
     if (debug_ssa_interference_graph) {
         printf("Make interference graph\n");
         printf("--------------------------------------------------------\n");
@@ -1395,63 +1362,20 @@ void make_interference_graph(Function *function, int include_clobbers, int inclu
             enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src1);
             enforce_live_range_preg(interference_graph, vreg_count, livenow, tac->src2);
 
-            if (include_clobbers && (tac->operation.id == IR_CALL || tac->operation.id == X86_OP_CALL)) {
-                // Integer arguments are clobbered
-                for (int j = 0; j < 6; j++) {
-                    if (j == 2) continue; // RDX is a special case, see below
-                    clobber_livenow(interference_graph, vreg_count, livenow, tac, int_arg_registers[j]);
-                }
+            // Add clobbers declared by the rules
+            for (int i = 0; tac->operation.clobbers[i].live_range_preg; i++) {
+                Clobber *c = &tac->operation.clobbers[i];
 
-                // Unless the function returns something in rax, clobber rax
-                if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RAX_INDEX))
-                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+                if (c->add_ig_edge_to_dst  && tac->dst  && tac->dst->vreg)  add_ig_edge(interference_graph, vreg_count, tac->dst->vreg,  c->live_range_preg);
+                if (c->add_ig_edge_to_src1 && tac->src1 && tac->src1->vreg) add_ig_edge(interference_graph, vreg_count, tac->src1->vreg, c->live_range_preg);
+                if (c->add_ig_edge_to_src2 && tac->src2 && tac->src2->vreg) add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, c->live_range_preg);
 
-                // Unless the function returns something in rdx, clobber rdx
-                if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RDX_INDEX))
-                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
-
-                // All SSE registers xmm2, xmm3, ... are clobbered
-                for (int j = 2; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
-                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
-
-                // Unless the function returns something in xmm0, clobber xmm0
-                if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM00_INDEX))
-                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX);
-                // Unless the function returns something in xmm1, clobber xmm1
-                if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM01_INDEX))
-                    clobber_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM01_INDEX);
-
-                // If it's a function call from a pointer in a vreg, ensure it doesn't reside in RAX
-                if (tac->src1->vreg)
-                    add_ig_edge(interference_graph, vreg_count, LIVE_RANGE_PREG_RAX_INDEX, tac->src1->vreg);
+                if (c->clobbers_livenow)
+                    clobber_livenow(interference_graph, vreg_count, livenow, tac, c->live_range_preg);
             }
 
-            if (tac->operation.id == IR_DIV || tac->operation.id == IR_MOD || tac->operation.id == X86_OP_IDIV) {
-                if (include_clobbers) {
-                    clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                    clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
-                }
-            }
-
-            if (include_clobbers && (tac->operation.id == IR_BSHL || tac->operation.id == IR_BSHR)) {
-                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
-            }
-
-            // Works together with the instruction rules. Ensure the shift value cannot be in rcx.
-            if (tac->operation.id == X86_OP_SHR && tac->prev->dst && tac->prev->dst->vreg && tac->prev->src1 && tac->prev->src1->vreg) {
-                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RCX_INDEX);
-                add_ig_edge(interference_graph, vreg_count, tac->prev->dst->vreg, LIVE_RANGE_PREG_RCX_INDEX);
-                add_ig_edge(interference_graph, vreg_count, tac->prev->src1->vreg, LIVE_RANGE_PREG_RCX_INDEX);
-            }
-
-            if (tac->operation.id == X86_OP_LD_EQ_CMP)
-                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
-
-
-            // The x86 single operatnd MUL instruction puts its results in rax and rdx
-            if (tac->operation.id == X86_OP_MUL128A || tac->operation.id == X86_OP_MUL128B) {
-                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
-                clobber_tac_and_livenow(interference_graph, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+            if (tac->operation.is_call) {
+                add_function_call_clobbers(interference_graph, vreg_count, livenow, tac);
             }
 
             if (tac->dst && tac->dst->vreg) {
@@ -1623,7 +1547,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
         free_live_range_spill_cost(function);
         make_live_range_spill_cost(function);
         free_interference_graph(function);
-        make_interference_graph(function, 0, 1);
+        make_interference_graph(function, 1);
 
         char *interference_graph = function->interference_graph;
 
@@ -1743,7 +1667,7 @@ void coalesce_live_ranges(Function *function) {
 
     if (!opt_enable_live_range_coalescing) {
         make_live_range_spill_cost(function);
-        make_interference_graph(function, 0, 0);
+        make_interference_graph(function, 0);
 
         return;
     }

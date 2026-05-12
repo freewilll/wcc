@@ -243,7 +243,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
         return;
     }
 
-    if (tac->dst && o < BACKEND_OPS_START) {
+    if (tac->dst && o < TARGET_OPS_START) {
         print_value(f, tac->dst, o != IR_MOVE);
         fprintf(f, " = ");
     }
@@ -381,7 +381,7 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
 
     else if (o == IR_CALL_ARG_REG)  { fprintf(f, "call reg arg "); print_value(f, tac->dst ? tac->dst : tac->src1 , 1); }
     else if (o == IR_ALLOCATE_STACK){ fprintf(f, "allocate stack "); print_value(f, tac->src1, 1); }
-    else if (o >= BACKEND_OPS_START) print_backend_instruction(f, tac);
+    else if (o >= TARGET_OPS_START) print_target_instruction(f, tac);
 
     else
         panic("print_instruction(): Unknown operation: %d", tac->operation.id);
@@ -722,7 +722,7 @@ void allocate_value_vregs(Function *function) {
     wfree(on_stack);
 }
 
-// IR_JZ and IR_JNZ aren't implemented in the backend for SSE & long doubles.
+// IR_JZ and IR_JNZ aren't implemented in the target for SSE & long doubles.
 // Convert:
 // - IR_JZ  => IR_EQ with 0.0 & IR_JNZ
 // - IR_JNZ => IR_NE with 0.0 & IR_JNZ

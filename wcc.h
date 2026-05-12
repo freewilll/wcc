@@ -7,7 +7,7 @@
 // Deliberately current working directory for config.h, for out-of-tree builds
 #include <config.h>
 
-#define BACKEND_OPS_START 1000
+#define TARGET_OPS_START 1000
 
 #include "x86_64.h"
 
@@ -358,10 +358,22 @@ typedef struct origin {
     int line_number;
 } Origin;
 
+typedef struct clobber {
+    char live_range_preg;                   // The clobbered register, one of LIVE_RANGE_PREG_*
+    unsigned int add_ig_edge_to_dst:1;      // Add interference graph edge to ...
+    unsigned int add_ig_edge_to_src1:1;
+    unsigned int add_ig_edge_to_src2:1;
+    unsigned int clobbers_livenow:1;        // If live vregs are clobberred
+} Clobber;
+
+#define MAX_CLOBBERS 4
+
 typedef struct operation {
-    int id;                     // IR_* or backend operation
-    int is_conditional_jump;    // Set if the operation is a conditional jump
-    int is_unconditional_jump;  // Set if the operation is a unconditional jump
+    int id;                         // IR_* or target operation
+    int is_conditional_jump;        // Set if the operation is a conditional jump
+    int is_unconditional_jump;      // Set if the operation is a unconditional jump
+    int is_call:1;                  // Set if the operation is a function call
+    Clobber clobbers[MAX_CLOBBERS]; // Null terminated array of clobbers
 } Operation;
 
 typedef struct three_address_code {
@@ -607,36 +619,6 @@ enum {
     IR_BIT_SCAN_FWD,          // Bit scan forward
     IR_BIT_SCAN_REV,          // Bit scan reverse
     IR_PHI_FUNCTION,          // SSA phi function
-};
-
-// Physical registers
-enum {
-    // Integers
-    REG_RAX,
-    REG_RBX,
-    REG_RCX,
-    REG_RDX,
-    REG_RSI,
-    REG_RDI,
-    REG_RBP,
-    REG_RSP,
-    REG_R08,
-    REG_R09,
-    REG_R10,
-    REG_R11,
-    REG_R12,
-    REG_R13,
-    REG_R14,
-    REG_R15,
-
-    // SSE
-    REG_XMM00,
-    REG_XMM14 = 30,
-    REG_XMM15,
-};
-
-enum {
-    OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX = 256
 };
 
 typedef struct string_literal {
@@ -1146,32 +1128,6 @@ void convert_enums(Function *function);
 void add_PIC_load_and_saves(Function *function);
 void convert_functions_address_of(Function *function);
 
-// ssa.c
-enum {
-    // Liveness interval indexes corresponding to reserved physical registers
-    LIVE_RANGE_PREG_RAX_INDEX = 1,
-    LIVE_RANGE_PREG_RBX_INDEX,
-    LIVE_RANGE_PREG_RCX_INDEX,
-    LIVE_RANGE_PREG_RDX_INDEX,
-    LIVE_RANGE_PREG_RSI_INDEX,
-    LIVE_RANGE_PREG_RDI_INDEX,
-    LIVE_RANGE_PREG_R08_INDEX,
-    LIVE_RANGE_PREG_R09_INDEX,
-    LIVE_RANGE_PREG_R12_INDEX,
-    LIVE_RANGE_PREG_R13_INDEX,
-    LIVE_RANGE_PREG_R14_INDEX,
-    LIVE_RANGE_PREG_R15_INDEX,      // 12
-
-    LIVE_RANGE_PREG_XMM00_INDEX,    // 13
-    LIVE_RANGE_PREG_XMM01_INDEX,
-    LIVE_RANGE_PREG_XMM02_INDEX,
-    LIVE_RANGE_PREG_XMM03_INDEX,
-    LIVE_RANGE_PREG_XMM04_INDEX,
-    LIVE_RANGE_PREG_XMM05_INDEX,
-    LIVE_RANGE_PREG_XMM06_INDEX,
-    LIVE_RANGE_PREG_XMM07_INDEX,
-};
-
 extern int live_range_reserved_pregs_offset;
 
 // Interference graph indexing for a lower triangular matrix with size vreg_count
@@ -1202,8 +1158,9 @@ void rename_phi_function_variables(Function *function);
 void make_live_ranges(Function *function);
 void free_live_range_spill_cost(Function *function);
 void free_vreg_preg_classes(Function *function);
+void clobber_livenow(char *ig, int vreg_count, LongSet *livenow, Tac *tac, int preg_reg_index);
 void blast_vregs_with_live_ranges(Function *function);
-void make_interference_graph(Function *function, int include_clobbers, int include_instrsel_constraints);
+void make_interference_graph(Function *function, int include_instrsel_constraints);
 void free_interference_graph(Function *function);
 void coalesce_live_ranges(Function *function);
 void make_preferred_live_range_preg_indexes(Function *function);
@@ -1465,8 +1422,11 @@ char *internals(void);
 // int128.c
 void transform_int128_instructions(Function *function);
 
-// Backend functions
-char *backend_op_name(int operation);
+// Target functions
+char *target_op_name(int operation);
+void print_target_instruction(void *f, Tac *tac);
 void print_backend_instruction(void *f, Tac *tac);
+void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
+void print_physical_register_name_for_lr_reg_index(int preg_reg_index);
 
 #endif

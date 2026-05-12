@@ -24,9 +24,30 @@ int main(int argc, char **argv) {
             for (int j = 0; j < r->x86_operation_count; j++) {
                 X86Operation *op = &r->x86_operations[j];
 
-                printf("    { {%d, %d, %d}, %d, %d, %d, ",
-                    op->operation.id, op->operation.is_conditional_jump, op->operation.is_unconditional_jump,
-                    op->dst, op->v1, op->v2);
+                printf("    { {%d, %d, %d, %d, {",
+                    op->operation.id,
+                    op->operation.is_conditional_jump,
+                    op->operation.is_unconditional_jump,
+                    op->operation.is_call);
+
+                // Print clobbers
+                int i = 0;
+                while (op->operation.clobbers[i].live_range_preg) {
+                    if (i) printf(", ");
+                    Clobber *c = &op->operation.clobbers[i];
+                    printf("{%d, %d, %d, %d, %d}",
+                        c->live_range_preg,
+                        c->add_ig_edge_to_dst,
+                        c->add_ig_edge_to_src1,
+                        c->add_ig_edge_to_src2,
+                        c->clobbers_livenow);
+                    i++;
+                }
+
+                // Ensure there is at least one clobber that has live_range_preg=0, which means there are no clobbers
+                if (!i) printf("0");
+
+                printf("} }, %d, %d, %d, ", op->dst, op->v1, op->v2);
 
                 if (op->template)
                     printf("\"%s\", ", op->template);

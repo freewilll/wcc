@@ -54,7 +54,7 @@ typedef struct compiler_phase {
 } CompilerPhase;
 
 static void make_interference_graph_local(Function *function) {
-    make_interference_graph(function, 1, 0);
+    make_interference_graph(function, 0);
 }
 
 static void write_rule_coverage_file_local(Function *function) {
@@ -96,7 +96,7 @@ static CompilerPhase compiler_phases[] = {
     { free_phi_functions,                          PH_NONE,  PH_NONE,  NULL },
     { free_dominance,                              PH_NONE,  PH_NONE,  NULL },
 
-    // The backend x86_64 specific phase follows
+    // The target x86_64 specific phase follows
     { convert_long_doubles_jz_and_jnz,             PH_NONE,  PH_NONE,  "Convert long double conditional jumps" },
     { transform_int128_instructions,               PH_NONE,  PH_NONE,  "Lower int128 code" },
 

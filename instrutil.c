@@ -177,8 +177,8 @@ void print_rules(void) {
 }
 
 char *operation_string(int operation) {
-    if (operation >= BACKEND_OPS_START) {
-        return backend_op_name(operation);
+    if (operation >= TARGET_OPS_START) {
+        return target_op_name(operation);
     }
 
     switch (operation) {

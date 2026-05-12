@@ -1083,8 +1083,7 @@ static Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Valu
     if (v2) make_value_x86_size(v2);
 
     Tac *tac = add_instruction(x86op->operation.id, dst, v1, v2);
-    tac->operation.is_conditional_jump = x86op->operation.is_conditional_jump;
-    tac->operation.is_unconditional_jump = x86op->operation.is_unconditional_jump;
+    tac->operation = x86op->operation;
     tac->x86_template = x86op->template;
 
     return tac;

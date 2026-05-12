@@ -81,18 +81,22 @@ static Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
     return r;
 }
 
-// Add an X86Operation template to a rule's linked list
-static void add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
+// Add an X86Operation template to a rule's linked list, making a copy
+static X86Operation *add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
     if (!r->x86_operation_count)
         r->x86_operations = wmalloc(MAX86_OP_X86_OPERATION_PER_RULE * sizeof(X86Operation));
 
     if (r->x86_operation_count == MAX86_OP_X86_OPERATION_PER_RULE) panic("Exceeded MAX86_OP_X86_OPERATION_PER_RULE");
 
-    r->x86_operations[r->x86_operation_count++] = *x86op;
+    int index = r->x86_operation_count++;
+    r->x86_operations[index] = *x86op;
+    return &r->x86_operations[index];
 }
 
 // Add an x86 operation template to a rule
 static X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
+    if (operation < TARGET_OPS_START) panic("Operation %s is not a target operation", operation_string(operation));
+
     X86Operation *x86op = wmalloc(sizeof(X86Operation));
     x86op->operation.id = operation;
 
@@ -111,6 +115,7 @@ static X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, cha
         operation == X86_OP_JAE);
 
     x86op->operation.is_unconditional_jump = (operation == X86_OP_JMP);
+    x86op->operation.is_call = (operation == X86_OP_CALL);
 
     x86op->dst = dst;
     x86op->v1 = v1;
@@ -124,9 +129,15 @@ static X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, cha
     x86op->allocated_type = 0;
     x86op->arg = 0;
 
-    add_x86_op_to_rule(r, x86op);
+    x86op = add_x86_op_to_rule(r, x86op);
 
     return x86op;
+}
+
+// Copy clobbers to an operation
+static void copy_clobbers(X86Operation *op, Clobber *clobbers) {
+    for (int i = 0; clobbers[i].live_range_preg; i++)
+        op->operation.clobbers[i] = clobbers[i];
 }
 
 static char *add_size_to_template(char *template, int size) {
@@ -1013,6 +1024,9 @@ static void add_long_double_comp_cond_jmp_rule(int *ntc, int src1, int src2, cha
 
 // Comparison and assignment/jump rules for floating point numbers
 static void add_long_double_comp_rules(int *ntc, int src1, int src2, char *src1_template, char *src2_template) {
+    // Clobber dst, src1, src2 and livenow
+    Clobber clobbers[4] = { { LIVE_RANGE_PREG_RDX_INDEX, 1, 1, 1, 1 } };
+
     add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LT, X86_OP_SETA,  "seta %vdb", 1);
     add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GT, X86_OP_SETA,  "seta %vdb", 0);
     add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LE, X86_OP_SETAE, "setae %vdb", 1);
@@ -1025,7 +1039,8 @@ static void add_long_double_comp_rules(int *ntc, int src1, int src2, char *src1_
         Rule *r = add_rule(RI3, i == 0 ? IR_EQ : IR_NE, src1, src2, 15);
         add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
         add_op(r, X86_OP_CMP, DST, 0, 0, i == 0 ? "setnp %vdb" : "setp %vdb");
-        add_op(r, X86_OP_LD_EQ_CMP, 0, 0, 0,  i == 0 ? "movl $0, %%edx" : "movl $1, %%edx");
+        X86Operation *d = add_op(r, X86_OP_LD_EQ_CMP, 0, 0, 0,  i == 0 ? "movl $0, %%edx" : "movl $1, %%edx");
+        copy_clobbers(d, clobbers);
         add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
         add_op(r, X86_OP_MOVC, DST, 0, 0, "cmovne %%edx, %vdl");
         add_op(r, X86_OP_MOVZ, DST, 0, 0, "movzbl %vdb, %vdl");
@@ -1291,18 +1306,27 @@ static void add_sub_rules(void) {
 }
 
 static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *tdiv, char *tmod) {
-    Rule *r;
+    Clobber idiv_clobbers[4] = {
+        { LIVE_RANGE_PREG_RAX_INDEX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
+        { LIVE_RANGE_PREG_RDX_INDEX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
+    };
 
-    r = add_rule(dst, IR_DIV, src1,  src2,  cost); add_op(r, X86_OP_MOV,  0,    SRC1, 0,    t1);
-                                                   add_op(r, X86_OP_CLTD, 0,    0,    0,    t2);
-                                                   add_op(r, X86_OP_IDIV, 0,    SRC2, 0,    t3);
-                                                   add_op(r, X86_OP_MOV,  DST,  0,    0,    tdiv);
-                                                   fin_rule(r);
-    r = add_rule(dst, IR_MOD, src1,  src2,  cost); add_op(r, X86_OP_MOV,  0,    SRC1, 0,    t1);
-                                                   add_op(r, X86_OP_CLTD, 0,    0,    0,    t2);
-                                                   add_op(r, X86_OP_IDIV, 0,    SRC2, 0,    t3);
-                                                   add_op(r, X86_OP_MOV,  DST,  0,    0,    tmod);
-                                                   fin_rule(r);
+    Rule *r;
+    X86Operation *d;
+
+    r = add_rule(dst, IR_DIV, src1,  src2,  cost);
+        add_op(r, X86_OP_MOV,  0,    SRC1, 0,    t1);
+        add_op(r, X86_OP_CLTD, 0,    0,    0,    t2);
+    d = add_op(r, X86_OP_IDIV, 0,    SRC2, 0,    t3);   copy_clobbers(d, idiv_clobbers);
+        add_op(r, X86_OP_MOV,  DST,  0,    0,    tdiv);
+    fin_rule(r);
+
+    r = add_rule(dst, IR_MOD, src1,  src2,  cost);
+        add_op(r, X86_OP_MOV,  0,    SRC1, 0,    t1);
+        add_op(r, X86_OP_CLTD, 0,    0,    0,    t2);
+    d = add_op(r, X86_OP_IDIV, 0,    SRC2, 0,    t3);   copy_clobbers(d, idiv_clobbers);
+        add_op(r, X86_OP_MOV,  DST,  0,    0,    tmod);
+    fin_rule(r);
 }
 
 static void add_div_rules(void) {
@@ -1340,20 +1364,34 @@ static void add_binary_constant_shift_rule(int dst, int src1, int src2, char *te
 
 static void add_binary_register_shift_rule(int src1, int src2, char *template) {
     Rule *r;
+    X86Operation *d;
 
-    r = add_rule(src1, IR_BSHL, src1, src2, 4); add_op(r, X86_OP_MOVC, 0,   SRC2, 0,   template);
-                                                add_op(r, X86_OP_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");
-                                                add_op(r, X86_OP_SHR,  DST, 0,    DST, "shl%s %%cl, %vd");
-                                                fin_rule(r);
+    // Clobber dst, src1
+    Clobber clobbers1[4] = { { LIVE_RANGE_PREG_RCX_INDEX, 1, 1, 0, 0  } };
 
-    r = add_rule(src1, IR_BSHR, src1, src2, 4); add_op(r, X86_OP_MOVC, 0,   SRC2, 0,   template);
-                                                add_op(r, X86_OP_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");    // Binary
-                                                add_op(r, X86_OP_SHR,  DST, 0,    DST, "shr%s %%cl, %vd");
-                                                fin_rule(r);
-    r = add_rule(src1, IR_ASHR, src1, src2, 4); add_op(r, X86_OP_MOVC, 0,   SRC2, 0,   template);
-                                                add_op(r, X86_OP_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");    // Arithmetic
-                                                add_op(r, X86_OP_SHR,  DST, 0,    DST, "sar%s %%cl, %vd");
-                                                fin_rule(r);
+    // Clobber dst, src1, src2 and livenow
+    Clobber clobbers2[4] = { { LIVE_RANGE_PREG_RCX_INDEX, 1, 1, 1, 1 } };
+
+    // Arithmetic and binary left shifts are the same
+    r = add_rule(src1, IR_BSHL, src1, src2, 4);
+        add_op(r, X86_OP_MOVC, 0,   SRC2, 0,   template);
+    d = add_op(r, X86_OP_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");  copy_clobbers(d, clobbers1);
+    d = add_op(r, X86_OP_SHR,  DST, 0,    DST, "shl%s %%cl, %vd"); copy_clobbers(d, clobbers2);
+    fin_rule(r);
+
+    // Binary
+    r = add_rule(src1, IR_BSHR, src1, src2, 4);
+        add_op(r, X86_OP_MOVC, 0,   SRC2, 0,   template);
+    d = add_op(r, X86_OP_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");  copy_clobbers(d, clobbers1);
+    d = add_op(r, X86_OP_SHR,  DST, 0,    DST, "shr%s %%cl, %vd"); copy_clobbers(d, clobbers2);
+    fin_rule(r);
+
+    // Arithmetic
+    r = add_rule(src1, IR_ASHR, src1, src2, 4);
+        add_op(r, X86_OP_MOVC, 0,   SRC2, 0,   template);
+    d = add_op(r, X86_OP_MOV,  DST, SRC1, 0,   "mov%s %v1, %vd");  copy_clobbers(d, clobbers1);
+    d = add_op(r, X86_OP_SHR,  DST, 0,    DST, "sar%s %%cl, %vd"); copy_clobbers(d, clobbers2);
+    fin_rule(r);
 }
 
 static void add_binary_shift_rules(void) {
@@ -1505,14 +1543,29 @@ static void add_int2128_subc_rules(int type) {
 // They are meant to always run consecutively.
 // This approach of using a MUL instruction what gcc and clang do.
 static void add_int128_multiply_rule(int type) {
+    X86Operation *d;
+
+    Clobber rax_clobber[4] = {
+        { LIVE_RANGE_PREG_RAX_INDEX, 0, 0, 0, 1 }, // Clobber livenow
+    };
+
+    Clobber mul_clobbers[4] = {
+        { LIVE_RANGE_PREG_RAX_INDEX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
+        { LIVE_RANGE_PREG_RDX_INDEX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
+    };
+
     Rule *r = add_rule(type, IR_MUL128A, type, type, 30);
-    add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %%rax");
-    add_op(r, X86_OP_MUL128A, DST, SRC2, 0, "mul %v1q"); // The outputs are in rax and rdx
-    add_op(r, X86_OP_MOV, DST, 0, 0, "movq %%rax, %vdq"); // Move the low output out
+    d = add_op(r, X86_OP_MUL128A, DST, SRC1, 0, "movq %v1q, %%rax");
+    copy_clobbers(d, rax_clobber);
+    d = add_op(r, X86_OP_MUL128A, DST, SRC2, 0, "mul %v1q"); // The outputs are in rax and rdx
+    copy_clobbers(d, mul_clobbers);
+    d  = add_op(r, X86_OP_MOV, DST, 0, 0, "movq %%rax, %vdq"); // Move the low output out
+    copy_clobbers(d, mul_clobbers);
 
     // We need a dummy src1 to satisfy the instruction selection code
     r = add_rule(type, IR_MUL128B, type, 0, 1);
-    add_op(r, X86_OP_MUL128B, DST, 0, 0, "movq %%rdx, %vdq"); // Move the high output out
+    d = add_op(r, X86_OP_MUL128B, DST, 0, 0, "movq %%rdx, %vdq"); // Move the high output out
+    copy_clobbers(d, mul_clobbers);
 }
 
 static void add_int128_rules(void) {

@@ -1802,3 +1802,34 @@ void finalize_function_param_allocation(FunctionParamAllocation *fpa) {
         printf("  total                        size   0x%04x with padding 0x%04x\n", fpa->size, fpa->padding);
     }
 }
+
+void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {
+    // Integer arguments are clobbered
+    for (int i = 0; i < 6; i++) {
+        if (i == 2) continue; // RDX is a special case, see below
+        clobber_livenow(ig, vreg_count, livenow, tac, int_arg_registers[i]);
+    }
+
+    // Unless the function returns something in rax, clobber rax
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RAX_INDEX))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+
+    // Unless the function returns something in rdx, clobber rdx
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RDX_INDEX))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+
+    // All SSE registers xmm2, xmm3, ... are clobbered
+    for (int j = 2; j < PHYSICAL_SSE_REGISTER_COUNT; j++)
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
+
+    // Unless the function returns something in xmm0, clobber xmm0
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM00_INDEX))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX);
+    // Unless the function returns something in xmm1, clobber xmm1
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM01_INDEX))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM01_INDEX);
+
+    // If it's a function call from a pointer in a vreg, ensure it doesn't reside in RAX
+    if (tac->src1->vreg)
+        add_ig_edge(ig, vreg_count, LIVE_RANGE_PREG_RAX_INDEX, tac->src1->vreg);
+}
