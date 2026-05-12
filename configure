@@ -131,6 +131,7 @@ BUILD_DIR=$(pwd)
 
 if [ "$SRC_DIR" != "$BUILD_DIR" ]
 then
+    mkdir -p target/x86_64/
     mkdir -p tools
     mkdir -p tests/unit
     mkdir -p tests/integration

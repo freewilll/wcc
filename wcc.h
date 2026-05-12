@@ -9,7 +9,7 @@
 
 #define TARGET_OPS_START 1000
 
-#include "x86_64.h"
+#include "target/x86_64/x86_64.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #define NORETURN __attribute__((noreturn))

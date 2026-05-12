@@ -1,4 +1,4 @@
-#include "wcc.h"
+#include "../../wcc.h"
 
 char *target_op_name(int operation) {
     switch (operation) {
