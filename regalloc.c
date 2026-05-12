@@ -77,16 +77,6 @@ static int vreg_cost_cmpfunc(const void *void_a, const void *void_b) {
     return 0;
 }
 
-static int *make_original_stack_indexes(Function *function) {
-    int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
-
-    for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->operation.id == X86_OP_MOV && tac->src1 && tac->src1->function_call.function_param_original_stack_index)
-            result[tac->dst->vreg] = tac->src1->function_call.function_param_original_stack_index;
-
-    return result;
-}
-
 static int graph_node_degree(char *ig, int vreg_count, int node) {
     int result = 0;
     int offset = node * vreg_count;

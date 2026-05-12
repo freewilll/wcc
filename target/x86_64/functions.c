@@ -1716,6 +1716,19 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) 
     }
 }
 
+// For vregs that are passed on as a function param, but are on the stack,
+// Make a mapping from vreg to the stack index.
+int *make_original_stack_indexes(Function *function) {
+    int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
+
+    for (Tac *tac = function->ir; tac; tac = tac->next)
+        if (tac->operation.id == X86_OP_MOV && tac->src1 && tac->src1->function_call.function_param_original_stack_index)
+            result[tac->dst->vreg] = tac->src1->function_call.function_param_original_stack_index;
+
+    return result;
+}
+
+
 // Process target function calls, args, params and return values
 void process_target_functions(Function *function) {
     process_function_call_arg_allocations(function);
