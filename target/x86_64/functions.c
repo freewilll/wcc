@@ -1597,6 +1597,11 @@ static void add_single_stack_function_param_location(FunctionParamAllocation *fp
 
 }
 
+// Make a set large enough to hold all live ranges
+Set *allocate_return_value_live_ranges(void) {
+    return new_set(LIVE_RANGE_PREG_XMM01_INDEX);
+}
+
 // Add a param/arg to a function and allocate registers & stack entries
 // Structs are decomposed.
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {

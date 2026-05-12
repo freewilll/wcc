@@ -2448,9 +2448,8 @@ static void parse_function_call(void) {
     function_value->type = function_type;
     function_value->local_index = popped_function->local_index;
     function_value->vreg = popped_function->vreg;
+    function_value->return_value_live_ranges = allocate_return_value_live_ranges();
 
-    // LIVE_RANGE_PREG_XMM01_INDEX is the max set value
-    function_value->return_value_live_ranges = new_set(LIVE_RANGE_PREG_XMM01_INDEX);
     append_to_list(allocated_sets, function_value->return_value_live_ranges);
 
     Type *return_type = function_type->target;

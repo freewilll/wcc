@@ -1417,13 +1417,14 @@ char *internals(void);
 // int128.c
 void transform_int128_instructions(Function *function);
 
-// Target specific functions
+// Target specific code
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
 void print_backend_instruction(void *f, Tac *tac);
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index);
 
-// Target functions IR manipulation
+// Target functions related code
+Set *allocate_return_value_live_ranges(void);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
