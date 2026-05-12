@@ -45,7 +45,8 @@ SOURCES := \
 	graph.c \
 	cpp.c \
 	flags.c \
-	target/x86_64/x86_64.c
+	target/x86_64/x86_64.c \
+	target/x86_64/functions.c
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
 SOURCES_ABS_PATH := ${SOURCES:%=${SRC_DIR}/%}
@@ -104,6 +105,10 @@ build/wcc2/internals.s: internals.c wcc
 build/wcc2/%.s: ${SRC_DIR}/%.c wcc
 	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
 
+build/wcc2/target/x86_64/%.s: ${SRC_DIR}/target/x86_64/%.c wcc
+	@mkdir -p build/wcc2/target/x86_64
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
+
 wcc2: ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} wcc
 	./wcc ${WCC_OPTS} ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} -o wcc2
 
@@ -122,13 +127,17 @@ build/wcc3/internals.s: internals.c wcc2
 build/wcc3/%.s: ${SRC_DIR}/%.c wcc2
 	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
 
+build/wcc3/target/x86_64/%.s: ${SRC_DIR}/target/x86_64/%.c wcc2
+	@mkdir -p build/wcc3/target/x86_64
+	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
+
 wcc3: ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} wcc2
 	./wcc2 ${WCC_OPTS} ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} -o wcc3
 
 .PHONY: test-self-compilation
 test-self-compilation: wcc2 wcc3
-	cat build/wcc2/*.s > build/wcc2/all-s
-	cat build/wcc3/*.s > build/wcc3/all-s
+	cat build/wcc2/*.s build/wcc2/target/*/*.s > build/wcc2/all-s
+	cat build/wcc3/*.s build/wcc3/target/*/*.s > build/wcc3/all-s
 	diff build/wcc2/all-s build/wcc3/all-s
 	@echo self compilation test passed
 

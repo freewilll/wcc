@@ -101,13 +101,7 @@ static CompilerPhase compiler_phases[] = {
     { transform_int128_instructions,               PH_NONE,  PH_NONE,  "Lower int128 code" },
 
     // Function param and arg processing
-    { process_function_call_arg_allocations,       PH_NONE,  PH_NONE,  "Prepare register/stack allocation for function calls" },
-    { reverse_function_argument_order,             PH_NONE,  PH_NONE,  "Reverse function argument order" },
-    { add_function_param_moves,                    PH_NONE,  PH_NONE,  "Function arg/param manipulation" },
-    { add_function_return_moves,                   PH_NONE,  PH_NONE,  "Add function return moves" },
-    { add_function_call_result_moves,              PH_NONE,  PH_NONE,  "Add function call result moves" },
-    { process_function_varargs,                    PH_NONE,  PH_NONE,  "Process function varargs" },
-    { add_function_call_arg_moves,                 PH_NONE,  PH_PARAM, "Add function call arg moves" },
+    { process_target_functions,                   PH_NONE,  PH_PARAM,  "Process target function calls, args, params and return values" },
 
     // Misc IR conversions
     { add_PIC_load_and_saves,                      PH_NONE,  PH_NONE,  "Adding PIC loads & saves" },

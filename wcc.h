@@ -1171,16 +1171,11 @@ void init_function_allocations(void);
 void free_function(Function *function, int remove_from_allocations);
 void free_functions(void);
 Function *new_function(char *identifier);
-void process_function_call_arg_allocations(Function *function);
-void add_function_call_result_moves(Function *function);
-void add_function_return_moves(Function *function);
-void add_function_call_arg_moves(Function *function);
-void process_function_varargs(Function *function);
-void add_function_param_moves(Function *function);
+void remap_stack_index(int *stack_index_remap, Value *v);
 Value *make_function_call_value(int function_call, Type *type);
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
 void free_function_param_allocaton(FunctionParamAllocation *fpa);
-void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
+void free_function_param_locations(FunctionParamLocations *fpl);
 void finalize_function_param_allocation(FunctionParamAllocation *fpa);
 
 extern RegisterSet arg_register_set;
@@ -1422,11 +1417,15 @@ char *internals(void);
 // int128.c
 void transform_int128_instructions(Function *function);
 
-// Target functions
+// Target specific functions
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
 void print_backend_instruction(void *f, Tac *tac);
-void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index);
+
+// Target functions IR manipulation
+void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
+void process_target_functions(Function *function);
+void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
 
 #endif
