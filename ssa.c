@@ -1379,14 +1379,6 @@ void make_interference_graph(Function *function, int include_instrsel_constraint
             }
 
             if (tac->dst && tac->dst->vreg) {
-                if (tac->operation.id == X86_OP_SUB && tac->src2->vreg) {
-                    // Ensure that dst and src2 don't reside in the same preg.
-                    // This allows codegen to generate code with just one mov and sub while
-                    // ensuring the other registers preserve their values.
-                    add_ig_edge(interference_graph, vreg_count, tac->src2->vreg, tac->dst->vreg);
-                    if (debug_ssa_interference_graph) printf("added src2 <-> dst %d <-> %d\n", tac->src2->vreg, tac->dst->vreg);
-                }
-
                 longset_foreach(livenow, it) {
                     int it_vreg = longset_iterator_element(&it);
 
