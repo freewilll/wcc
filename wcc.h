@@ -367,8 +367,8 @@ typedef struct clobber {
 
 typedef struct operation {
     int id;                         // IR_* or target operation
-    int is_conditional_jump;        // Set if the operation is a conditional jump
-    int is_unconditional_jump;      // Set if the operation is a unconditional jump
+    int is_conditional_jump:1;      // Set if the operation is a conditional jump
+    int is_unconditional_jump:1;    // Set if the operation is a unconditional jump
     int is_call:1;                  // Set if the operation is a function call
     Clobber clobbers[MAX_CLOBBERS]; // Null terminated array of clobbers
 } Operation;
