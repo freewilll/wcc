@@ -912,6 +912,16 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
     return ir;
 }
 
+// For lvalues in a register that also have an offset, add an add
+// instruction to add the offset to the value.
+// This happens for structs inside structs and arrays of structs.
+static Value *add_memcpy_offset_add_instructions(Tac *ir, Value *v) {
+    Value *result = dup_value(v);
+    Value *offset_value = new_integral_constant(TYPE_LONG, v->offset);
+    new_tac_before(ir, IR_ADD, result, v, offset_value, 1);
+    return result;
+}
+
 // Add memcpy calls for struct/union -> struct/union copies
 Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value *src1, int size) {
     int max_function_call_value = make_max_function_call_value(function);
@@ -924,16 +934,22 @@ Tac *add_memory_copy_with_memcpy(Function *function, Tac *ir, Value *dst, Value 
 
     // Load of addresses of src1, dst & make size value
     Value *src1_value;
-    if (src1->is_lvalue && src1->vreg)
+    if (src1->is_lvalue && src1->vreg) {
         src1_value = src1;
-    else
+        if (src1_value->offset) src1_value = add_memcpy_offset_add_instructions(ir, src1_value);
+    }
+    else {
         src1_value = insert_address_of_instruction_after(function, &ir, src1);
+    }
 
     Value *dst_value;
-    if (dst->is_lvalue && dst->vreg)
+    if (dst->is_lvalue && dst->vreg) {
         dst_value = dst;
-    else
+        if (dst_value->offset) dst_value = add_memcpy_offset_add_instructions(ir, dst_value);
+    }
+    else {
         dst_value = insert_address_of_instruction_after(function, &ir, dst);
+    }
 
     Value *size_value = new_integral_constant(TYPE_LONG, size);
 

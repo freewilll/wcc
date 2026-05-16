@@ -873,6 +873,38 @@ int test_copy() {
     struct c *c2 = malloc(sizeof(struct c));
     *c2 = c1;
     assert_int(0, memcmp(&c1, c2, sizeof(struct c)), "Struct copy 25");
+
+    // Test a copy of a struct that has an offset due to it being in another struct
+    struct st1 { int i[10]; }; // A big struct, which trigger a memcpy
+
+    struct st2 {
+        int st2i;
+        struct st1 st1;
+    };
+
+    struct st1 st1 = {1, 2, 3, 4, 5, 6, 7, 8};
+    struct st2 *st2 = calloc(1, sizeof(struct st2));
+    st2->st1 = st1;
+    assert_int(1, st2->st1.i[0], "memcpy struct with offset in struct 1");
+    assert_int(2, st2->st1.i[1], "memcpy struct with offset in struct 2");
+    assert_int(3, st2->st1.i[2], "memcpy struct with offset in struct 3");
+    assert_int(4, st2->st1.i[3], "memcpy struct with offset in struct 4");
+    assert_int(5, st2->st1.i[4], "memcpy struct with offset in struct 5");
+    assert_int(6, st2->st1.i[5], "memcpy struct with offset in struct 6");
+    assert_int(7, st2->st1.i[6], "memcpy struct with offset in struct 7");
+    assert_int(8, st2->st1.i[7], "memcpy struct with offset in struct 8");
+
+    // Test a copy of a struct that has an offset due to it being in an array
+    struct st2 st2a[2];
+    st2a[1].st1 = st1;
+    assert_int(1, st2a[1].st1.i[0], "memcpy struct with offset in array 1");
+    assert_int(2, st2a[1].st1.i[1], "memcpy struct with offset in array 2");
+    assert_int(3, st2a[1].st1.i[2], "memcpy struct with offset in array 3");
+    assert_int(4, st2a[1].st1.i[3], "memcpy struct with offset in array 4");
+    assert_int(5, st2a[1].st1.i[4], "memcpy struct with offset in array 5");
+    assert_int(6, st2a[1].st1.i[5], "memcpy struct with offset in array 6");
+    assert_int(7, st2a[1].st1.i[6], "memcpy struct with offset in array 7");
+    assert_int(8, st2a[1].st1.i[7], "memcpy struct with offset in array 8");
 }
 
 int test_pointers() {
