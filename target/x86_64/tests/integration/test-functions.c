@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../wcc.h"
+#include "wcc.h"
 
 static void assert_int(int expected, int actual) {
     if (expected != actual) {

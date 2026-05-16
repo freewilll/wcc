@@ -4,15 +4,7 @@ WCC_RUN_FLAGS = -I ${SRC_DIR}/include
 TEST_BUILD_DIR = ${BUILD_DIR}/tests/integration
 INTEGRATION_TEST_FLAGS := ${GCC_OPTS} -g -I ${BUILD_DIR}
 
-all: run-test-instrsel run-test-functions run-test-errors run-test-linkage-and-storage check-test-debug-headers
-
-${TEST_BUILD_DIR}/test-instrsel: test-instrsel.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR}/libwcc.a
-	@mkdir -p $(@D)
-	${GCC} ${INTEGRATION_TEST_FLAGS} $^ -o $@
-
-${TEST_BUILD_DIR}/test-functions: test-functions.c ${SRC_DIR}/tests/test-utils.c ${BUILD_DIR}/libwcc.a
-	@mkdir -p $(@D)
-	${GCC} ${INTEGRATION_TEST_FLAGS} $^ -o $@
+all: run-test-errors run-test-linkage-and-storage check-test-debug-headers
 
 ${TEST_BUILD_DIR}/test-errors: test-errors.c ${BUILD_DIR}/wcc ${BUILD_DIR}/tests/test-lib.o
 	@mkdir -p $(@D)
@@ -42,10 +34,7 @@ clean:
 	@rm -f ${TEST_BUILD_DIR}/*.s
 	@rm -f ${TEST_BUILD_DIR}/*.o
 	@rm -f ${TEST_BUILD_DIR}/core
-	@rm -f ${TEST_BUILD_DIR}/test-instrsel
-	@rm -f ${TEST_BUILD_DIR}/test-functions
 	@rm -f ${TEST_BUILD_DIR}/test-errors
 	@rm -f ${TEST_BUILD_DIR}/test-linkage-and-storage
-	@rm -f ${TEST_BUILD_DIR}/instrsel-tests.rulecov
 	@rm -f ${TEST_BUILD_DIR}/test-debug
 	@rm -f ${TEST_BUILD_DIR}/a.out

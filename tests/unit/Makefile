@@ -17,7 +17,6 @@ all:  \
 	run-test-parser \
 	run-test-types \
 	run-test-graph  \
-	run-test-functions \
 
 ${TEST_BUILD_DIR}/test-lexer: test-lexer.c ${BUILD_DIR}/libwcc.a
 	@mkdir -p $(@D)
@@ -67,10 +66,6 @@ ${TEST_BUILD_DIR}/test-types: test-types.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/te
 	@mkdir -p $(@D)
 	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
 
-${TEST_BUILD_DIR}/test-functions: test-functions.c ${BUILD_DIR}/libwcc.a ${BUILD_DIR}/tests/test-lib.o
-	@mkdir -p $(@D)
-	${GCC} ${UNIT_TEST_FLAGS} ${UNIT_TEST_WARN_FLAGS} $^ -o $@
-
 run-%: ${TEST_BUILD_DIR}/%
 	cd ${TEST_BUILD_DIR} && ./$(notdir $<)
 
@@ -90,4 +85,3 @@ clean:
 	@rm -f ${TEST_BUILD_DIR}/test-graph
 	@rm -f ${TEST_BUILD_DIR}/test-parser
 	@rm -f ${TEST_BUILD_DIR}/test-types
-	@rm -f ${TEST_BUILD_DIR}/test-functions

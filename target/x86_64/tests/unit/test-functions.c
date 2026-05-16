@@ -2,8 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../../wcc.h"
-#include "../test-lib.h"
+#include "wcc.h"
+#include "test-lib.h"
 
 int verbose;
 int passes;
