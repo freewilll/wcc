@@ -593,7 +593,6 @@ enum {
     IR_ADDC,                  // + with carry, used for int128
     IR_SUB,                   // -
     IR_SUBC,                  // - with carry, used for int128
-    IR_RSUB,                  // reverse -, used to facilitate code generation for the x86 SUB instruction
     IR_MUL,                   // *
     IR_MUL128A,               // * - 128 bit multiply. It consists of two instructions that are linked together, since the result
     IR_MUL128B,               // * - is present in two 64-bit registers

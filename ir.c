@@ -356,7 +356,6 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_ADDC)          { print_value(f, tac->src1, 1); fprintf(f, " +C ");       print_value(f, tac->src2, 1); }
     else if (o == IR_SUB)           { print_value(f, tac->src1, 1); fprintf(f, " - ");        print_value(f, tac->src2, 1); }
     else if (o == IR_SUBC)          { print_value(f, tac->src1, 1); fprintf(f, " -C ");       print_value(f, tac->src2, 1); }
-    else if (o == IR_RSUB)          { print_value(f, tac->src2, 1); fprintf(f, " - ");        print_value(f, tac->src1, 1); fprintf(f, " [reverse]"); }
     else if (o == IR_MUL)           { print_value(f, tac->src1, 1); fprintf(f, " * ");        print_value(f, tac->src2, 1); }
     else if (o == IR_MUL128A)       { print_value(f, tac->src1, 1); fprintf(f, " *1 ");       print_value(f, tac->src2, 1); }
     else if (o == IR_MUL128B)       { printf("high bits from from previous *1");                                    }

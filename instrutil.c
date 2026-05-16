@@ -216,7 +216,6 @@ char *operation_string(int operation) {
         case IR_ADDC:                return "IR_ADDC";
         case IR_SUB:                 return "IR_SUB";
         case IR_SUBC:                return "IR_SUBC";
-        case IR_RSUB:                return "IR_RSUB";
         case IR_MUL:                 return "IR_MUL";
         case IR_MUL128A:             return "IR_MUL128A";
         case IR_MUL128B:             return "IR_MUL128B";
