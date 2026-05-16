@@ -55,14 +55,14 @@ typedef struct whitespace {
     int allocated;  // Amount of allocated memory
 } Whitespace;
 
-List *allocated_tokens;            // Keep track of all wmalloc'd tokens
-List *allocated_tokens_duplicates; // Keep track of all wmalloc'd shallow copied tokens
-List *allocated_strsets;
-List *allocated_strings;
+static List *allocated_tokens;            // Keep track of all wmalloc'd tokens
+static List *allocated_tokens_duplicates; // Keep track of all wmalloc'd shallow copied tokens
+static List *allocated_strsets;
+static List *cpp_allocated_strings;
 
 // Output
-FILE *cpp_output_file;         // Output file handle
-StringBuffer *output;          // Output string buffer;
+static FILE *cpp_output_file;         // Output file handle
+static StringBuffer *output;          // Output string buffer;
 
 static void cpp_next();
 static void cpp_parse();
@@ -1233,7 +1233,7 @@ static CppToken *glue(CppToken *ls, CppToken *rs) {
 
     // Mutating ls, this is allowed since ls is append only
     wasprintf(&ls->str, "%s%s", ls->str, rs->next->str);
-    append_to_list(allocated_strings, ls->str);
+    append_to_list(cpp_allocated_strings, ls->str);
     ls->kind = CPP_TOK_OTHER;
     ls->hide_set = safe_strset_intersection(ls->hide_set, rs->next->hide_set);
 
@@ -1993,7 +1993,7 @@ void init_cpp(void) {
     allocated_tokens = new_list(1024);
     allocated_tokens_duplicates = new_list(1024);
     allocated_strsets = new_list(1024);
-    allocated_strings = new_list(1024);
+    cpp_allocated_strings = new_list(1024);
 }
 
 void free_cpp_allocated_garbage() {
@@ -2015,9 +2015,9 @@ void free_cpp_allocated_garbage() {
     free_list(allocated_strsets);
 
     // Free any allocated strings
-    for (int i = 0; i < allocated_strings->length; i++)
-        wfree(allocated_strings->elements[i]);
-    free_list(allocated_strings);
+    for (int i = 0; i < cpp_allocated_strings->length; i++)
+        wfree(cpp_allocated_strings->elements[i]);
+    free_list(cpp_allocated_strings);
 }
 
 Directive *parse_cli_define(char *string) {

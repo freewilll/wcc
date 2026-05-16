@@ -1338,14 +1338,27 @@ void write_rule_coverage_file(void);
 void define_rules(void);
 
 // codegen.c
-char *register_name(int preg);
-char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
-void make_stack_offsets(Function *function);
-void add_final_x86_instructions(Function *function);
-void remove_nops(Function *function);
-void merge_rsp_func_call_add_subs(Function *function);
+typedef struct floating_point_literal {
+    int type;
+    float f;
+    double d;
+    long double ld;
+} FloatingPointLiteral;
+
+extern FloatingPointLiteral *floating_point_literals; // Each floating point literal has an index in this array
+extern int floating_point_literal_count;              // Amount of floating point literals
+
+extern StrMap *debug_strings;                      // Map of debug strings to identifiers
+extern int debug_string_counter;                   // Counter to uniquely identify a debug string
+extern int last_outputted_filename_id;             // Keep track of last printed .loc filename id
+extern int last_outputted_filename_line_number;    // Keep track of last printed .loc line number
+
+extern List *allocated_strings;
+
+int fprintf_escaped_char(void *f, unsigned char c);
+int fprintf_octal_char(void *f, char c);
 int fprintf_escaped_string_literal(void *f, StringLiteral *sl, int for_assembly);
-void output_code(char *input_filename, char *output_filename);
+void remove_nops(Function *function);
 void init_codegen(void);
 void free_codegen(void);
 
@@ -1433,5 +1446,13 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
 void init_allocate_registers(void);
 void remove_vreg_self_moves(Function *function);
 void add_spill_code(Function *function);
+
+// Codegen
+char *register_name(int preg);
+char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
+void make_stack_offsets(Function *function);
+void add_final_x86_instructions(Function *function);
+void merge_rsp_func_call_add_subs(Function *function);
+void output_code(char *input_filename, char *output_filename);
 
 #endif

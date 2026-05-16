@@ -22,7 +22,7 @@ int function_call_count; // Uniquely identify a function call within a function
 int vreg_count;                          // Virtual register count for currently parsed function
 int local_static_symbol_count;           // Amount of static objects with block scope
 
-static List *allocated_strings;
+static List *parser_allocated_strings;
 static StrMap *origin_filenames; // Map lexer filename to a unique filename in memory
 static List *allocated_origins;  // Allocated Origin instances
 static List *allocated_sets;     // Allocated Set instances
@@ -68,7 +68,7 @@ static char *parser_wstrdup(char *str) {
     if (!str) return NULL;
 
     char *result = wstrdup(str);
-    append_to_list(allocated_strings, result);
+    append_to_list(parser_allocated_strings, result);
     return result;
 }
 
@@ -282,7 +282,7 @@ Value *make_string_literal_value_from_cur_string_literal(void) {
     int count = cur_string_literal.size * (cur_string_literal.is_wide_char ? 4 : 1);
     char *copy = wmalloc(count);
     memcpy(copy, cur_string_literal.data, count);
-    append_to_list(allocated_strings, copy);
+    append_to_list(parser_allocated_strings, copy);
     string_literals[string_literal_count].data = copy;
 
     string_literal_count++;
@@ -303,7 +303,7 @@ static Value *make_string_literal_value_from_string_literal(const char *string_l
 
     // Copy string literal data
     char *copy =  wstrdup(string_literal);
-    append_to_list(allocated_strings, copy);
+    append_to_list(parser_allocated_strings, copy);
     string_literals[string_literal_count].data = copy;
 
     string_literal_count++;
@@ -2275,7 +2275,7 @@ static void parse_declaration(void) {
 
         char *global_identifier;
         wasprintf(&global_identifier, "%s.%s.%d", cur_function_symbol->identifier, cur_type_identifier, function->static_symbols->length + 1);
-        append_to_list(allocated_strings, global_identifier);
+        append_to_list(parser_allocated_strings, global_identifier);
         symbol->global_identifier = global_identifier;
 
         append_to_list(function->static_symbols, symbol);
@@ -3927,7 +3927,7 @@ void init_parser(void) {
 
     controlling_case_value = 0;
 
-    allocated_strings = new_list(128);
+    parser_allocated_strings = new_list(128);
 
     base_type = 0;
 
@@ -3947,8 +3947,8 @@ void free_parser(void) {
     free_value_stack();
     free_scopes();
 
-    for (int i = 0; i < allocated_strings->length; i++) wfree(allocated_strings->elements[i]);
-    free_list(allocated_strings);
+    for (int i = 0; i < parser_allocated_strings->length; i++) wfree(parser_allocated_strings->elements[i]);
+    free_list(parser_allocated_strings);
 
     free_strmap(origin_filenames);
 

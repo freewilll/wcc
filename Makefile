@@ -45,9 +45,11 @@ SOURCES := \
 	graph.c \
 	cpp.c \
 	flags.c \
-	target/x86_64/x86_64.c \
+	target/x86_64/codegen.c \
 	target/x86_64/functions.c \
-	target/x86_64/registers.c
+	target/x86_64/instrrules.c \
+	target/x86_64/registers.c \
+	target/x86_64/x86_64.c
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
 SOURCES_ABS_PATH := ${SOURCES:%=${SRC_DIR}/%}
@@ -70,8 +72,8 @@ internals.c: ${SRC_DIR}/internals.h make-internals
 internals.o: internals.c
 	${GCC} ${GCC_OPTS} -c $< -o $@
 
-instrgen: ${OBJECTS} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c
-	${GCC} ${GCC_OPTS} -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${OBJECTS} ${SRC_DIR}/instrgen.c ${SRC_DIR}/instrrules.c -o $@
+instrgen: ${OBJECTS} ${SRC_DIR}/instrgen.c
+	${GCC} ${GCC_OPTS} -Wno-return-type ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${OBJECTS} ${SRC_DIR}/instrgen.c -o $@
 
 instrrules-generated.c: instrgen
 	./instrgen > instrrules-generated.c
