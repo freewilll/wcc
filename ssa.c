@@ -1402,13 +1402,9 @@ void make_interference_graph(Function *function, int include_instrsel_constraint
                     if (tac->dst->preg_class != vreg_preg_classes[it_vreg]) continue;
 
                     // Don't add an edge for register copies
-                    if ((
-                        tac->operation.id == IR_MOVE ||
-                        tac->operation.id == X86_OP_MOV ||
-                        tac->operation.id == X86_OP_MOVZ ||
-                        tac->operation.id == X86_OP_MOVS ||
-                        tac->operation.id == X86_OP_MOVC
-                       ) && tac->src1 && tac->src1->vreg && tac->src1->vreg == it_vreg) continue;
+                    if ((tac->operation.id == IR_MOVE || tac->operation.is_convert_move) && tac->src1 && tac->src1->vreg && tac->src1->vreg == it_vreg)
+                        continue;
+
                     add_ig_edge(interference_graph, vreg_count, tac->dst->vreg, it_vreg);
                     if (debug_ssa_interference_graph) printf("added dst <-> lr %d <-> %d\n", tac->dst->vreg, it_vreg);
                 }
@@ -1564,7 +1560,7 @@ static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
             if (tac->operation.id == IR_MOVE && tac->dst->vreg && tac->src1->vreg && tac->dst->preg_class == preg_class && type_eq(tac->src1->type, tac->dst->type))
                 longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);
 
-            else if (tac->operation.id == X86_OP_MOV &&
+            else if (tac->operation.is_move &&
                     tac->dst  && tac->dst->vreg  && tac->dst->preg_class  == preg_class &&
                     tac->src1 && tac->src1->vreg && tac->src1->preg_class == preg_class)
                 longmap_put(mc, ((long) tac->dst->vreg << 32) + tac->src1->vreg, (void *) 1l);

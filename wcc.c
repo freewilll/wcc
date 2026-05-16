@@ -147,7 +147,6 @@ static CompilerPhase compiler_phases[] = {
     { free_preferred_live_range_preg_indexes,      PH_NONE,  PH_NONE,  NULL },
 
     // Final x86 manipulations
-    { remove_stack_self_moves,                     PH_NONE,  PH_NONE,  "Remove stack self moves" },
     { add_spill_code,                              PH_NONE,  PH_SPILL, "Add spill code" },
     { make_stack_offsets,                          PH_NONE,  PH_NONE,  "Make stack offsets" },
     { add_final_x86_instructions,                  PH_NONE,  PH_NONE,  "Add final x86 instructions" },

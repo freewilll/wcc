@@ -100,6 +100,14 @@ static X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, cha
     X86Operation *x86op = wmalloc(sizeof(X86Operation));
     x86op->operation.id = operation;
 
+    x86op->operation.is_move = (operation == X86_OP_MOV);
+    x86op->operation.is_convert_move = (
+        operation == X86_OP_MOV ||
+        operation == X86_OP_MOVZ ||
+        operation == X86_OP_MOVS ||
+        operation == X86_OP_MOVC
+    );
+
     x86op->operation.is_conditional_jump = (
         operation == X86_OP_JZ ||
         operation == X86_OP_JNZ ||

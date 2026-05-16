@@ -24,8 +24,10 @@ int main(int argc, char **argv) {
             for (int j = 0; j < r->x86_operation_count; j++) {
                 X86Operation *op = &r->x86_operations[j];
 
-                printf("    { {%d, %d, %d, %d, {",
+                printf("    { {%d, %d, %d, %d, %d,  %d, {",
                     op->operation.id,
+                    op->operation.is_move,
+                    op->operation.is_convert_move,
                     op->operation.is_conditional_jump,
                     op->operation.is_unconditional_jump,
                     op->operation.is_call);

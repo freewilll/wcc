@@ -126,10 +126,41 @@ void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
     }
 }
 
+// This removes instructions that copy a register to itself by replacing them with noops.
+void remove_vreg_self_moves(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            tac->operation.id = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+            tac->src2 = 0;
+            tac->x86_template = 0;
+        }
+    }
+}
+
+// This removes instructions that copy a stack location to itself by replacing them with noops.
+static void remove_stack_self_moves(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == X86_OP_MOV && tac->dst && tac->dst->stack_index && tac->src1 && tac->src1->stack_index && tac->dst->stack_index == tac->src1->stack_index) {
+            tac->operation.id = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+            tac->src2 = 0;
+            tac->x86_template = 0;
+        }
+    }
+}
+
 // This removes instructions that copy a physical register to itself by replacing them with noops.
-void perform_peephole_optimization(Function *function) {
+static void remove_self_register_copies(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
             if (tac->operation.id == X86_OP_MOV) tac->operation.id = IR_NOP;
+}
+
+void perform_peephole_optimization(Function *function) {
+    remove_stack_self_moves(function);
+    remove_self_register_copies(function);
 }
 

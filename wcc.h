@@ -367,6 +367,8 @@ typedef struct clobber {
 
 typedef struct operation {
     int id;                         // IR_* or target operation
+    int is_move:1;                  // Is a move operation
+    int is_convert_move:1;          // Is a move operation that also converts
     int is_conditional_jump:1;      // Set if the operation is a conditional jump
     int is_unconditional_jump:1;    // Set if the operation is a unconditional jump
     int is_call:1;                  // Set if the operation is a function call
@@ -1306,7 +1308,6 @@ void free_instrsel();
 void check_instrsel_register_sanity(Function *function);
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
-void remove_stack_self_moves(Function *function);
 void add_spill_code(Function *function);
 
 // instrrules-generated.c
@@ -1432,5 +1433,6 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
 
 // Target registers related code
 void init_allocate_registers(void);
+void remove_vreg_self_moves(Function *function);
 
 #endif
