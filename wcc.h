@@ -1307,7 +1307,6 @@ void free_instrsel();
 void check_instrsel_register_sanity(Function *function);
 void select_instructions(Function *function);
 void remove_vreg_self_moves(Function *function);
-void add_spill_code(Function *function);
 
 // instrrules-generated.c
 void init_generated_instruction_selection_rules(void);
@@ -1433,5 +1432,6 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
 // Target registers related code
 void init_allocate_registers(void);
 void remove_vreg_self_moves(Function *function);
+void add_spill_code(Function *function);
 
 #endif
