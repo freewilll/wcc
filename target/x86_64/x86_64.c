@@ -1,4 +1,5 @@
-#include "../../wcc.h"
+#include "wcc.h"
+#include "x86_64.h"
 
 char *target_op_name(int operation) {
     switch (operation) {

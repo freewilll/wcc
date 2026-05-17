@@ -721,6 +721,7 @@ int main(int argc, char **argv) {
 
 
 exit_main:
+    free_allocate_registers();
     free_instruction_selection_rules();
 
     free_cpp_allocated_garbage();

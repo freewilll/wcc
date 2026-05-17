@@ -2,21 +2,20 @@
 
 set -e
 
-# Show the help
-help() {
-    cat <<END
-Usage: ./configure [options]
+# Find default target architecture
+TARGET=$(uname -m)
 
-Flags:
---prefix=PATH Install prefix, default: /usr
---as=PATH     Use assembler binary (detected: $DEFAULT_AS_COMMAND)
---ld=PATH     Use linker binary    (detected: $DEFAULT_LD_COMMAND)
--h, --help    Print this help text.
-END
-    exit 0
-}
+case "$TARGET" in
+    x86_64* )
+        TARGET=x86_64
+        ;;
+    aarch64*|arm64*)
+        TARGET=aarch64
+        ;;
+esac
 
 # Configure:
+# - target
 # - as binary
 # - ld binary
 #
@@ -28,6 +27,22 @@ PREFIX=/usr # Default prefix
 DEFAULT_AS_COMMAND="${AS:-$(command -v was || command -v as || true)}"
 DEFAULT_LD_COMMAND="${LD:-$(command -v wld || command -v ld || true)}"
 
+
+# Show the help
+help() {
+    cat <<END
+Usage: ./configure [options]
+
+Flags:
+--prefix=PATH       Install prefix, default: /usr
+--target=TARGET     Target architecture (detected: $TARGET)
+--as=PATH           Use assembler binary (detected: $DEFAULT_AS_COMMAND)
+--ld=PATH           Use linker binary    (detected: $DEFAULT_LD_COMMAND)
+-h, --help          Print this help text.
+END
+    exit 0
+}
+
 if [ -z "${DEFAULT_AS_COMMAND:-}" ]; then
     echo "Unable to locate an assembler. Install one, or use --as to specify the path to one."
     exit 1
@@ -38,14 +53,11 @@ if [ -z "${DEFAULT_LD_COMMAND:-}" ]; then
     exit 1
 fi
 
-echo Using assembler $DEFAULT_AS_COMMAND
-echo Using linker $DEFAULT_LD_COMMAND
-
-
 # Parse args
 for arg in "$@"; do
     case $arg in
     --prefix=*)   PREFIX="${arg#*=}" ;;
+    --target=*)   TARGET="${arg#*=}" ;;
     --as=*)       DEFAULT_AS_COMMAND="${arg#*=}" ;;
     --ld=*)       DEFAULT_LD_COMMAND="${arg#*=}" ;;
     -h|--help) help ;;
@@ -53,6 +65,21 @@ for arg in "$@"; do
     esac
     shift || true
 done
+
+case "$TARGET" in
+    x86_64 )
+        ;;
+    aarch64)
+        ;;
+    *)
+        echo "Unknown target: $TARGET" >&2
+        exit 1
+        ;;
+esac
+
+echo Using target $TARGET
+echo Using assembler $DEFAULT_AS_COMMAND
+echo Using linker $DEFAULT_LD_COMMAND
 
 FILE_crt1=$(gcc -print-file-name=crt1.o)
 FILE_crti=$(gcc -print-file-name=crti.o)
@@ -105,6 +132,7 @@ CONFIG_H_PATH=config.h
 cat > $CONFIG_H_PATH <<END
 // This file is auto generated. Do not edit.
 
+#define TARGET "$TARGET"
 #define DEFAULT_AS_COMMAND "$DEFAULT_AS_COMMAND"
 #define DEFAULT_LD_COMMAND "$DEFAULT_LD_COMMAND"
 #define GCC_LIBRARY_PATH "$GCC_LIBRARY_PATH"
@@ -124,6 +152,7 @@ END
 CONFIG_MK_PATH=config.mk
 cat > $CONFIG_MK_PATH <<END
 PREFIX := $PREFIX
+TARGET := $TARGET
 END
 
 SRC_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -131,6 +160,7 @@ BUILD_DIR=$(pwd)
 
 if [ "$SRC_DIR" != "$BUILD_DIR" ]
 then
+    mkdir -p target/aarch64/
     mkdir -p target/x86_64/
     mkdir -p tools
     mkdir -p tests/unit

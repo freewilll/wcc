@@ -3,7 +3,8 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include "../../wcc.h"
+#include "wcc.h"
+#include "x86_64.h"
 
 #define MAX86_OP_X86_OPERATION_PER_RULE 32
 

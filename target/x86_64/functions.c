@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../wcc.h"
+#include "wcc.h"
+
+#include "x86_64.h"
 
 #define fpa_pl(fpa, i) (*((FunctionParamLocations *) fpa->param_locations->elements[i]))
 
@@ -1756,7 +1758,7 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
         clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
 
     // All SSE registers xmm2, xmm3, ... are clobbered
-    for (int j = 2; j < PHYSICAL_FP_REGISTER_COUNT; j++)
+    for (int j = 2; j < physical_fp_register_count; j++)
         clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
 
     // Unless the function returns something in xmm0, clobber xmm0

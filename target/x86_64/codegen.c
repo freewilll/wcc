@@ -4,7 +4,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../../wcc.h"
+#include "wcc.h"
+#include "x86_64.h"
 
 // DWARF constants taken from dwarf.h
 #define DWARF_VERSION       4
@@ -33,12 +34,6 @@ static int elf_section;
 
 static FILE *f; // Output file handle
 static int cur_stack_push_count; // Used in codegen to keep track of stack position
-
-Tac *ir_start, *ir;               // intermediate representation for currently parsed function
-int label_count;                  // Global label count, always growing
-int cur_loop;                     // Current loop being parsed
-int loop_count;                   // Loop counter
-int total_stack_register_count;   // Spilled register count for all functions
 
 typedef enum elf_section {
     SEC_NONE,
@@ -461,7 +456,7 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
         tac = tac->next;
     }
 
-    for (int i = 0; i < PHYSICAL_REGISTER_COUNT; i++) {
+    for (int i = 0; i < physical_register_count; i++) {
         if (saved_registers[i]) {
             cur_stack_push_count++;
             ir = insert_x86_instruction(ir, X86_OP_PUSH, new_preg_value(i), 0, 0, "push %vdq");
@@ -472,7 +467,7 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
 }
 
 static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
-    for (int i = PHYSICAL_REGISTER_COUNT - 1; i >= 0; i--)
+    for (int i = physical_register_count - 1; i >= 0; i--)
         if (saved_registers[i])
             ir = insert_x86_instruction(ir, X86_OP_POP, new_preg_value(i), 0, 0, "popq %vdq");
 
@@ -509,7 +504,7 @@ void add_final_x86_instructions(Function *function) {
         cur_stack_push_count += stack_size / 8;
     }
 
-    saved_registers = wcalloc(sizeof(int), PHYSICAL_REGISTER_COUNT);
+    saved_registers = wcalloc(sizeof(int), physical_register_count);
 
     ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
 

@@ -9,8 +9,12 @@ typedef struct vreg_cost {
     int cost;
 } VregCost;
 
-int preg_map[PHYSICAL_REGISTER_COUNT]; // Map from reserved register 0-11 to physical register 0-15
-int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
+int physical_register_count;
+int physical_int_register_count;
+int physical_fp_register_count;
+
+int *preg_map;               // Map from reserved register 0-11 to physical register 0-15
+int *callee_saved_registers; // Set to 1 for registers that must be preserved in function calls.
 
 // Renumber all vregs so that they are consecutive
 void compress_vregs(Function *function) {
@@ -317,7 +321,7 @@ static void assign_vreg_locations(Function *function) {
 // Initialize vreg_locations, which maps vregs to either a preg or a stack index
 void init_vreg_locations(Function *function) {
     int vreg_count = function->vreg_count;
-    int vreg_locations_count = vreg_count > PHYSICAL_REGISTER_COUNT ? vreg_count : PHYSICAL_REGISTER_COUNT;
+    int vreg_locations_count = vreg_count > physical_register_count ? vreg_count : physical_register_count;
     VregLocation *vreg_locations = wmalloc((vreg_locations_count + 1) * sizeof(VregLocation));
     for (int i = 1; i <= vreg_count; i++) {
         vreg_locations[i].preg = -1;
@@ -335,12 +339,12 @@ void allocate_registers(Function *function) {
     init_vreg_locations(function);
 
     // Allocate integer registers
-    int physical_int_register_count = live_range_reserved_pregs_offset == 0 ? 0 : PHYSICAL_INT_REGISTER_COUNT;
-    allocate_registers_top_down(function, 1, physical_int_register_count, PC_INT);
+    int allocated_physical_int_register_count = live_range_reserved_pregs_offset == 0 ? 0 : physical_int_register_count;
+    allocate_registers_top_down(function, 1, allocated_physical_int_register_count, PC_INT);
 
     // Allocate floating point xmm* registers
-    int physical_sse_register_count = live_range_reserved_pregs_offset == 0 ? 0 : PHYSICAL_FP_REGISTER_COUNT;
-    allocate_registers_top_down(function, 13, physical_sse_register_count, PC_SSE);
+    int allocated_physical_sse_register_count = live_range_reserved_pregs_offset == 0 ? 0 : physical_fp_register_count;
+    allocate_registers_top_down(function, 13, allocated_physical_sse_register_count, PC_SSE);
 
     // Remap SSA pregs which run from 0 to live_range_reserved_pregs_offset -1 to the actual
     // x86_64 physical register numbers.

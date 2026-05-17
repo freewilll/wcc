@@ -44,12 +44,18 @@ SOURCES := \
 	list.c \
 	graph.c \
 	cpp.c \
-	flags.c \
+	flags.c
+
+ifeq ($(TARGET),x86_64)
+SOURCES += \
 	target/x86_64/codegen.c \
 	target/x86_64/functions.c \
 	target/x86_64/instrrules.c \
 	target/x86_64/registers.c \
 	target/x86_64/x86_64.c
+else ifeq ($(TARGET),aarch64)
+	SOURCES += target/aarch64/stubs.c
+endif
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
 SOURCES_ABS_PATH := ${SOURCES:%=${SRC_DIR}/%}
@@ -57,6 +63,11 @@ ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
 
 HEADERS = wcc.h target/x86_64/x86_64.h
+
+ifeq ($(TARGET),x86_64)
+HEADERS += target/x86_64/x86_64.h
+endif
+
 HEADERS_ABS_PATH := ${HEADERS:%=${SRC_DIR}/%}
 
 build:
@@ -82,10 +93,14 @@ instrrules-generated.o: instrrules-generated.c
 	${GCC} ${GCC_OPTS} -g -Wunused ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} -c $< -o $@
 
 %.o: ${SRC_DIR}/%.c ${BUILD_DIR}/config.h ${HEADERS_ABS_PATH} build
-	${GCC} ${GCC_OPTS} -g -Wunused -Wno-unused-function ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -c $< -o $@
-
-target/x86_64/%.o: ${SRC_DIR}/target/x86_64/%.c ${BUILD_DIR}/config.h ${HEADERS_ABS_PATH} build
 	${GCC} ${GCC_OPTS} -g -Wunused -Wno-unused-function ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} -c $< -o $@
+
+target/${TARGET}/%.o: ${SRC_DIR}/target/${TARGET}/%.c ${BUILD_DIR}/config.h ${HEADERS_ABS_PATH} build
+	${GCC} ${GCC_OPTS} -g -Wunused -Wno-unused-function ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} -I ${SRC_DIR} -c $< -o $@
+
+.PHONY: target/${TARGET}/libtarget.a
+target/${TARGET}/libtarget.a:
+	make -C target/${TARGET}
 
 libwcc.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
 	ar rcs libwcc.a ${OBJECTS} wcc.o instrrules-generated.o internals.o
@@ -106,11 +121,11 @@ build/wcc2/internals.s: internals.c wcc
 	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 build/wcc2/%.s: ${SRC_DIR}/%.c wcc
-	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
-build/wcc2/target/x86_64/%.s: ${SRC_DIR}/target/x86_64/%.c wcc
-	@mkdir -p build/wcc2/target/x86_64
-	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
+build/wcc2/target/${TARGET}/%.s: ${SRC_DIR}/target/${TARGET}/%.c wcc
+	@mkdir -p build/wcc2/target/${TARGET}
+	./wcc ${WCC_SELFHOST_FLAGS} ${WCC_RULE_COVERAGE_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 wcc2: ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} wcc
 	./wcc ${WCC_OPTS} ${WCC2_ASSEMBLIES} ${WCC2_MISC_ASSEMBLIES} -o wcc2
@@ -128,11 +143,11 @@ build/wcc3/internals.s: internals.c wcc2
 	./wcc2 ${WCC_OPTS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 build/wcc3/%.s: ${SRC_DIR}/%.c wcc2
-	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
+	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
-build/wcc3/target/x86_64/%.s: ${SRC_DIR}/target/x86_64/%.c wcc2
-	@mkdir -p build/wcc3/target/x86_64
-	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -c $< -S -o $@
+build/wcc3/target/${TARGET}/%.s: ${SRC_DIR}/target/${TARGET}/%.c wcc2
+	@mkdir -p build/wcc3/target/${TARGET}
+	./wcc2 ${WCC_SELFHOST_FLAGS} ${WCC_BUILD_FLAGS} -I ${BUILD_DIR} ${WCC_SRC_INCLUDE} -I ${SRC_DIR} -c $< -S -o $@
 
 wcc3: ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} wcc2
 	./wcc2 ${WCC_OPTS} ${WCC3_ASSEMBLIES} ${WCC3_MISC_ASSEMBLIES} -o wcc3
@@ -154,7 +169,7 @@ test-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h
 
 .PHONY: test-target-all
 test-target-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h test-all
-	${MAKE} -C ${SRC_DIR}/target/x86_64/tests all
+	${MAKE} -C ${SRC_DIR}/target/${TARGET}/tests all
 
 .PHONY: test-unit
 test-unit: libwcc.a

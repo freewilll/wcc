@@ -1,5 +1,11 @@
 #include "wcc.h"
 
+Tac *ir_start, *ir;               // intermediate representation for currently parsed function
+int label_count;                  // Global label count, always growing
+int cur_loop;                     // Current loop being parsed
+int loop_count;                   // Loop counter
+int total_stack_register_count;   // Spilled register count for all functions
+
 FloatingPointLiteral *floating_point_literals; // Each floating point literal has an index in this array
 int floating_point_literal_count;              // Amount of floating point literals
 

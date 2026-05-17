@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../wcc.h"
+#include "wcc.h"
+#include "x86_64.h"
 
 // Registers used for function calls
-const int int_arg_registers[6] = {
+const int int_arg_registers[] = {
     LIVE_RANGE_PREG_RDI_INDEX,
     LIVE_RANGE_PREG_RSI_INDEX,
     LIVE_RANGE_PREG_RDX_INDEX,
@@ -14,7 +15,7 @@ const int int_arg_registers[6] = {
     LIVE_RANGE_PREG_R09_INDEX,
 };
 
-const int sse_arg_registers[8] = {
+const int sse_arg_registers[] = {
     LIVE_RANGE_PREG_XMM00_INDEX,
     LIVE_RANGE_PREG_XMM01_INDEX,
     LIVE_RANGE_PREG_XMM02_INDEX,
@@ -25,9 +26,15 @@ const int sse_arg_registers[8] = {
     LIVE_RANGE_PREG_XMM07_INDEX,
 };
 
-
 // Called once at startup
 void init_allocate_registers(void) {
+    physical_register_count     =  32; // integer + xmm
+    physical_int_register_count =  12; // Available registers for integers
+    physical_fp_register_count  =  14; // Available registers for floating points
+
+    preg_map = wcalloc(physical_register_count + 1, sizeof(int));
+    callee_saved_registers = wcalloc(physical_register_count + 1, sizeof(int));
+
     // Which registers are preserved across function calls
     callee_saved_registers[REG_RBX] = 1;
     callee_saved_registers[REG_R12] = 1;
@@ -66,10 +73,15 @@ void init_allocate_registers(void) {
     preg_map[LIVE_RANGE_PREG_R15_INDEX - 1] = REG_R15;
 
     // Map all 16 SSE xmm* registers
-    for (int i = 0; i < PHYSICAL_FP_REGISTER_COUNT; i++)
+    for (int i = 0; i < physical_fp_register_count; i++)
         preg_map[LIVE_RANGE_PREG_XMM00_INDEX + i - 1] = REG_XMM00 + i;
 
-    live_range_reserved_pregs_offset = PHYSICAL_INT_REGISTER_COUNT + PHYSICAL_FP_REGISTER_COUNT;
+    live_range_reserved_pregs_offset = physical_int_register_count + physical_fp_register_count;
+}
+
+void free_allocate_registers(void) {
+    wfree(preg_map);
+    wfree(callee_saved_registers);
 }
 
 static Tac *make_spill_instruction(Value *v) {

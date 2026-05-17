@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "wcc.h"
+#include "../../x86_64.h"
 
 Function *function;
 

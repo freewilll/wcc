@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "wcc.h"
+#include "../../x86_64.h"
 
 static void assert_int(int expected, int actual) {
     if (expected != actual) {

@@ -9,8 +9,6 @@
 
 #define TARGET_OPS_START 1000
 
-#include "target/x86_64/x86_64.h"
-
 #if defined(__GNUC__) || defined(__clang__)
 #define NORETURN __attribute__((noreturn))
 #else
@@ -1179,8 +1177,8 @@ extern RegisterSet arg_register_set;
 extern RegisterSet function_return_value_register_set;
 
 // regalloc.c
-extern int preg_map[PHYSICAL_REGISTER_COUNT];                   // Map from live range registers to physical registers
-extern int callee_saved_registers[PHYSICAL_REGISTER_COUNT + 1]; // Set to 1 for registers that must be preserved in function calls.
+extern int *preg_map;               // Map from live range registers to physical registers
+extern int *callee_saved_registers; // Set to 1 for registers that must be preserved in function calls.
 
 void compress_vregs(Function *function);
 void init_vreg_locations(Function *function);
@@ -1334,9 +1332,6 @@ void free_rules_by_operation(void);
 void check_for_duplicate_rules(void);
 void write_rule_coverage_file(void);
 
-// instrules.c
-void define_rules(void);
-
 // codegen.c
 typedef struct floating_point_literal {
     int type;
@@ -1429,6 +1424,11 @@ char *internals(void);
 void transform_int128_instructions(Function *function);
 
 // Target specific code
+// ------------------------------------------------
+extern int physical_register_count;
+extern int physical_int_register_count;
+extern int physical_fp_register_count;
+
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
 void print_backend_instruction(void *f, Tac *tac);
@@ -1442,8 +1442,12 @@ int *make_original_stack_indexes(Function *function);
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
 
+// Target instruction rules related code
+void define_rules(void);
+
 // Target registers related code
 void init_allocate_registers(void);
+void free_allocate_registers(void);
 void remove_vreg_self_moves(Function *function);
 void add_spill_code(Function *function);
 

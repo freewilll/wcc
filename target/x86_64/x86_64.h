@@ -3,12 +3,6 @@
 
 #include "../../wcc.h"
 
-// x86_64 specific
-
-#define PHYSICAL_REGISTER_COUNT       32 // integer + xmm
-#define PHYSICAL_INT_REGISTER_COUNT   12 // Available registers for integers
-#define PHYSICAL_FP_REGISTER_COUNT    14 // Available registers for floating points
-
 // Physical registers
 enum {
     // Integers
