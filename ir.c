@@ -236,8 +236,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else
         fprintf(f, "      ");
 
-    if (tac->x86_template) {
-        char *buffer = render_x86_operation(tac, 0, expect_preg);
+    if (tac->target_template) {
+        char *buffer = render_target_operation(tac, 0, expect_preg);
         fprintf(f, "%s\n", buffer);
         wfree(buffer);
         return;
@@ -888,7 +888,7 @@ static Tac *insert_arg_instruction_after(Tac *ir, Value *function_call_value, Va
     memset(fpl->locations, -1, sizeof(FunctionParamLocation));
     fpl->count = 1;
     fpl->locations[0].int_register = int_arg_index;
-    fpl->locations[0].sse_register = -1;
+    fpl->locations[0].fp_register = -1;
 
     return new_tac_after(ir, IR_ARG, 0, arg_value, v);
 }
@@ -900,7 +900,7 @@ static Tac *insert_function_call_instructions_after(Tac *ir, Value *call_value, 
     function_value->function_call.function_symbol = symbol;
     function_value->type = symbol->type;
     function_value->function_call.function_call_arg_push_count = 0;
-    function_value->function_call.function_call_sse_register_arg_count = 0;
+    function_value->function_call.function_call_fp_register_arg_count = 0;
     call_value->function_call.function_call_arg_push_count = 0;
     call_value->function_call.function_call_arg_stack_padding = 0;
     ir = new_tac_after(ir, IR_CALL, 0, function_value, 0);

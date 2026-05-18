@@ -1,36 +1,49 @@
 #include "wcc.h"
+#include "aarch64.h"
 
 // Registers used for function calls
 const int int_arg_registers[] = {1};
 
 const int sse_arg_registers[] = {1};
 
-char *target_op_name(int operation) {}
-void print_target_instruction(void *f, Tac *tac) {}
-void print_backend_instruction(void *f, Tac *tac) {}
-void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {}
-void perform_peephole_optimization(Function *function) {}
+char *target_op_name(int operation) {
+    return "TODO: target_op_name";
+} // TODO aarch64
+
+void print_target_instruction(void *f, Tac *tac) {
+    fprintf(f, "TODO: print_target_instruction");
+} // TODO aarch64
+
+void print_backend_instruction(void *f, Tac *tac) {
+    fprintf(f, "TODO: print_backend_instruction");
+} // TODO aarch64
+
+void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
+    printf("TODO: print_physical_register_name_for_lr_reg_index");
+} // TODO aarch64
+
+void perform_peephole_optimization(Function *function) {} // TODO aarch64
 
 // Target functions related code
-Set *allocate_return_value_live_ranges(void) {}
-void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {}
-int *make_original_stack_indexes(Function *function) {}
-void process_target_functions(Function *function) {}
-void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {}
+Set *allocate_return_value_live_ranges(void) {
+    return new_set(1); // TODO aarch64
+}
+
+void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {} // TODO aarch64
+
+int *make_original_stack_indexes(Function *function) {
+    int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
+    return result;
+} // TODO aarch64
+
+void process_target_functions(Function *function) {} // TODO aarch64
+
+void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {} // TODO aarch64
 
 // Target instruction rules related code
-void define_rules(void) {}
+void define_rules(void) {} // TODO aarch64
 
 // Target registers related code
-void init_allocate_registers(void) {}
-void free_allocate_registers(void) {}
-void remove_vreg_self_moves(Function *function) {}
-void add_spill_code(Function *function) {}
+void remove_vreg_self_moves(Function *function) {} // TODO aarch64
 
-// Codegen
-char *register_name(int preg) {}
-char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {}
-void make_stack_offsets(Function *function) {}
-void add_final_x86_instructions(Function *function) {}
-void merge_rsp_func_call_add_subs(Function *function) {}
-void output_code(char *input_filename, char *output_filename) {}
+void add_spill_code(Function *function) {} // TODO aarch64

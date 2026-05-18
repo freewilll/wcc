@@ -263,9 +263,9 @@ typedef struct function_param_location {
     int stru_member_count;       // Amount of members in the 8-byte in the case of a struct/union
 
     // Details of where the function param/arg goes, either in a register or the stack
-    // One of int_register/sse_register/stack_offset is not -1.
+    // One of int_register/fp_register/stack_offset is not -1.
     int int_register;       // If not -1, an int register
-    int sse_register;       // If not -1, an sse register
+    int fp_register;        // If not -1, an FP register
     int stack_offset;       // If not -1 the stack offset
     int stack_padding;      // If not -1 the stack padding
 } FunctionParamLocation;
@@ -277,7 +277,7 @@ typedef struct function_param_locations {
 
 typedef struct function_param_allocation {
     int single_int_register_arg_count;
-    int single_sse_register_arg_count;
+    int single_fp_register_arg_count;
     int biggest_alignment;
     int offset;
     int padding;
@@ -287,8 +287,8 @@ typedef struct function_param_allocation {
 
 // Physical register class
 enum {
-    PC_INT = 1,
-    PC_SSE = 2,
+    PC_INT = 1, // Integer
+    PC_FP  = 2, // Floating point
 };
 
 // Function call data related to a value
@@ -298,11 +298,11 @@ typedef struct function_call_value {
     Type *function_type;                                 // Type of the function in a function call
     int function_param_original_stack_index;             // Original stack index for function parameter pushed onto the stack
     int function_call_arg_index;                         // Index of the argument (0=leftmost)
-    FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or sse register, or in the case of a struct, a list of locations
-    int function_call_sse_register_arg_index;            // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
+    FunctionParamLocations *function_call_arg_locations; // Destination of the arg, either a single int or FP register, or in the case of a struct, a list of locations
+    int function_call_fp_register_arg_index;             // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
     int function_call_arg_push_count;                    // Number of arguments pushed on the stack
-    int function_call_sse_register_arg_count;            // Number of SSE (xmm) arguments in registers
+    int function_call_fp_register_arg_count;             // Number of SSE (xmm) arguments in registers
 } FunctionCallValue;
 
 // Value is a value on the value stack. A value can be one of
@@ -315,7 +315,7 @@ typedef struct value {
     Type *type;                                          // Type
     int vreg;                                            // Optional vreg number
     int preg;                                            // Allocated physical register
-    char preg_class;                                     // Class of physical register, PC_INT or PC_SSE
+    char preg_class;                                     // Class of physical register, PC_INT or PC_FP
     unsigned int is_lvalue:1;                            // Is the value an lvalue?
     unsigned int is_lvalue_in_register:1;                // Is the value an lvalue in a register?
     unsigned int spilled:1;                              // 1 if spilled
@@ -383,7 +383,7 @@ typedef struct three_address_code {
     Value *phi_values;                  // For phi functions, a null terminated array of values for the args
     struct three_address_code *next;    // Next in a linked-list
     struct three_address_code *prev;    // Previous in a linked-list
-    char *x86_template;                 // Template for rendering x86 instruction
+    char *target_template;              // Template for rendering target instruction
     Origin *origin;                     // Filename and line number where the tac was created
 } Tac;
 
@@ -560,7 +560,7 @@ enum {
 enum {
     IR_MOVE=1,                // Moving of constants, string literals, variables, or registers
     IR_MOVE_TO_PTR,           // Assignment to a pointer target
-    IR_MOVE_PREG_CLASS,       // Move int <-> sse without conversion
+    IR_MOVE_PREG_CLASS,       // Move int <-> fp without conversion
     IR_MOVE_STACK_PTR,        // Move RSP -> register
     IR_ADDRESS_OF,            // &
     IR_INDIRECT,              // Pointer or lvalue dereference
@@ -1185,6 +1185,7 @@ void init_vreg_locations(Function *function);
 void free_vreg_locations(Function *function);
 void allocate_registers_top_down(Function *function, int live_range_start, int physical_register_count, int preg_class);
 void allocate_registers(Function *function);
+void free_allocate_registers(void);
 
 // instrsel.c
 enum {
@@ -1340,6 +1341,15 @@ typedef struct floating_point_literal {
     long double ld;
 } FloatingPointLiteral;
 
+typedef enum elf_section {
+    SEC_NONE,
+    SEC_TEXT,
+    SEC_DATA,
+    SEC_BSS,
+} ElfSection;
+
+extern FILE *output_file; // Output file handle
+
 extern FloatingPointLiteral *floating_point_literals; // Each floating point literal has an index in this array
 extern int floating_point_literal_count;              // Amount of floating point literals
 
@@ -1350,10 +1360,17 @@ extern int last_outputted_filename_line_number;    // Keep track of last printed
 
 extern List *allocated_strings;
 
+extern int elf_section;
+
 int fprintf_escaped_char(void *f, unsigned char c);
 int fprintf_octal_char(void *f, char c);
 int fprintf_escaped_string_literal(void *f, StringLiteral *sl, int for_assembly);
+Tac *insert_target_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *target_template);
+Value *new_preg_value(int preg);
 void remove_nops(Function *function);
+int function_is_main(Function *function);
+int open_output_file(char *input_filename, char *output_filename);
+void output_symbols(void);
 void init_codegen(void);
 void free_codegen(void);
 
@@ -1447,16 +1464,17 @@ void define_rules(void);
 
 // Target registers related code
 void init_allocate_registers(void);
-void free_allocate_registers(void);
 void remove_vreg_self_moves(Function *function);
 void add_spill_code(Function *function);
 
 // Codegen
 char *register_name(int preg);
-char *render_x86_operation(Tac *tac, int function_pc, int expect_preg);
+char *render_target_operation(Tac *tac, int function_pc, int expect_preg);
 void make_stack_offsets(Function *function);
-void add_final_x86_instructions(Function *function);
+void add_final_instructions(Function *function);
+void optimize_final_instructions(Function *function);
 void merge_rsp_func_call_add_subs(Function *function);
+void output_symbol(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
 
 #endif

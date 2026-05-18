@@ -46,7 +46,7 @@ void assert_x86_op(char *expected) {
         return;
     }
 
-    got = render_x86_operation(ir_start, 0, 0);
+    got = render_target_operation(ir_start, 0, 0);
 
     if (!got) {
         printf("Mismatch:\n  expected: %s\n  got:      null\n", expected);
@@ -356,7 +356,7 @@ Value *make_arg_src1() {
     fpl->locations = malloc(sizeof(FunctionParamLocation));
     fpl->count = 1;
     fpl->locations[0].int_register = 0;
-    fpl->locations[0].sse_register = -1;
+    fpl->locations[0].fp_register = -1;
     arg_src1->function_call.function_call_arg_locations = fpl;
 
     return arg_src1;

@@ -90,7 +90,7 @@ static void process_function_call_arg_allocations(Function *function) {
             FunctionParamAllocation *fpa = fpas[function_call_number];
             if (!fpa) panic("fpa was NULL in an IR_CALL for a function call to %s in function %s", symbol_name, function->identifier);
 
-            function_value->function_call.function_call_sse_register_arg_count = fpa->single_sse_register_arg_count;
+            function_value->function_call.function_call_fp_register_arg_count = fpa->single_fp_register_arg_count;
 
             if (has_struct_or_union_return_value == -1) panic("has_struct_or_union_return_value was not set");
             function_value->has_struct_or_union_return_value = has_struct_or_union_return_value;
@@ -270,9 +270,9 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
                 live_range_preg = make_int_struct_or_union_move_from_register_to_stack_instructions(
                     function, ir, type, location, location->int_register, stack_index,
                     &function_return_value_register_set, param_register_vreg);
-            else if (location->sse_register != -1)
+            else if (location->fp_register != -1)
                 live_range_preg = make_sse_struct_or_union_move_from_register_to_stack_instructions(
-                    function, ir, type, location, location->sse_register, stack_index,
+                    function, ir, type, location, location->fp_register, stack_index,
                     &function_return_value_register_set, param_register_vreg);
             else
                 panic("Got unexpected stack offset in add_struct_or_union_param_move");
@@ -401,8 +401,8 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
         // Move the data into registers
         for (int loc = fpl->count - 1; loc >= 0; loc--) {
             FunctionParamLocation *location = &(fpl->locations[loc]);
-            int preg_class = (location->int_register != -1) ? PC_INT : PC_SSE;
-            int register_index = (preg_class == PC_INT) ? location->int_register : location->sse_register;
+            int preg_class = (location->int_register != -1) ? PC_INT : PC_FP;
+            int register_index = (preg_class == PC_INT) ? location->int_register : location->fp_register;
             Value *param = ir->src1;
             int vreg = make_struct_or_union_arg_move_instructions(function, ir, param, preg_class, register_index, location, &function_return_value_register_set);
             function_call_values[loc] = new_value();
@@ -627,7 +627,7 @@ static FunctionParamLocation *lookup_location(int preg_class, int register_index
         FunctionParamLocation *location = &(pl->locations[loc]);
         int function_call_register_arg_index = preg_class == PC_INT
             ? location->int_register
-            : location->sse_register;
+            : location->fp_register;
 
         if (function_call_register_arg_index == register_index) return location;
     }
@@ -677,7 +677,7 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
             for (int loc = 0; loc < pl->count; loc++) {
                 int function_call_register_arg_index = preg_class == PC_INT
                     ? pl->locations[loc].int_register
-                    : pl->locations[loc].sse_register;
+                    : pl->locations[loc].fp_register;
 
                 if (function_call_register_arg_index >= 0) {
                     int i = ir->src1->int_value * register_count + function_call_register_arg_index;
@@ -804,7 +804,7 @@ static void remove_IR_ARG_instructions_that_have_been_handled(Function *function
             FunctionParamLocations *pl = ir->src1->function_call.function_call_arg_locations;
 
             for (int loc = 0; loc < pl->count; loc++) {
-                if (pl->locations[loc].int_register != -1 || pl->locations[loc].sse_register != -1) {
+                if (pl->locations[loc].int_register != -1 || pl->locations[loc].fp_register != -1) {
                     ir->operation.id = IR_NOP;
                     ir->dst = 0;
                     ir->src1 = 0;
@@ -821,7 +821,7 @@ static void remove_IR_ARG_instructions_that_have_been_handled(Function *function
 // generated code.
 static void add_function_call_arg_moves(Function *function) {
     add_function_call_arg_moves_for_preg_class(function, PC_INT);
-    add_function_call_arg_moves_for_preg_class(function, PC_SSE);
+    add_function_call_arg_moves_for_preg_class(function, PC_FP);
 
     remove_IR_ARG_instructions_that_have_been_handled(function);
 
@@ -934,8 +934,8 @@ static int add_struct_or_union_param_move(Function *function, Tac *ir, Type *typ
 
         if (location->int_register != -1)
             make_int_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->int_register, v->stack_index, register_set, 0);
-        else if (location->sse_register != -1)
-            make_sse_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->sse_register, v->stack_index, register_set, 0);
+        else if (location->fp_register != -1)
+            make_sse_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->fp_register, v->stack_index, register_set, 0);
         else
             panic("Got unexpected stack offset in add_struct_or_union_param_move");
     }
@@ -994,7 +994,7 @@ static void add_function_vararg_param_moves(Function *function, FunctionParamAll
     ir = new_tac_after(ir, IR_JZ, 0, rax, ldone);
 
     // add moves for SSE registers to register save area
-    for (int i = fpa->single_sse_register_arg_count; i < 8; i++) {
+    for (int i = fpa->single_fp_register_arg_count; i < 8; i++) {
         Value *src = new_value();
         src->vreg = ++function->vreg_count;
         src->type = new_type(TYPE_DOUBLE);
@@ -1037,7 +1037,7 @@ static void process_function_va_start(Function *function, Tac *ir) {
 
     // Set va_list.gp_offset, the offset of the first vararg SSE register
     Value *gp_offset_value = dup_value(fp_offset_value);
-    gp_offset_value->int_value = 48 + function->fpa->single_sse_register_arg_count * 16;
+    gp_offset_value->int_value = 48 + function->fpa->single_fp_register_arg_count * 16;
     dst = dup_value(dst);
     dst->offset = 4;
     ir = new_tac_after(ir, IR_MOVE, dst, gp_offset_value, 0);
@@ -1401,7 +1401,7 @@ static void add_function_param_moves(Function *function) {
         Type *type = function->type->function->param_types->elements[i];
 
         int single_register_arg_count = fpa_pl(fpa, fpa_start + i).locations[0].int_register == -1
-            ? fpa_pl(fpa, fpa_start + i).locations[0].sse_register
+            ? fpa_pl(fpa, fpa_start + i).locations[0].fp_register
             : fpa_pl(fpa, fpa_start + i).locations[0].int_register;
 
         if (type->type == TYPE_STRUCT_OR_UNION)  {
@@ -1509,7 +1509,7 @@ static void add_function_param_moves(Function *function) {
 // Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
 static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
     fpl->int_register = -1;
-    fpl->sse_register = -1;
+    fpl->fp_register = -1;
     fpl->stack_offset = -1;
     fpl->stack_padding = -1;
 
@@ -1517,12 +1517,12 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
     int is_single_int_register = type_fits_in_single_int_register(type);
-    int is_single_sse_register = is_sse_floating_point_type(type);
+    int is_single_fp_register = is_sse_floating_point_type(type);
     int is_long_double = type->type == TYPE_LONG_DOUBLE;
     int in_stack =
         is_long_double ||
         force_stack ||
-        (is_single_int_register && fpa->single_int_register_arg_count >= 6) || (is_single_sse_register && fpa->single_sse_register_arg_count >= 8);
+        (is_single_int_register && fpa->single_int_register_arg_count >= 6) || (is_single_fp_register && fpa->single_fp_register_arg_count >= 8);
 
     int alignment = get_type_alignment(type);
     if (alignment < 8) alignment = 8;
@@ -1530,8 +1530,8 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     if (!in_stack && is_single_int_register)
         fpl->int_register = fpa->single_int_register_arg_count < 6 ? fpa->single_int_register_arg_count : -1;
 
-    else if (!in_stack && is_single_sse_register)
-        fpl->sse_register = fpa->single_sse_register_arg_count < 8 ? fpa->single_sse_register_arg_count : -1;
+    else if (!in_stack && is_single_fp_register)
+        fpl->fp_register = fpa->single_fp_register_arg_count < 8 ? fpa->single_fp_register_arg_count : -1;
 
     else {
         // It's on the stack
@@ -1551,15 +1551,15 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
             printf("  arg %2d with alignment %2d     offset 0x%04x with padding 0x%04x\n", fpa->param_locations->length, alignment, fpl->stack_offset, fpl->stack_padding);
     }
 
-    if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_sse_register)) {
+    if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
         if (fpl->int_register != -1)
             printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->param_locations->length, alignment, fpl->int_register);
         else
-            printf("  arg %2d with alignment %2d     sse reg %5d\n", fpa->param_locations->length, alignment, fpl->sse_register);
+            printf("  arg %2d with alignment %2d     sse reg %5d\n", fpa->param_locations->length, alignment, fpl->fp_register);
     }
 
     fpa->single_int_register_arg_count += is_single_int_register;
-    if (!in_stack && is_single_sse_register) fpa->single_sse_register_arg_count++;
+    if (!in_stack && is_single_fp_register) fpa->single_fp_register_arg_count++;
 }
 
 // Recurse through a type and make list of all scalars + their offsets

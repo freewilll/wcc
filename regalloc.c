@@ -343,11 +343,11 @@ void allocate_registers(Function *function) {
     allocate_registers_top_down(function, 1, allocated_physical_int_register_count, PC_INT);
 
     // Allocate floating point xmm* registers
-    int allocated_physical_sse_register_count = live_range_reserved_pregs_offset == 0 ? 0 : physical_fp_register_count;
-    allocate_registers_top_down(function, 13, allocated_physical_sse_register_count, PC_SSE);
+    int allocated_physical_fp_register_count = live_range_reserved_pregs_offset == 0 ? 0 : physical_fp_register_count;
+    allocate_registers_top_down(function, 13, allocated_physical_fp_register_count, PC_FP);
 
-    // Remap SSA pregs which run from 0 to live_range_reserved_pregs_offset -1 to the actual
-    // x86_64 physical register numbers.
+    // Remap FP pregs which run from 0 to live_range_reserved_pregs_offset -1 to the actual
+    // physical register numbers.
     int vreg_count = function->vreg_count;
     for (int i = 1; i <= vreg_count; i++)
         if (function->vreg_locations[i].preg != -1)
@@ -357,4 +357,9 @@ void allocate_registers(Function *function) {
 
     assign_vreg_locations(function);
     free_vreg_locations(function);
+}
+
+void free_allocate_registers(void) {
+    wfree(preg_map);
+    wfree(callee_saved_registers);
 }

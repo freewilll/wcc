@@ -1084,7 +1084,7 @@ static Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Valu
 
     Tac *tac = add_instruction(x86op->operation.id, dst, v1, v2);
     tac->operation = x86op->operation;
-    tac->x86_template = x86op->template;
+    tac->target_template = x86op->template;
 
     return tac;
 }

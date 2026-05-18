@@ -54,7 +54,10 @@ SOURCES += \
 	target/x86_64/registers.c \
 	target/x86_64/x86_64.c
 else ifeq ($(TARGET),aarch64)
-	SOURCES += target/aarch64/stubs.c
+	SOURCES += \
+		target/aarch64/codegen.c \
+		target/aarch64/registers.c \
+		target/aarch64/stubs.c
 endif
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c
@@ -103,6 +106,7 @@ target/${TARGET}/libtarget.a:
 	make -C target/${TARGET}
 
 libwcc.a: ${OBJECTS} wcc.o instrrules-generated.o internals.o
+	rm -f libwcc.a
 	ar rcs libwcc.a ${OBJECTS} wcc.o instrrules-generated.o internals.o
 
 wcc: libwcc.a ${SRC_DIR}/main.c instrrules-generated.c config.h ${HEADERS_ABS_PATH}

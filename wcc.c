@@ -149,9 +149,9 @@ static CompilerPhase compiler_phases[] = {
     // Final x86 manipulations
     { add_spill_code,                              PH_NONE,  PH_SPILL, "Add spill code" },
     { make_stack_offsets,                          PH_NONE,  PH_NONE,  "Make stack offsets" },
-    { add_final_x86_instructions,                  PH_NONE,  PH_NONE,  "Add final x86 instructions" },
+    { add_final_instructions,                      PH_NONE,  PH_NONE,  "Add final target instructions" },
     { remove_nops,                                 PH_NONE,  PH_NONE,  "Remove nops" },
-    { merge_rsp_func_call_add_subs,                PH_NONE,  PH_END,   "Merge rsp function call adjustments" },
+    { optimize_final_instructions,                 PH_NONE,  PH_END,   "Optimize final instructions" },
 };
 
 void run_compiler_phases(Function *function, char *function_name, int start_at, int stop_at) {

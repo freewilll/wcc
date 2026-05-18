@@ -79,50 +79,45 @@ void init_allocate_registers(void) {
     live_range_reserved_pregs_offset = physical_int_register_count + physical_fp_register_count;
 }
 
-void free_allocate_registers(void) {
-    wfree(preg_map);
-    wfree(callee_saved_registers);
-}
-
 static Tac *make_spill_instruction(Value *v) {
     int x86_operation;
-    char *x86_template;
+    char *target_template;
 
     make_value_x86_size(v);
 
     if (v->type->type == TYPE_FUNCTION) {
         x86_operation = X86_OP_MOV;
-        x86_template = "movq %v1q, %vdq";
+        target_template = "movq %v1q, %vdq";
     }
     else if (v->type->type == TYPE_FLOAT) {
         x86_operation = X86_OP_MOV;
-        x86_template = "movss %v1F, %vdF";
+        target_template = "movss %v1F, %vdF";
     }
     else if (v->type->type == TYPE_FLOAT) {
         x86_operation = X86_OP_MOV;
-        x86_template = "movsd %v1D, %vdD";
+        target_template = "movsd %v1D, %vdD";
     }
     else if (v->x86_size == 1) {
         x86_operation = X86_OP_MOV;
-        x86_template = "movb %v1b, %vdb";
+        target_template = "movb %v1b, %vdb";
     }
     else if (v->x86_size == 2) {
         x86_operation = X86_OP_MOV;
-        x86_template = "movw %v1w, %vdw";
+        target_template = "movw %v1w, %vdw";
     }
     else if (v->x86_size == 3) {
         x86_operation = X86_OP_MOV;
-        x86_template = "movl %v1l, %vdl";
+        target_template = "movl %v1l, %vdl";
     }
     else if (v->x86_size == 4) {
         x86_operation = X86_OP_MOV;
-        x86_template = "movq %v1q, %vdq";
+        target_template = "movq %v1q, %vdq";
     }
     else
         panic("Unknown x86 size %d", v->x86_size);
 
     Tac *tac = new_instruction(x86_operation);
-    tac->x86_template = x86_template;
+    tac->target_template = target_template;
 
     return tac;
 }
@@ -161,7 +156,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
     // addq spill_reg, 4.
     if (v->offset) {
         Tac *tac = new_instruction(X86_OP_MOV);
-        tac->x86_template = "addq $%v1q, %vdq";
+        tac->target_template = "addq $%v1q, %vdq";
 
         tac->src1 = new_integral_constant(TYPE_LONG, v->offset);
 
@@ -198,7 +193,7 @@ static void add_spill_store(Tac *ir, Value *v, int preg) {
 
 // Return one of the int or sse registers used as temporary in spill code
 static int get_spill_register(Value *v, int spill_register) {
-    if (is_sse_floating_point_type(v->type))
+    if (is_floating_point_type(v->type))
         return spill_register == 1 ? REG_XMM14 : REG_XMM15;
     else
         return spill_register == 1 ? REG_R10 : REG_R11;

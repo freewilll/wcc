@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <string.h>
+
 #include "wcc.h"
 
 Tac *ir_start, *ir;               // intermediate representation for currently parsed function
@@ -15,6 +18,10 @@ int last_outputted_filename_id;             // Keep track of last printed .loc f
 int last_outputted_filename_line_number;    // Keep track of last printed .loc line number
 
 List *allocated_strings;
+
+FILE *output_file; // Output file handle
+
+int elf_section;
 
 int fprintf_escaped_char(void *f, unsigned char c) {
          if (c == '"' ) return fprintf(f, "\\\"");
@@ -67,6 +74,24 @@ int fprintf_escaped_string_literal(void *f, StringLiteral* sl, int for_assembly)
     return c;
 }
 
+// Add an instruction after ir and return ir of the new instruction
+Tac *insert_target_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *target_template) {
+    Tac *tac = new_instruction(operation);
+    tac->operation.id = operation;
+    tac->dst = dst;
+    tac->src1 = src1;
+    tac->src2 = src2;
+    tac->target_template = target_template;
+
+    return insert_tac_after(ir, tac);
+}
+
+Value *new_preg_value(int preg) {
+    Value *v = new_value();
+    v->preg = preg;
+    return v;
+}
+
 // Remove all possible IR_NOP instructions
 void remove_nops(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
@@ -76,6 +101,50 @@ void remove_nops(Function *function) {
         if (tac->next->label) continue;
 
         delete_instruction(tac);
+    }
+}
+
+int function_is_main(Function *function) {
+    return !strcmp(function->identifier, "main");
+}
+
+int open_output_file(char *input_filename, char *output_filename) {
+    if (!strcmp(output_filename, "-"))
+        output_file = stdout;
+    else {
+        // Open output file for writing
+        output_file = fopen(output_filename, "w");
+        if (output_file == 0) {
+            perror(output_filename);
+            exit(1);
+        }
+    }
+
+    fprintf(output_file, "    .file   \"%s\"\n", input_filename);
+
+    // Indicate this object file doesn't need an executable stack
+    // See https://man7.org/linux/man-pages/man5/elf.5.html
+    fprintf(output_file, "    .section .note.GNU-stack,\"\",@progbits\n\n");
+}
+
+void output_symbols(void) {
+    // Output symbols
+    elf_section = SEC_NONE;
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
+        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
+            output_symbol(symbol);
+    }
+
+    // Output static local symbols
+    for (int i = 0; i < global_scope->symbol_list->length; i++) {
+        Symbol *symbol = global_scope->symbol_list->elements[i];
+        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
+            Function *function = symbol->function;
+            for (int j = 0; j < function->static_symbols->length; j++)
+                output_symbol(function->static_symbols->elements[j]);
+        }
+        symbol++;
     }
 }
 

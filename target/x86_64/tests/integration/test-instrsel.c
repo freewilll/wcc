@@ -43,7 +43,7 @@ void assert_rx86_preg_op_with_function_pc(int function_param_count, char *expect
 
     got = 0;
     while (ir_start && !got) {
-        got = render_x86_operation(ir_start, function_param_count, 1);
+        got = render_target_operation(ir_start, function_param_count, 1);
         n();
     }
 

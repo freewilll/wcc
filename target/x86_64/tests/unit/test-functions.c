@@ -58,7 +58,7 @@ char *fpa_result_str(FunctionParamAllocation *fpa) {
         for (int j = 0; j < fpa->param_locations->length; j++) {
             int location_counts = fpa_pl(fpa, j).count;
             for (int k = 0; k < location_counts; k++) {
-                if (((FunctionParamLocations *)fpa->param_locations->elements[j])->locations[k].sse_register == i) {
+                if (((FunctionParamLocations *)fpa->param_locations->elements[j])->locations[k].fp_register == i) {
                     b += sprintf(b, "%0x", j);
                     allocated = 1;
                 }
@@ -145,7 +145,7 @@ char *fpl_result_str(FunctionParamLocation *fpl, int count) {
         if (i != 0) b += sprintf(b, " ");
         b += sprintf(b, "%d:", i);
         if (fpl[i].int_register != -1) b += sprintf(b, "I%d", fpl[i].int_register);
-        else if (fpl[i].sse_register != -1) b += sprintf(b, "S%d", fpl[i].sse_register);
+        else if (fpl[i].fp_register != -1) b += sprintf(b, "S%d", fpl[i].fp_register);
         else b += sprintf(b, "ST%d", fpl[i].stack_offset);
     }
 

@@ -1228,7 +1228,7 @@ void blast_vregs_with_live_ranges(Function *function) {
     make_vreg_count(function, live_range_reserved_pregs_offset);
 }
 
-// Set preg_class (PC_INT or PC_SSE) for all vregs in the IR by looking at the type
+// Set preg_class (PC_INT or PC_FP) for all vregs in the IR by looking at the type
 // The first 28 values are for the available physical registers,
 // 1-12 is for integers, 13-28 for floating point values.
 static void make_vreg_preg_classes(Function *function) {
@@ -1238,7 +1238,7 @@ static void make_vreg_preg_classes(Function *function) {
 
     if (live_range_reserved_pregs_offset > 0) {
         for (int i = 1; i <= physical_fp_register_count; i++) vreg_preg_classes[i] = PC_INT;
-        for (int i = physical_fp_register_count + 1; i <= physical_int_register_count + physical_fp_register_count; i++) vreg_preg_classes[i] = PC_SSE;
+        for (int i = physical_fp_register_count + 1; i <= physical_int_register_count + physical_fp_register_count; i++) vreg_preg_classes[i] = PC_FP;
     }
 
     function->vreg_preg_classes = vreg_preg_classes;
@@ -1250,15 +1250,15 @@ static void make_vreg_preg_classes(Function *function) {
         if (tac->src2 && tac->src2->vreg && !tac->src2->type) { print_instruction(stdout, tac, 0); panic("Type is unexpectedly zero on src2"); }
 
         if (tac->dst  && tac->dst->vreg) {
-            tac->dst->preg_class = is_sse_floating_point_type(tac->dst->type) ? PC_SSE : PC_INT;
+            tac->dst->preg_class = is_sse_floating_point_type(tac->dst->type) ? PC_FP : PC_INT;
             vreg_preg_classes[tac->dst->vreg] = tac->dst->preg_class;
         }
         if (tac->src1 && tac->src1->vreg) {
-            tac->src1->preg_class = is_sse_floating_point_type(tac->src1->type) ? PC_SSE : PC_INT;
+            tac->src1->preg_class = is_sse_floating_point_type(tac->src1->type) ? PC_FP : PC_INT;
             vreg_preg_classes[tac->src1->vreg] = tac->src1->preg_class;
         }
         if (tac->src2 && tac->src2->vreg) {
-            tac->src2->preg_class = is_sse_floating_point_type(tac->src2->type) ? PC_SSE : PC_INT;
+            tac->src2->preg_class = is_sse_floating_point_type(tac->src2->type) ? PC_FP : PC_INT;
             vreg_preg_classes[tac->src2->vreg] = tac->src2->preg_class;
         }
     }
@@ -1317,7 +1317,7 @@ static void enforce_live_range_preg_for_preg(char *interference_graph, int vreg_
 // For values that have live_range_preg set, add interference graph edges for all live ranges except live_range_preg
 static void enforce_live_range_preg(char *interference_graph, int vreg_count, LongSet *livenow, Value *value) {
     enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_INT, int_arg_registers);
-    enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_SSE, sse_arg_registers);
+    enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_FP, sse_arg_registers);
 }
 
 static void print_interference_graph(Function *function) {
@@ -1653,7 +1653,7 @@ void coalesce_live_ranges(Function *function) {
     coalesce_live_ranges_for_preg(function, PC_INT);
 
     if (log_compiler_phase_durations) debug_log("Coalesce live ranges for SSE");
-    coalesce_live_ranges_for_preg(function, PC_SSE);
+    coalesce_live_ranges_for_preg(function, PC_FP);
 }
 
 // 10^p

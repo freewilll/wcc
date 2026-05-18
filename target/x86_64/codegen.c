@@ -30,17 +30,8 @@
 
 static int need_ru4_to_ld_symbol;
 static int need_ld_to_ru4_symbol;
-static int elf_section;
 
-static FILE *f; // Output file handle
 static int cur_stack_push_count; // Used in codegen to keep track of stack position
-
-typedef enum elf_section {
-    SEC_NONE,
-    SEC_TEXT,
-    SEC_DATA,
-    SEC_BSS,
-} ElfSection;
 
 static void check_preg(int preg, int preg_class) {
     if (preg == -1) panic("Illegal attempt to output -1 preg");
@@ -66,7 +57,7 @@ static void append_word_register_name(char *buffer, int preg) {
 }
 
 static void append_long_register_name(char *buffer, int preg) {
-    check_preg(preg, PC_INT | PC_SSE);
+    check_preg(preg, PC_INT | PC_FP);
     char *names = "eax   ebx   ecx   edx   esi   edi   ebp   esp   r8d   r9d   r10d  r11d  r12d  r13d  r14d  r15d  xmm0  xmm1  xmm2  xmm3  xmm4  xmm5  xmm6  xmm7  xmm8  xmm9  xmm10 xmm11 xmm12 xmm13 xmm14 xmm15";
          if (preg < 10) sprintf(buffer, "%%%.3s", &names[preg * 6]);
     else if (preg < 26) sprintf(buffer, "%%%.4s", &names[preg * 6]);
@@ -74,7 +65,7 @@ static void append_long_register_name(char *buffer, int preg) {
 }
 
 static void append_quad_register_name(char *buffer, int preg) {
-    check_preg(preg, PC_INT | PC_SSE);
+    check_preg(preg, PC_INT | PC_FP);
     char *names = "rax   rbx   rcx   rdx   rsi   rdi   rbp   rsp   r8    r9    r10   r11   r12   r13   r14   r15   xmm0  xmm1  xmm2  xmm3  xmm4  xmm5  xmm6  xmm7  xmm8  xmm9  xmm10 xmm11 xmm12 xmm13 xmm14 xmm15";
          if (preg == 8 || preg == 9) sprintf(buffer, "%%%.2s", &names[preg * 6]);
     else if (preg < 16)              sprintf(buffer, "%%%.3s", &names[preg * 6]);
@@ -220,8 +211,8 @@ static int add_long_double_literal(Value *value) {
     return floating_point_literal_count++;
 }
 
-char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
-    char *t = tac->x86_template;
+char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
+    char *t = tac->target_template;
 
     if (!t) return 0;
 
@@ -250,14 +241,14 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 
                 t++;
 
-                if (t[0] != 'v') panic("Unknown placeholder in %s", tac->x86_template);
+                if (t[0] != 'v') panic("Unknown placeholder in %s", tac->target_template);
 
                 t++;
 
                      if (t[0] == '1') v = tac->src1;
                 else if (t[0] == '2') v = tac->src2;
                 else if (t[0] == 'd') v = tac->dst;
-                else panic("Indecipherable placeholder \"%s\"", tac->x86_template);
+                else panic("Indecipherable placeholder \"%s\"", tac->target_template);
 
                 int x86_size = 0;
                 int is_offset = 0;
@@ -295,13 +286,13 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     case 'D': t++; double_literal = 1; x86_size = 4; break;
                 }
 
-                if (!v) panic("Unexpectedly got a null value while the template %s is expecting it", tac->x86_template);
+                if (!v) panic("Unexpectedly got a null value while the template %s is expecting it", tac->target_template);
 
                 if (is_offset) {
                     if (v->offset || offset_is_required) sprintf(buffer, "%d", v->offset);
                 }
                 else if (!expect_preg && v->vreg) {
-                    if (!x86_size) panic("Missing size on register value \"%s\"", tac->x86_template);
+                    if (!x86_size) panic("Missing size on register value \"%s\"", tac->target_template);
                     if (v->global_symbol) panic("Got global symbol in vreg");
 
                     *buffer++ = 'r';
@@ -310,7 +301,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                     *buffer++ = size_to_x86_size(x86_size);
                 }
                 else if (expect_preg && v->preg != -1) {
-                    if (!x86_size) panic("Missing size on register value \"%s\"", tac->x86_template);
+                    if (!x86_size) panic("Missing size on register value \"%s\"", tac->target_template);
 
                          if (x86_size == 1) append_byte_register_name(buffer, v->preg);
                     else if (x86_size == 2) append_word_register_name(buffer, v->preg);
@@ -346,7 +337,7 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
                         if (!x86_size) {
                             print_value(stdout, v, 0);
                             printf("\n");
-                            panic("Did not get x86 size on template %s", tac->x86_template);
+                            panic("Did not get x86 size on template %s", tac->target_template);
                         }
 
                         if (x86_size == 1)
@@ -422,29 +413,11 @@ char *render_x86_operation(Tac *tac, int function_pc, int expect_preg) {
 }
 
 static void output_x86_operation(Tac *tac, int function_pc) {
-    char *buffer = render_x86_operation(tac, function_pc, 1);
+    char *buffer = render_target_operation(tac, function_pc, 1);
     if (buffer) {
-        fprintf(f, "    %s\n", buffer);
+        fprintf(output_file, "    %s\n", buffer);
         wfree(buffer);
     }
-}
-
-// Add an instruction after ir and return ir of the new instruction
-static Tac *insert_x86_instruction(Tac *ir, int operation, Value *dst, Value *src1, Value *src2, char *x86_template) {
-    Tac *tac = new_instruction(operation);
-    tac->operation.id = operation;
-    tac->dst = dst;
-    tac->src1 = src1;
-    tac->src2 = src2;
-    tac->x86_template = x86_template;
-
-    return insert_tac_after(ir, tac);
-}
-
-static Value *new_preg_value(int preg) {
-    Value *v = new_value();
-    v->preg = preg;
-    return v;
 }
 
 // Determine which registers are used in a function, push them onto the stack and return the list
@@ -459,7 +432,7 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
     for (int i = 0; i < physical_register_count; i++) {
         if (saved_registers[i]) {
             cur_stack_push_count++;
-            ir = insert_x86_instruction(ir, X86_OP_PUSH, new_preg_value(i), 0, 0, "push %vdq");
+            ir = insert_target_instruction(ir, X86_OP_PUSH, new_preg_value(i), 0, 0, "push %vdq");
         }
     }
 
@@ -469,22 +442,22 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
 static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
     for (int i = physical_register_count - 1; i >= 0; i--)
         if (saved_registers[i])
-            ir = insert_x86_instruction(ir, X86_OP_POP, new_preg_value(i), 0, 0, "popq %vdq");
+            ir = insert_target_instruction(ir, X86_OP_POP, new_preg_value(i), 0, 0, "popq %vdq");
 
-    ir = insert_x86_instruction(ir, X86_OP_LEAVE, 0, 0, 0, "leaveq");
-    return insert_x86_instruction(ir, X86_OP_RET_FROM_FUNC, 0, 0, 0, "retq");
+    ir = insert_target_instruction(ir, X86_OP_LEAVE, 0, 0, 0, "leaveq");
+    return insert_target_instruction(ir, X86_OP_RET_FROM_FUNC, 0, 0, 0, "retq");
 }
 
 static Tac *add_sub_rsp(Tac *ir, int amount) {
-    return insert_x86_instruction(ir, X86_OP_SUB, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "subq $%v1q, %vdq");
+    return insert_target_instruction(ir, X86_OP_SUB, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "subq $%v1q, %vdq");
 }
 
 static Tac *add_add_rsp(Tac *ir, int amount) {
-    return insert_x86_instruction(ir, X86_OP_ADD, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
+    return insert_target_instruction(ir, X86_OP_ADD, new_preg_value(REG_RSP), new_integral_constant(TYPE_LONG, amount), 0, "addq $%v1q, %vdq");
 }
 
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
-void add_final_x86_instructions(Function *function) {
+void add_final_instructions(Function *function) {
     int stack_size;             // Size of the stack containing local variables and spilled registers
     int *saved_registers;       // Callee saved registers
     int added_end_of_function;  // To ensure a double epilogue isn't emitted
@@ -494,8 +467,8 @@ void add_final_x86_instructions(Function *function) {
     cur_stack_push_count = 2; // Program counter and rbp
 
     // Add function prologue
-    ir = insert_x86_instruction(ir, X86_OP_PUSH, new_preg_value(REG_RBP), 0, 0, "push %vdq");
-    ir = insert_x86_instruction(ir, X86_OP_MOV, new_preg_value(REG_RBP), new_preg_value(REG_RSP), 0, "mov %v1q, %vdq");
+    ir = insert_target_instruction(ir, X86_OP_PUSH, new_preg_value(REG_RBP), 0, 0, "push %vdq");
+    ir = insert_target_instruction(ir, X86_OP_MOV, new_preg_value(REG_RBP), new_preg_value(REG_RSP), 0, "mov %v1q, %vdq");
 
     // Allocate stack space for local variables and spilled registers
     stack_size = function->stack_size;
@@ -592,27 +565,27 @@ void add_final_x86_instructions(Function *function) {
                 Type *function_type = ir->src1->type->type == TYPE_FUNCTION ? ir->src1->type : ir->src1->type->target;
                 if (function_type->function->is_variadic) {
                     char *buffer;
-                    wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call.function_call_sse_register_arg_count);
+                    wasprintf(&buffer, "movb $%d, %%vdb", ir->src1->function_call.function_call_fp_register_arg_count);
                     append_to_list(allocated_strings, buffer);
-                    ir = insert_x86_instruction(ir, X86_OP_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
+                    ir = insert_target_instruction(ir, X86_OP_MOV, new_preg_value(REG_RAX), 0, 0, buffer);
                 }
 
                 Tac *tac = new_instruction(X86_OP_CALL_FROM_FUNC);
 
                 if (!orig_ir->src1->function_call.function_symbol) {
-                    wasprintf(&(tac->x86_template), "callq *%%v1q");
-                    append_to_list(allocated_strings, tac->x86_template);
+                    wasprintf(&(tac->target_template), "callq *%%v1q");
+                    append_to_list(allocated_strings, tac->target_template);
                     tac->src1 = orig_ir->src1;
                 }
                 else {
                     // If a function has been defined locally, call it directly, otherwise use the PLT
                     if (orig_ir->src1->function_call.function_symbol->function && orig_ir->src1->function_call.function_symbol->function->is_defined) {
-                         wasprintf(&(tac->x86_template), "callq %s", orig_ir->src1->function_call.function_symbol->global_identifier);
-                         append_to_list(allocated_strings, tac->x86_template);
+                         wasprintf(&(tac->target_template), "callq %s", orig_ir->src1->function_call.function_symbol->global_identifier);
+                         append_to_list(allocated_strings, tac->target_template);
                      }
                     else {
-                         wasprintf(&(tac->x86_template), "callq %s@PLT", orig_ir->src1->function_call.function_symbol->global_identifier);
-                         append_to_list(allocated_strings, tac->x86_template);
+                         wasprintf(&(tac->target_template), "callq %s@PLT", orig_ir->src1->function_call.function_symbol->global_identifier);
+                         append_to_list(allocated_strings, tac->target_template);
                      }
                  }
 
@@ -632,8 +605,8 @@ void add_final_x86_instructions(Function *function) {
     while (ir->next) ir = ir->next;
 
     // Special case for main, return 0 if no return statement is present
-    if (!strcmp(function->identifier, "main"))
-        ir = insert_x86_instruction(ir, X86_OP_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
+    if (function_is_main(function))
+        ir = insert_target_instruction(ir, X86_OP_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
 
     if (!added_end_of_function) {
         insert_end_of_function(ir, saved_registers);
@@ -661,11 +634,15 @@ void merge_rsp_func_call_add_subs(Function *function) {
             } else {
                 tac = delete_instruction(tac);
                 tac->operation.id = value < 0 ? X86_OP_SUB : X86_OP_ADD;
-                tac->x86_template = value < 0 ? "subq $%v1q, %vdq" : "addq $%v1q, %vdq";
+                tac->target_template = value < 0 ? "subq $%v1q, %vdq" : "addq $%v1q, %vdq";
                 tac->src1->int_value = value > 0 ? value : -value;
             }
         }
     }
+}
+
+void optimize_final_instructions(Function *function) {
+    merge_rsp_func_call_add_subs(function);
 }
 
 // Add a ".loc" line with an integer identifying the filename and the line number.
@@ -676,11 +653,11 @@ static void output_debug_loc(Tac *tac) {
         if (!id) {
             id = ++debug_string_counter;
             strmap_put(debug_strings, wstrdup(tac->origin->filename), (void *) (long) id);
-            fprintf(f, "    .file       %d \"%s\"\n", id, tac->origin->filename);
+            fprintf(output_file, "    .file       %d \"%s\"\n", id, tac->origin->filename);
         }
 
         if (id != last_outputted_filename_id || tac->origin->line_number != last_outputted_filename_line_number) {
-            fprintf(f, "    .loc        %d %d\n", id, tac->origin->line_number);
+            fprintf(output_file, "    .loc        %d %d\n", id, tac->origin->line_number);
             last_outputted_filename_id = id;
             last_outputted_filename_line_number = tac->origin->line_number;
         }
@@ -692,7 +669,7 @@ static void output_function_body_code(Symbol *symbol) {
     int function_pc = symbol->function->type->function->param_count;
 
     for (Tac *tac = symbol->function->ir; tac; tac = tac->next) {
-        if (tac->label) fprintf(f, ".L%d:\n", tac->label);
+        if (tac->label) fprintf(output_file, ".L%d:\n", tac->label);
         if (tac->operation.id != IR_NOP) {
             output_debug_loc(tac);
             output_x86_operation(tac, function_pc);
@@ -700,19 +677,19 @@ static void output_function_body_code(Symbol *symbol) {
     }
 }
 
-static void output_symbol(Symbol *symbol) {
+void output_symbol(Symbol *symbol) {
     if (symbol->linkage == LINKAGE_INTERNAL && !symbol->initializers) {
-        if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
-        fprintf(f, "    .local  %s\n", symbol->global_identifier);
+        if (elf_section != SEC_TEXT) { fprintf(output_file, "    .text\n"); elf_section = SEC_TEXT; }
+        fprintf(output_file, "    .local  %s\n", symbol->global_identifier);
     }
 
     if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && symbol->definition_status == DEFINITION_STATUS_TENTATIVE) {
-        if (elf_section != SEC_TEXT) { fprintf(f, "    .text\n"); elf_section = SEC_TEXT; }
+        if (elf_section != SEC_TEXT) { fprintf(output_file, "    .text\n"); elf_section = SEC_TEXT; }
 
         // opt_enable_common_symbols applies to symbols with external linkage.
         // For symbols with internal linkage, a .comm section will do just fine.
         if (symbol->linkage == LINKAGE_INTERNAL || opt_enable_common_symbols) {
-            fprintf(f, "    .comm   %s,%d,%d\n",
+            fprintf(output_file, "    .comm   %s,%d,%d\n",
                 symbol->global_identifier,
                 get_type_size(symbol->type),
                 get_type_alignment(symbol->type));
@@ -721,15 +698,15 @@ static void output_symbol(Symbol *symbol) {
             int size = get_type_size(symbol->type);
 
             if (symbol->linkage == LINKAGE_EXTERNAL)
-                fprintf(f, "    .globl   %s\n", symbol->global_identifier);
+                fprintf(output_file, "    .globl   %s\n", symbol->global_identifier);
 
-            if (elf_section != SEC_BSS) { fprintf(f, "    .bss\n"); elf_section = SEC_BSS; }
+            if (elf_section != SEC_BSS) { fprintf(output_file, "    .bss\n"); elf_section = SEC_BSS; }
 
-            fprintf(f, "    .align   %d\n", get_type_alignment(symbol->type));
-            fprintf(f, "    .type    %s, @object\n", symbol->global_identifier);
-            fprintf(f, "    .size    %s, %d\n", symbol->global_identifier, size);
-            fprintf(f, "%s:\n", symbol->global_identifier);
-            fprintf(f, "    .zero    %d\n", size);
+            fprintf(output_file, "    .align   %d\n", get_type_alignment(symbol->type));
+            fprintf(output_file, "    .type    %s, @object\n", symbol->global_identifier);
+            fprintf(output_file, "    .size    %s, %d\n", symbol->global_identifier, size);
+            fprintf(output_file, "%s:\n", symbol->global_identifier);
+            fprintf(output_file, "    .zero    %d\n", size);
         }
     }
 
@@ -738,53 +715,53 @@ static void output_symbol(Symbol *symbol) {
 
         int size = get_type_size(symbol->type);
         if (symbol->linkage == LINKAGE_EXTERNAL)
-            fprintf(f, "    .globl   %s\n", symbol->global_identifier);
+            fprintf(output_file, "    .globl   %s\n", symbol->global_identifier);
 
-        if (elf_section != SEC_DATA) { fprintf(f, "    .data\n"); elf_section = SEC_DATA; }
+        if (elf_section != SEC_DATA) { fprintf(output_file, "    .data\n"); elf_section = SEC_DATA; }
 
-        fprintf(f, "    .align   %d\n", get_type_alignment(symbol->type));
-        fprintf(f, "    .type    %s, @object\n", symbol->global_identifier);
-        fprintf(f, "    .size    %s, %d\n", symbol->global_identifier, size);
-        fprintf(f, "%s:\n", symbol->global_identifier);
+        fprintf(output_file, "    .align   %d\n", get_type_alignment(symbol->type));
+        fprintf(output_file, "    .type    %s, @object\n", symbol->global_identifier);
+        fprintf(output_file, "    .size    %s, %d\n", symbol->global_identifier, size);
+        fprintf(output_file, "%s:\n", symbol->global_identifier);
 
         for (int i = 0; i < symbol->initializers->length; i++) {
             Initializer *in = (Initializer *) symbol->initializers->elements[i];
 
             if (in->is_address_of || in->symbol) {
                 if (in->address_of_offset)
-                    fprintf(f,"    .quad    %s + %d\n", in->symbol->global_identifier, in->address_of_offset);
+                    fprintf(output_file,"    .quad    %s + %d\n", in->symbol->global_identifier, in->address_of_offset);
                 else
-                    fprintf(f,"    .quad    %s\n", in->symbol->global_identifier);
+                    fprintf(output_file,"    .quad    %s\n", in->symbol->global_identifier);
                 size -= 8;
             }
             else if (in->is_string_literal) {
                 if (in->address_of_offset)
-                    fprintf(f,"    .quad    .LS%d + %d\n", in->string_literal_index, in->address_of_offset);
+                    fprintf(output_file,"    .quad    .LS%d + %d\n", in->string_literal_index, in->address_of_offset);
                 else
-                    fprintf(f,"    .quad    .LS%d\n", in->string_literal_index);
+                    fprintf(output_file,"    .quad    .LS%d\n", in->string_literal_index);
                 size -= 8;
             }
             else {
                 if (!in->data) {
                     if (in->size < 0)
                         panic("Got negative .zero %d for the intializer for %s", in->size, symbol->identifier);
-                    fprintf(f,"    .zero    %d\n", in->size);
+                    fprintf(output_file,"    .zero    %d\n", in->size);
                 }
-                else if (in->size == 1) fprintf(f, "    .byte    %d\n",  *((char *)  in->data));
-                else if (in->size == 2) fprintf(f, "    .word    %d\n",  *((short *) in->data));
-                else if (in->size == 4) fprintf(f, "    .long    %d\n",  *((int *)   in->data));
-                else if (in->size == 8) fprintf(f, "    .quad    %ld\n", *((long *)  in->data));
+                else if (in->size == 1) fprintf(output_file, "    .byte    %d\n",  *((char *)  in->data));
+                else if (in->size == 2) fprintf(output_file, "    .word    %d\n",  *((short *) in->data));
+                else if (in->size == 4) fprintf(output_file, "    .long    %d\n",  *((int *)   in->data));
+                else if (in->size == 8) fprintf(output_file, "    .quad    %ld\n", *((long *)  in->data));
                 else if (in->is_int128) {
                     // int128
-                    fprintf(f, "    .quad    %ld\n", ((long *) in->data)[0]);
-                    fprintf(f, "    .quad    %ld\n", ((long *) in->data)[1]);
+                    fprintf(output_file, "    .quad    %ld\n", ((long *) in->data)[0]);
+                    fprintf(output_file, "    .quad    %ld\n", ((long *) in->data)[1]);
                 }
                 else if (in->size == 16) {
                     // Long double
-                    fprintf(f, "    .long   %d\n", (((int *) in->data))[0]);
-                    fprintf(f, "    .long   %d\n", (((int *) in->data))[1]);
-                    fprintf(f, "    .long   %d\n", (((int *) in->data))[2] & 0xffff);
-                    fprintf(f, "    .long   0\n");
+                    fprintf(output_file, "    .long   %d\n", (((int *) in->data))[0]);
+                    fprintf(output_file, "    .long   %d\n", (((int *) in->data))[1]);
+                    fprintf(output_file, "    .long   %d\n", (((int *) in->data))[2] & 0xffff);
+                    fprintf(output_file, "    .long   0\n");
                 }
                 else panic("Unknown initializer size=%d data=%p\n", in->size, in->data);
                 size -= in->size;
@@ -795,7 +772,7 @@ static void output_symbol(Symbol *symbol) {
         if (size < 0)
             panic("Got negative .zero padding %d for final padding", size);
 
-        if (size) fprintf(f,"    .zero    %d\n", size);
+        if (size) fprintf(output_file,"    .zero    %d\n", size);
     }
 }
 
@@ -807,133 +784,100 @@ void output_debug_sections(char *input_filename) {
     if (!getcwd(cwd, 1024)) panic("Unable to get cwd");
 
     // Output debug_info section
-    fprintf(f, "    .section .debug_info,\"\",@progbits\n\n");
+    fprintf(output_file, "    .section .debug_info,\"\",@progbits\n\n");
 
-    fprintf(f, ".Ldebug_info0:\n");
-    fprintf(f, "    .long   .Ldebug_info_end - .Ldebug_info_start\n"); // Size
+    fprintf(output_file, ".Ldebug_info0:\n");
+    fprintf(output_file, "    .long   .Ldebug_info_end - .Ldebug_info_start\n"); // Size
 
-    fprintf(f, ".Ldebug_info_start:\n");
-    fprintf(f, "    .value  %d\n", DWARF_VERSION);
-    fprintf(f, "    .long   .debug_abbrev\n");      // Pointer to debug_abbrev section
-    fprintf(f, "    .byte   0x8\n");                // Pointer size
+    fprintf(output_file, ".Ldebug_info_start:\n");
+    fprintf(output_file, "    .value  %d\n", DWARF_VERSION);
+    fprintf(output_file, "    .long   .debug_abbrev\n");      // Pointer to debug_abbrev section
+    fprintf(output_file, "    .byte   0x8\n");                // Pointer size
 
     // Output DW_TAG_compile_unit
-    fprintf(f, "    .uleb128 0x1\n");                               // DW_TAG_compile_unit
-    fprintf(f, "    .long   .Ldebug_info.producer\n");              // DW_AT_producer
-    fprintf(f, "    .byte   %d\n", DW_LANG_C89);                    // DW_AT_language
-    fprintf(f, "    .long   .Ldebug_info.filename\n");              // DW_AT_name
-    fprintf(f, "    .long   .debug_info.cwd\n");                    // DW_AT_comp_dir
-    fprintf(f, "    .quad   .Lall.code.start\n");                   // DW_AT_low_pc (start of code)
-    fprintf(f, "    .quad   .Lall.code.end-.Lall.code.start \n");   // DW_AT_high_pc (size of code)
-    fprintf(f, "    .long   .Lline_table_start\n");                 // DW_AT_stmt_list (pointer to line number table)
-    fprintf(f, ".Ldebug_info_end:\n\n");
+    fprintf(output_file, "    .uleb128 0x1\n");                               // DW_TAG_compile_unit
+    fprintf(output_file, "    .long   .Ldebug_info.producer\n");              // DW_AT_producer
+    fprintf(output_file, "    .byte   %d\n", DW_LANG_C89);                    // DW_AT_language
+    fprintf(output_file, "    .long   .Ldebug_info.filename\n");              // DW_AT_name
+    fprintf(output_file, "    .long   .debug_info.cwd\n");                    // DW_AT_comp_dir
+    fprintf(output_file, "    .quad   .Lall.code.start\n");                   // DW_AT_low_pc (start of code)
+    fprintf(output_file, "    .quad   .Lall.code.end-.Lall.code.start \n");   // DW_AT_high_pc (size of code)
+    fprintf(output_file, "    .long   .Lline_table_start\n");                 // DW_AT_stmt_list (pointer to line number table)
+    fprintf(output_file, ".Ldebug_info_end:\n\n");
 
     // Output debug_abbrev section. All lines with DW are pairs of a key & data type
-    fprintf(f, "    .section    .debug_abbrev,\"\",@progbits\n");
+    fprintf(output_file, "    .section    .debug_abbrev,\"\",@progbits\n");
 
-    fprintf(f, "    .uleb128 0x1\n");                       // type number 1
-    fprintf(f, "    .uleb128 %d\n", DW_TAG_compile_unit);   // tag: DW_TAG_compile_unit
-    fprintf(f, "    .byte   0\n");                          // has children 0
-    fprintf(f, "    .uleb128 %d\n", DW_AT_producer);        // DW_AT_producer / DW_FORM_strp
-    fprintf(f, "    .uleb128 %d\n", DW_FORM_strp);
-    fprintf(f, "    .uleb128 %d\n", DW_AT_language);        // DW_AT_language / DW_FORM_data1
-    fprintf(f, "    .uleb128 %d\n", DW_FORM_data1);
-    fprintf(f, "    .uleb128 %d\n", DW_AT_name);            // DW_AT_name / DW_FORM_strp
-    fprintf(f, "    .uleb128 %d\n", DW_FORM_strp);
-    fprintf(f, "    .uleb128 %d\n", DW_AT_comp_dir);        // DW_AT_comp_dir / DW_FORM_strp
-    fprintf(f, "    .uleb128 %d\n", DW_FORM_strp);
-    fprintf(f, "    .uleb128 %d\n", DW_AT_low_pc);          // DW_AT_low_pc / DW_FORM_addr
-    fprintf(f, "    .uleb128 %d\n", DW_FORM_addr);
-    fprintf(f, "    .uleb128 %d\n", DW_AT_high_pc);         // DW_AT_high_pc / DW_FORM_data8
-    fprintf(f, "    .uleb128 %d\n", DW_FORM_data8);
-    fprintf(f, "    .uleb128 %d\n", DW_AT_stmt_list);       // DW_AT_stmt_list / DW_FORM_sec_offset
-    fprintf(f, "    .uleb128 %d\n", DW_FORM_sec_offset);
-    fprintf(f, "    .byte   0\n");                          // End
-    fprintf(f, "    .byte   0\n");
-    fprintf(f, "    .byte   0\n");
+    fprintf(output_file, "    .uleb128 0x1\n");                       // type number 1
+    fprintf(output_file, "    .uleb128 %d\n", DW_TAG_compile_unit);   // tag: DW_TAG_compile_unit
+    fprintf(output_file, "    .byte   0\n");                          // has children 0
+    fprintf(output_file, "    .uleb128 %d\n", DW_AT_producer);        // DW_AT_producer / DW_FORM_strp
+    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_strp);
+    fprintf(output_file, "    .uleb128 %d\n", DW_AT_language);        // DW_AT_language / DW_FORM_data1
+    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_data1);
+    fprintf(output_file, "    .uleb128 %d\n", DW_AT_name);            // DW_AT_name / DW_FORM_strp
+    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_strp);
+    fprintf(output_file, "    .uleb128 %d\n", DW_AT_comp_dir);        // DW_AT_comp_dir / DW_FORM_strp
+    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_strp);
+    fprintf(output_file, "    .uleb128 %d\n", DW_AT_low_pc);          // DW_AT_low_pc / DW_FORM_addr
+    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_addr);
+    fprintf(output_file, "    .uleb128 %d\n", DW_AT_high_pc);         // DW_AT_high_pc / DW_FORM_data8
+    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_data8);
+    fprintf(output_file, "    .uleb128 %d\n", DW_AT_stmt_list);       // DW_AT_stmt_list / DW_FORM_sec_offset
+    fprintf(output_file, "    .uleb128 %d\n", DW_FORM_sec_offset);
+    fprintf(output_file, "    .byte   0\n");                          // End
+    fprintf(output_file, "    .byte   0\n");
+    fprintf(output_file, "    .byte   0\n");
 
     // Output debug_str section
-    fprintf(f, "\n    .section    .debug_str,\"MS\",@progbits,1\n");
-    fprintf(f, ".Ldebug_info.producer:\n");
-    fprintf(f, "    .string  \"wcc\"\n");
-    fprintf(f, ".Ldebug_info.filename:\n");
-    fprintf(f, "    .string  \"%s\"\n", input_filename);
-    fprintf(f, ".debug_info.cwd:\n");
-    fprintf(f, "    .string  \"%s\"\n", cwd);
+    fprintf(output_file, "\n    .section    .debug_str,\"MS\",@progbits,1\n");
+    fprintf(output_file, ".Ldebug_info.producer:\n");
+    fprintf(output_file, "    .string  \"wcc\"\n");
+    fprintf(output_file, ".Ldebug_info.filename:\n");
+    fprintf(output_file, "    .string  \"%s\"\n", input_filename);
+    fprintf(output_file, ".debug_info.cwd:\n");
+    fprintf(output_file, "    .string  \"%s\"\n", cwd);
 
     // Output debug_line section. There's nothing much here, the assembler populates
     // this with information from the .loc lines.
-    fprintf(f, "\n    .section    .debug_line,\"\",@progbits\n");
-    fprintf(f, "\n.Lline_table_start:\n");
+    fprintf(output_file, "\n    .section    .debug_line,\"\",@progbits\n");
+    fprintf(output_file, "\n.Lline_table_start:\n");
 
     wfree(cwd);
 }
 
 // Output code for the translation unit
 void output_code(char *input_filename, char *output_filename) {
-    if (!strcmp(output_filename, "-"))
-        f = stdout;
-    else {
-        // Open output file for writing
-        f = fopen(output_filename, "w");
-        if (f == 0) {
-            perror(output_filename);
-            exit(1);
-        }
-    }
-
-    fprintf(f, "    .file   \"%s\"\n", input_filename);
-
-    // Indicate this object file doesn't need an executable stack
-    // See https://man7.org/linux/man-pages/man5/elf.5.html
-    fprintf(f, "    .section .note.GNU-stack,\"\",@progbits\n\n");
-
-    // Output symbols
-    elf_section = SEC_NONE;
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
-        Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
-            output_symbol(symbol);
-    }
-
-    // Output static local symbols
-    for (int i = 0; i < global_scope->symbol_list->length; i++) {
-        Symbol *symbol = global_scope->symbol_list->elements[i];
-        if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
-            Function *function = symbol->function;
-            for (int j = 0; j < function->static_symbols->length; j++)
-                output_symbol(function->static_symbols->elements[j]);
-        }
-        symbol++;
-    }
+    open_output_file(input_filename, output_filename);
+    output_symbols();
 
     // Output string literals
     if (string_literal_count > 0) {
-        fprintf(f, "\n    .section .rodata\n\n");
-        fprintf(f, ".Ltext0:\n\n");
+        fprintf(output_file, "\n    .section .rodata\n\n");
+        fprintf(output_file, ".Ltext0:\n\n");
         for (int i = 0; i < string_literal_count; i++) {
             StringLiteral *sl = &(string_literals[i]);
-            if (sl->is_wide_char) fprintf(f, "    .align   4\n");
-            fprintf(f, ".LS%d:\n", i);
-            fprintf_escaped_string_literal(f, sl, 1);
+            if (sl->is_wide_char) fprintf(output_file, "    .align   4\n");
+            fprintf(output_file, ".LS%d:\n", i);
+            fprintf_escaped_string_literal(output_file, sl, 1);
         }
-        fprintf(f, "\n");
+        fprintf(output_file, "\n");
     }
 
     // Output code
-    fprintf(f, "    .text\n");
+    fprintf(output_file, "    .text\n");
 
     // Output symbols for all functions that are defined and have external linkage
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
             if (symbol->linkage == LINKAGE_EXTERNAL)
-                fprintf(f, "    .globl  %s\n", symbol->identifier);
-            fprintf(f, "    .type   %s, @function\n", symbol->global_identifier);
+                fprintf(output_file, "    .globl  %s\n", symbol->identifier);
+            fprintf(output_file, "    .type   %s, @function\n", symbol->global_identifier);
         }
     }
 
-    fprintf(f, "\n");
+    fprintf(output_file, "\n");
 
     label_count = 0; // Used in label renumbering
 
@@ -942,59 +886,59 @@ void output_code(char *input_filename, char *output_filename) {
     // Output functions code
     need_ru4_to_ld_symbol = 0;
     need_ld_to_ru4_symbol = 0;
-    fprintf(f, ".Lall.code.start:\n");
+    fprintf(output_file, ".Lall.code.start:\n");
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
-            fprintf(f, "%s:\n", symbol->identifier);
-            fprintf(f, ".L%s.start:\n", symbol->identifier);
+            fprintf(output_file, "%s:\n", symbol->identifier);
+            fprintf(output_file, ".L%s.start:\n", symbol->identifier);
             output_function_body_code(symbol);
-            fprintf(f, "    .size       %s, .-%s\n", symbol->global_identifier, symbol->global_identifier);
-            fprintf(f, ".L%s.end:\n", symbol->identifier);
-            fprintf(f, "\n");
+            fprintf(output_file, "    .size       %s, .-%s\n", symbol->global_identifier, symbol->global_identifier);
+            fprintf(output_file, ".L%s.end:\n", symbol->identifier);
+            fprintf(output_file, "\n");
         }
     }
-    fprintf(f, ".Lall.code.end:\n\n");
+    fprintf(output_file, ".Lall.code.end:\n\n");
 
     // Output floating point literals
     if (floating_point_literal_count > 0) {
         for (int i = 0; i < floating_point_literal_count; i++) {
             // The zero and & is to be compatible with gcc
-            fprintf(f, ".LFP%d:\n", i);
+            fprintf(output_file, ".LFP%d:\n", i);
 
             if (floating_point_literals[i].type == TYPE_FLOAT) {
                 float fl = floating_point_literals[i].f;
-                fprintf(f, "    .long   %d\n", *((int *) &fl));
+                fprintf(output_file, "    .long   %d\n", *((int *) &fl));
             }
             else if (floating_point_literals[i].type == TYPE_DOUBLE) {
                 double d = floating_point_literals[i].d;
-                fprintf(f, "    .long   %d\n", *((int *) &d));
-                fprintf(f, "    .long   %d\n", *((int *) &d + 1));
+                fprintf(output_file, "    .long   %d\n", *((int *) &d));
+                fprintf(output_file, "    .long   %d\n", *((int *) &d + 1));
             }
             else {
                 long double ld = floating_point_literals[i].ld;
-                fprintf(f, "    .long   %d\n", ((int *) &ld)[0]);
-                fprintf(f, "    .long   %d\n", ((int *) &ld)[1]);
-                fprintf(f, "    .long   %d\n", ((int *) &ld)[2] & 0xffff);
-                fprintf(f, "    .long   0\n");
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2] & 0xffff);
+                fprintf(output_file, "    .long   0\n");
             }
         }
     }
 
     if (need_ru4_to_ld_symbol) {
-        fprintf(f, ".RU4TOLD:\n");
-        fprintf(f, "    .long   0\n");
-        fprintf(f, "    .long   1602224128 # 0x5f800000\n");
-        fprintf(f, "\n");
+        fprintf(output_file, ".RU4TOLD:\n");
+        fprintf(output_file, "    .long   0\n");
+        fprintf(output_file, "    .long   1602224128 # 0x5f800000\n");
+        fprintf(output_file, "\n");
     }
 
     if (need_ld_to_ru4_symbol) {
-        fprintf(f, ".LDTORU4:\n");
-        fprintf(f, "     .long   1593835520 # 9223372036854775808\n");
+        fprintf(output_file, ".LDTORU4:\n");
+        fprintf(output_file, "     .long   1593835520 # 9223372036854775808\n");
     }
 
     if (opt_debug_symbols) output_debug_sections(input_filename);
 
-    fclose(f);
+    fclose(output_file);
 }
 
