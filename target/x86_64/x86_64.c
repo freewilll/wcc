@@ -137,6 +137,10 @@ void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
     }
 }
 
+int get_preg_class_for_scalar_type(Type *type) {
+    return (type->type >= TYPE_FLOAT && type->type <= TYPE_DOUBLE) ? PC_FP : PC_INT;
+}
+
 // This removes instructions that copy a register to itself by replacing them with noops.
 void remove_vreg_self_moves(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {

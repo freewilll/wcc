@@ -376,11 +376,6 @@ int is_floating_point_type(Type *type) {
     return (type->type >= TYPE_FLOAT && type->type <= TYPE_LONG_DOUBLE);
 }
 
-// Is a type a floating point type, but not a long double?
-int is_sse_floating_point_type(Type *type) {
-    return (type->type >= TYPE_FLOAT && type->type <= TYPE_DOUBLE);
-}
-
 int is_arithmetic_type(Type *type) {
     return is_integer_type(type) || is_floating_point_type(type);
 }

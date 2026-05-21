@@ -1250,15 +1250,15 @@ static void make_vreg_preg_classes(Function *function) {
         if (tac->src2 && tac->src2->vreg && !tac->src2->type) { print_instruction(stdout, tac, 0); panic("Type is unexpectedly zero on src2"); }
 
         if (tac->dst  && tac->dst->vreg) {
-            tac->dst->preg_class = is_sse_floating_point_type(tac->dst->type) ? PC_FP : PC_INT;
+            tac->dst->preg_class = get_preg_class_for_scalar_type(tac->dst->type);
             vreg_preg_classes[tac->dst->vreg] = tac->dst->preg_class;
         }
         if (tac->src1 && tac->src1->vreg) {
-            tac->src1->preg_class = is_sse_floating_point_type(tac->src1->type) ? PC_FP : PC_INT;
+            tac->src1->preg_class = get_preg_class_for_scalar_type(tac->src1->type);
             vreg_preg_classes[tac->src1->vreg] = tac->src1->preg_class;
         }
         if (tac->src2 && tac->src2->vreg) {
-            tac->src2->preg_class = is_sse_floating_point_type(tac->src2->type) ? PC_FP : PC_INT;
+            tac->src2->preg_class = get_preg_class_for_scalar_type(tac->src2->type);
             vreg_preg_classes[tac->src2->vreg] = tac->src2->preg_class;
         }
     }

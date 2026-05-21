@@ -1050,7 +1050,6 @@ Type *decay_array_to_pointer(Type *src);
 int is_integer_type(Type *type);
 int is_non_128_bit_integer_type(Type *type);
 int is_floating_point_type(Type *type);
-int is_sse_floating_point_type(Type *type);
 int is_arithmetic_type(Type *type);
 int is_scalar_type(Type *type);
 int is_object_type(Type *type);
@@ -1450,6 +1449,7 @@ char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
 void print_backend_instruction(void *f, Tac *tac);
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index);
+int get_preg_class_for_scalar_type(Type *type);
 void perform_peephole_optimization(Function *function);
 
 // Target functions related code

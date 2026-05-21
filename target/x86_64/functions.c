@@ -20,6 +20,11 @@ typedef struct struct_or_union_scalars {
     int count;
 } StructOrUnionScalars;
 
+// Is a type a floating point type, but not a long double?
+static int is_sse_floating_point_type(Type *type) {
+    return (type->type >= TYPE_FLOAT && type->type <= TYPE_DOUBLE);
+}
+
 static int make_struct_or_union_arg_move_instructions(
         Function *function, Tac *ir, Value *param, int preg_class, int register_index,
         FunctionParamLocation *location, RegisterSet *register_set);
