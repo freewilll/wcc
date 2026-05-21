@@ -127,7 +127,7 @@ static void output_function_body_code(Symbol *symbol) {
 
 // TODO aarch64
 void output_symbol(Symbol *symbol) {
-    fprintf(stderr, "TODO aarch64 output_symbol\n");
+    fprintf(stderr, "; TODO aarch64 output_symbol %s\n", symbol->identifier);
 }
 
 // TODO aarch64 check completeness
