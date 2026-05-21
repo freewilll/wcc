@@ -57,6 +57,7 @@ else ifeq ($(TARGET),aarch64)
 	SOURCES += \
 		target/aarch64/aarch64.c \
 		target/aarch64/codegen.c \
+		target/aarch64/functions.c \
 		target/aarch64/instrrules.c \
 		target/aarch64/registers.c
 endif

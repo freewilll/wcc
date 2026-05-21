@@ -28,22 +28,6 @@ void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
 
 void perform_peephole_optimization(Function *function) {} // TODO aarch64
 
-// Target functions related code
-Set *allocate_return_value_live_ranges(void) {
-    return new_set(1); // TODO aarch64
-}
-
-void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {} // TODO aarch64
-
-int *make_original_stack_indexes(Function *function) {
-    int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
-    return result;
-} // TODO aarch64
-
-void process_target_functions(Function *function) {} // TODO aarch64
-
-void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {} // TODO aarch64
-
 
 // Target registers related code
 void remove_vreg_self_moves(Function *function) {} // TODO aarch64
