@@ -1639,26 +1639,29 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
     int dst_is_function = is_pointer_to_function_type(dst_type)  || dst_type->type == TYPE_FUNCTION;
     int src_is_function = is_pointer_to_function_type(src->type) || src->type->type == TYPE_FUNCTION;
 
+    Type *src_type = src->type;
+
     if ((dst_is_function && src_is_function) || (is_pointer_to_void(dst_type) && src->type->type == TYPE_FUNCTION))
         return load_function(src, dst_type);
 
-    if (!type_eq(dst_type, src->type)) {
+    if (!type_eq(dst_type, src_type)) {
         if (src->is_constant) {
-            if (dst_is_function && !is_null_pointer(src)) error("Function type mismatch");
-            int src_is_int = is_integer_type(src->type);
-            int dst_is_int = is_integer_type(dst_type);
-            int src_is_sse = is_sse_floating_point_type(src->type);
-            int dst_is_sse = is_sse_floating_point_type(dst_type);
-            int src_is_ld = src->type->type == TYPE_LONG_DOUBLE;
-            int dst_is_ld = dst_type->type == TYPE_LONG_DOUBLE;
+            // Check if a constant conversion needs doing here
 
-            if ((src_is_sse && dst_is_ld) || (dst_is_sse && src_is_ld)) {
-                // Type change for float/double <-> long double
+            if (dst_is_function && !is_null_pointer(src)) error("Function type mismatch");
+
+            int src_is_int = is_integer_type(src_type);
+            int dst_is_int = is_integer_type(dst_type);
+            int src_is_fp = is_floating_point_type(src_type);
+            int dst_is_fp = is_floating_point_type(dst_type);
+
+            if ((src_is_fp && dst_is_fp && src_type->type != dst_type->type)) {
+                // Type change for floating point <=> floating point
                 Value *src2 = dup_value(src);
                 src2->type = dup_type(dst_type);
                 return src2;
             }
-            else if ((src_is_sse || src_is_ld) && dst_is_int) {
+            else if (src_is_fp && dst_is_int) {
                 // Convert floating point -> int
                 Value *src2 = new_value();
                 src2->type = new_type(dst_type->type <= TYPE_INT ? TYPE_INT : TYPE_LONG);
@@ -1666,21 +1669,15 @@ Value *add_convert_type_if_needed(Value *src, Type *dst_type) {
                 src2->int_value = src->fp_value;
                 return src2;
             }
-            else if (src_is_int && (dst_is_sse || dst_is_ld))
+            else if (src_is_int && dst_is_fp)
                 return convert_int_constant_to_floating_point(src, dst_type);
-            else if (src_is_sse && dst_is_sse && src->type->type != dst_type->type) {
-                // Convert float -> double or double -> float
-                Value *src2 = dup_value(src);
-                src2->type = dup_type(dst_type);
-                return src2;
-            }
 
             // No change
             return src;
         }
 
         // Implicit else: src is not a constant
-        else if (dst_is_function && !src_is_function && !is_null_pointer(src) && !is_pointer_to_void(src->type))
+        else if (dst_is_function && !src_is_function && !is_null_pointer(src) && !is_pointer_to_void(src_type))
             error("Function type mismatch");
 
         // Convert non constant
@@ -2936,7 +2933,7 @@ static void parse_expression(int level) {
             check_unary_operation_type(IR_SUB, vtop());
 
             if (vtop()->is_constant) {
-                if (is_sse_floating_point_type(vtop()->type))
+                if (is_floating_point_type(vtop()->type))
                     vtop()->fp_value = -vtop()->fp_value;
                 else {
                     push_integral_constant(TYPE_INT, -1);
