@@ -17,12 +17,12 @@ int main(int argc, char **argv) {
     for (int i = 0; i < instr_rule_count; i++) {
         Rule *r = &(instr_rules[i]);
 
-        int count = r->x86_operation_count;
+        int count = r->target_operation_count;
 
         if (count) {
-            printf("static X86Operation rule_%d_operations[] = {\n", i);
-            for (int j = 0; j < r->x86_operation_count; j++) {
-                X86Operation *op = &r->x86_operations[j];
+            printf("static TargetOperation rule_%d_operations[] = {\n", i);
+            for (int j = 0; j < r->target_operation_count; j++) {
+                TargetOperation *op = &r->target_operations[j];
 
                 printf("    { {%d, %d, %d, %d, %d,  %d, {",
                     op->operation.id,

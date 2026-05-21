@@ -6,6 +6,10 @@ const int int_arg_registers[] = {1};
 
 const int sse_arg_registers[] = {1};
 
+char is_32bit_to_aarch64_size(int is_32bit) {
+    return is_32bit ? 'w' : 'x';
+}
+
 char *target_op_name(int operation) {
     return "TODO: target_op_name";
 } // TODO aarch64
@@ -40,8 +44,6 @@ void process_target_functions(Function *function) {} // TODO aarch64
 
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {} // TODO aarch64
 
-// Target instruction rules related code
-void define_rules(void) {} // TODO aarch64
 
 // Target registers related code
 void remove_vreg_self_moves(Function *function) {} // TODO aarch64

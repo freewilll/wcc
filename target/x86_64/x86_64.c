@@ -1,6 +1,16 @@
 #include "wcc.h"
 #include "x86_64.h"
 
+char size_to_x86_size(int size) {
+    switch (size) {
+        case 1:  return 'b'; break;
+        case 2:  return 'w'; break;
+        case 3:  return 'l'; break;
+        case 4:  return 'q'; break;
+        default: panic("Unknown size %d", size);
+    }
+}
+
 char *target_op_name(int operation) {
     switch (operation) {
         case 0:                      return "";

@@ -1,6 +1,5 @@
 #include <string.h>
 
-
 #include "wcc.h"
 #include "aarch64.h"
 
@@ -26,7 +25,52 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
     }
 
     while (*t) {
-        *buffer++ = *t;
+        if (*t == '%') {
+            Value *v;
+
+            t++;
+
+            if (t[0] != 'v') panic("Unknown placeholder in %s", tac->target_template);
+
+            t++;
+
+                 if (t[0] == '1') v = tac->src1;
+            else if (t[0] == '2') v = tac->src2;
+            else if (t[0] == 'd') v = tac->dst;
+            else panic("Indecipherable placeholder \"%s\"", tac->target_template);
+
+            int is_32bit = 0;
+
+                 if (t[1] == 'w') { t++; is_32bit = 1; }
+            else if (t[1] == 'x') { t++; is_32bit = 0; }
+
+            if (!v) panic("Unexpectedly got a null value while the template %s is expecting it", tac->target_template);
+
+            // TODO aarch64 offset
+            if (!expect_preg && v->vreg) {
+                if (v->global_symbol) panic("Got global symbol in vreg");
+
+                *buffer++ = 'r';
+                sprintf(buffer, "%d", v->vreg);
+                while (*buffer) buffer++;
+                *buffer++ = is_32bit_to_aarch64_size(is_32bit);
+            }
+            else if (expect_preg && v->preg != -1) {
+                *buffer++ = is_32bit_to_aarch64_size(is_32bit);
+                sprintf(buffer, "%d", v->preg);
+            }
+            else if (v->is_constant) {
+                sprintf(buffer, "%ld", v->int_value);
+            }
+            else {
+                print_value(stdout, v, 0);
+                printf("\n");
+                panic("Don't know how to render template value");
+            }
+        }
+        else {
+            *buffer++ = *t;
+        }
 
         while (*buffer) buffer++;
         t++;

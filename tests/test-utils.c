@@ -37,7 +37,7 @@ void assert_value(Value *v1, Value *v2) {
         panic("Don't know how to assert_value");
 }
 
-void assert_x86_op(char *expected) {
+void assert_target_op(char *expected) {
     char *got;
 
     if (!ir_start) {

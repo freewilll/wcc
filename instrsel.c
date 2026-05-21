@@ -836,7 +836,7 @@ static int tile_igraph_operand_less_node(IGraph *igraph, int node_id) {
         }
 
     dump_igraph(igraph, 0);
-    panic("Did not match any rules");
+    panic("Operand-less node did not match any rules");
 }
 
 // Tile a leaf node in the instruction tree. Rules for leaf nodes all have a zero
@@ -852,6 +852,8 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
     // Find a matching instruction
     int matched = 0;
     List *rules = longmap_get(instr_rules_by_operation, 0); // Rules without an operation
+    if (!rules) panic("No rules for operation 0 for a leaf node");
+
     for (int i = 0; i < rules->length; i++) {
         Rule *r = rules->elements[i];
 
@@ -876,7 +878,7 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
     if (!matched) {
         dump_igraph(igraph, 0);
-        panic("Did not match any rules");
+        panic("Leaf node did not match any rules");
     }
 
     return cost_graph_node_id;
@@ -948,6 +950,8 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     // Loop over all rules and gather matches in the cost graph
     int matched = 0;
     List *rules = longmap_get(instr_rules_by_operation, operation);
+    if (!rules) panic("No rules for operation %s for an operation node %s", operation_string(operation));
+
     for (int i = 0; i < rules->length; i++) {
         Rule *r = rules->elements[i];
 
@@ -1001,7 +1005,10 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
     // with an error.
     if (!matched) {
         printf("\nNo rules matched\n");
-        if (tac->dst) printf("Want dst %s\n", value_to_non_terminal_string(tac->dst));
+        if (tac->dst)  printf("Want dst %s\n",  value_to_non_terminal_string(tac->dst));
+        if (tac->src1) printf("Want src1 %s\n", value_to_non_terminal_string(tac->src1));
+        if (tac->src2) printf("Want src2 %s\n", value_to_non_terminal_string(tac->src2));
+
         print_instruction(stdout, tac, 0);
         dump_igraph(igraph, 0);
         exit(1);
@@ -1078,13 +1085,13 @@ static Value *load_value_from_slot(int slot, char *arg) {
 }
 
 // Add an x86 instruction to the IR
-static Tac *add_x86_instruction(X86Operation *x86op, Value *dst, Value *v1, Value *v2) {
-    if (v1) make_value_x86_size(v1);
-    if (v2) make_value_x86_size(v2);
+static Tac *add_target_instruction(TargetOperation *target_op, Value *dst, Value *v1, Value *v2) {
+    if (v1) make_value_target_size(v1);
+    if (v2) make_value_target_size(v2);
 
-    Tac *tac = add_instruction(x86op->operation.id, dst, v1, v2);
-    tac->operation = x86op->operation;
-    tac->target_template = x86op->template;
+    Tac *tac = add_instruction(target_op->operation.id, dst, v1, v2);
+    tac->operation = target_op->operation;
+    tac->target_template = target_op->template;
 
     return tac;
 }
@@ -1108,7 +1115,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
     }
     else {
         // Determine the result from the x86 definition
-        if (rule->x86_operations) {
+        if (rule->target_operations) {
             // It's an operation on a non-root node. Allocate a vreg.
 
             dst = new_value();
@@ -1135,9 +1142,9 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
     // are doing. This cannot be done from the type since the type
     // reflects what the parser has produced, and doesn't necessarily
     // match what the x86 code is doing.
-    if (dst)  dst->x86_size  = make_x86_size_from_non_terminal(rule->dst);
-    if (src1) src1->x86_size = make_x86_size_from_non_terminal(rule->src1);
-    if (src2) src2->x86_size = make_x86_size_from_non_terminal(rule->src2);
+    if (dst)  dst->target_size  = make_target_size_from_non_terminal(rule->dst);
+    if (src1) src1->target_size = make_target_size_from_non_terminal(rule->src1);
+    if (src2) src2->target_size = make_target_size_from_non_terminal(rule->src2);
 
     // A composite rule may do some saves, which are done in already run x86 save
     // operations. The final operation(s) then loads the values from the saved slots
@@ -1145,8 +1152,8 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
     // These keep track of the values outputted during the loads.
     Value *x86_dst, *x86_v1, *x86_v2;
 
-    for (int i = 0; i < rule->x86_operation_count; i++) {
-        X86Operation *x86op = &rule->x86_operations[i];
+    for (int i = 0; i < rule->target_operation_count; i++) {
+        TargetOperation *x86op = &rule->target_operations[i];
 
              if (x86op->dst == 0)    x86_dst = 0;
         else if (x86op->dst == SRC1) x86_dst = src1;
@@ -1223,9 +1230,9 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             // Add a tac to the IR
 
             int label = 0;
-            X86Operation *x86op2 = x86op;
+            TargetOperation *x86op2 = x86op;
             if (x86op->template && x86op->template[0] == '.' && x86op->template[1] == 'L') {
-                x86op2 = dup_x86_operation(x86op);
+                x86op2 = dup_target_operation(x86op);
                 append_to_list(allocated_things, x86op2);
                 if (x86op2->template) append_to_list(allocated_things, x86op2->template);
 
@@ -1242,7 +1249,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
                 if (x86op2->template[0] == 0) x86op2->template = 0;
             }
 
-            Tac *tac = add_x86_instruction(x86op2, x86_dst, x86_v1, x86_v2);
+            Tac *tac = add_target_instruction(x86op2, x86_dst, x86_v1, x86_v2);
             if (ign->tac) tac->origin = ign->tac->origin;
             tac->label = label;
             if (debug_instsel_tiling) print_instruction(stdout, tac, 0);

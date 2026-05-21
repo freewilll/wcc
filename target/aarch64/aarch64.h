@@ -20,8 +20,8 @@ enum {
     REG_R11,    // Temporary registers
     REG_R12,    // Temporary registers
     REG_R13,    // Temporary registers
-    REG_R14,    // Temporary registers
-    REG_R15,    // Temporary registers
+    REG_R14,    // Temporary registers, used to spill src1 TODO aarch64
+    REG_R15,    // Temporary registers, used to spill src2 TODO aarch64
     REG_R16,    // The first intra-procedure-call scratch register
     REG_R17,    // The second intra-procedure-call temporary register
     REG_R18,    // The Platform Register, if needed; otherwise a temporary register. See notes.
@@ -75,10 +75,41 @@ enum {
     REG_FSPR,   // Status register
 };
 
+enum {
+    // Liveness interval indexes corresponding to reserved physical registers
+
+    LIVE_RANGE_PREG_REG_R00 = 1, // Parameter/result registers
+    LIVE_RANGE_PREG_REG_R01,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_R02,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_R03,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_R04,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_R05,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_R06,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_R07,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_R09,     // Temporary registers
+    LIVE_RANGE_PREG_REG_R10,     // Temporary registers
+    LIVE_RANGE_PREG_REG_R11,     // Temporary registers
+    LIVE_RANGE_PREG_REG_R12,     // Temporary registers
+    LIVE_RANGE_PREG_REG_R13,     // Temporary registers
+    LIVE_RANGE_PREG_REG_R19,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R20,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R21,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R22,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R23,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R24,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R25,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R26,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R27,     // Callee-saved registers
+    LIVE_RANGE_PREG_REG_R28,     // Callee-saved registers
+};
+
 enum aarch64_instruction_op {
     // aarch64 instructions
     AARCH64_OP_NULL = TARGET_OPS_START,  // An general OP that needs no special handling
     AARCH64_OP_RET_FROM_FUNC,
+    AARCH64_OP_MOV,
 };
+
+char is_32bit_to_aarch64_size(int is_32bit);
 
 #endif

@@ -6,22 +6,36 @@
 
 static int value_ptr_target_x86_size(Value *v);
 
-X86Operation *dup_x86_operation(X86Operation *operation) {
-    X86Operation *result = wmalloc(sizeof(X86Operation));
+// Add a rule to instr_rules
+Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
+    if (instr_rule_count == MAX_RULE_COUNT) panic("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
+
+    Rule *r = &(instr_rules[instr_rule_count]);
+
+    r->index             = instr_rule_count;
+    r->operation         = operation;
+    r->dst               = dst;
+    r->src1              = src1;
+    r->src2              = src2;
+    r->cost              = cost;
+    r->target_operations = 0;
+
+    if (cost == 0 && operation != 0) {
+        print_rule(r, 0, 0);
+        printf("A zero cost rule cannot have an operation");
+    }
+
+    instr_rule_count++;
+    return r;
+}
+
+
+TargetOperation *dup_target_operation(TargetOperation *operation) {
+    TargetOperation *result = wmalloc(sizeof(TargetOperation));
     *result = *operation;
     result->template = operation->template ? wstrdup(operation->template) : 0;
 
     return result;
-}
-
-char size_to_x86_size(int size) {
-    switch (size) {
-        case 1:  return 'b'; break;
-        case 2:  return 'w'; break;
-        case 3:  return 'l'; break;
-        case 4:  return 'q'; break;
-        default: panic("Unknown size %d", size);
-    }
 }
 
 void init_rules_by_operation(void) {
@@ -136,11 +150,11 @@ void print_rule(Rule *r, int print_operations, int indent) {
         r->cost
     );
 
-    if (print_operations && r->x86_operations) {
+    if (print_operations && r->target_operations) {
         int first = 1;
 
-        for (int i = 0; i < r->x86_operation_count; i++) {
-            X86Operation *operation = &r->x86_operations[i];
+        for (int i = 0; i < r->target_operation_count; i++) {
+            TargetOperation *operation = &r->target_operations[i];
 
             if (!first) {
                 for (int i = 0;i < indent; i++) printf(" ");
@@ -241,41 +255,41 @@ char *operation_string(int operation) {
     }
 }
 
-void make_value_x86_size(Value *v) {
+void make_value_target_size(Value *v) {
     // Determine how many bytes a value takes up, if not already done, and write it to
-    // v->86_size
+    // v->target_size
 
-    if (v->x86_size) return;
+    if (v->target_size) return;
     if (v->label) return;
     if (v->type->type == TYPE_STRUCT_OR_UNION) return;
     if (v->type->type == TYPE_ARRAY) return;
     if (v->type->type == TYPE_FUNCTION || v->function_call.function_symbol) return;
 
     if (!v->type)
-        panic("make_value_x86_size() got called with a value with no type");
+        panic("make_value_target_size() got called with a value with no type");
 
     if (v->is_string_literal)
-        v->x86_size = 4;
+        v->target_size = 4;
     else if (v->vreg || v->global_symbol || v->stack_index) {
         if (v->type->type == TYPE_PTR)
-            v->x86_size = 4;
+            v->target_size = 4;
         else if (v->type->type <= TYPE_INT128)
-            v->x86_size = v->type->type - TYPE_CHAR + 1;
+            v->target_size = v->type->type - TYPE_CHAR + 1;
         else if (v->type->type == TYPE_FLOAT)
-            v->x86_size = 3;
+            v->target_size = 3;
         else if (v->type->type == TYPE_DOUBLE)
-            v->x86_size = 4;
+            v->target_size = 4;
         else if (v->type->type == TYPE_LONG_DOUBLE)
-            v->x86_size = 5;
+            v->target_size = 5;
         else
-            panic("Illegal type in make_value_x86_size() %d", v->type->type);
+            panic("Illegal type in make_value_target_size() %d", v->type->type);
     }
 }
 
 int uncached_non_terminal_for_value(Value *v) {
     int result;
 
-    if (!v->x86_size) make_value_x86_size(v);
+    if (!v->target_size) make_value_target_size(v);
     if (v->non_terminal) return v->non_terminal;
 
     int is_local = !v->global_symbol && !v->stack_index;
@@ -298,7 +312,7 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (is_local  && is_pointer)                                         result =  RP1 + value_ptr_target_x86_size(v) - 1;
 
     // Lvalue in register
-    else if (v->is_lvalue_in_register)                                        result =  RP1 + v->x86_size - 1;
+    else if (v->is_lvalue_in_register)                                        result =  RP1 + v->target_size - 1;
 
     // Floats, doubles & long doubles
     else if (!is_local && v->type->type == TYPE_FLOAT)                        result =  MS3;
@@ -308,10 +322,10 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (!is_local && v->type->type == TYPE_LONG_DOUBLE)                  result =  MLD5;
 
     // Integers
-    else if (!is_local && !v->type->is_unsigned)                              result =  MI1 + v->x86_size - 1;
-    else if (is_local  && !v->type->is_unsigned)                              result =  RI1 + v->x86_size - 1;
-    else if (!is_local && v->type->is_unsigned)                               result =  MU1 + v->x86_size - 1;
-    else if (is_local  &&  v->type->is_unsigned)                              result =  RU1 + v->x86_size - 1;
+    else if (!is_local && !v->type->is_unsigned)                              result =  MI1 + v->target_size - 1;
+    else if (is_local  && !v->type->is_unsigned)                              result =  RI1 + v->target_size - 1;
+    else if (!is_local && v->type->is_unsigned)                               result =  MU1 + v->target_size - 1;
+    else if (is_local  &&  v->type->is_unsigned)                              result =  RU1 + v->target_size - 1;
 
     else
         panic("\n^ Bad value in non_terminal_for_value()");
@@ -426,7 +440,7 @@ static int value_ptr_target_x86_size(Value *v) {
 }
 
 // Returns the width in bytes for a non terminal
-int make_x86_size_from_non_terminal(int nt) {
+int make_target_size_from_non_terminal(int nt) {
          if (nt == CSTV1) return 1;
     else if (nt == CSTV2) return 1;
     else if (nt == CSTV3) return 1;

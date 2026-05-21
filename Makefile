@@ -55,9 +55,10 @@ SOURCES += \
 	target/x86_64/x86_64.c
 else ifeq ($(TARGET),aarch64)
 	SOURCES += \
+		target/aarch64/aarch64.c \
 		target/aarch64/codegen.c \
-		target/aarch64/registers.c \
-		target/aarch64/stubs.c
+		target/aarch64/instrrules.c \
+		target/aarch64/registers.c
 endif
 
 MISC_SOURCES := instrrules-generated.c internals.c wcc.c main.c

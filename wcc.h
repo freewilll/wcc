@@ -344,7 +344,7 @@ typedef struct value {
     int ssa_subscript;                                   // Optional SSA enumeration
     int live_range;                                      // Optional SSA live range
     char preferred_live_range_preg_index;                // Preferred physical register
-    int x86_size;                                        // Current size while generating x86 code
+    int target_size;                                     // Current size while generating target code
     int non_terminal;                                    // Used in rule matching
 } Value;
 
@@ -1276,12 +1276,12 @@ typedef struct rule {
     int src1;
     int src2;
     int cost;
-    struct x86_operation *x86_operations;
-    int x86_operation_count;
+    struct target_operation *target_operations;
+    int target_operation_count;
     long hash;
 } Rule;
 
-typedef struct x86_operation {
+typedef struct target_operation {
     Operation operation;
     char dst, v1, v2;
     char *template;
@@ -1291,7 +1291,7 @@ typedef struct x86_operation {
     char allocate_label_in_slot;       // Allocate a label and put in slot
     char allocated_type;               // Type to use to determine the allocated stack size
     char arg;                          // The argument (src1 or src2) to load/save
-} X86Operation;
+} TargetOperation;
 
 extern int instr_rule_count;
 extern Rule *instr_rules;
@@ -1311,13 +1311,13 @@ void remove_vreg_self_moves(Function *function);
 void init_generated_instruction_selection_rules(void);
 
 // instrutil.c
-X86Operation *dup_x86_operation(X86Operation *operation);
-char size_to_x86_size(int size);
+Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
+TargetOperation *dup_target_operation(TargetOperation *operation);
 char *non_terminal_string(int nt);
 void print_rule(Rule *r, int print_operations, int indent);
 void print_rules(void);
 char *operation_string(int operation);
-void make_value_x86_size(Value *v);
+void make_value_target_size(Value *v);
 int match_value_to_rule_src(Value *v, int src);
 
 #define non_terminal_for_value(v) (v->non_terminal ? v->non_terminal : uncached_non_terminal_for_value(v))
@@ -1327,7 +1327,7 @@ int uncached_non_terminal_for_value(Value *v);
 
 int match_value_type_to_rule_dst(Value *v, int dst);
 char *value_to_non_terminal_string(Value *v);
-int make_x86_size_from_non_terminal(int non_terminal);
+int make_target_size_from_non_terminal(int non_terminal);
 void init_rules_by_operation(void);
 void free_rules_by_operation(void);
 void check_for_duplicate_rules(void);
@@ -1402,7 +1402,7 @@ void compile(char *input, char *original_input_filename, char *output_filename);
 extern int failures;
 extern int remove_reserved_physical_registers;
 
-void assert_x86_op(char *expected);
+void assert_target_op(char *expected);
 void assert_tac(Tac *tac, int operation, Value *dst, Value *src1, Value *src2);
 
 Tac *i(int label, int operation, Value *dst, Value *src1, Value *src2);

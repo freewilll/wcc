@@ -1,7 +1,4 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
 
 #include "wcc.h"
 #include "x86_64.h"
@@ -48,57 +45,35 @@ static int transform_rule_value(int extend_size, int extend_sign, int v, int siz
     return result;
 }
 
-static void dup_x86_operations(X86Operation *x86_operations, int x86_operation_count, Rule *dst) {
-    dst->x86_operation_count = x86_operation_count;
-    if (!x86_operation_count) return;
+static void dup_target_operations(TargetOperation *target_operations, int target_operation_count, Rule *dst) {
+    dst->target_operation_count = target_operation_count;
+    if (!target_operation_count) return;
 
-    dst->x86_operations = wmalloc(MAX86_OP_X86_OPERATION_PER_RULE * sizeof(X86Operation));
+    dst->target_operations = wmalloc(MAX86_OP_X86_OPERATION_PER_RULE * sizeof(TargetOperation));
 
-    for (int i = 0; i < x86_operation_count; i++)
-        dst->x86_operations[i] = *dup_x86_operation(&x86_operations[i]);
+    for (int i = 0; i < target_operation_count; i++)
+        dst->target_operations[i] = *dup_target_operation(&target_operations[i]);
 
     return;
 }
 
-static Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
-    if (instr_rule_count == MAX_RULE_COUNT) panic("Exceeded maximum number of rules %d", MAX_RULE_COUNT);
+// Add an TargetOperation template to a rule's linked list, making a copy
+static TargetOperation *add_x86_op_to_rule(Rule *r, TargetOperation *x86op) {
+    if (!r->target_operation_count)
+        r->target_operations = wmalloc(MAX86_OP_X86_OPERATION_PER_RULE * sizeof(TargetOperation));
 
-    Rule *r = &(instr_rules[instr_rule_count]);
+    if (r->target_operation_count == MAX86_OP_X86_OPERATION_PER_RULE) panic("Exceeded MAX86_OP_X86_OPERATION_PER_RULE");
 
-    r->index          = instr_rule_count;
-    r->operation      = operation;
-    r->dst            = dst;
-    r->src1           = src1;
-    r->src2           = src2;
-    r->cost           = cost;
-    r->x86_operations = 0;
-
-    if (cost == 0 && operation != 0) {
-        print_rule(r, 0, 0);
-        printf("A zero cost rule cannot have an operation");
-    }
-
-    instr_rule_count++;
-    return r;
-}
-
-// Add an X86Operation template to a rule's linked list, making a copy
-static X86Operation *add_x86_op_to_rule(Rule *r, X86Operation *x86op) {
-    if (!r->x86_operation_count)
-        r->x86_operations = wmalloc(MAX86_OP_X86_OPERATION_PER_RULE * sizeof(X86Operation));
-
-    if (r->x86_operation_count == MAX86_OP_X86_OPERATION_PER_RULE) panic("Exceeded MAX86_OP_X86_OPERATION_PER_RULE");
-
-    int index = r->x86_operation_count++;
-    r->x86_operations[index] = *x86op;
-    return &r->x86_operations[index];
+    int index = r->target_operation_count++;
+    r->target_operations[index] = *x86op;
+    return &r->target_operations[index];
 }
 
 // Add an x86 operation template to a rule
-static X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
+static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     if (operation < TARGET_OPS_START) panic("Operation %s is not a target operation", operation_string(operation));
 
-    X86Operation *x86op = wmalloc(sizeof(X86Operation));
+    TargetOperation *x86op = wmalloc(sizeof(TargetOperation));
     x86op->operation.id = operation;
 
     x86op->operation.is_move = (operation == X86_OP_MOV);
@@ -144,7 +119,7 @@ static X86Operation *add_op(Rule *r, int operation, int dst, int v1, int v2, cha
 }
 
 // Copy clobbers to an operation
-static void copy_clobbers(X86Operation *op, Clobber *clobbers) {
+static void copy_clobbers(TargetOperation *op, Clobber *clobbers) {
     for (int i = 0; clobbers[i].live_range_preg; i++)
         op->operation.clobbers[i] = clobbers[i];
 }
@@ -198,8 +173,8 @@ static void fin_rule(Rule *r) {
     int src1                     = r->src1;
     int src2                     = r->src2;
     int cost                     = r->cost;
-    int x86_operation_count      = r->x86_operation_count;
-    X86Operation *x86_operations = r->x86_operations;
+    int target_operation_count      = r->target_operation_count;
+    TargetOperation *target_operations = r->target_operations;
 
     int expand_size = dst & EXP_SIZE || src1 & EXP_SIZE || src2 & EXP_SIZE;
     int expand_sign = dst & EXP_SIGN || src1 & EXP_SIGN || src2 & EXP_SIGN;
@@ -218,10 +193,10 @@ static void fin_rule(Rule *r) {
                 cost
             );
 
-            dup_x86_operations(x86_operations, x86_operation_count, new_rule);
+            dup_target_operations(target_operations, target_operation_count, new_rule);
 
-            for (int i = 0; i < new_rule->x86_operation_count; i++) {
-                X86Operation *x86_operation = &new_rule->x86_operations[i];
+            for (int i = 0; i < new_rule->target_operation_count; i++) {
+                TargetOperation *x86_operation = &new_rule->target_operations[i];
                 x86_operation->template = add_size_to_template(x86_operation->template, size);
             }
         }
@@ -230,35 +205,35 @@ static void fin_rule(Rule *r) {
 
 // Add a save value operation to a rule
 static void add_save_value(Rule *r, int arg, int slot) {
-    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
+    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
     x86op->save_value_in_slot = slot;
     x86op->arg = arg;
     add_x86_op_to_rule(r, x86op);
 }
 
 static void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
-    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
+    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
     x86op->allocate_stack_index_in_slot = slot;
     x86op->allocated_type = type;
     add_x86_op_to_rule(r, x86op);
 }
 
 static void add_allocate_register_in_slot(Rule *r, int slot, int type) {
-    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
+    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
     x86op->allocate_register_in_slot = slot;
     x86op->allocated_type = type;
     add_x86_op_to_rule(r, x86op);
 }
 
 static void add_allocate_label_in_slot(Rule *r, int slot) {
-    X86Operation *x86op = wcalloc(1, sizeof(X86Operation));
+    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
     x86op->allocate_label_in_slot = slot;
     add_x86_op_to_rule(r, x86op);
 }
 
 static void add_mov_rule(int dst, int src, int operation, char *template) {
-    int src_size = make_x86_size_from_non_terminal(src) - 1;
-    int dst_size = make_x86_size_from_non_terminal(dst) - 1;
+    int src_size = make_target_size_from_non_terminal(src) - 1;
+    int dst_size = make_target_size_from_non_terminal(dst) - 1;
 
     int is_signed = src == RI1 || src == RI2 || src == RI3 || src == RI4;
     char **moves_templates = (is_signed) ? signed_moves_templates : unsigned_moves_templates;
@@ -1048,7 +1023,7 @@ static void add_long_double_comp_rules(int *ntc, int src1, int src2, char *src1_
         Rule *r = add_rule(RI3, i == 0 ? IR_EQ : IR_NE, src1, src2, 15);
         add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
         add_op(r, X86_OP_CMP, DST, 0, 0, i == 0 ? "setnp %vdb" : "setp %vdb");
-        X86Operation *d = add_op(r, X86_OP_LD_EQ_CMP, 0, 0, 0,  i == 0 ? "movl $0, %%edx" : "movl $1, %%edx");
+        TargetOperation *d = add_op(r, X86_OP_LD_EQ_CMP, 0, 0, 0,  i == 0 ? "movl $0, %%edx" : "movl $1, %%edx");
         copy_clobbers(d, clobbers);
         add_long_double_comparison_instructions(r, src1, src2, src1_template, src2_template, "fucomip %%st(1), %%st", 1);
         add_op(r, X86_OP_MOVC, DST, 0, 0, "cmovne %%edx, %vdl");
@@ -1321,7 +1296,7 @@ static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *
     };
 
     Rule *r;
-    X86Operation *d;
+    TargetOperation *d;
 
     r = add_rule(dst, IR_DIV, src1,  src2,  cost);
         add_op(r, X86_OP_MOV,  0,    SRC1, 0,    t1);
@@ -1373,7 +1348,7 @@ static void add_binary_constant_shift_rule(int dst, int src1, int src2, char *te
 
 static void add_binary_register_shift_rule(int src1, int src2, char *template) {
     Rule *r;
-    X86Operation *d;
+    TargetOperation *d;
 
     // Clobber dst, src1
     Clobber clobbers1[4] = { { LIVE_RANGE_PREG_RCX_INDEX, 1, 1, 0, 0  } };
@@ -1491,11 +1466,11 @@ static void add_sse_operation_rules(void) {
     add_sse_operation_combination_rules(IR_DIV, X86_OP_FDIV, 40, 1, "movsd %v1D, %vdD", "divsd %v1D, %vdD");
 }
 
-static X86Operation *add_int_function_call_arg_op(Rule *r) {
+static TargetOperation *add_int_function_call_arg_op(Rule *r) {
     add_op(r, X86_OP_ARG, 0, SRC1, SRC2, "pushq %v2q");
 }
 
-static X86Operation *add_sse_function_call_arg_op(Rule *r, char *template) {
+static TargetOperation *add_sse_function_call_arg_op(Rule *r, char *template) {
     add_allocate_register_in_slot(r, 1, TYPE_LONG);
     add_op(r, X86_OP_MOVC, SV1, SRC2, 0, template);
     add_op(r, X86_OP_ARG, 0, SRC1, SV1, "pushq %v2q");
@@ -1552,7 +1527,7 @@ static void add_int2128_subc_rules(int type) {
 // They are meant to always run consecutively.
 // This approach of using a MUL instruction what gcc and clang do.
 static void add_int128_multiply_rule(int type) {
-    X86Operation *d;
+    TargetOperation *d;
 
     Clobber rax_clobber[4] = {
         { LIVE_RANGE_PREG_RAX_INDEX, 0, 0, 0, 1 }, // Clobber livenow

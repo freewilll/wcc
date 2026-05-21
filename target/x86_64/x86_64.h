@@ -145,4 +145,6 @@ enum x86_instruction_op {
     X86_OP_CALL_FROM_FUNC,
 };
 
+char size_to_x86_size(int size);
+
 #endif

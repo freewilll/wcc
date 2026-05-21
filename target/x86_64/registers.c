@@ -83,7 +83,7 @@ static Tac *make_spill_instruction(Value *v) {
     int x86_operation;
     char *target_template;
 
-    make_value_x86_size(v);
+    make_value_target_size(v);
 
     if (v->type->type == TYPE_FUNCTION) {
         x86_operation = X86_OP_MOV;
@@ -97,24 +97,24 @@ static Tac *make_spill_instruction(Value *v) {
         x86_operation = X86_OP_MOV;
         target_template = "movsd %v1D, %vdD";
     }
-    else if (v->x86_size == 1) {
+    else if (v->target_size == 1) {
         x86_operation = X86_OP_MOV;
         target_template = "movb %v1b, %vdb";
     }
-    else if (v->x86_size == 2) {
+    else if (v->target_size == 2) {
         x86_operation = X86_OP_MOV;
         target_template = "movw %v1w, %vdw";
     }
-    else if (v->x86_size == 3) {
+    else if (v->target_size == 3) {
         x86_operation = X86_OP_MOV;
         target_template = "movl %v1l, %vdl";
     }
-    else if (v->x86_size == 4) {
+    else if (v->target_size == 4) {
         x86_operation = X86_OP_MOV;
         target_template = "movq %v1q, %vdq";
     }
     else
-        panic("Unknown x86 size %d", v->x86_size);
+        panic("Unknown x86 size %d", v->target_size);
 
     Tac *tac = new_instruction(x86_operation);
     tac->target_template = target_template;
@@ -136,7 +136,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
     else
         tac->dst->type = new_type(TYPE_LONG);
 
-    tac->dst->x86_size = 4;
+    tac->dst->target_size = 4;
     tac->dst->vreg = -1000;   // Dummy value
     tac->dst->preg = preg;
 
@@ -162,7 +162,7 @@ static void add_spill_load(Tac *ir, int src, int preg) {
 
         tac->dst = new_value();
         tac->dst->type = new_type(TYPE_LONG);
-        tac->dst->x86_size = 4;
+        tac->dst->target_size = 4;
         tac->dst->vreg = -1000;   // Dummy value
         tac->dst->preg = preg;
 
@@ -176,7 +176,7 @@ static void add_spill_store(Tac *ir, Value *v, int preg) {
     Tac *tac = make_spill_instruction(v);
     tac->src1 = new_value();
     tac->src1->type = new_type(TYPE_LONG);
-    tac->src1->x86_size = 4;
+    tac->src1->target_size = 4;
     tac->src1->vreg = -1000;   // Dummy value
     tac->src1->preg = preg;
 
