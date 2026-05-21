@@ -8,9 +8,11 @@ TARGET=$(uname -m)
 case "$TARGET" in
     x86_64* )
         TARGET=x86_64
+        UPPERCASE_TARGET=X86_64
         ;;
     aarch64*|arm64*)
         TARGET=aarch64
+        UPPERCASE_TARGET=AARCH64
         ;;
 esac
 
@@ -134,6 +136,7 @@ cat > $CONFIG_H_PATH <<END
 // This file is auto generated. Do not edit.
 
 #define TARGET "$TARGET"
+#define $UPPERCASE_TARGET
 #define DEFAULT_AS_COMMAND "$DEFAULT_AS_COMMAND"
 #define DEFAULT_LD_COMMAND "$DEFAULT_LD_COMMAND"
 #define GCC_LIBRARY_PATH "$GCC_LIBRARY_PATH"

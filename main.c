@@ -636,7 +636,15 @@ int main(int argc, char **argv) {
 
             if (print_filenames) printf("Assembling %s to %s\n", input_filename, assembler_output_filename);
 
-            sprintf(command, "%s -64 %s -o %s", get_as_binary(), input_filename, assembler_output_filename);
+            #if defined X86_64
+            const char *abi_args = "-64";
+            #elif defined AARCH64
+            const char *abi_args = "-mabi=lp64";
+            #else
+            const char *abi_args = "";
+            #endif
+
+            sprintf(command, "%s %s %s -o %s", get_as_binary(), input_filename, abi_args, assembler_output_filename);
             if (verbose) {
                 sprintf(command, "%s %s", command, "-v");
                 printf("*%s\n", command);
