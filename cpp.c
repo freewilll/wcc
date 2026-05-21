@@ -388,9 +388,9 @@ void init_directives(void) {
     add_builtin_directive("__DATE__", render_date);
 
     strmap_put(directives, "__STDC__", make_numeric_directive(1));
-    strmap_put(directives, "__x86_64__", make_numeric_directive(1));
     strmap_put(directives, "__LP64__", make_numeric_directive(1));
     strmap_put(directives, "__linux__", make_numeric_directive(1));
+    strmap_put(directives, "__" TARGET "__", make_numeric_directive(1));
 
     // Set GNU version to 3.3
     strmap_put(directives, "__GNUC__", make_numeric_directive(3));
