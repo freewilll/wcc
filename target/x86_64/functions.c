@@ -324,6 +324,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
     }
 }
 
+// Move the result value of a function call to a vreg
 // Convert v1 = IR_CALL... to:
 // 1. v2 = IR_CALL...
 // 2. v1 = v2
@@ -452,11 +453,9 @@ static void add_function_return_moves(Function *function) {
             if (ir->dst->type->type == TYPE_ENUM) ir->dst->type = new_type(TYPE_INT);
             ir->dst->vreg = ++function->vreg_count;
             ir->dst->live_range_preg = live_range_preg;
-            ir->src1->preferred_live_range_preg_index = live_range_preg;
 
             new_tac_before(ir, IR_MOVE, ir->dst, ir->src1, 0, 1);
 
-            ir->operation.id = IR_RETURN;
             ir->dst = 0;
             ir->src1 = 0;
             ir->src2 = 0;

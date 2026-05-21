@@ -108,6 +108,7 @@ enum aarch64_instruction_op {
     AARCH64_OP_NULL = TARGET_OPS_START,  // An general OP that needs no special handling
     AARCH64_OP_RET_FROM_FUNC,
     AARCH64_OP_MOV,
+    AARCH64_OP_ADD,
 };
 
 char is_32bit_to_aarch64_size(int is_32bit);

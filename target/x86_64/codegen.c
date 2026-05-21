@@ -608,9 +608,8 @@ void add_final_instructions(Function *function) {
     if (function_is_main(function))
         ir = insert_target_instruction(ir, X86_OP_MOV, new_preg_value(REG_RAX), 0, 0, "movq $0, %vdq");
 
-    if (!added_end_of_function) {
+    if (!added_end_of_function)
         insert_end_of_function(ir, saved_registers);
-    }
 
     wfree(saved_registers);
 }

@@ -62,8 +62,11 @@ void define_rules(void) {
     r = add_rule(RI3,  IR_MOVE, CI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
     r = add_rule(RI3,  IR_MOVE, CI4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
 
+    // Register register move
+    r = add_rule(RI3,  IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+
     // Add two RI3s
-    r = add_rule(RI3,  IR_ADD, RI3, RI3, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, SRC2, "add %vdw, %v1w, %v2w");
+    r = add_rule(RI3,  IR_ADD, RI3, RI3, 1); add_op(r, AARCH64_OP_ADD,  DST, SRC1, SRC2, "add %vdw, %v1w, %v2w");
 
     if (ntc >= AUTO_NON_TERMINAL_END)
     panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);

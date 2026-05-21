@@ -89,11 +89,34 @@ static void output_aarch64_operation(Tac *tac, int function_pc) {
 
 void make_stack_offsets(Function *function) {} // TODO aarch64
 
+// TODO aarch64 push saved registers
+static Tac *insert_end_of_function(Tac *ir) {
+    // TODO aarch64 pop saved registers
+
+    insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
+}
+
 void add_final_instructions(Function *function) {
-    // TODO aarch64 prologue
+    int added_end_of_function;  // To ensure a double epilogue isn't emitted
+
     // TODO aarch64 push saved registers
 
     // TODO aarch64 function calls
+
+    while (ir) {
+        added_end_of_function = 0;
+
+        switch (ir->operation.id) {
+            case IR_NOP:
+                break;
+
+                case IR_RETURN:
+                ir = insert_end_of_function(ir);
+                added_end_of_function = 1;
+        }
+
+        ir = ir->next;
+    }
 
     ir = function->ir;
     while (ir->next) ir = ir->next;
@@ -102,10 +125,8 @@ void add_final_instructions(Function *function) {
     if (function_is_main(function))
         ir = insert_target_instruction(ir, AARCH64_OP_NULL, new_preg_value(REG_R00), 0, 0, "mov w0, 0");
 
-    insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
-
-    // TODO aarch64 pop saved registers
-
+    if (!added_end_of_function)
+        insert_end_of_function(ir);
 }
 
 void optimize_final_instructions(Function *function) {} // TODO aarch64
