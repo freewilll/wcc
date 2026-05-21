@@ -18,7 +18,7 @@ int instr_count;                // The current block's instruction count
 Graph *cost_graph;              // Graph of all possible options when tiling
 int cost_graph_node_count;      // Number of nodes in cost graph
 int *cost_to_igraph_map;        // Mapping of a cost graph node back to the instruction graph node
-int *cost_rules;                // Mapping of cost graph node id to x86 instruction rule id
+int *cost_rules;                // Mapping of cost graph node id to target instruction rule id
 int *accumulated_cost;          // Total cost of sub tree of a cost graph node
 LongSet **igraph_labels;        // Matched instruction rule ids for a igraph node id
 Rule **igraph_rules;            // Matched lowest cost rule id for a igraph node id
@@ -1084,7 +1084,7 @@ static Value *load_value_from_slot(int slot, char *arg) {
     return slot_value;
 }
 
-// Add an x86 instruction to the IR
+// Add an target instruction to the IR
 static Tac *add_target_instruction(TargetOperation *target_op, Value *dst, Value *v1, Value *v2) {
     if (v1) make_value_target_size(v1);
     if (v2) make_value_target_size(v2);
@@ -1114,7 +1114,7 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
             dst = ign->value;
     }
     else {
-        // Determine the result from the x86 definition
+        // Determine the result from the target definition
         if (rule->target_operations) {
             // It's an operation on a non-root node. Allocate a vreg.
 
@@ -1138,118 +1138,118 @@ static Value *generate_instructions(Function *function, IGraphNode *ign, int is_
     }
 
     // In order for the spill code to generate correct size spills,
-    // x86_size has to be set to match what the x86 instructions
+    // target_size has to be set to match what the target instructions
     // are doing. This cannot be done from the type since the type
     // reflects what the parser has produced, and doesn't necessarily
-    // match what the x86 code is doing.
+    // match what the target code is doing.
     if (dst)  dst->target_size  = make_target_size_from_non_terminal(rule->dst);
     if (src1) src1->target_size = make_target_size_from_non_terminal(rule->src1);
     if (src2) src2->target_size = make_target_size_from_non_terminal(rule->src2);
 
-    // A composite rule may do some saves, which are done in already run x86 save
+    // A composite rule may do some saves, which are done in already run target save
     // operations. The final operation(s) then loads the values from the saved slots
     // and add them to the tac.
     // These keep track of the values outputted during the loads.
-    Value *x86_dst, *x86_v1, *x86_v2;
+    Value *target_dst, *target_v1, *target_v2;
 
     for (int i = 0; i < rule->target_operation_count; i++) {
-        TargetOperation *x86op = &rule->target_operations[i];
+        TargetOperation *target_op = &rule->target_operations[i];
 
-             if (x86op->dst == 0)    x86_dst = 0;
-        else if (x86op->dst == SRC1) x86_dst = src1;
-        else if (x86op->dst == SRC2) x86_dst = src2;
-        else if (x86op->dst == DST)  x86_dst = dst;
-        else if (x86op->dst >= SV1 && x86op->dst <= SV8) x86_dst = load_value_from_slot(x86op->dst, "dst");
-        else panic("Unknown operand to x86 instruction: %d", x86op->v1);
+             if (target_op->dst == 0)    target_dst = 0;
+        else if (target_op->dst == SRC1) target_dst = src1;
+        else if (target_op->dst == SRC2) target_dst = src2;
+        else if (target_op->dst == DST)  target_dst = dst;
+        else if (target_op->dst >= SV1 && target_op->dst <= SV8) target_dst = load_value_from_slot(target_op->dst, "dst");
+        else panic("Unknown operand to target instruction: %d", target_op->v1);
 
-             if (x86op->v1 == 0)    x86_v1 = 0;
-        else if (x86op->v1 == SRC1) x86_v1 = src1;
-        else if (x86op->v1 == SRC2) x86_v1 = src2;
-        else if (x86op->v1 == DST)  x86_v1 = dst;
-        else if (x86op->v1 >= SV1 && x86op->v1 <= SV8) x86_v1 = load_value_from_slot(x86op->v1, "v1");
-        else panic("Unknown operand to x86 instruction: %d", x86op->v1);
+             if (target_op->v1 == 0)    target_v1 = 0;
+        else if (target_op->v1 == SRC1) target_v1 = src1;
+        else if (target_op->v1 == SRC2) target_v1 = src2;
+        else if (target_op->v1 == DST)  target_v1 = dst;
+        else if (target_op->v1 >= SV1 && target_op->v1 <= SV8) target_v1 = load_value_from_slot(target_op->v1, "v1");
+        else panic("Unknown operand to target instruction: %d", target_op->v1);
 
-             if (x86op->v2 == 0)    x86_v2 = 0;
-        else if (x86op->v2 == SRC1) x86_v2 = src1;
-        else if (x86op->v2 == SRC2) x86_v2 = src2;
-        else if (x86op->v2 == DST)  x86_v2 = dst;
-        else if (x86op->v2 >= SV1 && x86op->v2 <= SV8) x86_v2 = load_value_from_slot(x86op->v2, "v2");
-        else panic("Unknown operand to x86 instruction: %d", x86op->v2);
+             if (target_op->v2 == 0)    target_v2 = 0;
+        else if (target_op->v2 == SRC1) target_v2 = src1;
+        else if (target_op->v2 == SRC2) target_v2 = src2;
+        else if (target_op->v2 == DST)  target_v2 = dst;
+        else if (target_op->v2 >= SV1 && target_op->v2 <= SV8) target_v2 = load_value_from_slot(target_op->v2, "v2");
+        else panic("Unknown operand to target instruction: %d", target_op->v2);
 
-        if (x86_dst) x86_dst = dup_value(x86_dst);
-        if (x86_v1)  x86_v1  = dup_value(x86_v1);
-        if (x86_v2)  x86_v2  = dup_value(x86_v2);
+        if (target_dst) target_dst = dup_value(target_dst);
+        if (target_v1)  target_v1  = dup_value(target_v1);
+        if (target_v2)  target_v2  = dup_value(target_v2);
 
         Value *slot_value;
 
-        if (x86op->save_value_in_slot) {
-            if (x86op->save_value_in_slot > MAX_SAVED_REGISTERS)
-                panic("Saved register exceeds maximum: %d > %d", x86op->save_value_in_slot, MAX_SAVED_REGISTERS);
+        if (target_op->save_value_in_slot) {
+            if (target_op->save_value_in_slot > MAX_SAVED_REGISTERS)
+                panic("Saved register exceeds maximum: %d > %d", target_op->save_value_in_slot, MAX_SAVED_REGISTERS);
 
-                 if (x86op->arg == 1) slot_value = src1;
-            else if (x86op->arg == 2) slot_value = src2;
-            else if (x86op->arg == 3) slot_value = dst;
-            else panic ("Unknown load arg target", x86op->arg);
+                 if (target_op->arg == 1) slot_value = src1;
+            else if (target_op->arg == 2) slot_value = src2;
+            else if (target_op->arg == 3) slot_value = dst;
+            else panic ("Unknown load arg target", target_op->arg);
 
-            saved_values[x86op->save_value_in_slot] = slot_value;
+            saved_values[target_op->save_value_in_slot] = slot_value;
             if (debug_instsel_tiling) {
-                printf("  saved arg %d ", x86op->arg);
+                printf("  saved arg %d ", target_op->arg);
                 if (slot_value->type) print_value(stdout, slot_value, 0);
-                printf(" to slot %d\n", x86op->save_value_in_slot);
+                printf(" to slot %d\n", target_op->save_value_in_slot);
             }
         }
-        else if (x86op->allocate_stack_index_in_slot) {
+        else if (target_op->allocate_stack_index_in_slot) {
             int stack_index = -(++function->stack_register_count);
             Value *slot_value = new_value();
-            slot_value->type = new_type(x86op->allocated_type);
+            slot_value->type = new_type(target_op->allocated_type);
             slot_value->stack_index = stack_index;
 
-            saved_values[x86op->allocate_stack_index_in_slot] = slot_value;
+            saved_values[target_op->allocate_stack_index_in_slot] = slot_value;
             if (debug_instsel_tiling)
-                printf("  allocated stack index %d, type %d in slot %d\n", stack_index, x86op->allocated_type, x86op->allocate_stack_index_in_slot);
+                printf("  allocated stack index %d, type %d in slot %d\n", stack_index, target_op->allocated_type, target_op->allocate_stack_index_in_slot);
         }
-        else if (x86op->allocate_register_in_slot) {
+        else if (target_op->allocate_register_in_slot) {
             int vreg = ++function->vreg_count;
             Value *slot_value = new_value();
-            slot_value->type = new_type(x86op->allocated_type);
+            slot_value->type = new_type(target_op->allocated_type);
             slot_value->vreg = vreg;
 
-            saved_values[x86op->allocate_register_in_slot] = slot_value;
+            saved_values[target_op->allocate_register_in_slot] = slot_value;
             if (debug_instsel_tiling)
-                printf("  allocated vreg %d, type %d in slot %d\n", vreg, x86op->allocated_type, x86op->allocate_register_in_slot);
+                printf("  allocated vreg %d, type %d in slot %d\n", vreg, target_op->allocated_type, target_op->allocate_register_in_slot);
         }
-        else if (x86op->allocate_label_in_slot) {
+        else if (target_op->allocate_label_in_slot) {
             Value *slot_value = new_value();
             slot_value->label = ++label_count;
 
-            saved_values[x86op->allocate_label_in_slot] = slot_value;
+            saved_values[target_op->allocate_label_in_slot] = slot_value;
             if (debug_instsel_tiling)
-                printf("  allocated label %d, in slot %d\n", slot_value->label, x86op->allocate_label_in_slot);
+                printf("  allocated label %d, in slot %d\n", slot_value->label, target_op->allocate_label_in_slot);
         }
         else {
             // Add a tac to the IR
 
             int label = 0;
-            TargetOperation *x86op2 = x86op;
-            if (x86op->template && x86op->template[0] == '.' && x86op->template[1] == 'L') {
-                x86op2 = dup_target_operation(x86op);
-                append_to_list(allocated_things, x86op2);
-                if (x86op2->template) append_to_list(allocated_things, x86op2->template);
+            TargetOperation *target_op2 = target_op;
+            if (target_op->template && target_op->template[0] == '.' && target_op->template[1] == 'L') {
+                target_op2 = dup_target_operation(target_op);
+                append_to_list(allocated_things, target_op2);
+                if (target_op2->template) append_to_list(allocated_things, target_op2->template);
 
                 // If the template starts with ".Ln:", where n is a digit, load a label
                 // from slot n, use it in the instruction and rewrite the mnemonic
-                int slot = x86op2->template[2] - '0';
+                int slot = target_op2->template[2] - '0';
                 Value *v = load_value_from_slot(SV1 + slot - 1, "label");
                 label = v->label;
 
                 // Strip off the label
-                x86op2->template = &x86op2->template[4];
+                target_op2->template = &target_op2->template[4];
 
                 // Set the instruction to zero if there is only a label
-                if (x86op2->template[0] == 0) x86op2->template = 0;
+                if (target_op2->template[0] == 0) target_op2->template = 0;
             }
 
-            Tac *tac = add_target_instruction(x86op2, x86_dst, x86_v1, x86_v2);
+            Tac *tac = add_target_instruction(target_op2, target_dst, target_v1, target_v2);
             if (ign->tac) tac->origin = ign->tac->origin;
             tac->label = label;
             if (debug_instsel_tiling) print_instruction(stdout, tac, 0);

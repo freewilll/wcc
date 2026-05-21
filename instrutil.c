@@ -4,7 +4,7 @@
 
 #include "wcc.h"
 
-static int value_ptr_target_x86_size(Value *v);
+static int value_ptr_target_target_size(Value *v);
 
 // Add a rule to instr_rules
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
@@ -309,7 +309,7 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (is_local  && is_pointer && v->type->target->type == TYPE_LONG_DOUBLE) result =  RP5;
 
     else if (!is_local && is_pointer)                                         result =  MPV;
-    else if (is_local  && is_pointer)                                         result =  RP1 + value_ptr_target_x86_size(v) - 1;
+    else if (is_local  && is_pointer)                                         result =  RP1 + value_ptr_target_target_size(v) - 1;
 
     // Lvalue in register
     else if (v->is_lvalue_in_register)                                        result =  RP1 + v->target_size - 1;
@@ -387,7 +387,7 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     int is_ptr = v->type->type == TYPE_PTR;
 
     int ptr_size;
-    if (is_ptr) ptr_size = value_ptr_target_x86_size(v);
+    if (is_ptr) ptr_size = value_ptr_target_target_size(v);
     int is_ptr_to_function = is_pointer_to_function_type(v->type);
 
     if (dst == vnt) return 1;
@@ -422,7 +422,7 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
 }
 
 // Return how many bytes a dereferenced pointer takes up
-static int value_ptr_target_x86_size(Value *v) {
+static int value_ptr_target_target_size(Value *v) {
     if (v->type->type != TYPE_PTR) panic("Expected pointer type");
 
     int target_type = v->type->target->type;
