@@ -3,7 +3,7 @@
 #include "wcc.h"
 #include "x86_64.h"
 
-#define MAX86_OP_X86_OPERATION_PER_RULE 32
+#define MAX_TARGET_OPS_PER_ROLE 32
 
 char **signed_moves_templates, **unsigned_moves_templates;
 int *signed_moves_operations, *unsigned_moves_operations;
@@ -49,7 +49,7 @@ static void dup_target_operations(TargetOperation *target_operations, int target
     dst->target_operation_count = target_operation_count;
     if (!target_operation_count) return;
 
-    dst->target_operations = wmalloc(MAX86_OP_X86_OPERATION_PER_RULE * sizeof(TargetOperation));
+    dst->target_operations = wmalloc(MAX_TARGET_OPS_PER_ROLE * sizeof(TargetOperation));
 
     for (int i = 0; i < target_operation_count; i++)
         dst->target_operations[i] = *dup_target_operation(&target_operations[i]);
@@ -60,9 +60,9 @@ static void dup_target_operations(TargetOperation *target_operations, int target
 // Add an TargetOperation template to a rule's linked list, making a copy
 static TargetOperation *add_x86_op_to_rule(Rule *r, TargetOperation *x86op) {
     if (!r->target_operation_count)
-        r->target_operations = wmalloc(MAX86_OP_X86_OPERATION_PER_RULE * sizeof(TargetOperation));
+        r->target_operations = wmalloc(MAX_TARGET_OPS_PER_ROLE * sizeof(TargetOperation));
 
-    if (r->target_operation_count == MAX86_OP_X86_OPERATION_PER_RULE) panic("Exceeded MAX86_OP_X86_OPERATION_PER_RULE");
+    if (r->target_operation_count == MAX_TARGET_OPS_PER_ROLE) panic("Exceeded MAX_TARGET_OPS_PER_ROLE");
 
     int index = r->target_operation_count++;
     r->target_operations[index] = *x86op;

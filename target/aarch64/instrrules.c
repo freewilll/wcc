@@ -1,44 +1,44 @@
 #include "wcc.h"
 #include "aarch64.h"
 
-#define MAX86_OP_AARCH64_OPERATION_PER_RULE 32
+#define MAX_TARGET_OPS_PER_ROLE 32
 
 // Add an TargetOperation template to a rule's linked list, making a copy
-static TargetOperation *add_aarch64_op_to_rule(Rule *r, TargetOperation *x86op) {
+static TargetOperation *add_aarch64_op_to_rule(Rule *r, TargetOperation *target_op) {
     if (!r->target_operation_count)
-        r->target_operations = wmalloc(MAX86_OP_AARCH64_OPERATION_PER_RULE * sizeof(TargetOperation));
+        r->target_operations = wmalloc(MAX_TARGET_OPS_PER_ROLE * sizeof(TargetOperation));
 
-    if (r->target_operation_count == MAX86_OP_AARCH64_OPERATION_PER_RULE) panic("Exceeded MAX86_OP_AARCH64_OPERATION_PER_RULE");
+    if (r->target_operation_count == MAX_TARGET_OPS_PER_ROLE) panic("Exceeded MAX_TARGET_OPS_PER_ROLE");
 
     int index = r->target_operation_count++;
-    r->target_operations[index] = *x86op;
+    r->target_operations[index] = *target_op;
     return &r->target_operations[index];
 }
 
-// Add an x86 operation template to a rule
+// Add an target operation template to a rule
 static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     if (operation < TARGET_OPS_START) panic("Operation %s is not a target operation", operation_string(operation));
 
-    TargetOperation *x86op = wmalloc(sizeof(TargetOperation));
-    x86op->operation.id = operation;
+    TargetOperation *target_op = wmalloc(sizeof(TargetOperation));
+    target_op->operation.id = operation;
 
-    x86op->operation.is_move = (operation == AARCH64_OP_MOV);
+    target_op->operation.is_move = (operation == AARCH64_OP_MOV);
 
-    x86op->dst = dst;
-    x86op->v1 = v1;
-    x86op->v2 = v2;
+    target_op->dst = dst;
+    target_op->v1 = v1;
+    target_op->v2 = v2;
 
-    x86op->template = template;
-    x86op->save_value_in_slot = 0;
-    x86op->allocate_stack_index_in_slot = 0;
-    x86op->allocate_register_in_slot = 0;
-    x86op->allocate_label_in_slot = 0;
-    x86op->allocated_type = 0;
-    x86op->arg = 0;
+    target_op->template = template;
+    target_op->save_value_in_slot = 0;
+    target_op->allocate_stack_index_in_slot = 0;
+    target_op->allocate_register_in_slot = 0;
+    target_op->allocate_label_in_slot = 0;
+    target_op->allocated_type = 0;
+    target_op->arg = 0;
 
-    x86op = add_aarch64_op_to_rule(r, x86op);
+    target_op = add_aarch64_op_to_rule(r, target_op);
 
-    return x86op;
+    return target_op;
 }
 
 void define_rules(void) {
