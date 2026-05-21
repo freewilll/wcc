@@ -1370,7 +1370,7 @@ Value *new_preg_value(int preg);
 void remove_nops(Function *function);
 int function_is_main(Function *function);
 int open_output_file(char *input_filename, char *output_filename);
-void output_symbols(void);
+void output_object_symbols(void);
 void init_codegen(void);
 void free_codegen(void);
 
@@ -1474,7 +1474,7 @@ void make_stack_offsets(Function *function);
 void add_final_instructions(Function *function);
 void optimize_final_instructions(Function *function);
 void merge_rsp_func_call_add_subs(Function *function);
-void output_symbol(Symbol *symbol);
+void output_defined_object_symbol(Symbol *symbol);
 void output_code(char *input_filename, char *output_filename);
 
 #endif

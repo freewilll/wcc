@@ -125,9 +125,9 @@ static void output_function_body_code(Symbol *symbol) {
     }
 }
 
-// TODO aarch64
-void output_symbol(Symbol *symbol) {
-    fprintf(stderr, "; TODO aarch64 output_symbol %s\n", symbol->identifier);
+// Output data for a defined object symbol
+void output_defined_object_symbol(Symbol *symbol) {
+    fprintf(stderr, "; TODO aarch64 output_defined_object_symbol for %s\n", symbol->identifier);
 }
 
 // TODO aarch64 check completeness
@@ -136,7 +136,7 @@ void output_code(char *input_filename, char *output_filename) {
 
     fprintf(output_file, "    .arch armv8-a\n\n");
 
-    output_symbols();
+    output_object_symbols();
 
     // TODO aarch64 Output string literals
 

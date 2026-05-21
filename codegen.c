@@ -127,13 +127,51 @@ int open_output_file(char *input_filename, char *output_filename) {
     fprintf(output_file, "    .section .note.GNU-stack,\"\",@progbits\n\n");
 }
 
-void output_symbols(void) {
+static void output_object_symbol(Symbol *symbol) {
+    if (symbol->linkage == LINKAGE_INTERNAL && !symbol->initializers) {
+        if (elf_section != SEC_TEXT) { fprintf(output_file, "    .text\n"); elf_section = SEC_TEXT; }
+        fprintf(output_file, "    .local  %s\n", symbol->global_identifier);
+    }
+
+    if ((symbol->linkage == LINKAGE_INTERNAL || symbol->linkage == LINKAGE_EXTERNAL) && symbol->definition_status == DEFINITION_STATUS_TENTATIVE) {
+        if (elf_section != SEC_TEXT) { fprintf(output_file, "    .text\n"); elf_section = SEC_TEXT; }
+
+        // opt_enable_common_symbols applies to symbols with external linkage.
+        // For symbols with internal linkage, a .comm section will do just fine.
+        if (symbol->linkage == LINKAGE_INTERNAL || opt_enable_common_symbols) {
+            fprintf(output_file, "    .comm   %s,%d,%d\n",
+                symbol->global_identifier,
+                get_type_size(symbol->type),
+                get_type_alignment(symbol->type));
+        }
+        else {
+            int size = get_type_size(symbol->type);
+
+            if (symbol->linkage == LINKAGE_EXTERNAL)
+                fprintf(output_file, "    .globl   %s\n", symbol->global_identifier);
+
+            if (elf_section != SEC_BSS) { fprintf(output_file, "    .bss\n"); elf_section = SEC_BSS; }
+
+            fprintf(output_file, "    .align   %d\n", get_type_alignment(symbol->type));
+            fprintf(output_file, "    .type    %s, @object\n", symbol->global_identifier);
+            fprintf(output_file, "    .size    %s, %d\n", symbol->global_identifier, size);
+            fprintf(output_file, "%s:\n", symbol->global_identifier);
+            fprintf(output_file, "    .zero    %d\n", size);
+        }
+    }
+
+    else if (symbol->definition_status == DEFINITION_STATUS_DEFINED) {
+        output_defined_object_symbol(symbol);
+    }
+}
+
+void output_object_symbols(void) {
     // Output symbols
     elf_section = SEC_NONE;
     for (int i = 0; i < global_scope->symbol_list->length; i++) {
         Symbol *symbol = global_scope->symbol_list->elements[i];
         if (!symbol->scope->parent && symbol->type->type != TYPE_FUNCTION && symbol->type->type != TYPE_TYPEDEF && !symbol->is_enum_value)
-            output_symbol(symbol);
+            output_object_symbol(symbol);
     }
 
     // Output static local symbols
@@ -142,7 +180,7 @@ void output_symbols(void) {
         if (symbol->type->type == TYPE_FUNCTION && symbol->function->is_defined) {
             Function *function = symbol->function;
             for (int j = 0; j < function->static_symbols->length; j++)
-                output_symbol(function->static_symbols->elements[j]);
+                output_object_symbol(function->static_symbols->elements[j]);
         }
         symbol++;
     }
