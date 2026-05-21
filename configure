@@ -68,8 +68,10 @@ done
 
 case "$TARGET" in
     x86_64 )
+        GLIBC_DYNAMIC_LINKER=/lib64/ld-linux-x86-64.so.2
         ;;
     aarch64)
+        GLIBC_DYNAMIC_LINKER=/lib/ld-linux-aarch64.so.1
         ;;
     *)
         echo "Unknown target: $TARGET" >&2
@@ -91,30 +93,29 @@ GCC_LIBRARY_PATH=$(dirname "$(gcc -print-libgcc-file-name)")
 echo Using GCC library path $GCC_LIBRARY_PATH
 
 # Libc configs are chosen at runtime via wcc --libc=glibc|musl.
-GLIBC_DYNAMIC_LINKER=/lib64/ld-linux-x86-64.so.2
 GLIBC_LIBC_LIBRARY_PATH=/usr/lib
 GLIBC_STARTFILES="$FILE_crt1 $FILE_crti $FILE_crtbegin"
 GLIBC_ENDFILES="$FILE_crtend $FILE_crtn"
-GLIBC_INCLUDE_PATHS='"/usr/local/include", "/usr/include/x86_64-linux-gnu", "/usr/include"'
+GLIBC_INCLUDE_PATHS="\"/usr/local/include\", \"/usr/include/$TARGET-linux-gnu\", \"/usr/include\""
 
 echo Using glibc library path $GLIBC_LIBC_LIBRARY_PATH
 
 # Determine musl paths
-MUSL_DYNAMIC_LINKER=/lib/ld-musl-x86_64.so.1
+MUSL_DYNAMIC_LINKER=/lib/ld-musl-$TARGET.so.1
 
-if [ -d "/usr/lib/x86_64-linux-musl" ]; then
-    MUSL_LIBC_LIBRARY_PATH=/usr/lib/x86_64-linux-musl
-elif [ -d "/usr/x86_64-linux-musl/lib64" ]; then
-    MUSL_LIBC_LIBRARY_PATH=/usr/x86_64-linux-musl/lib64
+if [ -d "/usr/lib/$TARGET-linux-musl" ]; then
+    MUSL_LIBC_LIBRARY_PATH=/usr/lib/$TARGET-linux-musl
+elif [ -d "/usr/$TARGET-linux-musl/lib64" ]; then
+    MUSL_LIBC_LIBRARY_PATH=/usr/$TARGET-linux-musl/lib64
 else
     # Not sure if this is sane default, but configure should not fail if musl isn't found
     MUSL_LIBC_LIBRARY_PATH=/usr/lib
 fi
 
-if [ -d "/usr/include/x86_64-linux-musl" ]; then
-    MUSL_INCLUDE_PATHS='"/usr/include/x86_64-linux-musl"'
-elif [ -d "/usr/x86_64-linux-musl/include" ]; then
-    MUSL_INCLUDE_PATHS='"/usr/x86_64-linux-musl/include"'
+if [ -d "/usr/include/$TARGET-linux-musl" ]; then
+    MUSL_INCLUDE_PATHS="\"/usr/include/$TARGET-linux-musl\""
+elif [ -d "/usr/$TARGET-linux-musl/include" ]; then
+    MUSL_INCLUDE_PATHS="\"/usr/$TARGET-linux-musl/include\""
 else
     # Not sure if this is sane default, but configure should not fail if musl isn't found
     MUSL_INCLUDE_PATHS='"/usr/include"'
