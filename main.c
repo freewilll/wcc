@@ -388,7 +388,7 @@ int main(int argc, char **argv) {
                 exit(0);
             }
             else if (argc > 0 && !strcmp(argv[0], "-dumpmachine")) {
-                printf("x86_64-linux-gnu\n");
+                printf("%s-linux-gnu\n", TARGET);
                 exit(0);
             }
             else {
@@ -432,7 +432,7 @@ int main(int argc, char **argv) {
         printf("--prc                                       Output spilled register count\n");
         printf("--log-compiler-phase-durations              Log durations of each compiler phase\n");
         printf("--ir1                                       Output intermediate representation after parsing\n");
-        printf("--ir2                                       Output intermediate representation after x86_64 rearrangements\n");
+        printf("--ir2                                       Output intermediate representation after target rearrangements\n");
         printf("--print-rules                               Print instruction selection rules\n");
         printf("--print-precision-decrease-rules            Print instruction selection rules that decrease precision\n");
         printf("--rule-coverage-file <file>                 Append matched rules to file\n");
@@ -441,7 +441,7 @@ int main(int argc, char **argv) {
         printf("--sanity-check-ir                           Check internal consistency of intermediate representation\n");
         printf("\n");
         printf("-print-prog-name=<name>                     Print program name\n");
-        printf("-dumpmachine                                Print x86_64-linux-gnu\n");
+        printf("-dumpmachine                                Print %s-linux-gnu\n", TARGET);
         printf("\n");
         printf("Optimization flags:\n");
         printf("-fno-live-range-coalescing                  Disable SSA live range coalescing\n");
