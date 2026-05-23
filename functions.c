@@ -372,7 +372,7 @@ void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset) {
 // Convert a stack_index if stack_index_map isn't -1
 void remap_stack_index(int *stack_index_remap, Value *v) {
     if (v && v->stack_index >= 2 && !v->has_been_renamed && stack_index_remap[v->stack_index] != -1) {
-        v->stack_index = stack_index_remap[v ->stack_index];
+        v->stack_index = stack_index_remap[v->stack_index];
         v->has_been_renamed = 1;
     }
 }

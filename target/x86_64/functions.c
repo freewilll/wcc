@@ -1215,6 +1215,13 @@ static void add_function_param_moves(Function *function) {
         convert_register_param_stack_index_to_stack(function, register_param_stack_indexes, ir->src2);
     }
 
+    // Process parameters in the stack
+    for (Tac *ir = function->ir; ir; ir = ir->next) {
+        if (ir->dst ) ir->dst ->has_been_renamed = 0;
+        if (ir->src1) ir->src1->has_been_renamed = 0;
+        if (ir->src2) ir->src2->has_been_renamed = 0;
+    }
+
     // Add moves for params in the stack.
     // Parameter stack indexes go from 2, 3, 4 for arg 0, arg 1, arg 2, ...
     // Determine the actual stack index based on type sizes and alignment and
@@ -1240,6 +1247,7 @@ static void add_function_param_moves(Function *function) {
             stack_param_vregs[stack_index - 2] = tac->dst->vreg;
             tac->src1->function_call.function_param_original_stack_index = stack_index;
             tac->src1->stack_index = stack_index;
+            tac->src1->has_been_renamed = 1; // Stop remap_stack_index() from changing the stack index again
             insert_tac_before(ir, tac, 0);
         }
     }
