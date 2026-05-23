@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     test_prefix_inc_dec();
     test_postfix_inc_dec();

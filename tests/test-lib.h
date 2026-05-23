@@ -8,5 +8,5 @@ void assert_string(char *expected, char *actual, char *message);
 void assert_memory(char *expected, char *actual, int size, char *message);
 char *write_temp_c_file(char *content);
 void finalize();
-void parse_args(int argc, char **argv, int *verbose);
+void parse_args(int argc, char **argv);
 int wasprintf(char **ret, const char *format, ...);

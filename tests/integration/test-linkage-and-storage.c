@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     // Read a test cases file that contains .c and expected .s code and assert the output is what is expected
     const char *test_cases_filename = SRC_DIR "/tests/integration/test-linkage-and-storage.cases";

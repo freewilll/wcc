@@ -216,7 +216,7 @@ static void test_typedef_of_function_returning_int() {
 }
 
 int main(int argc, char **argv) {
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     test_typedef_functions();
     test_arrays_of_typedefs();

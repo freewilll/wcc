@@ -265,7 +265,7 @@ static void test_switch() {
 }
 
 int main(int argc, char **argv) {
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     test_switch();
 

@@ -237,7 +237,7 @@ int test_wide_char_string_literal_lexer() {
 
 int main(int argc, char **argv) {
 
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     test_char_literal_lexer();
     test_string_literal_lexer();

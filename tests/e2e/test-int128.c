@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     test_assignment_from_constant();
     test_assignment_from_variable();

@@ -560,7 +560,7 @@ int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     assert_int(1, nfc(0),                      "nested function calls 1");
     assert_int(2, nfc(1),                      "nested function calls 2");

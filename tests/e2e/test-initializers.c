@@ -1589,7 +1589,7 @@ int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     // Sanity
     test_scalar_initializers();

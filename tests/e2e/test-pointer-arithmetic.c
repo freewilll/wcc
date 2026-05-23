@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     test_pointer_addition_with_constant();
     test_pointer_addition_with_register();

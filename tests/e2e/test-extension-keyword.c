@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
-    parse_args(argc, argv, &verbose);
+    parse_args(argc, argv);
 
     assert_int(42, x, "x == 42");
     assert_int(42, __extension__ 42, "__extension__ 42 == 42");
