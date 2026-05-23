@@ -1099,11 +1099,11 @@ Tac *new_tac_after(Tac *ir, int operation, Value *dst, Value *src1, Value *src2)
 Tac *delete_instruction(Tac *tac);
 void sanity_test_ir_linkage(Function *function);
 void sanity_test_values(Function *function);
+int make_max_function_call_value(Function *function);
 int make_max_function_call_id(Function *function);
 int print_value(void *f, Value *v, int is_assignment_rhs);
 void print_instruction(void *f, Tac *tac, int expect_preg);
 void print_ir(Function *function, int expect_preg);
-void reverse_function_argument_order(Function *function);
 void merge_consecutive_labels(Function *function);
 void renumber_labels(Function *function);
 void allocate_value_vregs(Function *function);
