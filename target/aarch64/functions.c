@@ -10,6 +10,14 @@ int prepend_function_params(Function *function) {
     return 0;
 }
 
+int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl, RegisterSet *register_set) {
+    panic("TODO aarch64 add_struct_or_union_param_move");
+}
+
+void add_function_vararg_param_moves(Function *function, FunctionParamAllocation *fpa) {
+    panic("TODO aarch64 add_function_vararg_param_moves");
+}
+
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {} // TODO aarch64
 
 int *make_original_stack_indexes(Function *function) {
@@ -74,9 +82,15 @@ static void add_function_return_moves(Function *function) {
 }
 
 void process_target_functions(Function *function) {
-    // TODO aarch64 lots more to do here
+    // Callee
+    initialize_function_return_value_fpa(function->type);
+    // add_function_param_moves(function); // TODO aarch64
     add_function_return_moves(function);
+
+    // Caller
     add_function_call_result_moves(function);
+
+    // TODO aarch64 lots more to do here
 }
 
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {} // TODO aarch64
