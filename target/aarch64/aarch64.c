@@ -4,7 +4,7 @@
 // Registers used for function calls
 const int int_arg_registers[] = {1};
 
-const int sse_arg_registers[] = {1};
+const int fp_arg_registers[] = {1};
 
 char is_32bit_to_aarch64_size(int is_32bit) {
     return is_32bit ? 'w' : 'x';

@@ -428,6 +428,8 @@ void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset);
 void remap_stack_index(int *stack_index_remap, Value *v);
 Value *make_function_call_value(int function_call, Type *type);
 FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
+Tac *make_param_move_to_register_tac(Function *function, Type *type, int single_register_arg_count, int in_register);
+Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_register_arg_count);
 void free_function_param_allocaton(FunctionParamAllocation *fpa);
 void free_function_param_locations(FunctionParamLocations *fpl);
 void finalize_function_param_allocation(FunctionParamAllocation *fpa);
@@ -796,7 +798,7 @@ extern int loop_count;                   // Loop counter
 extern int total_stack_register_count;   // Spilled register count for all functions
 
 extern const int int_arg_registers[6];
-extern const int sse_arg_registers[8];
+extern const int fp_arg_registers[8];
 
 extern int error_incomptatible_pointer_type;
 extern int error_int_conversion;

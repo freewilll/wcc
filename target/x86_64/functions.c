@@ -8,7 +8,7 @@
 
 // Is a type a floating point type, but not a long double?
 static int is_sse_floating_point_type(Type *type) {
-    return (type->type >= TYPE_FLOAT && type->type <= TYPE_DOUBLE);
+    return get_preg_class_for_scalar_type(type) == PC_FP;
 }
 
 static int make_struct_or_union_arg_move_instructions(
@@ -654,40 +654,6 @@ static void convert_pushed_param_stack_index_to_register(Function *function, int
         assign_register_to_value(v, stack_param_vregs[v->stack_index - 2]);
 }
 
-// Add an instruction to move a parameter in a register to another register
-static Tac *make_param_move_to_register_tac(Function *function, Type *type, int function_param_index) {
-    Tac *tac = new_instruction(IR_MOVE);
-    tac->dst = new_value();
-    tac->dst->type = dup_type(type);
-    tac->dst->vreg = ++function->vreg_count;
-
-    tac->src1 = new_value();
-    tac->src1->type = dup_type(tac->dst->type);
-
-    int max = is_sse_floating_point_type(type) ? 8 : 6;
-    if (function_param_index < max)
-        tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
-
-    return tac;
-}
-
-// Add an instruction to move a parameter in a register to a new stack entry
-static Tac *make_param_move_to_stack_tac(Function *function, Type *type, int function_param_index) {
-    Tac *tac = new_instruction(IR_MOVE);
-    tac->dst = new_value();
-    tac->dst->type = dup_type(type);
-    tac->dst->stack_index = -(++function->stack_register_count);
-
-    tac->src1 = new_value();
-    tac->src1->type = dup_type(tac->dst->type);
-
-    int max = is_sse_floating_point_type(type) ? 8 : 6;
-    if (function_param_index < max)
-        tac->src1->live_range_preg = is_sse_floating_point_type(type) ? sse_arg_registers[function_param_index] : int_arg_registers[function_param_index];
-
-    return tac;
-}
-
 // Add instructions to move struct/union data from a param register to a struct on the stack
 static int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl, RegisterSet *register_set) {
     // Allocate space on the stack for the struct
@@ -766,7 +732,7 @@ static void add_function_vararg_param_moves(Function *function, FunctionParamAll
         Value *src = new_value();
         src->vreg = ++function->vreg_count;
         src->type = new_type(TYPE_DOUBLE);
-        src->live_range_preg = sse_arg_registers[i];
+        src->live_range_preg = fp_arg_registers[i];
 
         Value *temp_int = new_value();
         temp_int->type = new_type(TYPE_LONG);
@@ -1193,7 +1159,7 @@ static void add_function_param_moves(Function *function) {
             }
             else {
                 // Add a move instruction to copy register to another register
-                Tac *tac = make_param_move_to_register_tac(function, type, single_register_arg_count);
+                Tac *tac = make_param_move_to_register_tac(function, type, single_register_arg_count, 1);
                 register_param_vregs[i] = tac->dst->vreg;
                 tac->src1->vreg = ++function->vreg_count;
                 insert_tac_before(ir, tac, 0);
@@ -1243,7 +1209,7 @@ static void add_function_param_moves(Function *function) {
         if (debug_function_param_mapping) printf("Param %d SI %d -> SI %d\n", i, i + 2, stack_index);
 
         if (!has_address_of[i] && type->type != TYPE_LONG_DOUBLE && type->type != TYPE_STRUCT_OR_UNION) {
-            Tac *tac = make_param_move_to_register_tac(function, type, i);
+            Tac *tac = make_param_move_to_register_tac(function, type, i, 0);
             stack_param_vregs[stack_index - 2] = tac->dst->vreg;
             tac->src1->function_call.function_param_original_stack_index = stack_index;
             tac->src1->stack_index = stack_index;

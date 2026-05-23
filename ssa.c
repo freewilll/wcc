@@ -1317,7 +1317,7 @@ static void enforce_live_range_preg_for_preg(char *interference_graph, int vreg_
 // For values that have live_range_preg set, add interference graph edges for all live ranges except live_range_preg
 static void enforce_live_range_preg(char *interference_graph, int vreg_count, LongSet *livenow, Value *value) {
     enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_INT, int_arg_registers);
-    enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_FP, sse_arg_registers);
+    enforce_live_range_preg_for_preg(interference_graph, vreg_count, livenow, value, PC_FP, fp_arg_registers);
 }
 
 static void print_interference_graph(Function *function) {

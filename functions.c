@@ -244,7 +244,7 @@ void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int cou
 // function_call_*_register_arg_index ensures that dst will become the actual
 // x86_64 physical register rdi, rsi, etc
 int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *param, int preg_class, int register_index, RegisterSet *register_set) {
-    const int *arg_registers = preg_class == PC_INT ? int_arg_registers : sse_arg_registers;
+    const int *arg_registers = preg_class == PC_INT ? int_arg_registers : fp_arg_registers;
 
     Tac *tac = new_instruction(IR_MOVE);
 
@@ -386,6 +386,37 @@ Value *make_function_call_value(int function_call, Type *type) {
     src1->function_call.function_type = type;
 
     return src1;
+}
+
+// Add an instruction to move a parameter in a register/stack to another register
+Tac *make_param_move_to_register_tac(Function *function, Type *type, int single_register_arg_count, int in_register) {
+    Tac *tac = new_instruction(IR_MOVE);
+    tac->dst = new_value();
+    tac->dst->type = dup_type(type);
+    tac->dst->vreg = ++function->vreg_count;
+
+    tac->src1 = new_value();
+    tac->src1->type = dup_type(tac->dst->type);
+
+    if (in_register)
+        tac->src1->live_range_preg = get_preg_class_for_scalar_type(type) == PC_FP ? fp_arg_registers[single_register_arg_count] : int_arg_registers[single_register_arg_count];
+
+    return tac;
+}
+
+// Add an instruction to move a parameter in a register to a new stack entry
+Tac *make_param_move_to_stack_tac(Function *function, Type *type, int single_register_arg_count) {
+    Tac *tac = new_instruction(IR_MOVE);
+    tac->dst = new_value();
+    tac->dst->type = dup_type(type);
+    tac->dst->stack_index = -(++function->stack_register_count);
+
+    tac->src1 = new_value();
+    tac->src1->type = dup_type(tac->dst->type);
+
+    tac->src1->live_range_preg = get_preg_class_for_scalar_type(type) == PC_FP ? fp_arg_registers[single_register_arg_count] : int_arg_registers[single_register_arg_count];
+
+    return tac;
 }
 
 // Initialize data structures for the function param & arg allocation processor

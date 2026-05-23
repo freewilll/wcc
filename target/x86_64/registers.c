@@ -15,7 +15,7 @@ const int int_arg_registers[] = {
     LIVE_RANGE_PREG_R09_INDEX,
 };
 
-const int sse_arg_registers[] = {
+const int fp_arg_registers[] = {
     LIVE_RANGE_PREG_XMM00_INDEX,
     LIVE_RANGE_PREG_XMM01_INDEX,
     LIVE_RANGE_PREG_XMM02_INDEX,
@@ -43,7 +43,7 @@ void init_allocate_registers(void) {
     callee_saved_registers[REG_R15] = 1;
 
     arg_register_set.int_registers = int_arg_registers;
-    arg_register_set.fp_registers = sse_arg_registers;
+    arg_register_set.fp_registers = fp_arg_registers;
 
     // Make function return value register sets
     static int int_rv_registers[2];
