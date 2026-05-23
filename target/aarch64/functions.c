@@ -6,6 +6,10 @@ Set *allocate_return_value_live_ranges(void) {
     return new_set(LIVE_RANGE_PREG_REG_R28);
 }
 
+int prepend_function_params(Function *function) {
+    return 0;
+}
+
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {} // TODO aarch64
 
 int *make_original_stack_indexes(Function *function) {

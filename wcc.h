@@ -1483,6 +1483,7 @@ void perform_peephole_optimization(Function *function);
 
 // Target functions related code
 Set *allocate_return_value_live_ranges(void);
+int prepend_function_params(Function *function);
 void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 int *make_original_stack_indexes(Function *function);
 void process_target_functions(Function *function);

@@ -1096,18 +1096,14 @@ static void add_function_param_moves(Function *function) {
 
     // Make FPA for the function
     FunctionParamAllocation *fpa = init_function_param_allocaton(function->identifier);
+    function->fpa = fpa;
 
-    int fpa_start = 0; // Which index in fpa->param_locations has the first actual parameter
-
-    if (function->type->target->type == TYPE_STRUCT_OR_UNION) {
-        fpa_start = setup_return_for_struct_or_union(function);
-        if (fpa_start) add_function_param_to_allocation(fpa, function->return_value_pointer->type);
-    }
+    // fpa_start is the index in fpa->param_locations that has the first actual parameter
+    int fpa_start = prepend_function_params(function);
 
     for (int i = 0; i < function->type->function->param_count; i++)
         add_function_param_to_allocation(fpa, function->type->function->param_types->elements[i]);
 
-    function->fpa = fpa;
     finalize_function_param_allocation(fpa);
 
     int *register_param_vregs = wmalloc(sizeof(int) * function->type->function->param_count);
@@ -1307,6 +1303,21 @@ static void add_single_stack_function_param_location(FunctionParamAllocation *fp
 // Make a set large enough to hold all live ranges
 Set *allocate_return_value_live_ranges(void) {
     return new_set(LIVE_RANGE_PREG_XMM01_INDEX);
+}
+
+// Prepend parameters to a function's parameter list.
+// In x86_64, for functions that return a large struct,
+// rdi contains the address where the return struct must be copied to.
+// Returns the amount of prepended parameters that were added.
+int prepend_function_params(Function *function) {
+    int fpa_start = 0;
+
+    if (function->type->target->type == TYPE_STRUCT_OR_UNION) {
+        fpa_start = setup_return_for_struct_or_union(function);
+        if (fpa_start) add_function_param_to_allocation(function->fpa, function->return_value_pointer->type);
+    }
+
+    return fpa_start;
 }
 
 // Add a param/arg to a function and allocate registers & stack entries
