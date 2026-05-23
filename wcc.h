@@ -222,6 +222,29 @@ typedef struct scope {
     StrMap *tags;               // Struct, union or enum tags
 } Scope;
 
+typedef struct register_set {
+    const int *int_registers;   // Intger registers
+    const int *fp_registers;    // Floating point registers
+} RegisterSet;
+
+// functions.c
+#define fpa_pl(fpa, i) (*((FunctionParamLocations *) fpa->param_locations->elements[i]))
+
+// Details about a single scalar in a struct/union
+typedef struct struct_or_union_scalar {
+    Type *type;
+    int offset;
+} StructOrUnionScalar;
+
+// A list of StructOrUnionScalar
+typedef struct struct_or_union_scalars {
+    StructOrUnionScalar **scalars;
+    int count;
+} StructOrUnionScalars;
+
+extern RegisterSet arg_register_set;
+extern RegisterSet function_return_value_register_set;
+
 typedef struct function {
     char *identifier;                                   // The name of the function
     Type *type;                                         // Type of the function
@@ -387,6 +410,28 @@ typedef struct three_address_code {
     Origin *origin;                     // Filename and line number where the tac was created
 } Tac;
 
+void init_function_allocations(void);
+void free_function(Function *function, int remove_from_allocations);
+void free_functions(void);
+Function *new_function(char *identifier);
+void reverse_function_call_args_order(Function *function);
+FunctionParamAllocation *initialize_function_return_value_fpa(Type *function_type);
+void process_function_call_arg_allocations(Function *function);
+void add_ir_call_reg_instructions(Tac *ir, Value **function_call_values, int count);
+int add_arg_move_to_register(Function *function, Tac *ir, Type *type, Value *param, int preg_class, int register_index, RegisterSet *register_set);
+void load_struct_scalar_into_value(Function *function, Tac *ir, Value *param, FunctionParamLocation *pl, Type *type, Value *dst, int offset);
+Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *param, FunctionParamLocation *pl, Type *type);
+Value *make_long_temp_vreg(Function *function);
+void add_function_call_arg_move_for_struct_or_union_on_stack(Function *function, Tac *ir);
+void remove_IR_ARG_instructions_that_have_been_handled(Function *function);
+void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset);
+void remap_stack_index(int *stack_index_remap, Value *v);
+Value *make_function_call_value(int function_call, Type *type);
+FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
+void free_function_param_allocaton(FunctionParamAllocation *fpa);
+void free_function_param_locations(FunctionParamLocations *fpl);
+void finalize_function_param_allocation(FunctionParamAllocation *fpa);
+
 // Struct/union member
 typedef struct struct_or_union_member {
     char *identifier;
@@ -410,11 +455,6 @@ typedef struct typedef_desc {
     char *identifier;
     Type *type;
 } Typedef;
-
-typedef struct register_set {
-    const int *int_registers;   // Intger registers
-    const int *fp_registers;    // Floating point registers
-} RegisterSet;
 
 #define TOKEN_LIST(TOKEN_ITEM) \
     TOKEN_ITEM(TOK_EOF,                   "EOF") \
@@ -1086,6 +1126,8 @@ Value *new_integral_constant(int type_type, long value);
 Value *new_unsigned_integral_constant(int type_type, long value);
 Value *new_floating_point_constant(int type_type, long double value);
 Value *dup_value(Value *src);
+void assign_register_to_value(Value *v, int vreg);
+Value *new_value_in_stack(int type, int stack_index, int offset);
 void add_tac_to_ir(Tac *tac);
 Tac *new_instruction(int operation);
 Tac *new_instruction_with_values(int operation, Value *dst, Value *src1, Value *src2);
@@ -1159,21 +1201,6 @@ void free_interference_graph(Function *function);
 void coalesce_live_ranges(Function *function);
 void make_preferred_live_range_preg_indexes(Function *function);
 void free_preferred_live_range_preg_indexes(Function *function);
-
-// functions.c
-void init_function_allocations(void);
-void free_function(Function *function, int remove_from_allocations);
-void free_functions(void);
-Function *new_function(char *identifier);
-void remap_stack_index(int *stack_index_remap, Value *v);
-Value *make_function_call_value(int function_call, Type *type);
-FunctionParamAllocation *init_function_param_allocaton(char *function_identifier);
-void free_function_param_allocaton(FunctionParamAllocation *fpa);
-void free_function_param_locations(FunctionParamLocations *fpl);
-void finalize_function_param_allocation(FunctionParamAllocation *fpa);
-
-extern RegisterSet arg_register_set;
-extern RegisterSet function_return_value_register_set;
 
 // regalloc.c
 extern int *preg_map;               // Map from live range registers to physical registers

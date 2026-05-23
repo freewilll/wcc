@@ -86,6 +86,23 @@ Value *dup_value(Value *src) {
     return dst;
 }
 
+void assign_register_to_value(Value *v, int vreg) {
+    v->stack_index = 0;
+    v->is_lvalue = 0;
+    v->vreg = vreg;
+}
+
+Value *new_value_in_stack(int type, int stack_index, int offset) {
+    Value *value = new_value();
+
+    value->type = new_type(type);
+    value->is_lvalue = 1;
+    value->stack_index = stack_index;
+    value->offset = offset;
+
+    return value;
+}
+
 void add_tac_to_ir(Tac *tac) {
     tac->next = 0;
 
