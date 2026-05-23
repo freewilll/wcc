@@ -1467,13 +1467,16 @@ int *make_original_stack_indexes(Function *function) {
 
 // Process target function calls, args, params and return values
 void process_target_functions(Function *function) {
+    // Callee
     initialize_function_return_value_fpa(function->type);
-    process_function_call_arg_allocations(function);
-    reverse_function_call_args_order(function);
     add_function_param_moves(function);
     add_function_return_moves(function);
-    add_function_call_result_moves(function);
     process_function_varargs(function);
+
+    // Caller
+    process_function_call_arg_allocations(function);
+    reverse_function_call_args_order(function);
+    add_function_call_result_moves(function);
     add_function_call_arg_moves(function);
 }
 
