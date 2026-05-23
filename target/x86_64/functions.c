@@ -121,6 +121,18 @@ static int make_struct_or_union_arg_move_instructions(
         Function *function, Tac *ir, Value *param, int preg_class, int register_index,
         FunctionParamLocation *location, RegisterSet *register_set);
 
+// Initialize the return value FPA for a function, if needed
+static FunctionParamAllocation *initialize_function_return_value_fpa(Type *function_type) {
+    if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
+        FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
+        add_function_param_to_allocation(fpa, function_type->target);
+        function_type->function->return_value_fpa = fpa;
+        return fpa;
+    }
+
+    return NULL;
+}
+
 // Prepare register/stack allocation for function calls
 static void process_function_call_arg_allocations(Function *function) {
     int function_calls_size = make_max_function_call_id(function) + 1;
@@ -141,11 +153,9 @@ static void process_function_call_arg_allocations(Function *function) {
             int function_call_number = ir->src1->int_value;
             fpas[function_call_number] = fpa;
 
-            if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
-                FunctionParamAllocation *rv_fpa = init_function_param_allocaton(cur_type_identifier);
-                add_function_param_to_allocation(rv_fpa, function_type->target);
-                function_type->function->return_value_fpa = rv_fpa;
 
+            if (function_type->target->type == TYPE_STRUCT_OR_UNION) {
+                FunctionParamAllocation *rv_fpa = initialize_function_return_value_fpa(function_type);
                 FunctionParamLocations *rv_fpl = rv_fpa->param_locations->elements[0];
                 if (rv_fpl->locations[0].stack_offset != -1) {
                     // Allocate an integer slot if the function returns a slot in memory. The
@@ -337,6 +347,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
     Type *function_type = ir->src1->type;
 
     FunctionParamAllocation *fpa = function_type->function->return_value_fpa;
+    if (!fpa) panic("In add_function_call_result_moves_for_struct_or_union() got an empty RV fpa");
     FunctionParamLocations *fpl = fpa->param_locations->elements[0];
 
     Value *function_value = ir->src1;
@@ -1044,7 +1055,7 @@ static int add_struct_or_union_param_move(Function *function, Tac *ir, Type *typ
 // return value code. The function returns 1 if rdi has been used in this way.
 static int setup_return_for_struct_or_union(Function *function) {
     FunctionParamAllocation *fpa = function->type->function->return_value_fpa;
-
+    if (!fpa) panic("In setup_return_for_struct_or_union() got an empty RV fpa");
     if (fpa_pl(fpa, 0).locations[0].stack_offset == -1) return 0;
 
     function->return_value_pointer = new_value();
@@ -1828,6 +1839,7 @@ int *make_original_stack_indexes(Function *function) {
 
 // Process target function calls, args, params and return values
 void process_target_functions(Function *function) {
+    initialize_function_return_value_fpa(function->type);
     process_function_call_arg_allocations(function);
     reverse_function_argument_order(function);
     add_function_param_moves(function);

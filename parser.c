@@ -3672,12 +3672,6 @@ static int parse_function(Type *type, int linkage, Symbol *symbol, Symbol *origi
         symbol->function->local_symbol_count = 0;
         symbol->function->labels = new_strmap();
         symbol->function->goto_backpatches = 0;
-
-        if (type->target->type == TYPE_STRUCT_OR_UNION) {
-            FunctionParamAllocation *fpa = init_function_param_allocaton(cur_type_identifier);
-            add_function_param_to_allocation(fpa, type->target);
-            type->function->return_value_fpa = fpa;
-        }
     }
     else
         symbol->function = original_symbol->function;
