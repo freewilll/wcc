@@ -383,7 +383,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
                     function, ir, type, location, location->fp_register, stack_index,
                     &function_return_value_register_set, param_register_vreg);
             else
-                panic("Got unexpected stack offset in add_struct_or_union_param_move");
+                panic("Got unexpected stack offset in add_function_call_result_moves_for_struct_or_union");
 
             add_to_set(function_value->return_value_live_ranges, live_range_preg);
         }
@@ -1044,7 +1044,7 @@ static int add_struct_or_union_param_move(Function *function, Tac *ir, Type *typ
         else if (location->fp_register != -1)
             make_sse_struct_or_union_move_from_register_to_stack_instructions(function, ir, type, location, location->fp_register, v->stack_index, register_set, 0);
         else
-            panic("Got unexpected stack offset in add_struct_or_union_param_move");
+            panic("Got unexpected stack offset in add_struct_or_union_param_move()");
     }
 
     return v->stack_index;
@@ -1468,6 +1468,7 @@ static void add_function_param_moves(Function *function) {
 
     ir = function->ir->next;
 
+    // Make FPA for the function
     FunctionParamAllocation *fpa = init_function_param_allocaton(function->identifier);
 
     int fpa_start = 0; // Which index in fpa->param_locations has the first actual parameter
@@ -1554,13 +1555,6 @@ static void add_function_param_moves(Function *function) {
         convert_register_param_stack_index_to_stack(function, register_param_stack_indexes, ir->src2);
     }
 
-    // Process parameters in the stack
-    for (Tac *ir = function->ir; ir; ir = ir->next) {
-        if (ir->dst ) ir->dst ->has_been_renamed = 0;
-        if (ir->src1) ir->src1->has_been_renamed = 0;
-        if (ir->src2) ir->src2->has_been_renamed = 0;
-    }
-
     // Parameter stack indexes go from 2, 3, 4 for arg 0, arg 1, arg 2, ...
     // Determine the actual stack index based on type sizes and alignment and
     // remap stack_index.
@@ -1568,7 +1562,6 @@ static void add_function_param_moves(Function *function) {
     memset(stack_index_remap, -1, sizeof(int) * (function->type->function->param_count + 2));
 
     // Determine stack offsets for parameters on the stack and add moves
-
     for (int i = 0; i < function->type->function->param_count; i++) {
         if (fpa_pl(fpa, fpa_start + i).locations[0].stack_offset == -1) continue;
 
@@ -1586,7 +1579,6 @@ static void add_function_param_moves(Function *function) {
             stack_param_vregs[stack_index - 2] = tac->dst->vreg;
             tac->src1->function_call.function_param_original_stack_index = stack_index;
             tac->src1->stack_index = stack_index;
-            tac->src1->has_been_renamed = 1;
             insert_tac_before(ir, tac, 0);
         }
     }
