@@ -798,8 +798,9 @@ extern int cur_loop;                     // Current loop being parsed
 extern int loop_count;                   // Loop counter
 extern int total_stack_register_count;   // Spilled register count for all functions
 
-extern const int int_arg_registers[6];
-extern const int fp_arg_registers[8];
+#define MAX_ARG_REGISTERS 8
+extern const int int_arg_registers[MAX_ARG_REGISTERS];
+extern const int fp_arg_registers[MAX_ARG_REGISTERS];
 
 extern int error_incomptatible_pointer_type;
 extern int error_int_conversion;

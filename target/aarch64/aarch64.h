@@ -101,6 +101,15 @@ enum {
     LIVE_RANGE_PREG_REG_R26,     // Callee-saved registers
     LIVE_RANGE_PREG_REG_R27,     // Callee-saved registers
     LIVE_RANGE_PREG_REG_R28,     // Callee-saved registers
+
+    LIVE_RANGE_PREG_REG_V00,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_V01,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_V02,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_V03,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_V04,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_V05,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_V06,     // Parameter/result registers
+    LIVE_RANGE_PREG_REG_V07,     // Parameter/result registers
 };
 
 enum aarch64_instruction_op {

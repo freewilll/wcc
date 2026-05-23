@@ -57,6 +57,7 @@ void define_rules(void) {
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(RI3,    0, RI3,    0, 0);
     r = add_rule(CI3,    0, CI3,    0, 0);
+    r = add_rule(RP4,    0, RP4,    0, 0);
 
     // Load constant into register
     r = add_rule(RI3,  IR_MOVE, CI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
@@ -64,6 +65,7 @@ void define_rules(void) {
 
     // Register register move
     r = add_rule(RI3,  IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RP4,  IR_MOVE, RP4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
 
     // Add two RI3s
     r = add_rule(RI3,  IR_ADD, RI3, RI3, 1); add_op(r, AARCH64_OP_ADD,  DST, SRC1, SRC2, "add %vdw, %v1w, %v2w");

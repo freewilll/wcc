@@ -15,10 +15,59 @@ int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, Func
 }
 
 void add_function_vararg_param_moves(Function *function, FunctionParamAllocation *fpa) {
-    panic("TODO aarch64 add_function_vararg_param_moves");
+    fprintf(stderr, "TODO aarch64 add_function_vararg_param_moves\n");
 }
 
-void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {} // TODO aarch64
+// Using the state of already allocated registers & stack entries in fpa, determine the location for a type and set it in fpl.
+static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLocation *fpl, Type *type, int force_stack) {
+    fpl->int_register = -1;
+    fpl->fp_register = -1;
+    fpl->stack_offset = -1;
+    fpl->stack_padding = -1;
+
+    if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
+    if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
+
+    if (get_preg_class_for_scalar_type(type) == PC_FP)
+        panic("TODO aarch64 floating point params");
+
+    int in_stack = 0;
+    int is_single_int_register = 1;
+    int is_single_fp_register = 0;
+
+    int alignment = get_type_alignment(type);
+
+    // TODO aarch64
+    if (fpa->single_int_register_arg_count >= 8)
+        panic("TODO aarch64 params in stack");
+
+    fpl->int_register = fpa->single_int_register_arg_count < 6 ? fpa->single_int_register_arg_count : -1;
+
+    if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
+        if (fpl->int_register != -1)
+            printf("  arg %2d with alignment %2d     int reg %5d\n", fpa->param_locations->length, alignment, fpl->int_register);
+        else
+            printf("  arg %2d with alignment %2d     sse reg %5d\n", fpa->param_locations->length, alignment, fpl->fp_register);
+    }
+
+    fpa->single_int_register_arg_count += is_single_int_register;
+    if (!in_stack && is_single_fp_register) fpa->single_fp_register_arg_count++;
+}
+
+static void add_single_stack_function_param_location(FunctionParamAllocation *fpa, Type *type) {
+    FunctionParamLocations *fpl = wcalloc(1, sizeof(FunctionParamLocations));
+    append_to_list(fpa->param_locations, fpl);
+    fpl->locations = wmalloc(sizeof(FunctionParamLocation));
+    fpl->count = 1;
+    add_type_to_allocation(fpa, &(fpl->locations[0]), type, 0);
+}
+
+void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type) {
+    if (type->type == TYPE_STRUCT_OR_UNION)
+        panic("TODO aarch64 add_function_param_to_allocation for structs/unions");
+
+    add_single_stack_function_param_location(fpa, type);
+}
 
 int *make_original_stack_indexes(Function *function) {
     int *result = wcalloc(function->vreg_count + 1, sizeof(int *));
@@ -84,7 +133,7 @@ static void add_function_return_moves(Function *function) {
 void process_target_functions(Function *function) {
     // Callee
     initialize_function_return_value_fpa(function->type);
-    // add_function_param_moves(function); // TODO aarch64
+    add_function_param_moves(function);
     add_function_return_moves(function);
 
     // Caller

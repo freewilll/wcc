@@ -1,6 +1,29 @@
 #include "wcc.h"
 #include "aarch64.h"
 
+// Registers used for function calls
+const int int_arg_registers[] = {
+    LIVE_RANGE_PREG_REG_R00,
+    LIVE_RANGE_PREG_REG_R01,
+    LIVE_RANGE_PREG_REG_R02,
+    LIVE_RANGE_PREG_REG_R03,
+    LIVE_RANGE_PREG_REG_R04,
+    LIVE_RANGE_PREG_REG_R05,
+    LIVE_RANGE_PREG_REG_R06,
+    LIVE_RANGE_PREG_REG_R07,
+};
+
+const int fp_arg_registers[] = {
+    LIVE_RANGE_PREG_REG_V00,
+    LIVE_RANGE_PREG_REG_V01,
+    LIVE_RANGE_PREG_REG_V02,
+    LIVE_RANGE_PREG_REG_V03,
+    LIVE_RANGE_PREG_REG_V04,
+    LIVE_RANGE_PREG_REG_V05,
+    LIVE_RANGE_PREG_REG_V06,
+    LIVE_RANGE_PREG_REG_V07,
+};
+
 // Called once at startup
 void init_allocate_registers(void) {
     physical_register_count     =  32 + 33; // integer + floating point
