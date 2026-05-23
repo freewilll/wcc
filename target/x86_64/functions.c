@@ -1502,7 +1502,7 @@ static void add_function_param_moves(Function *function) {
         check_param_value_has_used_in_an_address_of(has_address_of, ir, ir->src2);
     }
 
-    // Add moves for registers
+    // Add moves for params in registers
     for (int i = 0; i < function->type->function->param_count; i++) {
         if (fpa_pl(fpa, fpa_start + i).locations[0].stack_offset != -1) continue;
 
@@ -1555,6 +1555,7 @@ static void add_function_param_moves(Function *function) {
         convert_register_param_stack_index_to_stack(function, register_param_stack_indexes, ir->src2);
     }
 
+    // Add moves for params in the stack.
     // Parameter stack indexes go from 2, 3, 4 for arg 0, arg 1, arg 2, ...
     // Determine the actual stack index based on type sizes and alignment and
     // remap stack_index.

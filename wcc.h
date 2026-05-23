@@ -266,8 +266,8 @@ typedef struct function_param_location {
     // One of int_register/fp_register/stack_offset is not -1.
     int int_register;       // If not -1, an int register
     int fp_register;        // If not -1, an FP register
-    int stack_offset;       // If not -1 the stack offset
-    int stack_padding;      // If not -1 the stack padding
+    int stack_offset;       // If not -1, the stack offset
+    int stack_padding;      // If not -1, the stack padding
 } FunctionParamLocation;
 
 typedef struct function_param_locations {
@@ -276,12 +276,12 @@ typedef struct function_param_locations {
 } FunctionParamLocations;
 
 typedef struct function_param_allocation {
-    int single_int_register_arg_count;
-    int single_fp_register_arg_count;
-    int biggest_alignment;
-    int offset;
-    int padding;
-    int size;
+    int single_int_register_arg_count;  // Amount of allocated integer registers
+    int single_fp_register_arg_count;   // Amount of allocated floating point registers
+    int biggest_alignment;              // Alignment of largest param
+    int offset;                         // If on the stack, offset within the FPA
+    int padding;                        // Final padding on the stack
+    int size;                           // Size on the stack, including padding
     List *param_locations;
 } FunctionParamAllocation;
 
