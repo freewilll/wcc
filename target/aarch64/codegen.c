@@ -5,8 +5,8 @@
 
 // Codegen
 char *register_name(int preg) {
-    return "TODO register_name";
-} // TODO aarch64
+    panic("TODO aarch64 register_name");
+}
 
 char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
     char *t = tac->target_template;
@@ -148,7 +148,7 @@ static void output_function_body_code(Symbol *symbol) {
 
 // Output data for a defined object symbol
 void output_defined_object_symbol(Symbol *symbol) {
-    fprintf(stderr, "; TODO aarch64 output_defined_object_symbol for %s\n", symbol->identifier);
+    panic("TODO aarch64 output_defined_object_symbol for %s\n", symbol->identifier);
 }
 
 // TODO aarch64 check completeness

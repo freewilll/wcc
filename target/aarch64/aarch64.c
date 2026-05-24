@@ -6,20 +6,20 @@ char is_32bit_to_aarch64_size(int is_32bit) {
 }
 
 char *target_op_name(int operation) {
-    return "TODO: target_op_name";
-} // TODO aarch64
+    panic("TODO aarch64: target_op_name");
+}
 
 void print_target_instruction(void *f, Tac *tac) {
-    fprintf(f, "TODO: print_target_instruction");
-} // TODO aarch64
+    panic("TODO aarch64: print_target_instruction");
+}
 
 void print_backend_instruction(void *f, Tac *tac) {
-    fprintf(f, "TODO: print_backend_instruction");
-} // TODO aarch64
+    panic("TODO aarch64: print_backend_instruction");
+}
 
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
-    printf("TODO: print_physical_register_name_for_lr_reg_index");
-} // TODO aarch64
+    panic("TODO aarch64: print_physical_register_name_for_lr_reg_index");
+}
 
 int get_preg_class_for_scalar_type(Type *type) {
     return (type->type >= TYPE_FLOAT && type->type <= TYPE_LONG_DOUBLE) ? PC_FP : PC_INT;
