@@ -217,6 +217,8 @@ void add_final_instructions(Function *function) {
 
     if (!added_end_of_function)
         insert_end_of_function(ir, saved_registers);
+
+    wfree(saved_registers);
 }
 
 void optimize_final_instructions(Function *function) {} // TODO aarch64
