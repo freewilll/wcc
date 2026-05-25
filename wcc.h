@@ -1402,6 +1402,7 @@ void remove_nops(Function *function);
 int function_is_main(Function *function);
 int open_output_file(char *input_filename, char *output_filename);
 void output_object_symbols(void);
+int *make_saved_registers(Function *function);
 void init_codegen(void);
 void free_codegen(void);
 

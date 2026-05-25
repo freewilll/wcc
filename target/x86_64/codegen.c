@@ -422,13 +422,6 @@ static void output_x86_operation(Tac *tac, int function_pc) {
 
 // Determine which registers are used in a function, push them onto the stack and return the list
 static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
-    while (tac) {
-        if (tac->dst  && tac->dst ->preg != -1 && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
-        if (tac->src1 && tac->src1->preg != -1 && callee_saved_registers[tac->src1->preg]) saved_registers[tac->src1->preg] = 1;
-        if (tac->src2 && tac->src2->preg != -1 && callee_saved_registers[tac->src2->preg]) saved_registers[tac->src2->preg] = 1;
-        tac = tac->next;
-    }
-
     for (int i = 0; i < physical_register_count; i++) {
         if (saved_registers[i]) {
             cur_stack_push_count++;
@@ -459,7 +452,6 @@ static Tac *add_add_rsp(Tac *ir, int amount) {
 // Add prologue, epilogue, stack alignment pushes/pops, function calls and main() return result
 void add_final_instructions(Function *function) {
     int stack_size;             // Size of the stack containing local variables and spilled registers
-    int *saved_registers;       // Callee saved registers
     int added_end_of_function;  // To ensure a double epilogue isn't emitted
 
     Tac *ir = function->ir;
@@ -477,8 +469,7 @@ void add_final_instructions(Function *function) {
         cur_stack_push_count += stack_size / 8;
     }
 
-    saved_registers = wcalloc(sizeof(int), physical_register_count);
-
+    int *saved_registers = make_saved_registers(function);
     ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
 
     while (ir) {

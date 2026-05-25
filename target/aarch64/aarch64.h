@@ -123,6 +123,9 @@ enum aarch64_instruction_op {
     AARCH64_OP_MUL,
     AARCH64_OP_CALL,
     AARCH64_OP_CALL_FROM_FUNC,
+    AARCH64_OP_PUSH_DOUBLE_WORD,
+    AARCH64_OP_POP_DOUBLE_WORD,
+    AARCH64_OP_ALLOCATE_STACK,
 };
 
 char is_32bit_to_aarch64_size(int is_32bit);

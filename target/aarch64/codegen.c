@@ -3,6 +3,8 @@
 #include "wcc.h"
 #include "aarch64.h"
 
+static int cur_stack_push_count; // Used in codegen to keep track of stack position
+
 // Codegen
 char *register_name(int preg) {
     char *buffer = wcalloc(1, 16);
@@ -100,9 +102,29 @@ static void output_aarch64_operation(Tac *tac, int function_pc) {
 
 void make_stack_offsets(Function *function) {} // TODO aarch64
 
+// Determine which registers are used in a function, push them onto the stack and return the list
+static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
+    for (int i = 0; i < physical_register_count; i++) {
+        if (saved_registers[i]) {
+            cur_stack_push_count++;
+            ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, new_preg_value(i), 0, 0, "str %vdx, [sp, #-8]!");
+        }
+    }
+
+    // TODO aarch64. For now, align the stack to 16-bytes here
+    if (cur_stack_push_count & 1) {
+        cur_stack_push_count++;
+        ir = insert_target_instruction(ir, AARCH64_OP_ALLOCATE_STACK, 0, 0, 0, "sub sp, sp, #8");
+    }
+
+    return ir;
+}
+
 // TODO aarch64 push saved registers
-static Tac *insert_end_of_function(Tac *ir) {
-    // TODO aarch64 pop saved registers
+static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
+    for (int i = physical_register_count - 1; i >= 0; i--)
+        if (saved_registers[i])
+            ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, new_preg_value(i), 0, 0, "ldr %vdx, [sp], 8");
 
     ir = insert_target_instruction(ir, AARCH64_OP_LDP, 0, 0, 0, "ldp x29, x30, [sp], 48"); // TODO aarch64 allocate stack
     ir = insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
@@ -115,11 +137,15 @@ void add_final_instructions(Function *function) {
 
     Tac *ir = function->ir;
 
+    cur_stack_push_count = 0;
+
     // Add function prologue
     ir = insert_target_instruction(ir, AARCH64_OP_STP, 0, 0, 0, "stp x29, x30, [sp, -48]!"); // TODO aarch64 allocate stack
     ir = insert_target_instruction(ir, AARCH64_OP_MOV, 0, 0, 0, "mov x29, sp");
 
-    // TODO aarch64 push saved registers
+    int *saved_registers = make_saved_registers(function);
+    ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
+
     // TODO aarch64 stack
 
     while (ir) {
@@ -162,7 +188,7 @@ void add_final_instructions(Function *function) {
             }
 
             case IR_RETURN:
-                ir = insert_end_of_function(ir);
+                ir = insert_end_of_function(ir, saved_registers);
                 added_end_of_function = 1;
                 break;
         }
@@ -179,7 +205,7 @@ void add_final_instructions(Function *function) {
         ir = insert_target_instruction(ir, AARCH64_OP_MOV, new_preg_value(REG_R00), 0, 0, "mov w0, 0");
 
     if (!added_end_of_function)
-        insert_end_of_function(ir);
+        insert_end_of_function(ir, saved_registers);
 }
 
 void optimize_final_instructions(Function *function) {} // TODO aarch64

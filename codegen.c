@@ -186,6 +186,23 @@ void output_object_symbols(void) {
     }
 }
 
+// Make an array of physical registers used by the function.
+// The caller is responsible for freeing the array.
+int *make_saved_registers(Function *function) {
+    int *saved_registers = wcalloc(sizeof(int), physical_register_count);
+
+    Tac *tac = function->ir;
+
+    while (tac) {
+        if (tac->dst  && tac->dst ->preg != -1 && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
+        if (tac->src1 && tac->src1->preg != -1 && callee_saved_registers[tac->src1->preg]) saved_registers[tac->src1->preg] = 1;
+        if (tac->src2 && tac->src2->preg != -1 && callee_saved_registers[tac->src2->preg]) saved_registers[tac->src2->preg] = 1;
+        tac = tac->next;
+    }
+
+    return saved_registers;
+}
+
 void init_codegen(void) {
     floating_point_literals = wmalloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
     floating_point_literal_count = 0;
