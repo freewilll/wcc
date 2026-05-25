@@ -5,7 +5,18 @@
 
 // Codegen
 char *register_name(int preg) {
-    panic("TODO aarch64 register_name");
+    char *buffer = wcalloc(1, 16);
+
+    if (preg >= REG_R00 && preg <= REG_R30)
+        sprintf(buffer, "x%d", preg);
+    else if (preg >= REG_V00 && preg <= REG_V30)
+        sprintf(buffer, "v%d", preg);
+    else if (preg == REG_SP)
+        sprintf(buffer, "sp");
+    else if (preg == REG_FSPR)
+        sprintf(buffer, "fspr");
+
+    return buffer;
 }
 
 char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
@@ -93,15 +104,23 @@ void make_stack_offsets(Function *function) {} // TODO aarch64
 static Tac *insert_end_of_function(Tac *ir) {
     // TODO aarch64 pop saved registers
 
-    insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
+    ir = insert_target_instruction(ir, AARCH64_OP_LDP, 0, 0, 0, "ldp x29, x30, [sp], 48"); // TODO aarch64 allocate stack
+    ir = insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
+
+    return ir;
 }
 
 void add_final_instructions(Function *function) {
     int added_end_of_function;  // To ensure a double epilogue isn't emitted
 
-    // TODO aarch64 push saved registers
+    Tac *ir = function->ir;
 
-    // TODO aarch64 function calls
+    // Add function prologue
+    ir = insert_target_instruction(ir, AARCH64_OP_STP, 0, 0, 0, "stp x29, x30, [sp, -48]!"); // TODO aarch64 allocate stack
+    ir = insert_target_instruction(ir, AARCH64_OP_MOV, 0, 0, 0, "mov x29, sp");
+
+    // TODO aarch64 push saved registers
+    // TODO aarch64 stack
 
     while (ir) {
         added_end_of_function = 0;
@@ -110,20 +129,54 @@ void add_final_instructions(Function *function) {
             case IR_NOP:
                 break;
 
-                case IR_RETURN:
+            case AARCH64_OP_CALL: {
+                // TODO aarch64 dedupe code with x86
+                ir->operation.id = IR_NOP;
+
+                Tac *orig_ir = ir;
+
+                // A function can be either a direct function or a function pointer
+                Type *function_type = ir->src1->type->type == TYPE_FUNCTION ? ir->src1->type : ir->src1->type->target;
+                if (function_type->function->is_variadic) {
+                    panic("TODO aarch64 codegen varargs function call");
+                }
+
+                Tac *tac = new_instruction(AARCH64_OP_CALL_FROM_FUNC);
+
+                if (!orig_ir->src1->function_call.function_symbol) {
+                    panic("TODO aarch64 codegen function call from register");
+                }
+                else {
+                    // If a function has been defined locally, call it directly, otherwise use the PLT
+                    if (orig_ir->src1->function_call.function_symbol->function && orig_ir->src1->function_call.function_symbol->function->is_defined) {
+                         wasprintf(&(tac->target_template), "bl %s", orig_ir->src1->function_call.function_symbol->global_identifier);
+                         append_to_list(allocated_strings, tac->target_template);
+                     }
+                    else {
+                         panic("TODO aarch64 codegen function call PLT for undefined functions");
+                    }
+                 }
+
+                ir = insert_tac_after(ir, tac);
+                break;
+            }
+
+            case IR_RETURN:
                 ir = insert_end_of_function(ir);
                 added_end_of_function = 1;
+                break;
         }
 
         ir = ir->next;
     }
 
+    // Add function epilogue
     ir = function->ir;
     while (ir->next) ir = ir->next;
 
     // Special case for main, return 0 if no return statement is present
     if (function_is_main(function))
-        ir = insert_target_instruction(ir, AARCH64_OP_NULL, new_preg_value(REG_R00), 0, 0, "mov w0, 0");
+        ir = insert_target_instruction(ir, AARCH64_OP_MOV, new_preg_value(REG_R00), 0, 0, "mov w0, 0");
 
     if (!added_end_of_function)
         insert_end_of_function(ir);

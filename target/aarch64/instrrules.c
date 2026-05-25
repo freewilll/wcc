@@ -23,6 +23,8 @@ static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, 
     target_op->operation.id = operation;
 
     target_op->operation.is_move = (operation == AARCH64_OP_MOV);
+    target_op->operation.is_call = (operation == AARCH64_OP_CALL);
+    // TODO aarch64, other tags, e.g.
 
     target_op->dst = dst;
     target_op->v1 = v1;
@@ -58,6 +60,7 @@ void define_rules(void) {
     r = add_rule(RI3,    0, RI3,    0, 0);
     r = add_rule(CI3,    0, CI3,    0, 0);
     r = add_rule(RP4,    0, RP4,    0, 0);
+    r = add_rule(FUN,    0, FUN,    0, 0);
 
     // Load constant into register
     r = add_rule(RI3,  IR_MOVE, CI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
@@ -69,6 +72,10 @@ void define_rules(void) {
 
     // Add two RI3s
     r = add_rule(RI3,  IR_ADD, RI3, RI3, 1); add_op(r, AARCH64_OP_ADD,  DST, SRC1, SRC2, "add %vdw, %v1w, %v2w");
+
+    // Function calls
+    r = add_rule(0,    IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
+    r = add_rule(RI3,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
 
     if (ntc >= AUTO_NON_TERMINAL_END)
     panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);

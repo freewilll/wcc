@@ -102,7 +102,6 @@ void print_target_instruction(void *f, Tac *tac) {
     else if (o == X86_OP_SETGE)     { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); }
     else
         panic("print_instruction(): Unknown operation: %d", tac->operation.id);
-
 }
 
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {

@@ -601,6 +601,7 @@ void add_final_instructions(Function *function) {
         ir = ir->next;
     }
 
+    // Add function epilogue
     ir = function->ir;
     while (ir->next) ir = ir->next;
 

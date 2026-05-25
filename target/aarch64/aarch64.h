@@ -78,46 +78,50 @@ enum {
 enum {
     // Liveness interval indexes corresponding to reserved physical registers
 
-    LIVE_RANGE_PREG_REG_R00 = 1, // Parameter/result registers
-    LIVE_RANGE_PREG_REG_R01,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_R02,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_R03,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_R04,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_R05,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_R06,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_R07,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_R09,     // Temporary registers
-    LIVE_RANGE_PREG_REG_R10,     // Temporary registers
-    LIVE_RANGE_PREG_REG_R11,     // Temporary registers
-    LIVE_RANGE_PREG_REG_R12,     // Temporary registers
-    LIVE_RANGE_PREG_REG_R13,     // Temporary registers
-    LIVE_RANGE_PREG_REG_R19,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R20,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R21,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R22,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R23,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R24,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R25,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R26,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R27,     // Callee-saved registers
-    LIVE_RANGE_PREG_REG_R28,     // Callee-saved registers
+    LIVE_RANGE_PREG_R00 = 1,    // Parameter/result registers
+    LIVE_RANGE_PREG_R01,        // Parameter/result registers
+    LIVE_RANGE_PREG_R02,        // Parameter/result registers
+    LIVE_RANGE_PREG_R03,        // Parameter/result registers
+    LIVE_RANGE_PREG_R04,        // Parameter/result registers
+    LIVE_RANGE_PREG_R05,        // Parameter/result registers
+    LIVE_RANGE_PREG_R06,        // Parameter/result registers
+    LIVE_RANGE_PREG_R07,        // Parameter/result registers
+    LIVE_RANGE_PREG_R09,        // Temporary registers
+    LIVE_RANGE_PREG_R10,        // Temporary registers
+    LIVE_RANGE_PREG_R11,        // Temporary registers
+    LIVE_RANGE_PREG_R12,        // Temporary registers
+    LIVE_RANGE_PREG_R13,        // Temporary registers
+    LIVE_RANGE_PREG_R19,        // Callee-saved registers
+    LIVE_RANGE_PREG_R20,        // Callee-saved registers
+    LIVE_RANGE_PREG_R21,        // Callee-saved registers
+    LIVE_RANGE_PREG_R22,        // Callee-saved registers
+    LIVE_RANGE_PREG_R23,        // Callee-saved registers
+    LIVE_RANGE_PREG_R24,        // Callee-saved registers
+    LIVE_RANGE_PREG_R25,        // Callee-saved registers
+    LIVE_RANGE_PREG_R26,        // Callee-saved registers
+    LIVE_RANGE_PREG_R27,        // Callee-saved registers
+    LIVE_RANGE_PREG_R28,        // Callee-saved registers
 
-    LIVE_RANGE_PREG_REG_V00,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_V01,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_V02,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_V03,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_V04,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_V05,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_V06,     // Parameter/result registers
-    LIVE_RANGE_PREG_REG_V07,     // Parameter/result registers
+    LIVE_RANGE_PREG_V00,        // Parameter/result registers
+    LIVE_RANGE_PREG_V01,        // Parameter/result registers
+    LIVE_RANGE_PREG_V02,        // Parameter/result registers
+    LIVE_RANGE_PREG_V03,        // Parameter/result registers
+    LIVE_RANGE_PREG_V04,        // Parameter/result registers
+    LIVE_RANGE_PREG_V05,        // Parameter/result registers
+    LIVE_RANGE_PREG_V06,        // Parameter/result registers
+    LIVE_RANGE_PREG_V07,        // Parameter/result registers
 };
 
 enum aarch64_instruction_op {
     // aarch64 instructions
     AARCH64_OP_NULL = TARGET_OPS_START,  // An general OP that needs no special handling
+    AARCH64_OP_STP,
+    AARCH64_OP_LDP,
     AARCH64_OP_RET_FROM_FUNC,
     AARCH64_OP_MOV,
     AARCH64_OP_ADD,
+    AARCH64_OP_CALL,
+    AARCH64_OP_CALL_FROM_FUNC,
 };
 
 char is_32bit_to_aarch64_size(int is_32bit);

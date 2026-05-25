@@ -3,7 +3,7 @@
 
 
 Set *allocate_return_value_live_ranges(void) {
-    return new_set(LIVE_RANGE_PREG_REG_R28);
+    return new_set(LIVE_RANGE_PREG_V07 + 1);
 }
 
 int prepend_function_params(Function *function) {
@@ -74,6 +74,10 @@ int *make_original_stack_indexes(Function *function) {
     return result;
 } // TODO aarch64
 
+int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, FunctionParamLocation *location, RegisterSet *register_set) {
+    panic("TODO aarch64: make_struct_or_union_arg_move_instructions");
+}
+
 // Move the result value of a function call to a vreg
 // Convert v1 = IR_CALL... to:
 // 1. v2 = IR_CALL...
@@ -86,8 +90,6 @@ static void add_function_call_result_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id != IR_CALL || !ir->dst) continue;
 
-        fprintf(stderr, "TODO aarch64 add_function_call_result_moves() is untested\n");
-
         if (!is_integer_type(ir->dst->type))
             panic("TODO aarch64: add_function_call_result_moves() function return value for non-integer types");
 
@@ -97,7 +99,7 @@ static void add_function_call_result_moves(Function *function) {
         tac->dst = ir->dst;
 
         tac->src1 = value;
-        tac->src1->live_range_preg = LIVE_RANGE_PREG_REG_R00;
+        tac->src1->live_range_preg = LIVE_RANGE_PREG_R00;
         add_to_set(ir->src1->return_value_live_ranges, tac->src1->live_range_preg);
 
         ir->dst = value;
@@ -112,7 +114,7 @@ static void add_function_return_moves(Function *function) {
         if (!is_integer_type(ir->src1->type))
             panic("TODO aarch64: add_function_return_moves() function return value for non-integer types");
 
-        int live_range_preg = LIVE_RANGE_PREG_REG_R00;
+        int live_range_preg = LIVE_RANGE_PREG_R00;
 
         ir->src1->preferred_live_range_preg_index = live_range_preg;
 
@@ -135,12 +137,38 @@ void process_target_functions(Function *function) {
     initialize_function_return_value_fpa(function->type);
     add_function_param_moves(function);
     add_function_return_moves(function);
+    // process_function_varargs(function); // TODO aarch64
 
     // Caller
+    process_function_call_arg_allocations(function);
+    reverse_function_call_args_order(function);
     add_function_call_result_moves(function);
-
-    // TODO aarch64 lots more to do here
+    add_function_call_arg_moves(function);
 }
 
-void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {} // TODO aarch64
+void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {
+    // Integer arguments are clobbered, except for r0 and r1 which may be used for results.
+    for (int i = 2; i < 8; i++)
+        clobber_livenow(ig, vreg_count, livenow, tac, int_arg_registers[i]);
+
+    // Unless the function returns something in r00, clobber r00
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_R00))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_R00);
+
+    // Unless the function returns something in r01, clobber r01
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_R01))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_R01);
+
+    // FP arguments are clobbered, except for v0 and v1 which may be used for results.
+    for (int i = 2; i < 8; i++)
+        clobber_livenow(ig, vreg_count, livenow, tac, fp_arg_registers[i]);
+
+    // Unless the function returns something in v00, clobber v00
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_V00))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_V00);
+
+    // Unless the function returns something in v01, clobber v01
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_V01))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_V01);
+}
 

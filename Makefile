@@ -67,10 +67,12 @@ SOURCES_ABS_PATH := ${SOURCES:%=${SRC_DIR}/%}
 ASSEMBLIES := ${SOURCES:c=s}
 OBJECTS := ${SOURCES:c=o}
 
-HEADERS = wcc.h target/x86_64/x86_64.h
+HEADERS = wcc.h
 
 ifeq ($(TARGET),x86_64)
 HEADERS += target/x86_64/x86_64.h
+else ifeq ($(TARGET),aarch64)
+HEADERS += target/aarch64/aarch64.h
 endif
 
 HEADERS_ABS_PATH := ${HEADERS:%=${SRC_DIR}/%}

@@ -424,6 +424,7 @@ Value *load_struct_scalar_into_new_vreg(Function *function, Tac *ir, Value *para
 Value *make_long_temp_vreg(Function *function);
 void add_function_call_arg_move_for_struct_or_union_on_stack(Function *function, Tac *ir);
 void remove_IR_ARG_instructions_that_have_been_handled(Function *function);
+void add_function_call_arg_moves(Function *function);
 void flatten_type(Type *type, StructOrUnionScalars *scalars, int offset);
 void remap_stack_index(int *stack_index_remap, Value *v);
 Value *make_function_call_value(int function_call, Type *type);
@@ -1490,6 +1491,7 @@ void add_function_param_to_allocation(FunctionParamAllocation *fpa, Type *type);
 int add_struct_or_union_param_move(Function *function, Tac *ir, Type *type, FunctionParamLocations *pl, RegisterSet *register_set);
 void add_function_vararg_param_moves(Function *function, FunctionParamAllocation *fpa);
 int *make_original_stack_indexes(Function *function);
+int make_struct_or_union_arg_move_instructions(Function *function, Tac *ir, Value *param, int preg_class, int register_index, FunctionParamLocation *location, RegisterSet *register_set);
 void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
 
