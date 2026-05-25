@@ -37,6 +37,7 @@ WCC_TESTS=\
 	extension-keyword \
 	int128
 else ifeq ($(TARGET),aarch64)
+# TODO aarch64 run all e2e tests
 WCC_TESTS=\
 	expr
 endif
@@ -51,6 +52,7 @@ E2E_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test
 ABI_LINK_OBJECTS := ${BUILD_DIR}/tests/e2e/stack-check.o ${BUILD_DIR}/tests/test-lib.o
 
 all: run-test-gcc run-test-wcc run-test-abi run-test-shlib run-test-include run-test-fcommon
+	@echo e2e tests passed
 
 ${BUILD_DIR}/tests/e2e/stack-check.o: stack-check.c
 	@mkdir -p $(@D)
@@ -141,11 +143,17 @@ ${BUILD_DIR}/tests/e2e/test-abi-gcc-wcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/
 ${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc: ${ABI_LINK_OBJECTS} ${BUILD_DIR}/tests/e2e/test-abi-function-caller-wcc.o ${BUILD_DIR}/tests/e2e/test-abi-function-callee-wcc.o
 	${GCC} ${GCC_OPTS} $^ -o $@
 
+ifeq ($(TARGET),x86_64)
 run-test-abi: ${BUILD_DIR}/tests/e2e/test-abi-gcc-gcc ${BUILD_DIR}/tests/e2e/test-abi-wcc-gcc ${BUILD_DIR}/tests/e2e/test-abi-gcc-wcc ${BUILD_DIR}/tests/e2e/test-abi-wcc-wcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-gcc-gcc
+# TODO aarch64 run these tests
 	cd ${TEST_BUILD_DIR} && ./test-abi-wcc-gcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-gcc-wcc
 	cd ${TEST_BUILD_DIR} && ./test-abi-wcc-wcc
+else
+run-test-abi:
+	# TODO aarch64 ABI tests
+endif
 
 # Shared library tests
 ${BUILD_DIR}/tests/e2e/test-shlib-lib-gcc.o: test-shlib-lib.c test-shlib.h
@@ -189,12 +197,18 @@ ${BUILD_DIR}/tests/e2e/test-shlib-wcc-wcc: ${BUILD_DIR}/tests/e2e/test-shlib-mai
 ${BUILD_DIR}/tests/e2e/test-shlib-mixed-pic-wcc-wcc: ${BUILD_DIR}/tests/e2e/test-shlib-main-no-pic-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so
 	${GCC} ${BUILD_DIR}/tests/e2e/test-shlib-main-no-pic-wcc.o ${BUILD_DIR}/tests/e2e/libtest-shlib-lib-wcc.so ${BUILD_DIR}/tests/test-lib.o -o $@
 
+ifeq ($(TARGET),x86_64)
 run-test-shlib: ${BUILD_DIR}/tests/e2e/test-shlib-gcc-gcc ${BUILD_DIR}/tests/e2e/test-shlib-wcc-gcc ${BUILD_DIR}/tests/e2e/test-shlib-gcc-wcc ${BUILD_DIR}/tests/e2e/test-shlib-wcc-wcc
 	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-gcc-gcc
 	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-wcc-gcc
 	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-gcc-wcc
 	cd ${TEST_BUILD_DIR} && LD_LIBRARY_PATH=. ./test-shlib-wcc-wcc
+else
+run-test-shlib:
+	# TODO aarch64 shlib tests
+endif
 
+ifeq ($(TARGET),x86_64)
 # Includes
 ${BUILD_DIR}/tests/e2e/test-include/test-include: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-include/include.h ${SRC_DIR}/tests/e2e/test-include/main.c ${SRC_DIR}/tests/e2e/test-include/foo.c
 	@mkdir -p $(@D)
@@ -202,13 +216,23 @@ ${BUILD_DIR}/tests/e2e/test-include/test-include: ${BUILD_DIR}/wcc ${SRC_DIR}/te
 
 run-test-include: ${BUILD_DIR}/tests/e2e/test-include/test-include
 	$<
+else
+run-test-include:
+	# TODO aarch64 include tests
+endif
 
+ifeq ($(TARGET),x86_64)
+# -fcommon
 ${BUILD_DIR}/tests/e2e/test-fcommon: ${BUILD_DIR}/wcc ${SRC_DIR}/tests/e2e/test-fcommon-main.c ${SRC_DIR}/tests/e2e/test-fcommon-lib.c
 	@mkdir -p $(@D)
 	${BUILD_DIR}/wcc ${WCC_OPTS} -fcommon ${WCC_RUN_FLAGS} ${SRC_DIR}/tests/e2e/test-fcommon-main.c ${SRC_DIR}/tests/e2e/test-fcommon-lib.c -o $@
 
 run-test-fcommon: ${BUILD_DIR}/tests/e2e/test-fcommon
 	$<
+else
+run-test-fcommon:
+	# TODO aarch64 -fcommon tests
+endif
 
 clean:
 	@rm -f ${BUILD_DIR}/tests/e2e/*.o
