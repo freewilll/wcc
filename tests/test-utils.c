@@ -144,6 +144,9 @@ Value *vusz(int vreg, int type) {
     return v;
 }
 
+Value *pvsz(int vreg, int type) {
+    return p(vsz(vreg, type));
+}
 
 Value *a(int vreg) {
     Value *v;

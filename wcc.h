@@ -1450,6 +1450,7 @@ Value *v(int vreg);
 Value *uv(int vreg);
 Value *vsz(int vreg, int type);
 Value *vusz(int vreg, int type);
+Value *pvsz(int vreg, int type);
 Value *a(int vreg);
 Value *asz(int vreg, int type);
 Value *ausz(int vreg, int type);

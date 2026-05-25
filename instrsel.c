@@ -69,35 +69,28 @@ void check_instrsel_register_sanity(Function *function) {
 
 static void transform_lvalues(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == IR_MOVE_TO_PTR) {
-            tac->src1 = dup_value(tac->src1);
+        if (tac->operation.id == IR_MOVE_TO_PTR) continue;
+
+        // Ensure type of dst and src1 matches in a pointer addition operation
+        if (tac->operation.id == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
+            tac->dst = dup_value(tac->dst);
+            tac->dst->type = make_pointer(tac->dst->type);
+            tac->dst->is_lvalue = 0;
+        }
+
+        if (tac->dst && tac->dst->vreg && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register) {
+            tac->dst->type = make_pointer(tac->dst->type);
+            tac->dst->is_lvalue = 0;
+        }
+
+        if (tac->src1 && tac->src1->vreg && tac->src1->is_lvalue) {
             tac->src1->type = make_pointer(tac->src1->type);
             tac->src1->is_lvalue = 0;
-            // Note: tac ->dst remains zero. src1 is the target of the pointer write, but is itself not modified
         }
-        else {
-            // Ensure type of dst and src1 matches in a pointer addition operation
-            if (tac->operation.id == IR_ADD && tac->dst && tac->dst->is_lvalue_in_register) {
-                tac->dst = dup_value(tac->dst);
-                tac->dst->type = make_pointer(tac->dst->type);
-                tac->dst->is_lvalue = 0;
-            }
 
-
-            if (tac->dst && tac->dst->vreg && tac->dst->is_lvalue && !tac->dst->is_lvalue_in_register) {
-                tac->dst->type = make_pointer(tac->dst->type);
-                tac->dst->is_lvalue = 0;
-            }
-
-            if (tac->src1 && tac->src1->vreg && tac->src1->is_lvalue) {
-                tac->src1->type = make_pointer(tac->src1->type);
-                tac->src1->is_lvalue = 0;
-            }
-
-            if (tac->src2 && tac->src2->vreg && tac->src2->is_lvalue) {
-                tac->src2->type = make_pointer(tac->src2->type);
-                tac->src2->is_lvalue = 0;
-            }
+        if (tac->src2 && tac->src2->vreg && tac->src2->is_lvalue) {
+            tac->src2->type = make_pointer(tac->src2->type);
+            tac->src2->is_lvalue = 0;
         }
     }
 }

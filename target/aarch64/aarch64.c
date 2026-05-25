@@ -82,8 +82,7 @@ void make_load_store_instructions(Function *function) {
             Tac *load_tac = load_dst_address_into_pointer(function, tac);
             tac->operation.id = IR_MOVE_TO_PTR;
             tac->src2 = tac->src1;
-            tac->src1 = dup_value(load_tac->dst);
-            tac->src1->type = load_tac->dst->type->target;
+            tac->src1 = load_tac->dst;
             tac->dst = NULL;
         }
     }

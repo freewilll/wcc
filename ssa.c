@@ -163,6 +163,9 @@ void rewrite_lvalue_reg_assignments(Function *function) {
             tac->operation.id = IR_MOVE_TO_PTR;
             tac->src2 = tac->src1;
             tac->src1 = tac->dst;
+            tac->src1 = dup_value(tac->src1);
+            tac->src1->type = make_pointer(tac->src1->type);
+            tac->src1->is_lvalue = 0;
             tac->src1->is_lvalue_in_register = 1;
             tac->dst = 0;
         }
