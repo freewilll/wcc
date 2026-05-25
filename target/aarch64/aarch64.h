@@ -39,7 +39,7 @@ enum {
     REG_R30,    // Link register
     REG_SP,     // Stack pointer
 
-    // Floaing point
+    // Floating point
     REG_V00,    // Parameter/result registers
     REG_V01,    // Parameter/result registers
     REG_V02,    // Parameter/result registers
@@ -110,6 +110,30 @@ enum {
     LIVE_RANGE_PREG_V05,        // Parameter/result registers
     LIVE_RANGE_PREG_V06,        // Parameter/result registers
     LIVE_RANGE_PREG_V07,        // Parameter/result registers
+
+    LIVE_RANGE_PREG_V09,        // Callee-saved registers
+    LIVE_RANGE_PREG_V10,        // Callee-saved registers
+    LIVE_RANGE_PREG_V11,        // Callee-saved registers
+    LIVE_RANGE_PREG_V12,        // Callee-saved registers
+    LIVE_RANGE_PREG_V13,        // Callee-saved registers
+    LIVE_RANGE_PREG_V14,        // Callee-saved registers
+    LIVE_RANGE_PREG_V15,        // Callee-saved registers
+    LIVE_RANGE_PREG_V16,        // Temporary registers
+    LIVE_RANGE_PREG_V17,        // Temporary registers
+    LIVE_RANGE_PREG_V18,        // Temporary registers
+    LIVE_RANGE_PREG_V19,        // Temporary registers
+    LIVE_RANGE_PREG_V20,        // Temporary registers
+    LIVE_RANGE_PREG_V21,        // Temporary registers
+    LIVE_RANGE_PREG_V22,        // Temporary registers
+    LIVE_RANGE_PREG_V23,        // Temporary registers
+    LIVE_RANGE_PREG_V24,        // Temporary registers
+    LIVE_RANGE_PREG_V25,        // Temporary registers
+    LIVE_RANGE_PREG_V26,        // Temporary registers
+    LIVE_RANGE_PREG_V27,        // Temporary registers
+    LIVE_RANGE_PREG_V28,        // Temporary registers
+    LIVE_RANGE_PREG_V29,        // Temporary registers
+    LIVE_RANGE_PREG_V30,        // Temporary registers
+    LIVE_RANGE_PREG_V31,        // Temporary registers
 };
 
 enum aarch64_instruction_op {
@@ -120,13 +144,19 @@ enum aarch64_instruction_op {
     AARCH64_OP_RET_FROM_FUNC,
     AARCH64_OP_MOV,
     AARCH64_OP_ADD,
+    AARCH64_OP_ADD_LO12,
     AARCH64_OP_MUL,
     AARCH64_OP_CALL,
     AARCH64_OP_CALL_FROM_FUNC,
     AARCH64_OP_PUSH_DOUBLE_WORD,
     AARCH64_OP_POP_DOUBLE_WORD,
     AARCH64_OP_ALLOCATE_STACK,
+    AARCH64_OP_DEALLOCATE_STACK,
+    AARCH64_OP_ADRP,
 };
+
+extern const int clobbered_registers_in_function_call[];
+extern int clobbered_registers_in_function_call_count;
 
 char is_32bit_to_aarch64_size(int is_32bit);
 

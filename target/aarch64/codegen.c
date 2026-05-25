@@ -75,6 +75,8 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
             else if (v->is_constant) {
                 sprintf(buffer, "%ld", v->int_value);
             }
+            else if (v->is_string_literal)
+                sprintf(buffer, ".LS%d", v->string_literal_index);
             else {
                 print_value(stdout, v, 0);
                 printf("\n");
@@ -122,9 +124,17 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
 
 // TODO aarch64 push saved registers
 static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
+    int popped_args = 0;
     for (int i = physical_register_count - 1; i >= 0; i--)
-        if (saved_registers[i])
+        if (saved_registers[i]) {
+            popped_args += 1;
             ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, new_preg_value(i), 0, 0, "ldr %vdx, [sp], 8");
+        }
+
+    // TODO aarch64. For now, align the stack to 16-bytes here
+    if (popped_args & 1) {
+        ir = insert_target_instruction(ir, AARCH64_OP_DEALLOCATE_STACK, 0, 0, 0, "add sp, sp, #8");
+    }
 
     ir = insert_target_instruction(ir, AARCH64_OP_LDP, 0, 0, 0, "ldp x29, x30, [sp], 48"); // TODO aarch64 allocate stack
     ir = insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
@@ -162,10 +172,6 @@ void add_final_instructions(Function *function) {
                 Tac *orig_ir = ir;
 
                 // A function can be either a direct function or a function pointer
-                Type *function_type = ir->src1->type->type == TYPE_FUNCTION ? ir->src1->type : ir->src1->type->target;
-                if (function_type->function->is_variadic) {
-                    panic("TODO aarch64 codegen varargs function call");
-                }
 
                 Tac *tac = new_instruction(AARCH64_OP_CALL_FROM_FUNC);
 
@@ -173,14 +179,8 @@ void add_final_instructions(Function *function) {
                     panic("TODO aarch64 codegen function call from register");
                 }
                 else {
-                    // If a function has been defined locally, call it directly, otherwise use the PLT
-                    if (orig_ir->src1->function_call.function_symbol->function && orig_ir->src1->function_call.function_symbol->function->is_defined) {
-                         wasprintf(&(tac->target_template), "bl %s", orig_ir->src1->function_call.function_symbol->global_identifier);
-                         append_to_list(allocated_strings, tac->target_template);
-                     }
-                    else {
-                         panic("TODO aarch64 codegen function call PLT for undefined functions");
-                    }
+                    wasprintf(&(tac->target_template), "bl %s", orig_ir->src1->function_call.function_symbol->global_identifier);
+                    append_to_list(allocated_strings, tac->target_template);
                  }
 
                 ir = insert_tac_after(ir, tac);
@@ -238,7 +238,24 @@ void output_code(char *input_filename, char *output_filename) {
 
     output_object_symbols();
 
-    // TODO aarch64 Output string literals
+    // Output string literals
+    if (string_literal_count > 0) {
+        fprintf(output_file, "\n    .section .rodata\n\n");
+        fprintf(output_file, ".Ltext0:\n\n");
+
+        for (int i = 0; i < string_literal_count; i++) {
+            StringLiteral *sl = &(string_literals[i]);
+
+            if (sl->is_wide_char)
+                fprintf(output_file, "    .align   4\n");
+            else
+                fprintf(output_file, "    .align   2\n");
+
+            fprintf(output_file, ".LS%d:\n", i);
+            fprintf_escaped_string_literal(output_file, sl, 1);
+        }
+        fprintf(output_file, "\n");
+    }
 
     // Output code
     fprintf(output_file, "    .text\n");

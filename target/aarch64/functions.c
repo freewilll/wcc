@@ -147,6 +147,10 @@ void process_target_functions(Function *function) {
 }
 
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac) {
+    // Clobber all temporaries
+    for (int i = 0; i < clobbered_registers_in_function_call_count; i++)
+        clobber_livenow(ig, vreg_count, livenow, tac, clobbered_registers_in_function_call[i]);
+
     // Integer arguments are clobbered, except for r0 and r1 which may be used for results.
     for (int i = 2; i < 8; i++)
         clobber_livenow(ig, vreg_count, livenow, tac, int_arg_registers[i]);

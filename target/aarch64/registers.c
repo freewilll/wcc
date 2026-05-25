@@ -24,11 +24,38 @@ const int fp_arg_registers[] = {
     LIVE_RANGE_PREG_V07,
 };
 
+const int clobbered_registers_in_function_call[] = {
+    LIVE_RANGE_PREG_R09,
+    LIVE_RANGE_PREG_R10,
+    LIVE_RANGE_PREG_R11,
+    LIVE_RANGE_PREG_R12,
+    LIVE_RANGE_PREG_R13,
+
+    LIVE_RANGE_PREG_V16,
+    LIVE_RANGE_PREG_V17,
+    LIVE_RANGE_PREG_V18,
+    LIVE_RANGE_PREG_V19,
+    LIVE_RANGE_PREG_V20,
+    LIVE_RANGE_PREG_V21,
+    LIVE_RANGE_PREG_V22,
+    LIVE_RANGE_PREG_V23,
+    LIVE_RANGE_PREG_V24,
+    LIVE_RANGE_PREG_V25,
+    LIVE_RANGE_PREG_V26,
+    LIVE_RANGE_PREG_V27,
+    LIVE_RANGE_PREG_V28,
+    LIVE_RANGE_PREG_V29,
+    LIVE_RANGE_PREG_V30,
+    LIVE_RANGE_PREG_V31,
+};
+
+int clobbered_registers_in_function_call_count = sizeof(clobbered_registers_in_function_call) / sizeof(int);
+
 // Called once at startup
 void init_allocate_registers(void) {
     physical_register_count     =  32 + 33; // integer + floating point
     physical_int_register_count =  23;      // Available registers for integers
-    physical_fp_register_count  =  8;       // Available registers for floating points TODO aarch64, this only covers are registers for now
+    physical_fp_register_count  =  8 + 23;  // Available registers for floating points TODO aarch64, this only covers arg registers for now
 
     preg_map = wcalloc(physical_register_count + 1, sizeof(int));
     callee_saved_registers = wcalloc(physical_register_count + 1, sizeof(int));

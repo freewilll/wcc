@@ -3,8 +3,6 @@
 #include "wcc.h"
 #include "x86_64.h"
 
-#define MAX_TARGET_OPS_PER_ROLE 32
-
 char **signed_moves_templates, **unsigned_moves_templates;
 int *signed_moves_operations, *unsigned_moves_operations;
 
@@ -57,18 +55,6 @@ static void dup_target_operations(TargetOperation *target_operations, int target
     return;
 }
 
-// Add an TargetOperation template to a rule's linked list, making a copy
-static TargetOperation *add_x86_op_to_rule(Rule *r, TargetOperation *x86op) {
-    if (!r->target_operation_count)
-        r->target_operations = wmalloc(MAX_TARGET_OPS_PER_ROLE * sizeof(TargetOperation));
-
-    if (r->target_operation_count == MAX_TARGET_OPS_PER_ROLE) panic("Exceeded MAX_TARGET_OPS_PER_ROLE");
-
-    int index = r->target_operation_count++;
-    r->target_operations[index] = *x86op;
-    return &r->target_operations[index];
-}
-
 // Add an x86 operation template to a rule
 static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     if (operation < TARGET_OPS_START) panic("Operation %s is not a target operation", operation_string(operation));
@@ -113,7 +99,7 @@ static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, 
     x86op->allocated_type = 0;
     x86op->arg = 0;
 
-    x86op = add_x86_op_to_rule(r, x86op);
+    x86op = add_target_op_to_rule(r, x86op);
 
     return x86op;
 }
@@ -201,34 +187,6 @@ static void fin_rule(Rule *r) {
             }
         }
     }
-}
-
-// Add a save value operation to a rule
-static void add_save_value(Rule *r, int arg, int slot) {
-    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
-    x86op->save_value_in_slot = slot;
-    x86op->arg = arg;
-    add_x86_op_to_rule(r, x86op);
-}
-
-static void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
-    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
-    x86op->allocate_stack_index_in_slot = slot;
-    x86op->allocated_type = type;
-    add_x86_op_to_rule(r, x86op);
-}
-
-static void add_allocate_register_in_slot(Rule *r, int slot, int type) {
-    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
-    x86op->allocate_register_in_slot = slot;
-    x86op->allocated_type = type;
-    add_x86_op_to_rule(r, x86op);
-}
-
-static void add_allocate_label_in_slot(Rule *r, int slot) {
-    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
-    x86op->allocate_label_in_slot = slot;
-    add_x86_op_to_rule(r, x86op);
 }
 
 static void add_mov_rule(int dst, int src, int operation, char *template) {

@@ -472,6 +472,47 @@ int make_target_size_from_non_terminal(int nt) {
         panic("Unable to determine size for %s", non_terminal_string(nt));
 }
 
+// Add an TargetOperation template to a rule's linked list, making a copy
+TargetOperation *add_target_op_to_rule(Rule *r, TargetOperation *target_op) {
+    if (!r->target_operation_count)
+        r->target_operations = wmalloc(MAX_TARGET_OPS_PER_ROLE * sizeof(TargetOperation));
+
+    if (r->target_operation_count == MAX_TARGET_OPS_PER_ROLE) panic("Exceeded MAX_TARGET_OPS_PER_ROLE");
+
+    int index = r->target_operation_count++;
+    r->target_operations[index] = *target_op;
+    return &r->target_operations[index];
+}
+
+
+// Add a save value operation to a rule
+void add_save_value(Rule *r, int arg, int slot) {
+    TargetOperation *target_op = wcalloc(1, sizeof(TargetOperation));
+    target_op->save_value_in_slot = slot;
+    target_op->arg = arg;
+    add_target_op_to_rule(r, target_op);
+}
+
+void add_allocate_stack_index_in_slot(Rule *r, int slot, int type) {
+    TargetOperation *target_op = wcalloc(1, sizeof(TargetOperation));
+    target_op->allocate_stack_index_in_slot = slot;
+    target_op->allocated_type = type;
+    add_target_op_to_rule(r, target_op);
+}
+
+void add_allocate_register_in_slot(Rule *r, int slot, int type) {
+    TargetOperation *target_op = wcalloc(1, sizeof(TargetOperation));
+    target_op->allocate_register_in_slot = slot;
+    target_op->allocated_type = type;
+    add_target_op_to_rule(r, target_op);
+}
+
+void add_allocate_label_in_slot(Rule *r, int slot) {
+    TargetOperation *target_op = wcalloc(1, sizeof(TargetOperation));
+    target_op->allocate_label_in_slot = slot;
+    add_target_op_to_rule(r, target_op);
+}
+
 void write_rule_coverage_file(void) {
     void *f = fopen(rule_coverage_file, "a");
 

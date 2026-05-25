@@ -878,6 +878,9 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
     if (!matched) {
         dump_igraph(igraph, 0);
+        printf("Trying to match: ");
+        print_value(stdout, v, 0);
+        printf("\n");
         panic("Leaf node did not match any rules");
     }
 

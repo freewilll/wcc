@@ -1342,6 +1342,8 @@ void remove_vreg_self_moves(Function *function);
 void init_generated_instruction_selection_rules(void);
 
 // instrutil.c
+#define MAX_TARGET_OPS_PER_ROLE 32
+
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost);
 TargetOperation *dup_target_operation(TargetOperation *operation);
 char *non_terminal_string(int nt);
@@ -1362,6 +1364,11 @@ int make_target_size_from_non_terminal(int non_terminal);
 void init_rules_by_operation(void);
 void free_rules_by_operation(void);
 void check_for_duplicate_rules(void);
+TargetOperation *add_target_op_to_rule(Rule *r, TargetOperation *target_op);
+void add_save_value(Rule *r, int arg, int slot);
+void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
+void add_allocate_register_in_slot(Rule *r, int slot, int type);
+void add_allocate_label_in_slot(Rule *r, int slot);
 void write_rule_coverage_file(void);
 
 // codegen.c

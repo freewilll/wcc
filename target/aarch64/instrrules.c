@@ -61,14 +61,19 @@ void define_rules(void) {
     r = add_rule(CI3,    0, CI3,    0, 0);
     r = add_rule(RP4,    0, RP4,    0, 0);
     r = add_rule(FUN,    0, FUN,    0, 0);
+    r = add_rule(STL,    0, STL,    0, 0);
 
     // Load constant into register
     r = add_rule(RI3,  IR_MOVE, CI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
     r = add_rule(RI3,  IR_MOVE, CI4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
 
     // Register register move
+    r = add_rule(RI1,  IR_MOVE, RI1, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RI2,  IR_MOVE, RI2, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
     r = add_rule(RI3,  IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
     r = add_rule(RP4,  IR_MOVE, RP4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
+
+    r = add_rule(RP1,  IR_MOVE, RP1, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
 
     // Add two RI3s
     r = add_rule(RI3,  IR_ADD, RI3, RI3, 1); add_op(r, AARCH64_OP_ADD,  DST, SRC1, SRC2, "add %vdw, %v1w, %v2w");
@@ -79,6 +84,11 @@ void define_rules(void) {
     // Function calls
     r = add_rule(0,    IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
     r = add_rule(RI3,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
+
+    // Load pointer to string literal into register
+    r = add_rule(RP1, IR_MOVE,  STL,  0, 1);
+    add_op(r, AARCH64_OP_ADRP,     DST, SRC1, 0,    "adrp %vdx, %v1");
+    add_op(r, AARCH64_OP_ADD_LO12, DST, DST,  SRC1, "add %vdx, %vdx, :lo12:%v2");
 
     if (ntc >= AUTO_NON_TERMINAL_END)
     panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
