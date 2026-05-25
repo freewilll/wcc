@@ -1,8 +1,10 @@
+#ifdef __x86_64__
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <assert.h>
+#endif // __x86_64__
 
 #include "../test-lib.h"
 
@@ -12,10 +14,12 @@ int verbose;
 int passes;
 int failures;
 
+#ifdef __x86_64__
+
 int gcvi, gcvj;
 unsigned int gcvui, gcvuj;
 
-char gc, *gpc;
+signed char gc, *gpc;
 short gs, *gps;
 int gi, *gpi;
 long gl, *gpl;
@@ -227,7 +231,8 @@ void test_int_expr() {
     assert_int(           32, 256 >> 3,               "256 >> 3"    );
     assert_int(           32, 8192 >> 8,              "8192 >> 8"   );
     assert_int(536870911, ((unsigned int) -1) >> 3,   "(unsigned int) -1) >> 3");
-    assert_int(-1,        ((char) -1) >> 3,           "(char) -1) >> 3");
+    assert_int(-1,        ((signed char) -1) >> 3,    "(signed char) -1) >> 3");
+    assert_int(31,        ((unsigned char) -1) >> 3,  "(unsigned char) -1) >> 3");
     assert_int(-1,        ((short) -1) >> 3,          "(short) -1) >> 3");
     assert_int(-1,        ((int) -1) >> 3,             "(int) -1) >> 3");
 }
@@ -1572,9 +1577,9 @@ int test_constant_casting() {
     // GCC 15.2 produces different results for some of the following overflow tests.
     // Disable them for GCC >= 15.x
     #if __GNUC__ < 15
-    assert_int(0x7f,         (char)            256.1f,        "Casting float -> char overflow");
+    assert_int(0x7f,         (signed char)     256.1f,        "Casting float -> signed char overflow");
     assert_int(0xff,         (unsigned char)   256.1f,        "Casting float -> unsigned char overflow");
-    assert_int(-0x80,        (char)           -256.1f,        "Casting float -> char negative overflow");
+    assert_int(-0x80,        (signed char)     -256.1f,       "Casting float -> signed char negative overflow");
     assert_int(0,            (unsigned char)  -256.1f,        "Casting float -> unsigned char negative overflow");
     assert_int(0x7fff,       (short)           65536.1f,      "Casting float -> short overflow");
     assert_int(0xffff,       (unsigned short)  65536.1f,      "Casting float -> unsigned short overflow");
@@ -1593,7 +1598,7 @@ int test_constant_casting() {
 
     // Integer -> integer
     assert_int(255,                  (unsigned char)  -1L, "Casting to unsigned char");
-    assert_int(-1,                   (char)           -1L, "Casting to char");
+    assert_int(-1,                   (signed char)    -1L, "Casting to signed char");
     assert_int(0xffff,               (unsigned short) -1L, "Casting to unsigned short");
     assert_int(-1,                   (short)          -1L, "Casting to short");
     assert_int(0xffffffffL,          (unsigned int)   -1L, "Casting to unsigned int");
@@ -1811,12 +1816,15 @@ void test_bit_scans() {
     assert_int(0,  __builtin_ctzll(3),         "ctzll 3");
 }
 
+#endif // __x86_64__
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
     parse_args(argc, argv);
 
+#ifdef __x86_64__
     test_long_constant();
     test_constant_expr();
     test_int_expr();
@@ -1879,6 +1887,7 @@ int main(int argc, char **argv) {
     test___func__statements();
     test___signed__keyword();
     test_bit_scans();
+#endif // __x86_64__
 
     finalize();
 }

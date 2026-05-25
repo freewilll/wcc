@@ -8,6 +8,7 @@ GCC ?= gcc
 AS ?= as
 TEST_BUILD_DIR = ${BUILD_DIR}/tests/e2e
 
+ifeq ($(TARGET),x86_64)
 WCC_TESTS=\
 	expr \
 	comma \
@@ -35,6 +36,11 @@ WCC_TESTS=\
 	initializers \
 	extension-keyword \
 	int128
+else ifeq ($(TARGET),aarch64)
+WCC_TESTS=\
+	expr
+endif
+
 
 WCC_RUN_FLAGS = -I ${SRC_DIR}/include
 WCC_E2E_FLAGS := ${WCC_OPTS} ${WCC_RUN_FLAGS} --fail-on-leaked-memory --sanity-check-ir --rule-coverage-file ${BUILD_DIR}/tests/e2e/wcc-tests.rulecov

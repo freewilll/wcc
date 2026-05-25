@@ -57,7 +57,15 @@ void define_rules(void) {
     // TODO aarch64 lots, lots and lots more
 
     // Identity rules, for matching leaf nodes in the instruction tree
+    r = add_rule(RI1,    0, RI1,    0, 0);
+    r = add_rule(RI2,    0, RI2,    0, 0);
     r = add_rule(RI3,    0, RI3,    0, 0);
+    r = add_rule(RI4,    0, RI4,    0, 0);
+    r = add_rule(RU1,    0, RU1,    0, 0);
+    r = add_rule(RU2,    0, RU2,    0, 0);
+    r = add_rule(RU3,    0, RU3,    0, 0);
+    r = add_rule(RU4,    0, RU4,    0, 0);
+
     r = add_rule(CI3,    0, CI3,    0, 0);
     r = add_rule(RP4,    0, RP4,    0, 0);
     r = add_rule(MI3,    0, MI3,    0, 0);
@@ -72,6 +80,7 @@ void define_rules(void) {
     r = add_rule(RI1,  IR_MOVE, RI1, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
     r = add_rule(RI2,  IR_MOVE, RI2, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
     r = add_rule(RI3,  IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RU2,  IR_MOVE, RU2, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
     r = add_rule(RP4,  IR_MOVE, RP4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
 
     r = add_rule(RP1,  IR_MOVE, RP1, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");

@@ -1,7 +1,8 @@
 export SRC_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 export BUILD_DIR := $(CURDIR)
-CONFIG ?= $(BUILD_DIR)/config.mk
+export TARGET
 
+CONFIG ?= $(BUILD_DIR)/config.mk
 -include $(CONFIG)
 
 VERSION = 0
