@@ -1,9 +1,14 @@
 int check_stack_alignment() {
     // Ensure that the stack pointer is aligned to 16 bytes
 
-    long r0;
+    unsigned long sp;
 
-    __asm__ __volatile__("movq %%rsp, %%rax\n" : "=&a" (r0) ::);
+#if defined __x86_64__
+    __asm__ __volatile__("movq %%rsp, %%rax\n" : "=&a" (sp) ::);
+#elif defined __aarch64__
+    __asm__ __volatile__("mov %0, sp" : "=r" (sp)
+    );
+#endif
 
-    return r0 % 16 != 0;
+    return sp % 16 != 0;
 }
