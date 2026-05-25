@@ -77,6 +77,17 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
             }
             else if (v->is_string_literal)
                 sprintf(buffer, ".LS%d", v->string_literal_index);
+            else if (v->global_symbol) {
+                // TODO aarch64 long double
+                if (v->offset)
+                    panic("TODO aarch64 global symbol with offset");
+                else {
+                    if (v->load_from_got)
+                        panic("TODO aarch64 load from GIT");
+                    else
+                        sprintf(buffer, "%s", v->global_symbol->global_identifier);
+                }
+            }
             else {
                 print_value(stdout, v, 0);
                 printf("\n");

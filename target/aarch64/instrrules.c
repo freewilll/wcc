@@ -60,6 +60,7 @@ void define_rules(void) {
     r = add_rule(RI3,    0, RI3,    0, 0);
     r = add_rule(CI3,    0, CI3,    0, 0);
     r = add_rule(RP4,    0, RP4,    0, 0);
+    r = add_rule(MI3,    0, MI3,    0, 0);
     r = add_rule(FUN,    0, FUN,    0, 0);
     r = add_rule(STL,    0, STL,    0, 0);
 
@@ -89,6 +90,19 @@ void define_rules(void) {
     r = add_rule(RP1, IR_MOVE,  STL,  0, 1);
     add_op(r, AARCH64_OP_ADRP,     DST, SRC1, 0,    "adrp %vdx, %v1");
     add_op(r, AARCH64_OP_ADD_LO12, DST, DST,  SRC1, "add %vdx, %vdx, :lo12:%v2");
+
+    // Load a constant into a register in a leaf node
+    r = add_rule(RI3,  0, CI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RI3,  0, CI4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+
+    // Address of
+    r = add_rule(RP3, IR_ADDRESS_OF,  MI3,  0, 1);
+    add_op(r, AARCH64_OP_ADRP,     DST, SRC1, 0,    "adrp %vdx, %v1");
+    add_op(r, AARCH64_OP_ADD_LO12, DST, DST,  SRC1, "add %vdx, %vdx, :lo12:%v2");
+
+    // Move to pointer
+    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RI3, 1);
+    add_op(r, AARCH64_OP_ADRP, 0, SRC1, SRC2, "str %v2w, [%v1x]");
 
     if (ntc >= AUTO_NON_TERMINAL_END)
     panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);

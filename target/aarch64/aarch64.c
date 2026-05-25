@@ -62,3 +62,29 @@ void remove_vreg_self_moves(Function *function) {
 }
 
 void add_spill_code(Function *function) {} // TODO aarch64
+
+// Prepend an instruction that loads the address of tac->dst into a pointer
+static Tac *load_dst_address_into_pointer(Function *function, Tac *tac) {
+    Value *new_dst = new_value();
+    new_dst->type = make_pointer(tac->dst->type);
+    new_dst->vreg = ++function->vreg_count;
+    return new_tac_before(tac, IR_ADDRESS_OF, new_dst, tac->dst, 0, 1);
+}
+
+// Convert stores to global variables to a IR_ADDRESS_OF of the global, followed by a IR_MOVE_TO_PTR
+void make_load_store_instructions(Function *function) {
+    make_vreg_count(function, live_range_reserved_pregs_offset);
+
+    // TODO aarch64 more to do here
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == IR_MOVE && tac->dst && tac->dst->global_symbol) {
+            Tac *load_tac = load_dst_address_into_pointer(function, tac);
+            tac->operation.id = IR_MOVE_TO_PTR;
+            tac->src2 = tac->src1;
+            tac->src1 = dup_value(load_tac->dst);
+            tac->src1->type = load_tac->dst->type->target;
+            tac->dst = NULL;
+        }
+    }
+}

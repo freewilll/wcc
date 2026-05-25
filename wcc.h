@@ -1505,6 +1505,7 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
 
 // Target instruction rules related code
 void define_rules(void);
+void make_load_store_instructions(Function *function);
 
 // Target registers related code
 void init_allocate_registers(void);

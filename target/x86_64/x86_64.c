@@ -178,3 +178,4 @@ void perform_peephole_optimization(Function *function) {
     remove_self_register_copies(function);
 }
 
+void make_load_store_instructions(Function *function) {}
