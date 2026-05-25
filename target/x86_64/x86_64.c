@@ -106,32 +106,32 @@ void print_target_instruction(void *f, Tac *tac) {
 
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
     switch(preg_reg_index) {
-        case LIVE_RANGE_PREG_RAX_INDEX:         printf("rax");   break;
-        case LIVE_RANGE_PREG_RBX_INDEX:         printf("rbx");   break;
-        case LIVE_RANGE_PREG_RCX_INDEX:         printf("rcx");   break;
-        case LIVE_RANGE_PREG_RDX_INDEX:         printf("rdx");   break;
-        case LIVE_RANGE_PREG_RSI_INDEX:         printf("rsi");   break;
-        case LIVE_RANGE_PREG_RDI_INDEX:         printf("rdi");   break;
-        case LIVE_RANGE_PREG_R08_INDEX:         printf("r8");    break;
-        case LIVE_RANGE_PREG_R09_INDEX:         printf("r9");    break;
-        case LIVE_RANGE_PREG_R12_INDEX:         printf("r12");   break;
-        case LIVE_RANGE_PREG_R13_INDEX:         printf("r13");   break;
-        case LIVE_RANGE_PREG_R14_INDEX:         printf("r14");   break;
-        case LIVE_RANGE_PREG_R15_INDEX:         printf("r15");   break;
-        case LIVE_RANGE_PREG_XMM00_INDEX:       printf("xmm0");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 1:   printf("xmm1");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 2:   printf("xmm2");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 3:   printf("xmm3");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 4:   printf("xmm4");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 5:   printf("xmm5");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 6:   printf("xmm6");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 7:   printf("xmm7");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 8:   printf("xmm8");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 9:   printf("xmm9");  break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 10:  printf("xmm10"); break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 11:  printf("xmm11"); break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 12:  printf("xmm12"); break;
-        case LIVE_RANGE_PREG_XMM00_INDEX + 13:  printf("xmm13"); break;
+        case LIVE_RANGE_PREG_RAX:         printf("rax");   break;
+        case LIVE_RANGE_PREG_RBX:         printf("rbx");   break;
+        case LIVE_RANGE_PREG_RCX:         printf("rcx");   break;
+        case LIVE_RANGE_PREG_RDX:         printf("rdx");   break;
+        case LIVE_RANGE_PREG_RSI:         printf("rsi");   break;
+        case LIVE_RANGE_PREG_RDI:         printf("rdi");   break;
+        case LIVE_RANGE_PREG_R08:         printf("r8");    break;
+        case LIVE_RANGE_PREG_R09:         printf("r9");    break;
+        case LIVE_RANGE_PREG_R12:         printf("r12");   break;
+        case LIVE_RANGE_PREG_R13:         printf("r13");   break;
+        case LIVE_RANGE_PREG_R14:         printf("r14");   break;
+        case LIVE_RANGE_PREG_R15:         printf("r15");   break;
+        case LIVE_RANGE_PREG_XMM00:       printf("xmm0");  break;
+        case LIVE_RANGE_PREG_XMM00 + 1:   printf("xmm1");  break;
+        case LIVE_RANGE_PREG_XMM00 + 2:   printf("xmm2");  break;
+        case LIVE_RANGE_PREG_XMM00 + 3:   printf("xmm3");  break;
+        case LIVE_RANGE_PREG_XMM00 + 4:   printf("xmm4");  break;
+        case LIVE_RANGE_PREG_XMM00 + 5:   printf("xmm5");  break;
+        case LIVE_RANGE_PREG_XMM00 + 6:   printf("xmm6");  break;
+        case LIVE_RANGE_PREG_XMM00 + 7:   printf("xmm7");  break;
+        case LIVE_RANGE_PREG_XMM00 + 8:   printf("xmm8");  break;
+        case LIVE_RANGE_PREG_XMM00 + 9:   printf("xmm9");  break;
+        case LIVE_RANGE_PREG_XMM00 + 10:  printf("xmm10"); break;
+        case LIVE_RANGE_PREG_XMM00 + 11:  printf("xmm11"); break;
+        case LIVE_RANGE_PREG_XMM00 + 12:  printf("xmm12"); break;
+        case LIVE_RANGE_PREG_XMM00 + 13:  printf("xmm13"); break;
         default: printf("Unknown LR preg index %d", preg_reg_index);
     }
 }

@@ -49,7 +49,7 @@ static void test_int(void) {
 
     // r3:int = r4_LRpreg6:int
     assert_tac(ir, IR_MOVE, vsz(3, TYPE_INT), vsz(4, TYPE_INT), 0);
-    assert_int(LIVE_RANGE_PREG_RDI_INDEX, ir->src1->live_range_preg);
+    assert_int(LIVE_RANGE_PREG_RDI, ir->src1->live_range_preg);
     assert_int(0, !!ir->label);
 
     // label: nop
@@ -63,7 +63,7 @@ static void test_int_on_stack(void) {
 
     // S[-2]:int = r4_LRpreg6:int
     assert_tac(ir, IR_MOVE, S(-2), vsz(4, TYPE_INT), 0);
-    assert_int(LIVE_RANGE_PREG_RDI_INDEX, ir->src1->live_range_preg);
+    assert_int(LIVE_RANGE_PREG_RDI, ir->src1->live_range_preg);
     assert_int(0, !!ir->label);
 
     // label: nop
@@ -83,7 +83,7 @@ static void test_struct_return_value(void) {
 
     // r1:*void = r2_LRpreg6:*void
     assert_tac(ir, IR_MOVE, p(vsz(1, TYPE_VOID)), vsz(2, TYPE_INT), 0);
-    assert_int(LIVE_RANGE_PREG_RDI_INDEX, ir->src1->live_range_preg);
+    assert_int(LIVE_RANGE_PREG_RDI, ir->src1->live_range_preg);
     assert_int(0, !!ir->label);
 
     // label: nop
@@ -105,12 +105,12 @@ static void test_param_on_stack(void) {
     "}");
 
     // Params in registers
-    ASSERT_REG_PARAM(1,  2, LIVE_RANGE_PREG_RDI_INDEX);
-    ASSERT_REG_PARAM(3,  4, LIVE_RANGE_PREG_RSI_INDEX);
-    ASSERT_REG_PARAM(5,  6, LIVE_RANGE_PREG_RDX_INDEX);
-    ASSERT_REG_PARAM(7,  8, LIVE_RANGE_PREG_RCX_INDEX);
-    ASSERT_REG_PARAM(9,  10, LIVE_RANGE_PREG_R08_INDEX);
-    ASSERT_REG_PARAM(11, 12, LIVE_RANGE_PREG_R09_INDEX);
+    ASSERT_REG_PARAM(1,  2, LIVE_RANGE_PREG_RDI);
+    ASSERT_REG_PARAM(3,  4, LIVE_RANGE_PREG_RSI);
+    ASSERT_REG_PARAM(5,  6, LIVE_RANGE_PREG_RDX);
+    ASSERT_REG_PARAM(7,  8, LIVE_RANGE_PREG_RCX);
+    ASSERT_REG_PARAM(9,  10, LIVE_RANGE_PREG_R08);
+    ASSERT_REG_PARAM(11, 12, LIVE_RANGE_PREG_R09);
 
     // r13:int = &S[2]:int
     assert_tac(ir, IR_MOVE, vsz(13, TYPE_INT), S(2), 0);
@@ -136,7 +136,7 @@ static void test_small_struct_in_registers_in_func_call(void) {
 
     // {l}S[-1]:unsigned int = r1_LRpreg6:unsigned int
     assert_tac(ir, IR_MOVE, S(-1), vsz(1, TYPE_INT), 0);
-    assert_int(LIVE_RANGE_PREG_RDI_INDEX, ir->src1->live_range_preg);
+    assert_int(LIVE_RANGE_PREG_RDI, ir->src1->live_range_preg);
     assert_int(0, !!ir->label);
 
     // label: nop
@@ -159,7 +159,7 @@ static void test_big_struct_in_registers_in_func_call(void) {
 
     // {l}S[-1]:unsigned int = r1_LRpreg6:unsigned int
     assert_tac(ir, IR_MOVE, S(-1), vsz(1, TYPE_INT), 0);
-    assert_int(LIVE_RANGE_PREG_RDI_INDEX, ir->src1->live_range_preg);
+    assert_int(LIVE_RANGE_PREG_RDI, ir->src1->live_range_preg);
     assert_int(0, !!ir->label);
     ir = ir->next;
 
@@ -190,7 +190,7 @@ static void test_one_float(void) {
 
     // {l}S[-1]:float = r1_LRpreg13:float
     assert_tac(ir, IR_MOVE, S(-1), vsz(1, TYPE_FLOAT), 0);
-    assert_int(LIVE_RANGE_PREG_XMM00_INDEX, ir->src1->live_range_preg);
+    assert_int(LIVE_RANGE_PREG_XMM00, ir->src1->live_range_preg);
     assert_int(0, !!ir->label);
 
     // label: nop
@@ -212,7 +212,7 @@ static void test_one_double(void) {
 
     // {l}S[-1]:double = r1_LRpreg13:double
     assert_tac(ir, IR_MOVE, S(-1), vsz(1, TYPE_DOUBLE), 0);
-    assert_int(LIVE_RANGE_PREG_XMM00_INDEX, ir->src1->live_range_preg);
+    assert_int(LIVE_RANGE_PREG_XMM00, ir->src1->live_range_preg);
     assert_int(0, !!ir->label);
 
     // label: nop
@@ -234,7 +234,7 @@ static void test_two_floats(void) {
 
     // r2:long = r1_LRpreg13:double
     assert_tac(ir, IR_MOVE_PREG_CLASS, vsz(2, TYPE_LONG), vsz(1, TYPE_DOUBLE), 0);
-    assert_int(LIVE_RANGE_PREG_XMM00_INDEX, ir->src1->live_range_preg);
+    assert_int(LIVE_RANGE_PREG_XMM00, ir->src1->live_range_preg);
     assert_int(0, !!ir->label);
     ir = ir->next;
 

@@ -173,7 +173,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
         // Move registers to a struct/union in memory. rax contains the address
 
         // Ensure RAX doesn't get clobbered by the function call
-        add_to_set(function_value->return_value_live_ranges, LIVE_RANGE_PREG_RAX_INDEX);
+        add_to_set(function_value->return_value_live_ranges, LIVE_RANGE_PREG_RAX);
 
         // Take address of dst struct/union on the stack
         Value *address_value = new_value();
@@ -185,7 +185,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
         Value *rdi_value = new_value();
         rdi_value->vreg = ++function->vreg_count;
         rdi_value->type = make_pointer_to_void();
-        rdi_value->live_range_preg = LIVE_RANGE_PREG_RDI_INDEX;
+        rdi_value->live_range_preg = LIVE_RANGE_PREG_RDI;
         new_tac_before(ir, IR_MOVE, rdi_value, address_value, 0, 1);
 
         // Setup dst for rax
@@ -194,7 +194,7 @@ static void add_function_call_result_moves_for_struct_or_union(Function *functio
         ir->dst = new_value();
         ir->dst->vreg = ++function->vreg_count;
         ir->dst->type = make_pointer_to_void();
-        ir->dst->live_range_preg = LIVE_RANGE_PREG_RAX_INDEX;
+        ir->dst->live_range_preg = LIVE_RANGE_PREG_RAX;
 
         // Prepare src1 to also be rax, but as an lvalue
         Value *src1 = dup_value(ir->dst);
@@ -230,7 +230,7 @@ static void add_function_call_result_moves(Function *function) {
 
             int is_sse = is_sse_floating_point_type(ir->dst->type);
             tac->src1 = value;
-            tac->src1->live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
+            tac->src1->live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00 : LIVE_RANGE_PREG_RAX;
             add_to_set(ir->src1->return_value_live_ranges, tac->src1->live_range_preg);
 
             ir->dst = value;
@@ -266,7 +266,7 @@ static void add_function_return_moves_for_struct_or_union(Function *function, Ta
         dst = new_value();
 
         dst->type = make_pointer_to_void();
-        dst->live_range_preg = LIVE_RANGE_PREG_RAX_INDEX;
+        dst->live_range_preg = LIVE_RANGE_PREG_RAX;
         dst->type = make_pointer_to_void();
         dst->vreg = ++function->vreg_count;
 
@@ -314,7 +314,7 @@ static void add_function_return_moves(Function *function) {
 
         else {
             int is_sse = is_sse_floating_point_type(function->type->target);
-            int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00_INDEX : LIVE_RANGE_PREG_RAX_INDEX;
+            int live_range_preg = is_sse ? LIVE_RANGE_PREG_XMM00 : LIVE_RANGE_PREG_RAX;
 
             ir->src1->preferred_live_range_preg_index = live_range_preg;
 
@@ -485,7 +485,7 @@ static int setup_return_for_struct_or_union(Function *function) {
     // Make value for rdi register
     Value *src1 = new_value();
     src1->type = make_pointer_to_void();
-    src1->live_range_preg = LIVE_RANGE_PREG_RDI_INDEX;
+    src1->live_range_preg = LIVE_RANGE_PREG_RDI;
     src1->type = make_pointer_to_void();
     src1->vreg = ++function->vreg_count;
 
@@ -517,7 +517,7 @@ void add_function_vararg_param_moves(Function *function, FunctionParamAllocation
     Value *rax = new_value();
     rax->vreg = ++function->vreg_count;
     rax->type = new_type(TYPE_CHAR);
-    rax->live_range_preg = LIVE_RANGE_PREG_RAX_INDEX;
+    rax->live_range_preg = LIVE_RANGE_PREG_RAX;
     ir = new_tac_after(ir, IR_JZ, 0, rax, ldone);
 
     // Add moves for SSE registers to register save area
@@ -925,7 +925,7 @@ static void add_single_stack_function_param_location(FunctionParamAllocation *fp
 
 // Make a set large enough to hold all live ranges
 Set *allocate_return_value_live_ranges(void) {
-    return new_set(LIVE_RANGE_PREG_XMM01_INDEX);
+    return new_set(LIVE_RANGE_PREG_XMM01);
 }
 
 // Prepend parameters to a function's parameter list.
@@ -1096,25 +1096,25 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
     }
 
     // Unless the function returns something in rax, clobber rax
-    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RAX_INDEX))
-        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX_INDEX);
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RAX))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_RAX);
 
     // Unless the function returns something in rdx, clobber rdx
-    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RDX_INDEX))
-        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX_INDEX);
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_RDX))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_RDX);
 
     // All SSE registers xmm2, xmm3, ... are clobbered
     for (int j = 2; j < physical_fp_register_count; j++)
-        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX + j);
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00 + j);
 
     // Unless the function returns something in xmm0, clobber xmm0
-    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM00_INDEX))
-        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00_INDEX);
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM00))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM00);
     // Unless the function returns something in xmm1, clobber xmm1
-    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM01_INDEX))
-        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM01_INDEX);
+    if (!tac->src1->return_value_live_ranges || !in_set(tac->src1->return_value_live_ranges, LIVE_RANGE_PREG_XMM01))
+        clobber_livenow(ig, vreg_count, livenow, tac, LIVE_RANGE_PREG_XMM01);
 
     // If it's a function call from a pointer in a vreg, ensure it doesn't reside in RAX
     if (tac->src1->vreg)
-        add_ig_edge(ig, vreg_count, LIVE_RANGE_PREG_RAX_INDEX, tac->src1->vreg);
+        add_ig_edge(ig, vreg_count, LIVE_RANGE_PREG_RAX, tac->src1->vreg);
 }

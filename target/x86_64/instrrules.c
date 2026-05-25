@@ -1009,7 +1009,7 @@ static void add_long_double_comp_cond_jmp_rule(int *ntc, int src1, int src2, cha
 // Comparison and assignment/jump rules for floating point numbers
 static void add_long_double_comp_rules(int *ntc, int src1, int src2, char *src1_template, char *src2_template) {
     // Clobber dst, src1, src2 and livenow
-    Clobber clobbers[4] = { { LIVE_RANGE_PREG_RDX_INDEX, 1, 1, 1, 1 } };
+    Clobber clobbers[4] = { { LIVE_RANGE_PREG_RDX, 1, 1, 1, 1 } };
 
     add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_LT, X86_OP_SETA,  "seta %vdb", 1);
     add_long_double_comp_assignment_rule(src1, src2, src1_template, src2_template, IR_GT, X86_OP_SETA,  "seta %vdb", 0);
@@ -1291,8 +1291,8 @@ static void add_sub_rules(void) {
 
 static void add_div_rule(int dst, int src1, int src2, int cost, char *t1, char *t2, char *t3, char *tdiv, char *tmod) {
     Clobber idiv_clobbers[4] = {
-        { LIVE_RANGE_PREG_RAX_INDEX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
-        { LIVE_RANGE_PREG_RDX_INDEX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
+        { LIVE_RANGE_PREG_RAX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
+        { LIVE_RANGE_PREG_RDX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
     };
 
     Rule *r;
@@ -1351,10 +1351,10 @@ static void add_binary_register_shift_rule(int src1, int src2, char *template) {
     TargetOperation *d;
 
     // Clobber dst, src1
-    Clobber clobbers1[4] = { { LIVE_RANGE_PREG_RCX_INDEX, 1, 1, 0, 0  } };
+    Clobber clobbers1[4] = { { LIVE_RANGE_PREG_RCX, 1, 1, 0, 0  } };
 
     // Clobber dst, src1, src2 and livenow
-    Clobber clobbers2[4] = { { LIVE_RANGE_PREG_RCX_INDEX, 1, 1, 1, 1 } };
+    Clobber clobbers2[4] = { { LIVE_RANGE_PREG_RCX, 1, 1, 1, 1 } };
 
     // Arithmetic and binary left shifts are the same
     r = add_rule(src1, IR_BSHL, src1, src2, 4);
@@ -1530,12 +1530,12 @@ static void add_int128_multiply_rule(int type) {
     TargetOperation *d;
 
     Clobber rax_clobber[4] = {
-        { LIVE_RANGE_PREG_RAX_INDEX, 0, 0, 0, 1 }, // Clobber livenow
+        { LIVE_RANGE_PREG_RAX, 0, 0, 0, 1 }, // Clobber livenow
     };
 
     Clobber mul_clobbers[4] = {
-        { LIVE_RANGE_PREG_RAX_INDEX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
-        { LIVE_RANGE_PREG_RDX_INDEX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
+        { LIVE_RANGE_PREG_RAX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
+        { LIVE_RANGE_PREG_RDX, 1, 1, 1, 1 }, // Clobber dst, src1, src2 and livenow
     };
 
     Rule *r = add_rule(type, IR_MUL128A, type, type, 30);

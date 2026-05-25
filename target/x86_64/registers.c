@@ -7,23 +7,23 @@
 
 // Registers used for function calls
 const int int_arg_registers[] = {
-    LIVE_RANGE_PREG_RDI_INDEX,
-    LIVE_RANGE_PREG_RSI_INDEX,
-    LIVE_RANGE_PREG_RDX_INDEX,
-    LIVE_RANGE_PREG_RCX_INDEX,
-    LIVE_RANGE_PREG_R08_INDEX,
-    LIVE_RANGE_PREG_R09_INDEX,
+    LIVE_RANGE_PREG_RDI,
+    LIVE_RANGE_PREG_RSI,
+    LIVE_RANGE_PREG_RDX,
+    LIVE_RANGE_PREG_RCX,
+    LIVE_RANGE_PREG_R08,
+    LIVE_RANGE_PREG_R09,
 };
 
 const int fp_arg_registers[] = {
-    LIVE_RANGE_PREG_XMM00_INDEX,
-    LIVE_RANGE_PREG_XMM01_INDEX,
-    LIVE_RANGE_PREG_XMM02_INDEX,
-    LIVE_RANGE_PREG_XMM03_INDEX,
-    LIVE_RANGE_PREG_XMM04_INDEX,
-    LIVE_RANGE_PREG_XMM05_INDEX,
-    LIVE_RANGE_PREG_XMM06_INDEX,
-    LIVE_RANGE_PREG_XMM07_INDEX,
+    LIVE_RANGE_PREG_XMM00,
+    LIVE_RANGE_PREG_XMM01,
+    LIVE_RANGE_PREG_XMM02,
+    LIVE_RANGE_PREG_XMM03,
+    LIVE_RANGE_PREG_XMM04,
+    LIVE_RANGE_PREG_XMM05,
+    LIVE_RANGE_PREG_XMM06,
+    LIVE_RANGE_PREG_XMM07,
 };
 
 // Called once at startup
@@ -49,32 +49,32 @@ void init_allocate_registers(void) {
     static int int_rv_registers[2];
     static int sse_rv_registers[2];
 
-    int_rv_registers[0] = LIVE_RANGE_PREG_RAX_INDEX;
-    int_rv_registers[1] = LIVE_RANGE_PREG_RDX_INDEX;
+    int_rv_registers[0] = LIVE_RANGE_PREG_RAX;
+    int_rv_registers[1] = LIVE_RANGE_PREG_RDX;
 
-    sse_rv_registers[0] = LIVE_RANGE_PREG_XMM00_INDEX;
-    sse_rv_registers[1] = LIVE_RANGE_PREG_XMM01_INDEX;
+    sse_rv_registers[0] = LIVE_RANGE_PREG_XMM00;
+    sse_rv_registers[1] = LIVE_RANGE_PREG_XMM01;
 
     function_return_value_register_set.int_registers = int_rv_registers;
     function_return_value_register_set.fp_registers = sse_rv_registers;
 
     // All registers except RSP, RBP, R10 and R11
-    preg_map[LIVE_RANGE_PREG_RAX_INDEX - 1] = REG_RAX;
-    preg_map[LIVE_RANGE_PREG_RBX_INDEX - 1] = REG_RBX;
-    preg_map[LIVE_RANGE_PREG_RCX_INDEX - 1] = REG_RCX;
-    preg_map[LIVE_RANGE_PREG_RDX_INDEX - 1] = REG_RDX;
-    preg_map[LIVE_RANGE_PREG_RSI_INDEX - 1] = REG_RSI;
-    preg_map[LIVE_RANGE_PREG_RDI_INDEX - 1] = REG_RDI;
-    preg_map[LIVE_RANGE_PREG_R08_INDEX - 1] = REG_R08;
-    preg_map[LIVE_RANGE_PREG_R09_INDEX - 1] = REG_R09;
-    preg_map[LIVE_RANGE_PREG_R12_INDEX - 1] = REG_R12;
-    preg_map[LIVE_RANGE_PREG_R13_INDEX - 1] = REG_R13;
-    preg_map[LIVE_RANGE_PREG_R14_INDEX - 1] = REG_R14;
-    preg_map[LIVE_RANGE_PREG_R15_INDEX - 1] = REG_R15;
+    preg_map[LIVE_RANGE_PREG_RAX - 1] = REG_RAX;
+    preg_map[LIVE_RANGE_PREG_RBX - 1] = REG_RBX;
+    preg_map[LIVE_RANGE_PREG_RCX - 1] = REG_RCX;
+    preg_map[LIVE_RANGE_PREG_RDX - 1] = REG_RDX;
+    preg_map[LIVE_RANGE_PREG_RSI - 1] = REG_RSI;
+    preg_map[LIVE_RANGE_PREG_RDI - 1] = REG_RDI;
+    preg_map[LIVE_RANGE_PREG_R08 - 1] = REG_R08;
+    preg_map[LIVE_RANGE_PREG_R09 - 1] = REG_R09;
+    preg_map[LIVE_RANGE_PREG_R12 - 1] = REG_R12;
+    preg_map[LIVE_RANGE_PREG_R13 - 1] = REG_R13;
+    preg_map[LIVE_RANGE_PREG_R14 - 1] = REG_R14;
+    preg_map[LIVE_RANGE_PREG_R15 - 1] = REG_R15;
 
     // Map all 16 SSE xmm* registers
     for (int i = 0; i < physical_fp_register_count; i++)
-        preg_map[LIVE_RANGE_PREG_XMM00_INDEX + i - 1] = REG_XMM00 + i;
+        preg_map[LIVE_RANGE_PREG_XMM00 + i - 1] = REG_XMM00 + i;
 
     live_range_reserved_pregs_offset = physical_int_register_count + physical_fp_register_count;
 }

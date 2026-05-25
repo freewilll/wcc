@@ -423,7 +423,7 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
             for (; i >= 0; i--) {
                 // Bail if we're doing integers and RDI is reserved for a struct/union
                 // return value.
-                if (has_struct_or_union_return_value && preg_class == PC_INT && i == 0) break;
+                if (has_struct_or_union_return_value && preg_class == PC_INT && i == 0) break; // TODO aarch64 use something like prepend_function_params
 
                 Type *type;
                 int pi = *param_index;

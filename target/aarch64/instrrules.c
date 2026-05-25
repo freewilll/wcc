@@ -73,6 +73,9 @@ void define_rules(void) {
     // Add two RI3s
     r = add_rule(RI3,  IR_ADD, RI3, RI3, 1); add_op(r, AARCH64_OP_ADD,  DST, SRC1, SRC2, "add %vdw, %v1w, %v2w");
 
+    //  Multiply two RI3s
+    r = add_rule(RI3,  IR_MUL, RI3, RI3, 1); add_op(r, AARCH64_OP_MUL,  DST, SRC1, SRC2, "mul %vdw, %v1w, %v2w");
+
     // Function calls
     r = add_rule(0,    IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
     r = add_rule(RI3,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);

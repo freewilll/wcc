@@ -120,6 +120,7 @@ enum aarch64_instruction_op {
     AARCH64_OP_RET_FROM_FUNC,
     AARCH64_OP_MOV,
     AARCH64_OP_ADD,
+    AARCH64_OP_MUL,
     AARCH64_OP_CALL,
     AARCH64_OP_CALL_FROM_FUNC,
 };
