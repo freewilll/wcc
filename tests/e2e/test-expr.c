@@ -14,7 +14,6 @@ int verbose;
 int passes;
 int failures;
 
-#ifdef __x86_64__
 
 int gcvi, gcvj;
 unsigned int gcvui, gcvuj;
@@ -29,6 +28,8 @@ unsigned short gus, *gpus;
 unsigned int gui, *gpui;
 unsigned long gul, *gpul;
 
+#ifdef __x86_64__
+
 // Test 64 bit constants are assigned properly
 void test_long_constant() {
     long l;
@@ -37,9 +38,12 @@ void test_long_constant() {
     assert_int(1, l && 0x1000000000000000ul, "64 bit constants");
 }
 
+#endif
+
 void test_constant_expr() {
     assert_int(                   1, 1+2==3,            "1+2==3"      );
     assert_int(                   1, 1+2>=3==1,         "1+2>=3==1"   );
+#ifdef __x86_64__
     assert_int(                   0, 0 && 0 || 0,       "0 && 0 || 0" ); // && binds more strongly than ||
     assert_int(                   1, 0 && 0 || 1,       "0 && 0 || 1" );
     assert_int(                   0, 0 && 1 || 0,       "0 && 1 || 0" );
@@ -57,11 +61,13 @@ void test_constant_expr() {
     assert_int(                   1, 1 + 0 && 1,        "1 + 0 && 1"  );
     assert_int(                   0, 1 + 1 && 0,        "1 + 1 && 0"  );
     assert_int(                   1, 1 + 1 && 1,        "1 + 1 && 1"  );
+#endif
     assert_int(                   0, 0 ==  1  & 0,      "0 ==  1  & 0");
     assert_int(                   2, 1 &   1  ^ 3,      "1 &   1  ^ 3");
     assert_int(                   1, 1 ^   1  | 1,      "1 ^   1  | 1");
     assert_int(                  32, 1 + 1 << 4,        "1 + 1 << 4"  ); // + binds more strongly than <<
     assert_int(                   2, 1 + 16 >> 3,       "1 + 16 >> 3" ); // + binds more strongly than >>
+#ifdef __x86_64__
     assert_int(                   0, 0x0,               "0x0"         );
     assert_int(                   0, 0X0,               "0X0"         ); // Capital x
     assert_int(                   1, 0x1,               "0x1"         );
@@ -73,6 +79,7 @@ void test_constant_expr() {
     assert_int(                 255, 0xff,              "0xff"        );
     assert_int(                 256, 0x100,             "0x100"       );
     assert_int(                 256, 0x100,             "0x100"       );
+#endif
 }
 
 void test_int_expr() {
@@ -83,6 +90,7 @@ void test_int_expr() {
     i = 1;  j = 2; assert_int( 3,  i+2,             "1+2 b");
     i = 1;  j = 2; assert_int( 3,  1+j,             "1+2 c");
     i = 1;  j = 2; assert_int( 3,  i+j,             "1+2 d");
+#ifdef __x86_64__
     i = 1;  j = 3; assert_int( 2,  3-1,             "3-1 a");
     i = 1;  j = 3; assert_int( 2,  j-1,             "3-1 b");
     i = 1;  j = 3; assert_int( 2,  3-i,             "3-1 c");
@@ -92,13 +100,19 @@ void test_int_expr() {
     i = 1;  j = 2; assert_int( 4,  3+2-1,           "3+2-1");
     i = 1;  j = 2; assert_int( 2,  3-2+1,           "3-2+1");
     i = 2;  j = 3; assert_int( 6,  2*3,             "2*3 a");
+#endif
     i = 2;  j = 3; assert_int( 6,  i*3,             "2*3 b");
+#ifdef __x86_64__
     i = -2; j = 2; assert_int(-4,  i*2,             "-2*2 b");
     i = -2; j = 4; assert_int(-8,  i*4,             "-2*4 b");
     i = 2;  j = 3; assert_int( 6,  2*j,             "2*3 c");
+#endif
     i = 2;  j = 3; assert_int( 6,  i*j,             "2*3 d");
+#ifdef __x86_64__
     i = 1;  j = 2; assert_int( 7,  1+2*3,           "1+2*3");
     i = 1;  j = 2; assert_int(10,  2*3+4,           "2*3+4");
+#endif
+#ifdef __x86_64__
     i = 1;  j = 2; assert_int( 3,  2*3/2,           "2*3/2");
     i = 6;  j = 2; assert_int( 3,  6/2,             "6/2 a");
     i = 6;  j = 2; assert_int( 3,  i/2,             "6/2 b");
@@ -235,8 +249,10 @@ void test_int_expr() {
     assert_int(31,        ((unsigned char) -1) >> 3,  "(unsigned char) -1) >> 3");
     assert_int(-1,        ((short) -1) >> 3,          "(short) -1) >> 3");
     assert_int(-1,        ((int) -1) >> 3,             "(int) -1) >> 3");
+#endif
 }
 
+#ifdef __x86_64__
 void test_uint_expr() {
     unsigned int i, j, k, l;
 
@@ -1826,8 +1842,10 @@ int main(int argc, char **argv) {
 
 #ifdef __x86_64__
     test_long_constant();
+#endif // __x86_64__
     test_constant_expr();
     test_int_expr();
+#ifdef __x86_64__
     test_uint_expr();
     test_mixed_sign_operations();
     test_local_comma_var_declarations();

@@ -484,6 +484,106 @@ TargetOperation *add_target_op_to_rule(Rule *r, TargetOperation *target_op) {
     return &r->target_operations[index];
 }
 
+static void dup_target_operations(TargetOperation *target_operations, int target_operation_count, Rule *dst) {
+    dst->target_operation_count = target_operation_count;
+    if (!target_operation_count) return;
+
+    dst->target_operations = wmalloc(MAX_TARGET_OPS_PER_ROLE * sizeof(TargetOperation));
+
+    for (int i = 0; i < target_operation_count; i++)
+        dst->target_operations[i] = *dup_target_operation(&target_operations[i]);
+
+    return;
+}
+
+// Given a wildcard operation, make an operation for it
+static int transform_rule_value(int extend_size, int extend_sign, int v, int size, int is_unsigned) {
+    int result = v;
+
+    if (extend_size) {
+        switch(v) {
+            case XCI: result = CI1 + size - 1; break;
+            case XCU: result = CU1 + size - 1; break;
+            case XRI: result = RI1 + size - 1; break;
+            case XRU: result = RU1 + size - 1; break;
+            case XMI: result = MI1 + size - 1; break;
+            case XMU: result = MU1 + size - 1; break;
+            case XRP: result = RP1 + size - 1; break;
+            case XC:  result = (is_unsigned ? CU1 : CI1) + size - 1; break;
+            case XR:  result = (is_unsigned ? RU1 : RI1) + size - 1; break;
+            case XM:  result = (is_unsigned ? MU1 : MI1) + size - 1; break;
+        }
+    }
+    else if (extend_sign) {
+        switch (v) {
+            case XC1: result = (is_unsigned ? CU1 : CI1); break;
+            case XC2: result = (is_unsigned ? CU2 : CI2); break;
+            case XC3: result = (is_unsigned ? CU3 : CI3); break;
+            case XC4: result = (is_unsigned ? CU4 : CI4); break;
+            case XR1: result = (is_unsigned ? RU1 : RI1); break;
+            case XR2: result = (is_unsigned ? RU2 : RI2); break;
+            case XR3: result = (is_unsigned ? RU3 : RI3); break;
+            case XR4: result = (is_unsigned ? RU4 : RI4); break;
+            case XM1: result = (is_unsigned ? MU1 : MI1); break;
+            case XM2: result = (is_unsigned ? MU2 : MI2); break;
+            case XM3: result = (is_unsigned ? MU3 : MI3); break;
+            case XM4: result = (is_unsigned ? MU4 : MI4); break;
+        }
+    }
+
+    return result;
+}
+
+// Create new rules by expanding type and/or sign in non terminals
+// e.g.
+// (RP, RI) => (RP1, RI1), (RP2, RI2), (RP3, RI3), (RP4, RI4)
+//
+// XC  => CI1, CI2, CI3, CI4, CU1, CU2, CU3, CU4
+// XR  => RI1, RI2, RI3, RI4, RU1, RU2, RU3, RU4
+// XM  => MI1, MI2, MI3, MI4, MU1, MU2, MU3, MU4
+// XCI => CI1, CI2, CI3, CI4
+// XRI => RI1, RI2, RI3, RI4
+// XRU => RU1, RU2, RU3, RU4
+// XRP => RP1, RP2, RP3, RP4
+// XC1 => CI1, CU1, also XC2 => ... etc
+// XR1 => RI1, RU1, also XR2 => ... etc
+// XM1 => MI1, MU1, also XM2 => ... etc
+void fin_rule(Rule *r) {
+    int operation                = r->operation;
+    int dst                      = r->dst;
+    int src1                     = r->src1;
+    int src2                     = r->src2;
+    int cost                     = r->cost;
+    int target_operation_count   = r->target_operation_count;
+
+    TargetOperation *target_operations = r->target_operations;
+
+    int expand_size = dst & EXP_SIZE || src1 & EXP_SIZE || src2 & EXP_SIZE;
+    int expand_sign = dst & EXP_SIGN || src1 & EXP_SIGN || src2 & EXP_SIGN;
+
+    if (!expand_size && !expand_sign) return;
+
+    instr_rule_count--; // Rewind next pointer so that the last rule is overwritten
+
+    for (int size = 1; size <= (expand_size ? 4 : 1); size++) {
+        for (int is_unsigned = 0; is_unsigned < (expand_sign ? 2 : 1); is_unsigned++) {
+            Rule *new_rule = add_rule(
+                transform_rule_value(expand_size, expand_sign, dst, size, is_unsigned),
+                operation,
+                transform_rule_value(expand_size, expand_sign, src1, size, is_unsigned),
+                transform_rule_value(expand_size, expand_sign, src2, size, is_unsigned),
+                cost
+            );
+
+            dup_target_operations(target_operations, target_operation_count, new_rule);
+
+            for (int i = 0; i < new_rule->target_operation_count; i++) {
+                TargetOperation *x86_operation = &new_rule->target_operations[i];
+                x86_operation->template = add_size_to_template(x86_operation->template, size);
+            }
+        }
+    }
+}
 
 // Add a save value operation to a rule
 void add_save_value(Rule *r, int arg, int slot) {

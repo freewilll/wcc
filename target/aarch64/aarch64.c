@@ -5,6 +5,16 @@ char is_32bit_to_aarch64_size(int is_32bit) {
     return is_32bit ? 'w' : 'x';
 }
 
+char size_to_aarch64_size(int size) {
+    switch (size) {
+        case 1:  return 'w'; break;
+        case 2:  return 'w'; break;
+        case 3:  return 'w'; break;
+        case 4:  return 'x'; break;
+        default: panic("Unknown size %d", size);
+    }
+}
+
 char *target_op_name(int operation) {
     panic("TODO aarch64: target_op_name");
 }

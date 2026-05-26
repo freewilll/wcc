@@ -1365,6 +1365,7 @@ void init_rules_by_operation(void);
 void free_rules_by_operation(void);
 void check_for_duplicate_rules(void);
 TargetOperation *add_target_op_to_rule(Rule *r, TargetOperation *target_op);
+void fin_rule(Rule *r);
 void add_save_value(Rule *r, int arg, int slot);
 void add_allocate_stack_index_in_slot(Rule *r, int slot, int type);
 void add_allocate_register_in_slot(Rule *r, int slot, int type);
@@ -1505,6 +1506,7 @@ void process_target_functions(Function *function);
 void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac *tac);
 
 // Target instruction rules related code
+char *add_size_to_template(char *template, int size);
 void define_rules(void);
 void make_load_store_instructions(Function *function);
 

@@ -6,53 +6,34 @@
 char **signed_moves_templates, **unsigned_moves_templates;
 int *signed_moves_operations, *unsigned_moves_operations;
 
-static int transform_rule_value(int extend_size, int extend_sign, int v, int size, int is_unsigned) {
-    int result = v;
+// Take a template and convert %v* and %s placeholders and add b, w, l, q to them.
+char *add_size_to_template(char *template, int size) {
+    if (!template) return NULL; // Some magic operations have no templates but are implemented in codegen.
 
-    if (extend_size) {
-        switch(v) {
-            case XCI: result = CI1 + size - 1; break;
-            case XCU: result = CU1 + size - 1; break;
-            case XRI: result = RI1 + size - 1; break;
-            case XRU: result = RU1 + size - 1; break;
-            case XMI: result = MI1 + size - 1; break;
-            case XMU: result = MU1 + size - 1; break;
-            case XRP: result = RP1 + size - 1; break;
-            case XC:  result = (is_unsigned ? CU1 : CI1) + size - 1; break;
-            case XR:  result = (is_unsigned ? RU1 : RI1) + size - 1; break;
-            case XM:  result = (is_unsigned ? MU1 : MI1) + size - 1; break;
+    char x86_size = size_to_x86_size(size);
+    char *result = wcalloc(1, 128);
+    char *dst = result;
+
+    char *c = template;
+    while (*c) {
+        if (c[0] == '%' && c[1] == 's') {
+            *dst++ = x86_size;
+            c++;
         }
-    }
-    else if (extend_sign) {
-        switch (v) {
-            case XC1: result = (is_unsigned ? CU1 : CI1); break;
-            case XC2: result = (is_unsigned ? CU2 : CI2); break;
-            case XC3: result = (is_unsigned ? CU3 : CI3); break;
-            case XC4: result = (is_unsigned ? CU4 : CI4); break;
-            case XR1: result = (is_unsigned ? RU1 : RI1); break;
-            case XR2: result = (is_unsigned ? RU2 : RI2); break;
-            case XR3: result = (is_unsigned ? RU3 : RI3); break;
-            case XR4: result = (is_unsigned ? RU4 : RI4); break;
-            case XM1: result = (is_unsigned ? MU1 : MI1); break;
-            case XM2: result = (is_unsigned ? MU2 : MI2); break;
-            case XM3: result = (is_unsigned ? MU3 : MI3); break;
-            case XM4: result = (is_unsigned ? MU4 : MI4); break;
+        else if (c[0] == '%' && c[1] == 'v' && (c[3] != 'b' && c[3] != 'w' && c[3] != 'l' && c[3] != 'q')) {
+            *dst++ = '%';
+            *dst++ = 'v';
+            *dst++ = c[2];
+            *dst++ = x86_size;
+            c += 2;
         }
+        else
+            *dst++ = *c;
+
+        c++;
     }
 
     return result;
-}
-
-static void dup_target_operations(TargetOperation *target_operations, int target_operation_count, Rule *dst) {
-    dst->target_operation_count = target_operation_count;
-    if (!target_operation_count) return;
-
-    dst->target_operations = wmalloc(MAX_TARGET_OPS_PER_ROLE * sizeof(TargetOperation));
-
-    for (int i = 0; i < target_operation_count; i++)
-        dst->target_operations[i] = *dup_target_operation(&target_operations[i]);
-
-    return;
 }
 
 // Add an x86 operation template to a rule
@@ -108,85 +89,6 @@ static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, 
 static void copy_clobbers(TargetOperation *op, Clobber *clobbers) {
     for (int i = 0; clobbers[i].live_range_preg; i++)
         op->operation.clobbers[i] = clobbers[i];
-}
-
-static char *add_size_to_template(char *template, int size) {
-    if (!template) return 0; // Some magic operations have no templates but are implemented in codegen.
-
-    char x86_size = size_to_x86_size(size);
-    char *result = wcalloc(1, 128);
-    char *dst = result;
-
-    char *c = template;
-    while (*c) {
-        if (c[0] == '%' && c[1] == 's') {
-            *dst++ = x86_size;
-            c++;
-        }
-        else if (c[0] == '%' && c[1] == 'v' && (c[3] != 'b' && c[3] != 'w' && c[3] != 'l' && c[3] != 'q')) {
-            *dst++ = '%';
-            *dst++ = 'v';
-            *dst++ = c[2];
-            *dst++ = x86_size;
-            c += 2;
-        }
-        else
-            *dst++ = *c;
-
-        c++;
-    }
-
-    return result;
-}
-
-// Create new rules by expanding type and/or sign in non terminals
-// e.g.
-// (RP, RI) => (RP1, RI1), (RP2, RI2), (RP3, RI3), (RP4, RI4)
-//
-// XC  => CI1, CI2, CI3, CI4, CU1, CU2, CU3, CU4
-// XR  => RI1, RI2, RI3, RI4, RU1, RU2, RU3, RU4
-// XM  => MI1, MI2, MI3, MI4, MU1, MU2, MU3, MU4
-// XCI => CI1, CI2, CI3, CI4
-// XRI => RI1, RI2, RI3, RI4
-// XRU => RU1, RU2, RU3, RU4
-// XRP => RP1, RP2, RP3, RP4
-// XC1 => CI1, CU1, also XC2 => ... etc
-// XR1 => RI1, RU1, also XR2 => ... etc
-// XM1 => MI1, MU1, also XM2 => ... etc
-static void fin_rule(Rule *r) {
-    int operation                = r->operation;
-    int dst                      = r->dst;
-    int src1                     = r->src1;
-    int src2                     = r->src2;
-    int cost                     = r->cost;
-    int target_operation_count      = r->target_operation_count;
-    TargetOperation *target_operations = r->target_operations;
-
-    int expand_size = dst & EXP_SIZE || src1 & EXP_SIZE || src2 & EXP_SIZE;
-    int expand_sign = dst & EXP_SIGN || src1 & EXP_SIGN || src2 & EXP_SIGN;
-
-    if (!expand_size && !expand_sign) return;
-
-    instr_rule_count--; // Rewind next pointer so that the last rule is overwritten
-
-    for (int size = 1; size <= (expand_size ? 4 : 1); size++) {
-        for (int is_unsigned = 0; is_unsigned < (expand_sign ? 2 : 1); is_unsigned++) {
-            Rule *new_rule = add_rule(
-                transform_rule_value(expand_size, expand_sign, dst, size, is_unsigned),
-                operation,
-                transform_rule_value(expand_size, expand_sign, src1, size, is_unsigned),
-                transform_rule_value(expand_size, expand_sign, src2, size, is_unsigned),
-                cost
-            );
-
-            dup_target_operations(target_operations, target_operation_count, new_rule);
-
-            for (int i = 0; i < new_rule->target_operation_count; i++) {
-                TargetOperation *x86_operation = &new_rule->target_operations[i];
-                x86_operation->template = add_size_to_template(x86_operation->template, size);
-            }
-        }
-    }
 }
 
 static void add_mov_rule(int dst, int src, int operation, char *template) {
@@ -1536,22 +1438,20 @@ void define_rules(void) {
 
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(XC,    0, XC,    0, 0); fin_rule(r);
-    r = add_rule(CLD,   0, CLD,   0, 0);
-    r = add_rule(CS3,   0, CS3,   0, 0); fin_rule(r);
-    r = add_rule(CS4,   0, CS4,   0, 0); fin_rule(r);
-    r = add_rule(XR,    0, XR,    0, 0); fin_rule(r);
     r = add_rule(CSTV1, 0, CSTV1, 0, 0);
     r = add_rule(CSTV2, 0, CSTV2, 0, 0);
     r = add_rule(CSTV3, 0, CSTV3, 0, 0);
+    r = add_rule(CLD,   0, CLD,   0, 0);
+    r = add_rule(XR,    0, XR,    0, 0); fin_rule(r);
     r = add_rule(XM,    0, XM,    0, 0); fin_rule(r);
     r = add_rule(MLD5,  0, MLD5,  0, 0);
     r = add_rule(XRP,   0, XRP,   0, 0); fin_rule(r);
     r = add_rule(RP5,   0, RP5,   0, 0); fin_rule(r);
     r = add_rule(MPV,   0, MPV,   0, 0); fin_rule(r);
-    r = add_rule(RS3,   0, RS3,   0, 0); fin_rule(r);
-    r = add_rule(RS4,   0, RS4,   0, 0); fin_rule(r);
-    r = add_rule(MS3,   0, MS3,   0, 0); fin_rule(r);
-    r = add_rule(MS4,   0, MS4,   0, 0); fin_rule(r);
+    r = add_rule(RS3,   0, RS3,   0, 0);
+    r = add_rule(RS4,   0, RS4,   0, 0);
+    r = add_rule(MS3,   0, MS3,   0, 0);
+    r = add_rule(MS4,   0, MS4,   0, 0);
     r = add_rule(STL,   0, STL,   0, 0);
     r = add_rule(LAB,   0, LAB,   0, 0);
     r = add_rule(FUN,   0, FUN,   0, 0);
@@ -1559,26 +1459,32 @@ void define_rules(void) {
     r = add_rule(MPF,   0, MPF,   0, 0);
     r = add_rule(MSA,   0, MSA,   0, 0);
 
+    // Load integer constants into registers
     r = add_rule(XR1,  0, XC1, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movb $%v1b, %vdb"); fin_rule(r);
     r = add_rule(XR2,  0, XC2, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movw $%v1w, %vdw"); fin_rule(r);
     r = add_rule(XR3,  0, XC3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movl $%v1l, %vdl"); fin_rule(r);
     r = add_rule(XR4,  0, XC4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
-    r = add_rule(RP5,  0, MPV, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRI,  0, XMI, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"); fin_rule(r);
-    r = add_rule(XRU,  0, XMU, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"); fin_rule(r);
+    r = add_rule(RP5,  0, MPV, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq %v1q, %vdq");  fin_rule(r);
 
-    r = add_rule(XRP, 0,  MI4,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, 0,  MU4,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, 0,  MPV,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    // Load memory into registers
+    r = add_rule(XRI, 0,  XMI, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");  fin_rule(r);
+    r = add_rule(XRU, 0,  XMU, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");  fin_rule(r);
+    r = add_rule(XRP, 0,  MI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, 0,  MU4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP5, 0,  MI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(XRP, 0,  MPV, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
 
+    // Load floating point constants into registers
     r = add_rule(RS3, 0,  CS3,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movss %v1F, %vdF");
     r = add_rule(RS4, 0,  CS4,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movsd %v1D, %vdD");
     r = add_rule(RS3, 0,  MS3,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movss %v1F, %vdF");
     r = add_rule(RS4, 0,  MS4,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movsd %v1D, %vdD");
 
-    r = add_rule(RP5, 0,  MI4,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(RP1, 0,  STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
+    // Load string literals into registers
+    r = add_rule(RP1, 0,  STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For char
     r = add_rule(RP3, 0,  STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For wchar_t
+
+    // Load function pointer into register
     r = add_rule(RPF, 0,  MPF,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
 
     // Register -> register move rules
