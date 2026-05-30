@@ -32,6 +32,7 @@ char *target_op_name(int operation) {
         case AARCH64_OP_BAND:               return "and";
         case AARCH64_OP_BOR:                return "or";
         case AARCH64_OP_XOR:                return "xor";
+        case AARCH64_OP_BNOT:               return "bnot";
         case AARCH64_OP_LSL:                return "lsl";
         case AARCH64_OP_LSR:                return "lsr";
         case AARCH64_OP_ASR:                return "asr";
@@ -57,6 +58,11 @@ void print_target_instruction(void *f, Tac *tac) {
                 printf(" -> ");
                 print_value(f, tac->dst, 1);
             }
+            break;
+
+        case AARCH64_OP_BNOT:
+            fprintf(f, "%-12s", operation_string(o));
+            print_value(f, tac->dst, 1);
             break;
 
         case AARCH64_OP_MOV:

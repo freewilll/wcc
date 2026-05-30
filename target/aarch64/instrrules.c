@@ -121,7 +121,20 @@ void add_early_testing_rules(void) {
     r = add_rule(RP4,  IR_MOVE, RP4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
 }
 
-static void add_operation_rules(char *target_operand, int base1, int base2, int base3, int operation, int target_operation, int cost) {
+static void add_one_operand_rules(char *target_operand, int base1, int base2, int operation, int target_operation, int cost) {
+    Rule *r;
+
+    char *op_w, *op_x;
+    wasprintf(&op_w, "%s %%vdw, %%v1w", target_operand);
+    wasprintf(&op_x, "%s %%vdx, %%v1x", target_operand);
+
+    r = add_rule(base1 + 0, operation, base2 + 0, 0, cost); add_op(r, target_operation, DST, SRC1, 0, op_w);
+    r = add_rule(base1 + 1, operation, base2 + 1, 0, cost); add_op(r, target_operation, DST, SRC1, 0, op_w);
+    r = add_rule(base1 + 2, operation, base2 + 2, 0, cost); add_op(r, target_operation, DST, SRC1, 0, op_w);
+    r = add_rule(base1 + 3, operation, base2 + 3, 0, cost); add_op(r, target_operation, DST, SRC1, 0, op_x);
+}
+
+static void add_two_operand_rules(char *target_operand, int base1, int base2, int base3, int operation, int target_operation, int cost) {
     Rule *r;
 
     char *op_w, *op_x;
@@ -159,21 +172,21 @@ static void add_bitshift_rules(void) {
             int base1 = i ? RI1 : RU1;
             int base2 = j ? CI1 : CU1;
             int base3 = j ? RI1 : RU1;
-            add_operation_rules("lsl", base1, base1, base2, IR_BSHL, AARCH64_OP_LSL, 3); // r << c
-            add_operation_rules("lsl", base1, base1, base3, IR_BSHL, AARCH64_OP_LSL, 3); // r << r
+            add_two_operand_rules("lsl", base1, base1, base2, IR_BSHL, AARCH64_OP_LSL, 3); // r << c
+            add_two_operand_rules("lsl", base1, base1, base3, IR_BSHL, AARCH64_OP_LSL, 3); // r << r
         }
     }
 
     // IR_ASHR
     for (int i = 0; i < 2; i++) {
-        add_operation_rules("asr", RI1, RI1, i ? RI1 : RU1, IR_ASHR, AARCH64_OP_LSL, 3); // r >> c
-        add_operation_rules("asr", RI1, RI1, i ? RI1 : RU1, IR_ASHR, AARCH64_OP_LSL, 3); // r >> r
+        add_two_operand_rules("asr", RI1, RI1, i ? RI1 : RU1, IR_ASHR, AARCH64_OP_LSL, 3); // r >> c
+        add_two_operand_rules("asr", RI1, RI1, i ? RI1 : RU1, IR_ASHR, AARCH64_OP_LSL, 3); // r >> r
     }
 
     // IR_BSHR
     for (int i = 0; i < 2; i++) {
-        add_operation_rules("lsr", RU1, RU1, i ? CI1 : CU1, IR_BSHR, AARCH64_OP_LSL, 3); // r >> c
-        add_operation_rules("lsr", RU1, RU1, i ? RI1 : RU1, IR_BSHR, AARCH64_OP_LSL, 3); // r >> r
+        add_two_operand_rules("lsr", RU1, RU1, i ? CI1 : CU1, IR_BSHR, AARCH64_OP_LSL, 3); // r >> c
+        add_two_operand_rules("lsr", RU1, RU1, i ? RI1 : RU1, IR_BSHR, AARCH64_OP_LSL, 3); // r >> r
     }
 }
 
@@ -209,22 +222,24 @@ void define_rules(void) {
     r = add_rule(XRP, 0, MU4, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vd, %v1"); fin_rule(r);
 
     // Operations
-    add_operation_rules("add",  RI1, RI1, RI1, IR_ADD,  AARCH64_OP_ADD, 10);
-    add_operation_rules("add",  RU1, RU1, RU1, IR_ADD,  AARCH64_OP_ADD, 10);
-    add_operation_rules("sub",  RI1, RI1, RI1, IR_SUB,  AARCH64_OP_SUB, 10);
-    add_operation_rules("sub",  RU1, RU1, RU1, IR_SUB,  AARCH64_OP_SUB, 10);
-    add_operation_rules("mul",  RI1, RI1, RI1, IR_MUL,  AARCH64_OP_MUL, 30);
-    add_operation_rules("mul",  RU1, RU1, RU1, IR_MUL,  AARCH64_OP_MUL, 30);
-    add_operation_rules("sdiv", RI1, RI1, RI1, IR_DIV,  AARCH64_OP_DIV, 40);
-    add_operation_rules("udiv", RU1, RU1, RU1, IR_DIV,  AARCH64_OP_DIV, 40);
-    add_operation_rules("orr",  RI1, RI1, RI1, IR_BOR,  AARCH64_OP_BOR,  3);
-    add_operation_rules("orr",  RU1, RU1, RU1, IR_BOR,  AARCH64_OP_BOR,  3);
-    add_operation_rules("and",  RI1, RI1, RI1, IR_BAND, AARCH64_OP_BAND, 3);
-    add_operation_rules("and",  RU1, RU1, RU1, IR_BAND, AARCH64_OP_BAND, 3);
-    add_operation_rules("eor",  RI1, RI1, RI1, IR_XOR,  AARCH64_OP_XOR,  3);
-    add_operation_rules("eor",  RU1, RU1, RU1, IR_XOR,  AARCH64_OP_XOR,  3);
+    add_two_operand_rules("add",  RI1, RI1, RI1, IR_ADD,  AARCH64_OP_ADD, 10);
+    add_two_operand_rules("add",  RU1, RU1, RU1, IR_ADD,  AARCH64_OP_ADD, 10);
+    add_two_operand_rules("sub",  RI1, RI1, RI1, IR_SUB,  AARCH64_OP_SUB, 10);
+    add_two_operand_rules("sub",  RU1, RU1, RU1, IR_SUB,  AARCH64_OP_SUB, 10);
+    add_two_operand_rules("mul",  RI1, RI1, RI1, IR_MUL,  AARCH64_OP_MUL, 30);
+    add_two_operand_rules("mul",  RU1, RU1, RU1, IR_MUL,  AARCH64_OP_MUL, 30);
+    add_two_operand_rules("sdiv", RI1, RI1, RI1, IR_DIV,  AARCH64_OP_DIV, 40);
+    add_two_operand_rules("udiv", RU1, RU1, RU1, IR_DIV,  AARCH64_OP_DIV, 40);
+    add_two_operand_rules("orr",  RI1, RI1, RI1, IR_BOR,  AARCH64_OP_BOR,  3);
+    add_two_operand_rules("orr",  RU1, RU1, RU1, IR_BOR,  AARCH64_OP_BOR,  3);
+    add_two_operand_rules("and",  RI1, RI1, RI1, IR_BAND, AARCH64_OP_BAND, 3);
+    add_two_operand_rules("and",  RU1, RU1, RU1, IR_BAND, AARCH64_OP_BAND, 3);
+    add_two_operand_rules("eor",  RI1, RI1, RI1, IR_XOR,  AARCH64_OP_XOR,  3);
+    add_two_operand_rules("eor",  RU1, RU1, RU1, IR_XOR,  AARCH64_OP_XOR,  3);
     add_mod_rules();
     add_bitshift_rules();
+    add_one_operand_rules("mvn", RI1, RI1, IR_BNOT, AARCH64_OP_BNOT, 3);
+    add_one_operand_rules("mvn", RU1, RU1, IR_BNOT, AARCH64_OP_BNOT, 3);
 
     add_early_testing_rules();
 

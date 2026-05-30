@@ -152,6 +152,7 @@ enum aarch64_instruction_op {
     AARCH64_OP_BAND,
     AARCH64_OP_BOR,
     AARCH64_OP_XOR,
+    AARCH64_OP_BNOT,
     AARCH64_OP_LSL,
     AARCH64_OP_LSR,
     AARCH64_OP_ASR,

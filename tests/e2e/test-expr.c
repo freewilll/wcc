@@ -136,10 +136,10 @@ void test_int_expr() {
     i = 2;  j = 3; assert_int(-6,  -(i*j),          "-(2*3) d");
     i = 1;  j = 2; assert_int(-5,  -(2*3)+1,        "-(2*3)+1");
     i = 1;  j = 2; assert_int(-11, -(2*3)*2+1,      "-(2*3)*2+1");
-#ifdef __x86_64__
 
     i = 0; j = 1; k = 2; l = 3;
 
+#ifdef __x86_64__
     assert_int(                   1, 1 == 1,            "1 == 1"      );
     assert_int(                   1, j == 1,            "j == 1"      );
     assert_int(                   1, 1 == j,            "i == i"      );
@@ -156,13 +156,14 @@ void test_int_expr() {
     assert_int(                   0, !j,                "!1 b"        );
     assert_int(                   0, !2,                "!2 a"        );
     assert_int(                   0, !k,                "!2 b"        );
+#endif
     assert_int(                  -1, ~0,                "~0 a"        );
     assert_int(                  -1, ~i,                "~0 b"        );
     assert_int(                  -2, ~1,                "~1 a"        );
     assert_int(                  -2, ~j,                "~1 b"        );
     assert_int(                  -3, ~2,                "~2 a"        );
     assert_int(                  -3, ~k,                "~2 b"        );
-
+#ifdef __x86_64__
     assert_int(                   1, 0 <  1,            "0 <  1 a"     );
     assert_int(                   1, i <  1,            "0 <  1 b"     );
     assert_int(                   1, 0 <  j,            "0 <  1 c"     );
