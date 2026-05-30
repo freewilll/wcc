@@ -98,19 +98,13 @@ void test_int_expr() {
     i = 1;  j = 2; assert_int( 2,  3-2+1,           "3-2+1");
     i = 2;  j = 3; assert_int( 6,  2*3,             "2*3 a");
     i = 2;  j = 3; assert_int( 6,  i*3,             "2*3 b");
-#ifdef __x86_64__
     i = -2; j = 2; assert_int(-4,  i*2,             "-2*2 b");
     i = -2; j = 4; assert_int(-8,  i*4,             "-2*4 b");
     i = 2;  j = 3; assert_int( 6,  2*j,             "2*3 c");
-#endif
     i = 2;  j = 3; assert_int( 6,  i*j,             "2*3 d");
-#ifdef __x86_64__
     i = 1;  j = 2; assert_int( 7,  1+2*3,           "1+2*3");
     i = 1;  j = 2; assert_int(10,  2*3+4,           "2*3+4");
-#endif
-#ifdef __x86_64__
     i = 1;  j = 2; assert_int( 3,  2*3/2,           "2*3/2");
-#endif
     i = 6;  j = 2; assert_int( 3,  6/2,             "6/2 a");
     i = 6;  j = 2; assert_int( 3,  i/2,             "6/2 b");
     i = -6; j = 2; assert_int( -3, i/2,             "-6/2");
@@ -138,9 +132,7 @@ void test_int_expr() {
     i = 1;  j = 2; assert_int( 3,  2- -1,           "2- -1");
     i = 2;  j = 3; assert_int(-6,  -(2*3),          "-(2*3) a");
     i = 2;  j = 3; assert_int(-6,  -(i*3),          "-(2*3) b");
-#ifdef __x86_64__
     i = 2;  j = 3; assert_int(-6,  -(2*j),          "-(2*3) c");
-#endif
     i = 2;  j = 3; assert_int(-6,  -(i*j),          "-(2*3) d");
     i = 1;  j = 2; assert_int(-5,  -(2*3)+1,        "-(2*3)+1");
     i = 1;  j = 2; assert_int(-11, -(2*3)*2+1,      "-(2*3)*2+1");
@@ -226,7 +218,6 @@ void test_int_expr() {
     assert_int(                   6, i ^ 5,             "3 ^ 5 b"     );
     assert_int(                   6, 3 ^ j,             "3 ^ 5 c"     );
     assert_int(                   6, i ^ j,             "3 ^ 5 d"     );
-#ifdef __x86_64__
 
     i = 1; j = 2;
     assert_int (                  4, 1 << 2,            "1 << 2 a");
@@ -250,7 +241,6 @@ void test_int_expr() {
     assert_int(31,        ((unsigned char) -1) >> 3,  "(unsigned char) -1) >> 3");
     assert_int(-1,        ((short) -1) >> 3,          "(short) -1) >> 3");
     assert_int(-1,        ((int) -1) >> 3,             "(int) -1) >> 3");
-#endif
 }
 
 #ifdef __x86_64__
