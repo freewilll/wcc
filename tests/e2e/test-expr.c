@@ -117,7 +117,6 @@ void test_int_expr() {
     i = -6; j = 4; assert_int( -1, i/4,             "-6/4");
     i = 6;  j = 2; assert_int( 3,  6/j,             "6/2 c");
     i = 6;  j = 2; assert_int( 3,  i/j,             "6/2 d");
-#ifdef __x86_64__
     i = 6;  j = 2; assert_int( 0,  6%2,             "6%2 a");
     i = 6;  j = 2; assert_int( 0,  i%2,             "6%2 b");
     i = 6;  j = 2; assert_int( 0,  6%j,             "6%2 c");
@@ -126,7 +125,6 @@ void test_int_expr() {
     i = 7;  j = 2; assert_int( 1,  i%2,             "7%2 b");
     i = 7;  j = 2; assert_int( 1,  7%j,             "7%2 c");
     i = 7;  j = 2; assert_int( 1,  i%j,             "7%2 d");
-#endif
     i = 1;  j = 2; assert_int(64,  1*2+3*4+5*10,    "1*2+3*4+5*10");
     i = 1;  j = 2; assert_int(74,  1*2+3*4+5*10+10, "1*2+3*4+5*10+10");
     i = 1;  j = 2; assert_int( 9,  (1+2)*3,         "(1+2)*3");
@@ -409,6 +407,7 @@ void test_uint_expr() {
     assert_int(                  32, 8192 >> 8,         "8192 >> 8"   );
 }
 
+#endif
 void test_mixed_sign_operations() {
     unsigned int ui;
     int i;
@@ -426,11 +425,12 @@ void test_mixed_sign_operations() {
     assert_int(0,    i % ui,  "mixed signs %");
 
 
+#ifdef __x86_64__
     i = 2; ui = 3; assert_int(12,   ui << i, "mixed signs <<");
     i = 2; ui = 3; assert_int(16,   i << ui, "mixed signs <<");
     i = 2; ui = 8; assert_int(2,    ui >> i, "mixed signs >>");
     i = 8; ui = 2; assert_int(2,    i >> ui, "mixed signs >>");
-
+#endif
     i = 3; ui = 5;
     assert_int(7,   ui | i,  "mixed signs |");
     assert_int(7,   i | ui,  "mixed signs |");
@@ -439,6 +439,7 @@ void test_mixed_sign_operations() {
     assert_int(6,   ui ^ i,  "mixed signs ^");
     assert_int(6,   i ^ ui,  "mixed signs ^");
 
+#ifdef __x86_64__
     i = -1; ui = 1;
     assert_int(0,   ui == i,  "mixed signs ==");
     assert_int(0,   i == ui,  "mixed signs ==");
@@ -452,8 +453,10 @@ void test_mixed_sign_operations() {
     assert_int(0,   i < ui,   "mixed signs <");
     assert_int(1,   ui <= i,  "mixed signs <=");
     assert_int(0,   i <= ui,  "mixed signs <=");
+#endif // __x86_64__
 }
 
+#ifdef __x86_64__
 void test_local_comma_var_declarations() {
     int i, *pi;
     i = 1;
@@ -1938,7 +1941,9 @@ int main(int argc, char **argv) {
     test_int_expr();
 #ifdef __x86_64__
     test_uint_expr();
+#endif // __x86_64__
     test_mixed_sign_operations();
+#ifdef __x86_64__
     test_local_comma_var_declarations();
     test_global_comma_var_declarations();
     test_double_assign();

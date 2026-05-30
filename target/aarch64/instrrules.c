@@ -3,7 +3,7 @@
 
 #define MAX_TARGET_OPS_PER_ROLE 32
 
-// Take a template and convert %v* and %s placeholders and add b, w, l, q to them.
+// Take a template and convert %v* placeholders and add b, w, l, q to them.
 char *add_size_to_template(char *template, int size) {
     if (!template) return NULL; // Some magic operations have no templates but are implemented in codegen.
 
@@ -133,6 +133,24 @@ static void add_operation_rules(char *target_operand, int base, int operation, i
     r = add_rule(base + 3, operation, base + 3, base + 3, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_x);
 }
 
+static void add_mod_rules(void) {
+    for (int is_signed = 0; is_signed < 2; is_signed++) {
+        int base = is_signed ? RI1 : RU1;
+        for (int i = 0; i < 4; i++) {
+            char *div_template = is_signed
+                ? add_size_to_template("sdiv %vdw, %v1, %v2", i + 1)
+                : add_size_to_template("udiv %vdw, %v1, %v2", i + 1);
+
+            Rule *r = add_rule(base + i, IR_MOD, base + i, base + i, 50);
+            add_allocate_register_in_slot(r, 1, TYPE_CHAR + i);
+            add_allocate_register_in_slot(r, 2, TYPE_CHAR + i);
+            add_op(r, AARCH64_OP_DIV, SV1, SRC1, SRC2, div_template);
+            add_op(r, AARCH64_OP_MUL, SV2, SV1,  SRC2, add_size_to_template("mul %vd, %v1, %v2", i + 1));
+            add_op(r, AARCH64_OP_SUB, DST, SRC1, SV2,  add_size_to_template("sub %vd, %v1, %v2", i + 1));
+        }
+    }
+}
+
 void define_rules(void) {
     Rule *r;
 
@@ -179,6 +197,8 @@ void define_rules(void) {
     add_operation_rules("and",  RU1, IR_BAND, AARCH64_OP_BAND, 3);
     add_operation_rules("eor",  RI1, IR_XOR,  AARCH64_OP_XOR,  3);
     add_operation_rules("eor",  RU1, IR_XOR,  AARCH64_OP_XOR,  3);
+
+    add_mod_rules();
 
     add_early_testing_rules();
 
