@@ -152,12 +152,12 @@ static Tac *process_integer_constant_move_to_register(Tac *tac) {
         (constant_value >> 48) & 0xffff,
     };
 
-    int zeroes = c[0] == 0 + c[1] == 0;
-    int ones = c[0] == 0xffff + c[1] == 0xffff;
+    int zeroes = (c[0] == 0) + (c[1] == 0);
+    int ones = (c[0] == 0xffff) + (c[1] == 0xffff);
 
     if (dst->target_size > 3) {
-        zeroes += c[2] == 0 + c[3] == 0;
-        ones += c[2] == 0xffff + c[3] == 0xffff;
+        zeroes += (c[2] == 0) + (c[3] == 0);
+        ones += (c[2] == 0xffff) + (c[3] == 0xffff);
     }
 
     tac->operation.id = IR_NOP;
