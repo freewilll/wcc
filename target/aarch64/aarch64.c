@@ -25,9 +25,13 @@ char *target_op_name(int operation) {
         case AARCH64_OP_MOV:                return "mov";
         case AARCH64_OP_MOV_INT_CST:        return "movcst";        // Implemented in codegen
         case AARCH64_OP_ADD:                return "add";
-        case AARCH64_OP_ADD_LO12:           return "addlo12";
+        case AARCH64_OP_SUB:                return "sub";
         case AARCH64_OP_MUL:                return "mul";
-        case AARCH64_OP_AND:                return "and";
+        case AARCH64_OP_DIV:                return "div";
+        case AARCH64_OP_ADD_LO12:           return "addlo12";
+        case AARCH64_OP_BAND:               return "and";
+        case AARCH64_OP_BOR:                return "or";
+        case AARCH64_OP_XOR:                return "xor";
         case AARCH64_OP_CALL:               return "call";
         case AARCH64_OP_CALL_FROM_FUNC:     return "callf";         // Used in codegen
         case AARCH64_OP_PUSH_DOUBLE_WORD:   return "pushdw";        // Used in codegen
@@ -57,8 +61,12 @@ void print_target_instruction(void *f, Tac *tac) {
         case AARCH64_OP_LDP:
         case AARCH64_OP_MOV_INT_CST:
         case AARCH64_OP_ADD:
+        case AARCH64_OP_SUB:
         case AARCH64_OP_MUL:
-        case AARCH64_OP_AND:
+        case AARCH64_OP_DIV:
+        case AARCH64_OP_BAND:
+        case AARCH64_OP_BOR:
+        case AARCH64_OP_XOR:
         case AARCH64_OP_ADRP:
             fprintf(f, "%-12s", operation_string(o));
             print_value(f, tac->dst, 1);
