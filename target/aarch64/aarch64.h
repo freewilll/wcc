@@ -143,9 +143,11 @@ enum aarch64_instruction_op {
     AARCH64_OP_LDP,
     AARCH64_OP_RET_FROM_FUNC,
     AARCH64_OP_MOV,
+    AARCH64_OP_MOV_INT_CST,             // Pseudo operation, implemented by codegen
     AARCH64_OP_ADD,
     AARCH64_OP_ADD_LO12,
     AARCH64_OP_MUL,
+    AARCH64_OP_AND,
     AARCH64_OP_CALL,
     AARCH64_OP_CALL_FROM_FUNC,
     AARCH64_OP_PUSH_DOUBLE_WORD,

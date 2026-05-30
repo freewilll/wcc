@@ -1483,6 +1483,8 @@ void transform_int128_instructions(Function *function);
 
 // Target specific code
 // ------------------------------------------------
+extern int char_is_unsigned_by_default;
+
 extern int physical_register_count;
 extern int physical_int_register_count;
 extern int physical_fp_register_count;

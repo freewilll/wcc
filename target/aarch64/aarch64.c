@@ -1,6 +1,8 @@
 #include "wcc.h"
 #include "aarch64.h"
 
+int char_is_unsigned_by_default = 1;
+
 char is_32bit_to_aarch64_size(int is_32bit) {
     return is_32bit ? 'w' : 'x';
 }
@@ -16,23 +18,57 @@ char size_to_aarch64_size(int size) {
 }
 
 char *target_op_name(int operation) {
-    panic("TODO aarch64: target_op_name");
+    switch (operation) {
+        case AARCH64_OP_NULL:               return "(null)";
+        case AARCH64_OP_STP:                return "stp";
+        case AARCH64_OP_LDP:                return "ldp";
+        case AARCH64_OP_MOV:                return "mov";
+        case AARCH64_OP_MOV_INT_CST:        return "movcst";        // Implemented in codegen
+        case AARCH64_OP_ADD:                return "add";
+        case AARCH64_OP_ADD_LO12:           return "addlo12";
+        case AARCH64_OP_MUL:                return "mul";
+        case AARCH64_OP_AND:                return "and";
+        case AARCH64_OP_CALL:               return "call";
+        case AARCH64_OP_CALL_FROM_FUNC:     return "callf";         // Used in codegen
+        case AARCH64_OP_PUSH_DOUBLE_WORD:   return "pushdw";        // Used in codegen
+        case AARCH64_OP_POP_DOUBLE_WORD:    return "popdw";         // Used in codegen
+        case AARCH64_OP_ALLOCATE_STACK:     return "allocst";       // Used in codegen
+        case AARCH64_OP_DEALLOCATE_STACK:   return "deallocst";     // Used in codegen
+        case AARCH64_OP_ADRP:               return "adrp";
+
+        default:                        panic("Unknown aarch64 operation %d", operation);
+    }
 }
 
 void print_target_instruction(void *f, Tac *tac) {
     int o = tac->operation.id;
+    switch (tac->operation.id) {
+        case AARCH64_OP_CALL:
+            fprintf(f, "%-12s", operation_string(o));
+            print_value(f, tac->src1, 1);
+            if (tac->dst) {
+                printf(" -> ");
+                print_value(f, tac->dst, 1);
+            }
+            break;
 
-    // TODO aarch64 AARCH64_OP_ARG
-    // if (o == AARCH64_OP_ARG) {
-    //     fprintf(stderr, "TODO aarch64 AARCH64_OP_ARG");
-    // }
+        case AARCH64_OP_MOV:
+        case AARCH64_OP_STP:
+        case AARCH64_OP_LDP:
+        case AARCH64_OP_MOV_INT_CST:
+        case AARCH64_OP_ADD:
+        case AARCH64_OP_MUL:
+        case AARCH64_OP_AND:
+        case AARCH64_OP_ADRP:
+            fprintf(f, "%-12s", operation_string(o));
+            print_value(f, tac->dst, 1);
+            fprintf(f, ", ");
+            print_value(f, tac->src1,  1);
+            break;
 
-         if (o == AARCH64_OP_CALL)      { fprintf(f, "call "  ); print_value(f, tac->src1, 1); if (tac->dst) { printf(" -> "); print_value(f, tac->dst, 1); } }
-    else if (o == AARCH64_OP_MOV)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == AARCH64_OP_ADD)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else if (o == AARCH64_OP_MUL)       { fprintf(f, "%-6s", operation_string(o)); print_value(f, tac->src1, 1); fprintf(f, ", "); print_value(f, tac->dst,  1); }
-    else
-        panic("print_instruction(): Unknown operation: %d", tac->operation.id);
+        default:
+            panic("print_instruction(): Unknown operation: %d", tac->operation.id);
+    }
 }
 
 void print_backend_instruction(void *f, Tac *tac) {

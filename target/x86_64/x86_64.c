@@ -1,6 +1,8 @@
 #include "wcc.h"
 #include "x86_64.h"
 
+int char_is_unsigned_by_default = 0;
+
 char size_to_x86_size(int size) {
     switch (size) {
         case 1:  return 'b'; break;

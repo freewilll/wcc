@@ -804,6 +804,80 @@ void test_pointer_comparisons() {
     assert_int(1, p1 < p2, "pointer to unsigned char comparison");
 }
 
+#endif
+
+// This test is mostly for aarch64, which can require multiple instructions to assign a constant
+// to a register.
+static void test_integer_constant_assignments() {
+    signed char sc;
+    unsigned char uc;
+    sc = 1;    assert_int(1,    sc, "sc = 1");
+    sc = -1;   assert_int(-1,   sc, "sc = -1");
+    sc = 127;  assert_int(127,  sc, "sc = 127");
+    sc = -128; assert_int(-128, sc, "sc = -128");
+    uc = 1;    assert_int(1,    uc, "uc = 1");
+    uc = 255;  assert_int(255,  uc, "uc = 255");
+
+    signed short ss;
+    unsigned short us;
+    ss = 1;      assert_int(1,      ss, "ss = 1");
+    ss = -1;     assert_int(-1,     ss, "ss = -1");
+    ss = 32767;  assert_int(32767,  ss, "ss = 32767");
+    ss = -32768; assert_int(-32768, ss, "ss = -32768");
+    us = 1;      assert_int(1,      us, "us = 1");
+    us = 65535;  assert_int(65535,  us, "uc = 65535");
+
+    // Using << and | since they are evaluated as constant expressions,
+    // this way the value in the assertion isn't processed in the same
+    // way as the assignment.
+    signed int si;
+    unsigned int ui;
+    si = 0;           assert_int(0,                         si, "si = 0");
+    si = 1;           assert_int(1,                         si, "si = 1");
+    si = -1;          assert_int(-1,                        si, "si = -1");
+    si = 2147483647;  assert_int(0x7fff << 16 | 0xffff, si, "si = 2147483647");
+    si = -2147483648; assert_int(0x8000 << 16 | 0x0000, si, "ss = -2147483648");
+    si = 1000000000;  assert_int(0x3b9a << 16 | 0xca00, si, "si = 1000000000");
+    si = -1000000000; assert_int(0xc465 << 16 | 0x3600, si, "si = -1000000000");
+    si = 0x00000000;  assert_int(0x0000 << 16 | 0x0000, si, "si = 0x00000000");
+    si = 0x12340000;  assert_int(0x1234 << 16 | 0x0000, si, "si = 0x12340000");
+    si = 0x00005678;  assert_int(0x0000 << 16 | 0x5678, si, "si = 0x00005678");
+    si = 0xffffffff;  assert_int(0xffff << 16 | 0xffff, si, "si = 0xffffffff");
+    si = 0x1234ffff;  assert_int(0x1234 << 16 | 0xffff, si, "si = 0x1234ffff");
+    si = 0xffff5678;  assert_int(0xffff << 16 | 0x5678, si, "si = 0xffff5678");
+    si = 0x12345678;  assert_int(0x1234 << 16 | 0x5678, si, "si = 0x12345678");
+    si = 0x0000ffff;  assert_int(0x0000 << 16 | 0xffff, si, "si = 0x0000ffff");
+    si = 0xffff0000;  assert_int(0xffff << 16 | 0x0000, si, "si = 0xffff0000");
+    ui = 1;           assert_int(0x0000 << 16 | 0x0001, ui, "ui = 1");
+    ui = 4294967295;  assert_int(0xffff << 16 | 0xffff, ui, "ui = 4294967295");
+    ui = 0xffffffff;  assert_int(0xffff << 16 | 0xffff, ui, "ui = 0xffffffff");
+
+    signed long sl;
+    unsigned long ul;
+    sl = 0x0000000000000000; assert_long(0x0000UL << 48 | 0x0000UL << 32 | 0x0000UL << 16 | 0x0000UL, sl, "sl = 0x0000000000000000");
+    sl = 0x0000000000001234; assert_long(0x0000UL << 48 | 0x0000UL << 32 | 0x0000UL << 16 | 0x1234UL, sl, "sl = 0x0000000000001234");
+    sl = 0x0000000012345678; assert_long(0x0000UL << 48 | 0x0000UL << 32 | 0x1234UL << 16 | 0x5678UL, sl, "sl = 0x0000000012345678");
+    sl = 0x1234000056780000; assert_long(0x1234UL << 48 | 0x0000UL << 32 | 0x5678UL << 16 | 0x0000UL, sl, "sl = 0x1234000056780000");
+    sl = 0x123456789abcdef0; assert_long(0x1234UL << 48 | 0x5678UL << 32 | 0x9abcUL << 16 | 0xdef0UL, sl, "sl = 0x123456789abcdef0");
+    sl = 0xf23456789abcdef0; assert_long(0xf234UL << 48 | 0x5678UL << 32 | 0x9abcUL << 16 | 0xdef0UL, sl, "sl = 0xf23456789abcdef0");
+    sl = 0xffffffffffffffff; assert_long(0xffffUL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0xffffUL, sl, "sl = 0xffffffffffffffff");
+    sl = 0xffffffffffff0000; assert_long(0xffffUL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0x0000UL, sl, "sl = 0xffffffffffff0000");
+    sl = 0xffffffffffff1234; assert_long(0xffffUL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0x1234UL, sl, "sl = 0xffffffffffff1234");
+    sl = 0x1234ffffffffffff; assert_long(0x1234UL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0xffffUL, sl, "sl = 0x1234ffffffffffff");
+    sl = 0xffff12345678ffff; assert_long(0xffffUL << 48 | 0x1234UL << 32 | 0x5678UL << 16 | 0xffffUL, sl, "sl = 0xffff12345678ffff");
+    ul = 0x0000000000000000; assert_long(0x0000UL << 48 | 0x0000UL << 32 | 0x0000UL << 16 | 0x0000UL, ul, "ul = 0x0000000000000000");
+    ul = 0x0000000000001234; assert_long(0x0000UL << 48 | 0x0000UL << 32 | 0x0000UL << 16 | 0x1234UL, ul, "ul = 0x0000000000001234");
+    ul = 0x0000000012345678; assert_long(0x0000UL << 48 | 0x0000UL << 32 | 0x1234UL << 16 | 0x5678UL, ul, "ul = 0x0000000012345678");
+    ul = 0x1234000056780000; assert_long(0x1234UL << 48 | 0x0000UL << 32 | 0x5678UL << 16 | 0x0000UL, ul, "ul = 0x1234000056780000");
+    ul = 0x123456789abcdef0; assert_long(0x1234UL << 48 | 0x5678UL << 32 | 0x9abcUL << 16 | 0xdef0UL, ul, "ul = 0x123456789abcdef0");
+    ul = 0xf23456789abcdef0; assert_long(0xf234UL << 48 | 0x5678UL << 32 | 0x9abcUL << 16 | 0xdef0UL, ul, "ul = 0xf23456789abcdef0");
+    ul = 0xffffffffffffffff; assert_long(0xffffUL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0xffffUL, ul, "ul = 0xffffffffffffffff");
+    ul = 0xffffffffffff0000; assert_long(0xffffUL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0x0000UL, ul, "ul = 0xffffffffffff0000");
+    ul = 0xffffffffffff1234; assert_long(0xffffUL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0x1234UL, ul, "ul = 0xffffffffffff1234");
+    ul = 0x1234ffffffffffff; assert_long(0x1234UL << 48 | 0xffffUL << 32 | 0xffffUL << 16 | 0xffffUL, ul, "ul = 0x1234ffffffffffff");
+    ul = 0xffff12345678ffff; assert_long(0xffffUL << 48 | 0x1234UL << 32 | 0x5678UL << 16 | 0xffffUL, ul, "ul = 0xffff12345678ffff");
+}
+
 static void test_integer_constant_sizes() {
     // Sizes of signed integer constants
     assert_int(4,  sizeof(1),                    "Integer constant size 1");
@@ -839,6 +913,8 @@ static void test_integer_constant_sizes() {
     assert_int(8,  sizeof(0x8000000000000000),  "Hex constant size 14");
     assert_int(8,  sizeof(0xffffffffffffffff),  "Hex constant size 15");
 }
+
+#ifdef __x86_64__
 
 static void test_hex_and_octal_constants() {
     // Hex constants
@@ -1572,7 +1648,9 @@ int test_constant_expression_uses() {
     assert_int(FOO, 2, "Enum value with constant expression");
 }
 
+#endif
 int test_constant_casting() {
+#ifdef __x86_64__
     // FP -> FP
     assert_float(1.1f, (float)       1.1f, "Casting float -> float");
     assert_float(1.1f, (double)      1.1f, "Casting float -> double");
@@ -1612,9 +1690,17 @@ int test_constant_casting() {
     assert_float(1, (double)      1, "Casting int -> double");
     assert_float(1, (long double) 1, "Casting int -> long double");
 
+#endif
     // Integer -> integer
     assert_int(255,                  (unsigned char)  -1L, "Casting to unsigned char");
     assert_int(-1,                   (signed char)    -1L, "Casting to signed char");
+#ifdef __x86_64__
+    assert_int(-1,                   (char)           -1L, "Casting to char in x86_64"); // In x86_64, a char is signed by default
+#else if defined __aarch64__
+    assert_int(255,                  (char)           -1L, "Casting to char in aarch64"); // In aarch64, a char is unsigned by default
+#endif
+
+#ifdef __x86_64__
     assert_int(0xffff,               (unsigned short) -1L, "Casting to unsigned short");
     assert_int(-1,                   (short)          -1L, "Casting to short");
     assert_int(0xffffffffL,          (unsigned int)   -1L, "Casting to unsigned int");
@@ -1631,7 +1717,9 @@ int test_constant_casting() {
     // leading to the (long) cast getting ignored.
     // 0x8000000000000000LL lexes to an unsigned long.
     assert_int(1, ((long) 0x8000000000000000LL) < 0, "Casting unsigned long literal to long");
+#endif
 }
+#ifdef __x86_64__
 
 static long bswap64(long i) {
     return (
@@ -1862,7 +1950,10 @@ int main(int argc, char **argv) {
     test_sizeof_expr();
     test_conditional_jumps();
     test_pointer_comparisons();
+#endif // __x86_64__
+    test_integer_constant_assignments();
     test_integer_constant_sizes();
+#ifdef __x86_64__
     test_hex_and_octal_constants();
     test_constant_suffixes();
     test_unary_plus();
@@ -1888,7 +1979,9 @@ int main(int argc, char **argv) {
     test_overflow();
     test_constant_expressions();
     test_constant_expression_uses();
+#endif // __x86_64__
     test_constant_casting();
+#ifdef __x86_64__
     test_bswap64();
     test_extern_function_returning_pointer_to_struct_bug();
     test_BSHR_conversion_bug();

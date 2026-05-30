@@ -559,12 +559,18 @@ static BaseType *parse_declaration_specifiers(void) {
         }
     }
 
-    if (seen_long == 2) seen_long = 1;
-    else if (seen_long > 2) error("Too many longs in type specifier");
+    if (seen_long == 2)
+        seen_long = 1;
+    else if (seen_long > 2)
+        error("Too many longs in type specifier");
     if (seen_int && seen_long) {
         seen_int = 0;
         type = new_type(TYPE_LONG);
     }
+
+    // char_is_unsigned_by_default is target specific
+    if (seen_char && !seen_unsigned && !seen_signed)
+        seen_unsigned = char_is_unsigned_by_default;
 
     int data_type_sum =
         seen_void +

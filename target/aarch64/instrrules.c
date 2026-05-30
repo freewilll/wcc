@@ -99,6 +99,31 @@ void add_early_testing_rules(void) {
     // Move to pointer
     r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RI3, 1);
     add_op(r, AARCH64_OP_ADRP, 0, SRC1, SRC2, "str %v2w, [%v1x]");
+
+    // Integer Conversions
+    r = add_rule(RU1, IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "and %vdw, %v1w, 255");
+    r = add_rule(RU2, IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "and %vdw, %v1w, 65535");
+    r = add_rule(RU3, IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RU3, IR_MOVE, RI4, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RU4, IR_MOVE, RI4, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RI3, IR_MOVE, RI1, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "sxtb %vdw, %v1w");
+    r = add_rule(RI3, IR_MOVE, RI2, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "sxth %vdw, %v1w");
+    r = add_rule(RI3, IR_MOVE, RI4, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RI3, IR_MOVE, RU1, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "and %vdw, %v1w, 255");
+    r = add_rule(RI3, IR_MOVE, RU2, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "and %vdw, %v1w, 65535");
+    r = add_rule(RI3, IR_MOVE, RU3, 0, 1); add_op(r, AARCH64_OP_AND, DST, SRC1, 0, "mov %vdw, %v1w");
+
+    // Register register move
+    r = add_rule(RI1,  IR_MOVE, RI1, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RI2,  IR_MOVE, RI2, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RI3,  IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RU3,  IR_MOVE, RU3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RI4,  IR_MOVE, RI4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RI4,  IR_MOVE, RU4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RU2,  IR_MOVE, RU2, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RU3,  IR_MOVE, RU3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RU4,  IR_MOVE, RU4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
+    r = add_rule(RP4,  IR_MOVE, RP4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
 }
 
 void define_rules(void) {
@@ -121,23 +146,16 @@ void define_rules(void) {
     r = add_rule(FUN, 0, FUN, 0, 0);
 
     // Load integer constants into registers
-    r = add_rule(XR1, 0, XC1, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w"); fin_rule(r);
-    r = add_rule(XR2, 0, XC2, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w"); fin_rule(r);
-    r = add_rule(XR3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w"); fin_rule(r);
-    r = add_rule(XR4, 0, XC4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(XR1, 0, XC1, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
+    r = add_rule(XR2, 0, XC2, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
+    r = add_rule(XR3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
+    r = add_rule(XR4, 0, XC4, 0, 2); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r); // The cost is 2 to encourage loading into a 32-bit register if possible
 
     // Load memory into registers
     r = add_rule(XRI, 0, XMI, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vd, %v1"); fin_rule(r);
     r = add_rule(XRU, 0, XMU, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vd, %v1"); fin_rule(r);
     r = add_rule(XRP, 0, MI4, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vd, %v1"); fin_rule(r);
     r = add_rule(XRP, 0, MU4, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vd, %v1"); fin_rule(r);
-
-    // Register register move
-    r = add_rule(RI1,  IR_MOVE, RI1, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
-    r = add_rule(RI2,  IR_MOVE, RI2, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
-    r = add_rule(RI3,  IR_MOVE, RI3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
-    r = add_rule(RU2,  IR_MOVE, RU2, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
-    r = add_rule(RP4,  IR_MOVE, RP4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdx, %v1x");
 
     add_early_testing_rules();
 

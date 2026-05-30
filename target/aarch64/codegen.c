@@ -113,6 +113,109 @@ static void output_aarch64_operation(Tac *tac, int function_pc) {
     }
 }
 
+static Tac *process_integer_constant_move_to_register(Tac *tac) {
+    static const int MOVZ = 0; // Set zeroes
+    static const int MOVN = 1; // Set ones and negate
+    static const int MOVK = 2; // Keep other half words
+
+    // Define all possible templates at compile time to avoid memory allocations
+    static char *templates[3][4][2] = {
+        "movz %vdw, %v1w" ,        "movz %vdx, %v1x" ,
+        "movz %vdw, %v1w, lsl 16", "movz %vdx, %v1x, lsl 16",
+        "movz %vdw, %v1w, lsl 32", "movz %vdx, %v1x, lsl 32",
+        "movz %vdw, %v1w, lsl 48", "movz %vdx, %v1x, lsl 48",
+
+        "movn %vdw, %v1w" ,        "movn %vdx, %v1x" ,
+        "movn %vdw, %v1w, lsl 16", "movn %vdx, %v1x, lsl 16",
+        "movn %vdw, %v1w, lsl 32", "movn %vdx, %v1x, lsl 32",
+        "movn %vdw, %v1w, lsl 48", "movn %vdx, %v1x, lsl 48",
+
+        "movk %vdw, %v1w" ,        "movk %vdx, %v1x" ,
+        "movk %vdw, %v1w, lsl 16", "movk %vdx, %v1x, lsl 16",
+        "movk %vdw, %v1w, lsl 32", "movk %vdx, %v1x, lsl 32",
+        "movk %vdw, %v1w, lsl 48", "movk %vdx, %v1x, lsl 48",
+    };
+
+    Value *dst = tac->dst;
+    Value *src1 = dup_value(tac->src1);
+
+    if (!dst->vreg) panic("Expected a vreg for dst in process_integer_constant_move_to_register()");
+    if (!src1->is_constant) panic("Expected a constant for src1 in process_integer_constant_move_to_register()");
+
+    long constant_value = src1->int_value;
+    int size_offset = dst->target_size > 3;
+
+    int c[4] = {
+        constant_value         & 0xffff,
+        (constant_value >> 16) & 0xffff,
+        (constant_value >> 32) & 0xffff,
+        (constant_value >> 48) & 0xffff,
+    };
+
+    int zeroes = c[0] == 0 + c[1] == 0;
+    int ones = c[0] == 0xffff + c[1] == 0xffff;
+
+    if (dst->target_size > 3) {
+        zeroes += c[2] == 0 + c[3] == 0;
+        ones += c[2] == 0xffff + c[3] == 0xffff;
+    }
+
+    tac->operation.id = IR_NOP;
+    tac->dst = 0;
+    tac->src1 = 0;
+    tac->src2 = 0;
+
+    int base_operation;
+    int base_value;
+    int negate = 0;
+
+    if (zeroes >= ones) {
+        base_operation = MOVZ;
+        base_value = 0;
+        negate = 0;
+    }
+    else {
+        base_operation = MOVN;
+        base_value = 0xffff;
+        negate = 1;
+    }
+
+    int half_words = dst->target_size > 3 ? 4 : 2;
+
+    int initted = 0;
+    int emissions = 0;
+
+    for (int i = 0; i < half_words; i++) {
+        if (c[i] == base_value) continue;
+
+        tac = new_tac_after(tac, AARCH64_OP_MOV, dst, dup_value(src1), NULL);
+        tac->src1->int_value = c[i];
+        if (!initted) {
+            if (negate)
+                tac->src1->int_value = (~c[i]) & 0xffff;
+            else
+                tac->src1->int_value = c[i];
+
+            tac->target_template = templates[base_operation][i][size_offset];
+            initted = 1;
+        }
+        else {
+            tac->target_template = templates[MOVK][i][size_offset];
+            tac->src1->int_value = c[i];
+        }
+
+        emissions++;
+    }
+
+    if (!emissions) {
+        tac = new_tac_after(tac, AARCH64_OP_MOV, dst, src1, NULL);
+        tac->src1->int_value = 0;
+        tac->target_template = templates[base_operation][0][size_offset];
+    }
+
+    return tac;
+}
+
 void make_stack_offsets(Function *function) {} // TODO aarch64
 
 // Determine which registers are used in a function, push them onto the stack and return the list
@@ -174,6 +277,10 @@ void add_final_instructions(Function *function) {
 
         switch (ir->operation.id) {
             case IR_NOP:
+                break;
+
+            case AARCH64_OP_MOV_INT_CST:
+                ir = process_integer_constant_move_to_register(ir);
                 break;
 
             case AARCH64_OP_CALL: {
