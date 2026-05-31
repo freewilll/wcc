@@ -36,6 +36,7 @@ char *target_op_name(int operation) {
         case AARCH64_OP_LSL:                return "lsl";
         case AARCH64_OP_LSR:                return "lsr";
         case AARCH64_OP_ASR:                return "asr";
+        case AARCH64_OP_CSET:               return "cset";
         case AARCH64_OP_CALL:               return "call";
         case AARCH64_OP_CALL_FROM_FUNC:     return "callf";         // Used in codegen
         case AARCH64_OP_PUSH_DOUBLE_WORD:   return "pushdw";        // Used in codegen
@@ -58,6 +59,10 @@ void print_target_instruction(void *f, Tac *tac) {
                 printf(" -> ");
                 print_value(f, tac->dst, 1);
             }
+            break;
+
+        case AARCH64_OP_CSET:
+            fprintf(f, "%-12s\n", operation_string(o));
             break;
 
         case AARCH64_OP_BNOT:

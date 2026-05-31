@@ -147,7 +147,7 @@ static void add_two_operand_rules(char *target_operand, int base1, int base2, in
     r = add_rule(base1 + 3, operation, base2 + 3, base3 + 3, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_x);
 }
 
-static void add_mod_rules(void) {
+static void add_int_mod_rules(void) {
     for (int is_signed = 0; is_signed < 2; is_signed++) {
         int base = is_signed ? RI1 : RU1;
         for (int i = 0; i < 4; i++) {
@@ -165,7 +165,7 @@ static void add_mod_rules(void) {
     }
 }
 
-static void add_bitshift_rules(void) {
+static void add_int_bitshift_rules(void) {
     // IR_BSHL
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 2; j++) {
@@ -187,6 +187,50 @@ static void add_bitshift_rules(void) {
     for (int i = 0; i < 2; i++) {
         add_two_operand_rules("lsr", RU1, RU1, i ? CI1 : CU1, IR_BSHR, AARCH64_OP_LSL, 3); // r >> c
         add_two_operand_rules("lsr", RU1, RU1, i ? RI1 : RU1, IR_BSHR, AARCH64_OP_LSL, 3); // r >> r
+    }
+}
+
+// Add rules for dst={RI*, RU*}, SRC={RI1, RU1, RI2, RU2, ...} for all 6 comparison types
+static void add_int_comparison_rules(void) {
+    Rule *r;
+
+    int operations[6] = {IR_EQ, IR_NE, IR_LT, IR_GT, IR_LE, IR_GE};
+
+    for (int src_is_unsigned = 0; src_is_unsigned < 2; src_is_unsigned++) {
+        for (int src_size = 1; src_size <= 4; src_size++) {
+            int src = src_is_unsigned ? RU1 + src_size - 1: RI1 + src_size - 1;
+
+            char *subs_template = add_size_to_template("subs %vd, %v1, %v2", src_size);
+
+            char *templates[2][6] = {
+                add_size_to_template("cset %vd, eq", src_size),
+                add_size_to_template("cset %vd, ne", src_size),
+                add_size_to_template("cset %vd, lt", src_size),
+                add_size_to_template("cset %vd, gt", src_size),
+                add_size_to_template("cset %vd, le", src_size),
+                add_size_to_template("cset %vd, ge", src_size),
+
+                add_size_to_template("cset %vd, eq", src_size),
+                add_size_to_template("cset %vd, ne", src_size),
+                add_size_to_template("cset %vd, lo", src_size),
+                add_size_to_template("cset %vd, hi", src_size),
+                add_size_to_template("cset %vd, ls", src_size),
+                add_size_to_template("cset %vd, hs", src_size),
+            };
+
+            for (int operation = 0; operation < 6; operation++) {
+                for (int dst_is_unsigned = 0; dst_is_unsigned < 2; dst_is_unsigned++) {
+                    for (int dst_size = 1; dst_size <= 4; dst_size++) {
+                        int dst = dst_is_unsigned ? RU1 + dst_size - 1: RI1 + dst_size - 1;
+
+                        r = add_rule(dst, operations[operation], src, src, 12);
+                        add_allocate_register_in_slot(r, 1, TYPE_CHAR + src_size - 1);
+                        add_op(r, AARCH64_OP_SUB,  SV1, SRC1, SRC2, subs_template);
+                        add_op(r, AARCH64_OP_CSET, DST, 0,    0,    templates[src_is_unsigned][operation]);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -236,10 +280,11 @@ void define_rules(void) {
     add_two_operand_rules("and",  RU1, RU1, RU1, IR_BAND, AARCH64_OP_BAND, 3);
     add_two_operand_rules("eor",  RI1, RI1, RI1, IR_XOR,  AARCH64_OP_XOR,  3);
     add_two_operand_rules("eor",  RU1, RU1, RU1, IR_XOR,  AARCH64_OP_XOR,  3);
-    add_mod_rules();
-    add_bitshift_rules();
     add_one_operand_rules("mvn", RI1, RI1, IR_BNOT, AARCH64_OP_BNOT, 3);
     add_one_operand_rules("mvn", RU1, RU1, IR_BNOT, AARCH64_OP_BNOT, 3);
+    add_int_mod_rules();
+    add_int_bitshift_rules();
+    add_int_comparison_rules();
 
     add_early_testing_rules();
 
