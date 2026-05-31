@@ -60,6 +60,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
             tac->operation.id = IR_BSHL;
             tac->src1 = v;
             tac->src2 = new_integral_constant(TYPE_INT, l);
+            tac->src2->type->is_unsigned = v->type->is_unsigned;
         }
     }
 
@@ -76,6 +77,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
             tac->operation.id = IR_BSHR;
             tac->src1 = v;
             tac->src2 = new_integral_constant(TYPE_INT, l);
+            tac->src2->type->is_unsigned = v->type->is_unsigned;
         }
     }
 
@@ -92,6 +94,7 @@ void optimize_integer_arithmetic_operation(Tac *tac) {
             tac->operation.id = IR_BAND;
             tac->src1 = v;
             tac->src2 = new_integral_constant(TYPE_INT, l);
+            tac->src2->type->is_unsigned = v->type->is_unsigned;
         }
     }
 }

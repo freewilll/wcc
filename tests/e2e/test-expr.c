@@ -238,7 +238,6 @@ void test_int_expr() {
     assert_int(-1,        ((int) -1) >> 3,             "(int) -1) >> 3");
 }
 
-#ifdef __x86_64__
 void test_uint_expr() {
     unsigned int i, j, k, l;
 
@@ -392,7 +391,6 @@ void test_uint_expr() {
     assert_int(                  32, 8192 >> 8,         "8192 >> 8"   );
 }
 
-#endif
 void test_mixed_sign_operations() {
     unsigned int ui;
     int i;
@@ -1924,9 +1922,7 @@ int main(int argc, char **argv) {
 #endif // __x86_64__
     test_constant_expr();
     test_int_expr();
-#ifdef __x86_64__
     test_uint_expr();
-#endif // __x86_64__
     test_mixed_sign_operations();
 #ifdef __x86_64__
     test_local_comma_var_declarations();
