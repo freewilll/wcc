@@ -457,6 +457,7 @@ void test_global_comma_var_declarations() {
     assert_int(2, gcvuj, "global comma var declaration 4");
 }
 
+#endif
 void test_double_assign() {
     long a, b;
     unsigned long c;
@@ -466,6 +467,7 @@ void test_double_assign() {
     assert_int(1, c, "double assign 3");
 }
 
+#ifdef __x86_64__
 void test_composite_assign() {
     char c, *pc;
     short s, *ps;
@@ -580,6 +582,7 @@ static void test_assign_to_globals() {
     l++; gul = l; assert_long(gul, l, "gul = l"); ul++; gl = ul; assert_long(gl, ul, "gl = ul");
 }
 
+#endif
 static void test_add_operation_sign() {
     int si1, si2;
     unsigned int ui1, ui2;
@@ -601,6 +604,7 @@ static void test_add_operation_sign() {
     assert_int(0, (ui1 + si2) < 0,          "adding a signed and unsigned int 1");
     assert_int(1, (ui1 + si2) > 2147483647, "adding a signed and unsigned int 2");
 }
+#ifdef __x86_64__
 
 static void test_logical_or_operation_sign() {
     int si1, si2;
@@ -899,8 +903,6 @@ static void test_integer_constant_sizes() {
     assert_int(8,  sizeof(0xffffffffffffffff),  "Hex constant size 15");
 }
 
-#ifdef __x86_64__
-
 static void test_hex_and_octal_constants() {
     // Hex constants
     assert_int(1,                     0x1,                      "Hex constants 1");
@@ -977,6 +979,7 @@ void test_constant_suffixes() {
     assert_int(1, -1ul > 0,     "Constant suffix lowercase ul");
     assert_int(8, sizeof(1llu), "Constant suffix lowercase llu");
 }
+#ifdef __x86_64__
 
 void test_unary_plus() {
     char c;
@@ -1098,6 +1101,7 @@ void test_80000000_addition_and_subtraction() {
     assert_long(0x100000000, pc + 0x80000000 , "pc + 0x80000000");
 }
 
+#endif
 void test_80000000_unary_minus() {
     int i;
     long l;
@@ -1122,7 +1126,7 @@ void test_80000000_cmp() {
     l = 0x80000000; assert_int(1, l == 0x80000000, "cmpq imm32 0x80000000");
     l = 0xffffffff; assert_int(1, l == 0xffffffff, "cmpq imm32 0xffffffff");
 }
-
+#ifdef __x86_64__
 void test_pointer_casting_reads() {
     int i;
     char *data;
@@ -1151,6 +1155,7 @@ void test_pointer_casting_reads() {
     assert_long(0x0101010101010101, *((unsigned long  *) data), "unsigned long read 2");
 }
 
+#endif
 void func_c(char  c, long value, char *message) { assert_long((long) c, value, message); }
 void func_s(short s, long value, char *message) { assert_long((long) s, value, message); }
 void func_i(int   i, long value, char *message) { assert_long((long) i, value, message); }
@@ -1216,7 +1221,7 @@ void test_int_int_assignment() {
     func_l(i1, 1, "func_l(ui)");
     func_l(l1, 1, "func_l(ul)");
 }
-
+#ifdef __x86_64__
 void test_int_uint_assignment() {
     char c1;
     short s1;
@@ -1704,7 +1709,6 @@ int test_constant_casting() {
     assert_int(1, ((long) 0x8000000000000000LL) < 0, "Casting unsigned long literal to long");
 #endif
 }
-#ifdef __x86_64__
 
 static long bswap64(long i) {
     return (
@@ -1723,6 +1727,7 @@ void test_bswap64() {
     assert_long(0x8877665544332211UL, bswap64(0x1122334455667788UL), "bswap64");
 }
 
+#ifdef __x86_64__
 void test_extern_function_returning_pointer_to_struct_bug() {
     // Tests bug where an extern storage class specifier was being applied to a struct
     // instead of to a function returning a pointer to struct
@@ -1921,14 +1926,18 @@ int main(int argc, char **argv) {
 #ifdef __x86_64__
     test_local_comma_var_declarations();
     test_global_comma_var_declarations();
+#endif // __x86_64__
     test_double_assign();
+#ifdef __x86_64__
     test_composite_assign();
     test_assign_to_globals();
     test_integer_sizes();
     test_floating_point_sizes();
     test_array_sizes();
     test_combination_sizes();
+#endif // __x86_64__
     test_add_operation_sign();
+#ifdef __x86_64__
     test_logical_or_operation_sign();
     test_sizeof_expr();
     test_conditional_jumps();
@@ -1936,16 +1945,20 @@ int main(int argc, char **argv) {
 #endif // __x86_64__
     test_integer_constant_assignments();
     test_integer_constant_sizes();
-#ifdef __x86_64__
     test_hex_and_octal_constants();
     test_constant_suffixes();
+#ifdef __x86_64__
     test_unary_plus();
     test_unary_minus();
     test_80000000_addition_and_subtraction();
+#endif // __x86_64__
     test_80000000_unary_minus();
     test_80000000_cmp();
+#ifdef __x86_64__
     test_pointer_casting_reads();
+#endif // __x86_64__
     test_int_int_assignment();
+#ifdef __x86_64__
     test_int_uint_assignment();
     test_uint_int_assignment();
     test_uint_uint_assignment();
@@ -1964,8 +1977,8 @@ int main(int argc, char **argv) {
     test_constant_expression_uses();
 #endif // __x86_64__
     test_constant_casting();
-#ifdef __x86_64__
     test_bswap64();
+#ifdef __x86_64__
     test_extern_function_returning_pointer_to_struct_bug();
     test_BSHR_conversion_bug();
     test_cast_to_void();
