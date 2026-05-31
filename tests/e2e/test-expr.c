@@ -188,7 +188,6 @@ void test_int_expr() {
     assert_int(                   1, 1 >= j,            "1 >= 1 c"     );
     assert_int(                   1, j >= j,            "1 >= 1 d"     );
 
-#ifdef __x86_64__
     assert_int(                   0, 0 || 0,            "0 || 0"      );
     assert_int(                   1, 0 || 1,            "0 || 1"      );
     assert_int(                   1, 1 || 0,            "1 || 0"      );
@@ -197,11 +196,10 @@ void test_int_expr() {
     assert_int(                   0, 0 && 1,            "0 && 1"      );
     assert_int(                   0, 1 && 0,            "1 && 0"      );
     assert_int(                   1, 1 && 1,            "1 && 1"      );
-
     assert_int(                   1, 2 || 0,            "2 || 0"      ); // Ensure that the result is always 1 or zero
     assert_int(                   1, 0 || 2,            "0 || 2"      );
     assert_int(                   1, 2 && 3,            "2 && 3"      );
-#endif
+
     i = 3; j = 5;
     assert_int(                   1, 3 & 5,             "3 & 5 a"     );
     assert_int(                   1, i & 5,             "3 & 5 b"     );

@@ -88,6 +88,8 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                         sprintf(buffer, "%s", v->global_symbol->global_identifier);
                 }
             }
+            else if (v->label)
+                sprintf(buffer, ".L%d", v->label);
             else {
                 print_value(stdout, v, 0);
                 printf("\n");

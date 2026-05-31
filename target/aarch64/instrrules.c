@@ -50,6 +50,14 @@ static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, 
 
     target_op->operation.is_move = (operation == AARCH64_OP_MOV);
     target_op->operation.is_call = (operation == AARCH64_OP_CALL);
+
+    target_op->operation.is_conditional_jump = (
+        operation == AARCH64_OP_BEQ ||
+        operation == AARCH64_OP_BNE
+    );
+
+    target_op->operation.is_unconditional_jump = (operation == AARCH64_OP_B);
+
     // TODO aarch64, other tags, e.g.
 
     target_op->dst = dst;
@@ -234,6 +242,13 @@ static void add_int_comparison_rules(void) {
     }
 }
 
+static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int target_operation, char *comparison, char *conditional_jmp) {
+    Rule *r = add_rule(0, operation, src1, src2, cost);
+    add_op(r, AARCH64_OP_CMP, 0, SRC1, SRC2, comparison);
+    add_op(r, target_operation, 0, SRC2, 0, conditional_jmp);
+    fin_rule(r);
+}
+
 void define_rules(void) {
     Rule *r;
 
@@ -252,6 +267,7 @@ void define_rules(void) {
     r = add_rule(XRP, 0, XRP, 0, 0); fin_rule(r);
     r = add_rule(STL, 0, STL, 0, 0);
     r = add_rule(FUN, 0, FUN, 0, 0);
+    r = add_rule(LAB, 0, LAB, 0, 0);
 
     // Load integer constants into registers
     r = add_rule(XR1, 0, XC1, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
@@ -285,6 +301,12 @@ void define_rules(void) {
     add_int_mod_rules();
     add_int_bitshift_rules();
     add_int_comparison_rules();
+
+    // Jump rules
+    r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, AARCH64_OP_B, 0, SRC1, 0, "b %v1"); fin_rule(r);
+
+    add_conditional_zero_jump_rule(IR_JZ,  XR, LAB, 3, AARCH64_OP_BEQ, "cmp %v1, 0",  "beq %v1");
+    add_conditional_zero_jump_rule(IR_JNZ, XR, LAB, 3, AARCH64_OP_BNE, "cmp %v1, 0",  "bne %v1");
 
     add_early_testing_rules();
 
