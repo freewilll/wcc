@@ -26,17 +26,13 @@ unsigned short gus, *gpus;
 unsigned int gui, *gpui;
 unsigned long gul, *gpul;
 
-#ifdef __x86_64__
-
 // Test 64 bit constants are assigned properly
 void test_long_constant() {
     long l;
 
     l = 0x1000000001010101ul;
-    assert_int(1, l && 0x1000000000000000ul, "64 bit constants");
+    assert_int(0x1000000000000000ul, l & 0x1000000000000000ul, "64 bit constants");
 }
-
-#endif
 
 void test_constant_expr() {
     assert_int(                   1, 1+2==3,            "1+2==3"      );
@@ -1917,9 +1913,7 @@ int main(int argc, char **argv) {
 
     parse_args(argc, argv);
 
-#ifdef __x86_64__
     test_long_constant();
-#endif // __x86_64__
     test_constant_expr();
     test_int_expr();
     test_uint_expr();

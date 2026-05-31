@@ -114,6 +114,7 @@ void add_early_testing_rules(void) {
     r = add_rule(RI3, IR_MOVE, RU1, 0, 1); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "and %vdw, %v1w, 255");
     r = add_rule(RI3, IR_MOVE, RU2, 0, 1); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "and %vdw, %v1w, 65535");
     r = add_rule(RI3, IR_MOVE, RU3, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
+    r = add_rule(RI3, IR_MOVE, RU4, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
 
     // Register register move
     r = add_rule(RI1,  IR_MOVE, RI1, 0, 1); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "mov %vdw, %v1w");
