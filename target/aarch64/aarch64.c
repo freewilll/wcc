@@ -119,7 +119,7 @@ int get_preg_class_for_scalar_type(Type *type) {
 static void remove_self_register_copies(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next)
         if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
-            if (tac->operation.id == AARCH64_OP_MOV) tac->operation.id = IR_NOP;
+            if (tac->operation.id == AARCH64_OP_MOV && !tac->operation.is_convert_move) tac->operation.id = IR_NOP;
 }
 
 void perform_peephole_optimization(Function *function) {
@@ -151,7 +151,7 @@ static Tac *load_dst_address_into_pointer(Function *function, Tac *tac) {
 }
 
 // Convert stores to global variables to a IR_ADDRESS_OF of the global, followed by a IR_MOVE_TO_PTR
-void make_load_store_instructions(Function *function) {
+void make_load_store_instructions_for_ir_address_ofs(Function *function) {
     make_vreg_count(function, live_range_reserved_pregs_offset);
 
     // TODO aarch64 more to do here
@@ -165,4 +165,12 @@ void make_load_store_instructions(Function *function) {
             tac->dst = NULL;
         }
     }
+}
+
+void make_load_store_instructions(Function *function) {
+    make_vreg_count(function, live_range_reserved_pregs_offset);
+
+    make_load_store_instructions_for_ir_address_ofs(function);
+
+    // TODO aarch64 more to do here
 }

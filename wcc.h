@@ -1351,7 +1351,6 @@ void print_rule(Rule *r, int print_operations, int indent);
 void print_rules(void);
 char *operation_string(int operation);
 void make_value_target_size(Value *v);
-int match_value_to_rule_src(Value *v, int src);
 
 #define non_terminal_for_value(v) (v->non_terminal ? v->non_terminal : uncached_non_terminal_for_value(v))
 int uncached_non_terminal_for_value(Value *v);
@@ -1489,6 +1488,8 @@ extern int physical_register_count;
 extern int physical_int_register_count;
 extern int physical_fp_register_count;
 
+extern int match_constant_type_in_instrsel;
+
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
 void print_backend_instruction(void *f, Tac *tac);
@@ -1509,6 +1510,7 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
 
 // Target instruction rules related code
 char *add_size_to_template(char *template, int size);
+int match_value_to_rule_src(Value *v, int src);
 void define_rules(void);
 void make_load_store_instructions(Function *function);
 

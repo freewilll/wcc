@@ -3,6 +3,8 @@
 #include "wcc.h"
 #include "x86_64.h"
 
+int match_constant_type_in_instrsel = 0;
+
 char **signed_moves_templates, **unsigned_moves_templates;
 int *signed_moves_operations, *unsigned_moves_operations;
 
@@ -36,11 +38,56 @@ char *add_size_to_template(char *template, int size) {
     return result;
 }
 
+// Used to match a value to a leaf node (operation = 0) src rule
+// There are a couple of possible matches for a constant.
+int match_value_to_rule_src(Value *v, int src) {
+    if (v->is_constant) {
+        int vtt = v->type->type;
+
+        if (vtt == TYPE_LONG_DOUBLE)
+            return src == CLD;
+        else if (vtt == TYPE_FLOAT)
+            return src == CS3;
+        else if (vtt == TYPE_DOUBLE)
+            return src == CS4;
+        else {
+            // Integer constant
+
+            // Match 1, 2 and 3
+                 if (src == CSTV1 && v->int_value == 1) return 1;
+            else if (src == CSTV2 && v->int_value == 2) return 1;
+            else if (src == CSTV3 && v->int_value == 3) return 1;
+
+            // Check match with type from the parser. This is necessary for evil casts, e.g.
+            // (unsigned int) -1, which would otherwise become a CU4 and not match rules for CU3.
+                 if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && vtt != TYPE_LONG)  return 1;
+            else if (              src == CI4 && !v->type->is_unsigned)                      return 1;
+                 if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && vtt != TYPE_LONG)  return 1;
+            else if (              src == CU4 &&  v->type->is_unsigned)                      return 1;
+
+            // Determine constant non termimal by looking at the signdness and value
+            else if (src >= CI1 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80        && v->int_value < 0x80       ) return 1;
+            else if (src >= CI2 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x8000      && v->int_value < 0x8000     ) return 1;
+            else if (src >= CI3 && src <= CI4 && !v->type->is_unsigned && v->int_value >= -0x80000000l && v->int_value < 0x80000000l) return 1;
+            else if (              src == CI4 && !v->type->is_unsigned)                                                               return 1;
+
+            else if (src >= CU1 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100      ) return 1;
+            else if (src >= CU2 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100000   ) return 1;
+            else if (src >= CU3 && src <= CU4 &&  v->type->is_unsigned && v->int_value >= 0 && v->int_value < 0x100000000) return 1;
+            else if (              src == CU4 &&  v->type->is_unsigned)                                                    return 1;
+
+            else return 0;
+        }
+    }
+    else
+        return non_terminal_for_value(v) == src;
+}
+
 // Add an x86 operation template to a rule
 static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     if (operation < TARGET_OPS_START) panic("Operation %s is not a target operation", operation_string(operation));
 
-    TargetOperation *x86op = wmalloc(sizeof(TargetOperation));
+    TargetOperation *x86op = wcalloc(1, sizeof(TargetOperation));
     x86op->operation.id = operation;
 
     x86op->operation.is_move = (operation == X86_OP_MOV);

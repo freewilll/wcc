@@ -119,8 +119,8 @@ static void recursive_dump_igraph(IGraph *ig, int node, int indent, int include_
             case IR_MUL128A:              c += printf("*128A"); break;
             case IR_MUL128B:              c += printf("*128B"); break;
             case IR_DIV:                  c += printf("/"); break;
-            case IR_BSHL:                 c += printf("<<"); break;
-            case IR_BSHR:                 c += printf(">>"); break;
+            case IR_BSHL:                 c += printf("b<<"); break;
+            case IR_BSHR:                 c += printf("b>>"); break;
             case IR_ASHR:                 c += printf("a>>"); break;
             case IR_BNOT:                 c += printf("~"); break;
             case IR_BOR:                  c += printf("|"); break;
@@ -851,7 +851,9 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
         Rule *r = rules->elements[i];
 
         if (!match_value_to_rule_src(v, r->src1)) continue;
-        if (!v->is_constant && !v->label && v->type->type != TYPE_FUNCTION && !match_value_type_to_rule_dst(v, r->dst)) continue;
+
+        int match_value_type = !v->is_constant || match_constant_type_in_instrsel;
+        if (match_value_type && !v->label && v->type->type != TYPE_FUNCTION && !match_value_type_to_rule_dst(v, r->dst)) continue;
 
         if (debug_instsel_tiling) {
             printf("matched rule %d:\n", r->index);
@@ -1003,7 +1005,7 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         printf("\nNo rules matched\n");
         if (tac->dst)  printf("Want dst %s\n",  value_to_non_terminal_string(tac->dst));
         if (tac->src1) printf("Want src1 %s\n", value_to_non_terminal_string(tac->src1));
-        if (tac->src2) printf("Want src2 %s\n", value_to_non_terminal_string(tac->src2));
+        if (tac->src2) printf("Want src2 %s\n", value_to_non_terminal_string(tac->src2)); // wwip constants are misreported here since make_value_target_size() returns 0
 
         print_instruction(stdout, tac, 0);
         dump_igraph(igraph, 0);

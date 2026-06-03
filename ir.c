@@ -388,8 +388,8 @@ void print_instruction(void *f, Tac *tac, int expect_preg) {
     else if (o == IR_BAND)          { print_value(f, tac->src1, 1); fprintf(f, " & ");        print_value(f, tac->src2, 1); }
     else if (o == IR_BOR)           { print_value(f, tac->src1, 1); fprintf(f, " | ");        print_value(f, tac->src2, 1); }
     else if (o == IR_XOR)           { print_value(f, tac->src1, 1); fprintf(f, " ^ ");        print_value(f, tac->src2, 1); }
-    else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " << ");       print_value(f, tac->src2, 1); }
-    else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " >> ");       print_value(f, tac->src2, 1); }
+    else if (o == IR_BSHL)          { print_value(f, tac->src1, 1); fprintf(f, " b<< ");      print_value(f, tac->src2, 1); }
+    else if (o == IR_BSHR)          { print_value(f, tac->src1, 1); fprintf(f, " b>> ");      print_value(f, tac->src2, 1); }
     else if (o == IR_ASHR)          { print_value(f, tac->src1, 1); fprintf(f, " a>> ");      print_value(f, tac->src2, 1); }
 
     else if (o == IR_BIT_SCAN_FWD)  { fprintf(f, " bit_scan_fwd("); print_value(f, tac->src1, 1); fprintf(f, ")"); }

@@ -33,17 +33,18 @@ int main(int argc, char **argv) {
                     op->operation.is_call);
 
                 // Print clobbers
-                int i = 0;
-                while (op->operation.clobbers[i].live_range_preg) {
-                    if (i) printf(", ");
-                    Clobber *c = &op->operation.clobbers[i];
+                int k = 0;
+                while (op->operation.clobbers[k].live_range_preg) {
+                    if (k == MAX_CLOBBERS) panic("Exceeded max clobbers %d for rule %d", MAX_CLOBBERS, k);
+                    if (k) printf(", ");
+                    Clobber *c = &op->operation.clobbers[k];
                     printf("{%d, %d, %d, %d, %d}",
                         c->live_range_preg,
                         c->add_ig_edge_to_dst,
                         c->add_ig_edge_to_src1,
                         c->add_ig_edge_to_src2,
                         c->clobbers_livenow);
-                    i++;
+                    k++;
                 }
 
                 // Ensure there is at least one clobber that has live_range_preg=0, which means there are no clobbers
