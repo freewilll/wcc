@@ -1005,7 +1005,7 @@ static int tile_igraph_operation_node(IGraph *igraph, int node_id) {
         printf("\nNo rules matched\n");
         if (tac->dst)  printf("Want dst %s\n",  value_to_non_terminal_string(tac->dst));
         if (tac->src1) printf("Want src1 %s\n", value_to_non_terminal_string(tac->src1));
-        if (tac->src2) printf("Want src2 %s\n", value_to_non_terminal_string(tac->src2)); // wwip constants are misreported here since make_value_target_size() returns 0
+        if (tac->src2) printf("Want src2 %s\n", value_to_non_terminal_string(tac->src2));
 
         print_instruction(stdout, tac, 0);
         dump_igraph(igraph, 0);
