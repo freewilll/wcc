@@ -172,12 +172,16 @@ test-self-compilation: wcc2 wcc3
 test: test-self-compilation test-all test-target-all
 	@echo All tests passed
 
+.PHONY: ${BUILD_DIR}/tests/test-lib.o
+${BUILD_DIR}/tests/test-lib.o:
+	${MAKE} -C ${SRC_DIR}/tests ${BUILD_DIR}/tests/test-lib.o
+
 .PHONY: test-all
 test-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h
 	${MAKE} -C ${SRC_DIR}/tests all
 
 .PHONY: test-target-all
-test-target-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h test-all
+test-target-all: wcc internals.c libwcc.a utils.o memory.o ${SRC_DIR}/include/stdarg.h ${BUILD_DIR}/tests/test-lib.o
 	${MAKE} -C ${SRC_DIR}/target/${TARGET}/tests all
 
 .PHONY: test-unit
