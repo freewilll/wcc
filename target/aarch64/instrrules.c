@@ -56,7 +56,14 @@ int match_value_to_rule_src(Value *v, int src) {
             else if (vtt == TYPE_INT   &&  is_unsigned && src == CU3) return 1;
             else if (vtt == TYPE_LONG  &&  is_unsigned && src == CU4) return 1;
 
-            else return 0;
+            // Check if the constant can be encoded in the add/sub instructions family.
+            // It must be a 12-bit immediate, optionally shifted left by 12 bits.
+            // Either the constant is < 4096 or it is a multiple of 4096 (1<<12) and ((constant >> 12) <= 4095).
+            else if (src == CADDSUB && ((v->int_value < 0x1000) || ((v->int_value & 0xfff) == 0) && ((v->int_value >> 12) < 0x1000)))
+                return 1;
+
+            else
+                return 0;
         }
     }
     else
@@ -233,11 +240,11 @@ static void add_two_operand_rules(char *target_operand, int base1, int base2, in
     wasprintf(&op_w, "%s %%vdw, %%v1w, %%v2w", target_operand);
     wasprintf(&op_x, "%s %%vdx, %%v1x, %%v2x", target_operand);
 
-    int multiplex_base3 = (base3== XC || base3 == XR);
-    r = add_rule(base1 + 0, operation, base2 + 0, multiplex_base3 ? base3 : base3 + 0, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_w); fin_rule(r);
-    r = add_rule(base1 + 1, operation, base2 + 1, multiplex_base3 ? base3 : base3 + 1, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_w); fin_rule(r);
-    r = add_rule(base1 + 2, operation, base2 + 2, multiplex_base3 ? base3 : base3 + 2, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_w); fin_rule(r);
-    r = add_rule(base1 + 3, operation, base2 + 3, multiplex_base3 ? base3 : base3 + 3, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_x); fin_rule(r);
+    int keep_base3 = (base3== XC || base3 == XR || base3 == CADDSUB);
+    r = add_rule(base1 + 0, operation, base2 + 0, keep_base3 ? base3 : base3 + 0, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_w); fin_rule(r);
+    r = add_rule(base1 + 1, operation, base2 + 1, keep_base3 ? base3 : base3 + 1, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_w); fin_rule(r);
+    r = add_rule(base1 + 2, operation, base2 + 2, keep_base3 ? base3 : base3 + 2, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_w); fin_rule(r);
+    r = add_rule(base1 + 3, operation, base2 + 3, keep_base3 ? base3 : base3 + 3, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_x); fin_rule(r);
 }
 
 static void add_int_mod_rules(void) {
@@ -337,13 +344,14 @@ void define_rules(void) {
     int ntc = AUTO_NON_TERMINAL_START;
 
     // Identity rules, for matching leaf nodes in the instruction tree
-    r = add_rule(XC,  0, XC,  0, 0); fin_rule(r);
-    r = add_rule(XR,  0, XR,  0, 0); fin_rule(r);
-    r = add_rule(XM,  0, XM,  0, 0); fin_rule(r);
-    r = add_rule(XRP, 0, XRP, 0, 0); fin_rule(r);
-    r = add_rule(STL, 0, STL, 0, 0);
-    r = add_rule(FUN, 0, FUN, 0, 0);
-    r = add_rule(LAB, 0, LAB, 0, 0);
+    r = add_rule(XC,       0, XC,       0, 0); fin_rule(r);
+    r = add_rule(CADDSUB,  0, CADDSUB,  0, 0);
+    r = add_rule(XR,       0, XR,       0, 0); fin_rule(r);
+    r = add_rule(XM,       0, XM,       0, 0); fin_rule(r);
+    r = add_rule(XRP,      0, XRP,      0, 0); fin_rule(r);
+    r = add_rule(STL,      0, STL,      0, 0);
+    r = add_rule(FUN,      0, FUN,      0, 0);
+    r = add_rule(LAB,      0, LAB,      0, 0);
 
     // Load integer constants into registers
     r = add_rule(XR1, 0, XC1, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
@@ -361,10 +369,18 @@ void define_rules(void) {
     add_int_register_move_rules();
 
     // Operations
+    // r + r and r - r
     add_two_operand_rules("add",  RI1, RI1, RI1, IR_ADD,  AARCH64_OP_ADD, 10);
     add_two_operand_rules("add",  RU1, RU1, RU1, IR_ADD,  AARCH64_OP_ADD, 10);
     add_two_operand_rules("sub",  RI1, RI1, RI1, IR_SUB,  AARCH64_OP_SUB, 10);
     add_two_operand_rules("sub",  RU1, RU1, RU1, IR_SUB,  AARCH64_OP_SUB, 10);
+
+    // r + c and r - c where c can be encoded in the instruction
+    add_two_operand_rules("add",  RI1, RI1, CADDSUB, IR_ADD, AARCH64_OP_ADD, 10);
+    add_two_operand_rules("add",  RU1, RU1, CADDSUB, IR_ADD, AARCH64_OP_ADD, 10);
+    add_two_operand_rules("sub",  RI1, RI1, CADDSUB, IR_SUB, AARCH64_OP_SUB, 10);
+    add_two_operand_rules("sub",  RU1, RU1, CADDSUB, IR_SUB, AARCH64_OP_SUB, 10);
+
     add_two_operand_rules("mul",  RI1, RI1, RI1, IR_MUL,  AARCH64_OP_MUL, 30);
     add_two_operand_rules("mul",  RU1, RU1, RU1, IR_MUL,  AARCH64_OP_MUL, 30);
     add_two_operand_rules("sdiv", RI1, RI1, RI1, IR_DIV,  AARCH64_OP_DIV, 40);

@@ -61,6 +61,9 @@ void free_rules_by_operation(void) {
 
 // Make a textual representation of a non terminal
 char *non_terminal_string(int nt) {
+    if (nt >= TARGET_NON_TERMINAL_START && nt < TARGET_NON_TERMINAL_END)
+        return target_non_terminal_string(nt);
+
     char *buf = wmalloc(6);
 
     switch (nt) {
@@ -142,7 +145,7 @@ char *value_to_non_terminal_string(Value *v) {
 }
 
 void print_rule(Rule *r, int print_operations, int indent) {
-    printf("%-24s  %-5s  %-5s  %-5s  %2d    ",
+    fprintf(stderr, "%-24s  %-5s  %-5s  %-5s  %2d    ",
         operation_string(r->operation),
         non_terminal_string(r->dst),
         non_terminal_string(r->src1),
@@ -163,29 +166,29 @@ void print_rule(Rule *r, int print_operations, int indent) {
             first = 0;
 
             if (operation->save_value_in_slot)
-                printf("special: save arg %d to slot %d\n", operation->arg, operation->save_value_in_slot);
+                fprintf(stderr, "special: save arg %d to slot %d\n", operation->arg, operation->save_value_in_slot);
             else if (operation->allocate_stack_index_in_slot)
-                printf("special: allocate stack index of type %d to slot %d\n", operation->allocated_type, operation->allocate_stack_index_in_slot);
+                fprintf(stderr, "special: allocate stack index of type %d to slot %d\n", operation->allocated_type, operation->allocate_stack_index_in_slot);
             else if (operation->allocate_register_in_slot)
-                printf("special: allocate register of type %d to slot %d\n", operation->allocated_type, operation->allocate_register_in_slot);
+                fprintf(stderr, "special: allocate register of type %d to slot %d\n", operation->allocated_type, operation->allocate_register_in_slot);
             else if (operation->allocate_label_in_slot)
-                printf("special: allocate label to slot %d\n", operation->allocate_label_in_slot);
+                fprintf(stderr, "special: allocate label to slot %d\n", operation->allocate_label_in_slot);
             else if (operation->template)
-                printf("%s\n", operation->template);
+                fprintf(stderr, "%s\n", operation->template);
             else
-                printf("\n");
+                fprintf(stderr, "\n");
 
             operation++;
         }
-        printf("\n");
+        fprintf(stderr, "\n");
     }
     else
-        printf("\n");
+        fprintf(stderr, "\n");
 }
 
 void print_rules(void) {
     for (int i = 0; i < instr_rule_count; i++) {
-        printf("%-5d ", i);
+        fprintf(stderr, "%-5d ", i);
         print_rule(&(instr_rules[i]), 1, 6);
     }
 }
@@ -347,6 +350,7 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
 
     if (dst == vnt) return 1;
     else if (dst >= AUTO_NON_TERMINAL_START) return 1;
+    else if (dst >= TARGET_NON_TERMINAL_START && dst < TARGET_NON_TERMINAL_END) return 1;
 
     else if (dst == CI1  && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
     else if (dst == CI2  && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
@@ -405,6 +409,7 @@ static int value_ptr_target_target_size(Value *v) {
 
 // Returns the width in bytes for a non terminal
 int make_target_size_from_non_terminal(int nt) {
+
          if (nt == CSTV1) return 1;
     else if (nt == CSTV2) return 1;
     else if (nt == CSTV3) return 1;
@@ -432,6 +437,7 @@ int make_target_size_from_non_terminal(int nt) {
     else if (nt == MSA) return -1;
     else if (nt == STL) return 4;
     else if (nt >= AUTO_NON_TERMINAL_START) return -1;
+    else if (nt >= TARGET_NON_TERMINAL_START && nt < TARGET_NON_TERMINAL_END) return -1;
     else
         panic("Unable to determine size for %s", non_terminal_string(nt));
 }

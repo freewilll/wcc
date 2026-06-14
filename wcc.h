@@ -1218,8 +1218,13 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 void allocate_registers(Function *function);
 void free_allocate_registers(void);
 
+#define TARGET_NON_TERMINAL_START 0x40      // Target specific non terminals
+#define TARGET_NON_TERMINAL_END   0x60
+#define AUTO_NON_TERMINAL_START   0x60      // Automatically assigned custom non terminals
+#define AUTO_NON_TERMINAL_END     0x200     // Must match next line
+
 // instrsel.c
-enum {
+enum rule_non_terminals {
     MAX_RULE_COUNT = 9000,
 
     // Non terminals
@@ -1245,9 +1250,6 @@ enum {
     MLD5,                        // 16-byte memory, for long double
     MPV,                         // Pointer in memory
     MSA,                         // Struct or array in memory
-
-    AUTO_NON_TERMINAL_START,
-    AUTO_NON_TERMINAL_END = 0x200, // Must match next line
 
     EXP_SIZE     = 0x00200,
     EXP_SIGN     = 0x00400,
@@ -1492,7 +1494,6 @@ extern int match_constant_type_in_instrsel;
 
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
-void print_backend_instruction(void *f, Tac *tac);
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index);
 int get_preg_class_for_scalar_type(Type *type);
 void perform_peephole_optimization(Function *function);
@@ -1513,6 +1514,7 @@ char *add_size_to_template(char *template, int size);
 int match_value_to_rule_src(Value *v, int src);
 void define_rules(void);
 void make_load_store_instructions(Function *function);
+char *target_non_terminal_string(int nt);
 
 // Target registers related code
 void init_allocate_registers(void);

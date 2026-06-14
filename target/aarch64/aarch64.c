@@ -104,8 +104,15 @@ void print_target_instruction(void *f, Tac *tac) {
     }
 }
 
-void print_backend_instruction(void *f, Tac *tac) {
-    panic("TODO aarch64: print_backend_instruction");
+char *target_non_terminal_string(int nt) {
+    char *buf = wmalloc(6);
+
+    switch (nt) {
+        case CADDSUB: return "caddsub";
+        default:
+            wasprintf(&buf, "aarch64-nt%03d", nt);
+            return buf;
+    }
 }
 
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {

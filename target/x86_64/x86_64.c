@@ -138,6 +138,11 @@ void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
     }
 }
 
+char *target_non_terminal_string(int nt) {
+    return "target_non_terminal_string not used in x86_64";
+}
+
+
 int get_preg_class_for_scalar_type(Type *type) {
     return (type->type >= TYPE_FLOAT && type->type <= TYPE_DOUBLE) ? PC_FP : PC_INT;
 }

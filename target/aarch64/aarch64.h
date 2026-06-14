@@ -176,4 +176,8 @@ extern int clobbered_registers_in_function_call_count;
 char size_to_aarch64_size(int size);
 char is_32bit_to_aarch64_size(int is_32bit);
 
+enum target_rule_non_terminals {
+    CADDSUB = TARGET_NON_TERMINAL_START // Constatns that can be used in add/sub instruction family
+};
+
 #endif

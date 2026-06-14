@@ -1401,8 +1401,28 @@ void test_uint_uint_assignment() {
     func_ul(l1, 1, "func_ul(ul)");
 }
 
-#ifdef __x86_64__
+// This is mostly focused at aarch64 to check various add/sub immediates are processed correctly.
+int add_0x00000fff(int i) { return i + 0x00000fff; } // encodable
+int add_0x00001000(int i) { return i + 0x00001000; } // encodable
+int add_0x00001001(int i) { return i + 0x00001001; } // not encodable
+int add_0x00002000(int i) { return i + 0x00002000; } // encodable
+int add_0x00fff000(int i) { return i + 0x0fff000;  } // encodable
+int add_0x01000000(int i) { return i + 0x01000000; } // 0x1000 << 12, not encodable
+int add_0x00800000(int i) { return i + 0x00800000; } // 0x1000 << 11, encodable
+int add_0x00ffffff(int i) { return i + 0x00ffffff; } // 0x1000 << 12 - 1, not encodable
 
+void test_constant_encodings() {
+    assert_int(5095,     add_0x00000fff(1000),    "add immediate 0x0fff");
+    assert_int(5096,     add_0x00001000(1000),    "add immediate 0x1000");
+    assert_int(5097,     add_0x00001001(1000),    "add immediate 0x1001");
+    assert_int(9192,     add_0x00002000(1000),    "add immediate 0x2000");
+    assert_int(8389608,  add_0x00800000(1000),    "add immediate 0x00800000");
+    assert_int(16774120, add_0x00fff000(1000),    "add immediate 0x0fff000");
+    assert_int(16778215, add_0x00ffffff(1000),    "add immediate 0x00ffffff");
+    assert_int(16778216, add_0x01000000(1000),    "add immediate 0x01000000");
+}
+
+#ifdef __x86_64__
 
 void test_sign_extend_globals() {
     unsigned char uc;
@@ -1967,6 +1987,7 @@ int main(int argc, char **argv) {
     test_int_uint_assignment(-1);
     test_uint_int_assignment();
     test_uint_uint_assignment();
+    test_constant_encodings();
 #ifdef __x86_64__
     test_constant_assignment_to_global();
     test_sign_extend_globals();
