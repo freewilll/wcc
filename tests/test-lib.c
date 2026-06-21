@@ -10,6 +10,21 @@ extern int verbose;
 extern int passes;
 extern int failures;
 
+void assert_uchar(unsigned char expected, unsigned char actual, char *message) {
+    if (expected != actual) {
+        failures++;
+        printf("%-60s ", message);
+        printf("failed, expected %d got %d\n", expected, actual);
+    }
+    else {
+        passes++;
+        if (verbose) {
+            printf("%-60s ", message);
+            printf("ok\n");
+        }
+    }
+}
+
 void assert_int(int expected, int actual, char *message) {
     if (expected != actual) {
         failures++;

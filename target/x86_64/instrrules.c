@@ -750,6 +750,30 @@ static void add_address_of_rule(int dst, int src, char *template_args, int finis
 static void add_pointer_rules(int *ntc) {
     Rule *r;
 
+    // Move pointer to string literal into register
+    r = add_rule(RP1, IR_MOVE, STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
+    r = add_rule(RP3, IR_MOVE, STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For wchar_t
+
+    // Move constant into register
+    r = add_rule(XRP, IR_MOVE, CI4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_MOVE, CU4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
+
+    // Register - register moves
+    for (int dst = RP1; dst <= RP5; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RI1; dst <= RI4; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RU1; dst <= RU4; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RP1; dst <= RP5; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
+    for (int dst = RP1; dst <= RP5; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
+
+    // Memory - register rules
+    r = add_rule(RP4, IR_MOVE, MI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
+    r = add_rule(MI4, IR_MOVE, XRP, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(MU4, IR_MOVE, XRP, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(XRP, IR_MOVE, MPV, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(MPV, IR_MOVE, XRP, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(MPV, IR_MOVE, XRI, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(MPV, IR_MOVE, XRU, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+
     add_indirect_rules();
     add_composite_pointer_rules(ntc);
 
@@ -1514,8 +1538,8 @@ void define_rules(void) {
     r = add_rule(RP5,  0, MPV, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq %v1q, %vdq");  fin_rule(r);
 
     // Load memory into registers
-    r = add_rule(XRI, 0,  XMI, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");  fin_rule(r);
-    r = add_rule(XRU, 0,  XMU, 0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "mov%s %v1, %vd");  fin_rule(r);
+    r = add_rule(XRI, 0,  XMI, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "mov%s %v1, %vd");  fin_rule(r);
+    r = add_rule(XRU, 0,  XMU, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "mov%s %v1, %vd");  fin_rule(r);
     r = add_rule(XRP, 0,  MI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, 0,  MU4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RP5, 0,  MI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
@@ -1581,27 +1605,6 @@ void define_rules(void) {
     // Physical register class moves
     r = add_rule(MS4, IR_MOVE_PREG_CLASS, RI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RI4, IR_MOVE_PREG_CLASS, RS4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-
-    // Pointer move rules
-    r = add_rule(RP1, IR_MOVE, STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
-    r = add_rule(RP3, IR_MOVE, STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For wchar_t
-
-    r = add_rule(XRP, IR_MOVE, CI4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_MOVE, CU4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
-
-    for (int dst = RP1; dst <= RP5; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
-    for (int dst = RI1; dst <= RI4; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
-    for (int dst = RU1; dst <= RU4; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
-    for (int dst = RP1; dst <= RP5; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
-    for (int dst = RP1; dst <= RP5; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
-
-    r = add_rule(RP4, IR_MOVE, MI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
-    r = add_rule(MI4, IR_MOVE, XRP, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(MU4, IR_MOVE, XRP, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(XRP, IR_MOVE, MPV, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(MPV, IR_MOVE, XRP, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(MPV, IR_MOVE, XRI, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(MPV, IR_MOVE, XRU, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
 
     add_pointer_rules(&ntc);
 

@@ -30,6 +30,7 @@ void test_pointer_to_int1() {
     assert_int(1, g, "pointer to int 1-1");
 }
 
+#ifdef __x86_64__
 void test_pointer_to_int2() {
     // Special case of pi being on the stack, due to use of &pi
     // **ppi is only assigned to once
@@ -564,6 +565,7 @@ int test_dereferencing_an_array() {
     assert_int(4, sizeof(s->i), "-> on an array");
 }
 
+#endif
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -571,6 +573,7 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     test_pointer_to_int1();
+    #ifdef __x86_64__
     test_pointer_to_int2();
     test_pointer_to_int3();
     test_pointer_to_int4();
@@ -598,6 +601,7 @@ int main(int argc, char **argv) {
     test_address_of_function_parameters();
     test_string_literal_in_eq();
     test_dereferencing_an_array();
+    #endif
 
     finalize();
 }

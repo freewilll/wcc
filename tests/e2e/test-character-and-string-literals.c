@@ -36,33 +36,33 @@ static void test_char_literal_lexer() {
     assert_int(1145390663, 'ABCDEFG',"Multiple chars in char literal 9");
 
     // Hex escapes
-    assert_int(0,    '\x0',        "Char literal hex 1");
-    assert_int(1,    '\x1',        "Char literal hex 2");
-    assert_int(0,    '\x00',       "Char literal hex 3");
-    assert_int(1,    '\x01',       "Char literal hex 4");
-    assert_int(127,  '\x7f',       "Char literal hex 5");
-    assert_int(-128, '\x80',       "Char literal hex 6");
-    assert_int(-127, '\x81',       "Char literal hex 7");
-    assert_int(-1,   '\xff',       "Char literal hex 8");
-    assert_int(-1,   '\x1ff',      "Char literal hex 9");
-    assert_int(-1,   '\x1FF',      "Char literal hex 10");
-    assert_int(-1,   '\xffff',     "Char literal hex 11");
-    assert_int(-1,   '\xffffff',   "Char literal hex 12");
-    assert_int(-1,   '\xffffffff', "Char literal hex 13");
+    assert_uchar(0,    '\x0',        "Char literal hex 1");
+    assert_uchar(1,    '\x1',        "Char literal hex 2");
+    assert_uchar(0,    '\x00',       "Char literal hex 3");
+    assert_uchar(1,    '\x01',       "Char literal hex 4");
+    assert_uchar(127,  '\x7f',       "Char literal hex 5");
+    assert_uchar(-128, '\x80',       "Char literal hex 6");
+    assert_uchar(-127, '\x81',       "Char literal hex 7");
+    assert_uchar(-1,   '\xff',       "Char literal hex 8");
+    assert_uchar(-1,   '\x1ff',      "Char literal hex 9");
+    assert_uchar(-1,   '\x1FF',      "Char literal hex 10");
+    assert_uchar(-1,   '\xffff',     "Char literal hex 11");
+    assert_uchar(-1,   '\xffffff',   "Char literal hex 12");
+    assert_uchar(-1,   '\xffffffff', "Char literal hex 13");
 
-    assert_long(-1, '\x7fffffffffffffff',   "Char literal hex 11");
-    assert_long(0,  '\x8000000000000000',   "Char literal hex 12");
-    assert_long(-1, '\xffffffffffffffff',   "Char literal hex 13");
-    assert_long(0,  '\x1000000000000000',   "Char literal hex 14");
-    assert_long(-1, '\xffffffff',           "Char literal hex 15");
-    assert_long(-1, '\xffff',               "Char literal hex 16");
+    assert_uchar(-1, '\x7fffffffffffffff',   "Char literal hex 11");
+    assert_uchar(0,  '\x8000000000000000',   "Char literal hex 12");
+    assert_uchar(-1, '\xffffffffffffffff',   "Char literal hex 13");
+    assert_uchar(0,  '\x1000000000000000',   "Char literal hex 14");
+    assert_uchar(-1, '\xffffffff',           "Char literal hex 15");
+    assert_uchar(-1, '\xffff',               "Char literal hex 16");
 
-    assert_int(65535,    '\xff\xff',    "Multiple char literals 1");
-    assert_int(65530,    '\xff\xffA',   "Multiple char literals 2");
-    assert_int(65531,    '\xff\xffB',   "Multiple char literals 3");
-    assert_int(65451,    '\xff\xffAB',  "Multiple char literals 4");
-    assert_int(16777031, '\xff\xffG',   "Multiple char literals 5");
-    assert_int(16777031, '\x1ff\x1ffG', "Multiple char literals 6");
+    assert_uchar(65535,    '\xff\xff',    "Multiple char literals 1");
+    assert_uchar(65530,    '\xff\xffA',   "Multiple char literals 2");
+    assert_uchar(65531,    '\xff\xffB',   "Multiple char literals 3");
+    assert_uchar(65451,    '\xff\xffAB',  "Multiple char literals 4");
+    assert_uchar(16777031, '\xff\xffG',   "Multiple char literals 5");
+    assert_uchar(16777031, '\x1ff\x1ffG', "Multiple char literals 6");
 
     // Octal constants.
     assert_int(0,           '\0',           "Char literal octal 1");
@@ -105,6 +105,8 @@ static void test_char_literal_lexer() {
     assert_int(1094861636,  '\101\102\103\104',  "Char literal octal 26c");
     assert_int(2113,        '\10A',              "Char literal octal 27");
 }
+
+#ifdef __x86_64__
 
 static void test_string_literal_lexer() {
     assert_string("foobar", "foo" "bar", "Adjacent string literals 1");
@@ -198,6 +200,8 @@ static void test_string_literal_lexer() {
     assert_int(0,  s[3], "String escaping in codegen 4 3");
 }
 
+#endif
+
 int test_wide_char_char_literal_lexer() {
     assert_int(255,      L'\xff',         "wchar_t char 1");
     assert_int(4095,     L'\xfff',        "wchar_t char 2");
@@ -214,6 +218,7 @@ int test_wide_char_char_literal_lexer() {
 
 int test_wide_char_string_literal_lexer() {
     wchar_t *wc = L"ab";
+#ifdef __x86_64__
     assert_int(4, sizeof(wc[0]), "wchar_t string literal char size");
     assert_int(97, wc[0], "wchar_t string literal s[0]");
     assert_int(98, wc[1], "wchar_t string literal s[1]");
@@ -233,6 +238,21 @@ int test_wide_char_string_literal_lexer() {
     assert_int(32, sizeof( "foo" L"bars"), "Sizeof split strings .L");
     assert_int(32, sizeof(L"foo"  "bars"), "Sizeof split strings L.");
     assert_int(32, sizeof(L"foo" L"bars"), "Sizeof split strings LL");
+#endif
+}
+
+void test___CHAR_UNSIGNED___value(void) {
+    #ifdef __CHAR_UNSIGNED__
+    int ciu = 1;
+    #else
+    int ciu = 0;
+    #endif
+
+    #ifdef __x86_64__
+    assert_int(0, ciu, "__CHAR_UNSIGNED__ is not set in x86_64");
+    #else
+    assert_int(1, ciu, "__CHAR_UNSIGNED__ = 1 in aarch64");
+    #endif
 }
 
 int main(int argc, char **argv) {
@@ -240,9 +260,14 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     test_char_literal_lexer();
+    #ifdef __x86_64__
     test_string_literal_lexer();
+    #endif
     test_wide_char_char_literal_lexer();
+    #ifdef __x86_64__
     test_wide_char_string_literal_lexer();
+    #endif
+    test___CHAR_UNSIGNED___value();
 
     finalize();
 }

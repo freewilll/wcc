@@ -139,8 +139,10 @@ enum {
 enum aarch64_instruction_op {
     // aarch64 instructions
     AARCH64_OP_NULL = TARGET_OPS_START,  // An general OP that needs no special handling
-    AARCH64_OP_STP,
+    AARCH64_OP_LDR,
+    AARCH64_OP_STR,
     AARCH64_OP_LDP,
+    AARCH64_OP_STP,
     AARCH64_OP_RET_FROM_FUNC,
     AARCH64_OP_MOV,
     AARCH64_OP_MOV_INT_CST,             // Pseudo operation, implemented by codegen

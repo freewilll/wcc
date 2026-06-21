@@ -39,7 +39,9 @@ WCC_TESTS=\
 else ifeq ($(TARGET),aarch64)
 # TODO aarch64 run all e2e tests
 WCC_TESTS=\
-	expr
+	expr \
+	pointers \
+	character-and-string-literals
 endif
 
 
