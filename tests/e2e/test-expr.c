@@ -1411,6 +1411,14 @@ int add_0x01000000(int i) { return i + 0x01000000; } // 0x1000 << 12, not encoda
 int add_0x00800000(int i) { return i + 0x00800000; } // 0x1000 << 11, encodable
 int add_0x00ffffff(int i) { return i + 0x00ffffff; } // 0x1000 << 12 - 1, not encodable
 
+// 5 can be encoded as an immediate
+int  int_or5 (int i)   { return i | 5; };
+long long_or5(long l)  { return l | 5; };
+int  int_and5 (int i)  { return i & 5; };
+long long_and5(long l) { return l & 5; };
+int  int_xor5 (int i)  { return i ^ 5; };
+long long_xor5(long l) { return l ^ 5; };
+
 void test_constant_encodings() {
     assert_int(5095,     add_0x00000fff(1000),    "add immediate 0x0fff");
     assert_int(5096,     add_0x00001000(1000),    "add immediate 0x1000");
@@ -1420,6 +1428,13 @@ void test_constant_encodings() {
     assert_int(16774120, add_0x00fff000(1000),    "add immediate 0x0fff000");
     assert_int(16778215, add_0x00ffffff(1000),    "add immediate 0x00ffffff");
     assert_int(16778216, add_0x01000000(1000),    "add immediate 0x01000000");
+
+    assert_int(13, int_or5(8),    "int or immediate 5");
+    assert_int(13, long_or5(8),   "long or immediate 5");
+    assert_int(5,  int_and5(15),  "int and immediate 5");
+    assert_int(5,  long_and5(15), "long and immediate 5");
+    assert_int(10, int_xor5(15),  "int xor immediate 5");
+    assert_int(10, long_xor5(15), "long xor immediate 5");
 }
 
 #ifdef __x86_64__

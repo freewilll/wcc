@@ -181,3 +181,72 @@ void make_load_store_instructions(Function *function) {
 
     // TODO aarch64 more to do here
 }
+
+// Returns 1 if a 32-bit or 64-bit value can be encoded as an aarch64 logical immediate.
+//
+// See:
+// https://developer.arm.com/documentation/ddi0487/mb/-Part-C-The-AArch64-Instruction-Set/-Chapter-C3-A64-Instruction-Set-Overview/-C3-5-Data-processing---immediate/-C3-5-3-Logical--immediate-
+//
+// The Logical (immediate) instructions accept a bitmask immediate value that is a 32-bit pattern or a 64-bit pattern
+// viewed as a vector of identical elements of size e = 2, 4, 8, 16, 32 or, 64 bits.
+// Each element contains the same sub-pattern, that is a single run of 1 to (e - 1) nonzero bits
+// from bit 0 followed by zero bits, then rotated by 0 to (e - 1) bits.
+// This mechanism can generate 5334 unique 64-bit patterns as 2667 pairs of pattern and their bitwise inverse.
+int is_logical_immediate(unsigned long l, int is_32bit) {
+    // All ones or all zeroes cannot be encoded
+    if (!l || (!is_32bit && l == -1) || (is_32bit && l == 0xffffffff))
+        return 0;
+
+    int repeat_size = is_32bit ? 32 : 64;
+
+    while (repeat_size > 2) {
+        repeat_size /= 2;
+        unsigned long mask = (1UL << repeat_size) - 1;
+
+        if ((l & mask) != ((l >> repeat_size) & mask)) {
+            repeat_size *= 2;
+            break;
+        }
+    }
+
+    unsigned long repeat_value = l;
+    if (repeat_size < 64) {
+        unsigned long mask = (1UL << repeat_size) - 1;
+        repeat_value = l & mask;
+    }
+
+    int zeroes_right = __builtin_ctzll(repeat_value);
+    int zeroes_left = __builtin_clzll(repeat_value);
+
+    int ok;
+
+    unsigned long right_shifted_repeat_value = repeat_value >> zeroes_right;
+    int bit_count = 64 - zeroes_left - zeroes_right;
+    if (!bit_count) panic("Unexpected zero bit count");
+
+    // The shifted right binary string must consist entirely bit_count ones,
+    // e.g. 000111, 0001, 0011111, but not 0101.
+    unsigned long expected_value = (1UL << bit_count) - 1;
+    ok = right_shifted_repeat_value == expected_value;
+
+    // The repeat pattern may be something like 110...01
+    // Check if there is a middle chunk of consecutive zeroes
+    // This can be done by inverting everything and using the same test as above.
+    if (!ok && (repeat_value & 1) && (repeat_value & (1UL << (repeat_size - 1)))) {
+        unsigned long mask = (1UL << repeat_size) - 1;
+        repeat_value = l | ~mask;
+        repeat_value = ~repeat_value;
+
+        zeroes_right = __builtin_ctzll(repeat_value);
+        zeroes_left = __builtin_clzll(repeat_value);
+
+        unsigned long right_shifted_repeat_value = repeat_value >> zeroes_right;
+        int bit_count = 64 - zeroes_left - zeroes_right;
+        if (!bit_count) panic("Unexpected zero bit count");
+
+        unsigned long expected_value = (1UL << bit_count) - 1;
+        ok = right_shifted_repeat_value == expected_value;
+    }
+
+    return ok;
+}

@@ -62,6 +62,13 @@ int match_value_to_rule_src(Value *v, int src) {
             else if (src == CADDSUB && ((v->int_value < 0x1000) || ((v->int_value & 0xfff) == 0) && ((v->int_value >> 12) < 0x1000)))
                 return 1;
 
+
+            else if (src == CLOG3 && is_logical_immediate(v->int_value, 1))
+                return 1;
+
+            else if (src == CLOG4 && is_logical_immediate(v->int_value, 0))
+                return 1;
+
             else
                 return 0;
         }
@@ -247,6 +254,38 @@ static void add_two_operand_rules(char *target_operand, int base1, int base2, in
     r = add_rule(base1 + 3, operation, base2 + 3, keep_base3 ? base3 : base3 + 3, cost); add_op(r, target_operation, DST, SRC1, SRC2, op_x); fin_rule(r);
 }
 
+static void add_logical_operation_rules(void) {
+    Rule *r;
+
+    // register op register
+    add_two_operand_rules("orr",  RI1, RI1, RI1, IR_BOR,  AARCH64_OP_BOR,  3);
+    add_two_operand_rules("orr",  RU1, RU1, RU1, IR_BOR,  AARCH64_OP_BOR,  3);
+    add_two_operand_rules("and",  RI1, RI1, RI1, IR_BAND, AARCH64_OP_BAND, 3);
+    add_two_operand_rules("and",  RU1, RU1, RU1, IR_BAND, AARCH64_OP_BAND, 3);
+    add_two_operand_rules("eor",  RI1, RI1, RI1, IR_XOR,  AARCH64_OP_XOR,  3);
+    add_two_operand_rules("eor",  RU1, RU1, RU1, IR_XOR,  AARCH64_OP_XOR,  3);
+
+    // register op constant
+    struct binop { int op; int arch_op; char *template32; char *template64; } binops[] = {
+        { IR_BOR,  AARCH64_OP_BOR,  "orr %vdw, %v1w, %v2w", "orr %vdx, %v1x, %v2x" },
+        { IR_BAND, AARCH64_OP_BAND, "and %vdw, %v1w, %v2w", "and %vdx, %v1x, %v2x" },
+        { IR_XOR,  AARCH64_OP_XOR,  "eor %vdw, %v1w, %v2w", "eor %vdx, %v1x, %v2x" },
+    };
+
+    for (int i = 0; i < 3; i++) {
+        struct binop binop = binops[i];
+
+        r = add_rule(RI1, binop.op, RI1, CLOG3, 3); add_op(r, binop.arch_op, DST, SRC1, SRC2, binop.template32);
+        r = add_rule(RI2, binop.op, RI2, CLOG3, 3); add_op(r, binop.arch_op, DST, SRC1, SRC2, binop.template32);
+        r = add_rule(RI3, binop.op, RI3, CLOG3, 3); add_op(r, binop.arch_op, DST, SRC1, SRC2, binop.template32);
+        r = add_rule(RI4, binop.op, RI4, CLOG4, 3); add_op(r, binop.arch_op, DST, SRC1, SRC2, binop.template64);
+        r = add_rule(RU1, binop.op, RU1, CLOG3, 3); add_op(r, binop.arch_op, DST, SRC1, SRC2, binop.template32);
+        r = add_rule(RU2, binop.op, RU2, CLOG3, 3); add_op(r, binop.arch_op, DST, SRC1, SRC2, binop.template32);
+        r = add_rule(RU3, binop.op, RU3, CLOG3, 3); add_op(r, binop.arch_op, DST, SRC1, SRC2, binop.template32);
+        r = add_rule(RU4, binop.op, RU4, CLOG4, 3); add_op(r, binop.arch_op, DST, SRC1, SRC2, binop.template64);
+    }
+}
+
 static void add_int_mod_rules(void) {
     for (int is_signed = 0; is_signed < 2; is_signed++) {
         int base = is_signed ? RI1 : RU1;
@@ -346,6 +385,8 @@ void define_rules(void) {
     // Identity rules, for matching leaf nodes in the instruction tree
     r = add_rule(XC,       0, XC,       0, 0); fin_rule(r);
     r = add_rule(CADDSUB,  0, CADDSUB,  0, 0);
+    r = add_rule(CLOG3,    0, CLOG3,    0, 0);
+    r = add_rule(CLOG4,    0, CLOG4,    0, 0);
     r = add_rule(XR,       0, XR,       0, 0); fin_rule(r);
     r = add_rule(XM,       0, XM,       0, 0); fin_rule(r);
     r = add_rule(XRP,      0, XRP,      0, 0); fin_rule(r);
@@ -385,14 +426,11 @@ void define_rules(void) {
     add_two_operand_rules("mul",  RU1, RU1, RU1, IR_MUL,  AARCH64_OP_MUL, 30);
     add_two_operand_rules("sdiv", RI1, RI1, RI1, IR_DIV,  AARCH64_OP_DIV, 40);
     add_two_operand_rules("udiv", RU1, RU1, RU1, IR_DIV,  AARCH64_OP_DIV, 40);
-    add_two_operand_rules("orr",  RI1, RI1, RI1, IR_BOR,  AARCH64_OP_BOR,  3);
-    add_two_operand_rules("orr",  RU1, RU1, RU1, IR_BOR,  AARCH64_OP_BOR,  3);
-    add_two_operand_rules("and",  RI1, RI1, RI1, IR_BAND, AARCH64_OP_BAND, 3);
-    add_two_operand_rules("and",  RU1, RU1, RU1, IR_BAND, AARCH64_OP_BAND, 3);
-    add_two_operand_rules("eor",  RI1, RI1, RI1, IR_XOR,  AARCH64_OP_XOR,  3);
-    add_two_operand_rules("eor",  RU1, RU1, RU1, IR_XOR,  AARCH64_OP_XOR,  3);
-    add_one_operand_rules("mvn", RI1, RI1, IR_BNOT, AARCH64_OP_BNOT, 3);
-    add_one_operand_rules("mvn", RU1, RU1, IR_BNOT, AARCH64_OP_BNOT, 3);
+
+    add_logical_operation_rules();
+
+    add_one_operand_rules("mvn",  RI1, RI1, IR_BNOT, AARCH64_OP_BNOT, 3);
+    add_one_operand_rules("mvn",  RU1, RU1, IR_BNOT, AARCH64_OP_BNOT, 3);
     add_int_mod_rules();
     add_int_bitshift_rules();
     add_int_comparison_rules();

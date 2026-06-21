@@ -170,14 +170,18 @@ enum aarch64_instruction_op {
     AARCH64_OP_ADRP,
 };
 
+enum target_rule_non_terminals {
+    CADDSUB = TARGET_NON_TERMINAL_START,    // Constants that can be used in add/sub instruction family
+    CLOG3,                                  // 32 bit logical immediate constants, for orr/and/eor
+    CLOG4,                                  // 64 bit logical immediate constants, for orr/and/eor
+};
+
 extern const int clobbered_registers_in_function_call[];
 extern int clobbered_registers_in_function_call_count;
 
 char size_to_aarch64_size(int size);
 char is_32bit_to_aarch64_size(int is_32bit);
 
-enum target_rule_non_terminals {
-    CADDSUB = TARGET_NON_TERMINAL_START // Constatns that can be used in add/sub instruction family
-};
+int is_logical_immediate(unsigned long l, int is_32bit);
 
 #endif
