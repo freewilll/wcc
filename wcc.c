@@ -113,8 +113,10 @@ static CompilerPhase compiler_phases[] = {
     { make_uevar_and_varkill,                      PH_NONE,  PH_NONE,  "Make uevar and varkill" },
     { coalesce_live_ranges,                        PH_NONE,  PH_LIVE,  "Coalesce live ranges" },
 
-    // Instruction selection
+    // Prepare for instruction selection
     { check_instrsel_register_sanity,              PH_NONE,  PH_LIVE,  "Check registers are SSA-like for instrsel" },
+
+    // Cleanups
     { free_interference_graph,                     PH_NONE,  PH_NONE,  NULL },
     { free_live_range_spill_cost,                  PH_NONE,  PH_NONE,  NULL },
     { free_vreg_preg_classes,                      PH_NONE,  PH_NONE,  NULL },

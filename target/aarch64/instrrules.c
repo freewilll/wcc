@@ -359,6 +359,18 @@ static void add_load_address_rule(int dst, int src1, int operation) {
     add_op(r, AARCH64_OP_ADD_LO12, DST, SRC1, 0, "add %vdx, %vdx, :lo12:%v1");
 }
 
+static void add_load_address_to_rule_into_sv1(Rule *r, int src1) {
+    add_allocate_register_in_slot(r, 1, TYPE_LONG);
+    add_op(r, AARCH64_OP_ADRP,     SV1, SRC1, 0, "adrp %vdx, %v1");
+    add_op(r, AARCH64_OP_ADD_LO12, SV1, SRC1, 0, "add %vdx, %vdx, :lo12:%v1");
+}
+
+static void add_memory_into_register_rule(int dst, int src1, char *template) {
+    Rule *r = add_rule(dst, 0, src1, 0, 4);
+    add_load_address_to_rule_into_sv1(r, src1);
+    add_op(r, AARCH64_OP_LDR,  DST, SV1,  0, template);
+}
+
 static void add_pointer_move_rule(int dst, int src1, int operation) {
     Rule *r = add_rule(dst,  IR_MOVE, src1, 0, 1);
     add_op(r, AARCH64_OP_MOV,  DST, SRC1, operation, "mov %vdx, %v1x");
@@ -378,15 +390,39 @@ static void add_pointer_rules() {
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RI1; src <= RI4; src++) add_pointer_move_rule(dst, src, 0);
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RU1; src <= RU4; src++) add_pointer_move_rule(dst, src, 0);
 
-    // Address loads
-    // Any ADDRESS_OF a pointer in a register must be lvalues. Therefore, a mov converts them from an lvalue into an rvalue
-    // TODO aarch64 complete these rules
-    add_load_address_rule(RP3, MI3, IR_ADDRESS_OF);
+    // Memory - register rules
+    // In aarch64, memory moves into a register are done on the leaf nodes
+    add_memory_into_register_rule(RI1, MI1, "ldrb %vdw, [%v1x]");
+    add_memory_into_register_rule(RU1, MU1, "ldrb %vdw, [%v1x]");
+    add_memory_into_register_rule(RI2, MI2, "ldrh %vdw, [%v1x]");
+    add_memory_into_register_rule(RU2, MU2, "ldrh %vdw, [%v1x]");
+    add_memory_into_register_rule(RI3, MI3, "ldr %vdw, [%v1x]");
+    add_memory_into_register_rule(RU3, MU3, "ldr %vdw, [%v1x]");
+    add_memory_into_register_rule(RI4, MI4, "ldr %vdx, [%v1x]");
+    add_memory_into_register_rule(RU4, MU4, "ldr %vdx, [%v1x]");
 
-    // Move to pointer
-    // TODO aarch64 complete these rules
-    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RI3, 1);
-    add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2w, [%v1x]");
+    // Address loads
+    // Any ADDRESS_OF a pointer in a register must be lvalues. Therefore, a adrp/add converts them from an lvalue into an rvalue
+
+    // Common rules for IR_ADDRESS_OF and IR_ADDRESS_OF_FROM_GOT
+    add_load_address_rule(RP1, MI1, IR_ADDRESS_OF);
+    add_load_address_rule(RP1, MU1, IR_ADDRESS_OF);
+    add_load_address_rule(RP2, MI2, IR_ADDRESS_OF);
+    add_load_address_rule(RP2, MU2, IR_ADDRESS_OF);
+    add_load_address_rule(RP3, MU3, IR_ADDRESS_OF);
+    add_load_address_rule(RP3, MI3, IR_ADDRESS_OF);
+    add_load_address_rule(RP4, MU4, IR_ADDRESS_OF);
+    add_load_address_rule(RP4, MI4, IR_ADDRESS_OF);
+
+    // Stores to a pointer
+    r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RI1, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
+    r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RU1, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
+    r = add_rule(RP2, IR_MOVE_TO_PTR, RP2, RI2, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strh %v2w, [%v1x]");
+    r = add_rule(RP2, IR_MOVE_TO_PTR, RP2, RU2, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strh %v2w, [%v1x]");
+    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2w, [%v1x]");
+    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RU3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2w, [%v1x]");
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
 }
 
 void define_rules(void) {
@@ -417,13 +453,6 @@ void define_rules(void) {
     r = add_rule(XR2, 0, XC2, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
     r = add_rule(XR3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
     r = add_rule(XR4, 0, XC4, 0, 2); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r); // The cost is 2 to encourage loading into a 32-bit register if possible.
-
-    // Load memory into registers
-    r = add_rule(RI3, 0, MI3, 0, 2); // TODO aarch64 need more
-    add_allocate_register_in_slot(r, 1, TYPE_INT);
-    add_op(r, AARCH64_OP_ADRP,     SV1, SRC1, 0, "adrp %vdx, %v1");
-    add_op(r, AARCH64_OP_ADD_LO12, SV1, SRC1, 0, "add %vdx, %vdx, :lo12:%v1");
-    add_op(r, AARCH64_OP_LDR,      DST, SV1,  0, "ldr %vdw, [%v1x]");
 
     // Register -> register move rules
     add_int_register_move_rules();

@@ -519,7 +519,7 @@ void test_composite_assign() {
     i = 1;  i ^=  3; assert_int(2,  i, "^=");
     i = 1;  i |=  3; assert_int(3,  i, "|=");
 }
-
+#endif
 static void test_assign_to_globals() {
     char c, *pc;
     short s, *ps;
@@ -555,6 +555,7 @@ static void test_assign_to_globals() {
 
     pc = ps = pi = pl = puc = pus = pui = pul = 1;
 
+    #ifdef __x86_64__
     pc++; gpc = pc; assert_long(gpc, pc, "pgc = pc"); puc++; gpuc = puc; assert_long(gpuc, puc, "pguc = puc");
     pc++; gps = pc; assert_long(gps, pc, "pgs = pc"); puc++; gpus = puc; assert_long(gpus, puc, "pgus = puc");
     pc++; gpi = pc; assert_long(gpi, pc, "pgi = pc"); puc++; gpui = puc; assert_long(gpui, puc, "pgui = puc");
@@ -580,9 +581,9 @@ static void test_assign_to_globals() {
     s++; gus = s; assert_long(gus, s, "gus = s"); us++; gs = us; assert_long(gs, us, "gs = us");
     i++; gui = i; assert_long(gui, i, "gui = i"); ui++; gi = ui; assert_long(gi, ui, "gi = ui");
     l++; gul = l; assert_long(gul, l, "gul = l"); ul++; gl = ul; assert_long(gl, ul, "gl = ul");
+    #endif
 }
 
-#endif
 static void test_add_operation_sign() {
     int si1, si2;
     unsigned int ui1, ui2;
@@ -1969,7 +1970,9 @@ int main(int argc, char **argv) {
     test_double_assign();
 #ifdef __x86_64__
     test_composite_assign();
+#endif // __x86_64__
     test_assign_to_globals();
+#ifdef __x86_64__
     test_integer_sizes();
     test_floating_point_sizes();
     test_array_sizes();
