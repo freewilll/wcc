@@ -754,7 +754,7 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(RP1, IR_MOVE, STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq");
     r = add_rule(RP3, IR_MOVE, STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For wchar_t
 
-    // Move constant into register
+    // Move constant into pointer in register
     r = add_rule(XRP, IR_MOVE, CI4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_MOVE, CU4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
 

@@ -56,6 +56,15 @@ int match_value_to_rule_src(Value *v, int src) {
             else if (vtt == TYPE_INT   &&  is_unsigned && src == CU3) return 1;
             else if (vtt == TYPE_LONG  &&  is_unsigned && src == CU4) return 1;
 
+            else if (vtt == TYPE_PTR && src == CI1) return 1;
+            else if (vtt == TYPE_PTR && src == CI2) return 1;
+            else if (vtt == TYPE_PTR && src == CI3) return 1;
+            else if (vtt == TYPE_PTR && src == CI4) return 1;
+            else if (vtt == TYPE_PTR && src == CU1) return 1;
+            else if (vtt == TYPE_PTR && src == CU2) return 1;
+            else if (vtt == TYPE_PTR && src == CU3) return 1;
+            else if (vtt == TYPE_PTR && src == CU4) return 1;
+
             // Check if the constant can be encoded in the add/sub instructions family.
             // It must be a 12-bit immediate, optionally shifted left by 12 bits.
             // Either the constant is < 4096 or it is a multiple of 4096 (1<<12) and ((constant >> 12) <= 4095).
@@ -309,6 +318,13 @@ static void add_pointer_add_rules(void) {
     }
 }
 
+static void add_pointer_sub_rules(void) {
+    // TODO aarch64
+    // pointer - constant
+    // Pointer - int subtraction
+    // The result of a pointer-pointer subtraction is always a signed long: RI4.
+}
+
 // Add rules for dst={RI*, RU*}, SRC={RI1, RU1, RI2, RU2, ...} for all 6 comparison types
 static void add_int_comparison_rules(void) {
     Rule *r;
@@ -461,6 +477,12 @@ void define_rules(void) {
     r = add_rule(XR3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
     r = add_rule(XR4, 0, XC4, 0, 2); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r); // The cost is 2 to encourage loading into a 32-bit register if possible.
 
+    // Move constant into pointer in register
+    r = add_rule(RP1, 0, XC1, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
+    r = add_rule(RP2, 0, XC2, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
+    r = add_rule(RP3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
+    r = add_rule(RP4, 0, XC4, 0, 2); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r); // The cost is 2 to encourage loading into a 32-bit register if possible.
+
     // Register -> register move rules
     add_int_register_move_rules();
 
@@ -492,6 +514,7 @@ void define_rules(void) {
     add_int_bitshift_rules();
 
     add_pointer_add_rules();
+    add_pointer_sub_rules();
 
     add_int_comparison_rules();
 
