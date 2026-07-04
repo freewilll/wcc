@@ -126,18 +126,6 @@ static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, 
     return target_op;
 }
 
-// Add rules in the early aarch64 development phase that make it possible for e2e tests to run
-// TODO aarch64 remove
-void add_early_testing_rules(void) {
-    Rule *r;
-
-    // Function calls
-    r = add_rule(0,    IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
-    r = add_rule(RI3,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
-    r = add_rule(RI4,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
-    r = add_rule(RU4,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
-}
-
 static TargetOperation *add_convert_move_op(Rule *r, int operation, int dst, int v1, int v2, char *template) {
     TargetOperation *op = add_op(r, operation, dst, v1, v2, template);
     op->operation.is_convert_move = 1;
@@ -485,13 +473,17 @@ void define_rules(void) {
     add_int_bitshift_rules();
     add_int_comparison_rules();
 
+    // Direct function calls
+    r = add_rule(0,    IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
+    r = add_rule(RI3,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
+    r = add_rule(RI4,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
+    r = add_rule(RU4,  IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0);
+
     // Jump rules
     r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, AARCH64_OP_B, 0, SRC1, 0, "b %v1"); fin_rule(r);
 
     add_conditional_zero_jump_rule(IR_JZ,  XR, LAB, 3, AARCH64_OP_BEQ, "cmp %v1, 0",  "beq %v1");
     add_conditional_zero_jump_rule(IR_JNZ, XR, LAB, 3, AARCH64_OP_BNE, "cmp %v1, 0",  "bne %v1");
-
-    add_early_testing_rules();
 
     if (ntc >= AUTO_NON_TERMINAL_END)
     panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
