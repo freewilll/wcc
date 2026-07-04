@@ -290,6 +290,25 @@ static void add_int_bitshift_rules(void) {
     add_two_operand_rules("lsr", RU1, RU1, XR, IR_BSHR, AARCH64_OP_LSR, 3); // unsigned r >> r
 }
 
+static void add_pointer_plus_int_rule(int dst, int src) {
+    Rule *r = add_rule(dst, IR_ADD, dst, src, 11);
+    add_op(r, AARCH64_OP_ADD, DST, SRC1, SRC2, "add %vdx, %v1x, %v2x");
+}
+
+static void add_pointer_add_rules(void) {
+    for (int i = RP1; i <= RP5; i++) {
+        add_pointer_plus_int_rule(i, CADDSUB);
+        add_pointer_plus_int_rule(i, RI1);
+        add_pointer_plus_int_rule(i, RU1);
+        add_pointer_plus_int_rule(i, RI2);
+        add_pointer_plus_int_rule(i, RU2);
+        add_pointer_plus_int_rule(i, RI3);
+        add_pointer_plus_int_rule(i, RU3);
+        add_pointer_plus_int_rule(i, RI4);
+        add_pointer_plus_int_rule(i, RU4);
+    }
+}
+
 // Add rules for dst={RI*, RU*}, SRC={RI1, RU1, RI2, RU2, ...} for all 6 comparison types
 static void add_int_comparison_rules(void) {
     Rule *r;
@@ -449,10 +468,10 @@ void define_rules(void) {
 
     // Operations
     // r + r and r - r
-    add_two_operand_rules("add",  RI1, RI1, RI1, IR_ADD,  AARCH64_OP_ADD, 10);
-    add_two_operand_rules("add",  RU1, RU1, RU1, IR_ADD,  AARCH64_OP_ADD, 10);
-    add_two_operand_rules("sub",  RI1, RI1, RI1, IR_SUB,  AARCH64_OP_SUB, 10);
-    add_two_operand_rules("sub",  RU1, RU1, RU1, IR_SUB,  AARCH64_OP_SUB, 10);
+    add_two_operand_rules("add",  RI1, RI1, RI1, IR_ADD, AARCH64_OP_ADD, 10);
+    add_two_operand_rules("add",  RU1, RU1, RU1, IR_ADD, AARCH64_OP_ADD, 10);
+    add_two_operand_rules("sub",  RI1, RI1, RI1, IR_SUB, AARCH64_OP_SUB, 10);
+    add_two_operand_rules("sub",  RU1, RU1, RU1, IR_SUB, AARCH64_OP_SUB, 10);
 
     // r + c and r - c where c can be encoded in the instruction
     add_two_operand_rules("add",  RI1, RI1, CADDSUB, IR_ADD, AARCH64_OP_ADD, 10);
@@ -471,6 +490,9 @@ void define_rules(void) {
     add_one_operand_rules("mvn",  RU1, RU1, IR_BNOT, AARCH64_OP_BNOT, 3);
     add_int_mod_rules();
     add_int_bitshift_rules();
+
+    add_pointer_add_rules();
+
     add_int_comparison_rules();
 
     // Direct function calls

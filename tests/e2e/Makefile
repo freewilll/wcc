@@ -41,6 +41,7 @@ else ifeq ($(TARGET),aarch64)
 WCC_TESTS=\
 	expr \
 	pointers \
+	pointer-arithmetic \
 	character-and-string-literals
 endif
 

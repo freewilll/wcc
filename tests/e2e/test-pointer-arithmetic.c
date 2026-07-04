@@ -62,6 +62,8 @@ void test_pointer_addition_with_register() {
     puc = puc + ul; assert_long(puc, 8, "Pointer addition with register ul");
 }
 
+#ifdef __x86_64__
+
 void test_brutal_pointer_arithmetic() {
     char c, *pc, **ppc;
     short s, *ps, **pps;
@@ -103,7 +105,6 @@ void test_brutal_pointer_arithmetic() {
     upl  = upl  + 1; assert_int(8, upl,  "ptr arith uba"); upl  = upl  + 2; assert_int(24, upl,  "ptr arith ubb"); upl  = upl  - 3; assert_int(0, upl,  "ptr arith ubc"); upl  = upl  - 1;
     uppl = uppl + 1; assert_int(8, uppl, "ptr arith uca"); uppl = uppl + 2; assert_int(24, uppl, "ptr arith ucb"); uppl = uppl - 3; assert_int(0, uppl, "ptr arith ucc"); uppl = uppl - 1;
 }
-
 
 void test_char_pointer_arithmetic() {
     char *pc;
@@ -208,6 +209,8 @@ void test_pointer_with_non_constant_non_pointer_addition() {
     assert_int(1, *pi, "Pointer with non-constant non-pointer addition");
 }
 
+#endif
+
 void test_pointer_arithmetic_addition() {
     char c, *c1, *c2;
     short s, *s1, *s2;
@@ -262,6 +265,7 @@ int main(int argc, char **argv) {
 
     test_pointer_addition_with_constant();
     test_pointer_addition_with_register();
+    #ifdef __x86_64__
     test_brutal_pointer_arithmetic();
     test_char_pointer_arithmetic();
     test_pointer_pointer_subtraction1();
@@ -270,6 +274,7 @@ int main(int argc, char **argv) {
     test_pointer_const_pointer_subtraction();
     test_dereferenced_pointer_inc_dec();
     test_pointer_with_non_constant_non_pointer_addition();
+    #endif
     test_pointer_arithmetic_addition();
     test_struct_additions();
 
