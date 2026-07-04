@@ -202,7 +202,7 @@ int print_value(void *f, Value *v, int is_assignment_rhs) {
     if (!is_assignment_rhs && v->is_lvalue && v->vreg) c += fprintf(f, "L");
 
     if (v->is_constant) {
-        if (is_integer_type(v->type))
+        if (is_integer_type(v->type) || is_pointer_type(v->type))
             c += fprintf(f, "%ld", v->int_value);
         else
             c += fprintf(f, "%Lf", v->fp_value);
