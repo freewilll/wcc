@@ -37,7 +37,6 @@ void test_long_constant() {
 void test_constant_expr() {
     assert_int(                   1, 1+2==3,            "1+2==3"      );
     assert_int(                   1, 1+2>=3==1,         "1+2>=3==1"   );
-#ifdef __x86_64__
     assert_int(                   0, 0 && 0 || 0,       "0 && 0 || 0" ); // && binds more strongly than ||
     assert_int(                   1, 0 && 0 || 1,       "0 && 0 || 1" );
     assert_int(                   0, 0 && 1 || 0,       "0 && 1 || 0" );
@@ -55,7 +54,6 @@ void test_constant_expr() {
     assert_int(                   1, 1 + 0 && 1,        "1 + 0 && 1"  );
     assert_int(                   0, 1 + 1 && 0,        "1 + 1 && 0"  );
     assert_int(                   1, 1 + 1 && 1,        "1 + 1 && 1"  );
-#endif
     assert_int(                   0, 0 ==  1  & 0,      "0 ==  1  & 0");
     assert_int(                   2, 1 &   1  ^ 3,      "1 &   1  ^ 3");
     assert_int(                   1, 1 ^   1  | 1,      "1 ^   1  | 1");
@@ -403,13 +401,11 @@ void test_mixed_sign_operations() {
     assert_int(2,    ui % i,  "mixed signs %");
     assert_int(0,    i % ui,  "mixed signs %");
 
-
-#ifdef __x86_64__
     i = 2; ui = 3; assert_int(12,   ui << i, "mixed signs <<");
     i = 2; ui = 3; assert_int(16,   i << ui, "mixed signs <<");
     i = 2; ui = 8; assert_int(2,    ui >> i, "mixed signs >>");
     i = 8; ui = 2; assert_int(2,    i >> ui, "mixed signs >>");
-#endif
+
     i = 3; ui = 5;
     assert_int(7,   ui | i,  "mixed signs |");
     assert_int(7,   i | ui,  "mixed signs |");
@@ -418,7 +414,6 @@ void test_mixed_sign_operations() {
     assert_int(6,   ui ^ i,  "mixed signs ^");
     assert_int(6,   i ^ ui,  "mixed signs ^");
 
-#ifdef __x86_64__
     i = -1; ui = 1;
     assert_int(0,   ui == i,  "mixed signs ==");
     assert_int(0,   i == ui,  "mixed signs ==");
@@ -432,7 +427,6 @@ void test_mixed_sign_operations() {
     assert_int(0,   i < ui,   "mixed signs <");
     assert_int(1,   ui <= i,  "mixed signs <=");
     assert_int(0,   i <= ui,  "mixed signs <=");
-#endif // __x86_64__
 }
 
 #ifdef __x86_64__
@@ -444,6 +438,8 @@ void test_local_comma_var_declarations() {
     *pi = 2;
     assert_int(2, *pi, "comma var declaration 2");
 }
+
+#endif
 
 void test_global_comma_var_declarations() {
     gcvi = 1;
@@ -457,7 +453,6 @@ void test_global_comma_var_declarations() {
     assert_int(2, gcvuj, "global comma var declaration 4");
 }
 
-#endif
 void test_double_assign() {
     long a, b;
     unsigned long c;
@@ -605,7 +600,6 @@ static void test_add_operation_sign() {
     assert_int(0, (ui1 + si2) < 0,          "adding a signed and unsigned int 1");
     assert_int(1, (ui1 + si2) > 2147483647, "adding a signed and unsigned int 2");
 }
-#ifdef __x86_64__
 
 static void test_logical_or_operation_sign() {
     int si1, si2;
@@ -675,6 +669,8 @@ void test_integer_sizes() {
     assert_int(8, sizeof(signed long **),      "sizeof signed long **");       assert_int(8, sizeof(unsigned long **),      "sizeof unsigned long **");
 }
 
+#ifdef __x86_64__
+
 void test_floating_point_sizes() {
     assert_int(4,  sizeof(float),          "sizeof float");
     assert_int(8,  sizeof(float *),        "sizeof float *");
@@ -687,6 +683,8 @@ void test_floating_point_sizes() {
     assert_int(8,  sizeof(long double **), "sizeof long double **");
 }
 
+#endif
+
 void test_array_sizes() {
     assert_int(40,  sizeof(int[10]),       "sizeof int[10]");
     assert_int(24,  sizeof(int[2][3]),     "sizeof int[2][3]");
@@ -698,7 +696,6 @@ void test_combination_sizes() {
     assert_int(64, sizeof(struct {int i[4];}[4]), "sizeof struct {int i[4];}[4]");
     assert_int(32, sizeof(struct {int i;}*[4]),   "sizeof struct {int i;}*[4]");
     assert_int(8,  sizeof(struct {int i;}(*)[4]), "sizeof struct {int i;}(*)[4]");
-
 }
 
 void test_sizeof_expr() {
@@ -787,6 +784,7 @@ void test_conditional_jumps() {
     ui1 = 1; ui2 =  1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 >= ui2");
     ui1 = 2; ui2 =  1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 >= ui2");
 }
+#ifdef __x86_64__
 
 void test_pointer_comparisons() {
     unsigned char *p1 = (unsigned char *)(1);
@@ -1504,6 +1502,8 @@ static int test_logical_not() {
     ld = 0; assert_int(1, !ld, "!ld"); ld = 1; assert_int(0, !ld, "!ld");
 }
 
+#endif
+
 static int test_bitwise_not() {
     char c;
     short s;
@@ -1556,6 +1556,8 @@ int test_global_var_in_the_middle() {
     assert_int(1, gi, "Test global var declaration in the middle of a file");
 }
 
+#ifdef __x86_64__
+
 int test_const_assignment() {
     const int i = 1;
 
@@ -1590,6 +1592,7 @@ int test_composite_type_of_globals() {
     assert_int(40, sizeof(composite_global2), "composite global 2");
 }
 
+#endif
 void test_operations_with_64_bit_immediate() {
     // 64 bit constants need to be loaded into a register, since the are no instructions
     // for them.
@@ -1652,6 +1655,8 @@ int test_constant_expressions() {
     assert_int(8, PI2, "constant expression sizeof(int *)");
 }
 
+#ifdef __x86_64__
+
 int test_constant_expression_uses() {
     // Array size
     int ia[2+3]; assert_int(20, sizeof(ia), "Integer array with constant expression declaration");
@@ -1679,6 +1684,7 @@ int test_constant_expression_uses() {
 }
 
 #endif
+
 int test_constant_casting() {
 #ifdef __x86_64__
     // FP -> FP
@@ -1777,6 +1783,8 @@ void test_extern_function_returning_pointer_to_struct_bug() {
     struct tm *info = localtime(&rawtime);
 }
 
+#endif
+
 void test_BSHR_conversion_bug() {
     // If both operands to a division are constants, and the first one is a power of 2,
     // it would convert it to a BSHR using the wrong operand.
@@ -1798,6 +1806,8 @@ void test_offsetof(){
     assert_int(8, offsetof(struct { int  e1; long  e2; }, e2), "offsetof il");
 }
 
+#ifdef __x86_64__
+
 void test_mixed_sign_assignments_to_memory() {
     unsigned char uc; &uc;
     uc = 0xff;
@@ -1818,8 +1828,8 @@ void test_mixed_sign_assignments_to_memory() {
     ul = 0xff;
     ul &= ~1;
     assert_int(254, ul, "in memory ul &= ~1");
-
 }
+
 void test_mixed_sign_assignments_to_memory2(unsigned char uc, unsigned int ui) {
     char mc; &mc;
     int mi; &mi;
@@ -1852,6 +1862,8 @@ void test_insane_array_lookup() {
     assert_int(2, 1[ca], "Insane array lookup 2");
 }
 
+#endif
+
 void test_shr_on_signed_int_bug() {
     int i = -9;
     i = -9; assert_int(-4,  i / 2, "SHL on signed int bug 1");
@@ -1861,6 +1873,8 @@ void test_shr_on_signed_int_bug() {
     ui = -9; assert_int(2147483643,  ui / 2, "SHL on signed int bug 3");
     ui = -9; assert_int(1073741821,  ui / 4, "SHL on signed int bug 4");
 }
+
+#ifdef __x86_64__
 
 // Test for ignoring __attribute__
 int function_with_format_attribute() __attribute__ ((__format__ (__printf__, 3, 4)));
@@ -1894,6 +1908,8 @@ int test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug() {
     IR_DECL_LOCAL_COMP_OBJ_bug_func(&pc_clobber_bug);
 }
 
+#endif
+
 void inc_gi() { gi++; }
 
 int test_expression_statement() {
@@ -1921,6 +1937,8 @@ void test___signed__keyword() {
     __signed__ char c = 1;
     assert_int(1, c, "__signed__ char c");
 }
+
+#ifdef __x86_64__
 
 void test_bit_scans() {
     // Long
@@ -1972,17 +1990,17 @@ int main(int argc, char **argv) {
     test_composite_assign();
 #endif // __x86_64__
     test_assign_to_globals();
-#ifdef __x86_64__
     test_integer_sizes();
+#ifdef __x86_64__
     test_floating_point_sizes();
+#endif
     test_array_sizes();
     test_combination_sizes();
-#endif // __x86_64__
     test_add_operation_sign();
-#ifdef __x86_64__
     test_logical_or_operation_sign();
     test_sizeof_expr();
     test_conditional_jumps();
+#ifdef __x86_64__
     test_pointer_comparisons();
 #endif // __x86_64__
     test_integer_constant_assignments();
@@ -2010,34 +2028,44 @@ int main(int argc, char **argv) {
     test_constant_assignment_to_global();
     test_sign_extend_globals();
     test_logical_not();
+#endif
     test_bitwise_not();
     test_scopes();
     test_global_var_in_the_middle();
+#ifdef __x86_64__
     test_const_assignment();
     test_static_objects_in_function();
     test_composite_type_of_globals();
+#endif
     test_operations_with_64_bit_immediate();
     test_overflow();
     test_constant_expressions();
+#ifdef __x86_64__
     test_constant_expression_uses();
 #endif // __x86_64__
     test_constant_casting();
     test_bswap64();
 #ifdef __x86_64__
     test_extern_function_returning_pointer_to_struct_bug();
+#endif
     test_BSHR_conversion_bug();
     test_cast_to_void();
     test_offsetof();
+#ifdef __x86_64__
     test_mixed_sign_assignments_to_memory();
     test_mixed_sign_assignments_to_memory2(1, 1);
     test_mixed_sign_assignments_to_memory3();
     test_and_or_value_stack_clobber_bug();
     test_insane_array_lookup();
+#endif
     test_shr_on_signed_int_bug();
+#ifdef __x86_64__
     test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug();
+#endif
     test_expression_statement();
     test___func__statements();
     test___signed__keyword();
+#ifdef __x86_64__
     test_bit_scans();
 #endif // __x86_64__
 

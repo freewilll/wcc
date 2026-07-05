@@ -318,9 +318,27 @@ static void add_pointer_add_rules(void) {
     }
 }
 
+static void add_pointer_minus_int_rule(int dst, int src) {
+    Rule *r = add_rule(dst, IR_SUB, dst, src, 11);
+    add_op(r, AARCH64_OP_ADD, DST, SRC1, SRC2, "sub %vdx, %v1x, %v2x");
+}
+
 static void add_pointer_sub_rules(void) {
     // TODO aarch64
+
     // pointer - constant
+    for (int i = RP1; i <= RP5; i++) {
+        add_pointer_minus_int_rule(i, CADDSUB);
+        add_pointer_minus_int_rule(i, RI1);
+        add_pointer_minus_int_rule(i, RU1);
+        add_pointer_minus_int_rule(i, RI2);
+        add_pointer_minus_int_rule(i, RU2);
+        add_pointer_minus_int_rule(i, RI3);
+        add_pointer_minus_int_rule(i, RU3);
+        add_pointer_minus_int_rule(i, RI4);
+        add_pointer_minus_int_rule(i, RU4);
+    }
+
     // Pointer - int subtraction
     // The result of a pointer-pointer subtraction is always a signed long: RI4.
 }
