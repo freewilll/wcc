@@ -420,13 +420,11 @@ static void output_x86_operation(Tac *tac, int function_pc) {
     }
 }
 
-// Determine which registers are used in a function, push them onto the stack and return the list
+// Add push statements for callee saved registers
 static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
-    for (int i = 0; i < physical_register_count; i++) {
-        if (saved_registers[i]) {
-            cur_stack_push_count++;
-            ir = insert_target_instruction(ir, X86_OP_PUSH, new_preg_value(i), 0, 0, "push %vdq");
-        }
+    for (int i = 0; saved_registers[i] != -1; i++) {
+        cur_stack_push_count++;
+        ir = insert_target_instruction(ir, X86_OP_PUSH, new_preg_value(saved_registers[i]), 0, 0, "push %vdq");
     }
 
     return ir;
@@ -434,8 +432,8 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
 
 static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
     for (int i = physical_register_count - 1; i >= 0; i--)
-        if (saved_registers[i])
-            ir = insert_target_instruction(ir, X86_OP_POP, new_preg_value(i), 0, 0, "popq %vdq");
+        if (saved_registers[i] != -1)
+            ir = insert_target_instruction(ir, X86_OP_POP, new_preg_value(saved_registers[i]), 0, 0, "popq %vdq");
 
     ir = insert_target_instruction(ir, X86_OP_LEAVE, 0, 0, 0, "leaveq");
     return insert_target_instruction(ir, X86_OP_RET_FROM_FUNC, 0, 0, 0, "retq");
@@ -899,4 +897,3 @@ void output_code(char *input_filename, char *output_filename) {
 
     fclose(output_file);
 }
-

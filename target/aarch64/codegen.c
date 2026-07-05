@@ -220,19 +220,26 @@ static Tac *process_integer_constant_move_to_register(Tac *tac) {
 
 void make_stack_offsets(Function *function) {} // TODO aarch64
 
-// Determine which registers are used in a function, push them onto the stack and return the list
+// Add push statements for callee saved registers.
+// Loop over pairs of saved registers, so that the stack is always aligned on 16 bytes.
 static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
-    for (int i = 0; i < physical_register_count; i++) {
-        if (saved_registers[i]) {
-            cur_stack_push_count++;
-            ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, new_preg_value(i), 0, 0, "str %vdx, [sp, #-8]!");
-        }
-    }
+    int i = 0;
+    while (1) {
+        int saved_register1 = saved_registers[i];
+        if (saved_register1 == -1) break;
+        int saved_register2 = saved_registers[i + 1];
 
-    // TODO aarch64. For now, align the stack to 16-bytes here
-    if (cur_stack_push_count & 1) {
-        cur_stack_push_count++;
-        ir = insert_target_instruction(ir, AARCH64_OP_ALLOCATE_STACK, 0, 0, 0, "sub sp, sp, #8");
+        if (saved_register2 != -1) {
+            ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
+                new_preg_value(saved_register1), new_preg_value(saved_register2), "stp %v1x, %v2x, [sp, #-16]!");
+        }
+        else {
+            ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
+                new_preg_value(saved_register1), new_preg_value(saved_register2), "stp %v1x, xzr, [sp, #-16]!");
+        }
+
+        cur_stack_push_count += 2;
+        i += 2;
     }
 
     return ir;
@@ -240,16 +247,22 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
 
 // TODO aarch64 push saved registers
 static Tac *insert_end_of_function(Tac *ir, int *saved_registers) {
-    int popped_args = 0;
-    for (int i = physical_register_count - 1; i >= 0; i--)
-        if (saved_registers[i]) {
-            popped_args += 1;
-            ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, new_preg_value(i), 0, 0, "ldr %vdx, [sp], 8");
+    int i = (physical_register_count + 2) & (~1);
+    while (i >= 0) {
+        int saved_register1 = saved_registers[i];
+        int saved_register2 = saved_registers[i + 1];
+        if (saved_register1 != -1 || saved_register2 != -1) {
+            if (saved_register2 != -1) {
+                ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, 0,
+                    new_preg_value(saved_register1), new_preg_value(saved_register2), "ldp %v1x, %v2x, [sp], #16");
+            }
+            else {
+                ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, 0,
+                    new_preg_value(saved_register1), new_preg_value(saved_register2), "ldp %v1x, xzr, [sp], #16");
+            }
         }
 
-    // TODO aarch64. For now, align the stack to 16-bytes here
-    if (popped_args & 1) {
-        ir = insert_target_instruction(ir, AARCH64_OP_DEALLOCATE_STACK, 0, 0, 0, "add sp, sp, #8");
+        i -= 2;
     }
 
     ir = insert_target_instruction(ir, AARCH64_OP_LDP, 0, 0, 0, "ldp x29, x30, [sp], 48"); // TODO aarch64 allocate stack

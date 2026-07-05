@@ -189,6 +189,7 @@ void output_object_symbols(void) {
 // Make an array of physical registers used by the function.
 // The caller is responsible for freeing the array.
 int *make_saved_registers(Function *function) {
+    // Make a sparse array of booleans
     int *saved_registers = wcalloc(sizeof(int), physical_register_count);
 
     Tac *tac = function->ir;
@@ -200,7 +201,20 @@ int *make_saved_registers(Function *function) {
         tac = tac->next;
     }
 
-    return saved_registers;
+    // Make a -1 terminated list of all the saved registers.
+    // An extra padding has been added for convenience, since some archs require
+    // two pushes at a time.
+    const int padding = 16;
+    int *saved_registers_list = wmalloc(sizeof(int) * (physical_register_count + padding));
+    for (int i = 0; i < physical_register_count + padding; i++) saved_registers_list[i] = -1;
+
+    int saved_register_count = 0;
+    for (int i = 0; i < physical_register_count; i++)
+        if (saved_registers[i]) saved_registers_list[saved_register_count++] = i;
+
+    wfree(saved_registers);
+
+    return saved_registers_list;
 }
 
 void init_codegen(void) {
