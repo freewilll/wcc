@@ -555,7 +555,6 @@ static void test_assign_to_globals() {
 
     pc = ps = pi = pl = puc = pus = pui = pul = 1;
 
-    #ifdef __x86_64__
     pc++; gpc = pc; assert_long(gpc, pc, "pgc = pc"); puc++; gpuc = puc; assert_long(gpuc, puc, "pguc = puc");
     pc++; gps = pc; assert_long(gps, pc, "pgs = pc"); puc++; gpus = puc; assert_long(gpus, puc, "pgus = puc");
     pc++; gpi = pc; assert_long(gpi, pc, "pgi = pc"); puc++; gpui = puc; assert_long(gpui, puc, "pgui = puc");
@@ -577,6 +576,7 @@ static void test_assign_to_globals() {
     pl++; gpl = pl; assert_long(gpl, pl, "pgl = pl"); pul++; gpul = pul; assert_long(gpul, pul, "pgul = pul");
 
     // Combinations of signed/unsigned
+    #ifdef __x86_64__
     c++; guc = c; assert_long(guc, c, "guc = c"); uc++; gc = uc; assert_long(gc, uc, "gc = uc");
     s++; gus = s; assert_long(gus, s, "gus = s"); us++; gs = us; assert_long(gs, us, "gs = us");
     i++; gui = i; assert_long(gui, i, "gui = i"); ui++; gi = ui; assert_long(gi, ui, "gi = ui");

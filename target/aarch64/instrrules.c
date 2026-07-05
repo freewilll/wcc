@@ -424,6 +424,11 @@ static void add_pointer_rules() {
     add_memory_into_register_rule(RI4, MI4, "ldr %vdx, [%v1x]");
     add_memory_into_register_rule(RU4, MU4, "ldr %vdx, [%v1x]");
 
+    add_memory_into_register_rule(RP1, MPV, "ldr %vdx, [%v1x]");
+    add_memory_into_register_rule(RP2, MPV, "ldr %vdx, [%v1x]");
+    add_memory_into_register_rule(RP3, MPV, "ldr %vdx, [%v1x]");
+    add_memory_into_register_rule(RP4, MPV, "ldr %vdx, [%v1x]");
+
     // Address loads
     // Any ADDRESS_OF a pointer in a register must be lvalues. Therefore, a adrp/add converts them from an lvalue into an rvalue
 
@@ -437,6 +442,19 @@ static void add_pointer_rules() {
     add_load_address_rule(RP4, MU4, IR_ADDRESS_OF);
     add_load_address_rule(RP4, MI4, IR_ADDRESS_OF);
 
+    add_load_address_rule(RP1, MPV, IR_ADDRESS_OF);
+    add_load_address_rule(RP2, MPV, IR_ADDRESS_OF);
+    add_load_address_rule(RP3, MPV, IR_ADDRESS_OF);
+    add_load_address_rule(RP4, MPV, IR_ADDRESS_OF);
+
+    // Stores of a pointer to a pointer
+    for (int dst = RP1; dst <= RP4; dst++) {
+        for (int src = RP1; src <= RP5; src++) {
+            r = add_rule(dst, IR_MOVE_TO_PTR, dst, src, 4);
+            add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
+        }
+    }
+
     // Stores to a pointer
     r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RI1, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
     r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RU1, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
@@ -446,6 +464,11 @@ static void add_pointer_rules() {
     r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RU3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2w, [%v1x]");
     r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
     r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
+
+    // Integer constants can be loaded into registers, which can then be assigned to a pointer to a pointer,
+    // e.g. char *gpc; // Define a global char
+    // gpc = 1; // Assignment to a global char
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
 }
 
 void define_rules(void) {
@@ -467,6 +490,7 @@ void define_rules(void) {
     r = add_rule(XR,       0, XR,       0, 0); fin_rule(r);
     r = add_rule(XM,       0, XM,       0, 0); fin_rule(r);
     r = add_rule(XRP,      0, XRP,      0, 0); fin_rule(r);
+    r = add_rule(MPV,      0, MPV,      0, 0);
     r = add_rule(STL,      0, STL,      0, 0);
     r = add_rule(FUN,      0, FUN,      0, 0);
     r = add_rule(LAB,      0, LAB,      0, 0);
