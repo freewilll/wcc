@@ -3,8 +3,6 @@
 #include "wcc.h"
 #include "x86_64.h"
 
-int match_constant_type_in_instrsel = 0;
-
 char **signed_moves_templates, **unsigned_moves_templates;
 int *signed_moves_operations, *unsigned_moves_operations;
 
@@ -34,6 +32,55 @@ char *add_size_to_template(char *template, int size) {
 
         c++;
     }
+
+    return result;
+}
+
+int uncached_non_terminal_for_value(Value *v) {
+    int result;
+
+    if (!v->target_size) make_value_target_size(v);
+    if (v->non_terminal) return v->non_terminal;
+
+    int is_local = !v->global_symbol && !v->stack_index;
+    int is_pointer = v->type && v->type->type == TYPE_PTR;
+
+         if (v->is_string_literal)                                            result =  STL;
+    else if (v->label)                                                        result =  LAB;
+    else if (v->type->type == TYPE_FUNCTION)                                  result =  FUN;
+    else if (is_local  && is_pointer_to_function_type(v->type))               result =  RPF;
+    else if (!is_local && is_pointer_to_function_type(v->type))               result =  MPF;
+    else if (v->type->type == TYPE_STRUCT_OR_UNION)                           result =  MSA;
+    else if (v->type->type == TYPE_ARRAY)                                     result =  MSA;
+
+    // Pointers
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_FLOAT)       result =  RP3;
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_DOUBLE)      result =  RP4;
+    else if (is_local  && is_pointer && v->type->target->type == TYPE_LONG_DOUBLE) result =  RP5;
+
+    else if (!is_local && is_pointer)                                         result =  MPV;
+    else if (is_local  && is_pointer)                                         result =  RP1 + value_ptr_target_target_size(v) - 1;
+
+    // Lvalue in register
+    else if (v->is_lvalue_in_register)                                        result =  RP1 + v->target_size - 1;
+
+    // Floats, doubles & long doubles
+    else if (!is_local && v->type->type == TYPE_FLOAT)                        result =  MS3;
+    else if (is_local  && v->type->type == TYPE_FLOAT)                        result =  RS3;
+    else if (!is_local && v->type->type == TYPE_DOUBLE)                       result =  MS4;
+    else if (is_local  && v->type->type == TYPE_DOUBLE)                       result =  RS4;
+    else if (!is_local && v->type->type == TYPE_LONG_DOUBLE)                  result =  MLD5;
+
+    // Integers
+    else if (!is_local && !v->type->is_unsigned)                              result =  MI1 + v->target_size - 1;
+    else if (is_local  && !v->type->is_unsigned)                              result =  RI1 + v->target_size - 1;
+    else if (!is_local && v->type->is_unsigned)                               result =  MU1 + v->target_size - 1;
+    else if (is_local  &&  v->type->is_unsigned)                              result =  RU1 + v->target_size - 1;
+
+    else
+        panic("\n^ Bad value in non_terminal_for_value()");
+
+    v->non_terminal = result;
 
     return result;
 }
@@ -239,9 +286,10 @@ static void init_moves_templates(void) {
     unsigned_moves_operations[11] = X86_OP_MOVZ;
 }
 
-static void add_move_rules_ri_to_mi(void) {
+static void add_register_memory_move_rules(void) {
     Rule *r;
 
+    // Signed
     r = add_rule(MI1, IR_MOVE, RI1, 0, 2);                                                             add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movb   %v1b, %vdb");
     r = add_rule(MI2, IR_MOVE, RI1, 0, 2); add_op(r, X86_OP_MOVS, DST, SRC1, 0 , "movsbw %v1b, %v1w"); add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
     r = add_rule(MI3, IR_MOVE, RI1, 0, 2); add_op(r, X86_OP_MOVS, DST, SRC1, 0 , "movsbl %v1b, %v1l"); add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movl   %v1l, %vdl");
@@ -258,11 +306,8 @@ static void add_move_rules_ri_to_mi(void) {
     r = add_rule(MI2, IR_MOVE, RI4, 0, 2);                                                             add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
     r = add_rule(MI3, IR_MOVE, RI4, 0, 2);                                                             add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movl   %v1l, %vdl");
     r = add_rule(MI4, IR_MOVE, RI4, 0, 2);                                                             add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movq   %v1q, %vdq");
-}
 
-static void add_move_rules_ru_to_mu(void) {
-    Rule *r;
-
+    // Unsigned
     r = add_rule(MU1, IR_MOVE, RU1, 0, 2);                                                             add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movb   %v1b, %vdb");
     r = add_rule(MU2, IR_MOVE, RU1, 0, 2); add_op(r, X86_OP_MOVZ, DST, SRC1, 0 , "movzbw %v1b, %v1w"); add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movw   %v1w, %vdw");
     r = add_rule(MU3, IR_MOVE, RU1, 0, 2); add_op(r, X86_OP_MOVZ, DST, SRC1, 0 , "movzbl %v1b, %v1l"); add_op(r, X86_OP_MOV, DST, SRC1, 0 , "movl   %v1l, %vdl");
@@ -758,14 +803,14 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(XRP, IR_MOVE, CI4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_MOVE, CU4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movq $%v1q, %vdq"); fin_rule(r);
 
-    // Register - register moves
+    // Register -> register moves
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RI1; dst <= RI4; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RU1; dst <= RU4; dst++) for (int src = RP1; src <= RP5; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RI1; src <= RI4; src++) add_mov_rule(dst, src, 0, 0);
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RU1; src <= RU4; src++) add_mov_rule(dst, src, 0, 0);
 
-    // Memory - register rules
+    // Memory -> register rules
     r = add_rule(RP4, IR_MOVE, MI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     r = add_rule(MI4, IR_MOVE, XRP, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(MU4, IR_MOVE, XRP, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
@@ -1596,8 +1641,7 @@ void define_rules(void) {
     r = add_rule(XRU, IR_MOVE, XMU,  0, 2); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "mov%s %v1, %vd"); fin_rule(r);
 
     // Register -> memory move rules
-    add_move_rules_ri_to_mi();
-    add_move_rules_ru_to_mu();
+    add_register_memory_move_rules();
 
     add_float_and_double_move_rules();
     add_long_double_move_rules();

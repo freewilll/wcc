@@ -314,6 +314,19 @@ void test_instrsel_logical_instruction_with_constant(void) {
     si(function, 0, IR_XOR, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  uc(15)); assert_target_op("eor         r2x, r1x, 15");
 }
 
+// Test storing an integer constant to a long in the stack.
+// This ensures the rules are setup such that the constant isn't first loaded in a 32-bit register,
+// then sign extended to 64-bit, then stored.
+void test_constant_store_to_stack(void) {
+    si(function, 0, IR_MOVE, Ssz(-1, TYPE_LONG), ci(1), 0);
+    assert_long(AARCH64_OP_MOV_INT_CST, ir_start->operation.id);
+    assert_long(TYPE_INT, ir_start->src1->type->type); // It starts of as an 32-bit integer ...
+    assert_long(3, ir_start->src1->target_size);
+    assert_long(4, ir_start->dst->target_size);  // ... and becomes 64-bit
+    ir_start = ir_start->next;
+    assert_target_op("str         r1x, [sp, 8]");
+}
+
 int main() {
     int verbose;
 
@@ -338,6 +351,8 @@ int main() {
     if (verbose) printf("Running instrsel test_is_logical_immediate_32_bit\n");                 test_is_logical_immediate_32_bit();
     if (verbose) printf("Running instrsel test_is_logical_immediate_64_bit\n");                 test_is_logical_immediate_64_bit();
     if (verbose) printf("Running instrsel test_instrsel_logical_instruction_with_constant\n");  test_instrsel_logical_instruction_with_constant();
+    if (verbose) printf("Running instrsel test_constant_store_to_stack\n");                     test_constant_store_to_stack();
+
 
     if (failures) {
         printf("%d tests failed\n", failures);

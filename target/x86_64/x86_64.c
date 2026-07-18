@@ -2,6 +2,7 @@
 #include "x86_64.h"
 
 int char_is_unsigned_by_default = 0;
+int total_function_stack_size_alignment = 8;
 
 char size_to_x86_size(int size) {
     switch (size) {

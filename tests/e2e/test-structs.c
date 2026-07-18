@@ -44,6 +44,7 @@ struct ss* gss;
 struct si* gsi;
 struct sl* gsl;
 
+
 struct sc1  { char        c1;                 };
 struct sc2  { char        c1; char c2;        };
 struct ss1  { short       c1;                 };
@@ -59,6 +60,7 @@ struct sd2  { double      c1; double d1;      };
 struct sld1 { long double c1;                 };
 struct sld2 { long double c1; long double l1; };
 
+#ifdef __x86_64__
 struct cc  { char c1; char        c2; };
 struct cs  { char c1; short       s1; };
 struct ci  { char c1; int         i1; };
@@ -76,6 +78,7 @@ struct cfc  { char c1; float        c2;     char c3; };
 struct cdc  { char c1; double       c2;     char c3; };
 struct cldc { char c1; long double  c2;     char c3; };
 struct clac { char c1; long         c2[10]; char c3; };
+#endif
 
 struct                              pss1 { int i; char c; int j; };
 struct __attribute__ ((__packed__)) pss2 { int i; char c; int j; };
@@ -134,10 +137,11 @@ struct scs {
 };
 
 struct cfs {
-    char           c;
-    short          s;
-    int            i;
-    long           l;
+    signed long    sp; // This ensures all members below have offsets, to test the offset encoding
+    signed char    sc;
+    signed short   ss;
+    signed int     si;
+    signed long    sl;
     unsigned char  uc;
     unsigned short us;
     unsigned int   ui;
@@ -187,6 +191,8 @@ struct st {
 
 union u {int a; int b; char c0, c1, c2, c3;};
 
+#ifdef __x86_64__
+
 struct ds {
     char c;
     short s;
@@ -205,6 +211,87 @@ struct sld {
     short s;
     long double ld;
 };
+
+#endif
+
+// This tests a big stack in aarch64. This ensures
+// - a big stack is allocated correctly
+// - loads and stores with a big offset work
+void test_big_local_structs() {
+    struct s {
+        int l[11260];
+        int i, j, k;
+    } s;
+
+    s.i = 1;
+    s.j = 2;
+    s.k = 3;
+
+    assert_int(1, s.i, "Big local struct 1");
+    assert_int(1, s.i, "Big local struct 2");
+    assert_int(1, s.i, "Big local struct 3");
+}
+
+void test_loads_and_stores_in_stack() {
+    struct cfs s;
+
+    // Assignments from registers
+    signed   long  sp = 21; s.sp = sp; assert_int(21, s.sp, "Local struct load/store from register 1l");
+    signed   char  sc = 22; s.sc = sc; assert_int(22, s.sc, "Local struct load/store from register 2l");
+    signed   short ss = 23; s.ss = ss; assert_int(23, s.ss, "Local struct load/store from register 3l");
+    signed   int   si = 24; s.si = si; assert_int(24, s.si, "Local struct load/store from register 4l");
+    signed   long  sl = 25; s.sl = sl; assert_int(25, s.sl, "Local struct load/store from register 5l");
+    unsigned char  uc = 26; s.uc = uc; assert_int(26, s.uc, "Local struct load/store from register 6l");
+    unsigned short us = 27; s.us = us; assert_int(27, s.us, "Local struct load/store from register 7l");
+    unsigned int   ui = 28; s.ui = ui; assert_int(28, s.ui, "Local struct load/store from register 8l");
+    unsigned long  ul = 29; s.ul = ul; assert_int(29, s.ul, "Local struct load/store from register 9l");
+
+    // 32-bit constant assignment
+    s.sp = 1; assert_int(1, s.sp, "Local struct load/store from constant 1s");
+    s.sc = 2; assert_int(2, s.sc, "Local struct load/store from constant 2s");
+    s.ss = 3; assert_int(3, s.ss, "Local struct load/store from constant 3s");
+    s.si = 4; assert_int(4, s.si, "Local struct load/store from constant 4s");
+    s.sl = 5; assert_int(5, s.sl, "Local struct load/store from constant 5s");
+    s.uc = 6; assert_int(6, s.uc, "Local struct load/store from constant 6s");
+    s.us = 7; assert_int(7, s.us, "Local struct load/store from constant 7s");
+    s.ui = 8; assert_int(8, s.ui, "Local struct load/store from constant 8s");
+    s.ul = 9; assert_int(9, s.ul, "Local struct load/store from constant 9s");
+
+    // 32-bit unsigned constant assigment
+    s.sp = 11U; assert_int(11, s.sp, "Local struct load/store from constant 1u");
+    s.sc = 12U; assert_int(12, s.sc, "Local struct load/store from constant 2u");
+    s.ss = 13U; assert_int(13, s.ss, "Local struct load/store from constant 3u");
+    s.si = 14U; assert_int(14, s.si, "Local struct load/store from constant 4u");
+    s.sl = 15U; assert_int(15, s.sl, "Local struct load/store from constant 5u");
+    s.uc = 16U; assert_int(16, s.uc, "Local struct load/store from constant 6u");
+    s.us = 17U; assert_int(17, s.us, "Local struct load/store from constant 7u");
+    s.ui = 18U; assert_int(18, s.ui, "Local struct load/store from constant 8u");
+    s.ul = 19U; assert_int(19, s.ul, "Local struct load/store from constant 9u");
+
+    // 64-bit long unsigned constant assigment
+    s.sp = 11LU; assert_int(11, s.sp, "Local struct load/store from constant 1llu");
+    s.sc = 12LU; assert_int(12, s.sc, "Local struct load/store from constant 2llu");
+    s.ss = 13LU; assert_int(13, s.ss, "Local struct load/store from constant 3llu");
+    s.si = 14LU; assert_int(14, s.si, "Local struct load/store from constant 4llu");
+    s.sl = 15LU; assert_int(15, s.sl, "Local struct load/store from constant 5llu");
+    s.uc = 16LU; assert_int(16, s.uc, "Local struct load/store from constant 6llu");
+    s.us = 17LU; assert_int(17, s.us, "Local struct load/store from constant 7llu");
+    s.ui = 18LU; assert_int(18, s.ui, "Local struct load/store from constant 8lu");
+    s.ul = 19LU; assert_int(19, s.ul, "Local struct load/store from constant 9lu");
+
+    // 64-bit long constant assigment
+    s.sp = 11L; assert_int(11, s.sp, "Local struct load/store from constant 1l");
+    s.sc = 12L; assert_int(12, s.sc, "Local struct load/store from constant 2l");
+    s.ss = 13L; assert_int(13, s.ss, "Local struct load/store from constant 3l");
+    s.si = 14L; assert_int(14, s.si, "Local struct load/store from constant 4l");
+    s.sl = 15L; assert_int(15, s.sl, "Local struct load/store from constant 5l");
+    s.uc = 16L; assert_int(16, s.uc, "Local struct load/store from constant 6l");
+    s.us = 17L; assert_int(17, s.us, "Local struct load/store from constant 7l");
+    s.ui = 18L; assert_int(18, s.ui, "Local struct load/store from constant 8l");
+    s.ul = 19L; assert_int(19, s.ul, "Local struct load/store from constant 9l");
+}
+
+#ifdef __x86_64__
 
 void test_simple_struct() {
     struct sc *lsc1, *lsc2;
@@ -542,10 +629,10 @@ void test_chocolate_factory_struct() {
     cfs = malloc(sizeof(struct cfs));
     memset(cfs, -1, sizeof(struct cfs));
 
-    assert_long(-1,         cfs->c,  "cfgs c");
-    assert_long(-1,         cfs->s,  "cfgs s");
-    assert_long(-1,         cfs->i,  "cfgs i");
-    assert_long(-1,         cfs->l,  "cfgs l");
+    assert_long(-1,         cfs->sc, "cfgs sc");
+    assert_long(-1,         cfs->ss, "cfgs ss");
+    assert_long(-1,         cfs->si, "cfgs si");
+    assert_long(-1,         cfs->sl, "cfgs sl");
     assert_long(0xff,       cfs->uc, "ucfgs c");
     assert_long(0xffff,     cfs->us, "ucfgs s");
     assert_long(0xffffffff, cfs->ui, "ucfgs i");
@@ -911,63 +998,63 @@ int test_pointers() {
     // Pointer to global struct
     struct cfs *pcfs1, *pcfs2, **ppcfs;
 
-    gcfs.c = 1;
-    gcfs.s = 2;
+    gcfs.sc = 1;
+    gcfs.ss = 2;
 
     pcfs1 = &gcfs;
-    assert_int(1, pcfs1->c, "Pointer to global struct 1");
-    assert_int(2, pcfs1->s, "Pointer to global struct 2");
+    assert_int(1, pcfs1->sc, "Pointer to global struct 1");
+    assert_int(2, pcfs1->ss, "Pointer to global struct 2");
 
     // Pointer to local struct
     struct cfs cfs;
-    cfs.c = 3;
-    cfs.s = 4;
+    cfs.sc = 3;
+    cfs.ss = 4;
 
     pcfs1 = &cfs;
-    assert_int(3, pcfs1->c, "Pointer to local struct 1");
-    assert_int(4, pcfs1->s, "Pointer to local struct 2");
+    assert_int(3, pcfs1->sc, "Pointer to local struct 1");
+    assert_int(4, pcfs1->ss, "Pointer to local struct 2");
 
-    pcfs1->c = 5;
-    pcfs1->s = 6;
-    assert_int(5, cfs.c, "Pointer to local struct 3");
-    assert_int(6, cfs.s, "Pointer to local struct 4");
+    pcfs1->sc = 5;
+    pcfs1->ss = 6;
+    assert_int(5, cfs.sc, "Pointer to local struct 3");
+    assert_int(6, cfs.ss, "Pointer to local struct 4");
 
     pcfs1 = malloc(sizeof(struct cfs));
-    pcfs1->c = 7;
-    pcfs1->s = 8;
+    pcfs1->sc = 7;
+    pcfs1->ss = 8;
 
     gcfs = *pcfs1;
-    assert_int(7, gcfs.c, "Struct copy g = *p 1");
-    assert_int(8, gcfs.s, "Struct copy g = *p 2");
+    assert_int(7, gcfs.sc, "Struct copy g = *p 1");
+    assert_int(8, gcfs.ss, "Struct copy g = *p 2");
 
-    pcfs1->c = 9;
-    pcfs1->s = 10;
+    pcfs1->sc = 9;
+    pcfs1->ss = 10;
     cfs = *pcfs1;
-    assert_int(9,  cfs.c, "Struct copy l = *p 1");
-    assert_int(10, cfs.s, "Struct copy l = *p 2");
+    assert_int(9,  cfs.sc, "Struct copy l = *p 1");
+    assert_int(10, cfs.ss, "Struct copy l = *p 2");
 
-    gcfs.c = 11;
-    gcfs.s = 12;
+    gcfs.sc = 11;
+    gcfs.ss = 12;
     *pcfs1 = gcfs;
-    assert_int(11, pcfs1->c, "Struct copy *p = g 1");
-    assert_int(12, pcfs1->s, "Struct copy *p = g 2");
+    assert_int(11, pcfs1->sc, "Struct copy *p = g 1");
+    assert_int(12, pcfs1->ss, "Struct copy *p = g 2");
 
-    cfs.c = 13;
-    cfs.s = 14;
+    cfs.sc = 13;
+    cfs.ss = 14;
     *pcfs1 = cfs;
-    assert_int(13, pcfs1->c, "Struct copy *p = g 1");
-    assert_int(14, pcfs1->s, "Struct copy *p = g 2");
+    assert_int(13, pcfs1->sc, "Struct copy *p = g 1");
+    assert_int(14, pcfs1->ss, "Struct copy *p = g 2");
 
     pcfs2 = malloc(sizeof(struct cfs));
     *pcfs2 = *pcfs1;
-    assert_int(13, pcfs2->c, "Struct copy *p = *p 1");
-    assert_int(14, pcfs2->s, "Struct copy *p = *p 2");
+    assert_int(13, pcfs2->sc, "Struct copy *p = *p 1");
+    assert_int(14, pcfs2->ss, "Struct copy *p = *p 2");
 
     // Double dereference
     ppcfs = &pcfs1;
 
-    (*ppcfs)->c = 15; assert_int(15, (*ppcfs)->c, "Struct ** dereference 1");
-    (**ppcfs).c = 16; assert_int(16, (**ppcfs).c, "Struct ** dereference 2");
+    (*ppcfs)->sc = 15; assert_int(15, (*ppcfs)->sc, "Struct ** dereference 1");
+    (**ppcfs).sc = 16; assert_int(16, (**ppcfs).sc, "Struct ** dereference 2");
 }
 
 int test_arithmetic_with_local_struct_members() {
@@ -1287,12 +1374,17 @@ int test_zero_length_arrays() {
     s->ia[3] = 5;
 }
 
+#endif
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
     parse_args(argc, argv);
 
+    test_big_local_structs();
+    test_loads_and_stores_in_stack();
+#ifdef __x86_64__
     test_simple_struct();
     test_sizeof();
     test_struct_member_alignment();
@@ -1328,6 +1420,6 @@ int main(int argc, char **argv) {
     test_anonymous_struct_flattening();
     test_temporary_struct_member_lookup();
     test_zero_length_arrays();
-
+#endif
     finalize();
 }

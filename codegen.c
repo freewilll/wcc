@@ -217,6 +217,84 @@ int *make_saved_registers(Function *function) {
     return saved_registers_list;
 }
 
+static void process_stack_offset(Value *value, int *stack_alignments, int *stack_sizes) {
+    if (value && value->stack_index < 0) {
+        // When in doubt, pick the biggest of size & alignment. There can be
+        // mismatches during struct/union manipulation, where a bit of the stack
+        // is loaded/saved into up 8 bytes.
+
+        int value_alignment = get_type_alignment(value->type);
+        if (value_alignment > stack_alignments[-value->stack_index]) stack_alignments[-value->stack_index] = value_alignment;
+        int value_size = get_type_size(value->type);
+        if (value_size > stack_sizes[-value->stack_index]) stack_sizes[-value->stack_index] = value_size;
+    }
+}
+
+// Allocate stack offsets for variables on the stack (stack_index < 0). Go backwards
+// in alignment, allocating the ones with the largest alignment first, in order of
+// stack_index.
+void make_stack_offsets(Function *function) {
+    int count = function->stack_register_count;
+
+    if (!count) return; // Nothing is on the stack
+
+    // Determine size & alignments for all variables on the stack
+    int *stack_alignments = wcalloc((count + 1), sizeof(int));
+    int *stack_sizes = wcalloc((count + 1), sizeof(int));
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->dst)  process_stack_offset(tac->dst,  stack_alignments, stack_sizes);
+        if (tac->src1) process_stack_offset(tac->src1, stack_alignments, stack_sizes);
+        if (tac->src2) process_stack_offset(tac->src2, stack_alignments, stack_sizes);
+    }
+
+    // Determine stack offsets
+    int *stack_offsets = wmalloc((count+ 1) * sizeof(int));
+    int offset = 0;
+    int total_size = 0;
+    for (int size = 4; size >= 0; size--) {
+        int wanted_alignment = 1 << size;
+        for (int i = 1; i <= count; i++) {
+            int alignment = stack_alignments[i];
+            int object_size = stack_sizes[i];
+            if (wanted_alignment != alignment) continue;
+            offset += object_size;
+            stack_offsets[i] = offset;
+            total_size += object_size;
+        }
+    }
+
+    if (debug_stack_frame_layout) {
+        printf("Stack frame for %s:\n", function->identifier);
+        for (int i = 1; i <= count; i++) {
+            printf("Slot %d offset=%4d size=%4d alignment=%4d\n", i, stack_offsets[i], stack_sizes[i], stack_alignments[i]);
+        }
+        printf("\n");
+    }
+
+    // Align on 8 bytes, this is required by the function call stack alignment code.
+    total_size = (total_size + (total_function_stack_size_alignment - 1)) & ~(total_function_stack_size_alignment - 1);
+    function->stack_size = total_size;
+
+    // Assign stack_offsets
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        // Special case for functions with a va_list. A src1 with stack_index OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX
+        // needs to be reassigned with address where the pushed varargs start
+        if (tac->src1 && tac->src1->stack_index == OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX) {
+            tac->src1->stack_index = 2 + (function->fpa->size >> 3);
+        }
+        else
+            if (tac->src1 && tac->src1->stack_index < 0) tac->src1->stack_offset = stack_offsets[-tac->src1->stack_index];
+
+        if (tac ->dst && tac ->dst->stack_index < 0) tac ->dst->stack_offset = stack_offsets[-tac ->dst->stack_index];
+        if (tac->src2 && tac->src2->stack_index < 0) tac->src2->stack_offset = stack_offsets[-tac->src2->stack_index];
+    }
+
+    wfree(stack_alignments);
+    wfree(stack_sizes);
+    wfree(stack_offsets);
+}
+
 void init_codegen(void) {
     floating_point_literals = wmalloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
     floating_point_literal_count = 0;

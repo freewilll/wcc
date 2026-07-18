@@ -4,7 +4,21 @@
 
 #include "wcc.h"
 
-static int value_ptr_target_target_size(Value *v);
+const int non_terminal_sizes[] = {
+    0,
+#define RULE_NON_TERMINAL_ITEM(non_terminal, size) size,
+    RULE_NON_TERMINAL_LIST(RULE_NON_TERMINAL_ITEM)
+#undef RULE_NON_TERMINAL_ITEM
+};
+
+const int non_terminals_count = sizeof(non_terminal_sizes) / sizeof(int);
+
+char *non_terminal_strings[] = {
+    NULL,
+#define RULE_NON_TERMINAL_ITEM(non_terminal, size) # non_terminal,
+    RULE_NON_TERMINAL_LIST(RULE_NON_TERMINAL_ITEM)
+#undef RULE_NON_TERMINAL_ITEM
+};
 
 // Add a rule to instr_rules
 Rule *add_rule(int dst, int operation, int src1, int src2, int cost) {
@@ -63,80 +77,12 @@ void free_rules_by_operation(void) {
 char *non_terminal_string(int nt) {
     if (nt >= TARGET_NON_TERMINAL_START && nt < TARGET_NON_TERMINAL_END)
         return target_non_terminal_string(nt);
-
-    char *buf = wmalloc(6);
-
-    switch (nt) {
-        case 0:     return "";
-        case CSTV1: return "cstv1";
-        case CSTV2: return "cstv2";
-        case CSTV3: return "cstv3";
-        case XC:    return "xc";
-        case XC1:   return "xc1";
-        case XC2:   return "xc2";
-        case XC3:   return "xc3";
-        case XC4:   return "xc4";
-        case XCI:   return "xci";
-        case CI1:   return "ci1";
-        case CI2:   return "ci2";
-        case CI3:   return "ci3";
-        case CI4:   return "ci4";
-        case XCU:   return "xcu";
-        case CU1:   return "cu1";
-        case CU2:   return "cu2";
-        case CU3:   return "cu3";
-        case CU4:   return "cu4";
-        case CLD:   return "cld";
-        case CS3:   return "cs3";
-        case CS4:   return "cs4";
-        case STL:   return "stl";
-        case LAB:   return "lab";
-        case FUN:   return "fun";
-        case XR:    return "xr";
-        case XR1:   return "xr1";
-        case XR2:   return "xr2";
-        case XR3:   return "xr3";
-        case XR4:   return "xr4";
-        case XRI:   return "xri";
-        case RI1:   return "ri1";
-        case RI2:   return "ri2";
-        case RI3:   return "ri3";
-        case RI4:   return "ri4";
-        case XRU:   return "xru";
-        case RU1:   return "ru1";
-        case RU2:   return "ru2";
-        case RU3:   return "ru3";
-        case RU4:   return "ru4";
-        case XM:    return "xm";
-        case XM1:   return "xm1";
-        case XM2:   return "xm2";
-        case XM3:   return "xm3";
-        case XM4:   return "xm4";
-        case MI1:   return "mi1";
-        case MI2:   return "mi2";
-        case MI3:   return "mi3";
-        case MI4:   return "mi4";
-        case MU1:   return "mu1";
-        case MU2:   return "mu2";
-        case MU3:   return "mu3";
-        case MU4:   return "mu4";
-        case RP1:   return "rp1";
-        case RP2:   return "rp2";
-        case RP3:   return "rp3";
-        case RP4:   return "rp4";
-        case RP5:   return "rp5";
-        case RPF:   return "rpf";
-        case MPF:   return "mpf";
-        case RS3:   return "rs3";
-        case RS4:   return "rs4";
-        case MLD5:  return "mld5";
-        case MS3:   return "ms3";
-        case MS4:   return "ms4";
-        case MPV:   return "mpv";
-        case MSA:   return "msa";
-        default:
-            wasprintf(&buf, "nt%03d", nt);
-            return buf;
+    else if (nt < non_terminals_count)
+        return non_terminal_strings[nt];
+    else {
+        char *buf;
+        wasprintf(&buf, "nt%03d", nt);
+        return buf;
     }
 }
 
@@ -289,55 +235,6 @@ void make_value_target_size(Value *v) {
     }
 }
 
-int uncached_non_terminal_for_value(Value *v) {
-    int result;
-
-    if (!v->target_size) make_value_target_size(v);
-    if (v->non_terminal) return v->non_terminal;
-
-    int is_local = !v->global_symbol && !v->stack_index;
-    int is_pointer = v->type && v->type->type == TYPE_PTR;
-
-         if (v->is_string_literal)                                            result =  STL;
-    else if (v->label)                                                        result =  LAB;
-    else if (v->type->type == TYPE_FUNCTION)                                  result =  FUN;
-    else if (is_local  && is_pointer_to_function_type(v->type))               result =  RPF;
-    else if (!is_local && is_pointer_to_function_type(v->type))               result =  MPF;
-    else if (v->type->type == TYPE_STRUCT_OR_UNION)                           result =  MSA;
-    else if (v->type->type == TYPE_ARRAY)                                     result =  MSA;
-
-    // Pointers
-    else if (is_local  && is_pointer && v->type->target->type == TYPE_FLOAT)       result =  RP3;
-    else if (is_local  && is_pointer && v->type->target->type == TYPE_DOUBLE)      result =  RP4;
-    else if (is_local  && is_pointer && v->type->target->type == TYPE_LONG_DOUBLE) result =  RP5;
-
-    else if (!is_local && is_pointer)                                         result =  MPV;
-    else if (is_local  && is_pointer)                                         result =  RP1 + value_ptr_target_target_size(v) - 1;
-
-    // Lvalue in register
-    else if (v->is_lvalue_in_register)                                        result =  RP1 + v->target_size - 1;
-
-    // Floats, doubles & long doubles
-    else if (!is_local && v->type->type == TYPE_FLOAT)                        result =  MS3;
-    else if (is_local  && v->type->type == TYPE_FLOAT)                        result =  RS3;
-    else if (!is_local && v->type->type == TYPE_DOUBLE)                       result =  MS4;
-    else if (is_local  && v->type->type == TYPE_DOUBLE)                       result =  RS4;
-    else if (!is_local && v->type->type == TYPE_LONG_DOUBLE)                  result =  MLD5;
-
-    // Integers
-    else if (!is_local && !v->type->is_unsigned)                              result =  MI1 + v->target_size - 1;
-    else if (is_local  && !v->type->is_unsigned)                              result =  RI1 + v->target_size - 1;
-    else if (!is_local && v->type->is_unsigned)                               result =  MU1 + v->target_size - 1;
-    else if (is_local  &&  v->type->is_unsigned)                              result =  RU1 + v->target_size - 1;
-
-    else
-        panic("\n^ Bad value in non_terminal_for_value()");
-
-    v->non_terminal = result;
-
-    return result;
-}
-
 // Match a value type to a non terminal rule type. This is necessary to ensure that
 // non-root nodes have matching types while tree matching.
 int match_value_type_to_rule_dst(Value *v, int dst) {
@@ -376,6 +273,22 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     else if (dst == MU2  && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
     else if (dst == MU3  && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
     else if (dst == MU4  && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
+    else if (dst == MSI1 && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
+    else if (dst == MSI2 && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
+    else if (dst == MSI3 && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
+    else if (dst == MSI4 && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if (dst == MSU1 && v->type->type == TYPE_CHAR  &&  v->type->is_unsigned) return 1;
+    else if (dst == MSU2 && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
+    else if (dst == MSU3 && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
+    else if (dst == MSU4 && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
+    else if (dst == MGI1 && v->type->type == TYPE_CHAR  && !v->type->is_unsigned) return 1;
+    else if (dst == MGI2 && v->type->type == TYPE_SHORT && !v->type->is_unsigned) return 1;
+    else if (dst == MGI3 && v->type->type == TYPE_INT   && !v->type->is_unsigned) return 1;
+    else if (dst == MGI4 && v->type->type == TYPE_LONG  && !v->type->is_unsigned) return 1;
+    else if (dst == MGU1 && v->type->type == TYPE_CHAR  &&  v->type->is_unsigned) return 1;
+    else if (dst == MGU2 && v->type->type == TYPE_SHORT &&  v->type->is_unsigned) return 1;
+    else if (dst == MGU3 && v->type->type == TYPE_INT   &&  v->type->is_unsigned) return 1;
+    else if (dst == MGU4 && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
     else if (dst == RS3  && v->type->type == TYPE_FLOAT)                          return 1;
     else if (dst == RS4  && v->type->type == TYPE_DOUBLE)                         return 1;
     else if (dst == MS3  && v->type->type == TYPE_FLOAT)                          return 1;
@@ -390,7 +303,7 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
 }
 
 // Return how many bytes a dereferenced pointer takes up
-static int value_ptr_target_target_size(Value *v) {
+int value_ptr_target_target_size(Value *v) {
     if (v->type->type != TYPE_PTR) panic("Expected pointer type");
 
     int target_type = v->type->target->type;
@@ -409,35 +322,12 @@ static int value_ptr_target_target_size(Value *v) {
 
 // Returns the width in bytes for a non terminal
 int make_target_size_from_non_terminal(int nt) {
-
-         if (nt == CSTV1) return 1;
-    else if (nt == CSTV2) return 1;
-    else if (nt == CSTV3) return 1;
-    else if (nt == CI1)   return 1;
-    else if (nt == CI2)   return 2;
-    else if (nt == CI3)   return 3;
-    else if (nt == CI4)   return 4;
-    else if (nt == CU1)   return 1;
-    else if (nt == CU2)   return 2;
-    else if (nt == CU3)   return 3;
-    else if (nt == CU4)   return 4;
-    else if (nt == CLD)   return 8;
-    else if (nt == CS3)   return 3;
-    else if (nt == CS4)   return 4;
-    else if (nt == RP1 || nt == RP2 || nt == RP3 || nt == RP4 || nt == RP5 || nt == MPV ) return 4;
-    else if (nt == RI1 || nt == RU1 || nt == MI1 || nt == MU1                           ) return 1;
-    else if (nt == RI2 || nt == RU2 || nt == MI2 || nt == MU2                           ) return 2;
-    else if (nt == RI3 || nt == RU3 || nt == RS3 || nt == MI3 || nt == MU3 || nt == MS3 ) return 3;
-    else if (nt == RI4 || nt == RU4 || nt == RS4 || nt == MI4 || nt == MU4 || nt == MS4 ) return 4;
-    else if (nt == RPF) return 4;
-    else if (nt == MPF) return 4;
-    else if (nt == MLD5) return 8;
-    else if (nt == LAB) return -1;
-    else if (nt == FUN) return -1;
-    else if (nt == MSA) return -1;
-    else if (nt == STL) return 4;
-    else if (nt >= AUTO_NON_TERMINAL_START) return -1;
-    else if (nt >= TARGET_NON_TERMINAL_START && nt < TARGET_NON_TERMINAL_END) return -1;
+    if (nt < non_terminals_count)
+        return non_terminal_sizes[nt];
+    else if (nt >= AUTO_NON_TERMINAL_START)
+        return -1;
+    else if (nt >= TARGET_NON_TERMINAL_START && nt < TARGET_NON_TERMINAL_END)
+        return -1;
     else
         panic("Unable to determine size for %s", non_terminal_string(nt));
 }
@@ -467,21 +357,35 @@ static void dup_target_operations(TargetOperation *target_operations, int target
 }
 
 // Given a wildcard operation, make an operation for it
+// XC  => CI1, CI2, CI3, CI4, CU1, CU2, CU3, CU4
+// XR  => RI1, RI2, RI3, RI4, RU1, RU2, RU3, RU4
+// XM  => MI1, MI2, MI3, MI4, MU1, MU2, MU3, MU4
+// XCI => CI1, CI2, CI3, CI4
+// XRI => RI1, RI2, RI3, RI4
+// XRU => RU1, RU2, RU3, RU4
+// XRP => RP1, RP2, RP3, RP4
+// XC1 => CI1, CU1, also XC2 => ... etc
+// XR1 => RI1, RU1, also XR2 => ... etc
+// XM1 => MI1, MU1, also XM2 => ... etc
+// XMS => MSI1, MSU1, similar to XM but for memory in the stack
+// XMG => MGI1, MGU1, similar to XM but for memory in globals
 static int transform_rule_value(int extend_size, int extend_sign, int v, int size, int is_unsigned) {
     int result = v;
 
     if (extend_size) {
         switch(v) {
-            case XCI: result = CI1 + size - 1; break;
-            case XCU: result = CU1 + size - 1; break;
-            case XRI: result = RI1 + size - 1; break;
-            case XRU: result = RU1 + size - 1; break;
-            case XMI: result = MI1 + size - 1; break;
-            case XMU: result = MU1 + size - 1; break;
-            case XRP: result = RP1 + size - 1; break;
-            case XC:  result = (is_unsigned ? CU1 : CI1) + size - 1; break;
-            case XR:  result = (is_unsigned ? RU1 : RI1) + size - 1; break;
-            case XM:  result = (is_unsigned ? MU1 : MI1) + size - 1; break;
+            case XCI:  result = CI1 + size - 1; break;
+            case XCU:  result = CU1 + size - 1; break;
+            case XRI:  result = RI1 + size - 1; break;
+            case XRU:  result = RU1 + size - 1; break;
+            case XMI:  result = MI1 + size - 1; break;
+            case XMU:  result = MU1 + size - 1; break;
+            case XRP:  result = RP1 + size - 1; break;
+            case XC:   result = (is_unsigned ? CU1  : CI1)  + size - 1; break;
+            case XR:   result = (is_unsigned ? RU1  : RI1)  + size - 1; break;
+            case XM:   result = (is_unsigned ? MU1  : MI1)  + size - 1; break;
+            case XMS:  result = (is_unsigned ? MSU1 : MSI1) + size - 1; break;
+            case XMG:  result = (is_unsigned ? MGU1 : MGI1) + size - 1; break;
         }
     }
     else if (extend_sign) {
@@ -507,17 +411,6 @@ static int transform_rule_value(int extend_size, int extend_sign, int v, int siz
 // Create new rules by expanding type and/or sign in non terminals
 // e.g.
 // (RP, RI) => (RP1, RI1), (RP2, RI2), (RP3, RI3), (RP4, RI4)
-//
-// XC  => CI1, CI2, CI3, CI4, CU1, CU2, CU3, CU4
-// XR  => RI1, RI2, RI3, RI4, RU1, RU2, RU3, RU4
-// XM  => MI1, MI2, MI3, MI4, MU1, MU2, MU3, MU4
-// XCI => CI1, CI2, CI3, CI4
-// XRI => RI1, RI2, RI3, RI4
-// XRU => RU1, RU2, RU3, RU4
-// XRP => RP1, RP2, RP3, RP4
-// XC1 => CI1, CU1, also XC2 => ... etc
-// XR1 => RI1, RU1, also XR2 => ... etc
-// XM1 => MI1, MU1, also XM2 => ... etc
 void fin_rule(Rule *r) {
     int operation                = r->operation;
     int dst                      = r->dst;

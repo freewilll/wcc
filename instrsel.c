@@ -852,7 +852,7 @@ static int tile_igraph_leaf_node(IGraph *igraph, int node_id) {
 
         if (!match_value_to_rule_src(v, r->src1)) continue;
 
-        int match_value_type = !v->is_constant || match_constant_type_in_instrsel;
+        int match_value_type = !v->is_constant;
         if (match_value_type && !v->label && v->type->type != TYPE_FUNCTION && !match_value_type_to_rule_dst(v, r->dst)) continue;
 
         if (debug_instsel_tiling) {

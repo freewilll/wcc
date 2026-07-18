@@ -1218,89 +1218,145 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 void allocate_registers(Function *function);
 void free_allocate_registers(void);
 
-#define TARGET_NON_TERMINAL_START 0x40      // Target specific non terminals
-#define TARGET_NON_TERMINAL_END   0x60
-#define AUTO_NON_TERMINAL_START   0x60      // Automatically assigned custom non terminals
-#define AUTO_NON_TERMINAL_END     0x200     // Must match next line
-
 // instrsel.c
+#define TARGET_NON_TERMINAL_START 0x60      // Target specific non terminals
+#define TARGET_NON_TERMINAL_END   0x80
+#define AUTO_NON_TERMINAL_START   0x80      // Automatically assigned custom non terminals
+#define AUTO_NON_TERMINAL_END     0x300
+
+#define RULE_NON_TERMINAL_LIST(RULE_NON_TERMINAL_ITEM) \
+    RULE_NON_TERMINAL_ITEM(STL,   4 )    /* String literal  */ \
+    RULE_NON_TERMINAL_ITEM(LAB,   -1)    /* Label, i.e. a target for a (conditional) jump */ \
+    RULE_NON_TERMINAL_ITEM(FUN,   -1)    /* Function, used for calls */ \
+    RULE_NON_TERMINAL_ITEM(CSTV1, 1 )    /* Constant with value 1 */ \
+    RULE_NON_TERMINAL_ITEM(CSTV2, 1 )    /* Constant with value 2 */ \
+    RULE_NON_TERMINAL_ITEM(CSTV3, 1 )    /* Constant with value 3 */ \
+    RULE_NON_TERMINAL_ITEM(CI1,   1 )    /* Constants */ \
+    RULE_NON_TERMINAL_ITEM(CI2,   2 ) \
+    RULE_NON_TERMINAL_ITEM(CI3,   3 ) \
+    RULE_NON_TERMINAL_ITEM(CI4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(CU1,   1 ) \
+    RULE_NON_TERMINAL_ITEM(CU2,   2 ) \
+    RULE_NON_TERMINAL_ITEM(CU3,   3 ) \
+    RULE_NON_TERMINAL_ITEM(CU4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(CLD,   8 )     /* Long double constant */ \
+    RULE_NON_TERMINAL_ITEM(CS3,   3 )     /* SSE floating point constants */ \
+    RULE_NON_TERMINAL_ITEM(CS4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RI1,   1 )    /* Signed registers */ \
+    RULE_NON_TERMINAL_ITEM(RI2,   2 ) \
+    RULE_NON_TERMINAL_ITEM(RI3,   3 ) \
+    RULE_NON_TERMINAL_ITEM(RI4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RU1,   1 )    /* Unsigned registers */ \
+    RULE_NON_TERMINAL_ITEM(RU2,   2 ) \
+    RULE_NON_TERMINAL_ITEM(RU3,   3 ) \
+    RULE_NON_TERMINAL_ITEM(RU4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RS3,   3 )    /* SSE (xmm) registers */ \
+    RULE_NON_TERMINAL_ITEM(RS4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(MI1,   1 )    /* Memory, in stack or globals */ \
+    RULE_NON_TERMINAL_ITEM(MI2,   2 ) \
+    RULE_NON_TERMINAL_ITEM(MI3,   3 ) \
+    RULE_NON_TERMINAL_ITEM(MI4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(MU1,   1 ) \
+    RULE_NON_TERMINAL_ITEM(MU2,   2 ) \
+    RULE_NON_TERMINAL_ITEM(MU3,   3 ) \
+    RULE_NON_TERMINAL_ITEM(MU4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(MSI1,  1 )    /* Memory, in stack */ \
+    RULE_NON_TERMINAL_ITEM(MSI2,  2 ) \
+    RULE_NON_TERMINAL_ITEM(MSI3,  3 ) \
+    RULE_NON_TERMINAL_ITEM(MSI4,  4 ) \
+    RULE_NON_TERMINAL_ITEM(MSU1,  1 ) \
+    RULE_NON_TERMINAL_ITEM(MSU2,  2 ) \
+    RULE_NON_TERMINAL_ITEM(MSU3,  3 ) \
+    RULE_NON_TERMINAL_ITEM(MSU4,  4 ) \
+    RULE_NON_TERMINAL_ITEM(MGI1,  1 )    /* Memory, in globals */ \
+    RULE_NON_TERMINAL_ITEM(MGI2,  2 ) \
+    RULE_NON_TERMINAL_ITEM(MGI3,  3 ) \
+    RULE_NON_TERMINAL_ITEM(MGI4,  4 ) \
+    RULE_NON_TERMINAL_ITEM(MGU1,  1 ) \
+    RULE_NON_TERMINAL_ITEM(MGU2,  2 ) \
+    RULE_NON_TERMINAL_ITEM(MGU3,  3 ) \
+    RULE_NON_TERMINAL_ITEM(MGU4,  4 ) \
+    RULE_NON_TERMINAL_ITEM(MS3,   3 )    /* SSE (xmm) in stack or globals */ \
+    RULE_NON_TERMINAL_ITEM(MS4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RP1,   4 )     /* Address (aka pointer) in a register */ \
+    RULE_NON_TERMINAL_ITEM(RP2,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RP3,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RP4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RP5,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RPF,   4 )   /* Pointer to a function in a register */ \
+    RULE_NON_TERMINAL_ITEM(MPF,   4 )   /* Pointer to a function in memory */ \
+    RULE_NON_TERMINAL_ITEM(MSPF,  4 )   /* Pointer to a function in the stack */ \
+    RULE_NON_TERMINAL_ITEM(MGPF,  4 )   /* Pointer to a function in a global */ \
+    RULE_NON_TERMINAL_ITEM(MLD5,  8 )   /* 16-byte memory, for long double */ \
+    RULE_NON_TERMINAL_ITEM(MPV,   4 )   /* Pointer in memory */ \
+    RULE_NON_TERMINAL_ITEM(MSPV,  4 )   /* Pointer in stack */ \
+    RULE_NON_TERMINAL_ITEM(MGPV,  4 )   /* Pointer in global */ \
+    RULE_NON_TERMINAL_ITEM(MSA,   -1)   /* Struct or array in memory     */ \
+
+
 enum rule_non_terminals {
-    MAX_RULE_COUNT = 9000,
-
-    // Non terminals
-    STL = 1,                     // String literal
-    LAB,                         // Label, i.e. a target for a (conditional) jump
-    FUN,                         // Function, used for calls
-    CSTV1,                       // Constant with value 1
-    CSTV2,                       // Constant with value 2
-    CSTV3,                       // Constant with value 3
-    CI1, CI2, CI3, CI4,          // Constants
-    CU1, CU2, CU3, CU4,          // Constants
-    CLD,                         // Long double constant
-    CS3, CS4,                    // SSE floating point constants
-    RI1, RI2, RI3, RI4,          // Signed registers
-    RU1, RU2, RU3, RU4,          // Unsigned registers
-    RS3, RS4,                    // SSE (xmm) registers
-    MI1, MI2, MI3, MI4,          // Memory, in stack or globals
-    MU1, MU2, MU3, MU4,          // Memory, in stack or globals
-    MS3, MS4,                    // SSE (xmm) in stack or globals
-    RP1, RP2, RP3, RP4, RP5,     // Address (aka pointer) in a register
-    RPF,                         // Pointer to a function in a register
-    MPF,                         // Pointer to a function in memory
-    MLD5,                        // 16-byte memory, for long double
-    MPV,                         // Pointer in memory
-    MSA,                         // Struct or array in memory
-
-    EXP_SIZE     = 0x00200,
-    EXP_SIGN     = 0x00400,
-    EXP_SIZE_1   = 0x00800,
-    EXP_SIZE_2   = 0x01000,
-    EXP_SIZE_3   = 0x01800,
-    EXP_SIZE_4   = 0x02000,
-    EXP_C        = 0x04000,
-    EXP_R        = 0x08000,
-    EXP_M        = 0x0c000,
-    EXP_RP       = 0x10000,
-    EXP_SIGNED   = 0x20000,
-    EXP_UNSIGNED = 0x40000,
-
-    XC           = 0x04600, // EXP_C  + EXP_SIZE + EXP_SIGN
-    XR           = 0x08600, // EXP_R  + EXP_SIZE + EXP_SIGN
-    XM           = 0x0c600, // EXP_M  + EXP_SIZE + EXP_SIGN
-    XCI          = 0x24200, // EXP_C  + EXP_SIGNED   + EXP_SIZE
-    XCU          = 0x44200, // EXP_C  + EXP_UNSIGNED + EXP_SIZE
-    XRI          = 0x28200, // EXP_R  + EXP_SIGNED   + EXP_SIZE
-    XRU          = 0x48200, // EXP_R  + EXP_UNSIGNED + EXP_SIZE
-    XMI          = 0x2c200, // EXP_M  + EXP_SIGNED   + EXP_SIZE
-    XMU          = 0x4c200, // EXP_M  + EXP_UNSIGNED + EXP_SIZE
-    XRP          = 0x10200, // EXP_RP + EXP_SIZE
-    XC1          = 0x04c00, // EXP_C  + EXP_SIZE_1 + EXP_SIGN
-    XC2          = 0x05400, // EXP_C  + EXP_SIZE_2 + EXP_SIGN
-    XC3          = 0x05c00, // EXP_C  + EXP_SIZE_3 + EXP_SIGN
-    XC4          = 0x06400, // EXP_C  + EXP_SIZE_4 + EXP_SIGN
-    XR1          = 0x08c00, // EXP_R  + EXP_SIZE_1 + EXP_SIGN
-    XR2          = 0x09400, // EXP_R  + EXP_SIZE_2 + EXP_SIGN
-    XR3          = 0x09c00, // EXP_R  + EXP_SIZE_3 + EXP_SIGN
-    XR4          = 0x0a400, // EXP_R  + EXP_SIZE_4 + EXP_SIGN
-    XM1          = 0x0cc00, // EXP_M  + EXP_SIZE_1 + EXP_SIGN
-    XM2          = 0x0d400, // EXP_M  + EXP_SIZE_2 + EXP_SIGN
-    XM3          = 0x0dc00, // EXP_M  + EXP_SIZE_3 + EXP_SIGN
-    XM4          = 0x0e400, // EXP_M  + EXP_SIZE_4 + EXP_SIGN
-
-    // Operands
-    DST = 1,
-    SRC1,
-    SRC2,
-
-    SV1, // Slot values
-    SV2,
-    SV3,
-    SV4,
-    SV5,
-    SV6,
-    SV7,
-    SV8,
+    NT_NULL,
+#define RULE_NON_TERMINAL_ITEM(non_terminal, size) non_terminal,
+    RULE_NON_TERMINAL_LIST(RULE_NON_TERMINAL_ITEM)
+#undef RULE_NON_TERMINAL_ITEM
 };
+
+#define MAX_RULE_COUNT 9000
+
+// Operands
+#define DST     1
+#define SRC1    2
+#define SRC2    3
+#define SV1     11 // Slot values
+#define SV2     12
+#define SV3     13
+#define SV4     14
+#define SV5     15
+#define SV6     16
+#define SV7     17
+#define SV8     18
+
+// Non terminal flags
+#define EXP_SIZE     0x000200
+#define EXP_SIGN     0x000400
+#define EXP_SIZE_1   0x000800
+#define EXP_SIZE_2   0x001000
+#define EXP_SIZE_3   0x001800
+#define EXP_SIZE_4   0x002000
+#define EXP_C        0x004000
+#define EXP_R        0x008000
+#define EXP_M        0x00c000
+#define EXP_RP       0x010000
+#define EXP_SIGNED   0x020000
+#define EXP_UNSIGNED 0x040000
+#define EXP_STACK    0x080000
+#define EXP_GLOBAL   0x100000
+
+// Wildcard non-terminals that are expanded by code
+#define XC    (EXP_C  |                 EXP_SIZE | EXP_SIGN  )
+#define XR    (EXP_R  |                 EXP_SIZE | EXP_SIGN  )
+#define XM    (EXP_M  |                 EXP_SIZE | EXP_SIGN  )
+#define XMS   (EXP_M  | EXP_STACK    |  EXP_SIZE | EXP_SIGN  )
+#define XMG   (EXP_M  | EXP_GLOBAL   |  EXP_SIZE | EXP_SIGN  )
+#define XCI   (EXP_C  | EXP_SIGNED   |  EXP_SIZE             )
+#define XCU   (EXP_C  | EXP_UNSIGNED |  EXP_SIZE             )
+#define XRI   (EXP_R  | EXP_SIGNED   |  EXP_SIZE             )
+#define XRU   (EXP_R  | EXP_UNSIGNED |  EXP_SIZE             )
+#define XMI   (EXP_M  | EXP_SIGNED   |  EXP_SIZE             )
+#define XMU   (EXP_M  | EXP_UNSIGNED |  EXP_SIZE             )
+#define XRP   (EXP_RP |                 EXP_SIZE             )
+#define XC1   (EXP_C  |                 EXP_SIZE_1 | EXP_SIGN)
+#define XC2   (EXP_C  |                 EXP_SIZE_2 | EXP_SIGN)
+#define XC3   (EXP_C  |                 EXP_SIZE_3 | EXP_SIGN)
+#define XC4   (EXP_C  |                 EXP_SIZE_4 | EXP_SIGN)
+#define XR1   (EXP_R  |                 EXP_SIZE_1 | EXP_SIGN)
+#define XR2   (EXP_R  |                 EXP_SIZE_2 | EXP_SIGN)
+#define XR3   (EXP_R  |                 EXP_SIZE_3 | EXP_SIGN)
+#define XR4   (EXP_R  |                 EXP_SIZE_4 | EXP_SIGN)
+#define XM1   (EXP_M  |                 EXP_SIZE_1 | EXP_SIGN)
+#define XM2   (EXP_M  |                 EXP_SIZE_2 | EXP_SIGN)
+#define XM3   (EXP_M  |                 EXP_SIZE_3 | EXP_SIGN)
+#define XM4   (EXP_M  |                 EXP_SIZE_4 | EXP_SIGN)
 
 typedef struct rule {
     int index;
@@ -1355,12 +1411,12 @@ char *operation_string(int operation);
 void make_value_target_size(Value *v);
 
 #define non_terminal_for_value(v) (v->non_terminal ? v->non_terminal : uncached_non_terminal_for_value(v))
-int uncached_non_terminal_for_value(Value *v);
 // Used to match the root node. It must be an exact match.
 #define match_value_to_rule_dst(v, dst) (non_terminal_for_value(v) == dst)
 
 int match_value_type_to_rule_dst(Value *v, int dst);
 char *value_to_non_terminal_string(Value *v);
+int value_ptr_target_target_size(Value *v);
 int make_target_size_from_non_terminal(int non_terminal);
 void init_rules_by_operation(void);
 void free_rules_by_operation(void);
@@ -1374,6 +1430,8 @@ void add_allocate_label_in_slot(Rule *r, int slot);
 void write_rule_coverage_file(void);
 
 // codegen.c
+#define OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX 0x10000
+
 typedef struct floating_point_literal {
     int type;
     float f;
@@ -1490,7 +1548,7 @@ extern int physical_register_count;
 extern int physical_int_register_count;
 extern int physical_fp_register_count;
 
-extern int match_constant_type_in_instrsel;
+extern int total_function_stack_size_alignment; // The amount to align the total allocated stack for a function
 
 char *target_op_name(int operation);
 void print_target_instruction(void *f, Tac *tac);
@@ -1511,6 +1569,7 @@ void add_function_call_clobbers(char *ig, int vreg_count, LongSet *livenow, Tac 
 
 // Target instruction rules related code
 char *add_size_to_template(char *template, int size);
+int uncached_non_terminal_for_value(Value *v);
 int match_value_to_rule_src(Value *v, int src);
 void define_rules(void);
 void make_load_store_instructions(Function *function);

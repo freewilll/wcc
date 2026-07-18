@@ -2,6 +2,7 @@
 #include "aarch64.h"
 
 int char_is_unsigned_by_default = 1;
+int total_function_stack_size_alignment = 16;
 
 char is_32bit_to_aarch64_size(int is_32bit) {
     return is_32bit ? 'w' : 'x';
@@ -129,6 +130,112 @@ static void remove_self_register_copies(Function *function) {
             if (tac->operation.id == AARCH64_OP_MOV && !tac->operation.is_convert_move) tac->operation.id = IR_NOP;
 }
 
+// Take a mov to register instruction with an immediate constant and convert it up into
+// 1-3 separate mov* instructions.
+Tac *process_integer_constant_move_to_register(Tac *tac) {
+    static const int MOVZ = 0; // Set zeroes
+    static const int MOVN = 1; // Set ones and negate
+    static const int MOVK = 2; // Keep other half words
+
+    // Define all possible templates at compile time to avoid memory allocations
+    static char *templates[3][4][2] = {
+        "movz %vdw, %v1w" ,        "movz %vdx, %v1x" ,
+        "movz %vdw, %v1w, lsl 16", "movz %vdx, %v1x, lsl 16",
+        "movz %vdw, %v1w, lsl 32", "movz %vdx, %v1x, lsl 32",
+        "movz %vdw, %v1w, lsl 48", "movz %vdx, %v1x, lsl 48",
+
+        "movn %vdw, %v1w" ,        "movn %vdx, %v1x" ,
+        "movn %vdw, %v1w, lsl 16", "movn %vdx, %v1x, lsl 16",
+        "movn %vdw, %v1w, lsl 32", "movn %vdx, %v1x, lsl 32",
+        "movn %vdw, %v1w, lsl 48", "movn %vdx, %v1x, lsl 48",
+
+        "movk %vdw, %v1w" ,        "movk %vdx, %v1x" ,
+        "movk %vdw, %v1w, lsl 16", "movk %vdx, %v1x, lsl 16",
+        "movk %vdw, %v1w, lsl 32", "movk %vdx, %v1x, lsl 32",
+        "movk %vdw, %v1w, lsl 48", "movk %vdx, %v1x, lsl 48",
+    };
+
+    Value *dst = tac->dst;
+    Value *src1 = dup_value(tac->src1);
+
+    if (!dst->vreg && !dst->preg) panic("Expected a vreg or preg for dst in process_integer_constant_move_to_register()");
+    if (!src1->is_constant) panic("Expected a constant for src1 in process_integer_constant_move_to_register()");
+
+    long constant_value = src1->int_value;
+    int size_offset = dst->target_size > 3;
+
+    int c[4] = {
+        constant_value         & 0xffff,
+        (constant_value >> 16) & 0xffff,
+        (constant_value >> 32) & 0xffff,
+        (constant_value >> 48) & 0xffff,
+    };
+
+    int zeroes = (c[0] == 0) + (c[1] == 0);
+    int ones = (c[0] == 0xffff) + (c[1] == 0xffff);
+
+    if (dst->target_size > 3) {
+        zeroes += (c[2] == 0) + (c[3] == 0);
+        ones += (c[2] == 0xffff) + (c[3] == 0xffff);
+    }
+
+    tac->operation.id = IR_NOP;
+    tac->dst = 0;
+    tac->src1 = 0;
+    tac->src2 = 0;
+    tac->target_template = NULL;
+
+    int base_operation;
+    int base_value;
+    int negate = 0;
+
+    if (zeroes >= ones) {
+        base_operation = MOVZ;
+        base_value = 0;
+        negate = 0;
+    }
+    else {
+        base_operation = MOVN;
+        base_value = 0xffff;
+        negate = 1;
+    }
+
+    int half_words = dst->target_size > 3 ? 4 : 2;
+
+    int initted = 0;
+    int emissions = 0;
+
+    for (int i = 0; i < half_words; i++) {
+        if (c[i] == base_value) continue;
+
+        tac = new_tac_after(tac, AARCH64_OP_MOV, dst, dup_value(src1), NULL);
+        tac->src1->int_value = c[i];
+        if (!initted) {
+            if (negate)
+                tac->src1->int_value = (~c[i]) & 0xffff;
+            else
+                tac->src1->int_value = c[i];
+
+            tac->target_template = templates[base_operation][i][size_offset];
+            initted = 1;
+        }
+        else {
+            tac->target_template = templates[MOVK][i][size_offset];
+            tac->src1->int_value = c[i];
+        }
+
+        emissions++;
+    }
+
+    if (!emissions) {
+        tac = new_tac_after(tac, AARCH64_OP_MOV, dst, src1, NULL);
+        tac->src1->int_value = 0;
+        tac->target_template = templates[base_operation][0][size_offset];
+    }
+
+    return tac;
+}
+
 void perform_peephole_optimization(Function *function) {
     // remove_stack_self_moves(function); // TODO aarch64
     remove_self_register_copies(function);
@@ -147,7 +254,20 @@ void remove_vreg_self_moves(Function *function) {
     }
 }
 
-void add_spill_code(Function *function) {} // TODO aarch64
+void add_spill_code(Function *function) { // TODO aarch64
+    if (debug_instsel_spilling) printf("\nAdding spill code\n");
+
+    int need_spill_code = 0;
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
+
+        if (tac->dst && tac->dst->spilled)   { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->dst->stack_index); }
+        if (tac->src1 && tac->src1->spilled) { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->src1->stack_index); }
+        if (tac->src2 && tac->src2->spilled) { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->src2->stack_index); }
+    }
+
+    if (need_spill_code) panic("Bailing due to not yet implemented spill code");
+}
 
 // Prepend an instruction that loads the address of tac->dst into a pointer
 static Tac *load_dst_address_into_pointer(Function *function, Tac *tac) {
@@ -164,6 +284,7 @@ void make_load_store_instructions_for_ir_address_ofs(Function *function) {
     // TODO aarch64 more to do here
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
+        // Stores to global symbols always need to go through a pointer in a register
         if (tac->operation.id == IR_MOVE && tac->dst && tac->dst->global_symbol) {
             Tac *load_tac = load_dst_address_into_pointer(function, tac);
             tac->operation.id = IR_MOVE_TO_PTR;
@@ -180,6 +301,75 @@ void make_load_store_instructions(Function *function) {
     make_load_store_instructions_for_ir_address_ofs(function);
 
     // TODO aarch64 more to do here
+}
+
+// Check if an offset can be encoded as [r + offset] in a ldr or str instruction
+int is_ldr_str_immediate_offset(int size, int offset) {
+    // If the offset can be encoded as [sp + n], leave it as is
+    if (size == 1                      && offset <= 4095 ) return 1;
+    if (size == 2 && (offset & 1) == 0 && offset <= 8190 ) return 1;
+    if (size == 3 && (offset & 3) == 0 && offset <= 16380) return 1;
+    if (size == 4 && (offset & 7) == 0 && offset <= 32760) return 1;
+
+    return 0;
+}
+
+// At this point, the total function stack size is known and stack offsets have been updated.
+// Split instructions with r, [sp + offset] with large offsets so that the offset is loaded separately.
+// TODO aarch64 TODO globals
+// TODO aarch64: deal with stack offsets for pushed vars in a function call
+void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
+    int size = tac->src1->target_size;
+    int offset = tac->src1->stack_offset;
+
+    if (offset < 0) panic("Got a negative stack_index: %d", offset);
+
+    if (is_ldr_str_immediate_offset(size, offset)) return;
+
+    // Make a value for the sp register
+    Value *sp = new_value();
+    sp->type = new_type(TYPE_LONG);
+    sp->preg = REG_SP;
+
+    // Make a value for the r14 register
+    Value *r14 = new_value();
+    r14->type = new_type(TYPE_LONG);
+    r14->preg = REG_R14;
+
+    // Make a value for the offset
+    Value *src1 = new_integral_constant(TYPE_LONG, offset);
+
+    // The instructions are inserted in backwards order
+
+    // Add add x14, sp, x14
+    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_ADD, r14, sp, r14, 1);
+    pre_tac->target_template = "add %vdx, %v1x, %v2x";
+
+    // Add mov x14, offset and encode the constant if necessary
+    Tac *pre_tac2 = new_tac_before(pre_tac, AARCH64_OP_MOV, r14, src1, 0, 1);
+    pre_tac2->target_template = "mov %vdx, %v1x";
+    process_integer_constant_move_to_register(pre_tac2);
+
+    // Replace [sp + offset] with [r14]
+    tac->src1->stack_offset = 0;
+    tac->src1->offset = 0;
+    tac->src1->preg = REG_R14;
+}
+
+// Split ldr r, [sp + offset] with large offsets so that the offset is loaded separately
+void add_load_memory_instructions(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->stack_offset)
+            insert_offset_instructions_for_ldr_str_stack_access(tac);
+    }
+}
+
+// Split str r, [sp + offset] with large offsets so that the offset is loaded separately
+void add_store_memory_instructions(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == AARCH64_OP_STR && tac->src1->stack_offset)
+            insert_offset_instructions_for_ldr_str_stack_access(tac);
+    }
 }
 
 // Returns 1 if a 32-bit or 64-bit value can be encoded as an aarch64 logical immediate.

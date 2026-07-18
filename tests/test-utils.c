@@ -48,16 +48,19 @@ void assert_target_op(char *expected) {
 
     got = render_target_operation(ir_start, 0, 0);
 
-    if (!got) {
+    if (!got && expected) {
         printf("Mismatch:\n  expected: %s\n  got:      null\n", expected);
         failures++;
     }
-    else {
-
+    else if (got && expected) {
         if (strcmp(got, expected)) {
             printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
             failures++;
         }
+    }
+    else if ((got && !expected) || (got && !expected)) {
+        printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
+        failures++;
     }
 
     ir_start = ir_start->next;

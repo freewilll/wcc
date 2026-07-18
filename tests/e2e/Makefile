@@ -42,6 +42,7 @@ WCC_TESTS=\
 	expr \
 	pointers \
 	pointer-arithmetic \
+	structs \
 	character-and-string-literals
 endif
 

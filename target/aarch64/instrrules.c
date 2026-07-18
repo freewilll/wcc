@@ -3,8 +3,6 @@
 
 #define MAX_TARGET_OPS_PER_ROLE 32
 
-int match_constant_type_in_instrsel = 1;
-
 // Take a template and convert %v* placeholders and add b, w, l, q to them.
 char *add_size_to_template(char *template, int size) {
     if (!template) return NULL; // Some magic operations have no templates but are implemented in codegen.
@@ -31,8 +29,53 @@ char *add_size_to_template(char *template, int size) {
     return result;
 }
 
+int uncached_non_terminal_for_value(Value *v) {
+    int result;
+
+    if (!v->target_size) make_value_target_size(v);
+    if (v->non_terminal) return v->non_terminal;
+
+    int is_global = !!v->global_symbol;
+    int is_in_stack = !!v->stack_index;
+    int is_local = !is_global && !is_in_stack;
+    int is_pointer = v->type && v->type->type == TYPE_PTR;
+
+         if (v->is_string_literal)                                            result =  STL;
+    else if (v->label)                                                        result =  LAB;
+    else if (v->type->type == TYPE_FUNCTION)                                  result =  FUN;
+    else if (is_local  && is_pointer_to_function_type(v->type))               result =  RPF;
+    else if (is_global && is_pointer_to_function_type(v->type))               result =  MGPF;
+    else if (is_in_stack && is_pointer_to_function_type(v->type))             result =  MSPF;
+    else if (v->type->type == TYPE_STRUCT_OR_UNION)                           result =  MSA;
+    else if (v->type->type == TYPE_ARRAY)                                     result =  MSA;
+
+    // Pointers
+    else if (is_in_stack && is_pointer)                                       result =  MSPV;
+    else if (is_global && is_pointer)                                         result =  MGPV;
+    else if (is_local  && is_pointer)                                         result =  RP1 + value_ptr_target_target_size(v) - 1;
+
+    // Lvalue in register
+    else if (v->is_lvalue_in_register)                                        result =  RP1 + v->target_size - 1;
+
+    // Integers
+    else if (is_in_stack && !v->type->is_unsigned)                            result =  MSI1 + v->target_size - 1;
+    else if (is_global && !v->type->is_unsigned)                              result =  MGI1 + v->target_size - 1;
+    else if (is_local  && !v->type->is_unsigned)                              result =  RI1  + v->target_size - 1;
+    else if (is_in_stack && v->type->is_unsigned)                             result =  MSU1 + v->target_size - 1;
+    else if (is_global && v->type->is_unsigned)                               result =  MGU1 + v->target_size - 1;
+    else if (is_local  &&  v->type->is_unsigned)                              result =  RU1  + v->target_size - 1;
+
+    else
+        panic("\n^ Bad value in non_terminal_for_value()");
+
+    v->non_terminal = result;
+
+    return result;
+}
+
+
 // Used to match a value to a leaf node (operation = 0) src rule
-// There are a couple of possible matches for a constant.
+// All constants are either 32 or 64 bit.
 int match_value_to_rule_src(Value *v, int src) {
     if (v->is_constant) {
         int vtt = v->type->type;
@@ -47,30 +90,21 @@ int match_value_to_rule_src(Value *v, int src) {
         else {
             // Integer constant
 
-                 if (vtt == TYPE_CHAR  && !is_unsigned && src == CI1) return 1;
-            else if (vtt == TYPE_SHORT && !is_unsigned && src == CI2) return 1;
-            else if (vtt == TYPE_INT   && !is_unsigned && src == CI3) return 1;
+                 if (vtt == TYPE_INT   && !is_unsigned && src == CI3) return 1;
             else if (vtt == TYPE_LONG  && !is_unsigned && src == CI4) return 1;
-            else if (vtt == TYPE_CHAR  &&  is_unsigned && src == CU1) return 1;
-            else if (vtt == TYPE_SHORT &&  is_unsigned && src == CU2) return 1;
             else if (vtt == TYPE_INT   &&  is_unsigned && src == CU3) return 1;
             else if (vtt == TYPE_LONG  &&  is_unsigned && src == CU4) return 1;
 
-            else if (vtt == TYPE_PTR && src == CI1) return 1;
-            else if (vtt == TYPE_PTR && src == CI2) return 1;
             else if (vtt == TYPE_PTR && src == CI3) return 1;
             else if (vtt == TYPE_PTR && src == CI4) return 1;
-            else if (vtt == TYPE_PTR && src == CU1) return 1;
-            else if (vtt == TYPE_PTR && src == CU2) return 1;
             else if (vtt == TYPE_PTR && src == CU3) return 1;
             else if (vtt == TYPE_PTR && src == CU4) return 1;
 
             // Check if the constant can be encoded in the add/sub instructions family.
             // It must be a 12-bit immediate, optionally shifted left by 12 bits.
             // Either the constant is < 4096 or it is a multiple of 4096 (1<<12) and ((constant >> 12) <= 4095).
-            else if (src == CADDSUB && ((v->int_value < 0x1000) || ((v->int_value & 0xfff) == 0) && ((v->int_value >> 12) < 0x1000)))
+            else if (src == CADDSUB && IS_ADD_SUB_IMMEDIATE(v->int_value))
                 return 1;
-
 
             else if (src == CLOG3 && is_logical_immediate(v->int_value, 1))
                 return 1;
@@ -188,15 +222,15 @@ static void add_int_register_move_rules(void) {
             else {
                 if (src_size == 1) {
                     r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "and %vdw, %v1w, 255" : "and %vdx, %v1x, 255");
+                    add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "and %vdw, %v1w, 255" : "and %vdx, %v1x, 255");
                 }
                 else if (src_size == 2) {
                     r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "and %vdw, %v1w, 65535" : "and %vdx, %v1x, 65535");
+                    add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "and %vdw, %v1w, 65535" : "and %vdx, %v1x, 65535");
                 }
                 else if (src_size == 3) {
                     r = add_rule(dst, IR_MOVE, src, 0, 1);
-                    add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "mov %vdw, %v1w" : "mov %vdw, %v1w");
+                    add_convert_move_op(r, AARCH64_OP_BAND,  DST, SRC1, 0, dst_is_32_bit ? "mov %vdw, %v1w" : "mov %vdw, %v1w");
 
                 }
                 else if (src_size == 4)
@@ -204,6 +238,54 @@ static void add_int_register_move_rules(void) {
             }
         }
     }
+}
+
+// In practice, these rules deal with assignment of constants to memory.
+// The constants are first loaded into registers as leaf nodes.
+// Writes to the memory then need to deal with the registers the constants have been loaded into,
+// which are either 32 or 64 bit.
+static void add_register_memory_move_rules(void) {
+    Rule *r;
+
+    // Signed
+    r = add_rule(MSI1, IR_MOVE, RI1, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSI1, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSI1, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSI1, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSI1, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSI2, IR_MOVE, RI2, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSI2, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSI2, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSI2, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSI2, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSI3, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+    r = add_rule(MSI3, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+    r = add_rule(MSI3, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+    r = add_rule(MSI3, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+    r = add_rule(MSI4, IR_MOVE, RI3, 0, 3); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "sxtw %v1x, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSI4, IR_MOVE, RU3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSI4, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSI4, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+
+    // Unsigned
+    r = add_rule(MSU1, IR_MOVE, RU1, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSU1, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSU1, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSU1, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSU1, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+    r = add_rule(MSU2, IR_MOVE, RU2, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSU2, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSU2, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSU2, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSU2, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+    r = add_rule(MSU3, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+    r = add_rule(MSU3, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+    r = add_rule(MSU3, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+    r = add_rule(MSU3, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+    r = add_rule(MSU4, IR_MOVE, RI3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSU4, IR_MOVE, RU3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSU4, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    r = add_rule(MSU4, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
 }
 
 static void add_one_operand_rules(char *target_operand, int base1, int base2, int operation, int target_operation, int cost) {
@@ -394,21 +476,28 @@ static void add_conditional_zero_jump_rule(int operation, int src1, int src2, in
     fin_rule(r);
 }
 
-static void add_load_address_rule(int dst, int src1, int operation) {
+// In aarch64, memory moves into a register are done on the leaf nodes
+static void add_stack_memory_into_register_rule(int dst, int src1, char *template) {
+    Rule *r = add_rule(dst, 0, src1, 0, 4);
+    add_op(r, AARCH64_OP_LDR,  DST, SRC1, 0, template);
+}
+
+static void add_load_global_address_rule(int dst, int src1, int operation) {
     Rule *r = add_rule(dst, operation, src1,  0, 4);
     add_op(r, AARCH64_OP_ADRP,     DST, SRC1, 0, "adrp %vdx, %v1");
     add_op(r, AARCH64_OP_ADD_LO12, DST, SRC1, 0, "add %vdx, %vdx, :lo12:%v1");
 }
 
-static void add_load_address_to_rule_into_sv1(Rule *r, int src1) {
+static void add_load_global_address_to_rule_into_sv1(Rule *r, int src1) {
     add_allocate_register_in_slot(r, 1, TYPE_LONG);
     add_op(r, AARCH64_OP_ADRP,     SV1, SRC1, 0, "adrp %vdx, %v1");
     add_op(r, AARCH64_OP_ADD_LO12, SV1, SRC1, 0, "add %vdx, %vdx, :lo12:%v1");
 }
 
-static void add_memory_into_register_rule(int dst, int src1, char *template) {
+// In aarch64, memory moves into a register are done on the leaf nodes
+static void add_global_memory_into_register_rule(int dst, int src1, char *template) {
     Rule *r = add_rule(dst, 0, src1, 0, 4);
-    add_load_address_to_rule_into_sv1(r, src1);
+    add_load_global_address_to_rule_into_sv1(r, src1);
     add_op(r, AARCH64_OP_LDR,  DST, SV1,  0, template);
 }
 
@@ -421,49 +510,45 @@ static void add_pointer_rules() {
     Rule *r;
 
     // Move pointer to string literal into register
-    add_load_address_rule(RP1, STL, IR_MOVE);
-    add_load_address_rule(RP3, STL, IR_MOVE); // For wchar_t
+    add_load_global_address_rule(RP1, STL, IR_MOVE);
+    add_load_global_address_rule(RP3, STL, IR_MOVE); // For wchar_t
 
-    // Register - register moves
+    // Register -> register moves
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RP1; src <= RP5; src++) add_pointer_move_rule(dst, src, 0);
     for (int dst = RI1; dst <= RI4; dst++) for (int src = RP1; src <= RP5; src++) add_pointer_move_rule(dst, src, 0);
     for (int dst = RU1; dst <= RU4; dst++) for (int src = RP1; src <= RP5; src++) add_pointer_move_rule(dst, src, 0);
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RI1; src <= RI4; src++) add_pointer_move_rule(dst, src, 0);
     for (int dst = RP1; dst <= RP5; dst++) for (int src = RU1; src <= RU4; src++) add_pointer_move_rule(dst, src, 0);
 
-    // Memory - register rules
-    // In aarch64, memory moves into a register are done on the leaf nodes
-    add_memory_into_register_rule(RI1, MI1, "ldrb %vdw, [%v1x]");
-    add_memory_into_register_rule(RU1, MU1, "ldrb %vdw, [%v1x]");
-    add_memory_into_register_rule(RI2, MI2, "ldrh %vdw, [%v1x]");
-    add_memory_into_register_rule(RU2, MU2, "ldrh %vdw, [%v1x]");
-    add_memory_into_register_rule(RI3, MI3, "ldr %vdw, [%v1x]");
-    add_memory_into_register_rule(RU3, MU3, "ldr %vdw, [%v1x]");
-    add_memory_into_register_rule(RI4, MI4, "ldr %vdx, [%v1x]");
-    add_memory_into_register_rule(RU4, MU4, "ldr %vdx, [%v1x]");
+    // Global -> register rules
+    add_global_memory_into_register_rule(RP1, MGPV, "ldr  %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RP2, MGPV, "ldr  %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RP3, MGPV, "ldr  %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RP4, MGPV, "ldr  %vdx, [%v1x]");
 
-    add_memory_into_register_rule(RP1, MPV, "ldr %vdx, [%v1x]");
-    add_memory_into_register_rule(RP2, MPV, "ldr %vdx, [%v1x]");
-    add_memory_into_register_rule(RP3, MPV, "ldr %vdx, [%v1x]");
-    add_memory_into_register_rule(RP4, MPV, "ldr %vdx, [%v1x]");
+    // Stack -> register rules
+    add_stack_memory_into_register_rule(RP1, MSPV, "ldr  %vdx, [%v1x]");
+    add_stack_memory_into_register_rule(RP2, MSPV, "ldr  %vdx, [%v1x]");
+    add_stack_memory_into_register_rule(RP3, MSPV, "ldr  %vdx, [%v1x]");
+    add_stack_memory_into_register_rule(RP4, MSPV, "ldr  %vdx, [%v1x]");
 
     // Address loads
     // Any ADDRESS_OF a pointer in a register must be lvalues. Therefore, a adrp/add converts them from an lvalue into an rvalue
 
     // Common rules for IR_ADDRESS_OF and IR_ADDRESS_OF_FROM_GOT
-    add_load_address_rule(RP1, MI1, IR_ADDRESS_OF);
-    add_load_address_rule(RP1, MU1, IR_ADDRESS_OF);
-    add_load_address_rule(RP2, MI2, IR_ADDRESS_OF);
-    add_load_address_rule(RP2, MU2, IR_ADDRESS_OF);
-    add_load_address_rule(RP3, MU3, IR_ADDRESS_OF);
-    add_load_address_rule(RP3, MI3, IR_ADDRESS_OF);
-    add_load_address_rule(RP4, MU4, IR_ADDRESS_OF);
-    add_load_address_rule(RP4, MI4, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP1, MGI1, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP1, MGU1, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP2, MGI2, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP2, MGU2, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP3, MGU3, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP3, MGI3, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP4, MGU4, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP4, MGI4, IR_ADDRESS_OF);
 
-    add_load_address_rule(RP1, MPV, IR_ADDRESS_OF);
-    add_load_address_rule(RP2, MPV, IR_ADDRESS_OF);
-    add_load_address_rule(RP3, MPV, IR_ADDRESS_OF);
-    add_load_address_rule(RP4, MPV, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP1, MGPV, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP2, MGPV, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP3, MGPV, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP4, MGPV, IR_ADDRESS_OF);
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++) {
@@ -478,10 +563,10 @@ static void add_pointer_rules() {
     r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RU1, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
     r = add_rule(RP2, IR_MOVE_TO_PTR, RP2, RI2, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strh %v2w, [%v1x]");
     r = add_rule(RP2, IR_MOVE_TO_PTR, RP2, RU2, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strh %v2w, [%v1x]");
-    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2w, [%v1x]");
-    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RU3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2w, [%v1x]");
-    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
-    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str %v2x, [%v1x]");
+    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2w, [%v1x]");
+    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RU3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2w, [%v1x]");
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
 
     // Integer constants can be loaded into registers, which can then be assigned to a pointer to a pointer,
     // e.g. char *gpc; // Define a global char
@@ -506,27 +591,49 @@ void define_rules(void) {
     r = add_rule(CLOG3,    0, CLOG3,    0, 0);
     r = add_rule(CLOG4,    0, CLOG4,    0, 0);
     r = add_rule(XR,       0, XR,       0, 0); fin_rule(r);
-    r = add_rule(XM,       0, XM,       0, 0); fin_rule(r);
+    r = add_rule(XMS,      0, XMS,      0, 0); fin_rule(r);
+    r = add_rule(XMG,      0, XMG,      0, 0); fin_rule(r);
     r = add_rule(XRP,      0, XRP,      0, 0); fin_rule(r);
-    r = add_rule(MPV,      0, MPV,      0, 0);
+    r = add_rule(MGPV,     0, MGPV,     0, 0);
     r = add_rule(STL,      0, STL,      0, 0);
     r = add_rule(FUN,      0, FUN,      0, 0);
     r = add_rule(LAB,      0, LAB,      0, 0);
 
-    // Load integer constants into registers
-    r = add_rule(XR1, 0, XC1, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
-    r = add_rule(XR2, 0, XC2, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
+    // Load integer constants into registers, both 32 and 64 bit
     r = add_rule(XR3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
-    r = add_rule(XR4, 0, XC4, 0, 2); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r); // The cost is 2 to encourage loading into a 32-bit register if possible.
+    r = add_rule(XR4, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r); // Allow 32-bit constants to be loaded into 64-bit registers
+    r = add_rule(XR4, 0, XC4, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
 
     // Move constant into pointer in register
-    r = add_rule(RP1, 0, XC1, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
-    r = add_rule(RP2, 0, XC2, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
     r = add_rule(RP3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
-    r = add_rule(RP4, 0, XC4, 0, 2); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r); // The cost is 2 to encourage loading into a 32-bit register if possible.
+    r = add_rule(RP4, 0, XC4, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
 
     // Register -> register move rules
     add_int_register_move_rules();
+
+    // Memory -> register move rules
+    // Global -> register moves
+    add_global_memory_into_register_rule(RI1, MGI1, "ldrb %vdw, [%v1x]"); // Integers
+    add_global_memory_into_register_rule(RU1, MGU1, "ldrb %vdw, [%v1x]");
+    add_global_memory_into_register_rule(RI2, MGI2, "ldrh %vdw, [%v1x]");
+    add_global_memory_into_register_rule(RU2, MGU2, "ldrh %vdw, [%v1x]");
+    add_global_memory_into_register_rule(RI3, MGI3, "ldr  %vdw, [%v1x]");
+    add_global_memory_into_register_rule(RU3, MGU3, "ldr  %vdw, [%v1x]");
+    add_global_memory_into_register_rule(RI4, MGI4, "ldr  %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RU4, MGU4, "ldr  %vdx, [%v1x]");
+
+    // Stack -> register moves
+    add_stack_memory_into_register_rule(RI1, MSI1, "ldrb %vdw, [%v1x]"); // Integers
+    add_stack_memory_into_register_rule(RU1, MSU1, "ldrb %vdw, [%v1x]");
+    add_stack_memory_into_register_rule(RI2, MSI2, "ldrh %vdw, [%v1x]");
+    add_stack_memory_into_register_rule(RU2, MSU2, "ldrh %vdw, [%v1x]");
+    add_stack_memory_into_register_rule(RI3, MSI3, "ldr  %vdw, [%v1x]");
+    add_stack_memory_into_register_rule(RU3, MSU3, "ldr  %vdw, [%v1x]");
+    add_stack_memory_into_register_rule(RI4, MSI4, "ldr  %vdx, [%v1x]");
+    add_stack_memory_into_register_rule(RU4, MSU4, "ldr  %vdx, [%v1x]");
+
+    // Register -> memory move rules
+    add_register_memory_move_rules();
 
     add_pointer_rules();
 

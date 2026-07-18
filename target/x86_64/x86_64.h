@@ -29,8 +29,6 @@ enum {
     REG_XMM15,
 };
 
-#define OVERFLOW_AREA_ADDRESS_MAGIC_STACK_INDEX 256
-
 enum {
     // Liveness interval indexes corresponding to reserved physical registers
 

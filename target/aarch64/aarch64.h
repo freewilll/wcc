@@ -3,6 +3,9 @@
 
 #include "../../wcc.h"
 
+// Can a 64-bit constant be encoded when use in the add/sub instructions family?
+#define IS_ADD_SUB_IMMEDIATE(l) (((l) < 0x1000) || (((l) & 0xfff) == 0) && (((l) >> 12) < 0x1000))
+
 // Physical registers
 enum {
     // Integers
@@ -184,6 +187,11 @@ extern int clobbered_registers_in_function_call_count;
 char size_to_aarch64_size(int size);
 char is_32bit_to_aarch64_size(int is_32bit);
 
+Tac *process_integer_constant_move_to_register(Tac *tac);
+
 int is_logical_immediate(unsigned long l, int is_32bit);
+
+void add_load_memory_instructions(Function *function);
+void add_store_memory_instructions(Function *function);
 
 #endif
