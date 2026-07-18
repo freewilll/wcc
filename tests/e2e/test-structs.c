@@ -232,7 +232,64 @@ void test_big_local_structs() {
     assert_int(1, s.i, "Big local struct 3");
 }
 
-void test_loads_and_stores_in_stack() {
+void test_global_loads_and_stores() {
+    // Assignments from registers
+    signed   long  sp = 21; gcfs.sp = sp; assert_int(21, gcfs.sp, "Global struct load/store from register 1l");
+    signed   char  sc = 22; gcfs.sc = sc; assert_int(22, gcfs.sc, "Global struct load/store from register 2l");
+    signed   short ss = 23; gcfs.ss = ss; assert_int(23, gcfs.ss, "Global struct load/store from register 3l");
+    signed   int   si = 24; gcfs.si = si; assert_int(24, gcfs.si, "Global struct load/store from register 4l");
+    signed   long  sl = 25; gcfs.sl = sl; assert_int(25, gcfs.sl, "Global struct load/store from register 5l");
+    unsigned char  uc = 26; gcfs.uc = uc; assert_int(26, gcfs.uc, "Global struct load/store from register 6l");
+    unsigned short us = 27; gcfs.us = us; assert_int(27, gcfs.us, "Global struct load/store from register 7l");
+    unsigned int   ui = 28; gcfs.ui = ui; assert_int(28, gcfs.ui, "Global struct load/store from register 8l");
+    unsigned long  ul = 29; gcfs.ul = ul; assert_int(29, gcfs.ul, "Global struct load/store from register 9l");
+
+    // 32-bit constant assignment
+    gcfs.sp = 1; assert_int(1, gcfs.sp, "Global struct load/store from constant 1s");
+    gcfs.sc = 2; assert_int(2, gcfs.sc, "Global struct load/store from constant 2s");
+    gcfs.ss = 3; assert_int(3, gcfs.ss, "Global struct load/store from constant 3s");
+    gcfs.si = 4; assert_int(4, gcfs.si, "Global struct load/store from constant 4s");
+    gcfs.sl = 5; assert_int(5, gcfs.sl, "Global struct load/store from constant 5s");
+    gcfs.uc = 6; assert_int(6, gcfs.uc, "Global struct load/store from constant 6s");
+    gcfs.us = 7; assert_int(7, gcfs.us, "Global struct load/store from constant 7s");
+    gcfs.ui = 8; assert_int(8, gcfs.ui, "Global struct load/store from constant 8s");
+    gcfs.ul = 9; assert_int(9, gcfs.ul, "Global struct load/store from constant 9s");
+
+    // 32-bit unsigned constant assigment
+    gcfs.sp = 11U; assert_int(11, gcfs.sp, "Global struct load/store from constant 1u");
+    gcfs.sc = 12U; assert_int(12, gcfs.sc, "Global struct load/store from constant 2u");
+    gcfs.ss = 13U; assert_int(13, gcfs.ss, "Global struct load/store from constant 3u");
+    gcfs.si = 14U; assert_int(14, gcfs.si, "Global struct load/store from constant 4u");
+    gcfs.sl = 15U; assert_int(15, gcfs.sl, "Global struct load/store from constant 5u");
+    gcfs.uc = 16U; assert_int(16, gcfs.uc, "Global struct load/store from constant 6u");
+    gcfs.us = 17U; assert_int(17, gcfs.us, "Global struct load/store from constant 7u");
+    gcfs.ui = 18U; assert_int(18, gcfs.ui, "Global struct load/store from constant 8u");
+    gcfs.ul = 19U; assert_int(19, gcfs.ul, "Global struct load/store from constant 9u");
+
+    // 64-bit long unsigned constant assigment
+    gcfs.sp = 11LU; assert_int(11, gcfs.sp, "Global struct load/store from constant 1llu");
+    gcfs.sc = 12LU; assert_int(12, gcfs.sc, "Global struct load/store from constant 2llu");
+    gcfs.ss = 13LU; assert_int(13, gcfs.ss, "Global struct load/store from constant 3llu");
+    gcfs.si = 14LU; assert_int(14, gcfs.si, "Global struct load/store from constant 4llu");
+    gcfs.sl = 15LU; assert_int(15, gcfs.sl, "Global struct load/store from constant 5llu");
+    gcfs.uc = 16LU; assert_int(16, gcfs.uc, "Global struct load/store from constant 6llu");
+    gcfs.us = 17LU; assert_int(17, gcfs.us, "Global struct load/store from constant 7llu");
+    gcfs.ui = 18LU; assert_int(18, gcfs.ui, "Global struct load/store from constant 8lu");
+    gcfs.ul = 19LU; assert_int(19, gcfs.ul, "Global struct load/store from constant 9lu");
+
+    // 64-bit long constant assigment
+    gcfs.sp = 11L; assert_int(11, gcfs.sp, "Global struct load/store from constant 1l");
+    gcfs.sc = 12L; assert_int(12, gcfs.sc, "Global struct load/store from constant 2l");
+    gcfs.ss = 13L; assert_int(13, gcfs.ss, "Global struct load/store from constant 3l");
+    gcfs.si = 14L; assert_int(14, gcfs.si, "Global struct load/store from constant 4l");
+    gcfs.sl = 15L; assert_int(15, gcfs.sl, "Global struct load/store from constant 5l");
+    gcfs.uc = 16L; assert_int(16, gcfs.uc, "Global struct load/store from constant 6l");
+    gcfs.us = 17L; assert_int(17, gcfs.us, "Global struct load/store from constant 7l");
+    gcfs.ui = 18L; assert_int(18, gcfs.ui, "Global struct load/store from constant 8l");
+    gcfs.ul = 19L; assert_int(19, gcfs.ul, "Global struct load/store from constant 9l");
+}
+
+void test_stack_loads_and_stores() {
     struct cfs s;
 
     // Assignments from registers
@@ -1383,7 +1440,8 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     test_big_local_structs();
-    test_loads_and_stores_in_stack();
+    test_global_loads_and_stores();
+    test_stack_loads_and_stores();
 #ifdef __x86_64__
     test_simple_struct();
     test_sizeof();

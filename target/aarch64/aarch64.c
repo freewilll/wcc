@@ -278,33 +278,43 @@ static Tac *load_dst_address_into_pointer(Function *function, Tac *tac) {
 }
 
 // Convert stores to global variables to a IR_ADDRESS_OF of the global, followed by a IR_MOVE_TO_PTR
-void make_load_store_instructions_for_ir_address_ofs(Function *function) {
+static void make_load_store_instructions_for_ir_address_ofs(Function *function) {
     make_vreg_count(function, live_range_reserved_pregs_offset);
-
-    // TODO aarch64 more to do here
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Stores to global symbols always need to go through a pointer in a register
         if (tac->operation.id == IR_MOVE && tac->dst && tac->dst->global_symbol) {
-            Tac *load_tac = load_dst_address_into_pointer(function, tac);
+            int offset = tac->dst->offset;
+            tac->dst->offset = 0;
+
+            Value *new_dst = new_value();
+            new_dst->type = make_pointer(tac->dst->type);
+            new_dst->vreg = ++function->vreg_count;
+            Tac *load_tac =new_tac_before(tac, IR_ADDRESS_OF, new_dst, tac->dst, 0, 1);
+
             tac->operation.id = IR_MOVE_TO_PTR;
             tac->src2 = tac->src1;
-            tac->src1 = load_tac->dst;
+            tac->src1 = dup_value(load_tac->dst);
             tac->dst = NULL;
+
+            if (offset) {
+                Value *new_dst2 = dup_value(new_dst);
+                new_dst->vreg = ++function->vreg_count;
+                Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+                new_tac_before(tac, IR_ADD, new_dst2, new_dst, offset_value, 1);
+                tac->src1 = new_dst2;
+            }
         }
     }
 }
 
 void make_load_store_instructions(Function *function) {
     make_vreg_count(function, live_range_reserved_pregs_offset);
-
     make_load_store_instructions_for_ir_address_ofs(function);
-
-    // TODO aarch64 more to do here
 }
 
 // Check if an offset can be encoded as [r + offset] in a ldr or str instruction
-int is_ldr_str_immediate_offset(int size, int offset) {
+static int is_ldr_str_immediate_offset(int size, int offset) {
     // If the offset can be encoded as [sp + n], leave it as is
     if (size == 1                      && offset <= 4095 ) return 1;
     if (size == 2 && (offset & 1) == 0 && offset <= 8190 ) return 1;
@@ -318,7 +328,7 @@ int is_ldr_str_immediate_offset(int size, int offset) {
 // Split instructions with r, [sp + offset] with large offsets so that the offset is loaded separately.
 // TODO aarch64 TODO globals
 // TODO aarch64: deal with stack offsets for pushed vars in a function call
-void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
+static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     int size = tac->src1->target_size;
     int offset = tac->src1->stack_offset;
 
@@ -337,7 +347,7 @@ void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     r14->preg = REG_R14;
 
     // Make a value for the offset
-    Value *src1 = new_integral_constant(TYPE_LONG, offset);
+    Value *offset_value = new_integral_constant(TYPE_LONG, offset);
 
     // The instructions are inserted in backwards order
 
@@ -346,7 +356,7 @@ void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     pre_tac->target_template = "add %vdx, %v1x, %v2x";
 
     // Add mov x14, offset and encode the constant if necessary
-    Tac *pre_tac2 = new_tac_before(pre_tac, AARCH64_OP_MOV, r14, src1, 0, 1);
+    Tac *pre_tac2 = new_tac_before(pre_tac, AARCH64_OP_MOV, r14, offset_value, 0, 1);
     pre_tac2->target_template = "mov %vdx, %v1x";
     process_integer_constant_move_to_register(pre_tac2);
 
@@ -356,11 +366,31 @@ void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     tac->src1->preg = REG_R14;
 }
 
-// Split ldr r, [sp + offset] with large offsets so that the offset is loaded separately
+// A pointer to a global symbol has been loaded into a register. Add an add instruction for the offset
+static Tac *insert_offset_add_for_ldr_global_access(Tac *tac) {
+    if (!tac->prev || tac->prev->operation.id != AARCH64_OP_ADRP)
+        panic("Missing preceding AARCH64_OP_ADRP in a AARCH64_OP_ADD_LO12 instruction");
+
+    Value *offset_value = new_integral_constant(TYPE_LONG, tac->src1->offset);
+    tac->prev->src1->offset = 0;
+    tac->src1->offset = 0;
+    tac = new_tac_after(tac, AARCH64_OP_ADD, tac->dst, tac->dst, offset_value);
+    tac->target_template = "add %vdx, %v1x, %v2x";
+
+    return tac;
+}
+
 void add_load_memory_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->stack_offset)
+        // Split ldr r, [sp + offset] with large offsets so that the offset is loaded separately
+        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->stack_offset) {
             insert_offset_instructions_for_ldr_str_stack_access(tac);
+        }
+
+        // Add an add of the offset if a pointer to global has been loaded into a register
+        if (tac->operation.id == AARCH64_OP_ADD_LO12 && tac->src1->global_symbol && tac->src1->offset) {
+            tac = insert_offset_add_for_ldr_global_access(tac);
+        }
     }
 }
 

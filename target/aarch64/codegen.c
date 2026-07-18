@@ -148,7 +148,7 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                 if (v->offset) {
                     // This code normally has been called after offsets have been removed.
                     // However, debug prints can lead to this codepath being run.
-                    sprintf(buffer, "%s + offset", v->global_symbol->global_identifier, v->offset);
+                    sprintf(buffer, "%s + offset %d", v->global_symbol->global_identifier, v->offset);
                 }
                 else {
                     if (v->load_from_got)
