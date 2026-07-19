@@ -419,6 +419,10 @@ int is_pointer_to_void(Type *type) {
     return type->type == TYPE_PTR && type->target->type == TYPE_VOID;
 }
 
+int is_pointer_to_char(Type *type) {
+    return type->type == TYPE_PTR && type->target->type == TYPE_CHAR;
+}
+
 int is_pointer_or_array_type(Type *type) {
     return type->type == TYPE_PTR || type->type == TYPE_ARRAY;
 }

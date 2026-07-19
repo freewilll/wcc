@@ -1105,6 +1105,7 @@ int is_pointer_to_object_type(Type *type);
 int is_pointer_to_function_type(Type *type);
 int is_null_pointer(Value *v);
 int is_pointer_to_void(Type *type);
+int is_pointer_to_char(Type *type);
 int type_fits_in_single_int_register(Type *type);
 int get_type_size(Type *type);
 int get_type_alignment(Type *type);

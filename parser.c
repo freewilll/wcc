@@ -1719,6 +1719,11 @@ static void check_simple_assignment_types(Value *dst, Value *src) {
 
         if (is_pointer_to_void(dst->type) || is_pointer_to_void(src->type)) return;
 
+        // Allow pointers to char with different signedness to be considered compatible.
+        // gcc and clang both do this. This is mostly for aarch64, in which chars are unsigned
+        // by default, and char *c = "foo" would produce an error.
+        if (is_pointer_to_char(dst->type) && is_pointer_to_char(src->type)) return;
+
         if (error_incomptatible_pointer_type) error("Incompatible pointer types");
         return;
     }
