@@ -123,8 +123,6 @@ void test_pointer_to_char() {
     assert_int('o', *pc, "pointer to char 1"); *pc++;
 }
 
-#ifdef __x86_64__
-
 int *aopta() {
     return malloc(sizeof(int));
 }
@@ -200,6 +198,8 @@ void test_bracket_lookup() {
     assert_int(2, *pi,       "[] 4");
     assert_int(3, *(pi + 1), "[] 5");
 }
+
+#ifdef __x86_64__
 
 void test_array_lookup_of_string_literal() {
     assert_string("foobar", &"foobar"[0], "array lookup of string literal 1");
@@ -578,12 +578,12 @@ int main(int argc, char **argv) {
     test_pointer_to_int5();
     test_pointer_to_int6();
     test_pointer_to_char();
-    #ifdef __x86_64__
     test_assignment_of_pointer_to_array();
     test_double_dereference1();
     test_double_dereference2();
     test_string_copy();
     test_bracket_lookup();
+    #ifdef __x86_64__
     test_array_lookup_of_string_literal();
     test_casting();
     test_int_char_interbreeding();

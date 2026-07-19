@@ -90,8 +90,8 @@ static void add_function_call_result_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id != IR_CALL || !ir->dst) continue;
 
-        if (!is_integer_type(ir->dst->type))
-            panic("TODO aarch64: add_function_call_result_moves() function return value for non-integer types");
+        if (ir->dst && ir->dst->type->type == TYPE_STRUCT_OR_UNION || is_floating_point_type(ir->dst->type))
+            panic("TODO aarch64: add_function_call_result_moves() function return value in callee for non-integer types");
 
         Value *value = dup_value(ir->dst);
         value->vreg = ++function->vreg_count;
@@ -111,8 +111,8 @@ static void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation.id == IR_RETURN && !ir->src1) || ir->operation.id != IR_RETURN) continue;
 
-        if (!is_integer_type(ir->src1->type))
-            panic("TODO aarch64: add_function_return_moves() function return value for non-integer types");
+        if (ir->dst && (ir->dst->type->type == TYPE_STRUCT_OR_UNION || is_floating_point_type(ir->dst->type)))
+            panic("TODO aarch64: add_function_return_moves() function return value in caller for non-integer types");
 
         int live_range_preg = LIVE_RANGE_PREG_R00;
 
