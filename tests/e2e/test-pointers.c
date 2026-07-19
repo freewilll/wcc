@@ -30,12 +30,10 @@ void test_pointer_to_int1() {
     assert_int(1, g, "pointer to int 1-1");
 }
 
-#ifdef __x86_64__
 void test_pointer_to_int2() {
     // Special case of pi being on the stack, due to use of &pi
     // **ppi is only assigned to once
 
-    int i;
     int *pi;
     int **ppi;
 
@@ -44,13 +42,17 @@ void test_pointer_to_int2() {
     ppi = &pi;
     *pi = 1;
     assert_int(1, g, "pointer to int 2-1");
+#ifdef __x86_64__
     assert_int(1, *pi, "pointer to int 2-2");
     assert_int(1, **ppi, "pointer to int 2-3");
 
     **ppi = 2;
     assert_int(2, g,     "pointer to int 2-4");
     assert_int(2, **ppi, "pointer to int 3-5");
+#endif
 }
+
+#ifdef __x86_64__
 
 void test_pointer_to_int3() {
     // Special case of pi being on the stack, due to use of &pi

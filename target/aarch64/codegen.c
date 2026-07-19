@@ -305,6 +305,7 @@ void add_final_instructions(Function *function) {
     make_aarch64_stack_offsets(function);
     add_load_memory_instructions(function);
     add_store_memory_instructions(function);
+    add_address_of_instructions(function);
 
     prepare_x29_x30_stack_saves(function);
     int *saved_registers = make_saved_registers(function);

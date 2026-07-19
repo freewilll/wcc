@@ -173,6 +173,7 @@ enum aarch64_instruction_op {
     AARCH64_OP_ALLOCATE_STACK,
     AARCH64_OP_DEALLOCATE_STACK,
     AARCH64_OP_ADRP,
+    AARCH64_OP_ADDRESS_OF               // Pseudo operation
 };
 
 enum target_rule_non_terminals {
@@ -193,5 +194,6 @@ int is_logical_immediate(unsigned long l, int is_32bit);
 
 void add_load_memory_instructions(Function *function);
 void add_store_memory_instructions(Function *function);
+void add_address_of_instructions(Function *function);
 
 #endif

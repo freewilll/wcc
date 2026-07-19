@@ -49,6 +49,7 @@ char *target_op_name(int operation) {
         case AARCH64_OP_ALLOCATE_STACK:     return "allocst";       // Used in codegen
         case AARCH64_OP_DEALLOCATE_STACK:   return "deallocst";     // Used in codegen
         case AARCH64_OP_ADRP:               return "adrp";
+        case AARCH64_OP_ADDRESS_OF:         return "address-of";
 
         default:                        panic("Unknown aarch64 operation %d", operation);
     }
@@ -93,6 +94,7 @@ void print_target_instruction(void *f, Tac *tac) {
         case AARCH64_OP_LSR:
         case AARCH64_OP_ASR:
         case AARCH64_OP_ADRP:
+        case AARCH64_OP_ADDRESS_OF:
         case AARCH64_OP_CMP:
             fprintf(f, "%-12s", operation_string(o));
             print_value(f, tac->dst, 1);
@@ -326,7 +328,6 @@ static int is_ldr_str_immediate_offset(int size, int offset) {
 
 // At this point, the total function stack size is known and stack offsets have been updated.
 // Split instructions with r, [sp + offset] with large offsets so that the offset is loaded separately.
-// TODO aarch64 TODO globals
 // TODO aarch64: deal with stack offsets for pushed vars in a function call
 static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     int size = tac->src1->target_size;
@@ -399,6 +400,29 @@ void add_store_memory_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->operation.id == AARCH64_OP_STR && tac->src1->stack_offset)
             insert_offset_instructions_for_ldr_str_stack_access(tac);
+    }
+}
+
+// Add code to get the address of variable on the stack,
+// with the pseudo operation AARCH64_OP_ADDRESS_OF.
+void add_address_of_instructions(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id != AARCH64_OP_ADDRESS_OF) continue;
+
+        // Make a value for the sp register
+        Value *sp = new_value();
+        sp->type = new_type(TYPE_LONG);
+        sp->preg = REG_SP;
+
+        // Make a value for the offset
+        int offset = tac->src1->stack_offset + tac->src1->offset;
+
+        Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+
+        tac->operation.id = AARCH64_OP_ADD;
+        tac->src1 = sp;
+        tac->src2 = offset_value;
+        tac->target_template = "add %vdx, %v1x, %v2x";
     }
 }
 
