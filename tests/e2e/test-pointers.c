@@ -75,8 +75,6 @@ void test_pointer_to_int3() {
     assert_int(4, i, "pointer to int 3-5");
 }
 
-#ifdef __x86_64__
-
 void test_pointer_to_int4() {
     // Assignment to j without reuse
 
@@ -125,6 +123,7 @@ void test_pointer_to_char() {
     assert_int('o', *pc, "pointer to char 1"); *pc++;
 }
 
+#ifdef __x86_64__
 
 int *aopta() {
     return malloc(sizeof(int));
@@ -573,13 +572,13 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     test_pointer_to_int1();
-    #ifdef __x86_64__
     test_pointer_to_int2();
     test_pointer_to_int3();
     test_pointer_to_int4();
     test_pointer_to_int5();
     test_pointer_to_int6();
     test_pointer_to_char();
+    #ifdef __x86_64__
     test_assignment_of_pointer_to_array();
     test_double_dereference1();
     test_double_dereference2();

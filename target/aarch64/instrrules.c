@@ -649,10 +649,6 @@ void define_rules(void) {
     r = add_rule(XR4, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r); // Allow 32-bit constants to be loaded into 64-bit registers
     r = add_rule(XR4, 0, XC4, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
 
-    // Move constant into pointer in register
-    r = add_rule(RP3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
-    r = add_rule(RP4, 0, XC4, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);
-
     // Register -> register move rules
     add_int_register_move_rules();
 
