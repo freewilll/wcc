@@ -122,9 +122,6 @@ static CompilerPhase compiler_phases[] = {
     { free_vreg_preg_classes,                      PH_NONE,  PH_NONE,  NULL },
     { free_preferred_live_range_preg_indexes,      PH_NONE,  PH_NONE,  NULL },
 
-    // Target lowering
-    { make_load_store_instructions,                PH_NONE,  PH_NONE,  "Expand instructions for load/store architectures (e.g. aarch64)" },
-
     // Instruction selection
     { select_instructions,                         PH_NONE,  PH_NONE,  "Instruction Selection" },
     { free_liveout,                                PH_NONE,  PH_NONE,  NULL },

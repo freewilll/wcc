@@ -247,45 +247,52 @@ static void add_int_register_move_rules(void) {
 static void add_register_memory_move_rules(void) {
     Rule *r;
 
-    // Signed
-    r = add_rule(MSI1, IR_MOVE, RI1, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSI1, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSI1, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSI1, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSI1, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSI2, IR_MOVE, RI2, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSI2, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSI2, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSI2, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSI2, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSI3, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
-    r = add_rule(MSI3, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
-    r = add_rule(MSI3, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
-    r = add_rule(MSI3, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
-    r = add_rule(MSI4, IR_MOVE, RI3, 0, 3); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "sxtw %v1x, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
-    r = add_rule(MSI4, IR_MOVE, RU3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
-    r = add_rule(MSI4, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
-    r = add_rule(MSI4, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    // The rules for stack and globals are the same
+    // Instruction rewrites after selection are done thet take care of the differences
+    for (int i = 0; i < 2; i++) {
+        int sbase = i == 0 ? MSI1 - 1 : MGI1 - 1;
+        int ubase = i == 0 ? MSU1 - 1 : MGU1 - 1;
 
-    // Unsigned
-    r = add_rule(MSU1, IR_MOVE, RU1, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSU1, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSU1, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSU1, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSU1, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
-    r = add_rule(MSU2, IR_MOVE, RU2, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSU2, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSU2, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSU2, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSU2, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
-    r = add_rule(MSU3, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
-    r = add_rule(MSU3, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
-    r = add_rule(MSU3, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
-    r = add_rule(MSU3, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
-    r = add_rule(MSU4, IR_MOVE, RI3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
-    r = add_rule(MSU4, IR_MOVE, RU3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
-    r = add_rule(MSU4, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
-    r = add_rule(MSU4, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+        // Signed
+        r = add_rule(sbase + 1, IR_MOVE, RI1, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(sbase + 1, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(sbase + 1, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(sbase + 1, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(sbase + 1, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(sbase + 2, IR_MOVE, RI2, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(sbase + 2, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(sbase + 2, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(sbase + 2, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(sbase + 2, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(sbase + 3, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+        r = add_rule(sbase + 3, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+        r = add_rule(sbase + 3, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+        r = add_rule(sbase + 3, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+        r = add_rule(sbase + 4, IR_MOVE, RI3, 0, 3); add_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, "sxtw %v1x, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+        r = add_rule(sbase + 4, IR_MOVE, RU3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+        r = add_rule(sbase + 4, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+        r = add_rule(sbase + 4, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+
+        // Unsigned
+        r = add_rule(ubase + 1, IR_MOVE, RU1, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(ubase + 1, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(ubase + 1, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(ubase + 1, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(ubase + 1, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strb %v2w, [%v1x]");
+        r = add_rule(ubase + 2, IR_MOVE, RU2, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(ubase + 2, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(ubase + 2, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(ubase + 2, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(ubase + 2, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "strh %v2w, [%v1x]");
+        r = add_rule(ubase + 3, IR_MOVE, RI3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+        r = add_rule(ubase + 3, IR_MOVE, RU3, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+        r = add_rule(ubase + 3, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+        r = add_rule(ubase + 3, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2w, [%v1x]");
+        r = add_rule(ubase + 4, IR_MOVE, RI3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+        r = add_rule(ubase + 4, IR_MOVE, RU3, 0, 3); add_op(r, AARCH64_OP_BAND, DST, SRC1, 0, "mov  %v1w, %v1w"); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+        r = add_rule(ubase + 4, IR_MOVE, RI4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+        r = add_rule(ubase + 4, IR_MOVE, RU4, 0, 2);                                                              add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str  %v2x, [%v1x]");
+    }
 }
 
 static void add_one_operand_rules(char *target_operand, int base1, int base2, int operation, int target_operation, int cost) {
@@ -527,7 +534,8 @@ static void add_pointer_rules() {
     add_global_memory_into_register_rule(XRP, MGPV, "ldr %vdx, [%v1x]");
 
     // Register -> Memory rules
-    r = add_rule(MSPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "str %v1x, [%vdx]"); fin_rule(r);
+    r = add_rule(MSPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
+    r = add_rule(MGPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
 
     // Address loads
     // Any ADDRESS_OF a pointer in a register must be lvalues. Therefore, a adrp/add converts them from an lvalue into an rvalue

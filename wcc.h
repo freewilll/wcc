@@ -1572,7 +1572,6 @@ char *add_size_to_template(char *template, int size);
 int uncached_non_terminal_for_value(Value *v);
 int match_value_to_rule_src(Value *v, int src);
 void define_rules(void);
-void make_load_store_instructions(Function *function);
 char *target_non_terminal_string(int nt);
 
 // Target registers related code

@@ -127,7 +127,6 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
 
             if (!v) panic("Unexpectedly got a null value while the template %s is expecting it", tac->target_template);
 
-            // TODO aarch64 offset
             if (!expect_preg && v->vreg) {
                 if (v->global_symbol) panic("Got global symbol in vreg");
 

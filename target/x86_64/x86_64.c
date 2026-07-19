@@ -185,5 +185,3 @@ void perform_peephole_optimization(Function *function) {
     remove_stack_self_moves(function);
     remove_self_register_copies(function);
 }
-
-void make_load_store_instructions(Function *function) {}

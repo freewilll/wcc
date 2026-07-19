@@ -320,40 +320,28 @@ static Tac *load_dst_address_into_pointer(Function *function, Tac *tac) {
     return new_tac_before(tac, IR_ADDRESS_OF, new_dst, tac->dst, 0, 1);
 }
 
-// Convert stores to global variables to a IR_ADDRESS_OF of the global, followed by a IR_MOVE_TO_PTR
-static void make_load_store_instructions_for_ir_address_ofs(Function *function) {
-    make_vreg_count(function, live_range_reserved_pregs_offset);
+// A AARCH64_OP_STR instruction with a global in src1 needs to be modified so that the.
+// global is replaced with a register that has the address of the global.
+static void insert_store_global_instructions(Function *function, Tac *tac) {
+    int offset = tac->src1->offset;
+    tac->src1->offset = 0;
 
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        // Stores to global symbols always need to go through a pointer in a register
-        if (tac->operation.id == IR_MOVE && tac->dst && tac->dst->global_symbol) {
-            int offset = tac->dst->offset;
-            tac->dst->offset = 0;
+    Value *r14 = new_value();
+    r14->type = new_type(TYPE_LONG);
+    r14->preg = REG_R14;
 
-            Value *new_dst = new_value();
-            new_dst->type = make_pointer(tac->dst->type);
-            new_dst->vreg = ++function->vreg_count;
-            Tac *load_tac =new_tac_before(tac, IR_ADDRESS_OF, new_dst, tac->dst, 0, 1);
+    Tac *tmp = new_tac_before(tac, AARCH64_OP_ADRP, r14, tac->src1, 0, 1);
+    tmp->target_template = "adrp %vdx, %v1";
+    tmp = new_tac_before(tac, AARCH64_OP_ADD_LO12, r14, tac->src1, 0, 1);
+    tmp->target_template = "add %vdx, %vdx, :lo12:%v1";
 
-            tac->operation.id = IR_MOVE_TO_PTR;
-            tac->src2 = tac->src1;
-            tac->src1 = dup_value(load_tac->dst);
-            tac->dst = NULL;
+    tac->src1 = r14;
 
-            if (offset) {
-                Value *new_dst2 = dup_value(new_dst);
-                new_dst->vreg = ++function->vreg_count;
-                Value *offset_value = new_integral_constant(TYPE_LONG, offset);
-                new_tac_before(tac, IR_ADD, new_dst2, new_dst, offset_value, 1);
-                tac->src1 = new_dst2;
-            }
-        }
+    if (offset) {
+        Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+        Tac *tmp = new_tac_before(tac, AARCH64_OP_ADD, r14, offset_value, 0, 1);
+        tmp->target_template = "add %vdx, %vdx, %v1x";
     }
-}
-
-void make_load_store_instructions(Function *function) {
-    make_vreg_count(function, live_range_reserved_pregs_offset);
-    make_load_store_instructions_for_ir_address_ofs(function);
 }
 
 // At this point, the total function stack size is known and stack offsets have been updated.
@@ -425,11 +413,16 @@ void add_load_memory_instructions(Function *function) {
     }
 }
 
-// Split str r, [sp + offset] with large offsets so that the offset is loaded separately
 void add_store_memory_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == AARCH64_OP_STR && tac->src1->stack_offset)
+        // Split str r, [sp + offset] with large offsets so that the offset is loaded separately
+        if (tac->operation.id == AARCH64_OP_STR && tac->src1->stack_offset) {
             insert_offset_instructions_for_ldr_str_stack_access(tac);
+        }
+
+        if (tac->operation.id == AARCH64_OP_STR && tac->src1->global_symbol) {
+            insert_store_global_instructions(function, tac);
+        }
     }
 }
 
