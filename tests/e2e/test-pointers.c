@@ -199,7 +199,6 @@ void test_bracket_lookup() {
     assert_int(3, *(pi + 1), "[] 5");
 }
 
-#ifdef __x86_64__
 
 void test_array_lookup_of_string_literal() {
     assert_string("foobar", &"foobar"[0], "array lookup of string literal 1");
@@ -215,6 +214,8 @@ void test_casting() {
     pj = (int *) (((char *) pi) + 1);
     assert_int(1, (long) pj - (long) pi, "casting 2");
 }
+
+#ifdef __x86_64__
 
 void test_int_char_interbreeding() {
     int i;
@@ -583,9 +584,9 @@ int main(int argc, char **argv) {
     test_double_dereference2();
     test_string_copy();
     test_bracket_lookup();
-    #ifdef __x86_64__
     test_array_lookup_of_string_literal();
     test_casting();
+    #ifdef __x86_64__
     test_int_char_interbreeding();
     test_cast_in_function_call();
     test_pointer_casting_reads();

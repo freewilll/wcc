@@ -485,7 +485,7 @@ static void add_conditional_zero_jump_rule(int operation, int src1, int src2, in
 
 // In aarch64, memory moves into a register are done on the leaf nodes
 static void add_stack_memory_into_register_rule(int dst, int src1, char *template) {
-    Rule *r = add_rule(dst, 0, src1, 0, 4);
+    Rule *r = add_rule(dst, 0, src1, 0, 2);
     add_op(r, AARCH64_OP_LDR,  DST, SRC1, 0, template);
     fin_rule(r);
 }
@@ -497,7 +497,7 @@ static void add_load_stack_address_rule(int dst, int src1) {
 }
 
 static void add_load_global_address_rule(int dst, int src1, int operation) {
-    Rule *r = add_rule(dst, operation, src1,  0, 4);
+    Rule *r = add_rule(dst, operation, src1,  0, 2);
     add_op(r, AARCH64_OP_ADRP,     DST, SRC1, 0, "adrp %vdx, %v1");
     add_op(r, AARCH64_OP_ADD_LO12, DST, SRC1, 0, "add %vdx, %vdx, :lo12:%v1");
 }
@@ -510,7 +510,7 @@ static void add_load_global_address_to_rule_into_sv1(Rule *r, int src1) {
 
 // In aarch64, memory moves into a register are done on the leaf nodes
 static void add_global_memory_into_register_rule(int dst, int src1, char *template) {
-    Rule *r = add_rule(dst, 0, src1, 0, 4);
+    Rule *r = add_rule(dst, 0, src1, 0, 2);
     add_load_global_address_to_rule_into_sv1(r, src1);
     add_op(r, AARCH64_OP_LDR,  DST, SV1,  0, template);
     fin_rule(r);
@@ -573,13 +573,19 @@ static void add_pointer_rules() {
 
     // Address loads
     // Any ADDRESS_OF a pointer in a register must be lvalues. Therefore, a adrp/add converts them from an lvalue into an rvalue
+    r = add_rule(XRP, IR_ADDRESS_OF, RP1,  0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, RP2,  0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, RP3,  0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, RP4,  0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(XRP, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
+    r = add_rule(RP5, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "mov %vdx, %v1x"); fin_rule(r);
 
     // Common rules for IR_ADDRESS_OF and IR_ADDRESS_OF_FROM_GOT
     // IR_ADDRESS_OF for variables on the stack
     add_load_stack_address_rule(XRP, XMS);
     add_load_stack_address_rule(XRP, MSPV);
 
-    // Address loads for globals
+    // IR_ADDRESS_OF for globals
     add_load_global_address_rule(RP1, MGI1, IR_ADDRESS_OF);
     add_load_global_address_rule(RP1, MGU1, IR_ADDRESS_OF);
     add_load_global_address_rule(RP2, MGI2, IR_ADDRESS_OF);
@@ -662,7 +668,6 @@ void define_rules(void) {
     add_stack_memory_into_register_rule(RU3, MSU3, "ldr  %vdw, [%v1x]");
     add_stack_memory_into_register_rule(RI4, MSI4, "ldr  %vdx, [%v1x]");
     add_stack_memory_into_register_rule(RU4, MSU4, "ldr  %vdx, [%v1x]");
-
 
     // Global -> register moves
     add_global_memory_into_register_rule(RI1, MGI1, "ldrb %vdw, [%v1x]"); // Integers

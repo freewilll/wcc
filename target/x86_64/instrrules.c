@@ -830,8 +830,8 @@ static void add_pointer_rules(int *ntc) {
     r = add_rule(XRP, IR_ADDRESS_OF, RP2,  0, 1); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, RP3,  0, 1); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, RP4,  0, 1); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
-    r = add_rule(RP5, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(XRP, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(RP5, IR_ADDRESS_OF, RP5,  0, 1); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
 
     // Common rules for IR_ADDRESS_OF and IR_ADDRESS_OF_FROM_GOT
     add_address_of_rule(XRP, XMI,  "%v1q, %vdq", 1);
