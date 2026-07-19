@@ -618,6 +618,20 @@ static void add_pointer_rules() {
     r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
     r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
 
+    // Stores of a constant into one of the 32 or 64 bit registers to a pointer
+    r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
+    r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RU3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
+    r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
+    r = add_rule(RP1, IR_MOVE_TO_PTR, RP1, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strb %v2w, [%v1x]");
+    r = add_rule(RP2, IR_MOVE_TO_PTR, RP2, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strh %v2w, [%v1x]");
+    r = add_rule(RP2, IR_MOVE_TO_PTR, RP2, RU3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strh %v2w, [%v1x]");
+    r = add_rule(RP2, IR_MOVE_TO_PTR, RP2, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strh %v2w, [%v1x]");
+    r = add_rule(RP2, IR_MOVE_TO_PTR, RP2, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "strh %v2w, [%v1x]");
+    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RI4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2w, [%v1x]");
+    r = add_rule(RP3, IR_MOVE_TO_PTR, RP3, RU4, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2w, [%v1x]");
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RI3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
+    r = add_rule(RP4, IR_MOVE_TO_PTR, RP4, RU3, 4); add_op(r, AARCH64_OP_STR, 0, SRC1, SRC2, "str  %v2x, [%v1x]");
+
     // Integer constants can be loaded into registers, which can then be assigned to a pointer to a pointer,
     // e.g. char *gpc; // Define a global char
     // gpc = 1; // Assignment to a global char

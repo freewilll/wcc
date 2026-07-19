@@ -9,10 +9,10 @@ int failures;
 
 int g;
 
-char *gpc, gc;
-short *gps, gs;
-int *gpi, gi;
-long *gpl, gl;
+signed char *gpc, gc;
+signed short *gps, gs;
+signed int *gpi, gi;
+signed long *gpl, gl;
 
 unsigned char *gupc, guc;
 unsigned short *gups, gus;
@@ -215,7 +215,16 @@ void test_casting() {
     assert_int(1, (long) pj - (long) pi, "casting 2");
 }
 
-#ifdef __x86_64__
+void test_constant_assignment_through_a_pointer() {
+    unsigned char  uc; unsigned char  *puc = &uc; *puc = 1; assert_int(1, uc, "Constant assignment to pointer uc");
+    unsigned short us; unsigned short *pus = &us; *pus = 1; assert_int(1, us, "Constant assignment to pointer us");
+    unsigned int   ui; unsigned int   *pui = &ui; *pui = 1; assert_int(1, ui, "Constant assignment to pointer ui");
+    unsigned long  ul; unsigned long  *pul = &ul; *pul = 1; assert_int(1, ul, "Constant assignment to pointer ul");
+    signed   char  sc; signed   char  *psc = &sc; *psc = 1; assert_int(1, sc, "Constant assignment to pointer sc");
+    signed   short ss; signed   short *pss = &ss; *pss = 1; assert_int(1, ss, "Constant assignment to pointer ss");
+    signed   int   si; signed   int   *psi = &si; *psi = 1; assert_int(1, si, "Constant assignment to pointer si");
+    signed   long  sl; signed   long  *psl = &sl; *psl = 1; assert_int(1, sl, "Constant assignment to pointer sl");
+}
 
 void test_int_char_interbreeding() {
     int i;
@@ -254,10 +263,10 @@ void test_pointer_casting_reads() {
 }
 
 void test_pointer_deref_all_types() {
-    char *pc;
-    short *ps;
-    int *pi;
-    long *pl;
+    signed char *pc;
+    signed short *ps;
+    signed int *pi;
+    signed long *pl;
     unsigned char *upc;
     unsigned short *ups;
     unsigned int *upi;
@@ -438,6 +447,8 @@ void test_scaled_indirects() {
     test_scaled_long_pointer_indirects();
 }
 
+#ifdef __x86_64__
+
 int test_null_pointer() {
     int *pi;
 
@@ -586,7 +597,7 @@ int main(int argc, char **argv) {
     test_bracket_lookup();
     test_array_lookup_of_string_literal();
     test_casting();
-    #ifdef __x86_64__
+    test_constant_assignment_through_a_pointer();
     test_int_char_interbreeding();
     test_cast_in_function_call();
     test_pointer_casting_reads();
@@ -596,6 +607,7 @@ int main(int argc, char **argv) {
     test_deref_promotion();
     test_write_constant_to_pointer();
     test_scaled_indirects();
+    #ifdef __x86_64__
     test_null_pointer();
     test_comparisons();
     test_address_of_function_parameters();
