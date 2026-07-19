@@ -490,6 +490,12 @@ static void add_stack_memory_into_register_rule(int dst, int src1, char *templat
     fin_rule(r);
 }
 
+static void add_load_stack_address_rule(int dst, int src1) {
+    Rule *r = add_rule(dst, IR_ADDRESS_OF, src1, 0, 2);
+    add_op(r, AARCH64_OP_ADDRESS_OF, DST, SRC1, 0, "dummy address of template %vdx = &(%v1x)");
+    fin_rule(r);
+}
+
 static void add_load_global_address_rule(int dst, int src1, int operation) {
     Rule *r = add_rule(dst, operation, src1,  0, 4);
     add_op(r, AARCH64_OP_ADRP,     DST, SRC1, 0, "adrp %vdx, %v1");
@@ -515,6 +521,32 @@ static void add_pointer_move_rule(int dst, int src1, int operation) {
     add_op(r, AARCH64_OP_MOV,  DST, SRC1, operation, "mov %vdx, %v1x");
 }
 
+static void add_int_indirect_rule(int dst, int src) {
+    char *template;
+
+    switch (src) {
+        case RP1: template = "ldrb %vdw, [%v1x]"; break;
+        case RP2: template = "ldrh %vdw, [%v1x]"; break;
+        case RP3: template = "ldr  %vdw, [%v1x]"; break;
+        case RP4: template = "ldr  %vdx, [%v1x]"; break;
+
+        default:
+            panic("Unknown src in add_int_indirect_rule %d", src);
+    }
+
+    Rule *r = add_rule(dst, IR_INDIRECT, src, 0, 2);
+    add_op(r, AARCH64_OP_LDR, DST, SRC1, 0, template);
+}
+
+static void add_indirect_rules(void) {
+    // Integers
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RI1 + dst, RP1 + dst);
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RU1 + dst, RP1 + dst);
+
+    // Pointer to pointer
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RP1 + dst, RP4);
+}
+
 static void add_pointer_rules() {
     Rule *r;
 
@@ -537,26 +569,25 @@ static void add_pointer_rules() {
     r = add_rule(MSPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
     r = add_rule(MGPV, IR_MOVE, XRP, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2x, [%v1x]"); fin_rule(r);
 
+    add_indirect_rules();
+
     // Address loads
     // Any ADDRESS_OF a pointer in a register must be lvalues. Therefore, a adrp/add converts them from an lvalue into an rvalue
 
     // Common rules for IR_ADDRESS_OF and IR_ADDRESS_OF_FROM_GOT
-    // Address loads for variables on the stack
-    r = add_rule(RP1, IR_ADDRESS_OF, MSPV, 0, 2); add_op(r, AARCH64_OP_ADDRESS_OF, DST, SRC1, 0, "dummy address of template %vdx = &(%v1x)");
-    r = add_rule(RP2, IR_ADDRESS_OF, MSPV, 0, 2); add_op(r, AARCH64_OP_ADDRESS_OF, DST, SRC1, 0, "dummy address of template %vdx = &(%v1x)");
-    r = add_rule(RP3, IR_ADDRESS_OF, MSPV, 0, 2); add_op(r, AARCH64_OP_ADDRESS_OF, DST, SRC1, 0, "dummy address of template %vdx = &(%v1x)");
-    r = add_rule(RP4, IR_ADDRESS_OF, MSPV, 0, 2); add_op(r, AARCH64_OP_ADDRESS_OF, DST, SRC1, 0, "dummy address of template %vdx = &(%v1x)");
-    r = add_rule(RP5, IR_ADDRESS_OF, MSPV, 0, 2); add_op(r, AARCH64_OP_ADDRESS_OF, DST, SRC1, 0, "dummy address of template %vdx = &(%v1x)");
+    // IR_ADDRESS_OF for variables on the stack
+    add_load_stack_address_rule(XRP, XMS);
+    add_load_stack_address_rule(XRP, MSPV);
 
     // Address loads for globals
     add_load_global_address_rule(RP1, MGI1, IR_ADDRESS_OF);
     add_load_global_address_rule(RP1, MGU1, IR_ADDRESS_OF);
     add_load_global_address_rule(RP2, MGI2, IR_ADDRESS_OF);
     add_load_global_address_rule(RP2, MGU2, IR_ADDRESS_OF);
-    add_load_global_address_rule(RP3, MGU3, IR_ADDRESS_OF);
     add_load_global_address_rule(RP3, MGI3, IR_ADDRESS_OF);
-    add_load_global_address_rule(RP4, MGU4, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP3, MGU3, IR_ADDRESS_OF);
     add_load_global_address_rule(RP4, MGI4, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP4, MGU4, IR_ADDRESS_OF);
 
     add_load_global_address_rule(RP1, MGPV, IR_ADDRESS_OF);
     add_load_global_address_rule(RP2, MGPV, IR_ADDRESS_OF);
