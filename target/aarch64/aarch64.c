@@ -126,10 +126,73 @@ int get_preg_class_for_scalar_type(Type *type) {
     return (type->type >= TYPE_FLOAT && type->type <= TYPE_LONG_DOUBLE) ? PC_FP : PC_INT;
 }
 
-static void remove_self_register_copies(Function *function) {
-    for (Tac *tac = function->ir; tac; tac = tac->next)
-        if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
-            if (tac->operation.id == AARCH64_OP_MOV && !tac->operation.is_convert_move) tac->operation.id = IR_NOP;
+// Returns 1 if a 32-bit or 64-bit value can be encoded as an aarch64 logical immediate.
+//
+// See:
+// https://developer.arm.com/documentation/ddi0487/mb/-Part-C-The-AArch64-Instruction-Set/-Chapter-C3-A64-Instruction-Set-Overview/-C3-5-Data-processing---immediate/-C3-5-3-Logical--immediate-
+//
+// The Logical (immediate) instructions accept a bitmask immediate value that is a 32-bit pattern or a 64-bit pattern
+// viewed as a vector of identical elements of size e = 2, 4, 8, 16, 32 or, 64 bits.
+// Each element contains the same sub-pattern, that is a single run of 1 to (e - 1) nonzero bits
+// from bit 0 followed by zero bits, then rotated by 0 to (e - 1) bits.
+// This mechanism can generate 5334 unique 64-bit patterns as 2667 pairs of pattern and their bitwise inverse.
+int is_logical_immediate(unsigned long l, int is_32bit) {
+    // All ones or all zeroes cannot be encoded
+    if (!l || (!is_32bit && l == -1) || (is_32bit && l == 0xffffffff))
+        return 0;
+
+    int repeat_size = is_32bit ? 32 : 64;
+
+    while (repeat_size > 2) {
+        repeat_size /= 2;
+        unsigned long mask = (1UL << repeat_size) - 1;
+
+        if ((l & mask) != ((l >> repeat_size) & mask)) {
+            repeat_size *= 2;
+            break;
+        }
+    }
+
+    unsigned long repeat_value = l;
+    if (repeat_size < 64) {
+        unsigned long mask = (1UL << repeat_size) - 1;
+        repeat_value = l & mask;
+    }
+
+    int zeroes_right = __builtin_ctzll(repeat_value);
+    int zeroes_left = __builtin_clzll(repeat_value);
+
+    int ok;
+
+    unsigned long right_shifted_repeat_value = repeat_value >> zeroes_right;
+    int bit_count = 64 - zeroes_left - zeroes_right;
+    if (!bit_count) panic("Unexpected zero bit count");
+
+    // The shifted right binary string must consist entirely bit_count ones,
+    // e.g. 000111, 0001, 0011111, but not 0101.
+    unsigned long expected_value = (1UL << bit_count) - 1;
+    ok = right_shifted_repeat_value == expected_value;
+
+    // The repeat pattern may be something like 110...01
+    // Check if there is a middle chunk of consecutive zeroes
+    // This can be done by inverting everything and using the same test as above.
+    if (!ok && (repeat_value & 1) && (repeat_value & (1UL << (repeat_size - 1)))) {
+        unsigned long mask = (1UL << repeat_size) - 1;
+        repeat_value = l | ~mask;
+        repeat_value = ~repeat_value;
+
+        zeroes_right = __builtin_ctzll(repeat_value);
+        zeroes_left = __builtin_clzll(repeat_value);
+
+        unsigned long right_shifted_repeat_value = repeat_value >> zeroes_right;
+        int bit_count = 64 - zeroes_left - zeroes_right;
+        if (!bit_count) panic("Unexpected zero bit count");
+
+        unsigned long expected_value = (1UL << bit_count) - 1;
+        ok = right_shifted_repeat_value == expected_value;
+    }
+
+    return ok;
 }
 
 // Take a mov to register instruction with an immediate constant and convert it up into
@@ -238,37 +301,15 @@ Tac *process_integer_constant_move_to_register(Tac *tac) {
     return tac;
 }
 
-void perform_peephole_optimization(Function *function) {
-    // remove_stack_self_moves(function); // TODO aarch64
-    remove_self_register_copies(function);
-}
+// Check if an offset can be encoded as [r + offset] in a ldr or str instruction
+static int is_ldr_str_immediate_offset(int size, int offset) {
+    // If the offset can be encoded as [sp + n], leave it as is
+    if (size == 1                      && offset <= 4095 ) return 1;
+    if (size == 2 && (offset & 1) == 0 && offset <= 8190 ) return 1;
+    if (size == 3 && (offset & 3) == 0 && offset <= 16380) return 1;
+    if (size == 4 && (offset & 7) == 0 && offset <= 32760) return 1;
 
-// This removes instructions that copy a register to itself by replacing them with noops.
-void remove_vreg_self_moves(Function *function) {
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->operation.id == AARCH64_OP_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
-            tac->operation.id = IR_NOP;
-            tac->dst = 0;
-            tac->src1 = 0;
-            tac->src2 = 0;
-            tac->target_template = 0;
-        }
-    }
-}
-
-void add_spill_code(Function *function) { // TODO aarch64
-    if (debug_instsel_spilling) printf("\nAdding spill code\n");
-
-    int need_spill_code = 0;
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
-
-        if (tac->dst && tac->dst->spilled)   { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->dst->stack_index); }
-        if (tac->src1 && tac->src1->spilled) { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->src1->stack_index); }
-        if (tac->src2 && tac->src2->spilled) { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->src2->stack_index); }
-    }
-
-    if (need_spill_code) panic("Bailing due to not yet implemented spill code");
+    return 0;
 }
 
 // Prepend an instruction that loads the address of tac->dst into a pointer
@@ -313,17 +354,6 @@ static void make_load_store_instructions_for_ir_address_ofs(Function *function) 
 void make_load_store_instructions(Function *function) {
     make_vreg_count(function, live_range_reserved_pregs_offset);
     make_load_store_instructions_for_ir_address_ofs(function);
-}
-
-// Check if an offset can be encoded as [r + offset] in a ldr or str instruction
-static int is_ldr_str_immediate_offset(int size, int offset) {
-    // If the offset can be encoded as [sp + n], leave it as is
-    if (size == 1                      && offset <= 4095 ) return 1;
-    if (size == 2 && (offset & 1) == 0 && offset <= 8190 ) return 1;
-    if (size == 3 && (offset & 3) == 0 && offset <= 16380) return 1;
-    if (size == 4 && (offset & 7) == 0 && offset <= 32760) return 1;
-
-    return 0;
 }
 
 // At this point, the total function stack size is known and stack offsets have been updated.
@@ -426,71 +456,42 @@ void add_address_of_instructions(Function *function) {
     }
 }
 
-// Returns 1 if a 32-bit or 64-bit value can be encoded as an aarch64 logical immediate.
-//
-// See:
-// https://developer.arm.com/documentation/ddi0487/mb/-Part-C-The-AArch64-Instruction-Set/-Chapter-C3-A64-Instruction-Set-Overview/-C3-5-Data-processing---immediate/-C3-5-3-Logical--immediate-
-//
-// The Logical (immediate) instructions accept a bitmask immediate value that is a 32-bit pattern or a 64-bit pattern
-// viewed as a vector of identical elements of size e = 2, 4, 8, 16, 32 or, 64 bits.
-// Each element contains the same sub-pattern, that is a single run of 1 to (e - 1) nonzero bits
-// from bit 0 followed by zero bits, then rotated by 0 to (e - 1) bits.
-// This mechanism can generate 5334 unique 64-bit patterns as 2667 pairs of pattern and their bitwise inverse.
-int is_logical_immediate(unsigned long l, int is_32bit) {
-    // All ones or all zeroes cannot be encoded
-    if (!l || (!is_32bit && l == -1) || (is_32bit && l == 0xffffffff))
-        return 0;
+static void remove_self_register_copies(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next)
+        if (tac->dst && tac->dst->preg != -1 && tac->src1 && tac->src1->preg != -1 && tac->dst->preg == tac->src1->preg)
+            if (tac->operation.id == AARCH64_OP_MOV && !tac->operation.is_convert_move) tac->operation.id = IR_NOP;
+}
 
-    int repeat_size = is_32bit ? 32 : 64;
 
-    while (repeat_size > 2) {
-        repeat_size /= 2;
-        unsigned long mask = (1UL << repeat_size) - 1;
+void perform_peephole_optimization(Function *function) {
+    // remove_stack_self_moves(function); // TODO aarch64
+    remove_self_register_copies(function);
+}
 
-        if ((l & mask) != ((l >> repeat_size) & mask)) {
-            repeat_size *= 2;
-            break;
+// This removes instructions that copy a register to itself by replacing them with noops.
+void remove_vreg_self_moves(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == AARCH64_OP_MOV && tac->dst && tac->dst->vreg && tac->src1 && tac->src1->vreg && tac->dst->vreg == tac->src1->vreg) {
+            tac->operation.id = IR_NOP;
+            tac->dst = 0;
+            tac->src1 = 0;
+            tac->src2 = 0;
+            tac->target_template = 0;
         }
     }
+}
 
-    unsigned long repeat_value = l;
-    if (repeat_size < 64) {
-        unsigned long mask = (1UL << repeat_size) - 1;
-        repeat_value = l & mask;
+void add_spill_code(Function *function) { // TODO aarch64
+    if (debug_instsel_spilling) printf("\nAdding spill code\n");
+
+    int need_spill_code = 0;
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
+
+        if (tac->dst && tac->dst->spilled)   { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->dst->stack_index); }
+        if (tac->src1 && tac->src1->spilled) { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->src1->stack_index); }
+        if (tac->src2 && tac->src2->spilled) { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->src2->stack_index); }
     }
 
-    int zeroes_right = __builtin_ctzll(repeat_value);
-    int zeroes_left = __builtin_clzll(repeat_value);
-
-    int ok;
-
-    unsigned long right_shifted_repeat_value = repeat_value >> zeroes_right;
-    int bit_count = 64 - zeroes_left - zeroes_right;
-    if (!bit_count) panic("Unexpected zero bit count");
-
-    // The shifted right binary string must consist entirely bit_count ones,
-    // e.g. 000111, 0001, 0011111, but not 0101.
-    unsigned long expected_value = (1UL << bit_count) - 1;
-    ok = right_shifted_repeat_value == expected_value;
-
-    // The repeat pattern may be something like 110...01
-    // Check if there is a middle chunk of consecutive zeroes
-    // This can be done by inverting everything and using the same test as above.
-    if (!ok && (repeat_value & 1) && (repeat_value & (1UL << (repeat_size - 1)))) {
-        unsigned long mask = (1UL << repeat_size) - 1;
-        repeat_value = l | ~mask;
-        repeat_value = ~repeat_value;
-
-        zeroes_right = __builtin_ctzll(repeat_value);
-        zeroes_left = __builtin_clzll(repeat_value);
-
-        unsigned long right_shifted_repeat_value = repeat_value >> zeroes_right;
-        int bit_count = 64 - zeroes_left - zeroes_right;
-        if (!bit_count) panic("Unexpected zero bit count");
-
-        unsigned long expected_value = (1UL << bit_count) - 1;
-        ok = right_shifted_repeat_value == expected_value;
-    }
-
-    return ok;
+    if (need_spill_code) panic("Bailing due to not yet implemented spill code");
 }

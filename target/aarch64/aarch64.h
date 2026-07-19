@@ -189,9 +189,7 @@ char size_to_aarch64_size(int size);
 char is_32bit_to_aarch64_size(int is_32bit);
 
 Tac *process_integer_constant_move_to_register(Tac *tac);
-
 int is_logical_immediate(unsigned long l, int is_32bit);
-
 void add_load_memory_instructions(Function *function);
 void add_store_memory_instructions(Function *function);
 void add_address_of_instructions(Function *function);
