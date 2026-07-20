@@ -143,11 +143,7 @@ static TargetOperation *add_op(Rule *r, int operation, int dst, int v1, int v2, 
     target_op->operation.is_move = (operation == AARCH64_OP_MOV);
     target_op->operation.is_call = (operation == AARCH64_OP_CALL);
 
-    target_op->operation.is_conditional_jump = (
-        operation == AARCH64_OP_BEQ ||
-        operation == AARCH64_OP_BNE
-    );
-
+    target_op->operation.is_conditional_jump = (operation == AARCH64_OP_COND_B);
     target_op->operation.is_unconditional_jump = (operation == AARCH64_OP_B);
 
     // TODO aarch64, other tags, e.g.
@@ -432,48 +428,81 @@ static void add_pointer_sub_rules(void) {
     // The result of a pointer-pointer subtraction is always a signed long: RI4.
 }
 
-// Add rules for dst={RI*, RU*}, SRC={RI1, RU1, RI2, RU2, ...} for all 6 comparison types
-static void add_int_comparison_rules(void) {
+// Add integer comparision conditional jump rule
+static void add_int_comp_cond_jmp_rule(int *ntc, int src1, int src2, int op, char *t1,char *t2) {
     Rule *r;
 
-    int operations[6] = {IR_EQ, IR_NE, IR_LT, IR_GT, IR_LE, IR_GE};
+    (*ntc)++;
+    r = add_rule(*ntc, op,     src1, src2, 10); add_op(r, AARCH64_OP_CMP,    0, SRC1, SRC2, "cmp %v1, %v2"); fin_rule(r);
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, AARCH64_OP_COND_B, 0, SRC2, 0,    t1            ); fin_rule(r);
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, AARCH64_OP_COND_B, 0, SRC2, 0,    t2            ); fin_rule(r);
+}
 
-    for (int src_is_unsigned = 0; src_is_unsigned < 2; src_is_unsigned++) {
-        for (int src_size = 1; src_size <= 4; src_size++) {
-            int src = src_is_unsigned ? RU1 + src_size - 1: RI1 + src_size - 1;
+// Add integer comparision conditional jump rules
+static void add_int_comp_cond_jmp_rules(int *ntc, int is_unsigned, int src1, int src2) {
+    add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_EQ, "beq %v1", "bne %v1");
+    add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_NE, "bne %v1", "beq %v1");
 
-            char *subs_template = add_size_to_template("subs %vd, %v1, %v2", src_size);
+    if (is_unsigned) {
+        add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LT, "blo %v1", "bhs %v1");
+        add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GT, "bhi %v1", "bls %v1");
+        add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LE, "bls %v1", "bhi %v1");
+        add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GE, "bhs %v1", "blo %v1");
 
-            char *templates[2][6] = {
-                add_size_to_template("cset %vd, eq", src_size),
-                add_size_to_template("cset %vd, ne", src_size),
-                add_size_to_template("cset %vd, lt", src_size),
-                add_size_to_template("cset %vd, gt", src_size),
-                add_size_to_template("cset %vd, le", src_size),
-                add_size_to_template("cset %vd, ge", src_size),
-
-                add_size_to_template("cset %vd, eq", src_size),
-                add_size_to_template("cset %vd, ne", src_size),
-                add_size_to_template("cset %vd, lo", src_size),
-                add_size_to_template("cset %vd, hi", src_size),
-                add_size_to_template("cset %vd, ls", src_size),
-                add_size_to_template("cset %vd, hs", src_size),
-            };
-
-            for (int operation = 0; operation < 6; operation++) {
-                for (int dst_is_unsigned = 0; dst_is_unsigned < 2; dst_is_unsigned++) {
-                    for (int dst_size = 1; dst_size <= 4; dst_size++) {
-                        int dst = dst_is_unsigned ? RU1 + dst_size - 1: RI1 + dst_size - 1;
-
-                        r = add_rule(dst, operations[operation], src, src, 12);
-                        add_allocate_register_in_slot(r, 1, TYPE_CHAR + src_size - 1);
-                        add_op(r, AARCH64_OP_SUB,  SV1, SRC1, SRC2, subs_template);
-                        add_op(r, AARCH64_OP_CSET, DST, 0,    0,    templates[src_is_unsigned][operation]);
-                    }
-                }
-            }
-        }
     }
+    else {
+        add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LT, "blt %v1", "bge %v1");
+        add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GT, "bgt %v1", "ble %v1");
+        add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LE, "ble %v1", "bgt %v1");
+        add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GE, "bge %v1", "blt %v1");
+    }
+
+    // if (is_unsigned) {
+    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LT, X86_OP_JB,  "jb %v1" , X86_OP_JAE, "jae %v1" );
+    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GT, X86_OP_JA,  "ja %v1",  X86_OP_JBE, "jbe %v1");
+    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LE, X86_OP_JBE, "jbe %v1", X86_OP_JA,  "ja %v1");
+    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GE, X86_OP_JAE, "jae %v1", X86_OP_JB,  "jb %v1");
+    // }
+    // else {
+    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LT, X86_OP_JLT, "jl %v1" , X86_OP_JGE, "jge %v1" );
+    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GT, X86_OP_JGT, "jg %v1",  X86_OP_JLE, "jle %v1");
+    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LE, X86_OP_JLE, "jle %v1", X86_OP_JGT, "jg %v1");
+    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GE, X86_OP_JGE, "jge %v1", X86_OP_JLT, "jl %v1");
+    // }
+}
+
+static void add_int_comparison_assignment_rule(int src1, int src2, int operation, char *set_template) {
+    // Comparison operators always return an int
+    Rule *r = add_rule(RI3, operation, src1, src2, 12);
+    add_op(r, AARCH64_OP_CMP,   0,   SRC1, SRC2, "cmp %v1, %v2");
+    add_op(r, AARCH64_OP_CSET,  DST, 0,    0,    set_template);
+    fin_rule(r);
+}
+
+// Comparison and assignment rules for integers
+static void add_int_comp_assignment_rules(int is_unsigned, int src1, int src2) {
+    add_int_comparison_assignment_rule(src1, src2, IR_EQ, "cset %vdw, eq");
+    add_int_comparison_assignment_rule(src1, src2, IR_NE, "cset %vdw, ne");
+
+    if (is_unsigned) {
+        add_int_comparison_assignment_rule(src1, src2, IR_LT, "cset %vdw, lo");
+        add_int_comparison_assignment_rule(src1, src2, IR_GT, "cset %vdw, hi");
+        add_int_comparison_assignment_rule(src1, src2, IR_LE, "cset %vdw, ls");
+        add_int_comparison_assignment_rule(src1, src2, IR_GE, "cset %vdw, hs");
+
+    }
+    else {
+        add_int_comparison_assignment_rule(src1, src2, IR_LT, "cset %vdw, lt");
+        add_int_comparison_assignment_rule(src1, src2, IR_GT, "cset %vdw, gt");
+        add_int_comparison_assignment_rule(src1, src2, IR_LE, "cset %vdw, le");
+        add_int_comparison_assignment_rule(src1, src2, IR_GE, "cset %vdw, ge");
+    }
+}
+
+// Add conditional jump and assignment rules for an integer comparison
+static void add_int_comparison_rules(int *ntc, int is_unsigned, int src1, int src2) {
+    add_int_comp_cond_jmp_rules(ntc, is_unsigned, src1, src2);
+    add_int_comp_assignment_rules(is_unsigned, src1, src2);
 }
 
 static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int target_operation, char *comparison, char *conditional_jmp) {
@@ -726,7 +755,8 @@ void define_rules(void) {
     add_pointer_add_rules();
     add_pointer_sub_rules();
 
-    add_int_comparison_rules();
+    // Comparision + conditional jump rules
+    add_int_comparison_rules(&ntc, 0, XRI, XRI); add_int_comparison_rules(&ntc, 1, XRU, XRU);
 
     // Direct function calls
     r = add_rule(XRI, IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
@@ -736,8 +766,8 @@ void define_rules(void) {
     // Jump rules
     r = add_rule(0, IR_JMP, LAB, 0,1);  add_op(r, AARCH64_OP_B, 0, SRC1, 0, "b %v1"); fin_rule(r);
 
-    add_conditional_zero_jump_rule(IR_JZ,  XR, LAB, 3, AARCH64_OP_BEQ, "cmp %v1, 0",  "beq %v1");
-    add_conditional_zero_jump_rule(IR_JNZ, XR, LAB, 3, AARCH64_OP_BNE, "cmp %v1, 0",  "bne %v1");
+    add_conditional_zero_jump_rule(IR_JZ,  XR, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
+    add_conditional_zero_jump_rule(IR_JNZ, XR, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
 
     if (ntc >= AUTO_NON_TERMINAL_END)
     panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);

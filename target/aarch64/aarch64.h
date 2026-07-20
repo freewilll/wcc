@@ -163,9 +163,8 @@ enum aarch64_instruction_op {
     AARCH64_OP_ASR,
     AARCH64_OP_CSET,
     AARCH64_OP_CMP,
-    AARCH64_OP_BEQ,
-    AARCH64_OP_BNE,
-    AARCH64_OP_B,
+    AARCH64_OP_COND_B,                  // Conditional branches, like BEQ, BNE, BHI, ...
+    AARCH64_OP_B,                       // Unconditional branch
     AARCH64_OP_CALL,
     AARCH64_OP_CALL_FROM_FUNC,
     AARCH64_OP_PUSH_DOUBLE_WORD,

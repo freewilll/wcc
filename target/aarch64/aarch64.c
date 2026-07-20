@@ -39,8 +39,7 @@ char *target_op_name(int operation) {
         case AARCH64_OP_ASR:                return "asr";
         case AARCH64_OP_CSET:               return "cset";
         case AARCH64_OP_CMP:                return "cmp";
-        case AARCH64_OP_BEQ:                return "beq";
-        case AARCH64_OP_BNE:                return "bne";
+        case AARCH64_OP_COND_B:             return "cb";
         case AARCH64_OP_B:                  return "b";
         case AARCH64_OP_CALL:               return "call";
         case AARCH64_OP_CALL_FROM_FUNC:     return "callf";         // Used in codegen
@@ -72,8 +71,7 @@ void print_target_instruction(void *f, Tac *tac) {
             break;
 
         case AARCH64_OP_BNOT:
-        case AARCH64_OP_BEQ:
-        case AARCH64_OP_BNE:
+        case AARCH64_OP_COND_B:
         case AARCH64_OP_B:
             fprintf(f, "%-12s", operation_string(o));
             print_value(f, tac->dst, 1);

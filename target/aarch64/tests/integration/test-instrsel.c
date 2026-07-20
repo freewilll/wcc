@@ -327,6 +327,56 @@ void test_constant_store_to_stack(void) {
     assert_target_op("str         r1x, [sp, 8]");
 }
 
+void test_int_cmp_with_conditional_jmp(Function *function, int cmp_operation, int jmp_operation, char *jmp_instruction) {
+    char *template;
+
+    start_ir();
+    i(0, cmp_operation,  v(3), v(1), v(2));
+    i(0, jmp_operation,  0,    v(3), l(1));
+    i(1, IR_NOP,         0,    0,    0   );
+    finish_ir(function);
+    wasprintf(&template, "%-11s .L1", jmp_instruction);
+    assert_target_op("cmp         r1x, r2x");
+    assert_target_op(template);
+}
+
+void test_cmp_with_assignment(Function *function, int cmp_operation, char *set_instruction) {
+    char *template;
+
+    start_ir();
+    i(0, cmp_operation, vsz(3, TYPE_INT), v(1), v(2));
+    finish_ir(function);
+    assert_target_op("cmp         r1x, r2x");
+    assert_target_op(set_instruction);
+}
+
+void test_instrsel_conditionals() {
+    long l;
+
+    l = 4294967296;
+    // JZ                                                              JNZ
+    test_int_cmp_with_conditional_jmp(function, IR_EQ, IR_JNZ, "beq"); test_int_cmp_with_conditional_jmp(function, IR_EQ, IR_JZ, "bne");
+    test_int_cmp_with_conditional_jmp(function, IR_NE, IR_JNZ, "bne"); test_int_cmp_with_conditional_jmp(function, IR_NE, IR_JZ, "beq");
+    test_int_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, "blt"); test_int_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, "bge");
+    test_int_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, "bgt"); test_int_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, "ble");
+    test_int_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, "ble"); test_int_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, "bgt");
+    test_int_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "bge"); test_int_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "blt");
+
+    // TODO aarch64
+    // test_fp_cmp_with_conditional_jmp(function, IR_LT, IR_JNZ, "ja" ); test_fp_cmp_with_conditional_jmp(function, IR_LT, IR_JZ, "jbe");
+    // test_fp_cmp_with_conditional_jmp(function, IR_GT, IR_JNZ, "ja" ); test_fp_cmp_with_conditional_jmp(function, IR_GT, IR_JZ, "jbe");
+    // test_fp_cmp_with_conditional_jmp(function, IR_LE, IR_JNZ, "jae"); test_fp_cmp_with_conditional_jmp(function, IR_LE, IR_JZ, "jb" );
+    // test_fp_cmp_with_conditional_jmp(function, IR_GE, IR_JNZ, "jae"); test_fp_cmp_with_conditional_jmp(function, IR_GE, IR_JZ, "jb" );
+
+    // Conditional assignment with 2 registers
+    test_cmp_with_assignment(function, IR_EQ, "cset        r3w, eq");
+    test_cmp_with_assignment(function, IR_NE, "cset        r3w, ne");
+    test_cmp_with_assignment(function, IR_LT, "cset        r3w, lt");
+    test_cmp_with_assignment(function, IR_GT, "cset        r3w, gt");
+    test_cmp_with_assignment(function, IR_LE, "cset        r3w, le");
+    test_cmp_with_assignment(function, IR_GE, "cset        r3w, ge");
+}
+
 int main() {
     int verbose;
 
@@ -352,6 +402,7 @@ int main() {
     if (verbose) printf("Running instrsel test_is_logical_immediate_64_bit\n");                 test_is_logical_immediate_64_bit();
     if (verbose) printf("Running instrsel test_instrsel_logical_instruction_with_constant\n");  test_instrsel_logical_instruction_with_constant();
     if (verbose) printf("Running instrsel test_constant_store_to_stack\n");                     test_constant_store_to_stack();
+    if (verbose) printf("Running instrsel test_instrsel_conditionals\n");                       test_instrsel_conditionals();
 
 
     if (failures) {
