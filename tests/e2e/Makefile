@@ -40,9 +40,12 @@ else ifeq ($(TARGET),aarch64)
 # TODO aarch64 run all e2e tests
 WCC_TESTS=\
 	expr \
+	comma \
 	pointers \
 	pointer-arithmetic \
 	structs \
+	ifdef \
+	switch \
 	character-and-string-literals
 endif
 
