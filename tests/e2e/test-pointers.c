@@ -447,8 +447,6 @@ void test_scaled_indirects() {
     test_scaled_long_pointer_indirects();
 }
 
-#ifdef __x86_64__
-
 int test_null_pointer() {
     int *pi;
 
@@ -472,6 +470,24 @@ int test_null_pointer() {
     pi = 1; assert_int(1, pi != (void *) 0, "pi == (void *) 0"); assert_int(1, (void *) 0 != pi, "(void *) 0 == pi");
     pi = 1; assert_int(0, pi != (void *) 1, "pi == (void *) 1"); assert_int(0, (void *) 1 != pi, "(void *) 1 == pi");
 }
+
+void test_comparisons() {
+    void *i = 0; void *j = 0; void *k = 1;
+
+    assert_int(1, (void *) 0 == (void *) 0, "void * 0 == void * 0");
+    assert_int(0, (void *) 0 != (void *) 0, "void * 0 != void * 0");
+    assert_int(0, (void *) 0 == (void *) 1, "void * 0 == void * 1");
+    assert_int(1, (void *) 0 != (void *) 1, "void * 0 != void * 1");
+
+    assert_int(1, (void *) 0 == (char *) 0, "void * 0 == char * 0");
+    assert_int(1, (void *) i == (char *) j, "void * i == char * j");
+    assert_int(0, (void *) i == (char *) k, "void * i == char * k");
+
+    if ((void *) i == (char *) j); else assert_int(0, 1, "(void *) i == (char *) k) in if");
+    if ((void *) i != (char *) k); else assert_int(0, 1, "(void *) i != (char *) k) in if");
+}
+
+#ifdef __x86_64__
 
 void assert_pi(int expected, int *pi, char *message) {
     assert_int(expected, *pi, message);
@@ -532,22 +548,6 @@ void taofp_cocktail_in_stack(
     assert_int(7, st->i, "&st st");
 }
 
-void test_comparisons() {
-    void *i = 0; void *j = 0; void *k = 1;
-
-    assert_int(1, (void *) 0 == (void *) 0, "void * 0 == void * 0");
-    assert_int(0, (void *) 0 != (void *) 0, "void * 0 != void * 0");
-    assert_int(0, (void *) 0 == (void *) 1, "void * 0 == void * 1");
-    assert_int(1, (void *) 0 != (void *) 1, "void * 0 != void * 1");
-
-    assert_int(1, (void *) 0 == (char *) 0, "void * 0 == char * 0");
-    assert_int(1, (void *) i == (char *) j, "void * i == char * j");
-    assert_int(0, (void *) i == (char *) k, "void * i == char * k");
-
-    if ((void *) i == (char *) j); else assert_int(0, 1, "(void *) i == (char *) k) in if");
-    if ((void *) i != (char *) k); else assert_int(0, 1, "(void *) i != (char *) k) in if");
-}
-
 int test_address_of_function_parameters() {
     taofp_int(1, 2, 3, 4, 5, 6, 7);
     taofp_long_double(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1);
@@ -567,9 +567,13 @@ int test_address_of_function_parameters() {
         c, s, i, l, f, d, st);
 }
 
+#endif
+
 int test_string_literal_in_eq() {
     assert_int(0, "abc" == (void *) 0, "Compare a string literal to NULL");
 }
+
+#ifdef __x86_64__
 
 int test_dereferencing_an_array() {
     struct{ int i; } s[1];
@@ -577,6 +581,7 @@ int test_dereferencing_an_array() {
 }
 
 #endif
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -607,11 +612,13 @@ int main(int argc, char **argv) {
     test_deref_promotion();
     test_write_constant_to_pointer();
     test_scaled_indirects();
-    #ifdef __x86_64__
     test_null_pointer();
     test_comparisons();
+    #ifdef __x86_64__
     test_address_of_function_parameters();
+    #endif
     test_string_literal_in_eq();
+    #ifdef __x86_64__
     test_dereferencing_an_array();
     #endif
 

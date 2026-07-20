@@ -756,7 +756,16 @@ void define_rules(void) {
     add_pointer_sub_rules();
 
     // Comparision + conditional jump rules
+
+    // Comparision + conditional jump rules
+    // Pointer comparisons are unsigned
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            add_int_comparison_rules(&ntc, 1, RP1 + i, RP1 + j);
+
     add_int_comparison_rules(&ntc, 0, XRI, XRI); add_int_comparison_rules(&ntc, 1, XRU, XRU);
+    add_int_comparison_rules(&ntc, 1, RI4, XRP); add_int_comparison_rules(&ntc, 1, RU4, XRP);
+    add_int_comparison_rules(&ntc, 1, XRP, RI4); add_int_comparison_rules(&ntc, 1, XRP, RU4);
 
     // Direct function calls
     r = add_rule(XRI, IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
