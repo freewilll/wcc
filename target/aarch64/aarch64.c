@@ -397,11 +397,34 @@ static Tac *insert_offset_add_for_ldr_global_access(Tac *tac) {
     return tac;
 }
 
+// For instructions that write to a pointer in a vreg with an offset,
+// add the offset, store in r14 and use r14.
+static void insert_offset_instructions_for_pointer_in_vreg(Tac *tac) {
+    // Make a value for the r14 register
+    Value *r14 = new_value();
+    r14->type = new_type(TYPE_LONG);
+    r14->preg = REG_R14;
+
+    // Make a value for the offset
+    Value *offset_value = new_integral_constant(TYPE_LONG, tac->src1->offset);
+
+    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_ADD, r14, tac->src1, offset_value, 1);
+    pre_tac->target_template = "add %vdx, %v1x, %v2x";
+
+    tac->src1 = dup_value(tac->src1);
+    tac->src1->offset = 0;
+    tac->src1->preg = REG_R14;
+}
+
 void add_load_memory_instructions(Function *function) {
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         // Split ldr r, [sp + offset] with large offsets so that the offset is loaded separately
         if (tac->operation.id == AARCH64_OP_LDR && tac->src1->stack_offset) {
             insert_offset_instructions_for_ldr_str_stack_access(tac);
+        }
+
+        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->vreg && tac->src1->offset) {
+            insert_offset_instructions_for_pointer_in_vreg(tac);
         }
 
         // Add an add of the offset if a pointer to global has been loaded into a register
@@ -416,6 +439,10 @@ void add_store_memory_instructions(Function *function) {
         // Split str r, [sp + offset] with large offsets so that the offset is loaded separately
         if (tac->operation.id == AARCH64_OP_STR && tac->src1->stack_offset) {
             insert_offset_instructions_for_ldr_str_stack_access(tac);
+        }
+
+        if (tac->operation.id == AARCH64_OP_STR && tac->src1->vreg && tac->src1->offset) {
+            insert_offset_instructions_for_pointer_in_vreg(tac);
         }
 
         if (tac->operation.id == AARCH64_OP_STR && tac->src1->global_symbol) {

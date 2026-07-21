@@ -35,18 +35,18 @@ enum {A, B};
 enum {C=2, D};
 enum {E=-2, F};
 
-struct sc { char  i, j; char  k; };
-struct ss { short i, j; short k; };
-struct si { int   i, j; int   k; };
-struct sl { long  i, j; long  k; };
+struct sc { signed char  i, j; signed char  k; };
+struct ss { signed short i, j; signed short k; };
+struct si { signed int   i, j; signed int   k; };
+struct sl { signed long  i, j; signed long  k; };
 struct sc* gsc;
 struct ss* gss;
 struct si* gsi;
 struct sl* gsl;
 
 
-struct sc1  { char        c1;                 };
-struct sc2  { char        c1; char c2;        };
+struct sc1  { signed char c1;                 };
+struct sc2  { signed char c1; signed char c2; };
 struct ss1  { short       c1;                 };
 struct ss2  { short       c1; short s1;       };
 struct si1  { int         c1;                 };
@@ -70,10 +70,12 @@ struct cd  { char c1; double      d1; };
 struct cld { char c1; long double ld1; };
 struct cla { char c1; long        l1[10]; };
 
+#endif
 struct ccc  { char c1; char         c2;     char c3; };
 struct csc  { char c1; short        c2;     char c3; };
 struct cic  { char c1; int          c2;     char c3; };
 struct clc  { char c1; long         c2;     char c3; };
+#ifdef __x86_64__
 struct cfc  { char c1; float        c2;     char c3; };
 struct cdc  { char c1; double       c2;     char c3; };
 struct cldc { char c1; long double  c2;     char c3; };
@@ -348,8 +350,6 @@ void test_stack_loads_and_stores() {
     s.ul = 19L; assert_int(19, s.ul, "Local struct load/store from constant 9l");
 }
 
-#ifdef __x86_64__
-
 void test_simple_struct() {
     struct sc *lsc1, *lsc2;
     struct ss *lss1, *lss2;
@@ -405,6 +405,8 @@ void test_sizeof() {
     assert_int(48, sizeof(struct {long x[2][3];}      ), "sizeof struct {long x[2][3];}");
     assert_int(16, sizeof(struct {long x; char y;}    ), "sizeof struct {long x; char y;}");
 }
+
+#ifdef __x86_64__
 
 void test_struct_member_alignment() {
     struct cc  *vc;
@@ -468,6 +470,8 @@ void test_struct_member_alignment() {
     assert_int(8,  (long) &(vla->l1)  - (long) &(vla->c1), "struct member alignment la");
 }
 
+#endif
+
 void test_struct_indirect_sizes() {
     struct ccc *ccc;
 
@@ -490,6 +494,8 @@ void test_struct_alignment_bug() {
     assert_int(20, (long) &(eh->s1) - (long) eh, "struct alignment bug 3");
     assert_int(24, sizeof(struct s2),            "struct alignment bug 4");
 }
+
+#ifdef __x86_64__
 
 void test_struct_alignment_bug2() {
     struct t {
@@ -1442,12 +1448,14 @@ int main(int argc, char **argv) {
     test_big_local_structs();
     test_global_loads_and_stores();
     test_stack_loads_and_stores();
-#ifdef __x86_64__
     test_simple_struct();
     test_sizeof();
+#ifdef __x86_64__
     test_struct_member_alignment();
+#endif
     test_struct_indirect_sizes();
     test_struct_alignment_bug();
+#ifdef __x86_64__
     test_struct_member_size_lookup_bug();
     test_nested_struct();
     test_packed_struct();
