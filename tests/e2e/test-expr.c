@@ -511,7 +511,9 @@ void test_composite_assign() {
     i = 1;  i ^=  3; assert_int(2,  i, "^=");
     i = 1;  i |=  3; assert_int(3,  i, "|=");
 }
+
 #endif
+
 static void test_assign_to_globals() {
     char c, *pc;
     short s, *ps;
@@ -781,15 +783,12 @@ void test_conditional_jumps() {
     ui1 = 1; ui2 =  1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 >= ui2");
     ui1 = 2; ui2 =  1; if (ui1 >= ui2) r = 1; else r = 0; assert_int(1, r, "ui1 >= ui2");
 }
-#ifdef __x86_64__
 
 void test_pointer_comparisons() {
     unsigned char *p1 = (unsigned char *)(1);
     unsigned char *p2 = (unsigned char *)(-1);
     assert_int(1, p1 < p2, "pointer to unsigned char comparison");
 }
-
-#endif
 
 // This test is mostly for aarch64, which can require multiple instructions to assign a constant
 // to a register.
@@ -1065,6 +1064,8 @@ void test_unary_minus() {
     ld = 1; assert_long_double(-1.0,       -ld, "ld = 1; -ld");
 }
 
+#endif
+
 void test_80000000_addition_and_subtraction() {
     long l = 0x80000000;
 
@@ -1097,7 +1098,6 @@ void test_80000000_addition_and_subtraction() {
     assert_long(0x100000000, pc + 0x80000000 , "pc + 0x80000000");
 }
 
-#endif
 void test_80000000_unary_minus() {
     int i;
     long l;
@@ -1122,7 +1122,7 @@ void test_80000000_cmp() {
     l = 0x80000000; assert_int(1, l == 0x80000000, "cmpq imm32 0x80000000");
     l = 0xffffffff; assert_int(1, l == 0xffffffff, "cmpq imm32 0xffffffff");
 }
-#ifdef __x86_64__
+
 void test_pointer_casting_reads() {
     int i;
     char *data;
@@ -1150,8 +1150,6 @@ void test_pointer_casting_reads() {
     assert_long(0x0000000001010101, *((unsigned int   *) data), "unsigned int read 2");
     assert_long(0x0101010101010101, *((unsigned long  *) data), "unsigned long read 2");
 }
-
-#endif
 
 void func_c(signed char c, long value, char *message) { assert_long((long) c, value, message); }
 void func_s(short       s, long value, char *message) { assert_long((long) s, value, message); }
@@ -1433,8 +1431,6 @@ void test_constant_encodings() {
     assert_int(10, long_xor5(15), "long xor immediate 5");
 }
 
-#ifdef __x86_64__
-
 void test_sign_extend_globals() {
     unsigned char uc;
     unsigned short us;
@@ -1472,6 +1468,8 @@ static void test_constant_assignment_to_global() {
     gl = 0x80000000;         assert_long(0x80000000,         gl, "gl = 0x7fffffff;        ");
     gl = 0x7fffffff;         assert_long(0x7fffffff,         gl, "gl = 0x7fffffff;        ");
 }
+
+#ifdef __x86_64__
 
 static int test_logical_not() {
     char c;
@@ -1553,8 +1551,6 @@ int test_global_var_in_the_middle() {
     assert_int(1, gi, "Test global var declaration in the middle of a file");
 }
 
-#ifdef __x86_64__
-
 int test_const_assignment() {
     const int i = 1;
 
@@ -1589,7 +1585,6 @@ int test_composite_type_of_globals() {
     assert_int(40, sizeof(composite_global2), "composite global 2");
 }
 
-#endif
 void test_operations_with_64_bit_immediate() {
     // 64 bit constants need to be loaded into a register, since the are no instructions
     // for them.
@@ -1652,8 +1647,6 @@ int test_constant_expressions() {
     assert_int(8, PI2, "constant expression sizeof(int *)");
 }
 
-#ifdef __x86_64__
-
 int test_constant_expression_uses() {
     // Array size
     int ia[2+3]; assert_int(20, sizeof(ia), "Integer array with constant expression declaration");
@@ -1679,8 +1672,6 @@ int test_constant_expression_uses() {
     enum { FOO = 1 + 1, };
     assert_int(FOO, 2, "Enum value with constant expression");
 }
-
-#endif
 
 int test_constant_casting() {
 #ifdef __x86_64__
@@ -1803,8 +1794,6 @@ void test_offsetof(){
     assert_int(8, offsetof(struct { int  e1; long  e2; }, e2), "offsetof il");
 }
 
-#ifdef __x86_64__
-
 void test_mixed_sign_assignments_to_memory() {
     unsigned char uc; &uc;
     uc = 0xff;
@@ -1859,8 +1848,6 @@ void test_insane_array_lookup() {
     assert_int(2, 1[ca], "Insane array lookup 2");
 }
 
-#endif
-
 void test_shr_on_signed_int_bug() {
     int i = -9;
     i = -9; assert_int(-4,  i / 2, "SHL on signed int bug 1");
@@ -1870,8 +1857,6 @@ void test_shr_on_signed_int_bug() {
     ui = -9; assert_int(2147483643,  ui / 2, "SHL on signed int bug 3");
     ui = -9; assert_int(1073741821,  ui / 4, "SHL on signed int bug 4");
 }
-
-#ifdef __x86_64__
 
 // Test for ignoring __attribute__
 int function_with_format_attribute() __attribute__ ((__format__ (__printf__, 3, 4)));
@@ -1904,8 +1889,6 @@ int test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug() {
     pc_clobber_bug.l = 2;
     IR_DECL_LOCAL_COMP_OBJ_bug_func(&pc_clobber_bug);
 }
-
-#endif
 
 void inc_gi() { gi++; }
 
@@ -1995,9 +1978,7 @@ int main(int argc, char **argv) {
     test_logical_or_operation_sign();
     test_sizeof_expr();
     test_conditional_jumps();
-#ifdef __x86_64__
     test_pointer_comparisons();
-#endif // __x86_64__
     test_integer_constant_assignments();
     test_integer_constant_sizes();
     test_hex_and_octal_constants();
@@ -2005,13 +1986,11 @@ int main(int argc, char **argv) {
 #ifdef __x86_64__
     test_unary_plus();
     test_unary_minus();
-    test_80000000_addition_and_subtraction();
 #endif // __x86_64__
+    test_80000000_addition_and_subtraction();
     test_80000000_unary_minus();
     test_80000000_cmp();
-#ifdef __x86_64__
     test_pointer_casting_reads();
-#endif // __x86_64__
     test_int_int_assignment(1);
     test_int_int_assignment(-1);
     test_int_uint_assignment(1);
@@ -2019,25 +1998,21 @@ int main(int argc, char **argv) {
     test_uint_int_assignment();
     test_uint_uint_assignment();
     test_constant_encodings();
-#ifdef __x86_64__
     test_constant_assignment_to_global();
-    test_sign_extend_globals();
+#ifdef __x86_64__
     test_logical_not();
 #endif
+    test_sign_extend_globals();
     test_bitwise_not();
     test_scopes();
     test_global_var_in_the_middle();
-#ifdef __x86_64__
     test_const_assignment();
     test_static_objects_in_function();
     test_composite_type_of_globals();
-#endif
     test_operations_with_64_bit_immediate();
     test_overflow();
     test_constant_expressions();
-#ifdef __x86_64__
     test_constant_expression_uses();
-#endif // __x86_64__
     test_constant_casting();
     test_bswap64();
 #ifdef __x86_64__
@@ -2046,17 +2021,13 @@ int main(int argc, char **argv) {
     test_BSHR_conversion_bug();
     test_cast_to_void();
     test_offsetof();
-#ifdef __x86_64__
     test_mixed_sign_assignments_to_memory();
     test_mixed_sign_assignments_to_memory2(1, 1);
     test_mixed_sign_assignments_to_memory3();
     test_and_or_value_stack_clobber_bug();
     test_insane_array_lookup();
-#endif
     test_shr_on_signed_int_bug();
-#ifdef __x86_64__
     test_stack_clobber_due_to_disappearing_IR_DECL_LOCAL_COMP_OBJ_bug();
-#endif
     test_expression_statement();
     test___func__statements();
     test___signed__keyword();

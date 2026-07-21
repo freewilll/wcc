@@ -42,6 +42,7 @@ WCC_TESTS=\
 	expr \
 	comma \
 	pointers \
+	memory-functions \
 	pointer-arithmetic \
 	structs \
 	ifdef \

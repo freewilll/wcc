@@ -119,6 +119,8 @@ void test_char_pointer_arithmetic() {
     assert_int(0, strcmp(start, "foo"), "char pointer arithmetic");
 }
 
+#endif
+
 void test_pointer_pointer_subtraction1() {
     char *c1, *c2;
     short *s1, *s2;
@@ -147,6 +149,8 @@ void test_pointer_pointer_subtraction2() {
 
     t(3, 1);
 }
+
+#ifdef __x86_64__
 
 void test_pointer_int_subtraction() {
     char c, *c1;
@@ -185,6 +189,8 @@ void test_pointer_const_pointer_subtraction() {
     assert_long(127,  ((long  *) pc) - (long  *) 1, "Pointer - const subtraction long 2");
 }
 
+#endif
+
 void test_dereferenced_pointer_inc_dec() {
     struct s1 *s;
 
@@ -208,8 +214,6 @@ void test_pointer_with_non_constant_non_pointer_addition() {
     *(pi + j) = 1;
     assert_int(1, *pi, "Pointer with non-constant non-pointer addition");
 }
-
-#endif
 
 void test_pointer_arithmetic_addition() {
     char c, *c1, *c2;
@@ -265,16 +269,18 @@ int main(int argc, char **argv) {
 
     test_pointer_addition_with_constant();
     test_pointer_addition_with_register();
-    #ifdef __x86_64__
+#ifdef __x86_64__
     test_brutal_pointer_arithmetic();
     test_char_pointer_arithmetic();
+#endif
     test_pointer_pointer_subtraction1();
     test_pointer_pointer_subtraction2();
+#ifdef __x86_64__
     test_pointer_int_subtraction();
     test_pointer_const_pointer_subtraction();
+#endif
     test_dereferenced_pointer_inc_dec();
     test_pointer_with_non_constant_non_pointer_addition();
-    #endif
     test_pointer_arithmetic_addition();
     test_struct_additions();
 
