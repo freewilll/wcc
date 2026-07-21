@@ -573,14 +573,10 @@ int test_string_literal_in_eq() {
     assert_int(0, "abc" == (void *) 0, "Compare a string literal to NULL");
 }
 
-#ifdef __x86_64__
-
 int test_dereferencing_an_array() {
     struct{ int i; } s[1];
     assert_int(4, sizeof(s->i), "-> on an array");
 }
-
-#endif
 
 int main(int argc, char **argv) {
     passes = 0;
@@ -618,9 +614,7 @@ int main(int argc, char **argv) {
     test_address_of_function_parameters();
     #endif
     test_string_literal_in_eq();
-    #ifdef __x86_64__
     test_dereferencing_an_array();
-    #endif
 
     finalize();
 }

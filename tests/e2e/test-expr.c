@@ -429,7 +429,6 @@ void test_mixed_sign_operations() {
     assert_int(0,   i <= ui,  "mixed signs <=");
 }
 
-#ifdef __x86_64__
 void test_local_comma_var_declarations() {
     int i, *pi;
     i = 1;
@@ -438,8 +437,6 @@ void test_local_comma_var_declarations() {
     *pi = 2;
     assert_int(2, *pi, "comma var declaration 2");
 }
-
-#endif
 
 void test_global_comma_var_declarations() {
     gcvi = 1;
@@ -1981,10 +1978,8 @@ int main(int argc, char **argv) {
     test_int_expr();
     test_uint_expr();
     test_mixed_sign_operations();
-#ifdef __x86_64__
     test_local_comma_var_declarations();
     test_global_comma_var_declarations();
-#endif // __x86_64__
     test_double_assign();
 #ifdef __x86_64__
     test_composite_assign();

@@ -200,7 +200,7 @@ struct st {
     char c2;
 };
 
-union u {int a; int b; char c0, c1, c2, c3;};
+union u {int a; int b; signed char c0, c1, c2, c3;};
 
 #ifdef __x86_64__
 
@@ -750,6 +750,8 @@ void test_struct_offset_pointer_indirects() {
     assert_long(-1,         ul, "opi ul"); assert_long(-1, pul, "opi pul");
 }
 
+#endif
+
 int test_sub_struct() {
     struct nss1 * nss1;
     struct nss2 * nss2;
@@ -784,12 +786,12 @@ int test_sub_struct() {
 }
 
 int test_unions() {
-    assert_int(1,   sizeof(union {char c1; char c2;}), "sizeof union with char");
-    assert_int(2,   sizeof(union {char c; short s;}), "sizeof union with short");
-    assert_int(4,   sizeof(union {char c; int i;}), "sizeof union with int");
-    assert_int(8,   sizeof(union {char c; long l;}), "sizeof union with long");
-    assert_int(16,  sizeof(union {char c; long double ld;}), "sizeof union with long double");
-    assert_int(32,  sizeof(union {char c; struct s {long double ld1; long double ld2;} s;}), "sizeof union with struct with 2x long double");
+    assert_int(1,   sizeof(union {signed char c1; signed char c2;}), "sizeof union with char");
+    assert_int(2,   sizeof(union {signed char c; short s;}), "sizeof union with short");
+    assert_int(4,   sizeof(union {signed char c; int i;}), "sizeof union with int");
+    assert_int(8,   sizeof(union {signed char c; long l;}), "sizeof union with long");
+    assert_int(16,  sizeof(union {signed char c; long double ld;}), "sizeof union with long double");
+    assert_int(32,  sizeof(union {signed char c; struct s {long double ld1; long double ld2;} s;}), "sizeof union with struct with 2x long double");
 
     union u *v = malloc(sizeof(union u));
 
@@ -870,6 +872,8 @@ int test_nested_structs_and_unions() {
     assert_int(0, (int) &v4.u2.d -   (int) &v4,  "Anonymous u/u 8");
 }
 
+#ifdef __x86_64__
+
 void assert_ds(struct ds *ds) {
     assert_int(        1,   ds->c,    "ds c");
     assert_int(        2,   ds->s,    "ds s");
@@ -921,6 +925,8 @@ int test_struct_long_double_temporary_bug() {
     assert_int(6, sld.s, "Long double/temporary bug 2");
 }
 
+#endif
+
 struct gs { int i; };
 
 int test_scoped_struct_tags() {
@@ -956,6 +962,8 @@ int test_declaration_without_definition() {
         int i;
     };
 }
+
+#ifdef __x86_64__
 
 int test_copy() {
     struct { char  i;         } s011, s012; s011.i = 1;                         s012 = s011; assert_int(0, memcmp(&s011, &s012, sizeof(s011)), "Struct copy 1");
@@ -1056,6 +1064,8 @@ int test_copy() {
     assert_int(7, st2a[1].st1.i[6], "memcpy struct with offset in array 7");
     assert_int(8, st2a[1].st1.i[7], "memcpy struct with offset in array 8");
 }
+
+#endif
 
 int test_pointers() {
     // Pointer to global struct
@@ -1357,7 +1367,7 @@ static void test_bit_field_saving() {
 void test_array_member_array_lookup() {
     // This tests a bug where a pointer in a register with an offset would get lost
 
-    struct {short s; char ca[1];} sa[2] = {1, 2, 3, 4};
+    struct {short s; signed char ca[1];} sa[2] = {1, 2, 3, 4};
 
     assert_int(0, (void *) &(sa[0]      ) - (void *) &sa, "Struct array member array lookup offset of sa[0]      ");
     assert_int(4, (void *) &(sa[1]      ) - (void *) &sa, "Struct array member array lookup offset of sa[1]      ");
@@ -1413,6 +1423,8 @@ void test_anonymous_struct_flattening() {
     assert_int(2, v.b, "Anonymous struct flattening 7");
 }
 
+#ifdef __x86_64__
+
 struct s { float f1, f2; } gst = { 1.1, 1.2 };
 struct s return_gst(void) { return gst; }
 
@@ -1420,6 +1432,8 @@ int test_temporary_struct_member_lookup() {
     assert_float(1.1, return_gst().f1, "Temporary struct member lookup 1");
     assert_float(1.2, return_gst().f2, "Temporary struct member lookup 2");
 }
+
+#endif
 
 int test_zero_length_arrays() {
     struct { char c; short sa[0]; } s1;
@@ -1436,8 +1450,6 @@ int test_zero_length_arrays() {
     s->ia[2] = 4;
     s->ia[3] = 5;
 }
-
-#endif
 
 int main(int argc, char **argv) {
     passes = 0;
@@ -1470,14 +1482,19 @@ int main(int argc, char **argv) {
     test_chocolate_factory_struct();
 #ifdef __x86_64__
     test_struct_offset_pointer_indirects();
+#endif
     test_sub_struct();
     test_unions();
     test_nested_structs_and_unions();
+#ifdef __x86_64__
     test_direct_structs();
     test_struct_long_double_temporary_bug();
+#endif
     test_scoped_struct_tags();
     test_declaration_without_definition();
+#ifdef __x86_64__
     test_copy();
+#endif
     test_pointers();
     test_arithmetic_with_local_struct_members();
     test_bit_field_sizes();
@@ -1485,8 +1502,10 @@ int main(int argc, char **argv) {
     test_bit_field_saving();
     test_array_member_array_lookup();
     test_anonymous_struct_flattening();
+#ifdef __x86_64__
     test_temporary_struct_member_lookup();
-    test_zero_length_arrays();
 #endif
+    test_zero_length_arrays();
+
     finalize();
 }
