@@ -44,7 +44,6 @@ struct ss* gss;
 struct si* gsi;
 struct sl* gsl;
 
-
 struct sc1  { signed char c1;                 };
 struct sc2  { signed char c1; signed char c2; };
 struct ss1  { short       c1;                 };
@@ -81,6 +80,16 @@ struct cdc  { char c1; double       c2;     char c3; };
 struct cldc { char c1; long double  c2;     char c3; };
 struct clac { char c1; long         c2[10]; char c3; };
 #endif
+
+struct sab2 {
+    struct t {
+        long l;
+        char c;
+    } t;
+    int i;
+};
+
+struct sab2 gsab2;
 
 struct                              pss1 { int i; char c; int j; };
 struct __attribute__ ((__packed__)) pss2 { int i; char c; int j; };
@@ -495,22 +504,11 @@ void test_struct_alignment_bug() {
     assert_int(24, sizeof(struct s2),            "struct alignment bug 4");
 }
 
-#ifdef __x86_64__
-
 void test_struct_alignment_bug2() {
-    struct t {
-        long l;
-        char c;
-    };
+    struct sab2 lsab2;
 
-    struct s {
-        struct t t;
-        int i;
-    };
-
-    struct s p;
-
-    assert_int(16, (void *) &(p.i) -  (void *) &p, "struct alignment bug 2 1");
+    assert_int(16, (void *) &(lsab2.i) - (void *) &lsab2, "struct alignment bug 2 1");
+    assert_int(16, (void *) &(gsab2.i) - (void *) &gsab2, "struct alignment bug 2 2");
 }
 
 void test_struct_member_size_lookup_bug() {
@@ -701,6 +699,8 @@ void test_chocolate_factory_struct() {
     assert_long(0xffffffff, cfs->ui, "ucfgs i");
     assert_long(-1,         cfs->ul, "ucfgs l");
 }
+
+#ifdef __x86_64__
 
 void test_struct_offset_pointer_indirects() {
     // The generated code should have things like movw 16(%rbx), %ax
@@ -1455,7 +1455,7 @@ int main(int argc, char **argv) {
 #endif
     test_struct_indirect_sizes();
     test_struct_alignment_bug();
-#ifdef __x86_64__
+    test_struct_alignment_bug2();
     test_struct_member_size_lookup_bug();
     test_nested_struct();
     test_packed_struct();
@@ -1468,6 +1468,7 @@ int main(int argc, char **argv) {
     test_function_with_a_pointer_to_a_struct_argument();
     test_struct_casting();
     test_chocolate_factory_struct();
+#ifdef __x86_64__
     test_struct_offset_pointer_indirects();
     test_sub_struct();
     test_unions();

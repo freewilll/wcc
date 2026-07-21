@@ -463,7 +463,7 @@ void add_address_of_instructions(Function *function) {
         sp->preg = REG_SP;
 
         // Make a value for the offset
-        int offset = tac->src1->stack_offset + tac->src1->offset;
+        int offset = tac->src1->stack_offset;
 
         Value *offset_value = new_integral_constant(TYPE_LONG, offset);
 

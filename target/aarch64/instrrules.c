@@ -44,10 +44,12 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (v->label)                                                        result =  LAB;
     else if (v->type->type == TYPE_FUNCTION)                                  result =  FUN;
     else if (is_local  && is_pointer_to_function_type(v->type))               result =  RPF;
-    else if (is_global && is_pointer_to_function_type(v->type))               result =  MGPF;
     else if (is_in_stack && is_pointer_to_function_type(v->type))             result =  MSPF;
-    else if (v->type->type == TYPE_STRUCT_OR_UNION)                           result =  MSA;
-    else if (v->type->type == TYPE_ARRAY)                                     result =  MSA;
+    else if (is_global && is_pointer_to_function_type(v->type))               result =  MGPF;
+    else if (is_in_stack && v->type->type == TYPE_STRUCT_OR_UNION)            result =  MSSA;
+    else if (is_in_stack && v->type->type == TYPE_ARRAY)                      result =  MSSA;
+    else if (is_global && v->type->type == TYPE_STRUCT_OR_UNION)              result =  MGSA;
+    else if (is_global && v->type->type == TYPE_ARRAY)                        result =  MGSA;
 
     // Pointers
     else if (is_in_stack && is_pointer)                                       result =  MSPV;
@@ -387,6 +389,7 @@ static void add_int_bitshift_rules(void) {
 static void add_pointer_plus_int_rule(int dst, int src) {
     Rule *r = add_rule(dst, IR_ADD, dst, src, 11);
     add_op(r, AARCH64_OP_ADD, DST, SRC1, SRC2, "add %vdx, %v1x, %v2x");
+    fin_rule(r);
 }
 
 static void add_pointer_add_rules(void) {
@@ -403,29 +406,25 @@ static void add_pointer_add_rules(void) {
     }
 }
 
-static void add_pointer_minus_int_rule(int dst, int src) {
-    Rule *r = add_rule(dst, IR_SUB, dst, src, 11);
+static void add_sub_rule(int dst, int src1, int src2) {
+    Rule *r = add_rule(dst, IR_SUB, src1, src2, 11);
     add_op(r, AARCH64_OP_ADD, DST, SRC1, SRC2, "sub %vdx, %v1x, %v2x");
 }
 
 static void add_pointer_sub_rules(void) {
-    // TODO aarch64
-
-    // pointer - constant
+    // pointer - int
     for (int i = RP1; i <= RP5; i++) {
-        add_pointer_minus_int_rule(i, CADDSUB);
-        add_pointer_minus_int_rule(i, RI1);
-        add_pointer_minus_int_rule(i, RU1);
-        add_pointer_minus_int_rule(i, RI2);
-        add_pointer_minus_int_rule(i, RU2);
-        add_pointer_minus_int_rule(i, RI3);
-        add_pointer_minus_int_rule(i, RU3);
-        add_pointer_minus_int_rule(i, RI4);
-        add_pointer_minus_int_rule(i, RU4);
+        add_sub_rule(i, i, XRI);
+        add_sub_rule(i, i, XRU);
     }
 
-    // Pointer - int subtraction
+    add_sub_rule(XRP, XRP, CADDSUB);
+
+    // Pointer - pointer subtraction
     // The result of a pointer-pointer subtraction is always a signed long: RI4.
+    for (int i = RP1; i <= RP5; i++)
+        for (int j = RP1; j <= RP5; j++)
+            add_sub_rule(RI4, i, j);
 }
 
 // Add integer comparision conditional jump rule
@@ -613,6 +612,11 @@ static void add_pointer_rules() {
     // IR_ADDRESS_OF for variables on the stack
     add_load_stack_address_rule(XRP, XMS);
     add_load_stack_address_rule(XRP, MSPV);
+    add_load_stack_address_rule(RP1, MSSA);
+    add_load_stack_address_rule(RP2, MSSA);
+    add_load_stack_address_rule(RP3, MSSA);
+    add_load_stack_address_rule(RP4, MSSA);
+    add_load_stack_address_rule(RP5, MSSA);
 
     // IR_ADDRESS_OF for globals
     add_load_global_address_rule(RP1, MGI1, IR_ADDRESS_OF);
@@ -628,6 +632,12 @@ static void add_pointer_rules() {
     add_load_global_address_rule(RP2, MGPV, IR_ADDRESS_OF);
     add_load_global_address_rule(RP3, MGPV, IR_ADDRESS_OF);
     add_load_global_address_rule(RP4, MGPV, IR_ADDRESS_OF);
+
+    add_load_global_address_rule(RP1, MGSA, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP2, MGSA, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP3, MGSA, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP4, MGSA, IR_ADDRESS_OF);
+    add_load_global_address_rule(RP5, MGSA, IR_ADDRESS_OF);
 
     // Stores of a pointer to a pointer
     for (int dst = RP1; dst <= RP4; dst++) {
@@ -692,6 +702,8 @@ void define_rules(void) {
     r = add_rule(STL,      0, STL,      0, 0);
     r = add_rule(FUN,      0, FUN,      0, 0);
     r = add_rule(LAB,      0, LAB,      0, 0);
+    r = add_rule(MSSA,     0, MSSA,     0, 0);
+    r = add_rule(MGSA,     0, MGSA,     0, 0);
 
     // Load integer constants into registers, both 32 and 64 bit
     r = add_rule(XR3, 0, XC3, 0, 1); add_op(r, AARCH64_OP_MOV_INT_CST, DST, SRC1, 0, NULL); fin_rule(r);

@@ -1292,7 +1292,9 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(MPV,   4 )   /* Pointer in memory */ \
     RULE_NON_TERMINAL_ITEM(MSPV,  4 )   /* Pointer in stack */ \
     RULE_NON_TERMINAL_ITEM(MGPV,  4 )   /* Pointer in global */ \
-    RULE_NON_TERMINAL_ITEM(MSA,   -1)   /* Struct or array in memory     */ \
+    RULE_NON_TERMINAL_ITEM(MSA,   -1)   /* Struct or array in memory */ \
+    RULE_NON_TERMINAL_ITEM(MSSA,  -1)   /* Struct or array in stack */ \
+    RULE_NON_TERMINAL_ITEM(MGSA,  -1)   /* Struct or array in global */ \
 
 
 enum rule_non_terminals {
