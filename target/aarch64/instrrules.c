@@ -406,17 +406,24 @@ static void add_pointer_add_rules(void) {
     }
 }
 
-static void add_sub_rule(int dst, int src1, int src2) {
+static Rule *add_sub_rule(int dst, int src1, int src2) {
     Rule *r = add_rule(dst, IR_SUB, src1, src2, 11);
     add_op(r, AARCH64_OP_ADD, DST, SRC1, SRC2, "sub %vdx, %v1x, %v2x");
+    return r;
 }
 
 static void add_pointer_sub_rules(void) {
+    Rule *r;
+
     // pointer - int
     for (int i = RP1; i <= RP5; i++) {
         add_sub_rule(i, i, XRI);
         add_sub_rule(i, i, XRU);
     }
+    r = add_sub_rule(XRP, XRP, RI3); fin_rule(r);
+    r = add_sub_rule(XRP, XRP, RU3); fin_rule(r);
+    r = add_sub_rule(XRP, XRP, RI4); fin_rule(r);
+    r = add_sub_rule(XRP, XRP, RU4); fin_rule(r);
 
     add_sub_rule(XRP, XRP, CADDSUB);
 

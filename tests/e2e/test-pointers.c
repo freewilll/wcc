@@ -578,6 +578,32 @@ int test_dereferencing_an_array() {
     assert_int(4, sizeof(s->i), "-> on an array");
 }
 
+void test_subtraction_with_different_sizes() {
+    signed char *pc = 12;
+    pc -= 3;        assert_long(9, pc, "Pointer subtraction char");
+    pc -= 3U;       assert_long(6, pc, "Pointer subtraction char U");
+    pc -= 3L;       assert_long(3, pc, "Pointer subtraction char L");
+    pc -= 3UL;      assert_long(0, pc, "Pointer subtraction char UL");
+
+    short *ps = 24;
+    ps -= 3;        assert_long(18, ps, "Pointer subtraction short");
+    ps -= 3U;       assert_long(12, ps, "Pointer subtraction short U");
+    ps -= 3L;       assert_long(6,  ps, "Pointer subtraction short L");
+    ps -= 3UL;      assert_long(0,  ps, "Pointer subtraction short UL");
+
+    int *pi = 48;
+    pi -= 3;        assert_long(36, pi, "Pointer subtraction int");
+    pi -= 3U;       assert_long(24, pi, "Pointer subtraction int U");
+    pi -= 3L;       assert_long(12, pi, "Pointer subtraction int L");
+    pi -= 3UL;      assert_long(0,  pi, "Pointer subtraction int UL");
+
+    long *pl = 96;
+    pl -= 3;        assert_long(72, pl, "Pointer subtraction long");
+    pl -= 3U;       assert_long(48, pl, "Pointer subtraction long U");
+    pl -= 3L;       assert_long(24, pl, "Pointer subtraction long L");
+    pl -= 3UL;      assert_long(0,  pl, "Pointer subtraction long UL");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -615,6 +641,7 @@ int main(int argc, char **argv) {
     #endif
     test_string_literal_in_eq();
     test_dereferencing_an_array();
+    test_subtraction_with_different_sizes();
 
     finalize();
 }
