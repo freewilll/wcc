@@ -65,23 +65,32 @@ char *register_name(int preg) {
 //              +8        Arg 1
 //              +0        Arg 0
 static int get_stack_offset(Value *v) {
+    int result;
+
     // A legacy from the original x86_64 code. Pushed args start at stack_index=2.
     int stack_index = v->stack_index;
 
     if (stack_index >= HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET)
         // Function parameter
-        return 8 * (stack_index - HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET);
+        result = 8 * (stack_index - HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET);
     else if (stack_index < 0) {
         if (!v->stack_offset && !debug_instsel_tiling) panic("Unexpected zero stack offset");
-        return cur_function_stack_size - v->stack_offset;
+        result = cur_function_stack_size - v->stack_offset;
     }
     else
         panic("Unexpected zero stack_index");
+
+    if (debug_stack_frame_layout)
+        printf("Stack index %3d is in stack at offset%4d\n", stack_index, result);
+
+    return result;
 }
 
 // Convert stack_offset, which has negative values for locals and positive values for passed arguments, into
 // an offset relative to the sp.
 void make_aarch64_stack_offsets(Function *function) {
+    cur_function_stack_size = function->stack_size;
+
     for (Tac *tac = function->ir; tac; tac = tac->next) {
         if (tac->dst  && tac->dst ->stack_offset) tac->dst ->stack_offset = get_stack_offset(tac->dst  ) + tac->dst ->offset;
         if (tac->src1 && tac->src1->stack_offset) tac->src1->stack_offset = get_stack_offset(tac->src1 ) + tac->src1->offset;
@@ -299,9 +308,6 @@ static void prepare_x29_x30_stack_saves(Function *function) {
 }
 
 void add_final_instructions(Function *function) {
-    cur_function_stack_size = function->stack_size;
-
-    make_aarch64_stack_offsets(function);
     add_load_memory_instructions(function);
     add_store_memory_instructions(function);
     add_address_of_instructions(function);

@@ -16,6 +16,38 @@ void assert_int(int expected, int actual, char *message) {
     }
 }
 
+static void n() {
+    ir_start = ir_start->next;
+}
+
+static void assert_preg_op(char *expected) {
+    char *got;
+
+    if (!ir_start && expected) {
+        printf("Expected %s, got nothing\n", expected);
+        failures++;
+        return;
+    }
+    else if (!ir_start && !expected) return;
+
+    got = 0;
+    while (ir_start && !got) {
+        got = render_target_operation(ir_start, 0, 1);
+        n();
+    }
+
+    if (!expected) {
+        printf("Expected nothing, got %s\n", got);
+        failures++;
+        return;
+    }
+
+    if (got && expected && strcmp(got, expected)) {
+        printf("Mismatch:\n  expected: %s\n  got:      %s\n", expected, got);
+        failures++;
+    }
+}
+
 // Run with a single instruction
 Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, Value *src2) {
     Tac *tac;
@@ -377,6 +409,69 @@ void test_instrsel_conditionals() {
     test_cmp_with_assignment(function, IR_GE, "cset        r3w, ge");
 }
 
+void test_spilling() {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
+
+    // src1c spill
+    start_ir();
+    i(0, IR_MOVE, Ssz(-2, TYPE_CHAR), vsz(1, TYPE_CHAR), 0);
+    finish_spill_ir(function);
+    assert_preg_op("movz        w15, 15");
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("ldrb        w15, [x15]");
+    assert_preg_op("strb        w15, [sp, 2]");
+
+    // src1s spill
+    start_ir();
+    i(0, IR_MOVE, Ssz(-2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0);
+    finish_spill_ir(function);
+    assert_preg_op("movz        w15, 14");
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("ldrh        w15, [x15]");
+    assert_preg_op("strh        w15, [sp, 4]");
+
+    // src1i spill
+    start_ir();
+    i(0, IR_MOVE, Ssz(-2, TYPE_INT), vsz(1, TYPE_INT), 0);
+    finish_spill_ir(function);
+    assert_preg_op("movz        w15, 12");
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("ldr         w15, [x15]");
+    assert_preg_op("str         w15, [sp, 8]");
+
+    // src1q spill
+    start_ir();
+    i(0, IR_MOVE, S(-2), v(1), 0);
+    finish_spill_ir(function);
+    assert_preg_op("movz        w15, 8");
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("ldr         x15, [x15]");
+    assert_preg_op("str         x15, [sp, 16]");
+
+    // src1c spill TODO aarch64 offsets in a spilled vreg
+
+    // dst, src1 and src2 spill
+    start_ir();
+    i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));
+    finish_spill_ir(function);
+    assert_preg_op("movz        w14, 24");          // w14 is used for loading src1
+    assert_preg_op("add         x14, sp, x14");
+    assert_preg_op("ldr         x14, [x14]");
+    assert_preg_op("movz        w15, 16");          // w15 is used for loading src2
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("ldr         x15, [x15]");
+    assert_preg_op("cmp         x14, x15");         // x14 is used to store the result
+    assert_preg_op("cset        w14, eq");
+    assert_preg_op("movz        w15, 12");          // x15 is used to store the pointer to the result in the stack
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("str         w14, [x15]");       // Store the result
+
+    init_allocate_registers(); // Enable register allocation again
+}
+
 int main() {
     int verbose;
 
@@ -403,6 +498,7 @@ int main() {
     if (verbose) printf("Running instrsel test_instrsel_logical_instruction_with_constant\n");  test_instrsel_logical_instruction_with_constant();
     if (verbose) printf("Running instrsel test_constant_store_to_stack\n");                     test_constant_store_to_stack();
     if (verbose) printf("Running instrsel test_instrsel_conditionals\n");                       test_instrsel_conditionals();
+    if (verbose) printf("Running instrsel test_spilling\n");                                    test_spilling();
 
 
     if (failures) {

@@ -23,8 +23,8 @@ enum {
     REG_R11,    // Temporary registers
     REG_R12,    // Temporary registers
     REG_R13,    // Temporary registers
-    REG_R14,    // Temporary registers, used to spill src1 TODO aarch64
-    REG_R15,    // Temporary registers, used to spill src2 TODO aarch64
+    REG_R14,    // Temporary registers, used for load/store instructions and spilled register load/stores
+    REG_R15,    // Temporary registers, used for load/store instructions and spilled register load/stores
     REG_R16,    // The first intra-procedure-call scratch register
     REG_R17,    // The second intra-procedure-call temporary register
     REG_R18,    // The Platform Register, if needed; otherwise a temporary register. See notes.
@@ -188,9 +188,11 @@ char size_to_aarch64_size(int size);
 char is_32bit_to_aarch64_size(int is_32bit);
 
 Tac *process_integer_constant_move_to_register(Tac *tac);
+int is_ldr_str_immediate_offset(int size, int offset);
 int is_logical_immediate(unsigned long l, int is_32bit);
 void add_load_memory_instructions(Function *function);
 void add_store_memory_instructions(Function *function);
 void add_address_of_instructions(Function *function);
+void make_aarch64_stack_offsets(Function *function);
 
 #endif

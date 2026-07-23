@@ -62,8 +62,6 @@ void test_pointer_addition_with_register() {
     puc = puc + ul; assert_long(puc, 8, "Pointer addition with register ul");
 }
 
-#ifdef __x86_64__
-
 void test_brutal_pointer_arithmetic() {
     char c, *pc, **ppc;
     short s, *ps, **pps;
@@ -118,8 +116,6 @@ void test_char_pointer_arithmetic() {
     *pc++ = 0;
     assert_int(0, strcmp(start, "foo"), "char pointer arithmetic");
 }
-
-#endif
 
 void test_pointer_pointer_subtraction1() {
     char *c1, *c2;
@@ -269,10 +265,8 @@ int main(int argc, char **argv) {
 
     test_pointer_addition_with_constant();
     test_pointer_addition_with_register();
-#ifdef __x86_64__
     test_brutal_pointer_arithmetic();
     test_char_pointer_arithmetic();
-#endif
     test_pointer_pointer_subtraction1();
     test_pointer_pointer_subtraction2();
 #ifdef __x86_64__

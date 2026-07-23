@@ -123,3 +123,125 @@ void init_allocate_registers(void) {
 
     live_range_reserved_pregs_offset = physical_int_register_count + physical_fp_register_count;
 }
+
+// Insert load from stack instructions for a vreg value that has been spilled.
+// temp_preg has the physical temp register that is used to hold the
+// pointer in the stack.
+static void add_spill_load(Tac *tac, Value *value, int temp_preg) {
+    int size = value->target_size;
+    int offset = value->stack_offset;
+
+    if (size < 1 || size > 4) panic("Expected a target size between 1 and 4: %d", size);
+    if (offset < 0) panic("Got a negative stack_index: %d", offset);
+
+    char *templates[]={"ldrb %vdw, [%v1x]", "ldrh %vdw, [%v1x]", "ldr %vdw, [%v1x]", "ldr %vdx, [%v1x]"};
+
+    // Make a value for the sp register
+    Value *sp = new_value();
+    sp->type = new_type(TYPE_LONG);
+    sp->preg = REG_SP;
+
+    // Make a value for the temp_preg register
+    Value *temp_preg_value = new_value();
+    temp_preg_value->type = new_type(TYPE_LONG);
+    temp_preg_value->preg = temp_preg;
+
+    // Make a value for the offset
+    Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+
+    // Add mov temp_preg, offset and encode the constant if necessary
+    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_MOV, temp_preg_value, offset_value, 0, 1);
+    pre_tac->target_template = "mov %vdx, %v1x";
+    process_integer_constant_move_to_register(pre_tac);
+
+    // Add add temp_preg, sp, temp_preg
+    pre_tac = new_tac_before(tac, AARCH64_OP_ADD, temp_preg_value, sp, temp_preg_value, 1);
+    pre_tac->target_template = "add %vdx, %v1x, %v2x";
+
+    // Add add temp_preg, sp, temp_preg
+    pre_tac = new_tac_before(tac, AARCH64_OP_LDR, temp_preg_value, temp_preg_value, 0, 1);
+    pre_tac->target_template = templates[size - 1];
+
+    // Modify original value
+    value->stack_offset = 0;
+    value->offset = 0;
+    value->preg = temp_preg;
+
+    if (value->offset) panic("TODO aarch64 offsets in a spilled vreg");
+}
+
+// Append store to stack instructions for a vreg value that has been spilled
+static Tac *add_spill_store(Tac *tac) {
+    int size = tac->dst->target_size;
+    int offset = tac->dst->stack_offset;
+
+    if (size < 1 || size > 4) panic("Expected a target size between 1 and 4: %d", size);
+    if (offset < 0) panic("Got a negative stack_index: %d", offset);
+
+    char *templates[]={"strb %vdw, [%v1x]", "strh %vdw, [%v1x]", "str %vdw, [%v1x]", "str %vdx, [%v1x]"};
+
+    // Make a value for the sp register
+    Value *sp = new_value();
+    sp->type = new_type(TYPE_LONG);
+    sp->preg = REG_SP;
+
+    // Make a value for the r14 register, which holds the dst value
+    Value *r14_value = new_value();
+    r14_value->type = new_type(size > 3 ? TYPE_LONG : TYPE_INT);
+    r14_value->preg = REG_R14;
+
+    // Make a value for the r15 register, which holds the pointer to the dst
+    Value *r15_value = new_value();
+    r15_value->type = new_type(TYPE_LONG);
+    r15_value->preg = REG_R15;
+
+    // Make a value for the offset
+    Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+
+    // Add mov temp_preg, offset and encode the constant if necessary
+    Tac *after_tac = new_tac_after(tac, AARCH64_OP_MOV, r15_value, offset_value, 0);
+    after_tac->target_template = "mov %vdx, %v1x";
+    after_tac = process_integer_constant_move_to_register(after_tac);
+
+    // Add add temp_preg, sp, temp_preg
+    after_tac = new_tac_after(after_tac, AARCH64_OP_ADD, r15_value, sp, r15_value);
+    after_tac->target_template = "add %vdx, %v1x, %v2x";
+
+    // Add add temp_preg, sp, temp_preg
+    after_tac = new_tac_after(after_tac, AARCH64_OP_STR, r14_value, r15_value, 0);
+    after_tac->target_template = templates[size - 1];
+
+    // Modify original value
+    tac->dst->stack_offset = 0;
+    tac->dst->offset = 0;
+    tac->dst->preg = REG_R14;
+
+    if (tac->dst->offset) panic("TODO aarch64 offsets in a spilled vreg");
+
+    return after_tac;
+}
+
+void add_spill_code(Function *function) {
+    make_aarch64_stack_offsets(function);
+
+    if (debug_instsel_spilling) printf("\nAdding spill code\n");
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
+
+        if (tac->src1 && tac->src1->spilled) {
+            if (debug_instsel_spilling) printf("Adding spill load\n");
+            add_spill_load(tac, tac->src1, REG_R14);
+        }
+
+        if (tac->src2 && tac->src2->spilled) {
+            if (debug_instsel_spilling) printf("Adding spill load\n");
+            add_spill_load(tac, tac->src2, REG_R15);
+        }
+
+        if (tac->dst && tac->dst->spilled) {
+            if (debug_instsel_spilling) printf("Adding spill store\n");
+            tac = add_spill_store(tac);
+        }
+    }
+}

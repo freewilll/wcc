@@ -267,7 +267,7 @@ void make_stack_offsets(Function *function) {
     if (debug_stack_frame_layout) {
         printf("Stack frame for %s:\n", function->identifier);
         for (int i = 1; i <= count; i++) {
-            printf("Slot %d offset=%4d size=%4d alignment=%4d\n", i, stack_offsets[i], stack_sizes[i], stack_alignments[i]);
+            printf("Slot %3d offset=%4d size=%4d alignment=%4d\n", i, stack_offsets[i], stack_sizes[i], stack_alignments[i]);
         }
         printf("\n");
     }

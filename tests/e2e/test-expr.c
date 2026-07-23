@@ -459,7 +459,6 @@ void test_double_assign() {
     assert_int(1, c, "double assign 3");
 }
 
-#ifdef __x86_64__
 void test_composite_assign() {
     char c, *pc;
     short s, *ps;
@@ -511,8 +510,6 @@ void test_composite_assign() {
     i = 1;  i ^=  3; assert_int(2,  i, "^=");
     i = 1;  i |=  3; assert_int(3,  i, "|=");
 }
-
-#endif
 
 static void test_assign_to_globals() {
     char c, *pc;
@@ -1964,9 +1961,7 @@ int main(int argc, char **argv) {
     test_local_comma_var_declarations();
     test_global_comma_var_declarations();
     test_double_assign();
-#ifdef __x86_64__
     test_composite_assign();
-#endif // __x86_64__
     test_assign_to_globals();
     test_integer_sizes();
 #ifdef __x86_64__

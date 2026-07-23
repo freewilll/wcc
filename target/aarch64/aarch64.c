@@ -300,7 +300,7 @@ Tac *process_integer_constant_move_to_register(Tac *tac) {
 }
 
 // Check if an offset can be encoded as [r + offset] in a ldr or str instruction
-static int is_ldr_str_immediate_offset(int size, int offset) {
+int is_ldr_str_immediate_offset(int size, int offset) {
     // If the offset can be encoded as [sp + n], leave it as is
     if (size == 1                      && offset <= 4095 ) return 1;
     if (size == 2 && (offset & 1) == 0 && offset <= 8190 ) return 1;
@@ -366,16 +366,14 @@ static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     // Make a value for the offset
     Value *offset_value = new_integral_constant(TYPE_LONG, offset);
 
-    // The instructions are inserted in backwards order
+    // Add mov x14, offset and encode the constant if necessary
+    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_MOV, r14, offset_value, 0, 1);
+    pre_tac->target_template = "mov %vdx, %v1x";
+    process_integer_constant_move_to_register(pre_tac);
 
     // Add add x14, sp, x14
-    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_ADD, r14, sp, r14, 1);
+    pre_tac = new_tac_before(tac, AARCH64_OP_ADD, r14, sp, r14, 1);
     pre_tac->target_template = "add %vdx, %v1x, %v2x";
-
-    // Add mov x14, offset and encode the constant if necessary
-    Tac *pre_tac2 = new_tac_before(pre_tac, AARCH64_OP_MOV, r14, offset_value, 0, 1);
-    pre_tac2->target_template = "mov %vdx, %v1x";
-    process_integer_constant_move_to_register(pre_tac2);
 
     // Replace [sp + offset] with [r14]
     tac->src1->stack_offset = 0;
@@ -497,19 +495,4 @@ void remove_vreg_self_moves(Function *function) {
             tac->target_template = 0;
         }
     }
-}
-
-void add_spill_code(Function *function) { // TODO aarch64
-    if (debug_instsel_spilling) printf("\nAdding spill code\n");
-
-    int need_spill_code = 0;
-    for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (debug_instsel_spilling) print_instruction(stdout, tac, 0);
-
-        if (tac->dst && tac->dst->spilled)   { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->dst->stack_index); }
-        if (tac->src1 && tac->src1->spilled) { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->src1->stack_index); }
-        if (tac->src2 && tac->src2->spilled) { need_spill_code = 1; fprintf(stderr, "TODO aarch64, add spill code for stack index %d\n", tac->src2->stack_index); }
-    }
-
-    if (need_spill_code) panic("Bailing due to not yet implemented spill code");
 }

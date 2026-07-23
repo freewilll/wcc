@@ -26,7 +26,7 @@ void test_postfix_inc_dec() {
 }
 
 void test_inc_dec_sizes() {
-    char c, *pc, **ppc;
+    signed char c, *pc, **ppc;
     short s, *ps, **pps;
     int i, *pi, **ppi;
     long l, *pl, **ppl;
