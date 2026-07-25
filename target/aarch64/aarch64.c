@@ -117,7 +117,63 @@ char *target_non_terminal_string(int nt) {
 }
 
 void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
-    panic("TODO aarch64: print_physical_register_name_for_lr_reg_index");
+    switch(preg_reg_index) {
+        case LIVE_RANGE_PREG_R00: printf("r00"); break;
+        case LIVE_RANGE_PREG_R01: printf("r01"); break;
+        case LIVE_RANGE_PREG_R02: printf("r02"); break;
+        case LIVE_RANGE_PREG_R03: printf("r03"); break;
+        case LIVE_RANGE_PREG_R04: printf("r04"); break;
+        case LIVE_RANGE_PREG_R05: printf("r05"); break;
+        case LIVE_RANGE_PREG_R06: printf("r06"); break;
+        case LIVE_RANGE_PREG_R07: printf("r07"); break;
+        case LIVE_RANGE_PREG_R09: printf("r09"); break;
+        case LIVE_RANGE_PREG_R10: printf("r10"); break;
+        case LIVE_RANGE_PREG_R11: printf("r11"); break;
+        case LIVE_RANGE_PREG_R12: printf("r12"); break;
+        case LIVE_RANGE_PREG_R13: printf("r13"); break;
+        case LIVE_RANGE_PREG_R19: printf("r19"); break;
+        case LIVE_RANGE_PREG_R20: printf("r20"); break;
+        case LIVE_RANGE_PREG_R21: printf("r21"); break;
+        case LIVE_RANGE_PREG_R22: printf("r22"); break;
+        case LIVE_RANGE_PREG_R23: printf("r23"); break;
+        case LIVE_RANGE_PREG_R24: printf("r24"); break;
+        case LIVE_RANGE_PREG_R25: printf("r25"); break;
+        case LIVE_RANGE_PREG_R26: printf("r26"); break;
+        case LIVE_RANGE_PREG_R27: printf("r27"); break;
+        case LIVE_RANGE_PREG_R28: printf("r28"); break;
+        case LIVE_RANGE_PREG_V00: printf("v00"); break;
+        case LIVE_RANGE_PREG_V01: printf("v01"); break;
+        case LIVE_RANGE_PREG_V02: printf("v02"); break;
+        case LIVE_RANGE_PREG_V03: printf("v03"); break;
+        case LIVE_RANGE_PREG_V04: printf("v04"); break;
+        case LIVE_RANGE_PREG_V05: printf("v05"); break;
+        case LIVE_RANGE_PREG_V06: printf("v06"); break;
+        case LIVE_RANGE_PREG_V07: printf("v07"); break;
+        case LIVE_RANGE_PREG_V09: printf("v09"); break;
+        case LIVE_RANGE_PREG_V10: printf("v10"); break;
+        case LIVE_RANGE_PREG_V11: printf("v11"); break;
+        case LIVE_RANGE_PREG_V12: printf("v12"); break;
+        case LIVE_RANGE_PREG_V13: printf("v13"); break;
+        case LIVE_RANGE_PREG_V14: printf("v14"); break;
+        case LIVE_RANGE_PREG_V15: printf("v15"); break;
+        case LIVE_RANGE_PREG_V16: printf("v16"); break;
+        case LIVE_RANGE_PREG_V17: printf("v17"); break;
+        case LIVE_RANGE_PREG_V18: printf("v18"); break;
+        case LIVE_RANGE_PREG_V19: printf("v19"); break;
+        case LIVE_RANGE_PREG_V20: printf("v20"); break;
+        case LIVE_RANGE_PREG_V21: printf("v21"); break;
+        case LIVE_RANGE_PREG_V22: printf("v22"); break;
+        case LIVE_RANGE_PREG_V23: printf("v23"); break;
+        case LIVE_RANGE_PREG_V24: printf("v24"); break;
+        case LIVE_RANGE_PREG_V25: printf("v25"); break;
+        case LIVE_RANGE_PREG_V26: printf("v26"); break;
+        case LIVE_RANGE_PREG_V27: printf("v27"); break;
+        case LIVE_RANGE_PREG_V28: printf("v28"); break;
+        case LIVE_RANGE_PREG_V29: printf("v29"); break;
+        case LIVE_RANGE_PREG_V30: printf("v30"); break;
+        case LIVE_RANGE_PREG_V31: printf("v31"); break;
+        default: printf("Unknown LR preg index %d", preg_reg_index);
+    }
 }
 
 int get_preg_class_for_scalar_type(Type *type) {
