@@ -391,6 +391,16 @@ int main(int argc, char **argv) {
                 printf("%s-linux-gnu\n", TARGET);
                 exit(0);
             }
+            else if (argc > 1 && !strcmp(argv[0], "--spill-vreg")) {
+                long vreg = atoi(argv[1]);
+                if (!vreg) panic("Invalid vreg");
+
+                if (!debug_spill_registers) debug_spill_registers = new_longset();
+                longset_add(debug_spill_registers, vreg);
+
+                argc -= 2;
+                argv += 2;
+            }
             else {
                 printf("Unknown parameter %s\n", argv[0]);
                 exit(1);
@@ -439,6 +449,7 @@ int main(int argc, char **argv) {
         printf("--print-heap-usage                          Print heap usage at exit\n");
         printf("--fail-on-leaked-memory                     Exit with a failure code if any memory was leaked\n");
         printf("--sanity-check-ir                           Check internal consistency of intermediate representation\n");
+        printf("--spill-vreg <vreg>                         Force a vreg to be spilled\n");
         printf("\n");
         printf("-print-prog-name=<name>                     Print program name\n");
         printf("-dumpmachine                                Print %s-linux-gnu\n", TARGET);

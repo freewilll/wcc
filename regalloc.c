@@ -16,6 +16,8 @@ int physical_fp_register_count;
 int *preg_map;               // Map from reserved register 0-11 to physical register 0-15
 int *callee_saved_registers; // Set to 1 for registers that must be preserved in function calls.
 
+LongSet *debug_spill_registers = NULL; // A set of vreg numbers that are forced to be spilled
+
 // Renumber all vregs so that they are consecutive
 void compress_vregs(Function *function) {
     if (!opt_enable_vreg_renumbering) return;
@@ -117,7 +119,10 @@ static void color_vreg(char *ig, int vreg_count, VregLocation *vreg_locations,
         printf("\n");
     }
 
-    if (set_len(neighbor_colors) >= physical_register_count) {
+    int force_spill = (debug_spill_registers && longset_in(debug_spill_registers, vreg));
+    if (debug_graph_coloring && force_spill) printf("Force spilling vreg %d\n", vreg);
+
+    if (set_len(neighbor_colors) >= physical_register_count || force_spill) {
         int stack_index;
         if (original_stack_indexes[vreg])
             stack_index = original_stack_indexes[vreg];

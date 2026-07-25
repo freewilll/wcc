@@ -1212,6 +1212,8 @@ void free_preferred_live_range_preg_indexes(Function *function);
 extern int *preg_map;               // Map from live range registers to physical registers
 extern int *callee_saved_registers; // Set to 1 for registers that must be preserved in function calls.
 
+extern LongSet *debug_spill_registers;
+
 void compress_vregs(Function *function);
 void init_vreg_locations(Function *function);
 void free_vreg_locations(Function *function);
