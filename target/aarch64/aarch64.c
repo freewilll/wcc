@@ -249,6 +249,19 @@ int is_logical_immediate(unsigned long l, int is_32bit) {
     return ok;
 }
 
+// Check if an offset can be encoded as [r, offset] in a ldr or str instruction
+int is_ldr_str_immediate_offset(int size, int offset) {
+    if (size < 1 || size > 4)
+        panic("Unknown size in is_ldr_str_immediate_offset: %d", size);
+
+    if (size == 1                      && offset <= 4095 ) return 1;
+    if (size == 2 && (offset & 1) == 0 && offset <= 8190 ) return 1;
+    if (size == 3 && (offset & 3) == 0 && offset <= 16380) return 1;
+    if (size == 4 && (offset & 7) == 0 && offset <= 32760) return 1;
+
+    return 0;
+}
+
 // Take a mov to register instruction with an immediate constant and convert it up into
 // 1-3 separate mov* instructions.
 Tac *process_integer_constant_move_to_register(Tac *tac) {
@@ -355,15 +368,24 @@ Tac *process_integer_constant_move_to_register(Tac *tac) {
     return tac;
 }
 
-// Check if an offset can be encoded as [r + offset] in a ldr or str instruction
-int is_ldr_str_immediate_offset(int size, int offset) {
-    // If the offset can be encoded as [sp + n], leave it as is
-    if (size == 1                      && offset <= 4095 ) return 1;
-    if (size == 2 && (offset & 1) == 0 && offset <= 8190 ) return 1;
-    if (size == 3 && (offset & 3) == 0 && offset <= 16380) return 1;
-    if (size == 4 && (offset & 7) == 0 && offset <= 32760) return 1;
+// Check if the constant in src2 be used in an add/sub instruction,
+// and if not, insert a register load using a preg scratch register
+Tac *insert_constant_load_for_add_sub_using_preg(Tac *tac, int preg) {
+    if IS_ADD_SUB_IMMEDIATE(tac->src2->int_value) return tac;
 
-    return 0;
+    Value *dst = new_value();
+    dst->type = new_type(TYPE_LONG);
+    dst->target_size = 4;
+    dst->preg = preg;
+
+    Value *v = dup_value(tac->src2);
+    tac->src2 = dst;
+
+    tac = new_tac_before(tac, AARCH64_OP_MOV, dst, v, 0, 0);
+    tac->target_template = "mov %vdx, %v1x";
+    tac = process_integer_constant_move_to_register(tac);
+
+    return tac->next;
 }
 
 // Prepend an instruction that loads the address of tac->dst into a pointer
@@ -374,32 +396,55 @@ static Tac *load_dst_address_into_pointer(Function *function, Tac *tac) {
     return new_tac_before(tac, IR_ADDRESS_OF, new_dst, tac->dst, 0, 1);
 }
 
+// A pointer to a global symbol has been loaded into a register with AARCH64_OP_ADRP instruction.
+// Add an add instruction for the offset
+static Tac *insert_load_global_instructions(Tac *tac) {
+    Value *offset_value = new_integral_constant(TYPE_LONG, tac->src1->offset);
+    offset_value->target_size = 4;
+    tac->src1->offset = 0;
+    tac = new_tac_after(tac, AARCH64_OP_ADD, tac->dst, tac->dst, offset_value);
+    tac->target_template = "add %vdx, %v1x, %v2x";
+    tac = insert_constant_load_for_add_sub_using_preg(tac, REG_R16);
+
+    return tac;
+}
+
 // A AARCH64_OP_STR instruction with a global in src1 needs to be modified so that the.
 // global is replaced with a register that has the address of the global.
 static void insert_store_global_instructions(Function *function, Tac *tac) {
     int offset = tac->src1->offset;
     tac->src1->offset = 0;
 
-    Value *r14 = new_value();
-    r14->type = new_type(TYPE_LONG);
-    r14->preg = REG_R14;
+    Value *r17 = new_value();
+    r17->type = new_type(TYPE_LONG);
+    r17->target_size = 4;
+    r17->preg = REG_R17;
 
-    Tac *tmp = new_tac_before(tac, AARCH64_OP_ADRP, r14, tac->src1, 0, 1);
+    Tac *tmp = new_tac_before(tac, AARCH64_OP_ADRP, r17, tac->src1, 0, 1);
     tmp->target_template = "adrp %vdx, %v1";
-    tmp = new_tac_before(tac, AARCH64_OP_ADD_LO12, r14, tac->src1, 0, 1);
-    tmp->target_template = "add %vdx, %vdx, :lo12:%v1";
 
-    tac->src1 = r14;
+    tac->src1 = r17;
 
     if (offset) {
-        Value *offset_value = new_integral_constant(TYPE_LONG, offset);
-        Tac *tmp = new_tac_before(tac, AARCH64_OP_ADD, r14, offset_value, 0, 1);
-        tmp->target_template = "add %vdx, %vdx, %v1x";
+        if (is_ldr_str_immediate_offset(tac->src2->target_size, offset)) {
+            // str reg, [x17, offset]
+            tac->src1 = dup_value(tac->src1);
+            tac->src1->offset = offset;
+        }
+        else {
+            // movz  x16, 5000
+            // add   x17, x17, x16
+            // strb  reg, [x17]
+            Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+            Tac *tmp = new_tac_before(tac, AARCH64_OP_ADD, r17, r17, offset_value, 1);
+            tmp->target_template = "add %vdx, %vdx, %v2x";
+            insert_constant_load_for_add_sub_using_preg(tmp, REG_R16); // Use R16 to potentially hold the offset in the addition
+        }
     }
 }
 
 // At this point, the total function stack size is known and stack offsets have been updated.
-// Split instructions with r, [sp + offset] with large offsets so that the offset is loaded separately.
+// Split instructions with r, [sp, offset] with large offsets so that the offset is loaded separately.
 // TODO aarch64: deal with stack offsets for pushed vars in a function call
 static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     int size = tac->src1->target_size;
@@ -412,62 +457,32 @@ static void insert_offset_instructions_for_ldr_str_stack_access(Tac *tac) {
     // Make a value for the sp register
     Value *sp = new_value();
     sp->type = new_type(TYPE_LONG);
+    sp->target_size = 4;
     sp->preg = REG_SP;
 
-    // Make a value for the r14 register
-    Value *r14 = new_value();
-    r14->type = new_type(TYPE_LONG);
-    r14->preg = REG_R14;
+    // Make a value for the r17 register
+    Value *r17 = new_value();
+    r17->type = new_type(TYPE_LONG);
+    r17->target_size = 4;
+    r17->preg = REG_R17;
 
     // Make a value for the offset
     Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+    offset_value->target_size = 4;
 
-    // Add mov x14, offset and encode the constant if necessary
-    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_MOV, r14, offset_value, 0, 1);
+    // Add mov x17, offset and encode the constant if necessary
+    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_MOV, r17, offset_value, 0, 1);
     pre_tac->target_template = "mov %vdx, %v1x";
     process_integer_constant_move_to_register(pre_tac);
 
-    // Add add x14, sp, x14
-    pre_tac = new_tac_before(tac, AARCH64_OP_ADD, r14, sp, r14, 1);
+    // Add add x17, sp, x17
+    pre_tac = new_tac_before(tac, AARCH64_OP_ADD, r17, sp, r17, 1);
     pre_tac->target_template = "add %vdx, %v1x, %v2x";
 
-    // Replace [sp + offset] with [r14]
+    // Replace [sp + offset] with [r17]
     tac->src1->stack_offset = 0;
     tac->src1->offset = 0;
-    tac->src1->preg = REG_R14;
-}
-
-// A pointer to a global symbol has been loaded into a register. Add an add instruction for the offset
-static Tac *insert_offset_add_for_ldr_global_access(Tac *tac) {
-    if (!tac->prev || tac->prev->operation.id != AARCH64_OP_ADRP)
-        panic("Missing preceding AARCH64_OP_ADRP in a AARCH64_OP_ADD_LO12 instruction");
-
-    Value *offset_value = new_integral_constant(TYPE_LONG, tac->src1->offset);
-    tac->prev->src1->offset = 0;
-    tac->src1->offset = 0;
-    tac = new_tac_after(tac, AARCH64_OP_ADD, tac->dst, tac->dst, offset_value);
-    tac->target_template = "add %vdx, %v1x, %v2x";
-
-    return tac;
-}
-
-// For instructions that write to a pointer in a vreg with an offset,
-// add the offset, store in r14 and use r14.
-static void insert_offset_instructions_for_pointer_in_vreg(Tac *tac) {
-    // Make a value for the r14 register
-    Value *r14 = new_value();
-    r14->type = new_type(TYPE_LONG);
-    r14->preg = REG_R14;
-
-    // Make a value for the offset
-    Value *offset_value = new_integral_constant(TYPE_LONG, tac->src1->offset);
-
-    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_ADD, r14, tac->src1, offset_value, 1);
-    pre_tac->target_template = "add %vdx, %v1x, %v2x";
-
-    tac->src1 = dup_value(tac->src1);
-    tac->src1->offset = 0;
-    tac->src1->preg = REG_R14;
+    tac->src1->preg = REG_R17;
 }
 
 void add_load_memory_instructions(Function *function) {
@@ -477,13 +492,9 @@ void add_load_memory_instructions(Function *function) {
             insert_offset_instructions_for_ldr_str_stack_access(tac);
         }
 
-        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->vreg && tac->src1->offset) {
-            insert_offset_instructions_for_pointer_in_vreg(tac);
-        }
-
         // Add an add of the offset if a pointer to global has been loaded into a register
-        if (tac->operation.id == AARCH64_OP_ADD_LO12 && tac->src1->global_symbol && tac->src1->offset) {
-            tac = insert_offset_add_for_ldr_global_access(tac);
+        if (tac->operation.id == AARCH64_OP_ADRP && tac->src1->global_symbol && tac->src1->offset) {
+            tac = insert_load_global_instructions(tac);
         }
     }
 }
@@ -493,10 +504,6 @@ void add_store_memory_instructions(Function *function) {
         // Split str r, [sp + offset] with large offsets so that the offset is loaded separately
         if (tac->operation.id == AARCH64_OP_STR && tac->src1->stack_offset) {
             insert_offset_instructions_for_ldr_str_stack_access(tac);
-        }
-
-        if (tac->operation.id == AARCH64_OP_STR && tac->src1->vreg && tac->src1->offset) {
-            insert_offset_instructions_for_pointer_in_vreg(tac);
         }
 
         if (tac->operation.id == AARCH64_OP_STR && tac->src1->global_symbol) {
@@ -514,17 +521,71 @@ void add_address_of_instructions(Function *function) {
         // Make a value for the sp register
         Value *sp = new_value();
         sp->type = new_type(TYPE_LONG);
+        sp->target_size = 4;
         sp->preg = REG_SP;
 
         // Make a value for the offset
         int offset = tac->src1->stack_offset;
 
-        Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+        if (offset) {
+            Value *offset_value = new_integral_constant(TYPE_LONG, offset);
 
-        tac->operation.id = AARCH64_OP_ADD;
-        tac->src1 = sp;
-        tac->src2 = offset_value;
-        tac->target_template = "add %vdx, %v1x, %v2x";
+            tac->operation.id = AARCH64_OP_ADD;
+            tac->src1 = sp;
+            tac->src2 = offset_value;
+            tac->target_template = "add %vdx, %v1x, %v2x";
+            tac = insert_constant_load_for_add_sub_using_preg(tac, REG_R16);
+        }
+        else {
+            tac->operation.id = AARCH64_OP_MOV;
+            tac->src1 = sp;
+            tac->target_template = "mov %vdx, %v1x";
+        }
+    }
+}
+
+// For each AARCH64_OP_ADRP instruction, append a AARCH64_OP_ADD_LO12 following it using the same register
+void expand_adrp_instructions(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == AARCH64_OP_ADRP)
+            insert_target_instruction(tac, AARCH64_OP_ADD_LO12, tac->dst, tac->dst, tac->src1, "add %vdx, %v1x, :lo12:%v2");
+    }
+}
+
+// Adjust AARCH64_OP_LDR instructions that looks like lrd* [preg, offset] with unencodable offset.
+//
+// Replace the instduction with::
+// mov x16, offset   # Constant encoding omitted for brevity
+// ldr* foo, [preg, x16]
+void expand_indirect_offsets(Function *function) {
+    char *templates[] = {"ldrb %vdw, [%v1x, %v2x]", "ldrh %vdw, [%v1x, %v2x]", "ldr %vdw, [%v1x, %v2x]", "ldr %vdx, [%v1x, %v2x]"};
+
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->operation.id == AARCH64_OP_LDR && tac->src1->preg != REG_SP && !is_ldr_str_immediate_offset(tac->dst->target_size, tac->src1->offset)) {
+            int size = tac->dst->target_size;
+
+            if (size < 1 || size > 4)
+                panic("Unknown size in is_ldr_str_immediate_offset: %d", size);
+
+            Value *r16 = new_value();
+            r16->type = new_type(TYPE_LONG);
+            r16->target_size = 4;
+            r16->preg = REG_R16;
+
+            Value *offset_value = new_integral_constant(TYPE_LONG, tac->src1->offset);
+            offset_value->target_size = 4;
+
+            Tac *tac2 = new_tac_before(tac, AARCH64_OP_MOV, r16, offset_value, 0, 0);
+            tac2->target_template = "mov %vdx, %v1x";
+            process_integer_constant_move_to_register(tac2);
+
+            Value *src1_copy = dup_value(tac->src1);
+            src1_copy->offset = 0;
+
+            tac->src1 = src1_copy;
+            tac->src2 = r16;
+            tac->target_template = templates[size - 1];
+        }
     }
 }
 

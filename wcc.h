@@ -1488,8 +1488,9 @@ typedef enum compiler_phase_tags {
     PH_DOM,
     PH_PHI,
     PH_LIVE,
-    PH_INSTR,
     PH_SPILL,
+    PH_INSTR,
+    PH_PLPR,
     PH_END,
 } CompilerPhaseTag;
 

@@ -7,6 +7,8 @@
 int failures;
 int remove_reserved_physical_registers;
 
+int test_inflate_stack_size = 0;
+
 void assert_long(long expected, long actual) {
     if (expected != actual) {
         failures++;
@@ -324,18 +326,24 @@ void start_ir() {
 
 static void _finish_ir(Function *function, int stop_after_live_ranges, int stop_after_instruction_selection) {
     function->ir = ir_start;
-    function->stack_register_count = 0;
+    make_stack_register_count(function);
 
-    if (stop_after_live_ranges)
+    if (stop_after_live_ranges) {
         run_compiler_phases(function, "dummy", PH_SSA, PH_LIVE);
-    else if (stop_after_instruction_selection)
+        make_stack_offsets(function);
+    }
+    else if (stop_after_instruction_selection) {
         run_compiler_phases(function, "dummy", PH_SSA, PH_INSTR);
-    else
-        run_compiler_phases(function, "dummy", PH_SSA, PH_SPILL);
+        make_stack_offsets(function);
+    }
+    else {
+        run_compiler_phases(function, "dummy", PH_SSA, PH_PLPR);
+        make_stack_offsets(function);
+        function->stack_size += test_inflate_stack_size;
+        add_spill_code(function);
+    }
 
     remove_reserved_physical_register_count_from_tac(function->ir);
-    make_stack_register_count(function);
-    make_stack_offsets(function);
 
     // Move ir_start to first non-noop for convenience
     ir_start = function->ir;

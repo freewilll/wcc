@@ -25,8 +25,8 @@ enum {
     REG_R13,    // Temporary registers
     REG_R14,    // Temporary registers, used for load/store instructions and spilled register load/stores
     REG_R15,    // Temporary registers, used for load/store instructions and spilled register load/stores
-    REG_R16,    // The first intra-procedure-call scratch register
-    REG_R17,    // The second intra-procedure-call temporary register
+    REG_R16,    // The first intra-procedure-call scratch register, used for constant loads
+    REG_R17,    // The second intra-procedure-call temporary register, used for memory load/stores
     REG_R18,    // The Platform Register, if needed; otherwise a temporary register. See notes.
     REG_R19,    // Callee-saved registers
     REG_R20,    // Callee-saved registers
@@ -171,7 +171,7 @@ enum aarch64_instruction_op {
     AARCH64_OP_POP_DOUBLE_WORD,
     AARCH64_OP_ALLOCATE_STACK,
     AARCH64_OP_DEALLOCATE_STACK,
-    AARCH64_OP_ADRP,
+    AARCH64_OP_ADRP,                    // The AARCH64_OP_ADD_LO12 operation always follows it.
     AARCH64_OP_ADDRESS_OF               // Pseudo operation
 };
 
@@ -187,12 +187,16 @@ extern int clobbered_registers_in_function_call_count;
 char size_to_aarch64_size(int size);
 char is_32bit_to_aarch64_size(int is_32bit);
 
-Tac *process_integer_constant_move_to_register(Tac *tac);
-int is_ldr_str_immediate_offset(int size, int offset);
 int is_logical_immediate(unsigned long l, int is_32bit);
+int is_ldr_str_immediate_offset(int size, int offset);
+Tac *process_integer_constant_move_to_register(Tac *tac);
+Tac *insert_constant_load_for_add_sub_using_preg(Tac *ir, int preg);
+void add_memory_instructions(Function *function);
 void add_load_memory_instructions(Function *function);
 void add_store_memory_instructions(Function *function);
 void add_address_of_instructions(Function *function);
+void expand_adrp_instructions(Function *function);
+void expand_indirect_offsets(Function *function);
 void make_aarch64_stack_offsets(Function *function);
 
 #endif

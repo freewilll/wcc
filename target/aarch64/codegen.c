@@ -64,38 +64,72 @@ char *register_name(int preg) {
 // ----------- Reserved space for function calls -----------
 //              +8        Arg 1
 //              +0        Arg 0
-static int get_stack_offset(Value *v) {
+static void process_stack_offset(Tac *tac, Value *v, int *stack_offsets) {
+    // printf("process_stack_offset stack_index=%d offset=%d\n", v->stack_index, v->stack_offset);
     int result;
 
     // A legacy from the original x86_64 code. Pushed args start at stack_index=2.
     int stack_index = v->stack_index;
 
-    if (stack_index >= HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET)
+    if (stack_index >= HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET) {
         // Function parameter
         result = 8 * (stack_index - HISTORICAL_PUSHED_FUNCTION_PARAM_OFFSET);
-    else if (stack_index < 0) {
-        if (!v->stack_offset && !debug_instsel_tiling) panic("Unexpected zero stack offset");
+
+        if (stack_offsets) stack_offsets[-stack_index] = result;
+    }
+    else if (stack_index <= 0) {
         result = cur_function_stack_size - v->stack_offset;
     }
-    else
-        panic("Unexpected zero stack_index");
 
-    if (debug_stack_frame_layout)
-        printf("Stack index %3d is in stack at offset%4d\n", stack_index, result);
+    if (v->spilled) {
+        v->stack_offset = result;
+    }
+    else {
+        v->stack_offset = result + v->offset;
+        v->offset = 0;
+    }
 
-    return result;
+}
+
+// Some instructions inherit an offset from previous instructions.
+// Offsets are only applicable to a small subset of the instructions.
+// They will either remain, in the case of a STR or LDR, or have the instruction rewritten.
+#define REMOVE_OFFSET(v)  if ((v) && (v)->offset && tac->operation.id != AARCH64_OP_LDR && tac->operation.id != AARCH64_OP_STR && tac->operation.id != AARCH64_OP_ADRP) { \
+    (v) = dup_value((v)); \
+    (v)->offset = 0; \
 }
 
 // Convert stack_offset, which has negative values for locals and positive values for passed arguments, into
 // an offset relative to the sp.
 void make_aarch64_stack_offsets(Function *function) {
+    int *stack_offsets = NULL;
+
+    if (debug_stack_frame_layout) stack_offsets= wmalloc((function->stack_register_count + 1) * sizeof(int));
+
     cur_function_stack_size = function->stack_size;
 
     for (Tac *tac = function->ir; tac; tac = tac->next) {
-        if (tac->dst  && tac->dst ->stack_offset) tac->dst ->stack_offset = get_stack_offset(tac->dst  ) + tac->dst ->offset;
-        if (tac->src1 && tac->src1->stack_offset) tac->src1->stack_offset = get_stack_offset(tac->src1 ) + tac->src1->offset;
-        if (tac->src2 && tac->src2->stack_offset) tac->src2->stack_offset = get_stack_offset(tac->src2 ) + tac->src2->offset;
+        if (tac->dst  && tac->dst ->stack_index) process_stack_offset(tac, tac->dst,  stack_offsets);
+        if (tac->src1 && tac->src1->stack_index) process_stack_offset(tac, tac->src1, stack_offsets);
+        if (tac->src2 && tac->src2->stack_index) process_stack_offset(tac, tac->src2, stack_offsets);
+
+        REMOVE_OFFSET(tac->dst);
+        REMOVE_OFFSET(tac->src1);
+        REMOVE_OFFSET(tac->src2);
     }
+
+    // Print a summary of remapped indexes
+    if (debug_stack_frame_layout) {
+        int count = function->stack_register_count;
+        printf("\nAarch64 modified stack frame for %s:\n", function->identifier);
+        printf("Stack index   Offset\n");
+        printf("--------------------\n");
+
+        for (int i = 1; i <= count; i++)
+            printf("%-4d          %-8d\n", -i, stack_offsets[i]);
+    }
+
+    wfree(stack_offsets);
 }
 
 char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
@@ -143,9 +177,21 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                 sprintf(buffer, "%d", v->vreg);
                 while (*buffer) buffer++;
                 *buffer++ = is_32bit_to_aarch64_size(is_32bit);
+
+                if (v->offset) {
+                    while (*buffer) buffer++;
+                    sprintf(buffer, "[%d]", v->offset);
+                }
             }
-            else if (expect_preg && v->preg != -1)
+            else if (expect_preg && v->preg != -1) {
                 append_register_name(buffer, v->preg, is_32bit);
+
+                if (v->offset) {
+                    while (*buffer) buffer++;
+                    sprintf(buffer, ", %d", v->offset);
+                }
+
+            }
             else if (v->is_constant) {
                 sprintf(buffer, "%ld", v->int_value);
             }
@@ -165,8 +211,12 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                         sprintf(buffer, "%s", v->global_symbol->global_identifier);
                 }
             }
-            else if (v->stack_index)
-                sprintf(buffer, "sp, %d", v->stack_offset);
+            else if (v->stack_index) {
+                if (v->stack_offset)
+                    sprintf(buffer, "sp, %d", v->stack_offset);
+                else
+                sprintf(buffer, "sp");
+            }
             else if (v->label)
                 sprintf(buffer, ".L%d", v->label);
             else {
@@ -192,25 +242,6 @@ static void output_aarch64_operation(Tac *tac, int function_pc) {
         fprintf(output_file, "    %s\n", buffer);
         wfree(buffer);
     }
-}
-
-// Check if the constant in value v be used in a pre or post increment/decrement stp/ldp operation,
-// and if not, insert a register load using the scratch register r14 aka REG_R14
-static Tac *insert_load_for_add_sub_for_stp(Tac *ir) {
-    if IS_ADD_SUB_IMMEDIATE(ir->src1->int_value) return ir;
-
-    Value *dst = new_value();
-    dst->type = new_type(TYPE_LONG);
-    dst->preg = REG_R14;
-
-    Value *v = dup_value(ir->src1);
-    ir->src1 = dst;
-
-    ir = new_tac_before(ir, AARCH64_OP_MOV, dst, v, 0, 0);
-    ir->target_template = "mov %vdx, %v1x";
-    ir = process_integer_constant_move_to_register(ir);
-
-    return ir->next;
 }
 
 // Add push statements for callee saved registers.
@@ -270,8 +301,8 @@ static Tac *insert_function_prologue(Function *function, Tac *ir, int *saved_reg
     // Allocate stack space for locals
     if (cur_function_stack_size) {
         Value *v = new_integral_constant(TYPE_LONG, cur_function_stack_size);
-        ir = insert_target_instruction(ir, AARCH64_OP_SUB, 0, v, 0, "sub sp, sp, %v1x");
-        ir = insert_load_for_add_sub_for_stp(ir);
+        ir = insert_target_instruction(ir, AARCH64_OP_SUB, 0, 0, v, "sub sp, sp, %v2x");
+        ir = insert_constant_load_for_add_sub_using_preg(ir, REG_R16);
     }
 
     return ir;
@@ -281,8 +312,8 @@ static Tac *insert_end_of_function(Function *function, Tac *ir, int *saved_regis
     if (cur_function_stack_size) {
         // Reclaim the function' local's stack space
         Value *v1 = new_integral_constant(TYPE_LONG, cur_function_stack_size);
-        ir = insert_target_instruction(ir, AARCH64_OP_ADD, 0, v1, 0, "add sp, sp, %v1x");
-        ir = insert_load_for_add_sub_for_stp(ir);
+        ir = insert_target_instruction(ir, AARCH64_OP_ADD, 0, 0, v1, "add sp, sp, %v2x");
+        ir = insert_constant_load_for_add_sub_using_preg(ir, REG_R16);
     }
 
     // Restore x29 and x30
@@ -311,6 +342,8 @@ void add_final_instructions(Function *function) {
     add_load_memory_instructions(function);
     add_store_memory_instructions(function);
     add_address_of_instructions(function);
+    expand_adrp_instructions(function);
+    expand_indirect_offsets(function);
 
     prepare_x29_x30_stack_saves(function);
     int *saved_registers = make_saved_registers(function);

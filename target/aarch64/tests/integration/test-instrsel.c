@@ -7,6 +7,8 @@
 
 Function *function;
 
+extern int test_inflate_stack_size;
+
 void assert_long(long expected, long actual);
 
 void assert_int(int expected, int actual, char *message) {
@@ -48,15 +50,563 @@ static void assert_preg_op(char *expected) {
     }
 }
 
-// Run with a single instruction
-Tac *si(Function *function, int label, int operation, Value *dst, Value *src1, Value *src2) {
-    Tac *tac;
+static void add_some_final_instructions(Function *function) {
+    // Note: deliberately omitting expand_adrp_instructions so that the assertions can be simple
 
+    add_load_memory_instructions(function);
+    add_store_memory_instructions(function);
+    add_address_of_instructions(function);
+    expand_indirect_offsets(function);
+}
+
+// Run with a single instruction
+void si(Function *function, int label, int operation, Value *dst, Value *src1, Value *src2) {
     start_ir();
     i(label, operation, dst, src1, src2);
     finish_ir(function);
+    add_some_final_instructions(function);
+}
 
-    return tac;
+// Rewind the IR so that it points to the first non-nop in the funciton.
+// This is usful for checking inserted code.
+void rewind_ir(void) {
+    ir_start = function->ir;
+    while (ir_start->prev) ir_start = ir_start->prev;
+    while (ir_start && ir_start->operation.id == IR_NOP) ir_start = ir_start->next;
+    function->ir = ir_start;
+}
+
+void finish_spill_ir_and_memory_load_stores(void) {
+    finish_spill_ir(function);
+    add_some_final_instructions(function);
+    rewind_ir();
+}
+
+void test_global_loads(void) {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    // IR_MOVE v << g
+    si(function, 0, IR_MOVE, vsz(3, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    assert_target_op("adrp        r3x, g1");
+    assert_target_op("ldrb        r2w, [r3x]");
+
+    si(function, 0, IR_MOVE, vsz(3, TYPE_SHORT), gsz(1, TYPE_SHORT), 0);
+    assert_target_op("adrp        r3x, g1");
+    assert_target_op("ldrh        r2w, [r3x]");
+
+    si(function, 0, IR_MOVE, vsz(3, TYPE_INT), gsz(1, TYPE_INT), 0);
+    assert_target_op("adrp        r3x, g1");
+    assert_target_op("ldr         r2w, [r3x]");
+
+    si(function, 0, IR_MOVE, vsz(3, TYPE_LONG), gsz(1, TYPE_LONG), 0);
+    assert_target_op("adrp        r3x, g1");
+    assert_target_op("ldr         r2x, [r3x]");
+
+    // IR_MOVE v << g with a small offset
+    start_ir();
+    tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 8;
+    finish_ir(function);
+    add_some_final_instructions(function);
+    assert_target_op("adrp        r3x, g1");
+    assert_target_op("add         r3x, r3x, 8");
+    assert_target_op("ldrb        r2w, [r3x]");
+
+    // IR_MOVE v << g with a large offset
+    start_ir();
+    tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x0, g1");
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("add         x0, x0, x16");
+    assert_preg_op("ldrb        w0, [x0]");
+}
+
+void test_global_stores(void) {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    // IR_MOVE g << v
+    start_ir();
+    i(0, IR_MOVE, gsz(1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("strb        w0, [x17]");
+
+    start_ir();
+    i(0, IR_MOVE, gsz(1, TYPE_SHORT), vsz(3, TYPE_SHORT), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("strh        w0, [x17]");
+
+    i(0, IR_MOVE, gsz(1, TYPE_INT), vsz(3, TYPE_INT), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("str         w0, [x17]");
+
+    i(0, IR_MOVE, gsz(1, TYPE_LONG), vsz(3, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("str         x0, [x17]");
+
+    // IR_MOVE g << v with a small offset
+    tac = i(0, IR_MOVE, gsz(1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    tac->dst->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("strb        w0, [x17, 8]");
+
+    // IR_MOVE g << v with a large offset
+    // x16 is used to hold the large constant
+    tac = i(0, IR_MOVE, gsz(1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    tac->dst->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("add         x17, x17, x16");
+    assert_preg_op("strb        w0, [x17]");
+
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
+
+    // IR_MOVE g << v with everything spilled
+    start_ir();
+    i(0, IR_MOVE, gsz(1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w15, [sp, 15]");
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("strb        w15, [x17]");
+
+    // IR_MOVE g << v with a small offset with a spilled value
+    start_ir();
+    tac = i(0, IR_MOVE, gsz(1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    tac->dst->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w15, [sp, 15]");
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("strb        w15, [x17, 8]");
+
+    // IR_MOVE g << v with a large offset with a spilled value
+    // x16 is used to hold the large constant
+    start_ir();
+    tac = i(0, IR_MOVE, gsz(1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    tac->dst->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w15, [sp, 15]");
+    assert_preg_op("adrp        x17, g1");
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("add         x17, x17, x16");
+    assert_preg_op("strb        w15, [x17]");
+
+    init_allocate_registers(); // Enable register allocation again
+}
+
+void test_global_address_of(void) {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    // IR_ADDRESS_OF v = &g
+    start_ir();
+    i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x0, g1");
+
+    // IR_ADDRESS_OF v = &g with a small offset
+    start_ir();
+    tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x0, g1");
+    assert_preg_op("add         x0, x0, 8");
+
+    // IR_ADDRESS_OF v = &g with a large offset
+    start_ir();
+    tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x0, g1");
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("add         x0, x0, x16");
+
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
+
+    // IR_ADDRESS_OF v = &g with everything spilled
+    start_ir();
+    i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x14, g1");
+    assert_preg_op("str         x14, [sp, 8]");
+
+    // IR_ADDRESS_OF v = &g with a small offset and everything spilled
+    start_ir();
+    tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x14, g1");
+    assert_preg_op("add         x14, x14, 8");
+    assert_preg_op("str         x14, [sp, 8]");
+
+    // IR_ADDRESS_OF v = &g with a large offset and everything spilled
+    start_ir();
+    tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("adrp        x14, g1");
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("add         x14, x14, x16");
+    assert_preg_op("str         x14, [sp, 8]");
+
+    init_allocate_registers(); // Enable register allocation again
+}
+
+void test_stack_loads(void) {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    // IR_MOVE v << s
+    start_ir();
+    i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w0, [sp, 15]");
+
+    start_ir();
+    i(0, IR_MOVE, vsz(3, TYPE_SHORT), Ssz(-1, TYPE_SHORT), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrh        w0, [sp, 14]");
+
+    start_ir();
+    i(0, IR_MOVE, vsz(3, TYPE_INT), Ssz(-1, TYPE_INT), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         w0, [sp, 12]");
+
+    start_ir();
+    i(0, IR_MOVE, vsz(3, TYPE_LONG), Ssz(-1, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         x0, [sp, 8]");
+
+    // IR_MOVE v << s with a small offset
+    start_ir();
+    tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    tac->src1->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w0, [sp, 23]");
+
+    // IR_MOVE v << s with a large offset
+    start_ir();
+    tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x17, 5015");
+    assert_preg_op("add         x17, sp, x17");
+    assert_preg_op("ldrb        w0, [x17]");
+
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
+
+    // IR_MOVE v << s with everything spilled
+    start_ir();
+    i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w14, [sp, 15]");
+    assert_preg_op("strb        w14, [sp, 14]");
+
+    // IR_MOVE v << s with a small offset with a spilled value
+    start_ir();
+    tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    tac->src1->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w14, [sp, 23]");
+    assert_preg_op("strb        w14, [sp, 14]");
+
+    // Some of the generated code that follows is quite bad.
+    // The generated code is a combination of spill code followed by load/store adaptations
+    // on the spilled code.
+    // - Instrsel allocates a temp register and generates instructions to load from the stack into the register
+    // - Spill code spills everything: the temp register and destination.
+
+    // IR_MOVE v << s with a large offset with a spilled value
+    start_ir();
+    tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x17, 5015");
+    assert_preg_op("add         x17, sp, x17");
+    assert_preg_op("ldrb        w14, [x17]");       // Load into spilled temp register
+    assert_preg_op("strb        w14, [sp, 14]");    // Store into spilled temp register
+    assert_preg_op("ldrb        w14, [sp, 14]");    // Reload into spilled temp register
+    assert_preg_op("mov         w14, w14");         // Load/store join
+    assert_preg_op("strb        w14, [sp, 13]");    // Spill store
+
+    // IR_MOVE s << v with no offset with a spilled value and a stack slot with a small offset.
+    test_inflate_stack_size = 32;
+    start_ir();
+    i(0, IR_MOVE, vsz(2, TYPE_LONG), Ssz(-1, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         x14, [sp, 56]");    // Load into spilled temp register
+    assert_preg_op("str         x14, [sp, 48]");    // Store into spilled temp register
+    assert_preg_op("ldr         x14, [sp, 48]");    // Reload into spilled temp register
+    assert_preg_op("mov         x14, x14");         // Load/store join
+    assert_preg_op("str         x14, [sp, 40]");    // Spill store
+
+    // IR_MOVE s << v with no offset with a spilled value and a stack slot with a large offset.
+    test_inflate_stack_size = 40000;
+    start_ir();
+    i(0, IR_MOVE, vsz(2, TYPE_LONG), Ssz(-1, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x17, 40024");
+    assert_preg_op("add         x17, sp, x17");
+    assert_preg_op("ldr         x14, [x17]");       // Load into spilled temp register
+    assert_preg_op("movz        x15, 40016");
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("str         x14, [x15]");       // Store into spilled temp register
+    assert_preg_op("movz        x14, 40016");
+    assert_preg_op("add         x14, sp, x14");
+    assert_preg_op("ldr         x14, [x14]");       // Reload into spilled temp register
+    assert_preg_op("mov         x14, x14");         // Load/store join
+    assert_preg_op("movz        x15, 40008");
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("str         x14, [x15]");       // Spill store
+
+    test_inflate_stack_size = 0; // Restore artificial stack size inflator
+
+    init_allocate_registers(); // Enable register allocation again
+}
+
+void test_stack_stores(void) {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    // IR_MOVE s << v
+    start_ir();
+    i(0, IR_MOVE, Ssz(-1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("strb        w0, [sp, 15]");
+
+    start_ir();
+    i(0, IR_MOVE, Ssz(-1, TYPE_SHORT), vsz(3, TYPE_SHORT), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("strh        w0, [sp, 14]");
+
+    start_ir();
+    i(0, IR_MOVE, Ssz(-1, TYPE_INT), vsz(3, TYPE_INT), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("str         w0, [sp, 12]");
+
+    start_ir();
+    i(0, IR_MOVE, Ssz(-1, TYPE_LONG), vsz(3, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("str         x0, [sp, 8]");
+
+    // IR_MOVE s << v with a small offset
+    start_ir();
+    tac = i(0, IR_MOVE, Ssz(-1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    tac->dst->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("strb        w0, [sp, 23]");
+
+    // IR_MOVE s << v with a large offset
+    start_ir();
+    tac = i(0, IR_MOVE, Ssz(-1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    tac->dst->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x17, 5015");
+    assert_preg_op("add         x17, sp, x17");
+    assert_preg_op("strb        w0, [x17]");
+
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
+
+    // IR_MOVE s << v with everything spilled
+    start_ir();
+    i(0, IR_MOVE, Ssz(-1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w15, [sp, 14]");
+    assert_preg_op("strb        w15, [sp, 15]");
+
+    // IR_MOVE s << v with a small offset with a spilled value
+    start_ir();
+    tac = i(0, IR_MOVE, Ssz(-1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    tac->dst->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w15, [sp, 14]");
+    assert_preg_op("strb        w15, [sp, 23]");
+
+    // IR_MOVE s << v with a large offset with a spilled value
+    // x16 is used to hold the large constant
+    start_ir();
+    tac = i(0, IR_MOVE, Ssz(-1, TYPE_CHAR), vsz(3, TYPE_CHAR), 0);
+    tac->dst->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w15, [sp, 14]");
+    assert_preg_op("movz        x17, 5015");
+    assert_preg_op("add         x17, sp, x17");
+    assert_preg_op("strb        w15, [x17]");
+
+    // IR_MOVE s << v with no offset with a spilled value and a stack slot with a small offset.
+    test_inflate_stack_size = 32;
+    start_ir();
+    i(0, IR_MOVE, Ssz(-1, TYPE_LONG), vsz(2, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         x15, [sp, 32]");        // Spill load
+    assert_preg_op("str         x15, [sp, 40]");        // Spill store
+
+    // IR_MOVE s << v with no offset with a spilled value and a stack slot with a large offset.
+    test_inflate_stack_size = 40000;
+    start_ir();
+    i(0, IR_MOVE, Ssz(-1, TYPE_LONG), vsz(2, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x15, 40000");       // r2 is spilled to [sp, 40000]
+    assert_preg_op("add         x15, sp, x15");
+    assert_preg_op("ldr         x15, [x15]");       // Spill load
+    assert_preg_op("movz        x17, 40008");       // r1 is spilled to [sp, 40008]
+    assert_preg_op("add         x17, sp, x17");
+    assert_preg_op("str         x15, [x17]");       // Spill store
+
+    test_inflate_stack_size = 0; // Restore artificial stack size inflator
+
+    init_allocate_registers(); // Enable register allocation again
+}
+
+void test_stack_address_of() {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    // IR_ADDRESS_OF v = &s
+    start_ir();
+    i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("add         x0, sp, 15");
+
+    // IR_ADDRESS_OF two v = &s, both long, both together take up the entire stack frame,
+    // so that the second one is at the stack pointer.
+    start_ir();
+    i(0, IR_ADDRESS_OF, asz(2, TYPE_LONG), Ssz(-1, TYPE_LONG), 0);
+    i(0, IR_ADDRESS_OF, asz(2, TYPE_LONG), Ssz(-2, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("add         x0, sp, 8");
+    assert_preg_op("mov         x0, sp");
+
+    // IR_ADDRESS_OF v = &s with a small offset
+    start_ir();
+    tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    tac->src1->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("add         x0, sp, 23");
+
+    // IR_ADDRESS_OF v = &s with a large offset
+    start_ir();
+    tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x16, 5015");
+    assert_preg_op("add         x0, sp, x16");
+
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
+
+    // IR_ADDRESS_OF v = &s with everything spilled
+    start_ir();
+    i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("add         x14, sp, 7");
+    assert_preg_op("str         x14, [sp, 8]");
+
+    // IR_ADDRESS_OF v = &s with a small offset and everything spilled
+    start_ir();
+    tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    tac->src1->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("add         x14, sp, 15");
+    assert_preg_op("str         x14, [sp, 8]");
+
+    // IR_ADDRESS_OF v = &s with a large offset and everything spilled
+    start_ir();
+    tac = i(0, IR_ADDRESS_OF, asz(2, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x16, 5007");
+    assert_preg_op("add         x14, sp, x16");
+    assert_preg_op("str         x14, [sp, 8]");
+
+    init_allocate_registers(); // Enable register allocation again
+}
+
+void test_indirects(void) {
+    Tac *tac;
+
+    remove_reserved_physical_registers = 1;
+
+    start_ir();
+    i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w0, [x0]");
+
+    start_ir();
+    i(0, IR_INDIRECT, vsz(2, TYPE_SHORT), asz(1, TYPE_SHORT), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrh        w0, [x0]");
+
+    start_ir();
+    i(0, IR_INDIRECT, vsz(2, TYPE_INT), asz(1, TYPE_INT), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         w0, [x0]");
+
+    start_ir();
+    i(0, IR_INDIRECT, vsz(2, TYPE_LONG), asz(1, TYPE_LONG), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         x0, [x0]");
+
+    // With a small offset
+    start_ir();
+    tac = i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 8;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldrb        w0, [x0, 8]");
+
+    // With a large offset
+    start_ir();
+    tac = i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("ldrb        w0, [x0, x16]");
+
+    live_range_reserved_pregs_offset = 0; // Disable register allocation
+
+    // With everything spilled
+    start_ir();
+    i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         x14, [sp, 8]");
+    assert_preg_op("ldrb        w14, [x14]");
+    assert_preg_op("strb        w14, [sp, 7]");
+
+    // With a small offset and everything spilled
+    start_ir();
+    tac = i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 32;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         x14, [sp, 8]");     // Load the pointer from the stack
+    assert_preg_op("add         x14, x14, 32");     // Add the offset
+    assert_preg_op("ldrb        w14, [x14]");       // Load the char
+    assert_preg_op("strb        w14, [sp, 7]");     // Store the result to the stack
+
+    // With a large offset and everything spilled
+    start_ir();
+    tac = i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
+    tac->src1->offset = 5000;
+    finish_spill_ir_and_memory_load_stores();
+    assert_preg_op("ldr         x14, [sp, 8]");     // Load the pointer from the stack
+    assert_preg_op("movz        x16, 5000");
+    assert_preg_op("add         x14, x14, x16");    // Add the offset
+    assert_preg_op("ldrb        w14, [x14]");       // Load the char
+    assert_preg_op("strb        w14, [sp, 7]");     // Store the result to the stack
+
+    init_allocate_registers(); // Enable register allocation again
 }
 
 void test_instrsel_constant_bitshift(void) {
@@ -419,37 +969,27 @@ void test_spilling() {
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_CHAR), vsz(1, TYPE_CHAR), 0);
     finish_spill_ir(function);
-    assert_preg_op("movz        w15, 15");
-    assert_preg_op("add         x15, sp, x15");
-    assert_preg_op("ldrb        w15, [x15]");
-    assert_preg_op("strb        w15, [sp, 2]");
+    assert_preg_op("ldrb        w15, [sp, 14]");
+    assert_preg_op("strb        w15, [sp, 15]");
 
     // src1s spill
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0);
     finish_spill_ir(function);
-    assert_preg_op("movz        w15, 14");
-    assert_preg_op("add         x15, sp, x15");
-    assert_preg_op("ldrh        w15, [x15]");
-    assert_preg_op("strh        w15, [sp, 4]");
+    assert_preg_op("ldrh        w15, [sp, 12]");
+    assert_preg_op("strh        w15, [sp, 14]");
 
     // src1i spill
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_INT), vsz(1, TYPE_INT), 0);
     finish_spill_ir(function);
-    assert_preg_op("movz        w15, 12");
-    assert_preg_op("add         x15, sp, x15");
-    assert_preg_op("ldr         w15, [x15]");
-    assert_preg_op("str         w15, [sp, 8]");
+    assert_preg_op("ldr         w15, [sp, 8]");
 
     // src1q spill
     start_ir();
     i(0, IR_MOVE, S(-2), v(1), 0);
     finish_spill_ir(function);
-    assert_preg_op("movz        w15, 8");
-    assert_preg_op("add         x15, sp, x15");
-    assert_preg_op("ldr         x15, [x15]");
-    assert_preg_op("str         x15, [sp, 16]");
+    assert_preg_op("ldr         x15, [sp]");
 
     // src1c spill TODO aarch64 offsets in a spilled vreg
 
@@ -457,17 +997,11 @@ void test_spilling() {
     start_ir();
     i(0, IR_EQ, vsz(3, TYPE_INT), v(1), v(2));
     finish_spill_ir(function);
-    assert_preg_op("movz        w14, 24");          // w14 is used for loading src1
-    assert_preg_op("add         x14, sp, x14");
-    assert_preg_op("ldr         x14, [x14]");
-    assert_preg_op("movz        w15, 16");          // w15 is used for loading src2
-    assert_preg_op("add         x15, sp, x15");
-    assert_preg_op("ldr         x15, [x15]");
+    assert_preg_op("ldr         x14, [sp, 24]");    // x14 is used for loading src1
+    assert_preg_op("ldr         x15, [sp, 16]");    // x15 is used for loading src1
     assert_preg_op("cmp         x14, x15");         // x14 is used to store the result
     assert_preg_op("cset        w14, eq");
-    assert_preg_op("movz        w15, 12");          // x15 is used to store the pointer to the result in the stack
-    assert_preg_op("add         x15, sp, x15");
-    assert_preg_op("str         w14, [x15]");       // Store the result
+    assert_preg_op("str         w14, [sp, 12]");    // Store the result
 
     init_allocate_registers(); // Enable register allocation again
 }
@@ -491,6 +1025,13 @@ int main() {
     init_allocate_registers();
     init_instruction_selection_rules();
 
+    if (verbose) printf("Running instrsel test_global_loads\n");                                test_global_loads();
+    if (verbose) printf("Running instrsel test_global_stores\n");                               test_global_stores();
+    if (verbose) printf("Running instrsel test_global_address_of\n");                           test_global_address_of();
+    if (verbose) printf("Running instrsel test_stack_loads\n");                                 test_stack_loads();
+    if (verbose) printf("Running instrsel test_stack_stores\n");                                test_stack_stores();
+    if (verbose) printf("Running instrsel test_stack_address_of\n");                            test_stack_address_of();
+    if (verbose) printf("Running instrsel test_indirects\n");                                   test_indirects();
     if (verbose) printf("Running instrsel test_instrsel_constant_bitshift\n");                  test_instrsel_constant_bitshift();
     if (verbose) printf("Running instrsel test_instrsel_add_sub_constant\n");                   test_instrsel_add_sub_constant();
     if (verbose) printf("Running instrsel test_is_logical_immediate_32_bit\n");                 test_is_logical_immediate_32_bit();
@@ -499,7 +1040,6 @@ int main() {
     if (verbose) printf("Running instrsel test_constant_store_to_stack\n");                     test_constant_store_to_stack();
     if (verbose) printf("Running instrsel test_instrsel_conditionals\n");                       test_instrsel_conditionals();
     if (verbose) printf("Running instrsel test_spilling\n");                                    test_spilling();
-
 
     if (failures) {
         printf("%d tests failed\n", failures);

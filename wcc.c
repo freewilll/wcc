@@ -148,7 +148,7 @@ static CompilerPhase compiler_phases[] = {
     { free_interference_graph,                     PH_NONE,  PH_NONE,  NULL },
     { free_live_range_spill_cost,                  PH_NONE,  PH_NONE,  NULL },
     { free_vreg_preg_classes,                      PH_NONE,  PH_NONE,  NULL },
-    { free_preferred_live_range_preg_indexes,      PH_NONE,  PH_NONE,  NULL },
+    { free_preferred_live_range_preg_indexes,      PH_NONE,  PH_PLPR,  NULL },
 
     // Final x86 manipulations
     { make_stack_offsets,                          PH_NONE,  PH_NONE,  "Make stack offsets" },

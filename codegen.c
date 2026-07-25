@@ -249,7 +249,7 @@ void make_stack_offsets(Function *function) {
     }
 
     // Determine stack offsets
-    int *stack_offsets = wmalloc((count+ 1) * sizeof(int));
+    int *stack_offsets = wmalloc((count + 1) * sizeof(int));
     int offset = 0;
     int total_size = 0;
     for (int size = 4; size >= 0; size--) {
@@ -266,8 +266,10 @@ void make_stack_offsets(Function *function) {
 
     if (debug_stack_frame_layout) {
         printf("Stack frame for %s:\n", function->identifier);
+        printf("Stack index   Offset   Size     Alignment\n");
+        printf("--------------------------------------------\n");
         for (int i = 1; i <= count; i++) {
-            printf("Slot %3d offset=%4d size=%4d alignment=%4d\n", i, stack_offsets[i], stack_sizes[i], stack_alignments[i]);
+            printf("%-4d          %-8d %-8d %-4d\n", -i, stack_offsets[i], stack_sizes[i], stack_alignments[i]);
         }
         printf("\n");
     }

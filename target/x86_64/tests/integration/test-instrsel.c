@@ -1491,29 +1491,29 @@ void test_spilling() {
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_CHAR), vsz(1, TYPE_CHAR), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("movb        -1(%rbp), %r10b");
-    assert_rx86_preg_op("movb        %r10b, -2(%rbp)");
+    assert_rx86_preg_op("movb        -2(%rbp), %r10b");
+    assert_rx86_preg_op("movb        %r10b, -1(%rbp)");
 
     // src1s spill
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_SHORT), vsz(1, TYPE_SHORT), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("movw        -2(%rbp), %r10w");
-    assert_rx86_preg_op("movw        %r10w, -4(%rbp)");
+    assert_rx86_preg_op("movw        -4(%rbp), %r10w");
+    assert_rx86_preg_op("movw        %r10w, -2(%rbp)");
 
     // src1i spill
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_INT), vsz(1, TYPE_INT), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("movl        -4(%rbp), %r10d");
-    assert_rx86_preg_op("movl        %r10d, -8(%rbp)");
+    assert_rx86_preg_op("movl        -8(%rbp), %r10d");
+    assert_rx86_preg_op("movl        %r10d, -4(%rbp)");
 
     // src1q spill
     start_ir();
     i(0, IR_MOVE, S(-2), v(1), 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq        -8(%rbp), %r10");
-    assert_rx86_preg_op("movq        %r10, -16(%rbp)");
+    assert_rx86_preg_op("movq        -16(%rbp), %r10");
+    assert_rx86_preg_op("movq        %r10, -8(%rbp)");
 
     // src1c spill with offset
     Value *offsetted_value = asz(1, TYPE_INT);
@@ -1521,9 +1521,9 @@ void test_spilling() {
     start_ir();
     i(0, IR_MOVE, Ssz(-2, TYPE_LONG), offsetted_value, 0);
     finish_spill_ir(function);
-    assert_rx86_preg_op("movq        -8(%rbp), %r10");
+    assert_rx86_preg_op("movq        -16(%rbp), %r10");
     assert_rx86_preg_op("addq        $64, %r10");
-    assert_rx86_preg_op("movq        %r10, -16(%rbp)");
+    assert_rx86_preg_op("movq        %r10, -8(%rbp)");
 
     // src2 spill
     start_ir();

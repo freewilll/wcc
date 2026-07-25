@@ -533,14 +533,12 @@ static void add_load_stack_address_rule(int dst, int src1) {
 
 static void add_load_global_address_rule(int dst, int src1, int operation) {
     Rule *r = add_rule(dst, operation, src1,  0, 2);
-    add_op(r, AARCH64_OP_ADRP,     DST, SRC1, 0, "adrp %vdx, %v1");
-    add_op(r, AARCH64_OP_ADD_LO12, DST, SRC1, 0, "add %vdx, %vdx, :lo12:%v1");
+    add_op(r, AARCH64_OP_ADRP, DST, SRC1, 0,   "adrp %vdx, %v1");
 }
 
 static void add_load_global_address_to_rule_into_sv1(Rule *r, int src1) {
     add_allocate_register_in_slot(r, 1, TYPE_LONG);
-    add_op(r, AARCH64_OP_ADRP,     SV1, SRC1, 0, "adrp %vdx, %v1");
-    add_op(r, AARCH64_OP_ADD_LO12, SV1, SRC1, 0, "add %vdx, %vdx, :lo12:%v1");
+    add_op(r, AARCH64_OP_ADRP, SV1, SRC1, 0,   "adrp %vdx, %v1");
 }
 
 // In aarch64, memory moves into a register are done on the leaf nodes

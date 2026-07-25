@@ -129,45 +129,65 @@ void init_allocate_registers(void) {
 // pointer in the stack.
 static void add_spill_load(Tac *tac, Value *value, int temp_preg) {
     int size = value->target_size;
+
     int offset = value->stack_offset;
 
     if (size < 1 || size > 4) panic("Expected a target size between 1 and 4: %d", size);
     if (offset < 0) panic("Got a negative stack_index: %d", offset);
 
-    char *templates[]={"ldrb %vdw, [%v1x]", "ldrh %vdw, [%v1x]", "ldr %vdw, [%v1x]", "ldr %vdx, [%v1x]"};
+    char *templates[] = {"ldrb %vdw, [%v1x]", "ldrh %vdw, [%v1x]", "ldr %vdw, [%v1x]", "ldr %vdx, [%v1x]"};
 
     // Make a value for the sp register
     Value *sp = new_value();
     sp->type = new_type(TYPE_LONG);
+    sp->target_size = 4;
     sp->preg = REG_SP;
 
     // Make a value for the temp_preg register
     Value *temp_preg_value = new_value();
     temp_preg_value->type = new_type(TYPE_LONG);
+    temp_preg_value->target_size = 4;
     temp_preg_value->preg = temp_preg;
 
-    // Make a value for the offset
-    Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+    if (is_ldr_str_immediate_offset(size, offset)) {
+        // The load can be encoded as ldr [sp, offset]
 
-    // Add mov temp_preg, offset and encode the constant if necessary
-    Tac *pre_tac = new_tac_before(tac, AARCH64_OP_MOV, temp_preg_value, offset_value, 0, 1);
-    pre_tac->target_template = "mov %vdx, %v1x";
-    process_integer_constant_move_to_register(pre_tac);
+        sp->offset = offset;
+        Tac *after_tac = new_tac_before(tac, AARCH64_OP_LDR, temp_preg_value, sp, 0, 1);
+        after_tac->target_template = templates[size - 1];
+    }
+    else {
+        // Make a value for the offset
+        Value *offset_value = new_integral_constant(TYPE_LONG, offset);
 
-    // Add add temp_preg, sp, temp_preg
-    pre_tac = new_tac_before(tac, AARCH64_OP_ADD, temp_preg_value, sp, temp_preg_value, 1);
-    pre_tac->target_template = "add %vdx, %v1x, %v2x";
+        // Add mov temp_preg, offset and encode the constant if necessary
+        Tac *pre_tac = new_tac_before(tac, AARCH64_OP_MOV, temp_preg_value, offset_value, 0, 1);
+        pre_tac->target_template = "mov %vdx, %v1x";
+        process_integer_constant_move_to_register(pre_tac);
 
-    // Add add temp_preg, sp, temp_preg
-    pre_tac = new_tac_before(tac, AARCH64_OP_LDR, temp_preg_value, temp_preg_value, 0, 1);
-    pre_tac->target_template = templates[size - 1];
+        // Add add temp_preg, sp, temp_preg
+        pre_tac = new_tac_before(tac, AARCH64_OP_ADD, temp_preg_value, sp, temp_preg_value, 1);
+        pre_tac->target_template = "add %vdx, %v1x, %v2x";
+
+        // Add add temp_preg, sp, temp_preg
+        pre_tac = new_tac_before(tac, AARCH64_OP_LDR, temp_preg_value, temp_preg_value, 0, 1);
+        pre_tac->target_template = templates[size - 1];
+
+    }
+
+    if (value->offset) {
+        // Make a value for the offset
+        Value *offset_value = new_integral_constant(TYPE_LONG, value->offset);
+
+        Tac *pre_tac = new_tac_before(tac, AARCH64_OP_ADD, temp_preg_value, temp_preg_value, offset_value, 1);
+        pre_tac->target_template = "add %vdx, %v1x, %v2x";
+        insert_constant_load_for_add_sub_using_preg(pre_tac, REG_R16); // Use R16 to potentially hold the offset in the addition
+    }
 
     // Modify original value
     value->stack_offset = 0;
     value->offset = 0;
     value->preg = temp_preg;
-
-    if (value->offset) panic("TODO aarch64 offsets in a spilled vreg");
 }
 
 // Append store to stack instructions for a vreg value that has been spilled
@@ -178,11 +198,12 @@ static Tac *add_spill_store(Tac *tac) {
     if (size < 1 || size > 4) panic("Expected a target size between 1 and 4: %d", size);
     if (offset < 0) panic("Got a negative stack_index: %d", offset);
 
-    char *templates[]={"strb %vdw, [%v1x]", "strh %vdw, [%v1x]", "str %vdw, [%v1x]", "str %vdx, [%v1x]"};
+    char *templates[] = {"strb %v2w, [%v1x]", "strh %v2w, [%v1x]", "str %v2w, [%v1x]", "str %v2x, [%v1x]"};
 
     // Make a value for the sp register
     Value *sp = new_value();
     sp->type = new_type(TYPE_LONG);
+    sp->target_size = 4;
     sp->preg = REG_SP;
 
     // Make a value for the r14 register, which holds the dst value
@@ -193,30 +214,47 @@ static Tac *add_spill_store(Tac *tac) {
     // Make a value for the r15 register, which holds the pointer to the dst
     Value *r15_value = new_value();
     r15_value->type = new_type(TYPE_LONG);
+    r15_value->target_size = 4;
     r15_value->preg = REG_R15;
 
-    // Make a value for the offset
-    Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+    Tac *after_tac;
 
-    // Add mov temp_preg, offset and encode the constant if necessary
-    Tac *after_tac = new_tac_after(tac, AARCH64_OP_MOV, r15_value, offset_value, 0);
-    after_tac->target_template = "mov %vdx, %v1x";
-    after_tac = process_integer_constant_move_to_register(after_tac);
+    if (is_ldr_str_immediate_offset(size, offset)) {
+        // The store can be encoded as str [sp, offset]
 
-    // Add add temp_preg, sp, temp_preg
-    after_tac = new_tac_after(after_tac, AARCH64_OP_ADD, r15_value, sp, r15_value);
-    after_tac->target_template = "add %vdx, %v1x, %v2x";
+        sp->offset = offset;
+        after_tac = new_tac_after(tac, AARCH64_OP_STR, 0, sp, r14_value);
+        after_tac->target_template = templates[size - 1];
+    }
+    else {
+        // The store cannot be encoded as str [sp, offset]. r15 is used as a temporary pointer for the result
 
-    // Add add temp_preg, sp, temp_preg
-    after_tac = new_tac_after(after_tac, AARCH64_OP_STR, r14_value, r15_value, 0);
-    after_tac->target_template = templates[size - 1];
+        // Make a value for the offset
+        Value *offset_value = new_integral_constant(TYPE_LONG, offset);
+        offset_value->target_size = 4;
+
+        // Add mov temp_preg, offset and encode the constant if necessary
+        after_tac = new_tac_after(tac, AARCH64_OP_MOV, r15_value, offset_value, 0);
+        after_tac->target_template = "mov %vdx, %v1x";
+        after_tac = process_integer_constant_move_to_register(after_tac);
+
+        // Add add temp_preg, sp, temp_preg
+        after_tac = new_tac_after(after_tac, AARCH64_OP_ADD, r15_value, sp, r15_value);
+        after_tac->target_template = "add %vdx, %v1x, %v2x";
+
+        // Store r14 to the pointer in r15
+        after_tac = new_tac_after(after_tac, AARCH64_OP_STR, 0, r15_value, r14_value);
+        after_tac->target_template = templates[size - 1];
+    }
+
+    if (tac->dst->offset) {
+        panic("TODO aarch64 offsets in a spilled vreg store: %d", tac->dst->offset);
+        tac->dst->offset = 0;
+    }
 
     // Modify original value
     tac->dst->stack_offset = 0;
-    tac->dst->offset = 0;
     tac->dst->preg = REG_R14;
-
-    if (tac->dst->offset) panic("TODO aarch64 offsets in a spilled vreg");
 
     return after_tac;
 }
