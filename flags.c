@@ -1,7 +1,8 @@
 #include "wcc.h"
 
 int print_ir1 = 0;                          // Print IR after parsing
-int print_ir2 = 0;                          // Print IR after register allocation
+int print_ir2 = 0;                          // Print IR before register allocation
+int print_ir3 = 0;                          // Print IR after register allocation
 int log_compiler_phase_durations = 0;       // Output logs of how long each compiler phase lasts
 int sanity_check_ir;                        // Sanity check intermediate representations
 

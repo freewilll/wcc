@@ -232,7 +232,7 @@ void compile(char *input, char *original_input_filename, char *output_filename) 
             if (print_ir1) print_ir(function, 0);
 
             run_compiler_phases(function, symbol->identifier, PH_BEGIN, PH_END);
-            if (print_ir2) print_ir(function, 1);
+            if (print_ir3) print_ir(function, 1);
         }
     }
 

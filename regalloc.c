@@ -175,6 +175,8 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
         print_ir(function, 0);
     }
 
+    if (print_ir2) print_ir(function, 0);
+
     VregCost *ordered_nodes = wmalloc((vreg_count + 1) * sizeof(VregCost));
     for (int i = 1; i <= vreg_count; i++) {
         ordered_nodes[i].vreg = i;

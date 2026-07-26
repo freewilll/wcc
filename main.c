@@ -164,6 +164,7 @@ static void add_library(char *library, List *cli_libraries, List *linker_inputs)
 int main(int argc, char **argv) {
     print_ir1 = 0;
     print_ir2 = 0;
+    print_ir3 = 0;
 
     int print_filenames = 0;
     opt_enable_vreg_renumbering = 1;
@@ -226,6 +227,7 @@ int main(int argc, char **argv) {
             else if (argc > 0 && !strcmp(argv[0], "--log-compiler-phase-durations"    )) { log_compiler_phase_durations = 1;         argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir1"                             )) { print_ir1 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "--ir2"                             )) { print_ir2 = 1;                            argc--; argv++; }
+            else if (argc > 0 && !strcmp(argv[0], "--ir3"                             )) { print_ir3 = 1;                            argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-live-range-coalescing"        )) { opt_enable_live_range_coalescing = 0;     argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fspill-furthest-liveness-end"     )) { opt_spill_furthest_liveness_end = 1;      argc--; argv++; }
             else if (argc > 0 && !strcmp(argv[0], "-fno-dont-spill-short-live-ranges" )) { opt_short_lr_infinite_spill_costs = 0;    argc--; argv++; }
@@ -420,7 +422,7 @@ int main(int argc, char **argv) {
     }
 
     if (help) {
-        printf("Usage: wcc [-S -c -E -v -d -ir1 -ir2 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE...\n\n");
+        printf("Usage: wcc [-S -c -E -v -d -ir1 -ir2 --ir3 -s -frp -iir -h] [-o OUTPUT-FILE] INPUT-FILE...\n\n");
         printf("Flags\n");
         printf("-h                                          Help\n");
         printf("-S                                          Compile only; do not assemble or link\n");
@@ -442,7 +444,8 @@ int main(int argc, char **argv) {
         printf("--prc                                       Output spilled register count\n");
         printf("--log-compiler-phase-durations              Log durations of each compiler phase\n");
         printf("--ir1                                       Output intermediate representation after parsing\n");
-        printf("--ir2                                       Output intermediate representation after target rearrangements\n");
+        printf("--ir2                                       Output intermediate representation before register allocation\n");
+        printf("--ir3                                       Output intermediate representation before codegen\n");
         printf("--print-rules                               Print instruction selection rules\n");
         printf("--print-precision-decrease-rules            Print instruction selection rules that decrease precision\n");
         printf("--rule-coverage-file <file>                 Append matched rules to file\n");
