@@ -4,8 +4,12 @@
 int char_is_unsigned_by_default = 1;
 int total_function_stack_size_alignment = 16;
 
-char is_32bit_to_aarch64_size(int is_32bit) {
+char is_32bit_to_aarch64_integer_register_size(int is_32bit) {
     return is_32bit ? 'w' : 'x';
+}
+
+char is_32bit_to_aarch64_floating_point_register_size(int is_32bit) {
+    return is_32bit ? 's' : 'd';
 }
 
 char size_to_aarch64_size(int size) {
@@ -149,6 +153,7 @@ void print_physical_register_name_for_lr_reg_index(int preg_reg_index) {
         case LIVE_RANGE_PREG_V05: printf("v05"); break;
         case LIVE_RANGE_PREG_V06: printf("v06"); break;
         case LIVE_RANGE_PREG_V07: printf("v07"); break;
+        case LIVE_RANGE_PREG_V08: printf("v08"); break;
         case LIVE_RANGE_PREG_V09: printf("v09"); break;
         case LIVE_RANGE_PREG_V10: printf("v10"); break;
         case LIVE_RANGE_PREG_V11: printf("v11"); break;

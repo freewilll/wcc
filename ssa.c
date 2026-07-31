@@ -1235,8 +1235,8 @@ void blast_vregs_with_live_ranges(Function *function) {
 }
 
 // Set preg_class (PC_INT or PC_FP) for all vregs in the IR by looking at the type
-// The first 28 values are for the available physical registers,
-// 1-12 is for integers, 13-28 for floating point values.
+// The first physical_fp_register_count values are for the available physical registers,
+// physical_fp_register_count + 1 .. physical_fp_register_count + physical_fp_register_count + 1 are for the floating point registers
 static void make_vreg_preg_classes(Function *function) {
     int count = function->vreg_count;
     if (count < physical_int_register_count + physical_fp_register_count) count = physical_int_register_count + physical_fp_register_count;
@@ -1344,7 +1344,7 @@ static void print_interference_graph(Function *function) {
 // to ensure instruction selection gets an IR it can deal with.
 void make_interference_graph(Function *function, int include_instrsel_constraints) {
     if (debug_ssa_interference_graph) {
-        printf("Make interference graph\n");
+        printf("Make interference graph for %s\n", function->identifier);
         printf("--------------------------------------------------------\n");
         print_ir(function, 0);
     }

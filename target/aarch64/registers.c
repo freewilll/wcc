@@ -53,9 +53,9 @@ int clobbered_registers_in_function_call_count = sizeof(clobbered_registers_in_f
 
 // Called once at startup
 void init_allocate_registers(void) {
-    physical_register_count     =  32 + 33; // integer + floating point
+    physical_register_count     =  32 + 32; // integer + floating point
     physical_int_register_count =  23;      // Available registers for integers
-    physical_fp_register_count  =  8 + 23;  // Available registers for floating points TODO aarch64, this only covers arg registers for now
+    physical_fp_register_count  =  32;      // Available registers for floating points
 
     preg_map = wcalloc(physical_register_count + 1, sizeof(int));
     callee_saved_registers = wcalloc(physical_register_count + 1, sizeof(int));
@@ -120,6 +120,10 @@ void init_allocate_registers(void) {
     preg_map[LIVE_RANGE_PREG_R26 - 1] = REG_R26;
     preg_map[LIVE_RANGE_PREG_R27 - 1] = REG_R27;
     preg_map[LIVE_RANGE_PREG_R28 - 1] = REG_R28;
+
+    // Map all 16 Floating point registers
+    for (int i = 0; i < physical_fp_register_count; i++)
+        preg_map[LIVE_RANGE_PREG_V00 + i - 1] = REG_V00 + i;
 
     live_range_reserved_pregs_offset = physical_int_register_count + physical_fp_register_count;
 }

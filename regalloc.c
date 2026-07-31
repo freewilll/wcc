@@ -171,7 +171,8 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
     int live_range_end = live_range_start + physical_register_count - 1;
 
     if (debug_register_allocation) {
-        printf("Allocating registers for live_range_start=%d, live_range_end=%d physical_register_count=%d\n", live_range_start, live_range_end, physical_register_count);
+        printf("Allocating registers for preg_class=%d live_range_start=%d, live_range_end=%d physical_register_count=%d\n",
+            preg_class, live_range_start, live_range_end, physical_register_count);
         print_ir(function, 0);
     }
 
@@ -256,8 +257,8 @@ void allocate_registers_top_down(Function *function, int live_range_start, int p
 
         for (int i = live_range_reserved_pregs_offset + 1; i <= vreg_count; i++) {
             printf("%-3d ", i);
-            if (vreg_locations[i].preg == -1) printf("    "); else printf("%3d", vreg_locations[i].preg);
-            if (vreg_locations[i].stack_index) printf("    "); else printf("%3d", vreg_locations[i].stack_index);
+            if (vreg_locations[i].preg == -1) printf("   "); else printf("%3d", vreg_locations[i].preg);
+            if (vreg_locations[i].stack_index) printf("   "); else printf("%3d", vreg_locations[i].stack_index);
             printf("\n");
         }
     }
@@ -351,7 +352,7 @@ void allocate_registers(Function *function) {
 
     // Allocate floating point xmm* registers
     int allocated_physical_fp_register_count = live_range_reserved_pregs_offset == 0 ? 0 : physical_fp_register_count;
-    allocate_registers_top_down(function, 13, allocated_physical_fp_register_count, PC_FP);
+    allocate_registers_top_down(function, allocated_physical_int_register_count + 1, allocated_physical_fp_register_count, PC_FP);
 
     // Remap FP pregs which run from 0 to live_range_reserved_pregs_offset -1 to the actual
     // physical register numbers.

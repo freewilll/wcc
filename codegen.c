@@ -297,6 +297,58 @@ void make_stack_offsets(Function *function) {
     wfree(stack_offsets);
 }
 
+void check_floating_point_literal_max(void) {
+    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic("Exceeded max floating point literals %d", MAX_FLOATING_POINT_LITERALS);
+}
+
+int add_float_literal(Value *value) {
+    check_floating_point_literal_max();
+    floating_point_literals[floating_point_literal_count].f = value->fp_value;
+    floating_point_literals[floating_point_literal_count].type = TYPE_FLOAT;
+    return floating_point_literal_count++;
+}
+
+int add_double_literal(Value *value) {
+    check_floating_point_literal_max();
+    floating_point_literals[floating_point_literal_count].d = value->fp_value;
+    floating_point_literals[floating_point_literal_count].type = TYPE_DOUBLE;
+    return floating_point_literal_count++;
+}
+
+int add_long_double_literal(Value *value) {
+    check_floating_point_literal_max();
+    floating_point_literals[floating_point_literal_count].ld = value->fp_value;
+    floating_point_literals[floating_point_literal_count].type = TYPE_LONG_DOUBLE;
+    return floating_point_literal_count++;
+}
+
+void output_floating_point_literals(void) {
+    // Output floating point literals
+    if (floating_point_literal_count > 0) {
+        for (int i = 0; i < floating_point_literal_count; i++) {
+            // The zero and & is to be compatible with gcc
+            fprintf(output_file, ".LFP%d:\n", i);
+
+            if (floating_point_literals[i].type == TYPE_FLOAT) {
+                float fl = floating_point_literals[i].f;
+                fprintf(output_file, "    .long   %d\n", *((int *) &fl));
+            }
+            else if (floating_point_literals[i].type == TYPE_DOUBLE) {
+                double d = floating_point_literals[i].d;
+                fprintf(output_file, "    .long   %d\n", *((int *) &d));
+                fprintf(output_file, "    .long   %d\n", *((int *) &d + 1));
+            }
+            else {
+                long double ld = floating_point_literals[i].ld;
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
+                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2] & 0xffff);
+                fprintf(output_file, "    .long   0\n");
+            }
+        }
+    }
+}
+
 void init_codegen(void) {
     floating_point_literals = wmalloc(sizeof(FloatingPointLiteral) * MAX_FLOATING_POINT_LITERALS);
     floating_point_literal_count = 0;

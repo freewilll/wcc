@@ -108,31 +108,6 @@ static int get_stack_offset(Value *v) {
         panic("Unexpected zero stack_index");
 }
 
-static void check_floating_point_literal_max(void) {
-    if (floating_point_literal_count >= MAX_FLOATING_POINT_LITERALS) panic("Exceeded max floating point literals %d", MAX_FLOATING_POINT_LITERALS);
-}
-
-static int add_float_literal(Value *value) {
-    check_floating_point_literal_max();
-    floating_point_literals[floating_point_literal_count].f = value->fp_value;
-    floating_point_literals[floating_point_literal_count].type = TYPE_FLOAT;
-    return floating_point_literal_count++;
-}
-
-static int add_double_literal(Value *value) {
-    check_floating_point_literal_max();
-    floating_point_literals[floating_point_literal_count].d = value->fp_value;
-    floating_point_literals[floating_point_literal_count].type = TYPE_DOUBLE;
-    return floating_point_literal_count++;
-}
-
-static int add_long_double_literal(Value *value) {
-    check_floating_point_literal_max();
-    floating_point_literals[floating_point_literal_count].ld = value->fp_value;
-    floating_point_literals[floating_point_literal_count].type = TYPE_LONG_DOUBLE;
-    return floating_point_literal_count++;
-}
-
 char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
     char *t = tac->target_template;
 
@@ -203,9 +178,9 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                     case 'H': t++; high = 1; break;
                     case 'f': t++; float_arg = 1; break;
                     case 'd': t++; double_arg = 1; break;
-                    case 'C': t++; long_double_literal = 1; break;
                     case 'F': t++; float_literal = 1; x86_size = 3; break;
                     case 'D': t++; double_literal = 1; x86_size = 4; break;
+                    case 'C': t++; long_double_literal = 1; break;
                 }
 
                 if (!v) panic("Unexpectedly got a null value while the template %s is expecting it", tac->target_template);
@@ -777,30 +752,7 @@ void output_code(char *input_filename, char *output_filename) {
     }
     fprintf(output_file, ".Lall.code.end:\n\n");
 
-    // Output floating point literals
-    if (floating_point_literal_count > 0) {
-        for (int i = 0; i < floating_point_literal_count; i++) {
-            // The zero and & is to be compatible with gcc
-            fprintf(output_file, ".LFP%d:\n", i);
-
-            if (floating_point_literals[i].type == TYPE_FLOAT) {
-                float fl = floating_point_literals[i].f;
-                fprintf(output_file, "    .long   %d\n", *((int *) &fl));
-            }
-            else if (floating_point_literals[i].type == TYPE_DOUBLE) {
-                double d = floating_point_literals[i].d;
-                fprintf(output_file, "    .long   %d\n", *((int *) &d));
-                fprintf(output_file, "    .long   %d\n", *((int *) &d + 1));
-            }
-            else {
-                long double ld = floating_point_literals[i].ld;
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[0]);
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[1]);
-                fprintf(output_file, "    .long   %d\n", ((int *) &ld)[2] & 0xffff);
-                fprintf(output_file, "    .long   0\n");
-            }
-        }
-    }
+    output_floating_point_literals();
 
     if (need_ru4_to_ld_symbol) {
         fprintf(output_file, ".RU4TOLD:\n");

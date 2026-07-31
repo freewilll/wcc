@@ -490,16 +490,6 @@ static void add_long_double_to_sse_move_rule(int dst, int type, char *t1, char *
 static void add_float_and_double_move_rules(void) {
     Rule *r ;
 
-    // Constant -> register
-    r = add_rule(RS3, IR_MOVE, CS3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1F, %vdq"); // Load float constant into float
-    r = add_rule(RS3, IR_MOVE, CS4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1F, %vdq"); // Load double constant into float
-    r = add_rule(RS4, IR_MOVE, CS3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load float constant into double
-    r = add_rule(RS4, IR_MOVE, CS4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1D, %vdq"); // Load double constant into double
-
-    // Constant -> memory
-    r = add_rule(MS3, IR_MOVE, CS3, 0, 1); add_op(r, X86_OP_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X86_OP_MOV,  DST, 0, 0, "movss %%xmm14, %vdq");
-    r = add_rule(MS4, IR_MOVE, CS4, 0, 1); add_op(r, X86_OP_MOV,  0, SRC1, 0, "movsd %v1D, %%xmm14"); add_op(r, X86_OP_MOV,  DST, 0, 0, "movsd %%xmm14, %vdq");
-
     // Register -> register
     r = add_rule(RS3, IR_MOVE, RS3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1q, %vdq");
     r = add_rule(RS3, IR_MOVE, RS4, 0, 1); add_op(r, X86_OP_MOVC, DST, SRC1, 0, "cvtsd2ss %v1q, %vdq");

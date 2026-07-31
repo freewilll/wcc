@@ -1280,8 +1280,12 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(MGU2,  2 ) \
     RULE_NON_TERMINAL_ITEM(MGU3,  3 ) \
     RULE_NON_TERMINAL_ITEM(MGU4,  4 ) \
-    RULE_NON_TERMINAL_ITEM(MS3,   3 )    /* SSE (xmm) in stack or globals */ \
+    RULE_NON_TERMINAL_ITEM(MS3,   3 )    /* Floating point in stack or globals */ \
     RULE_NON_TERMINAL_ITEM(MS4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(MSS3,   3)    /* Floating point in stack */ \
+    RULE_NON_TERMINAL_ITEM(MSS4,   4) \
+    RULE_NON_TERMINAL_ITEM(MGS3,   3)    /* Floating point in globals */ \
+    RULE_NON_TERMINAL_ITEM(MGS4,   4) \
     RULE_NON_TERMINAL_ITEM(RP1,   4 )     /* Address (aka pointer) in a register */ \
     RULE_NON_TERMINAL_ITEM(RP2,   4 ) \
     RULE_NON_TERMINAL_ITEM(RP3,   4 ) \
@@ -1476,6 +1480,11 @@ int function_is_main(Function *function);
 int open_output_file(char *input_filename, char *output_filename);
 void output_object_symbols(void);
 int *make_saved_registers(Function *function);
+void check_floating_point_literal_max(void);
+int add_float_literal(Value *value);
+int add_double_literal(Value *value);
+int add_long_double_literal(Value *value);
+void output_floating_point_literals(void);
 void init_codegen(void);
 void free_codegen(void);
 

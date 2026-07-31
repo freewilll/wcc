@@ -113,7 +113,7 @@ enum {
     LIVE_RANGE_PREG_V05,        // Parameter/result registers
     LIVE_RANGE_PREG_V06,        // Parameter/result registers
     LIVE_RANGE_PREG_V07,        // Parameter/result registers
-
+    LIVE_RANGE_PREG_V08,        // Callee-saved registers
     LIVE_RANGE_PREG_V09,        // Callee-saved registers
     LIVE_RANGE_PREG_V10,        // Callee-saved registers
     LIVE_RANGE_PREG_V11,        // Callee-saved registers
@@ -153,7 +153,6 @@ enum aarch64_instruction_op {
     AARCH64_OP_SUB,
     AARCH64_OP_MUL,
     AARCH64_OP_DIV,
-    AARCH64_OP_ADD_LO12,
     AARCH64_OP_BAND,
     AARCH64_OP_BOR,
     AARCH64_OP_XOR,
@@ -172,6 +171,7 @@ enum aarch64_instruction_op {
     AARCH64_OP_ALLOCATE_STACK,
     AARCH64_OP_DEALLOCATE_STACK,
     AARCH64_OP_ADRP,                    // The AARCH64_OP_ADD_LO12 operation always follows it.
+    AARCH64_OP_ADD_LO12,
     AARCH64_OP_ADDRESS_OF               // Pseudo operation
 };
 
@@ -185,8 +185,8 @@ extern const int clobbered_registers_in_function_call[];
 extern int clobbered_registers_in_function_call_count;
 
 char size_to_aarch64_size(int size);
-char is_32bit_to_aarch64_size(int is_32bit);
-
+char is_32bit_to_aarch64_integer_register_size(int is_32bit);
+char is_32bit_to_aarch64_floating_point_register_size(int is_32bit);
 int is_logical_immediate(unsigned long l, int is_32bit);
 int is_ldr_str_immediate_offset(int size, int offset);
 Tac *process_integer_constant_move_to_register(Tac *tac);

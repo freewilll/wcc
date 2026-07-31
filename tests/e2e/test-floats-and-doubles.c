@@ -24,6 +24,8 @@ struct s1 { int i; float f; double d; };
 struct sf { float f; int i; };
 struct sd { double d; int i; };
 
+#ifdef __x86_64__
+
 void assert_ld_string(long double ld, char *expected, char *message) {
     char *buffer = malloc(100);
 
@@ -33,6 +35,8 @@ void assert_ld_string(long double ld, char *expected, char *message) {
     if (!matches) printf("Expected \"%s\", got \"%s\"\n", expected, buffer);
     assert_int(1, matches, message);
 }
+
+#endif
 
 void test_constant_assignment() {
     char *buffer;
@@ -50,11 +54,15 @@ void test_constant_assignment() {
     double d2 = 3.0f;           assert_double(3.0, d2, "double constant assignment from float");
     double d3 = 3.0;            assert_double(3.0, d3, "double constant assignment from double");
     double d4 = 3.0l;           assert_double(3.0, d4, "double constant assignment from LD");
+    #ifdef __x86_64__
     long double ld1 = 4;        assert_ld_string(ld1, "4.00000", "constant assignment int    -> ld");
     long double ld2 = 4.0f;     assert_ld_string(ld2, "4.00000", "constant assignment float  -> ld");
     long double ld3 = 4.0;      assert_ld_string(ld3, "4.00000", "constant assignment double -> ld");
     long double ld4 = 4.0l;     assert_ld_string(ld4, "4.00000", "constant assignment ld     -> ld");
+    #endif
 }
+
+#ifdef __x86_64__
 
 void test_assignment() {
     // In registers. Variables are not reused in this test, otherwise they would get
@@ -1057,6 +1065,8 @@ int test_stack_smashing_bug() {
     assert_long(-1, m, "LD -> SSE conversion allocation bug 4");
 }
 
+#endif
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -1064,8 +1074,8 @@ int main(int argc, char **argv) {
     parse_args(argc, argv);
 
     test_constant_assignment();
+    #ifdef __x86_64__
     test_assignment();
-
     test_conversion_sse_cst_to_int();
     test_conversion_sse_to_int();
     test_conversion_sse_cst_to_long_double();
@@ -1088,6 +1098,7 @@ int main(int argc, char **argv) {
     test_structs();
     test_inc_dec();
     test_stack_smashing_bug();
+    #endif
 
     finalize();
 }

@@ -28,12 +28,9 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
 
-    if (get_preg_class_for_scalar_type(type) == PC_FP)
-        panic("TODO aarch64 floating point params");
-
+    int is_single_int_register = type_fits_in_single_int_register(type);
+    int is_single_fp_register = is_floating_point_type(type);
     int in_stack = 0;
-    int is_single_int_register = 1;
-    int is_single_fp_register = 0;
 
     int alignment = get_type_alignment(type);
 
@@ -41,7 +38,11 @@ static void add_type_to_allocation(FunctionParamAllocation *fpa, FunctionParamLo
     if (fpa->single_int_register_arg_count >= 8)
         panic("TODO aarch64 params in stack");
 
-    fpl->int_register = fpa->single_int_register_arg_count < 6 ? fpa->single_int_register_arg_count : -1;
+    if (!in_stack && is_single_int_register)
+        fpl->int_register = fpa->single_int_register_arg_count < 6 ? fpa->single_int_register_arg_count : -1;
+
+    else if (!in_stack && is_single_fp_register)
+        fpl->fp_register = fpa->single_fp_register_arg_count < 8 ? fpa->single_fp_register_arg_count : -1;
 
     if (debug_function_param_allocation && !in_stack && (is_single_int_register || is_single_fp_register)) {
         if (fpl->int_register != -1)

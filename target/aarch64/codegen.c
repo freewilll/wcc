@@ -11,11 +11,13 @@ static int cur_function_stack_space_for_x29_x30;    // Amount of stack space all
 
 static void append_register_name(char *buffer, int preg, int is_32bit) {
     if (preg >= REG_R00 && preg <= REG_R30) {
-        *buffer++ = is_32bit_to_aarch64_size(is_32bit);
+        *buffer++ = is_32bit_to_aarch64_integer_register_size(is_32bit);
         sprintf(buffer, "%d", preg);
     }
-    else if (preg >= REG_V00 && preg <= REG_V30)
-        sprintf(buffer, "v%d", preg);
+    else if (preg >= REG_V00 && preg <= REG_V31) {
+        *buffer++ = is_32bit_to_aarch64_floating_point_register_size(is_32bit);
+        sprintf(buffer, "%d", preg - REG_V00);
+    }
     else if (preg == REG_SP)
         sprintf(buffer, "sp");
     else if (preg == REG_FSPR)
@@ -30,7 +32,7 @@ char *register_name(int preg) {
 
     if (preg >= REG_R00 && preg <= REG_R30)
         sprintf(buffer, "r%d", preg);
-    else if (preg >= REG_V00 && preg <= REG_V30)
+    else if (preg >= REG_V00 && preg <= REG_V31)
         sprintf(buffer, "r%d", preg);
     else if (preg == REG_SP)
         sprintf(buffer, "sp");
@@ -165,8 +167,14 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
 
             int is_32bit = 0;
 
-                 if (t[1] == 'w') { t++; is_32bit = 1; }
-            else if (t[1] == 'x') { t++; is_32bit = 0; }
+            switch (t[1]) {
+                case 'w':
+                case 'S':
+                    t++; is_32bit = 1; break;
+                case 'x':
+                case 'D':
+                    t++; is_32bit = 0; break;
+            }
 
             if (!v) panic("Unexpectedly got a null value while the template %s is expecting it", tac->target_template);
 
@@ -176,7 +184,11 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
                 *buffer++ = 'r';
                 sprintf(buffer, "%d", v->vreg);
                 while (*buffer) buffer++;
-                *buffer++ = is_32bit_to_aarch64_size(is_32bit);
+
+                if (is_floating_point_type(v->type))
+                    *buffer++ = is_32bit_to_aarch64_floating_point_register_size(is_32bit);
+                else
+                    *buffer++ = is_32bit_to_aarch64_integer_register_size(is_32bit);
 
                 if (v->offset) {
                     while (*buffer) buffer++;
@@ -193,7 +205,12 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
 
             }
             else if (v->is_constant) {
-                sprintf(buffer, "%ld", v->int_value);
+                if (is_floating_point_type(v->type)) {
+                    sprintf(buffer, ".LFP%d", v->offset);
+                }
+                else {
+                    sprintf(buffer, "%ld", v->int_value);
+                }
             }
             else if (v->is_string_literal)
                 sprintf(buffer, ".LS%d", v->string_literal_index);
@@ -338,12 +355,24 @@ static void prepare_x29_x30_stack_saves(Function *function) {
     cur_function_stack_space_for_x29_x30 = cur_function_has_function_calls ? 16 : 0;
 }
 
+static void register_floating_point_literals(Function *function) {
+    for (Tac *tac = function->ir; tac; tac = tac->next) {
+        if (tac->src1 && tac->src1->is_constant && is_floating_point_type(tac->src1->type)) {
+            Value *v = tac->src1;
+                 if (v->type->type == TYPE_FLOAT)       v->offset = add_float_literal(v);
+            else if (v->type->type == TYPE_DOUBLE)      v->offset = add_double_literal(v);
+            else if (v->type->type == TYPE_LONG_DOUBLE) v->offset = add_long_double_literal(v);
+        }
+    }
+}
+
 void add_final_instructions(Function *function) {
     add_load_memory_instructions(function);
     add_store_memory_instructions(function);
     add_address_of_instructions(function);
     expand_adrp_instructions(function);
     expand_indirect_offsets(function);
+    register_floating_point_literals(function);
 
     prepare_x29_x30_stack_saves(function);
     int *saved_registers = make_saved_registers(function);
@@ -491,6 +520,8 @@ void output_code(char *input_filename, char *output_filename) {
             fprintf(output_file, "\n");
         }
     }
+
+    output_floating_point_literals();
 
     fclose(output_file);
 }
