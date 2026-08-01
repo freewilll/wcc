@@ -46,6 +46,7 @@ WCC_TESTS=\
 	inc-dec \
 	pointer-arithmetic \
 	structs \
+	regressions \
 	ifdef \
 	switch \
 	character-and-string-literals

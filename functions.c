@@ -349,7 +349,7 @@ static FunctionParamLocation *lookup_location(int preg_class, int register_index
 // The dst of the move will be constrained so that rdi, rsi, xmm0, xmm1 etc are allocated to it.
 static void add_function_call_arg_moves_for_preg_class(Function *function, int preg_class) {
     int function_calls_size = make_max_function_call_id(function) + 1;
-    int register_count = preg_class == PC_INT ? 6 : 8;
+    int register_count = preg_class == PC_INT ? 6 : 8; // TODO aarch64 unhardcode this
 
     // Values of the passed argument, i.e. by the caller
     int allocated_count = function_calls_size * register_count;
@@ -387,6 +387,17 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
         }
 
         if (ir->operation.id == IR_CALL) {
+            // Rewind the ir so that it moves onto the last IR_CALL_ARG_REG operation, if any are present from a previous pass.
+            // This can happen when processing floating point args after integer args have already been processed.
+            // This results in the folowing sequence:
+            // r58_LRpreg1:int = ...
+            // r59_LRpreg24:float = ...
+            // call reg arg r58:int
+            // call reg arg r59:double
+            // call "foo"
+            Tac *moves_ir = ir;
+            while (moves_ir->prev->operation.id == IR_CALL_ARG_REG) moves_ir = moves_ir->prev;
+
             Value **call_arg = &(arg_values[ir->src1->int_value * register_count]);
             if (ir->src1->int_value >= function_calls_size) panic("Exceeding param_locations space, want=%d, allocated=%d", ir->src1->int_value, function_calls_size);
             int *param_index = &(param_indexes[ir->src1->int_value * register_count]);
@@ -437,13 +448,13 @@ static void add_function_call_arg_moves_for_preg_class(Function *function, int p
                 Type *function_call_vreg_type;
                 if (type->type == TYPE_STRUCT_OR_UNION) {
                     FunctionParamLocation *location = lookup_location(preg_class, i, *pls);
-                    function_call_vreg = make_struct_or_union_arg_move_instructions(function, ir, *call_arg, preg_class, i, location, &arg_register_set);
+                    function_call_vreg = make_struct_or_union_arg_move_instructions(function, moves_ir, *call_arg, preg_class, i, location, &arg_register_set);
                     function_call_vreg_type = preg_class == PC_INT ? new_type(TYPE_LONG) : new_type(TYPE_DOUBLE);
                 }
                 else {
                     if (type->type == TYPE_ARRAY) type = decay_array_to_pointer(type);
                     if (type->type == TYPE_ENUM) type = new_type(TYPE_INT);
-                    function_call_vreg = add_arg_move_to_register(function, ir, type, *call_arg, preg_class, i, &arg_register_set);
+                    function_call_vreg = add_arg_move_to_register(function, moves_ir, type, *call_arg, preg_class, i, &arg_register_set);
                     function_call_vreg_type = (*call_arg)->type;
                 }
 

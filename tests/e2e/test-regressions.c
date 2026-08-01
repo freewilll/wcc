@@ -20,6 +20,8 @@ struct ups {
     int i, j;
 };
 
+#ifdef __x86_64__
+
 // Create an expression which undoubtedly will exhaust all registers, forcing
 // the spilling code into action
 void test_spilling_stress() {
@@ -349,12 +351,26 @@ int test_shift_c_register_clobber() {
     assert_int(1114112, run_shift_c_register_clobber(16, 17), "Shift %cl register clobber shift result");
 }
 
+#endif
+
+void test_function_without_regs_function(int i, double d) {
+    assert_int(1, i, "Function without regs with an int and double arg");
+}
+
+// Tests a bug where IR_CALL_ARG_REG statements for int and FP values were not near the
+// IR_CALL instruction, which led to two registers not interfering with each other
+// and incorrectly getting allocated the same register.
+void test_function_without_regs() {
+    test_function_without_regs_function(1, 3.14);
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
     parse_args(argc, argv);
 
+    #ifdef __x86_64__
     test_spilling_stress();
     test_callee_saved_registers();
     test_variadic_arg_bug();
@@ -376,6 +392,8 @@ int main(int argc, char **argv) {
     test_register_reuse_in_function_calls();
     test_double_offset_bug();
     test_shift_c_register_clobber();
+    #endif
+    test_function_without_regs();
 
     finalize();
 }
