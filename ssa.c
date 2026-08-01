@@ -592,7 +592,7 @@ void make_liveout(Function *function) {
 
     function->liveout = wcalloc(block_count, sizeof(LongSet *));
 
-    make_vreg_count(function, 0);
+    make_vreg_count(function, live_range_reserved_pregs_offset);
     int vreg_count = function->vreg_count;
     int **block_uevars = wmalloc(block_count * sizeof(int *));
 
@@ -1340,7 +1340,7 @@ static void print_interference_graph(Function *function) {
 }
 
 // Page 701 of engineering a compiler
-// If include_instrsel_constraints is set, then constraints are added that precent coalescing of registers
+// If include_instrsel_constraints is set, then constraints are added that prevent coalescing of registers
 // to ensure instruction selection gets an IR it can deal with.
 void make_interference_graph(Function *function, int include_instrsel_constraints) {
     if (debug_ssa_interference_graph) {
@@ -1640,7 +1640,6 @@ static void coalesce_live_ranges_for_preg(Function *function, int preg_class) {
 }
 
 void coalesce_live_ranges(Function *function) {
-    make_vreg_count(function, live_range_reserved_pregs_offset);
     if (log_compiler_phase_durations) debug_log("Make liveout");
     make_liveout(function);
     if (log_compiler_phase_durations) debug_log("Make preferred LR indexes");
