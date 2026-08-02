@@ -29,8 +29,8 @@ const int fp_arg_registers[] = {
 // Called once at startup
 void init_allocate_registers(void) {
     physical_register_count     =  32; // integer + xmm
-    physical_int_register_count =  12; // Available registers for integers
-    physical_fp_register_count  =  14; // Available registers for floating points
+    physical_int_register_count =  12; // Allocatable registers for integers
+    physical_fp_register_count  =  14; // Allocatable registers for floating points
 
     preg_map = wcalloc(physical_register_count + 1, sizeof(int));
     callee_saved_registers = wcalloc(physical_register_count + 1, sizeof(int));

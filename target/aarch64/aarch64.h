@@ -57,10 +57,10 @@ enum {
     REG_V11,    // Callee-saved registers
     REG_V12,    // Callee-saved registers
     REG_V13,    // Callee-saved registers
-    REG_V14,    // Callee-saved registers
-    REG_V15,    // Callee-saved registers
-    REG_V16,    // Temporary registers
-    REG_V17,    // Temporary registers
+    REG_V14,    // Callee-saved registers, used for load/store instructions and spilled register load/stores
+    REG_V15,    // Callee-saved registers, used for load/store instructions and spilled register load/stores
+    REG_V16,    // Temporary registers, used for constant loads
+    REG_V17,    // Temporary registers, used for memory load/stores
     REG_V18,    // Temporary registers
     REG_V19,    // Temporary registers
     REG_V20,    // Temporary registers
@@ -119,10 +119,6 @@ enum {
     LIVE_RANGE_PREG_V11,        // Callee-saved registers
     LIVE_RANGE_PREG_V12,        // Callee-saved registers
     LIVE_RANGE_PREG_V13,        // Callee-saved registers
-    LIVE_RANGE_PREG_V14,        // Callee-saved registers
-    LIVE_RANGE_PREG_V15,        // Callee-saved registers
-    LIVE_RANGE_PREG_V16,        // Temporary registers
-    LIVE_RANGE_PREG_V17,        // Temporary registers
     LIVE_RANGE_PREG_V18,        // Temporary registers
     LIVE_RANGE_PREG_V19,        // Temporary registers
     LIVE_RANGE_PREG_V20,        // Temporary registers

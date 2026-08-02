@@ -1235,16 +1235,16 @@ void blast_vregs_with_live_ranges(Function *function) {
 }
 
 // Set preg_class (PC_INT or PC_FP) for all vregs in the IR by looking at the type
-// The first physical_fp_register_count values are for the available physical registers,
-// physical_fp_register_count + 1 .. physical_fp_register_count + physical_fp_register_count + 1 are for the floating point registers
+// The first 1-physical_int_register_count values are for the integer registers,
+// physical_fp_register_count + 1 - physical_fp_register_count + physical_fp_register_count + 1 are for the floating point registers
 static void make_vreg_preg_classes(Function *function) {
     int count = function->vreg_count;
     if (count < physical_int_register_count + physical_fp_register_count) count = physical_int_register_count + physical_fp_register_count;
     char *vreg_preg_classes = wcalloc(count + 1, sizeof(char));
 
     if (live_range_reserved_pregs_offset > 0) {
-        for (int i = 1; i <= physical_fp_register_count; i++) vreg_preg_classes[i] = PC_INT;
-        for (int i = physical_fp_register_count + 1; i <= physical_int_register_count + physical_fp_register_count; i++) vreg_preg_classes[i] = PC_FP;
+        for (int i = 1; i <= physical_int_register_count; i++) vreg_preg_classes[i] = PC_INT;
+        for (int i = physical_int_register_count + 1; i <= physical_int_register_count + physical_fp_register_count; i++) vreg_preg_classes[i] = PC_FP;
     }
 
     function->vreg_preg_classes = vreg_preg_classes;

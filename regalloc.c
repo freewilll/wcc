@@ -9,9 +9,9 @@ typedef struct vreg_cost {
     int cost;
 } VregCost;
 
-int physical_register_count;
-int physical_int_register_count;
-int physical_fp_register_count;
+int physical_register_count;        // The total of all physical registers, both int and FP
+int physical_int_register_count;    // Allocatable registers for integers
+int physical_fp_register_count;     // Allocatable registers for floating points
 
 int *preg_map;               // Map from reserved register 0-11 to physical register 0-15
 int *callee_saved_registers; // Set to 1 for registers that must be preserved in function calls.

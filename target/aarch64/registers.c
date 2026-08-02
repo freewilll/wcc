@@ -31,8 +31,6 @@ const int clobbered_registers_in_function_call[] = {
     LIVE_RANGE_PREG_R12,
     LIVE_RANGE_PREG_R13,
 
-    LIVE_RANGE_PREG_V16,
-    LIVE_RANGE_PREG_V17,
     LIVE_RANGE_PREG_V18,
     LIVE_RANGE_PREG_V19,
     LIVE_RANGE_PREG_V20,
@@ -54,8 +52,8 @@ int clobbered_registers_in_function_call_count = sizeof(clobbered_registers_in_f
 // Called once at startup
 void init_allocate_registers(void) {
     physical_register_count     =  32 + 32; // integer + floating point
-    physical_int_register_count =  23;      // Available registers for integers
-    physical_fp_register_count  =  32;      // Available registers for floating points
+    physical_int_register_count =  23;      // Allocatable registers for integers
+    physical_fp_register_count  =  28;      // Allocatable registers for floating points
 
     preg_map = wcalloc(physical_register_count + 1, sizeof(int));
     callee_saved_registers = wcalloc(physical_register_count + 1, sizeof(int));
@@ -96,7 +94,7 @@ void init_allocate_registers(void) {
     function_return_value_register_set.int_registers = int_rv_registers;
     function_return_value_register_set.fp_registers = sse_rv_registers;
 
-    // All regular registers
+    // Map regular registers
     preg_map[LIVE_RANGE_PREG_R00 - 1] = REG_R00;
     preg_map[LIVE_RANGE_PREG_R01 - 1] = REG_R01;
     preg_map[LIVE_RANGE_PREG_R02 - 1] = REG_R02;
@@ -104,12 +102,12 @@ void init_allocate_registers(void) {
     preg_map[LIVE_RANGE_PREG_R04 - 1] = REG_R04;
     preg_map[LIVE_RANGE_PREG_R05 - 1] = REG_R05;
     preg_map[LIVE_RANGE_PREG_R06 - 1] = REG_R06;
-    preg_map[LIVE_RANGE_PREG_R07 - 1] = REG_R07;
+    preg_map[LIVE_RANGE_PREG_R07 - 1] = REG_R07; // Skip R08
     preg_map[LIVE_RANGE_PREG_R09 - 1] = REG_R09;
     preg_map[LIVE_RANGE_PREG_R10 - 1] = REG_R10;
     preg_map[LIVE_RANGE_PREG_R11 - 1] = REG_R11;
     preg_map[LIVE_RANGE_PREG_R12 - 1] = REG_R12;
-    preg_map[LIVE_RANGE_PREG_R13 - 1] = REG_R13;
+    preg_map[LIVE_RANGE_PREG_R13 - 1] = REG_R13; // Skip R14 - R18
     preg_map[LIVE_RANGE_PREG_R19 - 1] = REG_R19;
     preg_map[LIVE_RANGE_PREG_R20 - 1] = REG_R20;
     preg_map[LIVE_RANGE_PREG_R21 - 1] = REG_R21;
@@ -119,11 +117,37 @@ void init_allocate_registers(void) {
     preg_map[LIVE_RANGE_PREG_R25 - 1] = REG_R25;
     preg_map[LIVE_RANGE_PREG_R26 - 1] = REG_R26;
     preg_map[LIVE_RANGE_PREG_R27 - 1] = REG_R27;
-    preg_map[LIVE_RANGE_PREG_R28 - 1] = REG_R28;
+    preg_map[LIVE_RANGE_PREG_R28 - 1] = REG_R28;  // Skip R29 and R30
 
-    // Map all 16 Floating point registers
-    for (int i = 0; i < physical_fp_register_count; i++)
-        preg_map[LIVE_RANGE_PREG_V00 + i - 1] = REG_V00 + i;
+    // Map floating point registers (28 total)
+    preg_map[LIVE_RANGE_PREG_V00 - 1] = REG_V00;
+    preg_map[LIVE_RANGE_PREG_V01 - 1] = REG_V01;
+    preg_map[LIVE_RANGE_PREG_V02 - 1] = REG_V02;
+    preg_map[LIVE_RANGE_PREG_V03 - 1] = REG_V03;
+    preg_map[LIVE_RANGE_PREG_V04 - 1] = REG_V04;
+    preg_map[LIVE_RANGE_PREG_V05 - 1] = REG_V05;
+    preg_map[LIVE_RANGE_PREG_V06 - 1] = REG_V06;
+    preg_map[LIVE_RANGE_PREG_V07 - 1] = REG_V07;
+    preg_map[LIVE_RANGE_PREG_V08 - 1] = REG_V08;
+    preg_map[LIVE_RANGE_PREG_V09 - 1] = REG_V09;
+    preg_map[LIVE_RANGE_PREG_V10 - 1] = REG_V10;
+    preg_map[LIVE_RANGE_PREG_V11 - 1] = REG_V11;
+    preg_map[LIVE_RANGE_PREG_V12 - 1] = REG_V12;
+    preg_map[LIVE_RANGE_PREG_V13 - 1] = REG_V13;
+    preg_map[LIVE_RANGE_PREG_V18 - 1] = REG_V18;
+    preg_map[LIVE_RANGE_PREG_V19 - 1] = REG_V19;
+    preg_map[LIVE_RANGE_PREG_V20 - 1] = REG_V20;
+    preg_map[LIVE_RANGE_PREG_V21 - 1] = REG_V21;
+    preg_map[LIVE_RANGE_PREG_V22 - 1] = REG_V22;
+    preg_map[LIVE_RANGE_PREG_V23 - 1] = REG_V23;
+    preg_map[LIVE_RANGE_PREG_V24 - 1] = REG_V24;
+    preg_map[LIVE_RANGE_PREG_V25 - 1] = REG_V25;
+    preg_map[LIVE_RANGE_PREG_V26 - 1] = REG_V26;
+    preg_map[LIVE_RANGE_PREG_V27 - 1] = REG_V27;
+    preg_map[LIVE_RANGE_PREG_V28 - 1] = REG_V28;
+    preg_map[LIVE_RANGE_PREG_V29 - 1] = REG_V29;
+    preg_map[LIVE_RANGE_PREG_V30 - 1] = REG_V30;
+    preg_map[LIVE_RANGE_PREG_V31 - 1] = REG_V31;
 
     live_range_reserved_pregs_offset = physical_int_register_count + physical_fp_register_count;
 }
