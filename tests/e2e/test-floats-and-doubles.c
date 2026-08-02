@@ -94,7 +94,7 @@ void test_assignment() {
     double d6 = 13.0; gd = d6; assert_double(gd, 13.0, "register -> memory double -> double");
 }
 
-void test_conversion_sse_cst_to_int() {
+void test_conversion_fp_cst_to_int() {
     float f;
     double d;
 
@@ -145,7 +145,7 @@ void test_conversion_sse_cst_to_int() {
     d = 48.1f; gul = d; assert_long(48, gul, "gul = d");
 }
 
-void test_conversion_sse_to_int() {
+void test_conversion_fp_to_int() {
     float f;
     double d;
 
@@ -226,7 +226,7 @@ void test_conversion_sse_to_int() {
     gd = 8.1; assert_long(8, (unsigned long)  gd, "double on stack to unsigned long  in register");
 }
 
-void test_conversion_sse_cst_to_long_double() {
+void test_conversion_fp_cst_to_long_double() {
     float f;
     double d;
     long double ld;
@@ -235,7 +235,7 @@ void test_conversion_sse_cst_to_long_double() {
     d = 2.1f; ld = d; assert_long_double(2.1, ld, "sse double constant -> ld");
 }
 
-int test_conversion_sse_to_long_double() {
+int test_conversion_fp_to_long_double() {
     float f;
     double d;
 
@@ -248,7 +248,7 @@ int test_conversion_sse_to_long_double() {
     gd = 2.1; assert_long_double(2.1, (long double) gd,"double in register to long double");
 }
 
-void test_conversion_int_to_sse() {
+void test_conversion_int_to_fp() {
     float f;
     double d;
 
@@ -313,7 +313,7 @@ void test_conversion_int_to_sse() {
     gl = -8; gd = gl; assert_float(-8.0, gd, "long  in memory to double in memory");
 }
 
-void test_conversion_long_double_to_sse() {
+void test_conversion_long_double_to_fp() {
     long double ld;
     float f;
     double d;
@@ -1076,12 +1076,12 @@ int main(int argc, char **argv) {
     test_constant_assignment();
     #ifdef __x86_64__
     test_assignment();
-    test_conversion_sse_cst_to_int();
-    test_conversion_sse_to_int();
-    test_conversion_sse_cst_to_long_double();
-    test_conversion_sse_to_long_double();
-    test_conversion_int_to_sse();
-    test_conversion_long_double_to_sse();
+    test_conversion_fp_cst_to_int();
+    test_conversion_fp_to_int();
+    test_conversion_fp_cst_to_long_double();
+    test_conversion_fp_to_long_double();
+    test_conversion_int_to_fp();
+    test_conversion_long_double_to_fp();
     test_spilling();
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();
