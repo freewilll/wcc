@@ -709,6 +709,25 @@ static void add_float_and_double_move_rules(void) {
     // Register -> global
     r = add_rule(MGO3, IR_MOVE, RO3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2S, [%v1x]");
     r = add_rule(MGO4, IR_MOVE, RO4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2D, [%v1x]");
+
+    // floating point in register -> integer in register
+    r = add_rule(RI1, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdw, %v1S");
+    r = add_rule(RI2, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdw, %v1S");
+    r = add_rule(RI3, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdw, %v1S");
+    r = add_rule(RI4, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdx, %v1S");
+    r = add_rule(RU1, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdw, %v1S");
+    r = add_rule(RU2, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdw, %v1S");
+    r = add_rule(RU3, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdw, %v1S");
+    r = add_rule(RU4, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdx, %v1S");
+
+    r = add_rule(RI1, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdw, %v1D");
+    r = add_rule(RI2, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdw, %v1D");
+    r = add_rule(RI3, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdw, %v1D");
+    r = add_rule(RI4, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzs %vdx, %v1D");
+    r = add_rule(RU1, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdw, %v1D");
+    r = add_rule(RU2, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdw, %v1D");
+    r = add_rule(RU3, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdw, %v1D");
+    r = add_rule(RU4, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdx, %v1D");
 }
 
 static void add_floating_point_operation_rules(void) {

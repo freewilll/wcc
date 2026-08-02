@@ -11,10 +11,10 @@ int failures;
 float gf, gf1, gf2, *gpf;
 double gd, gd1, gd2, *gpd;
 
-char  gc;
-short gs;
-int   gi;
-long  gl;
+signed char  gc;
+signed short gs;
+signed int   gi;
+signed long  gl;
 unsigned char  guc;
 unsigned short gus;
 unsigned int   gui;
@@ -92,22 +92,20 @@ void test_assignment() {
     double d6 = 13.0; gd = d6; assert_double(gd, 13.0, "register -> memory double -> double");
 }
 
-#ifdef __x86_64__
-
 void test_conversion_fp_cst_to_int() {
     float f;
     double d;
 
-    char  c;
-    short s;
-    int   i;
-    long  l;
+    signed char  c;
+    signed short s;
+    signed int   i;
+    signed long  l;
     unsigned char  uc;
     unsigned short us;
     unsigned int   ui;
     unsigned long  ul;
 
-    // This tests constant SSE assignment, since all operations are tree-collapsed
+    // This tests constant floating point assignment, since all operations are tree-collapsed
     f = 11.0f; c = f; assert_long(11, c, "c = f");
     f = 12.0f; s = f; assert_long(12, s, "s = f");
     f = 13.0f; i = f; assert_long(13, i, "i = f");
@@ -149,7 +147,7 @@ void test_conversion_fp_to_int() {
     float f;
     double d;
 
-    // SSE in register to int in register
+    // floating point in register to int in register
     f = 1.1; assert_long(1, (char)  f, "float  in register to char  in register");
     f = 2.1; assert_long(2, (short) f, "float  in register to short in register");
     f = 3.1; assert_long(3, (int)   f, "float  in register to int   in register");
@@ -168,7 +166,7 @@ void test_conversion_fp_to_int() {
     d = 7.1; assert_long(7, (unsigned int)   d, "double in register to unsigned int   in register");
     d = 8.1; assert_long(8, (unsigned long)  d, "double in register to unsigned long  in register");
 
-    // SSE in register to int in memory
+    // floating point in register to int in memory
     f = 1.1; gc = f; assert_long(1, gc, "float  in register to char  in memory");
     f = 2.1; gs = f; assert_long(2, gs, "float  in register to short in memory");
     f = 3.1; gi = f; assert_long(3, gi, "float  in register to int   in memory");
@@ -187,7 +185,7 @@ void test_conversion_fp_to_int() {
     d = 7.1; gui = d; assert_long(7, gui, "double in register to unsigned int   in memory");
     d = 8.1; gul = d; assert_long(8, gul, "double in register to unsigned long  in memory");
 
-    // SSE in memory to int in memory
+    // floating point in memory to int in memory
     gf = 1.1; gc = gf; assert_long(1, gc, "float  in register to char  in memory");
     gf = 2.1; gs = gf; assert_long(2, gs, "float  in register to short in memory");
     gf = 3.1; gi = gf; assert_long(3, gi, "float  in register to int   in memory");
@@ -206,7 +204,7 @@ void test_conversion_fp_to_int() {
     gd = 7.1; gui = gd; assert_long(7, gui, "double in register to unsigned int   in memory");
     gd = 8.1; gul = gd; assert_long(8, gul, "double in register to unsigned long  in memory");
 
-    // SSE in memory -> int in register
+    // floating point in memory -> int in register
     gf = 1.1; assert_long(1, (char)  gf, "float  on stack to char  in register");
     gf = 2.1; assert_long(2, (short) gf, "float  on stack to short in register");
     gf = 3.1; assert_long(3, (int)   gf, "float  on stack to int   in register");
@@ -226,6 +224,8 @@ void test_conversion_fp_to_int() {
     gd = 8.1; assert_long(8, (unsigned long)  gd, "double on stack to unsigned long  in register");
 }
 
+#ifdef __x86_64__
+
 void test_conversion_fp_cst_to_long_double() {
     float f;
     double d;
@@ -239,11 +239,11 @@ int test_conversion_fp_to_long_double() {
     float f;
     double d;
 
-    // SSE in register to long double
+    // floating point in register to long double
     f = 1.1; assert_long_double(1.1, (long double) f,"float  in register to long double");
     d = 2.1; assert_long_double(2.1, (long double) d,"double in register to long double");
 
-    // SSE in memory to long double
+    // floating point in memory to long double
     gf = 1.1; assert_long_double(1.1, (long double) gf,"float  in register to long double");
     gd = 2.1; assert_long_double(2.1, (long double) gd,"double in register to long double");
 }
@@ -252,15 +252,15 @@ void test_conversion_int_to_fp() {
     float f;
     double d;
 
-    // Int in register to SSE in register
-    f = (char)  -1; assert_float(-1.0, f, "char  in register to float in register");
-    f = (short) -2; assert_float(-2.0, f, "short in register to float in register");
-    f = (int)   -3; assert_float(-3.0, f, "int   in register to float in register");
-    f = (long)  -4; assert_float(-4.0, f, "long  in register to float in register");
-    d = (char)  -5; assert_float(-5.0, d, "char  in register to double in register");
-    d = (short) -6; assert_float(-6.0, d, "short in register to double in register");
-    d = (int)   -7; assert_float(-7.0, d, "int   in register to double in register");
-    d = (long)  -8; assert_float(-8.0, d, "long  in register to double in register");
+    // Int in register to floating point in register
+    f = (signed char)  -1; assert_float(-1.0, f, "char  in register to float in register");
+    f = (signed short) -2; assert_float(-2.0, f, "short in register to float in register");
+    f = (signed int)   -3; assert_float(-3.0, f, "int   in register to float in register");
+    f = (signed long)  -4; assert_float(-4.0, f, "long  in register to float in register");
+    d = (signed char)  -5; assert_float(-5.0, d, "char  in register to double in register");
+    d = (signed short) -6; assert_float(-6.0, d, "short in register to double in register");
+    d = (signed int)   -7; assert_float(-7.0, d, "int   in register to double in register");
+    d = (signed long)  -8; assert_float(-8.0, d, "long  in register to double in register");
 
     // Without high bit set
     f = (unsigned char)  1; assert_float(1.0, f, "unsigned char  in register to float  in register");
@@ -282,17 +282,17 @@ void test_conversion_int_to_fp() {
     d = (unsigned int)   -1; assert_float(4294967296.0,           d, "unsigned int   in register to double in register");
     d = (unsigned long)  -1; assert_float(18446744073709551616.0, d, "unsigned long  in register to double in register");
 
-    // Int in register to SSE in memory
-    gf = (char)  -1; assert_float(-1.0, gf, "char  in register to float  in memory");
-    gf = (short) -2; assert_float(-2.0, gf, "short in register to float  in memory");
-    gf = (int)   -3; assert_float(-3.0, gf, "int   in register to float  in memory");
-    gf = (long)  -4; assert_float(-4.0, gf, "long  in register to float  in memory");
-    gd = (char)  -5; assert_float(-5.0, gd, "char  in register to double in memory");
-    gd = (short) -6; assert_float(-6.0, gd, "short in register to double in memory");
-    gd = (int)   -7; assert_float(-7.0, gd, "int   in register to double in memory");
-    gd = (long)  -8; assert_float(-8.0, gd, "long  in register to double in memory");
+    // Int in register to floating point in memory
+    gf = (signed char)  -1; assert_float(-1.0, gf, "char  in register to float  in memory");
+    gf = (signed short) -2; assert_float(-2.0, gf, "short in register to float  in memory");
+    gf = (signed int)   -3; assert_float(-3.0, gf, "int   in register to float  in memory");
+    gf = (signed long)  -4; assert_float(-4.0, gf, "long  in register to float  in memory");
+    gd = (signed char)  -5; assert_float(-5.0, gd, "char  in register to double in memory");
+    gd = (signed short) -6; assert_float(-6.0, gd, "short in register to double in memory");
+    gd = (signed int)   -7; assert_float(-7.0, gd, "int   in register to double in memory");
+    gd = (signed long)  -8; assert_float(-8.0, gd, "long  in register to double in memory");
 
-    // Int in memory to SSE in register
+    // Int in memory to floating point in register
     gc = -1; f = gc; assert_float(-1.0, f, "char  in memory to float  in memory");
     gs = -2; f = gs; assert_float(-2.0, f, "short in memory to float  in memory");
     gi = -3; f = gi; assert_float(-3.0, f, "int   in memory to float  in memory");
@@ -302,7 +302,7 @@ void test_conversion_int_to_fp() {
     gi = -7; d = gi; assert_float(-7.0, d, "int   in memory to double in memory");
     gl = -8; d = gl; assert_float(-8.0, d, "long  in memory to double in memory");
 
-    // Int in memory to SSE in memory
+    // Int in memory to floating point in memory
     gc = -1; gf = gc; assert_float(-1.0, gf, "char  in memory to float  in memory");
     gs = -2; gf = gs; assert_float(-2.0, gf, "short in memory to float  in memory");
     gi = -3; gf = gi; assert_float(-3.0, gf, "int   in memory to float  in memory");
@@ -1184,10 +1184,10 @@ int test_stack_smashing_bug() {
 
     long double ld = 1.0;
     double d = ld; &d;
-    assert_int(-1, i, "LD -> SSE conversion allocation bug 1");
-    assert_int(-1, j, "LD -> SSE conversion allocation bug 2");
-    assert_long(-1, l, "LD -> SSE conversion allocation bug 3");
-    assert_long(-1, m, "LD -> SSE conversion allocation bug 4");
+    assert_int(-1, i, "LD -> float/double conversion allocation bug 1");
+    assert_int(-1, j, "LD -> float/double conversion allocation bug 2");
+    assert_long(-1, l, "LD -> float/double conversion allocation bug 3");
+    assert_long(-1, m, "LD -> float/double conversion allocation bug 4");
 }
 
 #endif
@@ -1200,9 +1200,9 @@ int main(int argc, char **argv) {
 
     test_constant_assignment();
     test_assignment();
-    #ifdef __x86_64__
     test_conversion_fp_cst_to_int();
     test_conversion_fp_to_int();
+    #ifdef __x86_64__
     test_conversion_fp_cst_to_long_double();
     test_conversion_fp_to_long_double();
     test_conversion_int_to_fp();
