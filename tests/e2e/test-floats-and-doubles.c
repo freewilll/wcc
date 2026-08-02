@@ -327,7 +327,9 @@ void test_conversion_long_double_to_fp() {
     ld = 2.1; gd = ld; assert_double(2.1, gd, "long double to double in memory");
 }
 
-void test_spilling() {
+#endif
+
+void test_spilling_mix() {
     // All four types are spilled, due to the double function call
 
     char *buffer;
@@ -339,10 +341,124 @@ void test_spilling() {
     double sd2 = 4.0;
 
     sprintf(buffer, "%f %f %f %f", sf1, sf2, sd1, sd2);
-    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000"), "Spilling 1");
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000"), "Spilling 1a");
     sprintf(buffer, "%f %f %f %f", sf1, sf2, sd1, sd2);
-    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000"), "Spilling 1");
+    assert_int(0, strcmp(buffer, "1.000000 2.000000 3.000000 4.000000"), "Spilling 1b");
 }
+
+void test_spilling_floats() {
+    float f1 = 1;
+    float f2 = 2;
+    float f3 = 3;
+    float f4 = 4;
+    float f5 = 5;
+    float f6 = 6;
+    float f7 = 7;
+    float f8 = 8;
+    float f9 = 9;
+    float f10 = 10;
+    float f11 = 11;
+    float f12 = 12;
+    float f13 = 13;
+    float f14 = 14;
+    float f15 = 15;
+    float f16 = 16;
+    float f17 = 17;
+    float f18 = 18;
+    float f19 = 19;
+    float f20 = 20;
+    float f21 = 21;
+    float f22 = 22;
+    float f23 = 23;
+    float f24 = 24;
+    float f25 = 25;
+    float f26 = 26;
+    float f27 = 27;
+    float f28 = 28;
+    float f29 = 29;
+    float f30 = 20;
+    float f31 = 31;
+    float f32 = 32;
+    float f33 = 33;
+    float f34 = 34;
+    float f35 = 35;
+    float f36 = 36;
+    float f37 = 37;
+    float f38 = 38;
+    float f39 = 39;
+    float f40 = 40;
+
+    float sum1 =
+        f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8 + f9 + f10 +
+        f11 + f12 + f13 + f14 + f15 + f16 + f17 + f18 + f19 + f20 +
+        f21 + f22 + f23 + f24 + f25 + f26 + f27 + f28 + f29 + f30 +
+        f31 + f32 + f33 + f34 + f35 + f36 + f37 + f38 + f39 + f40;
+
+    // Calculate it again so that it doesn't get collapsed with instrsel
+    float sum2 =
+        f1 + f2 + f3 + f4 + f5 + f6 + f7 + f8 + f9 + f10 +
+        f11 + f12 + f13 + f14 + f15 + f16 + f17 + f18 + f19 + f20 +
+        f21 + f22 + f23 + f24 + f25 + f26 + f27 + f28 + f29 + f30 +
+        f31 + f32 + f33 + f34 + f35 + f36 + f37 + f38 + f39 + f40;
+    assert_float(810.0, sum1, "Spilling floats");
+}
+
+void test_spilling_doubles() {
+    double d1 = 1;
+    double d2 = 2;
+    double d3 = 3;
+    double d4 = 4;
+    double d5 = 5;
+    double d6 = 6;
+    double d7 = 7;
+    double d8 = 8;
+    double d9 = 9;
+    double d10 = 10;
+    double d11 = 11;
+    double d12 = 12;
+    double d13 = 13;
+    double d14 = 14;
+    double d15 = 15;
+    double d16 = 16;
+    double d17 = 17;
+    double d18 = 18;
+    double d19 = 19;
+    double d20 = 20;
+    double d21 = 21;
+    double d22 = 22;
+    double d23 = 23;
+    double d24 = 24;
+    double d25 = 25;
+    double d26 = 26;
+    double d27 = 27;
+    double d28 = 28;
+    double d29 = 29;
+    double d30 = 20;
+    double d31 = 31;
+    double d32 = 32;
+    double d33 = 33;
+    double d34 = 34;
+    double d35 = 35;
+    double d36 = 36;
+    double d37 = 37;
+    double d38 = 38;
+    double d39 = 39;
+    double d40 = 40;
+
+    double x1 =
+        d1 + d2 + d3 + d4 + d5 + d6 + d7 + d8 + d9 + d10 +
+        d11 + d12 + d13 + d14 + d15 + d16 + d17 + d18 + d19 + d20 +
+        d21 + d22 + d23 + d24 + d25 + d26 + d27 + d28 + d29 + d30 +
+        d31 + d32 + d33 + d34 + d35 + d36 + d37 + d38 + d39 + d40;
+    double x2 =
+        d1 + d2 + d3 + d4 + d5 + d6 + d7 + d8 + d9 + d10 +
+        d11 + d12 + d13 + d14 + d15 + d16 + d17 + d18 + d19 + d20 +
+        d21 + d22 + d23 + d24 + d25 + d26 + d27 + d28 + d29 + d30 +
+        d31 + d32 + d33 + d34 + d35 + d36 + d37 + d38 + d39 + d40;
+    assert_double(810.0, x1, "Spilling doubles");
+}
+
+#ifdef __x86_64__
 
 void test_long_double_constant_promotion_in_arithmetic() {
     long double ld;
@@ -1091,7 +1207,11 @@ int main(int argc, char **argv) {
     test_conversion_fp_to_long_double();
     test_conversion_int_to_fp();
     test_conversion_long_double_to_fp();
-    test_spilling();
+    #endif
+    test_spilling_mix();
+    test_spilling_floats();
+    test_spilling_doubles();
+    #ifdef __x86_64__
     test_long_double_constant_promotion_in_arithmetic();
     test_constants_in_function_calls();
     test_constant_arithmetic_combinations();

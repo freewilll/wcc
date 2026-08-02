@@ -156,14 +156,17 @@ void init_allocate_registers(void) {
 // temp_preg has the physical temp register that is used to hold the
 // pointer in the stack.
 static void add_spill_load(Tac *tac, Value *value, int temp_preg) {
-    int size = value->target_size;
+    static char *int_templates[] = {"ldrb %vdw, [%v1x]", "ldrh %vdw, [%v1x]", "ldr %vdw, [%v1x]", "ldr %vdx, [%v1x]"};
+    static char *fp_templates[] = {NULL, NULL, "ldr %vdS, [%v1x]", "ldr %vdD, [%v1x]"};
 
+    int size = value->target_size;
     int offset = value->stack_offset;
 
     if (size < 1 || size > 4) panic("Expected a target size between 1 and 4: %d", size);
     if (offset < 0) panic("Got a negative stack_index: %d", offset);
 
-    char *templates[] = {"ldrb %vdw, [%v1x]", "ldrh %vdw, [%v1x]", "ldr %vdw, [%v1x]", "ldr %vdx, [%v1x]"};
+    int is_fp = is_floating_point_type(value->type);
+    char **templates = is_fp ? fp_templates : int_templates;
 
     // Make a value for the sp register
     Value *sp = new_value();
@@ -200,7 +203,6 @@ static void add_spill_load(Tac *tac, Value *value, int temp_preg) {
         // Add add temp_preg, sp, temp_preg
         pre_tac = new_tac_before(tac, AARCH64_OP_LDR, temp_preg_value, temp_preg_value, 0, 1);
         pre_tac->target_template = templates[size - 1];
-
     }
 
     if (value->offset) {
@@ -220,13 +222,17 @@ static void add_spill_load(Tac *tac, Value *value, int temp_preg) {
 
 // Append store to stack instructions for a vreg value that has been spilled
 static Tac *add_spill_store(Tac *tac) {
+    static char *int_templates[] = {"strb %v2w, [%v1x]", "strh %v2w, [%v1x]", "str %v2w, [%v1x]", "str %v2x, [%v1x]"};
+    static char *fp_templates[] = {NULL, NULL, "str %v2S, [%v1x]", "str %v2D, [%v1x]"};
+
     int size = tac->dst->target_size;
     int offset = tac->dst->stack_offset;
 
     if (size < 1 || size > 4) panic("Expected a target size between 1 and 4: %d", size);
     if (offset < 0) panic("Got a negative stack_index: %d", offset);
 
-    char *templates[] = {"strb %v2w, [%v1x]", "strh %v2w, [%v1x]", "str %v2w, [%v1x]", "str %v2x, [%v1x]"};
+    int is_fp = is_floating_point_type(tac->dst->type);
+    char **templates = is_fp ? fp_templates : int_templates;
 
     // Make a value for the sp register
     Value *sp = new_value();
@@ -237,7 +243,7 @@ static Tac *add_spill_store(Tac *tac) {
     // Make a value for the r14 register, which holds the dst value
     Value *r14_value = new_value();
     r14_value->type = new_type(size > 3 ? TYPE_LONG : TYPE_INT);
-    r14_value->preg = REG_R14;
+    r14_value->preg = is_fp ? REG_V14 : REG_R14;
 
     // Make a value for the r15 register, which holds the pointer to the dst
     Value *r15_value = new_value();
@@ -282,7 +288,7 @@ static Tac *add_spill_store(Tac *tac) {
 
     // Modify original value
     tac->dst->stack_offset = 0;
-    tac->dst->preg = REG_R14;
+    tac->dst->preg = r14_value->preg;
 
     return after_tac;
 }
@@ -297,12 +303,14 @@ void add_spill_code(Function *function) {
 
         if (tac->src1 && tac->src1->spilled) {
             if (debug_instsel_spilling) printf("Adding spill load\n");
-            add_spill_load(tac, tac->src1, REG_R14);
+            int is_fp = is_floating_point_type(tac->src1->type);
+            add_spill_load(tac, tac->src1, is_fp ? REG_V14: REG_R14);
         }
 
         if (tac->src2 && tac->src2->spilled) {
             if (debug_instsel_spilling) printf("Adding spill load\n");
-            add_spill_load(tac, tac->src2, REG_R15);
+            int is_fp = is_floating_point_type(tac->src2->type);
+            add_spill_load(tac, tac->src2, is_fp ? REG_V15: REG_R15);
         }
 
         if (tac->dst && tac->dst->spilled) {
