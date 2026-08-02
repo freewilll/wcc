@@ -91,11 +91,11 @@ void test_global_loads(void) {
     // IR_MOVE v << g
     si(function, 0, IR_MOVE, vsz(3, TYPE_CHAR), gsz(1, TYPE_CHAR), 0);
     assert_target_op("adrp        r3x, g1");
-    assert_target_op("ldrb        r2w, [r3x]");
+    assert_target_op("ldrsb       r2w, [r3x]");
 
     si(function, 0, IR_MOVE, vsz(3, TYPE_SHORT), gsz(1, TYPE_SHORT), 0);
     assert_target_op("adrp        r3x, g1");
-    assert_target_op("ldrh        r2w, [r3x]");
+    assert_target_op("ldrsh       r2w, [r3x]");
 
     si(function, 0, IR_MOVE, vsz(3, TYPE_INT), gsz(1, TYPE_INT), 0);
     assert_target_op("adrp        r3x, g1");
@@ -113,7 +113,7 @@ void test_global_loads(void) {
     add_some_final_instructions(function);
     assert_target_op("adrp        r3x, g1");
     assert_target_op("add         r3x, r3x, 8");
-    assert_target_op("ldrb        r2w, [r3x]");
+    assert_target_op("ldrsb       r2w, [r3x]");
 
     // IR_MOVE v << g with a large offset
     start_ir();
@@ -123,7 +123,7 @@ void test_global_loads(void) {
     assert_preg_op("adrp        x0, g1");
     assert_preg_op("movz        x16, 5000");
     assert_preg_op("add         x0, x0, x16");
-    assert_preg_op("ldrb        w0, [x0]");
+    assert_preg_op("ldrsb       w0, [x0]");
 }
 
 void test_global_stores(void) {
@@ -273,12 +273,12 @@ void test_stack_loads(void) {
     start_ir();
     i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldrb        w0, [sp, 15]");
+    assert_preg_op("ldrsb       w0, [sp, 15]");
 
     start_ir();
     i(0, IR_MOVE, vsz(3, TYPE_SHORT), Ssz(-1, TYPE_SHORT), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldrh        w0, [sp, 14]");
+    assert_preg_op("ldrsh       w0, [sp, 14]");
 
     start_ir();
     i(0, IR_MOVE, vsz(3, TYPE_INT), Ssz(-1, TYPE_INT), 0);
@@ -295,7 +295,7 @@ void test_stack_loads(void) {
     tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
     tac->src1->offset = 8;
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldrb        w0, [sp, 23]");
+    assert_preg_op("ldrsb       w0, [sp, 23]");
 
     // IR_MOVE v << s with a large offset
     start_ir();
@@ -304,7 +304,7 @@ void test_stack_loads(void) {
     finish_spill_ir_and_memory_load_stores();
     assert_preg_op("movz        x17, 5015");
     assert_preg_op("add         x17, sp, x17");
-    assert_preg_op("ldrb        w0, [x17]");
+    assert_preg_op("ldrsb       w0, [x17]");
 
     live_range_reserved_pregs_offset = 0; // Disable register allocation
 
@@ -312,7 +312,7 @@ void test_stack_loads(void) {
     start_ir();
     i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldrb        w14, [sp, 15]");
+    assert_preg_op("ldrsb       w14, [sp, 15]");
     assert_preg_op("strb        w14, [sp, 14]");
 
     // IR_MOVE v << s with a small offset with a spilled value
@@ -320,7 +320,7 @@ void test_stack_loads(void) {
     tac = i(0, IR_MOVE, vsz(3, TYPE_CHAR), Ssz(-1, TYPE_CHAR), 0);
     tac->src1->offset = 8;
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldrb        w14, [sp, 23]");
+    assert_preg_op("ldrsb       w14, [sp, 23]");
     assert_preg_op("strb        w14, [sp, 14]");
 
     // Some of the generated code that follows is quite bad.
@@ -336,7 +336,7 @@ void test_stack_loads(void) {
     finish_spill_ir_and_memory_load_stores();
     assert_preg_op("movz        x17, 5015");
     assert_preg_op("add         x17, sp, x17");
-    assert_preg_op("ldrb        w14, [x17]");       // Load into spilled temp register
+    assert_preg_op("ldrsb       w14, [x17]");       // Load into spilled temp register
     assert_preg_op("strb        w14, [sp, 14]");    // Store into spilled temp register
     assert_preg_op("ldrb        w14, [sp, 14]");    // Reload into spilled temp register
     assert_preg_op("mov         w14, w14");         // Load/store join
@@ -544,12 +544,12 @@ void test_indirects(void) {
     start_ir();
     i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldrb        w0, [x0]");
+    assert_preg_op("ldrsb       w0, [x0]");
 
     start_ir();
     i(0, IR_INDIRECT, vsz(2, TYPE_SHORT), asz(1, TYPE_SHORT), 0);
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldrh        w0, [x0]");
+    assert_preg_op("ldrsh       w0, [x0]");
 
     start_ir();
     i(0, IR_INDIRECT, vsz(2, TYPE_INT), asz(1, TYPE_INT), 0);
@@ -566,7 +566,7 @@ void test_indirects(void) {
     tac = i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
     tac->src1->offset = 8;
     finish_spill_ir_and_memory_load_stores();
-    assert_preg_op("ldrb        w0, [x0, 8]");
+    assert_preg_op("ldrsb       w0, [x0, 8]");
 
     // With a large offset
     start_ir();
@@ -583,7 +583,7 @@ void test_indirects(void) {
     i(0, IR_INDIRECT, vsz(2, TYPE_CHAR), asz(1, TYPE_CHAR), 0);
     finish_spill_ir_and_memory_load_stores();
     assert_preg_op("ldr         x14, [sp, 8]");
-    assert_preg_op("ldrb        w14, [x14]");
+    assert_preg_op("ldrsb       w14, [x14]");
     assert_preg_op("strb        w14, [sp, 7]");
 
     // With a small offset and everything spilled
@@ -593,7 +593,7 @@ void test_indirects(void) {
     finish_spill_ir_and_memory_load_stores();
     assert_preg_op("ldr         x14, [sp, 8]");     // Load the pointer from the stack
     assert_preg_op("add         x14, x14, 32");     // Add the offset
-    assert_preg_op("ldrb        w14, [x14]");       // Load the char
+    assert_preg_op("ldrsb       w14, [x14]");       // Load the char
     assert_preg_op("strb        w14, [sp, 7]");     // Store the result to the stack
 
     // With a large offset and everything spilled
@@ -604,7 +604,7 @@ void test_indirects(void) {
     assert_preg_op("ldr         x14, [sp, 8]");     // Load the pointer from the stack
     assert_preg_op("movz        x16, 5000");
     assert_preg_op("add         x14, x14, x16");    // Add the offset
-    assert_preg_op("ldrb        w14, [x14]");       // Load the char
+    assert_preg_op("ldrsb       w14, [x14]");       // Load the char
     assert_preg_op("strb        w14, [sp, 7]");     // Store the result to the stack
 
     init_allocate_registers(); // Enable register allocation again

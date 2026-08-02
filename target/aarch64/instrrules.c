@@ -548,14 +548,14 @@ static void add_pointer_move_rule(int dst, int src1, int operation) {
     add_op(r, AARCH64_OP_MOV,  DST, SRC1, operation, "mov %vdx, %v1x");
 }
 
-static void add_int_indirect_rule(int dst, int src) {
+static void add_int_indirect_rule(int dst, int src, int is_unsigned) {
     char *template;
 
     switch (src) {
-        case RP1: template = "ldrb %vdw, [%v1x]"; break;
-        case RP2: template = "ldrh %vdw, [%v1x]"; break;
-        case RP3: template = "ldr  %vdw, [%v1x]"; break;
-        case RP4: template = "ldr  %vdx, [%v1x]"; break;
+        case RP1: template = is_unsigned ? "ldrb %vdw, [%v1x]" : "ldrsb %vdw, [%v1x]"; break;
+        case RP2: template = is_unsigned ? "ldrh %vdw, [%v1x]" : "ldrsh %vdw, [%v1x]"; break;
+        case RP3: template = is_unsigned ? "ldr  %vdw, [%v1x]" : "ldr  %vdw, [%v1x]";  break;
+        case RP4: template = is_unsigned ? "ldr  %vdx, [%v1x]" : "ldr  %vdx, [%v1x]";  break;
 
         default:
             panic("Unknown src in add_int_indirect_rule %d", src);
@@ -567,11 +567,11 @@ static void add_int_indirect_rule(int dst, int src) {
 
 static void add_indirect_rules(void) {
     // Integers
-    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RI1 + dst, RP1 + dst);
-    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RU1 + dst, RP1 + dst);
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RI1 + dst, RP1 + dst, 0);
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RU1 + dst, RP1 + dst, 1);
 
     // Pointer to pointer
-    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RP1 + dst, RP4);
+    for (int dst = 0; dst < 4; dst++) add_int_indirect_rule(RP1 + dst, RP4, 1);
 }
 
 static void add_pointer_rules() {
@@ -679,6 +679,9 @@ static void add_pointer_rules() {
 }
 
 static void add_float_and_double_move_rules(void) {
+    #define ADD_TRUNC_BYTE  add_convert_move_op(r, AARCH64_OP_BAND, SRC1, SRC1, 0, "and %vdw, %v1w, 255")
+    #define ADD_TRUNC_SHORT add_convert_move_op(r, AARCH64_OP_BAND, SRC1, SRC1, 0, "and %vdw, %v1w, 65535")
+
     Rule *r;
 
     // Register -> register
@@ -713,6 +716,27 @@ static void add_float_and_double_move_rules(void) {
     r = add_rule(RU2, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdw, %v1D");
     r = add_rule(RU3, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdw, %v1D");
     r = add_rule(RU4, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvtzu %vdx, %v1D");
+
+    // integer in register -> floating point in register
+    r = add_rule(RO3, IR_MOVE, RI1, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "scvtf %vdS, %v1w");
+    r = add_rule(RO3, IR_MOVE, RI2, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "scvtf %vdS, %v1w");
+    r = add_rule(RO3, IR_MOVE, RI3, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "scvtf %vdS, %v1w");
+    r = add_rule(RO3, IR_MOVE, RI4, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "scvtf %vdS, %v1x");
+
+    r = add_rule(RO3, IR_MOVE, RU1, 0, 1); ADD_TRUNC_BYTE;  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "ucvtf %vdS, %v1w");
+    r = add_rule(RO3, IR_MOVE, RU2, 0, 1); ADD_TRUNC_SHORT; add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "ucvtf %vdS, %v1w");
+    r = add_rule(RO3, IR_MOVE, RU3, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "ucvtf %vdS, %v1w");
+    r = add_rule(RO3, IR_MOVE, RU4, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "ucvtf %vdS, %v1x");
+
+    r = add_rule(RO4, IR_MOVE, RI1, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "scvtf %vdD, %v1w");
+    r = add_rule(RO4, IR_MOVE, RI2, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "scvtf %vdD, %v1w");
+    r = add_rule(RO4, IR_MOVE, RI3, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "scvtf %vdD, %v1w");
+    r = add_rule(RO4, IR_MOVE, RI4, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "scvtf %vdD, %v1x");
+
+    r = add_rule(RO4, IR_MOVE, RU1, 0, 1); ADD_TRUNC_BYTE;  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "ucvtf %vdD, %v1w");
+    r = add_rule(RO4, IR_MOVE, RU2, 0, 1); ADD_TRUNC_SHORT; add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "ucvtf %vdD, %v1w");
+    r = add_rule(RO4, IR_MOVE, RU3, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "ucvtf %vdD, %v1w");
+    r = add_rule(RO4, IR_MOVE, RU4, 0, 1);                  add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "ucvtf %vdD, %v1x");
 }
 
 static void add_floating_point_operation_rules(void) {
@@ -774,9 +798,9 @@ void define_rules(void) {
     add_int_register_move_rules();
 
     // Stack -> register moves
-    add_stack_memory_into_register_rule(RI1, MSI1, "ldrb %vdw, [%v1x]"); // Integers
+    add_stack_memory_into_register_rule(RI1, MSI1, "ldrsb %vdw, [%v1x]"); // Integers
     add_stack_memory_into_register_rule(RU1, MSU1, "ldrb %vdw, [%v1x]");
-    add_stack_memory_into_register_rule(RI2, MSI2, "ldrh %vdw, [%v1x]");
+    add_stack_memory_into_register_rule(RI2, MSI2, "ldrsh %vdw, [%v1x]");
     add_stack_memory_into_register_rule(RU2, MSU2, "ldrh %vdw, [%v1x]");
     add_stack_memory_into_register_rule(RI3, MSI3, "ldr  %vdw, [%v1x]");
     add_stack_memory_into_register_rule(RU3, MSU3, "ldr  %vdw, [%v1x]");
@@ -786,9 +810,9 @@ void define_rules(void) {
     add_stack_memory_into_register_rule(RO4, MSO4, "ldr  %vdD, [%v1x]");
 
     // Global -> register moves
-    add_global_memory_into_register_rule(RI1, MGI1, "ldrb %vdw, [%v1x]"); // Integers
+    add_global_memory_into_register_rule(RI1, MGI1, "ldrsb %vdw, [%v1x]"); // Integers
     add_global_memory_into_register_rule(RU1, MGU1, "ldrb %vdw, [%v1x]");
-    add_global_memory_into_register_rule(RI2, MGI2, "ldrh %vdw, [%v1x]");
+    add_global_memory_into_register_rule(RI2, MGI2, "ldrsh %vdw, [%v1x]");
     add_global_memory_into_register_rule(RU2, MGU2, "ldrh %vdw, [%v1x]");
     add_global_memory_into_register_rule(RI3, MGI3, "ldr  %vdw, [%v1x]");
     add_global_memory_into_register_rule(RU3, MGU3, "ldr  %vdw, [%v1x]");
