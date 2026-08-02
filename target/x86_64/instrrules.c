@@ -65,9 +65,9 @@ int uncached_non_terminal_for_value(Value *v) {
     else if (v->is_lvalue_in_register)                                        result =  RP1 + v->target_size - 1;
 
     // Floats, doubles & long doubles
-    else if (!is_local && v->type->type == TYPE_FLOAT)                        result =  MS3;
+    else if (!is_local && v->type->type == TYPE_FLOAT)                        result =  MO3;
     else if (is_local  && v->type->type == TYPE_FLOAT)                        result =  RO3;
-    else if (!is_local && v->type->type == TYPE_DOUBLE)                       result =  MS4;
+    else if (!is_local && v->type->type == TYPE_DOUBLE)                       result =  MO4;
     else if (is_local  && v->type->type == TYPE_DOUBLE)                       result =  RO4;
     else if (!is_local && v->type->type == TYPE_LONG_DOUBLE)                  result =  MLD5;
 
@@ -497,14 +497,14 @@ static void add_float_and_double_move_rules(void) {
     r = add_rule(RO4, IR_MOVE, RO4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
 
     // Memory -> register
-    r = add_rule(RO3, IR_MOVE, MS3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1q, %vdq");
-    r = add_rule(RO3, IR_MOVE, MS4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq"); add_op(r, X86_OP_MOVC, DST, DST, 0, "cvtsd2ss %v1q, %vdq");
-    r = add_rule(RO4, IR_MOVE, MS3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1q, %vdq"); add_op(r, X86_OP_MOVC, DST, DST, 0, "cvtss2sd %v1q, %vdq");
-    r = add_rule(RO4, IR_MOVE, MS4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
+    r = add_rule(RO3, IR_MOVE, MO3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1q, %vdq");
+    r = add_rule(RO3, IR_MOVE, MO4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq"); add_op(r, X86_OP_MOVC, DST, DST, 0, "cvtsd2ss %v1q, %vdq");
+    r = add_rule(RO4, IR_MOVE, MO3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1q, %vdq"); add_op(r, X86_OP_MOVC, DST, DST, 0, "cvtss2sd %v1q, %vdq");
+    r = add_rule(RO4, IR_MOVE, MO4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
 
     // Register -> memory
-    r = add_rule(MS3, IR_MOVE, RO3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1q, %vdq");
-    r = add_rule(MS4, IR_MOVE, RO4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
+    r = add_rule(MO3, IR_MOVE, RO3, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movss %v1q, %vdq");
+    r = add_rule(MO4, IR_MOVE, RO4, 0, 1); add_op(r, X86_OP_MOV,  DST, SRC1, 0, "movsd %v1q, %vdq");
 
     // SSE Constant -> integer in register
     r = add_rule(XR1, IR_MOVE, CO3, 0, 1); add_op(r, X86_OP_MOV,  0, SRC1, 0, "movss %v1F, %%xmm14"); add_op(r, X86_OP_MOV,  DST, 0, 0, "cvttss2sil %%xmm14, %vdl"); fin_rule(r);
@@ -533,23 +533,23 @@ static void add_float_and_double_move_rules(void) {
     r = add_rule(XR4, IR_MOVE, RO4, 0, 1); add_op(r, X86_OP_MOVC,  DST, SRC1, 0, "cvttsd2siq %v1F, %vdq"); fin_rule(r);
 
     // SSE on stack -> integer in register
-    add_sse_on_stack_to_int_in_register_move_rule(XR1, MS3, TYPE_FLOAT, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
-    add_sse_on_stack_to_int_in_register_move_rule(XR2, MS3, TYPE_FLOAT, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
-    add_sse_on_stack_to_int_in_register_move_rule(XR3, MS3, TYPE_FLOAT, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
-    add_sse_on_stack_to_int_in_register_move_rule(XR4, MS3, TYPE_FLOAT, "movss %v1F, %vdF", "cvttss2siq %v1F, %vdq");
+    add_sse_on_stack_to_int_in_register_move_rule(XR1, MO3, TYPE_FLOAT, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR2, MO3, TYPE_FLOAT, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR3, MO3, TYPE_FLOAT, "movss %v1F, %vdF", "cvttss2sil %v1F, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR4, MO3, TYPE_FLOAT, "movss %v1F, %vdF", "cvttss2siq %v1F, %vdq");
 
-    add_sse_on_stack_to_int_in_register_move_rule(XR1, MS4, TYPE_DOUBLE, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
-    add_sse_on_stack_to_int_in_register_move_rule(XR2, MS4, TYPE_DOUBLE, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
-    add_sse_on_stack_to_int_in_register_move_rule(XR3, MS4, TYPE_DOUBLE, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
-    add_sse_on_stack_to_int_in_register_move_rule(XR4, MS4, TYPE_DOUBLE, "movsd %v1D, %vdD", "cvttsd2siq %v1D, %vdq");
+    add_sse_on_stack_to_int_in_register_move_rule(XR1, MO4, TYPE_DOUBLE, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR2, MO4, TYPE_DOUBLE, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR3, MO4, TYPE_DOUBLE, "movsd %v1D, %vdD", "cvttsd2sil %v1D, %vdl");
+    add_sse_on_stack_to_int_in_register_move_rule(XR4, MO4, TYPE_DOUBLE, "movsd %v1D, %vdD", "cvttsd2siq %v1D, %vdq");
 
     // SSE in register -> long double
     add_sse_in_register_to_long_double_move_rule(RO3, TYPE_FLOAT, "movss %v1F, %vdl", "flds %v1F");
     add_sse_in_register_to_long_double_move_rule(RO4, TYPE_DOUBLE, "movsd %v1D, %vdq", "fldl %v1D");
 
     // SSE in stack -> long double
-    add_sse_in_stack_to_long_double_move_rule(MS3, "flds %v1F");
-    add_sse_in_stack_to_long_double_move_rule(MS4, "fldl %v1D");
+    add_sse_in_stack_to_long_double_move_rule(MO3, "flds %v1F");
+    add_sse_in_stack_to_long_double_move_rule(MO4, "fldl %v1D");
 
     // Integer in register -> SSE in register
     for (int dst = RO3; dst <= RO4; dst++)
@@ -826,8 +826,8 @@ static void add_pointer_rules(int *ntc) {
     // Common rules for IR_ADDRESS_OF and IR_ADDRESS_OF_FROM_GOT
     add_address_of_rule(XRP, XMI,  "%v1q, %vdq", 1);
     add_address_of_rule(XRP, XMU,  "%v1q, %vdq", 1);
-    add_address_of_rule(XRP, MS3,  "%v1q, %vdq", 1);
-    add_address_of_rule(XRP, MS4,  "%v1q, %vdq", 1);
+    add_address_of_rule(XRP, MO3,  "%v1q, %vdq", 1);
+    add_address_of_rule(XRP, MO4,  "%v1q, %vdq", 1);
     add_address_of_rule(XRP, MPV,  "%v1q, %vdq", 1);
     add_address_of_rule(RP5, MLD5, "%v1L, %vdq", 0);
     add_address_of_rule(RP1, MSA,  "%v1q, %vdq", 0);
@@ -1120,12 +1120,12 @@ static void add_sse_comp_assignment_rules(int *ntc) {
     add_sse_comp_rule(ntc, RO4, CO4, IR_GE, "comisd %v2D, %v1D", "setnb %vdb", X86_OP_JAE, "jnb %v1", X86_OP_JA,  "jb %v1");
 
     // Memory - memory
-    add_sse_eq_ne_assignment_memory_rules(CO3, MS3, 'F', 's', TYPE_FLOAT);
-    add_sse_eq_ne_assignment_memory_rules(CO4, MS4, 'D', 'd', TYPE_DOUBLE);
-    add_sse_eq_ne_assignment_memory_rules(MS3, CO3, 'F', 's', TYPE_FLOAT);
-    add_sse_eq_ne_assignment_memory_rules(MS4, CO4, 'D', 'd', TYPE_DOUBLE);
-    add_sse_eq_ne_assignment_memory_rules(MS3, MS3, 'F', 's', TYPE_FLOAT);
-    add_sse_eq_ne_assignment_memory_rules(MS4, MS4, 'D', 'd', TYPE_DOUBLE);
+    add_sse_eq_ne_assignment_memory_rules(CO3, MO3, 'F', 's', TYPE_FLOAT);
+    add_sse_eq_ne_assignment_memory_rules(CO4, MO4, 'D', 'd', TYPE_DOUBLE);
+    add_sse_eq_ne_assignment_memory_rules(MO3, CO3, 'F', 's', TYPE_FLOAT);
+    add_sse_eq_ne_assignment_memory_rules(MO4, CO4, 'D', 'd', TYPE_DOUBLE);
+    add_sse_eq_ne_assignment_memory_rules(MO3, MO3, 'F', 's', TYPE_FLOAT);
+    add_sse_eq_ne_assignment_memory_rules(MO4, MO4, 'D', 'd', TYPE_DOUBLE);
 }
 
 static void add_commutative_operation_rule(int operation, int x86_mov_operation, int x86_operation, int dst, int src1, int src2, int cost, char *mov_template, char *op_template) {
@@ -1417,11 +1417,11 @@ static void add_sse_operation_combination_rules(int operation, int x86_operation
     add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, RO3 + type, RO3 + type, mov_template, op_template);
     add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, RO3 + type, CO3 + type, mov_template, op_template);
     add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, CO3 + type, RO3 + type, mov_template, op_template);
-    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, MS3 + type, MS3 + type, mov_template, op_template);
-    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, MS3 + type, CO3 + type, mov_template, op_template);
-    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, CO3 + type, MS3 + type, mov_template, op_template);
-    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, MS3 + type, RO3 + type, mov_template, op_template);
-    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, RO3 + type, MS3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, MO3 + type, MO3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, MO3 + type, CO3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, CO3 + type, MO3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, MO3 + type, RO3 + type, mov_template, op_template);
+    add_sse_operation_rule(operation, x86_operation, cost, RO3 + type, RO3 + type, MO3 + type, mov_template, op_template);
 }
 
 static void add_sse_operation_rules(void) {
@@ -1559,8 +1559,8 @@ void define_rules(void) {
     r = add_rule(MPV,   0, MPV,   0, 0); fin_rule(r);
     r = add_rule(RO3,   0, RO3,   0, 0);
     r = add_rule(RO4,   0, RO4,   0, 0);
-    r = add_rule(MS3,   0, MS3,   0, 0);
-    r = add_rule(MS4,   0, MS4,   0, 0);
+    r = add_rule(MO3,   0, MO3,   0, 0);
+    r = add_rule(MO4,   0, MO4,   0, 0);
     r = add_rule(STL,   0, STL,   0, 0);
     r = add_rule(LAB,   0, LAB,   0, 0);
     r = add_rule(FUN,   0, FUN,   0, 0);
@@ -1586,8 +1586,8 @@ void define_rules(void) {
     // Load floating point constants into registers
     r = add_rule(RO3, 0,  CO3,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movss %v1F, %vdF");
     r = add_rule(RO4, 0,  CO4,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movsd %v1D, %vdD");
-    r = add_rule(RO3, 0,  MS3,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movss %v1F, %vdF");
-    r = add_rule(RO4, 0,  MS4,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movsd %v1D, %vdD");
+    r = add_rule(RO3, 0,  MO3,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movss %v1F, %vdF");
+    r = add_rule(RO4, 0,  MO4,  0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movsd %v1D, %vdD");
 
     // Load string literals into registers
     r = add_rule(RP1, 0,  STL,  0, 1); add_op(r, X86_OP_LEA, DST, SRC1, 0, "leaq %v1q, %vdq"); // For char
@@ -1640,7 +1640,7 @@ void define_rules(void) {
     add_long_double_move_rules();
 
     // Physical register class moves
-    r = add_rule(MS4, IR_MOVE_PREG_CLASS, RI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
+    r = add_rule(MO4, IR_MOVE_PREG_CLASS, RI4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
     r = add_rule(RI4, IR_MOVE_PREG_CLASS, RO4, 0, 2); add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq"); fin_rule(r);
 
     add_pointer_rules(&ntc);

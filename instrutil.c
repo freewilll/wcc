@@ -291,8 +291,8 @@ int match_value_type_to_rule_dst(Value *v, int dst) {
     else if (dst == MGU4 && v->type->type == TYPE_LONG  &&  v->type->is_unsigned) return 1;
     else if (dst == RO3  && v->type->type == TYPE_FLOAT)                          return 1;
     else if (dst == RO4  && v->type->type == TYPE_DOUBLE)                         return 1;
-    else if (dst == MS3  && v->type->type == TYPE_FLOAT)                          return 1;
-    else if (dst == MS4  && v->type->type == TYPE_DOUBLE)                         return 1;
+    else if (dst == MO3  && v->type->type == TYPE_FLOAT)                          return 1;
+    else if (dst == MO4  && v->type->type == TYPE_DOUBLE)                         return 1;
     else if (dst == RP1  && is_ptr && ptr_size == 1)                              return 1;
     else if (dst == RP2  && is_ptr && ptr_size == 2)                              return 1;
     else if (dst == RP3  && is_ptr && ptr_size == 3)                              return 1;

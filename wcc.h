@@ -1280,8 +1280,8 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(MGU2,  2 ) \
     RULE_NON_TERMINAL_ITEM(MGU3,  3 ) \
     RULE_NON_TERMINAL_ITEM(MGU4,  4 ) \
-    RULE_NON_TERMINAL_ITEM(MS3,   3 )    /* Floating point in stack or globals */ \
-    RULE_NON_TERMINAL_ITEM(MS4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(MO3,   3 )    /* Floating point in stack or globals */ \
+    RULE_NON_TERMINAL_ITEM(MO4,   4 ) \
     RULE_NON_TERMINAL_ITEM(MSO3,   3)    /* Floating point in stack */ \
     RULE_NON_TERMINAL_ITEM(MSO4,   4) \
     RULE_NON_TERMINAL_ITEM(MGO3,   3)    /* Floating point in globals */ \

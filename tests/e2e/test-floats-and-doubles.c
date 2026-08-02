@@ -71,7 +71,6 @@ void test_assignment() {
     double d2 = 3.0;  float  f4 = d2; assert_float (3.0f, f4, "double -> float assignment");
     double d3 = 4.0;  double d4 = d3; assert_double(4.0,  d4, "double -> double assignment");
 
-    #ifdef __x86_64__
     // Arguments on the stack
     float  sf2 = 1.0; &sf2; assert_float( 1.0, sf2, "constant -> memory float  -> float");
     double sd1 = 2.0; &sd1; assert_double(2.0, sd1, "constant -> memory double -> double");
@@ -91,7 +90,6 @@ void test_assignment() {
     float f6  = 11.0; gd = f6; assert_double(gd, 11.0, "register -> memory float  -> double");
     double d5 = 12.0; gf = d5; assert_float (gf, 12.0, "register -> memory double -> float");
     double d6 = 13.0; gd = d6; assert_double(gd, 13.0, "register -> memory double -> double");
-    #endif
 }
 
 #ifdef __x86_64__

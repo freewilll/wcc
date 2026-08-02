@@ -625,6 +625,8 @@ static void add_pointer_rules() {
     // Common rules for IR_ADDRESS_OF and IR_ADDRESS_OF_FROM_GOT
     // IR_ADDRESS_OF for variables on the stack
     add_load_stack_address_rule(XRP, XMS);
+    add_load_stack_address_rule(RP3, MSO3);
+    add_load_stack_address_rule(RP4, MSO4);
     add_load_stack_address_rule(XRP, MSPV);
     add_load_stack_address_rule(RP1, MSSA);
     add_load_stack_address_rule(RP2, MSSA);
@@ -695,10 +697,18 @@ static void add_float_and_double_move_rules(void) {
     Rule *r ;
 
     // Register -> register
-    r = add_rule(RO3, IR_MOVE, RO3, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fmov %vdS, %v1S");
-    r = add_rule(RO3, IR_MOVE, RO4, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvt %vdS, %v1D");
-    r = add_rule(RO4, IR_MOVE, RO3, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvt %vdD, %v1S");
-    r = add_rule(RO4, IR_MOVE, RO4, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fmov %vdD, %v1D");
+    r = add_rule(RO3, IR_MOVE, RO3, 0, 1); add_op(             r, AARCH64_OP_MOV, DST, SRC1, 0, "fmov %vdS, %v1S");
+    r = add_rule(RO3, IR_MOVE, RO4, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvt %vdS, %v1D");
+    r = add_rule(RO4, IR_MOVE, RO3, 0, 1); add_convert_move_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvt %vdD, %v1S");
+    r = add_rule(RO4, IR_MOVE, RO4, 0, 1); add_op(             r, AARCH64_OP_MOV, DST, SRC1, 0, "fmov %vdD, %v1D");
+
+    // Register -> stack
+    r = add_rule(MSO3, IR_MOVE, RO3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2S, [%v1x]");
+    r = add_rule(MSO4, IR_MOVE, RO4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2D, [%v1x]");
+
+    // Register -> global
+    r = add_rule(MGO3, IR_MOVE, RO3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2S, [%v1x]");
+    r = add_rule(MGO4, IR_MOVE, RO4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2D, [%v1x]");
 }
 
 void define_rules(void) {
@@ -743,7 +753,6 @@ void define_rules(void) {
     // Register -> register move rules
     add_int_register_move_rules();
 
-    // Memory -> register move rules
     // Stack -> register moves
     add_stack_memory_into_register_rule(RI1, MSI1, "ldrb %vdw, [%v1x]"); // Integers
     add_stack_memory_into_register_rule(RU1, MSU1, "ldrb %vdw, [%v1x]");
@@ -753,6 +762,8 @@ void define_rules(void) {
     add_stack_memory_into_register_rule(RU3, MSU3, "ldr  %vdw, [%v1x]");
     add_stack_memory_into_register_rule(RI4, MSI4, "ldr  %vdx, [%v1x]");
     add_stack_memory_into_register_rule(RU4, MSU4, "ldr  %vdx, [%v1x]");
+    add_stack_memory_into_register_rule(RO3, MSO3, "ldr  %vdS, [%v1x]"); // Floating point
+    add_stack_memory_into_register_rule(RO4, MSO4, "ldr  %vdD, [%v1x]");
 
     // Global -> register moves
     add_global_memory_into_register_rule(RI1, MGI1, "ldrb %vdw, [%v1x]"); // Integers
@@ -763,6 +774,8 @@ void define_rules(void) {
     add_global_memory_into_register_rule(RU3, MGU3, "ldr  %vdw, [%v1x]");
     add_global_memory_into_register_rule(RI4, MGI4, "ldr  %vdx, [%v1x]");
     add_global_memory_into_register_rule(RU4, MGU4, "ldr  %vdx, [%v1x]");
+    add_global_memory_into_register_rule(RO3, MGO3, "ldr  %vdS, [%v1x]"); // Floating point
+    add_global_memory_into_register_rule(RO4, MGO4, "ldr  %vdD, [%v1x]");
 
     // Register -> memory move rules
     add_register_memory_move_rules();
