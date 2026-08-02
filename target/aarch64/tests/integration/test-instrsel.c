@@ -1026,11 +1026,25 @@ void test_saved_registers() {
     finish_spill_ir(function);
     add_final_instructions(function);
     ir_start = function->ir;
-
     assert_preg_op("str         x0, [sp, #-16]!");
     assert_preg_op("movz        x0, 1");
     assert_preg_op("mov         x0, x0");
     assert_preg_op("ldr         x0, [sp], #16");
+    assert_preg_op("ret");
+
+    // With d0
+    start_ir();
+    i(0, IR_MOVE, d(1), Ssz(-1, TYPE_DOUBLE), 0);
+    finish_spill_ir(function);
+    init_codegen();
+    add_final_instructions(function);
+    ir_start = function->ir;
+    assert_preg_op("str         d0, [sp, #-16]!");
+    assert_preg_op("sub         sp, sp, 16");
+    assert_preg_op("ldr         d0, [sp, 8]");
+    assert_preg_op("fmov        d0, d0");
+    assert_preg_op("add         sp, sp, 16");
+    assert_preg_op("ldr         d0, [sp], #16");
     assert_preg_op("ret");
 
     // With both x0 and d0
@@ -1041,7 +1055,6 @@ void test_saved_registers() {
     init_codegen();
     add_final_instructions(function);
     ir_start = function->ir;
-
     assert_preg_op("str         x0, [sp, #-16]!");
     assert_preg_op("str         d0, [sp, #-16]!");
     assert_preg_op("movz        x0, 1");
