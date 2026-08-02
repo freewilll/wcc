@@ -71,6 +71,7 @@ void si(Function *function, int label, int operation, Value *dst, Value *src1, V
 // This is usful for checking inserted code.
 void rewind_ir(void) {
     ir_start = function->ir;
+
     while (ir_start->prev) ir_start = ir_start->prev;
     while (ir_start && ir_start->operation.id == IR_NOP) ir_start = ir_start->next;
     function->ir = ir_start;
@@ -1006,6 +1007,56 @@ void test_spilling() {
     init_allocate_registers(); // Enable register allocation again
 }
 
+// This tests the saving and loading of callee saved registers.
+// int and FP registers are loaded/saved in separate blocks since they
+// can't be loaded/saved together with a pair load (ldp).
+void test_saved_registers() {
+    Tac *tac;
+
+    init_codegen();
+
+    remove_reserved_physical_registers = 1;
+
+    callee_saved_registers[REG_R00] = 1;
+    callee_saved_registers[REG_V00] = 1;
+
+    // With x0
+    start_ir();
+    i(0, IR_MOVE, v(2), c(1), 0);
+    finish_spill_ir(function);
+    add_final_instructions(function);
+    ir_start = function->ir;
+
+    assert_preg_op("str         x0, [sp, #-16]!");
+    assert_preg_op("movz        x0, 1");
+    assert_preg_op("mov         x0, x0");
+    assert_preg_op("ldr         x0, [sp], #16");
+    assert_preg_op("ret");
+
+    // With both x0 and d0
+    start_ir();
+    i(0, IR_MOVE, v(1), c(1), 0);
+    i(0, IR_MOVE, d(1), cd(1), 0);
+    finish_spill_ir(function);
+    init_codegen();
+    add_final_instructions(function);
+    ir_start = function->ir;
+
+    assert_preg_op("str         x0, [sp, #-16]!");
+    assert_preg_op("str         d0, [sp, #-16]!");
+    assert_preg_op("movz        x0, 1");
+    assert_preg_op("mov         x0, x0");
+    assert_preg_op("adrp        x0, .LFP0");
+    assert_preg_op("add         x0, x0, :lo12:.LFP0");
+    assert_preg_op("ldr         d0, [x0]");
+    assert_preg_op("fmov        d0, d0");
+    assert_preg_op("ldr         d0, [sp], #16");
+    assert_preg_op("ldr         x0, [sp], #16");
+    assert_preg_op("ret");
+
+    init_allocate_registers(); // Enable register allocation again
+}
+
 int main() {
     int verbose;
 
@@ -1040,6 +1091,7 @@ int main() {
     if (verbose) printf("Running instrsel test_constant_store_to_stack\n");                     test_constant_store_to_stack();
     if (verbose) printf("Running instrsel test_instrsel_conditionals\n");                       test_instrsel_conditionals();
     if (verbose) printf("Running instrsel test_spilling\n");                                    test_spilling();
+    if (verbose) printf("Running instrsel test_saved_registers\n");                             test_saved_registers();
 
     if (failures) {
         printf("%d tests failed\n", failures);

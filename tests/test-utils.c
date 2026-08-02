@@ -185,6 +185,16 @@ Value *ausz(int vreg, int type) {
     return v;
 }
 
+Value *d(int vreg) {
+    Value *v;
+
+    v = new_value();
+    v->type = new_type(TYPE_DOUBLE);
+    v->vreg = vreg;
+
+    return v;
+}
+
 Value *l(int label) {
     Value *v;
 
@@ -204,6 +214,10 @@ Value *ci(int value) {
 
 Value *c(long value) {
     return new_integral_constant(TYPE_LONG, value);
+}
+
+Value *cd(long double value) {
+    return new_floating_point_constant(TYPE_DOUBLE, value);
 }
 
 Value *cld(long double value) {

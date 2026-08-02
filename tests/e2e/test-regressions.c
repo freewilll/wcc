@@ -354,7 +354,8 @@ int test_shift_c_register_clobber() {
 #endif
 
 void test_function_without_regs_function(int i, double d) {
-    assert_int(1, i, "Function without regs with an int and double arg");
+    assert_int(1, i, "Function without regs with an int and double arg 1");
+    assert_double(3.14, d, "Function without regs with an int and double arg 2");
 }
 
 // Tests a bug where IR_CALL_ARG_REG statements for int and FP values were not near the

@@ -186,18 +186,17 @@ void output_object_symbols(void) {
     }
 }
 
-// Make an array of physical registers used by the function.
-// The caller is responsible for freeing the array.
-int *make_saved_registers(Function *function) {
+// Allocate and make an array of callee saved physical registers used by the function.
+int *make_saved_registers(Function *function, int preg_class) {
     // Make a sparse array of booleans
     int *saved_registers = wcalloc(sizeof(int), physical_register_count);
 
     Tac *tac = function->ir;
 
     while (tac) {
-        if (tac->dst  && tac->dst ->preg != -1 && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
-        if (tac->src1 && tac->src1->preg != -1 && callee_saved_registers[tac->src1->preg]) saved_registers[tac->src1->preg] = 1;
-        if (tac->src2 && tac->src2->preg != -1 && callee_saved_registers[tac->src2->preg]) saved_registers[tac->src2->preg] = 1;
+        if (tac->dst  && tac->dst ->preg != -1 && tac->dst ->preg_class == preg_class && callee_saved_registers[tac->dst ->preg]) saved_registers[tac->dst ->preg] = 1;
+        if (tac->src1 && tac->src1->preg != -1 && tac->src1->preg_class == preg_class && callee_saved_registers[tac->src1->preg]) saved_registers[tac->src1->preg] = 1;
+        if (tac->src2 && tac->src2->preg != -1 && tac->src2->preg_class == preg_class && callee_saved_registers[tac->src2->preg]) saved_registers[tac->src2->preg] = 1;
         tac = tac->next;
     }
 
@@ -236,7 +235,11 @@ static void process_stack_offset(Value *value, int *stack_alignments, int *stack
 void make_stack_offsets(Function *function) {
     int count = function->stack_register_count;
 
-    if (!count) return; // Nothing is on the stack
+    if (!count) {
+        // Nothing is on the stack
+        function->stack_size = 0;
+        return;
+    }
 
     // Determine size & alignments for all variables on the stack
     int *stack_alignments = wcalloc((count + 1), sizeof(int));

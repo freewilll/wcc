@@ -363,7 +363,7 @@ void add_final_instructions(Function *function) {
         cur_stack_push_count += stack_size / 8;
     }
 
-    int *saved_registers = make_saved_registers(function);
+    int *saved_registers = make_saved_registers(function, PC_INT);
     ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
 
     while (ir) {

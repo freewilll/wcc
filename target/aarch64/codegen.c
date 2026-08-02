@@ -251,7 +251,7 @@ char *render_target_operation(Tac *tac, int function_pc, int expect_preg) {
     }
 
     return result;
-} // TODO aarch64
+}
 
 static void output_aarch64_operation(Tac *tac, int function_pc) {
     char *buffer = render_target_operation(tac, function_pc, 1);
@@ -263,7 +263,7 @@ static void output_aarch64_operation(Tac *tac, int function_pc) {
 
 // Add push statements for callee saved registers.
 // Loop over pairs of saved registers, so that the stack is always aligned on 16 bytes.
-static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_registers) {
+static Tac *insert_push_callee_saved_registers(Tac *ir, int *saved_registers) {
     int i = 0;
     while (1) {
         int saved_register1 = saved_registers[i];
@@ -276,7 +276,7 @@ static Tac *insert_push_callee_saved_registers(Tac *ir, Tac *tac, int *saved_reg
         }
         else {
             ir = insert_target_instruction(ir, AARCH64_OP_PUSH_DOUBLE_WORD, 0,
-                new_preg_value(saved_register1), new_preg_value(saved_register2), "stp %v1x, xzr, [sp, #-16]!");
+                new_preg_value(saved_register1), new_preg_value(saved_register2), "str %v1x, [sp, #-16]!");
         }
 
         i += 2;
@@ -297,7 +297,7 @@ static Tac *insert_pop_callee_saved_registers(Tac *ir, int *saved_registers) {
             }
             else {
                 ir = insert_target_instruction(ir, AARCH64_OP_POP_DOUBLE_WORD, 0,
-                    new_preg_value(saved_register1), new_preg_value(saved_register2), "ldp %v1x, xzr, [sp], #16");
+                    new_preg_value(saved_register1), new_preg_value(saved_register2), "ldr %v1x, [sp], #16");
             }
         }
 
@@ -307,10 +307,7 @@ static Tac *insert_pop_callee_saved_registers(Tac *ir, int *saved_registers) {
     return ir;
 }
 
-static Tac *insert_function_prologue(Function *function, Tac *ir, int *saved_registers) {
-    // Save callee saved registers
-    ir = insert_push_callee_saved_registers(ir, function->ir, saved_registers);
-
+static Tac *insert_function_prologue(Function *function, Tac *ir) {
     // Insert optional x29 and x30 stack saves and allocate stack for locals
     if (cur_function_stack_space_for_x29_x30)
         ir = insert_target_instruction(ir, AARCH64_OP_STP, 0, 0, 0, "stp x29, x30, [sp, -16]!");
@@ -325,7 +322,7 @@ static Tac *insert_function_prologue(Function *function, Tac *ir, int *saved_reg
     return ir;
 }
 
-static Tac *insert_end_of_function(Function *function, Tac *ir, int *saved_registers) {
+static Tac *insert_end_of_function(Function *function, Tac *ir, int *saved_registers_int, int *saved_registers_fp) {
     if (cur_function_stack_size) {
         // Reclaim the function' local's stack space
         Value *v1 = new_integral_constant(TYPE_LONG, cur_function_stack_size);
@@ -338,7 +335,8 @@ static Tac *insert_end_of_function(Function *function, Tac *ir, int *saved_regis
         ir = insert_target_instruction(ir, AARCH64_OP_LDP, 0, 0, 0, "ldp x29, x30, [sp], 16");
 
     // Restore callee saved registers
-    ir = insert_pop_callee_saved_registers(ir, saved_registers);
+    ir = insert_pop_callee_saved_registers(ir, saved_registers_fp);
+    ir = insert_pop_callee_saved_registers(ir, saved_registers_int);
 
     // Add the return instruction
     ir = insert_target_instruction(ir, AARCH64_OP_RET_FROM_FUNC, 0, 0, 0, "ret");
@@ -366,7 +364,17 @@ static void register_floating_point_literals(Function *function) {
     }
 }
 
+// Ensure the first instruction is a nop it's conventient to append after
+// the first instruction
+static void prepend_nop(Function *function) {
+    Tac *tac = new_instruction(IR_NOP);
+    tac->next = function->ir;
+    function->ir->prev = tac;
+    function->ir = tac;
+}
+
 void add_final_instructions(Function *function) {
+    prepend_nop(function);
     add_load_memory_instructions(function);
     add_store_memory_instructions(function);
     add_address_of_instructions(function);
@@ -375,14 +383,21 @@ void add_final_instructions(Function *function) {
     register_floating_point_literals(function);
 
     prepare_x29_x30_stack_saves(function);
-    int *saved_registers = make_saved_registers(function);
 
     int added_end_of_function;  // To ensure a double epilogue isn't emitted
 
     Tac *ir = function->ir;
 
+    // Saved called saved registers.
+    // int and FP registers are loaded/saved in separate blocks since they
+    // can't be loaded/saved together with a pair load (ldp).
+    int *saved_registers_int = make_saved_registers(function, PC_INT);
+    int *saved_registers_fp = make_saved_registers(function, PC_FP);
+    ir = insert_push_callee_saved_registers(ir, saved_registers_int);
+    ir = insert_push_callee_saved_registers(ir, saved_registers_fp);
+
     // Add function prologue
-    ir = insert_function_prologue(function, ir, saved_registers);
+    ir = insert_function_prologue(function, ir);
 
     while (ir) {
         added_end_of_function = 0;
@@ -418,7 +433,7 @@ void add_final_instructions(Function *function) {
             }
 
             case IR_RETURN:
-                ir = insert_end_of_function(function, ir, saved_registers);
+                ir = insert_end_of_function(function, ir, saved_registers_int, saved_registers_fp);
                 added_end_of_function = 1;
                 break;
         }
@@ -435,9 +450,10 @@ void add_final_instructions(Function *function) {
         ir = insert_target_instruction(ir, AARCH64_OP_MOV, new_preg_value(REG_R00), 0, 0, "mov w0, 0");
 
     if (!added_end_of_function)
-        insert_end_of_function(function, ir, saved_registers);
+        insert_end_of_function(function, ir, saved_registers_int, saved_registers_fp);
 
-    wfree(saved_registers);
+    wfree(saved_registers_int);
+    wfree(saved_registers_fp);
 }
 
 void optimize_final_instructions(Function *function) {} // TODO aarch64
