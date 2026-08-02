@@ -696,8 +696,8 @@ static void add_float_and_double_move_rules(void) {
 
     // Register -> register
     r = add_rule(RS3, IR_MOVE, RS3, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fmov %vdS, %v1S");
-    // r = add_rule(RS3, IR_MOVE, RS4, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "todo %vdq, %v1q"); // TODO aarch64
-    // r = add_rule(RS4, IR_MOVE, RS3, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "todo %vdq, %v1q"); // TODO aarch64
+    r = add_rule(RS3, IR_MOVE, RS4, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvt %vdS, %v1D");
+    r = add_rule(RS4, IR_MOVE, RS3, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fcvt %vdD, %v1S");
     r = add_rule(RS4, IR_MOVE, RS4, 0, 1); add_op(r, AARCH64_OP_MOV, DST, SRC1, 0, "fmov %vdD, %v1D");
 }
 
@@ -771,8 +771,6 @@ void define_rules(void) {
 
     // Load floating point constants into registers
     add_global_memory_into_register_rule(RS3, CS3, "ldr %vdS, [%v1x]");
-    add_global_memory_into_register_rule(RS3, CS4, "ldr %vdS, [%v1x]");
-    add_global_memory_into_register_rule(RS4, CS3, "ldr %vdD, [%v1x]");
     add_global_memory_into_register_rule(RS4, CS4, "ldr %vdD, [%v1x]");
 
     add_pointer_rules();
