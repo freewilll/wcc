@@ -325,7 +325,7 @@ typedef struct function_call_value {
     int function_call_fp_register_arg_index;             // Index of the argument in integer registers going left to right (0=leftmost). Set to -1 if it's on the stack.
     int function_call_arg_stack_padding;                 // Extra initial padding needed to align the function call argument pushed arguments
     int function_call_arg_push_count;                    // Number of arguments pushed on the stack
-    int function_call_fp_register_arg_count;             // Number of SSE (xmm) arguments in registers
+    int function_call_fp_register_arg_count;             // Number of floaing point arguments in registers
 } FunctionCallValue;
 
 // Value is a value on the value stack. A value can be one of
@@ -1244,8 +1244,8 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(CU3,   3 ) \
     RULE_NON_TERMINAL_ITEM(CU4,   4 ) \
     RULE_NON_TERMINAL_ITEM(CLD,   8 )     /* Long double constant */ \
-    RULE_NON_TERMINAL_ITEM(CS3,   3 )     /* SSE floating point constants */ \
-    RULE_NON_TERMINAL_ITEM(CS4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(CO3,   3 )     /* Floating point constants */ \
+    RULE_NON_TERMINAL_ITEM(CO4,   4 ) \
     RULE_NON_TERMINAL_ITEM(RI1,   1 )    /* Signed registers */ \
     RULE_NON_TERMINAL_ITEM(RI2,   2 ) \
     RULE_NON_TERMINAL_ITEM(RI3,   3 ) \
@@ -1254,8 +1254,8 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(RU2,   2 ) \
     RULE_NON_TERMINAL_ITEM(RU3,   3 ) \
     RULE_NON_TERMINAL_ITEM(RU4,   4 ) \
-    RULE_NON_TERMINAL_ITEM(RS3,   3 )    /* SSE (xmm) registers */ \
-    RULE_NON_TERMINAL_ITEM(RS4,   4 ) \
+    RULE_NON_TERMINAL_ITEM(RO3,   3 )    /* Floating point registers (O is the first letter in "float"" not already taken) */ \
+    RULE_NON_TERMINAL_ITEM(RO4,   4 ) \
     RULE_NON_TERMINAL_ITEM(MI1,   1 )    /* Memory, in stack or globals */ \
     RULE_NON_TERMINAL_ITEM(MI2,   2 ) \
     RULE_NON_TERMINAL_ITEM(MI3,   3 ) \
@@ -1282,10 +1282,10 @@ void free_allocate_registers(void);
     RULE_NON_TERMINAL_ITEM(MGU4,  4 ) \
     RULE_NON_TERMINAL_ITEM(MS3,   3 )    /* Floating point in stack or globals */ \
     RULE_NON_TERMINAL_ITEM(MS4,   4 ) \
-    RULE_NON_TERMINAL_ITEM(MSS3,   3)    /* Floating point in stack */ \
-    RULE_NON_TERMINAL_ITEM(MSS4,   4) \
-    RULE_NON_TERMINAL_ITEM(MGS3,   3)    /* Floating point in globals */ \
-    RULE_NON_TERMINAL_ITEM(MGS4,   4) \
+    RULE_NON_TERMINAL_ITEM(MSO3,   3)    /* Floating point in stack */ \
+    RULE_NON_TERMINAL_ITEM(MSO4,   4) \
+    RULE_NON_TERMINAL_ITEM(MGO3,   3)    /* Floating point in globals */ \
+    RULE_NON_TERMINAL_ITEM(MGO4,   4) \
     RULE_NON_TERMINAL_ITEM(RP1,   4 )     /* Address (aka pointer) in a register */ \
     RULE_NON_TERMINAL_ITEM(RP2,   4 ) \
     RULE_NON_TERMINAL_ITEM(RP3,   4 ) \
