@@ -694,7 +694,7 @@ static void add_pointer_rules() {
 }
 
 static void add_float_and_double_move_rules(void) {
-    Rule *r ;
+    Rule *r;
 
     // Register -> register
     r = add_rule(RO3, IR_MOVE, RO3, 0, 1); add_op(             r, AARCH64_OP_MOV, DST, SRC1, 0, "fmov %vdS, %v1S");
@@ -709,6 +709,22 @@ static void add_float_and_double_move_rules(void) {
     // Register -> global
     r = add_rule(MGO3, IR_MOVE, RO3, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2S, [%v1x]");
     r = add_rule(MGO4, IR_MOVE, RO4, 0, 2); add_op(r, AARCH64_OP_STR, 0, DST, SRC1, "str %v2D, [%v1x]");
+}
+
+static void add_floating_point_operation_rules(void) {
+    Rule *r;
+
+    r = add_rule(RO3, IR_ADD, RO3, RO3, 15); add_op(r, AARCH64_OP_ADD, DST, SRC1, SRC2, "fadd %vdS, %v1S, %v2S");
+    r = add_rule(RO4, IR_ADD, RO4, RO4, 15); add_op(r, AARCH64_OP_ADD, DST, SRC1, SRC2, "fadd %vdD, %v1D, %v2D");
+
+    r = add_rule(RO3, IR_SUB, RO3, RO3, 15); add_op(r, AARCH64_OP_SUB, DST, SRC1, SRC2, "fsub %vdS, %v1S, %v2S");
+    r = add_rule(RO4, IR_SUB, RO4, RO4, 15); add_op(r, AARCH64_OP_SUB, DST, SRC1, SRC2, "fsub %vdD, %v1D, %v2D");
+
+    r = add_rule(RO3, IR_MUL, RO3, RO3, 15); add_op(r, AARCH64_OP_MUL, DST, SRC1, SRC2, "fmul %vdS, %v1S, %v2S");
+    r = add_rule(RO4, IR_MUL, RO4, RO4, 15); add_op(r, AARCH64_OP_MUL, DST, SRC1, SRC2, "fmul %vdD, %v1D, %v2D");
+
+    r = add_rule(RO3, IR_DIV, RO3, RO3, 15); add_op(r, AARCH64_OP_DIV, DST, SRC1, SRC2, "fdiv %vdS, %v1S, %v2S");
+    r = add_rule(RO4, IR_DIV, RO4, RO4, 15); add_op(r, AARCH64_OP_DIV, DST, SRC1, SRC2, "fdiv %vdD, %v1D, %v2D");
 }
 
 void define_rules(void) {
@@ -816,7 +832,7 @@ void define_rules(void) {
     add_pointer_add_rules();
     add_pointer_sub_rules();
 
-    // Comparision + conditional jump rules
+    add_floating_point_operation_rules();
 
     // Comparision + conditional jump rules
     // Pointer comparisons are unsigned

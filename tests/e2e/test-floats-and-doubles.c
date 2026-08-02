@@ -483,6 +483,8 @@ long double test_arithmetic_cocktail2(int i, float f, double d, long double ld) 
     return i + f * 10 + d * 100 + ld * 1000;
 }
 
+#endif
+
 void test_arithmetic() {
     // These tests are complimented by the arithmetic torture tests
 
@@ -532,12 +534,18 @@ void test_arithmetic() {
     f3 = 3.0L;
     assert_float(1199.072144, -f1 * (f2 + f3) * (f1 + f2) * (f2 - f1) / f3, "Float combination");
 
+    #ifdef __x86_64__
     assert_long_double(4.6l, 1 + 1.1f + 1.2 + 1.3l, "constant int + float + double + long double");
+    #endif
     assert_double     (3.3,  1 + 1.1f + 1.2,        "constant int + float + double");
 
+    #ifdef __x86_64__
     assert_long_double(1234.0, test_arithmetic_cocktail1(1, 2, 3, 4), "Arithmetic cocktail 1");
     assert_long_double(4321.0, test_arithmetic_cocktail2(1, 2, 3, 4), "Arithmetic cocktail 2");
+    #endif
 }
+
+#ifdef __x86_64__
 
 void test_comparison_assignment() {
     int i;
@@ -1021,6 +1029,7 @@ void test_structs() {
     sd->d = 2.1; s1->d = sd->d; assert_double(2.1, s1->d, "s1->d");
 }
 
+#endif
 void test_inc_dec() {
     float f = 1.0;
 
@@ -1048,7 +1057,7 @@ void test_inc_dec() {
     gd++; assert_double(3.0, gd, "Global double postfix ++");
     gd--; assert_double(2.0, gd, "Global double postfix --");
 }
-
+#ifdef __x86_64__
 // Test bug where a 4 bytes were allocated on the stack instead of 8 when converting
 // a long double to a double
 int test_stack_smashing_bug() {
@@ -1087,7 +1096,9 @@ int main(int argc, char **argv) {
     test_constants_in_function_calls();
     test_constant_arithmetic_combinations();
     test_constant_relops();
+    #endif
     test_arithmetic();
+    #ifdef __x86_64__
     test_comparison_assignment();
     test_comparison_conditional_jump();
     test_jz_jnz();
@@ -1096,7 +1107,9 @@ int main(int argc, char **argv) {
     test_pointer_arithmetic();
     test_pointer_casting();
     test_structs();
+    #endif
     test_inc_dec();
+    #ifdef __x86_64__
     test_stack_smashing_bug();
     #endif
 
