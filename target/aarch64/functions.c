@@ -91,16 +91,17 @@ static void add_function_call_result_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if (ir->operation.id != IR_CALL || !ir->dst) continue;
 
-        if (ir->dst && ir->dst->type->type == TYPE_STRUCT_OR_UNION || is_floating_point_type(ir->dst->type))
-            panic("TODO aarch64: add_function_call_result_moves() function return value in callee for non-integer types");
+        if (ir->dst && ir->dst->type->type == TYPE_STRUCT_OR_UNION)
+            panic("TODO aarch64: add_function_call_result_moves() function return value in callee for composite types");
 
         Value *value = dup_value(ir->dst);
         value->vreg = ++function->vreg_count;
         Tac *tac = new_instruction(IR_MOVE);
         tac->dst = ir->dst;
 
+        int is_fp = is_floating_point_type(ir->dst->type);
         tac->src1 = value;
-        tac->src1->live_range_preg = LIVE_RANGE_PREG_R00;
+        tac->src1->live_range_preg = is_fp ? LIVE_RANGE_PREG_V00 : LIVE_RANGE_PREG_R00;
         add_to_set(ir->src1->return_value_live_ranges, tac->src1->live_range_preg);
 
         ir->dst = value;
@@ -112,10 +113,11 @@ static void add_function_return_moves(Function *function) {
     for (Tac *ir = function->ir; ir; ir = ir->next) {
         if ((ir->operation.id == IR_RETURN && !ir->src1) || ir->operation.id != IR_RETURN) continue;
 
-        if (ir->dst && (ir->dst->type->type == TYPE_STRUCT_OR_UNION || is_floating_point_type(ir->dst->type)))
-            panic("TODO aarch64: add_function_return_moves() function return value in caller for non-integer types");
+        if (ir->dst && (ir->dst->type->type == TYPE_STRUCT_OR_UNION))
+            panic("TODO aarch64: add_function_return_moves() function return value in caller for composite types");
 
-        int live_range_preg = LIVE_RANGE_PREG_R00;
+        int is_fp = is_floating_point_type(function->type->target);
+        int live_range_preg = is_fp ? LIVE_RANGE_PREG_V00 : LIVE_RANGE_PREG_R00;
 
         ir->src1->preferred_live_range_preg_index = live_range_preg;
 

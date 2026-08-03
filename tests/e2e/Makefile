@@ -41,6 +41,7 @@ else ifeq ($(TARGET),aarch64)
 WCC_TESTS=\
 	expr \
 	comma \
+	func-calls \
 	pointers \
 	memory-functions \
 	inc-dec \

@@ -11,6 +11,8 @@ int failures;
 
 int g;
 
+#ifdef __x86_64__
+
 int nfc(int i) { return i + 1; }
 
 int get_g() {
@@ -233,11 +235,13 @@ int plus(int);
 int (*global_func_ptr)(int) = plus;
 int (*global_func_ptr2)(int) = &plus;
 
+#endif
 int          plus(int x)  { return x + 1; }
 unsigned int uplus(int x)  { return x + 1; }
 int          minus(int x) { return x - 1; }
 float        fplus(int i) { return i + 1.1; }
 double       dplus(int i) { return i + 1.1; }
+#ifdef __x86_64__
 long double  ldplus(int i) { return i + 1.1; }
 
 void vplus(int *i) { (*i)++; }
@@ -556,12 +560,15 @@ int test_static_func_declared_after_definition() {
     static_func_declared_after_definition();
 }
 
+#endif
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
 
     parse_args(argc, argv);
 
+    #ifdef __x86_64__
     assert_int(1, nfc(0),                      "nested function calls 1");
     assert_int(2, nfc(1),                      "nested function calls 2");
     assert_int(3, nfc(nfc(1)),                 "nested function calls 3");
@@ -585,6 +592,7 @@ int main(int argc, char **argv) {
     test_function_returning_int();
     test_assigning_a_function_to_a_pointer_to_void();
     test_static_func_declared_after_definition();
+    #endif
 
     finalize();
 }
