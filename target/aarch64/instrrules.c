@@ -451,6 +451,16 @@ static void add_int_comp_cond_jmp_rule(int *ntc, int src1, int src2, int op, cha
     r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, AARCH64_OP_COND_B, 0, SRC2, 0,    t2            ); fin_rule(r);
 }
 
+// Add FP comparision conditional jump rule
+static void add_fp_comp_cond_jmp_rule(int *ntc, int src, int op, char *t0, char *t1, char *t2) {
+    Rule *r;
+
+    (*ntc)++;
+    r = add_rule(*ntc, op,     src,  src,  10); add_op(r, AARCH64_OP_CMP,    0, SRC1, SRC2, t0); fin_rule(r);
+    r = add_rule(0,    IR_JNZ, *ntc, LAB,  1 ); add_op(r, AARCH64_OP_COND_B, 0, SRC2, 0,    t1); fin_rule(r);
+    r = add_rule(0,    IR_JZ,  *ntc, LAB,  1 ); add_op(r, AARCH64_OP_COND_B, 0, SRC2, 0,    t2); fin_rule(r);
+}
+
 // Add integer comparision conditional jump rules
 static void add_int_comp_cond_jmp_rules(int *ntc, int is_unsigned, int src1, int src2) {
     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_EQ, "beq %v1", "bne %v1");
@@ -471,10 +481,29 @@ static void add_int_comp_cond_jmp_rules(int *ntc, int is_unsigned, int src1, int
     }
 }
 
+static void add_fp_comp_cond_jmp_rules(int *ntc, int src, int is_32bit) {
+    char *cmp_template = is_32bit ? "fcmpe %v1S, %v2S" : "fcmpe %v1D, %v2D";
+
+    add_fp_comp_cond_jmp_rule(ntc, src, IR_EQ, cmp_template, "beq %v1", "bne %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src, IR_NE, cmp_template, "bne %v1", "beq %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src, IR_LT, cmp_template, "bmi %v1", "bpl %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src, IR_GT, cmp_template, "bgt %v1", "ble %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src, IR_LE, cmp_template, "bls %v1", "bhi %v1");
+    add_fp_comp_cond_jmp_rule(ntc, src, IR_GE, cmp_template, "bge %v1", "blt %v1");
+}
+
 static void add_int_comparison_assignment_rule(int src1, int src2, int operation, char *set_template) {
     // Comparison operators always return an int
     Rule *r = add_rule(RI3, operation, src1, src2, 12);
     add_op(r, AARCH64_OP_CMP,   0,   SRC1, SRC2, "cmp %v1, %v2");
+    add_op(r, AARCH64_OP_CSET,  DST, 0,    0,    set_template);
+    fin_rule(r);
+}
+
+static void add_fp_comparison_assignment_rule(int src, int operation, char *cmp_template, char *set_template) {
+    // Comparison operators always return an int
+    Rule *r = add_rule(RI3, operation, src, src, 12);
+    add_op(r, AARCH64_OP_CMP,   0,   SRC1, SRC2, cmp_template);
     add_op(r, AARCH64_OP_CSET,  DST, 0,    0,    set_template);
     fin_rule(r);
 }
@@ -499,10 +528,26 @@ static void add_int_comp_assignment_rules(int is_unsigned, int src1, int src2) {
     }
 }
 
+static void add_fp_comp_assignment_rules(int src, int is_32bit) {
+    char *cmp_template = is_32bit ? "fcmpe %v1S, %v2S" : "fcmpe %v1D, %v2D";
+
+    add_fp_comparison_assignment_rule(src, IR_EQ, cmp_template, "cset %vdw, eq");
+    add_fp_comparison_assignment_rule(src, IR_NE, cmp_template, "cset %vdw, ne");
+    add_fp_comparison_assignment_rule(src, IR_LT, cmp_template, "cset %vdw, mi");
+    add_fp_comparison_assignment_rule(src, IR_GT, cmp_template, "cset %vdw, gt");
+    add_fp_comparison_assignment_rule(src, IR_LE, cmp_template, "cset %vdw, ls");
+    add_fp_comparison_assignment_rule(src, IR_GE, cmp_template, "cset %vdw, ge");
+}
+
 // Add conditional jump and assignment rules for an integer comparison
 static void add_int_comparison_rules(int *ntc, int is_unsigned, int src1, int src2) {
     add_int_comp_cond_jmp_rules(ntc, is_unsigned, src1, src2);
     add_int_comp_assignment_rules(is_unsigned, src1, src2);
+}
+
+static void add_fp_comparison_rules(int *ntc, int src, int is_32bit) {
+    add_fp_comp_cond_jmp_rules(ntc, src, is_32bit);
+    add_fp_comp_assignment_rules(src, is_32bit);
 }
 
 static void add_conditional_zero_jump_rule(int operation, int src1, int src2, int cost, int target_operation, char *comparison, char *conditional_jmp) {
@@ -871,6 +916,9 @@ void define_rules(void) {
     add_int_comparison_rules(&ntc, 0, XRI, XRI); add_int_comparison_rules(&ntc, 1, XRU, XRU);
     add_int_comparison_rules(&ntc, 1, RI4, XRP); add_int_comparison_rules(&ntc, 1, RU4, XRP);
     add_int_comparison_rules(&ntc, 1, XRP, RI4); add_int_comparison_rules(&ntc, 1, XRP, RU4);
+
+    add_fp_comparison_rules(&ntc, RO3, 1);
+    add_fp_comparison_rules(&ntc, RO4, 0);
 
     // Direct function calls
     r = add_rule(XRI, IR_CALL, FUN, 0, 5); add_op(r, AARCH64_OP_CALL, DST, SRC1, 0, 0); fin_rule(r);
