@@ -472,24 +472,32 @@ void test_long_double_constant_promotion_in_arithmetic() {
     assert_ld_string(ld * 1.0,  "1.00000", "constant double promotion to long double in arithmetic");
 }
 
+#endif
+
 void test_constants_in_function_calls() {
     // Test function calls with different typed constants
     assert_int        (1,    1,    "int    -> int");
     assert_int        (2,    2.0f, "float  -> int");
     assert_int        (3,    3.0,  "double -> int");
+    #ifdef __x86_64__
     assert_int        (4,    4.0l, "ld     -> int");
+    #endif
     assert_float      (1.0f, 1,    "int    -> float");
     assert_float      (2.0f, 2.0f, "float  -> float");
     assert_float      (3.0f, 3.0,  "double -> float");
+    #ifdef __x86_64__
     assert_float      (4.0f, 4.0l, "ld     -> float");
+    #endif
     assert_double     (1.0,  1,    "int    -> double");
     assert_double     (2.0,  2.0f, "float  -> double");
     assert_double     (3.0,  3.0,  "double -> double");
+    #ifdef __x86_64__
     assert_double     (4.0,  4.0l, "ld     -> double");
     assert_long_double(1.0l, 1,    "int    -> long double");
     assert_long_double(2.0l, 2.0f, "float  -> long double");
     assert_long_double(3.0l, 3.0,  "double -> long double");
     assert_long_double(4.0l, 4.0l, "ld     -> long double");
+    #endif
 }
 
 void test_constant_arithmetic_combinations() {
@@ -497,19 +505,26 @@ void test_constant_arithmetic_combinations() {
     assert_int        (2,   1    + 1,    "1    + 1,  ");
     assert_float      (2.1, 1    + 1.1f, "1    + 1.1f");
     assert_float      (2.1, 1    + 1.1,  "1    + 1.1,");
+    #ifdef __x86_64__
     assert_long_double(2.1, 1    + 1.1l, "1    + 1.1l");
+    #endif
     assert_float      (2.1, 1.1f + 1,    "1.1f + 1   ");
     assert_float      (2.2, 1.1f + 1.1f, "1.1f + 1.1f");
     assert_float      (2.2, 1.1f + 1.1,  "1.1f + 1.1,");
+    #ifdef __x86_64__
     assert_long_double(2.2, 1.1f + 1.1l, "1.1f + 1.1l");
+    #endif
     assert_float      (2.1, 1.1  + 1,    "1.1  + 1   ");
     assert_float      (2.2, 1.1  + 1.1f, "1.1  + 1.1f");
     assert_float      (2.2, 1.1  + 1.1,  "1.1  + 1.1,");
+    #ifdef __x86_64__
     assert_long_double(2.2, 1.1  + 1.1l, "1.1  + 1.1l");
     assert_long_double(2.1, 1.1l + 1,    "1.1l + 1   ");
     assert_long_double(2.2, 1.1l + 1.1f, "1.1l + 1.1f");
     assert_long_double(2.2, 1.1l + 1.1,  "1.1l + 1.1,");
     assert_long_double(2.2, 1.1l + 1.1l, "1.1l + 1.1l");
+    #endif
+
 }
 
 void test_constant_relops() {
@@ -528,7 +543,6 @@ void test_constant_relops() {
     assert_int(1, 1.0f <= 1, "1.0f <= 1");
     assert_int(1, 1.0f >= 1, "1.0f >= 1");
     assert_int(1, 1.0f >= 1, "1.0f >= 1");
-
 
     // Floats vs float
     assert_int(1, 1.0f == 1.0f, "1.0f == 1.0f");
@@ -579,6 +593,7 @@ void test_constant_relops() {
     assert_int(1, 1.0f >= 1.0, "1.0f >= 1.0");
 
     // Float vs long double
+    #ifdef __x86_64__
     assert_int(1, 1.0f == 1.0L, "1.0f == 1.0L");
     assert_int(0, 1.0f != 1.0L, "1.0f != 1.0L");
     assert_int(1, 1.0f <  2.0L, "1.0f <  2.0L");
@@ -593,7 +608,10 @@ void test_constant_relops() {
     assert_int(1, 1.0f <= 1.0L, "1.0f <= 1.0L");
     assert_int(1, 1.0f >= 1.0L, "1.0f >= 1.0L");
     assert_int(1, 1.0f >= 1.0L, "1.0f >= 1.0L");
+    #endif
 }
+
+#ifdef __x86_64__
 
 long double test_arithmetic_cocktail1(int i, float f, double d, long double ld) {
     return i * 1000 + f * 100 + d * 10 + ld;
@@ -1219,10 +1237,10 @@ int main(int argc, char **argv) {
     test_spilling_doubles();
     #ifdef __x86_64__
     test_long_double_constant_promotion_in_arithmetic();
+    #endif
     test_constants_in_function_calls();
     test_constant_arithmetic_combinations();
     test_constant_relops();
-    #endif
     test_arithmetic();
     #ifdef __x86_64__
     test_comparison_assignment();
