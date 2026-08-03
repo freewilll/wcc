@@ -460,10 +460,10 @@ void test_double_assign() {
 }
 
 void test_composite_assign() {
-    char c, *pc;
-    short s, *ps;
-    int i, *pi;
-    long l, *pl;
+    signed char c, *pc;
+    signed short s, *ps;
+    signed int i, *pi;
+    signed long l, *pl;
 
     unsigned char uc, *puc;
     unsigned short us, *pus;
@@ -1232,27 +1232,27 @@ void test_int_uint_assignment(long value) {
     func_uc(c2, value == 1 ? 1 : 0xff,       "c2 = value");
     func_us(s2, value == 1 ? 1 : 0xffff,     "s2 = value");
     func_ui(i2, value == 1 ? 1 : 0xffffffff, "i2 = value");
-    func_ul(l2, value == 1 ? 1 : -1,         "l2 = value");
+    func_ul(l2, value,                       "l2 = value");
 
-    c1 = c2;  func_uc(c2, value == 1 ? 1 : 0xff,   "sc = uc");
-    c1 = s2;  func_uc(c2, value == 1 ? 1 : 0xff,   "sc = us");
-    c1 = i2;  func_uc(c2, value == 1 ? 1 : 0xff,   "sc = ui");
-    c1 = l2;  func_uc(c2, value == 1 ? 1 : 0xff,   "sc = ul");
+    c1 = c2;  func_uc(c1, value == 1 ? 1 : 0xff, "sc = uc");
+    c1 = s2;  func_uc(c1, value == 1 ? 1 : 0xff, "sc = us");
+    c1 = i2;  func_uc(c1, value == 1 ? 1 : 0xff, "sc = ui");
+    c1 = l2;  func_uc(c1, value == 1 ? 1 : 0xff, "sc = ul");
 
-    s1 = c2;  func_us(s2, value == 1 ? 1 : 0xffff, "ss = uc");
-    s1 = s2;  func_us(s2, value == 1 ? 1 : 0xffff, "ss = us");
-    s1 = i2;  func_us(s2, value == 1 ? 1 : 0xffff, "ss = ui");
-    s1 = l2;  func_us(s2, value == 1 ? 1 : 0xffff, "ss = ul");
+    s1 = c2;  func_us(s1, value == 1 ? 1 : 0xff,   "ss = uc");
+    s1 = s2;  func_us(s1, value == 1 ? 1 : 0xffff, "ss = us");
+    s1 = i2;  func_us(s1, value == 1 ? 1 : 0xffff, "ss = ui");
+    s1 = l2;  func_us(s1, value == 1 ? 1 : 0xffff, "ss = ul");
 
-    i1 = c2;  func_ui(i2, value == 1 ? 1 : 0xffffffff, "si = uc");
-    i1 = s2;  func_ui(i2, value == 1 ? 1 : 0xffffffff, "si = us");
-    i1 = i1;  func_ui(i2, value == 1 ? 1 : 0xffffffff, "si = ui");
-    i1 = l2;  func_ui(i2, value == 1 ? 1 : 0xffffffff, "si = ul");
+    i1 = c2;  func_ui(i1, value == 1 ? 1 : 0xff,       "si = uc");
+    i1 = s2;  func_ui(i1, value == 1 ? 1 : 0xffff,     "si = us");
+    i1 = i2;  func_ui(i1, value == 1 ? 1 : 0xffffffff, "si = ui");
+    i1 = l2;  func_ui(i1, value == 1 ? 1 : 0xffffffff, "si = ul");
 
-    l1 = c2;  func_ul(l2, value,                       "sl = uc");
-    l1 = s2;  func_ul(l2, value,                       "sl = us");
-    l1 = i2;  func_ul(l2, value,                       "sl = ui");
-    l1 = l2;  func_ul(l2, value,                       "sl = ul");
+    l1 = c2;  func_ul(l1, value == 1 ? 1 : 0Xff,       "sl = uc");
+    l1 = s2;  func_ul(l1, value == 1 ? 1 : 0Xffff,     "sl = us");
+    l1 = i2;  func_ul(l1, value == 1 ? 1 : 0Xffffffff, "sl = ui");
+    l1 = l2;  func_ul(l1, value,                       "sl = ul");
 
     func_uc(c2, value == 1 ? 1 : 0xff,       "func_uc(uc)");
     func_uc(s2, value == 1 ? 1 : 0xff,       "func_uc(us)");
@@ -1275,7 +1275,7 @@ void test_int_uint_assignment(long value) {
     func_ul(l2, value == 1 ? 1 : -1,         "func_ul(ul)");
 }
 
-void test_uint_int_assignment() {
+void test_uint_int_assignment(int value) {
     unsigned char c1;
     unsigned short s1;
     unsigned int i1;
@@ -1286,110 +1286,110 @@ void test_uint_int_assignment() {
     short s2;
     long l2;
 
-    c2 = s2 = i2 = l2 = 1;
+    c2 = s2 = i2 = l2 = value;
 
     // Test self assignments by piggybacking on function register assignment
     // Otherwise, coalescing registers may get in the way and the rule isn't tested.
-    func_c(c2, 1, "uc = value");
-    func_s(s2, 1, "us = value");
-    func_i(i2, 1, "ui = value");
-    func_l(l2, 1, "ul = value");
+    func_c(c2, value, "uc = value");
+    func_s(s2, value, "us = value");
+    func_i(i2, value, "ui = value");
+    func_l(l2, value, "ul = value");
 
-    c1 = c2;  func_c(c2, 1, "uc = uc");
-    c1 = s2;  func_c(c2, 1, "uc = us");
-    c1 = i2;  func_c(c2, 1, "uc = ui");
-    c1 = l2;  func_c(c2, 1, "uc = ul");
+    c1 = c2;  func_c(c1, value, "uc = uc");
+    c1 = s2;  func_c(c1, value, "uc = us");
+    c1 = i2;  func_c(c1, value, "uc = ui");
+    c1 = l2;  func_c(c1, value, "uc = ul");
 
-    s1 = c2;  func_s(s2, 1, "us = uc");
-    s1 = s2;  func_s(s2, 1, "us = us");
-    s1 = i2;  func_s(s2, 1, "us = ui");
-    s1 = l2;  func_s(s2, 1, "us = ul");
+    s1 = c2;  func_s(s1, value, "us = uc");
+    s1 = s2;  func_s(s1, value, "us = us");
+    s1 = i2;  func_s(s1, value, "us = ui");
+    s1 = l2;  func_s(s1, value, "us = ul");
 
-    i1 = c2;  func_i(i2, 1, "ui = uc");
-    i1 = s2;  func_i(i2, 1, "ui = us");
-    i1 = i2;  func_i(i2, 1, "ui = ui");
-    i1 = l2;  func_i(i2, 1, "ui = ul");
+    i1 = c2;  func_i(i1, value, "ui = uc");
+    i1 = s2;  func_i(i1, value, "ui = us");
+    i1 = i2;  func_i(i1, value, "ui = ui");
+    i1 = l2;  func_i(i1, value, "ui = ul");
 
-    l1 = c2;  func_l(l2, 1, "ul = uc");
-    l1 = s2;  func_l(l2, 1, "ul = us");
-    l1 = i2;  func_l(l2, 1, "ul = ui");
-    l1 = l2;  func_l(l2, 1, "ul = ul");
+    l1 = c2;  func_l(l1, value, "ul = uc");
+    l1 = s2;  func_l(l1, value, "ul = us");
+    l1 = i2;  func_l(l1, value, "ul = ui");
+    l1 = l2;  func_l(l1, value, "ul = ul");
 
-    func_c(c2, 1, "func_c(uc)");
-    func_c(s2, 1, "func_c(us)");
-    func_c(i2, 1, "func_c(ui)");
-    func_c(l2, 1, "func_c(ul)");
+    func_c(c2, value, "func_c(uc)");
+    func_c(s2, value, "func_c(us)");
+    func_c(i2, value, "func_c(ui)");
+    func_c(l2, value, "func_c(ul)");
 
-    func_s(c2, 1, "func_s(uc)");
-    func_s(s2, 1, "func_s(us)");
-    func_s(i2, 1, "func_s(ui)");
-    func_s(l2, 1, "func_s(ul)");
+    func_s(c2, value, "func_s(uc)");
+    func_s(s2, value, "func_s(us)");
+    func_s(i2, value, "func_s(ui)");
+    func_s(l2, value, "func_s(ul)");
 
-    func_i(c2, 1, "func_i(uc)");
-    func_i(s2, 1, "func_i(us)");
-    func_i(i2, 1, "func_i(ui)");
-    func_i(l2, 1, "func_i(ul)");
+    func_i(c2, value, "func_i(uc)");
+    func_i(s2, value, "func_i(us)");
+    func_i(i2, value, "func_i(ui)");
+    func_i(l2, value, "func_i(ul)");
 
-    func_l(c2, 1, "func_l(uc)");
-    func_l(s2, 1, "func_l(us)");
-    func_l(i2, 1, "func_l(ui)");
-    func_l(l2, 1, "func_l(ul)");
+    func_l(c2, value, "func_l(uc)");
+    func_l(s2, value, "func_l(us)");
+    func_l(i2, value, "func_l(ui)");
+    func_l(l2, value, "func_l(ul)");
 }
 
-void test_uint_uint_assignment() {
+void test_uint_uint_assignment(int value) {
     unsigned char c1, c2;
     unsigned short s1, s2;
     unsigned int i1, i2;
     unsigned long l1, l2;
 
-    c1 = s1 = i1 = l1 = 1;
+    c1 = s1 = i1 = l1 = value;
 
     // Test self assignments by piggybacking on function register assignment
     // Otherwise, coalescing registers may get in the way and the rule isn't tested.
-    func_uc(c1, 1, "uc = value");
-    func_us(s1, 1, "us = value");
-    func_ui(i1, 1, "ui = value");
-    func_ul(l1, 1, "ul = value");
+    func_uc(c1, value == 1 ? 1 : 0xff,       "uc = value");
+    func_us(s1, value == 1 ? 1 : 0xffff,     "us = value");
+    func_ui(i1, value == 1 ? 1 : 0xffffffff, "ui = value");
+    func_ul(l1, value,                       "ul = value");
 
-              func_uc(c1, 1, "uc = uc");
-    c1 = s1;  func_uc(c1, 1, "uc = us");
-    c1 = i1;  func_uc(c1, 1, "uc = ui");
-    c1 = l1;  func_uc(c1, 1, "uc = ul");
+    c2 = s1;  func_uc(c2, value == 1 ? 1 : 0xff, "uc = uc");
+    c2 = s1;  func_uc(c2, value == 1 ? 1 : 0xff, "uc = us");
+    c2 = i1;  func_uc(c2, value == 1 ? 1 : 0xff, "uc = ui");
+    c2 = l1;  func_uc(c2, value == 1 ? 1 : 0xff, "uc = ul");
 
-    s1 = c1;  func_us(s1, 1, "us = uc");
-              func_us(s1, 1, "us = us");
-    s1 = i1;  func_us(s1, 1, "us = ui");
-    s1 = l1;  func_us(s1, 1, "us = ul");
+    s2 = c1;  func_us(s2, value == 1 ? 1 : 0xff,   "us = uc");
+    s2 = s1;  func_us(s2, value == 1 ? 1 : 0xffff, "us = us");
+    s2 = i1;  func_us(s2, value == 1 ? 1 : 0xffff, "us = ui");
+    s2 = l1;  func_us(s2, value == 1 ? 1 : 0xffff, "us = ul");
 
-    i1 = c1;  func_ui(i1, 1, "ui = uc");
-    i1 = s1;  func_ui(i1, 1, "ui = us");
-              func_ui(i1, 1, "ui = ui");
-    i1 = l1;  func_ui(i1, 1, "ui = ul");
+    i2 = c1;  func_ui(i2, value == 1 ? 1 : 0xff,       "ui = uc");
+    i2 = s1;  func_ui(i2, value == 1 ? 1 : 0xffff,     "ui = us");
+    i2 = i1;  func_ui(i2, value == 1 ? 1 : 0xffffffff, "ui = ui");
+    i2 = l1;  func_ui(i2, value == 1 ? 1 : 0xffffffff, "ui = ul");
 
-    l1 = c1;  func_ul(l1, 1, "ul = uc");
-    l1 = s1;  func_ul(l1, 1, "ul = us");
-    l1 = l1;  func_ul(l1, 1, "ul = ui");
-              func_ul(l1, 1, "ul = ul");
+    l2 = c1;  func_ul(l2, value == 1 ? 1 : 0xff,       "ul = uc");
+    l2 = s1;  func_ul(l2, value == 1 ? 1 : 0xffff,     "ul = us");
+    l2 = i1;  func_ul(l2, value == 1 ? 1 : 0xffffffff, "ul = ui");
+    l2 = l1;  func_ul(l2, value,                       "ul = ul");
 
-    func_uc(c1, 1, "func_uc(uc)");
-    func_uc(s1, 1, "func_uc(us)");
-    func_uc(i1, 1, "func_uc(ui)");
-    func_uc(l1, 1, "func_uc(ul)");
+    func_uc(c1, value == 1 ? 1 : 0xff,       "func_uc(uc)");
+    func_uc(s1, value == 1 ? 1 : 0xff,       "func_uc(us)");
+    func_uc(i1, value == 1 ? 1 : 0xff,       "func_uc(ui)");
+    func_uc(l1, value == 1 ? 1 : 0xff,       "func_uc(ul)");
 
-    func_us(c1, 1, "func_us(uc)");
-    func_us(s1, 1, "func_us(us)");
-    func_us(i1, 1, "func_us(ui)");
-    func_us(l1, 1, "func_us(ul)");
+    func_us(c1, value == 1 ? 1 : 0xff,       "func_us(uc)");
+    func_us(s1, value == 1 ? 1 : 0xffff,     "func_us(us)");
+    func_us(i1, value == 1 ? 1 : 0xffff,     "func_us(ui)");
+    func_us(l1, value == 1 ? 1 : 0xffff,     "func_us(ul)");
 
-    func_ui(c1, 1, "func_ui(uc)");
-    func_ui(s1, 1, "func_ui(us)");
-    func_ui(i1, 1, "func_ui(ui)");
-    func_ui(l1, 1, "func_ui(ul)");
+    func_ui(c1, value == 1 ? 1 : 0xff,       "func_ui(uc)");
+    func_ui(s1, value == 1 ? 1 : 0xffff,     "func_ui(us)");
+    func_ui(i1, value == 1 ? 1 : 0xffffffff, "func_ui(ui)");
+    func_ui(l1, value == 1 ? 1 : 0xffffffff, "func_ui(ul)");
 
-    func_ul(c1, 1, "func_ul(uc)");
-    func_ul(s1, 1, "func_ul(us)");
-    func_ul(i1, 1, "func_ul(ui)");
-    func_ul(l1, 1, "func_ul(ul)");
+    func_ul(c1, value == 1 ? 1 : 0xff,       "func_ul(uc)");
+    func_ul(s1, value == 1 ? 1 : 0xffff,     "func_ul(us)");
+    func_ul(i1, value == 1 ? 1 : 0xffffffff, "func_ul(ui)");
+    func_ul(l1, value == 1 ? 1 : -1,         "func_ul(ul)");
 }
 
 // This is mostly focused at aarch64 to check various add/sub immediates are processed correctly.
@@ -1990,8 +1990,10 @@ int main(int argc, char **argv) {
     test_int_int_assignment(-1);
     test_int_uint_assignment(1);
     test_int_uint_assignment(-1);
-    test_uint_int_assignment();
-    test_uint_uint_assignment();
+    test_uint_int_assignment(1);
+    test_uint_int_assignment(-1);
+    test_uint_uint_assignment(1);
+    test_uint_uint_assignment(-1);
     test_constant_encodings();
     test_constant_assignment_to_global();
 #ifdef __x86_64__

@@ -202,12 +202,10 @@ static void add_int_register_move_rules(void) {
 
             // Implicit else: dst_size > src_size
             int src_is_unsigned = src >= RU1;
-            int dst_is_unsigned = dst >= RU1;
-
             int dst_is_32_bit = dst_size < 4;
 
             // If both arguments are signed, then the move must be sign extended
-            if (!dst_is_unsigned && !src_is_unsigned) {
+            if (!src_is_unsigned) {
                 if (src_size == 1) {
                     r = add_rule(dst, IR_MOVE, src, 0, 1);
                     add_convert_move_op(r, AARCH64_OP_MOV,  DST, SRC1, 0, dst_is_32_bit ? "sxtb %vdw, %v1w" : "sxtb %vdx, %v1w");
@@ -225,7 +223,7 @@ static void add_int_register_move_rules(void) {
                     panic("Bug in add_int_register_move_rules()");
             }
 
-            // Either of the arguments is unsigned. Truncate the destination to the src size
+            // Truncate the destination to the src size
             else {
                 if (src_size == 1) {
                     r = add_rule(dst, IR_MOVE, src, 0, 1);
@@ -471,19 +469,6 @@ static void add_int_comp_cond_jmp_rules(int *ntc, int is_unsigned, int src1, int
         add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LE, "ble %v1", "bgt %v1");
         add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GE, "bge %v1", "blt %v1");
     }
-
-    // if (is_unsigned) {
-    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LT, X86_OP_JB,  "jb %v1" , X86_OP_JAE, "jae %v1" );
-    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GT, X86_OP_JA,  "ja %v1",  X86_OP_JBE, "jbe %v1");
-    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LE, X86_OP_JBE, "jbe %v1", X86_OP_JA,  "ja %v1");
-    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GE, X86_OP_JAE, "jae %v1", X86_OP_JB,  "jb %v1");
-    // }
-    // else {
-    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LT, X86_OP_JLT, "jl %v1" , X86_OP_JGE, "jge %v1" );
-    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GT, X86_OP_JGT, "jg %v1",  X86_OP_JLE, "jle %v1");
-    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_LE, X86_OP_JLE, "jle %v1", X86_OP_JGT, "jg %v1");
-    // //     add_int_comp_cond_jmp_rule(ntc, src1, src2, IR_GE, X86_OP_JGE, "jge %v1", X86_OP_JLT, "jl %v1");
-    // }
 }
 
 static void add_int_comparison_assignment_rule(int src1, int src2, int operation, char *set_template) {
