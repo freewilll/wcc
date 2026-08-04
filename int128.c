@@ -388,10 +388,7 @@ static Tac *transform_mul(Function *function, Tac *tac) {
 
         // p00 = src1_lo * src2_lo
         tac = new_tac_after(tac, IR_MUL128A, p00_low, split_src1.low, split_src2.low);
-
-        // We need a dummy src1 to satisfy the instruction selection code
-        tac = new_tac_after(tac, IR_MUL128B, p00_high, p00_low, NULL);
-        tac->src1 = p00_low;
+        tac = new_tac_after(tac, IR_MUL128B, p00_high, split_src1.low, split_src2.low);
 
         // result_lo = p00_lo
         tac = new_tac_after(tac, IR_MOVE, split_dst.low, p00_low, NULL);

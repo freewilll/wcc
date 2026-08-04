@@ -692,7 +692,7 @@ void test_instrsel_add_sub_constant(void) {
     si(function, 0, IR_ADD, vusz(3, TYPE_LONG),  vusz(1, TYPE_LONG),  uc(0x00ffffff));
     assert_long(AARCH64_OP_MOV_INT_CST, ir_start->operation.id);
     ir_start = ir_start->next;
-    assert_target_op("add         r2x, r1x, r3x");
+    assert_target_op("adds        r2x, r1x, r3x");
 }
 
 #define CHECK_32_BIT_LOGICAL_IMMEDIATE(expected_result, value) assert_int(expected_result, is_logical_immediate(value, 1), # value);

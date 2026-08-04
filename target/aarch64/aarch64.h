@@ -146,8 +146,12 @@ enum aarch64_instruction_op {
     AARCH64_OP_MOV,
     AARCH64_OP_MOV_INT_CST,             // Pseudo operation, implemented by codegen
     AARCH64_OP_ADD,
+    AARCH64_OP_ADC,
     AARCH64_OP_SUB,
+    AARCH64_OP_SBC,
     AARCH64_OP_MUL,
+    AARCH64_OP_MUL128A,
+    AARCH64_OP_MUL128B,
     AARCH64_OP_DIV,
     AARCH64_OP_BAND,
     AARCH64_OP_BOR,

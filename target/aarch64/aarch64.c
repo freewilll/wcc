@@ -30,8 +30,12 @@ char *target_op_name(int operation) {
         case AARCH64_OP_MOV:                return "mov";
         case AARCH64_OP_MOV_INT_CST:        return "movcst";        // Implemented in codegen
         case AARCH64_OP_ADD:                return "add";
+        case AARCH64_OP_ADC:                return "adc";
         case AARCH64_OP_SUB:                return "sub";
+        case AARCH64_OP_SBC:                return "sbc";
         case AARCH64_OP_MUL:                return "mul";
+        case AARCH64_OP_MUL128A:            return "mul128a";
+        case AARCH64_OP_MUL128B:            return "mul128b";
         case AARCH64_OP_DIV:                return "div";
         case AARCH64_OP_ADD_LO12:           return "addlo12";
         case AARCH64_OP_BAND:               return "and";
@@ -86,8 +90,12 @@ void print_target_instruction(void *f, Tac *tac) {
         case AARCH64_OP_LDP:
         case AARCH64_OP_MOV_INT_CST:
         case AARCH64_OP_ADD:
+        case AARCH64_OP_ADC:
         case AARCH64_OP_SUB:
+        case AARCH64_OP_SBC:
         case AARCH64_OP_MUL:
+        case AARCH64_OP_MUL128A:
+        case AARCH64_OP_MUL128B:
         case AARCH64_OP_DIV:
         case AARCH64_OP_BAND:
         case AARCH64_OP_BOR:

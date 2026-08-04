@@ -51,7 +51,8 @@ WCC_TESTS=\
 	ifdef \
 	floats-and-doubles \
 	switch \
-	character-and-string-literals
+	character-and-string-literals \
+	int128
 endif
 
 

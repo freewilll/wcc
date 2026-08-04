@@ -1479,13 +1479,13 @@ static void add_bit_scan_rules(void) {
     add_op(r, X86_OP_TZCNT,  DST, SRC1, 0, "tzcntq %v1q, %vdq");
 }
 
-static void add_int2128_addc_rules(int type) {
+static void add_int128_addc_rules(int type) {
     Rule *r = add_rule(type, IR_ADDC, type, type, 10);
     add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     add_op(r, X86_OP_ADDC, DST, SRC2, 0, "adc %v1q, %vdq");
 }
 
-static void add_int2128_subc_rules(int type) {
+static void add_int128_subc_rules(int type) {
     Rule *r = add_rule(type, IR_SUBC, type, type, 10);
     add_op(r, X86_OP_MOV, DST, SRC1, 0, "movq %v1q, %vdq");
     add_op(r, X86_OP_SUBC, DST, SRC2, 0, "sbb %v1q, %vdq");
@@ -1515,21 +1515,21 @@ static void add_int128_multiply_rule(int type) {
     d  = add_op(r, X86_OP_MOV, DST, 0, 0, "movq %%rax, %vdq"); // Move the low output out
     copy_clobbers(d, mul_clobbers);
 
-    // We need a dummy src1 to satisfy the instruction selection code
-    r = add_rule(type, IR_MUL128B, type, 0, 1);
+    // src1 and src2 are ignored here. The result from IR_MUL128A is used.
+    r = add_rule(type, IR_MUL128B, type, type, 1);
     d = add_op(r, X86_OP_MUL128B, DST, 0, 0, "movq %%rdx, %vdq"); // Move the high output out
     copy_clobbers(d, mul_clobbers);
 }
 
 static void add_int128_rules(void) {
+    add_int128_addc_rules(RI4);
+    add_int128_addc_rules(RU4);
+
+    add_int128_subc_rules(RI4);
+    add_int128_subc_rules(RU4);
+
     add_int128_multiply_rule(RI4);
     add_int128_multiply_rule(RU4);
-
-    add_int2128_addc_rules(RI4);
-    add_int2128_addc_rules(RU4);
-
-    add_int2128_subc_rules(RI4);
-    add_int2128_subc_rules(RU4);
 }
 
 void define_rules(void) {

@@ -26,10 +26,10 @@ static void test_assignment_from_constant(void) {
 static void test_assignment_from_variable(void) {
     __int128 j;
 
-    char  c = 1; j = c; ASSERT_INT128(1, 0, j, "int128 assignment from char in variable");
-    short s = 1; j = s; ASSERT_INT128(1, 0, j, "int128 assignment from short in variable");
-    int   i = 1; j = i; ASSERT_INT128(1, 0, j, "int128 assignment from int in variable");
-    long  l = 1; j = l; ASSERT_INT128(1, 0, j, "int128 assignment from long in variable");
+    signed char  c = 1; j = c; ASSERT_INT128(1, 0, j, "int128 assignment from char in variable");
+    signed short s = 1; j = s; ASSERT_INT128(1, 0, j, "int128 assignment from short in variable");
+    signed int   i = 1; j = i; ASSERT_INT128(1, 0, j, "int128 assignment from int in variable");
+    signed long  l = 1; j = l; ASSERT_INT128(1, 0, j, "int128 assignment from long in variable");
 
     c = -1; j = c; ASSERT_INT128(-1, -1, j, "int128 assignment from negative char in variable");
     s = -1; j = s; ASSERT_INT128(-1, -1, j, "int128 assignment from negative short in variable");
@@ -51,7 +51,9 @@ static void test_truncations(void) {
     i = -1;                     l =  i;  assert_long(-1, l, "conversion of -1 int128 to long");
     ui = (__int128) (3L << 63); l =  ui; assert_long(1L << 63, l, "conversion of unsigned int128 to long");
 
-    i = -1;                     char c = i;  assert_int(-1, c, "conversion of -1 int128 to char");
+    i = -1;
+    signed char c = i;
+    assert_int(-1, c, "conversion of -1 int128 to char");
 }
 
 static void test_bit_shifts(void) {

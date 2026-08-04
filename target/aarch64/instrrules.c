@@ -389,6 +389,7 @@ static void add_int_bitshift_rules(void) {
     add_two_operand_rules("asr", RI1, RI1, XR, IR_ASHR, AARCH64_OP_ASR, 3); // signed r >> r
 
     // IR_BSHR, binary left shift, for unsigned integers
+    add_two_operand_rules("lsr", RI1, RI1, XC, IR_BSHR, AARCH64_OP_LSR, 3); // unsigned r >> c Used by __int128 generated code
     add_two_operand_rules("lsr", RU1, RU1, XC, IR_BSHR, AARCH64_OP_LSR, 3); // unsigned r >> c
     add_two_operand_rules("lsr", RU1, RU1, XR, IR_BSHR, AARCH64_OP_LSR, 3); // unsigned r >> r
 }
@@ -800,6 +801,42 @@ static void add_floating_point_operation_rules(void) {
     r = add_rule(RO4, IR_DIV, RO4, RO4, 15); add_op(r, AARCH64_OP_DIV, DST, SRC1, SRC2, "fdiv %vdD, %v1D, %v2D");
 }
 
+static void add_int128_addc_rules(int type) {
+    Rule *r = add_rule(type, IR_ADDC, type, type, 10);
+    add_op(r, AARCH64_OP_ADC, DST, SRC1, SRC2, "adc %vdx, %v1x, %v2x");
+}
+
+static void add_int128_subc_rules(int type) {
+    Rule *r = add_rule(type, IR_SUBC, type, type, 10);
+    add_op(r, AARCH64_OP_SBC, DST, SRC1, SRC2, "sbc %vdx, %v1x, %v2x");
+}
+
+// Add two rules that work together.
+// The first does the multiplication and stores the low 64 bits
+// The second does the multiplication and stores the high 64 bits
+static void add_int128_multiply_rule(int type) {
+    Rule *r;
+
+    // Low byte
+    r = add_rule(type, IR_MUL128A, type, type, 30);
+    add_op(r, AARCH64_OP_MUL128A, DST, SRC1, SRC2, "mul %vdx, %v1x, %v2x");
+
+    // High byte
+    r = add_rule(type, IR_MUL128B, type, type, 30);
+    add_op(r, AARCH64_OP_MUL128B, DST, SRC1, SRC2, "umulh %vdx, %v1x, %v2x");
+}
+
+static void add_int128_rules(void) {
+    add_int128_addc_rules(RI4);
+    add_int128_addc_rules(RU4);
+
+    add_int128_subc_rules(RI4);
+    add_int128_subc_rules(RU4);
+
+    add_int128_multiply_rule(RI4);
+    add_int128_multiply_rule(RU4);
+}
+
 void define_rules(void) {
     Rule *r;
 
@@ -879,10 +916,11 @@ void define_rules(void) {
 
     // Operations
     // r + r and r - r
-    add_two_operand_rules("add",  RI1, RI1, RI1, IR_ADD, AARCH64_OP_ADD, 10);
-    add_two_operand_rules("add",  RU1, RU1, RU1, IR_ADD, AARCH64_OP_ADD, 10);
-    add_two_operand_rules("sub",  RI1, RI1, RI1, IR_SUB, AARCH64_OP_SUB, 10);
-    add_two_operand_rules("sub",  RU1, RU1, RU1, IR_SUB, AARCH64_OP_SUB, 10);
+    // Use adds and subs to set the carry flag for _int128 operations
+    add_two_operand_rules("adds",  RI1, RI1, RI1, IR_ADD, AARCH64_OP_ADD, 10);
+    add_two_operand_rules("adds",  RU1, RU1, RU1, IR_ADD, AARCH64_OP_ADD, 10);
+    add_two_operand_rules("subs",  RI1, RI1, RI1, IR_SUB, AARCH64_OP_SUB, 10);
+    add_two_operand_rules("subs",  RU1, RU1, RU1, IR_SUB, AARCH64_OP_SUB, 10);
 
     // r + c and r - c where c can be encoded in the instruction
     add_two_operand_rules("add",  RI1, RI1, CADDSUB, IR_ADD, AARCH64_OP_ADD, 10);
@@ -932,6 +970,8 @@ void define_rules(void) {
 
     add_conditional_zero_jump_rule(IR_JZ,  XR, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "beq %v1");
     add_conditional_zero_jump_rule(IR_JNZ, XR, LAB, 3, AARCH64_OP_COND_B, "cmp %v1, 0",  "bne %v1");
+
+    add_int128_rules();
 
     if (ntc >= AUTO_NON_TERMINAL_END)
     panic("terminal rules exceeded: %d > %d\n", ntc, AUTO_NON_TERMINAL_END);
