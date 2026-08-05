@@ -498,6 +498,7 @@ int main(int argc, char **argv) {
         printf("--debug-instsel-tiling\n");
         printf("--debug-instsel-cost-graph\n");
         printf("--debug-instsel-spilling\n");
+        printf("--debug-int128\n");
         printf("--debug-stack-frame-layout\n");
         printf("--debug-exit-after-parser\n");
         printf("--debug-dont-compile-internals\n");

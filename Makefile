@@ -226,7 +226,7 @@ test-e2e: wcc
 
 .PHONY: test-cpp
 test-cpp: wcc
-	${MAKE} -C ${SRC_DIR}/tests  test-cpp
+	${MAKE} -C ${SRC_DIR}/tests test-cpp
 
 .PHONY: run-benchmark
 run-benchmark: wcc wcc2

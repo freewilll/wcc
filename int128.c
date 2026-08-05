@@ -406,6 +406,92 @@ static Tac *transform_mul(Function *function, Tac *tac) {
     return tac;
 }
 
+// Transform a IR_EQ or IR_NE into a sequence of xor, xor, or, then a comparison with zero
+static Tac *transform_eq_ne(Function *function, Tac *tac, int operation) {
+    SplitValue split_src1 = split_value(tac->src1);
+    SplitValue split_src2 = split_value(tac->src2);
+
+    Value *dst = tac->dst;
+
+    // Nuke the current TAC for convenience
+    make_instruction_a_nop(tac);
+
+    Value *tmp_high = new_long_vreg_from_value(function, split_src1.low);
+    Value *tmp_low = new_long_vreg_from_value(function, split_src1.low);
+    Value *tmp_combination = new_long_vreg_from_value(function, split_src1.low);
+
+    Value *zero = new_integral_constant(TYPE_LONG, 0);
+    zero->type->is_unsigned = split_src1.low->type->is_unsigned;
+
+    tac = new_tac_after(tac, IR_XOR, tmp_high, split_src1.high, split_src2.high); // xor high, high
+    tac = new_tac_after(tac, IR_XOR, tmp_low, split_src1.low, split_src2.low);    // xor low, low
+    tac = new_tac_after(tac, IR_BOR, tmp_combination, tmp_low, tmp_high);         // or the results of the xors
+    tac = new_tac_after(tac, operation, dst, tmp_combination, zero);              // Do the comparison on the result of the xors
+
+    return tac;
+}
+
+static Tac *transform_lt_gt_le_ge(Function *function, Tac *tac, int operation) {
+    SplitValue split_src1 = split_value(tac->src1);
+    SplitValue split_src2 = split_value(tac->src2);
+
+    Value *unsigned_split_src1_low = dup_value(split_src1.low);
+    Value *unsigned_split_src2_low = dup_value(split_src2.low);
+
+    unsigned_split_src1_low->type->is_unsigned = 1;
+    unsigned_split_src2_low->type->is_unsigned = 1;
+
+    Value *dst = tac->dst;
+
+    // Nuke the current TAC for convenience
+    make_instruction_a_nop(tac);
+
+    Value *zero = new_integral_constant(TYPE_INT, 0);
+    Value *one = new_integral_constant(TYPE_INT, 1);
+
+    Value *tmp_int = new_value();
+    tmp_int->type = new_type(TYPE_INT);
+    tmp_int->vreg = new_vreg(function);
+
+    Value *lfalse = new_label_dst();
+    Value *ldone = new_label_dst();
+
+    // Narrow the operation down to a non-equality comparison
+    int lt_gt_operation;
+
+    switch(operation) {
+        case IR_LT: lt_gt_operation = IR_LT; break;
+        case IR_LE: lt_gt_operation = IR_LT; break;
+        case IR_GT: lt_gt_operation = IR_GT; break;
+        case IR_GE: lt_gt_operation = IR_GT; break;
+        default:
+            panic("Unknown comparison operation: %d", operation);
+    }
+
+    // Default the result to one
+    tac = new_tac_after(tac, IR_MOVE, dst, one, 0);
+
+    // Compare the high vreg using a signed/unsigned comparison based on the original value
+    tac = new_tac_after(tac, lt_gt_operation, tmp_int, split_src1.high, split_src2.high);
+    tac = new_tac_after(tac, IR_JNZ, 0, tmp_int, ldone);
+
+    tac = new_tac_after(tac, IR_EQ, tmp_int, split_src1.high, split_src2.high);
+    tac = new_tac_after(tac, IR_JZ, 0, tmp_int, lfalse);
+
+    // Compare the low vreg using an unsigned operation
+    tac = new_tac_after(tac, operation, tmp_int, unsigned_split_src1_low, unsigned_split_src2_low);
+    tac = new_tac_after(tac, IR_JNZ, 0, tmp_int, ldone);
+
+    // Set the result to zero
+    tac = new_tac_after(tac, IR_MOVE, dst, zero, 0);
+    tac->label = lfalse->label;
+
+    tac = new_tac_after(tac, IR_NOP, 0, 0, 0);
+    tac->label = ldone->label;
+
+    return tac;
+}
+
 // Allocate two new vregs for each 128-bit vreg and alter the instructions so that no
 // int128 types remain. Transform all instructions so that all traces of 128-bit integers are gone.
 void transform_int128_instructions(Function *function) {
@@ -448,6 +534,16 @@ void transform_int128_instructions(Function *function) {
             case IR_MUL:
                 tac = transform_mul(function, tac);
                 break;
+            case IR_EQ:
+                tac = transform_eq_ne(function, tac, IR_EQ);
+                break;
+            case IR_NE:
+                tac = transform_eq_ne(function, tac, IR_NE);
+                break;
+            case IR_LT: tac = transform_lt_gt_le_ge(function, tac, IR_LT); break;
+            case IR_GT: tac = transform_lt_gt_le_ge(function, tac, IR_GT); break;
+            case IR_LE: tac = transform_lt_gt_le_ge(function, tac, IR_LE); break;
+            case IR_GE: tac = transform_lt_gt_le_ge(function, tac, IR_GE); break;
             default:
                 fprintf(stderr, "Unimplemented int 128 IR operation %s\n", operation_string(tac->operation.id));
                 bail_on_unimplemented_instruction(tac, "for:");

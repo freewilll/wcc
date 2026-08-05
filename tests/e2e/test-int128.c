@@ -8,6 +8,9 @@ int verbose;
 int passes;
 int failures;
 
+#define MAKE_SINT128(high, low) (((signed __int128) (high)) << 64 | (low))
+#define MAKE_UINT128(high, low) (((unsigned __int128) (high)) << 64 | (low))
+
 #define ASSERT_INT128(expected_low, expected_high, got, message) \
     assert_long(expected_low, (long) (got),   message " low"); \
     assert_long(expected_high, (got) >> 64,  message " high")
@@ -228,6 +231,197 @@ static void test_multiplication(void) {
     ASSERT_INT128(0x300000001L, 0x200000000L, ui * uj, "unsigned int128 big numbers multiply");
 }
 
+static void test_comparisons(void) {
+    signed __int128 si, sj;
+    unsigned __int128 ui, uj;
+
+    unsigned long v7f = 0x7fffffffffffffffUL;
+    unsigned long v80 = 0x8000000000000000UL;
+    unsigned long vfe = 0xfffffffffffffffeUL;
+    unsigned long vff = 0xffffffffffffffffUL;
+
+    // Signed ==
+    // ==
+    si = MAKE_SINT128(2, 1); sj = MAKE_SINT128(2, 1); assert_int(1, si == sj, "2..1 == 2..1");
+    si = MAKE_SINT128(2, 2); sj = MAKE_SINT128(2, 1); assert_int(0, si == sj, "2..2 == 2..1");
+    si = MAKE_SINT128(2, 1); sj = MAKE_SINT128(2, 2); assert_int(0, si == sj, "2..1 == 2..2");
+    si = MAKE_SINT128(1, 1); sj = MAKE_SINT128(2, 1); assert_int(0, si == sj, "1..1 == 2..1");
+    si = MAKE_SINT128(2, 1); sj = MAKE_SINT128(1, 1); assert_int(0, si == sj, "2..1 == 1..1");
+
+    // Signed !=
+    si = MAKE_SINT128(2, 1); sj = MAKE_SINT128(2, 1); assert_int(0, si != sj, "2..1 != 2..1");
+    si = MAKE_SINT128(2, 2); sj = MAKE_SINT128(2, 1); assert_int(1, si != sj, "2..2 != 2..1");
+    si = MAKE_SINT128(2, 1); sj = MAKE_SINT128(2, 2); assert_int(1, si != sj, "2..1 != 2..2");
+    si = MAKE_SINT128(1, 1); sj = MAKE_SINT128(2, 1); assert_int(1, si != sj, "1..1 != 2..1");
+    si = MAKE_SINT128(2, 1); sj = MAKE_SINT128(1, 1); assert_int(1, si != sj, "2..1 != 1..1");
+
+    // Unsigned ==
+    ui = MAKE_UINT128(2, 1); uj = MAKE_UINT128(2, 1); assert_int(1, ui == uj, "2..1 == 2..1");
+    ui = MAKE_UINT128(2, 2); uj = MAKE_UINT128(2, 1); assert_int(0, ui == uj, "2..2 == 2..1");
+    ui = MAKE_UINT128(2, 1); uj = MAKE_UINT128(2, 2); assert_int(0, ui == uj, "2..1 == 2..2");
+    ui = MAKE_UINT128(1, 1); uj = MAKE_UINT128(2, 1); assert_int(0, ui == uj, "1..1 == 2..1");
+    ui = MAKE_UINT128(2, 1); uj = MAKE_UINT128(1, 1); assert_int(0, ui == uj, "2..1 == 1..1");
+
+    // Unsigned !=
+    ui = MAKE_UINT128(2, 1); uj = MAKE_UINT128(2, 1); assert_int(0, ui != uj, "2..1 != 2..1");
+    ui = MAKE_UINT128(2, 2); uj = MAKE_UINT128(2, 1); assert_int(1, ui != uj, "2..2 != 2..1");
+    ui = MAKE_UINT128(2, 1); uj = MAKE_UINT128(2, 2); assert_int(1, ui != uj, "2..1 != 2..2");
+    ui = MAKE_UINT128(1, 1); uj = MAKE_UINT128(2, 1); assert_int(1, ui != uj, "1..1 != 2..1");
+    ui = MAKE_UINT128(2, 1); uj = MAKE_UINT128(1, 1); assert_int(1, ui != uj, "2..1 != 1..1");
+
+    // Signed <
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(1,   1);   assert_int(0, si < sj, "signed 0101 < 0101");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(1,   2);   assert_int(1, si < sj, "signed 0101 < 0102");
+    si = MAKE_SINT128(1,   2);   sj = MAKE_SINT128(1,   1);   assert_int(0, si < sj, "signed 0102 < 0101");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(2,   1);   assert_int(1, si < sj, "signed 0101 < 0201");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(2,   2);   assert_int(1, si < sj, "signed 0101 < 0202");
+    si = MAKE_SINT128(1,   2);   sj = MAKE_SINT128(2,   1);   assert_int(1, si < sj, "signed 0102 < 0201");
+    si = MAKE_SINT128(2,   1);   sj = MAKE_SINT128(1,   1);   assert_int(0, si < sj, "signed 0201 < 0101");
+    si = MAKE_SINT128(2,   1);   sj = MAKE_SINT128(1,   2);   assert_int(0, si < sj, "signed 0201 < 0102");
+    si = MAKE_SINT128(2,   2);   sj = MAKE_SINT128(1,   1);   assert_int(0, si < sj, "signed 0202 < 0101");
+    si = MAKE_SINT128(1,   0);   sj = MAKE_SINT128(1,   vff); assert_int(1, si < sj, "signed 0100 < 01ff");
+    si = MAKE_SINT128(1,   vff); sj = MAKE_SINT128(1,   0);   assert_int(0, si < sj, "signed 01ff < 0100");
+    si = MAKE_SINT128(0,   vff); sj = MAKE_SINT128(1,   0);   assert_int(1, si < sj, "signed 01ff < 0100");
+    si = MAKE_SINT128(1,   0);   sj = MAKE_SINT128(0,   vff); assert_int(0, si < sj, "signed 0100 < 00ff");
+    si = MAKE_SINT128(v7f, vff); sj = MAKE_SINT128(v80, 0);   assert_int(0, si < sj, "signed 7fff < 8000");
+    si = MAKE_SINT128(v80, 0);   sj = MAKE_SINT128(v7f, vff); assert_int(1, si < sj, "signed 8000 < 7fff");
+    si = MAKE_SINT128(vff, vfe); sj = MAKE_SINT128(vff, vff); assert_int(1, si < sj, "signed fffe < ffff");
+    si = MAKE_SINT128(vff, vff); sj = MAKE_SINT128(vff, vff); assert_int(0, si < sj, "signed ffff < ffff");
+
+    // Unsigned <
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(1,   1);   assert_int(0, ui < uj, "unsigned 0101 < 0101");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(1,   2);   assert_int(1, ui < uj, "unsigned 0101 < 0102");
+    ui = MAKE_UINT128(1,   2);   uj = MAKE_UINT128(1,   1);   assert_int(0, ui < uj, "unsigned 0102 < 0101");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(2,   1);   assert_int(1, ui < uj, "unsigned 0101 < 0201");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(2,   2);   assert_int(1, ui < uj, "unsigned 0101 < 0202");
+    ui = MAKE_UINT128(1,   2);   uj = MAKE_UINT128(2,   1);   assert_int(1, ui < uj, "unsigned 0102 < 0201");
+    ui = MAKE_UINT128(2,   1);   uj = MAKE_UINT128(1,   1);   assert_int(0, ui < uj, "unsigned 0201 < 0101");
+    ui = MAKE_UINT128(2,   1);   uj = MAKE_UINT128(1,   2);   assert_int(0, ui < uj, "unsigned 0201 < 0102");
+    ui = MAKE_UINT128(2,   2);   uj = MAKE_UINT128(1,   1);   assert_int(0, ui < uj, "unsigned 0202 < 0101");
+    ui = MAKE_UINT128(1,   0);   uj = MAKE_UINT128(1,   vff); assert_int(1, ui < uj, "unsigned 0100 < 01ff");
+    ui = MAKE_UINT128(1,   vff); uj = MAKE_UINT128(1,   0);   assert_int(0, ui < uj, "unsigned 01ff < 0100");
+    ui = MAKE_UINT128(0,   vff); uj = MAKE_UINT128(1,   0);   assert_int(1, ui < uj, "unsigned 01ff < 0100");
+    ui = MAKE_UINT128(1,   0);   uj = MAKE_UINT128(0,   vff); assert_int(0, ui < uj, "unsigned 0100 < 00ff");
+    ui = MAKE_UINT128(v7f, vff); uj = MAKE_UINT128(v80, 0);   assert_int(1, ui < uj, "unsigned 7fff < 8000");
+    ui = MAKE_UINT128(v80, 0);   uj = MAKE_UINT128(v7f, vff); assert_int(0, ui < uj, "unsigned 8000 < 7fff");
+    ui = MAKE_SINT128(vff, vfe); sj = MAKE_SINT128(vff, vff); assert_int(0, ui < uj, "unsigned fffe < ffff");
+    ui = MAKE_UINT128(vff, vff); uj = MAKE_UINT128(vff, vff); assert_int(0, ui < uj, "unsigned ffff < ffff");
+
+    // Signed >=
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(1,   1);   assert_int(1, si >= sj, "signed 0101 >= 0101");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(1,   2);   assert_int(0, si >= sj, "signed 0101 >= 0102");
+    si = MAKE_SINT128(1,   2);   sj = MAKE_SINT128(1,   1);   assert_int(1, si >= sj, "signed 0102 >= 0101");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(2,   1);   assert_int(0, si >= sj, "signed 0101 >= 0201");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(2,   2);   assert_int(0, si >= sj, "signed 0101 >= 0202");
+    si = MAKE_SINT128(1,   2);   sj = MAKE_SINT128(2,   1);   assert_int(0, si >= sj, "signed 0102 >= 0201");
+    si = MAKE_SINT128(2,   1);   sj = MAKE_SINT128(1,   1);   assert_int(1, si >= sj, "signed 0201 >= 0101");
+    si = MAKE_SINT128(2,   1);   sj = MAKE_SINT128(1,   2);   assert_int(1, si >= sj, "signed 0201 >= 0102");
+    si = MAKE_SINT128(2,   2);   sj = MAKE_SINT128(1,   1);   assert_int(1, si >= sj, "signed 0202 >= 0101");
+    si = MAKE_SINT128(1,   0);   sj = MAKE_SINT128(1,   vff); assert_int(0, si >= sj, "signed 0100 >= 01ff");
+    si = MAKE_SINT128(1,   vff); sj = MAKE_SINT128(1,   0);   assert_int(1, si >= sj, "signed 01ff >= 0100");
+    si = MAKE_SINT128(0,   vff); sj = MAKE_SINT128(1,   0);   assert_int(0, si >= sj, "signed 01ff >= 0100");
+    si = MAKE_SINT128(1,   0);   sj = MAKE_SINT128(0,   vff); assert_int(1, si >= sj, "signed 0100 >= 00ff");
+    si = MAKE_SINT128(v7f, vff); sj = MAKE_SINT128(v80, 0);   assert_int(1, si >= sj, "signed 7fff >= 8000");
+    si = MAKE_SINT128(v80, 0);   sj = MAKE_SINT128(v7f, vff); assert_int(0, si >= sj, "signed 8000 >= 7fff");
+    si = MAKE_SINT128(vff, vfe); sj = MAKE_SINT128(vff, vff); assert_int(0, si >= sj, "signed fffe >= ffff");
+    si = MAKE_SINT128(vff, vff); sj = MAKE_SINT128(vff, vff); assert_int(1, si >= sj, "signed ffff >= ffff");
+
+    // Unsigned >=
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(1,   1);   assert_int(1, ui >= uj, "unsigned 0101 >= 0101");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(1,   2);   assert_int(0, ui >= uj, "unsigned 0101 >= 0102");
+    ui = MAKE_UINT128(1,   2);   uj = MAKE_UINT128(1,   1);   assert_int(1, ui >= uj, "unsigned 0102 >= 0101");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(2,   1);   assert_int(0, ui >= uj, "unsigned 0101 >= 0201");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(2,   2);   assert_int(0, ui >= uj, "unsigned 0101 >= 0202");
+    ui = MAKE_UINT128(1,   2);   uj = MAKE_UINT128(2,   1);   assert_int(0, ui >= uj, "unsigned 0102 >= 0201");
+    ui = MAKE_UINT128(2,   1);   uj = MAKE_UINT128(1,   1);   assert_int(1, ui >= uj, "unsigned 0201 >= 0101");
+    ui = MAKE_UINT128(2,   1);   uj = MAKE_UINT128(1,   2);   assert_int(1, ui >= uj, "unsigned 0201 >= 0102");
+    ui = MAKE_UINT128(2,   2);   uj = MAKE_UINT128(1,   1);   assert_int(1, ui >= uj, "unsigned 0202 >= 0101");
+    ui = MAKE_UINT128(1,   0);   uj = MAKE_UINT128(1,   vff); assert_int(0, ui >= uj, "unsigned 0100 >= 01ff");
+    ui = MAKE_UINT128(1,   vff); uj = MAKE_UINT128(1,   0);   assert_int(1, ui >= uj, "unsigned 01ff >= 0100");
+    ui = MAKE_UINT128(0,   vff); uj = MAKE_UINT128(1,   0);   assert_int(0, ui >= uj, "unsigned 01ff >= 0100");
+    ui = MAKE_UINT128(1,   0);   uj = MAKE_UINT128(0,   vff); assert_int(1, ui >= uj, "unsigned 0100 >= 00ff");
+    ui = MAKE_UINT128(v7f, vff); uj = MAKE_UINT128(v80, 0);   assert_int(0, ui >= uj, "unsigned 7fff >= 8000");
+    ui = MAKE_UINT128(v80, 0);   uj = MAKE_UINT128(v7f, vff); assert_int(1, ui >= uj, "unsigned 8000 >= 7fff");
+    ui = MAKE_SINT128(vff, vfe); sj = MAKE_SINT128(vff, vff); assert_int(1, ui >= uj, "unsigned fffe >= ffff");
+    ui = MAKE_UINT128(vff, vff); uj = MAKE_UINT128(vff, vff); assert_int(1, ui >= uj, "unsigned ffff >= ffff");
+
+    // Signed >
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(1,   1);   assert_int(0, si > sj, "signed 0101 > 0101");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(1,   2);   assert_int(0, si > sj, "signed 0101 > 0102");
+    si = MAKE_SINT128(1,   2);   sj = MAKE_SINT128(1,   1);   assert_int(1, si > sj, "signed 0102 > 0101");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(2,   1);   assert_int(0, si > sj, "signed 0101 > 0201");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(2,   2);   assert_int(0, si > sj, "signed 0101 > 0202");
+    si = MAKE_SINT128(1,   2);   sj = MAKE_SINT128(2,   1);   assert_int(0, si > sj, "signed 0102 > 0201");
+    si = MAKE_SINT128(2,   1);   sj = MAKE_SINT128(1,   1);   assert_int(1, si > sj, "signed 0201 > 0101");
+    si = MAKE_SINT128(2,   1);   sj = MAKE_SINT128(1,   2);   assert_int(1, si > sj, "signed 0201 > 0102");
+    si = MAKE_SINT128(2,   2);   sj = MAKE_SINT128(1,   1);   assert_int(1, si > sj, "signed 0202 > 0101");
+    si = MAKE_SINT128(1,   0);   sj = MAKE_SINT128(1,   vff); assert_int(0, si > sj, "signed 0100 > 01ff");
+    si = MAKE_SINT128(1,   vff); sj = MAKE_SINT128(1,   0);   assert_int(1, si > sj, "signed 01ff > 0100");
+    si = MAKE_SINT128(0,   vff); sj = MAKE_SINT128(1,   0);   assert_int(0, si > sj, "signed 01ff > 0100");
+    si = MAKE_SINT128(1,   0);   sj = MAKE_SINT128(0,   vff); assert_int(1, si > sj, "signed 0100 > 00ff");
+    si = MAKE_SINT128(v7f, vff); sj = MAKE_SINT128(v80, 0);   assert_int(1, si > sj, "signed 7fff > 8000");
+    si = MAKE_SINT128(v80, 0);   sj = MAKE_SINT128(v7f, vff); assert_int(0, si > sj, "signed 8000 > 7fff");
+    si = MAKE_SINT128(vff, vfe); sj = MAKE_SINT128(vff, vff); assert_int(0, si > sj, "signed fffe > ffff");
+    si = MAKE_SINT128(vff, vff); sj = MAKE_SINT128(vff, vff); assert_int(0, si > sj, "signed ffff > ffff");
+
+    // Unsigned >
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(1,   1);   assert_int(0, ui > uj, "unsigned 0101 > 0101");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(1,   2);   assert_int(0, ui > uj, "unsigned 0101 > 0102");
+    ui = MAKE_UINT128(1,   2);   uj = MAKE_UINT128(1,   1);   assert_int(1, ui > uj, "unsigned 0102 > 0101");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(2,   1);   assert_int(0, ui > uj, "unsigned 0101 > 0201");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(2,   2);   assert_int(0, ui > uj, "unsigned 0101 > 0202");
+    ui = MAKE_UINT128(1,   2);   uj = MAKE_UINT128(2,   1);   assert_int(0, ui > uj, "unsigned 0102 > 0201");
+    ui = MAKE_UINT128(2,   1);   uj = MAKE_UINT128(1,   1);   assert_int(1, ui > uj, "unsigned 0201 > 0101");
+    ui = MAKE_UINT128(2,   1);   uj = MAKE_UINT128(1,   2);   assert_int(1, ui > uj, "unsigned 0201 > 0102");
+    ui = MAKE_UINT128(2,   2);   uj = MAKE_UINT128(1,   1);   assert_int(1, ui > uj, "unsigned 0202 > 0101");
+    ui = MAKE_UINT128(1,   0);   uj = MAKE_UINT128(1,   vff); assert_int(0, ui > uj, "unsigned 0100 > 01ff");
+    ui = MAKE_UINT128(1,   vff); uj = MAKE_UINT128(1,   0);   assert_int(1, ui > uj, "unsigned 01ff > 0100");
+    ui = MAKE_UINT128(0,   vff); uj = MAKE_UINT128(1,   0);   assert_int(0, ui > uj, "unsigned 01ff > 0100");
+    ui = MAKE_UINT128(1,   0);   uj = MAKE_UINT128(0,   vff); assert_int(1, ui > uj, "unsigned 0100 > 00ff");
+    ui = MAKE_UINT128(v7f, vff); uj = MAKE_UINT128(v80, 0);   assert_int(0, ui > uj, "unsigned 7fff > 8000");
+    ui = MAKE_UINT128(v80, 0);   uj = MAKE_UINT128(v7f, vff); assert_int(1, ui > uj, "unsigned 8000 > 7fff");
+    ui = MAKE_SINT128(vff, vfe); sj = MAKE_SINT128(vff, vff); assert_int(1, ui > uj, "unsigned fffe > ffff");
+    ui = MAKE_UINT128(vff, vff); uj = MAKE_UINT128(vff, vff); assert_int(0, ui > uj, "unsigned ffff > ffff");
+
+    // Signed <=
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(1,   1);   assert_int(1, si <= sj, "signed 0101 <= 0101");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(1,   2);   assert_int(1, si <= sj, "signed 0101 <= 0102");
+    si = MAKE_SINT128(1,   2);   sj = MAKE_SINT128(1,   1);   assert_int(0, si <= sj, "signed 0102 <= 0101");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(2,   1);   assert_int(1, si <= sj, "signed 0101 <= 0201");
+    si = MAKE_SINT128(1,   1);   sj = MAKE_SINT128(2,   2);   assert_int(1, si <= sj, "signed 0101 <= 0202");
+    si = MAKE_SINT128(1,   2);   sj = MAKE_SINT128(2,   1);   assert_int(1, si <= sj, "signed 0102 <= 0201");
+    si = MAKE_SINT128(2,   1);   sj = MAKE_SINT128(1,   1);   assert_int(0, si <= sj, "signed 0201 <= 0101");
+    si = MAKE_SINT128(2,   1);   sj = MAKE_SINT128(1,   2);   assert_int(0, si <= sj, "signed 0201 <= 0102");
+    si = MAKE_SINT128(2,   2);   sj = MAKE_SINT128(1,   1);   assert_int(0, si <= sj, "signed 0202 <= 0101");
+    si = MAKE_SINT128(1,   0);   sj = MAKE_SINT128(1,   vff); assert_int(1, si <= sj, "signed 0100 <= 01ff");
+    si = MAKE_SINT128(1,   vff); sj = MAKE_SINT128(1,   0);   assert_int(0, si <= sj, "signed 01ff <= 0100");
+    si = MAKE_SINT128(0,   vff); sj = MAKE_SINT128(1,   0);   assert_int(1, si <= sj, "signed 01ff <= 0100");
+    si = MAKE_SINT128(1,   0);   sj = MAKE_SINT128(0,   vff); assert_int(0, si <= sj, "signed 0100 <= 00ff");
+    si = MAKE_SINT128(v7f, vff); sj = MAKE_SINT128(v80, 0);   assert_int(0, si <= sj, "signed 7fff <= 8000");
+    si = MAKE_SINT128(v80, 0);   sj = MAKE_SINT128(v7f, vff); assert_int(1, si <= sj, "signed 8000 <= 7fff");
+    si = MAKE_SINT128(vff, vfe); sj = MAKE_SINT128(vff, vff); assert_int(1, si <= sj, "signed fffe <= ffff");
+    si = MAKE_SINT128(vff, vff); sj = MAKE_SINT128(vff, vff); assert_int(1, si <= sj, "signed ffff <= ffff");
+
+    // Unsigned <=
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(1,   1);   assert_int(1, ui <= uj, "unsigned 0101 <= 0101");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(1,   2);   assert_int(1, ui <= uj, "unsigned 0101 <= 0102");
+    ui = MAKE_UINT128(1,   2);   uj = MAKE_UINT128(1,   1);   assert_int(0, ui <= uj, "unsigned 0102 <= 0101");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(2,   1);   assert_int(1, ui <= uj, "unsigned 0101 <= 0201");
+    ui = MAKE_UINT128(1,   1);   uj = MAKE_UINT128(2,   2);   assert_int(1, ui <= uj, "unsigned 0101 <= 0202");
+    ui = MAKE_UINT128(1,   2);   uj = MAKE_UINT128(2,   1);   assert_int(1, ui <= uj, "unsigned 0102 <= 0201");
+    ui = MAKE_UINT128(2,   1);   uj = MAKE_UINT128(1,   1);   assert_int(0, ui <= uj, "unsigned 0201 <= 0101");
+    ui = MAKE_UINT128(2,   1);   uj = MAKE_UINT128(1,   2);   assert_int(0, ui <= uj, "unsigned 0201 <= 0102");
+    ui = MAKE_UINT128(2,   2);   uj = MAKE_UINT128(1,   1);   assert_int(0, ui <= uj, "unsigned 0202 <= 0101");
+    ui = MAKE_UINT128(1,   0);   uj = MAKE_UINT128(1,   vff); assert_int(1, ui <= uj, "unsigned 0100 <= 01ff");
+    ui = MAKE_UINT128(1,   vff); uj = MAKE_UINT128(1,   0);   assert_int(0, ui <= uj, "unsigned 01ff <= 0100");
+    ui = MAKE_UINT128(0,   vff); uj = MAKE_UINT128(1,   0);   assert_int(1, ui <= uj, "unsigned 01ff <= 0100");
+    ui = MAKE_UINT128(1,   0);   uj = MAKE_UINT128(0,   vff); assert_int(0, ui <= uj, "unsigned 0100 <= 00ff");
+    ui = MAKE_UINT128(v7f, vff); uj = MAKE_UINT128(v80, 0);   assert_int(1, ui <= uj, "unsigned 7fff <= 8000");
+    ui = MAKE_UINT128(v80, 0);   uj = MAKE_UINT128(v7f, vff); assert_int(0, ui <= uj, "unsigned 8000 <= 7fff");
+    ui = MAKE_SINT128(vff, vfe); sj = MAKE_SINT128(vff, vff); assert_int(0, ui <= uj, "unsigned fffe <= ffff");
+    ui = MAKE_UINT128(vff, vff); uj = MAKE_UINT128(vff, vff); assert_int(1, ui <= uj, "unsigned ffff <= ffff");
+}
+
 int main(int argc, char **argv) {
     passes = 0;
     failures = 0;
@@ -244,6 +438,7 @@ int main(int argc, char **argv) {
     test_addition();
     test_subtraction();
     test_multiplication();
+    test_comparisons();
 
     finalize();
 }
