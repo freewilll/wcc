@@ -109,6 +109,14 @@ static SplitValue split_value(Value *value) {
         return split_value;
     }
 
+    else if (value->stack_index) {
+        split_value.low = dup_value(value);
+        split_value.high = dup_value(value);
+        split_value.high->offset += 8;
+        split_value.low->type->type = TYPE_LONG;
+        split_value.high->type->type = TYPE_LONG;
+    }
+
     else if (value->is_constant) {
         // Discard the upper bits, but sign extend if necessary
         long high_value = value->type->is_unsigned
@@ -134,11 +142,11 @@ static SplitValue split_value(Value *value) {
 }
 
 // Split a 128-bit instruction into two identical instructions,
-// the first with the low bits and the second with the high bits/
+// the first with the low bits and the second with the high bits.
 static Tac *split_instruction(Tac *tac) {
     SplitValue tmp_dst, tmp_src1, tmp_src2;
 
-    SplitValue *split_dst =  tac->dst  ?( tmp_dst  = split_value(tac->dst),  &tmp_dst)  : NULL;
+    SplitValue *split_dst =  tac->dst  ? (tmp_dst  = split_value(tac->dst),  &tmp_dst)  : NULL;
     SplitValue *split_src1 = tac->src1 ? (tmp_src1 = split_value(tac->src1), &tmp_src1) : NULL;
     SplitValue *split_src2 = tac->src2 ? (tmp_src2 = split_value(tac->src2), &tmp_src2) : NULL;
 
@@ -157,70 +165,107 @@ static Tac *split_instruction(Tac *tac) {
     return tac2;
 }
 
+// Convert an non-128 bit integer in a register to an int128 in a register
+static Tac *transform_convert_int_to_int128(Function *function, Tac *tac) {
+    Tac *top_tac = tac;
+
+    SplitValue split_dst = split_value(tac->dst);
+
+    // Upgrade the value size to a long if necessary
+    Value *long_value;
+    if (tac->src1->type->type < TYPE_LONG) {
+        long_value = new_long_vreg_from_value(function, tac->src1);
+        long_value->type->is_unsigned = tac->src1->type->is_unsigned;
+        tac = new_tac_after(tac, IR_MOVE, long_value, tac->src1, NULL);
+    }
+    else {
+        long_value = top_tac->src1;
+    }
+
+    // Copy the low bits
+    tac = new_tac_after(tac, IR_MOVE, split_dst.low, long_value, NULL);
+
+    // Set the high bits to all zeroes or all ones
+    if (top_tac->src1->type->is_unsigned) {
+        // Set the high bits to zero
+        tac = new_tac_after(tac, IR_MOVE, split_dst.high, new_unsigned_integral_constant(TYPE_LONG, 0), NULL);
+    } else {
+        // Sign extend the high bits by copying the low bits over
+        // and then doing an arithmetic shift right of 31 bits.
+        Value *sign_bits = new_long_vreg(function);
+        tac = new_tac_after(tac, IR_MOVE, sign_bits, long_value, NULL);
+        tac = new_tac_after(tac, IR_ASHR, split_dst.high, sign_bits, new_integral_constant(TYPE_INT, 63));
+    }
+
+    make_instruction_a_nop(top_tac);
+
+    return tac;
+}
+
+// Convert an int128 in a register to a non-128 bit integer in a register
+static Tac *transform_convert_int128_to_int(Function *function, Tac *tac) {
+    SplitVreg *src1_vregs = int128_register_mappings[tac->src1->vreg];
+    assert(src1_vregs);
+
+    // Discard the high bits
+    tac->src1 = dup_value(tac->src1);
+    tac->src1->vreg = src1_vregs->low;
+    tac->src1->type->type = TYPE_LONG;
+
+    return tac;
+}
+
 static Tac *transform_move(Function *function, Tac *tac) {
     if (tac->dst->vreg && tac->src1->is_constant) {
         // Assign an int or long constant to an int128 in a register
-
         return split_instruction(tac);
     }
 
-    if (VALUE_IS_INT128_VREG(tac->dst) && tac->src1->vreg && is_non_128_bit_integer_type(tac->src1->type)) {
-        // Convert an non-128 bit integer in a register to an int128 in a register
-
-        Tac *top_tac = tac;
-
-        SplitValue split_dst = split_value(tac->dst);
-
-        // Upgrade the value size to a long if necessary
-        Value *long_value;
-        if (tac->src1->type->type < TYPE_LONG) {
-            long_value = new_long_vreg_from_value(function, tac->src1);
-            long_value->type->is_unsigned = tac->src1->type->is_unsigned;
-            tac = new_tac_after(tac, IR_MOVE, long_value, tac->src1, NULL);
-        }
-        else {
-            long_value = top_tac->src1;
-        }
-
-        // Copy the low bits
-        tac = new_tac_after(tac, IR_MOVE, split_dst.low, long_value, NULL);
-
-        // Set the high bits to all zeroes or all ones
-        if (top_tac->src1->type->is_unsigned) {
-            // Set the high bits to zero
-            tac = new_tac_after(tac, IR_MOVE, split_dst.high, new_unsigned_integral_constant(TYPE_LONG, 0), NULL);
-        } else {
-            // Sign extend the high bits by copying the low bits over
-            // and then doing an arithmetic shift right of 31 bits.
-            Value *sign_bits = new_long_vreg(function);
-            tac = new_tac_after(tac, IR_MOVE, sign_bits, long_value, NULL);
-            tac = new_tac_after(tac, IR_ASHR, split_dst.high, sign_bits, new_integral_constant(TYPE_INT, 63));
-        }
-
-        make_instruction_a_nop(top_tac);
-
-        return tac;
+    else if (tac->dst->stack_index && tac->src1->is_constant) {
+        // Assign an int or long constant to an int128 in the stack
+        return split_instruction(tac);
     }
 
-    if (tac->dst->vreg && tac->src1->vreg) {
+    else if (VALUE_IS_INT128_VREG(tac->dst) && tac->src1->vreg && is_non_128_bit_integer_type(tac->src1->type)) {
+        // Convert an non-128 bit integer in a register to an int128 in a register
+        return transform_convert_int_to_int128(function, tac);
+    }
+
+    // vreg = vreg
+    else if (tac->dst->vreg && tac->src1->vreg) {
         if (is_non_128_bit_integer_type(tac->dst->type)) {
             // Convert an int128 in a register to a non-128 bit integer in a register
-
-            SplitVreg *src1_vregs = int128_register_mappings[tac->src1->vreg];
-            assert(src1_vregs);
-
-            // Discard the high bits
-            tac->src1 = dup_value(tac->src1);
-            tac->src1->vreg = src1_vregs->low;
-            tac->src1->type->type = TYPE_LONG;
-
-            return tac;
+            return transform_convert_int128_to_int(function, tac);
         }
 
         else if (tac->dst->type->type != TYPE_INT128 || tac->src1->type->type != TYPE_INT128)
             bail_on_unimplemented_instruction(tac, "int128 type conversion not implemented for:");
 
         // Move a 128-bit vreg to a 128-bit vreg
+        return split_instruction(tac);
+    }
+
+    // vreg = stack
+    else if (tac->dst->vreg && tac->src1->stack_index) {
+        if (is_non_128_bit_integer_type(tac->dst->type))
+            panic("int128: Should not get here, a stack int128 is loaded into a register first");
+
+        else if (tac->dst->type->type != TYPE_INT128 || tac->src1->type->type != TYPE_INT128)
+            bail_on_unimplemented_instruction(tac, "int128 type conversion not implemented for:");
+
+        // Move a 128-bit value in the stack to a 128-bit vreg
+        return split_instruction(tac);
+    }
+
+    // stack = vreg
+    else if (tac->dst->stack_index && tac->src1->vreg) {
+        if (is_non_128_bit_integer_type(tac->dst->type))
+            panic("int128: Should not get here, a stack int128 is loaded into split registers first");
+
+        else if (tac->dst->type->type != TYPE_INT128 || tac->src1->type->type != TYPE_INT128)
+            bail_on_unimplemented_instruction(tac, "int128 type conversion not implemented for:");
+
+        // Move a 128-bit value in a vreg to a 128-bit value in the stack
         return split_instruction(tac);
     }
 
